@@ -31,6 +31,9 @@ Négy alap jel, a Craft Yarn Council nemzetközi jelölései szerint:
 
 `Esc` megszünteti a kijelölést; a kiválasztott jelre újra kattintva is.
 
+A fejléc bal oldalán a **Főoldal** gomb visz vissza a
+`dragonettecrochet.com`-ra.
+
 ## Fájlfelelősségek
 
 | Hol | Mi |

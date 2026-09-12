@@ -84,15 +84,34 @@ button {
   color: var(--c-ink);
 }
 
-.bar__back {
-  color: var(--c-text-soft);
+/* Kivezetés a fő oldalra. Kerettel áll, nem puszta szövegként: ez az
+ * egyetlen út vissza, és a fejléc többi eleme is kattintható. */
+.home {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  min-block-size: 44px;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--c-line);
+  border-radius: 999px;
+  color: var(--c-text);
   font-size: 0.875rem;
-  text-decoration-color: var(--c-line);
-  text-underline-offset: 3px;
+  text-decoration: none;
 }
 
-.bar__back:hover {
+.home:hover {
+  border-color: var(--c-accent);
   color: var(--c-accent);
+}
+
+.home__icon {
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .bar__group {
