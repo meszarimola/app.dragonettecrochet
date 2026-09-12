@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="hu">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mintatervező — Dragonette Crochet</title>
+    <meta name="robots" content="noindex" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="bar">
+        <div class="bar__group">
+          <h1 class="bar__title">Mintatervező</h1>
+          <a class="bar__back" href="https://dragonettecrochet.com/hu/"
+            >← dragonettecrochet.com</a
+          >
+        </div>
+
+        <button
+          type="button"
+          id="panel-toggle"
+          class="bar__toggle"
+          aria-expanded="true"
+          aria-controls="panel"
+        >
+          Jelkészlet
+        </button>
+      </header>
+
+      <main class="stage">
+        <canvas id="board"></canvas>
+
+        <aside class="panel" id="panel" aria-label="Jelkészlet">
+          <h2 class="panel__title">Alap jelek</h2>
+          <p class="panel__hint" id="hint"></p>
+          <div class="palette" id="palette"></div>
+        </aside>
+      </main>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

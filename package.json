@@ -1,0 +1,17 @@
+{
+  "name": "app-dragonettecrochet",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Jeldiagram-szerkesztő a Dragonette Crochet mintáihoz — vanilla TS + canvas.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vite": "^7.1.5"
+  }
+}
