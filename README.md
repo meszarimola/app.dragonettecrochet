@@ -42,6 +42,28 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/board.ts` | A vászon: HiDPI-méretezés, a lerakott jelek tárolása, újrarajzolás. |
 | `src/main.ts` | A paletta felépítése, kiválasztás, lerakás, panel, billentyűk. |
 | `src/styles.css` | A fő oldal design tokenjeinek szűk metszete. Konkrét hexet komponensben ne írj le. |
+| `src/config.ts` | A GA4 mérési azonosító (`mintatervező` property). Üres stringre a mérés és a süti-sáv kikapcsol. |
+| `src/consent.ts`, `src/analytics.ts` | **A fő oldal repójából másolva, változtatás nélkül** (csak az import kiterjesztése `.js`). Ha ott változik, itt is kell. |
+| `src/consentBanner.ts` | A süti-sáv és a jelkészlet „Süti-beállítások" gombja. |
+| `public/.htaccess` | Biztonsági fejlécek és cache. A CSP a GA-azonosítóval együtt változik — a `tests/analytics.test.mjs` őrzi. |
+
+## Analitika
+
+Ugyanaz a hozzájárulás-kezelés, mint a fő oldalon — a részletek a fő oldal
+repójának CLAUDE.md-jében, az „Analitika" szakaszban. A lényeg:
+
+- a gtag.js csak elfogadás után töltődik be, addig a Google felé nem megy kérés,
+- a döntés a `dragonettecrochet.com` domainre szóló `dc_consent` sütiben él,
+  tehát a fő oldalon adott döntést a tervező is látja, és fordítva,
+- a mérés külön property-be megy: a fő oldalé `G-GRSENBPJXK`, a tervezőé
+  `G-GSHBHXV7MJ`.
+
+A sáv a fejléc fölött áll, és a vászon a maradék helyet kapja; a `Board`
+`ResizeObserver`-e a sáv eltűnésekor újraméretezi.
+
+```bash
+npm test   # a build után: CSP ↔ azonosító, inline szkript, közös süti
+```
 
 A jeleket ugyanaz a függvény rajzolja a vászonra és a paletta előnézetébe —
 egy jel megváltoztatásához egyetlen helyet kell módosítani.

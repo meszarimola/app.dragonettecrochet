@@ -4,6 +4,8 @@
 
 import './styles.css';
 import { Board } from './board.js';
+import { GA_MEASUREMENT_ID } from './config.js';
+import { setupConsentBanner } from './consentBanner.js';
 import { STITCHES, type StitchDef, type StitchId } from './stitches.js';
 
 function must<T extends Element>(selector: string): T {
@@ -124,3 +126,4 @@ document.addEventListener('keydown', (event) => {
 });
 
 select(null);
+setupConsentBanner(GA_MEASUREMENT_ID);
