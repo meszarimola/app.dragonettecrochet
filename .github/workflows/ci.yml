@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+# Egy ágon egyszerre egy futás elég; egy új push szakítsa félbe a régit.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build és tesztek
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # A tesztek a TypeScriptet a Node beépített típuseltávolításával
+      # futtatják; ez a 22.18-tól alapértelmezett (package.json engines).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Két kör: az egész src/ a DOM-mal, és a src/core/ DOM nélkül.
+      - name: Típusellenőrzés
+        run: npm run check
+
+      - name: Build
+        run: npm run build
+
+      # A build után: az analitika-teszt a buildelt dist/index.html-t is nézi.
+      - name: Tesztek
+        run: npm test

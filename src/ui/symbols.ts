@@ -1,5 +1,5 @@
 /*
- * Az alap jelkészlet.
+ * A jelek rajza és gyorsbillentyűje öltésenként.
  *
  * A jelek a Craft Yarn Council nemzetközi horgolt jelöléseit követik, mert a
  * minták angolul is megjelennek. Minden jel a saját, origó-középpontú
@@ -11,16 +11,9 @@
  * adja meg, hogy a nagyítás és a téma egy helyen legyen szabályozható.
  */
 
-export type StitchId = 'chain' | 'single' | 'halfDouble' | 'double';
+import type { StitchId } from '../core/stitches.js';
 
-export interface StitchDef {
-  readonly id: StitchId;
-  /** Magyar név és rövidítés. */
-  readonly hu: string;
-  readonly abbrHu: string;
-  /** Angol név és rövidítés (CYC). */
-  readonly en: string;
-  readonly abbrEn: string;
+export interface StitchSymbol {
   /** Gyorsbillentyű a palettához. */
   readonly key: string;
   readonly draw: (ctx: CanvasRenderingContext2D) => void;
@@ -40,13 +33,9 @@ function stem(ctx: CanvasRenderingContext2D): void {
   ctx.stroke();
 }
 
-export const STITCHES: readonly StitchDef[] = [
-  {
-    id: 'chain',
-    hu: 'Láncszem',
-    abbrHu: 'lsz',
-    en: 'Chain',
-    abbrEn: 'ch',
+/** Minden öltésnek van jele: a `Record` miatt egy hiányzó jel típushiba. */
+export const SYMBOLS: Readonly<Record<StitchId, StitchSymbol>> = {
+  chain: {
     key: '1',
     draw(ctx) {
       ctx.beginPath();
@@ -54,12 +43,7 @@ export const STITCHES: readonly StitchDef[] = [
       ctx.stroke();
     },
   },
-  {
-    id: 'single',
-    hu: 'Rövidpálca',
-    abbrHu: 'rp',
-    en: 'Single crochet',
-    abbrEn: 'sc',
+  single: {
     key: '2',
     draw(ctx) {
       ctx.beginPath();
@@ -70,21 +54,11 @@ export const STITCHES: readonly StitchDef[] = [
       ctx.stroke();
     },
   },
-  {
-    id: 'halfDouble',
-    hu: 'Félpálca',
-    abbrHu: 'fp',
-    en: 'Half double crochet',
-    abbrEn: 'hdc',
+  halfDouble: {
     key: '3',
     draw: stem,
   },
-  {
-    id: 'double',
-    hu: 'Pálca',
-    abbrHu: 'p',
-    en: 'Double crochet',
-    abbrEn: 'dc',
+  double: {
     key: '4',
     draw(ctx) {
       stem(ctx);
@@ -96,10 +70,4 @@ export const STITCHES: readonly StitchDef[] = [
       ctx.stroke();
     },
   },
-];
-
-export function stitchById(id: StitchId): StitchDef {
-  const found = STITCHES.find((s) => s.id === id);
-  if (!found) throw new Error(`Ismeretlen jel: ${id}`);
-  return found;
-}
+};

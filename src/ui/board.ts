@@ -6,8 +6,8 @@
  * kód nem tud a képernyő pixelsűrűségéről.
  */
 
-import type { StitchId } from './stitches.js';
-import { stitchById } from './stitches.js';
+import type { StitchId } from '../core/stitches.js';
+import { SYMBOLS } from './symbols.js';
 
 export interface PlacedStitch {
   readonly id: StitchId;
@@ -61,7 +61,7 @@ export class Board {
     for (const stitch of this.#placed) {
       ctx.save();
       ctx.translate(stitch.x, stitch.y);
-      stitchById(stitch.id).draw(ctx);
+      SYMBOLS[stitch.id].draw(ctx);
       ctx.restore();
     }
   }

@@ -8,6 +8,29 @@
   </head>
   <body>
     <div class="app">
+      <section class="consent" id="consent" tabindex="-1" aria-labelledby="consent-title" hidden>
+        <div class="consent__text">
+          <h2 class="consent__title" id="consent-title">Mérhetem a látogatást?</h2>
+          <p class="consent__body">
+            A Google Analytics sütijeivel szeretném látni, hányan járnak az oldalon és a
+            mintatervezőben, és mely oldalakat nézik. Csak ha elfogadod: hirdetésre nem használom,
+            és a döntésed a jelkészlet „Süti-beállítások” gombjával bármikor megváltoztathatod.
+            <a href="https://dragonettecrochet.com/hu/adatkezeles/">Részletek az adatkezelési tájékoztatóban.</a>
+          </p>
+          <p class="consent__current" data-consent-current="granted" hidden>
+            Jelenleg: a mérést elfogadtad.
+          </p>
+          <p class="consent__current" data-consent-current="denied" hidden>
+            Jelenleg: a mérést elutasítottad.
+          </p>
+        </div>
+
+        <div class="consent__actions">
+          <button type="button" class="consent__choice" data-consent="granted">Elfogadom</button>
+          <button type="button" class="consent__choice" data-consent="denied">Elutasítom</button>
+        </div>
+      </section>
+
       <header class="bar">
         <div class="bar__group">
           <a
@@ -43,10 +66,13 @@
           <h2 class="panel__title">Alap jelek</h2>
           <p class="panel__hint" id="hint"></p>
           <div class="palette" id="palette"></div>
+          <button type="button" class="panel__consent" data-consent-open hidden>
+            Süti-beállítások
+          </button>
         </aside>
       </main>
     </div>
 
-    <script type="module" src="/src/main.ts"></script>
+    <script type="module" src="/src/ui/main.ts"></script>
   </body>
 </html>
