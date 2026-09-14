@@ -448,6 +448,84 @@ export function shapeBounds(shapes: readonly Shape[]): Bounds {
   return shapes.length ? { minX, minY, maxX, maxY } : { minX: 0, minY: 0, maxX: 0, maxY: 0 };
 }
 
+/* ---- A diagramon: talp és tető a számolt elrendezésből (PQW-857) ---- */
+
+/** Egy csomópont helye a diagramon; a src/core/layout.ts `NodePlacement` részhalmaza. */
+export interface Placement {
+  readonly role: 'stitch' | 'chain' | 'slip' | 'picot' | 'ring';
+  readonly feet: readonly Point[];
+  readonly top: Point;
+  readonly angle: number;
+  readonly size: number;
+}
+
+/** Az alakzatok elforgatva, léptékezve és eltolva; a forgatás a vászon irányában. */
+export function transformShapes(shapes: readonly Shape[], rotation: number, k: number, offset: Point): Shape[] {
+  const [cos, sin] = [Math.cos(rotation), Math.sin(rotation)];
+  const map = (p: Point): Point => ({ x: offset.x + k * (p.x * cos - p.y * sin), y: offset.y + k * (p.x * sin + p.y * cos) });
+  return shapes.map((shape): Shape => {
+    switch (shape.kind) {
+      case 'line':
+        return { ...shape, from: map(shape.from), to: map(shape.to) };
+      case 'curve':
+        return { ...shape, from: map(shape.from), control: map(shape.control), to: map(shape.to) };
+      case 'ellipse':
+        return { ...shape, center: map(shape.center), rx: shape.rx * k, ry: shape.ry * k, rotation: shape.rotation + rotation };
+      case 'dot':
+        return { ...shape, center: map(shape.center), r: shape.r * k };
+    }
+  });
+}
+
+/**
+ * A jel a diagram helyén. A szár a talptól a tetőig tart, így a szaporítás
+ * tagjai közös talpból legyezőben, a fogyasztás szárai külön talpakból egy
+ * tetőbe futnak (01 §8.4 szabály 18). A láncszem a megadott irányban és
+ * hosszban, a kúszószem pont, a varázskör kör.
+ */
+export function placedShapes(def: StitchDef, placement: Placement, options: SymbolOptions = DEFAULT_SYMBOL_OPTIONS): Shape[] {
+  const { top } = placement;
+  switch (placement.role) {
+    case 'chain': {
+      const rx = Math.min(CHAIN_RX, placement.size / 2);
+      return [chainOval(top, rx, (rx * CHAIN_RY) / CHAIN_RX, placement.angle)];
+    }
+    case 'slip':
+      return [{ kind: 'dot', role: 'dot', center: top, r: SLIP_R }];
+    case 'ring':
+      return [{ kind: 'ellipse', role: 'ring', center: top, rx: RING_R, ry: RING_R, rotation: 0 }];
+    case 'picot':
+      return transformShapes(symbolShapes(def, options), 0, 1, add(top, { x: 0, y: PICOT_R + SLIP_R }));
+    case 'stitch':
+      break;
+  }
+
+  const part = def.kind === 'joined' ? stitchById(def.part) : def;
+  const feet = placement.feet.length > 0 ? placement.feet : [add(top, { x: 0, y: stemLength(part.chainHeight) })];
+  const insertion = options.insertion ?? def.insertionModes[0];
+  const mark = insertion !== undefined && isMark(insertion) ? insertion : null;
+  const out: Shape[] = [];
+
+  if (def.kind === 'joined' && def.base === 'spread') {
+    for (const foot of feet) drawStitch(out, part, lineStem(foot, top), options, false, true);
+    const mean = scale(add(...feet), 1 / feet.length);
+    if (part.chainHeight >= 2) out.push(bar(top, normal(unit(add(top, scale(mean, -1))))));
+  } else if (def.kind === 'basic') {
+    drawStitch(out, def, lineStem(feet[0]!, top), options, true, false);
+    if (!def.workableTop) tilde(out, top);
+  } else {
+    // Egy alapba horgolt összetett jel: a kész jel a talp–tető irányba forgatva.
+    const foot = feet[0]!;
+    const delta = add(top, scale(foot, -1));
+    const rotation = Math.atan2(delta.x, -delta.y);
+    const k = Math.hypot(delta.x, delta.y) / stemLength(part.chainHeight);
+    return transformShapes(symbolShapes(def, options), rotation, k, foot);
+  }
+
+  if (mark) for (const foot of feet) out.push(insertionMark(mark, foot));
+  return out;
+}
+
 /* ---- Vászon ---- */
 
 /** A jelek tintaszíne a `--c-ink` design tokenből. Konkrét szín a kódban nincs. */

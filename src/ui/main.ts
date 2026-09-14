@@ -1,14 +1,43 @@
 /*
- * Belépési pont: a paletta felépítése, a kiválasztás és a lerakás összekötése.
+ * Belépési pont: a szerkesztő állapota és a felület összekötése.
+ *
+ * A mintát csak a mag műveletei változtatják (src/core/editor.ts); itt csak a
+ * visszavonási verem, a kurzor, a kijelölés és a nézet él. Minden változás
+ * után újraszámoljuk a célpontokat, az elrendezést és az ellenőrzést, és a
+ * mintát a böngészőbe mentjük.
  */
 
 import './styles.css';
-import { Board } from './board.js';
 import { GA_MEASUREMENT_ID } from '../config.js';
+import {
+  closeRound,
+  contextOf,
+  defaultCursor,
+  deleteLast,
+  emptyPattern,
+  endRow,
+  liveCheck,
+  setPinned,
+  work,
+  workIntoSame,
+  type EditResult,
+  type LiveCheck,
+  type Slot,
+  type WorkContext,
+} from '../core/editor.js';
+import { canRedo, canUndo, createHistory, record, redo, undo, type History } from '../core/history.js';
+import { layoutPattern, type ChartLayout, type Point } from '../core/layout.js';
+import { loadPattern, savePattern } from '../core/pattern-json.js';
+import { RULES } from '../core/rules.js';
+import { libraryFor, resolveStitch } from '../core/stitch-variants.js';
+import { stitchName } from '../core/stitchText.js';
+import type { NodeId, Pattern, StitchDef, StitchDefId } from '../core/types.js';
+import { validatePattern } from '../core/validate.js';
+import { Board, type Target } from './board.js';
+import { chartSvg } from './chart-svg.js';
 import { setupConsentBanner } from './consentBanner.js';
-import type { StitchDef, StitchDefId } from '../core/types.js';
 import { buildPalette, type PaletteItem } from './palette.js';
-import { DEFAULT_SYMBOL_OPTIONS, applyInk, drawCentered, readInk, shapeBounds, symbolShapes } from './symbols.js';
+import { DEFAULT_SYMBOL_OPTIONS, applyInk, drawCentered, readInk, shapeBounds, stemLength, symbolShapes } from './symbols.js';
 
 function must<T extends Element>(selector: string): T {
   const el = document.querySelector<T>(selector);
@@ -22,41 +51,244 @@ const palette = must<HTMLDivElement>('#palette');
 const panel = must<HTMLElement>('#panel');
 const toggle = must<HTMLButtonElement>('#panel-toggle');
 const hint = must<HTMLParagraphElement>('#hint');
+const status = must<HTMLParagraphElement>('#status');
+const countField = must<HTMLElement>('#count-field');
+const countInput = must<HTMLInputElement>('#chain-count');
+const summary = must<HTMLParagraphElement>('#summary');
+const findingList = must<HTMLUListElement>('#findings');
+const titleInput = must<HTMLInputElement>('#title');
+const importFile = must<HTMLInputElement>('#import-file');
+const adjust = must<HTMLElement>('#adjust');
+const adjustName = must<HTMLParagraphElement>('#adjust-name');
 
-const sections = buildPalette();
-const items = sections.flatMap((section) => section.items);
-const ink = readInk(document.documentElement);
+const STORAGE_KEY = 'dc-mintatervezo:minta';
+const SETTINGS_KEY = 'dc-mintatervezo:nezet';
+const STRUCTURAL_RULES = new Set(['unknown-stitch', 'dangling-reference', 'yarn-path']);
 
-let selected: StitchDefId | null = null;
-const buttons = new Map<StitchDefId, HTMLButtonElement>();
+/* ---- Állapot ---- */
 
-/* ---- Paletta ---- */
+let history: History<Pattern> = createHistory(restore());
+let tool: StitchDefId | null = null;
+let cursor = 0;
+/** A felhasználó mozgatta-e a kurzort; ha nem, a kurzor a következő alapértelmezett célpontra ugrik. */
+let cursorMoved = false;
+let hover: number | null = null;
+let selectedNode: NodeId | null = null;
+let mirror = readMirror();
+/** Húzás közben a még el nem mentett, igazított minta. */
+let preview: Pattern | null = null;
 
-/** A gomb előnézete ugyanazzal a rajzzal készül, mint a vászon, a gombhoz kicsinyítve. */
-function drawPreview(def: StitchDef, size: number): HTMLCanvasElement {
-  const preview = document.createElement('canvas');
-  const dpr = window.devicePixelRatio || 1;
+interface Derived {
+  readonly pattern: Pattern;
+  readonly context: WorkContext;
+  readonly layout: ChartLayout;
+  readonly check: LiveCheck;
+  readonly targets: readonly Target[];
+}
 
-  preview.width = Math.round(size * dpr);
-  preview.height = Math.round(size * dpr);
-  preview.style.width = `${size}px`;
-  preview.style.height = `${size}px`;
-  preview.setAttribute('aria-hidden', 'true');
+let derived = derive(history.present);
 
-  const ctx = preview.getContext('2d');
-  if (ctx) {
-    const shapes = symbolShapes(def, DEFAULT_SYMBOL_OPTIONS);
-    const { minX, minY, maxX, maxY } = shapeBounds(shapes);
-    const fit = Math.min(1, (size - 8) / Math.max(maxX - minX, maxY - minY));
+function derive(pattern: Pattern): Derived {
+  const context = contextOf(pattern);
+  const layout = layoutPattern(pattern, context.library, { mirror, stemLength });
+  const check = liveCheck(pattern, context);
+  const targets = context.slots.map((slot, i) => ({ point: slotPoint(layout, slot), used: context.used[i] ?? false }));
+  return { pattern, context, layout, check, targets };
+}
 
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.translate(size / 2, size / 2);
-    // A vonal a kicsinyítés után is 2 px vastag marad.
-    applyInk(ctx, ink, 2 / fit);
-    drawCentered(ctx, shapes, fit);
+function slotPoint(layout: ChartLayout, slot: Slot): Point {
+  const ids = slot.kind === 'stitch' ? [slot.id] : slot.kind === 'space' ? slot.chains : [slot.node];
+  const points = ids.map((id) => layout.nodes.get(id)?.top).filter((p): p is Point => p !== undefined);
+  if (points.length === 0) return { x: 0, y: 0 };
+  return {
+    x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
+    y: points.reduce((sum, p) => sum + p.y, 0) / points.length,
+  };
+}
+
+/* ---- Tárolás ---- */
+
+function restore(): Pattern {
+  let saved: string | null = null;
+  try {
+    saved = localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return emptyPattern();
   }
+  if (!saved) return emptyPattern();
+  const loaded = loadPattern(saved);
+  if (loaded.ok && structuralProblem(loaded.pattern) === null) return loaded.pattern;
+  try {
+    localStorage.setItem(`${STORAGE_KEY}:hibas`, saved);
+  } catch {
+    // Ha a tárhely sem írható, a hibás mentést nem tudjuk megőrizni.
+  }
+  queueMicrotask(() => announce('A böngészőben mentett minta nem tölthető be, ezért új minta indult.'));
+  return emptyPattern();
+}
 
-  return preview;
+function persist(pattern: Pattern): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, savePattern(pattern));
+  } catch {
+    announce('A mintát nem sikerült a böngészőbe menteni; JSON-ként mentsd le.');
+  }
+}
+
+function readMirror(): boolean {
+  try {
+    return localStorage.getItem(SETTINGS_KEY) === 'tukrozott';
+  } catch {
+    return false;
+  }
+}
+
+function structuralProblem(pattern: Pattern): string | null {
+  const finding = validatePattern(pattern, libraryFor(pattern)).find((f) => STRUCTURAL_RULES.has(f.rule));
+  return finding ? RULES[finding.rule as keyof typeof RULES].summary : null;
+}
+
+/* ---- Frissítés ---- */
+
+const panelInset = () => (panel.hidden ? 0 : panel.getBoundingClientRect().width);
+
+function refresh(message?: string): void {
+  derived = derive(preview ?? history.present);
+  if (!cursorMoved) cursor = defaultCursor(derived.pattern, derived.context, tool);
+  // A sor utolsó célpontja után a kurzor a célpontokon kívül áll: ott nem horgol.
+  cursor = Math.max(0, Math.min(cursor, derived.targets.length));
+  if (selectedNode && !derived.layout.nodes.has(selectedNode)) selectedNode = null;
+
+  board.setScene({
+    layout: derived.layout,
+    library: derived.context.library,
+    targets: tool && isTargeted(tool) ? derived.targets : [],
+    cursor: tool && derived.targets.length ? cursor : null,
+    hover,
+    selected: selectedNode,
+    findings: derived.check.findings,
+  });
+  updateControls();
+  if (message !== undefined) announce(message);
+}
+
+function isTargeted(id: StitchDefId): boolean {
+  const kind = resolveStitch(id)?.kind;
+  return kind !== 'chain' && kind !== 'space' && kind !== 'ring' && kind !== 'picot';
+}
+
+function commit(result: EditResult, message: string): void {
+  if (!result.ok) {
+    announce(result.reason);
+    return;
+  }
+  history = record(history, result.pattern);
+  cursorMoved = false;
+  persist(history.present);
+  // Előbb újraszámolunk, hogy az állapotsor már az új mintát írja le.
+  refresh();
+  announce(`${message} ${progress()}`);
+  const point = (tool && isTargeted(tool) ? derived.targets[cursor]?.point : undefined) ?? lastTop();
+  if (point) board.ensureVisible(point, panelInset());
+}
+
+function lastTop(): Point | undefined {
+  const last = derived.pattern.pieces[0]?.stitches.at(-1);
+  return last ? derived.layout.nodes.get(last.id)?.top : undefined;
+}
+
+function announce(message: string): void {
+  status.textContent = message;
+}
+
+function layerName(context: WorkContext): string {
+  return `${context.layer}. ${context.shape === 'round' ? 'kör' : 'sor'}`;
+}
+
+function progress(): string {
+  const { context, check } = derived;
+  if (!context.graph) return '';
+  if (!context.started) return `${capitalize(layerName(context))} következik.`;
+  const count = context.graph.layers[context.layer]?.stitchCount ?? 0;
+  const rest = check.remaining > 0 ? `, még ${check.remaining} célpont` : '';
+  return `${capitalize(layerName(context))}: ${count} öltés${rest}.`;
+}
+
+function capitalize(text: string): string {
+  return text.charAt(0).toLocaleUpperCase('hu') + text.slice(1);
+}
+
+function describeTarget(index: number): string {
+  const slot = derived.context.slots[index];
+  if (!slot) return derived.context.slots.length > 0 ? 'A sor végén vagy: nincs több célpont.' : 'Nincs célpont.';
+  let what: string;
+  if (slot.kind === 'space') what = `láncív (${slot.chains.length} láncszem)`;
+  else if (slot.kind === 'ring') what = 'varázskör';
+  else {
+    const def = derived.context.graph?.defs.get(slot.id);
+    what = def ? stitchName(def, 'hu') : 'öltés';
+  }
+  const used = derived.context.used[index] ? ', már horgoltál bele' : '';
+  return `Célpont: ${index + 1}/${derived.context.slots.length}, ${what}${used}.`;
+}
+
+/* ---- Vezérlők állapota ---- */
+
+function updateControls(): void {
+  const { context, pattern, check } = derived;
+  const empty = (pattern.pieces[0]?.stitches.length ?? 0) === 0;
+  const def = tool ? resolveStitch(tool) : undefined;
+  setDisabled('undo', !canUndo(history));
+  setDisabled('redo', !canRedo(history));
+  setDisabled('delete-last', empty);
+  setDisabled('same', !(def?.kind === 'basic' && !empty));
+  setDisabled('end-row', !(context.started && context.shape === 'row'));
+  setDisabled('close-round', !(context.started && context.shape === 'round'));
+  setDisabled('export-png', empty);
+  setDisabled('export-svg', empty);
+  must<HTMLButtonElement>('[data-action="mirror"]').setAttribute('aria-pressed', String(mirror));
+  if (document.activeElement !== titleInput) titleInput.value = pattern.title;
+
+  const layers = context.graph ? context.graph.layers.length - 1 : 0;
+  const errors = check.findings.filter((f) => f.severity === 'error').length;
+  const warnings = check.findings.length - errors;
+  const parts = [
+    empty ? 'Üres minta: kezdd láncalappal (Láncszem) vagy varázskörrel.' : `${layers} ${context.shape === 'round' ? 'kör' : 'sor'}. ${progress()}`,
+    check.findings.length === 0 ? 'Nincs hiba és figyelmeztetés.' : `${errors} hiba, ${warnings} figyelmeztetés.`,
+  ];
+  summary.textContent = parts.join(' ');
+
+  findingList.replaceChildren(
+    ...check.findings.map((finding) => {
+      const item = document.createElement('li');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `finding${finding.severity === 'warning' ? ' finding--warning' : ''}`;
+      const severity = span('finding__severity', finding.severity === 'error' ? 'Hiba: ' : 'Figyelmeztetés: ');
+      const rule = RULES[finding.rule as keyof typeof RULES];
+      button.append(severity, rule?.summary ?? finding.rule, span('finding__ref', `${finding.reference} · ${finding.nodes.length} öltés`));
+      button.addEventListener('click', () => {
+        const first = finding.nodes.find((id) => derived.layout.nodes.has(id));
+        if (!first) return;
+        selectedNode = first;
+        refresh(`Kijelölve a hiba első öltése.`);
+        board.ensureVisible(derived.layout.nodes.get(first)!.top, panelInset());
+      });
+      item.append(button);
+      return item;
+    }),
+  );
+
+  const node = selectedNode ? derived.pattern.pieces[0]?.stitches.find((n) => n.id === selectedNode) : undefined;
+  adjust.hidden = !node || tool !== null;
+  if (node) {
+    const nodeDef = derived.context.library.get(node.def);
+    adjustName.textContent = `${nodeDef ? capitalize(stitchName(nodeDef, 'hu')) : node.def}${node.pinned ? ', kézzel igazítva' : ''}`;
+  }
+}
+
+function setDisabled(action: string, disabled: boolean): void {
+  must<HTMLButtonElement>(`[data-action="${action}"]`).disabled = disabled;
 }
 
 function span(className: string, text: string): HTMLSpanElement {
@@ -66,12 +298,42 @@ function span(className: string, text: string): HTMLSpanElement {
   return el;
 }
 
+/* ---- Paletta ---- */
+
+const sections = buildPalette();
+const items = sections.flatMap((section) => section.items);
+const ink = readInk(document.documentElement);
+const buttons = new Map<StitchDefId, HTMLButtonElement>();
+
+/** A gomb előnézete ugyanazzal a rajzzal készül, mint a vászon, a gombhoz kicsinyítve. */
+function drawPreview(def: StitchDef, size: number): HTMLCanvasElement {
+  const previewCanvas = document.createElement('canvas');
+  const dpr = window.devicePixelRatio || 1;
+  previewCanvas.width = Math.round(size * dpr);
+  previewCanvas.height = Math.round(size * dpr);
+  previewCanvas.style.width = `${size}px`;
+  previewCanvas.style.height = `${size}px`;
+  previewCanvas.setAttribute('aria-hidden', 'true');
+
+  const ctx = previewCanvas.getContext('2d');
+  if (ctx) {
+    const shapes = symbolShapes(def, DEFAULT_SYMBOL_OPTIONS);
+    const { minX, minY, maxX, maxY } = shapeBounds(shapes);
+    const fit = Math.min(1, (size - 8) / Math.max(maxX - minX, maxY - minY));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.translate(size / 2, size / 2);
+    // A vonal a kicsinyítés után is 2 px vastag marad.
+    applyInk(ctx, ink, 2 / fit);
+    drawCentered(ctx, shapes, fit);
+  }
+  return previewCanvas;
+}
+
 function stitchButton(item: PaletteItem): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'stitch';
   button.setAttribute('aria-pressed', 'false');
-
   button.append(drawPreview(item.def, 44));
 
   const label = span('stitch__label', '');
@@ -88,56 +350,203 @@ function stitchButton(item: PaletteItem): HTMLButtonElement {
   }
 
   // A kiválasztott jelre újra kattintva megszűnik a kijelölés.
-  button.addEventListener('click', () => {
-    select(selected === item.def.id ? null : item.def.id);
-  });
-
+  button.addEventListener('click', () => select(tool === item.def.id ? null : item.def.id));
   return button;
 }
 
 function select(id: StitchDefId | null): void {
-  selected = id;
-
-  for (const [stitchId, button] of buttons) {
-    button.setAttribute('aria-pressed', String(stitchId === id));
-  }
+  tool = id;
+  hover = null;
+  if (id) selectedNode = null;
+  for (const [stitchId, button] of buttons) button.setAttribute('aria-pressed', String(stitchId === id));
 
   const item = items.find((candidate) => candidate.def.id === id);
-  hint.textContent = item
-    ? `${item.name} kiválasztva — kattints a vászonra.`
-    : 'Válassz egy jelet, aztán kattints a vászonra.';
+  const kind = item?.def.kind;
+  countField.hidden = kind !== 'chain' && kind !== 'space';
+  if (!item) hint.textContent = 'Válassz öltést. Öltés nélkül kattintással a jelet jelölöd ki, és igazíthatod.';
+  else if (kind === 'chain' || kind === 'space') hint.textContent = `${item.name}: Enterrel vagy a vászonra kattintva horgolod, a megadott számú láncszemmel.`;
+  else if (kind === 'ring' || kind === 'picot') hint.textContent = `${item.name}: Enterrel vagy a vászonra kattintva horgolod.`;
+  else hint.textContent = `${item.name}: nyilakkal választod a célpontot, Enterrel vagy kattintással horgolsz bele.`;
   document.body.classList.toggle('is-armed', item !== undefined);
+  refresh();
 }
 
 for (const section of sections) {
   const group = document.createElement('div');
   group.className = 'palette__section';
   group.setAttribute('role', 'group');
-
   const title = document.createElement('h3');
   title.className = 'palette__title';
   title.id = `palette-${section.id}`;
   title.textContent = section.title;
   group.setAttribute('aria-labelledby', title.id);
   group.append(title);
-
   for (const item of section.items) {
     const button = stitchButton(item);
     buttons.set(item.def.id, button);
     group.append(button);
   }
-
   palette.append(group);
 }
 
-/* ---- Lerakás ---- */
+/* ---- Műveletek ---- */
 
-canvas.addEventListener('click', (event) => {
-  if (!selected) return;
-  board.place(selected, event.clientX, event.clientY);
+function workAtCursor(): void {
+  if (!tool) {
+    announce('Előbb válassz öltést a jelkészletből (1–9).');
+    return;
+  }
+  const def = resolveStitch(tool);
+  const count = Number(countInput.value);
+  const name = def ? capitalize(stitchName(def, 'hu')) : tool;
+  const message = def?.kind === 'chain' || def?.kind === 'space' ? `${name}: ${count} láncszem.` : `${name} horgolva.`;
+  commit(work(history.present, { def: tool, count }, cursor), message);
+}
+
+function nudge(dx: number, dy: number): void {
+  const node = history.present.pieces[0]?.stitches.find((n) => n.id === selectedNode);
+  if (!node) return;
+  const x = (node.pinned?.x ?? 0) + (mirror ? -dx : dx);
+  const y = (node.pinned?.y ?? 0) + dy;
+  commit(setPinned(history.present, node.id, { x, y }), 'Jel eltolva.');
+}
+
+function slug(title: string): string {
+  const base = title.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return base || 'minta';
+}
+
+function download(content: Blob | string, filename: string, type: string): void {
+  const blob = typeof content === 'string' ? new Blob([content], { type }) : content;
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function exportSvgText(): string {
+  const pattern = history.present;
+  const library = libraryFor(pattern);
+  const root = document.documentElement;
+  const token = (name: string) => getComputedStyle(root).getPropertyValue(name).trim();
+  return chartSvg(pattern, layoutPattern(pattern, library, { mirror, stemLength }), library, {
+    colors: { right: token('--c-ink'), wrong: token('--c-ink-wrong'), text: token('--c-text'), background: token('--c-bg') },
+    mirror,
+  });
+}
+
+async function exportPng(): Promise<void> {
+  const url = URL.createObjectURL(new Blob([exportSvgText()], { type: 'image/svg+xml' }));
+  try {
+    const image = new Image();
+    image.src = url;
+    await image.decode();
+    const out = document.createElement('canvas');
+    out.width = image.width * 2;
+    out.height = image.height * 2;
+    out.getContext('2d')?.drawImage(image, 0, 0, out.width, out.height);
+    const blob = await new Promise<Blob | null>((resolve) => out.toBlob(resolve, 'image/png'));
+    if (!blob) throw new Error('üres kép');
+    download(blob, `${slug(history.present.title)}.png`, 'image/png');
+    announce('PNG mentve.');
+  } catch {
+    announce('A PNG-t nem sikerült elkészíteni; az SVG-export működik.');
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+async function importJson(file: File): Promise<void> {
+  const loaded = loadPattern(await file.text());
+  if (!loaded.ok) {
+    announce(`A fájl nem tölthető be: ${loaded.error.message} (${loaded.error.path})`);
+    return;
+  }
+  const problem = structuralProblem(loaded.pattern);
+  if (problem) {
+    announce(`A fájl szerkezete hibás, ezért nem tölthető be: ${problem}`);
+    return;
+  }
+  selectedNode = null;
+  commit({ ok: true, pattern: loaded.pattern }, 'Minta betöltve; visszavonással a korábbi visszajön.');
+  board.fit(panelInset());
+}
+
+const ACTIONS: Record<string, () => void> = {
+  undo: () => {
+    history = undo(history);
+    cursorMoved = false;
+    persist(history.present);
+    refresh('Visszavonva.');
+  },
+  redo: () => {
+    history = redo(history);
+    cursorMoved = false;
+    persist(history.present);
+    refresh('Újra.');
+  },
+  'delete-last': () => commit(deleteLast(history.present), 'Az utolsó lépés törölve.'),
+  same: () => (tool ? commit(workIntoSame(history.present, tool), 'Még egy ugyanabba.') : announce('Előbb válassz öltést.')),
+  'end-row': () => commit(endRow(history.present, tool), 'Sor vége, fordulás.'),
+  'close-round': () => commit(closeRound(history.present), 'Kör zárva.'),
+  mirror: () => {
+    mirror = !mirror;
+    try {
+      localStorage.setItem(SETTINGS_KEY, mirror ? 'tukrozott' : 'normal');
+    } catch {
+      // A nézet beállítása enélkül is működik, csak nem marad meg.
+    }
+    refresh(mirror ? 'Tükrözött nézet balkezeseknek.' : 'Jobbkezes nézet.');
+    board.fit(panelInset());
+  },
+  'zoom-in': () => board.zoom(1.25),
+  'zoom-out': () => board.zoom(0.8),
+  fit: () => board.fit(panelInset()),
+  'export-json': () => {
+    download(savePattern(history.present), `${slug(history.present.title)}.json`, 'application/json');
+    announce('JSON mentve.');
+  },
+  'import-json': () => importFile.click(),
+  'export-svg': () => {
+    download(exportSvgText(), `${slug(history.present.title)}.svg`, 'image/svg+xml');
+    announce('SVG mentve.');
+  },
+  'export-png': () => void exportPng(),
+  new: () => {
+    selectedNode = null;
+    commit({ ok: true, pattern: emptyPattern() }, 'Új minta; visszavonással a korábbi visszajön.');
+    board.fit(panelInset());
+  },
+  unpin: () => selectedNode && commit(setPinned(history.present, selectedNode, null), 'A jel a számolt helyére került.'),
+};
+
+document.addEventListener('click', (event) => {
+  const target = (event.target as Element).closest<HTMLElement>('[data-action], [data-nudge]');
+  if (!target) return;
+  if (target.dataset.nudge) {
+    const [dx, dy] = target.dataset.nudge.split(',').map(Number);
+    nudge(dx ?? 0, dy ?? 0);
+    return;
+  }
+  ACTIONS[target.dataset.action ?? '']?.();
 });
 
-/* ---- Panel ---- */
+importFile.addEventListener('change', () => {
+  const file = importFile.files?.[0];
+  importFile.value = '';
+  if (file) void importJson(file);
+});
+
+titleInput.addEventListener('change', () => {
+  const title = titleInput.value.trim();
+  if (title !== history.present.title) commit({ ok: true, pattern: { ...history.present, title } }, 'A minta neve módosult.');
+});
+
+countInput.addEventListener('change', () => refresh());
 
 toggle.addEventListener('click', () => {
   const open = panel.hasAttribute('hidden');
@@ -145,19 +554,196 @@ toggle.addEventListener('click', () => {
   toggle.setAttribute('aria-expanded', String(open));
 });
 
+/* ---- Egér és érintés ---- */
+
+type Drag =
+  | { readonly kind: 'node'; readonly id: NodeId; readonly start: Point; readonly base: Point; moved: boolean }
+  | { readonly kind: 'pan'; last: Point };
+let drag: Drag | null = null;
+
+canvas.addEventListener('pointerdown', (event) => {
+  canvas.focus({ preventScroll: true });
+  if (tool) {
+    if (!isTargeted(tool)) {
+      workAtCursor();
+      return;
+    }
+    const index = board.targetAt(event.clientX, event.clientY);
+    if (index === null) {
+      drag = { kind: 'pan', last: { x: event.clientX, y: event.clientY } };
+      canvas.setPointerCapture(event.pointerId);
+      return;
+    }
+    cursor = index;
+    cursorMoved = true;
+    workAtCursor();
+    return;
+  }
+  const id = board.nodeAt(event.clientX, event.clientY);
+  canvas.setPointerCapture(event.pointerId);
+  if (!id) {
+    selectedNode = null;
+    drag = { kind: 'pan', last: { x: event.clientX, y: event.clientY } };
+    refresh();
+    return;
+  }
+  selectedNode = id;
+  const pinned = history.present.pieces[0]?.stitches.find((n) => n.id === id)?.pinned;
+  drag = { kind: 'node', id, start: board.toChart(event.clientX, event.clientY), base: { x: pinned?.x ?? 0, y: pinned?.y ?? 0 }, moved: false };
+  refresh();
+});
+
+canvas.addEventListener('pointermove', (event) => {
+  if (drag?.kind === 'pan') {
+    board.pan(event.clientX - drag.last.x, event.clientY - drag.last.y);
+    drag.last = { x: event.clientX, y: event.clientY };
+    return;
+  }
+  if (drag?.kind === 'node') {
+    const p = board.toChart(event.clientX, event.clientY);
+    const dx = (p.x - drag.start.x) * (mirror ? -1 : 1);
+    const result = setPinned(history.present, drag.id, { x: drag.base.x + dx, y: drag.base.y + p.y - drag.start.y });
+    if (result.ok) {
+      drag.moved = true;
+      preview = result.pattern;
+      refresh();
+    }
+    return;
+  }
+  if (!tool || !isTargeted(tool)) return;
+  const index = board.targetAt(event.clientX, event.clientY);
+  if (index !== hover) {
+    hover = index;
+    refresh();
+  }
+});
+
+function endDrag(): void {
+  if (drag?.kind === 'node' && drag.moved && preview) {
+    const pattern = preview;
+    preview = null;
+    commit({ ok: true, pattern }, 'Jel eltolva.');
+  }
+  preview = null;
+  drag = null;
+}
+
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+canvas.addEventListener('pointerleave', () => {
+  if (hover !== null && !drag) {
+    hover = null;
+    refresh();
+  }
+});
+
+canvas.addEventListener(
+  'wheel',
+  (event) => {
+    event.preventDefault();
+    if (event.ctrlKey || event.metaKey) board.zoom(event.deltaY < 0 ? 1.1 : 0.9);
+    else board.pan(-event.deltaX, -event.deltaY);
+  },
+  { passive: false },
+);
+
 /* ---- Billentyűk ---- */
 
-document.addEventListener('keydown', (event) => {
-  if (event.metaKey || event.ctrlKey || event.altKey) return;
+function moveCursor(step: number): void {
+  const { targets } = derived;
+  if (targets.length === 0) return;
+  cursor = Math.max(0, Math.min(targets.length - 1, cursor + step));
+  cursorMoved = true;
+  refresh(describeTarget(cursor));
+  board.ensureVisible(targets[cursor]!.point, panelInset());
+}
 
-  if (event.key === 'Escape') {
-    select(null);
+document.addEventListener('keydown', (event) => {
+  const target = event.target as HTMLElement;
+  if (target.closest('input, textarea, select')) return;
+  const key = event.key;
+
+  if ((event.ctrlKey || event.metaKey) && !event.altKey) {
+    const lower = key.toLowerCase();
+    if (lower === 'z') {
+      event.preventDefault();
+      ACTIONS[event.shiftKey ? 'redo' : 'undo']!();
+    } else if (lower === 'y') {
+      event.preventDefault();
+      ACTIONS.redo!();
+    }
     return;
   }
 
-  const item = items.find((candidate) => candidate.key === event.key);
+  if (event.altKey) {
+    const arrows: Record<string, [number, number]> = { ArrowLeft: [-2, 0], ArrowRight: [2, 0], ArrowUp: [0, -2], ArrowDown: [0, 2] };
+    const delta = arrows[key];
+    if (delta && selectedNode) {
+      event.preventDefault();
+      nudge(...delta);
+    }
+    return;
+  }
+
+  // A nyilak, a Home, az End és az Enter a vásznon vagy az oldal szintjén dolgoznak, gombon nem.
+  const onBoard = target === canvas || target === document.body;
+  const { targets } = derived;
+  const forward = targets.length > 1 && targets[targets.length - 1]!.point.x < targets[0]!.point.x ? -1 : 1;
+
+  switch (key) {
+    case 'Escape':
+      select(null);
+      selectedNode = null;
+      refresh();
+      return;
+    case 'Backspace':
+    case 'Delete':
+      event.preventDefault();
+      ACTIONS['delete-last']!();
+      return;
+    case 'f':
+    case 'F':
+      ACTIONS['end-row']!();
+      return;
+    case 'k':
+    case 'K':
+      ACTIONS['close-round']!();
+      return;
+    case 'm':
+    case 'M':
+      ACTIONS.mirror!();
+      return;
+  }
+
+  if (onBoard) {
+    const steps: Record<string, number> = {
+      ArrowRight: forward,
+      ArrowLeft: -forward,
+      ArrowUp: 1,
+      ArrowDown: -1,
+      Home: -Infinity,
+      End: Infinity,
+    };
+    if (key in steps) {
+      event.preventDefault();
+      const step = steps[key]!;
+      moveCursor(Number.isFinite(step) ? step : step > 0 ? targets.length : -targets.length);
+      return;
+    }
+    if (key === 'Enter') {
+      event.preventDefault();
+      if (event.shiftKey) ACTIONS.same!();
+      else workAtCursor();
+      return;
+    }
+  }
+
+  const item = items.find((candidate) => candidate.key === key);
   if (item) select(item.def.id);
 });
 
+/* ---- Indulás ---- */
+
 select(null);
+board.fit(panelInset());
 setupConsentBanner(GA_MEASUREMENT_ID);

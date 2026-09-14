@@ -12,6 +12,7 @@ npm run dev      # http://localhost:5173
 npm run check    # típusellenőrzés: az egész src/, majd a src/core/ DOM nélkül
 npm run build    # tsc --noEmit + vite build → dist/
 npm test         # node:test; a build után (az analitika-teszt a dist/-et is nézi)
+npm run test:e2e # build, majd Playwright a buildelt kimeneten, a 5181-es porton
 npm run preview  # a buildelt kimenet kiszolgálása
 ```
 
@@ -20,22 +21,42 @@ TypeScriptet a Node beépített típuseltávolításával futtatják, fordítás
 függőség nélkül. A CI (`.github/workflows/ci.yml`) minden PR-on és a `main`,
 `develop` ágon lefuttatja a `check`, `build`, `test` lépéseket.
 
-## Mit tud most (v0.0.1)
+## Mit tud most
 
-Egyetlen vászon, jobb oldalon kinyíló jelkészlettel. Kiválasztasz egy jelet,
-és kattintásra pontosan oda kerül, ahová mutattál — nincs rács, nincs
-pattanás.
+A vászon a gráfot szerkeszti (PQW-857). Nem helyet választasz, hanem
+**célpontot**: az előző sor öltését, egy láncívet vagy a varázskört. A jel
+helye, iránya, a legyező és az összefutás ebből számolódik.
 
-A jelkészlet a teljes öltéskönyvtárat mutatja négy csoportban: alapöltések,
-szaporítás és fogyasztás, összetett öltések, láncív és varázskör. A gombon a
-magyar név, összetett öltésnél a szerkezet (pl. „2 rp egy öltésbe”) és az
-amerikai jelölés áll. Az első kilenc öltés gyorsbillentyűje `1`–`9`.
+- **Kezdés:** láncalap („Láncszem”, a megadott számú láncszemmel) vagy
+  varázskör. Az 1. sor első öltésének célpontja magától a fordulólánc utáni
+  láncszem.
+- **Horgolás:** öltés kiválasztása (`1`–`9` vagy a jelkészlet), a célpont
+  nyilakkal vagy az egérrel, horgolás `Enter`-rel vagy kattintással. A kurzor
+  a következő szabad célpontra lép; a fogyasztás annyi célpontot használ, ahány
+  öltést összehorgol.
+- **Még egy ugyanabba** (`Shift`+`Enter`): egy öltésből szaporítás, a
+  szaporításból és a kagylóból eggyel nagyobb lesz (pl. `inc-3dc`).
+- **Sor vége, fordulás** (`F`) a kiválasztott öltés fordulóláncával;
+  **kör zárása** (`K`) kúszószemmel a kör első pozíciójába.
+- **Visszavonás, újra, az utolsó lépés törlése** (`Ctrl`+`Z`,
+  `Ctrl`+`Shift`+`Z`, `Backspace`). Egy lépés egy egység: csoport, láncív,
+  fordulás.
+- **Számolt elrendezés:** a sorok alulról felfelé, kígyózva; a sorszám a sor
+  kezdő oldalán, az öltésszám a végén; a színoldali és a visszai sorok színe
+  eltér. Új öltés csak a saját sorát rendezi át.
+- **Élő ellenőrzés:** hibák és figyelmeztetések a vásznon (teli, illetve
+  szaggatott karika) és a panel listájában. A félkész sor hátralévő célpontjai
+  nem hibák.
+- **Kézi igazítás:** kiválasztott öltés nélkül a jel kijelölhető, és húzással,
+  `Alt`+nyilakkal vagy a panel gombjaival eltolható. Az eltolás csak a rajzon
+  változtat.
+- **Mentés:** minden változás a böngészőbe mentődik (`localStorage`); JSON
+  mentése és betöltése; PNG és SVG export jelmagyarázattal.
+- **Tükrözött nézet** balkezeseknek (`M`).
 
 A jelek a Craft Yarn Council jelölését követik, és a könyvtár adataiból
 rajzolódnak: a szár hossza a láncszem-magasságból, a ferde vonalak száma a
-ráhajtásokból jön; a szaporítás talpa és a fogyasztás teteje közös.
-
-`Esc` megszünteti a kijelölést; a kiválasztott jelre újra kattintva is.
+ráhajtásokból jön.
 
 A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 `dragonettecrochet.com`-ra.
@@ -53,14 +74,20 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/core/pattern-json.ts` | A minta mentése és betöltése verziózott JSON-ként (`formatVersion`), mezőútvonalas hibával. |
 | `src/core/repeat.ts`, `src/core/stitch-library.ts` | Láncalap és „X többszöröse + Y” számítása; az öltéskönyvtár mint azonosító → definíció. |
 | `src/ui/palette.ts` | A paletta tartalma a könyvtárból: csoportcímek, feliratok, gyorsbillentyűk, DOM nélkül. |
-| `src/ui/board.ts` | A vászon: HiDPI-méretezés, a lerakott jelek tárolása, újrarajzolás. |
-| `src/ui/main.ts` | Belépési pont: a paletta felépítése, kiválasztás, lerakás, panel, billentyűk. |
+| `src/core/editor.ts` | **A szerkesztő műveletei** (PQW-857): célpontok, horgolás, „még egy ugyanabba”, fordulás, körzárás, az utolsó lépés törlése, kézi igazítás, élő ellenőrzés. |
+| `src/core/layout.ts` | **A számolt elrendezés** (PQW-857): hely, irány, legyező, összefutás, sorszám, színe és visszája, tükrözés. Tiszta függvény. |
+| `src/core/history.ts` | Visszavonás és újra. |
+| `src/core/stitch-variants.ts` | Az összetett öltések változatai azonosítóból (pl. `inc-3dc`), és a minta könyvtára. |
+| `src/ui/chart-svg.ts` | A diagram SVG-ként jelmagyarázattal; ebből készül az SVG- és a PNG-export. DOM nélküli. |
+| `src/ui/board.ts` | A vászon: nézet (nagyítás, eltolás), kirajzolás az elrendezésből, célpontok, hibajelölés, találatkeresés. |
+| `src/ui/main.ts` | Belépési pont: állapot és visszavonás, paletta, billentyűk és egér, mentés, export. |
 | `src/ui/styles.css` | A fő oldal design tokenjeinek szűk metszete. Konkrét hexet komponensben ne írj le. |
 | `src/ui/consent.ts`, `src/ui/analytics.ts` | **A fő oldal repójából másolva, változtatás nélkül** (csak az import kiterjesztése `.js`). Ha ott változik, itt is kell. |
 | `src/ui/consentBanner.ts` | A süti-sáv és a jelkészlet „Süti-beállítások" gombja. |
 | `src/config.ts` | A GA4 mérési azonosító (`mintatervező` property). Üres stringre a mérés és a süti-sáv kikapcsol. |
 | `public/.htaccess` | Biztonsági fejlécek és cache. A CSP a GA-azonosítóval együtt változik — a `tests/analytics.test.mjs` őrzi. |
-| `tests/*.test.mjs` | `node:test` tesztek; a `core-*` a magot, a `ui-*` a jelrajzot és a palettát, az `analytics` a süti-sávot és a CSP-t nézi. |
+| `tests/*.test.mjs` | `node:test` tesztek; a `core-*` a magot, a `ui-*` a jelrajzot, a palettát és az SVG-t, az `analytics` a süti-sávot és a CSP-t nézi. |
+| `e2e/*.spec.ts`, `playwright.config.ts` | Böngészős tesztek a kritikus utakra: téglalap billentyűzettel, mentés és újratöltés, export. |
 | `tests/*.check.ts` | Csak fordítási próba: a `tsconfig.core.json` típusellenőrzi, nem fut. |
 | `tsconfig.core.json` | A `src/core/` típusellenőrzése DOM-típusok nélkül. |
 
@@ -102,19 +129,14 @@ npm test   # a build után: CSP ↔ azonosító, inline szkript, közös süti
 
 ## Amit tudatosan nem tartalmaz
 
-Ez az első lokális prototípus; a következő lépések nyitottak:
-
-- **Visszavonás és törlés.** Jelenleg egy félrekattintás csak újratöltéssel
-  szüntethető meg. Ez az első dolog, amit érdemes hozzátenni.
-- **Mentés, betöltés, PDF-export.** A diagram az oldal frissítésével elvész.
-- **Rács és öltésszám-ellenőrzés.** A szabad elhelyezés rajzolásra jó, de nem
-  tud öltést számolni. Ha később mégis kellenek a szabályok (öltésszám-egyezés,
-  kapcsolódási pontok), az rácsra pattanást kíván.
-- **Körkörös nézet.** Most csak sík vászon van; az amigurumihoz poláris
-  elrendezés kell majd.
-- **Billentyűzetes lerakás.** A paletta végigjárható és kezelhető
-  billentyűzettel, de magára a vászonra kattintani kell. Ez a fő oldal
-  akadálymentességi elveivel még adós.
+- **Láncszem nélküli alapsor, láncszemgyűrűs kezdés, a fonal elvágása és új
+  fonalszakasz, hosszú öltés korábbi sorba.** A gráf ezeket még nem, vagy csak
+  részben kezeli.
+- **A beszúrási mód választása** (első vagy hátsó szál, relief): PQW-869.
+  Most minden öltés az alapértelmezett móddal megy.
+- **Körnézet finomítása.** A körök egyszerű, sugárirányú elrendezést kapnak;
+  a nagymama-négyzet sarkai még nem szögletesek.
+- **PDF-export.**
 - **Önhosztolt betűk.** Az Instrument Serif és a Karla fájljai még nincsenek
   itt, ezért rendszerbetűk ugranak be. A Google Fonts CDN-t nem használjuk: az
   EU-ban hozzájárulás nélkül továbbítaná a látogató IP-címét.
