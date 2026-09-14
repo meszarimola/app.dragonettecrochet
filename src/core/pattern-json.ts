@@ -176,13 +176,18 @@ function readPatternConventions(value: unknown, path: string): PatternConvention
     value,
     path,
     ['turningChainCounts', 'roundEnd', 'picotCounts', 'joinSlipStitchCounts'],
-    ['repeat'],
+    ['chainCounts', 'repeat'],
   );
   return {
     turningChainCounts: readTurningChainCounts(raw['turningChainCounts'], `${path}.turningChainCounts`),
     roundEnd: oneOf(raw['roundEnd'], `${path}.roundEnd`, ['stitch-default', 'join-slip', 'spiral']),
     picotCounts: boolean(raw['picotCounts'], `${path}.picotCounts`),
     joinSlipStitchCounts: boolean(raw['joinSlipStitchCounts'], `${path}.joinSlipStitchCounts`),
+    // A PQW-870 előtti mentésben nincs ilyen mező; akkor is a használat szerinti szabály érvényes.
+    chainCounts:
+      raw['chainCounts'] === undefined
+        ? 'worked-into'
+        : oneOf(raw['chainCounts'], `${path}.chainCounts`, ['worked-into', true, false]),
     ...(raw['repeat'] === undefined ? {} : { repeat: readRepeat(raw['repeat'], `${path}.repeat`) }),
   };
 }

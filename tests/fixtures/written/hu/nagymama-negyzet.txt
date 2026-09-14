@@ -14,6 +14,6 @@ varázskör
 
 Nagymama-négyzet
 Varázskör.
-1. kör: 3 lsz (1 erp-nek számít), 2 erp a varázskörbe, 2 lsz, [3 erp a varázskörbe, 2 lsz] 3-szor (12 öltés). Kör zárása: 1 ksz a kezdőlánc tetejébe.
-2. kör: 2 ksz, 1 ksz a következő láncívbe, 3 lsz (1 erp-nek számít), 2 erp ugyanabba a láncívbe, 2 lsz, 3 erp ugyanabba a láncívbe, 1 lsz, [3 erp a következő láncívbe, 2 lsz, 3 erp ugyanabba a láncívbe, 1 lsz] 3-szor (24 öltés). Kör zárása: 1 ksz a kezdőlánc tetejébe.
+1. kör: 3 lsz (1 erp-nek számít), 2 erp a varázskörbe, 2 lsz, [3 erp a varázskörbe, 2 lsz] 3-szor (20 öltés). Kör zárása: 1 ksz a kezdőlánc tetejébe.
+2. kör: 2 ksz, 1 ksz a következő láncívbe, 3 lsz (1 erp-nek számít), 2 erp ugyanabba a láncívbe, 2 lsz, 3 erp ugyanabba a láncívbe, 1 lsz, [3 erp a következő láncívbe, 2 lsz, 3 erp ugyanabba a láncívbe, 1 lsz] 3-szor (36 öltés). Kör zárása: 1 ksz a kezdőlánc tetejébe.
 3. kör: 2 ksz, 1 ksz a következő láncívbe, 3 lsz (1 erp-nek számít), 2 erp ugyanabba a láncívbe, 2 lsz, 3 erp ugyanabba a láncívbe, 1 lsz, 3 erp a következő láncívbe, 1 lsz, [3 erp a következő láncívbe, 2 lsz, 3 erp ugyanabba a láncívbe, 1 lsz, 3 erp a következő láncívbe, 1 lsz] 3-szor (36 öltés). Kör zárása: 1 ksz a kezdőlánc tetejébe.

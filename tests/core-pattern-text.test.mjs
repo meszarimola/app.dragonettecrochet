@@ -17,7 +17,7 @@ import { readPattern } from '../src/core/pattern-read.ts';
 import { WrittenPatternError, foldRepeats, mergeSteps } from '../src/core/pattern-steps.ts';
 import { formatWrittenPattern, ordinal, writePattern } from '../src/core/pattern-text.ts';
 import { PieceBuilder, patternOf } from './fixtures/builder.ts';
-import { WORKED_EXAMPLES, dcRectangle, grannySquare, hdcRectangle } from './fixtures/examples.ts';
+import { WORKED_EXAMPLES, dcRectangle, grannySquare, hdcRectangle, vStitchPattern } from './fixtures/examples.ts';
 import { testLibrary } from './fixtures/library.ts';
 
 const LOCALES = ['hu', 'en-US', 'en-GB'];
@@ -203,7 +203,7 @@ describe('a minta konvenciói a szövegben', () => {
   test('a számító kúszószem az öltésszámban (szókészlet D7), és visszaolvasható', () => {
     const example = grannySquare();
     const conventions = { ...example.pattern.conventions, joinSlipStitchCounts: true };
-    const counts = [13, 28, 40];
+    const counts = [21, 40, 40];
     const piece = example.pattern.pieces[0];
     const pattern = {
       ...example.pattern,
@@ -211,10 +211,30 @@ describe('a minta konvenciói a szövegben', () => {
       pieces: [{ ...piece, events: piece.events.map((event, i) => ({ ...event, statedCount: counts[i] })) }],
     };
     const text = textOf(pattern, 'en-US');
-    assert.match(text, /\(13 sts\)[\s\S]*\(28 sts\)[\s\S]*\(40 sts\)/);
+    assert.match(text, /\(21 sts\)[\s\S]*\(40 sts\)[\s\S]*\(40 sts\)/);
     const result = readBack(text, pattern, 'en-US');
     assert.ok(result.ok, JSON.stringify(result.error));
     assert.deepEqual(canonicalPattern(result.pattern), canonicalPattern(pattern));
+  });
+
+  test('ha egyik láncszem sem számít, a szöveg öltésszáma láncívek nélküli, és visszaolvasható (PQW-870)', () => {
+    const example = vStitchPattern();
+    const piece = example.pattern.pieces[0];
+    const pattern = {
+      ...example.pattern,
+      conventions: { ...example.pattern.conventions, chainCounts: false },
+      pieces: [{ ...piece, events: piece.events.map((event) => ({ ...event, statedCount: 10 })) }],
+    };
+    const text = textOf(pattern, 'hu');
+    assert.match(text, /1\. sor: .*\(10 öltés\)\. Fordítás\./);
+    const result = readBack(text, pattern, 'hu');
+    assert.ok(result.ok, JSON.stringify(result.error));
+    assert.deepEqual(canonicalPattern(result.pattern), canonicalPattern(pattern));
+
+    // A használat szerinti szabállyal ugyanez a szöveg ellentmond a gráfnak.
+    const strict = readBack(text, example.pattern, 'hu');
+    assert.equal(strict.ok, false);
+    assert.match(JSON.stringify(strict.error), /a szöveg 10 öltést ír, a visszaolvasott gráf szerint 14/);
   });
 });
 

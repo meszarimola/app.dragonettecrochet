@@ -113,7 +113,7 @@ export const RULES = {
   },
   'stated-count': {
     severity: 'error',
-    reference: '03 §10 B7, 06 §5.3 V3',
+    reference: '03 §10 B7, B10, 06 §5.3 V3',
     summary: 'A megadott öltésszám eltér a számolttól.',
   },
   'round-join': {
