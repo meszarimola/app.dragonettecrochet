@@ -22,6 +22,8 @@ export const singleCrochet = {
   yarnOvers: 0,
   chainHeight: 1,
   turningChain: 1,
+  turningChainCounts: false,
+  roundEnd: 'spiral',
   // A rövidpálca maga a mértékegység.
   heightFactor: { value: 1, source: 'estimated' },
   consumes: 1,
@@ -36,7 +38,7 @@ export const singleCrochetIncrease = {
   id: 'sc-inc',
   kind: 'group',
   terms: {
-    hu: { name: 'szaporítás', abbr: 'szap', aliases: [] },
+    hu: { name: 'szaporítás', abbr: null, aliases: [] },
     'en-US': { name: 'increase', abbr: 'inc', aliases: [] },
     'en-GB': { name: 'increase', abbr: 'inc', aliases: [] },
   },
@@ -49,7 +51,7 @@ export const singleCrochetTwoTogether = {
   id: 'sc2tog',
   kind: 'joined',
   terms: {
-    hu: { name: 'fogyasztás', abbr: 'fogy', aliases: [] },
+    hu: { name: 'fogyasztás', abbr: null, aliases: [] },
     'en-US': { name: 'single crochet two together', abbr: 'sc2tog', aliases: [] },
     'en-GB': { name: 'double crochet two together', abbr: 'dc2tog', aliases: [] },
   },
@@ -65,7 +67,12 @@ const both = 'both-loops';
 export const swatch = {
   formatVersion: 1,
   title: 'Rövidpálcás próba',
-  conventions: { turningChainCounts: false, roundEnd: 'join-slip', picotCounts: false },
+  conventions: {
+    turningChainCounts: 'stitch-default',
+    roundEnd: 'stitch-default',
+    picotCounts: false,
+    joinSlipStitchCounts: false,
+  },
   pieces: [
     {
       id: 'p1',

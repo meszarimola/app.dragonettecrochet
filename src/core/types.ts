@@ -13,7 +13,9 @@
  * - Minden adat sima JSON (nincs Map, Date vagy osztály), így a minta
  *   verziózott JSON-ként menthető és betölthető.
  *
- * A hivatkozások a docs/knowledge-base/ jelentéseire mutatnak, pl. `01 §8.3`.
+ * A hivatkozások a docs/knowledge-base/ jelentéseire mutatnak, pl. `01 §8.3`;
+ * a „szókészlet” a jóváhagyott docs/stitch-vocabulary-proposal.md döntéseire
+ * (D1–D8, K1–K3).
  */
 
 /* ---- Közös ---- */
@@ -37,8 +39,11 @@ export type StitchDefId = string;
 export interface StitchTerm {
   /** Kiírt név, pl. „rövidpálca”. */
   readonly name: string;
-  /** Kiírt rövidítés, pl. `rp`. */
-  readonly abbr: string;
+  /**
+   * Kiírt rövidítés, pl. `rp`. `null`, ha nincs jóváhagyott rövidítés, és a
+   * név kiírva szerepel (szókészlet D4, D8).
+   */
+  readonly abbr: string | null;
   /**
    * Értelmezéskor elfogadott további nevek és rövidítések, pl. „kispálca”.
    * Kimenetben soha nem jelennek meg (01 §8.5 szabály 25).
@@ -80,6 +85,14 @@ interface StitchDefBase {
   readonly chainHeight: number;
   /** Alapértelmezett fordulólánc, ha a sor ezzel az öltéssel kezdődik (01 §8.3 szabály 12). */
   readonly turningChain: number;
+  /**
+   * Számít-e öltésnek a fordulólánc, ha a sor ezzel az öltéssel kezdődik.
+   * Alapértelmezés a CYC szerint: rövidpálca és félpálca nem, egyráhajtásos
+   * pálcától igen (szókészlet K1, 01 §8.3 szabály 13).
+   */
+  readonly turningChainCounts: boolean;
+  /** Körökben zárt kör vagy spirál: rövidpálcánál spirál, egyráhajtásos pálcától zárt kör (szókészlet K2). */
+  readonly roundEnd: 'join-slip' | 'spiral';
   /**
    * Valós magasság a rövidpálcához képest. Amíg nincs mérés, becsült érték;
    * a gauge-profil felülírja (README §4.1).
@@ -189,9 +202,10 @@ export interface RowConventions {
   /**
    * Számít-e a fordulólánc öltésnek. N öltéshez a láncalap `N + T`, ha nem
    * számít, és `N + T − 1`, ha igen; ettől függ az is, hová megy a sor utolsó
-   * öltése (01 §8.3 szabály 13–15).
+   * öltése (01 §8.3 szabály 13–15). `stitch-default`: a sort kezdő öltés
+   * `StitchDef.turningChainCounts` értéke dönt (szókészlet K1).
    */
-  readonly turningChainCounts: boolean;
+  readonly turningChainCounts: 'stitch-default' | boolean;
 }
 
 /** „X többszöröse + Y” (README §4.4, 03 §4.1). */
@@ -203,10 +217,15 @@ export interface RepeatSpec {
 }
 
 export interface PatternConventions extends RowConventions {
-  /** A körök alapértelmezett zárása (06 §5.3 V4). */
-  readonly roundEnd: 'join-slip' | 'spiral';
-  /** Számít-e a pikó öltésnek (README §4.8). */
+  /**
+   * A körök zárása. `stitch-default`: a kör öltésének `StitchDef.roundEnd`
+   * értéke dönt (szókészlet K2, 06 §5.3 V4).
+   */
+  readonly roundEnd: 'stitch-default' | 'join-slip' | 'spiral';
+  /** Számít-e a pikó öltésnek (szókészlet D7, README §4.8). */
   readonly picotCounts: boolean;
+  /** Számít-e öltésnek az illesztő vagy továbbvezető kúszószem (szókészlet D7). */
+  readonly joinSlipStitchCounts: boolean;
   readonly repeat?: RepeatSpec;
 }
 
