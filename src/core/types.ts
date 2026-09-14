@@ -183,7 +183,11 @@ export interface StitchNode {
    */
   readonly anchors: readonly Anchor[];
   readonly flags?: readonly StitchFlag[];
-  /** Kézzel igazított hely a diagramon. Csak a rajzot szépíti, a topológián nem változtat (README §2). */
+  /**
+   * Kézzel igazított hely a diagramon: eltolás a számolt helyhez képest, a
+   * jobbkezes nézet egységében (a `rotation` még nem használt, 0). Csak a
+   * rajzot szépíti, a topológián nem változtat (README §2).
+   */
   readonly pinned?: { readonly x: number; readonly y: number; readonly rotation: number };
 }
 

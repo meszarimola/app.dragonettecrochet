@@ -56,7 +56,7 @@ test('a szerkezet csak az összetett öltéseknél jelenik meg', () => {
 /* ---- Design tokenek ---- */
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
-const DRAWING = ['src/ui/symbols.ts', 'src/ui/board.ts', 'src/ui/main.ts', 'src/ui/palette.ts'];
+const DRAWING = ['src/ui/symbols.ts', 'src/ui/board.ts', 'src/ui/main.ts', 'src/ui/palette.ts', 'src/ui/chart-svg.ts'];
 
 test('a rajzoló kódban nincs konkrét szín', () => {
   for (const path of DRAWING) {

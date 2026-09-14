@@ -37,3 +37,32 @@ jobs:
       # A build után: az analitika-teszt a buildelt dist/index.html-t is nézi.
       - name: Tesztek
         run: npm test
+
+  e2e:
+    name: Böngészős tesztek
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Chromium telepítése
+        run: npx playwright install --with-deps chromium
+
+      # Buildel, majd a buildelt kimenetet a 5181-es porton teszteli.
+      - name: Böngészős tesztek
+        run: npm run test:e2e
+
+      - name: Nyomkövetés hibánál
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-trace
+          path: test-results/
+          retention-days: 7

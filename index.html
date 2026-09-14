@@ -48,6 +48,33 @@
           <h1 class="bar__title">Mintatervező</h1>
         </div>
 
+        <div class="tools">
+          <div class="tools__group" role="group" aria-label="Szerkesztés">
+            <button type="button" class="tool" data-action="undo" aria-keyshortcuts="Control+Z Meta+Z">Visszavonás</button>
+            <button type="button" class="tool" data-action="redo" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z Control+Y">Újra</button>
+            <button type="button" class="tool" data-action="delete-last" aria-keyshortcuts="Backspace">Utolsó törlése</button>
+          </div>
+          <div class="tools__group" role="group" aria-label="Sor és kör">
+            <button type="button" class="tool" data-action="same" aria-keyshortcuts="Shift+Enter">Még egy ugyanabba</button>
+            <button type="button" class="tool" data-action="end-row" aria-keyshortcuts="F">Sor vége, fordulás</button>
+            <button type="button" class="tool" data-action="close-round" aria-keyshortcuts="K">Kör zárása</button>
+          </div>
+          <div class="tools__group" role="group" aria-label="Nézet">
+            <button type="button" class="tool" data-action="mirror" aria-pressed="false" aria-keyshortcuts="M">Tükrözött nézet</button>
+            <button type="button" class="tool" data-action="zoom-out" aria-label="Kicsinyítés">−</button>
+            <button type="button" class="tool" data-action="zoom-in" aria-label="Nagyítás">+</button>
+            <button type="button" class="tool" data-action="fit">Egész minta</button>
+          </div>
+          <div class="tools__group" role="group" aria-label="Fájl">
+            <button type="button" class="tool" data-action="export-json">JSON mentése</button>
+            <button type="button" class="tool" data-action="import-json">JSON betöltése</button>
+            <button type="button" class="tool" data-action="export-png">PNG</button>
+            <button type="button" class="tool" data-action="export-svg">SVG</button>
+            <button type="button" class="tool" data-action="new">Új minta</button>
+            <input type="file" id="import-file" accept="application/json,.json" hidden />
+          </div>
+        </div>
+
         <button
           type="button"
           id="panel-toggle"
@@ -60,12 +87,67 @@
       </header>
 
       <main class="stage">
-        <canvas id="board"></canvas>
+        <canvas
+          id="board"
+          tabindex="0"
+          role="application"
+          aria-roledescription="horgolásminta-diagram"
+          aria-label="Diagram: nyilakkal a célpontok között, Enterrel horgolsz"
+          aria-describedby="status"
+        ></canvas>
+        <p class="status" id="status" role="status" aria-live="polite"></p>
 
-        <aside class="panel" id="panel" aria-label="Jelkészlet">
+        <aside class="panel" id="panel" aria-label="Jelkészlet és ellenőrzés">
+          <section class="check" aria-labelledby="check-title">
+            <h2 class="panel__title" id="check-title">Ellenőrzés</h2>
+            <p class="check__summary" id="summary"></p>
+            <ul class="check__list" id="findings"></ul>
+          </section>
+
           <h2 class="panel__title">Öltések</h2>
           <p class="panel__hint" id="hint"></p>
+          <p class="panel__field" id="count-field" hidden>
+            <label for="chain-count">Láncszemek száma</label>
+            <input id="chain-count" type="number" min="1" max="500" step="1" value="12" inputmode="numeric" />
+          </p>
           <div class="palette" id="palette"></div>
+
+          <section class="check" aria-labelledby="pattern-title">
+            <h2 class="panel__title" id="pattern-title">Minta</h2>
+            <p class="panel__field">
+              <label for="title">Minta neve</label>
+              <input id="title" type="text" maxlength="120" />
+            </p>
+            <p class="panel__note">A minta automatikusan mentődik ebbe a böngészőbe.</p>
+            <details class="keys">
+              <summary>Billentyűk</summary>
+              <dl>
+                <dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd>öltés kiválasztása</dd>
+                <dt><kbd>←</kbd> <kbd>→</kbd> <kbd>Home</kbd> <kbd>End</kbd></dt><dd>célpont a vásznon</dd>
+                <dt><kbd>Enter</kbd></dt><dd>horgolás a célpontba, láncszemnél a megadott számú láncszem</dd>
+                <dt><kbd>Shift</kbd>+<kbd>Enter</kbd></dt><dd>még egy ugyanabba (szaporítás)</dd>
+                <dt><kbd>F</kbd> / <kbd>K</kbd></dt><dd>sor vége és fordulás / kör zárása</dd>
+                <dt><kbd>Backspace</kbd></dt><dd>az utolsó lépés törlése</dd>
+                <dt><kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></dt><dd>visszavonás, újra</dd>
+                <dt><kbd>M</kbd></dt><dd>tükrözött nézet</dd>
+                <dt><kbd>Esc</kbd></dt><dd>nincs kiválasztott öltés: kattintással a jel kijelölése és igazítása</dd>
+                <dt><kbd>Alt</kbd>+nyilak</dt><dd>a kijelölt jel eltolása</dd>
+              </dl>
+            </details>
+          </section>
+
+          <section class="check" id="adjust" aria-labelledby="adjust-title" hidden>
+            <h2 class="panel__title" id="adjust-title">Kijelölt jel igazítása</h2>
+            <p class="panel__hint" id="adjust-name"></p>
+            <div class="adjust" role="group" aria-label="Eltolás">
+              <button type="button" class="tool" data-nudge="0,-2" aria-label="Fel">↑</button>
+              <button type="button" class="tool" data-nudge="-2,0" aria-label="Balra">←</button>
+              <button type="button" class="tool" data-nudge="2,0" aria-label="Jobbra">→</button>
+              <button type="button" class="tool" data-nudge="0,2" aria-label="Le">↓</button>
+              <button type="button" class="tool" data-action="unpin">Számolt helyre</button>
+            </div>
+          </section>
+
           <button type="button" class="panel__consent" data-consent-open hidden>
             Süti-beállítások
           </button>
