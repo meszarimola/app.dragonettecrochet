@@ -294,7 +294,21 @@ body.is-armed #board {
 
 .palette {
   display: grid;
+  gap: 1.25rem;
+}
+
+.palette__section {
+  display: grid;
   gap: 0.5rem;
+}
+
+.palette__title {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: var(--ls-micro);
+  text-transform: uppercase;
+  color: var(--c-muted);
 }
 
 .stitch {
@@ -327,6 +341,11 @@ body.is-armed #board {
 .stitch__hu {
   color: var(--c-ink);
   font-size: 0.9375rem;
+}
+
+.stitch__detail {
+  color: var(--c-text-soft);
+  font-size: 0.8125rem;
 }
 
 .stitch__en {
