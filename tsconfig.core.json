@@ -1,0 +1,10 @@
+{
+  // A mag típusellenőrzése DOM nélkül: ha a src/core/ böngésző-API-t
+  // (document, window, canvas) használna, itt fordítási hiba lesz.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": []
+  },
+  "include": ["src/core", "tests/*.check.ts"]
+}

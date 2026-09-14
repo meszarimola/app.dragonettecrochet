@@ -1,0 +1,39 @@
+{
+  "$schema": "../schema/worked-example.schema.json",
+  "schemaVersion": 1,
+  "id": "WE-001",
+  "date": "2026-09-20",
+  "status": "evaluated",
+  "crocheterId": "owner",
+  "roadmapStep": { "milestone": "Mintatervező M1", "ticket": null },
+  "purpose": "Lapos rövidpálcás kör: 6-os szaporítással lapos marad-e, és egyezik-e az átmérő a cső gauge-éből jósolttal.",
+  "pattern": {
+    "title": "Rövidpálcás lapos kör, 8 kör",
+    "source": "generated",
+    "designerVersion": null,
+    "file": null,
+    "summary": "Varázskör 6 rövidpálcával, körönként 6 szaporítás, spirálban, 8 kör (48 öltés)."
+  },
+  "materials": { "yarnId": "pelda-pamut-125", "hookMm": 4, "gaugeProfileId": "owner-pelda-pamut-125-4mm-unblocked" },
+  "predictions": [
+    { "dimension": "diameter", "label": "átmérő", "valueMm": 80, "rangeMm": null, "basis": "measured" }
+  ],
+  "predictedShape": "flat",
+  "measurements": [
+    { "dimension": "diameter", "state": "unblocked", "valuesMm": [78.5, 80, 79] }
+  ],
+  "shape": "flat",
+  "shapeNotes": null,
+  "massG": 4.1,
+  "photos": [
+    { "file": "WE-001-szin.jpg", "caption": "Felülről, vágóalátéten" }
+  ],
+  "deviations": [],
+  "clarity": [
+    { "where": "1. kör", "rating": 5, "note": null }
+  ],
+  "actions": [
+    { "about": "átmérő", "kind": "none", "ref": "GS-20260915-02", "note": "−1,0%, tűrésen belül." }
+  ],
+  "notes": "Kitalált példaértékek a formátum bemutatásához és a betöltő tesztjeihez. Nem mérés."
+}

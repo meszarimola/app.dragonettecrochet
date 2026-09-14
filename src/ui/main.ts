@@ -1,0 +1,919 @@
+/*
+ * Belépési pont: a szerkesztő állapota és a felület összekötése.
+ *
+ * A mintát csak a mag műveletei változtatják (src/core/editor.ts); itt csak a
+ * visszavonási verem, a kurzor, a kijelölés és a nézet él. Minden változás
+ * után újraszámoljuk a célpontokat, az elrendezést és az ellenőrzést, és a
+ * mintát a böngészőbe mentjük.
+ *
+ * A jelölés és a jelstílus (PQW-868) a felület nyelvétől független beállítás:
+ * a paletta, az öltésnevek, a vászon jelei, az írott minta és az export is ezt
+ * követi, a minta pedig mentéskor rögzíti.
+ */
+
+import './styles.css';
+import { GA_MEASUREMENT_ID } from '../config.js';
+import {
+  closeRound,
+  contextOf,
+  defaultCursor,
+  deleteLast,
+  emptyPattern,
+  endRow,
+  liveCheck,
+  setPinned,
+  work,
+  workIntoSame,
+  type EditResult,
+  type LiveCheck,
+  type Slot,
+  type WorkContext,
+} from '../core/editor.js';
+import { canRedo, canUndo, createHistory, record, redo, undo, type History } from '../core/history.js';
+import { layoutPattern, type ChartLayout, type Point } from '../core/layout.js';
+import { loadPattern, savePattern } from '../core/pattern-json.js';
+import { RULES } from '../core/rules.js';
+import { libraryFor, resolveStitch } from '../core/stitch-variants.js';
+import { stitchName } from '../core/stitchText.js';
+import type { Locale, NodeId, Pattern, PatternNotation, StitchDef, StitchDefId } from '../core/types.js';
+import { validatePattern } from '../core/validate.js';
+import { Board, type Target } from './board.js';
+import { chartSvg } from './chart-svg.js';
+import { setupConsentBanner } from './consentBanner.js';
+import {
+  chartStyleLabel,
+  readNotation,
+  symbolOptionsFor,
+  termsLabel,
+  textLanguage,
+  uiLanguageOf,
+  withNotation,
+  writeNotation,
+} from './notation.js';
+import { buildPalette, type PaletteItem } from './palette.js';
+import { applyInk, drawCentered, readInk, shapeBounds, stemLength, symbolShapes, type SymbolOptions } from './symbols.js';
+import { writtenView } from './written.js';
+
+function must<T extends Element>(selector: string): T {
+  const el = document.querySelector<T>(selector);
+  if (!el) throw new Error(`Hiányzó elem a dokumentumban: ${selector}`);
+  return el;
+}
+
+const canvas = must<HTMLCanvasElement>('#board');
+const board = new Board(canvas);
+const palette = must<HTMLDivElement>('#palette');
+const panel = must<HTMLElement>('#panel');
+const toggle = must<HTMLButtonElement>('#panel-toggle');
+const hint = must<HTMLParagraphElement>('#hint');
+const status = must<HTMLParagraphElement>('#status');
+const countField = must<HTMLElement>('#count-field');
+const countInput = must<HTMLInputElement>('#chain-count');
+const summary = must<HTMLParagraphElement>('#summary');
+const findingList = must<HTMLUListElement>('#findings');
+const titleInput = must<HTMLInputElement>('#title');
+const importFile = must<HTMLInputElement>('#import-file');
+const adjust = must<HTMLElement>('#adjust');
+const adjustName = must<HTMLParagraphElement>('#adjust-name');
+const written = must<HTMLElement>('#written');
+const writtenToggle = must<HTMLButtonElement>('#written-toggle');
+const writtenText = must<HTMLPreElement>('#written-text');
+const writtenNotices = must<HTMLDivElement>('#written-notices');
+const termsSelect = must<HTMLSelectElement>('#terms');
+const styleSelect = must<HTMLSelectElement>('#chart-style');
+const scMarkField = must<HTMLFieldSetElement>('#sc-mark');
+const scMarkJis = must<HTMLParagraphElement>('#sc-mark-jis');
+
+const STORAGE_KEY = 'dc-mintatervezo:minta';
+const SETTINGS_KEY = 'dc-mintatervezo:nezet';
+const NOTATION_KEY = 'dc-mintatervezo:jeloles';
+const WRITTEN_KEY = 'dc-mintatervezo:irott-minta';
+/** Ennél keskenyebb képernyőn a két panel nem fér el egymás mellett. */
+const NARROW = window.matchMedia('(width < 48rem)');
+const STRUCTURAL_RULES = new Set(['unknown-stitch', 'dangling-reference', 'yarn-path']);
+
+/* ---- Állapot ---- */
+
+let history: History<Pattern> = createHistory(restore());
+let tool: StitchDefId | null = null;
+let cursor = 0;
+/** A felhasználó mozgatta-e a kurzort; ha nem, a kurzor a következő alapértelmezett célpontra ugrik. */
+let cursorMoved = false;
+let hover: number | null = null;
+let selectedNode: NodeId | null = null;
+let mirror = readMirror();
+/** A jelölés és a jelstílus; a böngészőben marad. */
+let notation = readStoredNotation();
+let symbols: SymbolOptions = symbolOptionsFor(notation);
+/** Húzás közben a még el nem mentett, igazított minta. */
+let preview: Pattern | null = null;
+
+interface Derived {
+  readonly pattern: Pattern;
+  readonly context: WorkContext;
+  readonly layout: ChartLayout;
+  readonly check: LiveCheck;
+  readonly targets: readonly Target[];
+}
+
+let derived = derive(history.present);
+
+function derive(pattern: Pattern): Derived {
+  const context = contextOf(pattern);
+  const layout = layoutPattern(pattern, context.library, { mirror, stemLength });
+  const check = liveCheck(pattern, context);
+  const targets = context.slots.map((slot, i) => ({ point: slotPoint(layout, slot), used: context.used[i] ?? false }));
+  return { pattern, context, layout, check, targets };
+}
+
+function slotPoint(layout: ChartLayout, slot: Slot): Point {
+  const ids = slot.kind === 'stitch' ? [slot.id] : slot.kind === 'space' ? slot.chains : [slot.node];
+  const points = ids.map((id) => layout.nodes.get(id)?.top).filter((p): p is Point => p !== undefined);
+  if (points.length === 0) return { x: 0, y: 0 };
+  return {
+    x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
+    y: points.reduce((sum, p) => sum + p.y, 0) / points.length,
+  };
+}
+
+/* ---- Tárolás ---- */
+
+function restore(): Pattern {
+  let saved: string | null = null;
+  try {
+    saved = localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return emptyPattern();
+  }
+  if (!saved) return emptyPattern();
+  const loaded = loadPattern(saved);
+  if (loaded.ok && structuralProblem(loaded.pattern) === null) return loaded.pattern;
+  try {
+    localStorage.setItem(`${STORAGE_KEY}:hibas`, saved);
+  } catch {
+    // Ha a tárhely sem írható, a hibás mentést nem tudjuk megőrizni.
+  }
+  queueMicrotask(() => announce('A böngészőben mentett minta nem tölthető be, ezért új minta indult.'));
+  return emptyPattern();
+}
+
+function persist(pattern: Pattern): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, savePattern(withNotation(pattern, notation)));
+  } catch {
+    announce('A mintát nem sikerült a böngészőbe menteni; JSON-ként mentsd le.');
+  }
+}
+
+function readMirror(): boolean {
+  try {
+    return localStorage.getItem(SETTINGS_KEY) === 'tukrozott';
+  } catch {
+    return false;
+  }
+}
+
+function readStoredNotation(): PatternNotation {
+  const ui = uiLanguageOf(document.documentElement.lang);
+  try {
+    return readNotation(localStorage.getItem(NOTATION_KEY), ui);
+  } catch {
+    return readNotation(null, ui);
+  }
+}
+
+function structuralProblem(pattern: Pattern): string | null {
+  const finding = validatePattern(pattern, libraryFor(pattern)).find((f) => STRUCTURAL_RULES.has(f.rule));
+  return finding ? RULES[finding.rule as keyof typeof RULES].summary : null;
+}
+
+/* ---- Frissítés ---- */
+
+const insetRight = () => (panel.hidden ? 0 : panel.getBoundingClientRect().width);
+const insetLeft = () => (written.hidden ? 0 : written.getBoundingClientRect().width);
+const fitBoard = () => board.fit(insetRight(), insetLeft());
+const showPoint = (point: Point) => board.ensureVisible(point, insetRight(), insetLeft());
+
+function refresh(message?: string): void {
+  derived = derive(preview ?? history.present);
+  if (!cursorMoved) cursor = defaultCursor(derived.pattern, derived.context, tool);
+  // A sor utolsó célpontja után a kurzor a célpontokon kívül áll: ott nem horgol.
+  cursor = Math.max(0, Math.min(cursor, derived.targets.length));
+  if (selectedNode && !derived.layout.nodes.has(selectedNode)) selectedNode = null;
+
+  board.setScene({
+    layout: derived.layout,
+    library: derived.context.library,
+    targets: tool && isTargeted(tool) ? derived.targets : [],
+    cursor: tool && derived.targets.length ? cursor : null,
+    hover,
+    selected: selectedNode,
+    findings: derived.check.findings,
+    symbols,
+  });
+  updateControls();
+  updateWritten();
+  if (message !== undefined) announce(message);
+}
+
+function isTargeted(id: StitchDefId): boolean {
+  const kind = resolveStitch(id)?.kind;
+  return kind !== 'chain' && kind !== 'space' && kind !== 'ring' && kind !== 'picot';
+}
+
+function commit(result: EditResult, message: string): void {
+  if (!result.ok) {
+    announce(result.reason);
+    return;
+  }
+  history = record(history, result.pattern);
+  cursorMoved = false;
+  persist(history.present);
+  // Előbb újraszámolunk, hogy az állapotsor már az új mintát írja le.
+  refresh();
+  announce(`${message} ${progress()}`);
+  const point = (tool && isTargeted(tool) ? derived.targets[cursor]?.point : undefined) ?? lastTop();
+  if (point) showPoint(point);
+}
+
+function lastTop(): Point | undefined {
+  const last = derived.pattern.pieces[0]?.stitches.at(-1);
+  return last ? derived.layout.nodes.get(last.id)?.top : undefined;
+}
+
+function announce(message: string): void {
+  status.textContent = message;
+}
+
+function layerName(context: WorkContext): string {
+  return `${context.layer}. ${context.shape === 'round' ? 'kör' : 'sor'}`;
+}
+
+function progress(): string {
+  const { context, check } = derived;
+  if (!context.graph) return '';
+  if (!context.started) return `${capitalize(layerName(context))} következik.`;
+  const count = context.graph.layers[context.layer]?.stitchCount ?? 0;
+  const rest = check.remaining > 0 ? `, még ${check.remaining} célpont` : '';
+  return `${capitalize(layerName(context))}: ${count} öltés${rest}.`;
+}
+
+function capitalize(text: string): string {
+  return text.charAt(0).toLocaleUpperCase('hu') + text.slice(1);
+}
+
+function describeTarget(index: number): string {
+  const slot = derived.context.slots[index];
+  if (!slot) return derived.context.slots.length > 0 ? 'A sor végén vagy: nincs több célpont.' : 'Nincs célpont.';
+  let what: string;
+  if (slot.kind === 'space') what = `láncív (${slot.chains.length} láncszem)`;
+  else if (slot.kind === 'ring') what = 'varázskör';
+  else {
+    const def = derived.context.graph?.defs.get(slot.id);
+    what = def ? stitchName(def, notation.terms) : 'öltés';
+  }
+  const used = derived.context.used[index] ? ', már horgoltál bele' : '';
+  return `Célpont: ${index + 1}/${derived.context.slots.length}, ${what}${used}.`;
+}
+
+/* ---- Vezérlők állapota ---- */
+
+function updateControls(): void {
+  const { context, pattern, check } = derived;
+  const empty = (pattern.pieces[0]?.stitches.length ?? 0) === 0;
+  const def = tool ? resolveStitch(tool) : undefined;
+  setDisabled('undo', !canUndo(history));
+  setDisabled('redo', !canRedo(history));
+  setDisabled('delete-last', empty);
+  setDisabled('same', !(def?.kind === 'basic' && !empty));
+  setDisabled('end-row', !(context.started && context.shape === 'row'));
+  setDisabled('close-round', !(context.started && context.shape === 'round'));
+  setDisabled('export-png', empty);
+  setDisabled('export-svg', empty);
+  must<HTMLButtonElement>('[data-action="mirror"]').setAttribute('aria-pressed', String(mirror));
+  if (document.activeElement !== titleInput) titleInput.value = pattern.title;
+
+  const layers = context.graph ? context.graph.layers.length - 1 : 0;
+  const errors = check.findings.filter((f) => f.severity === 'error').length;
+  const warnings = check.findings.length - errors;
+  const parts = [
+    empty ? 'Üres minta: kezdd láncalappal (Láncszem) vagy varázskörrel.' : `${layers} ${context.shape === 'round' ? 'kör' : 'sor'}. ${progress()}`,
+    check.findings.length === 0 ? 'Nincs hiba és figyelmeztetés.' : `${errors} hiba, ${warnings} figyelmeztetés.`,
+  ];
+  summary.textContent = parts.join(' ');
+
+  findingList.replaceChildren(
+    ...check.findings.map((finding) => {
+      const item = document.createElement('li');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `finding${finding.severity === 'warning' ? ' finding--warning' : ''}`;
+      const severity = span('finding__severity', finding.severity === 'error' ? 'Hiba: ' : 'Figyelmeztetés: ');
+      const rule = RULES[finding.rule as keyof typeof RULES];
+      button.append(severity, rule?.summary ?? finding.rule, span('finding__ref', `${finding.reference} · ${finding.nodes.length} öltés`));
+      button.addEventListener('click', () => {
+        const first = finding.nodes.find((id) => derived.layout.nodes.has(id));
+        if (!first) return;
+        selectedNode = first;
+        refresh(`Kijelölve a hiba első öltése.`);
+        showPoint(derived.layout.nodes.get(first)!.top);
+      });
+      item.append(button);
+      return item;
+    }),
+  );
+
+  const node = selectedNode ? derived.pattern.pieces[0]?.stitches.find((n) => n.id === selectedNode) : undefined;
+  adjust.hidden = !node || tool !== null;
+  if (node) {
+    const nodeDef = derived.context.library.get(node.def);
+    adjustName.textContent = `${nodeDef ? capitalize(stitchName(nodeDef, notation.terms)) : node.def}${node.pinned ? ', kézzel igazítva' : ''}`;
+  }
+}
+
+function setDisabled(action: string, disabled: boolean): void {
+  must<HTMLButtonElement>(`[data-action="${action}"]`).disabled = disabled;
+}
+
+function span(className: string, text: string): HTMLSpanElement {
+  const el = document.createElement('span');
+  el.className = className;
+  el.textContent = text;
+  return el;
+}
+
+/* ---- Írott minta ---- */
+
+function updateWritten(): void {
+  // Húzás közben csak a jel helye változik, a szöveg nem.
+  if (written.hidden || preview) return;
+  const view = writtenView(derived.pattern, derived.context, derived.check, notation.terms);
+  const notices = view.kind === 'text' ? view.notices : [view.message];
+  writtenNotices.replaceChildren(
+    ...notices.map((notice) => {
+      const item = document.createElement('p');
+      item.className = `written__notice${view.kind === 'message' ? ' written__notice--info' : ''}`;
+      item.textContent = notice;
+      return item;
+    }),
+  );
+  writtenText.hidden = view.kind !== 'text';
+  writtenText.textContent = view.kind === 'text' ? view.text : '';
+  writtenText.lang = textLanguage(notation.terms);
+  setDisabled('copy-written', view.kind !== 'text');
+}
+
+async function copyWritten(): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(writtenText.textContent ?? '');
+    announce('Az írott minta a vágólapra került.');
+  } catch {
+    const range = document.createRange();
+    range.selectNodeContents(writtenText);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    writtenText.focus();
+    announce('A másolás nem sikerült; a szöveg ki van jelölve, Ctrl+C-vel másolhatod.');
+  }
+}
+
+function setOpen(target: HTMLElement, button: HTMLButtonElement, open: boolean): void {
+  target.toggleAttribute('hidden', !open);
+  button.setAttribute('aria-expanded', String(open));
+}
+
+function setWrittenOpen(open: boolean): void {
+  setOpen(written, writtenToggle, open);
+  try {
+    localStorage.setItem(WRITTEN_KEY, open ? 'nyitva' : 'zarva');
+  } catch {
+    // A panel enélkül is működik, csak az állapota nem marad meg.
+  }
+  updateWritten();
+}
+
+function readWrittenOpen(): boolean {
+  try {
+    return localStorage.getItem(WRITTEN_KEY) !== 'zarva';
+  } catch {
+    return true;
+  }
+}
+
+/* ---- Jelölés és jelstílus ---- */
+
+function applyNotation(next: PatternNotation, message: string): void {
+  notation = next;
+  symbols = symbolOptionsFor(next);
+  try {
+    localStorage.setItem(NOTATION_KEY, writeNotation(next));
+  } catch {
+    // A választás enélkül is érvényes, csak újratöltés után nem marad meg.
+  }
+  syncNotationControls();
+  renderPalette();
+  // A kiválasztott öltés súgója is az új nevet mutassa.
+  select(tool);
+  announce(message);
+}
+
+function syncNotationControls(): void {
+  termsSelect.value = notation.terms;
+  styleSelect.value = notation.chartStyle;
+  const jis = notation.chartStyle === 'jis';
+  scMarkField.hidden = jis;
+  scMarkJis.hidden = !jis;
+  for (const radio of scMarkField.querySelectorAll<HTMLInputElement>('input[name="sc-mark"]')) {
+    radio.checked = radio.value === notation.singleCrochet;
+  }
+}
+
+termsSelect.addEventListener('change', () => {
+  const terms = termsSelect.value as Locale;
+  applyNotation({ ...notation, terms }, `Jelölés: ${termsLabel(terms)}.`);
+});
+
+styleSelect.addEventListener('change', () => {
+  const chartStyle = styleSelect.value as PatternNotation['chartStyle'];
+  applyNotation({ ...notation, chartStyle }, `Jelstílus: ${chartStyleLabel(chartStyle)}.`);
+});
+
+scMarkField.addEventListener('change', (event) => {
+  const singleCrochet = (event.target as HTMLInputElement).value as PatternNotation['singleCrochet'];
+  applyNotation({ ...notation, singleCrochet }, `A rövidpálca jele: ${singleCrochet === 'plus' ? '+' : '×'}.`);
+});
+
+/* ---- Paletta ---- */
+
+let items: PaletteItem[] = [];
+const ink = readInk(document.documentElement);
+const buttons = new Map<StitchDefId, HTMLButtonElement>();
+
+/** A gomb előnézete ugyanazzal a rajzzal készül, mint a vászon, a gombhoz kicsinyítve. */
+function drawPreview(def: StitchDef, size: number): HTMLCanvasElement {
+  const previewCanvas = document.createElement('canvas');
+  const dpr = window.devicePixelRatio || 1;
+  previewCanvas.width = Math.round(size * dpr);
+  previewCanvas.height = Math.round(size * dpr);
+  previewCanvas.style.width = `${size}px`;
+  previewCanvas.style.height = `${size}px`;
+  previewCanvas.setAttribute('aria-hidden', 'true');
+
+  const ctx = previewCanvas.getContext('2d');
+  if (ctx) {
+    const shapes = symbolShapes(def, symbols);
+    const { minX, minY, maxX, maxY } = shapeBounds(shapes);
+    const fit = Math.min(1, (size - 8) / Math.max(maxX - minX, maxY - minY));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.translate(size / 2, size / 2);
+    // A vonal a kicsinyítés után is 2 px vastag marad.
+    applyInk(ctx, ink, 2 / fit);
+    drawCentered(ctx, shapes, fit);
+  }
+  return previewCanvas;
+}
+
+function stitchButton(item: PaletteItem): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'stitch';
+  button.setAttribute('aria-pressed', 'false');
+  button.append(drawPreview(item.def, 44));
+
+  const label = span('stitch__label', '');
+  label.lang = textLanguage(notation.terms);
+  label.append(span('stitch__name', item.name));
+  if (item.structure) label.append(span('stitch__detail', item.structure));
+  button.append(label);
+
+  if (item.key) {
+    const key = document.createElement('kbd');
+    key.className = 'stitch__key';
+    key.textContent = item.key;
+    button.append(key);
+  }
+
+  // A kiválasztott jelre újra kattintva megszűnik a kijelölés.
+  button.addEventListener('click', () => select(tool === item.def.id ? null : item.def.id));
+  return button;
+}
+
+function select(id: StitchDefId | null): void {
+  tool = id;
+  hover = null;
+  if (id) selectedNode = null;
+  for (const [stitchId, button] of buttons) button.setAttribute('aria-pressed', String(stitchId === id));
+
+  const item = items.find((candidate) => candidate.def.id === id);
+  const kind = item?.def.kind;
+  countField.hidden = kind !== 'chain' && kind !== 'space';
+  if (!item) hint.textContent = 'Válassz öltést. Öltés nélkül kattintással a jelet jelölöd ki, és igazíthatod.';
+  else if (kind === 'chain' || kind === 'space') hint.textContent = `${item.name}: Enterrel vagy a vászonra kattintva horgolod, a megadott számú láncszemmel.`;
+  else if (kind === 'ring' || kind === 'picot') hint.textContent = `${item.name}: Enterrel vagy a vászonra kattintva horgolod.`;
+  else hint.textContent = `${item.name}: nyilakkal választod a célpontot, Enterrel vagy kattintással horgolsz bele.`;
+  document.body.classList.toggle('is-armed', item !== undefined);
+  refresh();
+}
+
+function renderPalette(): void {
+  const sections = buildPalette(notation.terms);
+  items = sections.flatMap((section) => section.items);
+  buttons.clear();
+  palette.replaceChildren();
+  for (const section of sections) palette.append(paletteSection(section));
+}
+
+function paletteSection(section: ReturnType<typeof buildPalette>[number]): HTMLDivElement {
+  const group = document.createElement('div');
+  group.className = 'palette__section';
+  group.setAttribute('role', 'group');
+  const title = document.createElement('h3');
+  title.className = 'palette__title';
+  title.id = `palette-${section.id}`;
+  title.textContent = section.title;
+  group.setAttribute('aria-labelledby', title.id);
+  group.append(title);
+  for (const item of section.items) {
+    const button = stitchButton(item);
+    buttons.set(item.def.id, button);
+    group.append(button);
+  }
+  return group;
+}
+
+/* ---- Műveletek ---- */
+
+function workAtCursor(): void {
+  if (!tool) {
+    announce('Előbb válassz öltést a jelkészletből (1–9).');
+    return;
+  }
+  const def = resolveStitch(tool);
+  const count = Number(countInput.value);
+  const name = def ? capitalize(stitchName(def, notation.terms)) : tool;
+  const message = def?.kind === 'chain' || def?.kind === 'space' ? `${name}: ${count} láncszem.` : `${name} horgolva.`;
+  commit(work(history.present, { def: tool, count }, cursor), message);
+}
+
+function nudge(dx: number, dy: number): void {
+  const node = history.present.pieces[0]?.stitches.find((n) => n.id === selectedNode);
+  if (!node) return;
+  const x = (node.pinned?.x ?? 0) + (mirror ? -dx : dx);
+  const y = (node.pinned?.y ?? 0) + dy;
+  commit(setPinned(history.present, node.id, { x, y }), 'Jel eltolva.');
+}
+
+function slug(title: string): string {
+  const base = title.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return base || 'minta';
+}
+
+function download(content: Blob | string, filename: string, type: string): void {
+  const blob = typeof content === 'string' ? new Blob([content], { type }) : content;
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function exportSvgText(): string {
+  const pattern = history.present;
+  const library = libraryFor(pattern);
+  const root = document.documentElement;
+  const token = (name: string) => getComputedStyle(root).getPropertyValue(name).trim();
+  return chartSvg(pattern, layoutPattern(pattern, library, { mirror, stemLength }), library, {
+    colors: { right: token('--c-ink'), wrong: token('--c-ink-wrong'), text: token('--c-text'), background: token('--c-bg') },
+    mirror,
+    terms: notation.terms,
+    symbols,
+  });
+}
+
+async function exportPng(): Promise<void> {
+  const url = URL.createObjectURL(new Blob([exportSvgText()], { type: 'image/svg+xml' }));
+  try {
+    const image = new Image();
+    image.src = url;
+    await image.decode();
+    const out = document.createElement('canvas');
+    out.width = image.width * 2;
+    out.height = image.height * 2;
+    out.getContext('2d')?.drawImage(image, 0, 0, out.width, out.height);
+    const blob = await new Promise<Blob | null>((resolve) => out.toBlob(resolve, 'image/png'));
+    if (!blob) throw new Error('üres kép');
+    download(blob, `${slug(history.present.title)}.png`, 'image/png');
+    announce('PNG mentve.');
+  } catch {
+    announce('A PNG-t nem sikerült elkészíteni; az SVG-export működik.');
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+async function importJson(file: File): Promise<void> {
+  const loaded = loadPattern(await file.text());
+  if (!loaded.ok) {
+    announce(`A fájl nem tölthető be: ${loaded.error.message} (${loaded.error.path})`);
+    return;
+  }
+  const problem = structuralProblem(loaded.pattern);
+  if (problem) {
+    announce(`A fájl szerkezete hibás, ezért nem tölthető be: ${problem}`);
+    return;
+  }
+  selectedNode = null;
+  const recorded = loaded.pattern.notation?.terms;
+  const note =
+    recorded && recorded !== notation.terms
+      ? ` A minta ${termsLabel(recorded)} jelöléssel készült; a nézet a beállításod szerint ${termsLabel(notation.terms)}.`
+      : '';
+  commit({ ok: true, pattern: loaded.pattern }, `Minta betöltve; visszavonással a korábbi visszajön.${note}`);
+  fitBoard();
+}
+
+const ACTIONS: Record<string, () => void> = {
+  undo: () => {
+    history = undo(history);
+    cursorMoved = false;
+    persist(history.present);
+    refresh('Visszavonva.');
+  },
+  redo: () => {
+    history = redo(history);
+    cursorMoved = false;
+    persist(history.present);
+    refresh('Újra.');
+  },
+  'delete-last': () => commit(deleteLast(history.present), 'Az utolsó lépés törölve.'),
+  same: () => (tool ? commit(workIntoSame(history.present, tool), 'Még egy ugyanabba.') : announce('Előbb válassz öltést.')),
+  'end-row': () => commit(endRow(history.present, tool), 'Sor vége, fordulás.'),
+  'close-round': () => commit(closeRound(history.present), 'Kör zárva.'),
+  mirror: () => {
+    mirror = !mirror;
+    try {
+      localStorage.setItem(SETTINGS_KEY, mirror ? 'tukrozott' : 'normal');
+    } catch {
+      // A nézet beállítása enélkül is működik, csak nem marad meg.
+    }
+    refresh(mirror ? 'Tükrözött nézet balkezeseknek.' : 'Jobbkezes nézet.');
+    fitBoard();
+  },
+  'zoom-in': () => board.zoom(1.25),
+  'zoom-out': () => board.zoom(0.8),
+  fit: () => fitBoard(),
+  'export-json': () => {
+    download(savePattern(withNotation(history.present, notation)), `${slug(history.present.title)}.json`, 'application/json');
+    announce('JSON mentve.');
+  },
+  'import-json': () => importFile.click(),
+  'export-svg': () => {
+    download(exportSvgText(), `${slug(history.present.title)}.svg`, 'image/svg+xml');
+    announce('SVG mentve.');
+  },
+  'export-png': () => void exportPng(),
+  'copy-written': () => void copyWritten(),
+  new: () => {
+    selectedNode = null;
+    commit({ ok: true, pattern: emptyPattern() }, 'Új minta; visszavonással a korábbi visszajön.');
+    fitBoard();
+  },
+  unpin: () => selectedNode && commit(setPinned(history.present, selectedNode, null), 'A jel a számolt helyére került.'),
+};
+
+document.addEventListener('click', (event) => {
+  const target = (event.target as Element).closest<HTMLElement>('[data-action], [data-nudge]');
+  if (!target) return;
+  if (target.dataset.nudge) {
+    const [dx, dy] = target.dataset.nudge.split(',').map(Number);
+    nudge(dx ?? 0, dy ?? 0);
+    return;
+  }
+  ACTIONS[target.dataset.action ?? '']?.();
+});
+
+importFile.addEventListener('change', () => {
+  const file = importFile.files?.[0];
+  importFile.value = '';
+  if (file) void importJson(file);
+});
+
+titleInput.addEventListener('change', () => {
+  const title = titleInput.value.trim();
+  if (title !== history.present.title) commit({ ok: true, pattern: { ...history.present, title } }, 'A minta neve módosult.');
+});
+
+countInput.addEventListener('change', () => refresh());
+
+toggle.addEventListener('click', () => {
+  const open = panel.hasAttribute('hidden');
+  setOpen(panel, toggle, open);
+  if (open && NARROW.matches && !written.hidden) setWrittenOpen(false);
+});
+
+writtenToggle.addEventListener('click', () => {
+  const open = written.hasAttribute('hidden');
+  setWrittenOpen(open);
+  if (open && NARROW.matches) setOpen(panel, toggle, false);
+});
+
+/* ---- Egér és érintés ---- */
+
+type Drag =
+  | { readonly kind: 'node'; readonly id: NodeId; readonly start: Point; readonly base: Point; moved: boolean }
+  | { readonly kind: 'pan'; last: Point };
+let drag: Drag | null = null;
+
+canvas.addEventListener('pointerdown', (event) => {
+  canvas.focus({ preventScroll: true });
+  if (tool) {
+    if (!isTargeted(tool)) {
+      workAtCursor();
+      return;
+    }
+    const index = board.targetAt(event.clientX, event.clientY);
+    if (index === null) {
+      drag = { kind: 'pan', last: { x: event.clientX, y: event.clientY } };
+      canvas.setPointerCapture(event.pointerId);
+      return;
+    }
+    cursor = index;
+    cursorMoved = true;
+    workAtCursor();
+    return;
+  }
+  const id = board.nodeAt(event.clientX, event.clientY);
+  canvas.setPointerCapture(event.pointerId);
+  if (!id) {
+    selectedNode = null;
+    drag = { kind: 'pan', last: { x: event.clientX, y: event.clientY } };
+    refresh();
+    return;
+  }
+  selectedNode = id;
+  const pinned = history.present.pieces[0]?.stitches.find((n) => n.id === id)?.pinned;
+  drag = { kind: 'node', id, start: board.toChart(event.clientX, event.clientY), base: { x: pinned?.x ?? 0, y: pinned?.y ?? 0 }, moved: false };
+  refresh();
+});
+
+canvas.addEventListener('pointermove', (event) => {
+  if (drag?.kind === 'pan') {
+    board.pan(event.clientX - drag.last.x, event.clientY - drag.last.y);
+    drag.last = { x: event.clientX, y: event.clientY };
+    return;
+  }
+  if (drag?.kind === 'node') {
+    const p = board.toChart(event.clientX, event.clientY);
+    const dx = (p.x - drag.start.x) * (mirror ? -1 : 1);
+    const result = setPinned(history.present, drag.id, { x: drag.base.x + dx, y: drag.base.y + p.y - drag.start.y });
+    if (result.ok) {
+      drag.moved = true;
+      preview = result.pattern;
+      refresh();
+    }
+    return;
+  }
+  if (!tool || !isTargeted(tool)) return;
+  const index = board.targetAt(event.clientX, event.clientY);
+  if (index !== hover) {
+    hover = index;
+    refresh();
+  }
+});
+
+function endDrag(): void {
+  if (drag?.kind === 'node' && drag.moved && preview) {
+    const pattern = preview;
+    preview = null;
+    commit({ ok: true, pattern }, 'Jel eltolva.');
+  }
+  preview = null;
+  drag = null;
+}
+
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+canvas.addEventListener('pointerleave', () => {
+  if (hover !== null && !drag) {
+    hover = null;
+    refresh();
+  }
+});
+
+canvas.addEventListener(
+  'wheel',
+  (event) => {
+    event.preventDefault();
+    if (event.ctrlKey || event.metaKey) board.zoom(event.deltaY < 0 ? 1.1 : 0.9);
+    else board.pan(-event.deltaX, -event.deltaY);
+  },
+  { passive: false },
+);
+
+/* ---- Billentyűk ---- */
+
+function moveCursor(step: number): void {
+  const { targets } = derived;
+  if (targets.length === 0) return;
+  cursor = Math.max(0, Math.min(targets.length - 1, cursor + step));
+  cursorMoved = true;
+  refresh(describeTarget(cursor));
+  showPoint(targets[cursor]!.point);
+}
+
+document.addEventListener('keydown', (event) => {
+  const target = event.target as HTMLElement;
+  if (target.closest('input, textarea, select')) return;
+  const key = event.key;
+
+  if ((event.ctrlKey || event.metaKey) && !event.altKey) {
+    const lower = key.toLowerCase();
+    if (lower === 'z') {
+      event.preventDefault();
+      ACTIONS[event.shiftKey ? 'redo' : 'undo']!();
+    } else if (lower === 'y') {
+      event.preventDefault();
+      ACTIONS.redo!();
+    }
+    return;
+  }
+
+  if (event.altKey) {
+    const arrows: Record<string, [number, number]> = { ArrowLeft: [-2, 0], ArrowRight: [2, 0], ArrowUp: [0, -2], ArrowDown: [0, 2] };
+    const delta = arrows[key];
+    if (delta && selectedNode) {
+      event.preventDefault();
+      nudge(...delta);
+    }
+    return;
+  }
+
+  // A nyilak, a Home, az End és az Enter a vásznon vagy az oldal szintjén dolgoznak, gombon nem.
+  const onBoard = target === canvas || target === document.body;
+  const { targets } = derived;
+  const forward = targets.length > 1 && targets[targets.length - 1]!.point.x < targets[0]!.point.x ? -1 : 1;
+
+  switch (key) {
+    case 'Escape':
+      select(null);
+      selectedNode = null;
+      refresh();
+      return;
+    case 'Backspace':
+    case 'Delete':
+      event.preventDefault();
+      ACTIONS['delete-last']!();
+      return;
+    case 'f':
+    case 'F':
+      ACTIONS['end-row']!();
+      return;
+    case 'k':
+    case 'K':
+      ACTIONS['close-round']!();
+      return;
+    case 'm':
+    case 'M':
+      ACTIONS.mirror!();
+      return;
+  }
+
+  if (onBoard) {
+    const steps: Record<string, number> = {
+      ArrowRight: forward,
+      ArrowLeft: -forward,
+      ArrowUp: 1,
+      ArrowDown: -1,
+      Home: -Infinity,
+      End: Infinity,
+    };
+    if (key in steps) {
+      event.preventDefault();
+      const step = steps[key]!;
+      moveCursor(Number.isFinite(step) ? step : step > 0 ? targets.length : -targets.length);
+      return;
+    }
+    if (key === 'Enter') {
+      event.preventDefault();
+      if (event.shiftKey) ACTIONS.same!();
+      else workAtCursor();
+      return;
+    }
+  }
+
+  const item = items.find((candidate) => candidate.key === key);
+  if (item) select(item.def.id);
+});
+
+/* ---- Indulás ---- */
+
+syncNotationControls();
+renderPalette();
+setOpen(written, writtenToggle, readWrittenOpen() && !NARROW.matches);
+select(null);
+fitBoard();
+setupConsentBanner(GA_MEASUREMENT_ID);
