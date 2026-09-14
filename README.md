@@ -9,10 +9,16 @@ mert saját aldomainre kerül.
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm run check    # típusellenőrzés
+npm run check    # típusellenőrzés: az egész src/, majd a src/core/ DOM nélkül
 npm run build    # tsc --noEmit + vite build → dist/
+npm test         # node:test; a build után (az analitika-teszt a dist/-et is nézi)
 npm run preview  # a buildelt kimenet kiszolgálása
 ```
+
+Node 22.18 vagy újabb kell (`package.json` `engines`): a tesztek a
+TypeScriptet a Node beépített típuseltávolításával futtatják, fordítás és új
+függőség nélkül. A CI (`.github/workflows/ci.yml`) minden PR-on és a `main`,
+`develop` ágon lefuttatja a `check`, `build`, `test` lépéseket.
 
 ## Mit tud most (v0.0.1)
 
@@ -38,14 +44,36 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 
 | Hol | Mi |
 |---|---|
-| `src/stitches.ts` | **A jelkészlet egyetlen igazságforrása.** Név, rövidítés, billentyű és a rajzoló függvény. Új jel itt kezdődik. |
-| `src/board.ts` | A vászon: HiDPI-méretezés, a lerakott jelek tárolása, újrarajzolás. |
-| `src/main.ts` | A paletta felépítése, kiválasztás, lerakás, panel, billentyűk. |
-| `src/styles.css` | A fő oldal design tokenjeinek szűk metszete. Konkrét hexet komponensben ne írj le. |
+| `src/core/types.ts` | **Az öltés és az öltésgráf felülete**, csak típusok. Erre épül az öltéskönyvtár (PQW-867) és az öltésgráf az ellenőrzővel (PQW-856). |
+| `src/core/stitches.ts` | A prototípus négy öltése: azonosító, magyar és angol név, rövidítés. Új öltés itt kezdődik; a PQW-867 könyvtára váltja fel. |
+| `src/ui/symbols.ts` | Öltésenként a jel rajza és a gyorsbillentyű. Ugyanaz a függvény rajzol a vászonra és a paletta előnézetébe, így egy jel egyetlen helyen változik. |
+| `src/ui/board.ts` | A vászon: HiDPI-méretezés, a lerakott jelek tárolása, újrarajzolás. |
+| `src/ui/main.ts` | Belépési pont: a paletta felépítése, kiválasztás, lerakás, panel, billentyűk. |
+| `src/ui/styles.css` | A fő oldal design tokenjeinek szűk metszete. Konkrét hexet komponensben ne írj le. |
+| `src/ui/consent.ts`, `src/ui/analytics.ts` | **A fő oldal repójából másolva, változtatás nélkül** (csak az import kiterjesztése `.js`). Ha ott változik, itt is kell. |
+| `src/ui/consentBanner.ts` | A süti-sáv és a jelkészlet „Süti-beállítások" gombja. |
 | `src/config.ts` | A GA4 mérési azonosító (`mintatervező` property). Üres stringre a mérés és a süti-sáv kikapcsol. |
-| `src/consent.ts`, `src/analytics.ts` | **A fő oldal repójából másolva, változtatás nélkül** (csak az import kiterjesztése `.js`). Ha ott változik, itt is kell. |
-| `src/consentBanner.ts` | A süti-sáv és a jelkészlet „Süti-beállítások" gombja. |
 | `public/.htaccess` | Biztonsági fejlécek és cache. A CSP a GA-azonosítóval együtt változik — a `tests/analytics.test.mjs` őrzi. |
+| `tests/*.test.mjs` | `node:test` tesztek; a `core-*` a magot, az `analytics` a süti-sávot és a CSP-t nézi. |
+| `tests/*.check.ts` | Csak fordítási próba: a `tsconfig.core.json` típusellenőrzi, nem fut. |
+| `tsconfig.core.json` | A `src/core/` típusellenőrzése DOM-típusok nélkül. |
+
+## Mag és felület
+
+A horgolási logika (öltések, gráf, ellenőrzés, írott minta) a `src/core/`-ban
+él, a vászon és minden böngészős kód a `src/ui/`-ban. A mag böngésző nélkül fut,
+és teljesen tesztelt; a felület csak megjeleníti és szerkeszti.
+
+- **A `src/core/` csak a saját mappájából importál**, és nem használ DOM-ot. Az
+  importot a `tests/core-boundary.test.mjs`, a DOM-ot a `tsconfig.core.json`
+  (`lib` DOM nélkül) fogja meg.
+- **A magon belül `.ts` kiterjesztéssel importálunk**, mert a Node a
+  forrásfájlt közvetlenül futtatja, és nem fordítja le a `.js`-t `.ts`-re. A
+  `src/ui/` a Vite-nak szól, ott maradhat a `.js`.
+- **Csak törölhető TypeScript-szintaxis** (`erasableSyntaxOnly`): se `enum`, se
+  `namespace`, se konstruktor-paraméter-tulajdonság, mert a Node ezeket nem
+  tudja eltávolítani.
+- A mag tesztjei `tests/core-*.test.mjs` néven, `node:test`-tel készülnek.
 
 ## Analitika
 
@@ -64,9 +92,6 @@ A sáv a fejléc fölött áll, és a vászon a maradék helyet kapja; a `Board`
 ```bash
 npm test   # a build után: CSP ↔ azonosító, inline szkript, közös süti
 ```
-
-A jeleket ugyanaz a függvény rajzolja a vászonra és a paletta előnézetébe —
-egy jel megváltoztatásához egyetlen helyet kell módosítani.
 
 ## Amit tudatosan nem tartalmaz
 

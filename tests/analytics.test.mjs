@@ -9,7 +9,7 @@ import {
   parseConsent,
   serializeConsent,
   sharedCookieDomain,
-} from '../src/consent.ts';
+} from '../src/ui/consent.ts';
 
 const HTACCESS = readFileSync(new URL('../public/.htaccess', import.meta.url), 'utf8');
 const BUILT_INDEX = new URL('../dist/index.html', import.meta.url);
