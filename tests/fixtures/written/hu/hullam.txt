@@ -1,0 +1,21 @@
+Hullám (03 §2.3)
+
+Rövidítések
+erp – egyráhajtásos pálca
+fp – félpálca
+krp – kétráhajtásos pálca
+lsz – láncszem
+rp – rövidpálca
+
+Jelmagyarázat
+láncszem (lsz)
+rövidpálca (rp)
+félpálca (fp)
+egyráhajtásos pálca (erp)
+kétráhajtásos pálca (krp)
+
+Hullám
+Láncalap: 19 lsz.
+1. sor: a horogtól számított 2. láncszemtől kezdve 2 rp, [1 fp, 1 erp, 2 krp, 1 erp, 1 fp, 2 rp] 2-szer (18 öltés). Fordítás.
+2. sor: 1 lsz (nem számít öltésnek), 18 rp (18 öltés). Fordítás.
+3. sor: 4 lsz (1 krp-nek számít), 1 krp, [1 erp, 1 fp, 2 rp, 1 fp, 1 erp, 2 krp] 2-szer (18 öltés). A fonal elvágása.
