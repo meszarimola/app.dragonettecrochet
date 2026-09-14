@@ -26,14 +26,14 @@ Egyetlen vászon, jobb oldalon kinyíló jelkészlettel. Kiválasztasz egy jelet
 és kattintásra pontosan oda kerül, ahová mutattál — nincs rács, nincs
 pattanás.
 
-Négy alap jel, a Craft Yarn Council nemzetközi jelölései szerint:
+A jelkészlet a teljes öltéskönyvtárat mutatja négy csoportban: alapöltések,
+szaporítás és fogyasztás, összetett öltések, láncív és varázskör. A gombon a
+magyar név, összetett öltésnél a szerkezet (pl. „2 rp egy öltésbe”) és az
+amerikai jelölés áll. Az első kilenc öltés gyorsbillentyűje `1`–`9`.
 
-| Jel | Magyar | Angol | Billentyű |
-|---|---|---|---|
-| ⬭ | Láncszem | Chain (ch) | `1` |
-| + | Rövidpálca | Single crochet (sc) | `2` |
-| T | Félpálca | Half double crochet (hdc) | `3` |
-| T̸ | Pálca | Double crochet (dc) | `4` |
+A jelek a Craft Yarn Council jelölését követik, és a könyvtár adataiból
+rajzolódnak: a szár hossza a láncszem-magasságból, a ferde vonalak száma a
+ráhajtásokból jön; a szaporítás talpa és a fogyasztás teteje közös.
 
 `Esc` megszünteti a kijelölést; a kiválasztott jelre újra kattintva is.
 
@@ -45,8 +45,10 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | Hol | Mi |
 |---|---|
 | `src/core/types.ts` | **Az öltés és az öltésgráf felülete**, csak típusok. Erre épül az öltéskönyvtár (PQW-867) és az öltésgráf az ellenőrzővel (PQW-856). |
-| `src/core/stitches.ts` | A prototípus négy öltése: azonosító, magyar és angol név, rövidítés. Új öltés itt kezdődik; a PQW-867 könyvtára váltja fel. |
-| `src/ui/symbols.ts` | Öltésenként a jel rajza és a gyorsbillentyű. Ugyanaz a függvény rajzol a vászonra és a paletta előnézetébe, így egy jel egyetlen helyen változik. |
+| `src/core/stitches.ts` | **Az öltéskönyvtár** (PQW-867): minden öltés adatként, az összetett öltések építőfüggvényei, a csoportok a palettához. Új öltés itt kezdődik; a paletta és a jel magától követi. |
+| `src/core/stitchText.ts` | Az öltés kiírt neve és szerkezete magyar, amerikai és brit jelöléssel. Kimenetben csak a jóváhagyott név és rövidítés szerepel. |
+| `src/ui/symbols.ts` | **Paraméteres jelrajz:** az öltés adataiból geometria, böngésző nélkül tesztelhetően, és ennek kirajzolása. Ugyanez rajzol a vászonra és a paletta előnézetébe. |
+| `src/ui/palette.ts` | A paletta tartalma a könyvtárból: csoportcímek, feliratok, gyorsbillentyűk, DOM nélkül. |
 | `src/ui/board.ts` | A vászon: HiDPI-méretezés, a lerakott jelek tárolása, újrarajzolás. |
 | `src/ui/main.ts` | Belépési pont: a paletta felépítése, kiválasztás, lerakás, panel, billentyűk. |
 | `src/ui/styles.css` | A fő oldal design tokenjeinek szűk metszete. Konkrét hexet komponensben ne írj le. |
@@ -54,7 +56,7 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/ui/consentBanner.ts` | A süti-sáv és a jelkészlet „Süti-beállítások" gombja. |
 | `src/config.ts` | A GA4 mérési azonosító (`mintatervező` property). Üres stringre a mérés és a süti-sáv kikapcsol. |
 | `public/.htaccess` | Biztonsági fejlécek és cache. A CSP a GA-azonosítóval együtt változik — a `tests/analytics.test.mjs` őrzi. |
-| `tests/*.test.mjs` | `node:test` tesztek; a `core-*` a magot, az `analytics` a süti-sávot és a CSP-t nézi. |
+| `tests/*.test.mjs` | `node:test` tesztek; a `core-*` a magot, a `ui-*` a jelrajzot és a palettát, az `analytics` a süti-sávot és a CSP-t nézi. |
 | `tests/*.check.ts` | Csak fordítási próba: a `tsconfig.core.json` típusellenőrzi, nem fut. |
 | `tsconfig.core.json` | A `src/core/` típusellenőrzése DOM-típusok nélkül. |
 
@@ -69,7 +71,8 @@ A horgolási logika (öltések, gráf, ellenőrzés, írott minta) a `src/core/`
   (`lib` DOM nélkül) fogja meg.
 - **A magon belül `.ts` kiterjesztéssel importálunk**, mert a Node a
   forrásfájlt közvetlenül futtatja, és nem fordítja le a `.js`-t `.ts`-re. A
-  `src/ui/` a Vite-nak szól, ott maradhat a `.js`.
+  `src/ui/` a Vite-nak szól, ott maradhat a `.js`; kivétel a `symbols.ts` és
+  a `palette.ts`, mert ezeket a tesztek a Node-dal is futtatják.
 - **Csak törölhető TypeScript-szintaxis** (`erasableSyntaxOnly`): se `enum`, se
   `namespace`, se konstruktor-paraméter-tulajdonság, mert a Node ezeket nem
   tudja eltávolítani.

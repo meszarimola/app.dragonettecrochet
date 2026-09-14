@@ -75,7 +75,10 @@ export type StitchKind = 'chain' | 'slip' | 'basic' | 'joined' | 'group' | 'pico
 interface StitchDefBase {
   readonly id: StitchDefId;
   readonly terms: Readonly<Record<Locale, StitchTerm>>;
-  /** Ráhajtások száma. A jel ferde vonalainak száma is ez (01 §8.1 szabály 2). */
+  /**
+   * Ráhajtások száma. A jel ferde vonalainak száma is ez, kivéve a félpálcát:
+   * annak egy ráhajtása van, a jele mégis sima T (01 §8.1 szabály 1–2).
+   */
   readonly yarnOvers: number;
   /**
    * Láncszem-magasság: kúszószem 0, rövidpálca 1, félpálca 2, egyráhajtásos
@@ -126,6 +129,15 @@ export interface JoinedStitchDef extends StitchDefBase {
   readonly part: StitchDefId;
   /** Hány részöltés záródik egy tetőbe. */
   readonly parts: number;
+  /**
+   * Hogyan készülnek a részöltések a zárás előtt (01 §4.4). Ettől függ a jel
+   * és az írott utasítás, mert a bogyó és a popcorn szerkezete egyébként azonos.
+   * - `partial`: az utolsó lépés előtt abbahagyva, pl. fogyasztás, fürt, bogyó;
+   * - `complete`: teljes öltések, utólag összezárva, pl. popcorn;
+   * - `loops`: csak felhúzott hurkok, pl. puff.
+   * Hiányában `partial`.
+   */
+  readonly closure?: 'partial' | 'complete' | 'loops';
 }
 
 export interface GroupStitchDef extends StitchDefBase {
