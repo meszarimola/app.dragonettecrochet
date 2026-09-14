@@ -1,0 +1,46 @@
+{
+  "$schema": "../schema/gauge-sample.schema.json",
+  "schemaVersion": 1,
+  "id": "GS-20260915-02",
+  "date": "2026-09-15",
+  "crocheter": { "id": "owner", "handedness": "right" },
+  "yarn": {
+    "id": "pelda-pamut-125",
+    "brand": "Példa",
+    "line": "Pamut 125",
+    "colour": "natúr",
+    "dyeLot": null,
+    "fibre": [{ "material": "pamut", "percent": 100 }],
+    "cycWeight": 3,
+    "label": { "lengthM": 125, "massG": 50, "hookMmMin": 3.5, "hookMmMax": 4.5 }
+  },
+  "hook": { "mm": 4, "brand": null, "material": "aluminium" },
+  "stitch": { "id": "sc", "insertion": "both-loops" },
+  "construction": {
+    "workedIn": "rounds-tube",
+    "start": "chain-ring",
+    "roundJoin": "spiral",
+    "stitchesPerRound": 30,
+    "rounds": 16
+  },
+  "measurements": [
+    {
+      "state": "unblocked",
+      "blocking": null,
+      "tool": "ruler",
+      "grid": {
+        "stitchesSpanned": 10,
+        "rowsSpanned": 10,
+        "widthMm": [55, 55.5, 54.5],
+        "heightMm": [50, 50.5, 49.5]
+      },
+      "swatch": { "widthMm": 84, "heightMm": 80, "massG": 9.5, "scaleResolutionG": 0.1 },
+      "photos": [
+        { "file": "GS-20260915-02-elotte-szin.jpg", "side": "rs" }
+      ],
+      "notes": "A körváltás vonalától távol mérve."
+    }
+  ],
+  "context": { "timeOfDay": "evening", "fatigue": 3, "tensionNotes": null },
+  "notes": "Kitalált példaértékek a formátum bemutatásához és a betöltő tesztjeihez. Nem mérés."
+}

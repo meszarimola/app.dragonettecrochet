@@ -1,0 +1,63 @@
+{
+  "$schema": "../schema/gauge-sample.schema.json",
+  "schemaVersion": 1,
+  "id": "GS-20260915-01",
+  "date": "2026-09-15",
+  "crocheter": { "id": "owner", "handedness": "right" },
+  "yarn": {
+    "id": "pelda-pamut-125",
+    "brand": "Példa",
+    "line": "Pamut 125",
+    "colour": "natúr",
+    "dyeLot": null,
+    "fibre": [{ "material": "pamut", "percent": 100 }],
+    "cycWeight": 3,
+    "label": { "lengthM": 125, "massG": 50, "hookMmMin": 3.5, "hookMmMax": 4.5 }
+  },
+  "hook": { "mm": 4, "brand": null, "material": "aluminium" },
+  "stitch": { "id": "sc", "insertion": "both-loops" },
+  "construction": {
+    "workedIn": "rows",
+    "foundationChains": 29,
+    "rows": 20,
+    "turningChain": { "chains": 1, "countsAsStitch": false }
+  },
+  "measurements": [
+    {
+      "state": "unblocked",
+      "blocking": null,
+      "tool": "ruler",
+      "grid": {
+        "stitchesSpanned": 10,
+        "rowsSpanned": 10,
+        "widthMm": [56.5, 57, 56],
+        "heightMm": [45.5, 46, 45]
+      },
+      "swatch": { "widthMm": 160, "heightMm": 92, "massG": null, "scaleResolutionG": null },
+      "photos": [
+        { "file": "GS-20260915-01-elotte-szin.jpg", "side": "rs" },
+        { "file": "GS-20260915-01-elotte-visszaje.jpg", "side": "ws" }
+      ],
+      "notes": null
+    },
+    {
+      "state": "blocked",
+      "blocking": { "method": "wet", "dryHours": 24, "pinned": false },
+      "tool": "ruler",
+      "grid": {
+        "stitchesSpanned": 10,
+        "rowsSpanned": 10,
+        "widthMm": [56.5, 57.5, 57],
+        "heightMm": [44.5, 44, 45]
+      },
+      "swatch": { "widthMm": 161, "heightMm": 90, "massG": 8.6, "scaleResolutionG": 0.1 },
+      "photos": [
+        { "file": "GS-20260915-01-utana-szin.jpg", "side": "rs" },
+        { "file": "GS-20260915-01-utana-visszaje.jpg", "side": "ws" }
+      ],
+      "notes": null
+    }
+  ],
+  "context": { "timeOfDay": "afternoon", "fatigue": 2, "tensionNotes": null },
+  "notes": "Kitalált példaértékek a formátum bemutatásához és a betöltő tesztjeihez. Nem mérés."
+}
