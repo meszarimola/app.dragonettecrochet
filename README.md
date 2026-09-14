@@ -48,6 +48,10 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/core/stitches.ts` | **Az öltéskönyvtár** (PQW-867): minden öltés adatként, az összetett öltések építőfüggvényei, a csoportok a palettához. Új öltés itt kezdődik; a paletta és a jel magától követi. |
 | `src/core/stitchText.ts` | Az öltés kiírt neve és szerkezete magyar, amerikai és brit jelöléssel. Kimenetben csak a jóváhagyott név és rövidítés szerepel. |
 | `src/ui/symbols.ts` | **Paraméteres jelrajz:** az öltés adataiból geometria, böngésző nélkül tesztelhetően, és ennek kirajzolása. Ugyanez rajzol a vászonra és a paletta előnézetébe. |
+| `src/core/graph.ts` | Az öltésgráfból számolt sorok és körök: öltésszám, pozíciószám, színe vagy visszája, fordulólánc, haladási irány (PQW-856). |
+| `src/core/validate.ts`, `src/core/rules.ts` | Az ellenőrző és a szabálykatalógus. Minden szabálynál ott a súlyosság és a tudásbázis pontja; új szabály előbb a `rules.ts`-be kerül. |
+| `src/core/pattern-json.ts` | A minta mentése és betöltése verziózott JSON-ként (`formatVersion`), mezőútvonalas hibával. |
+| `src/core/repeat.ts`, `src/core/stitch-library.ts` | Láncalap és „X többszöröse + Y” számítása; az öltéskönyvtár mint azonosító → definíció. |
 | `src/ui/palette.ts` | A paletta tartalma a könyvtárból: csoportcímek, feliratok, gyorsbillentyűk, DOM nélkül. |
 | `src/ui/board.ts` | A vászon: HiDPI-méretezés, a lerakott jelek tárolása, újrarajzolás. |
 | `src/ui/main.ts` | Belépési pont: a paletta felépítése, kiválasztás, lerakás, panel, billentyűk. |
