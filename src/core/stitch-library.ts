@@ -1,8 +1,10 @@
 /*
  * Az öltéskönyvtár, ahogy a gráf és az ellenőrző látja: azonosító → definíció.
  *
- * A gráf nem tud a konkrét öltéslistáról; a PQW-867 könyvtára ugyanígy,
- * `StitchDef` tömbként adható át. A tesztek saját öltés-mintákkal dolgoznak.
+ * A gráf nem tud a konkrét öltéslistáról: a könyvtár `StitchDef` tömbből épül,
+ * rendesen a src/core/stitches.ts `STITCHES` listájából. A tesztek is ezt a
+ * valódi könyvtárat használják, kiegészítve a palettán nem szereplő
+ * változatokkal (tests/fixtures/library.ts).
  */
 
 import type { StitchDef, StitchDefId } from './types.ts';
