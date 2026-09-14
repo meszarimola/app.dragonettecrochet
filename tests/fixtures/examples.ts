@@ -56,12 +56,12 @@ export function hdcRectangle(options: HdcRectangleOptions = {}): Example {
     turningChains.push(b.chain(chains));
     const targets = [...row].reverse();
     if (r === 2 && options.row2SkipsFirst) {
-      row = [...b.inSame('hdc-inc', ['hdc', 'hdc'], targets[1]!), ...targets.slice(2).map((t) => b.stitch('hdc', t))];
+      row = [...b.inSame('inc-2hdc', ['hdc', 'hdc'], targets[1]!), ...targets.slice(2).map((t) => b.stitch('hdc', t))];
     } else if (r === 2 && options.row2SkipsOneInMiddle) {
       row = [
         ...targets.slice(0, 7).map((t) => b.stitch('hdc', t)),
         ...targets.slice(8, -1).map((t) => b.stitch('hdc', t)),
-        ...b.inSame('hdc-inc', ['hdc', 'hdc'], targets[stitches - 1]!),
+        ...b.inSame('inc-2hdc', ['hdc', 'hdc'], targets[stitches - 1]!),
       ];
     } else {
       row = targets.map((t) => b.stitch(def, t));
@@ -143,13 +143,13 @@ export function shellStitch(options: ShellOptions = {}): Example {
 
   const chains = b.chain(3);
   const q = [...row1].reverse();
-  const row2: NodeId[] = [...b.inSame('dc-inc', ['dc', 'dc'], q[0]!)];
+  const row2: NodeId[] = [...b.inSame('inc-2dc', ['dc', 'dc'], q[0]!)];
   for (let rep = 0; rep < n - 1; rep += 1) {
     row2.push(b.stitch('sc', q[3 + 6 * rep]!));
     row2.push(...b.inSame('shell-5dc', ['dc', 'dc', 'dc', 'dc', 'dc'], q[6 + 6 * rep]!));
   }
   row2.push(b.stitch('sc', q[6 * n - 3]!));
-  row2.push(...b.inSame('dc-3in1', ['dc', 'dc', 'dc'], q[6 * n]!));
+  row2.push(...b.inSame('inc-3dc', ['dc', 'dc', 'dc'], q[6 * n]!));
   b.event('fasten-off', 6 * n + 1);
 
   let piece = b.build();
@@ -185,7 +185,7 @@ export function vStitchPattern(options: VStitchOptions = {}): Example {
     const first = b.stitch('dc', target);
     const middle = b.stitch('ch');
     const last = b.stitch('dc', target);
-    if (grouped) b.group('v-stitch', [first, middle, last]);
+    if (grouped) b.group('v-st-dc', [first, middle, last]);
     vs.push(b.space([middle]));
     return [first, middle, last];
   };
@@ -243,7 +243,7 @@ export function chevron(repeats = 2): ChevronExample {
         j += 3;
       }
       plain();
-      nodes.push(...b.inSame('dc-3in1', ['dc', 'dc', 'dc'], targets[j++]!));
+      nodes.push(...b.inSame('inc-3dc', ['dc', 'dc', 'dc'], targets[j++]!));
       plain();
     }
     nodes.push(b.stitch('dc2tog', targets[j]!, targets[j + 1]!));

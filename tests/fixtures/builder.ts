@@ -87,7 +87,7 @@ export class PieceBuilder {
   }
 
   ring(): RingId {
-    const node = this.stitch('mr');
+    const node = this.stitch('magic-ring');
     const id = `r${this.rings.length + 1}`;
     this.rings.push({ id, node });
     return id;

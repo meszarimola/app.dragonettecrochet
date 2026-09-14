@@ -13,7 +13,8 @@ import {
   vStitchPattern,
   wave,
 } from './fixtures/examples.ts';
-import { dc, testLibrary } from './fixtures/stitch-defs.ts';
+import { DOUBLE_CROCHET } from '../src/core/stitches.ts';
+import { testLibrary } from './fixtures/library.ts';
 
 const layersOf = (example) => computeLayers(example.pattern, testLibrary);
 const counts = (layers) => layers.map((layer) => [layer.stitchCount, layer.positionCount]);
@@ -150,5 +151,5 @@ test('„X többszöröse + Y”: a fordulólánc benne van-e az Y-ban (03 §4.1
 });
 
 test('az öltéskönyvtár nem enged kétszer szereplő azonosítót', () => {
-  assert.throws(() => createStitchLibrary([dc, dc]), /Kétszer szereplő öltés-azonosító: dc/);
+  assert.throws(() => createStitchLibrary([DOUBLE_CROCHET, DOUBLE_CROCHET]), /Kétszer szereplő öltés-azonosító: dc/);
 });

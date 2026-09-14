@@ -5,7 +5,7 @@ import { FORMAT_VERSION, loadPattern, savePattern } from '../src/core/pattern-js
 import { validatePattern } from '../src/core/validate.ts';
 import { editNode } from './fixtures/builder.ts';
 import { WORKED_EXAMPLES, dcRectangle } from './fixtures/examples.ts';
-import { testLibrary } from './fixtures/stitch-defs.ts';
+import { testLibrary } from './fixtures/library.ts';
 
 describe('mentés után betöltve ugyanazt a gráfot kapjuk', () => {
   for (const [name, make] of Object.entries(WORKED_EXAMPLES)) {

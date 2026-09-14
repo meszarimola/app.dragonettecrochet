@@ -19,7 +19,7 @@ import {
   vStitchPattern,
   wave,
 } from './fixtures/examples.ts';
-import { testLibrary } from './fixtures/stitch-defs.ts';
+import { testLibrary } from './fixtures/library.ts';
 
 const tested = new Set();
 
@@ -146,7 +146,7 @@ describe('kagyló 6+1, elrontva (03 §4.2 E)', () => {
   });
 
   test('az első kagyló V-öltésként van jelölve', () => {
-    const example = shellStitch({ firstShellDef: 'v-stitch' });
+    const example = shellStitch({ firstShellDef: 'v-st-dc' });
     assertOnly(example.pattern, 'group-mismatch', [example.rows[1].slice(1, 6)]);
   });
 });
