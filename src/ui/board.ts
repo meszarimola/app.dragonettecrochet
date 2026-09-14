@@ -6,11 +6,20 @@
  * kód nem tud a képernyő pixelsűrűségéről.
  */
 
-import type { StitchId } from '../core/stitches.js';
-import { SYMBOLS } from './symbols.js';
+import { stitchById } from '../core/stitches.js';
+import type { StitchDefId } from '../core/types.js';
+import {
+  DEFAULT_SYMBOL_OPTIONS,
+  applyInk,
+  drawCentered,
+  readInk,
+  symbolShapes,
+  type Shape,
+  type SymbolOptions,
+} from './symbols.js';
 
 export interface PlacedStitch {
-  readonly id: StitchId;
+  readonly id: StitchDefId;
   /** CSS-pixel a vászon bal felső sarkához képest. */
   readonly x: number;
   readonly y: number;
@@ -20,18 +29,19 @@ export class Board {
   readonly #canvas: HTMLCanvasElement;
   readonly #ctx: CanvasRenderingContext2D;
   readonly #placed: PlacedStitch[] = [];
-  #ink = '#241f2b';
+  readonly #options: SymbolOptions;
+  /** A jel geometriája öltésenként egyszer számolódik. */
+  readonly #shapes = new Map<StitchDefId, readonly Shape[]>();
+  readonly #ink: string;
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, options: SymbolOptions = DEFAULT_SYMBOL_OPTIONS) {
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('A 2D vászon-kontextus nem érhető el.');
 
     this.#canvas = canvas;
     this.#ctx = ctx;
-
-    // A tintaszín a design tokenből jön, hogy ne legyen konkrét hex a kódban.
-    const token = getComputedStyle(canvas).getPropertyValue('--c-ink').trim();
-    if (token) this.#ink = token;
+    this.#options = options;
+    this.#ink = readInk(canvas);
 
     new ResizeObserver(() => this.#resize()).observe(canvas);
     this.#resize();
@@ -42,7 +52,7 @@ export class Board {
   }
 
   /** Lerak egy jelet oda, ahová az egérmutató mutat (ablak-koordinátában). */
-  place(id: StitchId, clientX: number, clientY: number): void {
+  place(id: StitchDefId, clientX: number, clientY: number): void {
     const rect = this.#canvas.getBoundingClientRect();
     this.#placed.push({ id, x: clientX - rect.left, y: clientY - rect.top });
     this.render();
@@ -53,17 +63,23 @@ export class Board {
     const { width, height } = this.#canvas.getBoundingClientRect();
 
     ctx.clearRect(0, 0, width, height);
-    ctx.strokeStyle = this.#ink;
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+    applyInk(ctx, this.#ink, 2);
 
     for (const stitch of this.#placed) {
       ctx.save();
       ctx.translate(stitch.x, stitch.y);
-      SYMBOLS[stitch.id].draw(ctx);
+      drawCentered(ctx, this.#shapesOf(stitch.id));
       ctx.restore();
     }
+  }
+
+  #shapesOf(id: StitchDefId): readonly Shape[] {
+    let shapes = this.#shapes.get(id);
+    if (!shapes) {
+      shapes = symbolShapes(stitchById(id), this.#options);
+      this.#shapes.set(id, shapes);
+    }
+    return shapes;
   }
 
   /*
