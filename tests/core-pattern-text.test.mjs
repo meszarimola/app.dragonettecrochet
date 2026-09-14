@@ -1,0 +1,325 @@
+/*
+ * Az írott minta: a kidolgozott példák rögzített szövege magyarul és amerikai
+ * jelöléssel, a visszaolvasás mindhárom jelöléssel, a terminológia, a
+ * rövidítéslista és a jelmagyarázat, és a visszaolvasás hibaüzenetei.
+ *
+ * Az elvárt szövegek a tests/fixtures/written/ mappában vannak; a magyarokat a
+ * tulajdonos hagyja jóvá (PQW-858).
+ */
+
+import { strict as assert } from 'node:assert';
+import { readFileSync } from 'node:fs';
+import { describe, test } from 'node:test';
+
+import { canonicalPattern } from '../src/core/canonical.ts';
+import { dative, times } from '../src/core/hungarian.ts';
+import { readPattern } from '../src/core/pattern-read.ts';
+import { WrittenPatternError, foldRepeats, mergeSteps } from '../src/core/pattern-steps.ts';
+import { formatWrittenPattern, ordinal, writePattern } from '../src/core/pattern-text.ts';
+import { PieceBuilder, patternOf } from './fixtures/builder.ts';
+import { WORKED_EXAMPLES, dcRectangle, grannySquare, hdcRectangle } from './fixtures/examples.ts';
+import { testLibrary } from './fixtures/library.ts';
+
+const LOCALES = ['hu', 'en-US', 'en-GB'];
+
+const FILES = {
+  'félpálcás téglalap (03 §3.1 A)': 'felpalcas-teglalap',
+  'pálcás téglalap (03 §3.1 B)': 'palcas-teglalap',
+  'kagyló 6+1 (03 §4.2 E)': 'kagylo',
+  'V-öltés (03 §4.2 F)': 'v-oltes',
+  'cikcakk (03 §4.2 G)': 'cikcakk',
+  'hullám (03 §2.3)': 'hullam',
+  'nagymama-négyzet 1–3. kör (03 §8)': 'nagymama-negyzet',
+};
+
+const textOf = (pattern, locale) => formatWrittenPattern(writePattern(pattern, testLibrary, locale));
+const readBack = (text, pattern, locale) => readPattern(text, { library: testLibrary, locale, conventions: pattern.conventions });
+
+/** A darabok sorai: a cím, a rövidítések és a jelmagyarázat nélkül. */
+const instructions = (written) => written.pieces.flatMap((piece) => piece.lines).join('\n');
+
+test('minden kidolgozott példának van rögzített szövege', () => {
+  assert.deepEqual(Object.keys(FILES), Object.keys(WORKED_EXAMPLES));
+});
+
+for (const locale of ['hu', 'en-US']) {
+  describe(`rögzített szöveg: ${locale}`, () => {
+    for (const [name, make] of Object.entries(WORKED_EXAMPLES)) {
+      test(name, () => {
+        const expected = readFileSync(new URL(`./fixtures/written/${locale}/${FILES[name]}.txt`, import.meta.url), 'utf8');
+        assert.equal(textOf(make().pattern, locale), expected);
+      });
+    }
+  });
+}
+
+for (const locale of LOCALES) {
+  describe(`visszaolvasás: a szövegből ugyanaz a gráf (${locale})`, () => {
+    for (const [name, make] of Object.entries(WORKED_EXAMPLES)) {
+      test(name, () => {
+        const { pattern } = make();
+        const result = readBack(textOf(pattern, locale), pattern, locale);
+        assert.ok(result.ok, JSON.stringify(result.error));
+        assert.deepEqual(canonicalPattern(result.pattern), canonicalPattern(pattern));
+      });
+    }
+  });
+}
+
+/* ---- Terminológia ---- */
+
+describe('egy mintán belül egy terminológia (01 §8.5 szabály 24–25)', () => {
+  const all = (locale) => Object.values(WORKED_EXAMPLES).map((make) => textOf(make().pattern, locale));
+
+  test('a „hamispálca” és az értelmezési alternatívák soha nem jelennek meg', () => {
+    for (const locale of LOCALES) {
+      for (const text of all(locale)) assert.doesNotMatch(text, /hamis|kispálca|nagypálca|légszem|crab stitch/i);
+    }
+  });
+
+  test('a brit szövegben nincs amerikai öltésnév (sc, hdc, sl st)', () => {
+    for (const text of all('en-GB')) assert.doesNotMatch(text, /\b(sc|hdc|sl st|sk)\b/);
+  });
+
+  test('az amerikai szövegben nincs brit öltésnév (htr, ss, miss)', () => {
+    for (const text of all('en-US')) assert.doesNotMatch(text, /\b(htr|ss|trtr|miss)\b/);
+  });
+
+  test('a brit név az amerikai egy fokkal eltolva: az amerikai rp a brit dc', () => {
+    const lines = instructions(writePattern(WORKED_EXAMPLES['hullám (03 §2.3)']().pattern, testLibrary, 'en-GB'));
+    assert.match(lines, /Row 2: ch 1 \(does not count as a st\), 18 dc \(18 sts\)\. Turn\./);
+    assert.match(lines, /Row 3: ch 4 \(counts as 1 dtr\), dtr, \[tr, htr, 2 dc, htr, tr, 2 dtr\] 2 times/);
+  });
+});
+
+/* ---- Rövidítéslista és jelmagyarázat ---- */
+
+describe('rövidítéslista és jelmagyarázat csak a használt öltésekkel (01 §8.5 szabály 27)', () => {
+  for (const locale of LOCALES) {
+    test(`minden felsorolt rövidítés szerepel a sorokban, és minden használt öltésrövidítés fel van sorolva (${locale})`, () => {
+      for (const make of Object.values(WORKED_EXAMPLES)) {
+        const written = writePattern(make().pattern, testLibrary, locale);
+        const lines = instructions(written);
+        const listed = new Set(written.abbreviations.map(({ abbr }) => abbr));
+        for (const { abbr } of written.abbreviations) {
+          const word = abbr === 'st(s)' ? 'st' : abbr;
+          assert.ok(lines.includes(word), `${written.title}: „${abbr}” nem szerepel a sorokban`);
+        }
+        for (const def of testLibrary.values()) {
+          const abbr = def.terms[locale].abbr;
+          if (abbr && new RegExp(`(^|[\\s(\\[])${abbr.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&')}([\\s,.)\\]]|$)`).test(lines)) {
+            assert.ok(listed.has(abbr), `${written.title}: „${abbr}” hiányzik a rövidítések közül`);
+          }
+        }
+      }
+    });
+  }
+
+  test('a jelmagyarázat a könyvtár sorrendjében, a csoportokkal és a láncívvel', () => {
+    const written = writePattern(WORKED_EXAMPLES['V-öltés (03 §4.2 F)']().pattern, testLibrary, 'hu');
+    assert.deepEqual(
+      written.legend.map((entry) => entry.def),
+      ['ch', 'dc', 'v-st-dc', 'ch-sp'],
+    );
+    assert.deepEqual(written.abbreviations, [
+      { abbr: 'erp', meaning: 'egyráhajtásos pálca' },
+      { abbr: 'lsz', meaning: 'láncszem' },
+    ]);
+  });
+
+  test('a fogyasztás a jelmagyarázatban és a sorokban ugyanazzal a kifejezéssel szerepel', () => {
+    const written = writePattern(WORKED_EXAMPLES['cikcakk (03 §4.2 G)']().pattern, testLibrary, 'hu');
+    assert.ok(written.legend.some((entry) => entry.label === 'fogyasztás: 2 erp összehorgolása'));
+    assert.match(instructions(written), /2 erp összehorgolása/);
+  });
+});
+
+/* ---- Tömörítés ---- */
+
+describe('összevonás és a legrövidebb ismétlődő egység (06 §5.3 pont 5)', () => {
+  const sc = { kind: 'stitch', def: 'sc', count: 1, target: 'next', mode: 'both-loops', into: 'stitch' };
+  const inc = { kind: 'group', def: 'inc-2sc', target: 'next', mode: 'both-loops', into: 'stitch' };
+
+  test('az egymás utáni azonos öltések egy tételbe kerülnek: „5 rp”', () => {
+    assert.deepEqual(mergeSteps([sc, sc, sc, sc, sc], testLibrary), [{ ...sc, count: 5 }]);
+  });
+
+  test('„(1 rp, szaporítás) ×6”: a hat ismétlés egy egységgé áll össze', () => {
+    const steps = Array.from({ length: 6 }, () => [sc, inc]).flat();
+    assert.deepEqual(foldRepeats(steps), [{ kind: 'repeat', steps: [sc, inc], times: 6 }]);
+  });
+
+  test('az ismétlés előtti és utáni rész megmarad', () => {
+    const steps = mergeSteps([sc, sc, inc, sc, inc, sc, inc, sc], testLibrary);
+    assert.deepEqual(foldRepeats(steps), [{ ...sc, count: 2 }, { kind: 'repeat', steps: [inc, sc], times: 3 }]);
+  });
+
+  test('a szaporítás és az ugyanabba az öltésbe horgolt öltés kiírása', () => {
+    const lines = instructions(writePattern(WORKED_EXAMPLES['kagyló 6+1 (03 §4.2 E)']().pattern, testLibrary, 'hu'));
+    assert.match(lines, /3 lsz \(1 erp-nek számít\), 2 erp ugyanabba az öltésbe, 2 öltés kihagyása/);
+    assert.match(lines, /3 erp a következő öltésbe \(19 öltés\)\. A fonal elvágása\.$/);
+  });
+
+  test('az azonos sorok egy sorba kerülnek, a befejező sor külön', () => {
+    const { pieces } = writePattern(hdcRectangle({ rows: 4 }).pattern, testLibrary, 'hu');
+    assert.deepEqual(pieces[0].lines.slice(2), [
+      '2–3. sor: 2 lsz (nem számít öltésnek), 15 fp (15 öltés). Fordítás.',
+      '4. sor: 2 lsz (nem számít öltésnek), 15 fp (15 öltés). A fonal elvágása.',
+    ]);
+  });
+});
+
+/* ---- Konvenciók ---- */
+
+describe('a minta konvenciói a szövegben', () => {
+  test('a soronként felülírt fordulólánc a szövegben látszik, és visszaolvasva felülírás marad', () => {
+    // A 2. sor fordulólánca nem számít, ezért az alatta lévő öltést szándékosan kihagyja.
+    const example = dcRectangle({ rows: 2 });
+    const piece = example.pattern.pieces[0];
+    const events = piece.events.map((event, i) =>
+      i === 0 ? { ...event, conventions: { turningChainCounts: false } } : { ...event, statedCount: 15 },
+    );
+    const skipped = [example.rows[1].at(-1)];
+    const pattern = { ...example.pattern, pieces: [{ ...piece, events, skipped }] };
+
+    const text = textOf(pattern, 'hu');
+    assert.match(text, /2\. sor: 3 lsz \(nem számít öltésnek\), 1 öltés kihagyása, 15 erp \(15 öltés\)\. A fonal elvágása\./);
+    const result = readBack(text, pattern, 'hu');
+    assert.ok(result.ok, JSON.stringify(result.error));
+    assert.deepEqual(result.pattern.pieces[0].events[0].conventions, { turningChainCounts: false });
+  });
+
+  test('a számító kúszószem az öltésszámban (szókészlet D7), és visszaolvasható', () => {
+    const example = grannySquare();
+    const conventions = { ...example.pattern.conventions, joinSlipStitchCounts: true };
+    const counts = [13, 28, 40];
+    const piece = example.pattern.pieces[0];
+    const pattern = {
+      ...example.pattern,
+      conventions,
+      pieces: [{ ...piece, events: piece.events.map((event, i) => ({ ...event, statedCount: counts[i] })) }],
+    };
+    const text = textOf(pattern, 'en-US');
+    assert.match(text, /\(13 sts\)[\s\S]*\(28 sts\)[\s\S]*\(40 sts\)/);
+    const result = readBack(text, pattern, 'en-US');
+    assert.ok(result.ok, JSON.stringify(result.error));
+    assert.deepEqual(canonicalPattern(result.pattern), canonicalPattern(pattern));
+  });
+});
+
+/* ---- Beszúrási mód ---- */
+
+function backLoopRows() {
+  const b = new PieceBuilder('p1', 'Hátsó szálas csík');
+  const foundation = b.chain(6);
+  let row = foundation.slice(0, 5).reverse().map((id) => b.stitch('sc', id));
+  b.event('turn', 5);
+  for (let r = 2; r <= 3; r += 1) {
+    b.chain(1);
+    row = [...row].reverse().map((id) => b.stitch('sc', { into: 'stitch', id, mode: 'back-loop' }));
+    b.event(r === 3 ? 'fasten-off' : 'turn', 5);
+  }
+  return patternOf('Hátsó szálas csík', [b.build()]);
+}
+
+describe('beszúrási mód: visszai soron az első és a hátsó szál megfordul (03 §2.1)', () => {
+  test('magyarul: a színoldali hátsó szál a visszai soron első szál', () => {
+    const lines = writePattern(backLoopRows(), testLibrary, 'hu').pieces[0].lines;
+    assert.equal(lines[2], '2. sor: 1 lsz (nem számít öltésnek), 5 rp (első szál) (5 öltés). Fordítás.');
+    assert.equal(lines[3], '3. sor: 1 lsz (nem számít öltésnek), 5 rp (hátsó szál) (5 öltés). A fonal elvágása.');
+  });
+
+  test('angolul: flo a visszai, blo a színoldali soron', () => {
+    const lines = writePattern(backLoopRows(), testLibrary, 'en-US').pieces[0].lines;
+    assert.match(lines[2], /5 sc flo \(5 sts\)/);
+    assert.match(lines[3], /5 sc blo \(5 sts\)/);
+  });
+
+  for (const locale of LOCALES) {
+    test(`visszaolvasva a gráf a színoldali módot tárolja (${locale})`, () => {
+      const pattern = backLoopRows();
+      const result = readBack(textOf(pattern, locale), pattern, locale);
+      assert.ok(result.ok, JSON.stringify(result.error));
+      assert.deepEqual(canonicalPattern(result.pattern), canonicalPattern(pattern));
+    });
+  }
+});
+
+/* ---- Hibák ---- */
+
+describe('visszaolvasás: eltérés esetén pontos hibaüzenet', () => {
+  const pattern = hdcRectangle({ rows: 2 }).pattern;
+  const text = textOf(pattern, 'hu');
+  const lineOf = (needle) => text.split('\n').findIndex((line) => line.includes(needle)) + 1;
+
+  test('a hibátlan szöveg visszaolvasható', () => {
+    assert.ok(readBack(text, pattern, 'hu').ok);
+  });
+
+  test('rossz öltésszám: a sor és a két szám', () => {
+    const result = readBack(text.replace('15 fp (15 öltés). Fordítás.', '15 fp (16 öltés). Fordítás.'), pattern, 'hu');
+    assert.deepEqual(result, {
+      ok: false,
+      error: { line: lineOf('1. sor:'), message: '1. sor: a szöveg 16 öltést ír, a visszaolvasott gráf szerint 15.' },
+    });
+  });
+
+  test('több öltés, mint amennyi az előző sorban van', () => {
+    const result = readBack(text.replace('2. sor: 2 lsz (nem számít öltésnek), 15 fp', '2. sor: 2 lsz (nem számít öltésnek), 16 fp'), pattern, 'hu');
+    assert.deepEqual(result.error, { line: lineOf('2. sor:'), message: 'Nincs több öltés az előző sorban ehhez: „16 fp”.' });
+  });
+
+  test('ismeretlen tétel', () => {
+    const result = readBack(text.replace('15 fp (15 öltés). A fonal', '15 hamispálca (15 öltés). A fonal'), pattern, 'hu');
+    assert.deepEqual(result.error, { line: lineOf('2. sor:'), message: 'Nem értelmezhető tétel: „15 hamispálca”.' });
+  });
+
+  test('hiányzó sorvég egy közbülső sorban', () => {
+    const result = readBack(text.replace('(15 öltés). Fordítás.', '(15 öltés).'), pattern, 'hu');
+    assert.deepEqual(result.error, { line: lineOf('1. sor:'), message: 'A sor vége hiányzik: fordítás, a kör zárása vagy a fonal elvágása.' });
+  });
+
+  test('a sorszám nem folytatódik', () => {
+    const result = readBack(text.replace('2. sor:', '3. sor:'), pattern, 'hu');
+    assert.deepEqual(result.error, { line: lineOf('2. sor:'), message: 'A sorszám nem folytatódik: 2 helyett 3.' });
+  });
+});
+
+describe('a gráf, amit a szöveg még nem tud kifejezni', () => {
+  test('keresztezett öltés: hibát ad az érintett öltéssel', () => {
+    const { pattern, rows } = hdcRectangle({ rows: 2 });
+    const piece = pattern.pieces[0];
+    const crossed = {
+      ...pattern,
+      pieces: [{ ...piece, stitches: piece.stitches.map((node) => (node.id === rows[2][3] ? { ...node, flags: ['crossed'] } : node)) }],
+    };
+    assert.throws(
+      () => writePattern(crossed, testLibrary, 'hu'),
+      (error) => error instanceof WrittenPatternError && error.nodes[0] === rows[2][3],
+    );
+  });
+});
+
+/* ---- Magyar ragozás és angol sorszám ---- */
+
+test('„-szor, -szer, -ször” a szám kiejtése szerint', () => {
+  assert.deepEqual(
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100, 1000].map(times),
+    [
+      '1-szer', '2-szer', '3-szor', '4-szer', '5-ször', '6-szor', '7-szer', '8-szor', '9-szer', '10-szer',
+      '12-szer', '15-ször', '20-szor', '30-szor', '40-szer', '50-szer', '60-szor', '70-szer', '80-szor',
+      '90-szer', '100-szor', '1000-szer',
+    ],
+  );
+});
+
+test('részeshatározó: rövidítésnél kötőjellel, névnél hangrend szerint', () => {
+  assert.equal(dative('erp', true), 'erp-nek');
+  assert.equal(dative('háromráhajtásos pálca', false), 'háromráhajtásos pálcának');
+  assert.equal(dative('rákhurok', false), 'rákhuroknak');
+  assert.equal(dative('pikó', false), 'pikónak');
+});
+
+test('angol sorszám: 1st, 2nd, 3rd, 4th, 11th, 21st', () => {
+  assert.deepEqual([1, 2, 3, 4, 11, 12, 13, 21, 22].map(ordinal), ['1st', '2nd', '3rd', '4th', '11th', '12th', '13th', '21st', '22nd']);
+});

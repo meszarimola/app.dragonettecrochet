@@ -51,6 +51,9 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/core/graph.ts` | Az öltésgráfból számolt sorok és körök: öltésszám, pozíciószám, színe vagy visszája, fordulólánc, haladási irány (PQW-856). |
 | `src/core/validate.ts`, `src/core/rules.ts` | Az ellenőrző és a szabálykatalógus. Minden szabálynál ott a súlyosság és a tudásbázis pontja; új szabály előbb a `rules.ts`-be kerül. |
 | `src/core/pattern-json.ts` | A minta mentése és betöltése verziózott JSON-ként (`formatVersion`), mezőútvonalas hibával. |
+| `src/core/pattern-steps.ts` | **Az írott minta lépéssora** a gráfból (PQW-858), nyelvtől függetlenül: célpont az előző sor pozícióihoz képest, összevonás („5 rp”), legrövidebb ismétlődő egység. Itt dől el, mit tud a szöveg kifejezni. |
+| `src/core/pattern-text.ts`, `src/core/hungarian.ts` | Az írott minta szövege magyarul, amerikai és brit jelöléssel; rövidítéslista és jelmagyarázat a használt öltésekkel; a magyar ragozás. Minden kiírt kifejezés innen jön. |
+| `src/core/pattern-read.ts`, `src/core/canonical.ts` | A saját szöveg visszaolvasása gráffá, a szöveg sorára mutató hibával; két minta összevetése az azonosítóktól függetlenül. |
 | `src/core/repeat.ts`, `src/core/stitch-library.ts` | Láncalap és „X többszöröse + Y” számítása; az öltéskönyvtár mint azonosító → definíció. |
 | `src/ui/palette.ts` | A paletta tartalma a könyvtárból: csoportcímek, feliratok, gyorsbillentyűk, DOM nélkül. |
 | `src/ui/board.ts` | A vászon: HiDPI-méretezés, a lerakott jelek tárolása, újrarajzolás. |
@@ -61,6 +64,7 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/config.ts` | A GA4 mérési azonosító (`mintatervező` property). Üres stringre a mérés és a süti-sáv kikapcsol. |
 | `public/.htaccess` | Biztonsági fejlécek és cache. A CSP a GA-azonosítóval együtt változik — a `tests/analytics.test.mjs` őrzi. |
 | `tests/*.test.mjs` | `node:test` tesztek; a `core-*` a magot, a `ui-*` a jelrajzot és a palettát, az `analytics` a süti-sávot és a CSP-t nézi. |
+| `tests/fixtures/written/` | Az írott minta rögzített szövege kidolgozott példánként (`hu`, `en-US`); a magyart a tulajdonos hagyja jóvá. |
 | `tests/*.check.ts` | Csak fordítási próba: a `tsconfig.core.json` típusellenőrzi, nem fut. |
 | `tsconfig.core.json` | A `src/core/` típusellenőrzése DOM-típusok nélkül. |
 

@@ -1,0 +1,16 @@
+Félpálcás téglalap (03 §3.1 A)
+
+Abbreviations
+ch – chain
+hdc – half double crochet
+st(s) – stitch(es)
+
+Stitch key
+chain (ch)
+half double crochet (hdc)
+
+Félpálcás téglalap
+Foundation: ch 17.
+Row 1: Starting in 3rd ch from hook, 15 hdc (15 sts). Turn.
+Rows 2–21: ch 2 (does not count as a st), 15 hdc (15 sts). Turn.
+Row 22: ch 2 (does not count as a st), 15 hdc (15 sts). Fasten off.
