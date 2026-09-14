@@ -1,6 +1,7 @@
 /*
  * A szerkesztő kritikus útjai böngészőben (PQW-857): téglalap csak
- * billentyűzettel, mentés és újratöltés, JSON, PNG és SVG export.
+ * billentyűzettel, mentés és újratöltés, JSON, PNG és SVG export; az írott
+ * minta panelje a választott jelöléssel (PQW-868).
  */
 
 import { readFile } from 'node:fs/promises';
@@ -27,6 +28,50 @@ async function rectangle(page: Page, stitchKey: string, width: number, rows: num
     for (let i = 0; i < width; i += 1) await page.keyboard.press('Enter');
   }
 }
+
+/**
+ * A rögzített szöveg összevethető része: a cím és a darab neve nélkül (a
+ * szerkesztőben mások), és az utolsó sor záró mondata nélkül, mert a
+ * szerkesztőben még nincs fonalelvágás.
+ */
+function comparable(text: string): string {
+  const lines = text.trimEnd().split('\n').slice(1);
+  const start = lines.findIndex((line) => /^(Láncalap|Foundation):/.test(line));
+  lines.splice(start - 1, 1);
+  lines[lines.length - 1] = lines.at(-1)!.replace(/ (A fonal elvágása|Fasten off)\.$/, '');
+  return lines.join('\n');
+}
+
+const fixture = (locale: string, name: string) =>
+  readFile(new URL(`../tests/fixtures/written/${locale}/${name}.txt`, import.meta.url), 'utf8');
+
+test('írott minta: a téglalap rögzített szövege a panelben, és jelölésváltáskor a szöveg is vált', async ({ page }) => {
+  test.slow();
+  await open(page);
+  await page.locator('#board').focus();
+  await page.keyboard.press('1');
+  await rectangle(page, '4', 15, 22, 17);
+
+  const text = page.locator('#written-text');
+  await expect(text).toContainText('22. sor:');
+  expect(comparable((await text.textContent())!)).toBe(comparable(await fixture('hu', 'felpalcas-teglalap')));
+
+  await page.locator('#terms').selectOption('en-US');
+  await expect(text).toContainText('Row 22:');
+  expect(comparable((await text.textContent())!)).toBe(comparable(await fixture('en-US', 'felpalcas-teglalap')));
+  await expect(page.locator('#palette')).toContainText('Half double crochet (hdc)');
+
+  await page.locator('#terms').selectOption('en-GB');
+  await expect(text).toContainText('Abbreviations (UK terms)');
+  await expect(text).toContainText('15 htr (15 sts)');
+  expect(await text.textContent()).not.toMatch(/\b(sc|hdc|sl st)\b/);
+
+  // A választás újratöltés után megmarad, a felület nyelve közben magyar.
+  await page.reload();
+  await expect(page.locator('#terms')).toHaveValue('en-GB');
+  await expect(text).toContainText('Stitch key (UK terms)');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'hu');
+});
 
 test('10 × 10 félpálcás téglalap csak billentyűzettel, hibátlanul', async ({ page }) => {
   await open(page);

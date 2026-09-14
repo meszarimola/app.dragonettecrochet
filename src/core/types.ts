@@ -274,10 +274,26 @@ export interface Piece {
   readonly skipped: readonly NodeId[];
 }
 
+/** A jelek stílusa: a Craft Yarn Council vagy a japán (JIS) jelkulcs (01 §6). */
+export type ChartStyle = 'cyc' | 'jis';
+
+/**
+ * Milyen jelöléssel készült a minta (PQW-868). Csak megjelenítés: a gráf
+ * ettől nem változik, a szerkesztő mentéskor és exportkor írja bele.
+ */
+export interface PatternNotation {
+  readonly terms: Locale;
+  readonly chartStyle: ChartStyle;
+  /** A rövidpálca jele (szókészlet K3). */
+  readonly singleCrochet: 'plus' | 'cross';
+}
+
 /** A mentett minta. A formátum verziója minden nem visszafelé kompatibilis változásnál nő. */
 export interface Pattern {
   readonly formatVersion: 1;
   readonly title: string;
+  /** Hiányában a minta jelölése nincs rögzítve (a PQW-868 előtti mentés). */
+  readonly notation?: PatternNotation;
   readonly conventions: PatternConventions;
   readonly pieces: readonly Piece[];
 }

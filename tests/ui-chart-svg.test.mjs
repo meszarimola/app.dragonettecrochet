@@ -33,8 +33,9 @@ test('a téglalap SVG-je: sorszámok, öltésszámok, mindkét oldal színe, jel
   const x = (row) => Number(svg.match(new RegExp(`x="(-?[\\d.]+)"[^>]*>${row}</text>`))[1]);
   assert.ok(x(1) > x(2));
   assert.match(svg, /Jelmagyarázat/);
-  assert.match(svg, /félpálca \(fp\) · half double crochet \(hdc\)/);
-  assert.match(svg, /láncszem \(lsz\) · chain \(ch\)/);
+  assert.match(svg, />félpálca \(fp\)</);
+  assert.match(svg, />láncszem \(lsz\)</);
+  assert.match(svg, /Jelölés: magyar; jelek: CYC\./);
   assert.match(svg, /Visszai sor/);
   assert.match(svg, /A sorszám a sor kezdő oldalán áll/);
   // A kúszószem pontja a csoport színével telik ki, nem tűnik el a `fill:none` miatt.
@@ -42,7 +43,7 @@ test('a téglalap SVG-je: sorszámok, öltésszámok, mindkét oldal színe, jel
   assert.match(svg, /class="ink" stroke="#241f2b" color="#241f2b"/);
   // A jelmagyarázat leghosszabb felirata is kifér.
   const width = Number(svg.match(/width="([\d.]+)"/)[1]);
-  assert.ok(width >= 7 * 'félpálca (fp) · half double crochet (hdc)'.length);
+  assert.ok(width >= 7 * 'A sorszám a sor kezdő oldalán áll, zárójelben az öltésszám.'.length);
 });
 
 test('a jelmagyarázat a csoportot mutatja, nem a tagjait', () => {
@@ -63,4 +64,31 @@ test('a cím XML-biztos', () => {
   const svg = render({ ...pattern, title: 'Kendő <1> & „próba”' });
   assert.match(svg, /Kendő &lt;1&gt; &amp; „próba”/);
   assert.equal(escapeXml(`'"`), '&apos;&quot;');
+});
+
+/* ---- Jelölés és jelstílus (PQW-868) ---- */
+
+test('angol jelöléssel a jelmagyarázat megnevezi a rendszert, és csak az adott jelölés neveit írja', () => {
+  const { pattern } = hdcRectangle({ rows: 1 });
+  const us = render(pattern, { terms: 'en-US' });
+  assert.match(us, /data-terms="en-US"/);
+  assert.match(us, />Jelmagyarázat \(US terms\)</);
+  assert.match(us, /lang="en">half double crochet \(hdc\)</);
+  assert.match(us, /Jelölés: amerikai angol \(US terms\); jelek: CYC\./);
+  assert.doesNotMatch(us, /félpálca/);
+
+  const gb = render(pattern, { terms: 'en-GB' });
+  assert.match(gb, />Jelmagyarázat \(UK terms\)</);
+  assert.match(gb, />half treble \(htr\)</);
+  assert.doesNotMatch(gb, /\b(sc|hdc|sl st)\b/);
+});
+
+test('JIS jelstílussal a rövidpálca ×, és az export megnevezi a stílust', () => {
+  const { pattern } = shellStitch({ repeats: 1 });
+  const jis = render(pattern, { symbols: { singleCrochet: 'plus', style: 'jis' } });
+  assert.match(jis, /data-chart-style="jis"/);
+  assert.match(jis, /jelek: japán \(JIS\)\./);
+  assert.notEqual(jis, render(pattern));
+  const crossed = render(pattern, { symbols: { singleCrochet: 'cross' } });
+  assert.equal(jis.replace('data-chart-style="jis"', '').replace('japán (JIS)', ''), crossed.replace('data-chart-style="cyc"', '').replace('CYC', ''));
 });

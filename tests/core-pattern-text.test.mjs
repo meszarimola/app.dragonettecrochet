@@ -85,6 +85,17 @@ describe('egy mintán belül egy terminológia (01 §8.5 szabály 24–25)', () 
     for (const text of all('en-US')) assert.doesNotMatch(text, /\b(htr|ss|trtr|miss)\b/);
   });
 
+  test('angol szövegben mindkét címsor megnevezi a rendszert, magyarban nincs ilyen (PQW-868)', () => {
+    for (const [locale, system, other] of [['en-US', 'US terms', 'UK terms'], ['en-GB', 'UK terms', 'US terms']]) {
+      for (const text of all(locale)) {
+        assert.match(text, new RegExp(`^Abbreviations \\(${system}\\)$`, 'm'));
+        assert.match(text, new RegExp(`^Stitch key \\(${system}\\)$`, 'm'));
+        assert.ok(!text.includes(other));
+      }
+    }
+    for (const text of all('hu')) assert.doesNotMatch(text, /terms/);
+  });
+
   test('a brit név az amerikai egy fokkal eltolva: az amerikai rp a brit dc', () => {
     const lines = instructions(writePattern(WORKED_EXAMPLES['hullám (03 §2.3)']().pattern, testLibrary, 'en-GB'));
     assert.match(lines, /Row 2: ch 1 \(does not count as a st\), 18 dc \(18 sts\)\. Turn\./);

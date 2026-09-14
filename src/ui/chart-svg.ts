@@ -5,13 +5,18 @@
  * magot `.ts` kiterjesztéssel importálja. A diagram a jeleket a színoldali
  * látványban mutatja (01 §6.1), a sorszám a sor kezdő oldalán, az öltésszám a
  * végén áll, a színoldali és a visszai sorok színe eltér (03 §2.1, §10 I42).
+ *
+ * A jelmagyarázat a választott jelöléssel és jelstílussal készül, és megnevezi
+ * őket; angol jelölésnél a rendszert is („US terms”, „UK terms”, PQW-868).
  */
 
 import type { ChartLayout } from '../core/layout.ts';
+import { VOCABULARIES } from '../core/pattern-text.ts';
 import type { StitchLibrary } from '../core/stitch-library.ts';
 import { stitchLabel } from '../core/stitchText.ts';
-import type { Pattern, StitchDef } from '../core/types.ts';
-import { DEFAULT_SYMBOL_OPTIONS, placedShapes, shapeBounds, symbolShapes, type Shape } from './symbols.ts';
+import type { Locale, Pattern, StitchDef } from '../core/types.ts';
+import { chartStyleLabel, textLanguage, termsLabel } from './notation.ts';
+import { DEFAULT_SYMBOL_OPTIONS, placedShapes, shapeBounds, symbolShapes, type Shape, type SymbolOptions } from './symbols.ts';
 
 export interface ChartColors {
   readonly right: string;
@@ -24,6 +29,10 @@ export interface ChartSvgOptions {
   readonly colors: ChartColors;
   /** Tükrözött nézet; a jelmagyarázat megjegyzi. */
   readonly mirror?: boolean;
+  /** A jelmagyarázat jelölése; hiányában magyar. */
+  readonly terms?: Locale;
+  /** A jelek stílusa és a rövidpálca jele; hiányában CYC és +. */
+  readonly symbols?: SymbolOptions;
 }
 
 const MARGIN = 24;
@@ -73,16 +82,20 @@ export function legendStitches(pattern: Pattern, library: StitchLibrary): Stitch
 
 export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchLibrary, options: ChartSvgOptions): string {
   const { colors } = options;
+  const terms = options.terms ?? 'hu';
+  const symbols = options.symbols ?? DEFAULT_SYMBOL_OPTIONS;
+  const system = VOCABULARIES[terms].system;
   const { bounds } = layout;
   const chartWidth = Math.max(bounds.maxX - bounds.minX, 0);
   const chartHeight = Math.max(bounds.maxY - bounds.minY, 0);
   const legend = legendStitches(pattern, library);
-  const labels = legend.map((def) => `${stitchLabel(def, 'hu')} · ${stitchLabel(def, 'en-US')}`);
+  const labels = legend.map((def) => stitchLabel(def, terms));
   const keys: [string, string][] = [
     [colors.right, 'Színoldali sor'],
     [colors.wrong, 'Visszai sor'],
   ];
   const notes = [
+    `Jelölés: ${termsLabel(terms)}; jelek: ${chartStyleLabel(symbols.style ?? 'cyc')}.`,
     'A sorszám a sor kezdő oldalán áll, zárójelben az öltésszám.',
     ...(options.mirror ? ['Tükrözött nézet balkezeseknek.'] : []),
   ];
@@ -99,7 +112,7 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
   const out: string[] = [];
   const title = pattern.title.trim() || 'Minta';
   out.push(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${num(width)}" height="${num(height)}" viewBox="0 0 ${num(width)} ${num(height)}" role="img" aria-labelledby="chart-title">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${num(width)}" height="${num(height)}" viewBox="0 0 ${num(width)} ${num(height)}" role="img" aria-labelledby="chart-title" data-terms="${terms}" data-chart-style="${symbols.style ?? 'cyc'}">`,
     `<title id="chart-title">${escapeXml(title)} — horgolásminta-diagram</title>`,
     `<style>.ink{fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.ink .fill{stroke:none;fill:currentColor}</style>`,
     `<rect width="100%" height="100%" fill="${colors.background}"/>`,
@@ -113,7 +126,7 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
     for (const node of layout.nodes.values()) {
       const def = library.get(node.def);
       if (node.side !== side || !def) continue;
-      for (const shape of placedShapes(def, node, DEFAULT_SYMBOL_OPTIONS)) out.push(shapeToSvg(shape));
+      for (const shape of placedShapes(def, node, symbols)) out.push(shapeToSvg(shape));
     }
     out.push('</g>');
   }
@@ -131,12 +144,13 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
   out.push('</g></g>');
 
   out.push(`<g ${FONT} font-size="13" fill="${colors.text}">`);
-  out.push(`<text x="${MARGIN}" y="${num(legendTop + 14)}" font-weight="700">Jelmagyarázat</text>`);
+  const heading = system ? `Jelmagyarázat (${system})` : 'Jelmagyarázat';
+  out.push(`<text x="${MARGIN}" y="${num(legendTop + 14)}" font-weight="700">${heading}</text>`);
   let y = legendTop + 28;
   const iconCenter = (row: number) => ({ x: MARGIN + LEGEND_ICON / 2, y: row + LEGEND_ROW / 2 });
 
   legend.forEach((def, i) => {
-    const shapes = symbolShapes(def, DEFAULT_SYMBOL_OPTIONS);
+    const shapes = symbolShapes(def, symbols);
     const b = shapeBounds(shapes);
     const k = Math.min(1, LEGEND_ICON / Math.max(b.maxX - b.minX, b.maxY - b.minY, 1));
     const c = iconCenter(y);
@@ -144,7 +158,7 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
     const ty = c.y - (k * (b.minY + b.maxY)) / 2;
     out.push(
       `<g class="ink" stroke="${colors.right}" color="${colors.right}" transform="translate(${num(tx)} ${num(ty)}) scale(${num(k)})" stroke-width="${num(2 / k)}">${shapes.map(shapeToSvg).join('')}</g>`,
-      `<text x="${MARGIN + LEGEND_ICON + 12}" y="${num(c.y)}" dominant-baseline="middle">${escapeXml(labels[i]!)}</text>`,
+      `<text x="${MARGIN + LEGEND_ICON + 12}" y="${num(c.y)}" dominant-baseline="middle" lang="${textLanguage(terms)}">${escapeXml(labels[i]!)}</text>`,
     );
     y += LEGEND_ROW;
   });

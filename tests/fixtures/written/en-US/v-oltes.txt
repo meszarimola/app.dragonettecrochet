@@ -1,6 +1,6 @@
 V-öltés (03 §4.2 F)
 
-Abbreviations
+Abbreviations (US terms)
 ch – chain
 ch-sp – chain space
 dc – double crochet
@@ -8,7 +8,7 @@ sk – skip
 st(s) – stitch(es)
 V-st – V-stitch
 
-Stitch key
+Stitch key (US terms)
 chain (ch)
 double crochet (dc)
 V-stitch (V-st): (dc, ch 1, dc) in same st
