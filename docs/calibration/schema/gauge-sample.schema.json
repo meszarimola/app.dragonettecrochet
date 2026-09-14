@@ -1,0 +1,272 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "gauge-sample.schema.json",
+  "title": "Gauge sample — one measured swatch",
+  "description": "Transcription of one measurement sheet (docs/calibration/meresi-lap.md). Raw readings only; means, per-10 cm values and ratios are derived by the loader (docs/calibration/README.md). Units: mm and g. Unknown values are null.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "date", "crocheter", "yarn", "hook", "stitch", "construction", "measurements"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "pattern": "^GS-[0-9]{8}-[0-9]{2}$" },
+    "date": { "type": "string", "format": "date" },
+    "crocheter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "$ref": "#/$defs/slug" },
+        "handedness": { "enum": ["right", "left", null] }
+      }
+    },
+    "yarn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "brand", "line"],
+      "properties": {
+        "id": { "$ref": "#/$defs/slug" },
+        "brand": { "type": "string", "minLength": 1 },
+        "line": { "type": "string", "minLength": 1 },
+        "colour": { "type": ["string", "null"] },
+        "dyeLot": { "type": ["string", "null"] },
+        "fibre": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["material", "percent"],
+            "properties": {
+              "material": { "type": "string", "minLength": 1 },
+              "percent": { "type": ["number", "null"], "minimum": 0, "maximum": 100 }
+            }
+          }
+        },
+        "cycWeight": { "type": ["integer", "null"], "minimum": 0, "maximum": 7 },
+        "label": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "lengthM": { "$ref": "#/$defs/positiveOrNull" },
+            "massG": { "$ref": "#/$defs/positiveOrNull" },
+            "hookMmMin": { "$ref": "#/$defs/positiveOrNull" },
+            "hookMmMax": { "$ref": "#/$defs/positiveOrNull" }
+          }
+        }
+      }
+    },
+    "hook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mm"],
+      "properties": {
+        "mm": { "type": "number", "exclusiveMinimum": 0, "maximum": 30 },
+        "brand": { "type": ["string", "null"] },
+        "material": { "enum": ["aluminium", "steel", "bamboo", "wood", "plastic", "other", null] }
+      }
+    },
+    "stitch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "insertion"],
+      "properties": {
+        "id": { "enum": ["ch", "slst", "sc", "hdc", "dc", "tr"] },
+        "insertion": { "enum": ["both-loops", "back-loop", "front-loop"] }
+      }
+    },
+    "construction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workedIn"],
+      "properties": {
+        "workedIn": { "enum": ["rows", "rounds-tube", "rounds-flat", "chain"] },
+        "foundationChains": { "$ref": "#/$defs/count" },
+        "rows": { "$ref": "#/$defs/count" },
+        "turningChain": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["chains", "countsAsStitch"],
+          "properties": {
+            "chains": { "type": "integer", "minimum": 0 },
+            "countsAsStitch": { "type": "boolean" }
+          }
+        },
+        "start": { "enum": ["magic-ring", "chain-ring"] },
+        "roundJoin": { "enum": ["spiral", "joined"] },
+        "rounds": { "$ref": "#/$defs/count" },
+        "stitchesPerRound": { "$ref": "#/$defs/count" },
+        "lastRoundStitches": { "$ref": "#/$defs/count" },
+        "chains": { "$ref": "#/$defs/count" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "workedIn": { "const": "rows" } } },
+          "then": { "required": ["foundationChains", "rows", "turningChain"] }
+        },
+        {
+          "if": { "properties": { "workedIn": { "const": "rounds-tube" } } },
+          "then": { "required": ["stitchesPerRound", "rounds", "start", "roundJoin"] }
+        },
+        {
+          "if": { "properties": { "workedIn": { "const": "rounds-flat" } } },
+          "then": { "required": ["rounds", "lastRoundStitches", "start", "roundJoin"] }
+        },
+        {
+          "if": { "properties": { "workedIn": { "const": "chain" } } },
+          "then": { "required": ["chains"] }
+        }
+      ]
+    },
+    "measurements": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 2,
+      "items": { "$ref": "#/$defs/measurement" },
+      "if": { "minItems": 2 },
+      "then": {
+        "minItems": 2,
+        "maxItems": 2,
+        "prefixItems": [
+          { "properties": { "state": { "const": "unblocked" } } },
+          { "properties": { "state": { "const": "blocked" } } }
+        ]
+      }
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "timeOfDay": { "enum": ["morning", "afternoon", "evening", "night", null] },
+        "fatigue": { "type": ["integer", "null"], "minimum": 1, "maximum": 5 },
+        "tensionNotes": { "type": ["string", "null"] }
+      }
+    },
+    "notes": { "type": ["string", "null"] }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "construction": { "properties": { "workedIn": { "enum": ["rows", "rounds-tube"] } } } } },
+      "then": {
+        "properties": {
+          "measurements": {
+            "items": { "required": ["grid"], "not": { "anyOf": [{ "required": ["circle"] }, { "required": ["chain"] }] } }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "construction": { "properties": { "workedIn": { "const": "rounds-flat" } } } } },
+      "then": {
+        "properties": {
+          "measurements": {
+            "items": { "required": ["circle"], "not": { "anyOf": [{ "required": ["grid"] }, { "required": ["chain"] }] } }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "construction": { "properties": { "workedIn": { "const": "chain" } } } } },
+      "then": {
+        "properties": {
+          "stitch": { "properties": { "id": { "const": "ch" } } },
+          "measurements": {
+            "items": { "required": ["chain"], "not": { "anyOf": [{ "required": ["grid"] }, { "required": ["circle"] }] } }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "slug": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "count": { "type": "integer", "minimum": 1 },
+    "positiveOrNull": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+    "readings": {
+      "description": "Individual readings in mm, at least three, never pre-averaged.",
+      "type": "array",
+      "minItems": 3,
+      "items": { "type": "number", "exclusiveMinimum": 0 }
+    },
+    "measurement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "blocking", "tool"],
+      "properties": {
+        "state": { "enum": ["unblocked", "blocked"] },
+        "blocking": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["method"],
+              "properties": {
+                "method": { "enum": ["wet", "steam", "spray"] },
+                "dryHours": { "type": ["number", "null"], "minimum": 0 },
+                "pinned": { "type": ["boolean", "null"] }
+              }
+            }
+          ]
+        },
+        "tool": { "enum": ["ruler", "calliper", "tape"] },
+        "grid": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["stitchesSpanned", "rowsSpanned", "widthMm", "heightMm"],
+          "properties": {
+            "stitchesSpanned": { "$ref": "#/$defs/count" },
+            "rowsSpanned": { "$ref": "#/$defs/count" },
+            "widthMm": { "$ref": "#/$defs/readings" },
+            "heightMm": { "$ref": "#/$defs/readings" }
+          }
+        },
+        "circle": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["diameterMm", "shape"],
+          "properties": {
+            "diameterMm": { "$ref": "#/$defs/readings" },
+            "shape": { "enum": ["flat", "cupping", "ruffling"] }
+          }
+        },
+        "chain": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["lengthMm"],
+          "properties": {
+            "lengthMm": { "$ref": "#/$defs/readings" }
+          }
+        },
+        "swatch": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "widthMm": { "$ref": "#/$defs/positiveOrNull" },
+            "heightMm": { "$ref": "#/$defs/positiveOrNull" },
+            "massG": { "$ref": "#/$defs/positiveOrNull" },
+            "scaleResolutionG": { "$ref": "#/$defs/positiveOrNull" }
+          }
+        },
+        "photos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["file", "side"],
+            "properties": {
+              "file": { "type": "string", "pattern": "^[A-Za-z0-9._-]+\\.(jpe?g|png|heic)$" },
+              "side": { "enum": ["rs", "ws"] }
+            }
+          }
+        },
+        "notes": { "type": ["string", "null"] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "state": { "const": "unblocked" } } },
+          "then": { "properties": { "blocking": { "type": "null" } } },
+          "else": { "properties": { "blocking": { "type": "object" } } }
+        }
+      ]
+    }
+  }
+}

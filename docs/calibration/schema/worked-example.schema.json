@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "worked-example.schema.json",
+  "title": "Worked example — one test piece",
+  "description": "Transcription of one worked-example log (docs/calibration/tesztdarab-jegyzokonyv.md). Filled in stages: predicted → measured → evaluated. Deviation and tolerance are derived by the loader (docs/calibration/README.md). Units: mm and g.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "date", "status", "crocheterId", "roadmapStep", "purpose", "pattern", "materials", "predictions"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "pattern": "^WE-[0-9]{3}$" },
+    "date": { "type": "string", "format": "date" },
+    "status": { "enum": ["predicted", "measured", "evaluated"] },
+    "crocheterId": { "$ref": "#/$defs/slug" },
+    "roadmapStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["milestone", "ticket"],
+      "properties": {
+        "milestone": { "type": "string", "minLength": 1 },
+        "ticket": { "type": ["string", "null"], "pattern": "^PQW-[0-9]+$" }
+      }
+    },
+    "purpose": { "type": "string", "minLength": 1 },
+    "pattern": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "source"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1 },
+        "source": { "enum": ["generated", "manual"] },
+        "designerVersion": { "type": ["string", "null"] },
+        "file": { "type": ["string", "null"] },
+        "summary": { "type": ["string", "null"] }
+      }
+    },
+    "materials": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["yarnId", "hookMm", "gaugeProfileId"],
+      "properties": {
+        "yarnId": { "$ref": "#/$defs/slug" },
+        "hookMm": { "type": "number", "exclusiveMinimum": 0, "maximum": 30 },
+        "gaugeProfileId": { "type": ["string", "null"] }
+      }
+    },
+    "predictions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["dimension", "valueMm", "basis"],
+        "properties": {
+          "dimension": { "$ref": "#/$defs/slug" },
+          "label": { "type": ["string", "null"] },
+          "valueMm": { "type": "number", "exclusiveMinimum": 0 },
+          "rangeMm": {
+            "oneOf": [
+              { "type": "null" },
+              { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number", "exclusiveMinimum": 0 } }
+            ]
+          },
+          "basis": { "enum": ["measured", "label", "estimated"] }
+        }
+      }
+    },
+    "predictedShape": { "$ref": "#/$defs/shapeOrNull" },
+    "measurements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["dimension", "state", "valuesMm"],
+        "properties": {
+          "dimension": { "$ref": "#/$defs/slug" },
+          "state": { "enum": ["unblocked", "blocked"] },
+          "valuesMm": { "type": "array", "minItems": 3, "items": { "type": "number", "exclusiveMinimum": 0 } }
+        }
+      }
+    },
+    "shape": { "$ref": "#/$defs/shapeOrNull" },
+    "shapeNotes": { "type": ["string", "null"] },
+    "massG": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+    "photos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["file"],
+        "properties": {
+          "file": { "type": "string", "pattern": "^[A-Za-z0-9._-]+\\.(jpe?g|png|heic)$" },
+          "caption": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "deviations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["where", "what"],
+        "properties": {
+          "where": { "type": "string", "minLength": 1 },
+          "what": { "type": "string", "minLength": 1 },
+          "why": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "clarity": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["where", "rating"],
+        "properties": {
+          "where": { "type": "string", "minLength": 1 },
+          "rating": { "type": "integer", "minimum": 1, "maximum": 5 },
+          "note": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind"],
+        "properties": {
+          "about": { "type": ["string", "null"] },
+          "kind": { "enum": ["calibration", "rule", "text-fix", "none"] },
+          "ref": { "type": ["string", "null"], "pattern": "^(R-[0-9]{3}|PQW-[0-9]+|GS-[0-9]{8}-[0-9]{2})$" },
+          "note": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "notes": { "type": ["string", "null"] }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "enum": ["measured", "evaluated"] } } },
+      "then": {
+        "required": ["measurements", "shape"],
+        "properties": {
+          "measurements": { "minItems": 1 },
+          "shape": { "$ref": "#/$defs/shape" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "evaluated" } } },
+      "then": {
+        "required": ["actions"],
+        "properties": { "actions": { "minItems": 1 } }
+      }
+    }
+  ],
+  "$defs": {
+    "slug": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "shape": { "enum": ["flat", "cupping", "ruffling", "other"] },
+    "shapeOrNull": { "enum": ["flat", "cupping", "ruffling", "other", null] }
+  }
+}
