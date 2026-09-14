@@ -14,6 +14,8 @@ import {
   wave,
 } from './fixtures/examples.ts';
 import { DOUBLE_CROCHET } from '../src/core/stitches.ts';
+import { validatePattern } from '../src/core/validate.ts';
+import { PieceBuilder, patternOf } from './fixtures/builder.ts';
 import { testLibrary } from './fixtures/library.ts';
 
 const layersOf = (example) => computeLayers(example.pattern, testLibrary);
@@ -57,10 +59,10 @@ test('kagyló 6+1: mindkét sor 6n + 1 öltés (03 §4.2 E)', () => {
   ]);
 });
 
-test('V-öltés: az öltésszám láncszem nélkül, a pozíciószám a láncívvel együtt (03 §4.3)', () => {
-  // 4 ismétlés: 2 szélső pálca + 4 × 2 pálca, és 4 egyláncszemes ív.
+test('V-öltés: a láncívként beleöltött láncszemek beleszámítanak, az utolsó sor díszívei nem (03 §4.3, PQW-870)', () => {
+  // 4 ismétlés: 2 szélső pálca + 4 × 2 pálca, és 4 egyláncszemes ív; a 2. sor az 1. sor íveibe horgol.
   assert.deepEqual(counts(layersOf(vStitchPattern({ repeats: 4 })).slice(1)), [
-    [10, 14],
+    [14, 14],
     [10, 14],
   ]);
 });
@@ -77,7 +79,7 @@ test('cikcakk és hullám: a sorok öltésszáma állandó (03 §4.2 G, §2.3)',
   ]);
 });
 
-test('nagymama-négyzet: körönként 12, 24, 36 öltés és 20, 36, 52 pozíció (03 §8)', () => {
+test('nagymama-négyzet: a láncívként, egészben beleöltött sarok- és oldalívek beleszámítanak (03 §8, PQW-870)', () => {
   const layers = layersOf(grannySquare());
 
   assert.deepEqual(
@@ -86,8 +88,8 @@ test('nagymama-négyzet: körönként 12, 24, 36 öltés és 20, 36, 52 pozíci�
   );
   assert.deepEqual(counts(layers), [
     [0, 1],
-    [12, 20],
-    [24, 36],
+    [20, 20],
+    [36, 36],
     [36, 52],
   ]);
   assert.ok(layers.every((layer) => layer.side === 'right'));
@@ -99,8 +101,60 @@ test('a záró és továbbvezető kúszószem mintánként bekapcsolva számít 
   // 1. kör: +1 záró; 2–3. kör: +3 továbbvezető és +1 záró.
   assert.deepEqual(
     computeLayers(pattern, testLibrary).map((layer) => layer.stitchCount),
-    [0, 13, 28, 40],
+    [0, 21, 40, 40],
   );
+});
+
+/** Rövidpálcás háló: az 1. sor „1 rp, [1 lsz, 1 láncszem kihagyása, 1 rp] 2-szer”, a 2. sor egyenként beleölt. */
+function scMesh({ decorative = false } = {}, conventions = {}) {
+  const b = new PieceBuilder('p1', 'Háló');
+  const foundation = b.chain(6);
+  const row1 = [b.stitch('sc', foundation[4]), b.stitch('ch'), b.stitch('sc', foundation[2]), b.stitch('ch'), b.stitch('sc', foundation[0])];
+  b.event('turn');
+  b.chain(1);
+  // Díszláncnál a 2. sor jelölten kihagyja a láncszemeket, és csak a rövidpálcákba horgol.
+  const chains = [row1[1], row1[3]];
+  for (const target of [...row1].reverse()) if (!decorative || !chains.includes(target)) b.stitch('sc', target);
+  if (decorative) b.skip(...chains);
+  b.event('fasten-off');
+  return patternOf('Háló', [b.build()], conventions);
+}
+
+const stitchCounts = (pattern) => computeLayers(pattern, testLibrary).map((layer) => layer.stitchCount);
+const withChainCounts = (example, chainCounts) => ({ ...example.pattern, conventions: { ...example.pattern.conventions, chainCounts } });
+
+test('az egyenként beleöltött láncszemek beleszámítanak (PQW-870)', () => {
+  const pattern = scMesh();
+  assert.deepEqual(validatePattern(pattern, testLibrary), []);
+  assert.deepEqual(counts(computeLayers(pattern, testLibrary).slice(1)), [
+    [5, 5],
+    [5, 5],
+  ]);
+});
+
+test('a díszlánc, amibe semmi nem horgol, nem számít, akkor sem, ha nem az utolsó sorban van (PQW-870)', () => {
+  const pattern = scMesh({ decorative: true });
+  assert.deepEqual(validatePattern(pattern, testLibrary), []);
+  assert.deepEqual(counts(computeLayers(pattern, testLibrary).slice(1)), [
+    [3, 5],
+    [3, 3],
+  ]);
+});
+
+test('a láncszemek számolása mintánként felülírható: mind számít, vagy egyik sem (PQW-870)', () => {
+  assert.deepEqual(stitchCounts(withChainCounts(vStitchPattern(), true)), [0, 14, 14]);
+  assert.deepEqual(stitchCounts(withChainCounts(vStitchPattern(), false)), [0, 10, 10]);
+  assert.deepEqual(stitchCounts(withChainCounts(grannySquare(), true)), [0, 20, 36, 52]);
+  assert.deepEqual(stitchCounts(withChainCounts(grannySquare(), false)), [0, 12, 24, 36]);
+  assert.deepEqual(stitchCounts(scMesh({ decorative: true }, { chainCounts: true })), [0, 5, 3]);
+  assert.deepEqual(stitchCounts(scMesh({}, { chainCounts: false })), [0, 3, 5]);
+  // A pozíciószám és a fordulólánc számolása nem változik.
+  assert.deepEqual(counts(layersOf({ pattern: withChainCounts(vStitchPattern(), false) })), [
+    [0, 14],
+    [10, 14],
+    [10, 14],
+  ]);
+  assert.deepEqual(stitchCounts(withChainCounts(dcRectangle({ rows: 2 }), false)), [0, 16, 16]);
 });
 
 test('a sor fordulóláncának konvenciója soronként felülírható (README §4.3)', () => {

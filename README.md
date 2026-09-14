@@ -69,7 +69,7 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/core/stitches.ts` | **Az öltéskönyvtár** (PQW-867): minden öltés adatként, az összetett öltések építőfüggvényei, a csoportok a palettához. Új öltés itt kezdődik; a paletta és a jel magától követi. |
 | `src/core/stitchText.ts` | Az öltés kiírt neve és szerkezete magyar, amerikai és brit jelöléssel. Kimenetben csak a jóváhagyott név és rövidítés szerepel. |
 | `src/ui/symbols.ts` | **Paraméteres jelrajz:** az öltés adataiból geometria, böngésző nélkül tesztelhetően, és ennek kirajzolása. Ugyanez rajzol a vászonra és a paletta előnézetébe. |
-| `src/core/graph.ts` | Az öltésgráfból számolt sorok és körök: öltésszám, pozíciószám, színe vagy visszája, fordulólánc, haladási irány (PQW-856). |
+| `src/core/graph.ts` | Az öltésgráfból számolt sorok és körök: öltésszám (a láncszemek a használatuk szerint, PQW-870), pozíciószám, színe vagy visszája, fordulólánc, haladási irány (PQW-856). |
 | `src/core/validate.ts`, `src/core/rules.ts` | Az ellenőrző és a szabálykatalógus. Minden szabálynál ott a súlyosság és a tudásbázis pontja; új szabály előbb a `rules.ts`-be kerül. |
 | `src/core/pattern-json.ts` | A minta mentése és betöltése verziózott JSON-ként (`formatVersion`), mezőútvonalas hibával. |
 | `src/core/pattern-steps.ts` | **Az írott minta lépéssora** a gráfból (PQW-858), nyelvtől függetlenül: célpont az előző sor pozícióihoz képest, összevonás („5 rp”), legrövidebb ismétlődő egység. Itt dől el, mit tud a szöveg kifejezni. |
