@@ -45,6 +45,10 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | Hol | Mi |
 |---|---|
 | `src/core/types.ts` | **Az öltés és az öltésgráf felülete**, csak típusok. Erre épül az öltéskönyvtár (PQW-867) és az öltésgráf az ellenőrzővel (PQW-856). |
+| `src/core/graph.ts` | Az öltésgráfból számolt sorok és körök: öltésszám, pozíciószám, színe vagy visszája, fordulólánc, haladási irány (PQW-856). |
+| `src/core/validate.ts`, `src/core/rules.ts` | Az ellenőrző és a szabálykatalógus. Minden szabálynál ott a súlyosság és a tudásbázis pontja; új szabály előbb a `rules.ts`-be kerül. |
+| `src/core/pattern-json.ts` | A minta mentése és betöltése verziózott JSON-ként (`formatVersion`), mezőútvonalas hibával. |
+| `src/core/repeat.ts`, `src/core/stitch-library.ts` | Láncalap és „X többszöröse + Y” számítása; az öltéskönyvtár mint azonosító → definíció. |
 | `src/core/stitches.ts` | A prototípus négy öltése: azonosító, magyar és angol név, rövidítés. Új öltés itt kezdődik; a PQW-867 könyvtára váltja fel. |
 | `src/ui/symbols.ts` | Öltésenként a jel rajza és a gyorsbillentyű. Ugyanaz a függvény rajzol a vászonra és a paletta előnézetébe, így egy jel egyetlen helyen változik. |
 | `src/ui/board.ts` | A vászon: HiDPI-méretezés, a lerakott jelek tárolása, újrarajzolás. |
