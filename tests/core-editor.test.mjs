@@ -148,7 +148,8 @@ test('V-öltés: a láncszeméből láncív lesz, a következő sor abba horgol 
   pattern = stitch(pattern, 'dc');
   pattern = stitch(pattern, 'v-st-dc', 2);
   pattern = stitch(pattern, 'dc', 4);
-  assert.deepEqual(counts(pattern), [0, 4, 4]);
+  // Az 1. sor láncívébe a 2. sor horgol, ezért beleszámít; a 2. sor íve dísz (PQW-870).
+  assert.deepEqual(counts(pattern), [0, 5, 4]);
   assert.deepEqual(findings(pattern), []);
 });
 

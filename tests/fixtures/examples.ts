@@ -193,13 +193,15 @@ export function vStitchPattern(options: VStitchOptions = {}): Example {
   const row1: NodeId[] = [b.stitch('dc', at(0))];
   for (let rep = 0; rep < n; rep += 1) row1.push(...v(at(2 + 3 * rep), !(rep === 0 && options.firstVUngrouped)));
   row1.push(b.stitch('dc', at(3 * n + 1)));
-  b.event('turn', 2 * n + 2);
+  // Az 1. sor láncíveibe a 2. sor horgol, ezért a láncszemeik beleszámítanak (PQW-870).
+  b.event('turn', 3 * n + 2);
 
   const chains = b.chain(3);
   const q = [...row1].reverse();
   const row2: NodeId[] = [b.stitch('dc', q[0]!)];
   for (const space of vs.slice(0, n).reverse()) row2.push(...v({ space }, true));
   row2.push(b.stitch('dc', q[3 * n + 1]!));
+  // A 2. sor láncíveibe semmi nem horgol: díszívek, nem számítanak.
   b.event('fasten-off', 2 * n + 2);
 
   return {
@@ -316,7 +318,7 @@ export function wave(options: WaveOptions = {}): Example {
 /* ---- 03 §8: nagymama-négyzet 1–3. köre, oldalt 1, a sarkokban 2 láncszemes ív ---- */
 
 export interface GrannyOptions {
-  /** A 2. kör megadott öltésszáma; helyesen 24. */
+  /** A 2. kör megadott öltésszáma; helyesen 36, mert a 3. kör minden ívébe horgol (PQW-870). */
   readonly round2StatedCount?: number;
   /** A 2. kör záró kúszószeme a kör első pálcájába megy a kezdőlánc teteje helyett. */
   readonly round2JoinsFirstDc?: boolean;
@@ -337,7 +339,8 @@ export function grannySquare(options: GrannyOptions = {}): Example {
     corners1.push(b.chainSpace(2));
   }
   r1.push(b.stitch('sl-st', tc1[2]!));
-  b.event('join-slip', 12);
+  // 12 pálca és a sarkok 8 láncszeme, mert a 2. kör a sarokívekbe horgol (PQW-870).
+  b.event('join-slip', 20);
 
   // Egy kör 2. köre és a továbbiak: kúszószemmel a sarokívhez, 3 lsz, és minden ívbe a megfelelő csoport.
   const round = (firstDcs: readonly NodeId[], corners: readonly SpaceId[], sides: readonly SpaceId[]) => {
@@ -364,11 +367,12 @@ export function grannySquare(options: GrannyOptions = {}): Example {
 
   const r2 = round(r1.slice(0, 2), corners1, []);
   const join2 = b.stitch('sl-st', options.round2JoinsFirstDc ? r2.firstDc[0]! : r2.chains[2]!);
-  b.event('join-slip', options.round2StatedCount ?? 24);
+  b.event('join-slip', options.round2StatedCount ?? 36);
 
   // A 3. körben az oldalívek sorrendje: minden sarok után a hozzá tartozó oldalív.
   const r3 = round(r2.firstDc, r2.corners, r2.sides);
   const join3 = b.stitch('sl-st', r3.chains[2]!);
+  // A 3. kör íveibe semmi nem horgol, ezért csak a 36 pálca számít.
   b.event('join-slip', 36);
 
   return {

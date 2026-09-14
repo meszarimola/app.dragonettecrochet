@@ -184,14 +184,28 @@ describe('hullám, elrontva (03 §2.3)', () => {
 });
 
 describe('nagymama-négyzet, elrontva (03 §8)', () => {
-  test('a 2. kör végén láncszemekkel együtt számolt öltésszám (36 a 24 helyett)', () => {
-    const example = grannySquare({ round2StatedCount: 36 });
+  test('a 2. kör végén a láncívek nélkül számolt öltésszám (24 a 36 helyett, PQW-870)', () => {
+    const example = grannySquare({ round2StatedCount: 24 });
     assertOnly(example.pattern, 'stated-count', [[example.rows[2].at(-1)]]);
   });
 
   test('a 2. kör záró kúszószeme az első pálcába megy a kezdőlánc teteje helyett', () => {
     const example = grannySquare({ round2JoinsFirstDc: true });
     assertOnly(example.pattern, 'round-join', [[example.rows[2].at(-1)]]);
+  });
+});
+
+describe('a megadott öltésszám a láncszemek számolása szerint (03 §10 B10, PQW-870)', () => {
+  const withChainCounts = (example, chainCounts) => ({ ...example.pattern, conventions: { ...example.pattern.conventions, chainCounts } });
+
+  test('ha egyik láncszem sem számít, az 1. sor láncívekkel megadott öltésszáma hibás', () => {
+    const example = vStitchPattern();
+    assertOnly(withChainCounts(example, false), 'stated-count', [[example.rows[1].at(-1)]]);
+  });
+
+  test('ha minden láncszem számít, az utolsó sor díszívek nélkül megadott öltésszáma hibás', () => {
+    const example = vStitchPattern();
+    assertOnly(withChainCounts(example, true), 'stated-count', [[example.rows[2].at(-1)]]);
   });
 });
 
