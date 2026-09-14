@@ -22,12 +22,33 @@ describe('mentés után betöltve ugyanazt a gráfot kapjuk', () => {
   }
 });
 
+test('a minta jelölése megmarad; érvénytelen értéknél a mező útvonalával hibázik (PQW-868)', () => {
+  const { pattern } = dcRectangle({ rows: 1 });
+  const notation = { terms: 'en-GB', chartStyle: 'jis', singleCrochet: 'cross' };
+  const saved = savePattern({ ...pattern, notation });
+  const loaded = loadPattern(saved);
+  assert.equal(loaded.ok, true);
+  assert.deepEqual(loaded.pattern.notation, notation);
+  assert.equal(savePattern(loaded.pattern), saved);
+
+  const raw = JSON.parse(saved);
+  raw.notation.terms = 'jp';
+  const bad = loadPattern(JSON.stringify(raw));
+  assert.equal(bad.ok, false);
+  assert.equal(bad.error.path, '$.notation.terms');
+
+  // A jelölés nélküli, korábbi mentés is betölthető.
+  const old = loadPattern(savePattern(pattern));
+  assert.equal(old.ok, true);
+  assert.equal('notation' in old.pattern, false);
+});
+
 test('a nem kötelező mezők is megmaradnak', () => {
   const { pattern, rows } = dcRectangle({ rows: 3 });
   const piece = pattern.pieces[0];
   const withExtras = {
     ...pattern,
-    conventions: { ...pattern.conventions, repeat: { repeatWidth: 1, edgeStitches: 0, turningChainIncluded: false } },
+    conventions: { ...pattern.conventions, chainCounts: false, repeat: { repeatWidth: 1, edgeStitches: 0, turningChainIncluded: false } },
     pieces: [
       {
         ...piece,
@@ -55,6 +76,14 @@ test('újabb formátumú mintát nem tölt be', () => {
   assert.equal(result.error.code, 'unsupported-version');
 });
 
+test('a láncszem-számolás nélküli régebbi mentés a használat szerinti szabállyal töltődik be (PQW-870)', () => {
+  const raw = JSON.parse(savePattern(dcRectangle({ rows: 1 }).pattern));
+  delete raw.conventions.chainCounts;
+  const loaded = loadPattern(JSON.stringify(raw));
+  assert.equal(loaded.ok, true);
+  assert.equal(loaded.pattern.conventions.chainCounts, 'worked-into');
+});
+
 test('érvénytelen JSON-ra hibát ad', () => {
   const result = loadPattern('{"formatVersion": 1,');
   assert.equal(result.ok, false);
@@ -67,6 +96,7 @@ describe('a formátum hibáit mezőútvonallal jelzi', () => {
     ['hiányzó cím', (raw) => delete raw.title, '$.title'],
     ['ismeretlen mező egy öltésen', (raw) => (raw.pieces[0].stitches[0].color = 'piros'), '$.pieces[0].stitches[0].color'],
     ['ismeretlen beszúrási mód', (raw) => (raw.pieces[0].stitches[20].anchors[0].mode = 'third-loop'), '$.pieces[0].stitches[20].anchors[0].mode'],
+    ['ismeretlen láncszem-számolás', (raw) => (raw.conventions.chainCounts = 'mindig'), '$.conventions.chainCounts'],
     ['rossz eseményfajta', (raw) => (raw.pieces[0].events[0].kind = 'forditas'), '$.pieces[0].events[0].kind'],
     ['negatív öltésszám', (raw) => (raw.pieces[0].events[0].statedCount = -1), '$.pieces[0].events[0].statedCount'],
     ['régebbi, nem létező verzió', (raw) => (raw.formatVersion = 0), '$.formatVersion'],

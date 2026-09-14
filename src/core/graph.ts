@@ -17,6 +17,10 @@
  * - A számító fordulólánc egy öltés, és egyetlen horgolható pozíciója a
  *   teteje, vagyis az utolsó láncszeme (03 §1.3). A nem számító fordulóláncba
  *   nem horgolunk (03 §10 A4).
+ * - A többi láncszem mindig pozíció. Az öltésszámba a `chainCounts` szerint
+ *   számít: alapból akkor, ha egy későbbi réteg beléjük horgol, egyenként
+ *   vagy láncívként; a díszlánc nem (03 §10 B10, PQW-870). A 0. réteg
+ *   öltésszáma mindig 0.
  *
  * Nem kezeli még: láncszem nélküli alapsort (foundation stitches, 03 §1.4), a
  * darabok összekapcsolását.
@@ -149,6 +153,20 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     }
   }
 
+  // Amibe egy későbbi réteg horgol: a láncszem egyenként, a láncív minden láncszeme egészben (PQW-870).
+  const segmentOf = new Map<NodeId, number>();
+  segments.forEach((segment, i) => {
+    for (const node of segment) segmentOf.set(node.id, i + 1);
+  });
+  const workedInto = new Set<NodeId>();
+  for (const node of stitches) {
+    const layer = segmentOf.get(node.id) ?? 0;
+    for (const anchor of node.anchors) {
+      const targets = anchor.into === 'stitch' ? [anchor.id] : anchor.into === 'space' ? (spaces.get(anchor.id)?.chains ?? []) : [];
+      for (const target of targets) if ((segmentOf.get(target) ?? 0) < layer) workedInto.add(target);
+    }
+  }
+
   const { conventions } = pattern;
   const layers: LayerInfo[] = [];
   const layerOf = new Map<NodeId, number>();
@@ -236,6 +254,12 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       const def = defs.get(node.id)!;
       switch (def.kind) {
         case 'chain':
+          if (conventions.chainCounts === true || (conventions.chainCounts === 'worked-into' && workedInto.has(node.id))) {
+            stitchCount += 1;
+          }
+          positionCount += 1;
+          positions.push(node.id);
+          break;
         case 'ring':
           positionCount += 1;
           positions.push(node.id);

@@ -72,6 +72,7 @@ export const swatch = {
     roundEnd: 'stitch-default',
     picotCounts: false,
     joinSlipStitchCounts: false,
+    chainCounts: 'worked-into',
   },
   pieces: [
     {

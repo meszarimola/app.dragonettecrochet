@@ -1,6 +1,6 @@
 Nagymama-négyzet (03 §8)
 
-Abbreviations
+Abbreviations (US terms)
 beg – beginning
 ch – chain
 ch-sp – chain space
@@ -8,7 +8,7 @@ dc – double crochet
 sl st – slip stitch
 st(s) – stitch(es)
 
-Stitch key
+Stitch key (US terms)
 chain (ch)
 slip stitch (sl st)
 double crochet (dc)
@@ -17,6 +17,6 @@ magic ring (MR)
 
 Nagymama-négyzet
 Magic ring.
-Rnd 1: ch 3 (counts as 1 dc), 2 dc in ring, ch 2, [3 dc in ring, ch 2] 3 times (12 sts). Join with sl st to top of beg ch.
-Rnd 2: 2 sl st, sl st in next ch-sp, ch 3 (counts as 1 dc), 2 dc in same ch-sp, ch 2, 3 dc in same ch-sp, ch 1, [3 dc in next ch-sp, ch 2, 3 dc in same ch-sp, ch 1] 3 times (24 sts). Join with sl st to top of beg ch.
+Rnd 1: ch 3 (counts as 1 dc), 2 dc in ring, ch 2, [3 dc in ring, ch 2] 3 times (20 sts). Join with sl st to top of beg ch.
+Rnd 2: 2 sl st, sl st in next ch-sp, ch 3 (counts as 1 dc), 2 dc in same ch-sp, ch 2, 3 dc in same ch-sp, ch 1, [3 dc in next ch-sp, ch 2, 3 dc in same ch-sp, ch 1] 3 times (36 sts). Join with sl st to top of beg ch.
 Rnd 3: 2 sl st, sl st in next ch-sp, ch 3 (counts as 1 dc), 2 dc in same ch-sp, ch 2, 3 dc in same ch-sp, ch 1, 3 dc in next ch-sp, ch 1, [3 dc in next ch-sp, ch 2, 3 dc in same ch-sp, ch 1, 3 dc in next ch-sp, ch 1] 3 times (36 sts). Join with sl st to top of beg ch.

@@ -61,7 +61,7 @@ export type InsertionMode = StitchInsertion | 'space' | 'ring';
  * Az öltés fajtája. Ettől függ, hány csomópont lesz belőle a gráfban, és
  * hogyan ellenőrizzük.
  *
- * - `chain`: láncszem. Pozíció, de az öltésszámba nem számít.
+ * - `chain`: láncszem. Pozíció; az öltésszámba a `PatternConventions.chainCounts` szerint számít.
  * - `slip`: kúszószem.
  * - `basic`: egy beszúrás, egy tető: rövidpálca, félpálca, pálcák, rákhurok.
  * - `joined`: több részöltés egy tetővel: fogyasztás, fürt, bogyó, puff, popcorn.
@@ -242,6 +242,15 @@ export interface PatternConventions extends RowConventions {
   readonly picotCounts: boolean;
   /** Számít-e öltésnek az illesztő vagy továbbvezető kúszószem (szókészlet D7). */
   readonly joinSlipStitchCounts: boolean;
+  /**
+   * Számítanak-e a láncszemek az öltésszámba; a fordulóláncra a
+   * `turningChainCounts` vonatkozik (03 §4.3, §10 B10).
+   * - `worked-into`: akkor, ha egy későbbi sor vagy kör beléjük horgol,
+   *   egyenként vagy láncívként, egészben. A díszlánc, amibe semmi nem
+   *   horgol, nem számít (tulajdonosi döntés, PQW-870).
+   * - `true`: minden láncszem számít; `false`: egyik sem.
+   */
+  readonly chainCounts: 'worked-into' | boolean;
   readonly repeat?: RepeatSpec;
 }
 
@@ -274,10 +283,26 @@ export interface Piece {
   readonly skipped: readonly NodeId[];
 }
 
+/** A jelek stílusa: a Craft Yarn Council vagy a japán (JIS) jelkulcs (01 §6). */
+export type ChartStyle = 'cyc' | 'jis';
+
+/**
+ * Milyen jelöléssel készült a minta (PQW-868). Csak megjelenítés: a gráf
+ * ettől nem változik, a szerkesztő mentéskor és exportkor írja bele.
+ */
+export interface PatternNotation {
+  readonly terms: Locale;
+  readonly chartStyle: ChartStyle;
+  /** A rövidpálca jele (szókészlet K3). */
+  readonly singleCrochet: 'plus' | 'cross';
+}
+
 /** A mentett minta. A formátum verziója minden nem visszafelé kompatibilis változásnál nő. */
 export interface Pattern {
   readonly formatVersion: 1;
   readonly title: string;
+  /** Hiányában a minta jelölése nincs rögzítve (a PQW-868 előtti mentés). */
+  readonly notation?: PatternNotation;
   readonly conventions: PatternConventions;
   readonly pieces: readonly Piece[];
 }
@@ -291,7 +316,7 @@ export interface Layer {
   readonly index: number;
   readonly shape: 'row' | 'round';
   readonly stitches: readonly NodeId[];
-  /** Öltésszám, láncszem nélkül. */
+  /** Öltésszám: a láncszemek a `chainCounts`, a fordulólánc a `turningChainCounts` szerint. */
   readonly stitchCount: number;
   /** Pozíciószám, láncszemmel együtt. */
   readonly positionCount: number;

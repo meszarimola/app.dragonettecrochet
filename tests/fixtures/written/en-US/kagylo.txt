@@ -1,6 +1,6 @@
 Kagylóminta (03 §4.2 E)
 
-Abbreviations
+Abbreviations (US terms)
 ch – chain
 dc – double crochet
 sc – single crochet
@@ -8,7 +8,7 @@ sh – shell
 sk – skip
 st(s) – stitch(es)
 
-Stitch key
+Stitch key (US terms)
 chain (ch)
 single crochet (sc)
 increase (inc): 2 dc in same st

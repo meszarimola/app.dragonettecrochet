@@ -32,12 +32,13 @@ import type {
 } from './types.ts';
 import { validatePattern } from './validate.ts';
 
-/** Az új minta konvenciói: a jóváhagyott szókészlet alapértelmezései (K1, K2, D7). */
+/** Az új minta konvenciói: a jóváhagyott szókészlet alapértelmezései (K1, K2, D7), a láncszemek a PQW-870 szerint. */
 export const DEFAULT_CONVENTIONS: PatternConventions = {
   turningChainCounts: 'stitch-default',
   roundEnd: 'stitch-default',
   picotCounts: false,
   joinSlipStitchCounts: false,
+  chainCounts: 'worked-into',
 };
 
 export function emptyPattern(title = 'Új minta'): Pattern {

@@ -281,6 +281,7 @@ Sourced formulas:
 - **[CONSENSUS]** Work stitches placed "in the ch-sp" **around** the chains, into the space, not into individual chains [S55] https://lucykatecrochet.com/how-to-crochet-a-border-on-a-double-crochet-blanket.
 - **[CONSENSUS]** Slip stitches that join rounds do **not** count [S14].
 - **[DERIVED] Editor model:** a ch-k space is **one anchor** for the next row, whatever k is. It occupies **k positions** of width in the current row. Keep two counts: `stitchCount` (excluding chains) and `positionCount` (including chains), and let the pattern choose which one to print.
+- **Owner decision (PQW-870):** the default for `stitchCount` is in §10 B10.
 
 ### 4.4 How charts show repeats
 
@@ -487,6 +488,7 @@ The rules are grouped by what they check. Each is marked either **[S]** (sourced
 8. **[D] ERROR, conservation:** for row r, `produced(r) = consumedAnchors(r−1) + Σ(increase extras) − Σ(decrease savings)`. Every stitch position of row r−1 must be (a) anchored into exactly once, (b) part of exactly one decrease group, (c) covered by a chain bridge (skipped under chains or next to a fan), or (d) explicitly marked unworked (short row, shaped edge, mosaic skip).
 9. **[D] ERROR:** without shaping marks, `count(r) = count(r−1)`. With shaping, `count(r) − count(r−1)` must equal the sum of increase/decrease deltas on the row.
 10. **[D] ERROR:** a chain-k space is one anchor target. It occupies k positions in `positionCount`, and it contributes 0 or k to `stitchCount` according to a global pattern setting [S53].
+    - **Owner decision (PQW-870, 2026-09-14):** by default the chains count when a later row or round is worked into them, one chain at a time or as a whole chain space (a granny-square corner, a V-stitch or filet space). Chains nothing is worked into, such as the decorative loops of a last row, do not count. Turning chains follow rule 4 instead. A pattern can override the default: every chain counts, or none does. The written pattern still names a chain space as a chain space; only the count changes.
 11. **[S] ERROR:** join slip stitches (rounds) contribute 0 to counts [S14].
 
 ### C. Anchors and reach
