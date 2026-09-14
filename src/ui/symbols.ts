@@ -8,7 +8,10 @@
  * - a szaporítás és a kagyló szárai közös talpból indulnak, a fogyasztás
  *   szárai közös tetőbe futnak;
  * - a relief és az első vagy hátsó szál jelölése a talpon van;
- * - a rövidpálca + vagy ×, beállítás szerint (szókészlet K3).
+ * - a rövidpálca + vagy ×, beállítás szerint (szókészlet K3);
+ * - japán (JIS) stílusban a rövidpálca mindig ×, és a hátsó szál egyenes
+ *   vonal a talp alatt (01 §6.2, §8.4 szabály 23). A többi jel a két
+ *   jelkulcsban azonos alakú.
  *
  * A rajz két lépés. A `symbolShapes` csak geometriát ad (vonal, ív, ellipszis,
  * pont), ezért böngésző nélkül tesztelhető; a `drawShapes` rajzolja vászonra.
@@ -20,7 +23,7 @@
  */
 
 import { stitchById } from '../core/stitches.ts';
-import type { GroupStitchDef, InsertionMode, JoinedStitchDef, StitchDef } from '../core/types.ts';
+import type { ChartStyle, GroupStitchDef, InsertionMode, JoinedStitchDef, StitchDef } from '../core/types.ts';
 
 export interface Point {
   readonly x: number;
@@ -64,8 +67,10 @@ export type Shape =
   | { readonly kind: 'dot'; readonly role: ShapeRole; readonly center: Point; readonly r: number };
 
 export interface SymbolOptions {
-  /** A rövidpálca jele: + vagy × (szókészlet K3). */
+  /** A rövidpálca jele: + vagy × (szókészlet K3). JIS stílusban nem számít, ott mindig ×. */
   readonly singleCrochet: 'plus' | 'cross';
+  /** A jelkulcs; hiányában CYC (PQW-868). */
+  readonly style?: ChartStyle;
   /** Beszúrási mód. Hiányában az öltés alapértelmezése, az `insertionModes` első eleme. */
   readonly insertion?: InsertionMode;
 }
@@ -100,6 +105,9 @@ const SLIP_R = 3.5;
 const RING_R = 10;
 const PICOT_R = 5.5;
 const ARCH_R = 13;
+/** A JIS hátsó szál vonala: fél hossz, és mennyivel a talp alatt. */
+const JIS_LOOP_HALF = 6;
+const JIS_LOOP_DROP = 4;
 
 const FOOT: Point = { x: 0, y: 0 };
 const UP: Point = { x: 0, y: -1 };
@@ -197,7 +205,7 @@ function drawStitch(out: Shape[], part: StitchDef, stem: Stem, options: SymbolOp
     const across = normal(tangent);
     const half = stem.length * (compact ? ARM_COMPACT : ARM_SINGLE);
 
-    if (options.singleCrochet === 'plus') {
+    if (options.singleCrochet === 'plus' && options.style !== 'jis') {
       out.push(stem.shape, line('cross', add(mid, scale(across, -half)), add(mid, scale(across, half))));
     } else {
       const rising = add(tangent, across);
@@ -333,8 +341,14 @@ function isMark(mode: InsertionMode): mode is InsertionMark {
  * A beszúrás jele a talpon (01 §6.1, §8.4 szabály 23):
  * első szál: a talp egy „u” belsejében; hátsó szál: a talp egy fordított „u”
  * tetején; relief: kampó a talpnál, elöl jobbra, hátul balra nyílik.
+ * JIS stílusban a hátsó szál vízszintes vonal a jel alatt (01 §6.2). Az első
+ * szál JIS-jelére nincs forrásunk, ezért az a CYC-ív marad.
  */
-function insertionMark(mode: InsertionMark, foot: Point): Shape {
+function insertionMark(mode: InsertionMark, foot: Point, style: ChartStyle = 'cyc'): Shape {
+  if (mode === 'back-loop' && style === 'jis') {
+    return line(mode, add(foot, { x: -JIS_LOOP_HALF, y: JIS_LOOP_DROP }), add(foot, { x: JIS_LOOP_HALF, y: JIS_LOOP_DROP }));
+  }
+
   const curve = (from: Point, control: Point, to: Point): Shape => ({
     kind: 'curve',
     role: mode,
@@ -402,7 +416,7 @@ export function symbolShapes(def: StitchDef, options: SymbolOptions = DEFAULT_SY
     if (!def.insertionModes.includes(insertion)) {
       throw new RangeError(`${def.id}: nem megengedett beszúrási mód: ${insertion}`);
     }
-    if (isMark(insertion)) for (const foot of feet) out.push(insertionMark(insertion, foot));
+    if (isMark(insertion)) for (const foot of feet) out.push(insertionMark(insertion, foot, options.style));
   }
 
   return out;
@@ -522,7 +536,7 @@ export function placedShapes(def: StitchDef, placement: Placement, options: Symb
     return transformShapes(symbolShapes(def, options), rotation, k, foot);
   }
 
-  if (mark) for (const foot of feet) out.push(insertionMark(mark, foot));
+  if (mark) for (const foot of feet) out.push(insertionMark(mark, foot, options.style));
   return out;
 }
 

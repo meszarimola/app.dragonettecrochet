@@ -218,6 +218,36 @@ test('× beállítással két átló, függőleges szár nélkül, összetett je
   assert.deepEqual(roleCounts(symbolShapes(stitchById('dc'), options)), roleCounts(symbolShapes(stitchById('dc'))));
 });
 
+/* ---- Japán (JIS) jelstílus (PQW-868) ---- */
+
+test('JIS stílusban a rövidpálca mindig ×, a + beállítástól függetlenül, összetett jelben is', () => {
+  const jis = { singleCrochet: 'plus', style: 'jis' };
+  assert.deepEqual(roleCounts(symbolShapes(stitchById('sc'), jis)), only({ cross: 2 }));
+  assert.deepEqual(roleCounts(symbolShapes(stitchById('sc2tog'), jis)), only({ cross: 4 }));
+});
+
+test('JIS stílusban a hátsó szál vízszintes vonal a talp alatt', () => {
+  const [mark] = symbolShapes(stitchById('dc'), { singleCrochet: 'plus', style: 'jis', insertion: 'back-loop' })
+    .filter((shape) => shape.role === 'back-loop');
+  assert.equal(mark.kind, 'line');
+  assert.ok(near(mark.from.y, mark.to.y) && mark.from.y > 0);
+  assert.ok(mark.from.x < 0 && mark.to.x > 0);
+  assert.ok(Math.hypot(mark.from.x, mark.from.y) <= 10);
+});
+
+test('JIS stílusban minden öltés jele a × rövidpálcás CYC-jel, csak a hátsó szál jele más', () => {
+  for (const def of STITCHES) {
+    for (const singleCrochet of ['plus', 'cross']) {
+      const jis = symbolShapes(def, { singleCrochet, style: 'jis' });
+      assert.deepEqual(jis, symbolShapes(def, { singleCrochet: 'cross' }), `${def.id}, ${singleCrochet}`);
+    }
+  }
+  for (const insertion of ['front-loop', 'front-post', 'back-post']) {
+    const jis = symbolShapes(stitchById('hdc'), { singleCrochet: 'plus', style: 'jis', insertion });
+    assert.deepEqual(jis, symbolShapes(stitchById('hdc'), { singleCrochet: 'cross', insertion }), insertion);
+  }
+});
+
 test('minden jelnek véges, nem üres befoglaló téglalapja van', () => {
   for (const def of STITCHES) {
     const { minX, minY, maxX, maxY } = shapeBounds(symbolShapes(def));

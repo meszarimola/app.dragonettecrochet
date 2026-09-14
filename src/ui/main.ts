@@ -5,6 +5,10 @@
  * visszavonási verem, a kurzor, a kijelölés és a nézet él. Minden változás
  * után újraszámoljuk a célpontokat, az elrendezést és az ellenőrzést, és a
  * mintát a böngészőbe mentjük.
+ *
+ * A jelölés és a jelstílus (PQW-868) a felület nyelvétől független beállítás:
+ * a paletta, az öltésnevek, a vászon jelei, az írott minta és az export is ezt
+ * követi, a minta pedig mentéskor rögzíti.
  */
 
 import './styles.css';
@@ -31,13 +35,24 @@ import { loadPattern, savePattern } from '../core/pattern-json.js';
 import { RULES } from '../core/rules.js';
 import { libraryFor, resolveStitch } from '../core/stitch-variants.js';
 import { stitchName } from '../core/stitchText.js';
-import type { NodeId, Pattern, StitchDef, StitchDefId } from '../core/types.js';
+import type { Locale, NodeId, Pattern, PatternNotation, StitchDef, StitchDefId } from '../core/types.js';
 import { validatePattern } from '../core/validate.js';
 import { Board, type Target } from './board.js';
 import { chartSvg } from './chart-svg.js';
 import { setupConsentBanner } from './consentBanner.js';
+import {
+  chartStyleLabel,
+  readNotation,
+  symbolOptionsFor,
+  termsLabel,
+  textLanguage,
+  uiLanguageOf,
+  withNotation,
+  writeNotation,
+} from './notation.js';
 import { buildPalette, type PaletteItem } from './palette.js';
-import { DEFAULT_SYMBOL_OPTIONS, applyInk, drawCentered, readInk, shapeBounds, stemLength, symbolShapes } from './symbols.js';
+import { applyInk, drawCentered, readInk, shapeBounds, stemLength, symbolShapes, type SymbolOptions } from './symbols.js';
+import { writtenView } from './written.js';
 
 function must<T extends Element>(selector: string): T {
   const el = document.querySelector<T>(selector);
@@ -60,9 +75,21 @@ const titleInput = must<HTMLInputElement>('#title');
 const importFile = must<HTMLInputElement>('#import-file');
 const adjust = must<HTMLElement>('#adjust');
 const adjustName = must<HTMLParagraphElement>('#adjust-name');
+const written = must<HTMLElement>('#written');
+const writtenToggle = must<HTMLButtonElement>('#written-toggle');
+const writtenText = must<HTMLPreElement>('#written-text');
+const writtenNotices = must<HTMLDivElement>('#written-notices');
+const termsSelect = must<HTMLSelectElement>('#terms');
+const styleSelect = must<HTMLSelectElement>('#chart-style');
+const scMarkField = must<HTMLFieldSetElement>('#sc-mark');
+const scMarkJis = must<HTMLParagraphElement>('#sc-mark-jis');
 
 const STORAGE_KEY = 'dc-mintatervezo:minta';
 const SETTINGS_KEY = 'dc-mintatervezo:nezet';
+const NOTATION_KEY = 'dc-mintatervezo:jeloles';
+const WRITTEN_KEY = 'dc-mintatervezo:irott-minta';
+/** Ennél keskenyebb képernyőn a két panel nem fér el egymás mellett. */
+const NARROW = window.matchMedia('(width < 48rem)');
 const STRUCTURAL_RULES = new Set(['unknown-stitch', 'dangling-reference', 'yarn-path']);
 
 /* ---- Állapot ---- */
@@ -75,6 +102,9 @@ let cursorMoved = false;
 let hover: number | null = null;
 let selectedNode: NodeId | null = null;
 let mirror = readMirror();
+/** A jelölés és a jelstílus; a böngészőben marad. */
+let notation = readStoredNotation();
+let symbols: SymbolOptions = symbolOptionsFor(notation);
 /** Húzás közben a még el nem mentett, igazított minta. */
 let preview: Pattern | null = null;
 
@@ -129,7 +159,7 @@ function restore(): Pattern {
 
 function persist(pattern: Pattern): void {
   try {
-    localStorage.setItem(STORAGE_KEY, savePattern(pattern));
+    localStorage.setItem(STORAGE_KEY, savePattern(withNotation(pattern, notation)));
   } catch {
     announce('A mintát nem sikerült a böngészőbe menteni; JSON-ként mentsd le.');
   }
@@ -143,6 +173,15 @@ function readMirror(): boolean {
   }
 }
 
+function readStoredNotation(): PatternNotation {
+  const ui = uiLanguageOf(document.documentElement.lang);
+  try {
+    return readNotation(localStorage.getItem(NOTATION_KEY), ui);
+  } catch {
+    return readNotation(null, ui);
+  }
+}
+
 function structuralProblem(pattern: Pattern): string | null {
   const finding = validatePattern(pattern, libraryFor(pattern)).find((f) => STRUCTURAL_RULES.has(f.rule));
   return finding ? RULES[finding.rule as keyof typeof RULES].summary : null;
@@ -150,7 +189,10 @@ function structuralProblem(pattern: Pattern): string | null {
 
 /* ---- Frissítés ---- */
 
-const panelInset = () => (panel.hidden ? 0 : panel.getBoundingClientRect().width);
+const insetRight = () => (panel.hidden ? 0 : panel.getBoundingClientRect().width);
+const insetLeft = () => (written.hidden ? 0 : written.getBoundingClientRect().width);
+const fitBoard = () => board.fit(insetRight(), insetLeft());
+const showPoint = (point: Point) => board.ensureVisible(point, insetRight(), insetLeft());
 
 function refresh(message?: string): void {
   derived = derive(preview ?? history.present);
@@ -167,8 +209,10 @@ function refresh(message?: string): void {
     hover,
     selected: selectedNode,
     findings: derived.check.findings,
+    symbols,
   });
   updateControls();
+  updateWritten();
   if (message !== undefined) announce(message);
 }
 
@@ -189,7 +233,7 @@ function commit(result: EditResult, message: string): void {
   refresh();
   announce(`${message} ${progress()}`);
   const point = (tool && isTargeted(tool) ? derived.targets[cursor]?.point : undefined) ?? lastTop();
-  if (point) board.ensureVisible(point, panelInset());
+  if (point) showPoint(point);
 }
 
 function lastTop(): Point | undefined {
@@ -226,7 +270,7 @@ function describeTarget(index: number): string {
   else if (slot.kind === 'ring') what = 'varázskör';
   else {
     const def = derived.context.graph?.defs.get(slot.id);
-    what = def ? stitchName(def, 'hu') : 'öltés';
+    what = def ? stitchName(def, notation.terms) : 'öltés';
   }
   const used = derived.context.used[index] ? ', már horgoltál bele' : '';
   return `Célpont: ${index + 1}/${derived.context.slots.length}, ${what}${used}.`;
@@ -272,7 +316,7 @@ function updateControls(): void {
         if (!first) return;
         selectedNode = first;
         refresh(`Kijelölve a hiba első öltése.`);
-        board.ensureVisible(derived.layout.nodes.get(first)!.top, panelInset());
+        showPoint(derived.layout.nodes.get(first)!.top);
       });
       item.append(button);
       return item;
@@ -283,7 +327,7 @@ function updateControls(): void {
   adjust.hidden = !node || tool !== null;
   if (node) {
     const nodeDef = derived.context.library.get(node.def);
-    adjustName.textContent = `${nodeDef ? capitalize(stitchName(nodeDef, 'hu')) : node.def}${node.pinned ? ', kézzel igazítva' : ''}`;
+    adjustName.textContent = `${nodeDef ? capitalize(stitchName(nodeDef, notation.terms)) : node.def}${node.pinned ? ', kézzel igazítva' : ''}`;
   }
 }
 
@@ -298,10 +342,111 @@ function span(className: string, text: string): HTMLSpanElement {
   return el;
 }
 
+/* ---- Írott minta ---- */
+
+function updateWritten(): void {
+  // Húzás közben csak a jel helye változik, a szöveg nem.
+  if (written.hidden || preview) return;
+  const view = writtenView(derived.pattern, derived.context, derived.check, notation.terms);
+  const notices = view.kind === 'text' ? view.notices : [view.message];
+  writtenNotices.replaceChildren(
+    ...notices.map((notice) => {
+      const item = document.createElement('p');
+      item.className = `written__notice${view.kind === 'message' ? ' written__notice--info' : ''}`;
+      item.textContent = notice;
+      return item;
+    }),
+  );
+  writtenText.hidden = view.kind !== 'text';
+  writtenText.textContent = view.kind === 'text' ? view.text : '';
+  writtenText.lang = textLanguage(notation.terms);
+  setDisabled('copy-written', view.kind !== 'text');
+}
+
+async function copyWritten(): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(writtenText.textContent ?? '');
+    announce('Az írott minta a vágólapra került.');
+  } catch {
+    const range = document.createRange();
+    range.selectNodeContents(writtenText);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    writtenText.focus();
+    announce('A másolás nem sikerült; a szöveg ki van jelölve, Ctrl+C-vel másolhatod.');
+  }
+}
+
+function setOpen(target: HTMLElement, button: HTMLButtonElement, open: boolean): void {
+  target.toggleAttribute('hidden', !open);
+  button.setAttribute('aria-expanded', String(open));
+}
+
+function setWrittenOpen(open: boolean): void {
+  setOpen(written, writtenToggle, open);
+  try {
+    localStorage.setItem(WRITTEN_KEY, open ? 'nyitva' : 'zarva');
+  } catch {
+    // A panel enélkül is működik, csak az állapota nem marad meg.
+  }
+  updateWritten();
+}
+
+function readWrittenOpen(): boolean {
+  try {
+    return localStorage.getItem(WRITTEN_KEY) !== 'zarva';
+  } catch {
+    return true;
+  }
+}
+
+/* ---- Jelölés és jelstílus ---- */
+
+function applyNotation(next: PatternNotation, message: string): void {
+  notation = next;
+  symbols = symbolOptionsFor(next);
+  try {
+    localStorage.setItem(NOTATION_KEY, writeNotation(next));
+  } catch {
+    // A választás enélkül is érvényes, csak újratöltés után nem marad meg.
+  }
+  syncNotationControls();
+  renderPalette();
+  // A kiválasztott öltés súgója is az új nevet mutassa.
+  select(tool);
+  announce(message);
+}
+
+function syncNotationControls(): void {
+  termsSelect.value = notation.terms;
+  styleSelect.value = notation.chartStyle;
+  const jis = notation.chartStyle === 'jis';
+  scMarkField.hidden = jis;
+  scMarkJis.hidden = !jis;
+  for (const radio of scMarkField.querySelectorAll<HTMLInputElement>('input[name="sc-mark"]')) {
+    radio.checked = radio.value === notation.singleCrochet;
+  }
+}
+
+termsSelect.addEventListener('change', () => {
+  const terms = termsSelect.value as Locale;
+  applyNotation({ ...notation, terms }, `Jelölés: ${termsLabel(terms)}.`);
+});
+
+styleSelect.addEventListener('change', () => {
+  const chartStyle = styleSelect.value as PatternNotation['chartStyle'];
+  applyNotation({ ...notation, chartStyle }, `Jelstílus: ${chartStyleLabel(chartStyle)}.`);
+});
+
+scMarkField.addEventListener('change', (event) => {
+  const singleCrochet = (event.target as HTMLInputElement).value as PatternNotation['singleCrochet'];
+  applyNotation({ ...notation, singleCrochet }, `A rövidpálca jele: ${singleCrochet === 'plus' ? '+' : '×'}.`);
+});
+
 /* ---- Paletta ---- */
 
-const sections = buildPalette();
-const items = sections.flatMap((section) => section.items);
+let items: PaletteItem[] = [];
 const ink = readInk(document.documentElement);
 const buttons = new Map<StitchDefId, HTMLButtonElement>();
 
@@ -317,7 +462,7 @@ function drawPreview(def: StitchDef, size: number): HTMLCanvasElement {
 
   const ctx = previewCanvas.getContext('2d');
   if (ctx) {
-    const shapes = symbolShapes(def, DEFAULT_SYMBOL_OPTIONS);
+    const shapes = symbolShapes(def, symbols);
     const { minX, minY, maxX, maxY } = shapeBounds(shapes);
     const fit = Math.min(1, (size - 8) / Math.max(maxX - minX, maxY - minY));
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -337,9 +482,9 @@ function stitchButton(item: PaletteItem): HTMLButtonElement {
   button.append(drawPreview(item.def, 44));
 
   const label = span('stitch__label', '');
-  label.append(span('stitch__hu', item.name));
+  label.lang = textLanguage(notation.terms);
+  label.append(span('stitch__name', item.name));
   if (item.structure) label.append(span('stitch__detail', item.structure));
-  label.append(span('stitch__en', item.english));
   button.append(label);
 
   if (item.key) {
@@ -371,7 +516,15 @@ function select(id: StitchDefId | null): void {
   refresh();
 }
 
-for (const section of sections) {
+function renderPalette(): void {
+  const sections = buildPalette(notation.terms);
+  items = sections.flatMap((section) => section.items);
+  buttons.clear();
+  palette.replaceChildren();
+  for (const section of sections) palette.append(paletteSection(section));
+}
+
+function paletteSection(section: ReturnType<typeof buildPalette>[number]): HTMLDivElement {
   const group = document.createElement('div');
   group.className = 'palette__section';
   group.setAttribute('role', 'group');
@@ -386,7 +539,7 @@ for (const section of sections) {
     buttons.set(item.def.id, button);
     group.append(button);
   }
-  palette.append(group);
+  return group;
 }
 
 /* ---- Műveletek ---- */
@@ -398,7 +551,7 @@ function workAtCursor(): void {
   }
   const def = resolveStitch(tool);
   const count = Number(countInput.value);
-  const name = def ? capitalize(stitchName(def, 'hu')) : tool;
+  const name = def ? capitalize(stitchName(def, notation.terms)) : tool;
   const message = def?.kind === 'chain' || def?.kind === 'space' ? `${name}: ${count} láncszem.` : `${name} horgolva.`;
   commit(work(history.present, { def: tool, count }, cursor), message);
 }
@@ -436,6 +589,8 @@ function exportSvgText(): string {
   return chartSvg(pattern, layoutPattern(pattern, library, { mirror, stemLength }), library, {
     colors: { right: token('--c-ink'), wrong: token('--c-ink-wrong'), text: token('--c-text'), background: token('--c-bg') },
     mirror,
+    terms: notation.terms,
+    symbols,
   });
 }
 
@@ -472,8 +627,13 @@ async function importJson(file: File): Promise<void> {
     return;
   }
   selectedNode = null;
-  commit({ ok: true, pattern: loaded.pattern }, 'Minta betöltve; visszavonással a korábbi visszajön.');
-  board.fit(panelInset());
+  const recorded = loaded.pattern.notation?.terms;
+  const note =
+    recorded && recorded !== notation.terms
+      ? ` A minta ${termsLabel(recorded)} jelöléssel készült; a nézet a beállításod szerint ${termsLabel(notation.terms)}.`
+      : '';
+  commit({ ok: true, pattern: loaded.pattern }, `Minta betöltve; visszavonással a korábbi visszajön.${note}`);
+  fitBoard();
 }
 
 const ACTIONS: Record<string, () => void> = {
@@ -501,13 +661,13 @@ const ACTIONS: Record<string, () => void> = {
       // A nézet beállítása enélkül is működik, csak nem marad meg.
     }
     refresh(mirror ? 'Tükrözött nézet balkezeseknek.' : 'Jobbkezes nézet.');
-    board.fit(panelInset());
+    fitBoard();
   },
   'zoom-in': () => board.zoom(1.25),
   'zoom-out': () => board.zoom(0.8),
-  fit: () => board.fit(panelInset()),
+  fit: () => fitBoard(),
   'export-json': () => {
-    download(savePattern(history.present), `${slug(history.present.title)}.json`, 'application/json');
+    download(savePattern(withNotation(history.present, notation)), `${slug(history.present.title)}.json`, 'application/json');
     announce('JSON mentve.');
   },
   'import-json': () => importFile.click(),
@@ -516,10 +676,11 @@ const ACTIONS: Record<string, () => void> = {
     announce('SVG mentve.');
   },
   'export-png': () => void exportPng(),
+  'copy-written': () => void copyWritten(),
   new: () => {
     selectedNode = null;
     commit({ ok: true, pattern: emptyPattern() }, 'Új minta; visszavonással a korábbi visszajön.');
-    board.fit(panelInset());
+    fitBoard();
   },
   unpin: () => selectedNode && commit(setPinned(history.present, selectedNode, null), 'A jel a számolt helyére került.'),
 };
@@ -550,8 +711,14 @@ countInput.addEventListener('change', () => refresh());
 
 toggle.addEventListener('click', () => {
   const open = panel.hasAttribute('hidden');
-  panel.toggleAttribute('hidden', !open);
-  toggle.setAttribute('aria-expanded', String(open));
+  setOpen(panel, toggle, open);
+  if (open && NARROW.matches && !written.hidden) setWrittenOpen(false);
+});
+
+writtenToggle.addEventListener('click', () => {
+  const open = written.hasAttribute('hidden');
+  setWrittenOpen(open);
+  if (open && NARROW.matches) setOpen(panel, toggle, false);
 });
 
 /* ---- Egér és érintés ---- */
@@ -655,7 +822,7 @@ function moveCursor(step: number): void {
   cursor = Math.max(0, Math.min(targets.length - 1, cursor + step));
   cursorMoved = true;
   refresh(describeTarget(cursor));
-  board.ensureVisible(targets[cursor]!.point, panelInset());
+  showPoint(targets[cursor]!.point);
 }
 
 document.addEventListener('keydown', (event) => {
@@ -744,6 +911,9 @@ document.addEventListener('keydown', (event) => {
 
 /* ---- Indulás ---- */
 
+syncNotationControls();
+renderPalette();
+setOpen(written, writtenToggle, readWrittenOpen() && !NARROW.matches);
 select(null);
-board.fit(panelInset());
+fitBoard();
 setupConsentBanner(GA_MEASUREMENT_ID);

@@ -13,9 +13,12 @@
 
 import type {
   Anchor,
+  ChartStyle,
   LayerEvent,
+  Locale,
   Pattern,
   PatternConventions,
+  PatternNotation,
   Piece,
   RepeatSpec,
   Ring,
@@ -138,16 +141,29 @@ function array<T>(value: unknown, path: string, read: (item: unknown, path: stri
   return value.map((item, index) => read(item, `${path}[${index}]`));
 }
 
+const LOCALES: readonly Locale[] = ['hu', 'en-US', 'en-GB'];
+const CHART_STYLES: readonly ChartStyle[] = ['cyc', 'jis'];
 const INSERTIONS: readonly StitchInsertion[] = ['both-loops', 'front-loop', 'back-loop', 'front-post', 'back-post'];
 const FLAGS: readonly StitchFlag[] = ['crossed', 'spike'];
 
 function readPattern(value: unknown, path: string): Pattern {
-  const raw = object(value, path, ['formatVersion', 'title', 'conventions', 'pieces']);
+  const raw = object(value, path, ['formatVersion', 'title', 'conventions', 'pieces'], ['notation']);
   return {
     formatVersion: oneOf(raw['formatVersion'], `${path}.formatVersion`, [FORMAT_VERSION]),
     title: text(raw['title'], `${path}.title`),
+    ...(raw['notation'] === undefined ? {} : { notation: readNotation(raw['notation'], `${path}.notation`) }),
     conventions: readPatternConventions(raw['conventions'], `${path}.conventions`),
     pieces: array(raw['pieces'], `${path}.pieces`, readPiece),
+  };
+}
+
+/** A jelölés nem kötelező: a PQW-868 előtti mentésekben nincs, ezért a `formatVersion` nem nő. */
+function readNotation(value: unknown, path: string): PatternNotation {
+  const raw = object(value, path, ['terms', 'chartStyle', 'singleCrochet']);
+  return {
+    terms: oneOf(raw['terms'], `${path}.terms`, LOCALES),
+    chartStyle: oneOf(raw['chartStyle'], `${path}.chartStyle`, CHART_STYLES),
+    singleCrochet: oneOf(raw['singleCrochet'], `${path}.singleCrochet`, ['plus', 'cross']),
   };
 }
 

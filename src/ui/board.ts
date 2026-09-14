@@ -11,7 +11,7 @@
 import type { ChartLayout, Point } from '../core/layout.js';
 import type { StitchLibrary } from '../core/stitch-library.js';
 import type { Finding, NodeId } from '../core/types.js';
-import { DEFAULT_SYMBOL_OPTIONS, applyInk, drawShapes, placedShapes } from './symbols.js';
+import { applyInk, drawShapes, placedShapes, type SymbolOptions } from './symbols.js';
 
 export interface Target {
   readonly point: Point;
@@ -26,6 +26,8 @@ export interface Scene {
   readonly hover: number | null;
   readonly selected: NodeId | null;
   readonly findings: readonly Finding[];
+  /** A jelek stílusa és a rövidpálca jele (PQW-868). */
+  readonly symbols: SymbolOptions;
 }
 
 interface View {
@@ -116,32 +118,32 @@ export class Board {
     this.render();
   }
 
-  /** Az egész minta a látható részbe; `insetRight` a vászon fölött nyitott panel szélessége. */
-  fit(insetRight = 0): void {
+  /** Az egész minta a látható részbe; `insetRight` és `insetLeft` a vászon fölött nyitott panelek szélessége. */
+  fit(insetRight = 0, insetLeft = 0): void {
     const layout = this.#scene?.layout;
     const { width, height } = this.#canvas.getBoundingClientRect();
     if (!layout || layout.nodes.size === 0) {
-      Object.assign(this.#view, { scale: 1.5, x: 60, y: height * 0.7 });
+      Object.assign(this.#view, { scale: 1.5, x: insetLeft + 60, y: height * 0.7 });
       this.render();
       return;
     }
     const { minX, minY, maxX, maxY } = layout.bounds;
-    const room = Math.max(width - insetRight, 120);
+    const room = Math.max(width - insetRight - insetLeft, 120);
     const scale = Math.min(2, Math.max(MIN_SCALE, Math.min((room - 48) / (maxX - minX), (height - 72) / (maxY - minY))));
     this.#view.scale = scale;
-    this.#view.x = (room - (maxX - minX) * scale) / 2 - minX * scale;
+    this.#view.x = insetLeft + (room - (maxX - minX) * scale) / 2 - minX * scale;
     this.#view.y = (height - (maxY - minY) * scale) / 2 - minY * scale;
     this.render();
   }
 
   /** Csak akkor tol a nézeten, ha a pont kilóg a látható részből; így szerkesztés közben a diagram nem ugrál. */
-  ensureVisible(point: Point, insetRight = 0): void {
+  ensureVisible(point: Point, insetRight = 0, insetLeft = 0): void {
     const { width, height } = this.#canvas.getBoundingClientRect();
     const s = this.#toScreen(point);
     const pad = 48;
     let dx = 0;
     let dy = 0;
-    if (s.x < pad) dx = pad - s.x;
+    if (s.x < insetLeft + pad) dx = insetLeft + pad - s.x;
     else if (s.x > width - insetRight - pad) dx = width - insetRight - pad - s.x;
     if (s.y < pad) dy = pad - s.y;
     else if (s.y > height - pad) dy = height - pad - s.y;
@@ -183,7 +185,7 @@ export class Board {
       const def = scene.library.get(node.def);
       if (!def) continue;
       applyInk(ctx, colors[node.side], line);
-      drawShapes(ctx, placedShapes(def, node, DEFAULT_SYMBOL_OPTIONS));
+      drawShapes(ctx, placedShapes(def, node, scene.symbols));
     }
 
     ctx.font = `700 12px Karla, system-ui, sans-serif`;

@@ -22,6 +22,27 @@ describe('mentés után betöltve ugyanazt a gráfot kapjuk', () => {
   }
 });
 
+test('a minta jelölése megmarad; érvénytelen értéknél a mező útvonalával hibázik (PQW-868)', () => {
+  const { pattern } = dcRectangle({ rows: 1 });
+  const notation = { terms: 'en-GB', chartStyle: 'jis', singleCrochet: 'cross' };
+  const saved = savePattern({ ...pattern, notation });
+  const loaded = loadPattern(saved);
+  assert.equal(loaded.ok, true);
+  assert.deepEqual(loaded.pattern.notation, notation);
+  assert.equal(savePattern(loaded.pattern), saved);
+
+  const raw = JSON.parse(saved);
+  raw.notation.terms = 'jp';
+  const bad = loadPattern(JSON.stringify(raw));
+  assert.equal(bad.ok, false);
+  assert.equal(bad.error.path, '$.notation.terms');
+
+  // A jelölés nélküli, korábbi mentés is betölthető.
+  const old = loadPattern(savePattern(pattern));
+  assert.equal(old.ok, true);
+  assert.equal('notation' in old.pattern, false);
+});
+
 test('a nem kötelező mezők is megmaradnak', () => {
   const { pattern, rows } = dcRectangle({ rows: 3 });
   const piece = pattern.pieces[0];

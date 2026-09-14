@@ -1,6 +1,6 @@
 Hullám (03 §2.3)
 
-Abbreviations
+Abbreviations (US terms)
 ch – chain
 dc – double crochet
 hdc – half double crochet
@@ -8,7 +8,7 @@ sc – single crochet
 st(s) – stitch(es)
 tr – treble
 
-Stitch key
+Stitch key (US terms)
 chain (ch)
 single crochet (sc)
 half double crochet (hdc)

@@ -6,7 +6,8 @@
  *   jelölés `StitchDef.terms` bejegyzéséből jön, az `aliases` soha
  *   (01 §8.5 szabály 24–25).
  * - A brit szöveg ugyanaz a sablon, mint az amerikai, csak a brit nevekkel
- *   (egy fokkal eltolva) és a „miss” szóval; a felületi kapcsoló a PQW-868.
+ *   (egy fokkal eltolva) és a „miss” szóval. Az angol címsorok megnevezik a
+ *   rendszert („US terms”, „UK terms”); a felületi kapcsoló a PQW-868.
  * - A sor végén az öltésszám áll, ahogy a gráf számolja (06 §5.3 pont 1).
  * - Az egymás utáni azonos sorok egy sorba kerülnek („2–21. sor”, 04 §9.8).
  * - Rövidítéslista és jelmagyarázat csak a mintában ténylegesen használt
@@ -28,6 +29,8 @@ import type { Locale, Pattern, StitchDef, StitchDefId, StitchInsertion } from '.
 export type PhraseKey = 'next-stitch' | 'next-chain' | 'same-stitch' | 'same-chain' | 'next-space' | 'same-space' | 'ring';
 
 export interface Vocabulary {
+  /** Angol jelölésnél a rendszer neve, amely a címsorokban mindig ott áll; magyarul nincs. */
+  readonly system: string | null;
   readonly headings: { readonly abbreviations: string; readonly legend: string };
   readonly layer: { readonly row: (from: number, to: number) => string; readonly round: (from: number, to: number) => string };
   readonly foundation: (chains: number) => string;
@@ -54,6 +57,7 @@ export interface Vocabulary {
 }
 
 const HU: Vocabulary = {
+  system: null,
   headings: { abbreviations: 'Rövidítések', legend: 'Jelmagyarázat' },
   layer: {
     row: (from, to) => `${range(from, to)}. sor`,
@@ -95,9 +99,11 @@ const HU_MODES: Readonly<Record<Exclude<StitchInsertion, 'both-loops'>, string>>
   'back-post': 'hátsó relief',
 };
 
-function english(skipWord: string, skipMeaning: string): Vocabulary {
+function english(skipWord: string, skipMeaning: string, system: string): Vocabulary {
   return {
-    headings: { abbreviations: 'Abbreviations', legend: 'Stitch key' },
+    // Az amerikai és a brit „dc” mást jelent, ezért a rendszer neve mindkét címsorban ott áll (PQW-868).
+    system,
+    headings: { abbreviations: `Abbreviations (${system})`, legend: `Stitch key (${system})` },
     layer: {
       row: (from, to) => `${from === to ? 'Row' : 'Rows'} ${range(from, to)}`,
       round: (from, to) => `${from === to ? 'Rnd' : 'Rnds'} ${range(from, to)}`,
@@ -152,8 +158,8 @@ function english(skipWord: string, skipMeaning: string): Vocabulary {
 // A brit „miss” a 01 §3.1 szerint szerkesztői következtetés [E]; a brit kimenet még nincs jóváhagyva.
 export const VOCABULARIES: Readonly<Record<Locale, Vocabulary>> = {
   hu: HU,
-  'en-US': english('sk', 'skip'),
-  'en-GB': english('miss', 'miss (skip)'),
+  'en-US': english('sk', 'skip', 'US terms'),
+  'en-GB': english('miss', 'miss (skip)', 'UK terms'),
 };
 
 function range(from: number, to: number): string {

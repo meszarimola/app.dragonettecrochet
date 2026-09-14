@@ -77,6 +77,16 @@
 
         <button
           type="button"
+          id="written-toggle"
+          class="bar__toggle bar__toggle--written"
+          aria-expanded="false"
+          aria-controls="written"
+        >
+          Írott minta
+        </button>
+
+        <button
+          type="button"
           id="panel-toggle"
           class="bar__toggle"
           aria-expanded="true"
@@ -96,6 +106,43 @@
           aria-describedby="status"
         ></canvas>
         <p class="status" id="status" role="status" aria-live="polite"></p>
+
+        <aside class="written" id="written" aria-labelledby="written-title" hidden>
+          <h2 class="panel__title" id="written-title">Írott minta</h2>
+
+          <fieldset class="settings">
+            <legend class="panel__title">Jelölés és jelek</legend>
+            <p class="panel__field">
+              <label for="terms">Jelölés</label>
+              <select id="terms">
+                <option value="hu">Magyar</option>
+                <option value="en-US">Amerikai angol (US terms)</option>
+                <option value="en-GB">Brit angol (UK terms)</option>
+              </select>
+            </p>
+            <p class="panel__field">
+              <label for="chart-style">Jelstílus</label>
+              <select id="chart-style">
+                <option value="cyc">CYC (Craft Yarn Council)</option>
+                <option value="jis">Japán (JIS)</option>
+              </select>
+            </p>
+            <fieldset class="choice" id="sc-mark">
+              <legend>A rövidpálca jele</legend>
+              <label><input type="radio" name="sc-mark" value="plus" /> + (álló kereszt)</label>
+              <label><input type="radio" name="sc-mark" value="cross" /> × (ferde kereszt)</label>
+            </fieldset>
+            <p class="panel__note" id="sc-mark-jis" hidden>A japán jelstílusban a rövidpálca jele ×.</p>
+            <p class="panel__note">
+              A felület nyelvétől független, és a minta adatán nem változtat: a paletta, a vászon,
+              az írott minta és az export is ezt követi.
+            </p>
+          </fieldset>
+
+          <div class="written__notices" id="written-notices"></div>
+          <pre class="written__text" id="written-text" tabindex="0" aria-label="Az írott minta szövege"></pre>
+          <button type="button" class="tool written__copy" data-action="copy-written">Másolás</button>
+        </aside>
 
         <aside class="panel" id="panel" aria-label="Jelkészlet és ellenőrzés">
           <section class="check" aria-labelledby="check-title">

@@ -1,6 +1,6 @@
 Nagymama-négyzet (03 §8)
 
-Abbreviations
+Abbreviations (US terms)
 beg – beginning
 ch – chain
 ch-sp – chain space
@@ -8,7 +8,7 @@ dc – double crochet
 sl st – slip stitch
 st(s) – stitch(es)
 
-Stitch key
+Stitch key (US terms)
 chain (ch)
 slip stitch (sl st)
 double crochet (dc)

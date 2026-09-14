@@ -53,8 +53,18 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
 - **Mentés:** minden változás a böngészőbe mentődik (`localStorage`); JSON
   mentése és betöltése; PNG és SVG export jelmagyarázattal.
 - **Tükrözött nézet** balkezeseknek (`M`).
+- **Írott minta** (PQW-868): a vászon bal oldalán, a fejléc „Írott minta”
+  gombjával nyitható panelben a minta szövege, minden szerkesztés után
+  frissül, és egy gombbal másolható. Félkész sornál és hibás mintánál
+  megjegyzés kíséri; amit a szöveg még nem tud kifejezni, arról üzenet szól.
+- **Jelölés és jelstílus** (PQW-868): magyar, amerikai (US terms) vagy brit
+  (UK terms) jelölés, CYC vagy japán (JIS) jelek, a rövidpálca + vagy ×. A
+  felület nyelvétől független; a paletta, az öltésnevek, a vászon, az írott
+  minta és az export is ezt követi. A választás a böngészőben marad, a mentett
+  JSON pedig rögzíti (`notation`). Az angol szöveg és a jelmagyarázat mindig
+  megnevezi a rendszert.
 
-A jelek a Craft Yarn Council jelölését követik, és a könyvtár adataiból
+A jelek alapból a Craft Yarn Council jelölését követik, és a könyvtár adataiból
 rajzolódnak: a szár hossza a láncszem-magasságból, a ferde vonalak száma a
 ráhajtásokból jön.
 
@@ -76,14 +86,16 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/core/pattern-text.ts`, `src/core/hungarian.ts` | Az írott minta szövege magyarul, amerikai és brit jelöléssel; rövidítéslista és jelmagyarázat a használt öltésekkel; a magyar ragozás. Minden kiírt kifejezés innen jön. |
 | `src/core/pattern-read.ts`, `src/core/canonical.ts` | A saját szöveg visszaolvasása gráffá, a szöveg sorára mutató hibával; két minta összevetése az azonosítóktól függetlenül. |
 | `src/core/repeat.ts`, `src/core/stitch-library.ts` | Láncalap és „X többszöröse + Y” számítása; az öltéskönyvtár mint azonosító → definíció. |
-| `src/ui/palette.ts` | A paletta tartalma a könyvtárból: csoportcímek, feliratok, gyorsbillentyűk, DOM nélkül. |
+| `src/ui/palette.ts` | A paletta tartalma a könyvtárból, a választott jelöléssel: csoportcímek, feliratok, gyorsbillentyűk, DOM nélkül. |
+| `src/ui/notation.ts` | **A jelölés és a jelstílus beállítása** (PQW-868): alapértelmezés a felület nyelvéből, tárolás, a jelrajz beállítása, a minta jelölésének rögzítése. DOM nélküli. |
+| `src/ui/written.ts` | **Az írott minta panelje** (PQW-868): a szöveg a jelöléssel, vagy érthető üzenet, ha a minta még nem írható ki. DOM nélküli. |
 | `src/core/editor.ts` | **A szerkesztő műveletei** (PQW-857): célpontok, horgolás, „még egy ugyanabba”, fordulás, körzárás, az utolsó lépés törlése, kézi igazítás, élő ellenőrzés. |
 | `src/core/layout.ts` | **A számolt elrendezés** (PQW-857): hely, irány, legyező, összefutás, sorszám, színe és visszája, tükrözés. Tiszta függvény. |
 | `src/core/history.ts` | Visszavonás és újra. |
 | `src/core/stitch-variants.ts` | Az összetett öltések változatai azonosítóból (pl. `inc-3dc`), és a minta könyvtára. |
 | `src/ui/chart-svg.ts` | A diagram SVG-ként jelmagyarázattal; ebből készül az SVG- és a PNG-export. DOM nélküli. |
 | `src/ui/board.ts` | A vászon: nézet (nagyítás, eltolás), kirajzolás az elrendezésből, célpontok, hibajelölés, találatkeresés. |
-| `src/ui/main.ts` | Belépési pont: állapot és visszavonás, paletta, billentyűk és egér, mentés, export. |
+| `src/ui/main.ts` | Belépési pont: állapot és visszavonás, paletta, jelölés és írott minta, billentyűk és egér, mentés, export. |
 | `src/ui/styles.css` | A fő oldal design tokenjeinek szűk metszete. Konkrét hexet komponensben ne írj le. |
 | `src/ui/consent.ts`, `src/ui/analytics.ts` | **A fő oldal repójából másolva, változtatás nélkül** (csak az import kiterjesztése `.js`). Ha ott változik, itt is kell. |
 | `src/ui/consentBanner.ts` | A süti-sáv és a jelkészlet „Süti-beállítások" gombja. |
@@ -91,7 +103,7 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `public/.htaccess` | Biztonsági fejlécek és cache. A CSP a GA-azonosítóval együtt változik — a `tests/analytics.test.mjs` őrzi. |
 | `tests/*.test.mjs` | `node:test` tesztek; a `core-*` a magot, a `ui-*` a jelrajzot, a palettát és az SVG-t, az `analytics` a süti-sávot és a CSP-t nézi. |
 | `tests/fixtures/written/` | Az írott minta rögzített szövege kidolgozott példánként (`hu`, `en-US`); a magyart a tulajdonos hagyja jóvá. |
-| `e2e/*.spec.ts`, `playwright.config.ts` | Böngészős tesztek a kritikus utakra: téglalap billentyűzettel, mentés és újratöltés, export. |
+| `e2e/*.spec.ts`, `playwright.config.ts` | Böngészős tesztek a kritikus utakra: téglalap billentyűzettel, mentés és újratöltés, export, az írott minta panelje jelölésváltással. |
 | `tests/*.check.ts` | Csak fordítási próba: a `tsconfig.core.json` típusellenőrzi, nem fut. |
 | `tsconfig.core.json` | A `src/core/` típusellenőrzése DOM-típusok nélkül. |
 
