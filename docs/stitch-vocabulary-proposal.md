@@ -105,6 +105,7 @@ to **write them out in full** until the owner chooses abbreviations.
 
 **D7. Counting pikó and kúszószem.** A picot is usually decorative (0 → 0), but some patterns count it. A slip stitch used for joins is often left out of the count.
 *Proposal:* the defaults as in the tables, with a per-pattern toggle (README §4.8).
+*Decision on the picot top (2026-09-14):* see §6.
 
 **D8. Names of the compound stitches.** All names marked [T] come from the ticket. None of them could be checked against a Hungarian source.
 *Proposal:* the owner confirms or corrects each one and chooses abbreviations, if there should be any.
@@ -117,7 +118,25 @@ Answered by the owner on 2026-09-14.
 | # | Question | Options (knowledge base) | Answer |
 |---|---|---|---|
 | K1 | Does the turning chain count as a stitch? | CYC: rp no, fp no, erp and taller yes (`01 §2.1`, `03 §1.1`) · never, with erp on a ch 2 (`01 §2.2`) · Japanese: fp and taller yes (`01 §3.3`) | **CYC**: rp and fp no, erp and taller yes. Per-pattern setting with a per-row override (README §4.3) |
-| K2 | Joined rounds or a spiral? | by stitch: spiral for rp/amigurumi, joined for erp and motifs (`04 §2`, `§10`) · always joined · always spiral | **By stitch**: spiral for rp and amigurumi, joined rounds for erp and taller and for motifs |
+| K2 | Joined rounds or a spiral? | by stitch: spiral for rp/amigurumi, joined for erp and motifs (`04 §2`, `§10`) · always joined · always spiral | **By what is being made** (refined on 2026-09-14, see below): amigurumi in a spiral, every other piece worked in rounds in joined rounds, whatever the stitch |
 | K3 | Symbol for the rövidpálca | + or ×; both are common (`01 §6.1`). The prototype draws + | **+** by default; × stays a user setting |
 
 The disputed points D1–D8 were decided as proposed on 2026-09-14.
+
+## 6. Follow-up decisions (owner, 2026-09-14)
+
+Answers to the two questions the stitch library (PQW-867) left open.
+
+**Round closure (refines K2).**
+- Amigurumi is worked in a spiral. Every other piece worked in rounds uses
+  joined rounds.
+- This holds for the félpálca as well. Round closure therefore depends not
+  only on the stitch but on what is being made.
+- The current behaviour is correct for flat rounds: the library's per-stitch
+  default makes the félpálca a joined round.
+- The amigurumi mode comes in PQW-863; there the spiral becomes the default.
+
+**Picot (D7).**
+- A picot is usually on the last, decorative row, but it may be worked into.
+  The program must not warn about it.
+- The current behaviour (the picot top is workable) is correct and stays.

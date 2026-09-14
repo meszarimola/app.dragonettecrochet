@@ -1,0 +1,18 @@
+Kagylóminta (03 §4.2 E)
+
+Rövidítések
+erp – egyráhajtásos pálca
+lsz – láncszem
+rp – rövidpálca
+
+Jelmagyarázat
+láncszem (lsz)
+rövidpálca (rp)
+szaporítás: 2 erp egy öltésbe
+kagyló: 5 erp egy öltésbe
+szaporítás: 3 erp egy öltésbe
+
+Kagylóminta
+Láncalap: 20 lsz.
+1. sor: a horogtól számított 2. láncszemtől kezdve 1 rp, [2 láncszem kihagyása, kagyló, 2 láncszem kihagyása, 1 rp] 3-szor (19 öltés). Fordítás.
+2. sor: 3 lsz (1 erp-nek számít), 2 erp ugyanabba az öltésbe, 2 öltés kihagyása, 1 rp, [2 öltés kihagyása, kagyló, 2 öltés kihagyása, 1 rp] 2-szer, 2 öltés kihagyása, 3 erp a következő öltésbe (19 öltés). A fonal elvágása.
