@@ -877,7 +877,7 @@ function setAreaMode(on: boolean): void {
   if (on && tool) select(null);
   areaMode = on;
   document.body.classList.toggle('is-selecting', on);
-  refresh(on ? 'Terület kijelölése: húzz téglalapot a szemek köré; Shift-tel a kijelöléshez adod.' : 'Terület kijelölése kikapcsolva.');
+  refresh(on ? 'Terület: húzz téglalapot a szemek köré (Shift: hozzáadás).' : 'Terület kijelölése kikapcsolva.');
 }
 
 /** Ha más szem is horgol a kijelöltekbe, megmutatja őket, és megkérdezi, törölje-e velük együtt. */
@@ -892,7 +892,7 @@ async function deleteSelection(): Promise<void> {
     affected = plan.dependents;
     draw();
     const yes = await askConfirm({
-      message: `A kijelölt ${plan.selected.length} szembe még ${plan.dependents.length} szem horgol: ${describeByLayer(pattern, plan.dependents)}. A vásznon szaggatott piros keret jelöli őket. Velük együtt törlöd?`,
+      message: `A kijelölt ${plan.selected.length} szembe még ${plan.dependents.length} szem horgol: ${describeByLayer(pattern, plan.dependents)}. Velük együtt törlöd?`,
       confirmLabel: 'Törlés velük együtt',
       cancelLabel: 'Megszakítás',
     });
@@ -916,8 +916,8 @@ function copySelected(): void {
   const result = copySelection(history.present, selection);
   if (!result.ok) return announce(result.reason);
   clipboard = result.fragment;
-  const where = result.fragment.startsLayer ? `új ${result.fragment.shape === 'round' ? 'körként' : 'sorként'} a minta végére` : 'a kurzortól';
-  announce(`${result.fragment.stitches.length} szem a vágólapon. Ctrl+V-vel ${where} illesztheted be.`);
+  const where = result.fragment.startsLayer ? `új ${result.fragment.shape === 'round' ? 'körként' : 'sorként'}` : 'a kurzortól';
+  announce(`${result.fragment.stitches.length} szem a vágólapon; Ctrl+V: beillesztés ${where}.`);
 }
 
 function pasteClipboard(): void {
