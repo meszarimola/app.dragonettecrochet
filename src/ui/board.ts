@@ -9,13 +9,15 @@
  *
  * A rács (PQW-874) a jelek alatt rajzolódik, és a nézettel együtt
  * skálázódik; a vonalai a képernyőn állandó vastagságúak. A sorszám a sor
- * színével teli címkén áll, és önálló, kattintható célterület.
+ * színével teli címkén áll, és önálló, kattintható célterület. A feliratok a
+ * minta hagyományát követik (src/ui/chart-labels.ts, PQW-876).
  */
 
 import { aimAt, gridHit, type ChartGrid } from '../core/grid.js';
 import type { ChartLayout, Point } from '../core/layout.js';
 import type { StitchLibrary } from '../core/stitch-library.js';
-import type { Finding, NodeId } from '../core/types.js';
+import type { Finding, NodeId, Tradition } from '../core/types.js';
+import { chartLabels } from './chart-labels.js';
 import { gridPaths, LINE_WIDTH, type GridPaths } from './grid-paths.js';
 import { applyInk, drawShapes, placedShapes, type SymbolOptions } from './symbols.js';
 
@@ -46,6 +48,8 @@ export interface Scene {
   readonly symbols: SymbolOptions;
   /** A rács (PQW-874), vagy `null`, ha ki van kapcsolva. */
   readonly grid: ChartGrid | null;
+  /** A minta hagyománya a sorszám és a szemszám feliratához (PQW-876); hiányában CYC. */
+  readonly tradition?: Tradition;
 }
 
 interface View {
@@ -275,10 +279,11 @@ export class Board {
     ctx.font = `700 12px Karla, system-ui, sans-serif`;
     ctx.textBaseline = 'middle';
     this.#labels = [];
+    const captions = chartLabels(scene.tradition ?? 'cyc');
     for (const layer of scene.layout.layers) {
       if (layer.index === 0) continue;
       const rightwards = layer.start.x <= layer.end.x;
-      const text = String(layer.index);
+      const text = captions.layer(layer.index);
       const labelWidth = ctx.measureText(text).width + 10;
       const x0 = rightwards ? layer.start.x + 4 - labelWidth : layer.start.x - 4;
       const label: Label = {
@@ -298,7 +303,7 @@ export class Board {
       ctx.fillText(text, (label.x0 + label.x1) / 2, layer.start.y);
       applyInk(ctx, colors.text, line);
       ctx.textAlign = rightwards ? 'left' : 'right';
-      ctx.fillText(`(${layer.stitchCount})`, layer.end.x, layer.end.y);
+      ctx.fillText(captions.count(layer.stitchCount), layer.end.x, layer.end.y);
     }
 
     // A most horgolt sor iránynyila: a sor elejéről a haladási irányba mutat (PQW-879), a sorszám mellől.

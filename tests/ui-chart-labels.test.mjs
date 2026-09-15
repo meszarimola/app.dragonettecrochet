@@ -31,7 +31,21 @@ test('japán: a szemszám és az ismétlés számokkal, „目” egységgel (01
   assert.match(labels.note, /11目1模様/);
 });
 
-test('a CYC feliratai egyeznek a mai diagraméval, így a bekötés nem változtat rajta', () => {
+test('japán hagyománnyal az export feliratai: „目” szemszám, japán megjegyzés és ismétlés', () => {
+  const { pattern } = hdcRectangle({ rows: 2 });
+  const repeated = { ...pattern, conventions: { ...pattern.conventions, repeat: SHELL } };
+  const library = libraryFor(repeated);
+  const svg = chartSvg(repeated, layoutPattern(repeated, library, {}), library, {
+    colors: { right: '#000', wrong: '#00f', text: '#111', background: '#fff' },
+    tradition: 'japanese',
+  });
+  assert.ok(svg.includes('>15目</text>'));
+  assert.ok(!svg.includes('>(15)</text>'));
+  assert.ok(svg.includes(chartLabels('japanese').note));
+  assert.ok(svg.includes('Ismétlés: 6目1模様.'));
+});
+
+test('a CYC feliratai egyeznek a korábbi diagraméval', () => {
   const { pattern } = hdcRectangle({ rows: 2 });
   const library = libraryFor(pattern);
   const svg = chartSvg(pattern, layoutPattern(pattern, library, {}), library, {

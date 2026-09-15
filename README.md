@@ -87,7 +87,8 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
   alapláncszemen áll, ezért a félpálca a 4., a pálca az 5. láncszemtől indul (a
   láncalap N + T). Az ellenőrző, a vezetett kurzor, az írott minta és a
   visszaolvasás is ezzel számol; a mentett JSON a `conventions.tradition`
-  mezőben rögzíti. JIS-ben a varázskör jele „わ”.
+  mezőben rögzíti. JIS-ben a varázskör jele „わ”; a diagramon a szemszám
+  „18目”, az exportban az ismétlés „6目1模様” alakú.
 
 A jelek alapból a Craft Yarn Council jelölését követik, és a könyvtár adataiból
 rajzolódnak: a szár hossza a láncszem-magasságból, a ferde vonalak száma a
@@ -123,7 +124,7 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/core/stitch-variants.ts` | Az összetett szemek változatai azonosítóból (pl. `inc-3dc`), és a minta könyvtára. |
 | `src/core/tradition.ts` | **A számolási hagyomány** (PQW-876): CYC vagy japán fordulólánc és láncalap. A gráf, az ellenőrző, a szerkesztő, az írott minta és a visszaolvasó innen veszi a szabályt. |
 | `src/ui/chart-svg.ts` | A diagram SVG-ként jelmagyarázattal; ebből készül az SVG- és a PNG-export. DOM nélküli. |
-| `src/ui/chart-labels.ts` | A diagram feliratai hagyományonként (PQW-876): CYC-ben zárójeles szemszám, japánban „18目” és „11目1模様”. A `chart-svg.ts` és a `board.ts` még nem használja. |
+| `src/ui/chart-labels.ts` | A diagram feliratai hagyományonként (PQW-876): CYC-ben zárójeles szemszám, japánban „18目” és „11目1模様”. A vászon (`board.ts`) és az export (`chart-svg.ts`) ezt írja ki. |
 | `src/ui/board.ts` | A vászon: nézet (nagyítás, eltolás), kirajzolás az elrendezésből, célpontok, hibajelölés, találatkeresés. |
 | `src/ui/main.ts` | Belépési pont: állapot és visszavonás, ikonos menüsor, mintatípus-menü, szemválasztó panel és hibalista, jelölés és írott minta, billentyűk és egér, mentés, export. |
 | `src/ui/styles.css` | A fő oldal design tokenjeinek szűk metszete. Konkrét hexet komponensben ne írj le. |

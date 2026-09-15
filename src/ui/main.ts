@@ -275,6 +275,7 @@ function refresh(message?: string): void {
     selected: selectedNode,
     findings: derived.check.findings,
     grid: derived.grid,
+    tradition: traditionOf(derived.pattern.conventions),
     direction: tool && isTargeted(tool) ? directionArrow() : null,
     symbols,
   });
@@ -736,6 +737,7 @@ function exportSvgText(): string {
     colors: { rowA: token('--c-row-a'), rowB: token('--c-row-b'), cell: token('--c-grid'), row: token('--c-grid-row'), strong: token('--c-grid-strong') },
   };
   return chartSvg(pattern, layoutPattern(pattern, library, { mirror, stemLength }), library, {
+    tradition: traditionOf(pattern.conventions),
     ...(exportGrid.checked ? { grid } : {}),
     colors: { right: token('--c-ink'), wrong: token('--c-ink-wrong'), text: token('--c-text'), background: token('--c-bg') },
     mirror,
