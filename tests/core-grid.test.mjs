@@ -1,16 +1,19 @@
 /*
  * A rács a vásznon (PQW-874): a cellák a számolt pozíciókon, célzás a
  * cellákra, érthető üzenet ott, ahol nincs mibe horgolni, sávok váltakozó
- * színnel és hangsúlyos 5. és 10. vonallal, koncentrikus rács körben.
+ * színnel és hangsúlyos 5. és 10. vonallal, koncentrikus rács körben,
+ * sokszögben sokszög alakú gyűrűk (PQW-888), az illesztés határa (PQW-887).
  */
 
 import { strict as assert } from 'node:assert';
 import { describe, test } from 'node:test';
 
 import { contextOf, emptyPattern, endRow, setPinned, work } from '../src/core/editor.ts';
-import { aimAt, chartGrid, contains, emphasisOf, gridHit } from '../src/core/grid.ts';
+import { aimAt, chartBounds, chartGrid, contains, emphasisOf, gridHit } from '../src/core/grid.ts';
 import { article } from '../src/core/hungarian.ts';
 import { layoutPattern } from '../src/core/layout.ts';
+import { framePoint } from '../src/core/polygon.ts';
+import { DEFAULT_MOTIF, generateMotif } from '../src/core/round-generator.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
 import { chevron, grannySquare, hdcRectangle, shellStitch, vStitchPattern } from './fixtures/examples.ts';
 
@@ -211,6 +214,44 @@ describe('a rács a mintatípus szerint', () => {
     const { area } = working[0];
     assert.deepEqual([area.a0, area.a1], [0, 2 * Math.PI]);
     assert.deepEqual(aim(grid, { x: 0, y: -(area.r0 + area.r1) / 2 }), { kind: 'target', slot: 0 });
+  });
+
+  test('sokszög-rács (PQW-888): a gyűrűk a sokszög alakját követik, a cellák a pozícióknál, a határ a csúcsokig ér', () => {
+    const granny = ok(generateMotif(emptyPattern(), { ...DEFAULT_MOTIF, shape: 'granny-square', rounds: 3 }));
+    const { grid, layout, context } = build(granny, 'rounds');
+    for (const band of grid.bands) assert.equal(band.area.frame?.sides, 4, `${band.layer}. sáv`);
+    for (const layer of context.graph.layers) {
+      for (const id of layer.positions) {
+        const cell = grid.cells.find((candidate) => candidate.layer === layer.index && candidate.node === id);
+        assert.ok(cell, `${layer.index}. kör, ${id}`);
+        assert.ok(contains(cell.area, layout.nodes.get(id).top), `${id}: a pozíció a cellájában`);
+      }
+    }
+    // A sarok a négyzetes sávban van; körgyűrűben kilógna belőle.
+    const band = grid.bands.find((candidate) => candidate.layer === 3).area;
+    const corner = framePoint(band.frame, (band.r0 + band.r1) / 2, band.frame.corner);
+    assert.ok(contains(band, corner));
+    assert.ok(!contains({ ...band, frame: undefined }, corner));
+
+    // Vízszintes felső oldalú hatszög: a befoglaló téglalap oldalt a csúcsig, felül az oldalig ér.
+    const hexagon = ok(generateMotif(emptyPattern(), { ...DEFAULT_MOTIF, shape: 'hexagon', rounds: 2 }));
+    const hex = build(hexagon, 'rounds').grid;
+    const outer = Math.max(...hex.bands.map((candidate) => candidate.area.r1));
+    assert.ok(near(hex.bounds.maxX, outer / Math.cos(Math.PI / 6)));
+    assert.ok(near(-hex.bounds.minY, outer));
+  });
+
+  test('az illesztés határa a rajz és a bekapcsolt rács uniója (PQW-887)', () => {
+    const { grid, layout } = build(grannySquare().pattern, 'rounds');
+    assert.ok(grid.bounds.minY < layout.bounds.minY, 'a rács a készülő kör sávjával nagyobb a rajznál');
+    assert.deepEqual(chartBounds(layout, grid), {
+      minX: Math.min(layout.bounds.minX, grid.bounds.minX),
+      minY: Math.min(layout.bounds.minY, grid.bounds.minY),
+      maxX: Math.max(layout.bounds.maxX, grid.bounds.maxX),
+      maxY: Math.max(layout.bounds.maxY, grid.bounds.maxY),
+    });
+    assert.deepEqual(chartBounds(layout, null), layout.bounds, 'kikapcsolt rácsnál a rajz határa');
+    assert.deepEqual(chartBounds(layout, { ...grid, bands: [] }), layout.bounds, 'üres rácsnál a rajz határa');
   });
 
   test('cellás rács (filé alap): egyforma szélességű cellák; szöveges nézet (amigurumi): nincs rács', () => {

@@ -1,7 +1,8 @@
 /*
  * Körök és motívumok (PQW-861): a „Kör és motívum” szakaszból lapos kör és
  * nagymama-négyzet, az írott minta körsoraival; a K billentyű a láncszemekből
- * láncgyűrűt zár.
+ * láncgyűrűt zár. A nagymama-négyzet diagramja négyzet, a jelei nem
+ * torlódnak (PQW-888).
  */
 
 import { expect, test, type Page } from '@playwright/test';
@@ -72,3 +73,47 @@ test('nagymama-négyzet láncgyűrűvel, és a K billentyű a láncszemekből l�
   await page.keyboard.press('k');
   await expect(page.locator('#status')).toContainText('Láncgyűrű: a láncszemek gyűrűvé zárva.');
 });
+
+interface Placed {
+  readonly id: string;
+  readonly def: string;
+  readonly layer: number;
+  readonly x: number;
+  readonly y: number;
+}
+
+/** A jelek teteje ablak-koordinátában (`window.mintatervezoKijeloles`, src/ui/main.ts). */
+const placedNodes = (page: Page) =>
+  page.evaluate(() => (window as unknown as { mintatervezoKijeloles: { nodes(): Placed[] } }).mintatervezoKijeloles.nodes());
+
+const median = (values: readonly number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)]!;
+
+for (const viewport of [
+  { width: 1440, height: 900 },
+  { width: 1000, height: 506 },
+]) {
+  test(`${viewport.width}×${viewport.height}: a 6 körös nagymama-négyzet diagramja négyzet, és a jelek nem torlódnak`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await open(page);
+    await generate(page, { shape: 'Nagymama-négyzet', rounds: 6 });
+    await expect(page.locator('#status')).toContainText('Nagymama-négyzet, 6 kör elkészült;');
+    await page.getByRole('button', { name: 'Egész minta' }).click();
+
+    // A kúszószem a talpán ül, nem a kör vonalán: nem számít bele.
+    const nodes = (await placedNodes(page)).filter((node) => node.layer > 0 && node.def !== 'sl-st');
+    const xs = nodes.map((node) => node.x);
+    const ys = nodes.map((node) => node.y);
+    const [width, height] = [Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)];
+    expect(Math.abs(width - height) / width).toBeLessThan(0.05);
+    // Négyzetben a sarok √2-ször olyan messze van a középtől, mint az oldal közepe; körben ugyanolyan messze.
+    const [cx, cy] = [(Math.max(...xs) + Math.min(...xs)) / 2, (Math.max(...ys) + Math.min(...ys)) / 2];
+    const farthest = Math.max(...nodes.map((node) => Math.hypot(node.x - cx, node.y - cy)));
+    expect(farthest / (width / 2)).toBeGreaterThan(1.3);
+
+    // Egy kör jelei: a legközelebbi szomszéd sehol sincs a szokásos távolság harmadánál közelebb.
+    const nearest = nodes.map((node) =>
+      Math.min(...nodes.filter((other) => other !== node && other.layer === node.layer).map((other) => Math.hypot(other.x - node.x, other.y - node.y))),
+    );
+    expect(Math.min(...nearest)).toBeGreaterThan(median(nearest) / 3);
+  });
+}

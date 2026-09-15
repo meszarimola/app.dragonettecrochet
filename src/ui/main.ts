@@ -1660,6 +1660,8 @@ if (navigator.webdriver) {
     mintatervezoRacs: {
       layer: () => derived.context.layer,
       cells: () => board.gridCells(),
+      // A rács befoglaló téglalapja (PQW-887).
+      bounds: () => board.gridBounds(),
       labels: () => board.labels(),
       cursor: () => {
         const point = cursorPoint();
