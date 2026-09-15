@@ -96,10 +96,10 @@ describe('átlós sorok és csempék (03 §5.5, §10 G33)', () => {
     );
   });
 
-  test('a láncalap: 6 lsz, az első pálca a 4. láncszembe (CYC); japán hagyományban a függvények szerint', () => {
+  test('a láncalap: 7 lsz, az első pálca az 5. láncszembe, mert a fordulólánc alapláncszemen áll (PQW-891); japán hagyományban is a függvények szerint', () => {
     const def = resolveStitch(C2C_STITCH);
     const plan = planC2C(cyc(), plain(2, 2), COLORS).plan;
-    assert.deepEqual(plan.foundation, { chains: 6, fromHook: 4 });
+    assert.deepEqual(plan.foundation, { chains: 7, fromHook: 5 });
     const jp = planC2C(japanese(), plain(2, 2), COLORS).plan;
     assert.deepEqual(jp.foundation, {
       chains: foundationChainLength(4, def.turningChain, true, 'japanese'),
@@ -107,7 +107,7 @@ describe('átlós sorok és csempék (03 §5.5, §10 G33)', () => {
     });
     const { pattern } = make(cyc(), plain(2, 2));
     const row1 = writePattern(pattern, libraryFor(pattern), 'hu').pieces[0].lines.find((line) => line.startsWith('1. sor: a horogtól'));
-    assert.match(row1, /^1\. sor: a horogtól számított 4\. láncszemtől kezdve/);
+    assert.match(row1, /^1\. sor: a horogtól számított 5\. láncszemtől kezdve/);
   });
 });
 

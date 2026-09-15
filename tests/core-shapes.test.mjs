@@ -76,10 +76,10 @@ describe('téglalap (03 §3.1 A, B)', () => {
     sameGraph(pattern, hdcRectangle().pattern);
   });
 
-  test('B: pálcával 16 × 8 mintasűrűséggel 16 szem × 16 sor; a számító fordulólánc miatt 18 láncszem', () => {
+  test('B: pálcával 16 × 8 mintasűrűséggel 16 szem × 16 sor; a számító fordulólánc és az alapláncszeme miatt 19 láncszem (PQW-891)', () => {
     const { pattern, plan } = shape(withRowGauge('dc', 16, 8), { stitch: 'dc', widthCm: 10, heightCm: 20 });
     assert.deepEqual(plan.counts, Array(16).fill(16));
-    assert.equal(leadingChains(pattern.pieces[0]), 18);
+    assert.equal(leadingChains(pattern.pieces[0]), 19);
     assert.deepEqual(findings(pattern), []);
     sameGraph(pattern, dcRectangle().pattern);
   });
@@ -107,19 +107,19 @@ describe('téglalap (03 §3.1 A, B)', () => {
 });
 
 describe('mintaismétlés: „X többszöröse + Y” (03 §4.1, 05 §4.2)', () => {
-  // Rövidpálca 20 szem / 10 cm: 20 cm-en pontosan 40 szem; 6 + 2 többszörösei: 38, 44.
+  // Rövidpálca 20 szem / 10 cm: 20 cm-en pontosan 40 szem; 6 + 2 többszörösei a számító fordulólánccal (+1): 39, 45.
   const sc = () => withRowGauge('sc', 20, 20);
   const width = (patch) => plan(sc(), { stitch: 'sc', widthCm: 20, heightCm: 5, repeat: { width: 6, edge: 2 }, ...patch });
 
   test('a legközelebbi, felfelé (bővebb) és lefelé (szűkebb) kerekítés', () => {
-    assert.deepEqual([width({}).counts[0], width({}).repeats], [38, 6]);
-    assert.deepEqual([width({ rounding: 'up' }).counts[0], width({ rounding: 'up' }).repeats], [44, 7]);
-    assert.equal(width({ rounding: 'down' }).counts[0], 38);
+    assert.deepEqual([width({}).counts[0], width({}).repeats], [39, 6]);
+    assert.deepEqual([width({ rounding: 'up' }).counts[0], width({ rounding: 'up' }).repeats], [45, 7]);
+    assert.equal(width({ rounding: 'down' }).counts[0], 39);
   });
 
   test('félúton a bővebb irányba', () => {
-    // 20,5 cm = 41 szem, pontosan 38 és 44 között.
-    assert.equal(width({ widthCm: 20.5 }).counts[0], 44);
+    // 21 cm = 42 szem, pontosan 39 és 45 között.
+    assert.equal(width({ widthCm: 21 }).counts[0], 45);
   });
 
   test('a minta konvenciója az ismétlés lesz, és az ellenőrző ismétlési egyensúlya is rendben', () => {
@@ -130,14 +130,14 @@ describe('mintaismétlés: „X többszöröse + Y” (03 §4.1, 05 §4.2)', () 
 });
 
 describe('ferde él (03 §3.2, §3.4; 05 §4.4)', () => {
-  test('C: derékszögű háromszög 15 × 20 cm, rövidpálca 16 × 18: 24 szemről 1-re 36 soron, 23 fogyasztás, soronként legfeljebb 1', () => {
+  test('C: derékszögű háromszög 15 × 20 cm, rövidpálca 16 × 18: 24 szemről 2-re 36 soron, 22 fogyasztás, soronként legfeljebb 1; a számító fordulólánc miatt a legkisebb sor 2 szem', () => {
     const { pattern, plan } = shape(withRowGauge('sc', 16, 18), { shape: 'right-triangle', stitch: 'sc', widthCm: 15, heightCm: 20 });
     assert.equal(plan.counts.length, 36);
     assert.equal(plan.counts[0], 24);
-    assert.equal(plan.counts.at(-1), 1);
+    assert.equal(plan.counts.at(-1), 2);
     const steps = changes(plan.counts);
     assert.ok(steps.every((step) => step === 0 || step === -1));
-    assert.equal(steps.filter((step) => step === -1).length, 23);
+    assert.equal(steps.filter((step) => step === -1).length, 22);
     // Az egyik él egyenes: a változás soronként csak a sor egyik végén van.
     assert.ok(plan.shaping.every((row) => row.start === 0 || row.end === 0));
     assert.deepEqual(findings(pattern), []);
@@ -169,11 +169,11 @@ describe('ferde él (03 §3.2, §3.4; 05 §4.4)', () => {
     for (const result of [narrowing, widening]) assert.ok(changes(result.counts).every((step) => step % 2 === 0));
   });
 
-  test('rombusz: csúcsról a legszélesebb sorig szaporít, onnan ugyanúgy fogyaszt; a csúcs a sor párosságától 1 vagy 2 szem', () => {
+  test('rombusz: csúcsról a legszélesebb sorig szaporít, onnan ugyanúgy fogyaszt; a csúcs a sor párosságától 2 vagy 3 szem, mert a számító fordulólánc miatt legalább 2', () => {
     const odd = plan(withRowGauge('sc', 20, 20), { shape: 'diamond', stitch: 'sc', widthCm: 10.5, heightCm: 10.5 });
     const { counts } = odd;
     assert.equal(counts.length, 21);
-    assert.deepEqual([counts[0], counts[10], counts.at(-1)], [1, 21, 1]);
+    assert.deepEqual([counts[0], counts[10], counts.at(-1)], [3, 21, 3]);
     assert.equal(counts.indexOf(Math.max(...counts)), 10);
     assert.deepEqual(counts.slice(0, 11), [...counts.slice(10)].reverse());
     assert.ok(changes(counts).every((step) => step % 2 === 0));
@@ -251,7 +251,7 @@ describe('szegély (03 §7.1 H)', () => {
     const { pattern } = shape(withRowGauge('hdc', 15, 11), { stitch: 'hdc', widthCm: 20, heightCm: 30, border: { stitch: 'sc', hdcRowEnd: 1 } });
     const library = libraryFor(pattern);
     const hu = formatWrittenPattern(writePattern(pattern, library, 'hu'));
-    assert.match(hu, /2–33\. sor: 2 lsz \(nem számít szemnek\), 30 fp \(30 szem\)\. Fordítás\.\n/);
+    assert.match(hu, /2–33\. sor: 2 lsz \(1 fp-nek számít\), 29 fp \(30 szem\)\. Fordítás\.\n/);
     assert.ok(
       hu.includes(
         'Szegély: 1 lsz (nem számít szemnek), felső él: 3 rp a sarokszembe, 28 rp, 3 rp a sarokszembe; ' +

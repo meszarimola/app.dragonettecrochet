@@ -292,7 +292,8 @@ export function planShawl(pattern: Pattern, options: ShawlOptions): ShawlPlanRes
   if (problem) return fail(problem);
   const gauge = shawlGauge(pattern, options.kind, options.stitch);
   const def = resolveStitch(options.stitch)!;
-  const counting = turningChainCountsFor(pattern.conventions.turningChainCounts, def, traditionOf(pattern.conventions));
+  // Csak a sorban horgolt kendőknél számít (az 1. sor szemszáma); a körös kendő a körgenerátorral épül.
+  const counting = turningChainCountsFor(pattern.conventions.turningChainCounts, def, traditionOf(pattern.conventions), 'row');
   const r = gauge.rowCm / gauge.stitchCm;
   const custom = options.rate === 'custom';
 
@@ -752,9 +753,9 @@ function turnedRows(pattern: Pattern, def: StitchDef, layout: RoundPlan, name: s
   };
 
   const tradition = traditionOf(pattern.conventions);
-  const counting = turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition);
+  const counting = turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition, 'row');
   const baseChain = hasBaseChain(counting, tradition);
-  // Láncalap: a célláncszem, japán hagyományban a fordulólánc alapláncszeme, és az 1. sor fordulólánca (03 §1.2).
+  // Láncalap: a célláncszem, számító fordulóláncnál az alapláncszem, és az 1. sor fordulólánca (03 §1.2, PQW-891).
   const worked = 1 + (baseChain ? 1 : 0);
   const foundation = chains(worked + def.turningChain);
   const target = foundation.slice(0, worked).reverse()[baseChain ? 1 : 0]!;

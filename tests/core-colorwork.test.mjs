@@ -47,7 +47,7 @@ describe('sorok, láncalap, színek (03 §5.3, §5.4)', () => {
     for (const base of [cyc, japanese, counting]) {
       const pattern = base();
       const tradition = traditionOf(pattern.conventions);
-      const counts = turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition);
+      const counts = turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition, 'row');
       const cells = [
         [0, 1, 1, 0, 2],
         [1, 1, 0, 0, 2],
@@ -75,8 +75,12 @@ describe('sorok, láncalap, színek (03 §5.3, §5.4)', () => {
     ];
     const { pattern } = make(cyc(), cells, 'graphgan');
     const graph = graphOf(pattern);
-    const colorsOf = (layer) =>
-      layer.stitches.filter((id) => graph.defs.get(id).kind !== 'chain').map((id) => graph.nodes.get(id).color ?? 0);
+    // Számító fordulóláncnál (sorban mindig, PQW-891) a fordulólánc a sor első cellája.
+    const colorsOf = (layer) => {
+      const color = (id) => graph.nodes.get(id).color ?? 0;
+      const stitches = layer.stitches.filter((id) => graph.defs.get(id).kind !== 'chain').map(color);
+      return layer.turningChainCounts ? [color(layer.turningChain[0]), ...stitches] : stitches;
+    };
     assert.deepEqual(colorsOf(graph.layers[1]), [3, 2, 1, 0]);
     assert.deepEqual(colorsOf(graph.layers[2]), [3, 2, 1, 0]);
     // A fordulólánc a sor első cellájának színével készül.

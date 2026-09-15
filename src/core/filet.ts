@@ -5,13 +5,16 @@
  * - Teli cella: 3 erp; nyitott cella: 1 erp, 2 lsz, 2 kihagyás. A szomszédos
  *   cellák közös oszlopon osztoznak, ezért N cellás sor 3N + 1 pozíció
  *   (03 §10 G32).
- * - A sor első oszlopa a fordulólánc, ha a minta hagyománya szerint számít
+ * - A sor első oszlopa a fordulólánc, ha a minta konvenciója szerint számít
  *   szemnek (tradition.ts); különben egy pálca az alsó sor első pozíciójába. A
- *   láncalap `foundationChainLength(3N + 1, …)`: CYC-ben teli kezdésnél
- *   3N + 3, és az első pálca a horogtól számított 4. láncszembe megy. Nyitott
- *   kezdésnél az első cella 2 láncszeme a láncalap folytatása: 3N + 5, és az
- *   első pálca a 8. láncszembe megy. A későbbi sorokban nyitott kezdésnél a
- *   fordulólánc után a cella 2 láncszeme jön („3 lsz, 2 lsz”).
+ *   láncalap `foundationChainLength(3N + 1, …)`: a számító fordulólánc egy
+ *   alapláncszemen áll (PQW-891), ezért teli kezdésnél 3N + 4, és az első
+ *   pálca a horogtól számított 5. láncszembe megy. Nyitott kezdésnél az első
+ *   cella 2 láncszeme a láncalap folytatása: 3N + 6, és az első pálca a 9.
+ *   láncszembe megy. A tudásbázis CYC-forrása (03 §5.2) még alapláncszem
+ *   nélkül számol: 3N + 3 és 4., illetve 3N + 5 és 8. A későbbi sorokban
+ *   nyitott kezdésnél a fordulólánc után a cella 2 láncszeme jön („3 lsz,
+ *   2 lsz”).
  * - A sor a haladási irányban halad: a páratlan sorok jobbról balra (01 §8.4).
  * - Alakítás egész cellánként (03 §10 F30): a sor elején szaporítás az előző
  *   sor végén 3 láncszemes hosszabbítással cellánként, a sor végén fogyasztás
@@ -96,7 +99,7 @@ export function planFilet(pattern: Pattern, cells: ChartRows): FiletPlanResult {
 
   const def = resolveStitch(FILET_STITCH)!;
   const tradition = traditionOf(pattern.conventions);
-  const counting = turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition);
+  const counting = turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition, 'row');
   const rows: FiletRow[] = [];
   for (let y = 0; y < cells.length; y += 1) {
     const row = y + 1;

@@ -65,7 +65,7 @@ export function planColorwork(pattern: Pattern, technique: ColorworkTechnique, c
   if (problem) return fail(problem);
   const def = resolveStitch(COLORWORK_STITCH)!;
   const tradition = traditionOf(pattern.conventions);
-  const counting = turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition);
+  const counting = turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition, 'row');
   const width = cells[0]!.length;
   if (counting && width < 2) return fail('Ha a fordulólánc szemnek számít, a sor legalább 2 cella legyen.');
 

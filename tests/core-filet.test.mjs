@@ -70,9 +70,10 @@ describe('sor, láncalap és fordulólánc (03 §5.2, §10 G32)', () => {
     );
   });
 
-  test('teli kezdés: 3N + 3 láncszem, az első pálca a 4. láncszembe; nyitott kezdés: 3N + 5, a 8. láncszembe', () => {
+  test('teli kezdés: 3N + 4 láncszem, az első pálca az 5. láncszembe; nyitott kezdés: 3N + 6, a 9. láncszembe (PQW-891)', () => {
+    // A fordulólánc az első oszlop helyett áll, egy alapláncszemen (tradition.ts).
     const filled = make(cyc(), chart('#####'));
-    assert.deepEqual(filled.plan.foundation, { chains: 18, fromHook: 4 });
+    assert.deepEqual(filled.plan.foundation, { chains: 19, fromHook: 5 });
     assert.deepEqual(foundationOf(filled.pattern), filled.plan.foundation);
 
     const open = make(cyc(), chart('.####'));
@@ -80,7 +81,7 @@ describe('sor, láncalap és fordulólánc (03 §5.2, §10 G32)', () => {
     assert.equal(open.plan.rows[0].start, 'filled');
     const openStart = make(cyc(), chart('####.'));
     assert.equal(openStart.plan.rows[0].start, 'open');
-    assert.deepEqual(openStart.plan.foundation, { chains: 20, fromHook: 8 });
+    assert.deepEqual(openStart.plan.foundation, { chains: 21, fromHook: 9 });
     assert.deepEqual(foundationOf(openStart.pattern), openStart.plan.foundation);
     assert.deepEqual(findings(openStart.pattern), []);
   });
@@ -90,7 +91,7 @@ describe('sor, láncalap és fordulólánc (03 §5.2, §10 G32)', () => {
     for (const base of [cyc, japanese, notCounting]) {
       const pattern = base();
       const tradition = traditionOf(pattern.conventions);
-      const counts = turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition);
+      const counts = turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition, 'row');
       const result = make(pattern, chart('####'));
       assert.equal(result.plan.turningChain, def.turningChain);
       assert.equal(result.plan.foundation.chains, foundationChainLength(13, def.turningChain, counts, tradition));
@@ -108,12 +109,12 @@ describe('sor, láncalap és fordulólánc (03 §5.2, §10 G32)', () => {
     assert.deepEqual(findings(pattern), []);
   });
 
-  test('nyitott kezdésű 1. sor az írott mintában: a láncalap 3N + 5, és a 8. láncszemtől indul', () => {
+  test('nyitott kezdésű 1. sor az írott mintában: a láncalap 3N + 6, és a 9. láncszemtől indul', () => {
     const { pattern } = make(cyc(), chart('###.'));
     const [foundation, row1] = lines(pattern);
-    assert.equal(foundation, 'Láncalap: 17 lsz.');
-    assert.match(row1, /^1\. sor: a horogtól számított 8\. láncszemtől kezdve \(a kihagyott láncszemek 1 erp-nek és 2 lsz-nek számítanak\) 10 erp \(11 szem\)\./);
-    assert.match(lines(pattern, 'en-US')[1], /^Row 1: Starting in 8th ch from hook \(skipped ch count as 1 dc and ch 2\), /);
+    assert.equal(foundation, 'Láncalap: 18 lsz.');
+    assert.match(row1, /^1\. sor: a horogtól számított 9\. láncszemtől kezdve \(a kihagyott láncszemek 1 erp-nek és 2 lsz-nek számítanak\) 10 erp \(11 szem\)\./);
+    assert.match(lines(pattern, 'en-US')[1], /^Row 1: Starting in 9th ch from hook \(skipped ch count as 1 dc and ch 2\), /);
   });
 });
 

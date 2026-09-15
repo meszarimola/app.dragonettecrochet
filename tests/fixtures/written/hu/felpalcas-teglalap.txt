@@ -10,6 +10,6 @@ félpálca (fp)
 
 Félpálcás téglalap
 Láncalap: 17 lsz.
-1. sor: a horogtól számított 3. láncszemtől kezdve 15 fp (15 szem). Fordítás.
-2–21. sor: 2 lsz (nem számít szemnek), 15 fp (15 szem). Fordítás.
-22. sor: 2 lsz (nem számít szemnek), 15 fp (15 szem). A fonal elvágása.
+1. sor: a horogtól számított 4. láncszemtől kezdve (a kihagyott láncszemek 1 fp-nek számítanak) 14 fp (15 szem). Fordítás.
+2–21. sor: 2 lsz (1 fp-nek számít), 14 fp (15 szem). Fordítás.
+22. sor: 2 lsz (1 fp-nek számít), 14 fp (15 szem). A fonal elvágása.

@@ -33,7 +33,7 @@ import type { LayerInfo, PieceGraph } from './graph.ts';
 import { gaugeContextOf } from './pattern-size.ts';
 import type { RuleId } from './rules.ts';
 import type { StitchLibrary } from './stitch-library.ts';
-import type { NodeId, Pattern, StitchDef, StitchDefId, ValueSource } from './types.ts';
+import type { NodeId, Pattern, PatternConventions, StitchDef, StitchDefId, ValueSource } from './types.ts';
 
 /** A szokásos körös magasság/szélesség arány mérés nélkül (04 §1.2, §9.0). */
 export const ROUND_ASPECT: Readonly<Record<StitchDefId, number>> = { sc: 1, hdc: 1.35, dc: 2, tr: 2.5, dtr: 3 };
@@ -44,6 +44,17 @@ export const RUFFLING_RATIO = 1.3;
 
 /** Ennyi körön át egymás fölé kerülő szaporítás már sokszögletű kört ad (04 §9.6). */
 export const STACK_LIMIT = 3;
+
+/**
+ * A kör vége a minta beállításából. `stitch-default`: a mintatípus dönt, nem a
+ * szem magassága; amigurumiban spirál, minden más körben zárt kör kúszószemmel
+ * és kezdőlánccal (szókészlet K2, tulajdonosi döntés, PQW-892). A kifejezetten
+ * megadott zárás marad.
+ */
+export function roundEndFor(setting: PatternConventions['roundEnd'], amigurumi: boolean): 'join-slip' | 'spiral' {
+  if (setting !== 'stitch-default') return setting;
+  return amigurumi ? 'spiral' : 'join-slip';
+}
 
 export interface FlatIncreases {
   /** A lapos darabhoz kellő szaporítás körönként, kerekítés nélkül. */

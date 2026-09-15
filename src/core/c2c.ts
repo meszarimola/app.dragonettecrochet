@@ -5,8 +5,10 @@
  * - Egy rácscella egy csempe: 3 lsz és 3 erp. A kép jobb alsó sarkából indul,
  *   és a bal felsőben ér véget; W × H rács W + H − 1 átlós sor, összesen
  *   W × H csempe, a d. átlóban `min(d, W, H, W + H − d)`.
- * - Az 1. sor: 6 lsz, 3 erp a horogtól számított 4. láncszemtől (CYC); a
- *   láncalap a hagyomány függvényeiből jön (tradition.ts, repeat.ts).
+ * - Az 1. sor: 7 lsz, 3 erp a horogtól számított 5. láncszemtől, mert a
+ *   fordulólánc alapláncszemen áll (PQW-891; a tudásbázis forrása alapláncszem
+ *   nélkül 6 lsz-t és a 4. láncszemet írja). A láncalap a hagyomány
+ *   függvényeiből jön (tradition.ts, repeat.ts).
  * - A sor kezdő oldala minden sorban vált: a páros sor a jobb élen (a
  *   magasság irányában), a páratlan az alsó élen (a szélesség irányában)
  *   kezd. A kezdő oldalon szaporítás, amíg azon az oldalon a méret nincs meg:
@@ -89,7 +91,7 @@ export function planC2C(pattern: Pattern, cells: ChartRows, colors: readonly Pat
   if (problem) return fail(problem);
   const def = resolveStitch(C2C_STITCH)!;
   const tradition = traditionOf(pattern.conventions);
-  if (!turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition)) {
+  if (!turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition, 'row')) {
     return fail('A C2C-csempe 3 láncszeme az első pálca helyett áll: a mintában a pálca fordulóláncának szemnek kell számítania.');
   }
 
