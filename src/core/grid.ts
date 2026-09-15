@@ -268,19 +268,38 @@ function groupByLayer(layout: ChartLayout): NodePlacement[][] {
 function slotNodes(context: WorkContext): Map<NodeId, number> {
   const map = new Map<NodeId, number>();
   context.slots.forEach((slot, i) => {
-    const ids = slot.kind === 'stitch' ? [slot.id] : slot.kind === 'space' ? slot.chains : [slot.node];
+    // A láncszem másik oldala ugyanaz a láncszem: a cellája az elülső célpontjáé marad (PQW-899).
+    const ids = slot.kind === 'underside' ? [] : slot.kind === 'stitch' ? [slot.id] : slot.kind === 'space' ? slot.chains : [slot.node];
     for (const id of ids) if (!map.has(id)) map.set(id, i);
   });
   return map;
 }
 
-/** A célpont helye: a szemei tetejének átlaga, mint a vásznon (main.ts). */
-function slotPoint(layout: ChartLayout, context: WorkContext, index: number): Point | undefined {
+/**
+ * A célpont helye a vásznon (main.ts is ezt használja): a szemei tetejének
+ * átlaga. A láncszem másik oldala (PQW-899) a láncszem túloldalán, egy
+ * láncszemnyire: azzal az oldallal szemben, ahol az elöl belehorgolt szem áll.
+ */
+export function targetPoint(layout: ChartLayout, context: WorkContext, index: number): Point | undefined {
   const slot = context.slots[index]!;
+  if (slot.kind === 'underside') return undersidePoint(layout, context, slot.id);
   const ids = slot.kind === 'stitch' ? [slot.id] : slot.kind === 'space' ? slot.chains : [slot.node];
   const points = ids.map((id) => layout.nodes.get(id)?.top).filter((p): p is Point => p !== undefined);
   if (points.length === 0) return undefined;
   return { x: points.reduce((s, p) => s + p.x, 0) / points.length, y: points.reduce((s, p) => s + p.y, 0) / points.length };
+}
+
+function undersidePoint(layout: ChartLayout, context: WorkContext, id: NodeId): Point | undefined {
+  const chain = layout.nodes.get(id);
+  if (!chain) return undefined;
+  const normal = { x: -Math.sin(chain.angle), y: Math.cos(chain.angle) };
+  const graph = context.graph;
+  const front = graph?.layers[1]?.stitches.find((node) => graph.nodes.get(node)!.anchors.some((anchor) => anchor.into === 'stitch' && anchor.id === id));
+  const top = front ? layout.nodes.get(front)?.top : undefined;
+  // Elöl horgolt szem nélkül a láncszem alá (a sorok felfelé nőnek).
+  const toward = top ? Math.sign((top.x - chain.top.x) * normal.x + (top.y - chain.top.y) * normal.y) || -1 : -1;
+  const distance = Math.max(chain.size, 1);
+  return { x: chain.top.x - toward * normal.x * distance, y: chain.top.y - toward * normal.y * distance };
 }
 
 /**
@@ -314,7 +333,7 @@ function layerColumns(input: Input, layer: number, axis: (p: Point) => number): 
 function workingColumns(input: Input, axis: (p: Point) => number | undefined): Column[] {
   const columns: Column[] = [];
   input.context.slots.forEach((_, slot) => {
-    const point = slotPoint(input.layout, input.context, slot);
+    const point = targetPoint(input.layout, input.context, slot);
     const at = point ? axis(point) : undefined;
     if (at === undefined) return;
     columns.push({ at, node: null, slot, order: slot });

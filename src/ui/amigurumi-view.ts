@@ -9,6 +9,7 @@
 
 import type { JoinMethod, PartOptions } from '../core/amigurumi-generator.ts';
 import {
+  OVAL_STITCHES,
   SHAPE_NAMES,
   diagnoseRounds,
   figureSize,
@@ -18,7 +19,8 @@ import {
   type RoundGauge,
   type Schedule,
 } from '../core/amigurumi.ts';
-import type { Pattern, PieceEnd, ProfilePoint, ShapeSpec, SphereMethod } from '../core/types.ts';
+import { resolveStitch } from '../core/stitch-variants.ts';
+import type { OvalStitch, Pattern, PieceEnd, ProfilePoint, ShapeSpec, SphereMethod } from '../core/types.ts';
 import type { Choice } from './rounds-view.ts';
 import { formatNumber } from './size-view.ts';
 
@@ -46,6 +48,12 @@ export const TOP_CHOICES: readonly Choice<PieceEnd>[] = [
   { value: 'open', label: 'Nyitott: varráshoz vagy folytatáshoz' },
 ];
 
+/** Az ovális szeme (PQW-899), a szemkönyvtár magyar nevével. */
+export const STITCH_CHOICES: readonly Choice<OvalStitch>[] = OVAL_STITCHES.map((value) => {
+  const name = resolveStitch(value)!.terms.hu.name;
+  return { value, label: name.charAt(0).toLocaleUpperCase('hu') + name.slice(1) };
+});
+
 export const JOIN_CHOICES: readonly Choice<JoinMethod>[] = [
   { value: 'sewn', label: 'Varrva' },
   { value: 'continuous', label: 'Folytatólagosan' },
@@ -70,6 +78,8 @@ export interface AmigurumiForm {
   /** Az ovális hossza és szélessége (PQW-890). */
   readonly length: string;
   readonly width: string;
+  /** Az ovális szeme (PQW-899). */
+  readonly stitch: OvalStitch;
   readonly increases: string;
   readonly profile: string;
   readonly bottom: PieceEnd;
@@ -88,6 +98,7 @@ export interface FieldState {
   readonly height: boolean;
   readonly length: boolean;
   readonly width: boolean;
+  readonly stitch: boolean;
   readonly increases: boolean;
   readonly profile: boolean;
   readonly bottom: boolean;
@@ -101,6 +112,7 @@ export function fieldState(shape: ShapeKind): FieldState {
     height: shape === 'egg' || shape === 'cylinder' || shape === 'cone',
     length: shape === 'oval',
     width: shape === 'oval',
+    stitch: shape === 'oval',
     increases: shape === 'cone',
     profile: shape === 'revolution',
     bottom: shape === 'cylinder' || shape === 'revolution',
@@ -156,7 +168,8 @@ export function shapeOf(form: AmigurumiForm): ShapeSpec | string {
       return { kind: 'revolution', profile, bottom: form.bottom, top: form.top };
     }
     case 'oval':
-      return { kind: 'oval', lengthCm: parseNumber(form.length), widthCm: parseNumber(form.width) };
+      // A rövidpálca nem íródik ki, így a PQW-899 előtti mentés és az új ugyanaz marad.
+      return { kind: 'oval', lengthCm: parseNumber(form.length), widthCm: parseNumber(form.width), ...(form.stitch === 'sc' ? {} : { stitch: form.stitch }) };
   }
 }
 
@@ -200,12 +213,17 @@ export function scheduleSummary(schedule: Schedule, gauge: RoundGauge): string {
   return parts.join(' ');
 }
 
-/** A forma előnézete a mezőkből: az összefoglaló, vagy mi a gond. */
-export function previewNote(form: AmigurumiForm, gauge: RoundGauge): string {
+/**
+ * A forma előnézete a mezőkből: az összefoglaló, vagy mi a gond. A `gaugeOf`
+ * adja a forma mintasűrűségét, ha nem a rövidpálcáé (a félpálcás és pálcás
+ * ovális, PQW-899; amigurumi.ts `shapeGaugeOf`).
+ */
+export function previewNote(form: AmigurumiForm, gauge: RoundGauge, gaugeOf: (shape: ShapeSpec) => RoundGauge = () => gauge): string {
   const shape = shapeOf(form);
   if (typeof shape === 'string') return shape;
-  const planned = shapeSchedule(shape, gauge);
-  return planned.ok ? scheduleSummary(planned.schedule, gauge) : planned.reason;
+  const own = gaugeOf(shape);
+  const planned = shapeSchedule(shape, own);
+  return planned.ok ? scheduleSummary(planned.schedule, own) : planned.reason;
 }
 
 /** Honnan jön a körszám és a szaporítás. */
@@ -224,7 +242,10 @@ export function figureNote(pattern: Pattern, gauge: RoundGauge): string | null {
   const parts = size.parts.flatMap((part) =>
     part.sections.map((section, i) => {
       const schedule = section.schedule;
-      const measures = `${cm(schedule.widthCm)} × ${cm(schedule.heightCm)} cm`;
+      // A lapos ovális hossza és szélessége; a vastagsága csak a figura magasságában számít (PQW-899).
+      const measures = schedule.oval
+        ? `${cm(schedule.widthCm)} × ${cm(schedule.oval.widthCm)} cm, lapos`
+        : `${cm(schedule.widthCm)} × ${cm(schedule.heightCm)} cm`;
       return i === 0 ? `${section.name} (${measures})` : `${section.name} folytatólagosan (${measures})`;
     }),
   );

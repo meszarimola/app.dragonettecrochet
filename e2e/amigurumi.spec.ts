@@ -94,3 +94,74 @@ test('ovális láncalapról (PQW-890): önállóan hibátlan, az 1. kör a lánc
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
   await expect(page.locator('#written-text')).toContainText('a láncszemek másik oldalán vissza:');
 });
+
+test('pálcás ovális a generátorból (PQW-899): a szem választható, végenként 6 szaporítás, hibátlan', async ({ page }) => {
+  await open(page);
+  await chooseAmigurumi(page);
+
+  await page.locator('#amigurumi-name').fill('Talp');
+  await expect(page.locator('#amigurumi-stitch')).toBeHidden();
+  await page.locator('#amigurumi-shape').selectOption({ label: 'Ovális' });
+  await page.locator('#amigurumi-stitch').selectOption({ label: 'Egyráhajtásos pálca' });
+  await page.locator('#amigurumi-length').fill('8');
+  await page.locator('#amigurumi-width').fill('5');
+  await expect(page.locator('#amigurumi-summary')).toContainText('láncszemből');
+  await page.getByRole('button', { name: 'Új minta ebből' }).click();
+  await expect(page.locator('#status')).toContainText('Talp elkészült;');
+  await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
+  const text = (await page.locator('#written-text').textContent()) ?? '';
+  expect(text).toMatch(/1\. kör: hagyj ki 3 láncszemet, majd \d+ erp, 7 erp a következő láncszembe, a láncszemek másik oldalán vissza: \d+ erp, 5 erp a következő láncszembe \(\d+\)\./);
+  await expect(page.locator('#amigurumi-figure')).toContainText('lapos)');
+});
+
+/** A kurzor célpontja az ablakban (a böngészős tesztek horga, main.ts). */
+async function cursorPoint(page: Page): Promise<{ x: number; y: number }> {
+  const point = await page.evaluate(
+    () => (window as unknown as { mintatervezoRacs: { cursor: () => { x: number; y: number } | null } }).mintatervezoRacs.cursor(),
+  );
+  expect(point).not.toBeNull();
+  return point!;
+}
+
+for (const viewport of [
+  { width: 1000, height: 506 },
+  { width: 1440, height: 900 },
+]) {
+  test(`${viewport.width}×${viewport.height}: ovális 1. köre kézzel, vezetett kurzorral (PQW-899): a vég után a láncszemek másik oldalán vissza, hibátlan`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await open(page);
+    await chooseAmigurumi(page);
+    // A rajz kell a célzáshoz: az írott minta panel lecsukva.
+    await page.getByRole('button', { name: 'Lecsukás' }).click();
+
+    const board = page.locator('#board');
+    await board.focus();
+    await page.keyboard.press('1'); // láncszem
+    await page.locator('#chain-count').focus();
+    await page.keyboard.press('ControlOrMeta+A');
+    await page.keyboard.type('8');
+    await board.focus();
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('3'); // rövidpálca
+
+    // Elöl: a kezdőlánc utáni láncszemtől a legtávolabbiig 7 rövidpálca, a végén még 3 ugyanabba.
+    for (let k = 0; k < 7; k += 1) await page.keyboard.press('Enter');
+    for (let k = 0; k < 3; k += 1) await page.keyboard.press('Shift+Enter');
+
+    // A kurzor a láncszemek másik oldalára ugrott: az első szem kattintással, a többi billentyűvel.
+    const point = await cursorPoint(page);
+    expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('#board') !== null, point)).toBe(true);
+    await page.mouse.click(point.x, point.y);
+    await expect(page.locator('#status')).toContainText('horgolva. 1. kör: 11 szem, még 5 célpont.');
+    for (let k = 0; k < 5; k += 1) await page.keyboard.press('Enter');
+    for (let k = 0; k < 2; k += 1) await page.keyboard.press('Shift+Enter');
+    await page.keyboard.press('s');
+
+    await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
+    // A lecsukott írott minta nem frissül: újra kinyitva olvassuk.
+    if (await page.locator('#written').isHidden()) await page.locator('#written-toggle').click();
+    await expect(page.locator('#written-text')).toContainText(
+      '1. kör: hagyj ki 1 láncszemet, majd 6 rp, 4 rp a következő láncszembe, a láncszemek másik oldalán vissza: 5 rp, 3 rp a következő láncszembe (18).',
+    );
+  });
+}

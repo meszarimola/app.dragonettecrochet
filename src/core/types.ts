@@ -571,8 +571,14 @@ export type ShapeSpec =
       readonly top: PieceEnd;
     }
   | { readonly kind: 'revolution'; readonly profile: readonly ProfilePoint[]; readonly bottom: PieceEnd; readonly top: PieceEnd }
-  /** Ovális láncalapról (04 §3.4, §9.4, PQW-890): lapos, nyitott széllel; a hossz a hosszabbik méret. */
-  | { readonly kind: 'oval'; readonly lengthCm: number; readonly widthCm: number };
+  /**
+   * Ovális láncalapról (04 §3.4, §9.4, PQW-890): lapos, nyitott széllel; a hossz a hosszabbik méret.
+   * A szem hiányában rövidpálca (a PQW-899 előtti mentés).
+   */
+  | { readonly kind: 'oval'; readonly lengthCm: number; readonly widthCm: number; readonly stitch?: OvalStitch };
+
+/** Az ovális szeme (PQW-899): rövidpálca, félpálca vagy egyráhajtásos pálca. */
+export type OvalStitch = 'sc' | 'hdc' | 'dc';
 
 /** Egy rész (pl. fej, test) a darabban: a neve, az első köre és a formája (PQW-863). */
 export interface PieceSection {
