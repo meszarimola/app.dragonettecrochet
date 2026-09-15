@@ -156,7 +156,7 @@ test('japán előbeállítással a félpálcás téglalap a japán szabály szer
   await expect(page.locator('#summary')).toContainText('3. sor: 10 szem.');
   await expect(page.locator('#summary')).toContainText('Nincs hiba és figyelmeztetés.');
   const text = page.locator('#written-text');
-  await expect(text).toContainText('a horogtól számított 4. láncszemtől kezdve');
+  await expect(text).toContainText('1. sor: hagyj ki 3 láncszemet, majd minden láncszembe 1 fp (10 szem).');
   await expect(text).toContainText('2 lsz (1 fp-nek számít)');
 
   await page.reload();

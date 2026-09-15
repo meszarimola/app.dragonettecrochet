@@ -285,6 +285,61 @@ describe('beszúrási mód: visszai soron az első és a hátsó szál megfordul
   }
 });
 
+/* ---- A láncalapra horgolt 1. sor (PQW-895) ---- */
+
+describe('a láncalapra horgolt 1. sor: „hagyj ki N láncszemet, majd …” (PQW-895)', () => {
+  const firstRow = (text) => text.split('\n').find((line) => /^(1\. sor|Row 1):/.test(line));
+
+  test('ha nem minden láncszembe egy szem megy (kagyló, V-szem), a kihagyás után a lépések következnek', () => {
+    const shell = WORKED_EXAMPLES['kagyló 6+1 (03 §4.2 E)']().pattern;
+    assert.equal(
+      firstRow(textOf(shell, 'hu')),
+      '1. sor: hagyj ki 1 láncszemet, majd 1 rp, [2 láncszem kihagyása, kagyló, 2 láncszem kihagyása, 1 rp] 3-szor (19 szem). Fordítás.',
+    );
+    assert.equal(firstRow(textOf(shell, 'en-US')), 'Row 1: skip 1 ch, sc, [sk 2 ch, sh, sk 2 ch, sc] 3 times (19 sts). Turn.');
+    assert.match(firstRow(textOf(shell, 'en-GB')), /^Row 1: miss 1 ch, dc, \[miss 2 ch, /);
+    const v = vStitchPattern().pattern;
+    assert.match(firstRow(textOf(v, 'hu')), /^1\. sor: hagyj ki 3 láncszemet, majd 1 erp, 1 láncszem kihagyása, V-szem, /);
+    for (const pattern of [shell, v]) {
+      for (const locale of LOCALES) {
+        const result = readBack(textOf(pattern, locale), pattern, locale);
+        assert.ok(result.ok, JSON.stringify(result.error));
+        assert.deepEqual(canonicalPattern(result.pattern), canonicalPattern(pattern), `${pattern.title} ${locale}`);
+      }
+    }
+  });
+
+  test('a PQW-895 előtti mondattal mentett szöveg ugyanarra a gráfra olvasható vissza', () => {
+    const cases = [
+      [
+        hdcRectangle().pattern,
+        {
+          hu: '1. sor: a horogtól számított 4. láncszemtől kezdve (a kihagyott láncszemek 1 fp-nek számítanak) 14 fp (15 szem). Fordítás.',
+          'en-US': 'Row 1: Starting in 4th ch from hook (skipped ch count as 1 hdc), 14 hdc (15 sts). Turn.',
+          'en-GB': 'Row 1: Starting in 4th ch from hook (skipped ch count as 1 htr), 14 htr (15 sts). Turn.',
+        },
+      ],
+      [
+        WORKED_EXAMPLES['kagyló 6+1 (03 §4.2 E)']().pattern,
+        {
+          hu: '1. sor: a horogtól számított 2. láncszemtől kezdve 1 rp, [2 láncszem kihagyása, kagyló, 2 láncszem kihagyása, 1 rp] 3-szor (19 szem). Fordítás.',
+          'en-US': 'Row 1: Starting in 2nd ch from hook, sc, [sk 2 ch, sh, sk 2 ch, sc] 3 times (19 sts). Turn.',
+        },
+      ],
+    ];
+    for (const [pattern, oldLines] of cases) {
+      for (const [locale, oldLine] of Object.entries(oldLines)) {
+        const text = textOf(pattern, locale);
+        const old = text.replace(firstRow(text), oldLine);
+        assert.notEqual(old, text);
+        const result = readBack(old, pattern, locale);
+        assert.ok(result.ok, `${pattern.title} ${locale}: ${JSON.stringify(result.error)}`);
+        assert.deepEqual(canonicalPattern(result.pattern), canonicalPattern(pattern), `${pattern.title} ${locale}`);
+      }
+    }
+  });
+});
+
 /* ---- Hibák ---- */
 
 describe('visszaolvasás: eltérés esetén pontos hibaüzenet', () => {
@@ -297,7 +352,9 @@ describe('visszaolvasás: eltérés esetén pontos hibaüzenet', () => {
   });
 
   test('rossz szemszám: a sor és a két szám', () => {
-    const result = readBack(text.replace('14 fp (15 szem). Fordítás.', '14 fp (16 szem). Fordítás.'), pattern, 'hu');
+    const wrong = text.replace('minden láncszembe 1 fp (15 szem). Fordítás.', 'minden láncszembe 1 fp (16 szem). Fordítás.');
+    assert.notEqual(wrong, text);
+    const result = readBack(wrong, pattern, 'hu');
     assert.deepEqual(result, {
       ok: false,
       error: { line: lineOf('1. sor:'), message: '1. sor: a szöveg 16 szemet ír, a visszaolvasott gráf szerint 15.' },

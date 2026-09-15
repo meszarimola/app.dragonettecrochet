@@ -68,7 +68,7 @@ test('félkör rövidpálcával: sugár, egyenletes szaporítás, hibátlan', as
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
   // A rövidpálcás fordulólánc az 1. szem helyett áll, alapláncszemen (PQW-891).
   expect(await writtenText(page)).toMatch(
-    /1\. sor: a horogtól számított 3\. láncszemtől kezdve \(a kihagyott láncszemek 1 rp-nek számítanak\) \d+ rp a következő láncszembe \(\d+ szem\)\. Fordítás\./,
+    /1\. sor: hagyj ki 2 láncszemet, majd \d+ rp a következő láncszembe \(\d+ szem\)\. Fordítás\./,
   );
 });
 
