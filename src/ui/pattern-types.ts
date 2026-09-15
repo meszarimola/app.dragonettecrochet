@@ -6,10 +6,9 @@
  * alapértelmezését; a még el nem készült típusok „hamarosan” jelzéssel,
  * inaktívan látszanak, és mérföldkövenként kapcsolnak be (PQW-861…866).
  *
- * Most csak a „szabályos horgolás” aktív: ez a sík sorok és a kör/motívum
- * (pl. nagymama-négyzet), ami a magban már működik. A többi típus mag-oldali
- * logikája (varázskör-kezdés, spirál körzárás, filé- és formagenerátorok) a
- * saját jegyeikben készül el.
+ * Aktív a „szabályos horgolás” (sík sorok, kör és motívum) és az amigurumi
+ * (PQW-863: 3D formák spirálban, részekből). A filé és a szabálytalan
+ * horgolás a saját jegyeikben készül el.
  */
 
 import type { GridKind } from '../core/grid.ts';
@@ -42,8 +41,9 @@ export const PATTERN_TYPES: readonly PatternType[] = [
   {
     id: 'amigurumi',
     name: 'Amigurumi',
-    detail: 'Spirál körökben, varázskörrel kezdve.',
-    available: false,
+    // Az „írott minta” szó nem szerepelhet: a panel kapcsolójának akadálymentes neve egyedi marad.
+    detail: 'Térbeli forma spirálban, részekből: gömb, henger, kúp. A mintát szövegként írja, a rajz kiegészítés.',
+    available: true,
   },
   {
     id: 'irregular',
@@ -54,6 +54,20 @@ export const PATTERN_TYPES: readonly PatternType[] = [
 ];
 
 export const DEFAULT_PATTERN_TYPE: PatternTypeId = 'regular';
+
+/** Amigurumiban ekkora hányadot kap az írott minta panel a munkaterületből. */
+export const AMIGURUMI_WRITTEN_SHARE = 0.7;
+
+/**
+ * Az írott minta panel magassága a típus kiválasztásakor (PQW-874 pontosítás,
+ * PQW-885): amigurumiban a szöveg az elsődleges nézet, ezért a panel nagyban,
+ * keskeny ablakban teljes nézetben nyílik, a rajz kiegészítés. Más típusnál
+ * `null`: a panel nem változik.
+ */
+export function writtenShareFor(type: PatternTypeId, narrow: boolean): number | null {
+  if (type !== 'amigurumi') return null;
+  return narrow ? 1 : AMIGURUMI_WRITTEN_SHARE;
+}
 
 /**
  * A rács típusa a mintatípusból (PQW-874, tulajdonosi pontosítás 2026-09-15):

@@ -285,6 +285,8 @@ R17: dec x6 (12)
 R18: dec x6 (6). Fasten off, close through front loops.
 ```
 
+**Erratum (PQW-863).** The R15–R17 instructions above are one round ahead of their stitch counts: `sc, (dec, 2 sc) x5, dec, sc` turns 24 stitches into 18, not 30 into 24. The counts (30, 24, 18, 12, 6) are right. The designer writes R15 `sc, (invdec, 3 sc) x5, invdec, 2 sc (24)`, R16 `(2 sc, invdec) x6 (18)` and R17 `(invdec, sc) x6 (12)`. For this gauge the §9.2 formula `E = round(3k·g_r/g_s) − (2k − 1)` gives 8 even rounds, not 7; the designer rounds toward the consensus k + 1 and moves away from it only by whole rounds.
+
 18 rounds in total. Check: ideal meridian rows = `πD/2·g_r = π·6/2·2.0 = 18.85`, so this matches within one round. Implied equator diameter = 36/(π·1.9) = 6.03 cm ✔.
 
 **Sine method for the same ball** (computed during research): n = 19 rows, ideal counts

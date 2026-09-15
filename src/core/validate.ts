@@ -16,6 +16,7 @@
  *    magasság figyelmeztetései.
  */
 
+import { amigurumiFindings } from './amigurumi.ts';
 import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
 import { modeAsWorked } from './insertion.ts';
 import { roundFindings } from './rounds.ts';
@@ -25,7 +26,10 @@ import { hasBaseChain, traditionOf } from './tradition.ts';
 import type { Anchor, Finding, NodeId, Pattern, Piece, PieceId, StitchNode } from './types.ts';
 
 export function validatePattern(pattern: Pattern, library: StitchLibrary): Finding[] {
-  return pattern.pieces.flatMap((piece) => validatePiece(pattern, piece, library));
+  const findings = pattern.pieces.flatMap((piece) => validatePiece(pattern, piece, library));
+  // A részek kapcsolása és a játékbiztonság a minta szintjén (PQW-863).
+  for (const finding of amigurumiFindings(pattern, library)) findings.push(makeFinding(finding.rule, finding.piece, finding.nodes));
+  return findings;
 }
 
 type Report = (rule: RuleId, nodes: readonly NodeId[]) => void;

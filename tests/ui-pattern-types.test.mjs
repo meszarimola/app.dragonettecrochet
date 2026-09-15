@@ -1,6 +1,7 @@
 /*
- * A bal oldali mintatípus-menü tartalma (PQW-873). Most csak a „szabályos
- * horgolás” aktív; a többi típus „hamarosan” jelzéssel, inaktívan látszik.
+ * A bal oldali mintatípus-menü tartalma (PQW-873). Aktív a „szabályos
+ * horgolás” és az amigurumi (PQW-863); a többi típus „hamarosan” jelzéssel,
+ * inaktívan látszik.
  */
 
 import { strict as assert } from 'node:assert';
@@ -11,6 +12,7 @@ import {
   PATTERN_TYPES,
   gridKind,
   isAvailableType,
+  writtenShareFor,
 } from '../src/ui/pattern-types.ts';
 
 test('a rács típusa a mintatípussal együtt vált (PQW-874)', () => {
@@ -36,9 +38,16 @@ test('minden típusnak van neve és magyarázata', () => {
   }
 });
 
-test('most csak a szabályos horgolás aktív, a többi hamarosan', () => {
+test('a szabályos horgolás és az amigurumi aktív (PQW-863), a többi hamarosan', () => {
   const available = PATTERN_TYPES.filter((type) => type.available).map((type) => type.id);
-  assert.deepEqual(available, ['regular']);
+  assert.deepEqual(available, ['regular', 'amigurumi']);
+});
+
+test('amigurumiban az írott minta nagyban, keskeny ablakban teljes nézetben nyílik; máshol nem változik (PQW-863)', () => {
+  assert.equal(writtenShareFor('amigurumi', false), 0.7);
+  assert.equal(writtenShareFor('amigurumi', true), 1);
+  assert.equal(writtenShareFor('regular', false), null);
+  assert.equal(writtenShareFor('filet', true), null);
 });
 
 test('az alapértelmezett típus aktív', () => {
@@ -47,6 +56,7 @@ test('az alapértelmezett típus aktív', () => {
 
 test('isAvailableType csak a bekapcsolt, ismert azonosítóra igaz', () => {
   assert.ok(isAvailableType('regular'));
-  assert.ok(!isAvailableType('amigurumi'));
+  assert.ok(isAvailableType('amigurumi'));
+  assert.ok(!isAvailableType('filet'));
   assert.ok(!isAvailableType('nincs-ilyen'));
 });

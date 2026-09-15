@@ -287,6 +287,8 @@ export interface LayerEvent {
    * első szem hátsó szálába kapcsolva. Csak utasítás, a gráfon nem változtat.
    */
   readonly jogFix?: 'slip-stitch' | 'back-loop';
+  /** Jelölések a kör után az írott mintában: szem, tömés, a nyílás összehúzása (PQW-863). */
+  readonly marks?: readonly RoundMark[];
 }
 
 export interface Piece {
@@ -306,6 +308,11 @@ export interface Piece {
    * sokszögé (04 §6.1). Hiányában a körökben horgolt darab kör.
    */
   readonly corners?: number;
+  /**
+   * A darab részei 3D formából (PQW-863), a készítés sorrendjében. Ha van, a
+   * darab térbeli forma: a kunkorodás szándékos, az ellenőrző nem jelzi.
+   */
+  readonly sections?: readonly PieceSection[];
 }
 
 /** A jelek stílusa: a Craft Yarn Council vagy a japán (JIS) jelkulcs (01 §6). */
@@ -377,6 +384,90 @@ export interface Pattern {
   readonly gauge?: PatternGauge;
   readonly conventions: PatternConventions;
   readonly pieces: readonly Piece[];
+  /** Összevarrt darabok (PQW-863); hiányában nincs kapcsolás. */
+  readonly joins?: readonly PieceJoin[];
+  /** Játék: 3 év alatti gyereknek készül-e (04 §5.7). Hiányában nincs megadva. */
+  readonly toy?: { readonly under3: boolean };
+}
+
+/* ---- Amigurumi és 3D formák (PQW-863) ---- */
+
+/** A darab vége: nyitott szél (varráshoz, folytatáshoz) vagy zárt (összehúzva, lapos tetővel). */
+export type PieceEnd = 'open' | 'closed';
+
+/** A gömb körterve: 6n (6-tal szaporítva, egyenes körök, 6-tal fogyasztva) vagy szinuszos (04 §4.3). */
+export type SphereMethod = '6n' | 'sine';
+
+/** A forgástest profiljának pontja: sugár és magasság cm-ben, a kezdéstől a végig (04 §9.3). */
+export interface ProfilePoint {
+  readonly radiusCm: number;
+  readonly heightCm: number;
+}
+
+/**
+ * Egy 3D forma, ahogy a felhasználó megadta, cm-ben; a körtervet a mag
+ * számolja a mintasűrűségből (amigurumi.ts).
+ * - `bottom`: a kezdés; `open` csak folytatólagosan kapcsolt résznél lehet.
+ * - `top`: a darab vége.
+ * A gömb és a tojás mindkét vége zárt; a félgömb a pólusról, a kúp a csúcsról indul.
+ */
+export type ShapeSpec =
+  | { readonly kind: 'sphere'; readonly diameterCm: number; readonly method: SphereMethod }
+  | { readonly kind: 'hemisphere'; readonly diameterCm: number; readonly method: SphereMethod; readonly top: PieceEnd }
+  | { readonly kind: 'egg'; readonly diameterCm: number; readonly heightCm: number }
+  | {
+      readonly kind: 'cylinder';
+      readonly diameterCm: number;
+      readonly heightCm: number;
+      readonly bottom: PieceEnd;
+      readonly top: PieceEnd;
+    }
+  | {
+      readonly kind: 'cone';
+      /** Az alap átmérője. */
+      readonly diameterCm: number;
+      /** A csúcstól az alapig; ha a szaporítás meg van adva, nem számít. */
+      readonly heightCm: number;
+      /** Körönkénti szaporítás, tört is (pl. 2,5); `null`: a magasságból. */
+      readonly increases: number | null;
+      readonly top: PieceEnd;
+    }
+  | { readonly kind: 'revolution'; readonly profile: readonly ProfilePoint[]; readonly bottom: PieceEnd; readonly top: PieceEnd };
+
+/** Egy rész (pl. fej, test) a darabban: a neve, az első köre és a formája (PQW-863). */
+export interface PieceSection {
+  readonly name: string;
+  /** A rész első köre a darabban, 1-től; a folytatólagosan kapcsolt rész az előző után kezdődik. */
+  readonly layer: number;
+  readonly shape: ShapeSpec;
+  /** Eltolt szaporítás és fogyasztás. */
+  readonly stagger: boolean;
+}
+
+/**
+ * Jelölés az írott mintában egy kör után (04 §5.6, §5.7, §9.8): biztonsági
+ * szem, hímzett szem (3 év alatti gyereknek), a tömés kezdete, és a zárt
+ * darab összehúzása a fonal elvágása után.
+ */
+export type RoundMark = 'safety-eyes' | 'embroider-eyes' | 'stuffing' | 'close-opening';
+
+/** Egy darab egy köre mint összekapcsolt szél. */
+export interface JoinEdge {
+  readonly piece: PieceId;
+  /** A kör sorszáma a darabban, 1-től. */
+  readonly layer: number;
+}
+
+/**
+ * Két darab összevarrása (04 §5.4). Ha a két szél szemszáma eltér, a
+ * `distribution` mondja meg, a kisebb szél egyes szemeihez hány szem jut a
+ * nagyobbikból; enélkül az eltérés hiba. A folytatólagos kapcsolás nem itt
+ * áll: az egy darab több résszel (`Piece.sections`).
+ */
+export interface PieceJoin {
+  readonly a: JoinEdge;
+  readonly b: JoinEdge;
+  readonly distribution?: readonly number[];
 }
 
 /* ---- Számolt adatok ---- */

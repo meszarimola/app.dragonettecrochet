@@ -16,6 +16,7 @@ import type {
   ChartStyle,
   GaugeEntry,
   GaugeForm,
+  JoinEdge,
   LayerEvent,
   Locale,
   Pattern,
@@ -24,9 +25,15 @@ import type {
   PatternGaugeProfile,
   PatternNotation,
   Piece,
+  PieceEnd,
+  PieceJoin,
+  PieceSection,
+  ProfilePoint,
   RepeatSpec,
   Ring,
+  RoundMark,
   RowConventions,
+  ShapeSpec,
   Space,
   StitchFlag,
   StitchGroup,
@@ -157,7 +164,7 @@ export const GAUGE_STITCHES: readonly StitchDefId[] = ['sc', 'hdc', 'dc', 'tr'];
 const GAUGE_FORMS: readonly GaugeForm[] = ['rows', 'rounds'];
 
 function readPattern(value: unknown, path: string): Pattern {
-  const raw = object(value, path, ['formatVersion', 'title', 'conventions', 'pieces'], ['notation', 'gauge']);
+  const raw = object(value, path, ['formatVersion', 'title', 'conventions', 'pieces'], ['notation', 'gauge', 'joins', 'toy']);
   return {
     formatVersion: oneOf(raw['formatVersion'], `${path}.formatVersion`, [FORMAT_VERSION]),
     title: text(raw['title'], `${path}.title`),
@@ -165,6 +172,9 @@ function readPattern(value: unknown, path: string): Pattern {
     ...(raw['gauge'] === undefined ? {} : { gauge: readGauge(raw['gauge'], `${path}.gauge`) }),
     conventions: readPatternConventions(raw['conventions'], `${path}.conventions`),
     pieces: array(raw['pieces'], `${path}.pieces`, readPiece),
+    // A kapcsolások és a játék adatai a PQW-863 előtti mentésben nincsenek.
+    ...(raw['joins'] === undefined ? {} : { joins: array(raw['joins'], `${path}.joins`, readJoin) }),
+    ...(raw['toy'] === undefined ? {} : { toy: readToy(raw['toy'], `${path}.toy`) }),
   };
 }
 
@@ -282,7 +292,7 @@ function readRepeat(value: unknown, path: string): RepeatSpec {
 }
 
 function readPiece(value: unknown, path: string): Piece {
-  const raw = object(value, path, ['id', 'name', 'stitches', 'spaces', 'rings', 'groups', 'events', 'skipped'], ['corners']);
+  const raw = object(value, path, ['id', 'name', 'stitches', 'spaces', 'rings', 'groups', 'events', 'skipped'], ['corners', 'sections']);
   return {
     id: string(raw['id'], `${path}.id`),
     name: text(raw['name'], `${path}.name`),
@@ -294,6 +304,8 @@ function readPiece(value: unknown, path: string): Piece {
     skipped: array(raw['skipped'], `${path}.skipped`, string),
     // A PQW-861 előtti mentésben nincs: a körökben horgolt darab kör.
     ...(raw['corners'] === undefined ? {} : { corners: integer(raw['corners'], `${path}.corners`, 3) }),
+    // A PQW-863 előtti mentésben nincs: a darab nem részekből készült.
+    ...(raw['sections'] === undefined ? {} : { sections: array(raw['sections'], `${path}.sections`, readSection) }),
   };
 }
 
@@ -351,7 +363,7 @@ function readGroup(value: unknown, path: string): StitchGroup {
 }
 
 function readEvent(value: unknown, path: string): LayerEvent {
-  const raw = object(value, path, ['after', 'kind'], ['statedCount', 'conventions', 'colorChange', 'jogFix']);
+  const raw = object(value, path, ['after', 'kind'], ['statedCount', 'conventions', 'colorChange', 'jogFix', 'marks']);
   return {
     after: string(raw['after'], `${path}.after`),
     kind: oneOf(raw['kind'], `${path}.kind`, ['turn', 'join-slip', 'spiral', 'fasten-off']),
@@ -362,7 +374,95 @@ function readEvent(value: unknown, path: string): LayerEvent {
     // A színváltás és a lépcsőjavítás a PQW-861 előtti mentésben nincs.
     ...(raw['colorChange'] === undefined ? {} : { colorChange: boolean(raw['colorChange'], `${path}.colorChange`) }),
     ...(raw['jogFix'] === undefined ? {} : { jogFix: oneOf(raw['jogFix'], `${path}.jogFix`, ['slip-stitch', 'back-loop']) }),
+    // A jelölések a PQW-863 előtti mentésben nincsenek.
+    ...(raw['marks'] === undefined
+      ? {}
+      : { marks: array(raw['marks'], `${path}.marks`, (mark, markPath) => oneOf(mark, markPath, MARKS)) }),
   };
+}
+
+/* ---- Amigurumi (PQW-863) ---- */
+
+const MARKS: readonly RoundMark[] = ['safety-eyes', 'embroider-eyes', 'stuffing', 'close-opening'];
+const ENDS: readonly PieceEnd[] = ['open', 'closed'];
+const SHAPES: readonly ShapeSpec['kind'][] = ['sphere', 'hemisphere', 'egg', 'cylinder', 'cone', 'revolution'];
+
+function readSection(value: unknown, path: string): PieceSection {
+  const raw = object(value, path, ['name', 'layer', 'shape', 'stagger']);
+  return {
+    name: text(raw['name'], `${path}.name`),
+    layer: integer(raw['layer'], `${path}.layer`, 1),
+    shape: readShape(raw['shape'], `${path}.shape`),
+    stagger: boolean(raw['stagger'], `${path}.stagger`),
+  };
+}
+
+function readShape(value: unknown, path: string): ShapeSpec {
+  if (!isObject(value)) throw new FormatError(path, 'Objektumot vártunk.');
+  const kind = oneOf(value['kind'], `${path}.kind`, SHAPES);
+  const size = (raw: JsonObject, key: string) => positive(raw[key], `${path}.${key}`);
+  const end = (raw: JsonObject, key: string) => oneOf(raw[key], `${path}.${key}`, ENDS);
+  const method = (raw: JsonObject) => oneOf(raw['method'], `${path}.method`, ['6n', 'sine']);
+  switch (kind) {
+    case 'sphere': {
+      const raw = object(value, path, ['kind', 'diameterCm', 'method']);
+      return { kind, diameterCm: size(raw, 'diameterCm'), method: method(raw) };
+    }
+    case 'hemisphere': {
+      const raw = object(value, path, ['kind', 'diameterCm', 'method', 'top']);
+      return { kind, diameterCm: size(raw, 'diameterCm'), method: method(raw), top: end(raw, 'top') };
+    }
+    case 'egg': {
+      const raw = object(value, path, ['kind', 'diameterCm', 'heightCm']);
+      return { kind, diameterCm: size(raw, 'diameterCm'), heightCm: size(raw, 'heightCm') };
+    }
+    case 'cylinder': {
+      const raw = object(value, path, ['kind', 'diameterCm', 'heightCm', 'bottom', 'top']);
+      return { kind, diameterCm: size(raw, 'diameterCm'), heightCm: size(raw, 'heightCm'), bottom: end(raw, 'bottom'), top: end(raw, 'top') };
+    }
+    case 'cone': {
+      const raw = object(value, path, ['kind', 'diameterCm', 'heightCm', 'increases', 'top']);
+      return {
+        kind,
+        diameterCm: size(raw, 'diameterCm'),
+        heightCm: size(raw, 'heightCm'),
+        increases: raw['increases'] === null ? null : size(raw, 'increases'),
+        top: end(raw, 'top'),
+      };
+    }
+    case 'revolution': {
+      const raw = object(value, path, ['kind', 'profile', 'bottom', 'top']);
+      return { kind, profile: array(raw['profile'], `${path}.profile`, readProfilePoint), bottom: end(raw, 'bottom'), top: end(raw, 'top') };
+    }
+  }
+}
+
+function readProfilePoint(value: unknown, path: string): ProfilePoint {
+  const raw = object(value, path, ['radiusCm', 'heightCm']);
+  const radiusCm = finite(raw['radiusCm'], `${path}.radiusCm`);
+  if (radiusCm < 0) throw new FormatError(`${path}.radiusCm`, 'Nem negatív számot vártunk.');
+  return { radiusCm, heightCm: finite(raw['heightCm'], `${path}.heightCm`) };
+}
+
+function readJoin(value: unknown, path: string): PieceJoin {
+  const raw = object(value, path, ['a', 'b'], ['distribution']);
+  return {
+    a: readJoinEdge(raw['a'], `${path}.a`),
+    b: readJoinEdge(raw['b'], `${path}.b`),
+    ...(raw['distribution'] === undefined
+      ? {}
+      : { distribution: array(raw['distribution'], `${path}.distribution`, (n, itemPath) => integer(n, itemPath, 1)) }),
+  };
+}
+
+function readJoinEdge(value: unknown, path: string): JoinEdge {
+  const raw = object(value, path, ['piece', 'layer']);
+  return { piece: string(raw['piece'], `${path}.piece`), layer: integer(raw['layer'], `${path}.layer`, 1) };
+}
+
+function readToy(value: unknown, path: string): { readonly under3: boolean } {
+  const raw = object(value, path, ['under3']);
+  return { under3: boolean(raw['under3'], `${path}.under3`) };
 }
 
 function readRowConventions(value: unknown, path: string): Partial<RowConventions> {

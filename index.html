@@ -470,6 +470,85 @@
             </div>
           </details>
 
+          <details class="section" id="section-amigurumi">
+            <summary class="section__head"><h2 class="panel__title">Amigurumi</h2></summary>
+            <div class="amigurumi" role="group" aria-label="Amigurumi rész létrehozása">
+              <p class="panel__note">
+                Gömböt, hengert, kúpot és más térbeli formát készít spirálban, a körben mért mintasűrűségből. Több rész
+                egy mintába kerülhet, varrva vagy folytatólagosan; az írott minta jelöli a szemet és a tömést.
+              </p>
+              <p class="panel__field">
+                <label for="amigurumi-name">A rész neve</label>
+                <input id="amigurumi-name" type="text" value="Fej" autocomplete="off" />
+              </p>
+              <p class="panel__field">
+                <label for="amigurumi-shape">Forma</label>
+                <select id="amigurumi-shape"></select>
+              </p>
+              <p class="panel__field" data-field="method">
+                <label for="amigurumi-method">A gömb körterve</label>
+                <select id="amigurumi-method"></select>
+              </p>
+              <p class="panel__field" data-field="diameter">
+                <label for="amigurumi-diameter">Átmérő (cm)</label>
+                <input id="amigurumi-diameter" type="text" inputmode="decimal" value="6" autocomplete="off" />
+              </p>
+              <p class="panel__field" data-field="height">
+                <label for="amigurumi-height">Magasság (cm)</label>
+                <input id="amigurumi-height" type="text" inputmode="decimal" value="8" autocomplete="off" />
+              </p>
+              <p class="panel__field" data-field="increases">
+                <label for="amigurumi-increases">Szaporítás körönként (tört is, pl. 2,5; üresen a magasságból)</label>
+                <input id="amigurumi-increases" type="text" inputmode="decimal" autocomplete="off" />
+              </p>
+              <p class="panel__field" data-field="profile">
+                <label for="amigurumi-profile">Profil: soronként sugár és magasság cm-ben</label>
+                <textarea id="amigurumi-profile" rows="4" aria-describedby="amigurumi-profile-note">
+0 0
+2,5 1
+2,5 5
+0 6</textarea
+                >
+              </p>
+              <p class="panel__note" data-field="profile" id="amigurumi-profile-note">
+                A kezdéstől a végig, pl. „2,5 4”: 2,5 cm sugár 4 cm magasan. A 0 sugarú vég zárt.
+              </p>
+              <p class="panel__field" data-field="bottom">
+                <label for="amigurumi-bottom">Kezdés</label>
+                <select id="amigurumi-bottom"></select>
+              </p>
+              <p class="panel__field" data-field="top">
+                <label for="amigurumi-top">Vége</label>
+                <select id="amigurumi-top"></select>
+              </p>
+              <p class="choice">
+                <label><input type="checkbox" id="amigurumi-stagger" checked /> Eltolt szaporítás és fogyasztás</label>
+              </p>
+              <p class="choice">
+                <label><input type="checkbox" id="amigurumi-eyes" checked /> Ide kerül a figura szeme (biztonsági vagy hímzett)</label>
+              </p>
+              <p class="choice">
+                <label><input type="checkbox" id="amigurumi-under3" /> 3 év alatti gyereknek készül</label>
+              </p>
+              <p class="panel__note" id="amigurumi-safety" hidden></p>
+              <p class="panel__note" id="amigurumi-gauge"></p>
+              <p class="panel__note" id="amigurumi-summary" aria-live="polite"></p>
+              <button type="button" class="tool amigurumi__action" id="amigurumi-create">Új minta ebből</button>
+              <fieldset class="amigurumi__join">
+                <legend>Hozzáadás a mintához</legend>
+                <p class="panel__field">
+                  <label for="amigurumi-join">Kapcsolás az előző részhez</label>
+                  <select id="amigurumi-join"></select>
+                </p>
+                <p class="choice">
+                  <label><input type="checkbox" id="amigurumi-distribute" /> Eltérő szemszámnál egyenletes elosztás</label>
+                </p>
+                <button type="button" class="tool amigurumi__action" id="amigurumi-add">Hozzáadás részként</button>
+              </fieldset>
+              <p class="panel__note" id="amigurumi-figure" hidden></p>
+            </div>
+          </details>
+
           <details class="section" id="section-notation">
             <summary class="section__head"><h2 class="panel__title">Jelölés és jelek</h2></summary>
             <div class="settings" role="group" aria-label="Jelölés és jelek">
