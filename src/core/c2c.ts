@@ -23,7 +23,7 @@
 
 import { buildPieceGraph, spacePositions } from './graph.ts';
 import { fail, finishGridPattern, gridPiece, GridWriter, intoSpace, intoStitch } from './grid-pattern.ts';
-import { MAX_GRID_SIDE, TECHNIQUE_NAMES, cellSize, type CellSize, type ChartRows } from './pixel-chart.ts';
+import { TECHNIQUE_NAMES, c2cTileRows, cellSize, colorChartProblem, type CellSize, type ChartRows } from './pixel-chart.ts';
 import { foundationChainLength } from './repeat.ts';
 import { shapeGauge, type ShapeGauge } from './shapes.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
@@ -83,21 +83,7 @@ export interface C2COptions {
   readonly lettering: boolean;
 }
 
-/** Hiba a színes rácsban: méret, színindex. */
-export function colorChartProblem(cells: ChartRows, colors: readonly PatternColor[]): string | null {
-  if (cells.length === 0) return 'Adj meg legalább egy sort.';
-  const width = cells[0]!.length;
-  if (cells.length > MAX_GRID_SIDE || width === 0 || width > MAX_GRID_SIDE || cells.some((row) => row.length !== width)) {
-    return `A rács legfeljebb ${MAX_GRID_SIDE} × ${MAX_GRID_SIDE} cella, és minden sora egyforma széles legyen.`;
-  }
-  if (colors.length === 0) return 'Adj meg legalább egy színt.';
-  if (cells.some((row) => row.some((cell) => !Number.isInteger(cell) || cell < 0 || cell >= colors.length))) {
-    return 'Minden cellának a színlista egyik színe legyen.';
-  }
-  return null;
-}
-
-/** A csempék soronként a rácsból. A `u` a jobb széltől, a `v` alulról számol. */
+/** A csempék soronként a rácsból (pixel-chart.ts `c2cTileRows`), a cella színével. */
 export function planC2C(pattern: Pattern, cells: ChartRows, colors: readonly PatternColor[]): C2CPlanResult {
   const problem = colorChartProblem(cells, colors);
   if (problem) return fail(problem);
@@ -109,27 +95,12 @@ export function planC2C(pattern: Pattern, cells: ChartRows, colors: readonly Pat
 
   const height = cells.length;
   const width = cells[0]!.length;
-  const inside = (u: number, v: number) => u >= 0 && v >= 0 && u < width && v < height;
-  const tile = (u: number, v: number): C2CTile => ({ x: width - 1 - u, y: v, color: cells[v]![width - 1 - u]! });
-
-  let previous = [{ u: 0, v: 0 }];
-  const rows: C2CRow[] = [{ row: 1, tiles: [tile(0, 0)], start: 'increase', end: 'increase' }];
-  for (let row = 2; row <= c2cRowCount(width, height); row += 1) {
-    const fromRight = row % 2 === 0;
-    const fresh = fromRight ? { u: 0, v: row - 1 } : { u: row - 1, v: 0 };
-    const placed: { u: number; v: number }[] = [];
-    const start: EdgeKind = inside(fresh.u, fresh.v) ? 'increase' : 'decrease';
-    if (start === 'increase') placed.push(fresh);
-    let end: EdgeKind = 'increase';
-    [...previous].reverse().forEach((under, i, all) => {
-      const next = fromRight ? { u: under.u + 1, v: under.v } : { u: under.u, v: under.v + 1 };
-      if (inside(next.u, next.v)) placed.push(next);
-      else if (i === all.length - 1) end = 'decrease';
-      else throw new Error(`C2C: a(z) ${row}. sor közepén kiesne egy csempe.`);
-    });
-    rows.push({ row, tiles: placed.map(({ u, v }) => tile(u, v)), start, end });
-    previous = placed;
-  }
+  const rows: C2CRow[] = c2cTileRows(width, height).map((tileRow, i) => ({
+    row: i + 1,
+    tiles: tileRow.tiles.map(({ x, y }) => ({ x, y, color: cells[y]![x]! })),
+    start: tileRow.start,
+    end: tileRow.end,
+  }));
 
   const gauge = shapeGauge(pattern, C2C_STITCH);
   const size = cellSize('c2c', gauge);

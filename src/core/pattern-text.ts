@@ -21,7 +21,11 @@ import { dative, times } from './hungarian.ts';
 import { writtenPieces, type Step, type StepTarget, type WrittenBorder, type WrittenLayer, type WrittenPiece } from './pattern-steps.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { stitchLabel, stitchStructure } from './stitchText.ts';
-import type { JoinEdge, Locale, Pattern, RoundMark, StitchDef, StitchDefId, StitchInsertion } from './types.ts';
+import { colorLetter } from './pixel-chart.ts';
+import type { GridTechnique, JoinEdge, Locale, Pattern, RoundMark, StitchDef, StitchDefId, StitchInsertion } from './types.ts';
+
+/** A szín betűje előtt a névelő: „az A”, „az E”, „az F”, máskor „a” (az A–H betűkre). */
+const colorArticle = (letter: string) => ('AEF'.includes(letter) ? 'az' : 'a');
 
 /* ---- Szókészlet ---- */
 
@@ -78,6 +82,16 @@ export interface Vocabulary {
   readonly marks: Readonly<Record<RoundMark, string>>;
   /** A folytatólagosan kapcsolt rész sora az első köre előtt. */
   readonly section: (name: string) => string;
+  /** Rácsos technikák (PQW-864): színek, kezdőszín, színváltás, a technika megjegyzése, színek soronként. */
+  readonly colorwork: {
+    readonly colors: (items: readonly { readonly letter: string; readonly name: string }[]) => string;
+    readonly start: (letter: string) => string;
+    /** Az előző szem utolsó ráhajtásánál (03 §6, §10 G35). */
+    readonly change: (letter: string) => string;
+    readonly note: Readonly<Partial<Record<GridTechnique, string>>>;
+    readonly rowsHeading: (technique: GridTechnique) => string;
+    readonly run: (count: number, letter: string) => string;
+  };
   /** Az összevarrás sora az „Összeállítás” alatt (04 §5.4). */
   readonly sewing: (a: SewnEdge, b: SewnEdge, distributed: boolean) => string;
   /** A szegély köre a sorok után (PQW-862, 03 §7.1); a `prefix`-ről ismeri fel a visszaolvasó. */
@@ -174,6 +188,21 @@ const HU: Vocabulary = {
     'close-opening': 'A fonalat fűzd át a maradék szemek első szálán, és húzd össze a nyílást.',
   },
   section: (name) => `${name}, folytatólagosan:`,
+  // Új magyar mondatok, jóváhagyásra várnak (PQW-864).
+  colorwork: {
+    colors: (items) => `Színek: ${items.map((item) => `${item.letter} – ${item.name}`).join(', ')}.`,
+    start: (letter) => `Kezdés ${colorArticle(letter)} ${letter} színnel.`,
+    change: (letter) => `(az utolsó ráhajtásnál válts ${colorArticle(letter)} ${letter} színre)`,
+    note: {
+      tapestry:
+        'A nem használt színeket a szemekben vidd: a színoldali sorban a munka mögött, a visszai sorban előtte tartsd, hogy a szemek eltakarják.',
+      graphgan: 'Színenként külön gombolyagot használj; a nem használt színt ne vidd a hátoldalon, mert átlátszik.',
+      c2c: 'Csempe: 3 lsz és 3 erp. Színváltáskor az előző csempe utolsó pálcáját az új színnel fejezd be.',
+    },
+    rowsHeading: (technique) =>
+      technique === 'c2c' ? 'Színek csempénként, a haladási irányban:' : 'Színek szemenként, a haladási irányban:',
+    run: (count, letter) => `${count} ${letter}`,
+  },
   sewing: (a, b, distributed) =>
     `Varrás: ${a.name}, ${a.layer}. kör (${a.count}) → ${b.name}, ${b.layer}. kör (${b.count})${distributed ? ', a szemeket egyenletesen elosztva' : ''}.`,
   border: {
@@ -257,6 +286,7 @@ function english(skipWord: string, skipMeaning: string, system: string, color: s
       { abbr: skipWord, meaning: skipMeaning, used: new RegExp(`\\b${skipWord}\\b`) },
       { abbr: 'st(s)', meaning: 'stitch(es)', used: /\bsts?\b/ },
       { abbr: 'tog', meaning: 'together', used: /\dtog\b/ },
+      { abbr: 'yo', meaning: 'yarn over', used: /\byo\b/ },
     ],
     marks: {
       'safety-eyes': 'Insert safety eyes.',
@@ -265,6 +295,19 @@ function english(skipWord: string, skipMeaning: string, system: string, color: s
       'close-opening': 'Weave the tail through the front loops of the remaining sts and pull tight.',
     },
     section: (name) => `${name}, worked continuously:`,
+    colorwork: {
+      colors: (items) => `Colors: ${items.map((item) => `${item.letter} – ${item.name}`).join(', ')}.`,
+      start: (letter) => `Start with ${color} ${letter}.`,
+      change: (letter) => `(change to ${letter} in last yo)`,
+      note: {
+        tapestry: 'Carry the unused colors inside the stitches: behind the work on RS rows, in front of it on WS rows.',
+        graphgan: `Use a separate bobbin for each ${color} block; do not carry ${color}s across the back.`,
+        c2c: `Tile: ch 3 and 3 dc. To change ${color}, finish the last dc of the previous tile with the new ${color}.`,
+      },
+      rowsHeading: (technique) =>
+        technique === 'c2c' ? `Tile ${color}s per row, in working order:` : `Stitch ${color}s per row, in working order:`,
+      run: (count, letter) => `${count} ${letter}`,
+    },
     sewing: (a, b, distributed) =>
       `Sew: ${a.name}, Rnd ${a.layer} (${a.count}) to ${b.name}, Rnd ${b.layer} (${b.count})${distributed ? ', easing sts evenly' : ''}.`,
     border: {
@@ -502,6 +545,13 @@ class Renderer {
     } else start = v.ring;
     const lines = [start];
     if (piece.layers.some((layer) => layer.closing === 'spiral')) lines.push(v.spiral);
+    const { colorwork } = piece;
+    if (colorwork) {
+      lines.push(v.colorwork.colors(colorwork.colors.map((color, i) => ({ letter: colorLetter(i), name: color.name }))));
+      lines.push(v.colorwork.start(colorLetter(colorwork.startColor)));
+      const note = v.colorwork.note[colorwork.technique];
+      if (note) lines.push(note);
+    }
 
     const bodies = piece.layers.map((layer) => this.body(layer));
     // A folytatólagosan kapcsolt rész neve az első köre előtt; ott az azonos körök összevonása is megszakad.
@@ -522,6 +572,12 @@ class Renderer {
       const label = shape === 'row' ? v.layer.row(index, piece.layers[j]!.index) : v.layer.round(index, piece.layers[j]!.index);
       lines.push(`${label}: ${bodies[i]}`);
       i = j + 1;
+    }
+    if (colorwork && colorwork.rows.length > 0) {
+      lines.push(v.colorwork.rowsHeading(colorwork.technique));
+      colorwork.rows.forEach((runs, i) => {
+        lines.push(`${v.layer.row(i + 1, i + 1)}: ${runs.map((run) => v.colorwork.run(run.count, colorLetter(run.color))).join(', ')}`);
+      });
     }
     if (piece.border) lines.push(this.border(piece.border));
     return lines;
@@ -586,6 +642,11 @@ class Renderer {
   }
 
   step(step: Step): string {
+    const text = this.stepText(step);
+    return 'changeTo' in step && step.changeTo !== undefined ? `${text} ${this.vocabulary.colorwork.change(colorLetter(step.changeTo))}` : text;
+  }
+
+  private stepText(step: Step): string {
     const v = this.vocabulary;
     switch (step.kind) {
       case 'chain':

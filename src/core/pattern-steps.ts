@@ -33,12 +33,31 @@ import { buildPieceGraph, spacePositions, type PieceGraph } from './graph.ts';
 import { modeAsWorked } from './insertion.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { hasBaseChain, traditionOf } from './tradition.ts';
-import type { Anchor, LayerEvent, NodeId, Pattern, Piece, RoundMark, StitchDef, StitchDefId, StitchInsertion, Tradition } from './types.ts';
+import { gridColorRows, type ColorRun } from './pixel-chart.ts';
+import type {
+  Anchor,
+  GridTechnique,
+  LayerEvent,
+  NodeId,
+  Pattern,
+  PatternColor,
+  Piece,
+  RoundMark,
+  StitchDef,
+  StitchDefId,
+  StitchInsertion,
+  Tradition,
+} from './types.ts';
 
 export type StepTarget = 'next' | 'same' | 'next-space' | 'same-space' | 'ring' | 'chain-ring' | 'none';
 
+/** A szín, amelyre a lépés utolsó szemének utolsó ráhajtásánál váltasz (03 §6, §10 G35, PQW-864). */
+interface ColorChange {
+  readonly changeTo?: number;
+}
+
 export type Step =
-  | {
+  | ({
       readonly kind: 'stitch';
       readonly def: StitchDefId;
       readonly count: number;
@@ -47,17 +66,17 @@ export type Step =
       readonly mode: StitchInsertion;
       /** Láncszembe vagy szembe megy; csak a kiírt helyhatározóhoz kell. */
       readonly into: 'stitch' | 'chain';
-    }
-  | {
+    } & ColorChange)
+  | ({
       readonly kind: 'group';
       readonly def: StitchDefId;
       readonly target: StepTarget;
       readonly mode: StitchInsertion;
       readonly into: 'stitch' | 'chain';
-    }
-  | { readonly kind: 'chain'; readonly count: number }
+    } & ColorChange)
+  | ({ readonly kind: 'chain'; readonly count: number } & ColorChange)
   | { readonly kind: 'skip'; readonly count: number; readonly what: 'stitch' | 'chain' | 'space' }
-  | { readonly kind: 'turning-chain'; readonly count: number; readonly countsAs: StitchDefId | null }
+  | ({ readonly kind: 'turning-chain'; readonly count: number; readonly countsAs: StitchDefId | null } & ColorChange)
   | { readonly kind: 'repeat'; readonly steps: readonly Step[]; readonly times: number };
 
 export interface WrittenLayer {
@@ -100,6 +119,13 @@ export interface WrittenPiece {
   readonly sections: readonly { readonly name: string; readonly layer: number }[];
   /** A szegély a sorok után, a sorokból számolva (PQW-862); szegély nélkül `null`. */
   readonly border: WrittenBorder | null;
+  /** Többszínű rácsmintánál (PQW-864) a színek, a kezdőszín és a színek soronként; máskor `null`. */
+  readonly colorwork: {
+    readonly technique: GridTechnique;
+    readonly colors: readonly PatternColor[];
+    readonly startColor: number;
+    readonly rows: readonly (readonly ColorRun[])[];
+  } | null;
 }
 
 export interface WrittenBorder {
@@ -146,7 +172,12 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
     border = { stitch: piece.border.stitch, counts: result.counts };
   }
   const sections = (piece.sections ?? []).map(({ name, layer }) => ({ name, layer }));
-  return { name: piece.name, foundation, layers, border, sections };
+  const grid = piece.grid;
+  const colorwork: WrittenPiece['colorwork'] =
+    grid && grid.colors.length > 1
+      ? { technique: grid.technique, colors: grid.colors, startColor: piece.stitches[0]?.color ?? 0, rows: gridColorRows(grid.technique, grid.cells) }
+      : null;
+  return { name: piece.name, foundation, layers, border, sections, colorwork };
 }
 
 /** A horgoló felől nézett beszúrás: visszai soron a szálak és a relief megfordulnak (insertion.ts). */
@@ -228,10 +259,23 @@ function writtenLayer(
   const unsupported = (reason: string, node: NodeId) =>
     new WrittenPatternError(`A(z) ${index}. ${unit} ${reason}.`, [node]);
 
+  // Színváltás: az előző szem utolsó ráhajtásánál, vagyis az előző lépésnél (03 §6, §10 G35).
+  const colorOf = (nodeId: NodeId) => graph.nodes.get(nodeId)!.color ?? 0;
+  const markChange = (color: number) => {
+    for (let k = steps.length - 1; k >= 0; k -= 1) {
+      const step = steps[k]!;
+      if (step.kind === 'skip') continue;
+      if (step.kind !== 'repeat') steps[k] = { ...step, changeTo: color };
+      return;
+    }
+  };
+
   const handled = new Set<NodeId>();
   const stitches = layer.stitches;
   for (let i = 0; i < stitches.length; i += 1) {
     const id = stitches[i]!;
+    const previousNode = graph.nodes.get(id)!.prev;
+    if (previousNode !== null && colorOf(previousNode) !== colorOf(id)) markChange(colorOf(id));
     // A láncgyűrű kúszószeme a kezdés része, a láncgyűrű sora írja le.
     if (handled.has(id) || id === layer.joinSlip || (ringSpace !== undefined && index === 1 && layer.travelSlips.includes(id))) continue;
     const node = graph.nodes.get(id)!;
@@ -298,6 +342,13 @@ function writtenLayer(
     }
   }
 
+  // A következő sor első szeme más színű: a sor utolsó szeménél váltasz (03 §6).
+  const lastNode = stitches[stitches.length - 1];
+  if (lastNode !== undefined) {
+    const next = graph.piece.stitches[graph.order.get(lastNode)! + 1];
+    if (next && next.prev === lastNode && colorOf(next.id) !== colorOf(lastNode)) markChange(colorOf(next.id));
+  }
+
   // Kihagyás a sor végén: csak a szándékosan kihagyott szemekig (03 §10 B8).
   const skippedAtEnd = working.map((id, w) => (w >= cursor && graph.piece.skipped.includes(id) ? w : -1));
   const lastSkipped = Math.max(-1, ...skippedAtEnd);
@@ -351,8 +402,13 @@ export function mergeSteps(steps: readonly Step[], library: StitchLibrary): Step
       merged[merged.length - 1] = { ...previous, count: previous.count + step.count };
       continue;
     }
-    if (previous?.kind === 'stitch' && step.kind === 'stitch' && sameRun(previous, step, library)) {
-      merged[merged.length - 1] = { ...previous, count: previous.count + step.count };
+    // Színváltás után új tétel kezdődik: a váltás a tétel utolsó szeménél áll.
+    if (previous?.kind === 'stitch' && step.kind === 'stitch' && previous.changeTo === undefined && sameRun(previous, step, library)) {
+      merged[merged.length - 1] = {
+        ...previous,
+        count: previous.count + step.count,
+        ...(step.changeTo === undefined ? {} : { changeTo: step.changeTo }),
+      };
       continue;
     }
     merged.push(step);

@@ -15,7 +15,7 @@
 
 import { article } from './hungarian.ts';
 import { estimate, scale, type Quantity } from './quantity.ts';
-import type { GridTechnique, GridUnit, StitchDefId } from './types.ts';
+import type { GridTechnique, GridUnit, PatternColor, StitchDefId } from './types.ts';
 
 export type DraftCell = number | null;
 export type DraftRows = readonly (readonly DraftCell[])[];
@@ -276,6 +276,94 @@ export function mirrorWarning(rows: ChartRows, lettering: boolean, mirrored: boo
 }
 
 /* ---- Színek és fonal ---- */
+
+/** Legfeljebb ennyi szín: az írott minta A–H betűkkel jelöli. */
+export const MAX_COLORS = 8;
+
+/** A szín betűje az írott mintában: A, B, C… */
+export const colorLetter = (index: number) => String.fromCharCode(65 + index);
+
+/** Hiba a színes rácsban: méret, színlista, színindex. */
+export function colorChartProblem(cells: ChartRows, colors: readonly PatternColor[]): string | null {
+  if (cells.length === 0) return 'Adj meg legalább egy sort.';
+  const width = cells[0]!.length;
+  if (cells.length > MAX_GRID_SIDE || width === 0 || width > MAX_GRID_SIDE || cells.some((row) => row.length !== width)) {
+    return `A rács legfeljebb ${MAX_GRID_SIDE} × ${MAX_GRID_SIDE} cella, és minden sora egyforma széles legyen.`;
+  }
+  if (colors.length === 0) return 'Adj meg legalább egy színt.';
+  if (colors.length > MAX_COLORS) return `Legfeljebb ${MAX_COLORS} szín lehet.`;
+  if (cells.some((row) => row.some((cell) => !Number.isInteger(cell) || cell < 0 || cell >= colors.length))) {
+    return 'Minden cellának a színlista egyik színe legyen.';
+  }
+  return null;
+}
+
+export interface TileRow {
+  /** A csempék cellái a haladási irányban: balról és alulról, 0-tól. */
+  readonly tiles: readonly { readonly x: number; readonly y: number }[];
+  /** A kezdő oldal: új csempe, vagy kúszószemekkel át. */
+  readonly start: 'increase' | 'decrease';
+  /** A záró oldal: az utolsó csempe megvan, vagy elmarad. */
+  readonly end: 'increase' | 'decrease';
+}
+
+/**
+ * C2C: a csempék soronként (03 §5.5, §10 G33). A kép jobb alsó sarkából indul,
+ * és a bal felsőben ér véget. A páros sor a jobb élen (a magasság irányában), a
+ * páratlan az alsó élen (a szélesség irányában) kezd. A kezdő oldalon új
+ * csempe, amíg azon az oldalon a méret nincs meg; a sor többi csempéje az
+ * előző sor csempéire kerül fordított sorrendben, és a záró oldalon az utolsó
+ * elmarad, ha ott a méret megvan.
+ */
+export function c2cTileRows(width: number, height: number): TileRow[] {
+  // A `u` a jobb széltől, a `v` alulról számol.
+  const inside = (u: number, v: number) => u >= 0 && v >= 0 && u < width && v < height;
+  const cell = ({ u, v }: { u: number; v: number }) => ({ x: width - 1 - u, y: v });
+  let previous = [{ u: 0, v: 0 }];
+  const rows: TileRow[] = [{ tiles: [cell(previous[0]!)], start: 'increase', end: 'increase' }];
+  for (let row = 2; row <= width + height - 1; row += 1) {
+    const fromRight = row % 2 === 0;
+    const fresh = fromRight ? { u: 0, v: row - 1 } : { u: row - 1, v: 0 };
+    const placed: { u: number; v: number }[] = [];
+    const start = inside(fresh.u, fresh.v) ? 'increase' : 'decrease';
+    if (start === 'increase') placed.push(fresh);
+    let end: TileRow['end'] = 'increase';
+    [...previous].reverse().forEach((under, i, all) => {
+      const next = fromRight ? { u: under.u + 1, v: under.v } : { u: under.u, v: under.v + 1 };
+      if (inside(next.u, next.v)) placed.push(next);
+      else if (i === all.length - 1) end = 'decrease';
+      else throw new Error(`C2C: a(z) ${row}. sor közepén kiesne egy csempe.`);
+    });
+    rows.push({ tiles: placed.map(cell), start, end });
+    previous = placed;
+  }
+  return rows;
+}
+
+export interface ColorRun {
+  readonly color: number;
+  readonly count: number;
+}
+
+/**
+ * A színek soronként a haladási irányban, az egymás utáni azonos színek
+ * összevonva: C2C-ben csempénként, tapestryben és graphganban szemenként (a
+ * páratlan sor jobbról balra). Filében és mozaikban üres.
+ */
+export function gridColorRows(technique: GridTechnique, cells: ChartRows): ColorRun[][] {
+  const runs = (colors: readonly number[]) =>
+    colors.reduce<ColorRun[]>((list, color) => {
+      const last = list[list.length - 1];
+      if (last && last.color === color) list[list.length - 1] = { color, count: last.count + 1 };
+      else list.push({ color, count: 1 });
+      return list;
+    }, []);
+  const width = cells[0]?.length ?? 0;
+  if (width === 0) return [];
+  if (technique === 'c2c') return c2cTileRows(width, cells.length).map((row) => runs(row.tiles.map(({ x, y }) => cells[y]![x]!)));
+  if (technique === 'tapestry' || technique === 'graphgan') return cells.map((line, y) => runs((y + 1) % 2 === 0 ? line : [...line].reverse()));
+  return [];
+}
 
 /** Cellák száma színenként (filében teli és nyitott szerint); a „nincs cella” kimarad. */
 export function cellCounts(rows: ChartRows): Map<number, number> {

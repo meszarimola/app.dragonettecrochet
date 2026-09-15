@@ -19,6 +19,7 @@
 import { amigurumiFindings } from './amigurumi.ts';
 import { buildPieceGraph, spacePositions, type LayerInfo, type PieceGraph } from './graph.ts';
 import { modeAsWorked } from './insertion.ts';
+import { MAX_CARRIED_COLORS } from './pixel-chart.ts';
 import { roundFindings } from './rounds.ts';
 import { RULES, type RuleId } from './rules.ts';
 import type { StitchLibrary } from './stitch-library.ts';
@@ -56,6 +57,13 @@ function validatePiece(pattern: Pattern, piece: Piece, library: StitchLibrary): 
   checkHeights(graph, invalidAnchors, report);
   // Körök: növekedés, kunkorodás, fodrosodás, egymás fölé kerülő szaporítás, spirál lépcsője (PQW-861).
   for (const finding of roundFindings(pattern, graph, library)) report(finding.rule, finding.nodes);
+  // Tapestry: soronként 3-nál több vitt szín haladó szint (03 §5.3, §10 G36, PQW-864).
+  if (piece.grid?.technique === 'tapestry') {
+    for (const layer of graph.layers.slice(1)) {
+      const colors = new Set(layer.stitches.map((id) => graph.nodes.get(id)!.color ?? 0));
+      if (colors.size > MAX_CARRIED_COLORS) report('carried-colors', layer.stitches);
+    }
+  }
   return findings;
 }
 
