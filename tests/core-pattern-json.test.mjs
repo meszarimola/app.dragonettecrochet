@@ -43,6 +43,69 @@ test('a minta jelölése megmarad; érvénytelen értéknél a mező útvonaláv
   assert.equal('notation' in old.pattern, false);
 });
 
+const GAUGE = {
+  active: 'p1',
+  profiles: [
+    {
+      id: 'p1',
+      yarn: { name: 'Pamut 125', cycWeight: 3, metersPer100g: 250, ballMassG: 50 },
+      hookMm: 4,
+      blocked: true,
+      gauges: [
+        { stitch: 'sc', form: 'rows', stitchesPer10cm: 20, rowsPer10cm: 25, source: 'measured' },
+        { stitch: 'dc', form: 'rounds', stitchesPer10cm: null, rowsPer10cm: null, source: 'label' },
+      ],
+      swatch: { widthCm: 10, heightCm: 10, massG: 5 },
+    },
+  ],
+};
+
+test('a mintával mentett profilok megmaradnak; a profil nélküli régi mentés változatlan (PQW-859)', () => {
+  const { pattern } = dcRectangle({ rows: 1 });
+  const saved = savePattern({ ...pattern, gauge: GAUGE });
+  const loaded = loadPattern(saved);
+  assert.equal(loaded.ok, true);
+  assert.deepEqual(loaded.pattern.gauge, GAUGE);
+  assert.equal(savePattern(loaded.pattern), saved);
+  assert.deepEqual(Object.keys(JSON.parse(saved)), ['formatVersion', 'title', 'gauge', 'conventions', 'pieces']);
+
+  const old = savePattern(pattern);
+  assert.doesNotMatch(old, /"gauge"/);
+  const reloaded = loadPattern(old);
+  assert.equal(reloaded.ok, true);
+  assert.equal('gauge' in reloaded.pattern, false);
+  assert.equal(savePattern(reloaded.pattern), old);
+});
+
+describe('hibás profilnál a mező útvonalával hibázik (PQW-859)', () => {
+  const cases = [
+    ['nem létező kiválasztott profil', (raw) => (raw.gauge.active = 'p9'), '$.gauge.active'],
+    ['nulla tűméret', (raw) => (raw.gauge.profiles[0].hookMm = 0), '$.gauge.profiles[0].hookMm'],
+    ['30 mm-nél nagyobb tű', (raw) => (raw.gauge.profiles[0].hookMm = 31), '$.gauge.profiles[0].hookMm'],
+    ['ismeretlen vastagság', (raw) => (raw.gauge.profiles[0].yarn.cycWeight = 8), '$.gauge.profiles[0].yarn.cycWeight'],
+    ['nem mérhető szem', (raw) => (raw.gauge.profiles[0].gauges[0].stitch = 'ch'), '$.gauge.profiles[0].gauges[0].stitch'],
+    ['negatív szemszám', (raw) => (raw.gauge.profiles[0].gauges[0].stitchesPer10cm = -1), '$.gauge.profiles[0].gauges[0].stitchesPer10cm'],
+    ['becsült eredet', (raw) => (raw.gauge.profiles[0].gauges[0].source = 'estimated'), '$.gauge.profiles[0].gauges[0].source'],
+    [
+      'kétszer szereplő szem ugyanabban a formában',
+      (raw) => raw.gauge.profiles[0].gauges.push({ ...raw.gauge.profiles[0].gauges[0] }),
+      '$.gauge.profiles[0].gauges[2]',
+    ],
+    ['kétszer szereplő profil', (raw) => raw.gauge.profiles.push({ ...raw.gauge.profiles[0] }), '$.gauge.profiles[1].id'],
+    ['ismeretlen mező', (raw) => (raw.gauge.profiles[0].fibre = []), '$.gauge.profiles[0].fibre'],
+  ];
+  for (const [name, spoil, path] of cases) {
+    test(name, () => {
+      const raw = JSON.parse(savePattern({ ...dcRectangle({ rows: 1 }).pattern, gauge: GAUGE }));
+      spoil(raw);
+      const result = loadPattern(JSON.stringify(raw));
+      assert.equal(result.ok, false);
+      assert.equal(result.error.code, 'invalid-format');
+      assert.equal(result.error.path, path);
+    });
+  }
+});
+
 test('a nem kötelező mezők is megmaradnak', () => {
   const { pattern, rows } = dcRectangle({ rows: 3 });
   const piece = pattern.pieces[0];
