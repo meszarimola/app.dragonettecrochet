@@ -13,5 +13,5 @@ szaporítás: 3 erp egy szembe
 
 Cikcakk
 Láncalap: 28 lsz.
-1. sor: a horogtól számított 4. láncszemtől kezdve 2 erp összehorgolása, 4 erp, 3 erp a következő láncszembe, 4 erp, 3 erp összehorgolása, 4 erp, 3 erp a következő láncszembe, 4 erp, 2 erp összehorgolása (25 szem). Fordítás.
+1. sor: hagyj ki 3 láncszemet, majd 2 erp összehorgolása, 4 erp, 3 erp a következő láncszembe, 4 erp, 3 erp összehorgolása, 4 erp, 3 erp a következő láncszembe, 4 erp, 2 erp összehorgolása (25 szem). Fordítás.
 2. sor: 3 lsz (nem számít szemnek), 2 erp összehorgolása, 4 erp, 3 erp a következő szembe, 4 erp, 3 erp összehorgolása, 4 erp, 3 erp a következő szembe, 4 erp, 2 erp összehorgolása (25 szem). A fonal elvágása.

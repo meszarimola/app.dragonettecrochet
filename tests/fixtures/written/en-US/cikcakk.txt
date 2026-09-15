@@ -15,5 +15,5 @@ increase (inc): 3 dc in same st
 
 Cikcakk
 Foundation: ch 28.
-Row 1: Starting in 4th ch from hook, dc2tog, 4 dc, 3 dc in next ch, 4 dc, dc3tog, 4 dc, 3 dc in next ch, 4 dc, dc2tog (25 sts). Turn.
+Row 1: skip 3 ch, dc2tog, 4 dc, 3 dc in next ch, 4 dc, dc3tog, 4 dc, 3 dc in next ch, 4 dc, dc2tog (25 sts). Turn.
 Row 2: ch 3 (does not count as a st), dc2tog, 4 dc, 3 dc in next st, 4 dc, dc3tog, 4 dc, 3 dc in next st, 4 dc, dc2tog (25 sts). Fasten off.

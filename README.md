@@ -190,11 +190,16 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
     végén, a sor végén meghagyott szemek (lépcsős él). Számító fordulóláncnál a
     meghagyott szemek közé a fordulólánc teteje is tartozhat.
   - **Szegély:** rövidpálcás kör; sorvégenként rövidpálcás sorra 1, pálcásra 2,
-    kétráhajtásosra 3, félpálcásra választhatóan 1 vagy 2 rp; a sarkokba 3 rp.
-    A darab a választást tárolja (`Piece.border`), a szemszámot az írott minta
-    a sorokból számolja, és a szöveg visszaolvasható. Most csak egyenes oldalú
-    darab köré készül, és a diagramon, valamint a Méret és fonal szakaszban még
-    nem látszik.
+    kétráhajtásosra 3, félpálcásra választhatóan 1 vagy 2 rp (alapból 2); a
+    sarkokba 3 rp. A darab a választást tárolja (`Piece.border`), a szegély
+    pedig a gráfban is réteg az utolsó sor után (PQW-889): a felső él szemeibe,
+    a sorvégekbe (`row-end` célpont, a sor szélső szeme) és a láncalapba horgol,
+    és kúszószemmel záródik. Az ellenőrző a sorvégi arányt, a sarkot és a kör
+    zárását nézi; a vásznon a darab körül, a rácson négy sávként látszik, a
+    kész méret a szegéllyel együtt számol, az írott minta a rétegből írja, és a
+    szöveg visszaolvasva újra réteget ad. A PQW-889 előtti mentésben csak a
+    választás van: ott a szegélysor a sorokból számolódik. Most csak egyenes
+    oldalú darab köré készül.
   - **Előnézet:** a forma lépcsős körvonala, a tényleges méret, a sorok, a szög
     és az alakítás módja. Profil nélkül a méret becslés, és a szakasz ezt ki is
     írja.
@@ -309,10 +314,11 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/core/graph.ts` | A szemgráfból számolt sorok és körök: szemszám (a láncszemek a használatuk szerint, PQW-870), pozíciószám, színe vagy visszája, fordulólánc, haladási irány (PQW-856). |
 | `src/core/validate.ts`, `src/core/rules.ts` | Az ellenőrző és a szabálykatalógus. Minden szabálynál ott a súlyosság és a tudásbázis pontja; új szabály előbb a `rules.ts`-be kerül. |
 | `src/core/pattern-json.ts` | A minta mentése és betöltése verziózott JSON-ként (`formatVersion`), mezőútvonalas hibával. |
+| `src/core/pattern-title.ts` | **A generált cím** (PQW-896): minden generátor „Minta létrehozása” gombja a forma nevét adja címnek, hacsak a felhasználó nem írt saját címet a „Minta neve” mezőbe. A minta jelöli, hogy a cím generált-e (`titleGenerated`); a régi, jelölés nélküli mentésnél az alapértelmezett cím, a darab neve és a generátor ismert neve számít generáltnak. |
 | `src/core/rounds.ts` | **Körök geometriája** (PQW-861): a lapos körhöz és sokszöghöz kellő szaporítás a körös mintasűrűségből, eredettel; a befejezett körök ellenőrzése (növekedés, kunkorodás, fodrosodás, egymás fölé kerülő szaporítás, spirál lépcsője). |
 | `src/core/round-generator.ts` | **Kör- és motívumgenerátor** (PQW-861): lapos kör, négyzet, hatszög, nyolcszög, nagymama-négyzet szemgráfként, kezdéssel, körvéggel és színváltással. |
 | `src/core/shapes.ts` | **Sík formák generátora** (PQW-862): téglalap, háromszögek, trapéz, rombusz cm-ből vagy az él szögéből, mintaismétlés; az élek egyenletes alakítása élenként legfeljebb 2-vel, láncos hosszabbítás és meghagyott szemek; a terv és a szemgráf. Tiszta függvény. |
-| `src/core/border.ts` | **Szegély** (PQW-862): sorvégi arányok, sarkok, a szegély szemszáma a gráf soraiból. |
+| `src/core/border.ts` | **Szegély** (PQW-862, PQW-889): sorvégi arányok, sarkok, a szegély szemszáma a gráf soraiból; a sor szélei mint sorvég célpont, a szabályos szegély lépései, a szegélyréteg hozzáfűzése a darabhoz és elemzése az írott mintához, az elhelyezése a sorok körül. |
 | `src/core/shawls.ts` | **Kendőformák** (PQW-865): háromszög, aszimmetrikus háromszög, félhold, félkör, kör, Pi-kendő, eltolt Pi-kendő, stóla; elméleti vagy saját szaporítási arány, páros szimmetria, az utolsó sor igazítása a szegélyhez, blokkolt és blokkolatlan méret, figyelmeztetés az ideálistól való eltérésre; a terv és a szemgráf. Tiszta függvény. |
 | `src/core/amigurumi.ts` | **Amigurumi és 3D formák** (PQW-863): a forma körterve a körben mért mintasűrűségből (gömb 6n és szinuszos, félgömb, tojás, henger, kúp, forgástest), a korlátok, egy kör elosztása, a görbület körönként, a méretbecslés és a kapcsolás ellenőrzése. |
 | `src/core/amigurumi-generator.ts` | A körtervből szemgráf spirálban, jelölésekkel; új minta egy részből, új rész varrva vagy folytatólagosan. |
@@ -355,7 +361,7 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `public/.htaccess` | Biztonsági fejlécek és cache. A CSP a GA-azonosítóval együtt változik — a `tests/analytics.test.mjs` őrzi. |
 | `tests/*.test.mjs` | `node:test` tesztek; a `core-*` a magot, a `ui-*` a jelrajzot, a palettát és az SVG-t, az `analytics` a süti-sávot és a CSP-t, a `hu-vocabulary` a magyar szóhasználatot (szem = stitch) nézi. |
 | `tests/fixtures/written/` | Az írott minta rögzített szövege kidolgozott példánként (`hu`, `en-US`); a magyart a tulajdonos hagyja jóvá. |
-| `e2e/*.spec.ts`, `playwright.config.ts` | Böngészős tesztek a kritikus utakra: téglalap billentyűzettel, mentés és újratöltés, export, az írott minta panelje jelölésváltással, a japán előbeállítás (`editor.spec.ts`); mintatípus-választás, szemválasztás a panelből, hibaszámláló, alsó írott panel (`felulet.spec.ts`); az elrendezés helyei (`elrendezes.spec.ts`); a panel szakaszai és a tooltipek (`panel.spec.ts`); téglalap cellákra kattintva, a rács kapcsolója és exportja (`racs.spec.ts`); becslés profil nélkül, profil megadása és mentése, arányhelyes nézet (`meret.spec.ts`); kijelölés a sorszámmal, billentyűzettel és területtel, másolás, beillesztés, duplikálás, törlés az érintett szemek megmutatásával, visszavonás (`kijeloles.spec.ts`); hátsó szálas és reliefes sor a beszúrási mód választójával (`beszuras.spec.ts`); téglalap profil nélkül és visszavonás, háromszög az él szögéből, szegélyes téglalap (`formak.spec.ts`); fentről induló háromszög-kendő saját aránnyal és figyelmeztetéssel, visszavonás, félkör, a félkör és a háromszög íves, illetve megtört sorokkal a vásznon (`kendok.spec.ts`); sál kezdése 40 láncszemmel, fordulással és rövidpálcás sorokkal, kattintással és billentyűzettel, 1000×506-ban és 1440×900-ban (`kezdes.spec.ts`). |
+| `e2e/*.spec.ts`, `playwright.config.ts` | Böngészős tesztek a kritikus utakra: téglalap billentyűzettel, mentés és újratöltés, export, az írott minta panelje jelölésváltással, a japán előbeállítás (`editor.spec.ts`); mintatípus-választás, szemválasztás a panelből, hibaszámláló, alsó írott panel (`felulet.spec.ts`); az elrendezés helyei (`elrendezes.spec.ts`); a panel szakaszai és a tooltipek (`panel.spec.ts`); téglalap cellákra kattintva, a rács kapcsolója és exportja (`racs.spec.ts`); becslés profil nélkül, profil megadása és mentése, arányhelyes nézet (`meret.spec.ts`); kijelölés a sorszámmal, billentyűzettel és területtel, másolás, beillesztés, duplikálás, törlés az érintett szemek megmutatásával, visszavonás (`kijeloles.spec.ts`); hátsó szálas és reliefes sor a beszúrási mód választójával (`beszuras.spec.ts`); téglalap profil nélkül és visszavonás, háromszög az él szögéből, szegélyes téglalap (`formak.spec.ts`); fentről induló háromszög-kendő saját aránnyal és figyelmeztetéssel, visszavonás, félkör, a félkör és a háromszög íves, illetve megtört sorokkal a vásznon (`kendok.spec.ts`); sál kezdése 40 láncszemmel, fordulással és rövidpálcás sorokkal, kattintással és billentyűzettel, 1000×506-ban és 1440×900-ban (`kezdes.spec.ts`); a generált cím generátorváltáskor és a kézzel írt cím megmaradása újratöltés után is (`generalt-cim.spec.ts`). |
 | `tests/*.check.ts` | Csak fordítási próba: a `tsconfig.core.json` típusellenőrzi, nem fut. |
 | `tsconfig.core.json` | A `src/core/` típusellenőrzése DOM-típusok nélkül. |
 
@@ -404,9 +410,10 @@ npm test   # a build után: CSP ↔ azonosító, inline szkript, közös süti
   Most minden szem az alapértelmezett móddal megy.
 - **Körnézet finomítása.** A körök egyszerű, sugárirányú elrendezést kapnak;
   a nagymama-négyzet sarkai még nem szögletesek.
-- **Szegély és varrat a gráfban.** A szegély csak az írott mintában és a Forma
-  szakaszban van, a sorvégbe horgolt szem célpontját a gráf még nem ismeri; két
-  él összevarrása vagy összekapcsolása sincs még (PQW-862 nyitott része).
+- **A szegély és a varrat nyitott részei** (PQW-889): szegély ferde élű darab
+  (háromszög, trapéz, rombusz) köré a lépcsős élek kitett szemeivel; a
+  következő szegélysor mintaismétléséhez igazított élek; két él összevarrása
+  vagy összekapcsolása sorokban horgolt daraboknál.
 - **PDF-export.**
 - **A rácsos technikák nyitott részei** (PQW-864): a mozaik (több sorral
   lejjebb horgolt, jelölt szem az írott mintában); filében a sor eleji

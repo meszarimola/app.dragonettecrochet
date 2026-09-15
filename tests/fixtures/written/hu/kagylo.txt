@@ -14,5 +14,5 @@ szaporítás: 3 erp egy szembe
 
 Kagylóminta
 Láncalap: 20 lsz.
-1. sor: a horogtól számított 2. láncszemtől kezdve 1 rp, [2 láncszem kihagyása, kagyló, 2 láncszem kihagyása, 1 rp] 3-szor (19 szem). Fordítás.
+1. sor: hagyj ki 1 láncszemet, majd 1 rp, [2 láncszem kihagyása, kagyló, 2 láncszem kihagyása, 1 rp] 3-szor (19 szem). Fordítás.
 2. sor: 3 lsz (1 erp-nek számít), 2 erp ugyanabba a szembe, 2 szem kihagyása, 1 rp, [2 szem kihagyása, kagyló, 2 szem kihagyása, 1 rp] 2-szer, 2 szem kihagyása, 3 erp a következő szembe (19 szem). A fonal elvágása.

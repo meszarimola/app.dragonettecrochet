@@ -413,7 +413,7 @@ function readPinned(value: unknown, path: string): NonNullable<StitchNode['pinne
 
 function readAnchor(value: unknown, path: string): Anchor {
   if (!isObject(value)) throw new FormatError(path, 'Objektumot vártunk.');
-  const into = oneOf(value['into'], `${path}.into`, ['stitch', 'space', 'ring']);
+  const into = oneOf(value['into'], `${path}.into`, ['stitch', 'space', 'ring', 'row-end']);
   if (into === 'stitch') {
     const raw = object(value, path, ['into', 'id', 'mode']);
     return { into, id: string(raw['id'], `${path}.id`), mode: oneOf(raw['mode'], `${path}.mode`, INSERTIONS) };
