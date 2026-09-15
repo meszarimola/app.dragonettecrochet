@@ -16,6 +16,7 @@ import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { increase, shell } from './stitches.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
+import { firstChainFromHook, traditionOf, turningChainCountsFor, withTradition } from './tradition.ts';
 import type {
   Anchor,
   Finding,
@@ -30,6 +31,7 @@ import type {
   StitchFlag,
   StitchInsertion,
   StitchNode,
+  Tradition,
 } from './types.ts';
 import { validatePattern } from './validate.ts';
 
@@ -55,6 +57,16 @@ export type EditResult = { readonly ok: true; readonly pattern: Pattern } | { re
 
 const done = (pattern: Pattern): EditResult => ({ ok: true, pattern });
 const refuse = (reason: string): EditResult => ({ ok: false, reason });
+
+/**
+ * A minta számolási hagyománya (PQW-876). A szemek és a célpontok nem
+ * változnak, csak a számolásuk: a fordulólánc, a láncalap és az ellenőrzés az
+ * új szabály szerint megy (tradition.ts).
+ */
+export function setTradition(pattern: Pattern, tradition: Tradition): EditResult {
+  if (traditionOf(pattern.conventions) === tradition) return refuse('A minta már ezt a hagyományt követi.');
+  return done({ ...pattern, conventions: withTradition(pattern.conventions, tradition) });
+}
 
 function pieceOf(pattern: Pattern): Piece {
   const piece = pattern.pieces[0];
@@ -177,7 +189,8 @@ export function contextOf(pattern: Pattern): WorkContext {
 /**
  * Hová mutasson a kurzor, ha a felhasználó nem mozgatta: az utolsó
  * felhasznált célpont utánra. Új sor elején a láncalapon a fordulólánc után
- * következő láncszemre (03 §1.2), egyébként a számító fordulólánc alatti
+ * következő láncszemre (03 §1.2; japán hagyományban számító fordulóláncnál
+ * eggyel később, tradition.ts), egyébként a számító fordulólánc alatti
  * szemet átugorva (03 §1.3).
  */
 export function defaultCursor(pattern: Pattern, context: WorkContext, tool: StitchDefId | null): number {
@@ -193,14 +206,13 @@ export function defaultCursor(pattern: Pattern, context: WorkContext, tool: Stit
   }
 
   const def = tool ? resolveStitch(tool) : undefined;
+  const tradition = traditionOf(pattern.conventions);
+  const counts = def !== undefined && turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition);
   const foundationChain = context.layer === 1 && context.shape === 'row' && context.turningChain === 0;
-  if (foundationChain) return Math.min(def?.turningChain ?? 1, slots.length - 1);
+  // A horogtól számított láncszem 1-től, a célpont 0-tól számozott.
+  if (foundationChain) return Math.min(def ? firstChainFromHook(def.turningChain, counts, tradition) - 1 : 1, slots.length - 1);
 
-  if (context.turningChain > 0 && def) {
-    const setting = pattern.conventions.turningChainCounts;
-    const counts = setting === 'stitch-default' ? def.turningChainCounts : setting;
-    if (counts && slots.length > 1) return 1;
-  }
+  if (context.turningChain > 0 && counts && slots.length > 1) return 1;
   return 0;
 }
 

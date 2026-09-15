@@ -137,6 +137,32 @@ test('PNG és SVG export jelmagyarázattal', async ({ page }) => {
   expect(png.length).toBeGreaterThan(2000);
 });
 
+/* ---- Japán előbeállítás (PQW-876) ---- */
+
+test('japán előbeállítással a félpálcás téglalap a japán szabály szerint hibátlan, és a minta megjegyzi', async ({ page }) => {
+  await open(page);
+  // A jelölés szakasza alapból csukva van (PQW-882).
+  await page.locator('#section-notation').evaluate((el) => { (el as HTMLDetailsElement).open = true; });
+  await page.locator('#tradition').selectOption('japanese');
+  await expect(page.locator('#chart-style')).toHaveValue('jis');
+  await expect(page.locator('#status')).toContainText('Előbeállítás: japán');
+
+  // 12 láncszem: a félpálca a 4. láncszemtől, 9 félpálca és a számító fordulólánc = 10 szem.
+  await page.locator('#board').focus();
+  await page.keyboard.press('1');
+  await rectangle(page, '4', 9, 3, 12);
+
+  await expect(page.locator('#summary')).toContainText('3. sor: 10 szem.');
+  await expect(page.locator('#summary')).toContainText('Nincs hiba és figyelmeztetés.');
+  const text = page.locator('#written-text');
+  await expect(text).toContainText('a horogtól számított 4. láncszemtől kezdve');
+  await expect(text).toContainText('2 lsz (1 fp-nek számít)');
+
+  await page.reload();
+  await expect(page.locator('#tradition')).toHaveValue('japanese');
+  await expect(page.locator('#summary')).toContainText('Nincs hiba és figyelmeztetés.');
+});
+
 /* ---- Vezetett horgolás (PQW-879) ---- */
 
 /** Láncalap a megadott láncszemszámmal, csak billentyűvel. */

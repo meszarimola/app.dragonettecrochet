@@ -28,6 +28,7 @@ import type {
   StitchGroup,
   StitchInsertion,
   StitchNode,
+  Tradition,
 } from './types.ts';
 
 export const FORMAT_VERSION = 1;
@@ -145,6 +146,7 @@ const LOCALES: readonly Locale[] = ['hu', 'en-US', 'en-GB'];
 const CHART_STYLES: readonly ChartStyle[] = ['cyc', 'jis'];
 const INSERTIONS: readonly StitchInsertion[] = ['both-loops', 'front-loop', 'back-loop', 'front-post', 'back-post'];
 const FLAGS: readonly StitchFlag[] = ['crossed', 'spike'];
+const TRADITIONS: readonly Tradition[] = ['cyc', 'japanese'];
 
 function readPattern(value: unknown, path: string): Pattern {
   const raw = object(value, path, ['formatVersion', 'title', 'conventions', 'pieces'], ['notation']);
@@ -176,7 +178,7 @@ function readPatternConventions(value: unknown, path: string): PatternConvention
     value,
     path,
     ['turningChainCounts', 'roundEnd', 'picotCounts', 'joinSlipStitchCounts'],
-    ['chainCounts', 'repeat'],
+    ['chainCounts', 'tradition', 'repeat'],
   );
   return {
     turningChainCounts: readTurningChainCounts(raw['turningChainCounts'], `${path}.turningChainCounts`),
@@ -188,6 +190,8 @@ function readPatternConventions(value: unknown, path: string): PatternConvention
       raw['chainCounts'] === undefined
         ? 'worked-into'
         : oneOf(raw['chainCounts'], `${path}.chainCounts`, ['worked-into', true, false]),
+    // A PQW-876 előtti mentésben nincs; akkor a minta a CYC szerint számol.
+    ...(raw['tradition'] === undefined ? {} : { tradition: oneOf(raw['tradition'], `${path}.tradition`, TRADITIONS) }),
     ...(raw['repeat'] === undefined ? {} : { repeat: readRepeat(raw['repeat'], `${path}.repeat`) }),
   };
 }

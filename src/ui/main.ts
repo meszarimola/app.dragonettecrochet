@@ -23,6 +23,7 @@ import {
   fillRow,
   liveCheck,
   setPinned,
+  setTradition,
   work,
   workIntoSame,
   type EditResult,
@@ -36,7 +37,8 @@ import { loadPattern, savePattern } from '../core/pattern-json.js';
 import { RULES } from '../core/rules.js';
 import { libraryFor, resolveStitch } from '../core/stitch-variants.js';
 import { stitchName } from '../core/stitchText.js';
-import type { Locale, NodeId, Pattern, PatternNotation, StitchDef, StitchDefId } from '../core/types.js';
+import { traditionOf } from '../core/tradition.js';
+import type { Locale, NodeId, Pattern, PatternNotation, StitchDef, StitchDefId, Tradition } from '../core/types.js';
 import { validatePattern } from '../core/validate.js';
 import { Board, type DirectionArrow, type Target } from './board.js';
 import { chartSvg } from './chart-svg.js';
@@ -44,10 +46,12 @@ import { setupConsentBanner } from './consentBanner.js';
 import { askConfirm } from './dialog.js';
 import {
   chartStyleLabel,
+  notationForTradition,
   readNotation,
   symbolOptionsFor,
   termsLabel,
   textLanguage,
+  traditionLabel,
   uiLanguageOf,
   withNotation,
   writeNotation,
@@ -87,6 +91,7 @@ const termsSelect = must<HTMLSelectElement>('#terms');
 const styleSelect = must<HTMLSelectElement>('#chart-style');
 const scMarkField = must<HTMLFieldSetElement>('#sc-mark');
 const scMarkJis = must<HTMLParagraphElement>('#sc-mark-jis');
+const traditionSelect = must<HTMLSelectElement>('#tradition');
 const typesNav = must<HTMLElement>('#types');
 const typesToggle = must<HTMLButtonElement>('#types-toggle');
 const typesList = must<HTMLUListElement>('#types-list');
@@ -251,6 +256,7 @@ function refresh(message?: string): void {
     direction: tool && isTargeted(tool) ? directionArrow() : null,
     symbols,
   });
+  traditionSelect.value = traditionOf(derived.pattern.conventions);
   updateControls();
   updateWritten();
   if (message !== undefined) announce(message);
@@ -501,6 +507,15 @@ styleSelect.addEventListener('change', () => {
 scMarkField.addEventListener('change', (event) => {
   const singleCrochet = (event.target as HTMLInputElement).value as PatternNotation['singleCrochet'];
   applyNotation({ ...notation, singleCrochet }, `A rövidpálca jele: ${singleCrochet === 'plus' ? '+' : '×'}.`);
+});
+
+// Az előbeállítás a mintához tartozik: a számolás a mintában, a jelek a jelölésben változnak (PQW-876).
+traditionSelect.addEventListener('change', () => {
+  const tradition = traditionSelect.value as Tradition;
+  const result = setTradition(history.present, tradition);
+  if (!result.ok) return;
+  applyNotation(notationForTradition(notation, tradition), '');
+  commit(result, `Előbeállítás: ${traditionLabel(tradition)}. A jelek és a számolás is ezt követik.`);
 });
 
 /* ---- Paletta ---- */

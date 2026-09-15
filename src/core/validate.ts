@@ -19,6 +19,7 @@
 import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
 import { RULES, type RuleId } from './rules.ts';
 import type { StitchLibrary } from './stitch-library.ts';
+import { hasBaseChain, traditionOf } from './tradition.ts';
 import type { Anchor, Finding, NodeId, Pattern, Piece, PieceId, StitchNode } from './types.ts';
 
 export function validatePattern(pattern: Pattern, library: StitchLibrary): Finding[] {
@@ -231,8 +232,10 @@ function checkLayer(
 
   const walkStart = findingCount();
   const skipped = new Set(graph.piece.skipped);
-  // Ha a sor fordulólánca számít, az alatta lévő szem (a sor első pozíciója) kimaradhat (03 §1.3).
-  const optional = index >= 2 && layer.turningChainCounts ? 0 : -1;
+  // Ha a sor fordulólánca számít, az alatta lévő szem (a sor első pozíciója) kimaradhat (03 §1.3). Japán
+  // hagyományban az 1. sorban is: ott a fordulólánc alatti alapláncszem (01 §8.3 szabály 15).
+  const baseChain = index === 1 && below.shape === 'row' && hasBaseChain(layer.turningChainCounts, traditionOf(pattern.conventions));
+  const optional = (index >= 2 || baseChain) && layer.turningChainCounts ? 0 : -1;
   const positionAt = (w: number) => below.positions[layer.direction === 1 ? w : length - 1 - w]!;
   const gap = (from: number, to: number) => {
     let count = 0;
@@ -323,7 +326,8 @@ function checkLayer(
 
   const repeat = pattern.conventions.repeat;
   if (repeat && layer.shape === 'row' && findingCount() === walkStart) {
-    const consumed = length + (index === 1 && layer.turningChainCounts ? 1 : 0);
+    // A japán alapláncszem már a láncalap pozíciója, ezért ott nem adódik hozzá.
+    const consumed = length + (index === 1 && layer.turningChainCounts && !baseChain ? 1 : 0);
     if (consumed !== layer.positionCount) report('repeat-balance', layer.stitches);
   }
 }

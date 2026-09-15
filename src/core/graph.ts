@@ -10,6 +10,8 @@
  * Megállapodások, amelyekre az ellenőrző épít:
  * - A láncalap végén a be nem horgolt láncszemek az 1. sor fordulólánca, ezért
  *   az 1. réteghez tartoznak, nem a 0.-hoz (03 §1.2: a láncalap `N + T`).
+ * - Japán hagyományban a számító fordulólánc alatti alapláncszem a 0. réteg
+ *   utolsó pozíciója marad: a fordulólánc „áll” rajta (01 §8.3, tradition.ts).
  * - Később a sor elején álló láncszemek a fordulólánc vagy a kezdőlánc; a
  *   fordulás eseménye után következnek.
  * - Zárt körben a kör eleji kúszószemek a továbbvezetés, a záró kúszószem az
@@ -27,6 +29,7 @@
  */
 
 import type { StitchLibrary } from './stitch-library.ts';
+import { hasBaseChain, stitchTurningChainCounts, traditionOf, turningChainCountsFor } from './tradition.ts';
 import type {
   Layer,
   LayerEvent,
@@ -149,6 +152,12 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       while (foundationNodes.length > 0 && !anchored.has(foundationNodes[foundationNodes.length - 1]!.id)) {
         trailing.unshift(foundationNodes.pop()!);
       }
+      // Japán hagyományban a számító fordulólánc egy alapláncszemen áll: az a láncalap része marad.
+      const tradition = traditionOf(pattern.conventions);
+      const first = segments[0]!.find((node) => kindOf(node) !== 'chain');
+      const counts =
+        first !== undefined && turningChainCountsFor(pattern.conventions.turningChainCounts, defs.get(first.id)!, tradition);
+      if (hasBaseChain(counts, tradition) && trailing.length >= 2) foundationNodes.push(trailing.shift()!);
       segments[0] = [...trailing, ...segments[0]!];
     }
   }
@@ -233,7 +242,9 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     if (turningChain.length > 0) {
       const setting = opening?.conventions?.turningChainCounts ?? conventions.turningChainCounts;
       turningChainCounts =
-        setting === 'stitch-default' ? (firstStitch !== null && defs.get(firstStitch)!.turningChainCounts) : setting;
+        setting === 'stitch-default'
+          ? firstStitch !== null && stitchTurningChainCounts(defs.get(firstStitch)!, traditionOf(conventions))
+          : setting;
     }
 
     const turningSet = new Set(turningChain);

@@ -29,7 +29,8 @@
 
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
 import type { StitchLibrary } from './stitch-library.ts';
-import type { Anchor, LayerEvent, NodeId, Pattern, Piece, StitchDef, StitchDefId, StitchInsertion } from './types.ts';
+import { hasBaseChain, traditionOf } from './tradition.ts';
+import type { Anchor, LayerEvent, NodeId, Pattern, Piece, StitchDef, StitchDefId, StitchInsertion, Tradition } from './types.ts';
 
 export type StepTarget = 'next' | 'same' | 'next-space' | 'same-space' | 'ring' | 'none';
 
@@ -103,7 +104,7 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
     ? { kind: 'chain', count: base.stitches.length + (row1?.turningChain.length ?? 0) }
     : { kind: 'ring' };
 
-  const layers = graph.layers.slice(1).map((_, i) => writtenLayer(graph, i + 1, onChain, library));
+  const layers = graph.layers.slice(1).map((_, i) => writtenLayer(graph, i + 1, onChain, library, traditionOf(pattern.conventions)));
   return { name: piece.name, foundation, layers };
 }
 
@@ -127,7 +128,13 @@ export function countsAsOf(def: StitchDef): StitchDefId {
 
 type Last = { readonly kind: 'stitch'; readonly w: number } | { readonly kind: 'space'; readonly id: string } | null;
 
-function writtenLayer(graph: PieceGraph, index: number, onChain: boolean, library: StitchLibrary): WrittenLayer {
+function writtenLayer(
+  graph: PieceGraph,
+  index: number,
+  onChain: boolean,
+  library: StitchLibrary,
+  tradition: Tradition,
+): WrittenLayer {
   const layer = graph.layers[index]!;
   const below = graph.layers[index - 1]!;
   const working = layer.direction === 1 ? below.positions : [...below.positions].reverse();
@@ -135,9 +142,11 @@ function writtenLayer(graph: PieceGraph, index: number, onChain: boolean, librar
   const defOf = (id: NodeId) => graph.defs.get(id)!;
   const countsAs = layer.firstStitch !== null && layer.turningChainCounts ? countsAsOf(defOf(layer.firstStitch)) : null;
   const hookRow = index === 1 && onChain;
+  // Japán hagyományban az 1. sor fordulólánca egy alapláncszemen áll; abba nem horgolunk (01 §8.3 szabály 15).
+  const baseChain = hookRow && hasBaseChain(layer.turningChainCounts, tradition);
 
   const steps: Step[] = [];
-  const cursorStart = index >= 2 && layer.turningChainCounts ? 1 : 0;
+  const cursorStart = (index >= 2 || baseChain) && layer.turningChainCounts ? 1 : 0;
   let cursor = cursorStart;
   let last: Last = cursorStart === 1 ? { kind: 'stitch', w: 0 } : null;
 
@@ -274,7 +283,7 @@ function writtenLayer(graph: PieceGraph, index: number, onChain: boolean, librar
     index,
     shape: layer.shape,
     side: layer.side,
-    fromHook: hookRow ? { chain: layer.turningChain.length + 1, countsAs } : null,
+    fromHook: hookRow ? { chain: layer.turningChain.length + (baseChain ? 2 : 1), countsAs } : null,
     steps: foldRepeats(mergeSteps(steps, library)),
     stitchCount: layer.stitchCount,
     closing: layer.closing?.kind ?? null,
