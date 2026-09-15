@@ -387,11 +387,23 @@ function readUnit(value: unknown, path: string): GridUnit {
 }
 
 function readBorder(value: unknown, path: string): PieceBorder {
-  const raw = object(value, path, ['stitch', 'hdcRowEnd']);
+  const raw = object(value, path, ['stitch', 'hdcRowEnd'], ['repeat']);
   return {
     stitch: oneOf(raw['stitch'], `${path}.stitch`, ['sc'] as const),
     hdcRowEnd: oneOf(raw['hdcRowEnd'], `${path}.hdcRowEnd`, [1, 2] as const),
+    // A PQW-898 előtti mentésben nincs: a szegély nem igazodik ismétléshez.
+    ...(raw['repeat'] === undefined ? {} : { repeat: readBorderRepeat(raw['repeat'], `${path}.repeat`) }),
   };
+}
+
+/** A következő szegélysor ismétlése: X 1 és 50, Y 0 és 50 között. */
+function readBorderRepeat(value: unknown, path: string): NonNullable<PieceBorder['repeat']> {
+  const raw = object(value, path, ['width', 'edge']);
+  const width = integer(raw['width'], `${path}.width`, 1);
+  const edge = integer(raw['edge'], `${path}.edge`, 0);
+  if (width > 50) throw new FormatError(`${path}.width`, 'Legfeljebb 50 szemes ismétlést vártunk.');
+  if (edge > 50) throw new FormatError(`${path}.edge`, 'Legfeljebb 50 kiegyenlítő szemet vártunk.');
+  return { width, edge };
 }
 
 function readNode(value: unknown, path: string): StitchNode {
@@ -421,7 +433,7 @@ function readPinned(value: unknown, path: string): NonNullable<StitchNode['pinne
 
 function readAnchor(value: unknown, path: string): Anchor {
   if (!isObject(value)) throw new FormatError(path, 'Objektumot vártunk.');
-  const into = oneOf(value['into'], `${path}.into`, ['stitch', 'space', 'ring', 'row-end']);
+  const into = oneOf(value['into'], `${path}.into`, ['stitch', 'space', 'ring', 'row-end', 'underside']);
   if (into === 'stitch') {
     const raw = object(value, path, ['into', 'id', 'mode']);
     return { into, id: string(raw['id'], `${path}.id`), mode: oneOf(raw['mode'], `${path}.mode`, INSERTIONS) };
@@ -472,7 +484,7 @@ function readEvent(value: unknown, path: string): LayerEvent {
 
 const MARKS: readonly RoundMark[] = ['safety-eyes', 'embroider-eyes', 'stuffing', 'close-opening'];
 const ENDS: readonly PieceEnd[] = ['open', 'closed'];
-const SHAPES: readonly ShapeSpec['kind'][] = ['sphere', 'hemisphere', 'egg', 'cylinder', 'cone', 'revolution'];
+const SHAPES: readonly ShapeSpec['kind'][] = ['sphere', 'hemisphere', 'egg', 'cylinder', 'cone', 'revolution', 'oval'];
 
 function readSection(value: unknown, path: string): PieceSection {
   const raw = object(value, path, ['name', 'layer', 'shape', 'stagger']);
@@ -520,6 +532,10 @@ function readShape(value: unknown, path: string): ShapeSpec {
     case 'revolution': {
       const raw = object(value, path, ['kind', 'profile', 'bottom', 'top']);
       return { kind, profile: array(raw['profile'], `${path}.profile`, readProfilePoint), bottom: end(raw, 'bottom'), top: end(raw, 'top') };
+    }
+    case 'oval': {
+      const raw = object(value, path, ['kind', 'lengthCm', 'widthCm']);
+      return { kind, lengthCm: size(raw, 'lengthCm'), widthCm: size(raw, 'widthCm') };
     }
   }
 }

@@ -224,9 +224,17 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
   for (const layer of layout.layers) {
     if (layer.index === 0) continue;
     const rightwards = layer.start.x <= layer.end.x;
+    const endAnchor = rightwards ? 'start' : 'end';
+    if (layer.border) {
+      // A szegély nem sor (PQW-897): sorszám helyett felirat, mellette a szemszám, mint a vásznon.
+      out.push(
+        `<text x="${num(layer.start.x)}" y="${num(layer.start.y)}" text-anchor="${rightwards ? 'end' : 'start'}">${escapeXml(captions.border)}</text>`,
+        `<text x="${num(layer.end.x)}" y="${num(layer.end.y)}" text-anchor="${endAnchor}">${escapeXml(captions.count(layer.stitchCount))}</text>`,
+      );
+      continue;
+    }
     const labelWidth = 7.4 * captions.layer(layer.index).length + 10;
     const x0 = rightwards ? layer.start.x + 4 - labelWidth : layer.start.x - 4;
-    const endAnchor = rightwards ? 'start' : 'end';
     out.push(
       `<rect x="${num(x0)}" y="${num(layer.start.y - LABEL_HEIGHT / 2)}" width="${num(labelWidth)}" height="${LABEL_HEIGHT}" rx="4" fill="${colors[layer.side]}"/>`,
       `<text x="${num(x0 + labelWidth / 2)}" y="${num(layer.start.y)}" text-anchor="middle" font-weight="700" fill="${colors.background}">${escapeXml(captions.layer(layer.index))}</text>`,

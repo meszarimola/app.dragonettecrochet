@@ -93,6 +93,7 @@ export const SHAPE_NAMES: Readonly<Record<ShapeSpec['kind'], string>> = {
   cylinder: 'Henger',
   cone: 'Kúp',
   revolution: 'Forgástest',
+  oval: 'Ovális',
 };
 
 export const MAX_SIZE_CM = 100;
@@ -124,6 +125,11 @@ export function shapeProblem(spec: ShapeSpec): string | null {
       }
       return size(spec.diameterCm, 'Az átmérő') ?? (increases === null ? size(spec.heightCm, 'A magasság') : null);
     }
+    case 'oval': {
+      const problem = size(spec.lengthCm, 'A hossz') ?? size(spec.widthCm, 'A szélesség');
+      if (problem) return problem;
+      return spec.lengthCm < spec.widthCm ? 'Az ovális hossza legalább akkora legyen, mint a szélessége: a hosszabbik méret a hossz.' : null;
+    }
     case 'revolution': {
       if (spec.profile.length < 2) return 'A profilhoz legalább két pont kell: soronként sugár és magasság cm-ben.';
       const valid = (point: ProfilePoint) =>
@@ -144,14 +150,16 @@ export function shapeProblem(spec: ShapeSpec): string | null {
 export interface Schedule {
   /** A szemszám körönként, az 1. körtől. */
   readonly counts: readonly number[];
-  /** Varázskörrel kezdődik, vagy egy előző rész nyitott szélébe horgolva folytatódik. */
-  readonly start: 'ring' | 'open';
+  /** Varázskörrel kezdődik, egy előző rész nyitott szélébe horgolva folytatódik, vagy láncalapról (ovális, PQW-890). */
+  readonly start: 'ring' | 'open' | 'chain';
   /** A darab vége: összehúzott vagy lapos tetővel zárt, illetve nyitott szél. */
   readonly end: PieceEnd;
   /** A hátsó szálba horgolt körök indexe (0-tól): az éles törés utáni kör. */
   readonly backLoop: readonly number[];
   readonly widthCm: number;
   readonly heightCm: number;
+  /** Ovális láncalapról (PQW-890): a láncszemek száma, végenként a körönkénti szaporítás és a szélesség. */
+  readonly oval?: { readonly chains: number; readonly perEnd: number; readonly widthCm: number };
 }
 
 export type ScheduleResult = { readonly ok: true; readonly schedule: Schedule } | { readonly ok: false; readonly reason: string };
@@ -188,7 +196,29 @@ function buildSchedule(spec: ShapeSpec, gauge: RoundGauge): Schedule {
       return cone(spec, gauge, s);
     case 'revolution':
       return revolution(spec.profile, spec.bottom, spec.top, gauge, s, 'hold');
+    case 'oval':
+      return oval(spec, gauge, s);
   }
+}
+
+/**
+ * Ovális láncalapról (04 §3.4, §9.4, PQW-890): L láncszem, az 1. kör 2L + 2 szem
+ * (elöl L − 1, a legtávolabbi láncszembe további 3, a másik oldalon vissza
+ * L − 2, a horoghoz legközelebbi láncszembe további 2). Utána végenként a lapos
+ * érték felével szaporít (rövidpálcánál 3-mal), az egyenes oldalak szemszáma
+ * nem változik. A körszám a szélesség fele körmagasságban, a láncszemek száma
+ * a hossz és a szélesség különbsége szemszélességben, legalább 3 láncszem.
+ * A darab szélessége a hosszabbik méret, a magassága egy környi vastagság.
+ */
+function oval(spec: Extract<ShapeSpec, { kind: 'oval' }>, gauge: RoundGauge, s: number): Schedule {
+  const perEnd = s / 2;
+  const rounds = Math.max(1, Math.round((spec.widthCm / 2) * gauge.roundsPerCm));
+  const widthCm = (2 * rounds) / gauge.roundsPerCm;
+  const straight = Math.max(1, Math.round((spec.lengthCm - widthCm) * gauge.stitchesPerCm));
+  const chains = straight + 2;
+  const counts = Array.from({ length: rounds }, (_, k) => 2 * chains + 2 + 2 * perEnd * k);
+  const lengthCm = widthCm + straight / gauge.stitchesPerCm;
+  return { counts, start: 'chain', end: 'open', backLoop: [], widthCm: lengthCm, heightCm: 1 / gauge.roundsPerCm, oval: { chains, perEnd, widthCm } };
 }
 
 /** A konszenzus felé kerekít: `exact` csak egész eltérésnél mozdít `consensus`-on. */

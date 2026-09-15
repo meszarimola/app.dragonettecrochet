@@ -240,7 +240,8 @@ describe('szegély (03 §7.1 H)', () => {
     assert.equal(borderCounts(60, 60, 40, 2).total, 288);
     const { pattern, plan } = shape(withRowGauge('dc', 16, 8), { stitch: 'dc', widthCm: 37.5, heightCm: 50, border: { stitch: 'sc', hdcRowEnd: 2 } });
     assert.deepEqual([plan.counts[0], plan.counts.length], [60, 40]);
-    assert.deepEqual(plan.border, { top: 58, bottom: 58, perRow: 2, rows: 40, side: 80, corner: 3, total: 288 });
+    const { top, bottom, perRow, rows, side, corner, total } = plan.border;
+    assert.deepEqual({ top, bottom, perRow, rows, side, corner, total }, { top: 58, bottom: 58, perRow: 2, rows: 40, side: 80, corner: 3, total: 288 });
     const result = borderOf(buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern)), pattern.pieces[0].border);
     assert.ok(result.ok);
     assert.equal(result.counts.total, 288);
@@ -282,19 +283,21 @@ describe('szegély (03 §7.1 H)', () => {
     assert.equal(loadPattern(savePattern(shape(emptyPattern(), {}).pattern)).pattern.pieces[0].border, undefined);
   });
 
-  test('ferde élű darab köré a szegély még nem írható ki, érthető okkal', () => {
+  test('ferde élű darab köré is készül szegély (PQW-898); a láncos hosszabbítású, nagyon meredek él köré érthető okkal nem', () => {
     const { pattern } = shape(emptyPattern(), { shape: 'isosceles-triangle', widthCm: 10, heightCm: 10 });
     const graph = buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));
-    const result = borderOf(graph, { stitch: 'sc', hdcRowEnd: 2 });
-    assert.equal(result.ok, false);
-    assert.match(result.reason, /egyenes oldalú/);
+    assert.ok(borderOf(graph, { stitch: 'sc', hdcRowEnd: 2 }).ok);
+    const steep = planShape(emptyPattern(), { ...DEFAULT_SHAPE, shape: 'diamond', stitch: 'sc', widthCm: 20, heightCm: 4, border: { stitch: 'sc', hdcRowEnd: 2 } });
+    assert.equal(steep.ok, false);
+    assert.match(steep.reason, /láncos hosszabbítással/);
   });
 });
 
 describe('a választások ellenőrzése', () => {
-  test('mintaismétlés és szegély most csak téglalapnál; a méret és a szög tartományban', () => {
+  test('mintaismétlés most csak téglalapnál, szegély minden formánál; a méret, a szög és a szegélysor ismétlése tartományban', () => {
     assert.match(shapeProblem({ ...DEFAULT_SHAPE, shape: 'diamond', repeat: { width: 4, edge: 1 } }), /csak téglalapnál/);
-    assert.match(shapeProblem({ ...DEFAULT_SHAPE, shape: 'trapezoid', border: { stitch: 'sc', hdcRowEnd: 2 } }), /csak téglalap köré/);
+    assert.equal(shapeProblem({ ...DEFAULT_SHAPE, shape: 'trapezoid', border: { stitch: 'sc', hdcRowEnd: 2 } }), null);
+    assert.match(shapeProblem({ ...DEFAULT_SHAPE, shape: 'trapezoid', border: { stitch: 'sc', hdcRowEnd: 2, repeat: { width: 0, edge: 0 } } }), /szegélysor/);
     assert.match(shapeProblem({ ...DEFAULT_SHAPE, widthCm: Number.NaN }), /szélesség/);
     assert.match(shapeProblem({ ...DEFAULT_SHAPE, shape: 'isosceles-triangle', measure: 'angle', angleDeg: 90 }), /szöge/);
     assert.match(shapeProblem({ ...DEFAULT_SHAPE, repeat: { width: 0, edge: 1 } }), /ismétlés/);

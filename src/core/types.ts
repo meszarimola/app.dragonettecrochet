@@ -171,7 +171,13 @@ export type Anchor =
    * teteje (ennek híján az első pozíció), a végén az utolsó pozíció
    * (border.ts `rowEdges`). Egy sorvégbe több szem is mehet.
    */
-  | { readonly into: 'row-end'; readonly id: NodeId };
+  | { readonly into: 'row-end'; readonly id: NodeId }
+  /**
+   * A láncszem másik oldala (04 §3.4, PQW-890): az ovális 1. köre a láncalap
+   * egyik oldalán végighalad, a másikon vissza. Az `id` a láncalap láncszeme;
+   * egy oldalba több szem is mehet, szaporításként.
+   */
+  | { readonly into: 'underside'; readonly id: NodeId };
 
 /**
  * Szándékos eltérés, amit az ellenőrző nem jelez hibának.
@@ -402,6 +408,16 @@ export interface PieceBorder {
   readonly stitch: StitchDefId;
   /** Félpálcás sorvégre 1 vagy 2 szem: a források vitatják (03 §7.1, §10 H38). */
   readonly hdcRowEnd: 1 | 2;
+  /** Igazítás a következő szegélysor ismétléséhez (PQW-898); hiányában nincs. */
+  readonly repeat?: BorderRepeat;
+}
+
+/** A következő szegélysor ismétlése (03 §7.1 H): a sarkok közötti élek szemszáma „X többszöröse + Y”. */
+export interface BorderRepeat {
+  /** X: egy ismétlés szemei. */
+  readonly width: number;
+  /** Y: élenként a kiegyenlítő szemek. */
+  readonly edge: number;
 }
 
 /** A jelek stílusa: a Craft Yarn Council vagy a japán (JIS) jelkulcs (01 §6). */
@@ -554,7 +570,9 @@ export type ShapeSpec =
       readonly increases: number | null;
       readonly top: PieceEnd;
     }
-  | { readonly kind: 'revolution'; readonly profile: readonly ProfilePoint[]; readonly bottom: PieceEnd; readonly top: PieceEnd };
+  | { readonly kind: 'revolution'; readonly profile: readonly ProfilePoint[]; readonly bottom: PieceEnd; readonly top: PieceEnd }
+  /** Ovális láncalapról (04 §3.4, §9.4, PQW-890): lapos, nyitott széllel; a hossz a hosszabbik méret. */
+  | { readonly kind: 'oval'; readonly lengthCm: number; readonly widthCm: number };
 
 /** Egy rész (pl. fej, test) a darabban: a neve, az első köre és a formája (PQW-863). */
 export interface PieceSection {

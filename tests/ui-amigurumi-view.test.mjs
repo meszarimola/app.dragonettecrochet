@@ -38,6 +38,8 @@ const form = (patch = {}) => ({
   method: '6n',
   diameter: '6',
   height: '8',
+  length: '8',
+  width: '5',
   increases: '',
   profile: '0 0\n2,5 1\n2,5 5\n0 6',
   bottom: 'closed',
@@ -54,7 +56,7 @@ describe('választások és mezők', () => {
   test('formák, a gömb körterve, a végek és a kapcsolás magyar felirattal', () => {
     assert.deepEqual(
       SHAPE_CHOICES.map((choice) => choice.label),
-      ['Gömb', 'Félgömb', 'Tojás', 'Henger', 'Kúp', 'Forgástest (profilból)'],
+      ['Gömb', 'Félgömb', 'Tojás', 'Henger', 'Kúp', 'Forgástest (profilból)', 'Ovális'],
     );
     assert.deepEqual(
       METHOD_CHOICES.map((choice) => choice.value),
@@ -71,10 +73,11 @@ describe('választások és mezők', () => {
   });
 
   test('a formához tartozó mezők', () => {
-    assert.deepEqual(fieldState('sphere'), { method: true, diameter: true, height: false, increases: false, profile: false, bottom: false, top: false });
-    assert.deepEqual(fieldState('cone'), { method: false, diameter: true, height: true, increases: true, profile: false, bottom: false, top: true });
-    assert.deepEqual(fieldState('cylinder'), { method: false, diameter: true, height: true, increases: false, profile: false, bottom: true, top: true });
-    assert.deepEqual(fieldState('revolution'), { method: false, diameter: false, height: false, increases: false, profile: true, bottom: true, top: true });
+    assert.deepEqual(fieldState('sphere'), { method: true, diameter: true, height: false, length: false, width: false, increases: false, profile: false, bottom: false, top: false });
+    assert.deepEqual(fieldState('cone'), { method: false, diameter: true, height: true, length: false, width: false, increases: true, profile: false, bottom: false, top: true });
+    assert.deepEqual(fieldState('cylinder'), { method: false, diameter: true, height: true, length: false, width: false, increases: false, profile: false, bottom: true, top: true });
+    assert.deepEqual(fieldState('revolution'), { method: false, diameter: false, height: false, length: false, width: false, increases: false, profile: true, bottom: true, top: true });
+    assert.deepEqual(fieldState('oval'), { method: false, diameter: false, height: false, length: true, width: true, increases: false, profile: false, bottom: false, top: false });
   });
 });
 
@@ -123,6 +126,15 @@ describe('előnézet és megjegyzések', () => {
   test('a henger a hátsó szálas körrel; a nyitott kezdés figyelmeztet', () => {
     assert.match(previewNote(form({ shape: 'cylinder', diameter: '5', height: '5', top: 'open' }), DK), /Hátsó szálba \(éles törés\): 6\. kör\./);
     assert.match(previewNote(form({ shape: 'cylinder', diameter: '5', height: '5', bottom: 'open' }), DK), /Nyitott kezdés: csak folytatólagosan/);
+  });
+
+  test('az ovális (PQW-890): hossz és szélesség a mezőkből, az összefoglaló a láncszemek számával', () => {
+    assert.deepEqual(shapeOf(form({ shape: 'oval', length: '8', width: '5' })), { kind: 'oval', lengthCm: 8, widthCm: 5 });
+    assert.match(
+      previewNote(form({ shape: 'oval', length: '8', width: '5' }), DK),
+      /^\d+ kör, legfeljebb \d+ szem; hossz kb\. [\d,]+ cm, szélesség kb\. [\d,]+ cm, \d+ láncszemből\. Görbület: /,
+    );
+    assert.match(previewNote(form({ shape: 'oval', length: '3', width: '5' }), DK), /hossza legalább akkora/);
   });
 
   test('hibás méretnél a mag üzenete', () => {

@@ -27,7 +27,7 @@
  * megadott szemszám a gráf számolása (06 §5.3 V3).
  */
 
-import { MIN_BORDER_WIDTH, appendBorder, borderCounts, rowEndStitches, type BorderCounts } from './border.ts';
+import { appendBorder, borderOf, type BorderCounts } from './border.ts';
 import { stitchDimensions, type DimensionBasis } from './gauge.ts';
 import { buildPieceGraph } from './graph.ts';
 import { gaugeContextOf } from './pattern-size.ts';
@@ -208,8 +208,15 @@ export function shapeProblem(options: ShapeOptions): string | null {
     if (!Number.isInteger(edge) || edge < 0 || edge > MAX_REPEAT) return `A szélső szemek száma (Y) 0 és ${MAX_REPEAT} közötti egész szám legyen.`;
   }
   if (options.border) {
-    if (options.shape !== 'rectangle') return 'Szegély most csak téglalap köré készül.';
     if (options.border.stitch !== 'sc') return 'A szegély most csak rövidpálcás lehet.';
+    // Igazítás a következő szegélysor ismétléséhez (PQW-898).
+    const repeat = options.border.repeat;
+    if (repeat && (!Number.isInteger(repeat.width) || repeat.width < 1 || repeat.width > MAX_REPEAT)) {
+      return `A szegélysor ismétlésének szemszáma (X) 1 és ${MAX_REPEAT} közötti egész szám legyen.`;
+    }
+    if (repeat && (!Number.isInteger(repeat.edge) || repeat.edge < 0 || repeat.edge > MAX_REPEAT)) {
+      return `A szegélysor élenkénti kiegyenlítő szemeinek száma (Y) 0 és ${MAX_REPEAT} közötti egész szám legyen.`;
+    }
   }
   return null;
 }
@@ -393,40 +400,65 @@ export function planShape(pattern: Pattern, options: ShapeOptions): ShapePlanRes
     angleDeg = (Math.atan2(run, riseRows * gauge.rowCm) * 180) / Math.PI;
   }
 
-  let border: BorderCounts | null = null;
-  let borderedCm: ShapePlan['borderedCm'] = null;
-  if (options.border) {
-    if (base < MIN_BORDER_WIDTH) return fail(`A szegélyhez a sorban legalább ${MIN_BORDER_WIDTH} szem kell: adj meg nagyobb szélességet.`);
-    border = borderCounts(base, base, rows, rowEndStitches(def, options.border.hdcRowEnd));
-    // A szegély rövidpálcás köre minden oldalon egy rövidpálcás sor magasságát adja.
-    const sc = shapeGauge(pattern, 'sc');
-    borderedCm = {
-      widthCm: widest * gauge.stitchCm + 2 * sc.rowCm,
-      heightCm: heightCm + 2 * sc.rowCm,
-      source: weakestSource([gauge.source, sc.source]),
-    };
-  }
+  const plan: ShapePlan = {
+    shape: options.shape,
+    stitch: options.stitch,
+    gauge,
+    counts,
+    shaping,
+    widthCm: widest * gauge.stitchCm,
+    heightCm,
+    bottomWidthCm: counts[0]! * gauge.stitchCm,
+    topWidthCm: counts[rows - 1]! * gauge.stitchCm,
+    angleDeg,
+    repeats,
+    chainExtensionRows: shaping.flatMap((row, k) => (row.start > MAX_EDGE_CHANGE ? [k] : [])),
+    unworkedRows: shaping.flatMap((row, k) => (row.end < -MAX_EDGE_CHANGE ? [k + 1] : [])),
+    border: null,
+    borderedCm: null,
+  };
+  if (!options.border) return { ok: true, plan };
 
+  // A szegély szemei a sorok gráfjából (PQW-898): ferde élnél a lépcsők meghagyott szemeivel.
+  const counted = borderCountsOf(pattern, options, plan);
+  if (typeof counted === 'string') return fail(counted);
+  // A szegély rövidpálcás köre minden oldalon egy rövidpálcás sor magasságát adja.
+  const sc = shapeGauge(pattern, 'sc');
+  const borderedCm = { widthCm: plan.widthCm + 2 * sc.rowCm, heightCm: heightCm + 2 * sc.rowCm, source: weakestSource([gauge.source, sc.source]) };
+  return { ok: true, plan: { ...plan, border: counted, borderedCm } };
+}
+
+/** A minta konvenciói a formához: mintaismétlésnél az „X többszöröse + Y” a minta konvenciója lesz. */
+function shapeConventions(pattern: Pattern, options: ShapeOptions): Pattern['conventions'] {
+  if (!options.repeat) return pattern.conventions;
   return {
-    ok: true,
-    plan: {
-      shape: options.shape,
-      stitch: options.stitch,
-      gauge,
-      counts,
-      shaping,
-      widthCm: widest * gauge.stitchCm,
-      heightCm,
-      bottomWidthCm: counts[0]! * gauge.stitchCm,
-      topWidthCm: counts[rows - 1]! * gauge.stitchCm,
-      angleDeg,
-      repeats,
-      chainExtensionRows: shaping.flatMap((row, k) => (row.start > MAX_EDGE_CHANGE ? [k] : [])),
-      unworkedRows: shaping.flatMap((row, k) => (row.end < -MAX_EDGE_CHANGE ? [k + 1] : [])),
-      border,
-      borderedCm,
+    ...pattern.conventions,
+    repeat: {
+      repeatWidth: options.repeat.width,
+      edgeStitches: options.repeat.edge,
+      turningChainIncluded: pattern.conventions.repeat?.turningChainIncluded ?? false,
     },
   };
+}
+
+/** A szegély szemszámai a sorok gráfjából (PQW-898); ha a darab köré most nem készíthető, az ok. */
+function borderCountsOf(pattern: Pattern, options: ShapeOptions, plan: ShapePlan): BorderCounts | string {
+  const base: Pattern = { ...pattern, conventions: shapeConventions(pattern, options), pieces: [] };
+  const built = buildRows(base, plan.stitch, plan.counts, plan.shaping, true);
+  if (typeof built === 'string') return built;
+  const piece: Piece = {
+    id: 'p1',
+    name: SHAPE_NAMES[options.shape],
+    stitches: built.stitches,
+    spaces: built.spaces,
+    rings: [],
+    groups: built.groups,
+    events: built.events,
+    skipped: built.skipped,
+  };
+  const whole: Pattern = { ...base, pieces: [piece] };
+  const result = borderOf(buildPieceGraph(whole, piece, libraryFor(whole)), options.border!);
+  return result.ok ? result.counts : result.reason;
 }
 
 /**
@@ -590,17 +622,7 @@ export function generateShape(pattern: Pattern, options: ShapeOptions): ShapeRes
   const planned = planShape(pattern, options);
   if (!planned.ok) return planned;
   const { plan } = planned;
-  const conventions = options.repeat
-    ? {
-        ...pattern.conventions,
-        repeat: {
-          repeatWidth: options.repeat.width,
-          edgeStitches: options.repeat.edge,
-          turningChainIncluded: pattern.conventions.repeat?.turningChainIncluded ?? false,
-        },
-      }
-    : pattern.conventions;
-  const base: Pattern = { ...pattern, conventions, pieces: [] };
+  const base: Pattern = { ...pattern, conventions: shapeConventions(pattern, options), pieces: [] };
   const built = buildRows(base, plan.stitch, plan.counts, plan.shaping, options.border !== null);
   if (typeof built === 'string') return fail(built);
 

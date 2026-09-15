@@ -111,6 +111,16 @@ export interface WorkContext {
 const slotKey = (slot: Slot) => `${slot.kind}:${slot.id}`;
 const anchorKey = (anchor: Anchor) => `${anchor.into}:${anchor.id}`;
 
+/**
+ * A darab lezárult-e (PQW-897): az utolsó réteg után a fonal elvágása, vagy a
+ * kész szegély (zárt kör a sorvégekkel). Utána nincs következő sor vagy kör.
+ */
+export function pieceFinished(graph: PieceGraph | null): boolean {
+  const last = graph?.layers.at(-1);
+  if (!last || last.index === 0 || !last.closing) return false;
+  return last.closing.kind === 'fasten-off' || last.border;
+}
+
 export function contextOf(pattern: Pattern): WorkContext {
   const library = libraryFor(pattern);
   const piece = pieceOf(pattern);
@@ -419,6 +429,8 @@ export function workIntoSame(pattern: Pattern, defId: StitchDefId): EditResult {
   const appended = append(piece, [{ def: part.id, anchors: [anchor] }]);
   // A szegély sorvégeibe a szerkesztő még nem horgol: a szegélyt a Forma szakasz készíti (PQW-889).
   if (anchor.into === 'row-end') return refuse('A szegély sorvégébe a szerkesztőben még nem lehet horgolni.');
+  // A láncszem másik oldalába az ovális generátor horgol (PQW-890).
+  if (anchor.into === 'underside') return refuse('A láncszem másik oldalába a szerkesztőben még nem lehet horgolni.');
   if (anchor.into !== 'stitch') {
     if (!part.insertionModes.includes(anchor.into)) return refuse('Ez a szem ide nem horgolható.');
     return done(withPiece(pattern, appended.piece));

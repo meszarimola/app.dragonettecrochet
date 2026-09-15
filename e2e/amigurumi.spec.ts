@@ -61,3 +61,36 @@ test('fej-test figura varrva: eltérő szemszámnál érthető üzenet, egyenlet
   expect(text).toMatch(/Összeállítás\nVarrás: Test, \d+\. kör \(28\) → Fej, 14\. kör \(30\), a szemeket egyenletesen elosztva\./);
   await expect(page.locator('#amigurumi-figure')).toContainText('A figura magassága kb.');
 });
+
+test('ovális láncalapról (PQW-890): önállóan hibátlan, az 1. kör a láncszemek két oldalán; talpként egy gömbhöz varrva', async ({ page }) => {
+  await open(page);
+  await chooseAmigurumi(page);
+
+  await page.locator('#amigurumi-name').fill('Talp');
+  await page.locator('#amigurumi-shape').selectOption({ label: 'Ovális' });
+  await expect(page.locator('#amigurumi-diameter')).toBeHidden();
+  await page.locator('#amigurumi-length').fill('8');
+  await page.locator('#amigurumi-width').fill('5');
+  await expect(page.locator('#amigurumi-summary')).toContainText('láncszemből');
+  await page.getByRole('button', { name: 'Új minta ebből' }).click();
+  await expect(page.locator('#status')).toContainText('Talp elkészült;');
+  // A lezárt ovális után nincs következő kör (PQW-897).
+  await expect(page.locator('#status')).not.toContainText('következik');
+  await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
+  const text = (await page.locator('#written-text').textContent()) ?? '';
+  expect(text).toMatch(/1\. kör: hagyj ki 1 láncszemet, majd \d+ rp, 4 rp a következő láncszembe, a láncszemek másik oldalán vissza: \d+ rp, 3 rp a következő láncszembe \(\d+\)\./);
+
+  // Részként: előbb a gömb, utána az ovális talp varrva, egyenletes elosztással.
+  await page.locator('#amigurumi-name').fill('Fej');
+  await page.locator('#amigurumi-shape').selectOption({ label: 'Gömb' });
+  await page.getByRole('button', { name: 'Új minta ebből' }).click();
+  await expect(page.locator('#status')).toContainText('Fej elkészült;');
+  await page.locator('#amigurumi-name').fill('Talp');
+  await page.locator('#amigurumi-shape').selectOption({ label: 'Ovális' });
+  await page.locator('#amigurumi-eyes').uncheck();
+  await page.locator('#amigurumi-distribute').check();
+  await page.getByRole('button', { name: 'Hozzáadás részként' }).click();
+  await expect(page.locator('#status')).toContainText('Talp hozzáadva, varrva;');
+  await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
+  await expect(page.locator('#written-text')).toContainText('a láncszemek másik oldalán vissza:');
+});

@@ -488,7 +488,8 @@
                   <label><input type="checkbox" id="shape-border" aria-describedby="shape-border-note" /> Rövidpálcás szegély körben</label>
                 </p>
                 <p class="panel__note" id="shape-border-note">
-                  Sorvégenként rövidpálcás sorra 1, pálcásra 2, kétráhajtásosra 3 rp; a sarkokba 3 rp.
+                  Sorvégenként rövidpálcás sorra 1, pálcásra 2, kétráhajtásosra 3 rp; a sarkokba 3 rp. Ferde élen a lépcsők
+                  meghagyott szemeibe 1-1 rp.
                 </p>
                 <div class="shape__group" id="shape-hdc-field" hidden>
                   <p class="panel__field">
@@ -496,6 +497,24 @@
                     <select id="shape-hdc-row-end" aria-describedby="shape-hdc-note"></select>
                   </p>
                   <p class="panel__note" id="shape-hdc-note">A források eltérnek: van, amelyik 1, van, amelyik 2 rövidpálcát ír.</p>
+                </div>
+                <div class="shape__group" id="shape-border-repeat-field" hidden>
+                  <p class="choice">
+                    <label><input type="checkbox" id="shape-border-repeat" aria-describedby="shape-border-repeat-note" /> Igazítás a következő szegélysor ismétléséhez</label>
+                  </p>
+                  <div class="shape__pair">
+                    <p class="panel__field">
+                      <label for="shape-border-x">X: a szegélysor ismétlésének szemei</label>
+                      <input id="shape-border-x" type="number" min="1" max="50" step="1" value="4" inputmode="numeric" disabled />
+                    </p>
+                    <p class="panel__field">
+                      <label for="shape-border-y">Y: élenként kiegyenlítő szemek</label>
+                      <input id="shape-border-y" type="number" min="0" max="50" step="1" value="0" inputmode="numeric" disabled />
+                    </p>
+                  </div>
+                  <p class="panel__note" id="shape-border-repeat-note">
+                    A sarkok közötti élek szemszáma „X többszöröse + Y” lesz; a különbség egyenletesen elosztva.
+                  </p>
                 </div>
               </div>
               <div class="shape__preview" id="shape-preview-box" hidden>
@@ -832,6 +851,14 @@
               <p class="panel__field" data-field="height">
                 <label for="amigurumi-height">Magasság (cm)</label>
                 <input id="amigurumi-height" type="text" inputmode="decimal" value="8" autocomplete="off" />
+              </p>
+              <p class="panel__field" data-field="length">
+                <label for="amigurumi-length">Hossz (cm)</label>
+                <input id="amigurumi-length" type="text" inputmode="decimal" value="8" autocomplete="off" />
+              </p>
+              <p class="panel__field" data-field="width">
+                <label for="amigurumi-width">Szélesség (cm)</label>
+                <input id="amigurumi-width" type="text" inputmode="decimal" value="5" autocomplete="off" />
               </p>
               <p class="panel__field" data-field="increases">
                 <label for="amigurumi-increases">Szaporítás körönként (tört is, pl. 2,5; üresen a magasságból)</label>

@@ -254,6 +254,12 @@ function stackedIncreases(graph: PieceGraph, complete: (index: number) => boolea
       inRun = false;
       continue;
     }
+    // Az ovális 1. körének végein a csoport a kezdés része, mint a varázskör köre: onnan nem számolunk (PQW-890).
+    if (index === 1 && graph.layers[0]!.undersides.length > 0) {
+      previous = new Map();
+      previousAll = false;
+      continue;
+    }
     const depths = new Map<NodeId, number>();
     const deep: NodeId[] = [];
     for (const increase of increasesOf(graph, layer, graph.layers[index - 1]!)) {

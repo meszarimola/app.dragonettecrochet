@@ -40,6 +40,7 @@ import {
 import { canRedo, canUndo, createHistory, record, redo, undo, type History } from '../core/history.js';
 import { chartGrid, type ChartGrid } from '../core/grid.js';
 import { layoutPattern, type ChartLayout, type Point } from '../core/layout.js';
+import { pieceFinished } from '../core/editor.js';
 import { loadPattern, savePattern } from '../core/pattern-json.js';
 import { aspectStem, gaugeContextOf } from '../core/pattern-size.js';
 import { roundEndFor } from '../core/rounds.js';
@@ -427,6 +428,8 @@ function layerName(context: WorkContext): string {
 function progress(): string {
   const { context, check } = derived;
   if (!context.graph) return '';
+  // A lezárt darab (a fonal elvágása vagy a kész szegély) után nincs következő sor vagy kör (PQW-897).
+  if (pieceFinished(context.graph)) return '';
   if (!context.started) return `${capitalize(layerName(context))} következik.`;
   const count = context.graph.layers[context.layer]?.stitchCount ?? 0;
   const rest = check.remaining > 0 ? `, még ${check.remaining} célpont` : '';

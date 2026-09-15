@@ -24,7 +24,7 @@ import { formatNumber } from './size-view.ts';
 
 export type ShapeKind = ShapeSpec['kind'];
 
-const KINDS: readonly ShapeKind[] = ['sphere', 'hemisphere', 'egg', 'cylinder', 'cone', 'revolution'];
+const KINDS: readonly ShapeKind[] = ['sphere', 'hemisphere', 'egg', 'cylinder', 'cone', 'revolution', 'oval'];
 
 export const SHAPE_CHOICES: readonly Choice<ShapeKind>[] = KINDS.map((value) => ({
   value,
@@ -67,6 +67,9 @@ export interface AmigurumiForm {
   readonly method: SphereMethod;
   readonly diameter: string;
   readonly height: string;
+  /** Az ovális hossza és szélessége (PQW-890). */
+  readonly length: string;
+  readonly width: string;
   readonly increases: string;
   readonly profile: string;
   readonly bottom: PieceEnd;
@@ -83,6 +86,8 @@ export interface FieldState {
   readonly method: boolean;
   readonly diameter: boolean;
   readonly height: boolean;
+  readonly length: boolean;
+  readonly width: boolean;
   readonly increases: boolean;
   readonly profile: boolean;
   readonly bottom: boolean;
@@ -92,8 +97,10 @@ export interface FieldState {
 export function fieldState(shape: ShapeKind): FieldState {
   return {
     method: shape === 'sphere' || shape === 'hemisphere',
-    diameter: shape !== 'revolution',
+    diameter: shape !== 'revolution' && shape !== 'oval',
     height: shape === 'egg' || shape === 'cylinder' || shape === 'cone',
+    length: shape === 'oval',
+    width: shape === 'oval',
     increases: shape === 'cone',
     profile: shape === 'revolution',
     bottom: shape === 'cylinder' || shape === 'revolution',
@@ -148,6 +155,8 @@ export function shapeOf(form: AmigurumiForm): ShapeSpec | string {
       if (typeof profile === 'string') return profile;
       return { kind: 'revolution', profile, bottom: form.bottom, top: form.top };
     }
+    case 'oval':
+      return { kind: 'oval', lengthCm: parseNumber(form.length), widthCm: parseNumber(form.width) };
   }
 }
 
@@ -174,10 +183,14 @@ const range = (from: number, to: number) => (from === to ? `${from}.` : `${from}
 /** A körterv összefoglalója: körszám, méret, görbület körönként, a hátsó szálas körök. */
 export function scheduleSummary(schedule: Schedule, gauge: RoundGauge): string {
   const { counts } = schedule;
-  const before = schedule.start === 'ring' ? 0 : counts[0]!;
+  // Az ovális 1. köre lapos kezdés: a görbület a végek körönkénti szaporításához mérve (PQW-890).
+  const before = schedule.start === 'ring' ? 0 : schedule.oval ? counts[0]! - 2 * schedule.oval.perEnd : counts[0]!;
+  const measures = schedule.oval
+    ? `hossz kb. ${cm(schedule.widthCm)} cm, szélesség kb. ${cm(schedule.oval.widthCm)} cm, ${schedule.oval.chains} láncszemből`
+    : `szélesség kb. ${cm(schedule.widthCm)} cm, magasság kb. ${cm(schedule.heightCm)} cm`;
   const runs = curvatureRuns(diagnoseRounds(counts, gauge, before));
   const parts = [
-    `${counts.length} kör, legfeljebb ${Math.max(...counts)} szem; szélesség kb. ${cm(schedule.widthCm)} cm, magasság kb. ${cm(schedule.heightCm)} cm.`,
+    `${counts.length} kör, legfeljebb ${Math.max(...counts)} szem; ${measures}.`,
     `Görbület: ${runs.map((run) => `${range(run.from, run.to)} kör ${CURVATURE_NAMES[run.curvature]}`).join(', ')}.`,
   ];
   if (schedule.backLoop.length > 0) {
