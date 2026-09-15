@@ -33,6 +33,7 @@
 
 import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
 import { CIRCLE, frameCoords, frameFor, frameNormal, framePoint, frameSide, perimeter, type Point, type RoundFrame } from './polygon.ts';
+import { curveLayout, rowCurve } from './row-curve.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import type { Anchor, NodeId, Pattern, StitchDef, StitchDefId } from './types.ts';
 import { validatePattern } from './validate.ts';
@@ -85,6 +86,8 @@ export interface LayoutOptions {
   readonly columnWidth?: number;
   /** A szár hossza láncszem-magasságból; a felület a jelrajzéval adja át (src/ui/symbols.ts). */
   readonly stemLength?: (chainHeight: number) => number;
+  /** Egyenes sorok a darab íves alakja helyett (PQW-893); a rács ebből számol, és maga görbíti. */
+  readonly straight?: boolean;
 }
 
 export const DEFAULT_COLUMN = 24;
@@ -130,7 +133,12 @@ export function layoutPattern(pattern: Pattern, library: StitchLibrary, options:
   const W = options.columnWidth ?? DEFAULT_COLUMN;
   const stem = options.stemLength ?? defaultStem;
   const raw = new Layouter(graph, W, stem, detachedNodes(pattern, library)).run();
-  return finish(graph, raw, options.mirror ?? false, W);
+  const chart = finish(graph, raw, options.mirror ?? false, W);
+  // Sorban horgolt kendő (PQW-893): az egyenes elrendezés íven vagy megtörve (row-curve.ts), a kézi igazítás nélküli helyekből.
+  const shape = piece.rowShape;
+  if (!shape || options.straight || graph.layers[0]!.shape !== 'row') return chart;
+  const curve = rowCurve(finish(graph, raw, options.mirror ?? false, W, false), shape);
+  return curve ? curveLayout(chart, curve, W) : chart;
 }
 
 /* ---- Egy sor oszlopai ---- */
@@ -631,9 +639,9 @@ class Layouter {
 
 /* ---- Kézi igazítás, tükrözés, befoglaló téglalap ---- */
 
-function finish(graph: PieceGraph, raw: Raw, mirror: boolean, W: number): ChartLayout {
+function finish(graph: PieceGraph, raw: Raw, mirror: boolean, W: number, withPins = true): ChartLayout {
   const offset = (id: NodeId): Point => {
-    const pinned = graph.nodes.get(id)?.pinned;
+    const pinned = withPins ? graph.nodes.get(id)?.pinned : undefined;
     return pinned ? { x: pinned.x, y: pinned.y } : { x: 0, y: 0 };
   };
   const flip = (p: Point): Point => (mirror ? { x: -p.x, y: p.y } : p);

@@ -71,3 +71,50 @@ test('félkör rövidpálcával: sugár, egyenletes szaporítás, hibátlan', as
     /1\. sor: a horogtól számított 3\. láncszemtől kezdve \(a kihagyott láncszemek 1 rp-nek számítanak\) \d+ rp a következő láncszembe \(\d+ szem\)\. Fordítás\./,
   );
 });
+
+/*
+ * Íves és megtört sorok a vásznon (PQW-893): a félkör kupola, a fentről induló
+ * háromszög a gerincnél derékszögben megtört sorokkal. Mindkettő kb. kétszer
+ * olyan széles, mint magas; az egyenes sorokkal rajzolt lapos „V” ennél jóval
+ * szélesebb volt.
+ */
+for (const viewport of [
+  { width: 1440, height: 900 },
+  { width: 1000, height: 506 },
+]) {
+  test(`${viewport.width}×${viewport.height}: a félkör és a háromszög-kendő a vásznon a valós alakjában, hibátlanul`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await open(page);
+    const section = await openShawls(page);
+
+    /** A szemek befoglaló téglalapjának szélesség/magasság aránya, ablak-koordinátában (`window.mintatervezoKijeloles`). */
+    const aspect = () =>
+      page.evaluate(() => {
+        const api = (window as unknown as { mintatervezoKijeloles: { nodes(): { layer: number; x: number; y: number }[] } }).mintatervezoKijeloles;
+        const nodes = api.nodes().filter((node) => node.layer > 0);
+        const xs = nodes.map((node) => node.x);
+        const ys = nodes.map((node) => node.y);
+        return (Math.max(...xs) - Math.min(...xs)) / (Math.max(...ys) - Math.min(...ys));
+      });
+
+    await page.locator('#shawl-kind').selectOption({ label: 'Félkör' });
+    await page.locator('#shawl-stitch').selectOption({ label: 'Rövidpálca' });
+    await page.locator('#shawl-size').fill('8');
+    await section.getByRole('button', { name: 'Minta létrehozása' }).click();
+    await expect(page.locator('#status')).toContainText('Félkör,');
+    await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
+    // Kis darabon a középső lyuk és a lelógó fordulóláncok miatt a kupola arányaiban magasabb; egyenes sorokkal kb. 3 volt.
+    const dome = await aspect();
+    expect(dome).toBeGreaterThan(1.2);
+    expect(dome).toBeLessThan(2.4);
+
+    await page.locator('#shawl-kind').selectOption({ label: 'Fentről induló háromszög' });
+    await page.locator('#shawl-size').fill('8');
+    await section.getByRole('button', { name: 'Minta létrehozása' }).click();
+    await expect(page.locator('#status')).toContainText('Fentről induló háromszög,');
+    await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
+    const triangle = await aspect();
+    expect(triangle).toBeGreaterThan(1.5);
+    expect(triangle).toBeLessThan(2.7);
+  });
+}

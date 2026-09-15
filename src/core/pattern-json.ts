@@ -301,7 +301,7 @@ function readPiece(value: unknown, path: string): Piece {
     value,
     path,
     ['id', 'name', 'stitches', 'spaces', 'rings', 'groups', 'events', 'skipped'],
-    ['corners', 'border', 'sections', 'grid'],
+    ['corners', 'border', 'sections', 'grid', 'rowShape'],
   );
   return {
     id: string(raw['id'], `${path}.id`),
@@ -320,7 +320,25 @@ function readPiece(value: unknown, path: string): Piece {
     ...(raw['border'] === undefined ? {} : { border: readBorder(raw['border'], `${path}.border`) }),
     // A PQW-864 előtti mentésben nincs: a darab nem rácsmintából készült.
     ...(raw['grid'] === undefined ? {} : { grid: readGrid(raw['grid'], `${path}.grid`) }),
+    // A PQW-893 előtti mentésben nincs: a sorok egyenesek.
+    ...(raw['rowShape'] === undefined ? {} : { rowShape: readRowShape(raw['rowShape'], `${path}.rowShape`) }),
   };
+}
+
+/** A sorban horgolt kendő rajzának alakja; a szögek fokban, 0 és 360 között. */
+function readRowShape(value: unknown, path: string): NonNullable<Piece['rowShape']> {
+  const kind = oneOf(isObject(value) ? value['kind'] : undefined, `${path}.kind`, ['arc', 'chevron'] as const);
+  const angle = (raw: JsonObject, key: string) => {
+    const degrees = finite(raw[key], `${path}.${key}`);
+    if (degrees <= 0 || degrees >= 360) throw new FormatError(`${path}.${key}`, '0 és 360 fok közötti szöget vártunk.');
+    return degrees;
+  };
+  if (kind === 'arc') {
+    const raw = object(value, path, ['kind', 'neckAngle']);
+    return { kind, neckAngle: angle(raw, 'neckAngle') };
+  }
+  const raw = object(value, path, ['kind', 'neckAngle', 'tipAngle']);
+  return { kind, neckAngle: angle(raw, 'neckAngle'), tipAngle: angle(raw, 'tipAngle') };
 }
 
 const GRID_TECHNIQUES: readonly GridTechnique[] = ['filet', 'c2c', 'tapestry', 'graphgan', 'mosaic'];
