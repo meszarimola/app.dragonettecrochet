@@ -56,11 +56,15 @@ test('írott minta: a téglalap rögzített szövege a panelben, és jelölésv�
   await expect(text).toContainText('22. sor:');
   expect(comparable((await text.textContent())!)).toBe(comparable(await fixture('hu', 'felpalcas-teglalap')));
 
+  // A jelölés szakasza alapból csukva van (PQW-882).
+  await page.locator('#section-notation').evaluate((el) => { (el as HTMLDetailsElement).open = true; });
   await page.locator('#terms').selectOption('en-US');
   await expect(text).toContainText('Row 22:');
   expect(comparable((await text.textContent())!)).toBe(comparable(await fixture('en-US', 'felpalcas-teglalap')));
   await expect(page.locator('#palette')).toContainText('Half double crochet (hdc)');
 
+  // A jelölés szakasza alapból csukva van (PQW-882).
+  await page.locator('#section-notation').evaluate((el) => { (el as HTMLDetailsElement).open = true; });
   await page.locator('#terms').selectOption('en-GB');
   await expect(text).toContainText('Abbreviations (UK terms)');
   await expect(text).toContainText('15 htr (15 sts)');

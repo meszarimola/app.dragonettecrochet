@@ -55,6 +55,7 @@ import {
 import { buildPalette, type PaletteItem } from './palette.js';
 import { DEFAULT_PATTERN_TYPE, PATTERN_TYPES, isAvailableType, type PatternTypeId } from './pattern-types.js';
 import { applyInk, drawCentered, readInk, shapeBounds, stemLength, symbolShapes, type SymbolOptions } from './symbols.js';
+import { alignTooltips } from './tooltip.js';
 import { writtenView } from './written.js';
 
 function must<T extends Element>(selector: string): T {
@@ -92,9 +93,6 @@ const typesList = must<HTMLUListElement>('#types-list');
 const errorToggle = must<HTMLButtonElement>('#error-toggle');
 const errorCount = must<HTMLElement>('#error-count');
 const errorsPop = must<HTMLElement>('#errors');
-const stitchToggle = must<HTMLButtonElement>('#stitch-toggle');
-const stitchMenu = must<HTMLElement>('#stitch-menu');
-const stitchCurrent = must<HTMLElement>('#stitch-current');
 
 const STORAGE_KEY = 'dc-mintatervezo:minta';
 const SETTINGS_KEY = 'dc-mintatervezo:nezet';
@@ -556,10 +554,7 @@ function stitchButton(item: PaletteItem): HTMLButtonElement {
   }
 
   // A kiválasztott jelre újra kattintva megszűnik a kijelölés.
-  button.addEventListener('click', () => {
-    select(tool === item.def.id ? null : item.def.id);
-    closePopover(stitchMenu, stitchToggle);
-  });
+  button.addEventListener('click', () => select(tool === item.def.id ? null : item.def.id));
   return button;
 }
 
@@ -571,7 +566,6 @@ function select(id: StitchDefId | null): void {
 
   const item = items.find((candidate) => candidate.def.id === id);
   const kind = item?.def.kind;
-  stitchCurrent.textContent = item ? item.name : 'Válassz szemet';
   countField.hidden = kind !== 'chain' && kind !== 'space';
   if (!item) hint.textContent = 'Válassz szemet. Szem nélkül kattintással a jelet jelölöd ki, és igazíthatod.';
   else if (kind === 'chain' || kind === 'space') hint.textContent = `${item.name}: Enterrel vagy a vászonra kattintva horgolod, a megadott számú láncszemmel.`;
@@ -829,7 +823,7 @@ titleInput.addEventListener('change', () => {
 
 countInput.addEventListener('change', () => refresh());
 
-/* ---- Legördülő menük (szemválasztó, hibalista) ---- */
+/* ---- Legördülő menü (hibalista) ---- */
 
 function openPopover(pop: HTMLElement, button: HTMLButtonElement): void {
   pop.hidden = false;
@@ -848,13 +842,11 @@ function togglePopover(pop: HTMLElement, button: HTMLButtonElement): void {
 
 function closeAllPopovers(): void {
   closePopover(errorsPop, errorToggle);
-  closePopover(stitchMenu, stitchToggle);
 }
 
 errorToggle.addEventListener('click', () => togglePopover(errorsPop, errorToggle));
-stitchToggle.addEventListener('click', () => togglePopover(stitchMenu, stitchToggle));
 
-// A menün kívülre kattintva a legördülők bezárulnak.
+// A menün kívülre kattintva a hibalista bezárul.
 document.addEventListener('click', (event) => {
   if (!(event.target as Element).closest('.menu')) closeAllPopovers();
 });
@@ -1041,12 +1033,11 @@ document.addEventListener('keydown', (event) => {
   if (target.closest('input, textarea, select')) return;
   const key = event.key;
 
-  // Nyitott legördülőt az Escape először bezár, és a fókuszt visszaviszi a gombra.
-  if (key === 'Escape' && (!errorsPop.hidden || !stitchMenu.hidden)) {
+  // A nyitott hibalistát az Escape először bezárja, és a fókuszt visszaviszi a gombra.
+  if (key === 'Escape' && !errorsPop.hidden) {
     event.preventDefault();
-    const button = !stitchMenu.hidden ? stitchToggle : errorToggle;
     closeAllPopovers();
-    button.focus();
+    errorToggle.focus();
     return;
   }
 
@@ -1140,4 +1131,5 @@ setOpen(panel, toggle, !NARROW.matches);
 setOpen(written, writtenToggle, readWrittenOpen() && !NARROW.matches);
 select(null);
 fitBoard();
+alignTooltips(must<HTMLElement>('.tools'));
 setupConsentBanner(GA_MEASUREMENT_ID);

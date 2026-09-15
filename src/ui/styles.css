@@ -198,7 +198,7 @@ button {
   gap: 0.75rem;
 }
 
-/* Az első sor jobb szélén a legördülők és a panelkapcsolók. */
+/* Az első sor jobb szélén a hibalista és a panelkapcsolók. */
 .bar__end {
   order: 1;
   display: flex;
@@ -556,22 +556,6 @@ body.is-armed #board {
 
 .errors .check__list {
   max-block-size: none;
-}
-
-/* Szemválasztó: a gomb az aktuális szemet mutatja. */
-.bar__toggle--stitch {
-  justify-content: space-between;
-  min-inline-size: 11rem;
-}
-
-.stitch-toggle__label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.stitch-menu .panel__hint {
-  margin: 0 0 0.75rem;
 }
 
 /* ---- Panel: mezők, ellenőrzés, billentyűk ---- */
@@ -1012,4 +996,112 @@ body.is-armed #board {
 .type__badge {
   grid-column: 2;
   justify-self: start;
+}
+
+/* ---- Jobb oldali panel: összecsukható szakaszok (PQW-882) ---- */
+
+/* A szemek a panel tetején, mindig kéznél; a ritkán állított jelölés alapból csukva. */
+.section {
+  margin-block-end: 0.75rem;
+  padding-block-end: 0.75rem;
+  border-block-end: 1px solid var(--c-line);
+}
+
+.section:not([open]) {
+  padding-block-end: 0;
+}
+
+.section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-block-size: 44px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.section__head::-webkit-details-marker {
+  display: none;
+}
+
+.section__head .panel__title {
+  margin: 0;
+}
+
+.section__head:hover .panel__title {
+  color: var(--c-accent);
+}
+
+.section__head::after {
+  content: '';
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  margin-inline-end: 0.25rem;
+  border-inline-end: 1.5px solid var(--c-muted);
+  border-block-end: 1.5px solid var(--c-muted);
+  transform: translateY(-0.15rem) rotate(45deg);
+}
+
+.section[open] > .section__head::after {
+  transform: translateY(0.1rem) rotate(-135deg);
+}
+
+.section .count {
+  margin: 0 0 1rem;
+}
+
+/* ---- Tooltip a menüsor ikongombjain (PQW-882) ---- */
+
+/* Azonnal, egér alatt és billentyűzetes fókusznál is, inaktív gombon is.
+ * Az inaktív gombnál csak az ikon halványul, hogy a tooltip olvasható maradjon. */
+.tools .tool:disabled {
+  opacity: 1;
+  color: var(--c-muted);
+}
+
+.tools .tool:disabled .icon {
+  opacity: 0.5;
+}
+
+.tools .tool[data-tip] {
+  position: relative;
+}
+
+.tools .tool[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  z-index: 30;
+  inset-block-start: calc(100% + 0.4rem);
+  inset-inline-start: 50%;
+  display: none;
+  inline-size: max-content;
+  max-inline-size: 22rem;
+  padding: 0.3rem 0.55rem;
+  border-radius: 6px;
+  background: var(--c-ink);
+  color: var(--c-bg);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  text-align: start;
+  white-space: normal;
+  pointer-events: none;
+  translate: -50% 0;
+}
+
+/* Az ablak szélén a felirat a gomb széléhez igazodik (src/ui/tooltip.ts). */
+.tools .tool[data-tip-align='start']::after {
+  inset-inline-start: 0;
+  translate: none;
+}
+
+.tools .tool[data-tip-align='end']::after {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+  translate: none;
+}
+
+.tools .tool[data-tip]:hover::after,
+.tools .tool[data-tip]:focus-visible::after {
+  display: block;
 }
