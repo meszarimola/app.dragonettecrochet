@@ -158,6 +158,8 @@ for (const viewport of [
     await page.keyboard.press('s');
 
     await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
+    // A lecsukott írott minta nem frissül: újra kinyitva olvassuk.
+    if (await page.locator('#written').isHidden()) await page.locator('#written-toggle').click();
     await expect(page.locator('#written-text')).toContainText(
       '1. kör: hagyj ki 1 láncszemet, majd 6 rp, 4 rp a következő láncszembe, a láncszemek másik oldalán vissza: 5 rp, 3 rp a következő láncszembe (18).',
     );
