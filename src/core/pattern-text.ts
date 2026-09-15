@@ -18,7 +18,7 @@
  */
 
 import { dative, times } from './hungarian.ts';
-import { writtenPieces, type Step, type StepTarget, type WrittenLayer, type WrittenPiece } from './pattern-steps.ts';
+import { writtenPieces, type Step, type StepTarget, type WrittenBorder, type WrittenLayer, type WrittenPiece } from './pattern-steps.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { stitchLabel, stitchStructure } from './stitchText.ts';
 import type { Locale, Pattern, StitchDef, StitchDefId, StitchInsertion } from './types.ts';
@@ -72,6 +72,20 @@ export interface Vocabulary {
   readonly join: (slip: string, to: 'turning-chain' | 'first-stitch') => string;
   /** Nem szemnévből jövő rövidítések, ha a szövegben előfordulnak. */
   readonly general: readonly { readonly abbr: string; readonly meaning: string; readonly used: RegExp }[];
+  /** A szegély köre a sorok után (PQW-862, 03 §7.1); a `prefix`-ről ismeri fel a visszaolvasó. */
+  readonly border: { readonly prefix: string; readonly text: (parts: BorderParts) => string };
+}
+
+/** A szegély sorának kiírt részei, mennyiséggel együtt: „3 rp”, „(288 szem)”. */
+export interface BorderParts {
+  readonly turning: string;
+  readonly corner: string;
+  readonly top: string;
+  readonly bottom: string;
+  readonly perRow: string;
+  readonly side: string;
+  readonly count: string;
+  readonly join: string;
 }
 
 const HU: Vocabulary = {
@@ -136,6 +150,14 @@ const HU: Vocabulary = {
     { abbr: 'Herp', meaning: 'hátsó relief egyráhajtásos pálca (hátulról hurkolt)', used: /\bHerp\b/ },
     { abbr: 'hsz', meaning: 'hátsó szálba', used: /\(hsz\)/ },
   ],
+  border: {
+    prefix: 'Szegély: ',
+    text: (p) =>
+      `Szegély: ${p.turning}, felső él: ${p.corner} a sarokszembe, ${p.top}, ${p.corner} a sarokszembe; ` +
+      `oldal: soronként ${p.perRow} a sor végére (${p.side}); ` +
+      `alsó él: ${p.corner} a sarokba, ${p.bottom} a láncalap láncszemeibe, ${p.corner} a sarokba; ` +
+      `másik oldal: soronként ${p.perRow} a sor végére (${p.side}) ${p.count}. ${p.join}`,
+  },
 };
 
 /** A beszúrási módok a jóváhagyott szókészlet §3 szerint; az „esz” jóváhagyásra vár (PQW-869). */
@@ -209,6 +231,14 @@ function english(skipWord: string, skipMeaning: string, system: string, color: s
       { abbr: 'st(s)', meaning: 'stitch(es)', used: /\bsts?\b/ },
       { abbr: 'tog', meaning: 'together', used: /\dtog\b/ },
     ],
+    border: {
+      prefix: 'Border: ',
+      text: (p) =>
+        `Border: ${p.turning}, top edge: ${p.corner} in corner st, ${p.top}, ${p.corner} in corner st; ` +
+        `side: ${p.perRow} in each row end (${p.side}); ` +
+        `bottom edge: ${p.corner} in corner, ${p.bottom} along foundation ch, ${p.corner} in corner; ` +
+        `other side: ${p.perRow} in each row end (${p.side}) ${p.count}. ${p.join}`,
+    },
   };
 }
 
@@ -381,6 +411,11 @@ export function renderStep(step: Step, library: StitchLibrary, locale: Locale, c
   return renderer.step(step);
 }
 
+/** A szegély sora; a visszaolvasó ezzel ellenőrzi, hogy a szegélyt pontosan így írnánk-e ki (PQW-862). */
+export function renderBorder(border: WrittenBorder, library: StitchLibrary, locale: Locale): string {
+  return new Renderer(library, locale, new Map()).border(border);
+}
+
 class Renderer {
   private readonly library: StitchLibrary;
   private readonly locale: Locale;
@@ -424,7 +459,27 @@ class Renderer {
       lines.push(`${label}: ${bodies[i]}`);
       i = j + 1;
     }
+    if (piece.border) lines.push(this.border(piece.border));
     return lines;
+  }
+
+  /** A szegély köre: sarkonként 3 szem, a felső élen szemenként, az oldalon sorvégenként, a láncalap mentén láncszemenként (03 §7.1). */
+  border({ stitch, counts }: WrittenBorder): string {
+    const v = this.vocabulary;
+    const def = this.def(stitch);
+    const slip = this.byKind('slip');
+    for (const used of [def, this.byKind('chain'), slip]) this.use(used);
+    const quantity = (n: number) => v.quantity(n, refOf(def, this.locale));
+    return v.border.text({
+      turning: v.turningChain(def.turningChain, v.turningChainNotCounted),
+      corner: quantity(counts.corner),
+      top: quantity(counts.top),
+      bottom: quantity(counts.bottom),
+      perRow: quantity(counts.perRow),
+      side: quantity(counts.side),
+      count: v.count(counts.total),
+      join: v.join(refOf(slip, this.locale), 'first-stitch'),
+    });
   }
 
   /** Egy sor a címke nélkül: „15 fp (15 szem). Fordítás.” */

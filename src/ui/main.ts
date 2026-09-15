@@ -84,6 +84,7 @@ import { InsertionPanel } from './insertion-panel.js';
 import { insertionSuffix } from './insertion-view.js';
 import { nodeInsertions } from '../core/insertion.js';
 import { RoundsPanel } from './rounds-panel.js';
+import { ShapesPanel } from './shapes-panel.js';
 import { SizePanel } from './size-panel.js';
 import { DEFAULT_PATTERN_TYPE, PATTERN_TYPES, gridKind, isAvailableType, type PatternTypeId } from './pattern-types.js';
 import { applyInk, drawCentered, readInk, shapeBounds, stemLength, symbolShapes, type SymbolOptions } from './symbols.js';
@@ -340,6 +341,7 @@ function refresh(message?: string): void {
   updateWritten();
   sizePanel.update(derived.pattern, derived.context.graph, derived.context.library);
   roundsPanel.update(derived.pattern);
+  shapesPanel.update(derived.pattern);
   if (message !== undefined) announce(message);
 }
 
@@ -1618,6 +1620,18 @@ const sizePanel = new SizePanel(must<HTMLDetailsElement>('#section-size'), {
 /* ---- Kör és motívum (PQW-861) ---- */
 
 const roundsPanel = new RoundsPanel(must<HTMLDetailsElement>('#section-rounds'), {
+  commit: (pattern, message) => {
+    selectedNode = null;
+    selection = [];
+    commit({ ok: true, pattern }, message);
+    fitBoard();
+  },
+  announce,
+});
+
+/* ---- Forma (PQW-862) ---- */
+
+const shapesPanel = new ShapesPanel(must<HTMLDetailsElement>('#section-shape'), {
   commit: (pattern, message) => {
     selectedNode = null;
     selection = [];

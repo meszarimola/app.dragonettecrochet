@@ -1177,6 +1177,78 @@ body.is-selecting #board {
   justify-self: start;
 }
 
+/* ---- Forma (PQW-862) ---- */
+
+.shape,
+.shape__group {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.shape__group {
+  gap: 0.5rem;
+}
+
+.shape [hidden] {
+  display: none;
+}
+
+.shape .panel__field,
+.shape .panel__note,
+.shape .choice {
+  margin: 0;
+}
+
+.shape .panel__field {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.shape__pair {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.shape__preview svg {
+  display: block;
+  inline-size: 100%;
+  max-block-size: 9rem;
+}
+
+.shape__piece {
+  fill: var(--c-row-a);
+  stroke: var(--c-ink);
+  stroke-width: 1.5;
+}
+
+.shape__border {
+  fill: var(--c-row-b);
+  stroke: var(--c-ink-wrong);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+
+.shape__size {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--c-ink);
+}
+
+.shape__details {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.25rem 0 0;
+  padding-inline-start: 1.1rem;
+  font-size: 0.8125rem;
+  color: var(--c-text-soft);
+}
+
+.shape__create {
+  justify-self: start;
+}
+
 /* ---- Méret és fonal (PQW-859) ---- */
 
 .size {
