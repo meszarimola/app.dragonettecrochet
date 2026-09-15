@@ -77,4 +77,12 @@ test('egyenlő szárú háromszög az él szögéből, és szegélyes téglalap:
   await expect(page.locator('#status')).toContainText('Téglalap,');
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
   await expect(page.locator('#written-text')).toContainText(/Szegély: 1 lsz \(nem számít szemnek\), felső él: 3 rp a sarokszembe, .*Kör zárása: 1 ksz az első szembe\./);
+
+  // A szegély a vásznon is réteg a darab körül (PQW-889): a terv szerinti rövidpálcák, 1 lsz és a záró ksz.
+  const total = Number(/Szegély: (\d+) rp körben/.exec((await page.locator('#shape-details').textContent()) ?? '')?.[1]);
+  const placed = await page.evaluate(() => (window as unknown as { mintatervezoKijeloles: { nodes: () => { layer: number; y: number }[] } }).mintatervezoKijeloles.nodes());
+  const borderLayer = Math.max(...placed.map((node) => node.layer));
+  expect(placed.filter((node) => node.layer === borderLayer)).toHaveLength(total + 2);
+  const rowsTop = Math.min(...placed.filter((node) => node.layer > 0 && node.layer < borderLayer).map((node) => node.y));
+  expect(placed.some((node) => node.layer === borderLayer && node.y < rowsTop)).toBe(true);
 });
