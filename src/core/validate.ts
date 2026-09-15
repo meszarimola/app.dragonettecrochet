@@ -17,7 +17,7 @@
  */
 
 import { amigurumiFindings } from './amigurumi.ts';
-import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
+import { buildPieceGraph, spacePositions, type LayerInfo, type PieceGraph } from './graph.ts';
 import { modeAsWorked } from './insertion.ts';
 import { roundFindings } from './rounds.ts';
 import { RULES, type RuleId } from './rules.ts';
@@ -225,7 +225,8 @@ function checkLayer(
       if (targetLayer < index - 1 && node.flags?.includes('spike') && !workedBetween(graph, targets, targetLayer, index)) {
         return; // Hosszú szem: nem az előző sor pozícióját használja fel.
       }
-      const indices = targets.map((target) => positionIndex.get(target));
+      const positions = anchor.into === 'space' ? spacePositions(below, graph.spaces.get(anchor.id)!) : targets;
+      const indices = positions.map((target) => positionIndex.get(target));
       if (targetLayer !== index - 1 || indices.some((i) => i === undefined)) {
         report('anchor-layer', [id]);
         layerInvalid = true;
@@ -436,6 +437,8 @@ function isWorkedInto(graph: PieceGraph, chain: NodeId): boolean {
  * magasságra kell érnie (03 §10 D19, 03 §2.3).
  */
 function checkHeights(graph: PieceGraph, invalidAnchors: ReadonlySet<string>, report: Report): void {
+  // A C2C-csempék sorában a kúszószem és a pálca szándékosan eltérő magas: a csempék átlósan fekszenek (03 §5.5, PQW-864).
+  if (graph.piece.grid?.technique === 'c2c') return;
   const height = new Map<NodeId, number>();
   const counting = (layer: LayerInfo) =>
     layer.stitches.filter((id) => {

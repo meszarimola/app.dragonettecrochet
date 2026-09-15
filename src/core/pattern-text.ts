@@ -50,6 +50,8 @@ export interface Vocabulary {
   readonly fromHook: (chain: number, note: string | null) => string;
   /** Az 1. sor kihagyott láncszemei mint szem: „1 erp-nek számítanak”. */
   readonly skippedChainsCount: (def: StitchDef, locale: Locale) => string;
+  /** Ugyanez, ha a láncalap az első láncszemeket is tartalmazza (filé nyitott kezdés, 03 §5.2): „1 erp-nek és 2 lsz-nek”. */
+  readonly skippedChainsWithChains: (def: StitchDef, locale: Locale, chains: number) => string;
   readonly count: (n: number) => string;
   readonly chain: (n: number) => string;
   readonly skip: (n: number, what: 'stitch' | 'chain' | 'space') => string;
@@ -122,6 +124,7 @@ const HU: Vocabulary = {
       : 'Lépcsőjavítás: az új színt a következő kör első szemének hátsó szálába kapcsold be.',
   fromHook: (chain, note) => `a horogtól számított ${chain}. láncszemtől kezdve${note ? ` (${note})` : ''} `,
   skippedChainsCount: (def, locale) => `a kihagyott láncszemek 1 ${huDative(def, locale)} számítanak`,
+  skippedChainsWithChains: (def, locale, chains) => `a kihagyott láncszemek 1 ${huDative(def, locale)} és ${chains} lsz-nek számítanak`,
   count: (n) => `(${n} szem)`,
   chain: (n) => `${n} lsz`,
   skip: (n, what) => `${n} ${what === 'stitch' ? 'szem' : what === 'chain' ? 'láncszem' : 'láncív'} kihagyása`,
@@ -212,6 +215,7 @@ function english(skipWord: string, skipMeaning: string, system: string, color: s
       fix === 'slip-stitch' ? `Jog fix: work first st of next rnd as ${slip}.` : `Jog fix: join new ${color} in back loop of first st of next rnd.`,
     fromHook: (chain, note) => `Starting in ${ordinal(chain)} ch from hook${note ? ` (${note})` : ''}, `,
     skippedChainsCount: (def, locale) => `skipped ch count as 1 ${refOf(def, locale)}`,
+    skippedChainsWithChains: (def, locale, chains) => `skipped ch count as 1 ${refOf(def, locale)} and ch ${chains}`,
     count: (n) => `(${n} ${n === 1 ? 'st' : 'sts'})`,
     chain: (n) => `ch ${n}`,
     skip: (n, what) =>
@@ -550,7 +554,13 @@ class Renderer {
     if (layer.fromHook) {
       const counts = layer.fromHook.countsAs === null ? null : this.def(layer.fromHook.countsAs);
       if (counts) this.use(counts);
-      prefix = v.fromHook(layer.fromHook.chain, counts ? v.skippedChainsCount(counts, this.locale) : null);
+      const { chains } = layer.fromHook;
+      const note = counts
+        ? chains > 0
+          ? v.skippedChainsWithChains(counts, this.locale, chains)
+          : v.skippedChainsCount(counts, this.locale)
+        : null;
+      prefix = v.fromHook(layer.fromHook.chain, note);
     }
     const items = this.steps(layer.steps);
     let text = `${prefix}${items} ${this.round ? v.roundCount(layer.stitchCount) : v.count(layer.stitchCount)}.`;

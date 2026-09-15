@@ -29,7 +29,7 @@
  */
 
 import { borderOf, type BorderCounts } from './border.ts';
-import { buildPieceGraph, type PieceGraph } from './graph.ts';
+import { buildPieceGraph, spacePositions, type PieceGraph } from './graph.ts';
 import { modeAsWorked } from './insertion.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { hasBaseChain, traditionOf } from './tradition.ts';
@@ -65,7 +65,16 @@ export interface WrittenLayer {
   readonly shape: 'row' | 'round';
   readonly side: 'right' | 'wrong';
   /** Az 1. sor a láncalapon: a horogtól számított hányadik láncszemnél kezd, és mit ér a kihagyott rész. */
-  readonly fromHook: { readonly chain: number; readonly countsAs: StitchDefId | null } | null;
+  readonly fromHook: {
+    readonly chain: number;
+    readonly countsAs: StitchDefId | null;
+    /**
+     * A láncalap folytatásaként kiírt sor eleji láncszemek: számító
+     * fordulóláncnál a láncív és a kihagyott láncszemek a láncalapba kerülnek
+     * (filé nyitott kezdés: 3N + 5 lsz, a 8. láncszemtől, 03 §5.2). Máskor 0.
+     */
+    readonly chains: number;
+  } | null;
   readonly steps: readonly Step[];
   /** Szemszám, ahogy a gráf számolja (graph.ts). */
   readonly stitchCount: number;
@@ -123,15 +132,13 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
   if (base.closing !== null && !chainRing) throw new WrittenPatternError('A láncalapon lévő esemény még nem írható ki.', [base.closing.after]);
 
   const row1 = graph.layers[1];
+  const kind: WrittenPiece['foundation']['kind'] = chainRing ? 'chain-ring' : onChain ? 'chain' : 'ring';
+  const layers = graph.layers.slice(1).map((_, i) => writtenLayer(graph, i + 1, kind, library, traditionOf(pattern.conventions)));
   const foundation: WrittenPiece['foundation'] = chainRing
     ? { kind: 'chain-ring', count: base.stitches.length }
     : onChain
-      ? { kind: 'chain', count: base.stitches.length + (row1?.turningChain.length ?? 0) }
+      ? { kind: 'chain', count: base.stitches.length + (row1?.turningChain.length ?? 0) + (layers[0]?.fromHook?.chains ?? 0) }
       : { kind: 'ring' };
-
-  const layers = graph.layers
-    .slice(1)
-    .map((_, i) => writtenLayer(graph, i + 1, foundation.kind, library, traditionOf(pattern.conventions)));
   let border: WrittenBorder | null = null;
   if (piece.border) {
     const result = borderOf(graph, piece.border);
@@ -185,7 +192,7 @@ function writtenLayer(
     if (anchor.into === 'ring') return { target: 'ring', mode: 'both-loops', into: 'stitch' };
     if (anchor.into === 'space') {
       if (anchor.id === ringSpace) return { target: 'chain-ring', mode: 'both-loops', into: 'stitch' };
-      const chains = graph.spaces.get(anchor.id)!.chains.map((id) => workingIndex.get(id));
+      const chains = spacePositions(below, graph.spaces.get(anchor.id)!).map((id) => workingIndex.get(id));
       if (chains.some((w) => w === undefined)) throw unsupported('olyan láncívbe kapaszkodik, amely nincs a megfelelő helyen', owner);
       const min = Math.min(...(chains as number[]));
       const max = Math.max(...(chains as number[]));
@@ -306,11 +313,23 @@ function writtenLayer(
     joinTo = layer.turningChainCounts ? 'turning-chain' : 'first-stitch';
   }
 
+  // Számító fordulóláncnál a sor eleji láncív és a kihagyott láncszemek a láncalap folytatása (filé nyitott kezdés, 03 §5.2).
+  let leadChains = 0;
+  let leadSkipped = 0;
+  const [firstStep, secondStep] = steps;
+  if (hookRow && countsAs !== null && firstStep?.kind === 'chain' && secondStep?.kind === 'skip' && secondStep.what === 'chain') {
+    leadChains = firstStep.count;
+    leadSkipped = secondStep.count;
+    steps.splice(0, 2);
+  }
+
   return {
     index,
     shape: layer.shape,
     side: layer.side,
-    fromHook: hookRow ? { chain: layer.turningChain.length + (baseChain ? 2 : 1), countsAs } : null,
+    fromHook: hookRow
+      ? { chain: layer.turningChain.length + (baseChain ? 2 : 1) + leadChains + leadSkipped, countsAs, chains: leadChains }
+      : null,
     steps: foldRepeats(mergeSteps(steps, library), layer.shape === 'round'),
     stitchCount: layer.stitchCount,
     closing: layer.closing?.kind ?? null,
