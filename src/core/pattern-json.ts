@@ -24,6 +24,7 @@ import type {
   PatternGaugeProfile,
   PatternNotation,
   Piece,
+  PieceBorder,
   RepeatSpec,
   Ring,
   RowConventions,
@@ -282,7 +283,7 @@ function readRepeat(value: unknown, path: string): RepeatSpec {
 }
 
 function readPiece(value: unknown, path: string): Piece {
-  const raw = object(value, path, ['id', 'name', 'stitches', 'spaces', 'rings', 'groups', 'events', 'skipped'], ['corners']);
+  const raw = object(value, path, ['id', 'name', 'stitches', 'spaces', 'rings', 'groups', 'events', 'skipped'], ['corners', 'border']);
   return {
     id: string(raw['id'], `${path}.id`),
     name: text(raw['name'], `${path}.name`),
@@ -294,6 +295,16 @@ function readPiece(value: unknown, path: string): Piece {
     skipped: array(raw['skipped'], `${path}.skipped`, string),
     // A PQW-861 előtti mentésben nincs: a körökben horgolt darab kör.
     ...(raw['corners'] === undefined ? {} : { corners: integer(raw['corners'], `${path}.corners`, 3) }),
+    // A PQW-862 előtti mentésben nincs: a darabnak nincs szegélye.
+    ...(raw['border'] === undefined ? {} : { border: readBorder(raw['border'], `${path}.border`) }),
+  };
+}
+
+function readBorder(value: unknown, path: string): PieceBorder {
+  const raw = object(value, path, ['stitch', 'hdcRowEnd']);
+  return {
+    stitch: oneOf(raw['stitch'], `${path}.stitch`, ['sc'] as const),
+    hdcRowEnd: oneOf(raw['hdcRowEnd'], `${path}.hdcRowEnd`, [1, 2] as const),
   };
 }
 

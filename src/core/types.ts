@@ -306,6 +306,20 @@ export interface Piece {
    * sokszögé (04 §6.1). Hiányában a körökben horgolt darab kör.
    */
   readonly corners?: number;
+  /**
+   * Szegély a darab körül (PQW-862). Csak a választás tárolódik: a szemszámot
+   * az írott minta a sorokból számolja (border.ts). A gráfban még nincs
+   * csomópontja, mert a sorvégbe horgolt szem célpontját a gráf nem ismeri.
+   */
+  readonly border?: PieceBorder;
+}
+
+/** A szegély választásai (PQW-862, 03 §7.1). */
+export interface PieceBorder {
+  /** A szegély szeme; most csak rövidpálca. */
+  readonly stitch: StitchDefId;
+  /** Félpálcás sorvégre 1 vagy 2 szem: a források vitatják (03 §7.1, §10 H38). */
+  readonly hdcRowEnd: 1 | 2;
 }
 
 /** A jelek stílusa: a Craft Yarn Council vagy a japán (JIS) jelkulcs (01 §6). */
