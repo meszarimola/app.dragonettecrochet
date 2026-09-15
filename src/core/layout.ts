@@ -29,6 +29,7 @@
 import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import type { Anchor, NodeId, Pattern, StitchDef, StitchDefId } from './types.ts';
+import { validatePattern } from './validate.ts';
 
 export interface Point {
   readonly x: number;
@@ -90,6 +91,27 @@ const SLIP_HEIGHT = 6;
 
 const EMPTY: ChartLayout = { nodes: new Map(), layers: [], bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0 } };
 
+/**
+ * A hibás célpontú szemek (elrontott vagy félrehorgolt), amelyeknek a szárát a
+ * saját oszlopában, normál méretben rajzoljuk, nem a távoli célpontig nyújtva:
+ * a később készülő, korábbi sorba vagy a haladási irány ellen mutató célpont
+ * (PQW-879). A szabályozott, jelölt nyúlás (keresztezett, hosszú szem, relief)
+ * ezekhez nem tartozik, mert az ellenőrző sem jelzi hibának.
+ */
+const DETACHED_RULES = new Set(['future-anchor', 'anchor-layer', 'against-direction', 'turning-chain-placement']);
+
+/** A hibás célpontú szemek azonosítói az ellenőrző találataiból. */
+function detachedNodes(pattern: Pattern, library: StitchLibrary): Set<NodeId> {
+  const set = new Set<NodeId>();
+  for (const finding of validatePattern(pattern, library)) {
+    if (!DETACHED_RULES.has(finding.rule)) continue;
+    // A haladási irány elleni találat a megelőző (helyes) szemet is felsorolja; a hibás az utolsó.
+    const nodes = finding.rule === 'against-direction' ? finding.nodes.slice(-1) : finding.nodes.slice(0, 1);
+    for (const id of nodes) set.add(id);
+  }
+  return set;
+}
+
 export function layoutPattern(pattern: Pattern, library: StitchLibrary, options: LayoutOptions = {}): ChartLayout {
   const piece = pattern.pieces[0];
   if (!piece || piece.stitches.length === 0) return EMPTY;
@@ -101,7 +123,7 @@ export function layoutPattern(pattern: Pattern, library: StitchLibrary, options:
   }
   const W = options.columnWidth ?? DEFAULT_COLUMN;
   const stem = options.stemLength ?? defaultStem;
-  const raw = new Layouter(graph, W, stem).run();
+  const raw = new Layouter(graph, W, stem, detachedNodes(pattern, library)).run();
   return finish(graph, raw, options.mirror ?? false, W);
 }
 
@@ -164,6 +186,8 @@ class Layouter {
   readonly #W: number;
   readonly #stem: (chainHeight: number) => number;
   readonly #round: boolean;
+  /** Hibás célpontú szemek: a száruk a saját oszlopukban, normál méretben áll. */
+  readonly #detached: ReadonlySet<NodeId>;
   readonly #nodes = new Map<NodeId, NodePlacement>();
   readonly #layers: LayerPlacement[] = [];
   /** Sorban a vízszintes oszlop, körben a szög (radián). */
@@ -171,10 +195,11 @@ class Layouter {
   /** Rétegenként a talpvonal: sorban y, körben sugár. */
   readonly #base: number[] = [];
 
-  constructor(graph: PieceGraph, W: number, stem: (chainHeight: number) => number) {
+  constructor(graph: PieceGraph, W: number, stem: (chainHeight: number) => number, detached: ReadonlySet<NodeId> = new Set()) {
     this.#graph = graph;
     this.#W = W;
     this.#stem = stem;
+    this.#detached = detached;
     this.#round = graph.layers[0]!.shape === 'round';
   }
 
@@ -344,7 +369,11 @@ class Layouter {
         this.#place(id, layer.index, side, 'chain', [], this.#point(up(top, -6), axis), along, W * 0.7);
         continue;
       }
-      const feet = graph.nodes.get(id)!.anchors.map((anchor) => this.#foot(anchor, layer.index, base));
+      // A hibás célpontú szem talpa a saját oszlopában, ennek a sornak a talpvonalán:
+      // a jel normál méretben, a helyén marad, a karjai nem nyúlnak a távoli célpontig (PQW-879).
+      const feet = this.#detached.has(id)
+        ? graph.nodes.get(id)!.anchors.map(() => this.#point(base, axis))
+        : graph.nodes.get(id)!.anchors.map((anchor) => this.#foot(anchor, layer.index, base));
       if (def.kind === 'slip') {
         // Körben a továbbvezető és a záró kúszószem ott látszik, ahová horgolták.
         const center = this.#round && feet[0] ? feet[0] : this.#point(up(base, SLIP_HEIGHT / 2), axis);

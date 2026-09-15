@@ -20,6 +20,7 @@ import {
   deleteLast,
   emptyPattern,
   endRow,
+  fillRow,
   liveCheck,
   setPinned,
   work,
@@ -37,9 +38,10 @@ import { libraryFor, resolveStitch } from '../core/stitch-variants.js';
 import { stitchName } from '../core/stitchText.js';
 import type { Locale, NodeId, Pattern, PatternNotation, StitchDef, StitchDefId } from '../core/types.js';
 import { validatePattern } from '../core/validate.js';
-import { Board, type Target } from './board.js';
+import { Board, type DirectionArrow, type Target } from './board.js';
 import { chartSvg } from './chart-svg.js';
 import { setupConsentBanner } from './consentBanner.js';
+import { askConfirm } from './dialog.js';
 import {
   chartStyleLabel,
   readNotation,
@@ -126,6 +128,22 @@ function derive(pattern: Pattern): Derived {
   return { pattern, context, layout, check, targets };
 }
 
+/**
+ * A most horgolt sor iránynyila: a sor elejéről a haladási irányba (PQW-879).
+ * A már megrajzolt sornál a számolt sorelejét és -végét használjuk; a még el
+ * nem kezdett 1. sornál a láncalap két vége adja az irányt. Körben nincs nyíl.
+ */
+function directionArrow(): DirectionArrow | null {
+  const { layout, context } = derived;
+  if (context.shape === 'round') return null;
+  const active = layout.layers.find((layer) => layer.index === context.layer);
+  if (active) return { from: active.start, to: active.end };
+  // Az 1. sor még nincs a gráfban: a láncalap felől jobbról balra indul (03 §1.2).
+  const base = layout.layers.find((layer) => layer.index === 0);
+  if (context.layer === 1 && base && base.shape === 'row') return { from: base.end, to: base.start };
+  return null;
+}
+
 function slotPoint(layout: ChartLayout, slot: Slot): Point {
   const ids = slot.kind === 'stitch' ? [slot.id] : slot.kind === 'space' ? slot.chains : [slot.node];
   const points = ids.map((id) => layout.nodes.get(id)?.top).filter((p): p is Point => p !== undefined);
@@ -184,7 +202,7 @@ function readStoredNotation(): PatternNotation {
 
 function structuralProblem(pattern: Pattern): string | null {
   const finding = validatePattern(pattern, libraryFor(pattern)).find((f) => STRUCTURAL_RULES.has(f.rule));
-  return finding ? RULES[finding.rule as keyof typeof RULES].summary : null;
+  return finding ? RULES[finding.rule as keyof typeof RULES].message : null;
 }
 
 /* ---- Frissítés ---- */
@@ -209,6 +227,7 @@ function refresh(message?: string): void {
     hover,
     selected: selectedNode,
     findings: derived.check.findings,
+    direction: tool && isTargeted(tool) ? directionArrow() : null,
     symbols,
   });
   updateControls();
@@ -286,6 +305,8 @@ function updateControls(): void {
   setDisabled('redo', !canRedo(history));
   setDisabled('delete-last', empty);
   setDisabled('same', !(def?.kind === 'basic' && !empty));
+  const canFill = tool !== null && isTargeted(tool) && context.graph !== null && context.slots.some((_, i) => !context.used[i]);
+  setDisabled('fill-row', !canFill);
   setDisabled('end-row', !(context.started && context.shape === 'row'));
   setDisabled('close-round', !(context.started && context.shape === 'round'));
   setDisabled('export-png', empty);
@@ -310,7 +331,8 @@ function updateControls(): void {
       button.className = `finding${finding.severity === 'warning' ? ' finding--warning' : ''}`;
       const severity = span('finding__severity', finding.severity === 'error' ? 'Hiba: ' : 'Figyelmeztetés: ');
       const rule = RULES[finding.rule as keyof typeof RULES];
-      button.append(severity, rule?.summary ?? finding.rule, span('finding__ref', `${finding.reference} · ${finding.nodes.length} szem`));
+      // A főszöveg a felhasználónak szóló üzenet; a tudásbázis-kód csak lenyitva (PQW-879).
+      button.append(severity, rule?.message ?? finding.rule, span('finding__count', ` · ${finding.nodes.length} szem`));
       button.addEventListener('click', () => {
         const first = finding.nodes.find((id) => derived.layout.nodes.has(id));
         if (!first) return;
@@ -319,6 +341,15 @@ function updateControls(): void {
         showPoint(derived.layout.nodes.get(first)!.top);
       });
       item.append(button);
+      if (rule) {
+        const details = document.createElement('details');
+        details.className = 'finding__more';
+        const more = document.createElement('summary');
+        more.textContent = 'Részletek';
+        const body = span('finding__ref', `Tudásbázis: ${finding.reference}`);
+        details.append(more, body);
+        item.append(details);
+      }
       return item;
     }),
   );
@@ -544,7 +575,14 @@ function paletteSection(section: ReturnType<typeof buildPalette>[number]): HTMLD
 
 /* ---- Műveletek ---- */
 
-function workAtCursor(): void {
+/** A célpont neve a kérdésekben: „szembe”, „láncszembe”, „láncívbe”, „varázskörbe”. */
+function slotWord(slot: Slot): string {
+  if (slot.kind === 'space') return 'láncívbe';
+  if (slot.kind === 'ring') return 'varázskörbe';
+  return derived.context.graph?.defs.get(slot.id)?.kind === 'chain' ? 'láncszembe' : 'szembe';
+}
+
+async function workAtCursor(): Promise<void> {
   if (!tool) {
     announce('Előbb válassz szemet a jelkészletből (1–9).');
     return;
@@ -552,8 +590,48 @@ function workAtCursor(): void {
   const def = resolveStitch(tool);
   const count = Number(countInput.value);
   const name = def ? capitalize(stitchName(def, notation.terms)) : tool;
-  const message = def?.kind === 'chain' || def?.kind === 'space' ? `${name}: ${count} láncszem.` : `${name} horgolva.`;
-  commit(work(history.present, { def: tool, count }, cursor), message);
+
+  // Láncszem, láncív, varázskör, pikó: célpont nélkül, kérdés nélkül.
+  if (!isTargeted(tool)) {
+    const message = def?.kind === 'chain' || def?.kind === 'space' ? `${name}: ${count} láncszem.` : `${name} horgolva.`;
+    commit(work(history.present, { def: tool, count }, cursor), message);
+    return;
+  }
+
+  const { context } = derived;
+  const idx = cursor;
+  const slot = context.slots[idx];
+
+  // Foglalt célpont: nem tesz le csendben szemet, hanem megkérdezi a szaporítást (PQW-879).
+  if (slot && context.used[idx]) {
+    const yes = await askConfirm({
+      message: `Ebbe a ${slotWord(slot)} már horgoltál. Szaporítást szeretnél?`,
+      confirmLabel: 'Szaporítás',
+    });
+    if (!yes) {
+      announce('Nem került le szem.');
+      return;
+    }
+    const increase = idx === context.frontier ? workIntoSame(history.present, tool) : work(history.present, { def: tool, count }, idx);
+    commit(increase, `${name}: szaporítás.`);
+    return;
+  }
+
+  // A haladási irány ellen lévő (már mögötted hagyott) szabad célpont: keresztezett szem?
+  if (slot && context.frontier >= 0 && idx <= context.frontier) {
+    const yes = await askConfirm({
+      message: 'Ez a célpont már mögötted van. Keresztezett szemet szeretnél?',
+      confirmLabel: 'Keresztezett szem',
+    });
+    if (!yes) {
+      announce('Nem került le szem.');
+      return;
+    }
+    commit(work(history.present, { def: tool, count }, idx, ['crossed']), `${name}: keresztezett szem.`);
+    return;
+  }
+
+  commit(work(history.present, { def: tool, count }, idx), `${name} horgolva.`);
 }
 
 function nudge(dx: number, dy: number): void {
@@ -651,6 +729,10 @@ const ACTIONS: Record<string, () => void> = {
   },
   'delete-last': () => commit(deleteLast(history.present), 'Az utolsó lépés törölve.'),
   same: () => (tool ? commit(workIntoSame(history.present, tool), 'Még egy ugyanabba.') : announce('Előbb válassz szemet.')),
+  'fill-row': () =>
+    tool && isTargeted(tool)
+      ? commit(fillRow(history.present, { def: tool, count: Number(countInput.value) }), 'Sor kitöltve.')
+      : announce('Előbb válassz célpontba horgolható szemet a sor kitöltéséhez.'),
   'end-row': () => commit(endRow(history.present, tool), 'Sor vége, fordulás.'),
   'close-round': () => commit(closeRound(history.present), 'Kör zárva.'),
   mirror: () => {
@@ -732,7 +814,7 @@ canvas.addEventListener('pointerdown', (event) => {
   canvas.focus({ preventScroll: true });
   if (tool) {
     if (!isTargeted(tool)) {
-      workAtCursor();
+      void workAtCursor();
       return;
     }
     const index = board.targetAt(event.clientX, event.clientY);
@@ -743,7 +825,7 @@ canvas.addEventListener('pointerdown', (event) => {
     }
     cursor = index;
     cursorMoved = true;
-    workAtCursor();
+    void workAtCursor();
     return;
   }
   const id = board.nodeAt(event.clientX, event.clientY);
@@ -870,7 +952,8 @@ document.addEventListener('keydown', (event) => {
       return;
     case 'f':
     case 'F':
-      ACTIONS['end-row']!();
+      // Shift+F kitölti a sort, sima F a sor végén fordul (PQW-879).
+      ACTIONS[event.shiftKey ? 'fill-row' : 'end-row']!();
       return;
     case 'k':
     case 'K':
@@ -900,7 +983,7 @@ document.addEventListener('keydown', (event) => {
     if (key === 'Enter') {
       event.preventDefault();
       if (event.shiftKey) ACTIONS.same!();
-      else workAtCursor();
+      else void workAtCursor();
       return;
     }
   }

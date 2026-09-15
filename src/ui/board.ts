@@ -18,6 +18,14 @@ export interface Target {
   readonly used: boolean;
 }
 
+/** A most horgolt sor haladási irányát és elejét mutató nyíl (PQW-879). */
+export interface DirectionArrow {
+  /** A sor eleje: innen indul a nyíl. */
+  readonly from: Point;
+  /** A haladási irányt kijelölő pont; a nyíl efelé mutat. */
+  readonly to: Point;
+}
+
 export interface Scene {
   readonly layout: ChartLayout;
   readonly library: StitchLibrary;
@@ -26,6 +34,8 @@ export interface Scene {
   readonly hover: number | null;
   readonly selected: NodeId | null;
   readonly findings: readonly Finding[];
+  /** A most horgolt sor iránynyila, vagy `null`. */
+  readonly direction: DirectionArrow | null;
   /** A jelek stílusa és a rövidpálca jele (PQW-868). */
   readonly symbols: SymbolOptions;
 }
@@ -201,6 +211,9 @@ export class Board {
       ctx.fillText(`(${layer.stitchCount})`, layer.end.x, layer.end.y);
     }
 
+    // A most horgolt sor iránynyila: a sor elejéről a haladási irányba mutat (PQW-879).
+    if (scene.direction) this.#drawDirection(scene.direction, colors.accent, scale);
+
     // Hibák és figyelmeztetések a jelen: a hiba teli, a figyelmeztetés szaggatott karika, nem csak színben tér el.
     for (const finding of scene.findings) {
       const error = finding.severity === 'error';
@@ -244,6 +257,39 @@ export class Board {
         ctx.fill();
       }
     });
+  }
+
+  /** A sor elejét jelölő pötty, és onnan egy rövid nyíl a haladási irányba. */
+  #drawDirection(arrow: DirectionArrow, color: string, scale: number): void {
+    const ctx = this.#ctx;
+    const dx = arrow.to.x - arrow.from.x;
+    const dy = arrow.to.y - arrow.from.y;
+    const length = Math.hypot(dx, dy);
+    if (length < 1e-6) return;
+    const ux = dx / length;
+    const uy = dy / length;
+    // A nyíl rövid, a sor szélességétől függetlenül, hogy csak az irányt jelezze.
+    const shaft = Math.min(46, length);
+    const tip = { x: arrow.from.x + ux * shaft, y: arrow.from.y + uy * shaft };
+    const head = 8;
+
+    applyInk(ctx, color, Math.max(2, 2 / scale));
+    ctx.beginPath();
+    ctx.moveTo(arrow.from.x, arrow.from.y);
+    ctx.lineTo(tip.x, tip.y);
+    ctx.stroke();
+    // Nyílhegy: két rövid vonal a csúcsból visszafelé.
+    for (const sign of [1, -1]) {
+      const angle = Math.atan2(uy, ux) + sign * 2.5;
+      ctx.beginPath();
+      ctx.moveTo(tip.x, tip.y);
+      ctx.lineTo(tip.x + Math.cos(angle) * head, tip.y + Math.sin(angle) * head);
+      ctx.stroke();
+    }
+    // A sor eleje: kis teli pötty.
+    ctx.beginPath();
+    ctx.arc(arrow.from.x, arrow.from.y, Math.max(3, 3 / scale), 0, Math.PI * 2);
+    ctx.fill();
   }
 
   #resize(): void {

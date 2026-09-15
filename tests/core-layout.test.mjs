@@ -9,6 +9,7 @@ import { describe, test } from 'node:test';
 import { deleteLast, emptyPattern, setPinned } from '../src/core/editor.ts';
 import { isotonic, layoutPattern } from '../src/core/layout.ts';
 import { chevron, dcRectangle, grannySquare, hdcRectangle, shellStitch, vStitchPattern, wave } from './fixtures/examples.ts';
+import { editNode } from './fixtures/builder.ts';
 import { testLibrary } from './fixtures/library.ts';
 
 const layout = (pattern, options) => layoutPattern(pattern, testLibrary, options);
@@ -192,4 +193,46 @@ test('monoton regresszió: a sorrendet sértő szomszédok átlaguk körül egye
   assert.deepEqual(isotonic([1, 3, 2, 4], [1, 1, 1, 1]), [1, 2.5, 2.5, 4]);
   assert.deepEqual(isotonic([5, 0, 0], [1, 1, 1]), [5 / 3, 5 / 3, 5 / 3]);
   assert.deepEqual(isotonic([2, 1], [3, 1]), [1.75, 1.75]);
+});
+
+describe('hibás célpontú szem: normál méret a saját helyén (PQW-879)', () => {
+  const stemOf = (node) => Math.hypot(node.feet[0].x - node.top.x, node.feet[0].y - node.top.y);
+  // A félpálca ép, függőleges szárának hossza a hibátlan mintából, a képlettől függetlenül.
+  const normalHdcStem = (() => {
+    const clean = hdcRectangle({ rows: 3 });
+    return stemOf(layout(clean.pattern).nodes.get(clean.rows[3][6]));
+  })();
+
+  test('korábbi sorba mutató célpontnál a szár függőleges, a saját sora talpvonalán, normál hosszal', () => {
+    const example = hdcRectangle({ rows: 3 });
+    const victim = example.rows[3][7];
+    const farTarget = example.rows[1][7];
+    const bad = editNode(example.pattern, victim, { anchors: [farTarget] });
+
+    const chart = layout(bad);
+    const node = chart.nodes.get(victim);
+
+    // A talp a saját tető alatt, egy talpponttal: a jel nem esik szét.
+    assert.equal(node.feet.length, 1);
+    assert.ok(near(node.feet[0].x, node.top.x), 'a szár függőleges');
+    // Normál méret: ugyanaz a szárhossz, mint egy ép félpálcáé.
+    assert.ok(near(stemOf(node), normalHdcStem), 'normál szárhossz');
+    // Nem nyúlik a két sorral lejjebb lévő célpontig: a talp a saját sora talpvonalán van.
+    assert.ok(node.top.y < chart.nodes.get(farTarget).top.y, 'a jel a saját sorában, nem a célpontnál');
+    assert.ok(chart.nodes.get(farTarget).top.y - node.feet[0].y > normalHdcStem, 'a talp nem a távoli sorban van');
+  });
+
+  test('a haladási irány ellen mutató, távoli célpontnál is normál, függőleges szár', () => {
+    const example = hdcRectangle({ rows: 1 });
+    const victim = example.rows[1][8];
+    // A sor elején felhasznált (már rég elhagyott) célpont: erősen a haladási irány ellen.
+    const behind = example.rows[0][example.rows[0].length - 1];
+    const bad = editNode(example.pattern, victim, { anchors: [behind] });
+
+    const chart = layout(bad);
+    const node = chart.nodes.get(victim);
+    assert.equal(node.feet.length, 1);
+    assert.ok(near(node.feet[0].x, node.top.x), 'a szár függőleges');
+    assert.ok(near(stemOf(node), normalHdcStem), 'normál szárhossz');
+  });
 });

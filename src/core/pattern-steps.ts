@@ -94,8 +94,8 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
   const graph = buildPieceGraph(pattern, piece, library);
   const base = graph.layers[0]!;
   const first = base.stitches[0];
-  if (first === undefined) throw new WrittenPatternError(`${piece.name}: láncalap vagy varázskör nélküli darab még nem írható ki.`);
-  if (base.closing !== null) throw new WrittenPatternError(`${piece.name}: esemény a láncalapon még nem írható ki.`, [base.closing.after]);
+  if (first === undefined) throw new WrittenPatternError('A minta láncalappal vagy varázskörrel kezdődik; enélkül még nem írható ki.');
+  if (base.closing !== null) throw new WrittenPatternError('A láncalapon lévő esemény még nem írható ki.', [base.closing.after]);
 
   const onChain = graph.defs.get(first)!.kind === 'chain';
   const row1 = graph.layers[1];
@@ -151,7 +151,7 @@ function writtenLayer(graph: PieceGraph, index: number, onChain: boolean, librar
     if (anchor.into === 'ring') return { target: 'ring', mode: 'both-loops', into: 'stitch' };
     if (anchor.into === 'space') {
       const chains = graph.spaces.get(anchor.id)!.chains.map((id) => workingIndex.get(id));
-      if (chains.some((w) => w === undefined)) throw unsupported('a láncív nem az előző rétegben van', owner);
+      if (chains.some((w) => w === undefined)) throw unsupported('olyan láncívbe kapaszkodik, amely nincs a megfelelő helyen', owner);
       const min = Math.min(...(chains as number[]));
       const max = Math.max(...(chains as number[]));
       let target: StepTarget;
@@ -165,25 +165,26 @@ function writtenLayer(graph: PieceGraph, index: number, onChain: boolean, librar
         if (passed.size > 0) steps.push({ kind: 'skip', count: passed.size, what: 'space' });
         target = 'next-space';
         cursor = max + 1;
-      } else throw unsupported('a láncív a haladási irány ellen van', owner);
+      } else throw unsupported('a haladási iránnyal szemben lévő láncívbe kapaszkodik', owner);
       last = { kind: 'space', id: anchor.id };
       return { target, mode: 'both-loops', into: 'stitch' };
     }
 
     const w = workingIndex.get(anchor.id);
-    if (w === undefined) throw unsupported('a célpont nem az előző réteg pozíciója', owner);
+    if (w === undefined) throw unsupported('olyan szembe kapaszkodik, amely nincs a megfelelő helyen', owner);
     const mode = modeAsWorked(anchor.mode, layer.side);
     const into = defOf(anchor.id).kind === 'chain' ? 'chain' : 'stitch';
     if (last?.kind === 'stitch' && last.w === w) return { target: 'same', mode, into };
-    if (w < cursor) throw unsupported('a célpont a haladási irány ellen van', owner);
+    if (w < cursor) throw unsupported('a haladási iránnyal szemben lévő szembe kapaszkodik', owner);
     skip(cursor, w);
     cursor = w + 1;
     last = { kind: 'stitch', w };
     return { target: 'next', mode, into };
   };
 
+  const unit = layer.shape === 'round' ? 'kör' : 'sor';
   const unsupported = (reason: string, node: NodeId) =>
-    new WrittenPatternError(`${graph.piece.name}, ${index}. réteg: ${reason}, ez még nem írható ki.`, [node]);
+    new WrittenPatternError(`A(z) ${index}. ${unit} ${reason}.`, [node]);
 
   const handled = new Set<NodeId>();
   const stitches = layer.stitches;
@@ -192,7 +193,7 @@ function writtenLayer(graph: PieceGraph, index: number, onChain: boolean, librar
     if (handled.has(id) || id === layer.joinSlip) continue;
     const node = graph.nodes.get(id)!;
     const def = defOf(id);
-    if (node.flags && node.flags.length > 0) throw unsupported('keresztezett vagy hosszú szem', id);
+    if (node.flags && node.flags.length > 0) throw unsupported('keresztezett vagy hosszú szemet tartalmaz', id);
 
     if (layer.turningChain.includes(id)) {
       for (const chain of layer.turningChain) handled.add(chain);
