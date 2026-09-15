@@ -211,7 +211,7 @@ function parseItem(text: string, line: number, options: ReadOptions, vocabulary:
     text.endsWith(` ${vocabulary.phrases[key]}`),
   );
   targets.push({ target: 'next', into: 'stitch' }, { target: 'none', into: 'stitch' });
-  const modes = MODES.filter((mode) => mode === 'both-loops' || text.includes(vocabulary.mode(mode, '').trim()));
+  const modes = MODES.filter((mode) => mode === 'both-loops' || vocabulary.modeMarks[mode].some((mark) => text.includes(mark)));
 
   for (const def of defs) {
     if (def.kind === 'chain' || def.kind === 'space' || def.kind === 'ring') continue;

@@ -67,6 +67,13 @@ export const RULES = {
     summary: 'Bele nem horgolható tetejű szembe (pl. rákhurok) horgoltak.',
     message: 'Ennek a szemnek a tetejébe nem lehet belehorgolni.',
   },
+  'insertion-mode': {
+    severity: 'error',
+    reference: '01 §4.3',
+    summary:
+      'A szem ezzel a beszúrási móddal nem horgolható: a horgoló felől nézett mód nincs a szem (összetett szemnél a csoport) insertionModes listájában (PQW-869).',
+    message: 'Ez a szem ebben a beszúrási módban nem horgolható (pl. rákhurok hátsó szálba, kagyló reliefben): válassz másik módot.',
+  },
   'anchor-count': {
     severity: 'error',
     reference: '03 §10 C12',

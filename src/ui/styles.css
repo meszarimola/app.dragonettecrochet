@@ -1107,6 +1107,54 @@ body.is-selecting #board {
   margin: 0 0 1rem;
 }
 
+/* ---- Beszúrási mód a Szemek szakaszban (PQW-869) ---- */
+
+.insertion {
+  display: grid;
+  gap: 0.25rem;
+  min-inline-size: 0;
+  margin: 0 0 1rem;
+  padding: 0;
+  border: 0;
+  font-size: 0.875rem;
+}
+
+.insertion legend {
+  padding: 0;
+  font-weight: 700;
+  color: var(--c-text-soft);
+}
+
+.insertion__options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 1rem;
+}
+
+/* Párokban: mindkét szál egy sorban, alatta az első és a hátsó szál, majd az első és a hátsó relief. */
+.insertion__options label:has(input[value='both-loops']) {
+  grid-column: 1 / -1;
+}
+
+.insertion label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-block-size: 44px;
+  cursor: pointer;
+}
+
+.insertion input {
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  margin: 0;
+  accent-color: var(--c-accent);
+}
+
+.insertion .panel__note {
+  margin: 0;
+}
+
 /* ---- Kör és motívum (PQW-861) ---- */
 
 .rounds {

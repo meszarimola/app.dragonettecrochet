@@ -60,8 +60,14 @@ export interface Vocabulary {
   readonly quantity: (count: number, ref: string) => string;
   readonly decrease: (n: number, part: StitchDef, locale: Locale) => string;
   readonly phrases: Readonly<Record<PhraseKey, string>>;
-  /** A beszúrási mód a hivatkozáson: magyarul utótag, angolul `blo`/`flo`, reliefnél `FP`/`BP` előtag. */
+  /**
+   * A beszúrási mód a hivatkozáson (PQW-869): magyarul `(hsz)`/`(esz)` utótag, reliefnél
+   * egyráhajtásos pálcán `Eerp`/`Herp`, máshol a mód neve; angolul `BLO`/`FLO` utótag,
+   * reliefnél `FP`/`BP` előtag.
+   */
   readonly mode: (mode: StitchInsertion, text: string) => string;
+  /** Amiről az értelmezés felismeri a módot egy tételben. */
+  readonly modeMarks: Readonly<Record<Exclude<StitchInsertion, 'both-loops'>, readonly string[]>>;
   readonly closings: { readonly turn: string; readonly 'fasten-off': string };
   readonly join: (slip: string, to: 'turning-chain' | 'first-stitch') => string;
   /** Nem szemnévből jövő rövidítések, ha a szövegben előfordulnak. */
@@ -108,16 +114,34 @@ const HU: Vocabulary = {
     ring: 'a varázskörbe',
     'chain-ring': 'a gyűrűbe',
   },
-  mode: (mode, text) => (mode === 'both-loops' ? text : `${text} (${HU_MODES[mode]})`),
+  mode: (mode, text) => {
+    if (mode === 'both-loops') return text;
+    // Az E- és H- előtag csak az egyráhajtásos pálcánál igazolt (szókészlet §3, [S38]); máshol a relief kiírva.
+    const post = mode === 'front-post' || mode === 'back-post' ? /^(\d+ )?erp$/.exec(text) : null;
+    if (post) return `${post[1] ?? ''}${mode === 'front-post' ? 'E' : 'H'}erp`;
+    return `${text} (${HU_MODES[mode]})`;
+  },
+  modeMarks: {
+    'back-loop': ['(hsz)'],
+    'front-loop': ['(esz)'],
+    'front-post': ['Eerp', '(első relief)'],
+    'back-post': ['Herp', '(hátsó relief)'],
+  },
   closings: { turn: 'Fordítás.', 'fasten-off': 'A fonal elvágása.' },
   join: (slip, to) => `Kör zárása: 1 ${slip} ${to === 'turning-chain' ? 'a kezdőlánc tetejébe' : 'az első szembe'}.`,
-  general: [],
+  general: [
+    { abbr: 'Eerp', meaning: 'első relief egyráhajtásos pálca (elölről hurkolt)', used: /\bEerp\b/ },
+    // Az „esz” nem szerepel a szókészletben (§3: nincs forrás); jóváhagyásra vár (PQW-869).
+    { abbr: 'esz', meaning: 'első szálba', used: /\(esz\)/ },
+    { abbr: 'Herp', meaning: 'hátsó relief egyráhajtásos pálca (hátulról hurkolt)', used: /\bHerp\b/ },
+    { abbr: 'hsz', meaning: 'hátsó szálba', used: /\(hsz\)/ },
+  ],
 };
 
-/** A beszúrási módok a jóváhagyott szókészlet §3 szerint. */
+/** A beszúrási módok a jóváhagyott szókészlet §3 szerint; az „esz” jóváhagyásra vár (PQW-869). */
 const HU_MODES: Readonly<Record<Exclude<StitchInsertion, 'both-loops'>, string>> = {
-  'back-loop': 'hátsó szál',
-  'front-loop': 'első szál',
+  'back-loop': 'hsz',
+  'front-loop': 'esz',
   'front-post': 'első relief',
   'back-post': 'hátsó relief',
 };
@@ -167,18 +191,19 @@ function english(skipWord: string, skipMeaning: string, system: string, color: s
       'chain-ring': 'in ring',
     },
     mode: (mode, text) => {
-      if (mode === 'back-loop') return `${text} blo`;
-      if (mode === 'front-loop') return `${text} flo`;
+      if (mode === 'back-loop') return `${text} BLO`;
+      if (mode === 'front-loop') return `${text} FLO`;
       if (mode === 'front-post' || mode === 'back-post') return text.replace(/^(\d+ )?/, `$1${mode === 'front-post' ? 'FP' : 'BP'}`);
       return text;
     },
+    modeMarks: { 'back-loop': ['BLO'], 'front-loop': ['FLO'], 'front-post': ['FP'], 'back-post': ['BP'] },
     closings: { turn: 'Turn.', 'fasten-off': 'Fasten off.' },
     join: (slip, to) => `Join with ${slip} to ${to === 'turning-chain' ? 'top of beg ch' : 'first st'}.`,
     general: [
       { abbr: 'beg', meaning: 'beginning', used: /\bbeg\b/ },
-      { abbr: 'blo', meaning: 'back loop only', used: /\bblo\b/ },
+      { abbr: 'BLO', meaning: 'back loop only', used: /\bBLO\b/ },
       { abbr: 'BP', meaning: 'back post', used: /\bBP/ },
-      { abbr: 'flo', meaning: 'front loop only', used: /\bflo\b/ },
+      { abbr: 'FLO', meaning: 'front loop only', used: /\bFLO\b/ },
       { abbr: 'FP', meaning: 'front post', used: /\bFP/ },
       { abbr: skipWord, meaning: skipMeaning, used: new RegExp(`\\b${skipWord}\\b`) },
       { abbr: 'st(s)', meaning: 'stitch(es)', used: /\bsts?\b/ },

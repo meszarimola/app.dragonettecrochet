@@ -6,9 +6,10 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
+import { emptyPattern, endRow, fillRow, work } from '../src/core/editor.ts';
 import { layoutPattern } from '../src/core/layout.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
-import { chartSvg, escapeXml, legendStitches } from '../src/ui/chart-svg.ts';
+import { chartSvg, escapeXml, legendInsertions, legendStitches } from '../src/ui/chart-svg.ts';
 import { hdcRectangle, shellStitch } from './fixtures/examples.ts';
 
 const COLORS = { right: '#241f2b', wrong: '#2f5f9e', text: '#3f3949', background: '#faf7f3' };
@@ -91,4 +92,38 @@ test('JIS jelstílussal a rövidpálca ×, és az export megnevezi a stílust', 
   assert.notEqual(jis, render(pattern));
   const crossed = render(pattern, { symbols: { singleCrochet: 'cross' } });
   assert.equal(jis.replace('data-chart-style="jis"', '').replace('japán (JIS)', ''), crossed.replace('data-chart-style="cyc"', '').replace('CYC', ''));
+});
+
+test('a beszúrási mód a talpon és a jelmagyarázatban, CYC és JIS jelstílusban is (PQW-869)', () => {
+  const done = (result) => {
+    assert.ok(result.ok, result.reason);
+    return result.pattern;
+  };
+  let pattern = done(work(emptyPattern(), { def: 'ch', count: 6 }, 0));
+  pattern = done(fillRow(pattern, { def: 'sc', count: 1, insertion: 'back-loop' }));
+  pattern = done(endRow(pattern, 'sc'));
+  pattern = done(fillRow(pattern, { def: 'sc', count: 1, insertion: 'back-loop' }));
+  const library = libraryFor(pattern);
+
+  // Színoldalról nézve a visszai sor első szálas: két jelmagyarázat-sor.
+  assert.deepEqual(
+    legendInsertions(pattern, library).map(({ def, mode }) => `${def.id}/${mode}`),
+    ['sc/back-loop', 'sc/front-loop'],
+  );
+  const svg = render(pattern);
+  assert.match(svg, /<tspan lang="hu">[^<]+<\/tspan> – hátsó szál<\/text>/);
+  assert.match(svg, /<tspan lang="hu">[^<]+<\/tspan> – első szál<\/text>/);
+  assert.match(svg, /színoldalról nézve/);
+  // A jelölés íve: sorokban 5 + 5, a jelmagyarázatban 2.
+  const curves = (text) => (text.match(/<path d="M[^"]*Q/g) ?? []).length;
+  assert.equal(curves(svg), 12);
+  // JIS-ben a hátsó szál vízszintes vonal, az első szál íve marad.
+  assert.equal(curves(render(pattern, { symbols: { singleCrochet: 'plus', style: 'jis' } })), 6);
+  assert.doesNotMatch(svg, /NaN|undefined/);
+});
+
+test('mód nélküli mintában nincs módos jelmagyarázat-sor és megjegyzés', () => {
+  const pattern = hdcRectangle({ rows: 2 }).pattern;
+  assert.deepEqual(legendInsertions(pattern, libraryFor(pattern)), []);
+  assert.doesNotMatch(render(pattern), /színoldalról nézve/);
 });

@@ -307,6 +307,14 @@
               <label for="chain-count">Láncszemek száma</label>
               <input id="chain-count" type="number" min="1" max="500" step="1" value="12" inputmode="numeric" />
             </p>
+            <fieldset class="insertion" id="insertion" aria-describedby="insertion-note" hidden>
+              <legend>Beszúrás</legend>
+              <div class="insertion__options"></div>
+              <p class="panel__note insertion__written" hidden></p>
+              <p class="panel__note" id="insertion-note">
+                A horgoló felől értendő; visszai soron a diagram a színoldalt mutatja.
+              </p>
+            </fieldset>
             <div class="palette" id="palette" role="group" aria-label="Szemek"></div>
           </details>
 

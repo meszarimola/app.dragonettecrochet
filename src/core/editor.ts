@@ -13,6 +13,7 @@
  */
 
 import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
+import { INSERTION_NAMES, effectiveInsertion, modeAsWorked, stitchInsertions } from './insertion.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { increase, shell } from './stitches.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
@@ -93,6 +94,8 @@ export interface WorkContext {
   /** A réteg, amelybe a következő szem kerül; lehet, hogy még nincs a gráfban. */
   readonly layer: number;
   readonly shape: LayerInfo['shape'];
+  /** A réteg oldala: visszai soron a horgoló felől választott mód a tárolásban megfordul (PQW-869). */
+  readonly side: LayerInfo['side'];
   /** A célpontok a haladási irányban. */
   readonly slots: readonly Slot[];
   /** Melyik célpontba horgolt már a réteg. */
@@ -116,6 +119,7 @@ export function contextOf(pattern: Pattern): WorkContext {
     graph: null,
     layer: 0,
     shape: 'row',
+    side: 'right',
     slots: [],
     used: [],
     frontier: -1,
@@ -156,6 +160,8 @@ export function contextOf(pattern: Pattern): WorkContext {
   const slots = layerSlots(graph, layer, below, reversed, shape);
 
   const current = graph.layers[layer];
+  // A még meg nem kezdett réteg oldala a gráf szabálya szerint: fordulás után a másik oldal (graph.ts).
+  const side = current?.side ?? (below.closing?.kind === 'turn' ? (below.side === 'right' ? 'wrong' : 'right') : below.side);
   const worked = new Set<string>();
   for (const id of current?.stitches ?? []) {
     for (const anchor of graph.nodes.get(id)!.anchors) worked.add(anchorKey(anchor));
@@ -165,7 +171,7 @@ export function contextOf(pattern: Pattern): WorkContext {
   const turningChain = current?.turningChain.length ?? 0;
   const started = (current?.stitches.length ?? 0) > turningChain;
 
-  return { library, graph, layer, shape, slots, used, frontier, turningChain, started };
+  return { library, graph, layer, shape, side, slots, used, frontier, turningChain, started };
 }
 
 /**
@@ -271,6 +277,11 @@ export interface Tool {
   readonly def: StitchDefId;
   /** Láncszemnél és láncívnél a láncszemek száma. */
   readonly count: number;
+  /**
+   * A beszúrási mód a horgoló felől (PQW-869); hiányában a szem alapértelmezése.
+   * Csak szembe horgolásnál számít, láncívbe és varázskörbe nem.
+   */
+  readonly insertion?: StitchInsertion | undefined;
 }
 
 function hasEventAfterLast(piece: Piece): boolean {
@@ -330,13 +341,13 @@ export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readon
     if (slots.length < def.consumes || slots.some((slot) => slot.kind !== 'stitch')) {
       return refuse(`Ehhez ${def.consumes} egymás melletti szem kell a célponttól.`);
     }
-    const mode = stitchMode(def);
-    if (!mode) return refuse('Ez a szem nem horgolható szembe.');
-    const anchors = slots.map((slot): Anchor => ({ into: 'stitch', id: slot.id, mode }));
+    const mode = stitchModeFor(def, tool.insertion, context.side);
+    if ('reason' in mode) return refuse(mode.reason);
+    const anchors = slots.map((slot): Anchor => ({ into: 'stitch', id: slot.id, mode: mode.mode }));
     return done(withPiece(pattern, append(piece, [{ def: def.id, anchors, ...marks }]).piece));
   }
 
-  const anchor = anchorFor(def, first);
+  const anchor = anchorFor(def, first, tool.insertion, context.side);
   if (typeof anchor === 'string') return refuse(anchor);
 
   if (def.kind === 'group') {
@@ -357,16 +368,32 @@ export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readon
   return done(withPiece(pattern, append(piece, [{ def: def.id, anchors: [anchor], ...marks }]).piece));
 }
 
-function stitchMode(def: StitchDef): StitchInsertion | undefined {
-  return def.insertionModes.find((mode): mode is StitchInsertion => mode !== 'space' && mode !== 'ring');
+/**
+ * A tárolt, színoldali mód a horgoló felől kértből, vagy érthető ok, ha a szem
+ * így nem horgolható (PQW-869).
+ */
+function stitchModeFor(
+  def: StitchDef,
+  requested: StitchInsertion | undefined,
+  side: LayerInfo['side'],
+): { readonly mode: StitchInsertion } | { readonly reason: string } {
+  const name = def.terms.hu.name;
+  const allowed = stitchInsertions(def);
+  const mode = effectiveInsertion(def, requested);
+  if (!mode) return { reason: `A(z) ${name} nem horgolható szembe.` };
+  if (requested && requested !== mode) {
+    const choices = allowed.map((candidate) => INSERTION_NAMES[candidate]).join(', ');
+    return { reason: `A(z) ${name} nem horgolható így: ${INSERTION_NAMES[requested]}. Választható: ${choices}.` };
+  }
+  return { mode: modeAsWorked(mode, side) };
 }
 
-function anchorFor(def: StitchDef, slot: Slot): Anchor | string {
+function anchorFor(def: StitchDef, slot: Slot, requested: StitchInsertion | undefined, side: LayerInfo['side']): Anchor | string {
   const name = def.terms.hu.name;
   switch (slot.kind) {
     case 'stitch': {
-      const mode = stitchMode(def);
-      return mode ? { into: 'stitch', id: slot.id, mode } : `A(z) ${name} nem horgolható szembe.`;
+      const mode = stitchModeFor(def, requested, side);
+      return 'reason' in mode ? mode.reason : { into: 'stitch', id: slot.id, mode: mode.mode };
     }
     case 'space':
       return def.insertionModes.includes('space') ? { into: 'space', id: slot.id } : `A(z) ${name} nem horgolható láncívbe.`;

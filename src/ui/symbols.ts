@@ -395,6 +395,19 @@ function ringShapes(center: Point, style: ChartStyle = 'cyc'): Shape[] {
 
 /** Egy szem jelének alakzatai. Nem megengedett beszúrási módra hibát dob. */
 export function symbolShapes(def: StitchDef, options: SymbolOptions = DEFAULT_SYMBOL_OPTIONS): Shape[] {
+  const { shapes, feet } = symbolBody(def, options);
+  const insertion = options.insertion ?? def.insertionModes[0];
+  if (insertion !== undefined) {
+    if (!def.insertionModes.includes(insertion)) {
+      throw new RangeError(`${def.id}: nem megengedett beszúrási mód: ${insertion}`);
+    }
+    if (isMark(insertion)) for (const foot of feet) shapes.push(insertionMark(insertion, foot, options.style));
+  }
+  return shapes;
+}
+
+/** A jel a beszúrás jelölése nélkül, és a talppontjai, ahová a jelölés kerül. */
+function symbolBody(def: StitchDef, options: SymbolOptions): { shapes: Shape[]; feet: Point[] } {
   const out: Shape[] = [];
   let feet: Point[] = [FOOT];
 
@@ -433,15 +446,7 @@ export function symbolShapes(def: StitchDef, options: SymbolOptions = DEFAULT_SY
       break;
   }
 
-  const insertion = options.insertion ?? def.insertionModes[0];
-  if (insertion !== undefined) {
-    if (!def.insertionModes.includes(insertion)) {
-      throw new RangeError(`${def.id}: nem megengedett beszúrási mód: ${insertion}`);
-    }
-    if (isMark(insertion)) for (const foot of feet) out.push(insertionMark(insertion, foot, options.style));
-  }
-
-  return out;
+  return { shapes: out, feet };
 }
 
 export interface Bounds {
@@ -518,6 +523,10 @@ export function transformShapes(shapes: readonly Shape[], rotation: number, k: n
  * tagjai közös talpból legyezőben, a fogyasztás szárai külön talpakból egy
  * tetőbe futnak (01 §8.4 szabály 18). A láncszem a megadott irányban és
  * hosszban, a kúszószem pont, a varázskör kör (JIS stílusban „わ”).
+ *
+ * A beszúrási mód itt a tárolt, színoldali mód (PQW-869). Visszai soron ez
+ * eltér a horgoló felőlitől, ezért nem vetjük össze a szem listájával, és
+ * tiltott módra sem dob hibát: a rajz mindig elkészül, a hibát az ellenőrző jelzi.
  */
 export function placedShapes(def: StitchDef, placement: Placement, options: SymbolOptions = DEFAULT_SYMBOL_OPTIONS): Shape[] {
   const { top } = placement;
@@ -531,7 +540,7 @@ export function placedShapes(def: StitchDef, placement: Placement, options: Symb
     case 'ring':
       return ringShapes(top, options.style);
     case 'picot':
-      return transformShapes(symbolShapes(def, options), 0, 1, add(top, { x: 0, y: PICOT_R + SLIP_R }));
+      return transformShapes(symbolBody(def, options).shapes, 0, 1, add(top, { x: 0, y: PICOT_R + SLIP_R }));
     case 'stitch':
       break;
   }
@@ -555,7 +564,9 @@ export function placedShapes(def: StitchDef, placement: Placement, options: Symb
     const delta = add(top, scale(foot, -1));
     const rotation = Math.atan2(delta.x, -delta.y);
     const k = Math.hypot(delta.x, delta.y) / stemLength(part.chainHeight);
-    return transformShapes(symbolShapes(def, options), rotation, k, foot);
+    const body = symbolBody(def, options);
+    if (mark) for (const at of body.feet) body.shapes.push(insertionMark(mark, at, options.style));
+    return transformShapes(body.shapes, rotation, k, foot);
   }
 
   if (mark) for (const foot of feet) out.push(insertionMark(mark, foot, options.style));
