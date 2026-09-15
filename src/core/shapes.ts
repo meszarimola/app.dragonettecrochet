@@ -52,6 +52,7 @@ import type {
   ValueSource,
 } from './types.ts';
 import { validatePattern } from './validate.ts';
+import { withGeneratedTitle } from './pattern-title.ts';
 
 export type FlatShape = 'rectangle' | 'right-triangle' | 'isosceles-triangle' | 'trapezoid' | 'diamond';
 export type ShapeMeasure = 'height' | 'angle';
@@ -616,9 +617,7 @@ export function generateShape(pattern: Pattern, options: ShapeOptions): ShapeRes
   const bordered = options.border ? appendBorder(rowsPattern, stated, libraryFor(rowsPattern), options.border) : stated;
   if (typeof bordered === 'string') return fail(bordered);
 
-  const generated = new Set<string>([...Object.values(SHAPE_NAMES), ...Object.values(MOTIF_NAMES)]);
-  const untitled = pattern.title.trim() === '' || pattern.title === 'Új minta' || generated.has(pattern.title);
-  const result: Pattern = { ...base, title: untitled ? name : pattern.title, pieces: [bordered] };
+  const result = withGeneratedTitle({ ...base, pieces: [bordered] }, pattern, name, [...Object.values(SHAPE_NAMES), ...Object.values(MOTIF_NAMES)]);
   const errors = validatePattern(result, libraryFor(result)).filter((finding) => finding.severity === 'error');
   if (errors.length > 0) return fail(`A generált minta nem ment át az ellenőrzőn (${errors[0]!.rule}): ez a program hibája, kérlek, jelezd.`);
   return { ok: true, pattern: result, plan };

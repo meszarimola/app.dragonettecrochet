@@ -28,6 +28,7 @@
 
 import { SHAPE_NAMES, evenDistribution, roundGaugeOf, roundOps, shapeSchedule, type Schedule } from './amigurumi.ts';
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
+import { withGeneratedTitle } from './pattern-title.ts';
 import { libraryFor } from './stitch-variants.ts';
 import type {
   Anchor,
@@ -90,17 +91,17 @@ export function createAmigurumi(pattern: Pattern, part: PartOptions, under3: boo
   const problem = writeSection(writer, { schedule, stagger: part.stagger, below: null, marks: sectionMarks(schedule, part.eyes, under3), firstLayer: 1 });
   if (problem) return fail(problem);
 
-  const generated = Object.values(SHAPE_NAMES).includes(pattern.title);
-  const untitled = pattern.title.trim() === '' || pattern.title === 'Új minta' || generated;
-  const result: Pattern = {
+  const built: Pattern = {
     formatVersion: pattern.formatVersion,
-    title: untitled ? name : pattern.title,
+    title: name,
     ...(pattern.notation ? { notation: pattern.notation } : {}),
     ...(pattern.gauge ? { gauge: pattern.gauge } : {}),
     conventions: { ...pattern.conventions, roundEnd: 'spiral' },
     pieces: [writer.piece('p1', name, [sectionOf(part, name, 1)])],
     toy: { under3 },
   };
+  // A saját cím marad, különben a rész neve (PQW-896).
+  const result = withGeneratedTitle(built, pattern, name, Object.values(SHAPE_NAMES));
   return { ok: true, pattern: result, schedule };
 }
 

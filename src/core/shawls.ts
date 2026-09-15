@@ -42,6 +42,7 @@ import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import { hasBaseChain, traditionOf, turningChainCountsFor } from './tradition.ts';
 import type { Anchor, LayerEvent, NodeId, Pattern, Piece, StitchDef, StitchDefId, StitchGroup, StitchNode, ValueSource } from './types.ts';
 import { validatePattern } from './validate.ts';
+import { withGeneratedTitle } from './pattern-title.ts';
 
 export type ShawlKind = 'triangle' | 'asymmetric-triangle' | 'crescent' | 'semicircle' | 'circle' | 'pi' | 'shifted-pi' | 'stole';
 export type RateChoice = 'theory' | 'custom';
@@ -845,9 +846,7 @@ export function generateShawl(pattern: Pattern, options: ShawlOptions): ShawlRes
     result = { ...base, conventions, pieces: [withRowShape(stated, plan)] };
   }
 
-  const generated = new Set<string>([...Object.values(SHAWL_NAMES), ...Object.values(SHAPE_NAMES), ...Object.values(MOTIF_NAMES)]);
-  const untitled = pattern.title.trim() === '' || pattern.title === 'Új minta' || generated.has(pattern.title);
-  result = { ...result, title: untitled ? name : pattern.title };
+  result = withGeneratedTitle(result, pattern, name, [...Object.values(SHAWL_NAMES), ...Object.values(SHAPE_NAMES), ...Object.values(MOTIF_NAMES)]);
   const errors = validatePattern(result, libraryFor(result)).filter((finding) => finding.severity === 'error');
   if (errors.length > 0) return fail(`A generált minta nem ment át az ellenőrzőn (${errors[0]!.rule}): ez a program hibája, kérlek, jelezd.`);
   return { ok: true, pattern: result, plan };

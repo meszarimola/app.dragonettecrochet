@@ -473,6 +473,12 @@ export interface PatternGauge {
 export interface Pattern {
   readonly formatVersion: 1;
   readonly title: string;
+  /**
+   * A címet generátor adta-e (PQW-896): igaz, ha a „Minta létrehozása” adta;
+   * hamis, ha a felhasználó írta. Hiányában (régi mentés) a pattern-title.ts
+   * dönti el a címből.
+   */
+  readonly titleGenerated?: boolean;
   /** Hiányában a minta jelölése nincs rögzítve (a PQW-868 előtti mentés). */
   readonly notation?: PatternNotation;
   /** Hiányában a mintához nincs profil (a PQW-859 előtti mentés); a méret becslés. */
