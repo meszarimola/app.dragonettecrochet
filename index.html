@@ -622,6 +622,86 @@
             </div>
           </details>
 
+          <details class="section" id="section-garment">
+            <summary class="section__head"><h2 class="panel__title">Ruhadarab</h2></summary>
+            <div class="shape" role="group" aria-label="Ruhadarab létrehozása testméretből">
+              <p class="panel__note">
+                Sapkát vagy ledobott vállú pulóvert készít testméretből, méretsorozattal. A rajz és a sorok a választott
+                méreté, a többi méret számai az írott minta „Méretek” részében állnak. Az új minta a mostani helyére kerül;
+                visszavonással a korábbi visszajön.
+              </p>
+              <p class="panel__field">
+                <label for="garment-kind">Ruhadarab</label>
+                <select id="garment-kind"></select>
+              </p>
+              <p class="panel__field" id="garment-table-field">
+                <label for="garment-table">Testméret-táblázat</label>
+                <select id="garment-table"></select>
+              </p>
+              <p class="panel__field">
+                <label for="garment-size">Méret a rajzhoz</label>
+                <select id="garment-size"></select>
+              </p>
+              <div class="shape__pair">
+                <p class="panel__field">
+                  <label for="garment-from">Sorozat első mérete</label>
+                  <select id="garment-from"></select>
+                </p>
+                <p class="panel__field">
+                  <label for="garment-to">Sorozat utolsó mérete</label>
+                  <select id="garment-to"></select>
+                </p>
+              </div>
+              <p class="panel__field">
+                <label for="garment-stitch">Szem</label>
+                <select id="garment-stitch"></select>
+              </p>
+              <p class="panel__field">
+                <label for="garment-ease" id="garment-ease-label">Bőség a mellbőséghez, cm</label>
+                <input id="garment-ease" type="text" inputmode="decimal" autocomplete="off" value="10" aria-describedby="garment-ease-note" />
+              </p>
+              <p class="panel__note" id="garment-ease-note"></p>
+              <div class="shape__pair">
+                <p class="panel__field">
+                  <label for="garment-hem" id="garment-hem-label">Szegély és mandzsetta, cm</label>
+                  <input id="garment-hem" type="text" inputmode="decimal" autocomplete="off" value="5" />
+                </p>
+                <p class="panel__field" id="garment-below-field">
+                  <label for="garment-below">Hossz a derék alatt, cm</label>
+                  <input id="garment-below" type="text" inputmode="decimal" autocomplete="off" value="14,5" />
+                </p>
+              </div>
+              <div class="shape__group" id="garment-repeat-field">
+                <p class="choice">
+                  <label><input type="checkbox" id="garment-repeat" /> A hátrész és az elejerész szemszáma mintaismétlésre</label>
+                </p>
+                <div class="shape__pair">
+                  <p class="panel__field">
+                    <label for="garment-repeat-x">X: egy ismétlés szemei</label>
+                    <input id="garment-repeat-x" type="number" min="1" max="50" step="1" value="4" inputmode="numeric" disabled />
+                  </p>
+                  <p class="panel__field">
+                    <label for="garment-repeat-y">Y: szélső szemek</label>
+                    <input id="garment-repeat-y" type="number" min="0" max="50" step="1" value="2" inputmode="numeric" disabled />
+                  </p>
+                </div>
+              </div>
+              <div class="shape__result" aria-live="polite">
+                <p class="shape__size" id="garment-result"></p>
+                <ul class="shape__details" id="garment-details"></ul>
+                <p class="panel__note" id="garment-checks"></p>
+                <ul class="shawl__warnings" id="garment-failed"></ul>
+                <ul class="shawl__warnings" id="garment-warnings"></ul>
+              </div>
+              <div id="garment-series-box" hidden>
+                <p class="panel__note">A méretsorozat, ahogy az írott mintába kerül:</p>
+                <ul class="shape__details" id="garment-series"></ul>
+              </div>
+              <p class="panel__note" id="garment-source"></p>
+              <button type="button" class="tool shape__create" id="garment-create">Minta létrehozása</button>
+            </div>
+          </details>
+
           <details class="section" id="section-grid">
             <summary class="section__head"><h2 class="panel__title">Rácsminta</h2></summary>
             <div class="grid-chart" role="group" aria-label="Rácsminta: filé, C2C, tapestry, graphgan, mozaik">

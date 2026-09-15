@@ -17,6 +17,7 @@
  * nem térhet el.
  */
 
+import { sizingLines } from './garment-text.ts';
 import { dative, times } from './hungarian.ts';
 import { writtenPieces, type Step, type StepTarget, type WrittenBorder, type WrittenLayer, type WrittenPiece } from './pattern-steps.ts';
 import type { StitchLibrary } from './stitch-library.ts';
@@ -35,7 +36,7 @@ export type PhraseKey = 'next-stitch' | 'next-chain' | 'same-stitch' | 'same-cha
 export interface Vocabulary {
   /** Angol jelölésnél a rendszer neve, amely a címsorokban mindig ott áll; magyarul nincs. */
   readonly system: string | null;
-  readonly headings: { readonly abbreviations: string; readonly legend: string; readonly assembly: string };
+  readonly headings: { readonly abbreviations: string; readonly legend: string; readonly assembly: string; readonly sizes: string };
   readonly layer: { readonly row: (from: number, to: number) => string; readonly round: (from: number, to: number) => string };
   readonly foundation: (chains: number) => string;
   readonly ring: string;
@@ -147,11 +148,17 @@ export interface ShapedBorderParts {
   readonly join: string;
 }
 
-/** Egy összevarrt szél a szövegben: a darab neve, a kör és a szemszáma. */
+/**
+ * Egy összevarrt szél a szövegben: a darab neve, a kör és a szemszáma; a sor
+ * egy szakaszánál a szemek 1-től, sorvégeknél az utolsó sor és a szél, a
+ * szemszám ilyenkor a sorok száma (PQW-866).
+ */
 export interface SewnEdge {
   readonly name: string;
   readonly layer: number;
   readonly count: number;
+  readonly stitches?: { readonly from: number; readonly to: number };
+  readonly rows?: { readonly to: number; readonly side: 'left' | 'right' };
 }
 
 /** A szegély sorának kiírt részei, mennyiséggel együtt: „3 rp”, „(288 szem)”. */
@@ -168,7 +175,7 @@ export interface BorderParts {
 
 const HU: Vocabulary = {
   system: null,
-  headings: { abbreviations: 'Rövidítések', legend: 'Jelmagyarázat', assembly: 'Összeállítás' },
+  headings: { abbreviations: 'Rövidítések', legend: 'Jelmagyarázat', assembly: 'Összeállítás', sizes: 'Méretek' },
   layer: {
     row: (from, to) => `${range(from, to)}. sor`,
     round: (from, to) => `${range(from, to)}. kör`,
@@ -257,8 +264,7 @@ const HU: Vocabulary = {
       technique === 'c2c' ? 'Színek csempénként, a haladási irányban:' : 'Színek szemenként, a haladási irányban:',
     run: (count, letter) => `${count} ${letter}`,
   },
-  sewing: (a, b, distributed) =>
-    `Varrás: ${a.name}, ${a.layer}. kör (${a.count}) → ${b.name}, ${b.layer}. kör (${b.count})${distributed ? ', a szemeket egyenletesen elosztva' : ''}.`,
+  sewing: (a, b, distributed) => `Varrás: ${huSewnEdge(a)} → ${huSewnEdge(b)}${distributed ? ', a szemeket egyenletesen elosztva' : ''}.`,
   border: {
     prefix: 'Szegély: ',
     text: (p) =>
@@ -308,7 +314,7 @@ function english(skipWord: string, skipVerb: string, skipMeaning: string, system
   return {
     // Az amerikai és a brit „dc” mást jelent, ezért a rendszer neve mindkét címsorban ott áll (PQW-868).
     system,
-    headings: { abbreviations: `Abbreviations (${system})`, legend: `Stitch key (${system})`, assembly: 'Assembly' },
+    headings: { abbreviations: `Abbreviations (${system})`, legend: `Stitch key (${system})`, assembly: 'Assembly', sizes: 'Sizes' },
     layer: {
       row: (from, to) => `${from === to ? 'Row' : 'Rows'} ${range(from, to)}`,
       round: (from, to) => `${from === to ? 'Rnd' : 'Rnds'} ${range(from, to)}`,
@@ -394,8 +400,7 @@ function english(skipWord: string, skipVerb: string, skipMeaning: string, system
         technique === 'c2c' ? `Tile ${color}s per row, in working order:` : `Stitch ${color}s per row, in working order:`,
       run: (count, letter) => `${count} ${letter}`,
     },
-    sewing: (a, b, distributed) =>
-      `Sew: ${a.name}, Rnd ${a.layer} (${a.count}) to ${b.name}, Rnd ${b.layer} (${b.count})${distributed ? ', easing sts evenly' : ''}.`,
+    sewing: (a, b, distributed) => `Sew: ${enSewnEdge(a)} to ${enSewnEdge(b)}${distributed ? ', easing sts evenly' : ''}.`,
     border: {
       prefix: 'Border: ',
       text: (p) =>
@@ -441,6 +446,19 @@ export const VOCABULARIES: Readonly<Record<Locale, Vocabulary>> = {
 
 function range(from: number, to: number): string {
   return from === to ? `${from}` : `${from}–${to}`;
+}
+
+/** „Hátrész, 1–30. sor bal széle (30 sorvég)”, „Hátrész, 46. sor 1–26. szeme (26)”, „Fej, 12. kör (36)”. */
+function huSewnEdge(edge: SewnEdge): string {
+  if (edge.rows) return `${edge.name}, ${range(edge.layer, edge.rows.to)}. sor ${edge.rows.side === 'left' ? 'bal' : 'jobb'} széle (${edge.count} sorvég)`;
+  if (edge.stitches) return `${edge.name}, ${edge.layer}. sor ${range(edge.stitches.from, edge.stitches.to)}. szeme (${edge.count})`;
+  return `${edge.name}, ${edge.layer}. kör (${edge.count})`;
+}
+
+function enSewnEdge(edge: SewnEdge): string {
+  if (edge.rows) return `${edge.name}, ${edge.layer === edge.rows.to ? 'Row' : 'Rows'} ${range(edge.layer, edge.rows.to)}, ${edge.rows.side} edge (${edge.count} row ends)`;
+  if (edge.stitches) return `${edge.name}, Row ${edge.layer}, sts ${range(edge.stitches.from, edge.stitches.to)} (${edge.count})`;
+  return `${edge.name}, Rnd ${edge.layer} (${edge.count})`;
 }
 
 export function ordinal(n: number): string {
@@ -513,6 +531,8 @@ export interface WrittenPatternText {
   readonly pieces: readonly { readonly name: string; readonly lines: readonly string[] }[];
   /** Az összevarrások sorai (PQW-863); a folytatólagos kapcsolás a darab sorai között áll. */
   readonly assembly: readonly string[];
+  /** A ruhadarab méretsorozata „S (M, L)” alakban (PQW-866); más mintában üres. */
+  readonly sizes: readonly string[];
 }
 
 /** Az írott minta: rövidítéslista, jelmagyarázat és darabonként a sorok. */
@@ -523,9 +543,12 @@ export function writePattern(pattern: Pattern, library: StitchLibrary, locale: L
   const shortIncrease = shortIncreaseOf(written, library);
   const renderer = new Renderer(library, locale, used, shortIncrease);
   const pieces = written.map((piece) => ({ name: piece.name, lines: renderer.piece(piece) }));
-  const edge = ({ piece: id, layer }: JoinEdge): SewnEdge => {
+  const edge = ({ piece: id, layer, stitches, rows }: JoinEdge): SewnEdge => {
     const index = pattern.pieces.findIndex((piece) => piece.id === id);
-    return { name: pattern.pieces[index]?.name ?? id, layer, count: written[index]?.layers[layer - 1]?.stitchCount ?? 0 };
+    const name = pattern.pieces[index]?.name ?? id;
+    if (stitches) return { name, layer, count: stitches.count, stitches: { from: stitches.from + 1, to: stitches.from + stitches.count } };
+    if (rows) return { name, layer, count: rows.to - layer + 1, rows };
+    return { name, layer, count: written[index]?.layers[layer - 1]?.stitchCount ?? 0 };
   };
   const assembly = (pattern.joins ?? []).map((join) => vocabulary.sewing(edge(join.a), edge(join.b), join.distribution !== undefined));
 
@@ -549,6 +572,7 @@ export function writePattern(pattern: Pattern, library: StitchLibrary, locale: L
     legend: legendOf(pattern, library, locale),
     pieces,
     assembly,
+    sizes: pattern.garment ? sizingLines(pattern.garment, locale) : [],
   };
 }
 
@@ -556,6 +580,8 @@ export function writePattern(pattern: Pattern, library: StitchLibrary, locale: L
 export function formatWrittenPattern(written: WrittenPatternText): string {
   const { headings } = VOCABULARIES[written.locale];
   const blocks: string[][] = [[written.title]];
+  // A méretek a cím után állnak (05 §8.1).
+  if (written.sizes.length > 0) blocks.push([headings.sizes, ...written.sizes]);
   if (written.abbreviations.length > 0) {
     blocks.push([headings.abbreviations, ...written.abbreviations.map(({ abbr, meaning }) => `${abbr} – ${meaning}`)]);
   }
