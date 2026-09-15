@@ -86,6 +86,7 @@ import { nodeInsertions } from '../core/insertion.js';
 import { AmigurumiPanel } from './amigurumi-panel.js';
 import { RoundsPanel } from './rounds-panel.js';
 import { ShapesPanel } from './shapes-panel.js';
+import { ShawlsPanel } from './shawls-panel.js';
 import { SizePanel } from './size-panel.js';
 import { DEFAULT_PATTERN_TYPE, PATTERN_TYPES, gridKind, isAvailableType, writtenShareFor, type PatternTypeId } from './pattern-types.js';
 import { applyInk, drawCentered, readInk, shapeBounds, stemLength, symbolShapes, type SymbolOptions } from './symbols.js';
@@ -343,6 +344,7 @@ function refresh(message?: string): void {
   sizePanel.update(derived.pattern, derived.context.graph, derived.context.library);
   roundsPanel.update(derived.pattern);
   shapesPanel.update(derived.pattern);
+  shawlsPanel.update(derived.pattern);
   amigurumiPanel.update(derived.pattern);
   if (message !== undefined) announce(message);
 }
@@ -1635,6 +1637,18 @@ const roundsPanel = new RoundsPanel(must<HTMLDetailsElement>('#section-rounds'),
 /* ---- Forma (PQW-862) ---- */
 
 const shapesPanel = new ShapesPanel(must<HTMLDetailsElement>('#section-shape'), {
+  commit: (pattern, message) => {
+    selectedNode = null;
+    selection = [];
+    commit({ ok: true, pattern }, message);
+    fitBoard();
+  },
+  announce,
+});
+
+/* ---- Kendő (PQW-865) ---- */
+
+const shawlsPanel = new ShawlsPanel(must<HTMLDetailsElement>('#section-shawl'), {
   commit: (pattern, message) => {
     selectedNode = null;
     selection = [];

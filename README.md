@@ -192,6 +192,32 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
     írja.
   - A létrehozás egy lépésben visszavonható, és minden generált minta
     hibátlanul átmegy az ellenőrzőn.
+- **Kendőformák** (PQW-865): a jobb oldali panel „Kendő” szakasza (a Forma
+  alatt, alapból csukva).
+  - **Formák:** fentről induló szimmetrikus háromszög (szárnyakkal is),
+    aszimmetrikus háromszög, félhold és félkör fordított sorokban, egyetlen
+    láncszembe horgolt 1. sorral; kör, Pi-kendő és eltolt Pi-kendő körökben,
+    varázskörből; téglalap stóla (a Forma téglalapja).
+  - **Szaporítási arány** a mintasűrűségből (05 §1): háromszögnél soronként
+    `4 · h/w` (élenként `h/w`, a gerincen `2 · h/w`) és `D / (√2 · h)` sor,
+    félkörnél `π · h/w`, körnél `2π · h/w`, aszimmetrikus háromszögnél `h/w`,
+    félholdnál élenként `2 · h/w`. A saját arány is megadható; az előnézet a
+    kapott szöget és méretet mutatja. A tudásbázis „A” példája (pálcás
+    háromszög, 45 sor, 360 szem) egyezik.
+  - **Páros szimmetria:** a szimmetrikus kendőben a szaporítás párban jön; tört
+    aránynál a sorok között elosztva, a +2-es sor felváltva a széleken és a
+    gerincen. Pi-kendőnél duplázás a 2., 4., 8. … körben, eltolva a
+    `round(2^k · 0,75)`. körben.
+  - **Az utolsó sor** (körben az utolsó kör) a szegély „X többszöröse + Y”
+    ismétléséhez igazítható, a szimmetrikus kendőben félenként.
+  - **Előnézet:** a blokkolt (teli) és a blokkolatlan (szaggatott) körvonal és
+    méret. Hogy melyik a mért, azt a profil jelöli; a másikat a megadott
+    blokkolási nyúlás adja.
+  - **Figyelmeztetés, nem hiba:** ha az arány 15%-nál többel eltér az
+    ideálistól (kunkorodás, fodrosodás, mélyebb vagy laposabb háromszög, a
+    Pi-kendő duplázás előtti köre).
+  - A létrehozás egy lépésben visszavonható, és minden generált kendő
+    hibátlanul átmegy az ellenőrzőn.
 - **Amigurumi és 3D formák** (PQW-863): a mintatípus-menü „Amigurumi” pontja és
   a jobb oldali panel „Amigurumi” szakasza (a Kör és motívum alatt). Az
   amigurumi fő nézete az írott minta: a típus kiválasztásakor a panel nagyban
@@ -242,6 +268,7 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/core/round-generator.ts` | **Kör- és motívumgenerátor** (PQW-861): lapos kör, négyzet, hatszög, nyolcszög, nagymama-négyzet szemgráfként, kezdéssel, körvéggel és színváltással. |
 | `src/core/shapes.ts` | **Sík formák generátora** (PQW-862): téglalap, háromszögek, trapéz, rombusz cm-ből vagy az él szögéből, mintaismétlés; az élek egyenletes alakítása élenként legfeljebb 2-vel, láncos hosszabbítás és meghagyott szemek; a terv és a szemgráf. Tiszta függvény. |
 | `src/core/border.ts` | **Szegély** (PQW-862): sorvégi arányok, sarkok, a szegély szemszáma a gráf soraiból. |
+| `src/core/shawls.ts` | **Kendőformák** (PQW-865): háromszög, aszimmetrikus háromszög, félhold, félkör, kör, Pi-kendő, eltolt Pi-kendő, stóla; elméleti vagy saját szaporítási arány, páros szimmetria, az utolsó sor igazítása a szegélyhez, blokkolt és blokkolatlan méret, figyelmeztetés az ideálistól való eltérésre; a terv és a szemgráf. Tiszta függvény. |
 | `src/core/amigurumi.ts` | **Amigurumi és 3D formák** (PQW-863): a forma körterve a körben mért mintasűrűségből (gömb 6n és szinuszos, félgömb, tojás, henger, kúp, forgástest), a korlátok, egy kör elosztása, a görbület körönként, a méretbecslés és a kapcsolás ellenőrzése. |
 | `src/core/amigurumi-generator.ts` | A körtervből szemgráf spirálban, jelölésekkel; új minta egy részből, új rész varrva vagy folytatólagosan. |
 | `src/ui/amigurumi-view.ts`, `src/ui/amigurumi-panel.ts` | Az „Amigurumi” szakasz: a mezők a formához, az előnézet, a figura mérete (DOM nélkül), és a bekötése. |
@@ -258,6 +285,7 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/ui/written.ts` | **Az írott minta panelje** (PQW-868): a szöveg a jelöléssel, vagy érthető üzenet, ha a minta még nem írható ki. DOM nélküli. |
 | `src/ui/rounds-view.ts`, `src/ui/rounds-panel.ts` | **A „Kör és motívum” szakasz** (PQW-861): a választások és a szaporítás magyarázata eredettel (DOM nélkül); a mezők és a minta létrehozása a panelen. |
 | `src/ui/shapes-view.ts`, `src/ui/shapes-panel.ts` | **A „Forma” szakasz** (PQW-862): a választások, a mezők a formához, a terv kiírása eredettel és az előnézet körvonala (DOM nélkül); a mezők, az előnézet és a minta létrehozása a panelen. |
+| `src/ui/shawls-view.ts`, `src/ui/shawls-panel.ts` | **A „Kendő” szakasz** (PQW-865): a választások, a mezők a kendőhöz, a terv kiírása a szöggel, a blokkolt és blokkolatlan mérettel és a figyelmeztetésekkel, az előnézet két körvonala (DOM nélkül); a mezők és a minta létrehozása a panelen. |
 | `src/core/insertion.ts` | **Beszúrási mód** (PQW-869): a szem megengedett módjai, az érvényes mód, a horgoló felőli és a színoldali mód átváltása, a szemek tárolt módja a rajzhoz. |
 | `src/ui/insertion-view.ts`, `src/ui/insertion-panel.ts` | **A „Beszúrás” választó** a Szemek szakaszban (PQW-869): a módok, az érvényes mód és az írott alak (DOM nélkül); a rádiógombok a panelen. |
 | `src/core/editor.ts` | **A szerkesztő műveletei** (PQW-857): célpontok, horgolás, „még egy ugyanabba”, fordulás, körzárás, az utolsó lépés törlése, kézi igazítás, élő ellenőrzés. |
@@ -278,7 +306,7 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `public/.htaccess` | Biztonsági fejlécek és cache. A CSP a GA-azonosítóval együtt változik — a `tests/analytics.test.mjs` őrzi. |
 | `tests/*.test.mjs` | `node:test` tesztek; a `core-*` a magot, a `ui-*` a jelrajzot, a palettát és az SVG-t, az `analytics` a süti-sávot és a CSP-t, a `hu-vocabulary` a magyar szóhasználatot (szem = stitch) nézi. |
 | `tests/fixtures/written/` | Az írott minta rögzített szövege kidolgozott példánként (`hu`, `en-US`); a magyart a tulajdonos hagyja jóvá. |
-| `e2e/*.spec.ts`, `playwright.config.ts` | Böngészős tesztek a kritikus utakra: téglalap billentyűzettel, mentés és újratöltés, export, az írott minta panelje jelölésváltással, a japán előbeállítás (`editor.spec.ts`); mintatípus-választás, szemválasztás a panelből, hibaszámláló, alsó írott panel (`felulet.spec.ts`); az elrendezés helyei (`elrendezes.spec.ts`); a panel szakaszai és a tooltipek (`panel.spec.ts`); téglalap cellákra kattintva, a rács kapcsolója és exportja (`racs.spec.ts`); becslés profil nélkül, profil megadása és mentése, arányhelyes nézet (`meret.spec.ts`); kijelölés a sorszámmal, billentyűzettel és területtel, másolás, beillesztés, duplikálás, törlés az érintett szemek megmutatásával, visszavonás (`kijeloles.spec.ts`); hátsó szálas és reliefes sor a beszúrási mód választójával (`beszuras.spec.ts`); téglalap profil nélkül és visszavonás, háromszög az él szögéből, szegélyes téglalap (`formak.spec.ts`). |
+| `e2e/*.spec.ts`, `playwright.config.ts` | Böngészős tesztek a kritikus utakra: téglalap billentyűzettel, mentés és újratöltés, export, az írott minta panelje jelölésváltással, a japán előbeállítás (`editor.spec.ts`); mintatípus-választás, szemválasztás a panelből, hibaszámláló, alsó írott panel (`felulet.spec.ts`); az elrendezés helyei (`elrendezes.spec.ts`); a panel szakaszai és a tooltipek (`panel.spec.ts`); téglalap cellákra kattintva, a rács kapcsolója és exportja (`racs.spec.ts`); becslés profil nélkül, profil megadása és mentése, arányhelyes nézet (`meret.spec.ts`); kijelölés a sorszámmal, billentyűzettel és területtel, másolás, beillesztés, duplikálás, törlés az érintett szemek megmutatásával, visszavonás (`kijeloles.spec.ts`); hátsó szálas és reliefes sor a beszúrási mód választójával (`beszuras.spec.ts`); téglalap profil nélkül és visszavonás, háromszög az él szögéből, szegélyes téglalap (`formak.spec.ts`); fentről induló háromszög-kendő saját aránnyal és figyelmeztetéssel, visszavonás, félkör (`kendok.spec.ts`). |
 | `tests/*.check.ts` | Csak fordítási próba: a `tsconfig.core.json` típusellenőrzi, nem fut. |
 | `tsconfig.core.json` | A `src/core/` típusellenőrzése DOM-típusok nélkül. |
 
