@@ -15,10 +15,21 @@
  * sor végi szemszámot is összeveti a visszaolvasott gráf számolásával.
  */
 
+import { borderOf } from './border.ts';
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
 import { isStitchInsertion } from './insertion.ts';
 import { modeAsWorked, type Step, type StepTarget } from './pattern-steps.ts';
-import { VOCABULARIES, isDecrease, isIncrease, refOf, renderStep, type PhraseKey, type StepContext, type Vocabulary } from './pattern-text.ts';
+import {
+  VOCABULARIES,
+  isDecrease,
+  isIncrease,
+  refOf,
+  renderBorder,
+  renderStep,
+  type PhraseKey,
+  type StepContext,
+  type Vocabulary,
+} from './pattern-text.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { traditionOf, turningChainCountsFor } from './tradition.ts';
 import type {
@@ -29,6 +40,7 @@ import type {
   Pattern,
   PatternConventions,
   Piece,
+  PieceBorder,
   Ring,
   RoundMark,
   Space,
@@ -279,6 +291,8 @@ class PieceReader {
   private ringSpace: SpaceId | null = null;
   /** A darab spirálban halad: a kör vége kiírás nélkül is spirál (pattern-text.ts). */
   private spiral = false;
+  /** A darab szegélye, ha a szöveg utolsó sora a szegély (PQW-862). */
+  private border: PieceBorder | null = null;
   private readonly shortIncrease: StitchDefId | null;
   /** Rétegenként a szöveg sora, a szemszám hibájához. */
   private readonly layerLines = new Map<number, number>();
@@ -304,9 +318,11 @@ class PieceReader {
     if (!foundationLine) throw new ReadFailure(nameLine!.number, 'A darab neve után a láncalap vagy a varázskör következik.');
     this.readFoundation(foundationLine);
     this.spiral = rest[0]?.text === this.vocabulary.spiral;
+    const body = this.spiral ? rest.slice(1) : rest;
+    const borderLine = body.at(-1)?.text.startsWith(this.vocabulary.border.prefix) ? body.at(-1) : undefined;
     // A folytatólagosan kapcsolt rész neve (PQW-863) nem kör; a részeket nem olvassuk vissza.
     const sectionSuffix = this.vocabulary.section('');
-    const layerLines = (this.spiral ? rest.slice(1) : rest).filter(
+    const layerLines = (borderLine ? body.slice(0, -1) : body).filter(
       (line) => !(line.text.endsWith(sectionSuffix) && line.text.length > sectionSuffix.length && !line.text.includes(': ')),
     );
 
@@ -321,9 +337,28 @@ class PieceReader {
       }
     });
 
+    if (borderLine) this.readBorder(borderLine);
     const piece = this.piece();
     this.checkCounts(piece);
     return piece;
+  }
+
+  /**
+   * A szegély sora pontosan az-e, amit a sorokból számolva kiírnánk. A
+   * félpálcás sorvégi szám (1 vagy 2) a szövegből derül ki; más szemnél a kettő
+   * ugyanazt a szöveget adja, ott az alapértelmezés marad.
+   */
+  private readBorder(line: Line): void {
+    const graph = this.graph();
+    for (const hdcRowEnd of [2, 1] as const) {
+      const border: PieceBorder = { stitch: 'sc', hdcRowEnd };
+      const result = borderOf(graph, border);
+      if (result.ok && renderBorder({ stitch: border.stitch, counts: result.counts }, this.options.library, this.options.locale) === line.text) {
+        this.border = border;
+        return;
+      }
+    }
+    throw new ReadFailure(line.number, `Nem értelmezhető szegély: „${line.text}”.`);
   }
 
   private piece(): Piece {
@@ -336,6 +371,7 @@ class PieceReader {
       groups: [...this.groups],
       events: [...this.events],
       skipped: [...this.skipped],
+      ...(this.border ? { border: this.border } : {}),
     };
   }
 
