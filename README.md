@@ -101,6 +101,23 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
   visszaolvasás is ezzel számol; a mentett JSON a `conventions.tradition`
   mezőben rögzíti. JIS-ben a varázskör jele „わ”; a diagramon a szemszám
   „18目”, az exportban az ismétlés „6目1模様” alakú.
+- **Méret és fonal** (PQW-859): a jobb oldali panel „Méret és fonal” szakasza
+  (a Szemek alatt, alapból csukva).
+  - **Profil-szerkesztő:** fonal (név, CYC vastagsági kategória, m/100 g, egy
+    gombolyag tömege), tű mm-ben a US és a régi UK méretével, szemenként
+    szem és sor 10 cm-en síkban vagy körben mérve, blokkolva vagy anélkül, a
+    próbadarab mérete és tömege.
+  - **Eredetjelölés:** minden érték mellett, hogy mért, címkéről vett vagy
+    becsült; a becslés tartománnyal. Profil nélkül a méret 4 mm-es tűből
+    becsült, és a szakasz ezt ki is írja.
+  - **Kiírás:** kész szélesség és magasság soronként és a teljes darabra
+    (körnél átmérő), fonal a próbadarab tömegéből 10–15 % tartalékkal, egész
+    gombolyagra kerekítve.
+  - **Profilok:** több profil között lehet váltani. A profilok a mintával
+    mentődnek (a böngészőben és a JSON `gauge` mezőjében), és az új mintába is
+    átkerülnek. A régi mentések változatlanul betöltődnek.
+  - **Arányhelyes nézet:** kapcsolóval a jelek szára és a rács sorai a valós
+    szemarányt követik; az export is. Újratöltés után nem marad meg.
 
 A jelek alapból a Craft Yarn Council jelölését követik, és a könyvtár adataiból
 rajzolódnak: a szár hossza a láncszem-magasságból, a ferde vonalak száma a
@@ -120,6 +137,7 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/core/graph.ts` | A szemgráfból számolt sorok és körök: szemszám (a láncszemek a használatuk szerint, PQW-870), pozíciószám, színe vagy visszája, fordulólánc, haladási irány (PQW-856). |
 | `src/core/validate.ts`, `src/core/rules.ts` | Az ellenőrző és a szabálykatalógus. Minden szabálynál ott a súlyosság és a tudásbázis pontja; új szabály előbb a `rules.ts`-be kerül. |
 | `src/core/pattern-json.ts` | A minta mentése és betöltése verziózott JSON-ként (`formatVersion`), mezőútvonalas hibával. |
+| `src/core/pattern-size.ts` | **A minta mérete és fonala** (PQW-859): a mintával mentett profil a gauge-profil formájában, a méret rétegei a gráfból, fonalbecslés, profilok kezelése, az arányhelyes nézet szárhossza. |
 | `src/core/pattern-steps.ts` | **Az írott minta lépéssora** a gráfból (PQW-858), nyelvtől függetlenül: célpont az előző sor pozícióihoz képest, összevonás („5 rp”), legrövidebb ismétlődő egység. Itt dől el, mit tud a szöveg kifejezni. |
 | `src/core/pattern-text.ts`, `src/core/hungarian.ts` | Az írott minta szövege magyarul, amerikai és brit jelöléssel; rövidítéslista és jelmagyarázat a használt szemekkel; a magyar ragozás. Minden kiírt kifejezés innen jön. |
 | `src/core/pattern-read.ts`, `src/core/canonical.ts` | A saját szöveg visszaolvasása gráffá, a szöveg sorára mutató hibával; két minta összevetése az azonosítóktól függetlenül. |
@@ -128,6 +146,7 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/ui/pattern-types.ts` | A bal oldali mintatípus-menü tartalma (PQW-873): a négy típus neve, magyarázata és hogy be van-e kapcsolva; a típushoz tartozó rács (PQW-874). DOM nélküli. |
 | `src/ui/grid-paths.ts` | A rács rajza útvonalakként: ugyanebből rajzol a vászon és az SVG-export. DOM nélküli. |
 | `src/ui/notation.ts` | **A jelölés és a jelstílus beállítása** (PQW-868): alapértelmezés a felület nyelvéből, tárolás, a jelrajz beállítása, a minta jelölésének rögzítése. DOM nélküli. |
+| `src/ui/size-view.ts`, `src/ui/size-panel.ts` | **A „Méret és fonal” szakasz** (PQW-859): a kiírás szövegei eredettel és tartománnyal, tűátváltás (DOM nélkül); a profil-szerkesztő és a profilváltás a panelen. |
 | `src/ui/written.ts` | **Az írott minta panelje** (PQW-868): a szöveg a jelöléssel, vagy érthető üzenet, ha a minta még nem írható ki. DOM nélküli. |
 | `src/core/editor.ts` | **A szerkesztő műveletei** (PQW-857): célpontok, horgolás, „még egy ugyanabba”, fordulás, körzárás, az utolsó lépés törlése, kézi igazítás, élő ellenőrzés. |
 | `src/core/selection.ts` | **Kijelölés, törlés, másolás, beillesztés, duplikálás** (PQW-875): egész egységek (csoport, láncív), sor, terület és billentyűzetes lépés; törlés a belé horgolt szemekkel; a másolat célpont-eltolásokkal, a beillesztés újraköt, és hibánál nem változtat. Tiszta függvény. |
@@ -147,7 +166,7 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `public/.htaccess` | Biztonsági fejlécek és cache. A CSP a GA-azonosítóval együtt változik — a `tests/analytics.test.mjs` őrzi. |
 | `tests/*.test.mjs` | `node:test` tesztek; a `core-*` a magot, a `ui-*` a jelrajzot, a palettát és az SVG-t, az `analytics` a süti-sávot és a CSP-t, a `hu-vocabulary` a magyar szóhasználatot (szem = stitch) nézi. |
 | `tests/fixtures/written/` | Az írott minta rögzített szövege kidolgozott példánként (`hu`, `en-US`); a magyart a tulajdonos hagyja jóvá. |
-| `e2e/*.spec.ts`, `playwright.config.ts` | Böngészős tesztek a kritikus utakra: téglalap billentyűzettel, mentés és újratöltés, export, az írott minta panelje jelölésváltással, a japán előbeállítás (`editor.spec.ts`); mintatípus-választás, szemválasztás a panelből, hibaszámláló, alsó írott panel (`felulet.spec.ts`); az elrendezés helyei (`elrendezes.spec.ts`); a panel szakaszai és a tooltipek (`panel.spec.ts`); téglalap cellákra kattintva, a rács kapcsolója és exportja (`racs.spec.ts`); kijelölés a sorszámmal, billentyűzettel és területtel, másolás, beillesztés, duplikálás, törlés az érintett szemek megmutatásával, visszavonás (`kijeloles.spec.ts`). |
+| `e2e/*.spec.ts`, `playwright.config.ts` | Böngészős tesztek a kritikus utakra: téglalap billentyűzettel, mentés és újratöltés, export, az írott minta panelje jelölésváltással, a japán előbeállítás (`editor.spec.ts`); mintatípus-választás, szemválasztás a panelből, hibaszámláló, alsó írott panel (`felulet.spec.ts`); az elrendezés helyei (`elrendezes.spec.ts`); a panel szakaszai és a tooltipek (`panel.spec.ts`); téglalap cellákra kattintva, a rács kapcsolója és exportja (`racs.spec.ts`); becslés profil nélkül, profil megadása és mentése, arányhelyes nézet (`meret.spec.ts`); kijelölés a sorszámmal, billentyűzettel és területtel, másolás, beillesztés, duplikálás, törlés az érintett szemek megmutatásával, visszavonás (`kijeloles.spec.ts`). |
 | `tests/*.check.ts` | Csak fordítási próba: a `tsconfig.core.json` típusellenőrzi, nem fut. |
 | `tsconfig.core.json` | A `src/core/` típusellenőrzése DOM-típusok nélkül. |
 

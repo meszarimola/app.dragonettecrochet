@@ -105,6 +105,8 @@ export interface GaugeSample {
 
 /** Egy szem egy formában, a profil összes mintájából. */
 export interface StitchGauge {
+  /** Honnan jön a mérés; hiányában mért. A felületen megadott címkeadat `label` (PQW-859). */
+  readonly source?: 'measured' | 'label';
   readonly widthMm: Stat;
   readonly heightMm: Stat;
   readonly massPerAreaGPerCm2: number | null;
