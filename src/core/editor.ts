@@ -456,12 +456,53 @@ export function endRow(pattern: Pattern, tool: StitchDefId | null): EditResult {
   return done(withPiece(pattern, next));
 }
 
-/** A kör zárása kúszószemmel a kör első pozíciójába: az első szembe vagy a kezdőlánc tetejébe (06 §5.3 V4). */
+/** Ennyi láncszemből lehet láncgyűrű; kevesebbnél a „2 lsz, 6 rp a 2. láncszembe” kezdés való. */
+export const MIN_RING_CHAINS = 3;
+
+/** Láncgyűrű zárható-e: a darab csak láncszemekből áll, láncív és esemény nélkül (04 §1.1). */
+export function canJoinChainRing(pattern: Pattern): boolean {
+  const piece = pieceOf(pattern);
+  return (
+    piece.stitches.length >= MIN_RING_CHAINS &&
+    piece.stitches.every((node) => node.def === 'ch') &&
+    piece.spaces.length === 0 &&
+    piece.events.length === 0
+  );
+}
+
+/**
+ * Véget érhet-e most a kör, kúszószemmel vagy spirálban: körben, ha már van
+ * szeme, és a láncszembe horgolt 1. kör után is („2 lsz, 6 rp a 2.
+ * láncszembe”, 04 §1.1), amelyet a zárás tesz körré (PQW-861).
+ */
+export function canEndRound(context: WorkContext): boolean {
+  const layer = context.graph?.layers[context.layer];
+  if (!context.graph || !context.started || !layer || layer.positions.length === 0 || layer.closing !== null) return false;
+  if (context.shape === 'round') return true;
+  const base = context.graph.layers[0]!;
+  return context.layer === 1 && base.positions.length === 1 && base.stitches.every((id) => context.graph!.defs.get(id)!.kind === 'chain');
+}
+
+/** A kör zárása gombja: láncgyűrű a láncszemekből, vagy a kör zárása. */
+export function canCloseRound(pattern: Pattern, context: WorkContext = contextOf(pattern)): boolean {
+  return canJoinChainRing(pattern) || canEndRound(context);
+}
+
+/**
+ * A kör zárása kúszószemmel a kör első pozíciójába: az első szembe vagy a
+ * kezdőlánc tetejébe (06 §5.3 V4). Ha a darab még csak láncszem, a zárás
+ * láncgyűrűt ad (PQW-861).
+ */
 export function closeRound(pattern: Pattern): EditResult {
   const piece = pieceOf(pattern);
+  if (canJoinChainRing(pattern)) return joinChainRing(pattern);
   const context = contextOf(pattern);
+  const onlyChains = piece.stitches.length > 0 && piece.stitches.every((node) => node.def === 'ch');
+  if (onlyChains && piece.stitches.length < MIN_RING_CHAINS) {
+    return refuse(`A láncgyűrűhöz legalább ${MIN_RING_CHAINS} láncszem kell; 2 láncszemnél horgold az 1. kört a 2. láncszembe.`);
+  }
   if (!context.graph || !context.started) return refuse('Ebben a körben még nincs szem.');
-  if (context.shape !== 'round') return refuse('Sorban nincs körzárás: a sor végén fordulunk.');
+  if (!canEndRound(context)) return refuse('Sorban nincs körzárás: a sor végén fordulunk.');
   const layer = context.graph.layers[context.layer]!;
   const first = layer.positions[0];
   if (!first) return refuse('A körnek nincs első szeme, amelybe zárni lehetne.');
@@ -473,8 +514,35 @@ export function closeRound(pattern: Pattern): EditResult {
 }
 
 /**
+ * Láncgyűrű (04 §1.1): kúszószem az első láncszembe, a láncszemekből egy
+ * láncív, amelybe az 1. kör horgol. A zárás eseménye az utolsó láncszem után
+ * áll; a kúszószem az 1. kör továbbvezetése (graph.ts).
+ */
+function joinChainRing(pattern: Pattern): EditResult {
+  const piece = pieceOf(pattern);
+  const chains = piece.stitches.map((node) => node.id);
+  const { piece: next } = append(piece, [{ def: 'sl-st', anchors: [{ into: 'stitch', id: chains[0]!, mode: 'both-loops' }] }]);
+  const ring = { id: nextId('s', piece.spaces.map((space) => space.id)), chains };
+  return done(withPiece(pattern, { ...next, spaces: [ring], events: [{ after: chains[chains.length - 1]!, kind: 'join-slip' }] }));
+}
+
+/**
+ * A kör vége spirálban: a következő kör zárás nélkül folytatódik, a kör első
+ * szemét körjelölő jelöli (04 §2). A lépcsőt a színváltásnál az ellenőrző jelzi.
+ */
+export function endRoundSpiral(pattern: Pattern): EditResult {
+  const piece = pieceOf(pattern);
+  const context = contextOf(pattern);
+  if (!context.graph || !context.started) return refuse('Ebben a körben még nincs szem.');
+  if (!canEndRound(context)) return refuse('Sorban nincs spirál: a sor végén fordulunk.');
+  const last = piece.stitches[piece.stitches.length - 1]!;
+  return done(withPiece(pattern, { ...piece, events: [...piece.events, { after: last.id, kind: 'spiral' }] }));
+}
+
+/**
  * Az utolsó lépés törlése: a sor vége (a körzáró kúszószemmel), a teljes
- * csoport, a teljes láncív, vagy egy szem.
+ * csoport, a teljes láncív, vagy egy szem. A láncgyűrű kúszószemével a gyűrű
+ * is felbomlik, a láncszemek maradnak.
  */
 export function deleteLast(pattern: Pattern): EditResult {
   const piece = pieceOf(pattern);
@@ -492,14 +560,21 @@ export function deleteLast(pattern: Pattern): EditResult {
   if (group) remove = new Set(group.members);
   else if (space) remove = new Set(space.chains);
 
+  const before = piece.stitches.slice(0, -1);
+  const ringJoin =
+    last.def === 'sl-st' && before.length > 0 && before.every((node) => node.def === 'ch')
+      ? piece.events.find((candidate) => candidate.after === last.prev && candidate.kind === 'join-slip')
+      : undefined;
+
   const stitches = piece.stitches.filter((node) => !remove.has(node.id));
   return done(
     withPiece(pattern, {
       ...piece,
       stitches,
-      events: piece.events.filter((e) => !remove.has(e.after)),
+      events: piece.events.filter((e) => !remove.has(e.after) && e !== ringJoin),
       groups: piece.groups.filter((g) => g.members.every((id) => !remove.has(id))),
       spaces: piece.spaces
+        .filter((s) => !ringJoin || !s.chains.includes(ringJoin.after))
         .map((s) => ({ ...s, chains: s.chains.filter((id) => !remove.has(id)) }))
         .filter((s) => s.chains.length > 0),
       rings: piece.rings.filter((r) => !remove.has(r.node)),

@@ -37,7 +37,8 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
 - **Még egy ugyanabba** (`Shift`+`Enter`): egy szemből szaporítás, a
   szaporításból és a kagylóból eggyel nagyobb lesz (pl. `inc-3dc`).
 - **Sor vége, fordulás** (`F`) a kiválasztott szem fordulóláncával;
-  **kör zárása** (`K`) kúszószemmel a kör első pozíciójába.
+  **kör zárása** (`K`) kúszószemmel a kör első pozíciójába, csak láncszemekből
+  láncgyűrű; **kör vége spirálban** (`S`), zárás nélkül (PQW-861).
 - **Visszavonás, újra, az utolsó lépés törlése** (`Ctrl`+`Z`,
   `Ctrl`+`Shift`+`Z`, `Backspace`). Egy lépés egy egység: csoport, láncív,
   fordulás.
@@ -131,6 +132,30 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
     átkerülnek. A régi mentések változatlanul betöltődnek.
   - **Arányhelyes nézet:** kapcsolóval a jelek szára és a rács sorai a valós
     szemarányt követik; az export is. Újratöltés után nem marad meg.
+- **Körök és motívumok** (PQW-861): a jobb oldali panel „Kör és motívum”
+  szakasza (a Méret és fonal alatt, alapból csukva).
+  - **Kezdés:** varázskör, láncgyűrű (a vásznon is: láncszemek, majd `K`), vagy
+    „2 lsz, 6 rp a 2. láncszembe”.
+  - **Kör vége:** zárt kör kúszószemmel és kezdőlánccal, vagy spirál; az írott
+    minta a spirálnál egyszer, a darab elején kéri a körjelölőt. Színváltásnál
+    spirálban lépcsőjavítás választható; nélküle az ellenőrző figyelmeztet és
+    javasol. Az alapértelmezés a tulajdonos döntése szerint a zárt kör
+    (amigurumiban spirál, az a PQW-863).
+  - **Lapos kör:** a szaporítás száma a körben mért mintasűrűségből
+    (2π × magasság/szélesség, páros számra kerekítve); profil nélkül a
+    szokásos körös arányból becsülve, és a szakasz ezt ki is írja. Eltolt
+    szaporítással a 04 §3.2, nélküle a 04 §3.1 táblázata.
+  - **Sokszög és motívum:** négyzet, hatszög, nyolcszög a sokszög lapos
+    értékével, a sarkokban egymás fölé kerülő szaporítással; nagymama-négyzet
+    láncívekkel (sarkonként 3 erp, 2 lsz, 3 erp).
+  - **Ellenőrzés a befejezett körökön:** legfeljebb duplázás vagy felezés,
+    kunkorodás (a lapos érték ~85%-a alatt két körön át), fodrosodás (~130%
+    fölött), három körön át egymás fölé kerülő szaporítás (sokszögben nem).
+  - **Írott minta körökre:** „3. kör: (1 rp, szap.) ×6 (18)”, angolul
+    „Rnd 3: (sc, inc) x6 (18)”; a „szap.” a rövidítéslistában áll. A sorok
+    alakja nem változott. Visszaolvasható, a japán előbeállítással is.
+  - **Rajz:** a jelek sugárirányban a középpontból kifelé, az alapjuk az előző
+    kör célpontszemén; a körszám a kör elején, a szemszám mögötte.
 
 A jelek alapból a Craft Yarn Council jelölését követik, és a könyvtár adataiból
 rajzolódnak: a szár hossza a láncszem-magasságból, a ferde vonalak száma a
@@ -150,6 +175,8 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/core/graph.ts` | A szemgráfból számolt sorok és körök: szemszám (a láncszemek a használatuk szerint, PQW-870), pozíciószám, színe vagy visszája, fordulólánc, haladási irány (PQW-856). |
 | `src/core/validate.ts`, `src/core/rules.ts` | Az ellenőrző és a szabálykatalógus. Minden szabálynál ott a súlyosság és a tudásbázis pontja; új szabály előbb a `rules.ts`-be kerül. |
 | `src/core/pattern-json.ts` | A minta mentése és betöltése verziózott JSON-ként (`formatVersion`), mezőútvonalas hibával. |
+| `src/core/rounds.ts` | **Körök geometriája** (PQW-861): a lapos körhöz és sokszöghöz kellő szaporítás a körös mintasűrűségből, eredettel; a befejezett körök ellenőrzése (növekedés, kunkorodás, fodrosodás, egymás fölé kerülő szaporítás, spirál lépcsője). |
+| `src/core/round-generator.ts` | **Kör- és motívumgenerátor** (PQW-861): lapos kör, négyzet, hatszög, nyolcszög, nagymama-négyzet szemgráfként, kezdéssel, körvéggel és színváltással. |
 | `src/core/pattern-size.ts` | **A minta mérete és fonala** (PQW-859): a mintával mentett profil a gauge-profil formájában, a méret rétegei a gráfból, fonalbecslés, profilok kezelése, az arányhelyes nézet szárhossza. |
 | `src/core/pattern-steps.ts` | **Az írott minta lépéssora** a gráfból (PQW-858), nyelvtől függetlenül: célpont az előző sor pozícióihoz képest, összevonás („5 rp”), legrövidebb ismétlődő egység. Itt dől el, mit tud a szöveg kifejezni. |
 | `src/core/pattern-text.ts`, `src/core/hungarian.ts` | Az írott minta szövege magyarul, amerikai és brit jelöléssel; rövidítéslista és jelmagyarázat a használt szemekkel; a magyar ragozás. Minden kiírt kifejezés innen jön. |
@@ -161,6 +188,7 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/ui/notation.ts` | **A jelölés és a jelstílus beállítása** (PQW-868): alapértelmezés a felület nyelvéből, tárolás, a jelrajz beállítása, a minta jelölésének rögzítése. DOM nélküli. |
 | `src/ui/size-view.ts`, `src/ui/size-panel.ts` | **A „Méret és fonal” szakasz** (PQW-859): a kiírás szövegei eredettel és tartománnyal, tűátváltás (DOM nélkül); a profil-szerkesztő és a profilváltás a panelen. |
 | `src/ui/written.ts` | **Az írott minta panelje** (PQW-868): a szöveg a jelöléssel, vagy érthető üzenet, ha a minta még nem írható ki. DOM nélküli. |
+| `src/ui/rounds-view.ts`, `src/ui/rounds-panel.ts` | **A „Kör és motívum” szakasz** (PQW-861): a választások és a szaporítás magyarázata eredettel (DOM nélkül); a mezők és a minta létrehozása a panelen. |
 | `src/core/editor.ts` | **A szerkesztő műveletei** (PQW-857): célpontok, horgolás, „még egy ugyanabba”, fordulás, körzárás, az utolsó lépés törlése, kézi igazítás, élő ellenőrzés. |
 | `src/core/selection.ts` | **Kijelölés, törlés, másolás, beillesztés, duplikálás** (PQW-875): egész egységek (csoport, láncív), sor, terület és billentyűzetes lépés; törlés a belé horgolt szemekkel; a másolat célpont-eltolásokkal, a beillesztés újraköt, és hibánál nem változtat. Tiszta függvény. |
 | `src/core/grid.ts` | **A rács** (PQW-874): sávok és cellák az igazítás nélküli számolt elrendezésből, sorban és körben; találat, célzás és az üzenet, ha nincs mibe horgolni. Tiszta függvény. |

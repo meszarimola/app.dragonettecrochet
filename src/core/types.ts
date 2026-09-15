@@ -279,6 +279,14 @@ export interface LayerEvent {
   readonly statedCount?: number;
   /** A következő sor eltérései a minta konvencióitól. */
   readonly conventions?: Partial<RowConventions>;
+  /** A következő kör új színnel kezdődik (PQW-861). */
+  readonly colorChange?: boolean;
+  /**
+   * Spirálban a színváltás lépcsőjének javítása a következő kör elején (04 §2):
+   * `slip-stitch`: az első szem helyett kúszószem; `back-loop`: az új szín az
+   * első szem hátsó szálába kapcsolva. Csak utasítás, a gráfon nem változtat.
+   */
+  readonly jogFix?: 'slip-stitch' | 'back-loop';
 }
 
 export interface Piece {
@@ -292,6 +300,12 @@ export interface Piece {
   readonly events: readonly LayerEvent[];
   /** Szándékosan kihagyott szemek. Ha egy szem nincs felhasználva és itt sincs, az hiba (03 §10 B8). */
   readonly skipped: readonly NodeId[];
+  /**
+   * Körökben horgolt sokszög sarkainak száma, pl. négyzetnél 4 (PQW-861). A
+   * sarkok szaporításai szándékosan egymás fölé kerülnek, és a lapos érték a
+   * sokszögé (04 §6.1). Hiányában a körökben horgolt darab kör.
+   */
+  readonly corners?: number;
 }
 
 /** A jelek stílusa: a Craft Yarn Council vagy a japán (JIS) jelkulcs (01 §6). */

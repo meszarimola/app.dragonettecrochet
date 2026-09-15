@@ -211,7 +211,8 @@ describe('a minta konvenciói a szövegben', () => {
       pieces: [{ ...piece, events: piece.events.map((event, i) => ({ ...event, statedCount: counts[i] })) }],
     };
     const text = textOf(pattern, 'en-US');
-    assert.match(text, /\(21 sts\)[\s\S]*\(40 sts\)[\s\S]*\(40 sts\)/);
+    // Körben a szemszám egység nélkül áll: „(21)” (04 §5.9, PQW-861).
+    assert.match(text, /\(21\)\.[\s\S]*\(40\)\.[\s\S]*\(40\)\./);
     const result = readBack(text, pattern, 'en-US');
     assert.ok(result.ok, JSON.stringify(result.error));
     assert.deepEqual(canonicalPattern(result.pattern), canonicalPattern(pattern));

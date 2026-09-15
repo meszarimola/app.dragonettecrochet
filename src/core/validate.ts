@@ -17,6 +17,7 @@
  */
 
 import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
+import { roundFindings } from './rounds.ts';
 import { RULES, type RuleId } from './rules.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { hasBaseChain, traditionOf } from './tradition.ts';
@@ -47,6 +48,8 @@ function validatePiece(pattern: Pattern, piece: Piece, library: StitchLibrary): 
     checkLayer(pattern, graph, index, invalidAnchors, report, () => findings.length);
   }
   checkHeights(graph, invalidAnchors, report);
+  // Körök: növekedés, kunkorodás, fodrosodás, egymás fölé kerülő szaporítás, spirál lépcsője (PQW-861).
+  for (const finding of roundFindings(pattern, graph, library)) report(finding.rule, finding.nodes);
   return findings;
 }
 
@@ -367,7 +370,8 @@ function checkCountsAndChains(graph: PieceGraph, index: number, report: Report):
   const firstStitch = layer.firstStitch;
   if (firstStitch !== null) {
     const expected = graph.defs.get(firstStitch)!.turningChain;
-    const onChain = index === 1 && below.stitches.length > 0 && kind(below.stitches[0]!) === 'chain';
+    // A láncgyűrűbe és a láncszembe horgolt 1. kör kör, nem láncalapra horgolt sor: ott a kezdőlánc magasságát nézzük.
+    const onChain = index === 1 && below.shape === 'row' && below.stitches.length > 0 && kind(below.stitches[0]!) === 'chain';
     if (onChain) {
       if (layer.turningChain.length !== expected) report('foundation-chain', [...layer.turningChain, firstStitch]);
     } else {

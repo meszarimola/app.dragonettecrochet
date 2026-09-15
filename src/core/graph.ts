@@ -24,6 +24,9 @@
  *   vagy láncívként; a díszlánc nem (03 §10 B10, PQW-870). A 0. réteg
  *   szemszáma mindig 0.
  *
+ * - Körben kezdődik a darab a varázskörrel, a láncgyűrűvel és a láncszembe
+ *   horgolt, körként zárt 1. körrel (PQW-861); ilyenkor a 0. réteg is kör.
+ *
  * Nem kezeli még: láncszem nélküli alapsort (foundation stitches, 03 §1.4), a
  * darabok összekapcsolását.
  */
@@ -137,11 +140,24 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
   }
   if (current.length > 0) segments.push(current);
 
+  // Körben kezdődik a darab (PQW-861): varázskörrel; láncgyűrűvel, azaz a
+  // kúszószemmel gyűrűvé zárt láncszemekkel (a zárás eseménye az utolsó
+  // láncszem után áll, a kúszószem az 1. kör továbbvezetése); vagy a láncszembe
+  // horgolt 1. körrel („2 lsz, 6 rp a 2. láncszembe”), amelyet kör zár.
+  const roundEvent = (event: LayerEvent | undefined) => event?.kind === 'join-slip' || event?.kind === 'spiral';
+  const chainRing = foundation === 'chain' && eventAfter.get(foundationNodes[foundationNodes.length - 1]!.id)?.kind === 'join-slip';
+  const firstRoundOnChain = foundation === 'chain' && !chainRing && segments.length > 0 && roundEvent(eventAfter.get(segments[0]!.at(-1)!.id));
+  const roundStart = foundation === 'ring' || chainRing || firstRoundOnChain;
+
   // Az 1. sor fordulólánca a láncalap végén: amibe az 1. sor nem horgol. A 2. sor
   // horgolhat a tetejébe, ha számít, ezért csak az 1. sor célpontjait nézzük.
-  if (foundation === 'chain' && segments.length > 0) {
+  if (foundation === 'chain' && !chainRing && segments.length > 0) {
     const anchored = new Set<NodeId>();
+    // A kört záró kúszószem a kezdőlánc tetejébe mehet: az nem az 1. kör célpontja.
+    const segmentEnd = segments[0]!.at(-1)!;
+    const closingSlip = kindOf(segmentEnd) === 'slip' && eventAfter.get(segmentEnd.id)?.kind === 'join-slip' ? segmentEnd : undefined;
     for (const node of segments[0]!) {
+      if (node === closingSlip) continue;
       for (const anchor of node.anchors) {
         if (anchor.into === 'stitch') anchored.add(anchor.id);
         if (anchor.into === 'space') for (const chain of spaces.get(anchor.id)?.chains ?? []) anchored.add(chain);
@@ -157,7 +173,8 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       const first = segments[0]!.find((node) => kindOf(node) !== 'chain');
       const counts =
         first !== undefined && turningChainCountsFor(pattern.conventions.turningChainCounts, defs.get(first.id)!, tradition);
-      if (hasBaseChain(counts, tradition) && trailing.length >= 2) foundationNodes.push(trailing.shift()!);
+      // A láncszembe horgolt 1. körben nincs alapláncszem: a kör egyetlen láncszembe megy.
+      if (!firstRoundOnChain && hasBaseChain(counts, tradition) && trailing.length >= 2) foundationNodes.push(trailing.shift()!);
       segments[0] = [...trailing, ...segments[0]!];
     }
   }
@@ -185,7 +202,7 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
   layers.push({
     piece: piece.id,
     index: 0,
-    shape: foundation === 'ring' ? 'round' : 'row',
+    shape: roundStart ? 'round' : 'row',
     stitches: foundationIds,
     stitchCount: 0,
     positionCount: foundationIds.length,
@@ -212,7 +229,8 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     let head = 0;
     const travelSlips: NodeId[] = [];
     if (opening?.kind === 'join-slip') {
-      while (head < segment.length && kindOf(segment[head]!) === 'slip' && segment[head] !== last) {
+      // A záratlan kör végén álló kúszószem még nem záró szem, hanem továbbvezetés (pl. a láncgyűrű kúszószeme).
+      while (head < segment.length && kindOf(segment[head]!) === 'slip' && (segment[head] !== last || closing === null)) {
         travelSlips.push(segment[head]!.id);
         head += 1;
       }
@@ -226,7 +244,7 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     const joinSlip = closing?.kind === 'join-slip' && kindOf(last) === 'slip' ? last.id : null;
 
     let shape: Layer['shape'];
-    if (opening === null) shape = foundation === 'ring' ? 'round' : 'row';
+    if (opening === null) shape = roundStart ? 'round' : 'row';
     else if (opening.kind === 'turn') shape = 'row';
     else if (opening.kind === 'fasten-off') shape = previous.shape;
     else shape = 'round';
@@ -235,7 +253,7 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       opening?.kind === 'turn' ? (previous.side === 'right' ? 'wrong' : 'right') : previous.side;
 
     let direction: 1 | -1;
-    if (index === 1) direction = foundation === 'chain' ? -1 : 1;
+    if (index === 1) direction = foundation === 'chain' && !roundStart ? -1 : 1;
     else direction = opening?.kind === 'turn' ? -1 : 1;
 
     let turningChainCounts = false;

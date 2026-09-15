@@ -1107,6 +1107,28 @@ body.is-selecting #board {
   margin: 0 0 1rem;
 }
 
+/* ---- Kör és motívum (PQW-861) ---- */
+
+.rounds {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.rounds .panel__field,
+.rounds .panel__note,
+.rounds .choice {
+  margin: 0;
+}
+
+.rounds .panel__field {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.rounds__create {
+  justify-self: start;
+}
+
 /* ---- Méret és fonal (PQW-859) ---- */
 
 .size {

@@ -140,10 +140,16 @@
                 <path d="M3.75 11 6 8.25 8.25 11" />
               </svg>
             </button>
-            <button type="button" class="tool" data-action="close-round" aria-label="Kör zárása" data-tip="Kör zárása (K)" aria-keyshortcuts="K">
+            <button type="button" class="tool" data-action="close-round" aria-label="Kör zárása" data-tip="Kör zárása kúszószemmel; láncszemekből láncgyűrű (K)" aria-keyshortcuts="K">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path d="M13.7 6.6A5.5 5.5 0 1 0 15.5 10" />
                 <path d="M11.4 4.7 14 6.4l-1 2.6" />
+              </svg>
+            </button>
+            <button type="button" class="tool" data-action="spiral-round" aria-label="Kör vége spirálban" data-tip="Kör vége spirálban, zárás nélkül (S)" aria-keyshortcuts="S">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M10 10.25a.9.9 0 1 1 .9-1.1 2.4 2.4 0 1 1-3.3-1.9A4.2 4.2 0 1 1 5.5 13.6" />
+                <path d="M4.2 11.9 5.5 13.6l2-.7" />
               </svg>
             </button>
           </div>
@@ -412,6 +418,50 @@
             </div>
           </details>
 
+          <details class="section" id="section-rounds">
+            <summary class="section__head"><h2 class="panel__title">Kör és motívum</h2></summary>
+            <div class="rounds" role="group" aria-label="Kör és motívum létrehozása">
+              <p class="panel__note">
+                Lapos kört, sokszöget vagy nagymama-négyzetet készít körönként. Az új minta a mostani helyére kerül;
+                visszavonással a korábbi visszajön.
+              </p>
+              <p class="panel__field">
+                <label for="rounds-shape">Forma</label>
+                <select id="rounds-shape"></select>
+              </p>
+              <p class="panel__field">
+                <label for="rounds-stitch">Szem</label>
+                <select id="rounds-stitch"></select>
+              </p>
+              <p class="panel__field">
+                <label for="rounds-start">Kezdés</label>
+                <select id="rounds-start"></select>
+              </p>
+              <p class="panel__field">
+                <label for="rounds-count">Körök száma</label>
+                <input id="rounds-count" type="number" min="1" max="30" step="1" value="6" inputmode="numeric" />
+              </p>
+              <p class="panel__field">
+                <label for="rounds-closing">Kör vége</label>
+                <select id="rounds-closing" aria-describedby="rounds-closing-note"></select>
+              </p>
+              <p class="panel__note" id="rounds-closing-note">Amigurumiban spirál, minden más körben haladó munkában zárt kör.</p>
+              <p class="choice">
+                <label><input type="checkbox" id="rounds-stagger" checked /> Eltolt szaporítás (kerekebb kör)</label>
+              </p>
+              <p class="panel__field">
+                <label for="rounds-colors">Színváltás minden hányadik kör után (0: nincs)</label>
+                <input id="rounds-colors" type="number" min="0" max="30" step="1" value="0" inputmode="numeric" />
+              </p>
+              <p class="panel__field">
+                <label for="rounds-jog">Lépcsőjavítás spirálban</label>
+                <select id="rounds-jog"></select>
+              </p>
+              <p class="panel__note" id="rounds-note" aria-live="polite"></p>
+              <button type="button" class="tool rounds__create" id="rounds-create">Minta létrehozása</button>
+            </div>
+          </details>
+
           <details class="section" id="section-notation">
             <summary class="section__head"><h2 class="panel__title">Jelölés és jelek</h2></summary>
             <div class="settings" role="group" aria-label="Jelölés és jelek">
@@ -472,7 +522,7 @@
                 <dt><kbd>Enter</kbd></dt><dd>horgolás a célpontba, láncszemnél a megadott számú láncszem</dd>
                 <dt><kbd>Shift</kbd>+<kbd>Enter</kbd></dt><dd>még egy ugyanabba (szaporítás)</dd>
                 <dt><kbd>Shift</kbd>+<kbd>F</kbd></dt><dd>a sor kitöltése a kiválasztott szemmel</dd>
-                <dt><kbd>F</kbd> / <kbd>K</kbd></dt><dd>sor vége és fordulás / kör zárása</dd>
+                <dt><kbd>F</kbd> / <kbd>K</kbd> / <kbd>S</kbd></dt><dd>sor vége és fordulás / kör zárása, láncszemekből láncgyűrű / kör vége spirálban</dd>
                 <dt><kbd>Backspace</kbd> / <kbd>Delete</kbd></dt><dd>a kijelölt szemek törlése, kijelölés nélkül az utolsó lépésé</dd>
                 <dt>Kattintás, <kbd>Shift</kbd>+kattintás, sorszám</dt><dd>szem nélkül: egy szem, több szem, a teljes sor kijelölése</dd>
                 <dt>Nyilak, <kbd>Home</kbd> <kbd>End</kbd></dt><dd>szem nélkül: kijelölés a szemek között, <kbd>Shift</kbd>-tel tartomány</dd>

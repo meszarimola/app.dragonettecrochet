@@ -14,11 +14,15 @@
 import './styles.css';
 import { GA_MEASUREMENT_ID } from '../config.js';
 import {
+  canCloseRound,
+  canEndRound,
+  canJoinChainRing,
   closeRound,
   contextOf,
   defaultCursor,
   deleteLast,
   emptyPattern,
+  endRoundSpiral,
   endRow,
   fillRow,
   liveCheck,
@@ -76,6 +80,7 @@ import {
   writeNotation,
 } from './notation.js';
 import { buildPalette, type PaletteItem } from './palette.js';
+import { RoundsPanel } from './rounds-panel.js';
 import { SizePanel } from './size-panel.js';
 import { DEFAULT_PATTERN_TYPE, PATTERN_TYPES, gridKind, isAvailableType, type PatternTypeId } from './pattern-types.js';
 import { applyInk, drawCentered, readInk, shapeBounds, stemLength, symbolShapes, type SymbolOptions } from './symbols.js';
@@ -329,6 +334,7 @@ function refresh(message?: string): void {
   updateControls();
   updateWritten();
   sizePanel.update(derived.pattern, derived.context.graph, derived.context.library);
+  roundsPanel.update(derived.pattern);
   if (message !== undefined) announce(message);
 }
 
@@ -428,7 +434,8 @@ function updateControls(): void {
   const canFill = tool !== null && isTargeted(tool) && context.graph !== null && context.slots.some((_, i) => !context.used[i]);
   setDisabled('fill-row', !canFill);
   setDisabled('end-row', !(context.started && context.shape === 'row'));
-  setDisabled('close-round', !(context.started && context.shape === 'round'));
+  setDisabled('close-round', !canCloseRound(pattern, context));
+  setDisabled('spiral-round', !canEndRound(context));
   setDisabled('export-png', empty);
   setDisabled('export-svg', empty);
   setDisabled('delete-selection', selection.length === 0);
@@ -1058,7 +1065,9 @@ const ACTIONS: Record<string, () => void> = {
       ? commit(fillRow(history.present, { def: tool, count: Number(countInput.value) }), 'Sor kitöltve.')
       : announce('Előbb válassz célpontba horgolható szemet a sor kitöltéséhez.'),
   'end-row': () => commit(endRow(history.present, tool), 'Sor vége, fordulás.'),
-  'close-round': () => commit(closeRound(history.present), 'Kör zárva.'),
+  'close-round': () =>
+    commit(closeRound(history.present), canJoinChainRing(history.present) ? 'Láncgyűrű: a láncszemek gyűrűvé zárva.' : 'Kör zárva.'),
+  'spiral-round': () => commit(endRoundSpiral(history.present), 'Kör vége: a következő kör zárás nélkül, spirálban folytatódik.'),
   mirror: () => {
     mirror = !mirror;
     try {
@@ -1534,6 +1543,10 @@ document.addEventListener('keydown', (event) => {
     case 'K':
       ACTIONS['close-round']!();
       return;
+    case 's':
+    case 'S':
+      ACTIONS['spiral-round']!();
+      return;
     case 'm':
     case 'M':
       ACTIONS.mirror!();
@@ -1589,6 +1602,18 @@ const sizePanel = new SizePanel(must<HTMLDetailsElement>('#section-size'), {
     refresh(on ? 'Arányhelyes nézet: a cellák és a rács a valós szemarányt követik.' : 'Arányhelyes nézet kikapcsolva.');
     fitBoard();
   },
+});
+
+/* ---- Kör és motívum (PQW-861) ---- */
+
+const roundsPanel = new RoundsPanel(must<HTMLDetailsElement>('#section-rounds'), {
+  commit: (pattern, message) => {
+    selectedNode = null;
+    selection = [];
+    commit({ ok: true, pattern }, message);
+    fitBoard();
+  },
+  announce,
 });
 
 /* ---- Indulás ---- */
