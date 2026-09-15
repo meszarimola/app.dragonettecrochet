@@ -87,6 +87,19 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
   minta szövege, minden szerkesztés után frissül, és egy gombbal másolható.
   Félkész sornál és hibás mintánál megjegyzés kíséri; amit a szöveg még nem tud
   kifejezni, arról üzenet szól.
+  - **Magasság** (PQW-885): a panel tetején lévő elválasztó egérrel és
+    érintéssel húzható, billentyűzettel a nyilakkal (5 %), `PageUp`/`PageDown`-
+    nal (25 %), `Home`-mal és `End`-del állítható, a fejléctől a teljes
+    munkaterületig. A fejléc alá húzva a panel lecsukódik. A „Teljes nézet” gomb
+    a teljes munkaterületre nyitja, a „Vissza” a korábbi magasságra állítja.
+    Alapból legfeljebb 22rem, alacsony ablakban a munkaterület fele; a
+    beállítás csak a lapon belül él.
+  - **Igazodás** (PQW-883, PQW-885): az „Egész minta” és a kurzor követése
+    minden magasságnál a panel fölötti látható részre illeszt; teljes nézetben
+    a vászon nem mozdul.
+  - **Állapotsor** (PQW-884): a két oldalsáv között, a panel fölött áll, és
+    hosszú üzenetnél több sorba törik; teljes nézetben a panel teteje ad neki
+    helyet.
 - **Jelölés és jelstílus** (PQW-868): magyar, amerikai (US terms) vagy brit
   (UK terms) jelölés, CYC vagy japán (JIS) jelek, a rövidpálca + vagy ×. A
   felület nyelvétől független; a paletta, a szemnevek, a vászon, az írott
