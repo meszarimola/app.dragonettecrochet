@@ -48,7 +48,7 @@ function storedModes(pattern, layer) {
   return layerSelection(pattern, layer).filter((id) => modes.has(id)).map((id) => modes.get(id));
 }
 
-/** Két sor ugyanazzal a horgoló felől nézett móddal. */
+/** Két sor ugyanazzal a horgoló felől nézett móddal; a fordulólánc a sor első szeme, tárolt mód nélkül (PQW-891). */
 function twoRows(def, insertion, chainCount = 7) {
   let pattern = fill(chains(emptyPattern(), chainCount), def, insertion);
   pattern = ok(endRow(pattern, def));
@@ -86,14 +86,16 @@ describe('a mag segédfüggvényei', () => {
 
 describe('lerakás a választott móddal', () => {
   test('sor kitöltése hátsó szálba: színoldali soron a tárolt mód is hátsó szál, visszai soron első szál', () => {
+    // 7 láncszem: soronként 6 szem, ebből 5 rövidpálca és a fordulólánc.
     const pattern = twoRows('sc', 'back-loop');
-    assert.deepEqual(storedModes(pattern, 1), Array(6).fill('back-loop'));
-    assert.deepEqual(storedModes(pattern, 2), Array(6).fill('front-loop'));
+    assert.deepEqual(storedModes(pattern, 1), Array(5).fill('back-loop'));
+    assert.deepEqual(storedModes(pattern, 2), Array(5).fill('front-loop'));
     assert.deepEqual(findings(pattern), []);
   });
 
   test('egy szem a kurzorhoz, relieffel; mód nélkül a szem alapértelmezése', () => {
-    let pattern = chains(emptyPattern(), 5);
+    // A pálca az 5. láncszemtől: két pálcához 6 láncszem kell (PQW-891).
+    let pattern = chains(emptyPattern(), 6);
     const at = (p) => defaultCursor(p, contextOf(p), 'dc');
     pattern = ok(work(pattern, { def: 'dc', count: 1, insertion: 'front-post' }, at(pattern)));
     pattern = ok(work(pattern, { def: 'dc', count: 1 }, at(pattern)));
@@ -138,7 +140,7 @@ describe('duplikálás: a horgoló felől nézett mód marad', () => {
   test('a visszai sor színoldali sorként megfordítva tárolódik', () => {
     const pattern = twoRows('hdc', 'back-loop');
     const copy = ok(duplicateSelection(pattern, layerSelection(pattern, 2)));
-    assert.deepEqual(storedModes(copy, 3), Array(5).fill('back-loop'));
+    assert.deepEqual(storedModes(copy, 3), Array(4).fill('back-loop'));
     assert.deepEqual(findings(copy), []);
     // A 2. sor után fordulás áll, a duplikált 3. sor a minta vége: a záró mondat nélkül vetjük össze.
     const row = (n) => text(copy, 'hu').split('\n').find((line) => line.startsWith(`${n}. sor:`)).slice(2).replace(/ Fordítás\.$/, '');
@@ -155,13 +157,13 @@ describe('duplikálás: a horgoló felől nézett mód marad', () => {
 
 describe('írott minta és visszaolvasás (szókészlet §3)', () => {
   const cases = [
-    ['sc', 'back-loop', 'hu', /2\. sor: 1 lsz \(nem számít szemnek\), 8 rp \(hsz\)/, 'hsz – hátsó szálba'],
-    ['sc', 'front-loop', 'hu', /8 rp \(esz\)/, 'esz – első szálba'],
+    ['sc', 'back-loop', 'hu', /2\. sor: 1 lsz \(1 rp-nek számít\), 7 rp \(hsz\)/, 'hsz – hátsó szálba'],
+    ['sc', 'front-loop', 'hu', /7 rp \(esz\)/, 'esz – első szálba'],
     ['dc', 'front-post', 'hu', /\d Eerp/, 'Eerp – első relief egyráhajtásos pálca (elölről hurkolt)'],
     ['dc', 'back-post', 'hu', /\d Herp/, 'Herp – hátsó relief egyráhajtásos pálca (hátulról hurkolt)'],
     ['hdc', 'front-post', 'hu', /\d fp \(első relief\)/, null],
-    ['sc', 'back-loop', 'en-US', /8 sc BLO/, 'BLO – back loop only'],
-    ['sc', 'front-loop', 'en-GB', /8 dc FLO/, 'FLO – front loop only'],
+    ['sc', 'back-loop', 'en-US', /7 sc BLO/, 'BLO – back loop only'],
+    ['sc', 'front-loop', 'en-GB', /7 dc FLO/, 'FLO – front loop only'],
     ['dc', 'back-post', 'en-US', /\d BPdc/, 'BP – back post'],
   ];
   for (const [def, mode, locale, expected, abbreviation] of cases) {

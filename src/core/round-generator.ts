@@ -273,7 +273,7 @@ class Writer {
 
   countsFor(def: StitchDef): boolean {
     const { conventions } = this.pattern;
-    return turningChainCountsFor(conventions.turningChainCounts, def, traditionOf(conventions));
+    return turningChainCountsFor(conventions.turningChainCounts, def, traditionOf(conventions), 'round');
   }
 }
 

@@ -32,7 +32,8 @@ async function rectangle(page: Page, width: number, rows: number): Promise<void>
   await page.keyboard.press('3');
   for (let row = 1; row <= rows; row += 1) {
     if (row > 1) await page.keyboard.press('f');
-    for (let i = 0; i < width; i += 1) await page.keyboard.press('Enter');
+    // A fordulólánc az 1. rövidpálca helyett áll (PQW-891): soronként width − 1 rövidpálca.
+    for (let i = 0; i < width - 1; i += 1) await page.keyboard.press('Enter');
   }
 }
 

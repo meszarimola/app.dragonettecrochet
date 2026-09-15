@@ -20,13 +20,13 @@ function ok(result) {
   return result.pattern;
 }
 
-/** Láncalap, egy teljes rövidpálcás sor, fordulás, és a 2. sorból `done` szem. */
+/** Láncalap, egy teljes rövidpálcás sor (a fordulólánc az első szem, PQW-891), fordulás, és a 2. sorból `done` szem. */
 function halfRow(done) {
   let pattern = ok(work(emptyPattern(), { def: 'ch', count: 6 }, 0));
   const sc = () => {
     pattern = ok(work(pattern, { def: 'sc', count: 1 }, defaultCursor(pattern, contextOf(pattern), 'sc')));
   };
-  for (let i = 0; i < 5; i += 1) sc();
+  for (let i = 0; i < 4; i += 1) sc();
   pattern = ok(endRow(pattern, 'sc'));
   for (let i = 0; i < done; i += 1) sc();
   return pattern;
@@ -49,7 +49,7 @@ test('jelölésváltáskor a szöveg is vált', () => {
   assert.equal(view(pattern, 'en-US').text, fixture('en-US', 'felpalcas-teglalap'));
   const british = view(pattern, 'en-GB').text;
   assert.match(british, /^Abbreviations \(UK terms\)$/m);
-  assert.match(british, /15 htr \(15 sts\)/);
+  assert.match(british, /14 htr \(15 sts\)/);
   assert.doesNotMatch(british, /\b(sc|hdc|sl st)\b/);
 });
 
@@ -61,14 +61,14 @@ test('névtelen mintánál a szöveg címe „Névtelen minta”', () => {
 test('félkész sor: a szöveg látszik, megjegyzéssel', () => {
   const result = view(halfRow(2));
   assert.equal(result.kind, 'text');
-  assert.match(result.text, /2\. sor: 1 lsz \(nem számít szemnek\), 2 rp \(2 szem\)\.$/m);
-  assert.deepEqual(result.notices, ['A 2. sor félkész, még 3 célpont van hátra: a szöveg a mostani állapotot írja le.']);
+  assert.match(result.text, /2\. sor: 1 lsz \(1 rp-nek számít\), 2 rp \(3 szem\)\.$/m);
+  assert.deepEqual(result.notices, ['A 2. sor félkész, még 2 célpont van hátra: a szöveg a mostani állapotot írja le.']);
 });
 
 test('hibás minta: a szöveg mellett megjegyzés a hibák számával', () => {
   let pattern = halfRow(1);
   // Két szem kihagyása a sor közepén: az ellenőrző hibát jelez.
-  pattern = ok(work(pattern, { def: 'sc', count: 1 }, 3));
+  pattern = ok(work(pattern, { def: 'sc', count: 1 }, 4));
   const result = view(pattern);
   assert.equal(result.kind, 'text');
   assert.ok(result.notices.some((notice) => /^A mintában \d+ hiba van \(lásd Ellenőrzés\)/.test(notice)), result.notices.join(' | '));

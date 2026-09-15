@@ -167,8 +167,8 @@ function writtenLayer(
   const countsAs = layer.firstStitch !== null && layer.turningChainCounts ? countsAsOf(defOf(layer.firstStitch)) : null;
   const hookRow = index === 1 && start === 'chain';
   const ringSpace = start === 'chain-ring' ? graph.spaceOfChain.get(graph.layers[0]!.stitches[0]!)?.id : undefined;
-  // Japán hagyományban az 1. sor fordulólánca egy alapláncszemen áll; abba nem horgolunk (01 §8.3 szabály 15).
-  const baseChain = hookRow && hasBaseChain(layer.turningChainCounts, tradition);
+  // Az 1. sor számító fordulólánca egy alapláncszemen áll; abba nem horgolunk (PQW-891). A láncszembe horgolt 1. körben nincs ilyen.
+  const baseChain = hookRow && layer.shape === 'row' && hasBaseChain(layer.turningChainCounts, tradition);
 
   const steps: Step[] = [];
   const cursorStart = (index >= 2 || baseChain) && layer.turningChainCounts ? 1 : 0;

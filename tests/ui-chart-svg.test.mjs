@@ -114,11 +114,11 @@ test('a beszúrási mód a talpon és a jelmagyarázatban, CYC és JIS jelstílu
   assert.match(svg, /<tspan lang="hu">[^<]+<\/tspan> – hátsó szál<\/text>/);
   assert.match(svg, /<tspan lang="hu">[^<]+<\/tspan> – első szál<\/text>/);
   assert.match(svg, /színoldalról nézve/);
-  // A jelölés íve: sorokban 5 + 5, a jelmagyarázatban 2.
+  // A jelölés íve: sorokban 4 + 4 (a sor első szeme helyett a számító fordulólánc áll, PQW-891), a jelmagyarázatban 2.
   const curves = (text) => (text.match(/<path d="M[^"]*Q/g) ?? []).length;
-  assert.equal(curves(svg), 12);
+  assert.equal(curves(svg), 10);
   // JIS-ben a hátsó szál vízszintes vonal, az első szál íve marad.
-  assert.equal(curves(render(pattern, { symbols: { singleCrochet: 'plus', style: 'jis' } })), 6);
+  assert.equal(curves(render(pattern, { symbols: { singleCrochet: 'plus', style: 'jis' } })), 5);
   assert.doesNotMatch(svg, /NaN|undefined/);
 });
 

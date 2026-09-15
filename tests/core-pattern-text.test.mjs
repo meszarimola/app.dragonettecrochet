@@ -174,8 +174,8 @@ describe('összevonás és a legrövidebb ismétlődő egység (06 §5.3 pont 5)
   test('az azonos sorok egy sorba kerülnek, a befejező sor külön', () => {
     const { pieces } = writePattern(hdcRectangle({ rows: 4 }).pattern, testLibrary, 'hu');
     assert.deepEqual(pieces[0].lines.slice(2), [
-      '2–3. sor: 2 lsz (nem számít szemnek), 15 fp (15 szem). Fordítás.',
-      '4. sor: 2 lsz (nem számít szemnek), 15 fp (15 szem). A fonal elvágása.',
+      '2–3. sor: 2 lsz (1 fp-nek számít), 14 fp (15 szem). Fordítás.',
+      '4. sor: 2 lsz (1 fp-nek számít), 14 fp (15 szem). A fonal elvágása.',
     ]);
   });
 });
@@ -241,14 +241,22 @@ describe('a minta konvenciói a szövegben', () => {
 
 /* ---- Beszúrási mód ---- */
 
+/**
+ * Rövidpálcás csík soronként 5 szemmel: a fordulólánc az első szem (PQW-891), az
+ * 1. sor a 3. láncszemtől, a többi sor kihagyja a fordulólánc alatti szemet, és
+ * az utolsó szem is hátsó szálba megy az előző fordulólánc tetejébe.
+ */
 function backLoopRows() {
   const b = new PieceBuilder('p1', 'Hátsó szálas csík');
   const foundation = b.chain(6);
-  let row = foundation.slice(0, 5).reverse().map((id) => b.stitch('sc', id));
+  let row = foundation.slice(0, 4).reverse().map((id) => b.stitch('sc', id));
   b.event('turn', 5);
+  let top = foundation[5];
   for (let r = 2; r <= 3; r += 1) {
-    b.chain(1);
-    row = [...row].reverse().map((id) => b.stitch('sc', { into: 'stitch', id, mode: 'back-loop' }));
+    const turning = b.chain(1);
+    const targets = [...[...row].reverse().slice(1), top];
+    row = targets.map((id) => b.stitch('sc', { into: 'stitch', id, mode: 'back-loop' }));
+    top = turning[0];
     b.event(r === 3 ? 'fasten-off' : 'turn', 5);
   }
   return patternOf('Hátsó szálas csík', [b.build()]);
@@ -257,14 +265,14 @@ function backLoopRows() {
 describe('beszúrási mód: visszai soron az első és a hátsó szál megfordul (03 §2.1)', () => {
   test('magyarul: a színoldali hátsó szál a visszai soron első szál', () => {
     const lines = writePattern(backLoopRows(), testLibrary, 'hu').pieces[0].lines;
-    assert.equal(lines[2], '2. sor: 1 lsz (nem számít szemnek), 5 rp (esz) (5 szem). Fordítás.');
-    assert.equal(lines[3], '3. sor: 1 lsz (nem számít szemnek), 5 rp (hsz) (5 szem). A fonal elvágása.');
+    assert.equal(lines[2], '2. sor: 1 lsz (1 rp-nek számít), 4 rp (esz) (5 szem). Fordítás.');
+    assert.equal(lines[3], '3. sor: 1 lsz (1 rp-nek számít), 4 rp (hsz) (5 szem). A fonal elvágása.');
   });
 
   test('angolul: FLO a visszai, BLO a színoldali soron', () => {
     const lines = writePattern(backLoopRows(), testLibrary, 'en-US').pieces[0].lines;
-    assert.match(lines[2], /5 sc FLO \(5 sts\)/);
-    assert.match(lines[3], /5 sc BLO \(5 sts\)/);
+    assert.match(lines[2], /4 sc FLO \(5 sts\)/);
+    assert.match(lines[3], /4 sc BLO \(5 sts\)/);
   });
 
   for (const locale of LOCALES) {
@@ -289,7 +297,7 @@ describe('visszaolvasás: eltérés esetén pontos hibaüzenet', () => {
   });
 
   test('rossz szemszám: a sor és a két szám', () => {
-    const result = readBack(text.replace('15 fp (15 szem). Fordítás.', '15 fp (16 szem). Fordítás.'), pattern, 'hu');
+    const result = readBack(text.replace('14 fp (15 szem). Fordítás.', '14 fp (16 szem). Fordítás.'), pattern, 'hu');
     assert.deepEqual(result, {
       ok: false,
       error: { line: lineOf('1. sor:'), message: '1. sor: a szöveg 16 szemet ír, a visszaolvasott gráf szerint 15.' },
@@ -297,13 +305,13 @@ describe('visszaolvasás: eltérés esetén pontos hibaüzenet', () => {
   });
 
   test('több szem, mint amennyi az előző sorban van', () => {
-    const result = readBack(text.replace('2. sor: 2 lsz (nem számít szemnek), 15 fp', '2. sor: 2 lsz (nem számít szemnek), 16 fp'), pattern, 'hu');
-    assert.deepEqual(result.error, { line: lineOf('2. sor:'), message: 'Nincs több szem az előző sorban ehhez: „16 fp”.' });
+    const result = readBack(text.replace('2. sor: 2 lsz (1 fp-nek számít), 14 fp', '2. sor: 2 lsz (1 fp-nek számít), 15 fp'), pattern, 'hu');
+    assert.deepEqual(result.error, { line: lineOf('2. sor:'), message: 'Nincs több szem az előző sorban ehhez: „15 fp”.' });
   });
 
   test('ismeretlen tétel', () => {
-    const result = readBack(text.replace('15 fp (15 szem). A fonal', '15 hamispálca (15 szem). A fonal'), pattern, 'hu');
-    assert.deepEqual(result.error, { line: lineOf('2. sor:'), message: 'Nem értelmezhető tétel: „15 hamispálca”.' });
+    const result = readBack(text.replace('14 fp (15 szem). A fonal', '14 hamispálca (15 szem). A fonal'), pattern, 'hu');
+    assert.deepEqual(result.error, { line: lineOf('2. sor:'), message: 'Nem értelmezhető tétel: „14 hamispálca”.' });
   });
 
   test('hiányzó sorvég egy közbülső sorban', () => {

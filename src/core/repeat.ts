@@ -10,10 +10,10 @@ import type { RepeatSpec, Tradition } from './types.ts';
 
 /**
  * Láncalap N szemhez, T láncszemes fordulólánccal (03 §1.2, 01 §8.3 szabály 15):
- * `N + T`, ha a fordulólánc nem számít szemnek, és `N + T − 1`, ha számít.
- * Az első szem mindkét esetben a horogtól számított `T + 1`. láncszembe megy.
- * Japán hagyományban a számító fordulólánc egy alapláncszemen áll, ezért ott
- * is `N + T`, és az első szem a `T + 2`. láncszembe megy (tradition.ts).
+ * `N + T`. Ha a fordulólánc nem számít szemnek, az első szem a horogtól
+ * számított `T + 1`. láncszembe megy; ha számít, a fordulólánc egy
+ * alapláncszemen áll, és az első szem a `T + 2`. láncszembe megy (PQW-891,
+ * tradition.ts).
  */
 export function foundationChainLength(
   stitches: number,

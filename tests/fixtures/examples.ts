@@ -18,11 +18,16 @@ export interface Example {
   readonly turningChains: readonly (readonly NodeId[])[];
 }
 
-/* ---- 03 §3.1 A: félpálcás téglalap, 15 szem × 22 sor, a fordulólánc nem számít ---- */
+/*
+ * ---- 03 §3.1 A: félpálcás téglalap, 15 szem × 22 sor ----
+ * A javított szabály szerint (PQW-891): a 2 láncszemes fordulólánc az 1. félpálca
+ * helyett áll, egy alapláncszemen; az 1. sor a horogtól számított 4. láncszembe
+ * kezd, a sorok utolsó szeme az előző fordulólánc tetejébe megy.
+ */
 
 export interface HdcRectangleOptions {
   readonly rows?: number;
-  /** Hányadik láncszembe megy az 1. sor első szeme a horogtól; helyesen a 3. */
+  /** Hányadik láncszembe megy az 1. sor első szeme a horogtól; helyesen a 4. */
   readonly firstStitchFromHook?: number;
   /** Egy sor fordulóláncának hossza; helyesen 2. */
   readonly turningChain?: { readonly row: number; readonly chains: number };
@@ -40,33 +45,42 @@ export function hdcRectangle(options: HdcRectangleOptions = {}): Example {
   const stitches = 15;
   const rowCount = options.rows ?? 22;
   const b = new PieceBuilder('p1', 'Félpálcás téglalap');
-  const foundation = b.chain(stitches + (options.firstStitchFromHook ?? 3) - 1);
-  const rows: NodeId[][] = [foundation.slice(0, stitches)];
+  // A félpálcák száma soronként; a sor első szeme helyett a fordulólánc áll.
+  const worked = stitches - 1;
+  const fromHook = options.firstStitchFromHook ?? 4;
+  const foundation = b.chain(worked + fromHook - 1);
+  // A be nem horgolt láncalap-végből legalább kettőnél az első az alapláncszem (graph.ts).
+  const base = fromHook - 1 >= 2 ? 1 : 0;
+  const rows: NodeId[][] = [foundation.slice(0, worked + base)];
   const turningChains: NodeId[][] = [[]];
 
   let row: NodeId[] = [];
-  for (let i = stitches - 1; i >= 0; i -= 1) row.push(b.stitch('hdc', foundation[i]!));
+  for (let i = worked - 1; i >= 0; i -= 1) row.push(b.stitch('hdc', foundation[i]!));
   rows.push(row);
-  turningChains.push(foundation.slice(stitches));
+  turningChains.push(foundation.slice(worked + base));
+  let turningTop = foundation.at(-1)!;
   b.event('turn', stitches);
 
   for (let r = 2; r <= rowCount; r += 1) {
     const def = r === options.crabRow ? 'rev-sc' : 'hdc';
     const chains = options.turningChain?.row === r ? options.turningChain.chains : def === 'rev-sc' ? 1 : 2;
-    turningChains.push(b.chain(chains));
-    const targets = [...row].reverse();
+    const turning = b.chain(chains);
+    turningChains.push(turning);
+    // A fordulólánc alatti szem kimarad, az utolsó szem az előző fordulólánc tetejébe megy.
+    const targets = [...[...row].reverse().slice(1), turningTop];
     if (r === 2 && options.row2SkipsFirst) {
       row = [...b.inSame('inc-2hdc', ['hdc', 'hdc'], targets[1]!), ...targets.slice(2).map((t) => b.stitch('hdc', t))];
     } else if (r === 2 && options.row2SkipsOneInMiddle) {
       row = [
         ...targets.slice(0, 7).map((t) => b.stitch('hdc', t)),
         ...targets.slice(8, -1).map((t) => b.stitch('hdc', t)),
-        ...b.inSame('inc-2hdc', ['hdc', 'hdc'], targets[stitches - 1]!),
+        ...b.inSame('inc-2hdc', ['hdc', 'hdc'], targets.at(-1)!),
       ];
     } else {
       row = targets.map((t) => b.stitch(def, t));
     }
     rows.push(row);
+    turningTop = turning.at(-1)!;
     if (r === rowCount) {
       if (options.trailingChains) b.chain(options.trailingChains);
       b.event('fasten-off', stitches);
@@ -77,7 +91,11 @@ export function hdcRectangle(options: HdcRectangleOptions = {}): Example {
   return { pattern: patternOf('Félpálcás téglalap (03 §3.1 A)', [b.build()]), rows, turningChains };
 }
 
-/* ---- 03 §3.1 B: pálcás téglalap, 16 szem × 16 sor, a 3 láncszemes fordulólánc számít ---- */
+/*
+ * ---- 03 §3.1 B: pálcás téglalap, 16 szem × 16 sor ----
+ * A 3 láncszemes fordulólánc számít, és egy alapláncszemen áll (PQW-891): 19
+ * láncszem, az 1. sor a horogtól számított 5. láncszembe kezd.
+ */
 
 export interface DcRectangleOptions {
   readonly rows?: number;
@@ -89,15 +107,15 @@ export function dcRectangle(options: DcRectangleOptions = {}): Example {
   const stitches = 16;
   const rowCount = options.rows ?? 16;
   const b = new PieceBuilder('p1', 'Pálcás téglalap');
-  const foundation = b.chain(stitches + 3 - 1);
-  const rows: NodeId[][] = [foundation.slice(0, stitches - 1)];
+  const foundation = b.chain(stitches + 3);
+  const rows: NodeId[][] = [foundation.slice(0, stitches)];
   const turningChains: NodeId[][] = [[]];
 
   let turningTop = foundation[foundation.length - 1]!;
   let row: NodeId[] = [];
   for (let i = stitches - 2; i >= 0; i -= 1) row.push(b.stitch('dc', foundation[i]!));
   rows.push(row);
-  turningChains.push(foundation.slice(stitches - 1));
+  turningChains.push(foundation.slice(stitches));
   b.event('turn', stitches);
 
   for (let r = 2; r <= rowCount; r += 1) {
@@ -139,7 +157,8 @@ export function shellStitch(options: ShellOptions = {}): Example {
     j += 3;
     row1.push(b.stitch('sc', at(j)));
   }
-  b.event('turn', 6 * n + 1);
+  // A forrásban az 1. sor rövidpálcás fordulólánca nem számít, a 2. sor 3 láncszeme igen: soronkénti felülírás.
+  b.event('turn', 6 * n + 1, { turningChainCounts: true });
 
   const chains = b.chain(3);
   const q = [...row1].reverse();
@@ -158,6 +177,7 @@ export function shellStitch(options: ShellOptions = {}): Example {
   }
   return {
     pattern: patternOf('Kagylóminta (03 §4.2 E)', [piece], {
+      turningChainCounts: false,
       repeat: { repeatWidth: 6, edgeStitches: 1, turningChainIncluded: false },
     }),
     rows: [foundation.slice(0, worked), row1, row2],
@@ -292,7 +312,8 @@ export function wave(options: WaveOptions = {}): Example {
 
   const chains2 = b.chain(1);
   const row2 = [...row1].reverse().map((t) => b.stitch('sc', t));
-  b.event('turn', width);
+  // A forrásban a rövidpálcás fordulóláncok nem számítanak, a 3. sor 4 láncszeme igen: soronkénti felülírás.
+  b.event('turn', width, options.flatRow3 ? undefined : { turningChainCounts: true });
 
   const q = [...row2].reverse();
   let chains3: NodeId[];
@@ -308,6 +329,7 @@ export function wave(options: WaveOptions = {}): Example {
 
   return {
     pattern: patternOf('Hullám (03 §2.3)', [b.build()], {
+      turningChainCounts: false,
       repeat: { repeatWidth: 8, edgeStitches: 2, turningChainIncluded: false },
     }),
     rows: [foundation.slice(0, width), row1, row2, row3],

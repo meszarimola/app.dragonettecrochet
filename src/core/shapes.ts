@@ -308,7 +308,7 @@ export function planShape(pattern: Pattern, options: ShapeOptions): ShapePlanRes
   if (problem) return fail(problem);
   const def = resolveStitch(options.stitch)!;
   const gauge = shapeGauge(pattern, options.stitch);
-  const counting = turningChainCountsFor(pattern.conventions.turningChainCounts, def, traditionOf(pattern.conventions));
+  const counting = turningChainCountsFor(pattern.conventions.turningChainCounts, def, traditionOf(pattern.conventions), 'row');
   const minCount = counting ? 2 : 1;
   /** A legkisebb sor, amelybe az élek páros változással eljutnak: a szemszám párossága nem változik. */
   const smallest = (n: number) => ((n - minCount) % 2 === 0 ? minCount : minCount + 1);
@@ -549,11 +549,11 @@ function buildRows(pattern: Pattern, plan: ShapePlan, bordered: boolean): RowWri
   const writer = new RowWriter();
   const def = resolveStitch(plan.stitch)!;
   const tradition = traditionOf(pattern.conventions);
-  const counting = turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition);
+  const counting = turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition, 'row');
   const baseChain = hasBaseChain(counting, tradition);
   const rows = plan.counts.length;
 
-  // Láncalap: az 1. sor láncszemei, japán hagyományban a fordulólánc alapláncszeme, és az 1. sor fordulólánca (03 §1.2).
+  // Láncalap: az 1. sor láncszemei, számító fordulóláncnál az alapláncszem, és az 1. sor fordulólánca (03 §1.2, PQW-891).
   const worked = plan.counts[0]! - (counting ? 1 : 0) + (baseChain ? 1 : 0);
   const foundation = writer.chains(worked + def.turningChain);
   let below = foundation.slice(0, worked);
