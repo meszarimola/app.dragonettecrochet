@@ -27,6 +27,7 @@ import type {
   SpaceId,
   StitchDef,
   StitchDefId,
+  StitchFlag,
   StitchInsertion,
   StitchNode,
 } from './types.ts';
@@ -180,10 +181,16 @@ export function contextOf(pattern: Pattern): WorkContext {
  * szemet átugorva (03 §1.3).
  */
 export function defaultCursor(pattern: Pattern, context: WorkContext, tool: StitchDefId | null): number {
-  const { slots, frontier } = context;
+  const { slots, frontier, used } = context;
   if (slots.length === 0) return 0;
-  // A varázskörbe a teljes kör horgol; máskor az utolsó célpont után nincs következő (`slots.length`).
-  if (frontier >= 0) return slots[frontier]!.kind === 'ring' ? frontier : frontier + 1;
+  // A varázskörbe a teljes kör horgol; máskor a következő szabad célpontra ugrunk a
+  // haladási irányban, a foglaltakat átugorva (PQW-879); a sor végén a célpontokon kívülre.
+  if (frontier >= 0) {
+    if (slots[frontier]!.kind === 'ring') return frontier;
+    let next = frontier + 1;
+    while (next < slots.length && used[next]) next += 1;
+    return next;
+  }
 
   const def = tool ? resolveStitch(tool) : undefined;
   const foundationChain = context.layer === 1 && context.shape === 'row' && context.turningChain === 0;
@@ -234,10 +241,15 @@ function hasEventAfterLast(piece: Piece): boolean {
   return last !== undefined && piece.events.some((event) => event.after === last.id);
 }
 
-/** A kiválasztott eszközzel horgol a `cursor` célpontba (láncszemnél és varázskörnél célpont nélkül). */
-export function work(pattern: Pattern, tool: Tool, cursor: number): EditResult {
+/**
+ * A kiválasztott eszközzel horgol a `cursor` célpontba (láncszemnél és
+ * varázskörnél célpont nélkül). A `flags` a keresztezett vagy hosszú szemet
+ * jelöli: a haladási irány elleni célpontnál ezzel válik érvényessé a szem.
+ */
+export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readonly StitchFlag[] = []): EditResult {
   const def = resolveStitch(tool.def);
   if (!def) return refuse(`Ismeretlen szem: ${tool.def}`);
+  const marks = flags.length > 0 ? { flags } : {};
   const piece = pieceOf(pattern);
 
   if (def.kind === 'ring') {
@@ -284,7 +296,7 @@ export function work(pattern: Pattern, tool: Tool, cursor: number): EditResult {
     const mode = stitchMode(def);
     if (!mode) return refuse('Ez a szem nem horgolható szembe.');
     const anchors = slots.map((slot): Anchor => ({ into: 'stitch', id: slot.id, mode }));
-    return done(withPiece(pattern, append(piece, [{ def: def.id, anchors }]).piece));
+    return done(withPiece(pattern, append(piece, [{ def: def.id, anchors, ...marks }]).piece));
   }
 
   const anchor = anchorFor(def, first);
@@ -305,7 +317,7 @@ export function work(pattern: Pattern, tool: Tool, cursor: number): EditResult {
     return done(withPiece(pattern, { ...next, groups: [...next.groups, group], spaces }));
   }
 
-  return done(withPiece(pattern, append(piece, [{ def: def.id, anchors: [anchor] }]).piece));
+  return done(withPiece(pattern, append(piece, [{ def: def.id, anchors: [anchor], ...marks }]).piece));
 }
 
 function stitchMode(def: StitchDef): StitchInsertion | undefined {
@@ -362,6 +374,36 @@ export function workIntoSame(pattern: Pattern, defId: StitchDefId): EditResult {
   const def = increase(part, 2);
   const created = { id: nextId('g', piece.groups.map((g) => g.id)), def: def.id, members: [last.id, appended.ids[0]!] };
   return done(withPiece(pattern, { ...appended.piece, groups: [...appended.piece.groups, created] }));
+}
+
+/**
+ * Sor kitöltése: a kiválasztott szemmel a sor összes szabad célpontját
+ * kitölti a haladási irányban, egyetlen mintában (PQW-879). Így egyetlen
+ * lépésben visszavonható. Csak célpontba horgolható szemmel megy; láncszem,
+ * láncív, varázskör és pikó nem tölt sort.
+ */
+export function fillRow(pattern: Pattern, tool: Tool): EditResult {
+  const def = resolveStitch(tool.def);
+  if (!def) return refuse(`Ismeretlen szem: ${tool.def}`);
+  if (def.kind === 'chain' || def.kind === 'space' || def.kind === 'ring' || def.kind === 'picot') {
+    return refuse('Ezzel a szemmel nem lehet sort kitölteni: válassz célpontba horgolható szemet.');
+  }
+  let current = pattern;
+  let placed = 0;
+  // Minden lépés eggyel előbbre viszi a frontiert, ezért a ciklus véges; a fék csak biztonság.
+  for (let guard = 0; guard < 5000; guard += 1) {
+    const context = contextOf(current);
+    if (context.slots.length === 0) break;
+    let index = context.frontier >= 0 ? context.frontier + 1 : defaultCursor(current, context, tool.def);
+    while (index < context.slots.length && context.used[index]) index += 1;
+    if (index >= context.slots.length) break;
+    const result = work(current, tool, index);
+    if (!result.ok) break;
+    current = result.pattern;
+    placed += 1;
+  }
+  if (placed === 0) return refuse('Ebben a sorban nincs szabad célpont a kitöltéshez.');
+  return done(current);
 }
 
 /** Sor vége és fordulás, utána a fordulólánc a kiválasztott szem magasságában (01 §8.3 szabály 12). */

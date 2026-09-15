@@ -13,6 +13,7 @@ import {
   deleteLast,
   emptyPattern,
   endRow,
+  fillRow,
   liveCheck,
   setPinned,
   work,
@@ -239,4 +240,46 @@ test('kézi igazítás: a mentésben megmarad, a topológián nem változtat, t�
 test('az üres minta menthető és visszatölthető', () => {
   const pattern = emptyPattern('Próba');
   assert.deepEqual(loadPattern(savePattern(pattern)).pattern, pattern);
+});
+
+describe('sor kitöltése (PQW-879)', () => {
+  test('a láncalapra a sor összes szabad célpontját kitölti, hibátlanul', () => {
+    const base = chains(emptyPattern(), 12);
+    const filled = ok(fillRow(base, { def: 'hdc', count: 1 }));
+    // 12 láncszem, félpálca a 3. láncszemtől: 10 szem.
+    assert.deepEqual(counts(filled), [0, 10]);
+    assert.deepEqual(findings(filled), []);
+  });
+
+  test('a fordulás után a következő sort is kitölti, hibátlanul', () => {
+    let pattern = ok(fillRow(chains(emptyPattern(), 12), { def: 'hdc', count: 1 }));
+    pattern = ok(endRow(pattern, 'hdc'));
+    pattern = ok(fillRow(pattern, { def: 'hdc', count: 1 }));
+    assert.deepEqual(counts(pattern), [0, 10, 10]);
+    assert.deepEqual(findings(pattern), []);
+  });
+
+  test('ugyanazt adja, mint a célpontonkénti horgolás', () => {
+    const base = chains(emptyPattern(), 12);
+    const filled = ok(fillRow(base, { def: 'hdc', count: 1 }));
+    let byHand = base;
+    for (let i = 0; i < 10; i += 1) byHand = stitch(byHand, 'hdc');
+    assert.deepEqual(counts(filled), counts(byHand));
+  });
+
+  test('a félkész sort a szabad célpontokkal fejezi be', () => {
+    let pattern = chains(emptyPattern(), 12);
+    pattern = stitch(pattern, 'hdc');
+    pattern = stitch(pattern, 'hdc');
+    pattern = ok(fillRow(pattern, { def: 'hdc', count: 1 }));
+    assert.deepEqual(counts(pattern), [0, 10]);
+    assert.deepEqual(findings(pattern), []);
+  });
+
+  test('láncszemmel vagy üres sorban nem tölt', () => {
+    assert.equal(fillRow(chains(emptyPattern(), 12), { def: 'ch', count: 3 }).ok, false);
+    // Kitöltött sor után nincs több szabad célpont: nem tölt tovább.
+    const filled = ok(fillRow(chains(emptyPattern(), 12), { def: 'hdc', count: 1 }));
+    assert.equal(fillRow(filled, { def: 'hdc', count: 1 }).ok, false);
+  });
 });

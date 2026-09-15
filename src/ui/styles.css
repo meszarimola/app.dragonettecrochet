@@ -802,6 +802,79 @@ body.is-armed #board {
   justify-self: start;
 }
 
+/* ---- Ellenőrzés: szemszám és lenyitható részlet (PQW-879) ---- */
+
+.finding__count {
+  color: var(--c-muted);
+}
+
+.finding__more {
+  margin: 0.15rem 0 0.4rem;
+  font-size: 0.75rem;
+}
+
+.finding__more summary {
+  min-block-size: 32px;
+  padding-block: 0.35rem;
+  color: var(--c-muted);
+  cursor: pointer;
+}
+
+/* ---- Megerősítő párbeszéd (PQW-879) ---- */
+
+.ask {
+  max-inline-size: min(24rem, calc(100vw - 2rem));
+  padding: 1.1rem 1.2rem 1rem;
+  border: 1px solid var(--c-line);
+  border-radius: 12px;
+  background: var(--c-bg);
+  color: var(--c-text);
+}
+
+.ask::backdrop {
+  background: rgba(36, 31, 43, 0.35);
+}
+
+.ask__message {
+  margin: 0 0 0.9rem;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: var(--c-ink);
+}
+
+.ask__details {
+  margin: 0 0 0.9rem;
+  font-size: 0.8125rem;
+}
+
+.ask__details summary {
+  min-block-size: 32px;
+  padding-block: 0.3rem;
+  color: var(--c-muted);
+  cursor: pointer;
+}
+
+.ask__detail {
+  margin: 0.2rem 0 0;
+  color: var(--c-text-soft);
+}
+
+.ask__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.tool--primary {
+  border-color: var(--c-accent);
+  background: var(--c-accent);
+  color: var(--c-bg);
+}
+
+.tool--primary:hover:not(:disabled) {
+  color: var(--c-bg);
+  opacity: 0.92;
 /* ---- Bal oldali mintatípus-menü (PQW-873) ---- */
 
 /* A két oldalsáv a lenyitott írott minta fölött marad. */

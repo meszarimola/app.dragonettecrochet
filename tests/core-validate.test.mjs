@@ -216,6 +216,14 @@ test('minden szabálynak van tudásbázis-hivatkozása', () => {
   }
 });
 
+test('minden szabály felhasználói üzenete a „szem” szóval, belső fogalom és tudásbázis-kód nélkül (PQW-879)', () => {
+  for (const [rule, def] of Object.entries(RULES)) {
+    assert.ok(def.message.trim(), `${rule}: hiányzó felhasználói üzenet`);
+    // A főszövegben nincs „réteg”, „darab”, sem tudásbázis-kód (§ vagy 0X-jelölés).
+    assert.doesNotMatch(def.message, /réteg|darab|§|\b0[1-6] /i, `${rule}: az üzenet belső fogalmat vagy tudásbázis-kódot tartalmaz`);
+  }
+});
+
 after(() => {
   // Minden szabályhoz van legalább egy elrontott példa.
   assert.deepEqual([...tested].sort(), Object.keys(RULES).sort());
