@@ -32,7 +32,7 @@
       </section>
 
       <header class="bar">
-        <div class="bar__group">
+        <div class="bar__lead">
           <a
             class="home"
             href="https://dragonettecrochet.com/hu/"
@@ -46,57 +46,230 @@
           </a>
 
           <h1 class="bar__title">Mintatervező</h1>
+
+          <button
+            type="button"
+            id="types-toggle"
+            class="bar__toggle bar__toggle--types"
+            aria-expanded="true"
+            aria-controls="types"
+          >
+            <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+              <path d="M4 6h12M4 10h12M4 14h8" />
+            </svg>
+            <span>Mintatípus</span>
+          </button>
         </div>
 
         <div class="tools">
-          <div class="tools__group" role="group" aria-label="Szerkesztés">
-            <button type="button" class="tool" data-action="undo" aria-keyshortcuts="Control+Z Meta+Z">Visszavonás</button>
-            <button type="button" class="tool" data-action="redo" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z Control+Y">Újra</button>
-            <button type="button" class="tool" data-action="delete-last" aria-keyshortcuts="Backspace">Utolsó törlése</button>
-          </div>
-          <div class="tools__group" role="group" aria-label="Sor és kör">
-            <button type="button" class="tool" data-action="same" aria-keyshortcuts="Shift+Enter">Még egy ugyanabba</button>
-            <button type="button" class="tool" data-action="end-row" aria-keyshortcuts="F">Sor vége, fordulás</button>
-            <button type="button" class="tool" data-action="close-round" aria-keyshortcuts="K">Kör zárása</button>
-          </div>
-          <div class="tools__group" role="group" aria-label="Nézet">
-            <button type="button" class="tool" data-action="mirror" aria-pressed="false" aria-keyshortcuts="M">Tükrözött nézet</button>
-            <button type="button" class="tool" data-action="zoom-out" aria-label="Kicsinyítés">−</button>
-            <button type="button" class="tool" data-action="zoom-in" aria-label="Nagyítás">+</button>
-            <button type="button" class="tool" data-action="fit">Egész minta</button>
-          </div>
           <div class="tools__group" role="group" aria-label="Fájl">
-            <button type="button" class="tool" data-action="export-json">JSON mentése</button>
-            <button type="button" class="tool" data-action="import-json">JSON betöltése</button>
-            <button type="button" class="tool" data-action="export-png">PNG</button>
-            <button type="button" class="tool" data-action="export-svg">SVG</button>
-            <button type="button" class="tool" data-action="new">Új minta</button>
+            <button type="button" class="tool" data-action="new" aria-label="Új minta" title="Új minta">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M5 2.75h6l4 4V17a.5.5 0 0 1-.5.5h-9A.5.5 0 0 1 5 17z" />
+                <path d="M11 2.75V7h4" />
+                <path d="M10 10v4M8 12h4" />
+              </svg>
+            </button>
+            <button type="button" class="tool" data-action="import-json" aria-label="JSON betöltése" title="JSON betöltése">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M10 3v7" />
+                <path d="M7 8l3 3 3-3" />
+                <path d="M4.5 13v2.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V13" />
+              </svg>
+            </button>
+            <button type="button" class="tool" data-action="export-json" aria-label="JSON mentése" title="JSON mentése">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M4.5 4h8l3 3v9h-11z" />
+                <path d="M7 4v3.5h5V4" />
+                <path d="M6.5 16v-4.5h7V16" />
+              </svg>
+            </button>
+            <button type="button" class="tool" data-action="export-png" aria-label="PNG" title="PNG-kép mentése">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M3.75 4.5h12.5v11H3.75z" />
+                <circle cx="7.5" cy="8" r="1.25" />
+                <path d="M4 15l4-4 3 3 2.5-2.5L16 14" />
+              </svg>
+            </button>
+            <button type="button" class="tool" data-action="export-svg" aria-label="SVG" title="SVG-kép mentése (vektor)">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M4 14c3-8 9-8 12 0" />
+                <path d="M3 12.5h2.5V15H3zM14.5 12.5H17V15h-2.5z" />
+              </svg>
+            </button>
             <input type="file" id="import-file" accept="application/json,.json" hidden />
+          </div>
+
+          <div class="tools__group" role="group" aria-label="Szerkesztés">
+            <button type="button" class="tool" data-action="undo" aria-label="Visszavonás" title="Visszavonás (Ctrl+Z)" aria-keyshortcuts="Control+Z Meta+Z">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M7.5 5.5 4 9l3.5 3.5" />
+                <path d="M4 9h7a4.5 4.5 0 0 1 0 9h-1" />
+              </svg>
+            </button>
+            <button type="button" class="tool" data-action="redo" aria-label="Újra" title="Újra (Ctrl+Shift+Z)" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z Control+Y">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M12.5 5.5 16 9l-3.5 3.5" />
+                <path d="M16 9H9a4.5 4.5 0 0 0 0 9h1" />
+              </svg>
+            </button>
+            <button type="button" class="tool" data-action="delete-last" aria-label="Utolsó törlése" title="Utolsó lépés törlése (Backspace)" aria-keyshortcuts="Backspace">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M8 4.75h7.5a1 1 0 0 1 1 1v8.5a1 1 0 0 1-1 1H8l-5-5.25z" />
+                <path d="M10.5 8.5l4 3M14.5 8.5l-4 3" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="tools__group" role="group" aria-label="Sor és kör">
+            <button type="button" class="tool" data-action="same" aria-label="Még egy ugyanabba" title="Még egy ugyanabba – szaporítás (Shift+Enter)" aria-keyshortcuts="Shift+Enter">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M10 16.5V11" />
+                <path d="M10 11 5.5 4.5M10 11l4.5-6.5M10 11V4" />
+              </svg>
+            </button>
+            <button type="button" class="tool" data-action="end-row" aria-label="Sor vége, fordulás" title="Sor vége, fordulás (F)" aria-keyshortcuts="F">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M6 15V9a3 3 0 0 1 6 0v6" />
+                <path d="M3.75 11 6 8.25 8.25 11" />
+              </svg>
+            </button>
+            <button type="button" class="tool" data-action="close-round" aria-label="Kör zárása" title="Kör zárása (K)" aria-keyshortcuts="K">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M13.7 6.6A5.5 5.5 0 1 0 15.5 10" />
+                <path d="M11.4 4.7 14 6.4l-1 2.6" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="tools__group tools__group--soon" role="group" aria-label="Kijelölés – hamarosan">
+            <button type="button" class="tool" data-action="select-area" aria-label="Kijelölés – hamarosan" title="Terület vagy szemek kijelölése – hamarosan (PQW-875)" disabled aria-disabled="true">
+              <svg class="icon icon--dashed" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <rect x="4" y="5" width="12" height="10" rx="1" />
+              </svg>
+            </button>
+            <button type="button" class="tool" data-action="delete-selection" aria-label="Kijelölés törlése – hamarosan" title="Kijelölt szemek törlése – hamarosan (PQW-875)" disabled aria-disabled="true">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M5 6h10" />
+                <path d="M8 6V4.25h4V6" />
+                <path d="M6.5 6l.6 10h5.8l.6-10" />
+                <path d="M9 9v4.5M11 9v4.5" />
+              </svg>
+            </button>
+            <button type="button" class="tool" data-action="duplicate-selection" aria-label="Kijelölés duplikálása – hamarosan" title="Kijelölt szemek duplikálása – hamarosan (PQW-875)" disabled aria-disabled="true">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M5 5h7v7H5z" />
+                <path d="M8 8h7v7H8z" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="tools__group" role="group" aria-label="Nézet">
+            <button type="button" class="tool" data-action="mirror" aria-pressed="false" aria-label="Tükrözött nézet" title="Tükrözött nézet balkezeseknek (M)" aria-keyshortcuts="M">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path class="icon--dashed" d="M10 3.5v13" />
+                <path d="M8 7 4 10l4 3zM12 7l4 3-4 3z" />
+              </svg>
+            </button>
+            <button type="button" class="tool" data-action="zoom-out" aria-label="Kicsinyítés" title="Kicsinyítés">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <circle cx="9" cy="9" r="5" />
+                <path d="M12.6 12.6 16.5 16.5" />
+                <path d="M7 9h4" />
+              </svg>
+            </button>
+            <button type="button" class="tool" data-action="zoom-in" aria-label="Nagyítás" title="Nagyítás">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <circle cx="9" cy="9" r="5" />
+                <path d="M12.6 12.6 16.5 16.5" />
+                <path d="M7 9h4M9 7v4" />
+              </svg>
+            </button>
+            <button type="button" class="tool" data-action="fit" aria-label="Egész minta" title="Egész minta a képernyőre">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M4 7V5h2M14 5h2v2M16 13v2h-2M6 15H4v-2" />
+              </svg>
+            </button>
           </div>
         </div>
 
-        <button
-          type="button"
-          id="written-toggle"
-          class="bar__toggle bar__toggle--written"
-          aria-expanded="false"
-          aria-controls="written"
-        >
-          Írott minta
-        </button>
+        <div class="bar__end">
+          <p class="count" id="count-field" hidden>
+            <label for="chain-count">Láncszemek száma</label>
+            <input id="chain-count" type="number" min="1" max="500" step="1" value="12" inputmode="numeric" />
+          </p>
 
-        <button
-          type="button"
-          id="panel-toggle"
-          class="bar__toggle"
-          aria-expanded="true"
-          aria-controls="panel"
-        >
-          Jelkészlet
-        </button>
+          <div class="menu">
+            <button
+              type="button"
+              id="error-toggle"
+              class="bar__toggle bar__toggle--errors"
+              aria-expanded="false"
+              aria-controls="errors"
+            >
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M10 3.75 16.5 15.5H3.5z" />
+                <path d="M10 8v3.5M10 13.25v.25" />
+              </svg>
+              <span id="error-count">Nincs hiba</span>
+            </button>
+
+            <div class="menu__pop errors" id="errors" role="region" aria-label="Hibák és figyelmeztetések" hidden>
+              <p class="check__summary" id="summary"></p>
+              <ul class="check__list" id="findings"></ul>
+            </div>
+          </div>
+
+          <div class="menu">
+            <button
+              type="button"
+              id="stitch-toggle"
+              class="bar__toggle bar__toggle--stitch"
+              aria-haspopup="true"
+              aria-expanded="false"
+              aria-controls="stitch-menu"
+            >
+              <span class="stitch-toggle__label" id="stitch-current">Válassz szemet</span>
+              <svg class="icon chevron" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M6 8l4 4 4-4" />
+              </svg>
+            </button>
+
+            <div class="menu__pop stitch-menu" id="stitch-menu" role="group" aria-label="Szemek" hidden>
+              <p class="panel__hint" id="hint"></p>
+              <div class="palette" id="palette"></div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            id="written-toggle"
+            class="bar__toggle"
+            aria-expanded="false"
+            aria-controls="written"
+          >
+            Írott minta
+          </button>
+
+          <button
+            type="button"
+            id="panel-toggle"
+            class="bar__toggle"
+            aria-expanded="true"
+            aria-controls="panel"
+          >
+            Beállítások
+          </button>
+        </div>
       </header>
 
       <main class="stage">
+        <nav class="types" id="types" aria-label="Mintatípus">
+          <h2 class="panel__title">Mintatípus</h2>
+          <p class="types__intro">A típus adja a kezdést és a körzárás alapértelmezését.</p>
+          <ul class="types__list" id="types-list"></ul>
+        </nav>
+
         <canvas
           id="board"
           tabindex="0"
@@ -108,8 +281,15 @@
         <p class="status" id="status" role="status" aria-live="polite"></p>
 
         <aside class="written" id="written" aria-labelledby="written-title" hidden>
-          <h2 class="panel__title" id="written-title">Írott minta</h2>
+          <div class="written__head">
+            <h2 class="panel__title" id="written-title">Írott minta</h2>
+            <button type="button" class="tool written__copy" data-action="copy-written">Másolás</button>
+          </div>
+          <div class="written__notices" id="written-notices"></div>
+          <pre class="written__text" id="written-text" tabindex="0" aria-label="Az írott minta szövege"></pre>
+        </aside>
 
+        <aside class="panel" id="panel" aria-label="Beállítások és minta">
           <fieldset class="settings">
             <legend class="panel__title">Jelölés és jelek</legend>
             <p class="panel__field">
@@ -138,26 +318,6 @@
               az írott minta és az export is ezt követi.
             </p>
           </fieldset>
-
-          <div class="written__notices" id="written-notices"></div>
-          <pre class="written__text" id="written-text" tabindex="0" aria-label="Az írott minta szövege"></pre>
-          <button type="button" class="tool written__copy" data-action="copy-written">Másolás</button>
-        </aside>
-
-        <aside class="panel" id="panel" aria-label="Jelkészlet és ellenőrzés">
-          <section class="check" aria-labelledby="check-title">
-            <h2 class="panel__title" id="check-title">Ellenőrzés</h2>
-            <p class="check__summary" id="summary"></p>
-            <ul class="check__list" id="findings"></ul>
-          </section>
-
-          <h2 class="panel__title">Szemek</h2>
-          <p class="panel__hint" id="hint"></p>
-          <p class="panel__field" id="count-field" hidden>
-            <label for="chain-count">Láncszemek száma</label>
-            <input id="chain-count" type="number" min="1" max="500" step="1" value="12" inputmode="numeric" />
-          </p>
-          <div class="palette" id="palette"></div>
 
           <section class="check" aria-labelledby="pattern-title">
             <h2 class="panel__title" id="pattern-title">Minta</h2>
