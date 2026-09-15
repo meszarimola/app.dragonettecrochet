@@ -9,8 +9,9 @@
  *   szárai közös tetőbe futnak;
  * - a relief és az első vagy hátsó szál jelölése a talpon van;
  * - a rövidpálca + vagy ×, beállítás szerint (szókészlet K3);
- * - japán (JIS) stílusban a rövidpálca mindig ×, és a hátsó szál egyenes
- *   vonal a talp alatt (01 §6.2, §8.4 szabály 23). A többi jel a két
+ * - japán (JIS) stílusban a rövidpálca mindig ×, a hátsó szál egyenes vonal a
+ *   talp alatt, a varázskör a „わ” jel (01 §6.2, §8.4 szabály 23). A rákhurok
+ *   JIS-ben is a rövidpálca jele, fölötte hullámvonallal. A többi jel a két
  *   jelkulcsban azonos alakú.
  *
  * A rajz két lépés. A `symbolShapes` csak geometriát ad (vonal, ív, ellipszis,
@@ -342,7 +343,8 @@ function isMark(mode: InsertionMode): mode is InsertionMark {
  * első szál: a talp egy „u” belsejében; hátsó szál: a talp egy fordított „u”
  * tetején; relief: kampó a talpnál, elöl jobbra, hátul balra nyílik.
  * JIS stílusban a hátsó szál vízszintes vonal a jel alatt (01 §6.2). Az első
- * szál JIS-jelére nincs forrásunk, ezért az a CYC-ív marad.
+ * szál JIS-jelét japán forrás nem erősítette meg (01 §6.2, nyitott), ezért az
+ * a CYC-ív marad.
  */
 function insertionMark(mode: InsertionMark, foot: Point, style: ChartStyle = 'cyc'): Shape {
   if (mode === 'back-loop' && style === 'jis') {
@@ -367,6 +369,26 @@ function insertionMark(mode: InsertionMark, foot: Point, style: ChartStyle = 'cy
     case 'back-post':
       return curve({ x: 0, y: 0 }, { x: -3, y: 6 }, { x: -6, y: 0 });
   }
+}
+
+/**
+ * A varázskör jele: CYC-ben kör, JIS stílusban a „わ” (01 §6.2). Az írásjelet
+ * saját vonalakkal rajzoljuk, betűtípus nélkül, a kör helyén és méretében.
+ */
+function ringShapes(center: Point, style: ChartStyle = 'cyc'): Shape[] {
+  if (style !== 'jis') return [{ kind: 'ellipse', role: 'ring', center, rx: RING_R, ry: RING_R, rotation: 0 }];
+  const at = (x: number, y: number): Point => add(center, scale({ x, y }, RING_R / 10));
+  const curve = (from: Point, control: Point, to: Point): Shape => ({ kind: 'curve', role: 'ring', from, control, to });
+  return [
+    // Bal oldali függőleges szár.
+    line('ring', at(-3, -9), at(-3, 9)),
+    // Rövid vízszintes vonás a szár tetején, belőle átló le, balra.
+    line('ring', at(-8, -4), at(0, -5)),
+    line('ring', at(0, -5), at(-8, 5)),
+    // A nagy ív: fel és jobbra, körbe, a vége alul befelé kunkorodik.
+    curve(at(-5, 1), at(4, -10), at(8, 1)),
+    curve(at(8, 1), at(9, 10), at(-1, 8)),
+  ];
 }
 
 /* ---- Nyilvános felület ---- */
@@ -407,7 +429,7 @@ export function symbolShapes(def: StitchDef, options: SymbolOptions = DEFAULT_SY
       chainsOnCircle(out, FOOT, ARCH_R, [150, 90, 30]);
       break;
     case 'ring':
-      out.push({ kind: 'ellipse', role: 'ring', center: { x: 0, y: -RING_R }, rx: RING_R, ry: RING_R, rotation: 0 });
+      out.push(...ringShapes({ x: 0, y: -RING_R }, options.style));
       break;
   }
 
@@ -495,7 +517,7 @@ export function transformShapes(shapes: readonly Shape[], rotation: number, k: n
  * A jel a diagram helyén. A szár a talptól a tetőig tart, így a szaporítás
  * tagjai közös talpból legyezőben, a fogyasztás szárai külön talpakból egy
  * tetőbe futnak (01 §8.4 szabály 18). A láncszem a megadott irányban és
- * hosszban, a kúszószem pont, a varázskör kör.
+ * hosszban, a kúszószem pont, a varázskör kör (JIS stílusban „わ”).
  */
 export function placedShapes(def: StitchDef, placement: Placement, options: SymbolOptions = DEFAULT_SYMBOL_OPTIONS): Shape[] {
   const { top } = placement;
@@ -507,7 +529,7 @@ export function placedShapes(def: StitchDef, placement: Placement, options: Symb
     case 'slip':
       return [{ kind: 'dot', role: 'dot', center: top, r: SLIP_R }];
     case 'ring':
-      return [{ kind: 'ellipse', role: 'ring', center: top, rx: RING_R, ry: RING_R, rotation: 0 }];
+      return ringShapes(top, options.style);
     case 'picot':
       return transformShapes(symbolShapes(def, options), 0, 1, add(top, { x: 0, y: PICOT_R + SLIP_R }));
     case 'stitch':

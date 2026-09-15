@@ -11,6 +11,9 @@
  *
  * A rács (PQW-874) választhatóan kerül az exportba, ugyanazzal a rajzzal,
  * mint a vásznon (src/ui/grid-paths.ts).
+ *
+ * A sorszám és a szemszám felirata a minta hagyományát követi, japánban
+ * „18目”, az ismétlés „6目1模様” (src/ui/chart-labels.ts, PQW-876).
  */
 
 import type { ChartGrid } from '../core/grid.ts';
@@ -18,7 +21,8 @@ import type { ChartLayout } from '../core/layout.ts';
 import { VOCABULARIES } from '../core/pattern-text.ts';
 import type { StitchLibrary } from '../core/stitch-library.ts';
 import { stitchLabel } from '../core/stitchText.ts';
-import type { Locale, Pattern, StitchDef } from '../core/types.ts';
+import type { Locale, Pattern, StitchDef, Tradition } from '../core/types.ts';
+import { chartLabels } from './chart-labels.ts';
 import { gridPaths, LINE_WIDTH } from './grid-paths.ts';
 import { chartStyleLabel, textLanguage, termsLabel } from './notation.ts';
 import { DEFAULT_SYMBOL_OPTIONS, placedShapes, shapeBounds, symbolShapes, type Shape, type SymbolOptions } from './symbols.ts';
@@ -49,6 +53,8 @@ export interface ChartSvgOptions {
   readonly symbols?: SymbolOptions;
   /** A rács az exportban (PQW-874); hiányában rács nélkül. */
   readonly grid?: { readonly grid: ChartGrid; readonly colors: GridColors };
+  /** A minta hagyománya a feliratokhoz (PQW-876); hiányában CYC. */
+  readonly tradition?: Tradition;
 }
 
 const MARGIN = 24;
@@ -103,6 +109,8 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
   const symbols = options.symbols ?? DEFAULT_SYMBOL_OPTIONS;
   const grid = options.grid && options.grid.grid.bands.length > 0 ? options.grid : undefined;
   const system = VOCABULARIES[terms].system;
+  const captions = chartLabels(options.tradition ?? 'cyc');
+  const repeat = captions.repeat(pattern.conventions.repeat);
   const bounds = grid
     ? {
         minX: Math.min(layout.bounds.minX, grid.grid.bounds.minX),
@@ -121,7 +129,8 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
   ];
   const notes = [
     `Jelölés: ${termsLabel(terms)}; jelek: ${chartStyleLabel(symbols.style ?? 'cyc')}.`,
-    'A sorszám a sor kezdő oldalán áll, zárójelben a szemszám.',
+    captions.note,
+    ...(repeat ? [`Ismétlés: ${repeat}.`] : []),
     ...(grid ? ['Rács: váltakozó sávok, minden 5. és 10. vonal vastagabb.'] : []),
     ...(options.mirror ? ['Tükrözött nézet balkezeseknek.'] : []),
   ];
@@ -178,13 +187,13 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
   for (const layer of layout.layers) {
     if (layer.index === 0) continue;
     const rightwards = layer.start.x <= layer.end.x;
-    const labelWidth = 7.4 * String(layer.index).length + 10;
+    const labelWidth = 7.4 * captions.layer(layer.index).length + 10;
     const x0 = rightwards ? layer.start.x + 4 - labelWidth : layer.start.x - 4;
     const endAnchor = rightwards ? 'start' : 'end';
     out.push(
       `<rect x="${num(x0)}" y="${num(layer.start.y - LABEL_HEIGHT / 2)}" width="${num(labelWidth)}" height="${LABEL_HEIGHT}" rx="4" fill="${colors[layer.side]}"/>`,
-      `<text x="${num(x0 + labelWidth / 2)}" y="${num(layer.start.y)}" text-anchor="middle" font-weight="700" fill="${colors.background}">${layer.index}</text>`,
-      `<text x="${num(layer.end.x)}" y="${num(layer.end.y)}" text-anchor="${endAnchor}">(${layer.stitchCount})</text>`,
+      `<text x="${num(x0 + labelWidth / 2)}" y="${num(layer.start.y)}" text-anchor="middle" font-weight="700" fill="${colors.background}">${escapeXml(captions.layer(layer.index))}</text>`,
+      `<text x="${num(layer.end.x)}" y="${num(layer.end.y)}" text-anchor="${endAnchor}">${escapeXml(captions.count(layer.stitchCount))}</text>`,
     );
   }
   out.push('</g></g>');

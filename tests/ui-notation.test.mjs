@@ -11,10 +11,12 @@ import { loadPattern, savePattern } from '../src/core/pattern-json.ts';
 import {
   TERMS,
   defaultNotation,
+  notationForTradition,
   readNotation,
   symbolOptionsFor,
   termsLabel,
   textLanguage,
+  traditionLabel,
   uiLanguageOf,
   withNotation,
   writeNotation,
@@ -66,6 +68,15 @@ test('a mentett minta megmondja, milyen jelöléssel készült, a gráf nem vál
   const loaded = loadPattern(savePattern(stamped));
   assert.equal(loaded.ok, true);
   assert.deepEqual(loaded.pattern.notation, notation);
+});
+
+test('a japán előbeállítás a JIS jeleket és a × rövidpálcát kapcsolja be, a szövegjelölés marad (PQW-876)', () => {
+  const start = { terms: 'en-GB', chartStyle: 'cyc', singleCrochet: 'plus' };
+  const japanese = notationForTradition(start, 'japanese');
+  assert.deepEqual(japanese, { terms: 'en-GB', chartStyle: 'jis', singleCrochet: 'cross' });
+  assert.deepEqual(symbolOptionsFor(japanese), { singleCrochet: 'cross', style: 'jis' });
+  assert.deepEqual(notationForTradition(japanese, 'cyc'), start);
+  assert.deepEqual(['cyc', 'japanese'].map(traditionLabel), ['nemzetközi (CYC)', 'japán']);
 });
 
 test('az angol jelölés neve megnevezi a rendszert', () => {

@@ -8,13 +8,15 @@
  *   exportkor rögzíti, milyen jelöléssel készült (`Pattern.notation`).
  * - A japán (JIS) jelstílusban a rövidpálca jele mindig ×, ezért ott a + és ×
  *   választása nem érvényes (symbols.ts).
+ * - Az előbeállítás (PQW-876) a mintához tartozik: a japán a JIS jeleket, a ×
+ *   rövidpálcát és a japán számolást (src/core/tradition.ts) együtt kapcsolja be.
  *
  * DOM nélküli, ezért a Node is futtatja (tests/ui-notation.test.mjs), és a
  * magot `.ts` kiterjesztéssel importálja.
  */
 
 import { VOCABULARIES } from '../core/pattern-text.ts';
-import type { ChartStyle, Locale, Pattern, PatternNotation } from '../core/types.ts';
+import type { ChartStyle, Locale, Pattern, PatternNotation, Tradition } from '../core/types.ts';
 import type { SymbolOptions } from './symbols.ts';
 
 /** A felület nyelve; az angol felület fordítása a PQW-853. */
@@ -90,4 +92,15 @@ export function termsLabel(terms: Locale): string {
 
 export function chartStyleLabel(style: ChartStyle): string {
   return style === 'jis' ? 'japán (JIS)' : 'CYC';
+}
+
+/** Az előbeállítás jelei: japánnál JIS és ×, nemzetközinél CYC és +. A szövegjelölés marad. */
+export function notationForTradition(notation: PatternNotation, tradition: Tradition): PatternNotation {
+  return tradition === 'japanese'
+    ? { ...notation, chartStyle: 'jis', singleCrochet: 'cross' }
+    : { ...notation, chartStyle: 'cyc', singleCrochet: 'plus' };
+}
+
+export function traditionLabel(tradition: Tradition): string {
+  return tradition === 'japanese' ? 'japán' : 'nemzetközi (CYC)';
 }

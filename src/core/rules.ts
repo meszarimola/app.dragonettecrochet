@@ -126,7 +126,8 @@ export const RULES = {
   'foundation-chain': {
     severity: 'error',
     reference: '03 §10 A2, 03 §1.2',
-    summary: 'Rossz láncalap: az 1. sor első szeme nem a fordulólánc után következő láncszembe megy.',
+    summary:
+      'Rossz láncalap: az 1. sor első szeme nem a fordulólánc után következő láncszembe megy (japán hagyományban a fordulólánc alatti alapláncszem utánira).',
     message: 'Az 1. sor első szeme nem a megfelelő láncszembe került.',
   },
   'turning-chain-height': {

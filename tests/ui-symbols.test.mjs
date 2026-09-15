@@ -8,7 +8,7 @@ import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
 import { STITCHES, stitchById } from '../src/core/stitches.ts';
-import { hatchCount, shapeBounds, stemLength, symbolShapes } from '../src/ui/symbols.ts';
+import { hatchCount, placedShapes, shapeBounds, stemLength, symbolShapes } from '../src/ui/symbols.ts';
 
 const ROLES = [
   'stem', 'bar', 'hatch', 'cross', 'chain', 'dot', 'ring', 'closure', 'tilde',
@@ -235,8 +235,8 @@ test('JIS stílusban a hátsó szál vízszintes vonal a talp alatt', () => {
   assert.ok(Math.hypot(mark.from.x, mark.from.y) <= 10);
 });
 
-test('JIS stílusban minden szem jele a × rövidpálcás CYC-jel, csak a hátsó szál jele más', () => {
-  for (const def of STITCHES) {
+test('JIS stílusban minden szem jele a × rövidpálcás CYC-jel, csak a hátsó szál és a varázskör jele más', () => {
+  for (const def of STITCHES.filter((stitch) => stitch.kind !== 'ring')) {
     for (const singleCrochet of ['plus', 'cross']) {
       const jis = symbolShapes(def, { singleCrochet, style: 'jis' });
       assert.deepEqual(jis, symbolShapes(def, { singleCrochet: 'cross' }), `${def.id}, ${singleCrochet}`);
@@ -246,6 +246,35 @@ test('JIS stílusban minden szem jele a × rövidpálcás CYC-jel, csak a háts�
     const jis = symbolShapes(stitchById('hdc'), { singleCrochet: 'plus', style: 'jis', insertion });
     assert.deepEqual(jis, symbolShapes(stitchById('hdc'), { singleCrochet: 'cross', insertion }), insertion);
   }
+});
+
+/* ---- A JIS jelkészlet kiegészítése (PQW-876) ---- */
+
+test('JIS stílusban a varázskör a „わ” jel: saját vonalakból, kör nélkül, a kör helyén és méretében', () => {
+  const ring = stitchById('magic-ring');
+  const jis = symbolShapes(ring, { singleCrochet: 'plus', style: 'jis' });
+  assert.ok(jis.length >= 4);
+  assert.ok(jis.every((shape) => shape.role === 'ring' && (shape.kind === 'line' || shape.kind === 'curve')));
+  const [circle, wa] = [shapeBounds(symbolShapes(ring)), shapeBounds(jis)];
+  assert.ok(wa.minX >= circle.minX && wa.maxX <= circle.maxX && wa.minY >= circle.minY && wa.maxY <= circle.maxY);
+  assert.ok(wa.maxX - wa.minX > 10 && wa.maxY - wa.minY > 10, 'olvasható méretű');
+});
+
+test('a diagramon is: JIS stílusban a varázskör helyén „わ”, CYC-ben kör', () => {
+  const ring = stitchById('magic-ring');
+  const placement = { role: 'ring', feet: [], top: { x: 50, y: 40 }, angle: 0, size: 20 };
+  assert.deepEqual(roleCounts(placedShapes(ring, placement)), only({ ring: 1 }));
+  const jis = placedShapes(ring, placement, { singleCrochet: 'plus', style: 'jis' });
+  assert.ok(jis.length >= 4 && jis.every((shape) => shape.kind !== 'ellipse'));
+  const { minX, maxX, minY, maxY } = shapeBounds(jis);
+  assert.ok(minX >= 40 && maxX <= 60 && minY >= 30 && maxY <= 50);
+});
+
+test('JIS stílusban a rákhurok a × rövidpálca, fölötte hullámvonallal', () => {
+  const shapes = symbolShapes(stitchById('rev-sc'), { singleCrochet: 'plus', style: 'jis' });
+  assert.deepEqual(roleCounts(shapes), only({ cross: 2, tilde: 2 }));
+  const top = Math.min(...shapes.filter((s) => s.role === 'cross').flatMap((s) => [s.from.y, s.to.y]));
+  assert.ok(shapes.filter((s) => s.role === 'tilde').every((s) => s.from.y < top && s.to.y < top));
 });
 
 test('minden jelnek véges, nem üres befoglaló téglalapja van', () => {

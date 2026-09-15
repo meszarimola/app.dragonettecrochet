@@ -293,6 +293,17 @@
             <summary class="section__head"><h2 class="panel__title">Jelölés és jelek</h2></summary>
             <div class="settings" role="group" aria-label="Jelölés és jelek">
             <p class="panel__field">
+              <label for="tradition">Előbeállítás</label>
+              <select id="tradition" aria-describedby="tradition-note">
+                <option value="cyc">Nemzetközi (CYC)</option>
+                <option value="japanese">Japán</option>
+              </select>
+            </p>
+            <p class="panel__note" id="tradition-note">
+              A mintához tartozik. A japán: JIS jelek, × rövidpálca, a fordulólánc a félpálcától
+              felfelé szemnek számít, a félpálca a 4., a pálca az 5. láncszemtől indul.
+            </p>
+            <p class="panel__field">
               <label for="terms">Jelölés</label>
               <select id="terms">
                 <option value="hu">Magyar</option>
@@ -314,7 +325,7 @@
             </fieldset>
             <p class="panel__note" id="sc-mark-jis" hidden>A japán jelstílusban a rövidpálca jele ×.</p>
             <p class="panel__note">
-              A felület nyelvétől független, és a minta adatán nem változtat: a paletta, a vászon,
+              A jelölés és a jelstílus a felület nyelvétől független, és a minta adatán nem változtat: a paletta, a vászon,
               az írott minta és az export is ezt követi.
             </p>
             </div>

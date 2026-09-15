@@ -19,6 +19,7 @@ import { buildPieceGraph, type PieceGraph } from './graph.ts';
 import { modeAsWorked, type Step, type StepTarget } from './pattern-steps.ts';
 import { VOCABULARIES, isDecrease, isIncrease, refOf, renderStep, type PhraseKey, type Vocabulary } from './pattern-text.ts';
 import type { StitchLibrary } from './stitch-library.ts';
+import { traditionOf, turningChainCountsFor } from './tradition.ts';
 import type {
   Anchor,
   LayerEvent,
@@ -494,8 +495,7 @@ class PieceReader {
     const hasTurning = turning !== undefined || (index === 1 && this.foundation === 'chain' && working.length < below.positions.length);
     if (hasTurning && firstStitch !== undefined) {
       const firstDef = library.get(this.node(firstStitch).def)!;
-      const setting = conventions.turningChainCounts;
-      const expected = setting === 'stitch-default' ? firstDef.turningChainCounts : setting;
+      const expected = turningChainCountsFor(conventions.turningChainCounts, firstDef, traditionOf(conventions));
       if (expected !== textCounts) {
         if (opening === null) fail('Az 1. sor fordulóláncának számolása eltér a minta beállításától.');
         this.events[this.events.length - 1] = { ...opening!, conventions: { ...opening!.conventions, turningChainCounts: textCounts } };

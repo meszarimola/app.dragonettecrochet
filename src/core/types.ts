@@ -219,10 +219,19 @@ export interface RowConventions {
    * Számít-e a fordulólánc szemnek. N szemhez a láncalap `N + T`, ha nem
    * számít, és `N + T − 1`, ha igen; ettől függ az is, hová megy a sor utolsó
    * szeme (01 §8.3 szabály 13–15). `stitch-default`: a sort kezdő szem
-   * `StitchDef.turningChainCounts` értéke dönt (szókészlet K1).
+   * `StitchDef.turningChainCounts` értéke dönt (szókészlet K1); japán
+   * hagyományban a félpálcától felfelé számít (tradition.ts).
    */
   readonly turningChainCounts: 'stitch-default' | boolean;
 }
+
+/**
+ * A minta számolási hagyománya (PQW-876). `cyc`: a Craft Yarn Council szerinti
+ * alapértelmezés. `japanese`: a japán diagramoké; a fordulólánc a félpálcától
+ * felfelé szemnek számít, és számító fordulóláncnál az 1. sor egy láncszemmel
+ * később kezd (01 §2.2, §3.3, §8.3 szabály 13, 15).
+ */
+export type Tradition = 'cyc' | 'japanese';
 
 /** „X többszöröse + Y” (README §4.4, 03 §4.1). */
 export interface RepeatSpec {
@@ -251,6 +260,8 @@ export interface PatternConventions extends RowConventions {
    * - `true`: minden láncszem számít; `false`: egyik sem.
    */
   readonly chainCounts: 'worked-into' | boolean;
+  /** A számolási hagyomány; hiányában `cyc` (a PQW-876 előtti mentés). */
+  readonly tradition?: Tradition;
   readonly repeat?: RepeatSpec;
 }
 
