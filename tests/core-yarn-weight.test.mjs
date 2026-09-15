@@ -30,7 +30,7 @@ test('a CYC-táblázat 0–7 kategóriája sorrendben, növekvő tűmérettel (0
   assert.equal(cycWeightClass(0).gaugeStitch, 'dc');
 });
 
-test('a CYC-párosításban öltés/4" × tű mm közel állandó, ≈ 72 az 1–5. kategóriában (02 §3.4)', () => {
+test('a CYC-párosításban szem/4" × tű mm közel állandó, ≈ 72 az 1–5. kategóriában (02 §3.4)', () => {
   for (const { weight, stitchesPer4in, hookMm } of CYC_WEIGHTS.filter((entry) => entry.weight >= 1 && entry.weight <= 5)) {
     for (const product of [stitchesPer4in[1] * hookMm[0], stitchesPer4in[0] * hookMm[1]]) {
       assert.ok(Math.abs(product - 72) / 72 <= 0.09, `${weight}. kategória: ${product}`);

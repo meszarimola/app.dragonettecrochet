@@ -37,7 +37,7 @@ function nearRange(actual, expected, epsilon = 1e-9) {
 }
 
 describe('gauge ↔ cm (02 §3.3, §8)', () => {
-  test('140 öltés 16, 14 és 12 öltés/4" gauge-dzsel 35, 40 és 46,7 hüvelyk', () => {
+  test('140 szem 16, 14 és 12 szem/4" gauge-dzsel 35, 40 és 46,7 hüvelyk', () => {
     for (const [stitches, inches] of [
       [16, 35],
       [14, 40],
@@ -57,7 +57,7 @@ describe('gauge ↔ cm (02 §3.3, §8)', () => {
     assert.equal(gaugeMatches(actual, pattern), false);
   });
 
-  test('13 öltés/4" mintához 14-es gauge-dzsel az 52"-os darab közelebb van a 48"-hoz', () => {
+  test('13 szem/4" mintához 14-es gauge-dzsel az 52"-os darab közelebb van a 48"-hoz', () => {
     const stitches = stitchesForWidth(52 * 2.54, { stitches: 13, rows: 1, overCm: INCH_4 });
     near(widthForStitches(stitches, { stitches: 14, rows: 1, overCm: INCH_4 }) / 2.54, 48, 0.5);
   });
@@ -84,7 +84,7 @@ describe('gauge ↔ cm (02 §3.3, §8)', () => {
 describe('becslés mérés nélkül', () => {
   const context = { library, profile: null, hookMm: 4 };
 
-  test('02 §4.2 kidolgozott példa: 4 mm-es tű, rövidpálca → 17,7 öltés és 22 sor / 10 cm, 50 cm ≈ 89 öltés', () => {
+  test('02 §4.2 kidolgozott példa: 4 mm-es tű, rövidpálca → 17,7 szem és 22 sor / 10 cm, 50 cm ≈ 89 szem', () => {
     const sc = stitchDimensions(stitchById('sc'), 'row', context);
     assert.equal(sc.basis, 'hook');
     assert.equal(sc.widthMm.source, 'estimated');
@@ -135,7 +135,7 @@ describe('becslés mérés nélkül', () => {
     assert.deepEqual(stitchHeightFactor(def), { value: 2.3, source: 'measured', range: null });
   });
 
-  test('profil nélkül minden alapöltés becsült, tartománnyal; körben az arány más, mint síkban', () => {
+  test('profil nélkül minden alapszem becsült, tartománnyal; körben az arány más, mint síkban', () => {
     for (const id of ['sc', 'hdc', 'dc', 'tr', 'sl-st', 'ch', 'sc2tog']) {
       const def = library.get(id);
       if (!def) continue;
@@ -162,7 +162,7 @@ describe('méret a gauge-profilból', () => {
   const { unblocked, blocked } = exampleProfiles();
   const withProfile = (profile) => ({ library, profile, hookMm: 99 });
 
-  test('a mért öltés mért értéket ad, tartomány nélkül; körben a cső mérése számít', () => {
+  test('a mért szem mért értéket ad, tartomány nélkül; körben a cső mérése számít', () => {
     const row = stitchDimensions(stitchById('sc'), 'row', withProfile(unblocked));
     assert.equal(row.basis, 'measured');
     assert.equal(row.widthMm.source, 'measured');
@@ -176,12 +176,12 @@ describe('méret a gauge-profilból', () => {
     near(round.heightMm.value, 5);
   });
 
-  test('az összehorgolt öltést a részöltése méri', () => {
+  test('az összehorgolt szemet a részszeme méri', () => {
     const decrease = STITCHES.find((stitch) => stitch.kind === 'joined' && stitch.part === 'sc' && stitch.base === 'spread');
     assert.equal(stitchDimensions(decrease, 'row', withProfile(unblocked)).basis, 'measured');
   });
 
-  test('a nem mért öltés a mért rövidpálcából becsül, és ezt jelöli', () => {
+  test('a nem mért szem a mért rövidpálcából becsül, és ezt jelöli', () => {
     const dc = stitchDimensions(stitchById('dc'), 'row', withProfile(unblocked));
     assert.equal(dc.basis, 'profile-stitch');
     assert.equal(dc.heightMm.source, 'estimated');
@@ -190,7 +190,7 @@ describe('méret a gauge-profilból', () => {
     nearRange(dc.widthMm.range, [5.65 * 0.9, 5.65 * 1.1]);
   });
 
-  test('ha csak más öltés van mérve, a rövidpálcát a magasságarányával számolja vissza', () => {
+  test('ha csak más szem van mérve, a rövidpálcát a magasságarányával számolja vissza', () => {
     const file = exampleJson(ROWS_EXAMPLE);
     file.stitch.id = 'dc';
     const [profile] = buildGaugeProfiles(samplesFrom(JSON.stringify(file))).filter((each) => !each.blocked);

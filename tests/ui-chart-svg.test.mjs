@@ -1,5 +1,5 @@
 /*
- * Az SVG-export (PQW-857): olvasható diagram sorszámmal, öltésszámmal, a két
+ * Az SVG-export (PQW-857): olvasható diagram sorszámmal, szemszámmal, a két
  * oldal színével és jelmagyarázattal.
  */
 
@@ -18,7 +18,7 @@ function render(pattern, options = {}) {
   return chartSvg(pattern, layoutPattern(pattern, library, options), library, { colors: COLORS, ...options });
 }
 
-test('a téglalap SVG-je: sorszámok, öltésszámok, mindkét oldal színe, jelmagyarázat', () => {
+test('a téglalap SVG-je: sorszámok, szemszámok, mindkét oldal színe, jelmagyarázat', () => {
   const svg = render(hdcRectangle({ rows: 3 }).pattern);
   assert.match(svg, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"/);
   assert.equal(svg.match(/<svg/g).length, 1);
@@ -43,14 +43,14 @@ test('a téglalap SVG-je: sorszámok, öltésszámok, mindkét oldal színe, jel
   assert.match(svg, /class="ink" stroke="#241f2b" color="#241f2b"/);
   // A jelmagyarázat leghosszabb felirata is kifér.
   const width = Number(svg.match(/width="([\d.]+)"/)[1]);
-  assert.ok(width >= 7 * 'A sorszám a sor kezdő oldalán áll, zárójelben az öltésszám.'.length);
+  assert.ok(width >= 7 * 'A sorszám a sor kezdő oldalán áll, zárójelben a szemszám.'.length);
 });
 
 test('a jelmagyarázat a csoportot mutatja, nem a tagjait', () => {
   const { pattern } = shellStitch({ repeats: 2 });
   const ids = legendStitches(pattern, libraryFor(pattern)).map((def) => def.id);
   assert.deepEqual(ids, ['ch', 'sc', 'shell-5dc', 'inc-2dc', 'inc-3dc']);
-  assert.match(render(pattern), /kagyló: 5 erp egy öltésbe/);
+  assert.match(render(pattern), /kagyló: 5 erp egy szembe/);
 });
 
 test('tükrözött nézetben a jelmagyarázat jelzi a tükrözést', () => {

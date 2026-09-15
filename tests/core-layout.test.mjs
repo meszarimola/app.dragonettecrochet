@@ -9,6 +9,7 @@ import { describe, test } from 'node:test';
 import { deleteLast, emptyPattern, setPinned } from '../src/core/editor.ts';
 import { isotonic, layoutPattern } from '../src/core/layout.ts';
 import { chevron, dcRectangle, grannySquare, hdcRectangle, shellStitch, vStitchPattern, wave } from './fixtures/examples.ts';
+import { editNode } from './fixtures/builder.ts';
 import { testLibrary } from './fixtures/library.ts';
 
 const layout = (pattern, options) => layoutPattern(pattern, testLibrary, options);
@@ -23,7 +24,7 @@ describe('sorok', () => {
   const chart = layout(example.pattern);
   const at = (id) => chart.nodes.get(id);
 
-  test('az öltés az alatta lévő öltés oszlopában áll, függőleges szárral (01 §8.4 szabály 18)', () => {
+  test('a szem az alatta lévő szem oszlopában áll, függőleges szárral (01 §8.4 szabály 18)', () => {
     for (let row = 2; row <= 3; row += 1) {
       const below = [...example.rows[row - 1]].reverse();
       example.rows[row].forEach((id, i) => {
@@ -47,7 +48,7 @@ describe('sorok', () => {
     assert.ok(example.rows[1].every((id) => near(at(id).top.y, y(1))));
   });
 
-  test('a sorszám a sor kezdő oldalán, az öltésszám a végén; a sorok oldala váltakozik (03 §10 I42)', () => {
+  test('a sorszám a sor kezdő oldalán, a szemszám a végén; a sorok oldala váltakozik (03 §10 I42)', () => {
     const [, row1, row2, row3] = chart.layers;
     assert.ok(row1.start.x > row1.end.x);
     assert.ok(row2.start.x < row2.end.x);
@@ -58,7 +59,7 @@ describe('sorok', () => {
     assert.ok(example.rows[2].every((id) => at(id).side === 'wrong'));
   });
 
-  test('a nem számító fordulólánc függőlegesen, az első öltés mellett kívül áll', () => {
+  test('a nem számító fordulólánc függőlegesen, az első szem mellett kívül áll', () => {
     const [first] = example.rows[2];
     const chains = example.turningChains[2].map(at);
     assert.ok(chains.every((chain) => chain.role === 'chain' && near(chain.angle, Math.PI / 2)));
@@ -68,7 +69,7 @@ describe('sorok', () => {
     assert.ok(chains[0].top.y > chains[1].top.y);
   });
 
-  test('a számító fordulólánc az alatta lévő öltés oszlopában áll (03 §1.3)', () => {
+  test('a számító fordulólánc az alatta lévő szem oszlopában áll (03 §1.3)', () => {
     const dc = dcRectangle({ rows: 3 });
     const dcChart = layout(dc.pattern);
     const below = dc.rows[1];
@@ -76,7 +77,7 @@ describe('sorok', () => {
     assert.ok(near(chain.top.x, dcChart.nodes.get(below[below.length - 1]).top.x));
   });
 
-  test('a sormagasság a legmagasabb öltésből jön; a jelek közös talpvonalon állnak (03 §2.2)', () => {
+  test('a sormagasság a legmagasabb szemből jön; a jelek közös talpvonalon állnak (03 §2.2)', () => {
     const w = wave({ repeats: 1 });
     const wChart = layout(w.pattern);
     const row1 = w.rows[1].map((id) => wChart.nodes.get(id));
@@ -111,7 +112,7 @@ describe('legyező és összefutás', () => {
     assert.ok(valley.top.x > Math.min(...targets) && valley.top.x < Math.max(...targets));
   });
 
-  test('a láncívbe horgolt öltés talpa az ív láncszemei fölött van (03 §4.4)', () => {
+  test('a láncívbe horgolt szem talpa az ív láncszemei fölött van (03 §4.4)', () => {
     const example = vStitchPattern({ repeats: 2 });
     const chart = layout(example.pattern);
     const piece = example.pattern.pieces[0];
@@ -147,7 +148,7 @@ test('körben a jelek sugárirányban kifelé mutatnak, a varázskör középen 
   assert.ok(radius(1) < radius(2) && radius(2) < radius(3));
 });
 
-test('az elrendezés szerkesztés közben nem ugrál: az utolsó öltés törlése a korábbi sorokat nem mozdítja', () => {
+test('az elrendezés szerkesztés közben nem ugrál: az utolsó szem törlése a korábbi sorokat nem mozdítja', () => {
   const { pattern, rows } = dcRectangle({ rows: 3 });
   let edited = pattern;
   for (let i = 0; i < 6; i += 1) edited = ok(deleteLast(edited));
@@ -168,7 +169,7 @@ test('tükrözött nézet: minden vízszintesen tükröződik, a sorszám a más
   assert.ok(near(mirrored.bounds.minX, -plain.bounds.maxX));
 });
 
-test('kézi igazítás: a jel és a bele horgolt öltések talpa elmozdul, az oszlopok nem', () => {
+test('kézi igazítás: a jel és a bele horgolt szemek talpa elmozdul, az oszlopok nem', () => {
   const { pattern, rows } = hdcRectangle({ rows: 2 });
   const target = rows[1][0];
   const plain = layout(pattern);
@@ -192,4 +193,46 @@ test('monoton regresszió: a sorrendet sértő szomszédok átlaguk körül egye
   assert.deepEqual(isotonic([1, 3, 2, 4], [1, 1, 1, 1]), [1, 2.5, 2.5, 4]);
   assert.deepEqual(isotonic([5, 0, 0], [1, 1, 1]), [5 / 3, 5 / 3, 5 / 3]);
   assert.deepEqual(isotonic([2, 1], [3, 1]), [1.75, 1.75]);
+});
+
+describe('hibás célpontú szem: normál méret a saját helyén (PQW-879)', () => {
+  const stemOf = (node) => Math.hypot(node.feet[0].x - node.top.x, node.feet[0].y - node.top.y);
+  // A félpálca ép, függőleges szárának hossza a hibátlan mintából, a képlettől függetlenül.
+  const normalHdcStem = (() => {
+    const clean = hdcRectangle({ rows: 3 });
+    return stemOf(layout(clean.pattern).nodes.get(clean.rows[3][6]));
+  })();
+
+  test('korábbi sorba mutató célpontnál a szár függőleges, a saját sora talpvonalán, normál hosszal', () => {
+    const example = hdcRectangle({ rows: 3 });
+    const victim = example.rows[3][7];
+    const farTarget = example.rows[1][7];
+    const bad = editNode(example.pattern, victim, { anchors: [farTarget] });
+
+    const chart = layout(bad);
+    const node = chart.nodes.get(victim);
+
+    // A talp a saját tető alatt, egy talpponttal: a jel nem esik szét.
+    assert.equal(node.feet.length, 1);
+    assert.ok(near(node.feet[0].x, node.top.x), 'a szár függőleges');
+    // Normál méret: ugyanaz a szárhossz, mint egy ép félpálcáé.
+    assert.ok(near(stemOf(node), normalHdcStem), 'normál szárhossz');
+    // Nem nyúlik a két sorral lejjebb lévő célpontig: a talp a saját sora talpvonalán van.
+    assert.ok(node.top.y < chart.nodes.get(farTarget).top.y, 'a jel a saját sorában, nem a célpontnál');
+    assert.ok(chart.nodes.get(farTarget).top.y - node.feet[0].y > normalHdcStem, 'a talp nem a távoli sorban van');
+  });
+
+  test('a haladási irány ellen mutató, távoli célpontnál is normál, függőleges szár', () => {
+    const example = hdcRectangle({ rows: 1 });
+    const victim = example.rows[1][8];
+    // A sor elején felhasznált (már rég elhagyott) célpont: erősen a haladási irány ellen.
+    const behind = example.rows[0][example.rows[0].length - 1];
+    const bad = editNode(example.pattern, victim, { anchors: [behind] });
+
+    const chart = layout(bad);
+    const node = chart.nodes.get(victim);
+    assert.equal(node.feet.length, 1);
+    assert.ok(near(node.feet[0].x, node.top.x), 'a szár függőleges');
+    assert.ok(near(stemOf(node), normalHdcStem), 'normál szárhossz');
+  });
 });

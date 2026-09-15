@@ -3,23 +3,23 @@
  * színe és visszája. Tiszta függvény, böngésző nélkül.
  *
  * Konvenciók (01 §6.1, §6.3, §8.4; 03 §2.1, §4.4):
- * - A jel talpa ott van, ahová horgolták: az alatta lévő öltés oszlopában. A
+ * - A jel talpa ott van, ahová horgolták: az alatta lévő szem oszlopában. A
  *   szaporítás szárai egy talpból legyezőben nyílnak, a fogyasztás szárai egy
  *   tetőbe futnak — ez magától adódik, mert a talp a célpont, a tető a saját
  *   oszlop.
  * - Sorban a jelek függőlegesek, a sorok alulról felfelé, kígyózva haladnak:
  *   jobbkezesnek az 1. sor jobbról balra; a sorszám a sor kezdő oldalán áll.
- * - A sormagasság a sor legmagasabb öltéséből jön; egy sor jelei közös
+ * - A sormagasság a sor legmagasabb szeméből jön; egy sor jelei közös
  *   talpvonalon állnak.
  * - Körben a jelek sugárirányúak, a körök a középből az óramutatóval
  *   ellentétesen haladnak. Ez egyszerű elrendezés; a körnézet finomítása később jön.
  * - Tükrözött nézetben (balkezeseknek) minden vízszintesen tükröződik (01 §8.4 szabály 22).
  *
  * Stabil szerkesztés közben (06 §5.3 2. pont): egy réteg csak az alatta lévő
- * rétegtől és a saját öltéseitől függ, ezért új öltés csak a saját sorát
+ * rétegtől és a saját szemeitől függ, ezért új szem csak a saját sorát
  * rendezheti át, a korábbi sorokat nem.
  *
- * Egy sor oszlopai: minden öltés oda szeretne kerülni, ahová horgolták, de a
+ * Egy sor oszlopai: minden szem oda szeretne kerülni, ahová horgolták, de a
  * fonal sorrendjében, legalább fél-fél szélességnyi távolságra egymástól. Ezt
  * súlyozott monoton regresszió adja (pool adjacent violators): a legyező a
  * célpontja köré, a fogyasztás a célpontjai közé kerül, a láncszemek a
@@ -29,6 +29,7 @@
 import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import type { Anchor, NodeId, Pattern, StitchDef, StitchDefId } from './types.ts';
+import { validatePattern } from './validate.ts';
 
 export interface Point {
   readonly x: number;
@@ -61,7 +62,7 @@ export interface LayerPlacement {
   readonly stitchCount: number;
   /** A sorszám helye a sor kezdő oldalán. */
   readonly start: Point;
-  /** Az öltésszám helye a sor végén. */
+  /** A szemszám helye a sor végén. */
   readonly end: Point;
 }
 
@@ -75,20 +76,41 @@ export interface ChartLayout {
 export interface LayoutOptions {
   /** Balkezes, tükrözött nézet. */
   readonly mirror?: boolean;
-  /** Egy öltés oszlopszélessége. */
+  /** Egy szem oszlopszélessége. */
   readonly columnWidth?: number;
   /** A szár hossza láncszem-magasságból; a felület a jelrajzéval adja át (src/ui/symbols.ts). */
   readonly stemLength?: (chainHeight: number) => number;
 }
 
-const DEFAULT_COLUMN = 24;
+export const DEFAULT_COLUMN = 24;
 const defaultStem = (chainHeight: number) => 10 + 8 * chainHeight;
 /** Hézag két sor között, és a láncszem magassága a sorban. */
-const ROW_GAP = 6;
+export const ROW_GAP = 6;
 const CHAIN_HEIGHT = 12;
 const SLIP_HEIGHT = 6;
 
 const EMPTY: ChartLayout = { nodes: new Map(), layers: [], bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0 } };
+
+/**
+ * A hibás célpontú szemek (elrontott vagy félrehorgolt), amelyeknek a szárát a
+ * saját oszlopában, normál méretben rajzoljuk, nem a távoli célpontig nyújtva:
+ * a később készülő, korábbi sorba vagy a haladási irány ellen mutató célpont
+ * (PQW-879). A szabályozott, jelölt nyúlás (keresztezett, hosszú szem, relief)
+ * ezekhez nem tartozik, mert az ellenőrző sem jelzi hibának.
+ */
+const DETACHED_RULES = new Set(['future-anchor', 'anchor-layer', 'against-direction', 'turning-chain-placement']);
+
+/** A hibás célpontú szemek azonosítói az ellenőrző találataiból. */
+function detachedNodes(pattern: Pattern, library: StitchLibrary): Set<NodeId> {
+  const set = new Set<NodeId>();
+  for (const finding of validatePattern(pattern, library)) {
+    if (!DETACHED_RULES.has(finding.rule)) continue;
+    // A haladási irány elleni találat a megelőző (helyes) szemet is felsorolja; a hibás az utolsó.
+    const nodes = finding.rule === 'against-direction' ? finding.nodes.slice(-1) : finding.nodes.slice(0, 1);
+    for (const id of nodes) set.add(id);
+  }
+  return set;
+}
 
 export function layoutPattern(pattern: Pattern, library: StitchLibrary, options: LayoutOptions = {}): ChartLayout {
   const piece = pattern.pieces[0];
@@ -101,7 +123,7 @@ export function layoutPattern(pattern: Pattern, library: StitchLibrary, options:
   }
   const W = options.columnWidth ?? DEFAULT_COLUMN;
   const stem = options.stemLength ?? defaultStem;
-  const raw = new Layouter(graph, W, stem).run();
+  const raw = new Layouter(graph, W, stem, detachedNodes(pattern, library)).run();
   return finish(graph, raw, options.mirror ?? false, W);
 }
 
@@ -164,6 +186,8 @@ class Layouter {
   readonly #W: number;
   readonly #stem: (chainHeight: number) => number;
   readonly #round: boolean;
+  /** Hibás célpontú szemek: a száruk a saját oszlopukban, normál méretben áll. */
+  readonly #detached: ReadonlySet<NodeId>;
   readonly #nodes = new Map<NodeId, NodePlacement>();
   readonly #layers: LayerPlacement[] = [];
   /** Sorban a vízszintes oszlop, körben a szög (radián). */
@@ -171,10 +195,11 @@ class Layouter {
   /** Rétegenként a talpvonal: sorban y, körben sugár. */
   readonly #base: number[] = [];
 
-  constructor(graph: PieceGraph, W: number, stem: (chainHeight: number) => number) {
+  constructor(graph: PieceGraph, W: number, stem: (chainHeight: number) => number, detached: ReadonlySet<NodeId> = new Set()) {
     this.#graph = graph;
     this.#W = W;
     this.#stem = stem;
+    this.#detached = detached;
     this.#round = graph.layers[0]!.shape === 'round';
   }
 
@@ -304,7 +329,7 @@ class Layouter {
       desired: item.desired === undefined ? undefined : direction * item.desired,
     }));
 
-    // A fordulólánc helye: a számító az alatta lévő öltés oszlopában, a nem számító az első öltés mellett kívül.
+    // A fordulólánc helye: a számító az alatta lévő szem oszlopában, a nem számító az első szem mellett kívül.
     const stack = scaled.find((item) => item.ids[0] === layer.turningChain[0] && layer.turningChain.length > 0);
     if (stack) {
       const workingFirst = layer.direction === 1 ? below.positions[0] : below.positions[below.positions.length - 1];
@@ -344,7 +369,11 @@ class Layouter {
         this.#place(id, layer.index, side, 'chain', [], this.#point(up(top, -6), axis), along, W * 0.7);
         continue;
       }
-      const feet = graph.nodes.get(id)!.anchors.map((anchor) => this.#foot(anchor, layer.index, base));
+      // A hibás célpontú szem talpa a saját oszlopában, ennek a sornak a talpvonalán:
+      // a jel normál méretben, a helyén marad, a karjai nem nyúlnak a távoli célpontig (PQW-879).
+      const feet = this.#detached.has(id)
+        ? graph.nodes.get(id)!.anchors.map(() => this.#point(base, axis))
+        : graph.nodes.get(id)!.anchors.map((anchor) => this.#foot(anchor, layer.index, base));
       if (def.kind === 'slip') {
         // Körben a továbbvezető és a záró kúszószem ott látszik, ahová horgolták.
         const center = this.#round && feet[0] ? feet[0] : this.#point(up(base, SLIP_HEIGHT / 2), axis);
@@ -384,7 +413,7 @@ class Layouter {
     return this.#tops[index] ?? this.#base[index] ?? 0;
   }
 
-  /** A talp: a célpont oszlopa ennek a rétegnek a talpvonalán; korábbi sorba horgolt öltésnél annak a sornak a tetején. */
+  /** A talp: a célpont oszlopa ennek a rétegnek a talpvonalán; korábbi sorba horgolt szemnél annak a sornak a tetején. */
   #foot(anchor: Anchor, index: number, base: number): Point {
     if (anchor.into === 'ring') return { x: 0, y: 0 };
     if (this.#round) {

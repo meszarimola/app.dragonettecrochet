@@ -1,7 +1,7 @@
 /*
  * A jelek paraméteres rajza.
  *
- * A jel az öltéskönyvtár adataiból számolódik, nem öltésenként kézzel
+ * A jel a szemkönyvtár adataiból számolódik, nem szemenként kézzel
  * (01 §6.1, §8.1 szabály 2, §8.4 szabály 18 és 23):
  * - a szár hossza a láncszem-magasságból jön;
  * - a ferde vonalak száma a ráhajtásokból, a félpálca kivételével, amely sima T;
@@ -9,8 +9,9 @@
  *   szárai közös tetőbe futnak;
  * - a relief és az első vagy hátsó szál jelölése a talpon van;
  * - a rövidpálca + vagy ×, beállítás szerint (szókészlet K3);
- * - japán (JIS) stílusban a rövidpálca mindig ×, és a hátsó szál egyenes
- *   vonal a talp alatt (01 §6.2, §8.4 szabály 23). A többi jel a két
+ * - japán (JIS) stílusban a rövidpálca mindig ×, a hátsó szál egyenes vonal a
+ *   talp alatt, a varázskör a „わ” jel (01 §6.2, §8.4 szabály 23). A rákhurok
+ *   JIS-ben is a rövidpálca jele, fölötte hullámvonallal. A többi jel a két
  *   jelkulcsban azonos alakú.
  *
  * A rajz két lépés. A `symbolShapes` csak geometriát ad (vonal, ív, ellipszis,
@@ -71,7 +72,7 @@ export interface SymbolOptions {
   readonly singleCrochet: 'plus' | 'cross';
   /** A jelkulcs; hiányában CYC (PQW-868). */
   readonly style?: ChartStyle;
-  /** Beszúrási mód. Hiányában az öltés alapértelmezése, az `insertionModes` első eleme. */
+  /** Beszúrási mód. Hiányában a szem alapértelmezése, az `insertionModes` első eleme. */
   readonly insertion?: InsertionMode;
 }
 
@@ -93,9 +94,9 @@ const ARM_COMPACT = 0.35;
 /** Legyező: szomszédos szárak szöge fokban, és a teljes nyílás felső határa. */
 const FAN_STEP = 26;
 const FAN_MAX = 70;
-/** Több öltésen át horgolt öltés talppontjainak távolsága. */
+/** Több szemen át horgolt szem talppontjainak távolsága. */
 const SPREAD_GAP = 14;
-/** Egy öltésbe horgolt, egy tetőbe záródó részöltések kidomborodása. */
+/** Egy szembe horgolt, egy tetőbe záródó részszemek kidomborodása. */
 const LENS_GAP = 10;
 const CHAIN_RX = 9;
 const CHAIN_RY = 5;
@@ -195,7 +196,7 @@ function chainOval(center: Point, rx: number, ry: number, rotation: number): Sha
 }
 
 /**
- * Egy öltés a száron. Rövidpálca-magasságig kereszt, fölötte szár, igény
+ * Egy szem a száron. Rövidpálca-magasságig kereszt, fölötte szár, igény
  * szerint tetővonal, és a ráhajtásonkénti ferde vonalak a szár közepén.
  * Összetett jelben (`compact`) a kereszt és a ferde vonalak rövidebbek.
  */
@@ -251,7 +252,7 @@ function fan(n: number): Point[] {
 
 /* ---- Fajták ---- */
 
-/** Szaporítás, kagyló, V-öltés: minden szár a közös talpból indul (01 §8.4 szabály 18). */
+/** Szaporítás, kagyló, V-szem: minden szár a közös talpból indul (01 §8.4 szabály 18). */
 function drawGroup(out: Shape[], def: GroupStitchDef, options: SymbolOptions): Point[] {
   const members = def.members.map(stitchById);
   const reach = Math.max(...members.filter((m) => m.kind !== 'chain').map((m) => stemLength(m.chainHeight)));
@@ -259,7 +260,7 @@ function drawGroup(out: Shape[], def: GroupStitchDef, options: SymbolOptions): P
   fan(members.length).forEach((direction, i) => {
     const member = members[i]!;
     if (member.kind === 'chain') {
-      // A tagok közti láncszem a szárak között, a tetők alatt (V-öltés, 01 §4.4).
+      // A tagok közti láncszem a szárak között, a tetők alatt (V-szem, 01 §4.4).
       const along = normal(scale(direction, -1));
       out.push(chainOval(scale(direction, reach * 0.8), SMALL_CHAIN_RX, SMALL_CHAIN_RY, rotationOf(along)));
     } else {
@@ -342,7 +343,8 @@ function isMark(mode: InsertionMode): mode is InsertionMark {
  * első szál: a talp egy „u” belsejében; hátsó szál: a talp egy fordított „u”
  * tetején; relief: kampó a talpnál, elöl jobbra, hátul balra nyílik.
  * JIS stílusban a hátsó szál vízszintes vonal a jel alatt (01 §6.2). Az első
- * szál JIS-jelére nincs forrásunk, ezért az a CYC-ív marad.
+ * szál JIS-jelét japán forrás nem erősítette meg (01 §6.2, nyitott), ezért az
+ * a CYC-ív marad.
  */
 function insertionMark(mode: InsertionMark, foot: Point, style: ChartStyle = 'cyc'): Shape {
   if (mode === 'back-loop' && style === 'jis') {
@@ -369,9 +371,29 @@ function insertionMark(mode: InsertionMark, foot: Point, style: ChartStyle = 'cy
   }
 }
 
+/**
+ * A varázskör jele: CYC-ben kör, JIS stílusban a „わ” (01 §6.2). Az írásjelet
+ * saját vonalakkal rajzoljuk, betűtípus nélkül, a kör helyén és méretében.
+ */
+function ringShapes(center: Point, style: ChartStyle = 'cyc'): Shape[] {
+  if (style !== 'jis') return [{ kind: 'ellipse', role: 'ring', center, rx: RING_R, ry: RING_R, rotation: 0 }];
+  const at = (x: number, y: number): Point => add(center, scale({ x, y }, RING_R / 10));
+  const curve = (from: Point, control: Point, to: Point): Shape => ({ kind: 'curve', role: 'ring', from, control, to });
+  return [
+    // Bal oldali függőleges szár.
+    line('ring', at(-3, -9), at(-3, 9)),
+    // Rövid vízszintes vonás a szár tetején, belőle átló le, balra.
+    line('ring', at(-8, -4), at(0, -5)),
+    line('ring', at(0, -5), at(-8, 5)),
+    // A nagy ív: fel és jobbra, körbe, a vége alul befelé kunkorodik.
+    curve(at(-5, 1), at(4, -10), at(8, 1)),
+    curve(at(8, 1), at(9, 10), at(-1, 8)),
+  ];
+}
+
 /* ---- Nyilvános felület ---- */
 
-/** Egy öltés jelének alakzatai. Nem megengedett beszúrási módra hibát dob. */
+/** Egy szem jelének alakzatai. Nem megengedett beszúrási módra hibát dob. */
 export function symbolShapes(def: StitchDef, options: SymbolOptions = DEFAULT_SYMBOL_OPTIONS): Shape[] {
   const out: Shape[] = [];
   let feet: Point[] = [FOOT];
@@ -403,11 +425,11 @@ export function symbolShapes(def: StitchDef, options: SymbolOptions = DEFAULT_SY
       break;
     }
     case 'space':
-      // A láncív a kihagyott öltések fölött ível át (01 §4.4).
+      // A láncív a kihagyott szemek fölött ível át (01 §4.4).
       chainsOnCircle(out, FOOT, ARCH_R, [150, 90, 30]);
       break;
     case 'ring':
-      out.push({ kind: 'ellipse', role: 'ring', center: { x: 0, y: -RING_R }, rx: RING_R, ry: RING_R, rotation: 0 });
+      out.push(...ringShapes({ x: 0, y: -RING_R }, options.style));
       break;
   }
 
@@ -495,7 +517,7 @@ export function transformShapes(shapes: readonly Shape[], rotation: number, k: n
  * A jel a diagram helyén. A szár a talptól a tetőig tart, így a szaporítás
  * tagjai közös talpból legyezőben, a fogyasztás szárai külön talpakból egy
  * tetőbe futnak (01 §8.4 szabály 18). A láncszem a megadott irányban és
- * hosszban, a kúszószem pont, a varázskör kör.
+ * hosszban, a kúszószem pont, a varázskör kör (JIS stílusban „わ”).
  */
 export function placedShapes(def: StitchDef, placement: Placement, options: SymbolOptions = DEFAULT_SYMBOL_OPTIONS): Shape[] {
   const { top } = placement;
@@ -507,7 +529,7 @@ export function placedShapes(def: StitchDef, placement: Placement, options: Symb
     case 'slip':
       return [{ kind: 'dot', role: 'dot', center: top, r: SLIP_R }];
     case 'ring':
-      return [{ kind: 'ellipse', role: 'ring', center: top, rx: RING_R, ry: RING_R, rotation: 0 }];
+      return ringShapes(top, options.style);
     case 'picot':
       return transformShapes(symbolShapes(def, options), 0, 1, add(top, { x: 0, y: PICOT_R + SLIP_R }));
     case 'stitch':

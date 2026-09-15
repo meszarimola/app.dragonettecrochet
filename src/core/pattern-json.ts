@@ -6,7 +6,7 @@
  *   veszne el.
  * - A betöltés szigorú: ismeretlen mező, hiányzó mező vagy rossz típus hibát
  *   ad a mező útvonalával. A gráf tartalmát (pl. létező-e egy hivatkozott
- *   öltés) nem itt, hanem a `validatePattern` ellenőrzi.
+ *   szem) nem itt, hanem a `validatePattern` ellenőrzi.
  * - A mentés a mezőket mindig ugyanabban a sorrendben írja, így két mentés
  *   különbsége olvasható.
  */
@@ -14,10 +14,14 @@
 import type {
   Anchor,
   ChartStyle,
+  GaugeEntry,
+  GaugeForm,
   LayerEvent,
   Locale,
   Pattern,
   PatternConventions,
+  PatternGauge,
+  PatternGaugeProfile,
   PatternNotation,
   Piece,
   RepeatSpec,
@@ -26,8 +30,10 @@ import type {
   Space,
   StitchFlag,
   StitchGroup,
+  StitchDefId,
   StitchInsertion,
   StitchNode,
+  Tradition,
 } from './types.ts';
 
 export const FORMAT_VERSION = 1;
@@ -145,15 +151,87 @@ const LOCALES: readonly Locale[] = ['hu', 'en-US', 'en-GB'];
 const CHART_STYLES: readonly ChartStyle[] = ['cyc', 'jis'];
 const INSERTIONS: readonly StitchInsertion[] = ['both-loops', 'front-loop', 'back-loop', 'front-post', 'back-post'];
 const FLAGS: readonly StitchFlag[] = ['crossed', 'spike'];
+const TRADITIONS: readonly Tradition[] = ['cyc', 'japanese'];
+/** A profilban mérhető alapszemek (docs/calibration/, a láncszem és a kúszószem nélkül). */
+export const GAUGE_STITCHES: readonly StitchDefId[] = ['sc', 'hdc', 'dc', 'tr'];
+const GAUGE_FORMS: readonly GaugeForm[] = ['rows', 'rounds'];
 
 function readPattern(value: unknown, path: string): Pattern {
-  const raw = object(value, path, ['formatVersion', 'title', 'conventions', 'pieces'], ['notation']);
+  const raw = object(value, path, ['formatVersion', 'title', 'conventions', 'pieces'], ['notation', 'gauge']);
   return {
     formatVersion: oneOf(raw['formatVersion'], `${path}.formatVersion`, [FORMAT_VERSION]),
     title: text(raw['title'], `${path}.title`),
     ...(raw['notation'] === undefined ? {} : { notation: readNotation(raw['notation'], `${path}.notation`) }),
+    ...(raw['gauge'] === undefined ? {} : { gauge: readGauge(raw['gauge'], `${path}.gauge`) }),
     conventions: readPatternConventions(raw['conventions'], `${path}.conventions`),
     pieces: array(raw['pieces'], `${path}.pieces`, readPiece),
+  };
+}
+
+function positive(value: unknown, path: string, max = Number.POSITIVE_INFINITY): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0 || value > max) {
+    throw new FormatError(path, max === Number.POSITIVE_INFINITY ? 'Pozitív számot vártunk.' : `0 és ${max} közötti pozitív számot vártunk.`);
+  }
+  return value;
+}
+
+function positiveOrNull(value: unknown, path: string): number | null {
+  return value === null ? null : positive(value, path);
+}
+
+/** A profilok nem kötelezők: a PQW-859 előtti mentésekben nincsenek, ezért a `formatVersion` nem nő. */
+function readGauge(value: unknown, path: string): PatternGauge {
+  const raw = object(value, path, ['active', 'profiles']);
+  const profiles = array(raw['profiles'], `${path}.profiles`, readGaugeProfile);
+  const ids = new Set<string>();
+  profiles.forEach((profile, i) => {
+    if (ids.has(profile.id)) throw new FormatError(`${path}.profiles[${i}].id`, 'Kétszer szereplő profilazonosító.');
+    ids.add(profile.id);
+  });
+  const active = raw['active'] === null ? null : string(raw['active'], `${path}.active`);
+  if (active !== null && !ids.has(active)) throw new FormatError(`${path}.active`, 'Nincs ilyen azonosítójú profil.');
+  return { active, profiles };
+}
+
+function readGaugeProfile(value: unknown, path: string): PatternGaugeProfile {
+  const raw = object(value, path, ['id', 'yarn', 'hookMm', 'blocked', 'gauges', 'swatch']);
+  const yarn = object(raw['yarn'], `${path}.yarn`, ['name', 'cycWeight', 'metersPer100g', 'ballMassG']);
+  const swatch = object(raw['swatch'], `${path}.swatch`, ['widthCm', 'heightCm', 'massG']);
+  const gauges = array(raw['gauges'], `${path}.gauges`, readGaugeEntry);
+  const keys = new Set<string>();
+  gauges.forEach((entry, i) => {
+    const key = `${entry.stitch}/${entry.form}`;
+    if (keys.has(key)) throw new FormatError(`${path}.gauges[${i}]`, 'Ugyanaz a szem ugyanabban a formában kétszer szerepel.');
+    keys.add(key);
+  });
+  const cycPath = `${path}.yarn.cycWeight`;
+  return {
+    id: string(raw['id'], `${path}.id`),
+    yarn: {
+      name: text(yarn['name'], `${path}.yarn.name`),
+      cycWeight: yarn['cycWeight'] === null ? null : oneOf(yarn['cycWeight'], cycPath, [0, 1, 2, 3, 4, 5, 6, 7]),
+      metersPer100g: positiveOrNull(yarn['metersPer100g'], `${path}.yarn.metersPer100g`),
+      ballMassG: positiveOrNull(yarn['ballMassG'], `${path}.yarn.ballMassG`),
+    },
+    hookMm: positive(raw['hookMm'], `${path}.hookMm`, 30),
+    blocked: boolean(raw['blocked'], `${path}.blocked`),
+    gauges,
+    swatch: {
+      widthCm: positiveOrNull(swatch['widthCm'], `${path}.swatch.widthCm`),
+      heightCm: positiveOrNull(swatch['heightCm'], `${path}.swatch.heightCm`),
+      massG: positiveOrNull(swatch['massG'], `${path}.swatch.massG`),
+    },
+  };
+}
+
+function readGaugeEntry(value: unknown, path: string): GaugeEntry {
+  const raw = object(value, path, ['stitch', 'form', 'stitchesPer10cm', 'rowsPer10cm', 'source']);
+  return {
+    stitch: oneOf(raw['stitch'], `${path}.stitch`, GAUGE_STITCHES),
+    form: oneOf(raw['form'], `${path}.form`, GAUGE_FORMS),
+    stitchesPer10cm: positiveOrNull(raw['stitchesPer10cm'], `${path}.stitchesPer10cm`),
+    rowsPer10cm: positiveOrNull(raw['rowsPer10cm'], `${path}.rowsPer10cm`),
+    source: oneOf(raw['source'], `${path}.source`, ['measured', 'label']),
   };
 }
 
@@ -176,7 +254,7 @@ function readPatternConventions(value: unknown, path: string): PatternConvention
     value,
     path,
     ['turningChainCounts', 'roundEnd', 'picotCounts', 'joinSlipStitchCounts'],
-    ['chainCounts', 'repeat'],
+    ['chainCounts', 'tradition', 'repeat'],
   );
   return {
     turningChainCounts: readTurningChainCounts(raw['turningChainCounts'], `${path}.turningChainCounts`),
@@ -188,6 +266,8 @@ function readPatternConventions(value: unknown, path: string): PatternConvention
       raw['chainCounts'] === undefined
         ? 'worked-into'
         : oneOf(raw['chainCounts'], `${path}.chainCounts`, ['worked-into', true, false]),
+    // A PQW-876 előtti mentésben nincs; akkor a minta a CYC szerint számol.
+    ...(raw['tradition'] === undefined ? {} : { tradition: oneOf(raw['tradition'], `${path}.tradition`, TRADITIONS) }),
     ...(raw['repeat'] === undefined ? {} : { repeat: readRepeat(raw['repeat'], `${path}.repeat`) }),
   };
 }

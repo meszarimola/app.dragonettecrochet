@@ -64,7 +64,7 @@ Sources: [S3] (Wikipedia list: sl st 0, sc 1, hdc 2, dc 3, tr 4, dtr 5), [S5] (E
 
 | Point | Positions | Sources |
 |---|---|---|
-| Does the hdc ch-2 count? | Sigoni Macaroni: **no** (work the first hdc into the first st). Edie Eckman: "sometimes". Japanese convention: **yes**, the 立ち上がり ch-2 counts as the first hdc. | [S12], [S5], [S21] |
+| Does the hdc ch-2 count? | Sigoni Macaroni: **no** (work the first hdc into the first st). Edie Eckman: "sometimes". Japanese sources differ too: Ronique and Moorit say **yes**, the 立ち上がり ch-2 counts as the first hdc ("中長編みも立ち上がりを1目と数えます"); YUMEKOmade says it depends on the pattern and preference and is **usually not** counted ("基本カウントしない"). | [S12], [S5], [S21], [S77], [S41] |
 | ch-2 instead of ch-3 for dc | Many modern designers use **ch 2 that does NOT count**, then dc into the first stitch, to avoid the gap that ch-3 plus a skipped stitch leaves. | [S12], [S22] |
 | ch-1 for hdc, ch-2 for dc | Some crocheters use one chain fewer because the standard counts leave loose edges. | [S23] (search summary) |
 | ch-3 taller than the dc | Vashti found her ch-3 was taller than her dc. Her fix is to pull up a taller loop so the dc really is 3 chains tall. | [S14] |
@@ -82,7 +82,7 @@ Sources: [S3] (Wikipedia list: sl st 0, sc 1, hdc 2, dc 3, tr 4, dtr 5), [S5] (E
 | dc | yes | N + 2 | 4th ch from hook |
 
 - Stitchsums gives the simplified form "stitches + tch" (sc +1, hdc +2, dc +3, tr +4; a 100-st dc project needs 103 ch) [S15]. Under the "tch counted" convention the counts agree with Eckman's "not counted" rows, because the skipped chains become stitch 1. **[E]**
-- **[E]** Japanese convention: hdc uses the 4th ch from hook and dc the 5th [S21]. That is the standing chains, plus one base chain that counts as st 1, plus one.
+- **[C]** Japanese convention (checked in Japanese sources for PQW-876): a counted standing chain stands on one base chain, so the first stitch goes into the **(T + 2)th** ch from hook: hdc 4th, dc 5th, tr 6th ("針にかかっている目から6目の裏山"), dtr 7th ("鎖7目めに針を入れ"). The foundation for N stitches is therefore **N + T**, one chain more than the CYC "counted" row. [S21], [S77], [S79]
 
 ### 2.3 Real measured heights (not just chain counts)
 
@@ -187,12 +187,13 @@ Width per sc = 101.6 mm ÷ stitch count.
 | chain | 鎖編み (kusari-ami) | — | — | [S39], [S40] |
 | slip stitch | 引き抜き編み (hikinuki-ami) | — | — | [S39], [S40] |
 | sc | 細編み / こま編み (koma-ami) | 1 | **No** | [S21], [S41] |
-| hdc | 中長編み (chūnaga-ami) | 2 | **Yes** | [S21], [S41] |
-| dc | 長編み (naga-ami) | 3 | **Yes** | [S21], [S41] |
-| tr | 長々編み (naganaga-ami) | 4 | Yes | [S41] |
-| dtr | 三つ巻き長編み **[E]** | 5 | Yes | general JIS practice; unverified |
+| hdc | 中長編み (chūnaga-ami) | 2 | **Yes** **[X]** (YUMEKOmade: usually not) | [S21], [S77]; against: [S41] |
+| dc | 長編み (naga-ami) | 3 | **Yes** | [S21], [S41], [S77] |
+| tr | 長々編み (naganaga-ami) | 4 | Yes | [S77] |
+| dtr | 三つ巻き長編み | 5 | Yes | [S78] (name), [S79] |
 
-- **[C]** JIS L 0201:1995 is the Japanese Industrial Standard for knitting and crochet stitch symbols. It covers only a basic subset, and hobby publications use more symbols than the standard defines. [S42]
+- **[C]** JIS L 0201:1995 is the Japanese Industrial Standard for knitting and crochet stitch symbols. It covers only a basic subset, and hobby publications use more symbols than the standard defines. [S42], [S78]
+- **Verification status (PQW-876).** Checked in Japanese sources: the standing chains and whether they count (sc no; hdc, dc, tr, dtr yes, with the hdc dissent above), the name 三つ巻き長編み, and the foundation rule in §2.2. The designer's "Japanese" preset follows the majority (hdc counts); the data model keeps a per-pattern and per-row `turningChainCounts` override for patterns that do not count it.
 
 ---
 
@@ -339,8 +340,11 @@ Two notes on this set:
 ### 6.2 Japanese (JIS) charts
 - **[C]** JIS-style charts show the fabric as seen from the RS: "what you see on the page is what the finished work looks like". [S73]
 - Read from the bottom up and right to left for RS rows. Odd rows go R→L, even rows L→R. [S73]
-- JIS charts use "one symbol = one stitch". Rounds go counterclockwise from the center. The magic ring is marked わ. Repeats are bracketed with notes such as "１１目１模様" (11 sts = 1 repeat). [S43]
+- JIS charts use "one symbol = one stitch". Rounds go counterclockwise from the center. The magic ring is marked わ. Repeats are bracketed with notes such as "１１目１模様" (11 sts = 1 repeat). Round tables give the stitch count with 目 ("9目"). [S43] **Open (PQW-876):** わ on the chart, the 目模様 repeat note and the 目 count rest only on this English-language source; no Japanese source confirming them was found yet.
 - sc appears as × or +, and BLO as a straight line above or below the symbol. [S43], [S28]
+- **[C]** JIS L 0201 marks 筋編み and うね編み with a "−" added to the symbol ("−の付票を付けて表す"). Both use the same symbol; the text tells them apart. [S78], [S80] The Japanese sources read do not say on which side of the symbol the bar sits; Ronique draws it below [S28].
+- **Open (PQW-876):** no Japanese source was found for a separate front-loop (手前半目) symbol. The designer keeps the CYC arc for front loop in JIS style.
+- **[C]** バック細編み (crab stitch, rev sc) is defined in JIS L 0201; on charts it is the 細編み symbol with a ～ above it ("「細編み」の上に～が付いています"). [S78], [S81], [S43]
 - Ronique: supplementary text always accompanies symbols that can't convey the method on their own. Charts also include attach-yarn and cut-yarn symbols. [S28]
 
 ### 6.3 Reading direction
@@ -445,7 +449,7 @@ Crisp rules a pattern designer program can enforce or suggest. Each is tagged wi
 ### 8.3 Turning chains and foundations
 12. **[C]** Default turning chain = the chain height of the **first stitch of the next row**: sc 1, hdc 2, dc 3, tr 4, dtr 5, trtr 6. [S3], [S10]
 13. **[X]** "Turning chain counts as stitch" is a per-pattern setting.
-    - Defaults: sc = false, hdc = false (US) / true (JP), dc+ = true. [S4], [S12], [S21]
+    - Defaults: sc = false, hdc = false (US) / true (JP, contested within Japan, §3.3), dc+ = true. [S4], [S12], [S21], [S77]
     - Offer the "ch 2 not counted for dc" variant. [S12], [S22]
 14. **[C]** If the tch counts, the first stitch of the row goes into the **second** stitch (the first is skipped) and the last stitch goes into the top of the previous tch. If not counted, the first stitch goes into the first stitch. [S12], [S4]
 15. **[C]** Foundation chain for N stitches in row 1:
@@ -453,6 +457,7 @@ Crisp rules a pattern designer program can enforce or suggest. Each is tagged wi
     - hdc (not counted): N + 2, 3rd ch
     - dc (not counted): N + 3, 4th ch; dc (counted): N + 2, 4th ch
     - General: N + tch if not counted, N + tch − 1 if counted; first st into the (tch + 1)th ch from hook
+    - Japanese convention, counted tch: N + tch; first st into the (tch + 2)th ch, because the tch stands on a base chain (§2.2). [S21], [S77], [S79]
     - Sources: [S5], [S15]
 16. **[C]** Foundation stitches (fsc/fhdc/fdc) replace "ch N + row 1" 1:1 and need no turning-chain allowance. [S45], [S46]
 17. **[C]** Filet: width = 3 × squares + 1 stitches.
@@ -527,7 +532,7 @@ Crisp rules a pattern designer program can enforce or suggest. Each is tagged wi
 34. [S38]: https://kreativeshobby.hu/index.php/2016/04/28/az-elso-relief-horgolasa/ — Kreatív+Hobby, első relief (HU)
 35. [S39]: https://crocheandme.blogspot.com/2019/05/6-basic-crochet-stithes.html — Crochet and Me (JP), basic stitches
 36. [S40]: https://ronique.jp/en/free_recipes-how_to_crochet/symbol_slip_stitch/ — Ronique (JP), slip stitch symbol
-37. [S41]: https://yumekomade.com/basics/basics1/ — YUMEKOmade (JP), counting standing chains (via search summary)
+37. [S41]: https://yumekomade.com/basics/basics1/ — YUMEKOmade (JP), counting standing chains (fetched for PQW-876: sc no, hdc "depends, usually not", dc usually yes)
 38. [S42]: https://www.southerngoose.com/post/jis-l-0201-1995-letter-symbols-for-knitting-stitch — Southern Goose, JIS L 0201:1995
 39. [S43]: https://dancingbarefoot.wordpress.com/2010/02/01/tutorial-lesson-3a-crochet/ — Dancing Barefoot, Japanese crochet chart lesson
 40. [S44]: https://www.mooglyblog.com/extended-single-crochet-esc-or-exsc/ — Moogly, extended sc (via search summary)
@@ -563,6 +568,11 @@ Crisp rules a pattern designer program can enforce or suggest. Each is tagged wi
 70. [S74]: https://www.dummies.com/article/home-auto-hobbies/crafts/knitting-crocheting/how-to-follow-a-stitch-diagram-in-crochet-197712/ — Dummies, following a stitch diagram
 71. [S75]: https://www.yarnspirations.com/blogs/how-to/ultimate-guide-to-left-handed-crochet — Yarnspirations, left-handed crochet (via search summary)
 72. [S76]: https://www.anniesattic.com/stitch-guide/crochet-guide/crochet-how-tos/help-for-left-handed-crocheters — Annie's Attic, help for left-handed crocheters
+73. [S77]: https://moorit.jp/blogs/lesson-crochet/002 — Moorit (JP), 長編み・中長編み・長々編み: standing chains count; first st into the 4th, 5th, 6th ch
+74. [S78]: https://kikakurui.com/l/L0201-1995-01.html — JIS L 0201:1995 編目記号, full text (kikakurui.com)
+75. [S79]: https://www.gosyo.co.jp/kiso-movie-kagi/11-2 — Gosyo (JP), 三つ巻き長編み目: ch 5 counts, first st into the 7th ch
+76. [S80]: https://dwuzyante.net/difference/ — Dwuzyante (JP), すじ編み and うね編み share one chart symbol
+77. [S81]: https://toruyuri.com/2022/10/25/komaami_variation/ — Toruyuri (JP), 細編み variations: バック細編み symbol
 
 [S1]: https://www.craftyarncouncil.com/standards/crochet-chart-symbols
 [S2]: https://www.craftyarncouncil.com/standards/crochet-abbreviations
@@ -636,5 +646,10 @@ Crisp rules a pattern designer program can enforce or suggest. Each is tagged wi
 [S74]: https://www.dummies.com/article/home-auto-hobbies/crafts/knitting-crocheting/how-to-follow-a-stitch-diagram-in-crochet-197712/
 [S75]: https://www.yarnspirations.com/blogs/how-to/ultimate-guide-to-left-handed-crochet
 [S76]: https://www.anniesattic.com/stitch-guide/crochet-guide/crochet-how-tos/help-for-left-handed-crocheters
+[S77]: https://moorit.jp/blogs/lesson-crochet/002
+[S78]: https://kikakurui.com/l/L0201-1995-01.html
+[S79]: https://www.gosyo.co.jp/kiso-movie-kagi/11-2
+[S80]: https://dwuzyante.net/difference/
+[S81]: https://toruyuri.com/2022/10/25/komaami_variation/
 
 **Method note:** Sources marked "via search summary" were seen only as search-result snippets, not full-page fetches. Claims resting only on them are lower confidence. The CYC symbol PDF could not be rendered, so symbol shapes come from secondary guides that agree with each other.

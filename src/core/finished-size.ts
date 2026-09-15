@@ -1,8 +1,8 @@
 /*
  * Kész méret sorokból és körökből (PQW-859).
  *
- * Soronként a szélesség az öltések szélességének összege, a magasság a
- * legmagasabb öltésé (02 §8, megvalósítási megjegyzések). Körben a
+ * Soronként a szélesség a szemek szélességének összege, a magasság a
+ * legmagasabb szemé (02 §8, megvalósítási megjegyzések). Körben a
  * „szélesség” a kör kerülete, a magasság a sugár növekedése: minden kör
  * nagyjából egy körmagasságnyit ad a sugárhoz (02 §4.3).
  *
@@ -18,7 +18,7 @@ import type { StitchDefId, ValueSource } from './types.ts';
 
 export interface LayerInput {
   readonly shape: LayerShape;
-  /** A sor vagy kör pozícióinak öltése sorrendben, láncszemmel együtt. */
+  /** A sor vagy kör pozícióinak szeme sorrendben, láncszemmel együtt. */
   readonly stitches: readonly StitchDefId[];
 }
 
@@ -31,7 +31,7 @@ export interface LayerSize {
   /** Sorban a darab magassága eddig, körben a sugár eddig, cm. */
   readonly totalHeightCm: Quantity;
   readonly source: ValueSource;
-  /** A sor öltéseinek mérete honnan jön, a legmegbízhatóbbtól. */
+  /** A sor szemeinek mérete honnan jön, a legmegbízhatóbbtól. */
   readonly basis: readonly DimensionBasis[];
 }
 
@@ -66,7 +66,7 @@ export function pieceSize(layers: readonly LayerInput[], context: GaugeContext):
     const dimensions: StitchDimensions[] = [];
     for (const id of layer.stitches) {
       const def = context.library.get(id);
-      if (!def) throw new RangeError(`Ismeretlen öltés: ${id}.`);
+      if (!def) throw new RangeError(`Ismeretlen szem: ${id}.`);
       const size = stitchDimensions(def, layer.shape, context);
       if (size) dimensions.push(size);
     }

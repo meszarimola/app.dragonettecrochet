@@ -19,6 +19,15 @@
   --c-ink-wrong: #2f5f9e;
   --c-error: #b3261e;
   --c-warning: #8a5300;
+  /* A rács (PQW-874): váltakozó sorszín, amelyen a jelek, a sorszám és a
+   * szemszám is legalább 4,5:1; a sorhatár és a hangsúlyos 5. és 10. vonal
+   * legalább 3:1. A cellák oldalvonala halvány segédvonal, nem hordoz
+   * önálló információt. (tests/ui-grid-colors.test.mjs) */
+  --c-row-a: #f3eefa;
+  --c-row-b: #eaf1f8;
+  --c-grid: #b8adc6;
+  --c-grid-row: #8d819c;
+  --c-grid-strong: #6f6480;
 
   --font-display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
   --font-body: 'Karla', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -183,12 +192,29 @@ button {
 
 .bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  gap: 0.5rem 1rem;
   padding: 0.5rem 1rem;
   border-block-end: 1px solid var(--c-line);
   background: var(--c-bg);
+}
+
+.bar__lead {
+  order: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Az első sor jobb szélén a hibalista és a panelkapcsolók. */
+.bar__end {
+  order: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-inline-start: auto;
 }
 
 .bar__title {
@@ -229,13 +255,10 @@ button {
   stroke-linejoin: round;
 }
 
-.bar__group {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
 .bar__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   padding: 0.4rem 0.9rem;
   border: 1px solid var(--c-line);
   border-radius: 999px;
@@ -244,14 +267,35 @@ button {
   font-size: 0.875rem;
 }
 
-/* A két panel kapcsolója egymás mellett, a fejléc jobb szélén. */
-.bar__toggle--written {
-  margin-inline-start: auto;
-}
-
 .bar__toggle:hover {
   border-color: var(--c-accent);
   color: var(--c-accent);
+}
+
+.bar__toggle[aria-expanded='true'] {
+  border-color: var(--c-accent);
+}
+
+/* ---- Ikonok ---- */
+
+.icon {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.icon--dashed {
+  stroke-dasharray: 3 2.5;
+}
+
+.chevron {
+  inline-size: 1rem;
+  block-size: 1rem;
+  color: var(--c-muted);
 }
 
 /* ---- Vászon ---- */
@@ -267,8 +311,9 @@ button {
   block-size: 100%;
 }
 
-/* Kiválasztott öltéssel a kattintás horgol, anélkül kijelöl és igazít. */
-body.is-armed #board {
+/* Kiválasztott szemmel a kattintás horgol, anélkül kijelöl és igazít; terület kijelölésekor téglalapot húz. */
+body.is-armed #board,
+body.is-selecting #board {
   cursor: crosshair;
 }
 
@@ -278,7 +323,9 @@ body.is-armed #board {
 
 .status {
   position: absolute;
-  inset-block-end: 0;
+  z-index: 6;
+  /* Lenyitott írott mintánál a panel fölött, nem a szövegén (PQW-883). */
+  inset-block-end: var(--written-block, 0px);
   inset-inline-start: 0;
   max-inline-size: calc(100% - min(19rem, 80vw));
   margin: 0;
@@ -388,25 +435,13 @@ body.is-armed #board {
 
 /* ---- Eszköztár ---- */
 
-.bar {
-  flex-wrap: wrap;
-}
-
-/* Első sor: főoldal, cím, jelkészlet; alatta a teljes szélességű eszköztár. */
-.bar__group {
-  order: 0;
-}
-
-.bar__toggle {
-  order: 1;
-}
-
+/* Az eszköztár teljes szélességben a fejléc második sorába kerül. */
 .tools {
   order: 2;
   display: flex;
   flex: 1 1 100%;
   flex-wrap: wrap;
-  gap: 0.25rem 1rem;
+  gap: 0.35rem 0.75rem;
   justify-content: flex-start;
 }
 
@@ -416,6 +451,12 @@ body.is-armed #board {
   gap: 0.25rem;
 }
 
+/* A csoportokat halvány elválasztó tagolja. */
+.tools__group + .tools__group {
+  padding-inline-start: 0.75rem;
+  border-inline-start: 1px solid var(--c-line);
+}
+
 .tool {
   padding: 0.3rem 0.7rem;
   border: 1px solid var(--c-line);
@@ -423,6 +464,16 @@ body.is-armed #board {
   background: transparent;
   color: var(--c-text);
   font-size: 0.8125rem;
+}
+
+/* Az eszköztár gombjai négyzetes ikongombok. */
+.tools .tool {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  padding: 0;
+  color: var(--c-text-soft);
 }
 
 .tool:hover:not(:disabled) {
@@ -438,6 +489,79 @@ body.is-armed #board {
 .tool[aria-pressed='true'] {
   border-color: var(--c-accent);
   background: var(--c-selection);
+  color: var(--c-accent);
+}
+
+/* ---- Legördülő menük (szemválasztó, hibalista) ---- */
+
+.count {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--c-text-soft);
+}
+
+.count input {
+  inline-size: 4.5rem;
+  min-block-size: 40px;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--c-muted);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--c-ink);
+  font: inherit;
+}
+
+.menu {
+  position: relative;
+}
+
+.menu__pop {
+  position: absolute;
+  z-index: 20;
+  inset-block-start: calc(100% + 0.35rem);
+  inset-inline-end: 0;
+  inline-size: min(23rem, 92vw);
+  max-block-size: min(70vh, 34rem);
+  overflow-y: auto;
+  padding: 0.85rem;
+  border: 1px solid var(--c-line);
+  border-radius: 12px;
+  background: var(--c-bg);
+  box-shadow: 0 10px 30px rgba(36, 31, 43, 0.16);
+}
+
+/* Hibaszámláló: színt vált a súlyosság szerint. */
+.bar__toggle--errors .icon {
+  color: var(--c-muted);
+}
+
+.bar__toggle--errors.has-errors {
+  border-color: var(--c-error);
+  color: var(--c-error);
+}
+
+.bar__toggle--errors.has-errors .icon {
+  color: var(--c-error);
+}
+
+.bar__toggle--errors.has-warnings {
+  border-color: var(--c-warning);
+  color: var(--c-warning);
+}
+
+.bar__toggle--errors.has-warnings .icon {
+  color: var(--c-warning);
+}
+
+.errors .check__summary {
+  margin-block-start: 0;
+}
+
+.errors .check__list {
+  max-block-size: none;
 }
 
 /* ---- Panel: mezők, ellenőrzés, billentyűk ---- */
@@ -552,24 +676,32 @@ body.is-armed #board {
 
 /* ---- Írott minta és jelölés (PQW-868) ---- */
 
+/* Az írott minta lenyitható panelként a vászon alján (PQW-873). */
 .written {
   position: absolute;
-  inset-block: 0;
-  inset-inline-start: 0;
+  z-index: 4;
+  inset-inline: 0;
+  inset-block-end: 0;
   display: grid;
   align-content: start;
-  gap: 1rem;
-  inline-size: min(24rem, 80vw);
-  padding: 1.25rem;
+  gap: 0.75rem;
+  /* Legfeljebb a munkaterület harmada, hogy alacsony ablakban is maradjon diagram (PQW-883). */
+  max-block-size: min(45vh, 22rem, 100% / 3);
+  padding: 1rem 1.25rem;
   overflow-y: auto;
-  border-inline-end: 1px solid var(--c-line);
+  border-block-start: 1px solid var(--c-line);
   background: var(--c-bg);
 }
 
-/* Nyitott írott minta mellett az állapotsor a panel mellé kerül. */
-.stage:has(> .written:not([hidden])) .status {
-  inset-inline-start: min(24rem, 80vw);
-  max-inline-size: max(10rem, calc(100% - min(19rem, 80vw) - min(24rem, 80vw)));
+.written__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.written__head .panel__title {
+  margin: 0;
 }
 
 .settings {
@@ -659,4 +791,542 @@ body.is-armed #board {
 
 .written__copy {
   justify-self: start;
+}
+
+/* ---- Ellenőrzés: szemszám és lenyitható részlet (PQW-879) ---- */
+
+.finding__count {
+  color: var(--c-muted);
+}
+
+.finding__more {
+  margin: 0.15rem 0 0.4rem;
+  font-size: 0.75rem;
+}
+
+.finding__more summary {
+  min-block-size: 32px;
+  padding-block: 0.35rem;
+  color: var(--c-muted);
+  cursor: pointer;
+}
+
+/* ---- Megerősítő párbeszéd (PQW-879) ---- */
+
+.ask {
+  max-inline-size: min(24rem, calc(100vw - 2rem));
+  padding: 1.1rem 1.2rem 1rem;
+  border: 1px solid var(--c-line);
+  border-radius: 12px;
+  background: var(--c-bg);
+  color: var(--c-text);
+}
+
+.ask::backdrop {
+  background: rgba(36, 31, 43, 0.35);
+}
+
+.ask__message {
+  margin: 0 0 0.9rem;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: var(--c-ink);
+}
+
+.ask__details {
+  margin: 0 0 0.9rem;
+  font-size: 0.8125rem;
+}
+
+.ask__details summary {
+  min-block-size: 32px;
+  padding-block: 0.3rem;
+  color: var(--c-muted);
+  cursor: pointer;
+}
+
+.ask__detail {
+  margin: 0.2rem 0 0;
+  color: var(--c-text-soft);
+}
+
+.ask__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.tool--primary {
+  border-color: var(--c-accent);
+  background: var(--c-accent);
+  color: var(--c-bg);
+}
+
+.tool--primary:hover:not(:disabled) {
+  color: var(--c-bg);
+  opacity: 0.92;
+}
+
+/* ---- Bal oldali mintatípus-menü (PQW-873) ---- */
+
+/* A két oldalsáv a lenyitott írott minta fölött marad. */
+.types,
+.panel {
+  z-index: 5;
+}
+
+.types {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: min(16rem, 80vw);
+  padding: 1.25rem;
+  overflow-y: auto;
+  border-inline-end: 1px solid var(--c-line);
+  background: var(--c-bg);
+}
+
+.types__intro {
+  margin: 0.25rem 0 1rem;
+  font-size: 0.8125rem;
+  color: var(--c-text-soft);
+}
+
+.types__list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.type {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.65rem;
+  inline-size: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--c-line);
+  border-radius: 10px;
+  background: transparent;
+  text-align: start;
+}
+
+.type:hover:not(:disabled) {
+  border-color: var(--c-accent);
+}
+
+.type[aria-pressed='true'] {
+  border-color: var(--c-accent);
+  background: var(--c-selection);
+}
+
+.type:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.type__icon {
+  display: inline-grid;
+  place-items: center;
+}
+
+.type__icon svg {
+  inline-size: 1.4rem;
+  block-size: 1.4rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--c-accent);
+}
+
+.type__label {
+  display: grid;
+  gap: 0.1rem;
+  min-inline-size: 0;
+}
+
+.type__name {
+  color: var(--c-ink);
+  font-size: 0.9375rem;
+}
+
+.type__detail {
+  color: var(--c-text-soft);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.type__badge {
+  align-self: start;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: var(--c-panel);
+  color: var(--c-muted);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: var(--ls-micro);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ---- Az írott minta a nyitott oldalsávok között (PQW-881) ---- */
+
+/* Széles nézetben a lenyitott írott minta és az állapotsor nem csúszik az
+ * oldalsávok alá; keskeny nézetben az oldalsávok a panel fölé nyílnak. */
+@media (width >= 48rem) {
+  .stage:has(> .types:not([hidden])) > .written,
+  .stage:has(> .types:not([hidden])) > .status {
+    inset-inline-start: min(16rem, 80vw);
+  }
+
+  .stage:has(> .panel:not([hidden])) > .written {
+    inset-inline-end: min(19rem, 80vw);
+  }
+}
+
+.written__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* A „Hamarosan” címke a név alá kerül, nem vágja le a nevet. */
+.type {
+  grid-template-columns: auto 1fr;
+}
+
+.type__badge {
+  grid-column: 2;
+  justify-self: start;
+}
+
+/* ---- Jobb oldali panel: összecsukható szakaszok (PQW-882) ---- */
+
+/* A szemek a panel tetején, mindig kéznél; a ritkán állított jelölés alapból csukva. */
+.section {
+  margin-block-end: 0.75rem;
+  padding-block-end: 0.75rem;
+  border-block-end: 1px solid var(--c-line);
+}
+
+.section:not([open]) {
+  padding-block-end: 0;
+}
+
+.section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-block-size: 44px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.section__head::-webkit-details-marker {
+  display: none;
+}
+
+.section__head .panel__title {
+  margin: 0;
+}
+
+.section__head:hover .panel__title {
+  color: var(--c-accent);
+}
+
+.section__head::after {
+  content: '';
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  margin-inline-end: 0.25rem;
+  border-inline-end: 1.5px solid var(--c-muted);
+  border-block-end: 1.5px solid var(--c-muted);
+  transform: translateY(-0.15rem) rotate(45deg);
+}
+
+.section[open] > .section__head::after {
+  transform: translateY(0.1rem) rotate(-135deg);
+}
+
+.section .count {
+  margin: 0 0 1rem;
+}
+
+/* ---- Méret és fonal (PQW-859) ---- */
+
+.size {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.size .panel__field,
+.size .panel__note {
+  margin: 0;
+}
+
+/* A lenyílók leghosszabb opciója ne szélesítse a panel oszlopát. */
+.size,
+.size__editor,
+.size__group,
+.size .panel__field {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.size__notice {
+  margin: 0;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--c-line);
+  border-inline-start: 4px solid var(--c-warning);
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.size__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.size__editor,
+.size__group {
+  display: grid;
+  gap: 0.75rem;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.size__group > legend,
+.size__subtitle {
+  margin: 0 0 0.25rem;
+  padding: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--c-ink);
+}
+
+.size__label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 0.5rem;
+}
+
+.size__add-gauge {
+  justify-self: start;
+}
+
+/* Az érték eredete: szövegben is, nem csak színben; a becslés szaggatott keretet kap. */
+.origin {
+  display: inline-block;
+  padding: 0 0.4rem;
+  border: 1px solid var(--c-muted);
+  border-radius: 999px;
+  background: var(--c-bg);
+  color: var(--c-text-soft);
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.origin--measured {
+  border-color: var(--c-accent);
+  color: var(--c-accent);
+}
+
+.origin--estimated {
+  border-style: dashed;
+  border-color: var(--c-warning);
+  color: var(--c-warning);
+}
+
+.gauges {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gauges:empty {
+  display: none;
+}
+
+.gauge {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid var(--c-line);
+  border-radius: 8px;
+}
+
+.gauge input,
+.gauge select {
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+
+.gauge__stitch,
+.gauge__note {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--c-text-soft);
+}
+
+.gauge__remove {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+.size__values {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+}
+
+.size__values > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0 0.5rem;
+  align-items: baseline;
+}
+
+.size__values dt {
+  color: var(--c-text-soft);
+}
+
+.size__values dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 0.15rem 0.4rem;
+  margin: 0;
+  color: var(--c-ink);
+}
+
+.size__value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.size__range {
+  flex-basis: 100%;
+  text-align: end;
+  font-size: 0.75rem;
+  color: var(--c-text-soft);
+}
+
+.size__rows {
+  max-block-size: 14rem;
+  overflow: auto;
+  border: 1px solid var(--c-line);
+  border-radius: 8px;
+}
+
+.size__table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.size__table th,
+.size__table td {
+  padding: 0.25rem 0.35rem;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.size__table th:first-child {
+  text-align: start;
+}
+
+.size__table thead th {
+  position: sticky;
+  inset-block-start: 0;
+  background: var(--c-panel);
+  color: var(--c-ink);
+  white-space: normal;
+}
+
+.size__table tbody tr:nth-child(even) {
+  background: var(--c-row-a);
+}
+
+.size__origin {
+  display: block;
+  font-weight: 400;
+  color: var(--c-text-soft);
+}
+
+.size__origin--estimated {
+  color: var(--c-warning);
+}
+
+/* ---- Tooltip a menüsor ikongombjain (PQW-882) ---- */
+
+/* Azonnal, egér alatt és billentyűzetes fókusznál is, inaktív gombon is.
+ * Az inaktív gombnál csak az ikon halványul, hogy a tooltip olvasható maradjon. */
+.tools .tool:disabled {
+  opacity: 1;
+  color: var(--c-muted);
+}
+
+.tools .tool:disabled .icon {
+  opacity: 0.5;
+}
+
+.tools .tool[data-tip] {
+  position: relative;
+}
+
+.tools .tool[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  z-index: 30;
+  inset-block-start: calc(100% + 0.4rem);
+  inset-inline-start: 50%;
+  display: none;
+  inline-size: max-content;
+  max-inline-size: 22rem;
+  padding: 0.3rem 0.55rem;
+  border-radius: 6px;
+  background: var(--c-ink);
+  color: var(--c-bg);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  text-align: start;
+  white-space: normal;
+  pointer-events: none;
+  translate: -50% 0;
+}
+
+/* Az ablak szélén a felirat a gomb széléhez igazodik (src/ui/tooltip.ts). */
+.tools .tool[data-tip-align='start']::after {
+  inset-inline-start: 0;
+  translate: none;
+}
+
+.tools .tool[data-tip-align='end']::after {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+  translate: none;
+}
+
+.tools .tool[data-tip]:hover::after,
+.tools .tool[data-tip]:focus-visible::after {
+  display: block;
 }

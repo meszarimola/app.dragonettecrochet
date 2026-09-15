@@ -3,18 +3,27 @@
  *
  * DOM nélküli, ezért a Node is futtatja (tests/ui-chart-svg.test.mjs), és a
  * magot `.ts` kiterjesztéssel importálja. A diagram a jeleket a színoldali
- * látványban mutatja (01 §6.1), a sorszám a sor kezdő oldalán, az öltésszám a
+ * látványban mutatja (01 §6.1), a sorszám a sor kezdő oldalán, a szemszám a
  * végén áll, a színoldali és a visszai sorok színe eltér (03 §2.1, §10 I42).
  *
  * A jelmagyarázat a választott jelöléssel és jelstílussal készül, és megnevezi
  * őket; angol jelölésnél a rendszert is („US terms”, „UK terms”, PQW-868).
+ *
+ * A rács (PQW-874) választhatóan kerül az exportba, ugyanazzal a rajzzal,
+ * mint a vásznon (src/ui/grid-paths.ts).
+ *
+ * A sorszám és a szemszám felirata a minta hagyományát követi, japánban
+ * „18目”, az ismétlés „6目1模様” (src/ui/chart-labels.ts, PQW-876).
  */
 
+import type { ChartGrid } from '../core/grid.ts';
 import type { ChartLayout } from '../core/layout.ts';
 import { VOCABULARIES } from '../core/pattern-text.ts';
 import type { StitchLibrary } from '../core/stitch-library.ts';
 import { stitchLabel } from '../core/stitchText.ts';
-import type { Locale, Pattern, StitchDef } from '../core/types.ts';
+import type { Locale, Pattern, StitchDef, Tradition } from '../core/types.ts';
+import { chartLabels } from './chart-labels.ts';
+import { gridPaths, LINE_WIDTH } from './grid-paths.ts';
 import { chartStyleLabel, textLanguage, termsLabel } from './notation.ts';
 import { DEFAULT_SYMBOL_OPTIONS, placedShapes, shapeBounds, symbolShapes, type Shape, type SymbolOptions } from './symbols.ts';
 
@@ -25,6 +34,15 @@ export interface ChartColors {
   readonly background: string;
 }
 
+/** A rács színei: a két váltakozó sorszín, a cellavonal, a sorhatár és a hangsúlyos vonal. */
+export interface GridColors {
+  readonly rowA: string;
+  readonly rowB: string;
+  readonly cell: string;
+  readonly row: string;
+  readonly strong: string;
+}
+
 export interface ChartSvgOptions {
   readonly colors: ChartColors;
   /** Tükrözött nézet; a jelmagyarázat megjegyzi. */
@@ -33,12 +51,17 @@ export interface ChartSvgOptions {
   readonly terms?: Locale;
   /** A jelek stílusa és a rövidpálca jele; hiányában CYC és +. */
   readonly symbols?: SymbolOptions;
+  /** A rács az exportban (PQW-874); hiányában rács nélkül. */
+  readonly grid?: { readonly grid: ChartGrid; readonly colors: GridColors };
+  /** A minta hagyománya a feliratokhoz (PQW-876); hiányában CYC. */
+  readonly tradition?: Tradition;
 }
 
 const MARGIN = 24;
 const TITLE = 36;
 const LEGEND_ROW = 34;
 const LEGEND_ICON = 26;
+const LABEL_HEIGHT = 16;
 const FONT = "font-family=\"Karla, system-ui, -apple-system, 'Segoe UI', sans-serif\"";
 
 const num = (value: number) => String(Math.round(value * 100) / 100);
@@ -62,7 +85,7 @@ export function shapeToSvg(shape: Shape): string {
   }
 }
 
-/** A jelmagyarázat öltései az első előfordulás sorrendjében; a csoport tagjai helyett maga a csoport. */
+/** A jelmagyarázat szemei az első előfordulás sorrendjében; a csoport tagjai helyett maga a csoport. */
 export function legendStitches(pattern: Pattern, library: StitchLibrary): StitchDef[] {
   const piece = pattern.pieces[0];
   const seen = new Map<string, StitchDef>();
@@ -84,8 +107,18 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
   const { colors } = options;
   const terms = options.terms ?? 'hu';
   const symbols = options.symbols ?? DEFAULT_SYMBOL_OPTIONS;
+  const grid = options.grid && options.grid.grid.bands.length > 0 ? options.grid : undefined;
   const system = VOCABULARIES[terms].system;
-  const { bounds } = layout;
+  const captions = chartLabels(options.tradition ?? 'cyc');
+  const repeat = captions.repeat(pattern.conventions.repeat);
+  const bounds = grid
+    ? {
+        minX: Math.min(layout.bounds.minX, grid.grid.bounds.minX),
+        minY: Math.min(layout.bounds.minY, grid.grid.bounds.minY),
+        maxX: Math.max(layout.bounds.maxX, grid.grid.bounds.maxX),
+        maxY: Math.max(layout.bounds.maxY, grid.grid.bounds.maxY),
+      }
+    : layout.bounds;
   const chartWidth = Math.max(bounds.maxX - bounds.minX, 0);
   const chartHeight = Math.max(bounds.maxY - bounds.minY, 0);
   const legend = legendStitches(pattern, library);
@@ -96,7 +129,9 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
   ];
   const notes = [
     `Jelölés: ${termsLabel(terms)}; jelek: ${chartStyleLabel(symbols.style ?? 'cyc')}.`,
-    'A sorszám a sor kezdő oldalán áll, zárójelben az öltésszám.',
+    captions.note,
+    ...(repeat ? [`Ismétlés: ${repeat}.`] : []),
+    ...(grid ? ['Rács: váltakozó sávok, minden 5. és 10. vonal vastagabb.'] : []),
     ...(options.mirror ? ['Tükrözött nézet balkezeseknek.'] : []),
   ];
   const legendRows = legend.length + keys.length + notes.length;
@@ -111,14 +146,30 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
 
   const out: string[] = [];
   const title = pattern.title.trim() || 'Minta';
+  const gridAttribute = grid ? ` data-grid="${grid.grid.kind}"` : '';
   out.push(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${num(width)}" height="${num(height)}" viewBox="0 0 ${num(width)} ${num(height)}" role="img" aria-labelledby="chart-title" data-terms="${terms}" data-chart-style="${symbols.style ?? 'cyc'}">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${num(width)}" height="${num(height)}" viewBox="0 0 ${num(width)} ${num(height)}" role="img" aria-labelledby="chart-title" data-terms="${terms}" data-chart-style="${symbols.style ?? 'cyc'}"${gridAttribute}>`,
     `<title id="chart-title">${escapeXml(title)} — horgolásminta-diagram</title>`,
     `<style>.ink{fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.ink .fill{stroke:none;fill:currentColor}</style>`,
     `<rect width="100%" height="100%" fill="${colors.background}"/>`,
     `<text x="${MARGIN}" y="${MARGIN + 20}" ${FONT} font-size="20" fill="${colors.text}">${escapeXml(title)}</text>`,
     `<g transform="translate(${num(ox)} ${num(oy)})">`,
   );
+
+  if (grid) {
+    const { bands, lines } = gridPaths(grid.grid);
+    const c = grid.colors;
+    const stroke = { cell: c.cell, row: c.row, five: c.strong, ten: c.strong };
+    out.push('<g class="grid">');
+    for (const band of bands) {
+      out.push(`<path d="${band.d}" fill="${band.tone === 0 ? c.rowA : c.rowB}"${band.evenOdd ? ' fill-rule="evenodd"' : ''}/>`);
+    }
+    for (const line of lines) {
+      const dash = line.dashed ? ' stroke-dasharray="4 3"' : '';
+      out.push(`<path d="${line.d}" fill="none" stroke="${stroke[line.weight]}" stroke-width="${LINE_WIDTH[line.weight]}"${dash}/>`);
+    }
+    out.push('</g>');
+  }
 
   for (const side of ['right', 'wrong'] as const) {
     const color = colors[side];
@@ -131,14 +182,18 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
     out.push('</g>');
   }
 
+  // A sorszám a sor színével teli címkén, világos betűvel, mint a vásznon.
   out.push(`<g ${FONT} font-size="12" fill="${colors.text}" dominant-baseline="middle">`);
   for (const layer of layout.layers) {
     if (layer.index === 0) continue;
-    const startAnchor = layer.start.x <= layer.end.x ? 'end' : 'start';
-    const endAnchor = startAnchor === 'end' ? 'start' : 'end';
+    const rightwards = layer.start.x <= layer.end.x;
+    const labelWidth = 7.4 * captions.layer(layer.index).length + 10;
+    const x0 = rightwards ? layer.start.x + 4 - labelWidth : layer.start.x - 4;
+    const endAnchor = rightwards ? 'start' : 'end';
     out.push(
-      `<text x="${num(layer.start.x)}" y="${num(layer.start.y)}" text-anchor="${startAnchor}" font-weight="700" fill="${colors[layer.side]}">${layer.index}</text>`,
-      `<text x="${num(layer.end.x)}" y="${num(layer.end.y)}" text-anchor="${endAnchor}">(${layer.stitchCount})</text>`,
+      `<rect x="${num(x0)}" y="${num(layer.start.y - LABEL_HEIGHT / 2)}" width="${num(labelWidth)}" height="${LABEL_HEIGHT}" rx="4" fill="${colors[layer.side]}"/>`,
+      `<text x="${num(x0 + labelWidth / 2)}" y="${num(layer.start.y)}" text-anchor="middle" font-weight="700" fill="${colors.background}">${escapeXml(captions.layer(layer.index))}</text>`,
+      `<text x="${num(layer.end.x)}" y="${num(layer.end.y)}" text-anchor="${endAnchor}">${escapeXml(captions.count(layer.stitchCount))}</text>`,
     );
   }
   out.push('</g></g>');

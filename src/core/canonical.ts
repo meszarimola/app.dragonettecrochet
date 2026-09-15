@@ -4,9 +4,9 @@
  *
  * Az azonosítókat a szerkesztő vagy a beolvasó szabadon osztja ki, ezért az
  * összevetés előtt sorrend szerint újraszámozzuk őket:
- * - öltés: `n1`, `n2`… a fonal útja szerint;
- * - láncív, gyűrű, csoport: az első öltésük helye szerint;
- * - a kihagyott öltések és az események az öltések sorrendjében.
+ * - szem: `n1`, `n2`… a fonal útja szerint;
+ * - láncív, gyűrű, csoport: az első szemük helye szerint;
+ * - a kihagyott szemek és az események a szemek sorrendjében.
  * A kézi igazítás (`pinned`) csak a rajzhoz tartozik, ezért kimarad.
  */
 

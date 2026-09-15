@@ -1,11 +1,11 @@
 /*
- * Az öltések kiírt neve és szerkezete a három jelölésben.
+ * A szemek kiírt neve és szerkezete a három jelölésben.
  *
  * Kimenetben csak a `name` és az `abbr` jelenik meg, az `aliases` soha
- * (01 §8.5 szabály 25). Rövidítés nélküli öltésnél a név kiírva szerepel
+ * (01 §8.5 szabály 25). Rövidítés nélküli szemnél a név kiírva szerepel
  * (szókészlet D4, D8). A brit szöveg ugyanabból a szerkezetből készül, mint az
- * amerikai, csak a részöltések brit nevével, így az egy fokos eltolás az
- * összetett öltésekre is érvényes (01 §3.1).
+ * amerikai, csak a részszemek brit nevével, így az egy fokos eltolás az
+ * összetett szemekre is érvényes (01 §3.1).
  */
 
 import { stitchById } from './stitches.ts';
@@ -17,16 +17,16 @@ export function stitchName(def: StitchDef, locale: Locale): string {
   return abbr ? `${name} (${abbr})` : name;
 }
 
-/** A név és, ha van, a szerkezet: „szaporítás: 2 rp egy öltésbe”. */
+/** A név és, ha van, a szerkezet: „szaporítás: 2 rp egy szembe”. */
 export function stitchLabel(def: StitchDef, locale: Locale): string {
   const structure = stitchStructure(def, locale);
   return structure ? `${stitchName(def, locale)}: ${structure}` : stitchName(def, locale);
 }
 
 /**
- * Az összetett öltés szerkezete, pl. „2 rp egy öltésbe”, „sc2tog”,
- * „(dc, ch 1, dc) in same st”. Alapöltésnél `null`, és a pufnál is: az nem
- * részöltésekből, hanem felhúzott hurkokból áll, a neve elég.
+ * Az összetett szem szerkezete, pl. „2 rp egy szembe”, „sc2tog”,
+ * „(dc, ch 1, dc) in same st”. Alapszemnél `null`, és a pufnál is: az nem
+ * részszemekből, hanem felhúzott hurkokból áll, a neve elég.
  */
 export function stitchStructure(def: StitchDef, locale: Locale): string | null {
   if (def.kind === 'group') return groupStructure(def, locale);
@@ -35,12 +35,12 @@ export function stitchStructure(def: StitchDef, locale: Locale): string | null {
 }
 
 const IN_SAME_STITCH: Readonly<Record<Locale, string>> = {
-  hu: 'egy öltésbe',
+  hu: 'egy szembe',
   'en-US': 'in same st',
   'en-GB': 'in same st',
 };
 
-/** Hivatkozás egy részöltésre: a rövidítés, ha van, különben a név. */
+/** Hivatkozás egy részszemre: a rövidítés, ha van, különben a név. */
 function ref(def: StitchDef, locale: Locale): string {
   const { name, abbr } = def.terms[locale];
   return abbr ?? name;
@@ -73,7 +73,7 @@ function joinedStructure(def: JoinedStitchDef, locale: Locale): string | null {
   const n = def.parts;
 
   if (def.base === 'same') return `${n} ${ref(part, locale)} ${IN_SAME_STITCH[locale]}`;
-  if (locale === 'hu') return `${n} ${ref(part, locale)} ${n} öltésen át`;
+  if (locale === 'hu') return `${n} ${ref(part, locale)} ${n} szemen át`;
 
   // CYC: sc2tog, dc3tog; rövidítés nélkül kiírva.
   const { name, abbr } = part.terms[locale];

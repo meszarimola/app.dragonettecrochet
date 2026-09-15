@@ -8,10 +8,10 @@
  * - A brit szöveg ugyanaz a sablon, mint az amerikai, csak a brit nevekkel
  *   (egy fokkal eltolva) és a „miss” szóval. Az angol címsorok megnevezik a
  *   rendszert („US terms”, „UK terms”); a felületi kapcsoló a PQW-868.
- * - A sor végén az öltésszám áll, ahogy a gráf számolja (06 §5.3 pont 1).
+ * - A sor végén a szemszám áll, ahogy a gráf számolja (06 §5.3 pont 1).
  * - Az egymás utáni azonos sorok egy sorba kerülnek („2–21. sor”, 04 §9.8).
  * - Rövidítéslista és jelmagyarázat csak a mintában ténylegesen használt
- *   öltésekkel és rövidítésekkel (01 §8.5 szabály 27).
+ *   szemekkel és rövidítésekkel (01 §8.5 szabály 27).
  *
  * A kifejezéseket a visszaolvasó (pattern-read.ts) is innen veszi, így a kettő
  * nem térhet el.
@@ -36,7 +36,7 @@ export interface Vocabulary {
   readonly foundation: (chains: number) => string;
   readonly ring: string;
   readonly fromHook: (chain: number, note: string | null) => string;
-  /** Az 1. sor kihagyott láncszemei mint öltés: „1 erp-nek számítanak”. */
+  /** Az 1. sor kihagyott láncszemei mint szem: „1 erp-nek számítanak”. */
   readonly skippedChainsCount: (def: StitchDef, locale: Locale) => string;
   readonly count: (n: number) => string;
   readonly chain: (n: number) => string;
@@ -52,7 +52,7 @@ export interface Vocabulary {
   readonly mode: (mode: StitchInsertion, text: string) => string;
   readonly closings: { readonly turn: string; readonly 'fasten-off': string; readonly spiral: string };
   readonly join: (slip: string, to: 'turning-chain' | 'first-stitch') => string;
-  /** Nem öltésnévből jövő rövidítések, ha a szövegben előfordulnak. */
+  /** Nem szemnévből jövő rövidítések, ha a szövegben előfordulnak. */
   readonly general: readonly { readonly abbr: string; readonly meaning: string; readonly used: RegExp }[];
 }
 
@@ -67,19 +67,19 @@ const HU: Vocabulary = {
   ring: 'Varázskör.',
   fromHook: (chain, note) => `a horogtól számított ${chain}. láncszemtől kezdve${note ? ` (${note})` : ''} `,
   skippedChainsCount: (def, locale) => `a kihagyott láncszemek 1 ${huDative(def, locale)} számítanak`,
-  count: (n) => `(${n} öltés)`,
+  count: (n) => `(${n} szem)`,
   chain: (n) => `${n} lsz`,
-  skip: (n, what) => `${n} ${what === 'stitch' ? 'öltés' : what === 'chain' ? 'láncszem' : 'láncív'} kihagyása`,
+  skip: (n, what) => `${n} ${what === 'stitch' ? 'szem' : what === 'chain' ? 'láncszem' : 'láncív'} kihagyása`,
   turningChain: (n, note) => `${n} lsz (${note})`,
-  turningChainNotCounted: 'nem számít öltésnek',
+  turningChainNotCounted: 'nem számít szemnek',
   turningChainCounts: (def, locale) => `1 ${huDative(def, locale)} számít`,
   repeat: (inner, n) => `[${inner}] ${times(n)}`,
   quantity: (count, ref) => `${count} ${ref}`,
   decrease: (n, part, locale) => `${n} ${refOf(part, locale)} összehorgolása`,
   phrases: {
-    'next-stitch': 'a következő öltésbe',
+    'next-stitch': 'a következő szembe',
     'next-chain': 'a következő láncszembe',
-    'same-stitch': 'ugyanabba az öltésbe',
+    'same-stitch': 'ugyanabba a szembe',
     'same-chain': 'ugyanabba a láncszembe',
     'next-space': 'a következő láncívbe',
     'same-space': 'ugyanabba a láncívbe',
@@ -87,7 +87,7 @@ const HU: Vocabulary = {
   },
   mode: (mode, text) => (mode === 'both-loops' ? text : `${text} (${HU_MODES[mode]})`),
   closings: { turn: 'Fordítás.', 'fasten-off': 'A fonal elvágása.', spiral: 'Folytatás spirálban, zárás nélkül.' },
-  join: (slip, to) => `Kör zárása: 1 ${slip} ${to === 'turning-chain' ? 'a kezdőlánc tetejébe' : 'az első öltésbe'}.`,
+  join: (slip, to) => `Kör zárása: 1 ${slip} ${to === 'turning-chain' ? 'a kezdőlánc tetejébe' : 'az első szembe'}.`,
   general: [],
 };
 
@@ -172,9 +172,9 @@ export function ordinal(n: number): string {
   return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
 }
 
-/* ---- Öltésnevek ---- */
+/* ---- Szemnevek ---- */
 
-/** Hivatkozás egy öltésre a szövegben: a rövidítés, ha van, különben a név. */
+/** Hivatkozás egy szemre a szövegben: a rövidítés, ha van, különben a név. */
 export function refOf(def: StitchDef, locale: Locale): string {
   const { name, abbr } = def.terms[locale];
   return abbr ?? name;
@@ -194,7 +194,7 @@ function huDative(def: StitchDef, locale: Locale): string {
 }
 
 /**
- * Egy összetett öltés neve a sorban. Ha a könyvtárban több öltésnek is ez a
+ * Egy összetett szem neve a sorban. Ha a könyvtárban több szemnek is ez a
  * neve (pl. a kétféle fürt), a szerkezet zárójelben mellette áll, hogy a
  * visszaolvasás egyértelmű legyen.
  */
@@ -216,7 +216,7 @@ export interface Abbreviation {
 
 export interface LegendEntry {
   readonly def: StitchDefId;
-  /** „szaporítás: 2 erp egy öltésbe”. A jelet a felület rajzolja az azonosító alapján. */
+  /** „szaporítás: 2 erp egy szembe”. A jelet a felület rajzolja az azonosító alapján. */
   readonly label: string;
 }
 
@@ -266,7 +266,7 @@ export function formatWrittenPattern(written: WrittenPatternText): string {
   return `${blocks.map((block) => block.join('\n')).join('\n\n')}\n`;
 }
 
-/** A mintában használt öltések a könyvtár sorrendjében: önálló öltések, csoportok, és a láncív, ha horgolnak bele. */
+/** A mintában használt szemek a könyvtár sorrendjében: önálló szemek, csoportok, és a láncív, ha horgolnak bele. */
 export function legendOf(pattern: Pattern, library: StitchLibrary, locale: Locale): LegendEntry[] {
   const ids = new Set<StitchDefId>();
   for (const piece of pattern.pieces) {
@@ -322,7 +322,7 @@ class Renderer {
     return lines;
   }
 
-  /** Egy sor a címke nélkül: „15 fp (15 öltés). Fordítás.” */
+  /** Egy sor a címke nélkül: „15 fp (15 szem). Fordítás.” */
   body(layer: WrittenLayer): string {
     const v = this.vocabulary;
     let prefix = '';
@@ -415,13 +415,13 @@ class Renderer {
 
   private def(id: StitchDefId): StitchDef {
     const def = this.library.get(id);
-    if (!def) throw new Error(`Ismeretlen öltés: ${id}`);
+    if (!def) throw new Error(`Ismeretlen szem: ${id}`);
     return def;
   }
 
   private byKind(kind: StitchDef['kind']): StitchDef {
     const def = [...this.library.values()].find((candidate) => candidate.kind === kind);
-    if (!def) throw new Error(`A könyvtárban nincs ilyen fajtájú öltés: ${kind}`);
+    if (!def) throw new Error(`A könyvtárban nincs ilyen fajtájú szem: ${kind}`);
     return def;
   }
 

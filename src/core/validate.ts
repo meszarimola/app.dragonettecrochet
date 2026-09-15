@@ -1,11 +1,11 @@
 /*
- * Az öltésgráf ellenőrzője.
+ * A szemgráf ellenőrzője.
  *
  * Minden találat egy `RULES`-beli szabályhoz tartozik, onnan kapja a
  * súlyosságot és a tudásbázis-hivatkozást (src/core/rules.ts).
  *
  * Sorrend és elnyomás, hogy egy hibára egy találat jöjjön:
- * 1. Szerkezet (ismeretlen öltés, nem létező hivatkozás, fonal útja). Ha ez
+ * 1. Szerkezet (ismeretlen szem, nem létező hivatkozás, fonal útja). Ha ez
  *    hibás, a darab rétegei nem számolhatók, a többi ellenőrzés nem fut.
  * 2. Célpontok. Ha egy réteg valamelyik célpontja érvénytelen (később készülő,
  *    rossz sorba mutató, nem számító fordulóláncba horgolt), annál a
@@ -19,6 +19,7 @@
 import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
 import { RULES, type RuleId } from './rules.ts';
 import type { StitchLibrary } from './stitch-library.ts';
+import { hasBaseChain, traditionOf } from './tradition.ts';
 import type { Anchor, Finding, NodeId, Pattern, Piece, PieceId, StitchNode } from './types.ts';
 
 export function validatePattern(pattern: Pattern, library: StitchLibrary): Finding[] {
@@ -196,7 +197,7 @@ function checkLayer(
         return;
       }
       if (targetLayer < index - 1 && node.flags?.includes('spike') && !workedBetween(graph, targets, targetLayer, index)) {
-        return; // Hosszú öltés: nem az előző sor pozícióját használja fel.
+        return; // Hosszú szem: nem az előző sor pozícióját használja fel.
       }
       const indices = targets.map((target) => positionIndex.get(target));
       if (targetLayer !== index - 1 || indices.some((i) => i === undefined)) {
@@ -210,7 +211,7 @@ function checkLayer(
     });
   }
 
-  // Több öltés egy öltésben: csak jelölt csoportként (03 §10 C14). Láncívbe és gyűrűbe bármennyi mehet (01 §8.2 szabály 11).
+  // Több szem egy szemben: csak jelölt csoportként (03 §10 C14). Láncívbe és gyűrűbe bármennyi mehet (01 §8.2 szabály 11).
   const byTarget = new Map<NodeId, Set<StitchNode>>();
   for (const entry of entries) {
     if (entry.anchor.into !== 'stitch') continue;
@@ -231,8 +232,10 @@ function checkLayer(
 
   const walkStart = findingCount();
   const skipped = new Set(graph.piece.skipped);
-  // Ha a sor fordulólánca számít, az alatta lévő öltés (a sor első pozíciója) kimaradhat (03 §1.3).
-  const optional = index >= 2 && layer.turningChainCounts ? 0 : -1;
+  // Ha a sor fordulólánca számít, az alatta lévő szem (a sor első pozíciója) kimaradhat (03 §1.3). Japán
+  // hagyományban az 1. sorban is: ott a fordulólánc alatti alapláncszem (01 §8.3 szabály 15).
+  const baseChain = index === 1 && below.shape === 'row' && hasBaseChain(layer.turningChainCounts, traditionOf(pattern.conventions));
+  const optional = (index >= 2 || baseChain) && layer.turningChainCounts ? 0 : -1;
   const positionAt = (w: number) => below.positions[layer.direction === 1 ? w : length - 1 - w]!;
   const gap = (from: number, to: number) => {
     let count = 0;
@@ -289,7 +292,7 @@ function checkLayer(
     previous = entry;
   }
 
-  // Az ugrásokat a bejárás után nézzük: egy keresztezett vagy visszafelé horgolt öltés kitöltheti a rést.
+  // Az ugrásokat a bejárás után nézzük: egy keresztezett vagy visszafelé horgolt szem kitöltheti a rést.
   for (const { before, after, from, to } of gaps) {
     const skippedCount = gap(from, to);
     if (skippedCount === 0) continue;
@@ -310,7 +313,7 @@ function checkLayer(
     }
   }
 
-  // Számító fordulólánc: a következő sor utolsó öltése a tetejébe megy (03 §10 A4).
+  // Számító fordulólánc: a következő sor utolsó szeme a tetejébe megy (03 §10 A4).
   const topWorking = turningTop !== undefined && layer.direction === -1 && below.shape === 'row' ? length - 1 : -1;
   if (topWorking >= 0 && !covered[topWorking]) report('turning-chain-placement', [previous!.node.id, turningTop!]);
 
@@ -323,12 +326,13 @@ function checkLayer(
 
   const repeat = pattern.conventions.repeat;
   if (repeat && layer.shape === 'row' && findingCount() === walkStart) {
-    const consumed = length + (index === 1 && layer.turningChainCounts ? 1 : 0);
+    // A japán alapláncszem már a láncalap pozíciója, ezért ott nem adódik hozzá.
+    const consumed = length + (index === 1 && layer.turningChainCounts && !baseChain ? 1 : 0);
     if (consumed !== layer.positionCount) report('repeat-balance', layer.stitches);
   }
 }
 
-/** Van-e a hosszú öltés célpontja és a mostani sor között olyan sor, amely a célpontba horgolt (03 §10 C17). */
+/** Van-e a hosszú szem célpontja és a mostani sor között olyan sor, amely a célpontba horgolt (03 §10 C17). */
 function workedBetween(graph: PieceGraph, targets: readonly NodeId[], fromLayer: number, toLayer: number): boolean {
   const targetSet = new Set(targets);
   for (let index = fromLayer + 1; index < toLayer; index += 1) {
@@ -395,10 +399,10 @@ function isWorkedInto(graph: PieceGraph, chain: NodeId): boolean {
 /* ---- 4. Magasság ---- */
 
 /**
- * Halmozott magasság láncszem-egységben (01 §8.1 szabály 1): az öltés
+ * Halmozott magasság láncszem-egységben (01 §8.1 szabály 1): a szem
  * magassága és annak a célpontnak a halmozott magassága, amelybe horgolták.
- * Ha egy sor öltései különböző magasak, a következő 1–3 sornak ki kell
- * egyenlítenie, vagyis egy sorban minden öltésnek azonos halmozott
+ * Ha egy sor szemei különböző magasak, a következő 1–3 sornak ki kell
+ * egyenlítenie, vagyis egy sorban minden szemnek azonos halmozott
  * magasságra kell érnie (03 §10 D19, 03 §2.3).
  */
 function checkHeights(graph: PieceGraph, invalidAnchors: ReadonlySet<string>, report: Report): void {

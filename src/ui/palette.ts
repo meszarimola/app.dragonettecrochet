@@ -1,11 +1,11 @@
 /*
- * A paletta tartalma az öltéskönyvtárból: csoportok, feliratok, gyorsbillentyűk.
+ * A paletta tartalma a szemkönyvtárból: csoportok, feliratok, gyorsbillentyűk.
  *
  * DOM nélküli, ezért a Node is futtatja (tests/ui-palette.test.mjs), és a
  * magot `.ts` kiterjesztéssel importálja. A gombokat a main.ts rakja ki. Új
- * öltés a könyvtárba kerül (src/core/stitches.ts), és innen magától megjelenik.
+ * szem a könyvtárba kerül (src/core/stitches.ts), és innen magától megjelenik.
  *
- * Az öltésnevek a választott jelöléssel szerepelnek (PQW-868), a csoportcímek
+ * A szemnevek a választott jelöléssel szerepelnek (PQW-868), a csoportcímek
  * a felület nyelvén.
  */
 
@@ -14,13 +14,13 @@ import { stitchName, stitchStructure } from '../core/stitchText.ts';
 import type { Locale, StitchDef } from '../core/types.ts';
 
 const SECTION_TITLES: Readonly<Record<StitchSectionId, string>> = {
-  basic: 'Alapöltések',
+  basic: 'Alapszemek',
   'increase-decrease': 'Szaporítás és fogyasztás',
-  compound: 'Összetett öltések',
+  compound: 'Összetett szemek',
   structure: 'Láncív és varázskör',
 };
 
-/** Gyorsbillentyű a paletta első kilenc öltésének; a többi kattintással vagy Tabbal érhető el. */
+/** Gyorsbillentyű a paletta első kilenc szemének; a többi kattintással vagy Tabbal érhető el. */
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
 export interface PaletteItem {
@@ -28,7 +28,7 @@ export interface PaletteItem {
   readonly key: string | null;
   /** A név a jelöléssel, nagy kezdőbetűvel, rövidítéssel, pl. „Rövidpálca (rp)”, „Single crochet (sc)”. */
   readonly name: string;
-  /** Összetett öltésnél a szerkezet a jelöléssel, pl. „2 rp egy öltésbe”. */
+  /** Összetett szemnél a szerkezet a jelöléssel, pl. „2 rp egy szembe”. */
   readonly structure: string | null;
 }
 

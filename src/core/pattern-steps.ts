@@ -1,7 +1,7 @@
 /*
  * Az írott minta nyelvfüggetlen lépéssora a gráfból (06 §5.3 pont 5).
  *
- * Rétegenként végigmegyünk az öltéseken a fonal útján, és mindegyiket egy
+ * Rétegenként végigmegyünk a szemeken a fonal útján, és mindegyiket egy
  * lépéssé alakítjuk, amely az előző réteg pozícióihoz képest mondja meg, hová
  * megy. A szöveg (pattern-text.ts) ebből készül, a visszaolvasás
  * (pattern-read.ts) ugyanezt a jelentést olvassa vissza.
@@ -11,9 +11,9 @@
  * - `next`: a kurzor alatti pozíció, utána a kurzor továbblép. Kiírva nincs
  *   helyhatározó: „5 rp” öt egymás utáni pozícióba megy.
  * - `same`: ugyanaz a pozíció, mint az előző célpont. Ha a sor fordulólánca
- *   számít, a sor elején ez a fordulólánc alatti öltés (03 §1.3), és a kurzor
+ *   számít, a sor elején ez a fordulólánc alatti szem (03 §1.3), és a kurzor
  *   ezért az 1. pozíción kezd.
- * - `next-space`: az első láncív a kurzortól; a közbeeső öltéseket kihagyjuk,
+ * - `next-space`: az első láncív a kurzortól; a közbeeső szemeket kihagyjuk,
  *   ahogy a minták is írják („3 erp a következő láncívbe”).
  * - `same-space`, `ring`: az előző láncív, illetve a varázskör.
  * - `none`: nem horgolunk bele semmibe (pikó).
@@ -23,13 +23,14 @@
  * - Visszai soron az első és a hátsó szál, illetve a relief megfordul, mert a
  *   gráf a színoldali látványt tárolja (03 §2.1, 01 §8.4 szabály 21).
  *
- * Nem írható ki még: keresztezett és hosszú öltés, több célpontú öltés
+ * Nem írható ki még: keresztezett és hosszú szem, több célpontú szem
  * fogyasztáson kívül, láncalap nélküli darab, darabok összekapcsolása.
  */
 
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
 import type { StitchLibrary } from './stitch-library.ts';
-import type { Anchor, LayerEvent, NodeId, Pattern, Piece, StitchDef, StitchDefId, StitchInsertion } from './types.ts';
+import { hasBaseChain, traditionOf } from './tradition.ts';
+import type { Anchor, LayerEvent, NodeId, Pattern, Piece, StitchDef, StitchDefId, StitchInsertion, Tradition } from './types.ts';
 
 export type StepTarget = 'next' | 'same' | 'next-space' | 'same-space' | 'ring' | 'none';
 
@@ -41,7 +42,7 @@ export type Step =
       readonly target: StepTarget;
       /** A horgoló felől nézett beszúrás: visszai soron már megfordítva. */
       readonly mode: StitchInsertion;
-      /** Láncszembe vagy öltésbe megy; csak a kiírt helyhatározóhoz kell. */
+      /** Láncszembe vagy szembe megy; csak a kiírt helyhatározóhoz kell. */
       readonly into: 'stitch' | 'chain';
     }
   | {
@@ -63,7 +64,7 @@ export interface WrittenLayer {
   /** Az 1. sor a láncalapon: a horogtól számított hányadik láncszemnél kezd, és mit ér a kihagyott rész. */
   readonly fromHook: { readonly chain: number; readonly countsAs: StitchDefId | null } | null;
   readonly steps: readonly Step[];
-  /** Öltésszám, ahogy a gráf számolja (graph.ts). */
+  /** Szemszám, ahogy a gráf számolja (graph.ts). */
   readonly stitchCount: number;
   readonly closing: LayerEvent['kind'] | null;
   /** A kört záró kúszószem célpontja. */
@@ -94,8 +95,8 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
   const graph = buildPieceGraph(pattern, piece, library);
   const base = graph.layers[0]!;
   const first = base.stitches[0];
-  if (first === undefined) throw new WrittenPatternError(`${piece.name}: láncalap vagy varázskör nélküli darab még nem írható ki.`);
-  if (base.closing !== null) throw new WrittenPatternError(`${piece.name}: esemény a láncalapon még nem írható ki.`, [base.closing.after]);
+  if (first === undefined) throw new WrittenPatternError('A minta láncalappal vagy varázskörrel kezdődik; enélkül még nem írható ki.');
+  if (base.closing !== null) throw new WrittenPatternError('A láncalapon lévő esemény még nem írható ki.', [base.closing.after]);
 
   const onChain = graph.defs.get(first)!.kind === 'chain';
   const row1 = graph.layers[1];
@@ -103,7 +104,7 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
     ? { kind: 'chain', count: base.stitches.length + (row1?.turningChain.length ?? 0) }
     : { kind: 'ring' };
 
-  const layers = graph.layers.slice(1).map((_, i) => writtenLayer(graph, i + 1, onChain, library));
+  const layers = graph.layers.slice(1).map((_, i) => writtenLayer(graph, i + 1, onChain, library, traditionOf(pattern.conventions)));
   return { name: piece.name, foundation, layers };
 }
 
@@ -120,14 +121,20 @@ export function modeAsWorked(mode: StitchInsertion, side: 'right' | 'wrong'): St
   return side === 'wrong' ? FLIPPED[mode] : mode;
 }
 
-/** Aminek a számító fordulólánc számít: a sort kezdő öltés, összetett öltésnél a részöltése. */
+/** Aminek a számító fordulólánc számít: a sort kezdő szem, összetett szemnél a részszeme. */
 export function countsAsOf(def: StitchDef): StitchDefId {
   return def.kind === 'joined' ? def.part : def.id;
 }
 
 type Last = { readonly kind: 'stitch'; readonly w: number } | { readonly kind: 'space'; readonly id: string } | null;
 
-function writtenLayer(graph: PieceGraph, index: number, onChain: boolean, library: StitchLibrary): WrittenLayer {
+function writtenLayer(
+  graph: PieceGraph,
+  index: number,
+  onChain: boolean,
+  library: StitchLibrary,
+  tradition: Tradition,
+): WrittenLayer {
   const layer = graph.layers[index]!;
   const below = graph.layers[index - 1]!;
   const working = layer.direction === 1 ? below.positions : [...below.positions].reverse();
@@ -135,9 +142,11 @@ function writtenLayer(graph: PieceGraph, index: number, onChain: boolean, librar
   const defOf = (id: NodeId) => graph.defs.get(id)!;
   const countsAs = layer.firstStitch !== null && layer.turningChainCounts ? countsAsOf(defOf(layer.firstStitch)) : null;
   const hookRow = index === 1 && onChain;
+  // Japán hagyományban az 1. sor fordulólánca egy alapláncszemen áll; abba nem horgolunk (01 §8.3 szabály 15).
+  const baseChain = hookRow && hasBaseChain(layer.turningChainCounts, tradition);
 
   const steps: Step[] = [];
-  const cursorStart = index >= 2 && layer.turningChainCounts ? 1 : 0;
+  const cursorStart = (index >= 2 || baseChain) && layer.turningChainCounts ? 1 : 0;
   let cursor = cursorStart;
   let last: Last = cursorStart === 1 ? { kind: 'stitch', w: 0 } : null;
 
@@ -151,7 +160,7 @@ function writtenLayer(graph: PieceGraph, index: number, onChain: boolean, librar
     if (anchor.into === 'ring') return { target: 'ring', mode: 'both-loops', into: 'stitch' };
     if (anchor.into === 'space') {
       const chains = graph.spaces.get(anchor.id)!.chains.map((id) => workingIndex.get(id));
-      if (chains.some((w) => w === undefined)) throw unsupported('a láncív nem az előző rétegben van', owner);
+      if (chains.some((w) => w === undefined)) throw unsupported('olyan láncívbe kapaszkodik, amely nincs a megfelelő helyen', owner);
       const min = Math.min(...(chains as number[]));
       const max = Math.max(...(chains as number[]));
       let target: StepTarget;
@@ -165,25 +174,26 @@ function writtenLayer(graph: PieceGraph, index: number, onChain: boolean, librar
         if (passed.size > 0) steps.push({ kind: 'skip', count: passed.size, what: 'space' });
         target = 'next-space';
         cursor = max + 1;
-      } else throw unsupported('a láncív a haladási irány ellen van', owner);
+      } else throw unsupported('a haladási iránnyal szemben lévő láncívbe kapaszkodik', owner);
       last = { kind: 'space', id: anchor.id };
       return { target, mode: 'both-loops', into: 'stitch' };
     }
 
     const w = workingIndex.get(anchor.id);
-    if (w === undefined) throw unsupported('a célpont nem az előző réteg pozíciója', owner);
+    if (w === undefined) throw unsupported('olyan szembe kapaszkodik, amely nincs a megfelelő helyen', owner);
     const mode = modeAsWorked(anchor.mode, layer.side);
     const into = defOf(anchor.id).kind === 'chain' ? 'chain' : 'stitch';
     if (last?.kind === 'stitch' && last.w === w) return { target: 'same', mode, into };
-    if (w < cursor) throw unsupported('a célpont a haladási irány ellen van', owner);
+    if (w < cursor) throw unsupported('a haladási iránnyal szemben lévő szembe kapaszkodik', owner);
     skip(cursor, w);
     cursor = w + 1;
     last = { kind: 'stitch', w };
     return { target: 'next', mode, into };
   };
 
+  const unit = layer.shape === 'round' ? 'kör' : 'sor';
   const unsupported = (reason: string, node: NodeId) =>
-    new WrittenPatternError(`${graph.piece.name}, ${index}. réteg: ${reason}, ez még nem írható ki.`, [node]);
+    new WrittenPatternError(`A(z) ${index}. ${unit} ${reason}.`, [node]);
 
   const handled = new Set<NodeId>();
   const stitches = layer.stitches;
@@ -192,7 +202,7 @@ function writtenLayer(graph: PieceGraph, index: number, onChain: boolean, librar
     if (handled.has(id) || id === layer.joinSlip) continue;
     const node = graph.nodes.get(id)!;
     const def = defOf(id);
-    if (node.flags && node.flags.length > 0) throw unsupported('keresztezett vagy hosszú öltés', id);
+    if (node.flags && node.flags.length > 0) throw unsupported('keresztezett vagy hosszú szemet tartalmaz', id);
 
     if (layer.turningChain.includes(id)) {
       for (const chain of layer.turningChain) handled.add(chain);
@@ -234,7 +244,7 @@ function writtenLayer(graph: PieceGraph, index: number, onChain: boolean, librar
       case 'ring':
       case 'space':
       case 'group':
-        throw unsupported('ez az öltésfajta itt nem állhat', id);
+        throw unsupported('ez a szemfajta itt nem állhat', id);
       default: {
         if (def.kind === 'joined' && def.base === 'spread') {
           const ws = node.anchors.map((anchor) => (anchor.into === 'stitch' ? workingIndex.get(anchor.id) : undefined));
@@ -242,19 +252,19 @@ function writtenLayer(graph: PieceGraph, index: number, onChain: boolean, librar
           const consecutive = start !== undefined && ws.every((w, k) => w === start + k);
           if (!consecutive || ws.length !== def.consumes) throw unsupported('a fogyasztás célpontjai nem egymás utániak', id);
           const first = classify(node.anchors[0]!, id);
-          if (first.target !== 'next') throw unsupported('a fogyasztás egy már használt öltésből indul', id);
+          if (first.target !== 'next') throw unsupported('a fogyasztás egy már használt szemből indul', id);
           cursor = start + ws.length;
           last = { kind: 'stitch', w: cursor - 1 };
           steps.push({ kind: 'stitch', def: def.id, count: 1, ...first });
           break;
         }
-        if (node.anchors.length !== 1) throw unsupported('az öltésnek nem egy célpontja van', id);
+        if (node.anchors.length !== 1) throw unsupported('a szemnek nem egy célpontja van', id);
         steps.push({ kind: 'stitch', def: def.id, count: 1, ...classify(node.anchors[0]!, id) });
       }
     }
   }
 
-  // Kihagyás a sor végén: csak a szándékosan kihagyott öltésekig (03 §10 B8).
+  // Kihagyás a sor végén: csak a szándékosan kihagyott szemekig (03 §10 B8).
   const skippedAtEnd = working.map((id, w) => (w >= cursor && graph.piece.skipped.includes(id) ? w : -1));
   const lastSkipped = Math.max(-1, ...skippedAtEnd);
   if (lastSkipped >= cursor) skip(cursor, lastSkipped + 1);
@@ -273,7 +283,7 @@ function writtenLayer(graph: PieceGraph, index: number, onChain: boolean, librar
     index,
     shape: layer.shape,
     side: layer.side,
-    fromHook: hookRow ? { chain: layer.turningChain.length + 1, countsAs } : null,
+    fromHook: hookRow ? { chain: layer.turningChain.length + (baseChain ? 2 : 1), countsAs } : null,
     steps: foldRepeats(mergeSteps(steps, library)),
     stitchCount: layer.stitchCount,
     closing: layer.closing?.kind ?? null,
@@ -283,7 +293,7 @@ function writtenLayer(graph: PieceGraph, index: number, onChain: boolean, librar
 
 /* ---- Összevonás és ismétlés ---- */
 
-/** Összevonás: „rp, rp, rp” → „3 rp”; egy láncívbe vagy a varázskörbe horgolt öltések egy tételbe. */
+/** Összevonás: „rp, rp, rp” → „3 rp”; egy láncívbe vagy a varázskörbe horgolt szemek egy tételbe. */
 export function mergeSteps(steps: readonly Step[], library: StitchLibrary): Step[] {
   const merged: Step[] = [];
   for (const step of steps) {
@@ -312,7 +322,7 @@ function sameRun(a: Step & { kind: 'stitch' }, b: Step & { kind: 'stitch' }, lib
 /**
  * A legrövidebb ismétlődő egység: az a szomszédos ismétlés, amely a legtöbb
  * lépést takarítja meg. Egyenlő megtakarításnál az az egység nyer, amely nem
- * kihagyással végződik, aztán a későbbi kezdetű: így a szélső öltések az
+ * kihagyással végződik, aztán a későbbi kezdetű: így a szélső szemek az
  * ismétlés előtt állnak, ahogy a minták írják (03 §2.3, §4.2). Az ismétlés
  * előtti és utáni részben tovább keresünk; egymásba ágyazott ismétlés nincs.
  */

@@ -56,11 +56,15 @@ test('írott minta: a téglalap rögzített szövege a panelben, és jelölésv�
   await expect(text).toContainText('22. sor:');
   expect(comparable((await text.textContent())!)).toBe(comparable(await fixture('hu', 'felpalcas-teglalap')));
 
+  // A jelölés szakasza alapból csukva van (PQW-882).
+  await page.locator('#section-notation').evaluate((el) => { (el as HTMLDetailsElement).open = true; });
   await page.locator('#terms').selectOption('en-US');
   await expect(text).toContainText('Row 22:');
   expect(comparable((await text.textContent())!)).toBe(comparable(await fixture('en-US', 'felpalcas-teglalap')));
   await expect(page.locator('#palette')).toContainText('Half double crochet (hdc)');
 
+  // A jelölés szakasza alapból csukva van (PQW-882).
+  await page.locator('#section-notation').evaluate((el) => { (el as HTMLDetailsElement).open = true; });
   await page.locator('#terms').selectOption('en-GB');
   await expect(text).toContainText('Abbreviations (UK terms)');
   await expect(text).toContainText('15 htr (15 sts)');
@@ -81,7 +85,7 @@ test('10 × 10 félpálcás téglalap csak billentyűzettel, hibátlanul', async
   await rectangle(page, '4', 10, 10, 12);
 
   await expect(page.locator('#summary')).toContainText('10 sor.');
-  await expect(page.locator('#summary')).toContainText('10. sor: 10 öltés.');
+  await expect(page.locator('#summary')).toContainText('10. sor: 10 szem.');
   await expect(page.locator('#summary')).toContainText('Nincs hiba és figyelmeztetés.');
   await expect(page.locator('#findings li')).toHaveCount(0);
 });
@@ -92,7 +96,7 @@ test('a minta újratöltés után megmarad, és JSON-ként visszatölthető', as
   await page.keyboard.press('1');
   await rectangle(page, '3', 5, 2, 6);
   const before = await page.locator('#summary').textContent();
-  expect(before).toContain('2. sor: 5 öltés.');
+  expect(before).toContain('2. sor: 5 szem.');
 
   await page.reload();
   await expect(page.locator('#summary')).toHaveText(before!);
@@ -131,4 +135,105 @@ test('PNG és SVG export jelmagyarázattal', async ({ page }) => {
   const png = await readFile((await pngDownload.path())!);
   expect(png.subarray(1, 4).toString()).toBe('PNG');
   expect(png.length).toBeGreaterThan(2000);
+});
+
+/* ---- Japán előbeállítás (PQW-876) ---- */
+
+test('japán előbeállítással a félpálcás téglalap a japán szabály szerint hibátlan, és a minta megjegyzi', async ({ page }) => {
+  await open(page);
+  // A jelölés szakasza alapból csukva van (PQW-882).
+  await page.locator('#section-notation').evaluate((el) => { (el as HTMLDetailsElement).open = true; });
+  await page.locator('#tradition').selectOption('japanese');
+  await expect(page.locator('#chart-style')).toHaveValue('jis');
+  await expect(page.locator('#status')).toContainText('Előbeállítás: japán');
+
+  // 12 láncszem: a félpálca a 4. láncszemtől, 9 félpálca és a számító fordulólánc = 10 szem.
+  await page.locator('#board').focus();
+  await page.keyboard.press('1');
+  await rectangle(page, '4', 9, 3, 12);
+
+  await expect(page.locator('#summary')).toContainText('3. sor: 10 szem.');
+  await expect(page.locator('#summary')).toContainText('Nincs hiba és figyelmeztetés.');
+  const text = page.locator('#written-text');
+  await expect(text).toContainText('a horogtól számított 4. láncszemtől kezdve');
+  await expect(text).toContainText('2 lsz (1 fp-nek számít)');
+
+  await page.reload();
+  await expect(page.locator('#tradition')).toHaveValue('japanese');
+  await expect(page.locator('#summary')).toContainText('Nincs hiba és figyelmeztetés.');
+});
+
+/* ---- Vezetett horgolás (PQW-879) ---- */
+
+/** Láncalap a megadott láncszemszámmal, csak billentyűvel. */
+async function foundation(page: Page, chains: number): Promise<void> {
+  await page.locator('#board').focus();
+  await page.keyboard.press('1');
+  await page.locator('#chain-count').focus();
+  await page.keyboard.press('ControlOrMeta+A');
+  await page.keyboard.type(String(chains));
+  await page.locator('#board').focus();
+  await page.keyboard.press('Enter');
+}
+
+test('a láncalapra a vezetett kurzorral hibátlan rövidpálcás sor készül', async ({ page }) => {
+  await open(page);
+  await foundation(page, 12);
+  await page.keyboard.press('3'); // rövidpálca
+  // Enterrel végig: a kurzor mindig a következő szabad célpontra ugrik a haladási irányban.
+  for (let i = 0; i < 11; i += 1) await page.keyboard.press('Enter');
+
+  await expect(page.locator('#summary')).toContainText('1. sor: 11 szem');
+  await expect(page.locator('#summary')).toContainText('Nincs hiba és figyelmeztetés.');
+  await expect(page.locator('#findings li')).toHaveCount(0);
+});
+
+test('foglalt célpontnál kérdés jön, és a „Mégse” után nem kerül le szem', async ({ page }) => {
+  await open(page);
+  await foundation(page, 12);
+  await page.keyboard.press('4'); // félpálca
+  await page.keyboard.press('Enter'); // egy szem
+  await expect(page.locator('#summary')).toContainText('1. sor: 1 szem');
+
+  // A kurzort a most horgolt (foglalt) célpontra visszük.
+  await page.locator('#board').focus();
+  let onUsed = false;
+  for (const key of ['ArrowRight', 'ArrowLeft', 'ArrowLeft', 'Home', 'End', 'ArrowRight']) {
+    await page.keyboard.press(key);
+    if (/már horgoltál bele/.test((await page.locator('#status').textContent()) ?? '')) {
+      onUsed = true;
+      break;
+    }
+  }
+  expect(onUsed).toBe(true);
+
+  await page.keyboard.press('Enter');
+  const dialog = page.locator('dialog.ask');
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('már horgoltál');
+  await dialog.getByRole('button', { name: 'Mégse' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.locator('#status')).toHaveText('Nem került le szem.');
+  await expect(page.locator('#summary')).toContainText('1. sor: 1 szem');
+
+  // „Szaporítás” után viszont lekerül a szem.
+  await page.locator('#board').focus();
+  await page.keyboard.press('Enter');
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Szaporítás' }).click();
+  await expect(page.locator('#summary')).toContainText('1. sor: 2 szem');
+});
+
+test('a „Sor kitöltése” egy lépésben kitölti a sort, és egy lépésben visszavonható', async ({ page }) => {
+  await open(page);
+  await foundation(page, 12);
+  await page.keyboard.press('4'); // félpálca
+  await page.getByRole('button', { name: 'Sor kitöltése' }).click();
+  await expect(page.locator('#summary')).toContainText('1. sor: 10 szem');
+  await expect(page.locator('#summary')).toContainText('Nincs hiba és figyelmeztetés.');
+
+  // Egy visszavonás az egész kitöltést visszaveszi.
+  await page.getByRole('button', { name: 'Visszavonás' }).click();
+  await expect(page.locator('#summary')).not.toContainText('1. sor: 10 szem');
+  await expect(page.locator('#summary')).toContainText('1. sor következik.');
 });

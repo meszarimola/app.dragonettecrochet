@@ -12,13 +12,14 @@
  * beállítástól, a sor felülírást kap.
  *
  * Eltérés esetén a hiba a szöveg sorszámát és a hibás részt nevezi meg, és a
- * sor végi öltésszámot is összeveti a visszaolvasott gráf számolásával.
+ * sor végi szemszámot is összeveti a visszaolvasott gráf számolásával.
  */
 
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
 import { modeAsWorked, type Step, type StepTarget } from './pattern-steps.ts';
 import { VOCABULARIES, isDecrease, isIncrease, refOf, renderStep, type PhraseKey, type Vocabulary } from './pattern-text.ts';
 import type { StitchLibrary } from './stitch-library.ts';
+import { traditionOf, turningChainCountsFor } from './tradition.ts';
 import type {
   Anchor,
   LayerEvent,
@@ -195,7 +196,7 @@ function parseItem(text: string, line: number, options: ReadOptions, vocabulary:
   throw new ReadFailure(line, `Nem értelmezhető tétel: „${text}”.`);
 }
 
-/** A szövegrész, amelynek egy öltés tételében mindenképp szerepelnie kell; ezzel szűrjük a jelölteket. */
+/** A szövegrész, amelynek egy szem tételében mindenképp szerepelnie kell; ezzel szűrjük a jelölteket. */
 function probe(def: StitchDef, library: StitchLibrary, locale: Locale): string {
   if (def.kind === 'group' && isIncrease(def)) return refOf(library.get(def.members[0]!) ?? def, locale);
   if (def.kind === 'joined' && isDecrease(def)) return locale === 'hu' ? refOf(library.get(def.part) ?? def, locale) : 'tog';
@@ -229,7 +230,7 @@ class PieceReader {
   private readonly skipped: NodeId[] = [];
   private previous: NodeId | null = null;
   private foundation: 'chain' | 'ring' = 'chain';
-  /** Rétegenként a szöveg sora, az öltésszám hibájához. */
+  /** Rétegenként a szöveg sora, a szemszám hibájához. */
   private readonly layerLines = new Map<number, number>();
 
   constructor(id: string, lines: readonly Line[], options: ReadOptions, vocabulary: Vocabulary, title: string) {
@@ -281,11 +282,11 @@ class PieceReader {
 
   private byKind(kind: StitchDef['kind']): StitchDef {
     const def = [...this.options.library.values()].find((candidate) => candidate.kind === kind);
-    if (!def) throw new Error(`A könyvtárban nincs ilyen fajtájú öltés: ${kind}`);
+    if (!def) throw new Error(`A könyvtárban nincs ilyen fajtájú szem: ${kind}`);
     return def;
   }
 
-  /** Hány öltés kapott célpontot eddig a darabban; a sor széli kihagyás felismeréséhez. */
+  /** Hány szem kapott célpontot eddig a darabban; a sor széli kihagyás felismeréséhez. */
   private anchoredCount = 0;
 
   private add(def: StitchDef, anchors: readonly Anchor[]): NodeId {
@@ -336,7 +337,7 @@ class PieceReader {
     };
     this.layerLines.set(index, header.line);
 
-    // A sor vége: esemény, öltésszám.
+    // A sor vége: esemény, szemszám.
     let body = header.body;
     const slip = this.byKind('slip');
     const endings: [string, LayerEvent['kind'], 'turning-chain' | 'first-stitch' | null][] = [
@@ -352,7 +353,7 @@ class PieceReader {
 
     const countMatch = /^(.*) (\(\d+ [^()]+\))\.$/.exec(body);
     const stated = Number(/\d+/.exec(countMatch?.[2] ?? '')?.[0]);
-    if (!countMatch || countMatch[2] !== v.count(stated)) fail('Hiányzik az öltésszám a sor végén, pl. „(15 öltés).”');
+    if (!countMatch || countMatch[2] !== v.count(stated)) fail('Hiányzik a szemszám a sor végén, pl. „(15 szem).”');
     body = countMatch![1]!;
 
     // Az előző réteg pozíciói a haladási irányban.
@@ -402,7 +403,7 @@ class PieceReader {
           return ring ? [{ into: 'ring', id: ring.id }] : missing('Nincs varázskör');
         }
         case 'same':
-          if (state.last?.kind !== 'stitch') return missing('Nincs előző öltés');
+          if (state.last?.kind !== 'stitch') return missing('Nincs előző szem');
           return [{ into: 'stitch', id: working[state.last.w]!, mode: modeAsWorked(mode, side) }];
         case 'same-space':
           if (state.last?.kind !== 'space') return missing('Nincs előző láncív');
@@ -418,7 +419,7 @@ class PieceReader {
           return missing('Nincs következő láncív');
         }
         case 'next': {
-          if (state.cursor + consumes > working.length) return missing('Nincs több öltés az előző sorban');
+          if (state.cursor + consumes > working.length) return missing('Nincs több szem az előző sorban');
           const anchors = working
             .slice(state.cursor, state.cursor + consumes)
             .map((id): Anchor => ({ into: 'stitch', id, mode: modeAsWorked(mode, side) }));
@@ -451,14 +452,14 @@ class PieceReader {
             }
             return;
           }
-          if (state.cursor + step.count > working.length) fail(`Nincs ennyi kihagyható öltés az előző sorban: „${item}”.`);
+          if (state.cursor + step.count > working.length) fail(`Nincs ennyi kihagyható szem az előző sorban: „${item}”.`);
           skips.push({ positions: working.slice(state.cursor, state.cursor + step.count), anchoredBefore: this.anchoredCount });
           state.cursor += step.count;
           return;
         }
         case 'group': {
           const def = library.get(step.def);
-          if (def?.kind !== 'group') return fail(`Ismeretlen összetett öltés: „${item}”.`);
+          if (def?.kind !== 'group') return fail(`Ismeretlen összetett szem: „${item}”.`);
           const anchor = resolve(step.target, step.mode, item);
           const members = def.members.map((memberId) => {
             const member = library.get(memberId)!;
@@ -494,8 +495,7 @@ class PieceReader {
     const hasTurning = turning !== undefined || (index === 1 && this.foundation === 'chain' && working.length < below.positions.length);
     if (hasTurning && firstStitch !== undefined) {
       const firstDef = library.get(this.node(firstStitch).def)!;
-      const setting = conventions.turningChainCounts;
-      const expected = setting === 'stitch-default' ? firstDef.turningChainCounts : setting;
+      const expected = turningChainCountsFor(conventions.turningChainCounts, firstDef, traditionOf(conventions));
       if (expected !== textCounts) {
         if (opening === null) fail('Az 1. sor fordulóláncának számolása eltér a minta beállításától.');
         this.events[this.events.length - 1] = { ...opening!, conventions: { ...opening!.conventions, turningChainCounts: textCounts } };
@@ -515,7 +515,7 @@ class PieceReader {
     }
   }
 
-  /** Az esemény nélküli utolsó sor öltésszáma; a darab végén vetjük össze. */
+  /** Az esemény nélküli utolsó sor szemszáma; a darab végén vetjük össze. */
   private pendingCount: { index: number; stated: number } | null = null;
 
   private node(id: NodeId): StitchNode {
@@ -530,7 +530,7 @@ class PieceReader {
       if (stated !== undefined && stated !== layer.stitchCount) {
         throw new ReadFailure(
           this.layerLines.get(layer.index) ?? 0,
-          `${layer.index}. ${layer.shape === 'row' ? 'sor' : 'kör'}: a szöveg ${stated} öltést ír, a visszaolvasott gráf szerint ${layer.stitchCount}.`,
+          `${layer.index}. ${layer.shape === 'row' ? 'sor' : 'kör'}: a szöveg ${stated} szemet ír, a visszaolvasott gráf szerint ${layer.stitchCount}.`,
         );
       }
     }

@@ -1,23 +1,23 @@
 /*
- * Mintasűrűség (gauge) és öltésméret (PQW-859).
+ * Mintasűrűség (gauge) és szemméret (PQW-859).
  *
- * Az öltés mérete két forrásból jön:
+ * A szem mérete két forrásból jön:
  * - a horgoló mért gauge-profiljából (`gauge-profile.ts`, docs/calibration/);
  * - mérés nélkül a tűméretből, becslésként, tartománnyal (02 §4.2, §8).
  *
  * A gauge-et abban a formában kell mérni, ahogy használjuk: sorokhoz sík
  * próbadarabon, körökhöz csövön vagy lapos körön (README §4.2). Ezért a
- * profilban öltésenként és formánként van mérés, és a becslés a sorhoz és a
+ * profilban szemenként és formánként van mérés, és a becslés a sorhoz és a
  * körhöz más magasság/szélesség arányt használ.
  */
 
 import type { GaugeProfile, StitchGauge, WorkedIn } from './gauge-profile.ts';
 import type { Quantity, Range } from './quantity.ts';
-import { divide, estimate, inverse, measured, multiply, roundCount } from './quantity.ts';
+import { divide, estimate, fromLabel, inverse, measured, multiply, roundCount } from './quantity.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import type { StitchDef } from './types.ts';
 
-/* ---- Gauge mint szám: öltés és sor adott hosszon ---- */
+/* ---- Gauge mint szám: szem és sor adott hosszon ---- */
 
 /** Pl. „14 rp × 17 sor = 10 cm” (02 §3.1, §8). */
 export interface Gauge {
@@ -37,7 +37,7 @@ export function rowHeightMm(gauge: Gauge): number {
   return (gauge.overCm * 10) / gauge.rows;
 }
 
-/** Öltésszám egy szélességhez, egészre kerekítve; a mintaismétlésre kerekítés máshol történik (02 §8). */
+/** Szemszám egy szélességhez, egészre kerekítve; a mintaismétlésre kerekítés máshol történik (02 §8). */
 export function stitchesForWidth(widthCm: number, gauge: Gauge): number {
   return Math.round((widthCm * gauge.stitches) / gauge.overCm);
 }
@@ -55,7 +55,7 @@ export function heightForRows(rows: number, gauge: Gauge): number {
   return (rows * gauge.overCm) / gauge.rows;
 }
 
-/** A sűrűség relatív eltérése a céltól; pozitív, ha sűrűbb (több öltés ugyanazon a hosszon). */
+/** A sűrűség relatív eltérése a céltól; pozitív, ha sűrűbb (több szem ugyanazon a hosszon). */
 export function gaugeDeviation(actual: Gauge, target: Gauge): { readonly stitches: number; readonly rows: number } {
   const density = (count: number, overCm: number) => count / overCm;
   const relative = (a: number, b: number) => (a - b) / b;
@@ -66,16 +66,16 @@ export function gaugeDeviation(actual: Gauge, target: Gauge): { readonly stitche
 }
 
 /**
- * Egyezik-e az öltés-gauge a céllal a tűrésen belül (02 §8 `gaugeMatches`).
+ * Egyezik-e a szem-gauge a céllal a tűrésen belül (02 §8 `gaugeMatches`).
  * A sor-gauge-et nem nézi: azt a hurok emelésével igazítják, nem tűvel (02 §3.5).
  */
 export function gaugeMatches(actual: Gauge, target: Gauge, tolerance = GAUGE_TOLERANCE): boolean {
   return Math.abs(gaugeDeviation(actual, target).stitches) <= tolerance;
 }
 
-/* ---- Öltésméret mennyiségként ---- */
+/* ---- Szemméret mennyiségként ---- */
 
-/** Egységnyi méretből (mm) darab 10 cm-en: öltés/10 cm vagy sor/10 cm. */
+/** Egységnyi méretből (mm) darab 10 cm-en: szem/10 cm vagy sor/10 cm. */
 export function per10cm(sizeMm: Quantity): Quantity {
   return inverse(100, sizeMm);
 }
@@ -87,7 +87,7 @@ export function countForLength(lengthMm: number, unitMm: Quantity): Quantity {
 
 /**
  * A rövidpálca szélessége a tű átmérőjéhez képest: 1,41 (1,2–1,7). A
- * CYC-táblázatból (öltés/4" ≈ 72 / tű mm) és címkeadatokból (02 §3.4, §4.2).
+ * CYC-táblázatból (szem/4" ≈ 72 / tű mm) és címkeadatokból (02 §3.4, §4.2).
  */
 export const SC_WIDTH_PER_HOOK_MM = estimate(1.41, [1.2, 1.7]);
 
@@ -100,7 +100,7 @@ export const SC_ASPECT_ROWS = estimate(0.8, [0.75, 0.95]);
  */
 export const SC_ASPECT_ROUNDS = estimate(1, [0.75, 1.2]);
 
-/** Más öltés szélessége a rövidpálcáéhoz képest: nagyjából azonos (02 §4.2). */
+/** Más szem szélessége a rövidpálcáéhoz képest: nagyjából azonos (02 §4.2). */
 export const WIDTH_RATIO = estimate(1, [0.9, 1.1]);
 
 /**
@@ -128,7 +128,7 @@ const HEIGHT_FACTOR_RANGES: Readonly<Partial<Record<number, Range>>> = {
 const CHAIN_HEIGHT_RANGE: Range = [0.3, 1];
 
 /**
- * Az öltés valós magassága a rövidpálcához képest, mennyiségként. Becsült
+ * A szem valós magassága a rövidpálcához képest, mennyiségként. Becsült
  * könyvtári értéknél tartománnyal; mért vagy címkéről vett értéket változatlanul ad.
  */
 export function stitchHeightFactor(def: StitchDef): Quantity {
@@ -139,19 +139,19 @@ export function stitchHeightFactor(def: StitchDef): Quantity {
   return estimate(value, [Math.min(min, value), Math.max(max, value)]);
 }
 
-/** Magasság átszámolása egyik öltésről a másikra, pl. rövidpálcás sorból pálcás sor (02 §4.2, §8). */
+/** Magasság átszámolása egyik szemről a másikra, pl. rövidpálcás sorból pálcás sor (02 §4.2, §8). */
 export function scaleRowHeight(heightMm: Quantity, fromFactor: Quantity, toFactor: Quantity): Quantity {
   return multiply(divide(heightMm, fromFactor), toFactor);
 }
 
-/* ---- Öltésméret a profilból vagy a tűből ---- */
+/* ---- Szemméret a profilból vagy a tűből ---- */
 
 export type LayerShape = 'row' | 'round';
 
 /**
- * Honnan jön az öltés mérete, a legmegbízhatóbbtól:
- * - `measured`: ez az öltés ebben a formában mérve;
- * - `profile-stitch`: más öltés ugyanebben a formában mérve, aránnyal átszámolva;
+ * Honnan jön a szem mérete, a legmegbízhatóbbtól:
+ * - `measured`: ez a szem ebben a formában mérve;
+ * - `profile-stitch`: más szem ugyanebben a formában mérve, aránnyal átszámolva;
  * - `profile-other-form`: rövidpálca a másik formában mérve (sík vagy kör);
  * - `hook`: nincs használható mérés, a tűméretből becsülve.
  */
@@ -160,7 +160,7 @@ export type DimensionBasis = 'measured' | 'profile-stitch' | 'profile-other-form
 export const DIMENSION_BASES: readonly DimensionBasis[] = ['measured', 'profile-stitch', 'profile-other-form', 'hook'];
 
 export interface StitchDimensions {
-  /** Sorban a szélesség, körben az öltés része a kerületből. */
+  /** Sorban a szélesség, körben a szem része a kerületből. */
   readonly widthMm: Quantity;
   /** Sorban a sor magassága, körben a sugár növekedése. */
   readonly heightMm: Quantity;
@@ -186,9 +186,14 @@ const OTHER_FORMS: Readonly<Record<LayerShape, readonly WorkedIn[]>> = {
   round: FORMS.row,
 };
 
-/** Az összehorgolt öltést a részöltése méri, pl. `sc2tog` → `sc`. */
+/** Az összehorgolt szemet a részszeme méri, pl. `sc2tog` → `sc`. */
 function measurementKey(def: StitchDef): string {
   return def.kind === 'joined' ? def.part : def.id;
+}
+
+/** A profil értéke a saját eredetével: mért, vagy a felületen megadott címkeadat (PQW-859). */
+function fromGauge(gauge: StitchGauge, value: number): Quantity {
+  return gauge.source === 'label' ? fromLabel(value) : measured(value);
 }
 
 function measuredGauge(profile: GaugeProfile | null, key: string, forms: readonly WorkedIn[]): StitchGauge | null {
@@ -205,16 +210,16 @@ function measuredGauge(profile: GaugeProfile | null, key: string, forms: readonl
 function singleCrochetBase(shape: LayerShape, context: GaugeContext): StitchDimensions {
   const { library, profile } = context;
   const sc = measuredGauge(profile, 'sc', FORMS[shape]);
-  if (sc) return { widthMm: measured(sc.widthMm.mean), heightMm: measured(sc.heightMm.mean), basis: 'measured' };
+  if (sc) return { widthMm: fromGauge(sc, sc.widthMm.mean), heightMm: fromGauge(sc, sc.heightMm.mean), basis: 'measured' };
 
-  // Más alapöltés ugyanebben a formában: a magasságarányával visszaszámolva (02 §8 `estimateRowHeightCm`).
+  // Más alapszem ugyanebben a formában: a magasságarányával visszaszámolva (02 §8 `estimateRowHeightCm`).
   for (const key of Object.keys(profile?.perStitch ?? {})) {
     const def = library.get(key);
     const gauge = def?.kind === 'basic' ? measuredGauge(profile, key, FORMS[shape]) : null;
     if (!def || !gauge) continue;
     return {
-      widthMm: multiply(measured(gauge.widthMm.mean), WIDTH_RATIO),
-      heightMm: divide(measured(gauge.heightMm.mean), stitchHeightFactor(def)),
+      widthMm: multiply(fromGauge(gauge, gauge.widthMm.mean), WIDTH_RATIO),
+      heightMm: divide(fromGauge(gauge, gauge.heightMm.mean), stitchHeightFactor(def)),
       basis: 'profile-stitch',
     };
   }
@@ -222,20 +227,20 @@ function singleCrochetBase(shape: LayerShape, context: GaugeContext): StitchDime
   const aspect = shape === 'row' ? SC_ASPECT_ROWS : SC_ASPECT_ROUNDS;
   const other = measuredGauge(profile, 'sc', OTHER_FORMS[shape]);
   const widthMm = other
-    ? multiply(measured(other.widthMm.mean), WIDTH_RATIO)
+    ? multiply(fromGauge(other, other.widthMm.mean), WIDTH_RATIO)
     : multiply(measured(profile?.hookMm ?? context.hookMm), SC_WIDTH_PER_HOOK_MM);
   return { widthMm, heightMm: multiply(widthMm, aspect), basis: other ? 'profile-other-form' : 'hook' };
 }
 
 /**
- * Egy öltés mérete sorban vagy körben. A pikónak, a láncívnek és a
+ * Egy szem mérete sorban vagy körben. A pikónak, a láncívnek és a
  * varázskörnek nincs saját mérete: `null`.
  */
 export function stitchDimensions(def: StitchDef, shape: LayerShape, context: GaugeContext): StitchDimensions | null {
   if (def.kind === 'picot' || def.kind === 'space' || def.kind === 'ring') return null;
 
   const own = measuredGauge(context.profile, measurementKey(def), FORMS[shape]);
-  if (own) return { widthMm: measured(own.widthMm.mean), heightMm: measured(own.heightMm.mean), basis: 'measured' };
+  if (own) return { widthMm: fromGauge(own, own.widthMm.mean), heightMm: fromGauge(own, own.heightMm.mean), basis: 'measured' };
 
   const base = singleCrochetBase(shape, context);
   const chainLength = context.profile?.chainLengthMm;
