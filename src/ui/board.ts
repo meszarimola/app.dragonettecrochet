@@ -16,7 +16,7 @@
 import { aimAt, gridHit, type ChartGrid } from '../core/grid.js';
 import type { ChartLayout, Point } from '../core/layout.js';
 import type { StitchLibrary } from '../core/stitch-library.js';
-import type { Finding, NodeId, Tradition } from '../core/types.js';
+import type { Finding, NodeId, StitchInsertion, Tradition } from '../core/types.js';
 import { chartLabels } from './chart-labels.js';
 import { gridPaths, LINE_WIDTH, type GridPaths } from './grid-paths.js';
 import { applyInk, drawShapes, placedShapes, type SymbolOptions } from './symbols.js';
@@ -52,6 +52,8 @@ export interface Scene {
   readonly direction: DirectionArrow | null;
   /** A jelek stílusa és a rövidpálca jele (PQW-868). */
   readonly symbols: SymbolOptions;
+  /** A szemek tárolt, színoldali beszúrási módja a talp jelöléséhez (PQW-869); hiányában a szem alapértelmezése. */
+  readonly insertions?: ReadonlyMap<NodeId, StitchInsertion>;
   /** A rács (PQW-874), vagy `null`, ha ki van kapcsolva. */
   readonly grid: ChartGrid | null;
   /** A minta hagyománya a sorszám és a szemszám feliratához (PQW-876); hiányában CYC. */
@@ -310,7 +312,8 @@ export class Board {
       const def = scene.library.get(node.def);
       if (!def) continue;
       applyInk(ctx, colors[node.side], line);
-      drawShapes(ctx, placedShapes(def, node, scene.symbols));
+      const insertion = scene.insertions?.get(node.id);
+      drawShapes(ctx, placedShapes(def, node, insertion ? { ...scene.symbols, insertion } : scene.symbols));
     }
 
     // A sorszám a sor színével teli címkén, világos betűvel: a jelek mellett is kiugrik.
