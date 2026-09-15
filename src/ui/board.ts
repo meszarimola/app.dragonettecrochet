@@ -6,11 +6,17 @@
  * a nézet léptéke és eltolása viszi, a HiDPI-felbontást a kontextus
  * léptékezése intézi. A vászon nem tud a mintáról, csak a jelenetről, amelyet a
  * main.ts ad át.
+ *
+ * A rács (PQW-874) a jelek alatt rajzolódik, és a nézettel együtt
+ * skálázódik; a vonalai a képernyőn állandó vastagságúak. A sorszám a sor
+ * színével teli címkén áll, és önálló, kattintható célterület.
  */
 
+import { aimAt, gridHit, type ChartGrid } from '../core/grid.js';
 import type { ChartLayout, Point } from '../core/layout.js';
 import type { StitchLibrary } from '../core/stitch-library.js';
 import type { Finding, NodeId } from '../core/types.js';
+import { gridPaths, LINE_WIDTH, type GridPaths } from './grid-paths.js';
 import { applyInk, drawShapes, placedShapes, type SymbolOptions } from './symbols.js';
 
 export interface Target {
@@ -38,6 +44,8 @@ export interface Scene {
   readonly direction: DirectionArrow | null;
   /** A jelek stílusa és a rövidpálca jele (PQW-868). */
   readonly symbols: SymbolOptions;
+  /** A rács (PQW-874), vagy `null`, ha ki van kapcsolva. */
+  readonly grid: ChartGrid | null;
 }
 
 interface View {
@@ -46,10 +54,22 @@ interface View {
   y: number;
 }
 
+/** A sorszám címkéje diagram-koordinátában. */
+interface Label {
+  readonly layer: number;
+  readonly x0: number;
+  readonly y0: number;
+  readonly x1: number;
+  readonly y1: number;
+}
+
 const MIN_SCALE = 0.3;
 const MAX_SCALE = 4;
 /** Ennyi képernyőpixelen belül talál a kattintás célpontot vagy jelet. */
 const HIT = 16;
+const LABEL_HEIGHT = 16;
+/** A sorszám célterülete a képernyőn legalább ekkora (WCAG 2.5.8). */
+const MIN_TARGET = 24;
 
 function token(element: Element, name: string): string {
   return getComputedStyle(element).getPropertyValue(name).trim();
@@ -60,6 +80,9 @@ export class Board {
   readonly #ctx: CanvasRenderingContext2D;
   readonly #view: View = { scale: 1.5, x: 40, y: 200 };
   #scene: Scene | null = null;
+  #labels: Label[] = [];
+  /** A rács útvonalai; csak új rácsnál számoljuk újra, eltoláskor nem. */
+  #paths: { readonly grid: ChartGrid; readonly paths: GridPaths } | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d');
@@ -86,6 +109,13 @@ export class Board {
     return { x: (clientX - rect.left - x) / scale, y: (clientY - rect.top - y) / scale };
   }
 
+  /** Diagram-koordinátából ablak-koordináta. */
+  toClient(p: Point): Point {
+    const rect = this.#canvas.getBoundingClientRect();
+    const s = this.#toScreen(p);
+    return { x: s.x + rect.left, y: s.y + rect.top };
+  }
+
   #toScreen(p: Point): Point {
     const { scale, x, y } = this.#view;
     return { x: p.x * scale + x, y: p.y * scale + y };
@@ -95,6 +125,45 @@ export class Board {
   targetAt(clientX: number, clientY: number): number | null {
     const targets = this.#scene?.targets ?? [];
     return this.#nearest(clientX, clientY, targets.map((target) => target.point));
+  }
+
+  /**
+   * A mutató alatti célpont. Bekapcsolt rácson a cella dönt (PQW-874): ahol
+   * nincs mibe horgolni, az üzenet jön vissza. A rácson kívül és rács nélkül
+   * a legközelebbi célpont.
+   */
+  aimUnder(clientX: number, clientY: number): number | string | null {
+    const grid = this.#scene?.grid;
+    if (grid) {
+      const hit = gridHit(grid, this.toChart(clientX, clientY));
+      if (hit) {
+        const aim = aimAt(grid, hit);
+        return aim.kind === 'target' ? aim.slot : aim.message;
+      }
+    }
+    return this.targetAt(clientX, clientY);
+  }
+
+  /** A sorszám a mutató alatt: a sor vagy kör száma, vagy `null`. */
+  labelAt(clientX: number, clientY: number): number | null {
+    const p = this.toChart(clientX, clientY);
+    const pad = (size: number) => Math.max(0, (MIN_TARGET / this.#view.scale - size) / 2);
+    const label = this.#labels.find((l) => {
+      const [px, py] = [pad(l.x1 - l.x0), pad(l.y1 - l.y0)];
+      return p.x >= l.x0 - px && p.x <= l.x1 + px && p.y >= l.y0 - py && p.y <= l.y1 + py;
+    });
+    return label?.layer ?? null;
+  }
+
+  /** A sorszámok közepe ablak-koordinátában (böngészős tesztekhez). */
+  labels(): { layer: number; x: number; y: number }[] {
+    return this.#labels.map((l) => ({ layer: l.layer, ...this.toClient({ x: (l.x0 + l.x1) / 2, y: (l.y0 + l.y1) / 2 }) }));
+  }
+
+  /** A rács cellái ablak-koordinátában (böngészős tesztekhez). */
+  gridCells(): { layer: number; index: number; slot: number | null; x: number; y: number }[] {
+    const cells = this.#scene?.grid?.cells ?? [];
+    return cells.map((cell) => ({ layer: cell.layer, index: cell.index, slot: cell.slot, ...this.toClient(cell.center) }));
   }
 
   /** A legközelebbi jel a mutató alatt (a teteje vagy a középpontja). */
@@ -188,8 +257,12 @@ export class Board {
       error: token(canvas, '--c-error'),
       warning: token(canvas, '--c-warning'),
       muted: token(canvas, '--c-muted'),
+      text: token(canvas, '--c-text'),
+      background: token(canvas, '--c-bg'),
     };
     const line = Math.max(1.5, 1 / scale);
+
+    if (scene.grid) this.#drawGrid(scene.grid, scale);
 
     for (const node of scene.layout.nodes.values()) {
       const def = scene.library.get(node.def);
@@ -198,21 +271,38 @@ export class Board {
       drawShapes(ctx, placedShapes(def, node, scene.symbols));
     }
 
+    // A sorszám a sor színével teli címkén, világos betűvel: a jelek mellett is kiugrik.
     ctx.font = `700 12px Karla, system-ui, sans-serif`;
     ctx.textBaseline = 'middle';
+    this.#labels = [];
     for (const layer of scene.layout.layers) {
       if (layer.index === 0) continue;
       const rightwards = layer.start.x <= layer.end.x;
+      const text = String(layer.index);
+      const labelWidth = ctx.measureText(text).width + 10;
+      const x0 = rightwards ? layer.start.x + 4 - labelWidth : layer.start.x - 4;
+      const label: Label = {
+        layer: layer.index,
+        x0,
+        x1: x0 + labelWidth,
+        y0: layer.start.y - LABEL_HEIGHT / 2,
+        y1: layer.start.y + LABEL_HEIGHT / 2,
+      };
+      this.#labels.push(label);
       applyInk(ctx, colors[layer.side], line);
-      ctx.textAlign = rightwards ? 'right' : 'left';
-      ctx.fillText(String(layer.index), layer.start.x, layer.start.y);
-      applyInk(ctx, colors.muted, line);
+      ctx.beginPath();
+      ctx.roundRect(label.x0, label.y0, labelWidth, LABEL_HEIGHT, 4);
+      ctx.fill();
+      applyInk(ctx, colors.background, line);
+      ctx.textAlign = 'center';
+      ctx.fillText(text, (label.x0 + label.x1) / 2, layer.start.y);
+      applyInk(ctx, colors.text, line);
       ctx.textAlign = rightwards ? 'left' : 'right';
       ctx.fillText(`(${layer.stitchCount})`, layer.end.x, layer.end.y);
     }
 
-    // A most horgolt sor iránynyila: a sor elejéről a haladási irányba mutat (PQW-879).
-    if (scene.direction) this.#drawDirection(scene.direction, colors.accent, scale);
+    // A most horgolt sor iránynyila: a sor elejéről a haladási irányba mutat (PQW-879), a sorszám mellől.
+    if (scene.direction) this.#drawDirection(this.#besideLabel(scene.direction), colors.accent, scale);
 
     // Hibák és figyelmeztetések a jelen: a hiba teli, a figyelmeztetés szaggatott karika, nem csak színben tér el.
     for (const finding of scene.findings) {
@@ -257,6 +347,35 @@ export class Board {
         ctx.fill();
       }
     });
+  }
+
+  /** A rács: váltakozó színű sávok, halvány cellavonalak, erősebb sorhatár, hangsúlyos 5. és 10. vonal. */
+  #drawGrid(grid: ChartGrid, scale: number): void {
+    const ctx = this.#ctx;
+    const canvas = this.#canvas;
+    if (this.#paths?.grid !== grid) this.#paths = { grid, paths: gridPaths(grid) };
+    const { bands, lines } = this.#paths.paths;
+    const tones = [token(canvas, '--c-row-a'), token(canvas, '--c-row-b')];
+    for (const band of bands) {
+      applyInk(ctx, tones[band.tone]!, 1);
+      ctx.fill(new Path2D(band.d), band.evenOdd ? 'evenodd' : 'nonzero');
+    }
+    const strong = token(canvas, '--c-grid-strong');
+    const stroke = { cell: token(canvas, '--c-grid'), row: token(canvas, '--c-grid-row'), five: strong, ten: strong };
+    for (const path of lines) {
+      applyInk(ctx, stroke[path.weight], LINE_WIDTH[path.weight] / scale);
+      ctx.setLineDash(path.dashed ? [4 / scale, 3 / scale] : []);
+      ctx.stroke(new Path2D(path.d));
+    }
+    ctx.setLineDash([]);
+  }
+
+  /** A nyíl a sorszám címkéjének belső széléről indul, hogy ne takarja a számot. */
+  #besideLabel(arrow: DirectionArrow): DirectionArrow {
+    const { from, to } = arrow;
+    const label = this.#labels.find((l) => from.x >= l.x0 && from.x <= l.x1 && from.y >= l.y0 && from.y <= l.y1);
+    if (!label) return arrow;
+    return { from: { x: to.x >= from.x ? label.x1 : label.x0, y: from.y }, to };
   }
 
   /** A sor elejét jelölő pötty, és onnan egy rövid nyíl a haladási irányba. */

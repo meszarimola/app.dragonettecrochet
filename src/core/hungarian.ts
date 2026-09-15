@@ -28,6 +28,21 @@ function timesSuffix(n: number): string {
   return 'szor';
 }
 
+/**
+ * A határozott névelő egy számjeggyel írt szám előtt: „az 1. sor”, „a 2. sor”,
+ * „az 5. sor”, „az 50. kör”. A kiejtett alak eleje dönt: az egy, az öt, az
+ * ötven, az ötszáz és az ezer magánhangzóval kezdődik.
+ */
+export function article(n: number): 'a' | 'az' {
+  if (!Number.isInteger(n) || n < 0) throw new RangeError(`Nemnegatív egész számot vártunk, nem ${n}`);
+  if (n >= 1000) {
+    const thousands = Math.floor(n / 1000);
+    return thousands === 1 ? 'az' : article(thousands);
+  }
+  if (n >= 10) return Math.floor(n / (n >= 100 ? 100 : 10)) === 5 ? 'az' : 'a';
+  return n === 1 || n === 5 ? 'az' : 'a';
+}
+
 const BACK_VOWELS = new Set([...'aáoóuú']);
 const VOWELS = new Set([...'aáeéiíoóöőuúüű']);
 

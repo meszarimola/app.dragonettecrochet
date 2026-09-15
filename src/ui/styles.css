@@ -19,6 +19,15 @@
   --c-ink-wrong: #2f5f9e;
   --c-error: #b3261e;
   --c-warning: #8a5300;
+  /* A rács (PQW-874): váltakozó sorszín, amelyen a jelek, a sorszám és a
+   * szemszám is legalább 4,5:1; a sorhatár és a hangsúlyos 5. és 10. vonal
+   * legalább 3:1. A cellák oldalvonala halvány segédvonal, nem hordoz
+   * önálló információt. (tests/ui-grid-colors.test.mjs) */
+  --c-row-a: #f3eefa;
+  --c-row-b: #eaf1f8;
+  --c-grid: #b8adc6;
+  --c-grid-row: #8d819c;
+  --c-grid-strong: #6f6480;
 
   --font-display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
   --font-body: 'Karla', system-ui, -apple-system, 'Segoe UI', sans-serif;

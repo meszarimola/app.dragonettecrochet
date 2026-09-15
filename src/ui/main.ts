@@ -32,6 +32,7 @@ import {
   type WorkContext,
 } from '../core/editor.js';
 import { canRedo, canUndo, createHistory, record, redo, undo, type History } from '../core/history.js';
+import { chartGrid, type ChartGrid } from '../core/grid.js';
 import { layoutPattern, type ChartLayout, type Point } from '../core/layout.js';
 import { loadPattern, savePattern } from '../core/pattern-json.js';
 import { RULES } from '../core/rules.js';
@@ -57,7 +58,7 @@ import {
   writeNotation,
 } from './notation.js';
 import { buildPalette, type PaletteItem } from './palette.js';
-import { DEFAULT_PATTERN_TYPE, PATTERN_TYPES, isAvailableType, type PatternTypeId } from './pattern-types.js';
+import { DEFAULT_PATTERN_TYPE, PATTERN_TYPES, gridKind, isAvailableType, type PatternTypeId } from './pattern-types.js';
 import { applyInk, drawCentered, readInk, shapeBounds, stemLength, symbolShapes, type SymbolOptions } from './symbols.js';
 import { alignTooltips } from './tooltip.js';
 import { writtenView } from './written.js';
@@ -98,12 +99,14 @@ const typesList = must<HTMLUListElement>('#types-list');
 const errorToggle = must<HTMLButtonElement>('#error-toggle');
 const errorCount = must<HTMLElement>('#error-count');
 const errorsPop = must<HTMLElement>('#errors');
+const exportGrid = must<HTMLInputElement>('#export-grid');
 
 const STORAGE_KEY = 'dc-mintatervezo:minta';
 const SETTINGS_KEY = 'dc-mintatervezo:nezet';
 const NOTATION_KEY = 'dc-mintatervezo:jeloles';
 const WRITTEN_KEY = 'dc-mintatervezo:irott-minta';
 const TYPE_KEY = 'dc-mintatervezo:tipus';
+const GRID_KEY = 'dc-mintatervezo:racs';
 /** Ennél keskenyebb képernyőn a két panel nem fér el egymás mellett. */
 const NARROW = window.matchMedia('(width < 48rem)');
 const STRUCTURAL_RULES = new Set(['unknown-stitch', 'dangling-reference', 'yarn-path']);
@@ -120,6 +123,8 @@ let selectedNode: NodeId | null = null;
 let mirror = readMirror();
 /** A választott mintatípus; a böngészőben marad. Most csak a „szabályos” aktív. */
 let patternType: PatternTypeId = readType();
+/** Látszik-e a rács (PQW-874); a böngészőben marad. */
+let showGrid = readGrid();
 /** A jelölés és a jelstílus; a böngészőben marad. */
 let notation = readStoredNotation();
 let symbols: SymbolOptions = symbolOptionsFor(notation);
@@ -132,6 +137,8 @@ interface Derived {
   readonly layout: ChartLayout;
   readonly check: LiveCheck;
   readonly targets: readonly Target[];
+  /** A rács, ha be van kapcsolva (PQW-874). */
+  readonly grid: ChartGrid | null;
 }
 
 let derived = derive(history.present);
@@ -141,7 +148,13 @@ function derive(pattern: Pattern): Derived {
   const layout = layoutPattern(pattern, context.library, { mirror, stemLength });
   const check = liveCheck(pattern, context);
   const targets = context.slots.map((slot, i) => ({ point: slotPoint(layout, slot), used: context.used[i] ?? false }));
-  return { pattern, context, layout, check, targets };
+  const grid = showGrid ? chartGrid(pattern, context.library, gridKindOf(context), context, { mirror, stemLength }) : null;
+  return { pattern, context, layout, check, targets, grid };
+}
+
+/** A rács típusa a mintatípusból és a darab alakjából (sor vagy kör). */
+function gridKindOf(context: WorkContext) {
+  return gridKind(patternType, context.graph?.layers[0]?.shape ?? context.shape);
 }
 
 /**
@@ -226,6 +239,14 @@ function readType(): PatternTypeId {
   return saved && isAvailableType(saved) ? saved : DEFAULT_PATTERN_TYPE;
 }
 
+function readGrid(): boolean {
+  try {
+    return localStorage.getItem(GRID_KEY) !== 'rejtett';
+  } catch {
+    return true;
+  }
+}
+
 function structuralProblem(pattern: Pattern): string | null {
   const finding = validatePattern(pattern, libraryFor(pattern)).find((f) => STRUCTURAL_RULES.has(f.rule));
   return finding ? RULES[finding.rule as keyof typeof RULES].message : null;
@@ -253,6 +274,7 @@ function refresh(message?: string): void {
     hover,
     selected: selectedNode,
     findings: derived.check.findings,
+    grid: derived.grid,
     direction: tool && isTargeted(tool) ? directionArrow() : null,
     symbols,
   });
@@ -339,6 +361,7 @@ function updateControls(): void {
   setDisabled('export-png', empty);
   setDisabled('export-svg', empty);
   must<HTMLButtonElement>('[data-action="mirror"]').setAttribute('aria-pressed', String(mirror));
+  must<HTMLButtonElement>('[data-action="grid"]').setAttribute('aria-pressed', String(showGrid));
   if (document.activeElement !== titleInput) titleInput.value = pattern.title;
 
   const layers = context.graph ? context.graph.layers.length - 1 : 0;
@@ -707,7 +730,13 @@ function exportSvgText(): string {
   const library = libraryFor(pattern);
   const root = document.documentElement;
   const token = (name: string) => getComputedStyle(root).getPropertyValue(name).trim();
+  const context = contextOf(pattern);
+  const grid = {
+    grid: chartGrid(pattern, library, gridKindOf(context), context, { mirror, stemLength }),
+    colors: { rowA: token('--c-row-a'), rowB: token('--c-row-b'), cell: token('--c-grid'), row: token('--c-grid-row'), strong: token('--c-grid-strong') },
+  };
   return chartSvg(pattern, layoutPattern(pattern, library, { mirror, stemLength }), library, {
+    ...(exportGrid.checked ? { grid } : {}),
     colors: { right: token('--c-ink'), wrong: token('--c-ink-wrong'), text: token('--c-text'), background: token('--c-bg') },
     mirror,
     terms: notation.terms,
@@ -787,6 +816,15 @@ const ACTIONS: Record<string, () => void> = {
     }
     refresh(mirror ? 'Tükrözött nézet balkezeseknek.' : 'Jobbkezes nézet.');
     fitBoard();
+  },
+  grid: () => {
+    showGrid = !showGrid;
+    try {
+      localStorage.setItem(GRID_KEY, showGrid ? 'lathato' : 'rejtett');
+    } catch {
+      // A rács enélkül is kapcsolható, csak újratöltés után nem marad meg.
+    }
+    refresh(showGrid ? 'Rács bekapcsolva.' : 'Rács kikapcsolva.');
   },
   'zoom-in': () => board.zoom(1.25),
   'zoom-out': () => board.zoom(0.8),
@@ -922,6 +960,8 @@ function selectType(id: PatternTypeId): void {
     button.setAttribute('aria-pressed', String(button.dataset.type === id));
   }
   const type = PATTERN_TYPES.find((candidate) => candidate.id === id);
+  // A rács típusa a mintatípussal együtt vált (PQW-874).
+  refresh();
   if (type) announce(`Mintatípus: ${type.name}. ${type.detail}`);
 }
 
@@ -948,12 +988,22 @@ let drag: Drag | null = null;
 
 canvas.addEventListener('pointerdown', (event) => {
   canvas.focus({ preventScroll: true });
+  // A sorszám önálló célterület; a sor kijelölését a PQW-875 köti rá.
+  const label = board.labelAt(event.clientX, event.clientY);
+  if (label !== null) {
+    const layer = derived.layout.layers.find((candidate) => candidate.index === label);
+    announce(`${label}. ${layer?.shape === 'round' ? 'kör' : 'sor'}: ${layer?.stitchCount ?? 0} szem.`);
+    return;
+  }
   if (tool) {
     if (!isTargeted(tool)) {
       void workAtCursor();
       return;
     }
-    const index = board.targetAt(event.clientX, event.clientY);
+    // A rácson a cella dönt; ahol nincs mibe horgolni, üzenet jön, és nem kerül le szem (PQW-874).
+    const aim = board.aimUnder(event.clientX, event.clientY);
+    if (typeof aim === 'string') announce(aim);
+    const index = typeof aim === 'number' ? aim : null;
     if (index === null) {
       drag = { kind: 'pan', last: { x: event.clientX, y: event.clientY } };
       canvas.setPointerCapture(event.pointerId);
@@ -996,7 +1046,8 @@ canvas.addEventListener('pointermove', (event) => {
     return;
   }
   if (!tool || !isTargeted(tool)) return;
-  const index = board.targetAt(event.clientX, event.clientY);
+  const aim = board.aimUnder(event.clientX, event.clientY);
+  const index = typeof aim === 'number' ? aim : null;
   if (index !== hover) {
     hover = index;
     refresh();
@@ -1107,6 +1158,10 @@ document.addEventListener('keydown', (event) => {
     case 'M':
       ACTIONS.mirror!();
       return;
+    case 'r':
+    case 'R':
+      ACTIONS.grid!();
+      return;
   }
 
   if (onBoard) {
@@ -1148,3 +1203,10 @@ select(null);
 fitBoard();
 alignTooltips(must<HTMLElement>('.tools'));
 setupConsentBanner(GA_MEASUREMENT_ID);
+
+// Böngészős tesztekhez (PQW-874): a rács cellái és a sorszámok az ablakban; csak automatizált böngészőben.
+if (navigator.webdriver) {
+  Object.assign(window, {
+    mintatervezoRacs: { layer: () => derived.context.layer, cells: () => board.gridCells(), labels: () => board.labels() },
+  });
+}

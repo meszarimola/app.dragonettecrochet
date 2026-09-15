@@ -12,6 +12,8 @@
  * saját jegyeikben készül el.
  */
 
+import type { GridKind } from '../core/grid.ts';
+
 export type PatternTypeId = 'regular' | 'filet' | 'amigurumi' | 'irregular';
 
 export interface PatternType {
@@ -52,6 +54,18 @@ export const PATTERN_TYPES: readonly PatternType[] = [
 ];
 
 export const DEFAULT_PATTERN_TYPE: PatternTypeId = 'regular';
+
+/**
+ * A rács típusa a mintatípusból (PQW-874, tulajdonosi pontosítás 2026-09-15):
+ * szabályos horgolásnál sorban sorrács, körben és motívumnál koncentrikus;
+ * filénél cellás rács (PQW-864); amigurumiban az írott minta az elsődleges
+ * nézet, rács nélkül (PQW-863). A szabálytalan horgolás a szabályos szerint.
+ */
+export function gridKind(type: PatternTypeId, shape: 'row' | 'round'): GridKind {
+  if (type === 'filet') return 'cells';
+  if (type === 'amigurumi') return 'text';
+  return shape === 'round' ? 'rounds' : 'rows';
+}
 
 /** Egy azonosító akkor érvényes, ha szerepel a listában és a típusa bekapcsolt. */
 export function isAvailableType(id: string): id is PatternTypeId {

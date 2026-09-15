@@ -177,6 +177,12 @@
                 <path d="M8 7 4 10l4 3zM12 7l4 3-4 3z" />
               </svg>
             </button>
+            <button type="button" class="tool" data-action="grid" aria-pressed="true" aria-label="Rács" data-tip="Rács ki és be (R)" aria-keyshortcuts="R">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M3.75 3.75h12.5v12.5H3.75z" />
+                <path d="M3.75 8h12.5M3.75 12h12.5M8 3.75v12.5M12 3.75v12.5" />
+              </svg>
+            </button>
             <button type="button" class="tool" data-action="zoom-out" aria-label="Kicsinyítés" data-tip="Kicsinyítés">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <circle cx="9" cy="9" r="5" />
@@ -332,6 +338,9 @@
               <input id="title" type="text" maxlength="120" />
             </p>
             <p class="panel__note">A minta automatikusan mentődik ebbe a böngészőbe.</p>
+            <p class="choice">
+              <label><input type="checkbox" id="export-grid" checked /> Rács a PNG- és SVG-exportban</label>
+            </p>
             <details class="keys">
               <summary>Billentyűk</summary>
               <dl>
@@ -344,6 +353,7 @@
                 <dt><kbd>Backspace</kbd></dt><dd>az utolsó lépés törlése</dd>
                 <dt><kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></dt><dd>visszavonás, újra</dd>
                 <dt><kbd>M</kbd></dt><dd>tükrözött nézet</dd>
+                <dt><kbd>R</kbd></dt><dd>rács ki és be</dd>
                 <dt><kbd>Esc</kbd></dt><dd>nincs kiválasztott szem: kattintással a jel kijelölése és igazítása</dd>
                 <dt><kbd>Alt</kbd>+nyilak</dt><dd>a kijelölt jel eltolása</dd>
               </dl>
