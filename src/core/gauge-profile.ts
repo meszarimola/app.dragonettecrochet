@@ -3,12 +3,12 @@
  * belőlük számolt profilok (PQW-859; a formátum: PQW-860).
  *
  * A mérési fájl nyers leolvasásokat tárol. Az átlagot, a szórást, az
- * öltésenkénti méretet, a területre jutó tömeget és a blokkolás hatását itt
+ * szemenkénti méretet, a területre jutó tömeget és a blokkolás hatását itt
  * számoljuk, hogy egy elírást egy helyen lehessen javítani
  * (docs/calibration/README.md, „Derived values”).
  *
  * Egy fájl mérésenként (blokkolás előtt, után) egy mintát ad. A profil a
- * horgoló × fonal × tű × blokkolás szerint gyűjti össze őket, öltésenként és
+ * horgoló × fonal × tű × blokkolás szerint gyűjti össze őket, szemenként és
  * azon belül formánként, mert a gauge-et abban a formában kell mérni, ahogy
  * használjuk (README §4.2). Minden profilérték mért; ami hiányzik, azt a
  * `gauge.ts` becsüli, és becslésként jelöli.
@@ -21,7 +21,7 @@ import { classifyByMeterage, metersPer100g } from './yarn-weight.ts';
 
 export const GAUGE_SAMPLE_SCHEMA_VERSION = 1;
 
-/** Amiből öltésméret jön: sík sorok, cső vagy lapos kör. */
+/** Amiből szemméret jön: sík sorok, cső vagy lapos kör. */
 export type WorkedIn = 'rows' | 'rounds-tube' | 'rounds-flat';
 
 /** A mérési fájl formái; a láncszemsor csak a láncszem hosszát adja. */
@@ -83,7 +83,7 @@ export interface GaugeSample {
   readonly insertion: SampleInsertion;
   readonly workedIn: SampleForm;
   readonly blocked: boolean;
-  /** Öltésenkénti szélesség leolvasásonként, mm. Láncszemsornál üres. */
+  /** Szemenkénti szélesség leolvasásonként, mm. Láncszemsornál üres. */
   readonly widthReadingsMm: readonly number[];
   /** Soronkénti (körönkénti) magasság leolvasásonként, mm. */
   readonly heightReadingsMm: readonly number[];
@@ -103,7 +103,7 @@ export interface GaugeSample {
   readonly notes: string | null;
 }
 
-/** Egy öltés egy formában, a profil összes mintájából. */
+/** Egy szem egy formában, a profil összes mintájából. */
 export interface StitchGauge {
   readonly widthMm: Stat;
   readonly heightMm: Stat;
@@ -133,7 +133,7 @@ export interface GaugeProfile {
   readonly yarn: ProfileYarn;
   readonly hookMm: number;
   readonly blocked: boolean;
-  /** Öltéskulcs (`sc`, `sc/back-loop`) → forma → mérés. */
+  /** Szemkulcs (`sc`, `sc/back-loop`) → forma → mérés. */
   readonly perStitch: Readonly<Partial<Record<string, Readonly<Partial<Record<WorkedIn, StitchGauge>>>>>>;
   readonly chainLengthMm: Stat | null;
   readonly samples: readonly string[];
@@ -265,7 +265,7 @@ function readings(value: unknown, path: string): number[] {
   return values;
 }
 
-/** A kalibrációs öltésazonosító a könyvtáréra (docs/calibration/README.md, „Identifiers”). */
+/** A kalibrációs szemazonosító a könyvtáréra (docs/calibration/README.md, „Identifiers”). */
 const CALIBRATION_STITCHES: Readonly<Record<string, StitchDefId>> = {
   ch: 'ch',
   slst: 'sl-st',
@@ -342,7 +342,7 @@ function readSampleFile(value: unknown): GaugeSample[] {
 
   const construction = readConstruction(raw['construction'], '$.construction');
   if ((construction.workedIn === 'chain') !== (calibrationStitch === 'ch')) {
-    throw new FormatError('$.stitch.id', 'A `ch` öltés és a `chain` forma csak együtt szerepelhet.');
+    throw new FormatError('$.stitch.id', 'A `ch` szem és a `chain` forma csak együtt szerepelhet.');
   }
 
   const measurements = array(raw['measurements'], '$.measurements', (item, path) =>
@@ -523,7 +523,7 @@ export function stat(values: readonly number[]): Stat | null {
 }
 
 /**
- * Fonal öltésenként, cm: a területre jutó tömegből, az öltés területéből és a
+ * Fonal szemenként, cm: a területre jutó tömegből, a szem területéből és a
  * címke hossz/tömeg arányából (docs/calibration/README.md, „Derived values”).
  */
 export function yarnPerStitchCm(massPerAreaGPerCm2: number, widthMm: number, heightMm: number, lengthM: number, massG: number): number {
@@ -572,7 +572,7 @@ function derive(measurement: Measurement, construction: Construction, yarn: Samp
   }
   if (circle && construction.lastRoundStitches !== null && construction.rounds !== null) {
     const { lastRoundStitches, rounds } = construction;
-    // A külső kör kerülete az utolsó kör öltésein; a sugár körönként egy körmagasságnyit nő (02 §4.3).
+    // A külső kör kerülete az utolsó kör szemein; a sugár körönként egy körmagasságnyit nő (02 §4.3).
     widths = circle.diameterMm.map((diameter) => (Math.PI * diameter) / lastRoundStitches);
     heights = circle.diameterMm.map((diameter) => diameter / 2 / rounds);
     checkDrift(circle.diameterMm, `${path}.circle.diameterMm`);
@@ -724,7 +724,7 @@ function profileYarn(yarn: SampleYarn): ProfileYarn {
   };
 }
 
-/** A blokkolt profil öltéseihez a blokkolás előttihez képesti változás (02 §3.7). */
+/** A blokkolt profil szemeihez a blokkolás előttihez képesti változás (02 §3.7). */
 function withBlockingChange(profile: GaugeProfile, profiles: readonly GaugeProfile[]): GaugeProfile {
   if (!profile.blocked) return profile;
   const beforeId = profileId(profile.crocheterId, profile.yarn.id, profile.hookMm, false);

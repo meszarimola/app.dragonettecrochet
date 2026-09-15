@@ -267,7 +267,7 @@ button {
   block-size: 100%;
 }
 
-/* Kiválasztott öltéssel a kattintás horgol, anélkül kijelöl és igazít. */
+/* Kiválasztott szemmel a kattintás horgol, anélkül kijelöl és igazít. */
 body.is-armed #board {
   cursor: crosshair;
 }

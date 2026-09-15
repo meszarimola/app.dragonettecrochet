@@ -9,20 +9,20 @@ töltsd ki szerkesztőben. A mezők mellett `ilyen betűvel` az adatfájlbeli n�
 A **leggyakrabban használt fonallal és tűvel**. Egy sor = egy próbadarab = egy
 lap.
 
-| # | Öltés | Forma | Méret |
+| # | Szem | Forma | Méret |
 |---|---|---|---|
 | 1 | rövidpálca (rp) | síkban | legalább 15 cm széles, 20 sor |
-| 2 | rövidpálca (rp) | csőben | 30 öltés körben, legalább 14 kör |
+| 2 | rövidpálca (rp) | csőben | 30 szem körben, legalább 14 kör |
 | 3 | félpálca (fp) | síkban | legalább 15 cm széles, legalább 14 sor |
-| 4 | félpálca (fp) | csőben | 30 öltés körben, legalább 14 kör |
+| 4 | félpálca (fp) | csőben | 30 szem körben, legalább 14 kör |
 | 5 | egyráhajtásos pálca (erp) | síkban | legalább 15 cm széles, legalább 14 sor |
-| 6 | egyráhajtásos pálca (erp) | csőben | 30 öltés körben, legalább 14 kör |
+| 6 | egyráhajtásos pálca (erp) | csőben | 30 szem körben, legalább 14 kör |
 | 7 | kétráhajtásos pálca (krp) | síkban | legalább 15 cm széles, legalább 14 sor |
-| 8 | kétráhajtásos pálca (krp) | csőben | 30 öltés körben, legalább 14 kör |
+| 8 | kétráhajtásos pálca (krp) | csőben | 30 szem körben, legalább 14 kör |
 | 9 | láncszem (lsz) | láncszemsor | 30 láncszem |
 | 10 | rövidpálca hátsó szálba (hsz) | síkban | mint az 1. |
 
-- A cső helyett lehet **5 körös lapos kör** is (6, 12, 18, 24, 30 öltés), de a
+- A cső helyett lehet **5 körös lapos kör** is (6, 12, 18, 24, 30 szem), de a
   cső a pontosabb. Ha van időd, horgold meg mindkettőt: a kör azt is
   megmutatja, hogy lapos marad-e.
 - A kétráhajtásos pálcás darab magas lesz. Ha 14 sor túl sok, mérj kevesebb
@@ -35,11 +35,11 @@ lap.
 
 Minden lapnál ugyanígy:
 
-1. **Középen mérj.** Minden széltől legalább 2 öltés és 2 sor maradjon ki.
+1. **Középen mérj.** Minden széltől legalább 2 szem és 2 sor maradjon ki.
    Csőnél a körváltás vonalától is maradj távol.
 2. **Laposan fekvő, nem nyújtott darabon** mérj, mindig ugyanazzal az
    eszközzel.
-3. **Csőnél** fektesd laposra, és az egyik oldalán mérd a 10 öltést; a hajtás
+3. **Csőnél** fektesd laposra, és az egyik oldalán mérd a 10 szemet; a hajtás
    ne essen bele.
 4. **Háromszor mérj**, a középső rész három különböző helyén. Mind a hármat
    írd be, ne az átlagot.
@@ -87,9 +87,9 @@ Minden lapnál ugyanígy:
 | Márka | | `brand` |
 | Anyag | ☐ alumínium `aluminium` ☐ acél `steel` ☐ bambusz `bamboo` ☐ fa `wood` ☐ műanyag `plastic` ☐ egyéb `other` | `material` |
 
-### 3. Öltés `stitch`
+### 3. Szem `stitch`
 
-**Öltés** `stitch.id`:
+**Szem** `stitch.id`:
 ☐ láncszem (lsz) `ch`
 ☐ kúszószem (ksz) `slst`
 ☐ rövidpálca (rp) `sc`
@@ -117,7 +117,7 @@ Minden lapnál ugyanígy:
 | Kezdőlánc (láncszem) | | `foundationChains` |
 | Sorok száma | | `rows` |
 | Fordulólánc (láncszem) | | `turningChain.chains` |
-| A fordulólánc számít öltésnek? | ☐ igen `true` ☐ nem `false` | `turningChain.countsAsStitch` |
+| A fordulólánc számít szemnek? | ☐ igen `true` ☐ nem `false` | `turningChain.countsAsStitch` |
 
 **Csőben vagy lapos körben:**
 
@@ -126,8 +126,8 @@ Minden lapnál ugyanígy:
 | Kezdés | ☐ varázskör `magic-ring` ☐ láncgyűrű `chain-ring` | `start` |
 | Körzárás | ☐ spirál `spiral` ☐ zárt kör `joined` | `roundJoin` |
 | Körök száma | | `rounds` |
-| Csőnél: öltés körönként | | `stitchesPerRound` |
-| Lapos körnél: az utolsó kör öltésszáma | | `lastRoundStitches` |
+| Csőnél: szem körönként | | `stitchesPerRound` |
+| Lapos körnél: az utolsó kör szemszáma | | `lastRoundStitches` |
 
 **Láncszemsor:**
 
@@ -143,10 +143,10 @@ Minden lapnál ugyanígy:
 
 | | 1. | 2. | 3. | (4.) | Kulcs |
 |---|---|---|---|---|---|
-| 10 öltés szélessége (mm) | | | | | `widthMm` |
+| 10 szem szélessége (mm) | | | | | `widthMm` |
 | 10 sor magassága (mm) | | | | | `heightMm` |
 
-Ha nem 10 öltést vagy 10 sort mértél — öltés: ______ `stitchesSpanned`,
+Ha nem 10 szemet vagy 10 sort mértél — szem: ______ `stitchesSpanned`,
 sor: ______ `rowsSpanned`
 
 **Lapos kör** `circle`:
@@ -196,10 +196,10 @@ sor: ______ `rowsSpanned`
 
 | | 1. | 2. | 3. | (4.) | Kulcs |
 |---|---|---|---|---|---|
-| 10 öltés szélessége (mm) | | | | | `widthMm` |
+| 10 szem szélessége (mm) | | | | | `widthMm` |
 | 10 sor magassága (mm) | | | | | `heightMm` |
 
-Ha nem 10 öltést vagy 10 sort mértél — öltés: ______ `stitchesSpanned`,
+Ha nem 10 szemet vagy 10 sort mértél — szem: ______ `stitchesSpanned`,
 sor: ______ `rowsSpanned`
 
 **Lapos kör** `circle`:

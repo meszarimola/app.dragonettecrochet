@@ -58,7 +58,7 @@ const SYMBOLS = [
   ['magic-ring',    { ring: 1 }],
 ];
 
-test('a jeltáblázat a könyvtár minden öltését lefedi', () => {
+test('a jeltáblázatban a könyvtár minden szeme szerepel', () => {
   assert.deepEqual(
     SYMBOLS.map(([id]) => id),
     STITCHES.map((stitch) => stitch.id),
@@ -71,7 +71,7 @@ for (const [id, expected] of SYMBOLS) {
   });
 }
 
-test('minden szár annyi ferde vonalat kap, ahány ráhajtása van a részöltésnek', () => {
+test('minden szár annyi ferde vonalat kap, ahány ráhajtása van a részszemnek', () => {
   for (const def of STITCHES) {
     const shapes = symbolShapes(def);
     const part = def.kind === 'joined' ? stitchById(def.part) : def;
@@ -124,7 +124,7 @@ for (const [id, chainHeight, length] of STEMS) {
   });
 }
 
-test('szaporításnál, kagylónál és V-öltésnél a szárak talpa közös', () => {
+test('szaporításnál, kagylónál és V-szemnél a szárak talpa közös', () => {
   for (const id of ['inc-2sc', 'inc-2dc', 'shell-5dc', 'v-st-dc']) {
     const [first, ...rest] = stems(symbolShapes(stitchById(id)));
     for (const stem of rest) assert.ok(samePoint(stem.from, first.from), id);
@@ -142,7 +142,7 @@ test('fogyasztásnál a szárak teteje közös, a talpuk különböző', () => {
   }
 });
 
-test('egy öltésbe horgolt fürtnél, bogyónál és pufnál a talp és a tető is közös', () => {
+test('egy szembe horgolt fürtnél, bogyónál és pufnál a talp és a tető is közös', () => {
   for (const id of ['cl-3dc', 'bobble-5dc', 'puff-3']) {
     const [first, ...rest] = stems(symbolShapes(stitchById(id)));
     for (const stem of rest) assert.ok(samePoint(stem.from, first.from) && samePoint(stem.to, first.to), id);
@@ -181,7 +181,7 @@ test('mindkét szál, láncív és gyűrű nem kap jelölést', () => {
   }
 });
 
-test('több öltésen át horgolt öltésnél minden talp megkapja a jelölést', () => {
+test('több szemen át horgolt szemnél minden talp megkapja a jelölést', () => {
   const shapes = symbolShapes(stitchById('sc2tog'), { singleCrochet: 'plus', insertion: 'back-loop' });
   const feet = stems(shapes).map((stem) => stem.from.x);
   const marks = shapes.filter((shape) => shape.role === 'back-loop');
@@ -235,7 +235,7 @@ test('JIS stílusban a hátsó szál vízszintes vonal a talp alatt', () => {
   assert.ok(Math.hypot(mark.from.x, mark.from.y) <= 10);
 });
 
-test('JIS stílusban minden öltés jele a × rövidpálcás CYC-jel, csak a hátsó szál jele más', () => {
+test('JIS stílusban minden szem jele a × rövidpálcás CYC-jel, csak a hátsó szál jele más', () => {
   for (const def of STITCHES) {
     for (const singleCrochet of ['plus', 'cross']) {
       const jis = symbolShapes(def, { singleCrochet, style: 'jis' });

@@ -1,8 +1,8 @@
 /*
- * Az öltéskönyvtár változatai azonosító alapján.
+ * A szemkönyvtár változatai azonosító alapján.
  *
  * A könyvtár (stitches.ts) a gyakori változatokat sorolja fel, de az
- * építőfüggvények bármilyen n-re elkészítik az összetett öltést. A szerkesztőben
+ * építőfüggvények bármilyen n-re elkészítik az összetett szemet. A szerkesztőben
  * például „még egy ugyanabba” egy `inc-2dc`-ből `inc-3dc`-t csinál, amely a
  * palettán nincs. Az azonosító maga írja le a szerkezetet, így a mentett
  * mintából is visszaállítható.
@@ -14,7 +14,7 @@ import type { Pattern, StitchDef, StitchDefId } from './types.ts';
 
 const BY_ID = new Map(STITCHES.map((def) => [def.id, def]));
 
-/** Ennyinél több részöltést nem fogadunk el azonosítóból: elírás, nem minta. */
+/** Ennyinél több részszemet nem fogadunk el azonosítóból: elírás, nem minta. */
 const MAX_PARTS = 12;
 
 function partOf(id: string): StitchDef | undefined {
@@ -27,7 +27,7 @@ function count(text: string): number | undefined {
   return Number.isInteger(n) && n >= 2 && n <= MAX_PARTS ? n : undefined;
 }
 
-/** A könyvtár öltése, vagy az azonosítóból felépített változat; ismeretlennél `undefined`. */
+/** A könyvtár szeme, vagy az azonosítóból felépített változat; ismeretlennél `undefined`. */
 export function resolveStitch(id: StitchDefId): StitchDef | undefined {
   const known = BY_ID.get(id);
   if (known) return known;

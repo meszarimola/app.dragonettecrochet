@@ -1,7 +1,7 @@
 /*
  * Az írott minta nyelvfüggetlen lépéssora a gráfból (06 §5.3 pont 5).
  *
- * Rétegenként végigmegyünk az öltéseken a fonal útján, és mindegyiket egy
+ * Rétegenként végigmegyünk a szemeken a fonal útján, és mindegyiket egy
  * lépéssé alakítjuk, amely az előző réteg pozícióihoz képest mondja meg, hová
  * megy. A szöveg (pattern-text.ts) ebből készül, a visszaolvasás
  * (pattern-read.ts) ugyanezt a jelentést olvassa vissza.
@@ -11,9 +11,9 @@
  * - `next`: a kurzor alatti pozíció, utána a kurzor továbblép. Kiírva nincs
  *   helyhatározó: „5 rp” öt egymás utáni pozícióba megy.
  * - `same`: ugyanaz a pozíció, mint az előző célpont. Ha a sor fordulólánca
- *   számít, a sor elején ez a fordulólánc alatti öltés (03 §1.3), és a kurzor
+ *   számít, a sor elején ez a fordulólánc alatti szem (03 §1.3), és a kurzor
  *   ezért az 1. pozíción kezd.
- * - `next-space`: az első láncív a kurzortól; a közbeeső öltéseket kihagyjuk,
+ * - `next-space`: az első láncív a kurzortól; a közbeeső szemeket kihagyjuk,
  *   ahogy a minták is írják („3 erp a következő láncívbe”).
  * - `same-space`, `ring`: az előző láncív, illetve a varázskör.
  * - `none`: nem horgolunk bele semmibe (pikó).
@@ -23,7 +23,7 @@
  * - Visszai soron az első és a hátsó szál, illetve a relief megfordul, mert a
  *   gráf a színoldali látványt tárolja (03 §2.1, 01 §8.4 szabály 21).
  *
- * Nem írható ki még: keresztezett és hosszú öltés, több célpontú öltés
+ * Nem írható ki még: keresztezett és hosszú szem, több célpontú szem
  * fogyasztáson kívül, láncalap nélküli darab, darabok összekapcsolása.
  */
 
@@ -41,7 +41,7 @@ export type Step =
       readonly target: StepTarget;
       /** A horgoló felől nézett beszúrás: visszai soron már megfordítva. */
       readonly mode: StitchInsertion;
-      /** Láncszembe vagy öltésbe megy; csak a kiírt helyhatározóhoz kell. */
+      /** Láncszembe vagy szembe megy; csak a kiírt helyhatározóhoz kell. */
       readonly into: 'stitch' | 'chain';
     }
   | {
@@ -63,7 +63,7 @@ export interface WrittenLayer {
   /** Az 1. sor a láncalapon: a horogtól számított hányadik láncszemnél kezd, és mit ér a kihagyott rész. */
   readonly fromHook: { readonly chain: number; readonly countsAs: StitchDefId | null } | null;
   readonly steps: readonly Step[];
-  /** Öltésszám, ahogy a gráf számolja (graph.ts). */
+  /** Szemszám, ahogy a gráf számolja (graph.ts). */
   readonly stitchCount: number;
   readonly closing: LayerEvent['kind'] | null;
   /** A kört záró kúszószem célpontja. */
@@ -120,7 +120,7 @@ export function modeAsWorked(mode: StitchInsertion, side: 'right' | 'wrong'): St
   return side === 'wrong' ? FLIPPED[mode] : mode;
 }
 
-/** Aminek a számító fordulólánc számít: a sort kezdő öltés, összetett öltésnél a részöltése. */
+/** Aminek a számító fordulólánc számít: a sort kezdő szem, összetett szemnél a részszeme. */
 export function countsAsOf(def: StitchDef): StitchDefId {
   return def.kind === 'joined' ? def.part : def.id;
 }
@@ -192,7 +192,7 @@ function writtenLayer(graph: PieceGraph, index: number, onChain: boolean, librar
     if (handled.has(id) || id === layer.joinSlip) continue;
     const node = graph.nodes.get(id)!;
     const def = defOf(id);
-    if (node.flags && node.flags.length > 0) throw unsupported('keresztezett vagy hosszú öltés', id);
+    if (node.flags && node.flags.length > 0) throw unsupported('keresztezett vagy hosszú szem', id);
 
     if (layer.turningChain.includes(id)) {
       for (const chain of layer.turningChain) handled.add(chain);
@@ -234,7 +234,7 @@ function writtenLayer(graph: PieceGraph, index: number, onChain: boolean, librar
       case 'ring':
       case 'space':
       case 'group':
-        throw unsupported('ez az öltésfajta itt nem állhat', id);
+        throw unsupported('ez a szemfajta itt nem állhat', id);
       default: {
         if (def.kind === 'joined' && def.base === 'spread') {
           const ws = node.anchors.map((anchor) => (anchor.into === 'stitch' ? workingIndex.get(anchor.id) : undefined));
@@ -242,19 +242,19 @@ function writtenLayer(graph: PieceGraph, index: number, onChain: boolean, librar
           const consecutive = start !== undefined && ws.every((w, k) => w === start + k);
           if (!consecutive || ws.length !== def.consumes) throw unsupported('a fogyasztás célpontjai nem egymás utániak', id);
           const first = classify(node.anchors[0]!, id);
-          if (first.target !== 'next') throw unsupported('a fogyasztás egy már használt öltésből indul', id);
+          if (first.target !== 'next') throw unsupported('a fogyasztás egy már használt szemből indul', id);
           cursor = start + ws.length;
           last = { kind: 'stitch', w: cursor - 1 };
           steps.push({ kind: 'stitch', def: def.id, count: 1, ...first });
           break;
         }
-        if (node.anchors.length !== 1) throw unsupported('az öltésnek nem egy célpontja van', id);
+        if (node.anchors.length !== 1) throw unsupported('a szemnek nem egy célpontja van', id);
         steps.push({ kind: 'stitch', def: def.id, count: 1, ...classify(node.anchors[0]!, id) });
       }
     }
   }
 
-  // Kihagyás a sor végén: csak a szándékosan kihagyott öltésekig (03 §10 B8).
+  // Kihagyás a sor végén: csak a szándékosan kihagyott szemekig (03 §10 B8).
   const skippedAtEnd = working.map((id, w) => (w >= cursor && graph.piece.skipped.includes(id) ? w : -1));
   const lastSkipped = Math.max(-1, ...skippedAtEnd);
   if (lastSkipped >= cursor) skip(cursor, lastSkipped + 1);
@@ -283,7 +283,7 @@ function writtenLayer(graph: PieceGraph, index: number, onChain: boolean, librar
 
 /* ---- Összevonás és ismétlés ---- */
 
-/** Összevonás: „rp, rp, rp” → „3 rp”; egy láncívbe vagy a varázskörbe horgolt öltések egy tételbe. */
+/** Összevonás: „rp, rp, rp” → „3 rp”; egy láncívbe vagy a varázskörbe horgolt szemek egy tételbe. */
 export function mergeSteps(steps: readonly Step[], library: StitchLibrary): Step[] {
   const merged: Step[] = [];
   for (const step of steps) {
@@ -312,7 +312,7 @@ function sameRun(a: Step & { kind: 'stitch' }, b: Step & { kind: 'stitch' }, lib
 /**
  * A legrövidebb ismétlődő egység: az a szomszédos ismétlés, amely a legtöbb
  * lépést takarítja meg. Egyenlő megtakarításnál az az egység nyer, amely nem
- * kihagyással végződik, aztán a későbbi kezdetű: így a szélső öltések az
+ * kihagyással végződik, aztán a későbbi kezdetű: így a szélső szemek az
  * ismétlés előtt állnak, ahogy a minták írják (03 §2.3, §4.2). Az ismétlés
  * előtti és utáni részben tovább keresünk; egymásba ágyazott ismétlés nincs.
  */

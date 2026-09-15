@@ -20,64 +20,64 @@ export const RULES = {
   'unknown-stitch': {
     severity: 'error',
     reference: '06 §5.2',
-    summary: 'Az öltés nincs a könyvtárban, vagy nem lehet csomópont (összetett csoport, láncív-elem).',
+    summary: 'A szem nincs a könyvtárban, vagy nem lehet csomópont (összetett csoport, láncív-elem).',
   },
   'dangling-reference': {
     severity: 'error',
     reference: '06 §5.2',
-    summary: 'Nem létező öltésre, láncívre, gyűrűre vagy csoportra mutató hivatkozás, vagy ismétlődő azonosító.',
+    summary: 'Nem létező szemre, láncívre, gyűrűre vagy csoportra mutató hivatkozás, vagy ismétlődő azonosító.',
   },
   'yarn-path': {
     severity: 'error',
     reference: '06 §5.3 V2',
-    summary: 'Az előző öltés nem a fonal útján előtte lévő, vagy fonalszakasz a fonal elvágása nélkül kezdődik.',
+    summary: 'Az előző szem nem a fonal útján előtte lévő, vagy fonalszakasz a fonal elvágása nélkül kezdődik.',
   },
 
   /* ---- Célpontok ---- */
   'future-anchor': {
     severity: 'error',
     reference: '06 §5.3 V1',
-    summary: 'Az öltés később készülő öltésbe, láncívbe vagy gyűrűbe van horgolva.',
+    summary: 'A szem később készülő szembe, láncívbe vagy gyűrűbe van horgolva.',
   },
   'anchor-layer': {
     severity: 'error',
     reference: '03 §10 C16, C17',
-    summary: 'A célpont nem az előző sor horgolható pozíciója; korábbi sorba csak hosszú öltés mehet.',
+    summary: 'A célpont nem az előző sor horgolható pozíciója; korábbi sorba csak hosszú szem mehet.',
   },
   'turning-chain-placement': {
     severity: 'error',
     reference: '03 §10 A4, 03 §1.3',
-    summary: 'Számító fordulóláncnál a sor utolsó öltése nem a tetejébe megy, vagy nem számító fordulóláncba horgoltak.',
+    summary: 'Számító fordulóláncnál a sor utolsó szeme nem a tetejébe megy, vagy nem számító fordulóláncba horgoltak.',
   },
   'unworkable-top': {
     severity: 'error',
     reference: '01 §8.2 szabály 10',
-    summary: 'Bele nem horgolható tetejű öltésbe (pl. rákhurok) horgoltak.',
+    summary: 'Bele nem horgolható tetejű szembe (pl. rákhurok) horgoltak.',
   },
   'anchor-count': {
     severity: 'error',
     reference: '03 §10 C12',
-    summary: 'Az öltés célpontjainak száma nem egyezik azzal, amennyit az öltés felhasznál.',
+    summary: 'A szem célpontjainak száma nem egyezik azzal, amennyit a szem felhasznál.',
   },
   'unmarked-increase': {
     severity: 'error',
     reference: '03 §10 C14',
-    summary: 'Több öltés egy célpontban, de nincs szaporításnak, kagylónak vagy V-öltésnek jelölve.',
+    summary: 'Több szem egy célpontban, de nincs szaporításnak, kagylónak vagy V-szemnek jelölve.',
   },
   'unmarked-decrease': {
     severity: 'error',
     reference: '03 §10 C14',
-    summary: 'Több célpont egy öltésben, de nincs fogyasztásnak vagy fürtnek jelölve.',
+    summary: 'Több célpont egy szemben, de nincs fogyasztásnak vagy fürtnek jelölve.',
   },
   'group-mismatch': {
     severity: 'error',
     reference: '03 §10 C14, 01 §8.2 szabály 7',
-    summary: 'A csoport tagjai nem egymás utáni, egy célpontba horgolt öltések a csoport definíciója szerint.',
+    summary: 'A csoport tagjai nem egymás utáni, egy célpontba horgolt szemek a csoport definíciója szerint.',
   },
   'against-direction': {
     severity: 'error',
     reference: '03 §10 C13',
-    summary: 'A célpont a haladási irány ellen van, és az öltés nincs keresztezettnek vagy reliefnek jelölve.',
+    summary: 'A célpont a haladási irány ellen van, és a szem nincs keresztezettnek vagy reliefnek jelölve.',
   },
   'reach': {
     severity: 'error',
@@ -104,22 +104,22 @@ export const RULES = {
   'foundation-chain': {
     severity: 'error',
     reference: '03 §10 A2, 03 §1.2',
-    summary: 'Rossz láncalap: az 1. sor első öltése nem a fordulólánc után következő láncszembe megy.',
+    summary: 'Rossz láncalap: az 1. sor első szeme nem a fordulólánc után következő láncszembe megy.',
   },
   'turning-chain-height': {
     severity: 'warning',
     reference: '03 §10 A1, D20',
-    summary: 'A fordulólánc magassága eltér a sort kezdő öltésétől.',
+    summary: 'A fordulólánc magassága eltér a sort kezdő szemétől.',
   },
   'stated-count': {
     severity: 'error',
     reference: '03 §10 B7, B10, 06 §5.3 V3',
-    summary: 'A megadott öltésszám eltér a számolttól.',
+    summary: 'A megadott szemszám eltér a számolttól.',
   },
   'round-join': {
     severity: 'error',
     reference: '06 §5.3 V4',
-    summary: 'A kör záró kúszószeme nem a kör első öltésébe vagy a kezdőlánc tetejébe megy.',
+    summary: 'A kör záró kúszószeme nem a kör első szemébe vagy a kezdőlánc tetejébe megy.',
   },
   'repeat-balance': {
     severity: 'error',
@@ -131,7 +131,7 @@ export const RULES = {
   'mixed-heights': {
     severity: 'warning',
     reference: '03 §10 D19, 03 §2.3',
-    summary: 'Keverten magas öltések, és a következő 1–3 sor nem egyenlíti ki őket.',
+    summary: 'Keverten magas szemek, és a következő 1–3 sor nem egyenlíti ki őket.',
   },
 } as const satisfies Record<string, RuleDef>;
 

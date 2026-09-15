@@ -3,7 +3,7 @@
  *
  * DOM nélküli, ezért a Node is futtatja (tests/ui-chart-svg.test.mjs), és a
  * magot `.ts` kiterjesztéssel importálja. A diagram a jeleket a színoldali
- * látványban mutatja (01 §6.1), a sorszám a sor kezdő oldalán, az öltésszám a
+ * látványban mutatja (01 §6.1), a sorszám a sor kezdő oldalán, a szemszám a
  * végén áll, a színoldali és a visszai sorok színe eltér (03 §2.1, §10 I42).
  *
  * A jelmagyarázat a választott jelöléssel és jelstílussal készül, és megnevezi
@@ -62,7 +62,7 @@ export function shapeToSvg(shape: Shape): string {
   }
 }
 
-/** A jelmagyarázat öltései az első előfordulás sorrendjében; a csoport tagjai helyett maga a csoport. */
+/** A jelmagyarázat szemei az első előfordulás sorrendjében; a csoport tagjai helyett maga a csoport. */
 export function legendStitches(pattern: Pattern, library: StitchLibrary): StitchDef[] {
   const piece = pattern.pieces[0];
   const seen = new Map<string, StitchDef>();
@@ -96,7 +96,7 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
   ];
   const notes = [
     `Jelölés: ${termsLabel(terms)}; jelek: ${chartStyleLabel(symbols.style ?? 'cyc')}.`,
-    'A sorszám a sor kezdő oldalán áll, zárójelben az öltésszám.',
+    'A sorszám a sor kezdő oldalán áll, zárójelben a szemszám.',
     ...(options.mirror ? ['Tükrözött nézet balkezeseknek.'] : []),
   ];
   const legendRows = legend.length + keys.length + notes.length;

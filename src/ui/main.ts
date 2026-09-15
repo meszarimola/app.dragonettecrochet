@@ -7,7 +7,7 @@
  * mintát a böngészőbe mentjük.
  *
  * A jelölés és a jelstílus (PQW-868) a felület nyelvétől független beállítás:
- * a paletta, az öltésnevek, a vászon jelei, az írott minta és az export is ezt
+ * a paletta, a szemnevek, a vászon jelei, az írott minta és az export is ezt
  * követi, a minta pedig mentéskor rögzíti.
  */
 
@@ -255,7 +255,7 @@ function progress(): string {
   if (!context.started) return `${capitalize(layerName(context))} következik.`;
   const count = context.graph.layers[context.layer]?.stitchCount ?? 0;
   const rest = check.remaining > 0 ? `, még ${check.remaining} célpont` : '';
-  return `${capitalize(layerName(context))}: ${count} öltés${rest}.`;
+  return `${capitalize(layerName(context))}: ${count} szem${rest}.`;
 }
 
 function capitalize(text: string): string {
@@ -270,7 +270,7 @@ function describeTarget(index: number): string {
   else if (slot.kind === 'ring') what = 'varázskör';
   else {
     const def = derived.context.graph?.defs.get(slot.id);
-    what = def ? stitchName(def, notation.terms) : 'öltés';
+    what = def ? stitchName(def, notation.terms) : 'szem';
   }
   const used = derived.context.used[index] ? ', már horgoltál bele' : '';
   return `Célpont: ${index + 1}/${derived.context.slots.length}, ${what}${used}.`;
@@ -310,12 +310,12 @@ function updateControls(): void {
       button.className = `finding${finding.severity === 'warning' ? ' finding--warning' : ''}`;
       const severity = span('finding__severity', finding.severity === 'error' ? 'Hiba: ' : 'Figyelmeztetés: ');
       const rule = RULES[finding.rule as keyof typeof RULES];
-      button.append(severity, rule?.summary ?? finding.rule, span('finding__ref', `${finding.reference} · ${finding.nodes.length} öltés`));
+      button.append(severity, rule?.summary ?? finding.rule, span('finding__ref', `${finding.reference} · ${finding.nodes.length} szem`));
       button.addEventListener('click', () => {
         const first = finding.nodes.find((id) => derived.layout.nodes.has(id));
         if (!first) return;
         selectedNode = first;
-        refresh(`Kijelölve a hiba első öltése.`);
+        refresh(`Kijelölve a hiba első szeme.`);
         showPoint(derived.layout.nodes.get(first)!.top);
       });
       item.append(button);
@@ -413,7 +413,7 @@ function applyNotation(next: PatternNotation, message: string): void {
   }
   syncNotationControls();
   renderPalette();
-  // A kiválasztott öltés súgója is az új nevet mutassa.
+  // A kiválasztott szem súgója is az új nevet mutassa.
   select(tool);
   announce(message);
 }
@@ -508,7 +508,7 @@ function select(id: StitchDefId | null): void {
   const item = items.find((candidate) => candidate.def.id === id);
   const kind = item?.def.kind;
   countField.hidden = kind !== 'chain' && kind !== 'space';
-  if (!item) hint.textContent = 'Válassz öltést. Öltés nélkül kattintással a jelet jelölöd ki, és igazíthatod.';
+  if (!item) hint.textContent = 'Válassz szemet. Szem nélkül kattintással a jelet jelölöd ki, és igazíthatod.';
   else if (kind === 'chain' || kind === 'space') hint.textContent = `${item.name}: Enterrel vagy a vászonra kattintva horgolod, a megadott számú láncszemmel.`;
   else if (kind === 'ring' || kind === 'picot') hint.textContent = `${item.name}: Enterrel vagy a vászonra kattintva horgolod.`;
   else hint.textContent = `${item.name}: nyilakkal választod a célpontot, Enterrel vagy kattintással horgolsz bele.`;
@@ -546,7 +546,7 @@ function paletteSection(section: ReturnType<typeof buildPalette>[number]): HTMLD
 
 function workAtCursor(): void {
   if (!tool) {
-    announce('Előbb válassz öltést a jelkészletből (1–9).');
+    announce('Előbb válassz szemet a jelkészletből (1–9).');
     return;
   }
   const def = resolveStitch(tool);
@@ -650,7 +650,7 @@ const ACTIONS: Record<string, () => void> = {
     refresh('Újra.');
   },
   'delete-last': () => commit(deleteLast(history.present), 'Az utolsó lépés törölve.'),
-  same: () => (tool ? commit(workIntoSame(history.present, tool), 'Még egy ugyanabba.') : announce('Előbb válassz öltést.')),
+  same: () => (tool ? commit(workIntoSame(history.present, tool), 'Még egy ugyanabba.') : announce('Előbb válassz szemet.')),
   'end-row': () => commit(endRow(history.present, tool), 'Sor vége, fordulás.'),
   'close-round': () => commit(closeRound(history.present), 'Kör zárva.'),
   mirror: () => {

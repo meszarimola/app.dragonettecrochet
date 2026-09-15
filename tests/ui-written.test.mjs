@@ -20,7 +20,7 @@ function ok(result) {
   return result.pattern;
 }
 
-/** Láncalap, egy teljes rövidpálcás sor, fordulás, és a 2. sorból `done` öltés. */
+/** Láncalap, egy teljes rövidpálcás sor, fordulás, és a 2. sorból `done` szem. */
 function halfRow(done) {
   let pattern = ok(work(emptyPattern(), { def: 'ch', count: 6 }, 0));
   const sc = () => {
@@ -61,13 +61,13 @@ test('névtelen mintánál a szöveg címe „Névtelen minta”', () => {
 test('félkész sor: a szöveg látszik, megjegyzéssel', () => {
   const result = view(halfRow(2));
   assert.equal(result.kind, 'text');
-  assert.match(result.text, /2\. sor: 1 lsz \(nem számít öltésnek\), 2 rp \(2 öltés\)\.$/m);
+  assert.match(result.text, /2\. sor: 1 lsz \(nem számít szemnek\), 2 rp \(2 szem\)\.$/m);
   assert.deepEqual(result.notices, ['A 2. sor félkész, még 3 célpont van hátra: a szöveg a mostani állapotot írja le.']);
 });
 
 test('hibás minta: a szöveg mellett megjegyzés a hibák számával', () => {
   let pattern = halfRow(1);
-  // Két öltés kihagyása a sor közepén: az ellenőrző hibát jelez.
+  // Két szem kihagyása a sor közepén: az ellenőrző hibát jelez.
   pattern = ok(work(pattern, { def: 'sc', count: 1 }, 3));
   const result = view(pattern);
   assert.equal(result.kind, 'text');
@@ -83,5 +83,5 @@ test('amit a szöveg még nem tud kifejezni: érthető üzenet, nem kivétel', (
   };
   const result = view(crossed);
   assert.equal(result.kind, 'message');
-  assert.match(result.message, /^Ez a minta még nem írható ki\. .*keresztezett vagy hosszú öltés/);
+  assert.match(result.message, /^Ez a minta még nem írható ki\. .*keresztezett vagy hosszú szem/);
 });

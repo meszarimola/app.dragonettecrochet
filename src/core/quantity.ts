@@ -74,7 +74,7 @@ export function scale(quantity: Quantity, factor: number): Quantity {
   return combine(quantity.value * factor, [min * factor, max * factor], [quantity]);
 }
 
-/** `numerator / quantity`, pl. öltésszélességből öltés/10 cm. */
+/** `numerator / quantity`, pl. szemszélességből szem/10 cm. */
 export function inverse(numerator: number, quantity: Quantity): Quantity {
   const [min, max] = bounds(quantity);
   return combine(numerator / quantity.value, [numerator / max, numerator / min], [quantity]);
@@ -94,7 +94,7 @@ export function sum(quantities: readonly Quantity[]): Quantity {
   return combine(value, [min, max], quantities);
 }
 
-/** A legnagyobb, pl. a sor magassága a legmagasabb öltéséé; üres listára pontos nulla. */
+/** A legnagyobb, pl. a sor magassága a legmagasabb szeméé; üres listára pontos nulla. */
 export function maximum(quantities: readonly Quantity[]): Quantity {
   if (quantities.length === 0) return sum([]);
   const value = Math.max(...quantities.map((quantity) => quantity.value));

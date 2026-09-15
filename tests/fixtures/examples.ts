@@ -1,9 +1,9 @@
 /*
- * A tudásbázis kidolgozott példái öltésgráfként.
+ * A tudásbázis kidolgozott példái szemgráfként.
  *
- * Mindegyik függvény a mintát és az öltések azonosítóit adja vissza, hogy a
+ * Mindegyik függvény a mintát és a szemek azonosítóit adja vissza, hogy a
  * tesztek célzottan elronthassák. A beállítások a szerkezetet változtató
- * hibákhoz kellenek; a célpontot vagy öltést cserélő hibák az `editNode`-dal
+ * hibákhoz kellenek; a célpontot vagy szemet cserélő hibák az `editNode`-dal
  * készülnek.
  */
 
@@ -12,23 +12,23 @@ import { PieceBuilder, patternOf, type Target } from './builder.ts';
 
 export interface Example {
   readonly pattern: Pattern;
-  /** Soronként vagy körönként az öltések (fordulólánc nélkül) a fonal sorrendjében; a 0. elem a láncalap. */
+  /** Soronként vagy körönként a szemek (fordulólánc nélkül) a fonal sorrendjében; a 0. elem a láncalap. */
   readonly rows: readonly (readonly NodeId[])[];
   /** Soronként a fordulólánc vagy kezdőlánc; a 0. elem üres. */
   readonly turningChains: readonly (readonly NodeId[])[];
 }
 
-/* ---- 03 §3.1 A: félpálcás téglalap, 15 öltés × 22 sor, a fordulólánc nem számít ---- */
+/* ---- 03 §3.1 A: félpálcás téglalap, 15 szem × 22 sor, a fordulólánc nem számít ---- */
 
 export interface HdcRectangleOptions {
   readonly rows?: number;
-  /** Hányadik láncszembe megy az 1. sor első öltése a horogtól; helyesen a 3. */
+  /** Hányadik láncszembe megy az 1. sor első szeme a horogtól; helyesen a 3. */
   readonly firstStitchFromHook?: number;
   /** Egy sor fordulóláncának hossza; helyesen 2. */
   readonly turningChain?: { readonly row: number; readonly chains: number };
-  /** A 2. sor az első öltést kihagyja, és a következőbe két félpálcát horgol. */
+  /** A 2. sor az első szemet kihagyja, és a következőbe két félpálcát horgol. */
   readonly row2SkipsFirst?: boolean;
-  /** A 2. sor közepén egy öltés kimarad, a sor végén szaporítás pótolja. */
+  /** A 2. sor közepén egy szem kimarad, a sor végén szaporítás pótolja. */
   readonly row2SkipsOneInMiddle?: boolean;
   /** Ebben a sorban rákhurok készül félpálca helyett. */
   readonly crabRow?: number;
@@ -77,11 +77,11 @@ export function hdcRectangle(options: HdcRectangleOptions = {}): Example {
   return { pattern: patternOf('Félpálcás téglalap (03 §3.1 A)', [b.build()]), rows, turningChains };
 }
 
-/* ---- 03 §3.1 B: pálcás téglalap, 16 öltés × 16 sor, a 3 láncszemes fordulólánc számít ---- */
+/* ---- 03 §3.1 B: pálcás téglalap, 16 szem × 16 sor, a 3 láncszemes fordulólánc számít ---- */
 
 export interface DcRectangleOptions {
   readonly rows?: number;
-  /** A 2. sor az alatta lévő öltésbe kezd, és kihagyja az előző fordulólánc tetejét. */
+  /** A 2. sor az alatta lévő szembe kezd, és kihagyja az előző fordulólánc tetejét. */
   readonly row2MissesTurningChain?: boolean;
 }
 
@@ -165,18 +165,18 @@ export function shellStitch(options: ShellOptions = {}): Example {
   };
 }
 
-/* ---- 03 §4.2 F: V-öltés, 3 többszöröse + 2, a fordulólánc nem számít ---- */
+/* ---- 03 §4.2 F: V-szem, 3 többszöröse + 2, a fordulólánc nem számít ---- */
 
 export interface VStitchOptions {
   readonly repeats?: number;
-  /** Az első V-öltés két pálcája nincs csoportként jelölve. */
+  /** Az első V-szem két pálcája nincs csoportként jelölve. */
   readonly firstVUngrouped?: boolean;
 }
 
 export function vStitchPattern(options: VStitchOptions = {}): Example {
   const n = options.repeats ?? 4;
   const worked = 3 * n + 2;
-  const b = new PieceBuilder('p1', 'V-öltés');
+  const b = new PieceBuilder('p1', 'V-szem');
   const foundation = b.chain(worked + 3);
   const at = (j: number) => foundation[worked - 1 - j]!;
 
@@ -205,7 +205,7 @@ export function vStitchPattern(options: VStitchOptions = {}): Example {
   b.event('fasten-off', 2 * n + 2);
 
   return {
-    pattern: patternOf('V-öltés (03 §4.2 F)', [b.build()], {
+    pattern: patternOf('V-szem (03 §4.2 F)', [b.build()], {
       turningChainCounts: false,
       repeat: { repeatWidth: 3, edgeStitches: 2, turningChainIncluded: false },
     }),
@@ -318,7 +318,7 @@ export function wave(options: WaveOptions = {}): Example {
 /* ---- 03 §8: nagymama-négyzet 1–3. köre, oldalt 1, a sarkokban 2 láncszemes ív ---- */
 
 export interface GrannyOptions {
-  /** A 2. kör megadott öltésszáma; helyesen 36, mert a 3. kör minden ívébe horgol (PQW-870). */
+  /** A 2. kör megadott szemszáma; helyesen 36, mert a 3. kör minden ívébe horgol (PQW-870). */
   readonly round2StatedCount?: number;
   /** A 2. kör záró kúszószeme a kör első pálcájába megy a kezdőlánc teteje helyett. */
   readonly round2JoinsFirstDc?: boolean;
@@ -386,7 +386,7 @@ export const WORKED_EXAMPLES = {
   'félpálcás téglalap (03 §3.1 A)': hdcRectangle,
   'pálcás téglalap (03 §3.1 B)': dcRectangle,
   'kagyló 6+1 (03 §4.2 E)': shellStitch,
-  'V-öltés (03 §4.2 F)': vStitchPattern,
+  'V-szem (03 §4.2 F)': vStitchPattern,
   'cikcakk (03 §4.2 G)': () => chevron(),
   'hullám (03 §2.3)': wave,
   'nagymama-négyzet 1–3. kör (03 §8)': grannySquare,

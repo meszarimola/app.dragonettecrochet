@@ -14,7 +14,7 @@ import { buildPalette } from '../src/ui/palette.ts';
 const palette = buildPalette();
 const items = palette.flatMap((section) => section.items);
 
-test('a paletta minden öltést pontosan egyszer mutat, a könyvtár sorrendjében', () => {
+test('a paletta minden szemet pontosan egyszer mutat, a könyvtár sorrendjében', () => {
   assert.deepEqual(
     items.map((item) => item.def.id),
     STITCHES.map((stitch) => stitch.id),
@@ -31,7 +31,7 @@ test('a paletta csoportjai a könyvtár csoportjai, mindnek van címe', () => {
   assert.equal(new Set(titles).size, titles.length);
 });
 
-test('az első kilenc öltésnek 1–9 a gyorsbillentyűje, a többinek nincs', () => {
+test('az első kilenc szemnek 1–9 a gyorsbillentyűje, a többinek nincs', () => {
   assert.deepEqual(
     items.map((item) => item.key),
     items.map((_, i) => (i < 9 ? String(i + 1) : null)),
@@ -47,7 +47,7 @@ test('a feliratok nagybetűvel kezdődnek, és nincs bennük „hamispálca”',
   }
 });
 
-test('a szerkezet csak az összetett öltéseknél jelenik meg', () => {
+test('a szerkezet csak az összetett szemeknél jelenik meg', () => {
   for (const item of items) {
     const compound = item.def.kind === 'group' || (item.def.kind === 'joined' && item.def.closure !== 'loops');
     assert.equal(item.structure !== null, compound, item.def.id);

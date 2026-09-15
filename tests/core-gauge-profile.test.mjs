@@ -33,7 +33,7 @@ describe('mérési fájl betöltése (docs/calibration/)', () => {
     assert.match(before.notes, /Kitalált példaértékek/);
   });
 
-  test('öltésenkénti szélesség és sormagasság: az átlag osztva a lefedett öltés- és sorszámmal', () => {
+  test('szemenkénti szélesség és sormagasság: az átlag osztva a lefedett szem- és sorszámmal', () => {
     const [before, after] = samplesFrom(exampleText(ROWS_EXAMPLE));
     near(before.widthMm.mean, 5.65);
     near(before.widthMm.sd, 0.05);
@@ -44,13 +44,13 @@ describe('mérési fájl betöltése (docs/calibration/)', () => {
     assert.deepEqual(before.drift, []);
   });
 
-  test('területre jutó tömeg és öltésenkénti fonal a mért tömegből és a címkéből', () => {
+  test('területre jutó tömeg és szemenkénti fonal a mért tömegből és a címkéből', () => {
     const [before, after] = samplesFrom(exampleText(ROWS_EXAMPLE));
     assert.equal(before.massPerAreaGPerCm2, null);
     assert.equal(before.yarnPerStitchCm, null);
     near(after.swatchAreaCm2, 144.9);
     near(after.massPerAreaGPerCm2, 8.6 / 144.9);
-    // g/cm² × öltésterület (cm²) × 2,5 m/g × 100 cm/m
+    // g/cm² × szemterület (cm²) × 2,5 m/g × 100 cm/m
     near(after.yarnPerStitchCm, (8.6 / 144.9) * ((5.7 * 4.45) / 100) * 2.5 * 100);
   });
 
@@ -154,7 +154,7 @@ describe('hibás mérési fájl', () => {
     assert.equal(error.path, '$.measurements[0].blocking');
   });
 
-  test('a `ch` öltés csak láncszemsorban', () => {
+  test('a `ch` szem csak láncszemsorban', () => {
     assert.equal(loadError(edited(ROWS_EXAMPLE, (file) => (file.stitch.id = 'ch'))).path, '$.stitch.id');
   });
 });

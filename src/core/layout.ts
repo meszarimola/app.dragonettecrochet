@@ -3,23 +3,23 @@
  * színe és visszája. Tiszta függvény, böngésző nélkül.
  *
  * Konvenciók (01 §6.1, §6.3, §8.4; 03 §2.1, §4.4):
- * - A jel talpa ott van, ahová horgolták: az alatta lévő öltés oszlopában. A
+ * - A jel talpa ott van, ahová horgolták: az alatta lévő szem oszlopában. A
  *   szaporítás szárai egy talpból legyezőben nyílnak, a fogyasztás szárai egy
  *   tetőbe futnak — ez magától adódik, mert a talp a célpont, a tető a saját
  *   oszlop.
  * - Sorban a jelek függőlegesek, a sorok alulról felfelé, kígyózva haladnak:
  *   jobbkezesnek az 1. sor jobbról balra; a sorszám a sor kezdő oldalán áll.
- * - A sormagasság a sor legmagasabb öltéséből jön; egy sor jelei közös
+ * - A sormagasság a sor legmagasabb szeméből jön; egy sor jelei közös
  *   talpvonalon állnak.
  * - Körben a jelek sugárirányúak, a körök a középből az óramutatóval
  *   ellentétesen haladnak. Ez egyszerű elrendezés; a körnézet finomítása később jön.
  * - Tükrözött nézetben (balkezeseknek) minden vízszintesen tükröződik (01 §8.4 szabály 22).
  *
  * Stabil szerkesztés közben (06 §5.3 2. pont): egy réteg csak az alatta lévő
- * rétegtől és a saját öltéseitől függ, ezért új öltés csak a saját sorát
+ * rétegtől és a saját szemeitől függ, ezért új szem csak a saját sorát
  * rendezheti át, a korábbi sorokat nem.
  *
- * Egy sor oszlopai: minden öltés oda szeretne kerülni, ahová horgolták, de a
+ * Egy sor oszlopai: minden szem oda szeretne kerülni, ahová horgolták, de a
  * fonal sorrendjében, legalább fél-fél szélességnyi távolságra egymástól. Ezt
  * súlyozott monoton regresszió adja (pool adjacent violators): a legyező a
  * célpontja köré, a fogyasztás a célpontjai közé kerül, a láncszemek a
@@ -61,7 +61,7 @@ export interface LayerPlacement {
   readonly stitchCount: number;
   /** A sorszám helye a sor kezdő oldalán. */
   readonly start: Point;
-  /** Az öltésszám helye a sor végén. */
+  /** A szemszám helye a sor végén. */
   readonly end: Point;
 }
 
@@ -75,7 +75,7 @@ export interface ChartLayout {
 export interface LayoutOptions {
   /** Balkezes, tükrözött nézet. */
   readonly mirror?: boolean;
-  /** Egy öltés oszlopszélessége. */
+  /** Egy szem oszlopszélessége. */
   readonly columnWidth?: number;
   /** A szár hossza láncszem-magasságból; a felület a jelrajzéval adja át (src/ui/symbols.ts). */
   readonly stemLength?: (chainHeight: number) => number;
@@ -304,7 +304,7 @@ class Layouter {
       desired: item.desired === undefined ? undefined : direction * item.desired,
     }));
 
-    // A fordulólánc helye: a számító az alatta lévő öltés oszlopában, a nem számító az első öltés mellett kívül.
+    // A fordulólánc helye: a számító az alatta lévő szem oszlopában, a nem számító az első szem mellett kívül.
     const stack = scaled.find((item) => item.ids[0] === layer.turningChain[0] && layer.turningChain.length > 0);
     if (stack) {
       const workingFirst = layer.direction === 1 ? below.positions[0] : below.positions[below.positions.length - 1];
@@ -384,7 +384,7 @@ class Layouter {
     return this.#tops[index] ?? this.#base[index] ?? 0;
   }
 
-  /** A talp: a célpont oszlopa ennek a rétegnek a talpvonalán; korábbi sorba horgolt öltésnél annak a sornak a tetején. */
+  /** A talp: a célpont oszlopa ennek a rétegnek a talpvonalán; korábbi sorba horgolt szemnél annak a sornak a tetején. */
   #foot(anchor: Anchor, index: number, base: number): Point {
     if (anchor.into === 'ring') return { x: 0, y: 0 };
     if (this.#round) {

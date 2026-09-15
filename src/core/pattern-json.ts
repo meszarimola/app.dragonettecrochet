@@ -6,7 +6,7 @@
  *   veszne el.
  * - A betöltés szigorú: ismeretlen mező, hiányzó mező vagy rossz típus hibát
  *   ad a mező útvonalával. A gráf tartalmát (pl. létező-e egy hivatkozott
- *   öltés) nem itt, hanem a `validatePattern` ellenőrzi.
+ *   szem) nem itt, hanem a `validatePattern` ellenőrzi.
  * - A mentés a mezőket mindig ugyanabban a sorrendben írja, így két mentés
  *   különbsége olvasható.
  */

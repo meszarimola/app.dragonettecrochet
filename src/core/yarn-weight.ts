@@ -20,9 +20,9 @@ export interface CycWeightClass {
   readonly weight: CycWeight;
   /** A CYC angol neve. */
   readonly name: string;
-  /** A gauge öltése: a csipkefonalé egyráhajtásos pálca, a többié rövidpálca (02 §1.1). */
+  /** A gauge szeme: a csipkefonalé egyráhajtásos pálca, a többié rövidpálca (02 §1.1). */
   readonly gaugeStitch: 'sc' | 'dc';
-  /** Öltés 4 hüvelyken (10,16 cm). */
+  /** Szem 4 hüvelyken (10,16 cm). */
   readonly stitchesPer4in: OpenRange;
   /** Ajánlott horgolótű, mm. A csipkefonalnál az acéltűtől a normál 2,25 mm-ig. */
   readonly hookMm: OpenRange;
@@ -46,13 +46,13 @@ export function cycWeightClass(weight: CycWeight): CycWeightClass {
 
 export const INCH_CM = 2.54;
 
-/** Öltés/4 hüvelyk → öltés/10 cm (02 §8 `gaugePer10cm`). */
+/** Szem/4 hüvelyk → szem/10 cm (02 §8 `gaugePer10cm`). */
 export function per10cmFromPer4in(count: number): number {
   return (count * 10) / (4 * INCH_CM);
 }
 
 /**
- * Becsült öltés/10 cm a kategória táblázatából: a tartomány közepe, a
+ * Becsült szem/10 cm a kategória táblázatából: a tartomány közepe, a
  * tartománnyal. Nyitott végű kategóriára (Jumbo) `null`.
  */
 export function cycGaugePer10cm(weight: CycWeight): { readonly stitch: 'sc' | 'dc'; readonly perTenCm: Quantity } | null {

@@ -1,4 +1,4 @@
-V-öltés (03 §4.2 F)
+V-szem (03 §4.2 F)
 
 Abbreviations (US terms)
 ch – chain
@@ -14,7 +14,7 @@ double crochet (dc)
 V-stitch (V-st): (dc, ch 1, dc) in same st
 chain space (ch-sp)
 
-V-öltés
+V-szem
 Foundation: ch 17.
 Row 1: Starting in 4th ch from hook, dc, sk 1 ch, V-st, [sk 2 ch, V-st] 3 times, sk 1 ch, dc (14 sts). Turn.
 Row 2: ch 3 (does not count as a st), dc, [V-st in next ch-sp] 4 times, sk 1 st, dc (10 sts). Fasten off.

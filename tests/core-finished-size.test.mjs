@@ -51,7 +51,7 @@ describe('sorokban horgolt darab', () => {
     assert.ok(heightCm.range[0] < heightCm.value && heightCm.value < heightCm.range[1]);
   });
 
-  test('vegyes sorban a sor magassága a legmagasabb öltésé, a szélesség az öltéseké összesen', () => {
+  test('vegyes sorban a sor magassága a legmagasabb szemé, a szélesség a szemeké összesen', () => {
     const [row] = pieceSize([{ shape: 'row', stitches: ['sc', 'dc', 'sc'] }], { library, profile: unblocked, hookMm: 4 }).layers;
     assert.equal(row.source, 'estimated');
     assert.deepEqual(row.basis, ['measured', 'profile-stitch']);
@@ -116,7 +116,7 @@ describe('szélső esetek', () => {
     assert.deepEqual(pieceSize([], context), { layers: [], total: null, source: 'measured', estimated: false });
   });
 
-  test('ismeretlen öltés hibát ad', () => {
+  test('ismeretlen szem hibát ad', () => {
     assert.throws(() => pieceSize(rows(1, ['nincs-ilyen']), context), RangeError);
   });
 

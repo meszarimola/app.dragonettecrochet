@@ -21,7 +21,7 @@ import { testLibrary } from './fixtures/library.ts';
 const layersOf = (example) => computeLayers(example.pattern, testLibrary);
 const counts = (layers) => layers.map((layer) => [layer.stitchCount, layer.positionCount]);
 
-test('félpálcás téglalap: 22 sor, soronként 15 öltés, a fordulólánc nem számít (03 §3.1 A)', () => {
+test('félpálcás téglalap: 22 sor, soronként 15 szem, a fordulólánc nem számít (03 §3.1 A)', () => {
   const example = hdcRectangle();
   const layers = layersOf(example);
 
@@ -39,7 +39,7 @@ test('a láncalap végén álló fordulólánc az 1. sorhoz tartozik, együtt N 
   assert.equal(foundation, foundationChainLength(15, 2, false));
 });
 
-test('pálcás téglalap: a számító fordulólánccal 18 láncszem ad 16 öltést (03 §3.1 B)', () => {
+test('pálcás téglalap: a számító fordulólánccal 18 láncszem ad 16 szemet (03 §3.1 B)', () => {
   const layers = layersOf(dcRectangle());
 
   assert.equal(layers[0].positionCount, 15);
@@ -52,14 +52,14 @@ test('fordulás után a sor oldala vált: páratlan sor színe, páros visszája
   assert.deepEqual(sides, ['right', 'right', 'wrong', 'right', 'wrong']);
 });
 
-test('kagyló 6+1: mindkét sor 6n + 1 öltés (03 §4.2 E)', () => {
+test('kagyló 6+1: mindkét sor 6n + 1 szem (03 §4.2 E)', () => {
   assert.deepEqual(counts(layersOf(shellStitch({ repeats: 3 })).slice(1)), [
     [19, 19],
     [19, 19],
   ]);
 });
 
-test('V-öltés: a láncívként beleöltött láncszemek beleszámítanak, az utolsó sor díszívei nem (03 §4.3, PQW-870)', () => {
+test('V-szem: a láncívként belehorgolt láncszemek beleszámítanak, az utolsó sor díszívei nem (03 §4.3, PQW-870)', () => {
   // 4 ismétlés: 2 szélső pálca + 4 × 2 pálca, és 4 egyláncszemes ív; a 2. sor az 1. sor íveibe horgol.
   assert.deepEqual(counts(layersOf(vStitchPattern({ repeats: 4 })).slice(1)), [
     [14, 14],
@@ -67,7 +67,7 @@ test('V-öltés: a láncívként beleöltött láncszemek beleszámítanak, az u
   ]);
 });
 
-test('cikcakk és hullám: a sorok öltésszáma állandó (03 §4.2 G, §2.3)', () => {
+test('cikcakk és hullám: a sorok szemszáma állandó (03 §4.2 G, §2.3)', () => {
   assert.deepEqual(counts(layersOf(chevron(2)).slice(1)), [
     [25, 25],
     [25, 25],
@@ -79,7 +79,7 @@ test('cikcakk és hullám: a sorok öltésszáma állandó (03 §4.2 G, §2.3)',
   ]);
 });
 
-test('nagymama-négyzet: a láncívként, egészben beleöltött sarok- és oldalívek beleszámítanak (03 §8, PQW-870)', () => {
+test('nagymama-négyzet: a láncívként, egészben belehorgolt sarok- és oldalívek beleszámítanak (03 §8, PQW-870)', () => {
   const layers = layersOf(grannySquare());
 
   assert.deepEqual(
@@ -105,7 +105,7 @@ test('a záró és továbbvezető kúszószem mintánként bekapcsolva számít 
   );
 });
 
-/** Rövidpálcás háló: az 1. sor „1 rp, [1 lsz, 1 láncszem kihagyása, 1 rp] 2-szer”, a 2. sor egyenként beleölt. */
+/** Rövidpálcás háló: az 1. sor „1 rp, [1 lsz, 1 láncszem kihagyása, 1 rp] 2-szer”, a 2. sor egyenként belehorgol. */
 function scMesh({ decorative = false } = {}, conventions = {}) {
   const b = new PieceBuilder('p1', 'Háló');
   const foundation = b.chain(6);
@@ -123,7 +123,7 @@ function scMesh({ decorative = false } = {}, conventions = {}) {
 const stitchCounts = (pattern) => computeLayers(pattern, testLibrary).map((layer) => layer.stitchCount);
 const withChainCounts = (example, chainCounts) => ({ ...example.pattern, conventions: { ...example.pattern.conventions, chainCounts } });
 
-test('az egyenként beleöltött láncszemek beleszámítanak (PQW-870)', () => {
+test('az egyenként belehorgolt láncszemek beleszámítanak (PQW-870)', () => {
   const pattern = scMesh();
   assert.deepEqual(validatePattern(pattern, testLibrary), []);
   assert.deepEqual(counts(computeLayers(pattern, testLibrary).slice(1)), [
@@ -194,7 +194,7 @@ test('„X többszöröse + Y”: a fordulólánc benne van-e az Y-ban (03 §4.1
     workedChains: 19,
     firstRowPositions: 19,
   });
-  // Dora Does: V-öltés 3 + 2, 20 V = 62 lsz, és utána jön a fordulólánc.
+  // Dora Does: V-szem 3 + 2, 20 V = 62 lsz, és utána jön a fordulólánc.
   assert.equal(repeatCounts({ repeatWidth: 3, edgeStitches: 2, turningChainIncluded: false }, 20, 3, false).chains, 65);
   // Oombawka: 8 többszöröse + 2, a 2 lsz a fordulólánc.
   assert.deepEqual(repeatCounts({ repeatWidth: 8, edgeStitches: 2, turningChainIncluded: true }, 1, 2, false), {
@@ -204,6 +204,6 @@ test('„X többszöröse + Y”: a fordulólánc benne van-e az Y-ban (03 §4.1
   });
 });
 
-test('az öltéskönyvtár nem enged kétszer szereplő azonosítót', () => {
-  assert.throws(() => createStitchLibrary([DOUBLE_CROCHET, DOUBLE_CROCHET]), /Kétszer szereplő öltés-azonosító: dc/);
+test('a szemkönyvtár nem enged kétszer szereplő azonosítót', () => {
+  assert.throws(() => createStitchLibrary([DOUBLE_CROCHET, DOUBLE_CROCHET]), /Kétszer szereplő szemazonosító: dc/);
 });

@@ -57,11 +57,11 @@ to **write them out in full** until the owner chooses abbreviations.
 
 | Hungarian (proposed) | Abbr. | US | UK | Chain height | c → p |
 |---|---|---|---|---|---|
-| szaporítás (n öltés egy öltésbe) [T] | — | increase (inc): "2 sc in next st" | increase (inc): "2 dc in next st" | same as the base stitch | 1 → n |
-| fogyasztás (n öltésből egy) [T] | — | decrease (dec): sc2tog, dc2tog, sc3tog… | decrease (dec): dc2tog, tr2tog, dc3tog… [E] | same as the base stitch | n → 1 |
+| szaporítás (n szem egy szembe) [T] | — | increase (inc): "2 sc in next st" | increase (inc): "2 dc in next st" | same as the base stitch | 1 → n |
+| fogyasztás (n szemből egy) [T] | — | decrease (dec): sc2tog, dc2tog, sc3tog… | decrease (dec): dc2tog, tr2tog, dc3tog… [E] | same as the base stitch | n → 1 |
 | láthatatlan fogyasztás [T] | — | invisible decrease (invdec) | invisible decrease [E] | 1 (worked as rp) | 2 → 1 |
 | kagyló [T] | — | shell (sh): e.g. 5 dc in same st | shell: e.g. 5 tr in same st [E] | 3 (erp-based) | 1 → n; with k skipped stitches on each side 1 + 2k → n |
-| V-öltés [T] | — | V-stitch (V-st): (dc, ch 1, dc) in same st | V-stitch: (tr, ch 1, tr) [E] | 3 | 1 → 2 stitches + 1 chain space |
+| V-szem [T] | — | V-stitch (V-st): (dc, ch 1, dc) in same st | V-stitch: (tr, ch 1, tr) [E] | 3 | 1 → 2 stitches + 1 chain space |
 | ⚠ fürt [T] | — | cluster (CL) | cluster (CL) | same as the base stitch | ⚠ in one stitch: 1 → 1; over n stitches: n → 1 (D6) |
 | puff [T] | — | puff stitch (ps / puff) | puff stitch | ≈ 2 (≈ fp) | 1 → 1 |
 | bogyó [T] | — | bobble (bo) | bobble | ≈ 3 (≈ erp) | 1 → 1 |
@@ -140,3 +140,27 @@ Answers to the two questions the stitch library (PQW-867) left open.
 - A picot is usually on the last, decorative row, but it may be worked into.
   The program must not warn about it.
 - The current behaviour (the picot top is workable) is correct and stays.
+
+## 7. Unit words (owner, 2026-09-14, PQW-872)
+
+The finished crochet unit is a **szem** in Hungarian, as in *láncszem* and
+*kúszószem*. The seven Hungarian crochet sites cited in PQW-872 use it that
+way ("minden szembe 2 pálca kerül", "a szemszámot ellenőrizd a sor végén"),
+and *öltés* hardly occurs there as a unit.
+
+| Hungarian | English | Use |
+|---|---|---|
+| szem | stitch | "a következő szembe", "ugyanabba a szembe", "2 szem kihagyása", "(15 szem)" |
+| szemszám | stitch count | "a szemszám a sor végén" |
+| hurok | loop on the hook | Only this meaning: "2 hurok van a horgon"; puff, bobble and decreases |
+| első szál / hátsó szál | front loop / back loop | Unchanged (§3) |
+
+- Hungarian output never uses *öltés* for the unit: interface, written
+  pattern, legend, validator messages. `tests/hu-vocabulary.test.mjs` guards
+  it.
+- For the same reason the [T] name *V-öltés* in §2 is now **V-szem**.
+- Compounds follow the unit: *alapszem* (basic stitch), *részszem* (a partial
+  stitch inside a compound stitch), *szemkönyvtár* (stitch library),
+  *szemgráf* (stitch graph).
+- *Rákhurok* (crab stitch) is a stitch name, not a loop, and keeps its §2 name.
+- Code identifiers (`StitchDef`, `stitchCount`) and English text are unchanged.

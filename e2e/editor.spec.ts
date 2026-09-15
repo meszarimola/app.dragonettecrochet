@@ -81,7 +81,7 @@ test('10 × 10 félpálcás téglalap csak billentyűzettel, hibátlanul', async
   await rectangle(page, '4', 10, 10, 12);
 
   await expect(page.locator('#summary')).toContainText('10 sor.');
-  await expect(page.locator('#summary')).toContainText('10. sor: 10 öltés.');
+  await expect(page.locator('#summary')).toContainText('10. sor: 10 szem.');
   await expect(page.locator('#summary')).toContainText('Nincs hiba és figyelmeztetés.');
   await expect(page.locator('#findings li')).toHaveCount(0);
 });
@@ -92,7 +92,7 @@ test('a minta újratöltés után megmarad, és JSON-ként visszatölthető', as
   await page.keyboard.press('1');
   await rectangle(page, '3', 5, 2, 6);
   const before = await page.locator('#summary').textContent();
-  expect(before).toContain('2. sor: 5 öltés.');
+  expect(before).toContain('2. sor: 5 szem.');
 
   await page.reload();
   await expect(page.locator('#summary')).toHaveText(before!);

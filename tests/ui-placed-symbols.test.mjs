@@ -14,7 +14,7 @@ const samePoint = (p, q) => near(p.x, q.x) && near(p.y, q.y);
 const byRole = (shapes, role) => shapes.filter((shape) => shape.role === role);
 const stitchAt = (feet, top) => ({ role: 'stitch', feet, top, angle: 0, size: 0 });
 
-test('alapöltés: a szár a talptól a tetőig tart, ferdén is, a tetővonal a tetőn', () => {
+test('alapszem: a szár a talptól a tetőig tart, ferdén is, a tetővonal a tetőn', () => {
   const foot = { x: 10, y: 0 };
   const top = { x: 30, y: -40 };
   const shapes = placedShapes(stitchById('dc'), stitchAt([foot], top));
@@ -58,7 +58,7 @@ test('láncszem: ellipszis a középpontban, a megadott szögben, a hosszánál 
   assert.ok(oval.rx <= 5);
 });
 
-test('rákhurok hullámvonallal; minden öltés véges alakzatot ad a diagramon', () => {
+test('rákhurok hullámvonallal; minden szem véges alakzatot ad a diagramon', () => {
   const rev = placedShapes(stitchById('rev-sc'), stitchAt([{ x: 0, y: 0 }], { x: 0, y: -18 }));
   assert.equal(byRole(rev, 'tilde').length, 2);
   for (const def of STITCHES) {

@@ -1,11 +1,11 @@
 /*
- * Az öltésgráfból számolt sorok és körök (rétegek).
+ * A szemgráfból számolt sorok és körök (rétegek).
  *
- * A sor nincs eltárolva: az öltések sorrendjéből és a sor végi eseményekből
+ * A sor nincs eltárolva: a szemek sorrendjéből és a sor végi eseményekből
  * számoljuk (06 §5.1 elv 3, 06 §3.2 „layers”). Egy darab rétegei:
  * - 0. réteg: a láncalap vagy a varázskör;
- * - utána minden réteg az előző esemény utáni öltéstől a következő esemény
- *   öltéséig tart.
+ * - utána minden réteg az előző esemény utáni szemtől a következő esemény
+ *   szeméig tart.
  *
  * Megállapodások, amelyekre az ellenőrző épít:
  * - A láncalap végén a be nem horgolt láncszemek az 1. sor fordulólánca, ezért
@@ -13,14 +13,14 @@
  * - Később a sor elején álló láncszemek a fordulólánc vagy a kezdőlánc; a
  *   fordulás eseménye után következnek.
  * - Zárt körben a kör eleji kúszószemek a továbbvezetés, a záró kúszószem az
- *   esemény öltése; mindkettő a `joinSlipStitchCounts` szerint számít (D7).
- * - A számító fordulólánc egy öltés, és egyetlen horgolható pozíciója a
+ *   esemény szeme; mindkettő a `joinSlipStitchCounts` szerint számít (D7).
+ * - A számító fordulólánc egy szem, és egyetlen horgolható pozíciója a
  *   teteje, vagyis az utolsó láncszeme (03 §1.3). A nem számító fordulóláncba
  *   nem horgolunk (03 §10 A4).
- * - A többi láncszem mindig pozíció. Az öltésszámba a `chainCounts` szerint
+ * - A többi láncszem mindig pozíció. A szemszámba a `chainCounts` szerint
  *   számít: alapból akkor, ha egy későbbi réteg beléjük horgol, egyenként
  *   vagy láncívként; a díszlánc nem (03 §10 B10, PQW-870). A 0. réteg
- *   öltésszáma mindig 0.
+ *   szemszáma mindig 0.
  *
  * Nem kezeli még: láncszem nélküli alapsort (foundation stitches, 03 §1.4), a
  * darabok összekapcsolását.
@@ -49,13 +49,13 @@ export interface LayerInfo extends Layer {
   readonly turningChainCounts: boolean;
   /** Az esemény, amely a réteget megnyitja; a 0. és az 1. rétegnél `null`. */
   readonly opening: LayerEvent | null;
-  /** Az esemény a réteg utolsó öltése után; ha a darab esemény nélkül ér véget, `null`. */
+  /** Az esemény a réteg utolsó szeme után; ha a darab esemény nélkül ér véget, `null`. */
   readonly closing: LayerEvent | null;
   /** Kúszószemek a zárt kör elején, amelyekkel a fonal a kezdőhelyre jut. */
   readonly travelSlips: readonly NodeId[];
   /** A kört záró kúszószem. */
   readonly joinSlip: NodeId | null;
-  /** A sor első nem láncszem öltése a fordulólánc után; ez dönti el a fordulólánc magasságát. */
+  /** A sor első nem láncszem szeme a fordulólánc után; ez dönti el a fordulólánc magasságát. */
   readonly firstStitch: NodeId | null;
   /**
    * Haladási irány az előző réteg fonalsorrendjéhez képest: fordulás után és
@@ -69,7 +69,7 @@ export interface LayerInfo extends Layer {
 export interface PieceGraph {
   readonly piece: Piece;
   readonly nodes: ReadonlyMap<NodeId, StitchNode>;
-  /** Az öltés helye a fonal útján (0-tól). */
+  /** A szem helye a fonal útján (0-tól). */
   readonly order: ReadonlyMap<NodeId, number>;
   readonly defs: ReadonlyMap<NodeId, StitchDef>;
   readonly spaces: ReadonlyMap<SpaceId, Space>;
@@ -82,7 +82,7 @@ export interface PieceGraph {
 
 /**
  * A darab gráfja rétegekkel. Szerkezetileg érvényes darabot vár (minden
- * hivatkozás létezik, minden öltés a könyvtárban van); ezt a
+ * hivatkozás létezik, minden szem a könyvtárban van); ezt a
  * `validatePattern` ellenőrzi előbb.
  */
 export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchLibrary): PieceGraph {
@@ -91,7 +91,7 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
   const defs = new Map<NodeId, StitchDef>();
   for (const node of piece.stitches) {
     const def = library.get(node.def);
-    if (!def) throw new Error(`Ismeretlen öltés: ${node.def} (${node.id})`);
+    if (!def) throw new Error(`Ismeretlen szem: ${node.def} (${node.id})`);
     defs.set(node.id, def);
   }
   const kindOf = (node: StitchNode) => defs.get(node.id)!.kind;
