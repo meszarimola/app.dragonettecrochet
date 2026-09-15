@@ -1,20 +1,24 @@
 /*
- * A minta számolási hagyománya (PQW-876): a fordulólánc és a láncalap.
+ * A fordulólánc és a láncalap számolása (PQW-876, PQW-891).
  *
- * - CYC: a fordulólánc egyráhajtásos pálcától számít szemnek (szókészlet K1);
- *   számító fordulóláncnál N szemhez `N + T − 1` láncszem kell, és az 1. sor
- *   első szeme a horogtól számított `T + 1`. láncszembe megy (01 §8.3 szabály 15).
- * - Japán: a fordulólánc (立ち上がり) a félpálcától felfelé számít szemnek, a
- *   rövidpálcáé nem. A számító fordulólánc egy alapláncszemen „áll”, ezért az
- *   1. sor első szeme a `T + 2`. láncszembe megy (félpálca a 4., pálca az 5.,
- *   kétráhajtásos a 6., háromráhajtásos a 7.), és N szemhez `N + T` láncszem
- *   kell (01 §2.2, §3.3; japán források a tudásbázisban).
+ * - Sorban a fordulólánc a sor első szeme helyett áll, és egy alapláncszemen
+ *   „áll” (tulajdonosi javítás, PQW-891): rövidpálcánál 1, félpálcánál 2,
+ *   egyráhajtásos pálcánál 3 láncszem. Az 1. sor első szeme a horogtól
+ *   számított `T + 2`. láncszembe megy (rövidpálca a 3., félpálca a 4., pálca
+ *   az 5.), N szemhez `N + T` láncszem kell, és a következő sorok utolsó szeme
+ *   az előző fordulólánc tetejébe megy.
+ * - Körben a kezdőlánc a szemkönyvtár alapértelmezését követi: az
+ *   egyráhajtásos pálcától számít szemnek (szókészlet K1), a körgenerátorok
+ *   ezzel dolgoznak.
+ * - Japán hagyomány: a fordulólánc (立ち上がり) a félpálcától felfelé számít
+ *   szemnek, a rövidpálcáé nem; a számító fordulólánc ugyanúgy egy
+ *   alapláncszemen áll (01 §2.2, §3.3; japán források a tudásbázisban).
  *
- * A gráf, az ellenőrző, a szerkesztő, az írott minta és a visszaolvasó is
- * innen veszi a szabályt, így nem térhetnek el egymástól.
+ * A gráf, az ellenőrző, a szerkesztő, a generátorok, az írott minta és a
+ * visszaolvasó is innen veszi a szabályt, így nem térhetnek el egymástól.
  */
 
-import type { PatternConventions, RowConventions, StitchDef, Tradition } from './types.ts';
+import type { Layer, PatternConventions, RowConventions, StitchDef, Tradition } from './types.ts';
 
 export const TRADITIONS: readonly Tradition[] = ['cyc', 'japanese'];
 
@@ -23,23 +27,29 @@ export function traditionOf(conventions: PatternConventions): Tradition {
   return conventions.tradition ?? 'cyc';
 }
 
-/** A sort kezdő szem alapértelmezése: számít-e a fordulólánca szemnek. */
-export function stitchTurningChainCounts(def: StitchDef, tradition: Tradition): boolean {
-  return tradition === 'japanese' ? def.turningChain >= 2 : def.turningChainCounts;
+/** A sort vagy kört kezdő szem alapértelmezése: számít-e a fordulólánca (körben a kezdőlánca) szemnek. */
+export function stitchTurningChainCounts(def: StitchDef, tradition: Tradition, shape: Layer['shape']): boolean {
+  if (tradition === 'japanese') return def.turningChain >= 2;
+  return shape === 'row' ? def.turningChain >= 1 : def.turningChainCounts;
 }
 
-/** A beállításból (`stitch-default` vagy kifejezett érték) és a sort kezdő szemből. */
+/** A beállításból (`stitch-default` vagy kifejezett érték) és a sort vagy kört kezdő szemből. */
 export function turningChainCountsFor(
   setting: RowConventions['turningChainCounts'],
   def: StitchDef,
   tradition: Tradition,
+  shape: Layer['shape'],
 ): boolean {
-  return setting === 'stitch-default' ? stitchTurningChainCounts(def, tradition) : setting;
+  return setting === 'stitch-default' ? stitchTurningChainCounts(def, tradition, shape) : setting;
 }
 
-/** Áll-e a láncalapon a fordulólánc egy alapláncszemen: japán hagyományban, számító fordulóláncnál. */
-export function hasBaseChain(turningChainCounts: boolean, tradition: Tradition): boolean {
-  return tradition === 'japanese' && turningChainCounts;
+/**
+ * Áll-e a láncalapon a fordulólánc egy alapláncszemen: számító fordulóláncnál
+ * mindig (PQW-891). A hagyomány már nem dönt róla, csak arról, hogy a
+ * fordulólánc számít-e; a paraméter a meglévő hívások miatt marad.
+ */
+export function hasBaseChain(turningChainCounts: boolean, _tradition: Tradition): boolean {
+  return turningChainCounts;
 }
 
 /** Az 1. sor első szeme a horogtól számított hányadik láncszembe megy. */

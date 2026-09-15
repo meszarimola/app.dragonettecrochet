@@ -16,6 +16,7 @@ import { GA_MEASUREMENT_ID } from '../config.js';
 import {
   canCloseRound,
   canEndRound,
+  canEndRow,
   canJoinChainRing,
   closeRound,
   contextOf,
@@ -26,6 +27,7 @@ import {
   endRow,
   fillRow,
   liveCheck,
+  onFoundationChain,
   setPinned,
   setTradition,
   work,
@@ -40,6 +42,7 @@ import { chartGrid, type ChartGrid } from '../core/grid.js';
 import { layoutPattern, type ChartLayout, type Point } from '../core/layout.js';
 import { loadPattern, savePattern } from '../core/pattern-json.js';
 import { aspectStem, gaugeContextOf } from '../core/pattern-size.js';
+import { roundEndFor } from '../core/rounds.js';
 import { RULES } from '../core/rules.js';
 import {
   copySelection,
@@ -146,6 +149,8 @@ const TYPE_KEY = 'dc-mintatervezo:tipus';
 const GRID_KEY = 'dc-mintatervezo:racs';
 /** Ennél keskenyebb képernyőn a két panel nem fér el egymás mellett. */
 const NARROW = window.matchMedia('(width < 48rem)');
+/** Alacsony ablak: itt az írott minta panel alapból csukva és alacsonyabban nyílik (PQW-891, styles.css). */
+const LOW = window.matchMedia('(height < 40rem)');
 const STRUCTURAL_RULES = new Set(['unknown-stitch', 'dangling-reference', 'yarn-path']);
 
 /* ---- Állapot ---- */
@@ -383,6 +388,11 @@ function commit(result: EditResult, message: string): void {
     announce(result.reason);
     return;
   }
+  // A minta nem változott (pl. fordulás a láncalap után): nincs visszavonható lépés, csak az üzenet.
+  if (result.pattern === history.present) {
+    announce(`${message} ${progress()}`);
+    return;
+  }
   history = record(history, result.pattern);
   cursorMoved = false;
   persist(history.present);
@@ -412,7 +422,19 @@ function progress(): string {
   if (!context.started) return `${capitalize(layerName(context))} következik.`;
   const count = context.graph.layers[context.layer]?.stitchCount ?? 0;
   const rest = check.remaining > 0 ? `, még ${check.remaining} célpont` : '';
-  return `${capitalize(layerName(context))}: ${count} szem${rest}.`;
+  return `${capitalize(layerName(context))}: ${count} szem${rest}.${roundEndHint(context, check)}`;
+}
+
+/**
+ * A kör végén a zárás alapértelmezése a mintatípusból (PQW-892): amigurumiban
+ * spirál, máshol zárt kör. A varázskörbe horgolt körnél nincs „utolsó
+ * célpont”, ott nem javasolunk.
+ */
+function roundEndHint(context: WorkContext, check: LiveCheck): string {
+  if (check.remaining > 0 || !canEndRound(context) || context.slots.some((slot) => slot.kind === 'ring')) return '';
+  return roundEndFor(derived.pattern.conventions.roundEnd, patternType === 'amigurumi') === 'spiral'
+    ? ' A kör végén folytasd spirálban (S).'
+    : ' A kör végén zárd a kört (K).';
 }
 
 function capitalize(text: string): string {
@@ -445,7 +467,7 @@ function updateControls(): void {
   setDisabled('same', !(def?.kind === 'basic' && !empty));
   const canFill = tool !== null && isTargeted(tool) && context.graph !== null && context.slots.some((_, i) => !context.used[i]);
   setDisabled('fill-row', !canFill);
-  setDisabled('end-row', !(context.started && context.shape === 'row'));
+  setDisabled('end-row', !canEndRow(context));
   setDisabled('close-round', !canCloseRound(pattern, context));
   setDisabled('spiral-round', !canEndRound(context));
   setDisabled('export-png', empty);
@@ -575,12 +597,19 @@ function setWrittenOpen(open: boolean): void {
   updateWritten();
 }
 
+/**
+ * A panel nyitott-e induláskor: a megjegyzett állapot, ennek hiányában
+ * alacsony ablakban csukva, hogy a vászon közepére lehessen kattintani
+ * (PQW-891). Az amigurumi a típusválasztáskor maga nyitja ki.
+ */
 function readWrittenOpen(): boolean {
   try {
-    return localStorage.getItem(WRITTEN_KEY) !== 'zarva';
+    const stored = localStorage.getItem(WRITTEN_KEY);
+    if (stored !== null) return stored !== 'zarva';
   } catch {
-    return true;
+    // A tárolás nélkül az ablak magassága dönt.
   }
+  return !LOW.matches;
 }
 
 /* ---- Az írott minta magassága (PQW-885) ---- */
@@ -1081,7 +1110,8 @@ const ACTIONS: Record<string, () => void> = {
           `Sor kitöltve${insertionSuffix(insertionPanel.insertion)}.`,
         )
       : announce('Előbb válassz célpontba horgolható szemet a sor kitöltéséhez.'),
-  'end-row': () => commit(endRow(history.present, tool), 'Sor vége, fordulás.'),
+  'end-row': () =>
+    commit(endRow(history.present, tool), onFoundationChain(derived.context) ? 'Láncalap kész, a munka megfordítva.' : 'Sor vége, fordulás.'),
   'close-round': () =>
     commit(closeRound(history.present), canJoinChainRing(history.present) ? 'Láncgyűrű: a láncszemek gyűrűvé zárva.' : 'Kör zárva.'),
   'spiral-round': () => commit(endRoundSpiral(history.present), 'Kör vége: a következő kör zárás nélkül, spirálban folytatódik.'),

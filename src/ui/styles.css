@@ -684,21 +684,29 @@ body.is-selecting #board {
 
 /* Az írott minta lenyitható panelként a vászon alján (PQW-873). A magassága
  * a fejléctől a teljes munkaterületig állítható (PQW-885): alapból legfeljebb
- * 22rem, alacsony ablakban a munkaterület fele. Az elválasztó és a fejléc
- * helyben marad, a szöveg görget. A `--written-size` és a `--written-min` a
- * src/ui/main.ts-ből jön. */
+ * 22rem, legfeljebb a munkaterület fele; 40rem-nél alacsonyabb ablakban a
+ * 40%-a, hogy a vászon közepe szabadon kattintható maradjon (PQW-891). Az
+ * elválasztó és a fejléc helyben marad, a szöveg görget. A `--written-size`
+ * és a `--written-min` a src/ui/main.ts-ből jön. */
 .written {
+  --written-default: min(22rem, 50%);
   position: absolute;
   z-index: 4;
   inset-inline: var(--side-start) var(--side-end);
   inset-block-end: 0;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
-  block-size: clamp(var(--written-min, 5rem), var(--written-size, min(22rem, 50%)), 100%);
+  block-size: clamp(var(--written-min, 5rem), var(--written-size, var(--written-default)), 100%);
   /* Majdnem teljes panelnél a teteje ad helyet az állapotsornak (`--written-lift`). */
   padding: var(--written-lift, 0px) 1.25rem 1rem;
   border-block-start: 1px solid var(--c-line);
   background: var(--c-bg);
+}
+
+@media (height < 40rem) {
+  .written {
+    --written-default: min(22rem, 40%);
+  }
 }
 
 /* Az elválasztó: 24 px magas célterület (WCAG 2.5.8), közepén a fogantyú. */

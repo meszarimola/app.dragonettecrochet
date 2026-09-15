@@ -89,12 +89,13 @@ interface StitchDefBase {
   /** Alapértelmezett fordulólánc, ha a sor ezzel a szemmel kezdődik (01 §8.3 szabály 12). */
   readonly turningChain: number;
   /**
-   * Számít-e szemnek a fordulólánc, ha a sor ezzel a szemmel kezdődik.
-   * Alapértelmezés a CYC szerint: rövidpálca és félpálca nem, egyráhajtásos
-   * pálcától igen (szókészlet K1, 01 §8.3 szabály 13).
+   * Számít-e szemnek a kör kezdőlánca, ha a kör ezzel a szemmel kezdődik:
+   * rövidpálca és félpálca nem, egyráhajtásos pálcától igen (szókészlet K1,
+   * 01 §8.3 szabály 13). Sorban a fordulólánc minden szemnél számít (PQW-891,
+   * tradition.ts).
    */
   readonly turningChainCounts: boolean;
-  /** Körökben zárt kör vagy spirál: rövidpálcánál spirál, egyráhajtásos pálcától zárt kör (szókészlet K2). */
+  /** Körökben a zárás alapértelmezése: zárt kör; amigurumiban a mintatípus ad spirált (szókészlet K2, PQW-892). */
   readonly roundEnd: 'join-slip' | 'spiral';
   /**
    * Valós magasság a rövidpálcához képest. Amíg nincs mérés, becsült érték;
@@ -216,9 +217,10 @@ export interface StitchGroup {
 /** Soronként felülírható konvenciók (README §4.3). */
 export interface RowConventions {
   /**
-   * Számít-e a fordulólánc szemnek. N szemhez a láncalap `N + T`, ha nem
-   * számít, és `N + T − 1`, ha igen; ettől függ az is, hová megy a sor utolsó
-   * szeme (01 §8.3 szabály 13–15). `stitch-default`: a sort kezdő szem
+   * Számít-e a fordulólánc szemnek. N szemhez a láncalap `N + T`: ha
+   * számít, a fordulólánc egy alapláncszemen áll (PQW-891); ettől függ az is,
+   * hová megy a sor utolsó szeme (01 §8.3 szabály 13–15). `stitch-default`:
+   * sorban mindig számít, körben a kört kezdő szem
    * `StitchDef.turningChainCounts` értéke dönt (szókészlet K1); japán
    * hagyományban a félpálcától felfelé számít (tradition.ts).
    */
@@ -243,8 +245,9 @@ export interface RepeatSpec {
 
 export interface PatternConventions extends RowConventions {
   /**
-   * A körök zárása. `stitch-default`: a kör szemének `StitchDef.roundEnd`
-   * értéke dönt (szókészlet K2, 06 §5.3 V4).
+   * A körök zárása. `stitch-default`: a mintatípus dönt, amigurumiban spirál,
+   * minden más körben zárt kör (szókészlet K2, tulajdonosi döntés, PQW-892,
+   * `roundEndFor` a rounds.ts-ben; 06 §5.3 V4).
    */
   readonly roundEnd: 'stitch-default' | 'join-slip' | 'spiral';
   /** Számít-e a pikó szemnek (szókészlet D7, README §4.8). */

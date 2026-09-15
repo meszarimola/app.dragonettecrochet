@@ -10,7 +10,7 @@ chain (ch)
 double crochet (dc)
 
 Pálcás téglalap
-Foundation: ch 18.
-Row 1: Starting in 4th ch from hook (skipped ch count as 1 dc), 15 dc (16 sts). Turn.
+Foundation: ch 19.
+Row 1: Starting in 5th ch from hook (skipped ch count as 1 dc), 15 dc (16 sts). Turn.
 Rows 2–15: ch 3 (counts as 1 dc), 15 dc (16 sts). Turn.
 Row 16: ch 3 (counts as 1 dc), 15 dc (16 sts). Fasten off.

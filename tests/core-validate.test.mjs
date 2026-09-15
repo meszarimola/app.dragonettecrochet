@@ -48,9 +48,13 @@ describe('a kidolgozott példák gráfként hibátlanok', () => {
   }
 });
 
+/** A következő sor célpontjai sorrendben: a fordulólánc alatti szem kimarad, az utolsó a fordulólánc teteje (PQW-891). */
+const targetsOf = (row, turningChain) => [...[...row].reverse().slice(1), turningChain.at(-1)];
+
 describe('félpálcás téglalap, elrontva (03 §3.1 A)', () => {
-  test('rossz láncalap: az első félpálca a 2. láncszembe megy a 3. helyett', () => {
-    const example = hdcRectangle({ firstStitchFromHook: 2 });
+  test('rossz láncalap: az első félpálca a 3. láncszembe megy a 4. helyett', () => {
+    // A számító fordulólánc alapláncszemen áll (PQW-891): a 3. láncszemnél 1 láncszem marad fordulóláncnak.
+    const example = hdcRectangle({ firstStitchFromHook: 3 });
     assertOnly(example.pattern, 'foundation-chain', [[...example.turningChains[1], example.rows[1][0]]]);
   });
 
@@ -61,7 +65,8 @@ describe('félpálcás téglalap, elrontva (03 §3.1 A)', () => {
 
   test('a 2. sor kihagyja az első szemet, és a következőbe szaporít', () => {
     const example = hdcRectangle({ row2SkipsFirst: true });
-    assertOnly(example.pattern, 'unused-position', [[example.rows[1].at(-1)]]);
+    // Az 1. sor utolsó szeme a 2. sor fordulólánca alatt kimaradhat; az első horgolandó az utolsó előtti.
+    assertOnly(example.pattern, 'unused-position', [[example.rows[1].at(-2)]]);
   });
 
   test('a 2. sor közepén egy szem kimarad: figyelmeztetés', () => {
@@ -70,15 +75,15 @@ describe('félpálcás téglalap, elrontva (03 §3.1 A)', () => {
   });
 
   test('a 3. sorban két szem célpontja fel van cserélve, jelölés nélkül', () => {
-    const { pattern, rows } = hdcRectangle();
-    const below = [...rows[2]].reverse();
+    const { pattern, rows, turningChains } = hdcRectangle();
+    const below = targetsOf(rows[2], turningChains[2]);
     const swapped = editNode(editNode(pattern, rows[3][5], { anchors: [below[6]] }), rows[3][6], { anchors: [below[5]] });
     assertOnly(swapped, 'against-direction', [[rows[3][5], rows[3][6]]]);
   });
 
   test('ugyanez keresztezett szemként jelölve hibátlan (03 §10 C13)', () => {
-    const { pattern, rows } = hdcRectangle();
-    const below = [...rows[2]].reverse();
+    const { pattern, rows, turningChains } = hdcRectangle();
+    const below = targetsOf(rows[2], turningChains[2]);
     let crossed = editNode(editNode(pattern, rows[3][5], { anchors: [below[6]] }), rows[3][6], { anchors: [below[5]] });
     crossed = {
       ...crossed,
@@ -90,10 +95,10 @@ describe('félpálcás téglalap, elrontva (03 §3.1 A)', () => {
     assert.deepEqual(validatePattern(crossed, testLibrary), []);
   });
 
-  test('a 2. sor utolsó szeme a nem számító fordulóláncba megy', () => {
+  test('a 2. sor utolsó szeme a fordulólánc alsó láncszemébe megy a teteje helyett', () => {
     const { pattern, rows, turningChains } = hdcRectangle();
-    const broken = editNode(pattern, rows[2].at(-1), { anchors: [turningChains[1][1]] });
-    assertOnly(broken, 'turning-chain-placement', [[rows[2].at(-1), turningChains[1][1]]]);
+    const broken = editNode(pattern, rows[2].at(-1), { anchors: [turningChains[1][0]] });
+    assertOnly(broken, 'turning-chain-placement', [[rows[2].at(-1), turningChains[1][0]]]);
   });
 
   test('lógó lánc: két láncszem az utolsó sor végén', () => {
@@ -105,9 +110,10 @@ describe('félpálcás téglalap, elrontva (03 §3.1 A)', () => {
   test('a rákhurok sora után még egy sor készül', () => {
     const example = hdcRectangle({ crabRow: 21 });
     const findings = assertOnly(example.pattern, 'unworkable-top');
+    // A 22. sor utolsó szeme a 21. sor fordulóláncának tetejébe megy, abba lehet horgolni (PQW-891).
     assert.deepEqual(
       findings.map((finding) => finding.nodes),
-      example.rows[22].map((id) => [id]),
+      example.rows[22].slice(0, -1).map((id) => [id]),
     );
   });
 });

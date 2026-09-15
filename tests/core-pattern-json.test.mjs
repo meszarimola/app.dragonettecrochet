@@ -1,9 +1,14 @@
 import { strict as assert } from 'node:assert';
 import { describe, test } from 'node:test';
 
+import { contextOf, endRow, fillRow, liveCheck } from '../src/core/editor.ts';
+import { buildPieceGraph } from '../src/core/graph.ts';
+import { layoutPattern } from '../src/core/layout.ts';
 import { FORMAT_VERSION, loadPattern, savePattern } from '../src/core/pattern-json.ts';
+import { libraryFor } from '../src/core/stitch-variants.ts';
 import { validatePattern } from '../src/core/validate.ts';
-import { editNode } from './fixtures/builder.ts';
+import { writtenView } from '../src/ui/written.ts';
+import { PieceBuilder, editNode, patternOf } from './fixtures/builder.ts';
 import { WORKED_EXAMPLES, dcRectangle } from './fixtures/examples.ts';
 import { testLibrary } from './fixtures/library.ts';
 
@@ -190,4 +195,58 @@ test('hibás gráfot is betölt; a gráfot az ellenőrző nézi, nem a betölté
 test('formátumon kívüli mintát nem ment el', () => {
   const pattern = { ...dcRectangle({ rows: 1 }).pattern, formatVersion: 3 };
   assert.throws(() => savePattern(pattern), /Megengedett értékek: 1/);
+});
+
+/*
+ * A PQW-891 előtti szabállyal mentett minták: a félpálcás sor a 3., a pálcás a
+ * 4. láncszembe kezdett, a félpálca fordulólánca nem számított. Ezek a javított
+ * szabállyal hibásnak látszhatnak, de a betöltés, a rajz, az ellenőrzés, az
+ * írott minta és a továbbhorgolás nem dobhat hibát.
+ */
+function oldRuleRectangle(def, turningChain, counts) {
+  const stitches = 8;
+  const worked = counts ? stitches - 1 : stitches;
+  const b = new PieceBuilder('p1', 'Régi mentés');
+  const foundation = b.chain(worked + turningChain);
+  let row = [];
+  for (let i = worked - 1; i >= 0; i -= 1) row.push(b.stitch(def, foundation[i]));
+  let top = foundation.at(-1);
+  b.event('turn');
+  for (let r = 2; r <= 3; r += 1) {
+    const turning = b.chain(turningChain);
+    const below = [...row].reverse();
+    row = (counts ? [...below.slice(1), top] : below).map((target) => b.stitch(def, target));
+    top = turning.at(-1);
+    // Az utolsó sor nyitva marad: a szerkesztőben innen fordulunk tovább.
+    if (r < 3) b.event('turn');
+  }
+  return patternOf('Régi mentés', [b.build()]);
+}
+
+describe('a javítás előtti szabállyal mentett minta betöltése nem törik el (PQW-891)', () => {
+  for (const [name, def, chains, counts] of [
+    ['félpálca a 3. láncszemtől, nem számító fordulólánccal', 'hdc', 2, false],
+    ['pálca a 4. láncszemtől, alapláncszem nélkül', 'dc', 3, true],
+    ['rövidpálca a 2. láncszemtől', 'sc', 1, false],
+  ]) {
+    test(name, () => {
+      const loaded = loadPattern(savePattern(oldRuleRectangle(def, chains, counts)));
+      assert.equal(loaded.ok, true);
+      const pattern = loaded.pattern;
+      const library = libraryFor(pattern);
+
+      assert.doesNotThrow(() => buildPieceGraph(pattern, pattern.pieces[0], library));
+      const findings = validatePattern(pattern, library);
+      assert.ok(Array.isArray(findings));
+      assert.doesNotThrow(() => layoutPattern(pattern, library));
+      const context = contextOf(pattern);
+      const check = liveCheck(pattern, context);
+      assert.doesNotThrow(() => writtenView(pattern, context, check, 'hu'));
+
+      // A szerkesztőben tovább lehet horgolni: fordulás és sorkitöltés hibadobás nélkül.
+      const turned = endRow(pattern, def);
+      assert.equal(turned.ok, true, turned.reason);
+      assert.doesNotThrow(() => fillRow(turned.pattern, { def, count: 1 }));
+    });
+  }
 });

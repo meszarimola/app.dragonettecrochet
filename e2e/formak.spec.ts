@@ -40,7 +40,8 @@ test('20 × 30 cm-es félpálcás téglalap profil nélkül: becsült tényleges
   await expect(page.locator('#status')).toContainText(/Téglalap, \d+ sor elkészült; visszavonással a korábbi minta visszajön\./);
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
   const text = await writtenText(page);
-  expect(text).toMatch(/1\. sor: a horogtól számított 3\. láncszemtől kezdve \d+ fp \(\d+ szem\)\. Fordítás\./);
+  // A 2 láncszemes fordulólánc az 1. félpálca helyett áll, alapláncszemen (PQW-891).
+  expect(text).toMatch(/1\. sor: a horogtól számított 4\. láncszemtől kezdve \(a kihagyott láncszemek 1 fp-nek számítanak\) \d+ fp \(\d+ szem\)\. Fordítás\./);
 
   await page.keyboard.press('ControlOrMeta+Z');
   await expect(page.locator('#status')).toContainText('Visszavonva.');
@@ -63,7 +64,7 @@ test('egyenlő szárú háromszög az él szögéből, és szegélyes téglalap:
   await expect(page.locator('#status')).toContainText('Egyenlő szárú háromszög,');
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
   // Az alapszem a félpálca: az élek félpálcák összehorgolásával fogynak.
-  expect(await writtenText(page)).toMatch(/\d\. sor: 2 lsz \(nem számít szemnek\), [23] fp összehorgolása, \d+ fp, [23] fp összehorgolása \(\d+ szem\)\./);
+  expect(await writtenText(page)).toMatch(/\d\. sor: 2 lsz \(1 fp-nek számít\), [23] fp összehorgolása, \d+ fp, [23] fp összehorgolása \(\d+ szem\)\./);
 
   await page.locator('#shape-kind').selectOption({ label: 'Téglalap' });
   await page.locator('#shape-width').fill('15');

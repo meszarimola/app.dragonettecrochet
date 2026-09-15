@@ -117,8 +117,8 @@ Answered by the owner on 2026-09-14.
 
 | # | Question | Options (knowledge base) | Answer |
 |---|---|---|---|
-| K1 | Does the turning chain count as a stitch? | CYC: rp no, fp no, erp and taller yes (`01 §2.1`, `03 §1.1`) · never, with erp on a ch 2 (`01 §2.2`) · Japanese: fp and taller yes (`01 §3.3`) | **CYC**: rp and fp no, erp and taller yes. Per-pattern setting with a per-row override (README §4.3) |
-| K2 | Joined rounds or a spiral? | by stitch: spiral for rp/amigurumi, joined for erp and motifs (`04 §2`, `§10`) · always joined · always spiral | **By what is being made** (refined on 2026-09-14, see below): amigurumi in a spiral, every other piece worked in rounds in joined rounds, whatever the stitch |
+| K1 | Does the turning chain count as a stitch? | CYC: rp no, fp no, erp and taller yes (`01 §2.1`, `03 §1.1`) · never, with erp on a ch 2 (`01 §2.2`) · Japanese: fp and taller yes (`01 §3.3`) | **CYC**: rp and fp no, erp and taller yes. Per-pattern setting with a per-row override (README §4.3). **Corrected for rows on 2026-09-15 (PQW-891), see §6:** in rows the turning chain always counts and stands on one base chain; the rule above stays for the starting chain of a round |
+| K2 | Joined rounds or a spiral? | by stitch: spiral for rp/amigurumi, joined for erp and motifs (`04 §2`, `§10`) · always joined · always spiral | **By what is being made** (refined on 2026-09-14, see below): amigurumi in a spiral, every other piece worked in rounds in joined rounds, whatever the stitch. The library default follows this since PQW-892 |
 | K3 | Symbol for the rövidpálca | + or ×; both are common (`01 §6.1`). The prototype draws + | **+** by default; × stays a user setting |
 
 The disputed points D1–D8 were decided as proposed on 2026-09-14.
@@ -130,11 +130,30 @@ Answers to the two questions the stitch library (PQW-867) left open.
 **Round closure (refines K2).**
 - Amigurumi is worked in a spiral. Every other piece worked in rounds uses
   joined rounds.
-- This holds for the félpálca as well. Round closure therefore depends not
-  only on the stitch but on what is being made.
-- The current behaviour is correct for flat rounds: the library's per-stitch
-  default makes the félpálca a joined round.
-- The amigurumi mode comes in PQW-863; there the spiral becomes the default.
+- This holds for the félpálca and the rövidpálca as well. Round closure
+  depends on what is being made, not on the stitch.
+- Implemented in PQW-892: the library default is a joined round for every
+  stitch, and `stitch-default` resolves from the pattern type (amigurumi:
+  spiral, everything else: joined; `roundEndFor` in `src/core/rounds.ts`). An
+  explicit closure saved in a pattern is kept. The round and amigurumi
+  generators already set the closure explicitly, so their output is unchanged.
+
+**Starting a row on a foundation chain (corrects K1 for rows, 2026-09-15, PQW-891).**
+- The owner's description for a scarf: about 40 chains, turn the work, skip
+  2 chains (one is the base, one stands in for the first rövidpálca so the
+  height stays), then 1 rövidpálca into every chain.
+- The previous rule (first rp into the 2nd chain, the turning chain not
+  counted) was a bug, not a second convention.
+- Turning chain length per stitch (owner): rp 1, fp 2, erp 3, krp 4 chains,
+  one more per yarn over.
+- The coordinator derived the rule for every stitch from this answer: in
+  rows the turning chain counts as the first stitch and stands on one base
+  chain. The first stitch of row 1 goes into chain `T + 2` from the hook (rp
+  3rd, fp 4th, erp 5th, krp 6th); the foundation is `N + T` chains for N
+  stitches; the last stitch of every later row goes into the top of the
+  previous turning chain.
+- The starting chain of a round keeps the K1 default above, and the Japanese
+  preset (PQW-876) keeps its own rule.
 
 **Picot (D7).**
 - A picot is usually on the last, decorative row, but it may be worked into.

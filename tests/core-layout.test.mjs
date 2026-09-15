@@ -31,7 +31,8 @@ describe('sorok', () => {
 
   test('a szem az alatta lévő szem oszlopában áll, függőleges szárral (01 §8.4 szabály 18)', () => {
     for (let row = 2; row <= 3; row += 1) {
-      const below = [...example.rows[row - 1]].reverse();
+      // A fordulólánc alatti szem kimarad, az utolsó szem az előző fordulólánc tetejébe megy (PQW-891).
+      const below = [...[...example.rows[row - 1]].reverse().slice(1), example.turningChains[row - 1].at(-1)];
       example.rows[row].forEach((id, i) => {
         const node = at(id);
         assert.equal(node.role, 'stitch');

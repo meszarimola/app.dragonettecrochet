@@ -205,8 +205,8 @@ export function layerSlots(graph: PieceGraph, layer: number, below: LayerInfo, r
 /**
  * Hová mutasson a kurzor, ha a felhasználó nem mozgatta: az utolsó
  * felhasznált célpont utánra. Új sor elején a láncalapon a fordulólánc után
- * következő láncszemre (03 §1.2; japán hagyományban számító fordulóláncnál
- * eggyel később, tradition.ts), egyébként a számító fordulólánc alatti
+ * következő láncszemre (03 §1.2; számító fordulóláncnál az alapláncszem
+ * miatt eggyel később, tradition.ts), egyébként a számító fordulólánc alatti
  * szemet átugorva (03 §1.3).
  */
 export function defaultCursor(pattern: Pattern, context: WorkContext, tool: StitchDefId | null): number {
@@ -238,7 +238,7 @@ export function startCursor(
   if (slots.length === 0) return 0;
   const def = tool ? resolveStitch(tool) : undefined;
   const tradition = traditionOf(pattern.conventions);
-  const counts = def !== undefined && turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition);
+  const counts = def !== undefined && turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition, start.shape);
   const foundationChain = start.layer === 1 && start.shape === 'row' && start.turningChain === 0;
   // A horogtól számított láncszem 1-től, a célpont 0-tól számozott.
   if (foundationChain) return Math.min(def ? firstChainFromHook(def.turningChain, counts, tradition) - 1 : 1, slots.length - 1);
@@ -470,10 +470,26 @@ export function fillRow(pattern: Pattern, tool: Tool): EditResult {
   return done(current);
 }
 
-/** Sor vége és fordulás, utána a fordulólánc a kiválasztott szem magasságában (01 §8.3 szabály 12). */
+/** Csak a láncalap kész, az 1. sor még nem kezdődött: a láncalap utáni fordulás. */
+export function onFoundationChain(context: WorkContext): boolean {
+  return context.graph !== null && context.layer === 1 && context.shape === 'row' && !context.started && context.turningChain === 0;
+}
+
+/** Fordulhat-e most a munka: a sorban van szem, vagy a láncalap kész (PQW-891). */
+export function canEndRow(context: WorkContext): boolean {
+  return (context.started && context.shape === 'row') || onFoundationChain(context);
+}
+
+/**
+ * Sor vége és fordulás, utána a fordulólánc a kiválasztott szem magasságában
+ * (01 §8.3 szabály 12). A láncalap után a fordulás a minta szerkezetében már
+ * benne van (az 1. sor visszafelé halad, a fordulólánc a láncalap vége), ezért
+ * ott a minta nem változik, az 1. sor következik (PQW-891).
+ */
 export function endRow(pattern: Pattern, tool: StitchDefId | null): EditResult {
   const piece = pieceOf(pattern);
   const context = contextOf(pattern);
+  if (onFoundationChain(context)) return done(pattern);
   if (!context.graph || !context.started) return refuse('Ebben a sorban még nincs szem.');
   if (context.shape === 'round') return refuse('Körben nem fordulunk: zárd a kört.');
   const last = piece.stitches[piece.stitches.length - 1]!;
@@ -506,8 +522,17 @@ export function canEndRound(context: WorkContext): boolean {
   const layer = context.graph?.layers[context.layer];
   if (!context.graph || !context.started || !layer || layer.positions.length === 0 || layer.closing !== null) return false;
   if (context.shape === 'round') return true;
-  const base = context.graph.layers[0]!;
-  return context.layer === 1 && base.positions.length === 1 && base.stitches.every((id) => context.graph!.defs.get(id)!.kind === 'chain');
+  const { graph } = context;
+  const base = graph.layers[0]!;
+  // Zárás előtt a gráf sornak látja, és számító fordulóláncnál alapláncszemet is vehet a láncalapba: ezért nem a
+  // láncalap pozícióit számoljuk, hanem azt nézzük, hogy minden szem a legelső láncszembe megy („2 lsz, 6 rp a 2. láncszembe”).
+  const targets = new Set(layer.stitches.flatMap((id) => graph.nodes.get(id)!.anchors.map((anchor) => (anchor.into === 'stitch' ? anchor.id : ''))));
+  return (
+    context.layer === 1 &&
+    targets.size === 1 &&
+    targets.has(base.stitches[0]!) &&
+    base.stitches.every((id) => graph.defs.get(id)!.kind === 'chain')
+  );
 }
 
 /** A kör zárása gombja: láncgyűrű a láncszemekből, vagy a kör zárása. */
@@ -531,13 +556,25 @@ export function closeRound(pattern: Pattern): EditResult {
   if (!context.graph || !context.started) return refuse('Ebben a körben még nincs szem.');
   if (!canEndRound(context)) return refuse('Sorban nincs körzárás: a sor végén fordulunk.');
   const layer = context.graph.layers[context.layer]!;
-  const first = layer.positions[0];
+  const first = context.shape === 'round' ? layer.positions[0] : roundOnChainStart(pattern, context.graph, layer);
   if (!first) return refuse('A körnek nincs első szeme, amelybe zárni lehetne.');
 
   const { piece: next, ids } = append(piece, [
     { def: 'sl-st', anchors: [{ into: 'stitch', id: first, mode: 'both-loops' }] },
   ]);
   return done(withPiece(pattern, { ...next, events: [...next.events, { after: ids[0]!, kind: 'join-slip' }] }));
+}
+
+/**
+ * A láncszembe horgolt 1. kör első pozíciója a zárás előtt. A gráf ekkor még
+ * sornak látja, ezért a kezdőlánc számolását a kör szabálya szerint nézzük
+ * (tradition.ts): így a záró kúszószem a lezárt kör első pozíciójába megy.
+ */
+function roundOnChainStart(pattern: Pattern, graph: PieceGraph, layer: LayerInfo): NodeId | undefined {
+  const def = layer.firstStitch === null ? undefined : graph.defs.get(layer.firstStitch);
+  const { conventions } = pattern;
+  const counts = def !== undefined && turningChainCountsFor(conventions.turningChainCounts, def, traditionOf(conventions), 'round');
+  return counts ? layer.turningChain.at(-1) : layer.positions.find((id) => !layer.turningChain.includes(id));
 }
 
 /**

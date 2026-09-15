@@ -59,9 +59,10 @@ test('a téglalap csak cellákra kattintva készül; ahol nincs mibe horgolni, �
   await page.locator('#board').click();
   await fit.click();
 
-  // 1. sor: rövidpálcák a láncalap celláiba; a horogtól az 1. láncszem a fordulólánc.
+  // 1. sor: rövidpálcák a láncalap celláiba; a horogtól az 1. láncszem a fordulólánc, a 2. az alapláncszeme,
+  // a fordulólánc az 1. rövidpálca helyett áll (PQW-891): 4 rp és a fordulólánc.
   await palette.getByRole('button', { name: /Rövidpálca \(rp\)/ }).first().click();
-  for (const slot of [1, 2, 3, 4, 5]) await clickSlot(page, slot, 'alsó');
+  for (const slot of [2, 3, 4, 5]) await clickSlot(page, slot, 'alsó');
   await expect(summary).toContainText('1. sor: 5 szem');
 
   await page.getByRole('button', { name: 'Sor vége, fordulás' }).click();
@@ -76,8 +77,8 @@ test('a téglalap csak cellákra kattintva készül; ahol nincs mibe horgolni, �
   await expect(status).toHaveText(/^Ez a láncalap egyik helye\. Most a 2\. sor készül: .*Nem került le szem\.$/);
   await expect(summary).toContainText('2. sor következik.');
 
-  // 2. sor: a készülő sor celláiba, a célpontok fölé kattintva.
-  for (const slot of [0, 1, 2, 3, 4]) await clickSlot(page, slot, 'készülő');
+  // 2. sor: a készülő sor celláiba, a célpontok fölé kattintva; a fordulólánc alatti szem (0.) kimarad.
+  for (const slot of [1, 2, 3, 4]) await clickSlot(page, slot, 'készülő');
   await expect(summary).toContainText('2. sor: 5 szem');
   await expect(summary).toContainText('Nincs hiba és figyelmeztetés.');
 

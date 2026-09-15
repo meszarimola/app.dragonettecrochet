@@ -60,17 +60,20 @@ const INTO_STITCHES: readonly InsertionMode[] = ['both-loops', 'front-loop', 'ba
 
 /**
  * A láncszem-magasságból következő alapértelmezések:
- * - a fordulólánc a sort kezdő szem láncszem-magassága (01 §8.3 szabály 12);
- * - egyráhajtásos pálcától számít szemnek, alatta nem (szókészlet K1);
- * - rövidpálca-magasságig spirál, fölötte zárt kör (szókészlet K2). A
- *   félpálcáról a K2 nem dönt; itt zárt kör, a jegyben nyitott kérdés.
+ * - a fordulólánc a sort kezdő szem láncszem-magassága (01 §8.3 szabály 12):
+ *   rövidpálcánál 1, félpálcánál 2, egyráhajtásos pálcánál 3 láncszem;
+ * - a `turningChainCounts` a kör kezdőláncáé: egyráhajtásos pálcától számít
+ *   szemnek, alatta nem (szókészlet K1). Sorban a fordulólánc minden szemnél
+ *   számít, és alapláncszemen áll (PQW-891); ezt a tradition.ts dönti el;
+ * - a körzárás zárt kör: a spirál az amigurumi mintatípusból jön, nem a szem
+ *   magasságából (szókészlet K2, tulajdonosi döntés, PQW-892, rounds.ts).
  */
 function heightDefaults(chainHeight: number) {
   return {
     chainHeight,
     turningChain: chainHeight,
     turningChainCounts: chainHeight >= 3,
-    roundEnd: chainHeight <= 1 ? 'spiral' : 'join-slip',
+    roundEnd: 'join-slip',
   } as const;
 }
 

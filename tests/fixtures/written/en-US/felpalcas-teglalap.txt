@@ -11,6 +11,6 @@ half double crochet (hdc)
 
 Félpálcás téglalap
 Foundation: ch 17.
-Row 1: Starting in 3rd ch from hook, 15 hdc (15 sts). Turn.
-Rows 2–21: ch 2 (does not count as a st), 15 hdc (15 sts). Turn.
-Row 22: ch 2 (does not count as a st), 15 hdc (15 sts). Fasten off.
+Row 1: Starting in 4th ch from hook (skipped ch count as 1 hdc), 14 hdc (15 sts). Turn.
+Rows 2–21: ch 2 (counts as 1 hdc), 14 hdc (15 sts). Turn.
+Row 22: ch 2 (counts as 1 hdc), 14 hdc (15 sts). Fasten off.

@@ -542,8 +542,9 @@ export function pasteFragment(pattern: Pattern, fragment: Fragment, cursor?: num
     base = startCursor(current, { layer: context.layer, shape: context.shape, turningChain, slots: context.slots }, fragment.firstStitch);
     const available = Math.max(0, context.slots.length - base);
     if (fragment.span !== null && available !== fragment.span) {
+      // Az összevetés a kezdőhelytől számít; az üzenet a teljes sort írja, a számító fordulólánc alatti szemmel együtt (PQW-891).
       return refuse(
-        `A másolt ${word} ${fragment.span} szemre épül, alatta most ${available} van: a szemszám nem jön ki, ezért nem illesztettem be. ${UNCHANGED}`,
+        `A másolt ${word} ${fragment.span + base} szemre épül, alatta most ${context.slots.length} van: a szemszám nem jön ki, ezért nem illesztettem be. ${UNCHANGED}`,
       );
     }
   } else {
