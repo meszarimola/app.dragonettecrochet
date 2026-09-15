@@ -27,6 +27,7 @@ import type { WorkContext } from './editor.ts';
 import { article } from './hungarian.ts';
 import { layoutPattern, type ChartLayout, type LayoutOptions, type NodePlacement, type Point } from './layout.ts';
 import { CIRCLE, frameCoords, framePoint, outline, type RoundFrame } from './polygon.ts';
+import { curveStrip, outlineOf, rowCurve, type RowCurve } from './row-curve.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import type { NodeId, Pattern } from './types.ts';
 
@@ -49,6 +50,17 @@ export type GridArea =
       readonly a1: number;
       /** Sokszögben az alak; körben hiányzik. */
       readonly frame?: RoundFrame;
+    }
+  /**
+   * Íves vagy megtört sorban (PQW-893) a téglalap az íves rajzon: a felső és az
+   * alsó széle balról jobbra, a bal és a jobb széle fentről lefelé.
+   */
+  | {
+      readonly kind: 'strip';
+      readonly top: readonly Point[];
+      readonly bottom: readonly Point[];
+      readonly left: readonly Point[];
+      readonly right: readonly Point[];
     };
 
 export interface GridBand {
@@ -124,7 +136,8 @@ export function chartGrid(
   };
   const graph = context.graph;
   if (kind === 'text' || !graph) return empty;
-  const layout = layoutPattern(withoutPins(pattern), library, options);
+  // Egyenes sorokból számolunk; íves darabnál a kész rács görbül (PQW-893).
+  const layout = layoutPattern(withoutPins(pattern), library, { ...options, straight: true });
   if (layout.nodes.size === 0) return empty;
 
   // A szegély (PQW-889) nem sor: a sorok rácsa nélküle készül, és a szegély a darab körüli sávokat kapja.
@@ -141,8 +154,13 @@ export function chartGrid(
     frame: layout.frame ?? CIRCLE,
   };
   const round = graph.layers[0]!.shape === 'round';
-  const { bands, cells } = round ? roundGrid(input) : rowGrid(input);
-  if (borderIndex >= 0 && !round) bands.push(...borderBands(layout, borderIndex, graph.layers[borderIndex]!.stitchCount, bands));
+  const straight = round ? roundGrid(input) : rowGrid(input);
+  const shape = pattern.pieces[0]?.rowShape;
+  const curve = !round && shape ? rowCurve(layout, shape) : null;
+  const { bands: rowBands, cells } = curve ? curved(straight, curve) : straight;
+  // A szegély (PQW-889) a sorok rácsa körüli sávokat kapja.
+  const bands =
+    borderIndex >= 0 && !round ? [...rowBands, ...borderBands(layout, borderIndex, graph.layers[borderIndex]!.stitchCount, rowBands)] : rowBands;
   return { kind, shape: round ? 'round' : 'row', layer: context.layer, bands, cells, bounds: boundsOf(bands, cells) };
 }
 
@@ -342,6 +360,16 @@ function rowGrid(input: Input): { bands: GridBand[]; cells: GridCell[] } {
   return { bands, cells };
 }
 
+/** A sorrács az íves rajzon (PQW-893): minden téglalap egy felső és egy alsó vonal közötti sáv, a cella közepe is görbül. */
+function curved(grid: { bands: GridBand[]; cells: GridCell[] }, curve: RowCurve): { bands: GridBand[]; cells: GridCell[] } {
+  const strip = (area: GridArea): GridArea =>
+    area.kind === 'rect' ? { kind: 'strip', ...curveStrip(area.x0, area.x1, area.y0, area.y1, curve) } : area;
+  return {
+    bands: grid.bands.map((band) => ({ ...band, area: strip(band.area) })),
+    cells: grid.cells.map((cell) => ({ ...cell, area: strip(cell.area), center: curve.point(cell.center) })),
+  };
+}
+
 /** Az 1. sor haladási iránya: a láncalap két vége közül a sor eleje felől. */
 function startOfFirstRow(layout: ChartLayout): 1 | -1 {
   const first = layout.layers[1];
@@ -457,6 +485,13 @@ function boundsOf(bands: readonly GridBand[], cells: readonly GridCell[]): Chart
       maxX = Math.max(maxX, area.x1);
       minY = Math.min(minY, area.y0);
       maxY = Math.max(maxY, area.y1);
+    } else if (area.kind === 'strip') {
+      for (const p of outlineOf(area)) {
+        minX = Math.min(minX, p.x);
+        maxX = Math.max(maxX, p.x);
+        minY = Math.min(minY, p.y);
+        maxY = Math.max(maxY, p.y);
+      }
     } else {
       // Sokszögben a csúcsok adják a szélét, körben a sugár.
       const corners = area.frame ? outline(area.frame, area.r1) : [];
@@ -491,11 +526,22 @@ export function chartBounds(layout: ChartLayout, grid: ChartGrid | null | undefi
 
 export function contains(area: GridArea, p: Point): boolean {
   if (area.kind === 'rect') return p.x >= area.x0 && p.x <= area.x1 && p.y >= area.y0 && p.y <= area.y1;
+  if (area.kind === 'strip') return insidePolygon(outlineOf(area), p);
   const frame = area.frame ?? CIRCLE;
   const { r } = frameCoords(frame, p);
   if (r < area.r0 || r > area.r1) return false;
   if (area.a1 - area.a0 >= TAU - 1e-9) return true;
   return normalize(aroundOf(frame, p) - area.a0) <= area.a1 - area.a0;
+}
+
+/** A pont a sokszögben van-e (páratlan metszésszám). */
+function insidePolygon(points: readonly Point[], p: Point): boolean {
+  let inside = false;
+  for (let i = 0, j = points.length - 1; i < points.length; j = i, i += 1) {
+    const [a, b] = [points[i]!, points[j]!];
+    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
 }
 
 export type GridHit =

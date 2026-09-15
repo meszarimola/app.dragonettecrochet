@@ -794,6 +794,26 @@ function withStatedCounts(pattern: Pattern, piece: Piece, counts: readonly numbe
   return { ...piece, events: piece.events.map((event) => (stated.has(event.after) ? { ...event, statedCount: stated.get(event.after)! } : event)) };
 }
 
+const tenth = (value: number) => Math.round(value * 10) / 10;
+
+/**
+ * A rajz alakja (PQW-893): a félkör és a félhold sorai íven, a fentről induló
+ * háromszögé a gerincnél megtörve, a terv szögeivel (row-curve.ts).
+ */
+function withRowShape(piece: Piece, plan: ShawlPlan): Piece {
+  const { neckAngleDeg, tipAngleDeg } = shawlGeometry(plan, plan.gauge.stitchCm, plan.gauge.rowCm);
+  switch (plan.kind) {
+    case 'semicircle':
+      return { ...piece, rowShape: { kind: 'arc', neckAngle: 180 } };
+    case 'crescent':
+      return { ...piece, rowShape: { kind: 'arc', neckAngle: tenth(neckAngleDeg ?? 180) } };
+    case 'triangle':
+      return { ...piece, rowShape: { kind: 'chevron', neckAngle: tenth(neckAngleDeg ?? 180), tipAngle: tenth(tipAngleDeg ?? 90) } };
+    default:
+      return piece;
+  }
+}
+
 /**
  * Új minta a kendőből. A mintából a címet (ha nem az alapértelmezett vagy egy
  * generátor adta), a jelölést, a profilokat és a konvenciókat veszi át.
@@ -822,7 +842,7 @@ export function generateShawl(pattern: Pattern, options: ShawlOptions): ShawlRes
     if (typeof piece === 'string') return fail(piece);
     const stated = withStatedCounts({ ...base, conventions }, piece, plan.counts);
     if (typeof stated === 'string') return fail(stated);
-    result = { ...base, conventions, pieces: [stated] };
+    result = { ...base, conventions, pieces: [withRowShape(stated, plan)] };
   }
 
   const generated = new Set<string>([...Object.values(SHAWL_NAMES), ...Object.values(SHAPE_NAMES), ...Object.values(MOTIF_NAMES)]);
