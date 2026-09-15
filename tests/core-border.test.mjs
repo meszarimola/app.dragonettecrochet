@@ -8,7 +8,12 @@ import { strict as assert } from 'node:assert';
 import { describe, test } from 'node:test';
 
 import { BORDER_CORNER, appendBorder, borderLayerIndex, rowEdges } from '../src/core/border.ts';
-import { contextOf, emptyPattern } from '../src/core/editor.ts';
+import { canonicalPattern } from '../src/core/canonical.ts';
+import { contextOf, emptyPattern, pieceFinished } from '../src/core/editor.ts';
+import { contains } from '../src/core/grid.ts';
+import { readPattern } from '../src/core/pattern-read.ts';
+import { planShape } from '../src/core/shapes.ts';
+import { generatedMessage } from '../src/ui/shapes-view.ts';
 import { stitchDimensions } from '../src/core/gauge.ts';
 import { buildPieceGraph } from '../src/core/graph.ts';
 import { chartGrid } from '../src/core/grid.ts';
@@ -224,5 +229,177 @@ describe('a szegély a rajzon, a rácson és a kész méretben', () => {
     const rim = stitchDimensions(library.get('sc'), 'row', gaugeContextOf(pattern, library)).heightMm.value * 0.2;
     assert.ok(Math.abs(bordered.widthCm.value - plain.widthCm.value - rim) < 1e-9);
     assert.ok(Math.abs(bordered.heightCm.value - plain.heightCm.value - rim) < 1e-9);
+  });
+});
+
+/* ---- PQW-897, PQW-898 ---- */
+
+/** Pálcás minta 16 × 8 mintasűrűséggel: a 03 §7.1 H példájához (60 szem × 40 sor). */
+function dcGauge() {
+  return {
+    ...emptyPattern(),
+    gauge: {
+      active: 'p1',
+      profiles: [
+        {
+          id: 'p1',
+          yarn: { name: 'Próba', cycWeight: 4, metersPer100g: null, ballMassG: null },
+          hookMm: 5,
+          blocked: false,
+          gauges: [{ stitch: 'dc', form: 'rows', stitchesPer10cm: 16, rowsPer10cm: 8, source: 'measured' }],
+          swatch: { widthCm: null, heightCm: null, massG: null },
+        },
+      ],
+    },
+  };
+}
+
+/** Forma szegéllyel; a minta alapból üres. */
+function shaped(patch, pattern = emptyPattern()) {
+  const result = generateShape(pattern, { ...DEFAULT_SHAPE, border: BORDER, ...patch });
+  assert.ok(result.ok, result.reason);
+  return result;
+}
+
+/** Az írott minta minden nyelven visszaolvasható, a szegéllyel együtt ugyanarra a gráfra. */
+function assertReadsBack(pattern) {
+  const library = libraryFor(pattern);
+  for (const locale of ['hu', 'en-US', 'en-GB']) {
+    const back = readPattern(formatWrittenPattern(writePattern(pattern, library, locale)), { library, locale, conventions: pattern.conventions });
+    assert.ok(back.ok, `${locale}: ${JSON.stringify(back.error)}`);
+    assert.deepEqual(back.pattern.pieces[0].border, pattern.pieces[0].border, locale);
+    assert.deepEqual(canonicalPattern(back.pattern).pieces[0].stitches, canonicalPattern(pattern).pieces[0].stitches, locale);
+  }
+}
+
+describe('szegély ferde élű darab köré (PQW-898)', () => {
+  test('egyenlő szárú és derékszögű háromszög, trapéz és rombusz köré: hibátlan, a sarkokban 3 rp, a réteg szemszáma a terv szerinti, visszaolvasható', () => {
+    for (const patch of [
+      { shape: 'isosceles-triangle', widthCm: 10, heightCm: 8 },
+      { shape: 'right-triangle', widthCm: 8, heightCm: 8 },
+      { shape: 'trapezoid', widthCm: 12, topWidthCm: 6, heightCm: 6 },
+      { shape: 'trapezoid', widthCm: 6, topWidthCm: 12, heightCm: 6 },
+      { shape: 'diamond', widthCm: 10, heightCm: 10 },
+    ]) {
+      const { pattern, plan } = shaped(patch);
+      assert.deepEqual(rules(pattern), [], patch.shape);
+      const graph = graphOf(pattern);
+      const index = borderLayerIndex(graph);
+      assert.equal(graph.layers[index].stitchCount, plan.border.total, patch.shape);
+      const corners = pattern.pieces[0].groups.filter((group) => group.members.every((id) => graph.layerOf.get(id) === index));
+      assert.ok(corners.length >= 2 && corners.every((group) => group.members.length === BORDER_CORNER), patch.shape);
+      assertReadsBack(pattern);
+    }
+  });
+
+  test('meredek háromszögnél a lépcsők minden meghagyott szeme 1 rp-t kap; az írott minta ezt ki is írja', () => {
+    const { pattern, plan } = shaped({ shape: 'isosceles-triangle', stitch: 'dc', widthCm: 20, heightCm: 5 });
+    assert.ok(plan.unworkedRows.length > 0);
+    assert.ok(plan.border.sides[0].exposed + plan.border.sides[1].exposed === pattern.pieces[0].skipped.length);
+    const graph = graphOf(pattern);
+    const index = borderLayerIndex(graph);
+    const worked = graph.layers[index].stitches.flatMap((id) => graph.nodes.get(id).anchors).filter((anchor) => anchor.into === 'stitch');
+    for (const id of pattern.pieces[0].skipped) assert.equal(worked.filter((anchor) => anchor.id === id).length, 1, id);
+    assert.deepEqual(rules(pattern), []);
+    const hu = formatWrittenPattern(writePattern(pattern, libraryFor(pattern), 'hu'));
+    assert.match(hu, /oldal: soronként 2 rp a sor végére, \d+ rp a lépcsők meghagyott szemeibe \(\d+ rp\)/);
+    assertReadsBack(pattern);
+  });
+
+  test('két szemes csúcsnál a felső élen nincs „0 rp”: csak a két sarok', () => {
+    const { pattern, plan } = shaped({ shape: 'isosceles-triangle', widthCm: 10, heightCm: 8 });
+    assert.equal(plan.border.top, 0);
+    const hu = formatWrittenPattern(writePattern(pattern, libraryFor(pattern), 'hu'));
+    assert.match(hu, /felső él: 3 rp a sarokszembe, 3 rp a sarokszembe;/);
+    assert.doesNotMatch(hu, / 0 rp/);
+  });
+
+  test('a láncos hosszabbítással, nagyon meredeken szélesedő él köré érthető okkal nem készül', () => {
+    const result = planShape(emptyPattern(), { ...DEFAULT_SHAPE, shape: 'diamond', stitch: 'sc', widthCm: 20, heightCm: 4, border: BORDER });
+    assert.equal(result.ok, false);
+    assert.match(result.reason, /láncos hosszabbítással/);
+  });
+
+  test('a szegély a ferde élű darab rácsán is a darab körül: minden szegélyszem egy szegélysávban', () => {
+    const { pattern } = shaped({ shape: 'isosceles-triangle', widthCm: 10, heightCm: 8 });
+    const library = libraryFor(pattern);
+    const index = borderLayerIndex(graphOf(pattern));
+    const grid = chartGrid(pattern, library, 'rows', contextOf(pattern));
+    const bands = grid.bands.filter((band) => band.layer === index);
+    const layout = layoutPattern(pattern, library);
+    for (const node of layout.nodes.values()) {
+      if (node.layer !== index || node.role !== 'stitch') continue;
+      assert.ok(bands.some((band) => contains(band.area, node.top)), `${node.id} a szegély sávjában`);
+    }
+  });
+});
+
+describe('igazítás a következő szegélysor ismétléséhez (PQW-898; 03 §7.1 H, §10 H39)', () => {
+  test('03 §7.1 H: 4 + 0 ismétléshez a felső és az alsó él 58-ról 60-ra, az oldal 80 marad; összesen 292 (igazítás nélkül 288)', () => {
+    const repeat = { width: 4, edge: 0 };
+    const { pattern, plan } = shaped({ stitch: 'dc', widthCm: 37.5, heightCm: 50, border: { ...BORDER, repeat } }, dcGauge());
+    assert.deepEqual([plan.counts[0], plan.counts.length], [60, 40]);
+    assert.deepEqual([plan.border.top, plan.border.bottom, plan.border.sides[0].total, plan.border.sides[1].total, plan.border.total], [60, 60, 80, 80, 292]);
+    assert.deepEqual([plan.border.topAdjusted, plan.border.bottomAdjusted], [2, 2]);
+    for (const n of [plan.border.top, plan.border.bottom, ...plan.border.sides.map((side) => side.total)]) assert.equal(n % 4, 0);
+    const graph = graphOf(pattern);
+    assert.equal(graph.layers[borderLayerIndex(graph)].stitchCount, 292);
+    assert.deepEqual(rules(pattern), []);
+    assert.equal(shaped({ stitch: 'dc', widthCm: 37.5, heightCm: 50 }, dcGauge()).plan.border.total, 288);
+    const hu = formatWrittenPattern(writePattern(pattern, libraryFor(pattern), 'hu'));
+    assert.match(hu, /felső él: 3 rp a sarokszembe, 60 rp \(2 szembe 2 rp, egyenletesen elosztva\), 3 rp a sarokszembe;/);
+    assert.match(hu, /a következő sor ismétléséhez igazítva \(élenként 4 többszöröse \+ 0\) \(292 szem\)\./);
+    assertReadsBack(pattern);
+  });
+
+  test('egyenlő szárú háromszög 6 + 3-hoz: az alsó él és a két oldal a sarkok között 6 többszöröse + 3, a sorvégeken egyenletesen elosztva', () => {
+    const { pattern, plan } = shaped({ shape: 'isosceles-triangle', widthCm: 10, heightCm: 8, border: { ...BORDER, repeat: { width: 6, edge: 3 } } });
+    for (const n of [plan.border.bottom, ...plan.border.sides.map((side) => side.total)]) assert.equal((n - 3) % 6, 0, String(n));
+    assert.deepEqual(rules(pattern), []);
+    assertReadsBack(pattern);
+  });
+
+  test('az ismétlés a JSON-mentéssel megmarad; hibás ismétlés nem töltődik be', () => {
+    const { pattern } = shaped({ border: { ...BORDER, repeat: { width: 4, edge: 1 } } });
+    const loaded = loadPattern(savePattern(pattern));
+    assert.ok(loaded.ok);
+    assert.deepEqual(loaded.pattern.pieces[0].border, { ...BORDER, repeat: { width: 4, edge: 1 } });
+    for (const repeat of [{ width: 0, edge: 1 }, { width: 4, edge: -1 }, { width: 51, edge: 0 }]) {
+      const wrong = JSON.parse(savePattern(pattern));
+      wrong.pieces[0].border.repeat = repeat;
+      assert.equal(loadPattern(JSON.stringify(wrong)).ok, false, JSON.stringify(repeat));
+    }
+  });
+});
+
+describe('a kész szegély után (PQW-897)', () => {
+  test('a szegély helye a rajzon szegélyként jelölt, a sorok nem', () => {
+    const { pattern } = rectangle({ border: BORDER });
+    const index = borderLayerIndex(graphOf(pattern));
+    const layout = layoutPattern(pattern, libraryFor(pattern));
+    assert.equal(layout.layers[index].border, true);
+    assert.ok(layout.layers.slice(0, index).every((layer) => !layer.border));
+  });
+
+  test('a darab lezárult: a kész szegély vagy a fonal elvágása után nincs következő sor; félkész darabnál van', () => {
+    assert.equal(pieceFinished(graphOf(rectangle({ border: BORDER }).pattern)), true);
+    assert.equal(pieceFinished(graphOf(rectangle().pattern)), true);
+    assert.equal(pieceFinished(graphOf(legacy(rectangle({ border: BORDER }).pattern))), false);
+    assert.equal(pieceFinished(null), false);
+  });
+
+  test('a Forma üzenete szegéllyel: „… sor és szegély elkészült”', () => {
+    const { plan } = rectangle({ border: BORDER });
+    assert.match(generatedMessage({ ...DEFAULT_SHAPE, border: BORDER }, plan), /^Téglalap, \d+ sor és szegély elkészült; /);
+    assert.match(generatedMessage(DEFAULT_SHAPE, rectangle().plan), /^Téglalap, \d+ sor elkészült; /);
+  });
+});
+
+describe('a lezárt darab az amigurumiban is (PQW-897, PQW-890)', () => {
+  test('az önálló ovális után a darab lezárult: nincs következő kör', async () => {
+    const { createAmigurumi } = await import('../src/core/amigurumi-generator.ts');
+    const result = createAmigurumi(emptyPattern(), { name: 'Talp', shape: { kind: 'oval', lengthCm: 8, widthCm: 5 }, stagger: true, eyes: false }, false);
+    assert.ok(result.ok, result.reason);
+    assert.equal(pieceFinished(graphOf(result.pattern)), true);
   });
 });

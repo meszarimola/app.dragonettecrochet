@@ -58,7 +58,10 @@ export class ShapesPanel {
   readonly #rounding: HTMLSelectElement;
   readonly #border: HTMLInputElement;
   readonly #hdcRowEnd: HTMLSelectElement;
-  readonly #groups: Readonly<Record<'top' | 'measure' | 'height' | 'angle' | 'repeat' | 'border' | 'hdcRowEnd', HTMLElement>>;
+  readonly #borderRepeat: HTMLInputElement;
+  readonly #borderX: HTMLInputElement;
+  readonly #borderY: HTMLInputElement;
+  readonly #groups: Readonly<Record<'top' | 'measure' | 'height' | 'angle' | 'repeat' | 'border' | 'hdcRowEnd' | 'borderRepeat', HTMLElement>>;
   readonly #size: HTMLElement;
   readonly #details: HTMLElement;
   readonly #source: HTMLElement;
@@ -90,6 +93,9 @@ export class ShapesPanel {
     this.#rounding = fill(field('shape-rounding'), ROUNDING_CHOICES);
     this.#border = field('shape-border');
     this.#hdcRowEnd = fill(field('shape-hdc-row-end'), HDC_ROW_END_CHOICES);
+    this.#borderRepeat = field('shape-border-repeat');
+    this.#borderX = field('shape-border-x');
+    this.#borderY = field('shape-border-y');
     this.#groups = {
       top: field('shape-top-field'),
       measure: field('shape-measure-field'),
@@ -98,6 +104,7 @@ export class ShapesPanel {
       repeat: field('shape-repeat-fields'),
       border: field('shape-border-fields'),
       hdcRowEnd: field('shape-hdc-field'),
+      borderRepeat: field('shape-border-repeat-field'),
     };
     this.#size = field('shape-size');
     this.#details = field('shape-details');
@@ -106,10 +113,10 @@ export class ShapesPanel {
     this.#preview = field('shape-preview');
 
     section.addEventListener('toggle', () => this.#render());
-    for (const input of [this.#kind, this.#stitch, this.#measure, this.#repeat, this.#rounding, this.#border, this.#hdcRowEnd]) {
+    for (const input of [this.#kind, this.#stitch, this.#measure, this.#repeat, this.#rounding, this.#border, this.#hdcRowEnd, this.#borderRepeat]) {
       input.addEventListener('change', () => this.#render());
     }
-    for (const input of [this.#width, this.#top, this.#height, this.#angle, this.#repeatX, this.#repeatY]) {
+    for (const input of [this.#width, this.#top, this.#height, this.#angle, this.#repeatX, this.#repeatY, this.#borderX, this.#borderY]) {
       input.addEventListener('input', () => this.#render());
     }
     field<HTMLButtonElement>('shape-create').addEventListener('click', () => this.#create());
@@ -122,7 +129,8 @@ export class ShapesPanel {
   }
 
   #options(): ShapeOptions {
-    const border: PieceBorder | null = this.#border.checked ? { stitch: 'sc', hdcRowEnd: this.#hdcRowEnd.value === '1' ? 1 : 2 } : null;
+    const repeat = this.#borderRepeat.checked ? { repeat: { width: decimal(this.#borderX), edge: decimal(this.#borderY) } } : {};
+    const border: PieceBorder | null = this.#border.checked ? { stitch: 'sc', hdcRowEnd: this.#hdcRowEnd.value === '1' ? 1 : 2, ...repeat } : null;
     return normalizeShape({
       shape: this.#kind.value as ShapeOptions['shape'],
       stitch: this.#stitch.value,
@@ -144,6 +152,7 @@ export class ShapesPanel {
     this.#widthLabel.textContent = widthLabel(options.shape);
     for (const [key, group] of Object.entries(this.#groups)) group.hidden = !state[key as keyof typeof state];
     for (const input of [this.#repeatX, this.#repeatY, this.#rounding]) input.disabled = !this.#repeat.checked;
+    for (const input of [this.#borderX, this.#borderY]) input.disabled = !this.#borderRepeat.checked;
 
     const planned = planShape(this.#pattern, options);
     const view = planned.ok ? shapeView(planned.plan, options, activeProfile(this.#pattern) !== null) : null;
@@ -179,9 +188,10 @@ export class ShapesPanel {
     }
     this.#preview.setAttribute('viewBox', `0 0 ${outline.width} ${outline.height}`);
     const shapes: SVGElement[] = [];
-    if (outline.border > 0) {
-      const frame = document.createElementNS(SVG, 'rect');
-      for (const [name, value] of Object.entries({ x: 0, y: 0, width: outline.width, height: outline.height })) frame.setAttribute(name, String(value));
+    if (outline.frame) {
+      // A szegély sávja a forma körvonalát követi, ferde élnél is (PQW-898).
+      const frame = document.createElementNS(SVG, 'polygon');
+      frame.setAttribute('points', outline.frame);
       frame.setAttribute('class', 'shape__border');
       frame.setAttribute('vector-effect', 'non-scaling-stroke');
       shapes.push(frame);
