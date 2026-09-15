@@ -211,8 +211,10 @@ for (const viewport of [
     await expect(separator).toHaveAttribute('aria-valuenow', '100');
     await expect(written.getByRole('button', { name: 'Vissza', exact: true })).toBeVisible();
 
+    // Home után csak a fejléc marad: a szöveg törzse összezárul. A fejléc magassága a betűtípustól függ, keskeny panelen két sorba is törhet.
     await page.keyboard.press('Home');
-    await expect.poll(() => heightOf(page)).toBeLessThan(stage.height / 3);
+    await expect.poll(async () => (await box(page, '#written-body')).height).toBeLessThanOrEqual(10);
+    expect(await heightOf(page)).toBeLessThan(stage.height / 2);
     await expect(written.getByRole('button', { name: 'Lecsukás' })).toBeInViewport();
     const low = Number(await separator.getAttribute('aria-valuenow'));
     await expect(separator).toHaveAttribute('aria-valuemin', String(low));
