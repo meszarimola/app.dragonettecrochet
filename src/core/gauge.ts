@@ -13,7 +13,7 @@
 
 import type { GaugeProfile, StitchGauge, WorkedIn } from './gauge-profile.ts';
 import type { Quantity, Range } from './quantity.ts';
-import { divide, estimate, inverse, measured, multiply, roundCount } from './quantity.ts';
+import { divide, estimate, fromLabel, inverse, measured, multiply, roundCount } from './quantity.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import type { StitchDef } from './types.ts';
 
@@ -191,6 +191,11 @@ function measurementKey(def: StitchDef): string {
   return def.kind === 'joined' ? def.part : def.id;
 }
 
+/** A profil értéke a saját eredetével: mért, vagy a felületen megadott címkeadat (PQW-859). */
+function fromGauge(gauge: StitchGauge, value: number): Quantity {
+  return gauge.source === 'label' ? fromLabel(value) : measured(value);
+}
+
 function measuredGauge(profile: GaugeProfile | null, key: string, forms: readonly WorkedIn[]): StitchGauge | null {
   const byForm = profile?.perStitch[key];
   if (!byForm) return null;
@@ -205,7 +210,7 @@ function measuredGauge(profile: GaugeProfile | null, key: string, forms: readonl
 function singleCrochetBase(shape: LayerShape, context: GaugeContext): StitchDimensions {
   const { library, profile } = context;
   const sc = measuredGauge(profile, 'sc', FORMS[shape]);
-  if (sc) return { widthMm: measured(sc.widthMm.mean), heightMm: measured(sc.heightMm.mean), basis: 'measured' };
+  if (sc) return { widthMm: fromGauge(sc, sc.widthMm.mean), heightMm: fromGauge(sc, sc.heightMm.mean), basis: 'measured' };
 
   // Más alapszem ugyanebben a formában: a magasságarányával visszaszámolva (02 §8 `estimateRowHeightCm`).
   for (const key of Object.keys(profile?.perStitch ?? {})) {
@@ -213,8 +218,8 @@ function singleCrochetBase(shape: LayerShape, context: GaugeContext): StitchDime
     const gauge = def?.kind === 'basic' ? measuredGauge(profile, key, FORMS[shape]) : null;
     if (!def || !gauge) continue;
     return {
-      widthMm: multiply(measured(gauge.widthMm.mean), WIDTH_RATIO),
-      heightMm: divide(measured(gauge.heightMm.mean), stitchHeightFactor(def)),
+      widthMm: multiply(fromGauge(gauge, gauge.widthMm.mean), WIDTH_RATIO),
+      heightMm: divide(fromGauge(gauge, gauge.heightMm.mean), stitchHeightFactor(def)),
       basis: 'profile-stitch',
     };
   }
@@ -222,7 +227,7 @@ function singleCrochetBase(shape: LayerShape, context: GaugeContext): StitchDime
   const aspect = shape === 'row' ? SC_ASPECT_ROWS : SC_ASPECT_ROUNDS;
   const other = measuredGauge(profile, 'sc', OTHER_FORMS[shape]);
   const widthMm = other
-    ? multiply(measured(other.widthMm.mean), WIDTH_RATIO)
+    ? multiply(fromGauge(other, other.widthMm.mean), WIDTH_RATIO)
     : multiply(measured(profile?.hookMm ?? context.hookMm), SC_WIDTH_PER_HOOK_MM);
   return { widthMm, heightMm: multiply(widthMm, aspect), basis: other ? 'profile-other-form' : 'hook' };
 }
@@ -235,7 +240,7 @@ export function stitchDimensions(def: StitchDef, shape: LayerShape, context: Gau
   if (def.kind === 'picot' || def.kind === 'space' || def.kind === 'ring') return null;
 
   const own = measuredGauge(context.profile, measurementKey(def), FORMS[shape]);
-  if (own) return { widthMm: measured(own.widthMm.mean), heightMm: measured(own.heightMm.mean), basis: 'measured' };
+  if (own) return { widthMm: fromGauge(own, own.widthMm.mean), heightMm: fromGauge(own, own.heightMm.mean), basis: 'measured' };
 
   const base = singleCrochetBase(shape, context);
   const chainLength = context.profile?.chainLengthMm;

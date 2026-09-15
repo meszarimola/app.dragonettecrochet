@@ -35,6 +35,7 @@ import { canRedo, canUndo, createHistory, record, redo, undo, type History } fro
 import { chartGrid, type ChartGrid } from '../core/grid.js';
 import { layoutPattern, type ChartLayout, type Point } from '../core/layout.js';
 import { loadPattern, savePattern } from '../core/pattern-json.js';
+import { aspectStem, gaugeContextOf } from '../core/pattern-size.js';
 import { RULES } from '../core/rules.js';
 import { libraryFor, resolveStitch } from '../core/stitch-variants.js';
 import { stitchName } from '../core/stitchText.js';
@@ -58,6 +59,7 @@ import {
   writeNotation,
 } from './notation.js';
 import { buildPalette, type PaletteItem } from './palette.js';
+import { SizePanel } from './size-panel.js';
 import { DEFAULT_PATTERN_TYPE, PATTERN_TYPES, gridKind, isAvailableType, type PatternTypeId } from './pattern-types.js';
 import { applyInk, drawCentered, readInk, shapeBounds, stemLength, symbolShapes, type SymbolOptions } from './symbols.js';
 import { alignTooltips } from './tooltip.js';
@@ -125,6 +127,8 @@ let mirror = readMirror();
 let patternType: PatternTypeId = readType();
 /** Látszik-e a rács (PQW-874); a böngészőben marad. */
 let showGrid = readGrid();
+/** Arányhelyes nézet (PQW-859). Újratöltés után nem marad meg: az új tárolókulcsot igényelne. */
+let aspect = false;
 /** A jelölés és a jelstílus; a böngészőben marad. */
 let notation = readStoredNotation();
 let symbols: SymbolOptions = symbolOptionsFor(notation);
@@ -145,11 +149,18 @@ let derived = derive(history.present);
 
 function derive(pattern: Pattern): Derived {
   const context = contextOf(pattern);
-  const layout = layoutPattern(pattern, context.library, { mirror, stemLength });
+  const stem = stemFor(pattern, context);
+  const layout = layoutPattern(pattern, context.library, { mirror, stemLength: stem });
   const check = liveCheck(pattern, context);
   const targets = context.slots.map((slot, i) => ({ point: slotPoint(layout, slot), used: context.used[i] ?? false }));
-  const grid = showGrid ? chartGrid(pattern, context.library, gridKindOf(context), context, { mirror, stemLength }) : null;
+  const grid = showGrid ? chartGrid(pattern, context.library, gridKindOf(context), context, { mirror, stemLength: stem }) : null;
   return { pattern, context, layout, check, targets, grid };
+}
+
+/** A szár hossza: arányhelyes nézetben a profil (profil nélkül a becslés) szemarányából, különben a jelrajzé. */
+function stemFor(pattern: Pattern, context: WorkContext): (chainHeight: number) => number {
+  if (!aspect) return stemLength;
+  return aspectStem(gaugeContextOf(pattern, context.library), context.graph?.layers[0]?.shape ?? context.shape);
 }
 
 /** A rács típusa a mintatípusból és a darab alakjából (sor vagy kör). */
@@ -282,6 +293,7 @@ function refresh(message?: string): void {
   traditionSelect.value = traditionOf(derived.pattern.conventions);
   updateControls();
   updateWritten();
+  sizePanel.update(derived.pattern, derived.context.graph, derived.context.library);
   if (message !== undefined) announce(message);
 }
 
@@ -732,11 +744,12 @@ function exportSvgText(): string {
   const root = document.documentElement;
   const token = (name: string) => getComputedStyle(root).getPropertyValue(name).trim();
   const context = contextOf(pattern);
+  const stem = stemFor(pattern, context);
   const grid = {
-    grid: chartGrid(pattern, library, gridKindOf(context), context, { mirror, stemLength }),
+    grid: chartGrid(pattern, library, gridKindOf(context), context, { mirror, stemLength: stem }),
     colors: { rowA: token('--c-row-a'), rowB: token('--c-row-b'), cell: token('--c-grid'), row: token('--c-grid-row'), strong: token('--c-grid-strong') },
   };
-  return chartSvg(pattern, layoutPattern(pattern, library, { mirror, stemLength }), library, {
+  return chartSvg(pattern, layoutPattern(pattern, library, { mirror, stemLength: stem }), library, {
     tradition: traditionOf(pattern.conventions),
     ...(exportGrid.checked ? { grid } : {}),
     colors: { right: token('--c-ink'), wrong: token('--c-ink-wrong'), text: token('--c-text'), background: token('--c-bg') },
@@ -848,7 +861,9 @@ const ACTIONS: Record<string, () => void> = {
   },
   new: () => {
     selectedNode = null;
-    commit({ ok: true, pattern: emptyPattern() }, 'Új minta; visszavonással a korábbi visszajön.');
+    // A profilok a horgolóhoz tartoznak, nem a mintához: az új mintába is átkerülnek (PQW-859).
+    const gauge = history.present.gauge;
+    commit({ ok: true, pattern: { ...emptyPattern(), ...(gauge ? { gauge } : {}) } }, 'Új minta; visszavonással a korábbi visszajön.');
     fitBoard();
   },
   unpin: () => selectedNode && commit(setPinned(history.present, selectedNode, null), 'A jel a számolt helyére került.'),
@@ -1191,6 +1206,18 @@ document.addEventListener('keydown', (event) => {
 
   const item = items.find((candidate) => candidate.key === key);
   if (item) select(item.def.id);
+});
+
+/* ---- Méret és fonal (PQW-859) ---- */
+
+const sizePanel = new SizePanel(must<HTMLDetailsElement>('#section-size'), {
+  commit: (pattern, message) => commit({ ok: true, pattern }, message),
+  announce,
+  setAspect: (on) => {
+    aspect = on;
+    refresh(on ? 'Arányhelyes nézet: a cellák és a rács a valós szemarányt követik.' : 'Arányhelyes nézet kikapcsolva.');
+    fitBoard();
+  },
 });
 
 /* ---- Indulás ---- */

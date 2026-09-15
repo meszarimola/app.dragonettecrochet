@@ -308,12 +308,59 @@ export interface PatternNotation {
   readonly singleCrochet: 'plus' | 'cross';
 }
 
+/** Síkban (sorokban) vagy körben mérve (PQW-859). */
+export type GaugeForm = 'rows' | 'rounds';
+
+/**
+ * Egy szem mintasűrűsége a profilban: szem/10 cm és sor (kör)/10 cm. A még
+ * ki nem töltött érték `null`; ilyen sor a méretbe nem számít.
+ */
+export interface GaugeEntry {
+  /** Alapszem: `sc`, `hdc`, `dc`, `tr`. */
+  readonly stitch: StitchDefId;
+  readonly form: GaugeForm;
+  readonly stitchesPer10cm: number | null;
+  readonly rowsPer10cm: number | null;
+  /** Saját próbadarabon mérve, vagy a fonal címkéjéről. */
+  readonly source: Extract<ValueSource, 'measured' | 'label'>;
+}
+
+/**
+ * A horgoló egy fonallal és tűvel mért profilja, ahogy a felületen megadja
+ * (PQW-859). Ismeretlen érték `null`, sosem becslés: a becslést a mag számolja.
+ */
+export interface PatternGaugeProfile {
+  readonly id: string;
+  readonly yarn: {
+    readonly name: string;
+    /** CYC fonalvastagság 0–7, a címkéről. */
+    readonly cycWeight: number | null;
+    readonly metersPer100g: number | null;
+    /** Egy gombolyag tömege, g; ebből kerekítünk gombolyagra. */
+    readonly ballMassG: number | null;
+  };
+  readonly hookMm: number;
+  readonly blocked: boolean;
+  readonly gauges: readonly GaugeEntry[];
+  /** A lemért próbadarab mérete és tömege. */
+  readonly swatch: { readonly widthCm: number | null; readonly heightCm: number | null; readonly massG: number | null };
+}
+
+/** A mintával mentett profilok és a kiválasztott (PQW-859). */
+export interface PatternGauge {
+  /** A kiválasztott profil azonosítója; `null`: profil nélkül, becsléssel. */
+  readonly active: string | null;
+  readonly profiles: readonly PatternGaugeProfile[];
+}
+
 /** A mentett minta. A formátum verziója minden nem visszafelé kompatibilis változásnál nő. */
 export interface Pattern {
   readonly formatVersion: 1;
   readonly title: string;
   /** Hiányában a minta jelölése nincs rögzítve (a PQW-868 előtti mentés). */
   readonly notation?: PatternNotation;
+  /** Hiányában a mintához nincs profil (a PQW-859 előtti mentés); a méret becslés. */
+  readonly gauge?: PatternGauge;
   readonly conventions: PatternConventions;
   readonly pieces: readonly Piece[];
 }

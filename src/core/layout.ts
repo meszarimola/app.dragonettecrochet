@@ -82,10 +82,10 @@ export interface LayoutOptions {
   readonly stemLength?: (chainHeight: number) => number;
 }
 
-const DEFAULT_COLUMN = 24;
+export const DEFAULT_COLUMN = 24;
 const defaultStem = (chainHeight: number) => 10 + 8 * chainHeight;
 /** Hézag két sor között, és a láncszem magassága a sorban. */
-const ROW_GAP = 6;
+export const ROW_GAP = 6;
 const CHAIN_HEIGHT = 12;
 const SLIP_HEIGHT = 6;
 

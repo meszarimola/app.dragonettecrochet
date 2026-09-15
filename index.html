@@ -289,6 +289,114 @@
             <div class="palette" id="palette" role="group" aria-label="Szemek"></div>
           </details>
 
+          <details class="section" id="section-size">
+            <summary class="section__head"><h2 class="panel__title">Méret és fonal</h2></summary>
+            <div class="size">
+              <p class="size__notice" id="size-notice" hidden></p>
+
+              <p class="panel__field">
+                <label for="size-profile">Profil</label>
+                <select id="size-profile" aria-describedby="size-profile-note"></select>
+              </p>
+              <p class="panel__note" id="size-profile-note">
+                Egy fonal és tű mért mintasűrűsége. A mintával együtt mentődik, a JSON-exportban is.
+              </p>
+              <div class="size__actions">
+                <button type="button" class="tool" id="size-add">Új profil</button>
+                <button type="button" class="tool" id="size-remove">Profil törlése</button>
+              </div>
+
+              <div class="size__editor" id="size-editor" hidden>
+                <fieldset class="size__group">
+                  <legend>Fonal</legend>
+                  <p class="panel__field">
+                    <label for="size-yarn-name">Név</label>
+                    <input id="size-yarn-name" type="text" maxlength="80" autocomplete="off" />
+                  </p>
+                  <p class="panel__field">
+                    <span class="size__label">
+                      <label for="size-cyc">Vastagsági kategória (CYC)</label>
+                      <span class="origin" id="size-origin-cyc" hidden></span>
+                    </span>
+                    <select id="size-cyc" aria-describedby="size-origin-cyc"></select>
+                  </p>
+                  <p class="panel__field">
+                    <span class="size__label">
+                      <label for="size-meterage">Méter 100 g-on</label>
+                      <span class="origin" id="size-origin-meterage" hidden></span>
+                    </span>
+                    <input id="size-meterage" type="text" inputmode="decimal" autocomplete="off" aria-describedby="size-origin-meterage" />
+                  </p>
+                  <p class="panel__field">
+                    <span class="size__label">
+                      <label for="size-ball">Egy gombolyag, g</label>
+                      <span class="origin" id="size-origin-ball" hidden></span>
+                    </span>
+                    <input id="size-ball" type="text" inputmode="decimal" autocomplete="off" aria-describedby="size-origin-ball" />
+                  </p>
+                </fieldset>
+
+                <fieldset class="size__group">
+                  <legend>Tű</legend>
+                  <p class="panel__field">
+                    <span class="size__label">
+                      <label for="size-hook">Méret, mm</label>
+                      <span class="origin" id="size-origin-hook" hidden></span>
+                    </span>
+                    <input id="size-hook" type="text" inputmode="decimal" autocomplete="off" aria-describedby="size-hook-sizes" />
+                  </p>
+                  <p class="panel__note" id="size-hook-sizes"></p>
+                </fieldset>
+
+                <fieldset class="size__group">
+                  <legend>Mintasűrűség szemenként</legend>
+                  <p class="panel__note">
+                    A próbadarab közepén 10 cm-en számolt szemek és sorok. Sorokhoz síkban, körökhöz körben mérj.
+                  </p>
+                  <ul class="gauges" id="size-gauges"></ul>
+                  <button type="button" class="tool size__add-gauge" id="size-gauge-add">Szem hozzáadása</button>
+                  <p class="choice">
+                    <label><input type="checkbox" id="size-blocked" /> Blokkolva mérve</label>
+                  </p>
+                </fieldset>
+
+                <fieldset class="size__group">
+                  <legend class="size__label">
+                    <span>Próbadarab</span>
+                    <span class="origin" id="size-origin-swatch" hidden></span>
+                  </legend>
+                  <p class="panel__field">
+                    <label for="size-swatch-width">Szélesség, cm</label>
+                    <input id="size-swatch-width" type="text" inputmode="decimal" autocomplete="off" />
+                  </p>
+                  <p class="panel__field">
+                    <label for="size-swatch-height">Magasság, cm</label>
+                    <input id="size-swatch-height" type="text" inputmode="decimal" autocomplete="off" />
+                  </p>
+                  <p class="panel__field">
+                    <label for="size-swatch-mass">Tömeg, g</label>
+                    <input id="size-swatch-mass" type="text" inputmode="decimal" autocomplete="off" />
+                  </p>
+                  <p class="panel__note">A tömegéből jön a fonalbecslés.</p>
+                </fieldset>
+              </div>
+
+              <h3 class="size__subtitle">Kész méret</h3>
+              <div id="size-total"></div>
+              <div class="size__rows" id="size-rows" role="region" aria-label="Kész méret soronként" tabindex="0" hidden></div>
+
+              <h3 class="size__subtitle">Fonal</h3>
+              <div id="size-yarn"></div>
+
+              <p class="choice">
+                <label><input type="checkbox" id="size-aspect" aria-describedby="size-aspect-note" /> Arányhelyes nézet</label>
+              </p>
+              <p class="panel__note" id="size-aspect-note">
+                A diagram cellái és a rács a valós szemarányt követik: a profilból, profil nélkül a becslésből.
+              </p>
+            </div>
+          </details>
+
           <details class="section" id="section-notation">
             <summary class="section__head"><h2 class="panel__title">Jelölés és jelek</h2></summary>
             <div class="settings" role="group" aria-label="Jelölés és jelek">
