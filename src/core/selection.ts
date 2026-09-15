@@ -214,6 +214,7 @@ export function deletionPlan(pattern: Pattern, ids: Iterable<NodeId>): DeletionP
   const hits = (anchor: Anchor) => {
     if (anchor.into === 'stitch') return removed.has(anchor.id);
     if (anchor.into === 'space') return (spaceChains.get(anchor.id) ?? []).some((id) => removed.has(id));
+    if (anchor.into === 'row-end') return removed.has(anchor.id);
     return removed.has(ringNodes.get(anchor.id) ?? '');
   };
   // A célpontok a fonalon előrébb vannak, ezért egy menet általában elég; a ciklus a biztonság.
@@ -299,7 +300,7 @@ export type FragmentAnchor =
   | { readonly kind: 'node'; readonly index: number; readonly mode: StitchInsertion }
   | { readonly kind: 'space'; readonly index: number }
   | { readonly kind: 'ring'; readonly index: number }
-  | { readonly kind: 'target'; readonly offset: number; readonly into: Anchor['into']; readonly mode: StitchInsertion | null };
+  | { readonly kind: 'target'; readonly offset: number; readonly into: Slot['kind']; readonly mode: StitchInsertion | null };
 
 export interface FragmentStitch {
   readonly def: StitchDefId;
@@ -363,6 +364,10 @@ export function copySelection(pattern: Pattern, ids: Iterable<NodeId>): CopyResu
   const firstLayer = layerOf(selected[0]!);
   const layer = graph.layers[firstLayer]!;
   const foundation = firstLayer === 0;
+  // A szegély a darab köré horgol, nem a sor célpontjaiba (PQW-889): nem másolható.
+  if (selected.some((id) => graph.layers[layerOf(id)]?.border)) {
+    return { ok: false, reason: 'A szegély még nem másolható: csak sorokat vagy köröket jelölj ki.' };
+  }
 
   const spaces = piece.spaces.filter((space) => space.chains.every((id) => index.has(id)));
   const spaceIndex = new Map(spaces.map((space, i) => [space.id, i]));
@@ -372,7 +377,7 @@ export function copySelection(pattern: Pattern, ids: Iterable<NodeId>): CopyResu
   const slots = foundation ? [] : layerSlots(graph, firstLayer, graph.layers[firstLayer - 1]!, layer.direction === -1, layer.shape);
   const slotOf = new Map(slots.map((slot, i) => [slotKey(slot.kind, slot.id), i]));
 
-  type Draft = FragmentAnchor | { readonly kind: 'slot'; readonly slot: number; readonly into: Anchor['into']; readonly mode: StitchInsertion | null };
+  type Draft = FragmentAnchor | { readonly kind: 'slot'; readonly slot: number; readonly into: Slot['kind']; readonly mode: StitchInsertion | null };
   const drafts: { def: StitchDefId; anchors: Draft[]; flags?: readonly StitchFlag[] }[] = [];
   for (const id of selected) {
     const node = graph.nodes.get(id)!;
@@ -386,6 +391,8 @@ export function copySelection(pattern: Pattern, ids: Iterable<NodeId>): CopyResu
           const name = layerName(layerOf(id), graph.layers[layerOf(id)]!.shape);
           return { ok: false, reason: `A kijelölt ${name} olyan szemekbe is horgol, amelyek nincsenek kijelölve: jelöld ki az alatta lévő sort is.` };
         }
+        // Sorvégbe csak a szegély horgol, azt fent elutasítjuk (PQW-889).
+        if (anchor.into === 'row-end') return { ok: false, reason: 'A szegély még nem másolható: csak sorokat vagy köröket jelölj ki.' };
         const slot = slotOf.get(slotKey(anchor.into, anchor.id));
         if (slot === undefined) {
           return {

@@ -126,13 +126,13 @@ describe('a terv kiírása', () => {
     assert.ok(view.details.some((line) => /^Meghagyott szemek az? .* sor végén: lépcsős él\.$/.test(line)), view.details.join('\n'));
   });
 
-  test('szegély: szemszám körben, a méret a szegéllyel, és hogy a diagramon még nem látszik', () => {
+  test('szegély: szemszám körben, a méret a szegéllyel, és hogy a diagramon is látszik (PQW-889)', () => {
     const patch = { border: { stitch: 'sc', hdcRowEnd: 2 } };
     const plan = planOf(withRowGauge('hdc', 15, 11), patch);
     const view = shapeView(plan, options(patch), true);
     const line = view.details.find((text) => text.startsWith('Szegély: '));
     assert.ok(line);
-    assert.match(line, /^Szegély: 200 rp körben, sarkonként 3, sorvégenként 2; a szegéllyel ≈ \d+,\d × \d+,\d cm\. Az írott mintában áll, a diagramon még nem látszik\.$/);
+    assert.match(line, /^Szegély: 200 rp körben, sarkonként 3, sorvégenként 2; a szegéllyel ≈ \d+,\d × \d+,\d cm\. A diagramon, a rácson és a kész méretben is látszik\.$/);
   });
 
   test('a létrehozás üzenete a visszavonás lehetőségével', () => {

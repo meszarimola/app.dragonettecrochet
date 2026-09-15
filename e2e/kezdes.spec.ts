@@ -45,7 +45,7 @@ async function expectScarfRows(page: Page, rows: number): Promise<void> {
   if (await written.isHidden()) await page.locator('#written-toggle').click();
   const text = page.locator('#written-text');
   await expect(text).toContainText('Láncalap: 40 lsz.');
-  await expect(text).toContainText('1. sor: a horogtól számított 3. láncszemtől kezdve (a kihagyott láncszemek 1 rp-nek számítanak) 38 rp (39 szem).');
+  await expect(text).toContainText('1. sor: hagyj ki 2 láncszemet, majd minden láncszembe 1 rp (39 szem).');
   if (rows >= 2) await expect(text).toContainText('2. sor: 1 lsz (1 rp-nek számít), 38 rp (39 szem).');
 }
 
