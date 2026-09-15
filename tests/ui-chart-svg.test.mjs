@@ -10,6 +10,7 @@ import { emptyPattern, endRow, fillRow, work } from '../src/core/editor.ts';
 import { layoutPattern } from '../src/core/layout.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
 import { chartSvg, escapeXml, legendInsertions, legendStitches } from '../src/ui/chart-svg.ts';
+import { defaultState, generateFromState, spikeNodes, unitFrames } from '../src/ui/grid-chart-view.ts';
 import { hdcRectangle, shellStitch } from './fixtures/examples.ts';
 
 const COLORS = { right: '#241f2b', wrong: '#2f5f9e', text: '#3f3949', background: '#faf7f3' };
@@ -126,4 +127,28 @@ test('mód nélküli mintában nincs módos jelmagyarázat-sor és megjegyzés',
   const pattern = hdcRectangle({ rows: 2 }).pattern;
   assert.deepEqual(legendInsertions(pattern, libraryFor(pattern)), []);
   assert.doesNotMatch(render(pattern), /színoldalról nézve/);
+});
+
+test('rácsminta: az ismétlő egység szaggatott kerettel, a lejjebb horgolt szem talpa pöttyel, jelmagyarázattal (PQW-894)', () => {
+  const state = {
+    ...defaultState('mosaic', 5, 4),
+    draft: [
+      [0, 0, 0, 0, 0],
+      [1, 1, 0, 1, 1],
+      [0, 0, 0, 0, 0],
+      [1, 1, 1, 1, 1],
+    ],
+    manualUnit: { x: 0, y: 0, width: 5, height: 2 },
+  };
+  const { pattern } = generateFromState(emptyPattern(), state);
+  const library = libraryFor(pattern);
+  const layout = layoutPattern(pattern, library);
+  const svg = chartSvg(pattern, layout, library, { colors: COLORS, unitFrames: unitFrames(pattern, layout, false), spikes: spikeNodes(pattern) });
+  assert.equal(svg.match(/data-unit-frame/g).length, 1);
+  assert.equal(svg.match(/data-spike/g).length, 1);
+  assert.match(svg, /Szaggatott keret: az ismétlő egység\./);
+  assert.match(svg, /Pötty a szár végén: a lejjebb, a kihagyott szembe horgolt szem\./);
+  assert.doesNotMatch(svg, /NaN|undefined|Infinity/);
+  const plain = render(hdcRectangle({ rows: 2 }).pattern);
+  assert.doesNotMatch(plain, /data-unit-frame|data-spike|Szaggatott keret|Pötty a szár/);
 });

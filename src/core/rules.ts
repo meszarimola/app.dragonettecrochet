@@ -246,6 +246,12 @@ export const RULES = {
     message:
       'Ebben a sorban 3-nál több színt kell a szemekben vinni: ez haladó szint, és a szövet merevebb lesz. Egyszerűsítsd a sort, vagy horgold graphganként, színenként külön gombolyaggal.',
   },
+  'spike-depth': {
+    severity: 'error',
+    reference: '03 §5.6, §10 C17, G34',
+    summary: 'A hosszú szem 3 sornál mélyebbre, korábbi sorba van horgolva (PQW-894).',
+    message: 'Ez a hosszú szem túl mélyre megy: legfeljebb 3 sorral lejjebb, egy kihagyott szembe horgolhatsz.',
+  },
 } as const satisfies Record<string, RuleDef>;
 
 export type RuleId = keyof typeof RULES;

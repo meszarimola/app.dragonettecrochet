@@ -1,12 +1,16 @@
 /*
- * A „Rácsminta” szakasz (PQW-864): technika, méret, színek és ecset, a
- * rácsszerkesztő a mintasűrűség szerinti cellaaránnyal, az ismétlő egység
- * (felismerve vagy kézzel), feliratos motívum, a terv és a fonal színenként,
- * és a minta létrehozása.
+ * A „Rácsminta” szakasz (PQW-864, PQW-894): technika, mozaikváltozat, méret,
+ * színek és ecset, kép betöltése, a rácsszerkesztő a mintasűrűség szerinti
+ * cellaaránnyal, az ismétlő egység (felismerve vagy kézzel), feliratos motívum,
+ * a terv és a fonal színenként, és a minta létrehozása.
  *
  * A rács `role="grid"`, bejárható tabindexszel: nyilakkal lépsz, szóközzel vagy
  * Enterrel festesz, Delete-tel törölsz; egérrel húzva több cellát festhetsz. A
  * kezelt billentyűk nem jutnak el a vászon gyorsbillentyűihez.
+ *
+ * A kép a böngészőben marad: vászonra rajzolva, a rács méretére kicsinyítve
+ * olvassuk ki a képpontjait, szerverre semmi nem kerül (a CSP a `blob:` képet
+ * engedi).
  *
  * A mezők az index.html-ben vannak. A létrehozás a mintát cseréli, ezért egy
  * lépésben visszavonható. Új tárolókulcs nincs: a rács a lapon él, a
@@ -16,6 +20,7 @@
 import { MAX_GRID_SIDE, type DraftCell } from '../core/pixel-chart.js';
 import type { Pattern } from '../core/types.js';
 import {
+  MOSAIC_ROW_CHOICES,
   TECHNIQUE_CHOICES,
   brushesFor,
   cellAppearance,
@@ -25,6 +30,8 @@ import {
   editorCellSize,
   expandedCells,
   generateFromState,
+  imageGridSize,
+  imageToDraft,
   nextColor,
   planSummary,
   removeColor,
@@ -50,12 +57,27 @@ interface Cell {
   readonly y: number;
 }
 
+function fill(select: HTMLSelectElement, choices: readonly { readonly value: string; readonly label: string }[]): HTMLSelectElement {
+  select.replaceChildren(
+    ...choices.map((choice) => {
+      const option = document.createElement('option');
+      option.value = choice.value;
+      option.textContent = choice.label;
+      return option;
+    }),
+  );
+  return select;
+}
+
 export class GridChartPanel {
   readonly #section: HTMLDetailsElement;
   readonly #host: GridChartPanelHost;
   readonly #technique: HTMLSelectElement;
+  readonly #mosaicField: HTMLElement;
+  readonly #mosaicRows: HTMLSelectElement;
   readonly #width: HTMLInputElement;
   readonly #height: HTMLInputElement;
+  readonly #image: HTMLInputElement;
   readonly #ratio: HTMLElement;
   readonly #colorsField: HTMLElement;
   readonly #colors: HTMLElement;
@@ -92,17 +114,12 @@ export class GridChartPanel {
       if (!el) throw new Error(`Hiányzó mező: #${id}`);
       return el;
     };
-    this.#technique = field('grid-technique');
-    this.#technique.replaceChildren(
-      ...TECHNIQUE_CHOICES.map((choice) => {
-        const option = document.createElement('option');
-        option.value = choice.value;
-        option.textContent = choice.label;
-        return option;
-      }),
-    );
+    this.#technique = fill(field('grid-technique'), TECHNIQUE_CHOICES);
+    this.#mosaicField = field('grid-mosaic-field');
+    this.#mosaicRows = fill(field('grid-mosaic-rows'), MOSAIC_ROW_CHOICES);
     this.#width = field('grid-width');
     this.#height = field('grid-height');
+    this.#image = field('grid-image');
     this.#ratio = field('grid-ratio');
     this.#colorsField = field('grid-colors-field');
     this.#colors = field('grid-colors');
@@ -130,12 +147,20 @@ export class GridChartPanel {
     });
     this.#technique.addEventListener('change', () => {
       const technique = this.#technique.value as EditorTechnique;
-      this.#brush = usesColors(technique) ? Math.min(1, this.#state.colors.length - 1) : 1;
-      this.#setState(withTechnique(this.#state, technique), true);
+      const next = withTechnique(this.#state, technique);
+      this.#brush = usesColors(technique) ? Math.min(1, next.colors.length - 1) : 1;
+      this.#setState(next, true);
+    });
+    this.#mosaicRows.addEventListener('change', () => {
+      this.#setState({ ...this.#state, mosaicRows: this.#mosaicRows.value === '2' ? 2 : 1 }, true);
     });
     for (const input of [this.#width, this.#height]) input.addEventListener('change', () => this.#resize());
+    this.#image.addEventListener('change', () => {
+      const file = this.#image.files?.[0];
+      if (file) void this.#loadImage(file);
+    });
     this.#colorAdd.addEventListener('click', () => {
-      const color = nextColor(this.#state.colors);
+      const color = nextColor(this.#state.colors, this.#state.technique);
       if (color) this.#setState({ ...this.#state, colors: [...this.#state.colors, color] }, true);
     });
     this.#brushes.addEventListener('change', (event) => {
@@ -207,6 +232,8 @@ export class GridChartPanel {
     if (!this.#section.open) return;
     const { draft, technique } = this.#state;
     this.#technique.value = technique;
+    this.#mosaicRows.value = String(this.#state.mosaicRows);
+    this.#mosaicField.hidden = technique !== 'mosaic';
     // A fókuszban lévő mezőbe épp gépelnek: azt nem írjuk felül.
     const write = (input: HTMLInputElement, value: number) => {
       if (document.activeElement !== input) input.value = String(value);
@@ -240,6 +267,35 @@ export class GridChartPanel {
     const height = clamp(this.#height, draft.length);
     this.#focus = { x: Math.min(this.#focus.x, width - 1), y: Math.min(this.#focus.y, height - 1) };
     this.#setState({ ...this.#state, draft: resizeDraft(draft, width, height) }, true);
+  }
+
+  /** A kép a megadott szélességre, a mintasűrűség szerinti magasságra kicsinyítve kerül a rácsba (PQW-894). */
+  async #loadImage(file: File): Promise<void> {
+    if (!this.#pattern) return;
+    const url = URL.createObjectURL(file);
+    try {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      const size = imageGridSize(image.naturalWidth, image.naturalHeight, this.#state.draft[0]?.length ?? 1, this.#pattern, this.#state);
+      const canvas = document.createElement('canvas');
+      canvas.width = size.width;
+      canvas.height = size.height;
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      if (!context) throw new Error('nincs vászon');
+      context.drawImage(image, 0, 0, size.width, size.height);
+      const pixels = context.getImageData(0, 0, size.width, size.height).data;
+      this.#manual.checked = false;
+      this.#unitFields.hidden = true;
+      this.#focus = { x: 0, y: 0 };
+      this.#setState({ ...this.#state, draft: imageToDraft(pixels, size.width, size.height, this.#state), manualUnit: null }, true);
+      this.#host.announce(`A kép betöltve: ${size.width} × ${size.height} cella, a mintasűrűség arányában.`);
+    } catch {
+      this.#host.announce('A képet nem sikerült betölteni: PNG, JPEG, GIF vagy WebP fájlt válassz.');
+    } finally {
+      URL.revokeObjectURL(url);
+      this.#image.value = '';
+    }
   }
 
   #readUnit(): void {
@@ -289,7 +345,7 @@ export class GridChartPanel {
   /* ---- Színek és ecset ---- */
 
   #renderColors(): void {
-    const { colors } = this.#state;
+    const { colors, technique } = this.#state;
     this.#colors.replaceChildren(
       ...colors.map((color, i) => {
         const item = document.createElement('li');
@@ -311,7 +367,8 @@ export class GridChartPanel {
         remove.className = 'tool';
         remove.textContent = 'Törlés';
         remove.setAttribute('aria-label', `${letter} szín törlése`);
-        remove.disabled = colors.length <= 1;
+        // A mozaik mindig két színnel készül.
+        remove.disabled = colors.length <= (technique === 'mosaic' ? 2 : 1);
         remove.addEventListener('click', () => {
           this.#brush = 0;
           this.#setState(removeColor(this.#state, i), true);
@@ -324,7 +381,7 @@ export class GridChartPanel {
         return item;
       }),
     );
-    this.#colorAdd.disabled = nextColor(colors) === null;
+    this.#colorAdd.disabled = nextColor(colors, technique) === null;
   }
 
   #editColor(index: number, patch: { hex?: string; name?: string }, rebuild = false): void {
@@ -360,10 +417,10 @@ export class GridChartPanel {
   /* ---- A rács ---- */
 
   #buildBoard(): void {
-    const { draft, technique } = this.#state;
+    const { draft, technique, mosaicRows } = this.#state;
     const height = draft.length;
     const width = draft[0]?.length ?? 0;
-    const size = this.#pattern ? editorCellSize(this.#pattern, technique) : { widthCm: 1, heightCm: 1 };
+    const size = this.#pattern ? editorCellSize(this.#pattern, technique, mosaicRows) : { widthCm: 1, heightCm: 1 };
     const pixels = cellPixels(size);
     this.#board.style.setProperty('--cell-width', `${pixels.width}px`);
     this.#board.style.setProperty('--cell-height', `${pixels.height}px`);

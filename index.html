@@ -596,15 +596,19 @@
 
           <details class="section" id="section-grid">
             <summary class="section__head"><h2 class="panel__title">Rácsminta</h2></summary>
-            <div class="grid-chart" role="group" aria-label="Rácsminta: filé, C2C, tapestry, graphgan">
+            <div class="grid-chart" role="group" aria-label="Rácsminta: filé, C2C, tapestry, graphgan, mozaik">
               <p class="panel__note">
-                Filé, sarokból sarokba (C2C), tapestry vagy graphgan cellánként. Elég az első 4–5 sort teljesen megadni, a
-                többinél a sor egy részét: a program felismeri az ismétlő egységet, és kiterjeszti a teljes rácsra. Az új
-                minta a mostani helyére kerül; visszavonással a korábbi visszajön.
+                Filé, sarokból sarokba (C2C), tapestry, graphgan vagy mozaik cellánként. Elég az első 4–5 sort teljesen
+                megadni, a többinél a sor egy részét: a program felismeri az ismétlő egységet, és kiterjeszti a teljes
+                rácsra. Az új minta a mostani helyére kerül; visszavonással a korábbi visszajön.
               </p>
               <p class="panel__field">
                 <label for="grid-technique">Technika</label>
                 <select id="grid-technique"></select>
+              </p>
+              <p class="panel__field" id="grid-mosaic-field" hidden>
+                <label for="grid-mosaic-rows">Mozaik</label>
+                <select id="grid-mosaic-rows"></select>
               </p>
               <div class="shape__pair">
                 <p class="panel__field">
@@ -616,6 +620,14 @@
                   <input id="grid-height" type="number" min="1" max="80" step="1" value="8" inputmode="numeric" />
                 </p>
               </div>
+              <p class="panel__field">
+                <label for="grid-image">Kép betöltése a rácsba</label>
+                <input id="grid-image" type="file" accept="image/png,image/jpeg,image/gif,image/webp" aria-describedby="grid-image-note" />
+              </p>
+              <p class="panel__note" id="grid-image-note">
+                A kép a böngészőben marad, nem töltődik fel. A rács szélessége a megadott cellaszám, a magassága a kép és a
+                mintasűrűség arányából jön; filében a sötét rész teli cella, színes rácsban a legközelebbi szín.
+              </p>
               <fieldset class="grid-chart__colors" id="grid-colors-field" hidden>
                 <legend>Színek</legend>
                 <ul class="grid-chart__color-list" id="grid-colors"></ul>
