@@ -16,6 +16,7 @@
  *    magasság figyelmeztetései.
  */
 
+import { amigurumiFindings } from './amigurumi.ts';
 import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
 import { modeAsWorked } from './insertion.ts';
 import { roundFindings } from './rounds.ts';
@@ -25,7 +26,10 @@ import { hasBaseChain, traditionOf } from './tradition.ts';
 import type { Anchor, Finding, NodeId, Pattern, Piece, PieceId, StitchNode } from './types.ts';
 
 export function validatePattern(pattern: Pattern, library: StitchLibrary): Finding[] {
-  return pattern.pieces.flatMap((piece) => validatePiece(pattern, piece, library));
+  const findings = pattern.pieces.flatMap((piece) => validatePiece(pattern, piece, library));
+  // A részek kapcsolása és a játékbiztonság a minta szintjén (PQW-863).
+  for (const finding of amigurumiFindings(pattern, library)) findings.push(makeFinding(finding.rule, finding.piece, finding.nodes));
+  return findings;
 }
 
 type Report = (rule: RuleId, nodes: readonly NodeId[]) => void;
@@ -335,9 +339,12 @@ function checkLayer(
     }
   }
 
-  // Számító fordulólánc: a következő sor utolsó szeme a tetejébe megy (03 §10 A4).
+  // Számító fordulólánc: a következő sor utolsó szeme a tetejébe megy (03 §10 A4), hacsak a sor
+  // vége szándékosan meghagyott szemekkel nem fogy (lépcsős él, 05 §4.4, PQW-862).
   const topWorking = turningTop !== undefined && layer.direction === -1 && below.shape === 'row' ? length - 1 : -1;
-  if (topWorking >= 0 && !covered[topWorking]) report('turning-chain-placement', [previous!.node.id, turningTop!]);
+  if (topWorking >= 0 && !covered[topWorking] && !skipped.has(turningTop!)) {
+    report('turning-chain-placement', [previous!.node.id, turningTop!]);
+  }
 
   // Felhasználatlan pozíciók a sor két szélén; a sor belsejét az ugrás szabálya nézi (03 §10 B8, C15).
   const first = entries[0]!.min;

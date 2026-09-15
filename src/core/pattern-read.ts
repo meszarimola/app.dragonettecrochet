@@ -15,9 +15,21 @@
  * sor végi szemszámot is összeveti a visszaolvasott gráf számolásával.
  */
 
+import { borderOf } from './border.ts';
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
+import { isStitchInsertion } from './insertion.ts';
 import { modeAsWorked, type Step, type StepTarget } from './pattern-steps.ts';
-import { VOCABULARIES, isDecrease, isIncrease, refOf, renderStep, type PhraseKey, type StepContext, type Vocabulary } from './pattern-text.ts';
+import {
+  VOCABULARIES,
+  isDecrease,
+  isIncrease,
+  refOf,
+  renderBorder,
+  renderStep,
+  type PhraseKey,
+  type StepContext,
+  type Vocabulary,
+} from './pattern-text.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { traditionOf, turningChainCountsFor } from './tradition.ts';
 import type {
@@ -28,7 +40,9 @@ import type {
   Pattern,
   PatternConventions,
   Piece,
+  PieceBorder,
   Ring,
+  RoundMark,
   Space,
   SpaceId,
   StitchDef,
@@ -93,7 +107,8 @@ function read(text: string, options: ReadOptions): Pattern {
 
   const [titleBlock, ...rest] = blocks;
   if (!titleBlock || titleBlock.length !== 1) throw new ReadFailure(titleBlock?.[1]?.number ?? 1, 'A szöveg első bekezdése a minta címe, egyetlen sorban.');
-  const headings = new Set([vocabulary.headings.abbreviations, vocabulary.headings.legend]);
+  // Az összeállítás (PQW-863) nem darab; az összevarrásokat nem olvassuk vissza.
+  const headings = new Set([vocabulary.headings.abbreviations, vocabulary.headings.legend, vocabulary.headings.assembly]);
   const pieceBlocks = rest.filter((block) => !headings.has(block[0]!.text));
   if (pieceBlocks.length === 0) throw new ReadFailure(titleBlock[0]!.number, 'A szövegben nincs darab.');
   const abbreviations = rest.find((block) => block[0]!.text === vocabulary.headings.abbreviations);
@@ -216,8 +231,11 @@ function parseItem(text: string, line: number, options: ReadOptions, vocabulary:
   for (const def of defs) {
     if (def.kind === 'chain' || def.kind === 'space' || def.kind === 'ring') continue;
     if (!text.includes(probe(def, library, locale))) continue;
+    // Az egyetlen módú szem módja nincs kiírva (pattern-text.ts `shownMode`), pl. a láthatatlan fogyasztásé.
+    const only = def.insertionModes.length === 1 ? def.insertionModes[0]! : null;
+    const defModes = only !== null && isStitchInsertion(only) ? [only] : modes;
     for (const { target, into } of targets) {
-      for (const mode of modes) {
+      for (const mode of defModes) {
         if (def.kind === 'group') {
           const step: Step = { kind: 'group', def: def.id, target, mode, into };
           if (matches(step)) return step;
@@ -273,6 +291,8 @@ class PieceReader {
   private ringSpace: SpaceId | null = null;
   /** A darab spirálban halad: a kör vége kiírás nélkül is spirál (pattern-text.ts). */
   private spiral = false;
+  /** A darab szegélye, ha a szöveg utolsó sora a szegély (PQW-862). */
+  private border: PieceBorder | null = null;
   private readonly shortIncrease: StitchDefId | null;
   /** Rétegenként a szöveg sora, a szemszám hibájához. */
   private readonly layerLines = new Map<number, number>();
@@ -298,7 +318,13 @@ class PieceReader {
     if (!foundationLine) throw new ReadFailure(nameLine!.number, 'A darab neve után a láncalap vagy a varázskör következik.');
     this.readFoundation(foundationLine);
     this.spiral = rest[0]?.text === this.vocabulary.spiral;
-    const layerLines = this.spiral ? rest.slice(1) : rest;
+    const body = this.spiral ? rest.slice(1) : rest;
+    const borderLine = body.at(-1)?.text.startsWith(this.vocabulary.border.prefix) ? body.at(-1) : undefined;
+    // A folytatólagosan kapcsolt rész neve (PQW-863) nem kör; a részeket nem olvassuk vissza.
+    const sectionSuffix = this.vocabulary.section('');
+    const layerLines = (borderLine ? body.slice(0, -1) : body).filter(
+      (line) => !(line.text.endsWith(sectionSuffix) && line.text.length > sectionSuffix.length && !line.text.includes(': ')),
+    );
 
     let index = 1;
     layerLines.forEach((line, i) => {
@@ -311,9 +337,28 @@ class PieceReader {
       }
     });
 
+    if (borderLine) this.readBorder(borderLine);
     const piece = this.piece();
     this.checkCounts(piece);
     return piece;
+  }
+
+  /**
+   * A szegély sora pontosan az-e, amit a sorokból számolva kiírnánk. A
+   * félpálcás sorvégi szám (1 vagy 2) a szövegből derül ki; más szemnél a kettő
+   * ugyanazt a szöveget adja, ott az alapértelmezés marad.
+   */
+  private readBorder(line: Line): void {
+    const graph = this.graph();
+    for (const hdcRowEnd of [2, 1] as const) {
+      const border: PieceBorder = { stitch: 'sc', hdcRowEnd };
+      const result = borderOf(graph, border);
+      if (result.ok && renderBorder({ stitch: border.stitch, counts: result.counts }, this.options.library, this.options.locale) === line.text) {
+        this.border = border;
+        return;
+      }
+    }
+    throw new ReadFailure(line.number, `Nem értelmezhető szegély: „${line.text}”.`);
   }
 
   private piece(): Piece {
@@ -326,6 +371,7 @@ class PieceReader {
       groups: [...this.groups],
       events: [...this.events],
       skipped: [...this.skipped],
+      ...(this.border ? { border: this.border } : {}),
     };
   }
 
@@ -402,6 +448,17 @@ class PieceReader {
 
     // A sor vége: lépcsőjavítás, színváltás, esemény, szemszám (a kiírás fordított sorrendjében).
     let body = header.body;
+    // A jelölések a sor legvégén, a kiírás sorrendjében (PQW-863).
+    const roundMarks: RoundMark[] = [];
+    for (let found = true; found; ) {
+      found = false;
+      for (const [mark, text] of Object.entries(v.marks) as [RoundMark, string][]) {
+        if (!body.endsWith(` ${text}`)) continue;
+        body = body.slice(0, -(text.length + 1));
+        roundMarks.unshift(mark);
+        found = true;
+      }
+    }
     const slip = this.byKind('slip');
     const slipRef = refOf(slip, locale);
     let jogFix: LayerEvent['jogFix'];
@@ -413,7 +470,11 @@ class PieceReader {
     }
     const colorChange = body.endsWith(` ${v.colorChange}`);
     if (colorChange) body = body.slice(0, -(v.colorChange.length + 1));
-    const marks = { ...(colorChange ? { colorChange: true } : {}), ...(jogFix ? { jogFix } : {}) };
+    const marks = {
+      ...(colorChange ? { colorChange: true } : {}),
+      ...(jogFix ? { jogFix } : {}),
+      ...(roundMarks.length > 0 ? { marks: roundMarks } : {}),
+    };
 
     const endings: [string, LayerEvent['kind'], 'turning-chain' | 'first-stitch' | null][] = [
       [v.closings.turn, 'turn', null],

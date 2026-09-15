@@ -426,6 +426,90 @@
             </div>
           </details>
 
+          <details class="section" id="section-shape">
+            <summary class="section__head"><h2 class="panel__title">Forma</h2></summary>
+            <div class="shape" role="group" aria-label="Sík forma létrehozása cm-ből">
+              <p class="panel__note">
+                Téglalapot, háromszöget, trapézt vagy rombuszt készít sorokban, a megadott méretből. Az új minta a mostani
+                helyére kerül; visszavonással a korábbi visszajön.
+              </p>
+              <p class="panel__field">
+                <label for="shape-kind">Forma</label>
+                <select id="shape-kind"></select>
+              </p>
+              <p class="panel__field">
+                <label for="shape-stitch">Szem</label>
+                <select id="shape-stitch"></select>
+              </p>
+              <p class="panel__field">
+                <label for="shape-width" id="shape-width-label">Szélesség, cm</label>
+                <input id="shape-width" type="text" inputmode="decimal" autocomplete="off" value="20" />
+              </p>
+              <p class="panel__field" id="shape-top-field" hidden>
+                <label for="shape-top">Felső él, cm</label>
+                <input id="shape-top" type="text" inputmode="decimal" autocomplete="off" value="10" />
+              </p>
+              <p class="panel__field" id="shape-measure-field" hidden>
+                <label for="shape-measure">Magasság vagy az él szöge</label>
+                <select id="shape-measure"></select>
+              </p>
+              <p class="panel__field" id="shape-height-field">
+                <label for="shape-height">Magasság, cm</label>
+                <input id="shape-height" type="text" inputmode="decimal" autocomplete="off" value="30" />
+              </p>
+              <div class="shape__group" id="shape-angle-field" hidden>
+                <p class="panel__field">
+                  <label for="shape-angle">Az él szöge a függőlegestől, fok</label>
+                  <input id="shape-angle" type="text" inputmode="decimal" autocomplete="off" value="45" aria-describedby="shape-angle-note" />
+                </p>
+                <p class="panel__note" id="shape-angle-note">Egyenlő szárú háromszögnél a csúcsszög ennek kétszerese.</p>
+              </div>
+              <div class="shape__group" id="shape-repeat-fields">
+                <p class="choice">
+                  <label><input type="checkbox" id="shape-repeat" /> Mintaismétlés: „X többszöröse + Y”</label>
+                </p>
+                <div class="shape__pair">
+                  <p class="panel__field">
+                    <label for="shape-repeat-x">X: egy ismétlés szemei</label>
+                    <input id="shape-repeat-x" type="number" min="1" max="50" step="1" value="6" inputmode="numeric" disabled />
+                  </p>
+                  <p class="panel__field">
+                    <label for="shape-repeat-y">Y: szélső szemek</label>
+                    <input id="shape-repeat-y" type="number" min="0" max="50" step="1" value="2" inputmode="numeric" disabled />
+                  </p>
+                </div>
+                <p class="panel__field">
+                  <label for="shape-rounding">Kerekítés</label>
+                  <select id="shape-rounding" disabled></select>
+                </p>
+              </div>
+              <div class="shape__group" id="shape-border-fields">
+                <p class="choice">
+                  <label><input type="checkbox" id="shape-border" aria-describedby="shape-border-note" /> Rövidpálcás szegély körben</label>
+                </p>
+                <p class="panel__note" id="shape-border-note">
+                  Sorvégenként rövidpálcás sorra 1, pálcásra 2, kétráhajtásosra 3 rp; a sarkokba 3 rp.
+                </p>
+                <div class="shape__group" id="shape-hdc-field" hidden>
+                  <p class="panel__field">
+                    <label for="shape-hdc-row-end">Félpálcás sorvégre</label>
+                    <select id="shape-hdc-row-end" aria-describedby="shape-hdc-note"></select>
+                  </p>
+                  <p class="panel__note" id="shape-hdc-note">A források eltérnek: van, amelyik 1, van, amelyik 2 rövidpálcát ír.</p>
+                </div>
+              </div>
+              <div class="shape__preview" id="shape-preview-box" hidden>
+                <svg id="shape-preview" aria-hidden="true" focusable="false"></svg>
+              </div>
+              <div class="shape__result" aria-live="polite">
+                <p class="shape__size" id="shape-size"></p>
+                <ul class="shape__details" id="shape-details"></ul>
+              </div>
+              <p class="panel__note" id="shape-source"></p>
+              <button type="button" class="tool shape__create" id="shape-create">Minta létrehozása</button>
+            </div>
+          </details>
+
           <details class="section" id="section-rounds">
             <summary class="section__head"><h2 class="panel__title">Kör és motívum</h2></summary>
             <div class="rounds" role="group" aria-label="Kör és motívum létrehozása">
@@ -467,6 +551,85 @@
               </p>
               <p class="panel__note" id="rounds-note" aria-live="polite"></p>
               <button type="button" class="tool rounds__create" id="rounds-create">Minta létrehozása</button>
+            </div>
+          </details>
+
+          <details class="section" id="section-amigurumi">
+            <summary class="section__head"><h2 class="panel__title">Amigurumi</h2></summary>
+            <div class="amigurumi" role="group" aria-label="Amigurumi rész létrehozása">
+              <p class="panel__note">
+                Gömböt, hengert, kúpot és más térbeli formát készít spirálban, a körben mért mintasűrűségből. Több rész
+                egy mintába kerülhet, varrva vagy folytatólagosan; az írott minta jelöli a szemet és a tömést.
+              </p>
+              <p class="panel__field">
+                <label for="amigurumi-name">A rész neve</label>
+                <input id="amigurumi-name" type="text" value="Fej" autocomplete="off" />
+              </p>
+              <p class="panel__field">
+                <label for="amigurumi-shape">Forma</label>
+                <select id="amigurumi-shape"></select>
+              </p>
+              <p class="panel__field" data-field="method">
+                <label for="amigurumi-method">A gömb körterve</label>
+                <select id="amigurumi-method"></select>
+              </p>
+              <p class="panel__field" data-field="diameter">
+                <label for="amigurumi-diameter">Átmérő (cm)</label>
+                <input id="amigurumi-diameter" type="text" inputmode="decimal" value="6" autocomplete="off" />
+              </p>
+              <p class="panel__field" data-field="height">
+                <label for="amigurumi-height">Magasság (cm)</label>
+                <input id="amigurumi-height" type="text" inputmode="decimal" value="8" autocomplete="off" />
+              </p>
+              <p class="panel__field" data-field="increases">
+                <label for="amigurumi-increases">Szaporítás körönként (tört is, pl. 2,5; üresen a magasságból)</label>
+                <input id="amigurumi-increases" type="text" inputmode="decimal" autocomplete="off" />
+              </p>
+              <p class="panel__field" data-field="profile">
+                <label for="amigurumi-profile">Profil: soronként sugár és magasság cm-ben</label>
+                <textarea id="amigurumi-profile" rows="4" aria-describedby="amigurumi-profile-note">
+0 0
+2,5 1
+2,5 5
+0 6</textarea
+                >
+              </p>
+              <p class="panel__note" data-field="profile" id="amigurumi-profile-note">
+                A kezdéstől a végig, pl. „2,5 4”: 2,5 cm sugár 4 cm magasan. A 0 sugarú vég zárt.
+              </p>
+              <p class="panel__field" data-field="bottom">
+                <label for="amigurumi-bottom">Kezdés</label>
+                <select id="amigurumi-bottom"></select>
+              </p>
+              <p class="panel__field" data-field="top">
+                <label for="amigurumi-top">Vége</label>
+                <select id="amigurumi-top"></select>
+              </p>
+              <p class="choice">
+                <label><input type="checkbox" id="amigurumi-stagger" checked /> Eltolt szaporítás és fogyasztás</label>
+              </p>
+              <p class="choice">
+                <label><input type="checkbox" id="amigurumi-eyes" checked /> Ide kerül a figura szeme (biztonsági vagy hímzett)</label>
+              </p>
+              <p class="choice">
+                <label><input type="checkbox" id="amigurumi-under3" /> 3 év alatti gyereknek készül</label>
+              </p>
+              <p class="panel__note" id="amigurumi-safety" hidden></p>
+              <p class="panel__note" id="amigurumi-gauge"></p>
+              <p class="panel__note" id="amigurumi-summary" aria-live="polite"></p>
+              <button type="button" class="tool amigurumi__action" id="amigurumi-create">Új minta ebből</button>
+              <fieldset class="amigurumi__join">
+                <legend>Hozzáadás a mintához</legend>
+                <p class="panel__field">
+                  <label for="amigurumi-join">Kapcsolás az előző részhez</label>
+                  <select id="amigurumi-join"></select>
+                </p>
+                <p class="choice">
+                  <label><input type="checkbox" id="amigurumi-distribute" /> Eltérő szemszámnál egyenletes elosztás</label>
+                </p>
+                <button type="button" class="tool amigurumi__action" id="amigurumi-add">Hozzáadás részként</button>
+              </fieldset>
+              <p class="panel__note" id="amigurumi-figure" hidden></p>
             </div>
           </details>
 
