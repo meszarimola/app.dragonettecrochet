@@ -541,6 +541,9 @@ class PieceReader {
       switch (target) {
         case 'none':
           return [];
+        case 'down':
+          // A korábbi sorba horgolt hosszú szem (PQW-894) a szövegből még nem olvasható vissza.
+          return missing('A lejjebb horgolt szem visszaolvasása még nem készül');
         case 'ring':
         case 'chain-ring': {
           // Angolul a varázskör és a láncgyűrű is „in ring”: a kezdés dönt.

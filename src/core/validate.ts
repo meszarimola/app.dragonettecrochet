@@ -35,6 +35,9 @@ export function validatePattern(pattern: Pattern, library: StitchLibrary): Findi
 
 type Report = (rule: RuleId, nodes: readonly NodeId[]) => void;
 
+/** A hosszú szem legfeljebb ennyi sorral lejjebb horgolhat (03 §5.6: mozaikban 2 vagy 3). */
+export const MAX_SPIKE_DEPTH = 3;
+
 export function makeFinding(rule: RuleId, piece: PieceId, nodes: readonly NodeId[]): Finding {
   const { severity, reference } = RULES[rule];
   return { severity, rule, reference, piece, nodes: [...new Set(nodes)] };
@@ -230,8 +233,14 @@ function checkLayer(
         layerInvalid = true;
         return;
       }
-      if (targetLayer < index - 1 && node.flags?.includes('spike') && !workedBetween(graph, targets, targetLayer, index)) {
-        return; // Hosszú szem: nem az előző sor pozícióját használja fel.
+      if (targetLayer < index - 1 && node.flags?.includes('spike')) {
+        // Hosszú szem legfeljebb 3 sorral lejjebb: a mozaik 2 vagy 3 sorral lejjebb horgol (03 §5.6, §10 C17, G34, PQW-894).
+        if (index - targetLayer > MAX_SPIKE_DEPTH) {
+          report('spike-depth', [id]);
+          layerInvalid = true;
+          return;
+        }
+        if (!workedBetween(graph, targets, targetLayer, index)) return; // Nem az előző sor pozícióját használja fel.
       }
       const positions = anchor.into === 'space' ? spacePositions(below, graph.spaces.get(anchor.id)!) : targets;
       const indices = positions.map((target) => positionIndex.get(target));
@@ -432,7 +441,9 @@ function checkCountsAndChains(pattern: Pattern, graph: PieceGraph, index: number
     if (kind(id) !== 'chain' || layer.turningChain.includes(id)) break;
     trailing.unshift(id);
   }
-  if (trailing.length > 0 && !trailing.some((id) => isWorkedInto(graph, id))) report('floating-chain', trailing);
+  // A szándékosan kihagyott láncszemet a következő sor láncszeme hidalja át: nem lóg (filé, nyitott új cella a sor elején, PQW-894).
+  const skipped = new Set(graph.piece.skipped);
+  if (trailing.length > 0 && !trailing.some((id) => isWorkedInto(graph, id) || skipped.has(id))) report('floating-chain', trailing);
 }
 
 function isWorkedInto(graph: PieceGraph, chain: NodeId): boolean {
@@ -462,7 +473,9 @@ function checkHeights(graph: PieceGraph, invalidAnchors: ReadonlySet<string>, re
   const counting = (layer: LayerInfo) =>
     layer.stitches.filter((id) => {
       const kind = graph.defs.get(id)!.kind;
-      return kind !== 'chain' && kind !== 'picot' && kind !== 'ring' && id !== layer.joinSlip && !layer.travelSlips.includes(id);
+      // A lejjebb horgolt hosszú szem a sor magasságáig ér, nem az alatta lévő sorra épül (mozaik, PQW-894).
+      const spike = graph.nodes.get(id)!.flags?.includes('spike') === true;
+      return kind !== 'chain' && kind !== 'picot' && kind !== 'ring' && id !== layer.joinSlip && !layer.travelSlips.includes(id) && !spike;
     });
 
   for (const id of graph.layers[0]!.stitches) height.set(id, 0);

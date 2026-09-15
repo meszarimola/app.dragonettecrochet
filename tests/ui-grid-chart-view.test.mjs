@@ -141,15 +141,20 @@ describe('ismétlő egység és terv', () => {
     assert.match(gaps.reason, /Nem találtam ismétlődést/);
   });
 
-  test('filében a nyitott kezdésű sorok, a szaporítás és a meghagyott cellák; a nem készülő alakítás oka', () => {
+  test('filében a nyitott kezdésű sorok, az alakítás a sor két végén és a meghagyott cellák; teli új cellánál az ok', () => {
     const summary = planSummary(emptyPattern(), filet(['-###', '.###', '-###']), false);
     assert.ok(summary.ok, summary.reason);
     assert.ok(summary.view.details.includes('Nyitott cellával kezdődik a 2. sor: a fordulólánc után 2 lsz jön.'));
     assert.ok(summary.view.details.includes('Szaporítás a sor elején a 2. sor előtt: az előző sor végén láncos hosszabbítás.'));
     assert.ok(summary.view.details.includes('Meghagyott cellák a 3. sor végén.'));
-    const refused = planSummary(emptyPattern(), filet(['-###', '####']), false);
+    // A 2. sor végén új nyitott cella, a 3. sor elején fogyasztás ugyanazon az élen.
+    const shaped = planSummary(emptyPattern(), filet(['###-', '###.', '###-']), false);
+    assert.ok(shaped.ok, shaped.reason);
+    assert.ok(shaped.view.details.includes('Szaporítás a sor végén a 2. sorban: 2 lsz és háromráhajtásos pálca 2 sorral lejjebb.'));
+    assert.ok(shaped.view.details.includes('Fogyasztás a sor elején a 3. sorban: kúszószemek a cellák fölött.'));
+    const refused = planSummary(emptyPattern(), filet(['####', '###-']), false);
     assert.equal(refused.ok, false);
-    assert.match(refused.reason, /sor eleji fogyasztás még nem készül/);
+    assert.match(refused.reason, /csak nyitott lehet/);
   });
 
   test('C2C: átlós sorok, csempék, szakaszok és csempék színenként', () => {

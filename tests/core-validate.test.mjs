@@ -8,6 +8,8 @@ import { after, describe, test } from 'node:test';
 
 import { addAmigurumiPart, createAmigurumi } from '../src/core/amigurumi-generator.ts';
 import { generateColorwork } from '../src/core/colorwork.ts';
+import { buildPieceGraph } from '../src/core/graph.ts';
+import { generateMosaic } from '../src/core/mosaic.ts';
 import { emptyPattern } from '../src/core/editor.ts';
 import { DEFAULT_MOTIF, generateMotif } from '../src/core/round-generator.ts';
 import { RULES } from '../src/core/rules.ts';
@@ -334,6 +336,49 @@ describe('rácsos technikák (PQW-864)', () => {
     const result = generateColorwork(emptyPattern(), { technique: 'tapestry', cells, colors, unit: null, lettering: false });
     assert.ok(result.ok, result.reason);
     assertOnly(result.pattern, 'carried-colors');
+  });
+
+  /** Mozaik: a 3., 4. és 5. sorban lejjebb horgolt szem (PQW-894). */
+  const mosaic = () => {
+    const cells = [
+      [0, 0, 0, 0, 0, 0, 0],
+      [1, 1, 1, 0, 1, 1, 1],
+      [0, 1, 0, 0, 0, 1, 0],
+      [1, 1, 1, 0, 1, 1, 1],
+      [0, 0, 0, 0, 0, 0, 0],
+      [1, 1, 1, 1, 1, 1, 1],
+    ];
+    const colors = [
+      { name: 'Fehér', hex: '#ffffff' },
+      { name: 'Kék', hex: '#0000ff' },
+    ];
+    const result = generateMosaic(emptyPattern(), { cells, colors, variant: 1, unit: null, lettering: false });
+    assert.ok(result.ok, result.reason);
+    const graph = buildPieceGraph(result.pattern, result.pattern.pieces[0], testLibrary);
+    const drop = result.pattern.pieces[0].stitches.find((node) => node.flags?.includes('spike') && graph.layerOf.get(node.id) === 5);
+    return { pattern: result.pattern, graph, drop };
+  };
+
+  test('mozaik: a lejjebb horgolt szem 4 sorral lejjebb túl mély (03 §5.6, §10 C17)', () => {
+    const { pattern, graph, drop } = mosaic();
+    assert.deepEqual(validatePattern(pattern, testLibrary), []);
+    const deep = graph.layers[1].stitches.find((id) => graph.defs.get(id).kind !== 'chain');
+    assertOnly(editNode(pattern, drop.id, { anchors: [deep] }), 'spike-depth', [[drop.id]]);
+  });
+
+  test('mozaik: jelölés nélkül, vagy már horgolt szembe lejjebb horgolni hiba (03 §10 C17)', () => {
+    const { pattern, graph, drop } = mosaic();
+    const unflagged = {
+      ...pattern,
+      pieces: [{ ...pattern.pieces[0], stitches: pattern.pieces[0].stitches.map((node) => (node.id === drop.id ? { ...node, flags: undefined } : node)) }],
+    };
+    assert.ok(validatePattern(unflagged, testLibrary).some((finding) => finding.rule === 'anchor-layer' && finding.nodes.includes(drop.id)));
+    // A 3. sor egyik szemébe a 4. sor már horgolt: oda nem mehet lejjebb horgolt szem.
+    const worked = graph.layers[4].stitches
+      .map((id) => graph.nodes.get(id))
+      .find((node) => !node.flags && node.anchors.length === 1 && graph.layerOf.get(node.anchors[0].id) === 3);
+    const reused = editNode(pattern, drop.id, { anchors: [worked.anchors[0].id] });
+    assert.ok(validatePattern(reused, testLibrary).some((finding) => finding.rule === 'anchor-layer' && finding.nodes.includes(drop.id)));
   });
 });
 

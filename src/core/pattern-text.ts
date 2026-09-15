@@ -82,6 +82,8 @@ export interface Vocabulary {
   readonly marks: Readonly<Record<RoundMark, string>>;
   /** A folytatólagosan kapcsolt rész sora az első köre előtt. */
   readonly section: (name: string) => string;
+  /** A korábbi sorba horgolt hosszú szem helye (mozaik, filé sor végi szaporítás, PQW-894). */
+  readonly down: (depth: number) => string;
   /** Rácsos technikák (PQW-864): színek, kezdőszín, színváltás, a technika megjegyzése, színek soronként. */
   readonly colorwork: {
     readonly colors: (items: readonly { readonly letter: string; readonly name: string }[]) => string;
@@ -188,7 +190,8 @@ const HU: Vocabulary = {
     'close-opening': 'A fonalat fűzd át a maradék szemek első szálán, és húzd össze a nyílást.',
   },
   section: (name) => `${name}, folytatólagosan:`,
-  // Új magyar mondatok, jóváhagyásra várnak (PQW-864).
+  // Új magyar mondatok, jóváhagyásra várnak (PQW-864, PQW-894).
+  down: (depth) => `${depth} sorral lejjebb`,
   colorwork: {
     colors: (items) => `Színek: ${items.map((item) => `${item.letter} – ${item.name}`).join(', ')}.`,
     start: (letter) => `Kezdés ${colorArticle(letter)} ${letter} színnel.`,
@@ -198,6 +201,8 @@ const HU: Vocabulary = {
         'A nem használt színeket a szemekben vidd: a színoldali sorban a munka mögött, a visszai sorban előtte tartsd, hogy a szemek eltakarják.',
       graphgan: 'Színenként külön gombolyagot használj; a nem használt színt ne vidd a hátoldalon, mert átlátszik.',
       c2c: 'Csempe: 3 lsz és 3 erp. Színváltáskor az előző csempe utolsó pálcáját az új színnel fejezd be.',
+      mosaic:
+        'Mozaik: soronként egy szín. A más színű cellánál 1 lsz és 1 szem kihagyása; a lejjebb horgolt pálca a láncszem mögött a kihagyott szembe megy. A nem használt fonalat a sor szélén vidd fel.',
     },
     rowsHeading: (technique) =>
       technique === 'c2c' ? 'Színek csempénként, a haladási irányban:' : 'Színek szemenként, a haladási irányban:',
@@ -295,6 +300,7 @@ function english(skipWord: string, skipMeaning: string, system: string, color: s
       'close-opening': 'Weave the tail through the front loops of the remaining sts and pull tight.',
     },
     section: (name) => `${name}, worked continuously:`,
+    down: (depth) => `in st ${depth} rows below`,
     colorwork: {
       colors: (items) => `Colors: ${items.map((item) => `${item.letter} – ${item.name}`).join(', ')}.`,
       start: (letter) => `Start with ${color} ${letter}.`,
@@ -303,6 +309,7 @@ function english(skipWord: string, skipMeaning: string, system: string, color: s
         tapestry: 'Carry the unused colors inside the stitches: behind the work on RS rows, in front of it on WS rows.',
         graphgan: `Use a separate bobbin for each ${color} block; do not carry ${color}s across the back.`,
         c2c: `Tile: ch 3 and 3 dc. To change ${color}, finish the last dc of the previous tile with the new ${color}.`,
+        mosaic: `Mosaic: one ${color} per row. For a cell of the other ${color}, ch 1 and skip 1 st; a dropped st goes into the skipped st behind the ch. Carry the unused yarn up the side.`,
       },
       rowsHeading: (technique) =>
         technique === 'c2c' ? `Tile ${color}s per row, in working order:` : `Stitch ${color}s per row, in working order:`,
@@ -678,7 +685,8 @@ class Renderer {
           this.use(def);
           text = itemName(def, this.locale, this.library);
         }
-        return `${v.mode(shownMode(def, step.mode), text)}${this.phrase(step.target, step.into, false)}`;
+        const place = step.target === 'down' ? ` ${v.down(step.depth ?? 2)}` : this.phrase(step.target, step.into, false);
+        return `${v.mode(shownMode(def, step.mode), text)}${place}`;
       }
       case 'group': {
         const def = this.def(step.def);
@@ -702,6 +710,7 @@ class Renderer {
     const { phrases } = this.vocabulary;
     switch (target) {
       case 'none':
+      case 'down':
         return '';
       case 'next':
         return explicitNext ? ` ${phrases[into === 'chain' ? 'next-chain' : 'next-stitch']}` : '';

@@ -326,7 +326,7 @@ function readPiece(value: unknown, path: string): Piece {
 const GRID_TECHNIQUES: readonly GridTechnique[] = ['filet', 'c2c', 'tapestry', 'graphgan', 'mosaic'];
 
 function readGrid(value: unknown, path: string): PieceGrid {
-  const raw = object(value, path, ['technique', 'cells', 'colors', 'unit', 'lettering']);
+  const raw = object(value, path, ['technique', 'cells', 'colors', 'unit', 'lettering'], ['mosaicRows']);
   const cells = array(raw['cells'], `${path}.cells`, (row, rowPath) => array(row, rowPath, (cell, cellPath) => integer(cell, cellPath, -1)));
   const width = cells[0]?.length ?? 0;
   cells.forEach((row, y) => {
@@ -338,6 +338,8 @@ function readGrid(value: unknown, path: string): PieceGrid {
     colors: array(raw['colors'], `${path}.colors`, readColor),
     unit: raw['unit'] === null ? null : readUnit(raw['unit'], `${path}.unit`),
     lettering: boolean(raw['lettering'], `${path}.lettering`),
+    // A PQW-894 előtti mentésben nincs: a rács nem mozaik.
+    ...(raw['mosaicRows'] === undefined ? {} : { mosaicRows: oneOf(raw['mosaicRows'], `${path}.mosaicRows`, [1, 2] as const) }),
   };
 }
 

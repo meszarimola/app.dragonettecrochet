@@ -288,6 +288,10 @@ export function planSummary(pattern: Pattern, state: GridEditorState, mirrored: 
       if (added.length > 0) details.push(`Szaporítás a sor elején ${rowList(added)} előtt: az előző sor végén láncos hosszabbítás.`);
       const left = plan.rows.filter((row) => row.left > 0).map((row) => row.row);
       if (left.length > 0) details.push(`Meghagyott cellák ${rowList(left)} végén.`);
+      const removed = plan.rows.filter((row) => row.removed > 0).map((row) => row.row);
+      if (removed.length > 0) details.push(`Fogyasztás a sor elején ${rowList(removed)}ban: kúszószemek a cellák fölött.`);
+      const extended = plan.rows.filter((row) => row.extended > 0).map((row) => row.row);
+      if (extended.length > 0) details.push(`Szaporítás a sor végén ${rowList(extended)}ban: 2 lsz és háromráhajtásos pálca 2 sorral lejjebb.`);
       break;
     }
     case 'c2c': {

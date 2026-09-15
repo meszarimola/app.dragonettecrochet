@@ -155,14 +155,57 @@ describe('alakítás egész cellánként (03 §10 F30)', () => {
     assert.match(row2, /^2\. sor: 3 lsz \(1 erp-nek számít\), 12 erp /);
   });
 
-  test('a még nem készülő alakításnál és a hibás rácsnál érthető ok', () => {
-    const reason = (cells) => {
-      const result = planFilet(cyc(), cells);
+  test('a sor elején fogyasztás kúszószemekkel a cellák fölött; a fordulólánc az oszlopon áll (PQW-894)', () => {
+    const { pattern, plan } = make(cyc(), chart('-###', '####'));
+    assert.deepEqual(
+      plan.rows.map((row) => [row.removed, row.extended]),
+      [
+        [0, 0],
+        [1, 0],
+      ],
+    );
+    assert.deepEqual(findings(pattern), []);
+    const [, , row2] = lines(pattern);
+    assert.match(row2, /^2\. sor: 4 ksz, 3 lsz \(1 erp-nek számít\), 9 erp \(10 szem\)\. A fonal elvágása\.$/);
+  });
+
+  test('a sor végén szaporítás: 2 lsz és háromráhajtásos pálca a fordulólánc alatti szembe, jelölt hosszú szemként (PQW-894)', () => {
+    const { pattern, plan } = make(cyc(), chart('####', '###.', '###-'));
+    assert.deepEqual(plan.rows.map((row) => row.extended), [0, 1, 0]);
+    assert.deepEqual(findings(pattern), []);
+    const [, , row2] = lines(pattern);
+    assert.match(row2, /, 2 lsz, 1 háromráhajtásos pálca 2 sorral lejjebb \(\d+ szem\)\. Fordítás\.$/);
+    const long = pattern.pieces[0].stitches.filter((node) => node.def === 'dtr');
+    assert.equal(long.length, 1);
+    assert.deepEqual(long[0].flags, ['spike']);
+  });
+
+  test('rombusz: szaporítás és fogyasztás a sor mindkét végén, hibátlanul, kiírható és menthető', () => {
+    const { pattern, plan } = make(cyc(), chart('--#--', '-###-', '.###.', '-.#.-', '--#--'));
+    assert.deepEqual(
+      plan.rows.map((row) => [row.added, row.extended, row.removed, row.left]),
+      [
+        [0, 0, 0, 0],
+        [1, 1, 0, 0],
+        [1, 1, 0, 0],
+        [0, 0, 1, 1],
+        [0, 0, 1, 1],
+      ],
+    );
+    assert.deepEqual(findings(pattern), []);
+    for (const locale of ['hu', 'en-US', 'en-GB']) assert.ok(formatWrittenPattern(writePattern(pattern, libraryFor(pattern), locale)));
+    assert.deepEqual(loadPattern(savePattern(pattern)).pattern, pattern);
+  });
+
+  test('a nem horgolható alakításnál és a hibás rácsnál érthető ok', () => {
+    const reason = (cells, pattern = cyc()) => {
+      const result = planFilet(pattern, cells);
       assert.equal(result.ok, false);
       return result.reason;
     };
-    assert.match(reason(chart('-###', '####')), /^A 2\. sor elején 1 cellával keskenyebb a minta: a sor eleji fogyasztás még nem készül\./);
-    assert.match(reason(chart('####', '###-')), /^A 2\. sor végén 1 cellával szélesebb a minta: a sor végi szaporítás még nem készül\./);
+    assert.match(reason(chart('####', '###-')), /^A 2\. sor végén az új cella csak nyitott lehet/);
+    assert.match(reason(chart('.###', '-###', '####')), /^A 3\. sor végén szaporítás az előző sor eleji fogyasztás fölött még nem készül/);
+    assert.match(reason(chart('###.', '###-'), notCounting()), /fordulóláncnak szemnek kell számítania/);
     assert.match(reason(chart('#-#')), /^Az 1\. sorban a cellák között üres hely van/);
     assert.match(reason(chart('###', '---')), /^Az 1\. sorban nincs cella/);
     assert.match(reason([]), /legalább egy sort/);
