@@ -1250,6 +1250,30 @@ body.is-selecting #board {
   justify-self: start;
 }
 
+/* ---- Kendő (PQW-865) ---- */
+
+.shawl__unblocked {
+  fill: none;
+  stroke: var(--c-text-soft);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+
+.shawl__warnings {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.5rem 0 0;
+  padding: 0 0 0 0.6rem;
+  list-style: none;
+  border-inline-start: 3px solid var(--c-ink-wrong);
+  font-size: 0.8125rem;
+  color: var(--c-ink);
+}
+
+.shawl__warnings:empty {
+  display: none;
+}
+
 /* ---- Amigurumi (PQW-863) ---- */
 
 .amigurumi,
