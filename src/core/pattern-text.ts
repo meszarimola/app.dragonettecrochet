@@ -51,11 +51,17 @@ export interface Vocabulary {
   readonly spiral: string;
   readonly colorChange: string;
   readonly jogFix: (fix: 'slip-stitch' | 'back-loop', slip: string) => string;
+  /**
+   * A láncalapra horgolt 1. sor eleje (PQW-895): „hagyj ki 2 láncszemet, majd ”. A kihagyott
+   * láncszemek száma a horogtól számított első munkált láncszem sorszáma mínusz 1.
+   */
+  readonly skipChains: (n: number) => string;
+  /** Az 1. sor, ha minden megmaradt láncszembe pontosan egy szem kerül: „minden láncszembe 1 rp”. */
+  readonly eachChain: (item: string) => string;
+  /** A PQW-895 előtti 1. sor eleje; csak a régi szövegek visszaolvasásához. */
   readonly fromHook: (chain: number, note: string | null) => string;
-  /** Az 1. sor kihagyott láncszemei mint szem: „1 erp-nek számítanak”. */
+  /** A PQW-895 előtti megjegyzés a kihagyott láncszemekről: „1 erp-nek számítanak”; csak visszaolvasáshoz. */
   readonly skippedChainsCount: (def: StitchDef, locale: Locale) => string;
-  /** Ugyanez, ha a láncalap az első láncszemeket is tartalmazza (filé nyitott kezdés, 03 §5.2): „1 erp-nek és 2 lsz-nek”. */
-  readonly skippedChainsWithChains: (def: StitchDef, locale: Locale, chains: number) => string;
   readonly count: (n: number) => string;
   readonly chain: (n: number) => string;
   readonly skip: (n: number, what: 'stitch' | 'chain' | 'space') => string;
@@ -136,9 +142,10 @@ const HU: Vocabulary = {
     fix === 'slip-stitch'
       ? `Lépcsőjavítás: a következő kör első szeme helyett 1 ${slip}.`
       : 'Lépcsőjavítás: az új színt a következő kör első szemének hátsó szálába kapcsold be.',
+  skipChains: (n) => `hagyj ki ${n} láncszemet, majd `,
+  eachChain: (item) => `minden láncszembe ${item}`,
   fromHook: (chain, note) => `a horogtól számított ${chain}. láncszemtől kezdve${note ? ` (${note})` : ''} `,
   skippedChainsCount: (def, locale) => `a kihagyott láncszemek 1 ${huDative(def, locale)} számítanak`,
-  skippedChainsWithChains: (def, locale, chains) => `a kihagyott láncszemek 1 ${huDative(def, locale)} és ${chains} lsz-nek számítanak`,
   count: (n) => `(${n} szem)`,
   chain: (n) => `${n} lsz`,
   skip: (n, what) => `${n} ${what === 'stitch' ? 'szem' : what === 'chain' ? 'láncszem' : 'láncív'} kihagyása`,
@@ -223,7 +230,7 @@ const HU_MODES: Readonly<Record<Exclude<StitchInsertion, 'both-loops'>, string>>
   'back-post': 'hátsó relief',
 };
 
-function english(skipWord: string, skipMeaning: string, system: string, color: string): Vocabulary {
+function english(skipWord: string, skipVerb: string, skipMeaning: string, system: string, color: string): Vocabulary {
   return {
     // Az amerikai és a brit „dc” mást jelent, ezért a rendszer neve mindkét címsorban ott áll (PQW-868).
     system,
@@ -242,9 +249,11 @@ function english(skipWord: string, skipMeaning: string, system: string, color: s
     colorChange: `Change to new ${color} for next rnd.`,
     jogFix: (fix, slip) =>
       fix === 'slip-stitch' ? `Jog fix: work first st of next rnd as ${slip}.` : `Jog fix: join new ${color} in back loop of first st of next rnd.`,
+    // Az 1. sor elején a kihagyás kiírt igével áll, ahogy a tulajdonos kérte: „skip 2 ch”, britül „miss 2 ch” (PQW-895).
+    skipChains: (n) => `${skipVerb} ${n} ch, `,
+    eachChain: (item) => `${item} in each ch across`,
     fromHook: (chain, note) => `Starting in ${ordinal(chain)} ch from hook${note ? ` (${note})` : ''}, `,
     skippedChainsCount: (def, locale) => `skipped ch count as 1 ${refOf(def, locale)}`,
-    skippedChainsWithChains: (def, locale, chains) => `skipped ch count as 1 ${refOf(def, locale)} and ch ${chains}`,
     count: (n) => `(${n} ${n === 1 ? 'st' : 'sts'})`,
     chain: (n) => `ch ${n}`,
     skip: (n, what) =>
@@ -324,8 +333,8 @@ function english(skipWord: string, skipMeaning: string, system: string, color: s
 // A brit „miss” a 01 §3.1 szerint szerkesztői következtetés [E]; a brit kimenet még nincs jóváhagyva.
 export const VOCABULARIES: Readonly<Record<Locale, Vocabulary>> = {
   hu: HU,
-  'en-US': english('sk', 'skip', 'US terms', 'color'),
-  'en-GB': english('miss', 'miss (skip)', 'UK terms', 'colour'),
+  'en-US': english('sk', 'skip', 'skip', 'US terms', 'color'),
+  'en-GB': english('miss', 'miss', 'miss (skip)', 'UK terms', 'colour'),
 };
 
 function range(from: number, to: number): string {
@@ -607,18 +616,19 @@ class Renderer {
     const v = this.vocabulary;
     this.round = layer.shape === 'round';
     let prefix = '';
+    let items: string;
+    // A láncalapra horgolt 1. sor: „hagyj ki 2 láncszemet, majd minden láncszembe 1 rp” (PQW-895).
+    // A kihagyott láncszemek számításáról nincs megjegyzés; a későbbi sorok fordulólánca mondja meg.
+    const [only] = layer.steps;
     if (layer.fromHook) {
-      const counts = layer.fromHook.countsAs === null ? null : this.def(layer.fromHook.countsAs);
-      if (counts) this.use(counts);
-      const { chains } = layer.fromHook;
-      const note = counts
-        ? chains > 0
-          ? v.skippedChainsWithChains(counts, this.locale, chains)
-          : v.skippedChainsCount(counts, this.locale)
-        : null;
-      prefix = v.fromHook(layer.fromHook.chain, note);
+      const skipped = layer.fromHook.chain - 1;
+      if (skipped > 0) {
+        this.use(this.byKind('chain'));
+        prefix = v.skipChains(skipped);
+      }
     }
-    const items = this.steps(layer.steps);
+    if (layer.fromHook?.eachChain && only?.kind === 'stitch') items = v.eachChain(this.step({ ...only, count: 1 }));
+    else items = this.steps(layer.steps);
     let text = `${prefix}${items} ${this.round ? v.roundCount(layer.stitchCount) : v.count(layer.stitchCount)}.`;
     const slip = this.byKind('slip');
     if (layer.closing === 'join-slip') {

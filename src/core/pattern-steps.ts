@@ -93,6 +93,11 @@ export interface WrittenLayer {
      * (filé nyitott kezdés: 3N + 6 lsz, a 9. láncszemtől, 03 §5.2, PQW-891). Máskor 0.
      */
     readonly chains: number;
+    /**
+     * A kihagyás után minden megmaradt láncszembe pontosan egy szem kerül, sorban,
+     * egyetlen tételben: „minden láncszembe 1 rp” (PQW-895).
+     */
+    readonly eachChain: boolean;
   } | null;
   readonly steps: readonly Step[];
   /** Szemszám, ahogy a gráf számolja (graph.ts). */
@@ -382,14 +387,28 @@ function writtenLayer(
     steps.splice(0, 2);
   }
 
+  const written = foldRepeats(mergeSteps(steps, library), layer.shape === 'round');
+  // Minden megmaradt láncszembe egy alapszem vagy kúszószem, színváltás nélkül (PQW-895).
+  const [only] = written;
+  const onlyKind = only?.kind === 'stitch' ? library.get(only.def)?.kind : undefined;
+  const eachChain =
+    hookRow &&
+    written.length === 1 &&
+    only?.kind === 'stitch' &&
+    (onlyKind === 'basic' || onlyKind === 'slip') &&
+    only.target === 'next' &&
+    only.into === 'chain' &&
+    only.changeTo === undefined &&
+    only.count === working.length - cursorStart - leadSkipped;
+
   return {
     index,
     shape: layer.shape,
     side: layer.side,
     fromHook: hookRow
-      ? { chain: layer.turningChain.length + (baseChain ? 2 : 1) + leadChains + leadSkipped, countsAs, chains: leadChains }
+      ? { chain: layer.turningChain.length + (baseChain ? 2 : 1) + leadChains + leadSkipped, countsAs, chains: leadChains, eachChain }
       : null,
-    steps: foldRepeats(mergeSteps(steps, library), layer.shape === 'round'),
+    steps: written,
     stitchCount: layer.stitchCount,
     closing: layer.closing?.kind ?? null,
     joinTo,
