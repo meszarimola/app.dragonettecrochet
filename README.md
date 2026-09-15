@@ -54,6 +54,15 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
 - **Mentés:** minden változás a böngészőbe mentődik (`localStorage`); JSON
   mentése és betöltése; PNG és SVG export jelmagyarázattal.
 - **Tükrözött nézet** balkezeseknek (`M`).
+- **Rács** (PQW-874): a menüsor nézet csoportjában ki- és bekapcsolható (`R`),
+  a böngészőben marad. A számolt elrendezésből jön, a kézi igazítás nem mozdítja.
+  Sorban soronként egy sáv, körben és motívumnál körgyűrű; a sávok színe
+  váltakozik (akadálymentes kontraszttal), az 5. és a 10. vonal hangsúlyosabb.
+  A sorszám a sor színével teli címkén áll, és kattintható (a sor kijelölése a
+  PQW-875-ben jön). Kiválasztott szemmel a cellára kattintás a célpont: a
+  célpont saját cellája és a fölötte lévő cella is; ahol nincs mibe horgolni,
+  üzenet jön, és nem kerül le szem. Az exportba választhatóan kerül (a Minta
+  szakasz jelölőnégyzete).
 - **Felület** (PQW-873): ikonos menüsor csoportokba rendezve (fájl,
   szerkesztés, sor és kör, kijelölés, nézet), minden ikonon tooltip a
   gyorsbillentyűvel (saját tooltip: azonnal, fókuszra és inaktív gombon is);
@@ -96,10 +105,12 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/core/pattern-read.ts`, `src/core/canonical.ts` | A saját szöveg visszaolvasása gráffá, a szöveg sorára mutató hibával; két minta összevetése az azonosítóktól függetlenül. |
 | `src/core/repeat.ts`, `src/core/stitch-library.ts` | Láncalap és „X többszöröse + Y” számítása; a szemkönyvtár mint azonosító → definíció. |
 | `src/ui/palette.ts` | A paletta tartalma a könyvtárból, a választott jelöléssel: csoportcímek, feliratok, gyorsbillentyűk, DOM nélkül. |
-| `src/ui/pattern-types.ts` | A bal oldali mintatípus-menü tartalma (PQW-873): a négy típus neve, magyarázata és hogy be van-e kapcsolva. DOM nélküli. |
+| `src/ui/pattern-types.ts` | A bal oldali mintatípus-menü tartalma (PQW-873): a négy típus neve, magyarázata és hogy be van-e kapcsolva; a típushoz tartozó rács (PQW-874). DOM nélküli. |
+| `src/ui/grid-paths.ts` | A rács rajza útvonalakként: ugyanebből rajzol a vászon és az SVG-export. DOM nélküli. |
 | `src/ui/notation.ts` | **A jelölés és a jelstílus beállítása** (PQW-868): alapértelmezés a felület nyelvéből, tárolás, a jelrajz beállítása, a minta jelölésének rögzítése. DOM nélküli. |
 | `src/ui/written.ts` | **Az írott minta panelje** (PQW-868): a szöveg a jelöléssel, vagy érthető üzenet, ha a minta még nem írható ki. DOM nélküli. |
 | `src/core/editor.ts` | **A szerkesztő műveletei** (PQW-857): célpontok, horgolás, „még egy ugyanabba”, fordulás, körzárás, az utolsó lépés törlése, kézi igazítás, élő ellenőrzés. |
+| `src/core/grid.ts` | **A rács** (PQW-874): sávok és cellák az igazítás nélküli számolt elrendezésből, sorban és körben; találat, célzás és az üzenet, ha nincs mibe horgolni. Tiszta függvény. |
 | `src/core/layout.ts` | **A számolt elrendezés** (PQW-857): hely, irány, legyező, összefutás, sorszám, színe és visszája, tükrözés. Tiszta függvény. |
 | `src/core/history.ts` | Visszavonás és újra. |
 | `src/core/stitch-variants.ts` | Az összetett szemek változatai azonosítóból (pl. `inc-3dc`), és a minta könyvtára. |
@@ -113,7 +124,7 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `public/.htaccess` | Biztonsági fejlécek és cache. A CSP a GA-azonosítóval együtt változik — a `tests/analytics.test.mjs` őrzi. |
 | `tests/*.test.mjs` | `node:test` tesztek; a `core-*` a magot, a `ui-*` a jelrajzot, a palettát és az SVG-t, az `analytics` a süti-sávot és a CSP-t, a `hu-vocabulary` a magyar szóhasználatot (szem = stitch) nézi. |
 | `tests/fixtures/written/` | Az írott minta rögzített szövege kidolgozott példánként (`hu`, `en-US`); a magyart a tulajdonos hagyja jóvá. |
-| `e2e/*.spec.ts`, `playwright.config.ts` | Böngészős tesztek a kritikus utakra: téglalap billentyűzettel, mentés és újratöltés, export, az írott minta panelje jelölésváltással (`editor.spec.ts`); mintatípus-választás, szemválasztás a panelből, hibaszámláló, alsó írott panel (`felulet.spec.ts`); az elrendezés helyei (`elrendezes.spec.ts`); a panel szakaszai és a tooltipek (`panel.spec.ts`). |
+| `e2e/*.spec.ts`, `playwright.config.ts` | Böngészős tesztek a kritikus utakra: téglalap billentyűzettel, mentés és újratöltés, export, az írott minta panelje jelölésváltással (`editor.spec.ts`); mintatípus-választás, szemválasztás a panelből, hibaszámláló, alsó írott panel (`felulet.spec.ts`); az elrendezés helyei (`elrendezes.spec.ts`); a panel szakaszai és a tooltipek (`panel.spec.ts`); téglalap cellákra kattintva, a rács kapcsolója és exportja (`racs.spec.ts`). |
 | `tests/*.check.ts` | Csak fordítási próba: a `tsconfig.core.json` típusellenőrzi, nem fut. |
 | `tsconfig.core.json` | A `src/core/` típusellenőrzése DOM-típusok nélkül. |
 
@@ -163,6 +174,10 @@ npm test   # a build után: CSP ↔ azonosító, inline szkript, közös süti
 - **Körnézet finomítása.** A körök egyszerű, sugárirányú elrendezést kapnak;
   a nagymama-négyzet sarkai még nem szögletesek.
 - **PDF-export.**
+- **A rács teljes változatai.** A filé cellás rácsának csak az alapja van meg
+  (egyforma cellák, PQW-864), az amigurumi szöveges nézetének csak a típusa
+  (PQW-863); mindkét mintatípus még „hamarosan”. Nincs még oszlopszámozás, és a
+  cellák aránya a könyvtár becslése, nem a gauge-profil (PQW-859).
 - **Önhosztolt betűk.** Az Instrument Serif és a Karla fájljai még nincsenek
   itt, ezért rendszerbetűk ugranak be. A Google Fonts CDN-t nem használjuk: az
   EU-ban hozzájárulás nélkül továbbítaná a látogató IP-címét.
