@@ -110,7 +110,7 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
     munkaterületig. A fejléc alá húzva a panel lecsukódik. A „Teljes nézet” gomb
     a teljes munkaterületre nyitja, a „Vissza” a korábbi magasságra állítja.
     Alapból legfeljebb 22rem és a munkaterület fele; 40rem-nél alacsonyabb
-    ablakban a harmada, és megjegyzett állapot nélkül csukva indul, hogy a
+    ablakban a 40%-a, és megjegyzett állapot nélkül csukva indul, hogy a
     vászon közepére lehessen kattintani (PQW-891); a
     beállítás csak a lapon belül él.
   - **Igazodás** (PQW-883, PQW-885): az „Egész minta” és a kurzor követése

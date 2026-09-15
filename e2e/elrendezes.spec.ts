@@ -146,9 +146,15 @@ for (const viewport of [
     const types = await box(page, '#types');
     const panel = await box(page, '#panel');
     const cover = await box(page, '#written');
-    // Alapból legfeljebb 22rem és a munkaterület fele; alacsony ablakban a harmada, a vászon közepe szabad.
-    expect(near(cover.height, Math.min(352, stage.height * (low ? 0.33 : 0.5)))).toBe(true);
-    if (low) expect(cover.y).toBeGreaterThan(stage.y + stage.height / 2);
+    // Alapból legfeljebb 22rem és a munkaterület fele. Alacsony ablakban a 40%-a, de legalább a fejléc (a betűk
+    // magasságától függ): a vászon közepe mindenképp szabad marad (PQW-891).
+    if (low) {
+      const minimum = await written.evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue('--written-min')) || 0);
+      expect(cover.height).toBeLessThanOrEqual(Math.max(minimum, stage.height * 0.4) + 1);
+      expect(cover.y).toBeGreaterThan(stage.y + stage.height / 2);
+    } else {
+      expect(near(cover.height, Math.min(352, stage.height / 2))).toBe(true);
+    }
 
     /** A pont a vászon takarás nélküli részén: a két oldalsáv között, a panel fölött. */
     const expectUncovered = (point: Point | null, name: string, bottom = cover.y) => {

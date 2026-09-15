@@ -685,7 +685,7 @@ body.is-selecting #board {
 /* Az írott minta lenyitható panelként a vászon alján (PQW-873). A magassága
  * a fejléctől a teljes munkaterületig állítható (PQW-885): alapból legfeljebb
  * 22rem, legfeljebb a munkaterület fele; 40rem-nél alacsonyabb ablakban a
- * harmada, hogy a vászon közepe szabadon kattintható maradjon (PQW-891). Az
+ * 40%-a, hogy a vászon közepe szabadon kattintható maradjon (PQW-891). Az
  * elválasztó és a fejléc helyben marad, a szöveg görget. A `--written-size`
  * és a `--written-min` a src/ui/main.ts-ből jön. */
 .written {
@@ -705,7 +705,7 @@ body.is-selecting #board {
 
 @media (height < 40rem) {
   .written {
-    --written-default: min(22rem, 33%);
+    --written-default: min(22rem, 40%);
   }
 }
 
