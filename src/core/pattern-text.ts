@@ -58,6 +58,8 @@ export interface Vocabulary {
   readonly skipChains: (n: number) => string;
   /** Az 1. sor, ha minden megmaradt láncszembe pontosan egy szem kerül: „minden láncszembe 1 rp”. */
   readonly eachChain: (item: string) => string;
+  /** Az ovális 1. körében a láncszemek másik oldalára fordulás (PQW-890); utána kettőspont, a tételek vessző nélkül folytatódnak. */
+  readonly otherSide: string;
   /** A PQW-895 előtti 1. sor eleje; csak a régi szövegek visszaolvasásához. */
   readonly fromHook: (chain: number, note: string | null) => string;
   /** A PQW-895 előtti megjegyzés a kihagyott láncszemekről: „1 erp-nek számítanak”; csak visszaolvasáshoz. */
@@ -185,6 +187,7 @@ const HU: Vocabulary = {
       : 'Lépcsőjavítás: az új színt a következő kör első szemének hátsó szálába kapcsold be.',
   skipChains: (n) => `hagyj ki ${n} láncszemet, majd `,
   eachChain: (item) => `minden láncszembe ${item}`,
+  otherSide: 'a láncszemek másik oldalán vissza:',
   fromHook: (chain, note) => `a horogtól számított ${chain}. láncszemtől kezdve${note ? ` (${note})` : ''} `,
   skippedChainsCount: (def, locale) => `a kihagyott láncszemek 1 ${huDative(def, locale)} számítanak`,
   count: (n) => `(${n} szem)`,
@@ -323,6 +326,7 @@ function english(skipWord: string, skipVerb: string, skipMeaning: string, system
     // Az 1. sor elején a kihagyás kiírt igével áll, ahogy a tulajdonos kérte: „skip 2 ch”, britül „miss 2 ch” (PQW-895).
     skipChains: (n) => `${skipVerb} ${n} ch, `,
     eachChain: (item) => `${item} in each ch across`,
+    otherSide: 'working back along the other side of the chain:',
     fromHook: (chain, note) => `Starting in ${ordinal(chain)} ch from hook${note ? ` (${note})` : ''}, `,
     skippedChainsCount: (def, locale) => `skipped ch count as 1 ${refOf(def, locale)}`,
     count: (n) => `(${n} ${n === 1 ? 'st' : 'sts'})`,
@@ -777,7 +781,8 @@ class Renderer {
   }
 
   steps(steps: readonly Step[]): string {
-    return steps.map((step) => this.step(step)).join(', ');
+    // A „másik oldal” mondata kettősponttal végződik: utána vessző nélkül folytatódik (PQW-890).
+    return steps.map((step, i) => `${i === 0 ? '' : steps[i - 1]!.kind === 'other-side' ? ' ' : ', '}${this.step(step)}`).join('');
   }
 
   step(step: Step): string {
@@ -801,6 +806,8 @@ class Renderer {
         if (counts) this.use(counts);
         return v.turningChain(step.count, counts ? v.turningChainCounts(counts, this.locale) : v.turningChainNotCounted);
       }
+      case 'other-side':
+        return v.otherSide;
       case 'repeat':
         return this.round ? v.roundRepeat(this.steps(step.steps), step.times) : v.repeat(this.steps(step.steps), step.times);
       case 'stitch': {

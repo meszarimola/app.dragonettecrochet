@@ -214,7 +214,7 @@ export function deletionPlan(pattern: Pattern, ids: Iterable<NodeId>): DeletionP
   const hits = (anchor: Anchor) => {
     if (anchor.into === 'stitch') return removed.has(anchor.id);
     if (anchor.into === 'space') return (spaceChains.get(anchor.id) ?? []).some((id) => removed.has(id));
-    if (anchor.into === 'row-end') return removed.has(anchor.id);
+    if (anchor.into === 'row-end' || anchor.into === 'underside') return removed.has(anchor.id);
     return removed.has(ringNodes.get(anchor.id) ?? '');
   };
   // A célpontok a fonalon előrébb vannak, ezért egy menet általában elég; a ciklus a biztonság.
@@ -393,6 +393,8 @@ export function copySelection(pattern: Pattern, ids: Iterable<NodeId>): CopyResu
         }
         // Sorvégbe csak a szegély horgol, azt fent elutasítjuk (PQW-889).
         if (anchor.into === 'row-end') return { ok: false, reason: 'A szegély még nem másolható: csak sorokat vagy köröket jelölj ki.' };
+        // Az ovális 1. köre a láncalap mindkét oldalába horgol (PQW-890): ezt még nem lehet másolni.
+        if (anchor.into === 'underside') return { ok: false, reason: 'Az ovális első köre még nem másolható: a láncalap mindkét oldalába horgol.' };
         const slot = slotOf.get(slotKey(anchor.into, anchor.id));
         if (slot === undefined) {
           return {

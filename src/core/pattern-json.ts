@@ -427,7 +427,7 @@ function readPinned(value: unknown, path: string): NonNullable<StitchNode['pinne
 
 function readAnchor(value: unknown, path: string): Anchor {
   if (!isObject(value)) throw new FormatError(path, 'Objektumot vártunk.');
-  const into = oneOf(value['into'], `${path}.into`, ['stitch', 'space', 'ring', 'row-end']);
+  const into = oneOf(value['into'], `${path}.into`, ['stitch', 'space', 'ring', 'row-end', 'underside']);
   if (into === 'stitch') {
     const raw = object(value, path, ['into', 'id', 'mode']);
     return { into, id: string(raw['id'], `${path}.id`), mode: oneOf(raw['mode'], `${path}.mode`, INSERTIONS) };
@@ -478,7 +478,7 @@ function readEvent(value: unknown, path: string): LayerEvent {
 
 const MARKS: readonly RoundMark[] = ['safety-eyes', 'embroider-eyes', 'stuffing', 'close-opening'];
 const ENDS: readonly PieceEnd[] = ['open', 'closed'];
-const SHAPES: readonly ShapeSpec['kind'][] = ['sphere', 'hemisphere', 'egg', 'cylinder', 'cone', 'revolution'];
+const SHAPES: readonly ShapeSpec['kind'][] = ['sphere', 'hemisphere', 'egg', 'cylinder', 'cone', 'revolution', 'oval'];
 
 function readSection(value: unknown, path: string): PieceSection {
   const raw = object(value, path, ['name', 'layer', 'shape', 'stagger']);
@@ -526,6 +526,10 @@ function readShape(value: unknown, path: string): ShapeSpec {
     case 'revolution': {
       const raw = object(value, path, ['kind', 'profile', 'bottom', 'top']);
       return { kind, profile: array(raw['profile'], `${path}.profile`, readProfilePoint), bottom: end(raw, 'bottom'), top: end(raw, 'top') };
+    }
+    case 'oval': {
+      const raw = object(value, path, ['kind', 'lengthCm', 'widthCm']);
+      return { kind, lengthCm: size(raw, 'lengthCm'), widthCm: size(raw, 'widthCm') };
     }
   }
 }
