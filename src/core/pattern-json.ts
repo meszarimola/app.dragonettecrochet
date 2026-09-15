@@ -381,11 +381,23 @@ function readUnit(value: unknown, path: string): GridUnit {
 }
 
 function readBorder(value: unknown, path: string): PieceBorder {
-  const raw = object(value, path, ['stitch', 'hdcRowEnd']);
+  const raw = object(value, path, ['stitch', 'hdcRowEnd'], ['repeat']);
   return {
     stitch: oneOf(raw['stitch'], `${path}.stitch`, ['sc'] as const),
     hdcRowEnd: oneOf(raw['hdcRowEnd'], `${path}.hdcRowEnd`, [1, 2] as const),
+    // A PQW-898 előtti mentésben nincs: a szegély nem igazodik ismétléshez.
+    ...(raw['repeat'] === undefined ? {} : { repeat: readBorderRepeat(raw['repeat'], `${path}.repeat`) }),
   };
+}
+
+/** A következő szegélysor ismétlése: X 1 és 50, Y 0 és 50 között. */
+function readBorderRepeat(value: unknown, path: string): NonNullable<PieceBorder['repeat']> {
+  const raw = object(value, path, ['width', 'edge']);
+  const width = integer(raw['width'], `${path}.width`, 1);
+  const edge = integer(raw['edge'], `${path}.edge`, 0);
+  if (width > 50) throw new FormatError(`${path}.width`, 'Legfeljebb 50 szemes ismétlést vártunk.');
+  if (edge > 50) throw new FormatError(`${path}.edge`, 'Legfeljebb 50 kiegyenlítő szemet vártunk.');
+  return { width, edge };
 }
 
 function readNode(value: unknown, path: string): StitchNode {

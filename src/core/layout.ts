@@ -69,6 +69,8 @@ export interface LayerPlacement {
   readonly start: Point;
   /** A szemszám helye a sor végén. */
   readonly end: Point;
+  /** A darab körüli szegély (PQW-897): nem sor, ezért sorszám helyett „szegély” feliratot kap. */
+  readonly border?: boolean;
 }
 
 export interface ChartLayout {

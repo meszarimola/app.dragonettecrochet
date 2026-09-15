@@ -350,8 +350,10 @@ class PieceReader {
    */
   private readBorder(line: Line): void {
     const graph = this.graph();
+    // Az ismétléshez igazított szegély (PQW-898) a szövegben jelöli az ismétlést.
+    const repeat = this.vocabulary.border.readRepeat(line.text);
     for (const hdcRowEnd of [2, 1] as const) {
-      const border: PieceBorder = { stitch: 'sc', hdcRowEnd };
+      const border: PieceBorder = { stitch: 'sc', hdcRowEnd, ...(repeat ? { repeat } : {}) };
       const result = borderOf(graph, border);
       if (result.ok && renderBorder({ stitch: border.stitch, counts: result.counts }, this.options.library, this.options.locale) === line.text) {
         this.border = border;
