@@ -793,6 +793,10 @@ const ACTIONS: Record<string, () => void> = {
   },
   'export-png': () => void exportPng(),
   'copy-written': () => void copyWritten(),
+  'close-written': () => {
+    setWrittenOpen(false);
+    writtenToggle.focus();
+  },
   new: () => {
     selectedNode = null;
     commit({ ok: true, pattern: emptyPattern() }, 'Új minta; visszavonással a korábbi visszajön.');
