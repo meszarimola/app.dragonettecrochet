@@ -67,6 +67,13 @@ export const RULES = {
     summary: 'Bele nem horgolható tetejű szembe (pl. rákhurok) horgoltak.',
     message: 'Ennek a szemnek a tetejébe nem lehet belehorgolni.',
   },
+  'insertion-mode': {
+    severity: 'error',
+    reference: '01 §4.3',
+    summary:
+      'A szem ezzel a beszúrási móddal nem horgolható: a horgoló felől nézett mód nincs a szem (összetett szemnél a csoport) insertionModes listájában (PQW-869).',
+    message: 'Ez a szem ebben a beszúrási módban nem horgolható (pl. rákhurok hátsó szálba, kagyló reliefben): válassz másik módot.',
+  },
   'anchor-count': {
     severity: 'error',
     reference: '03 §10 C12',
@@ -161,6 +168,39 @@ export const RULES = {
     reference: '03 §10 D19, 03 §2.3',
     summary: 'Keverten magas szemek, és a következő 1–3 sor nem egyenlíti ki őket.',
     message: 'Különböző magasságú szemek egy sorban, és a következő sorok nem egyenlítik ki.',
+  },
+
+  /* ---- Körök (PQW-861); csak a befejezett körökön ---- */
+  'round-growth': {
+    severity: 'warning',
+    reference: '04 §9.0',
+    summary: 'A kör pozíciószáma több mint kétszerese vagy kevesebb mint fele az előző körének.',
+    message: 'Ebben a körben a szemszám több mint duplájára nő vagy felére csökken: egy körben legfeljebb duplázás vagy felezés fér bele.',
+  },
+  'round-cupping': {
+    severity: 'warning',
+    reference: '04 §8, §9.6',
+    summary: 'Legalább két egymás utáni körben a szaporítás a lapos érték ~85%-a alatt: a darab kunkorodik.',
+    message: 'Kevés a szaporítás: ha laposnak szánod, ezek a körök kunkorodnak. Szaporíts többet, vagy a külső köröket horgold nagyobb tűvel.',
+  },
+  'round-ruffling': {
+    severity: 'warning',
+    reference: '04 §8, §9.6',
+    summary: 'A körben a szaporítás a lapos érték ~130%-a fölött: a darab fodrosodik.',
+    message: 'Sok a szaporítás: ez a kör fodrosodik. Horgolj 1–2 kört szaporítás nélkül, vagy szaporíts kevesebbet.',
+  },
+  'stacked-increases': {
+    severity: 'warning',
+    reference: '04 §3.2, §8, §9.6',
+    summary: 'Három vagy több körön a szaporítások egymás fölé kerülnek (sokszögben szándékos, ott nem jelez).',
+    message: 'A szaporítások három körön át egymás fölé kerülnek, ezért a kör sokszögletű lesz. Told el őket körönként (eltolt szaporítás).',
+  },
+  'spiral-color-jog': {
+    severity: 'warning',
+    reference: '04 §2',
+    summary: 'Spirálban színváltás lépcsőjavítás nélkül.',
+    message:
+      'Spirálban a színváltás lépcsőt hagy. Javítás: a következő kör első szeme helyett kúszószem, vagy az új színt az első szem hátsó szálába kapcsold be.',
   },
 } as const satisfies Record<string, RuleDef>;
 

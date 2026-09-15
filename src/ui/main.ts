@@ -14,11 +14,15 @@
 import './styles.css';
 import { GA_MEASUREMENT_ID } from '../config.js';
 import {
+  canCloseRound,
+  canEndRound,
+  canJoinChainRing,
   closeRound,
   contextOf,
   defaultCursor,
   deleteLast,
   emptyPattern,
+  endRoundSpiral,
   endRow,
   fillRow,
   liveCheck,
@@ -76,11 +80,16 @@ import {
   writeNotation,
 } from './notation.js';
 import { buildPalette, type PaletteItem } from './palette.js';
+import { InsertionPanel } from './insertion-panel.js';
+import { insertionSuffix } from './insertion-view.js';
+import { nodeInsertions } from '../core/insertion.js';
+import { RoundsPanel } from './rounds-panel.js';
 import { SizePanel } from './size-panel.js';
 import { DEFAULT_PATTERN_TYPE, PATTERN_TYPES, gridKind, isAvailableType, type PatternTypeId } from './pattern-types.js';
 import { applyInk, drawCentered, readInk, shapeBounds, stemLength, symbolShapes, type SymbolOptions } from './symbols.js';
 import { alignTooltips } from './tooltip.js';
 import { writtenView } from './written.js';
+import { dragCollapses, dragSize, isFull, keySize, percentOf, statusPlace, type SizeRange } from './written-size.js';
 
 function must<T extends Element>(selector: string): T {
   const el = document.querySelector<T>(selector);
@@ -108,6 +117,9 @@ const written = must<HTMLElement>('#written');
 const writtenToggle = must<HTMLButtonElement>('#written-toggle');
 const writtenText = must<HTMLPreElement>('#written-text');
 const writtenNotices = must<HTMLDivElement>('#written-notices');
+const writtenBody = must<HTMLDivElement>('#written-body');
+const writtenGrip = must<HTMLDivElement>('#written-grip');
+const writtenFull = must<HTMLButtonElement>('#written-full');
 const termsSelect = must<HTMLSelectElement>('#terms');
 const styleSelect = must<HTMLSelectElement>('#chart-style');
 const scMarkField = must<HTMLFieldSetElement>('#sc-mark');
@@ -120,6 +132,8 @@ const errorToggle = must<HTMLButtonElement>('#error-toggle');
 const errorCount = must<HTMLElement>('#error-count');
 const errorsPop = must<HTMLElement>('#errors');
 const exportGrid = must<HTMLInputElement>('#export-grid');
+/** A beszúrási mód a kiválasztott szemhez (PQW-869). */
+const insertionPanel = new InsertionPanel(must<HTMLFieldSetElement>('#insertion'));
 
 const STORAGE_KEY = 'dc-mintatervezo:minta';
 const SETTINGS_KEY = 'dc-mintatervezo:nezet';
@@ -325,6 +339,7 @@ function refresh(message?: string): void {
   updateControls();
   updateWritten();
   sizePanel.update(derived.pattern, derived.context.graph, derived.context.library);
+  roundsPanel.update(derived.pattern);
   if (message !== undefined) announce(message);
 }
 
@@ -348,6 +363,7 @@ function draw(): void {
     tradition: traditionOf(derived.pattern.conventions),
     direction: tool && isTargeted(tool) ? directionArrow() : null,
     symbols,
+    insertions: nodeInsertions(derived.pattern.pieces[0]),
   });
 }
 
@@ -424,7 +440,8 @@ function updateControls(): void {
   const canFill = tool !== null && isTargeted(tool) && context.graph !== null && context.slots.some((_, i) => !context.used[i]);
   setDisabled('fill-row', !canFill);
   setDisabled('end-row', !(context.started && context.shape === 'row'));
-  setDisabled('close-round', !(context.started && context.shape === 'round'));
+  setDisabled('close-round', !canCloseRound(pattern, context));
+  setDisabled('spiral-round', !canEndRound(context));
   setDisabled('export-png', empty);
   setDisabled('export-svg', empty);
   setDisabled('delete-selection', selection.length === 0);
@@ -560,6 +577,76 @@ function readWrittenOpen(): boolean {
   }
 }
 
+/* ---- Az írott minta magassága (PQW-885) ---- */
+
+/**
+ * A panel magassága a munkaterület hányadában, vagy `null`: az alapértelmezés
+ * (styles.css: legfeljebb 22rem, alacsony ablakban a munkaterület fele). Csak
+ * a lapon belül él; újratöltés után az alapértelmezés jön.
+ */
+let writtenShare: number | null = null;
+/** A „Teljes nézet” előtti hányad; a „Vissza” ide áll. */
+let writtenBefore: number | null = null;
+
+function setStyle(element: HTMLElement, name: string, value: string): void {
+  if (element.style.getPropertyValue(name) !== value) element.style.setProperty(name, value);
+}
+
+/** A panel magasságának tartománya: a fejléctől (a szövegtörzs tetejéig) a teljes munkaterületig. */
+function writtenRange(): SizeRange {
+  const style = getComputedStyle(written);
+  const lift = parseFloat(style.paddingBlockStart) || 0;
+  const top = writtenBody.getBoundingClientRect().top - written.getBoundingClientRect().top;
+  return { min: top - lift + (parseFloat(style.paddingBlockEnd) || 0), max: canvas.getBoundingClientRect().height };
+}
+
+function applyWrittenShare(share: number | null): void {
+  writtenShare = share;
+  if (share === null) written.style.removeProperty('--written-size');
+  else written.style.setProperty('--written-size', `${(share * 100).toFixed(3)}%`);
+  syncWrittenSize();
+}
+
+/** Húzás és billentyű után; a „Vissza” ezután az alapértelmezésre áll. */
+function resizeWritten(size: number): void {
+  const { max } = writtenRange();
+  writtenBefore = null;
+  applyWrittenShare(max > 0 ? size / max : null);
+}
+
+/** Az állapotsor helye, a legkisebb magasság, az elválasztó értéke és a gomb felirata a panel mostani méretéhez. */
+function syncWrittenSize(): void {
+  const stageSize = canvas.getBoundingClientRect().height;
+  if (written.hidden) {
+    setStyle(stage, '--written-block', '0px');
+    return;
+  }
+  const range = writtenRange();
+  setStyle(written, '--written-min', `${range.min}px`);
+  const size = written.getBoundingClientRect().height;
+  const place = statusPlace(size, status.getBoundingClientRect().height, stageSize);
+  setStyle(stage, '--written-block', `${place.block}px`);
+  setStyle(written, '--written-lift', `${place.lift}px`);
+  const percent = percentOf(size, range);
+  writtenGrip.setAttribute('aria-valuemin', String(percentOf(range.min, range)));
+  writtenGrip.setAttribute('aria-valuenow', String(percent));
+  writtenGrip.setAttribute('aria-valuetext', `A munkaterület ${percent} százaléka`);
+  const label = isFull(size, range) ? 'Vissza' : 'Teljes nézet';
+  if (writtenFull.textContent !== label) writtenFull.textContent = label;
+}
+
+function toggleWrittenFull(): void {
+  if (isFull(written.getBoundingClientRect().height, writtenRange())) {
+    applyWrittenShare(writtenBefore);
+    writtenBefore = null;
+    announce('Az írott minta visszakapta a korábbi magasságát.');
+  } else {
+    writtenBefore = writtenShare;
+    applyWrittenShare(1);
+    announce('Az írott minta a teljes munkaterületen.');
+  }
+}
+
 /* ---- Jelölés és jelstílus ---- */
 
 function applyNotation(next: PatternNotation, message: string): void {
@@ -683,6 +770,7 @@ function select(id: StitchDefId | null): void {
   const item = items.find((candidate) => candidate.def.id === id);
   const kind = item?.def.kind;
   countField.hidden = kind !== 'chain' && kind !== 'space';
+  insertionPanel.update(item?.def, notation.terms);
   if (!item) {
     hint.textContent =
       'Válassz szemet. Szem nélkül kattintással szemet jelölsz ki (Shift-tel többet, a sorszámmal a teljes sort), és törölheted, duplikálhatod vagy igazíthatod.';
@@ -759,7 +847,7 @@ async function workAtCursor(): Promise<void> {
       announce('Nem került le szem.');
       return;
     }
-    const increase = idx === context.frontier ? workIntoSame(history.present, tool) : work(history.present, { def: tool, count }, idx);
+    const increase = idx === context.frontier ? workIntoSame(history.present, tool) : work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx);
     commit(increase, `${name}: szaporítás.`);
     return;
   }
@@ -774,11 +862,12 @@ async function workAtCursor(): Promise<void> {
       announce('Nem került le szem.');
       return;
     }
-    commit(work(history.present, { def: tool, count }, idx, ['crossed']), `${name}: keresztezett szem.`);
+    commit(work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx, ['crossed']), `${name}: keresztezett szem.`);
     return;
   }
 
-  commit(work(history.present, { def: tool, count }, idx), `${name} horgolva.`);
+  const mode = slot?.kind === 'stitch' ? insertionSuffix(insertionPanel.insertion) : '';
+  commit(work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx), `${name} horgolva${mode}.`);
 }
 
 function nudge(dx: number, dy: number): void {
@@ -981,10 +1070,15 @@ const ACTIONS: Record<string, () => void> = {
   same: () => (tool ? commit(workIntoSame(history.present, tool), 'Még egy ugyanabba.') : announce('Előbb válassz szemet.')),
   'fill-row': () =>
     tool && isTargeted(tool)
-      ? commit(fillRow(history.present, { def: tool, count: Number(countInput.value) }), 'Sor kitöltve.')
+      ? commit(
+          fillRow(history.present, { def: tool, count: Number(countInput.value), insertion: insertionPanel.insertion }),
+          `Sor kitöltve${insertionSuffix(insertionPanel.insertion)}.`,
+        )
       : announce('Előbb válassz célpontba horgolható szemet a sor kitöltéséhez.'),
   'end-row': () => commit(endRow(history.present, tool), 'Sor vége, fordulás.'),
-  'close-round': () => commit(closeRound(history.present), 'Kör zárva.'),
+  'close-round': () =>
+    commit(closeRound(history.present), canJoinChainRing(history.present) ? 'Láncgyűrű: a láncszemek gyűrűvé zárva.' : 'Kör zárva.'),
+  'spiral-round': () => commit(endRoundSpiral(history.present), 'Kör vége: a következő kör zárás nélkül, spirálban folytatódik.'),
   mirror: () => {
     mirror = !mirror;
     try {
@@ -1018,6 +1112,7 @@ const ACTIONS: Record<string, () => void> = {
   },
   'export-png': () => void exportPng(),
   'copy-written': () => void copyWritten(),
+  'written-full': () => toggleWrittenFull(),
   'close-written': () => {
     setWrittenOpen(false);
     writtenToggle.focus();
@@ -1158,6 +1253,44 @@ writtenToggle.addEventListener('click', () => {
   const open = written.hasAttribute('hidden');
   setWrittenOpen(open);
   if (open && NARROW.matches) setOpen(panel, toggle, false);
+});
+
+/* Az elválasztó egérrel, érintéssel és billentyűzettel (PQW-885). */
+let gripDrag: { readonly pointer: number; readonly y: number; readonly size: number; readonly share: number | null } | null = null;
+
+writtenGrip.addEventListener('pointerdown', (event) => {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  writtenGrip.setPointerCapture(event.pointerId);
+  gripDrag = { pointer: event.pointerId, y: event.clientY, size: written.getBoundingClientRect().height, share: writtenShare };
+});
+
+writtenGrip.addEventListener('pointermove', (event) => {
+  if (gripDrag?.pointer !== event.pointerId) return;
+  resizeWritten(dragSize(gripDrag.size, gripDrag.y - event.clientY, writtenRange()));
+});
+
+function endGripDrag(event: PointerEvent): void {
+  if (gripDrag?.pointer !== event.pointerId) return;
+  const drag = gripDrag;
+  gripDrag = null;
+  if (event.type !== 'pointerup' || !dragCollapses(drag.size, drag.y - event.clientY, writtenRange())) return;
+  // A fejléc alá húzott panel lecsukódik, és újranyitáskor a húzás előtti magasságot kapja.
+  applyWrittenShare(drag.share);
+  setWrittenOpen(false);
+  writtenToggle.focus();
+}
+writtenGrip.addEventListener('pointerup', endGripDrag);
+writtenGrip.addEventListener('pointercancel', endGripDrag);
+
+writtenGrip.addEventListener('keydown', (event) => {
+  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+  const size = keySize(event.key, written.getBoundingClientRect().height, writtenRange());
+  if (size === null) return;
+  // Itt a nyilak, a Home és az End a panel magasságát állítják, nem a vászon kurzorát.
+  event.preventDefault();
+  event.stopPropagation();
+  resizeWritten(size);
 });
 
 /* ---- Egér és érintés ---- */
@@ -1421,6 +1554,10 @@ document.addEventListener('keydown', (event) => {
     case 'K':
       ACTIONS['close-round']!();
       return;
+    case 's':
+    case 'S':
+      ACTIONS['spiral-round']!();
+      return;
     case 'm':
     case 'M':
       ACTIONS.mirror!();
@@ -1478,6 +1615,18 @@ const sizePanel = new SizePanel(must<HTMLDetailsElement>('#section-size'), {
   },
 });
 
+/* ---- Kör és motívum (PQW-861) ---- */
+
+const roundsPanel = new RoundsPanel(must<HTMLDetailsElement>('#section-rounds'), {
+  commit: (pattern, message) => {
+    selectedNode = null;
+    selection = [];
+    commit({ ok: true, pattern }, message);
+    fitBoard();
+  },
+  announce,
+});
+
 /* ---- Indulás ---- */
 
 syncNotationControls();
@@ -1493,13 +1642,16 @@ fitBoard();
  * Az írott minta nyitásakor, csukásakor és átméretezéskor a nézet igazodik
  * (PQW-883): a kurzor a takarás fölé kerül; kurzor nélkül újra illesztünk, ha
  * eddig az egész minta látszott, most viszont takarásba kerülne. Az állapotsor
- * a panel fölé kerül (`--written-block`).
+ * a panel fölé kerül (`--written-block`). Ha a panel a teljes munkaterületet
+ * elfedi, a vászon nem igazodik (PQW-885).
  */
 let shownArea = visibleArea();
 function realign(): void {
-  stage.style.setProperty('--written-block', `${insetBottom()}px`);
+  syncWrittenSize();
+  const area = visibleArea();
+  if (area.bottom - area.top < 1) return;
   const before = shownArea;
-  shownArea = visibleArea();
+  shownArea = area;
   const point = cursorPoint();
   if (point) showPoint(point);
   else if (board.patternWithin(before) && !board.patternWithin(shownArea)) fitBoard();
@@ -1507,6 +1659,8 @@ function realign(): void {
 const realignObserver = new ResizeObserver(realign);
 realignObserver.observe(canvas);
 realignObserver.observe(written);
+// Az állapotsor új üzenete csak a helyét állítja, a nézetet nem mozdítja.
+new ResizeObserver(syncWrittenSize).observe(status);
 
 alignTooltips(must<HTMLElement>('.tools'));
 setupConsentBanner(GA_MEASUREMENT_ID);
@@ -1517,6 +1671,8 @@ if (navigator.webdriver) {
     mintatervezoRacs: {
       layer: () => derived.context.layer,
       cells: () => board.gridCells(),
+      // A rács befoglaló téglalapja (PQW-887).
+      bounds: () => board.gridBounds(),
       labels: () => board.labels(),
       cursor: () => {
         const point = cursorPoint();

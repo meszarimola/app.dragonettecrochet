@@ -10,6 +10,8 @@
  * A rács típusa a mintatípustól függ (src/ui/pattern-types.ts):
  * - sorrács: soronként egy sáv, a cellák a sor pozícióinál;
  * - koncentrikus rács: körönként egy körgyűrű, a cellák a kör pozícióinál;
+ *   sokszögben (négyzet, hatszög, nyolcszög, nagymama-négyzet) a gyűrű is
+ *   sokszög, egyenes oldalakkal (polygon.ts, PQW-888);
  * - cellás rács (filé): egyforma szélességű cellák; ez csak az alap, a
  *   teljes változat a PQW-864-ben készül;
  * - szöveges nézet (amigurumi): nincs rács, az írott minta az elsődleges
@@ -24,6 +26,7 @@
 import type { WorkContext } from './editor.ts';
 import { article } from './hungarian.ts';
 import { layoutPattern, type ChartLayout, type LayoutOptions, type NodePlacement, type Point } from './layout.ts';
+import { CIRCLE, frameCoords, framePoint, outline, type RoundFrame } from './polygon.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import type { NodeId, Pattern } from './types.ts';
 
@@ -32,10 +35,21 @@ export type GridKind = 'rows' | 'rounds' | 'cells' | 'text';
 /** Az 5. és a 10. vonal hangsúlyosabb. */
 export type Emphasis = 'none' | 'five' | 'ten';
 
-/** Sorban téglalap, körben körcikk; a szög az óramutatóval ellentétesen nő, mint a layout.ts-ben. */
+/**
+ * Sorban téglalap, körben körcikk; a szög az óramutatóval ellentétesen nő, mint a layout.ts-ben.
+ * Sokszögben a körcikk a sokszög alakját követi: `r` a belső sugár, `a` a kerület menti paraméter.
+ */
 export type GridArea =
   | { readonly kind: 'rect'; readonly x0: number; readonly x1: number; readonly y0: number; readonly y1: number }
-  | { readonly kind: 'sector'; readonly r0: number; readonly r1: number; readonly a0: number; readonly a1: number };
+  | {
+      readonly kind: 'sector';
+      readonly r0: number;
+      readonly r1: number;
+      readonly a0: number;
+      readonly a1: number;
+      /** Sokszögben az alak; körben hiányzik. */
+      readonly frame?: RoundFrame;
+    };
 
 export interface GridBand {
   /** A sor vagy kör száma; a 0. a láncalap vagy a varázskör. */
@@ -121,6 +135,7 @@ export function chartGrid(
     byLayer: groupByLayer(layout),
     positions: graph.layers.map((layer) => layer.positions),
     counts: graph.layers.map((layer) => layer.stitchCount),
+    frame: layout.frame ?? CIRCLE,
   };
   const round = graph.layers[0]!.shape === 'round';
   const { bands, cells } = round ? roundGrid(input) : rowGrid(input);
@@ -146,6 +161,8 @@ interface Input {
   readonly byLayer: readonly (readonly NodePlacement[])[];
   readonly positions: readonly (readonly NodeId[])[];
   readonly counts: readonly number[];
+  /** Körben a darab alakja: kör vagy sokszög. */
+  readonly frame: RoundFrame;
 }
 
 /** Egy oszlop a cellák számolásához: hely a haladás tengelyén (sorban x, körben szög). */
@@ -321,16 +338,19 @@ function spansOf(columns: readonly Column[], half: number): (readonly [number, n
 /* ---- Koncentrikus rács ---- */
 
 const normalize = (angle: number) => ((angle % TAU) + TAU) % TAU;
-const angleOf = (p: Point) => normalize(Math.atan2(-p.y, p.x));
-const radiusOf = (p: Point) => Math.hypot(p.x, p.y);
-const polar = (r: number, a: number): Point => ({ x: r * Math.cos(a), y: -r * Math.sin(a) });
+/** A pont kerület menti paramétere; a középpontban 0, mint a szög. */
+const aroundOf = (frame: RoundFrame, p: Point) => {
+  const { u } = frameCoords(frame, p);
+  return Number.isNaN(u) ? 0 : u;
+};
 
 function roundGrid(input: Input): { bands: GridBand[]; cells: GridCell[] } {
-  const { layout, context, byLayer } = input;
+  const { layout, context, byLayer, frame } = input;
   const last = input.positions.length - 1;
   const working = context.layer;
+  const shaped = frame.sides >= 3 ? { frame } : {};
   const reach = (n: NodePlacement) => (n.role === 'ring' ? RING_REACH : n.role === 'chain' ? CHAIN_REACH : 0);
-  const outerOf = (layer: number) => Math.max(0, ...(byLayer[layer] ?? []).map((n) => radiusOf(n.top) + reach(n)));
+  const outerOf = (layer: number) => Math.max(0, ...(byLayer[layer] ?? []).map((n) => frameCoords(frame, n.top).r + reach(n)));
 
   const bands: GridBand[] = [];
   const cells: GridCell[] = [];
@@ -343,7 +363,7 @@ function roundGrid(input: Input): { bands: GridBand[]; cells: GridCell[] } {
       tone: (layer % 2) as 0 | 1,
       emphasis: emphasisOf(layer),
       working: layer === working,
-      area: { kind: 'sector', r0, r1, a0: 0, a1: TAU },
+      area: { kind: 'sector', r0, r1, a0: 0, a1: TAU, ...shaped },
     });
     const arcs = arcsOf(columns);
     columns.forEach((column, i) => {
@@ -354,20 +374,21 @@ function roundGrid(input: Input): { bands: GridBand[]; cells: GridCell[] } {
         index: column.order,
         node: column.node,
         slot: column.slot,
-        center: full && r0 === 0 ? { x: 0, y: 0 } : polar((r0 + r1) / 2, column.at),
-        area: { kind: 'sector', r0, r1, a0, a1 },
+        center: full && r0 === 0 ? { x: 0, y: 0 } : framePoint(frame, (r0 + r1) / 2, column.at),
+        area: { kind: 'sector', r0, r1, a0, a1, ...shaped },
         emphasis: emphasisOf(column.order + 1),
       });
     });
   };
 
   // A varázskörbe horgolt célpontnak nincs iránya: a cella a teljes kör.
-  const slotAngle = (p: Point) => (radiusOf(p) < 1e-6 ? Number.NaN : angleOf(p));
+  const slotAngle = (p: Point) => (frameCoords(frame, p).r < 1e-6 ? Number.NaN : aroundOf(frame, p));
+  const around = (p: Point) => aroundOf(frame, p);
   let r0 = 0;
   let width = DEFAULT_COLUMN;
   for (let layer = 0; layer <= last; layer += 1) {
     const r1 = Math.max(r0 + CHAIN_REACH, outerOf(layer) + HALF_GAP);
-    const columns = layer === working ? workingColumns(input, slotAngle) : layerColumns(input, layer, angleOf);
+    const columns = layer === working ? workingColumns(input, slotAngle) : layerColumns(input, layer, around);
     addBand(layer, r0, r1, columns);
     width = r1 - r0;
     r0 = r1;
@@ -406,23 +427,44 @@ function boundsOf(bands: readonly GridBand[], cells: readonly GridCell[]): Chart
       minY = Math.min(minY, area.y0);
       maxY = Math.max(maxY, area.y1);
     } else {
-      minX = Math.min(minX, -area.r1);
-      maxX = Math.max(maxX, area.r1);
-      minY = Math.min(minY, -area.r1);
-      maxY = Math.max(maxY, area.r1);
+      // Sokszögben a csúcsok adják a szélét, körben a sugár.
+      const corners = area.frame ? outline(area.frame, area.r1) : [];
+      const xs = corners.length > 0 ? corners.map((p) => p.x) : [-area.r1, area.r1];
+      const ys = corners.length > 0 ? corners.map((p) => p.y) : [-area.r1, area.r1];
+      minX = Math.min(minX, ...xs);
+      maxX = Math.max(maxX, ...xs);
+      minY = Math.min(minY, ...ys);
+      maxY = Math.max(maxY, ...ys);
     }
   }
   return Number.isFinite(minX) ? { minX, minY, maxX, maxY } : { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+}
+
+/**
+ * A rajz és a bekapcsolt rács közös befoglaló téglalapja (PQW-887): a rács a
+ * készülő sor vagy kör sávjával körben nagyobb a rajznál, ezért az illesztés
+ * és az export ekkora részt mutat.
+ */
+export function chartBounds(layout: ChartLayout, grid: ChartGrid | null | undefined): ChartLayout['bounds'] {
+  if (!grid || grid.bands.length === 0) return layout.bounds;
+  if (layout.nodes.size === 0) return grid.bounds;
+  return {
+    minX: Math.min(layout.bounds.minX, grid.bounds.minX),
+    minY: Math.min(layout.bounds.minY, grid.bounds.minY),
+    maxX: Math.max(layout.bounds.maxX, grid.bounds.maxX),
+    maxY: Math.max(layout.bounds.maxY, grid.bounds.maxY),
+  };
 }
 
 /* ---- Találat és célzás ---- */
 
 export function contains(area: GridArea, p: Point): boolean {
   if (area.kind === 'rect') return p.x >= area.x0 && p.x <= area.x1 && p.y >= area.y0 && p.y <= area.y1;
-  const r = radiusOf(p);
+  const frame = area.frame ?? CIRCLE;
+  const { r } = frameCoords(frame, p);
   if (r < area.r0 || r > area.r1) return false;
   if (area.a1 - area.a0 >= TAU - 1e-9) return true;
-  return normalize(angleOf(p) - area.a0) <= area.a1 - area.a0;
+  return normalize(aroundOf(frame, p) - area.a0) <= area.a1 - area.a0;
 }
 
 export type GridHit =

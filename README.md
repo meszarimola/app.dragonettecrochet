@@ -37,7 +37,8 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
 - **Még egy ugyanabba** (`Shift`+`Enter`): egy szemből szaporítás, a
   szaporításból és a kagylóból eggyel nagyobb lesz (pl. `inc-3dc`).
 - **Sor vége, fordulás** (`F`) a kiválasztott szem fordulóláncával;
-  **kör zárása** (`K`) kúszószemmel a kör első pozíciójába.
+  **kör zárása** (`K`) kúszószemmel a kör első pozíciójába, csak láncszemekből
+  láncgyűrű; **kör vége spirálban** (`S`), zárás nélkül (PQW-861).
 - **Visszavonás, újra, az utolsó lépés törlése** (`Ctrl`+`Z`,
   `Ctrl`+`Shift`+`Z`, `Backspace`). Egy lépés egy egység: csoport, láncív,
   fordulás.
@@ -60,6 +61,18 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
   minta végére illeszt, pl. „ismételd a 2. sort”. Ha nincs elég célpont, a
   célpont foglalt, vagy a szemszám nem jön ki, figyelmeztet, és a minta nem
   változik. Minden művelet egy lépésben visszavonható.
+- **Beszúrási mód** (PQW-869): a Szemek szakaszban a kiválasztott szemhez
+  mindkét szál, első szál, hátsó szál, első relief vagy hátsó relief
+  választható; csak a szem `insertionModes` listájában szereplő módok jelennek
+  meg, rádiógombként (Tab, nyilak). A mód a horgoló felől értendő, a gráf a
+  színoldali módot tárolja (`Anchor.mode`): visszai soron megfordul. Minden
+  lerakási út követi (horgolás, sor kitöltése, cellára kattintás); a
+  beillesztés és a duplikálás más oldalú sorba megfordítva viszi át. A talpon
+  jelölve látszik a vásznon és az exportban, CYC és JIS jelekkel; az export
+  jelmagyarázata szemenként és módonként mutatja. Írott mintában „rp (hsz)”,
+  „rp (esz)”, „Eerp”/„Herp” (máshol „(első relief)”), angolul „sc BLO”,
+  „sc FLO”, „FPdc”/„BPdc”; visszaolvasható. A szem által nem engedett módot az
+  ellenőrző jelzi (`insertion-mode`), a rajz ettől nem áll le.
 - **Kézi igazítás:** kiválasztott szem nélkül a jel kijelölhető, és húzással,
   `Alt`+nyilakkal vagy a jobb oldali panel gombjaival eltolható. Az eltolás
   csak a rajzon változtat.
@@ -87,6 +100,19 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
   minta szövege, minden szerkesztés után frissül, és egy gombbal másolható.
   Félkész sornál és hibás mintánál megjegyzés kíséri; amit a szöveg még nem tud
   kifejezni, arról üzenet szól.
+  - **Magasság** (PQW-885): a panel tetején lévő elválasztó egérrel és
+    érintéssel húzható, billentyűzettel a nyilakkal (5 %), `PageUp`/`PageDown`-
+    nal (25 %), `Home`-mal és `End`-del állítható, a fejléctől a teljes
+    munkaterületig. A fejléc alá húzva a panel lecsukódik. A „Teljes nézet” gomb
+    a teljes munkaterületre nyitja, a „Vissza” a korábbi magasságra állítja.
+    Alapból legfeljebb 22rem, alacsony ablakban a munkaterület fele; a
+    beállítás csak a lapon belül él.
+  - **Igazodás** (PQW-883, PQW-885): az „Egész minta” és a kurzor követése
+    minden magasságnál a panel fölötti látható részre illeszt; teljes nézetben
+    a vászon nem mozdul.
+  - **Állapotsor** (PQW-884): a két oldalsáv között, a panel fölött áll, és
+    hosszú üzenetnél több sorba törik; teljes nézetben a panel teteje ad neki
+    helyet.
 - **Jelölés és jelstílus** (PQW-868): magyar, amerikai (US terms) vagy brit
   (UK terms) jelölés, CYC vagy japán (JIS) jelek, a rövidpálca + vagy ×. A
   felület nyelvétől független; a paletta, a szemnevek, a vászon, az írott
@@ -118,6 +144,30 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
     átkerülnek. A régi mentések változatlanul betöltődnek.
   - **Arányhelyes nézet:** kapcsolóval a jelek szára és a rács sorai a valós
     szemarányt követik; az export is. Újratöltés után nem marad meg.
+- **Körök és motívumok** (PQW-861): a jobb oldali panel „Kör és motívum”
+  szakasza (a Méret és fonal alatt, alapból csukva).
+  - **Kezdés:** varázskör, láncgyűrű (a vásznon is: láncszemek, majd `K`), vagy
+    „2 lsz, 6 rp a 2. láncszembe”.
+  - **Kör vége:** zárt kör kúszószemmel és kezdőlánccal, vagy spirál; az írott
+    minta a spirálnál egyszer, a darab elején kéri a körjelölőt. Színváltásnál
+    spirálban lépcsőjavítás választható; nélküle az ellenőrző figyelmeztet és
+    javasol. Az alapértelmezés a tulajdonos döntése szerint a zárt kör
+    (amigurumiban spirál, az a PQW-863).
+  - **Lapos kör:** a szaporítás száma a körben mért mintasűrűségből
+    (2π × magasság/szélesség, páros számra kerekítve); profil nélkül a
+    szokásos körös arányból becsülve, és a szakasz ezt ki is írja. Eltolt
+    szaporítással a 04 §3.2, nélküle a 04 §3.1 táblázata.
+  - **Sokszög és motívum:** négyzet, hatszög, nyolcszög a sokszög lapos
+    értékével, a sarkokban egymás fölé kerülő szaporítással; nagymama-négyzet
+    láncívekkel (sarkonként 3 erp, 2 lsz, 3 erp).
+  - **Ellenőrzés a befejezett körökön:** legfeljebb duplázás vagy felezés,
+    kunkorodás (a lapos érték ~85%-a alatt két körön át), fodrosodás (~130%
+    fölött), három körön át egymás fölé kerülő szaporítás (sokszögben nem).
+  - **Írott minta körökre:** „3. kör: (1 rp, szap.) ×6 (18)”, angolul
+    „Rnd 3: (sc, inc) x6 (18)”; a „szap.” a rövidítéslistában áll. A sorok
+    alakja nem változott. Visszaolvasható, a japán előbeállítással is.
+  - **Rajz:** a jelek sugárirányban a középpontból kifelé, az alapjuk az előző
+    kör célpontszemén; a körszám a kör elején, a szemszám mögötte.
 
 A jelek alapból a Craft Yarn Council jelölését követik, és a könyvtár adataiból
 rajzolódnak: a szár hossza a láncszem-magasságból, a ferde vonalak száma a
@@ -137,6 +187,8 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/core/graph.ts` | A szemgráfból számolt sorok és körök: szemszám (a láncszemek a használatuk szerint, PQW-870), pozíciószám, színe vagy visszája, fordulólánc, haladási irány (PQW-856). |
 | `src/core/validate.ts`, `src/core/rules.ts` | Az ellenőrző és a szabálykatalógus. Minden szabálynál ott a súlyosság és a tudásbázis pontja; új szabály előbb a `rules.ts`-be kerül. |
 | `src/core/pattern-json.ts` | A minta mentése és betöltése verziózott JSON-ként (`formatVersion`), mezőútvonalas hibával. |
+| `src/core/rounds.ts` | **Körök geometriája** (PQW-861): a lapos körhöz és sokszöghöz kellő szaporítás a körös mintasűrűségből, eredettel; a befejezett körök ellenőrzése (növekedés, kunkorodás, fodrosodás, egymás fölé kerülő szaporítás, spirál lépcsője). |
+| `src/core/round-generator.ts` | **Kör- és motívumgenerátor** (PQW-861): lapos kör, négyzet, hatszög, nyolcszög, nagymama-négyzet szemgráfként, kezdéssel, körvéggel és színváltással. |
 | `src/core/pattern-size.ts` | **A minta mérete és fonala** (PQW-859): a mintával mentett profil a gauge-profil formájában, a méret rétegei a gráfból, fonalbecslés, profilok kezelése, az arányhelyes nézet szárhossza. |
 | `src/core/pattern-steps.ts` | **Az írott minta lépéssora** a gráfból (PQW-858), nyelvtől függetlenül: célpont az előző sor pozícióihoz képest, összevonás („5 rp”), legrövidebb ismétlődő egység. Itt dől el, mit tud a szöveg kifejezni. |
 | `src/core/pattern-text.ts`, `src/core/hungarian.ts` | Az írott minta szövege magyarul, amerikai és brit jelöléssel; rövidítéslista és jelmagyarázat a használt szemekkel; a magyar ragozás. Minden kiírt kifejezés innen jön. |
@@ -148,6 +200,9 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/ui/notation.ts` | **A jelölés és a jelstílus beállítása** (PQW-868): alapértelmezés a felület nyelvéből, tárolás, a jelrajz beállítása, a minta jelölésének rögzítése. DOM nélküli. |
 | `src/ui/size-view.ts`, `src/ui/size-panel.ts` | **A „Méret és fonal” szakasz** (PQW-859): a kiírás szövegei eredettel és tartománnyal, tűátváltás (DOM nélkül); a profil-szerkesztő és a profilváltás a panelen. |
 | `src/ui/written.ts` | **Az írott minta panelje** (PQW-868): a szöveg a jelöléssel, vagy érthető üzenet, ha a minta még nem írható ki. DOM nélküli. |
+| `src/ui/rounds-view.ts`, `src/ui/rounds-panel.ts` | **A „Kör és motívum” szakasz** (PQW-861): a választások és a szaporítás magyarázata eredettel (DOM nélkül); a mezők és a minta létrehozása a panelen. |
+| `src/core/insertion.ts` | **Beszúrási mód** (PQW-869): a szem megengedett módjai, az érvényes mód, a horgoló felőli és a színoldali mód átváltása, a szemek tárolt módja a rajzhoz. |
+| `src/ui/insertion-view.ts`, `src/ui/insertion-panel.ts` | **A „Beszúrás” választó** a Szemek szakaszban (PQW-869): a módok, az érvényes mód és az írott alak (DOM nélkül); a rádiógombok a panelen. |
 | `src/core/editor.ts` | **A szerkesztő műveletei** (PQW-857): célpontok, horgolás, „még egy ugyanabba”, fordulás, körzárás, az utolsó lépés törlése, kézi igazítás, élő ellenőrzés. |
 | `src/core/selection.ts` | **Kijelölés, törlés, másolás, beillesztés, duplikálás** (PQW-875): egész egységek (csoport, láncív), sor, terület és billentyűzetes lépés; törlés a belé horgolt szemekkel; a másolat célpont-eltolásokkal, a beillesztés újraköt, és hibánál nem változtat. Tiszta függvény. |
 | `src/core/grid.ts` | **A rács** (PQW-874): sávok és cellák az igazítás nélküli számolt elrendezésből, sorban és körben; találat, célzás és az üzenet, ha nincs mibe horgolni. Tiszta függvény. |
@@ -166,7 +221,7 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `public/.htaccess` | Biztonsági fejlécek és cache. A CSP a GA-azonosítóval együtt változik — a `tests/analytics.test.mjs` őrzi. |
 | `tests/*.test.mjs` | `node:test` tesztek; a `core-*` a magot, a `ui-*` a jelrajzot, a palettát és az SVG-t, az `analytics` a süti-sávot és a CSP-t, a `hu-vocabulary` a magyar szóhasználatot (szem = stitch) nézi. |
 | `tests/fixtures/written/` | Az írott minta rögzített szövege kidolgozott példánként (`hu`, `en-US`); a magyart a tulajdonos hagyja jóvá. |
-| `e2e/*.spec.ts`, `playwright.config.ts` | Böngészős tesztek a kritikus utakra: téglalap billentyűzettel, mentés és újratöltés, export, az írott minta panelje jelölésváltással, a japán előbeállítás (`editor.spec.ts`); mintatípus-választás, szemválasztás a panelből, hibaszámláló, alsó írott panel (`felulet.spec.ts`); az elrendezés helyei (`elrendezes.spec.ts`); a panel szakaszai és a tooltipek (`panel.spec.ts`); téglalap cellákra kattintva, a rács kapcsolója és exportja (`racs.spec.ts`); becslés profil nélkül, profil megadása és mentése, arányhelyes nézet (`meret.spec.ts`); kijelölés a sorszámmal, billentyűzettel és területtel, másolás, beillesztés, duplikálás, törlés az érintett szemek megmutatásával, visszavonás (`kijeloles.spec.ts`). |
+| `e2e/*.spec.ts`, `playwright.config.ts` | Böngészős tesztek a kritikus utakra: téglalap billentyűzettel, mentés és újratöltés, export, az írott minta panelje jelölésváltással, a japán előbeállítás (`editor.spec.ts`); mintatípus-választás, szemválasztás a panelből, hibaszámláló, alsó írott panel (`felulet.spec.ts`); az elrendezés helyei (`elrendezes.spec.ts`); a panel szakaszai és a tooltipek (`panel.spec.ts`); téglalap cellákra kattintva, a rács kapcsolója és exportja (`racs.spec.ts`); becslés profil nélkül, profil megadása és mentése, arányhelyes nézet (`meret.spec.ts`); kijelölés a sorszámmal, billentyűzettel és területtel, másolás, beillesztés, duplikálás, törlés az érintett szemek megmutatásával, visszavonás (`kijeloles.spec.ts`); hátsó szálas és reliefes sor a beszúrási mód választójával (`beszuras.spec.ts`). |
 | `tests/*.check.ts` | Csak fordítási próba: a `tsconfig.core.json` típusellenőrzi, nem fut. |
 | `tsconfig.core.json` | A `src/core/` típusellenőrzése DOM-típusok nélkül. |
 

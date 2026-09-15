@@ -69,3 +69,31 @@ test('rákhurok hullámvonallal; minden szem véges alakzatot ad a diagramon', (
     assert.ok(Object.values(shapeBounds(shapes)).every(Number.isFinite), def.id);
   }
 });
+
+test('a vászon a tárolt, színoldali módot rajzolja, a szem listájával össze nem vetve, hibát nem dobva (PQW-869)', () => {
+  const crab = placedShapes(stitchById('rev-sc'), stitchAt([{ x: 0, y: 0 }], { x: 0, y: -18 }), { singleCrochet: 'plus', insertion: 'back-loop' });
+  assert.equal(byRole(crab, 'back-loop').length, 1);
+  // Visszai soron a láthatatlan fogyasztás színoldalról hátsó szálas.
+  const invdec = placedShapes(stitchById('invdec'), stitchAt([{ x: 0, y: 0 }, { x: 24, y: 0 }], { x: 12, y: -18 }), {
+    singleCrochet: 'plus',
+    insertion: 'back-loop',
+  });
+  assert.equal(byRole(invdec, 'back-loop').length, 2);
+  assert.equal(byRole(invdec, 'front-loop').length, 0);
+});
+
+test('egy alapba horgolt összetett jel a választott mód jelölésével a talpon, JIS-ben a hátsó szál vonal (PQW-869)', () => {
+  const foot = { x: 0, y: 0 };
+  const top = { x: 0, y: -stemLength(3) };
+  for (const style of ['cyc', 'jis']) {
+    const shapes = placedShapes(stitchById('bobble-5dc'), stitchAt([foot], top), { singleCrochet: 'plus', style, insertion: 'back-loop' });
+    const marks = byRole(shapes, 'back-loop');
+    assert.equal(marks.length, 1, style);
+    assert.equal(marks[0].kind, style === 'jis' ? 'line' : 'curve');
+    assert.ok(marks.every((mark) => (mark.kind === 'line' ? mark.from.y : mark.control.y) > -6), `${style}: a jelölés a talpnál`);
+  }
+  // A jelmagyarázat és a paletta jele továbbra is hibát dob tiltott módra, a vászon jele nem.
+  const relief = { singleCrochet: 'plus', insertion: 'front-post' };
+  assert.throws(() => symbolShapes(stitchById('bobble-5dc'), relief), RangeError);
+  assert.doesNotThrow(() => placedShapes(stitchById('bobble-5dc'), stitchAt([foot], top), relief));
+});

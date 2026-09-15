@@ -9,9 +9,13 @@
  * minden 5. vonal még erősebb, minden 10. a legerősebb. A készülő, még üres
  * sor vonalai szaggatottak. Rajzolási sorrend: a gyengébb vonal előbb, hogy
  * a hangsúlyos vonalat ne takarja el.
+ *
+ * Sokszögben horgolt darabnál a gyűrűk egyenes oldalú sokszögek, a
+ * cellavonalak a sokszög paraméterét követik (PQW-888).
  */
 
 import type { ChartGrid, Emphasis, GridArea } from '../core/grid.ts';
+import { CIRCLE, framePoint, outline } from '../core/polygon.ts';
 
 export type LineWeight = 'cell' | 'row' | 'five' | 'ten';
 
@@ -47,12 +51,22 @@ function circle(r: number): string {
   return `M${num(r)} 0A${num(r)} ${num(r)} 0 1 0 ${num(-r)} 0A${num(r)} ${num(r)} 0 1 0 ${num(r)} 0Z`;
 }
 
-function radial(r0: number, r1: number, a: number): string {
-  const [c, s] = [Math.cos(a), -Math.sin(a)];
-  return `M${num(r0 * c)} ${num(r0 * s)}L${num(r1 * c)} ${num(r1 * s)}`;
+type Sector = Extract<GridArea, { kind: 'sector' }>;
+
+/** A gyűrű egyik széle: körben kör, sokszögben a csúcsokat összekötő zárt vonal. */
+function ring(area: Sector, r: number): string {
+  const corners = area.frame ? outline(area.frame, r) : [];
+  if (corners.length === 0) return circle(r);
+  return `${corners.map((p, i) => `${i === 0 ? 'M' : 'L'}${num(p.x)} ${num(p.y)}`).join('')}Z`;
 }
 
-const isFull = (area: Extract<GridArea, { kind: 'sector' }>) => area.a1 - area.a0 >= TAU - 1e-9;
+function radial(area: Sector, r0: number, r1: number, a: number): string {
+  const frame = area.frame ?? CIRCLE;
+  const [from, to] = [framePoint(frame, r0, a), framePoint(frame, r1, a)];
+  return `M${num(from.x)} ${num(from.y)}L${num(to.x)} ${num(to.y)}`;
+}
+
+const isFull = (area: Sector) => area.a1 - area.a0 >= TAU - 1e-9;
 
 export function gridPaths(grid: ChartGrid): GridPaths {
   const bands: BandPath[] = [];
@@ -70,10 +84,10 @@ export function gridPaths(grid: ChartGrid): GridPaths {
         { d: `M${num(x0)} ${num(y0)}H${num(x1)}`, weight: rowWeight(band.emphasis), dashed },
       );
     } else {
-      const inner = area.r0 > 0 ? circle(area.r0) : '';
-      bands.push({ d: `${circle(area.r1)}${inner}`, tone: band.tone, evenOdd: inner !== '' });
+      const inner = area.r0 > 0 ? ring(area, area.r0) : '';
+      bands.push({ d: `${ring(area, area.r1)}${inner}`, tone: band.tone, evenOdd: inner !== '' });
       if (inner) lines.push({ d: inner, weight: 'row', dashed });
-      lines.push({ d: circle(area.r1), weight: rowWeight(band.emphasis), dashed });
+      lines.push({ d: ring(area, area.r1), weight: rowWeight(band.emphasis), dashed });
     }
   }
 
@@ -86,7 +100,7 @@ export function gridPaths(grid: ChartGrid): GridPaths {
       if (band?.area.kind === 'rect' && area.x1 >= band.area.x1 - 1e-6) continue;
       lines.push({ d: `M${num(area.x1)} ${num(area.y0)}V${num(area.y1)}`, weight: cellWeight(cell.emphasis), dashed });
     } else if (!isFull(area)) {
-      lines.push({ d: radial(area.r0, area.r1, area.a1), weight: cellWeight(cell.emphasis), dashed });
+      lines.push({ d: radial(area, area.r0, area.r1, area.a1), weight: cellWeight(cell.emphasis), dashed });
     }
   }
 

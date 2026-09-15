@@ -13,6 +13,7 @@
  */
 
 import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
+import { INSERTION_NAMES, effectiveInsertion, modeAsWorked, stitchInsertions } from './insertion.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { increase, shell } from './stitches.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
@@ -93,6 +94,8 @@ export interface WorkContext {
   /** A réteg, amelybe a következő szem kerül; lehet, hogy még nincs a gráfban. */
   readonly layer: number;
   readonly shape: LayerInfo['shape'];
+  /** A réteg oldala: visszai soron a horgoló felől választott mód a tárolásban megfordul (PQW-869). */
+  readonly side: LayerInfo['side'];
   /** A célpontok a haladási irányban. */
   readonly slots: readonly Slot[];
   /** Melyik célpontba horgolt már a réteg. */
@@ -116,6 +119,7 @@ export function contextOf(pattern: Pattern): WorkContext {
     graph: null,
     layer: 0,
     shape: 'row',
+    side: 'right',
     slots: [],
     used: [],
     frontier: -1,
@@ -156,6 +160,8 @@ export function contextOf(pattern: Pattern): WorkContext {
   const slots = layerSlots(graph, layer, below, reversed, shape);
 
   const current = graph.layers[layer];
+  // A még meg nem kezdett réteg oldala a gráf szabálya szerint: fordulás után a másik oldal (graph.ts).
+  const side = current?.side ?? (below.closing?.kind === 'turn' ? (below.side === 'right' ? 'wrong' : 'right') : below.side);
   const worked = new Set<string>();
   for (const id of current?.stitches ?? []) {
     for (const anchor of graph.nodes.get(id)!.anchors) worked.add(anchorKey(anchor));
@@ -165,7 +171,7 @@ export function contextOf(pattern: Pattern): WorkContext {
   const turningChain = current?.turningChain.length ?? 0;
   const started = (current?.stitches.length ?? 0) > turningChain;
 
-  return { library, graph, layer, shape, slots, used, frontier, turningChain, started };
+  return { library, graph, layer, shape, side, slots, used, frontier, turningChain, started };
 }
 
 /**
@@ -271,6 +277,11 @@ export interface Tool {
   readonly def: StitchDefId;
   /** Láncszemnél és láncívnél a láncszemek száma. */
   readonly count: number;
+  /**
+   * A beszúrási mód a horgoló felől (PQW-869); hiányában a szem alapértelmezése.
+   * Csak szembe horgolásnál számít, láncívbe és varázskörbe nem.
+   */
+  readonly insertion?: StitchInsertion | undefined;
 }
 
 function hasEventAfterLast(piece: Piece): boolean {
@@ -330,13 +341,13 @@ export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readon
     if (slots.length < def.consumes || slots.some((slot) => slot.kind !== 'stitch')) {
       return refuse(`Ehhez ${def.consumes} egymás melletti szem kell a célponttól.`);
     }
-    const mode = stitchMode(def);
-    if (!mode) return refuse('Ez a szem nem horgolható szembe.');
-    const anchors = slots.map((slot): Anchor => ({ into: 'stitch', id: slot.id, mode }));
+    const mode = stitchModeFor(def, tool.insertion, context.side);
+    if ('reason' in mode) return refuse(mode.reason);
+    const anchors = slots.map((slot): Anchor => ({ into: 'stitch', id: slot.id, mode: mode.mode }));
     return done(withPiece(pattern, append(piece, [{ def: def.id, anchors, ...marks }]).piece));
   }
 
-  const anchor = anchorFor(def, first);
+  const anchor = anchorFor(def, first, tool.insertion, context.side);
   if (typeof anchor === 'string') return refuse(anchor);
 
   if (def.kind === 'group') {
@@ -357,16 +368,32 @@ export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readon
   return done(withPiece(pattern, append(piece, [{ def: def.id, anchors: [anchor], ...marks }]).piece));
 }
 
-function stitchMode(def: StitchDef): StitchInsertion | undefined {
-  return def.insertionModes.find((mode): mode is StitchInsertion => mode !== 'space' && mode !== 'ring');
+/**
+ * A tárolt, színoldali mód a horgoló felől kértből, vagy érthető ok, ha a szem
+ * így nem horgolható (PQW-869).
+ */
+function stitchModeFor(
+  def: StitchDef,
+  requested: StitchInsertion | undefined,
+  side: LayerInfo['side'],
+): { readonly mode: StitchInsertion } | { readonly reason: string } {
+  const name = def.terms.hu.name;
+  const allowed = stitchInsertions(def);
+  const mode = effectiveInsertion(def, requested);
+  if (!mode) return { reason: `A(z) ${name} nem horgolható szembe.` };
+  if (requested && requested !== mode) {
+    const choices = allowed.map((candidate) => INSERTION_NAMES[candidate]).join(', ');
+    return { reason: `A(z) ${name} nem horgolható így: ${INSERTION_NAMES[requested]}. Választható: ${choices}.` };
+  }
+  return { mode: modeAsWorked(mode, side) };
 }
 
-function anchorFor(def: StitchDef, slot: Slot): Anchor | string {
+function anchorFor(def: StitchDef, slot: Slot, requested: StitchInsertion | undefined, side: LayerInfo['side']): Anchor | string {
   const name = def.terms.hu.name;
   switch (slot.kind) {
     case 'stitch': {
-      const mode = stitchMode(def);
-      return mode ? { into: 'stitch', id: slot.id, mode } : `A(z) ${name} nem horgolható szembe.`;
+      const mode = stitchModeFor(def, requested, side);
+      return 'reason' in mode ? mode.reason : { into: 'stitch', id: slot.id, mode: mode.mode };
     }
     case 'space':
       return def.insertionModes.includes('space') ? { into: 'space', id: slot.id } : `A(z) ${name} nem horgolható láncívbe.`;
@@ -456,12 +483,53 @@ export function endRow(pattern: Pattern, tool: StitchDefId | null): EditResult {
   return done(withPiece(pattern, next));
 }
 
-/** A kör zárása kúszószemmel a kör első pozíciójába: az első szembe vagy a kezdőlánc tetejébe (06 §5.3 V4). */
+/** Ennyi láncszemből lehet láncgyűrű; kevesebbnél a „2 lsz, 6 rp a 2. láncszembe” kezdés való. */
+export const MIN_RING_CHAINS = 3;
+
+/** Láncgyűrű zárható-e: a darab csak láncszemekből áll, láncív és esemény nélkül (04 §1.1). */
+export function canJoinChainRing(pattern: Pattern): boolean {
+  const piece = pieceOf(pattern);
+  return (
+    piece.stitches.length >= MIN_RING_CHAINS &&
+    piece.stitches.every((node) => node.def === 'ch') &&
+    piece.spaces.length === 0 &&
+    piece.events.length === 0
+  );
+}
+
+/**
+ * Véget érhet-e most a kör, kúszószemmel vagy spirálban: körben, ha már van
+ * szeme, és a láncszembe horgolt 1. kör után is („2 lsz, 6 rp a 2.
+ * láncszembe”, 04 §1.1), amelyet a zárás tesz körré (PQW-861).
+ */
+export function canEndRound(context: WorkContext): boolean {
+  const layer = context.graph?.layers[context.layer];
+  if (!context.graph || !context.started || !layer || layer.positions.length === 0 || layer.closing !== null) return false;
+  if (context.shape === 'round') return true;
+  const base = context.graph.layers[0]!;
+  return context.layer === 1 && base.positions.length === 1 && base.stitches.every((id) => context.graph!.defs.get(id)!.kind === 'chain');
+}
+
+/** A kör zárása gombja: láncgyűrű a láncszemekből, vagy a kör zárása. */
+export function canCloseRound(pattern: Pattern, context: WorkContext = contextOf(pattern)): boolean {
+  return canJoinChainRing(pattern) || canEndRound(context);
+}
+
+/**
+ * A kör zárása kúszószemmel a kör első pozíciójába: az első szembe vagy a
+ * kezdőlánc tetejébe (06 §5.3 V4). Ha a darab még csak láncszem, a zárás
+ * láncgyűrűt ad (PQW-861).
+ */
 export function closeRound(pattern: Pattern): EditResult {
   const piece = pieceOf(pattern);
+  if (canJoinChainRing(pattern)) return joinChainRing(pattern);
   const context = contextOf(pattern);
+  const onlyChains = piece.stitches.length > 0 && piece.stitches.every((node) => node.def === 'ch');
+  if (onlyChains && piece.stitches.length < MIN_RING_CHAINS) {
+    return refuse(`A láncgyűrűhöz legalább ${MIN_RING_CHAINS} láncszem kell; 2 láncszemnél horgold az 1. kört a 2. láncszembe.`);
+  }
   if (!context.graph || !context.started) return refuse('Ebben a körben még nincs szem.');
-  if (context.shape !== 'round') return refuse('Sorban nincs körzárás: a sor végén fordulunk.');
+  if (!canEndRound(context)) return refuse('Sorban nincs körzárás: a sor végén fordulunk.');
   const layer = context.graph.layers[context.layer]!;
   const first = layer.positions[0];
   if (!first) return refuse('A körnek nincs első szeme, amelybe zárni lehetne.');
@@ -473,8 +541,35 @@ export function closeRound(pattern: Pattern): EditResult {
 }
 
 /**
+ * Láncgyűrű (04 §1.1): kúszószem az első láncszembe, a láncszemekből egy
+ * láncív, amelybe az 1. kör horgol. A zárás eseménye az utolsó láncszem után
+ * áll; a kúszószem az 1. kör továbbvezetése (graph.ts).
+ */
+function joinChainRing(pattern: Pattern): EditResult {
+  const piece = pieceOf(pattern);
+  const chains = piece.stitches.map((node) => node.id);
+  const { piece: next } = append(piece, [{ def: 'sl-st', anchors: [{ into: 'stitch', id: chains[0]!, mode: 'both-loops' }] }]);
+  const ring = { id: nextId('s', piece.spaces.map((space) => space.id)), chains };
+  return done(withPiece(pattern, { ...next, spaces: [ring], events: [{ after: chains[chains.length - 1]!, kind: 'join-slip' }] }));
+}
+
+/**
+ * A kör vége spirálban: a következő kör zárás nélkül folytatódik, a kör első
+ * szemét körjelölő jelöli (04 §2). A lépcsőt a színváltásnál az ellenőrző jelzi.
+ */
+export function endRoundSpiral(pattern: Pattern): EditResult {
+  const piece = pieceOf(pattern);
+  const context = contextOf(pattern);
+  if (!context.graph || !context.started) return refuse('Ebben a körben még nincs szem.');
+  if (!canEndRound(context)) return refuse('Sorban nincs spirál: a sor végén fordulunk.');
+  const last = piece.stitches[piece.stitches.length - 1]!;
+  return done(withPiece(pattern, { ...piece, events: [...piece.events, { after: last.id, kind: 'spiral' }] }));
+}
+
+/**
  * Az utolsó lépés törlése: a sor vége (a körzáró kúszószemmel), a teljes
- * csoport, a teljes láncív, vagy egy szem.
+ * csoport, a teljes láncív, vagy egy szem. A láncgyűrű kúszószemével a gyűrű
+ * is felbomlik, a láncszemek maradnak.
  */
 export function deleteLast(pattern: Pattern): EditResult {
   const piece = pieceOf(pattern);
@@ -492,14 +587,21 @@ export function deleteLast(pattern: Pattern): EditResult {
   if (group) remove = new Set(group.members);
   else if (space) remove = new Set(space.chains);
 
+  const before = piece.stitches.slice(0, -1);
+  const ringJoin =
+    last.def === 'sl-st' && before.length > 0 && before.every((node) => node.def === 'ch')
+      ? piece.events.find((candidate) => candidate.after === last.prev && candidate.kind === 'join-slip')
+      : undefined;
+
   const stitches = piece.stitches.filter((node) => !remove.has(node.id));
   return done(
     withPiece(pattern, {
       ...piece,
       stitches,
-      events: piece.events.filter((e) => !remove.has(e.after)),
+      events: piece.events.filter((e) => !remove.has(e.after) && e !== ringJoin),
       groups: piece.groups.filter((g) => g.members.every((id) => !remove.has(id))),
       spaces: piece.spaces
+        .filter((s) => !ringJoin || !s.chains.includes(ringJoin.after))
         .map((s) => ({ ...s, chains: s.chains.filter((id) => !remove.has(id)) }))
         .filter((s) => s.chains.length > 0),
       rings: piece.rings.filter((r) => !remove.has(r.node)),

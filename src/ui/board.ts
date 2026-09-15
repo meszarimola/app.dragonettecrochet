@@ -13,10 +13,10 @@
  * minta hagyományát követik (src/ui/chart-labels.ts, PQW-876).
  */
 
-import { aimAt, gridHit, type ChartGrid } from '../core/grid.js';
+import { aimAt, chartBounds, gridHit, type ChartGrid } from '../core/grid.js';
 import type { ChartLayout, Point } from '../core/layout.js';
 import type { StitchLibrary } from '../core/stitch-library.js';
-import type { Finding, NodeId, Tradition } from '../core/types.js';
+import type { Finding, NodeId, StitchInsertion, Tradition } from '../core/types.js';
 import { chartLabels } from './chart-labels.js';
 import { gridPaths, LINE_WIDTH, type GridPaths } from './grid-paths.js';
 import { applyInk, drawShapes, placedShapes, type SymbolOptions } from './symbols.js';
@@ -52,6 +52,8 @@ export interface Scene {
   readonly direction: DirectionArrow | null;
   /** A jelek stílusa és a rövidpálca jele (PQW-868). */
   readonly symbols: SymbolOptions;
+  /** A szemek tárolt, színoldali beszúrási módja a talp jelöléséhez (PQW-869); hiányában a szem alapértelmezése. */
+  readonly insertions?: ReadonlyMap<NodeId, StitchInsertion>;
   /** A rács (PQW-874), vagy `null`, ha ki van kapcsolva. */
   readonly grid: ChartGrid | null;
   /** A minta hagyománya a sorszám és a szemszám feliratához (PQW-876); hiányában CYC. */
@@ -83,6 +85,8 @@ interface Label {
 
 const MIN_SCALE = 0.3;
 const MAX_SCALE = 4;
+/** Az „Egész minta” ennél kisebbre nem kicsinyít, hogy a rajz ne vesszen el. */
+const MIN_FIT_SCALE = 0.05;
 /** Ennyi képernyőpixelen belül talál a kattintás célpontot vagy jelet. */
 const HIT = 16;
 const LABEL_HEIGHT = 16;
@@ -207,7 +211,8 @@ export class Board {
 
   zoom(factor: number): void {
     const { width, height } = this.#canvas.getBoundingClientRect();
-    const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, this.#view.scale * factor));
+    // Az illesztés a legkisebb lépcső alá is mehet; onnan kicsinyítve a nézet nem ugrik vissza nagyobbra.
+    const scale = Math.min(MAX_SCALE, Math.max(Math.min(MIN_SCALE, this.#view.scale), this.#view.scale * factor));
     const k = scale / this.#view.scale;
     this.#view.x = width / 2 - (width / 2 - this.#view.x) * k;
     this.#view.y = height / 2 - (height / 2 - this.#view.y) * k;
@@ -215,22 +220,37 @@ export class Board {
     this.render();
   }
 
+  /** A rács befoglaló téglalapja ablak-koordinátában, rács nélkül `null` (böngészős tesztekhez, PQW-887). */
+  gridBounds(): { left: number; top: number; right: number; bottom: number } | null {
+    const grid = this.#scene?.grid;
+    if (!grid || grid.bands.length === 0) return null;
+    const a = this.toClient({ x: grid.bounds.minX, y: grid.bounds.minY });
+    const b = this.toClient({ x: grid.bounds.maxX, y: grid.bounds.maxY });
+    return { left: Math.min(a.x, b.x), top: Math.min(a.y, b.y), right: Math.max(a.x, b.x), bottom: Math.max(a.y, b.y) };
+  }
+
   /**
    * Az egész minta a látható részbe. Az `inset…` értékek a vászon fölött nyitott
    * panelek mérete: oldalt a szélességük, alul (az írott minta) a magasságuk.
+   * Bekapcsolt rácsnál a rács széle is belefér (PQW-887).
    */
   fit(insetRight = 0, insetLeft = 0, insetBottom = 0): void {
     const layout = this.#scene?.layout;
     const { width, height } = this.#canvas.getBoundingClientRect();
-    const roomY = Math.max(height - insetBottom, 120);
+    const roomY = height - insetBottom;
+    // A teljes vásznat elfedő panel mögé nincs mit illeszteni (PQW-885).
+    if (roomY < 1) return;
     if (!layout || layout.nodes.size === 0) {
       Object.assign(this.#view, { scale: 1.5, x: insetLeft + 60, y: roomY * 0.7 });
       this.render();
       return;
     }
-    const { minX, minY, maxX, maxY } = layout.bounds;
+    const { minX, minY, maxX, maxY } = chartBounds(layout, this.#scene?.grid);
     const room = Math.max(width - insetRight - insetLeft, 120);
-    const scale = Math.min(2, Math.max(MIN_SCALE, Math.min((room - 48) / (maxX - minX), (roomY - 72) / (maxY - minY))));
+    // Alacsony látható sávban a margó is kisebb, hogy a minta ne kerüljön a takarásba.
+    const marginY = Math.min(72, roomY / 2);
+    // Az egész minta akkor is kifér, ha ehhez a nagyítás legkisebb lépcsőjénél kisebb lépték kell (PQW-887).
+    const scale = Math.min(2, Math.max(MIN_FIT_SCALE, Math.min((room - 48) / (maxX - minX), (roomY - marginY) / (maxY - minY))));
     this.#view.scale = scale;
     this.#view.x = insetLeft + (room - (maxX - minX) * scale) / 2 - minX * scale;
     this.#view.y = (roomY - (maxY - minY) * scale) / 2 - minY * scale;
@@ -240,25 +260,29 @@ export class Board {
   /** Csak akkor tol a nézeten, ha a pont kilóg a látható részből; így szerkesztés közben a diagram nem ugrál. */
   ensureVisible(point: Point, insetRight = 0, insetLeft = 0, insetBottom = 0): void {
     const { width, height } = this.#canvas.getBoundingClientRect();
+    const roomY = height - insetBottom;
+    if (roomY < 1) return;
     const s = this.#toScreen(point);
-    const pad = 48;
+    // A margó legfeljebb a látható sáv fele, különben keskeny sávban a pont a két szél között ugrálna (PQW-885).
+    const padX = Math.min(48, Math.max(0, (width - insetRight - insetLeft) / 2));
+    const padY = Math.min(48, roomY / 2);
     let dx = 0;
     let dy = 0;
-    if (s.x < insetLeft + pad) dx = insetLeft + pad - s.x;
-    else if (s.x > width - insetRight - pad) dx = width - insetRight - pad - s.x;
-    if (s.y < pad) dy = pad - s.y;
-    else if (s.y > height - insetBottom - pad) dy = height - insetBottom - pad - s.y;
+    if (s.x < insetLeft + padX) dx = insetLeft + padX - s.x;
+    else if (s.x > width - insetRight - padX) dx = width - insetRight - padX - s.x;
+    if (s.y < padY) dy = padY - s.y;
+    else if (s.y > roomY - padY) dy = roomY - padY - s.y;
     if (dx === 0 && dy === 0) return;
     this.#view.x += dx;
     this.#view.y += dy;
     this.render();
   }
 
-  /** Az egész minta a megadott részen belül van-e (vászon-koordinátában); üres mintánál nem. */
+  /** Az egész minta (bekapcsolt rácsnál a rács is) a megadott részen belül van-e (vászon-koordinátában); üres mintánál nem. */
   patternWithin(area: Area): boolean {
     const layout = this.#scene?.layout;
     if (!layout || layout.nodes.size === 0) return false;
-    const { minX, minY, maxX, maxY } = layout.bounds;
+    const { minX, minY, maxX, maxY } = chartBounds(layout, this.#scene?.grid);
     const a = this.#toScreen({ x: minX, y: minY });
     const b = this.#toScreen({ x: maxX, y: maxY });
     return (
@@ -302,7 +326,8 @@ export class Board {
       const def = scene.library.get(node.def);
       if (!def) continue;
       applyInk(ctx, colors[node.side], line);
-      drawShapes(ctx, placedShapes(def, node, scene.symbols));
+      const insertion = scene.insertions?.get(node.id);
+      drawShapes(ctx, placedShapes(def, node, insertion ? { ...scene.symbols, insertion } : scene.symbols));
     }
 
     // A sorszám a sor színével teli címkén, világos betűvel: a jelek mellett is kiugrik.

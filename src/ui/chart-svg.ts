@@ -16,12 +16,13 @@
  * „18目”, az ismétlés „6目1模様” (src/ui/chart-labels.ts, PQW-876).
  */
 
-import type { ChartGrid } from '../core/grid.ts';
+import { chartBounds, type ChartGrid } from '../core/grid.ts';
+import { INSERTION_NAMES, nodeInsertions } from '../core/insertion.ts';
 import type { ChartLayout } from '../core/layout.ts';
 import { VOCABULARIES } from '../core/pattern-text.ts';
 import type { StitchLibrary } from '../core/stitch-library.ts';
 import { stitchLabel } from '../core/stitchText.ts';
-import type { Locale, Pattern, StitchDef, Tradition } from '../core/types.ts';
+import type { Locale, Pattern, StitchDef, StitchInsertion, Tradition } from '../core/types.ts';
 import { chartLabels } from './chart-labels.ts';
 import { gridPaths, LINE_WIDTH } from './grid-paths.ts';
 import { chartStyleLabel, textLanguage, termsLabel } from './notation.ts';
@@ -103,6 +104,26 @@ export function legendStitches(pattern: Pattern, library: StitchLibrary): Stitch
   return [...seen.values()];
 }
 
+/**
+ * A jelmagyarázat jelölt beszúrású jelei (PQW-869): szemenként és színoldali
+ * módonként egyszer, az első előfordulás sorrendjében. A kúszószem pontjára
+ * nem kerül jelölés, ezért kimarad; a szem listáján kívüli mód is, azt az
+ * ellenőrző jelzi.
+ */
+export function legendInsertions(pattern: Pattern, library: StitchLibrary): { readonly def: StitchDef; readonly mode: StitchInsertion }[] {
+  const piece = pattern.pieces[0];
+  const modes = nodeInsertions(piece);
+  const seen = new Map<string, { readonly def: StitchDef; readonly mode: StitchInsertion }>();
+  for (const node of piece?.stitches ?? []) {
+    const mode = modes.get(node.id);
+    const def = library.get(node.def);
+    if (!mode || mode === 'both-loops' || !def || def.kind === 'slip' || !def.insertionModes.includes(mode)) continue;
+    const key = `${def.id}/${mode}`;
+    if (!seen.has(key)) seen.set(key, { def, mode });
+  }
+  return [...seen.values()];
+}
+
 export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchLibrary, options: ChartSvgOptions): string {
   const { colors } = options;
   const terms = options.terms ?? 'hu';
@@ -111,18 +132,14 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
   const system = VOCABULARIES[terms].system;
   const captions = chartLabels(options.tradition ?? 'cyc');
   const repeat = captions.repeat(pattern.conventions.repeat);
-  const bounds = grid
-    ? {
-        minX: Math.min(layout.bounds.minX, grid.grid.bounds.minX),
-        minY: Math.min(layout.bounds.minY, grid.grid.bounds.minY),
-        maxX: Math.max(layout.bounds.maxX, grid.grid.bounds.maxX),
-        maxY: Math.max(layout.bounds.maxY, grid.grid.bounds.maxY),
-      }
-    : layout.bounds;
+  const bounds = chartBounds(layout, grid?.grid);
   const chartWidth = Math.max(bounds.maxX - bounds.minX, 0);
   const chartHeight = Math.max(bounds.maxY - bounds.minY, 0);
   const legend = legendStitches(pattern, library);
   const labels = legend.map((def) => stitchLabel(def, terms));
+  const marked = legendInsertions(pattern, library);
+  const markedLabels = marked.map(({ def, mode }) => [stitchLabel(def, terms), INSERTION_NAMES[mode]] as const);
+  const insertions = nodeInsertions(pattern.pieces[0]);
   const keys: [string, string][] = [
     [colors.right, 'Színoldali sor'],
     [colors.wrong, 'Visszai sor'],
@@ -131,12 +148,16 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
     `Jelölés: ${termsLabel(terms)}; jelek: ${chartStyleLabel(symbols.style ?? 'cyc')}.`,
     captions.note,
     ...(repeat ? [`Ismétlés: ${repeat}.`] : []),
+    ...(marked.length > 0 ? ['A szál és a relief jele a színoldalról nézve; visszai soron a horgoló a másik szálba, illetve a másik oldalról szúr.'] : []),
     ...(grid ? ['Rács: váltakozó sávok, minden 5. és 10. vonal vastagabb.'] : []),
     ...(options.mirror ? ['Tükrözött nézet balkezeseknek.'] : []),
   ];
-  const legendRows = legend.length + keys.length + notes.length;
+  const legendRows = legend.length + marked.length + keys.length + notes.length;
   // A felirat szélessége becslés: 13 px-es betűnél karakterenként legfeljebb kb. 7,4 px.
-  const textWidth = LEGEND_ICON + 12 + 7.4 * Math.max(...labels.map((l) => l.length), ...notes.map((n) => n.length));
+  const textWidth =
+    LEGEND_ICON +
+    12 +
+    7.4 * Math.max(...labels.map((l) => l.length), ...markedLabels.map(([stitch, mode]) => stitch.length + mode.length + 3), ...notes.map((n) => n.length));
   const width = Math.max(chartWidth, textWidth, 360) + 2 * MARGIN;
   const legendTop = MARGIN + TITLE + chartHeight + MARGIN;
   const height = legendTop + 28 + legendRows * LEGEND_ROW + MARGIN;
@@ -177,7 +198,8 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
     for (const node of layout.nodes.values()) {
       const def = library.get(node.def);
       if (node.side !== side || !def) continue;
-      for (const shape of placedShapes(def, node, symbols)) out.push(shapeToSvg(shape));
+      const insertion = insertions.get(node.id);
+      for (const shape of placedShapes(def, node, insertion ? { ...symbols, insertion } : symbols)) out.push(shapeToSvg(shape));
     }
     out.push('</g>');
   }
@@ -204,6 +226,18 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
   let y = legendTop + 28;
   const iconCenter = (row: number) => ({ x: MARGIN + LEGEND_ICON / 2, y: row + LEGEND_ROW / 2 });
 
+  const legendIcon = (shapes: readonly Shape[], label: string, row: number) => {
+    const b = shapeBounds(shapes);
+    const k = Math.min(1, LEGEND_ICON / Math.max(b.maxX - b.minX, b.maxY - b.minY, 1));
+    const c = iconCenter(row);
+    const tx = c.x - (k * (b.minX + b.maxX)) / 2;
+    const ty = c.y - (k * (b.minY + b.maxY)) / 2;
+    out.push(
+      `<g class="ink" stroke="${colors.right}" color="${colors.right}" transform="translate(${num(tx)} ${num(ty)}) scale(${num(k)})" stroke-width="${num(2 / k)}">${shapes.map(shapeToSvg).join('')}</g>`,
+      `<text x="${MARGIN + LEGEND_ICON + 12}" y="${num(c.y)}" dominant-baseline="middle">${label}</text>`,
+    );
+  };
+
   legend.forEach((def, i) => {
     const shapes = symbolShapes(def, symbols);
     const b = shapeBounds(shapes);
@@ -215,6 +249,13 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
       `<g class="ink" stroke="${colors.right}" color="${colors.right}" transform="translate(${num(tx)} ${num(ty)}) scale(${num(k)})" stroke-width="${num(2 / k)}">${shapes.map(shapeToSvg).join('')}</g>`,
       `<text x="${MARGIN + LEGEND_ICON + 12}" y="${num(c.y)}" dominant-baseline="middle" lang="${textLanguage(terms)}">${escapeXml(labels[i]!)}</text>`,
     );
+    y += LEGEND_ROW;
+  });
+
+  // A jelölt beszúrású jelek: a szem neve a jelöléssel, a mód a felület nyelvén (PQW-869).
+  marked.forEach(({ def, mode }, i) => {
+    const [stitch, modeName] = markedLabels[i]!;
+    legendIcon(symbolShapes(def, { ...symbols, insertion: mode }), `<tspan lang="${textLanguage(terms)}">${escapeXml(stitch)}</tspan> – ${escapeXml(modeName)}`, y);
     y += LEGEND_ROW;
   });
 

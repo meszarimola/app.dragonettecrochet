@@ -6,9 +6,12 @@
 import { strict as assert } from 'node:assert';
 import { after, describe, test } from 'node:test';
 
+import { emptyPattern } from '../src/core/editor.ts';
+import { DEFAULT_MOTIF, generateMotif } from '../src/core/round-generator.ts';
 import { RULES } from '../src/core/rules.ts';
+import { libraryFor } from '../src/core/stitch-variants.ts';
 import { validatePattern } from '../src/core/validate.ts';
-import { editNode } from './fixtures/builder.ts';
+import { PieceBuilder, editNode, patternOf } from './fixtures/builder.ts';
 import {
   WORKED_EXAMPLES,
   chevron,
@@ -195,6 +198,69 @@ describe('nagymama-négyzet, elrontva (03 §8)', () => {
   });
 });
 
+/* ---- Körök (PQW-861) ---- */
+
+/** Rövidpálcás kör varázskörből, zárt körökkel: az 1. kör 6 szem, utána körönként a megadott horgolás. */
+function scRounds(...rounds) {
+  const b = new PieceBuilder('p1', 'Kör');
+  const ring = b.ring();
+  b.chain(1);
+  let below = Array.from({ length: 6 }, () => b.stitch('sc', { ring }));
+  b.stitch('sl-st', below[0]);
+  b.event('join-slip');
+  for (const round of rounds) {
+    b.chain(1);
+    const next = round(b, below);
+    b.stitch('sl-st', next[0]);
+    b.event('join-slip');
+    below = next;
+  }
+  return patternOf('Kör', [b.build()]);
+}
+const increaseEach = (b, below) => below.flatMap((target) => b.inSame('inc-2sc', ['sc', 'sc'], target));
+const plainEach = (b, below) => below.map((target) => b.stitch('sc', target));
+const byThree = (b, below) => Array.from({ length: below.length / 3 }, (_, i) => b.stitch('sc3tog', ...below.slice(3 * i, 3 * i + 3)));
+const motif = (patch) => generateMotif(emptyPattern(), { ...DEFAULT_MOTIF, ...patch }).pattern;
+
+describe('körök, elrontva (04 §2, §3.2, §8, §9, PQW-861)', () => {
+  test('a generált lapos kör eltolt szaporítással hibátlan', () => {
+    assert.deepEqual(validatePattern(motif({ rounds: 8 }), testLibrary), []);
+  });
+
+  test('egy körben a felénél kevesebb szem marad: 12-ből 4', () => {
+    assertOnly(scRounds(increaseEach, byThree), 'round-growth');
+  });
+
+  test('két körön át szaporítás nélkül: kunkorodik', () => {
+    assertOnly(scRounds(increaseEach, plainEach, plainEach), 'round-cupping');
+  });
+
+  test('egy kör szaporítás nélkül még nem kunkorodás', () => {
+    assert.deepEqual(validatePattern(scRounds(increaseEach, plainEach), testLibrary), []);
+  });
+
+  test('a lapos érték kétszerese egy körben: fodrosodik', () => {
+    assertOnly(scRounds(increaseEach, increaseEach), 'round-ruffling');
+  });
+
+  test('eltolás nélkül a szaporítások a 3–5. körben egymás fölé kerülnek; a 4. körig még nem jelez', () => {
+    assertOnly(motif({ rounds: 5, stagger: false }), 'stacked-increases');
+    assert.deepEqual(validatePattern(motif({ rounds: 4, stagger: false }), testLibrary), []);
+  });
+
+  test('spirálban színváltás lépcsőjavítás nélkül; javítással nem jelez', () => {
+    assertOnly(motif({ rounds: 4, closing: 'spiral', colorEvery: 2 }), 'spiral-color-jog');
+    assert.deepEqual(validatePattern(motif({ rounds: 4, closing: 'spiral', colorEvery: 2, jogFix: 'back-loop' }), testLibrary), []);
+  });
+
+  test('sokszögben a sarkok szándékosan egymás fölött vannak: nem jelez', () => {
+    for (const shape of ['square', 'hexagon', 'octagon', 'granny-square']) {
+      const pattern = motif({ shape, rounds: 6 });
+      assert.deepEqual(validatePattern(pattern, libraryFor(pattern)), [], shape);
+    }
+  });
+});
+
 describe('a megadott szemszám a láncszemek számolása szerint (03 §10 B10, PQW-870)', () => {
   const withChainCounts = (example, chainCounts) => ({ ...example.pattern, conventions: { ...example.pattern.conventions, chainCounts } });
 
@@ -206,6 +272,16 @@ describe('a megadott szemszám a láncszemek számolása szerint (03 §10 B10, P
   test('ha minden láncszem számít, az utolsó sor díszívek nélkül megadott szemszáma hibás', () => {
     const example = vStitchPattern();
     assertOnly(withChainCounts(example, true), 'stated-count', [[example.rows[2].at(-1)]]);
+  });
+});
+
+describe('a szem által nem engedett beszúrási mód (01 §4.3, PQW-869)', () => {
+  test('a befejező rákhurok-sor hátsó szálba', () => {
+    const example = hdcRectangle({ rows: 3, crabRow: 3 });
+    const id = example.rows[3][0];
+    const node = example.pattern.pieces[0].stitches.find((candidate) => candidate.id === id);
+    const pattern = editNode(example.pattern, id, { anchors: node.anchors.map((anchor) => ({ ...anchor, mode: 'back-loop' })) });
+    assertOnly(pattern, 'insertion-mode', [[id]]);
   });
 });
 

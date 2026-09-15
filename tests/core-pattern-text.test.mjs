@@ -211,7 +211,8 @@ describe('a minta konvenciói a szövegben', () => {
       pieces: [{ ...piece, events: piece.events.map((event, i) => ({ ...event, statedCount: counts[i] })) }],
     };
     const text = textOf(pattern, 'en-US');
-    assert.match(text, /\(21 sts\)[\s\S]*\(40 sts\)[\s\S]*\(40 sts\)/);
+    // Körben a szemszám egység nélkül áll: „(21)” (04 §5.9, PQW-861).
+    assert.match(text, /\(21\)\.[\s\S]*\(40\)\.[\s\S]*\(40\)\./);
     const result = readBack(text, pattern, 'en-US');
     assert.ok(result.ok, JSON.stringify(result.error));
     assert.deepEqual(canonicalPattern(result.pattern), canonicalPattern(pattern));
@@ -256,14 +257,14 @@ function backLoopRows() {
 describe('beszúrási mód: visszai soron az első és a hátsó szál megfordul (03 §2.1)', () => {
   test('magyarul: a színoldali hátsó szál a visszai soron első szál', () => {
     const lines = writePattern(backLoopRows(), testLibrary, 'hu').pieces[0].lines;
-    assert.equal(lines[2], '2. sor: 1 lsz (nem számít szemnek), 5 rp (első szál) (5 szem). Fordítás.');
-    assert.equal(lines[3], '3. sor: 1 lsz (nem számít szemnek), 5 rp (hátsó szál) (5 szem). A fonal elvágása.');
+    assert.equal(lines[2], '2. sor: 1 lsz (nem számít szemnek), 5 rp (esz) (5 szem). Fordítás.');
+    assert.equal(lines[3], '3. sor: 1 lsz (nem számít szemnek), 5 rp (hsz) (5 szem). A fonal elvágása.');
   });
 
-  test('angolul: flo a visszai, blo a színoldali soron', () => {
+  test('angolul: FLO a visszai, BLO a színoldali soron', () => {
     const lines = writePattern(backLoopRows(), testLibrary, 'en-US').pieces[0].lines;
-    assert.match(lines[2], /5 sc flo \(5 sts\)/);
-    assert.match(lines[3], /5 sc blo \(5 sts\)/);
+    assert.match(lines[2], /5 sc FLO \(5 sts\)/);
+    assert.match(lines[3], /5 sc BLO \(5 sts\)/);
   });
 
   for (const locale of LOCALES) {

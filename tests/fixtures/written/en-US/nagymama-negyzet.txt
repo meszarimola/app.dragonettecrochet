@@ -17,6 +17,6 @@ magic ring (MR)
 
 Nagymama-négyzet
 Magic ring.
-Rnd 1: ch 3 (counts as 1 dc), 2 dc in ring, ch 2, [3 dc in ring, ch 2] 3 times (20 sts). Join with sl st to top of beg ch.
-Rnd 2: 2 sl st, sl st in next ch-sp, ch 3 (counts as 1 dc), 2 dc in same ch-sp, ch 2, 3 dc in same ch-sp, ch 1, [3 dc in next ch-sp, ch 2, 3 dc in same ch-sp, ch 1] 3 times (36 sts). Join with sl st to top of beg ch.
-Rnd 3: 2 sl st, sl st in next ch-sp, ch 3 (counts as 1 dc), 2 dc in same ch-sp, ch 2, 3 dc in same ch-sp, ch 1, 3 dc in next ch-sp, ch 1, [3 dc in next ch-sp, ch 2, 3 dc in same ch-sp, ch 1, 3 dc in next ch-sp, ch 1] 3 times (36 sts). Join with sl st to top of beg ch.
+Rnd 1: ch 3 (counts as 1 dc), 2 dc in ring, ch 2, (3 dc in ring, ch 2) x3 (20). Join with sl st to top of beg ch.
+Rnd 2: 2 sl st, sl st in next ch-sp, ch 3 (counts as 1 dc), 2 dc in same ch-sp, ch 2, 3 dc in same ch-sp, ch 1, (3 dc in next ch-sp, ch 2, 3 dc in same ch-sp, ch 1) x3 (36). Join with sl st to top of beg ch.
+Rnd 3: 2 sl st, sl st in next ch-sp, ch 3 (counts as 1 dc), 2 dc in same ch-sp, ch 2, 3 dc in same ch-sp, ch 1, (3 dc in next ch-sp, ch 1, 3 dc in next ch-sp, ch 2, 3 dc in same ch-sp, ch 1) x3, 3 dc in next ch-sp, ch 1 (36). Join with sl st to top of beg ch.

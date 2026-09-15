@@ -16,6 +16,7 @@
  * - `next-space`: az első láncív a kurzortól; a közbeeső szemeket kihagyjuk,
  *   ahogy a minták is írják („3 erp a következő láncívbe”).
  * - `same-space`, `ring`: az előző láncív, illetve a varázskör.
+ * - `chain-ring`: a láncgyűrű (PQW-861).
  * - `none`: nem horgolunk bele semmibe (pikó).
  *
  * Megállapodások a visszaolvasáshoz:
@@ -28,11 +29,12 @@
  */
 
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
+import { modeAsWorked } from './insertion.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { hasBaseChain, traditionOf } from './tradition.ts';
 import type { Anchor, LayerEvent, NodeId, Pattern, Piece, StitchDef, StitchDefId, StitchInsertion, Tradition } from './types.ts';
 
-export type StepTarget = 'next' | 'same' | 'next-space' | 'same-space' | 'ring' | 'none';
+export type StepTarget = 'next' | 'same' | 'next-space' | 'same-space' | 'ring' | 'chain-ring' | 'none';
 
 export type Step =
   | {
@@ -69,11 +71,18 @@ export interface WrittenLayer {
   readonly closing: LayerEvent['kind'] | null;
   /** A kört záró kúszószem célpontja. */
   readonly joinTo: 'turning-chain' | 'first-stitch' | null;
+  /** A következő kör új színnel kezdődik (PQW-861). */
+  readonly colorChange: boolean;
+  /** A spirál lépcsőjavítása a színváltásnál. */
+  readonly jogFix: LayerEvent['jogFix'] | null;
 }
 
 export interface WrittenPiece {
   readonly name: string;
-  readonly foundation: { readonly kind: 'chain'; readonly count: number } | { readonly kind: 'ring' };
+  readonly foundation:
+    | { readonly kind: 'chain'; readonly count: number }
+    | { readonly kind: 'ring' }
+    | { readonly kind: 'chain-ring'; readonly count: number };
   readonly layers: readonly WrittenLayer[];
 }
 
@@ -96,30 +105,26 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
   const base = graph.layers[0]!;
   const first = base.stitches[0];
   if (first === undefined) throw new WrittenPatternError('A minta láncalappal vagy varázskörrel kezdődik; enélkül még nem írható ki.');
-  if (base.closing !== null) throw new WrittenPatternError('A láncalapon lévő esemény még nem írható ki.', [base.closing.after]);
-
   const onChain = graph.defs.get(first)!.kind === 'chain';
-  const row1 = graph.layers[1];
-  const foundation: WrittenPiece['foundation'] = onChain
-    ? { kind: 'chain', count: base.stitches.length + (row1?.turningChain.length ?? 0) }
-    : { kind: 'ring' };
+  // A láncgyűrű zárása az egyetlen esemény, amely a láncalapon állhat (PQW-861).
+  const chainRing = onChain && base.shape === 'round' && base.closing?.kind === 'join-slip';
+  if (base.closing !== null && !chainRing) throw new WrittenPatternError('A láncalapon lévő esemény még nem írható ki.', [base.closing.after]);
 
-  const layers = graph.layers.slice(1).map((_, i) => writtenLayer(graph, i + 1, onChain, library, traditionOf(pattern.conventions)));
+  const row1 = graph.layers[1];
+  const foundation: WrittenPiece['foundation'] = chainRing
+    ? { kind: 'chain-ring', count: base.stitches.length }
+    : onChain
+      ? { kind: 'chain', count: base.stitches.length + (row1?.turningChain.length ?? 0) }
+      : { kind: 'ring' };
+
+  const layers = graph.layers
+    .slice(1)
+    .map((_, i) => writtenLayer(graph, i + 1, foundation.kind, library, traditionOf(pattern.conventions)));
   return { name: piece.name, foundation, layers };
 }
 
-const FLIPPED: Readonly<Record<StitchInsertion, StitchInsertion>> = {
-  'both-loops': 'both-loops',
-  'front-loop': 'back-loop',
-  'back-loop': 'front-loop',
-  'front-post': 'back-post',
-  'back-post': 'front-post',
-};
-
-/** A horgoló felől nézett beszúrás: visszai soron a szálak és a relief megfordulnak. */
-export function modeAsWorked(mode: StitchInsertion, side: 'right' | 'wrong'): StitchInsertion {
-  return side === 'wrong' ? FLIPPED[mode] : mode;
-}
+/** A horgoló felől nézett beszúrás: visszai soron a szálak és a relief megfordulnak (insertion.ts). */
+export { modeAsWorked };
 
 /** Aminek a számító fordulólánc számít: a sort kezdő szem, összetett szemnél a részszeme. */
 export function countsAsOf(def: StitchDef): StitchDefId {
@@ -131,7 +136,7 @@ type Last = { readonly kind: 'stitch'; readonly w: number } | { readonly kind: '
 function writtenLayer(
   graph: PieceGraph,
   index: number,
-  onChain: boolean,
+  start: WrittenPiece['foundation']['kind'],
   library: StitchLibrary,
   tradition: Tradition,
 ): WrittenLayer {
@@ -141,7 +146,8 @@ function writtenLayer(
   const workingIndex = new Map(working.map((id, w) => [id, w]));
   const defOf = (id: NodeId) => graph.defs.get(id)!;
   const countsAs = layer.firstStitch !== null && layer.turningChainCounts ? countsAsOf(defOf(layer.firstStitch)) : null;
-  const hookRow = index === 1 && onChain;
+  const hookRow = index === 1 && start === 'chain';
+  const ringSpace = start === 'chain-ring' ? graph.spaceOfChain.get(graph.layers[0]!.stitches[0]!)?.id : undefined;
   // Japán hagyományban az 1. sor fordulólánca egy alapláncszemen áll; abba nem horgolunk (01 §8.3 szabály 15).
   const baseChain = hookRow && hasBaseChain(layer.turningChainCounts, tradition);
 
@@ -159,6 +165,7 @@ function writtenLayer(
   const classify = (anchor: Anchor, owner: NodeId): { target: StepTarget; mode: StitchInsertion; into: 'stitch' | 'chain' } => {
     if (anchor.into === 'ring') return { target: 'ring', mode: 'both-loops', into: 'stitch' };
     if (anchor.into === 'space') {
+      if (anchor.id === ringSpace) return { target: 'chain-ring', mode: 'both-loops', into: 'stitch' };
       const chains = graph.spaces.get(anchor.id)!.chains.map((id) => workingIndex.get(id));
       if (chains.some((w) => w === undefined)) throw unsupported('olyan láncívbe kapaszkodik, amely nincs a megfelelő helyen', owner);
       const min = Math.min(...(chains as number[]));
@@ -199,7 +206,8 @@ function writtenLayer(
   const stitches = layer.stitches;
   for (let i = 0; i < stitches.length; i += 1) {
     const id = stitches[i]!;
-    if (handled.has(id) || id === layer.joinSlip) continue;
+    // A láncgyűrű kúszószeme a kezdés része, a láncgyűrű sora írja le.
+    if (handled.has(id) || id === layer.joinSlip || (ringSpace !== undefined && index === 1 && layer.travelSlips.includes(id))) continue;
     const node = graph.nodes.get(id)!;
     const def = defOf(id);
     if (node.flags && node.flags.length > 0) throw unsupported('keresztezett vagy hosszú szemet tartalmaz', id);
@@ -284,10 +292,12 @@ function writtenLayer(
     shape: layer.shape,
     side: layer.side,
     fromHook: hookRow ? { chain: layer.turningChain.length + (baseChain ? 2 : 1), countsAs } : null,
-    steps: foldRepeats(mergeSteps(steps, library)),
+    steps: foldRepeats(mergeSteps(steps, library), layer.shape === 'round'),
     stitchCount: layer.stitchCount,
     closing: layer.closing?.kind ?? null,
     joinTo,
+    colorChange: layer.closing?.colorChange === true,
+    jogFix: layer.closing?.jogFix ?? null,
   };
 }
 
@@ -316,20 +326,23 @@ function sameRun(a: Step & { kind: 'stitch' }, b: Step & { kind: 'stitch' }, lib
   if (a.def !== b.def || a.mode !== b.mode || (kind !== 'basic' && kind !== 'slip')) return false;
   if (a.target === 'next') return b.target === 'next';
   if (a.target === 'next-space' || a.target === 'same-space') return b.target === 'same-space';
-  return a.target === 'ring' && b.target === 'ring';
+  return (a.target === 'ring' || a.target === 'chain-ring') && b.target === a.target;
 }
 
 /**
  * A legrövidebb ismétlődő egység: az a szomszédos ismétlés, amely a legtöbb
  * lépést takarítja meg. Egyenlő megtakarításnál az az egység nyer, amely nem
  * kihagyással végződik, aztán a későbbi kezdetű: így a szélső szemek az
- * ismétlés előtt állnak, ahogy a minták írják (03 §2.3, §4.2). Az ismétlés
+ * ismétlés előtt állnak, ahogy a minták írják (03 §2.3, §4.2). Körben
+ * (`preferEarly`) előbb a láncszemmel záruló egység nyer, aztán a korábbi
+ * kezdetű, így a félbemaradt ismétlés a végére kerül: „1 rp, (szap., 2 rp) ×5,
+ * szap., 1 rp” (04 §3.2). Az ismétlés
  * előtti és utáni részben tovább keresünk; egymásba ágyazott ismétlés nincs.
  */
-export function foldRepeats(steps: readonly Step[]): Step[] {
+export function foldRepeats(steps: readonly Step[], preferEarly = false): Step[] {
   const keys = steps.map((step) => JSON.stringify(step));
   const n = steps.length;
-  let best: { start: number; period: number; times: number; saved: number; endsWithSkip: boolean } | null = null;
+  let best: Candidate | null = null;
 
   for (let period = 1; period * 2 <= n; period += 1) {
     for (let start = 0; start + period * 2 <= n; start += 1) {
@@ -342,17 +355,19 @@ export function foldRepeats(steps: readonly Step[]): Step[] {
         times: count,
         saved: period * (count - 1),
         endsWithSkip: steps[start + period - 1]!.kind === 'skip',
+        endsWithChain: steps[start + period - 1]!.kind === 'chain',
+        startsSame: startsInSameTarget(steps[start]!),
       };
-      if (!best || better(candidate, best)) best = candidate;
+      if (!best || better(candidate, best, preferEarly)) best = candidate;
     }
   }
   if (!best) return [...steps];
 
   const end = best.start + best.period * best.times;
   return [
-    ...foldRepeats(steps.slice(0, best.start)),
+    ...foldRepeats(steps.slice(0, best.start), preferEarly),
     { kind: 'repeat', steps: steps.slice(best.start, best.start + best.period), times: best.times },
-    ...foldRepeats(steps.slice(end)),
+    ...foldRepeats(steps.slice(end), preferEarly),
   ];
 }
 
@@ -361,12 +376,27 @@ function sameBlock(keys: readonly string[], a: number, b: number, period: number
   return true;
 }
 
-function better(
-  a: { start: number; period: number; saved: number; endsWithSkip: boolean },
-  b: { start: number; period: number; saved: number; endsWithSkip: boolean },
-): boolean {
+interface Candidate {
+  readonly start: number;
+  readonly period: number;
+  readonly times: number;
+  readonly saved: number;
+  readonly endsWithSkip: boolean;
+  readonly endsWithChain: boolean;
+  readonly startsSame: boolean;
+}
+
+/** A lépés egy már megkezdett célpontba megy („ugyanabba a láncívbe”): ott nem kezdődhet ismétlés körben. */
+function startsInSameTarget(step: Step): boolean {
+  return (step.kind === 'stitch' || step.kind === 'group') && (step.target === 'same' || step.target === 'same-space');
+}
+
+function better(a: Candidate, b: Candidate, preferEarly: boolean): boolean {
   if (a.saved !== b.saved) return a.saved > b.saved;
   if (a.endsWithSkip !== b.endsWithSkip) return !a.endsWithSkip;
-  if (a.start !== b.start) return a.start > b.start;
+  // Körben az egység új célpontnál kezdődik, és láncszemmel zárul: „(3 erp, 2 lsz) ×3” (03 §8).
+  if (preferEarly && a.startsSame !== b.startsSame) return !a.startsSame;
+  if (preferEarly && a.endsWithChain !== b.endsWithChain) return a.endsWithChain;
+  if (a.start !== b.start) return preferEarly ? a.start < b.start : a.start > b.start;
   return a.period < b.period;
 }
