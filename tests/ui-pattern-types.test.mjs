@@ -1,7 +1,7 @@
 /*
  * A bal oldali mintatípus-menü tartalma (PQW-873). Aktív a „szabályos
- * horgolás” és az amigurumi (PQW-863); a többi típus „hamarosan” jelzéssel,
- * inaktívan látszik.
+ * horgolás”, a filéhorgolás (PQW-864) és az amigurumi (PQW-863); a
+ * szabálytalan horgolás „hamarosan” jelzéssel, inaktívan látszik.
  */
 
 import { strict as assert } from 'node:assert';
@@ -38,9 +38,9 @@ test('minden típusnak van neve és magyarázata', () => {
   }
 });
 
-test('a szabályos horgolás és az amigurumi aktív (PQW-863), a többi hamarosan', () => {
+test('a szabályos horgolás, a filéhorgolás (PQW-864) és az amigurumi (PQW-863) aktív, a szabálytalan hamarosan', () => {
   const available = PATTERN_TYPES.filter((type) => type.available).map((type) => type.id);
-  assert.deepEqual(available, ['regular', 'amigurumi']);
+  assert.deepEqual(available, ['regular', 'filet', 'amigurumi']);
 });
 
 test('amigurumiban az írott minta nagyban, keskeny ablakban teljes nézetben nyílik; máshol nem változik (PQW-863)', () => {
@@ -57,6 +57,7 @@ test('az alapértelmezett típus aktív', () => {
 test('isAvailableType csak a bekapcsolt, ismert azonosítóra igaz', () => {
   assert.ok(isAvailableType('regular'));
   assert.ok(isAvailableType('amigurumi'));
-  assert.ok(!isAvailableType('filet'));
+  assert.ok(isAvailableType('filet'));
+  assert.ok(!isAvailableType('irregular'));
   assert.ok(!isAvailableType('nincs-ilyen'));
 });

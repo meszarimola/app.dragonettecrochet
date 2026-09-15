@@ -253,6 +253,35 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
   - A mentett JSON a részeket (`sections`), a jelöléseket (`marks`), a
     kapcsolást (`joins`) és a játék adatát (`toy`) is rögzíti; a régi mentések
     változatlanul betöltődnek. A rajz több darabnál az első darabot mutatja.
+- **Rácsos technikák** (PQW-864): a mintatípus-menü „Filéhorgolás” pontja és a
+  jobb oldali panel „Rácsminta” szakasza (a Kendő alatt). Filé, sarokból
+  sarokba (C2C), tapestry és graphgan cellánként rajzolva; a háttérben
+  mindegyik szemgráf, és ugyanazon az ellenőrzőn megy át.
+  - **Rácsszerkesztő:** a cellák a mintasűrűség arányában (filében 3 szem széles
+    és egy sor magas cella), ecsettel festve: filében teli, nyitott vagy nincs
+    cella, színes rácsban legfeljebb 8 szín. Billentyűzettel (nyilak, szóköz,
+    Delete) és egérrel húzva is. A szakasz kiírja, hány sor kell egy négyzet
+    alakú motívumhoz a mintasűrűség szerint.
+  - **Ismétlő egység** (tulajdonosi kérés): elég az első sorokat teljesen
+    megadni, a többinél a sor egy részét. A program felismeri az egységet, vagy
+    kézzel megjelölhető; a meg nem adott cellák ebből töltődnek ki a teljes
+    rácsra. Az ellenőrző a kiterjesztett mintát nézi, az írott minta ismétlésként
+    írja, a rácsszerkesztő és a vászon kiemeli az egységet.
+  - **Filé:** N cellás sor 3N + 1 pozíció; a láncalap és a fordulólánc a
+    fordulólánc-szabályból (PQW-891): teli kezdésnél 3N + 4 lsz és az első pálca
+    az 5. láncszembe, nyitott kezdésnél 3N + 6 és a 9.; a későbbi sorokban
+    nyitott kezdésnél „3 lsz, 2 lsz”. Alakítás egész cellánként: a sor elején
+    szaporítás láncos hosszabbítással, a sor végén meghagyott cellák.
+  - **C2C:** W × H kép W + H − 1 átlós sor, csempe 3 lsz és 3 erp; a két oldal
+    egymástól függetlenül szaporít, majd fogy. Színek csempénként.
+  - **Tapestry és graphgan:** cellánként egy rövidpálca, a szem színe a cella
+    színe. Az írott minta a színváltást az előző szem utolsó ráhajtásánál írja,
+    és soronként (C2C-ben csempénként) felsorolja a színeket. Tapestryben 3-nál
+    több vitt szín figyelmeztet (`carried-colors`).
+  - **Fonal színenként** a próbadarabos becslésből, a cellák arányában;
+    **tükrözött nézetben** figyelmeztetés feliratos vagy aszimmetrikus
+    motívumra. A rácsminta a darabbal mentődik (`grid`, a szem színe `color`),
+    és a szakaszba visszatölthető.
 
 A jelek alapból a Craft Yarn Council jelölését követik, és a könyvtár adataiból
 rajzolódnak: a szár hossza a láncszem-magasságból, a ferde vonalak száma a
@@ -294,6 +323,9 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/ui/rounds-view.ts`, `src/ui/rounds-panel.ts` | **A „Kör és motívum” szakasz** (PQW-861): a választások és a szaporítás magyarázata eredettel (DOM nélkül); a mezők és a minta létrehozása a panelen. |
 | `src/ui/shapes-view.ts`, `src/ui/shapes-panel.ts` | **A „Forma” szakasz** (PQW-862): a választások, a mezők a formához, a terv kiírása eredettel és az előnézet körvonala (DOM nélkül); a mezők, az előnézet és a minta létrehozása a panelen. |
 | `src/ui/shawls-view.ts`, `src/ui/shawls-panel.ts` | **A „Kendő” szakasz** (PQW-865): a választások, a mezők a kendőhöz, a terv kiírása a szöggel, a blokkolt és blokkolatlan mérettel és a figyelmeztetésekkel, az előnézet két körvonala (DOM nélkül); a mezők és a minta létrehozása a panelen. |
+| `src/core/pixel-chart.ts` | **A rácsminta** (PQW-864): a cella mérete a mintasűrűségből, arányos sorszám, átméretezés, az ismétlő egység felismerése, ellenőrzése és kiterjesztése, tükrözés, a C2C csempéi soronként, színek soronként, fonal színenként. Függőség nélküli, tiszta függvények. |
+| `src/core/filet.ts`, `src/core/c2c.ts`, `src/core/colorwork.ts`, `src/core/grid-pattern.ts` | **Rácsos technikák** (PQW-864): a filé (3N + 1 pozíció, teli és nyitott kezdés, alakítás egész cellánként), a C2C (átlós sorok, szaporító és fogyasztó oldal) és a tapestry, graphgan (rövidpálcás sorok színnel) terve és szemgráfja; a közös gráfíró és a generált minta ellenőrzése. |
+| `src/ui/grid-chart-view.ts`, `src/ui/grid-chart-panel.ts` | **A „Rácsminta” szakasz** (PQW-864): ecsetek, cellanevek, az ismétlő egység állapota, a terv és a fonal kiírása, a létrehozás és a visszatöltés, az egység kerete a diagramon (DOM nélkül); a bejárható rácsszerkesztő, a színek és a minta létrehozása a panelen. |
 | `src/core/insertion.ts` | **Beszúrási mód** (PQW-869): a szem megengedett módjai, az érvényes mód, a horgoló felőli és a színoldali mód átváltása, a szemek tárolt módja a rajzhoz. |
 | `src/ui/insertion-view.ts`, `src/ui/insertion-panel.ts` | **A „Beszúrás” választó** a Szemek szakaszban (PQW-869): a módok, az érvényes mód és az írott alak (DOM nélkül); a rádiógombok a panelen. |
 | `src/core/editor.ts` | **A szerkesztő műveletei** (PQW-857): célpontok, horgolás, „még egy ugyanabba”, fordulás, körzárás, az utolsó lépés törlése, kézi igazítás, élő ellenőrzés. |
@@ -367,10 +399,12 @@ npm test   # a build után: CSP ↔ azonosító, inline szkript, közös süti
   szakaszban van, a sorvégbe horgolt szem célpontját a gráf még nem ismeri; két
   él összevarrása vagy összekapcsolása sincs még (PQW-862 nyitott része).
 - **PDF-export.**
-- **A rács teljes változatai.** A filé cellás rácsának csak az alapja van meg
-  (egyforma cellák, PQW-864), az amigurumi szöveges nézetének csak a típusa
-  (PQW-863); mindkét mintatípus még „hamarosan”. Nincs még oszlopszámozás, és a
-  cellák aránya a könyvtár becslése, nem a gauge-profil (PQW-859).
+- **A rácsos technikák nyitott részei** (PQW-864): a mozaik (több sorral
+  lejjebb horgolt, jelölt szem az írott mintában); filében a sor eleji
+  fogyasztás kúszószemekkel és a sor végi szaporítás; a kép betöltése és
+  átméretezése fájlból; az ismétlő egység kerete az SVG-exportban és a C2C
+  átlós rajzán (ott a rácsszerkesztő jelöli). A vászon cellás rácsán nincs még
+  oszlopszámozás.
 - **Önhosztolt betűk.** Az Instrument Serif és a Karla fájljai még nincsenek
   itt, ezért rendszerbetűk ugranak be. A Google Fonts CDN-t nem használjuk: az
   EU-ban hozzájárulás nélkül továbbítaná a látogató IP-címét.

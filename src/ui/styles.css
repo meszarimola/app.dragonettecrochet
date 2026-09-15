@@ -1594,3 +1594,170 @@ body.is-selecting #board {
 .tools .tool[data-tip]:focus-visible::after {
   display: block;
 }
+
+/* ---- Rácsminta (PQW-864) ---- */
+
+.grid-chart,
+.grid-chart__group {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.grid-chart__group {
+  gap: 0.5rem;
+}
+
+.grid-chart [hidden] {
+  display: none;
+}
+
+.grid-chart .panel__field,
+.grid-chart .panel__note,
+.grid-chart .choice {
+  margin: 0;
+}
+
+.grid-chart .panel__field {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.grid-chart__colors {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--c-line);
+  border-radius: 8px;
+}
+
+.grid-chart__colors > legend {
+  padding-inline: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.grid-chart__color-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.grid-chart__color {
+  display: grid;
+  grid-template-columns: 1rem 44px minmax(0, 1fr) auto;
+  gap: 0.4rem;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.grid-chart__color input[type='color'] {
+  inline-size: 44px;
+  block-size: 44px;
+  padding: 2px;
+  border: 1px solid var(--c-muted);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.grid-chart__color input[type='text'] {
+  min-inline-size: 0;
+  min-block-size: 44px;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--c-muted);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--c-ink);
+  font: inherit;
+}
+
+.grid-chart__letter {
+  font-weight: 700;
+  color: var(--c-ink);
+}
+
+.grid-chart__brushes {
+  display: grid;
+  gap: 0;
+}
+
+.grid-chart__brushes .grid-chart__swatch {
+  display: inline-block;
+  flex: none;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  border: 1px solid var(--c-ink);
+  border-radius: 3px;
+}
+
+.grid-chart__board {
+  display: grid;
+  justify-content: start;
+  max-block-size: 22rem;
+  overflow: auto;
+  padding: 3px;
+  border: 1px solid var(--c-muted);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.grid-chart__row {
+  display: flex;
+}
+
+/* A cella a mintasűrűség arányában (a panel adja a méretet); a vékony vonal csak segédvonal. */
+.grid-cell {
+  box-sizing: border-box;
+  flex: none;
+  inline-size: var(--cell-width, 20px);
+  block-size: var(--cell-height, 20px);
+  border: 1px solid var(--c-grid);
+  cursor: pointer;
+  touch-action: none;
+}
+
+.grid-cell:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 3px solid var(--c-accent);
+  outline-offset: 0;
+}
+
+.grid-cell--filled {
+  background: var(--c-ink);
+}
+
+.grid-cell--open {
+  background: #fff;
+}
+
+.grid-cell--none {
+  background: repeating-linear-gradient(45deg, var(--c-line) 0 3px, #fff 3px 6px);
+}
+
+.grid-cell--unset {
+  background: repeating-linear-gradient(-45deg, #fff 0 2px, var(--c-panel) 2px 4px);
+}
+
+/* Az ismétlő egység: fehér belső és sötét külső gyűrű, sötét és világos cellán is látszik. A cella neve is jelzi. */
+.grid-cell.is-unit {
+  box-shadow:
+    inset 0 0 0 1px #fff,
+    inset 0 0 0 3px var(--c-warning);
+}
+
+.grid-chart__unit.is-problem {
+  color: var(--c-error);
+}
+
+.grid-chart__action {
+  justify-self: start;
+}
+
+.grid-chart__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
