@@ -164,7 +164,12 @@ export function chartGrid(
   return { kind, shape: round ? 'round' : 'row', layer: context.layer, bands, cells, bounds: boundsOf(bands, cells) };
 }
 
-/** A szegély sávjai a sorok rácsa körül: felül, alul és a két oldalon, a szegély szemeinek kiterjedéséig (PQW-889). */
+/**
+ * A szegély sávjai a sorok rácsa körül (PQW-889): felül, alul és a két
+ * oldalon, a szegély szemeinek kiterjedéséig. Egyenes oldalú darabnál négy
+ * sáv; ferde élnél (PQW-898) soronként egy-egy oldalsáv, amely a lépcsős élt
+ * követi, és a lépcső kitett szemei fölé is kiér.
+ */
 function borderBands(layout: ChartLayout, index: number, stitchCount: number, rows: readonly GridBand[]): GridBand[] {
   const points = [...layout.nodes.values()].filter((node) => node.layer === index).flatMap((node) => [node.top, ...node.feet]);
   if (points.length === 0 || rows.length === 0) return [];
@@ -173,6 +178,36 @@ function borderBands(layout: ChartLayout, index: number, stitchCount: number, ro
   const x1 = Math.max(inner.maxX, ...points.map((p) => p.x)) + HALF_GAP;
   const y0 = Math.min(inner.minY, ...points.map((p) => p.y)) - HALF_GAP;
   const y1 = Math.max(inner.maxY, ...points.map((p) => p.y)) + HALF_GAP;
+  const rects = rows.flatMap((row) => (row.area.kind === 'rect' ? [row.area] : []));
+  const straight = rects.length === rows.length && rects.every((area) => Math.abs(area.x0 - inner.minX) < 1e-6 && Math.abs(area.x1 - inner.maxX) < 1e-6);
+  if (!straight && rects.length === rows.length) {
+    const side = layout.layers[index]?.side ?? 'right';
+    const reach = Math.max(inner.minX - x0, x1 - inner.maxX);
+    const band = (area: { x0: number; x1: number; y0: number; y1: number }): GridBand => ({
+      layer: index,
+      side,
+      stitchCount,
+      tone: (index % 2) as 0 | 1,
+      emphasis: 'none',
+      working: false,
+      area: { kind: 'rect', ...area },
+    });
+    // A rétegek sávjai felülről lefelé rendezve: a szomszéd sor széle adja a lépcsőt.
+    const ordered = [...rects].sort((a, b) => a.y0 - b.y0);
+    const top = ordered[0]!;
+    const bottom = ordered[ordered.length - 1]!;
+    return [
+      band({ x0: top.x0 - reach, x1: top.x1 + reach, y0, y1: top.y0 }),
+      band({ x0: bottom.x0 - reach, x1: bottom.x1 + reach, y0: bottom.y1, y1 }),
+      ...ordered.flatMap((area, i) => {
+        const near = [ordered[i - 1], area, ordered[i + 1]].filter((other): other is (typeof ordered)[number] => other !== undefined);
+        return [
+          band({ x0: Math.min(...near.map((other) => other.x0)) - reach, x1: area.x0, y0: area.y0, y1: area.y1 }),
+          band({ x0: area.x1, x1: Math.max(...near.map((other) => other.x1)) + reach, y0: area.y0, y1: area.y1 }),
+        ];
+      }),
+    ];
+  }
   const side = layout.layers[index]?.side ?? 'right';
   const band = (area: { x0: number; x1: number; y0: number; y1: number }): GridBand => ({
     layer: index,

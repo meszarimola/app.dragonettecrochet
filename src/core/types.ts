@@ -408,6 +408,16 @@ export interface PieceBorder {
   readonly stitch: StitchDefId;
   /** Félpálcás sorvégre 1 vagy 2 szem: a források vitatják (03 §7.1, §10 H38). */
   readonly hdcRowEnd: 1 | 2;
+  /** Igazítás a következő szegélysor ismétléséhez (PQW-898); hiányában nincs. */
+  readonly repeat?: BorderRepeat;
+}
+
+/** A következő szegélysor ismétlése (03 §7.1 H): a sarkok közötti élek szemszáma „X többszöröse + Y”. */
+export interface BorderRepeat {
+  /** X: egy ismétlés szemei. */
+  readonly width: number;
+  /** Y: élenként a kiegyenlítő szemek. */
+  readonly edge: number;
 }
 
 /** A jelek stílusa: a Craft Yarn Council vagy a japán (JIS) jelkulcs (01 §6). */

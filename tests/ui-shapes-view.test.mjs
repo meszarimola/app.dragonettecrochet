@@ -70,27 +70,29 @@ describe('a mezők a formához', () => {
       repeat: true,
       border: true,
       hdcRowEnd: false,
+      borderRepeat: false,
     });
     assert.equal(shapeFieldState(options({ measure: 'angle' })).height, true);
   });
 
-  test('trapéznál a felső él; szögből a magasság helyett a szög', () => {
+  test('trapéznál a felső él és a szegély (PQW-898); szögből a magasság helyett a szög', () => {
     const state = shapeFieldState(options({ shape: 'trapezoid', measure: 'angle' }));
-    assert.deepEqual([state.topWidth, state.measure, state.height, state.angle, state.repeat, state.border], [true, true, false, true, false, false]);
+    assert.deepEqual([state.topWidth, state.measure, state.height, state.angle, state.repeat, state.border], [true, true, false, true, false, true]);
   });
 
-  test('a félpálcás sorvégi választás csak félpálcás, szegélyes téglalapnál', () => {
+  test('a félpálcás sorvégi választás félpálcás, szegélyes formánál; a szegélysor ismétlése szegéllyel', () => {
     const border = { stitch: 'sc', hdcRowEnd: 2 };
     assert.equal(shapeFieldState(options({ border })).hdcRowEnd, true);
     assert.equal(shapeFieldState(options({ border, stitch: 'dc' })).hdcRowEnd, false);
-    assert.equal(shapeFieldState(options({ border, shape: 'diamond' })).hdcRowEnd, false);
+    assert.equal(shapeFieldState(options({ border, shape: 'diamond' })).hdcRowEnd, true);
+    assert.deepEqual([shapeFieldState(options({ border })).borderRepeat, shapeFieldState(options()).borderRepeat], [true, false]);
   });
 
-  test('nem téglalapnál a mintaismétlés és a szegély kimarad; a szélesség felirata a formához', () => {
+  test('nem téglalapnál a mintaismétlés kimarad, a szegély marad (PQW-898); a szélesség felirata a formához', () => {
     const chosen = options({ repeat: { width: 6, edge: 2 }, border: { stitch: 'sc', hdcRowEnd: 2 } });
     assert.equal(normalizeShape(chosen), chosen);
     const triangle = normalizeShape({ ...chosen, shape: 'isosceles-triangle' });
-    assert.deepEqual([triangle.repeat, triangle.border], [null, null]);
+    assert.deepEqual([triangle.repeat, triangle.border], [null, { stitch: 'sc', hdcRowEnd: 2 }]);
     assert.deepEqual(['rectangle', 'trapezoid', 'diamond'].map(widthLabel), ['Szélesség, cm', 'Alsó él, cm', 'Legszélesebb sor, cm']);
   });
 });

@@ -66,6 +66,8 @@ export interface ShapeFieldState {
   readonly repeat: boolean;
   readonly border: boolean;
   readonly hdcRowEnd: boolean;
+  /** Igazítás a következő szegélysor ismétléséhez (PQW-898). */
+  readonly borderRepeat: boolean;
 }
 
 export function shapeFieldState(options: ShapeOptions): ShapeFieldState {
@@ -77,8 +79,10 @@ export function shapeFieldState(options: ShapeOptions): ShapeFieldState {
     height: !byAngle,
     angle: byAngle,
     repeat: rectangle,
-    border: rectangle,
-    hdcRowEnd: rectangle && options.border !== null && options.stitch === 'hdc',
+    // Szegély minden forma köré (PQW-898).
+    border: true,
+    hdcRowEnd: options.border !== null && options.stitch === 'hdc',
+    borderRepeat: options.border !== null,
   };
 }
 
@@ -88,9 +92,9 @@ export function widthLabel(shape: FlatShape): string {
   return shape === 'diamond' ? 'Legszélesebb sor, cm' : 'Alsó él, cm';
 }
 
-/** A választás a formához igazítva: mintaismétlés és szegély most csak téglalapnál van. */
+/** A választás a formához igazítva: mintaismétlés most csak téglalapnál van; szegély minden formánál (PQW-898). */
 export function normalizeShape(options: ShapeOptions): ShapeOptions {
-  return options.shape === 'rectangle' ? options : { ...options, repeat: null, border: null };
+  return options.shape === 'rectangle' ? options : { ...options, repeat: null };
 }
 
 const cm = (value: number) => formatNumber(value, 1);
@@ -134,8 +138,13 @@ export function shapeView(plan: ShapePlan, options: ShapeOptions, hasProfile: bo
   if (plan.border && plan.borderedCm) {
     // A szegély rövidpálcájának mérete akkor is lehet becslés, ha a darab szeme mért.
     const borderApprox = plan.borderedCm.source === 'estimated' ? '≈ ' : '';
+    const exposed = plan.border.sides[0].exposed + plan.border.sides[1].exposed;
+    const extras = [
+      ...(exposed > 0 ? [`a lépcsők meghagyott szemeibe ${exposed}`] : []),
+      ...(plan.border.repeat ? [`élenként ${plan.border.repeat.width} többszöröse + ${plan.border.repeat.edge}`] : []),
+    ];
     details.push(
-      `Szegély: ${plan.border.total} rp körben, sarkonként ${plan.border.corner}, sorvégenként ${plan.border.perRow}; ` +
+      `Szegély: ${plan.border.total} rp körben, sarkonként ${plan.border.corner}, sorvégenként ${plan.border.perRow}${extras.map((extra) => `, ${extra}`).join('')}; ` +
         `a szegéllyel ${borderApprox}${cm(plan.borderedCm.widthCm)} × ${cm(plan.borderedCm.heightCm)} cm. ` +
         'A diagramon, a rácson és a kész méretben is látszik.',
     );
@@ -170,9 +179,52 @@ export interface ShapeOutline {
   readonly points: string;
   /** A szegély vastagsága cm-ben; szegély nélkül 0. */
   readonly border: number;
+  /** A szegély sávjának külső körvonala SVG-sorrendben (PQW-898); szegély nélkül üres. */
+  readonly frame: string;
 }
 
 const round = (value: number) => Math.round(value * 100) / 100;
+
+type Pair = readonly [number, number];
+
+/** Konvex burok (monoton lánc). */
+function convexHull(points: readonly Pair[]): Pair[] {
+  const sorted = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o: Pair, a: Pair, b: Pair) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const half = (list: readonly Pair[]) => {
+    const hull: Pair[] = [];
+    for (const p of list) {
+      while (hull.length >= 2 && cross(hull[hull.length - 2]!, hull[hull.length - 1]!, p) <= 0) hull.pop();
+      hull.push(p);
+    }
+    hull.pop();
+    return hull;
+  };
+  return [...half(sorted), ...half([...sorted].reverse())];
+}
+
+/** A szegély sávjának külső széle: a forma konvex burka a szegély vastagságával kifelé tolva, levágott sarkokkal. */
+function borderFrame(points: readonly Pair[], border: number): string {
+  if (border <= 0 || points.length < 3) return '';
+  const hull = convexHull(points);
+  const cx = hull.reduce((sum, p) => sum + p[0], 0) / hull.length;
+  const cy = hull.reduce((sum, p) => sum + p[1], 0) / hull.length;
+  const pushed: Pair[] = [];
+  hull.forEach((p, i) => {
+    for (const [a, b] of [
+      [hull[(i + hull.length - 1) % hull.length]!, p],
+      [p, hull[(i + 1) % hull.length]!],
+    ] as const) {
+      const length = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+      let [nx, ny] = [(b[1] - a[1]) / length, -(b[0] - a[0]) / length];
+      if (nx * (p[0] - cx) + ny * (p[1] - cy) < 0) [nx, ny] = [-nx, -ny];
+      pushed.push([p[0] + nx * border, p[1] + ny * border]);
+    }
+  });
+  return convexHull(pushed)
+    .map(([x, y]) => `${round(x)},${round(y)}`)
+    .join(' ');
+}
 
 /** A forma körvonala soronként lépcsősen, ahogy a sorok széle áll (shapes.ts `rowExtents`). */
 export function shapeOutline(plan: ShapePlan): ShapeOutline {
@@ -186,19 +238,23 @@ export function shapeOutline(plan: ShapePlan): ShapeOutline {
   const y = (row: number) => border + (rows - row) * rowCm;
   const left: string[] = [];
   const right: string[] = [];
+  const corners: Pair[] = [];
   extents.forEach((row, k) => {
     left.push(`${round(x(row.left))},${round(y(k))}`, `${round(x(row.left))},${round(y(k + 1))}`);
     right.push(`${round(x(row.right))},${round(y(k))}`, `${round(x(row.right))},${round(y(k + 1))}`);
+    for (const edge of [row.left, row.right]) corners.push([x(edge), y(k)], [x(edge), y(k + 1)]);
   });
   return {
     width: round((maxRight - minLeft) * stitchCm + 2 * border),
     height: round(rows * rowCm + 2 * border),
     points: [...left, ...right.reverse()].join(' '),
     border: round(border),
+    frame: borderFrame(corners, border),
   };
 }
 
-/** Az állapotsor üzenete a létrehozás után. */
+/** Az állapotsor üzenete a létrehozás után; szegéllyel a szegély is (PQW-897). */
 export function generatedMessage(options: ShapeOptions, plan: ShapePlan): string {
-  return `${SHAPE_NAMES[options.shape]}, ${plan.counts.length} sor elkészült; visszavonással a korábbi minta visszajön.`;
+  const done = plan.border ? 'sor és szegély' : 'sor';
+  return `${SHAPE_NAMES[options.shape]}, ${plan.counts.length} ${done} elkészült; visszavonással a korábbi minta visszajön.`;
 }

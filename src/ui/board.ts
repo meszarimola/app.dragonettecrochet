@@ -359,6 +359,15 @@ export class Board {
     for (const layer of scene.layout.layers) {
       if (layer.index === 0) continue;
       const rightwards = layer.start.x <= layer.end.x;
+      if (layer.border) {
+        // A szegély nem sor (PQW-897): sorszám és kattintható címke helyett felirat, mellette a szemszám.
+        applyInk(ctx, colors.text, line);
+        ctx.textAlign = rightwards ? 'right' : 'left';
+        ctx.fillText(captions.border, layer.start.x, layer.start.y);
+        ctx.textAlign = rightwards ? 'left' : 'right';
+        ctx.fillText(captions.count(layer.stitchCount), layer.end.x, layer.end.y);
+        continue;
+      }
       const text = captions.layer(layer.index);
       const labelWidth = ctx.measureText(text).width + 10;
       const x0 = rightwards ? layer.start.x + 4 - labelWidth : layer.start.x - 4;

@@ -123,6 +123,16 @@ export interface WorkContext {
 const slotKey = (slot: Slot) => `${slot.kind}:${slot.id}`;
 const anchorKey = (anchor: Anchor) => `${anchor.into}:${anchor.id}`;
 
+/**
+ * A darab lezárult-e (PQW-897): az utolsó réteg után a fonal elvágása, vagy a
+ * kész szegély (zárt kör a sorvégekkel). Utána nincs következő sor vagy kör.
+ */
+export function pieceFinished(graph: PieceGraph | null): boolean {
+  const last = graph?.layers.at(-1);
+  if (!last || last.index === 0 || !last.closing) return false;
+  return last.closing.kind === 'fasten-off' || last.border;
+}
+
 export function contextOf(pattern: Pattern, mode: EditorMode = {}): WorkContext {
   const library = libraryFor(pattern);
   const piece = pieceOf(pattern);

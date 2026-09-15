@@ -198,8 +198,22 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
     zárását nézi; a vásznon a darab körül, a rácson négy sávként látszik, a
     kész méret a szegéllyel együtt számol, az írott minta a rétegből írja, és a
     szöveg visszaolvasva újra réteget ad. A PQW-889 előtti mentésben csak a
-    választás van: ott a szegélysor a sorokból számolódik. Most csak egyenes
-    oldalú darab köré készül.
+    választás van: ott a szegélysor a sorokból számolódik.
+  - **Szegély ferde élű darab köré** (PQW-898): háromszög, trapéz és rombusz
+    köré is. Az oldal a sorvégek mellett a lépcsők meghagyott szemeibe is 1-1
+    rp-t tesz; a sarkok a felső él és a láncalap két végén (két szemes csúcsnál
+    a két sarok között nincs szem). A láncos hosszabbítással, nagyon meredeken
+    szélesedő él köré érthető okkal még nem készül.
+  - **Igazítás a következő szegélysor ismétléséhez** (PQW-898, 03 §7.1 H, §10
+    H39): a sarkok közötti élek szemszáma a legközelebbi „X többszöröse + Y”;
+    az oldalon a sorvégeken ±1, a felső élen és a láncalapon 2 rp egy szembe,
+    illetve kihagyott szem, egyenletesen elosztva. A 03 §7.1 H takarója 4 + 0
+    ismétléshez 292 szem (igazítás nélkül 288). Az írott minta kiírja, és
+    visszaolvasva ugyanaz a szegély lesz.
+  - **A kész darab után** (PQW-897): a szegély vagy a fonal elvágása után az
+    állapotsor nem jósol következő sort vagy kört („Téglalap, 11 sor és szegély
+    elkészült.”), és a szegély a vásznon és az SVG-ben sorszám helyett
+    „szegély” feliratot kap.
   - **Előnézet:** a forma lépcsős körvonala, a tényleges méret, a sorok, a szög
     és az alakítás módja. Profil nélkül a méret becslés, és a szakasz ezt ki is
     írja.
@@ -351,7 +365,7 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/core/rounds.ts` | **Körök geometriája** (PQW-861): a lapos körhöz és sokszöghöz kellő szaporítás a körös mintasűrűségből, eredettel; a befejezett körök ellenőrzése (növekedés, kunkorodás, fodrosodás, egymás fölé kerülő szaporítás, spirál lépcsője). |
 | `src/core/round-generator.ts` | **Kör- és motívumgenerátor** (PQW-861): lapos kör, négyzet, hatszög, nyolcszög, nagymama-négyzet szemgráfként, kezdéssel, körvéggel és színváltással. |
 | `src/core/shapes.ts` | **Sík formák generátora** (PQW-862): téglalap, háromszögek, trapéz, rombusz cm-ből vagy az él szögéből, mintaismétlés; az élek egyenletes alakítása élenként legfeljebb 2-vel, láncos hosszabbítás és meghagyott szemek; a terv és a szemgráf. Tiszta függvény. |
-| `src/core/border.ts` | **Szegély** (PQW-862, PQW-889): sorvégi arányok, sarkok, a szegély szemszáma a gráf soraiból; a sor szélei mint sorvég célpont, a szabályos szegély lépései, a szegélyréteg hozzáfűzése a darabhoz és elemzése az írott mintához, az elhelyezése a sorok körül. |
+| `src/core/border.ts` | **Szegély** (PQW-862, PQW-889, PQW-898): sorvégi arányok, sarkok, a szegély szemszáma a gráf soraiból; ferde élnél a lépcsők meghagyott szemei, igazítás a következő szegélysor ismétléséhez; a sor szélei mint sorvég célpont, a szabályos szegély lépései, a szegélyréteg hozzáfűzése a darabhoz és elemzése az írott mintához, az elhelyezése a sorok körül. |
 | `src/core/shawls.ts` | **Kendőformák** (PQW-865): háromszög, aszimmetrikus háromszög, félhold, félkör, kör, Pi-kendő, eltolt Pi-kendő, stóla; elméleti vagy saját szaporítási arány, páros szimmetria, az utolsó sor igazítása a szegélyhez, blokkolt és blokkolatlan méret, figyelmeztetés az ideálistól való eltérésre; a terv és a szemgráf. Tiszta függvény. |
 | `src/core/amigurumi.ts` | **Amigurumi és 3D formák** (PQW-863): a forma körterve a körben mért mintasűrűségből (gömb 6n és szinuszos, félgömb, tojás, henger, kúp, forgástest), a korlátok, egy kör elosztása, a görbület körönként, a méretbecslés és a kapcsolás ellenőrzése. |
 | `src/core/amigurumi-generator.ts` | A körtervből szemgráf spirálban, jelölésekkel; új minta egy részből, új rész varrva vagy folytatólagosan. |
@@ -443,10 +457,9 @@ npm test   # a build után: CSP ↔ azonosító, inline szkript, közös süti
   Most minden szem az alapértelmezett móddal megy.
 - **Körnézet finomítása.** A körök egyszerű, sugárirányú elrendezést kapnak;
   a nagymama-négyzet sarkai még nem szögletesek.
-- **A szegély és a varrat nyitott részei** (PQW-889): szegély ferde élű darab
-  (háromszög, trapéz, rombusz) köré a lépcsős élek kitett szemeivel; a
-  következő szegélysor mintaismétléséhez igazított élek; két él összevarrása
-  vagy összekapcsolása sorokban horgolt daraboknál.
+- **A szegély és a varrat nyitott részei** (PQW-889, PQW-898): szegély a láncos
+  hosszabbítással, nagyon meredeken szélesedő él köré; két él összevarrása vagy
+  összekapcsolása sorokban horgolt daraboknál (a ruhadarabokkal, PQW-866).
 - **PDF-export.**
 - **A rácsos technikák nyitott részei** (PQW-894): filében a sor végén teli új
   cella (most nyitott cellával szaporít), és ugyanazon az élen egymás utáni

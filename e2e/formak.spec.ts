@@ -54,7 +54,8 @@ test('egyenlő szárú háromszög az él szögéből, és szegélyes téglalap:
 
   await page.locator('#shape-kind').selectOption({ label: 'Egyenlő szárú háromszög' });
   await expect(page.locator('#shape-width-label')).toHaveText('Alsó él, cm');
-  await expect(page.locator('#shape-border')).toBeHidden();
+  // Szegély minden forma köré (PQW-898).
+  await expect(page.locator('#shape-border')).toBeVisible();
   await page.locator('#shape-measure').selectOption({ label: 'Az él szöge' });
   await expect(page.locator('#shape-height')).toBeHidden();
   await page.locator('#shape-width').fill('20');
@@ -72,7 +73,7 @@ test('egyenlő szárú háromszög az él szögéből, és szegélyes téglalap:
   await page.locator('#shape-border').check();
   await expect(page.locator('#shape-hdc-row-end')).toBeVisible();
   await expect(page.locator('#shape-details')).toContainText(/Szegély: \d+ rp körben, sarkonként 3, sorvégenként 2;/);
-  await expect(page.locator('#shape-preview rect')).toHaveCount(1);
+  await expect(page.locator('#shape-preview .shape__border')).toHaveCount(1);
   await section.getByRole('button', { name: 'Minta létrehozása' }).click();
   await expect(page.locator('#status')).toContainText('Téglalap,');
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
