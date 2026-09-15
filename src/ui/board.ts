@@ -222,7 +222,9 @@ export class Board {
   fit(insetRight = 0, insetLeft = 0, insetBottom = 0): void {
     const layout = this.#scene?.layout;
     const { width, height } = this.#canvas.getBoundingClientRect();
-    const roomY = Math.max(height - insetBottom, 120);
+    const roomY = height - insetBottom;
+    // A teljes vásznat elfedő panel mögé nincs mit illeszteni (PQW-885).
+    if (roomY < 1) return;
     if (!layout || layout.nodes.size === 0) {
       Object.assign(this.#view, { scale: 1.5, x: insetLeft + 60, y: roomY * 0.7 });
       this.render();
@@ -230,7 +232,9 @@ export class Board {
     }
     const { minX, minY, maxX, maxY } = layout.bounds;
     const room = Math.max(width - insetRight - insetLeft, 120);
-    const scale = Math.min(2, Math.max(MIN_SCALE, Math.min((room - 48) / (maxX - minX), (roomY - 72) / (maxY - minY))));
+    // Alacsony látható sávban a margó is kisebb, hogy a minta ne kerüljön a takarásba.
+    const marginY = Math.min(72, roomY / 2);
+    const scale = Math.min(2, Math.max(MIN_SCALE, Math.min((room - 48) / (maxX - minX), (roomY - marginY) / (maxY - minY))));
     this.#view.scale = scale;
     this.#view.x = insetLeft + (room - (maxX - minX) * scale) / 2 - minX * scale;
     this.#view.y = (roomY - (maxY - minY) * scale) / 2 - minY * scale;
@@ -240,14 +244,18 @@ export class Board {
   /** Csak akkor tol a nézeten, ha a pont kilóg a látható részből; így szerkesztés közben a diagram nem ugrál. */
   ensureVisible(point: Point, insetRight = 0, insetLeft = 0, insetBottom = 0): void {
     const { width, height } = this.#canvas.getBoundingClientRect();
+    const roomY = height - insetBottom;
+    if (roomY < 1) return;
     const s = this.#toScreen(point);
-    const pad = 48;
+    // A margó legfeljebb a látható sáv fele, különben keskeny sávban a pont a két szél között ugrálna (PQW-885).
+    const padX = Math.min(48, Math.max(0, (width - insetRight - insetLeft) / 2));
+    const padY = Math.min(48, roomY / 2);
     let dx = 0;
     let dy = 0;
-    if (s.x < insetLeft + pad) dx = insetLeft + pad - s.x;
-    else if (s.x > width - insetRight - pad) dx = width - insetRight - pad - s.x;
-    if (s.y < pad) dy = pad - s.y;
-    else if (s.y > height - insetBottom - pad) dy = height - insetBottom - pad - s.y;
+    if (s.x < insetLeft + padX) dx = insetLeft + padX - s.x;
+    else if (s.x > width - insetRight - padX) dx = width - insetRight - padX - s.x;
+    if (s.y < padY) dy = padY - s.y;
+    else if (s.y > roomY - padY) dy = roomY - padY - s.y;
     if (dx === 0 && dy === 0) return;
     this.#view.x += dx;
     this.#view.y += dy;

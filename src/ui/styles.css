@@ -303,6 +303,9 @@ button {
 .stage {
   position: relative;
   min-block-size: 0;
+  /* A nyitott oldalsávok szélessége: ezek között áll az írott minta és az állapotsor. */
+  --side-start: 0px;
+  --side-end: 0px;
 }
 
 #board {
@@ -323,16 +326,18 @@ body.is-selecting #board {
 
 .status {
   position: absolute;
-  z-index: 6;
+  z-index: 5;
   /* Lenyitott írott mintánál a panel fölött, nem a szövegén (PQW-883). */
   inset-block-end: var(--written-block, 0px);
-  inset-inline-start: 0;
-  max-inline-size: calc(100% - min(19rem, 80vw));
+  /* A két oldalsáv között marad, a hosszú üzenet több sorba törik (PQW-884). */
+  inset-inline: var(--side-start) var(--side-end);
+  inline-size: fit-content;
   margin: 0;
   padding: 0.4rem 1rem;
   background: var(--c-bg);
   color: var(--c-text);
   font-size: 0.875rem;
+  overflow-wrap: anywhere;
 }
 
 .status:empty {
@@ -676,21 +681,53 @@ body.is-selecting #board {
 
 /* ---- Írott minta és jelölés (PQW-868) ---- */
 
-/* Az írott minta lenyitható panelként a vászon alján (PQW-873). */
+/* Az írott minta lenyitható panelként a vászon alján (PQW-873). A magassága
+ * a fejléctől a teljes munkaterületig állítható (PQW-885): alapból legfeljebb
+ * 22rem, alacsony ablakban a munkaterület fele. Az elválasztó és a fejléc
+ * helyben marad, a szöveg görget. A `--written-size` és a `--written-min` a
+ * src/ui/main.ts-ből jön. */
 .written {
   position: absolute;
   z-index: 4;
-  inset-inline: 0;
+  inset-inline: var(--side-start) var(--side-end);
   inset-block-end: 0;
   display: grid;
-  align-content: start;
-  gap: 0.75rem;
-  /* Legfeljebb a munkaterület harmada, hogy alacsony ablakban is maradjon diagram (PQW-883). */
-  max-block-size: min(45vh, 22rem, 100% / 3);
-  padding: 1rem 1.25rem;
-  overflow-y: auto;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  block-size: clamp(var(--written-min, 5rem), var(--written-size, min(22rem, 50%)), 100%);
+  /* Majdnem teljes panelnél a teteje ad helyet az állapotsornak (`--written-lift`). */
+  padding: var(--written-lift, 0px) 1.25rem 1rem;
   border-block-start: 1px solid var(--c-line);
   background: var(--c-bg);
+}
+
+/* Az elválasztó: 24 px magas célterület (WCAG 2.5.8), közepén a fogantyú. */
+.written__grip {
+  position: relative;
+  block-size: 24px;
+  margin-inline: -1.25rem;
+  cursor: row-resize;
+  touch-action: none;
+}
+
+/* A fogantyú a háttéren legalább 3:1 (WCAG 1.4.11). */
+.written__grip::before {
+  content: '';
+  position: absolute;
+  inset-block-start: calc(50% - 2px);
+  inset-inline-start: calc(50% - 1.5rem);
+  inline-size: 3rem;
+  block-size: 4px;
+  border-radius: 2px;
+  background: var(--c-grid-strong);
+}
+
+.written__grip:hover::before,
+.written__grip:focus-visible::before {
+  background: var(--c-accent);
+}
+
+.written__grip:focus-visible {
+  outline-offset: -3px;
 }
 
 .written__head {
@@ -698,6 +735,18 @@ body.is-selecting #board {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  padding-block-end: 0.75rem;
+}
+
+/* A görgetett rész; a belső margó miatt a szöveg fókuszkerete nem csonkul. */
+.written__body {
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+  min-block-size: 0;
+  margin: -4px;
+  padding: 4px;
+  overflow-y: auto;
 }
 
 .written__head .panel__title {
@@ -873,7 +922,7 @@ body.is-selecting #board {
 /* A két oldalsáv a lenyitott írott minta fölött marad. */
 .types,
 .panel {
-  z-index: 5;
+  z-index: 6;
 }
 
 .types {
@@ -977,15 +1026,15 @@ body.is-selecting #board {
 /* ---- Az írott minta a nyitott oldalsávok között (PQW-881) ---- */
 
 /* Széles nézetben a lenyitott írott minta és az állapotsor nem csúszik az
- * oldalsávok alá; keskeny nézetben az oldalsávok a panel fölé nyílnak. */
+ * oldalsávok alá, hanem a kettő között áll (PQW-884); keskeny nézetben az
+ * oldalsávok a panel és az állapotsor fölé nyílnak. */
 @media (width >= 48rem) {
-  .stage:has(> .types:not([hidden])) > .written,
-  .stage:has(> .types:not([hidden])) > .status {
-    inset-inline-start: min(16rem, 80vw);
+  .stage:has(> .types:not([hidden])) {
+    --side-start: min(16rem, 80vw);
   }
 
-  .stage:has(> .panel:not([hidden])) > .written {
-    inset-inline-end: min(19rem, 80vw);
+  .stage:has(> .panel:not([hidden])) {
+    --side-end: min(19rem, 80vw);
   }
 }
 

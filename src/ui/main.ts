@@ -86,6 +86,7 @@ import { DEFAULT_PATTERN_TYPE, PATTERN_TYPES, gridKind, isAvailableType, type Pa
 import { applyInk, drawCentered, readInk, shapeBounds, stemLength, symbolShapes, type SymbolOptions } from './symbols.js';
 import { alignTooltips } from './tooltip.js';
 import { writtenView } from './written.js';
+import { dragCollapses, dragSize, isFull, keySize, percentOf, statusPlace, type SizeRange } from './written-size.js';
 
 function must<T extends Element>(selector: string): T {
   const el = document.querySelector<T>(selector);
@@ -113,6 +114,9 @@ const written = must<HTMLElement>('#written');
 const writtenToggle = must<HTMLButtonElement>('#written-toggle');
 const writtenText = must<HTMLPreElement>('#written-text');
 const writtenNotices = must<HTMLDivElement>('#written-notices');
+const writtenBody = must<HTMLDivElement>('#written-body');
+const writtenGrip = must<HTMLDivElement>('#written-grip');
+const writtenFull = must<HTMLButtonElement>('#written-full');
 const termsSelect = must<HTMLSelectElement>('#terms');
 const styleSelect = must<HTMLSelectElement>('#chart-style');
 const scMarkField = must<HTMLFieldSetElement>('#sc-mark');
@@ -564,6 +568,76 @@ function readWrittenOpen(): boolean {
     return localStorage.getItem(WRITTEN_KEY) !== 'zarva';
   } catch {
     return true;
+  }
+}
+
+/* ---- Az írott minta magassága (PQW-885) ---- */
+
+/**
+ * A panel magassága a munkaterület hányadában, vagy `null`: az alapértelmezés
+ * (styles.css: legfeljebb 22rem, alacsony ablakban a munkaterület fele). Csak
+ * a lapon belül él; újratöltés után az alapértelmezés jön.
+ */
+let writtenShare: number | null = null;
+/** A „Teljes nézet” előtti hányad; a „Vissza” ide áll. */
+let writtenBefore: number | null = null;
+
+function setStyle(element: HTMLElement, name: string, value: string): void {
+  if (element.style.getPropertyValue(name) !== value) element.style.setProperty(name, value);
+}
+
+/** A panel magasságának tartománya: a fejléctől (a szövegtörzs tetejéig) a teljes munkaterületig. */
+function writtenRange(): SizeRange {
+  const style = getComputedStyle(written);
+  const lift = parseFloat(style.paddingBlockStart) || 0;
+  const top = writtenBody.getBoundingClientRect().top - written.getBoundingClientRect().top;
+  return { min: top - lift + (parseFloat(style.paddingBlockEnd) || 0), max: canvas.getBoundingClientRect().height };
+}
+
+function applyWrittenShare(share: number | null): void {
+  writtenShare = share;
+  if (share === null) written.style.removeProperty('--written-size');
+  else written.style.setProperty('--written-size', `${(share * 100).toFixed(3)}%`);
+  syncWrittenSize();
+}
+
+/** Húzás és billentyű után; a „Vissza” ezután az alapértelmezésre áll. */
+function resizeWritten(size: number): void {
+  const { max } = writtenRange();
+  writtenBefore = null;
+  applyWrittenShare(max > 0 ? size / max : null);
+}
+
+/** Az állapotsor helye, a legkisebb magasság, az elválasztó értéke és a gomb felirata a panel mostani méretéhez. */
+function syncWrittenSize(): void {
+  const stageSize = canvas.getBoundingClientRect().height;
+  if (written.hidden) {
+    setStyle(stage, '--written-block', '0px');
+    return;
+  }
+  const range = writtenRange();
+  setStyle(written, '--written-min', `${range.min}px`);
+  const size = written.getBoundingClientRect().height;
+  const place = statusPlace(size, status.getBoundingClientRect().height, stageSize);
+  setStyle(stage, '--written-block', `${place.block}px`);
+  setStyle(written, '--written-lift', `${place.lift}px`);
+  const percent = percentOf(size, range);
+  writtenGrip.setAttribute('aria-valuemin', String(percentOf(range.min, range)));
+  writtenGrip.setAttribute('aria-valuenow', String(percent));
+  writtenGrip.setAttribute('aria-valuetext', `A munkaterület ${percent} százaléka`);
+  const label = isFull(size, range) ? 'Vissza' : 'Teljes nézet';
+  if (writtenFull.textContent !== label) writtenFull.textContent = label;
+}
+
+function toggleWrittenFull(): void {
+  if (isFull(written.getBoundingClientRect().height, writtenRange())) {
+    applyWrittenShare(writtenBefore);
+    writtenBefore = null;
+    announce('Az írott minta visszakapta a korábbi magasságát.');
+  } else {
+    writtenBefore = writtenShare;
+    applyWrittenShare(1);
+    announce('Az írott minta a teljes munkaterületen.');
   }
 }
 
@@ -1027,6 +1101,7 @@ const ACTIONS: Record<string, () => void> = {
   },
   'export-png': () => void exportPng(),
   'copy-written': () => void copyWritten(),
+  'written-full': () => toggleWrittenFull(),
   'close-written': () => {
     setWrittenOpen(false);
     writtenToggle.focus();
@@ -1167,6 +1242,44 @@ writtenToggle.addEventListener('click', () => {
   const open = written.hasAttribute('hidden');
   setWrittenOpen(open);
   if (open && NARROW.matches) setOpen(panel, toggle, false);
+});
+
+/* Az elválasztó egérrel, érintéssel és billentyűzettel (PQW-885). */
+let gripDrag: { readonly pointer: number; readonly y: number; readonly size: number; readonly share: number | null } | null = null;
+
+writtenGrip.addEventListener('pointerdown', (event) => {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  writtenGrip.setPointerCapture(event.pointerId);
+  gripDrag = { pointer: event.pointerId, y: event.clientY, size: written.getBoundingClientRect().height, share: writtenShare };
+});
+
+writtenGrip.addEventListener('pointermove', (event) => {
+  if (gripDrag?.pointer !== event.pointerId) return;
+  resizeWritten(dragSize(gripDrag.size, gripDrag.y - event.clientY, writtenRange()));
+});
+
+function endGripDrag(event: PointerEvent): void {
+  if (gripDrag?.pointer !== event.pointerId) return;
+  const drag = gripDrag;
+  gripDrag = null;
+  if (event.type !== 'pointerup' || !dragCollapses(drag.size, drag.y - event.clientY, writtenRange())) return;
+  // A fejléc alá húzott panel lecsukódik, és újranyitáskor a húzás előtti magasságot kapja.
+  applyWrittenShare(drag.share);
+  setWrittenOpen(false);
+  writtenToggle.focus();
+}
+writtenGrip.addEventListener('pointerup', endGripDrag);
+writtenGrip.addEventListener('pointercancel', endGripDrag);
+
+writtenGrip.addEventListener('keydown', (event) => {
+  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+  const size = keySize(event.key, written.getBoundingClientRect().height, writtenRange());
+  if (size === null) return;
+  // Itt a nyilak, a Home és az End a panel magasságát állítják, nem a vászon kurzorát.
+  event.preventDefault();
+  event.stopPropagation();
+  resizeWritten(size);
 });
 
 /* ---- Egér és érintés ---- */
@@ -1518,13 +1631,16 @@ fitBoard();
  * Az írott minta nyitásakor, csukásakor és átméretezéskor a nézet igazodik
  * (PQW-883): a kurzor a takarás fölé kerül; kurzor nélkül újra illesztünk, ha
  * eddig az egész minta látszott, most viszont takarásba kerülne. Az állapotsor
- * a panel fölé kerül (`--written-block`).
+ * a panel fölé kerül (`--written-block`). Ha a panel a teljes munkaterületet
+ * elfedi, a vászon nem igazodik (PQW-885).
  */
 let shownArea = visibleArea();
 function realign(): void {
-  stage.style.setProperty('--written-block', `${insetBottom()}px`);
+  syncWrittenSize();
+  const area = visibleArea();
+  if (area.bottom - area.top < 1) return;
   const before = shownArea;
-  shownArea = visibleArea();
+  shownArea = area;
   const point = cursorPoint();
   if (point) showPoint(point);
   else if (board.patternWithin(before) && !board.patternWithin(shownArea)) fitBoard();
@@ -1532,6 +1648,8 @@ function realign(): void {
 const realignObserver = new ResizeObserver(realign);
 realignObserver.observe(canvas);
 realignObserver.observe(written);
+// Az állapotsor új üzenete csak a helyét állítja, a nézetet nem mozdítja.
+new ResizeObserver(syncWrittenSize).observe(status);
 
 alignTooltips(must<HTMLElement>('.tools'));
 setupConsentBanner(GA_MEASUREMENT_ID);

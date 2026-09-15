@@ -273,15 +273,30 @@
         <p class="status" id="status" role="status" aria-live="polite"></p>
 
         <aside class="written" id="written" aria-labelledby="written-title" hidden>
+          <div
+            class="written__grip"
+            id="written-grip"
+            role="separator"
+            tabindex="0"
+            aria-orientation="horizontal"
+            aria-controls="written"
+            aria-label="Az írott minta magassága"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="50"
+          ></div>
           <div class="written__head">
             <h2 class="panel__title" id="written-title">Írott minta</h2>
             <div class="written__actions">
+              <button type="button" class="tool" id="written-full" data-action="written-full">Teljes nézet</button>
               <button type="button" class="tool written__copy" data-action="copy-written">Másolás</button>
               <button type="button" class="tool" data-action="close-written" aria-controls="written">Lecsukás</button>
             </div>
           </div>
-          <div class="written__notices" id="written-notices"></div>
-          <pre class="written__text" id="written-text" tabindex="0" aria-label="Az írott minta szövege"></pre>
+          <div class="written__body" id="written-body">
+            <div class="written__notices" id="written-notices"></div>
+            <pre class="written__text" id="written-text" tabindex="0" aria-label="Az írott minta szövege"></pre>
+          </div>
         </aside>
 
         <aside class="panel" id="panel" aria-label="Szemek és beállítások">
