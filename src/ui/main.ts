@@ -83,10 +83,11 @@ import { buildPalette, type PaletteItem } from './palette.js';
 import { InsertionPanel } from './insertion-panel.js';
 import { insertionSuffix } from './insertion-view.js';
 import { nodeInsertions } from '../core/insertion.js';
+import { AmigurumiPanel } from './amigurumi-panel.js';
 import { RoundsPanel } from './rounds-panel.js';
 import { ShapesPanel } from './shapes-panel.js';
 import { SizePanel } from './size-panel.js';
-import { DEFAULT_PATTERN_TYPE, PATTERN_TYPES, gridKind, isAvailableType, type PatternTypeId } from './pattern-types.js';
+import { DEFAULT_PATTERN_TYPE, PATTERN_TYPES, gridKind, isAvailableType, writtenShareFor, type PatternTypeId } from './pattern-types.js';
 import { applyInk, drawCentered, readInk, shapeBounds, stemLength, symbolShapes, type SymbolOptions } from './symbols.js';
 import { alignTooltips } from './tooltip.js';
 import { writtenView } from './written.js';
@@ -342,6 +343,7 @@ function refresh(message?: string): void {
   sizePanel.update(derived.pattern, derived.context.graph, derived.context.library);
   roundsPanel.update(derived.pattern);
   shapesPanel.update(derived.pattern);
+  amigurumiPanel.update(derived.pattern);
   if (message !== undefined) announce(message);
 }
 
@@ -1240,6 +1242,7 @@ function selectType(id: PatternTypeId): void {
   const type = PATTERN_TYPES.find((candidate) => candidate.id === id);
   // A rács típusa a mintatípussal együtt vált (PQW-874).
   refresh();
+  showTypeView(id);
   if (type) announce(`Mintatípus: ${type.name}. ${type.detail}`);
 }
 
@@ -1641,6 +1644,27 @@ const shapesPanel = new ShapesPanel(must<HTMLDetailsElement>('#section-shape'), 
   announce,
 });
 
+/* ---- Amigurumi (PQW-863) ---- */
+
+const amigurumiPanel = new AmigurumiPanel(must<HTMLDetailsElement>('#section-amigurumi'), {
+  commit: (pattern, message) => {
+    selectedNode = null;
+    selection = [];
+    commit({ ok: true, pattern }, message);
+    fitBoard();
+  },
+  announce,
+});
+
+/** Amigurumiban az írott minta az elsődleges nézet: a panel nagyban nyílik, és az Amigurumi szakasz lenyílik. */
+function showTypeView(id: PatternTypeId): void {
+  const share = writtenShareFor(id, NARROW.matches);
+  if (share === null) return;
+  setWrittenOpen(true);
+  applyWrittenShare(share);
+  amigurumiPanel.reveal();
+}
+
 /* ---- Indulás ---- */
 
 syncNotationControls();
@@ -1649,6 +1673,7 @@ renderPalette();
 setOpen(typesNav, typesToggle, !NARROW.matches);
 setOpen(panel, toggle, !NARROW.matches);
 setOpen(written, writtenToggle, readWrittenOpen() && !NARROW.matches);
+showTypeView(patternType);
 select(null);
 fitBoard();
 

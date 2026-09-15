@@ -91,8 +91,8 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
 - **Felület** (PQW-873): ikonos menüsor csoportokba rendezve (fájl,
   szerkesztés, sor és kör, kijelölés, nézet), minden ikonon tooltip a
   gyorsbillentyűvel (saját tooltip: azonnal, fókuszra és inaktív gombon is);
-  bal oldalt lenyitható **mintatípus**-menü (most a szabályos horgolás aktív, a
-  többi „hamarosan”); jobb oldalt összecsukható szakaszok: legfelül a
+  bal oldalt lenyitható **mintatípus**-menü (a szabályos horgolás és az
+  amigurumi aktív, a többi „hamarosan”); jobb oldalt összecsukható szakaszok: legfelül a
   **szemek** listája csoportokkal és jel-előnézettel, alatta a ritkán állított
   jelölés és jelek (alapból csukva), majd a minta neve (PQW-882). A kijelölés
   csoportban a terület kijelölése, a kijelölés törlése és duplikálása (PQW-875).
@@ -192,6 +192,33 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
     írja.
   - A létrehozás egy lépésben visszavonható, és minden generált minta
     hibátlanul átmegy az ellenőrzőn.
+- **Amigurumi és 3D formák** (PQW-863): a mintatípus-menü „Amigurumi” pontja és
+  a jobb oldali panel „Amigurumi” szakasza (a Kör és motívum alatt). Az
+  amigurumi fő nézete az írott minta: a típus kiválasztásakor a panel nagyban
+  (keskeny ablakban teljes nézetben) nyílik, a rajz kiegészítés.
+  - **Formák:** gömb 6n vagy szinuszos körtervvel, félgömb, tojás, henger, kúp
+    (tört szaporítással is, pl. 2,5), forgástest soronként megadott profilból.
+    A körszám és a szaporítás a rövidpálca körben mért mintasűrűségéből jön;
+    profil nélkül a tűből becsülve, és a szakasz ezt ki is írja. A 6 cm-es
+    DK-gömb (04 §4.4) mindkét módszerrel egyezik.
+  - **Korlátok:** spirál körök varázskörből, egy körben legfeljebb duplázás vagy
+    felezés, eltolt szaporítás és fogyasztás (a harmadik egymás fölé kerülést
+    elkerülve), láthatatlan fogyasztás, éles törés után hátsó szálas kör.
+  - **Részek:** a „Hozzáadás részként” a minta utolsó darabjához kapcsol: varrva
+    (új darab, az írott minta „Összeállítás” sorával) vagy folytatólagosan
+    (ugyanaz a darab, a rész neve az első köre előtt). Eltérő szemszám hibát ad;
+    egyező szemszám vagy egyenletes elosztás átmegy. A mentett kapcsolást az
+    ellenőrző is nézi (`join-count`, `join-edge`).
+  - **Jelölések az írott mintában:** a biztonsági szem és a tömés kezdete, a zárt
+    vég összehúzása. 3 év alatti gyereknek hímzett szem; ha a játék így jelölt,
+    de biztonsági szem van benne, figyelmeztetés (`toy-safety-eyes`).
+  - **Görbület és méret:** körönként lapos, kunkorodó, henger, fodros vagy fogyó;
+    a rész szélessége és magassága, a figura magassága a részekből (varrásnál a
+    zárt rész besüllyedésével). A részekből készült darabon a kunkorodás nem
+    figyelmeztet.
+  - A mentett JSON a részeket (`sections`), a jelöléseket (`marks`), a
+    kapcsolást (`joins`) és a játék adatát (`toy`) is rögzíti; a régi mentések
+    változatlanul betöltődnek. A rajz több darabnál az első darabot mutatja.
 
 A jelek alapból a Craft Yarn Council jelölését követik, és a könyvtár adataiból
 rajzolódnak: a szár hossza a láncszem-magasságból, a ferde vonalak száma a
@@ -215,13 +242,16 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/core/round-generator.ts` | **Kör- és motívumgenerátor** (PQW-861): lapos kör, négyzet, hatszög, nyolcszög, nagymama-négyzet szemgráfként, kezdéssel, körvéggel és színváltással. |
 | `src/core/shapes.ts` | **Sík formák generátora** (PQW-862): téglalap, háromszögek, trapéz, rombusz cm-ből vagy az él szögéből, mintaismétlés; az élek egyenletes alakítása élenként legfeljebb 2-vel, láncos hosszabbítás és meghagyott szemek; a terv és a szemgráf. Tiszta függvény. |
 | `src/core/border.ts` | **Szegély** (PQW-862): sorvégi arányok, sarkok, a szegély szemszáma a gráf soraiból. |
+| `src/core/amigurumi.ts` | **Amigurumi és 3D formák** (PQW-863): a forma körterve a körben mért mintasűrűségből (gömb 6n és szinuszos, félgömb, tojás, henger, kúp, forgástest), a korlátok, egy kör elosztása, a görbület körönként, a méretbecslés és a kapcsolás ellenőrzése. |
+| `src/core/amigurumi-generator.ts` | A körtervből szemgráf spirálban, jelölésekkel; új minta egy részből, új rész varrva vagy folytatólagosan. |
+| `src/ui/amigurumi-view.ts`, `src/ui/amigurumi-panel.ts` | Az „Amigurumi” szakasz: a mezők a formához, az előnézet, a figura mérete (DOM nélkül), és a bekötése. |
 | `src/core/pattern-size.ts` | **A minta mérete és fonala** (PQW-859): a mintával mentett profil a gauge-profil formájában, a méret rétegei a gráfból, fonalbecslés, profilok kezelése, az arányhelyes nézet szárhossza. |
 | `src/core/pattern-steps.ts` | **Az írott minta lépéssora** a gráfból (PQW-858), nyelvtől függetlenül: célpont az előző sor pozícióihoz képest, összevonás („5 rp”), legrövidebb ismétlődő egység. Itt dől el, mit tud a szöveg kifejezni. |
 | `src/core/pattern-text.ts`, `src/core/hungarian.ts` | Az írott minta szövege magyarul, amerikai és brit jelöléssel; rövidítéslista és jelmagyarázat a használt szemekkel; a magyar ragozás. Minden kiírt kifejezés innen jön. |
 | `src/core/pattern-read.ts`, `src/core/canonical.ts` | A saját szöveg visszaolvasása gráffá, a szöveg sorára mutató hibával; két minta összevetése az azonosítóktól függetlenül. |
 | `src/core/repeat.ts`, `src/core/stitch-library.ts` | Láncalap és „X többszöröse + Y” számítása; a szemkönyvtár mint azonosító → definíció. |
 | `src/ui/palette.ts` | A paletta tartalma a könyvtárból, a választott jelöléssel: csoportcímek, feliratok, gyorsbillentyűk, DOM nélkül. |
-| `src/ui/pattern-types.ts` | A bal oldali mintatípus-menü tartalma (PQW-873): a négy típus neve, magyarázata és hogy be van-e kapcsolva; a típushoz tartozó rács (PQW-874). DOM nélküli. |
+| `src/ui/pattern-types.ts` | A bal oldali mintatípus-menü tartalma (PQW-873): a négy típus neve, magyarázata és hogy be van-e kapcsolva; a típushoz tartozó rács (PQW-874) és az írott minta magassága (PQW-863). DOM nélküli. |
 | `src/ui/grid-paths.ts` | A rács rajza útvonalakként: ugyanebből rajzol a vászon és az SVG-export. DOM nélküli. |
 | `src/ui/notation.ts` | **A jelölés és a jelstílus beállítása** (PQW-868): alapértelmezés a felület nyelvéből, tárolás, a jelrajz beállítása, a minta jelölésének rögzítése. DOM nélküli. |
 | `src/ui/size-view.ts`, `src/ui/size-panel.ts` | **A „Méret és fonal” szakasz** (PQW-859): a kiírás szövegei eredettel és tartománnyal, tűátváltás (DOM nélkül); a profil-szerkesztő és a profilváltás a panelen. |

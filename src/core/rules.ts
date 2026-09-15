@@ -202,6 +202,26 @@ export const RULES = {
     message:
       'Spirálban a színváltás lépcsőt hagy. Javítás: a következő kör első szeme helyett kúszószem, vagy az új színt az első szem hátsó szálába kapcsold be.',
   },
+
+  /* ---- Amigurumi (PQW-863) ---- */
+  'join-edge': {
+    severity: 'error',
+    reference: '04 §5.4',
+    summary: 'Az összevarrás nem létező darabra vagy körre mutat.',
+    message: 'Az összevarrás egy olyan részre vagy körre mutat, amely nincs meg.',
+  },
+  'join-count': {
+    severity: 'error',
+    reference: '04 §5.4, §9.0',
+    summary: 'A két összevarrt szél szemszáma eltér, és nincs megadva elosztás, vagy az elosztás nem illik a két szélhez.',
+    message: 'A két összevarrt szél szemszáma eltér. Add meg, hogyan oszlanak el a szemek, vagy igazítsd a részek méretét.',
+  },
+  'toy-safety-eyes': {
+    severity: 'warning',
+    reference: '04 §5.7, §9.6',
+    summary: '3 év alatti gyereknek szánt játékban biztonsági szem van jelölve.',
+    message: '3 év alatti gyereknek szánt játékba nem kerülhet biztonsági szem vagy gyöngy: a szemeket hímezd ki.',
+  },
 } as const satisfies Record<string, RuleDef>;
 
 export type RuleId = keyof typeof RULES;

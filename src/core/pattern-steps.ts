@@ -33,7 +33,7 @@ import { buildPieceGraph, type PieceGraph } from './graph.ts';
 import { modeAsWorked } from './insertion.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { hasBaseChain, traditionOf } from './tradition.ts';
-import type { Anchor, LayerEvent, NodeId, Pattern, Piece, StitchDef, StitchDefId, StitchInsertion, Tradition } from './types.ts';
+import type { Anchor, LayerEvent, NodeId, Pattern, Piece, RoundMark, StitchDef, StitchDefId, StitchInsertion, Tradition } from './types.ts';
 
 export type StepTarget = 'next' | 'same' | 'next-space' | 'same-space' | 'ring' | 'chain-ring' | 'none';
 
@@ -76,6 +76,8 @@ export interface WrittenLayer {
   readonly colorChange: boolean;
   /** A spirál lépcsőjavítása a színváltásnál. */
   readonly jogFix: LayerEvent['jogFix'] | null;
+  /** Jelölések a kör után: szem, tömés, a nyílás összehúzása (PQW-863). */
+  readonly marks: readonly RoundMark[];
 }
 
 export interface WrittenPiece {
@@ -85,6 +87,8 @@ export interface WrittenPiece {
     | { readonly kind: 'ring' }
     | { readonly kind: 'chain-ring'; readonly count: number };
   readonly layers: readonly WrittenLayer[];
+  /** A darab részei (PQW-863): a folytatólagosan kapcsolt rész neve az első köre előtt áll. */
+  readonly sections: readonly { readonly name: string; readonly layer: number }[];
   /** A szegély a sorok után, a sorokból számolva (PQW-862); szegély nélkül `null`. */
   readonly border: WrittenBorder | null;
 }
@@ -134,7 +138,8 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
     if (!result.ok) throw new WrittenPatternError(`A szegély nem írható ki: ${result.reason}`);
     border = { stitch: piece.border.stitch, counts: result.counts };
   }
-  return { name: piece.name, foundation, layers, border };
+  const sections = (piece.sections ?? []).map(({ name, layer }) => ({ name, layer }));
+  return { name: piece.name, foundation, layers, border, sections };
 }
 
 /** A horgoló felől nézett beszúrás: visszai soron a szálak és a relief megfordulnak (insertion.ts). */
@@ -312,6 +317,7 @@ function writtenLayer(
     joinTo,
     colorChange: layer.closing?.colorChange === true,
     jogFix: layer.closing?.jogFix ?? null,
+    marks: layer.closing?.marks ?? [],
   };
 }
 

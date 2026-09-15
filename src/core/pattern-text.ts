@@ -21,7 +21,7 @@ import { dative, times } from './hungarian.ts';
 import { writtenPieces, type Step, type StepTarget, type WrittenBorder, type WrittenLayer, type WrittenPiece } from './pattern-steps.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { stitchLabel, stitchStructure } from './stitchText.ts';
-import type { Locale, Pattern, StitchDef, StitchDefId, StitchInsertion } from './types.ts';
+import type { JoinEdge, Locale, Pattern, RoundMark, StitchDef, StitchDefId, StitchInsertion } from './types.ts';
 
 /* ---- Szókészlet ---- */
 
@@ -31,7 +31,7 @@ export type PhraseKey = 'next-stitch' | 'next-chain' | 'same-stitch' | 'same-cha
 export interface Vocabulary {
   /** Angol jelölésnél a rendszer neve, amely a címsorokban mindig ott áll; magyarul nincs. */
   readonly system: string | null;
-  readonly headings: { readonly abbreviations: string; readonly legend: string };
+  readonly headings: { readonly abbreviations: string; readonly legend: string; readonly assembly: string };
   readonly layer: { readonly row: (from: number, to: number) => string; readonly round: (from: number, to: number) => string };
   readonly foundation: (chains: number) => string;
   readonly ring: string;
@@ -72,8 +72,21 @@ export interface Vocabulary {
   readonly join: (slip: string, to: 'turning-chain' | 'first-stitch') => string;
   /** Nem szemnévből jövő rövidítések, ha a szövegben előfordulnak. */
   readonly general: readonly { readonly abbr: string; readonly meaning: string; readonly used: RegExp }[];
+  /** A kör utáni jelölések mondata (PQW-863, 04 §5.6, §5.7, §9.8). */
+  readonly marks: Readonly<Record<RoundMark, string>>;
+  /** A folytatólagosan kapcsolt rész sora az első köre előtt. */
+  readonly section: (name: string) => string;
+  /** Az összevarrás sora az „Összeállítás” alatt (04 §5.4). */
+  readonly sewing: (a: SewnEdge, b: SewnEdge, distributed: boolean) => string;
   /** A szegély köre a sorok után (PQW-862, 03 §7.1); a `prefix`-ről ismeri fel a visszaolvasó. */
   readonly border: { readonly prefix: string; readonly text: (parts: BorderParts) => string };
+}
+
+/** Egy összevarrt szél a szövegben: a darab neve, a kör és a szemszáma. */
+export interface SewnEdge {
+  readonly name: string;
+  readonly layer: number;
+  readonly count: number;
 }
 
 /** A szegély sorának kiírt részei, mennyiséggel együtt: „3 rp”, „(288 szem)”. */
@@ -90,7 +103,7 @@ export interface BorderParts {
 
 const HU: Vocabulary = {
   system: null,
-  headings: { abbreviations: 'Rövidítések', legend: 'Jelmagyarázat' },
+  headings: { abbreviations: 'Rövidítések', legend: 'Jelmagyarázat', assembly: 'Összeállítás' },
   layer: {
     row: (from, to) => `${range(from, to)}. sor`,
     round: (from, to) => `${range(from, to)}. kör`,
@@ -150,6 +163,16 @@ const HU: Vocabulary = {
     { abbr: 'Herp', meaning: 'hátsó relief egyráhajtásos pálca (hátulról hurkolt)', used: /\bHerp\b/ },
     { abbr: 'hsz', meaning: 'hátsó szálba', used: /\(hsz\)/ },
   ],
+  // Új magyar mondatok, jóváhagyásra várnak (PQW-863).
+  marks: {
+    'safety-eyes': 'Tedd be a biztonsági szemeket.',
+    'embroider-eyes': 'Hímezd ki a szemeket: 3 év alatti gyereknek szánt játékba nem kerülhet biztonsági szem.',
+    stuffing: 'Kezdd el a tömést, és a nyílás bezárásáig tömd tovább.',
+    'close-opening': 'A fonalat fűzd át a maradék szemek első szálán, és húzd össze a nyílást.',
+  },
+  section: (name) => `${name}, folytatólagosan:`,
+  sewing: (a, b, distributed) =>
+    `Varrás: ${a.name}, ${a.layer}. kör (${a.count}) → ${b.name}, ${b.layer}. kör (${b.count})${distributed ? ', a szemeket egyenletesen elosztva' : ''}.`,
   border: {
     prefix: 'Szegély: ',
     text: (p) =>
@@ -172,7 +195,7 @@ function english(skipWord: string, skipMeaning: string, system: string, color: s
   return {
     // Az amerikai és a brit „dc” mást jelent, ezért a rendszer neve mindkét címsorban ott áll (PQW-868).
     system,
-    headings: { abbreviations: `Abbreviations (${system})`, legend: `Stitch key (${system})` },
+    headings: { abbreviations: `Abbreviations (${system})`, legend: `Stitch key (${system})`, assembly: 'Assembly' },
     layer: {
       row: (from, to) => `${from === to ? 'Row' : 'Rows'} ${range(from, to)}`,
       round: (from, to) => `${from === to ? 'Rnd' : 'Rnds'} ${range(from, to)}`,
@@ -231,6 +254,15 @@ function english(skipWord: string, skipMeaning: string, system: string, color: s
       { abbr: 'st(s)', meaning: 'stitch(es)', used: /\bsts?\b/ },
       { abbr: 'tog', meaning: 'together', used: /\dtog\b/ },
     ],
+    marks: {
+      'safety-eyes': 'Insert safety eyes.',
+      'embroider-eyes': 'Embroider the eyes: no safety eyes in toys for children under 3.',
+      stuffing: 'Begin stuffing and keep stuffing until closed.',
+      'close-opening': 'Weave the tail through the front loops of the remaining sts and pull tight.',
+    },
+    section: (name) => `${name}, worked continuously:`,
+    sewing: (a, b, distributed) =>
+      `Sew: ${a.name}, Rnd ${a.layer} (${a.count}) to ${b.name}, Rnd ${b.layer} (${b.count})${distributed ? ', easing sts evenly' : ''}.`,
     border: {
       prefix: 'Border: ',
       text: (p) =>
@@ -260,6 +292,14 @@ export function ordinal(n: number): string {
 }
 
 /* ---- Szemnevek ---- */
+
+/**
+ * A kiírt beszúrási mód: a szem egyetlen megengedett módja nem kerül ki, mert a
+ * szem neve már tartalmazza, pl. a láthatatlan fogyasztás az első szálakba (PQW-863).
+ */
+export function shownMode(def: StitchDef, mode: StitchInsertion): StitchInsertion {
+  return def.insertionModes.length === 1 && def.insertionModes[0] === mode ? 'both-loops' : mode;
+}
 
 /** Hivatkozás egy szemre a szövegben: a rövidítés, ha van, különben a név. */
 export function refOf(def: StitchDef, locale: Locale): string {
@@ -313,6 +353,8 @@ export interface WrittenPatternText {
   readonly abbreviations: readonly Abbreviation[];
   readonly legend: readonly LegendEntry[];
   readonly pieces: readonly { readonly name: string; readonly lines: readonly string[] }[];
+  /** Az összevarrások sorai (PQW-863); a folytatólagos kapcsolás a darab sorai között áll. */
+  readonly assembly: readonly string[];
 }
 
 /** Az írott minta: rövidítéslista, jelmagyarázat és darabonként a sorok. */
@@ -323,6 +365,11 @@ export function writePattern(pattern: Pattern, library: StitchLibrary, locale: L
   const shortIncrease = shortIncreaseOf(written, library);
   const renderer = new Renderer(library, locale, used, shortIncrease);
   const pieces = written.map((piece) => ({ name: piece.name, lines: renderer.piece(piece) }));
+  const edge = ({ piece: id, layer }: JoinEdge): SewnEdge => {
+    const index = pattern.pieces.findIndex((piece) => piece.id === id);
+    return { name: pattern.pieces[index]?.name ?? id, layer, count: written[index]?.layers[layer - 1]?.stitchCount ?? 0 };
+  };
+  const assembly = (pattern.joins ?? []).map((join) => vocabulary.sewing(edge(join.a), edge(join.b), join.distribution !== undefined));
 
   const text = pieces.flatMap((piece) => piece.lines).join('\n');
   const abbreviations = new Map<string, string>();
@@ -343,6 +390,7 @@ export function writePattern(pattern: Pattern, library: StitchLibrary, locale: L
       .sort((a, b) => a.abbr.localeCompare(b.abbr, locale, { sensitivity: 'base' })),
     legend: legendOf(pattern, library, locale),
     pieces,
+    assembly,
   };
 }
 
@@ -355,6 +403,7 @@ export function formatWrittenPattern(written: WrittenPatternText): string {
   }
   if (written.legend.length > 0) blocks.push([headings.legend, ...written.legend.map((entry) => entry.label)]);
   for (const piece of written.pieces) blocks.push([piece.name, ...piece.lines]);
+  if (written.assembly.length > 0) blocks.push([headings.assembly, ...written.assembly]);
   return `${blocks.map((block) => block.join('\n')).join('\n\n')}\n`;
 }
 
@@ -451,10 +500,21 @@ class Renderer {
     if (piece.layers.some((layer) => layer.closing === 'spiral')) lines.push(v.spiral);
 
     const bodies = piece.layers.map((layer) => this.body(layer));
+    // A folytatólagosan kapcsolt rész neve az első köre előtt; ott az azonos körök összevonása is megszakad.
+    const sections = new Map(piece.sections.filter((section) => section.layer > 1).map((section) => [section.layer, section.name]));
     for (let i = 0; i < piece.layers.length; ) {
       let j = i;
-      while (j + 1 < piece.layers.length && bodies[j + 1] === bodies[i] && piece.layers[j + 1]!.shape === piece.layers[i]!.shape) j += 1;
+      while (
+        j + 1 < piece.layers.length &&
+        bodies[j + 1] === bodies[i] &&
+        piece.layers[j + 1]!.shape === piece.layers[i]!.shape &&
+        !sections.has(piece.layers[j + 1]!.index)
+      ) {
+        j += 1;
+      }
       const { shape, index } = piece.layers[i]!;
+      const section = sections.get(index);
+      if (section !== undefined) lines.push(v.section(section));
       const label = shape === 'row' ? v.layer.row(index, piece.layers[j]!.index) : v.layer.round(index, piece.layers[j]!.index);
       lines.push(`${label}: ${bodies[i]}`);
       i = j + 1;
@@ -507,6 +567,7 @@ class Renderer {
       if (layer.jogFix === 'slip-stitch') this.use(slip);
       text += ` ${v.jogFix(layer.jogFix, refOf(slip, this.locale))}`;
     }
+    for (const mark of layer.marks) text += ` ${v.marks[mark]}`;
     return text;
   }
 
@@ -546,7 +607,7 @@ class Renderer {
           this.use(def);
           text = itemName(def, this.locale, this.library);
         }
-        return `${v.mode(step.mode, text)}${this.phrase(step.target, step.into, false)}`;
+        return `${v.mode(shownMode(def, step.mode), text)}${this.phrase(step.target, step.into, false)}`;
       }
       case 'group': {
         const def = this.def(step.def);

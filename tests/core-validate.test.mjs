@@ -6,6 +6,7 @@
 import { strict as assert } from 'node:assert';
 import { after, describe, test } from 'node:test';
 
+import { addAmigurumiPart, createAmigurumi } from '../src/core/amigurumi-generator.ts';
 import { emptyPattern } from '../src/core/editor.ts';
 import { DEFAULT_MOTIF, generateMotif } from '../src/core/round-generator.ts';
 import { RULES } from '../src/core/rules.ts';
@@ -258,6 +259,37 @@ describe('körök, elrontva (04 §2, §3.2, §8, §9, PQW-861)', () => {
       const pattern = motif({ shape, rounds: 6 });
       assert.deepEqual(validatePattern(pattern, libraryFor(pattern)), [], shape);
     }
+  });
+});
+
+/* ---- Amigurumi (PQW-863) ---- */
+
+/** Fej (6 cm-es gömb) és test (5 cm-es henger, nyitott tetővel) varrva, egyenletes elosztással: 28 szem a 30-ra. */
+function headAndBody(under3 = false) {
+  const head = createAmigurumi(emptyPattern(), { name: 'Fej', shape: { kind: 'sphere', diameterCm: 6, method: '6n' }, stagger: true, eyes: true }, under3);
+  const body = { name: 'Test', shape: { kind: 'cylinder', diameterCm: 5, heightCm: 5, bottom: 'closed', top: 'open' }, stagger: true, eyes: false };
+  return addAmigurumiPart(head.pattern, body, { method: 'sewn', distribute: true }, under3).pattern;
+}
+
+describe('amigurumi, elrontva (04 §5.4, §5.7, PQW-863)', () => {
+  test('a generált fej-test figura elosztással hibátlan, 3 év alatti gyereknek is', () => {
+    assert.deepEqual(validatePattern(headAndBody(), testLibrary), []);
+    assert.deepEqual(validatePattern(headAndBody(true), testLibrary), []);
+  });
+
+  test('a két összevarrt szél szemszáma eltér, és nincs elosztás', () => {
+    const pattern = headAndBody();
+    const { distribution: _distribution, ...join } = pattern.joins[0];
+    assertOnly({ ...pattern, joins: [join] }, 'join-count');
+  });
+
+  test('az összevarrás nem létező körre mutat', () => {
+    const pattern = headAndBody();
+    assertOnly({ ...pattern, joins: [{ ...pattern.joins[0], b: { piece: 'p1', layer: 40 } }] }, 'join-edge');
+  });
+
+  test('3 év alatti gyereknek szánt játékban biztonsági szem', () => {
+    assertOnly({ ...headAndBody(), toy: { under3: true } }, 'toy-safety-eyes');
   });
 });
 

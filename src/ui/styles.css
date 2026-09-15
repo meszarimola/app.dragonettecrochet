@@ -579,7 +579,8 @@ body.is-selecting #board {
 }
 
 .panel__field input,
-.panel__field select {
+.panel__field select,
+.panel__field textarea {
   min-block-size: 44px;
   padding: 0.4rem 0.6rem;
   border: 1px solid var(--c-muted);
@@ -1246,6 +1247,46 @@ body.is-selecting #board {
 }
 
 .shape__create {
+  justify-self: start;
+}
+
+/* ---- Amigurumi (PQW-863) ---- */
+
+.amigurumi,
+.amigurumi__join {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.amigurumi .panel__field,
+.amigurumi .panel__note,
+.amigurumi .choice {
+  margin: 0;
+}
+
+.amigurumi .panel__field {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.amigurumi textarea {
+  resize: vertical;
+}
+
+.amigurumi__join {
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--c-line);
+  border-radius: 8px;
+}
+
+.amigurumi__join > legend {
+  padding-inline: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.amigurumi__action {
   justify-self: start;
 }
 
