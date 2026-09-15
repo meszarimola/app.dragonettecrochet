@@ -17,7 +17,7 @@
 
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
 import { modeAsWorked, type Step, type StepTarget } from './pattern-steps.ts';
-import { VOCABULARIES, isDecrease, isIncrease, refOf, renderStep, type PhraseKey, type Vocabulary } from './pattern-text.ts';
+import { VOCABULARIES, isDecrease, isIncrease, refOf, renderStep, type PhraseKey, type StepContext, type Vocabulary } from './pattern-text.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { traditionOf, turningChainCountsFor } from './tradition.ts';
 import type {
@@ -30,7 +30,9 @@ import type {
   Piece,
   Ring,
   Space,
+  SpaceId,
   StitchDef,
+  StitchDefId,
   StitchGroup,
   StitchInsertion,
   StitchNode,
@@ -94,11 +96,30 @@ function read(text: string, options: ReadOptions): Pattern {
   const headings = new Set([vocabulary.headings.abbreviations, vocabulary.headings.legend]);
   const pieceBlocks = rest.filter((block) => !headings.has(block[0]!.text));
   if (pieceBlocks.length === 0) throw new ReadFailure(titleBlock[0]!.number, 'A szövegben nincs darab.');
+  const abbreviations = rest.find((block) => block[0]!.text === vocabulary.headings.abbreviations);
+  const shortIncrease = abbreviations ? shortIncreaseFrom(abbreviations, options, vocabulary) : null;
 
   const pieces = pieceBlocks.map((block, index) =>
-    new PieceReader(`p${index + 1}`, block, options, vocabulary, titleBlock[0]!.text).read(),
+    new PieceReader(`p${index + 1}`, block, options, vocabulary, titleBlock[0]!.text, shortIncrease).read(),
   );
   return { formatVersion: 1, title: titleBlock[0]!.text, conventions: options.conventions, pieces };
+}
+
+/**
+ * A körök „szap.” rövid alakjának jelentése a rövidítéslistából: melyik
+ * kétszemes szaporítás (pattern-text.ts `shortIncreaseOf`).
+ */
+function shortIncreaseFrom(block: readonly Line[], options: ReadOptions, vocabulary: Vocabulary): StitchDefId | null {
+  const prefix = `${vocabulary.increase.abbr} – `;
+  const line = block.find((candidate) => candidate.text.startsWith(prefix));
+  if (!line) return null;
+  const meaning = line.text.slice(prefix.length);
+  for (const def of options.library.values()) {
+    if (def.kind !== 'group' || !isIncrease(def) || def.members.length !== 2) continue;
+    const part = options.library.get(def.members[0]!);
+    if (part && vocabulary.increase.meaning(refOf(part, options.locale)) === meaning) return def.id;
+  }
+  throw new ReadFailure(line.number, `Ismeretlen szaporítás a rövidítések között: „${line.text}”.`);
 }
 
 /* ---- Tételek ---- */
@@ -131,28 +152,46 @@ const PHRASE_TARGETS: readonly { readonly key: PhraseKey; readonly target: StepT
   { key: 'next-space', target: 'next-space', into: 'stitch' },
   { key: 'same-space', target: 'same-space', into: 'stitch' },
   { key: 'ring', target: 'ring', into: 'stitch' },
+  { key: 'chain-ring', target: 'chain-ring', into: 'stitch' },
 ];
 
 /** A tétel lépése: az a lépés, amelyet a szövegíró betű szerint így írna ki. */
-function parseItem(text: string, line: number, options: ReadOptions, vocabulary: Vocabulary): Step {
+function parseItem(text: string, line: number, options: ReadOptions, vocabulary: Vocabulary, context: StepContext = {}): Step {
   const { library, locale } = options;
   const matches = (step: Step) => {
     try {
-      return renderStep(step, library, locale) === text;
+      return renderStep(step, library, locale, context) === text;
     } catch {
       return false;
     }
   };
 
+  // Körben az ismétlés „(1 rp, szap.) ×6” vagy „szap. ×6” (04 §5.9).
+  const roundRepeat = context.round ? /^(?:\((.*)\)|(\S+)) [×x](\d+)$/.exec(text) : null;
+  if (roundRepeat) {
+    const inner = roundRepeat[1] ?? roundRepeat[2]!;
+    const steps = splitItems(inner).map((item) => parseItem(item, line, options, vocabulary, context));
+    const step: Step = { kind: 'repeat', steps, times: Number(roundRepeat[3]) };
+    if (matches(step)) return step;
+    throw new ReadFailure(line, `Nem értelmezhető ismétlés: „${text}”.`);
+  }
+
   if (text.startsWith('[')) {
     const close = text.lastIndexOf(']');
     const times = Number(/\d+/.exec(text.slice(close))?.[0]);
     if (close > 0 && Number.isInteger(times)) {
-      const steps = splitItems(text.slice(1, close)).map((item) => parseItem(item, line, options, vocabulary));
+      const steps = splitItems(text.slice(1, close)).map((item) => parseItem(item, line, options, vocabulary, context));
       const step: Step = { kind: 'repeat', steps, times };
       if (matches(step)) return step;
     }
     throw new ReadFailure(line, `Nem értelmezhető ismétlés: „${text}”.`);
+  }
+
+  if (context.round && context.shortIncrease) {
+    for (const mode of MODES) {
+      const step: Step = { kind: 'group', def: context.shortIncrease, target: 'next', mode, into: 'stitch' };
+      if (matches(step)) return step;
+    }
   }
 
   const n = Number(/\d+/.exec(text)?.[0] ?? 1);
@@ -229,22 +268,37 @@ class PieceReader {
   private readonly events: LayerEvent[] = [];
   private readonly skipped: NodeId[] = [];
   private previous: NodeId | null = null;
-  private foundation: 'chain' | 'ring' = 'chain';
+  private foundation: 'chain' | 'ring' | 'chain-ring' = 'chain';
+  /** A láncgyűrű láncíve, amelybe az 1. kör horgol. */
+  private ringSpace: SpaceId | null = null;
+  /** A darab spirálban halad: a kör vége kiírás nélkül is spirál (pattern-text.ts). */
+  private spiral = false;
+  private readonly shortIncrease: StitchDefId | null;
   /** Rétegenként a szöveg sora, a szemszám hibájához. */
   private readonly layerLines = new Map<number, number>();
 
-  constructor(id: string, lines: readonly Line[], options: ReadOptions, vocabulary: Vocabulary, title: string) {
+  constructor(
+    id: string,
+    lines: readonly Line[],
+    options: ReadOptions,
+    vocabulary: Vocabulary,
+    title: string,
+    shortIncrease: StitchDefId | null = null,
+  ) {
     this.id = id;
     this.lines = lines;
     this.options = options;
     this.vocabulary = vocabulary;
     this.title = title;
+    this.shortIncrease = shortIncrease;
   }
 
   read(): Piece {
-    const [nameLine, foundationLine, ...layerLines] = this.lines;
+    const [nameLine, foundationLine, ...rest] = this.lines;
     if (!foundationLine) throw new ReadFailure(nameLine!.number, 'A darab neve után a láncalap vagy a varázskör következik.');
     this.readFoundation(foundationLine);
+    this.spiral = rest[0]?.text === this.vocabulary.spiral;
+    const layerLines = this.spiral ? rest.slice(1) : rest;
 
     let index = 1;
     layerLines.forEach((line, i) => {
@@ -311,6 +365,15 @@ class PieceReader {
       return;
     }
     const count = Number(/\d+/.exec(line.text)?.[0]);
+    if (Number.isInteger(count) && count >= 1 && line.text === v.chainRing(count, refOf(this.byKind('slip'), this.options.locale))) {
+      // Láncgyűrű: a zárás eseménye az utolsó láncszem után; a kúszószem az 1. körrel együtt kerül be.
+      this.foundation = 'chain-ring';
+      const chains = this.chains(count);
+      this.ringSpace = `s${this.spaces.length + 1}`;
+      this.spaces.push({ id: this.ringSpace, chains });
+      this.events.push({ after: chains[chains.length - 1]!, kind: 'join-slip' });
+      return;
+    }
     if (!Number.isInteger(count) || count < 1 || line.text !== v.foundation(count)) {
       throw new ReadFailure(line.number, `Láncalapot vagy varázskört vártunk: „${line.text}”.`);
     }
@@ -337,30 +400,48 @@ class PieceReader {
     };
     this.layerLines.set(index, header.line);
 
-    // A sor vége: esemény, szemszám.
+    // A sor vége: lépcsőjavítás, színváltás, esemény, szemszám (a kiírás fordított sorrendjében).
     let body = header.body;
     const slip = this.byKind('slip');
+    const slipRef = refOf(slip, locale);
+    let jogFix: LayerEvent['jogFix'];
+    for (const fix of ['slip-stitch', 'back-loop'] as const) {
+      const text = v.jogFix(fix, slipRef);
+      if (!body.endsWith(` ${text}`)) continue;
+      body = body.slice(0, -(text.length + 1));
+      jogFix = fix;
+    }
+    const colorChange = body.endsWith(` ${v.colorChange}`);
+    if (colorChange) body = body.slice(0, -(v.colorChange.length + 1));
+    const marks = { ...(colorChange ? { colorChange: true } : {}), ...(jogFix ? { jogFix } : {}) };
+
     const endings: [string, LayerEvent['kind'], 'turning-chain' | 'first-stitch' | null][] = [
       [v.closings.turn, 'turn', null],
       [v.closings['fasten-off'], 'fasten-off', null],
-      [v.closings.spiral, 'spiral', null],
-      [v.join(refOf(slip, locale), 'turning-chain'), 'join-slip', 'turning-chain'],
-      [v.join(refOf(slip, locale), 'first-stitch'), 'join-slip', 'first-stitch'],
+      [v.join(slipRef, 'turning-chain'), 'join-slip', 'turning-chain'],
+      [v.join(slipRef, 'first-stitch'), 'join-slip', 'first-stitch'],
     ];
     const ending = endings.find(([text]) => body.endsWith(` ${text}`));
+    const round = header.shape === 'round';
+    // Spirálban a kör vége nincs kiírva; a darab elején álló megjegyzés mondja meg (04 §2).
+    const spiralEnd = !ending && round && this.spiral && !isLast;
     if (ending) body = body.slice(0, -(ending[0].length + 1));
-    else if (!isLast) fail('A sor vége hiányzik: fordítás, a kör zárása vagy a fonal elvágása.');
+    else if (!spiralEnd && !isLast) fail('A sor vége hiányzik: fordítás, a kör zárása vagy a fonal elvágása.');
 
-    const countMatch = /^(.*) (\(\d+ [^()]+\))\.$/.exec(body);
+    const countMatch = /^(.*) (\(\d+(?: [^()]+)?\))\.$/.exec(body);
     const stated = Number(/\d+/.exec(countMatch?.[2] ?? '')?.[0]);
-    if (!countMatch || countMatch[2] !== v.count(stated)) fail('Hiányzik a szemszám a sor végén, pl. „(15 szem).”');
+    if (!countMatch || countMatch[2] !== (round ? v.roundCount(stated) : v.count(stated))) {
+      fail(round ? 'Hiányzik a szemszám a kör végén, pl. „(18).”' : 'Hiányzik a szemszám a sor végén, pl. „(15 szem).”');
+    }
     body = countMatch![1]!;
 
     // Az előző réteg pozíciói a haladási irányban.
     const graph = this.graph();
     const below = graph.layers[graph.layers.length - 1]!;
-    const opening = index === 1 ? null : this.events[this.events.length - 1]!;
+    const opening = index === 1 ? (this.foundation === 'chain-ring' ? this.events[0]! : null) : this.events[this.events.length - 1]!;
     const direction = index === 1 ? (this.foundation === 'chain' ? -1 : 1) : opening!.kind === 'turn' ? -1 : 1;
+    // A láncgyűrű kúszószeme az első láncszembe: a fonal útján az 1. kör első szeme (graph.ts).
+    if (index === 1 && this.foundation === 'chain-ring') this.add(slip, [{ into: 'stitch', id: this.stitches[0]!.id, mode: 'both-loops' }]);
     let working = direction === 1 ? [...below.positions] : [...below.positions].reverse();
     const previousSide = index === 1 ? 'right' : graph.layers[index - 1]!.side;
     const side = opening?.kind === 'turn' ? (previousSide === 'right' ? 'wrong' : 'right') : previousSide;
@@ -382,7 +463,8 @@ class PieceReader {
       working = working.slice(chain - 1);
     }
 
-    const steps = splitItems(body).map((item) => parseItem(item, header.line, this.options, v));
+    const context: StepContext = { round, shortIncrease: this.shortIncrease };
+    const steps = splitItems(body).map((item) => parseItem(item, header.line, this.options, v, context));
     const turning = steps.find((step): step is Step & { kind: 'turning-chain' } => step.kind === 'turning-chain');
     const textCounts = fromHookCounts !== null || (turning !== undefined && turning.countsAs !== null);
 
@@ -398,7 +480,10 @@ class PieceReader {
       switch (target) {
         case 'none':
           return [];
-        case 'ring': {
+        case 'ring':
+        case 'chain-ring': {
+          // Angolul a varázskör és a láncgyűrű is „in ring”: a kezdés dönt.
+          if (this.ringSpace !== null) return [{ into: 'space', id: this.ringSpace }];
           const ring = this.rings[0];
           return ring ? [{ into: 'ring', id: ring.id }] : missing('Nincs varázskör');
         }
@@ -503,13 +588,18 @@ class PieceReader {
     }
 
     if (ending?.[1] === 'join-slip') {
-      const target = ending[2] === 'turning-chain' ? turningNodes[turningNodes.length - 1] : afterTurning.find((id) => !turningNodes.includes(id));
+      // A láncszembe horgolt 1. körben a kezdőlánc a láncalap vége (graph.ts).
+      const hookChain = index === 1 && this.foundation === 'chain' ? this.stitches[firstNode - 1]?.id : undefined;
+      const target =
+        ending[2] === 'turning-chain'
+          ? (turningNodes[turningNodes.length - 1] ?? hookChain)
+          : afterTurning.find((id) => !turningNodes.includes(id));
       if (target === undefined) fail('A kör zárásának nincs célpontja.');
       this.add(slip, [{ into: 'stitch', id: target!, mode: 'both-loops' }]);
     }
-    if (ending) {
-      this.events.push({ after: this.previous ?? fail('Üres sor.'), kind: ending[1], statedCount: stated });
-      if (ending[1] === 'fasten-off') this.previous = null;
+    if (ending || spiralEnd) {
+      this.events.push({ after: this.previous ?? fail('Üres sor.'), kind: ending ? ending[1] : 'spiral', statedCount: stated, ...marks });
+      if (ending?.[1] === 'fasten-off') this.previous = null;
     } else {
       this.pendingCount = { index, stated };
     }

@@ -241,7 +241,18 @@ class Layouter {
 
   #foundation(layer: LayerInfo): void {
     const side = layer.side;
-    if (this.#round) {
+    const chains = layer.stitches.filter((id) => this.#def(id).kind === 'chain');
+    if (this.#round && chains.length > 0) {
+      // Láncgyűrű: a láncszemek kis körön a középpont körül; a „2 lsz” kezdés egyetlen láncszeme középen (PQW-861).
+      const radius = chains.length === 1 ? 0 : Math.max(6, (chains.length * this.#W * 0.6) / (2 * Math.PI));
+      layer.stitches.forEach((id, i) => {
+        const axis = Math.PI / 2 + (2 * Math.PI * i) / layer.stitches.length;
+        this.#axis.set(id, axis);
+        const along = Math.atan2(-Math.cos(axis), -Math.sin(axis));
+        this.#place(id, 0, side, 'chain', [], this.#point(radius, axis), along, this.#W * 0.6);
+      });
+      this.#base[0] = radius + 8;
+    } else if (this.#round) {
       for (const id of layer.stitches) {
         this.#axis.set(id, Math.PI / 2);
         this.#place(id, 0, side, 'ring', [], { x: 0, y: 0 }, 0, 0);
@@ -396,13 +407,15 @@ class Layouter {
     const last = positions[positions.length - 1] ?? first;
     const margin = W * scale(base + height / 2);
     const middle = up(base, height / 2);
+    // Körben a kör vége a kezdete mellé ér: a szemszám a körszám mögé kerül, hogy ne takarják egymást (PQW-861).
+    const endAxis = this.#round ? first - direction * (margin + Math.min(2 * margin, Math.PI / 3)) : last + direction * margin;
     this.#layers.push({
       index: layer.index,
       shape: layer.shape,
       side,
       stitchCount: layer.stitchCount,
       start: this.#point(middle, first - direction * margin),
-      end: this.#point(middle, last + direction * margin),
+      end: this.#point(middle, endAxis),
     });
     this.#tops[layer.index] = top;
   }

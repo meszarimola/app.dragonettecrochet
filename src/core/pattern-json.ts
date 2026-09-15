@@ -282,7 +282,7 @@ function readRepeat(value: unknown, path: string): RepeatSpec {
 }
 
 function readPiece(value: unknown, path: string): Piece {
-  const raw = object(value, path, ['id', 'name', 'stitches', 'spaces', 'rings', 'groups', 'events', 'skipped']);
+  const raw = object(value, path, ['id', 'name', 'stitches', 'spaces', 'rings', 'groups', 'events', 'skipped'], ['corners']);
   return {
     id: string(raw['id'], `${path}.id`),
     name: text(raw['name'], `${path}.name`),
@@ -292,6 +292,8 @@ function readPiece(value: unknown, path: string): Piece {
     groups: array(raw['groups'], `${path}.groups`, readGroup),
     events: array(raw['events'], `${path}.events`, readEvent),
     skipped: array(raw['skipped'], `${path}.skipped`, string),
+    // A PQW-861 előtti mentésben nincs: a körökben horgolt darab kör.
+    ...(raw['corners'] === undefined ? {} : { corners: integer(raw['corners'], `${path}.corners`, 3) }),
   };
 }
 
@@ -349,7 +351,7 @@ function readGroup(value: unknown, path: string): StitchGroup {
 }
 
 function readEvent(value: unknown, path: string): LayerEvent {
-  const raw = object(value, path, ['after', 'kind'], ['statedCount', 'conventions']);
+  const raw = object(value, path, ['after', 'kind'], ['statedCount', 'conventions', 'colorChange', 'jogFix']);
   return {
     after: string(raw['after'], `${path}.after`),
     kind: oneOf(raw['kind'], `${path}.kind`, ['turn', 'join-slip', 'spiral', 'fasten-off']),
@@ -357,6 +359,9 @@ function readEvent(value: unknown, path: string): LayerEvent {
     ...(raw['conventions'] === undefined
       ? {}
       : { conventions: readRowConventions(raw['conventions'], `${path}.conventions`) }),
+    // A színváltás és a lépcsőjavítás a PQW-861 előtti mentésben nincs.
+    ...(raw['colorChange'] === undefined ? {} : { colorChange: boolean(raw['colorChange'], `${path}.colorChange`) }),
+    ...(raw['jogFix'] === undefined ? {} : { jogFix: oneOf(raw['jogFix'], `${path}.jogFix`, ['slip-stitch', 'back-loop']) }),
   };
 }
 
