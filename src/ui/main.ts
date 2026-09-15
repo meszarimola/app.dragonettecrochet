@@ -88,7 +88,7 @@ import { insertionSuffix } from './insertion-view.js';
 import { nodeInsertions } from '../core/insertion.js';
 import { AmigurumiPanel } from './amigurumi-panel.js';
 import { GridChartPanel } from './grid-chart-panel.js';
-import { unitFrame } from './grid-chart-view.js';
+import { spikeNodes, unitFrames } from './grid-chart-view.js';
 import { RoundsPanel } from './rounds-panel.js';
 import { ShapesPanel } from './shapes-panel.js';
 import { ShawlsPanel } from './shawls-panel.js';
@@ -378,8 +378,9 @@ function draw(): void {
     direction: tool && isTargeted(tool) ? directionArrow() : null,
     symbols,
     insertions: nodeInsertions(derived.pattern.pieces[0]),
-    // A rácsminta ismétlő egysége kerettel (PQW-864).
-    unitFrame: unitFrame(derived.pattern, derived.layout, mirror),
+    // A rácsminta ismétlő egysége kerettel (PQW-864, C2C-ben csempénként), a lejjebb horgolt szem talpa (PQW-894).
+    unitFrames: unitFrames(derived.pattern, derived.layout, mirror),
+    spikes: spikeNodes(derived.pattern),
   });
 }
 
@@ -946,8 +947,11 @@ function exportSvgText(): string {
     grid: chartGrid(pattern, library, gridKindOf(context), context, { mirror, stemLength: stem }),
     colors: { rowA: token('--c-row-a'), rowB: token('--c-row-b'), cell: token('--c-grid'), row: token('--c-grid-row'), strong: token('--c-grid-strong') },
   };
-  return chartSvg(pattern, layoutPattern(pattern, library, { mirror, stemLength: stem }), library, {
+  const layout = layoutPattern(pattern, library, { mirror, stemLength: stem });
+  return chartSvg(pattern, layout, library, {
     tradition: traditionOf(pattern.conventions),
+    unitFrames: unitFrames(pattern, layout, mirror),
+    spikes: spikeNodes(pattern),
     ...(exportGrid.checked ? { grid } : {}),
     colors: { right: token('--c-ink'), wrong: token('--c-ink-wrong'), text: token('--c-text'), background: token('--c-bg') },
     mirror,

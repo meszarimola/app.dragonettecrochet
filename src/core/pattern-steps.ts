@@ -49,7 +49,8 @@ import type {
   Tradition,
 } from './types.ts';
 
-export type StepTarget = 'next' | 'same' | 'next-space' | 'same-space' | 'ring' | 'chain-ring' | 'none';
+/** A `down`: hosszú szem korábbi sorba (PQW-894); a lépés `depth` mezője mondja meg, hány sorral lejjebb. */
+export type StepTarget = 'next' | 'same' | 'next-space' | 'same-space' | 'ring' | 'chain-ring' | 'none' | 'down';
 
 /** A szín, amelyre a lépés utolsó szemének utolsó ráhajtásánál váltasz (03 §6, §10 G35, PQW-864). */
 interface ColorChange {
@@ -66,6 +67,8 @@ export type Step =
       readonly mode: StitchInsertion;
       /** Láncszembe vagy szembe megy; csak a kiírt helyhatározóhoz kell. */
       readonly into: 'stitch' | 'chain';
+      /** `down` célpontnál: hány sorral lejjebb (2 vagy 3). */
+      readonly depth?: number;
     } & ColorChange)
   | ({
       readonly kind: 'group';
@@ -221,7 +224,9 @@ function writtenLayer(
   const baseChain = hookRow && layer.shape === 'row' && hasBaseChain(layer.turningChainCounts, tradition);
 
   const steps: Step[] = [];
-  const cursorStart = (index >= 2 || baseChain) && layer.turningChainCounts ? 1 : 0;
+  // Fordulás után a sor eleji kúszószemek a cellák fölött haladnak (filé fogyasztás, PQW-894): a kurzor a sor elejéről indul.
+  const slipsFirst = layer.opening?.kind === 'turn' && layer.travelSlips.length > 0;
+  const cursorStart = !slipsFirst && (index >= 2 || baseChain) && layer.turningChainCounts ? 1 : 0;
   let cursor = cursorStart;
   let last: Last = cursorStart === 1 ? { kind: 'stitch', w: 0 } : null;
 
@@ -293,11 +298,13 @@ function writtenLayer(
     if (handled.has(id) || id === layer.joinSlip || (ringSpace !== undefined && index === 1 && layer.travelSlips.includes(id))) continue;
     const node = graph.nodes.get(id)!;
     const def = defOf(id);
-    if (node.flags && node.flags.length > 0) throw unsupported('keresztezett vagy hosszú szemet tartalmaz', id);
+    if (node.flags?.includes('crossed')) throw unsupported('keresztezett szemet tartalmaz', id);
 
     if (layer.turningChain.includes(id)) {
       for (const chain of layer.turningChain) handled.add(chain);
       if (!hookRow) steps.push({ kind: 'turning-chain', count: layer.turningChain.length, countsAs });
+      // A kúszószemek után a fordulólánc az utolsó átkúszott pozíción áll.
+      if (slipsFirst) last = { kind: 'stitch', w: cursor - 1 };
       continue;
     }
 
@@ -337,6 +344,16 @@ function writtenLayer(
       case 'group':
         throw unsupported('ez a szemfajta itt nem állhat', id);
       default: {
+        const anchor = node.anchors[0];
+        const depth = anchor?.into === 'stitch' ? index - (graph.layerOf.get(anchor.id) ?? index) : 0;
+        if (node.flags?.includes('spike') && anchor?.into === 'stitch' && node.anchors.length === 1 && depth >= 2) {
+          // Hosszú szem korábbi sorba (mozaik, filé sor végi szaporítás, PQW-894). A mozaikban a fölötte kihagyott
+          // láncszem helyén halad át, ezért a kurzor azon is továbblép.
+          if (cursor < working.length && graph.piece.skipped.includes(working[cursor]!)) cursor += 1;
+          last = null;
+          steps.push({ kind: 'stitch', def: def.id, count: 1, target: 'down', depth, mode: modeAsWorked(anchor.mode, layer.side), into: 'stitch' });
+          break;
+        }
         if (def.kind === 'joined' && def.base === 'spread') {
           const ws = node.anchors.map((anchor) => (anchor.into === 'stitch' ? workingIndex.get(anchor.id) : undefined));
           const start = ws[0];
@@ -446,6 +463,7 @@ export function mergeSteps(steps: readonly Step[], library: StitchLibrary): Step
 function sameRun(a: Step & { kind: 'stitch' }, b: Step & { kind: 'stitch' }, library: StitchLibrary): boolean {
   const kind = library.get(a.def)?.kind;
   if (a.def !== b.def || a.mode !== b.mode || (kind !== 'basic' && kind !== 'slip')) return false;
+  if (a.target === 'down') return b.target === 'down' && a.depth === b.depth;
   if (a.target === 'next') return b.target === 'next';
   if (a.target === 'next-space' || a.target === 'same-space') return b.target === 'same-space';
   return (a.target === 'ring' || a.target === 'chain-ring') && b.target === a.target;

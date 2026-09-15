@@ -268,8 +268,8 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
     változatlanul betöltődnek. A rajz több darabnál az első darabot mutatja.
 - **Rácsos technikák** (PQW-864): a mintatípus-menü „Filéhorgolás” pontja és a
   jobb oldali panel „Rácsminta” szakasza (a Kendő alatt). Filé, sarokból
-  sarokba (C2C), tapestry és graphgan cellánként rajzolva; a háttérben
-  mindegyik szemgráf, és ugyanazon az ellenőrzőn megy át.
+  sarokba (C2C), tapestry, graphgan és mozaik (PQW-894) cellánként rajzolva; a
+  háttérben mindegyik szemgráf, és ugyanazon az ellenőrzőn megy át.
   - **Rácsszerkesztő:** a cellák a mintasűrűség arányában (filében 3 szem széles
     és egy sor magas cella), ecsettel festve: filében teli, nyitott vagy nincs
     cella, színes rácsban legfeljebb 8 szín. Billentyűzettel (nyilak, szóköz,
@@ -283,14 +283,30 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
   - **Filé:** N cellás sor 3N + 1 pozíció; a láncalap és a fordulólánc a
     fordulólánc-szabályból (PQW-891): teli kezdésnél 3N + 4 lsz és az első pálca
     az 5. láncszembe, nyitott kezdésnél 3N + 6 és a 9.; a későbbi sorokban
-    nyitott kezdésnél „3 lsz, 2 lsz”. Alakítás egész cellánként: a sor elején
-    szaporítás láncos hosszabbítással, a sor végén meghagyott cellák.
+    nyitott kezdésnél „3 lsz, 2 lsz”. Alakítás egész cellánként, a sor mindkét
+    végén: a sor elején szaporítás láncos hosszabbítással, fogyasztás
+    kúszószemekkel a cellák fölött (PQW-894); a sor végén meghagyott cellák, és
+    szaporítás nyitott cellával: 2 lsz és a fordulólánc alatti szembe horgolt
+    háromráhajtásos pálca (PQW-894).
   - **C2C:** W × H kép W + H − 1 átlós sor, csempe 3 lsz és 3 erp; a két oldal
     egymástól függetlenül szaporít, majd fogy. Színek csempénként.
   - **Tapestry és graphgan:** cellánként egy rövidpálca, a szem színe a cella
     színe. Az írott minta a színváltást az előző szem utolsó ráhajtásánál írja,
     és soronként (C2C-ben csempénként) felsorolja a színeket. Tapestryben 3-nál
     több vitt szín figyelmeztet (`carried-colors`).
+  - **Mozaik** (PQW-894), egy- és kétsoros változatban: soronként egy szín; a más
+    színű cella 1 lsz és 1 szem kihagyása, fölötte a sor színével egyező cella
+    jelölt, lejjebb horgolt pálca a kihagyott szembe (2 sorral lejjebb
+    egyráhajtásos, 3 sorral lejjebb kétráhajtásos). Az ellenőrző több sorral
+    lejjebb csak jelölt szemet, csak korábban kihagyott szembe és legfeljebb 3
+    sorral lejjebb enged (`spike-depth`, `anchor-layer`). Az írott minta „2
+    sorral lejjebb” írja, a diagram és az export pöttyel jelöli a talpát.
+  - **Kép betöltése** (PQW-894): PNG, JPEG, GIF vagy WebP a rácsba, csak a
+    böngészőben. A szélesség a megadott cellaszám, a magasság a kép és a
+    mintasűrűség arányából; filében a sötét rész teli cella, színes rácsban a
+    legközelebbi szín, mozaikban horgolhatóvá igazítva.
+  - **Az ismétlő egység kerete** a vásznon, az SVG- és a PNG-exportban, C2C-ben
+    csempénként (PQW-894).
   - **Fonal színenként** a próbadarabos becslésből, a cellák arányában;
     **tükrözött nézetben** figyelmeztetés feliratos vagy aszimmetrikus
     motívumra. A rácsminta a darabbal mentődik (`grid`, a szem színe `color`),
@@ -338,8 +354,8 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/ui/shapes-view.ts`, `src/ui/shapes-panel.ts` | **A „Forma” szakasz** (PQW-862): a választások, a mezők a formához, a terv kiírása eredettel és az előnézet körvonala (DOM nélkül); a mezők, az előnézet és a minta létrehozása a panelen. |
 | `src/ui/shawls-view.ts`, `src/ui/shawls-panel.ts` | **A „Kendő” szakasz** (PQW-865): a választások, a mezők a kendőhöz, a terv kiírása a szöggel, a blokkolt és blokkolatlan mérettel és a figyelmeztetésekkel, az előnézet két körvonala (DOM nélkül); a mezők és a minta létrehozása a panelen. |
 | `src/core/pixel-chart.ts` | **A rácsminta** (PQW-864): a cella mérete a mintasűrűségből, arányos sorszám, átméretezés, az ismétlő egység felismerése, ellenőrzése és kiterjesztése, tükrözés, a C2C csempéi soronként, színek soronként, fonal színenként. Függőség nélküli, tiszta függvények. |
-| `src/core/filet.ts`, `src/core/c2c.ts`, `src/core/colorwork.ts`, `src/core/grid-pattern.ts` | **Rácsos technikák** (PQW-864): a filé (3N + 1 pozíció, teli és nyitott kezdés, alakítás egész cellánként), a C2C (átlós sorok, szaporító és fogyasztó oldal) és a tapestry, graphgan (rövidpálcás sorok színnel) terve és szemgráfja; a közös gráfíró és a generált minta ellenőrzése. |
-| `src/ui/grid-chart-view.ts`, `src/ui/grid-chart-panel.ts` | **A „Rácsminta” szakasz** (PQW-864): ecsetek, cellanevek, az ismétlő egység állapota, a terv és a fonal kiírása, a létrehozás és a visszatöltés, az egység kerete a diagramon (DOM nélkül); a bejárható rácsszerkesztő, a színek és a minta létrehozása a panelen. |
+| `src/core/filet.ts`, `src/core/c2c.ts`, `src/core/colorwork.ts`, `src/core/mosaic.ts`, `src/core/grid-pattern.ts` | **Rácsos technikák** (PQW-864, PQW-894): a filé (3N + 1 pozíció, teli és nyitott kezdés, alakítás egész cellánként a sor mindkét végén), a C2C (átlós sorok, szaporító és fogyasztó oldal), a tapestry, graphgan (rövidpálcás sorok színnel) és a mozaik (kihagyás és lejjebb horgolt jelölt szem) terve és szemgráfja; a közös gráfíró és a generált minta ellenőrzése. |
+| `src/ui/grid-chart-view.ts`, `src/ui/grid-chart-panel.ts` | **A „Rácsminta” szakasz** (PQW-864, PQW-894): ecsetek, cellanevek, az ismétlő egység állapota, a terv és a fonal kiírása, a létrehozás és a visszatöltés, a kép képpontjai cellákká, az egység keretei és a lejjebb horgolt szemek a diagramon és az exportban (DOM nélkül); a bejárható rácsszerkesztő, a színek, a kép betöltése és a minta létrehozása a panelen. |
 | `src/core/insertion.ts` | **Beszúrási mód** (PQW-869): a szem megengedett módjai, az érvényes mód, a horgoló felőli és a színoldali mód átváltása, a szemek tárolt módja a rajzhoz. |
 | `src/ui/insertion-view.ts`, `src/ui/insertion-panel.ts` | **A „Beszúrás” választó** a Szemek szakaszban (PQW-869): a módok, az érvényes mód és az írott alak (DOM nélkül); a rádiógombok a panelen. |
 | `src/core/editor.ts` | **A szerkesztő műveletei** (PQW-857): célpontok, horgolás, „még egy ugyanabba”, fordulás, körzárás, az utolsó lépés törlése, kézi igazítás, élő ellenőrzés. |
@@ -415,12 +431,10 @@ npm test   # a build után: CSP ↔ azonosító, inline szkript, közös süti
   következő szegélysor mintaismétléséhez igazított élek; két él összevarrása
   vagy összekapcsolása sorokban horgolt daraboknál.
 - **PDF-export.**
-- **A rácsos technikák nyitott részei** (PQW-864): a mozaik (több sorral
-  lejjebb horgolt, jelölt szem az írott mintában); filében a sor eleji
-  fogyasztás kúszószemekkel és a sor végi szaporítás; a kép betöltése és
-  átméretezése fájlból; az ismétlő egység kerete az SVG-exportban és a C2C
-  átlós rajzán (ott a rácsszerkesztő jelöli). A vászon cellás rácsán nincs még
-  oszlopszámozás.
+- **A rácsos technikák nyitott részei** (PQW-894): filében a sor végén teli új
+  cella (most nyitott cellával szaporít), és ugyanazon az élen egymás utáni
+  sorban fogyasztás és szaporítás; a lejjebb horgolt szem visszaolvasása az
+  írott mintából. A vászon cellás rácsán nincs még oszlopszámozás.
 - **Önhosztolt betűk.** Az Instrument Serif és a Karla fájljai még nincsenek
   itt, ezért rendszerbetűk ugranak be. A Google Fonts CDN-t nem használjuk: az
   EU-ban hozzájárulás nélkül továbbítaná a látogató IP-címét.

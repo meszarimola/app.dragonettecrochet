@@ -240,11 +240,19 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
 
     let head = 0;
     const travelSlips: NodeId[] = [];
-    if (opening?.kind === 'join-slip') {
+    if (opening?.kind === 'join-slip' || opening?.kind === 'turn') {
       // A záratlan kör végén álló kúszószem még nem záró szem, hanem továbbvezetés (pl. a láncgyűrű kúszószeme).
       while (head < segment.length && kindOf(segment[head]!) === 'slip' && (segment[head] !== last || closing === null)) {
         travelSlips.push(segment[head]!.id);
         head += 1;
+      }
+      // Fordulás után a sor eleji kúszószem csak akkor továbbvezetés, ha fordulólánc követi (filé sor eleji fogyasztás,
+      // PQW-894). Ha láncív jön utána, a kúszószem a sor része (C2C: kúszószemek a csempén át a láncívbe).
+      const next = segment[head];
+      const turning = next !== undefined && kindOf(next) === 'chain' && !spaceOfChain.has(next.id);
+      if (opening.kind === 'turn' && !turning) {
+        head = 0;
+        travelSlips.length = 0;
       }
     }
     const turningChain: NodeId[] = [];
@@ -254,7 +262,9 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       turningChain.push(segment[head]!.id);
       head += 1;
     }
-    const firstStitch = segment.slice(head).find((node) => kindOf(node) !== 'chain')?.id ?? null;
+    // A sort kezdő szem dönti el a fordulólánc magasságát; a lejjebb horgolt hosszú szem nem ilyen (mozaik, PQW-894).
+    const rest = segment.slice(head).filter((node) => kindOf(node) !== 'chain');
+    const firstStitch = (rest.find((node) => !node.flags?.includes('spike')) ?? rest[0])?.id ?? null;
     const joinSlip = closing?.kind === 'join-slip' && kindOf(last) === 'slip' ? last.id : null;
 
     // A szegély a sorvégekbe is horgol, és kúszószemmel záródik: a darab körüli kör (PQW-889).

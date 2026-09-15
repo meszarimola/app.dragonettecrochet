@@ -29,7 +29,10 @@ import {
   removeColor,
   resizeDraft,
   stateFromPattern,
-  unitFrame,
+  imageGridSize,
+  imageToDraft,
+  spikeNodes,
+  unitFrames,
   unitState,
   withTechnique,
   yarnLines,
@@ -59,8 +62,8 @@ function withProfile(stitch) {
 }
 
 describe('ecsetek, cellák, színek', () => {
-  test('a négy technika választható; filében teli, nyitott, nincs cella és törlés; színes rácsban színenként egy ecset', () => {
-    assert.deepEqual(TECHNIQUE_CHOICES.map((choice) => choice.value), ['filet', 'c2c', 'tapestry', 'graphgan']);
+  test('az öt technika választható, a mozaikkal együtt (PQW-894); filében teli, nyitott, nincs cella és törlés; színes rácsban színenként egy ecset', () => {
+    assert.deepEqual(TECHNIQUE_CHOICES.map((choice) => choice.value), ['filet', 'c2c', 'tapestry', 'graphgan', 'mosaic']);
     assert.deepEqual(brushesFor(defaultState('filet')).map((brush) => brush.value), [1, 0, -1, null]);
     const c2c = defaultState('c2c');
     assert.deepEqual(brushesFor(c2c).map((brush) => [brush.value, brush.label, brush.swatch]), [
@@ -141,15 +144,20 @@ describe('ismétlő egység és terv', () => {
     assert.match(gaps.reason, /Nem találtam ismétlődést/);
   });
 
-  test('filében a nyitott kezdésű sorok, a szaporítás és a meghagyott cellák; a nem készülő alakítás oka', () => {
+  test('filében a nyitott kezdésű sorok, az alakítás a sor két végén és a meghagyott cellák; teli új cellánál az ok', () => {
     const summary = planSummary(emptyPattern(), filet(['-###', '.###', '-###']), false);
     assert.ok(summary.ok, summary.reason);
     assert.ok(summary.view.details.includes('Nyitott cellával kezdődik a 2. sor: a fordulólánc után 2 lsz jön.'));
     assert.ok(summary.view.details.includes('Szaporítás a sor elején a 2. sor előtt: az előző sor végén láncos hosszabbítás.'));
     assert.ok(summary.view.details.includes('Meghagyott cellák a 3. sor végén.'));
-    const refused = planSummary(emptyPattern(), filet(['-###', '####']), false);
+    // A 2. sor végén új nyitott cella, a 3. sor elején fogyasztás ugyanazon az élen.
+    const shaped = planSummary(emptyPattern(), filet(['###-', '###.', '###-']), false);
+    assert.ok(shaped.ok, shaped.reason);
+    assert.ok(shaped.view.details.includes('Szaporítás a sor végén a 2. sorban: 2 lsz és háromráhajtásos pálca 2 sorral lejjebb.'));
+    assert.ok(shaped.view.details.includes('Fogyasztás a sor elején a 3. sorban: kúszószemek a cellák fölött.'));
+    const refused = planSummary(emptyPattern(), filet(['####', '###-']), false);
     assert.equal(refused.ok, false);
-    assert.match(refused.reason, /sor eleji fogyasztás még nem készül/);
+    assert.match(refused.reason, /csak nyitott lehet/);
   });
 
   test('C2C: átlós sorok, csempék, szakaszok és csempék színenként', () => {
@@ -208,20 +216,79 @@ describe('létrehozás, fonal, visszatöltés, keret', () => {
     assert.deepEqual(yarnLines(emptyPattern()), []);
   });
 
-  test('az ismétlő egység kerete a diagramon az egység soraira és oszlopaira; C2C-ben nincs keret', () => {
+  test('az ismétlő egység kerete a diagramon az egység soraira és oszlopaira; C2C-ben csempénként (PQW-894)', () => {
     const state = { ...defaultState('graphgan'), draft: [[0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]], manualUnit: { x: 0, y: 0, width: 2, height: 1 } };
     const { pattern } = generateFromState(emptyPattern(), state);
     const layout = layoutPattern(pattern, libraryFor(pattern));
-    const frame = unitFrame(pattern, layout, false);
-    assert.ok(frame);
+    const frames = unitFrames(pattern, layout, false);
+    assert.equal(frames.length, 1);
+    const [frame] = frames;
     const row1 = [...layout.nodes.values()].filter((node) => node.layer === 1);
     const xs = row1.map((node) => node.top.x);
     assert.ok(frame.x0 >= Math.min(...xs) - 24 && frame.x1 <= Math.max(...xs) + 24);
     assert.ok(frame.x1 - frame.x0 < (Math.max(...xs) - Math.min(...xs)) * 0.75, 'az egység a sor fele');
     assert.ok(frame.y0 < frame.y1);
-    assert.equal(unitFrame(pattern, layout, false), frame);
+    assert.equal(unitFrames(pattern, layout, false), frames);
 
-    const c2c = generateFromState(emptyPattern(), { ...defaultState('c2c'), draft: [[0, 1], [1, 0]], manualUnit: { x: 0, y: 0, width: 1, height: 1 } });
-    assert.equal(unitFrame(c2c.pattern, layoutPattern(c2c.pattern, libraryFor(c2c.pattern)), false), null);
+    const c2c = generateFromState(emptyPattern(), { ...defaultState('c2c'), draft: [[0, 1, 0], [1, 0, 1]], manualUnit: { x: 0, y: 0, width: 2, height: 1 } });
+    assert.ok(c2c.ok, c2c.reason);
+    const tiles = unitFrames(c2c.pattern, layoutPattern(c2c.pattern, libraryFor(c2c.pattern)), false);
+    assert.equal(tiles.length, 2);
+    for (const tile of tiles) assert.ok(tile.x0 < tile.x1 && tile.y0 < tile.y1);
+    assert.deepEqual(unitFrames(generateFromState(emptyPattern(), defaultState('filet')).pattern, layout, false), []);
+  });
+
+  test('mozaik: egy- és kétsoros változat, a lejjebb horgolt szemek; a cella kétsorosnál kétszer olyan magas (PQW-894)', () => {
+    const state = {
+      ...defaultState('mosaic', 5, 4),
+      draft: [
+        [0, 0, 0, 0, 0],
+        [1, 1, 0, 1, 1],
+        [0, 0, 0, 0, 0],
+        [1, 1, 1, 1, 1],
+      ],
+    };
+    const one = planSummary(emptyPattern(), state, false);
+    assert.ok(one.ok, one.reason);
+    assert.match(one.view.size, /, 4 sor \(4 rácssor\)\.$/);
+    assert.ok(one.view.details.includes('Egysoros mozaik: a lejjebb horgolt szem egyráhajtásos pálca 2 sorral lejjebb, összesen 1.'));
+    const two = planSummary(emptyPattern(), { ...state, mosaicRows: 2 }, false);
+    assert.ok(two.ok, two.reason);
+    assert.match(two.view.size, /, 8 sor \(4 rácssor\)\.$/);
+    const result = generateFromState(emptyPattern(), { ...state, mosaicRows: 2 });
+    assert.ok(result.ok, result.reason);
+    assert.equal(stateFromPattern(result.pattern).mosaicRows, 2);
+    assert.equal(spikeNodes(result.pattern).size, 1);
+    assert.equal(editorCellSize(withProfile('sc'), 'mosaic', 2).heightCm, 2 * editorCellSize(withProfile('sc'), 'mosaic', 1).heightCm);
+    const fromTapestry = withTechnique({ ...defaultState('tapestry'), colors: [...DEFAULT_COLORS, { name: 'Kék', hex: '#2f5f9e' }] }, 'mosaic');
+    assert.deepEqual(fromTapestry.colors, DEFAULT_COLORS);
+    assert.equal(nextColor(DEFAULT_COLORS, 'mosaic'), null);
+  });
+
+  test('kép a rácsba: a méret a mintasűrűség arányából; filében a sötét cella teli, színes rácsban a legközelebbi szín (PQW-894)', () => {
+    const pattern = withProfile('sc');
+    // Négyzetes cella (20 szem és 20 sor 10 cm-en): a 2 : 1 arányú kép 10 cella széles rácsa 5 sor.
+    assert.deepEqual(imageGridSize(200, 100, 10, pattern, defaultState('graphgan')), { width: 10, height: 5 });
+    assert.deepEqual(imageGridSize(100, 100, 500, pattern, defaultState('graphgan')), { width: 80, height: 80 });
+    // 2 × 2 képpont, felülről lefelé: fekete, fehér / fehér, átlátszó.
+    const pixels = [0, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0];
+    assert.deepEqual(imageToDraft(pixels, 2, 2, defaultState('filet')), [
+      [0, 0],
+      [1, 0],
+    ]);
+    const colors = [
+      { name: 'Fehér', hex: '#ffffff' },
+      { name: 'Fekete', hex: '#000000' },
+    ];
+    assert.deepEqual(imageToDraft(pixels, 2, 2, { ...defaultState('graphgan'), colors }), [
+      [0, 0],
+      [1, 0],
+    ]);
+    // Mozaikban a betöltött rács horgolható: az 1. sor és a szélek a sor színei.
+    const black = Array.from({ length: 6 }, () => [0, 0, 0, 255]).flat();
+    assert.deepEqual(imageToDraft(black, 3, 2, { ...defaultState('mosaic'), colors }), [
+      [0, 0, 0],
+      [1, 1, 1],
+    ]);
   });
 });

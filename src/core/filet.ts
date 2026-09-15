@@ -48,6 +48,10 @@ export interface FiletRow {
   readonly added: number;
   /** A sor végén meghagyott cellák. */
   readonly left: number;
+  /** A sor elején elhagyott cellák: kúszószemekkel át (PQW-894). */
+  readonly removed: number;
+  /** A sor végén hozzáadott nyitott cellák: 2 lsz és lejjebb horgolt háromráhajtásos pálca (PQW-894). */
+  readonly extended: number;
 }
 
 export interface FiletPlan {
@@ -110,22 +114,28 @@ export function planFilet(pattern: Pattern, cells: ChartRows): FiletPlanResult {
     const working = leftToRight ? line : [...line].reverse();
     let added = 0;
     let left = 0;
+    let removed = 0;
+    let extended = 0;
     if (y > 0) {
       const previous = extents[y - 1]!;
       const startDelta = leftToRight ? previous.from - from : to - previous.to;
       const endDelta = leftToRight ? to - previous.to : previous.from - from;
-      if (startDelta < 0) {
-        return fail(
-          `${rowName(row)} elején ${-startDelta} cellával keskenyebb a minta: a sor eleji fogyasztás még nem készül. Rajzold a fogyasztást az előző sor végére.`,
-        );
+      added = Math.max(0, startDelta);
+      removed = Math.max(0, -startDelta);
+      left = Math.max(0, -endDelta);
+      extended = Math.max(0, endDelta);
+      if (extended > 0) {
+        // A sor végi új cella a fordulólánc alatti szembe horgolt hosszú pálcán áll (PQW-894).
+        if (!counting) return fail(`${rowName(row)} végi szaporításhoz a fordulóláncnak szemnek kell számítania.`);
+        if (working.slice(working.length - extended).some((cell) => cell !== OPEN)) {
+          return fail(
+            `${rowName(row)} végén az új cella csak nyitott lehet (2 lsz és hosszú pálca): rajzold nyitottnak, és a teli cellát a következő sorban töltsd ki.`,
+          );
+        }
+        if (rows[y - 1]!.removed > 0) {
+          return fail(`${rowName(row)} végén szaporítás az előző sor eleji fogyasztás fölött még nem készül: told el egy sorral.`);
+        }
       }
-      if (endDelta > 0) {
-        return fail(
-          `${rowName(row)} végén ${endDelta} cellával szélesebb a minta: a sor végi szaporítás még nem készül. Rajzold a szaporítást a következő sor elejére.`,
-        );
-      }
-      added = startDelta;
-      left = endDelta < 0 ? -endDelta : 0;
     }
     rows.push({
       row,
@@ -134,6 +144,8 @@ export function planFilet(pattern: Pattern, cells: ChartRows): FiletPlanResult {
       start: working[0] === FILLED ? 'filled' : 'open',
       added,
       left,
+      removed,
+      extended,
     });
   }
 
@@ -167,16 +179,29 @@ function buildFilet(pattern: Pattern, plan: FiletPlan): GridWriter {
   const { turningChain, turningChainCounts: counting } = plan;
   const first = plan.rows[0]!;
   const worked = foundationChainLength(first.positions, turningChain, counting, tradition) - turningChain;
-  let below: NodeId[] = writer.chains(worked);
+  // Soronként a pozíciók a fonal sorrendjében; a 0. a láncalap horgolt része.
+  const history: NodeId[][] = [writer.chains(worked)];
+  let below: NodeId[] = history[0]!;
 
   plan.rows.forEach((row, k) => {
     const working = [...below].reverse();
-    // Az első cella kitöltő pozíciója: CYC-ben a számító fordulólánc az 1. sorban nem ül láncszemen.
-    const start = k === 0 ? worked - 3 * row.cells.length : 1;
+    // Sor eleji fogyasztás: kúszószemek a cellák fölött; számító fordulóláncnál az oszlopba is, arra áll a fordulólánc.
+    const seat = 3 * row.removed;
+    for (let w = 0; w < seat + (counting && row.removed > 0 ? 1 : 0); w += 1) writer.add('sl-st', [intoStitch(working[w]!)]);
+    // Az első cella kitöltő pozíciója: az 1. sorban a láncalapon a fordulólánc után.
+    const start = k === 0 ? worked - 3 * row.cells.length : seat + 1;
     const turning = writer.chains(turningChain);
-    const produced: NodeId[] = [counting ? turning[turning.length - 1]! : writer.add(FILET_STITCH, [intoStitch(working[0]!)])];
+    const produced: NodeId[] = [counting ? turning[turning.length - 1]! : writer.add(FILET_STITCH, [intoStitch(working[seat]!)])];
+    const regular = row.cells.length - row.extended;
     row.cells.forEach((cell, c) => {
       const base = start + 3 * c;
+      if (c >= regular) {
+        // Sor végi szaporítás: 2 lsz és háromráhajtásos pálca az előző sor fordulólánca alatti szembe (PQW-894).
+        const beneath = history[k - 1]!;
+        produced.push(...writer.space(2).chains);
+        produced.push(writer.add('dtr', [intoStitch(beneath[beneath.length - 1]!)], 0, ['spike']));
+        return;
+      }
       if (cell === FILLED) {
         produced.push(writer.add(FILET_STITCH, [intoStitch(working[base]!)]), writer.add(FILET_STITCH, [intoStitch(working[base + 1]!)]));
       } else {
@@ -186,10 +211,11 @@ function buildFilet(pattern: Pattern, plan: FiletPlan): GridWriter {
       produced.push(writer.add(FILET_STITCH, [intoStitch(working[base + 2]!)]));
     });
     // A sor végén meghagyott cellák (03 §10 F30).
-    writer.skipped.push(...working.slice(start + 3 * row.cells.length));
+    if (row.extended === 0) writer.skipped.push(...working.slice(start + 3 * row.cells.length));
     const next = plan.rows[k + 1];
     if (next && next.added > 0) produced.push(...writer.space(3 * next.added).chains);
     writer.event(next ? 'turn' : 'fasten-off');
+    history.push(produced);
     below = produced;
   });
   return writer;

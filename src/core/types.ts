@@ -383,6 +383,8 @@ export interface PieceGrid {
   readonly unit: GridUnit | null;
   /** Feliratos motívum: tükrözött nézetben figyelmeztetés. */
   readonly lettering: boolean;
+  /** Mozaikban hány horgolt sor egy rácssor: egysoros vagy kétsoros változat (PQW-894). */
+  readonly mosaicRows?: 1 | 2;
 }
 
 /**

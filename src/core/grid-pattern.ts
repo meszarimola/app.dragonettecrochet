@@ -15,7 +15,7 @@ import { TECHNIQUE_NAMES } from './pixel-chart.ts';
 import { MOTIF_NAMES } from './round-generator.ts';
 import { SHAPE_NAMES } from './shapes.ts';
 import { libraryFor } from './stitch-variants.ts';
-import type { Anchor, LayerEvent, NodeId, Pattern, Piece, PieceGrid, Space, StitchDefId, StitchNode } from './types.ts';
+import type { Anchor, LayerEvent, NodeId, Pattern, Piece, PieceGrid, Space, StitchDefId, StitchFlag, StitchNode } from './types.ts';
 import { validatePattern } from './validate.ts';
 import { withGeneratedTitle } from './pattern-title.ts';
 
@@ -35,9 +35,17 @@ export class GridWriter {
   readonly skipped: NodeId[] = [];
   #previous: NodeId | null = null;
 
-  add(def: StitchDefId, anchors: readonly Anchor[] = [], color = 0): NodeId {
+  /** A `flags` pl. a lejjebb horgolt hosszú szem jelölése (`spike`, PQW-894). */
+  add(def: StitchDefId, anchors: readonly Anchor[] = [], color = 0, flags: readonly StitchFlag[] = []): NodeId {
     const id = `n${this.stitches.length + 1}`;
-    this.stitches.push({ id, def, prev: this.#previous, anchors, ...(color > 0 ? { color } : {}) });
+    this.stitches.push({
+      id,
+      def,
+      prev: this.#previous,
+      anchors,
+      ...(flags.length > 0 ? { flags } : {}),
+      ...(color > 0 ? { color } : {}),
+    });
     this.#previous = id;
     return id;
   }
