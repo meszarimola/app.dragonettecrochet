@@ -537,7 +537,11 @@ function updateControls(): void {
   adjust.hidden = !node || tool !== null;
   if (node) {
     const nodeDef = derived.context.library.get(node.def);
-    adjustName.textContent = `${nodeDef ? capitalize(stitchName(nodeDef, notation.terms)) : node.def}${node.pinned ? ', kézzel igazítva' : ''}`;
+    // A szem neve a jelölés nyelvén, saját lang attribútummal (PQW-853); a magyar utótag kívül marad.
+    const name = document.createElement('span');
+    name.lang = textLanguage(notation.terms);
+    name.textContent = nodeDef ? capitalize(stitchName(nodeDef, notation.terms)) : node.def;
+    adjustName.replaceChildren(name, ...(node.pinned ? [', kézzel igazítva'] : []));
   }
 }
 
