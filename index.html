@@ -148,13 +148,13 @@
             </button>
           </div>
 
-          <div class="tools__group tools__group--soon" role="group" aria-label="Kijelölés – hamarosan">
-            <button type="button" class="tool" data-action="select-area" aria-label="Kijelölés – hamarosan" data-tip="Terület vagy szemek kijelölése – hamarosan (PQW-875)" disabled aria-disabled="true">
+          <div class="tools__group" role="group" aria-label="Kijelölés">
+            <button type="button" class="tool" data-action="select-area" aria-pressed="false" aria-label="Terület kijelölése" data-tip="Terület kijelölése húzással. Szem nélkül kattintás: egy szem, Shift: több, sorszám: teljes sor">
               <svg class="icon icon--dashed" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <rect x="4" y="5" width="12" height="10" rx="1" />
               </svg>
             </button>
-            <button type="button" class="tool" data-action="delete-selection" aria-label="Kijelölés törlése – hamarosan" data-tip="Kijelölt szemek törlése – hamarosan (PQW-875)" disabled aria-disabled="true">
+            <button type="button" class="tool" data-action="delete-selection" aria-label="Kijelölés törlése" data-tip="Kijelölt szemek törlése (Delete)" aria-keyshortcuts="Delete" disabled>
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path d="M5 6h10" />
                 <path d="M8 6V4.25h4V6" />
@@ -162,7 +162,7 @@
                 <path d="M9 9v4.5M11 9v4.5" />
               </svg>
             </button>
-            <button type="button" class="tool" data-action="duplicate-selection" aria-label="Kijelölés duplikálása – hamarosan" data-tip="Kijelölt szemek duplikálása – hamarosan (PQW-875)" disabled aria-disabled="true">
+            <button type="button" class="tool" data-action="duplicate-selection" aria-label="Kijelölés duplikálása" data-tip="Kijelölés duplikálása, pl. a következő sorba (Ctrl+D)" aria-keyshortcuts="Control+D Meta+D" disabled>
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path d="M5 5h7v7H5z" />
                 <path d="M8 8h7v7H8z" />
@@ -350,7 +350,12 @@
                 <dt><kbd>Shift</kbd>+<kbd>Enter</kbd></dt><dd>még egy ugyanabba (szaporítás)</dd>
                 <dt><kbd>Shift</kbd>+<kbd>F</kbd></dt><dd>a sor kitöltése a kiválasztott szemmel</dd>
                 <dt><kbd>F</kbd> / <kbd>K</kbd></dt><dd>sor vége és fordulás / kör zárása</dd>
-                <dt><kbd>Backspace</kbd></dt><dd>az utolsó lépés törlése</dd>
+                <dt><kbd>Backspace</kbd> / <kbd>Delete</kbd></dt><dd>a kijelölt szemek törlése, kijelölés nélkül az utolsó lépésé</dd>
+                <dt>Kattintás, <kbd>Shift</kbd>+kattintás, sorszám</dt><dd>szem nélkül: egy szem, több szem, a teljes sor kijelölése</dd>
+                <dt>Nyilak, <kbd>Home</kbd> <kbd>End</kbd></dt><dd>szem nélkül: kijelölés a szemek között, <kbd>Shift</kbd>-tel tartomány</dd>
+                <dt><kbd>Ctrl</kbd>+<kbd>A</kbd></dt><dd>minden szem kijelölése</dd>
+                <dt><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>Ctrl</kbd>+<kbd>V</kbd></dt><dd>másolás / beillesztés a kurzortól; a teljes sor új sorként kerül be</dd>
+                <dt><kbd>Ctrl</kbd>+<kbd>D</kbd></dt><dd>a kijelölés duplikálása, pl. a következő sorba</dd>
                 <dt><kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></dt><dd>visszavonás, újra</dd>
                 <dt><kbd>M</kbd></dt><dd>tükrözött nézet</dd>
                 <dt><kbd>R</kbd></dt><dd>rács ki és be</dd>

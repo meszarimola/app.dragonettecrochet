@@ -81,12 +81,12 @@ test('a téglalap csak cellákra kattintva készül; ahol nincs mibe horgolni, �
   await expect(summary).toContainText('2. sor: 5 szem');
   await expect(summary).toContainText('Nincs hiba és figyelmeztetés.');
 
-  // A sorszám önálló, kattintható célterület.
+  // A sorszám önálló, kattintható célterület: a teljes sort jelöli ki (PQW-875).
   await fit.click();
   const label = (await racs(page)).labels.find((candidate) => candidate.layer === 1);
   expect(label).toBeTruthy();
   await page.mouse.click(label!.x, label!.y);
-  await expect(status).toHaveText('1. sor: 5 szem.');
+  await expect(status).toHaveText('1. sor kijelölve: 5 szem.');
   await expect(summary).toContainText('2. sor: 5 szem');
 });
 
