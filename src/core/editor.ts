@@ -419,6 +419,8 @@ export function workIntoSame(pattern: Pattern, defId: StitchDefId): EditResult {
   const appended = append(piece, [{ def: part.id, anchors: [anchor] }]);
   // A szegély sorvégeibe a szerkesztő még nem horgol: a szegélyt a Forma szakasz készíti (PQW-889).
   if (anchor.into === 'row-end') return refuse('A szegély sorvégébe a szerkesztőben még nem lehet horgolni.');
+  // A láncszem másik oldalába az ovális generátor horgol (PQW-890).
+  if (anchor.into === 'underside') return refuse('A láncszem másik oldalába a szerkesztőben még nem lehet horgolni.');
   if (anchor.into !== 'stitch') {
     if (!part.insertionModes.includes(anchor.into)) return refuse('Ez a szem ide nem horgolható.');
     return done(withPiece(pattern, appended.piece));

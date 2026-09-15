@@ -244,7 +244,13 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
   amigurumi fő nézete az írott minta: a típus kiválasztásakor a panel nagyban
   (keskeny ablakban teljes nézetben) nyílik, a rajz kiegészítés.
   - **Formák:** gömb 6n vagy szinuszos körtervvel, félgömb, tojás, henger, kúp
-    (tört szaporítással is, pl. 2,5), forgástest soronként megadott profilból.
+    (tört szaporítással is, pl. 2,5), forgástest soronként megadott profilból,
+    és ovális láncalapról (PQW-890, 04 §3.4, §9.4): hossz és szélesség cm-ben;
+    L láncszemből az 1. kör 2L + 2 szem, elöl a láncszemekbe, a láncszemek
+    másik oldalán vissza (`underside` célpont), utána végenként a lapos érték
+    felével szaporít (rövidpálcánál körönként +6), az egyenes oldalak szemszáma
+    nem változik. A rajzon a láncalap egyenesen áll, az 1. kör a két oldalán.
+    Önállóan (pl. talp) és részként is: varrva, vagy utána folytatólagosan fal.
     A körszám és a szaporítás a rövidpálca körben mért mintasűrűségéből jön;
     profil nélkül a tűből becsülve, és a szakasz ezt ki is írja. A 6 cm-es
     DK-gömb (04 §4.4) mindkét módszerrel egyezik.

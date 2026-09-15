@@ -208,8 +208,9 @@ export function sectionMarks(schedule: Schedule, eyes: boolean, under3: boolean)
   const marks = new Map<number, RoundMark[]>();
   const atMark: RoundMark[] = [];
   if (eyes) atMark.push(under3 ? 'embroider-eyes' : 'safety-eyes');
-  atMark.push('stuffing');
-  marks.set(markRound(schedule), atMark);
+  // A lapos ovális (pl. talp, PQW-890) nem tömött.
+  if (schedule.start !== 'chain') atMark.push('stuffing');
+  if (atMark.length > 0) marks.set(markRound(schedule), atMark);
   if (schedule.end === 'closed') {
     const last = schedule.counts.length - 1;
     marks.set(last, [...(marks.get(last) ?? []), 'close-opening']);
@@ -238,6 +239,7 @@ interface SectionWrite {
 
 /** A rész körei spirálban; hiba esetén az üzenet. */
 function writeSection(writer: PieceWriter, section: SectionWrite): string | null {
+  if (section.schedule.oval && section.below === null) return writeOval(writer, section);
   const { counts, backLoop } = section.schedule;
   let positions: readonly NodeId[] = section.below ?? [];
   // Hány egymás fölötti szaporítás, illetve fogyasztás áll a pozíción (rounds.ts `stackedIncreases`).
@@ -303,6 +305,70 @@ function writeSection(writer: PieceWriter, section: SectionWrite): string | null
   return null;
 }
 
+/**
+ * Ovális láncalapról (04 §3.4, §9.4, PQW-890). L láncszem; a horogtól az első a
+ * kezdőlánc. Az 1. kör elöl a horogtól távolodva minden láncszembe, a
+ * legtávolabbiba összesen 4 rp, a láncszemek másik oldalán vissza, a horoghoz
+ * legközelebbibe összesen 3 rp: 2L + 2 szem. Utána minden körben a két végen
+ * végenként `perEnd` szaporítás egyenletesen elosztva, eltolással és a
+ * harmadik egymás fölé kerülés elkerülésével; az egyenes oldalak rövidpálcák.
+ */
+function writeOval(writer: PieceWriter, section: SectionWrite): string | null {
+  const { counts } = section.schedule;
+  const { chains: L, perEnd } = section.schedule.oval!;
+  const chains = Array.from({ length: L }, () => writer.add('ch'));
+  // A kezdőlánc a horoghoz legközelebbi láncszem (fonalsorrendben az utolsó); a többi a munkált láncalap.
+  const working = chains.slice(0, -1);
+  const W = working.length;
+  const other = (id: NodeId): Anchor => ({ into: 'underside', id });
+
+  let positions: NodeId[] = [];
+  for (let k = W - 1; k >= 1; k -= 1) positions.push(writer.add('sc', [into(working[k]!, 'both-loops')]));
+  positions.push(...writer.into(into(working[0]!, 'both-loops'), 4));
+  for (let k = 1; k <= W - 2; k += 1) positions.push(writer.add('sc', [other(working[k]!)]));
+  positions.push(...writer.into(other(working[W - 1]!), 3));
+
+  // A kör felépítése fonalsorrendben: a B vég eleje (c), egyenes (s), A vég (a), egyenes (s), a B vég többi része (a − c).
+  const straight = W - 2;
+  let end = 4;
+  let head = 1;
+  let depth = positions.map(() => 0);
+  for (let i = 0; i < counts.length; i += 1) {
+    if (i > 0) {
+      const P = positions.length;
+      const ops = new Map<number, 'sc' | 'inc'>();
+      const region = (indices: readonly number[]) => {
+        const cost = (j: number) => ((depth[indices[j]!] ?? 0) >= 2 ? STACK_COST : 0);
+        const planned = roundOps(indices.length, indices.length + perEnd, section.stagger && i % 2 === 0, cost);
+        if (!planned) return false;
+        planned.forEach((op, j) => ops.set(indices[j]!, op === 'inc' ? 'inc' : 'sc'));
+        return true;
+      };
+      const endA = Array.from({ length: end }, (_, j) => head + straight + j);
+      const endB = [...Array.from({ length: end - head }, (_, j) => P - (end - head) + j), ...Array.from({ length: head }, (_, j) => j)];
+      if (!region(endA) || !region(endB)) return `Az ovális ${section.firstLayer + i}. körében a végek szaporítása nem fér el.`;
+      const produced: NodeId[] = [];
+      const next: number[] = [];
+      let nextHead = 0;
+      positions.forEach((position, p) => {
+        const inc = ops.get(p) === 'inc';
+        const ids = inc ? writer.into(into(position, 'both-loops'), 2) : [writer.add('sc', [into(position, 'both-loops')])];
+        produced.push(...ids);
+        for (const _ of ids) next.push(inc ? (depth[p] ?? 0) + 1 : 0);
+        if (p < head) nextHead += ids.length;
+      });
+      positions = produced;
+      depth = next;
+      head = nextHead;
+      end += perEnd;
+    }
+    if (positions.length !== counts[i]) return `Az ovális ${section.firstLayer + i}. köre ${positions.length} szem lett ${counts[i]} helyett: ez a program hibája, kérlek, jelezd.`;
+    const marks = section.marks.get(i);
+    writer.event(i === counts.length - 1 ? 'fasten-off' : 'spiral', { statedCount: counts[i]!, ...(marks?.length ? { marks } : {}) });
+  }
+  return null;
+}
+
 class PieceWriter {
   readonly #base: Piece | undefined;
   readonly #stitches: StitchNode[];
@@ -337,7 +403,7 @@ class PieceWriter {
   /** `n` rövidpálca egy célpontba; szembe horgolva kettőtől szaporításként. */
   into(anchor: Anchor, n: number): NodeId[] {
     const ids = Array.from({ length: n }, () => this.add('sc', [anchor]));
-    if (anchor.into === 'stitch' && n >= 2) this.#groups.push({ id: `g${this.#next++}`, def: `inc-${n}sc`, members: ids });
+    if ((anchor.into === 'stitch' || anchor.into === 'underside') && n >= 2) this.#groups.push({ id: `g${this.#next++}`, def: `inc-${n}sc`, members: ids });
     return ids;
   }
 

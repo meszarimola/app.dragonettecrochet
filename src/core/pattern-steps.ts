@@ -80,7 +80,9 @@ export type Step =
   | ({ readonly kind: 'chain'; readonly count: number } & ColorChange)
   | { readonly kind: 'skip'; readonly count: number; readonly what: 'stitch' | 'chain' | 'space' }
   | ({ readonly kind: 'turning-chain'; readonly count: number; readonly countsAs: StitchDefId | null } & ColorChange)
-  | { readonly kind: 'repeat'; readonly steps: readonly Step[]; readonly times: number };
+  | { readonly kind: 'repeat'; readonly steps: readonly Step[]; readonly times: number }
+  /** Az ovális 1. körében a láncszemek másik oldalára fordulás (PQW-890). */
+  | { readonly kind: 'other-side' };
 
 export interface WrittenLayer {
   readonly index: number;
@@ -214,8 +216,13 @@ function writtenLayer(
 ): WrittenLayer {
   const layer = graph.layers[index]!;
   const below = graph.layers[index - 1]!;
-  const working = layer.direction === 1 ? below.positions : [...below.positions].reverse();
-  const workingIndex = new Map(working.map((id, w) => [id, w]));
+  // Az ovális 1. köre (PQW-890): elöl a horogtól távolodva, utána a láncszemek másik oldalán vissza.
+  const oval = index === 1 && below.undersides.length > 0;
+  const front = layer.direction === 1 && !oval ? below.positions : [...below.positions].reverse();
+  const working = oval ? [...front, ...below.positions] : front;
+  const workingIndex = new Map(front.map((id, w) => [id, w]));
+  const undersideIndex = new Map<NodeId, number>(oval ? below.positions.map((id, k) => [id, front.length + k]) : []);
+  let otherSide = false;
   const defOf = (id: NodeId) => graph.defs.get(id)!;
   const countsAs = layer.firstStitch !== null && layer.turningChainCounts ? countsAsOf(defOf(layer.firstStitch)) : null;
   const hookRow = index === 1 && start === 'chain';
@@ -239,6 +246,23 @@ function writtenLayer(
   const classify = (anchor: Anchor, owner: NodeId): { target: StepTarget; mode: StitchInsertion; into: 'stitch' | 'chain' } => {
     if (anchor.into === 'ring') return { target: 'ring', mode: 'both-loops', into: 'stitch' };
     if (anchor.into === 'row-end') throw unsupported('sorvégbe horgolt szemet tartalmaz; ez csak a szegélyben írható ki', owner);
+    if (anchor.into === 'underside') {
+      const w = undersideIndex.get(anchor.id);
+      // A legtávolabbi láncszem másik oldalát a vége körbeéri: arra külön lépés nem íródik ki.
+      if (w === undefined || w === front.length) throw unsupported('a láncszem másik oldalába olyan helyen horgol, amely még nem írható ki', owner);
+      if (!otherSide) {
+        steps.push({ kind: 'other-side' });
+        otherSide = true;
+        last = null;
+        cursor = Math.max(cursor, front.length + 1);
+      }
+      if (last?.kind === 'stitch' && last.w === w) return { target: 'same', mode: 'both-loops', into: 'chain' };
+      if (w < cursor) throw unsupported('a láncszemek másik oldalán a haladási iránnyal szemben horgol', owner);
+      skip(cursor, w);
+      cursor = w + 1;
+      last = { kind: 'stitch', w };
+      return { target: 'next', mode: 'both-loops', into: 'chain' };
+    }
     if (anchor.into === 'space') {
       if (anchor.id === ringSpace) return { target: 'chain-ring', mode: 'both-loops', into: 'stitch' };
       const chains = spacePositions(below, graph.spaces.get(anchor.id)!).map((id) => workingIndex.get(id));
@@ -282,7 +306,7 @@ function writtenLayer(
   const markChange = (color: number) => {
     for (let k = steps.length - 1; k >= 0; k -= 1) {
       const step = steps[k]!;
-      if (step.kind === 'skip') continue;
+      if (step.kind === 'skip' || step.kind === 'other-side') continue;
       if (step.kind !== 'repeat') steps[k] = { ...step, changeTo: color };
       return;
     }
