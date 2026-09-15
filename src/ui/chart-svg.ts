@@ -16,7 +16,7 @@
  * „18目”, az ismétlés „6目1模様” (src/ui/chart-labels.ts, PQW-876).
  */
 
-import type { ChartGrid } from '../core/grid.ts';
+import { chartBounds, type ChartGrid } from '../core/grid.ts';
 import { INSERTION_NAMES, nodeInsertions } from '../core/insertion.ts';
 import type { ChartLayout } from '../core/layout.ts';
 import { VOCABULARIES } from '../core/pattern-text.ts';
@@ -132,14 +132,7 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
   const system = VOCABULARIES[terms].system;
   const captions = chartLabels(options.tradition ?? 'cyc');
   const repeat = captions.repeat(pattern.conventions.repeat);
-  const bounds = grid
-    ? {
-        minX: Math.min(layout.bounds.minX, grid.grid.bounds.minX),
-        minY: Math.min(layout.bounds.minY, grid.grid.bounds.minY),
-        maxX: Math.max(layout.bounds.maxX, grid.grid.bounds.maxX),
-        maxY: Math.max(layout.bounds.maxY, grid.grid.bounds.maxY),
-      }
-    : layout.bounds;
+  const bounds = chartBounds(layout, grid?.grid);
   const chartWidth = Math.max(bounds.maxX - bounds.minX, 0);
   const chartHeight = Math.max(bounds.maxY - bounds.minY, 0);
   const legend = legendStitches(pattern, library);

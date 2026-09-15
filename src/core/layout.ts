@@ -12,7 +12,12 @@
  * - A sormagasság a sor legmagasabb szeméből jön; egy sor jelei közös
  *   talpvonalon állnak.
  * - Körben a jelek sugárirányúak, a körök a középből az óramutatóval
- *   ellentétesen haladnak. Ez egyszerű elrendezés; a körnézet finomítása később jön.
+ *   ellentétesen haladnak.
+ * - Sokszögben (négyzet, hatszög, nyolcszög, nagymama-négyzet) a körök a
+ *   sokszög oldalai mentén haladnak, a jelek az oldalra merőlegesek, a
+ *   sarokcsoportok a sarkokban, egymás fölött ülnek (polygon.ts, PQW-888). A
+ *   körök távolsága itt is a jelek magasságából jön; a sokszög kerülete
+ *   nagyobb a köréhez képest, ezért a jelek nem torlódnak.
  * - Tükrözött nézetben (balkezeseknek) minden vízszintesen tükröződik (01 §8.4 szabály 22).
  *
  * Stabil szerkesztés közben (06 §5.3 2. pont): egy réteg csak az alatta lévő
@@ -27,14 +32,12 @@
  */
 
 import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
+import { CIRCLE, frameCoords, frameFor, frameNormal, framePoint, frameSide, perimeter, type Point, type RoundFrame } from './polygon.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import type { Anchor, NodeId, Pattern, StitchDef, StitchDefId } from './types.ts';
 import { validatePattern } from './validate.ts';
 
-export interface Point {
-  readonly x: number;
-  readonly y: number;
-}
+export type { Point, RoundFrame } from './polygon.ts';
 
 /** Hogyan rajzolandó a csomópont: szárral, láncszemként, pontként, pikóként vagy gyűrűként. */
 export type NodeRole = 'stitch' | 'chain' | 'slip' | 'picot' | 'ring';
@@ -71,6 +74,8 @@ export interface ChartLayout {
   /** Rétegenként, a 0. (láncalap vagy varázskör) is. */
   readonly layers: readonly LayerPlacement[];
   readonly bounds: { readonly minX: number; readonly minY: number; readonly maxX: number; readonly maxY: number };
+  /** Sokszögben horgolt darabnál az alakja (PQW-888); sorban és lapos körben hiányzik. */
+  readonly frame?: RoundFrame;
 }
 
 export interface LayoutOptions {
@@ -88,6 +93,7 @@ const defaultStem = (chainHeight: number) => 10 + 8 * chainHeight;
 export const ROW_GAP = 6;
 const CHAIN_HEIGHT = 12;
 const SLIP_HEIGHT = 6;
+const TAU = 2 * Math.PI;
 
 const EMPTY: ChartLayout = { nodes: new Map(), layers: [], bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0 } };
 
@@ -179,6 +185,13 @@ export function spread(items: readonly Item[]): number[] {
 interface Raw {
   nodes: Map<NodeId, NodePlacement>;
   layers: LayerPlacement[];
+  frame: RoundFrame;
+}
+
+/** A kör egy sarka: a szem vagy a láncív, amelybe a következő kör sarokcsoportja kerül. */
+interface CornerRef {
+  readonly space: boolean;
+  readonly id: string;
 }
 
 class Layouter {
@@ -186,6 +199,12 @@ class Layouter {
   readonly #W: number;
   readonly #stem: (chainHeight: number) => number;
   readonly #round: boolean;
+  /** A körben horgolt darab alakja: kör vagy sokszög. */
+  readonly #frame: RoundFrame;
+  /** Sokszögben rétegenként a sarkok, a fonal sorrendjében; ha nem követhetők, `null`. */
+  readonly #corners: (readonly CornerRef[] | null)[] = [];
+  /** A sarkok helye a kerület menti paraméterben, az 1. körtől rögzítve. */
+  #cornerAxes: number[] | null = null;
   /** Hibás célpontú szemek: a száruk a saját oszlopukban, normál méretben áll. */
   readonly #detached: ReadonlySet<NodeId>;
   readonly #nodes = new Map<NodeId, NodePlacement>();
@@ -201,6 +220,7 @@ class Layouter {
     this.#stem = stem;
     this.#detached = detached;
     this.#round = graph.layers[0]!.shape === 'round';
+    this.#frame = this.#round ? frameFor(graph.piece.corners) : CIRCLE;
   }
 
   run(): Raw {
@@ -211,7 +231,7 @@ class Layouter {
       if (!this.#round && (layer.index === 1 || layer.opening?.kind === 'turn')) direction = -direction;
       this.#layer(layer, this.#round ? 1 : direction);
     }
-    return { nodes: this.#nodes, layers: this.#layers };
+    return { nodes: this.#nodes, layers: this.#layers, frame: this.#frame };
   }
 
   #def(id: NodeId): StitchDef {
@@ -234,9 +254,12 @@ class Layouter {
     }
   }
 
-  /** Sorban (x, y), körben (sugár, szög) → pont; a szög az óramutatóval ellentétesen nő. */
+  /**
+   * Sorban (x, y), körben (belső sugár, kerület menti paraméter) → pont; a
+   * paraméter az óramutatóval ellentétesen nő. Lapos körben ez a sugár és a szög.
+   */
   #point(base: number, axis: number): Point {
-    return this.#round ? { x: base * Math.cos(axis), y: -base * Math.sin(axis) } : { x: axis, y: base };
+    return this.#round ? framePoint(this.#frame, base, axis) : { x: axis, y: base };
   }
 
   #foundation(layer: LayerInfo): void {
@@ -249,7 +272,8 @@ class Layouter {
         const axis = Math.PI / 2 + (2 * Math.PI * i) / layer.stitches.length;
         this.#axis.set(id, axis);
         const along = Math.atan2(-Math.cos(axis), -Math.sin(axis));
-        this.#place(id, 0, side, 'chain', [], this.#point(radius, axis), along, this.#W * 0.6);
+        // A láncgyűrű sokszögben is kerek.
+        this.#place(id, 0, side, 'chain', [], framePoint(CIRCLE, radius, axis), along, this.#W * 0.6);
       });
       this.#base[0] = radius + 8;
     } else if (this.#round) {
@@ -326,11 +350,14 @@ class Layouter {
       });
     }
 
-    // Körben a szögek a talpvonal sugarán mérve; a kör legalább akkora, hogy kiférjen.
-    const scale = (radius: number) => (this.#round ? 1 / radius : 1);
+    // Körben a paraméter a kör közepének kerületén mérve; a kör legalább akkora, hogy kiférjen.
+    // Az egységnyi belső sugár kerülete körben 2π, sokszögben 2n · tg(π/n).
+    const around = perimeter(this.#frame, 1);
+    const unit = around / TAU;
+    const scale = (radius: number) => (this.#round ? 1 / (radius * unit) : 1);
     if (this.#round) {
       const width = items.reduce((sum, item) => sum + 2 * item.half, 0);
-      base = Math.max(base, width / (2 * Math.PI) - height / 2);
+      base = Math.max(base, width / around - height / 2);
       this.#base[layer.index] = base;
     }
     const k = scale(base + height / 2);
@@ -358,6 +385,7 @@ class Layouter {
     scaled.forEach((item, i) => {
       for (const id of item.ids) this.#axis.set(id, positions[i]!);
     });
+    if (this.#round && this.#frame.sides >= 3) this.#alignCorners(layer, scaled, positions);
 
     const side = layer.side;
     const top = this.#round ? base + height : base - height;
@@ -368,7 +396,8 @@ class Layouter {
         const step = height / item.ids.length;
         item.ids.forEach((id, i) => {
           const center = this.#point(up(base, (i + 0.5) * step), axis);
-          const along = this.#round ? Math.atan2(-Math.sin(axis), Math.cos(axis)) : Math.PI / 2;
+          const normal = frameNormal(this.#frame, axis);
+          const along = this.#round ? Math.atan2(-Math.sin(normal), Math.cos(normal)) : Math.PI / 2;
           this.#place(id, layer.index, side, 'chain', [], center, along, Math.min(step * 0.95, W * 0.8));
         });
         continue;
@@ -376,7 +405,9 @@ class Layouter {
       const id = item.ids[0]!;
       const def = this.#def(id);
       if (def.kind === 'chain') {
-        const along = this.#round ? Math.atan2(-Math.cos(axis), -Math.sin(axis)) : 0;
+        // A láncszem a kör mentén fekszik: sokszögben az oldallal párhuzamosan.
+        const normal = frameNormal(this.#frame, axis);
+        const along = this.#round ? Math.atan2(-Math.cos(normal), -Math.sin(normal)) : 0;
         this.#place(id, layer.index, side, 'chain', [], this.#point(up(top, -6), axis), along, W * 0.7);
         continue;
       }
@@ -398,7 +429,7 @@ class Layouter {
       const axis = this.#axis.get(host)!;
       this.#axis.set(id, axis);
       const center = this.#round
-        ? this.#point(Math.hypot(hostTop.x, hostTop.y) + 8, axis)
+        ? this.#point(frameCoords(this.#frame, hostTop).r + 8, axis)
         : { x: hostTop.x, y: hostTop.y - 8 };
       this.#place(id, layer.index, side, 'picot', [], center, 0, 0);
     }
@@ -407,14 +438,17 @@ class Layouter {
     const last = positions[positions.length - 1] ?? first;
     const margin = W * scale(base + height / 2);
     const middle = up(base, height / 2);
+    // Sokszögben a körszám a kör első szemének oldalán marad: így a körszámok egymás fölött, elkülönülve állnak (PQW-888).
+    const startAxis = this.#round ? Math.max(first - direction * margin, frameSide(this.#frame, first)[0]) : first - direction * margin;
+    const shifted = startAxis - (first - direction * margin);
     // Körben a kör vége a kezdete mellé ér: a szemszám a körszám mögé kerül, hogy ne takarják egymást (PQW-861).
-    const endAxis = this.#round ? first - direction * (margin + Math.min(2 * margin, Math.PI / 3)) : last + direction * margin;
+    const endAxis = this.#round ? first - direction * (margin + Math.min(2 * margin, Math.PI / 3)) + shifted : last + direction * margin;
     this.#layers.push({
       index: layer.index,
       shape: layer.shape,
       side,
       stitchCount: layer.stitchCount,
-      start: this.#point(middle, first - direction * margin),
+      start: this.#point(middle, startAxis),
       end: this.#point(middle, endAxis),
     });
     this.#tops[layer.index] = top;
@@ -424,6 +458,143 @@ class Layouter {
 
   #top(index: number): number {
     return this.#tops[index] ?? this.#base[index] ?? 0;
+  }
+
+  /**
+   * Sokszögben a kör sarkai a sokszög sarkaiba kerülnek (PQW-888): a kör helyei
+   * sarokról sarokra lineárisan igazodnak, a sorrendjük és az arányuk marad.
+   * Az 1. körben a sarkok a saját szerkezetéből jönnek, utána az előző kör
+   * sarkaiból; így a réteg csak önmagától és az alatta lévőtől függ (06 §5.3).
+   */
+  #alignCorners(layer: LayerInfo, items: readonly Item[], positions: number[]): void {
+    const refs = this.#cornerRefs(layer);
+    this.#corners[layer.index] = refs;
+    if (!refs) return;
+    const axes = refs.map((ref) => (ref.space ? this.#anchorAxis({ into: 'space', id: ref.id }) : this.#axis.get(ref.id)));
+    if (axes.some((axis) => axis === undefined)) {
+      this.#corners[layer.index] = null;
+      return;
+    }
+    const actual = axes as number[];
+    const n = this.#frame.sides;
+    if (layer.index === 1 || !this.#cornerAxes) {
+      // Az 1. kör első sarka a hozzá legközelebbi sokszögsarokba; a többi sorban utána.
+      const step = TAU / n;
+      const first = this.#frame.corner + Math.ceil((actual[0]! - step / 2 - this.#frame.corner) / step) * step;
+      this.#cornerAxes = actual.map((_, j) => first + j * step);
+    }
+    const wanted = this.#cornerAxes;
+    this.#spreadSeam(items, positions, refs);
+    const knots = [actual[n - 1]! - TAU, ...actual, actual[0]! + TAU];
+    const values = [wanted[n - 1]! - TAU, ...wanted, wanted[0]! + TAU];
+    if (knots.some((knot, i) => i > 0 && knot <= knots[i - 1]!)) return;
+    const map = (u: number): number => {
+      if (u <= knots[0]!) return u + values[0]! - knots[0]!;
+      for (let i = 1; i < knots.length; i += 1) {
+        if (u > knots[i]!) continue;
+        const t = (u - knots[i - 1]!) / (knots[i]! - knots[i - 1]!);
+        return values[i - 1]! + t * (values[i]! - values[i - 1]!);
+      }
+      return u + values[values.length - 1]! - knots[knots.length - 1]!;
+    };
+    items.forEach((item, i) => {
+      positions[i] = map(positions[i]!);
+      for (const id of item.ids) this.#axis.set(id, positions[i]!);
+    });
+  }
+
+  /**
+   * A kör eleje és vége ugyanarra az oldalra esik, az utolsó és az első sarok
+   * közé. A sor menti elosztás ezt nem látja, ezért a kör eleje hátrafelé, a
+   * vége előrefelé csúszhat, és a két vég egymásra kerül. Ha így van, ezen az
+   * oldalon a két sarok között újra szétosztjuk a helyeket.
+   */
+  #spreadSeam(items: readonly Item[], positions: number[], refs: readonly CornerRef[]): void {
+    // A sarok elemei: a sarokszem, vagy a sarokív láncszemei.
+    const indicesOf = (ref: CornerRef) => {
+      const ids = ref.space ? (this.#graph.spaces.get(ref.id)?.chains ?? []) : [ref.id];
+      return items.flatMap((item, i) => (item.ids.some((id) => ids.includes(id)) ? [i] : []));
+    };
+    const tail = indicesOf(refs[refs.length - 1]!);
+    const head = indicesOf(refs[0]!);
+    if (tail.length === 0 || head.length === 0) return;
+    const last = Math.max(...tail);
+    const first = Math.min(...head);
+    // A varrat: az utolsó sarok utáni, majd a kör elején az első sarok előtti elemek.
+    const seam = [
+      ...items.flatMap((_, i) => (i > last ? [{ index: i, wrapped: false }] : [])),
+      ...items.flatMap((_, i) => (i < first ? [{ index: i, wrapped: true }] : [])),
+    ];
+    if (seam.length === 0) return;
+    const row: Item[] = seam.map(({ index, wrapped }) => ({ ...items[index]!, desired: positions[index]! + (wrapped ? TAU : 0) }));
+    const from = positions[last]!;
+    const to = positions[first]! + TAU;
+    const lo = from + items[last]!.half + row[0]!.half;
+    const hi = to - items[first]!.half - row[row.length - 1]!.half;
+    let placed = spread(row);
+    const [a, b] = [placed[0]!, placed[placed.length - 1]!];
+    if (hi <= lo) placed = row.map((_, k) => from + ((k + 1) / (row.length + 1)) * (to - from));
+    else if (b - a > hi - lo) placed = placed.map((p) => lo + ((p - a) * (hi - lo)) / (b - a));
+    else if (a < lo) placed = placed.map((p) => p + lo - a);
+    else if (b > hi) placed = placed.map((p) => p - (b - hi));
+    seam.forEach(({ index, wrapped }, k) => {
+      positions[index] = placed[k]! - (wrapped ? TAU : 0);
+    });
+  }
+
+  /**
+   * A kör sarkai. Az 1. körben a láncívek, ha éppen annyi van, ahány sarok
+   * (nagymama-négyzet); különben a pozíciók egyenlő oldalakra osztva, mindegyik
+   * oldal a sarokszemmel végződik (round-generator.ts `polygonPlan`). Később
+   * az előző kör sarkába horgolt csoport közepe: a csoporton belüli láncív
+   * (nagymama-négyzet), vagy a középső szem.
+   */
+  #cornerRefs(layer: LayerInfo): CornerRef[] | null {
+    const graph = this.#graph;
+    const n = this.#frame.sides;
+    if (layer.index === 1) {
+      const spaces: string[] = [];
+      for (const id of layer.stitches) {
+        const space = graph.spaceOfChain.get(id);
+        if (space && !spaces.includes(space.id)) spaces.push(space.id);
+      }
+      if (spaces.length === n) return spaces.map((id) => ({ space: true, id }));
+      const positions = layer.positions;
+      if (positions.length === 0 || positions.length % n !== 0) return null;
+      const side = positions.length / n;
+      return Array.from({ length: n }, (_, j) => ({ space: false, id: positions[(j + 1) * side - 1]! }));
+    }
+    const previous = this.#corners[layer.index - 1];
+    if (!previous) return null;
+    const below = graph.layers[layer.index - 1]!;
+    const excluded = new Set<NodeId>([...layer.turningChain, ...layer.travelSlips, ...(layer.joinSlip ? [layer.joinSlip] : [])]);
+    const order = (id: NodeId) => graph.order.get(id)!;
+    const refs: CornerRef[] = [];
+    for (const corner of previous) {
+      const children = layer.stitches.filter(
+        (id) =>
+          !excluded.has(id) &&
+          graph.nodes.get(id)!.anchors.some((anchor) => anchor.into === (corner.space ? 'space' : 'stitch') && anchor.id === corner.id),
+      );
+      // A számító kezdőlánc az előző kör első pozíciójába horgolt szemnek számít.
+      const top = layer.turningChain[layer.turningChain.length - 1];
+      if (!corner.space && layer.turningChainCounts && top !== undefined && below.positions[0] === corner.id) children.unshift(top);
+      if (children.length === 0) return null;
+      const from = order(children[0]!);
+      const to = order(children[children.length - 1]!);
+      const inside: string[] = [];
+      for (const id of layer.stitches) {
+        const space = graph.spaceOfChain.get(id);
+        if (!space || inside.includes(space.id)) continue;
+        if (space.chains.every((chain) => order(chain) > from && order(chain) < to)) inside.push(space.id);
+      }
+      refs.push(
+        inside.length > 0
+          ? { space: true, id: inside[Math.floor((inside.length - 1) / 2)]! }
+          : { space: false, id: children[Math.floor(children.length / 2)]! },
+      );
+    }
+    return refs;
   }
 
   /** A talp: a célpont oszlopa ennek a rétegnek a talpvonalán; korábbi sorba horgolt szemnél annak a sornak a tetején. */
@@ -496,5 +667,10 @@ function finish(graph: PieceGraph, raw: Raw, mirror: boolean, W: number): ChartL
   }
   if (nodes.size === 0) return EMPTY;
   const pad = W;
-  return { nodes, layers, bounds: { minX: minX - pad, minY: minY - pad, maxX: maxX + pad, maxY: maxY + pad } };
+  return {
+    nodes,
+    layers,
+    bounds: { minX: minX - pad, minY: minY - pad, maxX: maxX + pad, maxY: maxY + pad },
+    ...(raw.frame.sides >= 3 ? { frame: raw.frame } : {}),
+  };
 }

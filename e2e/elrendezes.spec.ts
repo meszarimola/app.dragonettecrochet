@@ -292,3 +292,47 @@ for (const viewport of [
     await expectBetween();
   });
 }
+
+interface Rect {
+  readonly left: number;
+  readonly top: number;
+  readonly right: number;
+  readonly bottom: number;
+}
+
+/*
+ * Körben horgolt mintánál a rács a készülő kör sávjával körben nagyobb a
+ * rajznál (PQW-887): az „Egész minta” a rács szélét is a látható részre
+ * illeszti, lenyitott írott minta mellett. Alacsony ablakban ehhez a nagyítás
+ * legkisebb lépcsőjénél kisebbre is kicsinyít.
+ */
+for (const [viewport, rounds] of [
+  [{ width: 1440, height: 900 }, 6],
+  [{ width: 1000, height: 506 }, 6],
+] as const) {
+  test(`${viewport.width}×${viewport.height}: az „Egész minta” a körben horgolt minta rácsát is a látható részre illeszti`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await open(page);
+    await expect(page.locator('#written')).toBeVisible();
+
+    const section = page.locator('#section-rounds');
+    if ((await section.getAttribute('open')) === null) await section.locator('summary').click();
+    await page.locator('#rounds-shape').selectOption({ label: 'Nagymama-négyzet' });
+    await page.locator('#rounds-count').fill(String(rounds));
+    await page.locator('#rounds-count').press('Tab');
+    await page.getByRole('button', { name: 'Minta létrehozása' }).click();
+    await expect(page.locator('#status')).toContainText(`${rounds} kör elkészült`);
+    await page.getByRole('button', { name: 'Egész minta' }).click();
+
+    const grid = await page.evaluate(() => (window as unknown as { mintatervezoRacs: { bounds(): Rect | null } }).mintatervezoRacs.bounds());
+    expect(grid).not.toBeNull();
+    const stage = await box(page, '.stage');
+    const types = await box(page, '#types');
+    const panel = await box(page, '#panel');
+    const cover = await box(page, '#written');
+    expect(grid!.left).toBeGreaterThanOrEqual(types.x + types.width);
+    expect(grid!.right).toBeLessThanOrEqual(panel.x);
+    expect(grid!.top).toBeGreaterThanOrEqual(stage.y);
+    expect(grid!.bottom).toBeLessThanOrEqual(cover.y);
+  });
+}
