@@ -318,6 +318,12 @@ export interface Piece {
    */
   readonly corners?: number;
   /**
+   * Sorban horgolt kendő rajza (PQW-893): a félkör és a félhold sorai íven, a
+   * fentről induló háromszög sorai a gerincnél megtörve (row-curve.ts). A
+   * kendőgenerátor adja; hiányában a sorok egyenesek.
+   */
+  readonly rowShape?: RowShape;
+  /**
    * A darab részei 3D formából (PQW-863), a készítés sorrendjében. Ha van, a
    * darab térbeli forma: a kunkorodás szándékos, az ellenőrző nem jelzi.
    */
@@ -370,6 +376,15 @@ export interface PieceGrid {
   /** Feliratos motívum: tükrözött nézetben figyelmeztetés. */
   readonly lettering: boolean;
 }
+
+/**
+ * Sorban horgolt kendő rajza (PQW-893), a szögek fokban. Íves sornál az ív a
+ * nyakszöget fogja át (félkörnél 180°); megtört sornál a nyakszög és az alsó
+ * csúcs szöge adja az alakot (fentről induló háromszögnél 180° és 90°).
+ */
+export type RowShape =
+  | { readonly kind: 'arc'; readonly neckAngle: number }
+  | { readonly kind: 'chevron'; readonly neckAngle: number; readonly tipAngle: number };
 
 /** A szegély választásai (PQW-862, 03 §7.1). */
 export interface PieceBorder {
