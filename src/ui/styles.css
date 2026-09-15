@@ -875,6 +875,8 @@ body.is-armed #board {
 .tool--primary:hover:not(:disabled) {
   color: var(--c-bg);
   opacity: 0.92;
+}
+
 /* ---- Bal oldali mintatípus-menü (PQW-873) ---- */
 
 /* A két oldalsáv a lenyitott írott minta fölött marad. */
@@ -979,4 +981,35 @@ body.is-armed #board {
   letter-spacing: var(--ls-micro);
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+/* ---- Az írott minta a nyitott oldalsávok között (PQW-881) ---- */
+
+/* Széles nézetben a lenyitott írott minta és az állapotsor nem csúszik az
+ * oldalsávok alá; keskeny nézetben az oldalsávok a panel fölé nyílnak. */
+@media (width >= 48rem) {
+  .stage:has(> .types:not([hidden])) > .written,
+  .stage:has(> .types:not([hidden])) > .status {
+    inset-inline-start: min(16rem, 80vw);
+  }
+
+  .stage:has(> .panel:not([hidden])) > .written {
+    inset-inline-end: min(19rem, 80vw);
+  }
+}
+
+.written__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* A „Hamarosan” címke a név alá kerül, nem vágja le a nevet. */
+.type {
+  grid-template-columns: auto 1fr;
+}
+
+.type__badge {
+  grid-column: 2;
+  justify-self: start;
 }
