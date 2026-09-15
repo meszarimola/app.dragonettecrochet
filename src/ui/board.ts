@@ -41,6 +41,12 @@ export interface Scene {
   readonly cursor: number | null;
   readonly hover: number | null;
   readonly selected: NodeId | null;
+  /** A kijelölt szemek (PQW-875); a `selected` ezek közül a fókusz. */
+  readonly selection?: readonly NodeId[];
+  /** Törlés előtt a törlendőkbe horgolt, érintett szemek. */
+  readonly affected?: readonly NodeId[];
+  /** A húzott kijelölő téglalap két sarka diagram-koordinátában. */
+  readonly marquee?: { readonly from: Point; readonly to: Point } | null;
   readonly findings: readonly Finding[];
   /** A most horgolt sor iránynyila, vagy `null`. */
   readonly direction: DirectionArrow | null;
@@ -348,12 +354,34 @@ export class Board {
     }
     ctx.setLineDash([]);
 
+    // A kijelölés folytonos, a törlésnél érintett szemek szaggatott keretben: nem csak színben térnek el (PQW-875).
+    applyInk(ctx, colors.accent, Math.max(1.5, 1 / scale));
+    for (const id of scene.selection ?? []) {
+      const node = scene.layout.nodes.get(id);
+      if (node) ctx.strokeRect(node.top.x - 11, node.top.y - 11, 22, 22);
+    }
+    applyInk(ctx, colors.error, Math.max(2, 1.5 / scale));
+    ctx.setLineDash([4, 3]);
+    for (const id of scene.affected ?? []) {
+      const node = scene.layout.nodes.get(id);
+      if (node) ctx.strokeRect(node.top.x - 13, node.top.y - 13, 26, 26);
+    }
+    ctx.setLineDash([]);
+
     if (scene.selected) {
       const node = scene.layout.nodes.get(scene.selected);
       if (node) {
         applyInk(ctx, colors.accent, Math.max(2, 1.5 / scale));
         ctx.strokeRect(node.top.x - 14, node.top.y - 14, 28, 28);
       }
+    }
+
+    if (scene.marquee) {
+      const { from, to } = scene.marquee;
+      applyInk(ctx, colors.accent, Math.max(1.5, 1.5 / scale));
+      ctx.setLineDash([5 / scale, 4 / scale]);
+      ctx.strokeRect(Math.min(from.x, to.x), Math.min(from.y, to.y), Math.abs(to.x - from.x), Math.abs(to.y - from.y));
+      ctx.setLineDash([]);
     }
 
     scene.targets.forEach((target, i) => {

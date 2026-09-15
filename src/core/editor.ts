@@ -153,6 +153,27 @@ export function contextOf(pattern: Pattern): WorkContext {
     shape = last.shape;
   }
 
+  const slots = layerSlots(graph, layer, below, reversed, shape);
+
+  const current = graph.layers[layer];
+  const worked = new Set<string>();
+  for (const id of current?.stitches ?? []) {
+    for (const anchor of graph.nodes.get(id)!.anchors) worked.add(anchorKey(anchor));
+  }
+  const used = slots.map((slot) => worked.has(slotKey(slot)));
+  const frontier = used.lastIndexOf(true);
+  const turningChain = current?.turningChain.length ?? 0;
+  const started = (current?.stitches.length ?? 0) > turningChain;
+
+  return { library, graph, layer, shape, slots, used, frontier, turningChain, started };
+}
+
+/**
+ * Egy réteg célpontjai a haladási irányban: az alatta lévő réteg horgolható
+ * pozíciói, a láncív egy célpontként, a varázskör csomópontja gyűrűként. A
+ * másolás (selection.ts) egy már megrajzolt réteghez is ebből számol.
+ */
+export function layerSlots(graph: PieceGraph, layer: number, below: LayerInfo, reversed: boolean, shape: LayerInfo['shape']): Slot[] {
   // Az 1. sor a láncalapba horgol. A gráf a be nem horgolt láncalap-véget az
   // 1. sor fordulóláncának számolja; célpontként mégis megtartjuk, hogy a
   // célpontok sorszáma horgolás közben ne tolódjon el (a horogtól számítva).
@@ -172,18 +193,7 @@ export function contextOf(pattern: Pattern): WorkContext {
     const ring = [...graph.rings.values()].find((candidate) => candidate.node === id);
     slots.push(ring ? { kind: 'ring', id: ring.id, node: id } : { kind: 'stitch', id });
   }
-
-  const current = graph.layers[layer];
-  const worked = new Set<string>();
-  for (const id of current?.stitches ?? []) {
-    for (const anchor of graph.nodes.get(id)!.anchors) worked.add(anchorKey(anchor));
-  }
-  const used = slots.map((slot) => worked.has(slotKey(slot)));
-  const frontier = used.lastIndexOf(true);
-  const turningChain = current?.turningChain.length ?? 0;
-  const started = (current?.stitches.length ?? 0) > turningChain;
-
-  return { library, graph, layer, shape, slots, used, frontier, turningChain, started };
+  return slots;
 }
 
 /**
@@ -204,15 +214,30 @@ export function defaultCursor(pattern: Pattern, context: WorkContext, tool: Stit
     while (next < slots.length && used[next]) next += 1;
     return next;
   }
+  return startCursor(pattern, context, tool);
+}
 
+/**
+ * A réteg első szemének célpontja, amíg a rétegben még nincs szem: a
+ * láncalapon a fordulólánc utáni láncszem, egyébként a számító fordulólánc
+ * alatti szem utáni célpont. A beillesztés (selection.ts) ehhez igazítja a
+ * másolt sort, a forrásban és a célban is.
+ */
+export function startCursor(
+  pattern: Pattern,
+  start: Pick<WorkContext, 'layer' | 'shape' | 'turningChain' | 'slots'>,
+  tool: StitchDefId | null,
+): number {
+  const { slots } = start;
+  if (slots.length === 0) return 0;
   const def = tool ? resolveStitch(tool) : undefined;
   const tradition = traditionOf(pattern.conventions);
   const counts = def !== undefined && turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition);
-  const foundationChain = context.layer === 1 && context.shape === 'row' && context.turningChain === 0;
+  const foundationChain = start.layer === 1 && start.shape === 'row' && start.turningChain === 0;
   // A horogtól számított láncszem 1-től, a célpont 0-tól számozott.
   if (foundationChain) return Math.min(def ? firstChainFromHook(def.turningChain, counts, tradition) - 1 : 1, slots.length - 1);
 
-  if (context.turningChain > 0 && counts && slots.length > 1) return 1;
+  if (start.turningChain > 0 && counts && slots.length > 1) return 1;
   return 0;
 }
 

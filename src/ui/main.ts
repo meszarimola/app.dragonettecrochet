@@ -37,6 +37,23 @@ import { layoutPattern, type ChartLayout, type Point } from '../core/layout.js';
 import { loadPattern, savePattern } from '../core/pattern-json.js';
 import { aspectStem, gaugeContextOf } from '../core/pattern-size.js';
 import { RULES } from '../core/rules.js';
+import {
+  copySelection,
+  deleteStitches,
+  deletionPlan,
+  describeByLayer,
+  duplicateSelection,
+  expandSelection,
+  layerSelection,
+  nodesInRect,
+  pasteFragment,
+  rangeSelection,
+  selectAll,
+  stepFocus,
+  toggleUnit,
+  type FocusMove,
+  type Fragment,
+} from '../core/selection.js';
 import { libraryFor, resolveStitch } from '../core/stitch-variants.js';
 import { stitchName } from '../core/stitchText.js';
 import { traditionOf } from '../core/tradition.js';
@@ -122,7 +139,20 @@ let cursor = 0;
 /** A felhasználó mozgatta-e a kurzort; ha nem, a kurzor a következő alapértelmezett célpontra ugrik. */
 let cursorMoved = false;
 let hover: number | null = null;
+/** A kijelölés fókusza: az utoljára kijelölt szem; ezt igazítja az igazítás panel. */
 let selectedNode: NodeId | null = null;
+/** A kijelölt szemek fonalsorrendben, egész egységekkel (PQW-875). */
+let selection: readonly NodeId[] = [];
+/** A Shift+nyíllal húzott tartomány kezdőszeme. */
+let selectionAnchor: NodeId | null = null;
+/** A vágólap: a legutóbb másolt szemek újraköthető részletként; csak ebben a lapban él. */
+let clipboard: Fragment | null = null;
+/** Terület kijelölése húzással (a menüsor kijelölés-gombja). */
+let areaMode = false;
+/** A húzott kijelölő téglalap, diagram-koordinátában. */
+let marquee: { readonly from: Point; readonly to: Point } | null = null;
+/** Törlés előtt a törlendőkbe horgolt szemek, amelyeket a vászon kiemel. */
+let affected: readonly NodeId[] = [];
 let mirror = readMirror();
 /** A választott mintatípus; a böngészőben marad. Most csak a „szabályos” aktív. */
 let patternType: PatternTypeId = readType();
@@ -288,25 +318,37 @@ function refresh(message?: string): void {
   // A sor utolsó célpontja után a kurzor a célpontokon kívül áll: ott nem horgol.
   cursor = Math.max(0, Math.min(cursor, derived.targets.length));
   if (selectedNode && !derived.layout.nodes.has(selectedNode)) selectedNode = null;
+  // Visszavonás után a már nem létező szemek kiesnek a kijelölésből.
+  selection = selection.filter((id) => derived.layout.nodes.has(id));
+  draw();
+  traditionSelect.value = traditionOf(derived.pattern.conventions);
+  updateControls();
+  updateWritten();
+  sizePanel.update(derived.pattern, derived.context.graph, derived.context.library);
+  if (message !== undefined) announce(message);
+}
 
+/** A vászon a már kiszámolt adatokból; a kijelölő téglalap húzásához ennyi elég. */
+function draw(): void {
+  // Szem nélkül, kijelölés nélkül és teli vágólappal a kurzor a beillesztés helyét mutatja (PQW-875).
+  const pasting = tool === null && clipboard !== null && selection.length === 0;
+  const aiming = (tool !== null && isTargeted(tool)) || pasting;
   board.setScene({
     layout: derived.layout,
     library: derived.context.library,
-    targets: tool && isTargeted(tool) ? derived.targets : [],
-    cursor: tool && derived.targets.length ? cursor : null,
+    targets: aiming ? derived.targets : [],
+    cursor: aiming && derived.targets.length ? cursor : null,
     hover,
     selected: selectedNode,
+    selection,
+    affected,
+    marquee,
     findings: derived.check.findings,
     grid: derived.grid,
     tradition: traditionOf(derived.pattern.conventions),
     direction: tool && isTargeted(tool) ? directionArrow() : null,
     symbols,
   });
-  traditionSelect.value = traditionOf(derived.pattern.conventions);
-  updateControls();
-  updateWritten();
-  sizePanel.update(derived.pattern, derived.context.graph, derived.context.library);
-  if (message !== undefined) announce(message);
 }
 
 function isTargeted(id: StitchDefId): boolean {
@@ -385,6 +427,9 @@ function updateControls(): void {
   setDisabled('close-round', !(context.started && context.shape === 'round'));
   setDisabled('export-png', empty);
   setDisabled('export-svg', empty);
+  setDisabled('delete-selection', selection.length === 0);
+  setDisabled('duplicate-selection', selection.length === 0);
+  must<HTMLButtonElement>('[data-action="select-area"]').setAttribute('aria-pressed', String(areaMode));
   must<HTMLButtonElement>('[data-action="mirror"]').setAttribute('aria-pressed', String(mirror));
   must<HTMLButtonElement>('[data-action="grid"]').setAttribute('aria-pressed', String(showGrid));
   if (document.activeElement !== titleInput) titleInput.value = pattern.title;
@@ -418,6 +463,7 @@ function updateControls(): void {
         const first = finding.nodes.find((id) => derived.layout.nodes.has(id));
         if (!first) return;
         selectedNode = first;
+        if (tool === null) selection = expandSelection(history.present, [first]);
         closePopover(errorsPop, errorToggle);
         refresh(`Kijelölve a hiba első szeme.`);
         showPoint(derived.layout.nodes.get(first)!.top);
@@ -624,13 +670,23 @@ function stitchButton(item: PaletteItem): HTMLButtonElement {
 function select(id: StitchDefId | null): void {
   tool = id;
   hover = null;
-  if (id) selectedNode = null;
+  // Szemmel a kattintás horgol: a kijelölés és a terület kijelölése megszűnik (PQW-875).
+  if (id) {
+    selectedNode = null;
+    selection = [];
+    selectionAnchor = null;
+    areaMode = false;
+    document.body.classList.remove('is-selecting');
+  }
   for (const [stitchId, button] of buttons) button.setAttribute('aria-pressed', String(stitchId === id));
 
   const item = items.find((candidate) => candidate.def.id === id);
   const kind = item?.def.kind;
   countField.hidden = kind !== 'chain' && kind !== 'space';
-  if (!item) hint.textContent = 'Válassz szemet. Szem nélkül kattintással a jelet jelölöd ki, és igazíthatod.';
+  if (!item) {
+    hint.textContent =
+      'Válassz szemet. Szem nélkül kattintással szemet jelölsz ki (Shift-tel többet, a sorszámmal a teljes sort), és törölheted, duplikálhatod vagy igazíthatod.';
+  }
   else if (kind === 'chain' || kind === 'space') hint.textContent = `${item.name}: Enterrel vagy a vászonra kattintva horgolod, a megadott számú láncszemmel.`;
   else if (kind === 'ring' || kind === 'picot') hint.textContent = `${item.name}: Enterrel vagy a vászonra kattintva horgolod.`;
   else hint.textContent = `${item.name}: nyilakkal választod a célpontot, Enterrel vagy kattintással horgolsz bele.`;
@@ -804,6 +860,7 @@ async function importJson(file: File): Promise<void> {
     return;
   }
   selectedNode = null;
+  selection = [];
   const recorded = loaded.pattern.notation?.terms;
   const note =
     recorded && recorded !== notation.terms
@@ -811,6 +868,97 @@ async function importJson(file: File): Promise<void> {
       : '';
   commit({ ok: true, pattern: loaded.pattern }, `Minta betöltve; visszavonással a korábbi visszajön.${note}`);
   fitBoard();
+}
+
+/* ---- Kijelölés, törlés, másolás, beillesztés (PQW-875) ---- */
+
+/** A kijelölés egész egységekre bővítve; a fókusz csak kijelölt szem lehet. */
+function setSelection(ids: Iterable<NodeId>, focus: NodeId | null, message?: string): void {
+  selection = expandSelection(history.present, ids);
+  selectedNode = focus !== null && selection.includes(focus) ? focus : null;
+  refresh(message ?? describeSelection());
+}
+
+function describeSelection(): string {
+  if (selection.length === 0) return 'Nincs kijelölt szem.';
+  const def = selectedNode ? derived.context.graph?.defs.get(selectedNode) : undefined;
+  const name = def ? `${capitalize(stitchName(def, notation.terms))}. ` : '';
+  return `${name}Kijelölve: ${selection.length} szem (${describeByLayer(history.present, selection)}).`;
+}
+
+function setAreaMode(on: boolean): void {
+  if (on && tool) select(null);
+  areaMode = on;
+  document.body.classList.toggle('is-selecting', on);
+  refresh(on ? 'Terület: húzz téglalapot a szemek köré (Shift: hozzáadás).' : 'Terület kijelölése kikapcsolva.');
+}
+
+/** Ha más szem is horgol a kijelöltekbe, megmutatja őket, és megkérdezi, törölje-e velük együtt. */
+async function deleteSelection(): Promise<void> {
+  if (selection.length === 0) {
+    announce('Nincs kijelölt szem: kattints egy szemre vagy a sorszámra.');
+    return;
+  }
+  const pattern = history.present;
+  const plan = deletionPlan(pattern, selection);
+  if (plan.dependents.length > 0) {
+    affected = plan.dependents;
+    draw();
+    const yes = await askConfirm({
+      message: `A kijelölt ${plan.selected.length} szembe még ${plan.dependents.length} szem horgol: ${describeByLayer(pattern, plan.dependents)}. Velük együtt törlöd?`,
+      confirmLabel: 'Törlés velük együtt',
+      cancelLabel: 'Megszakítás',
+    });
+    affected = [];
+    if (!yes) {
+      refresh('A törlés megszakítva; a minta nem változott.');
+      return;
+    }
+  }
+  const result = deleteStitches(pattern, plan.selected, { withDependents: true });
+  if (result.ok) {
+    selection = [];
+    selectedNode = null;
+    selectionAnchor = null;
+  }
+  commit(result, `${plan.selected.length + plan.dependents.length} szem törölve.`);
+}
+
+function copySelected(): void {
+  if (selection.length === 0) return announce('Nincs kijelölt szem a másoláshoz.');
+  const result = copySelection(history.present, selection);
+  if (!result.ok) return announce(result.reason);
+  clipboard = result.fragment;
+  const where = result.fragment.startsLayer ? `új ${result.fragment.shape === 'round' ? 'körként' : 'sorként'}` : 'a kurzortól';
+  announce(`${result.fragment.stitches.length} szem a vágólapon; Ctrl+V: beillesztés ${where}.`);
+}
+
+function pasteClipboard(): void {
+  if (!clipboard) return announce('A vágólap üres: jelölj ki szemeket, és másold ki őket (Ctrl+C).');
+  commitInserted(pasteFragment(history.present, clipboard, cursorMoved ? cursor : undefined), `${clipboard.stitches.length} szem beillesztve.`);
+}
+
+function duplicateSelected(): void {
+  if (selection.length === 0) return announce('Nincs kijelölt szem a duplikáláshoz.');
+  commitInserted(duplicateSelection(history.present, selection), `A kijelölés duplikálva (${selection.length} szem).`);
+}
+
+/** Szem nélkül a beillesztett szemek lesznek a kijelölés, az újrahasznált fordulólánccal: így a duplikálás ismételhető. */
+function commitInserted(result: EditResult, message: string): void {
+  const before = new Set(history.present.pieces[0]?.stitches.map((node) => node.id));
+  commit(result, message);
+  if (!result.ok || tool !== null) return;
+  const added = derived.pattern.pieces[0]!.stitches.filter((node) => !before.has(node.id)).map((node) => node.id);
+  const graph = derived.context.graph;
+  const layer = added[0] === undefined ? undefined : graph?.layerOf.get(added[0]);
+  const info = layer === undefined ? undefined : graph?.layers[layer];
+  const at = info ? info.stitches.indexOf(added[0]!) : -1;
+  const lead = info && at > 0 && at === info.turningChain.length ? info.stitches.slice(0, at) : [];
+  selection = expandSelection(derived.pattern, [...lead, ...added]);
+  selectedNode = null;
+  selectionAnchor = null;
+  draw();
+  updateControls();
 }
 
 const ACTIONS: Record<string, () => void> = {
@@ -827,6 +975,9 @@ const ACTIONS: Record<string, () => void> = {
     refresh('Újra.');
   },
   'delete-last': () => commit(deleteLast(history.present), 'Az utolsó lépés törölve.'),
+  'select-area': () => setAreaMode(!areaMode),
+  'delete-selection': () => void deleteSelection(),
+  'duplicate-selection': () => duplicateSelected(),
   same: () => (tool ? commit(workIntoSame(history.present, tool), 'Még egy ugyanabba.') : announce('Előbb válassz szemet.')),
   'fill-row': () =>
     tool && isTargeted(tool)
@@ -873,6 +1024,7 @@ const ACTIONS: Record<string, () => void> = {
   },
   new: () => {
     selectedNode = null;
+    selection = [];
     // A profilok a horgolóhoz tartoznak, nem a mintához: az új mintába is átkerülnek (PQW-859).
     const gauge = history.present.gauge;
     commit({ ok: true, pattern: { ...emptyPattern(), ...(gauge ? { gauge } : {}) } }, 'Új minta; visszavonással a korábbi visszajön.');
@@ -1012,16 +1164,21 @@ writtenToggle.addEventListener('click', () => {
 
 type Drag =
   | { readonly kind: 'node'; readonly id: NodeId; readonly start: Point; readonly base: Point; moved: boolean }
-  | { readonly kind: 'pan'; last: Point };
+  | { readonly kind: 'pan'; last: Point }
+  | { readonly kind: 'area'; readonly from: Point; readonly additive: boolean };
 let drag: Drag | null = null;
 
 canvas.addEventListener('pointerdown', (event) => {
   canvas.focus({ preventScroll: true });
-  // A sorszám önálló célterület; a sor kijelölését a PQW-875 köti rá.
+  // A sorszám önálló célterület: a teljes sort vagy kört jelöli ki, Shift-tel a kijelöléshez adja (PQW-875).
   const label = board.labelAt(event.clientX, event.clientY);
   if (label !== null) {
+    if (tool) select(null);
     const layer = derived.layout.layers.find((candidate) => candidate.index === label);
-    announce(`${label}. ${layer?.shape === 'round' ? 'kör' : 'sor'}: ${layer?.stitchCount ?? 0} szem.`);
+    const ids = layerSelection(history.present, label);
+    selectionAnchor = ids[0] ?? null;
+    const name = `${label}. ${layer?.shape === 'round' ? 'kör' : 'sor'}`;
+    setSelection(event.shiftKey ? [...selection, ...ids] : ids, null, `${name} kijelölve: ${layer?.stitchCount ?? 0} szem.`);
     return;
   }
   if (tool) {
@@ -1045,19 +1202,40 @@ canvas.addEventListener('pointerdown', (event) => {
   }
   const id = board.nodeAt(event.clientX, event.clientY);
   canvas.setPointerCapture(event.pointerId);
+  // Terület: a menüsor kijelölés-gombjával, vagy Shift-tel üres helyről húzva.
+  if (areaMode || (event.shiftKey && !id)) {
+    const from = board.toChart(event.clientX, event.clientY);
+    drag = { kind: 'area', from, additive: event.shiftKey };
+    marquee = { from, to: from };
+    return;
+  }
   if (!id) {
     selectedNode = null;
+    selection = [];
+    selectionAnchor = null;
     drag = { kind: 'pan', last: { x: event.clientX, y: event.clientY } };
     refresh();
     return;
   }
-  selectedNode = id;
+  if (event.shiftKey) {
+    selectionAnchor ??= id;
+    const next = toggleUnit(history.present, selection, id);
+    setSelection(next, next.includes(id) ? id : null);
+    return;
+  }
+  selectionAnchor = id;
+  // A már kijelölt szemre kattintva a kijelölés megmarad, így törölhető vagy duplikálható.
+  setSelection(selection.includes(id) ? selection : [id], id);
   const pinned = history.present.pieces[0]?.stitches.find((n) => n.id === id)?.pinned;
   drag = { kind: 'node', id, start: board.toChart(event.clientX, event.clientY), base: { x: pinned?.x ?? 0, y: pinned?.y ?? 0 }, moved: false };
-  refresh();
 });
 
 canvas.addEventListener('pointermove', (event) => {
+  if (drag?.kind === 'area') {
+    marquee = { from: drag.from, to: board.toChart(event.clientX, event.clientY) };
+    draw();
+    return;
+  }
   if (drag?.kind === 'pan') {
     board.pan(event.clientX - drag.last.x, event.clientY - drag.last.y);
     drag.last = { x: event.clientX, y: event.clientY };
@@ -1083,7 +1261,27 @@ canvas.addEventListener('pointermove', (event) => {
   }
 });
 
-function endDrag(): void {
+function endDrag(event: PointerEvent): void {
+  if (drag?.kind === 'area') {
+    const { from, additive } = drag;
+    const to = marquee?.to ?? from;
+    drag = null;
+    marquee = null;
+    // Húzás nélkül kattintás: a szem kijelölése, üres helyen a kijelölés megszüntetése.
+    if (Math.hypot(to.x - from.x, to.y - from.y) * board.scale < 4) {
+      const id = board.nodeAt(event.clientX, event.clientY);
+      if (id) {
+        selectionAnchor = id;
+        const next = additive ? toggleUnit(history.present, selection, id) : [id];
+        setSelection(next, id);
+      } else if (additive) draw();
+      else setSelection([], null);
+      return;
+    }
+    const inside = nodesInRect(history.present, derived.layout, from, to);
+    setSelection(additive ? [...selection, ...inside] : inside, null, inside.length === 0 ? 'A téglalapban nincs szem.' : undefined);
+    return;
+  }
   if (drag?.kind === 'node' && drag.moved && preview) {
     const pattern = preview;
     preview = null;
@@ -1123,9 +1321,28 @@ function moveCursor(step: number): void {
   showPoint(targets[cursor]!.point);
 }
 
+/** Billentyűzetes kijelölés: a fókusz a következő szemre, Shift-tel a tartomány a kezdőszemtől (PQW-875). */
+function moveFocus(move: FocusMove, extend: boolean): void {
+  const focus = stepFocus(history.present, derived.layout, selectedNode ?? selection[selection.length - 1] ?? null, move);
+  if (!focus) {
+    announce('A minta üres: nincs mit kijelölni.');
+    return;
+  }
+  if (extend) {
+    selectionAnchor ??= selectedNode ?? focus;
+    setSelection(rangeSelection(history.present, selectionAnchor, focus), focus);
+  } else {
+    selectionAnchor = focus;
+    setSelection([focus], focus);
+  }
+  const point = derived.layout.nodes.get(focus)?.top;
+  if (point) showPoint(point);
+}
+
 document.addEventListener('keydown', (event) => {
   const target = event.target as HTMLElement;
-  if (target.closest('input, textarea, select')) return;
+  // A nyitott párbeszédablak a saját gombjaival és az Esc-kel dolgozik.
+  if (target.closest('input, textarea, select, dialog')) return;
   const key = event.key;
 
   // A nyitott hibalistát az Escape először bezárja, és a fókuszt visszaviszi a gombra.
@@ -1136,6 +1353,11 @@ document.addEventListener('keydown', (event) => {
     return;
   }
 
+  // A nyilak, a Home, az End és az Enter a vásznon vagy az oldal szintjén dolgoznak, gombon nem.
+  const onBoard = target === canvas || target === document.body;
+  // Az írott minta szövegét a böngésző saját másolása kezeli.
+  const inWritten = target.closest('#written') !== null;
+
   if ((event.ctrlKey || event.metaKey) && !event.altKey) {
     const lower = key.toLowerCase();
     if (lower === 'z') {
@@ -1144,6 +1366,19 @@ document.addEventListener('keydown', (event) => {
     } else if (lower === 'y') {
       event.preventDefault();
       ACTIONS.redo!();
+    } else if (lower === 'a' && onBoard) {
+      event.preventDefault();
+      if (tool) select(null);
+      setSelection(selectAll(history.present), null);
+    } else if (lower === 'c' && !inWritten && selection.length > 0) {
+      event.preventDefault();
+      copySelected();
+    } else if (lower === 'v' && !inWritten) {
+      event.preventDefault();
+      pasteClipboard();
+    } else if (lower === 'd' && !inWritten) {
+      event.preventDefault();
+      duplicateSelected();
     }
     return;
   }
@@ -1158,8 +1393,6 @@ document.addEventListener('keydown', (event) => {
     return;
   }
 
-  // A nyilak, a Home, az End és az Enter a vásznon vagy az oldal szintjén dolgoznak, gombon nem.
-  const onBoard = target === canvas || target === document.body;
   const { targets } = derived;
   const forward = targets.length > 1 && targets[targets.length - 1]!.point.x < targets[0]!.point.x ? -1 : 1;
 
@@ -1167,12 +1400,17 @@ document.addEventListener('keydown', (event) => {
     case 'Escape':
       select(null);
       selectedNode = null;
-      refresh();
+      selection = [];
+      selectionAnchor = null;
+      if (areaMode) setAreaMode(false);
+      else refresh();
       return;
     case 'Backspace':
     case 'Delete':
       event.preventDefault();
-      ACTIONS['delete-last']!();
+      // Kijelöléssel a kijelölt szemek, anélkül az utolsó lépés (PQW-875).
+      if (selection.length > 0) void deleteSelection();
+      else ACTIONS['delete-last']!();
       return;
     case 'f':
     case 'F':
@@ -1194,6 +1432,14 @@ document.addEventListener('keydown', (event) => {
   }
 
   if (onBoard) {
+    // Szem nélkül a nyilak a szemek között jelölnek ki; kijelölés nélkül, teli vágólappal a beillesztés kurzorát viszik (PQW-875).
+    const moves: Record<string, FocusMove> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', Home: 'first', End: 'last' };
+    const move = moves[key];
+    if (move && tool === null && (selection.length > 0 || clipboard === null)) {
+      event.preventDefault();
+      moveFocus(move, event.shiftKey);
+      return;
+    }
     const steps: Record<string, number> = {
       ArrowRight: forward,
       ArrowLeft: -forward,
@@ -1276,6 +1522,11 @@ if (navigator.webdriver) {
         const point = cursorPoint();
         return point ? board.toClient(point) : null;
       },
+    },
+    // A szemek helye és a kijelölés (PQW-875).
+    mintatervezoKijeloles: {
+      selection: () => [...selection],
+      nodes: () => [...derived.layout.nodes.values()].map((node) => ({ id: node.id, def: node.def, layer: node.layer, ...board.toClient(node.top) })),
     },
   });
 }

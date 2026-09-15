@@ -48,6 +48,18 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
   szaggatott karika) és a menüsor összecsukható hibalistájában, számlálóval
   (pl. „4 hiba”); kattintásra a vászon az érintett szemre ugrik. A félkész sor
   hátralévő célpontjai nem hibák.
+- **Kijelölés, törlés, másolás, beillesztés, duplikálás** (PQW-875):
+  kiválasztott szem nélkül kattintással egy szem, `Shift`-tel több, a
+  sorszámmal a teljes sor vagy kör, a menüsor kijelölés-gombjával húzott
+  téglalappal egy terület, billentyűzettel nyilakkal (`Shift`-tel tartomány,
+  `Ctrl`+`A` minden szem) jelölhető ki. A kagyló, a szaporítás és a láncív csak
+  egészben. A törlés (`Delete`) megmutatja a kijelöltekbe horgolt szemeket, és
+  velük együtt töröl, vagy megszakítható. A másolat (`Ctrl`+`C`) célpont-
+  eltolásokat visz: a beillesztés (`Ctrl`+`V`) a kurzortól köti újra a szemeket,
+  a teljes sort új sorként; a duplikálás (`Ctrl`+`D`) egy lépésben másol és a
+  minta végére illeszt, pl. „ismételd a 2. sort”. Ha nincs elég célpont, a
+  célpont foglalt, vagy a szemszám nem jön ki, figyelmeztet, és a minta nem
+  változik. Minden művelet egy lépésben visszavonható.
 - **Kézi igazítás:** kiválasztott szem nélkül a jel kijelölhető, és húzással,
   `Alt`+nyilakkal vagy a jobb oldali panel gombjaival eltolható. Az eltolás
   csak a rajzon változtat.
@@ -58,8 +70,8 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
   a böngészőben marad. A számolt elrendezésből jön, a kézi igazítás nem mozdítja.
   Sorban soronként egy sáv, körben és motívumnál körgyűrű; a sávok színe
   váltakozik (akadálymentes kontraszttal), az 5. és a 10. vonal hangsúlyosabb.
-  A sorszám a sor színével teli címkén áll, és kattintható (a sor kijelölése a
-  PQW-875-ben jön). Kiválasztott szemmel a cellára kattintás a célpont: a
+  A sorszám a sor színével teli címkén áll, és kattintásra kijelöli a teljes
+  sort (PQW-875). Kiválasztott szemmel a cellára kattintás a célpont: a
   célpont saját cellája és a fölötte lévő cella is; ahol nincs mibe horgolni,
   üzenet jön, és nem kerül le szem. Az exportba választhatóan kerül (a Minta
   szakasz jelölőnégyzete).
@@ -69,8 +81,8 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
   bal oldalt lenyitható **mintatípus**-menü (most a szabályos horgolás aktív, a
   többi „hamarosan”); jobb oldalt összecsukható szakaszok: legfelül a
   **szemek** listája csoportokkal és jel-előnézettel, alatta a ritkán állított
-  jelölés és jelek (alapból csukva), majd a minta neve (PQW-882). A kijelölés-,
-  törlés- és duplikálás-ikon csak helyet foglal, a művelet a PQW-875-ben jön.
+  jelölés és jelek (alapból csukva), majd a minta neve (PQW-882). A kijelölés
+  csoportban a terület kijelölése, a kijelölés törlése és duplikálása (PQW-875).
 - **Írott minta** (PQW-868, PQW-873): a vászon alján lenyitható panelben a
   minta szövege, minden szerkesztés után frissül, és egy gombbal másolható.
   Félkész sornál és hibás mintánál megjegyzés kíséri; amit a szöveg még nem tud
@@ -137,6 +149,7 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/ui/size-view.ts`, `src/ui/size-panel.ts` | **A „Méret és fonal” szakasz** (PQW-859): a kiírás szövegei eredettel és tartománnyal, tűátváltás (DOM nélkül); a profil-szerkesztő és a profilváltás a panelen. |
 | `src/ui/written.ts` | **Az írott minta panelje** (PQW-868): a szöveg a jelöléssel, vagy érthető üzenet, ha a minta még nem írható ki. DOM nélküli. |
 | `src/core/editor.ts` | **A szerkesztő műveletei** (PQW-857): célpontok, horgolás, „még egy ugyanabba”, fordulás, körzárás, az utolsó lépés törlése, kézi igazítás, élő ellenőrzés. |
+| `src/core/selection.ts` | **Kijelölés, törlés, másolás, beillesztés, duplikálás** (PQW-875): egész egységek (csoport, láncív), sor, terület és billentyűzetes lépés; törlés a belé horgolt szemekkel; a másolat célpont-eltolásokkal, a beillesztés újraköt, és hibánál nem változtat. Tiszta függvény. |
 | `src/core/grid.ts` | **A rács** (PQW-874): sávok és cellák az igazítás nélküli számolt elrendezésből, sorban és körben; találat, célzás és az üzenet, ha nincs mibe horgolni. Tiszta függvény. |
 | `src/core/layout.ts` | **A számolt elrendezés** (PQW-857): hely, irány, legyező, összefutás, sorszám, színe és visszája, tükrözés. Tiszta függvény. |
 | `src/core/history.ts` | Visszavonás és újra. |
@@ -153,7 +166,7 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `public/.htaccess` | Biztonsági fejlécek és cache. A CSP a GA-azonosítóval együtt változik — a `tests/analytics.test.mjs` őrzi. |
 | `tests/*.test.mjs` | `node:test` tesztek; a `core-*` a magot, a `ui-*` a jelrajzot, a palettát és az SVG-t, az `analytics` a süti-sávot és a CSP-t, a `hu-vocabulary` a magyar szóhasználatot (szem = stitch) nézi. |
 | `tests/fixtures/written/` | Az írott minta rögzített szövege kidolgozott példánként (`hu`, `en-US`); a magyart a tulajdonos hagyja jóvá. |
-| `e2e/*.spec.ts`, `playwright.config.ts` | Böngészős tesztek a kritikus utakra: téglalap billentyűzettel, mentés és újratöltés, export, az írott minta panelje jelölésváltással, a japán előbeállítás (`editor.spec.ts`); mintatípus-választás, szemválasztás a panelből, hibaszámláló, alsó írott panel (`felulet.spec.ts`); az elrendezés helyei (`elrendezes.spec.ts`); a panel szakaszai és a tooltipek (`panel.spec.ts`); téglalap cellákra kattintva, a rács kapcsolója és exportja (`racs.spec.ts`); becslés profil nélkül, profil megadása és mentése, arányhelyes nézet (`meret.spec.ts`). |
+| `e2e/*.spec.ts`, `playwright.config.ts` | Böngészős tesztek a kritikus utakra: téglalap billentyűzettel, mentés és újratöltés, export, az írott minta panelje jelölésváltással, a japán előbeállítás (`editor.spec.ts`); mintatípus-választás, szemválasztás a panelből, hibaszámláló, alsó írott panel (`felulet.spec.ts`); az elrendezés helyei (`elrendezes.spec.ts`); a panel szakaszai és a tooltipek (`panel.spec.ts`); téglalap cellákra kattintva, a rács kapcsolója és exportja (`racs.spec.ts`); becslés profil nélkül, profil megadása és mentése, arányhelyes nézet (`meret.spec.ts`); kijelölés a sorszámmal, billentyűzettel és területtel, másolás, beillesztés, duplikálás, törlés az érintett szemek megmutatásával, visszavonás (`kijeloles.spec.ts`). |
 | `tests/*.check.ts` | Csak fordítási próba: a `tsconfig.core.json` típusellenőrzi, nem fut. |
 | `tsconfig.core.json` | A `src/core/` típusellenőrzése DOM-típusok nélkül. |
 

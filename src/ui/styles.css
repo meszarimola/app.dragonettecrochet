@@ -311,8 +311,9 @@ button {
   block-size: 100%;
 }
 
-/* Kiválasztott szemmel a kattintás horgol, anélkül kijelöl és igazít. */
-body.is-armed #board {
+/* Kiválasztott szemmel a kattintás horgol, anélkül kijelöl és igazít; terület kijelölésekor téglalapot húz. */
+body.is-armed #board,
+body.is-selecting #board {
   cursor: crosshair;
 }
 
@@ -489,11 +490,6 @@ body.is-armed #board {
   border-color: var(--c-accent);
   background: var(--c-selection);
   color: var(--c-accent);
-}
-
-/* A kijelölés-csoport a PQW-875-ig csak helyet foglal, nem néz ki aktívnak. */
-.tools__group--soon .tool[disabled] {
-  opacity: 0.4;
 }
 
 /* ---- Legördülő menük (szemválasztó, hibalista) ---- */
