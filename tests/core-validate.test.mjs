@@ -9,7 +9,6 @@ import { after, describe, test } from 'node:test';
 import { addAmigurumiPart, createAmigurumi } from '../src/core/amigurumi-generator.ts';
 import { borderLayerIndex } from '../src/core/border.ts';
 import { generateColorwork } from '../src/core/colorwork.ts';
-import { buildPieceGraph } from '../src/core/graph.ts';
 import { generateMosaic } from '../src/core/mosaic.ts';
 import { emptyPattern } from '../src/core/editor.ts';
 import { DEFAULT_MOTIF, generateMotif } from '../src/core/round-generator.ts';
