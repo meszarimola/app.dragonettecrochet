@@ -44,6 +44,8 @@ export class AmigurumiPanel {
   readonly #method: HTMLSelectElement;
   readonly #diameter: HTMLInputElement;
   readonly #height: HTMLInputElement;
+  readonly #length: HTMLInputElement;
+  readonly #width: HTMLInputElement;
   readonly #increases: HTMLInputElement;
   readonly #profile: HTMLTextAreaElement;
   readonly #bottom: HTMLSelectElement;
@@ -72,6 +74,8 @@ export class AmigurumiPanel {
     this.#method = fill(field('amigurumi-method'), METHOD_CHOICES);
     this.#diameter = field('amigurumi-diameter');
     this.#height = field('amigurumi-height');
+    this.#length = field('amigurumi-length');
+    this.#width = field('amigurumi-width');
     this.#increases = field('amigurumi-increases');
     this.#profile = field('amigurumi-profile');
     this.#bottom = fill(field('amigurumi-bottom'), BOTTOM_CHOICES);
@@ -111,6 +115,8 @@ export class AmigurumiPanel {
       method: this.#method.value as AmigurumiForm['method'],
       diameter: this.#diameter.value,
       height: this.#height.value,
+      length: this.#length.value,
+      width: this.#width.value,
       increases: this.#increases.value,
       profile: this.#profile.value,
       bottom: this.#bottom.value as AmigurumiForm['bottom'],

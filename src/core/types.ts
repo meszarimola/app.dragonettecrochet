@@ -171,7 +171,13 @@ export type Anchor =
    * teteje (ennek híján az első pozíció), a végén az utolsó pozíció
    * (border.ts `rowEdges`). Egy sorvégbe több szem is mehet.
    */
-  | { readonly into: 'row-end'; readonly id: NodeId };
+  | { readonly into: 'row-end'; readonly id: NodeId }
+  /**
+   * A láncszem másik oldala (04 §3.4, PQW-890): az ovális 1. köre a láncalap
+   * egyik oldalán végighalad, a másikon vissza. Az `id` a láncalap láncszeme;
+   * egy oldalba több szem is mehet, szaporításként.
+   */
+  | { readonly into: 'underside'; readonly id: NodeId };
 
 /**
  * Szándékos eltérés, amit az ellenőrző nem jelez hibának.
@@ -527,7 +533,9 @@ export type ShapeSpec =
       readonly increases: number | null;
       readonly top: PieceEnd;
     }
-  | { readonly kind: 'revolution'; readonly profile: readonly ProfilePoint[]; readonly bottom: PieceEnd; readonly top: PieceEnd };
+  | { readonly kind: 'revolution'; readonly profile: readonly ProfilePoint[]; readonly bottom: PieceEnd; readonly top: PieceEnd }
+  /** Ovális láncalapról (04 §3.4, §9.4, PQW-890): lapos, nyitott széllel; a hossz a hosszabbik méret. */
+  | { readonly kind: 'oval'; readonly lengthCm: number; readonly widthCm: number };
 
 /** Egy rész (pl. fej, test) a darabban: a neve, az első köre és a formája (PQW-863). */
 export interface PieceSection {
