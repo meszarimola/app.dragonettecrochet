@@ -10,7 +10,7 @@ import { describe, test } from 'node:test';
 
 import { emptyPattern } from '../src/core/editor.ts';
 import { buildPieceGraph } from '../src/core/graph.ts';
-import { DROP_STITCH, generateMosaic, mosaicProblem, mosaicRowColor, planMosaic } from '../src/core/mosaic.ts';
+import { DROP_STITCH, generateMosaic, mosaicProblem, mosaicRowColor, planMosaic, repairMosaic } from '../src/core/mosaic.ts';
 import { loadPattern, savePattern } from '../src/core/pattern-json.ts';
 import { formatWrittenPattern, writePattern } from '../src/core/pattern-text.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
@@ -122,6 +122,14 @@ describe('a rács hibái', () => {
     assert.match(mosaicProblem(chart('aa'), COLORS), /legalább 3 cella/);
     assert.equal(mosaicProblem(MOTIF, COLORS), null);
     assert.equal(planMosaic(cyc(), chart('aba'), COLORS, 1).ok, false);
+  });
+});
+
+describe('betöltött rács', () => {
+  test('a kétszínű rács horgolható mozaikká igazul: az 1. sor és a szélek a sor színe, két kihagyás nem kerül egymás fölé', () => {
+    const repaired = repairMosaic(chart('bbbbb', 'aabaa', 'bbabb', 'babab'));
+    assert.equal(mosaicProblem(repaired, COLORS), null);
+    assert.deepEqual(repaired, chart('bbbbb', 'aaaaa', 'bbabb', 'aaaaa'));
   });
 });
 

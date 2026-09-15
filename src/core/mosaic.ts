@@ -222,3 +222,24 @@ export function generateMosaic(pattern: Pattern, options: MosaicOptions): Mosaic
   const finished = finishGridPattern(base, piece);
   return finished.ok ? { ok: true, pattern: finished.pattern, plan } : finished;
 }
+
+/**
+ * Horgolható mozaikrács egy tetszőleges kétszínű rácsból (pl. betöltött kép):
+ * az 1. sor és a sorok széle a sor színe, és ahol két kihagyás kerülne egymás
+ * fölé, a felső a sor színét kapja.
+ */
+export function repairMosaic(cells: ChartRows): number[][] {
+  const rows: number[][] = [];
+  cells.forEach((line, y) => {
+    const own = mosaicRowColor(y + 1);
+    const below = rows[y - 1];
+    rows.push(
+      line.map((cell, x) => {
+        const color = cell === 0 || cell === 1 ? cell : own;
+        if (y === 0 || x === 0 || x === line.length - 1) return own;
+        return color !== own && below && below[x] !== mosaicRowColor(y) ? own : color;
+      }),
+    );
+  });
+  return rows;
+}
