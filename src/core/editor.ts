@@ -81,11 +81,21 @@ function withPiece(pattern: Pattern, piece: Piece): Pattern {
 
 /* ---- Célpontok ---- */
 
-/** Egy célpont az előző rétegben: szem vagy láncszem, láncív, varázskör. */
+/** Egy célpont az előző rétegben: szem vagy láncszem, láncív, varázskör, vagy az ovális láncszemének másik oldala. */
 export type Slot =
   | { readonly kind: 'stitch'; readonly id: NodeId }
   | { readonly kind: 'space'; readonly id: SpaceId; readonly chains: readonly NodeId[] }
-  | { readonly kind: 'ring'; readonly id: RingId; readonly node: NodeId };
+  | { readonly kind: 'ring'; readonly id: RingId; readonly node: NodeId }
+  | { readonly kind: 'underside'; readonly id: NodeId };
+
+/** A szerkesztő módja a mintatípusból (PQW-899). */
+export interface EditorMode {
+  /**
+   * A láncalapra horgolt 1. réteg kör, pl. amigurumiban: ovális, amely a
+   * legtávolabbi láncszem után a láncszemek másik oldalán halad vissza.
+   */
+  readonly roundsOnChain?: boolean;
+}
 
 export interface WorkContext {
   readonly library: StitchLibrary;
@@ -106,12 +116,14 @@ export interface WorkContext {
   readonly turningChain: number;
   /** Van-e már szem a rétegben a fordulóláncon kívül. */
   readonly started: boolean;
+  /** Az ovális 1. köre a láncalapon (PQW-899): a célpontok a láncszemek másik oldalán folytatódnak. */
+  readonly oval: boolean;
 }
 
 const slotKey = (slot: Slot) => `${slot.kind}:${slot.id}`;
 const anchorKey = (anchor: Anchor) => `${anchor.into}:${anchor.id}`;
 
-export function contextOf(pattern: Pattern): WorkContext {
+export function contextOf(pattern: Pattern, mode: EditorMode = {}): WorkContext {
   const library = libraryFor(pattern);
   const piece = pieceOf(pattern);
   const empty: WorkContext = {
@@ -125,6 +137,7 @@ export function contextOf(pattern: Pattern): WorkContext {
     frontier: -1,
     turningChain: 0,
     started: false,
+    oval: false,
   };
   if (piece.stitches.length === 0) return empty;
 
@@ -157,7 +170,11 @@ export function contextOf(pattern: Pattern): WorkContext {
     shape = last.shape;
   }
 
-  const slots = layerSlots(graph, layer, below, reversed, shape);
+  // Az ovális 1. köre (PQW-899): már horgol a láncszemek másik oldalába, vagy a mintatípus szerint a láncalapon kör indul.
+  // A láncgyűrű (zárt láncalap) és a varázskör nem ovális.
+  const plainChain = below.closing === null && below.stitches.length > 0 && below.stitches.every((id) => graph.defs.get(id)!.kind === 'chain');
+  const oval = layer === 1 && below.index === 0 && (below.undersides.length > 0 || (mode.roundsOnChain === true && plainChain));
+  const slots = oval ? ovalSlots(graph, below) : layerSlots(graph, layer, below, reversed, shape);
 
   const current = graph.layers[layer];
   // A még meg nem kezdett réteg oldala a gráf szabálya szerint: fordulás után a másik oldal (graph.ts).
@@ -171,7 +188,22 @@ export function contextOf(pattern: Pattern): WorkContext {
   const turningChain = current?.turningChain.length ?? 0;
   const started = (current?.stitches.length ?? 0) > turningChain;
 
-  return { library, graph, layer, shape, side, slots, used, frontier, turningChain, started };
+  return { library, graph, layer, shape, side, slots, used, frontier, turningChain, started, oval };
+}
+
+/**
+ * Az ovális 1. körének célpontjai (04 §3.4, PQW-899): elöl a horogtól
+ * távolodva minden láncszem (a kezdőlánccal együtt, hogy a sorszámok ne
+ * tolódjanak el), utána a láncszemek másik oldala a horog felé, a
+ * legtávolabbi láncszem nélkül: a vég szaporítása körbeér rajta. A másik oldal
+ * az első szem után jelenik meg, addig nem tudni, melyik a kezdőlánc.
+ */
+function ovalSlots(graph: PieceGraph, below: LayerInfo): Slot[] {
+  const current = graph.layers[1];
+  const tail = current?.turningChain ?? [];
+  const front = [...below.positions, ...tail].reverse().map((id): Slot => ({ kind: 'stitch', id }));
+  if ((current?.stitches.length ?? 0) <= tail.length) return front;
+  return [...front, ...below.positions.slice(1).map((id): Slot => ({ kind: 'underside', id }))];
 }
 
 /**
@@ -231,12 +263,14 @@ export function defaultCursor(pattern: Pattern, context: WorkContext, tool: Stit
  */
 export function startCursor(
   pattern: Pattern,
-  start: Pick<WorkContext, 'layer' | 'shape' | 'turningChain' | 'slots'>,
+  start: Pick<WorkContext, 'layer' | 'shape' | 'turningChain' | 'slots'> & { readonly oval?: boolean },
   tool: StitchDefId | null,
 ): number {
   const { slots } = start;
   if (slots.length === 0) return 0;
   const def = tool ? resolveStitch(tool) : undefined;
+  // Az ovális 1. köre kör (PQW-899): alapláncszem nélkül, a kezdőlánc utáni láncszembe (rövidpálcánál a 2. a horogtól).
+  if (start.oval && start.layer === 1 && start.turningChain === 0) return Math.min(def ? def.turningChain : 1, slots.length - 1);
   const tradition = traditionOf(pattern.conventions);
   const counts = def !== undefined && turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition, start.shape);
   const foundationChain = start.layer === 1 && start.shape === 'row' && start.turningChain === 0;
@@ -294,7 +328,7 @@ function hasEventAfterLast(piece: Piece): boolean {
  * varázskörnél célpont nélkül). A `flags` a keresztezett vagy hosszú szemet
  * jelöli: a haladási irány elleni célpontnál ezzel válik érvényessé a szem.
  */
-export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readonly StitchFlag[] = []): EditResult {
+export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readonly StitchFlag[] = [], mode: EditorMode = {}): EditResult {
   const def = resolveStitch(tool.def);
   if (!def) return refuse(`Ismeretlen szem: ${tool.def}`);
   const marks = flags.length > 0 ? { flags } : {};
@@ -326,7 +360,7 @@ export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readon
     return done(withPiece(pattern, append(piece, [{ def: def.id, anchors: [] }]).piece));
   }
 
-  const context = contextOf(pattern);
+  const context = contextOf(pattern, mode);
   const first = context.slots[cursor];
   if (!first) {
     return refuse(
@@ -399,6 +433,11 @@ function anchorFor(def: StitchDef, slot: Slot, requested: StitchInsertion | unde
       return def.insertionModes.includes('space') ? { into: 'space', id: slot.id } : `A(z) ${name} nem horgolható láncívbe.`;
     case 'ring':
       return def.insertionModes.includes('ring') ? { into: 'ring', id: slot.id } : `A(z) ${name} nem horgolható varázskörbe.`;
+    case 'underside': {
+      // A láncszem másik oldala szembe horgolható szemet kér; szálat nem választunk (PQW-899).
+      const mode = stitchModeFor(def, requested, side);
+      return 'reason' in mode ? mode.reason : { into: 'underside', id: slot.id };
+    }
   }
 }
 
@@ -419,9 +458,8 @@ export function workIntoSame(pattern: Pattern, defId: StitchDefId): EditResult {
   const appended = append(piece, [{ def: part.id, anchors: [anchor] }]);
   // A szegély sorvégeibe a szerkesztő még nem horgol: a szegélyt a Forma szakasz készíti (PQW-889).
   if (anchor.into === 'row-end') return refuse('A szegély sorvégébe a szerkesztőben még nem lehet horgolni.');
-  // A láncszem másik oldalába az ovális generátor horgol (PQW-890).
-  if (anchor.into === 'underside') return refuse('A láncszem másik oldalába a szerkesztőben még nem lehet horgolni.');
-  if (anchor.into !== 'stitch') {
+  // A láncszem másik oldalába horgolt szemből ugyanúgy szaporítás lesz, mint a szembe horgoltból (PQW-899).
+  if (anchor.into !== 'stitch' && anchor.into !== 'underside') {
     if (!part.insertionModes.includes(anchor.into)) return refuse('Ez a szem ide nem horgolható.');
     return done(withPiece(pattern, appended.piece));
   }
@@ -450,7 +488,7 @@ export function workIntoSame(pattern: Pattern, defId: StitchDefId): EditResult {
  * lépésben visszavonható. Csak célpontba horgolható szemmel megy; láncszem,
  * láncív, varázskör és pikó nem tölt sort.
  */
-export function fillRow(pattern: Pattern, tool: Tool): EditResult {
+export function fillRow(pattern: Pattern, tool: Tool, mode: EditorMode = {}): EditResult {
   const def = resolveStitch(tool.def);
   if (!def) return refuse(`Ismeretlen szem: ${tool.def}`);
   if (def.kind === 'chain' || def.kind === 'space' || def.kind === 'ring' || def.kind === 'picot') {
@@ -460,12 +498,12 @@ export function fillRow(pattern: Pattern, tool: Tool): EditResult {
   let placed = 0;
   // Minden lépés eggyel előbbre viszi a frontiert, ezért a ciklus véges; a fék csak biztonság.
   for (let guard = 0; guard < 5000; guard += 1) {
-    const context = contextOf(current);
+    const context = contextOf(current, mode);
     if (context.slots.length === 0) break;
     let index = context.frontier >= 0 ? context.frontier + 1 : defaultCursor(current, context, tool.def);
     while (index < context.slots.length && context.used[index]) index += 1;
     if (index >= context.slots.length) break;
-    const result = work(current, tool, index);
+    const result = work(current, tool, index, [], mode);
     if (!result.ok) break;
     current = result.pattern;
     placed += 1;
@@ -691,7 +729,7 @@ export function liveCheck(pattern: Pattern, context: WorkContext = contextOf(pat
   context.slots.forEach((slot, i) => {
     if (slot.kind === 'stitch') slotIndex.set(slot.id, i);
     else if (slot.kind === 'space') for (const chain of slot.chains) slotIndex.set(chain, i);
-    else slotIndex.set(slot.node, i);
+    else if (slot.kind === 'ring') slotIndex.set(slot.node, i);
   });
   const inLayer = new Set(graph.layers[context.layer]!.stitches);
   const pending = (finding: Finding) => {

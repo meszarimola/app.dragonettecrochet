@@ -26,15 +26,17 @@
  *   felezés), különben hiba.
  */
 
-import { SHAPE_NAMES, evenDistribution, roundGaugeOf, roundOps, shapeSchedule, type Schedule } from './amigurumi.ts';
+import { SHAPE_NAMES, evenDistribution, roundOps, shapeGaugeOf, shapeSchedule, type Schedule } from './amigurumi.ts';
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
 import { withGeneratedTitle } from './pattern-title.ts';
-import { libraryFor } from './stitch-variants.ts';
+import { libraryFor, resolveStitch } from './stitch-variants.ts';
+import { traditionOf, turningChainCountsFor } from './tradition.ts';
 import type {
   Anchor,
   LayerEvent,
   NodeId,
   Pattern,
+  PatternConventions,
   Piece,
   PieceSection,
   Ring,
@@ -81,14 +83,15 @@ export function partName(part: PartOptions): string {
  * a jelölést és a profilokat veszi át; a körzárás spirál.
  */
 export function createAmigurumi(pattern: Pattern, part: PartOptions, under3: boolean): AmigurumiResult {
-  const planned = shapeSchedule(part.shape, roundGaugeOf(pattern));
+  const planned = shapeSchedule(part.shape, shapeGaugeOf(pattern, part.shape));
   if (!planned.ok) return planned;
   const { schedule } = planned;
   if (schedule.start === 'open') return fail(OPEN_START);
 
   const name = partName(part);
   const writer = new PieceWriter();
-  const problem = writeSection(writer, { schedule, stagger: part.stagger, below: null, marks: sectionMarks(schedule, part.eyes, under3), firstLayer: 1 });
+  const marks = sectionMarks(schedule, part.eyes, under3);
+  const problem = writeSection(writer, { schedule, stagger: part.stagger, below: null, marks, firstLayer: 1, conventions: pattern.conventions });
   if (problem) return fail(problem);
 
   const built: Pattern = {
@@ -111,7 +114,7 @@ export function addAmigurumiPart(pattern: Pattern, part: PartOptions, join: Join
   if (!previous?.sections?.length) {
     return fail('Előbb hozz létre egy részt az „Új minta ebből” gombbal; a következő rész ehhez kapcsolódik.');
   }
-  const planned = shapeSchedule(part.shape, roundGaugeOf(pattern));
+  const planned = shapeSchedule(part.shape, shapeGaugeOf(pattern, part.shape));
   if (!planned.ok) return planned;
   const { schedule } = planned;
 
@@ -137,7 +140,7 @@ export function addAmigurumiPart(pattern: Pattern, part: PartOptions, join: Join
     }
     const writer = new PieceWriter(previous);
     writer.continueFromEnd();
-    const problem = writeSection(writer, { schedule, stagger: part.stagger, below: graph.layers[lastLayer]!.positions, marks, firstLayer: lastLayer + 1 });
+    const problem = writeSection(writer, { schedule, stagger: part.stagger, below: graph.layers[lastLayer]!.positions, marks, firstLayer: lastLayer + 1, conventions });
     if (problem) return fail(problem);
     const piece = writer.piece(previous.id, previous.name, [...previous.sections, sectionOf(part, name, lastLayer + 1)]);
     return { ok: true, pattern: { ...pattern, conventions, pieces: [...pattern.pieces.slice(0, -1), piece], toy: { under3 } }, schedule };
@@ -146,7 +149,7 @@ export function addAmigurumiPart(pattern: Pattern, part: PartOptions, join: Join
   if (schedule.start === 'open') return fail(OPEN_START);
   const id = `p${1 + Math.max(0, ...pattern.pieces.map((piece) => Number(/\d+$/.exec(piece.id)?.[0] ?? 0)))}`;
   const writer = new PieceWriter();
-  const problem = writeSection(writer, { schedule, stagger: part.stagger, below: null, marks, firstLayer: 1 });
+  const problem = writeSection(writer, { schedule, stagger: part.stagger, below: null, marks, firstLayer: 1, conventions });
   if (problem) return fail(problem);
 
   const ownLayer = (schedule.end === 'open' ? schedule.counts.length - 1 : markRound(schedule)) + 1;
@@ -236,6 +239,8 @@ interface SectionWrite {
   readonly marks: ReadonlyMap<number, readonly RoundMark[]>;
   /** A rész első körének sorszáma a darabban, az üzenetekhez. */
   readonly firstLayer: number;
+  /** A minta konvenciói: az ovális kezdőláncának számolásához (tradition.ts). */
+  readonly conventions: PatternConventions;
 }
 
 /** A rész körei spirálban; hiba esetén az üzenet. */
@@ -307,32 +312,38 @@ function writeSection(writer: PieceWriter, section: SectionWrite): string | null
 }
 
 /**
- * Ovális láncalapról (04 §3.4, §9.4, PQW-890). L láncszem; a horogtól az első a
- * kezdőlánc. Az 1. kör elöl a horogtól távolodva minden láncszembe, a
- * legtávolabbiba összesen 4 rp, a láncszemek másik oldalán vissza, a horoghoz
- * legközelebbibe összesen 3 rp: 2L + 2 szem. Utána minden körben a két végen
- * végenként `perEnd` szaporítás egyenletesen elosztva, eltolással és a
- * harmadik egymás fölé kerülés elkerülésével; az egyenes oldalak rövidpálcák.
+ * Ovális láncalapról (04 §3.4, §9.4, PQW-890, PQW-899). L láncszem; a horoghoz
+ * legközelebbi T a kezdőlánc (a szem fordulólánca), a szem a kör szabálya
+ * szerint számít vagy nem (tradition.ts). Az 1. kör elöl a horogtól távolodva
+ * minden láncszembe, a legtávolabbiba összesen `perEnd` + 1 szem, a láncszemek
+ * másik oldalán vissza, a horoghoz legközelebbibe összesen `perEnd` szem; ha a
+ * kezdőlánc számít, az ennek a végnek az egyik szeme, és eggyel kevesebb megy a
+ * láncszembe. Utána minden körben a két végen végenként `perEnd` szaporítás
+ * egyenletesen elosztva, eltolással és a harmadik egymás fölé kerülés
+ * elkerülésével; az egyenes oldalakon egy-egy szem.
  */
 function writeOval(writer: PieceWriter, section: SectionWrite): string | null {
-  const { counts } = section.schedule;
-  const { chains: L, perEnd } = section.schedule.oval!;
+  const { counts, oval } = section.schedule;
+  const { chains: L, perEnd, stitch, turningChain: T } = oval!;
+  const { conventions } = section;
+  const counted = turningChainCountsFor(conventions.turningChainCounts, resolveStitch(stitch)!, traditionOf(conventions), 'round');
   const chains = Array.from({ length: L }, () => writer.add('ch'));
-  // A kezdőlánc a horoghoz legközelebbi láncszem (fonalsorrendben az utolsó); a többi a munkált láncalap.
-  const working = chains.slice(0, -1);
+  // A kezdőlánc a horoghoz legközelebbi T láncszem (fonalsorrendben az utolsók); a többi a munkált láncalap.
+  const working = chains.slice(0, L - T);
   const W = working.length;
   const other = (id: NodeId): Anchor => ({ into: 'underside', id });
 
-  let positions: NodeId[] = [];
-  for (let k = W - 1; k >= 1; k -= 1) positions.push(writer.add('sc', [into(working[k]!, 'both-loops')]));
-  positions.push(...writer.into(into(working[0]!, 'both-loops'), 4));
-  for (let k = 1; k <= W - 2; k += 1) positions.push(writer.add('sc', [other(working[k]!)]));
-  positions.push(...writer.into(other(working[W - 1]!), 3));
+  // A számító kezdőlánc a kör első pozíciója: a tetejébe megy a következő kör első szeme.
+  let positions: NodeId[] = counted ? [chains[L - 1]!] : [];
+  for (let k = W - 1; k >= 1; k -= 1) positions.push(writer.add(stitch, [into(working[k]!, 'both-loops')]));
+  positions.push(...writer.into(into(working[0]!, 'both-loops'), perEnd + 1, stitch));
+  for (let k = 1; k <= W - 2; k += 1) positions.push(writer.add(stitch, [other(working[k]!)]));
+  positions.push(...writer.into(other(working[W - 1]!), counted ? perEnd - 1 : perEnd, stitch));
 
   // A kör felépítése fonalsorrendben: a B vég eleje (c), egyenes (s), A vég (a), egyenes (s), a B vég többi része (a − c).
   const straight = W - 2;
-  let end = 4;
-  let head = 1;
+  let end = perEnd + 1;
+  let head = counted ? 2 : 1;
   let depth = positions.map(() => 0);
   for (let i = 0; i < counts.length; i += 1) {
     if (i > 0) {
@@ -353,7 +364,7 @@ function writeOval(writer: PieceWriter, section: SectionWrite): string | null {
       let nextHead = 0;
       positions.forEach((position, p) => {
         const inc = ops.get(p) === 'inc';
-        const ids = inc ? writer.into(into(position, 'both-loops'), 2) : [writer.add('sc', [into(position, 'both-loops')])];
+        const ids = inc ? writer.into(into(position, 'both-loops'), 2, stitch) : [writer.add(stitch, [into(position, 'both-loops')])];
         produced.push(...ids);
         for (const _ of ids) next.push(inc ? (depth[p] ?? 0) + 1 : 0);
         if (p < head) nextHead += ids.length;
@@ -401,10 +412,10 @@ class PieceWriter {
     return { into: 'ring', id };
   }
 
-  /** `n` rövidpálca egy célpontba; szembe horgolva kettőtől szaporításként. */
-  into(anchor: Anchor, n: number): NodeId[] {
-    const ids = Array.from({ length: n }, () => this.add('sc', [anchor]));
-    if ((anchor.into === 'stitch' || anchor.into === 'underside') && n >= 2) this.#groups.push({ id: `g${this.#next++}`, def: `inc-${n}sc`, members: ids });
+  /** `n` szem (alapértelmezésben rövidpálca) egy célpontba; szembe horgolva kettőtől szaporításként. */
+  into(anchor: Anchor, n: number, def: StitchDefId = 'sc'): NodeId[] {
+    const ids = Array.from({ length: n }, () => this.add(def, [anchor]));
+    if ((anchor.into === 'stitch' || anchor.into === 'underside') && n >= 2) this.#groups.push({ id: `g${this.#next++}`, def: `inc-${n}${def}`, members: ids });
     return ids;
   }
 

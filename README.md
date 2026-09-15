@@ -251,6 +251,17 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
     felével szaporít (rövidpálcánál körönként +6), az egyenes oldalak szemszáma
     nem változik. A rajzon a láncalap egyenesen áll, az 1. kör a két oldalán.
     Önállóan (pl. talp) és részként is: varrva, vagy utána folytatólagosan fal.
+    Félpálcás és pálcás ovális is (PQW-899): a „Szem” mező választja; a
+    kezdőlánc a szem fordulólánca (félpálcánál 2, pálcánál 3 láncszem), számít
+    vagy nem a kör szabálya szerint (`tradition.ts`), végenként 4, illetve 6
+    szaporítással. A lapos ovális a figura magasságához a vastagságával (egy
+    szemszélesség) járul hozzá; a figura-jegyzet hossz × szélességet ír.
+  - **Kézi ovális a szerkesztőben** (PQW-899): az Amigurumi mintatípusban a
+    láncalapra horgolt 1. réteg kör, a vezetett kurzor a kezdőlánc utáni
+    láncszemre áll. Az első szem után a láncszemek másik oldala is célpont (a
+    legtávolabbi láncszem nélkül), a rajzon a láncszem túloldalán; a vezetett
+    kurzor és a „Sor kitöltése” a legtávolabbi láncszem után oda fordul. Az
+    ovális 1. köre csak a láncalappal együtt másolható, üres mintába.
     A körszám és a szaporítás a rövidpálca körben mért mintasűrűségéből jön;
     profil nélkül a tűből becsülve, és a szakasz ezt ki is írja. A 6 cm-es
     DK-gömb (04 §4.4) mindkét módszerrel egyezik.

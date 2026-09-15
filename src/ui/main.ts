@@ -33,12 +33,13 @@ import {
   work,
   workIntoSame,
   type EditResult,
+  type EditorMode,
   type LiveCheck,
   type Slot,
   type WorkContext,
 } from '../core/editor.js';
 import { canRedo, canUndo, createHistory, record, redo, undo, type History } from '../core/history.js';
-import { chartGrid, type ChartGrid } from '../core/grid.js';
+import { chartGrid, targetPoint, type ChartGrid } from '../core/grid.js';
 import { layoutPattern, type ChartLayout, type Point } from '../core/layout.js';
 import { loadPattern, savePattern } from '../core/pattern-json.js';
 import { aspectStem, gaugeContextOf } from '../core/pattern-size.js';
@@ -203,11 +204,11 @@ interface Derived {
 let derived = derive(history.present);
 
 function derive(pattern: Pattern): Derived {
-  const context = contextOf(pattern);
+  const context = contextOf(pattern, editorMode());
   const stem = stemFor(pattern, context);
   const layout = layoutPattern(pattern, context.library, { mirror, stemLength: stem });
   const check = liveCheck(pattern, context);
-  const targets = context.slots.map((slot, i) => ({ point: slotPoint(layout, slot), used: context.used[i] ?? false }));
+  const targets = context.slots.map((_, i) => ({ point: targetPoint(layout, context, i) ?? { x: 0, y: 0 }, used: context.used[i] ?? false }));
   const grid = showGrid ? chartGrid(pattern, context.library, gridKindOf(context), context, { mirror, stemLength: stem }) : null;
   return { pattern, context, layout, check, targets, grid };
 }
@@ -239,14 +240,9 @@ function directionArrow(): DirectionArrow | null {
   return null;
 }
 
-function slotPoint(layout: ChartLayout, slot: Slot): Point {
-  const ids = slot.kind === 'stitch' ? [slot.id] : slot.kind === 'space' ? slot.chains : [slot.node];
-  const points = ids.map((id) => layout.nodes.get(id)?.top).filter((p): p is Point => p !== undefined);
-  if (points.length === 0) return { x: 0, y: 0 };
-  return {
-    x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
-    y: points.reduce((sum, p) => sum + p.y, 0) / points.length,
-  };
+/** A szerkesztő módja a mintatípusból: amigurumiban a láncalapon kör indul, ovális is (PQW-899). */
+function editorMode(): EditorMode {
+  return { roundsOnChain: patternType === 'amigurumi' };
 }
 
 /* ---- Tárolás ---- */
@@ -453,6 +449,7 @@ function describeTarget(index: number): string {
   let what: string;
   if (slot.kind === 'space') what = `láncív (${slot.chains.length} láncszem)`;
   else if (slot.kind === 'ring') what = 'varázskör';
+  else if (slot.kind === 'underside') what = 'láncszem másik oldala';
   else {
     const def = derived.context.graph?.defs.get(slot.id);
     what = def ? stitchName(def, notation.terms) : 'szem';
@@ -888,7 +885,7 @@ async function workAtCursor(): Promise<void> {
       announce('Nem került le szem.');
       return;
     }
-    const increase = idx === context.frontier ? workIntoSame(history.present, tool) : work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx);
+    const increase = idx === context.frontier ? workIntoSame(history.present, tool) : work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx, [], editorMode());
     commit(increase, `${name}: szaporítás.`);
     return;
   }
@@ -903,12 +900,12 @@ async function workAtCursor(): Promise<void> {
       announce('Nem került le szem.');
       return;
     }
-    commit(work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx, ['crossed']), `${name}: keresztezett szem.`);
+    commit(work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx, ['crossed'], editorMode()), `${name}: keresztezett szem.`);
     return;
   }
 
   const mode = slot?.kind === 'stitch' ? insertionSuffix(insertionPanel.insertion) : '';
-  commit(work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx), `${name} horgolva${mode}.`);
+  commit(work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx, [], editorMode()), `${name} horgolva${mode}.`);
 }
 
 function nudge(dx: number, dy: number): void {
@@ -941,7 +938,7 @@ function exportSvgText(): string {
   const library = libraryFor(pattern);
   const root = document.documentElement;
   const token = (name: string) => getComputedStyle(root).getPropertyValue(name).trim();
-  const context = contextOf(pattern);
+  const context = contextOf(pattern, editorMode());
   const stem = stemFor(pattern, context);
   const grid = {
     grid: chartGrid(pattern, library, gridKindOf(context), context, { mirror, stemLength: stem }),
@@ -1115,7 +1112,7 @@ const ACTIONS: Record<string, () => void> = {
   'fill-row': () =>
     tool && isTargeted(tool)
       ? commit(
-          fillRow(history.present, { def: tool, count: Number(countInput.value), insertion: insertionPanel.insertion }),
+          fillRow(history.present, { def: tool, count: Number(countInput.value), insertion: insertionPanel.insertion }, editorMode()),
           `Sor kitöltve${insertionSuffix(insertionPanel.insertion)}.`,
         )
       : announce('Előbb válassz célpontba horgolható szemet a sor kitöltéséhez.'),

@@ -15,6 +15,7 @@ import {
   JOIN_CHOICES,
   METHOD_CHOICES,
   SHAPE_CHOICES,
+  STITCH_CHOICES,
   TOP_CHOICES,
   addedMessage,
   createdMessage,
@@ -40,6 +41,7 @@ const form = (patch = {}) => ({
   height: '8',
   length: '8',
   width: '5',
+  stitch: 'sc',
   increases: '',
   profile: '0 0\n2,5 1\n2,5 5\n0 6',
   bottom: 'closed',
@@ -70,14 +72,23 @@ describe('választások és mezők', () => {
       JOIN_CHOICES.map((choice) => choice.label),
       ['Varrva', 'Folytatólagosan'],
     );
+    assert.deepEqual(
+      STITCH_CHOICES.map((choice) => [choice.value, choice.label]),
+      [
+        ['sc', 'Rövidpálca'],
+        ['hdc', 'Félpálca'],
+        ['dc', 'Egyráhajtásos pálca'],
+      ],
+    );
   });
 
   test('a formához tartozó mezők', () => {
-    assert.deepEqual(fieldState('sphere'), { method: true, diameter: true, height: false, length: false, width: false, increases: false, profile: false, bottom: false, top: false });
-    assert.deepEqual(fieldState('cone'), { method: false, diameter: true, height: true, length: false, width: false, increases: true, profile: false, bottom: false, top: true });
-    assert.deepEqual(fieldState('cylinder'), { method: false, diameter: true, height: true, length: false, width: false, increases: false, profile: false, bottom: true, top: true });
-    assert.deepEqual(fieldState('revolution'), { method: false, diameter: false, height: false, length: false, width: false, increases: false, profile: true, bottom: true, top: true });
-    assert.deepEqual(fieldState('oval'), { method: false, diameter: false, height: false, length: true, width: true, increases: false, profile: false, bottom: false, top: false });
+    const none = { stitch: false };
+    assert.deepEqual(fieldState('sphere'), { method: true, diameter: true, height: false, length: false, width: false, ...none, increases: false, profile: false, bottom: false, top: false });
+    assert.deepEqual(fieldState('cone'), { method: false, diameter: true, height: true, length: false, width: false, ...none, increases: true, profile: false, bottom: false, top: true });
+    assert.deepEqual(fieldState('cylinder'), { method: false, diameter: true, height: true, length: false, width: false, ...none, increases: false, profile: false, bottom: true, top: true });
+    assert.deepEqual(fieldState('revolution'), { method: false, diameter: false, height: false, length: false, width: false, ...none, increases: false, profile: true, bottom: true, top: true });
+    assert.deepEqual(fieldState('oval'), { method: false, diameter: false, height: false, length: true, width: true, stitch: true, increases: false, profile: false, bottom: false, top: false });
   });
 });
 
@@ -135,6 +146,19 @@ describe('előnézet és megjegyzések', () => {
       /^\d+ kör, legfeljebb \d+ szem; hossz kb\. [\d,]+ cm, szélesség kb\. [\d,]+ cm, \d+ láncszemből\. Görbület: /,
     );
     assert.match(previewNote(form({ shape: 'oval', length: '3', width: '5' }), DK), /hossza legalább akkora/);
+  });
+
+  test('a pálcás ovális (PQW-899): a szem a formában, az előnézet a szem mintasűrűségével; a figura-jegyzetben hossz × szélesség, lapos', () => {
+    assert.deepEqual(shapeOf(form({ shape: 'oval', stitch: 'dc' })), { kind: 'oval', lengthCm: 8, widthCm: 5, stitch: 'dc' });
+    const base = emptyPattern();
+    const dc = roundGaugeOf(base, 'dc');
+    const note = previewNote(form({ shape: 'oval', stitch: 'dc' }), roundGaugeOf(base), () => dc);
+    const counts = /^(\d+) kör, legfeljebb (\d+) szem/.exec(note);
+    assert.ok(counts, note);
+    const sole = createAmigurumi(base, { name: 'Talp', shape: { kind: 'oval', lengthCm: 8, widthCm: 5, stitch: 'dc' }, stagger: true, eyes: false }, false);
+    assert.ok(sole.ok, sole.reason);
+    assert.equal(Number(counts[2]), Math.max(...sole.schedule.counts));
+    assert.match(figureNote(sole.pattern, roundGaugeOf(base)), /^A minta részei: Talp \([\d,]+ × [\d,]+ cm, lapos\)\. A figura magassága kb\. 0,\d cm/);
   });
 
   test('hibás méretnél a mag üzenete', () => {

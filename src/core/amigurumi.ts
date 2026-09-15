@@ -45,11 +45,11 @@
 import { stitchDimensions } from './gauge.ts';
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
 import { gaugeContextOf } from './pattern-size.ts';
-import { CUPPING_RATIO, RUFFLING_RATIO, niceIncreases } from './rounds.ts';
+import { CUPPING_RATIO, RUFFLING_RATIO, flatIncreases, niceIncreases } from './rounds.ts';
 import type { RuleId } from './rules.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
-import type { JoinEdge, NodeId, Pattern, Piece, PieceEnd, PieceId, ProfilePoint, ShapeSpec, ValueSource } from './types.ts';
+import type { JoinEdge, NodeId, OvalStitch, Pattern, Piece, PieceEnd, PieceId, ProfilePoint, ShapeSpec, ValueSource } from './types.ts';
 
 /* ---- Mintasűrűség körben ---- */
 
@@ -61,16 +61,37 @@ export interface RoundGauge {
   readonly source: ValueSource;
 }
 
-/** A rövidpálca körben mért mintasűrűsége a minta profiljából; profil nélkül a tűből becsülve. */
-export function roundGaugeOf(pattern: Pattern): RoundGauge {
+/**
+ * A szem (alapértelmezésben a rövidpálca) körben mért mintasűrűsége a minta
+ * profiljából; profil nélkül a tűből becsülve. A magasabb szem (PQW-899) körének
+ * magassága a lapos kör arányából jön, mint a körgenerátorban (rounds.ts
+ * `flatIncreases`): így a lapos érték félpálcánál 8, pálcánál 12 (04 §1.2).
+ */
+export function roundGaugeOf(pattern: Pattern, stitch: OvalStitch = 'sc'): RoundGauge {
   const context = gaugeContextOf(pattern, libraryFor(pattern));
-  const size = stitchDimensions(resolveStitch('sc')!, 'round', context)!;
+  const def = resolveStitch(stitch)!;
+  const size = stitchDimensions(def, 'round', context)!;
   const label = size.widthMm.source === 'label' || size.heightMm.source === 'label';
+  const heightMm = stitch === 'sc' ? size.heightMm.value : size.widthMm.value * flatIncreases(def, context).aspect;
   return {
     stitchesPerCm: 10 / size.widthMm.value,
-    roundsPerCm: 10 / size.heightMm.value,
+    roundsPerCm: 10 / heightMm,
     source: size.basis !== 'measured' ? 'estimated' : label ? 'label' : 'measured',
   };
+}
+
+/** Az ovális szeme; hiányában rövidpálca (PQW-899). */
+export function ovalStitchOf(spec: ShapeSpec): OvalStitch {
+  return spec.kind === 'oval' ? (spec.stitch ?? 'sc') : 'sc';
+}
+
+/**
+ * A forma körtervéhez való mintasűrűség: az ovális a saját szeméé (PQW-899),
+ * a többi forma rövidpálcás. A `sc` a már kiszámolt rövidpálcás érték.
+ */
+export function shapeGaugeOf(pattern: Pattern, spec: ShapeSpec, sc: RoundGauge = roundGaugeOf(pattern)): RoundGauge {
+  const stitch = ovalStitchOf(spec);
+  return stitch === 'sc' ? sc : roundGaugeOf(pattern, stitch);
 }
 
 /** A lapos kör szaporítása körönként, kerekítés nélkül: 2π·h/w (04 §0). */
@@ -94,6 +115,9 @@ export const SHAPE_NAMES: Readonly<Record<ShapeSpec['kind'], string>> = {
   revolution: 'Forgástest',
   oval: 'Ovális',
 };
+
+/** Az ovális szemei (PQW-899). */
+export const OVAL_STITCHES: readonly OvalStitch[] = ['sc', 'hdc', 'dc'];
 
 export const MAX_SIZE_CM = 100;
 export const MAX_SHAPE_ROUNDS = 120;
@@ -157,8 +181,17 @@ export interface Schedule {
   readonly backLoop: readonly number[];
   readonly widthCm: number;
   readonly heightCm: number;
-  /** Ovális láncalapról (PQW-890): a láncszemek száma, végenként a körönkénti szaporítás és a szélesség. */
-  readonly oval?: { readonly chains: number; readonly perEnd: number; readonly widthCm: number };
+  /**
+   * Ovális láncalapról (PQW-890, PQW-899): a láncszemek száma a kezdőlánccal,
+   * végenként a körönkénti szaporítás, a szélesség, a szem és a kezdőlánc hossza.
+   */
+  readonly oval?: {
+    readonly chains: number;
+    readonly perEnd: number;
+    readonly widthCm: number;
+    readonly stitch: OvalStitch;
+    readonly turningChain: number;
+  };
 }
 
 export type ScheduleResult = { readonly ok: true; readonly schedule: Schedule } | { readonly ok: false; readonly reason: string };
@@ -201,23 +234,42 @@ function buildSchedule(spec: ShapeSpec, gauge: RoundGauge): Schedule {
 }
 
 /**
- * Ovális láncalapról (04 §3.4, §9.4, PQW-890): L láncszem, az 1. kör 2L + 2 szem
- * (elöl L − 1, a legtávolabbi láncszembe további 3, a másik oldalon vissza
- * L − 2, a horoghoz legközelebbi láncszembe további 2). Utána végenként a lapos
- * érték felével szaporít (rövidpálcánál 3-mal), az egyenes oldalak szemszáma
- * nem változik. A körszám a szélesség fele körmagasságban, a láncszemek száma
- * a hossz és a szélesség különbsége szemszélességben, legalább 3 láncszem.
- * A darab szélessége a hosszabbik méret, a magassága egy környi vastagság.
+ * Ovális láncalapról (04 §3.4, §9.4, PQW-890, PQW-899). A `gauge` az ovális
+ * szeméé, `s` a lapos értéke (rövidpálcánál 6, félpálcánál 8, pálcánál 12);
+ * végenként ennek fele a körönkénti szaporítás. W láncszembe horgol az 1. kör,
+ * a horoghoz legközelebbi T láncszem a kezdőlánc (a szem fordulólánca:
+ * rövidpálcánál 1, félpálcánál 2, pálcánál 3), így L = W + T.
+ *
+ * Az 1. kör 2W − 2 + 2·(s/2) szem: elöl W − 1, a legtávolabbi láncszembe
+ * további s/2, a másik oldalon vissza W − 2, a horoghoz legközelebbi láncszembe
+ * s/2 − 1 további; rövidpálcánál ez 2L + 2. Ha a kezdőlánc szemnek számít, a
+ * horoghoz legközelebbi vég egyik szeme a kezdőlánc, a szemszám ugyanannyi.
+ * Utána körönként +s, az egyenes oldalak szemszáma nem változik.
+ *
+ * A körszám a szélesség fele körmagasságban, az egyenes rész a hossz és a
+ * szélesség különbsége szemszélességben. A darab szélessége a hosszabbik
+ * méret. Lapos darab: a figura magasságához a vastagságával járul hozzá, ezt
+ * egy szemszélességre becsüljük (a körmagasság a lapos darabnál nem magasság).
  */
 function oval(spec: Extract<ShapeSpec, { kind: 'oval' }>, gauge: RoundGauge, s: number): Schedule {
+  const stitch = ovalStitchOf(spec);
   const perEnd = s / 2;
   const rounds = Math.max(1, Math.round((spec.widthCm / 2) * gauge.roundsPerCm));
   const widthCm = (2 * rounds) / gauge.roundsPerCm;
   const straight = Math.max(1, Math.round((spec.lengthCm - widthCm) * gauge.stitchesPerCm));
-  const chains = straight + 2;
-  const counts = Array.from({ length: rounds }, (_, k) => 2 * chains + 2 + 2 * perEnd * k);
+  const worked = straight + 1;
+  const turningChain = resolveStitch(stitch)!.turningChain;
+  const counts = Array.from({ length: rounds }, (_, k) => 2 * worked - 2 + 2 * perEnd * (k + 1));
   const lengthCm = widthCm + straight / gauge.stitchesPerCm;
-  return { counts, start: 'chain', end: 'open', backLoop: [], widthCm: lengthCm, heightCm: 1 / gauge.roundsPerCm, oval: { chains, perEnd, widthCm } };
+  return {
+    counts,
+    start: 'chain',
+    end: 'open',
+    backLoop: [],
+    widthCm: lengthCm,
+    heightCm: 1 / gauge.stitchesPerCm,
+    oval: { chains: worked + turningChain, perEnd, widthCm, stitch, turningChain },
+  };
 }
 
 /** A konszenzus felé kerekít: `exact` csak egész eltérésnél mozdít `consensus`-on. */
@@ -679,7 +731,7 @@ export function pieceShapes(pattern: Pattern, gauge: RoundGauge = roundGaugeOf(p
     const sections: PieceShape['sections'][number][] = [];
     let heightCm = 0;
     for (const section of piece.sections ?? []) {
-      const planned = shapeSchedule(section.shape, gauge);
+      const planned = shapeSchedule(section.shape, shapeGaugeOf(pattern, section.shape, gauge));
       if (!planned.ok) continue;
       const previous = sections.at(-1)?.schedule.counts.at(-1);
       if (previous !== undefined && previous !== planned.schedule.counts[0]) heightCm += 1 / gauge.roundsPerCm;

@@ -300,6 +300,8 @@ export type FragmentAnchor =
   | { readonly kind: 'node'; readonly index: number; readonly mode: StitchInsertion }
   | { readonly kind: 'space'; readonly index: number }
   | { readonly kind: 'ring'; readonly index: number }
+  /** A másolat egy láncszemének másik oldala: az ovális 1. köre a láncalappal együtt (PQW-899). */
+  | { readonly kind: 'underside'; readonly index: number }
   | { readonly kind: 'target'; readonly offset: number; readonly into: Slot['kind']; readonly mode: StitchInsertion | null };
 
 export interface FragmentStitch {
@@ -346,6 +348,10 @@ export type CopyResult = { readonly ok: true; readonly fragment: Fragment } | { 
 
 const slotKey = (kind: Slot['kind'] | Anchor['into'], id: string) => `${kind}:${id}`;
 
+/** Az ovális 1. köre a láncszemek mindkét oldalába horgol: a két oldal célpontjai a láncalappal együtt köthetők újra. */
+const OVAL_FIRST_ROUND =
+  'Az ovális 1. köre a láncalap mindkét oldalába horgol, ezért csak a láncalappal együtt másolható, és üres mintába illeszthető be.';
+
 /**
  * A kijelölés másolata. A kijelölésen belüli kapcsolatok megmaradnak; a
  * kijelölésen kívüli célpontok az alatta lévő sor célpontjai közötti
@@ -386,6 +392,7 @@ export function copySelection(pattern: Pattern, ids: Iterable<NodeId>): CopyResu
       if (anchor.into === 'stitch' && index.has(anchor.id)) anchors.push({ kind: 'node', index: index.get(anchor.id)!, mode: anchor.mode });
       else if (anchor.into === 'space' && spaceIndex.has(anchor.id)) anchors.push({ kind: 'space', index: spaceIndex.get(anchor.id)! });
       else if (anchor.into === 'ring' && ringIndex.has(anchor.id)) anchors.push({ kind: 'ring', index: ringIndex.get(anchor.id)! });
+      else if (anchor.into === 'underside' && index.has(anchor.id)) anchors.push({ kind: 'underside', index: index.get(anchor.id)! });
       else {
         if (layerOf(id) !== firstLayer) {
           const name = layerName(layerOf(id), graph.layers[layerOf(id)]!.shape);
@@ -393,8 +400,8 @@ export function copySelection(pattern: Pattern, ids: Iterable<NodeId>): CopyResu
         }
         // Sorvégbe csak a szegély horgol, azt fent elutasítjuk (PQW-889).
         if (anchor.into === 'row-end') return { ok: false, reason: 'A szegély még nem másolható: csak sorokat vagy köröket jelölj ki.' };
-        // Az ovális 1. köre a láncalap mindkét oldalába horgol (PQW-890): ezt még nem lehet másolni.
-        if (anchor.into === 'underside') return { ok: false, reason: 'Az ovális első köre még nem másolható: a láncalap mindkét oldalába horgol.' };
+        // Az ovális 1. köre a láncalap mindkét oldalába horgol (PQW-890): csak a láncalappal együtt másolható (PQW-899).
+        if (anchor.into === 'underside') return { ok: false, reason: OVAL_FIRST_ROUND };
         const slot = slotOf.get(slotKey(anchor.into, anchor.id));
         if (slot === undefined) {
           return {
@@ -643,6 +650,8 @@ function assemble(
           return { into: 'space', id: spaceIds[anchor.index]! };
         case 'ring':
           return { into: 'ring', id: ringIds[anchor.index]! };
+        case 'underside':
+          return { into: 'underside', id: idOf[anchor.index]! };
         case 'target': {
           const slot = resolved[target++]!;
           return slot.kind === 'stitch' ? { into: 'stitch', id: slot.id, mode: modeAsWorked(anchor.mode ?? 'both-loops', side) } : { into: slot.kind, id: slot.id };
