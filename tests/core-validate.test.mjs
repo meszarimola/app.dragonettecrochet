@@ -275,6 +275,16 @@ describe('a megadott szemszám a láncszemek számolása szerint (03 §10 B10, P
   });
 });
 
+describe('a szem által nem engedett beszúrási mód (01 §4.3, PQW-869)', () => {
+  test('a befejező rákhurok-sor hátsó szálba', () => {
+    const example = hdcRectangle({ rows: 3, crabRow: 3 });
+    const id = example.rows[3][0];
+    const node = example.pattern.pieces[0].stitches.find((candidate) => candidate.id === id);
+    const pattern = editNode(example.pattern, id, { anchors: node.anchors.map((anchor) => ({ ...anchor, mode: 'back-loop' })) });
+    assertOnly(pattern, 'insertion-mode', [[id]]);
+  });
+});
+
 test('minden szabálynak van tudásbázis-hivatkozása', () => {
   for (const [rule, def] of Object.entries(RULES)) {
     assert.match(def.reference, /^0[1-6] §\d/, `${rule}: hiányzó vagy hibás hivatkozás`);

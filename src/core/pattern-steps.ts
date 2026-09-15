@@ -29,6 +29,7 @@
  */
 
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
+import { modeAsWorked } from './insertion.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { hasBaseChain, traditionOf } from './tradition.ts';
 import type { Anchor, LayerEvent, NodeId, Pattern, Piece, StitchDef, StitchDefId, StitchInsertion, Tradition } from './types.ts';
@@ -122,18 +123,8 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
   return { name: piece.name, foundation, layers };
 }
 
-const FLIPPED: Readonly<Record<StitchInsertion, StitchInsertion>> = {
-  'both-loops': 'both-loops',
-  'front-loop': 'back-loop',
-  'back-loop': 'front-loop',
-  'front-post': 'back-post',
-  'back-post': 'front-post',
-};
-
-/** A horgoló felől nézett beszúrás: visszai soron a szálak és a relief megfordulnak. */
-export function modeAsWorked(mode: StitchInsertion, side: 'right' | 'wrong'): StitchInsertion {
-  return side === 'wrong' ? FLIPPED[mode] : mode;
-}
+/** A horgoló felől nézett beszúrás: visszai soron a szálak és a relief megfordulnak (insertion.ts). */
+export { modeAsWorked };
 
 /** Aminek a számító fordulólánc számít: a sort kezdő szem, összetett szemnél a részszeme. */
 export function countsAsOf(def: StitchDef): StitchDefId {

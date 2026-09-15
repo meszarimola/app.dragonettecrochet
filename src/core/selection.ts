@@ -19,6 +19,7 @@
 
 import { closeRound, contextOf, defaultCursor, endRow, layerSlots, startCursor, type EditResult, type Slot } from './editor.ts';
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
+import { modeAsWorked } from './insertion.ts';
 import type { ChartLayout, Point } from './layout.ts';
 import { libraryFor } from './stitch-variants.ts';
 import type {
@@ -319,6 +320,11 @@ export interface Fragment {
   /** Réteg elejétől indul: beillesztéskor új sort vagy kört nyit. */
   readonly startsLayer: boolean;
   readonly shape: 'row' | 'round';
+  /**
+   * Az első réteg oldala. Más oldalra illesztve a tárolt szálak és relief
+   * megfordulnak, hogy a horgoló felől ugyanaz maradjon a mód (PQW-869).
+   */
+  readonly side: 'right' | 'wrong';
   /** Az első réteget nyitó esemény fajtája a forrásban. */
   readonly opening: LayerEvent['kind'] | null;
   /** A réteg eleji továbbvezető kúszószemek és a fordulólánc láncszemei. */
@@ -443,6 +449,7 @@ export function copySelection(pattern: Pattern, ids: Iterable<NodeId>): CopyResu
       foundation,
       startsLayer,
       shape: layer.shape,
+      side: layer.side,
       opening: layer.opening?.kind ?? null,
       travelSlips,
       turningChain,
@@ -493,7 +500,7 @@ export function pasteFragment(pattern: Pattern, fragment: Fragment, cursor?: num
   if (fragment.stitches.length === 0) return refuse('A vágólap üres: előbb másolj ki szemeket.');
   if (fragment.foundation || fragment.rings.length > 0) {
     if (piece.stitches.length > 0) return refuse(`A láncalapot és a varázskört csak üres mintába lehet beilleszteni. ${UNCHANGED}`);
-    return assemble(pattern, fragment, [], 0, []);
+    return assemble(pattern, fragment, [], 0, [], false);
   }
   if (piece.stitches.length === 0) return refuse('Előbb láncalap vagy varázskör kell: a beillesztett szemeknek célpont kell.');
 
@@ -573,7 +580,8 @@ export function pasteFragment(pattern: Pattern, fragment: Fragment, cursor?: num
   const reused = skip > 0 ? current.pieces[0]!.stitches.slice(-skip).map((node) => node.id) : [];
   if (reused.length < skip) return refuse(`Nincs elég célpont a beillesztéshez. ${UNCHANGED}`);
   const skipped = new Map(reused.map((id, k) => [fragment.travelSlips + k, id]));
-  const result = assemble(current, fragment, resolved, skip, [...skipped]);
+  // A horgoló felől nézett mód marad: más oldalú sorban a tárolt, színoldali mód megfordul.
+  const result = assemble(current, fragment, resolved, skip, [...skipped], context.side !== fragment.side);
   if (!result.ok) return result;
 
   const library = libraryFor(result.pattern);
@@ -588,13 +596,18 @@ function spiral(pattern: Pattern): EditResult {
   return done(withPiece(pattern, { ...piece, events: [...piece.events, { after: last.id, kind: 'spiral' }] }));
 }
 
-/** A másolat szemei a fonal végére, új azonosítókkal; a `skip` darab fordulólánc-láncszem helyett a meglévők. */
+/**
+ * A másolat szemei a fonal végére, új azonosítókkal; a `skip` darab
+ * fordulólánc-láncszem helyett a meglévők. `flip`: a célsor a forrással
+ * ellentétes oldalú, ezért a szálak és a relief megfordulnak.
+ */
 function assemble(
   pattern: Pattern,
   fragment: Fragment,
   resolved: readonly Slot[],
   skip: number,
   reused: readonly (readonly [number, NodeId])[],
+  flip: boolean,
 ): EditResult {
   const piece = pattern.pieces[0]!;
   const nextNode = ids('n', piece.stitches.map((node) => node.id));
@@ -609,19 +622,20 @@ function assemble(
 
   let target = 0;
   let prev = piece.stitches[piece.stitches.length - 1]?.id ?? null;
+  const side = flip ? 'wrong' : 'right';
   const stitches: StitchNode[] = [];
   fragment.stitches.forEach((stitch, i) => {
     const anchors = stitch.anchors.map((anchor): Anchor => {
       switch (anchor.kind) {
         case 'node':
-          return { into: 'stitch', id: idOf[anchor.index]!, mode: anchor.mode };
+          return { into: 'stitch', id: idOf[anchor.index]!, mode: modeAsWorked(anchor.mode, side) };
         case 'space':
           return { into: 'space', id: spaceIds[anchor.index]! };
         case 'ring':
           return { into: 'ring', id: ringIds[anchor.index]! };
         case 'target': {
           const slot = resolved[target++]!;
-          return slot.kind === 'stitch' ? { into: 'stitch', id: slot.id, mode: anchor.mode ?? 'both-loops' } : { into: slot.kind, id: slot.id };
+          return slot.kind === 'stitch' ? { into: 'stitch', id: slot.id, mode: modeAsWorked(anchor.mode ?? 'both-loops', side) } : { into: slot.kind, id: slot.id };
         }
       }
     });

@@ -80,6 +80,9 @@ import {
   writeNotation,
 } from './notation.js';
 import { buildPalette, type PaletteItem } from './palette.js';
+import { InsertionPanel } from './insertion-panel.js';
+import { insertionSuffix } from './insertion-view.js';
+import { nodeInsertions } from '../core/insertion.js';
 import { RoundsPanel } from './rounds-panel.js';
 import { SizePanel } from './size-panel.js';
 import { DEFAULT_PATTERN_TYPE, PATTERN_TYPES, gridKind, isAvailableType, type PatternTypeId } from './pattern-types.js';
@@ -129,6 +132,8 @@ const errorToggle = must<HTMLButtonElement>('#error-toggle');
 const errorCount = must<HTMLElement>('#error-count');
 const errorsPop = must<HTMLElement>('#errors');
 const exportGrid = must<HTMLInputElement>('#export-grid');
+/** A beszúrási mód a kiválasztott szemhez (PQW-869). */
+const insertionPanel = new InsertionPanel(must<HTMLFieldSetElement>('#insertion'));
 
 const STORAGE_KEY = 'dc-mintatervezo:minta';
 const SETTINGS_KEY = 'dc-mintatervezo:nezet';
@@ -358,6 +363,7 @@ function draw(): void {
     tradition: traditionOf(derived.pattern.conventions),
     direction: tool && isTargeted(tool) ? directionArrow() : null,
     symbols,
+    insertions: nodeInsertions(derived.pattern.pieces[0]),
   });
 }
 
@@ -764,6 +770,7 @@ function select(id: StitchDefId | null): void {
   const item = items.find((candidate) => candidate.def.id === id);
   const kind = item?.def.kind;
   countField.hidden = kind !== 'chain' && kind !== 'space';
+  insertionPanel.update(item?.def, notation.terms);
   if (!item) {
     hint.textContent =
       'Válassz szemet. Szem nélkül kattintással szemet jelölsz ki (Shift-tel többet, a sorszámmal a teljes sort), és törölheted, duplikálhatod vagy igazíthatod.';
@@ -840,7 +847,7 @@ async function workAtCursor(): Promise<void> {
       announce('Nem került le szem.');
       return;
     }
-    const increase = idx === context.frontier ? workIntoSame(history.present, tool) : work(history.present, { def: tool, count }, idx);
+    const increase = idx === context.frontier ? workIntoSame(history.present, tool) : work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx);
     commit(increase, `${name}: szaporítás.`);
     return;
   }
@@ -855,11 +862,12 @@ async function workAtCursor(): Promise<void> {
       announce('Nem került le szem.');
       return;
     }
-    commit(work(history.present, { def: tool, count }, idx, ['crossed']), `${name}: keresztezett szem.`);
+    commit(work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx, ['crossed']), `${name}: keresztezett szem.`);
     return;
   }
 
-  commit(work(history.present, { def: tool, count }, idx), `${name} horgolva.`);
+  const mode = slot?.kind === 'stitch' ? insertionSuffix(insertionPanel.insertion) : '';
+  commit(work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx), `${name} horgolva${mode}.`);
 }
 
 function nudge(dx: number, dy: number): void {
@@ -1062,7 +1070,10 @@ const ACTIONS: Record<string, () => void> = {
   same: () => (tool ? commit(workIntoSame(history.present, tool), 'Még egy ugyanabba.') : announce('Előbb válassz szemet.')),
   'fill-row': () =>
     tool && isTargeted(tool)
-      ? commit(fillRow(history.present, { def: tool, count: Number(countInput.value) }), 'Sor kitöltve.')
+      ? commit(
+          fillRow(history.present, { def: tool, count: Number(countInput.value), insertion: insertionPanel.insertion }),
+          `Sor kitöltve${insertionSuffix(insertionPanel.insertion)}.`,
+        )
       : announce('Előbb válassz célpontba horgolható szemet a sor kitöltéséhez.'),
   'end-row': () => commit(endRow(history.present, tool), 'Sor vége, fordulás.'),
   'close-round': () =>

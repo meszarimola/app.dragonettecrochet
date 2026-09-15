@@ -17,6 +17,7 @@
  */
 
 import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
+import { modeAsWorked } from './insertion.ts';
 import { roundFindings } from './rounds.ts';
 import { RULES, type RuleId } from './rules.ts';
 import type { StitchLibrary } from './stitch-library.ts';
@@ -43,6 +44,7 @@ function validatePiece(pattern: Pattern, piece: Piece, library: StitchLibrary): 
 
   const graph = buildPieceGraph(pattern, piece, library);
   checkGroups(graph, library, report);
+  checkInsertions(graph, library, report);
   const invalidAnchors = checkFutureAnchors(graph, report);
   for (let index = 1; index < graph.layers.length; index += 1) {
     checkLayer(pattern, graph, index, invalidAnchors, report, () => findings.length);
@@ -125,6 +127,23 @@ function checkGroups(graph: PieceGraph, library: StitchLibrary, report: Report):
 }
 
 /** A később készülő célpontok (06 V1). Visszaadja az érvénytelen célpontokat `csomópont#index` alakban. */
+/**
+ * A beszúrási mód a szem megengedett módjai közül való-e (PQW-869). A lista a
+ * horgoló felől érti a módot, a gráf a színoldalit tárolja, ezért visszai soron
+ * megfordítva vetjük össze. Összetett szemnél a csoport listája is számít.
+ */
+function checkInsertions(graph: PieceGraph, library: StitchLibrary, report: Report): void {
+  const groupDef = new Map(graph.piece.groups.flatMap((group) => group.members.map((id) => [id, library.get(group.def)] as const)));
+  for (const node of graph.piece.stitches) {
+    const side = graph.layers[graph.layerOf.get(node.id) ?? 0]?.side ?? 'right';
+    const defs = [graph.defs.get(node.id), groupDef.get(node.id)];
+    const invalid = node.anchors.some(
+      (anchor) => anchor.into === 'stitch' && defs.some((def) => def && !def.insertionModes.includes(modeAsWorked(anchor.mode, side))),
+    );
+    if (invalid) report('insertion-mode', [node.id]);
+  }
+}
+
 function checkFutureAnchors(graph: PieceGraph, report: Report): Set<string> {
   const invalid = new Set<string>();
   for (const node of graph.piece.stitches) {
