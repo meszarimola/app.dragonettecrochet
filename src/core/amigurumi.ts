@@ -42,6 +42,7 @@
  * rész a nyitott szélbe süllyed (gömbsüveg), ez levonódik.
  */
 
+import { rowEdges } from './border.ts';
 import { stitchDimensions } from './gauge.ts';
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
 import { gaugeContextOf } from './pattern-size.ts';
@@ -734,6 +735,25 @@ function edgeInfo(pattern: Pattern, edge: JoinEdge, library: StitchLibrary): Edg
   const graph = piece ? graphOf(pattern, piece, library) : null;
   const layer = graph?.layers[edge.layer];
   if (!piece || !graph || !layer || edge.layer < 1) return null;
+  // A ruhadarab varrásai (PQW-866): a sor egy szakasza, vagy a sorvégek az egyik szélen.
+  if (edge.stitches) {
+    const { from, count } = edge.stitches;
+    if (layer.shape !== 'row' || !Number.isInteger(from) || from < 0 || count < 1 || from + count > layer.positions.length) return null;
+    return { count, stitches: layer.positions.slice(from, from + count), openRim: false };
+  }
+  if (edge.rows) {
+    const { to, side } = edge.rows;
+    if (to < edge.layer || to >= graph.layers.length) return null;
+    const ends: NodeId[] = [];
+    for (const row of graph.layers.slice(edge.layer, to + 1)) {
+      const edges = row.shape === 'row' && !row.border ? rowEdges(row) : null;
+      if (!edges) return null;
+      // A színoldali sor a rajz jobb szélén kezdődik, a visszai a balon (01 §8.4).
+      const startSide = row.side === 'right' ? 'right' : 'left';
+      ends.push(side === startSide ? edges.start : edges.end);
+    }
+    return { count: ends.length, stitches: ends, openRim: false };
+  }
   const last = edge.layer === graph.layers.length - 1;
   const closed = layer.closing?.marks?.includes('close-opening') === true;
   return { count: layer.stitchCount, stitches: layer.stitches, openRim: last && !closed };

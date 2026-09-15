@@ -545,30 +545,36 @@ class RowWriter {
   }
 }
 
-/** A sorok szemgráfja a terv szerint; hiba esetén az ok. */
-function buildRows(pattern: Pattern, plan: ShapePlan, bordered: boolean): RowWriter | string {
+/** A sorok szemgráfja a szemszámokból és az alakításból; hiba esetén az ok. */
+function buildRows(
+  pattern: Pattern,
+  stitch: StitchDefId,
+  counts: readonly number[],
+  shapingRows: readonly RowShaping[],
+  bordered: boolean,
+): RowWriter | string {
   const writer = new RowWriter();
-  const def = resolveStitch(plan.stitch)!;
+  const def = resolveStitch(stitch)!;
   const tradition = traditionOf(pattern.conventions);
   const counting = turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition, 'row');
   const baseChain = hasBaseChain(counting, tradition);
-  const rows = plan.counts.length;
+  const rows = counts.length;
 
   // Láncalap: az 1. sor láncszemei, számító fordulóláncnál az alapláncszem, és az 1. sor fordulólánca (03 §1.2, PQW-891).
-  const worked = plan.counts[0]! - (counting ? 1 : 0) + (baseChain ? 1 : 0);
+  const worked = counts[0]! - (counting ? 1 : 0) + (baseChain ? 1 : 0);
   const foundation = writer.chains(worked + def.turningChain);
   let below = foundation.slice(0, worked);
   let turningTop = foundation[foundation.length - 1]!;
 
   for (let k = 0; k < rows; k += 1) {
     if (k > 0) turningTop = writer.chains(def.turningChain).at(-1)!;
-    const shaping = plan.shaping[k]!;
+    const shaping = shapingRows[k]!;
     // A sok szemes szaporítás a sor elején az előző sor láncos hosszabbítása: ebben a sorban már sima.
     const own = { start: shaping.start > MAX_EDGE_CHANGE ? 0 : shaping.start, end: shaping.end };
     const made = writer.row(def, [...below].reverse(), k === 0 ? baseChain : counting, own, k + 1);
     if (typeof made === 'string') return made;
     below = [...(counting ? [turningTop] : []), ...made];
-    const next = plan.shaping[k + 1];
+    const next = shapingRows[k + 1];
     if (next && next.start > MAX_EDGE_CHANGE) below.push(...writer.extension(next.start));
     writer.event(k < rows - 1 || bordered ? 'turn' : 'fasten-off');
   }
@@ -595,7 +601,7 @@ export function generateShape(pattern: Pattern, options: ShapeOptions): ShapeRes
       }
     : pattern.conventions;
   const base: Pattern = { ...pattern, conventions, pieces: [] };
-  const built = buildRows(base, plan, options.border !== null);
+  const built = buildRows(base, plan.stitch, plan.counts, plan.shaping, options.border !== null);
   if (typeof built === 'string') return fail(built);
 
   const name = SHAPE_NAMES[options.shape];
@@ -610,7 +616,7 @@ export function generateShape(pattern: Pattern, options: ShapeOptions): ShapeRes
     skipped: built.skipped,
     ...(options.border ? { border: options.border } : {}),
   };
-  const stated = withStatedCounts(base, piece, plan);
+  const stated = withStatedCounts(base, piece, plan.counts);
   if (typeof stated === 'string') return fail(stated);
   // A szegély a gráfban is réteg a sorok után (PQW-889).
   const rowsPattern: Pattern = { ...base, pieces: [stated] };
@@ -629,7 +635,7 @@ export function generateShape(pattern: Pattern, options: ShapeOptions): ShapeRes
  * alapból a belehorgoltak, és számító fordulóláncnál az utolsó láncszemen a
  * fordulólánc ül, abba nem horgolunk. A többi szemnek a tervvel egyeznie kell.
  */
-function withStatedCounts(pattern: Pattern, piece: Piece, plan: ShapePlan): Piece | string {
+function withStatedCounts(pattern: Pattern, piece: Piece, counts: readonly number[]): Piece | string {
   const whole = { ...pattern, pieces: [piece] };
   const graph = buildPieceGraph(whole, piece, libraryFor(whole));
   const extension = new Set(piece.spaces.flatMap((space) => space.chains));
@@ -639,10 +645,42 @@ function withStatedCounts(pattern: Pattern, piece: Piece, plan: ShapePlan): Piec
   for (const layer of graph.layers.slice(1)) {
     const chains = layer.stitches.filter((id) => extension.has(id));
     const counted = chainCounts === true ? chains.length : chainCounts === false ? 0 : chains.filter((id) => anchored.has(id)).length;
-    if (layer.stitchCount - counted !== plan.counts[layer.index - 1]) {
+    if (layer.stitchCount - counted !== counts[layer.index - 1]) {
       return `A(z) ${layer.index}. sor szemszáma nem a terv szerinti: ez a program hibája, kérlek, jelezd.`;
     }
     if (layer.closing) stated.set(layer.closing.after, layer.stitchCount);
   }
   return { ...piece, events: piece.events.map((event) => ({ ...event, statedCount: stated.get(event.after)! })) };
+}
+
+/**
+ * Sorokban horgolt darab kész szemszámokból és alakításból (PQW-866): a
+ * ruhadarab részeit (hátrész, elejerész, ujj) a ruhadarab-generátor tervezi,
+ * a gráfot ez építi, ugyanúgy, mint a Forma szakasz sorait. A `counts[k]` az
+ * előző sor szemszáma a `shaping[k]` változással. A sorvégi szemszám a gráf
+ * számolása; hibánál az ok.
+ */
+export function plannedRows(
+  pattern: Pattern,
+  stitch: StitchDefId,
+  counts: readonly number[],
+  shaping: readonly RowShaping[],
+  name: string,
+  id = 'p1',
+): Piece | string {
+  if (counts.length === 0 || shaping.length !== counts.length) return 'A sorok terve hiányos: ez a program hibája, kérlek, jelezd.';
+  const base: Pattern = { ...pattern, pieces: [] };
+  const built = buildRows(base, stitch, counts, shaping, false);
+  if (typeof built === 'string') return built;
+  const piece: Piece = {
+    id,
+    name,
+    stitches: built.stitches,
+    spaces: built.spaces,
+    rings: [],
+    groups: built.groups,
+    events: built.events,
+    skipped: built.skipped,
+  };
+  return withStatedCounts(base, piece, counts);
 }

@@ -483,6 +483,33 @@ export interface Pattern {
   readonly joins?: readonly PieceJoin[];
   /** Játék: 3 év alatti gyereknek készül-e (04 §5.7). Hiányában nincs megadva. */
   readonly toy?: { readonly under3: boolean };
+  /** Ruhadarab méretsorozattal (PQW-866); hiányában a minta nem ruhadarab-generátorból jön. */
+  readonly garment?: PatternGarment;
+}
+
+/* ---- Ruhadarabok (PQW-866) ---- */
+
+export type GarmentKind = 'hat' | 'drop-shoulder';
+
+/** A méretek táblázata: a CYC testméretek (body-sizes.ts), sapkánál a sapkaméretek. */
+export type GarmentTable = 'women' | 'men' | 'child' | 'baby' | 'hat';
+
+/**
+ * A ruhadarab méretsorozata (05 §3.8, §8.1, §9.6). A gráf a `base` méreté; a
+ * sorozat minden méretének számai fázisonként itt állnak, a `sizes`
+ * sorrendjében, és az írott minta „S (M, L)” alakban írja ki őket
+ * (garment-text.ts). A számok a létrehozáskori mintasűrűségből jönnek, így a
+ * szöveg a mentés után sem változik.
+ */
+export interface PatternGarment {
+  readonly kind: GarmentKind;
+  readonly table: GarmentTable;
+  /** A méretek azonosítója a táblázatban, növekvő sorrendben. */
+  readonly sizes: readonly string[];
+  /** A gráf méretének indexe a `sizes`-ban. */
+  readonly base: number;
+  /** Fázisonként a méretenkénti érték (a kulcsok: garment-text.ts `SERIES_KEYS`). */
+  readonly values: Readonly<Record<string, readonly number[]>>;
 }
 
 /* ---- Amigurumi és 3D formák (PQW-863) ---- */
@@ -546,11 +573,21 @@ export interface PieceSection {
  */
 export type RoundMark = 'safety-eyes' | 'embroider-eyes' | 'stuffing' | 'close-opening';
 
-/** Egy darab egy köre mint összekapcsolt szél. */
+/**
+ * Egy darab összekapcsolt széle.
+ * - Csak `layer`: a kör egésze (PQW-863, amigurumi).
+ * - `stitches`: a `layer`. sor egy szakasza a sor pozícióinak sorrendjében, a
+ *   `from` 0-tól; pl. a vállvarrás (PQW-866).
+ * - `rows`: a sorvégek a `layer`. sortól a `to`. sorig a rajz bal vagy jobb
+ *   szélén (a PQW-889 sorvég célpontja); pl. az oldalvarrás. A varrás
+ *   szemszáma ilyenkor a sorok száma.
+ */
 export interface JoinEdge {
   readonly piece: PieceId;
-  /** A kör sorszáma a darabban, 1-től. */
+  /** A kör vagy sor sorszáma a darabban, 1-től; sorvégeknél az első sor. */
   readonly layer: number;
+  readonly stitches?: { readonly from: number; readonly count: number };
+  readonly rows?: { readonly to: number; readonly side: 'left' | 'right' };
 }
 
 /**

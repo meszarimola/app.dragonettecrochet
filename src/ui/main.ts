@@ -92,6 +92,7 @@ import { spikeNodes, unitFrames } from './grid-chart-view.js';
 import { RoundsPanel } from './rounds-panel.js';
 import { ShapesPanel } from './shapes-panel.js';
 import { ShawlsPanel } from './shawls-panel.js';
+import { GarmentPanel } from './garment-panel.js';
 import { SizePanel } from './size-panel.js';
 import { DEFAULT_PATTERN_TYPE, PATTERN_TYPES, gridKind, isAvailableType, writtenShareFor, type PatternTypeId } from './pattern-types.js';
 import { applyInk, drawCentered, readInk, shapeBounds, stemLength, symbolShapes, type SymbolOptions } from './symbols.js';
@@ -352,6 +353,7 @@ function refresh(message?: string): void {
   roundsPanel.update(derived.pattern);
   shapesPanel.update(derived.pattern);
   shawlsPanel.update(derived.pattern);
+  garmentPanel.update(derived.pattern);
   amigurumiPanel.update(derived.pattern);
   gridPanel.update(derived.pattern, mirror);
   if (message !== undefined) announce(message);
@@ -1689,6 +1691,18 @@ const shapesPanel = new ShapesPanel(must<HTMLDetailsElement>('#section-shape'), 
 /* ---- Kendő (PQW-865) ---- */
 
 const shawlsPanel = new ShawlsPanel(must<HTMLDetailsElement>('#section-shawl'), {
+  commit: (pattern, message) => {
+    selectedNode = null;
+    selection = [];
+    commit({ ok: true, pattern }, message);
+    fitBoard();
+  },
+  announce,
+});
+
+/* ---- Ruhadarab (PQW-866) ---- */
+
+const garmentPanel = new GarmentPanel(must<HTMLDetailsElement>('#section-garment'), {
   commit: (pattern, message) => {
     selectedNode = null;
     selection = [];
