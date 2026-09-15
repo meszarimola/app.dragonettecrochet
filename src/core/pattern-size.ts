@@ -18,7 +18,7 @@ import type { GaugeProfile, StitchGauge, WorkedIn } from './gauge-profile.ts';
 import { stitchDimensions, type GaugeContext, type LayerShape } from './gauge.ts';
 import type { PieceGraph } from './graph.ts';
 import { DEFAULT_COLUMN, ROW_GAP } from './layout.ts';
-import { measured } from './quantity.ts';
+import { measured, multiply, scale, sum } from './quantity.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import type { GaugeForm, Pattern, PatternGauge, PatternGaugeProfile, Sourced, StitchDef, StitchDefId } from './types.ts';
 import { yarnFromMassPerArea, type YarnEstimate } from './yarn-estimate.ts';
@@ -115,6 +115,8 @@ export function gaugeContextOf(pattern: Pattern, library: StitchLibrary): GaugeC
 export function sizeLayers(graph: PieceGraph): SizeLayer[] {
   const layers: SizeLayer[] = [];
   for (const layer of graph.layers.slice(1)) {
+    // A szegély (PQW-889) nem sor: a kész méretben külön számol (`patternSize`).
+    if (layer.border) continue;
     const skipped = new Set<string>([...layer.turningChain, ...layer.travelSlips, ...(layer.joinSlip ? [layer.joinSlip] : [])]);
     const stitches: StitchDefId[] = [];
     const first = layer.firstStitch ? graph.defs.get(layer.firstStitch) : undefined;
@@ -159,7 +161,8 @@ export function patternSize(pattern: Pattern, graph: PieceGraph | null, library:
   const context = gaugeContextOf(pattern, library);
   const profile = activeProfile(pattern);
   const layers = graph ? sizeLayers(graph) : [];
-  const size = layers.length > 0 ? pieceSize(layers, context) : null;
+  const rows = layers.length > 0 ? pieceSize(layers, context) : null;
+  const size = rows && graph ? withBorderSize(rows, graph, context) : rows;
 
   const missing: YarnMissing[] = [];
   const massPerArea = profile ? swatchMassPerArea(profile) : null;
@@ -185,6 +188,22 @@ export function patternSize(pattern: Pattern, graph: PieceGraph | null, library:
         }
       : { kind: 'missing', missing };
   return { profile, hookMm: context.hookMm, layerIndexes: layers.map((layer) => layer.index), size, yarn };
+}
+
+/**
+ * A kész méret a szegéllyel (PQW-889): a szegély köre minden oldalon a
+ * szegély szemének egy sornyi magasságát adja, mint a Forma szakasz tervében
+ * (shapes.ts). Szegély nélkül a méret változatlan.
+ */
+function withBorderSize(size: PieceSize, graph: PieceGraph, context: GaugeContext): PieceSize {
+  const layer = graph.layers.find((candidate) => candidate.border);
+  const def = layer?.firstStitch ? graph.defs.get(layer.firstStitch) : undefined;
+  const dimensions = def ? stitchDimensions(def, 'row', context) : null;
+  if (!size.total || !dimensions) return size;
+  const rim = scale(dimensions.heightMm, 0.2);
+  const widthCm = sum([size.total.widthCm, rim]);
+  const heightCm = sum([size.total.heightCm, rim]);
+  return { ...size, total: { ...size.total, widthCm, heightCm, areaCm2: multiply(widthCm, heightCm) } };
 }
 
 /* ---- Profilok a mintában ---- */

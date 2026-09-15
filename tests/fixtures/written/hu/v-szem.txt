@@ -12,5 +12,5 @@ láncív
 
 V-szem
 Láncalap: 17 lsz.
-1. sor: a horogtól számított 4. láncszemtől kezdve 1 erp, 1 láncszem kihagyása, V-szem, [2 láncszem kihagyása, V-szem] 3-szor, 1 láncszem kihagyása, 1 erp (14 szem). Fordítás.
+1. sor: hagyj ki 3 láncszemet, majd 1 erp, 1 láncszem kihagyása, V-szem, [2 láncszem kihagyása, V-szem] 3-szor, 1 láncszem kihagyása, 1 erp (14 szem). Fordítás.
 2. sor: 3 lsz (nem számít szemnek), 1 erp, [V-szem a következő láncívbe] 4-szer, 1 szem kihagyása, 1 erp (10 szem). A fonal elvágása.

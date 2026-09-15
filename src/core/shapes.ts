@@ -27,7 +27,7 @@
  * megadott szemszám a gráf számolása (06 §5.3 V3).
  */
 
-import { MIN_BORDER_WIDTH, borderCounts, rowEndStitches, type BorderCounts } from './border.ts';
+import { MIN_BORDER_WIDTH, appendBorder, borderCounts, rowEndStitches, type BorderCounts } from './border.ts';
 import { stitchDimensions, type DimensionBasis } from './gauge.ts';
 import { buildPieceGraph } from './graph.ts';
 import { gaugeContextOf } from './pattern-size.ts';
@@ -611,10 +611,14 @@ export function generateShape(pattern: Pattern, options: ShapeOptions): ShapeRes
   };
   const stated = withStatedCounts(base, piece, plan);
   if (typeof stated === 'string') return fail(stated);
+  // A szegély a gráfban is réteg a sorok után (PQW-889).
+  const rowsPattern: Pattern = { ...base, pieces: [stated] };
+  const bordered = options.border ? appendBorder(rowsPattern, stated, libraryFor(rowsPattern), options.border) : stated;
+  if (typeof bordered === 'string') return fail(bordered);
 
   const generated = new Set<string>([...Object.values(SHAPE_NAMES), ...Object.values(MOTIF_NAMES)]);
   const untitled = pattern.title.trim() === '' || pattern.title === 'Új minta' || generated.has(pattern.title);
-  const result: Pattern = { ...base, title: untitled ? name : pattern.title, pieces: [stated] };
+  const result: Pattern = { ...base, title: untitled ? name : pattern.title, pieces: [bordered] };
   const errors = validatePattern(result, libraryFor(result)).filter((finding) => finding.severity === 'error');
   if (errors.length > 0) return fail(`A generált minta nem ment át az ellenőrzőn (${errors[0]!.rule}): ez a program hibája, kérlek, jelezd.`);
   return { ok: true, pattern: result, plan };

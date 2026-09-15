@@ -70,6 +70,12 @@ export interface LayerInfo extends Layer {
   readonly direction: 1 | -1;
   /** A következő réteg horgolható pozíciói a réteg fonalsorrendjében; a számító fordulólánc teteje elöl. */
   readonly positions: readonly NodeId[];
+  /**
+   * A darab körüli szegély (PQW-889): a réteg sorvégekbe is horgol. Zárt
+   * körként számol; az ellenőrzése, a rajza és az írott mintája külön
+   * készül (border.ts).
+   */
+  readonly border: boolean;
 }
 
 export interface PieceGraph {
@@ -221,6 +227,7 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     firstStitch: null,
     direction: 1,
     positions: foundationIds,
+    border: false,
   });
   for (const id of foundationIds) layerOf.set(id, 0);
 
@@ -260,8 +267,11 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     const firstStitch = (rest.find((node) => !node.flags?.includes('spike')) ?? rest[0])?.id ?? null;
     const joinSlip = closing?.kind === 'join-slip' && kindOf(last) === 'slip' ? last.id : null;
 
+    // A szegély a sorvégekbe is horgol, és kúszószemmel záródik: a darab körüli kör (PQW-889).
+    const border = segment.some((node) => node.anchors.some((anchor) => anchor.into === 'row-end'));
     let shape: Layer['shape'];
-    if (opening === null) shape = roundStart ? 'round' : 'row';
+    if (border) shape = 'round';
+    else if (opening === null) shape = roundStart ? 'round' : 'row';
     else if (opening.kind === 'turn') shape = 'row';
     else if (opening.kind === 'fasten-off') shape = previous.shape;
     else shape = 'round';
@@ -270,7 +280,8 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       opening?.kind === 'turn' ? (previous.side === 'right' ? 'wrong' : 'right') : previous.side;
 
     let direction: 1 | -1;
-    if (index === 1) direction = foundation === 'chain' && !roundStart ? -1 : 1;
+    if (border) direction = 1;
+    else if (index === 1) direction = foundation === 'chain' && !roundStart ? -1 : 1;
     else direction = opening?.kind === 'turn' ? -1 : 1;
 
     let turningChainCounts = false;
@@ -343,6 +354,7 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       firstStitch,
       direction,
       positions,
+      border,
     });
   });
 

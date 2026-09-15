@@ -140,22 +140,55 @@ export function chartGrid(
   const layout = layoutPattern(withoutPins(pattern), library, { ...options, straight: true });
   if (layout.nodes.size === 0) return empty;
 
+  // A szegély (PQW-889) nem sor: a sorok rácsa nélküle készül, és a szegély a darab körüli sávokat kapja.
+  const borderIndex = graph.layers.findIndex((layer) => layer.border);
+  const layers = borderIndex < 0 ? graph.layers : graph.layers.slice(0, borderIndex);
   const input: Input = {
     layout,
-    context,
+    context: borderIndex < 0 ? context : { ...context, layer: borderIndex, slots: [] },
     W: options.columnWidth ?? DEFAULT_COLUMN,
     uniform: kind === 'cells',
     byLayer: groupByLayer(layout),
-    positions: graph.layers.map((layer) => layer.positions),
-    counts: graph.layers.map((layer) => layer.stitchCount),
+    positions: layers.map((layer) => layer.positions),
+    counts: layers.map((layer) => layer.stitchCount),
     frame: layout.frame ?? CIRCLE,
   };
   const round = graph.layers[0]!.shape === 'round';
   const straight = round ? roundGrid(input) : rowGrid(input);
   const shape = pattern.pieces[0]?.rowShape;
   const curve = !round && shape ? rowCurve(layout, shape) : null;
-  const { bands, cells } = curve ? curved(straight, curve) : straight;
+  const { bands: rowBands, cells } = curve ? curved(straight, curve) : straight;
+  // A szegély (PQW-889) a sorok rácsa körüli sávokat kapja.
+  const bands =
+    borderIndex >= 0 && !round ? [...rowBands, ...borderBands(layout, borderIndex, graph.layers[borderIndex]!.stitchCount, rowBands)] : rowBands;
   return { kind, shape: round ? 'round' : 'row', layer: context.layer, bands, cells, bounds: boundsOf(bands, cells) };
+}
+
+/** A szegély sávjai a sorok rácsa körül: felül, alul és a két oldalon, a szegély szemeinek kiterjedéséig (PQW-889). */
+function borderBands(layout: ChartLayout, index: number, stitchCount: number, rows: readonly GridBand[]): GridBand[] {
+  const points = [...layout.nodes.values()].filter((node) => node.layer === index).flatMap((node) => [node.top, ...node.feet]);
+  if (points.length === 0 || rows.length === 0) return [];
+  const inner = boundsOf(rows, []);
+  const x0 = Math.min(inner.minX, ...points.map((p) => p.x)) - HALF_GAP;
+  const x1 = Math.max(inner.maxX, ...points.map((p) => p.x)) + HALF_GAP;
+  const y0 = Math.min(inner.minY, ...points.map((p) => p.y)) - HALF_GAP;
+  const y1 = Math.max(inner.maxY, ...points.map((p) => p.y)) + HALF_GAP;
+  const side = layout.layers[index]?.side ?? 'right';
+  const band = (area: { x0: number; x1: number; y0: number; y1: number }): GridBand => ({
+    layer: index,
+    side,
+    stitchCount,
+    tone: (index % 2) as 0 | 1,
+    emphasis: 'none',
+    working: false,
+    area: { kind: 'rect', ...area },
+  });
+  return [
+    band({ x0, x1, y0, y1: inner.minY }),
+    band({ x0, x1, y0: inner.maxY, y1 }),
+    band({ x0, x1: inner.minX, y0: inner.minY, y1: inner.maxY }),
+    band({ x0: inner.maxX, x1, y0: inner.minY, y1: inner.maxY }),
+  ];
 }
 
 function withoutPins(pattern: Pattern): Pattern {

@@ -113,8 +113,9 @@ describe('sor, láncalap és fordulólánc (03 §5.2, §10 G32)', () => {
     const { pattern } = make(cyc(), chart('###.'));
     const [foundation, row1] = lines(pattern);
     assert.equal(foundation, 'Láncalap: 18 lsz.');
-    assert.match(row1, /^1\. sor: a horogtól számított 9\. láncszemtől kezdve \(a kihagyott láncszemek 1 erp-nek és 2 lsz-nek számítanak\) 10 erp \(11 szem\)\./);
-    assert.match(lines(pattern, 'en-US')[1], /^Row 1: Starting in 9th ch from hook \(skipped ch count as 1 dc and ch 2\), /);
+    // A kihagyott 8 láncszem: 3 lsz fordulólánc, 1 alapláncszem, a nyitott cella 2 lsz-e és 2 kihagyott láncszeme (PQW-895).
+    assert.equal(row1, '1. sor: hagyj ki 8 láncszemet, majd minden láncszembe 1 erp (11 szem). A fonal elvágása.');
+    assert.match(lines(pattern, 'en-US')[1], /^Row 1: skip 8 ch, dc in each ch across \(11 sts\)\./);
   });
 });
 

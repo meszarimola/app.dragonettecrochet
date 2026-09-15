@@ -31,6 +31,7 @@
  * szomszédaik közé.
  */
 
+import { placeBorder } from './border.ts';
 import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
 import { CIRCLE, frameCoords, frameFor, frameNormal, framePoint, frameSide, perimeter, type Point, type RoundFrame } from './polygon.ts';
 import { curveLayout, rowCurve } from './row-curve.ts';
@@ -133,6 +134,8 @@ export function layoutPattern(pattern: Pattern, library: StitchLibrary, options:
   const W = options.columnWidth ?? DEFAULT_COLUMN;
   const stem = options.stemLength ?? defaultStem;
   const raw = new Layouter(graph, W, stem, detachedNodes(pattern, library)).run();
+  // A szegély a sorok köré kerül (PQW-889): a sorok után, a helyük ismeretében.
+  placeBorder(graph, raw.nodes, raw.layers, W, stem);
   const chart = finish(graph, raw, options.mirror ?? false, W);
   // Sorban horgolt kendő (PQW-893): az egyenes elrendezés íven vagy megtörve (row-curve.ts), a kézi igazítás nélküli helyekből.
   const shape = piece.rowShape;
@@ -236,6 +239,7 @@ class Layouter {
     this.#foundation(foundation!);
     let direction = 1;
     for (const layer of rest) {
+      if (layer.border) continue;
       if (!this.#round && (layer.index === 1 || layer.opening?.kind === 'turn')) direction = -direction;
       this.#layer(layer, this.#round ? 1 : direction);
     }

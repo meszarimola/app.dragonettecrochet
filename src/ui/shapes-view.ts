@@ -137,7 +137,7 @@ export function shapeView(plan: ShapePlan, options: ShapeOptions, hasProfile: bo
     details.push(
       `Szegély: ${plan.border.total} rp körben, sarkonként ${plan.border.corner}, sorvégenként ${plan.border.perRow}; ` +
         `a szegéllyel ${borderApprox}${cm(plan.borderedCm.widthCm)} × ${cm(plan.borderedCm.heightCm)} cm. ` +
-        'Az írott mintában áll, a diagramon még nem látszik.',
+        'A diagramon, a rácson és a kész méretben is látszik.',
     );
   }
 

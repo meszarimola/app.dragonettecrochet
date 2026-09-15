@@ -28,7 +28,7 @@
  * fogyasztáson kívül, láncalap nélküli darab, darabok összekapcsolása.
  */
 
-import { borderOf, type BorderCounts } from './border.ts';
+import { borderLayerIndex, borderOf, borderOfLayer, type BorderCounts } from './border.ts';
 import { buildPieceGraph, spacePositions, type PieceGraph } from './graph.ts';
 import { modeAsWorked } from './insertion.ts';
 import type { StitchLibrary } from './stitch-library.ts';
@@ -96,6 +96,11 @@ export interface WrittenLayer {
      * (filé nyitott kezdés: 3N + 6 lsz, a 9. láncszemtől, 03 §5.2, PQW-891). Máskor 0.
      */
     readonly chains: number;
+    /**
+     * A kihagyás után minden megmaradt láncszembe pontosan egy szem kerül, sorban,
+     * egyetlen tételben: „minden láncszembe 1 rp” (PQW-895).
+     */
+    readonly eachChain: boolean;
   } | null;
   readonly steps: readonly Step[];
   /** Szemszám, ahogy a gráf számolja (graph.ts). */
@@ -162,7 +167,11 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
 
   const row1 = graph.layers[1];
   const kind: WrittenPiece['foundation']['kind'] = chainRing ? 'chain-ring' : onChain ? 'chain' : 'ring';
-  const layers = graph.layers.slice(1).map((_, i) => writtenLayer(graph, i + 1, kind, library, traditionOf(pattern.conventions)));
+  // A szegély rétege (PQW-889) nem sor: a szegély mondata írja le.
+  const borderIndex = borderLayerIndex(graph);
+  const layers = graph.layers
+    .slice(1)
+    .flatMap((layer, i) => (layer.border ? [] : [writtenLayer(graph, i + 1, kind, library, traditionOf(pattern.conventions))]));
   const foundation: WrittenPiece['foundation'] = chainRing
     ? { kind: 'chain-ring', count: base.stitches.length }
     : onChain
@@ -170,9 +179,12 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
       : { kind: 'ring' };
   let border: WrittenBorder | null = null;
   if (piece.border) {
-    const result = borderOf(graph, piece.border);
+    // A PQW-889 előtti mentésben a szegélynek még nincs rétege: ott a sorokból számolunk.
+    const result = borderIndex >= 0 ? borderOfLayer(graph, borderIndex, piece.border) : borderOf(graph, piece.border);
     if (!result.ok) throw new WrittenPatternError(`A szegély nem írható ki: ${result.reason}`);
     border = { stitch: piece.border.stitch, counts: result.counts };
+  } else if (borderIndex >= 0) {
+    throw new WrittenPatternError('A szegély választása hiányzik a darabból, ezért a szegély nem írható ki.', graph.layers[borderIndex]!.stitches);
   }
   const sections = (piece.sections ?? []).map(({ name, layer }) => ({ name, layer }));
   const grid = piece.grid;
@@ -226,6 +238,7 @@ function writtenLayer(
 
   const classify = (anchor: Anchor, owner: NodeId): { target: StepTarget; mode: StitchInsertion; into: 'stitch' | 'chain' } => {
     if (anchor.into === 'ring') return { target: 'ring', mode: 'both-loops', into: 'stitch' };
+    if (anchor.into === 'row-end') throw unsupported('sorvégbe horgolt szemet tartalmaz; ez csak a szegélyben írható ki', owner);
     if (anchor.into === 'space') {
       if (anchor.id === ringSpace) return { target: 'chain-ring', mode: 'both-loops', into: 'stitch' };
       const chains = spacePositions(below, graph.spaces.get(anchor.id)!).map((id) => workingIndex.get(id));
@@ -391,14 +404,28 @@ function writtenLayer(
     steps.splice(0, 2);
   }
 
+  const written = foldRepeats(mergeSteps(steps, library), layer.shape === 'round');
+  // Minden megmaradt láncszembe egy alapszem vagy kúszószem, színváltás nélkül (PQW-895).
+  const [only] = written;
+  const onlyKind = only?.kind === 'stitch' ? library.get(only.def)?.kind : undefined;
+  const eachChain =
+    hookRow &&
+    written.length === 1 &&
+    only?.kind === 'stitch' &&
+    (onlyKind === 'basic' || onlyKind === 'slip') &&
+    only.target === 'next' &&
+    only.into === 'chain' &&
+    only.changeTo === undefined &&
+    only.count === working.length - cursorStart - leadSkipped;
+
   return {
     index,
     shape: layer.shape,
     side: layer.side,
     fromHook: hookRow
-      ? { chain: layer.turningChain.length + (baseChain ? 2 : 1) + leadChains + leadSkipped, countsAs, chains: leadChains }
+      ? { chain: layer.turningChain.length + (baseChain ? 2 : 1) + leadChains + leadSkipped, countsAs, chains: leadChains, eachChain }
       : null,
-    steps: foldRepeats(mergeSteps(steps, library), layer.shape === 'round'),
+    steps: written,
     stitchCount: layer.stitchCount,
     closing: layer.closing?.kind ?? null,
     joinTo,
