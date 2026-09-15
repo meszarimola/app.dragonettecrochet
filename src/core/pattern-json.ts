@@ -169,10 +169,12 @@ export const GAUGE_STITCHES: readonly StitchDefId[] = ['sc', 'hdc', 'dc', 'tr'];
 const GAUGE_FORMS: readonly GaugeForm[] = ['rows', 'rounds'];
 
 function readPattern(value: unknown, path: string): Pattern {
-  const raw = object(value, path, ['formatVersion', 'title', 'conventions', 'pieces'], ['notation', 'gauge', 'joins', 'toy']);
+  const raw = object(value, path, ['formatVersion', 'title', 'conventions', 'pieces'], ['titleGenerated', 'notation', 'gauge', 'joins', 'toy']);
   return {
     formatVersion: oneOf(raw['formatVersion'], `${path}.formatVersion`, [FORMAT_VERSION]),
     title: text(raw['title'], `${path}.title`),
+    // A PQW-896 előtti mentésben nincs: a pattern-title.ts a címből dönt.
+    ...(raw['titleGenerated'] === undefined ? {} : { titleGenerated: boolean(raw['titleGenerated'], `${path}.titleGenerated`) }),
     ...(raw['notation'] === undefined ? {} : { notation: readNotation(raw['notation'], `${path}.notation`) }),
     ...(raw['gauge'] === undefined ? {} : { gauge: readGauge(raw['gauge'], `${path}.gauge`) }),
     conventions: readPatternConventions(raw['conventions'], `${path}.conventions`),

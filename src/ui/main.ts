@@ -1192,7 +1192,8 @@ importFile.addEventListener('change', () => {
 
 titleInput.addEventListener('change', () => {
   const title = titleInput.value.trim();
-  if (title !== history.present.title) commit({ ok: true, pattern: { ...history.present, title } }, 'A minta neve módosult.');
+  // A kézzel írt cím saját cím: a generátor nem írja felül (PQW-896).
+  if (title !== history.present.title) commit({ ok: true, pattern: { ...history.present, title, titleGenerated: false } }, 'A minta neve módosult.');
 });
 
 countInput.addEventListener('change', () => refresh());
