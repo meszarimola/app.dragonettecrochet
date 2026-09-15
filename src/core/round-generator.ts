@@ -28,6 +28,7 @@ import { flatIncreases, type FlatIncreases } from './rounds.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import { traditionOf, turningChainCountsFor } from './tradition.ts';
 import type { Anchor, LayerEvent, NodeId, Pattern, Piece, Ring, Space, SpaceId, StitchDef, StitchDefId, StitchGroup, StitchNode } from './types.ts';
+import { withGeneratedTitle } from './pattern-title.ts';
 
 export type MotifShape = 'circle' | 'square' | 'hexagon' | 'octagon' | 'granny-square';
 export type RoundStart = 'magic-ring' | 'chain-ring' | 'chain';
@@ -137,9 +138,8 @@ export function generateMotif(pattern: Pattern, options: MotifOptions): MotifRes
 
   const name = MOTIF_NAMES[options.shape];
   const piece = writer.piece('p1', name, MOTIF_CORNERS[options.shape]);
-  // Az alapértelmezett és a generátor adta címet a forma neve váltja; a saját címet megtartjuk.
-  const untitled = pattern.title.trim() === '' || pattern.title === 'Új minta' || Object.values(MOTIF_NAMES).includes(pattern.title);
-  const result: Pattern = { ...base, title: untitled ? name : pattern.title, pieces: [withStatedCounts(base, piece)] };
+  // Az alapértelmezett és a generátor adta címet a forma neve váltja; a saját címet megtartjuk (PQW-896).
+  const result = withGeneratedTitle({ ...base, pieces: [withStatedCounts(base, piece)] }, pattern, name, Object.values(MOTIF_NAMES));
   return { ok: true, pattern: result, increases };
 }
 
