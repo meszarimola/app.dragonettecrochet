@@ -49,17 +49,19 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
   (pl. „4 hiba”); kattintásra a vászon az érintett szemre ugrik. A félkész sor
   hátralévő célpontjai nem hibák.
 - **Kézi igazítás:** kiválasztott szem nélkül a jel kijelölhető, és húzással,
-  `Alt`+nyilakkal vagy a Beállítások panel gombjaival eltolható. Az eltolás
+  `Alt`+nyilakkal vagy a jobb oldali panel gombjaival eltolható. Az eltolás
   csak a rajzon változtat.
 - **Mentés:** minden változás a böngészőbe mentődik (`localStorage`); JSON
   mentése és betöltése; PNG és SVG export jelmagyarázattal.
 - **Tükrözött nézet** balkezeseknek (`M`).
 - **Felület** (PQW-873): ikonos menüsor csoportokba rendezve (fájl,
   szerkesztés, sor és kör, kijelölés, nézet), minden ikonon tooltip a
-  gyorsbillentyűvel; bal oldalt lenyitható **mintatípus**-menü (most a
-  szabályos horgolás aktív, a többi „hamarosan”); a szemek jobbról **legördülő
-  szemválasztóból**, csoportokkal és jel-előnézettel. A kijelölés-, törlés- és
-  duplikálás-ikon csak helyet foglal, a művelet a PQW-875-ben jön.
+  gyorsbillentyűvel (saját tooltip: azonnal, fókuszra és inaktív gombon is);
+  bal oldalt lenyitható **mintatípus**-menü (most a szabályos horgolás aktív, a
+  többi „hamarosan”); jobb oldalt összecsukható szakaszok: legfelül a
+  **szemek** listája csoportokkal és jel-előnézettel, alatta a ritkán állított
+  jelölés és jelek (alapból csukva), majd a minta neve (PQW-882). A kijelölés-,
+  törlés- és duplikálás-ikon csak helyet foglal, a művelet a PQW-875-ben jön.
 - **Írott minta** (PQW-868, PQW-873): a vászon alján lenyitható panelben a
   minta szövege, minden szerkesztés után frissül, és egy gombbal másolható.
   Félkész sornál és hibás mintánál megjegyzés kíséri; amit a szöveg még nem tud
@@ -103,7 +105,7 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/core/stitch-variants.ts` | Az összetett szemek változatai azonosítóból (pl. `inc-3dc`), és a minta könyvtára. |
 | `src/ui/chart-svg.ts` | A diagram SVG-ként jelmagyarázattal; ebből készül az SVG- és a PNG-export. DOM nélküli. |
 | `src/ui/board.ts` | A vászon: nézet (nagyítás, eltolás), kirajzolás az elrendezésből, célpontok, hibajelölés, találatkeresés. |
-| `src/ui/main.ts` | Belépési pont: állapot és visszavonás, ikonos menüsor, mintatípus-menü, legördülő szemválasztó és hibalista, jelölés és írott minta, billentyűk és egér, mentés, export. |
+| `src/ui/main.ts` | Belépési pont: állapot és visszavonás, ikonos menüsor, mintatípus-menü, szemválasztó panel és hibalista, jelölés és írott minta, billentyűk és egér, mentés, export. |
 | `src/ui/styles.css` | A fő oldal design tokenjeinek szűk metszete. Konkrét hexet komponensben ne írj le. |
 | `src/ui/consent.ts`, `src/ui/analytics.ts` | **A fő oldal repójából másolva, változtatás nélkül** (csak az import kiterjesztése `.js`). Ha ott változik, itt is kell. |
 | `src/ui/consentBanner.ts` | A süti-sáv és a jelkészlet „Süti-beállítások" gombja. |
@@ -111,7 +113,7 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `public/.htaccess` | Biztonsági fejlécek és cache. A CSP a GA-azonosítóval együtt változik — a `tests/analytics.test.mjs` őrzi. |
 | `tests/*.test.mjs` | `node:test` tesztek; a `core-*` a magot, a `ui-*` a jelrajzot, a palettát és az SVG-t, az `analytics` a süti-sávot és a CSP-t, a `hu-vocabulary` a magyar szóhasználatot (szem = stitch) nézi. |
 | `tests/fixtures/written/` | Az írott minta rögzített szövege kidolgozott példánként (`hu`, `en-US`); a magyart a tulajdonos hagyja jóvá. |
-| `e2e/*.spec.ts`, `playwright.config.ts` | Böngészős tesztek a kritikus utakra: téglalap billentyűzettel, mentés és újratöltés, export, az írott minta panelje jelölésváltással (`editor.spec.ts`); mintatípus-választás, legördülő szemválasztó, hibaszámláló, alsó írott panel (`felulet.spec.ts`). |
+| `e2e/*.spec.ts`, `playwright.config.ts` | Böngészős tesztek a kritikus utakra: téglalap billentyűzettel, mentés és újratöltés, export, az írott minta panelje jelölésváltással (`editor.spec.ts`); mintatípus-választás, szemválasztás a panelből, hibaszámláló, alsó írott panel (`felulet.spec.ts`); az elrendezés helyei (`elrendezes.spec.ts`); a panel szakaszai és a tooltipek (`panel.spec.ts`). |
 | `tests/*.check.ts` | Csak fordítási próba: a `tsconfig.core.json` típusellenőrzi, nem fut. |
 | `tsconfig.core.json` | A `src/core/` típusellenőrzése DOM-típusok nélkül. |
 

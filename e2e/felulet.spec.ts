@@ -1,6 +1,6 @@
 /*
  * A szerkesztő átszervezett felülete (PQW-873): bal oldali mintatípus-menü,
- * ikonos menüsor, legördülő szemválasztó, a menüsorban hibaszámláló, és az
+ * ikonos menüsor, szemválasztó a jobb oldali panelen (PQW-882), a menüsorban hibaszámláló, és az
  * írott minta a vászon alján lenyitható panelben.
  */
 
@@ -24,18 +24,16 @@ test('mintatípus: a szabályos aktív, a többi „hamarosan” és inaktív', 
   }
 });
 
-test('szemválasztás a legördülőből, majd horgolás egérrel', async ({ page }) => {
+test('szemválasztás a jobb oldali panelből, majd horgolás', async ({ page }) => {
   await open(page);
 
-  const stitchToggle = page.locator('#stitch-toggle');
-  const stitchMenu = page.locator('#stitch-menu');
+  const palette = page.locator('#palette');
+  await expect(palette).toBeVisible();
 
-  // Láncszem kiválasztása a legördülőből.
-  await stitchToggle.click();
-  await expect(stitchToggle).toHaveAttribute('aria-expanded', 'true');
-  await stitchMenu.getByRole('button', { name: /Láncszem/ }).first().click();
-  await expect(stitchMenu).toBeHidden();
-  await expect(page.locator('#stitch-current')).toContainText('Láncszem');
+  // Láncszem kiválasztása a panel listájából.
+  const chain = palette.getByRole('button', { name: /Láncszem/ }).first();
+  await chain.click();
+  await expect(chain).toHaveAttribute('aria-pressed', 'true');
 
   // Láncalap a megadott számú láncszemmel.
   await page.locator('#chain-count').focus();
@@ -44,10 +42,11 @@ test('szemválasztás a legördülőből, majd horgolás egérrel', async ({ pag
   await page.locator('#board').focus();
   await page.keyboard.press('Enter');
 
-  // Rövidpálcás sor, szintén a legördülőből választva.
-  await stitchToggle.click();
-  await stitchMenu.getByRole('button', { name: /Rövidpálca \(rp\)/ }).first().click();
-  await expect(page.locator('#stitch-current')).toContainText('Rövidpálca (rp)');
+  // Rövidpálcás sor, szintén a panelből választva.
+  const sc = palette.getByRole('button', { name: /Rövidpálca \(rp\)/ }).first();
+  await sc.click();
+  await expect(sc).toHaveAttribute('aria-pressed', 'true');
+  await expect(chain).toHaveAttribute('aria-pressed', 'false');
   await page.locator('#board').focus();
   for (let i = 0; i < 7; i += 1) await page.keyboard.press('Enter');
 
