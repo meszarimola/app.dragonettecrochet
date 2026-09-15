@@ -45,18 +45,25 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
   kezdő oldalán, a szemszám a végén; a színoldali és a visszai sorok színe
   eltér. Új szem csak a saját sorát rendezi át.
 - **Élő ellenőrzés:** hibák és figyelmeztetések a vásznon (teli, illetve
-  szaggatott karika) és a panel listájában. A félkész sor hátralévő célpontjai
-  nem hibák.
+  szaggatott karika) és a menüsor összecsukható hibalistájában, számlálóval
+  (pl. „4 hiba”); kattintásra a vászon az érintett szemre ugrik. A félkész sor
+  hátralévő célpontjai nem hibák.
 - **Kézi igazítás:** kiválasztott szem nélkül a jel kijelölhető, és húzással,
-  `Alt`+nyilakkal vagy a panel gombjaival eltolható. Az eltolás csak a rajzon
-  változtat.
+  `Alt`+nyilakkal vagy a Beállítások panel gombjaival eltolható. Az eltolás
+  csak a rajzon változtat.
 - **Mentés:** minden változás a böngészőbe mentődik (`localStorage`); JSON
   mentése és betöltése; PNG és SVG export jelmagyarázattal.
 - **Tükrözött nézet** balkezeseknek (`M`).
-- **Írott minta** (PQW-868): a vászon bal oldalán, a fejléc „Írott minta”
-  gombjával nyitható panelben a minta szövege, minden szerkesztés után
-  frissül, és egy gombbal másolható. Félkész sornál és hibás mintánál
-  megjegyzés kíséri; amit a szöveg még nem tud kifejezni, arról üzenet szól.
+- **Felület** (PQW-873): ikonos menüsor csoportokba rendezve (fájl,
+  szerkesztés, sor és kör, kijelölés, nézet), minden ikonon tooltip a
+  gyorsbillentyűvel; bal oldalt lenyitható **mintatípus**-menü (most a
+  szabályos horgolás aktív, a többi „hamarosan”); a szemek jobbról **legördülő
+  szemválasztóból**, csoportokkal és jel-előnézettel. A kijelölés-, törlés- és
+  duplikálás-ikon csak helyet foglal, a művelet a PQW-875-ben jön.
+- **Írott minta** (PQW-868, PQW-873): a vászon alján lenyitható panelben a
+  minta szövege, minden szerkesztés után frissül, és egy gombbal másolható.
+  Félkész sornál és hibás mintánál megjegyzés kíséri; amit a szöveg még nem tud
+  kifejezni, arról üzenet szól.
 - **Jelölés és jelstílus** (PQW-868): magyar, amerikai (US terms) vagy brit
   (UK terms) jelölés, CYC vagy japán (JIS) jelek, a rövidpálca + vagy ×. A
   felület nyelvétől független; a paletta, a szemnevek, a vászon, az írott
@@ -87,6 +94,7 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/core/pattern-read.ts`, `src/core/canonical.ts` | A saját szöveg visszaolvasása gráffá, a szöveg sorára mutató hibával; két minta összevetése az azonosítóktól függetlenül. |
 | `src/core/repeat.ts`, `src/core/stitch-library.ts` | Láncalap és „X többszöröse + Y” számítása; a szemkönyvtár mint azonosító → definíció. |
 | `src/ui/palette.ts` | A paletta tartalma a könyvtárból, a választott jelöléssel: csoportcímek, feliratok, gyorsbillentyűk, DOM nélkül. |
+| `src/ui/pattern-types.ts` | A bal oldali mintatípus-menü tartalma (PQW-873): a négy típus neve, magyarázata és hogy be van-e kapcsolva. DOM nélküli. |
 | `src/ui/notation.ts` | **A jelölés és a jelstílus beállítása** (PQW-868): alapértelmezés a felület nyelvéből, tárolás, a jelrajz beállítása, a minta jelölésének rögzítése. DOM nélküli. |
 | `src/ui/written.ts` | **Az írott minta panelje** (PQW-868): a szöveg a jelöléssel, vagy érthető üzenet, ha a minta még nem írható ki. DOM nélküli. |
 | `src/core/editor.ts` | **A szerkesztő műveletei** (PQW-857): célpontok, horgolás, „még egy ugyanabba”, fordulás, körzárás, az utolsó lépés törlése, kézi igazítás, élő ellenőrzés. |
@@ -95,7 +103,7 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/core/stitch-variants.ts` | Az összetett szemek változatai azonosítóból (pl. `inc-3dc`), és a minta könyvtára. |
 | `src/ui/chart-svg.ts` | A diagram SVG-ként jelmagyarázattal; ebből készül az SVG- és a PNG-export. DOM nélküli. |
 | `src/ui/board.ts` | A vászon: nézet (nagyítás, eltolás), kirajzolás az elrendezésből, célpontok, hibajelölés, találatkeresés. |
-| `src/ui/main.ts` | Belépési pont: állapot és visszavonás, paletta, jelölés és írott minta, billentyűk és egér, mentés, export. |
+| `src/ui/main.ts` | Belépési pont: állapot és visszavonás, ikonos menüsor, mintatípus-menü, legördülő szemválasztó és hibalista, jelölés és írott minta, billentyűk és egér, mentés, export. |
 | `src/ui/styles.css` | A fő oldal design tokenjeinek szűk metszete. Konkrét hexet komponensben ne írj le. |
 | `src/ui/consent.ts`, `src/ui/analytics.ts` | **A fő oldal repójából másolva, változtatás nélkül** (csak az import kiterjesztése `.js`). Ha ott változik, itt is kell. |
 | `src/ui/consentBanner.ts` | A süti-sáv és a jelkészlet „Süti-beállítások" gombja. |
@@ -103,7 +111,7 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `public/.htaccess` | Biztonsági fejlécek és cache. A CSP a GA-azonosítóval együtt változik — a `tests/analytics.test.mjs` őrzi. |
 | `tests/*.test.mjs` | `node:test` tesztek; a `core-*` a magot, a `ui-*` a jelrajzot, a palettát és az SVG-t, az `analytics` a süti-sávot és a CSP-t, a `hu-vocabulary` a magyar szóhasználatot (szem = stitch) nézi. |
 | `tests/fixtures/written/` | Az írott minta rögzített szövege kidolgozott példánként (`hu`, `en-US`); a magyart a tulajdonos hagyja jóvá. |
-| `e2e/*.spec.ts`, `playwright.config.ts` | Böngészős tesztek a kritikus utakra: téglalap billentyűzettel, mentés és újratöltés, export, az írott minta panelje jelölésváltással. |
+| `e2e/*.spec.ts`, `playwright.config.ts` | Böngészős tesztek a kritikus utakra: téglalap billentyűzettel, mentés és újratöltés, export, az írott minta panelje jelölésváltással (`editor.spec.ts`); mintatípus-választás, legördülő szemválasztó, hibaszámláló, alsó írott panel (`felulet.spec.ts`). |
 | `tests/*.check.ts` | Csak fordítási próba: a `tsconfig.core.json` típusellenőrzi, nem fut. |
 | `tsconfig.core.json` | A `src/core/` típusellenőrzése DOM-típusok nélkül. |
 

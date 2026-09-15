@@ -53,6 +53,7 @@ import {
   writeNotation,
 } from './notation.js';
 import { buildPalette, type PaletteItem } from './palette.js';
+import { DEFAULT_PATTERN_TYPE, PATTERN_TYPES, isAvailableType, type PatternTypeId } from './pattern-types.js';
 import { applyInk, drawCentered, readInk, shapeBounds, stemLength, symbolShapes, type SymbolOptions } from './symbols.js';
 import { writtenView } from './written.js';
 
@@ -85,11 +86,21 @@ const termsSelect = must<HTMLSelectElement>('#terms');
 const styleSelect = must<HTMLSelectElement>('#chart-style');
 const scMarkField = must<HTMLFieldSetElement>('#sc-mark');
 const scMarkJis = must<HTMLParagraphElement>('#sc-mark-jis');
+const typesNav = must<HTMLElement>('#types');
+const typesToggle = must<HTMLButtonElement>('#types-toggle');
+const typesList = must<HTMLUListElement>('#types-list');
+const errorToggle = must<HTMLButtonElement>('#error-toggle');
+const errorCount = must<HTMLElement>('#error-count');
+const errorsPop = must<HTMLElement>('#errors');
+const stitchToggle = must<HTMLButtonElement>('#stitch-toggle');
+const stitchMenu = must<HTMLElement>('#stitch-menu');
+const stitchCurrent = must<HTMLElement>('#stitch-current');
 
 const STORAGE_KEY = 'dc-mintatervezo:minta';
 const SETTINGS_KEY = 'dc-mintatervezo:nezet';
 const NOTATION_KEY = 'dc-mintatervezo:jeloles';
 const WRITTEN_KEY = 'dc-mintatervezo:irott-minta';
+const TYPE_KEY = 'dc-mintatervezo:tipus';
 /** Ennél keskenyebb képernyőn a két panel nem fér el egymás mellett. */
 const NARROW = window.matchMedia('(width < 48rem)');
 const STRUCTURAL_RULES = new Set(['unknown-stitch', 'dangling-reference', 'yarn-path']);
@@ -104,6 +115,8 @@ let cursorMoved = false;
 let hover: number | null = null;
 let selectedNode: NodeId | null = null;
 let mirror = readMirror();
+/** A választott mintatípus; a böngészőben marad. Most csak a „szabályos” aktív. */
+let patternType: PatternTypeId = readType();
 /** A jelölés és a jelstílus; a böngészőben marad. */
 let notation = readStoredNotation();
 let symbols: SymbolOptions = symbolOptionsFor(notation);
@@ -200,6 +213,16 @@ function readStoredNotation(): PatternNotation {
   }
 }
 
+function readType(): PatternTypeId {
+  let saved: string | null = null;
+  try {
+    saved = localStorage.getItem(TYPE_KEY);
+  } catch {
+    return DEFAULT_PATTERN_TYPE;
+  }
+  return saved && isAvailableType(saved) ? saved : DEFAULT_PATTERN_TYPE;
+}
+
 function structuralProblem(pattern: Pattern): string | null {
   const finding = validatePattern(pattern, libraryFor(pattern)).find((f) => STRUCTURAL_RULES.has(f.rule));
   return finding ? RULES[finding.rule as keyof typeof RULES].message : null;
@@ -208,7 +231,7 @@ function structuralProblem(pattern: Pattern): string | null {
 /* ---- Frissítés ---- */
 
 const insetRight = () => (panel.hidden ? 0 : panel.getBoundingClientRect().width);
-const insetLeft = () => (written.hidden ? 0 : written.getBoundingClientRect().width);
+const insetLeft = () => (typesNav.hidden ? 0 : typesNav.getBoundingClientRect().width);
 const fitBoard = () => board.fit(insetRight(), insetLeft());
 const showPoint = (point: Point) => board.ensureVisible(point, insetRight(), insetLeft());
 
@@ -317,6 +340,12 @@ function updateControls(): void {
   const layers = context.graph ? context.graph.layers.length - 1 : 0;
   const errors = check.findings.filter((f) => f.severity === 'error').length;
   const warnings = check.findings.length - errors;
+  errorCount.textContent =
+    check.findings.length === 0
+      ? 'Nincs hiba'
+      : [errors ? `${errors} hiba` : '', warnings ? `${warnings} figyelmeztetés` : ''].filter(Boolean).join(' · ');
+  errorToggle.classList.toggle('has-errors', errors > 0);
+  errorToggle.classList.toggle('has-warnings', errors === 0 && warnings > 0);
   const parts = [
     empty ? 'Üres minta: kezdd láncalappal (Láncszem) vagy varázskörrel.' : `${layers} ${context.shape === 'round' ? 'kör' : 'sor'}. ${progress()}`,
     check.findings.length === 0 ? 'Nincs hiba és figyelmeztetés.' : `${errors} hiba, ${warnings} figyelmeztetés.`,
@@ -337,6 +366,7 @@ function updateControls(): void {
         const first = finding.nodes.find((id) => derived.layout.nodes.has(id));
         if (!first) return;
         selectedNode = first;
+        closePopover(errorsPop, errorToggle);
         refresh(`Kijelölve a hiba első szeme.`);
         showPoint(derived.layout.nodes.get(first)!.top);
       });
@@ -526,7 +556,10 @@ function stitchButton(item: PaletteItem): HTMLButtonElement {
   }
 
   // A kiválasztott jelre újra kattintva megszűnik a kijelölés.
-  button.addEventListener('click', () => select(tool === item.def.id ? null : item.def.id));
+  button.addEventListener('click', () => {
+    select(tool === item.def.id ? null : item.def.id);
+    closePopover(stitchMenu, stitchToggle);
+  });
   return button;
 }
 
@@ -538,6 +571,7 @@ function select(id: StitchDefId | null): void {
 
   const item = items.find((candidate) => candidate.def.id === id);
   const kind = item?.def.kind;
+  stitchCurrent.textContent = item ? item.name : 'Válassz szemet';
   countField.hidden = kind !== 'chain' && kind !== 'space';
   if (!item) hint.textContent = 'Válassz szemet. Szem nélkül kattintással a jelet jelölöd ki, és igazíthatod.';
   else if (kind === 'chain' || kind === 'space') hint.textContent = `${item.name}: Enterrel vagy a vászonra kattintva horgolod, a megadott számú láncszemmel.`;
@@ -791,6 +825,97 @@ titleInput.addEventListener('change', () => {
 
 countInput.addEventListener('change', () => refresh());
 
+/* ---- Legördülő menük (szemválasztó, hibalista) ---- */
+
+function openPopover(pop: HTMLElement, button: HTMLButtonElement): void {
+  pop.hidden = false;
+  button.setAttribute('aria-expanded', 'true');
+}
+
+function closePopover(pop: HTMLElement, button: HTMLButtonElement): void {
+  pop.hidden = true;
+  button.setAttribute('aria-expanded', 'false');
+}
+
+function togglePopover(pop: HTMLElement, button: HTMLButtonElement): void {
+  if (pop.hidden) openPopover(pop, button);
+  else closePopover(pop, button);
+}
+
+function closeAllPopovers(): void {
+  closePopover(errorsPop, errorToggle);
+  closePopover(stitchMenu, stitchToggle);
+}
+
+errorToggle.addEventListener('click', () => togglePopover(errorsPop, errorToggle));
+stitchToggle.addEventListener('click', () => togglePopover(stitchMenu, stitchToggle));
+
+// A menün kívülre kattintva a legördülők bezárulnak.
+document.addEventListener('click', (event) => {
+  if (!(event.target as Element).closest('.menu')) closeAllPopovers();
+});
+
+/* ---- Mintatípus (bal oldali menü) ---- */
+
+const TYPE_ICONS: Readonly<Record<PatternTypeId, string>> = {
+  regular:
+    '<svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M4 4h12v12H4zM4 8h12M4 12h12M8 4v12M12 4v12"/></svg>',
+  filet:
+    '<svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M4 4h12v12H4zM4 8h12M4 12h12M8 4v12M12 4v12"/><path d="M8 8h4v4H8z" fill="currentColor" stroke="none"/></svg>',
+  amigurumi:
+    '<svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 10m-1 0a1 1 0 1 0 2 0a1 1 0 1 0-2 0M10 7a3 3 0 0 1 3 3 3 3 0 0 1-5 2M13 10a4.5 4.5 0 0 1-7.5 3.3"/></svg>',
+  irregular:
+    '<svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M6 5c3-1 6 0 7 3s-1 6-4 6-6-2-6-5c0-2 1-3 3-4z"/></svg>',
+};
+
+function typeIcon(id: PatternTypeId): HTMLElement {
+  const wrap = document.createElement('span');
+  wrap.className = 'type__icon';
+  wrap.setAttribute('aria-hidden', 'true');
+  wrap.innerHTML = TYPE_ICONS[id];
+  return wrap;
+}
+
+function renderTypes(): void {
+  typesList.replaceChildren(
+    ...PATTERN_TYPES.map((type) => {
+      const item = document.createElement('li');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'type';
+      button.dataset.type = type.id;
+      button.disabled = !type.available;
+      button.setAttribute('aria-pressed', String(type.available && type.id === patternType));
+
+      button.append(typeIcon(type.id));
+      const label = span('type__label', '');
+      label.append(span('type__name', type.name), span('type__detail', type.detail));
+      button.append(label);
+      if (!type.available) button.append(span('type__badge', 'Hamarosan'));
+      else button.addEventListener('click', () => selectType(type.id));
+
+      item.append(button);
+      return item;
+    }),
+  );
+}
+
+function selectType(id: PatternTypeId): void {
+  patternType = id;
+  try {
+    localStorage.setItem(TYPE_KEY, id);
+  } catch {
+    // A választás enélkül is érvényes, csak újratöltés után nem marad meg.
+  }
+  for (const button of typesList.querySelectorAll<HTMLButtonElement>('.type')) {
+    button.setAttribute('aria-pressed', String(button.dataset.type === id));
+  }
+  const type = PATTERN_TYPES.find((candidate) => candidate.id === id);
+  if (type) announce(`Mintatípus: ${type.name}. ${type.detail}`);
+}
+
+typesToggle.addEventListener('click', () => setOpen(typesNav, typesToggle, typesNav.hasAttribute('hidden')));
+
 toggle.addEventListener('click', () => {
   const open = panel.hasAttribute('hidden');
   setOpen(panel, toggle, open);
@@ -912,6 +1037,15 @@ document.addEventListener('keydown', (event) => {
   if (target.closest('input, textarea, select')) return;
   const key = event.key;
 
+  // Nyitott legördülőt az Escape először bezár, és a fókuszt visszaviszi a gombra.
+  if (key === 'Escape' && (!errorsPop.hidden || !stitchMenu.hidden)) {
+    event.preventDefault();
+    const button = !stitchMenu.hidden ? stitchToggle : errorToggle;
+    closeAllPopovers();
+    button.focus();
+    return;
+  }
+
   if ((event.ctrlKey || event.metaKey) && !event.altKey) {
     const lower = key.toLowerCase();
     if (lower === 'z') {
@@ -995,7 +1129,10 @@ document.addEventListener('keydown', (event) => {
 /* ---- Indulás ---- */
 
 syncNotationControls();
+renderTypes();
 renderPalette();
+setOpen(typesNav, typesToggle, !NARROW.matches);
+setOpen(panel, toggle, !NARROW.matches);
 setOpen(written, writtenToggle, readWrittenOpen() && !NARROW.matches);
 select(null);
 fitBoard();
