@@ -28,7 +28,7 @@
  * fogyasztáson kívül, láncalap nélküli darab, darabok összekapcsolása.
  */
 
-import { borderOf, type BorderCounts } from './border.ts';
+import { borderLayerIndex, borderOf, borderOfLayer, type BorderCounts } from './border.ts';
 import { buildPieceGraph, spacePositions, type PieceGraph } from './graph.ts';
 import { modeAsWorked } from './insertion.ts';
 import type { StitchLibrary } from './stitch-library.ts';
@@ -159,7 +159,11 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
 
   const row1 = graph.layers[1];
   const kind: WrittenPiece['foundation']['kind'] = chainRing ? 'chain-ring' : onChain ? 'chain' : 'ring';
-  const layers = graph.layers.slice(1).map((_, i) => writtenLayer(graph, i + 1, kind, library, traditionOf(pattern.conventions)));
+  // A szegély rétege (PQW-889) nem sor: a szegély mondata írja le.
+  const borderIndex = borderLayerIndex(graph);
+  const layers = graph.layers
+    .slice(1)
+    .flatMap((layer, i) => (layer.border ? [] : [writtenLayer(graph, i + 1, kind, library, traditionOf(pattern.conventions))]));
   const foundation: WrittenPiece['foundation'] = chainRing
     ? { kind: 'chain-ring', count: base.stitches.length }
     : onChain
@@ -167,9 +171,12 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
       : { kind: 'ring' };
   let border: WrittenBorder | null = null;
   if (piece.border) {
-    const result = borderOf(graph, piece.border);
+    // A PQW-889 előtti mentésben a szegélynek még nincs rétege: ott a sorokból számolunk.
+    const result = borderIndex >= 0 ? borderOfLayer(graph, borderIndex, piece.border) : borderOf(graph, piece.border);
     if (!result.ok) throw new WrittenPatternError(`A szegély nem írható ki: ${result.reason}`);
     border = { stitch: piece.border.stitch, counts: result.counts };
+  } else if (borderIndex >= 0) {
+    throw new WrittenPatternError('A szegély választása hiányzik a darabból, ezért a szegély nem írható ki.', graph.layers[borderIndex]!.stitches);
   }
   const sections = (piece.sections ?? []).map(({ name, layer }) => ({ name, layer }));
   const grid = piece.grid;
@@ -221,6 +228,7 @@ function writtenLayer(
 
   const classify = (anchor: Anchor, owner: NodeId): { target: StepTarget; mode: StitchInsertion; into: 'stitch' | 'chain' } => {
     if (anchor.into === 'ring') return { target: 'ring', mode: 'both-loops', into: 'stitch' };
+    if (anchor.into === 'row-end') throw unsupported('sorvégbe horgolt szemet tartalmaz; ez csak a szegélyben írható ki', owner);
     if (anchor.into === 'space') {
       if (anchor.id === ringSpace) return { target: 'chain-ring', mode: 'both-loops', into: 'stitch' };
       const chains = spacePositions(below, graph.spaces.get(anchor.id)!).map((id) => workingIndex.get(id));

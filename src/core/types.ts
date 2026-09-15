@@ -164,7 +164,14 @@ export type PieceId = string;
 export type Anchor =
   | { readonly into: 'stitch'; readonly id: NodeId; readonly mode: StitchInsertion }
   | { readonly into: 'space'; readonly id: SpaceId }
-  | { readonly into: 'ring'; readonly id: RingId };
+  | { readonly into: 'ring'; readonly id: RingId }
+  /**
+   * Sorvég (03 §10 „row end” él, PQW-889): a sor szélébe horgolt szem, a
+   * szegély oldalán. Az `id` a sor szélső szeme: az elején a fordulólánc
+   * teteje (ennek híján az első pozíció), a végén az utolsó pozíció
+   * (border.ts `rowEdges`). Egy sorvégbe több szem is mehet.
+   */
+  | { readonly into: 'row-end'; readonly id: NodeId };
 
 /**
  * Szándékos eltérés, amit az ellenőrző nem jelez hibának.
@@ -323,9 +330,10 @@ export interface Piece {
    */
   readonly sections?: readonly PieceSection[];
   /**
-   * Szegély a darab körül (PQW-862). Csak a választás tárolódik: a szemszámot
-   * az írott minta a sorokból számolja (border.ts). A gráfban még nincs
-   * csomópontja, mert a sorvégbe horgolt szem célpontját a gráf nem ismeri.
+   * Szegély a darab körül (PQW-862): a választás (szem, félpálcás sorvég). A
+   * PQW-889 óta a szegély a gráfban is réteg az utolsó sor után, a felső él
+   * szemeibe, a sorvégekbe és a láncalapba horgolva (border.ts). A korábbi
+   * mentésben csak a választás van; ott az írott minta a sorokból számol.
    */
   readonly border?: PieceBorder;
   /**

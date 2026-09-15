@@ -31,6 +31,7 @@
  * szomszédaik közé.
  */
 
+import { placeBorder } from './border.ts';
 import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
 import { CIRCLE, frameCoords, frameFor, frameNormal, framePoint, frameSide, perimeter, type Point, type RoundFrame } from './polygon.ts';
 import type { StitchLibrary } from './stitch-library.ts';
@@ -130,6 +131,8 @@ export function layoutPattern(pattern: Pattern, library: StitchLibrary, options:
   const W = options.columnWidth ?? DEFAULT_COLUMN;
   const stem = options.stemLength ?? defaultStem;
   const raw = new Layouter(graph, W, stem, detachedNodes(pattern, library)).run();
+  // A szegély a sorok köré kerül (PQW-889): a sorok után, a helyük ismeretében.
+  placeBorder(graph, raw.nodes, raw.layers, W, stem);
   return finish(graph, raw, options.mirror ?? false, W);
 }
 
@@ -228,6 +231,7 @@ class Layouter {
     this.#foundation(foundation!);
     let direction = 1;
     for (const layer of rest) {
+      if (layer.border) continue;
       if (!this.#round && (layer.index === 1 || layer.opening?.kind === 'turn')) direction = -direction;
       this.#layer(layer, this.#round ? 1 : direction);
     }

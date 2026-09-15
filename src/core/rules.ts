@@ -162,6 +162,21 @@ export const RULES = {
     message: 'Az ismételt mintában a sor több vagy kevesebb szemet ad, mint amennyit felhasznál.',
   },
 
+  /* ---- Szegély (PQW-889) ---- */
+  'border-row-end': {
+    severity: 'warning',
+    reference: '03 §10 H38, 03 §7.1',
+    summary:
+      'A szegély egy sorvégébe nem a sor szeméhez illő számú szem megy: rövidpálcás sorvégre 1, félpálcásra a darab választása szerint 1 vagy 2, pálcásra 2, kétráhajtásosra 3.',
+    message: 'A szegély oldalán egy sor végére nem annyi szem került, amennyi a sor magasságához illik: a szegély hullámos lesz vagy behúzza a szélt.',
+  },
+  'border-corner': {
+    severity: 'warning',
+    reference: '03 §7.1, 03 §10 H38',
+    summary: 'A szegély sarkába nem 3 szem megy.',
+    message: 'A szegély sarkába 3 szem kell, hogy a sarok laposan forduljon.',
+  },
+
   /* ---- Magasság ---- */
   'mixed-heights': {
     severity: 'warning',

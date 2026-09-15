@@ -15,7 +15,7 @@
  * sor végi szemszámot is összeveti a visszaolvasott gráf számolásával.
  */
 
-import { borderOf } from './border.ts';
+import { appendBorder, borderOf } from './border.ts';
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
 import { isStitchInsertion } from './insertion.ts';
 import { modeAsWorked, type Step, type StepTarget } from './pattern-steps.ts';
@@ -338,7 +338,7 @@ class PieceReader {
     });
 
     if (borderLine) this.readBorder(borderLine);
-    const piece = this.piece();
+    const piece = this.withBorder(this.piece(), borderLine);
     this.checkCounts(piece);
     return piece;
   }
@@ -359,6 +359,15 @@ class PieceReader {
       }
     }
     throw new ReadFailure(line.number, `Nem értelmezhető szegély: „${line.text}”.`);
+  }
+
+  /** A szegély rétege a sorok után, a szövegből kiderült választás szerint (PQW-889). */
+  private withBorder(piece: Piece, line: Line | undefined): Piece {
+    if (!this.border || !line) return piece;
+    const pattern: Pattern = { formatVersion: 1, title: this.title, conventions: this.options.conventions, pieces: [] };
+    const bordered = appendBorder(pattern, piece, this.options.library, this.border);
+    if (typeof bordered === 'string') throw new ReadFailure(line.number, bordered);
+    return bordered;
   }
 
   private piece(): Piece {
