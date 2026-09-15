@@ -74,6 +74,8 @@ test('ovális láncalapról (PQW-890): önállóan hibátlan, az 1. kör a lánc
   await expect(page.locator('#amigurumi-summary')).toContainText('láncszemből');
   await page.getByRole('button', { name: 'Új minta ebből' }).click();
   await expect(page.locator('#status')).toContainText('Talp elkészült;');
+  // A lezárt ovális után nincs következő kör (PQW-897).
+  await expect(page.locator('#status')).not.toContainText('következik');
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
   const text = (await page.locator('#written-text').textContent()) ?? '';
   expect(text).toMatch(/1\. kör: hagyj ki 1 láncszemet, majd \d+ rp, 4 rp a következő láncszembe, a láncszemek másik oldalán vissza: \d+ rp, 3 rp a következő láncszembe \(\d+\)\./);

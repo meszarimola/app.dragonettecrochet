@@ -394,3 +394,12 @@ describe('a kész szegély után (PQW-897)', () => {
     assert.match(generatedMessage(DEFAULT_SHAPE, rectangle().plan), /^Téglalap, \d+ sor elkészült; /);
   });
 });
+
+describe('a lezárt darab az amigurumiban is (PQW-897, PQW-890)', () => {
+  test('az önálló ovális után a darab lezárult: nincs következő kör', async () => {
+    const { createAmigurumi } = await import('../src/core/amigurumi-generator.ts');
+    const result = createAmigurumi(emptyPattern(), { name: 'Talp', shape: { kind: 'oval', lengthCm: 8, widthCm: 5 }, stagger: true, eyes: false }, false);
+    assert.ok(result.ok, result.reason);
+    assert.equal(pieceFinished(graphOf(result.pattern)), true);
+  });
+});
