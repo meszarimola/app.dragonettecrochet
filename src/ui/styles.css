@@ -324,7 +324,8 @@ body.is-selecting #board {
 .status {
   position: absolute;
   z-index: 6;
-  inset-block-end: 0;
+  /* Lenyitott írott mintánál a panel fölött, nem a szövegén (PQW-883). */
+  inset-block-end: var(--written-block, 0px);
   inset-inline-start: 0;
   max-inline-size: calc(100% - min(19rem, 80vw));
   margin: 0;
@@ -684,8 +685,9 @@ body.is-selecting #board {
   display: grid;
   align-content: start;
   gap: 0.75rem;
-  max-block-size: min(45vh, 22rem);
-  padding: 1rem 1.25rem 2.75rem;
+  /* Legfeljebb a munkaterület harmada, hogy alacsony ablakban is maradjon diagram (PQW-883). */
+  max-block-size: min(45vh, 22rem, 100% / 3);
+  padding: 1rem 1.25rem;
   overflow-y: auto;
   border-block-start: 1px solid var(--c-line);
   background: var(--c-bg);

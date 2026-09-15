@@ -76,3 +76,85 @@ test('az írott minta a saját gombjával és a menüsorból is lecsukható', as
   await writtenToggle.click();
   await expect(written).toBeHidden();
 });
+
+interface Point {
+  readonly x: number;
+  readonly y: number;
+}
+
+/** A sorszámok és a kurzor célpontja ablak-koordinátában (`window.mintatervezoRacs`, src/ui/main.ts). */
+const view = (page: Page) =>
+  page.evaluate(() => {
+    const api = (window as unknown as { mintatervezoRacs: { labels(): (Point & { layer: number })[]; cursor(): Point | null } })
+      .mintatervezoRacs;
+    return { labels: api.labels(), cursor: api.cursor() };
+  });
+
+/*
+ * Lenyitott írott minta mellett (PQW-883): az „Egész minta” a panel fölé
+ * illeszt, a kurzor célpontja nem kerül a panel alá, az állapotsor nem fedi
+ * a panel szövegét, és a panel legfeljebb a munkaterület harmada.
+ */
+for (const viewport of [
+  { width: 1440, height: 900 },
+  { width: 1000, height: 506 },
+]) {
+  test(`${viewport.width}×${viewport.height}: lenyitott írott mintánál a minta és a kurzor a panel fölött látszik`, async ({ page }) => {
+    test.slow();
+    await page.setViewportSize(viewport);
+    await open(page);
+    const written = page.locator('#written');
+    await expect(written).toBeVisible();
+
+    // 10 soros félpálcás téglalap billentyűvel: 1 = láncszem, 4 = félpálca, F = fordulás.
+    await page.locator('#board').focus();
+    await page.keyboard.press('1');
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('4');
+    for (let row = 1; row <= 10; row += 1) {
+      if (row > 1) await page.keyboard.press('f');
+      for (let i = 0; i < 10; i += 1) await page.keyboard.press('Enter');
+    }
+    await page.keyboard.press('f');
+    await expect(page.locator('#summary')).toContainText('11. sor következik.');
+
+    const stage = await box(page, '.stage');
+    const types = await box(page, '#types');
+    const panel = await box(page, '#panel');
+    const cover = await box(page, '#written');
+    expect(cover.height).toBeLessThanOrEqual(stage.height / 3 + 1);
+
+    /** A pont a vászon takarás nélküli részén: a két oldalsáv között, a panel fölött. */
+    const expectUncovered = (point: Point | null, name: string) => {
+      expect(point, name).not.toBeNull();
+      expect(point!.x, name).toBeGreaterThan(types.x + types.width);
+      expect(point!.x, name).toBeLessThan(panel.x);
+      expect(point!.y, name).toBeGreaterThan(stage.y);
+      expect(point!.y, name).toBeLessThan(cover.y);
+    };
+
+    await page.getByRole('button', { name: 'Egész minta' }).click();
+    const fitted = await view(page);
+    const rows = fitted.labels.filter((label) => label.layer <= 10);
+    expect(rows.map((label) => label.layer).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    for (const label of rows) expectUncovered(label, `${label.layer}. sor`);
+    expectUncovered(fitted.cursor, 'a kurzor célpontja az „Egész minta” után');
+
+    // Az állapotsor a panel fölött van, nem a szövegén.
+    const status = await box(page, '#status');
+    expect(status.y + status.height).toBeLessThanOrEqual(cover.y + 1);
+
+    // Csukott panelnél a kurzort a panel helyére toljuk; nyitáskor a nézet visszahozza.
+    await written.getByRole('button', { name: 'Lecsukás' }).click();
+    await expect(written).toBeHidden();
+    const before = (await view(page)).cursor!;
+    await page.mouse.move(panel.x - 40, stage.y + 40);
+    await page.mouse.wheel(0, before.y - (cover.y + stage.y + stage.height) / 2);
+    await expect.poll(async () => (await view(page)).cursor!.y).toBeGreaterThan(cover.y);
+
+    await page.locator('#written-toggle').click();
+    await expect(written).toBeVisible();
+    await expect.poll(async () => (await view(page)).cursor!.y).toBeLessThan(cover.y);
+    expectUncovered((await view(page)).cursor, 'a kurzor célpontja a panel lenyitása után');
+  });
+}

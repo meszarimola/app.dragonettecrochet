@@ -58,6 +58,14 @@ export interface Scene {
   readonly tradition?: Tradition;
 }
 
+/** A vászon egy téglalapja vászon-koordinátában (a takarás nélküli rész). */
+export interface Area {
+  readonly left: number;
+  readonly top: number;
+  readonly right: number;
+  readonly bottom: number;
+}
+
 interface View {
   scale: number;
   x: number;
@@ -207,26 +215,30 @@ export class Board {
     this.render();
   }
 
-  /** Az egész minta a látható részbe; `insetRight` és `insetLeft` a vászon fölött nyitott panelek szélessége. */
-  fit(insetRight = 0, insetLeft = 0): void {
+  /**
+   * Az egész minta a látható részbe. Az `inset…` értékek a vászon fölött nyitott
+   * panelek mérete: oldalt a szélességük, alul (az írott minta) a magasságuk.
+   */
+  fit(insetRight = 0, insetLeft = 0, insetBottom = 0): void {
     const layout = this.#scene?.layout;
     const { width, height } = this.#canvas.getBoundingClientRect();
+    const roomY = Math.max(height - insetBottom, 120);
     if (!layout || layout.nodes.size === 0) {
-      Object.assign(this.#view, { scale: 1.5, x: insetLeft + 60, y: height * 0.7 });
+      Object.assign(this.#view, { scale: 1.5, x: insetLeft + 60, y: roomY * 0.7 });
       this.render();
       return;
     }
     const { minX, minY, maxX, maxY } = layout.bounds;
     const room = Math.max(width - insetRight - insetLeft, 120);
-    const scale = Math.min(2, Math.max(MIN_SCALE, Math.min((room - 48) / (maxX - minX), (height - 72) / (maxY - minY))));
+    const scale = Math.min(2, Math.max(MIN_SCALE, Math.min((room - 48) / (maxX - minX), (roomY - 72) / (maxY - minY))));
     this.#view.scale = scale;
     this.#view.x = insetLeft + (room - (maxX - minX) * scale) / 2 - minX * scale;
-    this.#view.y = (height - (maxY - minY) * scale) / 2 - minY * scale;
+    this.#view.y = (roomY - (maxY - minY) * scale) / 2 - minY * scale;
     this.render();
   }
 
   /** Csak akkor tol a nézeten, ha a pont kilóg a látható részből; így szerkesztés közben a diagram nem ugrál. */
-  ensureVisible(point: Point, insetRight = 0, insetLeft = 0): void {
+  ensureVisible(point: Point, insetRight = 0, insetLeft = 0, insetBottom = 0): void {
     const { width, height } = this.#canvas.getBoundingClientRect();
     const s = this.#toScreen(point);
     const pad = 48;
@@ -235,11 +247,23 @@ export class Board {
     if (s.x < insetLeft + pad) dx = insetLeft + pad - s.x;
     else if (s.x > width - insetRight - pad) dx = width - insetRight - pad - s.x;
     if (s.y < pad) dy = pad - s.y;
-    else if (s.y > height - pad) dy = height - pad - s.y;
+    else if (s.y > height - insetBottom - pad) dy = height - insetBottom - pad - s.y;
     if (dx === 0 && dy === 0) return;
     this.#view.x += dx;
     this.#view.y += dy;
     this.render();
+  }
+
+  /** Az egész minta a megadott részen belül van-e (vászon-koordinátában); üres mintánál nem. */
+  patternWithin(area: Area): boolean {
+    const layout = this.#scene?.layout;
+    if (!layout || layout.nodes.size === 0) return false;
+    const { minX, minY, maxX, maxY } = layout.bounds;
+    const a = this.#toScreen({ x: minX, y: minY });
+    const b = this.#toScreen({ x: maxX, y: maxY });
+    return (
+      Math.min(a.x, b.x) >= area.left && Math.max(a.x, b.x) <= area.right && Math.min(a.y, b.y) >= area.top && Math.max(a.y, b.y) <= area.bottom
+    );
   }
 
   pan(dx: number, dy: number): void {

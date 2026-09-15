@@ -58,7 +58,7 @@ import { stitchName } from '../core/stitchText.js';
 import { traditionOf } from '../core/tradition.js';
 import type { Locale, NodeId, Pattern, PatternNotation, StitchDef, StitchDefId, Tradition } from '../core/types.js';
 import { validatePattern } from '../core/validate.js';
-import { Board, type DirectionArrow, type Target } from './board.js';
+import { Board, type Area, type DirectionArrow, type Target } from './board.js';
 import { chartSvg } from './chart-svg.js';
 import { setupConsentBanner } from './consentBanner.js';
 import { askConfirm } from './dialog.js';
@@ -101,6 +101,7 @@ const titleInput = must<HTMLInputElement>('#title');
 const importFile = must<HTMLInputElement>('#import-file');
 const adjust = must<HTMLElement>('#adjust');
 const adjustName = must<HTMLParagraphElement>('#adjust-name');
+const stage = must<HTMLElement>('.stage');
 const written = must<HTMLElement>('#written');
 const writtenToggle = must<HTMLButtonElement>('#written-toggle');
 const writtenText = must<HTMLPreElement>('#written-text');
@@ -286,8 +287,19 @@ function structuralProblem(pattern: Pattern): string | null {
 
 const insetRight = () => (panel.hidden ? 0 : panel.getBoundingClientRect().width);
 const insetLeft = () => (typesNav.hidden ? 0 : typesNav.getBoundingClientRect().width);
-const fitBoard = () => board.fit(insetRight(), insetLeft());
-const showPoint = (point: Point) => board.ensureVisible(point, insetRight(), insetLeft());
+// Az írott minta a vászon alján: a lenyitott panel magassága alsó takarás (PQW-883).
+const insetBottom = () => (written.hidden ? 0 : Math.max(0, canvas.getBoundingClientRect().bottom - written.getBoundingClientRect().top));
+const fitBoard = () => board.fit(insetRight(), insetLeft(), insetBottom());
+const showPoint = (point: Point) => board.ensureVisible(point, insetRight(), insetLeft(), insetBottom());
+
+/** A vászon takarás nélküli része, vászon-koordinátában. */
+function visibleArea(): Area {
+  const { width, height } = canvas.getBoundingClientRect();
+  return { left: insetLeft(), top: 0, right: width - insetRight(), bottom: height - insetBottom() };
+}
+
+/** A kurzor célpontja, ha a kiválasztott szem célpontba horgol. */
+const cursorPoint = (): Point | undefined => (tool && isTargeted(tool) ? derived.targets[cursor]?.point : undefined);
 
 function refresh(message?: string): void {
   derived = derive(preview ?? history.present);
@@ -343,7 +355,7 @@ function commit(result: EditResult, message: string): void {
   // Előbb újraszámolunk, hogy az állapotsor már az új mintát írja le.
   refresh();
   announce(`${message} ${progress()}`);
-  const point = (tool && isTargeted(tool) ? derived.targets[cursor]?.point : undefined) ?? lastTop();
+  const point = cursorPoint() ?? lastTop();
   if (point) showPoint(point);
 }
 
@@ -1449,13 +1461,41 @@ setOpen(panel, toggle, !NARROW.matches);
 setOpen(written, writtenToggle, readWrittenOpen() && !NARROW.matches);
 select(null);
 fitBoard();
+
+/*
+ * Az írott minta nyitásakor, csukásakor és átméretezéskor a nézet igazodik
+ * (PQW-883): a kurzor a takarás fölé kerül; kurzor nélkül újra illesztünk, ha
+ * eddig az egész minta látszott, most viszont takarásba kerülne. Az állapotsor
+ * a panel fölé kerül (`--written-block`).
+ */
+let shownArea = visibleArea();
+function realign(): void {
+  stage.style.setProperty('--written-block', `${insetBottom()}px`);
+  const before = shownArea;
+  shownArea = visibleArea();
+  const point = cursorPoint();
+  if (point) showPoint(point);
+  else if (board.patternWithin(before) && !board.patternWithin(shownArea)) fitBoard();
+}
+const realignObserver = new ResizeObserver(realign);
+realignObserver.observe(canvas);
+realignObserver.observe(written);
+
 alignTooltips(must<HTMLElement>('.tools'));
 setupConsentBanner(GA_MEASUREMENT_ID);
 
-// Böngészős tesztekhez (PQW-874): a rács cellái és a sorszámok az ablakban; csak automatizált böngészőben.
+// Böngészős tesztekhez (PQW-874, PQW-883): a rács cellái, a sorszámok és a kurzor célpontja az ablakban; csak automatizált böngészőben.
 if (navigator.webdriver) {
   Object.assign(window, {
-    mintatervezoRacs: { layer: () => derived.context.layer, cells: () => board.gridCells(), labels: () => board.labels() },
+    mintatervezoRacs: {
+      layer: () => derived.context.layer,
+      cells: () => board.gridCells(),
+      labels: () => board.labels(),
+      cursor: () => {
+        const point = cursorPoint();
+        return point ? board.toClient(point) : null;
+      },
+    },
     // A szemek helye és a kijelölés (PQW-875).
     mintatervezoKijeloles: {
       selection: () => [...selection],
