@@ -2,13 +2,13 @@
  * A szerkesztő műveletei a gráfon, böngésző nélkül.
  *
  * Nem helyet választunk, hanem célpontot: az előző sor egy pozícióját, egy
- * láncívet vagy a varázskört, amelybe a következő öltés megy (06 §5.3). Minden
+ * láncívet vagy a varázskört, amelybe a következő szem megy (06 §5.3). Minden
  * művelet új mintát ad, a régit nem módosítja, így a visszavonás a korábbi
  * minták verme (history.ts).
  *
  * A szerkesztő egy darabot szerkeszt, a minta első darabját. Nem kezeli még:
  * láncszem nélküli alapsort, láncszemgyűrűs kezdést, a fonal elvágását és új
- * fonalszakaszt, hosszú öltést korábbi sorba — ezeket a gráf sem, vagy csak
+ * fonalszakaszt, hosszú szemet korábbi sorba — ezeket a gráf sem, vagy csak
  * részben kezeli.
  */
 
@@ -67,7 +67,7 @@ function withPiece(pattern: Pattern, piece: Piece): Pattern {
 
 /* ---- Célpontok ---- */
 
-/** Egy célpont az előző rétegben: öltés vagy láncszem, láncív, varázskör. */
+/** Egy célpont az előző rétegben: szem vagy láncszem, láncív, varázskör. */
 export type Slot =
   | { readonly kind: 'stitch'; readonly id: NodeId }
   | { readonly kind: 'space'; readonly id: SpaceId; readonly chains: readonly NodeId[] }
@@ -77,7 +77,7 @@ export interface WorkContext {
   readonly library: StitchLibrary;
   /** `null`, ha a darab üres. */
   readonly graph: PieceGraph | null;
-  /** A réteg, amelybe a következő öltés kerül; lehet, hogy még nincs a gráfban. */
+  /** A réteg, amelybe a következő szem kerül; lehet, hogy még nincs a gráfban. */
   readonly layer: number;
   readonly shape: LayerInfo['shape'];
   /** A célpontok a haladási irányban. */
@@ -88,7 +88,7 @@ export interface WorkContext {
   readonly frontier: number;
   /** A réteg eleji láncszemek száma (fordulólánc vagy kezdőlánc). */
   readonly turningChain: number;
-  /** Van-e már öltés a rétegben a fordulóláncon kívül. */
+  /** Van-e már szem a rétegben a fordulóláncon kívül. */
   readonly started: boolean;
 }
 
@@ -177,7 +177,7 @@ export function contextOf(pattern: Pattern): WorkContext {
  * Hová mutasson a kurzor, ha a felhasználó nem mozgatta: az utolsó
  * felhasznált célpont utánra. Új sor elején a láncalapon a fordulólánc után
  * következő láncszemre (03 §1.2), egyébként a számító fordulólánc alatti
- * öltést átugorva (03 §1.3).
+ * szemet átugorva (03 §1.3).
  */
 export function defaultCursor(pattern: Pattern, context: WorkContext, tool: StitchDefId | null): number {
   const { slots, frontier } = context;
@@ -208,7 +208,7 @@ function nextId(prefix: string, ids: Iterable<string>): string {
   return `${prefix}${max + 1}`;
 }
 
-/** Új öltések a fonal végére; az azonosítókat és a `prev` láncot ez osztja ki. */
+/** Új szemek a fonal végére; az azonosítókat és a `prev` láncot ez osztja ki. */
 function append(piece: Piece, nodes: readonly Omit<StitchNode, 'id' | 'prev'>[]): { piece: Piece; ids: NodeId[] } {
   const stitches = [...piece.stitches];
   const ids: NodeId[] = [];
@@ -237,7 +237,7 @@ function hasEventAfterLast(piece: Piece): boolean {
 /** A kiválasztott eszközzel horgol a `cursor` célpontba (láncszemnél és varázskörnél célpont nélkül). */
 export function work(pattern: Pattern, tool: Tool, cursor: number): EditResult {
   const def = resolveStitch(tool.def);
-  if (!def) return refuse(`Ismeretlen öltés: ${tool.def}`);
+  if (!def) return refuse(`Ismeretlen szem: ${tool.def}`);
   const piece = pieceOf(pattern);
 
   if (def.kind === 'ring') {
@@ -262,7 +262,7 @@ export function work(pattern: Pattern, tool: Tool, cursor: number): EditResult {
   if (piece.stitches.length === 0) return refuse('Előbb láncalap vagy varázskör kell.');
 
   if (def.kind === 'picot') {
-    if (hasEventAfterLast(piece)) return refuse('A pikó egy öltés tetejére kerül; a sor már véget ért.');
+    if (hasEventAfterLast(piece)) return refuse('A pikó egy szem tetejére kerül; a sor már véget ért.');
     return done(withPiece(pattern, append(piece, [{ def: def.id, anchors: [] }]).piece));
   }
 
@@ -279,10 +279,10 @@ export function work(pattern: Pattern, tool: Tool, cursor: number): EditResult {
   if (def.kind === 'joined' && def.base === 'spread') {
     const slots = context.slots.slice(cursor, cursor + def.consumes);
     if (slots.length < def.consumes || slots.some((slot) => slot.kind !== 'stitch')) {
-      return refuse(`Ehhez ${def.consumes} egymás melletti öltés kell a célponttól.`);
+      return refuse(`Ehhez ${def.consumes} egymás melletti szem kell a célponttól.`);
     }
     const mode = stitchMode(def);
-    if (!mode) return refuse('Ez az öltés nem horgolható öltésbe.');
+    if (!mode) return refuse('Ez a szem nem horgolható szembe.');
     const anchors = slots.map((slot): Anchor => ({ into: 'stitch', id: slot.id, mode }));
     return done(withPiece(pattern, append(piece, [{ def: def.id, anchors }]).piece));
   }
@@ -317,7 +317,7 @@ function anchorFor(def: StitchDef, slot: Slot): Anchor | string {
   switch (slot.kind) {
     case 'stitch': {
       const mode = stitchMode(def);
-      return mode ? { into: 'stitch', id: slot.id, mode } : `A(z) ${name} nem horgolható öltésbe.`;
+      return mode ? { into: 'stitch', id: slot.id, mode } : `A(z) ${name} nem horgolható szembe.`;
     }
     case 'space':
       return def.insertionModes.includes('space') ? { into: 'space', id: slot.id } : `A(z) ${name} nem horgolható láncívbe.`;
@@ -327,29 +327,29 @@ function anchorFor(def: StitchDef, slot: Slot): Anchor | string {
 }
 
 /**
- * Még egy öltés ugyanabba a célpontba, mint az utolsó: egy öltésből
+ * Még egy szem ugyanabba a célpontba, mint az utolsó: egy szemből
  * szaporítás lesz, a szaporításból vagy kagylóból eggyel nagyobb. Láncívbe és
- * varázskörbe csoport nélkül is mehet több öltés (01 §8.2 szabály 11).
+ * varázskörbe csoport nélkül is mehet több szem (01 §8.2 szabály 11).
  */
 export function workIntoSame(pattern: Pattern, defId: StitchDefId): EditResult {
   const piece = pieceOf(pattern);
   const part = resolveStitch(defId);
   const last = piece.stitches[piece.stitches.length - 1];
-  if (!part || part.kind !== 'basic' || !part.workableTop) return refuse('Ugyanabba csak alapöltés horgolható még egyszer.');
-  if (!last || hasEventAfterLast(piece)) return refuse('Nincs öltés ebben a sorban, amelynek a célpontjába horgolni lehetne.');
+  if (!part || part.kind !== 'basic' || !part.workableTop) return refuse('Ugyanabba csak alapszem horgolható még egyszer.');
+  if (!last || hasEventAfterLast(piece)) return refuse('Nincs szem ebben a sorban, amelynek a célpontjába horgolni lehetne.');
   const anchor = last.anchors[0];
-  if (!anchor || last.anchors.length !== 1) return refuse('Az utolsó öltésnek nincs egyetlen célpontja.');
+  if (!anchor || last.anchors.length !== 1) return refuse('Az utolsó szemnek nincs egyetlen célpontja.');
 
   const appended = append(piece, [{ def: part.id, anchors: [anchor] }]);
   if (anchor.into !== 'stitch') {
-    if (!part.insertionModes.includes(anchor.into)) return refuse('Ez az öltés ide nem horgolható.');
+    if (!part.insertionModes.includes(anchor.into)) return refuse('Ez a szem ide nem horgolható.');
     return done(withPiece(pattern, appended.piece));
   }
 
   const group = piece.groups.find((candidate) => candidate.members.includes(last.id));
   if (group) {
     const members = piece.stitches.filter((node) => group.members.includes(node.id));
-    if (members.some((node) => node.def !== part.id)) return refuse('Az utolsó csoport más öltésekből áll.');
+    if (members.some((node) => node.def !== part.id)) return refuse('Az utolsó csoport más szemekből áll.');
     const n = members.length + 1;
     const def = group.def.startsWith('shell-') ? shell(part, n) : increase(part, n);
     const groups = appended.piece.groups.map((g) =>
@@ -358,17 +358,17 @@ export function workIntoSame(pattern: Pattern, defId: StitchDefId): EditResult {
     return done(withPiece(pattern, { ...appended.piece, groups }));
   }
 
-  if (last.def !== part.id) return refuse('Az utolsó öltés nem ugyanez az öltés.');
+  if (last.def !== part.id) return refuse('Az utolsó szem nem ugyanez a szem.');
   const def = increase(part, 2);
   const created = { id: nextId('g', piece.groups.map((g) => g.id)), def: def.id, members: [last.id, appended.ids[0]!] };
   return done(withPiece(pattern, { ...appended.piece, groups: [...appended.piece.groups, created] }));
 }
 
-/** Sor vége és fordulás, utána a fordulólánc a kiválasztott öltés magasságában (01 §8.3 szabály 12). */
+/** Sor vége és fordulás, utána a fordulólánc a kiválasztott szem magasságában (01 §8.3 szabály 12). */
 export function endRow(pattern: Pattern, tool: StitchDefId | null): EditResult {
   const piece = pieceOf(pattern);
   const context = contextOf(pattern);
-  if (!context.graph || !context.started) return refuse('Ebben a sorban még nincs öltés.');
+  if (!context.graph || !context.started) return refuse('Ebben a sorban még nincs szem.');
   if (context.shape === 'round') return refuse('Körben nem fordulunk: zárd a kört.');
   const last = piece.stitches[piece.stitches.length - 1]!;
   let next: Piece = { ...piece, events: [...piece.events, { after: last.id, kind: 'turn' }] };
@@ -377,15 +377,15 @@ export function endRow(pattern: Pattern, tool: StitchDefId | null): EditResult {
   return done(withPiece(pattern, next));
 }
 
-/** A kör zárása kúszószemmel a kör első pozíciójába: az első öltésbe vagy a kezdőlánc tetejébe (06 §5.3 V4). */
+/** A kör zárása kúszószemmel a kör első pozíciójába: az első szembe vagy a kezdőlánc tetejébe (06 §5.3 V4). */
 export function closeRound(pattern: Pattern): EditResult {
   const piece = pieceOf(pattern);
   const context = contextOf(pattern);
-  if (!context.graph || !context.started) return refuse('Ebben a körben még nincs öltés.');
+  if (!context.graph || !context.started) return refuse('Ebben a körben még nincs szem.');
   if (context.shape !== 'round') return refuse('Sorban nincs körzárás: a sor végén fordulunk.');
   const layer = context.graph.layers[context.layer]!;
   const first = layer.positions[0];
-  if (!first) return refuse('A körnek nincs első öltése, amelybe zárni lehetne.');
+  if (!first) return refuse('A körnek nincs első szeme, amelybe zárni lehetne.');
 
   const { piece: next, ids } = append(piece, [
     { def: 'sl-st', anchors: [{ into: 'stitch', id: first, mode: 'both-loops' }] },
@@ -395,7 +395,7 @@ export function closeRound(pattern: Pattern): EditResult {
 
 /**
  * Az utolsó lépés törlése: a sor vége (a körzáró kúszószemmel), a teljes
- * csoport, a teljes láncív, vagy egy öltés.
+ * csoport, a teljes láncív, vagy egy szem.
  */
 export function deleteLast(pattern: Pattern): EditResult {
   const piece = pieceOf(pattern);
@@ -432,7 +432,7 @@ export function deleteLast(pattern: Pattern): EditResult {
 /** Kézi igazítás: eltolás a számolt helyhez képest. `null` visszaállítja. A topológián nem változtat. */
 export function setPinned(pattern: Pattern, id: NodeId, offset: { readonly x: number; readonly y: number } | null): EditResult {
   const piece = pieceOf(pattern);
-  if (!piece.stitches.some((node) => node.id === id)) return refuse(`Nincs ilyen öltés: ${id}`);
+  if (!piece.stitches.some((node) => node.id === id)) return refuse(`Nincs ilyen szem: ${id}`);
   const stitches = piece.stitches.map((node) => {
     if (node.id !== id) return node;
     const { pinned: _, ...rest } = node;
@@ -457,7 +457,7 @@ const PENDING_RULES = new Set(['unused-position', 'turning-chain-placement', 're
 /**
  * Az ellenőrző találatai, a félkész utolsó sor „még nincs kész” jelzései
  * nélkül: a sor végén felhasználatlan pozíció, a fordulólánc tetejébe még nem
- * horgolt utolsó öltés, az ismétlés egyensúlya és a sor végi láncszemek.
+ * horgolt utolsó szem, az ismétlés egyensúlya és a sor végi láncszemek.
  */
 export function liveCheck(pattern: Pattern, context: WorkContext = contextOf(pattern)): LiveCheck {
   const findings = validatePattern(pattern, context.library);

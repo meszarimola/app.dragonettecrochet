@@ -3,10 +3,10 @@
  * felületével. Nem fut; az `npm run check` ellenőrzi (tsconfig.core.json).
  *
  * A példa rövidpálcás sorokban:
- * - láncalap: 4 láncszem (3 öltés + 1 fordulólánc, ami nem számít);
+ * - láncalap: 4 láncszem (3 szem + 1 fordulólánc, ami nem számít);
  * - 1. sor: 3 rövidpálca a horogtól számított második láncszemtől (3);
  * - fordulás, 1 láncszem;
- * - 2. sor: 2 rövidpálca az első öltésbe, a maradék kettő összehorgolva (3).
+ * - 2. sor: 2 rövidpálca az első szembe, a maradék kettő összehorgolva (3).
  */
 
 import type { GroupStitchDef, JoinedStitchDef, Pattern, SimpleStitchDef } from '../src/core/types.ts';

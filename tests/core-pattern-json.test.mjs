@@ -94,11 +94,11 @@ describe('a formátum hibáit mezőútvonallal jelzi', () => {
   const saved = () => JSON.parse(savePattern(dcRectangle({ rows: 2 }).pattern));
   const cases = [
     ['hiányzó cím', (raw) => delete raw.title, '$.title'],
-    ['ismeretlen mező egy öltésen', (raw) => (raw.pieces[0].stitches[0].color = 'piros'), '$.pieces[0].stitches[0].color'],
+    ['ismeretlen mező egy szemen', (raw) => (raw.pieces[0].stitches[0].color = 'piros'), '$.pieces[0].stitches[0].color'],
     ['ismeretlen beszúrási mód', (raw) => (raw.pieces[0].stitches[20].anchors[0].mode = 'third-loop'), '$.pieces[0].stitches[20].anchors[0].mode'],
     ['ismeretlen láncszem-számolás', (raw) => (raw.conventions.chainCounts = 'mindig'), '$.conventions.chainCounts'],
     ['rossz eseményfajta', (raw) => (raw.pieces[0].events[0].kind = 'forditas'), '$.pieces[0].events[0].kind'],
-    ['negatív öltésszám', (raw) => (raw.pieces[0].events[0].statedCount = -1), '$.pieces[0].events[0].statedCount'],
+    ['negatív szemszám', (raw) => (raw.pieces[0].events[0].statedCount = -1), '$.pieces[0].events[0].statedCount'],
     ['régebbi, nem létező verzió', (raw) => (raw.formatVersion = 0), '$.formatVersion'],
   ];
   for (const [name, mutate, path] of cases) {

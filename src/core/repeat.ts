@@ -8,9 +8,9 @@
 import type { RepeatSpec } from './types.ts';
 
 /**
- * Láncalap N öltéshez, T láncszemes fordulólánccal (03 §1.2, 01 §8.3 szabály 15):
- * `N + T`, ha a fordulólánc nem számít öltésnek, és `N + T − 1`, ha számít.
- * Az első öltés mindkét esetben a horogtól számított `T + 1`. láncszembe megy.
+ * Láncalap N szemhez, T láncszemes fordulólánccal (03 §1.2, 01 §8.3 szabály 15):
+ * `N + T`, ha a fordulólánc nem számít szemnek, és `N + T − 1`, ha számít.
+ * Az első szem mindkét esetben a horogtól számított `T + 1`. láncszembe megy.
  */
 export function foundationChainLength(stitches: number, turningChain: number, turningChainCounts: boolean): number {
   return stitches + turningChain - (turningChainCounts ? 1 : 0);

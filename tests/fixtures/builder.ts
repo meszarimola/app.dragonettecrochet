@@ -1,5 +1,5 @@
 /*
- * Darabépítő a tesztekhez: öltésenként, a fonal útján haladva rakja össze a
+ * Darabépítő a tesztekhez: szemenként, a fonal útján haladva rakja össze a
  * `Piece`-t, és kiosztja az azonosítókat.
  */
 
@@ -20,7 +20,7 @@ import type {
   StitchNode,
 } from '../../src/core/types.ts';
 
-/** Öltés azonosítója (mindkét szálba), láncív, gyűrű vagy teljes célpont. */
+/** Szem azonosítója (mindkét szálba), láncív, gyűrű vagy teljes célpont. */
 export type Target = NodeId | { readonly space: SpaceId } | { readonly ring: RingId } | Anchor;
 
 function toAnchor(target: Target): Anchor {
@@ -47,9 +47,9 @@ export class PieceBuilder {
     this.name = name;
   }
 
-  /** Az utoljára horgolt öltés. */
+  /** Az utoljára horgolt szem. */
   get last(): NodeId {
-    if (this.previous === null) throw new Error('Még nincs öltés.');
+    if (this.previous === null) throw new Error('Még nincs szem.');
     return this.previous;
   }
 
@@ -93,7 +93,7 @@ export class PieceBuilder {
     return id;
   }
 
-  /** Ugyanabba a célpontba horgolt öltések egy csoportban, pl. kagyló. */
+  /** Ugyanabba a célpontba horgolt szemek egy csoportban, pl. kagyló. */
   inSame(def: StitchDefId, members: readonly StitchDefId[], target: Target): NodeId[] {
     const ids = members.map((member) => (member === 'ch' ? this.stitch('ch') : this.stitch(member, target)));
     this.group(def, ids);
@@ -132,7 +132,7 @@ export class PieceBuilder {
   }
 }
 
-/** Egy öltés átírása a kész mintában: így készülnek a szándékosan elrontott változatok. */
+/** Egy szem átírása a kész mintában: így készülnek a szándékosan elrontott változatok. */
 export function editNode(
   pattern: Pattern,
   id: NodeId,
@@ -152,7 +152,7 @@ export function editNode(
       };
     }),
   }));
-  if (!found) throw new Error(`Nincs ilyen öltés: ${id}`);
+  if (!found) throw new Error(`Nincs ilyen szem: ${id}`);
   return { ...pattern, pieces };
 }
 

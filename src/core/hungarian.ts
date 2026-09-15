@@ -32,7 +32,7 @@ const BACK_VOWELS = new Set([...'aáoóuú']);
 const VOWELS = new Set([...'aáeéiíoóöőuúüű']);
 
 /**
- * Részeshatározó rag egy öltés nevére vagy rövidítésére: „erp-nek”, „pálcának”,
+ * Részeshatározó rag egy szem nevére vagy rövidítésére: „erp-nek”, „pálcának”,
  * „rákhuroknak”. A rövidítés betűit egyenként ejtjük (er-pé, el-esz), ezért
  * mindig magas hangrendű, és kötőjellel kapcsolódik.
  */

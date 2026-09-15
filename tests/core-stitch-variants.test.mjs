@@ -6,7 +6,7 @@ import { libraryFor, resolveStitch } from '../src/core/stitch-variants.ts';
 import { validatePattern } from '../src/core/validate.ts';
 import { shellStitch, chevron } from './fixtures/examples.ts';
 
-test('a könyvtár minden öltése azonosítóval feloldható', () => {
+test('a könyvtár minden szeme azonosítóval feloldható', () => {
   for (const def of STITCHES) assert.equal(resolveStitch(def.id), def);
 });
 
@@ -30,7 +30,7 @@ test('a változat az azonosítóból épül, a szerkezete az építőfüggvény�
   }
 });
 
-test('ismeretlen vagy értelmetlen azonosítóra nincs öltés', () => {
+test('ismeretlen vagy értelmetlen azonosítóra nincs szem', () => {
   for (const id of ['xyz', 'inc-1dc', 'inc-99dc', 'inc-2ch', 'inc-2rev', 'ch2tog', 'shell-3picot', 'cl-3dc-wide']) {
     assert.equal(resolveStitch(id), undefined, id);
   }

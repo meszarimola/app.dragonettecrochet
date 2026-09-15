@@ -28,7 +28,7 @@ function ok(result) {
   return result.pattern;
 }
 
-/** Egy öltés a kurzor alapértelmezett helyére, vagy a megadott célpontba. */
+/** Egy szem a kurzor alapértelmezett helyére, vagy a megadott célpontba. */
 function stitch(pattern, def, cursor) {
   const at = cursor ?? defaultCursor(pattern, contextOf(pattern), def);
   return ok(work(pattern, { def, count: 1 }, at));
@@ -48,25 +48,25 @@ function hdcRectangle(width, rows) {
 }
 
 describe('félpálcás téglalap csak alapértelmezett célpontokkal', () => {
-  test('10 × 10: soronként 10 öltés, hibátlan', () => {
+  test('10 × 10: soronként 10 szem, hibátlan', () => {
     const pattern = hdcRectangle(10, 10);
     assert.deepEqual(counts(pattern), [0, ...Array(10).fill(10)]);
     assert.deepEqual(findings(pattern), []);
   });
 
-  test('az 1. sor első öltése a horogtól számított 3. láncszembe megy (03 §1.2)', () => {
+  test('az 1. sor első szeme a horogtól számított 3. láncszembe megy (03 §1.2)', () => {
     const pattern = chains(emptyPattern(), 12);
     assert.equal(defaultCursor(pattern, contextOf(pattern), 'hdc'), 2);
     assert.equal(defaultCursor(pattern, contextOf(pattern), 'dc'), 3);
     assert.equal(defaultCursor(pattern, contextOf(pattern), 'sc'), 1);
   });
 
-  test('a fordulás a kiválasztott öltés fordulóláncát is megcsinálja (01 §8.3 szabály 12)', () => {
+  test('a fordulás a kiválasztott szem fordulóláncát is megcsinálja (01 §8.3 szabály 12)', () => {
     const pattern = ok(endRow(hdcRectangle(4, 1), 'dc'));
     const context = contextOf(pattern);
     assert.equal(context.turningChain, 3);
     assert.equal(context.layer, 2);
-    // A számító fordulólánc alatti öltés kimarad (03 §1.3).
+    // A számító fordulólánc alatti szem kimarad (03 §1.3).
     assert.equal(defaultCursor(pattern, context, 'dc'), 1);
     assert.equal(defaultCursor(pattern, context, 'hdc'), 0);
   });
@@ -80,7 +80,7 @@ describe('félpálcás téglalap csak alapértelmezett célpontokkal', () => {
     assert.match(result.reason, /sor végére értél/);
   });
 
-  test('a varázskörbe a kurzor ott marad: a kör minden öltése belemegy', () => {
+  test('a varázskörbe a kurzor ott marad: a kör minden szeme belemegy', () => {
     let pattern = ok(work(emptyPattern(), { def: 'magic-ring', count: 1 }, 0));
     pattern = stitch(chains(pattern, 1), 'sc');
     assert.equal(defaultCursor(pattern, contextOf(pattern), 'sc'), 0);
@@ -96,7 +96,7 @@ describe('félpálcás téglalap csak alapértelmezett célpontokkal', () => {
     assert.deepEqual(liveCheck(pattern), { findings: [], remaining: 6 });
   });
 
-  test('a félkész sor elején kihagyott öltés viszont hiba marad', () => {
+  test('a félkész sor elején kihagyott szem viszont hiba marad', () => {
     let pattern = ok(endRow(hdcRectangle(6, 1), 'hdc'));
     pattern = stitch(pattern, 'hdc', 1);
     pattern = stitch(pattern, 'hdc');
@@ -130,7 +130,7 @@ test('kagyló 6 × 2 + 1: szaporítás „még egy ugyanabba”, hibátlan (03 �
   assert.deepEqual(findings(pattern), []);
 });
 
-test('V-öltés: a láncszeméből láncív lesz, a következő sor abba horgol (03 §4.2 F)', () => {
+test('V-szem: a láncszeméből láncív lesz, a következő sor abba horgol (03 §4.2 F)', () => {
   // A tudásbázis példája: 3 többszöröse + 2, a fordulólánc nem számít.
   const start = emptyPattern();
   let pattern = chains({ ...start, conventions: { ...start.conventions, turningChainCounts: false } }, 8);

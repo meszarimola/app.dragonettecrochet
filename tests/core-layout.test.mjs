@@ -23,7 +23,7 @@ describe('sorok', () => {
   const chart = layout(example.pattern);
   const at = (id) => chart.nodes.get(id);
 
-  test('az öltés az alatta lévő öltés oszlopában áll, függőleges szárral (01 §8.4 szabály 18)', () => {
+  test('a szem az alatta lévő szem oszlopában áll, függőleges szárral (01 §8.4 szabály 18)', () => {
     for (let row = 2; row <= 3; row += 1) {
       const below = [...example.rows[row - 1]].reverse();
       example.rows[row].forEach((id, i) => {
@@ -47,7 +47,7 @@ describe('sorok', () => {
     assert.ok(example.rows[1].every((id) => near(at(id).top.y, y(1))));
   });
 
-  test('a sorszám a sor kezdő oldalán, az öltésszám a végén; a sorok oldala váltakozik (03 §10 I42)', () => {
+  test('a sorszám a sor kezdő oldalán, a szemszám a végén; a sorok oldala váltakozik (03 §10 I42)', () => {
     const [, row1, row2, row3] = chart.layers;
     assert.ok(row1.start.x > row1.end.x);
     assert.ok(row2.start.x < row2.end.x);
@@ -58,7 +58,7 @@ describe('sorok', () => {
     assert.ok(example.rows[2].every((id) => at(id).side === 'wrong'));
   });
 
-  test('a nem számító fordulólánc függőlegesen, az első öltés mellett kívül áll', () => {
+  test('a nem számító fordulólánc függőlegesen, az első szem mellett kívül áll', () => {
     const [first] = example.rows[2];
     const chains = example.turningChains[2].map(at);
     assert.ok(chains.every((chain) => chain.role === 'chain' && near(chain.angle, Math.PI / 2)));
@@ -68,7 +68,7 @@ describe('sorok', () => {
     assert.ok(chains[0].top.y > chains[1].top.y);
   });
 
-  test('a számító fordulólánc az alatta lévő öltés oszlopában áll (03 §1.3)', () => {
+  test('a számító fordulólánc az alatta lévő szem oszlopában áll (03 §1.3)', () => {
     const dc = dcRectangle({ rows: 3 });
     const dcChart = layout(dc.pattern);
     const below = dc.rows[1];
@@ -76,7 +76,7 @@ describe('sorok', () => {
     assert.ok(near(chain.top.x, dcChart.nodes.get(below[below.length - 1]).top.x));
   });
 
-  test('a sormagasság a legmagasabb öltésből jön; a jelek közös talpvonalon állnak (03 §2.2)', () => {
+  test('a sormagasság a legmagasabb szemből jön; a jelek közös talpvonalon állnak (03 §2.2)', () => {
     const w = wave({ repeats: 1 });
     const wChart = layout(w.pattern);
     const row1 = w.rows[1].map((id) => wChart.nodes.get(id));
@@ -111,7 +111,7 @@ describe('legyező és összefutás', () => {
     assert.ok(valley.top.x > Math.min(...targets) && valley.top.x < Math.max(...targets));
   });
 
-  test('a láncívbe horgolt öltés talpa az ív láncszemei fölött van (03 §4.4)', () => {
+  test('a láncívbe horgolt szem talpa az ív láncszemei fölött van (03 §4.4)', () => {
     const example = vStitchPattern({ repeats: 2 });
     const chart = layout(example.pattern);
     const piece = example.pattern.pieces[0];
@@ -147,7 +147,7 @@ test('körben a jelek sugárirányban kifelé mutatnak, a varázskör középen 
   assert.ok(radius(1) < radius(2) && radius(2) < radius(3));
 });
 
-test('az elrendezés szerkesztés közben nem ugrál: az utolsó öltés törlése a korábbi sorokat nem mozdítja', () => {
+test('az elrendezés szerkesztés közben nem ugrál: az utolsó szem törlése a korábbi sorokat nem mozdítja', () => {
   const { pattern, rows } = dcRectangle({ rows: 3 });
   let edited = pattern;
   for (let i = 0; i < 6; i += 1) edited = ok(deleteLast(edited));
@@ -168,7 +168,7 @@ test('tükrözött nézet: minden vízszintesen tükröződik, a sorszám a más
   assert.ok(near(mirrored.bounds.minX, -plain.bounds.maxX));
 });
 
-test('kézi igazítás: a jel és a bele horgolt öltések talpa elmozdul, az oszlopok nem', () => {
+test('kézi igazítás: a jel és a bele horgolt szemek talpa elmozdul, az oszlopok nem', () => {
   const { pattern, rows } = hdcRectangle({ rows: 2 });
   const target = rows[1][0];
   const plain = layout(pattern);

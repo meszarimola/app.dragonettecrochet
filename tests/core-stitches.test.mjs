@@ -1,5 +1,5 @@
 /*
- * Az öltéskönyvtár táblázatos tesztjei a PQW-867 elfogadási feltételei szerint:
+ * A szemkönyvtár táblázatos tesztjei a PQW-867 elfogadási feltételei szerint:
  * láncszem-magasság, fogyaszt → ad, brit név = amerikai név egy fokkal
  * eltolva, és nincs kimenet „hamispálca” szóval. A ferde vonalakat a
  * tests/ui-symbols.test.mjs nézi, mert a jel a felülethez tartozik.
@@ -53,7 +53,7 @@ const TABLE = [
   ['magic-ring',      'ring',    0,        0,        0,           0,        0,  0],
 ];
 
-test('a táblázat pontosan a könyvtár öltéseit sorolja fel, sorrendben', () => {
+test('a táblázat pontosan a könyvtár szemeit sorolja fel, sorrendben', () => {
   assert.deepEqual(
     TABLE.map(([id]) => id),
     STITCHES.map((stitch) => stitch.id),
@@ -78,22 +78,22 @@ for (const [id, kind, yarnOvers, chainHeight, turningChain, consumes, produces, 
   });
 }
 
-test('az azonosítók egyediek, és minden csoportban van öltés', () => {
+test('az azonosítók egyediek, és minden csoportban van szem', () => {
   const ids = STITCHES.map((stitch) => stitch.id);
   assert.equal(new Set(ids).size, ids.length);
   for (const section of STITCH_SECTIONS) assert.ok(section.stitches.length > 0, section.id);
 });
 
 test('ismeretlen azonosítóra hibát dob', () => {
-  assert.throws(() => stitchById('nincs-ilyen'), /Ismeretlen öltés: nincs-ilyen/);
+  assert.throws(() => stitchById('nincs-ilyen'), /Ismeretlen szem: nincs-ilyen/);
 });
 
-test('a jegy teljes öltéskészlete megvan', () => {
+test('a jegy teljes szemkészlete megvan', () => {
   const names = new Set(STITCHES.map((stitch) => stitch.terms.hu.name));
   for (const name of [
     'láncszem', 'kúszószem', 'rövidpálca', 'félpálca', 'egyráhajtásos pálca',
     'kétráhajtásos pálca', 'háromráhajtásos pálca', 'szaporítás', 'fogyasztás',
-    'láthatatlan fogyasztás', 'kagyló', 'V-öltés', 'fürt', 'puff', 'bogyó',
+    'láthatatlan fogyasztás', 'kagyló', 'V-szem', 'fürt', 'puff', 'bogyó',
     'popcorn', 'pikó', 'rákhurok', 'láncív', 'varázskör',
   ]) {
     assert.ok(names.has(name), `hiányzik: ${name}`);
@@ -138,7 +138,7 @@ test('a félpálca brit neve a brit egyráhajtásos pálca „fél” változata
   assert.equal(hdc.abbr, `h${dc.abbr}`);
 });
 
-test('az összetett öltések brit szerkezete az amerikai, egy fokkal eltolt részöltésekkel', () => {
+test('az összetett szemek brit szerkezete az amerikai, egy fokkal eltolt részszemekkel', () => {
   const shift = { sc: 'dc', hdc: 'htr', dc: 'tr', tr: 'dtr', dtr: 'trtr' };
   for (const def of STITCHES) {
     const us = stitchStructure(def, 'en-US');
@@ -182,12 +182,12 @@ const TEXTS = [
   // azonosító       magyar                                   amerikai                                brit
   ['sc',             'rövidpálca (rp)',                       'single crochet (sc)',                  'double crochet (dc)'],
   ['dtr',            'háromráhajtásos pálca',                 'double treble (dtr)',                  'triple treble (trtr)'],
-  ['inc-2sc',        'szaporítás: 2 rp egy öltésbe',          'increase (inc): 2 sc in same st',      'increase (inc): 2 dc in same st'],
-  ['sc2tog',         'fogyasztás: 2 rp 2 öltésen át',         'decrease (dec): sc2tog',               'decrease (dec): dc2tog'],
-  ['shell-5dc',      'kagyló: 5 erp egy öltésbe',             'shell (sh): 5 dc in same st',          'shell: 5 tr in same st'],
-  ['v-st-dc',        'V-öltés: (erp, 1 lsz, erp) egy öltésbe', 'V-stitch (V-st): (dc, ch 1, dc) in same st', 'V-stitch: (tr, ch 1, tr) in same st'],
-  ['cl-3dc',         'fürt: 3 erp egy öltésbe',               'cluster (CL): 3 dc in same st',        'cluster (CL): 3 tr in same st'],
-  ['cl-3dc-spread',  'fürt: 3 erp 3 öltésen át',              'cluster (CL): dc3tog',                 'cluster (CL): tr3tog'],
+  ['inc-2sc',        'szaporítás: 2 rp egy szembe',          'increase (inc): 2 sc in same st',      'increase (inc): 2 dc in same st'],
+  ['sc2tog',         'fogyasztás: 2 rp 2 szemen át',         'decrease (dec): sc2tog',               'decrease (dec): dc2tog'],
+  ['shell-5dc',      'kagyló: 5 erp egy szembe',             'shell (sh): 5 dc in same st',          'shell: 5 tr in same st'],
+  ['v-st-dc',        'V-szem: (erp, 1 lsz, erp) egy szembe', 'V-stitch (V-st): (dc, ch 1, dc) in same st', 'V-stitch: (tr, ch 1, tr) in same st'],
+  ['cl-3dc',         'fürt: 3 erp egy szembe',               'cluster (CL): 3 dc in same st',        'cluster (CL): 3 tr in same st'],
+  ['cl-3dc-spread',  'fürt: 3 erp 3 szemen át',              'cluster (CL): dc3tog',                 'cluster (CL): tr3tog'],
   ['puff-3',         'puff',                                  'puff stitch (ps)',                     'puff stitch'],
   ['rev-sc',         'rákhurok',                              'reverse single crochet (rev sc)',      'reverse double crochet'],
 ];
@@ -202,9 +202,9 @@ for (const [id, hu, us, gb] of TEXTS) {
   });
 }
 
-test('rövidítés nélküli részöltésnél a név kiírva szerepel a szerkezetben', () => {
+test('rövidítés nélküli részszemnél a név kiírva szerepel a szerkezetben', () => {
   const dtr = stitchById('dtr');
-  assert.equal(stitchStructure(decrease(dtr, 2), 'hu'), '2 háromráhajtásos pálca 2 öltésen át');
+  assert.equal(stitchStructure(decrease(dtr, 2), 'hu'), '2 háromráhajtásos pálca 2 szemen át');
   assert.equal(stitchName(increase(dtr, 2), 'en-GB'), 'increase (inc)');
 });
 
@@ -229,7 +229,7 @@ for (const [id, counts, roundEnd] of CONVENTIONS) {
   });
 }
 
-test('az összetett öltés a részöltés magasságát, fordulóláncát és körzárását örökli', () => {
+test('az összetett szem a részszem magasságát, fordulóláncát és körzárását örökli', () => {
   for (const def of STITCHES) {
     const partId = def.kind === 'joined' ? def.part : def.kind === 'group' ? def.members[0] : null;
     if (!partId) continue;
@@ -252,7 +252,7 @@ test('a valós magasságarány becsült, nő a láncszem-magassággal, a pálca 
 
 /* ---- Fürt, beszúrás, tető ---- */
 
-test('minden összehorgolt öltésnek megadott alapja van, és ez szabja a fogyasztást (D6)', () => {
+test('minden összehorgolt szemnek megadott alapja van, és ez szabja a fogyasztást (D6)', () => {
   for (const def of STITCHES.filter((stitch) => stitch.kind === 'joined')) {
     assert.ok(def.base === 'same' || def.base === 'spread', def.id);
     assert.equal(def.consumes, def.base === 'same' ? 1 : def.parts, def.id);
@@ -260,7 +260,7 @@ test('minden összehorgolt öltésnek megadott alapja van, és ez szabja a fogya
   }
 });
 
-test('a fürt egy öltésbe 1 → 1, több öltésen át n → 1', () => {
+test('a fürt egy szembe 1 → 1, több szemen át n → 1', () => {
   const dc = stitchById('dc');
   assert.deepEqual([cluster(dc, 4, 'same').consumes, cluster(dc, 4, 'same').produces], [1, 1]);
   assert.deepEqual([cluster(dc, 4, 'spread').consumes, cluster(dc, 4, 'spread').produces], [4, 1]);
@@ -280,7 +280,7 @@ test('csak a rákhurok, a láncív és a varázskör teteje nem horgolható tov�
   );
 });
 
-test('beszúrási módok: relief csak alapöltésen, a láthatatlan fogyasztás első szálba megy', () => {
+test('beszúrási módok: relief csak alapszemen, a láthatatlan fogyasztás első szálba megy', () => {
   const valid = new Set(['both-loops', 'front-loop', 'back-loop', 'front-post', 'back-post', 'space', 'ring']);
   for (const def of STITCHES) {
     for (const mode of def.insertionModes) assert.ok(valid.has(mode), `${def.id}: ${mode}`);
@@ -308,7 +308,7 @@ test('az építőfüggvények bármilyen n-re a helyes fogyaszt → ad arányt a
   assert.deepEqual(increase(sc, 3).members, ['sc', 'sc', 'sc']);
 });
 
-test('az építőfüggvény hibát dob érvénytelen darabszámra vagy részöltésre', () => {
+test('az építőfüggvény hibát dob érvénytelen darabszámra vagy részszemre', () => {
   const sc = stitchById('sc');
   assert.throws(() => increase(sc, 1), RangeError);
   assert.throws(() => decrease(sc, 2.5), RangeError);
