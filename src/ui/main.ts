@@ -87,6 +87,8 @@ import { InsertionPanel } from './insertion-panel.js';
 import { insertionSuffix } from './insertion-view.js';
 import { nodeInsertions } from '../core/insertion.js';
 import { AmigurumiPanel } from './amigurumi-panel.js';
+import { GridChartPanel } from './grid-chart-panel.js';
+import { unitFrame } from './grid-chart-view.js';
 import { RoundsPanel } from './rounds-panel.js';
 import { ShapesPanel } from './shapes-panel.js';
 import { ShawlsPanel } from './shawls-panel.js';
@@ -351,6 +353,7 @@ function refresh(message?: string): void {
   shapesPanel.update(derived.pattern);
   shawlsPanel.update(derived.pattern);
   amigurumiPanel.update(derived.pattern);
+  gridPanel.update(derived.pattern, mirror);
   if (message !== undefined) announce(message);
 }
 
@@ -375,6 +378,8 @@ function draw(): void {
     direction: tool && isTargeted(tool) ? directionArrow() : null,
     symbols,
     insertions: nodeInsertions(derived.pattern.pieces[0]),
+    // A rácsminta ismétlő egysége kerettel (PQW-864).
+    unitFrame: unitFrame(derived.pattern, derived.layout, mirror),
   });
 }
 
@@ -1700,8 +1705,24 @@ const amigurumiPanel = new AmigurumiPanel(must<HTMLDetailsElement>('#section-ami
   announce,
 });
 
-/** Amigurumiban az írott minta az elsődleges nézet: a panel nagyban nyílik, és az Amigurumi szakasz lenyílik. */
+/* ---- Rácsminta (PQW-864) ---- */
+
+const gridPanel = new GridChartPanel(must<HTMLDetailsElement>('#section-grid'), {
+  commit: (pattern, message) => {
+    selectedNode = null;
+    selection = [];
+    commit({ ok: true, pattern }, message);
+    fitBoard();
+  },
+  announce,
+});
+
+/**
+ * Amigurumiban az írott minta az elsődleges nézet: a panel nagyban nyílik, és az Amigurumi szakasz lenyílik.
+ * Filéhorgolásnál a Rácsminta szakasz nyílik le (PQW-864).
+ */
 function showTypeView(id: PatternTypeId): void {
+  if (id === 'filet') gridPanel.reveal();
   const share = writtenShareFor(id, NARROW.matches);
   if (share === null) return;
   setWrittenOpen(true);

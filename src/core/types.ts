@@ -190,6 +190,12 @@ export interface StitchNode {
    * rajzot szépíti, a topológián nem változtat (README §2).
    */
   readonly pinned?: { readonly x: number; readonly y: number; readonly rotation: number };
+  /**
+   * A szem színe: index a darab rácsának színlistájában (`PieceGrid.colors`,
+   * PQW-864). Hiányában az első szín; az írott minta a színváltást az előző
+   * szem utolsó ráhajtásánál írja (03 §6, §10 G35).
+   */
+  readonly color?: number;
 }
 
 /** Láncív: láncszemek, amelyeket a következő sor egyetlen célpontként kezel (01 §8.2 szabály 11). */
@@ -322,6 +328,47 @@ export interface Piece {
    * csomópontja, mert a sorvégbe horgolt szem célpontját a gráf nem ismeri.
    */
   readonly border?: PieceBorder;
+  /**
+   * A rácsminta, amelyből a darab készült (PQW-864). A gráf ebből generálódik;
+   * a rács a darabbal mentődik, így a technika szabályai (C2C, tapestry) és az
+   * ismétlő egység jelölése a mentés után is megvannak.
+   */
+  readonly grid?: PieceGrid;
+}
+
+/* ---- Rácsos technikák (PQW-864) ---- */
+
+/** Filé, sarokból sarokba (C2C), tapestry, graphgan, mozaik (03 §5). */
+export type GridTechnique = 'filet' | 'c2c' | 'tapestry' | 'graphgan' | 'mosaic';
+
+/** A darab egy színe; az írott minta betűvel jelöli (A, B, C…). */
+export interface PatternColor {
+  readonly name: string;
+  /** `#rrggbb`. */
+  readonly hex: string;
+}
+
+/** Az ismétlő egység a rácson: a bal alsó cellája és a mérete, cellában. */
+export interface GridUnit {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+export interface PieceGrid {
+  readonly technique: GridTechnique;
+  /**
+   * A kiterjesztett rács: sorok alulról felfelé, cellák balról jobbra, a
+   * színoldal nézetében. Filében 1 teli, 0 nyitott, −1 nincs cella; színes
+   * rácsban a szín indexe a `colors` listában.
+   */
+  readonly cells: readonly (readonly number[])[];
+  readonly colors: readonly PatternColor[];
+  /** Az ismétlő egység, ha van; az írott minta ismétlésként írja, a rajz kiemeli. */
+  readonly unit: GridUnit | null;
+  /** Feliratos motívum: tükrözött nézetben figyelmeztetés. */
+  readonly lettering: boolean;
 }
 
 /** A szegély választásai (PQW-862, 03 §7.1). */

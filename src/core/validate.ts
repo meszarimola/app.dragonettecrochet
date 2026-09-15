@@ -17,8 +17,9 @@
  */
 
 import { amigurumiFindings } from './amigurumi.ts';
-import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
+import { buildPieceGraph, spacePositions, type LayerInfo, type PieceGraph } from './graph.ts';
 import { modeAsWorked } from './insertion.ts';
+import { MAX_CARRIED_COLORS } from './pixel-chart.ts';
 import { roundFindings } from './rounds.ts';
 import { RULES, type RuleId } from './rules.ts';
 import type { StitchLibrary } from './stitch-library.ts';
@@ -56,6 +57,13 @@ function validatePiece(pattern: Pattern, piece: Piece, library: StitchLibrary): 
   checkHeights(graph, invalidAnchors, report);
   // Körök: növekedés, kunkorodás, fodrosodás, egymás fölé kerülő szaporítás, spirál lépcsője (PQW-861).
   for (const finding of roundFindings(pattern, graph, library)) report(finding.rule, finding.nodes);
+  // Tapestry: soronként 3-nál több vitt szín haladó szint (03 §5.3, §10 G36, PQW-864).
+  if (piece.grid?.technique === 'tapestry') {
+    for (const layer of graph.layers.slice(1)) {
+      const colors = new Set(layer.stitches.map((id) => graph.nodes.get(id)!.color ?? 0));
+      if (colors.size > MAX_CARRIED_COLORS) report('carried-colors', layer.stitches);
+    }
+  }
   return findings;
 }
 
@@ -225,7 +233,8 @@ function checkLayer(
       if (targetLayer < index - 1 && node.flags?.includes('spike') && !workedBetween(graph, targets, targetLayer, index)) {
         return; // Hosszú szem: nem az előző sor pozícióját használja fel.
       }
-      const indices = targets.map((target) => positionIndex.get(target));
+      const positions = anchor.into === 'space' ? spacePositions(below, graph.spaces.get(anchor.id)!) : targets;
+      const indices = positions.map((target) => positionIndex.get(target));
       if (targetLayer !== index - 1 || indices.some((i) => i === undefined)) {
         report('anchor-layer', [id]);
         layerInvalid = true;
@@ -443,6 +452,8 @@ function isWorkedInto(graph: PieceGraph, chain: NodeId): boolean {
  * magasságra kell érnie (03 §10 D19, 03 §2.3).
  */
 function checkHeights(graph: PieceGraph, invalidAnchors: ReadonlySet<string>, report: Report): void {
+  // A C2C-csempék sorában a kúszószem és a pálca szándékosan eltérő magas: a csempék átlósan fekszenek (03 §5.5, PQW-864).
+  if (graph.piece.grid?.technique === 'c2c') return;
   const height = new Map<NodeId, number>();
   // A fordulólánc a sort kezdő szem magasságát adja. A hosszát a `foundation-chain` és a `turning-chain-height`
   // nézi; ha itt a tényleges hosszal számolnánk, a rövidebb számító fordulólánc kevert magasságként is jelezne.

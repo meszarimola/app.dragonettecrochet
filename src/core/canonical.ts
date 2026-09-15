@@ -41,6 +41,8 @@ export function canonicalPiece(piece: Piece): Piece {
     prev: source.prev === null ? null : node(source.prev),
     anchors: source.anchors.map(anchor),
     ...(source.flags && source.flags.length > 0 ? { flags: [...source.flags].sort() } : {}),
+    // Az első szín (0) a hiányzóval egyenértékű (PQW-864).
+    ...(source.color ? { color: source.color } : {}),
   });
 
   return {

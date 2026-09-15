@@ -12,19 +12,19 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
-test('mintatípus: a szabályos és az amigurumi aktív, a többi „hamarosan” és inaktív', async ({ page }) => {
+test('mintatípus: a szabályos, a filé és az amigurumi aktív, a szabálytalan „hamarosan” és inaktív', async ({ page }) => {
   await open(page);
 
   await expect(page.getByRole('button', { name: /Szabályos horgolás/ })).toHaveAttribute('aria-pressed', 'true');
-  const amigurumi = page.getByRole('button', { name: /Amigurumi/ });
-  await expect(amigurumi).toBeEnabled();
-  await expect(amigurumi).not.toContainText('Hamarosan');
-
-  for (const name of ['Filéhorgolás', 'Szabálytalan horgolás']) {
+  for (const name of ['Filéhorgolás', 'Amigurumi']) {
     const item = page.getByRole('button', { name: new RegExp(name) });
-    await expect(item).toBeDisabled();
-    await expect(item).toContainText('Hamarosan');
+    await expect(item).toBeEnabled();
+    await expect(item).not.toContainText('Hamarosan');
   }
+
+  const irregular = page.getByRole('button', { name: /Szabálytalan horgolás/ });
+  await expect(irregular).toBeDisabled();
+  await expect(irregular).toContainText('Hamarosan');
 });
 
 test('szemválasztás a jobb oldali panelből, majd horgolás', async ({ page }) => {

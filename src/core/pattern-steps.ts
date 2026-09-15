@@ -29,16 +29,35 @@
  */
 
 import { borderOf, type BorderCounts } from './border.ts';
-import { buildPieceGraph, type PieceGraph } from './graph.ts';
+import { buildPieceGraph, spacePositions, type PieceGraph } from './graph.ts';
 import { modeAsWorked } from './insertion.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { hasBaseChain, traditionOf } from './tradition.ts';
-import type { Anchor, LayerEvent, NodeId, Pattern, Piece, RoundMark, StitchDef, StitchDefId, StitchInsertion, Tradition } from './types.ts';
+import { gridColorRows, type ColorRun } from './pixel-chart.ts';
+import type {
+  Anchor,
+  GridTechnique,
+  LayerEvent,
+  NodeId,
+  Pattern,
+  PatternColor,
+  Piece,
+  RoundMark,
+  StitchDef,
+  StitchDefId,
+  StitchInsertion,
+  Tradition,
+} from './types.ts';
 
 export type StepTarget = 'next' | 'same' | 'next-space' | 'same-space' | 'ring' | 'chain-ring' | 'none';
 
+/** A szín, amelyre a lépés utolsó szemének utolsó ráhajtásánál váltasz (03 §6, §10 G35, PQW-864). */
+interface ColorChange {
+  readonly changeTo?: number;
+}
+
 export type Step =
-  | {
+  | ({
       readonly kind: 'stitch';
       readonly def: StitchDefId;
       readonly count: number;
@@ -47,17 +66,17 @@ export type Step =
       readonly mode: StitchInsertion;
       /** Láncszembe vagy szembe megy; csak a kiírt helyhatározóhoz kell. */
       readonly into: 'stitch' | 'chain';
-    }
-  | {
+    } & ColorChange)
+  | ({
       readonly kind: 'group';
       readonly def: StitchDefId;
       readonly target: StepTarget;
       readonly mode: StitchInsertion;
       readonly into: 'stitch' | 'chain';
-    }
-  | { readonly kind: 'chain'; readonly count: number }
+    } & ColorChange)
+  | ({ readonly kind: 'chain'; readonly count: number } & ColorChange)
   | { readonly kind: 'skip'; readonly count: number; readonly what: 'stitch' | 'chain' | 'space' }
-  | { readonly kind: 'turning-chain'; readonly count: number; readonly countsAs: StitchDefId | null }
+  | ({ readonly kind: 'turning-chain'; readonly count: number; readonly countsAs: StitchDefId | null } & ColorChange)
   | { readonly kind: 'repeat'; readonly steps: readonly Step[]; readonly times: number };
 
 export interface WrittenLayer {
@@ -65,7 +84,16 @@ export interface WrittenLayer {
   readonly shape: 'row' | 'round';
   readonly side: 'right' | 'wrong';
   /** Az 1. sor a láncalapon: a horogtól számított hányadik láncszemnél kezd, és mit ér a kihagyott rész. */
-  readonly fromHook: { readonly chain: number; readonly countsAs: StitchDefId | null } | null;
+  readonly fromHook: {
+    readonly chain: number;
+    readonly countsAs: StitchDefId | null;
+    /**
+     * A láncalap folytatásaként kiírt sor eleji láncszemek: számító
+     * fordulóláncnál a láncív és a kihagyott láncszemek a láncalapba kerülnek
+     * (filé nyitott kezdés: 3N + 6 lsz, a 9. láncszemtől, 03 §5.2, PQW-891). Máskor 0.
+     */
+    readonly chains: number;
+  } | null;
   readonly steps: readonly Step[];
   /** Szemszám, ahogy a gráf számolja (graph.ts). */
   readonly stitchCount: number;
@@ -91,6 +119,13 @@ export interface WrittenPiece {
   readonly sections: readonly { readonly name: string; readonly layer: number }[];
   /** A szegély a sorok után, a sorokból számolva (PQW-862); szegély nélkül `null`. */
   readonly border: WrittenBorder | null;
+  /** Többszínű rácsmintánál (PQW-864) a színek, a kezdőszín és a színek soronként; máskor `null`. */
+  readonly colorwork: {
+    readonly technique: GridTechnique;
+    readonly colors: readonly PatternColor[];
+    readonly startColor: number;
+    readonly rows: readonly (readonly ColorRun[])[];
+  } | null;
 }
 
 export interface WrittenBorder {
@@ -123,15 +158,13 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
   if (base.closing !== null && !chainRing) throw new WrittenPatternError('A láncalapon lévő esemény még nem írható ki.', [base.closing.after]);
 
   const row1 = graph.layers[1];
+  const kind: WrittenPiece['foundation']['kind'] = chainRing ? 'chain-ring' : onChain ? 'chain' : 'ring';
+  const layers = graph.layers.slice(1).map((_, i) => writtenLayer(graph, i + 1, kind, library, traditionOf(pattern.conventions)));
   const foundation: WrittenPiece['foundation'] = chainRing
     ? { kind: 'chain-ring', count: base.stitches.length }
     : onChain
-      ? { kind: 'chain', count: base.stitches.length + (row1?.turningChain.length ?? 0) }
+      ? { kind: 'chain', count: base.stitches.length + (row1?.turningChain.length ?? 0) + (layers[0]?.fromHook?.chains ?? 0) }
       : { kind: 'ring' };
-
-  const layers = graph.layers
-    .slice(1)
-    .map((_, i) => writtenLayer(graph, i + 1, foundation.kind, library, traditionOf(pattern.conventions)));
   let border: WrittenBorder | null = null;
   if (piece.border) {
     const result = borderOf(graph, piece.border);
@@ -139,7 +172,12 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
     border = { stitch: piece.border.stitch, counts: result.counts };
   }
   const sections = (piece.sections ?? []).map(({ name, layer }) => ({ name, layer }));
-  return { name: piece.name, foundation, layers, border, sections };
+  const grid = piece.grid;
+  const colorwork: WrittenPiece['colorwork'] =
+    grid && grid.colors.length > 1
+      ? { technique: grid.technique, colors: grid.colors, startColor: piece.stitches[0]?.color ?? 0, rows: gridColorRows(grid.technique, grid.cells) }
+      : null;
+  return { name: piece.name, foundation, layers, border, sections, colorwork };
 }
 
 /** A horgoló felől nézett beszúrás: visszai soron a szálak és a relief megfordulnak (insertion.ts). */
@@ -185,7 +223,7 @@ function writtenLayer(
     if (anchor.into === 'ring') return { target: 'ring', mode: 'both-loops', into: 'stitch' };
     if (anchor.into === 'space') {
       if (anchor.id === ringSpace) return { target: 'chain-ring', mode: 'both-loops', into: 'stitch' };
-      const chains = graph.spaces.get(anchor.id)!.chains.map((id) => workingIndex.get(id));
+      const chains = spacePositions(below, graph.spaces.get(anchor.id)!).map((id) => workingIndex.get(id));
       if (chains.some((w) => w === undefined)) throw unsupported('olyan láncívbe kapaszkodik, amely nincs a megfelelő helyen', owner);
       const min = Math.min(...(chains as number[]));
       const max = Math.max(...(chains as number[]));
@@ -221,10 +259,23 @@ function writtenLayer(
   const unsupported = (reason: string, node: NodeId) =>
     new WrittenPatternError(`A(z) ${index}. ${unit} ${reason}.`, [node]);
 
+  // Színváltás: az előző szem utolsó ráhajtásánál, vagyis az előző lépésnél (03 §6, §10 G35).
+  const colorOf = (nodeId: NodeId) => graph.nodes.get(nodeId)!.color ?? 0;
+  const markChange = (color: number) => {
+    for (let k = steps.length - 1; k >= 0; k -= 1) {
+      const step = steps[k]!;
+      if (step.kind === 'skip') continue;
+      if (step.kind !== 'repeat') steps[k] = { ...step, changeTo: color };
+      return;
+    }
+  };
+
   const handled = new Set<NodeId>();
   const stitches = layer.stitches;
   for (let i = 0; i < stitches.length; i += 1) {
     const id = stitches[i]!;
+    const previousNode = graph.nodes.get(id)!.prev;
+    if (previousNode !== null && colorOf(previousNode) !== colorOf(id)) markChange(colorOf(id));
     // A láncgyűrű kúszószeme a kezdés része, a láncgyűrű sora írja le.
     if (handled.has(id) || id === layer.joinSlip || (ringSpace !== undefined && index === 1 && layer.travelSlips.includes(id))) continue;
     const node = graph.nodes.get(id)!;
@@ -291,6 +342,13 @@ function writtenLayer(
     }
   }
 
+  // A következő sor első szeme más színű: a sor utolsó szeménél váltasz (03 §6).
+  const lastNode = stitches[stitches.length - 1];
+  if (lastNode !== undefined) {
+    const next = graph.piece.stitches[graph.order.get(lastNode)! + 1];
+    if (next && next.prev === lastNode && colorOf(next.id) !== colorOf(lastNode)) markChange(colorOf(next.id));
+  }
+
   // Kihagyás a sor végén: csak a szándékosan kihagyott szemekig (03 §10 B8).
   const skippedAtEnd = working.map((id, w) => (w >= cursor && graph.piece.skipped.includes(id) ? w : -1));
   const lastSkipped = Math.max(-1, ...skippedAtEnd);
@@ -306,11 +364,23 @@ function writtenLayer(
     joinTo = layer.turningChainCounts ? 'turning-chain' : 'first-stitch';
   }
 
+  // Számító fordulóláncnál a sor eleji láncív és a kihagyott láncszemek a láncalap folytatása (filé nyitott kezdés, 03 §5.2).
+  let leadChains = 0;
+  let leadSkipped = 0;
+  const [firstStep, secondStep] = steps;
+  if (hookRow && countsAs !== null && firstStep?.kind === 'chain' && secondStep?.kind === 'skip' && secondStep.what === 'chain') {
+    leadChains = firstStep.count;
+    leadSkipped = secondStep.count;
+    steps.splice(0, 2);
+  }
+
   return {
     index,
     shape: layer.shape,
     side: layer.side,
-    fromHook: hookRow ? { chain: layer.turningChain.length + (baseChain ? 2 : 1), countsAs } : null,
+    fromHook: hookRow
+      ? { chain: layer.turningChain.length + (baseChain ? 2 : 1) + leadChains + leadSkipped, countsAs, chains: leadChains }
+      : null,
     steps: foldRepeats(mergeSteps(steps, library), layer.shape === 'round'),
     stitchCount: layer.stitchCount,
     closing: layer.closing?.kind ?? null,
@@ -332,8 +402,13 @@ export function mergeSteps(steps: readonly Step[], library: StitchLibrary): Step
       merged[merged.length - 1] = { ...previous, count: previous.count + step.count };
       continue;
     }
-    if (previous?.kind === 'stitch' && step.kind === 'stitch' && sameRun(previous, step, library)) {
-      merged[merged.length - 1] = { ...previous, count: previous.count + step.count };
+    // Színváltás után új tétel kezdődik: a váltás a tétel utolsó szeménél áll.
+    if (previous?.kind === 'stitch' && step.kind === 'stitch' && previous.changeTo === undefined && sameRun(previous, step, library)) {
+      merged[merged.length - 1] = {
+        ...previous,
+        count: previous.count + step.count,
+        ...(step.changeTo === undefined ? {} : { changeTo: step.changeTo }),
+      };
       continue;
     }
     merged.push(step);

@@ -222,6 +222,15 @@ export const RULES = {
     summary: '3 év alatti gyereknek szánt játékban biztonsági szem van jelölve.',
     message: '3 év alatti gyereknek szánt játékba nem kerülhet biztonsági szem vagy gyöngy: a szemeket hímezd ki.',
   },
+
+  /* ---- Rácsos technikák (PQW-864) ---- */
+  'carried-colors': {
+    severity: 'warning',
+    reference: '03 §5.3, §10 G36',
+    summary: 'Tapestryben egy sorban 3-nál több színt kell a szemekben vinni.',
+    message:
+      'Ebben a sorban 3-nál több színt kell a szemekben vinni: ez haladó szint, és a szövet merevebb lesz. Egyszerűsítsd a sort, vagy horgold graphganként, színenként külön gombolyaggal.',
+  },
 } as const satisfies Record<string, RuleDef>;
 
 export type RuleId = keyof typeof RULES;

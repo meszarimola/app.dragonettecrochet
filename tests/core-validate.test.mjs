@@ -7,6 +7,7 @@ import { strict as assert } from 'node:assert';
 import { after, describe, test } from 'node:test';
 
 import { addAmigurumiPart, createAmigurumi } from '../src/core/amigurumi-generator.ts';
+import { generateColorwork } from '../src/core/colorwork.ts';
 import { emptyPattern } from '../src/core/editor.ts';
 import { DEFAULT_MOTIF, generateMotif } from '../src/core/round-generator.ts';
 import { RULES } from '../src/core/rules.ts';
@@ -320,6 +321,19 @@ describe('a szem által nem engedett beszúrási mód (01 §4.3, PQW-869)', () =
     const node = example.pattern.pieces[0].stitches.find((candidate) => candidate.id === id);
     const pattern = editNode(example.pattern, id, { anchors: node.anchors.map((anchor) => ({ ...anchor, mode: 'back-loop' })) });
     assertOnly(pattern, 'insertion-mode', [[id]]);
+  });
+});
+
+describe('rácsos technikák (PQW-864)', () => {
+  test('tapestryben egy sorban 4 szín: figyelmeztetés a vitt színekre (03 §10 G36)', () => {
+    const colors = ['Fehér', 'Piros', 'Kék', 'Zöld'].map((name) => ({ name, hex: '#000000' }));
+    const cells = [
+      [0, 1, 2, 3],
+      [0, 0, 1, 1],
+    ];
+    const result = generateColorwork(emptyPattern(), { technique: 'tapestry', cells, colors, unit: null, lettering: false });
+    assert.ok(result.ok, result.reason);
+    assertOnly(result.pattern, 'carried-colors');
   });
 });
 
