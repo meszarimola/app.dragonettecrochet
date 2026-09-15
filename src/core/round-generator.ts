@@ -143,6 +143,20 @@ export function generateMotif(pattern: Pattern, options: MotifOptions): MotifRes
   return { ok: true, pattern: result, increases };
 }
 
+/**
+ * Egy darab egy kész körtervből, a motívum kezdésével és körvégével (PQW-865):
+ * a kendő köreit (kör, Pi-kendő) a kendőgenerátor tervezi, a gráfot ez építi.
+ * A kész darabon a körvégi szemszám a gráf számolása; hibánál az ok.
+ */
+export function plannedRounds(pattern: Pattern, options: MotifOptions, plan: RoundPlan, name: string): Piece | string {
+  const def = resolveStitch(motifStitch(options))!;
+  const base: Pattern = { ...pattern, conventions: { ...pattern.conventions, roundEnd: options.closing }, pieces: [] };
+  const writer = new Writer(base);
+  const built = plainRounds(writer, def, { ...options, rounds: plan.rounds.length + 1 }, plan);
+  if (built !== null) return built;
+  return withStatedCounts(base, writer.piece('p1', name));
+}
+
 /* ---- Tervek: hány szem megy az előző kör egyes pozícióiba ---- */
 
 export interface RoundPlan {
@@ -273,7 +287,7 @@ class Writer {
 
   countsFor(def: StitchDef): boolean {
     const { conventions } = this.pattern;
-    return turningChainCountsFor(conventions.turningChainCounts, def, traditionOf(conventions));
+    return turningChainCountsFor(conventions.turningChainCounts, def, traditionOf(conventions), 'round');
   }
 }
 

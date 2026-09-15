@@ -10,8 +10,8 @@
  * Megállapodások, amelyekre az ellenőrző épít:
  * - A láncalap végén a be nem horgolt láncszemek az 1. sor fordulólánca, ezért
  *   az 1. réteghez tartoznak, nem a 0.-hoz (03 §1.2: a láncalap `N + T`).
- * - Japán hagyományban a számító fordulólánc alatti alapláncszem a 0. réteg
- *   utolsó pozíciója marad: a fordulólánc „áll” rajta (01 §8.3, tradition.ts).
+ * - A számító fordulólánc alatti alapláncszem a 0. réteg utolsó pozíciója
+ *   marad: a fordulólánc „áll” rajta (PQW-891, tradition.ts).
  * - Később a sor elején álló láncszemek a fordulólánc vagy a kezdőlánc; a
  *   fordulás eseménye után következnek.
  * - Zárt körben a kör eleji kúszószemek a továbbvezetés, a záró kúszószem az
@@ -168,11 +168,16 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       while (foundationNodes.length > 0 && !anchored.has(foundationNodes[foundationNodes.length - 1]!.id)) {
         trailing.unshift(foundationNodes.pop()!);
       }
-      // Japán hagyományban a számító fordulólánc egy alapláncszemen áll: az a láncalap része marad.
+      // A láncalap felőli, szándékosan kihagyott láncszemek a láncalap részei: filében a nyitott cellával
+      // kezdődő 1. sor alatt (03 §5.2). A horog felőli végén a meghagyott fordulólánc-tető a sorhoz tartozik.
+      const skipped = new Set(piece.skipped);
+      while (trailing.length > 0 && skipped.has(trailing[0]!.id)) foundationNodes.push(trailing.shift()!);
+      // A számító fordulólánc egy alapláncszemen áll: az a láncalap része marad (PQW-891).
       const tradition = traditionOf(pattern.conventions);
       const first = segments[0]!.find((node) => kindOf(node) !== 'chain');
       const counts =
-        first !== undefined && turningChainCountsFor(pattern.conventions.turningChainCounts, defs.get(first.id)!, tradition);
+        first !== undefined &&
+        turningChainCountsFor(pattern.conventions.turningChainCounts, defs.get(first.id)!, tradition, firstRoundOnChain ? 'round' : 'row');
       // A láncszembe horgolt 1. körben nincs alapláncszem: a kör egyetlen láncszembe megy.
       if (!firstRoundOnChain && hasBaseChain(counts, tradition) && trailing.length >= 2) foundationNodes.push(trailing.shift()!);
       segments[0] = [...trailing, ...segments[0]!];
@@ -236,7 +241,9 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       }
     }
     const turningChain: NodeId[] = [];
-    while (head < segment.length && kindOf(segment[head]!) === 'chain') {
+    // A fordulólánc után kezdődő láncív már a sor része: filében a nyitott cellás sor eleje „3 lsz, 2 lsz” (03 §5.2).
+    const startsSpace = (node: StitchNode) => spaceOfChain.get(node.id)?.chains[0] === node.id;
+    while (head < segment.length && kindOf(segment[head]!) === 'chain' && !(turningChain.length > 0 && startsSpace(segment[head]!))) {
       turningChain.push(segment[head]!.id);
       head += 1;
     }
@@ -261,7 +268,7 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       const setting = opening?.conventions?.turningChainCounts ?? conventions.turningChainCounts;
       turningChainCounts =
         setting === 'stitch-default'
-          ? firstStitch !== null && stitchTurningChainCounts(defs.get(firstStitch)!, traditionOf(conventions))
+          ? firstStitch !== null && stitchTurningChainCounts(defs.get(firstStitch)!, traditionOf(conventions), shape)
           : setting;
     }
 
@@ -330,6 +337,18 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
   });
 
   return { piece, nodes, order, defs, spaces, rings, spaceOfChain, groupOf, layerOf, layers };
+}
+
+/**
+ * A láncív horgolható pozíciói az alatta lévő rétegben. A számító
+ * fordulóláncból álló láncívnek (a C2C-csempe láncíve, 03 §5.5) egyetlen
+ * pozíciója van: a fordulólánc teteje (03 §1.3).
+ */
+export function spacePositions(below: LayerInfo, space: Space): readonly NodeId[] {
+  const { turningChain } = below;
+  const whole =
+    below.turningChainCounts && space.chains.length === turningChain.length && space.chains.every((id, i) => id === turningChain[i]);
+  return whole ? [turningChain[turningChain.length - 1]!] : space.chains;
 }
 
 /** A minta összes rétege darabonként, a `types.ts` `Layer` alakjában. */

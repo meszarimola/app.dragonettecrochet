@@ -52,24 +52,45 @@ const structural = (pattern) =>
 const nodes = (pattern) => pattern.pieces[0].stitches;
 const byId = (pattern, id) => nodes(pattern).find((node) => node.id === id);
 
+/**
+ * Félpálcás téglalap soronként `width` szemmel (PQW-891): `width` + 2 láncszem,
+ * a fordulólánc számít első szemnek, így soronként `width` − 1 szemet horgolunk.
+ */
 function hdcRectangle(width, rows) {
   let pattern = chains(emptyPattern(), width + 2);
   for (let row = 1; row <= rows; row += 1) {
     if (row > 1) pattern = ok(endRow(pattern, 'hdc'));
-    for (let i = 0; i < width; i += 1) pattern = stitch(pattern, 'hdc');
+    for (let i = 0; i < width - 1; i += 1) pattern = stitch(pattern, 'hdc');
   }
   return pattern;
 }
 
+/**
+ * 14 láncszemes láncalap a kagylóminta forrásának szabályával (03 §4.2 E): a
+ * rövidpálcás fordulólánc nem számít szemnek, az 1. sor első rövidpálcája a
+ * 2. láncszembe megy (mint a `shellStitch` mintapéldában, PQW-891).
+ */
+function shellFoundation() {
+  const pattern = chains(emptyPattern(), 14);
+  return { ...pattern, conventions: { ...pattern.conventions, turningChainCounts: false } };
+}
+
+/** A 2. sor nyitó eseménye: a pálcás fordulólánc itt szemnek számít (soronkénti felülírás). */
+function turnCounting(pattern) {
+  const [piece] = pattern.pieces;
+  const events = piece.events.map((event, i) => (i === piece.events.length - 1 ? { ...event, conventions: { turningChainCounts: true } } : event));
+  return { ...pattern, pieces: [{ ...piece, events }, ...pattern.pieces.slice(1)] };
+}
+
 /** A kagylóminta két sora, ahogy a tulajdonos megrajzolja (03 §4.2 E). */
 function shellRows() {
-  let pattern = chains(emptyPattern(), 14);
+  let pattern = shellFoundation();
   pattern = stitch(pattern, 'sc');
   for (const at of [4, 10]) {
     pattern = stitch(pattern, 'shell-5dc', at);
     pattern = stitch(pattern, 'sc', at + 3);
   }
-  pattern = ok(endRow(pattern, 'dc'));
+  pattern = turnCounting(ok(endRow(pattern, 'dc')));
   pattern = stitch(pattern, 'dc', 0);
   pattern = ok(workIntoSame(pattern, 'dc'));
   pattern = stitch(pattern, 'sc', 3);
@@ -105,7 +126,7 @@ describe('kijelölés', () => {
   test('a sorszámmal a teljes sor a fordulólánccal, Ctrl+A-val minden szem', () => {
     const pattern = hdcRectangle(3, 2);
     const row2 = layerSelection(pattern, 2);
-    assert.equal(row2.length, 5);
+    assert.equal(row2.length, 4, 'a 3 szemes sor: 2 láncszemes fordulólánc (az 1. szem) és 2 félpálca');
     assert.deepEqual(row2.slice(0, 2).map((id) => byId(pattern, id).def), ['ch', 'ch']);
     assert.equal(selectAll(pattern).length, nodes(pattern).length);
     assert.deepEqual(layerSelection(pattern, 9), []);
@@ -214,7 +235,8 @@ describe('másolás, beillesztés, duplikálás', () => {
     const pattern = hdcRectangle(10, 2);
     const fragment = copied(copySelection(pattern, layerSelection(pattern, 2)));
     assert.equal(fragment.startsLayer, true);
-    assert.equal(fragment.span, 10);
+    // A számító fordulólánc alatti szem kimarad: a 10 szemes sor 9 célpontra épül a kezdőhelytől.
+    assert.equal(fragment.span, 9);
     const pasted = ok(pasteFragment(pattern, fragment));
     assert.deepEqual(counts(pasted), [0, 10, 10, 10]);
     assert.deepEqual(findings(pasted), []);
@@ -230,7 +252,7 @@ describe('másolás, beillesztés, duplikálás', () => {
   test('a meglévő fordulóláncot felhasználja, nem horgol kétszer fordulóláncot', () => {
     const pattern = ok(endRow(hdcRectangle(6, 2), 'hdc'));
     const pasted = ok(pasteFragment(pattern, copied(copySelection(pattern, layerSelection(pattern, 2)))));
-    assert.equal(nodes(pasted).length, nodes(pattern).length + 6);
+    assert.equal(nodes(pasted).length, nodes(pattern).length + 5, 'a fordulólánc az 1. szem: 5 új félpálca');
     assert.deepEqual(counts(pasted), [0, 6, 6, 6]);
     assert.deepEqual(findings(pasted), []);
   });
@@ -258,7 +280,7 @@ describe('másolás, beillesztés, duplikálás', () => {
   });
 
   test('sor közepén: a kurzortól köti újra, a kihagyott célpontokkal együtt', () => {
-    let pattern = chains(emptyPattern(), 14);
+    let pattern = shellFoundation();
     pattern = stitch(pattern, 'sc');
     pattern = stitch(pattern, 'shell-5dc', 4);
     pattern = stitch(pattern, 'sc', 7);
@@ -274,7 +296,7 @@ describe('másolás, beillesztés, duplikálás', () => {
   });
 
   test('kevés célpontra érthető hiba, és a minta nem változik', () => {
-    let partial = chains(emptyPattern(), 14);
+    let partial = shellFoundation();
     partial = stitch(partial, 'sc');
     partial = stitch(partial, 'shell-5dc', 4);
     partial = stitch(partial, 'sc', 7);

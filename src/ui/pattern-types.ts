@@ -6,9 +6,10 @@
  * alapértelmezését; a még el nem készült típusok „hamarosan” jelzéssel,
  * inaktívan látszanak, és mérföldkövenként kapcsolnak be (PQW-861…866).
  *
- * Aktív a „szabályos horgolás” (sík sorok, kör és motívum) és az amigurumi
- * (PQW-863: 3D formák spirálban, részekből). A filé és a szabálytalan
- * horgolás a saját jegyeikben készül el.
+ * Aktív a „szabályos horgolás” (sík sorok, kör és motívum), a filéhorgolás
+ * (PQW-864: filé, C2C, tapestry és graphgan rácsból, ismétlő egységgel) és az
+ * amigurumi (PQW-863: 3D formák spirálban, részekből). A szabálytalan
+ * horgolás a saját jegyében készül el.
  */
 
 import type { GridKind } from '../core/grid.ts';
@@ -35,8 +36,8 @@ export const PATTERN_TYPES: readonly PatternType[] = [
   {
     id: 'filet',
     name: 'Filéhorgolás',
-    detail: 'Rács tömött és üres kockákkal.',
-    available: false,
+    detail: 'Rács teli és nyitott cellákkal; C2C, tapestry és graphgan is.',
+    available: true,
   },
   {
     id: 'amigurumi',

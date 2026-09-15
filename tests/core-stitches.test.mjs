@@ -17,6 +17,7 @@ import {
   shell,
   stitchById,
 } from '../src/core/stitches.ts';
+import { roundEndFor } from '../src/core/rounds.ts';
 import { stitchLabel, stitchName, stitchStructure } from '../src/core/stitchText.ts';
 
 const LOCALES = ['hu', 'en-US', 'en-GB'];
@@ -210,24 +211,36 @@ test('rövidítés nélküli részszemnél a név kiírva szerepel a szerkezetbe
 
 /* ---- Konvenciók ---- */
 
+// Körzárás: a könyvtárban minden szemnél zárt kör, a spirált az amigurumi mintatípus adja (PQW-892).
 // prettier-ignore
 const CONVENTIONS = [
-  // azonosító  fordulólánc számít  körzárás
-  ['sc',        false,              'spiral'],
-  ['hdc',       false,              'join-slip'],
-  ['dc',        true,               'join-slip'],
-  ['tr',        true,               'join-slip'],
-  ['dtr',       true,               'join-slip'],
-  ['inc-2sc',   false,              'spiral'],
-  ['dc2tog',    true,               'join-slip'],
+  // azonosító  kezdőlánc számít (kör)  körzárás
+  ['sc',        false,                  'join-slip'],
+  ['hdc',       false,                  'join-slip'],
+  ['dc',        true,                   'join-slip'],
+  ['tr',        true,                   'join-slip'],
+  ['dtr',       true,                   'join-slip'],
+  ['inc-2sc',   false,                  'join-slip'],
+  ['dc2tog',    true,                   'join-slip'],
 ];
 
 for (const [id, counts, roundEnd] of CONVENTIONS) {
-  test(`${id}: a fordulólánc és a körzárás alapértelmezése (K1, K2)`, () => {
+  test(`${id}: a kör kezdőláncának és a körzárásnak az alapértelmezése (K1, K2)`, () => {
     const def = stitchById(id);
     assert.deepEqual([def.turningChainCounts, def.roundEnd], [counts, roundEnd]);
   });
 }
+
+test('a körzárás alapértelmezése a mintatípusból: amigurumiban spirál, máshol zárt kör; a megadott zárás marad (PQW-892)', () => {
+  assert.equal(roundEndFor('stitch-default', false), 'join-slip');
+  assert.equal(roundEndFor('stitch-default', true), 'spiral');
+  for (const amigurumi of [false, true]) {
+    assert.equal(roundEndFor('join-slip', amigurumi), 'join-slip');
+    assert.equal(roundEndFor('spiral', amigurumi), 'spiral');
+  }
+  // A szem magassága nem dönt: a rövidpálcás kör is zárt kör a könyvtár szerint.
+  assert.equal(stitchById('sc').roundEnd, stitchById('dc').roundEnd);
+});
 
 test('az összetett szem a részszem magasságát, fordulóláncát és körzárását örökli', () => {
   for (const def of STITCHES) {

@@ -67,7 +67,8 @@ test('írott minta: a téglalap rögzített szövege a panelben, és jelölésv�
   await page.locator('#section-notation').evaluate((el) => { (el as HTMLDetailsElement).open = true; });
   await page.locator('#terms').selectOption('en-GB');
   await expect(text).toContainText('Abbreviations (UK terms)');
-  await expect(text).toContainText('15 htr (15 sts)');
+  // A fordulólánc az 1. szem helyett áll (PQW-891): 14 félpálca és a fordulólánc.
+  await expect(text).toContainText('14 htr (15 sts)');
   expect(await text.textContent()).not.toMatch(/\b(sc|hdc|sl st)\b/);
 
   // A választás újratöltés után megmarad, a felület nyelve közben magyar.
@@ -193,7 +194,8 @@ test('foglalt célpontnál kérdés jön, és a „Mégse” után nem kerül le
   await foundation(page, 12);
   await page.keyboard.press('4'); // félpálca
   await page.keyboard.press('Enter'); // egy szem
-  await expect(page.locator('#summary')).toContainText('1. sor: 1 szem');
+  // Egy félpálca és a számító fordulólánc (PQW-891).
+  await expect(page.locator('#summary')).toContainText('1. sor: 2 szem');
 
   // A kurzort a most horgolt (foglalt) célpontra visszük.
   await page.locator('#board').focus();
@@ -214,14 +216,15 @@ test('foglalt célpontnál kérdés jön, és a „Mégse” után nem kerül le
   await dialog.getByRole('button', { name: 'Mégse' }).click();
   await expect(dialog).toBeHidden();
   await expect(page.locator('#status')).toHaveText('Nem került le szem.');
-  await expect(page.locator('#summary')).toContainText('1. sor: 1 szem');
+  // Egy félpálca és a számító fordulólánc (PQW-891).
+  await expect(page.locator('#summary')).toContainText('1. sor: 2 szem');
 
   // „Szaporítás” után viszont lekerül a szem.
   await page.locator('#board').focus();
   await page.keyboard.press('Enter');
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: 'Szaporítás' }).click();
-  await expect(page.locator('#summary')).toContainText('1. sor: 2 szem');
+  await expect(page.locator('#summary')).toContainText('1. sor: 3 szem');
 });
 
 test('a „Sor kitöltése” egy lépésben kitölti a sort, és egy lépésben visszavonható', async ({ page }) => {

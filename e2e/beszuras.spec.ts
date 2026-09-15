@@ -43,7 +43,10 @@ test('hátsó szálas rövidpálcás sor és reliefes sor: a mód billentyűzett
   await page.getByRole('button', { name: 'Sor kitöltése' }).click();
   await expect(page.locator('#status')).toContainText('Sor kitöltve, hátsó szál.');
   await expect(page.locator('#summary')).toContainText('Nincs hiba és figyelmeztetés.');
-  await expect(page.locator('#written-text')).toContainText('1. sor: a horogtól számított 2. láncszemtől kezdve 7 rp (hsz)');
+  // A fordulólánc az 1. rövidpálca helyett áll (PQW-891): 8 láncszemből 6 rp a 3. láncszemtől.
+  await expect(page.locator('#written-text')).toContainText(
+    '1. sor: a horogtól számított 3. láncszemtől kezdve (a kihagyott láncszemek 1 rp-nek számítanak) 6 rp (hsz)',
+  );
   await expect(page.locator('#written-text')).toContainText('hsz – hátsó szálba');
 
   // A kúszószem reliefet nem enged: csak három mód; a hátsó szálat engedi, ezért az marad kiválasztva.

@@ -16,10 +16,13 @@ import type {
   ChartStyle,
   GaugeEntry,
   GaugeForm,
+  GridTechnique,
+  GridUnit,
   JoinEdge,
   LayerEvent,
   Locale,
   Pattern,
+  PatternColor,
   PatternConventions,
   PatternGauge,
   PatternGaugeProfile,
@@ -27,6 +30,7 @@ import type {
   Piece,
   PieceBorder,
   PieceEnd,
+  PieceGrid,
   PieceJoin,
   PieceSection,
   ProfilePoint,
@@ -293,7 +297,12 @@ function readRepeat(value: unknown, path: string): RepeatSpec {
 }
 
 function readPiece(value: unknown, path: string): Piece {
-  const raw = object(value, path, ['id', 'name', 'stitches', 'spaces', 'rings', 'groups', 'events', 'skipped'], ['corners', 'border', 'sections']);
+  const raw = object(
+    value,
+    path,
+    ['id', 'name', 'stitches', 'spaces', 'rings', 'groups', 'events', 'skipped'],
+    ['corners', 'border', 'sections', 'grid'],
+  );
   return {
     id: string(raw['id'], `${path}.id`),
     name: text(raw['name'], `${path}.name`),
@@ -309,6 +318,43 @@ function readPiece(value: unknown, path: string): Piece {
     ...(raw['sections'] === undefined ? {} : { sections: array(raw['sections'], `${path}.sections`, readSection) }),
     // A PQW-862 előtti mentésben nincs: a darabnak nincs szegélye.
     ...(raw['border'] === undefined ? {} : { border: readBorder(raw['border'], `${path}.border`) }),
+    // A PQW-864 előtti mentésben nincs: a darab nem rácsmintából készült.
+    ...(raw['grid'] === undefined ? {} : { grid: readGrid(raw['grid'], `${path}.grid`) }),
+  };
+}
+
+const GRID_TECHNIQUES: readonly GridTechnique[] = ['filet', 'c2c', 'tapestry', 'graphgan', 'mosaic'];
+
+function readGrid(value: unknown, path: string): PieceGrid {
+  const raw = object(value, path, ['technique', 'cells', 'colors', 'unit', 'lettering']);
+  const cells = array(raw['cells'], `${path}.cells`, (row, rowPath) => array(row, rowPath, (cell, cellPath) => integer(cell, cellPath, -1)));
+  const width = cells[0]?.length ?? 0;
+  cells.forEach((row, y) => {
+    if (row.length !== width) throw new FormatError(`${path}.cells[${y}]`, `Soronként ${width} cellát vártunk.`);
+  });
+  return {
+    technique: oneOf(raw['technique'], `${path}.technique`, GRID_TECHNIQUES),
+    cells,
+    colors: array(raw['colors'], `${path}.colors`, readColor),
+    unit: raw['unit'] === null ? null : readUnit(raw['unit'], `${path}.unit`),
+    lettering: boolean(raw['lettering'], `${path}.lettering`),
+  };
+}
+
+function readColor(value: unknown, path: string): PatternColor {
+  const raw = object(value, path, ['name', 'hex']);
+  const hex = string(raw['hex'], `${path}.hex`);
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) throw new FormatError(`${path}.hex`, '#rrggbb alakú színt vártunk.');
+  return { name: text(raw['name'], `${path}.name`), hex };
+}
+
+function readUnit(value: unknown, path: string): GridUnit {
+  const raw = object(value, path, ['x', 'y', 'width', 'height']);
+  return {
+    x: integer(raw['x'], `${path}.x`, 0),
+    y: integer(raw['y'], `${path}.y`, 0),
+    width: integer(raw['width'], `${path}.width`, 1),
+    height: integer(raw['height'], `${path}.height`, 1),
   };
 }
 
@@ -321,7 +367,7 @@ function readBorder(value: unknown, path: string): PieceBorder {
 }
 
 function readNode(value: unknown, path: string): StitchNode {
-  const raw = object(value, path, ['id', 'def', 'prev', 'anchors'], ['flags', 'pinned']);
+  const raw = object(value, path, ['id', 'def', 'prev', 'anchors'], ['flags', 'pinned', 'color']);
   return {
     id: string(raw['id'], `${path}.id`),
     def: string(raw['def'], `${path}.def`),
@@ -331,6 +377,8 @@ function readNode(value: unknown, path: string): StitchNode {
       ? {}
       : { flags: array(raw['flags'], `${path}.flags`, (flag, flagPath) => oneOf(flag, flagPath, FLAGS)) }),
     ...(raw['pinned'] === undefined ? {} : { pinned: readPinned(raw['pinned'], `${path}.pinned`) }),
+    // A PQW-864 előtti mentésben nincs: a szem az első színnel készül.
+    ...(raw['color'] === undefined ? {} : { color: integer(raw['color'], `${path}.color`, 0) }),
   };
 }
 

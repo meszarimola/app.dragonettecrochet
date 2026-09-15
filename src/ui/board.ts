@@ -58,6 +58,8 @@ export interface Scene {
   readonly grid: ChartGrid | null;
   /** A minta hagyománya a sorszám és a szemszám feliratához (PQW-876); hiányában CYC. */
   readonly tradition?: Tradition;
+  /** A rácsminta ismétlő egységének kerete diagram-koordinátában (PQW-864), vagy `null`. */
+  readonly unitFrame?: { readonly x0: number; readonly y0: number; readonly x1: number; readonly y1: number } | null;
 }
 
 /** A vászon egy téglalapja vászon-koordinátában (a takarás nélküli rész). */
@@ -321,6 +323,17 @@ export class Board {
     const line = Math.max(1.5, 1 / scale);
 
     if (scene.grid) this.#drawGrid(scene.grid, scale);
+    // Az ismétlő egység: halvány kitöltés és szaggatott keret a jelek alatt (PQW-864).
+    if (scene.unitFrame) {
+      const { x0, y0, x1, y1 } = scene.unitFrame;
+      applyInk(ctx, colors.accent, Math.max(2, 2 / scale));
+      ctx.globalAlpha = 0.08;
+      ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+      ctx.globalAlpha = 1;
+      ctx.setLineDash([6 / scale, 4 / scale]);
+      ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+      ctx.setLineDash([]);
+    }
 
     for (const node of scene.layout.nodes.values()) {
       const def = scene.library.get(node.def);

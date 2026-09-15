@@ -32,18 +32,23 @@ test('félpálcás téglalap: 22 sor, soronként 15 szem, a fordulólánc nem sz
   assert.ok(layers.every((layer) => layer.shape === 'row'));
 });
 
-test('a láncalap végén álló fordulólánc az 1. sorhoz tartozik, együtt N + T láncszem (03 §1.2)', () => {
+test('a láncalap végén álló fordulólánc az 1. sorhoz tartozik, az alapláncszeme a láncalaphoz: együtt N + T láncszem (03 §1.2, PQW-891)', () => {
   const layers = layersOf(hdcRectangle());
-  const foundation = layers[0].positionCount + (layers[1].stitches.length - layers[1].stitchCount);
+  // 14 félpálca és az alapláncszem a láncalap pozíciói; a fordulólánc az 1. sor első szeme.
+  assert.equal(layers[0].positionCount, 15);
+  const turningChain = layers[1].stitches.length - (layers[1].stitchCount - 1);
+  assert.equal(turningChain, 2);
+  const foundation = layers[0].positionCount + turningChain;
   assert.equal(foundation, 17);
-  assert.equal(foundation, foundationChainLength(15, 2, false));
+  assert.equal(foundation, foundationChainLength(15, 2, true));
 });
 
-test('pálcás téglalap: a számító fordulólánccal 18 láncszem ad 16 szemet (03 §3.1 B)', () => {
+test('pálcás téglalap: a számító fordulólánc alapláncszemen áll, 19 láncszem ad 16 szemet (03 §3.1 B, PQW-891)', () => {
   const layers = layersOf(dcRectangle());
 
-  assert.equal(layers[0].positionCount, 15);
+  assert.equal(layers[0].positionCount, 16);
   assert.deepEqual(counts(layers.slice(1)), Array.from({ length: 16 }, () => [16, 16]));
+  assert.equal(layers[0].positionCount + 3, 19);
   assert.equal(layers[0].positionCount + 3, foundationChainLength(16, 3, true));
 });
 
@@ -117,7 +122,9 @@ function scMesh({ decorative = false } = {}, conventions = {}) {
   for (const target of [...row1].reverse()) if (!decorative || !chains.includes(target)) b.stitch('sc', target);
   if (decorative) b.skip(...chains);
   b.event('fasten-off');
-  return patternOf('Háló', [b.build()], conventions);
+  // A háló a láncszemek számolásáról szól: a forrás szerkezete (az 1. sor a 2. láncszembe kezd, a fordulólánc nem
+  // számít) kifejezett beállítással marad, mert sorban a fordulólánc alapértelmezésben számít (PQW-891).
+  return patternOf('Háló', [b.build()], { turningChainCounts: false, ...conventions });
 }
 
 const stitchCounts = (pattern) => computeLayers(pattern, testLibrary).map((layer) => layer.stitchCount);
@@ -181,9 +188,9 @@ test('a számolt réteg csak a types.ts Layer mezőit adja vissza', () => {
   ]);
 });
 
-test('láncalap: N + T, ha a fordulólánc nem számít, és N + T − 1, ha számít (03 §1.2)', () => {
+test('láncalap: N + T, akár számít a fordulólánc, akár nem; számító fordulólánc alapláncszemen áll (03 §1.2, PQW-891)', () => {
   assert.equal(foundationChainLength(100, 3, false), 103);
-  assert.equal(foundationChainLength(100, 3, true), 102);
+  assert.equal(foundationChainLength(100, 3, true), 103);
   assert.equal(foundationChainLength(25, 1, false), 26);
 });
 

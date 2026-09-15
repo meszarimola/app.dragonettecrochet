@@ -1,0 +1,150 @@
+/*
+ * A rácsminta (PQW-864): a cellaarány a mintasűrűségből (03 §5.1), az arányos
+ * sorszám kidolgozott példája, az átméretezés, az ismétlő egység felismerése,
+ * megjelölése és kiterjesztése (tulajdonosi pontosítás, 2026-09-15), a
+ * tükrözési figyelmeztetés, a vitt színek és a fonal színenként.
+ */
+
+import { strict as assert } from 'node:assert';
+import { describe, test } from 'node:test';
+
+import {
+  cellCounts,
+  cellSize,
+  detectUnit,
+  expandDraft,
+  hasGaps,
+  isMirrorSymmetric,
+  mirrorRows,
+  mirrorWarning,
+  overCarriedRows,
+  proportionalRows,
+  resample,
+  rowColors,
+  unitConflicts,
+  unitProblem,
+  yarnByColor,
+} from '../src/core/pixel-chart.ts';
+import { estimate, measured } from '../src/core/quantity.ts';
+
+/** Rács szövegből: soronként alulról felfelé, `#` teli (1), `.` nyitott (0), `?` meg nem adott. */
+const draft = (...lines) =>
+  lines
+    .slice()
+    .reverse()
+    .map((line) => [...line].map((ch) => (ch === '#' ? 1 : ch === '.' ? 0 : ch === '?' ? null : Number(ch))));
+
+describe('cellaarány és arányos sorszám (03 §5.1, §10 G31)', () => {
+  test('rövidpálcás rácsban a cella egy szem; a kidolgozott példa: 16 szem × 18 sor/10 cm, 32 cella széles négyzethez 36 sor', () => {
+    const stitch = { stitchCm: 10 / 16, rowCm: 10 / 18 };
+    const cell = cellSize('tapestry', stitch);
+    assert.equal(cell.widthCm, stitch.stitchCm);
+    assert.equal(cell.heightCm, stitch.rowCm);
+    assert.equal(proportionalRows(32, cell, 1, 1), 36);
+  });
+
+  test('filében a cella 3 pozíció széles és egy sor magas; a C2C-csempe négyzet', () => {
+    const stitch = { stitchCm: 0.5, rowCm: 1.25 };
+    assert.deepEqual(cellSize('filet', stitch), { widthCm: 1.5, heightCm: 1.25 });
+    const tile = cellSize('c2c', stitch);
+    assert.equal(tile.widthCm, tile.heightCm);
+    assert.equal(proportionalRows(20, tile, 2, 1), 10);
+  });
+
+  test('az átméretezés a legközelebbi cellát veszi, a sorrend és a szélek megmaradnak', () => {
+    const rows = draft('#.', '.#');
+    assert.deepEqual(resample(rows, 4, 4), [
+      [0, 0, 1, 1],
+      [0, 0, 1, 1],
+      [1, 1, 0, 0],
+      [1, 1, 0, 0],
+    ]);
+    assert.deepEqual(resample(resample(rows, 4, 4), 2, 2), rows);
+  });
+});
+
+describe('ismétlő egység (tulajdonosi pontosítás, 2026-09-15)', () => {
+  test('az első sorok teljesen, a többi csak az ismétlésig: 2 × 2-es egység felismerve', () => {
+    const rows = draft('#.??????', '.#??????', '#.#.#.#.', '.#.#.#.#');
+    const result = detectUnit(rows);
+    assert.ok(result.ok, result.reason);
+    assert.deepEqual(result.unit, { x: 0, y: 0, width: 2, height: 2 });
+    assert.ok(hasGaps(rows));
+    const full = expandDraft(rows, result.unit, 8, 6);
+    assert.equal(full.length, 6);
+    assert.deepEqual(full[4], [0, 1, 0, 1, 0, 1, 0, 1]);
+    assert.deepEqual(full[5], [1, 0, 1, 0, 1, 0, 1, 0]);
+    assert.ok(full.every((row) => row.length === 8));
+  });
+
+  test('csak vízszintesen ismétlődő sorok: az egység a megadott sorok magassága', () => {
+    const rows = draft('##.##.', '#..#..', '.#..#.');
+    const result = detectUnit(rows);
+    assert.ok(result.ok, result.reason);
+    assert.deepEqual(result.unit, { x: 0, y: 0, width: 3, height: 3 });
+  });
+
+  test('ismétlődés nélkül és hiányos egységnél érthető ok; a megjelölt egység hibái', () => {
+    const none = detectUnit(draft('#..', '.##'));
+    assert.equal(none.ok, false);
+    assert.match(none.reason, /Nem találtam ismétlődést/);
+    assert.equal(detectUnit([]).ok, false);
+
+    const rows = draft('?.??', '#.#.', '.#.#');
+    assert.equal(unitProblem(rows, { x: 0, y: 0, width: 2, height: 3 }), 'Az ismétlő egység (2 × 3 cella) nem teljes: add meg a 3. sor 1. celláját.');
+    assert.match(unitProblem(rows, { x: 3, y: 0, width: 2, height: 1 }), /rácson belül/);
+    assert.match(unitProblem(rows, { x: 0, y: 0, width: 0, height: 1 }), /pozitív egész/);
+    assert.equal(unitProblem(rows, { x: 0, y: 0, width: 2, height: 2 }), null);
+  });
+
+  test('a megjelölt egység szegéllyel: a megadott, eltérő cellák megmaradnak, és meg vannak számolva', () => {
+    const rows = draft('########', '#.#.#.#.', '########');
+    const unit = { x: 0, y: 1, width: 2, height: 1 };
+    assert.equal(unitProblem(rows, unit), null);
+    assert.equal(unitConflicts(rows, unit), 8);
+    const full = expandDraft(rows, unit, 10, 3);
+    assert.deepEqual(full[1], [1, 0, 1, 0, 1, 0, 1, 0, 1, 0]);
+    assert.deepEqual(full[0].slice(0, 8), Array(8).fill(1));
+  });
+});
+
+describe('tükrözés, színek, fonal', () => {
+  test('feliratos motívumnál mindig, aszimmetrikusnál tükrözött nézetben figyelmeztet', () => {
+    const symmetric = draft('#.#', '.#.');
+    const asymmetric = draft('##.', '#..');
+    assert.ok(isMirrorSymmetric(symmetric));
+    assert.equal(isMirrorSymmetric(asymmetric), false);
+    assert.deepEqual(mirrorRows(asymmetric), draft('.##', '..#'));
+    assert.equal(mirrorWarning(asymmetric, true, false), null);
+    assert.match(mirrorWarning(symmetric, true, true), /feliratos motívumban a betűk fordítva/);
+    assert.match(mirrorWarning(asymmetric, false, true), /nem szimmetrikus/);
+    assert.equal(mirrorWarning(symmetric, false, true), null);
+  });
+
+  test('tapestryben a 3-nál több színű sor figyelmeztetést kap (03 §10 G36)', () => {
+    const rows = [
+      [0, 1, 2, 0],
+      [0, 1, 2, 3],
+    ];
+    assert.deepEqual(rowColors(rows[1]), [0, 1, 2, 3]);
+    assert.deepEqual(overCarriedRows(rows), [2]);
+  });
+
+  test('a fonal színenként a cellák arányában; a nincs cella kimarad; tapestryben a vitt szál miatt felfelé nyitott tartomány', () => {
+    const rows = [
+      [0, 0, 1, -1],
+      [0, 1, 1, -1],
+    ];
+    assert.deepEqual([...cellCounts(rows)], [
+      [0, 3],
+      [1, 3],
+    ]);
+    const graphgan = yarnByColor(rows, 'graphgan', measured(100));
+    assert.equal(graphgan.get(0).value, 50);
+    assert.equal(graphgan.get(1).value, 50);
+    const tapestry = yarnByColor(rows, 'tapestry', estimate(100, [90, 110]));
+    assert.equal(tapestry.get(0).value, 50);
+    assert.deepEqual(tapestry.get(0).range, [45, 68.75]);
+    assert.equal(yarnByColor([[-1]], 'filet', measured(10)).size, 0);
+  });
+});

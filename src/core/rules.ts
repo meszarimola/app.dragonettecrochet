@@ -134,7 +134,7 @@ export const RULES = {
     severity: 'error',
     reference: '03 §10 A2, 03 §1.2',
     summary:
-      'Rossz láncalap: az 1. sor első szeme nem a fordulólánc után következő láncszembe megy (japán hagyományban a fordulólánc alatti alapláncszem utánira).',
+      'Rossz láncalap: az 1. sor első szeme nem a fordulólánc után következő láncszembe megy; számító fordulóláncnál az alatta álló alapláncszem utánira, és az alapláncszembe nem horgolunk (PQW-891).',
     message: 'Az 1. sor első szeme nem a megfelelő láncszembe került.',
   },
   'turning-chain-height': {
@@ -221,6 +221,15 @@ export const RULES = {
     reference: '04 §5.7, §9.6',
     summary: '3 év alatti gyereknek szánt játékban biztonsági szem van jelölve.',
     message: '3 év alatti gyereknek szánt játékba nem kerülhet biztonsági szem vagy gyöngy: a szemeket hímezd ki.',
+  },
+
+  /* ---- Rácsos technikák (PQW-864) ---- */
+  'carried-colors': {
+    severity: 'warning',
+    reference: '03 §5.3, §10 G36',
+    summary: 'Tapestryben egy sorban 3-nál több színt kell a szemekben vinni.',
+    message:
+      'Ebben a sorban 3-nál több színt kell a szemekben vinni: ez haladó szint, és a szövet merevebb lesz. Egyszerűsítsd a sort, vagy horgold graphganként, színenként külön gombolyaggal.',
   },
 } as const satisfies Record<string, RuleDef>;
 

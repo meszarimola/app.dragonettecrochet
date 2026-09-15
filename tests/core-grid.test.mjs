@@ -109,23 +109,35 @@ describe('célzás a rácson', () => {
   });
 
   test('a nem számító fordulólánc helye a célpontok sorában sem célpont', () => {
-    const example = hdcRectangle({ rows: 2 });
+    // A V-szem mintában a fordulólánc kifejezetten nem számít.
+    const example = vStitchPattern();
     const { grid, layout } = build(example.pattern);
+    assert.equal(grid.layer, 3);
     const chain = layout.nodes.get(example.turningChains[2][0]).top;
     const hit = gridHit(grid, chain);
     assert.equal(hit.kind, 'band');
     assert.match(aimAt(grid, hit).message, /^Ide nem horgolhatsz: ez a hely nem célpont/);
+
+    // A számító fordulólánc teteje viszont célpont: a következő sor utolsó szeme oda megy (PQW-891).
+    const counting = hdcRectangle({ rows: 2 });
+    const built = build(counting.pattern);
+    const top = counting.turningChains[2].at(-1);
+    const slot = built.context.slots.findIndex((candidate) => candidate.id === top);
+    assert.ok(slot >= 0, 'a fordulólánc teteje a célpontok között');
+    assert.deepEqual(aim(built.grid, built.layout.nodes.get(top).top), { kind: 'target', slot });
   });
 
   test('a félkész sorban, ahol alatta nincs szem, nincs mibe horgolni', () => {
-    let pattern = ok(work(emptyPattern(), { def: 'ch', count: 7 }, 0));
+    // Nem számító fordulólánc kifejezett beállítással: sorban alapértelmezésben számít, és a kihagyott szem fölött áll (PQW-891).
+    const empty = emptyPattern();
+    let pattern = ok(work({ ...empty, conventions: { ...empty.conventions, turningChainCounts: false } }, { def: 'ch', count: 7 }, 0));
     for (let slot = 1; slot <= 6; slot += 1) pattern = ok(work(pattern, { def: 'sc', count: 1 }, slot));
     pattern = ok(endRow(pattern, 'sc'));
     pattern = ok(work(pattern, { def: 'sc', count: 1 }, 0));
 
     const { grid, layout, context } = build(pattern);
     assert.equal(grid.layer, 2);
-    // A 2. sor fordulólánca a sor első szeme mellett kívül áll: alatta nincs célpont.
+    // A 2. sor nem számító fordulólánca a sor első szeme mellett kívül áll: alatta nincs célpont.
     const chain = layout.nodes.get(context.graph.layers[2].turningChain[0]).top;
     assert.deepEqual(aim(grid, chain), { kind: 'refused', message: 'Ebben a cellában nincs mibe horgolni: alatta nincs szem. Nem került le szem.' });
     // A célpontok cellái a félkész sorban is a célpontokra mutatnak.

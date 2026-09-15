@@ -89,12 +89,13 @@ interface StitchDefBase {
   /** Alapértelmezett fordulólánc, ha a sor ezzel a szemmel kezdődik (01 §8.3 szabály 12). */
   readonly turningChain: number;
   /**
-   * Számít-e szemnek a fordulólánc, ha a sor ezzel a szemmel kezdődik.
-   * Alapértelmezés a CYC szerint: rövidpálca és félpálca nem, egyráhajtásos
-   * pálcától igen (szókészlet K1, 01 §8.3 szabály 13).
+   * Számít-e szemnek a kör kezdőlánca, ha a kör ezzel a szemmel kezdődik:
+   * rövidpálca és félpálca nem, egyráhajtásos pálcától igen (szókészlet K1,
+   * 01 §8.3 szabály 13). Sorban a fordulólánc minden szemnél számít (PQW-891,
+   * tradition.ts).
    */
   readonly turningChainCounts: boolean;
-  /** Körökben zárt kör vagy spirál: rövidpálcánál spirál, egyráhajtásos pálcától zárt kör (szókészlet K2). */
+  /** Körökben a zárás alapértelmezése: zárt kör; amigurumiban a mintatípus ad spirált (szókészlet K2, PQW-892). */
   readonly roundEnd: 'join-slip' | 'spiral';
   /**
    * Valós magasság a rövidpálcához képest. Amíg nincs mérés, becsült érték;
@@ -189,6 +190,12 @@ export interface StitchNode {
    * rajzot szépíti, a topológián nem változtat (README §2).
    */
   readonly pinned?: { readonly x: number; readonly y: number; readonly rotation: number };
+  /**
+   * A szem színe: index a darab rácsának színlistájában (`PieceGrid.colors`,
+   * PQW-864). Hiányában az első szín; az írott minta a színváltást az előző
+   * szem utolsó ráhajtásánál írja (03 §6, §10 G35).
+   */
+  readonly color?: number;
 }
 
 /** Láncív: láncszemek, amelyeket a következő sor egyetlen célpontként kezel (01 §8.2 szabály 11). */
@@ -216,9 +223,10 @@ export interface StitchGroup {
 /** Soronként felülírható konvenciók (README §4.3). */
 export interface RowConventions {
   /**
-   * Számít-e a fordulólánc szemnek. N szemhez a láncalap `N + T`, ha nem
-   * számít, és `N + T − 1`, ha igen; ettől függ az is, hová megy a sor utolsó
-   * szeme (01 §8.3 szabály 13–15). `stitch-default`: a sort kezdő szem
+   * Számít-e a fordulólánc szemnek. N szemhez a láncalap `N + T`: ha
+   * számít, a fordulólánc egy alapláncszemen áll (PQW-891); ettől függ az is,
+   * hová megy a sor utolsó szeme (01 §8.3 szabály 13–15). `stitch-default`:
+   * sorban mindig számít, körben a kört kezdő szem
    * `StitchDef.turningChainCounts` értéke dönt (szókészlet K1); japán
    * hagyományban a félpálcától felfelé számít (tradition.ts).
    */
@@ -243,8 +251,9 @@ export interface RepeatSpec {
 
 export interface PatternConventions extends RowConventions {
   /**
-   * A körök zárása. `stitch-default`: a kör szemének `StitchDef.roundEnd`
-   * értéke dönt (szókészlet K2, 06 §5.3 V4).
+   * A körök zárása. `stitch-default`: a mintatípus dönt, amigurumiban spirál,
+   * minden más körben zárt kör (szókészlet K2, tulajdonosi döntés, PQW-892,
+   * `roundEndFor` a rounds.ts-ben; 06 §5.3 V4).
    */
   readonly roundEnd: 'stitch-default' | 'join-slip' | 'spiral';
   /** Számít-e a pikó szemnek (szókészlet D7, README §4.8). */
@@ -319,6 +328,47 @@ export interface Piece {
    * csomópontja, mert a sorvégbe horgolt szem célpontját a gráf nem ismeri.
    */
   readonly border?: PieceBorder;
+  /**
+   * A rácsminta, amelyből a darab készült (PQW-864). A gráf ebből generálódik;
+   * a rács a darabbal mentődik, így a technika szabályai (C2C, tapestry) és az
+   * ismétlő egység jelölése a mentés után is megvannak.
+   */
+  readonly grid?: PieceGrid;
+}
+
+/* ---- Rácsos technikák (PQW-864) ---- */
+
+/** Filé, sarokból sarokba (C2C), tapestry, graphgan, mozaik (03 §5). */
+export type GridTechnique = 'filet' | 'c2c' | 'tapestry' | 'graphgan' | 'mosaic';
+
+/** A darab egy színe; az írott minta betűvel jelöli (A, B, C…). */
+export interface PatternColor {
+  readonly name: string;
+  /** `#rrggbb`. */
+  readonly hex: string;
+}
+
+/** Az ismétlő egység a rácson: a bal alsó cellája és a mérete, cellában. */
+export interface GridUnit {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+export interface PieceGrid {
+  readonly technique: GridTechnique;
+  /**
+   * A kiterjesztett rács: sorok alulról felfelé, cellák balról jobbra, a
+   * színoldal nézetében. Filében 1 teli, 0 nyitott, −1 nincs cella; színes
+   * rácsban a szín indexe a `colors` listában.
+   */
+  readonly cells: readonly (readonly number[])[];
+  readonly colors: readonly PatternColor[];
+  /** Az ismétlő egység, ha van; az írott minta ismétlésként írja, a rajz kiemeli. */
+  readonly unit: GridUnit | null;
+  /** Feliratos motívum: tükrözött nézetben figyelmeztetés. */
+  readonly lettering: boolean;
 }
 
 /** A szegély választásai (PQW-862, 03 §7.1). */

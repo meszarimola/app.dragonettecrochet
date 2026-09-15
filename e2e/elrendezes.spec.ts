@@ -18,6 +18,13 @@ async function box(page: Page, selector: string) {
   return found!;
 }
 
+/** Az írott minta lenyitva: alacsony ablakban alapból csukva van (PQW-891), ott a gombjával nyitjuk. */
+async function openWritten(page: Page): Promise<void> {
+  const written = page.locator('#written');
+  if (await written.isHidden()) await page.locator('#written-toggle').click();
+  await expect(written).toBeVisible();
+}
+
 for (const viewport of [
   { width: 1440, height: 900 },
   { width: 1000, height: 506 },
@@ -47,6 +54,7 @@ for (const viewport of [
     expect(board.y + board.height).toBeLessThanOrEqual(viewport.height);
 
     // A lenyitott írott minta a két oldalsáv között, nem alattuk.
+    await openWritten(page);
     const written = await box(page, '#written');
     expect(written.x).toBeGreaterThanOrEqual(types.x + types.width - 1);
     expect(written.x + written.width).toBeLessThanOrEqual(panel.x + 1);
@@ -114,6 +122,12 @@ for (const viewport of [
     await page.setViewportSize(viewport);
     await open(page);
     const written = page.locator('#written');
+    // Alacsony ablakban a panel alapból csukva, hogy a vászon közepére lehessen kattintani (PQW-891).
+    const low = viewport.height < 640;
+    if (low) {
+      await expect(written).toBeHidden();
+      await page.locator('#written-toggle').click();
+    }
     await expect(written).toBeVisible();
 
     // 10 soros félpálcás téglalap billentyűvel: 1 = láncszem, 4 = félpálca, F = fordulás.
@@ -132,7 +146,15 @@ for (const viewport of [
     const types = await box(page, '#types');
     const panel = await box(page, '#panel');
     const cover = await box(page, '#written');
-    expect(near(cover.height, Math.min(352, stage.height / 2))).toBe(true);
+    // Alapból legfeljebb 22rem és a munkaterület fele. Alacsony ablakban a 40%-a, de legalább a fejléc (a betűk
+    // magasságától függ): a vászon közepe mindenképp szabad marad (PQW-891).
+    if (low) {
+      const minimum = await written.evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue('--written-min')) || 0);
+      expect(cover.height).toBeLessThanOrEqual(Math.max(minimum, stage.height * 0.4) + 1);
+      expect(cover.y).toBeGreaterThan(stage.y + stage.height / 2);
+    } else {
+      expect(near(cover.height, Math.min(352, stage.height / 2))).toBe(true);
+    }
 
     /** A pont a vászon takarás nélküli részén: a két oldalsáv között, a panel fölött. */
     const expectUncovered = (point: Point | null, name: string, bottom = cover.y) => {
@@ -200,7 +222,7 @@ for (const viewport of [
     await page.setViewportSize(viewport);
     await open(page);
     const written = page.locator('#written');
-    await expect(written).toBeVisible();
+    await openWritten(page);
     const separator = separatorOf(page);
     const stage = await box(page, '.stage');
 
@@ -257,7 +279,7 @@ for (const viewport of [
     await page.setViewportSize(viewport);
     await open(page);
     const written = page.locator('#written');
-    await expect(written).toBeVisible();
+    await openWritten(page);
     const stage = await box(page, '.stage');
     const types = await box(page, '#types');
     const panel = await box(page, '#panel');
@@ -313,7 +335,7 @@ for (const [viewport, rounds] of [
   test(`${viewport.width}×${viewport.height}: az „Egész minta” a körben horgolt minta rácsát is a látható részre illeszti`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await open(page);
-    await expect(page.locator('#written')).toBeVisible();
+    await openWritten(page);
 
     const section = page.locator('#section-rounds');
     if ((await section.getAttribute('open')) === null) await section.locator('summary').click();

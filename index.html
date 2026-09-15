@@ -510,6 +510,166 @@
             </div>
           </details>
 
+          <details class="section" id="section-shawl">
+            <summary class="section__head"><h2 class="panel__title">Kendő</h2></summary>
+            <div class="shape" role="group" aria-label="Kendő létrehozása méretből">
+              <p class="panel__note">
+                Háromszög-, félhold-, félkör-, kör- vagy Pi-kendőt, illetve stólát készít a megadott méretből, a
+                mintasűrűség szerinti szaporítással. Az új minta a mostani helyére kerül; visszavonással a korábbi
+                visszajön.
+              </p>
+              <p class="panel__field">
+                <label for="shawl-kind">Kendő</label>
+                <select id="shawl-kind"></select>
+              </p>
+              <p class="panel__field">
+                <label for="shawl-stitch">Szem</label>
+                <select id="shawl-stitch"></select>
+              </p>
+              <p class="panel__field">
+                <label for="shawl-size" id="shawl-size-label">Mélység a gerincen, cm</label>
+                <input id="shawl-size" type="text" inputmode="decimal" autocomplete="off" value="40" />
+              </p>
+              <p class="panel__field" id="shawl-length-field" hidden>
+                <label for="shawl-length">Hossz, cm</label>
+                <input id="shawl-length" type="text" inputmode="decimal" autocomplete="off" value="150" />
+              </p>
+              <div class="shape__group" id="shawl-rate-fields">
+                <p class="panel__field">
+                  <label for="shawl-rate">Szaporítási arány</label>
+                  <select id="shawl-rate" aria-describedby="shawl-rate-note"></select>
+                </p>
+                <p class="panel__field" id="shawl-custom-field" hidden>
+                  <label for="shawl-custom" id="shawl-custom-label">Szaporítás soronként, az egész sorra</label>
+                  <input id="shawl-custom" type="text" inputmode="decimal" autocomplete="off" value="8" />
+                </p>
+                <p class="panel__note" id="shawl-rate-note">
+                  A kiadott horgolt kendők gyakran eltérnek az elméleti aránytól, és a blokkolásra számítanak. A saját arány
+                  szögét és méretét az előnézet mutatja.
+                </p>
+              </div>
+              <p class="choice" id="shawl-wings-field">
+                <label><input type="checkbox" id="shawl-wings" /> Szárnyakkal: a második felében a széleken dupla szaporítás</label>
+              </p>
+              <div class="shape__group">
+                <p class="choice">
+                  <label><input type="checkbox" id="shawl-edging" /> <span id="shawl-edging-label">Az utolsó sor a szegély ismétléséhez</span></label>
+                </p>
+                <div class="shape__pair">
+                  <p class="panel__field">
+                    <label for="shawl-edging-x">X: egy ismétlés szemei</label>
+                    <input id="shawl-edging-x" type="number" min="1" max="50" step="1" value="6" inputmode="numeric" disabled />
+                  </p>
+                  <p class="panel__field">
+                    <label for="shawl-edging-y">Y: szélső szemek</label>
+                    <input id="shawl-edging-y" type="number" min="0" max="50" step="1" value="3" inputmode="numeric" disabled />
+                  </p>
+                </div>
+              </div>
+              <div class="shape__pair">
+                <p class="panel__field">
+                  <label for="shawl-block-width">Blokkolva szélesebb, %</label>
+                  <input id="shawl-block-width" type="text" inputmode="decimal" autocomplete="off" value="10" aria-describedby="shawl-block-note" />
+                </p>
+                <p class="panel__field">
+                  <label for="shawl-block-height">Blokkolva hosszabb, %</label>
+                  <input id="shawl-block-height" type="text" inputmode="decimal" autocomplete="off" value="5" aria-describedby="shawl-block-note" />
+                </p>
+              </div>
+              <p class="panel__note" id="shawl-block-note">
+                Gyapjú blokkolva kb. 5–10%-kal szélesebb, a pamut alig változik; csipkénél mérd le a próbadarabot blokkolás
+                előtt és után.
+              </p>
+              <div class="shape__preview" id="shawl-preview-box" hidden>
+                <svg id="shawl-preview" aria-hidden="true" focusable="false"></svg>
+                <p class="panel__note">Teli vonal: blokkolva; szaggatott: blokkolás nélkül.</p>
+              </div>
+              <div class="shape__result" aria-live="polite">
+                <p class="shape__size" id="shawl-result"></p>
+                <ul class="shape__details" id="shawl-details"></ul>
+                <ul class="shawl__warnings" id="shawl-warnings"></ul>
+              </div>
+              <p class="panel__note" id="shawl-source"></p>
+              <button type="button" class="tool shape__create" id="shawl-create">Minta létrehozása</button>
+            </div>
+          </details>
+
+          <details class="section" id="section-grid">
+            <summary class="section__head"><h2 class="panel__title">Rácsminta</h2></summary>
+            <div class="grid-chart" role="group" aria-label="Rácsminta: filé, C2C, tapestry, graphgan">
+              <p class="panel__note">
+                Filé, sarokból sarokba (C2C), tapestry vagy graphgan cellánként. Elég az első 4–5 sort teljesen megadni, a
+                többinél a sor egy részét: a program felismeri az ismétlő egységet, és kiterjeszti a teljes rácsra. Az új
+                minta a mostani helyére kerül; visszavonással a korábbi visszajön.
+              </p>
+              <p class="panel__field">
+                <label for="grid-technique">Technika</label>
+                <select id="grid-technique"></select>
+              </p>
+              <div class="shape__pair">
+                <p class="panel__field">
+                  <label for="grid-width">Szélesség, cella</label>
+                  <input id="grid-width" type="number" min="1" max="80" step="1" value="12" inputmode="numeric" />
+                </p>
+                <p class="panel__field">
+                  <label for="grid-height">Magasság, sor</label>
+                  <input id="grid-height" type="number" min="1" max="80" step="1" value="8" inputmode="numeric" />
+                </p>
+              </div>
+              <fieldset class="grid-chart__colors" id="grid-colors-field" hidden>
+                <legend>Színek</legend>
+                <ul class="grid-chart__color-list" id="grid-colors"></ul>
+                <button type="button" class="tool grid-chart__action" id="grid-color-add">Szín hozzáadása</button>
+              </fieldset>
+              <fieldset class="choice grid-chart__brushes" id="grid-brushes"></fieldset>
+              <p class="panel__note" id="grid-ratio"></p>
+              <div class="grid-chart__board" id="grid-board" role="grid" aria-label="Rácsszerkesztő" aria-describedby="grid-help"></div>
+              <p class="panel__note" id="grid-help">
+                Nyilakkal lépsz a cellák között, szóközzel vagy Enterrel festesz a választott ecsettel, Delete-tel törlöd a
+                cellát. Egérrel húzva több cellát festhetsz.
+              </p>
+              <div class="grid-chart__group">
+                <p class="choice">
+                  <label><input type="checkbox" id="grid-unit-manual" /> Az ismétlő egységet kézzel jelölöm meg</label>
+                </p>
+                <div class="shape__pair" id="grid-unit-fields" hidden>
+                  <p class="panel__field">
+                    <label for="grid-unit-x">Első cella, balról</label>
+                    <input id="grid-unit-x" type="number" min="1" max="80" step="1" value="1" inputmode="numeric" />
+                  </p>
+                  <p class="panel__field">
+                    <label for="grid-unit-y">Első sor, alulról</label>
+                    <input id="grid-unit-y" type="number" min="1" max="80" step="1" value="1" inputmode="numeric" />
+                  </p>
+                  <p class="panel__field">
+                    <label for="grid-unit-width">Az egység szélessége, cella</label>
+                    <input id="grid-unit-width" type="number" min="1" max="80" step="1" value="4" inputmode="numeric" />
+                  </p>
+                  <p class="panel__field">
+                    <label for="grid-unit-height">Az egység magassága, sor</label>
+                    <input id="grid-unit-height" type="number" min="1" max="80" step="1" value="4" inputmode="numeric" />
+                  </p>
+                </div>
+                <p class="panel__note grid-chart__unit" id="grid-unit" aria-live="polite"></p>
+                <button type="button" class="tool grid-chart__action" id="grid-fill">Kitöltés az ismétlő egységből</button>
+              </div>
+              <p class="choice">
+                <label><input type="checkbox" id="grid-lettering" /> Feliratos motívum: tükrözött nézetben figyelmeztet</label>
+              </p>
+              <div class="shape__result">
+                <p class="shape__size" id="grid-size" aria-live="polite"></p>
+                <ul class="shape__details" id="grid-details"></ul>
+                <ul class="shawl__warnings" id="grid-warnings"></ul>
+              </div>
+              <p class="panel__note" id="grid-source"></p>
+              <ul class="shape__details" id="grid-yarn" aria-label="Fonal"></ul>
+              <div class="grid-chart__actions">
+                <button type="button" class="tool" id="grid-create">Minta létrehozása</button>
+                <button type="button" class="tool" id="grid-load" disabled>Rács a mostani mintából</button>
+              </div>
+            </div>
+          </details>
+
           <details class="section" id="section-rounds">
             <summary class="section__head"><h2 class="panel__title">Kör és motívum</h2></summary>
             <div class="rounds" role="group" aria-label="Kör és motívum létrehozása">
