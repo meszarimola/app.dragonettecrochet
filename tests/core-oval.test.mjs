@@ -11,7 +11,7 @@ import { describe, test } from 'node:test';
 import { addAmigurumiPart, createAmigurumi } from '../src/core/amigurumi-generator.ts';
 import { figureSize, roundGaugeOf, shapeSchedule } from '../src/core/amigurumi.ts';
 import { canonicalPattern } from '../src/core/canonical.ts';
-import { contextOf, defaultCursor, emptyPattern, endRoundSpiral, fillRow, work, workIntoSame } from '../src/core/editor.ts';
+import { contextOf, defaultCursor, emptyPattern, endRoundSpiral, fillRow, liveCheck, work, workIntoSame } from '../src/core/editor.ts';
 import { buildPieceGraph, computeLayers } from '../src/core/graph.ts';
 import { targetPoint } from '../src/core/grid.ts';
 import { copySelection, duplicateSelection, pasteFragment } from '../src/core/selection.ts';
@@ -384,6 +384,23 @@ describe('kézi horgolás a láncszem másik oldalába (PQW-899)', () => {
     assert.equal(round1(manual).replace(' Folytasd spirálban.', ''), round1(generated));
     assert.deepEqual(manual.pieces[0].groups.map((group) => group.def), ['inc-4sc', 'inc-3sc']);
     for (const stitch of ['hdc', 'dc']) assert.deepEqual(rules(guided(9, stitch, 5, 4)), [], stitch);
+  });
+
+  test('horgolás közben nem jelez hibát a láncalap kezdése: a kör a kezdőlánc utáni láncszembe megy', () => {
+    let pattern = chains(8);
+    for (let k = 0; k < 7; k += 1) pattern = place(pattern);
+    for (let k = 0; k < 3; k += 1) pattern = ok(workIntoSame(pattern, 'sc'));
+    // A gráf még sornak látja (a másik oldalon nincs szem), az ellenőrző ezért jelezné a láncalap kezdését.
+    assert.deepEqual(rules(pattern), ['foundation-chain']);
+    const context = contextOf(pattern, mode);
+    assert.deepEqual(liveCheck(pattern, context).findings, []);
+    // A másik oldal első szemével kör lesz, és a láncalap kezdésének jelzése magától elmúlik;
+    // a még hátralévő célpontok („felhasználatlan pozíció”) a félkész kör jelzései.
+    const back = place(pattern);
+    assert.deepEqual([...new Set(rules(back))], ['unused-position']);
+    assert.deepEqual(liveCheck(back, contextOf(back, mode)).findings, []);
+    // Sorban a jelzés megmarad: ott a fordulólánc alapláncszemét is át kell ugrani.
+    assert.deepEqual(liveCheck(pattern, contextOf(pattern)).findings.map((finding) => finding.rule), ['foundation-chain']);
   });
 
   test('a „Sor kitöltése” a legtávolabbi láncszem után a láncszemek másik oldalán folytatódik', () => {

@@ -737,12 +737,18 @@ export function liveCheck(pattern: Pattern, context: WorkContext = contextOf(pat
 
   const slotIndex = new Map<NodeId, number>();
   context.slots.forEach((slot, i) => {
-    if (slot.kind === 'stitch') slotIndex.set(slot.id, i);
+    // Az ovális láncszeme kétszer célpont: a másik oldala a későbbi, ezért addig „még nincs kész” (PQW-899).
+    if (slot.kind === 'stitch' || slot.kind === 'underside') slotIndex.set(slot.id, i);
     else if (slot.kind === 'space') for (const chain of slot.chains) slotIndex.set(chain, i);
     else if (slot.kind === 'ring') slotIndex.set(slot.node, i);
   });
   const inLayer = new Set(graph.layers[context.layer]!.stitches);
+  // Az ovális 1. köre (PQW-899): amíg a másik oldalon nincs szem, a kör sornak látszik, a kezdése
+  // pedig hibásnak (a sor a fordulólánc alapláncszemét is átugorja, a kör nem). A másik oldal első
+  // szemével a gráf körnek látja, és a jelzés magától elmúlik.
+  const ovalStart = context.oval && context.layer === 1 && graph.layers[0]!.undersides.length === 0;
   const pending = (finding: Finding) => {
+    if (ovalStart && finding.rule === 'foundation-chain') return true;
     if (!PENDING_RULES.has(finding.rule)) return false;
     return finding.nodes.every((id) => inLayer.has(id) || (slotIndex.get(id) ?? -1) > context.frontier);
   };
