@@ -1786,6 +1786,9 @@ setOpen(typesNav, typesToggle, !NARROW.matches);
 setOpen(panel, toggle, !NARROW.matches);
 setOpen(written, writtenToggle, readWrittenOpen() && !NARROW.matches);
 showTypeView(patternType);
+
+// A futó verzió a sarokban (PQW-903): a `package.json` verziója, build időben beégetve.
+must<HTMLElement>('#version').textContent = `v${__APP_VERSION__}`;
 select(null);
 fitBoard();
 

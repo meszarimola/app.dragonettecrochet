@@ -940,7 +940,10 @@ body.is-selecting #board {
   inset-inline-start: 0;
   inline-size: min(16rem, 80vw);
   padding: 1.25rem;
-  overflow-y: auto;
+  /* Oszlop: a cím és a bevezető fent marad, a lista görget, a verziófelirat a sáv alján ül (PQW-903). */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border-inline-end: 1px solid var(--c-line);
   background: var(--c-bg);
 }
@@ -957,6 +960,10 @@ body.is-selecting #board {
   margin: 0;
   padding: 0;
   list-style: none;
+  /* A lista görget a sávon belül; a `min-block-size` nélkül a rácsdoboz nem zsugorodna (PQW-903). */
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow-y: auto;
 }
 
 .type {
@@ -1760,4 +1767,26 @@ body.is-selecting #board {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+/*
+ * A futó verzió a bal alsó sarokban (PQW-903): apró és halvány, a mintatípus-menü
+ * sávja fölött áll, a vásznat nem takarja. Kikerül a szövegfolyamból (`fixed`), így
+ * az elrendezésen nem változtat és nem okoz görgetést; egérrel és képernyőolvasóval
+ * sem akad útba.
+ */
+/*
+ * A futó verzió a mintatípus-sáv alján, a bal alsó sarokban (PQW-903): apró és
+ * halvány. A sáv oszlopának utolsó eleme, a lista fölötte görget, ezért sosem
+ * takar szöveget, és a vászon rajzterületéből sem vesz el semmit. Nem kattintható,
+ * és a képernyőolvasónak sem mond fölösleges tokent (`aria-hidden`).
+ */
+.version {
+  flex: 0 0 auto;
+  margin: 0.75rem 0 0;
+  color: var(--c-muted);
+  font-size: 0.6875rem;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
 }
