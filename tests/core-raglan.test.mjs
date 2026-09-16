@@ -28,6 +28,9 @@ const C = {
   yokeDepthCm: 20,
   underarmCm: 4,
   bodyLengthCm: 58,
+  // Az ujj csöve a hónaljtól a mandzsettáig (PQW-913): a CYC női M karhossza és a felkarból számolt mandzsetta.
+  sleeveLengthCm: 44.5,
+  cuffCm: 26,
   hemCm: 5,
 };
 
@@ -129,12 +132,16 @@ describe('raglán a generátorból, mért mintasűrűséggel', () => {
     // Az ujjak szemeit a szétosztásnál kihagyjuk: azok külön készülnek.
     assert.equal(pattern.pieces[0].skipped.length, 2 * base.target.sleeve);
     const graph = buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));
-    // A vállrész körei, a szétosztás köre, a törzs körei, végül a két ujj első köre (PQW-908).
-    assert.equal(graph.layers.length - 1, base.yokeRounds + 1 + base.bodyRoundsBelow + 2);
+    // A vállrész körei, a szétosztás köre, a törzs körei, végül a két ujj csöve a mandzsettáig (PQW-908, PQW-913).
+    assert.equal(graph.layers.length - 1, base.yokeRounds + 1 + base.bodyRoundsBelow + 2 * base.sleeve.rounds);
+    // Az ujj a mandzsetta szemszámáig fogy: az utolsó kör a második ujj mandzsettája.
+    assert.equal(graph.layers.at(-1).stitchCount, base.sleeve.cuffStitches, 'az ujj a mandzsettáig fogy');
     assert.equal(graph.layers[base.yokeRounds + 2].stitchCount, base.bodyStitches);
 
     // Az ujjak: a vállrész utolsó körének kihagyott szemeibe és a szétosztás hónaljláncába horgolnak.
-    const sleeves = graph.layers.slice(-2);
+    // Az ujjak első körei: csak azok kapaszkodnak a szétosztás hónaljláncába is.
+    const sleeves = graph.layers.filter((layer) => layer.alsoBelow === base.yokeRounds + 2);
+    assert.equal(sleeves.length, 2, 'két ujj indul a hónaljláncból');
     for (const sleeve of sleeves) {
       assert.equal(sleeve.stitchCount, base.sleeveStitches, 'az ujj körmérete a terv szerinti');
       assert.equal(sleeve.below, base.yokeRounds + 1, 'az ujj a vállrész utolsó körénél folytatódik');
@@ -211,5 +218,103 @@ describe('a raglán elutasításai', () => {
 
   test('a pulóver hossza legyen nagyobb a raglán mélységénél', () => {
     assert.equal(refused({ bodyLengthCm: 21 }), 'body-length-yoke');
+  });
+});
+
+describe('az ujj csöve a hónaljtól a mandzsettáig (PQW-913)', () => {
+  const plan = planned();
+
+  test('a „C” példa ujja 36 kör, 40 szemes mandzsettával, 5 fogyasztó körrel', () => {
+    // 44,5 cm karhossz / 1,25 cm kör = 35,6 → páros körszám; a mandzsetta 26 cm / 0,67 cm, felfelé páros.
+    assert.equal(plan.sleeve.rounds, 36);
+    assert.equal(plan.sleeve.cuffStitches, 40);
+    assert.equal(plan.sleeve.decreases, 5);
+  });
+
+  test('a mandzsetta és a fogyasztások kiadják az ujj körméretét a szétosztásnál', () => {
+    assert.equal(plan.sleeve.cuffStitches + 2 * plan.sleeve.decreases, plan.sleeveStitches);
+    assert.equal(plan.sleeve.decreaseRounds.length, plan.sleeve.decreases);
+    assert.equal(plan.checks.find((check) => check.id === 'raglan-sleeve').ok, true);
+  });
+
+  test('a fogyasztás a szétosztás köre után kezdődik, és a mandzsetta körei egyenesek', () => {
+    const shaped = plan.sleeve.rounds - plan.sleeve.cuffRounds;
+    assert.ok(
+      plan.sleeve.decreaseRounds.every((round) => round >= 2 && round <= shaped),
+      plan.sleeve.decreaseRounds.join(', '),
+    );
+    // Egyenletes elosztás: a közök legfeljebb 1 körrel térnek el egymástól (05 §4.4).
+    const gaps = plan.sleeve.decreaseRounds.slice(1).map((round, i) => round - plan.sleeve.decreaseRounds[i]);
+    assert.ok(Math.max(...gaps) - Math.min(...gaps) <= 1, gaps.join(', '));
+  });
+
+  test('férfi méretsorozatban minden méretre zár a mandzsetta számítása', () => {
+    const profile = {
+      id: 'meres',
+      yarn: { name: 'Pamut', cycWeight: 4, metersPer100g: null, ballMassG: null },
+      hookMm: 5,
+      blocked: false,
+      gauges: [{ stitch: 'dc', form: 'rounds', stitchesPer10cm: 15, rowsPer10cm: 8, source: 'measured' }],
+      swatch: { widthCm: null, heightCm: null, massG: null },
+    };
+    const pattern = { ...emptyPattern(), gauge: { active: 'meres', profiles: [profile] } };
+    const result = planGarment(pattern, { ...DEFAULT_GARMENT, kind: 'raglan', table: 'men', size: 'M', from: 'S', to: '2X' });
+    assert.ok(result.ok, result.ok ? '' : JSON.stringify(result.reason));
+    for (const entry of result.plan.sizes) {
+      const size = entry.plan;
+      assert.equal(size.sleeve.cuffStitches + 2 * size.sleeve.decreases, size.sleeveStitches, entry.id);
+      assert.equal(size.sleeve.decreaseRounds.length, size.sleeve.decreases, entry.id);
+      assert.equal(size.checks.find((check) => check.id === 'raglan-sleeve').ok, true, entry.id);
+    }
+  });
+});
+
+describe('bordás szegély és mandzsetta a raglánon (PQW-913)', () => {
+  const measured = () => {
+    const profile = {
+      id: 'meres',
+      yarn: { name: 'Pamut', cycWeight: 4, metersPer100g: null, ballMassG: null },
+      hookMm: 5,
+      blocked: false,
+      gauges: [{ stitch: 'dc', form: 'rounds', stitchesPer10cm: 15, rowsPer10cm: 8, source: 'measured' }],
+      swatch: { widthCm: null, heightCm: null, massG: null },
+    };
+    return { ...emptyPattern(), gauge: { active: 'meres', profiles: [profile] } };
+  };
+  const made = (ribbing) => {
+    const result = generateGarment(measured(), { ...DEFAULT_GARMENT, kind: 'raglan', ribbing });
+    assert.ok(result.ok, result.ok ? '' : JSON.stringify(result.reason));
+    return result;
+  };
+  const written = (pattern) => formatWrittenPattern(writePattern(pattern, libraryFor(pattern), 'hu'));
+
+  test('a bordás darab hibátlan, és a szemszám nem változik a sima darabhoz képest', () => {
+    const plainPiece = made(null);
+    const ribbedPiece = made({ rows: 2, width: 1 });
+    assert.deepEqual(validatePattern(ribbedPiece.pattern, libraryFor(ribbedPiece.pattern)), []);
+    const counts = (result) => {
+      const pattern = result.pattern;
+      const graph = buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));
+      return graph.layers.map((layer) => layer.stitchCount);
+    };
+    // A relief szem a pálca köré megy, a tetejét nem használja fel: a szemszámok végig azonosak.
+    assert.deepEqual(counts(ribbedPiece), counts(plainPiece));
+  });
+
+  test('a törzs alsó szegélye és a mandzsetta relief szemmel, ismétlésként kiírva', () => {
+    const text = written(made({ rows: 2, width: 1 }).pattern);
+    const ribbed = text.split('\n').filter((line) => /^\d+([–-]\d+)?\. kör:/.test(line) && /Eerp|Herp/.test(line));
+    // A törzs alsó szegélye és az ujjak mandzsettája: legalább három bordás körsor.
+    assert.ok(ribbed.length >= 3, ribbed.join('\n'));
+    // A bordás kör fordulólánca nem számít szemnek, és a bordázat ismétlésként áll.
+    assert.ok(ribbed.every((line) => line.includes('nem számít szemnek')), ribbed.join('\n'));
+    assert.ok(
+      ribbed.some((line) => /\(1 (Eerp|Herp), 1 (Eerp|Herp)\) ×\d+/.test(line)),
+      ribbed.join('\n'),
+    );
+  });
+
+  test('bordázat nélkül nincs relief szem a mintában', () => {
+    assert.doesNotMatch(written(made(null).pattern), /Eerp|Herp/);
   });
 });

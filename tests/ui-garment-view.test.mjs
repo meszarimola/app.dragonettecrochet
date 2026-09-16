@@ -46,8 +46,10 @@ test('választható ruhadarabok, táblázatok és méretek', () => {
 });
 
 test('a mezők: a táblázat, a derék alatti hossz és az ismétlés csak pulóvernél; a feliratok a ruhadarabhoz', () => {
-  assert.deepEqual(garmentFieldState('hat'), { table: false, belowWaist: false, neckline: false, repeat: false });
-  assert.deepEqual(garmentFieldState('drop-shoulder'), { table: true, belowWaist: true, neckline: true, repeat: true });
+  // A bordázat a szegély és a mandzsetta sorain készül: a sapkának nincs ilyen sora (PQW-913).
+  assert.deepEqual(garmentFieldState('hat'), { table: false, belowWaist: false, neckline: false, repeat: false, ribbing: false });
+  assert.deepEqual(garmentFieldState('drop-shoulder'), { table: true, belowWaist: true, neckline: true, repeat: true, ribbing: true });
+  assert.equal(garmentFieldState('raglan').ribbing, true);
   assert.equal(easeLabel('hat'), 'Bőség a fejkörfogathoz, cm');
   assert.equal(hemLabel('hat'), 'Perem, cm');
   assert.match(easeNote('hat'), /46 cm alatt −2,5 cm, fölötte −5 cm/);

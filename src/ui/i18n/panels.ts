@@ -297,6 +297,8 @@ export interface PanelTexts {
     readonly raglanExtra: (rounds: number) => string;
     readonly raglanDivide: (front: number, sleeve: number, underarm: number, body: number) => string;
     readonly raglanBody: (rounds: number, hemRounds: number) => string;
+    /** Az ujj csöve a hónaljtól a mandzsettáig (PQW-913). */
+    readonly raglanSleeve: (rounds: number, decreases: number, cuff: number, cuffRounds: number) => string;
     readonly formRounds: string;
     readonly formRows: string;
     readonly gaugeMeasured: (stitch: string, basis: string) => string;
@@ -679,8 +681,9 @@ const hu: PanelTexts = {
     raglanExtra: (rounds) => `, és ${rounds} körben az elején és a hátán külön szaporítás is`,
     raglanDivide: (front, sleeve, underarm, body) =>
       `Szétosztás: elöl és hátul ${front} szem, ujjanként ${sleeve} szem, a hónaljlánc ${underarm} szem; a törzs ${body} szem.`,
-    raglanBody: (rounds, hemRounds) =>
-      `Törzs: ${rounds} kör a szétosztástól, ebből az utolsó ${hemRounds} kör a szegély. Az ujjak a hónaljlánc és a kihagyott szemek mentén külön készülnek: azokat a rajz még nem tartalmazza.`,
+    raglanBody: (rounds, hemRounds) => `Törzs: ${rounds} kör a szétosztástól, ebből az utolsó ${hemRounds} kör a szegély.`,
+    raglanSleeve: (rounds, decreases, cuff, cuffRounds) =>
+      `Ujj (2 db): ${rounds} kör a hónaljlánc és a kihagyott szemek mentén; ${decreases} körben a hónalj két oldalán 1-1 összehorgolás, a mandzsetta ${cuff} szem, ${cuffRounds} kör.`,
     formRounds: 'körben',
     formRows: 'síkban',
     gaugeMeasured: (stitch, basis) => `${huCapitalize(huArticle(stitch))} ${basis} mintasűrűségéből.`,
@@ -1041,8 +1044,9 @@ const en: PanelTexts = {
     raglanExtra: (rounds) => `, and in ${rounds} rounds the front and back also get their own increases`,
     raglanDivide: (front, sleeve, underarm, body) =>
       `Divide: ${front} stitches front and back, ${sleeve} stitches per sleeve, underarm chain ${underarm} stitches; the body is ${body} stitches.`,
-    raglanBody: (rounds, hemRounds) =>
-      `Body: ${rounds} rounds from the divide, the last ${hemRounds} rounds are the hem. The sleeves are worked separately along the underarm chain and the skipped stitches: the chart does not contain them yet.`,
+    raglanBody: (rounds, hemRounds) => `Body: ${rounds} rounds from the divide, the last ${hemRounds} rounds are the hem.`,
+    raglanSleeve: (rounds, decreases, cuff, cuffRounds) =>
+      `Sleeve (make 2): ${rounds} rounds along the underarm chain and the skipped stitches; in ${decreases} rounds decrease once on each side of the underarm, the cuff is ${cuff} stitches over ${cuffRounds} rounds.`,
     formRounds: 'in the round',
     formRows: 'flat',
     gaugeMeasured: (stitch, basis) => `From the ${basis} gauge of ${stitch}.`,

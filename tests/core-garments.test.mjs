@@ -32,6 +32,7 @@ import {
   planGarment,
   sleeveRowsOf,
 } from '../src/core/garments.ts';
+import { buildPieceGraph } from '../src/core/graph.ts';
 import { canonicalPattern } from '../src/core/canonical.ts';
 import { loadPattern, savePattern } from '../src/core/pattern-json.ts';
 import { readPattern } from '../src/core/pattern-read.ts';
@@ -424,5 +425,91 @@ describe('generált minta', () => {
     assert.match(formatWrittenPattern(writePattern(made, libraryFor(made), 'hu')), /Fonal tartalékkal: kb\. \d+ \(\d+, \d+\) m, \d+ \(\d+, \d+\) gombolyag\./);
     // A „B” példa mintasűrűségével az M méret (94 + 10 cm, a darab 52 cm) pontosan 78 szem.
     assert.equal(plan.sizes[1].plan.panel.stitches, 78);
+  });
+});
+
+describe('a ruhadarab írott mintája visszaolvasható (PQW-913)', () => {
+  /** Mért mintasűrűség körben és síkban: a raglán és a sapka körös mintasűrűséget kíván. */
+  const measured = () => {
+    const profile = {
+      id: 'meres',
+      yarn: { name: 'Pamut', cycWeight: 4, metersPer100g: null, ballMassG: null },
+      hookMm: 5,
+      blocked: false,
+      gauges: [
+        { stitch: 'dc', form: 'rounds', stitchesPer10cm: 15, rowsPer10cm: 8, source: 'measured' },
+        { stitch: 'dc', form: 'rows', stitchesPer10cm: 15, rowsPer10cm: 8, source: 'measured' },
+        { stitch: 'hdc', form: 'rounds', stitchesPer10cm: 18, rowsPer10cm: 14, source: 'measured' },
+      ],
+      swatch: { widthCm: null, heightCm: null, massG: null },
+    };
+    return { ...emptyPattern(), gauge: { active: 'meres', profiles: [profile] } };
+  };
+
+  /** A minta kiírva, majd visszaolvasva; a darabnevek egyeznek. */
+  const roundTrip = (garmentOptions) => {
+    const result = generateGarment(measured(), garmentOptions);
+    assert.ok(result.ok, JSON.stringify(result.reason));
+    const { pattern } = result;
+    const library = libraryFor(pattern);
+    const written = formatWrittenPattern(writePattern(pattern, library, 'hu'));
+    // A méretsorozat blokkja leíró szöveg, nem darab: enélkül a visszaolvasó a „S (M, L)” fejlécen elhasalt.
+    assert.match(written, /\nMéretek\n/);
+    const back = readPattern(written, { library, locale: 'hu', conventions: pattern.conventions });
+    assert.ok(back.ok, back.ok ? '' : JSON.stringify(back.error));
+    assert.deepEqual(
+      back.pattern.pieces.map((piece) => piece.name),
+      pattern.pieces.map((piece) => piece.name),
+    );
+    return back.pattern;
+  };
+
+  test('a felülről horgolt raglán visszaolvasható', () => {
+    assert.equal(roundTrip(options({ kind: 'raglan' })).pieces.length, 1);
+  });
+
+  test('a ledobott vállú pulóver négy darabja visszaolvasható', () => {
+    assert.equal(roundTrip(options({})).pieces.length, 4);
+  });
+
+  test('a sapka visszaolvasható', () => {
+    assert.equal(roundTrip(hat({})).pieces.length, 1);
+  });
+});
+
+describe('bordás szegély és mandzsetta a ledobott vállú pulóveren (PQW-913)', () => {
+  const made = (patch) => {
+    const result = generateGarment(emptyPattern(), options(patch));
+    assert.ok(result.ok, result.ok ? '' : JSON.stringify(result.reason));
+    return result.pattern;
+  };
+  const written = (pattern) => formatWrittenPattern(writePattern(pattern, libraryFor(pattern), 'hu'));
+  const rowLines = (text) => text.split('\n').filter((line) => /^\d+([–-]\d+)?\. sor:/.test(line));
+
+  /** Darabonként a rétegek szemszáma: a bordázat ezen nem változtathat. */
+  const counts = (pattern) =>
+    pattern.pieces.map((piece) => buildPieceGraph(pattern, piece, libraryFor(pattern)).layers.map((layer) => layer.stitchCount));
+
+  for (const neckline of ['boat', 'shaped']) {
+    test(`${neckline === 'boat' ? 'csónaknyaknál' : 'formázott nyaknál'} a bordázat hibátlan, és a szemszámok nem változnak`, () => {
+      const plain = made({ neckline, ribbing: null });
+      const ribbed = made({ neckline, ribbing: { rows: 2, width: 1 } });
+      assert.deepEqual(validatePattern(ribbed, libraryFor(ribbed)), []);
+      // A relief szem a pálca köré megy, a tetejét nem használja fel: rétegenként ugyanannyi szem.
+      assert.deepEqual(counts(ribbed), counts(plain));
+      assert.doesNotMatch(written(plain), /Eerp|Herp/);
+    });
+  }
+
+  test('a szegély és a mandzsetta sorai relief szemmel, rövidebb fordulólánccal, ismétlésként', () => {
+    const text = written(made({ neckline: 'shaped', ribbing: { rows: 2, width: 1 } }));
+    const ribbed = rowLines(text).filter((line) => /Eerp|Herp/.test(line));
+    // Két panel és két ujj, soronként: a darab alján mindenhol van bordázat.
+    assert.ok(ribbed.length >= 4, ribbed.join('\n'));
+    // A bordás sor fordulólánca nem számít szemnek (01 §2.2 [S25]), és a bordázat ismétlésként áll.
+    assert.ok(ribbed.every((line) => line.includes('nem számít szemnek')), ribbed.join('\n'));
+    assert.ok(ribbed.some((line) => /\[1 (Eerp|Herp), 1 (Eerp|Herp)\]/.test(line)), ribbed.join('\n'));
+    // Az 1. sor sima marad: a láncalap köré nem lehet relief szemet horgolni.
+    assert.ok(!/^1\. sor:.*(Eerp|Herp)/m.test(text), 'az 1. sor nem lehet bordás');
   });
 });

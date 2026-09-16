@@ -243,6 +243,11 @@ export const MARKUP_TEXTS = {
     garmentRepeatXLabel: 'X: egy ismétlés szemei',
     garmentRepeatYLabel: 'Y: szélső szemek',
     garmentSeriesNote: 'A méretsorozat, ahogy az írott mintába kerül:',
+    garmentRibbingLabel: 'Bordás szegély és mandzsetta',
+    garmentRibbingNote:
+      'Váltakozó első és hátsó relief pálca (Eerp, Herp) a szegély és a mandzsetta sorain, a szemek pálcája köré: a szemszám nem változik. Az első sor sima marad, mert láncszem köré nem lehet relief szemet horgolni. A nyak bordázata még nincs meg.',
+    garmentRibbingRowsLabel: 'A bordázat sorai a szegélyből',
+    garmentRibbingWidthLabel: 'A borda szélessége (1×1, 2×2)',
     garmentCreate: 'Minta létrehozása',
 
     // Rácsminta
@@ -608,6 +613,11 @@ export const MARKUP_TEXTS = {
     garmentRepeatXLabel: 'X: stitches in one repeat',
     garmentRepeatYLabel: 'Y: edge stitches',
     garmentSeriesNote: 'The size range as it goes into the written pattern:',
+    garmentRibbingLabel: 'Ribbed hem and cuff',
+    garmentRibbingNote:
+      'Alternating front and back post stitches (FPdc, BPdc) on the rows of the hem and the cuff, around the posts of the stitches: the stitch count stays the same. The first row stays plain, because a post stitch cannot wrap a chain. A ribbed neckband is not available yet.',
+    garmentRibbingRowsLabel: 'Ribbing rows from the hem',
+    garmentRibbingWidthLabel: 'Rib width (1×1, 2×2)',
     garmentCreate: 'Create pattern',
 
     // Grid chart
