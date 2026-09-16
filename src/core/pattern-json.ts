@@ -430,10 +430,17 @@ function readGrid(value: unknown, path: string): PieceGrid {
 }
 
 function readColor(value: unknown, path: string): PatternColor {
-  const raw = object(value, path, ['name', 'hex']);
+  // A beépített színek azonosítót visznek (PQW-905); a korábbi mentésekben csak
+  // név van, azok változatlanul betölthetők. Valamelyik kettő közül kell.
+  const raw = object(value, path, ['hex'], ['id', 'name']);
   const hex = string(raw['hex'], `${path}.hex`);
   if (!/^#[0-9a-f]{6}$/i.test(hex)) throw new FormatError(`${path}.hex`, 'expected-hex-color');
-  return { name: text(raw['name'], `${path}.name`), hex };
+  if (raw['id'] === undefined && raw['name'] === undefined) throw new FormatError(`${path}.name`, 'missing-field');
+  return {
+    ...(raw['id'] === undefined ? {} : { id: text(raw['id'], `${path}.id`) }),
+    ...(raw['name'] === undefined ? {} : { name: text(raw['name'], `${path}.name`) }),
+    hex,
+  };
 }
 
 function readUnit(value: unknown, path: string): GridUnit {

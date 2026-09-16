@@ -81,8 +81,10 @@ function markupUses() {
   for (const match of INDEX.matchAll(/<(\w+)\s([^>]*data-i18n[^>]*)>/g)) {
     const [, tag, attributes] = match;
     const rest = INDEX.slice(match.index + match[0].length);
-    const body = rest.slice(0, rest.indexOf(`</${tag}>`));
-    for (const kind of ['i18n', 'i18n-tip', 'i18n-label']) {
+    // Az önzáró elemnek (a fejben lévő meta) nincs törzse; ott a `content` attribútumot nézzük.
+    const end = rest.indexOf(`</${tag}>`);
+    const body = end === -1 ? '' : rest.slice(0, end);
+    for (const kind of ['i18n', 'i18n-tip', 'i18n-label', 'i18n-content']) {
       const key = new RegExp(`data-${kind}="([^"]+)"`).exec(attributes)?.[1];
       if (key) uses.push({ key, kind, tag, attributes, body });
     }
@@ -120,8 +122,10 @@ test('a magyar felület nem változik: a szótár magyar ága egyezik a jelölé
       if (text && text !== expected.replace(/\s+/g, ' ').trim()) differences.push(`${key}: „${text}” ≠ „${expected}”`);
       continue;
     }
-    const attribute = kind === 'i18n-tip' ? 'data-tip' : 'aria-label';
-    const value = new RegExp(`${attribute}="([^"]*)"`).exec(attributes)?.[1];
+    const attribute = kind === 'i18n-tip' ? 'data-tip' : kind === 'i18n-content' ? 'content' : 'aria-label';
+    // Önálló attribútumként: a `data-i18n-tip` és a `data-i18n-content` neve is
+    // tartalmazza a keresett attribútum nevét, ezért szóközre horgonyozunk.
+    const value = new RegExp(`(?:^|\\s)${attribute}="([^"]*)"`).exec(attributes)?.[1];
     if (value !== undefined && value !== expected) differences.push(`${key} (${attribute}): „${value}” ≠ „${expected}”`);
   }
   assert.deepEqual(differences, []);
@@ -137,13 +141,28 @@ test('a `?lang` paraméter magyarra és angolra állít, mást nem fogad el', ()
   assert.equal(languageFromSearch('?other=en'), null);
 });
 
-test('paraméter nélkül a dokumentum nyelve dönt, és az alapértelmezés a magyar', () => {
-  assert.equal(resolveUiLanguage('', 'hu'), 'hu');
-  assert.equal(resolveUiLanguage('', 'en'), 'en');
-  assert.equal(resolveUiLanguage('', 'en-GB'), 'en');
-  assert.equal(resolveUiLanguage('', ''), 'hu');
-  assert.equal(resolveUiLanguage('?lang=en', 'hu'), 'en', 'a paraméter erősebb a dokumentum nyelvénél');
-  assert.equal(resolveUiLanguage('?lang=hu', 'en'), 'hu');
+test('paraméter és tárolt érték nélkül a dokumentum nyelve dönt, és az alapértelmezés a magyar', () => {
+  assert.equal(resolveUiLanguage('', null, 'hu'), 'hu');
+  assert.equal(resolveUiLanguage('', null, 'en'), 'en');
+  assert.equal(resolveUiLanguage('', null, 'en-GB'), 'en');
+  assert.equal(resolveUiLanguage('', null, ''), 'hu');
+});
+
+test('a feloldás sorrendje: a `?lang` erősebb a tároltnál, a tárolt a dokumentum nyelvénél (PQW-906)', () => {
+  assert.equal(resolveUiLanguage('?lang=en', 'hu', 'hu'), 'en', 'a megosztott link mindig a saját nyelvét adja');
+  assert.equal(resolveUiLanguage('?lang=hu', 'en', 'en'), 'hu');
+  assert.equal(resolveUiLanguage('', 'en', 'hu'), 'en', 'a tárolt választás erősebb a dokumentum nyelvénél');
+  assert.equal(resolveUiLanguage('', 'hu', 'en'), 'hu');
+});
+
+test('a sérült vagy ismeretlen tárolt érték nem borítja fel az indulást (PQW-906)', () => {
+  for (const stored of [null, '', ' ', 'ja', 'de-DE', '{"lang":"en"}', 'HU', ' en ']) {
+    const resolved = resolveUiLanguage('', stored, 'hu');
+    assert.ok(resolved === 'hu' || resolved === 'en', `${stored}: ${resolved}`);
+  }
+  assert.equal(resolveUiLanguage('', 'ja', 'hu'), 'hu', 'ismeretlen értéknél az alapnyelv jön');
+  assert.equal(resolveUiLanguage('', 'HU', 'en'), 'hu', 'a kis-nagybetű és a szóköz nem számít');
+  assert.equal(resolveUiLanguage('', ' en ', 'hu'), 'en');
 });
 
 test('a főoldal linkje és a megosztható cím a választott nyelven', () => {

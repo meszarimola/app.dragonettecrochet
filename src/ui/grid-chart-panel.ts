@@ -27,6 +27,7 @@ import {
   cellAppearance,
   cellLabel,
   cellPixels,
+  colorLabel,
   defaultState,
   editorCellSize,
   expandedCells,
@@ -360,9 +361,10 @@ export class GridChartPanel {
         swatch.addEventListener('input', () => this.#editColor(i, { hex: swatch.value }));
         const name = document.createElement('input');
         name.type = 'text';
-        name.value = color.name;
+        name.value = colorLabel(color);
         name.autocomplete = 'off';
         name.setAttribute('aria-label', t.colorNameLabel(letter));
+        // Amit a felhasználó ír be, az saját név (PQW-905): az azonosító elmarad, és a szöveg nem fordul.
         name.addEventListener('change', () => this.#editColor(i, { name: name.value.trim() || t.colorFallback(letter) }, true));
         const remove = document.createElement('button');
         remove.type = 'button';
@@ -387,7 +389,12 @@ export class GridChartPanel {
   }
 
   #editColor(index: number, patch: { hex?: string; name?: string }, rebuild = false): void {
-    const colors = this.#state.colors.map((color, i) => (i === index ? { ...color, ...patch } : color));
+    const colors = this.#state.colors.map((color, i) => {
+      if (i !== index) return color;
+      // Saját név esetén a beépített azonosító elmarad, hogy a mentett minta azt
+      // vigye, amit a felhasználó írt; a szín cseréje az azonosítót nem bántja.
+      return patch.name === undefined ? { ...color, ...patch } : { name: patch.name, hex: patch.hex ?? color.hex };
+    });
     this.#setState({ ...this.#state, colors }, rebuild);
     if (!rebuild) this.#refreshCells();
   }

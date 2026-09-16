@@ -161,6 +161,8 @@ const NOTATION_KEY = 'dc-mintatervezo:jeloles';
 const WRITTEN_KEY = 'dc-mintatervezo:irott-minta';
 const TYPE_KEY = 'dc-mintatervezo:tipus';
 const GRID_KEY = 'dc-mintatervezo:racs';
+/** A választott felületi nyelv (PQW-906): működési beállítás, nem követés. */
+const LANG_KEY = 'dc-mintatervezo:nyelv';
 /** Ennél keskenyebb képernyőn a két panel nem fér el egymás mellett. */
 const NARROW = window.matchMedia('(width < 48rem)');
 /** Alacsony ablak: itt az írott minta panel alapból csukva és alacsonyabban nyílik (PQW-891, styles.css). */
@@ -175,7 +177,7 @@ const STRUCTURAL_RULES = new Set(['unknown-stitch', 'dangling-reference', 'yarn-
  * blokknak az állapot előtt kell lefutnia: a mentett minta betöltése és a
  * jelölés alapértelmezése már a felület nyelvét használja.
  */
-const startLanguage = resolveUiLanguage(location.search, document.documentElement.lang);
+const startLanguage = resolveUiLanguage(location.search, storedUiLanguage(), document.documentElement.lang);
 setUiLanguage(startLanguage);
 document.documentElement.lang = startLanguage;
 applyStaticTexts(document, texts().markup);
@@ -850,6 +852,7 @@ traditionSelect.addEventListener('change', () => {
  */
 function changeLanguage(language: UiLanguage): void {
   setUiLanguage(language);
+  rememberLanguage(language);
   document.documentElement.lang = language;
   applyStaticTexts(document, texts().markup);
   if (homeLink) homeLink.href = homeUrl(language);
@@ -1978,4 +1981,25 @@ if (navigator.webdriver) {
       nodes: () => [...derived.layout.nodes.values()].map((node) => ({ id: node.id, def: node.def, layer: node.layer, ...board.toClient(node.top) })),
     },
   });
+}
+
+/*
+ * A választott nyelv megőrzése (PQW-906). Működési beállítás: nem azonosítja a
+ * látogatót, ezért a süti-sáv elutasítása mellett is él. Privát ablakban vagy
+ * letiltott tárolásnál a hívás dobhat, ilyenkor a tervező alapnyelven indul.
+ */
+function storedUiLanguage(): string | null {
+  try {
+    return localStorage.getItem(LANG_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function rememberLanguage(language: UiLanguage): void {
+  try {
+    localStorage.setItem(LANG_KEY, language);
+  } catch {
+    // A nyelv enélkül is átáll, csak a következő megnyitáskor nem marad meg.
+  }
 }
