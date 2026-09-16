@@ -60,6 +60,8 @@ export interface RoundGauge {
   /** Kör cm-enként (g_r). */
   readonly roundsPerCm: number;
   readonly source: ValueSource;
+  /** A tű átmérője mm-ben: a lapos darab vastagságához (PQW-902). */
+  readonly hookMm: number;
 }
 
 /**
@@ -78,6 +80,7 @@ export function roundGaugeOf(pattern: Pattern, stitch: OvalStitch = 'sc'): Round
     stitchesPerCm: 10 / size.widthMm.value,
     roundsPerCm: 10 / heightMm,
     source: size.basis !== 'measured' ? 'estimated' : label ? 'label' : 'measured',
+    hookMm: context.hookMm,
   };
 }
 
@@ -117,8 +120,20 @@ export const SHAPE_NAMES: Readonly<Record<ShapeSpec['kind'], string>> = {
   oval: 'Ovális',
 };
 
-/** Az ovális szemei (PQW-899). */
-export const OVAL_STITCHES: readonly OvalStitch[] = ['sc', 'hdc', 'dc'];
+/** Az ovális szemei (PQW-899, PQW-902). */
+export const OVAL_STITCHES: readonly OvalStitch[] = ['sc', 'hdc', 'dc', 'tr'];
+
+/**
+ * A tű és a fonal átmérőjének aránya szoros, amigurumi horgolásban (02 §1.6:
+ * `hook_mm ≈ 1,3–1,5 · d_mm`, a középértékkel). A kelme vastagsága két
+ * fonalátmérő: a szem alsó és felső hurka.
+ */
+const AMIGURUMI_HOOK_RATIO = 1.4;
+
+/** A lapos darab kelmevastagsága cm-ben a tűből (02 §1.6): két fonalátmérő. */
+export function fabricThicknessCm(hookMm: number): number {
+  return (2 * hookMm) / AMIGURUMI_HOOK_RATIO / 10;
+}
 
 export const MAX_SIZE_CM = 100;
 export const MAX_SHAPE_ROUNDS = 120;
@@ -249,8 +264,8 @@ function buildSchedule(spec: ShapeSpec, gauge: RoundGauge): Schedule {
  *
  * A körszám a szélesség fele körmagasságban, az egyenes rész a hossz és a
  * szélesség különbsége szemszélességben. A darab szélessége a hosszabbik
- * méret. Lapos darab: a figura magasságához a vastagságával járul hozzá, ezt
- * egy szemszélességre becsüljük (a körmagasság a lapos darabnál nem magasság).
+ * méret. Lapos darab: a figura magasságához a kelme vastagságával járul hozzá
+ * (02 §1.6: két fonalátmérő, a fonal átmérője a tűből), nem a körmagassággal.
  */
 function oval(spec: Extract<ShapeSpec, { kind: 'oval' }>, gauge: RoundGauge, s: number): Schedule {
   const stitch = ovalStitchOf(spec);
@@ -268,7 +283,7 @@ function oval(spec: Extract<ShapeSpec, { kind: 'oval' }>, gauge: RoundGauge, s: 
     end: 'open',
     backLoop: [],
     widthCm: lengthCm,
-    heightCm: 1 / gauge.stitchesPerCm,
+    heightCm: fabricThicknessCm(gauge.hookMm),
     oval: { chains: worked + turningChain, perEnd, widthCm, stitch, turningChain },
   };
 }

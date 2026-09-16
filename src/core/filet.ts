@@ -132,8 +132,12 @@ export function planFilet(pattern: Pattern, cells: ChartRows): FiletPlanResult {
             `${rowName(row)} végén az új cella csak nyitott lehet (2 lsz és hosszú pálca): rajzold nyitottnak, és a teli cellát a következő sorban töltsd ki.`,
           );
         }
+        // A hosszú pálca a két sorral lejjebbi sor végébe kapaszkodik; ha az előző sor eleji
+        // fogyasztással kezdődött, ott nincs mibe: a sor vége beljebb került (PQW-902).
         if (rows[y - 1]!.removed > 0) {
-          return fail(`${rowName(row)} végén szaporítás az előző sor eleji fogyasztás fölött még nem készül: told el egy sorral.`);
+          return fail(
+            `${rowName(row)} végén a szaporítás nem éri el a két sorral lejjebbi szemet, mert az előző sor eleji fogyasztással kezdődött: told el egy sorral.`,
+          );
         }
       }
     }

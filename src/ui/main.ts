@@ -418,7 +418,9 @@ function announce(message: string): void {
 }
 
 function layerName(context: WorkContext): string {
-  return `${context.layer}. ${context.shape === 'round' ? 'kör' : 'sor'}`;
+  // Az ovális 1. köre kör akkor is, amíg a másik oldalon nincs szem, és a gráf még sornak látja (PQW-902).
+  const round = context.shape === 'round' || context.oval;
+  return `${context.layer}. ${round ? 'kör' : 'sor'}`;
 }
 
 function progress(): string {

@@ -47,6 +47,7 @@ import type {
   SpaceId,
   StitchDef,
   StitchDefId,
+  StitchFlag,
   StitchGroup,
   StitchInsertion,
   StitchNode,
@@ -171,6 +172,9 @@ const PHRASE_TARGETS: readonly { readonly key: PhraseKey; readonly target: StepT
 ];
 
 /** A tétel lépése: az a lépés, amelyet a szövegíró betű szerint így írna ki. */
+/** Hány sorral lejjebb mehet a hosszú szem (03 §5, pattern-steps.ts). */
+const DOWN_DEPTHS = [2, 3];
+
 function parseItem(text: string, line: number, options: ReadOptions, vocabulary: Vocabulary, context: StepContext = {}): Step {
   const { library, locale } = options;
   const matches = (step: Step) => {
@@ -226,6 +230,9 @@ function parseItem(text: string, line: number, options: ReadOptions, vocabulary:
     text.endsWith(` ${vocabulary.phrases[key]}`),
   );
   targets.push({ target: 'next', into: 'stitch' }, { target: 'none', into: 'stitch' });
+  // Lejjebb horgolt hosszú szem (mozaik, filé sor végi szaporítás; PQW-894, PQW-902): „… 2 sorral lejjebb”.
+  const downDepth = DOWN_DEPTHS.find((depth) => text.endsWith(` ${vocabulary.down(depth)}`));
+  if (downDepth !== undefined) targets.unshift({ target: 'down', into: 'stitch' });
   const modes = MODES.filter((mode) => mode === 'both-loops' || vocabulary.modeMarks[mode].some((mark) => text.includes(mark)));
 
   for (const def of defs) {
@@ -244,7 +251,10 @@ function parseItem(text: string, line: number, options: ReadOptions, vocabulary:
         const plain = def.kind === 'basic' || def.kind === 'slip';
         for (const count of new Set([1, n])) {
           if (count > 1 && (!plain || target === 'same')) continue;
-          const step: Step = { kind: 'stitch', def: def.id, count, target, mode, into };
+          const step: Step =
+            target === 'down' && downDepth !== undefined
+              ? { kind: 'stitch', def: def.id, count, target, mode, into, depth: downDepth }
+              : { kind: 'stitch', def: def.id, count, target, mode, into };
           if (matches(step)) return step;
         }
       }
@@ -400,10 +410,10 @@ class PieceReader {
   /** Hány szem kapott célpontot eddig a darabban; a sor széli kihagyás felismeréséhez. */
   private anchoredCount = 0;
 
-  private add(def: StitchDef, anchors: readonly Anchor[]): NodeId {
+  private add(def: StitchDef, anchors: readonly Anchor[], flags: readonly StitchFlag[] = []): NodeId {
     if (anchors.length > 0) this.anchoredCount += 1;
     const id = `n${this.stitches.length + 1}`;
-    this.stitches.push({ id, def: def.id, prev: this.previous, anchors });
+    this.stitches.push({ id, def: def.id, prev: this.previous, anchors, ...(flags.length > 0 ? { flags } : {}) });
     this.previous = id;
     return id;
   }
@@ -574,14 +584,26 @@ class PieceReader {
     const turningNodes: NodeId[] = [];
     const skips: { positions: NodeId[]; anchoredBefore: number }[] = [];
 
-    const resolve = (target: StepTarget, mode: StitchInsertion, item: string, consumes = 1): Anchor[] => {
+    const resolve = (target: StepTarget, mode: StitchInsertion, item: string, consumes = 1, depth = 2): Anchor[] => {
       const missing = (what: string) => fail(`${what} ehhez: „${item}”.`);
       switch (target) {
         case 'none':
           return [];
-        case 'down':
-          // A korábbi sorba horgolt hosszú szem (PQW-894) a szövegből még nem olvasható vissza.
-          return missing('A lejjebb horgolt szem visszaolvasása még nem készül');
+        case 'down': {
+          // Lejjebb horgolt hosszú szem (mozaik, filé sor végi szaporítás; PQW-894, PQW-902): a `depth`
+          // sorral lejjebbi réteg szeme a kurzor oszlopában. A páratlan mélységű sor fordítva halad, és a
+          // sor végi szaporításnál a kurzor már a sor végén jár: ott a lejjebbi sor utolsó szeme a célpont.
+          const deeper = graph.layers[index - depth];
+          if (!deeper || deeper.positions.length === 0) return missing(`Nincs ${depth} sorral lejjebbi sor`);
+          // Minden sor az előzővel szemben halad: a `depth` sorral lejjebbi sor a mostani haladási
+          // irányban `depth` páros számánál a fonal sorrendjében áll, páratlannál fordítva.
+          const line = (direction === -1) === (depth % 2 === 1) ? [...deeper.positions].reverse() : [...deeper.positions];
+          const at = Math.min(state.cursor, line.length - 1);
+          // A mozaikban a lejjebb horgolt szem a fölötte kihagyott láncszem helyén halad át (pattern-steps.ts).
+          if (state.cursor < working.length && this.skipped.includes(working[state.cursor]!)) state.cursor += 1;
+          state.last = null;
+          return [{ into: 'stitch', id: line[at]!, mode: modeAsWorked(mode, side) }];
+        }
         case 'ring':
         case 'chain-ring': {
           // Angolul a varázskör és a láncgyűrű is „in ring”: a kezdés dönt.
@@ -670,7 +692,8 @@ class PieceReader {
           for (let c = 0; c < step.count; c += 1) {
             const target = c > 0 && step.target === 'next-space' ? 'same-space' : step.target;
             const consumes = def.kind === 'joined' && def.base === 'spread' ? def.consumes : 1;
-            this.add(def, resolve(target, step.mode, item, consumes));
+            // A lejjebb horgolt szem jelölt: ettől érvényes a korábbi sorba nyúló célpont (PQW-894, PQW-902).
+            this.add(def, resolve(target, step.mode, item, consumes, step.depth ?? 2), target === 'down' ? ['spike'] : []);
           }
         }
       }
