@@ -76,15 +76,23 @@ export const MOSAIC_ROW_CHOICES: readonly Choice<'1' | '2'>[] = [
   },
 ];
 
-/** A rács alapszínei: a nevük a felület nyelvén javasolt, de a mintában szerkeszthető adat. */
+/**
+ * A rács alapszínei. A mentett mintába a nyelvfüggetlen azonosító kerül
+ * (PQW-905), a nevet a megjelenítés adja; amit a felhasználó átír, az saját
+ * névként marad, és nem fordul.
+ */
 type ColorKey = 'natural' | 'burgundy' | 'blue' | 'green' | 'mustard' | 'black' | 'rose' | 'brown';
 
-const color = (key: ColorKey, hex: string): PatternColor => ({
-  get name() {
-    return texts().panels.grid.colors[key];
-  },
-  hex,
-});
+const color = (key: ColorKey, hex: string): PatternColor => ({ id: key, hex });
+
+/** A szín megjelenített neve: a beépítetté a szótárból, a sajáté a mintából. */
+export function colorLabel(entry: PatternColor | undefined, fallback = ''): string {
+  if (!entry) return fallback;
+  // A csoportban a nevek mellett egy függvény is áll (`numbered`), ezért olvasás után ellenőrizzük a fajtát.
+  const names: Readonly<Record<string, unknown>> = texts().panels.grid.colors;
+  const named = entry.id === undefined ? undefined : names[entry.id];
+  return (typeof named === 'string' ? named : undefined) ?? entry.name ?? fallback;
+}
 
 export const DEFAULT_COLORS: readonly PatternColor[] = [color('natural', '#f3ecdf'), color('burgundy', '#8c2f4a')];
 
@@ -195,7 +203,7 @@ export function brushesFor(state: GridEditorState): Brush[] {
     ];
   }
   return [
-    ...state.colors.map((entry, i) => ({ key: `color-${i}`, value: i, label: t.color(colorLetter(i), entry.name), swatch: entry.hex })),
+    ...state.colors.map((entry, i) => ({ key: `color-${i}`, value: i, label: t.color(colorLetter(i), colorLabel(entry)), swatch: entry.hex })),
     unset,
   ];
 }
@@ -204,7 +212,7 @@ export function valueName(state: GridEditorState, value: DraftCell): string {
   const t = texts().panels.grid.values;
   if (value === null) return t.unset;
   if (!usesColors(state.technique)) return value === FILLED ? t.filled : value === OPEN ? t.open : t.none;
-  return t.color(colorLetter(value), state.colors[value]?.name ?? t.unknown);
+  return t.color(colorLetter(value), colorLabel(state.colors[value], t.unknown));
 }
 
 /** A cella akadálymentes neve: „3. sor, 5. cella: teli”. */
@@ -462,7 +470,7 @@ export function yarnLines(pattern: Pattern): string[] {
   const total = result.estimate.lengthWithBufferM;
   if (grid.colors.length < 2) return [t.yarnTotal(meters(total))];
   const lines = [...yarnByColor(grid.cells, grid.technique, total)].map(([color, quantity]) =>
-    t.yarnColor(colorLetter(color), grid.colors[color]?.name ?? '', meters(quantity)),
+    t.yarnColor(colorLetter(color), colorLabel(grid.colors[color]), meters(quantity)),
   );
   if (grid.technique === 'tapestry') lines.push(t.yarnTapestry);
   return lines;

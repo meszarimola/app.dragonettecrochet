@@ -101,6 +101,8 @@ export interface Vocabulary {
   /** Rácsos technikák (PQW-864): színek, kezdőszín, színváltás, a technika megjegyzése, színek soronként. */
   readonly colorwork: {
     readonly colors: (items: readonly { readonly letter: string; readonly name: string }[]) => string;
+    /** A beépített színek neve azonosító szerint (PQW-905); a saját nevet nem fordítjuk. */
+    readonly colorNames: Readonly<Record<string, string>>;
     readonly start: (letter: string) => string;
     /** Az előző szem utolsó ráhajtásánál (03 §6, §10 G35). */
     readonly change: (letter: string) => string;
@@ -258,6 +260,16 @@ const HU: Vocabulary = {
   down: (depth) => `${depth} sorral lejjebb`,
   colorwork: {
     colors: (items) => `Színek: ${items.map((item) => `${item.letter} – ${item.name}`).join(', ')}.`,
+    colorNames: {
+      natural: 'Natúr',
+      burgundy: 'Bordó',
+      blue: 'Kék',
+      green: 'Zöld',
+      mustard: 'Mustár',
+      black: 'Fekete',
+      rose: 'Rózsa',
+      brown: 'Barna',
+    },
     start: (letter) => `Kezdés ${colorArticle(letter)} ${letter} színnel.`,
     change: (letter) => `(az utolsó ráhajtásnál válts ${colorArticle(letter)} ${letter} színre)`,
     note: {
@@ -397,6 +409,16 @@ function english(skipWord: string, skipVerb: string, skipMeaning: string, system
     down: (depth) => `in st ${depth} rows below`,
     colorwork: {
       colors: (items) => `Colors: ${items.map((item) => `${item.letter} – ${item.name}`).join(', ')}.`,
+      colorNames: {
+        natural: 'Natural',
+        burgundy: 'Burgundy',
+        blue: 'Blue',
+        green: 'Green',
+        mustard: 'Mustard',
+        black: 'Black',
+        rose: 'Rose',
+        brown: 'Brown',
+      },
       start: (letter) => `Start with ${color} ${letter}.`,
       change: (letter) => `(change to ${letter} in last yo)`,
       note: {
@@ -705,7 +727,15 @@ class Renderer {
     if (piece.layers.some((layer) => layer.closing === 'spiral')) lines.push(v.spiral);
     const { colorwork } = piece;
     if (colorwork) {
-      lines.push(v.colorwork.colors(colorwork.colors.map((color, i) => ({ letter: colorLetter(i), name: color.name }))));
+      // A beépített szín neve a jelölés nyelvén, a sajátja úgy, ahogy a felhasználó írta (PQW-905).
+      lines.push(
+        v.colorwork.colors(
+          colorwork.colors.map((color, i) => ({
+            letter: colorLetter(i),
+            name: (color.id === undefined ? undefined : v.colorwork.colorNames[color.id]) ?? color.name ?? colorLetter(i),
+          })),
+        ),
+      );
       lines.push(v.colorwork.start(colorLetter(colorwork.startColor)));
       const note = v.colorwork.note[colorwork.technique];
       if (note) lines.push(note);

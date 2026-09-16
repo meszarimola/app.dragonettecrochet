@@ -61,9 +61,22 @@ export function languageFromSearch(search: string): UiLanguage | null {
   return normalized.startsWith('hu') ? 'hu' : null;
 }
 
-/** A felület nyelve induláskor: a `?lang` paraméter, enélkül a dokumentum nyelve. */
-export function resolveUiLanguage(search: string, documentLanguage: string): UiLanguage {
-  return languageFromSearch(search) ?? (/^en\b/i.test(documentLanguage) ? 'en' : 'hu');
+/** A tárolt nyelv, ha értelmezhető; sérült vagy ismeretlen értéknél `null` (PQW-906). */
+export function storedLanguage(value: string | null): UiLanguage | null {
+  if (value === null) return null;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'en') return 'en';
+  return normalized === 'hu' ? 'hu' : null;
+}
+
+/**
+ * A felület nyelve induláskor (PQW-906). Sorrend: a `?lang` paraméter erősebb a
+ * tárolt értéknél — így a megosztott link mindig azt a nyelvet adja, amire szól
+ * —, a tárolt érték pedig a dokumentum `lang` attribútumánál erősebb. A tárolás
+ * olvasása a hívóé, hogy ez a függvény tiszta maradjon, és a Node is futtathassa.
+ */
+export function resolveUiLanguage(search: string, stored: string | null, documentLanguage: string): UiLanguage {
+  return languageFromSearch(search) ?? storedLanguage(stored) ?? (/^en\b/i.test(documentLanguage) ? 'en' : 'hu');
 }
 
 /** A főoldal linkje a felület nyelvén (a leíró oldal magyarul és angolul is él). */
@@ -115,5 +128,9 @@ export function applyStaticTexts(root: ParentNode, markup: UiTexts['markup']): v
   }
   for (const element of root.querySelectorAll<HTMLElement>('[data-i18n-label]')) {
     element.setAttribute('aria-label', value(element.dataset['i18nLabel']!));
+  }
+  // A `content` attribútum a fejben lévő meta elemeké (leírás, PQW-905).
+  for (const element of root.querySelectorAll<HTMLElement>('[data-i18n-content]')) {
+    element.setAttribute('content', value(element.dataset['i18nContent']!));
   }
 }

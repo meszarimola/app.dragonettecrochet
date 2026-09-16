@@ -387,9 +387,19 @@ export interface Piece {
 /** Filé, sarokból sarokba (C2C), tapestry, graphgan, mozaik (03 §5). */
 export type GridTechnique = 'filet' | 'c2c' | 'tapestry' | 'graphgan' | 'mosaic';
 
-/** A darab egy színe; az írott minta betűvel jelöli (A, B, C…). */
+/**
+ * A darab egy színe; az írott minta betűvel jelöli (A, B, C…).
+ *
+ * A beépített színek nyelvfüggetlen `id`-t visznek (PQW-905), a nevüket a
+ * megjelenítés adja a felület, illetve az írott minta a jelölés nyelvén. Amit a
+ * felhasználó maga ír be, az `name`-ként marad, és nem fordul. A PQW-905 előtti
+ * mentésekben csak `name` van: azok változatlanul betölthetők.
+ */
 export interface PatternColor {
-  readonly name: string;
+  /** Beépített szín azonosítója, pl. `natural`; saját névnél hiányzik. */
+  readonly id?: string;
+  /** A felhasználó által adott név; beépített színnél hiányzik. */
+  readonly name?: string;
   /** `#rrggbb`. */
   readonly hex: string;
 }

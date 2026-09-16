@@ -17,7 +17,7 @@ import type { StitchLibrary } from '../core/stitch-library.ts';
 import { stitchName } from '../core/stitchText.ts';
 import type { GaugeEntry, GaugeForm, PatternGaugeProfile, StitchDefId, ValueSource } from '../core/types.ts';
 import { CYC_WEIGHTS } from '../core/yarn-weight.ts';
-import { texts } from './i18n.ts';
+import { texts, uiLanguage } from './i18n.ts';
 import { termsLocale } from './notation.ts';
 
 /** Egy érték eredete a felület nyelvén: „mért”, „címkéről”, „becsült”. */
@@ -30,14 +30,20 @@ export function formLabel(form: GaugeForm): string {
   return texts().sections.size.forms[form];
 }
 
-const formats = new Map<number, Intl.NumberFormat>();
+const formats = new Map<string, Intl.NumberFormat>();
 
-/** Magyar számalak tizedesvesszővel, legfeljebb `digits` tizedessel; a felület nyelvétől független. */
+/**
+ * Számalak legfeljebb `digits` tizedessel, a FELÜLET nyelve szerint (PQW-905):
+ * magyarul tizedesvessző („19,7”), angolul tizedespont („19.7”). A mértékegység
+ * (cm, g, m, mm) mindkét nyelven ugyanaz, azt a szótár adja.
+ */
 export function formatNumber(value: number, digits = 1): string {
-  let format = formats.get(digits);
+  const language = uiLanguage();
+  const key = `${language}:${digits}`;
+  let format = formats.get(key);
   if (!format) {
-    format = new Intl.NumberFormat('hu-HU', { maximumFractionDigits: digits, useGrouping: false });
-    formats.set(digits, format);
+    format = new Intl.NumberFormat(language === 'en' ? 'en-GB' : 'hu-HU', { maximumFractionDigits: digits, useGrouping: false });
+    formats.set(key, format);
   }
   return format.format(value);
 }

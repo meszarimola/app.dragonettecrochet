@@ -92,13 +92,41 @@ test('a felület nyelve és a minta jelölése független egymástól', async ({
   await expect(page.locator('#terms')).toHaveValue('hu');
 });
 
-test('a nyelvválasztás nem vezet be új tárolt kulcsot', async ({ page }) => {
+test('a böngészőfül címe és a leírás a felület nyelvét követi (PQW-905)', async ({ page }) => {
+  await open(page);
+  await expect(page).toHaveTitle(/Mintatervező/);
+  await expect(page.locator('head meta[name="description"]')).toHaveAttribute('content', /mintatervezője/i);
+
+  await openNotation(page);
+  await page.locator('#ui-language').selectOption('en');
+  await expect(page).toHaveTitle(/Pattern designer/);
+  await expect(page.locator('head meta[name="description"]')).toHaveAttribute('content', /pattern designer/i);
+});
+
+test('a választott nyelv megmarad a következő megnyitásig (PQW-906)', async ({ page }) => {
   await open(page);
   await openNotation(page);
-  const before = await page.evaluate(() => Object.keys(localStorage).sort());
-
   await page.locator('#ui-language').selectOption('en');
-  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(sizeTitle(page)).toHaveText('Size and yarn');
 
-  expect(await page.evaluate(() => Object.keys(localStorage).sort())).toEqual(before);
+  // Paraméter nélkül nyitjuk újra: a tárolt választás dönt.
+  await page.goto('/');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(sizeTitle(page)).toHaveText('Size and yarn');
+
+  // A `?lang` erősebb a tároltnál: a megosztott link mindig a saját nyelvét adja.
+  await page.goto('/?lang=hu');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'hu');
+  await expect(sizeTitle(page)).toHaveText('Méret és fonal');
+});
+
+test('a tárolt nyelv a süti-sáv elutasítása mellett is működik (PQW-906)', async ({ page }) => {
+  // A nyelv működési beállítás, nem követés: nem függ az analitika hozzájárulástól.
+  await page.goto('/');
+  await page.locator('[data-consent="denied"]').click();
+  await openNotation(page);
+  await page.locator('#ui-language').selectOption('en');
+
+  await page.goto('/');
+  await expect(sizeTitle(page)).toHaveText('Size and yarn');
 });
