@@ -168,14 +168,15 @@ for (const viewport of [
 
     await page.getByRole('button', { name: 'Egész minta' }).click();
     const fitted = await view(page);
-    const rows = fitted.labels.filter((label) => label.layer <= 10);
+    // A láncalap (0. réteg) felirata a PQW-916 óta szintén ott van a rajz mellett; itt a sorokat nézzük.
+    const rows = fitted.labels.filter((label) => label.layer >= 1 && label.layer <= 10);
     expect(rows.map((label) => label.layer).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     for (const label of rows) expectUncovered(label, `${label.layer}. sor`);
     expectUncovered(fitted.cursor, 'a kurzor célpontja az „Egész minta” után');
 
-    // Az állapotsor a panel fölött van, nem a szövegén.
-    const status = await box(page, '#status');
-    expect(status.y + status.height).toBeLessThanOrEqual(cover.y + 1);
+    // Az állapotszöveg a PQW-916 óta rejtett élő régió: sem a rajzot, sem a panel szövegét nem takarja.
+    const status = await page.locator('#status').boundingBox();
+    expect((status?.width ?? 0) * (status?.height ?? 0), 'az állapotszöveg nem lebeg a vászon fölött').toBeLessThanOrEqual(4);
 
     // Csukott panelnél a kurzort a panel helyére toljuk; nyitáskor a nézet visszahozza.
     await written.getByRole('button', { name: 'Lecsukás' }).click();
@@ -199,7 +200,7 @@ for (const viewport of [
       const top = (await box(page, '#written')).y;
       await page.getByRole('button', { name: 'Egész minta' }).click();
       const shown = await view(page);
-      const shownRows = shown.labels.filter((label) => label.layer <= 10);
+      const shownRows = shown.labels.filter((label) => label.layer >= 1 && label.layer <= 10);
       expect(shownRows).toHaveLength(10);
       for (const label of shownRows) expectUncovered(label, `${label.layer}. sor (${key} után)`, top);
       expectUncovered(shown.cursor, `a kurzor célpontja (${key} után)`, top);
@@ -276,16 +277,19 @@ for (const viewport of [
     await expect.poll(async () => near(await heightOf(page), before)).toBe(true);
   });
 
-  test(`${viewport.width}×${viewport.height}: a hosszú állapotüzenet a két oldalsáv között több sorba törik, teljes nézetben is`, async ({ page }) => {
+  test(`${viewport.width}×${viewport.height}: a hosszú állapotüzenet nem borítja fel az elrendezést`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await open(page);
     const written = page.locator('#written');
     await openWritten(page);
     const stage = await box(page, '.stage');
-    const types = await box(page, '#types');
-    const panel = await box(page, '#panel');
 
-    // A mag hosszú hibaüzeneteinek mintájára (PQW-884). A szöveget közvetlenül írjuk be: itt a doboz helye a kérdés.
+    /*
+     * A mag hosszú hibaüzeneteinek mintájára (PQW-884). Az állapotszöveg a
+     * PQW-916 óta nem lebegő doboz a vásznon, hanem rejtett élő régió: a
+     * képernyőolvasó felolvassa, de a rajzot nem takarja, és a hossza sem mozdít
+     * az elrendezésen — sem lenyitott írott mintánál, sem teljes nézetben.
+     */
     const long =
       'Nincs elég célpont: a beillesztett sor tizenkét szemet vár, de az előző sorban csak kilenc szabad célpont van, ezért a minta nem változott. Tedd a kurzort egy korábbi szemre, és próbáld újra.';
     const say = async () => {
@@ -294,25 +298,23 @@ for (const viewport of [
       }, long);
       await settle(page);
     };
-    /** Az állapotsor a két oldalsáv között, a munkaterületen belül, és nem takarja az elválasztót. */
-    const expectBetween = async () => {
-      const status = await box(page, '#status');
-      const grip = await box(page, '#written-grip');
-      expect(status.x).toBeGreaterThanOrEqual(types.x + types.width - 1);
-      expect(status.x + status.width).toBeLessThanOrEqual(panel.x + 1);
-      expect(status.y).toBeGreaterThanOrEqual(stage.y - 1);
-      expect(status.y + status.height).toBeLessThanOrEqual(grip.y + 1);
-      return status;
+    /** Az üzenet szövege megvan, de látható doboza nincs, és az oldal nem görget. */
+    const expectQuiet = async () => {
+      await expect(page.locator('#status')).toContainText('Nincs elég célpont');
+      const status = await page.locator('#status').boundingBox();
+      expect((status?.width ?? 0) * (status?.height ?? 0), 'az állapotszöveg nem lebeg a vászon fölött').toBeLessThanOrEqual(4);
+      const size = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.scrollHeight]);
+      expect(size).toEqual([viewport.width, viewport.height]);
     };
 
     await say();
-    expect((await expectBetween()).height).toBeGreaterThan(40);
+    await expectQuiet();
 
-    // Teljes nézetben az állapotsor a munkaterület tetején áll, a panel alatta ad neki helyet.
+    // Teljes nézetben sem lesz belőle doboz.
     await written.getByRole('button', { name: 'Teljes nézet' }).click();
     await expect.poll(() => heightOf(page)).toBeGreaterThan(stage.height - 1);
     await say();
-    await expectBetween();
+    await expectQuiet();
   });
 }
 
