@@ -268,8 +268,9 @@ function groupByLayer(layout: ChartLayout): NodePlacement[][] {
 function slotNodes(context: WorkContext): Map<NodeId, number> {
   const map = new Map<NodeId, number>();
   context.slots.forEach((slot, i) => {
-    // A láncszem másik oldala ugyanaz a láncszem: a cellája az elülső célpontjáé marad (PQW-899).
-    const ids = slot.kind === 'underside' ? [] : slot.kind === 'stitch' ? [slot.id] : slot.kind === 'space' ? slot.chains : [slot.node];
+    // A láncszem másik oldala és a sorvég ugyanannak a szemnek a helyén áll: a cellája az övé marad (PQW-899, PQW-902).
+    const ids =
+      slot.kind === 'underside' || slot.kind === 'row-end' ? [] : slot.kind === 'stitch' ? [slot.id] : slot.kind === 'space' ? slot.chains : [slot.node];
     for (const id of ids) if (!map.has(id)) map.set(id, i);
   });
   return map;
@@ -283,10 +284,21 @@ function slotNodes(context: WorkContext): Map<NodeId, number> {
 export function targetPoint(layout: ChartLayout, context: WorkContext, index: number): Point | undefined {
   const slot = context.slots[index]!;
   if (slot.kind === 'underside') return undersidePoint(layout, context, slot.id);
+  if (slot.kind === 'row-end') return rowEndPoint(layout, slot.id);
   const ids = slot.kind === 'stitch' ? [slot.id] : slot.kind === 'space' ? slot.chains : [slot.node];
   const points = ids.map((id) => layout.nodes.get(id)?.top).filter((p): p is Point => p !== undefined);
   if (points.length === 0) return undefined;
   return { x: points.reduce((s, p) => s + p.x, 0) / points.length, y: points.reduce((s, p) => s + p.y, 0) / points.length };
+}
+
+/** A szegély sorvég-célpontja (PQW-902): a sor szélső szeme mellett, a darabtól kifelé. */
+function rowEndPoint(layout: ChartLayout, id: NodeId): Point | undefined {
+  const node = layout.nodes.get(id);
+  if (!node) return undefined;
+  const xs = [...layout.nodes.values()].map((placement) => placement.top.x);
+  const middle = (Math.min(...xs) + Math.max(...xs)) / 2;
+  const outward = node.top.x >= middle ? 1 : -1;
+  return { x: node.top.x + outward * Math.max(node.size, CHAIN_REACH), y: (node.top.y + (node.feet[0]?.y ?? node.top.y)) / 2 };
 }
 
 function undersidePoint(layout: ChartLayout, context: WorkContext, id: NodeId): Point | undefined {
