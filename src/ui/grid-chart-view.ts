@@ -163,6 +163,11 @@ export function nextColor(colors: readonly PatternColor[], technique: EditorTech
   if (colors.length >= (technique === 'mosaic' ? 2 : MAX_COLORS)) return null;
   return (
     MORE_COLORS.find((candidate) => !colors.some((other) => other.hex === candidate.hex)) ?? {
+      // Tartalék szín: ennek a neve a felület nyelvén kerül a mintába, nem
+      // azonosítóként (PQW-905). Nyolc beépített szín van, és a `MAX_COLORS` is
+      // ennyi, ezért ide csak akkor jutunk, ha a felhasználó átszínezéssel
+      // ütközést okoz — gyakorlatilag elérhetetlen. Ha a korlát egyszer nő, és
+      // ez az ág valóban használatba kerül, azonosítót kell adni neki is.
       name: texts().panels.grid.colors.numbered(colors.length + 1),
       hex: '#8d819c',
     }
