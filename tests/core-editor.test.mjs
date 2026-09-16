@@ -42,6 +42,21 @@ function stitch(pattern, def, cursor) {
 }
 
 const chains = (pattern, count) => ok(work(pattern, { def: 'ch', count }, 0));
+
+test('csupasz láncalap után lehet fordulni (PQW-915)', () => {
+  // A hiba: a gráf a be nem horgolt láncalap-véget az 1. sor fordulóláncának
+  // számolja, ezért a fordulólánc hossza sosem 0, és a Fordulás gomb tiltott
+  // maradt. A feltétel azon múljon, hogy az 1. rétegben még nincs szem.
+  const pattern = chains(emptyPattern(), 12);
+  const context = contextOf(pattern);
+
+  assert.equal(context.started, false, 'a láncalap után még nincs belehorgolt szem');
+  assert.equal(canEndRow(context), true, 'csupasz láncalap után fordulni kell tudni');
+
+  // A fordulás után az 1. sor következik (PQW-891).
+  const turned = ok(endRow(pattern, 'sc'));
+  assert.equal(contextOf(turned).layer, 1);
+});
 const counts = (pattern) => computeLayers(pattern, libraryFor(pattern)).map((layer) => layer.stitchCount);
 const findings = (pattern) => validatePattern(pattern, libraryFor(pattern));
 
