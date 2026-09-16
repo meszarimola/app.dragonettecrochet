@@ -65,6 +65,8 @@ export type JsonCode =
   | 'expected-object'
   | 'missing-field'
   | 'unknown-field'
+  /** A fájl a kivezetett szegélygenerálás szemeit tartalmazza (PQW-911). */
+  | 'legacy-border'
   | 'expected-nonempty-string'
   | 'expected-string'
   | 'expected-boolean'
@@ -479,6 +481,9 @@ function readPinned(value: unknown, path: string): NonNullable<StitchNode['pinne
 
 function readAnchor(value: unknown, path: string): Anchor {
   if (!isObject(value)) throw new FormatError(path, 'expected-object');
+  // A kivezetett szegély szemei sorvégbe horgoltak (PQW-911). Az ilyen mentést
+  // nem csonkítjuk és nem értelmezzük át: saját, érthető hibával utasítjuk el.
+  if (isObject(value) && value['into'] === 'row-end') throw new FormatError(`${path}.into`, 'legacy-border');
   const into = oneOf(value['into'], `${path}.into`, ['stitch', 'space', 'ring', 'underside']);
   if (into === 'stitch') {
     const raw = object(value, path, ['into', 'id', 'mode']);

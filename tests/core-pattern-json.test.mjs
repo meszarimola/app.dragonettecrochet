@@ -61,6 +61,27 @@ test('a kivezetett szegély mezője a korábbi mentésben nem töri el a betölt
   assert.deepEqual(validatePattern(loaded.pattern, testLibrary), []);
 });
 
+test('a megrajzolt szegélyt tartalmazó mentést érthető hibával utasítja el (PQW-911)', () => {
+  const { pattern } = dcRectangle({ rows: 1 });
+  const raw = JSON.parse(savePattern(pattern));
+  // A PQW-911 előtt a szegély szemei sorvégbe horgoltak; ilyen horgony ma nincs.
+  raw.pieces[0].stitches[0].anchors = [{ into: 'row-end', id: raw.pieces[0].stitches[0].id }];
+  const loaded = loadPattern(JSON.stringify(raw));
+
+  assert.equal(loaded.ok, false);
+  assert.equal(loaded.error.message.code, 'legacy-border');
+  assert.match(loaded.error.path, /anchors\[0\]\.into$/);
+
+  // A mondat elmondja, mi történt: nem kódot vagy mezőnevet mutat.
+  for (const [language, expected] of [
+    ['hu', /szegély.*nem tölthető be/i],
+    ['en', /border.*cannot be loaded/i],
+  ]) {
+    const sentence = renderCoreText(JSON_CORE_TEXTS[language], loaded.error.message);
+    assert.match(sentence, expected, `${language}: ${sentence}`);
+  }
+});
+
 const GAUGE = {
   active: 'p1',
   profiles: [
