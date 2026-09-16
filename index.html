@@ -633,6 +633,22 @@
               <p class="choice" id="garment-neckline-field">
                 <label><input type="checkbox" id="garment-neckline" checked /> <span data-i18n="garmentNecklineLabel">Formázott nyakkivágás: a két váll a nyak két oldalán külön készül</span></label>
               </p>
+              <div class="shape__group" id="garment-ribbing-fields">
+                <p class="choice">
+                  <label><input type="checkbox" id="garment-ribbing" aria-describedby="garment-ribbing-note" /> <span data-i18n="garmentRibbingLabel">Bordás szegély és mandzsetta</span></label>
+                </p>
+                <p class="panel__note" id="garment-ribbing-note" data-i18n="garmentRibbingNote">Váltakozó első és hátsó relief pálca (Eerp, Herp) a szegély és a mandzsetta sorain, a szemek pálcája köré: a szemszám nem változik. Az első sor sima marad, mert láncszem köré nem lehet relief szemet horgolni. A nyak bordázata még nincs meg.</p>
+                <div class="shape__pair" id="garment-ribbing-pair" hidden>
+                  <p class="panel__field">
+                    <label for="garment-ribbing-rows" data-i18n="garmentRibbingRowsLabel">A bordázat sorai a szegélyből</label>
+                    <input id="garment-ribbing-rows" type="number" min="1" max="20" step="1" value="2" inputmode="numeric" disabled />
+                  </p>
+                  <p class="panel__field">
+                    <label for="garment-ribbing-width" data-i18n="garmentRibbingWidthLabel">A borda szélessége (1×1, 2×2)</label>
+                    <input id="garment-ribbing-width" type="number" min="1" max="6" step="1" value="1" inputmode="numeric" disabled />
+                  </p>
+                </div>
+              </div>
               <div class="shape__group" id="garment-repeat-field">
                 <p class="choice">
                   <label><input type="checkbox" id="garment-repeat" /> <span data-i18n="garmentRepeatLabel">A hátrész és az elejerész szemszáma mintaismétlésre</span></label>

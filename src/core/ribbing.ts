@@ -73,8 +73,34 @@ export function ribbingProblem(options: RibbingOptions): RibbingText | null {
 }
 
 /** Van-e pálcája, amely köré horgolni lehet: a láncszemnek, a kúszószemnek és a rákhuroknak nincs. */
-function hasPost(def: StitchDef | undefined): boolean {
+export function hasPost(def: StitchDef | undefined): boolean {
   return def?.kind === 'basic' && def.insertionModes.includes('front-post');
+}
+
+/*
+ * A bordázat szabályai egy helyen (PQW-909, PQW-913). A generátorok (ruhadarab) és a `appendRibbing` is
+ * ezeket használja, hogy a kétféle úton készült bordázat ne csúszhasson el egymástól.
+ */
+
+/** A borda oszlopának módja: `width` szemenként vált első és hátsó relief között. */
+export function ribbingColumnMode(column: number, width: number): StitchInsertion {
+  return Math.floor(column / width) % 2 === 0 ? 'front-post' : 'back-post';
+}
+
+/**
+ * A bordás sor fordulólánca egy láncszemmel rövidebb: a relief szem alacsonyabb az alapszeménél, és
+ * láncszem nem állhat relief szem helyett (01 §2.2 [S25], §4.3).
+ */
+export function ribbedTurningChain(def: StitchDef): number {
+  return Math.max(1, def.turningChain - 1);
+}
+
+/**
+ * A bordás sort megnyitó esemény: a fordulólánc nem számít szemnek. A sort megnyitó eseményen adjuk meg,
+ * így a minta konvenciója változatlan marad, és csak a bordás sorokra vonatkozik (graph.ts).
+ */
+export function ribbedOpening(event: LayerEvent): LayerEvent {
+  return { ...event, conventions: { ...event.conventions, turningChainCounts: false } };
 }
 
 /**
@@ -115,10 +141,7 @@ export function appendRibbing(pattern: Pattern, piece: Piece, library: StitchLib
    * A sort megnyitó esemény mondja meg, így a minta konvenciója változatlan marad, és csak a bordás sorokra
    * vonatkozik (graph.ts); a visszaolvasó ugyanezt írja vissza a szövegből (pattern-read.ts).
    */
-  const opensRib = (event: LayerEvent): LayerEvent => ({
-    ...event,
-    conventions: { ...event.conventions, turningChainCounts: false },
-  });
+  const opensRib = ribbedOpening;
   // A darab a fonal elvágásával ért véget: a bordázat hozzáfűzésekor fordulás lesz belőle, a fonal nincs elvágva.
   const ended = events[events.length - 1];
   if (ended) events[events.length - 1] = opensRib(!round && ended.kind === 'fasten-off' ? { ...ended, kind: 'turn' } : ended);
@@ -138,13 +161,11 @@ export function appendRibbing(pattern: Pattern, piece: Piece, library: StitchLib
   // A borda oszlopai: a szem a célpontja oszlopát viszi tovább, így a bordák végigfutnak a darabon.
   const column = new Map<NodeId, number>();
   last.positions.forEach((id, k) => column.set(id, k));
-  const modeOf = (id: NodeId): StitchInsertion =>
-    Math.floor((column.get(id) ?? 0) / options.width) % 2 === 0 ? 'front-post' : 'back-post';
+  const modeOf = (id: NodeId): StitchInsertion => ribbingColumnMode(column.get(id) ?? 0, options.width);
   /** A darab régi szemeinél a könyvtár dönt; a bordázat saját szemei mind pálcások. */
   const postable = (id: NodeId) => (graph.defs.has(id) ? hasPost(graph.defs.get(id)) : true);
 
-  // A relief sor fordulólánca egy láncszemmel rövidebb, és nem számít szemnek (01 §2.2 [S25]).
-  const turning = Math.max(1, def.turningChain - 1);
+  const turning = ribbedTurningChain(def);
 
   let below: readonly NodeId[] = last.positions;
   for (let r = 0; r < options.rows; r += 1) {
