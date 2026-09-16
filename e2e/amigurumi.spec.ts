@@ -15,9 +15,13 @@ async function open(page: Page): Promise<void> {
 async function chooseAmigurumi(page: Page): Promise<void> {
   await page.locator('.type[data-type="amigurumi"]').click();
   await expect(page.locator('#section-amigurumi')).toHaveAttribute('open', '');
+  // A típusválasztás már nem nyitja fel az írott mintát (PQW-912): a panel a
+  // felhasználóé, ezért a tesztek a gombjával nyitják ki.
+  if (await page.locator('#written').isHidden()) await page.locator('#written-toggle').click();
+  await expect(page.locator('#written')).toBeVisible();
 }
 
-test('az Amigurumi típus nagyban nyitja az írott mintát; a 6 cm-es gömb mintája jelöli a szemet és a tömést', async ({ page }) => {
+test('amigurumiban az írott minta a gombjával nagyban nyílik; a 6 cm-es gömb mintája jelöli a szemet és a tömést', async ({ page }) => {
   await open(page);
   await chooseAmigurumi(page);
 
