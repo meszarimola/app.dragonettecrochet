@@ -318,7 +318,18 @@ export interface LayerEvent {
    * szemeiben. A `name` a szakasz neve az írott mintában. Csak `fasten-off`
    * eseményen van értelme.
    */
-  readonly resume?: { readonly layer: number; readonly name?: string };
+  readonly resume?: {
+    readonly layer: number;
+    readonly name?: string;
+    /**
+     * A szakasz első köre egy másik, szintén korábbi szakasz pozícióiba is
+     * horgol (PQW-908): a raglán ujja a vállrész kihagyott szemeibe és a
+     * szétosztás hónaljláncába egyszerre. A `layer` adja az első, ez a
+     * második forrást; a kettő pozíciói ebben a sorrendben követik egymást.
+     * Csak körben, és csak a `layer` utáni rétegre mutathat.
+     */
+    readonly with?: number;
+  };
 }
 
 export interface Piece {
@@ -344,6 +355,13 @@ export interface Piece {
    * kendőgenerátor adja; hiányában a sorok egyenesek.
    */
   readonly rowShape?: RowShape;
+  /**
+   * Körben horgolt darab rajza (PQW-908): a raglán vállrésze kúp, nem lapos
+   * kör, ezért a körei kiterítve körcikket adnak. A `throughRound` az utolsó
+   * ilyen kör sorszáma; utána a darab körei a szokásos módon rajzolódnak.
+   * A raglángenerátor adja; hiányában a körök lapos körként állnak.
+   */
+  readonly roundShape?: RoundShape;
   /**
    * A darab részei 3D formából (PQW-863), a készítés sorrendjében. Ha van, a
    * darab térbeli forma: a kunkorodás szándékos, az ellenőrző nem jelzi.
@@ -409,6 +427,9 @@ export interface PieceGrid {
 export type RowShape =
   | { readonly kind: 'arc'; readonly neckAngle: number }
   | { readonly kind: 'chevron'; readonly neckAngle: number; readonly tipAngle: number };
+
+/** Körben horgolt darab rajzának alakja (PQW-908): kúp a megadott körig. */
+export type RoundShape = { readonly kind: 'cone'; readonly throughRound: number };
 
 /** A szegély választásai (PQW-862, 03 §7.1). */
 export interface PieceBorder {
@@ -647,6 +668,17 @@ export interface Layer {
    * ilyenkor az ott megadott réteg.
    */
   readonly below: number;
+  /**
+   * A második forrásréteg (PQW-908): a réteg ennek a pozícióiba is horgol, a
+   * `below` pozíciói után. A raglán ujjánál a szétosztás hónaljlánca.
+   */
+  readonly alsoBelow?: number;
+  /**
+   * A két forrásból összeérő alapgyűrű (PQW-908). A raglán ujja nem a vállrész és a
+   * szétosztás *teljes* körére ül, hanem a saját kihagyott szemeire és a hónaljláncra:
+   * a köztük lévő testszemek nem tartoznak ebbe a csőbe. Csak kétforrású körnél van megadva.
+   */
+  readonly basePositions?: readonly NodeId[];
   /**
    * A sor vagy kör kiírt száma. Alapból az `index`; a megadott sor fölött
    * folytatódó szakaszban újraindul, ezért két szakasz sorszáma egyezhet

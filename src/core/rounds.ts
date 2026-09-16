@@ -140,7 +140,9 @@ export function roundFindings(pattern: Pattern, graph: PieceGraph, library: Stit
   for (let index = 2; index < layers.length; index += 1) {
     if (!complete(index) || !complete(index - 1)) continue;
     const layer = layers[index]!;
-    const previous = layers[index - 1]!.positionCount;
+    // Az újrakezdett szakasz (PQW-908: a raglán ujja) nem az előtte kiírt körre ül, hanem a saját alapgyűrűjére:
+    // a vállrész kihagyott szemeire és a hónaljláncra. A növekedést ahhoz mérjük, nem a test utolsó köréhez.
+    const previous = layer.basePositions?.length ?? layers[index - 1]!.positionCount;
     const count = layer.positionCount;
     if (previous > 0 && (count > 2 * previous || 2 * count < previous)) findings.push({ rule: 'round-growth', nodes: worked(graph, layer) });
     const def = tallest(graph, layer, library);
