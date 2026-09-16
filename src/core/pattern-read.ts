@@ -105,8 +105,14 @@ function read(text: string, options: ReadOptions): Pattern {
 
   const [titleBlock, ...rest] = blocks;
   if (!titleBlock || titleBlock.length !== 1) throw new ReadFailure(titleBlock?.[1]?.number ?? 1, 'A szöveg első bekezdése a minta címe, egyetlen sorban.');
-  // Az összeállítás (PQW-863) nem darab; az összevarrásokat nem olvassuk vissza.
-  const headings = new Set([vocabulary.headings.abbreviations, vocabulary.headings.legend, vocabulary.headings.assembly]);
+  // Nem darab: a méretsorozat (PQW-866) leíró szöveg, az összeállítás (PQW-863) összevarrásait pedig nem
+  // olvassuk vissza. A méretek blokkja nélkül a ruhadarabok mintája a „S (M, L)” fejlécen elhasalt (PQW-913).
+  const headings = new Set([
+    vocabulary.headings.sizes,
+    vocabulary.headings.abbreviations,
+    vocabulary.headings.legend,
+    vocabulary.headings.assembly,
+  ]);
   const pieceBlocks = rest.filter((block) => !headings.has(block[0]!.text));
   if (pieceBlocks.length === 0) throw new ReadFailure(titleBlock[0]!.number, 'A szövegben nincs darab.');
   const abbreviations = rest.find((block) => block[0]!.text === vocabulary.headings.abbreviations);

@@ -84,7 +84,13 @@ test('minden menüsor-ikongomb egér alatt tooltipet mutat, az inaktív is', asy
 test('billentyűzetes fókuszra is megjelenik a tooltip', async ({ page }) => {
   await open(page);
 
-  await page.locator('#types-toggle').focus();
+  /*
+   * A tooltip `:focus-visible`-re jelenik meg, azt pedig csak a valódi
+   * billentyűzetes navigáció váltja ki — a programból hívott `focus()` nem.
+   * Ezért a fejléc Főoldal linkjéről lépünk egy Tabbal a menüsor első gombjára
+   * (az a mintatípus-sáv kapcsolója, PQW-912).
+   */
+  await page.locator('#home-link').focus();
   await page.keyboard.press('Tab');
   const first = page.locator('.tools .tool').first();
   await expect(first).toBeFocused();
@@ -95,15 +101,27 @@ test('keskeny ablakban a látható tooltip sem lóg ki jobbra', async ({ page })
   await page.setViewportSize({ width: 1000, height: 506 });
   await open(page);
 
-  // A fájlműveletek lenyílóba kerültek (PQW-911): a gombjaik a menü kinyitásával látszanak.
-  await page.locator('#file-toggle').click();
-  const tools = page.locator('.tools .tool');
-  const count = await tools.count();
-  for (let i = 0; i < count; i += 1) {
-    const tool = tools.nth(i);
+  const check = async (tool: Locator): Promise<void> => {
     await tool.hover({ force: true });
     await expect.poll(() => tipDisplay(tool)).toBe('block');
     const width = await page.evaluate(() => document.documentElement.scrollWidth);
-    expect(width, `kilógó tooltip: ${await tool.getAttribute('data-action')}`).toBe(1000);
-  }
+    expect(width, `kilógó tooltip: ${(await tool.getAttribute('data-action')) ?? (await tool.getAttribute('id'))}`).toBe(1000);
+  };
+
+  /*
+   * Előbb a menüsor gombjai, CSUKOTT lenyílóval: a nyitott menü rátakar a
+   * mögötte lévő gombokra, így azok nem kapnának valódi egérrámutatást, és a
+   * tooltipjük sem jelenne meg (PQW-912).
+   */
+  const tools = page.locator('.tools__group > .tool, .tools .menu > .tool');
+  const count = await tools.count();
+  expect(count).toBeGreaterThan(10);
+  for (let i = 0; i < count; i += 1) await check(tools.nth(i));
+
+  // Azután a fájlműveletek menüpontjai, kinyitott menüvel (PQW-911).
+  await page.locator('#file-toggle').click();
+  const items = page.locator('#file-pop .tool');
+  const itemCount = await items.count();
+  expect(itemCount).toBe(4);
+  for (let i = 0; i < itemCount; i += 1) await check(items.nth(i));
 });

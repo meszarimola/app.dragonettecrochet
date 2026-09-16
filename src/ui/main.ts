@@ -164,6 +164,8 @@ const NOTATION_KEY = 'dc-mintatervezo:jeloles';
 const WRITTEN_KEY = 'dc-mintatervezo:irott-minta';
 const TYPE_KEY = 'dc-mintatervezo:tipus';
 const GRID_KEY = 'dc-mintatervezo:racs';
+/** A mintatípus-sáv nyitott-e (PQW-912): a választás a következő megnyitásig él. */
+const TYPES_KEY = 'dc-mintatervezo:mintatipus';
 /** A választott felületi nyelv (PQW-906): működési beállítás, nem követés. */
 const LANG_KEY = 'dc-mintatervezo:nyelv';
 /** Ennél keskenyebb képernyőn a két panel nem fér el egymás mellett. */
@@ -1428,9 +1430,11 @@ function renderTypes(): void {
       button.append(typeIcon(type.id));
       const label = span('type__label', '');
       label.append(span('type__name', type.name));
-      button.append(label);
-      if (!type.available) button.append(span('type__badge', texts().sections.types.soon));
+      // A „hamarosan” jelvény a név ALATT, a feliratdobozon belül (PQW-912): a
+      // keskeny sávban a név mellé nem fért el, és rárajzolódott a névre.
+      if (!type.available) label.append(span('type__badge', texts().sections.types.soon));
       else button.addEventListener('click', () => selectType(type.id));
+      button.append(label);
 
       item.append(button);
       return item;
@@ -1455,7 +1459,13 @@ function selectType(id: PatternTypeId): void {
   if (type) announce(texts().messages.types.selected(type.name, type.detail));
 }
 
-typesToggle.addEventListener('click', () => setOpen(typesNav, typesToggle, typesNav.hasAttribute('hidden')));
+typesToggle.addEventListener('click', () => {
+  const open = typesNav.hasAttribute('hidden');
+  setOpen(typesNav, typesToggle, open);
+  rememberTypesOpen(open);
+  // A vászon a sáv szélességéhez igazodik, ezért a csukás után újra be kell illeszteni.
+  fitBoard();
+});
 
 toggle.addEventListener('click', () => {
   const open = panel.hasAttribute('hidden');
@@ -1466,6 +1476,13 @@ toggle.addEventListener('click', () => {
 writtenToggle.addEventListener('click', () => {
   const open = written.hasAttribute('hidden');
   setWrittenOpen(open);
+  /*
+   * A típushoz tartozó méretarány a nyitás pillanatában érvényesül (PQW-912):
+   * amigurumiban a szöveg az elsődleges nézet, de a panelt a felhasználó nyitja.
+   * Csak akkor szól bele, ha nincs saját magasság — amit a felhasználó az
+   * elválasztóval beállított, azt nem vesszük el tőle.
+   */
+  if (open && writtenShare === null) applyWrittenShare(writtenShareFor(patternType, NARROW.matches));
   if (open && NARROW.matches) setOpen(panel, toggle, false);
 });
 
@@ -1919,8 +1936,13 @@ function showTypeView(id: PatternTypeId): void {
   if (id === 'filet') gridPanel.reveal();
   const share = writtenShareFor(id, NARROW.matches);
   if (share === null) return;
-  setWrittenOpen(true);
-  applyWrittenShare(share);
+  /*
+   * Az írott minta panel csak a saját gombjára nyílik (PQW-912). A típusváltás
+   * eddig felnyitotta — így ugrott fel új minta kezdésekor is —, most csak a
+   * helyes arányt adja meg, ha a felhasználó már kinyitotta. Amigurumiban a
+   * szöveg továbbra is az elsődleges nézet, de a felhasználó dönt róla.
+   */
+  if (!written.hidden) applyWrittenShare(share);
   amigurumiPanel.reveal();
 }
 
@@ -1929,7 +1951,7 @@ function showTypeView(id: PatternTypeId): void {
 syncNotationControls();
 renderTypes();
 renderPalette();
-setOpen(typesNav, typesToggle, !NARROW.matches);
+setOpen(typesNav, typesToggle, readTypesOpen() && !NARROW.matches);
 setOpen(panel, toggle, !NARROW.matches);
 setOpen(written, writtenToggle, readWrittenOpen() && !NARROW.matches);
 showTypeView(patternType);
@@ -2023,5 +2045,26 @@ function showModifierNames(): void {
   }
   for (const key of document.querySelectorAll('kbd')) {
     if (key.textContent === 'Alt') key.textContent = name;
+  }
+}
+
+/*
+ * A mintatípus-sáv nyitott állapota a következő megnyitásig (PQW-912). Ugyanaz a
+ * minta, mint a nyelvnél: működési beállítás, `try/catch`-ben, mert privát
+ * ablakban a tárolás dobhat — ilyenkor a sáv az ablakszélesség szerint indul.
+ */
+function readTypesOpen(): boolean {
+  try {
+    return localStorage.getItem(TYPES_KEY) !== 'zarva';
+  } catch {
+    return true;
+  }
+}
+
+function rememberTypesOpen(open: boolean): void {
+  try {
+    localStorage.setItem(TYPES_KEY, open ? 'nyitva' : 'zarva');
+  } catch {
+    // A sáv enélkül is nyitható, csak az állapota nem marad meg.
   }
 }

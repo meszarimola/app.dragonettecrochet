@@ -64,7 +64,11 @@ export class GarmentPanel {
   readonly #repeat: HTMLInputElement;
   readonly #repeatX: HTMLInputElement;
   readonly #repeatY: HTMLInputElement;
-  readonly #groups: Readonly<Record<'table' | 'belowWaist' | 'neckline' | 'repeat', HTMLElement>>;
+  readonly #ribbing: HTMLInputElement;
+  readonly #ribbingRows: HTMLInputElement;
+  readonly #ribbingWidth: HTMLInputElement;
+  readonly #ribbingPair: HTMLElement;
+  readonly #groups: Readonly<Record<'table' | 'belowWaist' | 'neckline' | 'repeat' | 'ribbing', HTMLElement>>;
   readonly #result: HTMLElement;
   readonly #details: HTMLElement;
   readonly #checks: HTMLElement;
@@ -101,11 +105,16 @@ export class GarmentPanel {
     this.#repeat = field('garment-repeat');
     this.#repeatX = field('garment-repeat-x');
     this.#repeatY = field('garment-repeat-y');
+    this.#ribbing = field('garment-ribbing');
+    this.#ribbingRows = field('garment-ribbing-rows');
+    this.#ribbingWidth = field('garment-ribbing-width');
+    this.#ribbingPair = field('garment-ribbing-pair');
     this.#groups = {
       table: field('garment-table-field'),
       belowWaist: field('garment-below-field'),
       neckline: field('garment-neckline-field'),
       repeat: field('garment-repeat-field'),
+      ribbing: field('garment-ribbing-fields'),
     };
     this.#result = field('garment-result');
     this.#details = field('garment-details');
@@ -122,10 +131,19 @@ export class GarmentPanel {
     for (const select of [this.#kind, this.#table]) {
       select.addEventListener('change', () => this.#apply(defaultsFor(this.#kind.value as GarmentKind, this.#table.value as BodyTableId)));
     }
-    for (const input of [this.#size, this.#from, this.#to, this.#stitch, this.#neckline, this.#repeat]) {
+    for (const input of [this.#size, this.#from, this.#to, this.#stitch, this.#neckline, this.#repeat, this.#ribbing]) {
       input.addEventListener('change', () => this.#render());
     }
-    for (const input of [this.#ease, this.#hem, this.#below, this.#growth, this.#repeatX, this.#repeatY]) {
+    for (const input of [
+      this.#ease,
+      this.#hem,
+      this.#below,
+      this.#growth,
+      this.#repeatX,
+      this.#repeatY,
+      this.#ribbingRows,
+      this.#ribbingWidth,
+    ]) {
       input.addEventListener('input', () => this.#render());
     }
     field<HTMLButtonElement>('garment-create').addEventListener('click', () => this.#create());
@@ -152,6 +170,11 @@ export class GarmentPanel {
     this.#below.value = decimalText(options.belowWaistCm);
     this.#growth.value = decimalText(options.growthPct);
     this.#neckline.checked = options.neckline === 'shaped';
+    this.#ribbing.checked = Boolean(options.ribbing);
+    if (options.ribbing) {
+      this.#ribbingRows.value = String(options.ribbing.rows);
+      this.#ribbingWidth.value = String(options.ribbing.width);
+    }
     this.#repeat.checked = false;
     this.#render();
   }
@@ -173,6 +196,8 @@ export class GarmentPanel {
       repeat: this.#repeat.checked ? { width: decimal(this.#repeatX), edge: decimal(this.#repeatY) } : null,
       neckline: this.#neckline.checked ? 'shaped' : 'boat',
       growthPct: decimal(this.#growth),
+      // Bordás szegély és mandzsetta a szegély meglévő sorain (PQW-913).
+      ribbing: this.#ribbing.checked ? { rows: decimal(this.#ribbingRows), width: decimal(this.#ribbingWidth) } : null,
     });
   }
 
@@ -187,6 +212,8 @@ export class GarmentPanel {
     this.#hemLabel.textContent = hemLabel(options.kind);
     for (const [key, group] of Object.entries(this.#groups)) group.hidden = !state[key as keyof typeof state];
     for (const input of [this.#repeatX, this.#repeatY]) input.disabled = !this.#repeat.checked;
+    this.#ribbingPair.hidden = !this.#ribbing.checked;
+    for (const input of [this.#ribbingRows, this.#ribbingWidth]) input.disabled = !this.#ribbing.checked;
 
     const planned = planGarment(this.#pattern, options);
     const view = planned.ok ? garmentView(planned.plan, activeProfile(this.#pattern) !== null) : null;

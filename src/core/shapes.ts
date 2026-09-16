@@ -33,7 +33,15 @@ import { text, type CoreText } from './messages.ts';
 import { gaugeContextOf } from './pattern-size.ts';
 import { weakestSource } from './quantity.ts';
 import { repeatCounts } from './repeat.ts';
-import { appendRibbing, ribbingProblem, type RibbingCode, type RibbingOptions } from './ribbing.ts';
+import {
+  appendRibbing,
+  ribbedOpening,
+  ribbedTurningChain,
+  ribbingColumnMode,
+  ribbingProblem,
+  type RibbingCode,
+  type RibbingOptions,
+} from './ribbing.ts';
 import { MOTIF_NAMES } from './round-generator.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import { hasBaseChain, traditionOf, turningChainCountsFor } from './tradition.ts';
@@ -48,6 +56,7 @@ import type {
   StitchDef,
   StitchDefId,
   StitchGroup,
+  StitchInsertion,
   StitchNode,
   ValueSource,
 } from './types.ts';
@@ -473,8 +482,6 @@ export function rowExtents(plan: ShapePlan): { readonly left: number; readonly r
 
 /* ---- Gráfépítés ---- */
 
-const both = (id: NodeId): Anchor => ({ into: 'stitch', id, mode: 'both-loops' });
-
 type Unit = { readonly kind: 'inc'; readonly w: number; readonly n: number } | { readonly kind: 'tog'; readonly from: number; readonly n: number };
 
 class RowWriter {
@@ -492,8 +499,15 @@ class RowWriter {
     return id;
   }
 
+  /** A láncszemek azonosítói: relief szem nem mehet láncszem köré, ezért a bordázatnak tudnia kell róluk. */
+  readonly chainIds = new Set<NodeId>();
+
   chains(count: number): NodeId[] {
-    return Array.from({ length: count }, () => this.add('ch'));
+    return Array.from({ length: count }, () => {
+      const id = this.add('ch');
+      this.chainIds.add(id);
+      return id;
+    });
   }
 
   /** Láncos hosszabbítás a sor végén: a láncszemek egy láncívet adnak, a következő sor egyenként horgol beléjük. */
@@ -503,16 +517,21 @@ class RowWriter {
     return chains;
   }
 
-  /** `n` szem egy célpontba; kettőtől szaporításként. */
-  into(def: StitchDef, target: NodeId, n: number): NodeId[] {
-    const ids = Array.from({ length: n }, () => this.add(def.id, [both(target)]));
+  /** `n` szem egy célpontba; kettőtől szaporításként. A mód alapból mindkét szál; bordázatnál relief (PQW-913). */
+  into(def: StitchDef, target: NodeId, n: number, mode: StitchInsertion = 'both-loops'): NodeId[] {
+    const ids = Array.from({ length: n }, () => this.add(def.id, [{ into: 'stitch', id: target, mode }]));
     if (n >= 2) this.groups.push({ id: `g${this.groups.length + 1}`, def: `inc-${n}${def.id}`, members: ids });
     return ids;
   }
 
-  unit(def: StitchDef, working: readonly NodeId[], unit: Unit): NodeId[] {
-    if (unit.kind === 'inc') return this.into(def, working[unit.w]!, unit.n);
-    return [this.add(`${def.id}${unit.n}tog`, working.slice(unit.from, unit.from + unit.n).map(both))];
+  unit(def: StitchDef, working: readonly NodeId[], unit: Unit, mode: StitchInsertion = 'both-loops'): NodeId[] {
+    if (unit.kind === 'inc') return this.into(def, working[unit.w]!, unit.n, mode);
+    return [
+      this.add(
+        `${def.id}${unit.n}tog`,
+        working.slice(unit.from, unit.from + unit.n).map((id): Anchor => ({ into: 'stitch', id, mode })),
+      ),
+    ];
   }
 
   /**
@@ -521,7 +540,16 @@ class RowWriter {
    * horgolunk (03 §1.3). Visszaadja a sor új szemeit a fonal sorrendjében,
    * vagy az okot, ha a sor ehhez túl keskeny.
    */
-  row(def: StitchDef, working: readonly NodeId[], seat: boolean, shaping: RowShaping, row: number): NodeId[] | ShapeText {
+  row(
+    def: StitchDef,
+    working: readonly NodeId[],
+    seat: boolean,
+    shaping: RowShaping,
+    row: number,
+    /** A beszúrási mód a haladási irány szerinti pozícióhoz; bordás sorban relief (PQW-913). */
+    mode?: (column: number) => StitchInsertion,
+  ): NodeId[] | ShapeText {
+    const at = (column: number): StitchInsertion => mode?.(column) ?? 'both-loops';
     // A magyar névelő a felületé: a mag csak a sor számát adja (PQW-904).
     const tooNarrow = text('shape-row-too-narrow', { row });
     let lo = seat ? 1 : 0;
@@ -556,10 +584,10 @@ class RowWriter {
     if ([head, tail].some((unit) => unit !== null && unit.n > 12)) return tooNarrow;
 
     const produced: NodeId[] = [];
-    if (seated > 0) produced.push(...this.into(def, working[0]!, seated));
-    if (head) produced.push(...this.unit(def, working, head));
-    for (let w = lo; w <= hi; w += 1) produced.push(this.add(def.id, [both(working[w]!)]));
-    if (tail) produced.push(...this.unit(def, working, tail));
+    if (seated > 0) produced.push(...this.into(def, working[0]!, seated, at(0)));
+    if (head) produced.push(...this.unit(def, working, head, at(head.kind === 'inc' ? head.w : head.from)));
+    for (let w = lo; w <= hi; w += 1) produced.push(this.add(def.id, [{ into: 'stitch', id: working[w]!, mode: at(w) }]));
+    if (tail) produced.push(...this.unit(def, working, tail, at(tail.kind === 'inc' ? tail.w : tail.from)));
     this.skipped.push(...working.slice(hi + 1, hi + 1 + leave));
     return produced;
   }
@@ -577,6 +605,8 @@ function buildRows(
   stitch: StitchDefId,
   counts: readonly number[],
   shapingRows: readonly RowShaping[],
+  /** Bordázat az alsó szegély sorain (PQW-913); az 1. sor sima marad. */
+  ribbing: RibbingOptions | null = null,
 ): RowWriter | ShapeText {
   const writer = new RowWriter();
   const def = resolveStitch(stitch)!;
@@ -591,14 +621,37 @@ function buildRows(
   let below = foundation.slice(0, worked);
   let turningTop = foundation[foundation.length - 1]!;
 
+  /*
+   * A bordázat az alsó szegély sorain (PQW-913): az 1. sor sima marad, mert a láncalap köré nem lehet relief
+   * szemet horgolni. A bordás sor fordulólánca rövidebb és nem számít szemnek, ezért nincs ülő pozíciója; a
+   * relief mód a célpont oszlopát követi, így a bordák felfelé végigfutnak.
+   */
+  const ribUntil = ribbing === null ? 0 : Math.min(rows, 1 + ribbing.rows);
+  const column = new Map<NodeId, number>();
   for (let k = 0; k < rows; k += 1) {
-    if (k > 0) turningTop = writer.chains(def.turningChain).at(-1)!;
+    const ribbed = ribbing !== null && k + 1 >= 2 && k + 1 <= ribUntil;
+    if (ribbed) {
+      const opening = writer.events[writer.events.length - 1];
+      if (opening) writer.events[writer.events.length - 1] = ribbedOpening(opening);
+      writer.chains(ribbedTurningChain(def));
+    } else if (k > 0) turningTop = writer.chains(def.turningChain).at(-1)!;
     const shaping = shapingRows[k]!;
     // A sok szemes szaporítás a sor elején az előző sor láncos hosszabbítása: ebben a sorban már sima.
     const own = { start: shaping.start > MAX_EDGE_CHANGE ? 0 : shaping.start, end: shaping.end };
-    const made = writer.row(def, [...below].reverse(), k === 0 ? baseChain : counting, own, k + 1);
+    const working = [...below].reverse();
+    if (ribbed && column.size === 0) working.forEach((node, i) => column.set(node, i));
+    const mode =
+      ribbed && ribbing !== null
+        ? (w: number) => {
+            const target = working[w]!;
+            // Láncszem köré sima szem megy: a számító fordulólánc teteje és a láncos hosszabbítás ilyen.
+            return writer.chainIds.has(target) ? ('both-loops' as const) : ribbingColumnMode(column.get(target) ?? 0, ribbing.width);
+          }
+        : undefined;
+    const made = writer.row(def, working, ribbed ? false : k === 0 ? baseChain : counting, own, k + 1, mode);
     if (!Array.isArray(made)) return made;
-    below = [...(counting ? [turningTop] : []), ...made];
+    if (ribbed) made.forEach((node, i) => column.set(node, column.get(working[i]!) ?? 0));
+    below = [...(!ribbed && counting ? [turningTop] : []), ...made];
     const next = shapingRows[k + 1];
     if (next && next.start > MAX_EDGE_CHANGE) below.push(...writer.extension(next.start));
     writer.event(k < rows - 1 ? 'turn' : 'fasten-off');
@@ -701,6 +754,8 @@ export function plannedSections(
   sections: readonly RowSection[],
   name: string,
   id = 'p1',
+  /** Bordázat az alsó szegély sorain (PQW-913): csak az első szakaszban, a darab alján. */
+  ribbing: RibbingOptions | null = null,
 ): Piece | ShapeText {
   const broken = text('internal-error');
   if (sections.length === 0 || sections.some((section) => section.counts.length === 0 || section.counts.length !== section.shaping.length)) return broken;
@@ -714,6 +769,8 @@ export function plannedSections(
   // Rétegenként a pozíciók a fonal sorrendjében; a 0. a láncalap.
   const positions: NodeId[][] = [];
   let layer = 0;
+  /** A bordázat oszlopai: a szem a célpontja oszlopát viszi tovább, így a bordák felfelé végigfutnak. */
+  const ribColumn = new Map<NodeId, number>();
 
   for (const [s, section] of sections.entries()) {
     let below: NodeId[];
@@ -732,14 +789,29 @@ export function plannedSections(
       turningTop = '';
     }
     for (let k = 0; k < section.counts.length; k += 1) {
-      if (s > 0 || k > 0) turningTop = writer.chains(def.turningChain).at(-1)!;
+      // A bordázat a darab alján van: csak az első szakasz 2. sorától, mert a láncalap köré nem megy relief szem.
+      const ribbed = ribbing !== null && s === 0 && k + 1 >= 2 && k + 1 <= Math.min(section.counts.length, 1 + ribbing.rows);
+      if (ribbed) {
+        const opening = writer.events[writer.events.length - 1];
+        if (opening) writer.events[writer.events.length - 1] = ribbedOpening(opening);
+        writer.chains(ribbedTurningChain(def));
+      } else if (s > 0 || k > 0) turningTop = writer.chains(def.turningChain).at(-1)!;
       // A szakasz első sora az alatta lévő sor egy szakaszán dolgozik; a többi sora a saját előző során.
       const from = k === 0 ? Math.max(0, section.from ?? 0) : 0;
       const span = k === 0 ? section.span : undefined;
       const working = [...below].reverse().slice(from, span === undefined ? undefined : from + span);
-      const made = writer.row(def, working, s === 0 && k === 0 ? baseChain : counting, section.shaping[k]!, layer + 1);
+      if (ribbed && ribColumn.size === 0) working.forEach((node, i) => ribColumn.set(node, i));
+      const mode =
+        ribbed && ribbing !== null
+          ? (w: number) => {
+              const target = working[w]!;
+              return writer.chainIds.has(target) ? ('both-loops' as const) : ribbingColumnMode(ribColumn.get(target) ?? 0, ribbing.width);
+            }
+          : undefined;
+      const made = writer.row(def, working, ribbed ? false : s === 0 && k === 0 ? baseChain : counting, section.shaping[k]!, layer + 1, mode);
       if (!Array.isArray(made)) return made;
-      below = [...(counting ? [turningTop] : []), ...made];
+      if (ribbed) made.forEach((node, i) => ribColumn.set(node, ribColumn.get(working[i]!) ?? 0));
+      below = [...(!ribbed && counting ? [turningTop] : []), ...made];
       layer += 1;
       positions[layer] = below;
       if (k < section.counts.length - 1) {
@@ -791,10 +863,12 @@ export function plannedRows(
   shaping: readonly RowShaping[],
   name: string,
   id = 'p1',
+  /** Bordázat az alsó szegély, illetve a mandzsetta sorain (PQW-913). */
+  ribbing: RibbingOptions | null = null,
 ): Piece | ShapeText {
   if (counts.length === 0 || shaping.length !== counts.length) return text('internal-error');
   const base: Pattern = { ...pattern, pieces: [] };
-  const built = buildRows(base, stitch, counts, shaping);
+  const built = buildRows(base, stitch, counts, shaping, ribbing);
   if (!(built instanceof RowWriter)) return built;
   const piece: Piece = {
     id,

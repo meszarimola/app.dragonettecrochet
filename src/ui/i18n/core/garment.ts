@@ -24,6 +24,7 @@ import type { CoreData } from '../../../core/messages.ts';
 import type { ShapeCode } from '../../../core/shapes.ts';
 import type { GarmentTable, Locale } from '../../../core/types.ts';
 import { list, num, renderCoreText, str, type CoreDictionary, type CoreEntry } from './render.ts';
+import { RIBBING_EN, RIBBING_HU } from './ribbing.ts';
 import { SHAPE_CORE_TEXTS } from './shape.ts';
 
 /* ---- Mértéknevek: a mag a mérés azonosítóját adja ---- */
@@ -93,6 +94,8 @@ function pieceProblem(data: CoreData, language: 'hu' | 'en'): string {
 }
 
 const hu: Readonly<Record<GarmentCode, CoreEntry>> = {
+  // A bordázat üzenetei a saját területéről: a ruhadarab ugyanazt a magot használja (PQW-913).
+  ...RIBBING_HU,
   /* Választás és tartomány */
   'stitch-choice': 'Ehhez a generátorhoz alapszemet válassz: rövidpálca, félpálca, egyráhajtásos vagy kétráhajtásos pálca.',
   'pick-size': 'Válassz méretet a listából.',
@@ -201,6 +204,8 @@ const hu: Readonly<Record<GarmentCode, CoreEntry>> = {
   'suggest-raglan-growth': 'Adj mélyebb raglánt: így kevesebb külön törzsszaporítás kell körönként.',
   'check-raglan-underarm': 'A hónaljlánc a törzsbe és az ujjba is beleszámít',
   'check-raglan-neck': 'A nyak négy szakasza kiadja a nyak szemszámát',
+  'check-raglan-sleeve': 'A mandzsetta szemszáma és a fogyasztások kiadják az ujj körméretét a szétosztásnál',
+  'suggest-raglan-sleeve': 'Adj hosszabb ujjat vagy szűkebb mandzsettát: ennyi fogyasztás nem fér el ennyi körben.',
   'check-even-rounds': 'A raglán és a törzs körszáma páros',
   'suggest-negative-ease-raglan': (d) => `A negatív bőség legfeljebb ${num(d, 'cm')} cm lehet ekkora mellbőségnél.`,
 
@@ -224,6 +229,8 @@ const hu: Readonly<Record<GarmentCode, CoreEntry>> = {
 };
 
 const en: Readonly<Record<GarmentCode, CoreEntry>> = {
+  // A bordázat üzenetei a saját területéről: a ruhadarab ugyanazt a magot használja (PQW-913).
+  ...RIBBING_EN,
   /* Választás és tartomány */
   'stitch-choice': 'For this generator choose a basic stitch: single, half double, double or treble crochet.',
   'pick-size': 'Choose a size from the list.',
@@ -335,6 +342,8 @@ const en: Readonly<Record<GarmentCode, CoreEntry>> = {
   'suggest-raglan-growth': 'Give a deeper raglan: then fewer separate body increases are needed per round.',
   'check-raglan-underarm': 'The underarm chain counts into both the body and the sleeve',
   'check-raglan-neck': 'The four sections of the neck give the stitch count of the neck',
+  'check-raglan-sleeve': 'The stitch count of the cuff and the decreases give the circumference of the sleeve at the divide',
+  'suggest-raglan-sleeve': 'Give a longer sleeve or a narrower cuff: this many decreases do not fit into this many rounds.',
   'check-even-rounds': 'The raglan and the body have an even number of rounds',
   'suggest-negative-ease-raglan': (d) => `The negative ease can be at most ${num(d, 'cm')} cm at this bust.`,
 

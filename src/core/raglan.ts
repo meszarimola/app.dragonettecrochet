@@ -20,9 +20,10 @@
  */
 
 import { NEGATIVE_EASE_LIMIT, NEGATIVE_EASE_MAX } from './body-sizes.ts';
-import { evenPositions, intentOf, roundEven, roundStitches } from './garment-math.ts';
+import { evenPositions, eventRows, intentOf, roundEven, roundStitches, slopeSchedule } from './garment-math.ts';
 import { buildPieceGraph } from './graph.ts';
 import { text, type CoreText } from './messages.ts';
+import { ribbedOpening, ribbedTurningChain, ribbingColumnMode, type RibbingOptions } from './ribbing.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import { traditionOf, turningChainCountsFor } from './tradition.ts';
 import type { Anchor, LayerEvent, NodeId, Pattern, Piece, Space, SpaceId, StitchGroup, StitchNode } from './types.ts';
@@ -53,6 +54,10 @@ export interface RaglanMeasures {
   readonly underarmCm: number;
   /** A teljes hossz a vállvarrástól, a szegéllyel. */
   readonly bodyLengthCm: number;
+  /** Az ujj hossza a hónaljtól a mandzsetta aljáig (CYC „karhossz a hónaljtól”, PQW-913). */
+  readonly sleeveLengthCm: number;
+  /** A mandzsetta körmérete (05 „B” példa aránya a felkarbőségből, PQW-913). */
+  readonly cuffCm: number;
   readonly hemCm: number;
 }
 
@@ -84,6 +89,18 @@ export interface RaglanPlan {
   /** A törzs körei a szétosztástól, a szegéllyel együtt. */
   readonly bodyRoundsBelow: number;
   readonly hemRounds: number;
+  /** Az ujj csöve a hónaljtól a mandzsettáig (PQW-913). */
+  readonly sleeve: {
+    /** Az ujj körei a szétosztás körével együtt; az 1. kör a szétosztásé. */
+    readonly rounds: number;
+    /** A mandzsetta körei az ujj alján: ezek már nem fogyasztanak. */
+    readonly cuffRounds: number;
+    readonly cuffStitches: number;
+    /** Hány kör fogyaszt; körönként 2 szem, a hónalj két oldalán 1-1 összehorgolás. */
+    readonly decreases: number;
+    /** A fogyasztó körök az ujj tetejétől, 1-től (az 1. kör a szétosztásé). */
+    readonly decreaseRounds: readonly number[];
+  };
   readonly finished: {
     readonly chestCm: number;
     readonly easeCm: number;
@@ -116,8 +133,15 @@ class RaglanWriter {
     return id;
   }
 
+  /** A láncszemek azonosítói: relief szem nem mehet láncszem köré, ezért a bordázatnak tudnia kell róluk. */
+  readonly chainIds = new Set<NodeId>();
+
   chains(count: number): NodeId[] {
-    return Array.from({ length: count }, () => this.add('ch'));
+    return Array.from({ length: count }, () => {
+      const id = this.add('ch');
+      this.chainIds.add(id);
+      return id;
+    });
   }
 
   space(chains: readonly NodeId[]): SpaceId {
@@ -168,7 +192,15 @@ function closeAndCut(writer: RaglanWriter, first: NodeId, resume: NonNullable<La
  * kihagyásával, végül a törzs körei. Az ujjak a hónaljlánc és a kihagyott
  * szemek mentén külön készülnek: azt a gráf még nem építi meg.
  */
-export function raglanPiece(pattern: Pattern, stitch: string, plan: RaglanPlan, name: string, id = 'p1'): Piece | CoreText<GarmentCode> {
+export function raglanPiece(
+  pattern: Pattern,
+  stitch: string,
+  plan: RaglanPlan,
+  name: string,
+  id = 'p1',
+  /** Bordás szegély és mandzsetta: a törzs alsó és az ujj végi körei relief szemmel (PQW-913). */
+  ribbing: RibbingOptions | null = null,
+): Piece | CoreText<GarmentCode> {
   const def = resolveStitch(stitch);
   if (!def) return text('internal-error', { rule: 'raglan-stitch' });
   const counting = turningChainCountsFor(pattern.conventions.turningChainCounts, def, traditionOf(pattern.conventions), 'round');
@@ -272,8 +304,36 @@ export function raglanPiece(pattern: Pattern, stitch: string, plan: RaglanPlan, 
   }
   if (body.length !== plan.bodyStitches) return text('internal-error', { rule: 'raglan-divide' });
 
-  // A törzs körei a szétosztástól: alakítás nélkül, a szegéllyel együtt.
+  /*
+   * Bordás kör (PQW-913): a fordulólánc egy láncszemmel rövidebb és nem számít szemnek, ezért nincs ülő
+   * pozíció, a kör minden szembe horgol, és a saját első szemébe záródik. A relief mód a célpont oszlopát
+   * követi, így a bordák végigfutnak; láncszem köré sima szem megy.
+   */
+  const ribbedRound = (positions: readonly NodeId[], column: Map<NodeId, number>, width: number): NodeId[] => {
+    const opening = writer.events[writer.events.length - 1];
+    if (opening) writer.events[writer.events.length - 1] = ribbedOpening(opening);
+    if (column.size === 0) positions.forEach((node, k) => column.set(node, k));
+    writer.chains(ribbedTurningChain(def));
+    const made: NodeId[] = [];
+    for (const position of positions) {
+      const at = column.get(position) ?? 0;
+      const mode = writer.chainIds.has(position) ? 'both-loops' : ribbingColumnMode(at, width);
+      const node = writer.add(def.id, [{ into: 'stitch', id: position, mode }]);
+      column.set(node, at);
+      made.push(node);
+    }
+    return made;
+  };
+
+  // A törzs körei a szétosztástól: alakítás nélkül, a szegéllyel együtt. Az alsó szegély körei bordásak (PQW-913).
+  const ribBodyFrom = ribbing !== null && plan.hemRounds > 0 ? plan.bodyRoundsBelow - plan.hemRounds + 1 : Number.POSITIVE_INFINITY;
+  const bodyColumn = new Map<NodeId, number>();
   for (let round = 2; round <= plan.bodyRoundsBelow; round += 1) {
+    if (ribbing !== null && round >= ribBodyFrom) {
+      body = ribbedRound(body, bodyColumn, ribbing.width);
+      closeRound(writer, body[0]!);
+      continue;
+    }
     const chain = writer.chains(def.turningChain);
     const top = chain[chain.length - 1]!;
     const made: NodeId[] = [];
@@ -298,7 +358,7 @@ export function raglanPiece(pattern: Pattern, stitch: string, plan: RaglanPlan, 
     return text('internal-error', { rule: 'raglan-sleeve-split' });
   }
   // A törzs utolsó köre után a fonalat elvágjuk, és a munka az első ujjnál folytatódik; az ujj után a másiknál.
-  sleeves.forEach((sleeve, i) => {
+  for (const [i, sleeve] of sleeves.entries()) {
     const resume = { layer: yokeLayer, name: sleeve.name, with: splitLayer };
     const last = writer.stitches[writer.stitches.length - 1]!;
     const closing = writer.events[writer.events.length - 1];
@@ -316,12 +376,46 @@ export function raglanPiece(pattern: Pattern, stitch: string, plan: RaglanPlan, 
     // A kihagyott szemek a vállrész köréből, utána a hónaljlánc láncszemei: együtt az ujj körmérete.
     const targets = [...sleeve.stitches, ...sleeve.chains];
     for (const position of targets.slice(counting ? 1 : 0)) made.push(...writer.into(def.id, both(position), 1));
-    const round = counting ? [top, ...made] : made;
-    if (round.length !== plan.sleeveStitches) throw new Error('Az ujj köre nem a terv szerinti.');
-    // Az utolsó ujj után a kör zárul; a többi után a fonal elvágása a következő ujj eseményében jön.
-    if (i === sleeves.length - 1) closeRound(writer, round[0]!);
-    else closeAndCut(writer, round[0]!, { layer: yokeLayer, name: sleeves[i + 1]!.name, with: splitLayer });
-  });
+    let round = counting ? [top, ...made] : made;
+    if (round.length !== plan.sleeveStitches) return text('internal-error', { rule: 'raglan-sleeve-round' });
+
+    /** Az utolsó ujj után a kör zárul; a többi után a fonal elvágása viszi a következő ujj folytatását. */
+    const finish = (first: NodeId) => {
+      if (i === sleeves.length - 1) closeRound(writer, first);
+      else closeAndCut(writer, first, { layer: yokeLayer, name: sleeves[i + 1]!.name, with: splitLayer });
+    };
+    if (plan.sleeve.rounds <= 1) finish(round[0]!);
+    else closeRound(writer, round[0]!);
+
+    // Az ujj csöve: a fogyasztó körökben a hónalj két oldalán 1-1 összehorgolás, a többi kör egyenes (PQW-913).
+    const decreaseAt = new Set(plan.sleeve.decreaseRounds);
+    // A mandzsetta körei bordásak; a fogyasztás mindig a mandzsetta fölött van, ezért a kettő nem esik egybe.
+    const ribCuffFrom =
+      ribbing !== null && plan.sleeve.cuffRounds > 0 ? plan.sleeve.rounds - plan.sleeve.cuffRounds + 1 : Number.POSITIVE_INFINITY;
+    const cuffColumn = new Map<NodeId, number>();
+    for (let r = 2; r <= plan.sleeve.rounds; r += 1) {
+      if (ribbing !== null && r >= ribCuffFrom) {
+        round = ribbedRound(round, cuffColumn, ribbing.width);
+        if (r === plan.sleeve.rounds) finish(round[0]!);
+        else closeRound(writer, round[0]!);
+        continue;
+      }
+      const roundChain = writer.chains(def.turningChain);
+      const roundTop = roundChain[roundChain.length - 1]!;
+      const positions = round.slice(counting ? 1 : 0);
+      const built: NodeId[] = [];
+      if (decreaseAt.has(r) && positions.length >= 6) {
+        built.push(writer.add(`${def.id}2tog`, [both(positions[0]!), both(positions[1]!)]));
+        for (const position of positions.slice(2, -2)) built.push(...writer.into(def.id, both(position), 1));
+        built.push(writer.add(`${def.id}2tog`, [both(positions[positions.length - 2]!), both(positions[positions.length - 1]!)]));
+      } else {
+        for (const position of positions) built.push(...writer.into(def.id, both(position), 1));
+      }
+      round = counting ? [roundTop, ...built] : built;
+      if (r === plan.sleeve.rounds) finish(round[0]!);
+      else closeRound(writer, round[0]!);
+    }
+  }
 
   // A raglán négy vonala mentén a szaporítások szándékosan egymás fölé kerülnek (04 §6.1, 05 §2.3): a darab
   // sarkainak száma 4, ezért az ellenőrző nem jelzi őket. A vállrész kúp: a rajzon a körei körcikket adnak (PQW-908).
@@ -449,6 +543,25 @@ export function raglanPlan(m: RaglanMeasures, gauge: { readonly stitchCm: number
   const bodyRoundsBelow = roundEven((m.bodyLengthCm - m.yokeDepthCm) / rowCm);
   if (bodyRoundsBelow < 2) return text('body-length-yoke');
 
+  /*
+   * Az ujj csöve a hónaljtól a mandzsettáig (PQW-913, 05 §4.4). A szétosztásnál az ujj körmérete
+   * `sleeveStitches`; onnan a mandzsettáig fogyasztunk, körönként 2 szemmel: a hónalj két oldalán egy-egy
+   * összehorgolás. A fogyasztások egyenletesen oszlanak el, a mandzsetta körei pedig egyenesek (straightTail).
+   * A mandzsetta szemszáma páros, és a különbség is páros, hogy körönként pontosan 2 szem fogyjon.
+   */
+  const sleeveTotal = sleeveTarget + underarmStitches;
+  const sleeveRounds = Math.max(1, roundEven(m.sleeveLengthCm / rowCm));
+  const cuffRounds = Math.min(hemRounds, Math.max(0, sleeveRounds - 2));
+  let cuffStitches = Math.min(sleeveTotal, Math.max(4, roundEven(m.cuffCm / stitchCm, 'up')));
+  if ((sleeveTotal - cuffStitches) % 2 !== 0) cuffStitches = Math.min(sleeveTotal, cuffStitches + 1);
+  const sleeveDecreases = (sleeveTotal - cuffStitches) / 2;
+  const shapedRounds = sleeveRounds - cuffRounds;
+  // A fogyasztás a szétosztás köre után kezdődik, ezért az 1. kör nem fogyaszt: a terv a többi körre oszlik el.
+  const sleeveSchedule = shapedRounds >= 1 ? slopeSchedule(shapedRounds - 1, sleeveDecreases, true) : null;
+  if (sleeveDecreases > 0 && !sleeveSchedule) return text('sleeve-increases');
+  const decreaseRounds = sleeveSchedule ? eventRows(sleeveSchedule).map((round) => round + 1) : [];
+  if (decreaseRounds.some((round) => round > sleeveRounds)) return text('sleeve-short');
+
   const chestCm = bodyStitches * stitchCm;
   const checks: GarmentCheck[] = [
     {
@@ -467,6 +580,13 @@ export function raglanPlan(m: RaglanMeasures, gauge: { readonly stitchCm: number
       id: 'raglan-underarm',
       label: text('check-raglan-underarm'),
       ok: bodyStitches === frontTarget + backTarget + 2 * underarmStitches,
+    },
+    {
+      // Az ujj csöve a szétosztás körméretéből a mandzsettáig fogy, körönként 2 szemmel (PQW-913).
+      id: 'raglan-sleeve',
+      label: text('check-raglan-sleeve'),
+      ok: cuffStitches + 2 * sleeveDecreases === sleeveTotal && decreaseRounds.length === sleeveDecreases,
+      suggestion: text('suggest-raglan-sleeve'),
     },
     {
       id: 'raglan-neck',
@@ -502,6 +622,7 @@ export function raglanPlan(m: RaglanMeasures, gauge: { readonly stitchCm: number
     sleeveStitches: sleeveTarget + underarmStitches,
     bodyRoundsBelow,
     hemRounds,
+    sleeve: { rounds: sleeveRounds, cuffRounds, cuffStitches, decreases: sleeveDecreases, decreaseRounds },
     finished: {
       chestCm,
       easeCm: chestCm - m.bustCm,

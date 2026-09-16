@@ -71,6 +71,7 @@ import { raglanPiece, raglanPlan, type RaglanMeasures, type RaglanPlan } from '.
 import { withGeneratedTitle } from './pattern-title.ts';
 import { measured, weakestSource } from './quantity.ts';
 import { foundationChainLength } from './repeat.ts';
+import { ribbingProblem, type RibbingCode, type RibbingOptions } from './ribbing.ts';
 import { DEFAULT_MOTIF, circlePlan, plannedRounds, type RoundPlan } from './round-generator.ts';
 import { SHAPE_STITCHES, plannedRows, plannedSections, shapeGauge, type RowSection, type RowShaping, type ShapeGauge, type ShapeRepeat } from './shapes.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
@@ -141,6 +142,12 @@ export interface GarmentOptions {
    * kész darab a tervezett méretű maradjon; 0: nincs korrekció.
    */
   readonly growthPct: number;
+  /**
+   * Bordás szegély és mandzsetta relief szemekkel (PQW-909, PQW-913): a szegély
+   * és a mandzsetta meglévő sorai közül ennyi lesz bordás. A nyak bordázata még
+   * nincs meg: ahhoz a gráfnak az él mentén kellene szemeket felszedni.
+   */
+  readonly ribbing?: RibbingOptions | null;
 }
 
 /** A táblázatonkénti hossz a derék alatt, cm: nőknél a „B” példa 58 cm-es hossza az M mérethez. */
@@ -159,6 +166,7 @@ export const DEFAULT_GARMENT: GarmentOptions = {
   repeat: null,
   neckline: 'shaped',
   growthPct: 0,
+  ribbing: null,
 };
 
 export const DEFAULT_HAT: GarmentOptions = {
@@ -181,6 +189,8 @@ export const DEFAULT_HAT: GarmentOptions = {
  * szótárba tartoznak, ezért a `BodySizeCode` is része az uniónak.
  */
 export type GarmentCode =
+  // A bordázat üzenetei (PQW-913): a ruhadarab ugyanazt a magot használja, mint a Forma szakasz.
+  | RibbingCode
   // Választás és tartomány (`garmentProblem`).
   | 'stitch-choice'
   | 'pick-size'
@@ -267,6 +277,8 @@ export type GarmentCode =
   | 'suggest-raglan-growth'
   | 'check-raglan-underarm'
   | 'check-raglan-neck'
+  | 'check-raglan-sleeve'
+  | 'suggest-raglan-sleeve'
   | 'check-even-rounds'
   | 'suggest-negative-ease-raglan'
   // A méretsorozat monotonitása.
@@ -812,6 +824,11 @@ export function garmentProblem(options: GarmentOptions): CoreText<GarmentCode> |
   if (options.kind === 'drop-shoulder' && options.easeCm === null) return text('ease-required');
   if (!(Number.isFinite(options.hemCm) && options.hemCm >= 0 && options.hemCm <= 50)) return text('hem-range');
   if (!(Number.isFinite(options.growthPct) && options.growthPct >= 0 && options.growthPct <= 50)) return text('growth-range');
+  // A bordázat ugyanazokkal a korlátokkal, mint a Forma szakaszban (PQW-909).
+  if (options.ribbing) {
+    const ribbing = ribbingProblem(options.ribbing);
+    if (ribbing !== null) return ribbing;
+  }
   if (options.kind === 'drop-shoulder' && !(Number.isFinite(options.belowWaistCm) && options.belowWaistCm >= -30 && options.belowWaistCm <= 100)) {
     return text('below-waist-range');
   }
@@ -837,7 +854,8 @@ export function raglanMeasures(
   if (!size) return text('unknown-size', { size: sizeId });
   const v = size.values;
   const length = v.backWaist ?? v.backHip;
-  if (!v.chest || !length || !v.crossBack) return text('missing-measure', { size: sizeId });
+  // Az ujj csöve a hónaljtól indul, ezért a karhossz is kell (PQW-913); a CYC táblázatok mind megadják.
+  if (!v.chest || !length || !v.crossBack || !v.armLength) return text('missing-measure', { size: sizeId });
   const estimated: CoreText<GarmentCode>[] = [];
   const bustCm = mid(v.chest);
   let armholeDepthCm: number;
@@ -846,8 +864,12 @@ export function raglanMeasures(
     estimated.push(text('estimated-armhole-depth'));
     armholeDepthCm = bustCm / 6 + 5;
   }
-  const upperArmCm = v.upperArm ? mid(v.upperArm) + GARMENT_EASE.sleeve : null;
+  // A felkarbőség a mérés, az ujj körmérete ezen felül a bőség; a mandzsetta a nyers felkarból jön (05 „B”).
+  const rawUpperArmCm = v.upperArm ? mid(v.upperArm) : null;
+  const upperArmCm = rawUpperArmCm === null ? null : rawUpperArmCm + GARMENT_EASE.sleeve;
   if (upperArmCm === null) estimated.push(text('estimated-upper-arm'));
+  const cuffCm = rawUpperArmCm === null ? CUFF_CHEST_RATIO * bustCm : CUFF_RATIO * rawUpperArmCm;
+  if (rawUpperArmCm === null) estimated.push(text('estimated-cuff'));
   return {
     measures: {
       bustCm,
@@ -859,6 +881,9 @@ export function raglanMeasures(
       yokeDepthCm: armholeDepthCm + RAGLAN_YOKE_ALLOWANCE_CM,
       underarmCm: (upperArmCm ?? bustCm / 3) / 8,
       bodyLengthCm: withoutGrowth(mid(length) + options.belowWaistCm, options.growthPct ?? 0),
+      // Az ujj a hónaljtól a mandzsetta aljáig; a növedék a hosszakat rövidíti (05 §7.2, PQW-913).
+      sleeveLengthCm: withoutGrowth(mid(v.armLength), options.growthPct ?? 0),
+      cuffCm,
       hemCm: options.hemCm,
     },
     estimated,
@@ -917,6 +942,10 @@ function sizeValues(plan: GarmentSizePlan): Record<string, number> {
       raglanTargetSleeve: plan.target.sleeve,
       raglanBelowRounds: plan.bodyRoundsBelow,
       raglanHemRounds: plan.hemRounds,
+      raglanSleeveRounds: plan.sleeve.rounds,
+      raglanSleeveDecreases: plan.sleeve.decreases,
+      raglanSleeveCuff: plan.sleeve.cuffStitches,
+      raglanSleeveCuffRounds: plan.sleeve.cuffRounds,
     };
   }
   if (plan.kind === 'hat') {
@@ -1206,7 +1235,7 @@ export function generateGarment(pattern: Pattern, options: GarmentOptions): Garm
     if (total > MAX_GARMENT_TOTAL) {
       return fail(text('max-total-raglan', { max: MAX_GARMENT_TOTAL }));
     }
-    const piece = raglanPiece(base, options.stitch, size.plan, name);
+    const piece = raglanPiece(base, options.stitch, size.plan, name, 'p1', options.ribbing ?? null);
     if (isGarmentText(piece)) return fail(piece);
     result = { ...base, pieces: [piece], garment };
   } else if (size.plan.kind === 'hat') {
@@ -1228,14 +1257,15 @@ export function generateGarment(pattern: Pattern, options: GarmentOptions): Garm
     const shaped = options.neckline === 'shaped' && shoulderPlan.neck.front.rows > 0 && shoulderPlan.neck.back.rows > 0;
     const panel = (part: 'front' | 'back', pieceName: string, id: string) =>
       shaped
-        ? plannedSections(base, options.stitch, panelSections(shoulderPlan, part), pieceName, id)
-        : plannedRows(base, options.stitch, panelCounts, flat, pieceName, id);
+        ? plannedSections(base, options.stitch, panelSections(shoulderPlan, part), pieceName, id, options.ribbing ?? null)
+        : plannedRows(base, options.stitch, panelCounts, flat, pieceName, id, options.ribbing ?? null);
     const pieces = [
       panel('back', PIECE_NAMES.back, 'p1'),
       panel('front', PIECE_NAMES.front, 'p2'),
-      plannedRows(base, options.stitch, sleeve.counts, sleeve.shaping, PIECE_NAMES.leftSleeve, 'p3'),
+      // A mandzsetta az ujj alján van: a bordázat ugyanúgy az első sorokra kerül (PQW-913).
+      plannedRows(base, options.stitch, sleeve.counts, sleeve.shaping, PIECE_NAMES.leftSleeve, 'p3', options.ribbing ?? null),
       // A jobb ujj a bal tükörképe (05 §4.5): a sor eleje és vége felcserélődik.
-      plannedRows(base, options.stitch, sleeve.counts, mirrorShaping(sleeve.shaping), PIECE_NAMES.rightSleeve, 'p4'),
+      plannedRows(base, options.stitch, sleeve.counts, mirrorShaping(sleeve.shaping), PIECE_NAMES.rightSleeve, 'p4', options.ribbing ?? null),
     ];
     const built: Piece[] = [];
     for (const piece of pieces) {

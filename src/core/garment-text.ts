@@ -56,6 +56,11 @@ export const RAGLAN_KEYS = [
   'raglanTargetSleeve',
   'raglanBelowRounds',
   'raglanHemRounds',
+  // Az ujj csöve a hónaljtól a mandzsettáig (PQW-913).
+  'raglanSleeveRounds',
+  'raglanSleeveDecreases',
+  'raglanSleeveCuff',
+  'raglanSleeveCuffRounds',
 ] as const;
 
 /** Fonal méretenként, ha a profilból becsülhető (m tartalékkal, gombolyag). */
@@ -142,8 +147,13 @@ export function sizingLines(garment: PatternGarment, locale: Locale): string[] {
     );
     lines.push(
       hu
-        ? `Törzs: ${s('raglanBelowRounds')} kör a szétosztástól, ebből az utolsó ${s('raglanHemRounds')} kör az alsó szegély. Az ujjak a hónaljlánc és a kihagyott szemek mentén külön készülnek.`
-        : `Body: ${s('raglanBelowRounds')} rnds from the divide, the last ${s('raglanHemRounds')} rnds are the hem. The sleeves are worked separately along the underarm chain and the skipped sts.`,
+        ? `Törzs: ${s('raglanBelowRounds')} kör a szétosztástól, ebből az utolsó ${s('raglanHemRounds')} kör az alsó szegély.`
+        : `Body: ${s('raglanBelowRounds')} rnds from the divide, the last ${s('raglanHemRounds')} rnds are the hem.`,
+    );
+    lines.push(
+      hu
+        ? `Ujj (2 db): a hónaljlánc és a kihagyott szemek mentén ${s('raglanSleeveRounds')} kör; ${s('raglanSleeveDecreases')} körben a hónalj két oldalán 1-1 összehorgolás, a mandzsetta ${s('raglanSleeveCuff')} szem, ${s('raglanSleeveCuffRounds')} kör.`
+        : `Sleeve (make 2): ${s('raglanSleeveRounds')} rnds along the underarm chain and the skipped sts; in ${s('raglanSleeveDecreases')} rnds decrease once on each side of the underarm, the cuff is ${s('raglanSleeveCuff')} sts over ${s('raglanSleeveCuffRounds')} rnds.`,
     );
   } else {
     lines.push(

@@ -80,12 +80,21 @@ export interface GarmentFieldState {
   /** A nyakkivágás választása csak pulóvernél (PQW-901). */
   readonly neckline: boolean;
   readonly repeat: boolean;
+  /** Bordás szegély és mandzsetta (PQW-913); a sapka pereme nem ez. */
+  readonly ribbing: boolean;
 }
 
 export function garmentFieldState(kind: GarmentKind): GarmentFieldState {
   const sweater = kind === 'drop-shoulder';
   // A raglán is testméret-táblázatból dolgozik, de a nyakat és a mintaismétlést maga adja (PQW-901).
-  return { table: sweater || kind === 'raglan', belowWaist: sweater || kind === 'raglan', neckline: sweater, repeat: sweater };
+  return {
+    table: sweater || kind === 'raglan',
+    belowWaist: sweater || kind === 'raglan',
+    neckline: sweater,
+    repeat: sweater,
+    // A bordázat a szegély és a mandzsetta sorain készül: a sapkának nincs ilyen sora (PQW-913).
+    ribbing: sweater || kind === 'raglan',
+  };
 }
 
 export function easeLabel(kind: GarmentKind): string {
@@ -243,6 +252,7 @@ function raglanDetails(plan: RaglanPlan): string[] {
     t.raglanYoke(plan.yokeRounds, plan.bodyRounds.length > 0 ? t.raglanExtra(plan.bodyRounds.length) : ''),
     t.raglanDivide(target.front, target.sleeve, plan.underarm, plan.bodyStitches),
     t.raglanBody(plan.bodyRoundsBelow, plan.hemRounds),
+    t.raglanSleeve(plan.sleeve.rounds, plan.sleeve.decreases, plan.sleeve.cuffStitches, plan.sleeve.cuffRounds),
     t.ease(signed(finished.easeCm), t.fits[fitLevelOf(finished.easeCm)], ''),
     t.body(formatNumber(measures.bustCm, 1)),
   ];

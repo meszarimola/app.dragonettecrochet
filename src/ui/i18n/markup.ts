@@ -43,7 +43,6 @@ export const MARKUP_TEXTS = {
     homeLabel: 'Vissza a dragonettecrochet.com főoldalára',
     homeText: 'Főoldal',
     barTitle: 'Mintatervező',
-    typesToggle: 'Mintatípus',
     errorsRegionLabel: 'Hibák és figyelmeztetések',
     writtenToggle: 'Írott minta',
     panelToggle: 'Szemek és beállítások',
@@ -95,6 +94,18 @@ export const MARKUP_TEXTS = {
     toolLabelZoomOut: 'Kicsinyítés',
     toolLabelZoomIn: 'Nagyítás',
     toolLabelFit: 'Teljes',
+
+    // A panelek kapcsolói a menüsorban (PQW-912)
+    toolGroupPanels: 'Nézet és panelek',
+    toolGroupViews: 'Panelek',
+    toolTypesLabel: 'Mintatípus sáv',
+    toolTypesTip: 'A mintatípus sáv nyitása és csukása',
+    toolLabelTypes: 'Típusok',
+    toolPanelTip: 'A jobb oldali panel nyitása és csukása',
+    toolLabelPanel: 'Szemek',
+    toolWrittenTip: 'Az írott minta panel nyitása és csukása',
+    toolLabelWritten: 'Szöveg',
+    toolErrorsTip: 'A hibák és figyelmeztetések listája',
     toolEndRowLabel: 'Sor vége, fordulás',
     toolEndRowTip: 'Sor vége, fordulás (Alt+F)',
     toolCloseRoundLabel: 'Kör zárása',
@@ -243,6 +254,11 @@ export const MARKUP_TEXTS = {
     garmentRepeatXLabel: 'X: egy ismétlés szemei',
     garmentRepeatYLabel: 'Y: szélső szemek',
     garmentSeriesNote: 'A méretsorozat, ahogy az írott mintába kerül:',
+    garmentRibbingLabel: 'Bordás szegély és mandzsetta',
+    garmentRibbingNote:
+      'Váltakozó első és hátsó relief pálca (Eerp, Herp) a szegély és a mandzsetta sorain, a szemek pálcája köré: a szemszám nem változik. Az első sor sima marad, mert láncszem köré nem lehet relief szemet horgolni. A nyak bordázata még nincs meg.',
+    garmentRibbingRowsLabel: 'A bordázat sorai a szegélyből',
+    garmentRibbingWidthLabel: 'A borda szélessége (1×1, 2×2)',
     garmentCreate: 'Minta létrehozása',
 
     // Rácsminta
@@ -406,7 +422,6 @@ export const MARKUP_TEXTS = {
     homeLabel: 'Back to the dragonettecrochet.com home page',
     homeText: 'Home',
     barTitle: 'Pattern designer',
-    typesToggle: 'Pattern type',
     errorsRegionLabel: 'Errors and warnings',
     writtenToggle: 'Written pattern',
     panelToggle: 'Stitches and settings',
@@ -458,6 +473,18 @@ export const MARKUP_TEXTS = {
     toolLabelZoomOut: 'Smaller',
     toolLabelZoomIn: 'Larger',
     toolLabelFit: 'Fit',
+
+    // The panel toggles in the toolbar (PQW-912)
+    toolGroupPanels: 'View and panels',
+    toolGroupViews: 'Panels',
+    toolTypesLabel: 'Pattern type sidebar',
+    toolTypesTip: 'Open and close the pattern type sidebar',
+    toolLabelTypes: 'Types',
+    toolPanelTip: 'Open and close the right-hand panel',
+    toolLabelPanel: 'Stitches',
+    toolWrittenTip: 'Open and close the written pattern panel',
+    toolLabelWritten: 'Text',
+    toolErrorsTip: 'The list of errors and warnings',
     toolEndRowLabel: 'End of row, turn',
     toolEndRowTip: 'End of row, turn (Alt+F)',
     toolCloseRoundLabel: 'Close round',
@@ -608,6 +635,11 @@ export const MARKUP_TEXTS = {
     garmentRepeatXLabel: 'X: stitches in one repeat',
     garmentRepeatYLabel: 'Y: edge stitches',
     garmentSeriesNote: 'The size range as it goes into the written pattern:',
+    garmentRibbingLabel: 'Ribbed hem and cuff',
+    garmentRibbingNote:
+      'Alternating front and back post stitches (FPdc, BPdc) on the rows of the hem and the cuff, around the posts of the stitches: the stitch count stays the same. The first row stays plain, because a post stitch cannot wrap a chain. A ribbed neckband is not available yet.',
+    garmentRibbingRowsLabel: 'Ribbing rows from the hem',
+    garmentRibbingWidthLabel: 'Rib width (1×1, 2×2)',
     garmentCreate: 'Create pattern',
 
     // Grid chart
