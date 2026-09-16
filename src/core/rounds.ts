@@ -148,7 +148,8 @@ export function roundFindings(pattern: Pattern, graph: PieceGraph, library: Stit
 
   // A részekből készült térbeli forma (amigurumi, PQW-863) szándékosan kunkorodik: ott nem jelez. A sapka
   // (PQW-866) oldala a korona után szándékosan egyenes, azaz kunkorodik: ott sem.
-  const solid = (graph.piece.sections?.length ?? 0) > 0 || pattern.garment?.kind === 'hat';
+  // A raglán vállrésze (PQW-901) szándékosan kunkorodik: a test felé hajlik, nem lapos kör.
+  const solid = (graph.piece.sections?.length ?? 0) > 0 || pattern.garment?.kind === 'hat' || pattern.garment?.kind === 'raglan';
   for (const run of solid ? [] : runs(ratios, (ratio) => ratio < CUPPING_RATIO, 2)) {
     findings.push({ rule: 'round-cupping', nodes: run.flatMap((index) => worked(graph, layers[index]!)) });
   }

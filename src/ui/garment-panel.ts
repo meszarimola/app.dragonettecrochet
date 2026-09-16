@@ -58,10 +58,12 @@ export class GarmentPanel {
   readonly #hem: HTMLInputElement;
   readonly #hemLabel: HTMLElement;
   readonly #below: HTMLInputElement;
+  readonly #growth: HTMLInputElement;
+  readonly #neckline: HTMLInputElement;
   readonly #repeat: HTMLInputElement;
   readonly #repeatX: HTMLInputElement;
   readonly #repeatY: HTMLInputElement;
-  readonly #groups: Readonly<Record<'table' | 'belowWaist' | 'repeat', HTMLElement>>;
+  readonly #groups: Readonly<Record<'table' | 'belowWaist' | 'neckline' | 'repeat', HTMLElement>>;
   readonly #result: HTMLElement;
   readonly #details: HTMLElement;
   readonly #checks: HTMLElement;
@@ -93,12 +95,15 @@ export class GarmentPanel {
     this.#hem = field('garment-hem');
     this.#hemLabel = field('garment-hem-label');
     this.#below = field('garment-below');
+    this.#growth = field('garment-growth');
+    this.#neckline = field('garment-neckline');
     this.#repeat = field('garment-repeat');
     this.#repeatX = field('garment-repeat-x');
     this.#repeatY = field('garment-repeat-y');
     this.#groups = {
       table: field('garment-table-field'),
       belowWaist: field('garment-below-field'),
+      neckline: field('garment-neckline-field'),
       repeat: field('garment-repeat-field'),
     };
     this.#result = field('garment-result');
@@ -116,8 +121,12 @@ export class GarmentPanel {
     for (const select of [this.#kind, this.#table]) {
       select.addEventListener('change', () => this.#apply(defaultsFor(this.#kind.value as GarmentKind, this.#table.value as BodyTableId)));
     }
-    for (const input of [this.#size, this.#from, this.#to, this.#stitch, this.#repeat]) input.addEventListener('change', () => this.#render());
-    for (const input of [this.#ease, this.#hem, this.#below, this.#repeatX, this.#repeatY]) input.addEventListener('input', () => this.#render());
+    for (const input of [this.#size, this.#from, this.#to, this.#stitch, this.#neckline, this.#repeat]) {
+      input.addEventListener('change', () => this.#render());
+    }
+    for (const input of [this.#ease, this.#hem, this.#below, this.#growth, this.#repeatX, this.#repeatY]) {
+      input.addEventListener('input', () => this.#render());
+    }
     field<HTMLButtonElement>('garment-create').addEventListener('click', () => this.#create());
   }
 
@@ -140,6 +149,8 @@ export class GarmentPanel {
     this.#ease.value = options.easeCm === null ? '' : decimalText(options.easeCm);
     this.#hem.value = decimalText(options.hemCm);
     this.#below.value = decimalText(options.belowWaistCm);
+    this.#growth.value = decimalText(options.growthPct);
+    this.#neckline.checked = options.neckline === 'shaped';
     this.#repeat.checked = false;
     this.#render();
   }
@@ -159,6 +170,8 @@ export class GarmentPanel {
       hemCm: decimal(this.#hem),
       belowWaistCm: decimal(this.#below),
       repeat: this.#repeat.checked ? { width: decimal(this.#repeatX), edge: decimal(this.#repeatY) } : null,
+      neckline: this.#neckline.checked ? 'shaped' : 'boat',
+      growthPct: decimal(this.#growth),
     });
   }
 

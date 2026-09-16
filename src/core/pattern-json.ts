@@ -463,7 +463,7 @@ function readGroup(value: unknown, path: string): StitchGroup {
 }
 
 function readEvent(value: unknown, path: string): LayerEvent {
-  const raw = object(value, path, ['after', 'kind'], ['statedCount', 'conventions', 'colorChange', 'jogFix', 'marks']);
+  const raw = object(value, path, ['after', 'kind'], ['statedCount', 'conventions', 'colorChange', 'jogFix', 'marks', 'resume']);
   return {
     after: string(raw['after'], `${path}.after`),
     kind: oneOf(raw['kind'], `${path}.kind`, ['turn', 'join-slip', 'spiral', 'fasten-off']),
@@ -478,6 +478,17 @@ function readEvent(value: unknown, path: string): LayerEvent {
     ...(raw['marks'] === undefined
       ? {}
       : { marks: array(raw['marks'], `${path}.marks`, (mark, markPath) => oneOf(mark, markPath, MARKS)) }),
+    // A fonal elvágása utáni folytatás a PQW-901 előtti mentésben nincs.
+    ...(raw['resume'] === undefined ? {} : { resume: readResume(raw['resume'], `${path}.resume`) }),
+  };
+}
+
+/** Elvágott fonal után a szakasz a megadott sor fölött folytatódik, a nevével (PQW-901). */
+function readResume(value: unknown, path: string): NonNullable<LayerEvent['resume']> {
+  const raw = object(value, path, ['layer'], ['name']);
+  return {
+    layer: integer(raw['layer'], `${path}.layer`, 1),
+    ...(raw['name'] === undefined ? {} : { name: string(raw['name'], `${path}.name`) }),
   };
 }
 

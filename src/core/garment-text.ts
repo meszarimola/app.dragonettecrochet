@@ -40,10 +40,28 @@ export const DROP_SHOULDER_KEYS = [
 /** Sapka: a kész körméret és magasság (cm), a korona és az oldal körei. */
 export const HAT_KEYS = ['hatCm', 'heightCm', 'increases', 'crownRounds', 'hatStitches', 'sideRounds', 'brimRounds', 'totalRounds'] as const;
 
+/** Felülről horgolt raglán: a nyak, a raglánkörök, a szétosztás és a törzs számai. */
+export const RAGLAN_KEYS = [
+  'raglanChestCm',
+  'raglanLengthCm',
+  'raglanNeck',
+  'raglanNeckFront',
+  'raglanNeckSleeve',
+  'raglanRounds',
+  'raglanBodyRounds',
+  'raglanBody',
+  'raglanSleeve',
+  'raglanUnderarm',
+  'raglanFront',
+  'raglanTargetSleeve',
+  'raglanBelowRounds',
+  'raglanHemRounds',
+] as const;
+
 /** Fonal méretenként, ha a profilból becsülhető (m tartalékkal, gombolyag). */
 export const YARN_KEYS = ['yarnM', 'balls'] as const;
 
-export const SERIES_KEYS: readonly string[] = [...DROP_SHOULDER_KEYS, ...HAT_KEYS, ...YARN_KEYS];
+export const SERIES_KEYS: readonly string[] = [...DROP_SHOULDER_KEYS, ...HAT_KEYS, ...RAGLAN_KEYS, ...YARN_KEYS];
 
 /** „80 (86, 92)”: az első méret elöl, a többi zárójelben. */
 export function seriesText(values: readonly number[] | undefined, format: (n: number) => string = String): string {
@@ -100,6 +118,32 @@ export function sizingLines(garment: PatternGarment, locale: Locale): string[] {
       hu
         ? `Oldal: ${s('sideRounds')} kör egyenesen${brim ? `, ebből az utolsó ${s('brimRounds')} kör a perem` : ''}; összesen ${s('totalRounds')} kör.`
         : `Sides: ${s('sideRounds')} rnds even${brim ? `, the last ${s('brimRounds')} rnds are the brim` : ''}; ${s('totalRounds')} rnds in total.`,
+    );
+  } else if (garment.kind === 'raglan') {
+    lines.push(
+      hu
+        ? `Kész mellbőség: ${s('raglanChestCm')} cm; hossz: ${s('raglanLengthCm')} cm.`
+        : `Finished chest: ${s('raglanChestCm')} cm; length: ${s('raglanLengthCm')} cm.`,
+    );
+    lines.push(
+      hu
+        ? `Nyak: ${s('raglanNeck')} lsz körbe zárva; elöl és hátul ${s('raglanNeckFront')} szem, ujjanként ${s('raglanNeckSleeve')} szem.`
+        : `Neck: ch ${s('raglanNeck')} joined in a ring; ${s('raglanNeckFront')} sts front and back, ${s('raglanNeckSleeve')} sts per sleeve.`,
+    );
+    lines.push(
+      hu
+        ? `Raglán: ${s('raglanRounds')} kör, körönként a négy raglánvonal mellett szaporítva; ${s('raglanBodyRounds')} körben az elején és a hátán külön szaporítás is.`
+        : `Raglan: ${s('raglanRounds')} rnds, increasing beside the four raglan lines; in ${s('raglanBodyRounds')} rnds the front and back also get their own increases.`,
+    );
+    lines.push(
+      hu
+        ? `Szétosztás: elöl és hátul ${s('raglanFront')} szem, ujjanként ${s('raglanTargetSleeve')} szem, a hónaljlánc ${s('raglanUnderarm')} lsz; a törzs ${s('raglanBody')} szem, egy ujj ${s('raglanSleeve')} szem.`
+        : `Divide: ${s('raglanFront')} sts front and back, ${s('raglanTargetSleeve')} sts per sleeve, underarm ch ${s('raglanUnderarm')}; the body is ${s('raglanBody')} sts and each sleeve ${s('raglanSleeve')} sts.`,
+    );
+    lines.push(
+      hu
+        ? `Törzs: ${s('raglanBelowRounds')} kör a szétosztástól, ebből az utolsó ${s('raglanHemRounds')} kör az alsó szegély. Az ujjak a hónaljlánc és a kihagyott szemek mentén külön készülnek.`
+        : `Body: ${s('raglanBelowRounds')} rnds from the divide, the last ${s('raglanHemRounds')} rnds are the hem. The sleeves are worked separately along the underarm chain and the skipped sts.`,
     );
   } else {
     lines.push(

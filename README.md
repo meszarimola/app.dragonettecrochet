@@ -303,6 +303,37 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
     A létrehozás egy lépésben visszavonható, és a generált minta hibátlanul
     átmegy az ellenőrzőn. A rajz az első darabot mutatja, a többi az írott
     mintában áll.
+- **Ruhadarabok, második rész** (PQW-901): formázott nyakkivágás, felülről
+  horgolt raglán és növedék-kompenzáció; mindegyik a „Ruhadarab” szakaszból.
+  - **Elvágott fonal után új szakasz a gráfban** (a `LayerEvent.resume`): a
+    munka a megadott sor fölött, más helyről folytatódik. A réteg tudja,
+    melyik sorra épül (`Layer.below`) és hányadik sorként íródik ki
+    (`Layer.row`), ezért két szakasz sorszáma egyezhet: a nyakkivágás két
+    oldalán a két váll egyaránt a megosztás fölött kezdődik. Az írott minta a
+    szakaszt „A másik váll (a 44. sor fölött):” fejléccel vezeti be, és ebből
+    a visszaolvasó is tudja, hol folytassa; az ellenőrző a másik szakasz
+    szemeit nem kéri számon (`resume-layer` szabály).
+  - **Formázott nyakkivágás:** a megosztásig egy szakasz, fölötte a két váll,
+    a nyak belső élén fogyasztással (elöl az első sorban több szem, utána
+    soronként egy; hátul soronként egy). A két váll közti szemek a nyak
+    közepén maradnak. A vállvarrás a két szakasz utolsó sorát köti össze. A
+    csónaknyak továbbra is választható.
+  - **Felülről horgolt raglán:** a nyak láncgyűrűjéből, körönként a négy
+    raglánvonal mellett szaporítva; ahol a sarkok szaporítása nem elég az
+    elejének és a hátának, ott külön törzsszaporítás jön (a tudásbázis „C”
+    példája egységtesztben egyezik). A szétosztásnál hónaljlánc kerül a
+    kihagyott ujjszemek helyére, és a lánc a törzsbe és az ujjba is
+    beleszámít. A rajz a vállrészt és a törzset tartalmazza; **az ujjak
+    számait a terv és az írott minta megadja, de a gráfjuk még nem készül el**.
+    A raglán mért körös mintasűrűséget kíván: a becsült sormagasságból kevés
+    kör jön ki, és a generátor ezt meg is mondja. A CYC táblázatban a
+    karöltőmélység lassabban nő, mint a mellbőség, ezért a 3X fölötti
+    méretekhez mélyebb raglán vagy más szabásmód kell; a generátor ezt is
+    kiírja, nem tervez rossz darabot.
+  - **Növedék-kompenzáció** (05 §7): a mosott, blokkolt, felakasztott
+    próbadarab nyúlása százalékban megadható, és a hosszakat ezzel csökkenti.
+  - **Javítási javaslat:** a hamis ellenőrzés mellé a panel kiírja, mit
+    érdemes állítani.
 - **Amigurumi és 3D formák** (PQW-863): a mintatípus-menü „Amigurumi” pontja és
   a jobb oldali panel „Amigurumi” szakasza (a Kör és motívum alatt). Az
   amigurumi fő nézete az írott minta: a típus kiválasztásakor a panel nagyban

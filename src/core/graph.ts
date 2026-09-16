@@ -231,6 +231,8 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
   layers.push({
     piece: piece.id,
     index: 0,
+    below: 0,
+    row: 0,
     shape: roundStart ? 'round' : 'row',
     stitches: foundationIds,
     stitchCount: 0,
@@ -252,8 +254,11 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
 
   segments.forEach((segment, segmentIndex) => {
     const index = segmentIndex + 1;
-    const previous = layers[index - 1]!;
-    const opening = previous.closing;
+    const opening = layers[index - 1]!.closing;
+    // Elvágott fonal után a szakasz a megadott sor fölött folytatódik (PQW-901): a nyakkivágás két oldalán a két váll.
+    const resume = opening?.kind === 'fasten-off' ? opening.resume : undefined;
+    const below = resume !== undefined && resume.layer >= 0 && resume.layer < index ? resume.layer : index - 1;
+    const previous = layers[below]!;
     const last = segment[segment.length - 1]!;
     const closing = eventAfter.get(last.id) ?? null;
 
@@ -295,13 +300,14 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     else if (opening.kind === 'fasten-off') shape = previous.shape;
     else shape = 'round';
 
+    // Az újrakezdett szakasz a megadott sor fölött ugyanúgy indul, mint fordulás után: a másik oldaláról halad.
     const side: Layer['side'] =
-      opening?.kind === 'turn' ? (previous.side === 'right' ? 'wrong' : 'right') : previous.side;
+      opening?.kind === 'turn' || resume !== undefined ? (previous.side === 'right' ? 'wrong' : 'right') : previous.side;
 
     let direction: 1 | -1;
     if (border) direction = 1;
     else if (index === 1) direction = foundation === 'chain' && !roundStart ? -1 : 1;
-    else direction = opening?.kind === 'turn' ? -1 : 1;
+    else direction = opening?.kind === 'turn' || resume !== undefined ? -1 : 1;
 
     let turningChainCounts = false;
     if (turningChain.length > 0) {
@@ -359,6 +365,9 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     layers.push({
       piece: piece.id,
       index,
+      below,
+      // A kiírt sorszám az alatta lévő sorét követi: az újrakezdett szakaszban ezért indul újra (PQW-901).
+      row: previous.row + 1,
       shape,
       stitches: ids,
       stitchCount,
@@ -397,9 +406,11 @@ export function spacePositions(below: LayerInfo, space: Space): readonly NodeId[
 export function computeLayers(pattern: Pattern, library: StitchLibrary): Layer[] {
   return pattern.pieces.flatMap((piece) =>
     buildPieceGraph(pattern, piece, library).layers.map(
-      ({ piece: pieceId, index, shape, stitches, stitchCount, positionCount, side }) => ({
+      ({ piece: pieceId, index, below, row, shape, stitches, stitchCount, positionCount, side }) => ({
         piece: pieceId,
         index,
+        below,
+        row,
         shape,
         stitches,
         stitchCount,

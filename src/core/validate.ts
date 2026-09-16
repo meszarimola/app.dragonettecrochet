@@ -55,6 +55,17 @@ function validatePiece(pattern: Pattern, piece: Piece, library: StitchLibrary): 
   checkGroups(graph, library, report);
   checkInsertions(graph, library, report);
   const invalidAnchors = checkFutureAnchors(graph, report);
+  // A fonal elvágása után a folytatás csak meglévő, korábbi sor fölé mehet (PQW-901). Rossz folytatásnál a
+  // többi szabály félrevezetne, mert a gráf az előző sorra esik vissza; ezért itt megállunk.
+  for (let index = 1; index < graph.layers.length; index += 1) {
+    const opening = graph.layers[index]!.opening;
+    const resume = opening?.kind === 'fasten-off' ? opening.resume : undefined;
+    if (resume !== undefined && (resume.layer < 1 || resume.layer >= index || graph.layers[resume.layer]!.shape !== 'row')) {
+      report('resume-layer', [opening!.after]);
+    }
+  }
+  if (findings.length > 0) return findings;
+
   for (let index = 1; index < graph.layers.length; index += 1) {
     // A szegély a darab köré horgol, nem az alatta lévő sor célpontjaiba: saját szabályai vannak (PQW-889).
     if (graph.layers[index]!.border) checkBorder(pattern, graph, index, invalidAnchors, report);
@@ -200,8 +211,9 @@ function checkLayer(
   report: Report,
   findingCount: () => number,
 ): void {
-  const below = graph.layers[index - 1]!;
   const layer = graph.layers[index]!;
+  // Alapból az előző sor; elvágott fonal után a megadott sor fölött folytatódik (PQW-901).
+  const below = graph.layers[layer.below]!;
   const length = below.positions.length;
   const positionIndex = new Map(below.positions.map((id, i) => [id, i]));
   const toWorking = (i: number) => (layer.direction === 1 ? i : length - 1 - i);
@@ -238,7 +250,7 @@ function checkLayer(
         layerInvalid = true;
         return;
       }
-      if (targetLayer < index - 1 && node.flags?.includes('spike')) {
+      if (targetLayer < layer.below && node.flags?.includes('spike')) {
         // Hosszú szem legfeljebb 3 sorral lejjebb: a mozaik 2 vagy 3 sorral lejjebb horgol (03 §5.6, §10 C17, G34, PQW-894).
         if (index - targetLayer > MAX_SPIKE_DEPTH) {
           report('spike-depth', [id]);
@@ -249,7 +261,7 @@ function checkLayer(
       }
       const positions = anchor.into === 'space' ? spacePositions(below, graph.spaces.get(anchor.id)!) : targets;
       const indices = positions.map((target) => positionIndex.get(target));
-      if (targetLayer !== index - 1 || indices.some((i) => i === undefined)) {
+      if (targetLayer !== layer.below || indices.some((i) => i === undefined)) {
         report('anchor-layer', [id]);
         layerInvalid = true;
         return;
@@ -362,18 +374,43 @@ function checkLayer(
     }
   }
 
+  // Ugyanerre a sorra épülő másik szakasz pozíciói (PQW-901): a nyakkivágás két oldalán a másik váll
+  // dolgozza fel a sor többi szemét, ezért azok nem maradnak felhasználatlanul.
+  const elsewhere = new Set<NodeId>();
+  let shared = false;
+  if (graph.piece.events.some((event) => event.kind === 'fasten-off' && event.resume !== undefined)) {
+    for (const other of graph.layers) {
+      if (other.index !== index && other.below === layer.below) shared = true;
+      if (other.index === index || other.below !== layer.below) continue;
+      let first = Number.POSITIVE_INFINITY;
+      for (const id of other.stitches) {
+        for (const anchor of graph.nodes.get(id)!.anchors) {
+          if (anchor.into === 'space') for (const chain of graph.spaces.get(anchor.id)!.chains) elsewhere.add(chain);
+          else if (anchor.into !== 'ring') elsewhere.add(anchor.id);
+          if (anchor.into !== 'stitch') continue;
+          const at = positionIndex.get(anchor.id);
+          if (at !== undefined) first = Math.min(first, toWorking(at));
+        }
+      }
+      // A másik szakasz számító fordulólánca az első pozícióján ül: abba nem horgolunk (03 §1.3).
+      if (other.turningChainCounts && Number.isFinite(first) && first >= 1) elsewhere.add(positionAt(first - 1));
+    }
+  }
+
   // Számító fordulólánc: a következő sor utolsó szeme a tetejébe megy (03 §10 A4), hacsak a sor
   // vége szándékosan meghagyott szemekkel nem fogy (lépcsős él, 05 §4.4, PQW-862).
   const topWorking = turningTop !== undefined && layer.direction === -1 && below.shape === 'row' ? length - 1 : -1;
-  if (topWorking >= 0 && !covered[topWorking] && !skipped.has(turningTop!)) {
+  if (topWorking >= 0 && !covered[topWorking] && !skipped.has(turningTop!) && !elsewhere.has(turningTop!)) {
     report('turning-chain-placement', [previous!.node.id, turningTop!]);
   }
 
   // Felhasználatlan pozíciók a sor két szélén; a sor belsejét az ugrás szabálya nézi (03 §10 B8, C15).
   const first = entries[0]!.min;
+  // Megosztott soron a szakasz fordulólánca a saját első pozícióján ül, nem a sor elején (PQW-901).
+  const seat = shared && layer.turningChainCounts ? first - 1 : -1;
   for (let w = 0; w < length; w += 1) {
-    if (covered[w] || (w > first && w < frontier) || w === optional || w === topWorking) continue;
-    if (!skipped.has(positionAt(w))) report('unused-position', [positionAt(w)]);
+    if (covered[w] || (w > first && w < frontier) || w === optional || w === topWorking || w === seat) continue;
+    if (!skipped.has(positionAt(w)) && !elsewhere.has(positionAt(w))) report('unused-position', [positionAt(w)]);
   }
 
   const repeat = pattern.conventions.repeat;

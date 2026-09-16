@@ -342,6 +342,41 @@ describe('a láncalapra horgolt 1. sor: „hagyj ki N láncszemet, majd …” (
 
 /* ---- Hibák ---- */
 
+describe('elvágott fonal után új szakasz ugyanazon sor fölött (PQW-901)', () => {
+  /** Négy szemes 1. sor, fölötte a bal váll, majd új fonallal a jobb váll ugyanazon sor fölött. */
+  const shoulders = () => {
+    const builder = new PieceBuilder('p1', 'Elejerész');
+    const chains = builder.chain(5);
+    const row1 = [...chains.slice(0, 4)].reverse().map((chain) => builder.stitch('sc', chain));
+    builder.event('turn', 4);
+    builder.chain(1);
+    for (const target of [row1[3], row1[2]]) builder.stitch('sc', target);
+    builder.event('fasten-off', 2);
+    builder.chain(1);
+    for (const target of [row1[1], row1[0]]) builder.stitch('sc', target);
+    builder.event('fasten-off', 2);
+    const piece = builder.build();
+    const events = piece.events.map((event, i) => (i === 1 ? { ...event, resume: { layer: 1, name: 'Jobb váll' } } : event));
+    return patternOf('Két váll', [{ ...piece, events }], { turningChainCounts: false });
+  };
+
+  test('a szakasz neve megmondja, melyik sor fölött folytatódik, és a sorszám újraindul', () => {
+    const lines = instructions(writePattern(shoulders(), testLibrary, 'hu'));
+    assert.match(lines, /Jobb váll \(az 1\. sor fölött\):/);
+    // Mindkét váll a 2. sor: a szakasz neve különbözteti meg őket.
+    assert.equal(lines.match(/^2\. sor: /gm).length, 2);
+  });
+
+  for (const locale of LOCALES) {
+    test(`visszaolvasva ugyanaz a gráf (${locale})`, () => {
+      const pattern = shoulders();
+      const result = readBack(textOf(pattern, locale), pattern, locale);
+      assert.ok(result.ok, result.ok ? '' : `${result.error.line}: ${result.error.message}`);
+      assert.deepEqual(canonicalPattern(result.pattern), canonicalPattern(pattern));
+    });
+  }
+});
+
 describe('visszaolvasás: eltérés esetén pontos hibaüzenet', () => {
   const pattern = hdcRectangle({ rows: 2 }).pattern;
   const text = textOf(pattern, 'hu');

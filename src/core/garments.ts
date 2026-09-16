@@ -38,6 +38,7 @@
 import { evenDistribution } from './amigurumi.ts';
 import {
   BODY_TABLES,
+  GARMENT_EASE,
   HAT_SIZES,
   NEGATIVE_EASE_LIMIT,
   NEGATIVE_EASE_MAX,
@@ -66,22 +67,24 @@ import {
   type SlopeSchedule,
 } from './garment-math.ts';
 import { activeProfile, ballLengthM, gaugeContextOf, swatchMassPerArea, type YarnMissing } from './pattern-size.ts';
+import { raglanPiece, raglanPlan, type RaglanMeasures, type RaglanPlan } from './raglan.ts';
 import { withGeneratedTitle } from './pattern-title.ts';
 import { measured, weakestSource } from './quantity.ts';
 import { foundationChainLength } from './repeat.ts';
 import { DEFAULT_MOTIF, circlePlan, plannedRounds, type RoundPlan } from './round-generator.ts';
-import { SHAPE_STITCHES, plannedRows, shapeGauge, type RowShaping, type ShapeGauge, type ShapeRepeat } from './shapes.ts';
+import { SHAPE_STITCHES, plannedRows, plannedSections, shapeGauge, type RowSection, type RowShaping, type ShapeGauge, type ShapeRepeat } from './shapes.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import { traditionOf, turningChainCountsFor } from './tradition.ts';
 import type { GarmentKind, GarmentTable, Pattern, PatternGarment, PieceJoin, StitchDefId, Tradition } from './types.ts';
 import { validatePattern } from './validate.ts';
 import { yarnFromMassPerArea } from './yarn-estimate.ts';
 
-export const GARMENT_KINDS: readonly GarmentKind[] = ['hat', 'drop-shoulder'];
+export const GARMENT_KINDS: readonly GarmentKind[] = ['hat', 'drop-shoulder', 'raglan'];
 
 export const GARMENT_NAMES: Readonly<Record<GarmentKind, string>> = {
   hat: 'Sapka',
   'drop-shoulder': 'Ledobott vállú pulóver',
+  raglan: 'Felülről horgolt raglán',
 };
 
 export const PIECE_NAMES = { back: 'Hátrész', front: 'Elejerész', leftSleeve: 'Bal ujj', rightSleeve: 'Jobb ujj' } as const;
@@ -105,6 +108,8 @@ export const CUFF_CHEST_RATIO = 0.28;
 export const SEAM_EASING_CM = 4;
 /** Ledobott vállnál a szokásos bőség, cm (05 §2.1). */
 export const DROP_SHOULDER_EASE: readonly [number, number] = [15, 30];
+/** A raglán mélysége a karöltőmélységnél ennyivel több (05 §4 „C” példa: 17,5–19 cm helyett 20 cm). */
+export const RAGLAN_YOKE_ALLOWANCE_CM = 1.5;
 
 export interface GarmentOptions {
   readonly kind: GarmentKind;
@@ -124,6 +129,18 @@ export interface GarmentOptions {
   readonly belowWaistCm: number;
   /** Pulóvernél a hátrész és az elejerész szemszáma „X többszöröse + Y”. */
   readonly repeat: ShapeRepeat | null;
+  /**
+   * Pulóvernél a nyakkivágás (PQW-901): `boat` csónaknyak, a vállvarrás hagyja
+   * nyitva a nyakat; `shaped` formázott, a két váll a nyak két oldalán külön
+   * készül, a fonal elvágása után.
+   */
+  readonly neckline: 'boat' | 'shaped';
+  /**
+   * Növedék: a mosott, blokkolt, felakasztott próbadarab hosszában ennyi
+   * százalékkal nő (05 §7.1, §7.2, §9.8). A hosszakat ezzel osztjuk, hogy a
+   * kész darab a tervezett méretű maradjon; 0: nincs korrekció.
+   */
+  readonly growthPct: number;
 }
 
 /** A táblázatonkénti hossz a derék alatt, cm: nőknél a „B” példa 58 cm-es hossza az M mérethez. */
@@ -140,6 +157,8 @@ export const DEFAULT_GARMENT: GarmentOptions = {
   hemCm: 5,
   belowWaistCm: BELOW_WAIST_CM.women,
   repeat: null,
+  neckline: 'shaped',
+  growthPct: 0,
 };
 
 export const DEFAULT_HAT: GarmentOptions = {
@@ -169,6 +188,8 @@ export interface GarmentCheck {
   readonly id: string;
   readonly label: string;
   readonly ok: boolean;
+  /** Mit érdemes állítani, ha hamis (05 §9.6: a fázisok hosszát igazítjuk, nem a teljes hosszt). */
+  readonly suggestion?: string;
 }
 
 const pct = (ratio: number) => Math.round(ratio * 100);
@@ -280,12 +301,17 @@ export function hatPlan(measures: HatMeasures, gauge: { readonly stitchCm: numbe
   };
 }
 
-/** A sapka méretei a sapkatáblázatból (05 §5.2): a magasság a fül közepéig mért hossz. */
-export function hatMeasures(sizeId: string, easeCm: number | null, brimCm: number): HatMeasures | null {
+/** A növedékkel csökkentett hossz (05 §7.2, §9.8): a felakasztott próbadarab nyúlása. */
+export function withoutGrowth(lengthCm: number, growthPct: number): number {
+  return Number.isFinite(growthPct) && growthPct > 0 ? lengthCm / (1 + growthPct / 100) : lengthCm;
+}
+
+/** A sapka méretei a sapkatáblázatból (05 §5.2): a magasság a fül közepéig mért hossz, a növedékkel csökkentve. */
+export function hatMeasures(sizeId: string, easeCm: number | null, brimCm: number, growthPct = 0): HatMeasures | null {
   const size = HAT_SIZES.find((candidate) => candidate.id === sizeId);
   if (!size) return null;
   const headCm = inchToCm(size.headIn);
-  return { headCm, easeCm: easeCm ?? hatEase(headCm), heightCm: inchToCm(size.midEarIn), brimCm };
+  return { headCm, easeCm: easeCm ?? hatEase(headCm), heightCm: withoutGrowth(inchToCm(size.midEarIn), growthPct), brimCm };
 }
 
 /* ---- Ledobott vállú pulóver ---- */
@@ -467,26 +493,44 @@ export function dropShoulderPlan(
           },
         ]
       : []),
-    { id: 'even-rows', label: 'Minden függőleges szakasz páros számú sor', ok: [hemRows, bodyRows, armholeRows, cuffRows, shapedRows].every(even) },
+    {
+      id: 'even-rows',
+      label: 'Minden függőleges szakasz páros számú sor',
+      ok: [hemRows, bodyRows, armholeRows, cuffRows, shapedRows].every(even),
+      suggestion: 'Állíts a szegély magasságán vagy a hosszon fél sornyit: a szakaszok páros sorszámra kerekednek.',
+    },
     { id: 'shoulders', label: 'A két váll és a nyak együtt kiadja a sor szemszámát', ok: 2 * shoulder + neck === stitches },
     {
       id: 'neck-shaping',
       label: 'A formázott nyak fogyasztásai kiadják a nyak szemszámát, és a nyak belefér a darabba',
       ok: center + 2 * (first + later) === neck && backCenter + 2 * backRows * backPerRow === neck && frontRows < rows,
+      suggestion: 'Adj nagyobb hosszt, vagy válassz csónaknyakat: a nyak mélysége nem fér a darabba.',
     },
     { id: 'sleeve-width', label: 'A mandzsetta szemszáma és a szaporítások kiadják az ujj felső élét', ok: cuff + 2 * increases === top },
     {
       id: 'sleeve-rows',
       label: 'Az ujj szaporítási közei és az egyenes sorok kiadják az ujj sorait',
       ok: sum(schedule.intervals) + schedule.tail === shapedRows && increaseRows.length === increases && (increaseRows.at(-1) ?? 0) <= sleeveRows,
+      suggestion: 'Adj hosszabb ujjat vagy kisebb bőséget: ennyi szaporítás nem fér el ennyi sorban.',
     },
     {
       id: 'armhole-seam',
       label: `Az ujj felső éle és a két karöltő hossza legfeljebb ${SEAM_EASING_CM} cm-rel tér el`,
       ok: Math.abs(top * stitchCm - 2 * armholeRows * rowCm) <= SEAM_EASING_CM,
+      suggestion: `A karöltő mélységét vagy az ujj felső élét igazítsd: most ${Math.round(Math.abs(top * stitchCm - 2 * armholeRows * rowCm))} cm az eltérés.`,
     },
-    { id: 'side-seam', label: 'Az oldalvarrás a karöltő alatt legalább egy sor', ok: sideRows >= 1 },
-    { id: 'negative-ease', label: `A negatív bőség legfeljebb ${pct(NEGATIVE_EASE_LIMIT)}%`, ok: ratio <= NEGATIVE_EASE_LIMIT + 1e-9 },
+    {
+      id: 'side-seam',
+      label: 'Az oldalvarrás a karöltő alatt legalább egy sor',
+      ok: sideRows >= 1,
+      suggestion: 'Adj nagyobb hosszt, vagy sekélyebb karöltőt: a karöltő az egész darabot elfoglalja.',
+    },
+    {
+      id: 'negative-ease',
+      label: `A negatív bőség legfeljebb ${pct(NEGATIVE_EASE_LIMIT)}%`,
+      ok: ratio <= NEGATIVE_EASE_LIMIT + 1e-9,
+      suggestion: `A negatív bőség legfeljebb ${Math.floor(NEGATIVE_EASE_LIMIT * m.bustCm)} cm lehet ekkora mellbőségnél: a horgolt anyag ennél kevésbé nyúlik.`,
+    },
   ];
   if (ratio > NEGATIVE_EASE_LIMIT + 1e-9) {
     warnings.push(`A negatív bőség ${pct(ratio)}%: horgolt anyagnál ${pct(NEGATIVE_EASE_LIMIT)}% fölött csak nyúlós, bordás szemmel működik (05 §3.5, §7.2).`);
@@ -547,7 +591,7 @@ export interface GradedMeasures {
 export function dropShoulderMeasures(
   table: BodyTable,
   sizeId: string,
-  options: Pick<GarmentOptions, 'easeCm' | 'hemCm' | 'belowWaistCm'>,
+  options: Pick<GarmentOptions, 'easeCm' | 'hemCm' | 'belowWaistCm'> & { readonly growthPct?: number },
 ): GradedMeasures | string {
   const size = table.sizes.find((candidate) => candidate.id === sizeId);
   if (!size) return `Ismeretlen méret: ${sizeId}.`;
@@ -573,7 +617,8 @@ export function dropShoulderMeasures(
       neckToWristCm: mid(v.neckToWrist),
       upperArmCm,
       armholeDepthCm,
-      bodyLengthCm: mid(length) + options.belowWaistCm,
+      // A hosszt a növedék csökkenti: a mosott, blokkolt, felakasztott próbadarab nyúlása (05 §7.2).
+      bodyLengthCm: withoutGrowth(mid(length) + options.belowWaistCm, options.growthPct ?? 0),
       hemCm: options.hemCm,
       neckWidthCm: NECK_RATIO * crossBackCm,
       frontNeckDepthCm,
@@ -587,10 +632,13 @@ export function dropShoulderMeasures(
 
 /* ---- Méretsorozat ---- */
 
+/** Egy méret terve: sapka, ledobott vállú pulóver vagy raglán. */
+export type GarmentSizePlan = HatPlan | DropShoulderPlan | RaglanPlan;
+
 export interface SizePlan {
   readonly id: string;
   readonly name: string;
-  readonly plan: HatPlan | DropShoulderPlan;
+  readonly plan: GarmentSizePlan;
   /** A táblázat gyanús értékei ennél a méretnél (body-sizes.ts). */
   readonly flags: readonly DataFlag[];
   readonly estimated: readonly string[];
@@ -645,6 +693,7 @@ export function garmentProblem(options: GarmentOptions): string | null {
   }
   if (options.kind === 'drop-shoulder' && options.easeCm === null) return 'Add meg a bőséget.';
   if (!(Number.isFinite(options.hemCm) && options.hemCm >= 0 && options.hemCm <= 50)) return 'A szegély magassága 0 és 50 cm közötti szám legyen.';
+  if (!(Number.isFinite(options.growthPct) && options.growthPct >= 0 && options.growthPct <= 50)) return 'A növedék 0 és 50% közötti szám legyen.';
   if (options.kind === 'drop-shoulder' && !(Number.isFinite(options.belowWaistCm) && options.belowWaistCm >= -30 && options.belowWaistCm <= 100)) {
     return 'A derék alatti hossz −30 és 100 cm közötti szám legyen.';
   }
@@ -656,7 +705,49 @@ export function garmentProblem(options: GarmentOptions): string | null {
   return null;
 }
 
-/** A sapka szemmérete körben (a korona kör), a pulóveré sorban. */
+/**
+ * A raglán méretei a táblázat egy méretéből (05 §2.3, §4 „C” példa): a nyak a
+ * keresztháti szélességből, a raglán mélysége a karöltőmélységből, a hónaljlánc
+ * a felkar hatoda. A hiányzó méreteket becsüljük.
+ */
+export function raglanMeasures(
+  table: BodyTable,
+  sizeId: string,
+  options: Pick<GarmentOptions, 'easeCm' | 'hemCm' | 'belowWaistCm'> & { readonly growthPct?: number },
+): { readonly measures: RaglanMeasures; readonly estimated: readonly string[] } | string {
+  const size = table.sizes.find((candidate) => candidate.id === sizeId);
+  if (!size) return `Ismeretlen méret: ${sizeId}.`;
+  const v = size.values;
+  const length = v.backWaist ?? v.backHip;
+  if (!v.chest || !length || !v.crossBack) return `A(z) ${sizeId} méretnél hiányzik a táblázatból egy szükséges méret.`;
+  const estimated: string[] = [];
+  const bustCm = mid(v.chest);
+  let armholeDepthCm: number;
+  if (v.armholeDepth) armholeDepthCm = mid(v.armholeDepth);
+  else {
+    estimated.push('karöltőmélység');
+    armholeDepthCm = bustCm / 6 + 5;
+  }
+  const upperArmCm = v.upperArm ? mid(v.upperArm) + GARMENT_EASE.sleeve : null;
+  if (upperArmCm === null) estimated.push('felkarbőség');
+  return {
+    measures: {
+      bustCm,
+      easeCm: options.easeCm ?? 0,
+      upperArmCm,
+      // A nyak körmérete a keresztháti szélességből (05 §2.3): a váll szélességének kb. 1,2-szerese.
+      neckCm: NECK_RATIO * mid(v.crossBack) * 2.6,
+      // A raglán mélysége a karöltőnél kb. 1–2 cm-rel több (05 §4 „C” példa).
+      yokeDepthCm: armholeDepthCm + RAGLAN_YOKE_ALLOWANCE_CM,
+      underarmCm: (upperArmCm ?? bustCm / 3) / 8,
+      bodyLengthCm: withoutGrowth(mid(length) + options.belowWaistCm, options.growthPct ?? 0),
+      hemCm: options.hemCm,
+    },
+    estimated,
+  };
+}
+
+/** A sapka és a raglán szemmérete körben, a ledobott vállú pulóveré sorban. */
 function garmentGauge(pattern: Pattern, kind: GarmentKind, stitch: StitchDefId): ShapeGauge {
   if (kind === 'drop-shoulder') return shapeGauge(pattern, stitch);
   const def = resolveStitch(stitch) ?? resolveStitch('sc')!;
@@ -676,6 +767,11 @@ const MONOTONIC: Readonly<Record<GarmentKind, readonly { readonly key: string; r
     { key: 'hatStitches', label: 'a sapka szemszáma' },
     { key: 'totalRounds', label: 'a körök száma' },
   ],
+  raglan: [
+    { key: 'raglanBody', label: 'a törzs szemszáma' },
+    { key: 'raglanSleeve', label: 'az ujj szemszáma' },
+    { key: 'raglanNeck', label: 'a nyak szemszáma' },
+  ],
   // Csak szemszámok: az ujj sorai nagyobb méretben csökkenhetnek, mert a szélesebb darabbal a váll lejjebb lóg (05 „B” 8. lépés).
   'drop-shoulder': [
     { key: 'panelStitches', label: 'a hátrész szemszáma' },
@@ -686,7 +782,25 @@ const MONOTONIC: Readonly<Record<GarmentKind, readonly { readonly key: string; r
 };
 
 /** A sorozat számai egy méretre; a kulcsok a garment-text.ts szerint. */
-function sizeValues(plan: HatPlan | DropShoulderPlan): Record<string, number> {
+function sizeValues(plan: GarmentSizePlan): Record<string, number> {
+  if (plan.kind === 'raglan') {
+    return {
+      raglanChestCm: Math.round(plan.finished.chestCm),
+      raglanLengthCm: Math.round(plan.finished.lengthCm),
+      raglanNeck: plan.neck.stitches,
+      raglanNeckFront: plan.neck.front,
+      raglanNeckSleeve: plan.neck.sleeve,
+      raglanRounds: plan.yokeRounds,
+      raglanBodyRounds: plan.bodyRounds.length,
+      raglanBody: plan.bodyStitches,
+      raglanSleeve: plan.sleeveStitches,
+      raglanUnderarm: plan.underarm,
+      raglanFront: plan.target.front,
+      raglanTargetSleeve: plan.target.sleeve,
+      raglanBelowRounds: plan.bodyRoundsBelow,
+      raglanHemRounds: plan.hemRounds,
+    };
+  }
   if (plan.kind === 'hat') {
     return {
       hatCm: Math.round(plan.finishedCm),
@@ -725,7 +839,14 @@ function sizeValues(plan: HatPlan | DropShoulderPlan): Record<string, number> {
 }
 
 /** A darab(ok) területe a fonalhoz, cm². */
-function areaOf(plan: HatPlan | DropShoulderPlan, gauge: ShapeGauge): number {
+function areaOf(plan: GarmentSizePlan, gauge: ShapeGauge): number {
+  if (plan.kind === 'raglan') {
+    // A vállrész csonka kúp palástja, a törzs henger, az ujjak henger a hónaljtól a kézfejig.
+    const yoke = ((plan.neck.stitches + plan.bodyStitches) / 2) * gauge.stitchCm * plan.yokeRounds * gauge.rowCm;
+    const body = plan.bodyStitches * gauge.stitchCm * plan.bodyRoundsBelow * gauge.rowCm;
+    const sleeves = 2 * plan.sleeveStitches * gauge.stitchCm * plan.yokeRounds * gauge.rowCm;
+    return yoke + body + sleeves;
+  }
   if (plan.kind === 'hat') {
     const crownRadius = plan.crownRounds * gauge.rowCm;
     return Math.PI * crownRadius ** 2 + plan.stitches * gauge.stitchCm * plan.sideRounds * gauge.rowCm;
@@ -765,11 +886,16 @@ export function planGarment(pattern: Pattern, options: GarmentOptions): GarmentP
 
   const sizes: SizePlan[] = [];
   for (const size of series) {
-    let plan: HatPlan | DropShoulderPlan | string;
+    let plan: GarmentSizePlan | string;
     let estimated: readonly string[] = [];
     if (options.kind === 'hat') {
-      const measures = hatMeasures(size.id, options.easeCm, options.hemCm)!;
+      const measures = hatMeasures(size.id, options.easeCm, options.hemCm, options.growthPct)!;
       plan = hatPlan(measures, gauge);
+    } else if (options.kind === 'raglan') {
+      const graded = raglanMeasures(BODY_TABLES[options.table], size.id, options);
+      if (typeof graded === 'string') return fail(graded);
+      estimated = graded.estimated;
+      plan = raglanPlan(graded.measures, gauge);
     } else {
       const graded = dropShoulderMeasures(BODY_TABLES[options.table], size.id, options);
       if (typeof graded === 'string') return fail(graded);
@@ -843,23 +969,83 @@ function seam(a: PieceJoin['a'], countA: number, b: PieceJoin['b'], countB: numb
  * fordítva varrjuk, ezért a hátrész bal széle az elejerész jobb szélére kerül,
  * és a hátrész sorának eleje az elejerész sorának végére.
  */
-export function dropShoulderJoins(plan: DropShoulderPlan): PieceJoin[] {
-  const { stitches, rows, sideRows, armholeRows } = plan.panel;
+export function dropShoulderJoins(plan: DropShoulderPlan, neckline: GarmentOptions['neckline'] = 'boat'): PieceJoin[] {
+  const { stitches, rows, armholeRows } = plan.panel;
   const { shoulder } = plan.neck;
   const { top, rows: sleeveRows } = plan.sleeve;
   const half = top / 2;
+  const shaped = neckline === 'shaped';
+  // Formázott nyaknál a darab a megosztásig egy szakasz, fölötte a vállak. A karöltő mindkét darabon ugyanott
+  // kezdődik (a felső éltől számítva), ezért az oldalvarrás hossza egyforma; a karöltő a törzs tetejéig tart (PQW-901).
+  const bodyRows = (part: 'front' | 'back') => (shaped ? neckSplitRow(plan, part) : rows);
+  const sideRows = rows - armholeRows;
   const sleeve = (piece: string, backSide: 'left' | 'right', frontSide: 'left' | 'right'): PieceJoin[] => [
-    seam(stitchEdge(piece, sleeveRows, 0, half), half, rowsEdge('p1', sideRows + 1, rows, backSide), armholeRows),
-    seam(stitchEdge(piece, sleeveRows, half, half), half, rowsEdge('p2', sideRows + 1, rows, frontSide), armholeRows),
+    seam(stitchEdge(piece, sleeveRows, 0, half), half, rowsEdge('p1', sideRows + 1, bodyRows('back'), backSide), bodyRows('back') - sideRows),
+    seam(stitchEdge(piece, sleeveRows, half, half), half, rowsEdge('p2', sideRows + 1, bodyRows('front'), frontSide), bodyRows('front') - sideRows),
     { a: rowsEdge(piece, 1, sleeveRows, 'left'), b: rowsEdge(piece, 1, sleeveRows, 'right') },
   ];
+  // Formázott nyaknál a váll egy-egy teljes sor a szakasza tetején; csónaknyaknál a felső sor egy szakasza.
+  const shoulderSeams: PieceJoin[] = shaped
+    ? [
+        { a: stitchEdge('p1', neckSplitRow(plan, 'back') + plan.neck.back.rows, 0, shoulder), b: stitchEdge('p2', rows + plan.neck.front.rows, 0, shoulder) },
+        { a: stitchEdge('p1', rows + plan.neck.back.rows, 0, shoulder), b: stitchEdge('p2', neckSplitRow(plan, 'front') + plan.neck.front.rows, 0, shoulder) },
+      ]
+    : [
+        { a: stitchEdge('p1', rows, 0, shoulder), b: stitchEdge('p2', rows, stitches - shoulder, shoulder) },
+        { a: stitchEdge('p1', rows, stitches - shoulder, shoulder), b: stitchEdge('p2', rows, 0, shoulder) },
+      ];
   return [
-    { a: stitchEdge('p1', rows, 0, shoulder), b: stitchEdge('p2', rows, stitches - shoulder, shoulder) },
-    { a: stitchEdge('p1', rows, stitches - shoulder, shoulder), b: stitchEdge('p2', rows, 0, shoulder) },
+    ...shoulderSeams,
     { a: rowsEdge('p1', 1, sideRows, 'left'), b: rowsEdge('p2', 1, sideRows, 'right') },
     { a: rowsEdge('p1', 1, sideRows, 'right'), b: rowsEdge('p2', 1, sideRows, 'left') },
     ...sleeve('p3', 'left', 'right'),
     ...sleeve('p4', 'right', 'left'),
+  ];
+}
+
+/** A formázott nyakkivágás megosztási sora: a váll alakítása e fölött készül (PQW-901). */
+export function neckSplitRow(plan: DropShoulderPlan, part: 'front' | 'back'): number {
+  return plan.panel.rows - (part === 'front' ? plan.neck.front.rows : plan.neck.back.rows);
+}
+
+/**
+ * A hátrész és az elejerész sorai formázott nyakkivágással (PQW-901): a
+ * megosztásig egy szakasz, fölötte a két váll. A váll belső élén fogy a nyak:
+ * elöl az első sorban több szem, utána soronként egy; hátul soronként egy. A
+ * két váll közötti szemek a nyak közepén maradnak.
+ */
+export function panelSections(plan: DropShoulderPlan, part: 'front' | 'back'): RowSection[] {
+  const { stitches } = plan.panel;
+  const { shoulder } = plan.neck;
+  const neck =
+    part === 'front'
+      ? plan.neck.front
+      : {
+          center: plan.neck.back.center,
+          perSide: plan.neck.back.rows * plan.neck.back.perRow,
+          first: plan.neck.back.perRow,
+          later: Math.max(0, plan.neck.back.rows - 1),
+          rows: plan.neck.back.rows,
+        };
+  const split = neckSplitRow(plan, part);
+  const span = shoulder + neck.perSide;
+  // A váll belső éle a sor vége az egyik, a sor eleje a másik oldalon.
+  const shoulderRows = (inner: 'start' | 'end') => {
+    const counts: number[] = [];
+    const shaping: RowShaping[] = [];
+    for (let k = 0; k < neck.rows; k += 1) {
+      const change = k === 0 ? -neck.first : k <= neck.later ? -1 : 0;
+      shaping.push(inner === 'end' ? { start: 0, end: change } : { start: change, end: 0 });
+      counts.push((k === 0 ? span : counts[k - 1]!) + change);
+    }
+    return { counts, shaping };
+  };
+  const firstShoulder = shoulderRows('end');
+  const secondShoulder = shoulderRows('start');
+  return [
+    { counts: Array<number>(split).fill(stitches), shaping: Array.from({ length: split }, () => ({ start: 0, end: 0 })) },
+    { over: split, from: 0, span, counts: firstShoulder.counts, shaping: firstShoulder.shaping },
+    { name: 'A másik váll', over: split, from: span + neck.center, span, counts: secondShoulder.counts, shaping: secondShoulder.shaping },
   ];
 }
 
@@ -894,7 +1080,16 @@ export function generateGarment(pattern: Pattern, options: GarmentOptions): Garm
   const garment: PatternGarment = { kind: plan.kind, table: plan.table, sizes: plan.sizes.map((entry) => entry.id), base: plan.base, values: plan.values };
 
   let result: Pattern;
-  if (size.plan.kind === 'hat') {
+  if (size.plan.kind === 'raglan') {
+    base = { ...base, conventions: { ...base.conventions, roundEnd: 'join-slip' } };
+    const total = size.plan.bodyStitches * (size.plan.yokeRounds + size.plan.bodyRoundsBelow);
+    if (total > MAX_GARMENT_TOTAL) {
+      return fail(`A raglánban legfeljebb ${MAX_GARMENT_TOTAL.toLocaleString('hu')} szem lehet: válassz kisebb méretet vagy vastagabb fonalat.`);
+    }
+    const piece = raglanPiece(base, options.stitch, size.plan, name);
+    if (typeof piece === 'string') return fail(piece);
+    result = { ...base, pieces: [piece], garment };
+  } else if (size.plan.kind === 'hat') {
     base = { ...base, conventions: { ...base.conventions, roundEnd: 'join-slip' } };
     const motif = { ...DEFAULT_MOTIF, shape: 'circle' as const, stitch: options.stitch, start: 'magic-ring' as const, closing: 'join-slip' as const };
     const piece = plannedRounds(base, motif, size.plan.layout, name);
@@ -909,16 +1104,27 @@ export function generateGarment(pattern: Pattern, options: GarmentOptions): Garm
     const panelCounts = Array<number>(shoulderPlan.panel.rows).fill(shoulderPlan.panel.stitches);
     const flat = panelCounts.map(() => ({ start: 0, end: 0 }));
     const sleeve = sleeveRowsOf(shoulderPlan);
+    // Formázott nyaknál a darab két vállal folytatódik a megosztás fölött (PQW-901).
+    const shaped = options.neckline === 'shaped' && shoulderPlan.neck.front.rows > 0 && shoulderPlan.neck.back.rows > 0;
+    const panel = (part: 'front' | 'back', pieceName: string, id: string) =>
+      shaped
+        ? plannedSections(base, options.stitch, panelSections(shoulderPlan, part), pieceName, id)
+        : plannedRows(base, options.stitch, panelCounts, flat, pieceName, id);
     const pieces = [
-      plannedRows(base, options.stitch, panelCounts, flat, PIECE_NAMES.back, 'p1'),
-      plannedRows(base, options.stitch, panelCounts, flat, PIECE_NAMES.front, 'p2'),
+      panel('back', PIECE_NAMES.back, 'p1'),
+      panel('front', PIECE_NAMES.front, 'p2'),
       plannedRows(base, options.stitch, sleeve.counts, sleeve.shaping, PIECE_NAMES.leftSleeve, 'p3'),
       // A jobb ujj a bal tükörképe (05 §4.5): a sor eleje és vége felcserélődik.
       plannedRows(base, options.stitch, sleeve.counts, mirrorShaping(sleeve.shaping), PIECE_NAMES.rightSleeve, 'p4'),
     ];
     const problem = pieces.find((piece) => typeof piece === 'string');
     if (typeof problem === 'string') return fail(problem);
-    result = { ...base, pieces: pieces.filter((piece) => typeof piece !== 'string'), joins: dropShoulderJoins(shoulderPlan), garment };
+    result = {
+      ...base,
+      pieces: pieces.filter((piece) => typeof piece !== 'string'),
+      joins: dropShoulderJoins(shoulderPlan, shaped ? 'shaped' : 'boat'),
+      garment,
+    };
   }
 
   result = withGeneratedTitle(result, pattern, name, GENERATED_NAMES);

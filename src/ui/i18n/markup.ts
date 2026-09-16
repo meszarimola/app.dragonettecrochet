@@ -224,6 +224,10 @@ export const MARKUP_TEXTS = {
     garmentEaseLabel: 'Bőség a mellbőséghez, cm',
     garmentHemLabel: 'Szegély és mandzsetta, cm',
     garmentBelowLabel: 'Hossz a derék alatt, cm',
+    garmentGrowthLabel: 'Növedék a felakasztott próbadarabból, %',
+    garmentGrowthNote:
+      'A horgolt anyag a súlyától és a mosástól hosszában nő. Mérd meg a mosott, blokkolt és felakasztott próbadarabot: a megadott százalékkal a generátor ennyivel rövidebbre tervezi a hosszakat.',
+    garmentNecklineLabel: 'Formázott nyakkivágás: a két váll a nyak két oldalán külön készül',
     garmentRepeatLabel: 'A hátrész és az elejerész szemszáma mintaismétlésre',
     garmentRepeatXLabel: 'X: egy ismétlés szemei',
     garmentRepeatYLabel: 'Y: szélső szemek',
@@ -570,6 +574,10 @@ export const MARKUP_TEXTS = {
     garmentEaseLabel: 'Ease at the bust, cm',
     garmentHemLabel: 'Hem and cuff, cm',
     garmentBelowLabel: 'Length below the waist, cm',
+    garmentGrowthLabel: 'Growth from the hung swatch, %',
+    garmentGrowthNote:
+      'Crochet fabric grows lengthways from its own weight and from washing. Measure a washed, blocked and hung swatch: with the given percentage the generator plans the lengths that much shorter.',
+    garmentNecklineLabel: 'Shaped neckline: the two shoulders are worked separately on each side of the neck',
     garmentRepeatLabel: 'Stitch count of the back and front on a pattern repeat',
     garmentRepeatXLabel: 'X: stitches in one repeat',
     garmentRepeatYLabel: 'Y: edge stitches',

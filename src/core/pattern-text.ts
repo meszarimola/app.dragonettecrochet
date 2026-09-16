@@ -18,7 +18,7 @@
  */
 
 import { sizingLines } from './garment-text.ts';
-import { dative, times } from './hungarian.ts';
+import { article, dative, times } from './hungarian.ts';
 import { writtenPieces, type Step, type StepTarget, type WrittenBorder, type WrittenLayer, type WrittenPiece } from './pattern-steps.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { stitchLabel, stitchStructure } from './stitchText.ts';
@@ -91,6 +91,11 @@ export interface Vocabulary {
   readonly marks: Readonly<Record<RoundMark, string>>;
   /** A folytatólagosan kapcsolt rész sora az első köre előtt. */
   readonly section: (name: string) => string;
+  /**
+   * Az elvágott fonal után újrakezdett szakasz sora (PQW-901): a neve és a
+   * sor, amely fölött folytatódik. A visszaolvasó ebből tudja, hol folytassa.
+   */
+  readonly resumeSection: (name: string, row: number) => string;
   /** A korábbi sorba horgolt hosszú szem helye (mozaik, filé sor végi szaporítás, PQW-894). */
   readonly down: (depth: number) => string;
   /** Rácsos technikák (PQW-864): színek, kezdőszín, színváltás, a technika megjegyzése, színek soronként. */
@@ -157,6 +162,8 @@ export interface SewnEdge {
   readonly name: string;
   readonly layer: number;
   readonly count: number;
+  /** A darab szakasza, ha a sorszám önmagában nem egyértelmű (két váll, PQW-901). */
+  readonly section?: string;
   readonly stitches?: { readonly from: number; readonly to: number };
   readonly rows?: { readonly to: number; readonly side: 'left' | 'right' };
 }
@@ -246,6 +253,7 @@ const HU: Vocabulary = {
     'close-opening': 'A fonalat fűzd át a maradék szemek első szálán, és húzd össze a nyílást.',
   },
   section: (name) => `${name}, folytatólagosan:`,
+  resumeSection: (name, row) => `${name} (${article(row)} ${row}. sor fölött):`,
   // Új magyar mondatok, jóváhagyásra várnak (PQW-864, PQW-894).
   down: (depth) => `${depth} sorral lejjebb`,
   colorwork: {
@@ -385,6 +393,7 @@ function english(skipWord: string, skipVerb: string, skipMeaning: string, system
       'close-opening': 'Weave the tail through the front loops of the remaining sts and pull tight.',
     },
     section: (name) => `${name}, worked continuously:`,
+    resumeSection: (name, row) => `${name} (worked over row ${row}):`,
     down: (depth) => `in st ${depth} rows below`,
     colorwork: {
       colors: (items) => `Colors: ${items.map((item) => `${item.letter} – ${item.name}`).join(', ')}.`,
@@ -450,15 +459,17 @@ function range(from: number, to: number): string {
 
 /** „Hátrész, 1–30. sor bal széle (30 sorvég)”, „Hátrész, 46. sor 1–26. szeme (26)”, „Fej, 12. kör (36)”. */
 function huSewnEdge(edge: SewnEdge): string {
-  if (edge.rows) return `${edge.name}, ${range(edge.layer, edge.rows.to)}. sor ${edge.rows.side === 'left' ? 'bal' : 'jobb'} széle (${edge.count} sorvég)`;
-  if (edge.stitches) return `${edge.name}, ${edge.layer}. sor ${range(edge.stitches.from, edge.stitches.to)}. szeme (${edge.count})`;
-  return `${edge.name}, ${edge.layer}. kör (${edge.count})`;
+  const where = `${edge.name}${edge.section === undefined ? '' : `, ${edge.section}`}`;
+  if (edge.rows) return `${where}, ${range(edge.layer, edge.rows.to)}. sor ${edge.rows.side === 'left' ? 'bal' : 'jobb'} széle (${edge.count} sorvég)`;
+  if (edge.stitches) return `${where}, ${edge.layer}. sor ${range(edge.stitches.from, edge.stitches.to)}. szeme (${edge.count})`;
+  return `${where}, ${edge.layer}. kör (${edge.count})`;
 }
 
 function enSewnEdge(edge: SewnEdge): string {
-  if (edge.rows) return `${edge.name}, ${edge.layer === edge.rows.to ? 'Row' : 'Rows'} ${range(edge.layer, edge.rows.to)}, ${edge.rows.side} edge (${edge.count} row ends)`;
-  if (edge.stitches) return `${edge.name}, Row ${edge.layer}, sts ${range(edge.stitches.from, edge.stitches.to)} (${edge.count})`;
-  return `${edge.name}, Rnd ${edge.layer} (${edge.count})`;
+  const where = `${edge.name}${edge.section === undefined ? '' : `, ${edge.section}`}`;
+  if (edge.rows) return `${where}, ${edge.layer === edge.rows.to ? 'Row' : 'Rows'} ${range(edge.layer, edge.rows.to)}, ${edge.rows.side} edge (${edge.count} row ends)`;
+  if (edge.stitches) return `${where}, Row ${edge.layer}, sts ${range(edge.stitches.from, edge.stitches.to)} (${edge.count})`;
+  return `${where}, Rnd ${edge.layer} (${edge.count})`;
 }
 
 export function ordinal(n: number): string {
@@ -546,9 +557,19 @@ export function writePattern(pattern: Pattern, library: StitchLibrary, locale: L
   const edge = ({ piece: id, layer, stitches, rows }: JoinEdge): SewnEdge => {
     const index = pattern.pieces.findIndex((piece) => piece.id === id);
     const name = pattern.pieces[index]?.name ?? id;
-    if (stitches) return { name, layer, count: stitches.count, stitches: { from: stitches.from + 1, to: stitches.from + stitches.count } };
-    if (rows) return { name, layer, count: rows.to - layer + 1, rows };
-    return { name, layer, count: written[index]?.layers[layer - 1]?.stitchCount ?? 0 };
+    const written_ = written[index];
+    // A varrás a kiírt sorszámot mondja; az újrakezdett szakaszban ez nem a réteg sorszáma, ezért a szakasz neve is kell (PQW-901).
+    const rowOf = (at: number) => written_?.layers.find((candidate) => candidate.index === at)?.row ?? at;
+    // A szakasz neve csak akkor kell, ha a sorszám önmagában nem egyértelmű: két szakasz ugyanazzal a számmal (PQW-901).
+    const ambiguous = written_?.layers.some((candidate) => candidate.index !== layer && candidate.row === rowOf(layer)) === true;
+    const sections = (written_?.sections ?? []).filter((section) => section.layer <= layer);
+    const section = ambiguous && sections.length > 0 ? sections[sections.length - 1]!.name : undefined;
+    const named = section === undefined ? {} : { section };
+    if (stitches) {
+      return { name, layer: rowOf(layer), count: stitches.count, ...named, stitches: { from: stitches.from + 1, to: stitches.from + stitches.count } };
+    }
+    if (rows) return { name, layer: rowOf(layer), count: rows.to - layer + 1, ...named, rows: { to: rowOf(rows.to), side: rows.side } };
+    return { name, layer: rowOf(layer), count: written_?.layers.find((candidate) => candidate.index === layer)?.stitchCount ?? 0, ...named };
   };
   const assembly = (pattern.joins ?? []).map((join) => vocabulary.sewing(edge(join.a), edge(join.b), join.distribution !== undefined));
 
@@ -692,7 +713,7 @@ class Renderer {
 
     const bodies = piece.layers.map((layer) => this.body(layer));
     // A folytatólagosan kapcsolt rész neve az első köre előtt; ott az azonos körök összevonása is megszakad.
-    const sections = new Map(piece.sections.filter((section) => section.layer > 1).map((section) => [section.layer, section.name]));
+    const sections = new Map(piece.sections.filter((section) => section.layer > 1).map((section) => [section.layer, section]));
     for (let i = 0; i < piece.layers.length; ) {
       let j = i;
       while (
@@ -703,10 +724,11 @@ class Renderer {
       ) {
         j += 1;
       }
-      const { shape, index } = piece.layers[i]!;
+      const { shape, index, row } = piece.layers[i]!;
       const section = sections.get(index);
-      if (section !== undefined) lines.push(v.section(section));
-      const label = shape === 'row' ? v.layer.row(index, piece.layers[j]!.index) : v.layer.round(index, piece.layers[j]!.index);
+      // Az újrakezdett szakasz neve megmondja, melyik sor fölött folytatódik (PQW-901).
+      if (section !== undefined) lines.push(section.over === undefined ? v.section(section.name) : v.resumeSection(section.name, section.over));
+      const label = shape === 'row' ? v.layer.row(row, piece.layers[j]!.row) : v.layer.round(row, piece.layers[j]!.row);
       lines.push(`${label}: ${bodies[i]}`);
       i = j + 1;
     }
