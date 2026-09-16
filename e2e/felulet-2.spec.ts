@@ -21,8 +21,8 @@ test('a fájlműveletek lenyílója billentyűzettel: Tab a gombra, Enter nyit, 
   await expect(filePop).toBeHidden();
   await expect(fileToggle).toHaveAttribute('aria-expanded', 'false');
 
-  // A menüsor első gombjáról egy Tab a fájlműveletek gombjára visz.
-  await page.locator('.tools .tool').first().focus();
+  // Az „Új minta” gombról egy Tab a fájlműveletek gombjára visz: a kettő szomszédos (PQW-912).
+  await page.locator('[data-action="new"]').focus();
   await page.keyboard.press('Tab');
   await expect(fileToggle).toBeFocused();
 

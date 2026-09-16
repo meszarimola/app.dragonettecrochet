@@ -52,22 +52,19 @@
           </a>
 
           <h1 class="bar__title" data-i18n="barTitle">Mintatervező</h1>
-
-          <button
-            type="button"
-            id="types-toggle"
-            class="bar__toggle bar__toggle--types"
-            aria-expanded="true"
-            aria-controls="types"
-          >
-            <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-              <path d="M4 6h12M4 10h12M4 14h8" />
-            </svg>
-            <span data-i18n="typesToggle">Mintatípus</span>
-          </button>
         </div>
 
         <div class="tools">
+          <div class="tools__group" role="group" aria-label="Nézet és panelek" data-i18n-label="toolGroupPanels">
+            <!-- A bal sáv nyitása és csukása a menüsorból, hogy csukott sávnál is elérhető legyen (PQW-912). -->
+            <button type="button" class="tool" id="types-toggle" aria-expanded="true" aria-controls="types" aria-label="Mintatípus sáv" data-tip="A mintatípus sáv nyitása és csukása" data-i18n-label="toolTypesLabel" data-i18n-tip="toolTypesTip">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M7.5 5 12.5 10l-5 5" />
+              </svg>
+              <span class="tool__label" data-i18n="toolLabelTypes">Típusok</span>
+            </button>
+          </div>
+
           <div class="tools__group" role="group" aria-label="Fájl" data-i18n-label="toolGroupFile">
             <button type="button" class="tool" data-action="new" aria-label="Új minta" data-tip="Új minta" data-i18n-label="toolNewLabel" data-i18n-tip="toolNewTip">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
@@ -224,47 +221,39 @@
               <span class="tool__label" data-i18n="toolLabelFit">Teljes</span>
             </button>
           </div>
-        </div>
-
-        <div class="bar__end">
-          <div class="menu">
-            <button
-              type="button"
-              id="error-toggle"
-              class="bar__toggle bar__toggle--errors"
-              aria-expanded="false"
-              aria-controls="errors"
-            >
+          <!-- A panelek kapcsolói a menüsor jobb szélén, jobbról balra (PQW-912). -->
+          <div class="tools__group tools__group--end" role="group" aria-label="Panelek" data-i18n-label="toolGroupViews">
+            <button type="button" class="tool" id="panel-toggle" aria-expanded="true" aria-controls="panel" aria-label="Szemek és beállítások" data-tip="A jobb oldali panel nyitása és csukása" data-i18n-label="panelToggle" data-i18n-tip="toolPanelTip">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M10 3.75 16.5 15.5H3.5z" />
-                <path d="M10 8v3.5M10 13.25v.25" />
+                <path d="M3.75 4.5h12.5v11H3.75z" />
+                <path d="M12 4.5v11" />
               </svg>
-              <span id="error-count">Nincs hiba</span>
+              <span class="tool__label" data-i18n="toolLabelPanel">Szemek</span>
             </button>
 
-            <div class="menu__pop errors" id="errors" role="region" aria-label="Hibák és figyelmeztetések" data-i18n-label="errorsRegionLabel" hidden>
-              <p class="check__summary" id="summary"></p>
-              <ul class="check__list" id="findings"></ul>
+            <button type="button" class="tool" id="written-toggle" aria-expanded="false" aria-controls="written" aria-label="Írott minta" data-tip="Az írott minta panel nyitása és csukása" data-i18n-label="writtenToggle" data-i18n-tip="toolWrittenTip">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M4.5 4.5h11v11h-11z" />
+                <path d="M7 8h6M7 11h6" />
+              </svg>
+              <span class="tool__label" data-i18n="toolLabelWritten">Szöveg</span>
+            </button>
+
+            <div class="menu">
+              <button type="button" class="tool tool--errors" id="error-toggle" aria-expanded="false" aria-controls="errors" aria-label="Hibák és figyelmeztetések" data-tip="A hibák és figyelmeztetések listája" data-i18n-label="errorsRegionLabel" data-i18n-tip="toolErrorsTip">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M10 3.75 16.5 15.5H3.5z" />
+                  <path d="M10 8v3.5M10 13.25v.25" />
+                </svg>
+                <span class="tool__label" id="error-count">Nincs hiba</span>
+              </button>
+
+              <div class="menu__pop errors" id="errors" role="region" aria-label="Hibák és figyelmeztetések" data-i18n-label="errorsRegionLabel" hidden>
+                <p class="check__summary" id="summary"></p>
+                <ul class="check__list" id="findings"></ul>
+              </div>
             </div>
           </div>
-
-          <button
-            type="button"
-            id="written-toggle"
-            class="bar__toggle"
-            aria-expanded="false"
-            aria-controls="written"
-            data-i18n="writtenToggle"
-          >Írott minta</button>
-
-          <button
-            type="button"
-            id="panel-toggle"
-            class="bar__toggle"
-            aria-expanded="true"
-            aria-controls="panel"
-            data-i18n="panelToggle"
-          >Szemek és beállítások</button>
         </div>
       </header>
 

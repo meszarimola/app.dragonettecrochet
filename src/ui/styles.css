@@ -207,14 +207,15 @@ button {
   gap: 0.75rem;
 }
 
-/* Az első sor jobb szélén a hibalista és a panelkapcsolók. */
-.bar__end {
-  order: 1;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
+/*
+ * A panelek kapcsolói a menüsor jobb széléről indulnak, jobbról balra (PQW-912):
+ * a csoport a maradék helyet elé tolja, a fejlécben csak a Főoldal és a cím marad.
+ */
+.tools__group--end {
   margin-inline-start: auto;
+  flex-direction: row-reverse;
+  border-inline-start: none;
+  padding-inline-start: 0;
 }
 
 .bar__title {
@@ -253,27 +254,6 @@ button {
   stroke-width: 1.5;
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-
-.bar__toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.9rem;
-  border: 1px solid var(--c-line);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--c-text);
-  font-size: 0.875rem;
-}
-
-.bar__toggle:hover {
-  border-color: var(--c-accent);
-  color: var(--c-accent);
-}
-
-.bar__toggle[aria-expanded='true'] {
-  border-color: var(--c-accent);
 }
 
 /* ---- Ikonok ---- */
@@ -579,26 +559,40 @@ body.is-selecting #board {
   box-shadow: 0 10px 30px rgba(36, 31, 43, 0.16);
 }
 
+/*
+ * A műveleti lenyíló (Fájl) a GOMBJÁHOZ igazodik, nem a jobb szélhez (PQW-912).
+ * A `.menu__pop` jobbra rögzít és fix szélességet ad — az a hibalistának jó, ami
+ * a sáv jobb szélén ül, de a bal szélen álló Fájl gombnál a panel kilógott a
+ * képernyőről, és csak az üres jobb széle látszott. Két osztállyal írjuk felül,
+ * hogy a sorrendtől függetlenül ez nyerjen.
+ */
+.menu__pop.menu__list {
+  inset-inline-start: 0;
+  inset-inline-end: auto;
+  inline-size: max-content;
+  max-inline-size: min(20rem, calc(100vw - 2rem));
+}
+
 /* Hibaszámláló: színt vált a súlyosság szerint. */
-.bar__toggle--errors .icon {
+.tool--errors .icon {
   color: var(--c-muted);
 }
 
-.bar__toggle--errors.has-errors {
+.tool--errors.has-errors {
   border-color: var(--c-error);
   color: var(--c-error);
 }
 
-.bar__toggle--errors.has-errors .icon {
+.tool--errors.has-errors .icon {
   color: var(--c-error);
 }
 
-.bar__toggle--errors.has-warnings {
+.tool--errors.has-warnings {
   border-color: var(--c-warning);
   color: var(--c-warning);
 }
 
-.bar__toggle--errors.has-warnings .icon {
+.tool--errors.has-warnings .icon {
   color: var(--c-warning);
 }
 
@@ -979,8 +973,9 @@ body.is-selecting #board {
   position: absolute;
   inset-block: 0;
   inset-inline-start: 0;
-  inline-size: min(16rem, 80vw);
-  padding: 1.25rem;
+  /* Keskenyebb sáv (PQW-912): az ikon és a rövid név kényelmesen elfér. */
+  inline-size: min(13rem, 80vw);
+  padding: 1rem 0.85rem;
   /* Oszlop: a cím és a bevezető fent marad, a lista görget, a verziófelirat a sáv alján ül (PQW-903). */
   display: flex;
   flex-direction: column;
@@ -1001,9 +996,17 @@ body.is-selecting #board {
   margin: 0;
   padding: 0;
   list-style: none;
-  /* A lista görget a sávon belül; a `min-block-size` nélkül a rácsdoboz nem zsugorodna (PQW-903). */
-  flex: 1 1 auto;
+  /*
+   * A kártyák a saját magasságukon állnak (PQW-912): a rács `gap`-je nem nyúlik,
+   * mert a lista rácsdoboz, nem flex — a korábbi `flex: 1 1 auto` viszont a
+   * SORAIT feszítette szét. A doboz maga a maradék helyet kapja (`1 1 0`), így a
+   * sok típus a sávon belül görget, a verziófelirat pedig valóban a sáv aljára
+   * kerül: `flex: 0 1 auto` mellett a lista felvette a maradékot, és a felirat
+   * `auto` margójának nem maradt mit felvennie — ezért tapadt a lista aljára.
+   */
+  flex: 1 1 0;
   min-block-size: 0;
+  align-content: start;
   overflow-y: auto;
 }
 
@@ -1053,18 +1056,13 @@ body.is-selecting #board {
 .type__label {
   display: grid;
   gap: 0.1rem;
+  /* A felirat oszlopa zsugorodhat: a jelvény alatta áll, nem mellette (PQW-912). */
   min-inline-size: 0;
 }
 
 .type__name {
   color: var(--c-ink);
   font-size: 0.9375rem;
-}
-
-.type__detail {
-  color: var(--c-text-soft);
-  font-size: 0.8125rem;
-  line-height: 1.35;
 }
 
 .type__badge {
@@ -1101,13 +1099,19 @@ body.is-selecting #board {
   gap: 0.5rem;
 }
 
-/* A „Hamarosan” címke a név alá kerül, nem vágja le a nevet. */
-.type {
-  grid-template-columns: auto 1fr;
-}
-
+/*
+ * A „Hamarosan” címke a név MELLETT áll, a harmadik oszlopban (PQW-912): a név
+ * alá tördelve a kártya kétszer olyan magas lett, és a keskenyebb sávban emiatt
+ * kellett görgetni egy négyelemű listában. A név így is egészben marad, mert a
+ * felirat oszlopa zsugorodhat (`min-inline-size: 0` a `.type__label`-en).
+ */
+/*
+ * A jelvény a feliratdobozban, a név ALATT áll (PQW-912): a keskeny sávban a név
+ * mellé nem fért el, és rárajzolódott. Saját sorban a kártya egy sorral nő, de a
+ * négy kártya így is elfér görgetés nélkül — a kétsoros elrendezés korábbi baja
+ * a lista nyújtása volt, nem a jelvény helye.
+ */
 .type__badge {
-  grid-column: 2;
   justify-self: start;
 }
 
@@ -1804,20 +1808,17 @@ body.is-selecting #board {
 }
 
 /*
- * A futó verzió a bal alsó sarokban (PQW-903): apró és halvány, a mintatípus-menü
- * sávja fölött áll, a vásznat nem takarja. Kikerül a szövegfolyamból (`fixed`), így
- * az elrendezésen nem változtat és nem okoz görgetést; egérrel és képernyőolvasóval
- * sem akad útba.
- */
-/*
  * A futó verzió a mintatípus-sáv alján, a bal alsó sarokban (PQW-903): apró és
- * halvány. A sáv oszlopának utolsó eleme, a lista fölötte görget, ezért sosem
- * takar szöveget, és a vászon rajzterületéből sem vesz el semmit. Nem kattintható,
- * és a képernyőolvasónak sem mond fölösleges tokent (`aria-hidden`).
+ * halvány. A sáv oszlopának utolsó eleme, és a `margin-block-start: auto` tolja
+ * az aljára (PQW-912) — korábban a lista nyúlt meg helyette, ami szétfeszítette
+ * a kártyákat. A lista fölötte görget, ezért sosem takar szöveget, és a vászon
+ * rajzterületéből sem vesz el semmit. Nem kattintható, és a képernyőolvasónak
+ * sem mond fölösleges tokent (`aria-hidden`).
  */
 .version {
   flex: 0 0 auto;
   margin: 0.75rem 0 0;
+  margin-block-start: auto;
   color: var(--c-muted);
   font-size: 0.6875rem;
   line-height: 1;
