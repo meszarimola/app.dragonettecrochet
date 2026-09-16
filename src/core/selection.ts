@@ -214,6 +214,7 @@ export function deletionPlan(pattern: Pattern, ids: Iterable<NodeId>): DeletionP
   const hits = (anchor: Anchor) => {
     if (anchor.into === 'stitch') return removed.has(anchor.id);
     if (anchor.into === 'space') return (spaceChains.get(anchor.id) ?? []).some((id) => removed.has(id));
+    if (anchor.into === 'row-end' || anchor.into === 'underside') return removed.has(anchor.id);
     return removed.has(ringNodes.get(anchor.id) ?? '');
   };
   // A célpontok a fonalon előrébb vannak, ezért egy menet általában elég; a ciklus a biztonság.
@@ -299,7 +300,9 @@ export type FragmentAnchor =
   | { readonly kind: 'node'; readonly index: number; readonly mode: StitchInsertion }
   | { readonly kind: 'space'; readonly index: number }
   | { readonly kind: 'ring'; readonly index: number }
-  | { readonly kind: 'target'; readonly offset: number; readonly into: Anchor['into']; readonly mode: StitchInsertion | null };
+  /** A másolat egy láncszemének másik oldala: az ovális 1. köre a láncalappal együtt (PQW-899). */
+  | { readonly kind: 'underside'; readonly index: number }
+  | { readonly kind: 'target'; readonly offset: number; readonly into: Slot['kind']; readonly mode: StitchInsertion | null };
 
 export interface FragmentStitch {
   readonly def: StitchDefId;
@@ -345,6 +348,10 @@ export type CopyResult = { readonly ok: true; readonly fragment: Fragment } | { 
 
 const slotKey = (kind: Slot['kind'] | Anchor['into'], id: string) => `${kind}:${id}`;
 
+/** Az ovális 1. köre a láncszemek mindkét oldalába horgol: a két oldal célpontjai a láncalappal együtt köthetők újra. */
+const OVAL_FIRST_ROUND =
+  'Az ovális 1. köre a láncalap mindkét oldalába horgol, ezért csak a láncalappal együtt másolható, és üres mintába illeszthető be.';
+
 /**
  * A kijelölés másolata. A kijelölésen belüli kapcsolatok megmaradnak; a
  * kijelölésen kívüli célpontok az alatta lévő sor célpontjai közötti
@@ -363,6 +370,10 @@ export function copySelection(pattern: Pattern, ids: Iterable<NodeId>): CopyResu
   const firstLayer = layerOf(selected[0]!);
   const layer = graph.layers[firstLayer]!;
   const foundation = firstLayer === 0;
+  // A szegély a darab köré horgol, nem a sor célpontjaiba (PQW-889): nem másolható.
+  if (selected.some((id) => graph.layers[layerOf(id)]?.border)) {
+    return { ok: false, reason: 'A szegély még nem másolható: csak sorokat vagy köröket jelölj ki.' };
+  }
 
   const spaces = piece.spaces.filter((space) => space.chains.every((id) => index.has(id)));
   const spaceIndex = new Map(spaces.map((space, i) => [space.id, i]));
@@ -372,7 +383,7 @@ export function copySelection(pattern: Pattern, ids: Iterable<NodeId>): CopyResu
   const slots = foundation ? [] : layerSlots(graph, firstLayer, graph.layers[firstLayer - 1]!, layer.direction === -1, layer.shape);
   const slotOf = new Map(slots.map((slot, i) => [slotKey(slot.kind, slot.id), i]));
 
-  type Draft = FragmentAnchor | { readonly kind: 'slot'; readonly slot: number; readonly into: Anchor['into']; readonly mode: StitchInsertion | null };
+  type Draft = FragmentAnchor | { readonly kind: 'slot'; readonly slot: number; readonly into: Slot['kind']; readonly mode: StitchInsertion | null };
   const drafts: { def: StitchDefId; anchors: Draft[]; flags?: readonly StitchFlag[] }[] = [];
   for (const id of selected) {
     const node = graph.nodes.get(id)!;
@@ -381,11 +392,16 @@ export function copySelection(pattern: Pattern, ids: Iterable<NodeId>): CopyResu
       if (anchor.into === 'stitch' && index.has(anchor.id)) anchors.push({ kind: 'node', index: index.get(anchor.id)!, mode: anchor.mode });
       else if (anchor.into === 'space' && spaceIndex.has(anchor.id)) anchors.push({ kind: 'space', index: spaceIndex.get(anchor.id)! });
       else if (anchor.into === 'ring' && ringIndex.has(anchor.id)) anchors.push({ kind: 'ring', index: ringIndex.get(anchor.id)! });
+      else if (anchor.into === 'underside' && index.has(anchor.id)) anchors.push({ kind: 'underside', index: index.get(anchor.id)! });
       else {
         if (layerOf(id) !== firstLayer) {
           const name = layerName(layerOf(id), graph.layers[layerOf(id)]!.shape);
           return { ok: false, reason: `A kijelölt ${name} olyan szemekbe is horgol, amelyek nincsenek kijelölve: jelöld ki az alatta lévő sort is.` };
         }
+        // Sorvégbe csak a szegély horgol, azt fent elutasítjuk (PQW-889).
+        if (anchor.into === 'row-end') return { ok: false, reason: 'A szegély még nem másolható: csak sorokat vagy köröket jelölj ki.' };
+        // Az ovális 1. köre a láncalap mindkét oldalába horgol (PQW-890): csak a láncalappal együtt másolható (PQW-899).
+        if (anchor.into === 'underside') return { ok: false, reason: OVAL_FIRST_ROUND };
         const slot = slotOf.get(slotKey(anchor.into, anchor.id));
         if (slot === undefined) {
           return {
@@ -634,6 +650,8 @@ function assemble(
           return { into: 'space', id: spaceIds[anchor.index]! };
         case 'ring':
           return { into: 'ring', id: ringIds[anchor.index]! };
+        case 'underside':
+          return { into: 'underside', id: idOf[anchor.index]! };
         case 'target': {
           const slot = resolved[target++]!;
           return slot.kind === 'stitch' ? { into: 'stitch', id: slot.id, mode: modeAsWorked(anchor.mode ?? 'both-loops', side) } : { into: slot.kind, id: slot.id };

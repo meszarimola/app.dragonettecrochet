@@ -83,7 +83,7 @@ test('amit a szöveg még nem tud kifejezni: érthető üzenet, nem kivétel', (
   };
   const result = view(crossed);
   assert.equal(result.kind, 'message');
-  assert.match(result.message, /^Ez a minta még nem írható ki\. .*keresztezett vagy hosszú szem/);
+  assert.match(result.message, /^Ez a minta még nem írható ki\. .*keresztezett szem/);
   // A felhasználói üzenetben nincs belső fogalom (PQW-879).
   assert.doesNotMatch(result.message, /réteg|darab/i);
 });

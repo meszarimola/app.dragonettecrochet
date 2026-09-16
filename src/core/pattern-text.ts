@@ -17,6 +17,7 @@
  * nem térhet el.
  */
 
+import { sizingLines } from './garment-text.ts';
 import { dative, times } from './hungarian.ts';
 import { writtenPieces, type Step, type StepTarget, type WrittenBorder, type WrittenLayer, type WrittenPiece } from './pattern-steps.ts';
 import type { StitchLibrary } from './stitch-library.ts';
@@ -35,7 +36,7 @@ export type PhraseKey = 'next-stitch' | 'next-chain' | 'same-stitch' | 'same-cha
 export interface Vocabulary {
   /** Angol jelölésnél a rendszer neve, amely a címsorokban mindig ott áll; magyarul nincs. */
   readonly system: string | null;
-  readonly headings: { readonly abbreviations: string; readonly legend: string; readonly assembly: string };
+  readonly headings: { readonly abbreviations: string; readonly legend: string; readonly assembly: string; readonly sizes: string };
   readonly layer: { readonly row: (from: number, to: number) => string; readonly round: (from: number, to: number) => string };
   readonly foundation: (chains: number) => string;
   readonly ring: string;
@@ -51,11 +52,19 @@ export interface Vocabulary {
   readonly spiral: string;
   readonly colorChange: string;
   readonly jogFix: (fix: 'slip-stitch' | 'back-loop', slip: string) => string;
+  /**
+   * A láncalapra horgolt 1. sor eleje (PQW-895): „hagyj ki 2 láncszemet, majd ”. A kihagyott
+   * láncszemek száma a horogtól számított első munkált láncszem sorszáma mínusz 1.
+   */
+  readonly skipChains: (n: number) => string;
+  /** Az 1. sor, ha minden megmaradt láncszembe pontosan egy szem kerül: „minden láncszembe 1 rp”. */
+  readonly eachChain: (item: string) => string;
+  /** Az ovális 1. körében a láncszemek másik oldalára fordulás (PQW-890); utána kettőspont, a tételek vessző nélkül folytatódnak. */
+  readonly otherSide: string;
+  /** A PQW-895 előtti 1. sor eleje; csak a régi szövegek visszaolvasásához. */
   readonly fromHook: (chain: number, note: string | null) => string;
-  /** Az 1. sor kihagyott láncszemei mint szem: „1 erp-nek számítanak”. */
+  /** A PQW-895 előtti megjegyzés a kihagyott láncszemekről: „1 erp-nek számítanak”; csak visszaolvasáshoz. */
   readonly skippedChainsCount: (def: StitchDef, locale: Locale) => string;
-  /** Ugyanez, ha a láncalap az első láncszemeket is tartalmazza (filé nyitott kezdés, 03 §5.2): „1 erp-nek és 2 lsz-nek”. */
-  readonly skippedChainsWithChains: (def: StitchDef, locale: Locale, chains: number) => string;
   readonly count: (n: number) => string;
   readonly chain: (n: number) => string;
   readonly skip: (n: number, what: 'stitch' | 'chain' | 'space') => string;
@@ -82,6 +91,8 @@ export interface Vocabulary {
   readonly marks: Readonly<Record<RoundMark, string>>;
   /** A folytatólagosan kapcsolt rész sora az első köre előtt. */
   readonly section: (name: string) => string;
+  /** A korábbi sorba horgolt hosszú szem helye (mozaik, filé sor végi szaporítás, PQW-894). */
+  readonly down: (depth: number) => string;
   /** Rácsos technikák (PQW-864): színek, kezdőszín, színváltás, a technika megjegyzése, színek soronként. */
   readonly colorwork: {
     readonly colors: (items: readonly { readonly letter: string; readonly name: string }[]) => string;
@@ -95,14 +106,59 @@ export interface Vocabulary {
   /** Az összevarrás sora az „Összeállítás” alatt (04 §5.4). */
   readonly sewing: (a: SewnEdge, b: SewnEdge, distributed: boolean) => string;
   /** A szegély köre a sorok után (PQW-862, 03 §7.1); a `prefix`-ről ismeri fel a visszaolvasó. */
-  readonly border: { readonly prefix: string; readonly text: (parts: BorderParts) => string };
+  readonly border: {
+    readonly prefix: string;
+    readonly text: (parts: BorderParts) => string;
+    /** Ferde élű darab, csúcs vagy ismétléshez igazított szegély (PQW-898). */
+    readonly shaped: (parts: ShapedBorderParts) => string;
+    /** Az igazítás ismétlése a szövegből; ha nincs benne, `null`. */
+    readonly readRepeat: (text: string) => { readonly width: number; readonly edge: number } | null;
+  };
 }
 
-/** Egy összevarrt szél a szövegben: a darab neve, a kör és a szemszáma. */
+/** A ferde élű vagy igazított szegély egy éle a szövegben (PQW-898). */
+export interface ShapedBorderEdge {
+  /** 2 sarok, vagy 1 a csúcsnál. */
+  readonly corners: 1 | 2;
+  /** A sarkok közötti szemek, pl. „28 rp”; ha nincs, `null`. */
+  readonly stitches: string | null;
+  /** Igazítás: +n szembe 2 szem, −n kihagyott szem. */
+  readonly adjusted: number;
+}
+
+export interface ShapedBorderSide {
+  readonly perRow: string;
+  /** A lépcsők meghagyott szemeibe horgolt szemek; ha nincs, `null`. */
+  readonly exposed: string | null;
+  /** Az eggyel több (+) vagy kevesebb (−) szemet kapó sorvégek száma. */
+  readonly adjusted: number;
+  readonly total: string;
+}
+
+export interface ShapedBorderParts {
+  readonly turning: string;
+  readonly corner: string;
+  /** Két szem egy szembe, pl. „2 rp”. */
+  readonly double: string;
+  readonly top: ShapedBorderEdge;
+  readonly bottom: ShapedBorderEdge;
+  readonly sides: readonly [ShapedBorderSide, ShapedBorderSide];
+  readonly repeat: { readonly width: number; readonly edge: number } | null;
+  readonly count: string;
+  readonly join: string;
+}
+
+/**
+ * Egy összevarrt szél a szövegben: a darab neve, a kör és a szemszáma; a sor
+ * egy szakaszánál a szemek 1-től, sorvégeknél az utolsó sor és a szél, a
+ * szemszám ilyenkor a sorok száma (PQW-866).
+ */
 export interface SewnEdge {
   readonly name: string;
   readonly layer: number;
   readonly count: number;
+  readonly stitches?: { readonly from: number; readonly to: number };
+  readonly rows?: { readonly to: number; readonly side: 'left' | 'right' };
 }
 
 /** A szegély sorának kiírt részei, mennyiséggel együtt: „3 rp”, „(288 szem)”. */
@@ -119,7 +175,7 @@ export interface BorderParts {
 
 const HU: Vocabulary = {
   system: null,
-  headings: { abbreviations: 'Rövidítések', legend: 'Jelmagyarázat', assembly: 'Összeállítás' },
+  headings: { abbreviations: 'Rövidítések', legend: 'Jelmagyarázat', assembly: 'Összeállítás', sizes: 'Méretek' },
   layer: {
     row: (from, to) => `${range(from, to)}. sor`,
     round: (from, to) => `${range(from, to)}. kör`,
@@ -136,9 +192,11 @@ const HU: Vocabulary = {
     fix === 'slip-stitch'
       ? `Lépcsőjavítás: a következő kör első szeme helyett 1 ${slip}.`
       : 'Lépcsőjavítás: az új színt a következő kör első szemének hátsó szálába kapcsold be.',
+  skipChains: (n) => `hagyj ki ${n} láncszemet, majd `,
+  eachChain: (item) => `minden láncszembe ${item}`,
+  otherSide: 'a láncszemek másik oldalán vissza:',
   fromHook: (chain, note) => `a horogtól számított ${chain}. láncszemtől kezdve${note ? ` (${note})` : ''} `,
   skippedChainsCount: (def, locale) => `a kihagyott láncszemek 1 ${huDative(def, locale)} számítanak`,
-  skippedChainsWithChains: (def, locale, chains) => `a kihagyott láncszemek 1 ${huDative(def, locale)} és ${chains} lsz-nek számítanak`,
   count: (n) => `(${n} szem)`,
   chain: (n) => `${n} lsz`,
   skip: (n, what) => `${n} ${what === 'stitch' ? 'szem' : what === 'chain' ? 'láncszem' : 'láncív'} kihagyása`,
@@ -188,7 +246,8 @@ const HU: Vocabulary = {
     'close-opening': 'A fonalat fűzd át a maradék szemek első szálán, és húzd össze a nyílást.',
   },
   section: (name) => `${name}, folytatólagosan:`,
-  // Új magyar mondatok, jóváhagyásra várnak (PQW-864).
+  // Új magyar mondatok, jóváhagyásra várnak (PQW-864, PQW-894).
+  down: (depth) => `${depth} sorral lejjebb`,
   colorwork: {
     colors: (items) => `Színek: ${items.map((item) => `${item.letter} – ${item.name}`).join(', ')}.`,
     start: (letter) => `Kezdés ${colorArticle(letter)} ${letter} színnel.`,
@@ -198,13 +257,14 @@ const HU: Vocabulary = {
         'A nem használt színeket a szemekben vidd: a színoldali sorban a munka mögött, a visszai sorban előtte tartsd, hogy a szemek eltakarják.',
       graphgan: 'Színenként külön gombolyagot használj; a nem használt színt ne vidd a hátoldalon, mert átlátszik.',
       c2c: 'Csempe: 3 lsz és 3 erp. Színváltáskor az előző csempe utolsó pálcáját az új színnel fejezd be.',
+      mosaic:
+        'Mozaik: soronként egy szín. A más színű cellánál 1 lsz és 1 szem kihagyása; a lejjebb horgolt pálca a láncszem mögött a kihagyott szembe megy. A nem használt fonalat a sor szélén vidd fel.',
     },
     rowsHeading: (technique) =>
       technique === 'c2c' ? 'Színek csempénként, a haladási irányban:' : 'Színek szemenként, a haladási irányban:',
     run: (count, letter) => `${count} ${letter}`,
   },
-  sewing: (a, b, distributed) =>
-    `Varrás: ${a.name}, ${a.layer}. kör (${a.count}) → ${b.name}, ${b.layer}. kör (${b.count})${distributed ? ', a szemeket egyenletesen elosztva' : ''}.`,
+  sewing: (a, b, distributed) => `Varrás: ${huSewnEdge(a)} → ${huSewnEdge(b)}${distributed ? ', a szemeket egyenletesen elosztva' : ''}.`,
   border: {
     prefix: 'Szegély: ',
     text: (p) =>
@@ -212,6 +272,33 @@ const HU: Vocabulary = {
       `oldal: soronként ${p.perRow} a sor végére (${p.side}); ` +
       `alsó él: ${p.corner} a sarokba, ${p.bottom} a láncalap láncszemeibe, ${p.corner} a sarokba; ` +
       `másik oldal: soronként ${p.perRow} a sor végére (${p.side}) ${p.count}. ${p.join}`,
+    shaped: (p) => {
+      const adjust = (n: number) =>
+        n > 0 ? ` (${n} szembe ${p.double}, egyenletesen elosztva)` : n < 0 ? ` (${-n} szem kihagyásával, egyenletesen elosztva)` : '';
+      const top =
+        p.top.corners === 1
+          ? `${p.corner} a csúcsszembe`
+          : [`${p.corner} a sarokszembe`, ...(p.top.stitches ? [`${p.top.stitches}${adjust(p.top.adjusted)}`] : []), `${p.corner} a sarokszembe`].join(', ');
+      const bottom =
+        p.bottom.corners === 1
+          ? `${p.corner} a láncalap láncszemébe`
+          : [
+              `${p.corner} a sarokba`,
+              ...(p.bottom.stitches ? [`${p.bottom.stitches}${adjust(p.bottom.adjusted)} a láncalap láncszemeibe`] : []),
+              `${p.corner} a sarokba`,
+            ].join(', ');
+      const side = (s: ShapedBorderSide) =>
+        `soronként ${s.perRow} a sor végére` +
+        (s.exposed ? `, ${s.exposed} a lépcsők meghagyott szemeibe` : '') +
+        (s.adjusted ? `, ${Math.abs(s.adjusted)} sorvégbe eggyel ${s.adjusted > 0 ? 'több' : 'kevesebb'}, egyenletesen elosztva` : '') +
+        ` (${s.total})`;
+      const repeat = p.repeat ? `, a következő sor ismétléséhez igazítva (élenként ${p.repeat.width} többszöröse + ${p.repeat.edge})` : '';
+      return `Szegély: ${p.turning}, felső él: ${top}; oldal: ${side(p.sides[0])}; alsó él: ${bottom}; másik oldal: ${side(p.sides[1])}${repeat} ${p.count}. ${p.join}`;
+    },
+    readRepeat: (text) => {
+      const match = /\(élenként (\d+) többszöröse \+ (\d+)\)/.exec(text);
+      return match ? { width: Number(match[1]), edge: Number(match[2]) } : null;
+    },
   },
 };
 
@@ -223,11 +310,11 @@ const HU_MODES: Readonly<Record<Exclude<StitchInsertion, 'both-loops'>, string>>
   'back-post': 'hátsó relief',
 };
 
-function english(skipWord: string, skipMeaning: string, system: string, color: string): Vocabulary {
+function english(skipWord: string, skipVerb: string, skipMeaning: string, system: string, color: string): Vocabulary {
   return {
     // Az amerikai és a brit „dc” mást jelent, ezért a rendszer neve mindkét címsorban ott áll (PQW-868).
     system,
-    headings: { abbreviations: `Abbreviations (${system})`, legend: `Stitch key (${system})`, assembly: 'Assembly' },
+    headings: { abbreviations: `Abbreviations (${system})`, legend: `Stitch key (${system})`, assembly: 'Assembly', sizes: 'Sizes' },
     layer: {
       row: (from, to) => `${from === to ? 'Row' : 'Rows'} ${range(from, to)}`,
       round: (from, to) => `${from === to ? 'Rnd' : 'Rnds'} ${range(from, to)}`,
@@ -242,9 +329,12 @@ function english(skipWord: string, skipMeaning: string, system: string, color: s
     colorChange: `Change to new ${color} for next rnd.`,
     jogFix: (fix, slip) =>
       fix === 'slip-stitch' ? `Jog fix: work first st of next rnd as ${slip}.` : `Jog fix: join new ${color} in back loop of first st of next rnd.`,
+    // Az 1. sor elején a kihagyás kiírt igével áll, ahogy a tulajdonos kérte: „skip 2 ch”, britül „miss 2 ch” (PQW-895).
+    skipChains: (n) => `${skipVerb} ${n} ch, `,
+    eachChain: (item) => `${item} in each ch across`,
+    otherSide: 'working back along the other side of the chain:',
     fromHook: (chain, note) => `Starting in ${ordinal(chain)} ch from hook${note ? ` (${note})` : ''}, `,
     skippedChainsCount: (def, locale) => `skipped ch count as 1 ${refOf(def, locale)}`,
-    skippedChainsWithChains: (def, locale, chains) => `skipped ch count as 1 ${refOf(def, locale)} and ch ${chains}`,
     count: (n) => `(${n} ${n === 1 ? 'st' : 'sts'})`,
     chain: (n) => `ch ${n}`,
     skip: (n, what) =>
@@ -295,6 +385,7 @@ function english(skipWord: string, skipMeaning: string, system: string, color: s
       'close-opening': 'Weave the tail through the front loops of the remaining sts and pull tight.',
     },
     section: (name) => `${name}, worked continuously:`,
+    down: (depth) => `in st ${depth} rows below`,
     colorwork: {
       colors: (items) => `Colors: ${items.map((item) => `${item.letter} – ${item.name}`).join(', ')}.`,
       start: (letter) => `Start with ${color} ${letter}.`,
@@ -303,13 +394,13 @@ function english(skipWord: string, skipMeaning: string, system: string, color: s
         tapestry: 'Carry the unused colors inside the stitches: behind the work on RS rows, in front of it on WS rows.',
         graphgan: `Use a separate bobbin for each ${color} block; do not carry ${color}s across the back.`,
         c2c: `Tile: ch 3 and 3 dc. To change ${color}, finish the last dc of the previous tile with the new ${color}.`,
+        mosaic: `Mosaic: one ${color} per row. For a cell of the other ${color}, ch 1 and skip 1 st; a dropped st goes into the skipped st behind the ch. Carry the unused yarn up the side.`,
       },
       rowsHeading: (technique) =>
         technique === 'c2c' ? `Tile ${color}s per row, in working order:` : `Stitch ${color}s per row, in working order:`,
       run: (count, letter) => `${count} ${letter}`,
     },
-    sewing: (a, b, distributed) =>
-      `Sew: ${a.name}, Rnd ${a.layer} (${a.count}) to ${b.name}, Rnd ${b.layer} (${b.count})${distributed ? ', easing sts evenly' : ''}.`,
+    sewing: (a, b, distributed) => `Sew: ${enSewnEdge(a)} to ${enSewnEdge(b)}${distributed ? ', easing sts evenly' : ''}.`,
     border: {
       prefix: 'Border: ',
       text: (p) =>
@@ -317,6 +408,31 @@ function english(skipWord: string, skipMeaning: string, system: string, color: s
         `side: ${p.perRow} in each row end (${p.side}); ` +
         `bottom edge: ${p.corner} in corner, ${p.bottom} along foundation ch, ${p.corner} in corner; ` +
         `other side: ${p.perRow} in each row end (${p.side}) ${p.count}. ${p.join}`,
+      shaped: (p) => {
+        const skipping = `${skipVerb}${skipVerb.endsWith('p') ? 'ping' : 'ing'}`;
+        const adjust = (n: number) => (n > 0 ? ` (${p.double} in ${n} of them, spaced evenly)` : n < 0 ? ` (${skipping} ${-n} sts, spaced evenly)` : '');
+        const top =
+          p.top.corners === 1
+            ? `${p.corner} in top st`
+            : [`${p.corner} in corner st`, ...(p.top.stitches ? [`${p.top.stitches}${adjust(p.top.adjusted)}`] : []), `${p.corner} in corner st`].join(', ');
+        const bottom =
+          p.bottom.corners === 1
+            ? `${p.corner} in foundation ch`
+            : [`${p.corner} in corner`, ...(p.bottom.stitches ? [`${p.bottom.stitches}${adjust(p.bottom.adjusted)} along foundation ch`] : []), `${p.corner} in corner`].join(
+                ', ',
+              );
+        const side = (s: ShapedBorderSide) =>
+          `${s.perRow} in each row end` +
+          (s.exposed ? `, ${s.exposed} in unworked sts of the steps` : '') +
+          (s.adjusted ? `, ${Math.abs(s.adjusted)} row ends with one ${s.adjusted > 0 ? 'more' : 'fewer'}, spaced evenly` : '') +
+          ` (${s.total})`;
+        const repeat = p.repeat ? `, adjusted for the next round's repeat (multiple of ${p.repeat.width} + ${p.repeat.edge} per edge)` : '';
+        return `Border: ${p.turning}, top edge: ${top}; side: ${side(p.sides[0])}; bottom edge: ${bottom}; other side: ${side(p.sides[1])}${repeat} ${p.count}. ${p.join}`;
+      },
+      readRepeat: (text) => {
+        const match = /\(multiple of (\d+) \+ (\d+) per edge\)/.exec(text);
+        return match ? { width: Number(match[1]), edge: Number(match[2]) } : null;
+      },
     },
   };
 }
@@ -324,12 +440,25 @@ function english(skipWord: string, skipMeaning: string, system: string, color: s
 // A brit „miss” a 01 §3.1 szerint szerkesztői következtetés [E]; a brit kimenet még nincs jóváhagyva.
 export const VOCABULARIES: Readonly<Record<Locale, Vocabulary>> = {
   hu: HU,
-  'en-US': english('sk', 'skip', 'US terms', 'color'),
-  'en-GB': english('miss', 'miss (skip)', 'UK terms', 'colour'),
+  'en-US': english('sk', 'skip', 'skip', 'US terms', 'color'),
+  'en-GB': english('miss', 'miss', 'miss (skip)', 'UK terms', 'colour'),
 };
 
 function range(from: number, to: number): string {
   return from === to ? `${from}` : `${from}–${to}`;
+}
+
+/** „Hátrész, 1–30. sor bal széle (30 sorvég)”, „Hátrész, 46. sor 1–26. szeme (26)”, „Fej, 12. kör (36)”. */
+function huSewnEdge(edge: SewnEdge): string {
+  if (edge.rows) return `${edge.name}, ${range(edge.layer, edge.rows.to)}. sor ${edge.rows.side === 'left' ? 'bal' : 'jobb'} széle (${edge.count} sorvég)`;
+  if (edge.stitches) return `${edge.name}, ${edge.layer}. sor ${range(edge.stitches.from, edge.stitches.to)}. szeme (${edge.count})`;
+  return `${edge.name}, ${edge.layer}. kör (${edge.count})`;
+}
+
+function enSewnEdge(edge: SewnEdge): string {
+  if (edge.rows) return `${edge.name}, ${edge.layer === edge.rows.to ? 'Row' : 'Rows'} ${range(edge.layer, edge.rows.to)}, ${edge.rows.side} edge (${edge.count} row ends)`;
+  if (edge.stitches) return `${edge.name}, Row ${edge.layer}, sts ${range(edge.stitches.from, edge.stitches.to)} (${edge.count})`;
+  return `${edge.name}, Rnd ${edge.layer} (${edge.count})`;
 }
 
 export function ordinal(n: number): string {
@@ -402,6 +531,8 @@ export interface WrittenPatternText {
   readonly pieces: readonly { readonly name: string; readonly lines: readonly string[] }[];
   /** Az összevarrások sorai (PQW-863); a folytatólagos kapcsolás a darab sorai között áll. */
   readonly assembly: readonly string[];
+  /** A ruhadarab méretsorozata „S (M, L)” alakban (PQW-866); más mintában üres. */
+  readonly sizes: readonly string[];
 }
 
 /** Az írott minta: rövidítéslista, jelmagyarázat és darabonként a sorok. */
@@ -412,9 +543,12 @@ export function writePattern(pattern: Pattern, library: StitchLibrary, locale: L
   const shortIncrease = shortIncreaseOf(written, library);
   const renderer = new Renderer(library, locale, used, shortIncrease);
   const pieces = written.map((piece) => ({ name: piece.name, lines: renderer.piece(piece) }));
-  const edge = ({ piece: id, layer }: JoinEdge): SewnEdge => {
+  const edge = ({ piece: id, layer, stitches, rows }: JoinEdge): SewnEdge => {
     const index = pattern.pieces.findIndex((piece) => piece.id === id);
-    return { name: pattern.pieces[index]?.name ?? id, layer, count: written[index]?.layers[layer - 1]?.stitchCount ?? 0 };
+    const name = pattern.pieces[index]?.name ?? id;
+    if (stitches) return { name, layer, count: stitches.count, stitches: { from: stitches.from + 1, to: stitches.from + stitches.count } };
+    if (rows) return { name, layer, count: rows.to - layer + 1, rows };
+    return { name, layer, count: written[index]?.layers[layer - 1]?.stitchCount ?? 0 };
   };
   const assembly = (pattern.joins ?? []).map((join) => vocabulary.sewing(edge(join.a), edge(join.b), join.distribution !== undefined));
 
@@ -438,6 +572,7 @@ export function writePattern(pattern: Pattern, library: StitchLibrary, locale: L
     legend: legendOf(pattern, library, locale),
     pieces,
     assembly,
+    sizes: pattern.garment ? sizingLines(pattern.garment, locale) : [],
   };
 }
 
@@ -445,6 +580,8 @@ export function writePattern(pattern: Pattern, library: StitchLibrary, locale: L
 export function formatWrittenPattern(written: WrittenPatternText): string {
   const { headings } = VOCABULARIES[written.locale];
   const blocks: string[][] = [[written.title]];
+  // A méretek a cím után állnak (05 §8.1).
+  if (written.sizes.length > 0) blocks.push([headings.sizes, ...written.sizes]);
   if (written.abbreviations.length > 0) {
     blocks.push([headings.abbreviations, ...written.abbreviations.map(({ abbr, meaning }) => `${abbr} – ${meaning}`)]);
   }
@@ -590,6 +727,37 @@ class Renderer {
     const slip = this.byKind('slip');
     for (const used of [def, this.byKind('chain'), slip]) this.use(used);
     const quantity = (n: number) => v.quantity(n, refOf(def, this.locale));
+    const [first, second] = counts.sides;
+    // A téglalap szövege változatlan; a sarkok közötti szem nélküli él (csúcs, két szemes él) a ferde élű szöveget kapja.
+    const regular =
+      counts.topCorners === 2 &&
+      counts.bottomCorners === 2 &&
+      counts.top > 0 &&
+      counts.bottom > 0 &&
+      counts.repeat === null &&
+      counts.sides.every((side) => side.exposed === 0 && side.adjusted === 0) &&
+      first.total === second.total;
+    if (!regular) {
+      // Ferde élű darab, csúcs vagy ismétléshez igazított szegély (PQW-898).
+      const edge = (corners: 1 | 2, stitches: number, adjusted: number) => ({ corners, stitches: stitches > 0 ? quantity(stitches) : null, adjusted });
+      const side = (s: (typeof counts.sides)[number]) => ({
+        perRow: quantity(counts.perRow),
+        exposed: s.exposed > 0 ? quantity(s.exposed) : null,
+        adjusted: s.adjusted,
+        total: quantity(s.total),
+      });
+      return v.border.shaped({
+        turning: v.turningChain(def.turningChain, v.turningChainNotCounted),
+        corner: quantity(counts.corner),
+        double: quantity(2),
+        top: edge(counts.topCorners, counts.top, counts.topAdjusted),
+        bottom: edge(counts.bottomCorners, counts.bottom, counts.bottomAdjusted),
+        sides: [side(first), side(second)],
+        repeat: counts.repeat,
+        count: v.count(counts.total),
+        join: v.join(refOf(slip, this.locale), 'first-stitch'),
+      });
+    }
     return v.border.text({
       turning: v.turningChain(def.turningChain, v.turningChainNotCounted),
       corner: quantity(counts.corner),
@@ -607,18 +775,19 @@ class Renderer {
     const v = this.vocabulary;
     this.round = layer.shape === 'round';
     let prefix = '';
+    let items: string;
+    // A láncalapra horgolt 1. sor: „hagyj ki 2 láncszemet, majd minden láncszembe 1 rp” (PQW-895).
+    // A kihagyott láncszemek számításáról nincs megjegyzés; a későbbi sorok fordulólánca mondja meg.
+    const [only] = layer.steps;
     if (layer.fromHook) {
-      const counts = layer.fromHook.countsAs === null ? null : this.def(layer.fromHook.countsAs);
-      if (counts) this.use(counts);
-      const { chains } = layer.fromHook;
-      const note = counts
-        ? chains > 0
-          ? v.skippedChainsWithChains(counts, this.locale, chains)
-          : v.skippedChainsCount(counts, this.locale)
-        : null;
-      prefix = v.fromHook(layer.fromHook.chain, note);
+      const skipped = layer.fromHook.chain - 1;
+      if (skipped > 0) {
+        this.use(this.byKind('chain'));
+        prefix = v.skipChains(skipped);
+      }
     }
-    const items = this.steps(layer.steps);
+    if (layer.fromHook?.eachChain && only?.kind === 'stitch') items = v.eachChain(this.step({ ...only, count: 1 }));
+    else items = this.steps(layer.steps);
     let text = `${prefix}${items} ${this.round ? v.roundCount(layer.stitchCount) : v.count(layer.stitchCount)}.`;
     const slip = this.byKind('slip');
     if (layer.closing === 'join-slip') {
@@ -638,7 +807,8 @@ class Renderer {
   }
 
   steps(steps: readonly Step[]): string {
-    return steps.map((step) => this.step(step)).join(', ');
+    // A „másik oldal” mondata kettősponttal végződik: utána vessző nélkül folytatódik (PQW-890).
+    return steps.map((step, i) => `${i === 0 ? '' : steps[i - 1]!.kind === 'other-side' ? ' ' : ', '}${this.step(step)}`).join('');
   }
 
   step(step: Step): string {
@@ -662,6 +832,8 @@ class Renderer {
         if (counts) this.use(counts);
         return v.turningChain(step.count, counts ? v.turningChainCounts(counts, this.locale) : v.turningChainNotCounted);
       }
+      case 'other-side':
+        return v.otherSide;
       case 'repeat':
         return this.round ? v.roundRepeat(this.steps(step.steps), step.times) : v.repeat(this.steps(step.steps), step.times);
       case 'stitch': {
@@ -678,7 +850,8 @@ class Renderer {
           this.use(def);
           text = itemName(def, this.locale, this.library);
         }
-        return `${v.mode(shownMode(def, step.mode), text)}${this.phrase(step.target, step.into, false)}`;
+        const place = step.target === 'down' ? ` ${v.down(step.depth ?? 2)}` : this.phrase(step.target, step.into, false);
+        return `${v.mode(shownMode(def, step.mode), text)}${place}`;
       }
       case 'group': {
         const def = this.def(step.def);
@@ -702,6 +875,7 @@ class Renderer {
     const { phrases } = this.vocabulary;
     switch (target) {
       case 'none':
+      case 'down':
         return '';
       case 'next':
         return explicitNext ? ` ${phrases[into === 'chain' ? 'next-chain' : 'next-stitch']}` : '';

@@ -58,8 +58,10 @@ export interface Scene {
   readonly grid: ChartGrid | null;
   /** A minta hagyománya a sorszám és a szemszám feliratához (PQW-876); hiányában CYC. */
   readonly tradition?: Tradition;
-  /** A rácsminta ismétlő egységének kerete diagram-koordinátában (PQW-864), vagy `null`. */
-  readonly unitFrame?: { readonly x0: number; readonly y0: number; readonly x1: number; readonly y1: number } | null;
+  /** A rácsminta ismétlő egységének keretei diagram-koordinátában (PQW-864); C2C-ben csempénként (PQW-894). */
+  readonly unitFrames?: readonly { readonly x0: number; readonly y0: number; readonly x1: number; readonly y1: number }[];
+  /** A lejjebb horgolt hosszú szemek: a talpuknál pötty jelöli őket (mozaik, PQW-894). */
+  readonly spikes?: ReadonlySet<NodeId>;
 }
 
 /** A vászon egy téglalapja vászon-koordinátában (a takarás nélküli rész). */
@@ -324,8 +326,7 @@ export class Board {
 
     if (scene.grid) this.#drawGrid(scene.grid, scale);
     // Az ismétlő egység: halvány kitöltés és szaggatott keret a jelek alatt (PQW-864).
-    if (scene.unitFrame) {
-      const { x0, y0, x1, y1 } = scene.unitFrame;
+    for (const { x0, y0, x1, y1 } of scene.unitFrames ?? []) {
       applyInk(ctx, colors.accent, Math.max(2, 2 / scale));
       ctx.globalAlpha = 0.08;
       ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
@@ -341,6 +342,13 @@ export class Board {
       applyInk(ctx, colors[node.side], line);
       const insertion = scene.insertions?.get(node.id);
       drawShapes(ctx, placedShapes(def, node, insertion ? { ...scene.symbols, insertion } : scene.symbols));
+      // A lejjebb horgolt szem talpa: teli pötty ott, ahová a korábbi sorba horgolták (PQW-894).
+      const foot = scene.spikes?.has(node.id) ? node.feet[0] : undefined;
+      if (foot) {
+        ctx.beginPath();
+        ctx.arc(foot.x, foot.y, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     // A sorszám a sor színével teli címkén, világos betűvel: a jelek mellett is kiugrik.
@@ -351,6 +359,15 @@ export class Board {
     for (const layer of scene.layout.layers) {
       if (layer.index === 0) continue;
       const rightwards = layer.start.x <= layer.end.x;
+      if (layer.border) {
+        // A szegély nem sor (PQW-897): sorszám és kattintható címke helyett felirat, mellette a szemszám.
+        applyInk(ctx, colors.text, line);
+        ctx.textAlign = rightwards ? 'right' : 'left';
+        ctx.fillText(captions.border, layer.start.x, layer.start.y);
+        ctx.textAlign = rightwards ? 'left' : 'right';
+        ctx.fillText(captions.count(layer.stitchCount), layer.end.x, layer.end.y);
+        continue;
+      }
       const text = captions.layer(layer.index);
       const labelWidth = ctx.measureText(text).width + 10;
       const x0 = rightwards ? layer.start.x + 4 - labelWidth : layer.start.x - 4;

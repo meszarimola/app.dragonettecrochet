@@ -31,8 +31,10 @@
  * szomszédaik közé.
  */
 
+import { placeBorder } from './border.ts';
 import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
 import { CIRCLE, frameCoords, frameFor, frameNormal, framePoint, frameSide, perimeter, type Point, type RoundFrame } from './polygon.ts';
+import { curveLayout, rowCurve } from './row-curve.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import type { Anchor, NodeId, Pattern, StitchDef, StitchDefId } from './types.ts';
 import { validatePattern } from './validate.ts';
@@ -67,6 +69,8 @@ export interface LayerPlacement {
   readonly start: Point;
   /** A szemszám helye a sor végén. */
   readonly end: Point;
+  /** A darab körüli szegély (PQW-897): nem sor, ezért sorszám helyett „szegély” feliratot kap. */
+  readonly border?: boolean;
 }
 
 export interface ChartLayout {
@@ -85,6 +89,8 @@ export interface LayoutOptions {
   readonly columnWidth?: number;
   /** A szár hossza láncszem-magasságból; a felület a jelrajzéval adja át (src/ui/symbols.ts). */
   readonly stemLength?: (chainHeight: number) => number;
+  /** Egyenes sorok a darab íves alakja helyett (PQW-893); a rács ebből számol, és maga görbíti. */
+  readonly straight?: boolean;
 }
 
 export const DEFAULT_COLUMN = 24;
@@ -130,7 +136,14 @@ export function layoutPattern(pattern: Pattern, library: StitchLibrary, options:
   const W = options.columnWidth ?? DEFAULT_COLUMN;
   const stem = options.stemLength ?? defaultStem;
   const raw = new Layouter(graph, W, stem, detachedNodes(pattern, library)).run();
-  return finish(graph, raw, options.mirror ?? false, W);
+  // A szegély a sorok köré kerül (PQW-889): a sorok után, a helyük ismeretében.
+  placeBorder(graph, raw.nodes, raw.layers, W, stem);
+  const chart = finish(graph, raw, options.mirror ?? false, W);
+  // Sorban horgolt kendő (PQW-893): az egyenes elrendezés íven vagy megtörve (row-curve.ts), a kézi igazítás nélküli helyekből.
+  const shape = piece.rowShape;
+  if (!shape || options.straight || graph.layers[0]!.shape !== 'row') return chart;
+  const curve = rowCurve(finish(graph, raw, options.mirror ?? false, W, false), shape);
+  return curve ? curveLayout(chart, curve, W) : chart;
 }
 
 /* ---- Egy sor oszlopai ---- */
@@ -199,6 +212,8 @@ class Layouter {
   readonly #W: number;
   readonly #stem: (chainHeight: number) => number;
   readonly #round: boolean;
+  /** Ovális kezdés (PQW-890): a láncalap egyenesen, az 1. kör a két oldalán. */
+  readonly #oval: boolean;
   /** A körben horgolt darab alakja: kör vagy sokszög. */
   readonly #frame: RoundFrame;
   /** Sokszögben rétegenként a sarkok, a fonal sorrendjében; ha nem követhetők, `null`. */
@@ -220,6 +235,7 @@ class Layouter {
     this.#stem = stem;
     this.#detached = detached;
     this.#round = graph.layers[0]!.shape === 'round';
+    this.#oval = this.#round && graph.layers[0]!.undersides.length > 0;
     this.#frame = this.#round ? frameFor(graph.piece.corners) : CIRCLE;
   }
 
@@ -228,6 +244,7 @@ class Layouter {
     this.#foundation(foundation!);
     let direction = 1;
     for (const layer of rest) {
+      if (layer.border) continue;
       if (!this.#round && (layer.index === 1 || layer.opening?.kind === 'turn')) direction = -direction;
       this.#layer(layer, this.#round ? 1 : direction);
     }
@@ -265,7 +282,18 @@ class Layouter {
   #foundation(layer: LayerInfo): void {
     const side = layer.side;
     const chains = layer.stitches.filter((id) => this.#def(id).kind === 'chain');
-    if (this.#round && chains.length > 0) {
+    if (this.#round && chains.length > 0 && this.#oval) {
+      // Ovális (PQW-890): a láncalap egyenesen a közepén. A paraméter a horogtól távolodva nő (0-tól π-ig),
+      // a láncszem másik oldala a tükörképe (π-től 2π-ig), így az 1. kör körbeér a láncalap két oldalán.
+      const n = layer.stitches.length;
+      const half = Math.max(this.#W, (n * this.#W * 0.8) / 2);
+      layer.stitches.forEach((id, k) => {
+        const axis = (Math.PI * (n - k)) / n;
+        this.#axis.set(id, axis);
+        this.#place(id, 0, side, 'chain', [], { x: half * Math.cos(axis), y: 0 }, 0, Math.min(this.#W * 0.8, ((2 * half) / n) * 0.9));
+      });
+      this.#base[0] = half + 8;
+    } else if (this.#round && chains.length > 0) {
       // Láncgyűrű: a láncszemek kis körön a középpont körül; a „2 lsz” kezdés egyetlen láncszeme középen (PQW-861).
       const radius = chains.length === 1 ? 0 : Math.max(6, (chains.length * this.#W * 0.6) / (2 * Math.PI));
       layer.stitches.forEach((id, i) => {
@@ -302,6 +330,10 @@ class Layouter {
 
   #anchorAxis(anchor: Anchor): number | undefined {
     if (anchor.into === 'stitch') return this.#axis.get(anchor.id);
+    if (anchor.into === 'underside') {
+      const axis = this.#axis.get(anchor.id);
+      return axis === undefined ? undefined : TAU - axis;
+    }
     if (anchor.into === 'ring') return undefined;
     const chains = this.#graph.spaces.get(anchor.id)?.chains ?? [];
     const values = chains.map((id) => this.#axis.get(id)).filter((v): v is number => v !== undefined);
@@ -373,7 +405,7 @@ class Layouter {
       const workingFirst = layer.direction === 1 ? below.positions[0] : below.positions[below.positions.length - 1];
       const firstAnchored = scaled.find((item) => item !== stack && item.weight === 1)?.desired;
       const underneath = workingFirst === undefined ? undefined : this.#axis.get(workingFirst);
-      if (this.#round && layer.index === 1) stack.desired = Math.PI / 2;
+      if (this.#round && layer.index === 1) stack.desired = this.#oval ? 0 : Math.PI / 2;
       else if (layer.turningChainCounts && layer.index >= 2 && underneath !== undefined) stack.desired = direction * underneath;
       else if (firstAnchored !== undefined) stack.desired = firstAnchored - 2 * stack.half;
       else if (underneath !== undefined) stack.desired = direction * underneath - (layer.turningChainCounts ? 0 : 2 * stack.half);
@@ -602,14 +634,14 @@ class Layouter {
     if (anchor.into === 'ring') return { x: 0, y: 0 };
     if (this.#round) {
       // Körben a kör sugara a helyigénnyel nő, ezért a talp a célpont valódi helyén van, nem a talpkörön.
-      const ids = anchor.into === 'stitch' ? [anchor.id] : (this.#graph.spaces.get(anchor.id)?.chains ?? []);
+      const ids = anchor.into === 'stitch' || anchor.into === 'underside' ? [anchor.id] : (this.#graph.spaces.get(anchor.id)?.chains ?? []);
       const tops = ids.map((id) => this.#nodes.get(id)?.top).filter((p): p is Point => p !== undefined);
       if (tops.length > 0) {
         return { x: tops.reduce((sum, p) => sum + p.x, 0) / tops.length, y: tops.reduce((sum, p) => sum + p.y, 0) / tops.length };
       }
     }
     const axis = this.#anchorAxis(anchor) ?? 0;
-    const target = anchor.into === 'stitch' ? anchor.id : this.#graph.spaces.get(anchor.id)?.chains[0];
+    const target = anchor.into === 'stitch' || anchor.into === 'underside' ? anchor.id : this.#graph.spaces.get(anchor.id)?.chains[0];
     const targetLayer = target === undefined ? index - 1 : (this.#graph.layerOf.get(target) ?? index - 1);
     const line = targetLayer >= index - 1 ? base : (this.#base[targetLayer + 1] ?? base);
     return this.#point(line, axis);
@@ -631,9 +663,9 @@ class Layouter {
 
 /* ---- Kézi igazítás, tükrözés, befoglaló téglalap ---- */
 
-function finish(graph: PieceGraph, raw: Raw, mirror: boolean, W: number): ChartLayout {
+function finish(graph: PieceGraph, raw: Raw, mirror: boolean, W: number, withPins = true): ChartLayout {
   const offset = (id: NodeId): Point => {
-    const pinned = graph.nodes.get(id)?.pinned;
+    const pinned = withPins ? graph.nodes.get(id)?.pinned : undefined;
     return pinned ? { x: pinned.x, y: pinned.y } : { x: 0, y: 0 };
   };
   const flip = (p: Point): Point => (mirror ? { x: -p.x, y: p.y } : p);

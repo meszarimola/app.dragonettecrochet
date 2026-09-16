@@ -16,6 +16,6 @@ kétráhajtásos pálca (krp)
 
 Hullám
 Láncalap: 19 lsz.
-1. sor: a horogtól számított 2. láncszemtől kezdve 2 rp, [1 fp, 1 erp, 2 krp, 1 erp, 1 fp, 2 rp] 2-szer (18 szem). Fordítás.
+1. sor: hagyj ki 1 láncszemet, majd 2 rp, [1 fp, 1 erp, 2 krp, 1 erp, 1 fp, 2 rp] 2-szer (18 szem). Fordítás.
 2. sor: 1 lsz (nem számít szemnek), 18 rp (18 szem). Fordítás.
 3. sor: 4 lsz (1 krp-nek számít), 1 krp, [1 erp, 1 fp, 2 rp, 1 fp, 1 erp, 2 krp] 2-szer (18 szem). A fonal elvágása.

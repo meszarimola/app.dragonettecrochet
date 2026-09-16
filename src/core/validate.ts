@@ -17,6 +17,7 @@
  */
 
 import { amigurumiFindings } from './amigurumi.ts';
+import { BORDER_CORNER, DEFAULT_BORDER, borderSteps } from './border.ts';
 import { buildPieceGraph, spacePositions, type LayerInfo, type PieceGraph } from './graph.ts';
 import { modeAsWorked } from './insertion.ts';
 import { MAX_CARRIED_COLORS } from './pixel-chart.ts';
@@ -35,6 +36,9 @@ export function validatePattern(pattern: Pattern, library: StitchLibrary): Findi
 
 type Report = (rule: RuleId, nodes: readonly NodeId[]) => void;
 
+/** A hosszú szem legfeljebb ennyi sorral lejjebb horgolhat (03 §5.6: mozaikban 2 vagy 3). */
+export const MAX_SPIKE_DEPTH = 3;
+
 export function makeFinding(rule: RuleId, piece: PieceId, nodes: readonly NodeId[]): Finding {
   const { severity, reference } = RULES[rule];
   return { severity, rule, reference, piece, nodes: [...new Set(nodes)] };
@@ -52,7 +56,11 @@ function validatePiece(pattern: Pattern, piece: Piece, library: StitchLibrary): 
   checkInsertions(graph, library, report);
   const invalidAnchors = checkFutureAnchors(graph, report);
   for (let index = 1; index < graph.layers.length; index += 1) {
-    checkLayer(pattern, graph, index, invalidAnchors, report, () => findings.length);
+    // A szegély a darab köré horgol, nem az alatta lévő sor célpontjaiba: saját szabályai vannak (PQW-889).
+    if (graph.layers[index]!.border) checkBorder(pattern, graph, index, invalidAnchors, report);
+    // Az ovális 1. köre a láncszemek mindkét oldalába horgol (PQW-890): saját bejárása van.
+    else if (index === 1 && graph.layers[0]!.undersides.length > 0) checkChainSides(pattern, graph, index, invalidAnchors, report);
+    else checkLayer(pattern, graph, index, invalidAnchors, report, () => findings.length);
   }
   checkHeights(graph, invalidAnchors, report);
   // Körök: növekedés, kunkorodás, fodrosodás, egymás fölé kerülő szaporítás, spirál lépcsője (PQW-861).
@@ -90,7 +98,7 @@ function checkStructure(piece: Piece, library: StitchLibrary, report: Report): v
     if (!def || def.kind === 'group' || def.kind === 'space') report('unknown-stitch', [node.id]);
     for (const anchor of node.anchors) {
       const exists =
-        anchor.into === 'stitch' ? nodeIds.has(anchor.id) : anchor.into === 'space' ? spaceIds.has(anchor.id) : ringIds.has(anchor.id);
+        anchor.into === 'stitch' || anchor.into === 'row-end' || anchor.into === 'underside' ? nodeIds.has(anchor.id) : anchor.into === 'space' ? spaceIds.has(anchor.id) : ringIds.has(anchor.id);
       if (!exists) report('dangling-reference', [node.id]);
     }
   }
@@ -162,7 +170,7 @@ function checkFutureAnchors(graph: PieceGraph, report: Report): Set<string> {
     const own = graph.order.get(node.id)!;
     node.anchors.forEach((anchor, index) => {
       let target: number;
-      if (anchor.into === 'stitch') target = graph.order.get(anchor.id)!;
+      if (anchor.into === 'stitch' || anchor.into === 'row-end' || anchor.into === 'underside') target = graph.order.get(anchor.id)!;
       else if (anchor.into === 'space') target = Math.max(...graph.spaces.get(anchor.id)!.chains.map((id) => graph.order.get(id)!));
       else target = graph.order.get(graph.rings.get(anchor.id)!.node)!;
       if (target >= own) {
@@ -230,8 +238,14 @@ function checkLayer(
         layerInvalid = true;
         return;
       }
-      if (targetLayer < index - 1 && node.flags?.includes('spike') && !workedBetween(graph, targets, targetLayer, index)) {
-        return; // Hosszú szem: nem az előző sor pozícióját használja fel.
+      if (targetLayer < index - 1 && node.flags?.includes('spike')) {
+        // Hosszú szem legfeljebb 3 sorral lejjebb: a mozaik 2 vagy 3 sorral lejjebb horgol (03 §5.6, §10 C17, G34, PQW-894).
+        if (index - targetLayer > MAX_SPIKE_DEPTH) {
+          report('spike-depth', [id]);
+          layerInvalid = true;
+          return;
+        }
+        if (!workedBetween(graph, targets, targetLayer, index)) return; // Nem az előző sor pozícióját használja fel.
       }
       const positions = anchor.into === 'space' ? spacePositions(below, graph.spaces.get(anchor.id)!) : targets;
       const indices = positions.map((target) => positionIndex.get(target));
@@ -432,7 +446,9 @@ function checkCountsAndChains(pattern: Pattern, graph: PieceGraph, index: number
     if (kind(id) !== 'chain' || layer.turningChain.includes(id)) break;
     trailing.unshift(id);
   }
-  if (trailing.length > 0 && !trailing.some((id) => isWorkedInto(graph, id))) report('floating-chain', trailing);
+  // A szándékosan kihagyott láncszemet a következő sor láncszeme hidalja át: nem lóg (filé, nyitott új cella a sor elején, PQW-894).
+  const skipped = new Set(graph.piece.skipped);
+  if (trailing.length > 0 && !trailing.some((id) => isWorkedInto(graph, id) || skipped.has(id))) report('floating-chain', trailing);
 }
 
 function isWorkedInto(graph: PieceGraph, chain: NodeId): boolean {
@@ -462,7 +478,9 @@ function checkHeights(graph: PieceGraph, invalidAnchors: ReadonlySet<string>, re
   const counting = (layer: LayerInfo) =>
     layer.stitches.filter((id) => {
       const kind = graph.defs.get(id)!.kind;
-      return kind !== 'chain' && kind !== 'picot' && kind !== 'ring' && id !== layer.joinSlip && !layer.travelSlips.includes(id);
+      // A lejjebb horgolt hosszú szem a sor magasságáig ér, nem az alatta lévő sorra épül (mozaik, PQW-894).
+      const spike = graph.nodes.get(id)!.flags?.includes('spike') === true;
+      return kind !== 'chain' && kind !== 'picot' && kind !== 'ring' && id !== layer.joinSlip && !layer.travelSlips.includes(id) && !spike;
     });
 
   for (const id of graph.layers[0]!.stitches) height.set(id, 0);
@@ -507,4 +525,118 @@ function checkHeights(graph: PieceGraph, invalidAnchors: ReadonlySet<string>, re
     }
     report('mixed-heights', counting(layer));
   });
+}
+
+/* ---- Szegély (PQW-889) ---- */
+
+/**
+ * A darab körüli szegély rétege (03 §7.1, §10 H38–H39): a szabályos szegély
+ * lépései szerint (border.ts) a felső él, a lépcsők és a láncalap szemeibe
+ * egy-egy szem (igazításnál 0 vagy 2), a sarkokba 3, a sorvégekbe a sor
+ * szeméhez illő szám (igazításnál ±1), és kúszószem az első szembe. Más
+ * célpont rossz sorba mutat. Ha a darab köré most nem készíthető szabályos
+ * szegély, csak a szemszámot és a zárást nézzük.
+ */
+function checkBorder(pattern: Pattern, graph: PieceGraph, index: number, invalidAnchors: ReadonlySet<string>, report: Report): void {
+  const layer = graph.layers[index]!;
+  const choice = graph.piece.border ?? DEFAULT_BORDER;
+  checkCountsAndChains(pattern, graph, index, report);
+  const steps = borderSteps(graph, index - 1, choice);
+  if (typeof steps === 'string') return;
+
+  // Célpontonként a várt szemszám; egy pozíciós sornál a két sorvég ugyanaz a szem, ott összeadódik.
+  const expected = new Map<string, { readonly kind: 'corner' | 'edge' | 'row-end'; readonly target: NodeId; readonly count: number }>();
+  for (const step of steps) {
+    const key = `${step.kind === 'row-end' ? 'row-end' : 'stitch'}:${step.target}`;
+    const count = step.kind === 'corner' ? BORDER_CORNER : step.count;
+    expected.set(key, { kind: step.kind, target: step.target, count: (expected.get(key)?.count ?? 0) + count });
+  }
+
+  const byTarget = new Map<string, NodeId[]>();
+  let invalid = false;
+  for (const id of layer.stitches) {
+    if (layer.turningChain.includes(id) || id === layer.joinSlip) continue;
+    graph.nodes.get(id)!.anchors.forEach((anchor, anchorIndex) => {
+      if (invalidAnchors.has(anchorRef(id, anchorIndex))) {
+        invalid = true;
+        return;
+      }
+      const key = anchorKey(anchor);
+      if (!expected.has(key)) {
+        report('anchor-layer', [id]);
+        invalid = true;
+        return;
+      }
+      byTarget.set(key, [...(byTarget.get(key) ?? []), id]);
+    });
+  }
+  if (invalid) return;
+
+  for (const [key, want] of expected) {
+    const worked = byTarget.get(key) ?? [];
+    if (want.kind === 'row-end') {
+      if (worked.length !== want.count) report('border-row-end', worked.length > 0 ? worked : [want.target]);
+    } else if (want.kind === 'corner') {
+      if (worked.length !== want.count) report('border-corner', worked.length > 0 ? worked : [want.target]);
+    } else if (worked.length === 0 && want.count > 0) report('unused-position', [want.target]);
+    else if (worked.length > 1 && new Set(worked.map((node) => graph.groupOf.get(node))).has(undefined)) report('unmarked-increase', worked);
+  }
+}
+
+/* ---- Ovális kezdés (PQW-890) ---- */
+
+/**
+ * Az ovális 1. köre (04 §3.4, §9.4): a láncalap egyik oldalán a horogtól
+ * távolodva minden láncszembe, a végén több szem egy láncszembe, majd a
+ * láncszemek másik oldalán visszafelé. A legtávolabbi láncszem másik oldala
+ * elmaradhat, mert a végén a szaporítás körbeér rajta. A célpontok sorrendje
+ * a haladási irány; egy célpontba több szem csak jelölt szaporításként mehet.
+ */
+function checkChainSides(pattern: Pattern, graph: PieceGraph, index: number, invalidAnchors: ReadonlySet<string>, report: Report): void {
+  const layer = graph.layers[index]!;
+  const chains = graph.layers[0]!.positions;
+  const W = chains.length;
+  // Előbb a horogtól távolodva (a fonalsorrend fordítottja), aztán a másik oldalon vissza.
+  const working = new Map<string, number>();
+  [...chains].reverse().forEach((id, w) => working.set(`stitch:${id}`, w));
+  chains.forEach((id, k) => working.set(`underside:${id}`, W + k));
+  const chainAt = (w: number) => (w < W ? chains[W - 1 - w]! : chains[w - W]!);
+
+  const used = new Map<number, NodeId[]>();
+  let previous: { readonly node: NodeId; readonly w: number } | null = null;
+  let invalid = false;
+  for (const id of layer.stitches) {
+    if (layer.turningChain.includes(id) || id === layer.joinSlip) continue;
+    const node = graph.nodes.get(id)!;
+    const def = graph.defs.get(id)!;
+    if (node.anchors.length !== (def.kind === 'chain' ? 0 : def.consumes)) report('anchor-count', [id]);
+    node.anchors.forEach((anchor, anchorIndex) => {
+      if (invalidAnchors.has(anchorRef(id, anchorIndex))) {
+        invalid = true;
+        return;
+      }
+      const w = working.get(anchorKey(anchor));
+      if (w === undefined) {
+        report('anchor-layer', [id]);
+        invalid = true;
+        return;
+      }
+      if (previous !== null && w < previous.w) report('against-direction', [previous.node, id]);
+      used.set(w, [...(used.get(w) ?? []), id]);
+      previous = { node: id, w };
+    });
+  }
+
+  checkCountsAndChains(pattern, graph, index, report);
+  if (invalid) return;
+  for (let w = 0; w < 2 * W; w += 1) {
+    const worked = used.get(w) ?? [];
+    if (worked.length === 0) {
+      // A legtávolabbi láncszem (fonalsorrendben az első) másik oldala elmaradhat.
+      if (w !== W) report('unused-position', [chainAt(w)]);
+      continue;
+    }
+    const groups = new Set(worked.map((node) => graph.groupOf.get(node)));
+    if (worked.length > 1 && (groups.size !== 1 || groups.has(undefined))) report('unmarked-increase', worked);
+  }
 }

@@ -23,9 +23,12 @@ export interface ChartLabels {
   readonly repeat: (spec: RepeatSpec | undefined) => string | null;
   /** A jelmagyarázat megjegyzése a feliratokról. */
   readonly note: string;
+  /** A darab körüli szegély felirata sorszám helyett (PQW-897). */
+  readonly border: string;
 }
 
 const CYC: ChartLabels = {
+  border: 'szegély',
   layer: (index) => String(index),
   count: (stitches) => `(${stitches})`,
   repeat: () => null,
@@ -33,6 +36,7 @@ const CYC: ChartLabels = {
 };
 
 const JAPANESE: ChartLabels = {
+  border: '縁編み',
   layer: (index) => String(index),
   count: (stitches) => `${stitches}目`,
   repeat: (spec) => (spec ? `${spec.repeatWidth}目1模様` : null),

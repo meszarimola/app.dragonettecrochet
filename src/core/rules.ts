@@ -162,6 +162,21 @@ export const RULES = {
     message: 'Az ismételt mintában a sor több vagy kevesebb szemet ad, mint amennyit felhasznál.',
   },
 
+  /* ---- Szegély (PQW-889) ---- */
+  'border-row-end': {
+    severity: 'warning',
+    reference: '03 §10 H38, 03 §7.1',
+    summary:
+      'A szegély egy sorvégébe nem a sor szeméhez illő számú szem megy: rövidpálcás sorvégre 1, félpálcásra a darab választása szerint 1 vagy 2, pálcásra 2, kétráhajtásosra 3.',
+    message: 'A szegély oldalán egy sor végére nem annyi szem került, amennyi a sor magasságához illik: a szegély hullámos lesz vagy behúzza a szélt.',
+  },
+  'border-corner': {
+    severity: 'warning',
+    reference: '03 §7.1, 03 §10 H38',
+    summary: 'A szegély sarkába nem 3 szem megy.',
+    message: 'A szegély sarkába 3 szem kell, hogy a sarok laposan forduljon.',
+  },
+
   /* ---- Magasság ---- */
   'mixed-heights': {
     severity: 'warning',
@@ -230,6 +245,12 @@ export const RULES = {
     summary: 'Tapestryben egy sorban 3-nál több színt kell a szemekben vinni.',
     message:
       'Ebben a sorban 3-nál több színt kell a szemekben vinni: ez haladó szint, és a szövet merevebb lesz. Egyszerűsítsd a sort, vagy horgold graphganként, színenként külön gombolyaggal.',
+  },
+  'spike-depth': {
+    severity: 'error',
+    reference: '03 §5.6, §10 C17, G34',
+    summary: 'A hosszú szem 3 sornál mélyebbre, korábbi sorba van horgolva (PQW-894).',
+    message: 'Ez a hosszú szem túl mélyre megy: legfeljebb 3 sorral lejjebb, egy kihagyott szembe horgolhatsz.',
   },
 } as const satisfies Record<string, RuleDef>;
 

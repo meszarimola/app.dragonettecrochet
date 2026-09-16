@@ -15,7 +15,8 @@
  */
 
 import type { ChartGrid, Emphasis, GridArea } from '../core/grid.ts';
-import { CIRCLE, framePoint, outline } from '../core/polygon.ts';
+import { CIRCLE, framePoint, outline, type Point } from '../core/polygon.ts';
+import { outlineOf } from '../core/row-curve.ts';
 
 export type LineWeight = 'cell' | 'row' | 'five' | 'ten';
 
@@ -68,6 +69,9 @@ function radial(area: Sector, r0: number, r1: number, a: number): string {
 
 const isFull = (area: Sector) => area.a1 - area.a0 >= TAU - 1e-9;
 
+/** Íves sáv széle (PQW-893): töréspontokon át vezetett vonal. */
+const polyline = (points: readonly Point[]) => points.map((p, i) => `${i === 0 ? 'M' : 'L'}${num(p.x)} ${num(p.y)}`).join('');
+
 export function gridPaths(grid: ChartGrid): GridPaths {
   const bands: BandPath[] = [];
   const lines: LinePath[] = [];
@@ -82,6 +86,13 @@ export function gridPaths(grid: ChartGrid): GridPaths {
         { d: `M${num(x0)} ${num(y1)}H${num(x1)}`, weight: 'row', dashed },
         { d: `M${num(x0)} ${num(y0)}V${num(y1)}M${num(x1)} ${num(y0)}V${num(y1)}`, weight: 'row', dashed },
         { d: `M${num(x0)} ${num(y0)}H${num(x1)}`, weight: rowWeight(band.emphasis), dashed },
+      );
+    } else if (area.kind === 'strip') {
+      bands.push({ d: `${polyline(outlineOf(area))}Z`, tone: band.tone, evenOdd: false });
+      lines.push(
+        { d: polyline(area.bottom), weight: 'row', dashed },
+        { d: `${polyline(area.left)}${polyline(area.right)}`, weight: 'row', dashed },
+        { d: polyline(area.top), weight: rowWeight(band.emphasis), dashed },
       );
     } else {
       const inner = area.r0 > 0 ? ring(area, area.r0) : '';
@@ -99,6 +110,12 @@ export function gridPaths(grid: ChartGrid): GridPaths {
       // A sáv szélén a sáv vonala zár; a cella csak a belső oldalvonalat adja.
       if (band?.area.kind === 'rect' && area.x1 >= band.area.x1 - 1e-6) continue;
       lines.push({ d: `M${num(area.x1)} ${num(area.y0)}V${num(area.y1)}`, weight: cellWeight(cell.emphasis), dashed });
+    } else if (area.kind === 'strip') {
+      // A sáv szélén a sáv vonala zár, mint a téglalapnál.
+      const end = area.top.at(-1)!;
+      const edge = band?.area.kind === 'strip' ? band.area.top.at(-1) : undefined;
+      if (edge && Math.hypot(edge.x - end.x, edge.y - end.y) < 1e-6) continue;
+      lines.push({ d: polyline(area.right), weight: cellWeight(cell.emphasis), dashed });
     } else if (!isFull(area)) {
       lines.push({ d: radial(area, area.r0, area.r1, area.a1), weight: cellWeight(cell.emphasis), dashed });
     }

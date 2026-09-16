@@ -15,8 +15,9 @@ import { TECHNIQUE_NAMES } from './pixel-chart.ts';
 import { MOTIF_NAMES } from './round-generator.ts';
 import { SHAPE_NAMES } from './shapes.ts';
 import { libraryFor } from './stitch-variants.ts';
-import type { Anchor, LayerEvent, NodeId, Pattern, Piece, PieceGrid, Space, StitchDefId, StitchNode } from './types.ts';
+import type { Anchor, LayerEvent, NodeId, Pattern, Piece, PieceGrid, Space, StitchDefId, StitchFlag, StitchNode } from './types.ts';
 import { validatePattern } from './validate.ts';
+import { withGeneratedTitle } from './pattern-title.ts';
 
 export type GridResult = { readonly ok: true; readonly pattern: Pattern } | { readonly ok: false; readonly reason: string };
 
@@ -34,9 +35,17 @@ export class GridWriter {
   readonly skipped: NodeId[] = [];
   #previous: NodeId | null = null;
 
-  add(def: StitchDefId, anchors: readonly Anchor[] = [], color = 0): NodeId {
+  /** A `flags` pl. a lejjebb horgolt hosszú szem jelölése (`spike`, PQW-894). */
+  add(def: StitchDefId, anchors: readonly Anchor[] = [], color = 0, flags: readonly StitchFlag[] = []): NodeId {
     const id = `n${this.stitches.length + 1}`;
-    this.stitches.push({ id, def, prev: this.#previous, anchors, ...(color > 0 ? { color } : {}) });
+    this.stitches.push({
+      id,
+      def,
+      prev: this.#previous,
+      anchors,
+      ...(flags.length > 0 ? { flags } : {}),
+      ...(color > 0 ? { color } : {}),
+    });
     this.#previous = id;
     return id;
   }
@@ -91,9 +100,8 @@ export function gridPiece(pattern: Pattern, name: string, writer: GridWriter, gr
  * generált minta nem hozhat hibát az ellenőrzőben.
  */
 export function finishGridPattern(pattern: Pattern, piece: Piece): GridResult {
-  const generated = new Set<string>([...Object.values(SHAPE_NAMES), ...Object.values(MOTIF_NAMES), ...Object.values(TECHNIQUE_NAMES)]);
-  const untitled = pattern.title.trim() === '' || pattern.title === 'Új minta' || generated.has(pattern.title);
-  const result: Pattern = { ...pattern, title: untitled ? piece.name : pattern.title, pieces: [piece] };
+  const generated = [...Object.values(SHAPE_NAMES), ...Object.values(MOTIF_NAMES), ...Object.values(TECHNIQUE_NAMES)];
+  const result = withGeneratedTitle({ ...pattern, pieces: [piece] }, pattern, piece.name, generated);
   const errors = validatePattern(result, libraryFor(result)).filter((finding) => finding.severity === 'error');
   if (errors.length > 0) return fail(`A generált minta nem ment át az ellenőrzőn (${errors[0]!.rule}): ez a program hibája, kérlek, jelezd.`);
   return { ok: true, pattern: result };

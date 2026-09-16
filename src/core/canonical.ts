@@ -33,6 +33,8 @@ export function canonicalPiece(piece: Piece): Piece {
   const anchor = (target: Anchor): Anchor => {
     if (target.into === 'stitch') return { into: 'stitch', id: node(target.id), mode: target.mode };
     if (target.into === 'space') return { into: 'space', id: spaceId.get(target.id) ?? target.id };
+    if (target.into === 'row-end') return { into: 'row-end', id: node(target.id) };
+    if (target.into === 'underside') return { into: 'underside', id: node(target.id) };
     return { into: 'ring', id: ringId.get(target.id) ?? target.id };
   };
   const stitch = (source: StitchNode): StitchNode => ({

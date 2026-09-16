@@ -11,9 +11,12 @@
  *   különbsége olvasható.
  */
 
+import { SERIES_KEYS } from './garment-text.ts';
 import type {
   Anchor,
   ChartStyle,
+  GarmentKind,
+  GarmentTable,
   GaugeEntry,
   GaugeForm,
   GridTechnique,
@@ -25,6 +28,7 @@ import type {
   PatternColor,
   PatternConventions,
   PatternGauge,
+  PatternGarment,
   PatternGaugeProfile,
   PatternNotation,
   Piece,
@@ -38,6 +42,7 @@ import type {
   Ring,
   RoundMark,
   RowConventions,
+  OvalStitch,
   ShapeSpec,
   Space,
   StitchFlag,
@@ -169,10 +174,12 @@ export const GAUGE_STITCHES: readonly StitchDefId[] = ['sc', 'hdc', 'dc', 'tr'];
 const GAUGE_FORMS: readonly GaugeForm[] = ['rows', 'rounds'];
 
 function readPattern(value: unknown, path: string): Pattern {
-  const raw = object(value, path, ['formatVersion', 'title', 'conventions', 'pieces'], ['notation', 'gauge', 'joins', 'toy']);
+  const raw = object(value, path, ['formatVersion', 'title', 'conventions', 'pieces'], ['titleGenerated', 'notation', 'gauge', 'joins', 'toy', 'garment']);
   return {
     formatVersion: oneOf(raw['formatVersion'], `${path}.formatVersion`, [FORMAT_VERSION]),
     title: text(raw['title'], `${path}.title`),
+    // A PQW-896 előtti mentésben nincs: a pattern-title.ts a címből dönt.
+    ...(raw['titleGenerated'] === undefined ? {} : { titleGenerated: boolean(raw['titleGenerated'], `${path}.titleGenerated`) }),
     ...(raw['notation'] === undefined ? {} : { notation: readNotation(raw['notation'], `${path}.notation`) }),
     ...(raw['gauge'] === undefined ? {} : { gauge: readGauge(raw['gauge'], `${path}.gauge`) }),
     conventions: readPatternConventions(raw['conventions'], `${path}.conventions`),
@@ -180,6 +187,8 @@ function readPattern(value: unknown, path: string): Pattern {
     // A kapcsolások és a játék adatai a PQW-863 előtti mentésben nincsenek.
     ...(raw['joins'] === undefined ? {} : { joins: array(raw['joins'], `${path}.joins`, readJoin) }),
     ...(raw['toy'] === undefined ? {} : { toy: readToy(raw['toy'], `${path}.toy`) }),
+    // A ruhadarab méretsorozata a PQW-866 előtti mentésben nincs.
+    ...(raw['garment'] === undefined ? {} : { garment: readGarment(raw['garment'], `${path}.garment`) }),
   };
 }
 
@@ -301,7 +310,7 @@ function readPiece(value: unknown, path: string): Piece {
     value,
     path,
     ['id', 'name', 'stitches', 'spaces', 'rings', 'groups', 'events', 'skipped'],
-    ['corners', 'border', 'sections', 'grid'],
+    ['corners', 'border', 'sections', 'grid', 'rowShape'],
   );
   return {
     id: string(raw['id'], `${path}.id`),
@@ -320,13 +329,31 @@ function readPiece(value: unknown, path: string): Piece {
     ...(raw['border'] === undefined ? {} : { border: readBorder(raw['border'], `${path}.border`) }),
     // A PQW-864 előtti mentésben nincs: a darab nem rácsmintából készült.
     ...(raw['grid'] === undefined ? {} : { grid: readGrid(raw['grid'], `${path}.grid`) }),
+    // A PQW-893 előtti mentésben nincs: a sorok egyenesek.
+    ...(raw['rowShape'] === undefined ? {} : { rowShape: readRowShape(raw['rowShape'], `${path}.rowShape`) }),
   };
+}
+
+/** A sorban horgolt kendő rajzának alakja; a szögek fokban, 0 és 360 között. */
+function readRowShape(value: unknown, path: string): NonNullable<Piece['rowShape']> {
+  const kind = oneOf(isObject(value) ? value['kind'] : undefined, `${path}.kind`, ['arc', 'chevron'] as const);
+  const angle = (raw: JsonObject, key: string) => {
+    const degrees = finite(raw[key], `${path}.${key}`);
+    if (degrees <= 0 || degrees >= 360) throw new FormatError(`${path}.${key}`, '0 és 360 fok közötti szöget vártunk.');
+    return degrees;
+  };
+  if (kind === 'arc') {
+    const raw = object(value, path, ['kind', 'neckAngle']);
+    return { kind, neckAngle: angle(raw, 'neckAngle') };
+  }
+  const raw = object(value, path, ['kind', 'neckAngle', 'tipAngle']);
+  return { kind, neckAngle: angle(raw, 'neckAngle'), tipAngle: angle(raw, 'tipAngle') };
 }
 
 const GRID_TECHNIQUES: readonly GridTechnique[] = ['filet', 'c2c', 'tapestry', 'graphgan', 'mosaic'];
 
 function readGrid(value: unknown, path: string): PieceGrid {
-  const raw = object(value, path, ['technique', 'cells', 'colors', 'unit', 'lettering']);
+  const raw = object(value, path, ['technique', 'cells', 'colors', 'unit', 'lettering'], ['mosaicRows']);
   const cells = array(raw['cells'], `${path}.cells`, (row, rowPath) => array(row, rowPath, (cell, cellPath) => integer(cell, cellPath, -1)));
   const width = cells[0]?.length ?? 0;
   cells.forEach((row, y) => {
@@ -338,6 +365,8 @@ function readGrid(value: unknown, path: string): PieceGrid {
     colors: array(raw['colors'], `${path}.colors`, readColor),
     unit: raw['unit'] === null ? null : readUnit(raw['unit'], `${path}.unit`),
     lettering: boolean(raw['lettering'], `${path}.lettering`),
+    // A PQW-894 előtti mentésben nincs: a rács nem mozaik.
+    ...(raw['mosaicRows'] === undefined ? {} : { mosaicRows: oneOf(raw['mosaicRows'], `${path}.mosaicRows`, [1, 2] as const) }),
   };
 }
 
@@ -359,11 +388,23 @@ function readUnit(value: unknown, path: string): GridUnit {
 }
 
 function readBorder(value: unknown, path: string): PieceBorder {
-  const raw = object(value, path, ['stitch', 'hdcRowEnd']);
+  const raw = object(value, path, ['stitch', 'hdcRowEnd'], ['repeat']);
   return {
     stitch: oneOf(raw['stitch'], `${path}.stitch`, ['sc'] as const),
     hdcRowEnd: oneOf(raw['hdcRowEnd'], `${path}.hdcRowEnd`, [1, 2] as const),
+    // A PQW-898 előtti mentésben nincs: a szegély nem igazodik ismétléshez.
+    ...(raw['repeat'] === undefined ? {} : { repeat: readBorderRepeat(raw['repeat'], `${path}.repeat`) }),
   };
+}
+
+/** A következő szegélysor ismétlése: X 1 és 50, Y 0 és 50 között. */
+function readBorderRepeat(value: unknown, path: string): NonNullable<PieceBorder['repeat']> {
+  const raw = object(value, path, ['width', 'edge']);
+  const width = integer(raw['width'], `${path}.width`, 1);
+  const edge = integer(raw['edge'], `${path}.edge`, 0);
+  if (width > 50) throw new FormatError(`${path}.width`, 'Legfeljebb 50 szemes ismétlést vártunk.');
+  if (edge > 50) throw new FormatError(`${path}.edge`, 'Legfeljebb 50 kiegyenlítő szemet vártunk.');
+  return { width, edge };
 }
 
 function readNode(value: unknown, path: string): StitchNode {
@@ -393,7 +434,7 @@ function readPinned(value: unknown, path: string): NonNullable<StitchNode['pinne
 
 function readAnchor(value: unknown, path: string): Anchor {
   if (!isObject(value)) throw new FormatError(path, 'Objektumot vártunk.');
-  const into = oneOf(value['into'], `${path}.into`, ['stitch', 'space', 'ring']);
+  const into = oneOf(value['into'], `${path}.into`, ['stitch', 'space', 'ring', 'row-end', 'underside']);
   if (into === 'stitch') {
     const raw = object(value, path, ['into', 'id', 'mode']);
     return { into, id: string(raw['id'], `${path}.id`), mode: oneOf(raw['mode'], `${path}.mode`, INSERTIONS) };
@@ -444,7 +485,8 @@ function readEvent(value: unknown, path: string): LayerEvent {
 
 const MARKS: readonly RoundMark[] = ['safety-eyes', 'embroider-eyes', 'stuffing', 'close-opening'];
 const ENDS: readonly PieceEnd[] = ['open', 'closed'];
-const SHAPES: readonly ShapeSpec['kind'][] = ['sphere', 'hemisphere', 'egg', 'cylinder', 'cone', 'revolution'];
+const SHAPES: readonly ShapeSpec['kind'][] = ['sphere', 'hemisphere', 'egg', 'cylinder', 'cone', 'revolution', 'oval'];
+const OVAL_STITCHES: readonly OvalStitch[] = ['sc', 'hdc', 'dc'];
 
 function readSection(value: unknown, path: string): PieceSection {
   const raw = object(value, path, ['name', 'layer', 'shape', 'stagger']);
@@ -493,6 +535,11 @@ function readShape(value: unknown, path: string): ShapeSpec {
       const raw = object(value, path, ['kind', 'profile', 'bottom', 'top']);
       return { kind, profile: array(raw['profile'], `${path}.profile`, readProfilePoint), bottom: end(raw, 'bottom'), top: end(raw, 'top') };
     }
+    case 'oval': {
+      const raw = object(value, path, ['kind', 'lengthCm', 'widthCm'], ['stitch']);
+      const stitch = raw['stitch'] === undefined ? {} : { stitch: oneOf(raw['stitch'], `${path}.stitch`, OVAL_STITCHES) };
+      return { kind, lengthCm: size(raw, 'lengthCm'), widthCm: size(raw, 'widthCm'), ...stitch };
+    }
   }
 }
 
@@ -515,8 +562,54 @@ function readJoin(value: unknown, path: string): PieceJoin {
 }
 
 function readJoinEdge(value: unknown, path: string): JoinEdge {
-  const raw = object(value, path, ['piece', 'layer']);
-  return { piece: string(raw['piece'], `${path}.piece`), layer: integer(raw['layer'], `${path}.layer`, 1) };
+  const raw = object(value, path, ['piece', 'layer'], ['stitches', 'rows']);
+  if (raw['stitches'] !== undefined && raw['rows'] !== undefined) {
+    throw new FormatError(path, 'A szél vagy a sor egy szakasza, vagy sorvégek: a kettő együtt nem lehet.');
+  }
+  const layer = integer(raw['layer'], `${path}.layer`, 1);
+  let stitches: JoinEdge['stitches'];
+  if (raw['stitches'] !== undefined) {
+    const range = object(raw['stitches'], `${path}.stitches`, ['from', 'count']);
+    stitches = { from: integer(range['from'], `${path}.stitches.from`, 0), count: integer(range['count'], `${path}.stitches.count`, 1) };
+  }
+  let rows: JoinEdge['rows'];
+  if (raw['rows'] !== undefined) {
+    const range = object(raw['rows'], `${path}.rows`, ['to', 'side']);
+    rows = { to: integer(range['to'], `${path}.rows.to`, layer), side: oneOf(range['side'], `${path}.rows.side`, ['left', 'right'] as const) };
+  }
+  return {
+    piece: string(raw['piece'], `${path}.piece`),
+    layer,
+    ...(stitches ? { stitches } : {}),
+    ...(rows ? { rows } : {}),
+  };
+}
+
+const GARMENT_KINDS: readonly GarmentKind[] = ['hat', 'drop-shoulder'];
+const GARMENT_TABLES: readonly GarmentTable[] = ['women', 'men', 'child', 'baby', 'hat'];
+
+/** A ruhadarab méretsorozata (PQW-866): a kulcsok a garment-text.ts szerint, méretenként egy szám. */
+function readGarment(value: unknown, path: string): PatternGarment {
+  const raw = object(value, path, ['kind', 'table', 'sizes', 'base', 'values']);
+  const sizes = array(raw['sizes'], `${path}.sizes`, string);
+  if (sizes.length === 0) throw new FormatError(`${path}.sizes`, 'Legalább egy méretet vártunk.');
+  const base = integer(raw['base'], `${path}.base`, 0);
+  if (base >= sizes.length) throw new FormatError(`${path}.base`, `Legfeljebb ${sizes.length - 1} értékű egész számot vártunk.`);
+  const rawValues = object(raw['values'], `${path}.values`, [], SERIES_KEYS);
+  const values: Record<string, readonly number[]> = {};
+  for (const key of SERIES_KEYS) {
+    if (rawValues[key] === undefined) continue;
+    const numbers = array(rawValues[key], `${path}.values.${key}`, finite);
+    if (numbers.length !== sizes.length) throw new FormatError(`${path}.values.${key}`, `${sizes.length} számot vártunk, méretenként egyet.`);
+    values[key] = numbers;
+  }
+  return {
+    kind: oneOf(raw['kind'], `${path}.kind`, GARMENT_KINDS),
+    table: oneOf(raw['table'], `${path}.table`, GARMENT_TABLES),
+    sizes,
+    base,
+    values,
+  };
 }
 
 function readToy(value: unknown, path: string): { readonly under3: boolean } {

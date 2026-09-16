@@ -70,6 +70,17 @@ export interface LayerInfo extends Layer {
   readonly direction: 1 | -1;
   /** A következő réteg horgolható pozíciói a réteg fonalsorrendjében; a számító fordulólánc teteje elöl. */
   readonly positions: readonly NodeId[];
+  /**
+   * A darab körüli szegély (PQW-889): a réteg sorvégekbe is horgol. Zárt
+   * körként számol; az ellenőrzése, a rajza és az írott mintája külön
+   * készül (border.ts).
+   */
+  readonly border: boolean;
+  /**
+   * A láncalap láncszemei, amelyeknek a másik oldalába is horgol az 1. kör (az
+   * ovális kezdés, 04 §3.4, PQW-890), fonalsorrendben; csak a 0. rétegen, máskor üres.
+   */
+  readonly undersides: readonly NodeId[];
 }
 
 export interface PieceGraph {
@@ -146,7 +157,12 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
   // horgolt 1. körrel („2 lsz, 6 rp a 2. láncszembe”), amelyet kör zár.
   const roundEvent = (event: LayerEvent | undefined) => event?.kind === 'join-slip' || event?.kind === 'spiral';
   const chainRing = foundation === 'chain' && eventAfter.get(foundationNodes[foundationNodes.length - 1]!.id)?.kind === 'join-slip';
-  const firstRoundOnChain = foundation === 'chain' && !chainRing && segments.length > 0 && roundEvent(eventAfter.get(segments[0]!.at(-1)!.id));
+  // Az ovális 1. köre (PQW-890) a láncszemek másik oldalába is horgol: kör akkor is, ha a darab ott véget ér.
+  const firstRoundOnChain =
+    foundation === 'chain' &&
+    !chainRing &&
+    segments.length > 0 &&
+    (roundEvent(eventAfter.get(segments[0]!.at(-1)!.id)) || segments[0]!.some((node) => node.anchors.some((anchor) => anchor.into === 'underside')));
   const roundStart = foundation === 'ring' || chainRing || firstRoundOnChain;
 
   // Az 1. sor fordulólánca a láncalap végén: amibe az 1. sor nem horgol. A 2. sor
@@ -159,7 +175,7 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     for (const node of segments[0]!) {
       if (node === closingSlip) continue;
       for (const anchor of node.anchors) {
-        if (anchor.into === 'stitch') anchored.add(anchor.id);
+        if (anchor.into === 'stitch' || anchor.into === 'underside') anchored.add(anchor.id);
         if (anchor.into === 'space') for (const chain of spaces.get(anchor.id)?.chains ?? []) anchored.add(chain);
       }
     }
@@ -193,7 +209,7 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
   for (const node of stitches) {
     const layer = segmentOf.get(node.id) ?? 0;
     for (const anchor of node.anchors) {
-      const targets = anchor.into === 'stitch' ? [anchor.id] : anchor.into === 'space' ? (spaces.get(anchor.id)?.chains ?? []) : [];
+      const targets = anchor.into === 'stitch' || anchor.into === 'underside' ? [anchor.id] : anchor.into === 'space' ? (spaces.get(anchor.id)?.chains ?? []) : [];
       for (const target of targets) if ((segmentOf.get(target) ?? 0) < layer) workedInto.add(target);
     }
   }
@@ -202,6 +218,8 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
   const layers: LayerInfo[] = [];
   const layerOf = new Map<NodeId, number>();
 
+  // Az ovális kezdés (PQW-890): a láncalap láncszemeinek másik oldala is célpont.
+  const undersideTargets = new Set(stitches.flatMap((node) => node.anchors.flatMap((anchor) => (anchor.into === 'underside' ? [anchor.id] : []))));
   const foundationIds = foundationNodes.map((node) => node.id);
   const foundationLast = foundationNodes[foundationNodes.length - 1];
   layers.push({
@@ -221,6 +239,8 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     firstStitch: null,
     direction: 1,
     positions: foundationIds,
+    border: false,
+    undersides: foundationIds.filter((id) => undersideTargets.has(id)),
   });
   for (const id of foundationIds) layerOf.set(id, 0);
 
@@ -233,11 +253,19 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
 
     let head = 0;
     const travelSlips: NodeId[] = [];
-    if (opening?.kind === 'join-slip') {
+    if (opening?.kind === 'join-slip' || opening?.kind === 'turn') {
       // A záratlan kör végén álló kúszószem még nem záró szem, hanem továbbvezetés (pl. a láncgyűrű kúszószeme).
       while (head < segment.length && kindOf(segment[head]!) === 'slip' && (segment[head] !== last || closing === null)) {
         travelSlips.push(segment[head]!.id);
         head += 1;
+      }
+      // Fordulás után a sor eleji kúszószem csak akkor továbbvezetés, ha fordulólánc követi (filé sor eleji fogyasztás,
+      // PQW-894). Ha láncív jön utána, a kúszószem a sor része (C2C: kúszószemek a csempén át a láncívbe).
+      const next = segment[head];
+      const turning = next !== undefined && kindOf(next) === 'chain' && !spaceOfChain.has(next.id);
+      if (opening.kind === 'turn' && !turning) {
+        head = 0;
+        travelSlips.length = 0;
       }
     }
     const turningChain: NodeId[] = [];
@@ -247,11 +275,16 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       turningChain.push(segment[head]!.id);
       head += 1;
     }
-    const firstStitch = segment.slice(head).find((node) => kindOf(node) !== 'chain')?.id ?? null;
+    // A sort kezdő szem dönti el a fordulólánc magasságát; a lejjebb horgolt hosszú szem nem ilyen (mozaik, PQW-894).
+    const rest = segment.slice(head).filter((node) => kindOf(node) !== 'chain');
+    const firstStitch = (rest.find((node) => !node.flags?.includes('spike')) ?? rest[0])?.id ?? null;
     const joinSlip = closing?.kind === 'join-slip' && kindOf(last) === 'slip' ? last.id : null;
 
+    // A szegély a sorvégekbe is horgol, és kúszószemmel záródik: a darab körüli kör (PQW-889).
+    const border = segment.some((node) => node.anchors.some((anchor) => anchor.into === 'row-end'));
     let shape: Layer['shape'];
-    if (opening === null) shape = roundStart ? 'round' : 'row';
+    if (border) shape = 'round';
+    else if (opening === null) shape = roundStart ? 'round' : 'row';
     else if (opening.kind === 'turn') shape = 'row';
     else if (opening.kind === 'fasten-off') shape = previous.shape;
     else shape = 'round';
@@ -260,7 +293,8 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       opening?.kind === 'turn' ? (previous.side === 'right' ? 'wrong' : 'right') : previous.side;
 
     let direction: 1 | -1;
-    if (index === 1) direction = foundation === 'chain' && !roundStart ? -1 : 1;
+    if (border) direction = 1;
+    else if (index === 1) direction = foundation === 'chain' && !roundStart ? -1 : 1;
     else direction = opening?.kind === 'turn' ? -1 : 1;
 
     let turningChainCounts = false;
@@ -333,6 +367,8 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       firstStitch,
       direction,
       positions,
+      border,
+      undersides: [],
     });
   });
 

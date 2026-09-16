@@ -164,7 +164,20 @@ export type PieceId = string;
 export type Anchor =
   | { readonly into: 'stitch'; readonly id: NodeId; readonly mode: StitchInsertion }
   | { readonly into: 'space'; readonly id: SpaceId }
-  | { readonly into: 'ring'; readonly id: RingId };
+  | { readonly into: 'ring'; readonly id: RingId }
+  /**
+   * Sorvég (03 §10 „row end” él, PQW-889): a sor szélébe horgolt szem, a
+   * szegély oldalán. Az `id` a sor szélső szeme: az elején a fordulólánc
+   * teteje (ennek híján az első pozíció), a végén az utolsó pozíció
+   * (border.ts `rowEdges`). Egy sorvégbe több szem is mehet.
+   */
+  | { readonly into: 'row-end'; readonly id: NodeId }
+  /**
+   * A láncszem másik oldala (04 §3.4, PQW-890): az ovális 1. köre a láncalap
+   * egyik oldalán végighalad, a másikon vissza. Az `id` a láncalap láncszeme;
+   * egy oldalba több szem is mehet, szaporításként.
+   */
+  | { readonly into: 'underside'; readonly id: NodeId };
 
 /**
  * Szándékos eltérés, amit az ellenőrző nem jelez hibának.
@@ -318,14 +331,21 @@ export interface Piece {
    */
   readonly corners?: number;
   /**
+   * Sorban horgolt kendő rajza (PQW-893): a félkör és a félhold sorai íven, a
+   * fentről induló háromszög sorai a gerincnél megtörve (row-curve.ts). A
+   * kendőgenerátor adja; hiányában a sorok egyenesek.
+   */
+  readonly rowShape?: RowShape;
+  /**
    * A darab részei 3D formából (PQW-863), a készítés sorrendjében. Ha van, a
    * darab térbeli forma: a kunkorodás szándékos, az ellenőrző nem jelzi.
    */
   readonly sections?: readonly PieceSection[];
   /**
-   * Szegély a darab körül (PQW-862). Csak a választás tárolódik: a szemszámot
-   * az írott minta a sorokból számolja (border.ts). A gráfban még nincs
-   * csomópontja, mert a sorvégbe horgolt szem célpontját a gráf nem ismeri.
+   * Szegély a darab körül (PQW-862): a választás (szem, félpálcás sorvég). A
+   * PQW-889 óta a szegély a gráfban is réteg az utolsó sor után, a felső él
+   * szemeibe, a sorvégekbe és a láncalapba horgolva (border.ts). A korábbi
+   * mentésben csak a választás van; ott az írott minta a sorokból számol.
    */
   readonly border?: PieceBorder;
   /**
@@ -369,7 +389,18 @@ export interface PieceGrid {
   readonly unit: GridUnit | null;
   /** Feliratos motívum: tükrözött nézetben figyelmeztetés. */
   readonly lettering: boolean;
+  /** Mozaikban hány horgolt sor egy rácssor: egysoros vagy kétsoros változat (PQW-894). */
+  readonly mosaicRows?: 1 | 2;
 }
+
+/**
+ * Sorban horgolt kendő rajza (PQW-893), a szögek fokban. Íves sornál az ív a
+ * nyakszöget fogja át (félkörnél 180°); megtört sornál a nyakszög és az alsó
+ * csúcs szöge adja az alakot (fentről induló háromszögnél 180° és 90°).
+ */
+export type RowShape =
+  | { readonly kind: 'arc'; readonly neckAngle: number }
+  | { readonly kind: 'chevron'; readonly neckAngle: number; readonly tipAngle: number };
 
 /** A szegély választásai (PQW-862, 03 §7.1). */
 export interface PieceBorder {
@@ -377,6 +408,16 @@ export interface PieceBorder {
   readonly stitch: StitchDefId;
   /** Félpálcás sorvégre 1 vagy 2 szem: a források vitatják (03 §7.1, §10 H38). */
   readonly hdcRowEnd: 1 | 2;
+  /** Igazítás a következő szegélysor ismétléséhez (PQW-898); hiányában nincs. */
+  readonly repeat?: BorderRepeat;
+}
+
+/** A következő szegélysor ismétlése (03 §7.1 H): a sarkok közötti élek szemszáma „X többszöröse + Y”. */
+export interface BorderRepeat {
+  /** X: egy ismétlés szemei. */
+  readonly width: number;
+  /** Y: élenként a kiegyenlítő szemek. */
+  readonly edge: number;
 }
 
 /** A jelek stílusa: a Craft Yarn Council vagy a japán (JIS) jelkulcs (01 §6). */
@@ -442,6 +483,12 @@ export interface PatternGauge {
 export interface Pattern {
   readonly formatVersion: 1;
   readonly title: string;
+  /**
+   * A címet generátor adta-e (PQW-896): igaz, ha a „Minta létrehozása” adta;
+   * hamis, ha a felhasználó írta. Hiányában (régi mentés) a pattern-title.ts
+   * dönti el a címből.
+   */
+  readonly titleGenerated?: boolean;
   /** Hiányában a minta jelölése nincs rögzítve (a PQW-868 előtti mentés). */
   readonly notation?: PatternNotation;
   /** Hiányában a mintához nincs profil (a PQW-859 előtti mentés); a méret becslés. */
@@ -452,6 +499,33 @@ export interface Pattern {
   readonly joins?: readonly PieceJoin[];
   /** Játék: 3 év alatti gyereknek készül-e (04 §5.7). Hiányában nincs megadva. */
   readonly toy?: { readonly under3: boolean };
+  /** Ruhadarab méretsorozattal (PQW-866); hiányában a minta nem ruhadarab-generátorból jön. */
+  readonly garment?: PatternGarment;
+}
+
+/* ---- Ruhadarabok (PQW-866) ---- */
+
+export type GarmentKind = 'hat' | 'drop-shoulder';
+
+/** A méretek táblázata: a CYC testméretek (body-sizes.ts), sapkánál a sapkaméretek. */
+export type GarmentTable = 'women' | 'men' | 'child' | 'baby' | 'hat';
+
+/**
+ * A ruhadarab méretsorozata (05 §3.8, §8.1, §9.6). A gráf a `base` méreté; a
+ * sorozat minden méretének számai fázisonként itt állnak, a `sizes`
+ * sorrendjében, és az írott minta „S (M, L)” alakban írja ki őket
+ * (garment-text.ts). A számok a létrehozáskori mintasűrűségből jönnek, így a
+ * szöveg a mentés után sem változik.
+ */
+export interface PatternGarment {
+  readonly kind: GarmentKind;
+  readonly table: GarmentTable;
+  /** A méretek azonosítója a táblázatban, növekvő sorrendben. */
+  readonly sizes: readonly string[];
+  /** A gráf méretének indexe a `sizes`-ban. */
+  readonly base: number;
+  /** Fázisonként a méretenkénti érték (a kulcsok: garment-text.ts `SERIES_KEYS`). */
+  readonly values: Readonly<Record<string, readonly number[]>>;
 }
 
 /* ---- Amigurumi és 3D formák (PQW-863) ---- */
@@ -496,7 +570,15 @@ export type ShapeSpec =
       readonly increases: number | null;
       readonly top: PieceEnd;
     }
-  | { readonly kind: 'revolution'; readonly profile: readonly ProfilePoint[]; readonly bottom: PieceEnd; readonly top: PieceEnd };
+  | { readonly kind: 'revolution'; readonly profile: readonly ProfilePoint[]; readonly bottom: PieceEnd; readonly top: PieceEnd }
+  /**
+   * Ovális láncalapról (04 §3.4, §9.4, PQW-890): lapos, nyitott széllel; a hossz a hosszabbik méret.
+   * A szem hiányában rövidpálca (a PQW-899 előtti mentés).
+   */
+  | { readonly kind: 'oval'; readonly lengthCm: number; readonly widthCm: number; readonly stitch?: OvalStitch };
+
+/** Az ovális szeme (PQW-899): rövidpálca, félpálca vagy egyráhajtásos pálca. */
+export type OvalStitch = 'sc' | 'hdc' | 'dc';
 
 /** Egy rész (pl. fej, test) a darabban: a neve, az első köre és a formája (PQW-863). */
 export interface PieceSection {
@@ -515,11 +597,21 @@ export interface PieceSection {
  */
 export type RoundMark = 'safety-eyes' | 'embroider-eyes' | 'stuffing' | 'close-opening';
 
-/** Egy darab egy köre mint összekapcsolt szél. */
+/**
+ * Egy darab összekapcsolt széle.
+ * - Csak `layer`: a kör egésze (PQW-863, amigurumi).
+ * - `stitches`: a `layer`. sor egy szakasza a sor pozícióinak sorrendjében, a
+ *   `from` 0-tól; pl. a vállvarrás (PQW-866).
+ * - `rows`: a sorvégek a `layer`. sortól a `to`. sorig a rajz bal vagy jobb
+ *   szélén (a PQW-889 sorvég célpontja); pl. az oldalvarrás. A varrás
+ *   szemszáma ilyenkor a sorok száma.
+ */
 export interface JoinEdge {
   readonly piece: PieceId;
-  /** A kör sorszáma a darabban, 1-től. */
+  /** A kör vagy sor sorszáma a darabban, 1-től; sorvégeknél az első sor. */
   readonly layer: number;
+  readonly stitches?: { readonly from: number; readonly count: number };
+  readonly rows?: { readonly to: number; readonly side: 'left' | 'right' };
 }
 
 /**

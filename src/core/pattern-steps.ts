@@ -28,7 +28,7 @@
  * fogyasztáson kívül, láncalap nélküli darab, darabok összekapcsolása.
  */
 
-import { borderOf, type BorderCounts } from './border.ts';
+import { borderLayerIndex, borderOf, borderOfLayer, type BorderCounts } from './border.ts';
 import { buildPieceGraph, spacePositions, type PieceGraph } from './graph.ts';
 import { modeAsWorked } from './insertion.ts';
 import type { StitchLibrary } from './stitch-library.ts';
@@ -49,7 +49,8 @@ import type {
   Tradition,
 } from './types.ts';
 
-export type StepTarget = 'next' | 'same' | 'next-space' | 'same-space' | 'ring' | 'chain-ring' | 'none';
+/** A `down`: hosszú szem korábbi sorba (PQW-894); a lépés `depth` mezője mondja meg, hány sorral lejjebb. */
+export type StepTarget = 'next' | 'same' | 'next-space' | 'same-space' | 'ring' | 'chain-ring' | 'none' | 'down';
 
 /** A szín, amelyre a lépés utolsó szemének utolsó ráhajtásánál váltasz (03 §6, §10 G35, PQW-864). */
 interface ColorChange {
@@ -66,6 +67,8 @@ export type Step =
       readonly mode: StitchInsertion;
       /** Láncszembe vagy szembe megy; csak a kiírt helyhatározóhoz kell. */
       readonly into: 'stitch' | 'chain';
+      /** `down` célpontnál: hány sorral lejjebb (2 vagy 3). */
+      readonly depth?: number;
     } & ColorChange)
   | ({
       readonly kind: 'group';
@@ -77,7 +80,9 @@ export type Step =
   | ({ readonly kind: 'chain'; readonly count: number } & ColorChange)
   | { readonly kind: 'skip'; readonly count: number; readonly what: 'stitch' | 'chain' | 'space' }
   | ({ readonly kind: 'turning-chain'; readonly count: number; readonly countsAs: StitchDefId | null } & ColorChange)
-  | { readonly kind: 'repeat'; readonly steps: readonly Step[]; readonly times: number };
+  | { readonly kind: 'repeat'; readonly steps: readonly Step[]; readonly times: number }
+  /** Az ovális 1. körében a láncszemek másik oldalára fordulás (PQW-890). */
+  | { readonly kind: 'other-side' };
 
 export interface WrittenLayer {
   readonly index: number;
@@ -93,6 +98,11 @@ export interface WrittenLayer {
      * (filé nyitott kezdés: 3N + 6 lsz, a 9. láncszemtől, 03 §5.2, PQW-891). Máskor 0.
      */
     readonly chains: number;
+    /**
+     * A kihagyás után minden megmaradt láncszembe pontosan egy szem kerül, sorban,
+     * egyetlen tételben: „minden láncszembe 1 rp” (PQW-895).
+     */
+    readonly eachChain: boolean;
   } | null;
   readonly steps: readonly Step[];
   /** Szemszám, ahogy a gráf számolja (graph.ts). */
@@ -159,7 +169,11 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
 
   const row1 = graph.layers[1];
   const kind: WrittenPiece['foundation']['kind'] = chainRing ? 'chain-ring' : onChain ? 'chain' : 'ring';
-  const layers = graph.layers.slice(1).map((_, i) => writtenLayer(graph, i + 1, kind, library, traditionOf(pattern.conventions)));
+  // A szegély rétege (PQW-889) nem sor: a szegély mondata írja le.
+  const borderIndex = borderLayerIndex(graph);
+  const layers = graph.layers
+    .slice(1)
+    .flatMap((layer, i) => (layer.border ? [] : [writtenLayer(graph, i + 1, kind, library, traditionOf(pattern.conventions))]));
   const foundation: WrittenPiece['foundation'] = chainRing
     ? { kind: 'chain-ring', count: base.stitches.length }
     : onChain
@@ -167,9 +181,12 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
       : { kind: 'ring' };
   let border: WrittenBorder | null = null;
   if (piece.border) {
-    const result = borderOf(graph, piece.border);
+    // A PQW-889 előtti mentésben a szegélynek még nincs rétege: ott a sorokból számolunk.
+    const result = borderIndex >= 0 ? borderOfLayer(graph, borderIndex, piece.border) : borderOf(graph, piece.border);
     if (!result.ok) throw new WrittenPatternError(`A szegély nem írható ki: ${result.reason}`);
     border = { stitch: piece.border.stitch, counts: result.counts };
+  } else if (borderIndex >= 0) {
+    throw new WrittenPatternError('A szegély választása hiányzik a darabból, ezért a szegély nem írható ki.', graph.layers[borderIndex]!.stitches);
   }
   const sections = (piece.sections ?? []).map(({ name, layer }) => ({ name, layer }));
   const grid = piece.grid;
@@ -199,8 +216,13 @@ function writtenLayer(
 ): WrittenLayer {
   const layer = graph.layers[index]!;
   const below = graph.layers[index - 1]!;
-  const working = layer.direction === 1 ? below.positions : [...below.positions].reverse();
-  const workingIndex = new Map(working.map((id, w) => [id, w]));
+  // Az ovális 1. köre (PQW-890): elöl a horogtól távolodva, utána a láncszemek másik oldalán vissza.
+  const oval = index === 1 && below.undersides.length > 0;
+  const front = layer.direction === 1 && !oval ? below.positions : [...below.positions].reverse();
+  const working = oval ? [...front, ...below.positions] : front;
+  const workingIndex = new Map(front.map((id, w) => [id, w]));
+  const undersideIndex = new Map<NodeId, number>(oval ? below.positions.map((id, k) => [id, front.length + k]) : []);
+  let otherSide = false;
   const defOf = (id: NodeId) => graph.defs.get(id)!;
   const countsAs = layer.firstStitch !== null && layer.turningChainCounts ? countsAsOf(defOf(layer.firstStitch)) : null;
   const hookRow = index === 1 && start === 'chain';
@@ -209,7 +231,9 @@ function writtenLayer(
   const baseChain = hookRow && layer.shape === 'row' && hasBaseChain(layer.turningChainCounts, tradition);
 
   const steps: Step[] = [];
-  const cursorStart = (index >= 2 || baseChain) && layer.turningChainCounts ? 1 : 0;
+  // Fordulás után a sor eleji kúszószemek a cellák fölött haladnak (filé fogyasztás, PQW-894): a kurzor a sor elejéről indul.
+  const slipsFirst = layer.opening?.kind === 'turn' && layer.travelSlips.length > 0;
+  const cursorStart = !slipsFirst && (index >= 2 || baseChain) && layer.turningChainCounts ? 1 : 0;
   let cursor = cursorStart;
   let last: Last = cursorStart === 1 ? { kind: 'stitch', w: 0 } : null;
 
@@ -221,6 +245,24 @@ function writtenLayer(
 
   const classify = (anchor: Anchor, owner: NodeId): { target: StepTarget; mode: StitchInsertion; into: 'stitch' | 'chain' } => {
     if (anchor.into === 'ring') return { target: 'ring', mode: 'both-loops', into: 'stitch' };
+    if (anchor.into === 'row-end') throw unsupported('sorvégbe horgolt szemet tartalmaz; ez csak a szegélyben írható ki', owner);
+    if (anchor.into === 'underside') {
+      const w = undersideIndex.get(anchor.id);
+      // A legtávolabbi láncszem másik oldalát a vége körbeéri: arra külön lépés nem íródik ki.
+      if (w === undefined || w === front.length) throw unsupported('a láncszem másik oldalába olyan helyen horgol, amely még nem írható ki', owner);
+      if (!otherSide) {
+        steps.push({ kind: 'other-side' });
+        otherSide = true;
+        last = null;
+        cursor = Math.max(cursor, front.length + 1);
+      }
+      if (last?.kind === 'stitch' && last.w === w) return { target: 'same', mode: 'both-loops', into: 'chain' };
+      if (w < cursor) throw unsupported('a láncszemek másik oldalán a haladási iránnyal szemben horgol', owner);
+      skip(cursor, w);
+      cursor = w + 1;
+      last = { kind: 'stitch', w };
+      return { target: 'next', mode: 'both-loops', into: 'chain' };
+    }
     if (anchor.into === 'space') {
       if (anchor.id === ringSpace) return { target: 'chain-ring', mode: 'both-loops', into: 'stitch' };
       const chains = spacePositions(below, graph.spaces.get(anchor.id)!).map((id) => workingIndex.get(id));
@@ -264,7 +306,7 @@ function writtenLayer(
   const markChange = (color: number) => {
     for (let k = steps.length - 1; k >= 0; k -= 1) {
       const step = steps[k]!;
-      if (step.kind === 'skip') continue;
+      if (step.kind === 'skip' || step.kind === 'other-side') continue;
       if (step.kind !== 'repeat') steps[k] = { ...step, changeTo: color };
       return;
     }
@@ -280,11 +322,13 @@ function writtenLayer(
     if (handled.has(id) || id === layer.joinSlip || (ringSpace !== undefined && index === 1 && layer.travelSlips.includes(id))) continue;
     const node = graph.nodes.get(id)!;
     const def = defOf(id);
-    if (node.flags && node.flags.length > 0) throw unsupported('keresztezett vagy hosszú szemet tartalmaz', id);
+    if (node.flags?.includes('crossed')) throw unsupported('keresztezett szemet tartalmaz', id);
 
     if (layer.turningChain.includes(id)) {
       for (const chain of layer.turningChain) handled.add(chain);
       if (!hookRow) steps.push({ kind: 'turning-chain', count: layer.turningChain.length, countsAs });
+      // A kúszószemek után a fordulólánc az utolsó átkúszott pozíción áll.
+      if (slipsFirst) last = { kind: 'stitch', w: cursor - 1 };
       continue;
     }
 
@@ -324,6 +368,16 @@ function writtenLayer(
       case 'group':
         throw unsupported('ez a szemfajta itt nem állhat', id);
       default: {
+        const anchor = node.anchors[0];
+        const depth = anchor?.into === 'stitch' ? index - (graph.layerOf.get(anchor.id) ?? index) : 0;
+        if (node.flags?.includes('spike') && anchor?.into === 'stitch' && node.anchors.length === 1 && depth >= 2) {
+          // Hosszú szem korábbi sorba (mozaik, filé sor végi szaporítás, PQW-894). A mozaikban a fölötte kihagyott
+          // láncszem helyén halad át, ezért a kurzor azon is továbblép.
+          if (cursor < working.length && graph.piece.skipped.includes(working[cursor]!)) cursor += 1;
+          last = null;
+          steps.push({ kind: 'stitch', def: def.id, count: 1, target: 'down', depth, mode: modeAsWorked(anchor.mode, layer.side), into: 'stitch' });
+          break;
+        }
         if (def.kind === 'joined' && def.base === 'spread') {
           const ws = node.anchors.map((anchor) => (anchor.into === 'stitch' ? workingIndex.get(anchor.id) : undefined));
           const start = ws[0];
@@ -374,14 +428,28 @@ function writtenLayer(
     steps.splice(0, 2);
   }
 
+  const written = foldRepeats(mergeSteps(steps, library), layer.shape === 'round');
+  // Minden megmaradt láncszembe egy alapszem vagy kúszószem, színváltás nélkül (PQW-895).
+  const [only] = written;
+  const onlyKind = only?.kind === 'stitch' ? library.get(only.def)?.kind : undefined;
+  const eachChain =
+    hookRow &&
+    written.length === 1 &&
+    only?.kind === 'stitch' &&
+    (onlyKind === 'basic' || onlyKind === 'slip') &&
+    only.target === 'next' &&
+    only.into === 'chain' &&
+    only.changeTo === undefined &&
+    only.count === working.length - cursorStart - leadSkipped;
+
   return {
     index,
     shape: layer.shape,
     side: layer.side,
     fromHook: hookRow
-      ? { chain: layer.turningChain.length + (baseChain ? 2 : 1) + leadChains + leadSkipped, countsAs, chains: leadChains }
+      ? { chain: layer.turningChain.length + (baseChain ? 2 : 1) + leadChains + leadSkipped, countsAs, chains: leadChains, eachChain }
       : null,
-    steps: foldRepeats(mergeSteps(steps, library), layer.shape === 'round'),
+    steps: written,
     stitchCount: layer.stitchCount,
     closing: layer.closing?.kind ?? null,
     joinTo,
@@ -419,6 +487,7 @@ export function mergeSteps(steps: readonly Step[], library: StitchLibrary): Step
 function sameRun(a: Step & { kind: 'stitch' }, b: Step & { kind: 'stitch' }, library: StitchLibrary): boolean {
   const kind = library.get(a.def)?.kind;
   if (a.def !== b.def || a.mode !== b.mode || (kind !== 'basic' && kind !== 'slip')) return false;
+  if (a.target === 'down') return b.target === 'down' && a.depth === b.depth;
   if (a.target === 'next') return b.target === 'next';
   if (a.target === 'next-space' || a.target === 'same-space') return b.target === 'same-space';
   return (a.target === 'ring' || a.target === 'chain-ring') && b.target === a.target;

@@ -27,6 +27,7 @@ import type { WorkContext } from './editor.ts';
 import { article } from './hungarian.ts';
 import { layoutPattern, type ChartLayout, type LayoutOptions, type NodePlacement, type Point } from './layout.ts';
 import { CIRCLE, frameCoords, framePoint, outline, type RoundFrame } from './polygon.ts';
+import { curveStrip, outlineOf, rowCurve, type RowCurve } from './row-curve.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import type { NodeId, Pattern } from './types.ts';
 
@@ -49,6 +50,17 @@ export type GridArea =
       readonly a1: number;
       /** Sokszögben az alak; körben hiányzik. */
       readonly frame?: RoundFrame;
+    }
+  /**
+   * Íves vagy megtört sorban (PQW-893) a téglalap az íves rajzon: a felső és az
+   * alsó széle balról jobbra, a bal és a jobb széle fentről lefelé.
+   */
+  | {
+      readonly kind: 'strip';
+      readonly top: readonly Point[];
+      readonly bottom: readonly Point[];
+      readonly left: readonly Point[];
+      readonly right: readonly Point[];
     };
 
 export interface GridBand {
@@ -124,22 +136,94 @@ export function chartGrid(
   };
   const graph = context.graph;
   if (kind === 'text' || !graph) return empty;
-  const layout = layoutPattern(withoutPins(pattern), library, options);
+  // Egyenes sorokból számolunk; íves darabnál a kész rács görbül (PQW-893).
+  const layout = layoutPattern(withoutPins(pattern), library, { ...options, straight: true });
   if (layout.nodes.size === 0) return empty;
 
+  // A szegély (PQW-889) nem sor: a sorok rácsa nélküle készül, és a szegély a darab körüli sávokat kapja.
+  const borderIndex = graph.layers.findIndex((layer) => layer.border);
+  const layers = borderIndex < 0 ? graph.layers : graph.layers.slice(0, borderIndex);
   const input: Input = {
     layout,
-    context,
+    context: borderIndex < 0 ? context : { ...context, layer: borderIndex, slots: [] },
     W: options.columnWidth ?? DEFAULT_COLUMN,
     uniform: kind === 'cells',
     byLayer: groupByLayer(layout),
-    positions: graph.layers.map((layer) => layer.positions),
-    counts: graph.layers.map((layer) => layer.stitchCount),
+    positions: layers.map((layer) => layer.positions),
+    counts: layers.map((layer) => layer.stitchCount),
     frame: layout.frame ?? CIRCLE,
   };
   const round = graph.layers[0]!.shape === 'round';
-  const { bands, cells } = round ? roundGrid(input) : rowGrid(input);
+  const straight = round ? roundGrid(input) : rowGrid(input);
+  const shape = pattern.pieces[0]?.rowShape;
+  const curve = !round && shape ? rowCurve(layout, shape) : null;
+  const { bands: rowBands, cells } = curve ? curved(straight, curve) : straight;
+  // A szegély (PQW-889) a sorok rácsa körüli sávokat kapja.
+  const bands =
+    borderIndex >= 0 && !round ? [...rowBands, ...borderBands(layout, borderIndex, graph.layers[borderIndex]!.stitchCount, rowBands)] : rowBands;
   return { kind, shape: round ? 'round' : 'row', layer: context.layer, bands, cells, bounds: boundsOf(bands, cells) };
+}
+
+/**
+ * A szegély sávjai a sorok rácsa körül (PQW-889): felül, alul és a két
+ * oldalon, a szegély szemeinek kiterjedéséig. Egyenes oldalú darabnál négy
+ * sáv; ferde élnél (PQW-898) soronként egy-egy oldalsáv, amely a lépcsős élt
+ * követi, és a lépcső kitett szemei fölé is kiér.
+ */
+function borderBands(layout: ChartLayout, index: number, stitchCount: number, rows: readonly GridBand[]): GridBand[] {
+  const points = [...layout.nodes.values()].filter((node) => node.layer === index).flatMap((node) => [node.top, ...node.feet]);
+  if (points.length === 0 || rows.length === 0) return [];
+  const inner = boundsOf(rows, []);
+  const x0 = Math.min(inner.minX, ...points.map((p) => p.x)) - HALF_GAP;
+  const x1 = Math.max(inner.maxX, ...points.map((p) => p.x)) + HALF_GAP;
+  const y0 = Math.min(inner.minY, ...points.map((p) => p.y)) - HALF_GAP;
+  const y1 = Math.max(inner.maxY, ...points.map((p) => p.y)) + HALF_GAP;
+  const rects = rows.flatMap((row) => (row.area.kind === 'rect' ? [row.area] : []));
+  const straight = rects.length === rows.length && rects.every((area) => Math.abs(area.x0 - inner.minX) < 1e-6 && Math.abs(area.x1 - inner.maxX) < 1e-6);
+  if (!straight && rects.length === rows.length) {
+    const side = layout.layers[index]?.side ?? 'right';
+    const reach = Math.max(inner.minX - x0, x1 - inner.maxX);
+    const band = (area: { x0: number; x1: number; y0: number; y1: number }): GridBand => ({
+      layer: index,
+      side,
+      stitchCount,
+      tone: (index % 2) as 0 | 1,
+      emphasis: 'none',
+      working: false,
+      area: { kind: 'rect', ...area },
+    });
+    // A rétegek sávjai felülről lefelé rendezve: a szomszéd sor széle adja a lépcsőt.
+    const ordered = [...rects].sort((a, b) => a.y0 - b.y0);
+    const top = ordered[0]!;
+    const bottom = ordered[ordered.length - 1]!;
+    return [
+      band({ x0: top.x0 - reach, x1: top.x1 + reach, y0, y1: top.y0 }),
+      band({ x0: bottom.x0 - reach, x1: bottom.x1 + reach, y0: bottom.y1, y1 }),
+      ...ordered.flatMap((area, i) => {
+        const near = [ordered[i - 1], area, ordered[i + 1]].filter((other): other is (typeof ordered)[number] => other !== undefined);
+        return [
+          band({ x0: Math.min(...near.map((other) => other.x0)) - reach, x1: area.x0, y0: area.y0, y1: area.y1 }),
+          band({ x0: area.x1, x1: Math.max(...near.map((other) => other.x1)) + reach, y0: area.y0, y1: area.y1 }),
+        ];
+      }),
+    ];
+  }
+  const side = layout.layers[index]?.side ?? 'right';
+  const band = (area: { x0: number; x1: number; y0: number; y1: number }): GridBand => ({
+    layer: index,
+    side,
+    stitchCount,
+    tone: (index % 2) as 0 | 1,
+    emphasis: 'none',
+    working: false,
+    area: { kind: 'rect', ...area },
+  });
+  return [
+    band({ x0, x1, y0, y1: inner.minY }),
+    band({ x0, x1, y0: inner.maxY, y1 }),
+    band({ x0, x1: inner.minX, y0: inner.minY, y1: inner.maxY }),
+    band({ x0: inner.maxX, x1, y0: inner.minY, y1: inner.maxY }),
+  ];
 }
 
 function withoutPins(pattern: Pattern): Pattern {
@@ -184,19 +268,38 @@ function groupByLayer(layout: ChartLayout): NodePlacement[][] {
 function slotNodes(context: WorkContext): Map<NodeId, number> {
   const map = new Map<NodeId, number>();
   context.slots.forEach((slot, i) => {
-    const ids = slot.kind === 'stitch' ? [slot.id] : slot.kind === 'space' ? slot.chains : [slot.node];
+    // A láncszem másik oldala ugyanaz a láncszem: a cellája az elülső célpontjáé marad (PQW-899).
+    const ids = slot.kind === 'underside' ? [] : slot.kind === 'stitch' ? [slot.id] : slot.kind === 'space' ? slot.chains : [slot.node];
     for (const id of ids) if (!map.has(id)) map.set(id, i);
   });
   return map;
 }
 
-/** A célpont helye: a szemei tetejének átlaga, mint a vásznon (main.ts). */
-function slotPoint(layout: ChartLayout, context: WorkContext, index: number): Point | undefined {
+/**
+ * A célpont helye a vásznon (main.ts is ezt használja): a szemei tetejének
+ * átlaga. A láncszem másik oldala (PQW-899) a láncszem túloldalán, egy
+ * láncszemnyire: azzal az oldallal szemben, ahol az elöl belehorgolt szem áll.
+ */
+export function targetPoint(layout: ChartLayout, context: WorkContext, index: number): Point | undefined {
   const slot = context.slots[index]!;
+  if (slot.kind === 'underside') return undersidePoint(layout, context, slot.id);
   const ids = slot.kind === 'stitch' ? [slot.id] : slot.kind === 'space' ? slot.chains : [slot.node];
   const points = ids.map((id) => layout.nodes.get(id)?.top).filter((p): p is Point => p !== undefined);
   if (points.length === 0) return undefined;
   return { x: points.reduce((s, p) => s + p.x, 0) / points.length, y: points.reduce((s, p) => s + p.y, 0) / points.length };
+}
+
+function undersidePoint(layout: ChartLayout, context: WorkContext, id: NodeId): Point | undefined {
+  const chain = layout.nodes.get(id);
+  if (!chain) return undefined;
+  const normal = { x: -Math.sin(chain.angle), y: Math.cos(chain.angle) };
+  const graph = context.graph;
+  const front = graph?.layers[1]?.stitches.find((node) => graph.nodes.get(node)!.anchors.some((anchor) => anchor.into === 'stitch' && anchor.id === id));
+  const top = front ? layout.nodes.get(front)?.top : undefined;
+  // Elöl horgolt szem nélkül a láncszem alá (a sorok felfelé nőnek).
+  const toward = top ? Math.sign((top.x - chain.top.x) * normal.x + (top.y - chain.top.y) * normal.y) || -1 : -1;
+  const distance = Math.max(chain.size, 1);
+  return { x: chain.top.x - toward * normal.x * distance, y: chain.top.y - toward * normal.y * distance };
 }
 
 /**
@@ -230,7 +333,7 @@ function layerColumns(input: Input, layer: number, axis: (p: Point) => number): 
 function workingColumns(input: Input, axis: (p: Point) => number | undefined): Column[] {
   const columns: Column[] = [];
   input.context.slots.forEach((_, slot) => {
-    const point = slotPoint(input.layout, input.context, slot);
+    const point = targetPoint(input.layout, input.context, slot);
     const at = point ? axis(point) : undefined;
     if (at === undefined) return;
     columns.push({ at, node: null, slot, order: slot });
@@ -309,6 +412,16 @@ function rowGrid(input: Input): { bands: GridBand[]; cells: GridCell[] } {
     addBand(working, y1 - height, y1, columns, [], fromStart);
   }
   return { bands, cells };
+}
+
+/** A sorrács az íves rajzon (PQW-893): minden téglalap egy felső és egy alsó vonal közötti sáv, a cella közepe is görbül. */
+function curved(grid: { bands: GridBand[]; cells: GridCell[] }, curve: RowCurve): { bands: GridBand[]; cells: GridCell[] } {
+  const strip = (area: GridArea): GridArea =>
+    area.kind === 'rect' ? { kind: 'strip', ...curveStrip(area.x0, area.x1, area.y0, area.y1, curve) } : area;
+  return {
+    bands: grid.bands.map((band) => ({ ...band, area: strip(band.area) })),
+    cells: grid.cells.map((cell) => ({ ...cell, area: strip(cell.area), center: curve.point(cell.center) })),
+  };
 }
 
 /** Az 1. sor haladási iránya: a láncalap két vége közül a sor eleje felől. */
@@ -426,6 +539,13 @@ function boundsOf(bands: readonly GridBand[], cells: readonly GridCell[]): Chart
       maxX = Math.max(maxX, area.x1);
       minY = Math.min(minY, area.y0);
       maxY = Math.max(maxY, area.y1);
+    } else if (area.kind === 'strip') {
+      for (const p of outlineOf(area)) {
+        minX = Math.min(minX, p.x);
+        maxX = Math.max(maxX, p.x);
+        minY = Math.min(minY, p.y);
+        maxY = Math.max(maxY, p.y);
+      }
     } else {
       // Sokszögben a csúcsok adják a szélét, körben a sugár.
       const corners = area.frame ? outline(area.frame, area.r1) : [];
@@ -460,11 +580,22 @@ export function chartBounds(layout: ChartLayout, grid: ChartGrid | null | undefi
 
 export function contains(area: GridArea, p: Point): boolean {
   if (area.kind === 'rect') return p.x >= area.x0 && p.x <= area.x1 && p.y >= area.y0 && p.y <= area.y1;
+  if (area.kind === 'strip') return insidePolygon(outlineOf(area), p);
   const frame = area.frame ?? CIRCLE;
   const { r } = frameCoords(frame, p);
   if (r < area.r0 || r > area.r1) return false;
   if (area.a1 - area.a0 >= TAU - 1e-9) return true;
   return normalize(aroundOf(frame, p) - area.a0) <= area.a1 - area.a0;
+}
+
+/** A pont a sokszögben van-e (páratlan metszésszám). */
+function insidePolygon(points: readonly Point[], p: Point): boolean {
+  let inside = false;
+  for (let i = 0, j = points.length - 1; i < points.length; j = i, i += 1) {
+    const [a, b] = [points[i]!, points[j]!];
+    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
 }
 
 export type GridHit =

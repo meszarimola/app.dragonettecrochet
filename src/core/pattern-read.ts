@@ -15,7 +15,7 @@
  * sor végi szemszámot is összeveti a visszaolvasott gráf számolásával.
  */
 
-import { borderOf } from './border.ts';
+import { appendBorder, borderOf } from './border.ts';
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
 import { isStitchInsertion } from './insertion.ts';
 import { modeAsWorked, type Step, type StepTarget } from './pattern-steps.ts';
@@ -338,7 +338,7 @@ class PieceReader {
     });
 
     if (borderLine) this.readBorder(borderLine);
-    const piece = this.piece();
+    const piece = this.withBorder(this.piece(), borderLine);
     this.checkCounts(piece);
     return piece;
   }
@@ -350,8 +350,10 @@ class PieceReader {
    */
   private readBorder(line: Line): void {
     const graph = this.graph();
+    // Az ismétléshez igazított szegély (PQW-898) a szövegben jelöli az ismétlést.
+    const repeat = this.vocabulary.border.readRepeat(line.text);
     for (const hdcRowEnd of [2, 1] as const) {
-      const border: PieceBorder = { stitch: 'sc', hdcRowEnd };
+      const border: PieceBorder = { stitch: 'sc', hdcRowEnd, ...(repeat ? { repeat } : {}) };
       const result = borderOf(graph, border);
       if (result.ok && renderBorder({ stitch: border.stitch, counts: result.counts }, this.options.library, this.options.locale) === line.text) {
         this.border = border;
@@ -359,6 +361,15 @@ class PieceReader {
       }
     }
     throw new ReadFailure(line.number, `Nem értelmezhető szegély: „${line.text}”.`);
+  }
+
+  /** A szegély rétege a sorok után, a szövegből kiderült választás szerint (PQW-889). */
+  private withBorder(piece: Piece, line: Line | undefined): Piece {
+    if (!this.border || !line) return piece;
+    const pattern: Pattern = { formatVersion: 1, title: this.title, conventions: this.options.conventions, pieces: [] };
+    const bordered = appendBorder(pattern, piece, this.options.library, this.border);
+    if (typeof bordered === 'string') throw new ReadFailure(line.number, bordered);
+    return bordered;
   }
 
   private piece(): Piece {
@@ -509,27 +520,54 @@ class PieceReader {
 
     // Az 1. sor a láncalapon: a horog felőli láncszemek a fordulólánc.
     let fromHookCounts: StitchDef | null = null;
+    // Az új 1. sor (PQW-895) nem írja ki, számít-e a fordulólánc: ilyenkor a minta beállítása dönt.
+    let countsFromSettings = false;
+    let eachChain = false;
     if (index === 1 && this.foundation === 'chain') {
-      const chain = Number(/\d+/.exec(body)?.[0]);
+      const n = Number(/\d+/.exec(body)?.[0]);
+      // A PQW-895 előtti szöveg: „a horogtól számított 3. láncszemtől kezdve (a kihagyott láncszemek 1 rp-nek számítanak) ”.
       const notes: (StitchDef | null)[] = [null, ...[...library.values()].filter((def) => def.kind === 'basic')];
-      const prefix = notes
-        .map((def) => ({ def, text: v.fromHook(chain, def ? v.skippedChainsCount(def, locale) : null) }))
+      const legacy = notes
+        .map((def) => ({ def, text: v.fromHook(n, def ? v.skippedChainsCount(def, locale) : null) }))
         .sort((a, b) => b.text.length - a.text.length)
         .find(({ text }) => body.startsWith(text));
-      if (!prefix || !Number.isInteger(chain) || chain < 1 || chain > working.length) {
-        fail(`Az 1. sor elején azt vártuk, hányadik láncszemtől kezdünk: „${v.fromHook(3, null).trim()}”.`);
+      let chain = 1;
+      if (Number.isInteger(n) && body.startsWith(v.skipChains(n))) {
+        chain = n + 1;
+        body = body.slice(v.skipChains(n).length);
+        countsFromSettings = true;
+      } else if (legacy) {
+        chain = n;
+        fromHookCounts = legacy.def;
+        body = body.slice(legacy.text.length);
+      } else countsFromSettings = true;
+      if (chain < 1 || chain > working.length) {
+        fail(`Az 1. sor elején azt vártuk, hány láncszemet hagyunk ki: „${v.skipChains(2).trim()}”.`);
       }
-      fromHookCounts = prefix!.def;
-      body = body.slice(prefix!.text.length);
       working = working.slice(chain - 1);
+      const [before, after] = v.eachChain('\u0000').split('\u0000') as [string, string];
+      eachChain = body.startsWith(before) && body.endsWith(after) && body.length > before.length + after.length;
+      if (eachChain) body = body.slice(before.length, body.length - after.length);
     }
 
     const context: StepContext = { round, shortIncrease: this.shortIncrease };
-    const steps = splitItems(body).map((item) => parseItem(item, header.line, this.options, v, context));
+    // Az ovális 1. köre (PQW-890): „…, a láncszemek másik oldalán vissza: 4 rp, …”; a mondat a következő tétel elején áll.
+    const items = splitItems(body).flatMap((item) => (item.startsWith(`${v.otherSide} `) ? [v.otherSide, item.slice(v.otherSide.length + 1)] : [item]));
+    const steps = items.map((item): Step => (item === v.otherSide ? { kind: 'other-side' } : parseItem(item, header.line, this.options, v, context)));
+    if (eachChain) {
+      // „minden láncszembe 1 rp”: egyetlen szem, a megmaradt láncszemek mindegyikébe egy.
+      const [only] = steps;
+      if (steps.length !== 1 || only?.kind !== 'stitch' || only.count !== 1 || only.target !== 'next') {
+        fail(`Nem értelmezhető tétel: „${v.eachChain(body)}”.`);
+      }
+      steps[0] = { ...(only as Step & { kind: 'stitch' }), count: working.length };
+    }
     const turning = steps.find((step): step is Step & { kind: 'turning-chain' } => step.kind === 'turning-chain');
     const textCounts = fromHookCounts !== null || (turning !== undefined && turning.countsAs !== null);
 
-    const state = { cursor: index >= 2 && textCounts ? 1 : 0, last: null as Last };
+    const state = { cursor: index >= 2 && textCounts ? 1 : 0, last: null as Last, otherSide: false };
+    // A láncszemek másik oldalán a célpont a láncszem másik oldala (PQW-890).
+    const anchorOf = (id: NodeId, mode: StitchInsertion): Anchor => (state.otherSide ? { into: 'underside', id } : { into: 'stitch', id, mode: modeAsWorked(mode, side) });
     const anchoredAtStart = this.anchoredCount;
     if (state.cursor === 1) state.last = { kind: 'stitch', w: 0 };
     const firstNode = this.stitches.length;
@@ -541,6 +579,9 @@ class PieceReader {
       switch (target) {
         case 'none':
           return [];
+        case 'down':
+          // A korábbi sorba horgolt hosszú szem (PQW-894) a szövegből még nem olvasható vissza.
+          return missing('A lejjebb horgolt szem visszaolvasása még nem készül');
         case 'ring':
         case 'chain-ring': {
           // Angolul a varázskör és a láncgyűrű is „in ring”: a kezdés dönt.
@@ -550,7 +591,7 @@ class PieceReader {
         }
         case 'same':
           if (state.last?.kind !== 'stitch') return missing('Nincs előző szem');
-          return [{ into: 'stitch', id: working[state.last.w]!, mode: modeAsWorked(mode, side) }];
+          return [anchorOf(working[state.last.w]!, mode)];
         case 'same-space':
           if (state.last?.kind !== 'space') return missing('Nincs előző láncív');
           return [{ into: 'space', id: state.last.id }];
@@ -568,7 +609,7 @@ class PieceReader {
           if (state.cursor + consumes > working.length) return missing('Nincs több szem az előző sorban');
           const anchors = working
             .slice(state.cursor, state.cursor + consumes)
-            .map((id): Anchor => ({ into: 'stitch', id, mode: modeAsWorked(mode, side) }));
+            .map((id) => anchorOf(id, mode));
           state.cursor += consumes;
           state.last = { kind: 'stitch', w: state.cursor - 1 };
           return anchors;
@@ -578,6 +619,14 @@ class PieceReader {
 
     const apply = (step: Step, item: string): void => {
       switch (step.kind) {
+        case 'other-side':
+          // A láncszemek másik oldalán vissza: a legtávolabbi láncszem másik oldala nélkül, a horog felé (PQW-890).
+          if (index !== 1 || this.foundation !== 'chain' || state.otherSide) return fail(`Nem értelmezhető tétel: „${item}”.`);
+          state.otherSide = true;
+          working = [...working].reverse().slice(1);
+          state.cursor = 0;
+          state.last = null;
+          return;
         case 'repeat':
           for (let t = 0; t < step.times; t += 1) step.steps.forEach((inner) => apply(inner, item));
           return;
@@ -626,7 +675,7 @@ class PieceReader {
         }
       }
     };
-    splitItems(body).forEach((item, i) => apply(steps[i]!, item));
+    items.forEach((item, i) => apply(steps[i]!, item));
 
     // A szélső kihagyások szándékosak: a sor elején és végén (03 §10 B8).
     for (const { positions, anchoredBefore } of skips) {
@@ -642,7 +691,7 @@ class PieceReader {
     if (hasTurning && firstStitch !== undefined) {
       const firstDef = library.get(this.node(firstStitch).def)!;
       const expected = turningChainCountsFor(conventions.turningChainCounts, firstDef, traditionOf(conventions), round ? 'round' : 'row');
-      if (expected !== textCounts) {
+      if (expected !== textCounts && !countsFromSettings) {
         if (opening === null) fail('Az 1. sor fordulóláncának számolása eltér a minta beállításától.');
         this.events[this.events.length - 1] = { ...opening!, conventions: { ...opening!.conventions, turningChainCounts: textCounts } };
       }

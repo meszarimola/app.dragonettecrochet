@@ -26,9 +26,11 @@
   Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), interest-cohort=()"
   Header always set Strict-Transport-Security "max-age=31536000" env=HTTPS
 
-  # Amíg prototípus, ne kerüljön a találatok közé. A HTML-ben is ott a
-  # meta robots; a fejléc a nem-HTML válaszokat is lefedi.
-  Header always set X-Robots-Tag "noindex, nofollow"
+  # A tervező ne kerüljön a találatok közé, de a linkjei (a főoldal felé)
+  # követhetők maradjanak: noindex, nofollow nélkül (PQW-853). A HTML-ben is
+  # ott a meta robots; a fejléc a nem-HTML válaszokat is lefedi. A robots.txt-be
+  # nem kerül Disallow, különben a kereső nem látná a noindexet.
+  Header always set X-Robots-Tag "noindex"
 </IfModule>
 
 # ---------------------------------------------------------------- Cache

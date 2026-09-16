@@ -9,13 +9,14 @@
  */
 
 import { addAmigurumiPart, createAmigurumi, partName } from '../core/amigurumi-generator.js';
-import { roundGaugeOf } from '../core/amigurumi.js';
+import { roundGaugeOf, shapeGaugeOf } from '../core/amigurumi.js';
 import type { Pattern } from '../core/types.js';
 import {
   BOTTOM_CHOICES,
   JOIN_CHOICES,
   METHOD_CHOICES,
   SHAPE_CHOICES,
+  STITCH_CHOICES,
   TOP_CHOICES,
   addedMessage,
   createdMessage,
@@ -44,6 +45,9 @@ export class AmigurumiPanel {
   readonly #method: HTMLSelectElement;
   readonly #diameter: HTMLInputElement;
   readonly #height: HTMLInputElement;
+  readonly #length: HTMLInputElement;
+  readonly #width: HTMLInputElement;
+  readonly #stitch: HTMLSelectElement;
   readonly #increases: HTMLInputElement;
   readonly #profile: HTMLTextAreaElement;
   readonly #bottom: HTMLSelectElement;
@@ -72,6 +76,9 @@ export class AmigurumiPanel {
     this.#method = fill(field('amigurumi-method'), METHOD_CHOICES);
     this.#diameter = field('amigurumi-diameter');
     this.#height = field('amigurumi-height');
+    this.#length = field('amigurumi-length');
+    this.#width = field('amigurumi-width');
+    this.#stitch = fill(field('amigurumi-stitch'), STITCH_CHOICES);
     this.#increases = field('amigurumi-increases');
     this.#profile = field('amigurumi-profile');
     this.#bottom = fill(field('amigurumi-bottom'), BOTTOM_CHOICES);
@@ -111,6 +118,9 @@ export class AmigurumiPanel {
       method: this.#method.value as AmigurumiForm['method'],
       diameter: this.#diameter.value,
       height: this.#height.value,
+      length: this.#length.value,
+      width: this.#width.value,
+      stitch: this.#stitch.value as AmigurumiForm['stitch'],
       increases: this.#increases.value,
       profile: this.#profile.value,
       bottom: this.#bottom.value as AmigurumiForm['bottom'],
@@ -133,7 +143,8 @@ export class AmigurumiPanel {
     }
     const gauge = roundGaugeOf(this.#pattern);
     setText(this.#gauge, gaugeNote(gauge));
-    setText(this.#summary, previewNote(form, gauge));
+    const pattern = this.#pattern;
+    setText(this.#summary, previewNote(form, gauge, (shape) => shapeGaugeOf(pattern, shape, gauge)));
     setOptional(this.#safety, safetyNote(form.under3));
     setOptional(this.#figure, figureNote(this.#pattern, gauge));
   }

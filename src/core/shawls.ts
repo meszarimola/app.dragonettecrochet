@@ -42,6 +42,7 @@ import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import { hasBaseChain, traditionOf, turningChainCountsFor } from './tradition.ts';
 import type { Anchor, LayerEvent, NodeId, Pattern, Piece, StitchDef, StitchDefId, StitchGroup, StitchNode, ValueSource } from './types.ts';
 import { validatePattern } from './validate.ts';
+import { withGeneratedTitle } from './pattern-title.ts';
 
 export type ShawlKind = 'triangle' | 'asymmetric-triangle' | 'crescent' | 'semicircle' | 'circle' | 'pi' | 'shifted-pi' | 'stole';
 export type RateChoice = 'theory' | 'custom';
@@ -794,6 +795,26 @@ function withStatedCounts(pattern: Pattern, piece: Piece, counts: readonly numbe
   return { ...piece, events: piece.events.map((event) => (stated.has(event.after) ? { ...event, statedCount: stated.get(event.after)! } : event)) };
 }
 
+const tenth = (value: number) => Math.round(value * 10) / 10;
+
+/**
+ * A rajz alakja (PQW-893): a félkör és a félhold sorai íven, a fentről induló
+ * háromszögé a gerincnél megtörve, a terv szögeivel (row-curve.ts).
+ */
+function withRowShape(piece: Piece, plan: ShawlPlan): Piece {
+  const { neckAngleDeg, tipAngleDeg } = shawlGeometry(plan, plan.gauge.stitchCm, plan.gauge.rowCm);
+  switch (plan.kind) {
+    case 'semicircle':
+      return { ...piece, rowShape: { kind: 'arc', neckAngle: 180 } };
+    case 'crescent':
+      return { ...piece, rowShape: { kind: 'arc', neckAngle: tenth(neckAngleDeg ?? 180) } };
+    case 'triangle':
+      return { ...piece, rowShape: { kind: 'chevron', neckAngle: tenth(neckAngleDeg ?? 180), tipAngle: tenth(tipAngleDeg ?? 90) } };
+    default:
+      return piece;
+  }
+}
+
 /**
  * Új minta a kendőből. A mintából a címet (ha nem az alapértelmezett vagy egy
  * generátor adta), a jelölést, a profilokat és a konvenciókat veszi át.
@@ -822,12 +843,10 @@ export function generateShawl(pattern: Pattern, options: ShawlOptions): ShawlRes
     if (typeof piece === 'string') return fail(piece);
     const stated = withStatedCounts({ ...base, conventions }, piece, plan.counts);
     if (typeof stated === 'string') return fail(stated);
-    result = { ...base, conventions, pieces: [stated] };
+    result = { ...base, conventions, pieces: [withRowShape(stated, plan)] };
   }
 
-  const generated = new Set<string>([...Object.values(SHAWL_NAMES), ...Object.values(SHAPE_NAMES), ...Object.values(MOTIF_NAMES)]);
-  const untitled = pattern.title.trim() === '' || pattern.title === 'Új minta' || generated.has(pattern.title);
-  result = { ...result, title: untitled ? name : pattern.title };
+  result = withGeneratedTitle(result, pattern, name, [...Object.values(SHAWL_NAMES), ...Object.values(SHAPE_NAMES), ...Object.values(MOTIF_NAMES)]);
   const errors = validatePattern(result, libraryFor(result)).filter((finding) => finding.severity === 'error');
   if (errors.length > 0) return fail(`A generált minta nem ment át az ellenőrzőn (${errors[0]!.rule}): ez a program hibája, kérlek, jelezd.`);
   return { ok: true, pattern: result, plan };

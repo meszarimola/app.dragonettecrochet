@@ -33,13 +33,15 @@ import {
   work,
   workIntoSame,
   type EditResult,
+  type EditorMode,
   type LiveCheck,
   type Slot,
   type WorkContext,
 } from '../core/editor.js';
 import { canRedo, canUndo, createHistory, record, redo, undo, type History } from '../core/history.js';
-import { chartGrid, type ChartGrid } from '../core/grid.js';
+import { chartGrid, targetPoint, type ChartGrid } from '../core/grid.js';
 import { layoutPattern, type ChartLayout, type Point } from '../core/layout.js';
+import { pieceFinished } from '../core/editor.js';
 import { loadPattern, savePattern } from '../core/pattern-json.js';
 import { aspectStem, gaugeContextOf } from '../core/pattern-size.js';
 import { roundEndFor } from '../core/rounds.js';
@@ -88,10 +90,11 @@ import { insertionSuffix } from './insertion-view.js';
 import { nodeInsertions } from '../core/insertion.js';
 import { AmigurumiPanel } from './amigurumi-panel.js';
 import { GridChartPanel } from './grid-chart-panel.js';
-import { unitFrame } from './grid-chart-view.js';
+import { spikeNodes, unitFrames } from './grid-chart-view.js';
 import { RoundsPanel } from './rounds-panel.js';
 import { ShapesPanel } from './shapes-panel.js';
 import { ShawlsPanel } from './shawls-panel.js';
+import { GarmentPanel } from './garment-panel.js';
 import { SizePanel } from './size-panel.js';
 import { DEFAULT_PATTERN_TYPE, PATTERN_TYPES, gridKind, isAvailableType, writtenShareFor, type PatternTypeId } from './pattern-types.js';
 import { applyInk, drawCentered, readInk, shapeBounds, stemLength, symbolShapes, type SymbolOptions } from './symbols.js';
@@ -203,11 +206,11 @@ interface Derived {
 let derived = derive(history.present);
 
 function derive(pattern: Pattern): Derived {
-  const context = contextOf(pattern);
+  const context = contextOf(pattern, editorMode());
   const stem = stemFor(pattern, context);
   const layout = layoutPattern(pattern, context.library, { mirror, stemLength: stem });
   const check = liveCheck(pattern, context);
-  const targets = context.slots.map((slot, i) => ({ point: slotPoint(layout, slot), used: context.used[i] ?? false }));
+  const targets = context.slots.map((_, i) => ({ point: targetPoint(layout, context, i) ?? { x: 0, y: 0 }, used: context.used[i] ?? false }));
   const grid = showGrid ? chartGrid(pattern, context.library, gridKindOf(context), context, { mirror, stemLength: stem }) : null;
   return { pattern, context, layout, check, targets, grid };
 }
@@ -239,14 +242,9 @@ function directionArrow(): DirectionArrow | null {
   return null;
 }
 
-function slotPoint(layout: ChartLayout, slot: Slot): Point {
-  const ids = slot.kind === 'stitch' ? [slot.id] : slot.kind === 'space' ? slot.chains : [slot.node];
-  const points = ids.map((id) => layout.nodes.get(id)?.top).filter((p): p is Point => p !== undefined);
-  if (points.length === 0) return { x: 0, y: 0 };
-  return {
-    x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
-    y: points.reduce((sum, p) => sum + p.y, 0) / points.length,
-  };
+/** A szerkesztő módja a mintatípusból: amigurumiban a láncalapon kör indul, ovális is (PQW-899). */
+function editorMode(): EditorMode {
+  return { roundsOnChain: patternType === 'amigurumi' };
 }
 
 /* ---- Tárolás ---- */
@@ -352,6 +350,7 @@ function refresh(message?: string): void {
   roundsPanel.update(derived.pattern);
   shapesPanel.update(derived.pattern);
   shawlsPanel.update(derived.pattern);
+  garmentPanel.update(derived.pattern);
   amigurumiPanel.update(derived.pattern);
   gridPanel.update(derived.pattern, mirror);
   if (message !== undefined) announce(message);
@@ -378,8 +377,9 @@ function draw(): void {
     direction: tool && isTargeted(tool) ? directionArrow() : null,
     symbols,
     insertions: nodeInsertions(derived.pattern.pieces[0]),
-    // A rácsminta ismétlő egysége kerettel (PQW-864).
-    unitFrame: unitFrame(derived.pattern, derived.layout, mirror),
+    // A rácsminta ismétlő egysége kerettel (PQW-864, C2C-ben csempénként), a lejjebb horgolt szem talpa (PQW-894).
+    unitFrames: unitFrames(derived.pattern, derived.layout, mirror),
+    spikes: spikeNodes(derived.pattern),
   });
 }
 
@@ -424,6 +424,8 @@ function layerName(context: WorkContext): string {
 function progress(): string {
   const { context, check } = derived;
   if (!context.graph) return '';
+  // A lezárt darab (a fonal elvágása vagy a kész szegély) után nincs következő sor vagy kör (PQW-897).
+  if (pieceFinished(context.graph)) return '';
   if (!context.started) return `${capitalize(layerName(context))} következik.`;
   const count = context.graph.layers[context.layer]?.stitchCount ?? 0;
   const rest = check.remaining > 0 ? `, még ${check.remaining} célpont` : '';
@@ -452,6 +454,7 @@ function describeTarget(index: number): string {
   let what: string;
   if (slot.kind === 'space') what = `láncív (${slot.chains.length} láncszem)`;
   else if (slot.kind === 'ring') what = 'varázskör';
+  else if (slot.kind === 'underside') what = 'láncszem másik oldala';
   else {
     const def = derived.context.graph?.defs.get(slot.id);
     what = def ? stitchName(def, notation.terms) : 'szem';
@@ -536,7 +539,11 @@ function updateControls(): void {
   adjust.hidden = !node || tool !== null;
   if (node) {
     const nodeDef = derived.context.library.get(node.def);
-    adjustName.textContent = `${nodeDef ? capitalize(stitchName(nodeDef, notation.terms)) : node.def}${node.pinned ? ', kézzel igazítva' : ''}`;
+    // A szem neve a jelölés nyelvén, saját lang attribútummal (PQW-853); a magyar utótag kívül marad.
+    const name = document.createElement('span');
+    name.lang = textLanguage(notation.terms);
+    name.textContent = nodeDef ? capitalize(stitchName(nodeDef, notation.terms)) : node.def;
+    adjustName.replaceChildren(name, ...(node.pinned ? [', kézzel igazítva'] : []));
   }
 }
 
@@ -887,7 +894,7 @@ async function workAtCursor(): Promise<void> {
       announce('Nem került le szem.');
       return;
     }
-    const increase = idx === context.frontier ? workIntoSame(history.present, tool) : work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx);
+    const increase = idx === context.frontier ? workIntoSame(history.present, tool) : work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx, [], editorMode());
     commit(increase, `${name}: szaporítás.`);
     return;
   }
@@ -902,12 +909,12 @@ async function workAtCursor(): Promise<void> {
       announce('Nem került le szem.');
       return;
     }
-    commit(work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx, ['crossed']), `${name}: keresztezett szem.`);
+    commit(work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx, ['crossed'], editorMode()), `${name}: keresztezett szem.`);
     return;
   }
 
   const mode = slot?.kind === 'stitch' ? insertionSuffix(insertionPanel.insertion) : '';
-  commit(work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx), `${name} horgolva${mode}.`);
+  commit(work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx, [], editorMode()), `${name} horgolva${mode}.`);
 }
 
 function nudge(dx: number, dy: number): void {
@@ -940,14 +947,17 @@ function exportSvgText(): string {
   const library = libraryFor(pattern);
   const root = document.documentElement;
   const token = (name: string) => getComputedStyle(root).getPropertyValue(name).trim();
-  const context = contextOf(pattern);
+  const context = contextOf(pattern, editorMode());
   const stem = stemFor(pattern, context);
   const grid = {
     grid: chartGrid(pattern, library, gridKindOf(context), context, { mirror, stemLength: stem }),
     colors: { rowA: token('--c-row-a'), rowB: token('--c-row-b'), cell: token('--c-grid'), row: token('--c-grid-row'), strong: token('--c-grid-strong') },
   };
-  return chartSvg(pattern, layoutPattern(pattern, library, { mirror, stemLength: stem }), library, {
+  const layout = layoutPattern(pattern, library, { mirror, stemLength: stem });
+  return chartSvg(pattern, layout, library, {
     tradition: traditionOf(pattern.conventions),
+    unitFrames: unitFrames(pattern, layout, mirror),
+    spikes: spikeNodes(pattern),
     ...(exportGrid.checked ? { grid } : {}),
     colors: { right: token('--c-ink'), wrong: token('--c-ink-wrong'), text: token('--c-text'), background: token('--c-bg') },
     mirror,
@@ -1111,7 +1121,7 @@ const ACTIONS: Record<string, () => void> = {
   'fill-row': () =>
     tool && isTargeted(tool)
       ? commit(
-          fillRow(history.present, { def: tool, count: Number(countInput.value), insertion: insertionPanel.insertion }),
+          fillRow(history.present, { def: tool, count: Number(countInput.value), insertion: insertionPanel.insertion }, editorMode()),
           `Sor kitöltve${insertionSuffix(insertionPanel.insertion)}.`,
         )
       : announce('Előbb válassz célpontba horgolható szemet a sor kitöltéséhez.'),
@@ -1188,7 +1198,8 @@ importFile.addEventListener('change', () => {
 
 titleInput.addEventListener('change', () => {
   const title = titleInput.value.trim();
-  if (title !== history.present.title) commit({ ok: true, pattern: { ...history.present, title } }, 'A minta neve módosult.');
+  // A kézzel írt cím saját cím: a generátor nem írja felül (PQW-896).
+  if (title !== history.present.title) commit({ ok: true, pattern: { ...history.present, title, titleGenerated: false } }, 'A minta neve módosult.');
 });
 
 countInput.addEventListener('change', () => refresh());
@@ -1684,6 +1695,18 @@ const shapesPanel = new ShapesPanel(must<HTMLDetailsElement>('#section-shape'), 
 /* ---- Kendő (PQW-865) ---- */
 
 const shawlsPanel = new ShawlsPanel(must<HTMLDetailsElement>('#section-shawl'), {
+  commit: (pattern, message) => {
+    selectedNode = null;
+    selection = [];
+    commit({ ok: true, pattern }, message);
+    fitBoard();
+  },
+  announce,
+});
+
+/* ---- Ruhadarab (PQW-866) ---- */
+
+const garmentPanel = new GarmentPanel(must<HTMLDetailsElement>('#section-garment'), {
   commit: (pattern, message) => {
     selectedNode = null;
     selection = [];

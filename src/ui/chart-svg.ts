@@ -56,6 +56,10 @@ export interface ChartSvgOptions {
   readonly grid?: { readonly grid: ChartGrid; readonly colors: GridColors };
   /** A minta hagyománya a feliratokhoz (PQW-876); hiányában CYC. */
   readonly tradition?: Tradition;
+  /** Az ismétlő egység keretei (PQW-864, PQW-894); hiányában nincs keret. */
+  readonly unitFrames?: readonly { readonly x0: number; readonly y0: number; readonly x1: number; readonly y1: number }[];
+  /** A lejjebb horgolt hosszú szemek (PQW-894): a talpukat pötty jelöli. */
+  readonly spikes?: ReadonlySet<string>;
 }
 
 const MARGIN = 24;
@@ -150,6 +154,8 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
     ...(repeat ? [`Ismétlés: ${repeat}.`] : []),
     ...(marked.length > 0 ? ['A szál és a relief jele a színoldalról nézve; visszai soron a horgoló a másik szálba, illetve a másik oldalról szúr.'] : []),
     ...(grid ? ['Rács: váltakozó sávok, minden 5. és 10. vonal vastagabb.'] : []),
+    ...((options.unitFrames ?? []).length > 0 ? ['Szaggatott keret: az ismétlő egység.'] : []),
+    ...([...layout.nodes.keys()].some((id) => options.spikes?.has(id)) ? ['Pötty a szár végén: a lejjebb, a kihagyott szembe horgolt szem.'] : []),
     ...(options.mirror ? ['Tükrözött nézet balkezeseknek.'] : []),
   ];
   const legendRows = legend.length + marked.length + keys.length + notes.length;
@@ -192,6 +198,13 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
     out.push('</g>');
   }
 
+  // Az ismétlő egység: szaggatott keret halvány kitöltéssel, a jelek alatt.
+  for (const { x0, y0, x1, y1 } of options.unitFrames ?? []) {
+    out.push(
+      `<rect data-unit-frame="" x="${num(x0)}" y="${num(y0)}" width="${num(x1 - x0)}" height="${num(y1 - y0)}" fill="${colors.text}" fill-opacity="0.06" stroke="${colors.text}" stroke-width="2" stroke-dasharray="6 4"/>`,
+    );
+  }
+
   for (const side of ['right', 'wrong'] as const) {
     const color = colors[side];
     out.push(`<g class="ink" stroke="${color}" color="${color}" data-side="${side}">`);
@@ -200,6 +213,8 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
       if (node.side !== side || !def) continue;
       const insertion = insertions.get(node.id);
       for (const shape of placedShapes(def, node, insertion ? { ...symbols, insertion } : symbols)) out.push(shapeToSvg(shape));
+      const foot = options.spikes?.has(node.id) ? node.feet[0] : undefined;
+      if (foot) out.push(`<circle class="fill" data-spike="" cx="${num(foot.x)}" cy="${num(foot.y)}" r="3.5"/>`);
     }
     out.push('</g>');
   }
@@ -209,9 +224,17 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
   for (const layer of layout.layers) {
     if (layer.index === 0) continue;
     const rightwards = layer.start.x <= layer.end.x;
+    const endAnchor = rightwards ? 'start' : 'end';
+    if (layer.border) {
+      // A szegély nem sor (PQW-897): sorszám helyett felirat, mellette a szemszám, mint a vásznon.
+      out.push(
+        `<text x="${num(layer.start.x)}" y="${num(layer.start.y)}" text-anchor="${rightwards ? 'end' : 'start'}">${escapeXml(captions.border)}</text>`,
+        `<text x="${num(layer.end.x)}" y="${num(layer.end.y)}" text-anchor="${endAnchor}">${escapeXml(captions.count(layer.stitchCount))}</text>`,
+      );
+      continue;
+    }
     const labelWidth = 7.4 * captions.layer(layer.index).length + 10;
     const x0 = rightwards ? layer.start.x + 4 - labelWidth : layer.start.x - 4;
-    const endAnchor = rightwards ? 'start' : 'end';
     out.push(
       `<rect x="${num(x0)}" y="${num(layer.start.y - LABEL_HEIGHT / 2)}" width="${num(labelWidth)}" height="${LABEL_HEIGHT}" rx="4" fill="${colors[layer.side]}"/>`,
       `<text x="${num(x0 + labelWidth / 2)}" y="${num(layer.start.y)}" text-anchor="middle" font-weight="700" fill="${colors.background}">${escapeXml(captions.layer(layer.index))}</text>`,
