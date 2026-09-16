@@ -33,11 +33,12 @@
 
 import { stitchDimensions, type DimensionBasis } from './gauge.ts';
 import { buildPieceGraph } from './graph.ts';
+import { text, type CoreText } from './messages.ts';
 import { activeProfile, gaugeContextOf } from './pattern-size.ts';
 import { weakestSource } from './quantity.ts';
 import { DEFAULT_MOTIF, MOTIF_NAMES, circlePlan, plannedRounds, type RoundPlan } from './round-generator.ts';
 import { flatIncreases } from './rounds.ts';
-import { DEFAULT_SHAPE, SHAPE_NAMES, SHAPE_STITCHES, generateShape, planShape, shapeGauge, type ShapeRepeat } from './shapes.ts';
+import { DEFAULT_SHAPE, SHAPE_NAMES, SHAPE_STITCHES, generateShape, planShape, shapeGauge, type ShapeCode, type ShapeRepeat } from './shapes.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import { hasBaseChain, traditionOf, turningChainCountsFor } from './tradition.ts';
 import type { Anchor, LayerEvent, NodeId, Pattern, Piece, StitchDef, StitchDefId, StitchGroup, StitchNode, ValueSource } from './types.ts';
@@ -192,31 +193,69 @@ export interface ShawlPlan {
   readonly warnings: readonly ShawlWarning[];
 }
 
-export type ShawlPlanResult = { readonly ok: true; readonly plan: ShawlPlan } | { readonly ok: false; readonly reason: string };
-export type ShawlResult = { readonly ok: true; readonly pattern: Pattern; readonly plan: ShawlPlan } | { readonly ok: false; readonly reason: string };
+/**
+ * A kendő elutasításának kódjai (PQW-904): a mag kódot és adatot ad, a mondatot
+ * a felület állítja össze (`src/ui/i18n/core/shape.ts`). A sor és a kör szava is
+ * a felületé: a mag az adatban `shape: 'row' | 'round'` értéket ad.
+ *
+ * A stóla a sík téglalapból készül, ezért a forma kódjai is idetartoznak
+ * (`ShapeCode`, benne a szegély kódjaival és az `internal-error`-ral).
+ */
+export type ShawlCode =
+  | 'shawl-basic-stitch-only'
+  | 'shawl-size-range'
+  | 'shawl-length-range'
+  | 'shawl-rate-range'
+  | 'shawl-edging-width-range'
+  | 'shawl-edging-edge-range'
+  | 'shawl-blocking-range'
+  | 'shawl-min-rows'
+  | 'shawl-max-rows'
+  | 'shawl-max-stitches'
+  | 'shawl-max-total'
+  | 'shawl-first-row-into-one'
+  | 'shawl-min-rows-depth'
+  | 'shawl-max-rows-depth'
+  | 'shawl-min-rows-edge'
+  | 'shawl-max-rows-edge'
+  | 'shawl-min-rows-radius'
+  | 'shawl-max-rows-radius'
+  | 'shawl-double-limit'
+  | 'shawl-min-rounds-radius'
+  | 'shawl-max-rounds-radius'
+  | 'shawl-edging-rows'
+  | 'shawl-edging-round'
+  | 'shawl-row-plan-mismatch'
+  | 'shawl-too-many-into-one'
+  | ShapeCode;
 
-const fail = (reason: string): { readonly ok: false; readonly reason: string } => ({ ok: false, reason });
+export type ShawlText = CoreText<ShawlCode>;
+
+export type ShawlPlanResult = { readonly ok: true; readonly plan: ShawlPlan } | { readonly ok: false; readonly reason: ShawlText };
+export type ShawlResult = { readonly ok: true; readonly pattern: Pattern; readonly plan: ShawlPlan } | { readonly ok: false; readonly reason: ShawlText };
+
+const fail = (reason: ShawlText): { readonly ok: false; readonly reason: ShawlText } => ({ ok: false, reason });
 
 /** Mi nem választható: hiányzó vagy tartományon kívüli méret, arány, ismétlés vagy nyúlás. */
-export function shawlProblem(options: ShawlOptions): string | null {
+export function shawlProblem(options: ShawlOptions): ShawlText | null {
   const cm = (value: number) => Number.isFinite(value) && value > 0 && value <= MAX_SHAWL_CM;
   if (!SHAWL_STITCHES.includes(options.stitch)) {
-    return 'Ehhez a generátorhoz alapszemet válassz: rövidpálca, félpálca, egyráhajtásos vagy kétráhajtásos pálca.';
+    return text('shawl-basic-stitch-only');
   }
-  if (!cm(options.sizeCm)) return `A méret 0 és ${MAX_SHAWL_CM} cm közötti szám legyen.`;
-  if (options.kind === 'stole' && !cm(options.lengthCm)) return `A hossz 0 és ${MAX_SHAWL_CM} cm közötti szám legyen.`;
+  if (!cm(options.sizeCm)) return text('shawl-size-range', { max: MAX_SHAWL_CM });
+  if (options.kind === 'stole' && !cm(options.lengthCm)) return text('shawl-length-range', { max: MAX_SHAWL_CM });
   if (options.kind !== 'stole' && options.rate === 'custom') {
     const rate = options.customRate;
-    if (!(Number.isFinite(rate) && rate > 0 && rate <= MAX_SHAWL_RATE)) return `A választott szaporítás 0-nál nagyobb, legfeljebb ${MAX_SHAWL_RATE} legyen.`;
+    if (!(Number.isFinite(rate) && rate > 0 && rate <= MAX_SHAWL_RATE)) return text('shawl-rate-range', { max: MAX_SHAWL_RATE });
   }
   if (options.edging) {
     const { width, edge } = options.edging;
-    if (!Number.isInteger(width) || width < 1 || width > MAX_EDGING) return `Az ismétlés szemszáma (X) 1 és ${MAX_EDGING} közötti egész szám legyen.`;
-    if (!Number.isInteger(edge) || edge < 0 || edge > MAX_EDGING) return `A szélső szemek száma (Y) 0 és ${MAX_EDGING} közötti egész szám legyen.`;
+    if (!Number.isInteger(width) || width < 1 || width > MAX_EDGING) return text('shawl-edging-width-range', { max: MAX_EDGING });
+    if (!Number.isInteger(edge) || edge < 0 || edge > MAX_EDGING) return text('shawl-edging-edge-range', { max: MAX_EDGING });
   }
   const { widthPct, heightPct } = options.blocking;
   if (![widthPct, heightPct].every((pct) => Number.isFinite(pct) && pct > -50 && pct <= 100)) {
-    return 'A blokkolási nyúlás −50 és 100% közötti szám legyen.';
+    return text('shawl-blocking-range');
   }
   return null;
 }
@@ -298,7 +337,7 @@ export function planShawl(pattern: Pattern, options: ShawlOptions): ShawlPlanRes
   const r = gauge.rowCm / gauge.stitchCm;
   const custom = options.rate === 'custom';
 
-  let planned: Omit<ShawlPlan, 'kind' | 'stitch' | 'gauge' | 'counts' | 'warnings'> | string;
+  let planned: Omit<ShawlPlan, 'kind' | 'stitch' | 'gauge' | 'counts' | 'warnings'> | ShawlText;
   switch (options.kind) {
     case 'triangle':
     case 'crescent':
@@ -319,22 +358,23 @@ export function planShawl(pattern: Pattern, options: ShawlOptions): ShawlPlanRes
       planned = stolePlan(pattern, options);
       break;
   }
-  if (typeof planned === 'string') return fail(planned);
+  if ('code' in planned) return fail(planned);
 
   const counts = countsOf(planned.layout);
   const rows = counts.length;
-  const noun = planned.worked === 'rounds' ? 'kör' : 'sor';
-  if (rows < 2) return fail(`Ehhez a kendőhöz legalább 2 ${noun} kell: adj meg nagyobb méretet.`);
-  if (rows > MAX_SHAWL_ROWS) return fail(`Legfeljebb ${MAX_SHAWL_ROWS} ${noun} lehet: adj meg kisebb méretet.`);
+  // A sor és a kör szava a felületé: a mag az adatban a nyers `shape`-et adja (PQW-904).
+  const shape = planned.worked === 'rounds' ? 'round' : 'row';
+  if (rows < 2) return fail(text('shawl-min-rows', { rows: 2, shape }));
+  if (rows > MAX_SHAWL_ROWS) return fail(text('shawl-max-rows', { max: MAX_SHAWL_ROWS, shape }));
   if (Math.max(...counts) > MAX_SHAWL_STITCHES) {
-    return fail(`${planned.worked === 'rounds' ? 'Egy körben' : 'Egy sorban'} legfeljebb ${MAX_SHAWL_STITCHES} szem lehet: adj meg kisebb méretet.`);
+    return fail(text('shawl-max-stitches', { max: MAX_SHAWL_STITCHES, shape }));
   }
   if (counts.reduce((sum, n) => sum + n, 0) > MAX_SHAWL_TOTAL) {
-    return fail(`A kendőben legfeljebb 30 000 szem lehet: adj meg kisebb méretet vagy vastagabb fonalat.`);
+    return fail(text('shawl-max-total'));
   }
   // Sorban az 1. sor egyetlen láncszembe megy; számító fordulóláncnál az egyik szem a fordulólánc.
   if (planned.worked === 'rows' && options.kind !== 'stole' && counts[0]! - (counting ? 1 : 0) > MAX_INTO_ONE) {
-    return fail(`Az 1. sor egy láncszembe megy, abba legfeljebb ${MAX_INTO_ONE} szem fér: válassz kisebb szaporítást.`);
+    return fail(text('shawl-first-row-into-one', { max: MAX_INTO_ONE }));
   }
 
   return { ok: true, plan: { ...planned, kind: options.kind, stitch: options.stitch, gauge, counts, warnings: warningsOf(options.kind, planned) } };
@@ -343,15 +383,15 @@ export function planShawl(pattern: Pattern, options: ShawlOptions): ShawlPlanRes
 type PlanBody = Omit<ShawlPlan, 'kind' | 'stitch' | 'gauge' | 'counts' | 'warnings'>;
 
 /** Fentről induló háromszög és félhold (05 §1.4, §1.6). */
-function symmetricPlan(options: ShawlOptions, gauge: ShawlGauge, r: number, custom: boolean): PlanBody | string {
+function symmetricPlan(options: ShawlOptions, gauge: ShawlGauge, r: number, custom: boolean): PlanBody | ShawlText {
   const triangle = options.kind === 'triangle';
   const theoryRate = triangle ? 4 * r : 2 * r;
   const chosenRate = custom ? options.customRate : theoryRate;
   // A gerinc szöge a sorhoz: háromszögnél a sor negyede félenként, félholdnál nincs gerincszaporítás.
   const spineHalf = triangle ? chosenRate / 4 : 0;
   const rows = Math.round((options.sizeCm * Math.sin(Math.atan2(gauge.rowCm, spineHalf * gauge.stitchCm))) / gauge.rowCm);
-  if (rows < 2) return 'Ehhez a kendőhöz legalább 2 sor kell: adj meg nagyobb mélységet.';
-  if (rows > MAX_SHAWL_ROWS) return `Legfeljebb ${MAX_SHAWL_ROWS} sor lehet: adj meg kisebb mélységet.`;
+  if (rows < 2) return text('shawl-min-rows-depth');
+  if (rows > MAX_SHAWL_ROWS) return text('shawl-max-rows-depth', { max: MAX_SHAWL_ROWS });
 
   const edges: number[] = [];
   const spine: number[] = [];
@@ -402,7 +442,7 @@ function symmetricPlan(options: ShawlOptions, gauge: ShawlGauge, r: number, cust
       spine.splice(0, rows, ...saved.slice(rows));
     },
   );
-  if (typeof edging === 'string') return edging;
+  if (edging !== null && 'code' in edging) return edging;
 
   const rounds: number[][] = [];
   let p = first;
@@ -424,12 +464,12 @@ function symmetricPlan(options: ShawlOptions, gauge: ShawlGauge, r: number, cust
 }
 
 /** Aszimmetrikus háromszög oldalról oldalra: az egyik él soronként nő (05 §1.5). */
-function asymmetricPlan(options: ShawlOptions, gauge: ShawlGauge, r: number, custom: boolean): PlanBody | string {
+function asymmetricPlan(options: ShawlOptions, gauge: ShawlGauge, r: number, custom: boolean): PlanBody | ShawlText {
   const theoryRate = r;
   const chosenRate = custom ? options.customRate : theoryRate;
   const rows = Math.round(options.sizeCm / gauge.rowCm);
-  if (rows < 2) return 'Ehhez a kendőhöz legalább 2 sor kell: adj meg hosszabb élt.';
-  if (rows > MAX_SHAWL_ROWS) return `Legfeljebb ${MAX_SHAWL_ROWS} sor lehet: adj meg rövidebb élt.`;
+  if (rows < 2) return text('shawl-min-rows-edge');
+  if (rows > MAX_SHAWL_ROWS) return text('shawl-max-rows-edge', { max: MAX_SHAWL_ROWS });
   const grow = schedule(chosenRate, rows, 1);
   const first = Math.max(2, Math.round(chosenRate) + 1);
   const last = () => first + grow.reduce((sum, g) => sum + g, 0);
@@ -438,7 +478,7 @@ function asymmetricPlan(options: ShawlOptions, gauge: ShawlGauge, r: number, cus
     grow[k]! += delta;
     return true;
   }, () => [...grow], (saved) => grow.splice(0, rows, ...saved));
-  if (typeof edging === 'string') return edging;
+  if (edging !== null && 'code' in edging) return edging;
 
   const rounds: number[][] = [];
   let p = first;
@@ -471,23 +511,23 @@ function tailEdging(
   apply: (k: number, delta: number) => boolean,
   save: () => number[],
   restore: (saved: number[]) => void,
-): ShawlPlan['edging'] | string {
+): ShawlPlan['edging'] | ShawlText {
   if (!options.edging) return null;
   for (const d of edgingCandidates(last(), options.edging)) {
     const saved = save();
     if (distributeTail(rows, d, apply)) return { repeats: repeatsOf(last(), options.edging), change: d };
     restore(saved);
   }
-  return 'Az utolsó sor nem igazítható ehhez a szegélyhez: válassz kisebb ismétlést, vagy több sort.';
+  return text('shawl-edging-rows');
 }
 
 /** Félkör fordított sorokban (05 §1.2): soronként egyenletesen, soronként eltolva. */
-function semicirclePlan(options: ShawlOptions, gauge: ShawlGauge, r: number, custom: boolean): PlanBody | string {
+function semicirclePlan(options: ShawlOptions, gauge: ShawlGauge, r: number, custom: boolean): PlanBody | ShawlText {
   const theoryRate = Math.PI * r;
   const chosenRate = custom ? options.customRate : theoryRate;
   const rows = Math.round(options.sizeCm / gauge.rowCm);
-  if (rows < 2) return 'Ehhez a kendőhöz legalább 2 sor kell: adj meg nagyobb sugarat.';
-  if (rows > MAX_SHAWL_ROWS) return `Legfeljebb ${MAX_SHAWL_ROWS} sor lehet: adj meg kisebb sugarat.`;
+  if (rows < 2) return text('shawl-min-rows-radius');
+  if (rows > MAX_SHAWL_ROWS) return text('shawl-max-rows-radius', { max: MAX_SHAWL_ROWS });
   const first = Math.max(2, Math.round(chosenRate));
   const grow = schedule(chosenRate, rows, 1);
   const last = () => first + grow.reduce((sum, g) => sum + g, 0);
@@ -497,12 +537,12 @@ function semicirclePlan(options: ShawlOptions, gauge: ShawlGauge, r: number, cus
     grow[k]! += delta;
     return true;
   }, () => [...grow], (saved) => grow.splice(0, rows, ...saved));
-  if (typeof edging === 'string') return edging;
+  if (edging !== null && 'code' in edging) return edging;
 
   const rounds: number[][] = [];
   let p = first;
   for (let k = 1; k < rows; k += 1) {
-    if (grow[k]! > p) return 'Egy sorban legfeljebb duplázni lehet: válassz kisebb szaporítást.';
+    if (grow[k]! > p) return text('shawl-double-limit');
     rounds.push(spread(p, grow[k]!, k % 2 === 0 ? 0 : 0.5));
     p += grow[k]!;
   }
@@ -527,13 +567,13 @@ function ratioOf(counts: readonly number[], ideal: number): ShawlPlan['ratio'] {
 }
 
 /** Kör és Pi-kendő körökben, varázskörből (05 §1.1, §1.3). */
-function roundPlan(pattern: Pattern, options: ShawlOptions, gauge: ShawlGauge, def: StitchDef, custom: boolean): PlanBody | string {
+function roundPlan(pattern: Pattern, options: ShawlOptions, gauge: ShawlGauge, def: StitchDef, custom: boolean): PlanBody | ShawlText {
   const increases = flatIncreases(def, gaugeContextOf(pattern, libraryFor(pattern)));
   const theoryRate = increases.exact;
   const chosenRate = custom ? Math.max(3, Math.round(options.customRate)) : increases.count;
   const rounds = Math.round(options.sizeCm / gauge.rowCm);
-  if (rounds < 2) return 'Ehhez a kendőhöz legalább 2 kör kell: adj meg nagyobb sugarat.';
-  if (rounds > MAX_SHAWL_ROWS) return `Legfeljebb ${MAX_SHAWL_ROWS} kör lehet: adj meg kisebb sugarat.`;
+  if (rounds < 2) return text('shawl-min-rounds-radius');
+  if (rounds > MAX_SHAWL_ROWS) return text('shawl-max-rounds-radius', { max: MAX_SHAWL_ROWS });
   let layout: RoundPlan;
   if (options.kind === 'circle') layout = circlePlan(chosenRate, rounds, true);
   else {
@@ -555,7 +595,7 @@ function roundPlan(pattern: Pattern, options: ShawlOptions, gauge: ShawlGauge, d
     const grow = last - previous;
     // Az utolsó kör egyben igazodik, legfeljebb duplázásig.
     const d = edgingCandidates(last, options.edging).find((change) => grow + change >= 0 && grow + change <= previous);
-    if (d === undefined) return 'Az utolsó kör nem igazítható ehhez a szegélyhez: válassz kisebb ismétlést.';
+    if (d === undefined) return text('shawl-edging-round');
     layout = { first: layout.first, rounds: [...layout.rounds.slice(0, -1), spread(previous, grow + d, 0.5)] };
     edging = { repeats: repeatsOf(last + d, options.edging), change: d };
   }
@@ -580,7 +620,7 @@ export function piRounds(shifted: boolean, rounds: number): Set<number> {
 }
 
 /** Téglalap stóla (05 §1.7): a sík formák téglalapja, az ismétléssel a szélességen. */
-function stolePlan(pattern: Pattern, options: ShawlOptions): PlanBody | string {
+function stolePlan(pattern: Pattern, options: ShawlOptions): PlanBody | ShawlText {
   const planned = planShape(pattern, stoleShape(options));
   if (!planned.ok) return planned.reason;
   const { counts, repeats } = planned.plan;
@@ -735,7 +775,7 @@ export function shawlGeometry(plan: ShawlPlan, stitchCm: number, rowCm: number):
 const both = (id: NodeId): Anchor => ({ into: 'stitch', id, mode: 'both-loops' });
 
 /** Fordított sorok a tervből: láncalap egy célláncszemmel, a 2. sortól az előző sor pozícióiba. */
-function turnedRows(pattern: Pattern, def: StitchDef, layout: RoundPlan, name: string): Piece | string {
+function turnedRows(pattern: Pattern, def: StitchDef, layout: RoundPlan, name: string): Piece | ShawlText {
   const stitches: StitchNode[] = [];
   const groups: StitchGroup[] = [];
   const events: LayerEvent[] = [];
@@ -767,12 +807,13 @@ function turnedRows(pattern: Pattern, def: StitchDef, layout: RoundPlan, name: s
     events.push({ after: previous!, kind: 'turn' });
     turningTop = chains(def.turningChain).at(-1)!;
     const working = [...below].reverse();
-    if (plan.length !== working.length) return `A(z) ${i + 2}. sor terve nem illik az előző sorhoz: ez a program hibája, kérlek, jelezd.`;
+    // A magyar névelő a felületé: a mag csak a sor számát adja (PQW-904).
+    if (plan.length !== working.length) return text('shawl-row-plan-mismatch', { row: i + 2 });
     const made: NodeId[] = [];
     for (const [w, n] of plan.entries()) {
       // A számító fordulólánc az első pozíción ül: oda eggyel kevesebb szem megy.
       const extra = w === 0 && counting ? n - 1 : n;
-      if (extra > MAX_INTO_ONE) return `A(z) ${i + 2}. sorban egy szembe ${extra} szem kerülne: válassz kisebb szaporítást, vagy nagyobb méretet.`;
+      if (extra > MAX_INTO_ONE) return text('shawl-too-many-into-one', { row: i + 2, count: extra });
       if (extra > 0) made.push(...into(working[w]!, extra));
     }
     below = [...(counting ? [turningTop] : []), ...made];
@@ -782,13 +823,14 @@ function turnedRows(pattern: Pattern, def: StitchDef, layout: RoundPlan, name: s
 }
 
 /** A sor végi eseményekbe a gráf szerinti szemszám; a tervtől eltérő sornál az ok. */
-function withStatedCounts(pattern: Pattern, piece: Piece, counts: readonly number[]): Piece | string {
+function withStatedCounts(pattern: Pattern, piece: Piece, counts: readonly number[]): Piece | ShawlText {
   const whole = { ...pattern, pieces: [piece] };
   const graph = buildPieceGraph(whole, piece, libraryFor(whole));
   const stated = new Map<NodeId, number>();
   for (const layer of graph.layers.slice(1)) {
     if (layer.stitchCount !== counts[layer.index - 1]) {
-      return `A(z) ${layer.index}. ${layer.shape === 'round' ? 'kör' : 'sor'} szemszáma nem a terv szerinti: ez a program hibája, kérlek, jelezd.`;
+      // A sor/kör szava és a névelő a felületé: a mag a sorszámot és a `shape`-et adja.
+      return text('internal-error', { row: layer.index, shape: layer.shape === 'round' ? 'round' : 'row' });
     }
     if (layer.closing) stated.set(layer.closing.after, layer.stitchCount);
   }
@@ -833,21 +875,26 @@ export function generateShawl(pattern: Pattern, options: ShawlOptions): ShawlRes
     result = { ...shape.pattern, pieces: shape.pattern.pieces.map((piece) => ({ ...piece, name })) };
   } else {
     const base: Pattern = { ...pattern, pieces: [] };
-    let piece: Piece | string;
+    // A `plannedRounds` még magyar mondatot ad (round-generator.ts átmeneti `legacyReason`-je,
+    // PQW-904). A kendő ezeket az ágakat nem éri el (varázskörrel kezd, és a kész körterv
+    // legfeljebb duplázik), ezért belső hibaként vesszük át; ha a kör kódjai is megvannak, a
+    // szegély mintájára `nested()` lesz belőle.
+    let piece: Piece | string | ShawlText;
     let conventions = pattern.conventions;
     if (plan.worked === 'rounds') {
       const options = { ...DEFAULT_MOTIF, shape: 'circle' as const, stitch: plan.stitch, start: 'magic-ring' as const, closing: 'join-slip' as const };
       piece = plannedRounds(base, options, plan.layout, name);
       conventions = { ...conventions, roundEnd: 'join-slip' };
     } else piece = turnedRows(base, def, plan.layout, name);
-    if (typeof piece === 'string') return fail(piece);
+    if (typeof piece === 'string') return fail(text('internal-error'));
+    if ('code' in piece) return fail(piece);
     const stated = withStatedCounts({ ...base, conventions }, piece, plan.counts);
-    if (typeof stated === 'string') return fail(stated);
+    if ('code' in stated) return fail(stated);
     result = { ...base, conventions, pieces: [withRowShape(stated, plan)] };
   }
 
   result = withGeneratedTitle(result, pattern, name, [...Object.values(SHAWL_NAMES), ...Object.values(SHAPE_NAMES), ...Object.values(MOTIF_NAMES)]);
   const errors = validatePattern(result, libraryFor(result)).filter((finding) => finding.severity === 'error');
-  if (errors.length > 0) return fail(`A generált minta nem ment át az ellenőrzőn (${errors[0]!.rule}): ez a program hibája, kérlek, jelezd.`);
+  if (errors.length > 0) return fail(text('internal-error', { rule: errors[0]!.rule }));
   return { ok: true, pattern: result, plan };
 }

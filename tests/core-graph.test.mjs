@@ -178,9 +178,11 @@ test('a sor fordulóláncának konvenciója soronként felülírható (README §
 
 test('a számolt réteg csak a types.ts Layer mezőit adja vissza', () => {
   assert.deepEqual(Object.keys(layersOf(hdcRectangle({ rows: 1 }))[1]).sort(), [
+    'below',
     'index',
     'piece',
     'positionCount',
+    'row',
     'shape',
     'side',
     'stitchCount',

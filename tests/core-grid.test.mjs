@@ -15,6 +15,8 @@ import { layoutPattern } from '../src/core/layout.ts';
 import { framePoint } from '../src/core/polygon.ts';
 import { DEFAULT_MOTIF, generateMotif } from '../src/core/round-generator.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
+import { GRID_CORE_TEXTS } from '../src/ui/i18n/core/grid.ts';
+import { renderCoreText } from '../src/ui/i18n/core/render.ts';
 import { chevron, grannySquare, hdcRectangle, shellStitch, vStitchPattern } from './fixtures/examples.ts';
 
 const near = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
@@ -30,6 +32,8 @@ function build(pattern, kind = 'rows', options = {}) {
 }
 
 const aim = (grid, point) => aimAt(grid, gridHit(grid, point));
+/** A mag kódot és adatot ad; a mondat a felület szótárában készül (PQW-904). */
+const hu = (message) => renderCoreText(GRID_CORE_TEXTS.hu, message);
 
 describe('sorrács: a cellák pontosan a számolt pozíciókon', () => {
   const cases = [
@@ -100,12 +104,16 @@ describe('célzás a rácson', () => {
   test('korábbi sor cellájára kattintva üzenet jön, és nem célpont', () => {
     const { grid } = build(hdcRectangle({ rows: 2 }).pattern);
     const old = grid.cells.find((cell) => cell.layer === 1);
-    assert.deepEqual(aim(grid, old.center), {
-      kind: 'refused',
-      message: 'Ez az 1. sor egyik helye. Most a 3. sor készül: csak a 2. sor szemeibe horgolhatsz. Nem került le szem.',
-    });
+    assert.deepEqual(aim(grid, old.center), { kind: 'refused', message: { code: 'aim-other-layer', data: { layer: 1, current: 3, shape: 'row' } } });
+    // A névelő, a ragozás és a „sor” szava a felületé; a magyar mondat a mai.
+    assert.equal(
+      hu(aim(grid, old.center).message),
+      'Ez az 1. sor egyik helye. Most a 3. sor készül: csak a 2. sor szemeibe horgolhatsz. Nem került le szem.',
+    );
     const foundation = grid.cells.find((cell) => cell.layer === 0);
-    assert.match(aim(grid, foundation.center).message, /^Ez a láncalap egyik helye\. Most a 3\. sor készül/);
+    // A 0. réteg neve a kezdésé: sorban láncalap, körben varázskör.
+    assert.deepEqual(aim(grid, foundation.center).message.data, { layer: 0, current: 3, shape: 'row', start: 'chain' });
+    assert.match(hu(aim(grid, foundation.center).message), /^Ez a láncalap egyik helye\. Most a 3\. sor készül/);
   });
 
   test('a nem számító fordulólánc helye a célpontok sorában sem célpont', () => {
@@ -116,7 +124,8 @@ describe('célzás a rácson', () => {
     const chain = layout.nodes.get(example.turningChains[2][0]).top;
     const hit = gridHit(grid, chain);
     assert.equal(hit.kind, 'band');
-    assert.match(aimAt(grid, hit).message, /^Ide nem horgolhatsz: ez a hely nem célpont/);
+    assert.equal(aimAt(grid, hit).message.code, 'aim-not-target');
+    assert.match(hu(aimAt(grid, hit).message), /^Ide nem horgolhatsz: ez a hely nem célpont/);
 
     // A számító fordulólánc teteje viszont célpont: a következő sor utolsó szeme oda megy (PQW-891).
     const counting = hdcRectangle({ rows: 2 });
@@ -139,7 +148,8 @@ describe('célzás a rácson', () => {
     assert.equal(grid.layer, 2);
     // A 2. sor nem számító fordulólánca a sor első szeme mellett kívül áll: alatta nincs célpont.
     const chain = layout.nodes.get(context.graph.layers[2].turningChain[0]).top;
-    assert.deepEqual(aim(grid, chain), { kind: 'refused', message: 'Ebben a cellában nincs mibe horgolni: alatta nincs szem. Nem került le szem.' });
+    assert.deepEqual(aim(grid, chain), { kind: 'refused', message: { code: 'aim-no-stitch' } });
+    assert.equal(hu(aim(grid, chain).message), 'Ebben a cellában nincs mibe horgolni: alatta nincs szem. Nem került le szem.');
     // A célpontok cellái a félkész sorban is a célpontokra mutatnak.
     const cells = grid.cells.filter((cell) => cell.layer === 2);
     assert.deepEqual(cells.map((cell) => cell.slot).sort((a, b) => a - b), context.slots.map((_, i) => i));
@@ -215,7 +225,8 @@ describe('a rács a mintatípus szerint', () => {
       assert.deepEqual(aim(grid, up.center), { kind: 'target', slot: i });
     });
     const inner = grid.cells.find((cell) => cell.layer === 1);
-    assert.match(aim(grid, inner.center).message, /^Ez az 1\. kör egyik helye\. Most a 4\. kör készül: csak a 3\. kör szemeibe/);
+    assert.deepEqual(aim(grid, inner.center).message.data, { layer: 1, current: 4, shape: 'round' });
+    assert.match(hu(aim(grid, inner.center).message), /^Ez az 1\. kör egyik helye\. Most a 4\. kör készül: csak a 3\. kör szemeibe/);
   });
 
   test('varázskör után a célpont a varázskörbe: a készülő kör egyetlen teljes gyűrű', () => {

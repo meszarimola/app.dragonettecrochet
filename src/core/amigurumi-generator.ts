@@ -26,8 +26,9 @@
  *   felezés), különben hiba.
  */
 
-import { SHAPE_NAMES, evenDistribution, roundOps, shapeGaugeOf, shapeSchedule, type Schedule } from './amigurumi.ts';
+import { SHAPE_NAMES, evenDistribution, roundOps, shapeGaugeOf, shapeSchedule, type Schedule, type ShapeCode } from './amigurumi.ts';
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
+import { text, type CoreText } from './messages.ts';
 import { withGeneratedTitle } from './pattern-title.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import { traditionOf, turningChainCountsFor } from './tradition.ts';
@@ -66,13 +67,35 @@ export interface JoinOptions {
   readonly distribute: boolean;
 }
 
+/**
+ * A részek üzenetei kódként (PQW-904): a mondat a felületé
+ * (src/ui/i18n/core/amigurumi.ts). Két tétel felületi elemet idéz (az „Új minta
+ * ebből” gombot és az Ellenőrzés panelt): ezek nevét is a szótár adja, a saját
+ * nyelvén. Az `internal-error` a közös kód a program hibájára: a `data.inner`
+ * mondja meg, melyik belső ellentmondás jött elő (`nested`, messages.ts).
+ */
+export type PartCode =
+  | 'open-start-piece'
+  | 'no-previous-piece'
+  | 'previous-piece-broken'
+  | 'continuous-closed-end'
+  | 'continuous-needs-open-start'
+  | 'continuous-count-differs'
+  | 'sewn-count-differs'
+  | 'round-growth'
+  | 'oval-ends-increase'
+  | 'internal-error';
+
+/** A forma és a rész kódjai egy készletben: egy szótár fedi le a szakaszt. */
+export type AmigurumiCode = ShapeCode | PartCode;
+
 export type AmigurumiResult =
   | { readonly ok: true; readonly pattern: Pattern; readonly schedule: Schedule }
-  | { readonly ok: false; readonly reason: string };
+  | { readonly ok: false; readonly reason: CoreText<AmigurumiCode> };
 
-const fail = (reason: string): AmigurumiResult => ({ ok: false, reason });
+const fail = (reason: CoreText<AmigurumiCode>): AmigurumiResult => ({ ok: false, reason });
 
-const OPEN_START = 'Nyitott kezdésű rész csak folytatólagosan, egy előző rész nyitott végéhez kapcsolható.';
+const OPEN_START: CoreText<AmigurumiCode> = text('open-start-piece');
 
 export function partName(part: PartOptions): string {
   return part.name.trim() || SHAPE_NAMES[part.shape.kind];
@@ -112,7 +135,7 @@ export function createAmigurumi(pattern: Pattern, part: PartOptions, under3: boo
 export function addAmigurumiPart(pattern: Pattern, part: PartOptions, join: JoinOptions, under3: boolean): AmigurumiResult {
   const previous = pattern.pieces.at(-1);
   if (!previous?.sections?.length) {
-    return fail('Előbb hozz létre egy részt az „Új minta ebből” gombbal; a következő rész ehhez kapcsolódik.');
+    return fail(text('no-previous-piece'));
   }
   const planned = shapeSchedule(part.shape, shapeGaugeOf(pattern, part.shape));
   if (!planned.ok) return planned;
@@ -122,7 +145,7 @@ export function addAmigurumiPart(pattern: Pattern, part: PartOptions, join: Join
   try {
     graph = buildPieceGraph(pattern, previous, libraryFor(pattern));
   } catch {
-    return fail('Az előző rész szerkezete hibás, ezért nem kapcsolható hozzá új rész; a hibákat az Ellenőrzés sorolja fel.');
+    return fail(text('previous-piece-broken'));
   }
   const lastLayer = graph.layers.length - 1;
   const lastCount = graph.layers[lastLayer]!.stitchCount;
@@ -132,11 +155,11 @@ export function addAmigurumiPart(pattern: Pattern, part: PartOptions, join: Join
   const conventions = { ...pattern.conventions, roundEnd: 'spiral' as const };
 
   if (join.method === 'continuous') {
-    if (closedEnd) return fail('Folytatólagosan csak nyitott végű részhez lehet kapcsolni, az előző rész vége zárt. Válaszd nála a nyitott véget, vagy varrd a részeket.');
-    if (schedule.start !== 'open') return fail('A folytatólagosan kapcsolt rész nyitott kezdésű: válaszd a henger vagy a forgástest nyitott kezdését.');
+    if (closedEnd) return fail(text('continuous-closed-end'));
+    if (schedule.start !== 'open') return fail(text('continuous-needs-open-start'));
     const first = schedule.counts[0]!;
     if (first !== lastCount && !join.distribute) {
-      return fail(`Az előző rész utolsó köre ${lastCount} szem, az új rész első köre ${first} szem. Kapcsold be az egyenletes elosztást, vagy igazítsd a méretet.`);
+      return fail(text('continuous-count-differs', { previous: lastCount, first }));
     }
     const writer = new PieceWriter(previous);
     writer.continueFromEnd();
@@ -157,7 +180,7 @@ export function addAmigurumiPart(pattern: Pattern, part: PartOptions, join: Join
   const target = closedEnd ? closestLayer(graph, ownCount) : lastLayer;
   const targetCount = graph.layers[target]!.stitchCount;
   if (ownCount !== targetCount && !join.distribute) {
-    return fail(`Az új rész ${ownLayer}. körén ${ownCount} szem van, az előző rész ${target}. körén ${targetCount}. Kapcsold be az egyenletes elosztást, vagy igazítsd a méretet.`);
+    return fail(text('sewn-count-differs', { round: ownLayer, count: ownCount, previousRound: target, previousCount: targetCount }));
   }
   const joined = {
     a: { piece: id, layer: ownLayer },
@@ -244,7 +267,7 @@ interface SectionWrite {
 }
 
 /** A rész körei spirálban; hiba esetén az üzenet. */
-function writeSection(writer: PieceWriter, section: SectionWrite): string | null {
+function writeSection(writer: PieceWriter, section: SectionWrite): CoreText<AmigurumiCode> | null {
   if (section.schedule.oval && section.below === null) return writeOval(writer, section);
   const { counts, backLoop } = section.schedule;
   let positions: readonly NodeId[] = section.below ?? [];
@@ -280,7 +303,7 @@ function writeSection(writer: PieceWriter, section: SectionWrite): string | null
       };
       const ops = roundOps(positions.length, count, section.stagger && run % 2 === 1, cost);
       if (!ops) {
-        return `A ${section.firstLayer + i}. körben ${positions.length} szemből ${count} lenne: egy körben legfeljebb duplázás vagy felezés fér bele.`;
+        return text('round-growth', { round: section.firstLayer + i, previous: positions.length, count });
       }
       let p = 0;
       for (const op of ops) {
@@ -322,7 +345,7 @@ function writeSection(writer: PieceWriter, section: SectionWrite): string | null
  * egyenletesen elosztva, eltolással és a harmadik egymás fölé kerülés
  * elkerülésével; az egyenes oldalakon egy-egy szem.
  */
-function writeOval(writer: PieceWriter, section: SectionWrite): string | null {
+function writeOval(writer: PieceWriter, section: SectionWrite): CoreText<AmigurumiCode> | null {
   const { counts, oval } = section.schedule;
   const { chains: L, perEnd, stitch, turningChain: T } = oval!;
   const { conventions } = section;
@@ -358,7 +381,7 @@ function writeOval(writer: PieceWriter, section: SectionWrite): string | null {
       };
       const endA = Array.from({ length: end }, (_, j) => head + straight + j);
       const endB = [...Array.from({ length: end - head }, (_, j) => P - (end - head) + j), ...Array.from({ length: head }, (_, j) => j)];
-      if (!region(endA) || !region(endB)) return `Az ovális ${section.firstLayer + i}. körében a végek szaporítása nem fér el.`;
+      if (!region(endA) || !region(endB)) return text('oval-ends-increase', { round: section.firstLayer + i });
       const produced: NodeId[] = [];
       const next: number[] = [];
       let nextHead = 0;
@@ -374,7 +397,9 @@ function writeOval(writer: PieceWriter, section: SectionWrite): string | null {
       head = nextHead;
       end += perEnd;
     }
-    if (positions.length !== counts[i]) return `Az ovális ${section.firstLayer + i}. köre ${positions.length} szem lett ${counts[i]} helyett: ez a program hibája, kérlek, jelezd.`;
+    if (positions.length !== counts[i]) {
+      return text('internal-error', { inner: 'oval-round-count', round: section.firstLayer + i, count: positions.length, expected: counts[i]! });
+    }
     const marks = section.marks.get(i);
     writer.event(i === counts.length - 1 ? 'fasten-off' : 'spiral', { statedCount: counts[i]!, ...(marks?.length ? { marks } : {}) });
   }

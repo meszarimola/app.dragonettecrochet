@@ -13,6 +13,7 @@
  */
 
 import type { GridKind } from '../core/grid.ts';
+import { texts } from './i18n.ts';
 
 export type PatternTypeId = 'regular' | 'filet' | 'amigurumi' | 'irregular';
 
@@ -26,32 +27,26 @@ export interface PatternType {
   readonly available: boolean;
 }
 
+/**
+ * A név és a magyarázat a felület nyelvéből jön, lekérdezéskor (PQW-900): a
+ * lista így a nyelvváltás után is a mostani nyelven szól, újraépítés nélkül.
+ */
+const patternType = (id: PatternTypeId, available: boolean): PatternType => ({
+  id,
+  available,
+  get name(): string {
+    return texts().sections.types.menu[id].name;
+  },
+  get detail(): string {
+    return texts().sections.types.menu[id].detail;
+  },
+});
+
 export const PATTERN_TYPES: readonly PatternType[] = [
-  {
-    id: 'regular',
-    name: 'Szabályos horgolás',
-    detail: 'Sík sorok, kör és motívum (pl. nagymama-négyzet).',
-    available: true,
-  },
-  {
-    id: 'filet',
-    name: 'Filéhorgolás',
-    detail: 'Rács teli és nyitott cellákkal; C2C, tapestry és graphgan is.',
-    available: true,
-  },
-  {
-    id: 'amigurumi',
-    name: 'Amigurumi',
-    // Az „írott minta” szó nem szerepelhet: a panel kapcsolójának akadálymentes neve egyedi marad.
-    detail: 'Térbeli forma spirálban, részekből: gömb, henger, kúp. A mintát szövegként írja, a rajz kiegészítés.',
-    available: true,
-  },
-  {
-    id: 'irregular',
-    name: 'Szabálytalan horgolás',
-    detail: 'Formázott, amorf darab (pl. ruhadarab, babacipő).',
-    available: false,
-  },
+  patternType('regular', true),
+  patternType('filet', true),
+  patternType('amigurumi', true),
+  patternType('irregular', false),
 ];
 
 export const DEFAULT_PATTERN_TYPE: PatternTypeId = 'regular';

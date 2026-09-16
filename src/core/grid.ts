@@ -24,8 +24,8 @@
  */
 
 import type { WorkContext } from './editor.ts';
-import { article } from './hungarian.ts';
 import { layoutPattern, type ChartLayout, type LayoutOptions, type NodePlacement, type Point } from './layout.ts';
+import { text, type CoreText } from './messages.ts';
 import { CIRCLE, frameCoords, framePoint, outline, type RoundFrame } from './polygon.ts';
 import { curveStrip, outlineOf, rowCurve, type RowCurve } from './row-curve.ts';
 import type { StitchLibrary } from './stitch-library.ts';
@@ -268,8 +268,9 @@ function groupByLayer(layout: ChartLayout): NodePlacement[][] {
 function slotNodes(context: WorkContext): Map<NodeId, number> {
   const map = new Map<NodeId, number>();
   context.slots.forEach((slot, i) => {
-    // A láncszem másik oldala ugyanaz a láncszem: a cellája az elülső célpontjáé marad (PQW-899).
-    const ids = slot.kind === 'underside' ? [] : slot.kind === 'stitch' ? [slot.id] : slot.kind === 'space' ? slot.chains : [slot.node];
+    // A láncszem másik oldala és a sorvég ugyanannak a szemnek a helyén áll: a cellája az övé marad (PQW-899, PQW-902).
+    const ids =
+      slot.kind === 'underside' || slot.kind === 'row-end' ? [] : slot.kind === 'stitch' ? [slot.id] : slot.kind === 'space' ? slot.chains : [slot.node];
     for (const id of ids) if (!map.has(id)) map.set(id, i);
   });
   return map;
@@ -283,10 +284,21 @@ function slotNodes(context: WorkContext): Map<NodeId, number> {
 export function targetPoint(layout: ChartLayout, context: WorkContext, index: number): Point | undefined {
   const slot = context.slots[index]!;
   if (slot.kind === 'underside') return undersidePoint(layout, context, slot.id);
+  if (slot.kind === 'row-end') return rowEndPoint(layout, slot.id);
   const ids = slot.kind === 'stitch' ? [slot.id] : slot.kind === 'space' ? slot.chains : [slot.node];
   const points = ids.map((id) => layout.nodes.get(id)?.top).filter((p): p is Point => p !== undefined);
   if (points.length === 0) return undefined;
   return { x: points.reduce((s, p) => s + p.x, 0) / points.length, y: points.reduce((s, p) => s + p.y, 0) / points.length };
+}
+
+/** A szegély sorvég-célpontja (PQW-902): a sor szélső szeme mellett, a darabtól kifelé. */
+function rowEndPoint(layout: ChartLayout, id: NodeId): Point | undefined {
+  const node = layout.nodes.get(id);
+  if (!node) return undefined;
+  const xs = [...layout.nodes.values()].map((placement) => placement.top.x);
+  const middle = (Math.min(...xs) + Math.max(...xs)) / 2;
+  const outward = node.top.x >= middle ? 1 : -1;
+  return { x: node.top.x + outward * Math.max(node.size, CHAIN_REACH), y: (node.top.y + (node.feet[0]?.y ?? node.top.y)) / 2 };
 }
 
 function undersidePoint(layout: ChartLayout, context: WorkContext, id: NodeId): Point | undefined {
@@ -614,21 +626,28 @@ export function gridHit(grid: ChartGrid, p: Point): GridHit {
   return null;
 }
 
+/**
+ * A célzás üzenetei (PQW-904): a mag a kódot és az értékeket adja, a mondatot
+ * a felület állítja össze (src/ui/i18n/core/grid.ts). A névelő, a ragozás és a
+ * sor/kör szava is a felületé; itt csak rétegszám és alak van.
+ */
+export type GridAimCode = 'aim-no-stitch' | 'aim-not-target' | 'aim-other-layer';
+
 export type GridAim =
   | { readonly kind: 'target'; readonly slot: number }
-  | { readonly kind: 'refused'; readonly message: string };
+  | { readonly kind: 'refused'; readonly message: CoreText<GridAimCode> };
 
 /** Mi történik a kattintásra: célpont, vagy üzenet arról, miért nincs itt mibe horgolni. */
 export function aimAt(grid: ChartGrid, hit: Exclude<GridHit, null>): GridAim {
   if (hit.kind === 'cell' && hit.cell.slot !== null) return { kind: 'target', slot: hit.cell.slot };
-  const round = grid.shape === 'round';
   const current = grid.layer;
   const layer = hit.band.layer;
-  const name = (n: number) => (n === 0 ? (round ? 'a varázskör' : 'a láncalap') : `${article(n)} ${n}. ${round ? 'kör' : 'sor'}`);
-  const into = (n: number) => (n === 0 && round ? 'a varázskörbe' : `${name(n)} szemeibe`);
-  const refused = (message: string): GridAim => ({ kind: 'refused', message: `${message} Nem került le szem.` });
+  const refused = (message: CoreText<GridAimCode>): GridAim => ({ kind: 'refused', message });
 
-  if (layer >= current) return refused('Ebben a cellában nincs mibe horgolni: alatta nincs szem.');
-  if (layer === current - 1) return refused('Ide nem horgolhatsz: ez a hely nem célpont (például nem számító fordulólánc).');
-  return refused(`Ez ${name(layer)} egyik helye. Most ${name(current)} készül: csak ${into(current - 1)} horgolhatsz.`);
+  if (layer >= current) return refused(text('aim-no-stitch'));
+  if (layer === current - 1) return refused(text('aim-not-target'));
+  // A 0. réteg neve a kezdésé: körben a varázskör, sorban a láncalap. Ahol a
+  // mondatban nem szerepel a kezdés, a mező elmarad (a `data` nem vesz fel `null`-t).
+  const start = layer === 0 || current === 1 ? (grid.shape === 'round' ? 'ring' : 'chain') : null;
+  return refused(text('aim-other-layer', { layer, current, shape: grid.shape, ...(start === null ? {} : { start }) }));
 }

@@ -28,10 +28,13 @@ import {
   generateGarment,
   garmentSizes,
   hatPlan,
+  neckSplitRow,
   planGarment,
   sleeveRowsOf,
 } from '../src/core/garments.ts';
+import { canonicalPattern } from '../src/core/canonical.ts';
 import { loadPattern, savePattern } from '../src/core/pattern-json.ts';
+import { readPattern } from '../src/core/pattern-read.ts';
 import { formatWrittenPattern, writePattern } from '../src/core/pattern-text.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
 import { validatePattern } from '../src/core/validate.ts';
@@ -43,13 +46,18 @@ const hat = (patch) => ({ ...DEFAULT_HAT, ...patch });
 const findings = (pattern) => validatePattern(pattern, libraryFor(pattern));
 const generated = (opts, pattern = emptyPattern()) => {
   const result = generateGarment(pattern, opts);
-  assert.ok(result.ok, result.reason);
+  assert.ok(result.ok, result.ok ? '' : result.reason.code);
   return result;
 };
 const planned = (opts, pattern = emptyPattern()) => {
   const result = planGarment(pattern, opts);
-  assert.ok(result.ok, result.reason);
+  assert.ok(result.ok, result.ok ? '' : result.reason.code);
   return result.plan;
+};
+/** A mag terve, nem elutasítás: az elutasítás kódot és adatot ad (PQW-904). */
+const made = (plan) => {
+  assert.ok(!('code' in plan), 'code' in plan ? plan.code : '');
+  return plan;
 };
 
 /** A „B” példa bemenete (05 §4, „Worked example B”). */
@@ -127,7 +135,7 @@ describe('„B” példa: ledobott vállú pulóver, mellbőség 96 cm, +10 cm b
   const plan = dropShoulderPlan(B, gauge, dc, null);
 
   test('hátrész és elejerész: 80 szem, 42 sor a szegély fölött, 4 + 2 ismétléssel 82 szem', () => {
-    assert.equal(typeof plan, 'object', plan);
+    made(plan);
     assert.equal(plan.panel.exact, 79.5);
     assert.equal(plan.panel.stitches, 80);
     assert.equal(plan.panel.bodyRows, 42);
@@ -189,7 +197,7 @@ describe('„D” példa: felnőtt női sapka félpálcával', () => {
   const plan = hatPlan({ headCm: 56, easeCm: -5, heightCm: 19, brimCm: 3 }, { stitchCm: 1 / 1.5, rowCm: 1 / 1.1 });
 
   test('51 cm, 76 szem; a korona 9 kör; az oldal 12 kör', () => {
-    assert.equal(typeof plan, 'object', plan);
+    made(plan);
     assert.equal(plan.hatCm, 51);
     assert.equal(plan.stitches, 76);
     assert.ok(Math.abs(plan.exactIncreases - 8.57) < 0.01);
@@ -203,10 +211,16 @@ describe('„D” példa: felnőtt női sapka félpálcával', () => {
   });
 
   test('15% fölötti negatív bőséget nem tervez; 10% fölött figyelmeztet', () => {
-    assert.match(hatPlan({ headCm: 50, easeCm: -8, heightCm: 19, brimCm: 3 }, gauge), /legfeljebb a fejkörfogat 15%-a/);
+    // A mag kódot és adatot ad, a mondat a felületé (PQW-904).
+    const refused = hatPlan({ headCm: 50, easeCm: -8, heightCm: 19, brimCm: 3 }, gauge);
+    assert.equal(refused.code, 'negative-ease-head');
+    assert.deepEqual(refused.data, { limit: 15, actual: 16 });
     const tight = hatPlan({ headCm: 50, easeCm: -6, heightCm: 19, brimCm: 3 }, gauge);
     assert.equal(tight.checks.find((check) => check.id === 'negative-ease').ok, false);
-    assert.equal(tight.warnings.length, 1);
+    assert.deepEqual(
+      tight.warnings.map((warning) => warning.code),
+      ['negative-ease-warning'],
+    );
   });
 });
 
@@ -222,7 +236,7 @@ describe('méretsorozat', () => {
 
   test('férfi, gyerek és baba táblázat: minden méret tervezhető és minden ellenőrzés igaz', () => {
     for (const table of ['men', 'child', 'baby']) {
-      const ids = garmentSizes('drop-shoulder', table).map((size) => size.id);
+      const ids = garmentSizes('drop-shoulder', table);
       const plan = planned(options({ table, size: ids[0], from: ids[0], to: ids.at(-1), belowWaistCm: table === 'men' ? 0 : 6 }));
       assert.equal(plan.checksPassed, plan.checksTotal, table);
       assert.deepEqual(plan.monotonic, [], table);
@@ -231,7 +245,10 @@ describe('méretsorozat', () => {
 
   test('a férfi táblázatból hiányzó karöltő és mandzsetta becsült', () => {
     const plan = planned(options({ table: 'men', size: 'M', from: 'M', to: 'M', belowWaistCm: 0 }));
-    assert.deepEqual(plan.sizes[0].estimated, ['karöltőmélység', 'mandzsetta']);
+    assert.deepEqual(
+      plan.sizes[0].estimated.map((item) => item.code),
+      ['estimated-armhole-depth', 'estimated-cuff'],
+    );
   });
 
   test('sapka minden méretben: minden ellenőrzés igaz', () => {
@@ -239,6 +256,26 @@ describe('méretsorozat', () => {
     assert.equal(plan.sizes.length, 10);
     assert.equal(plan.checksPassed, plan.checksTotal);
     assert.deepEqual(plan.monotonic, []);
+  });
+
+  test('növedék: a hosszakat a felakasztott próbadarab nyúlásával csökkenti (05 §7.2, PQW-901)', () => {
+    const plain = planned(options({ from: 'M', to: 'M' }));
+    const grown = planned(options({ from: 'M', to: 'M', growthPct: 10 }));
+    assert.ok(grown.sizes[0].plan.panel.rows < plain.sizes[0].plan.panel.rows, 'a pulóver rövidebb lesz');
+    const hatPlain = planned(hat({ from: 'adult-m', to: 'adult-m' }));
+    const hatGrown = planned(hat({ from: 'adult-m', to: 'adult-m', growthPct: 10 }));
+    assert.ok(hatGrown.sizes[0].plan.counts.length < hatPlain.sizes[0].plan.counts.length, 'a sapka alacsonyabb lesz');
+    assert.equal(planGarment(emptyPattern(), options({ growthPct: 80 })).reason.code, 'growth-range');
+  });
+
+  test('hamis ellenőrzéshez javítási javaslat jár (05 §9.6, PQW-901)', () => {
+    // A mellbőség 10%-át meghaladó negatív bőség: a terv elkészül, de az ellenőrzés hamis.
+    const plan = planned(options({ easeCm: -10, from: 'M', to: 'M' }));
+    const failing = plan.sizes[0].plan.checks.filter((check) => !check.ok);
+    assert.deepEqual(failing.map((check) => check.id), ['negative-ease']);
+    assert.equal(failing[0].label.code, 'check-negative-ease');
+    assert.equal(failing[0].suggestion.code, 'suggest-negative-ease-bust');
+    assert.equal(failing[0].suggestion.data.cm, 9);
   });
 
   test('a táblázat gyanús adata a méretnél megjelenik', () => {
@@ -254,8 +291,13 @@ describe('méretsorozat', () => {
   });
 
   test('rossz választás: a sorozat nem tartalmazza a rajz méretét, túl nagy negatív bőség', () => {
-    assert.match(planGarment(emptyPattern(), options({ from: 'L', to: 'XL' })).reason, /méretsorozat a választott méretet/);
-    assert.match(planGarment(emptyPattern(), options({ easeCm: -20 })).reason, /legfeljebb a mellbőség 15%-a/);
+    assert.equal(planGarment(emptyPattern(), options({ from: 'L', to: 'XL' })).reason.code, 'series-range');
+    // Sorozatban a méret azonosítója és az ok kódja megy a felületre; a méret nevét a felület teszi bele.
+    const tight = planGarment(emptyPattern(), options({ easeCm: -20 })).reason;
+    assert.equal(tight.code, 'size-problem');
+    assert.equal(tight.data.size, 'S');
+    assert.equal(tight.data.table, 'women');
+    assert.equal(tight.data.inner, 'negative-ease-bust');
   });
 });
 
@@ -272,11 +314,13 @@ describe('generált minta', () => {
     assert.equal(pattern.garment.base, 1);
     assert.deepEqual(findings(pattern).filter((finding) => finding.severity === 'error'), []);
     const base = plan.sizes[1].plan;
-    // Az ujj varrása a karöltőbe egyenletes elosztással, a két fele a hátrészre és az elejerészre.
+    // Az ujj varrása a karöltőbe egyenletes elosztással, a két fele a hátrészre és az elejerészre. Formázott
+    // nyaknál a karöltő a törzs tetejéig tart, a vállak a megosztás fölött készülnek (PQW-901).
     const sleeveJoin = pattern.joins.find((join) => join.a.piece === 'p3' && join.b.piece === 'p1');
+    const split = neckSplitRow(base, 'back');
     assert.deepEqual(sleeveJoin.a.stitches, { from: 0, count: base.sleeve.top / 2 });
-    assert.deepEqual(sleeveJoin.b.rows, { to: base.panel.rows, side: 'left' });
-    assert.equal(sleeveJoin.distribution.reduce((sum, n) => sum + n, 0), Math.max(base.sleeve.top / 2, base.panel.armholeRows));
+    assert.deepEqual(sleeveJoin.b.rows, { to: split, side: 'left' });
+    assert.equal(sleeveJoin.distribution.reduce((sum, n) => sum + n, 0), Math.max(base.sleeve.top / 2, split - (base.panel.rows - base.panel.armholeRows)));
   });
 
   test('a jobb ujj a bal tükörképe: a sorok szemszáma azonos', () => {
@@ -286,6 +330,26 @@ describe('generált minta', () => {
     const counts = (name) => [...block(name).matchAll(/\((\d+) szem\)/g)].map((match) => match[1]);
     assert.ok(counts('Bal ujj').length > 0);
     assert.deepEqual(counts('Jobb ujj'), counts('Bal ujj'));
+  });
+
+  test('formázott nyakkivágás: a két váll egy darabon belül, a szöveg visszaolvasható (PQW-901)', () => {
+    const { pattern, plan } = generated(DEFAULT_GARMENT);
+    const base = plan.sizes[1].plan;
+    const { joins: _joins, garment: _garment, ...rest } = pattern;
+    // A darab önmagában: a „Méretek” és az „Összeállítás” blokk nem a sorok szövege.
+    const front = { ...rest, pieces: [pattern.pieces[1]] };
+    const library = libraryFor(front);
+    const text = formatWrittenPattern(writePattern(front, library, 'hu'));
+    const split = neckSplitRow(base, 'front');
+    // A megosztás fölött a két váll ugyanazokkal a sorszámokkal, a szakasz neve különbözteti meg őket.
+    assert.match(text, new RegExp(`A másik váll \\(a ${split}\\. sor fölött\\):`));
+    assert.equal(text.match(new RegExp(`^${split + 1}\\. sor: `, 'gm')).length, 2);
+    const result = readPattern(text, { library, locale: 'hu', conventions: front.conventions });
+    assert.ok(result.ok, result.ok ? '' : `${result.error.line}: ${result.error.message}`);
+    // A darab azonosítóját a beolvasó maga osztja ki: a gráf attól még ugyanaz.
+    const sameId = (piece) => ({ ...piece, id: 'p1' });
+    assert.deepEqual(canonicalPattern(result.pattern).pieces.map(sameId), canonicalPattern(front).pieces.map(sameId));
+    assert.deepEqual(validatePattern(result.pattern, library).filter((finding) => finding.severity === 'error'), []);
   });
 
   test('sapka: hibátlan, és az egyenes oldal nem jelez kunkorodást', () => {
@@ -308,7 +372,8 @@ describe('generált minta', () => {
     assert.match(text, /^Ledobott vállú pulóver\n\nMéretek\nS \(M, L\)\nA sorok és a rajz az M méretre készültek;/);
     assert.match(text, /Hátrész és elejerész \(2 db\): láncalap \d+ \(\d+, \d+\) lsz; \d+ \(\d+, \d+\) szem/);
     assert.match(text, /Szaporíts mindkét szélen 1-1 szemet a \d+\. \(\d+\., \d+\.\) sorban/);
-    assert.match(text, /Varrás: Hátrész, \d+\. sor 1–\d+\. szeme \(\d+\) → Elejerész, \d+\. sor \d+–\d+\. szeme \(\d+\)\./);
+    // Formázott nyaknál a váll egy-egy teljes sor, és a szakasz neve különbözteti meg az azonos sorszámokat (PQW-901).
+    assert.match(text, /Varrás: Hátrész, \d+\. sor 1–\d+\. szeme \(\d+\) → Elejerész, A másik váll, \d+\. sor 1–\d+\. szeme \(\d+\)\./);
     assert.match(text, /Varrás: Hátrész, 1–\d+\. sor bal széle \(\d+ sorvég\) → Elejerész, 1–\d+\. sor jobb széle \(\d+ sorvég\)\./);
     assert.match(text, /Varrás: Bal ujj, \d+\. sor 1–\d+\. szeme \(\d+\) → Hátrész, \d+–\d+\. sor bal széle \(\d+ sorvég\), a szemeket egyenletesen elosztva\./);
     const english = formatWrittenPattern(writePattern(pattern, libraryFor(pattern), 'en-US'));

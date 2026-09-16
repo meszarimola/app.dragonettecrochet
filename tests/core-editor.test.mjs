@@ -24,9 +24,14 @@ import { computeLayers } from '../src/core/graph.ts';
 import { loadPattern, savePattern } from '../src/core/pattern-json.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
 import { validatePattern } from '../src/core/validate.ts';
+import { EDITOR_CORE_TEXTS } from '../src/ui/i18n/core/editor.ts';
+import { renderCoreText } from '../src/ui/i18n/core/render.ts';
+
+/** A mag kódot és adatot ad (PQW-904); a magyar mondat a felület szótárából jön. */
+const huText = (reason) => renderCoreText(EDITOR_CORE_TEXTS.hu, reason);
 
 function ok(result) {
-  assert.ok(result.ok, result.reason);
+  assert.ok(result.ok, result.ok ? '' : huText(result.reason));
   return result.pattern;
 }
 
@@ -83,7 +88,8 @@ describe('félpálcás téglalap csak alapértelmezett célpontokkal', () => {
     assert.equal(defaultCursor(pattern, context, 'hdc'), context.slots.length);
     const result = work(pattern, { def: 'hdc', count: 1 }, context.slots.length);
     assert.equal(result.ok, false);
-    assert.match(result.reason, /sor végére értél/);
+    assert.equal(result.reason.code, 'row-end-reached');
+    assert.match(huText(result.reason), /sor végére értél/);
   });
 
   test('a varázskörbe a kurzor ott marad: a kör minden szeme belemegy', () => {
@@ -223,7 +229,7 @@ describe('az utolsó lépés törlése', () => {
   });
 });
 
-test('hibás műveletre ok: false és magyar indoklás', () => {
+test('hibás műveletre ok: false, kód a magból és magyar mondat a szótárból', () => {
   const empty = emptyPattern();
   for (const result of [
     work(empty, { def: 'sc', count: 1 }, 0),
@@ -237,7 +243,9 @@ test('hibás műveletre ok: false és magyar indoklás', () => {
     workIntoSame(chains(empty, 3), 'sc'),
   ]) {
     assert.equal(result.ok, false);
-    assert.match(result.reason, /\S/);
+    // A mag kódot ad, magyar mondatot nem; a szótár mindegyik kódhoz ad szöveget.
+    assert.equal(typeof result.reason.code, 'string');
+    assert.match(huText(result.reason), /\S/);
   }
 });
 
@@ -309,7 +317,7 @@ describe('sor kezdése a láncalapon (PQW-891)', () => {
   function twoRows(def, turningChain, total) {
     let pattern = chains(emptyPattern(), total);
     const start = endRow(pattern, def);
-    assert.ok(start.ok, start.reason);
+    assert.ok(start.ok, start.ok ? '' : huText(start.reason));
     assert.equal(start.pattern, pattern, 'a láncalap utáni fordulás nem változtat a mintán');
     assert.equal(canEndRow(contextOf(pattern)), true);
     assert.equal(defaultCursor(pattern, contextOf(pattern), def), turningChain + 1, `${def}: a horogtól számított ${turningChain + 2}. láncszem`);
@@ -351,6 +359,7 @@ describe('sor kezdése a láncalapon (PQW-891)', () => {
     assert.equal(canEndRow(contextOf(ring)), false);
     const result = endRow(ring, 'sc');
     assert.equal(result.ok, false);
-    assert.match(result.reason, /\S/);
+    assert.equal(result.reason.code, 'row-empty');
+    assert.match(huText(result.reason), /\S/);
   });
 });

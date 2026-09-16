@@ -21,8 +21,9 @@
  *   repeat.ts, PQW-891).
  */
 
-import { fail, finishGridPattern, gridPiece, GridWriter, intoStitch, rowName } from './grid-pattern.ts';
-import { TECHNIQUE_NAMES, cellSize, colorChartProblem, colorLetter, type CellSize, type ChartRows } from './pixel-chart.ts';
+import { fail, finishGridPattern, gridPiece, GridWriter, intoStitch, type GridPatternCode } from './grid-pattern.ts';
+import { text, type CoreText } from './messages.ts';
+import { TECHNIQUE_NAMES, cellSize, colorChartProblem, type CellSize, type ChartCode, type ChartRows } from './pixel-chart.ts';
 import { foundationChainLength } from './repeat.ts';
 import { shapeGauge, type ShapeGauge } from './shapes.ts';
 import { resolveStitch } from './stitch-variants.ts';
@@ -67,10 +68,13 @@ export interface MosaicPlan {
   readonly drops: number;
 }
 
-export type MosaicPlanResult = { readonly ok: true; readonly plan: MosaicPlan } | { readonly ok: false; readonly reason: string };
+/** A mozaik üzenetei kódként (PQW-904); a szín szava, a névelő és a ragozás a felületé. */
+export type MosaicCode = 'mosaic-two-colors' | 'mosaic-min-width' | 'mosaic-base-row' | 'mosaic-edge-colors' | 'mosaic-stacked-skip';
+
+export type MosaicPlanResult = { readonly ok: true; readonly plan: MosaicPlan } | { readonly ok: false; readonly reason: CoreText<MosaicCode | ChartCode> };
 export type MosaicResult =
   | { readonly ok: true; readonly pattern: Pattern; readonly plan: MosaicPlan }
-  | { readonly ok: false; readonly reason: string };
+  | { readonly ok: false; readonly reason: CoreText<MosaicCode | ChartCode | GridPatternCode> };
 
 export interface MosaicOptions {
   /** A rács: sorok alulról, cellák balról; a cella a szín indexe (0 vagy 1). */
@@ -84,27 +88,23 @@ export interface MosaicOptions {
 /** A rácssor színe: a páratlan sor az A, a páros a B szín. */
 export const mosaicRowColor = (chartRow: number) => (chartRow - 1) % 2;
 
-const colorName = (index: number) => `${index === 0 ? 'az' : 'a'} ${colorLetter(index)} szín`;
-
-/** Mi nem horgolható mozaikként; `null`, ha a rács jó. */
-export function mosaicProblem(cells: ChartRows, colors: readonly PatternColor[]): string | null {
+/** Mi nem horgolható mozaikként; `null`, ha a rács jó. A szín az indexével megy, a szó a szótáré. */
+export function mosaicProblem(cells: ChartRows, colors: readonly PatternColor[]): CoreText<MosaicCode | ChartCode> | null {
   const problem = colorChartProblem(cells, colors);
   if (problem) return problem;
-  if (colors.length !== 2) return 'A mozaik két színnel készül: a sorok színe váltakozik.';
+  if (colors.length !== 2) return text('mosaic-two-colors');
   const width = cells[0]!.length;
-  if (width < 3) return 'A mozaik sora legalább 3 cella: a két szélső cella mindig a sor színe.';
+  if (width < 3) return text('mosaic-min-width');
   for (let y = 0; y < cells.length; y += 1) {
     const chartRow = y + 1;
     const own = mosaicRowColor(chartRow);
     const row = cells[y]!;
-    if (chartRow === 1 && row.some((cell) => cell !== own)) return `Az 1. sor az alapsor: minden cellája ${colorName(own)} legyen.`;
-    if (row[0] !== own || row[width - 1] !== own) {
-      return `${rowName(chartRow)} két szélső cellája ${colorName(own)} legyen: a sor szélén nincs kihagyás.`;
-    }
+    if (chartRow === 1 && row.some((cell) => cell !== own)) return text('mosaic-base-row', { color: own });
+    if (row[0] !== own || row[width - 1] !== own) return text('mosaic-edge-colors', { row: chartRow, color: own });
     if (chartRow >= 2) {
       const below = cells[y - 1]!;
       const x = row.findIndex((cell, i) => cell !== own && below[i] !== mosaicRowColor(chartRow - 1));
-      if (x >= 0) return `${rowName(chartRow)} ${x + 1}. cellája alatt is kihagyás van: mozaikban két kihagyás nem kerülhet egymás fölé.`;
+      if (x >= 0) return text('mosaic-stacked-skip', { row: chartRow, cell: x + 1 });
     }
   }
   return null;

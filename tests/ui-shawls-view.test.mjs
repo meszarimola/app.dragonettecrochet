@@ -18,6 +18,7 @@ import {
   rateLabel,
   shawlFieldState,
   shawlOutline,
+  shawlReason,
   shawlView,
   sizeLabel,
 } from '../src/ui/shawls-view.ts';
@@ -101,6 +102,35 @@ describe('a terv kiírása', () => {
   test('szegélyhez igazítás: a változás félenként', () => {
     const { view } = viewOf(withGauge('dc', 16, 8, true), { kind: 'triangle', stitch: 'dc', sizeCm: 80, edging: { width: 6, edge: 3 } });
     assert.ok(view.details.includes('Szegélyhez: 6 többszöröse + 3 félenként, 30 ismétlés (+3 szem félenként).'), view.details.join('\n'));
+  });
+});
+
+describe('a mag indoka mondattá (PQW-904)', () => {
+  test('a sor és a kör szava a szótáré: a mag csak a `shape`-et adja', () => {
+    assert.equal(shawlReason({ code: 'shawl-min-rows', data: { rows: 2, shape: 'row' } }), 'Ehhez a kendőhöz legalább 2 sor kell: adj meg nagyobb méretet.');
+    assert.equal(shawlReason({ code: 'shawl-min-rows', data: { rows: 2, shape: 'round' } }), 'Ehhez a kendőhöz legalább 2 kör kell: adj meg nagyobb méretet.');
+    assert.equal(
+      shawlReason({ code: 'shawl-max-stitches', data: { max: 1200, shape: 'round' } }),
+      'Egy körben legfeljebb 1200 szem lehet: adj meg kisebb méretet.',
+    );
+    assert.equal(
+      shawlReason({ code: 'shawl-max-stitches', data: { max: 1200, shape: 'row' } }),
+      'Egy sorban legfeljebb 1200 szem lehet: adj meg kisebb méretet.',
+    );
+  });
+
+  test('a névelő és a sorszám a felületen kerül a mondatba; a stóla a forma kódjait is átveszi', () => {
+    assert.equal(
+      shawlReason({ code: 'shawl-too-many-into-one', data: { row: 3, count: 14 } }),
+      'A(z) 3. sorban egy szembe 14 szem kerülne: válassz kisebb szaporítást, vagy nagyobb méretet.',
+    );
+    assert.equal(shawlReason({ code: 'shape-too-steep' }), 'Ilyen meredek élt ennyi sorban nem lehet horgolni: adj meg nagyobb magasságot.');
+  });
+
+  test('a tervező elutasítása a felületen a mai mondat', () => {
+    const planned = planShawl(emptyPattern(), options({ sizeCm: 0.5 }));
+    assert.equal(planned.ok, false);
+    assert.equal(shawlReason(planned.reason), 'Ehhez a kendőhöz legalább 2 sor kell: adj meg nagyobb mélységet.');
   });
 });
 

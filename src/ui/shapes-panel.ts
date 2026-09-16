@@ -21,6 +21,7 @@ import {
   normalizeShape,
   shapeFieldState,
   shapeOutline,
+  shapeReason,
   shapeView,
   widthLabel,
   type Choice,
@@ -61,7 +62,12 @@ export class ShapesPanel {
   readonly #borderRepeat: HTMLInputElement;
   readonly #borderX: HTMLInputElement;
   readonly #borderY: HTMLInputElement;
-  readonly #groups: Readonly<Record<'top' | 'measure' | 'height' | 'angle' | 'repeat' | 'border' | 'hdcRowEnd' | 'borderRepeat', HTMLElement>>;
+  readonly #ribbing: HTMLInputElement;
+  readonly #ribbingRows: HTMLInputElement;
+  readonly #ribbingWidth: HTMLInputElement;
+  readonly #groups: Readonly<
+    Record<'top' | 'measure' | 'height' | 'angle' | 'repeat' | 'border' | 'hdcRowEnd' | 'borderRepeat' | 'ribbing' | 'ribbingFields', HTMLElement>
+  >;
   readonly #size: HTMLElement;
   readonly #details: HTMLElement;
   readonly #source: HTMLElement;
@@ -96,6 +102,9 @@ export class ShapesPanel {
     this.#borderRepeat = field('shape-border-repeat');
     this.#borderX = field('shape-border-x');
     this.#borderY = field('shape-border-y');
+    this.#ribbing = field('shape-ribbing');
+    this.#ribbingRows = field('shape-ribbing-rows');
+    this.#ribbingWidth = field('shape-ribbing-width');
     this.#groups = {
       top: field('shape-top-field'),
       measure: field('shape-measure-field'),
@@ -105,6 +114,8 @@ export class ShapesPanel {
       border: field('shape-border-fields'),
       hdcRowEnd: field('shape-hdc-field'),
       borderRepeat: field('shape-border-repeat-field'),
+      ribbing: field('shape-ribbing-fields'),
+      ribbingFields: field('shape-ribbing-pair'),
     };
     this.#size = field('shape-size');
     this.#details = field('shape-details');
@@ -113,10 +124,31 @@ export class ShapesPanel {
     this.#preview = field('shape-preview');
 
     section.addEventListener('toggle', () => this.#render());
-    for (const input of [this.#kind, this.#stitch, this.#measure, this.#repeat, this.#rounding, this.#border, this.#hdcRowEnd, this.#borderRepeat]) {
+    for (const input of [
+      this.#kind,
+      this.#stitch,
+      this.#measure,
+      this.#repeat,
+      this.#rounding,
+      this.#border,
+      this.#hdcRowEnd,
+      this.#borderRepeat,
+      this.#ribbing,
+    ]) {
       input.addEventListener('change', () => this.#render());
     }
-    for (const input of [this.#width, this.#top, this.#height, this.#angle, this.#repeatX, this.#repeatY, this.#borderX, this.#borderY]) {
+    for (const input of [
+      this.#width,
+      this.#top,
+      this.#height,
+      this.#angle,
+      this.#repeatX,
+      this.#repeatY,
+      this.#borderX,
+      this.#borderY,
+      this.#ribbingRows,
+      this.#ribbingWidth,
+    ]) {
       input.addEventListener('input', () => this.#render());
     }
     field<HTMLButtonElement>('shape-create').addEventListener('click', () => this.#create());
@@ -131,7 +163,10 @@ export class ShapesPanel {
   #options(): ShapeOptions {
     const repeat = this.#borderRepeat.checked ? { repeat: { width: decimal(this.#borderX), edge: decimal(this.#borderY) } } : {};
     const border: PieceBorder | null = this.#border.checked ? { stitch: 'sc', hdcRowEnd: this.#hdcRowEnd.value === '1' ? 1 : 2, ...repeat } : null;
+    // Bordás szegély a felső élen (PQW-909); a körbefutó szegéllyel együtt nem választható.
+    const ribbing = this.#ribbing.checked ? { rows: decimal(this.#ribbingRows), width: decimal(this.#ribbingWidth) } : null;
     return normalizeShape({
+      ribbing,
       shape: this.#kind.value as ShapeOptions['shape'],
       stitch: this.#stitch.value,
       widthCm: decimal(this.#width),
@@ -153,15 +188,18 @@ export class ShapesPanel {
     for (const [key, group] of Object.entries(this.#groups)) group.hidden = !state[key as keyof typeof state];
     for (const input of [this.#repeatX, this.#repeatY, this.#rounding]) input.disabled = !this.#repeat.checked;
     for (const input of [this.#borderX, this.#borderY]) input.disabled = !this.#borderRepeat.checked;
+    for (const input of [this.#ribbingRows, this.#ribbingWidth]) input.disabled = !this.#ribbing.checked;
 
     const planned = planShape(this.#pattern, options);
     const view = planned.ok ? shapeView(planned.plan, options, activeProfile(this.#pattern) !== null) : null;
-    const key = JSON.stringify([planned.ok ? view : planned.reason, planned.ok ? shapeOutline(planned.plan) : null]);
+    // Az indok mondata a felületé (PQW-904): a mag kódot és adatot ad.
+    const reason = planned.ok ? null : shapeReason(planned.reason);
+    const key = JSON.stringify([planned.ok ? view : reason, planned.ok ? shapeOutline(planned.plan) : null]);
     if (key === this.#shown) return;
     this.#shown = key;
 
     if (!planned.ok || !view) {
-      this.#size.textContent = planned.ok ? '' : planned.reason;
+      this.#size.textContent = reason ?? '';
       this.#details.replaceChildren();
       this.#source.textContent = '';
       this.#draw(null);
@@ -209,7 +247,7 @@ export class ShapesPanel {
     const options = this.#options();
     const result = generateShape(this.#pattern, options);
     if (!result.ok) {
-      this.#host.announce(result.reason);
+      this.#host.announce(shapeReason(result.reason));
       return;
     }
     this.#host.commit(result.pattern, generatedMessage(options, result.plan));

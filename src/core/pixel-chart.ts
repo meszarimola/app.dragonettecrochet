@@ -13,7 +13,7 @@
  * - A cella aránya a mintasűrűségből jön, nem állandó (03 §5.1, §10 G31).
  */
 
-import { article } from './hungarian.ts';
+import { text, type CoreText } from './messages.ts';
 import { estimate, scale, type Quantity } from './quantity.ts';
 import type { GridTechnique, GridUnit, PatternColor, StitchDefId } from './types.ts';
 
@@ -48,6 +48,25 @@ export const TECHNIQUE_STITCH: Readonly<Record<GridTechnique, StitchDefId>> = {
 export const MAX_GRID_SIDE = 80;
 /** Tapestryben soronként legfeljebb ennyi vitt szín ajánlott; több haladó szint (03 §5.3, §10 G36). */
 export const MAX_CARRIED_COLORS = 3;
+
+/**
+ * A rácsminta üzenetei kódként (PQW-904): a mag az azonosítót és az értékeket
+ * adja, a mondat a felület szótárában készül (src/ui/i18n/core/grid.ts). A
+ * névelő és a ragozás is ott van, itt csak sor- és cellaszám.
+ */
+export type ChartCode =
+  | 'unit-empty-grid'
+  | 'unit-not-found'
+  | 'unit-incomplete'
+  | 'unit-size'
+  | 'unit-outside'
+  | 'mirror-lettering'
+  | 'mirror-asymmetric'
+  | 'chart-no-rows'
+  | 'chart-size'
+  | 'chart-no-colors'
+  | 'chart-too-many-colors'
+  | 'chart-color-index';
 
 /* ---- Méret és arány ---- */
 
@@ -107,7 +126,7 @@ export function emptyDraft(width: number, height: number, fill: DraftCell = null
 
 /* ---- Ismétlő egység ---- */
 
-export type UnitResult = { readonly ok: true; readonly unit: GridUnit } | { readonly ok: false; readonly reason: string };
+export type UnitResult = { readonly ok: true; readonly unit: GridUnit } | { readonly ok: false; readonly reason: CoreText<ChartCode> };
 
 const mod = (a: number, n: number) => ((a % n) + n) % n;
 
@@ -136,7 +155,7 @@ const twoPeriods = (row: readonly DraftCell[], p: number) => row.length >= 2 * p
 export function detectUnit(draft: DraftRows): UnitResult {
   const height = draft.length;
   const width = Math.max(0, ...draft.map((row) => row.length));
-  if (width === 0 || height === 0) return { ok: false, reason: 'A rács üres: adj meg legalább egy sort.' };
+  if (width === 0 || height === 0) return { ok: false, reason: text('unit-empty-grid') };
 
   let p = width;
   for (let candidate = 1; candidate < width; candidate += 1) {
@@ -166,9 +185,7 @@ export function detectUnit(draft: DraftRows): UnitResult {
     break;
   }
 
-  if (p === width && q === height) {
-    return { ok: false, reason: 'Nem találtam ismétlődést: rajzolj legalább két teljes ismétlést, vagy jelöld meg az ismétlő egységet.' };
-  }
+  if (p === width && q === height) return { ok: false, reason: text('unit-not-found') };
   const unit: GridUnit = { x: 0, y: 0, width: p, height: q };
   const missing = unitGaps(draft, unit);
   if (missing) return { ok: false, reason: missing };
@@ -192,13 +209,12 @@ function unitCells(draft: DraftRows, unit: GridUnit): DraftCell[][] {
 }
 
 /** Mi hiányzik az egységből; `null`, ha minden cellája megadott vagy kikövetkeztethető. */
-function unitGaps(draft: DraftRows, unit: GridUnit): string | null {
+function unitGaps(draft: DraftRows, unit: GridUnit): CoreText<ChartCode> | null {
   const cells = unitCells(draft, unit);
   for (let j = 0; j < unit.height; j += 1) {
     for (let i = 0; i < unit.width; i += 1) {
       if (cells[j]![i] === null) {
-        const row = unit.y + j + 1;
-        return `Az ismétlő egység (${unit.width} × ${unit.height} cella) nem teljes: add meg ${article(row)} ${row}. sor ${unit.x + i + 1}. celláját.`;
+        return text('unit-incomplete', { width: unit.width, height: unit.height, row: unit.y + j + 1, cell: unit.x + i + 1 });
       }
     }
   }
@@ -206,16 +222,12 @@ function unitGaps(draft: DraftRows, unit: GridUnit): string | null {
 }
 
 /** A kézzel megjelölt egység hibája: a rácson kívül esik, vagy nem teljes. */
-export function unitProblem(draft: DraftRows, unit: GridUnit): string | null {
+export function unitProblem(draft: DraftRows, unit: GridUnit): CoreText<ChartCode> | null {
   const height = draft.length;
   const width = Math.max(0, ...draft.map((row) => row.length));
   const whole = (n: number) => Number.isInteger(n);
-  if (![unit.x, unit.y, unit.width, unit.height].every(whole) || unit.width < 1 || unit.height < 1) {
-    return 'Az ismétlő egység mérete és helye pozitív egész szám legyen.';
-  }
-  if (unit.x < 0 || unit.y < 0 || unit.x + unit.width > width || unit.y + unit.height > height) {
-    return 'Az ismétlő egység a megadott rácson belül legyen.';
-  }
+  if (![unit.x, unit.y, unit.width, unit.height].every(whole) || unit.width < 1 || unit.height < 1) return text('unit-size');
+  if (unit.x < 0 || unit.y < 0 || unit.x + unit.width > width || unit.y + unit.height > height) return text('unit-outside');
   return unitGaps(draft, unit);
 }
 
@@ -266,12 +278,10 @@ export function isMirrorSymmetric(rows: ChartRows): boolean {
 }
 
 /** Figyelmeztetés tükrözött nézetben: a felirat fordítva olvasható, az aszimmetrikus motívum megfordul. */
-export function mirrorWarning(rows: ChartRows, lettering: boolean, mirrored: boolean): string | null {
+export function mirrorWarning(rows: ChartRows, lettering: boolean, mirrored: boolean): CoreText<ChartCode> | null {
   if (!mirrored) return null;
-  if (lettering) {
-    return 'Tükrözött nézet: a feliratos motívumban a betűk fordítva állnak. Balkezes horgolásnál a rácsot tükrözd, hogy a felirat olvasható maradjon.';
-  }
-  if (!isMirrorSymmetric(rows)) return 'Tükrözött nézet: a motívum nem szimmetrikus, ezért balkezes horgolásnál fordítva áll.';
+  if (lettering) return text('mirror-lettering');
+  if (!isMirrorSymmetric(rows)) return text('mirror-asymmetric');
   return null;
 }
 
@@ -284,17 +294,15 @@ export const MAX_COLORS = 8;
 export const colorLetter = (index: number) => String.fromCharCode(65 + index);
 
 /** Hiba a színes rácsban: méret, színlista, színindex. */
-export function colorChartProblem(cells: ChartRows, colors: readonly PatternColor[]): string | null {
-  if (cells.length === 0) return 'Adj meg legalább egy sort.';
+export function colorChartProblem(cells: ChartRows, colors: readonly PatternColor[]): CoreText<ChartCode> | null {
+  if (cells.length === 0) return text('chart-no-rows');
   const width = cells[0]!.length;
   if (cells.length > MAX_GRID_SIDE || width === 0 || width > MAX_GRID_SIDE || cells.some((row) => row.length !== width)) {
-    return `A rács legfeljebb ${MAX_GRID_SIDE} × ${MAX_GRID_SIDE} cella, és minden sora egyforma széles legyen.`;
+    return text('chart-size', { max: MAX_GRID_SIDE });
   }
-  if (colors.length === 0) return 'Adj meg legalább egy színt.';
-  if (colors.length > MAX_COLORS) return `Legfeljebb ${MAX_COLORS} szín lehet.`;
-  if (cells.some((row) => row.some((cell) => !Number.isInteger(cell) || cell < 0 || cell >= colors.length))) {
-    return 'Minden cellának a színlista egyik színe legyen.';
-  }
+  if (colors.length === 0) return text('chart-no-colors');
+  if (colors.length > MAX_COLORS) return text('chart-too-many-colors', { max: MAX_COLORS });
+  if (cells.some((row) => row.some((cell) => !Number.isInteger(cell) || cell < 0 || cell >= colors.length))) return text('chart-color-index');
   return null;
 }
 

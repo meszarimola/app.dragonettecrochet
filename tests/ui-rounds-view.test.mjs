@@ -7,7 +7,7 @@ import { strict as assert } from 'node:assert';
 import { describe, test } from 'node:test';
 
 import { emptyPattern } from '../src/core/editor.ts';
-import { DEFAULT_MOTIF, motifIncreases } from '../src/core/round-generator.ts';
+import { DEFAULT_MOTIF, motifIncreases, motifProblem } from '../src/core/round-generator.ts';
 import {
   CLOSING_CHOICES,
   JOG_CHOICES,
@@ -19,6 +19,7 @@ import {
   increaseNote,
   normalizeMotif,
 } from '../src/ui/rounds-view.ts';
+import { amigurumiCoreText } from '../src/ui/i18n/core/amigurumi.ts';
 
 const options = (patch = {}) => ({ ...DEFAULT_MOTIF, ...patch });
 
@@ -67,7 +68,16 @@ describe('a mezők a formához', () => {
     assert.equal(granny.stitch, 'dc');
     assert.equal(granny.closing, 'join-slip');
     assert.equal(granny.start, 'magic-ring');
-    assert.deepEqual(fieldState(granny), { stitch: false, chainStart: false, closing: false, stagger: false, jogFix: false });
+    // A bordás perem a kúszószemes záráshoz kötött, ezért a nagymama-négyzetnél is választható (PQW-909).
+    assert.deepEqual(fieldState(granny), {
+      stitch: false,
+      chainStart: false,
+      closing: false,
+      stagger: false,
+      jogFix: false,
+      ribbing: true,
+      ribbingFields: false,
+    });
   });
 
   test('eltolt szaporítás csak lapos körnél, lépcsőjavítás csak spirálban, színváltással', () => {
@@ -111,5 +121,13 @@ describe('a szaporítás magyarázata', () => {
       generatedMessage(options({ rounds: 4 })),
       'Lapos kör, 4 kör elkészült; visszavonással a korábbi minta visszajön.',
     );
+  });
+
+  test('a mag kódot ad, a mondatot a szótár állítja össze (PQW-904)', () => {
+    const problem = motifProblem(options({ rounds: 0 }));
+    assert.deepEqual(problem, { code: 'rounds-range', data: { max: 30 } });
+    assert.equal(amigurumiCoreText(problem), 'A körök száma 1 és 30 között lehet.');
+    // A magyar névelő is a felületé: a magban csak a körszám van.
+    assert.equal(amigurumiCoreText({ code: 'round-plan-mismatch', data: { round: 3 } }), 'A(z) 3. kör terve nem illik az előző körhöz.');
   });
 });

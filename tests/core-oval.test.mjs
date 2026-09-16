@@ -9,7 +9,7 @@ import { strict as assert } from 'node:assert';
 import { describe, test } from 'node:test';
 
 import { addAmigurumiPart, createAmigurumi } from '../src/core/amigurumi-generator.ts';
-import { figureSize, roundGaugeOf, shapeSchedule } from '../src/core/amigurumi.ts';
+import { fabricThicknessCm, figureSize, roundGaugeOf, shapeSchedule } from '../src/core/amigurumi.ts';
 import { canonicalPattern } from '../src/core/canonical.ts';
 import { contextOf, defaultCursor, emptyPattern, endRoundSpiral, fillRow, liveCheck, work, workIntoSame } from '../src/core/editor.ts';
 import { buildPieceGraph, computeLayers } from '../src/core/graph.ts';
@@ -21,15 +21,21 @@ import { readPattern } from '../src/core/pattern-read.ts';
 import { formatWrittenPattern, writePattern } from '../src/core/pattern-text.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
 import { validatePattern } from '../src/core/validate.ts';
+import { AMIGURUMI_CORE_TEXTS } from '../src/ui/i18n/core/amigurumi.ts';
+import { renderCoreText } from '../src/ui/i18n/core/render.ts';
 
 /** A 04 §4.4 mintasűrűsége: DK pamut, 3,5 mm-es tű. */
-const DK = { stitchesPerCm: 1.9, roundsPerCm: 2, source: 'measured' };
+const DK = { stitchesPerCm: 1.9, roundsPerCm: 2, source: 'measured', hookMm: 3.5 };
 
 const part = (shape, extra = {}) => ({ name: '', shape, stagger: true, eyes: false, ...extra });
 const oval = (lengthCm, widthCm) => ({ kind: 'oval', lengthCm, widthCm });
 
+/** A mag kódot és adatot ad (PQW-904); a magyar mondat a felület szótárából jön. */
+const hu = (message) => renderCoreText(AMIGURUMI_CORE_TEXTS.hu, message);
+const why = (result) => (result.ok ? '' : typeof result.reason === 'string' ? result.reason : hu(result.reason));
+
 function ok(result) {
-  assert.ok(result.ok, result.reason);
+  assert.ok(result.ok, why(result));
   return result.pattern;
 }
 
@@ -46,7 +52,7 @@ describe('a körterv (04 §9.4)', () => {
       [20, 10],
     ]) {
       const planned = shapeSchedule(oval(lengthCm, widthCm), DK);
-      assert.ok(planned.ok, planned.reason);
+      assert.ok(planned.ok, why(planned));
       const { counts, start, end, oval: plan } = planned.schedule;
       assert.equal(start, 'chain');
       assert.equal(end, 'open');
@@ -59,8 +65,11 @@ describe('a körterv (04 §9.4)', () => {
   });
 
   test('a hossz a hosszabbik méret; hibás méretnél érthető üzenet', () => {
-    assert.match(shapeSchedule(oval(4, 6), DK).reason, /hossza legalább akkora/);
-    assert.match(shapeSchedule(oval(Number.NaN, 4), DK).reason, /hossz/);
+    assert.equal(shapeSchedule(oval(4, 6), DK).reason.code, 'oval-length');
+    assert.match(hu(shapeSchedule(oval(4, 6), DK).reason), /hossza legalább akkora/);
+    // A mezőnév és a névelő a szótáré: a magban csak a mező azonosítója marad (PQW-904).
+    assert.deepEqual(shapeSchedule(oval(Number.NaN, 4), DK).reason, { code: 'size-range', data: { field: 'length', max: 100 } });
+    assert.match(hu(shapeSchedule(oval(Number.NaN, 4), DK).reason), /^A hossz /);
   });
 });
 
@@ -248,7 +257,7 @@ describe('félpálcás és pálcás ovális (PQW-899)', () => {
       ['dc', 6, 3],
     ]) {
       const planned = shapeSchedule({ ...oval(12, 8), stitch }, roundGaugeOf(base, stitch));
-      assert.ok(planned.ok, planned.reason);
+      assert.ok(planned.ok, why(planned));
       const { counts, oval: plan } = planned.schedule;
       assert.deepEqual([plan.stitch, plan.perEnd, plan.turningChain], [stitch, perEnd, turningChain]);
       const W = plan.chains - turningChain;
@@ -260,9 +269,22 @@ describe('félpálcás és pálcás ovális (PQW-899)', () => {
     assert.equal(sc.counts[0], 2 * sc.oval.chains + 2);
   });
 
+  test('kétráhajtásos pálcás ovális (PQW-902): végenként 8 szaporítás, 4 láncszemes kezdőlánccal, hibátlanul', () => {
+    const base = emptyPattern();
+    const planned = shapeSchedule({ ...oval(16, 10), stitch: 'tr' }, roundGaugeOf(base, 'tr'));
+    assert.ok(planned.ok, why(planned));
+    const { counts, oval: plan } = planned.schedule;
+    assert.deepEqual([plan.stitch, plan.perEnd, plan.turningChain], ['tr', 8, 4]);
+    assert.ok(counts.slice(1).every((count, i) => count - counts[i] === 16), counts.join(','));
+    const pattern = ok(createAmigurumi(base, part({ ...oval(16, 10), stitch: 'tr' }), false));
+    assert.deepEqual(rules(pattern), []);
+    assert.deepEqual(computeLayers(pattern, libraryFor(pattern)).slice(1).map((layer) => layer.stitchCount), counts);
+    assert.match(textOf(pattern), /1\. kör: hagyj ki 4 láncszemet, majd \d+ krp, 9 krp a következő láncszembe, a láncszemek másik oldalán vissza: /);
+  });
+
   test('a generált ovális hibátlan, a körök szemszáma a körterv szerint, CYC és japán hagyománnyal, eltolással és anélkül', () => {
     for (const base of [emptyPattern(), withTradition('japanese')]) {
-      for (const stitch of ['hdc', 'dc']) {
+      for (const stitch of ['hdc', 'dc', 'tr']) {
         for (const stagger of [true, false]) {
           const result = createAmigurumi(base, part({ ...oval(12, 8), stitch }, { stagger }), false);
           const pattern = ok(result);
@@ -312,18 +334,20 @@ describe('félpálcás és pálcás ovális (PQW-899)', () => {
     const old = ok(createAmigurumi(emptyPattern(), part(oval(8, 5)), false));
     assert.equal(JSON.parse(savePattern(old)).pieces[0].sections[0].shape.stitch, undefined);
     const raw = JSON.parse(savePattern(pattern));
-    raw.pieces[0].sections[0].shape.stitch = 'tr';
+    raw.pieces[0].sections[0].shape.stitch = 'dtr';
     assert.equal(loadPattern(JSON.stringify(raw)).ok, false);
   });
 
-  test('a figura magassága: a lapos ovális a vastagságával (egy szemszélesség) járul hozzá, nem a körmagassággal', () => {
+  test('a figura magassága: a lapos ovális a kelme vastagságával járul hozzá, nem a körmagassággal', () => {
     const base = emptyPattern();
     for (const stitch of ['sc', 'dc']) {
       const gauge = roundGaugeOf(base, stitch);
       const sole = ok(createAmigurumi(base, part({ ...oval(8, 5), stitch }, { name: 'Talp' }), false));
       const size = figureSize(sole);
-      assert.equal(size.parts[0].sections[0].schedule.heightCm, 1 / gauge.stitchesPerCm, stitch);
-      assert.equal(size.heightCm, 1 / gauge.stitchesPerCm, stitch);
+      // A vastagság két fonalátmérő, a fonal átmérője a tűből (02 §1.6); a szem magasságától független.
+      const thickness = fabricThicknessCm(gauge.hookMm);
+      assert.equal(size.parts[0].sections[0].schedule.heightCm, thickness, stitch);
+      assert.equal(size.heightCm, thickness, stitch);
       assert.ok(size.widthCm >= 7 && size.widthCm <= 9, `${stitch}: a hossz a szélesség`);
     }
     // Varrva a gömb a talpra ül: a figura magassága a gömbé és a talp vastagságáé, a besüllyedő süveggel csökkentve.
@@ -435,14 +459,15 @@ describe('kézi horgolás a láncszem másik oldalába (PQW-899)', () => {
     const [base, first] = graph.layers;
     const alone = copySelection(pattern, first.stitches);
     assert.equal(alone.ok, false);
-    assert.match(alone.reason, /csak a láncalappal együtt másolható/);
-    assert.match(duplicateSelection(pattern, first.stitches).reason, /csak a láncalappal együtt másolható/);
+    // A kijelölés üzenetei a saját kódkészletükkel (PQW-904, másik terület): itt a kód számít.
+    assert.equal(alone.reason.code, 'copy-oval-first-round');
+    assert.equal(duplicateSelection(pattern, first.stitches).reason.code, 'copy-oval-first-round');
 
     const both = copySelection(pattern, [...base.stitches, ...first.stitches]);
     assert.ok(both.ok, both.reason);
     const pasted = ok(pasteFragment(emptyPattern(), both.fragment));
     assert.deepEqual(rules(pasted), []);
     assert.deepEqual(canonicalPattern(pasted).pieces[0].stitches, canonicalPattern(pattern).pieces[0].stitches);
-    assert.match(duplicateSelection(pattern, [...base.stitches, ...first.stitches]).reason, /csak üres mintába/);
+    assert.equal(duplicateSelection(pattern, [...base.stitches, ...first.stitches]).reason.code, 'foundation-needs-empty');
   });
 });

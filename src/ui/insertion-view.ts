@@ -8,9 +8,10 @@
  * ezért a magot `.ts` kiterjesztéssel importálja.
  */
 
-import { INSERTION_NAMES, effectiveInsertion, stitchInsertions } from '../core/insertion.ts';
+import { effectiveInsertion, stitchInsertions } from '../core/insertion.ts';
 import { VOCABULARIES, refOf } from '../core/pattern-text.ts';
 import type { Locale, StitchDef, StitchInsertion } from '../core/types.ts';
+import { texts, uiLanguage } from './i18n.ts';
 
 export interface InsertionOption {
   readonly mode: StitchInsertion;
@@ -40,8 +41,9 @@ export function insertionChoice(def: StitchDef | undefined, preferred: StitchIns
   const selected = effectiveInsertion(def, preferred);
   if (allowed.length < 2 || !selected) return null;
   const plain = def.kind === 'basic' || def.kind === 'slip';
+  const names = texts().sections.insertion.names;
   return {
-    options: allowed.map((mode) => ({ mode, label: capitalize(INSERTION_NAMES[mode]) })),
+    options: allowed.map((mode) => ({ mode, label: capitalize(names[mode]) })),
     selected,
     written: plain ? VOCABULARIES[terms].mode(selected, refOf(def, terms)) : null,
   };
@@ -49,9 +51,9 @@ export function insertionChoice(def: StitchDef | undefined, preferred: StitchIns
 
 /** Az állapotsor üzenetének kiegészítése lerakáskor: mindkét szálnál üres, máskor pl. „, hátsó szál”. */
 export function insertionSuffix(mode: StitchInsertion | undefined): string {
-  return mode && mode !== 'both-loops' ? `, ${INSERTION_NAMES[mode]}` : '';
+  return mode && mode !== 'both-loops' ? `, ${texts().sections.insertion.names[mode]}` : '';
 }
 
 function capitalize(text: string): string {
-  return text.charAt(0).toLocaleUpperCase('hu') + text.slice(1);
+  return text.charAt(0).toLocaleUpperCase(uiLanguage()) + text.slice(1);
 }

@@ -31,6 +31,7 @@
 import { borderLayerIndex, borderOf, borderOfLayer, type BorderCounts } from './border.ts';
 import { buildPieceGraph, spacePositions, type PieceGraph } from './graph.ts';
 import { modeAsWorked } from './insertion.ts';
+import { nested, text, type CoreData, type CoreText } from './messages.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { hasBaseChain, traditionOf } from './tradition.ts';
 import { gridColorRows, type ColorRun } from './pixel-chart.ts';
@@ -85,7 +86,10 @@ export type Step =
   | { readonly kind: 'other-side' };
 
 export interface WrittenLayer {
+  /** A réteg sorszáma a gráfban; ez azonosítja a réteget. */
   readonly index: number;
+  /** A kiírt sorszám: az újrakezdett szakaszban újraindul (PQW-901). */
+  readonly row: number;
   readonly shape: 'row' | 'round';
   readonly side: 'right' | 'wrong';
   /** Az 1. sor a láncalapon: a horogtól számított hányadik láncszemnél kezd, és mit ér a kihagyott rész. */
@@ -125,8 +129,12 @@ export interface WrittenPiece {
     | { readonly kind: 'ring' }
     | { readonly kind: 'chain-ring'; readonly count: number };
   readonly layers: readonly WrittenLayer[];
-  /** A darab részei (PQW-863): a folytatólagosan kapcsolt rész neve az első köre előtt áll. */
-  readonly sections: readonly { readonly name: string; readonly layer: number }[];
+  /**
+   * A darab részei (PQW-863): a folytatólagosan kapcsolt rész neve az első
+   * köre előtt áll. Az elvágott fonal után újrakezdett szakasznál (PQW-901) az
+   * `over` mondja meg, melyik sor fölött folytatódik.
+   */
+  readonly sections: readonly { readonly name: string; readonly layer: number; readonly over?: number }[];
   /** A szegély a sorok után, a sorokból számolva (PQW-862); szegély nélkül `null`. */
   readonly border: WrittenBorder | null;
   /** Többszínű rácsmintánál (PQW-864) a színek, a kezdőszín és a színek soronként; máskor `null`. */
@@ -143,14 +151,64 @@ export interface WrittenBorder {
   readonly counts: BorderCounts;
 }
 
+/**
+ * Amit egy sorról vagy körről nem tudunk kiírni (PQW-904): a mondat vége. A
+ * sorszám, a sor/kör szava és a névelő a `layer-unsupported` burkolóé, tehát a
+ * felület szótáráé — a mag csak azt mondja meg, MI a baj.
+ */
+export type UnsupportedCode =
+  | 'row-end-stitch'
+  | 'underside-place'
+  | 'underside-backwards'
+  | 'space-misplaced'
+  | 'space-backwards'
+  | 'stitch-misplaced'
+  | 'stitch-backwards'
+  | 'crossed'
+  | 'group-start'
+  | 'group-chains'
+  | 'group-target'
+  | 'chain-run'
+  | 'stitch-kind'
+  | 'decrease-targets'
+  | 'decrease-used'
+  | 'anchor-count'
+  | 'join-target';
+
+/**
+ * Az írott minta hibái kódként; a mondatot a felület szótára írja
+ * (`src/ui/i18n/core/written.ts`).
+ *
+ * - `layer-unsupported`: a sorra vagy körre mutató burkoló; az adatában az
+ *   `inner` egy `UnsupportedCode`, az `index` a sorszám, a `shape` a sor/kör.
+ * - `border-failed`: a szegély indoka a `border.ts`-ből jön, beágyazva; annak
+ *   szövegét a szegély szótára adja (`src/ui/i18n/core/shape.ts`).
+ */
+export type WrittenCode = 'needs-foundation' | 'foundation-event' | 'border-failed' | 'border-missing' | 'layer-unsupported' | UnsupportedCode;
+
 /** A gráf olyan része, amelyet az írott minta még nem tud kifejezni. */
 export class WrittenPatternError extends Error {
+  readonly code: WrittenCode;
+  readonly data: CoreData | undefined;
   readonly nodes: readonly NodeId[];
 
-  constructor(message: string, nodes: readonly NodeId[] = []) {
-    super(message);
+  constructor(message: CoreText<WrittenCode>, nodes: readonly NodeId[] = []) {
+    // Az `Error.message` maga a kód: a fejlesztői napló így is olvasható marad.
+    super(message.code);
+    this.code = message.code;
+    this.data = message.data;
     this.nodes = nodes;
   }
+
+  /** A hiba kódja és adata egy üzenetként, a felület szótárának. */
+  get coreText(): CoreText<WrittenCode> {
+    return this.data === undefined ? { code: this.code } : { code: this.code, data: this.data };
+  }
+}
+
+/** A `nested()` kódja általános; ezen a területen a szűk kódkészlet érvényes. */
+function wrap(code: WrittenCode, inner: CoreText): CoreText<WrittenCode> {
+  return nested(code, inner) as CoreText<WrittenCode>;
 }
 
 export function writtenPieces(pattern: Pattern, library: StitchLibrary): WrittenPiece[] {
@@ -161,11 +219,11 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
   const graph = buildPieceGraph(pattern, piece, library);
   const base = graph.layers[0]!;
   const first = base.stitches[0];
-  if (first === undefined) throw new WrittenPatternError('A minta láncalappal vagy varázskörrel kezdődik; enélkül még nem írható ki.');
+  if (first === undefined) throw new WrittenPatternError(text('needs-foundation'));
   const onChain = graph.defs.get(first)!.kind === 'chain';
   // A láncgyűrű zárása az egyetlen esemény, amely a láncalapon állhat (PQW-861).
   const chainRing = onChain && base.shape === 'round' && base.closing?.kind === 'join-slip';
-  if (base.closing !== null && !chainRing) throw new WrittenPatternError('A láncalapon lévő esemény még nem írható ki.', [base.closing.after]);
+  if (base.closing !== null && !chainRing) throw new WrittenPatternError(text('foundation-event'), [base.closing.after]);
 
   const row1 = graph.layers[1];
   const kind: WrittenPiece['foundation']['kind'] = chainRing ? 'chain-ring' : onChain ? 'chain' : 'ring';
@@ -183,12 +241,20 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
   if (piece.border) {
     // A PQW-889 előtti mentésben a szegélynek még nincs rétege: ott a sorokból számolunk.
     const result = borderIndex >= 0 ? borderOfLayer(graph, borderIndex, piece.border) : borderOf(graph, piece.border);
-    if (!result.ok) throw new WrittenPatternError(`A szegély nem írható ki: ${result.reason}`);
+    // A szegély indoka a border.ts kódja; a szövegét a szegély szótára adja.
+    if (!result.ok) throw new WrittenPatternError(wrap('border-failed', result.reason));
     border = { stitch: piece.border.stitch, counts: result.counts };
   } else if (borderIndex >= 0) {
-    throw new WrittenPatternError('A szegély választása hiányzik a darabból, ezért a szegély nem írható ki.', graph.layers[borderIndex]!.stitches);
+    throw new WrittenPatternError(text('border-missing'), graph.layers[borderIndex]!.stitches);
   }
-  const sections = (piece.sections ?? []).map(({ name, layer }) => ({ name, layer }));
+  const sections: WrittenPiece['sections'] = [
+    ...(piece.sections ?? []).map(({ name, layer }) => ({ name, layer })),
+    // Elvágott fonal után új szakasz (PQW-901): a neve és a sor, amely fölött folytatódik.
+    ...graph.layers.flatMap((candidate) => {
+      const resume = candidate.opening?.kind === 'fasten-off' ? candidate.opening.resume : undefined;
+      return resume?.name === undefined ? [] : [{ name: resume.name, layer: candidate.index, over: graph.layers[candidate.below]!.row }];
+    }),
+  ];
   const grid = piece.grid;
   const colorwork: WrittenPiece['colorwork'] =
     grid && grid.colors.length > 1
@@ -215,10 +281,14 @@ function writtenLayer(
   tradition: Tradition,
 ): WrittenLayer {
   const layer = graph.layers[index]!;
-  const below = graph.layers[index - 1]!;
+  // Alapból az előző sor; elvágott fonal után a megadott sor fölött folytatódik (PQW-901).
+  const below = graph.layers[layer.below]!;
   // Az ovális 1. köre (PQW-890): elöl a horogtól távolodva, utána a láncszemek másik oldalán vissza.
   const oval = index === 1 && below.undersides.length > 0;
-  const front = layer.direction === 1 && !oval ? below.positions : [...below.positions].reverse();
+  // A kétforrású kör (PQW-908: a raglán ujja) a saját alapgyűrűjén halad: a vállrész kihagyott
+  // szemein és a hónaljláncon, nem az alatta lévő teljes körön.
+  const base = layer.basePositions ?? below.positions;
+  const front = layer.direction === 1 && !oval ? base : [...base].reverse();
   const working = oval ? [...front, ...below.positions] : front;
   const workingIndex = new Map(front.map((id, w) => [id, w]));
   const undersideIndex = new Map<NodeId, number>(oval ? below.positions.map((id, k) => [id, front.length + k]) : []);
@@ -245,11 +315,11 @@ function writtenLayer(
 
   const classify = (anchor: Anchor, owner: NodeId): { target: StepTarget; mode: StitchInsertion; into: 'stitch' | 'chain' } => {
     if (anchor.into === 'ring') return { target: 'ring', mode: 'both-loops', into: 'stitch' };
-    if (anchor.into === 'row-end') throw unsupported('sorvégbe horgolt szemet tartalmaz; ez csak a szegélyben írható ki', owner);
+    if (anchor.into === 'row-end') throw unsupported('row-end-stitch', owner);
     if (anchor.into === 'underside') {
       const w = undersideIndex.get(anchor.id);
       // A legtávolabbi láncszem másik oldalát a vége körbeéri: arra külön lépés nem íródik ki.
-      if (w === undefined || w === front.length) throw unsupported('a láncszem másik oldalába olyan helyen horgol, amely még nem írható ki', owner);
+      if (w === undefined || w === front.length) throw unsupported('underside-place', owner);
       if (!otherSide) {
         steps.push({ kind: 'other-side' });
         otherSide = true;
@@ -257,7 +327,7 @@ function writtenLayer(
         cursor = Math.max(cursor, front.length + 1);
       }
       if (last?.kind === 'stitch' && last.w === w) return { target: 'same', mode: 'both-loops', into: 'chain' };
-      if (w < cursor) throw unsupported('a láncszemek másik oldalán a haladási iránnyal szemben horgol', owner);
+      if (w < cursor) throw unsupported('underside-backwards', owner);
       skip(cursor, w);
       cursor = w + 1;
       last = { kind: 'stitch', w };
@@ -266,7 +336,7 @@ function writtenLayer(
     if (anchor.into === 'space') {
       if (anchor.id === ringSpace) return { target: 'chain-ring', mode: 'both-loops', into: 'stitch' };
       const chains = spacePositions(below, graph.spaces.get(anchor.id)!).map((id) => workingIndex.get(id));
-      if (chains.some((w) => w === undefined)) throw unsupported('olyan láncívbe kapaszkodik, amely nincs a megfelelő helyen', owner);
+      if (chains.some((w) => w === undefined)) throw unsupported('space-misplaced', owner);
       const min = Math.min(...(chains as number[]));
       const max = Math.max(...(chains as number[]));
       let target: StepTarget;
@@ -280,26 +350,26 @@ function writtenLayer(
         if (passed.size > 0) steps.push({ kind: 'skip', count: passed.size, what: 'space' });
         target = 'next-space';
         cursor = max + 1;
-      } else throw unsupported('a haladási iránnyal szemben lévő láncívbe kapaszkodik', owner);
+      } else throw unsupported('space-backwards', owner);
       last = { kind: 'space', id: anchor.id };
       return { target, mode: 'both-loops', into: 'stitch' };
     }
 
     const w = workingIndex.get(anchor.id);
-    if (w === undefined) throw unsupported('olyan szembe kapaszkodik, amely nincs a megfelelő helyen', owner);
+    if (w === undefined) throw unsupported('stitch-misplaced', owner);
     const mode = modeAsWorked(anchor.mode, layer.side);
     const into = defOf(anchor.id).kind === 'chain' ? 'chain' : 'stitch';
     if (last?.kind === 'stitch' && last.w === w) return { target: 'same', mode, into };
-    if (w < cursor) throw unsupported('a haladási iránnyal szemben lévő szembe kapaszkodik', owner);
+    if (w < cursor) throw unsupported('stitch-backwards', owner);
     skip(cursor, w);
     cursor = w + 1;
     last = { kind: 'stitch', w };
     return { target: 'next', mode, into };
   };
 
-  const unit = layer.shape === 'round' ? 'kör' : 'sor';
-  const unsupported = (reason: string, node: NodeId) =>
-    new WrittenPatternError(`A(z) ${index}. ${unit} ${reason}.`, [node]);
+  // A sorszám és a sor/kör szava adat marad: a mondatot a felület szótára rakja össze.
+  const unsupported = (reason: UnsupportedCode, node: NodeId) =>
+    new WrittenPatternError(wrap('layer-unsupported', text(reason, { index, shape: layer.shape })), [node]);
 
   // Színváltás: az előző szem utolsó ráhajtásánál, vagyis az előző lépésnél (03 §6, §10 G35).
   const colorOf = (nodeId: NodeId) => graph.nodes.get(nodeId)!.color ?? 0;
@@ -322,7 +392,7 @@ function writtenLayer(
     if (handled.has(id) || id === layer.joinSlip || (ringSpace !== undefined && index === 1 && layer.travelSlips.includes(id))) continue;
     const node = graph.nodes.get(id)!;
     const def = defOf(id);
-    if (node.flags?.includes('crossed')) throw unsupported('keresztezett szemet tartalmaz', id);
+    if (node.flags?.includes('crossed')) throw unsupported('crossed', id);
 
     if (layer.turningChain.includes(id)) {
       for (const chain of layer.turningChain) handled.add(chain);
@@ -334,14 +404,14 @@ function writtenLayer(
 
     const group = graph.groupOf.get(id);
     if (group) {
-      if (group.members[0] !== id) throw unsupported('a csoport nem az első tagjával kezdődik', id);
+      if (group.members[0] !== id) throw unsupported('group-start', id);
       for (const member of group.members) handled.add(member);
       const chains = group.members.filter((member) => defOf(member).kind === 'chain');
       if (chains.some((chain) => graph.spaceOfChain.get(chain)?.chains.every((c) => chains.includes(c)) !== true)) {
-        throw unsupported('a csoport láncszemei nem láncívet adnak', id);
+        throw unsupported('group-chains', id);
       }
       const anchored = group.members.map((member) => graph.nodes.get(member)!).find((member) => member.anchors.length > 0);
-      if (!anchored || anchored.anchors.length !== 1) throw unsupported('a csoport célpontja nem egyértelmű', id);
+      if (!anchored || anchored.anchors.length !== 1) throw unsupported('group-target', id);
       steps.push({ kind: 'group', def: group.def, ...classify(anchored.anchors[0]!, id) });
       continue;
     }
@@ -355,7 +425,7 @@ function writtenLayer(
         }
         const space = graph.spaceOfChain.get(id);
         if (!space || space.chains.length !== run.length || !run.every((chain) => space.chains.includes(chain))) {
-          throw unsupported('a sor közbeni láncszemek nem pontosan egy láncívet adnak', id);
+          throw unsupported('chain-run', id);
         }
         steps.push({ kind: 'chain', count: run.length });
         break;
@@ -366,7 +436,7 @@ function writtenLayer(
       case 'ring':
       case 'space':
       case 'group':
-        throw unsupported('ez a szemfajta itt nem állhat', id);
+        throw unsupported('stitch-kind', id);
       default: {
         const anchor = node.anchors[0];
         const depth = anchor?.into === 'stitch' ? index - (graph.layerOf.get(anchor.id) ?? index) : 0;
@@ -382,15 +452,15 @@ function writtenLayer(
           const ws = node.anchors.map((anchor) => (anchor.into === 'stitch' ? workingIndex.get(anchor.id) : undefined));
           const start = ws[0];
           const consecutive = start !== undefined && ws.every((w, k) => w === start + k);
-          if (!consecutive || ws.length !== def.consumes) throw unsupported('a fogyasztás célpontjai nem egymás utániak', id);
+          if (!consecutive || ws.length !== def.consumes) throw unsupported('decrease-targets', id);
           const first = classify(node.anchors[0]!, id);
-          if (first.target !== 'next') throw unsupported('a fogyasztás egy már használt szemből indul', id);
+          if (first.target !== 'next') throw unsupported('decrease-used', id);
           cursor = start + ws.length;
           last = { kind: 'stitch', w: cursor - 1 };
           steps.push({ kind: 'stitch', def: def.id, count: 1, ...first });
           break;
         }
-        if (node.anchors.length !== 1) throw unsupported('a szemnek nem egy célpontja van', id);
+        if (node.anchors.length !== 1) throw unsupported('anchor-count', id);
         steps.push({ kind: 'stitch', def: def.id, count: 1, ...classify(node.anchors[0]!, id) });
       }
     }
@@ -413,7 +483,7 @@ function writtenLayer(
     const join = layer.joinSlip === null ? undefined : graph.nodes.get(layer.joinSlip);
     const anchor = join?.anchors[0];
     if (!join || join.anchors.length !== 1 || anchor?.into !== 'stitch' || anchor.id !== layer.positions[0]) {
-      throw unsupported('a kör zárása nem a kör első pozíciójába megy', layer.closing.after);
+      throw unsupported('join-target', layer.closing.after);
     }
     joinTo = layer.turningChainCounts ? 'turning-chain' : 'first-stitch';
   }
@@ -444,6 +514,7 @@ function writtenLayer(
 
   return {
     index,
+    row: layer.row,
     shape: layer.shape,
     side: layer.side,
     fromHook: hookRow

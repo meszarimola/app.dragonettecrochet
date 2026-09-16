@@ -21,6 +21,26 @@ TypeScriptet a Node beépített típuseltávolításával futtatják, fordítás
 függőség nélkül. A CI (`.github/workflows/ci.yml`) minden PR-on és a `main`,
 `develop` ágon lefuttatja a `check`, `build`, `test` lépéseket.
 
+## Kiadás
+
+A kiadás gitflow szerint megy: a `develop`-ról indul a release ág, onnan PR a
+`main`-be, és a `main` kerül élesbe.
+
+1. A release ág indításakor a verzió emelése:
+   `npm version <szám> --no-git-tag-version` (pl. `npm version 0.9.1
+   --no-git-tag-version`). A `--no-git-tag-version` miatt csak a
+   `package.json` (és a `package-lock.json`) változik, címke nem készül.
+2. A verzió változása a release commitban megy, a kiadás többi
+   előkészítésével együtt.
+3. A számozás rendje: a 0.x kiadásokat sorban adjuk; az 1.0 (GA) időpontjáról
+   a tulajdonos dönt.
+
+A tervező a futó verziót a bal alsó sarokban kiírja (`v0.9.0`). A szám a
+`package.json` `version` mezőjéből jön, build időben beégetve
+(`vite.config.ts` `define` → `__APP_VERSION__`), ezért deploy után ránézésre
+látszik, hogy tényleg frissült-e az oldal. Kézzel írt verziószám sehol nincs a
+forrásban; ezt a `tests/version.test.mjs` őrzi.
+
 ## Mit tud most
 
 A vászon a gráfot szerkeszti (PQW-857). Nem helyet választasz, hanem
@@ -202,8 +222,16 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
   - **Szegély ferde élű darab köré** (PQW-898): háromszög, trapéz és rombusz
     köré is. Az oldal a sorvégek mellett a lépcsők meghagyott szemeibe is 1-1
     rp-t tesz; a sarkok a felső él és a láncalap két végén (két szemes csúcsnál
-    a két sarok között nincs szem). A láncos hosszabbítással, nagyon meredeken
-    szélesedő él köré érthető okkal még nem készül.
+    a két sarok között nincs szem). Láncos hosszabbítással, nagyon meredeken
+    szélesedő él köré is (PQW-902): a hosszabbítás láncszemei az élen állnak,
+    mindegyik 1 rp-t kap, mint a láncalap láncszemei. A szegély attól, hogy
+    beléjük horgol, nem változtatja meg a sor szemszámát.
+  - **A ferde él pótlása az arány-módszerrel** (PQW-902, 03 §7.1): a simán
+    alakított ferde él hosszabb, mint a sorok magassága, ezért a sorvégek
+    összesen `Σ hypot(sorvégre jutó szem, oldalirányú eltolás)` szemet kapnak,
+    és a többlet egyenletesen oszlik el a sorvégek között (sorvégenként
+    legfeljebb eggyel több). Egyenes élen nincs pótlás; a lépcsős élen a kitett
+    szemek viszik az él szélességét.
   - **Igazítás a következő szegélysor ismétléséhez** (PQW-898, 03 §7.1 H, §10
     H39): a sarkok közötti élek szemszáma a legközelebbi „X többszöröse + Y”;
     az oldalon a sorvégeken ±1, a felső élen és a láncalapon 2 rp egy szembe,
@@ -214,6 +242,14 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
     állapotsor nem jósol következő sort vagy kört („Téglalap, 11 sor és szegély
     elkészült.”), és a szegély a vásznon és az SVG-ben sorszám helyett
     „szegély” feliratot kap.
+  - **Kézi szegélyhorgolás** (PQW-902): a menüsor „Szegély a darab körül”
+    gombja (B) után a célpontok a darab kerületén futnak, a szabályos szegély
+    lépései szerint: a felső él szemei, a sorvégek, a lépcsők és a láncalap
+    láncszemei. A sorvég célpont a rajzon a sor széle mellett, kifelé áll,
+    kattintással és billentyűzettel is elérhető; a sorvégbe több szem is
+    mehet, de az nem szaporítás (a sorvég nem szem). Az első sorvégbe horgolt
+    szemmel a darab megkapja a szegély választását, így az írott minta is
+    kiírja. A szabályostól eltérő kézi szegélyre figyelmeztetés jön.
   - **Előnézet:** a forma lépcsős körvonala, a tényleges méret, a sorok, a szög
     és az alakítás módja. Profil nélkül a méret becslés, és a szakasz ezt ki is
     írja.
@@ -287,6 +323,37 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
     A létrehozás egy lépésben visszavonható, és a generált minta hibátlanul
     átmegy az ellenőrzőn. A rajz az első darabot mutatja, a többi az írott
     mintában áll.
+- **Ruhadarabok, második rész** (PQW-901): formázott nyakkivágás, felülről
+  horgolt raglán és növedék-kompenzáció; mindegyik a „Ruhadarab” szakaszból.
+  - **Elvágott fonal után új szakasz a gráfban** (a `LayerEvent.resume`): a
+    munka a megadott sor fölött, más helyről folytatódik. A réteg tudja,
+    melyik sorra épül (`Layer.below`) és hányadik sorként íródik ki
+    (`Layer.row`), ezért két szakasz sorszáma egyezhet: a nyakkivágás két
+    oldalán a két váll egyaránt a megosztás fölött kezdődik. Az írott minta a
+    szakaszt „A másik váll (a 44. sor fölött):” fejléccel vezeti be, és ebből
+    a visszaolvasó is tudja, hol folytassa; az ellenőrző a másik szakasz
+    szemeit nem kéri számon (`resume-layer` szabály).
+  - **Formázott nyakkivágás:** a megosztásig egy szakasz, fölötte a két váll,
+    a nyak belső élén fogyasztással (elöl az első sorban több szem, utána
+    soronként egy; hátul soronként egy). A két váll közti szemek a nyak
+    közepén maradnak. A vállvarrás a két szakasz utolsó sorát köti össze. A
+    csónaknyak továbbra is választható.
+  - **Felülről horgolt raglán:** a nyak láncgyűrűjéből, körönként a négy
+    raglánvonal mellett szaporítva; ahol a sarkok szaporítása nem elég az
+    elejének és a hátának, ott külön törzsszaporítás jön (a tudásbázis „C”
+    példája egységtesztben egyezik). A szétosztásnál hónaljlánc kerül a
+    kihagyott ujjszemek helyére, és a lánc a törzsbe és az ujjba is
+    beleszámít. A rajz a vállrészt és a törzset tartalmazza; **az ujjak
+    számait a terv és az írott minta megadja, de a gráfjuk még nem készül el**.
+    A raglán mért körös mintasűrűséget kíván: a becsült sormagasságból kevés
+    kör jön ki, és a generátor ezt meg is mondja. A CYC táblázatban a
+    karöltőmélység lassabban nő, mint a mellbőség, ezért a 3X fölötti
+    méretekhez mélyebb raglán vagy más szabásmód kell; a generátor ezt is
+    kiírja, nem tervez rossz darabot.
+  - **Növedék-kompenzáció** (05 §7): a mosott, blokkolt, felakasztott
+    próbadarab nyúlása százalékban megadható, és a hosszakat ezzel csökkenti.
+  - **Javítási javaslat:** a hamis ellenőrzés mellé a panel kiírja, mit
+    érdemes állítani.
 - **Amigurumi és 3D formák** (PQW-863): a mintatípus-menü „Amigurumi” pontja és
   a jobb oldali panel „Amigurumi” szakasza (a Kör és motívum alatt). Az
   amigurumi fő nézete az írott minta: a típus kiválasztásakor a panel nagyban
@@ -302,8 +369,11 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
     Félpálcás és pálcás ovális is (PQW-899): a „Szem” mező választja; a
     kezdőlánc a szem fordulólánca (félpálcánál 2, pálcánál 3 láncszem), számít
     vagy nem a kör szabálya szerint (`tradition.ts`), végenként 4, illetve 6
-    szaporítással. A lapos ovális a figura magasságához a vastagságával (egy
-    szemszélesség) járul hozzá; a figura-jegyzet hossz × szélességet ír.
+    szaporítással. Kétráhajtásos pálcával is (PQW-902): 4 láncszemes
+    kezdőlánccal, végenként 8 szaporítással. A lapos ovális a figura
+    magasságához a kelme vastagságával járul hozzá: két fonalátmérő, a fonal
+    átmérője a tűből (02 §1.6, `hook_mm ≈ 1,4 · d_mm` szoros horgolásnál); a
+    figura-jegyzet hossz × szélességet ír.
   - **Kézi ovális a szerkesztőben** (PQW-899): az Amigurumi mintatípusban a
     láncalapra horgolt 1. réteg kör, a vezetett kurzor a kezdőlánc utáni
     láncszemre áll. Az első szem után a láncszemek másik oldala is célpont (a
@@ -413,6 +483,8 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/ui/pattern-types.ts` | A bal oldali mintatípus-menü tartalma (PQW-873): a négy típus neve, magyarázata és hogy be van-e kapcsolva; a típushoz tartozó rács (PQW-874) és az írott minta magassága (PQW-863). DOM nélküli. |
 | `src/ui/grid-paths.ts` | A rács rajza útvonalakként: ugyanebből rajzol a vászon és az SVG-export. DOM nélküli. |
 | `src/ui/notation.ts` | **A jelölés és a jelstílus beállítása** (PQW-868): alapértelmezés a felület nyelvéből, tárolás, a jelrajz beállítása, a minta jelölésének rögzítése. DOM nélküli. |
+| `src/ui/i18n.ts`, `src/ui/i18n/*.ts` | **A felület nyelve** (PQW-900): magyar és angol egy szótárból, területenként külön fájlban (jelölés, üzenetek, panelek, szakaszok, ellenőrző szabályai). A nyelv a `?lang` paraméterből vagy a dokumentum `lang` attribútumából jön, és a panel választójával váltható; a választás a lapon belül és a címsorban él, új tárolt kulcs nélkül. A statikus feliratokat a `data-i18n`, `data-i18n-tip` és `data-i18n-label` attribútumok kötik a szótárhoz. A felület nyelve független a jelöléstől: az írott minta és a szemnevek nyelvét továbbra is a jelölés adja. Új nyelv (japán, PQW-877) egy újabb `UiLanguage` érték és a szótárak bővítése. |
+| `src/core/messages.ts`, `src/ui/i18n/core/*.ts` | **Kód és adat a mondat helyett** (PQW-904): a mag nem magyar mondatot ad vissza, hanem azonosítót és a behelyettesítendő értékeket (`CoreText { code, data }`), a mondatot a felület állítja össze a területi szótárakból (`render.ts` + területenként egy fájl). A névelő, a ragozás és a sor/kör szava is a felületé, mert azok nyelvfüggők. Így a mag nyelvsemleges marad, és egy újabb nyelv (japán, PQW-877) csak a szótárakat érinti. A `tests/core-i18n.test.mjs` őrzi, hogy minden kódhoz legyen szöveg mindkét nyelven, és hogy a magban ne maradjon magyar mondat. |
 | `src/ui/size-view.ts`, `src/ui/size-panel.ts` | **A „Méret és fonal” szakasz** (PQW-859): a kiírás szövegei eredettel és tartománnyal, tűátváltás (DOM nélkül); a profil-szerkesztő és a profilváltás a panelen. |
 | `src/ui/written.ts` | **Az írott minta panelje** (PQW-868): a szöveg a jelöléssel, vagy érthető üzenet, ha a minta még nem írható ki. DOM nélküli. |
 | `src/ui/rounds-view.ts`, `src/ui/rounds-panel.ts` | **A „Kör és motívum” szakasz** (PQW-861): a választások és a szaporítás magyarázata eredettel (DOM nélkül); a mezők és a minta létrehozása a panelen. |
@@ -447,7 +519,7 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `public/favicon.ico`, `public/apple-touch-icon.png` | A főoldal ikonjai, saját származásból (PQW-853). A fejben a magyar leírás és a `--c-bg` token színű `theme-color` (`tests/head.test.mjs`). |
 | `tests/*.test.mjs` | `node:test` tesztek; a `core-*` a magot, a `ui-*` a jelrajzot, a palettát és az SVG-t, az `analytics` a süti-sávot és a CSP-t, a `hu-vocabulary` a magyar szóhasználatot (szem = stitch) nézi. |
 | `tests/fixtures/written/` | Az írott minta rögzített szövege kidolgozott példánként (`hu`, `en-US`); a magyart a tulajdonos hagyja jóvá. |
-| `e2e/*.spec.ts`, `playwright.config.ts` | Böngészős tesztek a kritikus utakra: téglalap billentyűzettel, mentés és újratöltés, export, az írott minta panelje jelölésváltással, a japán előbeállítás (`editor.spec.ts`); mintatípus-választás, szemválasztás a panelből, hibaszámláló, alsó írott panel (`felulet.spec.ts`); az elrendezés helyei (`elrendezes.spec.ts`); a panel szakaszai és a tooltipek (`panel.spec.ts`); téglalap cellákra kattintva, a rács kapcsolója és exportja (`racs.spec.ts`); becslés profil nélkül, profil megadása és mentése, arányhelyes nézet (`meret.spec.ts`); kijelölés a sorszámmal, billentyűzettel és területtel, másolás, beillesztés, duplikálás, törlés az érintett szemek megmutatásával, visszavonás (`kijeloles.spec.ts`); hátsó szálas és reliefes sor a beszúrási mód választójával (`beszuras.spec.ts`); téglalap profil nélkül és visszavonás, háromszög az él szögéből, szegélyes téglalap (`formak.spec.ts`); fentről induló háromszög-kendő saját aránnyal és figyelmeztetéssel, visszavonás, félkör, a félkör és a háromszög íves, illetve megtört sorokkal a vásznon (`kendok.spec.ts`); sál kezdése 40 láncszemmel, fordulással és rövidpálcás sorokkal, kattintással és billentyűzettel, 1000×506-ban és 1440×900-ban (`kezdes.spec.ts`); a generált cím generátorváltáskor és a kézzel írt cím megmaradása újratöltés után is (`generalt-cim.spec.ts`); felnőtt sapka és ledobott vállú pulóver M méretben, S–L sorozattal, varrásokkal és visszavonással (`ruhadarab.spec.ts`). |
+| `e2e/*.spec.ts`, `playwright.config.ts` | Böngészős tesztek a kritikus utakra: téglalap billentyűzettel, mentés és újratöltés, export, az írott minta panelje jelölésváltással, a japán előbeállítás (`editor.spec.ts`); mintatípus-választás, szemválasztás a panelből, hibaszámláló, alsó írott panel (`felulet.spec.ts`); az elrendezés helyei (`elrendezes.spec.ts`); a panel szakaszai és a tooltipek (`panel.spec.ts`); téglalap cellákra kattintva, a rács kapcsolója és exportja (`racs.spec.ts`); becslés profil nélkül, profil megadása és mentése, arányhelyes nézet (`meret.spec.ts`); kijelölés a sorszámmal, billentyűzettel és területtel, másolás, beillesztés, duplikálás, törlés az érintett szemek megmutatásával, visszavonás (`kijeloles.spec.ts`); hátsó szálas és reliefes sor a beszúrási mód választójával (`beszuras.spec.ts`); téglalap profil nélkül és visszavonás, háromszög az él szögéből, szegélyes téglalap (`formak.spec.ts`); fentről induló háromszög-kendő saját aránnyal és figyelmeztetéssel, visszavonás, félkör, a félkör és a háromszög íves, illetve megtört sorokkal a vásznon (`kendok.spec.ts`); sál kezdése 40 láncszemmel, fordulással és rövidpálcás sorokkal, kattintással és billentyűzettel, 1000×506-ban és 1440×900-ban (`kezdes.spec.ts`); a generált cím generátorváltáskor és a kézzel írt cím megmaradása újratöltés után is (`generalt-cim.spec.ts`); felnőtt sapka és ledobott vállú pulóver M méretben, S–L sorozattal, varrásokkal és visszavonással (`ruhadarab.spec.ts`); a felület nyelve a `?lang=en` paraméterrel és a kézi választóval, a jelöléstől függetlenül (`nyelv.spec.ts`). |
 | `tests/*.check.ts` | Csak fordítási próba: a `tsconfig.core.json` típusellenőrzi, nem fut. |
 | `tsconfig.core.json` | A `src/core/` típusellenőrzése DOM-típusok nélkül. |
 
@@ -496,15 +568,17 @@ npm test   # a build után: CSP ↔ azonosító, inline szkript, közös süti
   Most minden szem az alapértelmezett móddal megy.
 - **Körnézet finomítása.** A körök egyszerű, sugárirányú elrendezést kapnak;
   a nagymama-négyzet sarkai még nem szögletesek.
-- **A szegély és a varrat nyitott részei** (PQW-889, PQW-898): szegély a láncos
-  hosszabbítással, nagyon meredeken szélesedő él köré; két sorokban horgolt
-  darab összekapcsolása horgolva (az összevarrás a PQW-866 óta kapcsolásként
-  megvan).
+- **A varrat nyitott része** (PQW-889): két sorokban horgolt darab
+  összekapcsolása horgolva (az összevarrás a PQW-866 óta kapcsolásként megvan).
 - **PDF-export.**
-- **A rácsos technikák nyitott részei** (PQW-894): filében a sor végén teli új
-  cella (most nyitott cellával szaporít), és ugyanazon az élen egymás utáni
-  sorban fogyasztás és szaporítás; a lejjebb horgolt szem visszaolvasása az
-  írott mintából. A vászon cellás rácsán nincs még oszlopszámozás.
+- **A rácsos technikák nyitott részei** (PQW-894, PQW-902): filében a sor végén
+  teli új cella (most nyitott cellával szaporít): ehhez a szemnek az előző szem
+  tövén kellene állnia, ilyen célpont a gráfban nincs. Ugyanazon az élen
+  fogyasztás után a következő sorban szaporítás sem megy: a hosszú pálca nem
+  éri el a két sorral lejjebbi szemet; a program ezt érthető okkal írja le. A
+  mozaik írott mintája a színek felsorolása miatt még nem olvasható vissza (a
+  lejjebb horgolt szem maga már igen). A vászon cellás rácsán nincs még
+  oszlopszámozás.
 - **A ruhadarabok nyitott részei** (PQW-866): raglán (a „C” példa), kerek
   betét, bevarrt ujj; formázott nyakkivágás a gráfban (a két váll egy darabon
   belül külön horgolva); bordás szegély és perem; a növedék kompenzálása a

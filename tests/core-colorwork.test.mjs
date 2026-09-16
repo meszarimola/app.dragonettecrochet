@@ -17,6 +17,8 @@ import { foundationChainLength } from '../src/core/repeat.ts';
 import { libraryFor, resolveStitch } from '../src/core/stitch-variants.ts';
 import { firstChainFromHook, traditionOf, turningChainCountsFor, withTradition } from '../src/core/tradition.ts';
 import { validatePattern } from '../src/core/validate.ts';
+import { GRID_CORE_TEXTS } from '../src/ui/i18n/core/grid.ts';
+import { renderCoreText } from '../src/ui/i18n/core/render.ts';
 
 const COLORS = ['Fehér', 'Piros', 'Kék', 'Zöld', 'Sárga'].map((name, i) => ({ name, hex: `#${String(i * 2).repeat(6)}` }));
 
@@ -27,9 +29,11 @@ const counting = () => ({ ...emptyPattern(), conventions: { ...emptyPattern().co
 
 const make = (pattern, cells, technique = 'tapestry') => {
   const result = generateColorwork(pattern, { technique, cells, colors: COLORS, unit: null, lettering: false });
-  assert.ok(result.ok, result.reason);
+  assert.ok(result.ok, JSON.stringify(result.reason));
   return result;
 };
+/** A mag kódot és adatot ad; a mondat a felület szótárában készül (PQW-904). */
+const hu = (message) => renderCoreText(GRID_CORE_TEXTS.hu, message);
 const findings = (pattern) => validatePattern(pattern, libraryFor(pattern));
 const graphOf = (pattern) => buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));
 
@@ -131,7 +135,10 @@ describe('ellenőrző és mentés', () => {
   });
 
   test('hibás rácsnál érthető ok', () => {
-    assert.match(planColorwork(cyc(), 'tapestry', [[0, 9]], COLORS).reason, /színlista egyik színe/);
-    assert.match(planColorwork(counting(), 'tapestry', [[0]], COLORS).reason, /legalább 2 cella/);
+    // A mag kódot ad, a mondat a felület szótárából jön (PQW-904).
+    assert.equal(planColorwork(cyc(), 'tapestry', [[0, 9]], COLORS).reason.code, 'chart-color-index');
+    assert.equal(planColorwork(counting(), 'tapestry', [[0]], COLORS).reason.code, 'colorwork-min-width');
+    assert.match(hu(planColorwork(cyc(), 'tapestry', [[0, 9]], COLORS).reason), /színlista egyik színe/);
+    assert.equal(hu(planColorwork(counting(), 'tapestry', [[0]], COLORS).reason), 'Ha a fordulólánc szemnek számít, a sor legalább 2 cella legyen.');
   });
 });

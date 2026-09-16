@@ -24,8 +24,9 @@
  */
 
 import { buildPieceGraph, spacePositions } from './graph.ts';
-import { fail, finishGridPattern, gridPiece, GridWriter, intoSpace, intoStitch } from './grid-pattern.ts';
-import { TECHNIQUE_NAMES, c2cTileRows, cellSize, colorChartProblem, type CellSize, type ChartRows } from './pixel-chart.ts';
+import { fail, finishGridPattern, gridPiece, GridWriter, intoSpace, intoStitch, type GridPatternCode } from './grid-pattern.ts';
+import { text, type CoreText } from './messages.ts';
+import { TECHNIQUE_NAMES, c2cTileRows, cellSize, colorChartProblem, type CellSize, type ChartCode, type ChartRows } from './pixel-chart.ts';
 import { foundationChainLength } from './repeat.ts';
 import { shapeGauge, type ShapeGauge } from './shapes.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
@@ -74,8 +75,13 @@ export interface C2CPlan {
   readonly heightCm: number;
 }
 
-export type C2CPlanResult = { readonly ok: true; readonly plan: C2CPlan } | { readonly ok: false; readonly reason: string };
-export type C2CResult = { readonly ok: true; readonly pattern: Pattern; readonly plan: C2CPlan } | { readonly ok: false; readonly reason: string };
+/** A C2C saját üzenete (PQW-904); a mondat a felületé. */
+export type C2CCode = 'c2c-turning-chain';
+
+export type C2CPlanResult = { readonly ok: true; readonly plan: C2CPlan } | { readonly ok: false; readonly reason: CoreText<C2CCode | ChartCode> };
+export type C2CResult =
+  | { readonly ok: true; readonly pattern: Pattern; readonly plan: C2CPlan }
+  | { readonly ok: false; readonly reason: CoreText<C2CCode | ChartCode | GridPatternCode> };
 
 export interface C2COptions {
   /** A kiterjesztett rács: sorok alulról, cellák balról; a cella a szín indexe. */
@@ -92,7 +98,7 @@ export function planC2C(pattern: Pattern, cells: ChartRows, colors: readonly Pat
   const def = resolveStitch(C2C_STITCH)!;
   const tradition = traditionOf(pattern.conventions);
   if (!turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition, 'row')) {
-    return fail('A C2C-csempe 3 láncszeme az első pálca helyett áll: a mintában a pálca fordulóláncának szemnek kell számítania.');
+    return fail(text('c2c-turning-chain'));
   }
 
   const height = cells.length;

@@ -47,6 +47,7 @@ import type {
   SpaceId,
   StitchDef,
   StitchDefId,
+  StitchFlag,
   StitchGroup,
   StitchInsertion,
   StitchNode,
@@ -171,6 +172,9 @@ const PHRASE_TARGETS: readonly { readonly key: PhraseKey; readonly target: StepT
 ];
 
 /** A tétel lépése: az a lépés, amelyet a szövegíró betű szerint így írna ki. */
+/** Hány sorral lejjebb mehet a hosszú szem (03 §5, pattern-steps.ts). */
+const DOWN_DEPTHS = [2, 3];
+
 function parseItem(text: string, line: number, options: ReadOptions, vocabulary: Vocabulary, context: StepContext = {}): Step {
   const { library, locale } = options;
   const matches = (step: Step) => {
@@ -226,6 +230,9 @@ function parseItem(text: string, line: number, options: ReadOptions, vocabulary:
     text.endsWith(` ${vocabulary.phrases[key]}`),
   );
   targets.push({ target: 'next', into: 'stitch' }, { target: 'none', into: 'stitch' });
+  // Lejjebb horgolt hosszú szem (mozaik, filé sor végi szaporítás; PQW-894, PQW-902): „… 2 sorral lejjebb”.
+  const downDepth = DOWN_DEPTHS.find((depth) => text.endsWith(` ${vocabulary.down(depth)}`));
+  if (downDepth !== undefined) targets.unshift({ target: 'down', into: 'stitch' });
   const modes = MODES.filter((mode) => mode === 'both-loops' || vocabulary.modeMarks[mode].some((mark) => text.includes(mark)));
 
   for (const def of defs) {
@@ -244,7 +251,10 @@ function parseItem(text: string, line: number, options: ReadOptions, vocabulary:
         const plain = def.kind === 'basic' || def.kind === 'slip';
         for (const count of new Set([1, n])) {
           if (count > 1 && (!plain || target === 'same')) continue;
-          const step: Step = { kind: 'stitch', def: def.id, count, target, mode, into };
+          const step: Step =
+            target === 'down' && downDepth !== undefined
+              ? { kind: 'stitch', def: def.id, count, target, mode, into, depth: downDepth }
+              : { kind: 'stitch', def: def.id, count, target, mode, into };
           if (matches(step)) return step;
         }
       }
@@ -326,14 +336,31 @@ class PieceReader {
       (line) => !(line.text.endsWith(sectionSuffix) && line.text.length > sectionSuffix.length && !line.text.includes(': ')),
     );
 
-    let index = 1;
+    // A kiírt sorszám az újrakezdett szakaszban újraindul (PQW-901), a gráf rétegei viszont sorban állnak.
+    const layerOfRow = new Map<number, number>();
+    let graphIndex = 1;
+    let expectedRow = 1;
     layerLines.forEach((line, i) => {
+      const resume = this.resumeHeading(line);
+      if (resume !== null) {
+        const target = layerOfRow.get(resume.row);
+        if (target === undefined) throw new ReadFailure(line.number, `Nincs ilyen sor: ${resume.row}.`);
+        const last = this.events[this.events.length - 1];
+        if (last?.kind !== 'fasten-off') throw new ReadFailure(line.number, 'Az új szakasz előtt a fonalat el kell vágni.');
+        this.events[this.events.length - 1] = { ...last, resume: { layer: target, name: resume.name } };
+        this.pendingResume = target;
+        expectedRow = resume.row + 1;
+        return;
+      }
       const header = this.header(line);
-      if (header.from !== index) throw new ReadFailure(line.number, `A sorszám nem folytatódik: ${index} helyett ${header.from}.`);
-      for (let layer = header.from; layer <= header.to; layer += 1) {
-        const isLast = i === layerLines.length - 1 && layer === header.to;
-        this.readLayer(layer, header, isLast);
-        index += 1;
+      if (header.from !== expectedRow) throw new ReadFailure(line.number, `A sorszám nem folytatódik: ${expectedRow} helyett ${header.from}.`);
+      for (let row = header.from; row <= header.to; row += 1) {
+        const isLast = i === layerLines.length - 1 && row === header.to;
+        // Két szakasz sorszáma egyezhet; a sor a legkorábbi rétegre mutat, amely így számozódik.
+        if (!layerOfRow.has(row)) layerOfRow.set(row, graphIndex);
+        this.readLayer(graphIndex, header, isLast);
+        graphIndex += 1;
+        expectedRow = row + 1;
       }
     });
 
@@ -368,7 +395,8 @@ class PieceReader {
     if (!this.border || !line) return piece;
     const pattern: Pattern = { formatVersion: 1, title: this.title, conventions: this.options.conventions, pieces: [] };
     const bordered = appendBorder(pattern, piece, this.options.library, this.border);
-    if (typeof bordered === 'string') throw new ReadFailure(line.number, bordered);
+    // A visszaolvasó üzenetei magyarul maradnak (PQW-904, dokumentált kivétel): ez a hiba ma nem jut a képernyőre.
+    if ('code' in bordered) throw new ReadFailure(line.number, `A szegély nem fűzhető a darabhoz (${bordered.code}).`);
     return bordered;
   }
 
@@ -400,10 +428,10 @@ class PieceReader {
   /** Hány szem kapott célpontot eddig a darabban; a sor széli kihagyás felismeréséhez. */
   private anchoredCount = 0;
 
-  private add(def: StitchDef, anchors: readonly Anchor[]): NodeId {
+  private add(def: StitchDef, anchors: readonly Anchor[], flags: readonly StitchFlag[] = []): NodeId {
     if (anchors.length > 0) this.anchoredCount += 1;
     const id = `n${this.stitches.length + 1}`;
-    this.stitches.push({ id, def: def.id, prev: this.previous, anchors });
+    this.stitches.push({ id, def: def.id, prev: this.previous, anchors, ...(flags.length > 0 ? { flags } : {}) });
     this.previous = id;
     return id;
   }
@@ -435,6 +463,22 @@ class PieceReader {
       throw new ReadFailure(line.number, `Láncalapot vagy varázskört vártunk: „${line.text}”.`);
     }
     this.chains(count);
+  }
+
+  /** Az újrakezdett szakasz alatti réteg, amíg a következő sor fel nem használja (PQW-901). */
+  private pendingResume: number | null = null;
+
+  /**
+   * Az elvágott fonal utáni szakasz sora: a neve és a sor, amely fölött
+   * folytatódik (PQW-901). Csak akkor fogadjuk el, ha a szövegíró pontosan
+   * így írná ki.
+   */
+  private resumeHeading(line: Line): { readonly name: string; readonly row: number } | null {
+    const open = line.text.lastIndexOf(' (');
+    if (open <= 0) return null;
+    const name = line.text.slice(0, open);
+    const row = Number(/\d+/.exec(line.text.slice(open))?.[0]);
+    return Number.isInteger(row) && this.vocabulary.resumeSection(name, row) === line.text ? { name, row } : null;
   }
 
   private header(line: Line): LayerHeader {
@@ -509,14 +553,17 @@ class PieceReader {
 
     // Az előző réteg pozíciói a haladási irányban.
     const graph = this.graph();
-    const below = graph.layers[graph.layers.length - 1]!;
+    // Újrakezdett szakaszban a megadott sor fölött folytatjuk (PQW-901).
+    const resumed = this.pendingResume;
+    this.pendingResume = null;
+    const below = graph.layers[resumed ?? graph.layers.length - 1]!;
     const opening = index === 1 ? (this.foundation === 'chain-ring' ? this.events[0]! : null) : this.events[this.events.length - 1]!;
-    const direction = index === 1 ? (this.foundation === 'chain' ? -1 : 1) : opening!.kind === 'turn' ? -1 : 1;
+    const direction = index === 1 ? (this.foundation === 'chain' ? -1 : 1) : resumed !== null || opening!.kind === 'turn' ? -1 : 1;
     // A láncgyűrű kúszószeme az első láncszembe: a fonal útján az 1. kör első szeme (graph.ts).
     if (index === 1 && this.foundation === 'chain-ring') this.add(slip, [{ into: 'stitch', id: this.stitches[0]!.id, mode: 'both-loops' }]);
     let working = direction === 1 ? [...below.positions] : [...below.positions].reverse();
-    const previousSide = index === 1 ? 'right' : graph.layers[index - 1]!.side;
-    const side = opening?.kind === 'turn' ? (previousSide === 'right' ? 'wrong' : 'right') : previousSide;
+    const previousSide = index === 1 ? 'right' : below.side;
+    const side = resumed !== null || opening?.kind === 'turn' ? (previousSide === 'right' ? 'wrong' : 'right') : previousSide;
 
     // Az 1. sor a láncalapon: a horog felőli láncszemek a fordulólánc.
     let fromHookCounts: StitchDef | null = null;
@@ -574,14 +621,26 @@ class PieceReader {
     const turningNodes: NodeId[] = [];
     const skips: { positions: NodeId[]; anchoredBefore: number }[] = [];
 
-    const resolve = (target: StepTarget, mode: StitchInsertion, item: string, consumes = 1): Anchor[] => {
+    const resolve = (target: StepTarget, mode: StitchInsertion, item: string, consumes = 1, depth = 2): Anchor[] => {
       const missing = (what: string) => fail(`${what} ehhez: „${item}”.`);
       switch (target) {
         case 'none':
           return [];
-        case 'down':
-          // A korábbi sorba horgolt hosszú szem (PQW-894) a szövegből még nem olvasható vissza.
-          return missing('A lejjebb horgolt szem visszaolvasása még nem készül');
+        case 'down': {
+          // Lejjebb horgolt hosszú szem (mozaik, filé sor végi szaporítás; PQW-894, PQW-902): a `depth`
+          // sorral lejjebbi réteg szeme a kurzor oszlopában. A páratlan mélységű sor fordítva halad, és a
+          // sor végi szaporításnál a kurzor már a sor végén jár: ott a lejjebbi sor utolsó szeme a célpont.
+          const deeper = graph.layers[index - depth];
+          if (!deeper || deeper.positions.length === 0) return missing(`Nincs ${depth} sorral lejjebbi sor`);
+          // Minden sor az előzővel szemben halad: a `depth` sorral lejjebbi sor a mostani haladási
+          // irányban `depth` páros számánál a fonal sorrendjében áll, páratlannál fordítva.
+          const line = (direction === -1) === (depth % 2 === 1) ? [...deeper.positions].reverse() : [...deeper.positions];
+          const at = Math.min(state.cursor, line.length - 1);
+          // A mozaikban a lejjebb horgolt szem a fölötte kihagyott láncszem helyén halad át (pattern-steps.ts).
+          if (state.cursor < working.length && this.skipped.includes(working[state.cursor]!)) state.cursor += 1;
+          state.last = null;
+          return [{ into: 'stitch', id: line[at]!, mode: modeAsWorked(mode, side) }];
+        }
         case 'ring':
         case 'chain-ring': {
           // Angolul a varázskör és a láncgyűrű is „in ring”: a kezdés dönt.
@@ -670,16 +729,19 @@ class PieceReader {
           for (let c = 0; c < step.count; c += 1) {
             const target = c > 0 && step.target === 'next-space' ? 'same-space' : step.target;
             const consumes = def.kind === 'joined' && def.base === 'spread' ? def.consumes : 1;
-            this.add(def, resolve(target, step.mode, item, consumes));
+            // A lejjebb horgolt szem jelölt: ettől érvényes a korábbi sorba nyúló célpont (PQW-894, PQW-902).
+            this.add(def, resolve(target, step.mode, item, consumes, step.depth ?? 2), target === 'down' ? ['spike'] : []);
           }
         }
       }
     };
     items.forEach((item, i) => apply(steps[i]!, item));
 
-    // A szélső kihagyások szándékosak: a sor elején és végén (03 §10 B8).
+    // A szélső kihagyások szándékosak: a sor elején és végén (03 §10 B8). Az újrakezdett szakasz eleji kihagyás
+    // viszont csak odavezet, ahol a szakasz kezdődik: azokat a szemeket a másik szakasz dolgozza fel (PQW-901).
     for (const { positions, anchoredBefore } of skips) {
-      if (anchoredBefore === anchoredAtStart || anchoredBefore === this.anchoredCount) this.skipped.push(...positions);
+      const navigation = resumed !== null && anchoredBefore === anchoredAtStart;
+      if (!navigation && (anchoredBefore === anchoredAtStart || anchoredBefore === this.anchoredCount)) this.skipped.push(...positions);
     }
 
     const layerNodes = this.stitches.slice(firstNode).map((node) => node.id);

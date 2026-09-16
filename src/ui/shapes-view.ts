@@ -7,10 +7,8 @@
  * magot `.ts` kiterjesztéssel importálja.
  */
 
-import { article } from '../core/hungarian.ts';
 import {
   FLAT_SHAPES,
-  SHAPE_NAMES,
   SHAPE_STITCHES,
   rowExtents,
   type FlatShape,
@@ -18,10 +16,15 @@ import {
   type ShapeMeasure,
   type ShapeOptions,
   type ShapePlan,
+  type ShapeText,
 } from '../core/shapes.ts';
 import { stitchById } from '../core/stitches.ts';
 import type { PieceBorder } from '../core/types.ts';
+import { texts, uiLanguage } from './i18n.ts';
+import { renderCoreText } from './i18n/core/render.ts';
+import { SHAPE_CORE_TEXTS } from './i18n/core/shape.ts';
 import { formatNumber } from './size-view.ts';
+import { termsLocale } from './notation.ts';
 
 export interface Choice<T extends string> {
   readonly value: T;
@@ -30,32 +33,65 @@ export interface Choice<T extends string> {
 
 const capitalize = (text: string) => text.charAt(0).toLocaleUpperCase('hu') + text.slice(1);
 
-/** A határozott névelő egy szó előtt: „a félpálca”, „az egyráhajtásos pálca”. */
-const withArticle = (word: string) => `${/^[aáeéiíoóöőuúüű]/i.test(word) ? 'az' : 'a'} ${word}`;
-
-export const SHAPE_CHOICES: readonly Choice<FlatShape>[] = FLAT_SHAPES.map((value) => ({ value, label: SHAPE_NAMES[value] }));
+export const SHAPE_CHOICES: readonly Choice<FlatShape>[] = FLAT_SHAPES.map((value) => ({
+  value,
+  get label() {
+    return texts().panels.shape.names[value];
+  },
+}));
 
 export const STITCH_CHOICES: readonly Choice<string>[] = SHAPE_STITCHES.map((value) => ({
   value,
-  label: capitalize(stitchById(value).terms.hu.name),
+  get label() {
+    return capitalize(stitchById(value).terms[termsLocale()].name);
+  },
 }));
 
 export const MEASURE_CHOICES: readonly Choice<ShapeMeasure>[] = [
-  { value: 'height', label: 'Magasság' },
-  { value: 'angle', label: 'Az él szöge' },
+  {
+    value: 'height',
+    get label() {
+      return texts().panels.shape.measures.height;
+    },
+  },
+  {
+    value: 'angle',
+    get label() {
+      return texts().panels.shape.measures.angle;
+    },
+  },
 ];
 
-export const ROUNDING_CHOICES: readonly Choice<RepeatRounding>[] = [
-  { value: 'nearest', label: 'A legközelebbi többszörösre' },
-  { value: 'up', label: 'Felfelé: bővebb' },
-  { value: 'down', label: 'Lefelé: szűkebb' },
-];
+export const ROUNDING_CHOICES: readonly Choice<RepeatRounding>[] = (['nearest', 'up', 'down'] as const).map((value) => ({
+  value,
+  get label() {
+    return texts().panels.shape.roundings[value];
+  },
+}));
 
 /** A félpálcás sorvégre jutó szegélyszem: a források vitatják (03 §7.1). */
 export const HDC_ROW_END_CHOICES: readonly Choice<`${PieceBorder['hdcRowEnd']}`>[] = [
-  { value: '2', label: '2 rp' },
-  { value: '1', label: '1 rp' },
+  {
+    value: '2',
+    get label() {
+      return texts().panels.shape.rowEndStitches(2);
+    },
+  },
+  {
+    value: '1',
+    get label() {
+      return texts().panels.shape.rowEndStitches(1);
+    },
+  },
 ];
+
+/**
+ * A mag indoka mondattá a felület nyelvén (PQW-904): a mag kódot és adatot ad,
+ * a névelő, a ragozás és a sor/kör szava itt kerül a mondatba.
+ */
+export function shapeReason(reason: ShapeText): string {
+  return renderCoreText(SHAPE_CORE_TEXTS[uiLanguage()], reason);
+}
 
 /** Melyik mező látszik a választott formánál. */
 export interface ShapeFieldState {
@@ -68,6 +104,10 @@ export interface ShapeFieldState {
   readonly hdcRowEnd: boolean;
   /** Igazítás a következő szegélysor ismétléséhez (PQW-898). */
   readonly borderRepeat: boolean;
+  /** Bordás szegély a felső élen (PQW-909); a körbefutó szegéllyel együtt nem választható. */
+  readonly ribbing: boolean;
+  /** A bordázat sorai és egysége; csak bekapcsolt bordázatnál. */
+  readonly ribbingFields: boolean;
 }
 
 export function shapeFieldState(options: ShapeOptions): ShapeFieldState {
@@ -83,28 +123,27 @@ export function shapeFieldState(options: ShapeOptions): ShapeFieldState {
     border: true,
     hdcRowEnd: options.border !== null && options.stitch === 'hdc',
     borderRepeat: options.border !== null,
+    ribbing: options.border === null,
+    ribbingFields: options.border === null && Boolean(options.ribbing),
   };
 }
 
 /** A szélesség mezőjének felirata a formához. */
 export function widthLabel(shape: FlatShape): string {
-  if (shape === 'rectangle') return 'Szélesség, cm';
-  return shape === 'diamond' ? 'Legszélesebb sor, cm' : 'Alsó él, cm';
+  const labels = texts().panels.shape.widthLabels;
+  if (shape === 'rectangle') return labels.rectangle;
+  return shape === 'diamond' ? labels.diamond : labels.other;
 }
 
 /** A választás a formához igazítva: mintaismétlés most csak téglalapnál van; szegély minden formánál (PQW-898). */
 export function normalizeShape(options: ShapeOptions): ShapeOptions {
-  return options.shape === 'rectangle' ? options : { ...options, repeat: null };
+  // A bordás szegély a felső élen fut, a körbefutó szegély a darab körül: együtt nem választható (PQW-909).
+  // Csak akkor másolunk, ha tényleg törölni kell: a változatlan választás ugyanaz az objektum marad.
+  const chosen = options.border && options.ribbing ? { ...options, ribbing: null } : options;
+  return chosen.shape === 'rectangle' ? chosen : { ...chosen, repeat: null };
 }
 
 const cm = (value: number) => formatNumber(value, 1);
-
-/** „a 3., 5. és 7. sor”; hatnál több sornál az első hat. */
-function rowList(rows: readonly number[]): string {
-  const shown = rows.slice(0, 6).map((row) => `${row}.`);
-  const list = shown.length === 1 ? shown[0]! : `${shown.slice(0, -1).join(', ')} és ${shown.at(-1)!}`;
-  return `${article(rows[0]!)} ${list}${rows.length > shown.length ? ' és további' : ''} sor`;
-}
 
 export interface ShapeView {
   /** A tényleges méret és a sorok száma; becslésnél „≈” előtaggal. */
@@ -115,57 +154,63 @@ export interface ShapeView {
 }
 
 export function shapeView(plan: ShapePlan, options: ShapeOptions, hasProfile: boolean): ShapeView {
+  const t = texts().panels.shape;
   const approx = plan.gauge.source === 'estimated' ? '≈ ' : '';
   const rows = plan.counts.length;
   const first = plan.counts[0]!;
   const last = plan.counts.at(-1)!;
-  const size = `Tényleges méret: ${approx}${cm(plan.widthCm)} × ${cm(plan.heightCm)} cm, ${rows} sor.`;
+  const size = t.actualSize(approx, cm(plan.widthCm), cm(plan.heightCm), rows);
 
   const details: string[] = [];
-  if (plan.shape === 'rectangle') details.push(`Soronként ${first} szem.`);
-  else if (plan.shape === 'diamond') details.push(`${first} szemről a legszélesebb sorig ${Math.max(...plan.counts)} szemre, onnan vissza ${last} szemre.`);
-  else details.push(`Az alsó sor ${first} szem (${approx}${cm(plan.bottomWidthCm)} cm), a felső ${last} szem (${approx}${cm(plan.topWidthCm)} cm).`);
+  if (plan.shape === 'rectangle') details.push(t.perRow(first));
+  else if (plan.shape === 'diamond') details.push(t.diamondRows(first, Math.max(...plan.counts), last));
+  else details.push(t.bottomTop(first, cm(plan.bottomWidthCm), last, cm(plan.topWidthCm), approx));
   if (plan.repeats !== null && options.repeat) {
-    details.push(`Mintaismétlés: ${options.repeat.width} többszöröse + ${options.repeat.edge}, ${plan.repeats} ismétlés.`);
+    details.push(t.repeat(options.repeat.width, options.repeat.edge, plan.repeats));
   }
   if (plan.angleDeg !== null) {
-    const apex = plan.shape === 'isosceles-triangle' ? `, a csúcsszög kb. ${formatNumber(2 * plan.angleDeg, 0)}°` : '';
-    details.push(`Az él szöge a függőlegestől kb. ${formatNumber(plan.angleDeg, 0)}°${apex}.`);
-    details.push('A szaporítás és a fogyasztás egyenletesen elosztva, élenként soronként legfeljebb 2 egy szembe.');
+    const apex = plan.shape === 'isosceles-triangle' ? t.apexAngle(formatNumber(2 * plan.angleDeg, 0)) : '';
+    details.push(t.edgeAngle(formatNumber(plan.angleDeg, 0), apex));
+    details.push(t.evenShaping);
   }
-  if (plan.chainExtensionRows.length > 0) details.push(`Láncos hosszabbítás ${rowList(plan.chainExtensionRows)} végén.`);
-  if (plan.unworkedRows.length > 0) details.push(`Meghagyott szemek ${rowList(plan.unworkedRows)} végén: lépcsős él.`);
+  if (plan.chainExtensionRows.length > 0) details.push(t.chainExtension(plan.chainExtensionRows));
+  if (plan.unworkedRows.length > 0) details.push(t.unworkedRows(plan.unworkedRows));
   if (plan.border && plan.borderedCm) {
     // A szegély rövidpálcájának mérete akkor is lehet becslés, ha a darab szeme mért.
     const borderApprox = plan.borderedCm.source === 'estimated' ? '≈ ' : '';
     const exposed = plan.border.sides[0].exposed + plan.border.sides[1].exposed;
     const extras = [
-      ...(exposed > 0 ? [`a lépcsők meghagyott szemeibe ${exposed}`] : []),
-      ...(plan.border.repeat ? [`élenként ${plan.border.repeat.width} többszöröse + ${plan.border.repeat.edge}`] : []),
+      ...(exposed > 0 ? [t.borderExposed(exposed)] : []),
+      ...(plan.border.repeat ? [t.borderRepeat(plan.border.repeat.width, plan.border.repeat.edge)] : []),
     ];
     details.push(
-      `Szegély: ${plan.border.total} rp körben, sarkonként ${plan.border.corner}, sorvégenként ${plan.border.perRow}${extras.map((extra) => `, ${extra}`).join('')}; ` +
-        `a szegéllyel ${borderApprox}${cm(plan.borderedCm.widthCm)} × ${cm(plan.borderedCm.heightCm)} cm. ` +
-        'A diagramon, a rácson és a kész méretben is látszik.',
+      t.border(
+        plan.border.total,
+        plan.border.corner,
+        plan.border.perRow,
+        extras.map((extra) => `, ${extra}`).join(''),
+        borderApprox,
+        cm(plan.borderedCm.widthCm),
+        cm(plan.borderedCm.heightCm),
+      ),
     );
   }
 
-  const stitch = stitchById(plan.stitch).terms.hu.name;
+  const stitch = stitchById(plan.stitch).terms[termsLocale()].name;
+  const hookMm = formatNumber(plan.gauge.hookMm, 2);
   let source: string;
   switch (plan.gauge.basis) {
     case 'measured':
-      source = `${capitalize(withArticle(stitch))} ${plan.gauge.source === 'label' ? 'címkén megadott' : 'síkban mért'} mintasűrűségéből.`;
+      source = t.gaugeMeasured(stitch, plan.gauge.source === 'label' ? t.gaugeFromLabel : t.gaugeFromRows);
       break;
     case 'profile-stitch':
-      source = `Becslés: a profil más szemének síkban mért mintasűrűségéből átszámolva. Pontosabb, ha ${withArticle(stitch)} mintasűrűségét is megadod a Méret és fonal szakaszban.`;
+      source = t.gaugeProfileStitch(stitch);
       break;
     case 'profile-other-form':
-      source = 'Becslés: a körben mért mintasűrűségből átszámolva. Pontosabb, ha síkban is mérsz, és a Méret és fonal szakaszban megadod.';
+      source = t.gaugeOtherForm;
       break;
     case 'hook':
-      source = hasProfile
-        ? `Becslés a profil ${formatNumber(plan.gauge.hookMm, 2)} mm-es tűjéből, mert nincs mért mintasűrűség. Pontosabb, ha a Méret és fonal szakaszban megadod.`
-        : `Nincs profil: a méret becslés ${formatNumber(plan.gauge.hookMm, 2)} mm-es tűből. Pontosabb, ha próbadarabot mérsz, és a Méret és fonal szakaszban profilként megadod.`;
+      source = hasProfile ? t.gaugeHookProfile(hookMm) : t.gaugeHookNoProfile(hookMm);
       break;
   }
   return { size, details, source };
@@ -255,6 +300,8 @@ export function shapeOutline(plan: ShapePlan): ShapeOutline {
 
 /** Az állapotsor üzenete a létrehozás után; szegéllyel a szegély is (PQW-897). */
 export function generatedMessage(options: ShapeOptions, plan: ShapePlan): string {
-  const done = plan.border ? 'sor és szegély' : 'sor';
-  return `${SHAPE_NAMES[options.shape]}, ${plan.counts.length} ${done} elkészült; visszavonással a korábbi minta visszajön.`;
+  const t = texts().panels.shape;
+  // A bordás szegély sorai is elkészültek: az állapotsor a tényleges sorszámot mondja (PQW-909).
+  const rows = plan.counts.length + (options.ribbing?.rows ?? 0);
+  return t.generated(t.names[options.shape], rows, Boolean(plan.border));
 }

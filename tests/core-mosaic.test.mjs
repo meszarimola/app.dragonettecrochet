@@ -16,6 +16,8 @@ import { formatWrittenPattern, writePattern } from '../src/core/pattern-text.ts'
 import { libraryFor } from '../src/core/stitch-variants.ts';
 import { withTradition } from '../src/core/tradition.ts';
 import { validatePattern } from '../src/core/validate.ts';
+import { GRID_CORE_TEXTS } from '../src/ui/i18n/core/grid.ts';
+import { renderCoreText } from '../src/ui/i18n/core/render.ts';
 
 const COLORS = [
   { name: 'Fehér', hex: '#ffffff' },
@@ -37,9 +39,11 @@ const japanese = () => ({ ...emptyPattern(), conventions: withTradition(emptyPat
 
 const make = (pattern, cells, variant) => {
   const result = generateMosaic(pattern, { cells, colors: COLORS, variant, unit: null, lettering: false });
-  assert.ok(result.ok, result.reason);
+  assert.ok(result.ok, JSON.stringify(result.reason));
   return result;
 };
+/** A mag kódot és adatot ad; a mondat a felület szótárában készül (PQW-904). */
+const hu = (message) => renderCoreText(GRID_CORE_TEXTS.hu, message);
 const findings = (pattern) => validatePattern(pattern, libraryFor(pattern));
 const graphOf = (pattern) => buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));
 const spikes = (pattern) => pattern.pieces[0].stitches.filter((node) => node.flags?.includes('spike'));
@@ -115,11 +119,19 @@ describe('sorok, kihagyás, lejjebb horgolt szem (03 §5.6, §10 G34)', () => {
 
 describe('a rács hibái', () => {
   test('két szín, az 1. sor alapsor, a szélen nincs kihagyás, két kihagyás nem kerül egymás fölé', () => {
-    assert.match(mosaicProblem(chart('aaa'), [COLORS[0]]), /két színnel/);
-    assert.match(mosaicProblem(chart('aba'), COLORS), /^Az 1\. sor az alapsor: minden cellája az A szín legyen\.$/);
-    assert.match(mosaicProblem(chart('abb', 'aaa'), COLORS), /^A 2\. sor két szélső cellája a B szín legyen/);
-    assert.match(mosaicProblem(chart('aabaa', 'bbabb', 'aaaaa'), COLORS), /^A 3\. sor 3\. cellája alatt is kihagyás van/);
-    assert.match(mosaicProblem(chart('aa'), COLORS), /legalább 3 cella/);
+    // A mag kódot, sorszámot, cellaszámot és színindexet ad (PQW-904).
+    assert.equal(mosaicProblem(chart('aaa'), [COLORS[0]]).code, 'mosaic-two-colors');
+    assert.deepEqual(mosaicProblem(chart('aba'), COLORS), { code: 'mosaic-base-row', data: { color: 0 } });
+    assert.deepEqual(mosaicProblem(chart('abb', 'aaa'), COLORS), { code: 'mosaic-edge-colors', data: { row: 2, color: 1 } });
+    assert.deepEqual(mosaicProblem(chart('aabaa', 'bbabb', 'aaaaa'), COLORS), { code: 'mosaic-stacked-skip', data: { row: 3, cell: 3 } });
+    assert.equal(mosaicProblem(chart('aa'), COLORS).code, 'mosaic-min-width');
+
+    // A magyar mondat a mai: a névelő, a szín szava és a sor neve a szótárból.
+    assert.match(hu(mosaicProblem(chart('aaa'), [COLORS[0]])), /két színnel/);
+    assert.equal(hu(mosaicProblem(chart('aba'), COLORS)), 'Az 1. sor az alapsor: minden cellája az A szín legyen.');
+    assert.match(hu(mosaicProblem(chart('abb', 'aaa'), COLORS)), /^A 2\. sor két szélső cellája a B szín legyen/);
+    assert.match(hu(mosaicProblem(chart('aabaa', 'bbabb', 'aaaaa'), COLORS)), /^A 3\. sor 3\. cellája alatt is kihagyás van/);
+    assert.match(hu(mosaicProblem(chart('aa'), COLORS)), /legalább 3 cella/);
     assert.equal(mosaicProblem(MOTIF, COLORS), null);
     assert.equal(planMosaic(cyc(), chart('aba'), COLORS, 1).ok, false);
   });

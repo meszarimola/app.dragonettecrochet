@@ -311,6 +311,25 @@ export interface LayerEvent {
   readonly jogFix?: 'slip-stitch' | 'back-loop';
   /** Jelölések a kör után az írott mintában: szem, tömés, a nyílás összehúzása (PQW-863). */
   readonly marks?: readonly RoundMark[];
+  /**
+   * A fonal elvágása után a következő szakasz nem az utolsó sor fölött
+   * folytatódik, hanem a megadott soréban (PQW-901): így lesz egy darabon
+   * belül két váll a nyakkivágás két oldalán, vagy a raglán ujja a hónalj
+   * szemeiben. A `name` a szakasz neve az írott mintában. Csak `fasten-off`
+   * eseményen van értelme.
+   */
+  readonly resume?: {
+    readonly layer: number;
+    readonly name?: string;
+    /**
+     * A szakasz első köre egy másik, szintén korábbi szakasz pozícióiba is
+     * horgol (PQW-908): a raglán ujja a vállrész kihagyott szemeibe és a
+     * szétosztás hónaljláncába egyszerre. A `layer` adja az első, ez a
+     * második forrást; a kettő pozíciói ebben a sorrendben követik egymást.
+     * Csak körben, és csak a `layer` utáni rétegre mutathat.
+     */
+    readonly with?: number;
+  };
 }
 
 export interface Piece {
@@ -336,6 +355,13 @@ export interface Piece {
    * kendőgenerátor adja; hiányában a sorok egyenesek.
    */
   readonly rowShape?: RowShape;
+  /**
+   * Körben horgolt darab rajza (PQW-908): a raglán vállrésze kúp, nem lapos
+   * kör, ezért a körei kiterítve körcikket adnak. A `throughRound` az utolsó
+   * ilyen kör sorszáma; utána a darab körei a szokásos módon rajzolódnak.
+   * A raglángenerátor adja; hiányában a körök lapos körként állnak.
+   */
+  readonly roundShape?: RoundShape;
   /**
    * A darab részei 3D formából (PQW-863), a készítés sorrendjében. Ha van, a
    * darab térbeli forma: a kunkorodás szándékos, az ellenőrző nem jelzi.
@@ -401,6 +427,9 @@ export interface PieceGrid {
 export type RowShape =
   | { readonly kind: 'arc'; readonly neckAngle: number }
   | { readonly kind: 'chevron'; readonly neckAngle: number; readonly tipAngle: number };
+
+/** Körben horgolt darab rajzának alakja (PQW-908): kúp a megadott körig. */
+export type RoundShape = { readonly kind: 'cone'; readonly throughRound: number };
 
 /** A szegély választásai (PQW-862, 03 §7.1). */
 export interface PieceBorder {
@@ -505,7 +534,7 @@ export interface Pattern {
 
 /* ---- Ruhadarabok (PQW-866) ---- */
 
-export type GarmentKind = 'hat' | 'drop-shoulder';
+export type GarmentKind = 'hat' | 'drop-shoulder' | 'raglan';
 
 /** A méretek táblázata: a CYC testméretek (body-sizes.ts), sapkánál a sapkaméretek. */
 export type GarmentTable = 'women' | 'men' | 'child' | 'baby' | 'hat';
@@ -577,8 +606,8 @@ export type ShapeSpec =
    */
   | { readonly kind: 'oval'; readonly lengthCm: number; readonly widthCm: number; readonly stitch?: OvalStitch };
 
-/** Az ovális szeme (PQW-899): rövidpálca, félpálca vagy egyráhajtásos pálca. */
-export type OvalStitch = 'sc' | 'hdc' | 'dc';
+/** Az ovális szeme (PQW-899, PQW-902): rövidpálca, félpálca, egyráhajtásos vagy kétráhajtásos pálca. */
+export type OvalStitch = 'sc' | 'hdc' | 'dc' | 'tr';
 
 /** Egy rész (pl. fej, test) a darabban: a neve, az első köre és a formája (PQW-863). */
 export interface PieceSection {
@@ -633,6 +662,29 @@ export interface Layer {
   readonly piece: PieceId;
   /** A láncalap vagy a varázskör a 0., utána 1-től számozva. */
   readonly index: number;
+  /**
+   * Melyik réteg fölött áll: alapból az előző (`index − 1`). Elvágott fonal
+   * után a szakasz máshonnan folytatódhat (`LayerEvent.resume`, PQW-901),
+   * ilyenkor az ott megadott réteg.
+   */
+  readonly below: number;
+  /**
+   * A második forrásréteg (PQW-908): a réteg ennek a pozícióiba is horgol, a
+   * `below` pozíciói után. A raglán ujjánál a szétosztás hónaljlánca.
+   */
+  readonly alsoBelow?: number;
+  /**
+   * A két forrásból összeérő alapgyűrű (PQW-908). A raglán ujja nem a vállrész és a
+   * szétosztás *teljes* körére ül, hanem a saját kihagyott szemeire és a hónaljláncra:
+   * a köztük lévő testszemek nem tartoznak ebbe a csőbe. Csak kétforrású körnél van megadva.
+   */
+  readonly basePositions?: readonly NodeId[];
+  /**
+   * A sor vagy kör kiírt száma. Alapból az `index`; a megadott sor fölött
+   * folytatódó szakaszban újraindul, ezért két szakasz sorszáma egyezhet
+   * (pl. a két váll), és a nevük különbözteti meg őket (PQW-901).
+   */
+  readonly row: number;
   readonly shape: 'row' | 'round';
   readonly stitches: readonly NodeId[];
   /** Szemszám: a láncszemek a `chainCounts`, a fordulólánc a `turningChainCounts` szerint. */

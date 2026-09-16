@@ -36,7 +36,7 @@ import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
 import { CIRCLE, frameCoords, frameFor, frameNormal, framePoint, frameSide, perimeter, type Point, type RoundFrame } from './polygon.ts';
 import { curveLayout, rowCurve } from './row-curve.ts';
 import type { StitchLibrary } from './stitch-library.ts';
-import type { Anchor, NodeId, Pattern, StitchDef, StitchDefId } from './types.ts';
+import type { Anchor, NodeId, Pattern, RoundShape, StitchDef, StitchDefId } from './types.ts';
 import { validatePattern } from './validate.ts';
 
 export type { Point, RoundFrame } from './polygon.ts';
@@ -212,6 +212,12 @@ class Layouter {
   readonly #W: number;
   readonly #stem: (chainHeight: number) => number;
   readonly #round: boolean;
+  #roundShape: RoundShape | undefined;
+
+  /** Kúpos kör-e a réteg (PQW-908): a 2. körtől a megadott körig. */
+  #cone(index: number): boolean {
+    return this.#round && this.#roundShape?.kind === 'cone' && index >= 2 && index <= this.#roundShape.throughRound;
+  }
   /** Ovális kezdés (PQW-890): a láncalap egyenesen, az 1. kör a két oldalán. */
   readonly #oval: boolean;
   /** A körben horgolt darab alakja: kör vagy sokszög. */
@@ -235,8 +241,11 @@ class Layouter {
     this.#stem = stem;
     this.#detached = detached;
     this.#round = graph.layers[0]!.shape === 'round';
+    this.#roundShape = graph.piece.roundShape;
     this.#oval = this.#round && graph.layers[0]!.undersides.length > 0;
-    this.#frame = this.#round ? frameFor(graph.piece.corners) : CIRCLE;
+    // A kúp (PQW-908: a raglán vállrésze) kör alapú: a négy raglánvonal szaporítási pont, nem motívumsarok.
+    // Sarkos keretre húzva a rajz négyzetté torzulna, pedig a darab a valóságban körbefutó cső.
+    this.#frame = this.#round && graph.piece.roundShape?.kind !== 'cone' ? frameFor(graph.piece.corners) : CIRCLE;
   }
 
   run(): Raw {
@@ -343,7 +352,7 @@ class Layouter {
   #layer(layer: LayerInfo, direction: number): void {
     const graph = this.#graph;
     const W = this.#W;
-    const below = graph.layers[layer.index - 1]!;
+    const below = graph.layers[layer.below]!;
     const turning = new Set(layer.turningChain);
 
     const height = Math.max(
@@ -351,7 +360,8 @@ class Layouter {
       layer.turningChain.length ? this.#stem(layer.turningChain.length) : 0,
       ...layer.stitches.filter((id) => !turning.has(id)).map((id) => this.#height(id)),
     );
-    const previousTop = layer.index === 1 ? this.#base[0]! + (this.#round ? 0 : -ROW_GAP) : this.#top(layer.index - 1);
+    // Az újrakezdett szakasz az alatta megadott sor tetejére épül (PQW-901).
+    const previousTop = layer.index === 1 ? this.#base[0]! + (this.#round ? 0 : -ROW_GAP) : this.#top(layer.below);
     let base = this.#round ? previousTop + ROW_GAP : previousTop - ROW_GAP;
     this.#base[layer.index] = base;
 
@@ -387,7 +397,10 @@ class Layouter {
     const around = perimeter(this.#frame, 1);
     const unit = around / TAU;
     const scale = (radius: number) => (this.#round ? 1 / (radius * unit) : 1);
-    if (this.#round) {
+    // Lapos körnél a sugár akkorára nő, hogy a kör szemei kiférjenek a kerületén. A kúp (PQW-908: a raglán
+    // vállrésze) ennél lassabban nő: ott a sugarat a kelme adja (az előző kör teteje), a kör pedig kiterítve
+    // körcikket ad, mint a valóságban. Az 1. kör mindig a kerületéből indul, különben nem lenne mihez mérni.
+    if (this.#round && !this.#cone(layer.index)) {
       const width = items.reduce((sum, item) => sum + 2 * item.half, 0);
       base = Math.max(base, width / around - height / 2);
       this.#base[layer.index] = base;
@@ -447,7 +460,7 @@ class Layouter {
       // a jel normál méretben, a helyén marad, a karjai nem nyúlnak a távoli célpontig (PQW-879).
       const feet = this.#detached.has(id)
         ? graph.nodes.get(id)!.anchors.map(() => this.#point(base, axis))
-        : graph.nodes.get(id)!.anchors.map((anchor) => this.#foot(anchor, layer.index, base));
+        : graph.nodes.get(id)!.anchors.map((anchor) => this.#foot(anchor, layer.below, base));
       if (def.kind === 'slip') {
         // Körben a továbbvezető és a záró kúszószem ott látszik, ahová horgolták.
         const center = this.#round && feet[0] ? feet[0] : this.#point(up(base, SLIP_HEIGHT / 2), axis);
@@ -630,7 +643,7 @@ class Layouter {
   }
 
   /** A talp: a célpont oszlopa ennek a rétegnek a talpvonalán; korábbi sorba horgolt szemnél annak a sornak a tetején. */
-  #foot(anchor: Anchor, index: number, base: number): Point {
+  #foot(anchor: Anchor, below: number, base: number): Point {
     if (anchor.into === 'ring') return { x: 0, y: 0 };
     if (this.#round) {
       // Körben a kör sugara a helyigénnyel nő, ezért a talp a célpont valódi helyén van, nem a talpkörön.
@@ -642,8 +655,8 @@ class Layouter {
     }
     const axis = this.#anchorAxis(anchor) ?? 0;
     const target = anchor.into === 'stitch' || anchor.into === 'underside' ? anchor.id : this.#graph.spaces.get(anchor.id)?.chains[0];
-    const targetLayer = target === undefined ? index - 1 : (this.#graph.layerOf.get(target) ?? index - 1);
-    const line = targetLayer >= index - 1 ? base : (this.#base[targetLayer + 1] ?? base);
+    const targetLayer = target === undefined ? below : (this.#graph.layerOf.get(target) ?? below);
+    const line = targetLayer >= below ? base : (this.#base[targetLayer + 1] ?? base);
     return this.#point(line, axis);
   }
 
