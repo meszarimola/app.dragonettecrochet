@@ -22,6 +22,7 @@ import {
   type GarmentSeriesPlan,
   type HatPlan,
 } from '../core/garments.ts';
+import type { RaglanPlan } from '../core/raglan.ts';
 import { stitchById } from '../core/stitches.ts';
 import type { GarmentKind } from '../core/types.ts';
 import { texts } from './i18n.ts';
@@ -53,12 +54,15 @@ export function sizeChoices(kind: GarmentKind, table: BodyTableId): Choice<strin
 export interface GarmentFieldState {
   readonly table: boolean;
   readonly belowWaist: boolean;
+  /** A nyakkivágás választása csak pulóvernél (PQW-901). */
+  readonly neckline: boolean;
   readonly repeat: boolean;
 }
 
 export function garmentFieldState(kind: GarmentKind): GarmentFieldState {
   const sweater = kind === 'drop-shoulder';
-  return { table: sweater, belowWaist: sweater, repeat: sweater };
+  // A raglán is testméret-táblázatból dolgozik, de a nyakat és a mintaismétlést maga adja (PQW-901).
+  return { table: sweater || kind === 'raglan', belowWaist: sweater || kind === 'raglan', neckline: sweater, repeat: sweater };
 }
 
 export function easeLabel(kind: GarmentKind): string {
@@ -88,17 +92,19 @@ export function hemLabel(kind: GarmentKind): string {
  */
 export function defaultsFor(kind: GarmentKind, table: BodyTableId): GarmentOptions {
   if (kind === 'hat') return { ...DEFAULT_HAT, table };
-  if (table === 'women') return DEFAULT_GARMENT;
+  // A raglán bősége a „C” példa szerinti +8 cm; a nyakkivágást és a mintaismétlést nem használja.
+  const forKind = (options: GarmentOptions): GarmentOptions => (kind === 'raglan' ? { ...options, kind, easeCm: 8, repeat: null } : options);
+  if (table === 'women') return forKind(DEFAULT_GARMENT);
   const ids = garmentSizes(kind, table).map((size) => size.id);
   const middle = ids.includes('M') ? ids.indexOf('M') : Math.floor((ids.length - 1) / 2);
-  return {
+  return forKind({
     ...DEFAULT_GARMENT,
     table,
     size: ids[middle]!,
     from: ids[Math.max(0, middle - 1)]!,
     to: ids[Math.min(ids.length - 1, middle + 1)]!,
     belowWaistCm: BELOW_WAIST_CM[table],
-  };
+  });
 }
 
 /** A választás összhangba hozva: a sorozat mindig tartalmazza a rajz méretét; a mintaismétlés csak pulóvernél. */
@@ -113,6 +119,7 @@ export function normalizeGarment(options: GarmentOptions): GarmentOptions {
     size: base,
     from: ids[from]!,
     to: ids[to]!,
+    // A mintaismétlés csak a ledobott vállú pulóvernél számít (PQW-866, PQW-901).
     repeat: options.kind === 'drop-shoulder' ? options.repeat : null,
   };
 }
@@ -148,6 +155,10 @@ export function garmentView(plan: GarmentSeriesPlan, hasProfile: boolean): Garme
   if (base.plan.kind === 'hat') {
     size = t.hatSize(base.name, approx, cm(base.plan.finishedCm), cm(base.plan.finishedHeightCm), base.plan.counts.length);
     details.push(...hatDetails(base.plan));
+  } else if (base.plan.kind === 'raglan') {
+    const { finished } = base.plan;
+    size = t.raglanSize(base.name, approx, cm(finished.chestCm), cm(finished.lengthCm), base.plan.yokeRounds + base.plan.bodyRoundsBelow);
+    details.push(...raglanDetails(base.plan));
   } else {
     const { finished } = base.plan;
     size = t.sweaterSize(base.name, approx, cm(finished.chestCm), cm(finished.lengthCm), cm(finished.sleeveCm));
@@ -160,8 +171,11 @@ export function garmentView(plan: GarmentSeriesPlan, hasProfile: boolean): Garme
   }
 
   const prefix = (name: string) => (many ? t.prefix(name) : '');
+  // A hamis ellenőrzés mellé javaslat is jár, ha van (05 §9.6, PQW-901).
   const failed = plan.sizes.flatMap((entry) =>
-    entry.plan.checks.filter((check) => !check.ok).map((check) => t.failedCheck(prefix(entry.name), check.label)),
+    entry.plan.checks
+      .filter((check) => !check.ok)
+      .map((check) => t.failedCheck(prefix(entry.name), check.label, check.suggestion === undefined ? '' : ` ${check.suggestion}`)),
   );
   const checks =
     plan.checksPassed === plan.checksTotal
@@ -187,6 +201,19 @@ function hatDetails(plan: HatPlan): string[] {
     t.hatHead(formatNumber(plan.measures.headCm, 1), signed(plan.measures.easeCm), easePct, cm(plan.hatCm), plan.stitches),
     t.hatCrown(plan.crownRounds, plan.increases, formatNumber(plan.exactIncreases, 2)),
     t.hatSide(plan.sideRounds, plan.brimRounds > 0 ? t.hatBrim(plan.brimRounds) : ''),
+  ];
+}
+
+function raglanDetails(plan: RaglanPlan): string[] {
+  const t = texts().panels.garment;
+  const { neck, target, finished, measures } = plan;
+  return [
+    t.raglanNeck(neck.stitches, neck.front, neck.sleeve),
+    t.raglanYoke(plan.yokeRounds, plan.bodyRounds.length > 0 ? t.raglanExtra(plan.bodyRounds.length) : ''),
+    t.raglanDivide(target.front, target.sleeve, plan.underarm, plan.bodyStitches),
+    t.raglanBody(plan.bodyRoundsBelow, plan.hemRounds),
+    t.ease(signed(finished.easeCm), t.fits[fitLevelOf(finished.easeCm)], ''),
+    t.body(formatNumber(measures.bustCm, 1)),
   ];
 }
 

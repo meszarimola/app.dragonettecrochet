@@ -61,6 +61,10 @@ export const RULE_TEXTS = {
       summary: 'The target is not a workable position of the previous row; only a spike stitch may reach an earlier row.',
       message: 'This stitch does not anchor into a stitch of the row below it.',
     },
+    'resume-layer': {
+      summary: 'After fastening off, the section would continue over a row that does not exist or is not an earlier row.',
+      message: 'After the yarn is cut, the work would continue above a row that is missing, or that is not an earlier row.',
+    },
     'turning-chain-placement': {
       summary: 'With a counting turning chain the last stitch of the row does not go into its top, or a stitch was worked into a turning chain that does not count.',
       message: 'The beginning or the end of the row does not line up with the chains at the start of the row.',

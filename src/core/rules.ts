@@ -55,6 +55,12 @@ export const RULES = {
     summary: 'A célpont nem az előző sor horgolható pozíciója; korábbi sorba csak hosszú szem mehet.',
     message: 'Ez a szem nem az alatta lévő sor egy szemébe kapaszkodik.',
   },
+  'resume-layer': {
+    severity: 'error',
+    reference: '03 §10 C16, 05 §9.5',
+    summary: 'A fonal elvágása után megadott folytatás nem létező vagy nem korábbi sorra mutat.',
+    message: 'A fonal elvágása után a munka egy olyan sor fölött folytatódna, amely nincs meg, vagy nem korábbi sor.',
+  },
   'turning-chain-placement': {
     severity: 'error',
     reference: '03 §10 A4, 03 §1.3',

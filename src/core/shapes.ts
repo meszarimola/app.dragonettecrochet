@@ -572,8 +572,10 @@ class RowWriter {
     return produced;
   }
 
-  event(kind: LayerEvent['kind']): void {
-    this.events.push({ after: this.previous!, kind });
+  event(kind: LayerEvent['kind'], resume?: LayerEvent['resume']): void {
+    this.events.push({ after: this.previous!, kind, ...(resume ? { resume } : {}) });
+    // A fonal elvágása után új fonalszakasz kezdődik: a következő szem előzmény nélküli (06 §5.3 V2).
+    if (kind === 'fasten-off') this.previous = null;
   }
 }
 
@@ -682,6 +684,116 @@ function withStatedCounts(pattern: Pattern, piece: Piece, counts: readonly numbe
  * előző sor szemszáma a `shaping[k]` változással. A sorvégi szemszám a gráf
  * számolása; hibánál az ok.
  */
+/** Egy szakasz sorai: hol folytatódik, hol kezdődik az alatta lévő soron, és soronként a szemszám (PQW-901). */
+export interface RowSection {
+  /** A szakasz neve az írott mintában; az első szakasznak nincs. */
+  readonly name?: string;
+  /** Melyik sor fölött folytatódik (1-től); az első szakasznak nincs. */
+  readonly over?: number;
+  /** Hány pozíciót hagyunk ki az alatta lévő sor elején, a haladási irányban. */
+  readonly from?: number;
+  /** Hány pozícióra terjed ki a szakasz első sora; hiányában a sor végéig. */
+  readonly span?: number;
+  /** Soronként a szemszám; a 0. elem a szakasz első sora. */
+  readonly counts: readonly number[];
+  readonly shaping: readonly RowShaping[];
+}
+
+/**
+ * Sorokban horgolt darab több szakaszból (PQW-901): a fonal elvágása után a
+ * munka a megadott sor fölött, más helyről folytatódik. Így lesz egy darabon
+ * belül a nyakkivágás két oldalán a két váll. Amelyik pozíciót egyik szakasz
+ * sem használja fel, az szándékosan kihagyott: ez a nyak közepe.
+ */
+export function plannedSections(
+  pattern: Pattern,
+  stitch: StitchDefId,
+  sections: readonly RowSection[],
+  name: string,
+  id = 'p1',
+): Piece | string {
+  const broken = 'A sorok terve hiányos: ez a program hibája, kérlek, jelezd.';
+  if (sections.length === 0 || sections.some((section) => section.counts.length === 0 || section.counts.length !== section.shaping.length)) return broken;
+  const base: Pattern = { ...pattern, pieces: [] };
+  const writer = new RowWriter();
+  const def = resolveStitch(stitch)!;
+  const tradition = traditionOf(base.conventions);
+  const counting = turningChainCountsFor(base.conventions.turningChainCounts, def, tradition, 'row');
+  const baseChain = hasBaseChain(counting, tradition);
+
+  // Rétegenként a pozíciók a fonal sorrendjében; a 0. a láncalap.
+  const positions: NodeId[][] = [];
+  let layer = 0;
+
+  for (const [s, section] of sections.entries()) {
+    let below: NodeId[];
+    let turningTop: NodeId;
+    if (s === 0) {
+      // Láncalap: az 1. sor láncszemei, számító fordulóláncnál az alapláncszem, és az 1. sor fordulólánca (03 §1.2, PQW-891).
+      const worked = section.counts[0]! - (counting ? 1 : 0) + (baseChain ? 1 : 0);
+      const foundation = writer.chains(worked + def.turningChain);
+      positions[0] = foundation.slice(0, worked);
+      below = [...positions[0]!];
+      turningTop = foundation[foundation.length - 1]!;
+    } else {
+      const over = section.over ?? 0;
+      if (over < 1 || over > layer || positions[over] === undefined) return broken;
+      below = [...positions[over]!];
+      turningTop = '';
+    }
+    for (let k = 0; k < section.counts.length; k += 1) {
+      if (s > 0 || k > 0) turningTop = writer.chains(def.turningChain).at(-1)!;
+      // A szakasz első sora az alatta lévő sor egy szakaszán dolgozik; a többi sora a saját előző során.
+      const from = k === 0 ? Math.max(0, section.from ?? 0) : 0;
+      const span = k === 0 ? section.span : undefined;
+      const working = [...below].reverse().slice(from, span === undefined ? undefined : from + span);
+      const made = writer.row(def, working, s === 0 && k === 0 ? baseChain : counting, section.shaping[k]!, layer + 1);
+      if (typeof made === 'string') return made;
+      below = [...(counting ? [turningTop] : []), ...made];
+      layer += 1;
+      positions[layer] = below;
+      if (k < section.counts.length - 1) {
+        writer.event('turn');
+        continue;
+      }
+      // A következő szakasz vagy az imént befejezett sor fölött folytatódik (akkor csak fordítunk, az első váll),
+      // vagy máshol: ilyenkor a fonalat elvágjuk, és az elvágás mondja meg, hol folytatódik (PQW-901).
+      const next = sections[s + 1];
+      if (next === undefined) writer.event('fasten-off');
+      else if ((next.over ?? 0) === layer) writer.event('turn');
+      else writer.event('fasten-off', { layer: next.over ?? 0, ...(next.name === undefined ? {} : { name: next.name }) });
+    }
+  }
+
+  // A megosztott sorban egyik szakasz által sem használt pozíciók: a nyak közepe (03 §10 B8). A szakasz első
+  // pozíciója a fordulóláncát tartja, abba nem horgolunk: az nem kihagyott szem (03 §1.3).
+  const used = new Set<NodeId>();
+  for (const node of writer.stitches) for (const anchor of node.anchors) if (anchor.into === 'stitch') used.add(anchor.id);
+  const seats = new Set<NodeId>();
+  if (counting) {
+    for (const section of sections) {
+      if (section.over === undefined) continue;
+      const seat = [...(positions[section.over] ?? [])].reverse()[Math.max(0, section.from ?? 0)];
+      if (seat !== undefined) seats.add(seat);
+    }
+  }
+  const shared = new Set(
+    sections.flatMap((section) => (section.over === undefined ? [] : (positions[section.over] ?? []).filter((node) => !seats.has(node)))),
+  );
+  const piece: Piece = {
+    id,
+    name,
+    stitches: writer.stitches,
+    spaces: writer.spaces,
+    rings: [],
+    groups: writer.groups,
+    events: writer.events,
+    // A sor végén meghagyott szemeket a sorépítő már felvette: a lista egyszer sorolja őket.
+    skipped: [...new Set([...writer.skipped, ...[...shared].filter((node) => !used.has(node))])],
+  };
+  return withStatedCounts(base, piece, sections.flatMap((section) => section.counts));
+}
+
 export function plannedRows(
   pattern: Pattern,
   stitch: StitchDefId,

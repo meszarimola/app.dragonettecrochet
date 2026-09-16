@@ -28,10 +28,13 @@ import {
   generateGarment,
   garmentSizes,
   hatPlan,
+  neckSplitRow,
   planGarment,
   sleeveRowsOf,
 } from '../src/core/garments.ts';
+import { canonicalPattern } from '../src/core/canonical.ts';
 import { loadPattern, savePattern } from '../src/core/pattern-json.ts';
+import { readPattern } from '../src/core/pattern-read.ts';
 import { formatWrittenPattern, writePattern } from '../src/core/pattern-text.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
 import { validatePattern } from '../src/core/validate.ts';
@@ -241,6 +244,24 @@ describe('méretsorozat', () => {
     assert.deepEqual(plan.monotonic, []);
   });
 
+  test('növedék: a hosszakat a felakasztott próbadarab nyúlásával csökkenti (05 §7.2, PQW-901)', () => {
+    const plain = planned(options({ from: 'M', to: 'M' }));
+    const grown = planned(options({ from: 'M', to: 'M', growthPct: 10 }));
+    assert.ok(grown.sizes[0].plan.panel.rows < plain.sizes[0].plan.panel.rows, 'a pulóver rövidebb lesz');
+    const hatPlain = planned(hat({ from: 'adult-m', to: 'adult-m' }));
+    const hatGrown = planned(hat({ from: 'adult-m', to: 'adult-m', growthPct: 10 }));
+    assert.ok(hatGrown.sizes[0].plan.counts.length < hatPlain.sizes[0].plan.counts.length, 'a sapka alacsonyabb lesz');
+    assert.match(planGarment(emptyPattern(), options({ growthPct: 80 })).reason, /növedék 0 és 50% közötti/);
+  });
+
+  test('hamis ellenőrzéshez javítási javaslat jár (05 §9.6, PQW-901)', () => {
+    // A mellbőség 10%-át meghaladó negatív bőség: a terv elkészül, de az ellenőrzés hamis.
+    const plan = planned(options({ easeCm: -10, from: 'M', to: 'M' }));
+    const failing = plan.sizes[0].plan.checks.filter((check) => !check.ok);
+    assert.deepEqual(failing.map((check) => check.id), ['negative-ease']);
+    assert.match(failing[0].suggestion, /^A negatív bőség legfeljebb \d+ cm lehet/);
+  });
+
   test('a táblázat gyanús adata a méretnél megjelenik', () => {
     const plan = planned(options({ size: '2X', from: 'XL', to: '2X' }));
     assert.ok(plan.sizes[1].flags.some((flag) => flag.kind === 'identical-rows'));
@@ -272,11 +293,13 @@ describe('generált minta', () => {
     assert.equal(pattern.garment.base, 1);
     assert.deepEqual(findings(pattern).filter((finding) => finding.severity === 'error'), []);
     const base = plan.sizes[1].plan;
-    // Az ujj varrása a karöltőbe egyenletes elosztással, a két fele a hátrészre és az elejerészre.
+    // Az ujj varrása a karöltőbe egyenletes elosztással, a két fele a hátrészre és az elejerészre. Formázott
+    // nyaknál a karöltő a törzs tetejéig tart, a vállak a megosztás fölött készülnek (PQW-901).
     const sleeveJoin = pattern.joins.find((join) => join.a.piece === 'p3' && join.b.piece === 'p1');
+    const split = neckSplitRow(base, 'back');
     assert.deepEqual(sleeveJoin.a.stitches, { from: 0, count: base.sleeve.top / 2 });
-    assert.deepEqual(sleeveJoin.b.rows, { to: base.panel.rows, side: 'left' });
-    assert.equal(sleeveJoin.distribution.reduce((sum, n) => sum + n, 0), Math.max(base.sleeve.top / 2, base.panel.armholeRows));
+    assert.deepEqual(sleeveJoin.b.rows, { to: split, side: 'left' });
+    assert.equal(sleeveJoin.distribution.reduce((sum, n) => sum + n, 0), Math.max(base.sleeve.top / 2, split - (base.panel.rows - base.panel.armholeRows)));
   });
 
   test('a jobb ujj a bal tükörképe: a sorok szemszáma azonos', () => {
@@ -286,6 +309,26 @@ describe('generált minta', () => {
     const counts = (name) => [...block(name).matchAll(/\((\d+) szem\)/g)].map((match) => match[1]);
     assert.ok(counts('Bal ujj').length > 0);
     assert.deepEqual(counts('Jobb ujj'), counts('Bal ujj'));
+  });
+
+  test('formázott nyakkivágás: a két váll egy darabon belül, a szöveg visszaolvasható (PQW-901)', () => {
+    const { pattern, plan } = generated(DEFAULT_GARMENT);
+    const base = plan.sizes[1].plan;
+    const { joins: _joins, garment: _garment, ...rest } = pattern;
+    // A darab önmagában: a „Méretek” és az „Összeállítás” blokk nem a sorok szövege.
+    const front = { ...rest, pieces: [pattern.pieces[1]] };
+    const library = libraryFor(front);
+    const text = formatWrittenPattern(writePattern(front, library, 'hu'));
+    const split = neckSplitRow(base, 'front');
+    // A megosztás fölött a két váll ugyanazokkal a sorszámokkal, a szakasz neve különbözteti meg őket.
+    assert.match(text, new RegExp(`A másik váll \\(a ${split}\\. sor fölött\\):`));
+    assert.equal(text.match(new RegExp(`^${split + 1}\\. sor: `, 'gm')).length, 2);
+    const result = readPattern(text, { library, locale: 'hu', conventions: front.conventions });
+    assert.ok(result.ok, result.ok ? '' : `${result.error.line}: ${result.error.message}`);
+    // A darab azonosítóját a beolvasó maga osztja ki: a gráf attól még ugyanaz.
+    const sameId = (piece) => ({ ...piece, id: 'p1' });
+    assert.deepEqual(canonicalPattern(result.pattern).pieces.map(sameId), canonicalPattern(front).pieces.map(sameId));
+    assert.deepEqual(validatePattern(result.pattern, library).filter((finding) => finding.severity === 'error'), []);
   });
 
   test('sapka: hibátlan, és az egyenes oldal nem jelez kunkorodást', () => {
@@ -308,7 +351,8 @@ describe('generált minta', () => {
     assert.match(text, /^Ledobott vállú pulóver\n\nMéretek\nS \(M, L\)\nA sorok és a rajz az M méretre készültek;/);
     assert.match(text, /Hátrész és elejerész \(2 db\): láncalap \d+ \(\d+, \d+\) lsz; \d+ \(\d+, \d+\) szem/);
     assert.match(text, /Szaporíts mindkét szélen 1-1 szemet a \d+\. \(\d+\., \d+\.\) sorban/);
-    assert.match(text, /Varrás: Hátrész, \d+\. sor 1–\d+\. szeme \(\d+\) → Elejerész, \d+\. sor \d+–\d+\. szeme \(\d+\)\./);
+    // Formázott nyaknál a váll egy-egy teljes sor, és a szakasz neve különbözteti meg az azonos sorszámokat (PQW-901).
+    assert.match(text, /Varrás: Hátrész, \d+\. sor 1–\d+\. szeme \(\d+\) → Elejerész, A másik váll, \d+\. sor 1–\d+\. szeme \(\d+\)\./);
     assert.match(text, /Varrás: Hátrész, 1–\d+\. sor bal széle \(\d+ sorvég\) → Elejerész, 1–\d+\. sor jobb széle \(\d+ sorvég\)\./);
     assert.match(text, /Varrás: Bal ujj, \d+\. sor 1–\d+\. szeme \(\d+\) → Hátrész, \d+–\d+\. sor bal széle \(\d+ sorvég\), a szemeket egyenletesen elosztva\./);
     const english = formatWrittenPattern(writePattern(pattern, libraryFor(pattern), 'en-US'));
