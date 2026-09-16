@@ -41,6 +41,11 @@ export class RoundsPanel {
   readonly #stagger: HTMLInputElement;
   readonly #colors: HTMLInputElement;
   readonly #jog: HTMLSelectElement;
+  readonly #ribbing: HTMLInputElement;
+  readonly #ribbingRows: HTMLInputElement;
+  readonly #ribbingWidth: HTMLInputElement;
+  readonly #ribbingFields: HTMLElement;
+  readonly #ribbingPair: HTMLElement;
   readonly #note: HTMLElement;
   #pattern: Pattern | null = null;
   #shown: string | null = null;
@@ -61,10 +66,27 @@ export class RoundsPanel {
     this.#stagger = field('rounds-stagger');
     this.#colors = field('rounds-colors');
     this.#jog = fill(field('rounds-jog'), JOG_CHOICES);
+    this.#ribbing = field('rounds-ribbing');
+    this.#ribbingRows = field('rounds-ribbing-rows');
+    this.#ribbingWidth = field('rounds-ribbing-width');
+    this.#ribbingFields = field('rounds-ribbing-fields');
+    this.#ribbingPair = field('rounds-ribbing-pair');
     this.#note = field('rounds-note');
 
     section.addEventListener('toggle', () => this.#render());
-    for (const input of [this.#shape, this.#stitch, this.#start, this.#count, this.#closing, this.#stagger, this.#colors, this.#jog]) {
+    for (const input of [
+      this.#shape,
+      this.#stitch,
+      this.#start,
+      this.#count,
+      this.#closing,
+      this.#stagger,
+      this.#colors,
+      this.#jog,
+      this.#ribbing,
+      this.#ribbingRows,
+      this.#ribbingWidth,
+    ]) {
       input.addEventListener('change', () => this.#render());
     }
     field<HTMLButtonElement>('rounds-create').addEventListener('click', () => this.#create());
@@ -87,6 +109,8 @@ export class RoundsPanel {
       stagger: this.#stagger.checked,
       colorEvery: whole(this.#colors),
       jogFix: this.#jog.value === 'none' ? null : (this.#jog.value as MotifOptions['jogFix']),
+      // Bordás perem a kör végén (PQW-909); csak kúszószemes zárásnál.
+      ribbing: this.#ribbing.checked ? { rows: whole(this.#ribbingRows), width: whole(this.#ribbingWidth) } : null,
     });
   }
 
@@ -104,6 +128,9 @@ export class RoundsPanel {
     this.#jog.disabled = !state.jogFix;
     const chainStart = this.#start.querySelector<HTMLOptionElement>('option[value="chain"]');
     if (chainStart) chainStart.disabled = !state.chainStart;
+    this.#ribbingFields.hidden = !state.ribbing;
+    this.#ribbingPair.hidden = !state.ribbingFields;
+    for (const input of [this.#ribbingRows, this.#ribbingWidth]) input.disabled = !this.#ribbing.checked;
 
     const problem = motifProblem(options);
     const text = problem ? amigurumiCoreText(problem) : increaseNote(motifIncreases(this.#pattern, options), options);

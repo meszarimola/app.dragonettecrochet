@@ -10,6 +10,7 @@ import { describe, test } from 'node:test';
 import { emptyPattern } from '../src/core/editor.ts';
 import { DEFAULT_GARMENT, generateGarment, planGarment } from '../src/core/garments.ts';
 import { buildPieceGraph } from '../src/core/graph.ts';
+import { layoutPattern } from '../src/core/layout.ts';
 import { formatWrittenPattern, writePattern } from '../src/core/pattern-text.ts';
 import { RAGLAN_PER_ROUND, raglanPlan } from '../src/core/raglan.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
@@ -128,9 +129,53 @@ describe('raglán a generátorból, mért mintasűrűséggel', () => {
     // Az ujjak szemeit a szétosztásnál kihagyjuk: azok külön készülnek.
     assert.equal(pattern.pieces[0].skipped.length, 2 * base.target.sleeve);
     const graph = buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));
-    // A vállrész körei, a szétosztás köre és a törzs körei.
-    assert.equal(graph.layers.length - 1, base.yokeRounds + 1 + base.bodyRoundsBelow);
+    // A vállrész körei, a szétosztás köre, a törzs körei, végül a két ujj első köre (PQW-908).
+    assert.equal(graph.layers.length - 1, base.yokeRounds + 1 + base.bodyRoundsBelow + 2);
     assert.equal(graph.layers[base.yokeRounds + 2].stitchCount, base.bodyStitches);
+
+    // Az ujjak: a vállrész utolsó körének kihagyott szemeibe és a szétosztás hónaljláncába horgolnak.
+    const sleeves = graph.layers.slice(-2);
+    for (const sleeve of sleeves) {
+      assert.equal(sleeve.stitchCount, base.sleeveStitches, 'az ujj körmérete a terv szerinti');
+      assert.equal(sleeve.below, base.yokeRounds + 1, 'az ujj a vállrész utolsó körénél folytatódik');
+      assert.equal(sleeve.alsoBelow, base.yokeRounds + 2, 'a hónaljlánc a szétosztás köréből jön');
+      // Az alapgyűrű (PQW-908): a saját kihagyott szemei és a hónaljlánc érnek össze a hónaljnál. A két
+      // forrásréteg többi szeme (a törzs) nem tartozik a csőbe, ezért nincs benne a gyűrűben.
+      assert.equal(sleeve.basePositions.length, base.sleeveStitches, 'az ujj alapgyűrűje a terv szerinti');
+      assert.deepEqual(
+        [...new Set(sleeve.basePositions.map((id) => graph.layerOf.get(id)))].sort(),
+        [base.yokeRounds + 1, base.yokeRounds + 2],
+        'az alapgyűrű csak a két forrásrétegből áll',
+      );
+      // Minden szem célpontot kap, és csak a két forrásból.
+      const targets = sleeve.stitches
+        .filter((id) => graph.defs.get(id).kind === 'basic')
+        .flatMap((id) => graph.nodes.get(id).anchors.map((anchor) => graph.layerOf.get(anchor.id)));
+      assert.ok(targets.length > 0);
+      assert.deepEqual([...new Set(targets)].sort(), [base.yokeRounds + 1, base.yokeRounds + 2]);
+    }
+  });
+
+  test('a vállrész kúp: a rajz kör alapú, a négy raglánvonal nem motívumsarok', () => {
+    const result = generateGarment(withGauge(), options);
+    assert.ok(result.ok, result.ok ? '' : result.reason);
+    const { pattern } = result;
+    // A négy raglánvonal szaporítási pont marad: a lapos növekedés ehhez méri magát.
+    assert.equal(pattern.pieces[0].corners, 4);
+    assert.equal(pattern.pieces[0].roundShape.kind, 'cone');
+    // A rajz mégis kör alapú (PQW-908): sarkos keretre húzva négyzetté torzult, pedig a vállrész a
+    // valóságban körbefutó kúp. Lapos körnél a keret hiányzik (PQW-888), sokszögnél áll csak.
+    // A többi körös rajz (kör, motívum, amigurumi) keretét ez nem érinti.
+    const chart = layoutPattern(pattern, libraryFor(pattern));
+    assert.equal(chart.frame, undefined);
+    // A vállrész egyik köre: minden szeme közel egyforma távol a közepétől. Négyzetes kereten a sarok
+    // és az oldal közepe gyökkettő arányban állna, azaz ez a próba megbukna.
+    const yoke = [...chart.nodes.values()].filter((node) => node.layer === 8 && node.role === 'stitch');
+    assert.ok(yoke.length > 20, `a 8. kör szemei: ${yoke.length}`);
+    const radii = yoke.map((node) => Math.hypot(node.top.x, node.top.y));
+    const min = Math.min(...radii);
+    const max = Math.max(...radii);
+    assert.ok(max / min < 1.1, `a vállrész köre nem kör alakú: ${min.toFixed(1)}–${max.toFixed(1)}`);
   });
 
   test('az írott minta „Méretek” blokkja a raglán számait sorolja', () => {

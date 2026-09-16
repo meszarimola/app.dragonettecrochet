@@ -182,12 +182,12 @@ test('a beágyazott JSON-hibaszöveg adat marad, az újabb formátumé a mag ada
   assert.equal(bad.error.message.code, 'invalid-json');
   // A JS saját hibaszövegét nem fordítjuk: nyers adatként kerül a mondatba.
   assert.ok(bad.error.message.data.detail.length > 0);
-  assert.equal(sentence(bad), `Nem érvényes JSON: ${bad.error.message.data.detail}`);
+  assert.equal(sentence(bad.error), `Nem érvényes JSON: ${bad.error.message.data.detail}`);
 
   const saved = JSON.parse(savePattern(dcRectangle({ rows: 1 }).pattern));
   const newer = loadPattern(JSON.stringify({ ...saved, formatVersion: 2 }));
   assert.deepEqual(newer.error.message, { code: 'unsupported-version', data: { found: 2, known: FORMAT_VERSION } });
-  assert.equal(sentence(newer), 'A minta újabb formátumú (2), mint amit ez a verzió ismer (1).');
+  assert.equal(sentence(newer.error), 'A minta újabb formátumú (2), mint amit ez a verzió ismer (1).');
 });
 
 test('a felsorolt értékek és a számadatok a mondatba kerülnek (PQW-904)', () => {

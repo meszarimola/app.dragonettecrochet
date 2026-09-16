@@ -30,6 +30,7 @@
 
 import { stitchDimensions, type GaugeContext } from './gauge.ts';
 import type { LayerInfo, PieceGraph } from './graph.ts';
+import { isPostMode } from './insertion.ts';
 import { gaugeContextOf } from './pattern-size.ts';
 import type { RuleId } from './rules.ts';
 import type { StitchLibrary } from './stitch-library.ts';
@@ -139,11 +140,17 @@ export function roundFindings(pattern: Pattern, graph: PieceGraph, library: Stit
   for (let index = 2; index < layers.length; index += 1) {
     if (!complete(index) || !complete(index - 1)) continue;
     const layer = layers[index]!;
-    const previous = layers[index - 1]!.positionCount;
+    // Az újrakezdett szakasz (PQW-908: a raglán ujja) nem az előtte kiírt körre ül, hanem a saját alapgyűrűjére:
+    // a vállrész kihagyott szemeire és a hónaljláncra. A növekedést ahhoz mérjük, nem a test utolsó köréhez.
+    const previous = layer.basePositions?.length ?? layers[index - 1]!.positionCount;
     const count = layer.positionCount;
     if (previous > 0 && (count > 2 * previous || 2 * count < previous)) findings.push({ rule: 'round-growth', nodes: worked(graph, layer) });
     const def = tallest(graph, layer, library);
-    if (def) ratios[index] = (count - previous) / flatIncreases(def, context, corners).exact;
+    // A bordás kör (PQW-909) szándékosan behúz: relief szemmel nem szaporítunk, ezért a laposságát nem mérjük.
+    const ribbed = layer.stitches.some((id) =>
+      graph.nodes.get(id)!.anchors.some((anchor) => anchor.into === 'stitch' && isPostMode(anchor.mode)),
+    );
+    if (def && !ribbed) ratios[index] = (count - previous) / flatIncreases(def, context, corners).exact;
   }
 
   // A részekből készült térbeli forma (amigurumi, PQW-863) szándékosan kunkorodik: ott nem jelez. A sapka

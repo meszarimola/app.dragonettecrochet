@@ -395,7 +395,8 @@ class PieceReader {
     if (!this.border || !line) return piece;
     const pattern: Pattern = { formatVersion: 1, title: this.title, conventions: this.options.conventions, pieces: [] };
     const bordered = appendBorder(pattern, piece, this.options.library, this.border);
-    if (typeof bordered === 'string') throw new ReadFailure(line.number, bordered);
+    // A visszaolvasó üzenetei magyarul maradnak (PQW-904, dokumentált kivétel): ez a hiba ma nem jut a képernyőre.
+    if ('code' in bordered) throw new ReadFailure(line.number, `A szegély nem fűzhető a darabhoz (${bordered.code}).`);
     return bordered;
   }
 

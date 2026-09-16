@@ -21,6 +21,7 @@
 import { bodySizeName, hatSizeName, type BodyMeasure, type BodyTableId } from '../../../core/body-sizes.ts';
 import type { GarmentCode } from '../../../core/garments.ts';
 import type { CoreData } from '../../../core/messages.ts';
+import type { ShapeCode } from '../../../core/shapes.ts';
 import type { GarmentTable, Locale } from '../../../core/types.ts';
 import { list, num, renderCoreText, str, type CoreDictionary, type CoreEntry } from './render.ts';
 import { SHAPE_CORE_TEXTS } from './shape.ts';
@@ -88,7 +89,7 @@ function inner(data: CoreData, language: 'hu' | 'en'): string {
 function pieceProblem(data: CoreData, language: 'hu' | 'en'): string {
   const message = str(data, 'message');
   if (message !== '') return message;
-  return renderCoreText(SHAPE_CORE_TEXTS[language], { code: str(data, 'inner'), data });
+  return renderCoreText(SHAPE_CORE_TEXTS[language], { code: str(data, 'inner') as ShapeCode, data });
 }
 
 const hu: Readonly<Record<GarmentCode, CoreEntry>> = {

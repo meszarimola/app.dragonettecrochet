@@ -20,11 +20,12 @@
 
 import type { EditCode } from '../../../core/editor.ts';
 import type { CoreData } from '../../../core/messages.ts';
-import type { CopyCode } from '../../../core/selection.ts';
+import type { CopyCode, LayerCount } from '../../../core/selection.ts';
 import { resolveStitch } from '../../../core/stitch-variants.ts';
 import type { StitchInsertion } from '../../../core/types.ts';
 import { termsLocale } from '../../notation.ts';
 import { SECTION_TEXTS } from '../sections.ts';
+import { enLayer, enLayerCounts, enStitches, huLayer, huLayerCounts, huStitches } from './layer-counts.ts';
 import { bool, isRound, list, num, str, type CoreDictionary } from './render.ts';
 
 type Language = 'hu' | 'en';
@@ -52,12 +53,7 @@ const insertionList = (language: Language, data: CoreData): string =>
 
 /* ---- Magyar segédek ---- */
 
-const huStitches = (count: number): string => `${count} szem`;
 const huShape = (data: CoreData): string => (isRound(data) ? 'kör' : 'sor');
-
-/** „2. sor”, „3. kör”; a 0. réteg a láncalap vagy a varázskör. */
-const huLayer = (layer: number, round: boolean): string =>
-  layer === 0 ? (round ? 'varázskör' : 'láncalap') : `${layer}. ${round ? 'kör' : 'sor'}`;
 
 const HU_SLOT_NOUN: Readonly<Record<string, string>> = { space: 'láncív', ring: 'varázskör', stitch: 'szem' };
 const HU_SLOT_INTO: Readonly<Record<string, string>> = { space: 'láncívbe', ring: 'varázskörbe', stitch: 'szembe' };
@@ -65,34 +61,29 @@ const HU_SLOT_INTO: Readonly<Record<string, string>> = { space: 'láncívbe', ri
 /** A művelet félig sem hajtódott végre: a mag `unchanged` jelzője zárja a mondatot. */
 const huUnchanged = (data: CoreData): string => (bool(data, 'unchanged') ? ' A minta nem változott.' : '');
 
-/** „2. sor: 1 szem, 3. sor: 1 szem”: a mag párhuzamos listáiból. */
-const huByLayer = (data: CoreData): string => {
+/** A mag párhuzamos listái rétegenkénti bontássá; a mondat a `layer-counts.ts`-é. */
+const byLayer = (data: CoreData): readonly LayerCount[] => {
   const shapes = list(data, 'shapes');
   const counts = list(data, 'counts');
-  return list(data, 'layers')
-    .map((layer, i) => `${huLayer(Number(layer), shapes[i] === 'round')}: ${huStitches(Number(counts[i] ?? 0))}`)
-    .join(', ');
+  return list(data, 'layers').map((layer, i): LayerCount => ({
+    layer: Number(layer),
+    shape: shapes[i] === 'round' ? 'round' : 'row',
+    count: Number(counts[i] ?? 0),
+  }));
 };
+
+/** „2. sor: 1 szem, 3. sor: 1 szem”. */
+const huByLayer = (data: CoreData): string => huLayerCounts(byLayer(data));
 
 /* ---- Angol segédek ---- */
 
-const enStitches = (count: number): string => `${count} ${count === 1 ? 'stitch' : 'stitches'}`;
 const enShape = (data: CoreData): string => (isRound(data) ? 'round' : 'row');
-
-const enLayer = (layer: number, round: boolean): string =>
-  layer === 0 ? (round ? 'magic ring' : 'foundation chain') : `${round ? 'round' : 'row'} ${layer}`;
 
 const EN_SLOT_NOUN: Readonly<Record<string, string>> = { space: 'chain space', ring: 'magic ring', stitch: 'stitch' };
 
 const enUnchanged = (data: CoreData): string => (bool(data, 'unchanged') ? ' The pattern is unchanged.' : '');
 
-const enByLayer = (data: CoreData): string => {
-  const shapes = list(data, 'shapes');
-  const counts = list(data, 'counts');
-  return list(data, 'layers')
-    .map((layer, i) => `${enLayer(Number(layer), shapes[i] === 'round')}: ${enStitches(Number(counts[i] ?? 0))}`)
-    .join(', ');
-};
+const enByLayer = (data: CoreData): string => enLayerCounts(byLayer(data));
 
 /**
  * A két terület egy szótárban: a másolás kódjai (`CopyCode`) az `EditCode`

@@ -25,6 +25,7 @@
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
 import { text, type CoreText } from './messages.ts';
 import { gaugeContextOf } from './pattern-size.ts';
+import { appendRibbing, ribbingProblem, type RibbingCode, type RibbingOptions } from './ribbing.ts';
 import { flatIncreases, type FlatIncreases } from './rounds.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import { traditionOf, turningChainCountsFor } from './tradition.ts';
@@ -80,6 +81,8 @@ export interface MotifOptions {
   readonly colorEvery: number;
   /** Lépcsőjavítás spirálban a színváltásnál; `null`: nincs. */
   readonly jogFix: JogFix | null;
+  /** Bordás perem a kör zárása után, relief szemmel (PQW-909); spirálban nem választható. */
+  readonly ribbing?: RibbingOptions | null;
 }
 
 export const DEFAULT_MOTIF: MotifOptions = {
@@ -91,6 +94,7 @@ export const DEFAULT_MOTIF: MotifOptions = {
   stagger: true,
   colorEvery: 0,
   jogFix: null,
+  ribbing: null,
 };
 
 /**
@@ -106,7 +110,8 @@ export type MotifCode =
   | 'granny-spiral'
   | 'chain-start-limit'
   | 'round-plan-mismatch'
-  | 'into-one-limit';
+  | 'into-one-limit'
+  | RibbingCode;
 
 export type MotifResult =
   | { readonly ok: true; readonly pattern: Pattern; readonly increases: FlatIncreases }
@@ -134,6 +139,12 @@ export function motifProblem(options: MotifOptions): CoreText<MotifCode> | null 
     if (options.start === 'chain') return text('granny-start');
     if (options.closing === 'spiral') return text('granny-spiral');
   }
+  if (options.ribbing) {
+    // A bordás perem a kör zárása után kezdődik: a spirálnak nincs zárása, ahonnan indulhatna (PQW-909).
+    if (options.closing === 'spiral') return text('ribbing-spiral');
+    const ribbing = ribbingProblem(options.ribbing);
+    if (ribbing !== null) return ribbing;
+  }
   return null;
 }
 
@@ -160,8 +171,13 @@ export function generateMotif(pattern: Pattern, options: MotifOptions): MotifRes
 
   const name = MOTIF_NAMES[options.shape];
   const piece = writer.piece('p1', name, MOTIF_CORNERS[options.shape]);
+  const stated = withStatedCounts(base, piece);
+  // Bordás perem a kör zárása után, relief szemmel (PQW-909).
+  const whole: Pattern = { ...base, pieces: [stated] };
+  const ribbed = options.ribbing ? appendRibbing(whole, stated, libraryFor(whole), options.ribbing) : stated;
+  if ('code' in ribbed) return { ok: false, reason: ribbed };
   // Az alapértelmezett és a generátor adta címet a forma neve váltja; a saját címet megtartjuk (PQW-896).
-  const result = withGeneratedTitle({ ...base, pieces: [withStatedCounts(base, piece)] }, pattern, name, Object.values(MOTIF_NAMES));
+  const result = withGeneratedTitle({ ...base, pieces: [ribbed] }, pattern, name, Object.values(MOTIF_NAMES));
   return { ok: true, pattern: result, increases };
 }
 

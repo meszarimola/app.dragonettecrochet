@@ -30,6 +30,9 @@ import type { GarmentCheck, GarmentCode } from './garments.ts';
 
 /** Egy raglánkör minden szakaszt 2 szemmel növel: körönként +8 (05 §2.3). */
 export const RAGLAN_PER_ROUND = 8;
+
+/** Az ujjak neve az írott mintában, a szétosztás sorrendjében (PQW-908). */
+export const SLEEVE_NAMES = ['Első ujj', 'Második ujj'] as const;
 /** Egy szakasz egy körben legfeljebb ennyivel nőhet pálcánál, hogy ne torzuljon (05 §4.4). */
 export const MAX_SECTION_GROWTH = 4;
 /** A nyak szemeinek megoszlása: elöl és hátul egyenlő, az ujjak keskenyebbek (05 §2.3). */
@@ -130,8 +133,15 @@ class RaglanWriter {
     return ids;
   }
 
-  event(kind: LayerEvent['kind']): void {
-    this.events.push({ after: this.previous!, kind });
+  event(kind: LayerEvent['kind'], resume?: LayerEvent['resume']): void {
+    this.events.push({ after: this.previous!, kind, ...(resume ? { resume } : {}) });
+    // Elvágott fonal után a következő szem új fonalszakaszt kezd: a fonal útja ott megszakad (06 §5.3 V2).
+    if (kind === 'fasten-off') this.cut();
+  }
+
+  /** A fonal elvágása: a következő szem `prev` nélkül, új szakaszként indul (06 §5.3 V2). */
+  cut(): void {
+    this.previous = null;
   }
 }
 
@@ -139,6 +149,16 @@ class RaglanWriter {
 function closeRound(writer: RaglanWriter, first: NodeId): void {
   writer.add('sl-st', [both(first)]);
   writer.event('join-slip');
+}
+
+/**
+ * A kör zárása, majd a fonal elvágása: a munka a megadott szakaszoknál
+ * folytatódik (PQW-908). Egy szem után egy esemény állhat, ezért a záró
+ * kúszószem eseménye maga a fonal elvágása, a folytatással együtt.
+ */
+function closeAndCut(writer: RaglanWriter, first: NodeId, resume: NonNullable<LayerEvent['resume']>): void {
+  writer.add('sl-st', [both(first)]);
+  writer.event('fasten-off', resume);
 }
 
 /**
@@ -219,7 +239,10 @@ export function raglanPiece(pattern: Pattern, stitch: string, plan: RaglanPlan, 
     below = { back: counting ? [top, ...made.back] : made.back, sleeveA: made.sleeveA, front: made.front, sleeveB: made.sleeveB };
   }
   // Szétosztás: a hát szemei, hónaljlánc, az egyik ujj kihagyva, az elő szemei, hónaljlánc, a másik ujj kihagyva
-  // (05 §2.3). A hónaljlánc a törzsbe és az ujjba is beleszámít; az ujjak külön készülnek.
+  // (05 §2.3). A hónaljlánc a törzsbe és az ujjba is beleszámít; az ujjak a törzs után következnek.
+  /** A két hónaljlánc láncszemei, a szétosztás sorrendjében: az `sleeveA`, majd az `sleeveB` ujjé. */
+  const underarmChains: NodeId[][] = [];
+  const sleeveStitches = { a: [] as NodeId[], b: [] as NodeId[] };
   let body: NodeId[];
   {
     const chain = writer.chains(def.turningChain);
@@ -233,13 +256,16 @@ export function raglanPiece(pattern: Pattern, stitch: string, plan: RaglanPlan, 
       const chains = writer.chains(plan.underarm);
       writer.space(chains);
       made.push(...chains);
+      underarmChains.push(chains);
     };
     run(below.back, counting ? 1 : 0);
     underarm();
     writer.skipped.push(...below.sleeveA);
+    sleeveStitches.a = [...below.sleeveA];
     run(below.front, 0);
     underarm();
     writer.skipped.push(...below.sleeveB);
+    sleeveStitches.b = [...below.sleeveB];
     const first = counting ? top : made[0]!;
     closeRound(writer, first);
     body = counting ? [top, ...made] : made;
@@ -256,9 +282,51 @@ export function raglanPiece(pattern: Pattern, stitch: string, plan: RaglanPlan, 
     body = counting ? [top, ...made] : made;
   }
 
+  /*
+   * Az ujjak (05 §2.3, PQW-908): a fonal elvágása után a munka a vállrész utolsó körénél folytatódik. Az ujj
+   * első köre a vállrész kihagyott szemeibe és a szétosztás hónaljláncába horgol — két korábbi szakaszba
+   * egyszerre —, ezért az esemény mindkét forrást megadja (`resume.layer` és `resume.with`). A hónaljlánc így
+   * a törzsbe és az ujjba is beleszámít. Az ujj további köreit a terv még nem írja le, ezért itt egy kör készül.
+   */
+  const yokeLayer = plan.yokeRounds + 1;
+  const splitLayer = plan.yokeRounds + 2;
+  const sleeves = [
+    { name: SLEEVE_NAMES[0], stitches: sleeveStitches.a, chains: underarmChains[0] ?? [] },
+    { name: SLEEVE_NAMES[1], stitches: sleeveStitches.b, chains: underarmChains[1] ?? [] },
+  ];
+  if (sleeves.some((sleeve) => sleeve.stitches.length === 0 || sleeve.chains.length === 0)) {
+    return text('internal-error', { rule: 'raglan-sleeve-split' });
+  }
+  // A törzs utolsó köre után a fonalat elvágjuk, és a munka az első ujjnál folytatódik; az ujj után a másiknál.
+  sleeves.forEach((sleeve, i) => {
+    const resume = { layer: yokeLayer, name: sleeve.name, with: splitLayer };
+    const last = writer.stitches[writer.stitches.length - 1]!;
+    const closing = writer.events[writer.events.length - 1];
+    if (closing?.after === last.id && closing.kind === 'join-slip') {
+      // Az előző kör záró kúszószeme viszi a fonal elvágását is: egy szem után egy esemény állhat.
+      writer.events[writer.events.length - 1] = { after: last.id, kind: 'fasten-off', resume };
+      writer.cut();
+    } else if (!(closing?.kind === 'fasten-off' && closing.resume?.name === sleeve.name)) {
+      // Az előző ujj zárása már elvágta a fonalat, és megadta ezt a folytatást: akkor nincs új esemény.
+      writer.event('fasten-off', resume);
+    }
+    const chain = writer.chains(def.turningChain);
+    const top = chain[chain.length - 1]!;
+    const made: NodeId[] = [];
+    // A kihagyott szemek a vállrész köréből, utána a hónaljlánc láncszemei: együtt az ujj körmérete.
+    const targets = [...sleeve.stitches, ...sleeve.chains];
+    for (const position of targets.slice(counting ? 1 : 0)) made.push(...writer.into(def.id, both(position), 1));
+    const round = counting ? [top, ...made] : made;
+    if (round.length !== plan.sleeveStitches) throw new Error('Az ujj köre nem a terv szerinti.');
+    // Az utolsó ujj után a kör zárul; a többi után a fonal elvágása a következő ujj eseményében jön.
+    if (i === sleeves.length - 1) closeRound(writer, round[0]!);
+    else closeAndCut(writer, round[0]!, { layer: yokeLayer, name: sleeves[i + 1]!.name, with: splitLayer });
+  });
+
   // A raglán négy vonala mentén a szaporítások szándékosan egymás fölé kerülnek (04 §6.1, 05 §2.3): a darab
-  // sarkainak száma 4, ezért az ellenőrző nem jelzi őket.
+  // sarkainak száma 4, ezért az ellenőrző nem jelzi őket. A vállrész kúp: a rajzon a körei körcikket adnak (PQW-908).
   return withStated(pattern, {
+    roundShape: { kind: 'cone', throughRound: yokeLayer },
     id,
     name,
     stitches: writer.stitches,

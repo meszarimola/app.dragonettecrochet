@@ -73,6 +73,10 @@ export interface FieldState {
   readonly closing: boolean;
   readonly stagger: boolean;
   readonly jogFix: boolean;
+  /** Bordás perem a kör végén (PQW-909); csak kúszószemes zárásnál. */
+  readonly ribbing: boolean;
+  /** A bordázat körei és egysége; csak bekapcsolt bordázatnál. */
+  readonly ribbingFields: boolean;
 }
 
 export function fieldState(options: MotifOptions): FieldState {
@@ -83,6 +87,9 @@ export function fieldState(options: MotifOptions): FieldState {
     closing: !granny,
     stagger: options.shape === 'circle',
     jogFix: !granny && options.closing === 'spiral' && options.colorEvery > 0,
+    // A bordás perem a kör zárása után kezdődik: spirálban nincs honnan indulnia (PQW-909).
+    ribbing: options.closing === 'join-slip',
+    ribbingFields: options.closing === 'join-slip' && Boolean(options.ribbing),
   };
 }
 
@@ -96,7 +103,8 @@ export function normalizeMotif(options: MotifOptions): MotifOptions {
   const next: MotifOptions = granny
     ? { ...options, stitch: 'dc', closing: 'join-slip', start: options.start === 'chain' ? 'magic-ring' : options.start }
     : options;
-  return fieldState(next).jogFix ? next : { ...next, jogFix: null };
+  const chosen = fieldState(next).ribbing ? next : { ...next, ribbing: null };
+  return fieldState(chosen).jogFix ? chosen : { ...chosen, jogFix: null };
 }
 
 /** A szaporítás magyarázata a formához, az eredetével. */
@@ -127,5 +135,6 @@ function sourceNote(increases: FlatIncreases, stitch: string): string {
 /** Az állapotsor üzenete a létrehozás után. */
 export function generatedMessage(options: MotifOptions): string {
   const t = texts().panels.round;
-  return t.generated(t.names[options.shape], options.rounds);
+  // A bordás perem körei is elkészültek: az állapotsor a tényleges körszámot mondja (PQW-909).
+  return t.generated(t.names[options.shape], options.rounds + (options.ribbing?.rows ?? 0));
 }

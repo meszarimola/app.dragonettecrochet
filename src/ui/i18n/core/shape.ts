@@ -25,6 +25,7 @@ import type { BorderCode } from '../../../core/border.ts';
 import type { CoreData } from '../../../core/messages.ts';
 import type { ShapeCode } from '../../../core/shapes.ts';
 import type { ShawlCode } from '../../../core/shawls.ts';
+import { RIBBING_EN, RIBBING_HU } from './ribbing.ts';
 import { isRound, num, str, type CoreDictionary, type CoreEntry } from './render.ts';
 
 /** A három terület kódkészlete együtt; a kendő a stólához a forma kódjait is használja. */
@@ -36,6 +37,9 @@ type Entries = Readonly<Record<ShapeCoreCode, CoreEntry>>;
 const huNoun = (data: CoreData): string => (isRound(data) ? 'kör' : 'sor');
 
 const hu: Entries = {
+  /* ---- Bordázat (a Kör és motívum szótárával közös, PQW-909) ---- */
+  ...RIBBING_HU,
+
   /* ---- Szegély ---- */
   'border-single-crochet-only': 'A szegély most csak rövidpálcás lehet.',
   'border-needs-row': 'A szegélyhez legalább egy sor kell.',
@@ -107,6 +111,9 @@ const hu: Entries = {
 };
 
 const en: Entries = {
+  /* ---- Ribbing (shared with the Circle and motif dictionary, PQW-909) ---- */
+  ...RIBBING_EN,
+
   /* ---- Border ---- */
   'border-single-crochet-only': 'The border can only be single crochet for now.',
   'border-needs-row': 'A border needs at least one row.',

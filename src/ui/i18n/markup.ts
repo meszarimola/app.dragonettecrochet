@@ -184,6 +184,11 @@ export const MARKUP_TEXTS = {
     shapeBorderYLabel: 'Y: élenként kiegyenlítő szemek',
     shapeBorderRepeatNote:
       'A sarkok közötti élek szemszáma „X többszöröse + Y” lesz; a különbség egyenletesen elosztva.',
+    shapeRibbingLabel: 'Bordás szegély a felső élen',
+    shapeRibbingNote:
+      'Váltakozó első és hátsó relief pálca (Eerp, Herp) az utolsó sor szemeinek pálcája köré: a szemszám nem változik. A sor 2 láncszemmel kezdődik, mert láncszem nem állhat relief szem helyett, és a fordulólánc tetejébe sima pálca kerül.',
+    shapeRibbingRowsLabel: 'A bordázat sorai',
+    shapeRibbingWidthLabel: 'A borda szélessége (1×1, 2×2)',
     shapeCreate: 'Minta létrehozása',
 
     // Kendő
@@ -276,6 +281,11 @@ export const MARKUP_TEXTS = {
     roundsStaggerLabel: 'Eltolt szaporítás (kerekebb kör)',
     roundsColorsLabel: 'Színváltás minden hányadik kör után (0: nincs)',
     roundsJogLabel: 'Lépcsőjavítás spirálban',
+    roundsRibbingLabel: 'Bordás perem a kör végén',
+    roundsRibbingNote:
+      'Váltakozó első és hátsó relief pálca (Eerp, Herp) az utolsó kör szemeinek pálcája köré: a szemszám nem változik. Csak kúszószemes zárásnál, és ha a szemszám a borda kétszeresével osztható.',
+    roundsRibbingRowsLabel: 'A bordázat körei',
+    roundsRibbingWidthLabel: 'A borda szélessége (1×1, 2×2)',
     roundsCreate: 'Minta létrehozása',
 
     // Amigurumi
@@ -534,6 +544,11 @@ export const MARKUP_TEXTS = {
     shapeBorderYLabel: 'Y: balancing stitches per edge',
     shapeBorderRepeatNote:
       'The stitch count of the edges between the corners becomes “a multiple of X plus Y”; the difference is spread evenly.',
+    shapeRibbingLabel: 'Ribbed edging along the top edge',
+    shapeRibbingNote:
+      'Alternating front and back post stitches (FPdc, BPdc) around the posts of the last row: the stitch count stays the same. The row starts with ch 2, because a chain cannot stand in for a post stitch, and a plain stitch goes into the top of the turning chain.',
+    shapeRibbingRowsLabel: 'Ribbing rows',
+    shapeRibbingWidthLabel: 'Rib width (1×1, 2×2)',
     shapeCreate: 'Create pattern',
 
     // Shawl
@@ -626,6 +641,11 @@ export const MARKUP_TEXTS = {
     roundsStaggerLabel: 'Staggered increases (rounder circle)',
     roundsColorsLabel: 'Change colour after every nth round (0: never)',
     roundsJogLabel: 'Jogless join in a spiral',
+    roundsRibbingLabel: 'Ribbed brim after the last round',
+    roundsRibbingNote:
+      'Alternating front and back post stitches (FPdc, BPdc) around the posts of the last round: the stitch count stays the same. Only with a slip-stitch join, and only if the stitch count is divisible by twice the rib width.',
+    roundsRibbingRowsLabel: 'Ribbing rounds',
+    roundsRibbingWidthLabel: 'Rib width (1×1, 2×2)',
     roundsCreate: 'Create pattern',
 
     // Amigurumi

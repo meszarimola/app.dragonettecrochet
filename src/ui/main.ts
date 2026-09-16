@@ -72,6 +72,7 @@ import { chartSvg } from './chart-svg.js';
 import { setupConsentBanner } from './consentBanner.js';
 import { askConfirm } from './dialog.js';
 import { applyStaticTexts, homeUrl, resolveUiLanguage, setUiLanguage, texts, uiLanguage, urlWithLanguage, type UiLanguage } from './i18n.js';
+import { EDITOR_CORE_TEXTS } from './i18n/core/editor.js';
 import { JSON_CORE_TEXTS } from './i18n/core/json.js';
 import { renderCoreText } from './i18n/core/render.js';
 import { RULE_TEXTS, type RuleText } from './i18n/rules.js';
@@ -462,7 +463,7 @@ function withProgress(message: Message): Message {
 
 function commit(result: EditResult, message: Message): void {
   if (!result.ok) {
-    announce(result.reason);
+    announce(renderCoreText(EDITOR_CORE_TEXTS[uiLanguage()], result.reason));
     return;
   }
   // A minta nem változott (pl. fordulás a láncalap után): nincs visszavonható lépés, csak az üzenet.
@@ -1209,7 +1210,7 @@ function copySelected(): void {
   const selectionTexts = texts().messages.selection;
   if (selection.length === 0) return announce(selectionTexts.nothingToCopy);
   const result = copySelection(history.present, selection);
-  if (!result.ok) return announce(result.reason);
+  if (!result.ok) return announce(renderCoreText(EDITOR_CORE_TEXTS[uiLanguage()], result.reason));
   clipboard = result.fragment;
   const where = result.fragment.startsLayer ? selectionTexts.asLayer(result.fragment.shape === 'round') : selectionTexts.atCursor;
   announce(selectionTexts.copied(result.fragment.stitches.length, where));

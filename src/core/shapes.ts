@@ -34,6 +34,7 @@ import { text, type CoreText } from './messages.ts';
 import { gaugeContextOf } from './pattern-size.ts';
 import { weakestSource } from './quantity.ts';
 import { repeatCounts } from './repeat.ts';
+import { appendRibbing, ribbingProblem, type RibbingCode, type RibbingOptions } from './ribbing.ts';
 import { MOTIF_NAMES } from './round-generator.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import { hasBaseChain, traditionOf, turningChainCountsFor } from './tradition.ts';
@@ -103,6 +104,8 @@ export interface ShapeOptions {
   readonly rounding: RepeatRounding;
   /** Szegély a darab körül; csak téglalapnál. */
   readonly border: PieceBorder | null;
+  /** Bordás szegély a felső élen, relief szemmel (PQW-909); a körbefutó szegéllyel együtt nem választható. */
+  readonly ribbing?: RibbingOptions | null;
 }
 
 export const DEFAULT_SHAPE: ShapeOptions = {
@@ -116,6 +119,7 @@ export const DEFAULT_SHAPE: ShapeOptions = {
   repeat: null,
   rounding: 'nearest',
   border: null,
+  ribbing: null,
 };
 
 /* ---- Mintasűrűség ---- */
@@ -210,7 +214,8 @@ export type ShapeCode =
   | 'shape-too-steep'
   | 'shape-row-too-narrow'
   | 'internal-error'
-  | BorderCode;
+  | BorderCode
+  | RibbingCode;
 
 export type ShapeText = CoreText<ShapeCode>;
 
@@ -226,6 +231,12 @@ export function shapeProblem(options: ShapeOptions): ShapeText | null {
   const cm = (value: number) => Number.isFinite(value) && value > 0 && value <= MAX_SHAPE_CM;
   if (!SHAPE_STITCHES.includes(options.stitch)) {
     return text('shape-basic-stitch-only');
+  }
+  if (options.ribbing) {
+    // A bordázat a felső élen fut, a szegély a darab körül: a kettő egyszerre nem rakható egymásra (PQW-909).
+    if (options.border) return text('ribbing-with-border');
+    const ribbing = ribbingProblem(options.ribbing);
+    if (ribbing !== null) return ribbing;
   }
   if (!cm(options.widthCm)) return text('shape-width-range', { max: MAX_SHAPE_CM });
   if (options.shape === 'rectangle' || options.measure === 'height') {
@@ -680,7 +691,10 @@ export function generateShape(pattern: Pattern, options: ShapeOptions): ShapeRes
   if ('code' in stated) return fail(stated);
   // A szegély a gráfban is réteg a sorok után (PQW-889).
   const rowsPattern: Pattern = { ...base, pieces: [stated] };
-  const bordered = options.border ? appendBorder(rowsPattern, stated, libraryFor(rowsPattern), options.border) : stated;
+  // A bordás szegély a felső élen, a sorok után (PQW-909); a szegéllyel együtt nem választható.
+  const ribbed = options.ribbing ? appendRibbing(rowsPattern, stated, libraryFor(rowsPattern), options.ribbing) : stated;
+  if ('code' in ribbed) return fail(ribbed);
+  const bordered = options.border ? appendBorder(rowsPattern, ribbed, libraryFor(rowsPattern), options.border) : ribbed;
   if ('code' in bordered) return fail(bordered);
 
   const result = withGeneratedTitle({ ...base, pieces: [bordered] }, pattern, name, [...Object.values(SHAPE_NAMES), ...Object.values(MOTIF_NAMES)]);

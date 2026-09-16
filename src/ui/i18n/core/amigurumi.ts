@@ -24,6 +24,7 @@ import type { CoreData, CoreText } from '../../../core/messages.ts';
 import type { MotifCode } from '../../../core/round-generator.ts';
 import { uiLanguage } from '../../i18n.ts';
 import { MARKUP_TEXTS } from '../markup.ts';
+import { RIBBING_EN, RIBBING_HU } from './ribbing.ts';
 import { num, renderCoreText, str } from './render.ts';
 import type { CoreDictionary, CoreEntry } from './render.ts';
 
@@ -63,6 +64,9 @@ const huInternal = (data: CoreData): string => HU_INTERNAL[str(data, 'inner')]?.
 const enInternal = (data: CoreData): string => EN_INTERNAL[str(data, 'inner')]?.(data) ?? '';
 
 const hu: Readonly<Record<AmigurumiCoreCode, CoreEntry>> = {
+  /* ---- Bordázat (a Forma szótárával közös, PQW-909) ---- */
+  ...RIBBING_HU,
+
   /* ---- Forma és körterv (amigurumi.ts) ---- */
   'size-range': (data) => `${HU_FIELDS[str(data, 'field')] ?? ''} 0 és ${num(data, 'max')} cm közötti szám lehet.`,
   'cone-increases-range': (data) => `A körönkénti szaporítás 0 és ${num(data, 'max')} közötti szám lehet, pl. 2,5.`,
@@ -106,6 +110,9 @@ const hu: Readonly<Record<AmigurumiCoreCode, CoreEntry>> = {
 };
 
 const en: Readonly<Record<AmigurumiCoreCode, CoreEntry>> = {
+  /* ---- Ribbing (shared with the Shape dictionary, PQW-909) ---- */
+  ...RIBBING_EN,
+
   /* ---- Shape and round plan ---- */
   'size-range': (data) => `${EN_FIELDS[str(data, 'field')] ?? ''} must be a number between 0 and ${num(data, 'max')} cm.`,
   'cone-increases-range': (data) => `The increases per round must be a number between 0 and ${num(data, 'max')}, e.g. 2.5.`,

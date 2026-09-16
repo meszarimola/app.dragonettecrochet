@@ -75,7 +75,7 @@ import { DEFAULT_MOTIF, circlePlan, plannedRounds, type RoundPlan } from './roun
 import { SHAPE_STITCHES, plannedRows, plannedSections, shapeGauge, type RowSection, type RowShaping, type ShapeGauge, type ShapeRepeat } from './shapes.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import { traditionOf, turningChainCountsFor } from './tradition.ts';
-import type { GarmentKind, GarmentTable, Pattern, PatternGarment, PieceJoin, StitchDefId, Tradition } from './types.ts';
+import type { GarmentKind, GarmentTable, Pattern, PatternGarment, Piece, PieceJoin, StitchDefId, Tradition } from './types.ts';
 import { validatePattern } from './validate.ts';
 import { yarnFromMassPerArea } from './yarn-estimate.ts';
 

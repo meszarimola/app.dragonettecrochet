@@ -73,6 +73,9 @@ describe('a mezők a formához', () => {
       border: true,
       hdcRowEnd: false,
       borderRepeat: false,
+      // Bordás szegély a felső élen; szegély nélkül választható (PQW-909).
+      ribbing: true,
+      ribbingFields: false,
     });
     assert.equal(shapeFieldState(options({ measure: 'angle' })).height, true);
   });
@@ -175,7 +178,8 @@ describe('a mag indoka mondattá (PQW-904)', () => {
     assert.deepEqual(Object.keys(en).sort(), Object.keys(hu).sort());
     assert.ok(Object.keys(hu).length > 40, `túl kevés kód: ${Object.keys(hu).length}`);
     // Minden kódhoz mindkét nyelven ugyanolyan fajtájú, ugyanannyi paraméteres tétel tartozik.
-    const sample = { max: 3, min: 2, rows: 2, row: 2, count: 2, rule: 'szabály', shape: 'row' };
+    // A szabály azonosítója nyers adat, nem fordítjuk: ékezet nélküli mintaérték, hogy az angol ágat vizsgáló őr ne a saját adatán bukjon.
+    const sample = { max: 3, min: 2, rows: 2, row: 2, count: 2, rule: 'rule-id', shape: 'row', unit: 2, nearest: 4 };
     const render = (entry) => (typeof entry === 'string' ? entry : entry(sample));
     for (const [code, entry] of Object.entries(hu)) {
       assert.equal(typeof en[code], typeof entry, `${code}: eltérő fajta`);

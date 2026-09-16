@@ -39,6 +39,15 @@ export function isStitchInsertion(mode: InsertionMode): mode is StitchInsertion 
 }
 
 /**
+ * Relief (a szem pálcája köré horgolt) mód-e. A megfordítás az első és a hátsó
+ * reliefet egymásba viszi, ezért a tárolt és a horgoló felőli módra egyaránt
+ * ugyanaz az eredmény.
+ */
+export function isPostMode(mode: StitchInsertion): boolean {
+  return mode === 'front-post' || mode === 'back-post';
+}
+
+/**
  * A horgoló felől nézett és a színoldali mód átváltása: visszai soron a
  * szálak és a relief megfordulnak. Mindkét irányba ugyanaz.
  */
