@@ -1,8 +1,7 @@
 /*
  * Sík formák (PQW-862): a „Forma” szakaszból 20 × 30 cm-es félpálcás téglalap
  * profil nélkül, becslés jelzéssel, egy lépésben visszavonva; egyenlő szárú
- * háromszög az él szögéből; szegélyes téglalap. Mindegyik hibátlan, és az írott
- * minta elkészül.
+ * háromszög az él szögéből. Mindegyik hibátlan, és az írott minta elkészül.
  */
 
 import { expect, test, type Page } from '@playwright/test';
@@ -48,14 +47,12 @@ test('20 × 30 cm-es félpálcás téglalap profil nélkül: becsült tényleges
   await expect(page.locator('#written-text')).not.toContainText('fp');
 });
 
-test('egyenlő szárú háromszög az él szögéből, és szegélyes téglalap: hibátlan, az írott minta a szegéllyel', async ({ page }) => {
+test('egyenlő szárú háromszög az él szögéből: hibátlan, az írott minta elkészül', async ({ page }) => {
   await open(page);
   const section = await openShapes(page);
 
   await page.locator('#shape-kind').selectOption({ label: 'Egyenlő szárú háromszög' });
   await expect(page.locator('#shape-width-label')).toHaveText('Alsó él, cm');
-  // Szegély minden forma köré (PQW-898).
-  await expect(page.locator('#shape-border')).toBeVisible();
   await page.locator('#shape-measure').selectOption({ label: 'Az él szöge' });
   await expect(page.locator('#shape-height')).toBeHidden();
   await page.locator('#shape-width').fill('20');
@@ -67,23 +64,4 @@ test('egyenlő szárú háromszög az él szögéből, és szegélyes téglalap:
   // Az alapszem a félpálca: az élek félpálcák összehorgolásával fogynak.
   expect(await writtenText(page)).toMatch(/\d\. sor: 2 lsz \(1 fp-nek számít\), [23] fp összehorgolása, \d+ fp, [23] fp összehorgolása \(\d+ szem\)\./);
 
-  await page.locator('#shape-kind').selectOption({ label: 'Téglalap' });
-  await page.locator('#shape-width').fill('15');
-  await page.locator('#shape-height').fill('10');
-  await page.locator('#shape-border').check();
-  await expect(page.locator('#shape-hdc-row-end')).toBeVisible();
-  await expect(page.locator('#shape-details')).toContainText(/Szegély: \d+ rp körben, sarkonként 3, sorvégenként 2;/);
-  await expect(page.locator('#shape-preview .shape__border')).toHaveCount(1);
-  await section.getByRole('button', { name: 'Minta létrehozása' }).click();
-  await expect(page.locator('#status')).toContainText('Téglalap,');
-  await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
-  await expect(page.locator('#written-text')).toContainText(/Szegély: 1 lsz \(nem számít szemnek\), felső él: 3 rp a sarokszembe, .*Kör zárása: 1 ksz az első szembe\./);
-
-  // A szegély a vásznon is réteg a darab körül (PQW-889): a terv szerinti rövidpálcák, 1 lsz és a záró ksz.
-  const total = Number(/Szegély: (\d+) rp körben/.exec((await page.locator('#shape-details').textContent()) ?? '')?.[1]);
-  const placed = await page.evaluate(() => (window as unknown as { mintatervezoKijeloles: { nodes: () => { layer: number; y: number }[] } }).mintatervezoKijeloles.nodes());
-  const borderLayer = Math.max(...placed.map((node) => node.layer));
-  expect(placed.filter((node) => node.layer === borderLayer)).toHaveLength(total + 2);
-  const rowsTop = Math.min(...placed.filter((node) => node.layer > 0 && node.layer < borderLayer).map((node) => node.y));
-  expect(placed.some((node) => node.layer === borderLayer && node.y < rowsTop)).toBe(true);
 });

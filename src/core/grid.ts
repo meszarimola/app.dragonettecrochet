@@ -140,12 +140,10 @@ export function chartGrid(
   const layout = layoutPattern(withoutPins(pattern), library, { ...options, straight: true });
   if (layout.nodes.size === 0) return empty;
 
-  // A szegély (PQW-889) nem sor: a sorok rácsa nélküle készül, és a szegély a darab körüli sávokat kapja.
-  const borderIndex = graph.layers.findIndex((layer) => layer.border);
-  const layers = borderIndex < 0 ? graph.layers : graph.layers.slice(0, borderIndex);
+  const layers = graph.layers;
   const input: Input = {
     layout,
-    context: borderIndex < 0 ? context : { ...context, layer: borderIndex, slots: [] },
+    context,
     W: options.columnWidth ?? DEFAULT_COLUMN,
     uniform: kind === 'cells',
     byLayer: groupByLayer(layout),
@@ -157,73 +155,8 @@ export function chartGrid(
   const straight = round ? roundGrid(input) : rowGrid(input);
   const shape = pattern.pieces[0]?.rowShape;
   const curve = !round && shape ? rowCurve(layout, shape) : null;
-  const { bands: rowBands, cells } = curve ? curved(straight, curve) : straight;
-  // A szegély (PQW-889) a sorok rácsa körüli sávokat kapja.
-  const bands =
-    borderIndex >= 0 && !round ? [...rowBands, ...borderBands(layout, borderIndex, graph.layers[borderIndex]!.stitchCount, rowBands)] : rowBands;
+  const { bands, cells } = curve ? curved(straight, curve) : straight;
   return { kind, shape: round ? 'round' : 'row', layer: context.layer, bands, cells, bounds: boundsOf(bands, cells) };
-}
-
-/**
- * A szegély sávjai a sorok rácsa körül (PQW-889): felül, alul és a két
- * oldalon, a szegély szemeinek kiterjedéséig. Egyenes oldalú darabnál négy
- * sáv; ferde élnél (PQW-898) soronként egy-egy oldalsáv, amely a lépcsős élt
- * követi, és a lépcső kitett szemei fölé is kiér.
- */
-function borderBands(layout: ChartLayout, index: number, stitchCount: number, rows: readonly GridBand[]): GridBand[] {
-  const points = [...layout.nodes.values()].filter((node) => node.layer === index).flatMap((node) => [node.top, ...node.feet]);
-  if (points.length === 0 || rows.length === 0) return [];
-  const inner = boundsOf(rows, []);
-  const x0 = Math.min(inner.minX, ...points.map((p) => p.x)) - HALF_GAP;
-  const x1 = Math.max(inner.maxX, ...points.map((p) => p.x)) + HALF_GAP;
-  const y0 = Math.min(inner.minY, ...points.map((p) => p.y)) - HALF_GAP;
-  const y1 = Math.max(inner.maxY, ...points.map((p) => p.y)) + HALF_GAP;
-  const rects = rows.flatMap((row) => (row.area.kind === 'rect' ? [row.area] : []));
-  const straight = rects.length === rows.length && rects.every((area) => Math.abs(area.x0 - inner.minX) < 1e-6 && Math.abs(area.x1 - inner.maxX) < 1e-6);
-  if (!straight && rects.length === rows.length) {
-    const side = layout.layers[index]?.side ?? 'right';
-    const reach = Math.max(inner.minX - x0, x1 - inner.maxX);
-    const band = (area: { x0: number; x1: number; y0: number; y1: number }): GridBand => ({
-      layer: index,
-      side,
-      stitchCount,
-      tone: (index % 2) as 0 | 1,
-      emphasis: 'none',
-      working: false,
-      area: { kind: 'rect', ...area },
-    });
-    // A rétegek sávjai felülről lefelé rendezve: a szomszéd sor széle adja a lépcsőt.
-    const ordered = [...rects].sort((a, b) => a.y0 - b.y0);
-    const top = ordered[0]!;
-    const bottom = ordered[ordered.length - 1]!;
-    return [
-      band({ x0: top.x0 - reach, x1: top.x1 + reach, y0, y1: top.y0 }),
-      band({ x0: bottom.x0 - reach, x1: bottom.x1 + reach, y0: bottom.y1, y1 }),
-      ...ordered.flatMap((area, i) => {
-        const near = [ordered[i - 1], area, ordered[i + 1]].filter((other): other is (typeof ordered)[number] => other !== undefined);
-        return [
-          band({ x0: Math.min(...near.map((other) => other.x0)) - reach, x1: area.x0, y0: area.y0, y1: area.y1 }),
-          band({ x0: area.x1, x1: Math.max(...near.map((other) => other.x1)) + reach, y0: area.y0, y1: area.y1 }),
-        ];
-      }),
-    ];
-  }
-  const side = layout.layers[index]?.side ?? 'right';
-  const band = (area: { x0: number; x1: number; y0: number; y1: number }): GridBand => ({
-    layer: index,
-    side,
-    stitchCount,
-    tone: (index % 2) as 0 | 1,
-    emphasis: 'none',
-    working: false,
-    area: { kind: 'rect', ...area },
-  });
-  return [
-    band({ x0, x1, y0, y1: inner.minY }),
-    band({ x0, x1, y0: inner.maxY, y1 }),
-    band({ x0, x1: inner.minX, y0: inner.minY, y1: inner.maxY }),
-    band({ x0: inner.maxX, x1, y0: inner.minY, y1: inner.maxY }),
-  ];
 }
 
 function withoutPins(pattern: Pattern): Pattern {
@@ -268,9 +201,8 @@ function groupByLayer(layout: ChartLayout): NodePlacement[][] {
 function slotNodes(context: WorkContext): Map<NodeId, number> {
   const map = new Map<NodeId, number>();
   context.slots.forEach((slot, i) => {
-    // A láncszem másik oldala és a sorvég ugyanannak a szemnek a helyén áll: a cellája az övé marad (PQW-899, PQW-902).
-    const ids =
-      slot.kind === 'underside' || slot.kind === 'row-end' ? [] : slot.kind === 'stitch' ? [slot.id] : slot.kind === 'space' ? slot.chains : [slot.node];
+    // A láncszem másik oldala ugyanannak a szemnek a helyén áll: a cellája az övé marad (PQW-899).
+    const ids = slot.kind === 'underside' ? [] : slot.kind === 'stitch' ? [slot.id] : slot.kind === 'space' ? slot.chains : [slot.node];
     for (const id of ids) if (!map.has(id)) map.set(id, i);
   });
   return map;
@@ -284,21 +216,10 @@ function slotNodes(context: WorkContext): Map<NodeId, number> {
 export function targetPoint(layout: ChartLayout, context: WorkContext, index: number): Point | undefined {
   const slot = context.slots[index]!;
   if (slot.kind === 'underside') return undersidePoint(layout, context, slot.id);
-  if (slot.kind === 'row-end') return rowEndPoint(layout, slot.id);
   const ids = slot.kind === 'stitch' ? [slot.id] : slot.kind === 'space' ? slot.chains : [slot.node];
   const points = ids.map((id) => layout.nodes.get(id)?.top).filter((p): p is Point => p !== undefined);
   if (points.length === 0) return undefined;
   return { x: points.reduce((s, p) => s + p.x, 0) / points.length, y: points.reduce((s, p) => s + p.y, 0) / points.length };
-}
-
-/** A szegély sorvég-célpontja (PQW-902): a sor szélső szeme mellett, a darabtól kifelé. */
-function rowEndPoint(layout: ChartLayout, id: NodeId): Point | undefined {
-  const node = layout.nodes.get(id);
-  if (!node) return undefined;
-  const xs = [...layout.nodes.values()].map((placement) => placement.top.x);
-  const middle = (Math.min(...xs) + Math.max(...xs)) / 2;
-  const outward = node.top.x >= middle ? 1 : -1;
-  return { x: node.top.x + outward * Math.max(node.size, CHAIN_REACH), y: (node.top.y + (node.feet[0]?.y ?? node.top.y)) / 2 };
 }
 
 function undersidePoint(layout: ChartLayout, context: WorkContext, id: NodeId): Point | undefined {

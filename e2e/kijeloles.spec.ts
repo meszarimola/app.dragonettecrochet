@@ -22,8 +22,8 @@ async function open(page: Page): Promise<void> {
   await page.goto('/');
   const deny = page.getByRole('button', { name: 'Elutasítom' });
   if (await deny.isVisible()) await deny.click();
-  // Az írott minta panelje ne takarja a vásznat.
-  await page.getByRole('button', { name: 'Írott minta' }).click();
+  // Az írott minta panelje csukva indul (PQW-911): nem takarja a vásznat.
+  await expect(page.locator('#written')).toBeHidden();
 }
 
 const api = <T>(page: Page, name: 'nodes' | 'selection' | 'labels'): Promise<T> =>
@@ -35,13 +35,13 @@ const api = <T>(page: Page, name: 'nodes' | 'selection' | 'labels'): Promise<T> 
 /** Félpálcás téglalap csak billentyűvel, a végén szem nélkül (Esc). */
 async function rectangle(page: Page, width: number, rows: number): Promise<void> {
   await page.locator('#board').focus();
-  await page.keyboard.press('1');
+  await page.keyboard.press('Alt+1');
   await page.locator('#chain-count').fill(String(width + 2));
   await page.locator('#board').focus();
   await page.keyboard.press('Enter');
-  await page.keyboard.press('4');
+  await page.keyboard.press('Alt+4');
   for (let row = 1; row <= rows; row += 1) {
-    if (row > 1) await page.keyboard.press('f');
+    if (row > 1) await page.keyboard.press('Alt+f');
     for (let i = 0; i < width; i += 1) await page.keyboard.press('Enter');
   }
   await page.keyboard.press('Escape');

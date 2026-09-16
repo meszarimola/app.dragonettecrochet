@@ -166,13 +166,6 @@ export type Anchor =
   | { readonly into: 'space'; readonly id: SpaceId }
   | { readonly into: 'ring'; readonly id: RingId }
   /**
-   * Sorvég (03 §10 „row end” él, PQW-889): a sor szélébe horgolt szem, a
-   * szegély oldalán. Az `id` a sor szélső szeme: az elején a fordulólánc
-   * teteje (ennek híján az első pozíció), a végén az utolsó pozíció
-   * (border.ts `rowEdges`). Egy sorvégbe több szem is mehet.
-   */
-  | { readonly into: 'row-end'; readonly id: NodeId }
-  /**
    * A láncszem másik oldala (04 §3.4, PQW-890): az ovális 1. köre a láncalap
    * egyik oldalán végighalad, a másikon vissza. Az `id` a láncalap láncszeme;
    * egy oldalba több szem is mehet, szaporításként.
@@ -368,13 +361,6 @@ export interface Piece {
    */
   readonly sections?: readonly PieceSection[];
   /**
-   * Szegély a darab körül (PQW-862): a választás (szem, félpálcás sorvég). A
-   * PQW-889 óta a szegély a gráfban is réteg az utolsó sor után, a felső él
-   * szemeibe, a sorvégekbe és a láncalapba horgolva (border.ts). A korábbi
-   * mentésben csak a választás van; ott az írott minta a sorokból számol.
-   */
-  readonly border?: PieceBorder;
-  /**
    * A rácsminta, amelyből a darab készült (PQW-864). A gráf ebből generálódik;
    * a rács a darabbal mentődik, így a technika szabályai (C2C, tapestry) és az
    * ismétlő egység jelölése a mentés után is megvannak.
@@ -440,24 +426,6 @@ export type RowShape =
 
 /** Körben horgolt darab rajzának alakja (PQW-908): kúp a megadott körig. */
 export type RoundShape = { readonly kind: 'cone'; readonly throughRound: number };
-
-/** A szegély választásai (PQW-862, 03 §7.1). */
-export interface PieceBorder {
-  /** A szegély szeme; most csak rövidpálca. */
-  readonly stitch: StitchDefId;
-  /** Félpálcás sorvégre 1 vagy 2 szem: a források vitatják (03 §7.1, §10 H38). */
-  readonly hdcRowEnd: 1 | 2;
-  /** Igazítás a következő szegélysor ismétléséhez (PQW-898); hiányában nincs. */
-  readonly repeat?: BorderRepeat;
-}
-
-/** A következő szegélysor ismétlése (03 §7.1 H): a sarkok közötti élek szemszáma „X többszöröse + Y”. */
-export interface BorderRepeat {
-  /** X: egy ismétlés szemei. */
-  readonly width: number;
-  /** Y: élenként a kiegyenlítő szemek. */
-  readonly edge: number;
-}
 
 /** A jelek stílusa: a Craft Yarn Council vagy a japán (JIS) jelkulcs (01 §6). */
 export type ChartStyle = 'cyc' | 'jis';

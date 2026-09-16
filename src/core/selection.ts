@@ -235,7 +235,7 @@ export function deletionPlan(pattern: Pattern, ids: Iterable<NodeId>): DeletionP
   const hits = (anchor: Anchor) => {
     if (anchor.into === 'stitch') return removed.has(anchor.id);
     if (anchor.into === 'space') return (spaceChains.get(anchor.id) ?? []).some((id) => removed.has(id));
-    if (anchor.into === 'row-end' || anchor.into === 'underside') return removed.has(anchor.id);
+    if (anchor.into === 'underside') return removed.has(anchor.id);
     return removed.has(ringNodes.get(anchor.id) ?? '');
   };
   // A célpontok a fonalon előrébb vannak, ezért egy menet általában elég; a ciklus a biztonság.
@@ -373,7 +373,6 @@ export interface Fragment {
 export type CopyCode =
   | 'no-selection'
   | 'copy-broken-pattern'
-  | 'copy-border'
   | 'copy-layer-outside'
   | 'copy-oval-first-round'
   | 'copy-anchor-unsupported';
@@ -405,11 +404,6 @@ export function copySelection(pattern: Pattern, ids: Iterable<NodeId>): CopyResu
   const firstLayer = layerOf(selected[0]!);
   const layer = graph.layers[firstLayer]!;
   const foundation = firstLayer === 0;
-  // A szegély a darab köré horgol, nem a sor célpontjaiba (PQW-889): nem másolható.
-  if (selected.some((id) => graph.layers[layerOf(id)]?.border)) {
-    return { ok: false, reason: text('copy-border') };
-  }
-
   const spaces = piece.spaces.filter((space) => space.chains.every((id) => index.has(id)));
   const spaceIndex = new Map(spaces.map((space, i) => [space.id, i]));
   const rings = piece.rings.filter((ring) => index.has(ring.node));
@@ -432,8 +426,6 @@ export function copySelection(pattern: Pattern, ids: Iterable<NodeId>): CopyResu
         if (layerOf(id) !== firstLayer) {
           return { ok: false, reason: text('copy-layer-outside', { layer: layerOf(id), shape: graph.layers[layerOf(id)]!.shape }) };
         }
-        // Sorvégbe csak a szegély horgol, azt fent elutasítjuk (PQW-889).
-        if (anchor.into === 'row-end') return { ok: false, reason: text('copy-border') };
         // Az ovális 1. köre a láncalap mindkét oldalába horgol (PQW-890): csak a láncalappal együtt másolható (PQW-899).
         if (anchor.into === 'underside') return { ok: false, reason: OVAL_FIRST_ROUND };
         const slot = slotOf.get(slotKey(anchor.into, anchor.id));

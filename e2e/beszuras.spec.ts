@@ -14,7 +14,7 @@ async function open(page: Page): Promise<void> {
 
 async function foundation(page: Page, chains: number): Promise<void> {
   await page.locator('#board').focus();
-  await page.keyboard.press('1');
+  await page.keyboard.press('Alt+1');
   await page.locator('#chain-count').fill(String(chains));
   await page.locator('#board').focus();
   await page.keyboard.press('Enter');
@@ -28,7 +28,7 @@ test('hátsó szálas rövidpálcás sor és reliefes sor: a mód billentyűzett
   // Láncszemnél nincs mit választani.
   await expect(insertion).toBeHidden();
 
-  await page.keyboard.press('3'); // rövidpálca
+  await page.keyboard.press('Alt+3'); // rövidpálca
   await expect(insertion).toBeVisible();
   await expect(insertion.getByRole('radio')).toHaveCount(5);
   await expect(insertion.getByRole('radio', { name: 'Mindkét szál' })).toBeChecked();
@@ -43,6 +43,8 @@ test('hátsó szálas rövidpálcás sor és reliefes sor: a mód billentyűzett
   await page.getByRole('button', { name: 'Sor kitöltése' }).click();
   await expect(page.locator('#status')).toContainText('Sor kitöltve, hátsó szál.');
   await expect(page.locator('#summary')).toContainText('Nincs hiba és figyelmeztetés.');
+  // Az írott minta panelje csukva indul (PQW-911), és csukva nem frissül.
+  await page.locator('#written-toggle').click();
   // A fordulólánc az 1. rövidpálca helyett áll (PQW-891): 8 láncszemből 6 rp a 3. láncszemtől.
   await expect(page.locator('#written-text')).toContainText(
     '1. sor: hagyj ki 2 láncszemet, majd minden láncszembe 1 rp (hsz)',
@@ -50,19 +52,19 @@ test('hátsó szálas rövidpálcás sor és reliefes sor: a mód billentyűzett
   await expect(page.locator('#written-text')).toContainText('hsz – hátsó szálba');
 
   // A kúszószem reliefet nem enged: csak három mód; a hátsó szálat engedi, ezért az marad kiválasztva.
-  await page.keyboard.press('2');
+  await page.keyboard.press('Alt+2');
   await expect(insertion.getByRole('radio')).toHaveCount(3);
   await expect(insertion.getByRole('radio', { name: 'Első relief' })).toHaveCount(0);
   await expect(insertion.getByRole('radio', { name: 'Hátsó szál' })).toBeChecked();
 
   // Reliefes sor egyráhajtásos pálcával; a választás a szemváltás után is megmarad.
-  await page.keyboard.press('5');
+  await page.keyboard.press('Alt+5');
   await insertion.getByText('Első relief').click();
   // A rádiógombon a gyorsbillentyűk nem élnek, mint a többi mezőben: vissza a vászonra.
   await page.locator('#board').focus();
-  await page.keyboard.press('f');
-  await page.keyboard.press('3');
-  await page.keyboard.press('5');
+  await page.keyboard.press('Alt+f');
+  await page.keyboard.press('Alt+3');
+  await page.keyboard.press('Alt+5');
   await expect(insertion.getByRole('radio', { name: 'Első relief' })).toBeChecked();
   await page.getByRole('button', { name: 'Sor kitöltése' }).click();
   await expect(page.locator('#status')).toContainText('Sor kitöltve, első relief.');

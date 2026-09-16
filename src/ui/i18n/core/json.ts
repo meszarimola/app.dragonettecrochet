@@ -21,6 +21,8 @@ export const JSON_CORE_TEXTS: CoreDictionary<JsonCode> = {
     'expected-object': 'Objektumot vártunk.',
     'missing-field': 'Hiányzó mező.',
     'unknown-field': 'Ismeretlen mező.',
+    'legacy-border':
+      'A fájl olyan szegélyt tartalmaz, amit ez a verzió már nem ismer, ezért a minta nem tölthető be. A szegélyt a program korábbi változata készítette.',
     'expected-nonempty-string': 'Nem üres szöveget vártunk.',
     'expected-string': 'Szöveget vártunk.',
     'expected-boolean': 'Logikai értéket vártunk.',
@@ -51,6 +53,8 @@ export const JSON_CORE_TEXTS: CoreDictionary<JsonCode> = {
     'expected-object': 'An object was expected.',
     'missing-field': 'Missing field.',
     'unknown-field': 'Unknown field.',
+    'legacy-border':
+      'The file contains a border this version no longer supports, so the pattern cannot be loaded. The border was made by an earlier version of the program.',
     'expected-nonempty-string': 'A non-empty text was expected.',
     'expected-string': 'A text was expected.',
     'expected-boolean': 'A true or false value was expected.',

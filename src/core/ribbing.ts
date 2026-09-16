@@ -38,15 +38,10 @@ export const MAX_RIBBING_WIDTH = 6;
 /**
  * A bordázat elutasításának kódjai (PQW-904): a mag kódot és adatot ad, a
  * mondatot a felület állítja össze (`src/ui/i18n/core/shape.ts`).
- *
- * A `ribbing-with-border` a generátoroké, nem ezé a modulé: a bordázat a felső
- * élen fut, a szegély a darab körül, ezért a kettő nem rakható egymásra
- * (PQW-909). A kód mégis itt lakik, hogy a Forma és a Kör ugyanazt mondja.
  */
 export type RibbingCode =
   | 'ribbing-rows-range'
   | 'ribbing-width-range'
-  | 'ribbing-with-border'
   | 'ribbing-stitch-missing'
   | 'ribbing-needs-row'
   | 'ribbing-after-join'

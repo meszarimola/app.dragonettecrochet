@@ -11,10 +11,9 @@
  *   `message` a felhasználónak a szerkesztőben (PQW-879): belső fogalom (réteg,
  *   darab) és tudásbázis-kód nélkül. A `severity` és a `reference` nem fordul,
  *   mert azok nem szövegek: a magból jönnek.
- * - Az angol szöveg amerikai szakszóval él ott, ahol a szem magassága számít
- *   (a `border-row-end` összefoglalójában); a felhasználónak szóló üzenetek
- *   szándékosan kerülik a jelölésfüggő szemneveket, mert a felület nyelve és a
- *   minta jelölése két független beállítás (PQW-868).
+ * - A felhasználónak szóló üzenetek szándékosan kerülik a jelölésfüggő
+ *   szemneveket, mert a felület nyelve és a minta jelölése két független
+ *   beállítás (PQW-868).
  *
  * DOM nélküli, ezért a Node is futtatja, és a magot `.ts` kiterjesztéssel
  * importálja.
@@ -136,17 +135,6 @@ export const RULE_TEXTS = {
     'repeat-balance': {
       summary: 'In a repeated pattern the row gives more or fewer positions than it uses up.',
       message: 'In the repeated pattern the row gives more or fewer stitches than it uses up.',
-    },
-
-    /* ---- Border (PQW-889) ---- */
-    'border-row-end': {
-      summary:
-        'A row end of the border does not get the number of stitches that matches the stitch of that row (US terms): 1 for a single crochet row end, 1 or 2 for half double crochet as the piece chooses, 2 for double crochet, 3 for treble.',
-      message: 'A row end on the side of the border did not get as many stitches as the height of that row needs: the border will ruffle or pull the edge in.',
-    },
-    'border-corner': {
-      summary: 'A corner of the border does not get 3 stitches.',
-      message: 'A corner of the border needs 3 stitches so that it turns flat.',
     },
 
     /* ---- Heights ---- */

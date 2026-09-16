@@ -26,12 +26,12 @@ async function rectangle(page: Page, width: number, rows: number): Promise<void>
   await page.keyboard.press('ControlOrMeta+A');
   await page.keyboard.type(String(width + 1));
   await page.locator('#board').focus();
-  await page.keyboard.press('1');
+  await page.keyboard.press('Alt+1');
   await page.locator('#board').focus();
   await page.keyboard.press('Enter');
-  await page.keyboard.press('3');
+  await page.keyboard.press('Alt+3');
   for (let row = 1; row <= rows; row += 1) {
-    if (row > 1) await page.keyboard.press('f');
+    if (row > 1) await page.keyboard.press('Alt+f');
     // A fordulólánc az 1. rövidpálca helyett áll (PQW-891): soronként width − 1 rövidpálca.
     for (let i = 0; i < width - 1; i += 1) await page.keyboard.press('Enter');
   }
@@ -95,6 +95,8 @@ test('profil a panelen: mért méret, fonal gombolyagra; a mintával mentődik, 
   await expect(page.locator('#size-yarn')).toContainText('≈ 1 db');
 
   const downloadPromise = page.waitForEvent('download');
+  // Az export a fájlműveletek lenyílójában van (PQW-911).
+  await page.locator('#file-toggle').click();
   await page.locator('[data-action="export-json"]').click();
   const download = await downloadPromise;
   const saved = JSON.parse(await readFile((await download.path())!, 'utf8'));

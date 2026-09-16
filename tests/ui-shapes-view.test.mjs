@@ -11,7 +11,6 @@ import { emptyPattern } from '../src/core/editor.ts';
 import { DEFAULT_SHAPE, planShape, shapeProblem } from '../src/core/shapes.ts';
 import { SHAPE_CORE_TEXTS } from '../src/ui/i18n/core/shape.ts';
 import {
-  HDC_ROW_END_CHOICES,
   MEASURE_CHOICES,
   ROUNDING_CHOICES,
   SHAPE_CHOICES,
@@ -47,7 +46,7 @@ function withRowGauge(stitch, stitchesPer10cm, rowsPer10cm) {
 }
 
 describe('választások', () => {
-  test('forma és szem magyar felirattal; magasság vagy szög, kerekítés, félpálcás sorvég', () => {
+  test('forma és szem magyar felirattal; magasság vagy szög, kerekítés', () => {
     assert.deepEqual(
       SHAPE_CHOICES.map((choice) => choice.label),
       ['Téglalap', 'Derékszögű háromszög', 'Egyenlő szárú háromszög', 'Trapéz', 'Rombusz'],
@@ -58,46 +57,34 @@ describe('választások', () => {
     );
     assert.deepEqual(MEASURE_CHOICES.map((choice) => choice.value), ['height', 'angle']);
     assert.deepEqual(ROUNDING_CHOICES.map((choice) => choice.value), ['nearest', 'up', 'down']);
-    assert.deepEqual(HDC_ROW_END_CHOICES.map((choice) => choice.value), ['2', '1']);
   });
 });
 
 describe('a mezők a formához', () => {
-  test('téglalapnál magasság, mintaismétlés és szegély; szög, felső él és a magasság módja nincs', () => {
+  test('téglalapnál magasság és mintaismétlés; szög, felső él és a magasság módja nincs', () => {
     assert.deepEqual(shapeFieldState(options()), {
       topWidth: false,
       measure: false,
       height: true,
       angle: false,
       repeat: true,
-      border: true,
-      hdcRowEnd: false,
-      borderRepeat: false,
-      // Bordás szegély a felső élen; szegély nélkül választható (PQW-909).
+      // Bordás szegély a felső élen (PQW-909).
       ribbing: true,
       ribbingFields: false,
     });
     assert.equal(shapeFieldState(options({ measure: 'angle' })).height, true);
   });
 
-  test('trapéznál a felső él és a szegély (PQW-898); szögből a magasság helyett a szög', () => {
+  test('trapéznál a felső él; szögből a magasság helyett a szög', () => {
     const state = shapeFieldState(options({ shape: 'trapezoid', measure: 'angle' }));
-    assert.deepEqual([state.topWidth, state.measure, state.height, state.angle, state.repeat, state.border], [true, true, false, true, false, true]);
+    assert.deepEqual([state.topWidth, state.measure, state.height, state.angle, state.repeat], [true, true, false, true, false]);
   });
 
-  test('a félpálcás sorvégi választás félpálcás, szegélyes formánál; a szegélysor ismétlése szegéllyel', () => {
-    const border = { stitch: 'sc', hdcRowEnd: 2 };
-    assert.equal(shapeFieldState(options({ border })).hdcRowEnd, true);
-    assert.equal(shapeFieldState(options({ border, stitch: 'dc' })).hdcRowEnd, false);
-    assert.equal(shapeFieldState(options({ border, shape: 'diamond' })).hdcRowEnd, true);
-    assert.deepEqual([shapeFieldState(options({ border })).borderRepeat, shapeFieldState(options()).borderRepeat], [true, false]);
-  });
-
-  test('nem téglalapnál a mintaismétlés kimarad, a szegély marad (PQW-898); a szélesség felirata a formához', () => {
-    const chosen = options({ repeat: { width: 6, edge: 2 }, border: { stitch: 'sc', hdcRowEnd: 2 } });
+  test('nem téglalapnál a mintaismétlés kimarad; a szélesség felirata a formához', () => {
+    const chosen = options({ repeat: { width: 6, edge: 2 } });
     assert.equal(normalizeShape(chosen), chosen);
     const triangle = normalizeShape({ ...chosen, shape: 'isosceles-triangle' });
-    assert.deepEqual([triangle.repeat, triangle.border], [null, { stitch: 'sc', hdcRowEnd: 2 }]);
+    assert.equal(triangle.repeat, null);
     assert.deepEqual(['rectangle', 'trapezoid', 'diamond'].map(widthLabel), ['Szélesség, cm', 'Alsó él, cm', 'Legszélesebb sor, cm']);
   });
 });
@@ -133,15 +120,6 @@ describe('a terv kiírása', () => {
     assert.ok(view.details.some((line) => /^Meghagyott szemek az? .* sor végén: lépcsős él\.$/.test(line)), view.details.join('\n'));
   });
 
-  test('szegély: szemszám körben, a méret a szegéllyel, és hogy a diagramon is látszik (PQW-889)', () => {
-    const patch = { border: { stitch: 'sc', hdcRowEnd: 2 } };
-    const plan = planOf(withRowGauge('hdc', 15, 11), patch);
-    const view = shapeView(plan, options(patch), true);
-    const line = view.details.find((text) => text.startsWith('Szegély: '));
-    assert.ok(line);
-    assert.match(line, /^Szegély: 200 rp körben, sarkonként 3, sorvégenként 2; a szegéllyel ≈ \d+,\d × \d+,\d cm\. A diagramon, a rácson és a kész méretben is látszik\.$/);
-  });
-
   test('a létrehozás üzenete a visszavonás lehetőségével', () => {
     const plan = planOf(withRowGauge('hdc', 15, 11));
     assert.equal(generatedMessage(options(), plan), 'Téglalap, 33 sor elkészült; visszavonással a korábbi minta visszajön.');
@@ -156,8 +134,6 @@ describe('a mag indoka mondattá (PQW-904)', () => {
       shapeReason({ code: 'shape-row-too-narrow', data: { row: 7 } }),
       'A(z) 7. sor túl keskeny ehhez az alakításhoz: adj meg nagyobb méretet vagy laposabb élt.',
     );
-    // A szegély kódja a szegélyé, de a Forma is ezt adja vissza.
-    assert.equal(shapeReason({ code: 'border-single-crochet-only' }), 'A szegély most csak rövidpálcás lehet.');
   });
 
   test('a „ez a program hibája” esetek közös kódja: az adat dönti el, melyik mondat', () => {
@@ -176,7 +152,7 @@ describe('a mag indoka mondattá (PQW-904)', () => {
   test('a szótár mindkét nyelven ugyanazt a kódkészletet adja, és az angolban nincs magyar ékezet', () => {
     const { hu, en } = SHAPE_CORE_TEXTS;
     assert.deepEqual(Object.keys(en).sort(), Object.keys(hu).sort());
-    assert.ok(Object.keys(hu).length > 40, `túl kevés kód: ${Object.keys(hu).length}`);
+    assert.ok(Object.keys(hu).length > 30, `túl kevés kód: ${Object.keys(hu).length}`);
     // Minden kódhoz mindkét nyelven ugyanolyan fajtájú, ugyanannyi paraméteres tétel tartozik.
     // A szabály azonosítója nyers adat, nem fordítjuk: ékezet nélküli mintaérték, hogy az angol ágat vizsgáló őr ne a saját adatán bukjon.
     const sample = { max: 3, min: 2, rows: 2, row: 2, count: 2, rule: 'rule-id', shape: 'row', unit: 2, nearest: 4 };
@@ -193,7 +169,7 @@ describe('a mag indoka mondattá (PQW-904)', () => {
 describe('előnézet', () => {
   test('téglalap: a tényleges méretű téglalap, lépcső nélkül', () => {
     const outline = shapeOutline(planOf(withRowGauge('hdc', 15, 11)));
-    assert.deepEqual([outline.width, outline.height, outline.border], [20, 30, 0]);
+    assert.deepEqual([outline.width, outline.height], [20, 30]);
     const xs = new Set(outline.points.split(' ').map((point) => point.split(',')[0]));
     assert.deepEqual([...xs].sort(), ['0', '20']);
   });
@@ -204,14 +180,5 @@ describe('előnézet', () => {
     assert.equal(Math.max(...points.map(([x]) => x)), outline.width);
     assert.ok(new Set(points.map(([x]) => x)).size > 10);
     assert.equal(points.filter(([x]) => x === outline.width).length, 72);
-  });
-
-  test('szegéllyel az előnézet a szegéllyel együtt, a darab a szegély vastagságával beljebb', () => {
-    const plan = planOf(withRowGauge('hdc', 15, 11), { border: { stitch: 'sc', hdcRowEnd: 2 } });
-    const outline = shapeOutline(plan);
-    assert.ok(outline.border > 0);
-    assert.ok(Math.abs(outline.width - plan.borderedCm.widthCm) < 0.01);
-    const xs = outline.points.split(' ').map((point) => Number(point.split(',')[0]));
-    assert.ok(Math.abs(Math.min(...xs) - outline.border) < 0.01);
   });
 });

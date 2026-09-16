@@ -64,13 +64,13 @@ test('nagymama-négyzet láncgyűrűvel, és a K billentyű a láncszemekből l�
   // Új minta, 6 láncszem, K: láncgyűrű. A láncszemek száma a Láncszem kiválasztása után látszik.
   await page.locator('[data-action="new"]').click();
   await page.locator('#board').focus();
-  await page.keyboard.press('1');
+  await page.keyboard.press('Alt+1');
   await page.locator('#chain-count').fill('6');
   await page.locator('#chain-count').press('Tab');
   await page.locator('#board').focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('[data-action="close-round"]')).toBeEnabled();
-  await page.keyboard.press('k');
+  await page.keyboard.press('Alt+k');
   await expect(page.locator('#status')).toContainText('Láncgyűrű: a láncszemek gyűrűvé zárva.');
 });
 

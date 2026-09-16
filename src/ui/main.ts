@@ -72,6 +72,7 @@ import { chartSvg } from './chart-svg.js';
 import { setupConsentBanner } from './consentBanner.js';
 import { askConfirm } from './dialog.js';
 import { applyStaticTexts, homeUrl, resolveUiLanguage, setUiLanguage, texts, uiLanguage, urlWithLanguage, type UiLanguage } from './i18n.js';
+import { currentPlatform, modifierCombo, modifierName } from './platform.js';
 import { EDITOR_CORE_TEXTS } from './i18n/core/editor.js';
 import { JSON_CORE_TEXTS } from './i18n/core/json.js';
 import { renderCoreText } from './i18n/core/render.js';
@@ -148,6 +149,9 @@ const typesList = must<HTMLUListElement>('#types-list');
 const errorToggle = must<HTMLButtonElement>('#error-toggle');
 const errorCount = must<HTMLElement>('#error-count');
 const errorsPop = must<HTMLElement>('#errors');
+/** A fájlműveletek lenyíló menüje (PQW-911): mentés, betöltés, képexport. */
+const fileToggle = must<HTMLButtonElement>('#file-toggle');
+const filePop = must<HTMLElement>('#file-pop');
 const exportGrid = must<HTMLInputElement>('#export-grid');
 /** A beszúrási mód a kiválasztott szemhez (PQW-869). */
 const insertionPanel = new InsertionPanel(must<HTMLFieldSetElement>('#insertion'));
@@ -156,7 +160,6 @@ const languageSelect = document.querySelector<HTMLSelectElement>('#ui-language')
 const homeLink = document.querySelector<HTMLAnchorElement>('#home-link, .home');
 
 const STORAGE_KEY = 'dc-mintatervezo:minta';
-const SETTINGS_KEY = 'dc-mintatervezo:nezet';
 const NOTATION_KEY = 'dc-mintatervezo:jeloles';
 const WRITTEN_KEY = 'dc-mintatervezo:irott-minta';
 const TYPE_KEY = 'dc-mintatervezo:tipus';
@@ -165,8 +168,6 @@ const GRID_KEY = 'dc-mintatervezo:racs';
 const LANG_KEY = 'dc-mintatervezo:nyelv';
 /** Ennél keskenyebb képernyőn a két panel nem fér el egymás mellett. */
 const NARROW = window.matchMedia('(width < 48rem)');
-/** Alacsony ablak: itt az írott minta panel alapból csukva és alacsonyabban nyílik (PQW-891, styles.css). */
-const LOW = window.matchMedia('(height < 40rem)');
 const STRUCTURAL_RULES = new Set(['unknown-stitch', 'dangling-reference', 'yarn-path']);
 
 /* ---- A felület nyelve (PQW-900) ---- */
@@ -181,6 +182,7 @@ const startLanguage = resolveUiLanguage(location.search, storedUiLanguage(), doc
 setUiLanguage(startLanguage);
 document.documentElement.lang = startLanguage;
 applyStaticTexts(document, texts().markup);
+  showModifierNames();
 if (homeLink) homeLink.href = homeUrl(startLanguage);
 
 /** Az állapotsor üzenete: sima szöveg, vagy elemek, ha szemnevet tartalmaz (PQW-853). */
@@ -229,7 +231,13 @@ let areaMode = false;
 let marquee: { readonly from: Point; readonly to: Point } | null = null;
 /** Törlés előtt a törlendőkbe horgolt szemek, amelyeket a vászon kiemel. */
 let affected: readonly NodeId[] = [];
-let mirror = readMirror();
+/*
+ * A tükrözött nézet kapcsolója kikerült a felületről (PQW-911): nem adott
+ * valódi balkezes nézetet, ezért félrevezető volt. A rajzoló és az export
+ * `mirror` paramétere megmarad — a mag tudja tükrözve is kirakni a mintát —,
+ * a felület viszont mindig egyenesen kéri.
+ */
+const mirror = false;
 /** A választott mintatípus; a böngészőben marad. Most csak a „szabályos” aktív. */
 let patternType: PatternTypeId = readType();
 /** Látszik-e a rács (PQW-874); a böngészőben marad. */
@@ -252,8 +260,6 @@ interface Derived {
   readonly grid: ChartGrid | null;
 }
 
-/** A szegély kézi horgolása: a célpontok a darab kerületén futnak (PQW-902). */
-let borderMode = false;
 
 let derived = derive(history.present);
 
@@ -299,7 +305,7 @@ function directionArrow(): DirectionArrow | null {
  * a szegély gombbal a célpontok a darab kerületén futnak (PQW-902).
  */
 function editorMode(): EditorMode {
-  return { roundsOnChain: patternType === 'amigurumi', borderRound: borderMode };
+  return { roundsOnChain: patternType === 'amigurumi' };
 }
 
 
@@ -329,14 +335,6 @@ function persist(pattern: Pattern): void {
     localStorage.setItem(STORAGE_KEY, savePattern(withNotation(pattern, notation)));
   } catch {
     announce(texts().messages.storage.saveFailed);
-  }
-}
-
-function readMirror(): boolean {
-  try {
-    return localStorage.getItem(SETTINGS_KEY) === 'tukrozott';
-  } catch {
-    return false;
   }
 }
 
@@ -536,7 +534,6 @@ function describeTarget(index: number): Message {
   if (slot.kind === 'space') what = target.space(slot.chains.length);
   else if (slot.kind === 'ring') what = target.ring;
   else if (slot.kind === 'underside') what = target.underside;
-  else if (slot.kind === 'row-end') what = target.rowEndSlot;
   else {
     const def = derived.context.graph?.defs.get(slot.id);
     what = def ? stitchName(def, notation.terms) : target.stitch;
@@ -551,11 +548,8 @@ function describeTarget(index: number): Message {
 function updateControls(): void {
   const { context, pattern, check } = derived;
   const empty = (pattern.pieces[0]?.stitches.length ?? 0) === 0;
-  const def = tool ? resolveStitch(tool) : undefined;
   setDisabled('undo', !canUndo(history));
   setDisabled('redo', !canRedo(history));
-  setDisabled('delete-last', empty);
-  setDisabled('same', !(def?.kind === 'basic' && !empty));
   const canFill = tool !== null && isTargeted(tool) && context.graph !== null && context.slots.some((_, i) => !context.used[i]);
   setDisabled('fill-row', !canFill);
   setDisabled('end-row', !canEndRow(context));
@@ -566,8 +560,6 @@ function updateControls(): void {
   setDisabled('delete-selection', selection.length === 0);
   setDisabled('duplicate-selection', selection.length === 0);
   must<HTMLButtonElement>('[data-action="select-area"]').setAttribute('aria-pressed', String(areaMode));
-  must<HTMLButtonElement>('[data-action="mirror"]').setAttribute('aria-pressed', String(mirror));
-  must<HTMLButtonElement>('[data-action="border-round"]').setAttribute('aria-pressed', String(borderMode));
   must<HTMLButtonElement>('[data-action="grid"]').setAttribute('aria-pressed', String(showGrid));
   if (document.activeElement !== titleInput) titleInput.value = pattern.title;
 
@@ -703,18 +695,19 @@ function setWrittenOpen(open: boolean): void {
 }
 
 /**
- * A panel nyitott-e induláskor: a megjegyzett állapot, ennek hiányában
- * alacsony ablakban csukva, hogy a vászon közepére lehessen kattintani
- * (PQW-891). Az amigurumi a típusválasztáskor maga nyitja ki.
+ * A panel nyitott-e induláskor: a megjegyzett állapot, ennek hiányában CSUKVA
+ * (PQW-911). Üres mintán úgyis csak annyit írna ki, hogy nincs mit kiírni, és
+ * a vászon közepére sem lehetne kattintani (PQW-891). Az amigurumi a
+ * típusválasztáskor maga nyitja ki.
  */
 function readWrittenOpen(): boolean {
   try {
     const stored = localStorage.getItem(WRITTEN_KEY);
     if (stored !== null) return stored !== 'zarva';
   } catch {
-    // A tárolás nélkül az ablak magassága dönt.
+    // A tárolás nélkül csukva indulunk.
   }
-  return !LOW.matches;
+  return false;
 }
 
 /* ---- Az írott minta magassága (PQW-885) ---- */
@@ -855,6 +848,7 @@ function changeLanguage(language: UiLanguage): void {
   rememberLanguage(language);
   document.documentElement.lang = language;
   applyStaticTexts(document, texts().markup);
+  showModifierNames();
   if (homeLink) homeLink.href = homeUrl(language);
   // Itt a `history` a szerkesztő visszavonási verme, ezért a böngészőé kiírva.
   window.history.replaceState(window.history.state, '', urlWithLanguage(location.href, language));
@@ -921,10 +915,12 @@ function stitchButton(item: PaletteItem): HTMLButtonElement {
   if (item.structure) label.append(span('stitch__detail', item.structure));
   button.append(label);
 
+  // A gyorsbillentyű `Alt`-tal szól, mert egyetlen karakter nem lehet parancs;
+  // a felirata Mac gépen ⌥, máshol Alt (PQW-911).
   if (item.key) {
     const key = document.createElement('kbd');
     key.className = 'stitch__key';
-    key.textContent = item.key;
+    key.textContent = modifierCombo(item.key, currentPlatform());
     button.append(key);
   }
 
@@ -992,7 +988,6 @@ function slotWord(slot: Slot): string {
   const words = texts().messages.slot;
   if (slot.kind === 'space') return words.space;
   if (slot.kind === 'ring') return words.ring;
-  if (slot.kind === 'row-end') return words.rowEnd;
   return derived.context.graph?.defs.get(slot.id)?.kind === 'chain' ? words.chain : words.stitch;
 }
 
@@ -1286,20 +1281,6 @@ const ACTIONS: Record<string, () => void> = {
       canJoinChainRing(history.present) ? texts().messages.work.chainRing : texts().messages.work.roundClosed,
     ),
   'spiral-round': () => commit(endRoundSpiral(history.present), texts().messages.work.spiral),
-  'border-round': () => {
-    borderMode = !borderMode;
-    refresh(borderMode ? texts().messages.work.borderOn : texts().messages.work.borderOff);
-  },
-  mirror: () => {
-    mirror = !mirror;
-    try {
-      localStorage.setItem(SETTINGS_KEY, mirror ? 'tukrozott' : 'normal');
-    } catch {
-      // A nézet beállítása enélkül is működik, csak nem marad meg.
-    }
-    refresh(mirror ? texts().messages.view.mirrored : texts().messages.view.rightHanded);
-    fitBoard();
-  },
   grid: () => {
     showGrid = !showGrid;
     try {
@@ -1385,9 +1366,25 @@ function togglePopover(pop: HTMLElement, button: HTMLButtonElement): void {
 
 function closeAllPopovers(): void {
   closePopover(errorsPop, errorToggle);
+  closePopover(filePop, fileToggle);
 }
 
 errorToggle.addEventListener('click', () => togglePopover(errorsPop, errorToggle));
+
+fileToggle.addEventListener('click', () => {
+  const opening = filePop.hidden;
+  closeAllPopovers();
+  if (opening) {
+    openPopover(filePop, fileToggle);
+    // Billentyűzettel is járható: a nyitás után az első művelet kapja a fókuszt.
+    filePop.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
+  }
+});
+
+// A menüből kiválasztott művelet után a menü csukódjon, hogy ne takarja a vásznat.
+filePop.addEventListener('click', (event) => {
+  if ((event.target as Element).closest('button')) closePopover(filePop, fileToggle);
+});
 
 // A menün kívülre kattintva a hibalista bezárul.
 document.addEventListener('click', (event) => {
@@ -1426,9 +1423,11 @@ function renderTypes(): void {
       button.disabled = !type.available;
       button.setAttribute('aria-pressed', String(type.available && type.id === patternType));
 
+      // A magyarázat tooltipben áll, hogy a kártyán csak a név maradjon (PQW-911).
+      button.dataset.tip = type.detail;
       button.append(typeIcon(type.id));
       const label = span('type__label', '');
-      label.append(span('type__name', type.name), span('type__detail', type.detail));
+      label.append(span('type__name', type.name));
       button.append(label);
       if (!type.available) button.append(span('type__badge', texts().sections.types.soon));
       else button.addEventListener('click', () => selectType(type.id));
@@ -1694,10 +1693,15 @@ document.addEventListener('keydown', (event) => {
   const key = event.key;
 
   // A nyitott hibalistát az Escape először bezárja, és a fókuszt visszaviszi a gombra.
-  if (key === 'Escape' && !errorsPop.hidden) {
+  // A nyitott lenyílót az Escape bezárja, és a fókuszt visszaviszi a gombjára (PQW-911).
+  const openMenu = [
+    { pop: errorsPop, button: errorToggle },
+    { pop: filePop, button: fileToggle },
+  ].find((menu) => !menu.pop.hidden);
+  if (key === 'Escape' && openMenu) {
     event.preventDefault();
     closeAllPopovers();
-    errorToggle.focus();
+    openMenu.button.focus();
     return;
   }
 
@@ -1718,7 +1722,10 @@ document.addEventListener('keydown', (event) => {
       event.preventDefault();
       if (tool) select(null);
       setSelection(selectAll(history.present), null);
-    } else if (lower === 'c' && !inWritten && selection.length > 0) {
+    } else if (lower === 'c' && !inWritten) {
+      // Kijelölés nélkül is ide fut (PQW-911): a `copySelected` megmondja, hogy
+      // nincs mit másolni. Korábban a feltétel némán elnyelte a billentyűt, és
+      // úgy tűnt, mintha a másolás nem működne.
       event.preventDefault();
       copySelected();
     } else if (lower === 'v' && !inWritten) {
@@ -1737,6 +1744,31 @@ document.addEventListener('keydown', (event) => {
     if (delta && selectedNode) {
       event.preventDefault();
       nudge(...delta);
+      return;
+    }
+    /*
+     * A parancsok `Alt`-tal szólnak (PQW-911): egyetlen karakter nem lehet
+     * parancs, a `Ctrl`/`Cmd`+szám pedig a böngésző lapváltása. A billentyű
+     * fizikai helyét nézzük (`code`), mert macOS-en az `Alt`+betű más karaktert
+     * ad. Szövegmezőben ez az ág el sem indul: a kezelő fent kilép.
+     */
+    const commands: Record<string, () => void> = {
+      KeyF: () => ACTIONS[event.shiftKey ? 'fill-row' : 'end-row']!(),
+      KeyK: () => ACTIONS['close-round']!(),
+      KeyS: () => ACTIONS['spiral-round']!(),
+      KeyR: () => ACTIONS.grid!(),
+    };
+    const command = commands[event.code];
+    if (command) {
+      event.preventDefault();
+      command();
+      return;
+    }
+    const digit = /^Digit([1-9])$/.exec(event.code)?.[1];
+    const item = digit === undefined ? undefined : items.find((candidate) => candidate.key === digit);
+    if (item) {
+      event.preventDefault();
+      select(item.def.id);
     }
     return;
   }
@@ -1759,31 +1791,6 @@ document.addEventListener('keydown', (event) => {
       // Kijelöléssel a kijelölt szemek, anélkül az utolsó lépés (PQW-875).
       if (selection.length > 0) void deleteSelection();
       else ACTIONS['delete-last']!();
-      return;
-    case 'f':
-    case 'F':
-      // Shift+F kitölti a sort, sima F a sor végén fordul (PQW-879).
-      ACTIONS[event.shiftKey ? 'fill-row' : 'end-row']!();
-      return;
-    case 'k':
-    case 'K':
-      ACTIONS['close-round']!();
-      return;
-    case 's':
-    case 'S':
-      ACTIONS['spiral-round']!();
-      return;
-    case 'b':
-    case 'B':
-      ACTIONS['border-round']!();
-      return;
-    case 'm':
-    case 'M':
-      ACTIONS.mirror!();
-      return;
-    case 'r':
-    case 'R':
-      ACTIONS.grid!();
       return;
   }
 
@@ -1818,8 +1825,6 @@ document.addEventListener('keydown', (event) => {
     }
   }
 
-  const item = items.find((candidate) => candidate.key === key);
-  if (item) select(item.def.id);
 });
 
 /* ---- Méret és fonal (PQW-859) ---- */
@@ -2001,5 +2006,22 @@ function rememberLanguage(language: UiLanguage): void {
     localStorage.setItem(LANG_KEY, language);
   } catch {
     // A nyelv enélkül is átáll, csak a következő megnyitáskor nem marad meg.
+  }
+}
+
+/*
+ * A módosító neve a rendszer szerint (PQW-911): a Macen nincs „Alt” feliratú
+ * billentyű, ott ez az Option (⌥). A billentyűkezelés ettől nem változik, csak
+ * amit a felhasználó olvas: a tooltipek és a „Billentyűk” lista jelölései.
+ * A szótár mindenhol „Alt”-ot ír, itt cseréljük egyszer, a behelyettesítés után.
+ */
+function showModifierNames(): void {
+  const name = modifierName(currentPlatform());
+  if (name === 'Alt') return;
+  for (const element of document.querySelectorAll<HTMLElement>('[data-tip*="Alt+"]')) {
+    element.dataset['tip'] = element.dataset['tip']!.replaceAll('Alt+', name);
+  }
+  for (const key of document.querySelectorAll('kbd')) {
+    if (key.textContent === 'Alt') key.textContent = name;
   }
 }

@@ -24,8 +24,6 @@ export interface ChartLabels {
   readonly repeat: (spec: RepeatSpec | undefined) => string | null;
   /** A jelmagyarázat megjegyzése a feliratokról. */
   readonly note: string;
-  /** A darab körüli szegély felirata sorszám helyett (PQW-897). */
-  readonly border: string;
 }
 
 /**
@@ -37,7 +35,6 @@ export function chartLabels(tradition: Tradition): ChartLabels {
   const chart = texts().sections.chart;
   if (tradition === 'japanese') {
     return {
-      border: '縁編み',
       layer: (index) => String(index),
       count: (stitches) => `${stitches}目`,
       repeat: (spec) => (spec ? `${spec.repeatWidth}目1模様` : null),
@@ -45,7 +42,6 @@ export function chartLabels(tradition: Tradition): ChartLabels {
     };
   }
   return {
-    border: chart.border,
     layer: (index) => String(index),
     count: (stitches) => `(${stitches})`,
     repeat: () => null,

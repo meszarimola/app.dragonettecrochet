@@ -71,16 +71,21 @@ export interface LayerInfo extends Layer {
   /** A következő réteg horgolható pozíciói a réteg fonalsorrendjében; a számító fordulólánc teteje elöl. */
   readonly positions: readonly NodeId[];
   /**
-   * A darab körüli szegély (PQW-889): a réteg sorvégekbe is horgol. Zárt
-   * körként számol; az ellenőrzése, a rajza és az írott mintája külön
-   * készül (border.ts).
-   */
-  readonly border: boolean;
-  /**
    * A láncalap láncszemei, amelyeknek a másik oldalába is horgol az 1. kör (az
    * ovális kezdés, 04 §3.4, PQW-890), fonalsorrendben; csak a 0. rétegen, máskor üres.
    */
   readonly undersides: readonly NodeId[];
+}
+
+/**
+ * Egy sor két széle: az eleje a fordulólánc teteje (ennek híján az első
+ * pozíció), a vége az utolsó pozíció. A ruhadarabok sorvégi varrásához kell
+ * (amigurumi.ts `sewnEdge`, PQW-866).
+ */
+export function rowEdges(layer: LayerInfo): { readonly start: NodeId; readonly end: NodeId } | null {
+  const start = layer.turningChain[layer.turningChain.length - 1] ?? layer.positions[0];
+  const end = layer.positions[layer.positions.length - 1];
+  return start === undefined || end === undefined ? null : { start, end };
 }
 
 export interface PieceGraph {
@@ -205,15 +210,9 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
   segments.forEach((segment, i) => {
     for (const node of segment) segmentOf.set(node.id, i + 1);
   });
-  // A szegély (PQW-889) a darab köré horgol, nem a sor fölé: attól, hogy a szegély belehorgol egy
-  // láncszembe (pl. a láncos hosszabbításéba), a sor szemszáma nem változik (PQW-902).
-  const borderSegments = new Set(
-    segments.flatMap((segment, i) => (segment.some((node) => node.anchors.some((anchor) => anchor.into === 'row-end')) ? [i + 1] : [])),
-  );
   const workedInto = new Set<NodeId>();
   for (const node of stitches) {
     const layer = segmentOf.get(node.id) ?? 0;
-    if (borderSegments.has(layer)) continue;
     for (const anchor of node.anchors) {
       const targets = anchor.into === 'stitch' || anchor.into === 'underside' ? [anchor.id] : anchor.into === 'space' ? (spaces.get(anchor.id)?.chains ?? []) : [];
       for (const target of targets) if ((segmentOf.get(target) ?? 0) < layer) workedInto.add(target);
@@ -247,7 +246,6 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     firstStitch: null,
     direction: 1,
     positions: foundationIds,
-    border: false,
     undersides: foundationIds.filter((id) => undersideTargets.has(id)),
   });
   for (const id of foundationIds) layerOf.set(id, 0);
@@ -296,11 +294,8 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     const joined = closing?.kind === 'join-slip' || (closing?.kind === 'fasten-off' && closing.resume !== undefined);
     const joinSlip = joined && kindOf(last) === 'slip' ? last.id : null;
 
-    // A szegély a sorvégekbe is horgol, és kúszószemmel záródik: a darab körüli kör (PQW-889).
-    const border = segment.some((node) => node.anchors.some((anchor) => anchor.into === 'row-end'));
     let shape: Layer['shape'];
-    if (border) shape = 'round';
-    else if (opening === null) shape = roundStart ? 'round' : 'row';
+    if (opening === null) shape = roundStart ? 'round' : 'row';
     else if (opening.kind === 'turn') shape = 'row';
     else if (opening.kind === 'fasten-off') shape = previous.shape;
     else shape = 'round';
@@ -312,8 +307,7 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       (opening?.kind === 'turn' || resume !== undefined) && !resumedRound ? (previous.side === 'right' ? 'wrong' : 'right') : previous.side;
 
     let direction: 1 | -1;
-    if (border) direction = 1;
-    else if (index === 1) direction = foundation === 'chain' && !roundStart ? -1 : 1;
+    if (index === 1) direction = foundation === 'chain' && !roundStart ? -1 : 1;
     else direction = (opening?.kind === 'turn' || resume !== undefined) && !resumedRound ? -1 : 1;
 
     let turningChainCounts = false;
@@ -392,7 +386,6 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       firstStitch,
       direction,
       positions,
-      border,
       undersides: [],
     });
   });

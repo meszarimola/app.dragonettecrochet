@@ -151,8 +151,6 @@ export interface SectionTexts {
     readonly unitFrame: string;
     readonly spike: string;
     readonly mirror: string;
-    /** A darab körüli szegély felirata sorszám helyett (PQW-897). */
-    readonly border: string;
     /** A sorszám és a szemszám megjegyzése hagyományonként. */
     readonly cycNote: string;
     readonly japaneseNote: string;
@@ -311,7 +309,6 @@ const hu: SectionTexts = {
     unitFrame: 'Szaggatott keret: az ismétlő egység.',
     spike: 'Pötty a szár végén: a lejjebb, a kihagyott szembe horgolt szem.',
     mirror: 'Tükrözött nézet balkezeseknek.',
-    border: 'szegély',
     cycNote: 'A sorszám a sor kezdő oldalán áll, zárójelben a szemszám.',
     japaneseNote: 'A sorszám a sor kezdő oldalán áll, a végén a szemszám: 18目 = 18 szem; 11目1模様 = 11 szemenként ismétlődő minta.',
   },
@@ -469,7 +466,6 @@ const en: SectionTexts = {
     unitFrame: 'Dashed frame: the repeat unit.',
     spike: 'Dot at the foot of the stem: a spike stitch worked lower, into the skipped stitch.',
     mirror: 'Mirrored view for left-handed crocheters.',
-    border: 'border',
     cycNote: 'The row number is at the starting side of the row, the stitch count in brackets.',
     japaneseNote: 'The row number is at the starting side of the row, the stitch count at the end: 18目 = 18 stitches; 11目1模様 = a pattern repeating every 11 stitches.',
   },
