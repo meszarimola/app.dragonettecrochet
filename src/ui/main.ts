@@ -703,6 +703,10 @@ function setWrittenOpen(open: boolean): void {
  * típusválasztáskor maga nyitja ki.
  */
 function readWrittenOpen(): boolean {
+  // Üres mintán a panel akkor sem nyílik ki, ha a tárolt állapot „nyitva”
+  // (PQW-915): üresen úgyis csak annyit írna ki, hogy nincs mit kiírni. A
+  // PQW-911 csak az alapértelmezést állította csukottra, a tárolt állapotot nem.
+  if ((history.present.pieces[0]?.stitches.length ?? 0) === 0) return false;
   try {
     const stored = localStorage.getItem(WRITTEN_KEY);
     if (stored !== null) return stored !== 'zarva';
@@ -1317,6 +1321,12 @@ const ACTIONS: Record<string, () => void> = {
     // A profilok a horgolóhoz tartoznak, nem a mintához: az új mintába is átkerülnek (PQW-859).
     const gauge = history.present.gauge;
     commit({ ok: true, pattern: { ...emptyPattern(), ...(gauge ? { gauge } : {}) } }, texts().messages.work.newPattern);
+    /*
+     * Az új minta üres, ezért a panel csukódjon (PQW-915). A tárolt állapotot
+     * szándékosan NEM írjuk át: ha a felhasználó legközelebb kinyitja, a
+     * választása megmarad. A `setOpen` csak a láthatóságot állítja.
+     */
+    setOpen(written, writtenToggle, false);
     fitBoard();
   },
   unpin: () => selectedNode && commit(setPinned(history.present, selectedNode, null), texts().messages.work.unpinned),
@@ -1706,7 +1716,20 @@ function moveFocus(move: FocusMove, extend: boolean): void {
 document.addEventListener('keydown', (event) => {
   const target = event.target as HTMLElement;
   // A nyitott párbeszédablak a saját gombjaival és az Esc-kel dolgozik.
-  if (target.closest('input, textarea, select, dialog')) return;
+  /*
+   * A szövegmezőkben a böngésző alapértelmezése az úr (PQW-911) — egyetlen
+   * kivétellel: a láncszemszám mezőjében az Enter horgol (PQW-915). A
+   * jelkészlet súgója ezt ígéri („Enterrel vagy a vászonra kattintva
+   * horgolod”), és enélkül a billentyűzetes használat megszakad: a felhasználó
+   * beírja a számot, megnyomja az Entert, és nem történik semmi.
+   */
+  const chainCountEnter = target === countInput && event.key === 'Enter' && !event.ctrlKey && !event.metaKey && !event.altKey;
+  if (target.closest('input, textarea, select, dialog') && !chainCountEnter) return;
+  if (chainCountEnter) {
+    event.preventDefault();
+    void workAtCursor();
+    return;
+  }
   const key = event.key;
 
   // A nyitott hibalistát az Escape először bezárja, és a fókuszt visszaviszi a gombra.
