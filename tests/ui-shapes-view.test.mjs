@@ -71,6 +71,9 @@ describe('a mezők a formához', () => {
       border: true,
       hdcRowEnd: false,
       borderRepeat: false,
+      // Bordás szegély a felső élen; szegély nélkül választható (PQW-909).
+      ribbing: true,
+      ribbingFields: false,
     });
     assert.equal(shapeFieldState(options({ measure: 'angle' })).height, true);
   });

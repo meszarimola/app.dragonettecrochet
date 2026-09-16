@@ -19,7 +19,7 @@
 import { amigurumiFindings } from './amigurumi.ts';
 import { BORDER_CORNER, DEFAULT_BORDER, borderSteps } from './border.ts';
 import { buildPieceGraph, spacePositions, type LayerInfo, type PieceGraph } from './graph.ts';
-import { modeAsWorked } from './insertion.ts';
+import { isPostMode, modeAsWorked } from './insertion.ts';
 import { MAX_CARRIED_COLORS } from './pixel-chart.ts';
 import { roundFindings } from './rounds.ts';
 import { RULES, type RuleId } from './rules.ts';
@@ -484,7 +484,13 @@ function checkCountsAndChains(pattern: Pattern, graph: PieceGraph, index: number
     } else {
       const startsWithChain =
         layer.opening?.kind === 'turn' || layer.opening?.kind === 'join-slip' || (index === 1 && below.shape === 'round');
-      if (startsWithChain && layer.turningChain.length !== expected) {
+      // A relief szem alacsonyabb az alapszeménél, és a fordulólánc nem állhat a helyén: a bordás sor ezért
+      // egy láncszemmel rövidebb fordulólánccal kezdődik, pálcánál 2 lsz-szel (01 §2.2 [S25], §4.3, PQW-909).
+      const post = layer.stitches.some((id) =>
+        graph.nodes.get(id)!.anchors.some((anchor) => anchor.into === 'stitch' && isPostMode(anchor.mode)),
+      );
+      const fits = layer.turningChain.length === expected || (post && layer.turningChain.length === expected - 1);
+      if (startsWithChain && !fits) {
         report('turning-chain-height', layer.turningChain.length > 0 ? layer.turningChain : [firstStitch]);
       }
     }
