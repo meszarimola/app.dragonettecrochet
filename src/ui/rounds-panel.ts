@@ -10,6 +10,7 @@
 
 import { generateMotif, motifIncreases, motifProblem, type MotifOptions } from '../core/round-generator.js';
 import type { Pattern } from '../core/types.js';
+import { amigurumiCoreText } from './i18n/core/amigurumi.js';
 import {
   CLOSING_CHOICES,
   JOG_CHOICES,
@@ -104,7 +105,8 @@ export class RoundsPanel {
     const chainStart = this.#start.querySelector<HTMLOptionElement>('option[value="chain"]');
     if (chainStart) chainStart.disabled = !state.chainStart;
 
-    const text = motifProblem(options) ?? increaseNote(motifIncreases(this.#pattern, options), options);
+    const problem = motifProblem(options);
+    const text = problem ? amigurumiCoreText(problem) : increaseNote(motifIncreases(this.#pattern, options), options);
     if (text !== this.#shown) {
       this.#note.textContent = text;
       this.#shown = text;
@@ -116,7 +118,7 @@ export class RoundsPanel {
     const options = this.#options();
     const result = generateMotif(this.#pattern, options);
     if (!result.ok) {
-      this.#host.announce(result.reason);
+      this.#host.announce(amigurumiCoreText(result.reason));
       return;
     }
     this.#host.commit(result.pattern, generatedMessage(options));

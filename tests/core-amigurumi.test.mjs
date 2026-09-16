@@ -34,6 +34,8 @@ import { readPattern } from '../src/core/pattern-read.ts';
 import { formatWrittenPattern, writePattern } from '../src/core/pattern-text.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
 import { validatePattern } from '../src/core/validate.ts';
+import { AMIGURUMI_CORE_TEXTS } from '../src/ui/i18n/core/amigurumi.ts';
+import { renderCoreText } from '../src/ui/i18n/core/render.ts';
 
 /** A 04 §4.4 mintasűrűsége: DK pamut, 3,5 mm-es tű; az 5 körös rövidpálcás kör 5 cm. */
 const DK = { stitchesPerCm: 1.9, roundsPerCm: 2, source: 'measured', hookMm: 3.5 };
@@ -53,13 +55,17 @@ function withRoundGauge(stitchesPer10cm, rowsPer10cm, pattern = emptyPattern()) 
 
 const dkPattern = () => withRoundGauge(19, 20);
 
+/** A mag kódot és adatot ad (PQW-904); a magyar mondat a felület szótárából jön. */
+const hu = (message) => renderCoreText(AMIGURUMI_CORE_TEXTS.hu, message);
+const why = (result) => (result.ok ? '' : typeof result.reason === 'string' ? result.reason : hu(result.reason));
+
 const plan = (shape, gauge = DK) => {
   const result = shapeSchedule(shape, gauge);
-  assert.ok(result.ok, result.reason);
+  assert.ok(result.ok, why(result));
   return result.schedule;
 };
 const ok = (result) => {
-  assert.ok(result.ok, result.reason);
+  assert.ok(result.ok, why(result));
   return result.pattern;
 };
 const part = (shape, patch = {}) => ({ name: '', shape, stagger: true, eyes: false, ...patch });
@@ -189,7 +195,7 @@ describe('formák (04 §4.1–§4.6, §9.3)', () => {
     assert.equal(plan(shape).start, 'open');
     const result = createAmigurumi(dkPattern(), part(shape), false);
     assert.equal(result.ok, false);
-    assert.match(result.reason, /csak folytatólagosan/);
+    assert.equal(result.reason.code, 'open-start-piece');
   });
 
   test('kúp a magasságból: a csúcstól s-ről egyenletesen az alapig', () => {
@@ -244,10 +250,14 @@ describe('formák (04 §4.1–§4.6, §9.3)', () => {
 
   test('hibás adatnál érthető üzenet, túl nagy formánál a körszám korlátja', () => {
     const reason = (shape) => shapeSchedule(shape, DK).reason;
-    assert.equal(reason({ ...SPHERE_6N, diameterCm: Number.NaN }), 'Az átmérő 0 és 100 cm közötti szám lehet.');
-    assert.match(reason({ kind: 'cone', diameterCm: 5, heightCm: 5, increases: 20, top: 'open' }), /szaporítás 0 és 12/);
-    assert.match(reason({ kind: 'revolution', profile: [{ radiusCm: 1, heightCm: 0 }], bottom: 'closed', top: 'open' }), /legalább két pont/);
-    assert.match(reason({ ...SPHERE_6N, diameterCm: 60 }), /legfeljebb 120 kör/);
+    // A mag kódot és adatot ad; a mezőnév és a névelő a szótáré (PQW-904).
+    assert.deepEqual(reason({ ...SPHERE_6N, diameterCm: Number.NaN }), { code: 'size-range', data: { field: 'diameter', max: 100 } });
+    assert.equal(hu(reason({ ...SPHERE_6N, diameterCm: Number.NaN })), 'Az átmérő 0 és 100 cm közötti szám lehet.');
+    assert.equal(reason({ kind: 'cone', diameterCm: 5, heightCm: 5, increases: 20, top: 'open' }).code, 'cone-increases-range');
+    assert.match(hu(reason({ kind: 'cone', diameterCm: 5, heightCm: 5, increases: 20, top: 'open' })), /szaporítás 0 és 12/);
+    assert.equal(reason({ kind: 'revolution', profile: [{ radiusCm: 1, heightCm: 0 }], bottom: 'closed', top: 'open' }).code, 'profile-points');
+    assert.equal(reason({ ...SPHERE_6N, diameterCm: 60 }).code, 'too-many-rounds');
+    assert.match(hu(reason({ ...SPHERE_6N, diameterCm: 60 })), /legfeljebb 120 kör/);
   });
 
   test('minden forma hibátlan mintát ad, eltolással és anélkül, becsült és mért mintasűrűséggel', () => {
@@ -370,7 +380,8 @@ describe('részek összekapcsolása (04 §5.4)', () => {
     const body = { ...BODY, diameterCm: 4.5 };
     const refused = headAndBody({ method: 'sewn', distribute: false }, body);
     assert.equal(refused.ok, false);
-    assert.equal(refused.reason, 'Az új rész 15. körén 27 szem van, az előző rész 15. körén 24. Kapcsold be az egyenletes elosztást, vagy igazítsd a méretet.');
+    assert.equal(refused.reason.code, 'sewn-count-differs');
+    assert.equal(hu(refused.reason), 'Az új rész 15. körén 27 szem van, az előző rész 15. körén 24. Kapcsold be az egyenletes elosztást, vagy igazítsd a méretet.');
 
     const pattern = ok(headAndBody({ method: 'sewn', distribute: true }, body));
     assert.deepEqual(pattern.joins[0].distribution, evenDistribution(27, 24));
@@ -394,9 +405,11 @@ describe('részek összekapcsolása (04 §5.4)', () => {
     assert.deepEqual(evenDistribution(18, 24), [2, 1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1].map((n, i) => spread(24, 18)[i]));
     assert.equal(evenDistribution(24, 18).reduce((sum, n) => sum + n, 0), 24);
     assert.equal(distributionProblem(30, 30, undefined), null);
-    assert.match(distributionProblem(30, 24, undefined), /eltér \(30 és 24 szem\)/);
+    assert.equal(distributionProblem(30, 24, undefined).code, 'join-count-differs');
+    assert.match(hu(distributionProblem(30, 24, undefined)), /eltér \(30 és 24 szem\)/);
     assert.equal(distributionProblem(24, 30, evenDistribution(24, 30)), null);
-    assert.match(distributionProblem(24, 30, [1, 1]), /nem illik/);
+    assert.equal(distributionProblem(24, 30, [1, 1]).code, 'distribution-mismatch');
+    assert.match(hu(distributionProblem(24, 30, [1, 1])), /nem illik/);
   });
 
   test('folytatólagosan: az új rész az előző nyitott végébe horgol, egy darab két résszel, hibátlanul', () => {
@@ -424,15 +437,19 @@ describe('részek összekapcsolása (04 §5.4)', () => {
     const head = ok(createAmigurumi(dkPattern(), part({ kind: 'hemisphere', diameterCm: 6, method: '6n', top: 'open' }), false));
     const narrow = { kind: 'cylinder', diameterCm: 5, heightCm: 3, bottom: 'open', top: 'closed' };
     const refused = addAmigurumiPart(head, part(narrow), { method: 'continuous', distribute: false }, false);
-    assert.equal(refused.reason, 'Az előző rész utolsó köre 36 szem, az új rész első köre 30 szem. Kapcsold be az egyenletes elosztást, vagy igazítsd a méretet.');
+    assert.equal(refused.reason.code, 'continuous-count-differs');
+    assert.equal(hu(refused.reason), 'Az előző rész utolsó köre 36 szem, az új rész első köre 30 szem. Kapcsold be az egyenletes elosztást, vagy igazítsd a méretet.');
     const pattern = ok(addAmigurumiPart(head, part(narrow), { method: 'continuous', distribute: true }, false));
     assert.equal(graphOf(pattern).layers[10].stitchCount, 30);
     assert.deepEqual(rules(pattern), []);
 
     const closedHead = ok(createAmigurumi(dkPattern(), part(SPHERE_6N), false));
-    assert.match(addAmigurumiPart(closedHead, part(narrow), { method: 'continuous', distribute: true }, false).reason, /nyitott végű részhez/);
-    assert.match(addAmigurumiPart(head, part(BODY), { method: 'continuous', distribute: true }, false).reason, /nyitott kezdésű/);
-    assert.match(addAmigurumiPart(emptyPattern(), part(BODY), { method: 'sewn', distribute: true }, false).reason, /Előbb hozz létre/);
+    assert.equal(addAmigurumiPart(closedHead, part(narrow), { method: 'continuous', distribute: true }, false).reason.code, 'continuous-closed-end');
+    assert.equal(addAmigurumiPart(head, part(BODY), { method: 'continuous', distribute: true }, false).reason.code, 'continuous-needs-open-start');
+    const first = addAmigurumiPart(emptyPattern(), part(BODY), { method: 'sewn', distribute: true }, false);
+    assert.equal(first.reason.code, 'no-previous-piece');
+    // A gomb neve a felületé: a mondatba a szótárból kerül (PQW-904).
+    assert.match(hu(first.reason), /^Előbb hozz létre egy részt az „Új minta ebből” gombbal/);
   });
 });
 

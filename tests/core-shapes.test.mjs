@@ -19,6 +19,7 @@ import {
   DEFAULT_SHAPE,
   FLAT_SHAPES,
   MAX_EDGE_CHANGE,
+  MAX_SHAPE_CM,
   SHAPE_STITCHES,
   generateShape,
   planShape,
@@ -45,14 +46,16 @@ function withRowGauge(stitch, stitchesPer10cm, rowsPer10cm, pattern = emptyPatte
 
 const japanese = () => ({ ...emptyPattern(), conventions: withTradition(emptyPattern().conventions, 'japanese') });
 
+/** A mag kódot és adatot ad az indokra (PQW-904); a hibaüzenethez ez elég. */
+const why = (result) => (result.ok ? '' : JSON.stringify(result.reason));
 const shape = (pattern, patch) => {
   const result = generateShape(pattern, { ...DEFAULT_SHAPE, ...patch });
-  assert.ok(result.ok, result.reason);
+  assert.ok(result.ok, why(result));
   return result;
 };
 const plan = (pattern, patch) => {
   const result = planShape(pattern, { ...DEFAULT_SHAPE, ...patch });
-  assert.ok(result.ok, result.reason);
+  assert.ok(result.ok, why(result));
   return result.plan;
 };
 const changes = (counts) => counts.slice(1).map((count, i) => count - counts[i]);
@@ -217,16 +220,17 @@ describe('ferde él (03 §3.2, §3.4; 05 §4.4)', () => {
     assert.deepEqual(findings(pattern), []);
   });
 
-  test('ami nem horgolható, arra érthető ok jön', () => {
+  test('ami nem horgolható, arra érthető kód és adat jön (PQW-904)', () => {
     const refuse = (patch) => {
       const result = planShape(emptyPattern(), { ...DEFAULT_SHAPE, ...patch });
       assert.equal(result.ok, false);
       return result.reason;
     };
-    assert.match(refuse({ shape: 'right-triangle', stitch: 'tr', widthCm: 30, heightCm: 4 }), /meredek/);
-    assert.match(refuse({ widthCm: 0.2 }), /legalább/);
-    assert.match(refuse({ shape: 'diamond', heightCm: 0.5 }), /legalább 3 sor/);
-    assert.match(refuse({ shape: 'trapezoid', widthCm: 10, topWidthCm: 10, measure: 'angle' }), /két éle egyforma/);
+    assert.equal(refuse({ shape: 'right-triangle', stitch: 'tr', widthCm: 30, heightCm: 4 }).code, 'shape-too-steep');
+    assert.equal(refuse({ widthCm: 0.2 }).code, 'shape-too-narrow');
+    // A sorok száma az adatba kerül: a rombuszhoz legalább 3 sor kell.
+    assert.deepEqual(refuse({ shape: 'diamond', heightCm: 0.5 }), { code: 'shape-min-rows', data: { rows: 3 } });
+    assert.equal(refuse({ shape: 'trapezoid', widthCm: 10, topWidthCm: 10, measure: 'angle' }).code, 'shape-trapezoid-equal-edges');
   });
 });
 
@@ -288,7 +292,7 @@ describe('szegély (03 §7.1 H)', () => {
     const graph = buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));
     assert.ok(borderOf(graph, { stitch: 'sc', hdcRowEnd: 2 }).ok);
     const steep = planShape(emptyPattern(), { ...DEFAULT_SHAPE, shape: 'diamond', stitch: 'sc', widthCm: 20, heightCm: 4, border: { stitch: 'sc', hdcRowEnd: 2 } });
-    assert.ok(steep.ok, steep.reason);
+    assert.ok(steep.ok, why(steep));
     assert.ok(steep.plan.chainExtensionRows.length > 0);
     assert.ok(steep.plan.border.total > 0);
   });
@@ -296,13 +300,19 @@ describe('szegély (03 §7.1 H)', () => {
 
 describe('a választások ellenőrzése', () => {
   test('mintaismétlés most csak téglalapnál, szegély minden formánál; a méret, a szög és a szegélysor ismétlése tartományban', () => {
-    assert.match(shapeProblem({ ...DEFAULT_SHAPE, shape: 'diamond', repeat: { width: 4, edge: 1 } }), /csak téglalapnál/);
+    assert.equal(shapeProblem({ ...DEFAULT_SHAPE, shape: 'diamond', repeat: { width: 4, edge: 1 } }).code, 'shape-repeat-rectangle-only');
     assert.equal(shapeProblem({ ...DEFAULT_SHAPE, shape: 'trapezoid', border: { stitch: 'sc', hdcRowEnd: 2 } }), null);
-    assert.match(shapeProblem({ ...DEFAULT_SHAPE, shape: 'trapezoid', border: { stitch: 'sc', hdcRowEnd: 2, repeat: { width: 0, edge: 0 } } }), /szegélysor/);
-    assert.match(shapeProblem({ ...DEFAULT_SHAPE, widthCm: Number.NaN }), /szélesség/);
-    assert.match(shapeProblem({ ...DEFAULT_SHAPE, shape: 'isosceles-triangle', measure: 'angle', angleDeg: 90 }), /szöge/);
-    assert.match(shapeProblem({ ...DEFAULT_SHAPE, repeat: { width: 0, edge: 1 } }), /ismétlés/);
-    assert.match(shapeProblem({ ...DEFAULT_SHAPE, stitch: 'sc2tog' }), /alapszemet/);
+    assert.equal(
+      shapeProblem({ ...DEFAULT_SHAPE, shape: 'trapezoid', border: { stitch: 'sc', hdcRowEnd: 2, repeat: { width: 0, edge: 0 } } }).code,
+      'shape-border-repeat-width-range',
+    );
+    // A határ az adatba kerül, nem a mondatba (PQW-904).
+    assert.deepEqual(shapeProblem({ ...DEFAULT_SHAPE, widthCm: Number.NaN }), { code: 'shape-width-range', data: { max: MAX_SHAPE_CM } });
+    assert.equal(shapeProblem({ ...DEFAULT_SHAPE, shape: 'isosceles-triangle', measure: 'angle', angleDeg: 90 }).code, 'shape-angle-range');
+    assert.equal(shapeProblem({ ...DEFAULT_SHAPE, repeat: { width: 0, edge: 1 } }).code, 'shape-repeat-width-range');
+    assert.equal(shapeProblem({ ...DEFAULT_SHAPE, stitch: 'sc2tog' }).code, 'shape-basic-stitch-only');
+    // A szegély kódja a szegélyé: arra az írott minta hibája is hivatkozik.
+    assert.equal(shapeProblem({ ...DEFAULT_SHAPE, border: { stitch: 'hdc', hdcRowEnd: 2 } }).code, 'border-single-crochet-only');
     assert.equal(shapeProblem(DEFAULT_SHAPE), null);
   });
 });
@@ -324,7 +334,8 @@ describe('minden generált minta hibátlan, kiírható és visszaolvasható', ()
             const name = `${stitch} ${widthCm} × ${heightCm}`;
             const result = generateShape(base(), { ...DEFAULT_SHAPE, shape: flat, stitch, widthCm, heightCm, topWidthCm: widthCm / 3 });
             if (!result.ok) {
-              assert.match(result.reason, /meredek|legalább|keskeny/, `${name}: ${result.reason}`);
+              const expected = ['shape-too-steep', 'shape-min-rows', 'shape-too-narrow', 'shape-row-too-narrow'];
+              assert.ok(expected.includes(result.reason.code), `${name}: ${why(result)}`);
               continue;
             }
             const { pattern, plan } = result;

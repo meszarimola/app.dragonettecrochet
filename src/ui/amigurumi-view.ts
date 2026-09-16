@@ -21,6 +21,7 @@ import {
 import { resolveStitch } from '../core/stitch-variants.ts';
 import type { OvalStitch, Pattern, PieceEnd, ProfilePoint, ShapeSpec, SphereMethod } from '../core/types.ts';
 import { texts } from './i18n.ts';
+import { amigurumiCoreText } from './i18n/core/amigurumi.ts';
 import type { Choice } from './rounds-view.ts';
 import { formatNumber } from './size-view.ts';
 import { termsLocale } from './notation.ts';
@@ -206,6 +207,15 @@ export function partOf(form: AmigurumiForm): PartOptions | string {
   return { name: form.name, shape, stagger: form.stagger, eyes: form.eyes };
 }
 
+/**
+ * A rész neve a felületen: a megadott név, enélkül a forma neve a felület
+ * nyelvén. A mentett mintába a mag magyar neve kerül (`partName`,
+ * `SHAPE_NAMES`), mert az a minta címének és a darab nevének a része.
+ */
+export function partLabel(part: PartOptions): string {
+  return part.name.trim() || texts().panels.amigurumi.names[part.shape.kind];
+}
+
 /** Az egymás utáni azonos görbületű körök: „1–6. kör lapos”. */
 export function curvatureRuns(diagnoses: readonly RoundDiagnosis[]): { from: number; to: number; curvature: Curvature }[] {
   const runs: { from: number; to: number; curvature: Curvature }[] = [];
@@ -250,7 +260,7 @@ export function previewNote(form: AmigurumiForm, gauge: RoundGauge, gaugeOf: (sh
   if (typeof shape === 'string') return shape;
   const own = gaugeOf(shape);
   const planned = shapeSchedule(shape, own);
-  return planned.ok ? scheduleSummary(planned.schedule, own) : planned.reason;
+  return planned.ok ? scheduleSummary(planned.schedule, own) : amigurumiCoreText(planned.reason);
 }
 
 /** Honnan jön a körszám és a szaporítás. */

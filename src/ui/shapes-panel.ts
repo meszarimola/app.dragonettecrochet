@@ -21,6 +21,7 @@ import {
   normalizeShape,
   shapeFieldState,
   shapeOutline,
+  shapeReason,
   shapeView,
   widthLabel,
   type Choice,
@@ -156,12 +157,14 @@ export class ShapesPanel {
 
     const planned = planShape(this.#pattern, options);
     const view = planned.ok ? shapeView(planned.plan, options, activeProfile(this.#pattern) !== null) : null;
-    const key = JSON.stringify([planned.ok ? view : planned.reason, planned.ok ? shapeOutline(planned.plan) : null]);
+    // Az indok mondata a felületé (PQW-904): a mag kódot és adatot ad.
+    const reason = planned.ok ? null : shapeReason(planned.reason);
+    const key = JSON.stringify([planned.ok ? view : reason, planned.ok ? shapeOutline(planned.plan) : null]);
     if (key === this.#shown) return;
     this.#shown = key;
 
     if (!planned.ok || !view) {
-      this.#size.textContent = planned.ok ? '' : planned.reason;
+      this.#size.textContent = reason ?? '';
       this.#details.replaceChildren();
       this.#source.textContent = '';
       this.#draw(null);
@@ -209,7 +212,7 @@ export class ShapesPanel {
     const options = this.#options();
     const result = generateShape(this.#pattern, options);
     if (!result.ok) {
-      this.#host.announce(result.reason);
+      this.#host.announce(shapeReason(result.reason));
       return;
     }
     this.#host.commit(result.pattern, generatedMessage(options, result.plan));

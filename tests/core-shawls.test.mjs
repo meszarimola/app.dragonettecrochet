@@ -16,6 +16,8 @@ import { readPattern } from '../src/core/pattern-read.ts';
 import { formatWrittenPattern, writePattern } from '../src/core/pattern-text.ts';
 import {
   DEFAULT_SHAWL,
+  MAX_INTO_ONE,
+  MAX_SHAWL_CM,
   SHAWL_KINDS,
   SHAWL_STITCHES,
   generateShawl,
@@ -43,14 +45,16 @@ function withGauge(stitch, stitchesPer10cm, rowsPer10cm, { blocked = false, form
 
 const japanese = () => ({ ...emptyPattern(), conventions: withTradition(emptyPattern().conventions, 'japanese') });
 const options = (patch) => ({ ...DEFAULT_SHAWL, ...patch });
+/** A mag kódot és adatot ad az indokra (PQW-904); a hibaüzenethez ez elég. */
+const why = (result) => (result.ok ? '' : JSON.stringify(result.reason));
 const shawl = (pattern, patch) => {
   const result = generateShawl(pattern, options(patch));
-  assert.ok(result.ok, result.reason);
+  assert.ok(result.ok, why(result));
   return result;
 };
 const plan = (pattern, patch) => {
   const result = planShawl(pattern, options(patch));
-  assert.ok(result.ok, result.reason);
+  assert.ok(result.ok, why(result));
   return result.plan;
 };
 const changes = (counts) => counts.slice(1).map((count, i) => count - counts[i]);
@@ -274,22 +278,44 @@ describe('téglalap stóla és méret (05 §1.7, §1.8)', () => {
 });
 
 describe('a választások ellenőrzése', () => {
-  test('méret, arány, ismétlés és nyúlás tartományban; érthető ok', () => {
+  test('méret, arány, ismétlés és nyúlás tartományban; érthető kód és adat (PQW-904)', () => {
     assert.equal(shawlProblem(DEFAULT_SHAWL), null);
-    assert.match(shawlProblem(options({ stitch: 'sc2tog' })), /alapszemet/);
-    assert.match(shawlProblem(options({ sizeCm: Number.NaN })), /méret/);
-    assert.match(shawlProblem(options({ kind: 'stole', lengthCm: 0 })), /hossz/);
-    assert.match(shawlProblem(options({ rate: 'custom', customRate: 0 })), /szaporítás/);
-    assert.match(shawlProblem(options({ edging: { width: 0, edge: 1 } })), /ismétlés/);
-    assert.match(shawlProblem(options({ blocking: { widthPct: Number.NaN, heightPct: 5 } })), /nyúlás/);
+    assert.equal(shawlProblem(options({ stitch: 'sc2tog' })).code, 'shawl-basic-stitch-only');
+    assert.deepEqual(shawlProblem(options({ sizeCm: Number.NaN })), { code: 'shawl-size-range', data: { max: MAX_SHAWL_CM } });
+    assert.equal(shawlProblem(options({ kind: 'stole', lengthCm: 0 })).code, 'shawl-length-range');
+    assert.equal(shawlProblem(options({ rate: 'custom', customRate: 0 })).code, 'shawl-rate-range');
+    assert.equal(shawlProblem(options({ edging: { width: 0, edge: 1 } })).code, 'shawl-edging-width-range');
+    assert.equal(shawlProblem(options({ blocking: { widthPct: Number.NaN, heightPct: 5 } })).code, 'shawl-blocking-range');
     const refuse = (patch) => {
       const result = planShawl(emptyPattern(), options(patch));
       assert.equal(result.ok, false);
       return result.reason;
     };
-    assert.match(refuse({ sizeCm: 0.5 }), /legalább 2 sor/);
-    assert.match(refuse({ kind: 'semicircle', rate: 'custom', customRate: 20 }), /legfeljebb 12 szem fér/);
-    assert.match(refuse({ kind: "pi", stitch: "sc", sizeCm: 300 }), /legfeljebb/i);
+    assert.equal(refuse({ sizeCm: 0.5 }).code, 'shawl-min-rows-depth');
+    // A szemszám határa az adatban jön, nem a mondatban.
+    assert.deepEqual(refuse({ kind: 'semicircle', rate: 'custom', customRate: 20 }), {
+      code: 'shawl-first-row-into-one',
+      data: { max: MAX_INTO_ONE },
+    });
+    assert.ok(/^shawl-max-/.test(refuse({ kind: 'pi', stitch: 'sc', sizeCm: 300 }).code), refuse({ kind: 'pi', stitch: 'sc', sizeCm: 300 }).code);
+  });
+
+  test('a sor és a kör szava nincs a magban: az adatban `shape` áll (PQW-904)', () => {
+    // Ahol a mondat sort vagy kört mond, ott a mag a nyers `shape`-et adja, a szó a szótáré.
+    const withShape = ['shawl-min-rows', 'shawl-max-rows', 'shawl-max-stitches'];
+    for (const patch of [
+      { kind: 'circle', stitch: 'sc', sizeCm: 300 },
+      { kind: 'semicircle', stitch: 'sc', sizeCm: 300 },
+      { kind: 'triangle', stitch: 'sc', sizeCm: 0.5 },
+    ]) {
+      const result = planShawl(emptyPattern(), options(patch));
+      assert.equal(result.ok, false);
+      if (withShape.includes(result.reason.code)) {
+        assert.ok(['row', 'round'].includes(result.reason.data.shape), why(result));
+      }
+      // Magyar mondatdarab nem kerülhet a magból jövő üzenetbe.
+      assert.doesNotMatch(JSON.stringify(result.reason), /sor|kör/, why(result));
+    }
   });
 });
 
@@ -308,7 +334,7 @@ describe('minden generált kendő hibátlan, kiírható és visszaolvasható', (
             const name = `${stitch} ${JSON.stringify(patch)}`;
             const result = generateShawl(base(), options({ kind, stitch, lengthCm: 8, ...patch }));
             if (!result.ok) {
-              assert.match(result.reason, /legalább|legfeljebb/i, `${name}: ${result.reason}`);
+              assert.ok(/^(shawl|shape)-(min|max|too|first)/.test(result.reason.code), `${name}: ${why(result)}`);
               continue;
             }
             const { pattern, plan } = result;

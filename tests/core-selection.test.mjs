@@ -28,14 +28,19 @@ import {
 } from '../src/core/selection.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
 import { validatePattern } from '../src/core/validate.ts';
+import { EDITOR_CORE_TEXTS } from '../src/ui/i18n/core/editor.ts';
+import { renderCoreText } from '../src/ui/i18n/core/render.ts';
+
+/** A mag kódot és adatot ad (PQW-904); a magyar mondat a felület szótárából jön. */
+const huText = (reason) => renderCoreText(EDITOR_CORE_TEXTS.hu, reason);
 
 function ok(result) {
-  assert.ok(result.ok, result.reason);
+  assert.ok(result.ok, result.ok ? '' : huText(result.reason));
   return result.pattern;
 }
 
 function copied(result) {
-  assert.ok(result.ok, result.reason);
+  assert.ok(result.ok, result.ok ? '' : huText(result.reason));
   return result.fragment;
 }
 
@@ -178,7 +183,11 @@ describe('törlés', () => {
     const plan = deletionPlan(pattern, [middle]);
     assert.deepEqual(plan.selected, [middle]);
     assert.equal(plan.dependents.length, 2);
-    assert.equal(describeByLayer(pattern, plan.dependents), '2. sor: 1 szem, 3. sor: 1 szem');
+    // A bontás adat, nem mondat (PQW-904): a „2. sor: 1 szem, 3. sor: 1 szem” a felületen készül.
+    assert.deepEqual(describeByLayer(pattern, plan.dependents), [
+      { layer: 2, shape: 'row', count: 1 },
+      { layer: 3, shape: 'row', count: 1 },
+    ]);
 
     const deleted = ok(deleteStitches(pattern, [middle], { withDependents: true }));
     assert.equal(nodes(deleted).length, nodes(pattern).length - 3);
@@ -193,7 +202,8 @@ describe('törlés', () => {
     const before = structuredClone(pattern);
     const result = deleteStitches(pattern, [body(pattern, 1)[2]]);
     assert.equal(result.ok, false);
-    assert.match(result.reason, /még 2 szem horgol \(2\. sor: 1 szem, 3\. sor: 1 szem\)/);
+    assert.equal(result.reason.code, 'has-dependents');
+    assert.match(huText(result.reason), /még 2 szem horgol \(2\. sor: 1 szem, 3\. sor: 1 szem\)/);
     assert.deepEqual(pattern, before);
   });
 
@@ -303,7 +313,8 @@ describe('másolás, beillesztés, duplikálás', () => {
     const before = structuredClone(partial);
     const tooFar = pasteFragment(partial, copied(copySelection(partial, body(partial, 1).slice(1))), 12);
     assert.equal(tooFar.ok, false);
-    assert.match(tooFar.reason, /^Nincs elég célpont: .* A minta nem változott\.$/);
+    assert.equal(tooFar.reason.code, 'paste-not-enough-slots');
+    assert.match(huText(tooFar.reason), /^Nincs elég célpont: .* A minta nem változott\.$/);
     assert.deepEqual(partial, before);
 
     const wide = hdcRectangle(10, 2);
@@ -311,7 +322,8 @@ describe('másolás, beillesztés, duplikálás', () => {
     const narrowBefore = structuredClone(narrow);
     const row = pasteFragment(narrow, copied(copySelection(wide, layerSelection(wide, 2))));
     assert.equal(row.ok, false);
-    assert.match(row.reason, /10 szemre épül, alatta most 8 van: a szemszám nem jön ki/);
+    assert.equal(row.reason.code, 'paste-span-mismatch');
+    assert.match(huText(row.reason), /10 szemre épül, alatta most 8 van: a szemszám nem jön ki/);
     assert.deepEqual(narrow, narrowBefore);
   });
 
@@ -320,26 +332,35 @@ describe('másolás, beillesztés, duplikálás', () => {
     pattern = stitch(pattern, 'hdc', 0);
     pattern = stitch(pattern, 'hdc', 2);
     const fragment = copied(copySelection(pattern, body(pattern, 2).slice(0, 1)));
-    assert.match(pasteFragment(pattern, fragment, 0).reason, /célpontba már horgoltál/);
-    assert.match(pasteFragment(pattern, fragment, 1).reason, /haladási irány ellen/);
+    const used = pasteFragment(pattern, fragment, 0);
+    assert.equal(used.reason.code, 'paste-slot-used');
+    assert.match(huText(used.reason), /célpontba már horgoltál/);
+    const backwards = pasteFragment(pattern, fragment, 1);
+    assert.equal(backwards.reason.code, 'paste-against-direction');
+    assert.match(huText(backwards.reason), /haladási irány ellen/);
     assert.equal(pasteFragment(pattern, fragment, 3).ok, true);
 
     const ring = stitch(chains(ok(work(emptyPattern(), { def: 'magic-ring', count: 1 }, 0)), 1), 'sc', 0);
     const intoRing = copied(copySelection(ring, [nodes(ring).at(-1).id]));
-    assert.match(pasteFragment(ok(endRow(hdcRectangle(3, 1), 'hdc')), intoRing).reason, /célpont szem, a másolt szem viszont varázskörbe horgolt/);
+    const wrongKind = pasteFragment(ok(endRow(hdcRectangle(3, 1), 'hdc')), intoRing);
+    assert.equal(wrongKind.reason.code, 'paste-slot-kind');
+    assert.match(huText(wrongKind.reason), /célpont szem, a másolt szem viszont varázskörbe horgolt/);
   });
 
   test('a nem kijelölt szemekbe horgoló második sor nem másolható', () => {
     const pattern = hdcRectangle(3, 3);
     const result = copySelection(pattern, [body(pattern, 2)[0], ...layerSelection(pattern, 3)]);
     assert.equal(result.ok, false);
-    assert.match(result.reason, /3\. sor olyan szemekbe is horgol, amelyek nincsenek kijelölve/);
+    assert.equal(result.reason.code, 'copy-layer-outside');
+    assert.match(huText(result.reason), /3\. sor olyan szemekbe is horgol, amelyek nincsenek kijelölve/);
   });
 
   test('a láncalap csak üres mintába illeszthető', () => {
     const pattern = hdcRectangle(3, 1);
     const fragment = copied(copySelection(pattern, layerSelection(pattern, 0)));
-    assert.match(pasteFragment(pattern, fragment).reason, /csak üres mintába/);
+    const refused = pasteFragment(pattern, fragment);
+    assert.equal(refused.reason.code, 'foundation-needs-empty');
+    assert.match(huText(refused.reason), /csak üres mintába/);
     assert.deepEqual(counts(ok(pasteFragment(emptyPattern(), fragment))), [0]);
   });
 

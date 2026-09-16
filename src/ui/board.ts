@@ -19,6 +19,7 @@ import type { StitchLibrary } from '../core/stitch-library.js';
 import type { Finding, NodeId, StitchInsertion, Tradition } from '../core/types.js';
 import { chartLabels } from './chart-labels.js';
 import { gridPaths, LINE_WIDTH, type GridPaths } from './grid-paths.js';
+import { gridCoreText } from './i18n/core/grid.js';
 import { applyInk, drawShapes, placedShapes, type SymbolOptions } from './symbols.js';
 
 export interface Target {
@@ -155,7 +156,8 @@ export class Board {
 
   /**
    * A mutató alatti célpont. Bekapcsolt rácson a cella dönt (PQW-874): ahol
-   * nincs mibe horgolni, az üzenet jön vissza. A rácson kívül és rács nélkül
+   * nincs mibe horgolni, az üzenet jön vissza. A mag kódot és adatot ad, a
+   * mondatot itt rakja össze a szótár (PQW-904). A rácson kívül és rács nélkül
    * a legközelebbi célpont.
    */
   aimUnder(clientX: number, clientY: number): number | string | null {
@@ -164,7 +166,7 @@ export class Board {
       const hit = gridHit(grid, this.toChart(clientX, clientY));
       if (hit) {
         const aim = aimAt(grid, hit);
-        return aim.kind === 'target' ? aim.slot : aim.message;
+        return aim.kind === 'target' ? aim.slot : gridCoreText(aim.message);
       }
     }
     return this.targetAt(clientX, clientY);

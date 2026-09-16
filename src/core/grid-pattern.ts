@@ -10,7 +10,7 @@
  */
 
 import { buildPieceGraph } from './graph.ts';
-import { article } from './hungarian.ts';
+import { text, type CoreText } from './messages.ts';
 import { TECHNIQUE_NAMES } from './pixel-chart.ts';
 import { MOTIF_NAMES } from './round-generator.ts';
 import { SHAPE_NAMES } from './shapes.ts';
@@ -19,9 +19,13 @@ import type { Anchor, LayerEvent, NodeId, Pattern, Piece, PieceGrid, Space, Stit
 import { validatePattern } from './validate.ts';
 import { withGeneratedTitle } from './pattern-title.ts';
 
-export type GridResult = { readonly ok: true; readonly pattern: Pattern } | { readonly ok: false; readonly reason: string };
+/** A rácsos generátorok közös hibája: a generált minta megbukott az ellenőrzőn. */
+export type GridPatternCode = 'pattern-invalid';
 
-export const fail = (reason: string): { readonly ok: false; readonly reason: string } => ({ ok: false, reason });
+export type GridResult = { readonly ok: true; readonly pattern: Pattern } | { readonly ok: false; readonly reason: CoreText<GridPatternCode> };
+
+/** Sikertelen eredmény a mag kódjával és adatával; a mondatot a felület állítja össze (PQW-904). */
+export const fail = <Code extends string>(reason: CoreText<Code>): { readonly ok: false; readonly reason: CoreText<Code> } => ({ ok: false, reason });
 
 /** Beszúrás egy szembe vagy láncszembe, mindkét szálba. */
 export const intoStitch = (id: NodeId): Anchor => ({ into: 'stitch', id, mode: 'both-loops' });
@@ -103,12 +107,6 @@ export function finishGridPattern(pattern: Pattern, piece: Piece): GridResult {
   const generated = [...Object.values(SHAPE_NAMES), ...Object.values(MOTIF_NAMES), ...Object.values(TECHNIQUE_NAMES)];
   const result = withGeneratedTitle({ ...pattern, pieces: [piece] }, pattern, piece.name, generated);
   const errors = validatePattern(result, libraryFor(result)).filter((finding) => finding.severity === 'error');
-  if (errors.length > 0) return fail(`A generált minta nem ment át az ellenőrzőn (${errors[0]!.rule}): ez a program hibája, kérlek, jelezd.`);
+  if (errors.length > 0) return fail(text('pattern-invalid', { rule: errors[0]!.rule }));
   return { ok: true, pattern: result };
-}
-
-/** „A 3. sor”, „Az 5. sor”: nagybetűs határozott névelővel. */
-export function rowName(row: number): string {
-  const word = article(row);
-  return `${word.charAt(0).toUpperCase()}${word.slice(1)} ${row}. sor`;
 }

@@ -14,8 +14,9 @@
  *   Graphgan: színenként külön gombolyag, a hátoldalon nem viszed (03 §5.4).
  */
 
-import { fail, finishGridPattern, gridPiece, GridWriter, intoStitch } from './grid-pattern.ts';
-import { TECHNIQUE_NAMES, cellSize, colorChartProblem, type CellSize, type ChartRows } from './pixel-chart.ts';
+import { fail, finishGridPattern, gridPiece, GridWriter, intoStitch, type GridPatternCode } from './grid-pattern.ts';
+import { text, type CoreText } from './messages.ts';
+import { TECHNIQUE_NAMES, cellSize, colorChartProblem, type CellSize, type ChartCode, type ChartRows } from './pixel-chart.ts';
 import { foundationChainLength } from './repeat.ts';
 import { shapeGauge, type ShapeGauge } from './shapes.ts';
 import { resolveStitch } from './stitch-variants.ts';
@@ -46,10 +47,15 @@ export interface ColorworkPlan {
   readonly heightCm: number;
 }
 
-export type ColorworkPlanResult = { readonly ok: true; readonly plan: ColorworkPlan } | { readonly ok: false; readonly reason: string };
+/** A tapestry és a graphgan saját üzenete (PQW-904); a mondat a felületé. */
+export type ColorworkCode = 'colorwork-min-width';
+
+export type ColorworkPlanResult =
+  | { readonly ok: true; readonly plan: ColorworkPlan }
+  | { readonly ok: false; readonly reason: CoreText<ColorworkCode | ChartCode> };
 export type ColorworkResult =
   | { readonly ok: true; readonly pattern: Pattern; readonly plan: ColorworkPlan }
-  | { readonly ok: false; readonly reason: string };
+  | { readonly ok: false; readonly reason: CoreText<ColorworkCode | ChartCode | GridPatternCode> };
 
 export interface ColorworkOptions {
   readonly technique: ColorworkTechnique;
@@ -67,7 +73,7 @@ export function planColorwork(pattern: Pattern, technique: ColorworkTechnique, c
   const tradition = traditionOf(pattern.conventions);
   const counting = turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition, 'row');
   const width = cells[0]!.length;
-  if (counting && width < 2) return fail('Ha a fordulólánc szemnek számít, a sor legalább 2 cella legyen.');
+  if (counting && width < 2) return fail(text('colorwork-min-width'));
 
   const gauge = shapeGauge(pattern, COLORWORK_STITCH);
   const cell = cellSize(technique, gauge);

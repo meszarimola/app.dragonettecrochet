@@ -9,8 +9,10 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import { contextOf, defaultCursor, emptyPattern, endRow, liveCheck, work } from '../src/core/editor.ts';
+import { writtenPieces } from '../src/core/pattern-steps.ts';
 import { writtenView } from '../src/ui/written.ts';
 import { hdcRectangle } from './fixtures/examples.ts';
+import { testLibrary } from './fixtures/library.ts';
 
 const view = (pattern, terms = 'hu') => writtenView(pattern, contextOf(pattern), liveCheck(pattern), terms);
 const fixture = (locale, name) => readFileSync(new URL(`./fixtures/written/${locale}/${name}.txt`, import.meta.url), 'utf8');
@@ -83,7 +85,28 @@ test('amit a szöveg még nem tud kifejezni: érthető üzenet, nem kivétel', (
   };
   const result = view(crossed);
   assert.equal(result.kind, 'message');
-  assert.match(result.message, /^Ez a minta még nem írható ki\. .*keresztezett szem/);
+  // A magyar mondat betűre ugyanaz, mint a PQW-904 előtt: a névelőt, a sor szavát
+  // és a mondatvéget a felületi szótár illeszti össze a mag kódjaiból.
+  assert.equal(result.message, 'Ez a minta még nem írható ki. A(z) 2. sor keresztezett szemet tartalmaz.');
   // A felhasználói üzenetben nincs belső fogalom (PQW-879).
   assert.doesNotMatch(result.message, /réteg|darab/i);
+});
+
+test('a mag kódot és adatot ad, a mondatot a felület rakja össze (PQW-904)', () => {
+  const { pattern, rows } = hdcRectangle({ rows: 2 });
+  const piece = pattern.pieces[0];
+  const crossed = {
+    ...pattern,
+    pieces: [{ ...piece, stitches: piece.stitches.map((node) => (node.id === rows[2][3] ? { ...node, flags: ['crossed'] } : node)) }],
+  };
+  assert.throws(
+    () => writtenPieces(crossed, testLibrary),
+    (error) => {
+      // A sorszám és a sor/kör formája adat, a mondatvég külön kód: magyar mondat nincs a magban.
+      assert.equal(error.code, 'layer-unsupported');
+      assert.deepEqual(error.data, { inner: 'crossed', index: 2, shape: 'row' });
+      assert.deepEqual(error.nodes, [rows[2][3]]);
+      return true;
+    },
+  );
 });

@@ -26,6 +26,11 @@ import {
   yarnByColor,
 } from '../src/core/pixel-chart.ts';
 import { estimate, measured } from '../src/core/quantity.ts';
+import { GRID_CORE_TEXTS } from '../src/ui/i18n/core/grid.ts';
+import { renderCoreText } from '../src/ui/i18n/core/render.ts';
+
+/** A mag kódot és adatot ad; a mondat a felület szótárában készül (PQW-904). */
+const hu = (message) => renderCoreText(GRID_CORE_TEXTS.hu, message);
 
 /** Rács szövegből: soronként alulról felfelé, `#` teli (1), `.` nyitott (0), `?` meg nem adott. */
 const draft = (...lines) =>
@@ -67,7 +72,7 @@ describe('ismétlő egység (tulajdonosi pontosítás, 2026-09-15)', () => {
   test('az első sorok teljesen, a többi csak az ismétlésig: 2 × 2-es egység felismerve', () => {
     const rows = draft('#.??????', '.#??????', '#.#.#.#.', '.#.#.#.#');
     const result = detectUnit(rows);
-    assert.ok(result.ok, result.reason);
+    assert.ok(result.ok, JSON.stringify(result.reason));
     assert.deepEqual(result.unit, { x: 0, y: 0, width: 2, height: 2 });
     assert.ok(hasGaps(rows));
     const full = expandDraft(rows, result.unit, 8, 6);
@@ -80,20 +85,32 @@ describe('ismétlő egység (tulajdonosi pontosítás, 2026-09-15)', () => {
   test('csak vízszintesen ismétlődő sorok: az egység a megadott sorok magassága', () => {
     const rows = draft('##.##.', '#..#..', '.#..#.');
     const result = detectUnit(rows);
-    assert.ok(result.ok, result.reason);
+    assert.ok(result.ok, JSON.stringify(result.reason));
     assert.deepEqual(result.unit, { x: 0, y: 0, width: 3, height: 3 });
   });
 
   test('ismétlődés nélkül és hiányos egységnél érthető ok; a megjelölt egység hibái', () => {
     const none = detectUnit(draft('#..', '.##'));
     assert.equal(none.ok, false);
-    assert.match(none.reason, /Nem találtam ismétlődést/);
+    assert.equal(none.reason.code, 'unit-not-found');
+    assert.match(hu(none.reason), /Nem találtam ismétlődést/);
     assert.equal(detectUnit([]).ok, false);
+    assert.equal(detectUnit([]).reason.code, 'unit-empty-grid');
 
     const rows = draft('?.??', '#.#.', '.#.#');
-    assert.equal(unitProblem(rows, { x: 0, y: 0, width: 2, height: 3 }), 'Az ismétlő egység (2 × 3 cella) nem teljes: add meg a 3. sor 1. celláját.');
-    assert.match(unitProblem(rows, { x: 3, y: 0, width: 2, height: 1 }), /rácson belül/);
-    assert.match(unitProblem(rows, { x: 0, y: 0, width: 0, height: 1 }), /pozitív egész/);
+    // A mag a hiányzó cella helyét adja; a névelő és a mondat a szótáré (PQW-904).
+    assert.deepEqual(unitProblem(rows, { x: 0, y: 0, width: 2, height: 3 }), {
+      code: 'unit-incomplete',
+      data: { width: 2, height: 3, row: 3, cell: 1 },
+    });
+    assert.equal(
+      hu(unitProblem(rows, { x: 0, y: 0, width: 2, height: 3 })),
+      'Az ismétlő egység (2 × 3 cella) nem teljes: add meg a 3. sor 1. celláját.',
+    );
+    assert.equal(unitProblem(rows, { x: 3, y: 0, width: 2, height: 1 }).code, 'unit-outside');
+    assert.match(hu(unitProblem(rows, { x: 3, y: 0, width: 2, height: 1 })), /rácson belül/);
+    assert.equal(unitProblem(rows, { x: 0, y: 0, width: 0, height: 1 }).code, 'unit-size');
+    assert.match(hu(unitProblem(rows, { x: 0, y: 0, width: 0, height: 1 })), /pozitív egész/);
     assert.equal(unitProblem(rows, { x: 0, y: 0, width: 2, height: 2 }), null);
   });
 
@@ -116,8 +133,10 @@ describe('tükrözés, színek, fonal', () => {
     assert.equal(isMirrorSymmetric(asymmetric), false);
     assert.deepEqual(mirrorRows(asymmetric), draft('.##', '..#'));
     assert.equal(mirrorWarning(asymmetric, true, false), null);
-    assert.match(mirrorWarning(symmetric, true, true), /feliratos motívumban a betűk fordítva/);
-    assert.match(mirrorWarning(asymmetric, false, true), /nem szimmetrikus/);
+    assert.deepEqual(mirrorWarning(symmetric, true, true), { code: 'mirror-lettering' });
+    assert.deepEqual(mirrorWarning(asymmetric, false, true), { code: 'mirror-asymmetric' });
+    assert.match(hu(mirrorWarning(symmetric, true, true)), /feliratos motívumban a betűk fordítva/);
+    assert.match(hu(mirrorWarning(asymmetric, false, true)), /nem szimmetrikus/);
     assert.equal(mirrorWarning(symmetric, false, true), null);
   });
 

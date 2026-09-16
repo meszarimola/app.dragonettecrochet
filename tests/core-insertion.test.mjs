@@ -24,9 +24,14 @@ import { duplicateSelection, layerSelection } from '../src/core/selection.ts';
 import { stitchById } from '../src/core/stitches.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
 import { validatePattern } from '../src/core/validate.ts';
+import { EDITOR_CORE_TEXTS } from '../src/ui/i18n/core/editor.ts';
+import { renderCoreText } from '../src/ui/i18n/core/render.ts';
+
+/** A mag kódot és adatot ad (PQW-904); a magyar mondat a felület szótárából jön. */
+const huText = (reason) => renderCoreText(EDITOR_CORE_TEXTS.hu, reason);
 
 function ok(result) {
-  assert.ok(result.ok, result.reason);
+  assert.ok(result.ok, result.ok ? '' : huText(result.reason));
   return result.pattern;
 }
 
@@ -116,7 +121,10 @@ describe('lerakás a választott móddal', () => {
     const at = defaultCursor(pattern, contextOf(pattern), 'sl-st');
     const result = work(pattern, { def: 'sl-st', count: 1, insertion: 'front-post' }, at);
     assert.equal(result.ok, false);
-    assert.equal(result.reason, 'A(z) kúszószem nem horgolható így: első relief. Választható: mindkét szál, első szál, hátsó szál.');
+    // A mag a szem és a módok azonosítóját adja; a mondat a szótárban készül, a szemnév a jelölés nyelvén.
+    assert.equal(result.reason.code, 'insertion-not-allowed');
+    assert.deepEqual(result.reason.data, { stitch: 'sl-st', requested: 'front-post', allowed: ['both-loops', 'front-loop', 'back-loop'] });
+    assert.equal(huText(result.reason), 'A(z) kúszószem nem horgolható így: első relief. Választható: mindkét szál, első szál, hátsó szál.');
     const filled = fillRow(pattern, { def: 'rev-sc', count: 1, insertion: 'back-loop' });
     assert.equal(filled.ok, false);
   });

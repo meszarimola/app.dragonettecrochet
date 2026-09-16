@@ -37,6 +37,8 @@ import {
   withTechnique,
   yarnLines,
 } from '../src/ui/grid-chart-view.ts';
+import { GRID_CORE_TEXTS } from '../src/ui/i18n/core/grid.ts';
+import { renderCoreText } from '../src/ui/i18n/core/render.ts';
 
 /** Rács szövegből, felülről lefelé: `#` teli, `.` nyitott, `-` nincs cella, `?` meg nem adott; számjegy a szín indexe. */
 const SYMBOLS = { '#': 1, '.': 0, '-': -1, '?': null };
@@ -290,5 +292,39 @@ describe('létrehozás, fonal, visszatöltés, keret', () => {
       [0, 0, 0],
       [1, 1, 1],
     ]);
+  });
+});
+
+describe('a magból jövő üzenetek szótára (PQW-904)', () => {
+  /** Minden mezőnév, ami a terület kódjaiban előfordul: így minden szöveg kiírható. */
+  const SAMPLE = { row: 2, cell: 3, color: 1, layer: 1, current: 3, shape: 'row', start: 'chain', width: 2, height: 3, max: 8, rule: 'nyitott-sor' };
+  const render = (entry) => (typeof entry === 'string' ? entry : entry(SAMPLE));
+
+  test('minden kódhoz van magyar és angol szöveg, azonos fajtával; az angol ágban nincs magyar ékezet', () => {
+    const { hu, en } = GRID_CORE_TEXTS;
+    assert.deepEqual(Object.keys(en).sort(), Object.keys(hu).sort());
+    assert.ok(Object.keys(hu).length >= 30, `túl kevés kód: ${Object.keys(hu).length}`);
+    for (const [code, entry] of Object.entries(hu)) {
+      assert.equal(typeof en[code], typeof entry, code);
+      assert.ok(render(entry).length > 0 && render(en[code]).length > 0, code);
+    }
+    const accented = Object.entries(en).filter(([, entry]) => /[áéíóöőúüűÁÉÍÓÖŐÚÜŰ]/.test(render(entry)));
+    assert.deepEqual(accented.map(([code]) => code), []);
+  });
+
+  test('a magyar mondat a mai szöveg: a névelőt, a ragozást és a szín szavát a szótár teszi hozzá', () => {
+    const hu = (message) => renderCoreText(GRID_CORE_TEXTS.hu, message);
+    assert.equal(hu({ code: 'filet-empty-row', data: { row: 1 } }), 'Az 1. sorban nincs cella: a filé minden sora legalább egy cella.');
+    assert.equal(hu({ code: 'mosaic-base-row', data: { color: 0 } }), 'Az 1. sor az alapsor: minden cellája az A szín legyen.');
+    assert.equal(
+      hu({ code: 'aim-other-layer', data: { layer: 0, current: 4, shape: 'round', start: 'ring' } }),
+      'Ez a varázskör egyik helye. Most a 4. kör készül: csak a 3. kör szemeibe horgolhatsz. Nem került le szem.',
+    );
+    assert.equal(
+      hu({ code: 'aim-other-layer', data: { layer: 2, current: 5, shape: 'row' } }),
+      'Ez a 2. sor egyik helye. Most az 5. sor készül: csak a 4. sor szemeibe horgolhatsz. Nem került le szem.',
+    );
+    // Ismeretlen kódnál a felület nem dől el: a kód maga látszik (render.ts).
+    assert.equal(hu({ code: 'nincs-ilyen' }), 'nincs-ilyen');
   });
 });

@@ -16,10 +16,13 @@ import {
   type ShapeMeasure,
   type ShapeOptions,
   type ShapePlan,
+  type ShapeText,
 } from '../core/shapes.ts';
 import { stitchById } from '../core/stitches.ts';
 import type { PieceBorder } from '../core/types.ts';
-import { texts } from './i18n.ts';
+import { texts, uiLanguage } from './i18n.ts';
+import { renderCoreText } from './i18n/core/render.ts';
+import { SHAPE_CORE_TEXTS } from './i18n/core/shape.ts';
 import { formatNumber } from './size-view.ts';
 import { termsLocale } from './notation.ts';
 
@@ -81,6 +84,14 @@ export const HDC_ROW_END_CHOICES: readonly Choice<`${PieceBorder['hdcRowEnd']}`>
     },
   },
 ];
+
+/**
+ * A mag indoka mondattá a felület nyelvén (PQW-904): a mag kódot és adatot ad,
+ * a névelő, a ragozás és a sor/kör szava itt kerül a mondatba.
+ */
+export function shapeReason(reason: ShapeText): string {
+  return renderCoreText(SHAPE_CORE_TEXTS[uiLanguage()], reason);
+}
 
 /** Melyik mező látszik a választott formánál. */
 export interface ShapeFieldState {

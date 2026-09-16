@@ -32,8 +32,15 @@ const C = {
 
 const planned = (patch = {}) => {
   const plan = raglanPlan({ ...C, ...patch }, gauge);
-  assert.equal(typeof plan, 'object', typeof plan === 'string' ? plan : '');
+  // Elutasításnál kód és adat jön a terv helyett (PQW-904).
+  assert.ok(!('code' in plan), 'code' in plan ? plan.code : '');
   return plan;
+};
+/** Az elutasítás kódja. */
+const refused = (patch) => {
+  const plan = raglanPlan({ ...C, ...patch }, gauge);
+  assert.ok('code' in plan, 'a terv elkészült, pedig elutasítást vártunk');
+  return plan.code;
 };
 
 describe('„C” példa: felülről horgolt raglán, mellbőség 96 cm, +8 cm bőség', () => {
@@ -70,7 +77,8 @@ describe('„C” példa: felülről horgolt raglán, mellbőség 96 cm, +8 cm b
 
   test('minden ellenőrzés igaz, és a hiányzó szemekről figyelmeztetés szól', () => {
     assert.deepEqual(plan.checks.filter((check) => !check.ok), []);
-    assert.match(plan.warnings.join(' '), /A sarkok szaporítása 32 szemmel kevesebbet ad a törzsnek/);
+    const warning = plan.warnings.find((item) => item.code === 'raglan-extra-rounds');
+    assert.deepEqual(warning.data, { missing: 32, rounds: 8 });
   });
 
   test('a kész mellbőség a tervezett 104 cm', () => {
@@ -96,7 +104,7 @@ describe('raglán a generátorból, mért mintasűrűséggel', () => {
 
   test('XS-től 2X-ig minden méretre minden ellenőrzés igaz, és a szemszámok nem csökkennek', () => {
     const result = planGarment(withGauge(), { ...options, size: 'M', from: 'XS', to: '2X' });
-    assert.ok(result.ok, result.ok ? '' : result.reason);
+    assert.ok(result.ok, result.ok ? '' : result.reason.code);
     assert.equal(result.plan.checksPassed, result.plan.checksTotal);
     assert.deepEqual(result.plan.monotonic, []);
   });
@@ -106,12 +114,12 @@ describe('raglán a generátorból, mért mintasűrűséggel', () => {
     // méretekhez mélyebb raglán vagy más szabásmód kell.
     const result = planGarment(withGauge(), { ...options, size: '5X', from: '5X', to: '5X' });
     assert.equal(result.ok, false);
-    assert.match(result.reason, /adj meg mélyebb raglánt/);
+    assert.equal(result.reason.code, 'body-short-gauge');
   });
 
   test('a generált raglán hibátlan: vállrész, szétosztás hónaljlánccal, törzs', () => {
     const result = generateGarment(withGauge(), options);
-    assert.ok(result.ok, result.ok ? '' : result.reason);
+    assert.ok(result.ok, result.ok ? '' : result.reason.code);
     const { pattern, plan } = result;
     const base = plan.sizes[plan.base].plan;
     assert.deepEqual(validatePattern(pattern, libraryFor(pattern)), []);
@@ -127,7 +135,7 @@ describe('raglán a generátorból, mért mintasűrűséggel', () => {
 
   test('az írott minta „Méretek” blokkja a raglán számait sorolja', () => {
     const result = generateGarment(withGauge(), options);
-    assert.ok(result.ok, result.ok ? '' : result.reason);
+    assert.ok(result.ok, result.ok ? '' : result.reason.code);
     const text = formatWrittenPattern(writePattern(result.pattern, libraryFor(result.pattern), 'hu'));
     assert.match(text, /Nyak: \d+ \(\d+, \d+\) lsz körbe zárva/);
     assert.match(text, /Raglán: \d+ \(\d+, \d+\) kör, körönként a négy raglánvonal mellett szaporítva/);
@@ -137,24 +145,26 @@ describe('raglán a generátorból, mért mintasűrűséggel', () => {
   test('becsült mintasűrűséggel a nagy méretek elutasítása megmondja a megoldást', () => {
     const result = planGarment(emptyPattern(), options);
     assert.equal(result.ok, false);
-    assert.match(result.reason, /mérd meg a körben horgolt mintasűrűséget/);
+    // Sorozatban a méret azonosítója és az ok kódja utazik együtt.
+    assert.equal(result.reason.code, 'size-problem');
+    assert.equal(result.reason.data.inner, 'body-short-gauge');
   });
 });
 
 describe('a raglán elutasításai', () => {
   test('túl mély raglán: a szakaszok túlnőnek a célon', () => {
-    assert.match(raglanPlan({ ...C, yokeDepthCm: 40 }, gauge), /túl sok szemet ad/);
+    assert.equal(refused({ yokeDepthCm: 40 }), 'yoke-body-many');
   });
 
   test('túl sekély raglán: az ujj nem jön ki a sarkok szaporításából', () => {
-    assert.match(raglanPlan({ ...C, yokeDepthCm: 4 }, gauge), /túl kevés szemet ad az ujjnak|nem férnek el a raglánkörökben/);
+    assert.equal(refused({ yokeDepthCm: 4 }), 'yoke-sleeve-few');
   });
 
   test('15%-nál nagyobb negatív bőséget nem tervez', () => {
-    assert.match(raglanPlan({ ...C, easeCm: -20 }, gauge), /legfeljebb a mellbőség 15%-a/);
+    assert.equal(refused({ easeCm: -20 }), 'negative-ease-bust');
   });
 
   test('a pulóver hossza legyen nagyobb a raglán mélységénél', () => {
-    assert.match(raglanPlan({ ...C, bodyLengthCm: 21 }, gauge), /hossza legyen nagyobb a raglán mélységénél/);
+    assert.equal(refused({ bodyLengthCm: 21 }), 'body-length-yoke');
   });
 });

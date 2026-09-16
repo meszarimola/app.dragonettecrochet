@@ -32,10 +32,16 @@ import { flatIncreases, niceIncreases } from '../src/core/rounds.ts';
 import { libraryFor, resolveStitch } from '../src/core/stitch-variants.ts';
 import { withTradition } from '../src/core/tradition.ts';
 import { validatePattern } from '../src/core/validate.ts';
+import { AMIGURUMI_CORE_TEXTS } from '../src/ui/i18n/core/amigurumi.ts';
+import { renderCoreText } from '../src/ui/i18n/core/render.ts';
 import { grannySquare } from './fixtures/examples.ts';
 
+/** A mag kódot és adatot ad (PQW-904); a magyar mondat a felület szótárából jön. */
+const hu = (message) => renderCoreText(AMIGURUMI_CORE_TEXTS.hu, message);
+const why = (result) => (result.ok ? '' : typeof result.reason === 'string' ? result.reason : hu(result.reason));
+
 const ok = (result) => {
-  assert.ok(result.ok, result.reason);
+  assert.ok(result.ok, why(result));
   return result.pattern;
 };
 const motif = (patch = {}, base = emptyPattern()) => ok(generateMotif(base, { ...DEFAULT_MOTIF, ...patch }));
@@ -242,7 +248,8 @@ describe('kezdés és körvég (04 §1.1, §2)', () => {
   test('egy láncszembe legfeljebb 12 szem fér', () => {
     const result = generateMotif(emptyPattern(), { ...DEFAULT_MOTIF, stitch: 'tr', start: 'chain' });
     assert.equal(result.ok, false);
-    assert.match(result.reason, /legfeljebb 12 szem/);
+    assert.equal(result.reason.code, 'chain-start-limit');
+    assert.match(hu(result.reason), /legfeljebb 12 szem/);
   });
 
   test('spirál: a 2. körtől nincs kezdőlánc és kúszószem, a körjelölő egyszer, a darab elején', () => {
@@ -320,7 +327,8 @@ describe('a szerkesztőben: K a láncszemekből láncgyűrűt zár, S spirálban
   test('két láncszemből nem lesz láncgyűrű', () => {
     const result = closeRound(ok(work(emptyPattern(), { def: 'ch', count: 2 }, 0)));
     assert.equal(result.ok, false);
-    assert.match(result.reason, /legalább 3 láncszem/);
+    // A szerkesztő üzenetei a saját kódkészletükkel (PQW-904, másik terület): itt a kód számít.
+    assert.equal(result.reason.code, 'ring-needs-chains');
   });
 
   test('2 lsz, 6 rp a 2. láncszembe, K: az 1. kör zárva, a darab körben halad', () => {
@@ -355,7 +363,7 @@ describe('a szerkesztőben: K a láncszemekből láncgyűrűt zár, S spirálban
     pattern = ok(work(pattern, { def: 'sc', count: 1 }, defaultCursor(pattern, contextOf(pattern), 'sc')));
     const result = endRoundSpiral(pattern);
     assert.equal(result.ok, false);
-    assert.match(result.reason, /Sorban nincs spirál/);
+    assert.equal(result.reason.code, 'no-spiral-in-row');
   });
 });
 

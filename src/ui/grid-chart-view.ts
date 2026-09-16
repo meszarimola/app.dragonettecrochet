@@ -44,6 +44,8 @@ import { shapeGauge } from '../core/shapes.ts';
 import { libraryFor } from '../core/stitch-variants.ts';
 import type { GridTechnique, GridUnit, Pattern, PatternColor, ValueSource } from '../core/types.ts';
 import { texts } from './i18n.ts';
+import { gridCoreText, type GridCoreCode } from './i18n/core/grid.ts';
+import type { CoreText } from '../core/messages.ts';
 import type { Choice } from './shapes-view.ts';
 import { formatNumber } from './size-view.ts';
 
@@ -304,7 +306,7 @@ export function unitState(state: GridEditorState): UnitState {
   const t = texts().panels.grid;
   if (state.manualUnit) {
     const problem = unitProblem(state.draft, state.manualUnit);
-    if (problem) return { unit: null, text: problem, problem: true };
+    if (problem) return { unit: null, text: gridCoreText(problem), problem: true };
     const { width, height } = state.manualUnit;
     const conflicts = unitConflicts(state.draft, state.manualUnit);
     const note = conflicts > 0 ? t.unitConflicts(conflicts) : '';
@@ -314,7 +316,7 @@ export function unitState(state: GridEditorState): UnitState {
     return { unit: null, text: t.allCellsSet, problem: false };
   }
   const detected = detectUnit(state.draft);
-  if (!detected.ok) return { unit: null, text: detected.reason, problem: true };
+  if (!detected.ok) return { unit: null, text: gridCoreText(detected.reason), problem: true };
   const { width, height } = detected.unit;
   return { unit: detected.unit, text: t.detectedUnit(width, height), problem: false };
 }
@@ -368,7 +370,7 @@ export function planSummary(pattern: Pattern, state: GridEditorState, mirrored: 
   const warnings: string[] = [];
   const details: string[] = [];
   const mirror = mirrorWarning(cells, state.lettering, mirrored);
-  if (mirror) warnings.push(mirror);
+  if (mirror) warnings.push(gridCoreText(mirror));
   if (unit.unit) details.push(t.unitDetail(unit.unit.width, unit.unit.height, width, height));
 
   let size: string;
@@ -376,7 +378,7 @@ export function planSummary(pattern: Pattern, state: GridEditorState, mirrored: 
   switch (state.technique) {
     case 'filet': {
       const planned = planFilet(pattern, cells);
-      if (!planned.ok) return planned;
+      if (!planned.ok) return { ok: false, reason: gridCoreText(planned.reason) };
       const { plan } = planned;
       source = plan.gauge.source;
       size = t.actualSize(source === 'estimated' ? '≈ ' : '', cm(plan.widthCm), cm(plan.heightCm), plan.rows.length);
@@ -396,7 +398,7 @@ export function planSummary(pattern: Pattern, state: GridEditorState, mirrored: 
     }
     case 'c2c': {
       const planned = planC2C(pattern, cells, state.colors);
-      if (!planned.ok) return planned;
+      if (!planned.ok) return { ok: false, reason: gridCoreText(planned.reason) };
       const { plan } = planned;
       source = plan.gauge.source;
       size = t.c2cSize(source === 'estimated' ? '≈ ' : '', cm(plan.widthCm), cm(plan.heightCm), plan.rows.length, width * height);
@@ -408,7 +410,7 @@ export function planSummary(pattern: Pattern, state: GridEditorState, mirrored: 
     }
     case 'mosaic': {
       const planned = planMosaic(pattern, cells, state.colors, state.mosaicRows);
-      if (!planned.ok) return planned;
+      if (!planned.ok) return { ok: false, reason: gridCoreText(planned.reason) };
       const { plan } = planned;
       source = plan.gauge.source;
       size = t.mosaicSize(source === 'estimated' ? '≈ ' : '', cm(plan.widthCm), cm(plan.heightCm), plan.rows.length, height);
@@ -419,7 +421,7 @@ export function planSummary(pattern: Pattern, state: GridEditorState, mirrored: 
     }
     default: {
       const planned = planColorwork(pattern, state.technique, cells, state.colors);
-      if (!planned.ok) return planned;
+      if (!planned.ok) return { ok: false, reason: gridCoreText(planned.reason) };
       const { plan } = planned;
       source = plan.gauge.source;
       size = t.colorworkSize(source === 'estimated' ? '≈ ' : '', cm(plan.widthCm), cm(plan.heightCm), height);
@@ -476,14 +478,17 @@ export function generateFromState(pattern: Pattern, state: GridEditorState): Gen
   const expanded = expandedCells(state, unit);
   if (!expanded.ok) return expanded;
   const common = { cells: expanded.cells, unit: unit.unit, lettering: state.lettering };
-  const done = (result: { ok: true; pattern: Pattern; plan: { rows: readonly unknown[] } } | { ok: false; reason: string }): GenerateResult =>
+  // A mag kódot és adatot ad; a mondat a szótárból jön (PQW-904).
+  const done = (
+    result: { ok: true; pattern: Pattern; plan: { rows: readonly unknown[] } } | { ok: false; reason: CoreText<GridCoreCode> },
+  ): GenerateResult =>
     result.ok
       ? {
           ok: true,
           pattern: result.pattern,
           message: t.generated(t.techniques[state.technique], result.plan.rows.length),
         }
-      : result;
+      : { ok: false, reason: gridCoreText(result.reason) };
   switch (state.technique) {
     case 'filet':
       return done(generateFilet(pattern, common));

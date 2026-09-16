@@ -8,7 +8,7 @@
  * magot `.ts` kiterjesztéssel importálja.
  */
 
-import { BODY_TABLES_ORDER, GARMENT_EASE, NEGATIVE_EASE_LIMIT, fitLevelOf, type BodyTableId } from '../core/body-sizes.ts';
+import { BODY_TABLES_ORDER, GARMENT_EASE, NEGATIVE_EASE_LIMIT, bodySizeName, fitLevelOf, hatSizeName, type BodyTableId } from '../core/body-sizes.ts';
 import { sizingLines } from '../core/garment-text.ts';
 import {
   BELOW_WAIST_CM,
@@ -18,14 +18,18 @@ import {
   GARMENT_KINDS,
   garmentSizes,
   type DropShoulderPlan,
+  type GarmentCode,
   type GarmentOptions,
   type GarmentSeriesPlan,
   type HatPlan,
 } from '../core/garments.ts';
+import type { CoreText } from '../core/messages.ts';
 import type { RaglanPlan } from '../core/raglan.ts';
 import { stitchById } from '../core/stitches.ts';
-import type { GarmentKind } from '../core/types.ts';
-import { texts } from './i18n.ts';
+import type { GarmentKind, GarmentTable, Locale } from '../core/types.ts';
+import { texts, uiLanguage } from './i18n.ts';
+import { GARMENT_CORE_TEXTS } from './i18n/core/garment.ts';
+import { renderCoreText } from './i18n/core/render.ts';
 import type { Choice } from './shapes-view.ts';
 import { formatNumber } from './size-view.ts';
 import { termsLocale } from './notation.ts';
@@ -46,8 +50,27 @@ export const TABLE_CHOICES: readonly Choice<BodyTableId>[] = BODY_TABLES_ORDER.m
   },
 }));
 
+/**
+ * A mag üzenete mondattá a felület nyelvén (PQW-904): a mag kódot és adatot
+ * ad, a szótár a mondatot.
+ */
+export function garmentText(message: CoreText<GarmentCode>): string {
+  return renderCoreText(GARMENT_CORE_TEXTS[uiLanguage()], message);
+}
+
+/**
+ * A méret neve a felület nyelvén: a mag csak azonosítót ad, a nevet a
+ * sapka- és a testméret-táblázat adja (PQW-904). Az írott minta ugyanezt a
+ * függvényt a JELÖLÉS nyelvével hívja (garment-text.ts).
+ */
+export function sizeName(table: GarmentTable, id: string): string {
+  const locale: Locale = uiLanguage() === 'en' ? 'en-US' : 'hu';
+  return table === 'hat' ? hatSizeName(id, locale) : bodySizeName(table, id, locale);
+}
+
 export function sizeChoices(kind: GarmentKind, table: BodyTableId): Choice<string>[] {
-  return garmentSizes(kind, table).map((size) => ({ value: size.id, label: size.name }));
+  const garmentTable: GarmentTable = kind === 'hat' ? 'hat' : table;
+  return garmentSizes(kind, table).map((id) => ({ value: id, label: sizeName(garmentTable, id) }));
 }
 
 /** Melyik mező látszik: a táblázat, a derék alatti hossz és a mintaismétlés csak a pulóvernél. */
@@ -95,7 +118,7 @@ export function defaultsFor(kind: GarmentKind, table: BodyTableId): GarmentOptio
   // A raglán bősége a „C” példa szerinti +8 cm; a nyakkivágást és a mintaismétlést nem használja.
   const forKind = (options: GarmentOptions): GarmentOptions => (kind === 'raglan' ? { ...options, kind, easeCm: 8, repeat: null } : options);
   if (table === 'women') return forKind(DEFAULT_GARMENT);
-  const ids = garmentSizes(kind, table).map((size) => size.id);
+  const ids = garmentSizes(kind, table);
   const middle = ids.includes('M') ? ids.indexOf('M') : Math.floor((ids.length - 1) / 2);
   return forKind({
     ...DEFAULT_GARMENT,
@@ -109,7 +132,7 @@ export function defaultsFor(kind: GarmentKind, table: BodyTableId): GarmentOptio
 
 /** A választás összhangba hozva: a sorozat mindig tartalmazza a rajz méretét; a mintaismétlés csak pulóvernél. */
 export function normalizeGarment(options: GarmentOptions): GarmentOptions {
-  const ids = garmentSizes(options.kind, options.table).map((size) => size.id);
+  const ids = garmentSizes(options.kind, options.table);
   const base = ids.includes(options.size) ? options.size : defaultsFor(options.kind, options.table).size;
   const at = ids.indexOf(base);
   const from = ids.includes(options.from) ? Math.min(ids.indexOf(options.from), at) : at;
@@ -149,19 +172,20 @@ export function garmentView(plan: GarmentSeriesPlan, hasProfile: boolean): Garme
   const t = texts().panels.garment;
   const approx = plan.gauge.source === 'estimated' ? '≈ ' : '';
   const base = plan.sizes[plan.base]!;
+  const baseName = sizeName(plan.table, base.id);
   const many = plan.sizes.length > 1;
   const details: string[] = [];
   let size: string;
   if (base.plan.kind === 'hat') {
-    size = t.hatSize(base.name, approx, cm(base.plan.finishedCm), cm(base.plan.finishedHeightCm), base.plan.counts.length);
+    size = t.hatSize(baseName, approx, cm(base.plan.finishedCm), cm(base.plan.finishedHeightCm), base.plan.counts.length);
     details.push(...hatDetails(base.plan));
   } else if (base.plan.kind === 'raglan') {
     const { finished } = base.plan;
-    size = t.raglanSize(base.name, approx, cm(finished.chestCm), cm(finished.lengthCm), base.plan.yokeRounds + base.plan.bodyRoundsBelow);
+    size = t.raglanSize(baseName, approx, cm(finished.chestCm), cm(finished.lengthCm), base.plan.yokeRounds + base.plan.bodyRoundsBelow);
     details.push(...raglanDetails(base.plan));
   } else {
     const { finished } = base.plan;
-    size = t.sweaterSize(base.name, approx, cm(finished.chestCm), cm(finished.lengthCm), cm(finished.sleeveCm));
+    size = t.sweaterSize(baseName, approx, cm(finished.chestCm), cm(finished.lengthCm), cm(finished.sleeveCm));
     details.push(...sweaterDetails(base.plan));
   }
   if (plan.yarnMissing) {
@@ -175,7 +199,13 @@ export function garmentView(plan: GarmentSeriesPlan, hasProfile: boolean): Garme
   const failed = plan.sizes.flatMap((entry) =>
     entry.plan.checks
       .filter((check) => !check.ok)
-      .map((check) => t.failedCheck(prefix(entry.name), check.label, check.suggestion === undefined ? '' : ` ${check.suggestion}`)),
+      .map((check) =>
+        t.failedCheck(
+          prefix(sizeName(plan.table, entry.id)),
+          garmentText(check.label),
+          check.suggestion === undefined ? '' : ` ${garmentText(check.suggestion)}`,
+        ),
+      ),
   );
   const checks =
     plan.checksPassed === plan.checksTotal
@@ -184,11 +214,12 @@ export function garmentView(plan: GarmentSeriesPlan, hasProfile: boolean): Garme
 
   const warnings: string[] = [];
   for (const entry of plan.sizes) {
-    warnings.push(...entry.plan.warnings.map((warning) => t.warning(prefix(entry.name), warning)));
-    if (entry.estimated.length > 0) warnings.push(t.estimatedSize(entry.name, entry.estimated));
-    warnings.push(...entry.flags.map((flag) => t.flag(entry.name, flag.note)));
+    const name = sizeName(plan.table, entry.id);
+    warnings.push(...entry.plan.warnings.map((warning) => t.warning(prefix(name), garmentText(warning))));
+    if (entry.estimated.length > 0) warnings.push(t.estimatedSize(name, entry.estimated.map(garmentText)));
+    warnings.push(...entry.flags.map((flag) => t.flag(name, garmentText(flag.note))));
   }
-  for (const issue of plan.monotonic) warnings.push(t.monotonic(issue.label, issue.size));
+  for (const issue of plan.monotonic) warnings.push(t.monotonic(garmentText(issue.label), sizeName(plan.table, issue.size)));
 
   const series = sizingLines({ kind: plan.kind, table: plan.table, sizes: plan.sizes.map((entry) => entry.id), base: plan.base, values: plan.values }, termsLocale());
   return { size, details, checks, failed, warnings, series, source: sourceText(plan, hasProfile) };
@@ -272,5 +303,5 @@ export function generatedMessage(plan: GarmentSeriesPlan): string {
   const t = texts().panels.garment;
   const base = plan.sizes[plan.base]!;
   const series = plan.sizes.length > 1 ? t.generatedSeries(plan.sizes.length) : '';
-  return t.generated(t.names[plan.kind], base.name, series);
+  return t.generated(t.names[plan.kind], sizeName(plan.table, base.id), series);
 }

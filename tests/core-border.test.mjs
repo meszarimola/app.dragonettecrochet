@@ -29,9 +29,12 @@ import { editNode } from './fixtures/builder.ts';
 const BORDER = { stitch: 'sc', hdcRowEnd: 2 };
 
 /** Kis téglalap a Forma szakasz generátorával, szegéllyel vagy anélkül. */
+/** A mag kódot és adatot ad az indokra (PQW-904); a hibaüzenethez ez elég. */
+const why = (result) => (result.ok ? '' : JSON.stringify(result.reason));
+
 function rectangle(patch = {}) {
   const result = generateShape(emptyPattern(), { ...DEFAULT_SHAPE, widthCm: 5, heightCm: 4, ...patch });
-  assert.ok(result.ok, result.reason);
+  assert.ok(result.ok, why(result));
   return result;
 }
 
@@ -108,7 +111,7 @@ describe('a szegély rétege a gráfban', () => {
       ],
     };
     const result = generateShape({ ...pattern, gauge }, { ...DEFAULT_SHAPE, stitch: 'dc', widthCm: 37.5, heightCm: 50, border: BORDER });
-    assert.ok(result.ok, result.reason);
+    assert.ok(result.ok, why(result));
     const graph = graphOf(result.pattern);
     assert.equal(graph.layers[borderLayerIndex(graph)].stitchCount, 288);
   });
@@ -116,10 +119,11 @@ describe('a szegély rétege a gráfban', () => {
   test('a szegély csak az utolsó sor fordulása után, egyszer fűzhető a darabhoz', () => {
     const { pattern } = rectangle();
     const piece = pattern.pieces[0];
-    assert.match(appendBorder(pattern, piece, libraryFor(pattern), BORDER), /fordulása után/);
+    // A mag kódot ad, a mondatot a felület rakja össze (PQW-904).
+    assert.equal(appendBorder(pattern, piece, libraryFor(pattern), BORDER).code, 'border-after-turn');
     const { pattern: bordered } = rectangle({ border: BORDER });
     const withTurn = { ...bordered.pieces[0], events: [...bordered.pieces[0].events.slice(0, -1), { ...bordered.pieces[0].events.at(-1), kind: 'turn' }] };
-    assert.match(appendBorder(bordered, withTurn, libraryFor(bordered), BORDER), /már van szegélye/);
+    assert.equal(appendBorder(bordered, withTurn, libraryFor(bordered), BORDER).code, 'border-already');
   });
 });
 
@@ -257,7 +261,7 @@ function dcGauge() {
 /** Forma szegéllyel; a minta alapból üres. */
 function shaped(patch, pattern = emptyPattern()) {
   const result = generateShape(pattern, { ...DEFAULT_SHAPE, border: BORDER, ...patch });
-  assert.ok(result.ok, result.reason);
+  assert.ok(result.ok, why(result));
   return result;
 }
 
@@ -316,7 +320,7 @@ describe('szegély ferde élű darab köré (PQW-898)', () => {
 
   test('a láncos hosszabbítással, nagyon meredeken szélesedő él köré is készül: minden hosszabbító láncszem egy szegélyszemet kap (PQW-902)', () => {
     const result = planShape(emptyPattern(), { ...DEFAULT_SHAPE, shape: 'diamond', stitch: 'sc', widthCm: 20, heightCm: 4, border: BORDER });
-    assert.ok(result.ok, result.reason);
+    assert.ok(result.ok, why(result));
     assert.ok(result.plan.chainExtensionRows.length > 0);
     assert.ok(result.plan.border);
 

@@ -72,6 +72,8 @@ import { chartSvg } from './chart-svg.js';
 import { setupConsentBanner } from './consentBanner.js';
 import { askConfirm } from './dialog.js';
 import { applyStaticTexts, homeUrl, resolveUiLanguage, setUiLanguage, texts, uiLanguage, urlWithLanguage, type UiLanguage } from './i18n.js';
+import { JSON_CORE_TEXTS } from './i18n/core/json.js';
+import { renderCoreText } from './i18n/core/render.js';
 import { RULE_TEXTS, type RuleText } from './i18n/rules.js';
 import {
   chartStyleLabel,
@@ -1129,7 +1131,7 @@ async function importJson(file: File): Promise<void> {
   const file_ = texts().messages.file;
   const loaded = loadPattern(await file.text());
   if (!loaded.ok) {
-    announce(file_.loadFailed(loaded.error.message, loaded.error.path));
+    announce(file_.loadFailed(renderCoreText(JSON_CORE_TEXTS[uiLanguage()], loaded.error.message), loaded.error.path));
     return;
   }
   const problem = structuralProblem(loaded.pattern);

@@ -7,6 +7,8 @@ import { layoutPattern } from '../src/core/layout.ts';
 import { FORMAT_VERSION, loadPattern, savePattern } from '../src/core/pattern-json.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
 import { validatePattern } from '../src/core/validate.ts';
+import { JSON_CORE_TEXTS } from '../src/ui/i18n/core/json.ts';
+import { renderCoreText } from '../src/ui/i18n/core/render.ts';
 import { writtenView } from '../src/ui/written.ts';
 import { PieceBuilder, editNode, patternOf } from './fixtures/builder.ts';
 import { WORKED_EXAMPLES, dcRectangle } from './fixtures/examples.ts';
@@ -158,6 +160,50 @@ test('érvénytelen JSON-ra hibát ad', () => {
   assert.equal(result.error.code, 'invalid-json');
 });
 
+/** A hiba mondata a felület szótárával; a mag csak kódot és adatot ad (PQW-904). */
+const sentence = (error, language = 'hu') => renderCoreText(JSON_CORE_TEXTS[language], error.message);
+
+test('a betöltési hiba kódot és adatot ad, a mondatot a szótár írja (PQW-904)', () => {
+  const raw = JSON.parse(savePattern(dcRectangle({ rows: 2 }).pattern));
+  raw.pieces[0].stitches[0].fibre = [];
+  const result = loadPattern(JSON.stringify(raw));
+
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.error.message, { code: 'unknown-field' });
+  // A mező útvonala külön mező marad: a felület változatlanul mutatja.
+  assert.equal(result.error.path, '$.pieces[0].stitches[0].fibre');
+  // A magyar mondat betűre ugyanaz, mint a PQW-904 előtt.
+  assert.equal(sentence(result.error), 'Ismeretlen mező.');
+  assert.equal(sentence(result.error, 'en'), 'Unknown field.');
+});
+
+test('a beágyazott JSON-hibaszöveg adat marad, az újabb formátumé a mag adatából áll össze (PQW-904)', () => {
+  const bad = loadPattern('{"formatVersion": 1,');
+  assert.equal(bad.error.message.code, 'invalid-json');
+  // A JS saját hibaszövegét nem fordítjuk: nyers adatként kerül a mondatba.
+  assert.ok(bad.error.message.data.detail.length > 0);
+  assert.equal(sentence(bad), `Nem érvényes JSON: ${bad.error.message.data.detail}`);
+
+  const saved = JSON.parse(savePattern(dcRectangle({ rows: 1 }).pattern));
+  const newer = loadPattern(JSON.stringify({ ...saved, formatVersion: 2 }));
+  assert.deepEqual(newer.error.message, { code: 'unsupported-version', data: { found: 2, known: FORMAT_VERSION } });
+  assert.equal(sentence(newer), 'A minta újabb formátumú (2), mint amit ez a verzió ismer (1).');
+});
+
+test('a felsorolt értékek és a számadatok a mondatba kerülnek (PQW-904)', () => {
+  const raw = JSON.parse(savePattern(dcRectangle({ rows: 2 }).pattern));
+  raw.pieces[0].events[0].kind = 'forditas';
+  const result = loadPattern(JSON.stringify(raw));
+  assert.equal(result.error.message.code, 'expected-one-of');
+  assert.equal(sentence(result.error), 'Megengedett értékek: "turn", "join-slip", "spiral", "fasten-off".');
+
+  const negative = JSON.parse(savePattern(dcRectangle({ rows: 2 }).pattern));
+  negative.pieces[0].events[0].statedCount = -1;
+  const counted = loadPattern(JSON.stringify(negative));
+  assert.deepEqual(counted.error.message, { code: 'expected-integer-min', data: { min: 0 } });
+  assert.equal(sentence(counted.error), 'Legalább 0 értékű egész számot vártunk.');
+});
+
 describe('a formátum hibáit mezőútvonallal jelzi', () => {
   const saved = () => JSON.parse(savePattern(dcRectangle({ rows: 2 }).pattern));
   const cases = [
@@ -194,7 +240,16 @@ test('hibás gráfot is betölt; a gráfot az ellenőrző nézi, nem a betölté
 
 test('formátumon kívüli mintát nem ment el', () => {
   const pattern = { ...dcRectangle({ rows: 1 }).pattern, formatVersion: 3 };
-  assert.throws(() => savePattern(pattern), /Megengedett értékek: 1/);
+  // A mag kódot és adatot dob, nem magyar mondatot (PQW-904).
+  assert.throws(
+    () => savePattern(pattern),
+    (error) => {
+      assert.equal(error.code, 'expected-one-of');
+      assert.equal(error.path, '$.formatVersion');
+      assert.deepEqual(error.data.values, ['1']);
+      return true;
+    },
+  );
 });
 
 /*
