@@ -93,6 +93,10 @@ export interface ShapeFieldState {
   readonly hdcRowEnd: boolean;
   /** Igazítás a következő szegélysor ismétléséhez (PQW-898). */
   readonly borderRepeat: boolean;
+  /** Bordás szegély a felső élen (PQW-909); a körbefutó szegéllyel együtt nem választható. */
+  readonly ribbing: boolean;
+  /** A bordázat sorai és egysége; csak bekapcsolt bordázatnál. */
+  readonly ribbingFields: boolean;
 }
 
 export function shapeFieldState(options: ShapeOptions): ShapeFieldState {
@@ -108,6 +112,8 @@ export function shapeFieldState(options: ShapeOptions): ShapeFieldState {
     border: true,
     hdcRowEnd: options.border !== null && options.stitch === 'hdc',
     borderRepeat: options.border !== null,
+    ribbing: options.border === null,
+    ribbingFields: options.border === null && Boolean(options.ribbing),
   };
 }
 
@@ -120,7 +126,10 @@ export function widthLabel(shape: FlatShape): string {
 
 /** A választás a formához igazítva: mintaismétlés most csak téglalapnál van; szegély minden formánál (PQW-898). */
 export function normalizeShape(options: ShapeOptions): ShapeOptions {
-  return options.shape === 'rectangle' ? options : { ...options, repeat: null };
+  // A bordás szegély a felső élen fut, a körbefutó szegély a darab körül: együtt nem választható (PQW-909).
+  // Csak akkor másolunk, ha tényleg törölni kell: a változatlan választás ugyanaz az objektum marad.
+  const chosen = options.border && options.ribbing ? { ...options, ribbing: null } : options;
+  return chosen.shape === 'rectangle' ? chosen : { ...chosen, repeat: null };
 }
 
 const cm = (value: number) => formatNumber(value, 1);
@@ -281,5 +290,7 @@ export function shapeOutline(plan: ShapePlan): ShapeOutline {
 /** Az állapotsor üzenete a létrehozás után; szegéllyel a szegély is (PQW-897). */
 export function generatedMessage(options: ShapeOptions, plan: ShapePlan): string {
   const t = texts().panels.shape;
-  return t.generated(t.names[options.shape], plan.counts.length, Boolean(plan.border));
+  // A bordás szegély sorai is elkészültek: az állapotsor a tényleges sorszámot mondja (PQW-909).
+  const rows = plan.counts.length + (options.ribbing?.rows ?? 0);
+  return t.generated(t.names[options.shape], rows, Boolean(plan.border));
 }

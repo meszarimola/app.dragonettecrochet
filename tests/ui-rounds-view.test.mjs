@@ -67,7 +67,16 @@ describe('a mezők a formához', () => {
     assert.equal(granny.stitch, 'dc');
     assert.equal(granny.closing, 'join-slip');
     assert.equal(granny.start, 'magic-ring');
-    assert.deepEqual(fieldState(granny), { stitch: false, chainStart: false, closing: false, stagger: false, jogFix: false });
+    // A bordás perem a kúszószemes záráshoz kötött, ezért a nagymama-négyzetnél is választható (PQW-909).
+    assert.deepEqual(fieldState(granny), {
+      stitch: false,
+      chainStart: false,
+      closing: false,
+      stagger: false,
+      jogFix: false,
+      ribbing: true,
+      ribbingFields: false,
+    });
   });
 
   test('eltolt szaporítás csak lapos körnél, lépcsőjavítás csak spirálban, színváltással', () => {
