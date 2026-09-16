@@ -12,13 +12,7 @@
 import { STITCH_SECTIONS, type StitchSectionId } from '../core/stitches.ts';
 import { stitchName, stitchStructure } from '../core/stitchText.ts';
 import type { Locale, StitchDef } from '../core/types.ts';
-
-const SECTION_TITLES: Readonly<Record<StitchSectionId, string>> = {
-  basic: 'Alapszemek',
-  'increase-decrease': 'Szaporítás és fogyasztás',
-  compound: 'Összetett szemek',
-  structure: 'Láncív és varázskör',
-};
+import { texts } from './i18n.ts';
 
 /** Gyorsbillentyű a paletta első kilenc szemének; a többi kattintással vagy Tabbal érhető el. */
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
@@ -39,10 +33,11 @@ export interface PaletteSection {
 }
 
 export function buildPalette(terms: Locale = 'hu'): PaletteSection[] {
+  const titles = texts().sections.palette.titles;
   let index = 0;
   return STITCH_SECTIONS.map((section) => ({
     id: section.id,
-    title: SECTION_TITLES[section.id],
+    title: titles[section.id],
     items: section.stitches.map((def) => ({
       def,
       key: KEYS[index++] ?? null,

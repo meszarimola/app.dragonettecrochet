@@ -13,6 +13,7 @@
  */
 
 import type { RepeatSpec, Tradition } from '../core/types.ts';
+import { texts } from './i18n.ts';
 
 export interface ChartLabels {
   /** A sorszám vagy körszám a sor kezdő oldalán. */
@@ -27,22 +28,27 @@ export interface ChartLabels {
   readonly border: string;
 }
 
-const CYC: ChartLabels = {
-  border: 'szegély',
-  layer: (index) => String(index),
-  count: (stitches) => `(${stitches})`,
-  repeat: () => null,
-  note: 'A sorszám a sor kezdő oldalán áll, zárójelben a szemszám.',
-};
-
-const JAPANESE: ChartLabels = {
-  border: '縁編み',
-  layer: (index) => String(index),
-  count: (stitches) => `${stitches}目`,
-  repeat: (spec) => (spec ? `${spec.repeatWidth}目1模様` : null),
-  note: 'A sorszám a sor kezdő oldalán áll, a végén a szemszám: 18目 = 18 szem; 11目1模様 = 11 szemenként ismétlődő minta.',
-};
-
+/**
+ * A feliratok a hagyomány szerint. A japán szám és egység (18目, 縁編み) a
+ * jelöléshez tartozik, ezért nem fordul; a megjegyzés a felület nyelvén szól
+ * (PQW-900), és mindkét nyelven megmagyarázza a japán egységeket.
+ */
 export function chartLabels(tradition: Tradition): ChartLabels {
-  return tradition === 'japanese' ? JAPANESE : CYC;
+  const chart = texts().sections.chart;
+  if (tradition === 'japanese') {
+    return {
+      border: '縁編み',
+      layer: (index) => String(index),
+      count: (stitches) => `${stitches}目`,
+      repeat: (spec) => (spec ? `${spec.repeatWidth}目1模様` : null),
+      note: chart.japaneseNote,
+    };
+  }
+  return {
+    border: chart.border,
+    layer: (index) => String(index),
+    count: (stitches) => `(${stitches})`,
+    repeat: () => null,
+    note: chart.cycNote,
+  };
 }

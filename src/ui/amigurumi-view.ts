@@ -10,7 +10,6 @@
 import type { JoinMethod, PartOptions } from '../core/amigurumi-generator.ts';
 import {
   OVAL_STITCHES,
-  SHAPE_NAMES,
   diagnoseRounds,
   figureSize,
   shapeSchedule,
@@ -21,8 +20,10 @@ import {
 } from '../core/amigurumi.ts';
 import { resolveStitch } from '../core/stitch-variants.ts';
 import type { OvalStitch, Pattern, PieceEnd, ProfilePoint, ShapeSpec, SphereMethod } from '../core/types.ts';
+import { texts } from './i18n.ts';
 import type { Choice } from './rounds-view.ts';
 import { formatNumber } from './size-view.ts';
+import { termsLocale } from './notation.ts';
 
 export type ShapeKind = ShapeSpec['kind'];
 
@@ -30,42 +31,68 @@ const KINDS: readonly ShapeKind[] = ['sphere', 'hemisphere', 'egg', 'cylinder', 
 
 export const SHAPE_CHOICES: readonly Choice<ShapeKind>[] = KINDS.map((value) => ({
   value,
-  label: value === 'revolution' ? 'Forgástest (profilból)' : SHAPE_NAMES[value],
+  get label() {
+    const t = texts().panels.amigurumi;
+    return value === 'revolution' ? t.revolution : t.names[value];
+  },
 }));
 
-export const METHOD_CHOICES: readonly Choice<SphereMethod>[] = [
-  { value: '6n', label: '6n: hatosával szaporítva, egyenes körökkel' },
-  { value: 'sine', label: 'Szinuszos: a valódi gömbhöz közelebb' },
-];
+export const METHOD_CHOICES: readonly Choice<SphereMethod>[] = (['6n', 'sine'] as const).map((value) => ({
+  value,
+  get label() {
+    return texts().panels.amigurumi.methods[value];
+  },
+}));
 
-export const BOTTOM_CHOICES: readonly Choice<PieceEnd>[] = [
-  { value: 'closed', label: 'Zárt: varázskör, lapos alj' },
-  { value: 'open', label: 'Nyitott: az előző rész szélébe horgolva' },
-];
+export const BOTTOM_CHOICES: readonly Choice<PieceEnd>[] = (['closed', 'open'] as const).map((value) => ({
+  value,
+  get label() {
+    return texts().panels.amigurumi.bottoms[value];
+  },
+}));
 
-export const TOP_CHOICES: readonly Choice<PieceEnd>[] = [
-  { value: 'closed', label: 'Zárt: összehúzva vagy lapos tetővel' },
-  { value: 'open', label: 'Nyitott: varráshoz vagy folytatáshoz' },
-];
+export const TOP_CHOICES: readonly Choice<PieceEnd>[] = (['closed', 'open'] as const).map((value) => ({
+  value,
+  get label() {
+    return texts().panels.amigurumi.tops[value];
+  },
+}));
 
-/** Az ovális szeme (PQW-899), a szemkönyvtár magyar nevével. */
+/** Az ovális szeme (PQW-899); a neve a jelölést követi, nem a felület nyelvét (PQW-900). */
 export const STITCH_CHOICES: readonly Choice<OvalStitch>[] = OVAL_STITCHES.map((value) => {
-  const name = resolveStitch(value)!.terms.hu.name;
-  return { value, label: name.charAt(0).toLocaleUpperCase('hu') + name.slice(1) };
+  return {
+    value,
+    get label() {
+      const name = resolveStitch(value)!.terms[termsLocale()].name;
+      return name.charAt(0).toLocaleUpperCase('hu') + name.slice(1);
+    },
+  };
 });
 
-export const JOIN_CHOICES: readonly Choice<JoinMethod>[] = [
-  { value: 'sewn', label: 'Varrva' },
-  { value: 'continuous', label: 'Folytatólagosan' },
-];
+export const JOIN_CHOICES: readonly Choice<JoinMethod>[] = (['sewn', 'continuous'] as const).map((value) => ({
+  value,
+  get label() {
+    return texts().panels.amigurumi.joins[value];
+  },
+}));
 
 /** A görbület neve körönként (04 §8, §9.6). A „fogyó (záródik)” új kifejezés, jóváhagyásra vár. */
 export const CURVATURE_NAMES: Readonly<Record<Curvature, string>> = {
-  flat: 'lapos',
-  cupping: 'kunkorodó',
-  tube: 'henger',
-  ruffled: 'fodros',
-  closing: 'fogyó (záródik)',
+  get flat() {
+    return texts().panels.amigurumi.curvatures.flat;
+  },
+  get cupping() {
+    return texts().panels.amigurumi.curvatures.cupping;
+  },
+  get tube() {
+    return texts().panels.amigurumi.curvatures.tube;
+  },
+  get ruffled() {
+    return texts().panels.amigurumi.curvatures.ruffled;
+  },
+  get closing() {
+    return texts().panels.amigurumi.curvatures.closing;
+  },
 };
 
 /** A mezők értéke, ahogy a felületen áll: a számok szövegként, tizedesvesszővel is. */
@@ -137,7 +164,7 @@ export function parseProfile(text: string): ProfilePoint[] | string {
     const parts = line.split(/[\s;]+/);
     const [radiusCm, heightCm] = parts.map(parseNumber);
     if (parts.length !== 2 || !Number.isFinite(radiusCm) || !Number.isFinite(heightCm)) {
-      return `A profil ${index + 1}. sorában két szám kell, szóközzel elválasztva: sugár és magasság cm-ben (pl. „2,5 4”).`;
+      return texts().panels.amigurumi.profileLine(index + 1);
     }
     points.push({ radiusCm: radiusCm!, heightCm: heightCm! });
   }
@@ -159,7 +186,7 @@ export function shapeOf(form: AmigurumiForm): ShapeSpec | string {
       return { kind: 'cylinder', diameterCm, heightCm, bottom: form.bottom, top: form.top };
     case 'cone': {
       const increases = form.increases.trim() === '' ? null : parseNumber(form.increases);
-      if (increases !== null && !Number.isFinite(increases)) return 'A körönkénti szaporítás szám legyen, pl. 2,5, vagy hagyd üresen.';
+      if (increases !== null && !Number.isFinite(increases)) return texts().panels.amigurumi.coneIncreases;
       return { kind: 'cone', diameterCm, heightCm: increases === null ? heightCm : Number.isFinite(heightCm) ? heightCm : 1, increases, top: form.top };
     }
     case 'revolution': {
@@ -191,25 +218,25 @@ export function curvatureRuns(diagnoses: readonly RoundDiagnosis[]): { from: num
 }
 
 const cm = (value: number) => formatNumber(value, 1);
-const range = (from: number, to: number) => (from === to ? `${from}.` : `${from}–${to}.`);
 
 /** A körterv összefoglalója: körszám, méret, görbület körönként, a hátsó szálas körök. */
 export function scheduleSummary(schedule: Schedule, gauge: RoundGauge): string {
+  const t = texts().panels.amigurumi;
   const { counts } = schedule;
   // Az ovális 1. köre lapos kezdés: a görbület a végek körönkénti szaporításához mérve (PQW-890).
   const before = schedule.start === 'ring' ? 0 : schedule.oval ? counts[0]! - 2 * schedule.oval.perEnd : counts[0]!;
   const measures = schedule.oval
-    ? `hossz kb. ${cm(schedule.widthCm)} cm, szélesség kb. ${cm(schedule.oval.widthCm)} cm, ${schedule.oval.chains} láncszemből`
-    : `szélesség kb. ${cm(schedule.widthCm)} cm, magasság kb. ${cm(schedule.heightCm)} cm`;
+    ? t.ovalMeasures(cm(schedule.widthCm), cm(schedule.oval.widthCm), schedule.oval.chains)
+    : t.shapeMeasures(cm(schedule.widthCm), cm(schedule.heightCm));
   const runs = curvatureRuns(diagnoseRounds(counts, gauge, before));
   const parts = [
-    `${counts.length} kör, legfeljebb ${Math.max(...counts)} szem; ${measures}.`,
-    `Görbület: ${runs.map((run) => `${range(run.from, run.to)} kör ${CURVATURE_NAMES[run.curvature]}`).join(', ')}.`,
+    t.counts(counts.length, Math.max(...counts), measures),
+    t.curvatureLine(runs.map((run) => t.curvatureRun(run.from, run.to, t.curvatures[run.curvature])).join(', ')),
   ];
   if (schedule.backLoop.length > 0) {
-    parts.push(`Hátsó szálba (éles törés): ${schedule.backLoop.map((index) => `${index + 1}.`).join(', ')} kör.`);
+    parts.push(t.backLoop(schedule.backLoop.map((index) => index + 1)));
   }
-  if (schedule.start === 'open') parts.push('Nyitott kezdés: csak folytatólagosan, egy előző rész nyitott végéhez kapcsolható.');
+  if (schedule.start === 'open') parts.push(t.openStart);
   return parts.join(' ');
 }
 
@@ -228,15 +255,15 @@ export function previewNote(form: AmigurumiForm, gauge: RoundGauge, gaugeOf: (sh
 
 /** Honnan jön a körszám és a szaporítás. */
 export function gaugeNote(gauge: RoundGauge): string {
-  const density = `${formatNumber(gauge.stitchesPerCm * 10, 1)} szem és ${formatNumber(gauge.roundsPerCm * 10, 1)} kör 10 cm-en`;
-  if (gauge.source === 'estimated') {
-    return `Becslés a tűből: ${density}. Amigurumihoz szoros horgolás kell, kb. két tűmérettel kisebb tűvel. Pontosabb, ha a Méret és fonal szakaszban megadod a rövidpálca körben mért mintasűrűségét.`;
-  }
-  return `${gauge.source === 'label' ? 'A címkén megadott' : 'A körben mért'} mintasűrűségből: ${density}.`;
+  const t = texts().panels.amigurumi;
+  const density = t.density(formatNumber(gauge.stitchesPerCm * 10, 1), formatNumber(gauge.roundsPerCm * 10, 1));
+  if (gauge.source === 'estimated') return t.gaugeEstimated(density);
+  return t.gaugeMeasured(gauge.source === 'label' ? t.gaugeFromLabel : t.gaugeFromRounds, density);
 }
 
 /** A minta részei és a figura magassága; ha nincs rész, `null`. */
 export function figureNote(pattern: Pattern, gauge: RoundGauge): string | null {
+  const t = texts().panels.amigurumi;
   const size = figureSize(pattern, gauge);
   if (!size) return null;
   const parts = size.parts.flatMap((part) =>
@@ -244,22 +271,22 @@ export function figureNote(pattern: Pattern, gauge: RoundGauge): string | null {
       const schedule = section.schedule;
       // A lapos ovális hossza és szélessége; a vastagsága csak a figura magasságában számít (PQW-899).
       const measures = schedule.oval
-        ? `${cm(schedule.widthCm)} × ${cm(schedule.oval.widthCm)} cm, lapos`
-        : `${cm(schedule.widthCm)} × ${cm(schedule.heightCm)} cm`;
-      return i === 0 ? `${section.name} (${measures})` : `${section.name} folytatólagosan (${measures})`;
+        ? t.flatOval(cm(schedule.widthCm), cm(schedule.oval.widthCm))
+        : t.partMeasures(cm(schedule.widthCm), cm(schedule.heightCm));
+      return i === 0 ? t.part(section.name, measures) : t.continuedPart(section.name, measures);
     }),
   );
-  return `A minta részei: ${parts.join(', ')}. A figura magassága kb. ${cm(size.heightCm)} cm, szélessége kb. ${cm(size.widthCm)} cm (becslés, kitömve).`;
+  return t.figure(parts.join(', '), cm(size.heightCm), cm(size.widthCm));
 }
 
 export function safetyNote(under3: boolean): string | null {
-  return under3 ? '3 év alatti gyereknek szánt játékba nem kerülhet biztonsági szem vagy gyöngy: a minta hímzett szemet ír.' : null;
+  return under3 ? texts().panels.amigurumi.safety : null;
 }
 
 export function createdMessage(name: string): string {
-  return `${name} elkészült; visszavonással a korábbi minta visszajön.`;
+  return texts().panels.amigurumi.created(name);
 }
 
 export function addedMessage(name: string, join: JoinMethod): string {
-  return `${name} hozzáadva, ${join === 'sewn' ? 'varrva' : 'folytatólagosan'}; visszavonással a korábbi minta visszajön.`;
+  return texts().panels.amigurumi.added(name, join);
 }

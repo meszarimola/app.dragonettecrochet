@@ -6,6 +6,7 @@
  */
 
 import type { Locale, StitchDef, StitchInsertion } from '../core/types.js';
+import { texts } from './i18n.js';
 import { insertionChoice, type InsertionChoice } from './insertion-view.js';
 import { textLanguage } from './notation.js';
 
@@ -70,6 +71,6 @@ export class InsertionPanel {
     const sample = document.createElement('span');
     sample.lang = textLanguage(this.#terms);
     sample.textContent = written;
-    this.#written.replaceChildren('Írott mintában: ', sample);
+    this.#written.replaceChildren(texts().sections.insertion.written, sample);
   }
 }

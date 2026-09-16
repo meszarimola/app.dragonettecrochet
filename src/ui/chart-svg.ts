@@ -17,7 +17,7 @@
  */
 
 import { chartBounds, type ChartGrid } from '../core/grid.ts';
-import { INSERTION_NAMES, nodeInsertions } from '../core/insertion.ts';
+import { nodeInsertions } from '../core/insertion.ts';
 import type { ChartLayout } from '../core/layout.ts';
 import { VOCABULARIES } from '../core/pattern-text.ts';
 import type { StitchLibrary } from '../core/stitch-library.ts';
@@ -25,6 +25,7 @@ import { stitchLabel } from '../core/stitchText.ts';
 import type { Locale, Pattern, StitchDef, StitchInsertion, Tradition } from '../core/types.ts';
 import { chartLabels } from './chart-labels.ts';
 import { gridPaths, LINE_WIDTH } from './grid-paths.ts';
+import { texts } from './i18n.ts';
 import { chartStyleLabel, textLanguage, termsLabel } from './notation.ts';
 import { DEFAULT_SYMBOL_OPTIONS, placedShapes, shapeBounds, symbolShapes, type Shape, type SymbolOptions } from './symbols.ts';
 
@@ -142,21 +143,24 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
   const legend = legendStitches(pattern, library);
   const labels = legend.map((def) => stitchLabel(def, terms));
   const marked = legendInsertions(pattern, library);
-  const markedLabels = marked.map(({ def, mode }) => [stitchLabel(def, terms), INSERTION_NAMES[mode]] as const);
+  // A szem neve a jelöléssel, a mód és a jelmagyarázat szövege a felület nyelvén (PQW-869, PQW-900).
+  const chart = texts().sections.chart;
+  const modeNames = texts().sections.insertion.names;
+  const markedLabels = marked.map(({ def, mode }) => [stitchLabel(def, terms), modeNames[mode]] as const);
   const insertions = nodeInsertions(pattern.pieces[0]);
   const keys: [string, string][] = [
-    [colors.right, 'Színoldali sor'],
-    [colors.wrong, 'Visszai sor'],
+    [colors.right, chart.rightSide],
+    [colors.wrong, chart.wrongSide],
   ];
   const notes = [
-    `Jelölés: ${termsLabel(terms)}; jelek: ${chartStyleLabel(symbols.style ?? 'cyc')}.`,
+    chart.notation(termsLabel(terms), chartStyleLabel(symbols.style ?? 'cyc')),
     captions.note,
-    ...(repeat ? [`Ismétlés: ${repeat}.`] : []),
-    ...(marked.length > 0 ? ['A szál és a relief jele a színoldalról nézve; visszai soron a horgoló a másik szálba, illetve a másik oldalról szúr.'] : []),
-    ...(grid ? ['Rács: váltakozó sávok, minden 5. és 10. vonal vastagabb.'] : []),
-    ...((options.unitFrames ?? []).length > 0 ? ['Szaggatott keret: az ismétlő egység.'] : []),
-    ...([...layout.nodes.keys()].some((id) => options.spikes?.has(id)) ? ['Pötty a szár végén: a lejjebb, a kihagyott szembe horgolt szem.'] : []),
-    ...(options.mirror ? ['Tükrözött nézet balkezeseknek.'] : []),
+    ...(repeat ? [chart.repeat(repeat)] : []),
+    ...(marked.length > 0 ? [chart.insertions] : []),
+    ...(grid ? [chart.grid] : []),
+    ...((options.unitFrames ?? []).length > 0 ? [chart.unitFrame] : []),
+    ...([...layout.nodes.keys()].some((id) => options.spikes?.has(id)) ? [chart.spike] : []),
+    ...(options.mirror ? [chart.mirror] : []),
   ];
   const legendRows = legend.length + marked.length + keys.length + notes.length;
   // A felirat szélessége becslés: 13 px-es betűnél karakterenként legfeljebb kb. 7,4 px.
@@ -172,11 +176,11 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
   const oy = MARGIN + TITLE - bounds.minY;
 
   const out: string[] = [];
-  const title = pattern.title.trim() || 'Minta';
+  const title = pattern.title.trim() || chart.untitled;
   const gridAttribute = grid ? ` data-grid="${grid.grid.kind}"` : '';
   out.push(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${num(width)}" height="${num(height)}" viewBox="0 0 ${num(width)} ${num(height)}" role="img" aria-labelledby="chart-title" data-terms="${terms}" data-chart-style="${symbols.style ?? 'cyc'}"${gridAttribute}>`,
-    `<title id="chart-title">${escapeXml(title)} — horgolásminta-diagram</title>`,
+    `<title id="chart-title">${escapeXml(chart.title(title))}</title>`,
     `<style>.ink{fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.ink .fill{stroke:none;fill:currentColor}</style>`,
     `<rect width="100%" height="100%" fill="${colors.background}"/>`,
     `<text x="${MARGIN}" y="${MARGIN + 20}" ${FONT} font-size="20" fill="${colors.text}">${escapeXml(title)}</text>`,
@@ -244,7 +248,7 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
   out.push('</g></g>');
 
   out.push(`<g ${FONT} font-size="13" fill="${colors.text}">`);
-  const heading = system ? `Jelmagyarázat (${system})` : 'Jelmagyarázat';
+  const heading = system ? chart.legendWith(system) : chart.legend;
   out.push(`<text x="${MARGIN}" y="${num(legendTop + 14)}" font-weight="700">${heading}</text>`);
   let y = legendTop + 28;
   const iconCenter = (row: number) => ({ x: MARGIN + LEGEND_ICON / 2, y: row + LEGEND_ROW / 2 });

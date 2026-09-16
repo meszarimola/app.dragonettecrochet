@@ -17,6 +17,7 @@
 
 import { VOCABULARIES } from '../core/pattern-text.ts';
 import type { ChartStyle, Locale, Pattern, PatternNotation, Tradition } from '../core/types.ts';
+import { texts } from './i18n.ts';
 import type { SymbolOptions } from './symbols.ts';
 
 /** A felület nyelve; az angol felület fordítása a PQW-853. */
@@ -78,20 +79,34 @@ export function textLanguage(terms: Locale): 'hu' | 'en' {
   return terms === 'hu' ? 'hu' : 'en';
 }
 
-const TERMS_NAMES: Readonly<Record<Locale, string>> = {
-  hu: 'magyar',
-  'en-US': 'amerikai angol',
-  'en-GB': 'brit angol',
-};
+/*
+ * A szemnevek nyelve (PQW-900): a felület nyelvétől függetlenül a JELÖLÉS adja
+ * (PQW-868), ezért nem a szótárból jön. A nézetek DOM nélküli, tiszta
+ * függvények, és a választólisták feliratai modulszintű állandók, ezért a
+ * mostani jelölést — a felület nyelvéhez hasonlóan — modulszintű állapot őrzi.
+ * A `main.ts` a `syncNotationControls`-ban állítja, tehát minden jelölésváltás
+ * után a listák és a mondatok a helyes szemnevet mutatják.
+ */
+let currentTerms: Locale = 'hu';
+
+/** A szemnevek mostani nyelve; alapértelmezésben magyar. */
+export function termsLocale(): Locale {
+  return currentTerms;
+}
+
+export function setTermsLocale(terms: Locale): void {
+  currentTerms = terms;
+}
 
 /** „amerikai angol (US terms)”: angol jelölésnél a rendszer neve mindig ott áll. */
 export function termsLabel(terms: Locale): string {
+  const name = texts().sections.notation.terms[terms];
   const system = VOCABULARIES[terms].system;
-  return system ? `${TERMS_NAMES[terms]} (${system})` : TERMS_NAMES[terms];
+  return system ? `${name} (${system})` : name;
 }
 
 export function chartStyleLabel(style: ChartStyle): string {
-  return style === 'jis' ? 'japán (JIS)' : 'CYC';
+  return texts().sections.notation.chartStyles[style];
 }
 
 /** Az előbeállítás jelei: japánnál JIS és ×, nemzetközinél CYC és +. A szövegjelölés marad. */
@@ -102,5 +117,5 @@ export function notationForTradition(notation: PatternNotation, tradition: Tradi
 }
 
 export function traditionLabel(tradition: Tradition): string {
-  return tradition === 'japanese' ? 'japán' : 'nemzetközi (CYC)';
+  return texts().sections.notation.traditions[tradition];
 }
