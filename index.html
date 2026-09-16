@@ -514,6 +514,22 @@
                   <p class="panel__note" id="shape-border-repeat-note" data-i18n="shapeBorderRepeatNote">A sarkok közötti élek szemszáma „X többszöröse + Y” lesz; a különbség egyenletesen elosztva.</p>
                 </div>
               </div>
+              <div class="shape__group" id="shape-ribbing-fields">
+                <p class="choice">
+                  <label><input type="checkbox" id="shape-ribbing" aria-describedby="shape-ribbing-note" /> <span data-i18n="shapeRibbingLabel">Bordás szegély a felső élen</span></label>
+                </p>
+                <p class="panel__note" id="shape-ribbing-note" data-i18n="shapeRibbingNote">Váltakozó első és hátsó relief pálca (Eerp, Herp) az utolsó sor szemeinek pálcája köré: a szemszám nem változik. A sor 2 láncszemmel kezdődik, mert láncszem nem állhat relief szem helyett, és a fordulólánc tetejébe sima pálca kerül.</p>
+                <div class="shape__pair" id="shape-ribbing-pair" hidden>
+                  <p class="panel__field">
+                    <label for="shape-ribbing-rows" data-i18n="shapeRibbingRowsLabel">A bordázat sorai</label>
+                    <input id="shape-ribbing-rows" type="number" min="1" max="20" step="1" value="2" inputmode="numeric" disabled />
+                  </p>
+                  <p class="panel__field">
+                    <label for="shape-ribbing-width" data-i18n="shapeRibbingWidthLabel">A borda szélessége (1×1, 2×2)</label>
+                    <input id="shape-ribbing-width" type="number" min="1" max="6" step="1" value="1" inputmode="numeric" disabled />
+                  </p>
+                </div>
+              </div>
               <div class="shape__preview" id="shape-preview-box" hidden>
                 <svg id="shape-preview" aria-hidden="true" focusable="false"></svg>
               </div>
@@ -798,6 +814,22 @@
                 <label for="rounds-jog" data-i18n="roundsJogLabel">Lépcsőjavítás spirálban</label>
                 <select id="rounds-jog"></select>
               </p>
+              <div class="shape__group" id="rounds-ribbing-fields">
+                <p class="choice">
+                  <label><input type="checkbox" id="rounds-ribbing" aria-describedby="rounds-ribbing-note" /> <span data-i18n="roundsRibbingLabel">Bordás perem a kör végén</span></label>
+                </p>
+                <p class="panel__note" id="rounds-ribbing-note" data-i18n="roundsRibbingNote">Váltakozó első és hátsó relief pálca (Eerp, Herp) az utolsó kör szemeinek pálcája köré: a szemszám nem változik. Csak kúszószemes zárásnál, és ha a szemszám a borda kétszeresével osztható.</p>
+                <div class="shape__pair" id="rounds-ribbing-pair" hidden>
+                  <p class="panel__field">
+                    <label for="rounds-ribbing-rows" data-i18n="roundsRibbingRowsLabel">A bordázat körei</label>
+                    <input id="rounds-ribbing-rows" type="number" min="1" max="20" step="1" value="2" inputmode="numeric" disabled />
+                  </p>
+                  <p class="panel__field">
+                    <label for="rounds-ribbing-width" data-i18n="roundsRibbingWidthLabel">A borda szélessége (1×1, 2×2)</label>
+                    <input id="rounds-ribbing-width" type="number" min="1" max="6" step="1" value="1" inputmode="numeric" disabled />
+                  </p>
+                </div>
+              </div>
               <p class="panel__note" id="rounds-note" aria-live="polite"></p>
               <button type="button" class="tool rounds__create" id="rounds-create" data-i18n="roundsCreate">Minta létrehozása</button>
             </div>
