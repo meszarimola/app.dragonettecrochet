@@ -136,13 +136,13 @@ for (const viewport of [
 
     const board = page.locator('#board');
     await board.focus();
-    await page.keyboard.press('1'); // láncszem
+    await page.keyboard.press('Alt+1'); // láncszem
     await page.locator('#chain-count').focus();
     await page.keyboard.press('ControlOrMeta+A');
     await page.keyboard.type('8');
     await board.focus();
     await page.keyboard.press('Enter');
-    await page.keyboard.press('3'); // rövidpálca
+    await page.keyboard.press('Alt+3'); // rövidpálca
 
     // Elöl: a kezdőlánc utáni láncszemtől a legtávolabbiig 7 rövidpálca, a végén még 3 ugyanabba.
     for (let k = 0; k < 7; k += 1) await page.keyboard.press('Enter');
@@ -155,7 +155,7 @@ for (const viewport of [
     await expect(page.locator('#status')).toContainText('horgolva. 1. kör: 11 szem, még 5 célpont.');
     for (let k = 0; k < 5; k += 1) await page.keyboard.press('Enter');
     for (let k = 0; k < 2; k += 1) await page.keyboard.press('Shift+Enter');
-    await page.keyboard.press('s');
+    await page.keyboard.press('Alt+s');
 
     await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
     // A lecsukott írott minta nem frissül: újra kinyitva olvassuk.

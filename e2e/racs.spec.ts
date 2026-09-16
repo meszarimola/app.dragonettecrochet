@@ -46,8 +46,8 @@ async function clickSlot(page: Page, slot: number, row: 'alsó' | 'készülő'):
 
 test('a téglalap csak cellákra kattintva készül; ahol nincs mibe horgolni, üzenet jön, és nem kerül le szem', async ({ page }) => {
   await open(page);
-  // Az írott minta panelje ne takarja a vásznat.
-  await page.getByRole('button', { name: 'Írott minta' }).click();
+  // Az írott minta panelje csukva indul (PQW-911): nem takarja a vásznat.
+  await expect(page.locator('#written')).toBeHidden();
   const palette = page.locator('#palette');
   const summary = page.locator('#summary');
   const status = page.locator('#status');
@@ -95,14 +95,15 @@ test('a rács a nézet csoportban ki- és bekapcsolható, megmarad, és választ
   await open(page);
   const grid = page.locator('.tools [data-action="grid"]');
   await expect(grid).toHaveAttribute('aria-pressed', 'true');
-  await expect(grid).toHaveAttribute('data-tip', 'Rács ki és be (R)');
+  // A gyorsbillentyű Alt-os (PQW-911); Mac gépen a felirata ⌥R.
+  await expect(grid).toHaveAttribute('data-tip', /^Rács ki és be \((Alt\+R|⌥R)\)$/);
 
   await page.locator('#board').focus();
-  await page.keyboard.press('1');
+  await page.keyboard.press('Alt+1');
   await page.locator('#chain-count').fill('6');
   await page.locator('#board').focus();
   await page.keyboard.press('Enter');
-  await page.keyboard.press('3');
+  await page.keyboard.press('Alt+3');
   for (let i = 0; i < 5; i += 1) await page.keyboard.press('Enter');
   await expect(page.locator('#summary')).toContainText('1. sor: 5 szem');
   expect((await racs(page)).cells.length).toBeGreaterThan(0);
@@ -114,12 +115,14 @@ test('a rács a nézet csoportban ki- és bekapcsolható, megmarad, és választ
   await page.reload();
   await expect(grid).toHaveAttribute('aria-pressed', 'false');
   await page.locator('#board').focus();
-  await page.keyboard.press('r');
+  await page.keyboard.press('Alt+r');
   await expect(grid).toHaveAttribute('aria-pressed', 'true');
   expect((await racs(page)).cells.length).toBeGreaterThan(0);
 
   const exportSvg = async () => {
     const download = page.waitForEvent('download');
+    // Az export a fájlműveletek lenyílójában van (PQW-911).
+    await page.locator('#file-toggle').click();
     await page.getByRole('button', { name: 'SVG', exact: true }).click();
     return readFile((await (await download).path())!, 'utf8');
   };

@@ -57,6 +57,8 @@ test('mozaik egy kihagyással: hibátlan, az írott minta a lejjebb horgolt szem
   expect(await writtenText(page)).toContain('1 erp 2 sorral lejjebb');
 
   const download = page.waitForEvent('download');
+  // Az export a fájlműveletek lenyílójában van (PQW-911).
+  await page.locator('#file-toggle').click();
   await page.getByRole('button', { name: 'SVG', exact: true }).click();
   const svg = await readFile((await (await download).path())!, 'utf8');
   expect(svg).toContain('data-spike');

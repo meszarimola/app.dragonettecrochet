@@ -97,17 +97,17 @@ for (const viewport of [
 
     const board = page.locator('#board');
     await board.focus();
-    await page.keyboard.press('1'); // láncszem
+    await page.keyboard.press('Alt+1'); // láncszem
     await setChainCount(page, 40);
     await board.focus();
     await page.keyboard.press('Enter');
-    await page.keyboard.press('f');
+    await page.keyboard.press('Alt+f');
     await expect(page.locator('#status')).toContainText('Láncalap kész, a munka megfordítva.');
-    await page.keyboard.press('3'); // rövidpálca
-    await page.keyboard.press('Shift+F'); // sor kitöltése
+    await page.keyboard.press('Alt+3'); // rövidpálca
+    await page.keyboard.press('Shift+Alt+f'); // sor kitöltése
     await expect(page.locator('#summary')).toContainText('1. sor: 39 szem');
-    await page.keyboard.press('f');
-    await page.keyboard.press('Shift+F');
+    await page.keyboard.press('Alt+f');
+    await page.keyboard.press('Shift+Alt+f');
     await expectScarfRows(page, 2);
   });
 }

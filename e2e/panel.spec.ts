@@ -54,6 +54,8 @@ test('a panel szakaszai egérrel és billentyűzettel le- és felcsukhatók', as
 test('minden menüsor-ikongomb egér alatt tooltipet mutat, az inaktív is', async ({ page }) => {
   await open(page);
 
+  // A fájlműveletek lenyílóba kerültek (PQW-911): a gombjaik a menü kinyitásával látszanak.
+  await page.locator('#file-toggle').click();
   const tools = page.locator('.tools .tool');
   const count = await tools.count();
   expect(count).toBeGreaterThan(10);
@@ -93,6 +95,8 @@ test('keskeny ablakban a látható tooltip sem lóg ki jobbra', async ({ page })
   await page.setViewportSize({ width: 1000, height: 506 });
   await open(page);
 
+  // A fájlműveletek lenyílóba kerültek (PQW-911): a gombjaik a menü kinyitásával látszanak.
+  await page.locator('#file-toggle').click();
   const tools = page.locator('.tools .tool');
   const count = await tools.count();
   for (let i = 0; i < count; i += 1) {
