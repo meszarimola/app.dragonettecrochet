@@ -33,7 +33,6 @@ import type {
   PatternGaugeProfile,
   PatternNotation,
   Piece,
-  PieceBorder,
   PieceEnd,
   PieceGrid,
   PieceJoin,
@@ -360,6 +359,8 @@ function readPiece(value: unknown, path: string): Piece {
     value,
     path,
     ['id', 'name', 'stitches', 'spaces', 'rings', 'groups', 'events', 'skipped'],
+    // A `border` a kivezetett szegélyé (PQW-911): a korábbi mentésekben még ott állhat, ezért
+    // elfogadjuk a mezőt, de nem olvassuk be — a darab szegély nélkül töltődik be.
     ['corners', 'border', 'sections', 'grid', 'rowShape', 'roundShape'],
   );
   return {
@@ -375,8 +376,6 @@ function readPiece(value: unknown, path: string): Piece {
     ...(raw['corners'] === undefined ? {} : { corners: integer(raw['corners'], `${path}.corners`, 3) }),
     // A PQW-863 előtti mentésben nincs: a darab nem részekből készült.
     ...(raw['sections'] === undefined ? {} : { sections: array(raw['sections'], `${path}.sections`, readSection) }),
-    // A PQW-862 előtti mentésben nincs: a darabnak nincs szegélye.
-    ...(raw['border'] === undefined ? {} : { border: readBorder(raw['border'], `${path}.border`) }),
     // A PQW-864 előtti mentésben nincs: a darab nem rácsmintából készült.
     ...(raw['grid'] === undefined ? {} : { grid: readGrid(raw['grid'], `${path}.grid`) }),
     // A PQW-893 előtti mentésben nincs: a sorok egyenesek.
@@ -453,26 +452,6 @@ function readUnit(value: unknown, path: string): GridUnit {
   };
 }
 
-function readBorder(value: unknown, path: string): PieceBorder {
-  const raw = object(value, path, ['stitch', 'hdcRowEnd'], ['repeat']);
-  return {
-    stitch: oneOf(raw['stitch'], `${path}.stitch`, ['sc'] as const),
-    hdcRowEnd: oneOf(raw['hdcRowEnd'], `${path}.hdcRowEnd`, [1, 2] as const),
-    // A PQW-898 előtti mentésben nincs: a szegély nem igazodik ismétléshez.
-    ...(raw['repeat'] === undefined ? {} : { repeat: readBorderRepeat(raw['repeat'], `${path}.repeat`) }),
-  };
-}
-
-/** A következő szegélysor ismétlése: X 1 és 50, Y 0 és 50 között. */
-function readBorderRepeat(value: unknown, path: string): NonNullable<PieceBorder['repeat']> {
-  const raw = object(value, path, ['width', 'edge']);
-  const width = integer(raw['width'], `${path}.width`, 1);
-  const edge = integer(raw['edge'], `${path}.edge`, 0);
-  if (width > 50) throw new FormatError(`${path}.width`, 'repeat-width-max', { max: 50 });
-  if (edge > 50) throw new FormatError(`${path}.edge`, 'repeat-edge-max', { max: 50 });
-  return { width, edge };
-}
-
 function readNode(value: unknown, path: string): StitchNode {
   const raw = object(value, path, ['id', 'def', 'prev', 'anchors'], ['flags', 'pinned', 'color']);
   return {
@@ -500,7 +479,7 @@ function readPinned(value: unknown, path: string): NonNullable<StitchNode['pinne
 
 function readAnchor(value: unknown, path: string): Anchor {
   if (!isObject(value)) throw new FormatError(path, 'expected-object');
-  const into = oneOf(value['into'], `${path}.into`, ['stitch', 'space', 'ring', 'row-end', 'underside']);
+  const into = oneOf(value['into'], `${path}.into`, ['stitch', 'space', 'ring', 'underside']);
   if (into === 'stitch') {
     const raw = object(value, path, ['into', 'id', 'mode']);
     return { into, id: string(raw['id'], `${path}.id`), mode: oneOf(raw['mode'], `${path}.mode`, INSERTIONS) };

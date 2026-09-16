@@ -1,18 +1,16 @@
 /*
  * Sík formák cm-ből (PQW-862): a tudásbázis kidolgozott példái (03 §3.1 A–D,
  * §7.1 H), az élek egyenletes alakítása, a láncos hosszabbítás és a meghagyott
- * szemek, a mintaismétlés kerekítése, a szegély, és hogy minden generált minta
+ * szemek, a mintaismétlés kerekítése, és hogy minden generált minta
  * hibátlanul átmegy az ellenőrzőn, kiírható és visszaolvasható.
  */
 
 import { strict as assert } from 'node:assert';
 import { describe, test } from 'node:test';
 
-import { borderCounts, borderOf, rowEndStitches } from '../src/core/border.ts';
 import { canonicalPattern } from '../src/core/canonical.ts';
 import { emptyPattern } from '../src/core/editor.ts';
 import { buildPieceGraph } from '../src/core/graph.ts';
-import { loadPattern, savePattern } from '../src/core/pattern-json.ts';
 import { readPattern } from '../src/core/pattern-read.ts';
 import { formatWrittenPattern, writePattern } from '../src/core/pattern-text.ts';
 import {
@@ -26,7 +24,7 @@ import {
   rowExtents,
   shapeProblem,
 } from '../src/core/shapes.ts';
-import { libraryFor, resolveStitch } from '../src/core/stitch-variants.ts';
+import { libraryFor } from '../src/core/stitch-variants.ts';
 import { withTradition } from '../src/core/tradition.ts';
 import { validatePattern } from '../src/core/validate.ts';
 import { dcRectangle, hdcRectangle } from './fixtures/examples.ts';
@@ -234,85 +232,15 @@ describe('ferde él (03 §3.2, §3.4; 05 §4.4)', () => {
   });
 });
 
-describe('szegély (03 §7.1 H)', () => {
-  test('sorvégenként rövidpálcás sorra 1, félpálcásra 1 vagy 2, pálcásra 2, kétráhajtásosra 3', () => {
-    const ratio = (id, hdcRowEnd = 2) => rowEndStitches(resolveStitch(id), hdcRowEnd);
-    assert.deepEqual([ratio('sc'), ratio('hdc', 1), ratio('hdc', 2), ratio('dc'), ratio('tr')], [1, 1, 2, 2, 3]);
-  });
-
-  test('H: 60 szem × 40 pálcás sor körül 288 rövidpálca: 2 · 60 + 2 · 80 + 4 · 2', () => {
-    assert.equal(borderCounts(60, 60, 40, 2).total, 288);
-    const { pattern, plan } = shape(withRowGauge('dc', 16, 8), { stitch: 'dc', widthCm: 37.5, heightCm: 50, border: { stitch: 'sc', hdcRowEnd: 2 } });
-    assert.deepEqual([plan.counts[0], plan.counts.length], [60, 40]);
-    const { top, bottom, perRow, rows, side, corner, total } = plan.border;
-    assert.deepEqual({ top, bottom, perRow, rows, side, corner, total }, { top: 58, bottom: 58, perRow: 2, rows: 40, side: 80, corner: 3, total: 288 });
-    const result = borderOf(buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern)), pattern.pieces[0].border);
-    assert.ok(result.ok);
-    assert.equal(result.counts.total, 288);
-    assert.deepEqual(findings(pattern), []);
-  });
-
-  test('a szegély az írott mintában magyarul és angolul, és a szöveg a szegéllyel együtt visszaolvasható', () => {
-    const { pattern } = shape(withRowGauge('hdc', 15, 11), { stitch: 'hdc', widthCm: 20, heightCm: 30, border: { stitch: 'sc', hdcRowEnd: 1 } });
-    const library = libraryFor(pattern);
-    const hu = formatWrittenPattern(writePattern(pattern, library, 'hu'));
-    assert.match(hu, /2–33\. sor: 2 lsz \(1 fp-nek számít\), 29 fp \(30 szem\)\. Fordítás\.\n/);
-    assert.ok(
-      hu.includes(
-        'Szegély: 1 lsz (nem számít szemnek), felső él: 3 rp a sarokszembe, 28 rp, 3 rp a sarokszembe; ' +
-          'oldal: soronként 1 rp a sor végére (33 rp); alsó él: 3 rp a sarokba, 28 rp a láncalap láncszemeibe, 3 rp a sarokba; ' +
-          'másik oldal: soronként 1 rp a sor végére (33 rp) (134 szem). Kör zárása: 1 ksz az első szembe.',
-      ),
-      hu,
-    );
-    const en = formatWrittenPattern(writePattern(pattern, library, 'en-US'));
-    assert.match(en, /Border: ch 1 \(does not count as a st\), top edge: 3 sc in corner st, 28 sc, .* \(134 sts\)\. Join with sl st to first st\./);
-    for (const locale of ['hu', 'en-US', 'en-GB']) {
-      const text = formatWrittenPattern(writePattern(pattern, library, locale));
-      const back = readPattern(text, { library, locale, conventions: pattern.conventions });
-      assert.ok(back.ok, JSON.stringify(back.error));
-      assert.deepEqual(back.pattern.pieces[0].border, { stitch: 'sc', hdcRowEnd: 1 });
-      sameGraph(back.pattern, pattern);
-    }
-  });
-
-  test('a szegély a JSON-mentéssel megmarad, és a régi mentés szegély nélkül töltődik be', () => {
-    const { pattern } = shape(emptyPattern(), { border: { stitch: 'sc', hdcRowEnd: 2 } });
-    const loaded = loadPattern(savePattern(pattern));
-    assert.ok(loaded.ok);
-    assert.deepEqual(loaded.pattern.pieces[0].border, { stitch: 'sc', hdcRowEnd: 2 });
-    const wrong = JSON.parse(savePattern(pattern));
-    wrong.pieces[0].border.hdcRowEnd = 3;
-    assert.equal(loadPattern(JSON.stringify(wrong)).ok, false);
-    assert.equal(loadPattern(savePattern(shape(emptyPattern(), {}).pattern)).pattern.pieces[0].border, undefined);
-  });
-
-  test('ferde élű és láncos hosszabbítású, nagyon meredek él köré is készül szegély (PQW-898, PQW-902)', () => {
-    const { pattern } = shape(emptyPattern(), { shape: 'isosceles-triangle', widthCm: 10, heightCm: 10 });
-    const graph = buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));
-    assert.ok(borderOf(graph, { stitch: 'sc', hdcRowEnd: 2 }).ok);
-    const steep = planShape(emptyPattern(), { ...DEFAULT_SHAPE, shape: 'diamond', stitch: 'sc', widthCm: 20, heightCm: 4, border: { stitch: 'sc', hdcRowEnd: 2 } });
-    assert.ok(steep.ok, why(steep));
-    assert.ok(steep.plan.chainExtensionRows.length > 0);
-    assert.ok(steep.plan.border.total > 0);
-  });
-});
-
 describe('a választások ellenőrzése', () => {
-  test('mintaismétlés most csak téglalapnál, szegély minden formánál; a méret, a szög és a szegélysor ismétlése tartományban', () => {
+  test('mintaismétlés most csak téglalapnál; a méret és a szög tartományban', () => {
     assert.equal(shapeProblem({ ...DEFAULT_SHAPE, shape: 'diamond', repeat: { width: 4, edge: 1 } }).code, 'shape-repeat-rectangle-only');
-    assert.equal(shapeProblem({ ...DEFAULT_SHAPE, shape: 'trapezoid', border: { stitch: 'sc', hdcRowEnd: 2 } }), null);
-    assert.equal(
-      shapeProblem({ ...DEFAULT_SHAPE, shape: 'trapezoid', border: { stitch: 'sc', hdcRowEnd: 2, repeat: { width: 0, edge: 0 } } }).code,
-      'shape-border-repeat-width-range',
-    );
+    assert.equal(shapeProblem({ ...DEFAULT_SHAPE, shape: 'trapezoid' }), null);
     // A határ az adatba kerül, nem a mondatba (PQW-904).
     assert.deepEqual(shapeProblem({ ...DEFAULT_SHAPE, widthCm: Number.NaN }), { code: 'shape-width-range', data: { max: MAX_SHAPE_CM } });
     assert.equal(shapeProblem({ ...DEFAULT_SHAPE, shape: 'isosceles-triangle', measure: 'angle', angleDeg: 90 }).code, 'shape-angle-range');
     assert.equal(shapeProblem({ ...DEFAULT_SHAPE, repeat: { width: 0, edge: 1 } }).code, 'shape-repeat-width-range');
     assert.equal(shapeProblem({ ...DEFAULT_SHAPE, stitch: 'sc2tog' }).code, 'shape-basic-stitch-only');
-    // A szegély kódja a szegélyé: arra az írott minta hibája is hivatkozik.
-    assert.equal(shapeProblem({ ...DEFAULT_SHAPE, border: { stitch: 'hdc', hdcRowEnd: 2 } }).code, 'border-single-crochet-only');
     assert.equal(shapeProblem(DEFAULT_SHAPE), null);
   });
 });

@@ -35,7 +35,7 @@ export function text<Code extends string>(code: Code, data?: CoreData): CoreText
   return data === undefined ? { code } : { code, data };
 }
 
-/** Beágyazott üzenet (pl. a szegély indoka az írott minta hibájában). */
+/** Beágyazott üzenet (pl. a sor mondatvége az írott minta hibájában). */
 export function nested(code: string, inner: CoreText): CoreText {
   return { code, data: { inner: inner.code, ...(inner.data ?? {}) } };
 }

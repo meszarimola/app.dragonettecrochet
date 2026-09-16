@@ -35,7 +35,6 @@ import {
   STITCH_CHOICES as ROUNDS_STITCH_CHOICES,
 } from './rounds-view.ts';
 import {
-  HDC_ROW_END_CHOICES,
   MEASURE_CHOICES,
   ROUNDING_CHOICES,
   SHAPE_CHOICES,
@@ -58,7 +57,6 @@ const CHOICES: Readonly<Record<string, readonly Labelled[]>> = {
   'shape-stitch': STITCH_CHOICES,
   'shape-measure': MEASURE_CHOICES,
   'shape-rounding': ROUNDING_CHOICES,
-  'shape-hdc-row-end': HDC_ROW_END_CHOICES,
   'shawl-kind': SHAWL_KIND_CHOICES,
   'shawl-stitch': SHAWL_STITCH_CHOICES,
   'shawl-rate': RATE_CHOICES,

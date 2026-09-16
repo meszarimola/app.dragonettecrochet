@@ -7,7 +7,7 @@
  *   mondatokban a szemnév helye mindig egyetlen behelyettesítés, hogy a main.ts
  *   a szemnevet saját `lang` attribútummal tudja kitenni (PQW-853).
  * - Angolul horgolós szakszóval: stitch, row, round, chain, turning chain,
- *   increase, target, selection, border.
+ *   increase, target, selection.
  *
  * DOM nélküli, ezért a Node is futtatja, és a testvérmodulokat `.ts`
  * kiterjesztéssel importálja (mint a notation.ts).
@@ -44,8 +44,8 @@ const hu = {
     next: (layer: string): string => `${layer} következik.`,
     current: (layer: string, count: number, rest: string): string => `${layer}: ${count} szem${rest}.`,
     remaining: (count: number): string => `, még ${count} célpont`,
-    spiralHint: ' A kör végén folytasd spirálban (S).',
-    closeHint: ' A kör végén zárd a kört (K).',
+    spiralHint: ' A kör végén folytasd spirálban (Alt+S).',
+    closeHint: ' A kör végén zárd a kört (Alt+K).',
   },
 
   /* ---- Célpont a kurzor alatt ---- */
@@ -55,8 +55,6 @@ const hu = {
     space: (chainCount: number): string => `láncív (${chainCount} láncszem)`,
     ring: 'varázskör',
     underside: 'láncszem másik oldala',
-    /** A darab kerülete mentén haladó szegély célpontja (PQW-902). */
-    rowEndSlot: 'sorvég',
     stitch: 'szem',
     used: ', már horgoltál bele',
     at: (index: number, total: number, what: string, used: string): string => `Célpont: ${index}/${total}, ${what}${used}.`,
@@ -122,14 +120,13 @@ const hu = {
   slot: {
     space: 'láncívbe',
     ring: 'varázskörbe',
-    rowEnd: 'sorvégbe',
     chain: 'láncszembe',
     stitch: 'szembe',
   },
 
   /* ---- Horgolás és szerkesztés ---- */
   work: {
-    needStitch: 'Előbb válassz szemet a jelkészletből (1–9).',
+    needStitch: 'Előbb válassz szemet a jelkészletből (Alt+1–9).',
     needStitchShort: 'Előbb válassz szemet.',
     chains: (name: string, count: number): string => `${name}: ${count} láncszem.`,
     worked: (name: string): string => `${name} horgolva.`,
@@ -145,8 +142,6 @@ const hu = {
     chainRing: 'Láncgyűrű: a láncszemek gyűrűvé zárva.',
     roundClosed: 'Kör zárva.',
     spiral: 'Kör vége: a következő kör zárás nélkül, spirálban folytatódik.',
-    borderOn: 'Szegély: a célpontok a darab kerületén futnak, a felső éltől a sorvégeken és a láncalapon át.',
-    borderOff: 'Szegély kikapcsolva: a célpontok újra a sorban következnek.',
     deleteLast: 'Az utolsó lépés törölve.',
     undo: 'Visszavonva.',
     redo: 'Újra.',
@@ -171,8 +166,6 @@ const hu = {
 
   /* ---- Nézet ---- */
   view: {
-    mirrored: 'Tükrözött nézet balkezeseknek.',
-    rightHanded: 'Jobbkezes nézet.',
     gridOn: 'Rács bekapcsolva.',
     gridOff: 'Rács kikapcsolva.',
     aspectOn: 'Arányhelyes nézet: a cellák és a rács a valós szemarányt követik.',
@@ -244,8 +237,8 @@ const en: typeof hu = {
     next: (layer) => `${layer} is next.`,
     current: (layer, count, rest) => `${layer}: ${stitches(count)}${rest}.`,
     remaining: (count) => `, ${count} more ${count === 1 ? 'target' : 'targets'}`,
-    spiralHint: ' At the end of the round, continue in a spiral (S).',
-    closeHint: ' At the end of the round, join the round (K).',
+    spiralHint: ' At the end of the round, continue in a spiral (Alt+S).',
+    closeHint: ' At the end of the round, join the round (Alt+K).',
   },
 
   target: {
@@ -254,7 +247,6 @@ const en: typeof hu = {
     space: (chainCount) => `chain space (${chains(chainCount)})`,
     ring: 'magic ring',
     underside: 'the other side of the chain',
-    rowEndSlot: 'row end',
     stitch: 'stitch',
     used: ', already worked into',
     at: (index, total, what, used) => `Target: ${index}/${total}, ${what}${used}.`,
@@ -313,13 +305,12 @@ const en: typeof hu = {
   slot: {
     space: 'chain space',
     ring: 'magic ring',
-    rowEnd: 'row end',
     chain: 'chain',
     stitch: 'stitch',
   },
 
   work: {
-    needStitch: 'First choose a stitch from the symbol set (1–9).',
+    needStitch: 'First choose a stitch from the symbol set (Alt+1–9).',
     needStitchShort: 'First choose a stitch.',
     chains: (name, count) => `${name}: ${chains(count)}.`,
     worked: (name) => `${name} worked.`,
@@ -335,8 +326,6 @@ const en: typeof hu = {
     chainRing: 'Chain ring: the chains are joined into a ring.',
     roundClosed: 'Round joined.',
     spiral: 'End of round: the next round continues in a spiral, without joining.',
-    borderOn: 'Border: targets run along the edge of the piece, from the top edge across the row ends and the foundation chain.',
-    borderOff: 'Border off: targets follow the row again.',
     deleteLast: 'The last step is deleted.',
     undo: 'Undone.',
     redo: 'Redone.',
@@ -358,8 +347,6 @@ const en: typeof hu = {
   },
 
   view: {
-    mirrored: 'Mirrored view for left-handers.',
-    rightHanded: 'Right-handed view.',
     gridOn: 'Grid on.',
     gridOff: 'Grid off.',
     aspectOn: 'True-proportion view: the cells and the grid follow the real gauge.',

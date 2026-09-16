@@ -7,13 +7,11 @@ import { strict as assert } from 'node:assert';
 import { after, describe, test } from 'node:test';
 
 import { addAmigurumiPart, createAmigurumi } from '../src/core/amigurumi-generator.ts';
-import { borderLayerIndex } from '../src/core/border.ts';
 import { generateColorwork } from '../src/core/colorwork.ts';
 import { generateMosaic } from '../src/core/mosaic.ts';
 import { emptyPattern } from '../src/core/editor.ts';
 import { DEFAULT_MOTIF, generateMotif } from '../src/core/round-generator.ts';
 import { RULES } from '../src/core/rules.ts';
-import { DEFAULT_SHAPE, generateShape } from '../src/core/shapes.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
 import { validatePattern } from '../src/core/validate.ts';
 import { buildPieceGraph } from '../src/core/graph.ts';
@@ -381,53 +379,6 @@ describe('rácsos technikák (PQW-864)', () => {
       .find((node) => !node.flags && node.anchors.length === 1 && graph.layerOf.get(node.anchors[0].id) === 3);
     const reused = editNode(pattern, drop.id, { anchors: [worked.anchors[0].id] });
     assert.ok(validatePattern(reused, testLibrary).some((finding) => finding.rule === 'anchor-layer' && finding.nodes.includes(drop.id)));
-  });
-});
-
-describe('szegély a darab körül (03 §7.1, §10 H38, PQW-889)', () => {
-  const bordered = () => {
-    const result = generateShape(emptyPattern(), { ...DEFAULT_SHAPE, widthCm: 5, heightCm: 4, border: { stitch: 'sc', hdcRowEnd: 2 } });
-    assert.ok(result.ok, result.reason);
-    return result.pattern;
-  };
-
-  /** Egy szegélyszem elhagyva: a fonal útja, a csoportja és a kör megadott szemszáma igazodik, így csak a szegély szabálya jelez. */
-  const without = (pattern, id) => {
-    const piece = pattern.pieces[0];
-    const removed = piece.stitches.find((node) => node.id === id);
-    const stitches = piece.stitches.filter((node) => node !== removed).map((node) => (node.prev === id ? { ...node, prev: removed.prev } : node));
-    const groups = piece.groups.flatMap((group) => {
-      if (!group.members.includes(id)) return [group];
-      const members = group.members.filter((member) => member !== id);
-      return members.length < 2 ? [] : [{ ...group, def: group.def.replace(/^inc-\d+/, `inc-${members.length}`), members }];
-    });
-    const events = piece.events.map((event, i) => (i === piece.events.length - 1 ? { ...event, statedCount: event.statedCount - 1 } : event));
-    return { ...pattern, pieces: [{ ...piece, stitches, groups, events }] };
-  };
-  const borderLayer = (pattern) => {
-    const graph = buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));
-    return { graph, layer: graph.layers[borderLayerIndex(graph)] };
-  };
-
-  test('a generált szegélyes téglalap hibátlan', () => {
-    const pattern = bordered();
-    assert.deepEqual(validatePattern(pattern, libraryFor(pattern)), []);
-  });
-
-  test('egy félpálcás sorvégbe 2 helyett 1 rp: figyelmeztetés a sorvégi arányra', () => {
-    const pattern = bordered();
-    const { graph, layer } = borderLayer(pattern);
-    const sides = layer.stitches.filter((id) => graph.nodes.get(id).anchors[0]?.into === 'row-end');
-    const broken = without(pattern, sides[1]);
-    assertOnly(broken, 'border-row-end', [[sides[0]]], libraryFor(broken));
-  });
-
-  test('egy sarokba 3 helyett 2 rp: figyelmeztetés a sarokra', () => {
-    const pattern = bordered();
-    const { layer } = borderLayer(pattern);
-    const corner = pattern.pieces[0].groups.find((group) => group.members.every((id) => layer.stitches.includes(id)));
-    const broken = without(pattern, corner.members[2]);
-    assertOnly(broken, 'border-corner', [corner.members.slice(0, 2)], libraryFor(broken));
   });
 });
 

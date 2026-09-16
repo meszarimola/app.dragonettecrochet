@@ -19,7 +19,6 @@ import {
   type ShapeText,
 } from '../core/shapes.ts';
 import { stitchById } from '../core/stitches.ts';
-import type { PieceBorder } from '../core/types.ts';
 import { texts, uiLanguage } from './i18n.ts';
 import { renderCoreText } from './i18n/core/render.ts';
 import { SHAPE_CORE_TEXTS } from './i18n/core/shape.ts';
@@ -69,22 +68,6 @@ export const ROUNDING_CHOICES: readonly Choice<RepeatRounding>[] = (['nearest', 
   },
 }));
 
-/** A félpálcás sorvégre jutó szegélyszem: a források vitatják (03 §7.1). */
-export const HDC_ROW_END_CHOICES: readonly Choice<`${PieceBorder['hdcRowEnd']}`>[] = [
-  {
-    value: '2',
-    get label() {
-      return texts().panels.shape.rowEndStitches(2);
-    },
-  },
-  {
-    value: '1',
-    get label() {
-      return texts().panels.shape.rowEndStitches(1);
-    },
-  },
-];
-
 /**
  * A mag indoka mondattá a felület nyelvén (PQW-904): a mag kódot és adatot ad,
  * a névelő, a ragozás és a sor/kör szava itt kerül a mondatba.
@@ -100,11 +83,7 @@ export interface ShapeFieldState {
   readonly height: boolean;
   readonly angle: boolean;
   readonly repeat: boolean;
-  readonly border: boolean;
-  readonly hdcRowEnd: boolean;
-  /** Igazítás a következő szegélysor ismétléséhez (PQW-898). */
-  readonly borderRepeat: boolean;
-  /** Bordás szegély a felső élen (PQW-909); a körbefutó szegéllyel együtt nem választható. */
+  /** Bordás szegély a felső élen (PQW-909). */
   readonly ribbing: boolean;
   /** A bordázat sorai és egysége; csak bekapcsolt bordázatnál. */
   readonly ribbingFields: boolean;
@@ -119,12 +98,8 @@ export function shapeFieldState(options: ShapeOptions): ShapeFieldState {
     height: !byAngle,
     angle: byAngle,
     repeat: rectangle,
-    // Szegély minden forma köré (PQW-898).
-    border: true,
-    hdcRowEnd: options.border !== null && options.stitch === 'hdc',
-    borderRepeat: options.border !== null,
-    ribbing: options.border === null,
-    ribbingFields: options.border === null && Boolean(options.ribbing),
+    ribbing: true,
+    ribbingFields: Boolean(options.ribbing),
   };
 }
 
@@ -135,12 +110,10 @@ export function widthLabel(shape: FlatShape): string {
   return shape === 'diamond' ? labels.diamond : labels.other;
 }
 
-/** A választás a formához igazítva: mintaismétlés most csak téglalapnál van; szegély minden formánál (PQW-898). */
+/** A választás a formához igazítva: mintaismétlés most csak téglalapnál van. */
 export function normalizeShape(options: ShapeOptions): ShapeOptions {
-  // A bordás szegély a felső élen fut, a körbefutó szegély a darab körül: együtt nem választható (PQW-909).
   // Csak akkor másolunk, ha tényleg törölni kell: a változatlan választás ugyanaz az objektum marad.
-  const chosen = options.border && options.ribbing ? { ...options, ribbing: null } : options;
-  return chosen.shape === 'rectangle' ? chosen : { ...chosen, repeat: null };
+  return options.shape === 'rectangle' ? options : { ...options, repeat: null };
 }
 
 const cm = (value: number) => formatNumber(value, 1);
@@ -175,27 +148,6 @@ export function shapeView(plan: ShapePlan, options: ShapeOptions, hasProfile: bo
   }
   if (plan.chainExtensionRows.length > 0) details.push(t.chainExtension(plan.chainExtensionRows));
   if (plan.unworkedRows.length > 0) details.push(t.unworkedRows(plan.unworkedRows));
-  if (plan.border && plan.borderedCm) {
-    // A szegély rövidpálcájának mérete akkor is lehet becslés, ha a darab szeme mért.
-    const borderApprox = plan.borderedCm.source === 'estimated' ? '≈ ' : '';
-    const exposed = plan.border.sides[0].exposed + plan.border.sides[1].exposed;
-    const extras = [
-      ...(exposed > 0 ? [t.borderExposed(exposed)] : []),
-      ...(plan.border.repeat ? [t.borderRepeat(plan.border.repeat.width, plan.border.repeat.edge)] : []),
-    ];
-    details.push(
-      t.border(
-        plan.border.total,
-        plan.border.corner,
-        plan.border.perRow,
-        extras.map((extra) => `, ${extra}`).join(''),
-        borderApprox,
-        cm(plan.borderedCm.widthCm),
-        cm(plan.borderedCm.heightCm),
-      ),
-    );
-  }
-
   const stitch = stitchById(plan.stitch).terms[termsLocale()].name;
   const hookMm = formatNumber(plan.gauge.hookMm, 2);
   let source: string;
@@ -217,91 +169,41 @@ export function shapeView(plan: ShapePlan, options: ShapeOptions, hasProfile: bo
 }
 
 export interface ShapeOutline {
-  /** Az előnézet mérete cm-ben, a szegéllyel együtt. */
+  /** Az előnézet mérete cm-ben. */
   readonly width: number;
   readonly height: number;
   /** A lépcsős körvonal pontjai cm-ben, SVG-sorrendben (y lefelé nő). */
   readonly points: string;
-  /** A szegély vastagsága cm-ben; szegély nélkül 0. */
-  readonly border: number;
-  /** A szegély sávjának külső körvonala SVG-sorrendben (PQW-898); szegély nélkül üres. */
-  readonly frame: string;
 }
 
 const round = (value: number) => Math.round(value * 100) / 100;
-
-type Pair = readonly [number, number];
-
-/** Konvex burok (monoton lánc). */
-function convexHull(points: readonly Pair[]): Pair[] {
-  const sorted = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-  const cross = (o: Pair, a: Pair, b: Pair) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
-  const half = (list: readonly Pair[]) => {
-    const hull: Pair[] = [];
-    for (const p of list) {
-      while (hull.length >= 2 && cross(hull[hull.length - 2]!, hull[hull.length - 1]!, p) <= 0) hull.pop();
-      hull.push(p);
-    }
-    hull.pop();
-    return hull;
-  };
-  return [...half(sorted), ...half([...sorted].reverse())];
-}
-
-/** A szegély sávjának külső széle: a forma konvex burka a szegély vastagságával kifelé tolva, levágott sarkokkal. */
-function borderFrame(points: readonly Pair[], border: number): string {
-  if (border <= 0 || points.length < 3) return '';
-  const hull = convexHull(points);
-  const cx = hull.reduce((sum, p) => sum + p[0], 0) / hull.length;
-  const cy = hull.reduce((sum, p) => sum + p[1], 0) / hull.length;
-  const pushed: Pair[] = [];
-  hull.forEach((p, i) => {
-    for (const [a, b] of [
-      [hull[(i + hull.length - 1) % hull.length]!, p],
-      [p, hull[(i + 1) % hull.length]!],
-    ] as const) {
-      const length = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
-      let [nx, ny] = [(b[1] - a[1]) / length, -(b[0] - a[0]) / length];
-      if (nx * (p[0] - cx) + ny * (p[1] - cy) < 0) [nx, ny] = [-nx, -ny];
-      pushed.push([p[0] + nx * border, p[1] + ny * border]);
-    }
-  });
-  return convexHull(pushed)
-    .map(([x, y]) => `${round(x)},${round(y)}`)
-    .join(' ');
-}
 
 /** A forma körvonala soronként lépcsősen, ahogy a sorok széle áll (shapes.ts `rowExtents`). */
 export function shapeOutline(plan: ShapePlan): ShapeOutline {
   const extents = rowExtents(plan);
   const { stitchCm, rowCm } = plan.gauge;
-  const border = plan.borderedCm ? (plan.borderedCm.heightCm - plan.heightCm) / 2 : 0;
   const minLeft = Math.min(...extents.map((row) => row.left));
   const maxRight = Math.max(...extents.map((row) => row.right));
   const rows = extents.length;
-  const x = (stitches: number) => border + (stitches - minLeft) * stitchCm;
-  const y = (row: number) => border + (rows - row) * rowCm;
+  const x = (stitches: number) => (stitches - minLeft) * stitchCm;
+  const y = (row: number) => (rows - row) * rowCm;
   const left: string[] = [];
   const right: string[] = [];
-  const corners: Pair[] = [];
   extents.forEach((row, k) => {
     left.push(`${round(x(row.left))},${round(y(k))}`, `${round(x(row.left))},${round(y(k + 1))}`);
     right.push(`${round(x(row.right))},${round(y(k))}`, `${round(x(row.right))},${round(y(k + 1))}`);
-    for (const edge of [row.left, row.right]) corners.push([x(edge), y(k)], [x(edge), y(k + 1)]);
   });
   return {
-    width: round((maxRight - minLeft) * stitchCm + 2 * border),
-    height: round(rows * rowCm + 2 * border),
+    width: round((maxRight - minLeft) * stitchCm),
+    height: round(rows * rowCm),
     points: [...left, ...right.reverse()].join(' '),
-    border: round(border),
-    frame: borderFrame(corners, border),
   };
 }
 
-/** Az állapotsor üzenete a létrehozás után; szegéllyel a szegély is (PQW-897). */
+/** Az állapotsor üzenete a létrehozás után. */
 export function generatedMessage(options: ShapeOptions, plan: ShapePlan): string {
   const t = texts().panels.shape;
   // A bordás szegély sorai is elkészültek: az állapotsor a tényleges sorszámot mondja (PQW-909).
   const rows = plan.counts.length + (options.ribbing?.rows ?? 0);
-  return t.generated(t.names[options.shape], rows, Boolean(plan.border));
+  return t.generated(t.names[options.shape], rows);
 }

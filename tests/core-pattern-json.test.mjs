@@ -50,6 +50,17 @@ test('a minta jelölése megmarad; érvénytelen értéknél a mező útvonaláv
   assert.equal('notation' in old.pattern, false);
 });
 
+test('a kivezetett szegély mezője a korábbi mentésben nem töri el a betöltést (PQW-911)', () => {
+  const { pattern } = dcRectangle({ rows: 1 });
+  const raw = JSON.parse(savePattern(pattern));
+  // A PQW-911 előtt a darab tárolta a szegély választását; ma nincs ilyen mező, a beolvasó elhagyja.
+  raw.pieces[0].border = { stitch: 'sc', hdcRowEnd: 2, repeat: { width: 4, edge: 0 } };
+  const loaded = loadPattern(JSON.stringify(raw));
+  assert.equal(loaded.ok, true);
+  assert.equal('border' in loaded.pattern.pieces[0], false);
+  assert.deepEqual(validatePattern(loaded.pattern, testLibrary), []);
+});
+
 const GAUGE = {
   active: 'p1',
   profiles: [

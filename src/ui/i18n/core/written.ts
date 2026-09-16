@@ -5,13 +5,9 @@
  * itt készül, a felület nyelvén. A magyar ág betűre azonos a PQW-904 előtti
  * szövegekkel: ez átvezetés, nem újrafogalmazás.
  *
- * Két szint áll össze itt:
  * - `layer-unsupported`: a mag csak a sorszámot (`index`), a sor/kör formáját
  *   (`shape`) és a mondatvég kódját (`inner`) adja. A névelő, a sor/kör szava és
  *   a mondatvég összeillesztése a felületé — a magyar „A(z)” alak változatlan.
- * - `border-failed`: a szegély indoka a `border.ts` kódja, amelynek szövegét a
- *   szegély szótára adja (`shape.ts`). A hívó (`src/ui/written.ts`) írja meg azt
- *   a mondatot, és `reason` néven teszi be ide; itt csak a burkoló mondat áll.
  */
 
 import type { UnsupportedCode, WrittenCode } from '../../../core/pattern-steps.ts';
@@ -22,7 +18,6 @@ import { type CoreDictionary, isRound, num, str } from './render.ts';
  * őket a sor vagy a kör mögé.
  */
 const HU_REASONS: Readonly<Record<UnsupportedCode, string>> = {
-  'row-end-stitch': 'sorvégbe horgolt szemet tartalmaz; ez csak a szegélyben írható ki',
   'underside-place': 'a láncszem másik oldalába olyan helyen horgol, amely még nem írható ki',
   'underside-backwards': 'a láncszemek másik oldalán a haladási iránnyal szemben horgol',
   'space-misplaced': 'olyan láncívbe kapaszkodik, amely nincs a megfelelő helyen',
@@ -42,7 +37,6 @@ const HU_REASONS: Readonly<Record<UnsupportedCode, string>> = {
 };
 
 const EN_REASONS: Readonly<Record<UnsupportedCode, string>> = {
-  'row-end-stitch': 'contains a stitch worked into a row end; that can only be written in the border',
   'underside-place': 'works into the other side of a chain in a place that cannot be written yet',
   'underside-backwards': 'works against the direction of travel on the other side of the chains',
   'space-misplaced': 'holds on to a chain space that is not in the right place',
@@ -69,8 +63,6 @@ export const WRITTEN_CORE_TEXTS: CoreDictionary<WrittenCode> = {
       `A(z) ${num(data, 'index')}. ${isRound(data) ? 'kör' : 'sor'} ${HU_REASONS[str(data, 'inner') as UnsupportedCode] ?? ''}.`,
     'needs-foundation': 'A minta láncalappal vagy varázskörrel kezdődik; enélkül még nem írható ki.',
     'foundation-event': 'A láncalapon lévő esemény még nem írható ki.',
-    'border-failed': (data) => `A szegély nem írható ki: ${str(data, 'reason')}`,
-    'border-missing': 'A szegély választása hiányzik a darabból, ezért a szegély nem írható ki.',
   },
   en: {
     ...EN_REASONS,
@@ -78,7 +70,5 @@ export const WRITTEN_CORE_TEXTS: CoreDictionary<WrittenCode> = {
       `${isRound(data) ? 'Round' : 'Row'} ${num(data, 'index')} ${EN_REASONS[str(data, 'inner') as UnsupportedCode] ?? ''}.`,
     'needs-foundation': 'The pattern starts with a foundation chain or a magic ring; without one it cannot be written yet.',
     'foundation-event': 'An event on the foundation chain cannot be written yet.',
-    'border-failed': (data) => `The border cannot be written: ${str(data, 'reason')}`,
-    'border-missing': 'The border choice is missing from the piece, so the border cannot be written.',
   },
 };

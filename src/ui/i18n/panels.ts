@@ -41,8 +41,6 @@ export interface PanelTexts {
     readonly names: Readonly<Record<FlatShape, string>>;
     readonly measures: Readonly<Record<ShapeMeasure, string>>;
     readonly roundings: Readonly<Record<RepeatRounding, string>>;
-    /** A sorvégre jutó szegélyszem választása: „2 rp”. */
-    readonly rowEndStitches: (count: number) => string;
     readonly widthLabels: {
       readonly rectangle: string;
       readonly diamond: string;
@@ -58,9 +56,6 @@ export interface PanelTexts {
     readonly evenShaping: string;
     readonly chainExtension: (rows: readonly number[]) => string;
     readonly unworkedRows: (rows: readonly number[]) => string;
-    readonly border: (total: number, corner: number, perRow: number, extras: string, approx: string, width: string, height: string) => string;
-    readonly borderExposed: (count: number) => string;
-    readonly borderRepeat: (width: number, edge: number) => string;
     readonly gaugeMeasured: (stitch: string, basis: string) => string;
     readonly gaugeFromLabel: string;
     readonly gaugeFromRows: string;
@@ -68,7 +63,7 @@ export interface PanelTexts {
     readonly gaugeOtherForm: string;
     readonly gaugeHookProfile: (hookMm: string) => string;
     readonly gaugeHookNoProfile: (hookMm: string) => string;
-    readonly generated: (name: string, rows: number, withBorder: boolean) => string;
+    readonly generated: (name: string, rows: number) => string;
   };
   readonly shawl: {
     readonly names: Readonly<Record<ShawlKind, string>>;
@@ -354,7 +349,6 @@ const hu: PanelTexts = {
     },
     measures: { height: 'Magasság', angle: 'Az él szöge' },
     roundings: { nearest: 'A legközelebbi többszörösre', up: 'Felfelé: bővebb', down: 'Lefelé: szűkebb' },
-    rowEndStitches: (count) => `${count} rp`,
     widthLabels: { rectangle: 'Szélesség, cm', diamond: 'Legszélesebb sor, cm', other: 'Alsó él, cm' },
     actualSize: (approx, width, height, rows) => `Tényleges méret: ${approx}${width} × ${height} cm, ${rows} sor.`,
     perRow: (stitches) => `Soronként ${stitches} szem.`,
@@ -367,11 +361,6 @@ const hu: PanelTexts = {
     evenShaping: 'A szaporítás és a fogyasztás egyenletesen elosztva, élenként soronként legfeljebb 2 egy szembe.',
     chainExtension: (rows) => `Láncos hosszabbítás ${huRowList(rows)} végén.`,
     unworkedRows: (rows) => `Meghagyott szemek ${huRowList(rows)} végén: lépcsős él.`,
-    border: (total, corner, perRow, extras, approx, width, height) =>
-      `Szegély: ${total} rp körben, sarkonként ${corner}, sorvégenként ${perRow}${extras}; ` +
-      `a szegéllyel ${approx}${width} × ${height} cm. A diagramon, a rácson és a kész méretben is látszik.`,
-    borderExposed: (count) => `a lépcsők meghagyott szemeibe ${count}`,
-    borderRepeat: (width, edge) => `élenként ${width} többszöröse + ${edge}`,
     gaugeMeasured: (stitch, basis) => `${huCapitalize(huArticle(stitch))} ${basis} mintasűrűségéből.`,
     gaugeFromLabel: 'címkén megadott',
     gaugeFromRows: 'síkban mért',
@@ -381,7 +370,7 @@ const hu: PanelTexts = {
     gaugeHookProfile: (hookMm) => `Becslés a profil ${hookMm} mm-es tűjéből, mert nincs mért mintasűrűség. Pontosabb, ha a Méret és fonal szakaszban megadod.`,
     gaugeHookNoProfile: (hookMm) =>
       `Nincs profil: a méret becslés ${hookMm} mm-es tűből. Pontosabb, ha próbadarabot mérsz, és a Méret és fonal szakaszban profilként megadod.`,
-    generated: (name, rows, withBorder) => `${name}, ${rows} ${withBorder ? 'sor és szegély' : 'sor'} elkészült; visszavonással a korábbi minta visszajön.`,
+    generated: (name, rows) => `${name}, ${rows} sor elkészült; visszavonással a korábbi minta visszajön.`,
   },
   shawl: {
     names: {
@@ -718,7 +707,6 @@ const en: PanelTexts = {
     },
     measures: { height: 'Height', angle: 'Angle of the edge' },
     roundings: { nearest: 'To the nearest multiple', up: 'Up: wider', down: 'Down: narrower' },
-    rowEndStitches: (count) => `${count} sc`,
     widthLabels: { rectangle: 'Width, cm', diamond: 'Widest row, cm', other: 'Bottom edge, cm' },
     actualSize: (approx, width, height, rows) => `Finished size: ${approx}${width} × ${height} cm, ${rows} rows.`,
     perRow: (stitches) => `${stitches} stitches per row.`,
@@ -731,11 +719,6 @@ const en: PanelTexts = {
     evenShaping: 'Increases and decreases spread evenly, at most 2 into one stitch per edge and row.',
     chainExtension: (rows) => `Chain extension at the end of ${enRowList(rows)}.`,
     unworkedRows: (rows) => `Stitches left unworked at the end of ${enRowList(rows)}: a stepped edge.`,
-    border: (total, corner, perRow, extras, approx, width, height) =>
-      `Border: ${total} sc around, ${corner} into each corner, ${perRow} per row end${extras}; ` +
-      `with the border ${approx}${width} × ${height} cm. It shows on the chart, on the grid and in the finished size.`,
-    borderExposed: (count) => `${count} into the stitches left by the steps`,
-    borderRepeat: (width, edge) => `a multiple of ${width} plus ${edge} per edge`,
     gaugeMeasured: (stitch, basis) => `From the ${basis} gauge of ${stitch}.`,
     gaugeFromLabel: 'gauge given on the label',
     gaugeFromRows: 'gauge measured in rows',
@@ -747,7 +730,7 @@ const en: PanelTexts = {
       `Estimate from the ${hookMm} mm hook of the profile, because there is no measured gauge. It is more accurate if you give it in the Size and yarn section.`,
     gaugeHookNoProfile: (hookMm) =>
       `No profile: the size is an estimate from a ${hookMm} mm hook. It is more accurate if you measure a swatch and add it as a profile in the Size and yarn section.`,
-    generated: (name, rows, withBorder) => `${name}: ${rows} ${withBorder ? 'rows and the border' : 'rows'} done; undo brings the previous one back.`,
+    generated: (name, rows) => `${name}: ${rows} rows done; undo brings the previous one back.`,
   },
   shawl: {
     names: {

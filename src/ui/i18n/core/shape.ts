@@ -1,7 +1,7 @@
 /*
- * A Forma, a Kendő és a szegély magból jövő üzenetei mondattá (PQW-904).
+ * A Forma és a Kendő magból jövő üzenetei mondattá (PQW-904).
  *
- * A mag kódot és adatot ad (`ShapeCode`, `ShawlCode`, `BorderCode`), a mondat
+ * A mag kódot és adatot ad (`ShapeCode`, `ShawlCode`), a mondat
  * itt készül. A magyar ág betűre a mai szöveg: ez átvezetés, nem
  * újrafogalmazás, ezért a magyar felület megjelenése nem változik.
  *
@@ -15,13 +15,9 @@
  * megbukott szabály, `row` (és `shape`) a tervtől eltérő sor vagy kör, adat
  * nélkül a hiányos sorterv.
  *
- * A szegély kódjaira (`border-`) az írott minta hibája is hivatkozik
- * (pattern-steps.ts, `nested`), ezért azok a kódok itt is megvannak.
- *
  * DOM nélküli, ezért a Node is futtatja.
  */
 
-import type { BorderCode } from '../../../core/border.ts';
 import type { CoreData } from '../../../core/messages.ts';
 import type { ShapeCode } from '../../../core/shapes.ts';
 import type { ShawlCode } from '../../../core/shawls.ts';
@@ -29,7 +25,7 @@ import { RIBBING_EN, RIBBING_HU } from './ribbing.ts';
 import { isRound, num, str, type CoreDictionary, type CoreEntry } from './render.ts';
 
 /** A három terület kódkészlete együtt; a kendő a stólához a forma kódjait is használja. */
-type ShapeCoreCode = ShapeCode | ShawlCode | BorderCode;
+type ShapeCoreCode = ShapeCode | ShawlCode;
 
 type Entries = Readonly<Record<ShapeCoreCode, CoreEntry>>;
 
@@ -40,16 +36,6 @@ const hu: Entries = {
   /* ---- Bordázat (a Kör és motívum szótárával közös, PQW-909) ---- */
   ...RIBBING_HU,
 
-  /* ---- Szegély ---- */
-  'border-single-crochet-only': 'A szegély most csak rövidpálcás lehet.',
-  'border-needs-row': 'A szegélyhez legalább egy sor kell.',
-  'border-rows-only': 'A szegély most csak sorokban horgolt darab köré készül.',
-  'border-needs-stitches': 'A szegélyhez minden sorban kell szem.',
-  'border-not-regular': 'A szegély eltér a szabályos szegélytől (sarkonként 3, sorvégenként a sor szeme szerint), ezért még nem írható ki.',
-  'border-after-turn': 'A szegély az utolsó sor fordulása után kezdődik.',
-  'border-already': 'A darabnak már van szegélye.',
-  'border-stitch-missing': 'A szegély szeme nincs a könyvtárban.',
-
   /* ---- Forma ---- */
   'shape-basic-stitch-only': 'Ehhez a generátorhoz alapszemet válassz: rövidpálca, félpálca, egyráhajtásos vagy kétráhajtásos pálca.',
   'shape-width-range': (data) => `A szélesség 0 és ${num(data, 'max')} cm közötti szám legyen.`,
@@ -59,9 +45,6 @@ const hu: Entries = {
   'shape-repeat-rectangle-only': 'Mintaismétlés most csak téglalapnál választható.',
   'shape-repeat-width-range': (data) => `Az ismétlés szemszáma (X) 1 és ${num(data, 'max')} közötti egész szám legyen.`,
   'shape-repeat-edge-range': (data) => `A szélső szemek száma (Y) 0 és ${num(data, 'max')} közötti egész szám legyen.`,
-  'shape-border-repeat-width-range': (data) => `A szegélysor ismétlésének szemszáma (X) 1 és ${num(data, 'max')} közötti egész szám legyen.`,
-  'shape-border-repeat-edge-range': (data) =>
-    `A szegélysor élenkénti kiegyenlítő szemeinek száma (Y) 0 és ${num(data, 'max')} közötti egész szám legyen.`,
   'shape-too-narrow': (data) => `Ilyen keskeny formához legalább ${num(data, 'min')} szem kell: adj meg nagyobb szélességet.`,
   'shape-max-stitches-width': (data) => `Egy sorban legfeljebb ${num(data, 'max')} szem lehet: adj meg kisebb szélességet.`,
   'shape-max-stitches-size': (data) => `Egy sorban legfeljebb ${num(data, 'max')} szem lehet: adj meg kisebb méretet.`,
@@ -114,16 +97,6 @@ const en: Entries = {
   /* ---- Ribbing (shared with the Circle and motif dictionary, PQW-909) ---- */
   ...RIBBING_EN,
 
-  /* ---- Border ---- */
-  'border-single-crochet-only': 'The border can only be single crochet for now.',
-  'border-needs-row': 'A border needs at least one row.',
-  'border-rows-only': 'The border is only made around a piece worked in rows for now.',
-  'border-needs-stitches': 'Every row needs stitches for the border.',
-  'border-not-regular': 'The border differs from the regular border (3 into each corner, per row end by the stitch of the row), so it cannot be written out yet.',
-  'border-after-turn': 'The border starts after the turn of the last row.',
-  'border-already': 'The piece already has a border.',
-  'border-stitch-missing': 'The stitch of the border is not in the library.',
-
   /* ---- Shape ---- */
   'shape-basic-stitch-only': 'Choose a basic stitch for this generator: single, half double, double or treble crochet.',
   'shape-width-range': (data) => `The width should be a number between 0 and ${num(data, 'max')} cm.`,
@@ -133,9 +106,6 @@ const en: Entries = {
   'shape-repeat-rectangle-only': 'A stitch repeat can only be chosen for a rectangle for now.',
   'shape-repeat-width-range': (data) => `The stitch count of the repeat (X) should be a whole number between 1 and ${num(data, 'max')}.`,
   'shape-repeat-edge-range': (data) => `The number of edge stitches (Y) should be a whole number between 0 and ${num(data, 'max')}.`,
-  'shape-border-repeat-width-range': (data) => `The stitch count of the border row repeat (X) should be a whole number between 1 and ${num(data, 'max')}.`,
-  'shape-border-repeat-edge-range': (data) =>
-    `The number of balancing stitches per edge in the border row (Y) should be a whole number between 0 and ${num(data, 'max')}.`,
   'shape-too-narrow': (data) => `Such a narrow shape needs at least ${num(data, 'min')} stitches: give a larger width.`,
   'shape-max-stitches-width': (data) => `A row can have at most ${num(data, 'max')} stitches: give a smaller width.`,
   'shape-max-stitches-size': (data) => `A row can have at most ${num(data, 'max')} stitches: give a smaller size.`,
@@ -186,4 +156,4 @@ const en: Entries = {
   },
 };
 
-export const SHAPE_CORE_TEXTS: CoreDictionary<ShapeCode | ShawlCode | BorderCode> = { hu, en };
+export const SHAPE_CORE_TEXTS: CoreDictionary<ShapeCode | ShawlCode> = { hu, en };

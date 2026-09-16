@@ -42,9 +42,8 @@
  * rész a nyitott szélbe süllyed (gömbsüveg), ez levonódik.
  */
 
-import { rowEdges } from './border.ts';
 import { stitchDimensions } from './gauge.ts';
-import { buildPieceGraph, type PieceGraph } from './graph.ts';
+import { buildPieceGraph, rowEdges, type PieceGraph } from './graph.ts';
 import { text, type CoreText } from './messages.ts';
 import { gaugeContextOf } from './pattern-size.ts';
 import { CUPPING_RATIO, RUFFLING_RATIO, flatIncreases, niceIncreases } from './rounds.ts';
@@ -872,7 +871,7 @@ function edgeInfo(pattern: Pattern, edge: JoinEdge, library: StitchLibrary): Edg
     if (to < edge.layer || to >= graph.layers.length) return null;
     const ends: NodeId[] = [];
     for (const row of graph.layers.slice(edge.layer, to + 1)) {
-      const edges = row.shape === 'row' && !row.border ? rowEdges(row) : null;
+      const edges = row.shape === 'row' ? rowEdges(row) : null;
       if (!edges) return null;
       // A színoldali sor a rajz jobb szélén kezdődik, a visszai a balon (01 §8.4).
       const startSide = row.side === 'right' ? 'right' : 'left';

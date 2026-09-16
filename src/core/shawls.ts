@@ -199,7 +199,7 @@ export interface ShawlPlan {
  * a felületé: a mag az adatban `shape: 'row' | 'round'` értéket ad.
  *
  * A stóla a sík téglalapból készül, ezért a forma kódjai is idetartoznak
- * (`ShapeCode`, benne a szegély kódjaival és az `internal-error`-ral).
+ * (`ShapeCode`, benne az `internal-error`-ral).
  */
 export type ShawlCode =
   | 'shawl-basic-stitch-only'
@@ -645,7 +645,6 @@ const stoleShape = (options: ShawlOptions) => ({
   heightCm: options.lengthCm,
   repeat: options.edging,
   rounding: 'nearest' as const,
-  border: null,
 });
 
 /** Figyelmeztetés az ideálistól 15%-nál nagyobb eltérésre (05 §9.4); nem hiba. */
@@ -878,7 +877,7 @@ export function generateShawl(pattern: Pattern, options: ShawlOptions): ShawlRes
     // A `plannedRounds` még magyar mondatot ad (round-generator.ts átmeneti `legacyReason`-je,
     // PQW-904). A kendő ezeket az ágakat nem éri el (varázskörrel kezd, és a kész körterv
     // legfeljebb duplázik), ezért belső hibaként vesszük át; ha a kör kódjai is megvannak, a
-    // szegély mintájára `nested()` lesz belőle.
+    // sor mondatvégeinek mintájára `nested()` lesz belőle.
     let piece: Piece | string | ShawlText;
     let conventions = pattern.conventions;
     if (plan.worked === 'rounds') {

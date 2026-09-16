@@ -436,6 +436,7 @@ body.is-selecting #board {
   color: var(--c-muted);
   font-family: var(--font-body);
   font-size: 0.75rem;
+  white-space: nowrap;
 }
 
 /* ---- Eszköztár ---- */
@@ -471,14 +472,54 @@ body.is-selecting #board {
   font-size: 0.8125rem;
 }
 
-/* Az eszköztár gombjai négyzetes ikongombok. */
+/*
+ * Az eszköztár gombjain az ikon alatt egy szavas felirat áll (PQW-911). A
+ * szélesség a felirathoz igazodik, de a tapintható méret megmarad: legalább
+ * 44px széles és magas.
+ */
 .tools .tool {
   display: inline-grid;
-  place-items: center;
-  inline-size: 44px;
-  block-size: 44px;
-  padding: 0;
+  justify-items: center;
+  align-content: center;
+  gap: 0.1rem;
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  padding: 0.2rem 0.35rem;
   color: var(--c-text-soft);
+}
+
+.tool__label {
+  font-size: 0.6875rem;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+/* A fájlmenü elemei egymás alatt, ikonnal és névvel, teljes szélességben. */
+.menu__list {
+  display: grid;
+  gap: 0.25rem;
+  inline-size: max-content;
+  min-inline-size: 12rem;
+  padding: 0.35rem;
+}
+
+.menu__list .tool {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem;
+  justify-items: start;
+  align-items: center;
+  inline-size: 100%;
+  border-color: transparent;
+}
+
+.menu__list .tool:hover:not(:disabled) {
+  background: var(--c-selection);
+}
+
+/* A menüben a név teljes értékű felirat, nem az ikon alatti mikroszöveg. */
+.menu__list .tool__label {
+  font-size: 0.8125rem;
 }
 
 .tool:hover:not(:disabled) {
@@ -1236,13 +1277,6 @@ body.is-selecting #board {
   fill: var(--c-row-a);
   stroke: var(--c-ink);
   stroke-width: 1.5;
-}
-
-.shape__border {
-  fill: var(--c-row-b);
-  stroke: var(--c-ink-wrong);
-  stroke-width: 1;
-  stroke-dasharray: 4 3;
 }
 
 .shape__size {
