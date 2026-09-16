@@ -32,7 +32,9 @@ test('női táblázat: az 5X felkarbőség hüvelykje nem egyezik a cm-rel (18½
     inch.map((flag) => `${flag.size}:${flag.measure}`),
     ['5X:upperArm'],
   );
-  assert.match(inch[0].note, /18,5" = 47 cm, a táblázatban 49,5 cm/);
+  // A gyanú kódként és adatként megy a felületre; a mértéknevet és a számok alakját a szótár adja (PQW-904).
+  assert.equal(inch[0].note.code, 'flag-inch-mismatch');
+  assert.deepEqual(inch[0].note.data, { measure: 'upperArm', inch: [18.5, 18.5], converted: [47, 47], cm: [49.5, 49.5] });
 });
 
 test('női táblázat: a 2X–5X háthossz, keresztháti szélesség és karhossz sora azonos, másolási hibára utal', () => {

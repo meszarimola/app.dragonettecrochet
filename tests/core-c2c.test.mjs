@@ -18,6 +18,8 @@ import { foundationChainLength } from '../src/core/repeat.ts';
 import { libraryFor, resolveStitch } from '../src/core/stitch-variants.ts';
 import { firstChainFromHook, withTradition } from '../src/core/tradition.ts';
 import { validatePattern } from '../src/core/validate.ts';
+import { GRID_CORE_TEXTS } from '../src/ui/i18n/core/grid.ts';
+import { renderCoreText } from '../src/ui/i18n/core/render.ts';
 
 const COLORS = [
   { name: 'Fehér', hex: '#ffffff' },
@@ -31,9 +33,11 @@ const japanese = () => ({ ...emptyPattern(), conventions: withTradition(emptyPat
 const plain = (width, height, color = 0) => Array.from({ length: height }, () => Array.from({ length: width }, () => color));
 const make = (pattern, cells, colors = COLORS) => {
   const result = generateC2C(pattern, { cells, colors, unit: null, lettering: false });
-  assert.ok(result.ok, result.reason);
+  assert.ok(result.ok, JSON.stringify(result.reason));
   return result;
 };
+/** A mag kódot és adatot ad; a mondat a felület szótárában készül (PQW-904). */
+const hu = (message) => renderCoreText(GRID_CORE_TEXTS.hu, message);
 const findings = (pattern) => validatePattern(pattern, libraryFor(pattern));
 
 function random(seed) {
@@ -152,11 +156,21 @@ describe('színek és ellenőrző', () => {
       assert.equal(result.ok, false);
       return result.reason;
     };
-    assert.match(reason(cyc(), []), /legalább egy sort/);
-    assert.match(reason(cyc(), [[0, 3]]), /színlista egyik színe/);
-    assert.match(reason(cyc(), [[0]], []), /legalább egy színt/);
-    assert.match(reason(cyc(), [[0, 0], [0]]), /egyforma széles/);
+    // A mag kódot és adatot ad; a mondat a felület szótárából jön (PQW-904).
+    assert.equal(reason(cyc(), []).code, 'chart-no-rows');
+    assert.equal(reason(cyc(), [[0, 3]]).code, 'chart-color-index');
+    assert.equal(reason(cyc(), [[0]], []).code, 'chart-no-colors');
+    assert.deepEqual(reason(cyc(), [[0, 0], [0]]), { code: 'chart-size', data: { max: 80 } });
     const notCounting = { ...emptyPattern(), conventions: { ...emptyPattern().conventions, turningChainCounts: false } };
-    assert.match(reason(notCounting, [[0]]), /szemnek kell számítania/);
+    assert.equal(reason(notCounting, [[0]]).code, 'c2c-turning-chain');
+
+    assert.match(hu(reason(cyc(), [])), /legalább egy sort/);
+    assert.match(hu(reason(cyc(), [[0, 3]])), /színlista egyik színe/);
+    assert.match(hu(reason(cyc(), [[0]], [])), /legalább egy színt/);
+    assert.match(hu(reason(cyc(), [[0, 0], [0]])), /egyforma széles/);
+    assert.equal(
+      hu(reason(notCounting, [[0]])),
+      'A C2C-csempe 3 láncszeme az első pálca helyett áll: a mintában a pálca fordulóláncának szemnek kell számítania.',
+    );
   });
 });

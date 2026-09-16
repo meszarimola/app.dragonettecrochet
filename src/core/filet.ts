@@ -22,7 +22,8 @@
  *   végi szaporítás még nem készül: ilyenkor érthető ok jön.
  */
 
-import { finishGridPattern, fail, gridPiece, GridWriter, intoStitch, rowName } from './grid-pattern.ts';
+import { finishGridPattern, fail, gridPiece, GridWriter, intoStitch, type GridPatternCode } from './grid-pattern.ts';
+import { text, type CoreText } from './messages.ts';
 import { FILLED, MAX_GRID_SIDE, NO_CELL, OPEN, TECHNIQUE_NAMES, type ChartRows } from './pixel-chart.ts';
 import { foundationChainLength } from './repeat.ts';
 import { shapeGauge, type ShapeGauge } from './shapes.ts';
@@ -67,10 +68,22 @@ export interface FiletPlan {
   readonly heightCm: number;
 }
 
-export type FiletPlanResult = { readonly ok: true; readonly plan: FiletPlan } | { readonly ok: false; readonly reason: string };
+/** A filé üzenetei kódként (PQW-904); a mondat és a sor neve a felületé. */
+export type FiletCode =
+  | 'filet-no-rows'
+  | 'filet-too-many-rows'
+  | 'filet-ragged'
+  | 'filet-cell-kind'
+  | 'filet-empty-row'
+  | 'filet-gap-row'
+  | 'filet-extend-counting'
+  | 'filet-extend-open'
+  | 'filet-extend-reach';
+
+export type FiletPlanResult = { readonly ok: true; readonly plan: FiletPlan } | { readonly ok: false; readonly reason: CoreText<FiletCode> };
 export type FiletResult =
   | { readonly ok: true; readonly pattern: Pattern; readonly plan: FiletPlan }
-  | { readonly ok: false; readonly reason: string };
+  | { readonly ok: false; readonly reason: CoreText<FiletCode | GridPatternCode> };
 
 export interface FiletOptions {
   /** A kiterjesztett rács: sorok alulról, cellák balról; 1 teli, 0 nyitott, −1 nincs cella. */
@@ -81,23 +94,23 @@ export interface FiletOptions {
 
 /** A sor terve a rácsból; a rács hibájánál az ok. */
 export function planFilet(pattern: Pattern, cells: ChartRows): FiletPlanResult {
-  if (cells.length === 0) return fail('Adj meg legalább egy sort.');
-  if (cells.length > MAX_GRID_SIDE) return fail(`Legfeljebb ${MAX_GRID_SIDE} sor lehet.`);
+  if (cells.length === 0) return fail(text('filet-no-rows'));
+  if (cells.length > MAX_GRID_SIDE) return fail(text('filet-too-many-rows', { max: MAX_GRID_SIDE }));
   const width = cells[0]!.length;
   if (width === 0 || width > MAX_GRID_SIDE || cells.some((row) => row.length !== width)) {
-    return fail(`Minden sor ugyanannyi cella legyen, legfeljebb ${MAX_GRID_SIDE}.`);
+    return fail(text('filet-ragged', { max: MAX_GRID_SIDE }));
   }
   if (cells.some((row) => row.some((cell) => cell !== FILLED && cell !== OPEN && cell !== NO_CELL))) {
-    return fail('Filében a cella teli, nyitott vagy üres hely lehet.');
+    return fail(text('filet-cell-kind'));
   }
 
   const extents: { from: number; to: number }[] = [];
   for (let y = 0; y < cells.length; y += 1) {
     const xs = cells[y]!.flatMap((cell, x) => (cell === NO_CELL ? [] : [x]));
-    if (xs.length === 0) return fail(`${rowName(y + 1)}ban nincs cella: a filé minden sora legalább egy cella.`);
+    if (xs.length === 0) return fail(text('filet-empty-row', { row: y + 1 }));
     const from = xs[0]!;
     const to = xs[xs.length - 1]!;
-    if (to - from + 1 !== xs.length) return fail(`${rowName(y + 1)}ban a cellák között üres hely van: a filé sora folytonos.`);
+    if (to - from + 1 !== xs.length) return fail(text('filet-gap-row', { row: y + 1 }));
     extents.push({ from, to });
   }
 
@@ -126,18 +139,14 @@ export function planFilet(pattern: Pattern, cells: ChartRows): FiletPlanResult {
       extended = Math.max(0, endDelta);
       if (extended > 0) {
         // A sor végi új cella a fordulólánc alatti szembe horgolt hosszú pálcán áll (PQW-894).
-        if (!counting) return fail(`${rowName(row)} végi szaporításhoz a fordulóláncnak szemnek kell számítania.`);
+        if (!counting) return fail(text('filet-extend-counting', { row }));
         if (working.slice(working.length - extended).some((cell) => cell !== OPEN)) {
-          return fail(
-            `${rowName(row)} végén az új cella csak nyitott lehet (2 lsz és hosszú pálca): rajzold nyitottnak, és a teli cellát a következő sorban töltsd ki.`,
-          );
+          return fail(text('filet-extend-open', { row }));
         }
         // A hosszú pálca a két sorral lejjebbi sor végébe kapaszkodik; ha az előző sor eleji
         // fogyasztással kezdődött, ott nincs mibe: a sor vége beljebb került (PQW-902).
         if (rows[y - 1]!.removed > 0) {
-          return fail(
-            `${rowName(row)} végén a szaporítás nem éri el a két sorral lejjebbi szemet, mert az előző sor eleji fogyasztással kezdődött: told el egy sorral.`,
-          );
+          return fail(text('filet-extend-reach', { row }));
         }
       }
     }

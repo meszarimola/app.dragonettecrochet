@@ -3,7 +3,9 @@
  * gyerek- és babatáblázata, a fejkörfogat, a sapkaméretek és a bőségfokozatok.
  *
  * A táblázatokat forrással és ellenőrzéssel tároljuk, mert egyes soraik
- * hibásnak tűnnek (05 §3.1–3.2: „Do not trust them blindly”). A `tableFlags`
+ * hibásnak tűnnek (05 §3.1–3.2: „Do not trust them blindly”). A gyanú kódként
+ * és adatként megy a felületre (PQW-904, `BodySizeCode`): a mértéknév
+ * azonosító, a nevét és a számok alakját a szótár adja. A `tableFlags`
  * három gyanút jelez: a hüvelyk és a cm nem egyezik, az érték kisebb, mint az
  * előző méreté, vagy két különböző méret legalább három egymás utáni méretben
  * pontosan azonos (a női 2X–5X keresztháti szélesség, háthossz és karhossz
@@ -14,6 +16,7 @@
  * vesszük.
  */
 
+import { text, type CoreText } from './messages.ts';
 import type { Locale } from './types.ts';
 
 export type BodyTableId = 'women' | 'men' | 'child' | 'baby';
@@ -31,19 +34,6 @@ export type BodyMeasure =
   | 'armholeDepth'
   | 'waist'
   | 'hips';
-
-export const MEASURE_NAMES: Readonly<Record<BodyMeasure, string>> = {
-  chest: 'mellbőség',
-  neckToWrist: 'hátközép a nyaktól a kézfejig',
-  backWaist: 'háthossz a derékig',
-  backHip: 'háthossz a csípőig',
-  crossBack: 'keresztháti szélesség',
-  armLength: 'karhossz a hónaljtól',
-  upperArm: 'felkarbőség',
-  armholeDepth: 'karöltőmélység',
-  waist: 'derékbőség',
-  hips: 'csípőbőség',
-};
 
 export type Range = readonly [min: number, max: number];
 
@@ -229,21 +219,25 @@ export function bodySizeName(tableId: BodyTableId, sizeId: string, locale: Local
 
 export type DataFlagKind = 'inch-mismatch' | 'not-monotonic' | 'identical-rows';
 
+/**
+ * A gyanú kódjai a felületnek (PQW-904). A mértéknév azonosítóként megy
+ * (`measure`), a nevet és a számok alakját a szótár adja
+ * (`src/ui/i18n/core/garment.ts`).
+ */
+export type BodySizeCode = 'flag-inch-mismatch' | 'flag-not-monotonic' | 'flag-identical-rows';
+
 export interface DataFlag {
   readonly size: string;
   readonly measure: BodyMeasure;
   readonly kind: DataFlagKind;
-  /** A gyanú magyarul, a felületnek. */
-  readonly note: string;
+  /** A gyanú kódja és adatai; a mondat a felületé. */
+  readonly note: CoreText<BodySizeCode>;
 }
 
 /** A hüvelyk és a cm eltérése ennél nagyobb: a forrás egyik száma hibás. A forrás kerekítése legfeljebb ~1,2 cm. */
 export const INCH_TOLERANCE_CM = 1.5;
 /** Ennyi egymás utáni méretben azonos két különböző méret már másolási hibára utal (05 §3.1). */
 export const IDENTICAL_RUN = 3;
-
-const cmText = (value: number) => String(value).replace('.', ',');
-const rangeText = ([min, max]: Range) => (min === max ? cmText(min) : `${cmText(min)}–${cmText(max)}`);
 
 /** A táblázat gyanús értékei (05 §3.1–3.2, §9.1). */
 export function tableFlags(bodyTable: BodyTable): DataFlag[] {
@@ -269,7 +263,7 @@ export function tableFlags(bodyTable: BodyTable): DataFlag[] {
             size: size.id,
             measure,
             kind: 'inch-mismatch',
-            note: `${MEASURE_NAMES[measure]}: ${rangeText(value.inch)}" = ${rangeText(converted)} cm, a táblázatban ${rangeText(value.cm)} cm.`,
+            note: text('flag-inch-mismatch', { measure, inch: value.inch, converted, cm: value.cm }),
           });
         }
       }
@@ -279,7 +273,7 @@ export function tableFlags(bodyTable: BodyTable): DataFlag[] {
           size: size.id,
           measure,
           kind: 'not-monotonic',
-          note: `${MEASURE_NAMES[measure]}: ${rangeText(value.cm)} cm, kisebb, mint az előző méreté (${rangeText(previous.cm)} cm).`,
+          note: text('flag-not-monotonic', { measure, cm: value.cm, previous: previous.cm }),
         });
       }
     });
@@ -299,7 +293,7 @@ export function tableFlags(bodyTable: BodyTable): DataFlag[] {
                 size: sizes[j]!.id,
                 measure,
                 kind: 'identical-rows',
-                note: `${MEASURE_NAMES[measure]} és ${MEASURE_NAMES[other]}: ${sizes[start]!.id}–${sizes[i - 1]!.id} méretben azonos, valószínűleg másolási hiba.`,
+                note: text('flag-identical-rows', { measure, other, from: sizes[start]!.id, to: sizes[i - 1]!.id }),
               });
             }
           }

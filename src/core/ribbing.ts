@@ -26,6 +26,7 @@
  */
 
 import { buildPieceGraph } from './graph.ts';
+import { text, type CoreText } from './messages.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import type { Anchor, LayerEvent, NodeId, Pattern, Piece, StitchDef, StitchDefId, StitchInsertion, StitchNode } from './types.ts';
 
@@ -33,6 +34,28 @@ import type { Anchor, LayerEvent, NodeId, Pattern, Piece, StitchDef, StitchDefId
 export const RIBBING_STITCH: StitchDefId = 'dc';
 export const MAX_RIBBING_ROWS = 20;
 export const MAX_RIBBING_WIDTH = 6;
+
+/**
+ * A bordázat elutasításának kódjai (PQW-904): a mag kódot és adatot ad, a
+ * mondatot a felület állítja össze (`src/ui/i18n/core/shape.ts`).
+ *
+ * A `ribbing-with-border` a generátoroké, nem ezé a modulé: a bordázat a felső
+ * élen fut, a szegély a darab körül, ezért a kettő nem rakható egymásra
+ * (PQW-909). A kód mégis itt lakik, hogy a Forma és a Kör ugyanazt mondja.
+ */
+export type RibbingCode =
+  | 'ribbing-rows-range'
+  | 'ribbing-width-range'
+  | 'ribbing-with-border'
+  | 'ribbing-stitch-missing'
+  | 'ribbing-needs-row'
+  | 'ribbing-after-join'
+  | 'ribbing-spiral'
+  | 'ribbing-after-turn'
+  | 'ribbing-round-multiple'
+  | 'ribbing-needs-post-stitch';
+
+export type RibbingText = CoreText<RibbingCode>;
 
 export interface RibbingOptions {
   /** Hány sor, illetve kör bordázat. */
@@ -44,12 +67,12 @@ export interface RibbingOptions {
 export const DEFAULT_RIBBING: RibbingOptions = { rows: 2, width: 1 };
 
 /** Mi nem választható: tartományon kívüli sorszám vagy bordaszélesség. */
-export function ribbingProblem(options: RibbingOptions): string | null {
+export function ribbingProblem(options: RibbingOptions): RibbingText | null {
   if (!Number.isInteger(options.rows) || options.rows < 1 || options.rows > MAX_RIBBING_ROWS) {
-    return `A bordázat sorainak száma 1 és ${MAX_RIBBING_ROWS} között lehet.`;
+    return text('ribbing-rows-range', { max: MAX_RIBBING_ROWS });
   }
   if (!Number.isInteger(options.width) || options.width < 1 || options.width > MAX_RIBBING_WIDTH) {
-    return `A bordázat egysége 1 és ${MAX_RIBBING_WIDTH} szem között lehet.`;
+    return text('ribbing-width-range', { max: MAX_RIBBING_WIDTH });
   }
   return null;
 }
@@ -64,33 +87,30 @@ function hasPost(def: StitchDef | undefined): boolean {
  * fordulás után sorokban, körben horgolt darabon a kör zárása után körökben.
  * Ha nem horgolható rá, az ok.
  */
-export function appendRibbing(pattern: Pattern, piece: Piece, library: StitchLibrary, options: RibbingOptions): Piece | string {
+export function appendRibbing(pattern: Pattern, piece: Piece, library: StitchLibrary, options: RibbingOptions): Piece | RibbingText {
   const problem = ribbingProblem(options);
   if (problem !== null) return problem;
   const def = library.get(RIBBING_STITCH);
-  if (!def) return 'A bordázat szeme nincs a könyvtárban.';
+  if (!def) return text('ribbing-stitch-missing');
 
   const graph = buildPieceGraph(pattern, piece, library);
   const last = graph.layers[graph.layers.length - 1];
-  if (!last || last.index === 0) return 'A bordázat kész sorra vagy körre épül: előbb horgolj legalább egy sort.';
+  if (!last || last.index === 0) return text('ribbing-needs-row');
 
   const round = last.shape === 'round';
-  if (round && last.closing?.kind !== 'join-slip') return 'A bordás perem a kör zárása (kúszószem) után kezdődik.';
+  if (round && last.closing?.kind !== 'join-slip') return text('ribbing-after-join');
   // A sorokban horgolt darab a fonal elvágásával ér véget; a bordázat hozzáfűzésekor fordulás lesz belőle.
   if (!round && last.closing?.kind !== 'turn' && last.closing?.kind !== 'fasten-off') {
-    return 'A bordás szegély a sor fordulása után kezdődik.';
+    return text('ribbing-after-turn');
   }
 
   const unit = 2 * options.width;
   if (round && last.positions.length % unit !== 0) {
     const nearest = Math.max(unit, Math.round(last.positions.length / unit) * unit);
-    return (
-      `Körben a bordázat akkor záródik, ha a szemszám ${unit} többszöröse: most ${last.positions.length} szem van, ` +
-      `a legközelebbi jó szám ${nearest}.`
-    );
+    return text('ribbing-round-multiple', { unit, count: last.positions.length, nearest });
   }
   if (!last.positions.some((id) => hasPost(graph.defs.get(id)))) {
-    return 'A relief szem a szemek pálcája köré kapaszkodik: ezen a soron nincs pálcás szem, ezért nem horgolható rá bordázat.';
+    return text('ribbing-needs-post-stitch');
   }
 
   const stitches: StitchNode[] = [...piece.stitches];

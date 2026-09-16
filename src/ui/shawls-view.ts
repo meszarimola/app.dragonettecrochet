@@ -19,10 +19,13 @@ import {
   type ShawlOptions,
   type ShawlPlan,
   type ShawlSizes,
+  type ShawlText,
   type ShawlWarning,
 } from '../core/shawls.ts';
 import { stitchById } from '../core/stitches.ts';
-import { texts } from './i18n.ts';
+import { texts, uiLanguage } from './i18n.ts';
+import { renderCoreText } from './i18n/core/render.ts';
+import { SHAPE_CORE_TEXTS } from './i18n/core/shape.ts';
 import type { Choice } from './shapes-view.ts';
 import { formatNumber } from './size-view.ts';
 import { termsLocale } from './notation.ts';
@@ -42,6 +45,14 @@ export const RATE_CHOICES: readonly Choice<RateChoice>[] = (['theory', 'custom']
     return texts().panels.shawl.rates[value];
   },
 }));
+
+/**
+ * A mag indoka mondattá a felület nyelvén (PQW-904): a mag kódot és adatot ad,
+ * a sor és a kör szava, a névelő és a ragozás itt kerül a mondatba.
+ */
+export function shawlReason(reason: ShawlText): string {
+  return renderCoreText(SHAPE_CORE_TEXTS[uiLanguage()], reason);
+}
 
 /** Melyik mező látszik a választott kendőnél. */
 export interface ShawlFieldState {

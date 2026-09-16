@@ -46,13 +46,18 @@ const hat = (patch) => ({ ...DEFAULT_HAT, ...patch });
 const findings = (pattern) => validatePattern(pattern, libraryFor(pattern));
 const generated = (opts, pattern = emptyPattern()) => {
   const result = generateGarment(pattern, opts);
-  assert.ok(result.ok, result.reason);
+  assert.ok(result.ok, result.ok ? '' : result.reason.code);
   return result;
 };
 const planned = (opts, pattern = emptyPattern()) => {
   const result = planGarment(pattern, opts);
-  assert.ok(result.ok, result.reason);
+  assert.ok(result.ok, result.ok ? '' : result.reason.code);
   return result.plan;
+};
+/** A mag terve, nem elutasítás: az elutasítás kódot és adatot ad (PQW-904). */
+const made = (plan) => {
+  assert.ok(!('code' in plan), 'code' in plan ? plan.code : '');
+  return plan;
 };
 
 /** A „B” példa bemenete (05 §4, „Worked example B”). */
@@ -130,7 +135,7 @@ describe('„B” példa: ledobott vállú pulóver, mellbőség 96 cm, +10 cm b
   const plan = dropShoulderPlan(B, gauge, dc, null);
 
   test('hátrész és elejerész: 80 szem, 42 sor a szegély fölött, 4 + 2 ismétléssel 82 szem', () => {
-    assert.equal(typeof plan, 'object', plan);
+    made(plan);
     assert.equal(plan.panel.exact, 79.5);
     assert.equal(plan.panel.stitches, 80);
     assert.equal(plan.panel.bodyRows, 42);
@@ -192,7 +197,7 @@ describe('„D” példa: felnőtt női sapka félpálcával', () => {
   const plan = hatPlan({ headCm: 56, easeCm: -5, heightCm: 19, brimCm: 3 }, { stitchCm: 1 / 1.5, rowCm: 1 / 1.1 });
 
   test('51 cm, 76 szem; a korona 9 kör; az oldal 12 kör', () => {
-    assert.equal(typeof plan, 'object', plan);
+    made(plan);
     assert.equal(plan.hatCm, 51);
     assert.equal(plan.stitches, 76);
     assert.ok(Math.abs(plan.exactIncreases - 8.57) < 0.01);
@@ -206,10 +211,16 @@ describe('„D” példa: felnőtt női sapka félpálcával', () => {
   });
 
   test('15% fölötti negatív bőséget nem tervez; 10% fölött figyelmeztet', () => {
-    assert.match(hatPlan({ headCm: 50, easeCm: -8, heightCm: 19, brimCm: 3 }, gauge), /legfeljebb a fejkörfogat 15%-a/);
+    // A mag kódot és adatot ad, a mondat a felületé (PQW-904).
+    const refused = hatPlan({ headCm: 50, easeCm: -8, heightCm: 19, brimCm: 3 }, gauge);
+    assert.equal(refused.code, 'negative-ease-head');
+    assert.deepEqual(refused.data, { limit: 15, actual: 16 });
     const tight = hatPlan({ headCm: 50, easeCm: -6, heightCm: 19, brimCm: 3 }, gauge);
     assert.equal(tight.checks.find((check) => check.id === 'negative-ease').ok, false);
-    assert.equal(tight.warnings.length, 1);
+    assert.deepEqual(
+      tight.warnings.map((warning) => warning.code),
+      ['negative-ease-warning'],
+    );
   });
 });
 
@@ -225,7 +236,7 @@ describe('méretsorozat', () => {
 
   test('férfi, gyerek és baba táblázat: minden méret tervezhető és minden ellenőrzés igaz', () => {
     for (const table of ['men', 'child', 'baby']) {
-      const ids = garmentSizes('drop-shoulder', table).map((size) => size.id);
+      const ids = garmentSizes('drop-shoulder', table);
       const plan = planned(options({ table, size: ids[0], from: ids[0], to: ids.at(-1), belowWaistCm: table === 'men' ? 0 : 6 }));
       assert.equal(plan.checksPassed, plan.checksTotal, table);
       assert.deepEqual(plan.monotonic, [], table);
@@ -234,7 +245,10 @@ describe('méretsorozat', () => {
 
   test('a férfi táblázatból hiányzó karöltő és mandzsetta becsült', () => {
     const plan = planned(options({ table: 'men', size: 'M', from: 'M', to: 'M', belowWaistCm: 0 }));
-    assert.deepEqual(plan.sizes[0].estimated, ['karöltőmélység', 'mandzsetta']);
+    assert.deepEqual(
+      plan.sizes[0].estimated.map((item) => item.code),
+      ['estimated-armhole-depth', 'estimated-cuff'],
+    );
   });
 
   test('sapka minden méretben: minden ellenőrzés igaz', () => {
@@ -251,7 +265,7 @@ describe('méretsorozat', () => {
     const hatPlain = planned(hat({ from: 'adult-m', to: 'adult-m' }));
     const hatGrown = planned(hat({ from: 'adult-m', to: 'adult-m', growthPct: 10 }));
     assert.ok(hatGrown.sizes[0].plan.counts.length < hatPlain.sizes[0].plan.counts.length, 'a sapka alacsonyabb lesz');
-    assert.match(planGarment(emptyPattern(), options({ growthPct: 80 })).reason, /növedék 0 és 50% közötti/);
+    assert.equal(planGarment(emptyPattern(), options({ growthPct: 80 })).reason.code, 'growth-range');
   });
 
   test('hamis ellenőrzéshez javítási javaslat jár (05 §9.6, PQW-901)', () => {
@@ -259,7 +273,9 @@ describe('méretsorozat', () => {
     const plan = planned(options({ easeCm: -10, from: 'M', to: 'M' }));
     const failing = plan.sizes[0].plan.checks.filter((check) => !check.ok);
     assert.deepEqual(failing.map((check) => check.id), ['negative-ease']);
-    assert.match(failing[0].suggestion, /^A negatív bőség legfeljebb \d+ cm lehet/);
+    assert.equal(failing[0].label.code, 'check-negative-ease');
+    assert.equal(failing[0].suggestion.code, 'suggest-negative-ease-bust');
+    assert.equal(failing[0].suggestion.data.cm, 9);
   });
 
   test('a táblázat gyanús adata a méretnél megjelenik', () => {
@@ -275,8 +291,13 @@ describe('méretsorozat', () => {
   });
 
   test('rossz választás: a sorozat nem tartalmazza a rajz méretét, túl nagy negatív bőség', () => {
-    assert.match(planGarment(emptyPattern(), options({ from: 'L', to: 'XL' })).reason, /méretsorozat a választott méretet/);
-    assert.match(planGarment(emptyPattern(), options({ easeCm: -20 })).reason, /legfeljebb a mellbőség 15%-a/);
+    assert.equal(planGarment(emptyPattern(), options({ from: 'L', to: 'XL' })).reason.code, 'series-range');
+    // Sorozatban a méret azonosítója és az ok kódja megy a felületre; a méret nevét a felület teszi bele.
+    const tight = planGarment(emptyPattern(), options({ easeCm: -20 })).reason;
+    assert.equal(tight.code, 'size-problem');
+    assert.equal(tight.data.size, 'S');
+    assert.equal(tight.data.table, 'women');
+    assert.equal(tight.data.inner, 'negative-ease-bust');
   });
 });
 

@@ -12,6 +12,7 @@
  */
 
 import { SERIES_KEYS } from './garment-text.ts';
+import type { CoreData, CoreText } from './messages.ts';
 import type {
   Anchor,
   ChartStyle,
@@ -55,11 +56,45 @@ import type {
 
 export const FORMAT_VERSION = 1;
 
+/**
+ * Mi a baj a betöltött fájllal (PQW-904): a mag ezt a kódot adja, a mondatot a
+ * felület szótára írja (`src/ui/i18n/core/json.ts`).
+ */
+export type JsonCode =
+  | 'invalid-json'
+  | 'unsupported-version'
+  | 'expected-object'
+  | 'missing-field'
+  | 'unknown-field'
+  | 'expected-nonempty-string'
+  | 'expected-string'
+  | 'expected-boolean'
+  | 'expected-integer-min'
+  | 'expected-number'
+  | 'expected-one-of'
+  | 'expected-array'
+  | 'expected-positive'
+  | 'expected-positive-max'
+  | 'duplicate-profile-id'
+  | 'unknown-profile'
+  | 'duplicate-gauge'
+  | 'expected-angle'
+  | 'expected-cells-per-row'
+  | 'expected-hex-color'
+  | 'repeat-width-max'
+  | 'repeat-edge-max'
+  | 'join-edge-both'
+  | 'expected-size'
+  | 'expected-integer-max'
+  | 'expected-numbers-per-size'
+  | 'expected-non-negative';
+
 export interface LoadError {
   readonly code: 'invalid-json' | 'unsupported-version' | 'invalid-format';
   /** A hibás mező útvonala, pl. `$.pieces[0].stitches[3].anchors[0].mode`. */
   readonly path: string;
-  readonly message: string;
+  /** Kód és adat, nem kész mondat: a szöveget a felület állítja össze. */
+  readonly message: CoreText<JsonCode>;
 }
 
 export type LoadResult = { readonly ok: true; readonly pattern: Pattern } | { readonly ok: false; readonly error: LoadError };
@@ -74,35 +109,49 @@ export function loadPattern(text: string): LoadResult {
   try {
     raw = JSON.parse(text);
   } catch (error) {
-    return fail('invalid-json', '$', `Nem érvényes JSON: ${(error as Error).message}`);
+    // A JS saját hibaszövege adat marad: nem mi fogalmazzuk, ezért nem is fordítjuk.
+    return fail('invalid-json', '$', { code: 'invalid-json', data: { detail: (error as Error).message } });
   }
 
-  if (isObject(raw) && typeof raw['formatVersion'] === 'number' && raw['formatVersion'] > FORMAT_VERSION) {
-    return fail(
-      'unsupported-version',
-      '$.formatVersion',
-      `A minta újabb formátumú (${raw['formatVersion']}), mint amit ez a verzió ismer (${FORMAT_VERSION}).`,
-    );
+  const version = isObject(raw) ? raw['formatVersion'] : undefined;
+  if (typeof version === 'number' && version > FORMAT_VERSION) {
+    return fail('unsupported-version', '$.formatVersion', {
+      code: 'unsupported-version',
+      data: { found: version, known: FORMAT_VERSION },
+    });
   }
 
   try {
     return { ok: true, pattern: readPattern(raw, '$') };
   } catch (error) {
-    if (error instanceof FormatError) return fail('invalid-format', error.path, error.message);
+    if (error instanceof FormatError) return fail('invalid-format', error.path, messageOf(error));
     throw error;
   }
 }
 
-function fail(code: LoadError['code'], path: string, message: string): LoadResult {
+function fail(code: LoadError['code'], path: string, message: CoreText<JsonCode>): LoadResult {
   return { ok: false, error: { code, path, message } };
 }
 
+/** A hiba kódja és adata egy üzenetté; a `data` csak akkor kerül bele, ha van. */
+function messageOf(error: FormatError): CoreText<JsonCode> {
+  return error.data === undefined ? { code: error.code } : { code: error.code, data: error.data };
+}
+
+/**
+ * A formátumhiba a mag felől: a mező útvonala, a hiba kódja és a behelyettesítendő
+ * értékek. Az `Error.message` maga a kód, hogy a fejlesztői napló is olvasható legyen.
+ */
 class FormatError extends Error {
   readonly path: string;
+  readonly code: JsonCode;
+  readonly data: CoreData | undefined;
 
-  constructor(path: string, message: string) {
-    super(message);
+  constructor(path: string, code: JsonCode, data?: CoreData) {
+    super(code);
     this.path = path;
+    this.code = code;
+    this.data = data;
   }
 }
 
@@ -115,52 +164,52 @@ function isObject(value: unknown): value is JsonObject {
 }
 
 function object(value: unknown, path: string, required: readonly string[], optional: readonly string[] = []): JsonObject {
-  if (!isObject(value)) throw new FormatError(path, 'Objektumot vártunk.');
+  if (!isObject(value)) throw new FormatError(path, 'expected-object');
   for (const key of required) {
-    if (!(key in value)) throw new FormatError(`${path}.${key}`, 'Hiányzó mező.');
+    if (!(key in value)) throw new FormatError(`${path}.${key}`, 'missing-field');
   }
   for (const key of Object.keys(value)) {
-    if (!required.includes(key) && !optional.includes(key)) throw new FormatError(`${path}.${key}`, 'Ismeretlen mező.');
+    if (!required.includes(key) && !optional.includes(key)) throw new FormatError(`${path}.${key}`, 'unknown-field');
   }
   return value;
 }
 
 function string(value: unknown, path: string): string {
-  if (typeof value !== 'string' || value === '') throw new FormatError(path, 'Nem üres szöveget vártunk.');
+  if (typeof value !== 'string' || value === '') throw new FormatError(path, 'expected-nonempty-string');
   return value;
 }
 
 function text(value: unknown, path: string): string {
-  if (typeof value !== 'string') throw new FormatError(path, 'Szöveget vártunk.');
+  if (typeof value !== 'string') throw new FormatError(path, 'expected-string');
   return value;
 }
 
 function boolean(value: unknown, path: string): boolean {
-  if (typeof value !== 'boolean') throw new FormatError(path, 'Logikai értéket vártunk.');
+  if (typeof value !== 'boolean') throw new FormatError(path, 'expected-boolean');
   return value;
 }
 
 function integer(value: unknown, path: string, min: number): number {
   if (typeof value !== 'number' || !Number.isInteger(value) || value < min) {
-    throw new FormatError(path, `Legalább ${min} értékű egész számot vártunk.`);
+    throw new FormatError(path, 'expected-integer-min', { min });
   }
   return value;
 }
 
 function finite(value: unknown, path: string): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) throw new FormatError(path, 'Számot vártunk.');
+  if (typeof value !== 'number' || !Number.isFinite(value)) throw new FormatError(path, 'expected-number');
   return value;
 }
 
 function oneOf<const T extends string | boolean | number>(value: unknown, path: string, allowed: readonly T[]): T {
   if (!allowed.includes(value as T)) {
-    throw new FormatError(path, `Megengedett értékek: ${allowed.map((item) => JSON.stringify(item)).join(', ')}.`);
+    throw new FormatError(path, 'expected-one-of', { values: allowed.map((item) => JSON.stringify(item)) });
   }
   return value as T;
 }
 
 function array<T>(value: unknown, path: string, read: (item: unknown, path: string) => T): T[] {
-  if (!Array.isArray(value)) throw new FormatError(path, 'Tömböt vártunk.');
+  if (!Array.isArray(value)) throw new FormatError(path, 'expected-array');
   return value.map((item, index) => read(item, `${path}[${index}]`));
 }
 
@@ -194,7 +243,8 @@ function readPattern(value: unknown, path: string): Pattern {
 
 function positive(value: unknown, path: string, max = Number.POSITIVE_INFINITY): number {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0 || value > max) {
-    throw new FormatError(path, max === Number.POSITIVE_INFINITY ? 'Pozitív számot vártunk.' : `0 és ${max} közötti pozitív számot vártunk.`);
+    if (max === Number.POSITIVE_INFINITY) throw new FormatError(path, 'expected-positive');
+    throw new FormatError(path, 'expected-positive-max', { max });
   }
   return value;
 }
@@ -209,11 +259,11 @@ function readGauge(value: unknown, path: string): PatternGauge {
   const profiles = array(raw['profiles'], `${path}.profiles`, readGaugeProfile);
   const ids = new Set<string>();
   profiles.forEach((profile, i) => {
-    if (ids.has(profile.id)) throw new FormatError(`${path}.profiles[${i}].id`, 'Kétszer szereplő profilazonosító.');
+    if (ids.has(profile.id)) throw new FormatError(`${path}.profiles[${i}].id`, 'duplicate-profile-id');
     ids.add(profile.id);
   });
   const active = raw['active'] === null ? null : string(raw['active'], `${path}.active`);
-  if (active !== null && !ids.has(active)) throw new FormatError(`${path}.active`, 'Nincs ilyen azonosítójú profil.');
+  if (active !== null && !ids.has(active)) throw new FormatError(`${path}.active`, 'unknown-profile');
   return { active, profiles };
 }
 
@@ -225,7 +275,7 @@ function readGaugeProfile(value: unknown, path: string): PatternGaugeProfile {
   const keys = new Set<string>();
   gauges.forEach((entry, i) => {
     const key = `${entry.stitch}/${entry.form}`;
-    if (keys.has(key)) throw new FormatError(`${path}.gauges[${i}]`, 'Ugyanaz a szem ugyanabban a formában kétszer szerepel.');
+    if (keys.has(key)) throw new FormatError(`${path}.gauges[${i}]`, 'duplicate-gauge');
     keys.add(key);
   });
   const cycPath = `${path}.yarn.cycWeight`;
@@ -348,7 +398,7 @@ function readRowShape(value: unknown, path: string): NonNullable<Piece['rowShape
   const kind = oneOf(isObject(value) ? value['kind'] : undefined, `${path}.kind`, ['arc', 'chevron'] as const);
   const angle = (raw: JsonObject, key: string) => {
     const degrees = finite(raw[key], `${path}.${key}`);
-    if (degrees <= 0 || degrees >= 360) throw new FormatError(`${path}.${key}`, '0 és 360 fok közötti szöget vártunk.');
+    if (degrees <= 0 || degrees >= 360) throw new FormatError(`${path}.${key}`, 'expected-angle');
     return degrees;
   };
   if (kind === 'arc') {
@@ -366,7 +416,7 @@ function readGrid(value: unknown, path: string): PieceGrid {
   const cells = array(raw['cells'], `${path}.cells`, (row, rowPath) => array(row, rowPath, (cell, cellPath) => integer(cell, cellPath, -1)));
   const width = cells[0]?.length ?? 0;
   cells.forEach((row, y) => {
-    if (row.length !== width) throw new FormatError(`${path}.cells[${y}]`, `Soronként ${width} cellát vártunk.`);
+    if (row.length !== width) throw new FormatError(`${path}.cells[${y}]`, 'expected-cells-per-row', { width });
   });
   return {
     technique: oneOf(raw['technique'], `${path}.technique`, GRID_TECHNIQUES),
@@ -382,7 +432,7 @@ function readGrid(value: unknown, path: string): PieceGrid {
 function readColor(value: unknown, path: string): PatternColor {
   const raw = object(value, path, ['name', 'hex']);
   const hex = string(raw['hex'], `${path}.hex`);
-  if (!/^#[0-9a-f]{6}$/i.test(hex)) throw new FormatError(`${path}.hex`, '#rrggbb alakú színt vártunk.');
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) throw new FormatError(`${path}.hex`, 'expected-hex-color');
   return { name: text(raw['name'], `${path}.name`), hex };
 }
 
@@ -411,8 +461,8 @@ function readBorderRepeat(value: unknown, path: string): NonNullable<PieceBorder
   const raw = object(value, path, ['width', 'edge']);
   const width = integer(raw['width'], `${path}.width`, 1);
   const edge = integer(raw['edge'], `${path}.edge`, 0);
-  if (width > 50) throw new FormatError(`${path}.width`, 'Legfeljebb 50 szemes ismétlést vártunk.');
-  if (edge > 50) throw new FormatError(`${path}.edge`, 'Legfeljebb 50 kiegyenlítő szemet vártunk.');
+  if (width > 50) throw new FormatError(`${path}.width`, 'repeat-width-max', { max: 50 });
+  if (edge > 50) throw new FormatError(`${path}.edge`, 'repeat-edge-max', { max: 50 });
   return { width, edge };
 }
 
@@ -442,7 +492,7 @@ function readPinned(value: unknown, path: string): NonNullable<StitchNode['pinne
 }
 
 function readAnchor(value: unknown, path: string): Anchor {
-  if (!isObject(value)) throw new FormatError(path, 'Objektumot vártunk.');
+  if (!isObject(value)) throw new FormatError(path, 'expected-object');
   const into = oneOf(value['into'], `${path}.into`, ['stitch', 'space', 'ring', 'row-end', 'underside']);
   if (into === 'stitch') {
     const raw = object(value, path, ['into', 'id', 'mode']);
@@ -521,7 +571,7 @@ function readSection(value: unknown, path: string): PieceSection {
 }
 
 function readShape(value: unknown, path: string): ShapeSpec {
-  if (!isObject(value)) throw new FormatError(path, 'Objektumot vártunk.');
+  if (!isObject(value)) throw new FormatError(path, 'expected-object');
   const kind = oneOf(value['kind'], `${path}.kind`, SHAPES);
   const size = (raw: JsonObject, key: string) => positive(raw[key], `${path}.${key}`);
   const end = (raw: JsonObject, key: string) => oneOf(raw[key], `${path}.${key}`, ENDS);
@@ -568,7 +618,7 @@ function readShape(value: unknown, path: string): ShapeSpec {
 function readProfilePoint(value: unknown, path: string): ProfilePoint {
   const raw = object(value, path, ['radiusCm', 'heightCm']);
   const radiusCm = finite(raw['radiusCm'], `${path}.radiusCm`);
-  if (radiusCm < 0) throw new FormatError(`${path}.radiusCm`, 'Nem negatív számot vártunk.');
+  if (radiusCm < 0) throw new FormatError(`${path}.radiusCm`, 'expected-non-negative');
   return { radiusCm, heightCm: finite(raw['heightCm'], `${path}.heightCm`) };
 }
 
@@ -586,7 +636,7 @@ function readJoin(value: unknown, path: string): PieceJoin {
 function readJoinEdge(value: unknown, path: string): JoinEdge {
   const raw = object(value, path, ['piece', 'layer'], ['stitches', 'rows']);
   if (raw['stitches'] !== undefined && raw['rows'] !== undefined) {
-    throw new FormatError(path, 'A szél vagy a sor egy szakasza, vagy sorvégek: a kettő együtt nem lehet.');
+    throw new FormatError(path, 'join-edge-both');
   }
   const layer = integer(raw['layer'], `${path}.layer`, 1);
   let stitches: JoinEdge['stitches'];
@@ -614,15 +664,15 @@ const GARMENT_TABLES: readonly GarmentTable[] = ['women', 'men', 'child', 'baby'
 function readGarment(value: unknown, path: string): PatternGarment {
   const raw = object(value, path, ['kind', 'table', 'sizes', 'base', 'values']);
   const sizes = array(raw['sizes'], `${path}.sizes`, string);
-  if (sizes.length === 0) throw new FormatError(`${path}.sizes`, 'Legalább egy méretet vártunk.');
+  if (sizes.length === 0) throw new FormatError(`${path}.sizes`, 'expected-size');
   const base = integer(raw['base'], `${path}.base`, 0);
-  if (base >= sizes.length) throw new FormatError(`${path}.base`, `Legfeljebb ${sizes.length - 1} értékű egész számot vártunk.`);
+  if (base >= sizes.length) throw new FormatError(`${path}.base`, 'expected-integer-max', { max: sizes.length - 1 });
   const rawValues = object(raw['values'], `${path}.values`, [], SERIES_KEYS);
   const values: Record<string, readonly number[]> = {};
   for (const key of SERIES_KEYS) {
     if (rawValues[key] === undefined) continue;
     const numbers = array(rawValues[key], `${path}.values.${key}`, finite);
-    if (numbers.length !== sizes.length) throw new FormatError(`${path}.values.${key}`, `${sizes.length} számot vártunk, méretenként egyet.`);
+    if (numbers.length !== sizes.length) throw new FormatError(`${path}.values.${key}`, 'expected-numbers-per-size', { count: sizes.length });
     values[key] = numbers;
   }
   return {

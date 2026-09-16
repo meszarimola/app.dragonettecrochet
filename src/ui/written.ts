@@ -15,13 +15,32 @@ import type { LiveCheck, WorkContext } from '../core/editor.ts';
 import { WrittenPatternError } from '../core/pattern-steps.ts';
 import { formatWrittenPattern, writePattern } from '../core/pattern-text.ts';
 import type { Locale, Pattern } from '../core/types.ts';
-import { texts } from './i18n.ts';
+import { texts, uiLanguage } from './i18n.ts';
+import { type CoreEntry, renderCoreText } from './i18n/core/render.ts';
+import { SHAPE_CORE_TEXTS } from './i18n/core/shape.ts';
+import { WRITTEN_CORE_TEXTS } from './i18n/core/written.ts';
 import { SECTION_TEXTS } from './i18n/sections.ts';
 import { textLanguage } from './notation.ts';
 
 export type WrittenView =
   | { readonly kind: 'text'; readonly text: string; readonly notices: readonly string[] }
   | { readonly kind: 'message'; readonly message: string };
+
+/**
+ * A magból jövő hiba mondata (PQW-904). A szegély indoka beágyazott üzenet: a
+ * kódját a `border.ts` adja, a szövegét a szegély szótára — ezért azt előbb
+ * megírjuk, és `reason` néven tesszük a burkoló mondatba.
+ */
+function coreMessage(error: WrittenPatternError): string {
+  const language = uiLanguage();
+  const message = error.coreText;
+  if (message.code !== 'border-failed') return renderCoreText(WRITTEN_CORE_TEXTS[language], message);
+  const data = message.data ?? {};
+  // A `nested()` a beágyazott üzenet kódját az `inner` mezőbe teszi (core/messages.ts).
+  const border = SHAPE_CORE_TEXTS[language] as Readonly<Record<string, CoreEntry>>;
+  const reason = renderCoreText<string>(border, { code: String(data['inner'] ?? ''), data });
+  return renderCoreText(WRITTEN_CORE_TEXTS[language], { code: message.code, data: { ...data, reason } });
+}
 
 export function writtenView(pattern: Pattern, context: WorkContext, check: LiveCheck, terms: Locale): WrittenView {
   const { written, size } = texts().sections;
@@ -37,7 +56,7 @@ export function writtenView(pattern: Pattern, context: WorkContext, check: LiveC
     text = formatWrittenPattern(writePattern(titled, context.library, terms));
   } catch (error) {
     if (error instanceof WrittenPatternError) {
-      return { kind: 'message', message: written.notWritable(error.message) };
+      return { kind: 'message', message: written.notWritable(coreMessage(error)) };
     }
     return { kind: 'message', message: written.broken };
   }

@@ -21,6 +21,7 @@ import {
   easeLabel,
   easeNote,
   garmentFieldState,
+  garmentText,
   garmentView,
   generatedMessage,
   hemLabel,
@@ -189,12 +190,14 @@ export class GarmentPanel {
 
     const planned = planGarment(this.#pattern, options);
     const view = planned.ok ? garmentView(planned.plan, activeProfile(this.#pattern) !== null) : null;
-    const key = JSON.stringify(planned.ok ? view : planned.reason);
+    // A mag kódot ad, a mondat a felületé (PQW-904): a kiírt szöveg dönti el, kell-e újrarajzolni.
+    const reason = planned.ok ? '' : garmentText(planned.reason);
+    const key = JSON.stringify(planned.ok ? view : reason);
     if (key === this.#shown) return;
     this.#shown = key;
 
     if (!view) {
-      this.#result.textContent = planned.ok ? '' : planned.reason;
+      this.#result.textContent = reason;
       for (const list of [this.#details, this.#failed, this.#warnings, this.#series]) list.replaceChildren();
       this.#checks.textContent = '';
       this.#source.textContent = '';
@@ -215,7 +218,7 @@ export class GarmentPanel {
     if (!this.#pattern) return;
     const result = generateGarment(this.#pattern, this.#options());
     if (!result.ok) {
-      this.#host.announce(result.reason);
+      this.#host.announce(garmentText(result.reason));
       return;
     }
     this.#host.commit(result.pattern, generatedMessage(result.plan));

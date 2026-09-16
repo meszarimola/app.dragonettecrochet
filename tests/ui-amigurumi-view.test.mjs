@@ -157,7 +157,7 @@ describe('előnézet és megjegyzések', () => {
     const counts = /^(\d+) kör, legfeljebb (\d+) szem/.exec(note);
     assert.ok(counts, note);
     const sole = createAmigurumi(base, { name: 'Talp', shape: { kind: 'oval', lengthCm: 8, widthCm: 5, stitch: 'dc' }, stagger: true, eyes: false }, false);
-    assert.ok(sole.ok, sole.reason);
+    assert.ok(sole.ok, sole.ok ? '' : sole.reason.code);
     assert.equal(Number(counts[2]), Math.max(...sole.schedule.counts));
     assert.match(figureNote(sole.pattern, roundGaugeOf(base)), /^A minta részei: Talp \([\d,]+ × [\d,]+ cm, lapos\)\. A figura magassága kb\. 0,\d cm/);
   });
@@ -188,7 +188,7 @@ describe('előnézet és megjegyzések', () => {
     assert.ok(head.ok);
     const body = { name: 'Test', shape: { kind: 'cylinder', diameterCm: 5, heightCm: 5, bottom: 'closed', top: 'open' }, stagger: true, eyes: false };
     const figure = addAmigurumiPart(head.pattern, body, { method: 'sewn', distribute: true }, false);
-    assert.ok(figure.ok, figure.reason);
+    assert.ok(figure.ok, figure.ok ? '' : figure.reason.code);
     assert.match(figureNote(figure.pattern, gauge), /^A minta részei: Fej \(6,5 × 6,5 cm\), Test \(5 × 5,1 cm\)\. A figura magassága kb\. \d+(,\d)? cm/);
   });
 

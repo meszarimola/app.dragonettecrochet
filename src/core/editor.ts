@@ -14,7 +14,8 @@
 
 import { DEFAULT_BORDER, borderSteps } from './border.ts';
 import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
-import { INSERTION_NAMES, effectiveInsertion, modeAsWorked, stitchInsertions } from './insertion.ts';
+import { effectiveInsertion, modeAsWorked, stitchInsertions } from './insertion.ts';
+import { text, type CoreText } from './messages.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { increase, shell } from './stitches.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
@@ -55,10 +56,78 @@ export function emptyPattern(title = 'Új minta'): Pattern {
   };
 }
 
-export type EditResult = { readonly ok: true; readonly pattern: Pattern } | { readonly ok: false; readonly reason: string };
+/**
+ * A szerkesztő elutasításainak kódjai (PQW-904): a mag nem mondatot ad, hanem
+ * kódot és adatot, a mondat a felület szótárában készül
+ * (`src/ui/i18n/core/editor.ts`).
+ *
+ * A kijelölés (selection.ts) ugyanezt az `EditResult`-ot adja a törlésre és a
+ * beillesztésre, ezért azok kódjai is ebben az unióban állnak; a másolás
+ * szűkebb készlete a `CopyCode` (selection.ts), amely ennek részhalmaza.
+ */
+export type EditCode =
+  /* ---- Szerkesztő ---- */
+  | 'tradition-unchanged'
+  | 'unknown-stitch'
+  | 'ring-only-at-start'
+  | 'chain-count-range'
+  | 'space-needs-row'
+  | 'needs-foundation'
+  | 'picot-after-row-end'
+  | 'row-end-reached'
+  | 'no-slots'
+  | 'needs-adjacent-stitches'
+  | 'stitch-not-into-stitch'
+  | 'insertion-not-allowed'
+  | 'stitch-not-into-space'
+  | 'stitch-not-into-ring'
+  | 'same-needs-basic'
+  | 'same-no-stitch'
+  | 'same-single-anchor'
+  | 'same-wrong-target'
+  | 'same-other-group'
+  | 'same-other-stitch'
+  | 'fill-needs-targeted'
+  | 'fill-no-free-slot'
+  | 'row-empty'
+  | 'no-turn-in-round'
+  | 'ring-needs-chains'
+  | 'round-empty'
+  | 'no-close-in-row'
+  | 'round-no-first-stitch'
+  | 'no-spiral-in-row'
+  | 'pattern-empty'
+  | 'no-such-node'
+  /* ---- Kijelölés: törlés és beillesztés (selection.ts) ---- */
+  | 'no-selection'
+  | 'has-dependents'
+  | 'no-piece'
+  | 'clipboard-empty'
+  | 'foundation-needs-empty'
+  | 'paste-needs-foundation'
+  | 'paste-shape-mismatch'
+  | 'paste-round-starts-with-slip'
+  | 'paste-too-many-chains'
+  | 'paste-span-mismatch'
+  | 'paste-not-enough-slots'
+  | 'paste-slot-kind'
+  | 'paste-slot-used'
+  | 'paste-against-direction'
+  | 'paste-no-reuse-slots'
+  | 'paste-would-break'
+  /* ---- Kijelölés: másolás (selection.ts `CopyCode`) ---- */
+  | 'copy-broken-pattern'
+  | 'copy-border'
+  | 'copy-layer-outside'
+  | 'copy-oval-first-round'
+  | 'copy-anchor-unsupported';
+
+export type EditResult =
+  | { readonly ok: true; readonly pattern: Pattern }
+  | { readonly ok: false; readonly reason: CoreText<EditCode> };
 
 const done = (pattern: Pattern): EditResult => ({ ok: true, pattern });
-const refuse = (reason: string): EditResult => ({ ok: false, reason });
+const refuse = (reason: CoreText<EditCode>): EditResult => ({ ok: false, reason });
 
 /**
  * A minta számolási hagyománya (PQW-876). A szemek és a célpontok nem
@@ -66,7 +135,7 @@ const refuse = (reason: string): EditResult => ({ ok: false, reason });
  * új szabály szerint megy (tradition.ts).
  */
 export function setTradition(pattern: Pattern, tradition: Tradition): EditResult {
-  if (traditionOf(pattern.conventions) === tradition) return refuse('A minta már ezt a hagyományt követi.');
+  if (traditionOf(pattern.conventions) === tradition) return refuse(text('tradition-unchanged'));
   return done({ ...pattern, conventions: withTradition(pattern.conventions, tradition) });
 }
 
@@ -234,7 +303,8 @@ export function contextOf(pattern: Pattern, mode: EditorMode = {}): WorkContext 
  */
 function borderSlots(graph: PieceGraph, piece: Piece, layer: number): Slot[] {
   const steps = borderSteps(graph, layer - 1, piece.border ?? DEFAULT_BORDER);
-  if (typeof steps === 'string') return [];
+  // A szegély indoka kód és adat is lehet (PQW-904, border.ts): csak a lépések listája érdekel.
+  if (!Array.isArray(steps)) return [];
   return steps.map((step): Slot => (step.kind === 'row-end' ? { kind: 'row-end', id: step.target } : { kind: 'stitch', id: step.target }));
 }
 
@@ -358,6 +428,9 @@ export interface Tool {
   readonly insertion?: StitchInsertion | undefined;
 }
 
+/** Ennyi láncszem készülhet egy lépésben; ennél több elírás, nem minta. */
+const MAX_CHAINS = 500;
+
 function hasEventAfterLast(piece: Piece): boolean {
   const last = piece.stitches[piece.stitches.length - 1];
   return last !== undefined && piece.events.some((event) => event.after === last.id);
@@ -370,20 +443,20 @@ function hasEventAfterLast(piece: Piece): boolean {
  */
 export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readonly StitchFlag[] = [], mode: EditorMode = {}): EditResult {
   const def = resolveStitch(tool.def);
-  if (!def) return refuse(`Ismeretlen szem: ${tool.def}`);
+  if (!def) return refuse(text('unknown-stitch', { id: tool.def }));
   const marks = flags.length > 0 ? { flags } : {};
   const piece = pieceOf(pattern);
 
   if (def.kind === 'ring') {
-    if (piece.stitches.length > 0) return refuse('Varázskör csak a minta elején lehet.');
+    if (piece.stitches.length > 0) return refuse(text('ring-only-at-start'));
     const { piece: next, ids } = append(piece, [{ def: def.id, anchors: [] }]);
     return done(withPiece(pattern, { ...next, rings: [{ id: 'r1', node: ids[0]! }] }));
   }
 
   if (def.kind === 'chain' || def.kind === 'space') {
     const count = Math.trunc(tool.count);
-    if (!(count >= 1 && count <= 500)) return refuse('A láncszemek száma 1 és 500 között lehet.');
-    if (def.kind === 'space' && piece.stitches.length === 0) return refuse('A láncív egy sorban készül: előbb láncalap kell.');
+    if (!(count >= 1 && count <= MAX_CHAINS)) return refuse(text('chain-count-range', { min: 1, max: MAX_CHAINS }));
+    if (def.kind === 'space' && piece.stitches.length === 0) return refuse(text('space-needs-row'));
     const { piece: next, ids } = append(
       piece,
       Array.from({ length: count }, () => ({ def: 'ch', anchors: [] })),
@@ -393,36 +466,32 @@ export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readon
     return done(withPiece(pattern, { ...next, spaces: [...next.spaces, space] }));
   }
 
-  if (piece.stitches.length === 0) return refuse('Előbb láncalap vagy varázskör kell.');
+  if (piece.stitches.length === 0) return refuse(text('needs-foundation'));
 
   if (def.kind === 'picot') {
-    if (hasEventAfterLast(piece)) return refuse('A pikó egy szem tetejére kerül; a sor már véget ért.');
+    if (hasEventAfterLast(piece)) return refuse(text('picot-after-row-end'));
     return done(withPiece(pattern, append(piece, [{ def: def.id, anchors: [] }]).piece));
   }
 
   const context = contextOf(pattern, mode);
   const first = context.slots[cursor];
   if (!first) {
-    return refuse(
-      context.slots.length > 0
-        ? 'A sor végére értél: fordulj (F), zárd a kört (K), vagy válassz célpontot a nyilakkal.'
-        : 'Nincs célpont: ebben a sorban nincs hová horgolni.',
-    );
+    return refuse(text(context.slots.length > 0 ? 'row-end-reached' : 'no-slots'));
   }
 
   if (def.kind === 'joined' && def.base === 'spread') {
     const slots = context.slots.slice(cursor, cursor + def.consumes);
     if (slots.length < def.consumes || slots.some((slot) => slot.kind !== 'stitch')) {
-      return refuse(`Ehhez ${def.consumes} egymás melletti szem kell a célponttól.`);
+      return refuse(text('needs-adjacent-stitches', { count: def.consumes }));
     }
     const mode = stitchModeFor(def, tool.insertion, context.side);
-    if ('reason' in mode) return refuse(mode.reason);
+    if ('code' in mode) return refuse(mode);
     const anchors = slots.map((slot): Anchor => ({ into: 'stitch', id: slot.id, mode: mode.mode }));
     return done(withPiece(pattern, append(piece, [{ def: def.id, anchors, ...marks }]).piece));
   }
 
   const anchor = anchorFor(def, first, tool.insertion, context.side);
-  if (typeof anchor === 'string') return refuse(anchor);
+  if ('code' in anchor) return refuse(anchor);
 
   if (def.kind === 'group') {
     const members = def.members.map((member) => ({
@@ -453,38 +522,36 @@ function stitchModeFor(
   def: StitchDef,
   requested: StitchInsertion | undefined,
   side: LayerInfo['side'],
-): { readonly mode: StitchInsertion } | { readonly reason: string } {
-  const name = def.terms.hu.name;
+): { readonly mode: StitchInsertion } | CoreText<EditCode> {
   const allowed = stitchInsertions(def);
   const mode = effectiveInsertion(def, requested);
-  if (!mode) return { reason: `A(z) ${name} nem horgolható szembe.` };
+  // A szem AZONOSÍTÓJA megy át; a nevét a felület adja a JELÖLÉS nyelvén (PQW-868, PQW-904).
+  if (!mode) return text('stitch-not-into-stitch', { stitch: def.id });
   if (requested && requested !== mode) {
-    const choices = allowed.map((candidate) => INSERTION_NAMES[candidate]).join(', ');
-    return { reason: `A(z) ${name} nem horgolható így: ${INSERTION_NAMES[requested]}. Választható: ${choices}.` };
+    return text('insertion-not-allowed', { stitch: def.id, requested, allowed });
   }
   return { mode: modeAsWorked(mode, side) };
 }
 
-function anchorFor(def: StitchDef, slot: Slot, requested: StitchInsertion | undefined, side: LayerInfo['side']): Anchor | string {
-  const name = def.terms.hu.name;
+function anchorFor(def: StitchDef, slot: Slot, requested: StitchInsertion | undefined, side: LayerInfo['side']): Anchor | CoreText<EditCode> {
   switch (slot.kind) {
     case 'stitch': {
       const mode = stitchModeFor(def, requested, side);
-      return 'reason' in mode ? mode.reason : { into: 'stitch', id: slot.id, mode: mode.mode };
+      return 'code' in mode ? mode : { into: 'stitch', id: slot.id, mode: mode.mode };
     }
     case 'space':
-      return def.insertionModes.includes('space') ? { into: 'space', id: slot.id } : `A(z) ${name} nem horgolható láncívbe.`;
+      return def.insertionModes.includes('space') ? { into: 'space', id: slot.id } : text('stitch-not-into-space', { stitch: def.id });
     case 'ring':
-      return def.insertionModes.includes('ring') ? { into: 'ring', id: slot.id } : `A(z) ${name} nem horgolható varázskörbe.`;
+      return def.insertionModes.includes('ring') ? { into: 'ring', id: slot.id } : text('stitch-not-into-ring', { stitch: def.id });
     case 'underside': {
       // A láncszem másik oldala szembe horgolható szemet kér; szálat nem választunk (PQW-899).
       const mode = stitchModeFor(def, requested, side);
-      return 'reason' in mode ? mode.reason : { into: 'underside', id: slot.id };
+      return 'code' in mode ? mode : { into: 'underside', id: slot.id };
     }
     case 'row-end': {
       // A szegély sorvége a sor szélső szeme; a szegély szemei a szem oldalába mennek (PQW-902).
       const mode = stitchModeFor(def, requested, side);
-      return 'reason' in mode ? mode.reason : { into: 'row-end', id: slot.id };
+      return 'code' in mode ? mode : { into: 'row-end', id: slot.id };
     }
   }
 }
@@ -498,24 +565,24 @@ export function workIntoSame(pattern: Pattern, defId: StitchDefId): EditResult {
   const piece = pieceOf(pattern);
   const part = resolveStitch(defId);
   const last = piece.stitches[piece.stitches.length - 1];
-  if (!part || part.kind !== 'basic' || !part.workableTop) return refuse('Ugyanabba csak alapszem horgolható még egyszer.');
-  if (!last || hasEventAfterLast(piece)) return refuse('Nincs szem ebben a sorban, amelynek a célpontjába horgolni lehetne.');
+  if (!part || part.kind !== 'basic' || !part.workableTop) return refuse(text('same-needs-basic'));
+  if (!last || hasEventAfterLast(piece)) return refuse(text('same-no-stitch'));
   const anchor = last.anchors[0];
-  if (!anchor || last.anchors.length !== 1) return refuse('Az utolsó szemnek nincs egyetlen célpontja.');
+  if (!anchor || last.anchors.length !== 1) return refuse(text('same-single-anchor'));
 
   const appended = append(piece, [{ def: part.id, anchors: [anchor] }]);
   // A szegély sorvégébe több szem is mehet, de az nem szaporítás: a sorvég nem szem (PQW-902).
   if (anchor.into === 'row-end') return done(withPiece(pattern, appended.piece));
   // A láncszem másik oldalába horgolt szemből ugyanúgy szaporítás lesz, mint a szembe horgoltból (PQW-899).
   if (anchor.into !== 'stitch' && anchor.into !== 'underside') {
-    if (!part.insertionModes.includes(anchor.into)) return refuse('Ez a szem ide nem horgolható.');
+    if (!part.insertionModes.includes(anchor.into)) return refuse(text('same-wrong-target'));
     return done(withPiece(pattern, appended.piece));
   }
 
   const group = piece.groups.find((candidate) => candidate.members.includes(last.id));
   if (group) {
     const members = piece.stitches.filter((node) => group.members.includes(node.id));
-    if (members.some((node) => node.def !== part.id)) return refuse('Az utolsó csoport más szemekből áll.');
+    if (members.some((node) => node.def !== part.id)) return refuse(text('same-other-group'));
     const n = members.length + 1;
     const def = group.def.startsWith('shell-') ? shell(part, n) : increase(part, n);
     const groups = appended.piece.groups.map((g) =>
@@ -524,7 +591,7 @@ export function workIntoSame(pattern: Pattern, defId: StitchDefId): EditResult {
     return done(withPiece(pattern, { ...appended.piece, groups }));
   }
 
-  if (last.def !== part.id) return refuse('Az utolsó szem nem ugyanez a szem.');
+  if (last.def !== part.id) return refuse(text('same-other-stitch'));
   const def = increase(part, 2);
   const created = { id: nextId('g', piece.groups.map((g) => g.id)), def: def.id, members: [last.id, appended.ids[0]!] };
   return done(withPiece(pattern, { ...appended.piece, groups: [...appended.piece.groups, created] }));
@@ -538,9 +605,9 @@ export function workIntoSame(pattern: Pattern, defId: StitchDefId): EditResult {
  */
 export function fillRow(pattern: Pattern, tool: Tool, mode: EditorMode = {}): EditResult {
   const def = resolveStitch(tool.def);
-  if (!def) return refuse(`Ismeretlen szem: ${tool.def}`);
+  if (!def) return refuse(text('unknown-stitch', { id: tool.def }));
   if (def.kind === 'chain' || def.kind === 'space' || def.kind === 'ring' || def.kind === 'picot') {
-    return refuse('Ezzel a szemmel nem lehet sort kitölteni: válassz célpontba horgolható szemet.');
+    return refuse(text('fill-needs-targeted'));
   }
   let current = pattern;
   let placed = 0;
@@ -556,7 +623,7 @@ export function fillRow(pattern: Pattern, tool: Tool, mode: EditorMode = {}): Ed
     current = result.pattern;
     placed += 1;
   }
-  if (placed === 0) return refuse('Ebben a sorban nincs szabad célpont a kitöltéshez.');
+  if (placed === 0) return refuse(text('fill-no-free-slot'));
   return done(current);
 }
 
@@ -580,8 +647,8 @@ export function endRow(pattern: Pattern, tool: StitchDefId | null): EditResult {
   const piece = pieceOf(pattern);
   const context = contextOf(pattern);
   if (onFoundationChain(context)) return done(pattern);
-  if (!context.graph || !context.started) return refuse('Ebben a sorban még nincs szem.');
-  if (context.shape === 'round') return refuse('Körben nem fordulunk: zárd a kört.');
+  if (!context.graph || !context.started) return refuse(text('row-empty'));
+  if (context.shape === 'round') return refuse(text('no-turn-in-round'));
   const last = piece.stitches[piece.stitches.length - 1]!;
   let next: Piece = { ...piece, events: [...piece.events, { after: last.id, kind: 'turn' }] };
   const chains = tool ? (resolveStitch(tool)?.turningChain ?? 0) : 0;
@@ -641,13 +708,13 @@ export function closeRound(pattern: Pattern): EditResult {
   const context = contextOf(pattern);
   const onlyChains = piece.stitches.length > 0 && piece.stitches.every((node) => node.def === 'ch');
   if (onlyChains && piece.stitches.length < MIN_RING_CHAINS) {
-    return refuse(`A láncgyűrűhöz legalább ${MIN_RING_CHAINS} láncszem kell; 2 láncszemnél horgold az 1. kört a 2. láncszembe.`);
+    return refuse(text('ring-needs-chains', { min: MIN_RING_CHAINS }));
   }
-  if (!context.graph || !context.started) return refuse('Ebben a körben még nincs szem.');
-  if (!canEndRound(context)) return refuse('Sorban nincs körzárás: a sor végén fordulunk.');
+  if (!context.graph || !context.started) return refuse(text('round-empty'));
+  if (!canEndRound(context)) return refuse(text('no-close-in-row'));
   const layer = context.graph.layers[context.layer]!;
   const first = context.shape === 'round' ? layer.positions[0] : roundOnChainStart(pattern, context.graph, layer);
-  if (!first) return refuse('A körnek nincs első szeme, amelybe zárni lehetne.');
+  if (!first) return refuse(text('round-no-first-stitch'));
 
   const { piece: next, ids } = append(piece, [
     { def: 'sl-st', anchors: [{ into: 'stitch', id: first, mode: 'both-loops' }] },
@@ -687,8 +754,8 @@ function joinChainRing(pattern: Pattern): EditResult {
 export function endRoundSpiral(pattern: Pattern): EditResult {
   const piece = pieceOf(pattern);
   const context = contextOf(pattern);
-  if (!context.graph || !context.started) return refuse('Ebben a körben még nincs szem.');
-  if (!canEndRound(context)) return refuse('Sorban nincs spirál: a sor végén fordulunk.');
+  if (!context.graph || !context.started) return refuse(text('round-empty'));
+  if (!canEndRound(context)) return refuse(text('no-spiral-in-row'));
   const last = piece.stitches[piece.stitches.length - 1]!;
   return done(withPiece(pattern, { ...piece, events: [...piece.events, { after: last.id, kind: 'spiral' }] }));
 }
@@ -701,7 +768,7 @@ export function endRoundSpiral(pattern: Pattern): EditResult {
 export function deleteLast(pattern: Pattern): EditResult {
   const piece = pieceOf(pattern);
   const last = piece.stitches[piece.stitches.length - 1];
-  if (!last) return refuse('A minta üres.');
+  if (!last) return refuse(text('pattern-empty'));
 
   const event = piece.events.find((candidate) => candidate.after === last.id);
   if (event && event.kind !== 'join-slip') {
@@ -740,7 +807,7 @@ export function deleteLast(pattern: Pattern): EditResult {
 /** Kézi igazítás: eltolás a számolt helyhez képest. `null` visszaállítja. A topológián nem változtat. */
 export function setPinned(pattern: Pattern, id: NodeId, offset: { readonly x: number; readonly y: number } | null): EditResult {
   const piece = pieceOf(pattern);
-  if (!piece.stitches.some((node) => node.id === id)) return refuse(`Nincs ilyen szem: ${id}`);
+  if (!piece.stitches.some((node) => node.id === id)) return refuse(text('no-such-node', { id }));
   const stitches = piece.stitches.map((node) => {
     if (node.id !== id) return node;
     const { pinned: _, ...rest } = node;

@@ -13,7 +13,9 @@
  * kiterjesztéssel importálja (mint a notation.ts).
  */
 
+import type { LayerCount } from '../../core/selection.ts';
 import type { Dictionary } from '../i18n.ts';
+import { enLayerCounts, huLayerCounts } from './core/layer-counts.ts';
 
 /** Angol többes szám a szemekre: „1 stitch”, „12 stitches”. */
 const stitches = (count: number): string => `${count} ${count === 1 ? 'stitch' : 'stitches'}`;
@@ -160,8 +162,8 @@ const hu = {
     increaseConfirm: 'Szaporítás',
     crossedQuestion: 'Ez a célpont már mögötted van. Keresztezett szemet szeretnél?',
     crossedConfirm: 'Keresztezett szem',
-    deleteQuestion: (selected: number, dependents: number, where: string): string =>
-      `A kijelölt ${selected} szembe még ${dependents} szem horgol: ${where}. Velük együtt törlöd?`,
+    deleteQuestion: (selected: number, dependents: number, where: readonly LayerCount[]): string =>
+      `A kijelölt ${selected} szembe még ${dependents} szem horgol: ${huLayerCounts(where, dependents)}. Velük együtt törlöd?`,
     deleteConfirm: 'Törlés velük együtt',
     /** A törlés párbeszédének elutasító gombja; a többi párbeszédé a dialog.ts alapértelmezése. */
     cancel: 'Megszakítás',
@@ -197,7 +199,7 @@ const hu = {
     none: 'Nincs kijelölt szem.',
     /** A fókuszban lévő szem neve a kijelölés leírása előtt. */
     focus: (name: string): string => `${name}. `,
-    count: (count: number, where: string): string => `Kijelölve: ${count} szem (${where}).`,
+    count: (count: number, where: readonly LayerCount[]): string => `Kijelölve: ${count} szem (${huLayerCounts(where, count)}).`,
     layer: (layer: string, count: number): string => `${layer} kijelölve: ${count} szem.`,
     areaOn: 'Terület: húzz téglalapot a szemek köré (Shift: hozzáadás).',
     areaOff: 'Terület kijelölése kikapcsolva.',
@@ -350,7 +352,7 @@ const en: typeof hu = {
     crossedQuestion: 'This target is already behind you. Do you want a crossed stitch?',
     crossedConfirm: 'Crossed stitch',
     deleteQuestion: (selected, dependents, where) =>
-      `${stitches(dependents)} are still worked into the ${stitches(selected)} you selected: ${where}. Delete them together?`,
+      `${stitches(dependents)} are still worked into the ${stitches(selected)} you selected: ${enLayerCounts(where, dependents)}. Delete them together?`,
     deleteConfirm: 'Delete together',
     cancel: 'Cancel',
   },
@@ -379,7 +381,7 @@ const en: typeof hu = {
   selection: {
     none: 'No stitch is selected.',
     focus: (name) => `${name}. `,
-    count: (count, where) => `Selected: ${stitches(count)} (${where}).`,
+    count: (count, where) => `Selected: ${stitches(count)} (${enLayerCounts(where, count)}).`,
     layer: (layer, count) => `${layer} selected: ${stitches(count)}.`,
     areaOn: 'Area: drag a rectangle around the stitches (Shift: add to the selection).',
     areaOff: 'Area selection off.',

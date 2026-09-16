@@ -8,7 +8,7 @@
  * él. A szakasz csak nyitva számol, mert a vászon egérmozgásra is frissít.
  */
 
-import { addAmigurumiPart, createAmigurumi, partName } from '../core/amigurumi-generator.js';
+import { addAmigurumiPart, createAmigurumi } from '../core/amigurumi-generator.js';
 import { roundGaugeOf, shapeGaugeOf } from '../core/amigurumi.js';
 import type { Pattern } from '../core/types.js';
 import {
@@ -23,12 +23,14 @@ import {
   fieldState,
   figureNote,
   gaugeNote,
+  partLabel,
   partOf,
   previewNote,
   safetyNote,
   type AmigurumiForm,
   type FieldState,
 } from './amigurumi-view.js';
+import { amigurumiCoreText } from './i18n/core/amigurumi.js';
 import type { Choice } from './rounds-view.js';
 
 export interface AmigurumiPanelHost {
@@ -155,8 +157,8 @@ export class AmigurumiPanel {
     const part = partOf(form);
     if (typeof part === 'string') return this.#host.announce(part);
     const result = createAmigurumi(this.#pattern, part, form.under3);
-    if (!result.ok) return this.#host.announce(result.reason);
-    this.#host.commit(result.pattern, createdMessage(partName(part)));
+    if (!result.ok) return this.#host.announce(amigurumiCoreText(result.reason));
+    this.#host.commit(result.pattern, createdMessage(partLabel(part)));
   }
 
   #add(): void {
@@ -165,8 +167,8 @@ export class AmigurumiPanel {
     const part = partOf(form);
     if (typeof part === 'string') return this.#host.announce(part);
     const result = addAmigurumiPart(this.#pattern, part, { method: form.join, distribute: form.distribute }, form.under3);
-    if (!result.ok) return this.#host.announce(result.reason);
-    this.#host.commit(result.pattern, addedMessage(partName(part), form.join));
+    if (!result.ok) return this.#host.announce(amigurumiCoreText(result.reason));
+    this.#host.commit(result.pattern, addedMessage(partLabel(part), form.join));
   }
 }
 

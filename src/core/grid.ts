@@ -24,8 +24,8 @@
  */
 
 import type { WorkContext } from './editor.ts';
-import { article } from './hungarian.ts';
 import { layoutPattern, type ChartLayout, type LayoutOptions, type NodePlacement, type Point } from './layout.ts';
+import { text, type CoreText } from './messages.ts';
 import { CIRCLE, frameCoords, framePoint, outline, type RoundFrame } from './polygon.ts';
 import { curveStrip, outlineOf, rowCurve, type RowCurve } from './row-curve.ts';
 import type { StitchLibrary } from './stitch-library.ts';
@@ -626,21 +626,28 @@ export function gridHit(grid: ChartGrid, p: Point): GridHit {
   return null;
 }
 
+/**
+ * A célzás üzenetei (PQW-904): a mag a kódot és az értékeket adja, a mondatot
+ * a felület állítja össze (src/ui/i18n/core/grid.ts). A névelő, a ragozás és a
+ * sor/kör szava is a felületé; itt csak rétegszám és alak van.
+ */
+export type GridAimCode = 'aim-no-stitch' | 'aim-not-target' | 'aim-other-layer';
+
 export type GridAim =
   | { readonly kind: 'target'; readonly slot: number }
-  | { readonly kind: 'refused'; readonly message: string };
+  | { readonly kind: 'refused'; readonly message: CoreText<GridAimCode> };
 
 /** Mi történik a kattintásra: célpont, vagy üzenet arról, miért nincs itt mibe horgolni. */
 export function aimAt(grid: ChartGrid, hit: Exclude<GridHit, null>): GridAim {
   if (hit.kind === 'cell' && hit.cell.slot !== null) return { kind: 'target', slot: hit.cell.slot };
-  const round = grid.shape === 'round';
   const current = grid.layer;
   const layer = hit.band.layer;
-  const name = (n: number) => (n === 0 ? (round ? 'a varázskör' : 'a láncalap') : `${article(n)} ${n}. ${round ? 'kör' : 'sor'}`);
-  const into = (n: number) => (n === 0 && round ? 'a varázskörbe' : `${name(n)} szemeibe`);
-  const refused = (message: string): GridAim => ({ kind: 'refused', message: `${message} Nem került le szem.` });
+  const refused = (message: CoreText<GridAimCode>): GridAim => ({ kind: 'refused', message });
 
-  if (layer >= current) return refused('Ebben a cellában nincs mibe horgolni: alatta nincs szem.');
-  if (layer === current - 1) return refused('Ide nem horgolhatsz: ez a hely nem célpont (például nem számító fordulólánc).');
-  return refused(`Ez ${name(layer)} egyik helye. Most ${name(current)} készül: csak ${into(current - 1)} horgolhatsz.`);
+  if (layer >= current) return refused(text('aim-no-stitch'));
+  if (layer === current - 1) return refused(text('aim-not-target'));
+  // A 0. réteg neve a kezdésé: körben a varázskör, sorban a láncalap. Ahol a
+  // mondatban nem szerepel a kezdés, a mező elmarad (a `data` nem vesz fel `null`-t).
+  const start = layer === 0 || current === 1 ? (grid.shape === 'round' ? 'ring' : 'chain') : null;
+  return refused(text('aim-other-layer', { layer, current, shape: grid.shape, ...(start === null ? {} : { start }) }));
 }

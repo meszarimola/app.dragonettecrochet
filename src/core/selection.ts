@@ -17,9 +17,10 @@
  * horgol), láncív egyetlen láncszemébe horgolt szemet, több darabot.
  */
 
-import { closeRound, contextOf, defaultCursor, endRow, layerSlots, startCursor, type EditResult, type Slot } from './editor.ts';
+import { closeRound, contextOf, defaultCursor, endRow, layerSlots, startCursor, type EditCode, type EditResult, type Slot } from './editor.ts';
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
 import { modeAsWorked } from './insertion.ts';
+import { text, type CoreText } from './messages.ts';
 import type { ChartLayout, Point } from './layout.ts';
 import { libraryFor } from './stitch-variants.ts';
 import type {
@@ -37,8 +38,13 @@ import type {
 import { validatePattern } from './validate.ts';
 
 const done = (pattern: Pattern): EditResult => ({ ok: true, pattern });
-const refuse = (reason: string): EditResult => ({ ok: false, reason });
-const UNCHANGED = 'A minta nem változott.';
+const refuse = (reason: CoreText<EditCode>): EditResult => ({ ok: false, reason });
+/**
+ * „A minta nem változott.” jelzője (PQW-904): a mag nem toldja a mondathoz,
+ * hanem megjelöli, hogy a művelet félig sem hajtódott végre; a mondatot a
+ * felület szótára zárja le vele.
+ */
+const UNCHANGED = { unchanged: true } as const;
 
 function graphOf(pattern: Pattern): PieceGraph | null {
   const piece = pattern.pieces[0];
@@ -52,12 +58,6 @@ function graphOf(pattern: Pattern): PieceGraph | null {
 
 function withPiece(pattern: Pattern, piece: Piece): Pattern {
   return { ...pattern, pieces: [piece, ...pattern.pieces.slice(1)] };
-}
-
-/** „2. sor”, „3. kör”; a 0. réteg a láncalap vagy a varázskör. */
-export function layerName(index: number, shape: 'row' | 'round'): string {
-  if (index === 0) return shape === 'round' ? 'varázskör' : 'láncalap';
-  return `${index}. ${shape === 'round' ? 'kör' : 'sor'}`;
 }
 
 /* ---- Egységek ---- */
@@ -178,10 +178,22 @@ export function stepFocus(pattern: Pattern, layout: ChartLayout, focus: NodeId |
   }
 }
 
-/** Az érintett szemek rétegenként, pl. „2. sor: 3 szem, 3. sor: 10 szem”. */
-export function describeByLayer(pattern: Pattern, ids: readonly NodeId[]): string {
+/** Egy réteg és a benne érintett szemek száma; a 0. réteg a láncalap vagy a varázskör. */
+export interface LayerCount {
+  readonly layer: number;
+  readonly shape: 'row' | 'round';
+  readonly count: number;
+}
+
+/**
+ * Az érintett szemek rétegenként, rétegsorrendben (PQW-904): adat, nem mondat.
+ * A „2. sor: 1 szem, 3. sor: 1 szem” felsorolást a felület rakja össze a saját
+ * nyelvén; a mag a rétegszámot és a réteg alakját adja. Ismeretlen szerkezetnél
+ * üres a lista: ilyenkor csak a szemek száma mondható el.
+ */
+export function describeByLayer(pattern: Pattern, ids: readonly NodeId[]): readonly LayerCount[] {
   const graph = graphOf(pattern);
-  if (!graph) return `${ids.length} szem`;
+  if (!graph) return [];
   const counts = new Map<number, number>();
   for (const id of ids) {
     const layer = graph.layerOf.get(id);
@@ -189,8 +201,17 @@ export function describeByLayer(pattern: Pattern, ids: readonly NodeId[]): strin
   }
   return [...counts]
     .sort(([a], [b]) => a - b)
-    .map(([layer, count]) => `${layerName(layer, graph.layers[layer]!.shape)}: ${count} szem`)
-    .join(', ');
+    .map(([layer, count]): LayerCount => ({ layer, shape: graph.layers[layer]!.shape, count }));
+}
+
+/** A rétegenkénti bontás az üzenet adatában: párhuzamos listák, nyers értékekkel. */
+function byLayerData(pattern: Pattern, ids: readonly NodeId[]): Record<string, readonly number[] | readonly string[]> {
+  const where = describeByLayer(pattern, ids);
+  return {
+    layers: where.map((entry) => entry.layer),
+    shapes: where.map((entry) => entry.shape),
+    counts: where.map((entry) => entry.count),
+  };
 }
 
 /* ---- Törlés ---- */
@@ -240,10 +261,10 @@ export function deletionPlan(pattern: Pattern, ids: Iterable<NodeId>): DeletionP
 export function deleteStitches(pattern: Pattern, ids: Iterable<NodeId>, options: { readonly withDependents?: boolean } = {}): EditResult {
   const piece = pattern.pieces[0];
   const plan = deletionPlan(pattern, ids);
-  if (!piece || plan.selected.length === 0) return refuse('Nincs kijelölt szem.');
+  if (!piece || plan.selected.length === 0) return refuse(text('no-selection'));
   if (plan.dependents.length > 0 && !options.withDependents) {
     return refuse(
-      `A kijelölt szemekbe még ${plan.dependents.length} szem horgol (${describeByLayer(pattern, plan.dependents)}); csak velük együtt törölhető. ${UNCHANGED}`,
+      text('has-dependents', { count: plan.dependents.length, ...byLayerData(pattern, plan.dependents), ...UNCHANGED }),
     );
   }
   const remove = new Set([...plan.selected, ...plan.dependents]);
@@ -344,13 +365,27 @@ export interface Fragment {
   readonly layers: number;
 }
 
-export type CopyResult = { readonly ok: true; readonly fragment: Fragment } | { readonly ok: false; readonly reason: string };
+/**
+ * A másolás elutasításainak kódjai (PQW-904). Mind szerepel az `EditCode`
+ * unióban is (editor.ts), mert a duplikálás továbbadja őket az `EditResult`-ban;
+ * a szótár (src/ui/i18n/core/editor.ts) mindkettőt egyszerre fedi le.
+ */
+export type CopyCode =
+  | 'no-selection'
+  | 'copy-broken-pattern'
+  | 'copy-border'
+  | 'copy-layer-outside'
+  | 'copy-oval-first-round'
+  | 'copy-anchor-unsupported';
+
+export type CopyResult =
+  | { readonly ok: true; readonly fragment: Fragment }
+  | { readonly ok: false; readonly reason: CoreText<CopyCode> };
 
 const slotKey = (kind: Slot['kind'] | Anchor['into'], id: string) => `${kind}:${id}`;
 
 /** Az ovális 1. köre a láncszemek mindkét oldalába horgol: a két oldal célpontjai a láncalappal együtt köthetők újra. */
-const OVAL_FIRST_ROUND =
-  'Az ovális 1. köre a láncalap mindkét oldalába horgol, ezért csak a láncalappal együtt másolható, és üres mintába illeszthető be.';
+const OVAL_FIRST_ROUND = text('copy-oval-first-round');
 
 /**
  * A kijelölés másolata. A kijelölésen belüli kapcsolatok megmaradnak; a
@@ -360,9 +395,9 @@ const OVAL_FIRST_ROUND =
  */
 export function copySelection(pattern: Pattern, ids: Iterable<NodeId>): CopyResult {
   const selected = expandSelection(pattern, ids);
-  if (selected.length === 0) return { ok: false, reason: 'Nincs kijelölt szem.' };
+  if (selected.length === 0) return { ok: false, reason: text('no-selection') };
   const graph = graphOf(pattern);
-  if (!graph) return { ok: false, reason: 'A minta szerkezete hibás, ezért nem másolható.' };
+  if (!graph) return { ok: false, reason: text('copy-broken-pattern') };
   const { piece } = graph;
 
   const index = new Map(selected.map((id, i) => [id, i]));
@@ -372,7 +407,7 @@ export function copySelection(pattern: Pattern, ids: Iterable<NodeId>): CopyResu
   const foundation = firstLayer === 0;
   // A szegély a darab köré horgol, nem a sor célpontjaiba (PQW-889): nem másolható.
   if (selected.some((id) => graph.layers[layerOf(id)]?.border)) {
-    return { ok: false, reason: 'A szegély még nem másolható: csak sorokat vagy köröket jelölj ki.' };
+    return { ok: false, reason: text('copy-border') };
   }
 
   const spaces = piece.spaces.filter((space) => space.chains.every((id) => index.has(id)));
@@ -395,19 +430,15 @@ export function copySelection(pattern: Pattern, ids: Iterable<NodeId>): CopyResu
       else if (anchor.into === 'underside' && index.has(anchor.id)) anchors.push({ kind: 'underside', index: index.get(anchor.id)! });
       else {
         if (layerOf(id) !== firstLayer) {
-          const name = layerName(layerOf(id), graph.layers[layerOf(id)]!.shape);
-          return { ok: false, reason: `A kijelölt ${name} olyan szemekbe is horgol, amelyek nincsenek kijelölve: jelöld ki az alatta lévő sort is.` };
+          return { ok: false, reason: text('copy-layer-outside', { layer: layerOf(id), shape: graph.layers[layerOf(id)]!.shape }) };
         }
         // Sorvégbe csak a szegély horgol, azt fent elutasítjuk (PQW-889).
-        if (anchor.into === 'row-end') return { ok: false, reason: 'A szegély még nem másolható: csak sorokat vagy köröket jelölj ki.' };
+        if (anchor.into === 'row-end') return { ok: false, reason: text('copy-border') };
         // Az ovális 1. köre a láncalap mindkét oldalába horgol (PQW-890): csak a láncalappal együtt másolható (PQW-899).
         if (anchor.into === 'underside') return { ok: false, reason: OVAL_FIRST_ROUND };
         const slot = slotOf.get(slotKey(anchor.into, anchor.id));
         if (slot === undefined) {
-          return {
-            ok: false,
-            reason: 'A kijelölés egy szeme nem a közvetlenül alatta lévő sor egy célpontjába horgol (pl. hosszú szem, vagy egy láncív egyik láncszeme); ezt még nem lehet másolni.',
-          };
+          return { ok: false, reason: text('copy-anchor-unsupported') };
         }
         anchors.push({ kind: 'slot', slot, into: anchor.into, mode: anchor.into === 'stitch' ? anchor.mode : null });
       }
@@ -480,10 +511,13 @@ export function copySelection(pattern: Pattern, ids: Iterable<NodeId>): CopyResu
 
 const STRUCTURAL_RULES = new Set(['unknown-stitch', 'dangling-reference', 'yarn-path', 'group-mismatch']);
 
-function slotWord(kind: Slot['kind']): { readonly noun: string; readonly into: string } {
-  if (kind === 'space') return { noun: 'láncív', into: 'láncívbe' };
-  if (kind === 'ring') return { noun: 'varázskör', into: 'varázskörbe' };
-  return { noun: 'szem', into: 'szembe' };
+/**
+ * A célpont fajtája az üzenet adatában (PQW-904): a szem, a láncív és a
+ * varázskör szavát — és a ragját — a felület adja, a mag csak a fajtát.
+ */
+function slotWord(kind: Slot['kind']): 'space' | 'ring' | 'stitch' {
+  if (kind === 'space') return 'space';
+  return kind === 'ring' ? 'ring' : 'stitch';
 }
 
 /** Számláló az új azonosítókhoz: a meglévő legnagyobb sorszám után. */
@@ -512,22 +546,21 @@ function ids(prefix: string, existing: Iterable<string>): () => string {
  */
 export function pasteFragment(pattern: Pattern, fragment: Fragment, cursor?: number): EditResult {
   const piece = pattern.pieces[0];
-  if (!piece) return refuse('A mintában nincs darab.');
-  if (fragment.stitches.length === 0) return refuse('A vágólap üres: előbb másolj ki szemeket.');
+  if (!piece) return refuse(text('no-piece'));
+  if (fragment.stitches.length === 0) return refuse(text('clipboard-empty'));
   if (fragment.foundation || fragment.rings.length > 0) {
-    if (piece.stitches.length > 0) return refuse(`A láncalapot és a varázskört csak üres mintába lehet beilleszteni. ${UNCHANGED}`);
+    if (piece.stitches.length > 0) return refuse(text('foundation-needs-empty', { ...UNCHANGED }));
     return assemble(pattern, fragment, [], 0, [], false);
   }
-  if (piece.stitches.length === 0) return refuse('Előbb láncalap vagy varázskör kell: a beillesztett szemeknek célpont kell.');
+  if (piece.stitches.length === 0) return refuse(text('paste-needs-foundation'));
 
   let current = pattern;
   let skip = 0;
   let base: number;
   let context = contextOf(current);
-  const word = fragment.shape === 'round' ? 'kör' : 'sor';
   if (fragment.startsLayer) {
     if (context.shape !== fragment.shape) {
-      return refuse(`${fragment.shape === 'round' ? 'Kört sorba' : 'Sort körbe'} nem lehet beilleszteni. ${UNCHANGED}`);
+      return refuse(text('paste-shape-mismatch', { shape: fragment.shape, ...UNCHANGED }));
     }
     if (context.started) {
       const closed =
@@ -545,11 +578,16 @@ export function pasteFragment(pattern: Pattern, fragment: Fragment, cursor?: num
       skip = fragment.turningChain;
     } else {
       if (context.turningChain > 0 && fragment.travelSlips > 0) {
-        return refuse(`A kör elején már van láncszem, a másolt kör kúszószemmel indul: töröld a láncszemeket, és illeszd be újra. ${UNCHANGED}`);
+        return refuse(text('paste-round-starts-with-slip', { ...UNCHANGED }));
       }
       if (context.turningChain > fragment.turningChain) {
         return refuse(
-          `A ${word} elején már ${context.turningChain} láncszem van, a másolt ${word} ${fragment.turningChain} láncszemmel kezdődik: töröld a fölösleget, és illeszd be újra. ${UNCHANGED}`,
+          text('paste-too-many-chains', {
+            shape: fragment.shape,
+            present: context.turningChain,
+            copied: fragment.turningChain,
+            ...UNCHANGED,
+          }),
         );
       }
       skip = context.turningChain;
@@ -560,7 +598,12 @@ export function pasteFragment(pattern: Pattern, fragment: Fragment, cursor?: num
     if (fragment.span !== null && available !== fragment.span) {
       // Az összevetés a kezdőhelytől számít; az üzenet a teljes sort írja, a számító fordulólánc alatti szemmel együtt (PQW-891).
       return refuse(
-        `A másolt ${word} ${fragment.span + base} szemre épül, alatta most ${context.slots.length} van: a szemszám nem jön ki, ezért nem illesztettem be. ${UNCHANGED}`,
+        text('paste-span-mismatch', {
+          shape: fragment.shape,
+          needed: fragment.span + base,
+          available: context.slots.length,
+          ...UNCHANGED,
+        }),
       );
     }
   } else {
@@ -577,17 +620,23 @@ export function pasteFragment(pattern: Pattern, fragment: Fragment, cursor?: num
       const at = base + target.offset;
       const slot = at >= 0 ? context.slots[at] : undefined;
       if (!slot) {
-        const from = fragment.startsLayer ? `a ${word} elejétől` : 'a kurzortól';
         return refuse(
-          `Nincs elég célpont: a beillesztett szemek ${need} célpontra horgolnának ${from}, de csak ${Math.max(0, context.slots.length - base - first)} van. ${UNCHANGED}`,
+          text('paste-not-enough-slots', {
+            need,
+            available: Math.max(0, context.slots.length - base - first),
+            // Honnan számít az igény: a réteg kezdőhelyétől vagy a kurzortól.
+            fromLayerStart: fragment.startsLayer,
+            shape: fragment.shape,
+            ...UNCHANGED,
+          }),
         );
       }
       if (slot.kind !== target.into) {
-        return refuse(`A(z) ${at + 1}. célpont ${slotWord(slot.kind).noun}, a másolt szem viszont ${slotWord(target.into).into} horgolt. ${UNCHANGED}`);
+        return refuse(text('paste-slot-kind', { at: at + 1, slot: slotWord(slot.kind), copied: slotWord(target.into), ...UNCHANGED }));
       }
-      if (context.used[at]) return refuse(`A(z) ${at + 1}. célpontba már horgoltál: vidd a kurzort szabad célpontra. ${UNCHANGED}`);
+      if (context.used[at]) return refuse(text('paste-slot-used', { at: at + 1, ...UNCHANGED }));
       if (at <= context.frontier) {
-        return refuse(`A beillesztés a haladási irány ellen horgolna: vidd a kurzort a már horgolt célpontok utánra. ${UNCHANGED}`);
+        return refuse(text('paste-against-direction', { ...UNCHANGED }));
       }
       resolved.push(slot);
     }
@@ -595,7 +644,7 @@ export function pasteFragment(pattern: Pattern, fragment: Fragment, cursor?: num
 
   // A kimaradó fordulólánc helyett a meglévő láncszemekbe horgolhat a másolat (számító fordulólánc teteje).
   const reused = skip > 0 ? current.pieces[0]!.stitches.slice(-skip).map((node) => node.id) : [];
-  if (reused.length < skip) return refuse(`Nincs elég célpont a beillesztéshez. ${UNCHANGED}`);
+  if (reused.length < skip) return refuse(text('paste-no-reuse-slots', { ...UNCHANGED }));
   const skipped = new Map(reused.map((id, k) => [fragment.travelSlips + k, id]));
   // A horgoló felől nézett mód marad: más oldalú sorban a tárolt, színoldali mód megfordul.
   const result = assemble(current, fragment, resolved, skip, [...skipped], context.side !== fragment.side);
@@ -603,7 +652,7 @@ export function pasteFragment(pattern: Pattern, fragment: Fragment, cursor?: num
 
   const library = libraryFor(result.pattern);
   const broken = (candidate: Pattern) => validatePattern(candidate, library).filter((finding) => STRUCTURAL_RULES.has(finding.rule)).length;
-  if (broken(result.pattern) > broken(pattern)) return refuse(`A beillesztés hibás szerkezetet adna, ezért nem illesztettem be. ${UNCHANGED}`);
+  if (broken(result.pattern) > broken(pattern)) return refuse(text('paste-would-break', { ...UNCHANGED }));
   return result;
 }
 

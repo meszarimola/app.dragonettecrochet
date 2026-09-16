@@ -42,12 +42,11 @@ import {
   HAT_SIZES,
   NEGATIVE_EASE_LIMIT,
   NEGATIVE_EASE_MAX,
-  bodySizeName,
   hatEase,
-  hatSizeName,
   inchToCm,
   mid,
   tableFlags,
+  type BodySizeCode,
   type BodyTable,
   type BodyTableId,
   type DataFlag,
@@ -66,6 +65,7 @@ import {
   type ShapingRun,
   type SlopeSchedule,
 } from './garment-math.ts';
+import { text, type CoreText } from './messages.ts';
 import { activeProfile, ballLengthM, gaugeContextOf, swatchMassPerArea, type YarnMissing } from './pattern-size.ts';
 import { raglanPiece, raglanPlan, type RaglanMeasures, type RaglanPlan } from './raglan.ts';
 import { withGeneratedTitle } from './pattern-title.ts';
@@ -75,7 +75,7 @@ import { DEFAULT_MOTIF, circlePlan, plannedRounds, type RoundPlan } from './roun
 import { SHAPE_STITCHES, plannedRows, plannedSections, shapeGauge, type RowSection, type RowShaping, type ShapeGauge, type ShapeRepeat } from './shapes.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import { traditionOf, turningChainCountsFor } from './tradition.ts';
-import type { GarmentKind, GarmentTable, Pattern, PatternGarment, PieceJoin, StitchDefId, Tradition } from './types.ts';
+import type { GarmentKind, GarmentTable, Pattern, PatternGarment, Piece, PieceJoin, StitchDefId, Tradition } from './types.ts';
 import { validatePattern } from './validate.ts';
 import { yarnFromMassPerArea } from './yarn-estimate.ts';
 
@@ -172,24 +172,141 @@ export const DEFAULT_HAT: GarmentOptions = {
   hemCm: 3,
 };
 
-export interface GarmentSize {
-  readonly id: string;
-  readonly name: string;
+/**
+ * A ruhadarabok üzeneteinek kódjai (PQW-904): elutasítás, ellenőrzés és a
+ * hozzá tartozó javaslat, figyelmeztetés, becsült méret és a méretsorozat
+ * monotonitása. A mag csak kódot és nyers adatot ad; a mondatot a felület
+ * állítja össze (`src/ui/i18n/core/garment.ts`). A szűk unió őrzi, hogy a
+ * szótárból ne maradhasson ki kód. A testméret-táblázat gyanúi ugyanebbe a
+ * szótárba tartoznak, ezért a `BodySizeCode` is része az uniónak.
+ */
+export type GarmentCode =
+  // Választás és tartomány (`garmentProblem`).
+  | 'stitch-choice'
+  | 'pick-size'
+  | 'series-range'
+  | 'ease-range'
+  | 'ease-required'
+  | 'hem-range'
+  | 'growth-range'
+  | 'below-waist-range'
+  | 'repeat-width'
+  | 'repeat-edge'
+  // A táblázat mérete és a méretenkénti elutasítás.
+  | 'unknown-size'
+  | 'missing-measure'
+  | 'size-problem'
+  // Sapka.
+  | 'head-range'
+  | 'negative-ease-head'
+  | 'hat-height'
+  | 'hat-crown'
+  | 'hat-side'
+  | 'max-rounds'
+  // Ledobott vállú pulóver.
+  | 'negative-ease-bust'
+  | 'panel-narrow'
+  | 'max-stitches'
+  | 'body-length-hem'
+  | 'max-rows'
+  | 'armhole-fit'
+  | 'neck-fit'
+  | 'sleeve-short'
+  | 'sleeve-increases'
+  | 'max-total-sweater'
+  | 'max-total-raglan'
+  // Felülről horgolt raglán.
+  | 'underarm-long'
+  | 'sleeve-narrow'
+  | 'yoke-min'
+  | 'yoke-sleeve-many'
+  | 'yoke-sleeve-few'
+  | 'neck-small'
+  | 'body-short-gauge'
+  | 'yoke-body-many'
+  | 'body-short'
+  | 'body-length-yoke'
+  // Program- és gráfhiba.
+  | 'internal-error'
+  | 'piece-error'
+  // Figyelmeztetések.
+  | 'negative-ease-warning'
+  | 'cuff-wide'
+  | 'upper-arm-ease'
+  | 'raglan-extra-rounds'
+  // A táblázatból hiányzó, becsült méretek.
+  | 'estimated-armhole-depth'
+  | 'estimated-cuff'
+  | 'estimated-upper-arm'
+  // Ellenőrzések és javaslatok: sapka.
+  | 'check-crown-target'
+  | 'check-crown-doubling'
+  | 'check-side-count'
+  | 'check-brim'
+  | 'check-height'
+  | 'check-negative-ease'
+  // Ellenőrzések és javaslatok: pulóver.
+  | 'check-panel-repeat'
+  | 'check-even-rows'
+  | 'suggest-even-rows'
+  | 'check-shoulders'
+  | 'check-neck-shaping'
+  | 'suggest-neck-shaping'
+  | 'check-sleeve-width'
+  | 'check-sleeve-rows'
+  | 'suggest-sleeve-rows'
+  | 'check-armhole-seam'
+  | 'suggest-armhole-seam'
+  | 'check-side-seam'
+  | 'suggest-side-seam'
+  | 'suggest-negative-ease-bust'
+  // Ellenőrzések és javaslatok: raglán.
+  | 'check-raglan-sections'
+  | 'suggest-raglan-sections'
+  | 'check-raglan-growth'
+  | 'suggest-raglan-growth'
+  | 'check-raglan-underarm'
+  | 'check-raglan-neck'
+  | 'check-even-rounds'
+  | 'suggest-negative-ease-raglan'
+  // A méretsorozat monotonitása.
+  | 'monotonic-hat-stitches'
+  | 'monotonic-rounds'
+  | 'monotonic-raglan-body'
+  | 'monotonic-raglan-sleeve'
+  | 'monotonic-neck'
+  | 'monotonic-panel'
+  | 'monotonic-cuff'
+  | 'monotonic-sleeve-top'
+  | BodySizeCode;
+
+/** Üzenet-e a visszatérés: a terv és a darab helyett kód és adat. */
+export function isGarmentText(value: object): value is CoreText<GarmentCode> {
+  return 'code' in value;
 }
 
-/** A választható méretek a táblázat sorrendjében. */
-export function garmentSizes(kind: GarmentKind, table: BodyTableId): GarmentSize[] {
-  if (kind === 'hat') return HAT_SIZES.map((size) => ({ id: size.id, name: hatSizeName(size.id, 'hu') }));
-  return BODY_TABLES[table].sizes.map((size) => ({ id: size.id, name: bodySizeName(table, size.id, 'hu') }));
+/**
+ * A sor- és a körgenerátor hibája a ruhadarab üzenetébe (`piece-error`): a
+ * kódját és az adatait a szótár a saját területének szövegével írja ki. A
+ * körgenerátor még kész mondattal utasít el; az addig `message`-ként utazik.
+ */
+function pieceProblem(problem: string | CoreText): CoreText<GarmentCode> {
+  return typeof problem === 'string' ? text('piece-error', { message: problem }) : text('piece-error', { inner: problem.code, ...(problem.data ?? {}) });
+}
+
+/** A választható méretek azonosítója a táblázat sorrendjében; a nevet a felület adja. */
+export function garmentSizes(kind: GarmentKind, table: BodyTableId): string[] {
+  if (kind === 'hat') return HAT_SIZES.map((size) => size.id);
+  return BODY_TABLES[table].sizes.map((size) => size.id);
 }
 
 /** Egy igaz/hamis ellenőrzés (05 §3.8 7. pont, §8.3 utolsó pont). */
 export interface GarmentCheck {
   readonly id: string;
-  readonly label: string;
+  readonly label: CoreText<GarmentCode>;
   readonly ok: boolean;
   /** Mit érdemes állítani, ha hamis (05 §9.6: a fázisok hosszát igazítjuk, nem a teljes hosszt). */
-  readonly suggestion?: string;
+  readonly suggestion?: CoreText<GarmentCode>;
 }
 
 const pct = (ratio: number) => Math.round(ratio * 100);
@@ -224,21 +341,21 @@ export interface HatPlan {
   readonly finishedCm: number;
   readonly finishedHeightCm: number;
   readonly checks: readonly GarmentCheck[];
-  readonly warnings: readonly string[];
+  readonly warnings: readonly CoreText<GarmentCode>[];
 }
 
-/** A sapka terve a fejből, a bőségből és a szemméretből (05 §9.7); hibánál az ok. */
-export function hatPlan(measures: HatMeasures, gauge: { readonly stitchCm: number; readonly rowCm: number }): HatPlan | string {
+/** A sapka terve a fejből, a bőségből és a szemméretből (05 §9.7); hibánál az ok kódja. */
+export function hatPlan(measures: HatMeasures, gauge: { readonly stitchCm: number; readonly rowCm: number }): HatPlan | CoreText<GarmentCode> {
   const { headCm, easeCm, heightCm, brimCm } = measures;
-  if (!(headCm > 0 && headCm <= MAX_GARMENT_CM)) return `A fejkörfogat 0 és ${MAX_GARMENT_CM} cm közötti szám legyen.`;
+  if (!(headCm > 0 && headCm <= MAX_GARMENT_CM)) return text('head-range', { max: MAX_GARMENT_CM });
   const ratio = -easeCm / headCm;
   if (ratio > NEGATIVE_EASE_MAX) {
-    return `A negatív bőség legfeljebb a fejkörfogat ${pct(NEGATIVE_EASE_MAX)}%-a lehet (most ${pct(ratio)}%): a horgolt anyag kevéssé nyúlik.`;
+    return text('negative-ease-head', { limit: pct(NEGATIVE_EASE_MAX), actual: pct(ratio) });
   }
   const hatCm = headCm + easeCm;
   const stitches = roundStitches(hatCm / gauge.stitchCm, intentOf(easeCm));
   const radius = hatCm / (2 * Math.PI);
-  if (heightCm <= radius) return `A sapka magassága legyen nagyobb a korona sugaránál (${Math.ceil(radius)} cm).`;
+  if (heightCm <= radius) return text('hat-height', { radius: Math.ceil(radius) });
 
   const exact = (2 * Math.PI * gauge.rowCm) / gauge.stitchCm;
   const ideal = radius / gauge.rowCm;
@@ -253,10 +370,10 @@ export function hatPlan(measures: HatMeasures, gauge: { readonly stitchCm: numbe
     const better = !best || score[0] < best.score[0] - 1e-9 || (Math.abs(score[0] - best.score[0]) <= 1e-9 && score[1] < best.score[1]);
     if (better) best = { I, full, delta, crown, score };
   }
-  if (!best) return 'Ilyen kis körméretnél nem tervezhető korona: adj meg nagyobb fejkörfogatot.';
+  if (!best) return text('hat-crown');
 
   const sideRounds = Math.round((heightCm - radius) / gauge.rowCm);
-  if (sideRounds < 1) return 'A sapka oldala legalább egy kör legyen: adj meg nagyobb magasságot.';
+  if (sideRounds < 1) return text('hat-side');
   const brimRounds = Math.round(Math.max(0, brimCm) / gauge.rowCm);
   const circle = circlePlan(best.I, best.full, true);
   const correction = best.delta > 0 ? evenIncreases(best.I * best.full, best.delta) : null;
@@ -266,21 +383,21 @@ export function hatPlan(measures: HatMeasures, gauge: { readonly stitchCm: numbe
   };
   const counts = [best.I];
   for (const into of layout.rounds) counts.push(sum(into));
-  if (counts.length > MAX_GARMENT_ROWS) return `Legfeljebb ${MAX_GARMENT_ROWS} kör lehet: adj meg kisebb méretet.`;
+  if (counts.length > MAX_GARMENT_ROWS) return text('max-rounds', { max: MAX_GARMENT_ROWS });
 
   const totalRounds = counts.length;
   const finishedHeightCm = totalRounds * gauge.rowCm;
   const checks: GarmentCheck[] = [
-    { id: 'crown-target', label: 'A korona utolsó köre a tervezett szemszám', ok: counts[best.crown - 1] === stitches },
-    { id: 'crown-doubling', label: 'A korona egyik körében sincs duplázásnál több szaporítás', ok: correction === null || best.delta <= best.I * best.full },
-    { id: 'side-count', label: 'Az oldal minden köre a tervezett szemszám', ok: counts.slice(best.crown).every((count) => count === stitches) },
-    { id: 'brim', label: 'A perem nem magasabb a sapka oldalánál', ok: brimRounds <= sideRounds },
-    { id: 'height', label: 'A kész magasság legfeljebb másfél körrel tér el a tervezettől', ok: Math.abs(finishedHeightCm - heightCm) <= 1.5 * gauge.rowCm },
-    { id: 'negative-ease', label: `A negatív bőség legfeljebb ${pct(NEGATIVE_EASE_LIMIT)}%`, ok: ratio <= NEGATIVE_EASE_LIMIT + 1e-9 },
+    { id: 'crown-target', label: text('check-crown-target'), ok: counts[best.crown - 1] === stitches },
+    { id: 'crown-doubling', label: text('check-crown-doubling'), ok: correction === null || best.delta <= best.I * best.full },
+    { id: 'side-count', label: text('check-side-count'), ok: counts.slice(best.crown).every((count) => count === stitches) },
+    { id: 'brim', label: text('check-brim'), ok: brimRounds <= sideRounds },
+    { id: 'height', label: text('check-height'), ok: Math.abs(finishedHeightCm - heightCm) <= 1.5 * gauge.rowCm },
+    { id: 'negative-ease', label: text('check-negative-ease', { limit: pct(NEGATIVE_EASE_LIMIT) }), ok: ratio <= NEGATIVE_EASE_LIMIT + 1e-9 },
   ];
-  const warnings: string[] = [];
+  const warnings: CoreText<GarmentCode>[] = [];
   if (ratio > NEGATIVE_EASE_LIMIT + 1e-9) {
-    warnings.push(`A negatív bőség ${pct(ratio)}%: horgolt anyagnál ${pct(NEGATIVE_EASE_LIMIT)}% fölött csak nyúlós, bordás szemmel működik (05 §3.5, §7.2).`);
+    warnings.push(text('negative-ease-warning', { actual: pct(ratio), limit: pct(NEGATIVE_EASE_LIMIT) }));
   }
   return {
     kind: 'hat',
@@ -391,7 +508,7 @@ export interface DropShoulderPlan {
     readonly shoulderDropCm: number | null;
   };
   readonly checks: readonly GarmentCheck[];
-  readonly warnings: readonly string[];
+  readonly warnings: readonly CoreText<GarmentCode>[];
 }
 
 /** A páros különbségű legközelebbi egész: a két váll így egyforma. */
@@ -403,9 +520,9 @@ function nearestWithParity(exact: number, parityOf: number): number {
 
 /**
  * A ledobott vállú pulóver terve egy méretre (05 §9.5, „B” példa); hibánál az
- * ok. A `minNeck` az előző méret nyaka: a sorozatban a nyak nem lehet kisebb
- * (05 §9.6), ezért ha a párosság miatt kisebb lenne, a legközelebbi nagyobb
- * jó párosságú szám lesz.
+ * ok kódja. A `minNeck` az előző méret nyaka: a sorozatban a nyak nem lehet
+ * kisebb (05 §9.6), ezért ha a párosság miatt kisebb lenne, a legközelebbi
+ * nagyobb jó párosságú szám lesz.
  */
 export function dropShoulderPlan(
   m: DropShoulderMeasures,
@@ -413,33 +530,33 @@ export function dropShoulderPlan(
   start: RowStart,
   repeat: ShapeRepeat | null,
   minNeck = 0,
-): DropShoulderPlan | string {
+): DropShoulderPlan | CoreText<GarmentCode> {
   const { stitchCm, rowCm } = gauge;
   const ratio = -m.easeCm / m.bustCm;
   if (ratio > NEGATIVE_EASE_MAX) {
-    return `A negatív bőség legfeljebb a mellbőség ${pct(NEGATIVE_EASE_MAX)}%-a lehet (most ${pct(ratio)}%): a horgolt anyag kevéssé nyúlik.`;
+    return text('negative-ease-bust', { limit: pct(NEGATIVE_EASE_MAX), actual: pct(ratio) });
   }
   const intent = intentOf(m.easeCm);
   const halfCm = (m.bustCm + m.easeCm) / 2;
   const exact = halfCm / stitchCm;
   const stitches = repeat ? roundToRepeat(exact, repeat, intent) : roundStitches(exact, intent);
-  if (stitches < 8) return 'A hátrész túl keskeny: adj meg nagyobb méretet vagy vékonyabb fonalat.';
-  if (stitches > MAX_GARMENT_STITCHES) return `Egy sorban legfeljebb ${MAX_GARMENT_STITCHES} szem lehet: adj meg kisebb méretet vagy vastagabb fonalat.`;
+  if (stitches < 8) return text('panel-narrow');
+  if (stitches > MAX_GARMENT_STITCHES) return text('max-stitches', { max: MAX_GARMENT_STITCHES });
   const foundation = foundationChainLength(stitches, start.turningChain, start.counting, start.tradition);
 
   const hemRows = roundEven(Math.max(0, m.hemCm) / rowCm);
   const bodyRows = roundEven((m.bodyLengthCm - Math.max(0, m.hemCm)) / rowCm);
-  if (bodyRows < 2) return 'A pulóver hossza legyen nagyobb a szegély magasságánál.';
+  if (bodyRows < 2) return text('body-length-hem');
   const rows = hemRows + bodyRows;
-  if (rows > MAX_GARMENT_ROWS) return `Legfeljebb ${MAX_GARMENT_ROWS} sor lehet: adj meg kisebb méretet vagy vastagabb fonalat.`;
+  if (rows > MAX_GARMENT_ROWS) return text('max-rows', { max: MAX_GARMENT_ROWS });
   const armholeRows = roundEven(m.armholeDepthCm / rowCm);
-  if (armholeRows < 2 || armholeRows >= rows) return 'A karöltő mélysége nem fér a pulóver hosszába: adj meg nagyobb hosszt.';
+  if (armholeRows < 2 || armholeRows >= rows) return text('armhole-fit');
   const sideRows = rows - armholeRows;
 
   // Nyak: a vállak egyformák, ezért a nyak szemszámának párossága a sorét követi.
   let neck = nearestWithParity(m.neckWidthCm / stitchCm, stitches);
   if (neck < minNeck) neck = minNeck + ((stitches - minNeck) % 2);
-  if (neck < 2 || neck > stitches - 4) return 'A nyak szélessége nem fér a hátrész szélességébe: adj meg nagyobb méretet.';
+  if (neck < 2 || neck > stitches - 4) return text('neck-fit');
   const shoulder = (stitches - neck) / 2;
   const center = nearestWithParity(neck / 2, neck);
   const perSide = (neck - center) / 2;
@@ -452,16 +569,16 @@ export function dropShoulderPlan(
 
   // Ujj: a felső él a karöltő kétszerese, a mandzsetta és a felső él páros, hogy a szaporítás párban jöjjön (05 „B” 7–9.).
   const top = roundEven((2 * m.armholeDepthCm) / stitchCm, 'up');
-  const warnings: string[] = [];
+  const warnings: CoreText<GarmentCode>[] = [];
   let cuff = roundEven(m.cuffWidthCm / stitchCm, 'up');
   if (cuff > top) {
     cuff = top;
-    warnings.push('A mandzsetta szélesebb lenne az ujj felső élénél, ezért az ujj egyenes.');
+    warnings.push(text('cuff-wide'));
   }
   const lengthCm = m.neckToWristCm - halfCm / 2;
   const cuffRows = hemRows;
   const shapedRows = roundEven((lengthCm - Math.max(0, m.hemCm)) / rowCm);
-  if (shapedRows < 2) return 'Az ujj túl rövid ehhez a mérethez: ellenőrizd a hátközép–kézfej hosszt.';
+  if (shapedRows < 2) return text('sleeve-short');
   const increases = (top - cuff) / 2;
   let schedule = slopeSchedule(shapedRows, increases, true);
   let reversed = schedule ? reversedEventRows(schedule, shapedRows) : null;
@@ -473,11 +590,11 @@ export function dropShoulderPlan(
       reversed = reversedEventRows(schedule, shapedRows);
     }
   }
-  if (!schedule || !reversed) return 'Az ujj hosszán nem fér el ennyi szaporítás: adj meg kisebb bőséget vagy hosszabb ujjat.';
+  if (!schedule || !reversed) return text('sleeve-increases');
   const increaseRows = reversed.map((row) => row + cuffRows);
   const { first: firstIncrease, runs } = shapingRuns(increaseRows);
   const sleeveRows = cuffRows + shapedRows;
-  if (sleeveRows > MAX_GARMENT_ROWS) return `Legfeljebb ${MAX_GARMENT_ROWS} sor lehet: adj meg kisebb méretet vagy vastagabb fonalat.`;
+  if (sleeveRows > MAX_GARMENT_ROWS) return text('max-rows', { max: MAX_GARMENT_ROWS });
   const sleeveFoundation = foundationChainLength(cuff, start.turningChain, start.counting, start.tradition);
 
   const chestCm = 2 * stitches * stitchCm;
@@ -488,55 +605,55 @@ export function dropShoulderPlan(
       ? [
           {
             id: 'panel-repeat',
-            label: `A hátrész és az elejerész szemszáma ${repeat.width} többszöröse + ${repeat.edge}`,
+            label: text('check-panel-repeat', { width: repeat.width, edge: repeat.edge }),
             ok: stitches >= repeat.width + repeat.edge && (stitches - repeat.edge) % repeat.width === 0,
           },
         ]
       : []),
     {
       id: 'even-rows',
-      label: 'Minden függőleges szakasz páros számú sor',
+      label: text('check-even-rows'),
       ok: [hemRows, bodyRows, armholeRows, cuffRows, shapedRows].every(even),
-      suggestion: 'Állíts a szegély magasságán vagy a hosszon fél sornyit: a szakaszok páros sorszámra kerekednek.',
+      suggestion: text('suggest-even-rows'),
     },
-    { id: 'shoulders', label: 'A két váll és a nyak együtt kiadja a sor szemszámát', ok: 2 * shoulder + neck === stitches },
+    { id: 'shoulders', label: text('check-shoulders'), ok: 2 * shoulder + neck === stitches },
     {
       id: 'neck-shaping',
-      label: 'A formázott nyak fogyasztásai kiadják a nyak szemszámát, és a nyak belefér a darabba',
+      label: text('check-neck-shaping'),
       ok: center + 2 * (first + later) === neck && backCenter + 2 * backRows * backPerRow === neck && frontRows < rows,
-      suggestion: 'Adj nagyobb hosszt, vagy válassz csónaknyakat: a nyak mélysége nem fér a darabba.',
+      suggestion: text('suggest-neck-shaping'),
     },
-    { id: 'sleeve-width', label: 'A mandzsetta szemszáma és a szaporítások kiadják az ujj felső élét', ok: cuff + 2 * increases === top },
+    { id: 'sleeve-width', label: text('check-sleeve-width'), ok: cuff + 2 * increases === top },
     {
       id: 'sleeve-rows',
-      label: 'Az ujj szaporítási közei és az egyenes sorok kiadják az ujj sorait',
+      label: text('check-sleeve-rows'),
       ok: sum(schedule.intervals) + schedule.tail === shapedRows && increaseRows.length === increases && (increaseRows.at(-1) ?? 0) <= sleeveRows,
-      suggestion: 'Adj hosszabb ujjat vagy kisebb bőséget: ennyi szaporítás nem fér el ennyi sorban.',
+      suggestion: text('suggest-sleeve-rows'),
     },
     {
       id: 'armhole-seam',
-      label: `Az ujj felső éle és a két karöltő hossza legfeljebb ${SEAM_EASING_CM} cm-rel tér el`,
+      label: text('check-armhole-seam', { limit: SEAM_EASING_CM }),
       ok: Math.abs(top * stitchCm - 2 * armholeRows * rowCm) <= SEAM_EASING_CM,
-      suggestion: `A karöltő mélységét vagy az ujj felső élét igazítsd: most ${Math.round(Math.abs(top * stitchCm - 2 * armholeRows * rowCm))} cm az eltérés.`,
+      suggestion: text('suggest-armhole-seam', { off: Math.round(Math.abs(top * stitchCm - 2 * armholeRows * rowCm)) }),
     },
     {
       id: 'side-seam',
-      label: 'Az oldalvarrás a karöltő alatt legalább egy sor',
+      label: text('check-side-seam'),
       ok: sideRows >= 1,
-      suggestion: 'Adj nagyobb hosszt, vagy sekélyebb karöltőt: a karöltő az egész darabot elfoglalja.',
+      suggestion: text('suggest-side-seam'),
     },
     {
       id: 'negative-ease',
-      label: `A negatív bőség legfeljebb ${pct(NEGATIVE_EASE_LIMIT)}%`,
+      label: text('check-negative-ease', { limit: pct(NEGATIVE_EASE_LIMIT) }),
       ok: ratio <= NEGATIVE_EASE_LIMIT + 1e-9,
-      suggestion: `A negatív bőség legfeljebb ${Math.floor(NEGATIVE_EASE_LIMIT * m.bustCm)} cm lehet ekkora mellbőségnél: a horgolt anyag ennél kevésbé nyúlik.`,
+      suggestion: text('suggest-negative-ease-bust', { cm: Math.floor(NEGATIVE_EASE_LIMIT * m.bustCm) }),
     },
   ];
   if (ratio > NEGATIVE_EASE_LIMIT + 1e-9) {
-    warnings.push(`A negatív bőség ${pct(ratio)}%: horgolt anyagnál ${pct(NEGATIVE_EASE_LIMIT)}% fölött csak nyúlós, bordás szemmel működik (05 §3.5, §7.2).`);
+    warnings.push(text('negative-ease-warning', { actual: pct(ratio), limit: pct(NEGATIVE_EASE_LIMIT) }));
   }
   if (upperArmEaseCm !== null && upperArmEaseCm < 5) {
-    warnings.push(`A felkaron csak ${Math.round(upperArmEaseCm)} cm a bőség: a szokásos kb. 5 cm (05 §3.5).`);
+    warnings.push(text('upper-arm-ease', { ease: Math.round(upperArmEaseCm) }));
   }
 
   return {
@@ -578,8 +695,8 @@ export function dropShoulderPlan(
 
 export interface GradedMeasures {
   readonly measures: DropShoulderMeasures;
-  /** A táblázatban hiányzó, becsült méretek neve. */
-  readonly estimated: readonly string[];
+  /** A táblázatban hiányzó, becsült méretek kódja; a nevet a felület adja. */
+  readonly estimated: readonly CoreText<GarmentCode>[];
 }
 
 /**
@@ -592,22 +709,22 @@ export function dropShoulderMeasures(
   table: BodyTable,
   sizeId: string,
   options: Pick<GarmentOptions, 'easeCm' | 'hemCm' | 'belowWaistCm'> & { readonly growthPct?: number },
-): GradedMeasures | string {
+): GradedMeasures | CoreText<GarmentCode> {
   const size = table.sizes.find((candidate) => candidate.id === sizeId);
-  if (!size) return `Ismeretlen méret: ${sizeId}.`;
+  if (!size) return text('unknown-size', { size: sizeId });
   const v = size.values;
   const length = v.backWaist ?? v.backHip;
-  if (!v.chest || !v.neckToWrist || !length || !v.crossBack) return `A(z) ${sizeId} méretnél hiányzik a táblázatból egy szükséges méret.`;
-  const estimated: string[] = [];
+  if (!v.chest || !v.neckToWrist || !length || !v.crossBack) return text('missing-measure', { size: sizeId });
+  const estimated: CoreText<GarmentCode>[] = [];
   const bustCm = mid(v.chest);
   let armholeDepthCm: number;
   if (v.armholeDepth) armholeDepthCm = mid(v.armholeDepth) * DROP_ARMHOLE_FACTOR;
   else {
-    estimated.push('karöltőmélység');
+    estimated.push(text('estimated-armhole-depth'));
     armholeDepthCm = bustCm / 6 + 5;
   }
   const upperArmCm = v.upperArm ? mid(v.upperArm) : null;
-  if (upperArmCm === null) estimated.push('mandzsetta');
+  if (upperArmCm === null) estimated.push(text('estimated-cuff'));
   const crossBackCm = mid(v.crossBack);
   const frontNeckDepthCm = 0.2 * armholeDepthCm + 4;
   return {
@@ -637,11 +754,10 @@ export type GarmentSizePlan = HatPlan | DropShoulderPlan | RaglanPlan;
 
 export interface SizePlan {
   readonly id: string;
-  readonly name: string;
   readonly plan: GarmentSizePlan;
   /** A táblázat gyanús értékei ennél a méretnél (body-sizes.ts). */
   readonly flags: readonly DataFlag[];
-  readonly estimated: readonly string[];
+  readonly estimated: readonly CoreText<GarmentCode>[];
   /** A darab(ok) területe, cm². */
   readonly areaCm2: number;
   /** Fonal tartalékkal és gombolyag, ha a profilból becsülhető. */
@@ -650,8 +766,8 @@ export interface SizePlan {
 
 export interface MonotonicIssue {
   readonly key: string;
-  readonly label: string;
-  /** A méret, amelyben az érték kisebb, mint az előzőben. */
+  readonly label: CoreText<GarmentCode>;
+  /** A méret azonosítója, amelyben az érték kisebb, mint az előzőben. */
   readonly size: string;
 }
 
@@ -672,35 +788,37 @@ export interface GarmentSeriesPlan {
   readonly values: Readonly<Record<string, readonly number[]>>;
 }
 
-export type GarmentPlanResult = { readonly ok: true; readonly plan: GarmentSeriesPlan } | { readonly ok: false; readonly reason: string };
+export type GarmentPlanResult =
+  | { readonly ok: true; readonly plan: GarmentSeriesPlan }
+  | { readonly ok: false; readonly reason: CoreText<GarmentCode> };
 export type GarmentResult =
   | { readonly ok: true; readonly pattern: Pattern; readonly plan: GarmentSeriesPlan }
-  | { readonly ok: false; readonly reason: string };
+  | { readonly ok: false; readonly reason: CoreText<GarmentCode> };
 
-const fail = (reason: string): { readonly ok: false; readonly reason: string } => ({ ok: false, reason });
+const fail = (reason: CoreText<GarmentCode>): { readonly ok: false; readonly reason: CoreText<GarmentCode> } => ({ ok: false, reason });
 
 /** Mi nem választható: szem, méret, bőség, szegély, ismétlés. */
-export function garmentProblem(options: GarmentOptions): string | null {
+export function garmentProblem(options: GarmentOptions): CoreText<GarmentCode> | null {
   if (!GARMENT_STITCHES.includes(options.stitch)) {
-    return 'Ehhez a generátorhoz alapszemet válassz: rövidpálca, félpálca, egyráhajtásos vagy kétráhajtásos pálca.';
+    return text('stitch-choice');
   }
-  const ids = garmentSizes(options.kind, options.table).map((size) => size.id);
+  const ids = garmentSizes(options.kind, options.table);
   const [from, base, to] = [options.from, options.size, options.to].map((id) => ids.indexOf(id));
-  if (base! < 0 || from! < 0 || to! < 0) return 'Válassz méretet a listából.';
-  if (!(from! <= base! && base! <= to!)) return 'A méretsorozat a választott méretet is tartalmazza: az első méret ne legyen nagyobb, az utolsó ne legyen kisebb nála.';
+  if (base! < 0 || from! < 0 || to! < 0) return text('pick-size');
+  if (!(from! <= base! && base! <= to!)) return text('series-range');
   if (options.easeCm !== null && !(Number.isFinite(options.easeCm) && options.easeCm >= -50 && options.easeCm <= 100)) {
-    return 'A bőség −50 és 100 cm közötti szám legyen.';
+    return text('ease-range');
   }
-  if (options.kind === 'drop-shoulder' && options.easeCm === null) return 'Add meg a bőséget.';
-  if (!(Number.isFinite(options.hemCm) && options.hemCm >= 0 && options.hemCm <= 50)) return 'A szegély magassága 0 és 50 cm közötti szám legyen.';
-  if (!(Number.isFinite(options.growthPct) && options.growthPct >= 0 && options.growthPct <= 50)) return 'A növedék 0 és 50% közötti szám legyen.';
+  if (options.kind === 'drop-shoulder' && options.easeCm === null) return text('ease-required');
+  if (!(Number.isFinite(options.hemCm) && options.hemCm >= 0 && options.hemCm <= 50)) return text('hem-range');
+  if (!(Number.isFinite(options.growthPct) && options.growthPct >= 0 && options.growthPct <= 50)) return text('growth-range');
   if (options.kind === 'drop-shoulder' && !(Number.isFinite(options.belowWaistCm) && options.belowWaistCm >= -30 && options.belowWaistCm <= 100)) {
-    return 'A derék alatti hossz −30 és 100 cm közötti szám legyen.';
+    return text('below-waist-range');
   }
   if (options.kind === 'drop-shoulder' && options.repeat) {
     const { width, edge } = options.repeat;
-    if (!Number.isInteger(width) || width < 1 || width > MAX_REPEAT) return `Az ismétlés szemszáma (X) 1 és ${MAX_REPEAT} közötti egész szám legyen.`;
-    if (!Number.isInteger(edge) || edge < 0 || edge > MAX_REPEAT) return `A szélső szemek száma (Y) 0 és ${MAX_REPEAT} közötti egész szám legyen.`;
+    if (!Number.isInteger(width) || width < 1 || width > MAX_REPEAT) return text('repeat-width', { max: MAX_REPEAT });
+    if (!Number.isInteger(edge) || edge < 0 || edge > MAX_REPEAT) return text('repeat-edge', { max: MAX_REPEAT });
   }
   return null;
 }
@@ -714,22 +832,22 @@ export function raglanMeasures(
   table: BodyTable,
   sizeId: string,
   options: Pick<GarmentOptions, 'easeCm' | 'hemCm' | 'belowWaistCm'> & { readonly growthPct?: number },
-): { readonly measures: RaglanMeasures; readonly estimated: readonly string[] } | string {
+): { readonly measures: RaglanMeasures; readonly estimated: readonly CoreText<GarmentCode>[] } | CoreText<GarmentCode> {
   const size = table.sizes.find((candidate) => candidate.id === sizeId);
-  if (!size) return `Ismeretlen méret: ${sizeId}.`;
+  if (!size) return text('unknown-size', { size: sizeId });
   const v = size.values;
   const length = v.backWaist ?? v.backHip;
-  if (!v.chest || !length || !v.crossBack) return `A(z) ${sizeId} méretnél hiányzik a táblázatból egy szükséges méret.`;
-  const estimated: string[] = [];
+  if (!v.chest || !length || !v.crossBack) return text('missing-measure', { size: sizeId });
+  const estimated: CoreText<GarmentCode>[] = [];
   const bustCm = mid(v.chest);
   let armholeDepthCm: number;
   if (v.armholeDepth) armholeDepthCm = mid(v.armholeDepth);
   else {
-    estimated.push('karöltőmélység');
+    estimated.push(text('estimated-armhole-depth'));
     armholeDepthCm = bustCm / 6 + 5;
   }
   const upperArmCm = v.upperArm ? mid(v.upperArm) + GARMENT_EASE.sleeve : null;
-  if (upperArmCm === null) estimated.push('felkarbőség');
+  if (upperArmCm === null) estimated.push(text('estimated-upper-arm'));
   return {
     measures: {
       bustCm,
@@ -762,22 +880,22 @@ function garmentGauge(pattern: Pattern, kind: GarmentKind, stitch: StitchDefId):
   };
 }
 
-const MONOTONIC: Readonly<Record<GarmentKind, readonly { readonly key: string; readonly label: string }[]>> = {
+const MONOTONIC: Readonly<Record<GarmentKind, readonly { readonly key: string; readonly label: CoreText<GarmentCode> }[]>> = {
   hat: [
-    { key: 'hatStitches', label: 'a sapka szemszáma' },
-    { key: 'totalRounds', label: 'a körök száma' },
+    { key: 'hatStitches', label: text('monotonic-hat-stitches') },
+    { key: 'totalRounds', label: text('monotonic-rounds') },
   ],
   raglan: [
-    { key: 'raglanBody', label: 'a törzs szemszáma' },
-    { key: 'raglanSleeve', label: 'az ujj szemszáma' },
-    { key: 'raglanNeck', label: 'a nyak szemszáma' },
+    { key: 'raglanBody', label: text('monotonic-raglan-body') },
+    { key: 'raglanSleeve', label: text('monotonic-raglan-sleeve') },
+    { key: 'raglanNeck', label: text('monotonic-neck') },
   ],
   // Csak szemszámok: az ujj sorai nagyobb méretben csökkenhetnek, mert a szélesebb darabbal a váll lejjebb lóg (05 „B” 8. lépés).
   'drop-shoulder': [
-    { key: 'panelStitches', label: 'a hátrész szemszáma' },
-    { key: 'neck', label: 'a nyak szemszáma' },
-    { key: 'cuffStitches', label: 'a mandzsetta szemszáma' },
-    { key: 'sleeveTop', label: 'az ujj felső éle' },
+    { key: 'panelStitches', label: text('monotonic-panel') },
+    { key: 'neck', label: text('monotonic-neck') },
+    { key: 'cuffStitches', label: text('monotonic-cuff') },
+    { key: 'sleeveTop', label: text('monotonic-sleeve-top') },
   ],
 };
 
@@ -868,9 +986,9 @@ export function planGarment(pattern: Pattern, options: GarmentOptions): GarmentP
     counting: turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition, 'row'),
     tradition,
   };
-  const all = garmentSizes(options.kind, options.table);
-  const ids = all.map((size) => size.id);
-  const series = all.slice(ids.indexOf(options.from), ids.indexOf(options.to) + 1);
+  const ids = garmentSizes(options.kind, options.table);
+  const series = ids.slice(ids.indexOf(options.from), ids.indexOf(options.to) + 1);
+  const table: GarmentTable = options.kind === 'hat' ? 'hat' : options.table;
   const flags = options.kind === 'hat' ? [] : tableFlags(BODY_TABLES[options.table]);
 
   const profile = activeProfile(pattern);
@@ -885,35 +1003,37 @@ export function planGarment(pattern: Pattern, options: GarmentOptions): GarmentP
   }
 
   const sizes: SizePlan[] = [];
-  for (const size of series) {
-    let plan: GarmentSizePlan | string;
-    let estimated: readonly string[] = [];
+  for (const id of series) {
+    let plan: GarmentSizePlan | CoreText<GarmentCode>;
+    let estimated: readonly CoreText<GarmentCode>[] = [];
     if (options.kind === 'hat') {
-      const measures = hatMeasures(size.id, options.easeCm, options.hemCm, options.growthPct)!;
+      const measures = hatMeasures(id, options.easeCm, options.hemCm, options.growthPct)!;
       plan = hatPlan(measures, gauge);
     } else if (options.kind === 'raglan') {
-      const graded = raglanMeasures(BODY_TABLES[options.table], size.id, options);
-      if (typeof graded === 'string') return fail(graded);
+      const graded = raglanMeasures(BODY_TABLES[options.table], id, options);
+      if (isGarmentText(graded)) return fail(graded);
       estimated = graded.estimated;
       plan = raglanPlan(graded.measures, gauge);
     } else {
-      const graded = dropShoulderMeasures(BODY_TABLES[options.table], size.id, options);
-      if (typeof graded === 'string') return fail(graded);
+      const graded = dropShoulderMeasures(BODY_TABLES[options.table], id, options);
+      if (isGarmentText(graded)) return fail(graded);
       estimated = graded.estimated;
       const previous = sizes.at(-1)?.plan;
       plan = dropShoulderPlan(graded.measures, gauge, start, options.repeat, previous?.kind === 'drop-shoulder' ? previous.neck.stitches : 0);
     }
-    if (typeof plan === 'string') return fail(series.length > 1 ? `${size.name} méret: ${plan}` : plan);
+    // Sorozatban az elutasítás megmondja, melyik méretnél akadt el; a méret nevét a felület teszi bele.
+    if (isGarmentText(plan)) {
+      return fail(series.length > 1 ? text('size-problem', { size: id, table, inner: plan.code, ...(plan.data ?? {}) }) : plan);
+    }
     const areaCm2 = areaOf(plan, gauge);
     const yarn =
       missing.length === 0 && massPerArea !== null && ballLength !== null && profile?.yarn.ballMassG
         ? yarnFromMassPerArea(measured(massPerArea), areaCm2, { lengthM: ballLength, massG: profile.yarn.ballMassG })
         : null;
     sizes.push({
-      id: size.id,
-      name: size.name,
+      id,
       plan,
-      flags: flags.filter((flag) => flag.size === size.id),
+      flags: flags.filter((flag) => flag.size === id),
       estimated,
       areaCm2,
       yarn: yarn ? { lengthM: Math.round(yarn.lengthWithBufferM.value), balls: yarn.balls.value } : null,
@@ -931,7 +1051,7 @@ export function planGarment(pattern: Pattern, options: GarmentOptions): GarmentP
   const monotonic: MonotonicIssue[] = [];
   for (const { key, label } of MONOTONIC[options.kind]) {
     values[key]!.forEach((value, i) => {
-      if (i > 0 && value < values[key]![i - 1]!) monotonic.push({ key, label, size: sizes[i]!.name });
+      if (i > 0 && value < values[key]![i - 1]!) monotonic.push({ key, label, size: sizes[i]!.id });
     });
   }
   const checks = sizes.flatMap((size) => size.plan.checks);
@@ -940,7 +1060,7 @@ export function planGarment(pattern: Pattern, options: GarmentOptions): GarmentP
     ok: true,
     plan: {
       kind: options.kind,
-      table: options.kind === 'hat' ? 'hat' : options.table,
+      table,
       stitch: options.stitch,
       gauge,
       sizes,
@@ -1084,22 +1204,22 @@ export function generateGarment(pattern: Pattern, options: GarmentOptions): Garm
     base = { ...base, conventions: { ...base.conventions, roundEnd: 'join-slip' } };
     const total = size.plan.bodyStitches * (size.plan.yokeRounds + size.plan.bodyRoundsBelow);
     if (total > MAX_GARMENT_TOTAL) {
-      return fail(`A raglánban legfeljebb ${MAX_GARMENT_TOTAL.toLocaleString('hu')} szem lehet: válassz kisebb méretet vagy vastagabb fonalat.`);
+      return fail(text('max-total-raglan', { max: MAX_GARMENT_TOTAL }));
     }
     const piece = raglanPiece(base, options.stitch, size.plan, name);
-    if (typeof piece === 'string') return fail(piece);
+    if (isGarmentText(piece)) return fail(piece);
     result = { ...base, pieces: [piece], garment };
   } else if (size.plan.kind === 'hat') {
     base = { ...base, conventions: { ...base.conventions, roundEnd: 'join-slip' } };
     const motif = { ...DEFAULT_MOTIF, shape: 'circle' as const, stitch: options.stitch, start: 'magic-ring' as const, closing: 'join-slip' as const };
     const piece = plannedRounds(base, motif, size.plan.layout, name);
-    if (typeof piece === 'string') return fail(piece);
+    if (typeof piece === 'string') return fail(pieceProblem(piece));
     result = { ...base, pieces: [piece], garment };
   } else {
     const shoulderPlan = size.plan;
     const total = 2 * shoulderPlan.panel.stitches * shoulderPlan.panel.rows + 2 * shoulderPlan.sleeve.rows * shoulderPlan.sleeve.top;
     if (total > MAX_GARMENT_TOTAL) {
-      return fail(`A pulóverben legfeljebb ${MAX_GARMENT_TOTAL.toLocaleString('hu')} szem lehet: válassz kisebb méretet vagy vastagabb fonalat.`);
+      return fail(text('max-total-sweater', { max: MAX_GARMENT_TOTAL }));
     }
     const panelCounts = Array<number>(shoulderPlan.panel.rows).fill(shoulderPlan.panel.stitches);
     const flat = panelCounts.map(() => ({ start: 0, end: 0 }));
@@ -1117,11 +1237,14 @@ export function generateGarment(pattern: Pattern, options: GarmentOptions): Garm
       // A jobb ujj a bal tükörképe (05 §4.5): a sor eleje és vége felcserélődik.
       plannedRows(base, options.stitch, sleeve.counts, mirrorShaping(sleeve.shaping), PIECE_NAMES.rightSleeve, 'p4'),
     ];
-    const problem = pieces.find((piece) => typeof piece === 'string');
-    if (typeof problem === 'string') return fail(problem);
+    const built: Piece[] = [];
+    for (const piece of pieces) {
+      if ('code' in piece) return fail(pieceProblem(piece));
+      built.push(piece);
+    }
     result = {
       ...base,
-      pieces: pieces.filter((piece) => typeof piece !== 'string'),
+      pieces: built,
       joins: dropShoulderJoins(shoulderPlan, shaped ? 'shaped' : 'boat'),
       garment,
     };
@@ -1129,6 +1252,6 @@ export function generateGarment(pattern: Pattern, options: GarmentOptions): Garm
 
   result = withGeneratedTitle(result, pattern, name, GENERATED_NAMES);
   const errors = validatePattern(result, libraryFor(result)).filter((finding) => finding.severity === 'error');
-  if (errors.length > 0) return fail(`A generált minta nem ment át az ellenőrzőn (${errors[0]!.rule}): ez a program hibája, kérlek, jelezd.`);
+  if (errors.length > 0) return fail(text('internal-error', { rule: errors[0]!.rule }));
   return { ok: true, pattern: result, plan };
 }

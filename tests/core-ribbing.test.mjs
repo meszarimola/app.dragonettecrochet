@@ -88,23 +88,28 @@ describe('bordás szegély sík darabon', () => {
 describe('bordás perem körben', () => {
   test('a bordás perem hibátlanul átmegy az ellenőrzőn', () => {
     const { pattern, piece } = roundPiece();
-    assert.equal(typeof piece, 'object', String(piece));
+    assert.ok(!('code' in piece), JSON.stringify(piece));
     assert.deepEqual(errors({ ...pattern, pieces: [piece] }), []);
   });
 
   test('körben a nem záródó szemszámot pontos okkal utasítja el', () => {
     const { piece } = roundPiece({ rows: 1, width: 5 });
-    assert.equal(typeof piece, 'string');
-    assert.match(piece, /záródik/);
-    assert.match(piece, /legközelebbi jó szám \d+/);
+    // A mag kódot és adatot ad, a mondatot a felület írja (PQW-904).
+    assert.equal(piece.code, 'ribbing-round-multiple');
+    assert.equal(piece.data.unit, 10);
+    assert.equal(piece.data.nearest % 10, 0);
+    assert.notEqual(piece.data.count % 10, 0);
   });
 });
 
 describe('a bordázat elutasításai', () => {
   test('a sorok száma és a borda szélessége tartományon belül kell legyen', () => {
-    assert.match(ribbingProblem({ rows: 0, width: 1 }), /sorainak száma/);
-    assert.match(ribbingProblem({ rows: MAX_RIBBING_ROWS + 1, width: 1 }), /sorainak száma/);
-    assert.match(ribbingProblem({ rows: 2, width: 0 }), /egysége/);
+    assert.equal(ribbingProblem({ rows: 0, width: 1 }).code, 'ribbing-rows-range');
+    assert.deepEqual(ribbingProblem({ rows: MAX_RIBBING_ROWS + 1, width: 1 }), {
+      code: 'ribbing-rows-range',
+      data: { max: MAX_RIBBING_ROWS },
+    });
+    assert.equal(ribbingProblem({ rows: 2, width: 0 }).code, 'ribbing-width-range');
     assert.equal(ribbingProblem(DEFAULT_RIBBING), null);
   });
 
@@ -112,8 +117,7 @@ describe('a bordázat elutasításai', () => {
     const pattern = emptyPattern();
     const piece = { id: 'p1', name: 'Darab', stitches: [], spaces: [], rings: [], groups: [], events: [], skipped: [] };
     const result = appendRibbing(pattern, piece, libraryFor(pattern), DEFAULT_RIBBING);
-    assert.equal(typeof result, 'string');
-    assert.match(result, /előbb horgolj legalább egy sort/);
+    assert.equal(result.code, 'ribbing-needs-row');
   });
 });
 
@@ -152,6 +156,6 @@ describe('a Forma generátor bordás szegéllyel', () => {
   test('a bordás szegély és a körbefutó szegély együtt pontos okkal elutasított', () => {
     const result = shapeWith({ border: { stitch: 'sc', hdcRowEnd: 2 }, ribbing: { rows: 2, width: 1 } });
     assert.equal(result.ok, false);
-    assert.match(result.reason, /együtt nem választható/);
+    assert.equal(result.reason.code, 'ribbing-with-border');
   });
 });

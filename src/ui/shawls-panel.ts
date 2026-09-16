@@ -23,6 +23,7 @@ import {
   rateLabel,
   shawlFieldState,
   shawlOutline,
+  shawlReason,
   shawlView,
   sizeLabel,
   type ShawlOutline,
@@ -151,12 +152,14 @@ export class ShawlsPanel {
     const sizes = planned.ok ? shawlSizes(planned.plan, options.blocking) : null;
     const view = planned.ok && sizes ? shawlView(planned.plan, options, sizes, activeProfile(this.#pattern) !== null) : null;
     const outline = sizes ? shawlOutline(sizes) : null;
-    const key = JSON.stringify([planned.ok ? view : planned.reason, outline]);
+    // Az indok mondata a felületé (PQW-904): a mag kódot és adatot ad.
+    const reason = planned.ok ? null : shawlReason(planned.reason);
+    const key = JSON.stringify([planned.ok ? view : reason, outline]);
     if (key === this.#shown) return;
     this.#shown = key;
 
     if (!planned.ok || !view) {
-      this.#result.textContent = planned.ok ? '' : planned.reason;
+      this.#result.textContent = reason ?? '';
       this.#details.replaceChildren();
       this.#warnings.replaceChildren();
       this.#source.textContent = '';
@@ -192,7 +195,7 @@ export class ShawlsPanel {
     if (!this.#pattern) return;
     const result = generateShawl(this.#pattern, this.#options());
     if (!result.ok) {
-      this.#host.announce(result.reason);
+      this.#host.announce(shawlReason(result.reason));
       return;
     }
     this.#host.commit(result.pattern, generatedMessage(result.plan));

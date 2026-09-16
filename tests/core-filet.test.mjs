@@ -20,6 +20,8 @@ import { foundationChainLength } from '../src/core/repeat.ts';
 import { libraryFor, resolveStitch } from '../src/core/stitch-variants.ts';
 import { firstChainFromHook, traditionOf, turningChainCountsFor, withTradition } from '../src/core/tradition.ts';
 import { validatePattern } from '../src/core/validate.ts';
+import { GRID_CORE_TEXTS } from '../src/ui/i18n/core/grid.ts';
+import { renderCoreText } from '../src/ui/i18n/core/render.ts';
 
 /** Rács szövegből, felülről lefelé írva: `#` teli, `.` nyitott, `-` nincs cella. */
 const chart = (...lines) =>
@@ -34,9 +36,11 @@ const notCounting = () => ({ ...emptyPattern(), conventions: { ...emptyPattern()
 
 const make = (pattern, cells, unit = null) => {
   const result = generateFilet(pattern, { cells, unit, lettering: false });
-  assert.ok(result.ok, result.reason);
+  assert.ok(result.ok, JSON.stringify(result.reason));
   return result;
 };
+/** A mag kódot és adatot ad; a mondat a felület szótárában készül (PQW-904). */
+const hu = (message) => renderCoreText(GRID_CORE_TEXTS.hu, message);
 const findings = (pattern) => validatePattern(pattern, libraryFor(pattern));
 const lines = (pattern, locale = 'hu') => writePattern(pattern, libraryFor(pattern), locale).pieces[0].lines;
 const graphOf = (pattern) => buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));
@@ -218,13 +222,23 @@ describe('alakítás egész cellánként (03 §10 F30)', () => {
       assert.equal(result.ok, false);
       return result.reason;
     };
-    assert.match(reason(chart('####', '###-')), /^A 2\. sor végén az új cella csak nyitott lehet/);
-    assert.match(reason(chart('.###', '-###', '####')), /^A 3\. sor végén a szaporítás nem éri el a két sorral lejjebbi szemet/);
-    assert.match(reason(chart('###.', '###-'), notCounting()), /fordulóláncnak szemnek kell számítania/);
-    assert.match(reason(chart('#-#')), /^Az 1\. sorban a cellák között üres hely van/);
-    assert.match(reason(chart('###', '---')), /^Az 1\. sorban nincs cella/);
-    assert.match(reason([]), /legalább egy sort/);
-    assert.match(reason([[1, 2]]), /teli, nyitott vagy üres/);
+    // A mag kódot és sorszámot ad; a sor neve és a ragozás a felületé (PQW-904).
+    assert.deepEqual(reason(chart('####', '###-')), { code: 'filet-extend-open', data: { row: 2 } });
+    assert.deepEqual(reason(chart('.###', '-###', '####')), { code: 'filet-extend-reach', data: { row: 3 } });
+    assert.deepEqual(reason(chart('###.', '###-'), notCounting()), { code: 'filet-extend-counting', data: { row: 2 } });
+    assert.deepEqual(reason(chart('#-#')), { code: 'filet-gap-row', data: { row: 1 } });
+    assert.deepEqual(reason(chart('###', '---')), { code: 'filet-empty-row', data: { row: 1 } });
+    assert.equal(reason([]).code, 'filet-no-rows');
+    assert.equal(reason([[1, 2]]).code, 'filet-cell-kind');
+
+    // A magyar mondat a mai: névelő, sorszám és ragozás a szótárból.
+    assert.match(hu(reason(chart('####', '###-'))), /^A 2\. sor végén az új cella csak nyitott lehet/);
+    assert.match(hu(reason(chart('.###', '-###', '####'))), /^A 3\. sor végén a szaporítás nem éri el a két sorral lejjebbi szemet/);
+    assert.match(hu(reason(chart('###.', '###-'), notCounting())), /fordulóláncnak szemnek kell számítania/);
+    assert.match(hu(reason(chart('#-#'))), /^Az 1\. sorban a cellák között üres hely van/);
+    assert.equal(hu(reason(chart('###', '---'))), 'Az 1. sorban nincs cella: a filé minden sora legalább egy cella.');
+    assert.match(hu(reason([])), /legalább egy sort/);
+    assert.match(hu(reason([[1, 2]])), /teli, nyitott vagy üres/);
   });
 });
 

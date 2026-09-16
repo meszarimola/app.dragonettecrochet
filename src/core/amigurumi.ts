@@ -45,6 +45,7 @@
 import { rowEdges } from './border.ts';
 import { stitchDimensions } from './gauge.ts';
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
+import { text, type CoreText } from './messages.ts';
 import { gaugeContextOf } from './pattern-size.ts';
 import { CUPPING_RATIO, RUFFLING_RATIO, flatIncreases, niceIncreases } from './rounds.ts';
 import type { RuleId } from './rules.ts';
@@ -110,6 +111,12 @@ export function startCount(gauge: RoundGauge): number {
 
 /* ---- Formák ---- */
 
+/**
+ * A formák neve a minta CÍMÉBE és a darab nevébe kerül (`partName`,
+ * `withGeneratedTitle`), és a mentett mintába íródik: ezért magyar marad a
+ * magban, a felület nyelvétől függetlenül (PQW-904). A panel listája a saját
+ * szótárát használja (`texts().panels.amigurumi.names`).
+ */
 export const SHAPE_NAMES: Readonly<Record<ShapeSpec['kind'], string>> = {
   sphere: 'Gömb',
   hemisphere: 'Félgömb',
@@ -146,40 +153,62 @@ export const TUBE_RATIO = 0.15;
 /** A tojás alsó részének aránya a magasságból (04 §4.6: a felső vége lassabban fogy). */
 export const EGG_LOWER_SHARE = 0.45;
 
+/**
+ * A forma és a körterv üzenetei kódként (PQW-904): a mondatot a felület
+ * állítja össze (src/ui/i18n/core/amigurumi.ts).
+ */
+export type ShapeCode =
+  | 'size-range'
+  | 'cone-increases-range'
+  | 'oval-length'
+  | 'profile-points'
+  | 'profile-range'
+  | 'profile-same-points'
+  | 'profile-zero-radius'
+  | 'too-many-rounds'
+  | 'join-count-differs'
+  | 'distribution-mismatch';
+
+/**
+ * Melyik méret mezőjéről szól az üzenet. A mező neve és a magyar névelő („Az
+ * átmérő”, „A hossz”) a felületé; a mag csak az azonosítót adja.
+ */
+export type SizeField = 'diameter' | 'height' | 'length' | 'width';
+
 /** Mi nem jó a forma adataiban; `null`, ha elkészíthető. */
-export function shapeProblem(spec: ShapeSpec): string | null {
-  const size = (value: number, what: string) =>
-    Number.isFinite(value) && value > 0 && value <= MAX_SIZE_CM ? null : `${what} 0 és ${MAX_SIZE_CM} cm közötti szám lehet.`;
+export function shapeProblem(spec: ShapeSpec): CoreText<ShapeCode> | null {
+  const size = (value: number, field: SizeField) =>
+    Number.isFinite(value) && value > 0 && value <= MAX_SIZE_CM ? null : text('size-range', { field, max: MAX_SIZE_CM });
   switch (spec.kind) {
     case 'sphere':
     case 'hemisphere':
-      return size(spec.diameterCm, 'Az átmérő');
+      return size(spec.diameterCm, 'diameter');
     case 'egg':
     case 'cylinder':
-      return size(spec.diameterCm, 'Az átmérő') ?? size(spec.heightCm, 'A magasság');
+      return size(spec.diameterCm, 'diameter') ?? size(spec.heightCm, 'height');
     case 'cone': {
       const { increases } = spec;
       if (increases !== null && !(Number.isFinite(increases) && increases > 0 && increases <= MAX_CONE_INCREASES)) {
-        return `A körönkénti szaporítás 0 és ${MAX_CONE_INCREASES} közötti szám lehet, pl. 2,5.`;
+        return text('cone-increases-range', { max: MAX_CONE_INCREASES });
       }
-      return size(spec.diameterCm, 'Az átmérő') ?? (increases === null ? size(spec.heightCm, 'A magasság') : null);
+      return size(spec.diameterCm, 'diameter') ?? (increases === null ? size(spec.heightCm, 'height') : null);
     }
     case 'oval': {
-      const problem = size(spec.lengthCm, 'A hossz') ?? size(spec.widthCm, 'A szélesség');
+      const problem = size(spec.lengthCm, 'length') ?? size(spec.widthCm, 'width');
       if (problem) return problem;
-      return spec.lengthCm < spec.widthCm ? 'Az ovális hossza legalább akkora legyen, mint a szélessége: a hosszabbik méret a hossz.' : null;
+      return spec.lengthCm < spec.widthCm ? text('oval-length') : null;
     }
     case 'revolution': {
-      if (spec.profile.length < 2) return 'A profilhoz legalább két pont kell: soronként sugár és magasság cm-ben.';
+      if (spec.profile.length < 2) return text('profile-points');
       const valid = (point: ProfilePoint) =>
         Number.isFinite(point.radiusCm) &&
         point.radiusCm >= 0 &&
         point.radiusCm <= MAX_SIZE_CM &&
         Number.isFinite(point.heightCm) &&
         Math.abs(point.heightCm) <= MAX_SIZE_CM;
-      if (!spec.profile.every(valid)) return `A profil pontjaiban a sugár 0 és ${MAX_SIZE_CM} cm, a magasság legfeljebb ${MAX_SIZE_CM} cm lehet.`;
-      if (arcLengths(spec.profile).at(-1)! <= 0) return 'A profil pontjai egybeesnek: adj meg különböző pontokat.';
-      if (spec.profile.every((point) => point.radiusCm === 0)) return 'A profil sugara mindenhol 0: legalább egy pontban adj meg sugarat.';
+      if (!spec.profile.every(valid)) return text('profile-range', { max: MAX_SIZE_CM });
+      if (arcLengths(spec.profile).at(-1)! <= 0) return text('profile-same-points');
+      if (spec.profile.every((point) => point.radiusCm === 0)) return text('profile-zero-radius');
       return null;
     }
   }
@@ -210,7 +239,7 @@ export interface Schedule {
   };
 }
 
-export type ScheduleResult = { readonly ok: true; readonly schedule: Schedule } | { readonly ok: false; readonly reason: string };
+export type ScheduleResult = { readonly ok: true; readonly schedule: Schedule } | { readonly ok: false; readonly reason: CoreText<ShapeCode> };
 
 /** A forma körterve a mintasűrűségből. */
 export function shapeSchedule(spec: ShapeSpec, gauge: RoundGauge): ScheduleResult {
@@ -218,7 +247,7 @@ export function shapeSchedule(spec: ShapeSpec, gauge: RoundGauge): ScheduleResul
   if (problem) return { ok: false, reason: problem };
   const schedule = buildSchedule(spec, gauge);
   if (schedule.counts.length > MAX_SHAPE_ROUNDS) {
-    return { ok: false, reason: `Ez ${schedule.counts.length} kör lenne; legfeljebb ${MAX_SHAPE_ROUNDS} kör készíthető. Válassz kisebb méretet.` };
+    return { ok: false, reason: text('too-many-rounds', { rounds: schedule.counts.length, max: MAX_SHAPE_ROUNDS }) };
   }
   return { ok: true, schedule };
 }
@@ -714,9 +743,9 @@ export function evenDistribution(a: number, b: number): number[] {
 }
 
 /** Mi a gond két összekapcsolt széllel (a és b szem); `null`, ha rendben van. */
-export function distributionProblem(a: number, b: number, distribution: readonly number[] | undefined): string | null {
+export function distributionProblem(a: number, b: number, distribution: readonly number[] | undefined): CoreText<ShapeCode> | null {
   if (distribution === undefined) {
-    return a === b ? null : `A két szél szemszáma eltér (${a} és ${b} szem), és nincs megadva, hogyan oszlanak el a szemek.`;
+    return a === b ? null : text('join-count-differs', { a, b });
   }
   const small = Math.min(a, b);
   const large = Math.max(a, b);
@@ -724,7 +753,7 @@ export function distributionProblem(a: number, b: number, distribution: readonly
     distribution.length === small &&
     distribution.every((n) => Number.isInteger(n) && n >= 1) &&
     distribution.reduce((sum, n) => sum + n, 0) === large;
-  return valid ? null : `Az elosztás nem illik a két szélhez: a ${small} szemes szél minden szeméhez legalább 1 szem kell, összesen ${large}.`;
+  return valid ? null : text('distribution-mismatch', { small, large });
 }
 
 /** Egy darab részeinek körterve és mérete a mostani mintasűrűséggel. */

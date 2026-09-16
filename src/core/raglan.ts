@@ -22,10 +22,11 @@
 import { NEGATIVE_EASE_LIMIT, NEGATIVE_EASE_MAX } from './body-sizes.ts';
 import { evenPositions, intentOf, roundEven, roundStitches } from './garment-math.ts';
 import { buildPieceGraph } from './graph.ts';
+import { text, type CoreText } from './messages.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import { traditionOf, turningChainCountsFor } from './tradition.ts';
 import type { Anchor, LayerEvent, NodeId, Pattern, Piece, Space, SpaceId, StitchGroup, StitchNode } from './types.ts';
-import type { GarmentCheck } from './garments.ts';
+import type { GarmentCheck, GarmentCode } from './garments.ts';
 
 /** Egy raglánkör minden szakaszt 2 szemmel növel: körönként +8 (05 §2.3). */
 export const RAGLAN_PER_ROUND = 8;
@@ -90,7 +91,7 @@ export interface RaglanPlan {
     readonly sleeveCm: number | null;
   };
   readonly checks: readonly GarmentCheck[];
-  readonly warnings: readonly string[];
+  readonly warnings: readonly CoreText<GarmentCode>[];
 }
 
 const pct = (ratio: number) => Math.round(ratio * 100);
@@ -167,9 +168,9 @@ function closeAndCut(writer: RaglanWriter, first: NodeId, resume: NonNullable<La
  * kihagyásával, végül a törzs körei. Az ujjak a hónaljlánc és a kihagyott
  * szemek mentén külön készülnek: azt a gráf még nem építi meg.
  */
-export function raglanPiece(pattern: Pattern, stitch: string, plan: RaglanPlan, name: string, id = 'p1'): Piece | string {
+export function raglanPiece(pattern: Pattern, stitch: string, plan: RaglanPlan, name: string, id = 'p1'): Piece | CoreText<GarmentCode> {
   const def = resolveStitch(stitch);
-  if (!def) return 'Ismeretlen szem a raglánhoz: ez a program hibája, kérlek, jelezd.';
+  if (!def) return text('internal-error', { rule: 'raglan-stitch' });
   const counting = turningChainCountsFor(pattern.conventions.turningChainCounts, def, traditionOf(pattern.conventions), 'round');
   const writer = new RaglanWriter();
 
@@ -181,7 +182,7 @@ export function raglanPiece(pattern: Pattern, stitch: string, plan: RaglanPlan, 
   // A számító kezdőlánc maga az első szem, ezért eggyel kevesebb szemet horgolunk.
   const firstRound: NodeId[] = counting ? [turning[turning.length - 1]!] : [];
   for (const chain of neckChains.slice(counting ? 1 : 0)) firstRound.push(...writer.into(def.id, both(chain), 1));
-  if (firstRound.length !== plan.neck.stitches) return 'A nyak köre nem a terv szerinti: ez a program hibája, kérlek, jelezd.';
+  if (firstRound.length !== plan.neck.stitches) return text('internal-error', { rule: 'raglan-neck-round' });
   closeRound(writer, firstRound[0]!);
 
   /** A kör pozíciói szakaszonként, a fonal sorrendjében: hát, ujj, elő, ujj. */
@@ -206,10 +207,10 @@ export function raglanPiece(pattern: Pattern, stitch: string, plan: RaglanPlan, 
      * A számító kezdőlánc a kör első szeme, ezért ott eggyel kevesebbet
      * horgolunk.
      */
-    const section = (positions: readonly NodeId[], target: number, first: boolean): NodeId[] | string => {
+    const section = (positions: readonly NodeId[], target: number, first: boolean): NodeId[] | CoreText<GarmentCode> => {
       const seated = first && counting ? 1 : 0;
       const growth = target - positions.length;
-      if (growth < 0 || growth > positions.length) return `A(z) ${round}. kör terve nem illik az előző körhöz: ez a program hibája, kérlek, jelezd.`;
+      if (growth < 0 || growth > positions.length) return text('internal-error', { rule: 'raglan-round-plan', round });
       // A növekedés helyei: elöl, hátul, és ami marad, a szakasz közepén.
       const at = new Set<number>();
       if (growth >= 1) at.add(0);
@@ -230,7 +231,7 @@ export function raglanPiece(pattern: Pattern, stitch: string, plan: RaglanPlan, 
       ['sleeveB', want.sleeve],
     ] as const) {
       const built = section(below[key], target, key === 'back');
-      if (typeof built === 'string') return built;
+      if (!Array.isArray(built)) return built;
       made[key] = built;
     }
     const first = counting ? top : made.back[0]!;
@@ -269,7 +270,7 @@ export function raglanPiece(pattern: Pattern, stitch: string, plan: RaglanPlan, 
     closeRound(writer, first);
     body = counting ? [top, ...made] : made;
   }
-  if (body.length !== plan.bodyStitches) return 'A szétosztás köre nem a terv szerinti: ez a program hibája, kérlek, jelezd.';
+  if (body.length !== plan.bodyStitches) return text('internal-error', { rule: 'raglan-divide' });
 
   // A törzs körei a szétosztástól: alakítás nélkül, a szegéllyel együtt.
   for (let round = 2; round <= plan.bodyRoundsBelow; round += 1) {
@@ -294,7 +295,7 @@ export function raglanPiece(pattern: Pattern, stitch: string, plan: RaglanPlan, 
     { name: SLEEVE_NAMES[1], stitches: sleeveStitches.b, chains: underarmChains[1] ?? [] },
   ];
   if (sleeves.some((sleeve) => sleeve.stitches.length === 0 || sleeve.chains.length === 0)) {
-    return 'Az ujj szemei hiányoznak a szétosztásból: ez a program hibája, kérlek, jelezd.';
+    return text('internal-error', { rule: 'raglan-sleeve-split' });
   }
   // A törzs utolsó köre után a fonalat elvágjuk, és a munka az első ujjnál folytatódik; az ujj után a másiknál.
   sleeves.forEach((sleeve, i) => {
@@ -349,25 +350,25 @@ function withStated(pattern: Pattern, piece: Piece): Piece {
 
 /**
  * A raglán terve egy méretre (05 §4 „C” példa, §9.5). A `stitchCm` és a
- * `rowCm` a körben mért szemméret; hibánál az ok.
+ * `rowCm` a körben mért szemméret; hibánál az ok kódja.
  */
-export function raglanPlan(m: RaglanMeasures, gauge: { readonly stitchCm: number; readonly rowCm: number }): RaglanPlan | string {
+export function raglanPlan(m: RaglanMeasures, gauge: { readonly stitchCm: number; readonly rowCm: number }): RaglanPlan | CoreText<GarmentCode> {
   const { stitchCm, rowCm } = gauge;
   const ratio = -m.easeCm / m.bustCm;
   if (ratio > NEGATIVE_EASE_MAX) {
-    return `A negatív bőség legfeljebb a mellbőség ${pct(NEGATIVE_EASE_MAX)}%-a lehet (most ${pct(ratio)}%): a horgolt anyag kevéssé nyúlik.`;
+    return text('negative-ease-bust', { limit: pct(NEGATIVE_EASE_MAX), actual: pct(ratio) });
   }
   const intent = intentOf(m.easeCm);
   const bodyStitches = roundStitches((m.bustCm + m.easeCm) / stitchCm, intent);
   const underarm = Math.max(0, Math.round(m.underarmCm / stitchCm));
-  if (bodyStitches < 4 * underarm + 8) return 'A hónaljlánc túl hosszú ehhez a mellbőséghez: adj meg rövidebb hónaljláncot.';
+  if (bodyStitches < 4 * underarm + 8) return text('underarm-long');
   // A hónaljlánc mindkét darabba beleszámít (05 §2.3): a törzsön az elő és a hát a láncok nélkül marad.
   const bodyHalf = (bodyStitches - 2 * underarm) / 2;
   const front = Math.floor(bodyHalf);
   const back = bodyStitches - 2 * underarm - front;
   const sleeveStitches = m.upperArmCm === null ? null : roundStitches(m.upperArmCm / stitchCm, 'up');
   const sleeveTarget = (sleeveStitches ?? Math.round(bodyStitches / 3)) - underarm;
-  if (sleeveTarget < 4) return 'Az ujj túl keskeny ehhez a hónaljlánchoz: adj meg rövidebb hónaljláncot.';
+  if (sleeveTarget < 4) return text('sleeve-narrow');
 
   // Nyak: elöl és hátul egyenlő, az ujjak a nyak hatodai (05 §2.3). Az ujj nyakbeli szemszámát a raglánkörök
   // száma is köti: az ujj csak a sarkokból nő, ezért `nyak + 2 · kör = ujj célszemszáma`.
@@ -377,18 +378,18 @@ export function raglanPlan(m: RaglanMeasures, gauge: { readonly stitchCm: number
   // A raglánkörök számát az ujj szabja meg: az ujjnak nincs külön szaporítása, ezért a sarkokból kell kijönnie
   // (05 §4 „C” példa 4. pont). A raglán mélysége ehhez a legközelebbi páros körszám.
   const fromDepth = roundEven(m.yokeDepthCm / rowCm);
-  if (fromDepth < 2) return 'A raglán mélysége legalább két kör legyen: adj meg nagyobb raglánmélységet.';
+  if (fromDepth < 2) return text('yoke-min');
   // A körszám a mélységből indul, de az ujj nyakbeli szemszáma nem mehet 1 alá, és nem lehet nagyobb a
   // kívántnál: ezért a körszámot ehhez igazítjuk (05 §4 „C” példa 4–5. pont).
   const yokeRounds = Math.max(2, Math.min(fromDepth, Math.floor((sleeveTarget - 1) / 2)));
   const neckSleeve = sleeveTarget - 2 * yokeRounds;
-  if (neckSleeve < 1) return 'A raglán mélysége ennél a méretnél túl sok szemet ad az ujjnak: adj meg sekélyebb raglánt vagy bővebb ujjat.';
+  if (neckSleeve < 1) return text('yoke-sleeve-many');
   if (neckSleeve > wantedSleeve * 2) {
-    return 'A raglán mélysége ennél a méretnél túl kevés szemet ad az ujjnak: adj meg mélyebb raglánt vagy szűkebb ujjat.';
+    return text('yoke-sleeve-few');
   }
   const neckFront = Math.floor((neckStitches - 2 * neckSleeve) / 2);
   const neckBack = neckStitches - 2 * neckSleeve - neckFront;
-  if (neckFront < 1 || neckBack < 1) return 'A nyak szemszáma túl kicsi a négy szakaszhoz: adj meg nagyobb nyakbőséget.';
+  if (neckFront < 1 || neckBack < 1) return text('neck-small');
 
   // A sarkok szaporítása szakaszonként +2 körönként; ami az elejéből és a hátából hiányzik, az külön törzsszaporítás.
   const cornerGain = 2 * yokeRounds;
@@ -407,10 +408,7 @@ export function raglanPlan(m: RaglanMeasures, gauge: { readonly stitchCm: number
     backTarget = bodyStitches - 2 * underarmStitches - frontTarget;
   }
   if (!fits(frontTarget, backTarget)) {
-    return (
-      'A törzs hiányzó szemei nem férnek el a raglánkörökben: adj meg mélyebb raglánt, vagy mérd meg a ' +
-      'körben horgolt mintasűrűséget a Méret és fonal szakaszban, mert a becsült sormagasságból kevés kör jön ki.'
-    );
+    return text('body-short-gauge');
   }
   const shortfall = {
     front: frontTarget - (neckFront + cornerGain),
@@ -418,14 +416,14 @@ export function raglanPlan(m: RaglanMeasures, gauge: { readonly stitchCm: number
     sleeve: 0,
   };
   if (shortfall.front < 0 || shortfall.back < 0) {
-    return 'A raglán mélysége ennél a méretnél túl sok szemet ad a törzsnek: adj meg sekélyebb raglánt vagy kisebb bőséget.';
+    return text('yoke-body-many');
   }
   // A törzsszaporítás a szakasz két szélén jön, a raglánvonalak mellett (05 §4 „C” példa „cheat” szemei): egy
   // körben +2. Ennél többhöz mélyebb raglán vagy hosszabb hónaljlánc kell.
   const perRound = 2;
   const extraRounds = Math.max(Math.ceil(shortfall.front / perRound), Math.ceil(shortfall.back / perRound));
   if (extraRounds > yokeRounds) {
-    return 'A törzs hiányzó szemei nem férnek el a raglánkörökben: adj meg mélyebb raglánt vagy kisebb bőséget.';
+    return text('body-short');
   }
   const bodyRounds = evenPositions(yokeRounds, extraRounds).map((at) => at + 1);
 
@@ -449,48 +447,46 @@ export function raglanPlan(m: RaglanMeasures, gauge: { readonly stitchCm: number
 
   const hemRounds = roundEven(Math.max(0, m.hemCm) / rowCm);
   const bodyRoundsBelow = roundEven((m.bodyLengthCm - m.yokeDepthCm) / rowCm);
-  if (bodyRoundsBelow < 2) return 'A pulóver hossza legyen nagyobb a raglán mélységénél.';
+  if (bodyRoundsBelow < 2) return text('body-length-yoke');
 
   const chestCm = bodyStitches * stitchCm;
   const checks: GarmentCheck[] = [
     {
       id: 'raglan-sections',
-      label: 'Az elő, a hát és az ujjak egyszerre érik el a célszemszámot a szétosztásnál',
+      label: text('check-raglan-sections'),
       ok: last.front === front && last.back === back && last.sleeve === sleeveTarget,
-      suggestion: 'Állíts a raglán mélységén vagy a nyak bőségén: a szakaszok nem ugyanannyi kör alatt telnek be.',
+      suggestion: text('suggest-raglan-sections'),
     },
     {
       id: 'raglan-growth',
-      label: `Egy szakasz körönként legfeljebb ${MAX_SECTION_GROWTH} szemmel nő`,
+      label: text('check-raglan-growth', { max: MAX_SECTION_GROWTH }),
       ok: rounds.every((round, i) => i === 0 || round.front - rounds[i - 1]!.front <= MAX_SECTION_GROWTH),
-      suggestion: 'Adj mélyebb raglánt: így kevesebb külön törzsszaporítás kell körönként.',
+      suggestion: text('suggest-raglan-growth'),
     },
     {
       id: 'raglan-underarm',
-      label: 'A hónaljlánc a törzsbe és az ujjba is beleszámít',
+      label: text('check-raglan-underarm'),
       ok: bodyStitches === frontTarget + backTarget + 2 * underarmStitches,
     },
     {
       id: 'raglan-neck',
-      label: 'A nyak négy szakasza kiadja a nyak szemszámát',
+      label: text('check-raglan-neck'),
       ok: neckFront + neckBack + 2 * neckSleeve === neckStitches,
     },
-    { id: 'even-rounds', label: 'A raglán és a törzs körszáma páros', ok: yokeRounds % 2 === 0 && bodyRoundsBelow % 2 === 0 },
+    { id: 'even-rounds', label: text('check-even-rounds'), ok: yokeRounds % 2 === 0 && bodyRoundsBelow % 2 === 0 },
     {
       id: 'negative-ease',
-      label: `A negatív bőség legfeljebb ${pct(NEGATIVE_EASE_LIMIT)}%`,
+      label: text('check-negative-ease', { limit: pct(NEGATIVE_EASE_LIMIT) }),
       ok: ratio <= NEGATIVE_EASE_LIMIT + 1e-9,
-      suggestion: `A negatív bőség legfeljebb ${Math.floor(NEGATIVE_EASE_LIMIT * m.bustCm)} cm lehet ekkora mellbőségnél.`,
+      suggestion: text('suggest-negative-ease-raglan', { cm: Math.floor(NEGATIVE_EASE_LIMIT * m.bustCm) }),
     },
   ];
-  const warnings: string[] = [];
+  const warnings: CoreText<GarmentCode>[] = [];
   if (extraRounds > 0) {
-    warnings.push(
-      `A sarkok szaporítása ${shortfall.front + shortfall.back} szemmel kevesebbet ad a törzsnek, mint kell: ${extraRounds} körben külön törzsszaporítás is van (05 §4 „C” példa).`,
-    );
+    warnings.push(text('raglan-extra-rounds', { missing: shortfall.front + shortfall.back, rounds: extraRounds }));
   }
   if (ratio > NEGATIVE_EASE_LIMIT + 1e-9) {
-    warnings.push(`A negatív bőség ${pct(ratio)}%: horgolt anyagnál ${pct(NEGATIVE_EASE_LIMIT)}% fölött csak nyúlós, bordás szemmel működik (05 §3.5, §7.2).`);
+    warnings.push(text('negative-ease-warning', { actual: pct(ratio), limit: pct(NEGATIVE_EASE_LIMIT) }));
   }
 
   return {

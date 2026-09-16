@@ -8,7 +8,8 @@ import { strict as assert } from 'node:assert';
 import { describe, test } from 'node:test';
 
 import { emptyPattern } from '../src/core/editor.ts';
-import { DEFAULT_SHAPE, planShape } from '../src/core/shapes.ts';
+import { DEFAULT_SHAPE, planShape, shapeProblem } from '../src/core/shapes.ts';
+import { SHAPE_CORE_TEXTS } from '../src/ui/i18n/core/shape.ts';
 import {
   HDC_ROW_END_CHOICES,
   MEASURE_CHOICES,
@@ -19,6 +20,7 @@ import {
   normalizeShape,
   shapeFieldState,
   shapeOutline,
+  shapeReason,
   shapeView,
   widthLabel,
 } from '../src/ui/shapes-view.ts';
@@ -143,6 +145,48 @@ describe('a terv kiírása', () => {
   test('a létrehozás üzenete a visszavonás lehetőségével', () => {
     const plan = planOf(withRowGauge('hdc', 15, 11));
     assert.equal(generatedMessage(options(), plan), 'Téglalap, 33 sor elkészült; visszavonással a korábbi minta visszajön.');
+  });
+});
+
+describe('a mag indoka mondattá (PQW-904)', () => {
+  test('a magyar mondat betűre a mai: a határ és a sorszám az adatból kerül a helyére', () => {
+    assert.equal(shapeReason(shapeProblem(options({ widthCm: Number.NaN }))), 'A szélesség 0 és 300 cm közötti szám legyen.');
+    assert.equal(shapeReason({ code: 'shape-too-steep' }), 'Ilyen meredek élt ennyi sorban nem lehet horgolni: adj meg nagyobb magasságot.');
+    assert.equal(
+      shapeReason({ code: 'shape-row-too-narrow', data: { row: 7 } }),
+      'A(z) 7. sor túl keskeny ehhez az alakításhoz: adj meg nagyobb méretet vagy laposabb élt.',
+    );
+    // A szegély kódja a szegélyé, de a Forma is ezt adja vissza.
+    assert.equal(shapeReason({ code: 'border-single-crochet-only' }), 'A szegély most csak rövidpálcás lehet.');
+  });
+
+  test('a „ez a program hibája” esetek közös kódja: az adat dönti el, melyik mondat', () => {
+    assert.equal(
+      shapeReason({ code: 'internal-error', data: { rule: 'unused-position' } }),
+      'A generált minta nem ment át az ellenőrzőn (unused-position): ez a program hibája, kérlek, jelezd.',
+    );
+    assert.equal(shapeReason({ code: 'internal-error', data: { row: 4 } }), 'A(z) 4. sor szemszáma nem a terv szerinti: ez a program hibája, kérlek, jelezd.');
+    assert.equal(
+      shapeReason({ code: 'internal-error', data: { row: 4, shape: 'round' } }),
+      'A(z) 4. kör szemszáma nem a terv szerinti: ez a program hibája, kérlek, jelezd.',
+    );
+    assert.equal(shapeReason({ code: 'internal-error' }), 'A sorok terve hiányos: ez a program hibája, kérlek, jelezd.');
+  });
+
+  test('a szótár mindkét nyelven ugyanazt a kódkészletet adja, és az angolban nincs magyar ékezet', () => {
+    const { hu, en } = SHAPE_CORE_TEXTS;
+    assert.deepEqual(Object.keys(en).sort(), Object.keys(hu).sort());
+    assert.ok(Object.keys(hu).length > 40, `túl kevés kód: ${Object.keys(hu).length}`);
+    // Minden kódhoz mindkét nyelven ugyanolyan fajtájú, ugyanannyi paraméteres tétel tartozik.
+    // A szabály azonosítója nyers adat, nem fordítjuk: ékezet nélküli mintaérték, hogy az angol ágat vizsgáló őr ne a saját adatán bukjon.
+    const sample = { max: 3, min: 2, rows: 2, row: 2, count: 2, rule: 'rule-id', shape: 'row', unit: 2, nearest: 4 };
+    const render = (entry) => (typeof entry === 'string' ? entry : entry(sample));
+    for (const [code, entry] of Object.entries(hu)) {
+      assert.equal(typeof en[code], typeof entry, `${code}: eltérő fajta`);
+      if (typeof entry === 'function') assert.equal(en[code].length, entry.length, `${code}: eltérő paraméterszám`);
+      assert.ok(render(entry).length > 0, `${code}: üres magyar szöveg`);
+      assert.doesNotMatch(render(en[code]), /[áéíóöőúüűÁÉÍÓÖŐÚÜŰ]/, `${code}: magyar ékezet az angol ágban`);
+    }
   });
 });
 

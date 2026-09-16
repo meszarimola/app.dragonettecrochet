@@ -34,6 +34,7 @@
 
 import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
 import type { LayerPlacement, NodePlacement, Point } from './layout.ts';
+import { text, type CoreText } from './messages.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import type { Anchor, BorderRepeat, LayerEvent, NodeId, Pattern, Piece, PieceBorder, StitchDef, StitchGroup, StitchNode } from './types.ts';
 
@@ -109,9 +110,27 @@ export function borderCounts(topWidth: number, bottomWidth: number, rows: number
   };
 }
 
-export type BorderResult = { readonly ok: true; readonly counts: BorderCounts } | { readonly ok: false; readonly reason: string };
+/**
+ * Miért nem készíthető most szegély (PQW-904): a mag kódot ad, a mondatot a
+ * felület állítja össze (`src/ui/i18n/core/shape.ts`, `border-` előtaggal).
+ * Ezekre az írott minta hibája is hivatkozik (`pattern-steps.ts`, `nested`),
+ * ezért a kódkészlet a szegély közös határa.
+ */
+export type BorderCode =
+  | 'border-single-crochet-only'
+  | 'border-needs-row'
+  | 'border-rows-only'
+  | 'border-needs-stitches'
+  | 'border-not-regular'
+  | 'border-after-turn'
+  | 'border-already'
+  | 'border-stitch-missing';
 
-const fail = (reason: string): BorderResult => ({ ok: false, reason });
+export type BorderText = CoreText<BorderCode>;
+
+export type BorderResult = { readonly ok: true; readonly counts: BorderCounts } | { readonly ok: false; readonly reason: BorderText };
+
+const fail = (reason: BorderText): BorderResult => ({ ok: false, reason });
 
 /** A szegély rétegének indexe a gráfban, vagy −1, ha nincs (PQW-889). */
 export function borderLayerIndex(graph: PieceGraph): number {
@@ -163,19 +182,19 @@ function evenly(length: number, m: number): number[] {
  * páros számú sorra van; a láncalapon az 1. sor eleje a horog felőli végen
  * áll (graph.ts).
  */
-function borderPlan(graph: PieceGraph, lastRow: number, border: PieceBorder): BorderPlan | string {
-  if (border.stitch !== 'sc') return 'A szegély most csak rövidpálcás lehet.';
+function borderPlan(graph: PieceGraph, lastRow: number, border: PieceBorder): BorderPlan | BorderText {
+  if (border.stitch !== 'sc') return text('border-single-crochet-only');
   const base = graph.layers[0]!;
   const rows = graph.layers.slice(1, lastRow + 1);
-  if (rows.length === 0) return 'A szegélyhez legalább egy sor kell.';
+  if (rows.length === 0) return text('border-needs-row');
   if (base.shape !== 'row' || rows.some((layer) => layer.shape !== 'row' || layer.border)) {
-    return 'A szegély most csak sorokban horgolt darab köré készül.';
+    return text('border-rows-only');
   }
   const top = rows[rows.length - 1]!.positions;
-  if (top.length === 0 || base.stitches.length === 0) return 'A szegélyhez minden sorban kell szem.';
+  if (top.length === 0 || base.stitches.length === 0) return text('border-needs-stitches');
   const edges = rows.map(rowEdges);
   const perRow = rows.map((layer) => (layer.firstStitch === null ? Number.NaN : rowEndStitches(graph.defs.get(layer.firstStitch)!, border.hdcRowEnd)));
-  if (edges.some((edge) => edge === null) || perRow.some(Number.isNaN)) return 'A szegélyhez minden sorban kell szem.';
+  if (edges.some((edge) => edge === null) || perRow.some(Number.isNaN)) return text('border-needs-stitches');
 
   // A sorok szemei, amelyeket egy későbbi sor fed: belehorgolt, vagy a számító fordulólánca ül rajta (03 §1.3,
   // layout.ts). A többi szélső szem kitett: a lépcső teteje.
@@ -351,17 +370,21 @@ function borderPlan(graph: PieceGraph, lastRow: number, border: PieceBorder): Bo
   };
 }
 
-/** A szabályos szegély lépései a `lastRow`. sor után; ha a darab köré most nem készíthető, az ok. */
-export function borderSteps(graph: PieceGraph, lastRow: number, border: PieceBorder): BorderStep[] | string {
+/**
+ * A szabályos szegély lépései a `lastRow`. sor után; ha a darab köré most nem
+ * készíthető, az ok kódja. A hívók (szerkesztő, ellenőrző) csak azt nézik, van-e
+ * terv, a mondatot nem írják ki, ezért itt a kód elég az adat nélkül.
+ */
+export function borderSteps(graph: PieceGraph, lastRow: number, border: PieceBorder): BorderStep[] | BorderCode {
   const plan = borderPlan(graph, lastRow, border);
-  return typeof plan === 'string' ? plan : [...plan.steps];
+  return 'steps' in plan ? [...plan.steps] : plan.code;
 }
 
 /** A darab szegélye a gráf soraiból (a szegély rétege nélkül); ha a darab köré most nem készíthető, az ok. */
 export function borderOf(graph: PieceGraph, border: PieceBorder): BorderResult {
   const index = borderLayerIndex(graph);
   const plan = borderPlan(graph, index >= 0 ? index - 1 : graph.layers.length - 1, border);
-  return typeof plan === 'string' ? fail(plan) : { ok: true, counts: plan.counts };
+  return 'steps' in plan ? { ok: true, counts: plan.counts } : fail(plan);
 }
 
 /** A lépések célpontjai szemenként, a horgolás sorrendjében: `into:id`. */
@@ -375,16 +398,16 @@ function stepKeys(steps: readonly BorderStep[]): string[] {
  * kúszószem az első szemébe, a megadott szemszámmal. A darab utolsó sora
  * fordulással ér véget.
  */
-export function appendBorder(pattern: Pattern, piece: Piece, library: StitchLibrary, border: PieceBorder): Piece | string {
-  if (border.stitch !== 'sc') return 'A szegély most csak rövidpálcás lehet.';
+export function appendBorder(pattern: Pattern, piece: Piece, library: StitchLibrary, border: PieceBorder): Piece | BorderText {
+  if (border.stitch !== 'sc') return text('border-single-crochet-only');
   const last = piece.stitches[piece.stitches.length - 1];
-  if (!last || piece.events.find((event) => event.after === last.id)?.kind !== 'turn') return 'A szegély az utolsó sor fordulása után kezdődik.';
+  if (!last || piece.events.find((event) => event.after === last.id)?.kind !== 'turn') return text('border-after-turn');
   const graph = buildPieceGraph(pattern, piece, library);
-  if (borderLayerIndex(graph) >= 0) return 'A darabnak már van szegélye.';
+  if (borderLayerIndex(graph) >= 0) return text('border-already');
   const plan = borderPlan(graph, graph.layers.length - 1, border);
-  if (typeof plan === 'string') return plan;
+  if (!('steps' in plan)) return plan;
   const sc = library.get(border.stitch);
-  if (!sc) return 'A szegély szeme nincs a könyvtárban.';
+  if (!sc) return text('border-stitch-missing');
 
   const stitches: StitchNode[] = [...piece.stitches];
   const groups: StitchGroup[] = [...piece.groups];
@@ -426,7 +449,7 @@ export function appendBorder(pattern: Pattern, piece: Piece, library: StitchLibr
  */
 export function borderOfLayer(graph: PieceGraph, index: number, border: PieceBorder): BorderResult {
   const plan = borderPlan(graph, index - 1, border);
-  if (typeof plan === 'string') return fail(plan);
+  if (!('steps' in plan)) return fail(plan);
   const layer = graph.layers[index]!;
   const body = layer.stitches.filter((id) => !layer.turningChain.includes(id) && id !== layer.joinSlip);
   const actual = body.map((id) => {
@@ -438,9 +461,7 @@ export function borderOfLayer(graph: PieceGraph, index: number, border: PieceBor
     layer.closing?.kind === 'join-slip' &&
     layer.joinSlip !== null &&
     actual.join(' ') === stepKeys(plan.steps).join(' ');
-  return regular
-    ? { ok: true, counts: plan.counts }
-    : fail('A szegély eltér a szabályos szegélytől (sarkonként 3, sorvégenként a sor szeme szerint), ezért még nem írható ki.');
+  return regular ? { ok: true, counts: plan.counts } : fail(text('border-not-regular'));
 }
 
 /* ---- Elhelyezés a darab körül ---- */
