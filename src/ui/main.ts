@@ -203,6 +203,9 @@ interface Derived {
   readonly grid: ChartGrid | null;
 }
 
+/** A szegély kézi horgolása: a célpontok a darab kerületén futnak (PQW-902). */
+let borderMode = false;
+
 let derived = derive(history.present);
 
 function derive(pattern: Pattern): Derived {
@@ -242,10 +245,14 @@ function directionArrow(): DirectionArrow | null {
   return null;
 }
 
-/** A szerkesztő módja a mintatípusból: amigurumiban a láncalapon kör indul, ovális is (PQW-899). */
+/**
+ * A szerkesztő módja: amigurumiban a láncalapon kör indul, ovális is (PQW-899);
+ * a szegély gombbal a célpontok a darab kerületén futnak (PQW-902).
+ */
 function editorMode(): EditorMode {
-  return { roundsOnChain: patternType === 'amigurumi' };
+  return { roundsOnChain: patternType === 'amigurumi', borderRound: borderMode };
 }
+
 
 /* ---- Tárolás ---- */
 
@@ -418,7 +425,9 @@ function announce(message: string): void {
 }
 
 function layerName(context: WorkContext): string {
-  return `${context.layer}. ${context.shape === 'round' ? 'kör' : 'sor'}`;
+  // Az ovális 1. köre kör akkor is, amíg a másik oldalon nincs szem, és a gráf még sornak látja (PQW-902).
+  const round = context.shape === 'round' || context.oval;
+  return `${context.layer}. ${round ? 'kör' : 'sor'}`;
 }
 
 function progress(): string {
@@ -455,6 +464,7 @@ function describeTarget(index: number): string {
   if (slot.kind === 'space') what = `láncív (${slot.chains.length} láncszem)`;
   else if (slot.kind === 'ring') what = 'varázskör';
   else if (slot.kind === 'underside') what = 'láncszem másik oldala';
+  else if (slot.kind === 'row-end') what = 'sorvég';
   else {
     const def = derived.context.graph?.defs.get(slot.id);
     what = def ? stitchName(def, notation.terms) : 'szem';
@@ -484,6 +494,7 @@ function updateControls(): void {
   setDisabled('duplicate-selection', selection.length === 0);
   must<HTMLButtonElement>('[data-action="select-area"]').setAttribute('aria-pressed', String(areaMode));
   must<HTMLButtonElement>('[data-action="mirror"]').setAttribute('aria-pressed', String(mirror));
+  must<HTMLButtonElement>('[data-action="border-round"]').setAttribute('aria-pressed', String(borderMode));
   must<HTMLButtonElement>('[data-action="grid"]').setAttribute('aria-pressed', String(showGrid));
   if (document.activeElement !== titleInput) titleInput.value = pattern.title;
 
@@ -861,6 +872,7 @@ function paletteSection(section: ReturnType<typeof buildPalette>[number]): HTMLD
 function slotWord(slot: Slot): string {
   if (slot.kind === 'space') return 'láncívbe';
   if (slot.kind === 'ring') return 'varázskörbe';
+  if (slot.kind === 'row-end') return 'sorvégbe';
   return derived.context.graph?.defs.get(slot.id)?.kind === 'chain' ? 'láncszembe' : 'szembe';
 }
 
@@ -1130,6 +1142,14 @@ const ACTIONS: Record<string, () => void> = {
   'close-round': () =>
     commit(closeRound(history.present), canJoinChainRing(history.present) ? 'Láncgyűrű: a láncszemek gyűrűvé zárva.' : 'Kör zárva.'),
   'spiral-round': () => commit(endRoundSpiral(history.present), 'Kör vége: a következő kör zárás nélkül, spirálban folytatódik.'),
+  'border-round': () => {
+    borderMode = !borderMode;
+    refresh(
+      borderMode
+        ? 'Szegély: a célpontok a darab kerületén futnak, a felső éltől a sorvégeken és a láncalapon át.'
+        : 'Szegély kikapcsolva: a célpontok újra a sorban következnek.',
+    );
+  },
   mirror: () => {
     mirror = !mirror;
     try {
@@ -1610,6 +1630,10 @@ document.addEventListener('keydown', (event) => {
     case 's':
     case 'S':
       ACTIONS['spiral-round']!();
+      return;
+    case 'b':
+    case 'B':
+      ACTIONS['border-round']!();
       return;
     case 'm':
     case 'M':

@@ -38,6 +38,45 @@ for (const viewport of [
   { width: 1440, height: 900 },
   { width: 1000, height: 506 },
 ]) {
+  test(`${viewport.width}×${viewport.height}: kézi szegélyhorgolás (PQW-902): a B gombbal a célpontok a darab kerületén futnak`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await open(page);
+
+    // Kis darab kézzel: 6 láncszem, két rövidpálcás sor, a végén fordulással.
+    const board = page.locator('#board');
+    await board.focus();
+    await page.keyboard.press('1');
+    await page.locator('#chain-count').focus();
+    await page.keyboard.press('ControlOrMeta+A');
+    await page.keyboard.type('6');
+    await board.focus();
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('f');
+    await page.keyboard.press('3');
+    await page.keyboard.press('Shift+F');
+    await page.keyboard.press('f');
+    await page.keyboard.press('Shift+F');
+    await page.keyboard.press('f');
+
+    const status = page.locator('#status');
+    const borderButton = page.locator('[data-action="border-round"]');
+    await expect(borderButton).toHaveAttribute('aria-pressed', 'false');
+    await page.keyboard.press('b');
+    await expect(borderButton).toHaveAttribute('aria-pressed', 'true');
+    await expect(status).toContainText('Szegély: a célpontok a darab kerületén futnak');
+
+    // A felső él szemei után a sorvégek következnek: a kurzor végigvisz a darab kerületén.
+    for (let k = 0; k < 8; k += 1) await page.keyboard.press('Enter');
+    await expect(status).toContainText('szem');
+    // A félkész, a szabályostól még eltérő szegélyre figyelmeztetés jöhet (a sarkokban 3 rp kell), hiba nem.
+    await expect(page.locator('#error-count')).not.toContainText(/\d+ hiba/);
+
+    // Kikapcsolva újra a sor célpontjai jönnek.
+    await page.keyboard.press('b');
+    await expect(borderButton).toHaveAttribute('aria-pressed', 'false');
+    await expect(status).toContainText('Szegély kikapcsolva');
+  });
+
   test(`${viewport.width}×${viewport.height}: szegélyes téglalap után nincs „következik”, a szegélynek nincs sorszáma; szegélyes háromszög hibátlan`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await open(page);

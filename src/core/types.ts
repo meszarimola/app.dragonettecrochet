@@ -577,8 +577,8 @@ export type ShapeSpec =
    */
   | { readonly kind: 'oval'; readonly lengthCm: number; readonly widthCm: number; readonly stitch?: OvalStitch };
 
-/** Az ovális szeme (PQW-899): rövidpálca, félpálca vagy egyráhajtásos pálca. */
-export type OvalStitch = 'sc' | 'hdc' | 'dc';
+/** Az ovális szeme (PQW-899, PQW-902): rövidpálca, félpálca, egyráhajtásos vagy kétráhajtásos pálca. */
+export type OvalStitch = 'sc' | 'hdc' | 'dc' | 'tr';
 
 /** Egy rész (pl. fej, test) a darabban: a neve, az első köre és a formája (PQW-863). */
 export interface PieceSection {

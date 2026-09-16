@@ -8,10 +8,12 @@
 import { strict as assert } from 'node:assert';
 import { describe, test } from 'node:test';
 
+import { canonicalPattern } from '../src/core/canonical.ts';
 import { emptyPattern } from '../src/core/editor.ts';
 import { FILET_STITCH, filetRowPositions, generateFilet, planFilet } from '../src/core/filet.ts';
 import { buildPieceGraph } from '../src/core/graph.ts';
 import { loadPattern, savePattern } from '../src/core/pattern-json.ts';
+import { readPattern } from '../src/core/pattern-read.ts';
 import { formatWrittenPattern, writePattern } from '../src/core/pattern-text.ts';
 import { expandDraft } from '../src/core/pixel-chart.ts';
 import { foundationChainLength } from '../src/core/repeat.ts';
@@ -181,6 +183,18 @@ describe('alakítás egész cellánként (03 §10 F30)', () => {
     assert.deepEqual(long[0].flags, ['spike']);
   });
 
+  test('a lejjebb horgolt szem visszaolvasható az írott mintából, mindhárom jelöléssel (PQW-902)', () => {
+    const { pattern } = make(cyc(), chart('####', '###.', '###-'));
+    const library = libraryFor(pattern);
+    for (const locale of ['hu', 'en-US', 'en-GB']) {
+      const text = formatWrittenPattern(writePattern(pattern, library, locale));
+      const back = readPattern(text, { library, locale, conventions: pattern.conventions });
+      assert.ok(back.ok, `${locale}: ${JSON.stringify(back.error)}`);
+      assert.deepEqual(canonicalPattern(back.pattern).pieces, canonicalPattern(pattern).pieces, locale);
+      assert.deepEqual(findings(back.pattern), [], locale);
+    }
+  });
+
   test('rombusz: szaporítás és fogyasztás a sor mindkét végén, hibátlanul, kiírható és menthető', () => {
     const { pattern, plan } = make(cyc(), chart('--#--', '-###-', '.###.', '-.#.-', '--#--'));
     assert.deepEqual(
@@ -205,7 +219,7 @@ describe('alakítás egész cellánként (03 §10 F30)', () => {
       return result.reason;
     };
     assert.match(reason(chart('####', '###-')), /^A 2\. sor végén az új cella csak nyitott lehet/);
-    assert.match(reason(chart('.###', '-###', '####')), /^A 3\. sor végén szaporítás az előző sor eleji fogyasztás fölött még nem készül/);
+    assert.match(reason(chart('.###', '-###', '####')), /^A 3\. sor végén a szaporítás nem éri el a két sorral lejjebbi szemet/);
     assert.match(reason(chart('###.', '###-'), notCounting()), /fordulóláncnak szemnek kell számítania/);
     assert.match(reason(chart('#-#')), /^Az 1\. sorban a cellák között üres hely van/);
     assert.match(reason(chart('###', '---')), /^Az 1\. sorban nincs cella/);

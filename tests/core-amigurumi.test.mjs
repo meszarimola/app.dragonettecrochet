@@ -36,7 +36,7 @@ import { libraryFor } from '../src/core/stitch-variants.ts';
 import { validatePattern } from '../src/core/validate.ts';
 
 /** A 04 §4.4 mintasűrűsége: DK pamut, 3,5 mm-es tű; az 5 körös rövidpálcás kör 5 cm. */
-const DK = { stitchesPerCm: 1.9, roundsPerCm: 2, source: 'measured' };
+const DK = { stitchesPerCm: 1.9, roundsPerCm: 2, source: 'measured', hookMm: 3.5 };
 
 /** Minta profillal, amelyben a rövidpálca körben mérve adott szem és kör 10 cm-en. */
 function withRoundGauge(stitchesPer10cm, rowsPer10cm, pattern = emptyPattern()) {
