@@ -19,6 +19,7 @@
 
 import { MAX_GRID_SIDE, type DraftCell } from '../core/pixel-chart.js';
 import type { Pattern } from '../core/types.js';
+import { texts } from './i18n.js';
 import {
   MOSAIC_ROW_CHOICES,
   TECHNIQUE_CHOICES,
@@ -289,9 +290,9 @@ export class GridChartPanel {
       this.#unitFields.hidden = true;
       this.#focus = { x: 0, y: 0 };
       this.#setState({ ...this.#state, draft: imageToDraft(pixels, size.width, size.height, this.#state), manualUnit: null }, true);
-      this.#host.announce(`A kép betöltve: ${size.width} × ${size.height} cella, a mintasűrűség arányában.`);
+      this.#host.announce(texts().panels.grid.imageLoaded(size.width, size.height));
     } catch {
-      this.#host.announce('A képet nem sikerült betölteni: PNG, JPEG, GIF vagy WebP fájlt válassz.');
+      this.#host.announce(texts().panels.grid.imageFailed);
     } finally {
       URL.revokeObjectURL(url);
       this.#image.value = '';
@@ -315,7 +316,7 @@ export class GridChartPanel {
       return;
     }
     this.#setState({ ...this.#state, draft: expanded.cells }, true);
-    this.#host.announce('A meg nem adott cellák kitöltve az ismétlő egységből.');
+    this.#host.announce(texts().panels.grid.filledFromUnit);
   }
 
   #loadFromPattern(): void {
@@ -329,7 +330,7 @@ export class GridChartPanel {
     this.#unitFields.hidden = !this.#manual.checked;
     this.#brush = usesColors(loaded.technique) ? 0 : 1;
     this.#setState(loaded, true);
-    this.#host.announce('A mostani minta rácsa betöltve a szerkesztőbe.');
+    this.#host.announce(texts().panels.grid.loadedFromPattern);
   }
 
   #create(): void {
@@ -345,6 +346,7 @@ export class GridChartPanel {
   /* ---- Színek és ecset ---- */
 
   #renderColors(): void {
+    const t = texts().panels.grid;
     const { colors, technique } = this.#state;
     this.#colors.replaceChildren(
       ...colors.map((color, i) => {
@@ -354,19 +356,19 @@ export class GridChartPanel {
         const swatch = document.createElement('input');
         swatch.type = 'color';
         swatch.value = color.hex;
-        swatch.setAttribute('aria-label', `${letter} szín színe`);
+        swatch.setAttribute('aria-label', t.colorSwatchLabel(letter));
         swatch.addEventListener('input', () => this.#editColor(i, { hex: swatch.value }));
         const name = document.createElement('input');
         name.type = 'text';
         name.value = color.name;
         name.autocomplete = 'off';
-        name.setAttribute('aria-label', `${letter} szín neve`);
-        name.addEventListener('change', () => this.#editColor(i, { name: name.value.trim() || `${letter} szín` }, true));
+        name.setAttribute('aria-label', t.colorNameLabel(letter));
+        name.addEventListener('change', () => this.#editColor(i, { name: name.value.trim() || t.colorFallback(letter) }, true));
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'tool';
-        remove.textContent = 'Törlés';
-        remove.setAttribute('aria-label', `${letter} szín törlése`);
+        remove.textContent = t.remove;
+        remove.setAttribute('aria-label', t.colorRemoveLabel(letter));
         // A mozaik mindig két színnel készül.
         remove.disabled = colors.length <= (technique === 'mosaic' ? 2 : 1);
         remove.addEventListener('click', () => {
@@ -392,7 +394,7 @@ export class GridChartPanel {
 
   #renderBrushes(): void {
     const legend = document.createElement('legend');
-    legend.textContent = 'Ecset';
+    legend.textContent = texts().panels.grid.brushLegend;
     const brushes = brushesFor(this.#state);
     if (!brushes.some((brush) => brush.value === this.#brush)) this.#brush = brushes[0]!.value;
     this.#brushes.replaceChildren(
@@ -426,7 +428,7 @@ export class GridChartPanel {
     this.#board.style.setProperty('--cell-height', `${pixels.height}px`);
     this.#board.setAttribute('aria-rowcount', String(height));
     this.#board.setAttribute('aria-colcount', String(width));
-    this.#ratio.textContent = `Egy cella ${formatNumber(size.widthCm, 1)} × ${formatNumber(size.heightCm, 1)} cm: a rács a mintasűrűség arányában látszik. Fent a legfelső sor, alul az 1. sor.`;
+    this.#ratio.textContent = texts().panels.grid.cellRatio(formatNumber(size.widthCm, 1), formatNumber(size.heightCm, 1));
 
     this.#cells = Array.from({ length: height }, () => []);
     const rows: HTMLElement[] = [];
@@ -464,7 +466,7 @@ export class GridChartPanel {
     const inUnit = unit !== null && x >= unit.x && x < unit.x + unit.width && y >= unit.y && y < unit.y + unit.height;
     element.className = inUnit ? `${className} is-unit` : className;
     element.style.background = color ?? '';
-    element.setAttribute('aria-label', `${cellLabel(this.#state, x, y)}${inUnit ? ', ismétlő egység' : ''}`);
+    element.setAttribute('aria-label', `${cellLabel(this.#state, x, y)}${inUnit ? texts().panels.grid.inUnit : ''}`);
   }
 
   #cellOf(target: EventTarget | Element | null): Cell | null {

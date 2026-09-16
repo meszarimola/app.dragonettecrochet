@@ -11,6 +11,8 @@
  * amely a választással teljesül.
  */
 
+import { texts } from './i18n.js';
+
 export interface ConfirmOptions {
   /** A fő kérdés, a felhasználónak szóló nyelven. */
   readonly message: string;
@@ -41,7 +43,7 @@ export function askConfirm(options: ConfirmOptions): Promise<boolean> {
     const details = document.createElement('details');
     details.className = 'ask__details';
     const summary = document.createElement('summary');
-    summary.textContent = 'Részletek';
+    summary.textContent = texts().sections.dialog.details;
     const body = document.createElement('p');
     body.className = 'ask__detail';
     body.textContent = options.detail;
@@ -54,7 +56,7 @@ export function askConfirm(options: ConfirmOptions): Promise<boolean> {
   const cancel = document.createElement('button');
   cancel.type = 'button';
   cancel.className = 'tool';
-  cancel.textContent = options.cancelLabel ?? 'Mégse';
+  cancel.textContent = options.cancelLabel ?? texts().sections.dialog.cancel;
   const confirm = document.createElement('button');
   confirm.type = 'button';
   confirm.className = 'tool tool--primary';

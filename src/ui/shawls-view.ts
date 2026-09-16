@@ -7,12 +7,10 @@
  * magot `.ts` kiterjesztéssel importálja.
  */
 
-import { article } from '../core/hungarian.ts';
 import {
   DEVIATION_LIMIT,
   ROUND_SHAWLS,
   SHAWL_KINDS,
-  SHAWL_NAMES,
   SYMMETRIC_SHAWLS,
   piRounds,
   type RateChoice,
@@ -24,17 +22,26 @@ import {
   type ShawlWarning,
 } from '../core/shawls.ts';
 import { stitchById } from '../core/stitches.ts';
+import { texts } from './i18n.ts';
 import type { Choice } from './shapes-view.ts';
 import { formatNumber } from './size-view.ts';
+import { termsLocale } from './notation.ts';
 
 export { STITCH_CHOICES } from './shapes-view.ts';
 
-export const KIND_CHOICES: readonly Choice<ShawlKind>[] = SHAWL_KINDS.map((value) => ({ value, label: SHAWL_NAMES[value] }));
+export const KIND_CHOICES: readonly Choice<ShawlKind>[] = SHAWL_KINDS.map((value) => ({
+  value,
+  get label() {
+    return texts().panels.shawl.names[value];
+  },
+}));
 
-export const RATE_CHOICES: readonly Choice<RateChoice>[] = [
-  { value: 'theory', label: 'Elméleti, a mintasűrűségből' },
-  { value: 'custom', label: 'Saját arány' },
-];
+export const RATE_CHOICES: readonly Choice<RateChoice>[] = (['theory', 'custom'] as const).map((value) => ({
+  value,
+  get label() {
+    return texts().panels.shawl.rates[value];
+  },
+}));
 
 /** Melyik mező látszik a választott kendőnél. */
 export interface ShawlFieldState {
@@ -51,41 +58,30 @@ export function shawlFieldState(options: ShawlOptions): ShawlFieldState {
 
 /** A fő méret mezőjének felirata. */
 export function sizeLabel(kind: ShawlKind): string {
+  const labels = texts().panels.shawl.sizeLabels;
   switch (kind) {
     case 'triangle':
     case 'crescent':
-      return 'Mélység a gerincen, cm';
+      return labels.spine;
     case 'asymmetric-triangle':
-      return 'Az egyenes él, cm';
+      return labels.straightEdge;
     case 'stole':
-      return 'Szélesség, cm';
+      return labels.width;
     default:
-      return 'Sugár, cm';
+      return labels.radius;
   }
 }
 
 /** A saját arány mezőjének felirata: mire vonatkozik a szám. */
 export function rateLabel(kind: ShawlKind): string {
-  switch (kind) {
-    case 'triangle':
-      return 'Szaporítás soronként, az egész sorra';
-    case 'asymmetric-triangle':
-      return 'Szaporítás soronként a ferde élen';
-    case 'crescent':
-      return 'Szaporítás soronként, élenként';
-    case 'semicircle':
-      return 'Szaporítás soronként';
-    case 'circle':
-      return 'Szaporítás körönként';
-    default:
-      return 'Szem az 1. körben';
-  }
+  return texts().panels.shawl.rateLabels[kind];
 }
 
 /** A szegélyhez igazítás felirata: a szimmetrikus kendőben félenként. */
 export function edgingLabel(kind: ShawlKind): string {
-  const what = ROUND_SHAWLS.includes(kind) ? 'Az utolsó kör' : kind === 'stole' ? 'A sor' : 'Az utolsó sor';
-  return `${what} a szegély ismétléséhez: „X többszöröse + Y”${SYMMETRIC_SHAWLS.includes(kind) ? ', félenként' : ''}`;
+  const t = texts().panels.shawl;
+  const what = ROUND_SHAWLS.includes(kind) ? t.edgingWhat.round : kind === 'stole' ? t.edgingWhat.row : t.edgingWhat.lastRow;
+  return t.edgingLabel(what, SYMMETRIC_SHAWLS.includes(kind));
 }
 
 /** A választás a kendőhöz igazítva: a szárnyak csak háromszögnél, a saját arány a stólánál nem számít. */
@@ -97,7 +93,6 @@ export function normalizeShawl(options: ShawlOptions): ShawlOptions {
   };
 }
 
-const capitalize = (text: string) => text.charAt(0).toLocaleUpperCase('hu') + text.slice(1);
 const cm = (value: number) => formatNumber(value, 0);
 const rate = (value: number) => formatNumber(value, value >= 10 ? 1 : 2);
 const percent = (ratio: number) => formatNumber(ratio * 100, 0);
@@ -115,110 +110,105 @@ export interface ShawlView {
 
 const dimensions = (geometry: ShawlGeometry, kind: ShawlKind) =>
   kind === 'semicircle' || ROUND_SHAWLS.includes(kind)
-    ? `${cm(geometry.widthCm)} cm átmérő`
-    : `${cm(geometry.widthCm)} × ${cm(geometry.depthCm)} cm`;
+    ? texts().panels.shawl.diameterSize(cm(geometry.widthCm))
+    : texts().panels.shawl.boxSize(cm(geometry.widthCm), cm(geometry.depthCm));
 
 export function shawlView(plan: ShawlPlan, options: ShawlOptions, sizes: ShawlSizes, hasProfile: boolean): ShawlView {
+  const t = texts().panels.shawl;
   const approx = plan.gauge.source === 'estimated' ? '≈ ' : '';
   const rows = plan.counts.length;
-  const noun = plan.worked === 'rounds' ? 'kör' : 'sor';
+  const noun = plan.worked === 'rounds' ? t.roundNoun : t.rowNoun;
   // A nem mért állapot mindig becslés a nyúlásból.
   const [measured, other] = sizes.measured === 'blocked' ? [sizes.blocked, sizes.unblocked] : [sizes.unblocked, sizes.blocked];
-  const [measuredName, otherName] = sizes.measured === 'blocked' ? ['blokkolva', 'blokkolás nélkül'] : ['blokkolás nélkül', 'blokkolva'];
-  const size = `${capitalize(measuredName)} ${approx}${dimensions(measured, plan.kind)}, ${otherName} ≈ ${dimensions(other, plan.kind)}; ${rows} ${noun}.`;
+  const [measuredName, otherName] = sizes.measured === 'blocked' ? [t.blockedName, t.unblockedName] : [t.unblockedName, t.blockedName];
+  const size = t.sizeLine(measuredName, approx, dimensions(measured, plan.kind), otherName, dimensions(other, plan.kind), rows, noun);
 
   const details: string[] = [];
   const first = plan.counts[0]!;
   const last = plan.counts.at(-1)!;
-  details.push(`Az 1. ${noun} ${first} szem, az utolsó ${last} szem.`);
+  details.push(t.firstLast(noun, first, last));
   const symmetric = SYMMETRIC_SHAWLS.includes(plan.kind);
   switch (plan.kind) {
     case 'triangle':
-      details.push(
-        `Szaporítás soronként: elméletileg ${rate(plan.theoryRate)} (4 · h/w), választva ${rate(plan.chosenRate)}; ` +
-          `élenként átlagosan ${rate(plan.edgeRate)}, a gerincen ${rate(2 * plan.spineRate)}, mindig párban.`,
-      );
+      details.push(t.triangleRate(rate(plan.theoryRate), rate(plan.chosenRate), rate(plan.edgeRate), rate(2 * plan.spineRate)));
       break;
     case 'crescent':
-      details.push(`Szaporítás soronként élenként: elméletileg ${rate(plan.theoryRate)} (2 · h/w), választva ${rate(plan.chosenRate)}; a gerincen nincs.`);
+      details.push(t.crescentRate(rate(plan.theoryRate), rate(plan.chosenRate)));
       break;
     case 'asymmetric-triangle':
-      details.push(`Szaporítás soronként a ferde élen: 45°-hoz ${rate(plan.theoryRate)} (h/w), választva ${rate(plan.chosenRate)}.`);
+      details.push(t.asymmetricRate(rate(plan.theoryRate), rate(plan.chosenRate)));
       break;
     case 'semicircle':
-      details.push(`Szaporítás soronként egyenletesen elosztva: elméletileg ${rate(plan.theoryRate)} (π · h/w), választva ${rate(plan.chosenRate)}.`);
+      details.push(t.semicircleRate(rate(plan.theoryRate), rate(plan.chosenRate)));
       break;
     case 'circle':
-      details.push(`Szaporítás körönként, eltolva: elméletileg ${rate(plan.theoryRate)} (2π · h/w), választva ${rate(plan.chosenRate)}.`);
+      details.push(t.circleRate(rate(plan.theoryRate), rate(plan.chosenRate)));
       break;
     case 'pi':
     case 'shifted-pi': {
-      const doubling = [...piRounds(plan.kind === 'shifted-pi', rows)].sort((a, b) => a - b).map((round) => `${round}.`);
-      details.push(`Duplázás ${article(Number.parseInt(doubling[0]!, 10))} ${doubling.join(', ')} körben, közte sima körök.`);
+      details.push(t.piDoubling([...piRounds(plan.kind === 'shifted-pi', rows)].sort((a, b) => a - b)));
       break;
     }
     case 'stole':
-      details.push('Alakítás nélkül, soronként ugyanannyi szem.');
+      details.push(t.stoleNote);
       break;
   }
   if (measured.neckAngleDeg !== null && measured.tipAngleDeg !== null) {
-    details.push(`A nyakél szöge kb. ${angle(measured.neckAngleDeg)}° (egyenes nyakélnél 180°), az alsó csúcsé kb. ${angle(measured.tipAngleDeg)}°.`);
+    details.push(t.neckAngle(angle(measured.neckAngleDeg), angle(measured.tipAngleDeg)));
   } else if (measured.tipAngleDeg !== null) {
-    details.push(`A ferde él szöge a sorhoz kb. ${angle(measured.tipAngleDeg)}°.`);
+    details.push(t.edgeAngle(angle(measured.tipAngleDeg)));
   }
-  if (plan.wingsFromRow !== null) details.push(`Szárnyak: ${article(plan.wingsFromRow)} ${plan.wingsFromRow}. sortól a széleken dupla szaporítás.`);
+  if (plan.wingsFromRow !== null) details.push(t.wings(plan.wingsFromRow));
   if (plan.ratio && plan.kind !== 'stole') {
-    details.push(`${plan.worked === 'rounds' ? 'A körök' : 'A sorok'} szemszáma az ideálishoz képest ${percent(plan.ratio.min)}–${percent(plan.ratio.max)}%.`);
+    details.push(t.ratio(plan.worked === 'rounds' ? t.ratioRounds : t.ratioRows, percent(plan.ratio.min), percent(plan.ratio.max)));
   }
   if (plan.edging && options.edging) {
     const { width, edge } = options.edging;
-    const change = plan.edging.change === 0 ? 'változtatás nélkül' : `${plan.edging.change > 0 ? '+' : '−'}${Math.abs(plan.edging.change)} szem${symmetric ? ' félenként' : ''}`;
-    details.push(`Szegélyhez: ${width} többszöröse + ${edge}${symmetric ? ' félenként' : ''}, ${plan.edging.repeats} ismétlés (${change}).`);
+    const change =
+      plan.edging.change === 0 ? t.edgingNoChange : t.edgingChange(plan.edging.change > 0 ? '+' : '−', Math.abs(plan.edging.change), symmetric);
+    details.push(t.edging(width, edge, symmetric, plan.edging.repeats, change));
   }
 
   const warnings = plan.warnings.map(warningText);
 
-  const stitch = stitchById(plan.stitch).terms.hu.name;
+  const stitch = stitchById(plan.stitch).terms[termsLocale()].name;
   const gauge = gaugeText(plan, stitch, hasProfile);
-  const state =
-    sizes.measured === 'blocked'
-      ? 'A profil blokkolva mért: a blokkolás nélküli méret a megadott nyúlással becsült.'
-      : 'A mintasűrűség blokkolás nélküli: a blokkolt méret a megadott nyúlással becsült. Csipkénél blokkolt próbadarabot mérj.';
+  const state = sizes.measured === 'blocked' ? t.blockedState : t.unblockedState;
   return { size, details, warnings, source: `${gauge} ${state}` };
 }
 
 function warningText(warning: ShawlWarning): string {
+  const t = texts().panels.shawl;
   const pct = percent(warning.ratio);
-  const note = 'Ez figyelmeztetés, nem hiba.';
+  const limit = percent(DEVIATION_LIMIT);
+  const note = t.warningNote;
   switch (warning.kind) {
     case 'cupping':
-      return `Kunkorodhat: a szemszám az ideálisnak csak kb. ${pct}%-a (${percent(DEVIATION_LIMIT)}%-nál nagyobb eltérés). ${note} Blokkolással sokszor kisimítható, vagy válassz több szaporítást.`;
+      return t.cupping(pct, limit, note);
     case 'ruffling':
-      return `Fodrosodhat: a szemszám az ideális kb. ${pct}%-a (${percent(DEVIATION_LIMIT)}%-nál nagyobb eltérés). ${note} Válassz kevesebb szaporítást, ha lapos darabot szeretnél.`;
+      return t.ruffling(pct, limit, note);
     case 'narrow':
-      return `A választott szaporítás az elméletinek kb. ${pct}%-a: a kendő mélyebb és keskenyebb lesz, a nyakél lefelé hajlik. ${note} Sok kiadott minta blokkolással nyújtja szélesre.`;
+      return t.narrow(pct, note);
     case 'wide':
-      return `A választott szaporítás az elméletinek kb. ${pct}%-a: a kendő laposabb és szélesebb lesz, a nyakél felfelé ível, a szél fodrosodhat. ${note}`;
+      return t.wide(pct, note);
     case 'pi-blocking':
-      return `A duplázás előtti körben a szemszám az ideálisnak csak kb. ${pct}%-a: tömör szemmel kunkorodik, ezért blokkolt csipkénél működik jól. ${note}`;
+      return t.piBlocking(pct, note);
   }
 }
 
-const withArticle = (word: string) => `${/^[aáeéiíoóöőuúüű]/i.test(word) ? 'az' : 'a'} ${word}`;
-
 function gaugeText(plan: ShawlPlan, stitch: string, hasProfile: boolean): string {
-  const form = plan.worked === 'rounds' ? 'körben' : 'síkban';
+  const t = texts().panels.shawl;
+  const form = plan.worked === 'rounds' ? t.formRounds : t.formRows;
+  const hookMm = formatNumber(plan.gauge.hookMm, 2);
   switch (plan.gauge.basis) {
     case 'measured':
-      return `${capitalize(withArticle(stitch))} ${plan.gauge.source === 'label' ? 'címkén megadott' : `${form} mért`} mintasűrűségéből.`;
+      return t.gaugeMeasured(stitch, plan.gauge.source === 'label' ? t.gaugeFromLabel : t.gaugeForm(form));
     case 'profile-stitch':
-      return `Becslés: a profil más szemének ${form} mért mintasűrűségéből átszámolva.`;
+      return t.gaugeProfileStitch(form);
     case 'profile-other-form':
-      return `Becslés: a ${plan.worked === 'rounds' ? 'síkban' : 'körben'} mért mintasűrűségből átszámolva.`;
+      return t.gaugeOtherForm(plan.worked === 'rounds' ? t.formRows : t.formRounds);
     case 'hook':
-      return hasProfile
-        ? `Becslés a profil ${formatNumber(plan.gauge.hookMm, 2)} mm-es tűjéből, mert nincs mért mintasűrűség.`
-        : `Nincs profil: a méret becslés ${formatNumber(plan.gauge.hookMm, 2)} mm-es tűből. Pontosabb, ha a Méret és fonal szakaszban profilt adsz meg.`;
+      return hasProfile ? t.gaugeHookProfile(hookMm) : t.gaugeHookNoProfile(hookMm);
   }
 }
 
@@ -244,5 +234,6 @@ export function shawlOutline(sizes: ShawlSizes): ShawlOutline {
 
 /** Az állapotsor üzenete a létrehozás után. */
 export function generatedMessage(plan: ShawlPlan): string {
-  return `${SHAWL_NAMES[plan.kind]}, ${plan.counts.length} ${plan.worked === 'rounds' ? 'kör' : 'sor'} elkészült; visszavonással a korábbi minta visszajön.`;
+  const t = texts().panels.shawl;
+  return t.generated(t.names[plan.kind], plan.counts.length, plan.worked === 'rounds' ? t.roundNoun : t.rowNoun);
 }
