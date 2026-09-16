@@ -7,9 +7,9 @@
 import { strict as assert } from 'node:assert';
 import { describe, test } from 'node:test';
 
-import { BORDER_CORNER, appendBorder, borderLayerIndex, rowEdges } from '../src/core/border.ts';
+import { BORDER_CORNER, appendBorder, borderLayerIndex, borderSteps, rowEdges } from '../src/core/border.ts';
 import { canonicalPattern } from '../src/core/canonical.ts';
-import { contextOf, emptyPattern, pieceFinished } from '../src/core/editor.ts';
+import { contextOf, defaultCursor, emptyPattern, liveCheck, pieceFinished, work, workIntoSame } from '../src/core/editor.ts';
 import { contains } from '../src/core/grid.ts';
 import { readPattern } from '../src/core/pattern-read.ts';
 import { planShape } from '../src/core/shapes.ts';
@@ -314,10 +314,23 @@ describe('szegély ferde élű darab köré (PQW-898)', () => {
     assert.doesNotMatch(hu, / 0 rp/);
   });
 
-  test('a láncos hosszabbítással, nagyon meredeken szélesedő él köré érthető okkal nem készül', () => {
+  test('a láncos hosszabbítással, nagyon meredeken szélesedő él köré is készül: minden hosszabbító láncszem egy szegélyszemet kap (PQW-902)', () => {
     const result = planShape(emptyPattern(), { ...DEFAULT_SHAPE, shape: 'diamond', stitch: 'sc', widthCm: 20, heightCm: 4, border: BORDER });
-    assert.equal(result.ok, false);
-    assert.match(result.reason, /láncos hosszabbítással/);
+    assert.ok(result.ok, result.reason);
+    assert.ok(result.plan.chainExtensionRows.length > 0);
+    assert.ok(result.plan.border);
+
+    const { pattern } = shaped({ shape: 'diamond', stitch: 'sc', widthCm: 20, heightCm: 4 });
+    const graph = graphOf(pattern);
+    // A szegély terve az utolsó sorig tart: a kész szegély rétege már nem sor.
+    const steps = borderSteps(graph, borderLayerIndex(graph) - 1, BORDER);
+    assert.ok(Array.isArray(steps), typeof steps === 'string' ? steps : '');
+    // A hosszabbítás láncszemei az élen állnak, szemenként egy szegélyszemmel.
+    const chains = new Set([...graph.spaceOfChain.keys()]);
+    const onChains = steps.filter((step) => step.kind === 'edge' && chains.has(step.target));
+    const extensions = pattern.pieces[0].spaces.reduce((sum, space) => sum + space.chains.length, 0);
+    assert.equal(onChains.length, extensions);
+    assert.ok(onChains.every((step) => step.count === 1));
   });
 
   test('a szegély a ferde élű darab rácsán is a darab körül: minden szegélyszem egy szegélysávban', () => {
@@ -331,6 +344,95 @@ describe('szegély ferde élű darab köré (PQW-898)', () => {
       if (node.layer !== index || node.role !== 'stitch') continue;
       assert.ok(bands.some((band) => contains(band.area, node.top)), `${node.id} a szegély sávjában`);
     }
+  });
+});
+
+describe('a ferde él pótlása az arány-módszerrel (PQW-902; 03 §7.1)', () => {
+  test('a simán alakított ferde él sorvégei többet kapnak, az egyenes élé nem változik', () => {
+    const straight = shaped({ shape: 'rectangle', widthCm: 20, heightCm: 20 }).plan.border;
+    const slanted = shaped({ shape: 'isosceles-triangle', widthCm: 20, heightCm: 20 }).plan.border;
+    assert.equal(straight.rows, slanted.rows);
+    // Egyenes élen soronként a szem szerinti szemszám; a ferde él hosszabb, ezért több szem jut rá.
+    assert.equal(straight.sides[0].rowEnds, straight.rows * straight.perRow);
+    assert.ok(slanted.sides[0].rowEnds > straight.sides[0].rowEnds, `${slanted.sides[0].rowEnds} > ${straight.sides[0].rowEnds}`);
+    // A pótlás egyenletesen oszlik el: sorvégenként legfeljebb eggyel több.
+    assert.ok(slanted.sides[0].rowEnds <= slanted.rows * (slanted.perRow + 1));
+    for (const side of slanted.sides) assert.ok(side.rowEnds > straight.sides[0].rowEnds);
+  });
+
+  test('a lépcsős élen a kitett szemek viszik az él szélességét, a sorvégekre legfeljebb soronként egy pótlás jut', () => {
+    const steep = shaped({ shape: 'isosceles-triangle', stitch: 'dc', widthCm: 30, heightCm: 6 }).plan.border;
+    assert.ok(steep.sides[0].exposed > 0, 'a lépcsőkön vannak kitett szemek');
+    // A lépcső szemei külön szemet kapnak; a sorvégek pótlása csak a simán alakított részre jár.
+    assert.ok(steep.sides[0].rowEnds >= steep.rows * steep.perRow);
+    assert.ok(steep.sides[0].rowEnds <= steep.rows * (steep.perRow + 1), `${steep.sides[0].rowEnds} ≤ ${steep.rows * (steep.perRow + 1)}`);
+  });
+});
+
+describe('kézi szegélyhorgolás a szerkesztőben (PQW-902)', () => {
+  const mode = { borderRound: true };
+
+  /** Szegély nélküli darab, az utolsó sor fordulásával: innen indul a kézi szegély. */
+  function turned() {
+    const { pattern } = rectangle();
+    const piece = pattern.pieces[0];
+    const last = piece.stitches.at(-1);
+    const events = [...piece.events.filter((event) => event.after !== last.id), { after: last.id, kind: 'turn' }];
+    return { ...pattern, pieces: [{ ...piece, events }] };
+  }
+
+  test('a célpontok a darab kerületén futnak, a szabályos szegély lépései szerint', () => {
+    const pattern = turned();
+    const graph = graphOf(pattern);
+    const steps = borderSteps(graph, graph.layers.length - 1, BORDER);
+    const context = contextOf(pattern, mode);
+    assert.equal(context.slots.length, steps.length);
+    assert.deepEqual(
+      context.slots.map((slot) => `${slot.kind}:${slot.id}`),
+      steps.map((step) => `${step.kind === 'row-end' ? 'row-end' : 'stitch'}:${step.target}`),
+    );
+    // Mód nélkül a szokásos következő sor célpontjai jönnek.
+    assert.ok(contextOf(pattern).slots.every((slot) => slot.kind !== 'row-end'));
+  });
+
+  test('a sorvégbe horgolt szem sorvég-célpontot kap, és a „Még egy ugyanabba” nem csinál belőle szaporítást', () => {
+    const pattern = turned();
+    const context = contextOf(pattern, mode);
+    const at = context.slots.findIndex((slot) => slot.kind === 'row-end');
+    assert.ok(at > 0);
+    const first = work(pattern, { def: 'sc', count: 1 }, at, [], mode);
+    assert.ok(first.ok, first.reason);
+    const anchor = first.pattern.pieces[0].stitches.at(-1).anchors[0];
+    assert.deepEqual(anchor, { into: 'row-end', id: context.slots[at].id });
+
+    const again = workIntoSame(first.pattern, 'sc');
+    assert.ok(again.ok, again.reason);
+    const piece = again.pattern.pieces[0];
+    assert.deepEqual(piece.stitches.at(-1).anchors[0], anchor);
+    // A sorvég nem szem: a bele horgolt szemek nem szaporítás.
+    assert.equal(piece.groups.length, 0);
+  });
+
+  test('a megkezdett szegély rétegében a célpontok a szegély szerint folytatódnak', () => {
+    let pattern = turned();
+    // A felső él szemeitől az első sorvégig: onnantól a gráf is szegélynek látja a réteget.
+    const firstRowEnd = contextOf(pattern, mode).slots.findIndex((slot) => slot.kind === 'row-end');
+    assert.ok(firstRowEnd > 0);
+    for (let k = 0; k <= firstRowEnd; k += 1) {
+      const context = contextOf(pattern, mode);
+      const result = work(pattern, { def: 'sc', count: 1 }, defaultCursor(pattern, context, 'sc'), [], mode);
+      assert.ok(result.ok, result.reason);
+      pattern = result.pattern;
+    }
+    const graph = graphOf(pattern);
+    assert.equal(graph.layers.at(-1).border, true);
+    // A kézzel kezdett szegélyhez a darab a szegély választását is megkapja (az írott mintához).
+    assert.deepEqual(pattern.pieces[0].border, { stitch: 'sc', hdcRowEnd: 2 });
+    const context = contextOf(pattern, mode);
+    assert.ok(context.slots.some((slot) => slot.kind === 'row-end'));
+    assert.equal(context.frontier, firstRowEnd);
+    // A félkész szegély hátralévő célpontjai nem hibák: az élő ellenőrzés ezeket kiszűri.
+    assert.deepEqual(liveCheck(pattern, context).findings.filter((finding) => finding.severity === 'error'), []);
   });
 });
 

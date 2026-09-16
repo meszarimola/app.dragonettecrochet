@@ -247,6 +247,9 @@ interface Derived {
   readonly grid: ChartGrid | null;
 }
 
+/** A szegély kézi horgolása: a célpontok a darab kerületén futnak (PQW-902). */
+let borderMode = false;
+
 let derived = derive(history.present);
 
 function derive(pattern: Pattern): Derived {
@@ -286,10 +289,14 @@ function directionArrow(): DirectionArrow | null {
   return null;
 }
 
-/** A szerkesztő módja a mintatípusból: amigurumiban a láncalapon kör indul, ovális is (PQW-899). */
+/**
+ * A szerkesztő módja: amigurumiban a láncalapon kör indul, ovális is (PQW-899);
+ * a szegély gombbal a célpontok a darab kerületén futnak (PQW-902).
+ */
 function editorMode(): EditorMode {
-  return { roundsOnChain: patternType === 'amigurumi' };
+  return { roundsOnChain: patternType === 'amigurumi', borderRound: borderMode };
 }
+
 
 /* ---- Tárolás ---- */
 
@@ -482,7 +489,8 @@ function announce(message: Message): void {
 }
 
 function layerName(context: WorkContext): string {
-  return texts().messages.layer.name(context.layer, context.shape === 'round');
+  // Az ovális 1. köre kör akkor is, amíg a másik oldalon nincs szem, és a gráf még sornak látja (PQW-902).
+  return texts().messages.layer.name(context.layer, context.shape === 'round' || context.oval);
 }
 
 function progress(): string {
@@ -523,6 +531,7 @@ function describeTarget(index: number): Message {
   if (slot.kind === 'space') what = target.space(slot.chains.length);
   else if (slot.kind === 'ring') what = target.ring;
   else if (slot.kind === 'underside') what = target.underside;
+  else if (slot.kind === 'row-end') what = target.rowEndSlot;
   else {
     const def = derived.context.graph?.defs.get(slot.id);
     what = def ? stitchName(def, notation.terms) : target.stitch;
@@ -553,6 +562,7 @@ function updateControls(): void {
   setDisabled('duplicate-selection', selection.length === 0);
   must<HTMLButtonElement>('[data-action="select-area"]').setAttribute('aria-pressed', String(areaMode));
   must<HTMLButtonElement>('[data-action="mirror"]').setAttribute('aria-pressed', String(mirror));
+  must<HTMLButtonElement>('[data-action="border-round"]').setAttribute('aria-pressed', String(borderMode));
   must<HTMLButtonElement>('[data-action="grid"]').setAttribute('aria-pressed', String(showGrid));
   if (document.activeElement !== titleInput) titleInput.value = pattern.title;
 
@@ -976,6 +986,7 @@ function slotWord(slot: Slot): string {
   const words = texts().messages.slot;
   if (slot.kind === 'space') return words.space;
   if (slot.kind === 'ring') return words.ring;
+  if (slot.kind === 'row-end') return words.rowEnd;
   return derived.context.graph?.defs.get(slot.id)?.kind === 'chain' ? words.chain : words.stitch;
 }
 
@@ -1269,6 +1280,10 @@ const ACTIONS: Record<string, () => void> = {
       canJoinChainRing(history.present) ? texts().messages.work.chainRing : texts().messages.work.roundClosed,
     ),
   'spiral-round': () => commit(endRoundSpiral(history.present), texts().messages.work.spiral),
+  'border-round': () => {
+    borderMode = !borderMode;
+    refresh(borderMode ? texts().messages.work.borderOn : texts().messages.work.borderOff);
+  },
   mirror: () => {
     mirror = !mirror;
     try {
@@ -1751,6 +1766,10 @@ document.addEventListener('keydown', (event) => {
     case 's':
     case 'S':
       ACTIONS['spiral-round']!();
+      return;
+    case 'b':
+    case 'B':
+      ACTIONS['border-round']!();
       return;
     case 'm':
     case 'M':

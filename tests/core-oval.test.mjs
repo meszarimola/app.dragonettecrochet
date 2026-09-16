@@ -9,7 +9,7 @@ import { strict as assert } from 'node:assert';
 import { describe, test } from 'node:test';
 
 import { addAmigurumiPart, createAmigurumi } from '../src/core/amigurumi-generator.ts';
-import { figureSize, roundGaugeOf, shapeSchedule } from '../src/core/amigurumi.ts';
+import { fabricThicknessCm, figureSize, roundGaugeOf, shapeSchedule } from '../src/core/amigurumi.ts';
 import { canonicalPattern } from '../src/core/canonical.ts';
 import { contextOf, defaultCursor, emptyPattern, endRoundSpiral, fillRow, liveCheck, work, workIntoSame } from '../src/core/editor.ts';
 import { buildPieceGraph, computeLayers } from '../src/core/graph.ts';
@@ -23,7 +23,7 @@ import { libraryFor } from '../src/core/stitch-variants.ts';
 import { validatePattern } from '../src/core/validate.ts';
 
 /** A 04 §4.4 mintasűrűsége: DK pamut, 3,5 mm-es tű. */
-const DK = { stitchesPerCm: 1.9, roundsPerCm: 2, source: 'measured' };
+const DK = { stitchesPerCm: 1.9, roundsPerCm: 2, source: 'measured', hookMm: 3.5 };
 
 const part = (shape, extra = {}) => ({ name: '', shape, stagger: true, eyes: false, ...extra });
 const oval = (lengthCm, widthCm) => ({ kind: 'oval', lengthCm, widthCm });
@@ -260,9 +260,22 @@ describe('félpálcás és pálcás ovális (PQW-899)', () => {
     assert.equal(sc.counts[0], 2 * sc.oval.chains + 2);
   });
 
+  test('kétráhajtásos pálcás ovális (PQW-902): végenként 8 szaporítás, 4 láncszemes kezdőlánccal, hibátlanul', () => {
+    const base = emptyPattern();
+    const planned = shapeSchedule({ ...oval(16, 10), stitch: 'tr' }, roundGaugeOf(base, 'tr'));
+    assert.ok(planned.ok, planned.reason);
+    const { counts, oval: plan } = planned.schedule;
+    assert.deepEqual([plan.stitch, plan.perEnd, plan.turningChain], ['tr', 8, 4]);
+    assert.ok(counts.slice(1).every((count, i) => count - counts[i] === 16), counts.join(','));
+    const pattern = ok(createAmigurumi(base, part({ ...oval(16, 10), stitch: 'tr' }), false));
+    assert.deepEqual(rules(pattern), []);
+    assert.deepEqual(computeLayers(pattern, libraryFor(pattern)).slice(1).map((layer) => layer.stitchCount), counts);
+    assert.match(textOf(pattern), /1\. kör: hagyj ki 4 láncszemet, majd \d+ krp, 9 krp a következő láncszembe, a láncszemek másik oldalán vissza: /);
+  });
+
   test('a generált ovális hibátlan, a körök szemszáma a körterv szerint, CYC és japán hagyománnyal, eltolással és anélkül', () => {
     for (const base of [emptyPattern(), withTradition('japanese')]) {
-      for (const stitch of ['hdc', 'dc']) {
+      for (const stitch of ['hdc', 'dc', 'tr']) {
         for (const stagger of [true, false]) {
           const result = createAmigurumi(base, part({ ...oval(12, 8), stitch }, { stagger }), false);
           const pattern = ok(result);
@@ -312,18 +325,20 @@ describe('félpálcás és pálcás ovális (PQW-899)', () => {
     const old = ok(createAmigurumi(emptyPattern(), part(oval(8, 5)), false));
     assert.equal(JSON.parse(savePattern(old)).pieces[0].sections[0].shape.stitch, undefined);
     const raw = JSON.parse(savePattern(pattern));
-    raw.pieces[0].sections[0].shape.stitch = 'tr';
+    raw.pieces[0].sections[0].shape.stitch = 'dtr';
     assert.equal(loadPattern(JSON.stringify(raw)).ok, false);
   });
 
-  test('a figura magassága: a lapos ovális a vastagságával (egy szemszélesség) járul hozzá, nem a körmagassággal', () => {
+  test('a figura magassága: a lapos ovális a kelme vastagságával járul hozzá, nem a körmagassággal', () => {
     const base = emptyPattern();
     for (const stitch of ['sc', 'dc']) {
       const gauge = roundGaugeOf(base, stitch);
       const sole = ok(createAmigurumi(base, part({ ...oval(8, 5), stitch }, { name: 'Talp' }), false));
       const size = figureSize(sole);
-      assert.equal(size.parts[0].sections[0].schedule.heightCm, 1 / gauge.stitchesPerCm, stitch);
-      assert.equal(size.heightCm, 1 / gauge.stitchesPerCm, stitch);
+      // A vastagság két fonalátmérő, a fonal átmérője a tűből (02 §1.6); a szem magasságától független.
+      const thickness = fabricThicknessCm(gauge.hookMm);
+      assert.equal(size.parts[0].sections[0].schedule.heightCm, thickness, stitch);
+      assert.equal(size.heightCm, thickness, stitch);
       assert.ok(size.widthCm >= 7 && size.widthCm <= 9, `${stitch}: a hossz a szélesség`);
     }
     // Varrva a gömb a talpra ül: a figura magassága a gömbé és a talp vastagságáé, a besüllyedő süveggel csökkentve.

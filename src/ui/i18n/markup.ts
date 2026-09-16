@@ -81,6 +81,8 @@ export const MARKUP_TEXTS = {
     toolCloseRoundTip: 'Kör zárása kúszószemmel; láncszemekből láncgyűrű (K)',
     toolSpiralLabel: 'Kör vége spirálban',
     toolSpiralTip: 'Kör vége spirálban, zárás nélkül (S)',
+    toolBorderRoundLabel: 'Szegély a darab körül',
+    toolBorderRoundTip: 'Szegély a darab körül: a célpontok a darab kerületén (B)',
 
     // Kijelölés
     toolSelectAreaLabel: 'Terület kijelölése',
@@ -423,6 +425,8 @@ export const MARKUP_TEXTS = {
     toolCloseRoundTip: 'Close the round with a slip stitch; a chain ring from chains (K)',
     toolSpiralLabel: 'End round in a spiral',
     toolSpiralTip: 'End of round in a spiral, without joining (S)',
+    toolBorderRoundLabel: 'Border around the piece',
+    toolBorderRoundTip: 'Border around the piece: targets run along the edge of the piece (B)',
 
     // Selection
     toolSelectAreaLabel: 'Select area',

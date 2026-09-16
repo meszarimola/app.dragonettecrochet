@@ -202,8 +202,16 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
   - **Szegély ferde élű darab köré** (PQW-898): háromszög, trapéz és rombusz
     köré is. Az oldal a sorvégek mellett a lépcsők meghagyott szemeibe is 1-1
     rp-t tesz; a sarkok a felső él és a láncalap két végén (két szemes csúcsnál
-    a két sarok között nincs szem). A láncos hosszabbítással, nagyon meredeken
-    szélesedő él köré érthető okkal még nem készül.
+    a két sarok között nincs szem). Láncos hosszabbítással, nagyon meredeken
+    szélesedő él köré is (PQW-902): a hosszabbítás láncszemei az élen állnak,
+    mindegyik 1 rp-t kap, mint a láncalap láncszemei. A szegély attól, hogy
+    beléjük horgol, nem változtatja meg a sor szemszámát.
+  - **A ferde él pótlása az arány-módszerrel** (PQW-902, 03 §7.1): a simán
+    alakított ferde él hosszabb, mint a sorok magassága, ezért a sorvégek
+    összesen `Σ hypot(sorvégre jutó szem, oldalirányú eltolás)` szemet kapnak,
+    és a többlet egyenletesen oszlik el a sorvégek között (sorvégenként
+    legfeljebb eggyel több). Egyenes élen nincs pótlás; a lépcsős élen a kitett
+    szemek viszik az él szélességét.
   - **Igazítás a következő szegélysor ismétléséhez** (PQW-898, 03 §7.1 H, §10
     H39): a sarkok közötti élek szemszáma a legközelebbi „X többszöröse + Y”;
     az oldalon a sorvégeken ±1, a felső élen és a láncalapon 2 rp egy szembe,
@@ -214,6 +222,14 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
     állapotsor nem jósol következő sort vagy kört („Téglalap, 11 sor és szegély
     elkészült.”), és a szegély a vásznon és az SVG-ben sorszám helyett
     „szegély” feliratot kap.
+  - **Kézi szegélyhorgolás** (PQW-902): a menüsor „Szegély a darab körül”
+    gombja (B) után a célpontok a darab kerületén futnak, a szabályos szegély
+    lépései szerint: a felső él szemei, a sorvégek, a lépcsők és a láncalap
+    láncszemei. A sorvég célpont a rajzon a sor széle mellett, kifelé áll,
+    kattintással és billentyűzettel is elérhető; a sorvégbe több szem is
+    mehet, de az nem szaporítás (a sorvég nem szem). Az első sorvégbe horgolt
+    szemmel a darab megkapja a szegély választását, így az írott minta is
+    kiírja. A szabályostól eltérő kézi szegélyre figyelmeztetés jön.
   - **Előnézet:** a forma lépcsős körvonala, a tényleges méret, a sorok, a szög
     és az alakítás módja. Profil nélkül a méret becslés, és a szakasz ezt ki is
     írja.
@@ -302,8 +318,11 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
     Félpálcás és pálcás ovális is (PQW-899): a „Szem” mező választja; a
     kezdőlánc a szem fordulólánca (félpálcánál 2, pálcánál 3 láncszem), számít
     vagy nem a kör szabálya szerint (`tradition.ts`), végenként 4, illetve 6
-    szaporítással. A lapos ovális a figura magasságához a vastagságával (egy
-    szemszélesség) járul hozzá; a figura-jegyzet hossz × szélességet ír.
+    szaporítással. Kétráhajtásos pálcával is (PQW-902): 4 láncszemes
+    kezdőlánccal, végenként 8 szaporítással. A lapos ovális a figura
+    magasságához a kelme vastagságával járul hozzá: két fonalátmérő, a fonal
+    átmérője a tűből (02 §1.6, `hook_mm ≈ 1,4 · d_mm` szoros horgolásnál); a
+    figura-jegyzet hossz × szélességet ír.
   - **Kézi ovális a szerkesztőben** (PQW-899): az Amigurumi mintatípusban a
     láncalapra horgolt 1. réteg kör, a vezetett kurzor a kezdőlánc utáni
     láncszemre áll. Az első szem után a láncszemek másik oldala is célpont (a
@@ -497,15 +516,17 @@ npm test   # a build után: CSP ↔ azonosító, inline szkript, közös süti
   Most minden szem az alapértelmezett móddal megy.
 - **Körnézet finomítása.** A körök egyszerű, sugárirányú elrendezést kapnak;
   a nagymama-négyzet sarkai még nem szögletesek.
-- **A szegély és a varrat nyitott részei** (PQW-889, PQW-898): szegély a láncos
-  hosszabbítással, nagyon meredeken szélesedő él köré; két sorokban horgolt
-  darab összekapcsolása horgolva (az összevarrás a PQW-866 óta kapcsolásként
-  megvan).
+- **A varrat nyitott része** (PQW-889): két sorokban horgolt darab
+  összekapcsolása horgolva (az összevarrás a PQW-866 óta kapcsolásként megvan).
 - **PDF-export.**
-- **A rácsos technikák nyitott részei** (PQW-894): filében a sor végén teli új
-  cella (most nyitott cellával szaporít), és ugyanazon az élen egymás utáni
-  sorban fogyasztás és szaporítás; a lejjebb horgolt szem visszaolvasása az
-  írott mintából. A vászon cellás rácsán nincs még oszlopszámozás.
+- **A rácsos technikák nyitott részei** (PQW-894, PQW-902): filében a sor végén
+  teli új cella (most nyitott cellával szaporít): ehhez a szemnek az előző szem
+  tövén kellene állnia, ilyen célpont a gráfban nincs. Ugyanazon az élen
+  fogyasztás után a következő sorban szaporítás sem megy: a hosszú pálca nem
+  éri el a két sorral lejjebbi szemet; a program ezt érthető okkal írja le. A
+  mozaik írott mintája a színek felsorolása miatt még nem olvasható vissza (a
+  lejjebb horgolt szem maga már igen). A vászon cellás rácsán nincs még
+  oszlopszámozás.
 - **A ruhadarabok nyitott részei** (PQW-866): raglán (a „C” példa), kerek
   betét, bevarrt ujj; formázott nyakkivágás a gráfban (a két váll egy darabon
   belül külön horgolva); bordás szegély és perem; a növedék kompenzálása a

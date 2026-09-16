@@ -25,7 +25,11 @@
  * PQW-889 előtti mentésben csak a választás van (`Piece.border`); ott az írott
  * minta a sorokból számol.
  *
- * A láncos hosszabbítással (nagyon meredeken) szélesedő él köré még nem készül.
+ * Láncos hosszabbítással (nagyon meredeken) szélesedő él köré is készül (PQW-902):
+ * a hosszabbítás láncszemei az élen állnak, mindegyik egy szegélyszemet kap, mint
+ * a láncalap láncszemei. A simán alakított ferde élen a hosszabb élre jutó pótlás
+ * az arány-módszerből jön (03 §7.1): az él hossza soronként `hypot(sorvég, eltolás)`,
+ * és a többlet egyenletesen oszlik el a sorvégek között.
  */
 
 import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
@@ -169,9 +173,6 @@ function borderPlan(graph: PieceGraph, lastRow: number, border: PieceBorder): Bo
   }
   const top = rows[rows.length - 1]!.positions;
   if (top.length === 0 || base.stitches.length === 0) return 'A szegélyhez minden sorban kell szem.';
-  if (rows.some((layer) => layer.positions.some((id) => graph.spaceOfChain.has(id)))) {
-    return 'A szegély láncos hosszabbítással, nagyon meredeken szélesedő él köré még nem készül: adj meg laposabb élt, vagy nagyobb magasságot.';
-  }
   const edges = rows.map(rowEdges);
   const perRow = rows.map((layer) => (layer.firstStitch === null ? Number.NaN : rowEndStitches(graph.defs.get(layer.firstStitch)!, border.hdcRowEnd)));
   if (edges.some((edge) => edge === null) || perRow.some(Number.isNaN)) return 'A szegélyhez minden sorban kell szem.';
@@ -193,6 +194,9 @@ function borderPlan(graph: PieceGraph, lastRow: number, border: PieceBorder): Bo
     const seat = layer.direction === 1 ? below.positions[0] : below.positions[below.positions.length - 1];
     if (seat !== undefined) worked.add(seat);
   });
+  /** Az r. sorhoz tartozó lépcsőszemek száma mindkét szélen (az arány-módszerhez, PQW-902). */
+  const exposedCount = (r: number): number => (r >= 1 && r <= rows.length ? exposed(r, true).length + exposed(r, false).length : 0);
+
   /** Az r. sor meghagyott szemei a sor elején vagy végén, a széltől befelé haladva. */
   const exposed = (r: number, atStart: boolean): NodeId[] => {
     const positions = rows[r - 1]!.positions;
@@ -200,6 +204,26 @@ function borderPlan(graph: PieceGraph, lastRow: number, border: PieceBorder): Bo
     if (atStart) for (let i = 0; i < positions.length && !worked.has(positions[i]!); i += 1) run.push(positions[i]!);
     else for (let i = positions.length - 1; i >= 0 && !worked.has(positions[i]!); i -= 1) run.push(positions[i]!);
     return run;
+  };
+
+  /**
+   * Az r. sor végén álló láncos hosszabbítás láncszemei fonalsorrendben
+   * (PQW-902): a sor utolsó pozíciói, amelyek egy láncívhez tartoznak. A
+   * következő sor ezekbe horgol, a külső hurkuk pedig az élen marad.
+   */
+  const extension = (r: number): NodeId[] => {
+    const positions = rows[r - 1]!.positions;
+    const chains: NodeId[] = [];
+    for (let i = positions.length - 1; i >= 0 && graph.spaceOfChain.has(positions[i]!); i -= 1) chains.unshift(positions[i]!);
+    return chains;
+  };
+  /** A sor két széle: a vége a láncos hosszabbítás előtti utolsó pozíció (PQW-902). */
+  const edgeOf = (r: number): { start: NodeId; end: NodeId } => {
+    const { start, end } = edges[r - 1]!;
+    const chains = extension(r);
+    if (chains.length === 0) return { start, end };
+    const positions = rows[r - 1]!.positions;
+    return { start, end: positions[positions.length - 1 - chains.length] ?? start };
   };
 
   const R = rows.length;
@@ -217,7 +241,9 @@ function borderPlan(graph: PieceGraph, lastRow: number, border: PieceBorder): Bo
   const topSteps = along([...top].reverse());
   const sideA: BorderStep[] = [];
   for (let r = R; r >= 1; r -= 1) {
-    const { start, end } = edges[r - 1]!;
+    const { start, end } = edgeOf(r);
+    // Lefelé haladva a sor végi láncos hosszabbítás kívülről befelé következik, a sorvég előtt (PQW-902).
+    if (!startOnA(r)) for (const target of [...extension(r)].reverse()) sideA.push({ kind: 'edge', target, count: 1 });
     sideA.push({ kind: 'row-end', target: startOnA(r) ? start : end, row: r, count: perRow[r - 1]! });
     // Lefelé: az alatta lévő sor lépcsője a széltől befelé meghagyott szemekkel, belülről kifelé.
     if (r > 1) for (const target of exposed(r - 1, startOnA(r - 1)).reverse()) sideA.push({ kind: 'edge', target, count: 1 });
@@ -225,11 +251,47 @@ function borderPlan(graph: PieceGraph, lastRow: number, border: PieceBorder): Bo
   const bottomSteps = along((R - 1) % 2 === 0 ? [...base.stitches].reverse() : [...base.stitches]);
   const sideB: BorderStep[] = [];
   for (let r = 1; r <= R; r += 1) {
-    const { start, end } = edges[r - 1]!;
+    const { start, end } = edgeOf(r);
     sideB.push({ kind: 'row-end', target: startOnA(r) ? end : start, row: r, count: perRow[r - 1]! });
+    // Felfelé haladva a sor végi láncos hosszabbítás a sorvég után, befelé kifelé következik (PQW-902).
+    if (startOnA(r)) for (const target of extension(r)) sideB.push({ kind: 'edge', target, count: 1 });
     // Felfelé: a sor lépcsője kívülről befelé.
     if (r < R) for (const target of exposed(r, !startOnA(r))) sideB.push({ kind: 'edge', target, count: 1 });
   }
+
+  /**
+   * A ferde él hosszabb, mint a sorok magassága: a pótlás az arány-módszerből
+   * (03 §7.1, PQW-902). Soronként az él hossza szegélyszemekben mérve
+   * `hypot(sorvégre jutó szem, oldalirányú eltolás)`; az összegük és a sorvégek
+   * összegének különbsége oszlik el egyenletesen a sorvégek között. A lépcsős
+   * élen a kitett szemek és a láncos hosszabbítás már külön szemet kapnak,
+   * ezért ott nincs pótlás.
+   */
+  const ratioAllowance = (steps: BorderStep[]): void => {
+    const ends = steps.flatMap((step, i) => (step.kind === 'row-end' ? [i] : []));
+    if (ends.length === 0) return;
+    let ideal = 0;
+    let plain = 0;
+    for (const i of ends) {
+      const step = steps[i] as Extract<BorderStep, { kind: 'row-end' }>;
+      const previous = rows[step.row - 2];
+      const current = rows[step.row - 1]!;
+      // A sor szemszámának változása, amennyit a lépcső és a hosszabbítás nem magyaráz: a sima alakítás eltolása.
+      const change = previous ? Math.abs(current.positions.length - previous.positions.length) : 0;
+      const stairs = exposedCount(step.row) + extension(step.row).length + (previous ? extension(step.row - 1).length : 0);
+      const shift = Math.max(0, change - stairs) / 2;
+      ideal += Math.hypot(step.count, shift);
+      plain += step.count;
+    }
+    const extra = Math.round(ideal) - plain;
+    if (extra <= 0) return;
+    for (const k of evenly(ends.length, Math.min(extra, ends.length))) {
+      const step = steps[ends[k]!] as Extract<BorderStep, { kind: 'row-end' }>;
+      steps[ends[k]!] = { ...step, count: step.count + 1 };
+    }
+  };
+  ratioAllowance(sideA);
+  ratioAllowance(sideB);
 
   // Igazítás a következő szegélysor ismétléséhez: élenként a sarkok közötti szemszám.
   const adjusted = { top: 0, bottom: 0, sideA: 0, sideB: 0 };
