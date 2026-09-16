@@ -14,13 +14,13 @@
  */
 
 import { aimAt, chartBounds, gridHit, type ChartGrid } from '../core/grid.js';
-import type { ChartLayout, Point } from '../core/layout.js';
+import type { ChartLayout, NodePlacement, Point } from '../core/layout.js';
 import type { StitchLibrary } from '../core/stitch-library.js';
 import type { Finding, NodeId, StitchInsertion, Tradition } from '../core/types.js';
 import { chartLabels } from './chart-labels.js';
 import { gridPaths, LINE_WIDTH, type GridPaths } from './grid-paths.js';
 import { gridCoreText } from './i18n/core/grid.js';
-import { applyInk, drawShapes, placedShapes, type SymbolOptions } from './symbols.js';
+import { applyInk, drawShapes, placedShapes, shapesBounds, type SymbolOptions } from './symbols.js';
 
 export interface Target {
   readonly point: Point;
@@ -65,6 +65,14 @@ export interface Scene {
   readonly spikes?: ReadonlySet<NodeId>;
 }
 
+/** Egy téglalap ablak-koordinátában (böngészős mérésekhez, PQW-916). */
+export interface Rect {
+  readonly left: number;
+  readonly top: number;
+  readonly right: number;
+  readonly bottom: number;
+}
+
 /** A vászon egy téglalapja vászon-koordinátában (a takarás nélküli rész). */
 export interface Area {
   readonly left: number;
@@ -79,9 +87,11 @@ interface View {
   y: number;
 }
 
-/** A sorszám címkéje diagram-koordinátában. */
+/** A sorszám címkéje a vászon koordinátájában, képpontban (PQW-916: a felirat nem nagyítódik a rajzzal). */
 interface Label {
   readonly layer: number;
+  /** A kiírt szöveg: a réteg neve és a szemszáma (PQW-916). */
+  readonly text: string;
   readonly x0: number;
   readonly y0: number;
   readonly x1: number;
@@ -95,6 +105,10 @@ const MIN_FIT_SCALE = 0.05;
 /** Ennyi képernyőpixelen belül talál a kattintás célpontot vagy jelet. */
 const HIT = 16;
 const LABEL_HEIGHT = 16;
+/** A sorfelirat ennyivel áll a sor végétől kifelé, hogy ne érjen szemhez (PQW-916). */
+const LABEL_GAP = 12;
+/** Az iránynyíl ennyivel áll a sor jelei fölött (PQW-916). */
+const ARROW_LIFT = 12;
 /** A sorszám célterülete a képernyőn legalább ekkora (WCAG 2.5.8). */
 const MIN_TARGET = 24;
 
@@ -108,6 +122,10 @@ export class Board {
   readonly #view: View = { scale: 1.5, x: 40, y: 200 };
   #scene: Scene | null = null;
   #labels: Label[] = [];
+  /** A legutóbb kirajzolt iránynyíl befoglalója diagram-koordinátában (böngészős tesztekhez, PQW-916). */
+  #arrowBounds: { minX: number; minY: number; maxX: number; maxY: number } | null = null;
+  /** A vászon fölé nyíló oldalsávok szélessége képpontban (PQW-916): a sorfelirat közéjük fér be. */
+  #insets = { left: 0, right: 0 };
   /** A rács útvonalai; csak új rácsnál számoljuk újra, eltoláskor nem. */
   #paths: { readonly grid: ChartGrid; readonly paths: GridPaths } | null = null;
 
@@ -126,6 +144,17 @@ export class Board {
 
   setScene(scene: Scene): void {
     this.#scene = scene;
+    this.render();
+  }
+
+  /**
+   * A vászon fölé nyíló oldalsávok szélessége (PQW-916). A sorfeliratok a rajz
+   * mellett állnak, és ezen a sávon belül maradnak: a nem látszó sorszám semmit
+   * sem ér. Csak akkor rajzolunk újra, ha tényleg változott valami.
+   */
+  setInsets(left: number, right: number): void {
+    if (this.#insets.left === left && this.#insets.right === right) return;
+    this.#insets = { left, right };
     this.render();
   }
 
@@ -174,18 +203,77 @@ export class Board {
 
   /** A sorszám a mutató alatt: a sor vagy kör száma, vagy `null`. */
   labelAt(clientX: number, clientY: number): number | null {
-    const p = this.toChart(clientX, clientY);
-    const pad = (size: number) => Math.max(0, (MIN_TARGET / this.#view.scale - size) / 2);
+    const rect = this.#canvas.getBoundingClientRect();
+    const p = { x: clientX - rect.left, y: clientY - rect.top };
+    const inside = (l: Label) => p.x >= l.x0 && p.x <= l.x1 && p.y >= l.y0 && p.y <= l.y1;
+    // A címke fix méretű, ezért a legalább 24×24 képpontos célterület (WCAG 2.5.8) párnázása is az.
+    const pad = (size: number) => Math.max(0, (MIN_TARGET - size) / 2);
     const label = this.#labels.find((l) => {
       const [px, py] = [pad(l.x1 - l.x0), pad(l.y1 - l.y0)];
       return p.x >= l.x0 - px && p.x <= l.x1 + px && p.y >= l.y0 - py && p.y <= l.y1 + py;
     });
-    return label?.layer ?? null;
+    if (!label) return null;
+    /*
+     * A megnövelt célterület (WCAG 2.5.8) nem veheti el a rács celláit
+     * (PQW-916): a párnázás átnyúlik a szomszédos cellákra, ahol a kattintás
+     * horgolni akar, nem sort kijelölni. A címke belsejében viszont a felirat
+     * marad az erősebb.
+     */
+    const grid = this.#scene?.grid;
+    if (!inside(label) && grid && gridHit(grid, this.toChart(clientX, clientY))) return null;
+    return label.layer;
   }
 
   /** A sorszámok közepe ablak-koordinátában (böngészős tesztekhez). */
   labels(): { layer: number; x: number; y: number }[] {
-    return this.#labels.map((l) => ({ layer: l.layer, ...this.toClient({ x: (l.x0 + l.x1) / 2, y: (l.y0 + l.y1) / 2 }) }));
+    const rect = this.#canvas.getBoundingClientRect();
+    return this.#labels.map((l) => ({ layer: l.layer, x: rect.left + (l.x0 + l.x1) / 2, y: rect.top + (l.y0 + l.y1) / 2 }));
+  }
+
+  /** Diagram-beli téglalapból ablak-koordinátás téglalap. */
+  #clientRect(b: { minX: number; minY: number; maxX: number; maxY: number }): Rect {
+    const a = this.toClient({ x: b.minX, y: b.minY });
+    const c = this.toClient({ x: b.maxX, y: b.maxY });
+    return { left: Math.min(a.x, c.x), top: Math.min(a.y, c.y), right: Math.max(a.x, c.x), bottom: Math.max(a.y, c.y) };
+  }
+
+  /** A sorfeliratok dobozai és szövegük ablak-koordinátában (böngészős tesztekhez, PQW-916). */
+  labelBoxes(): (Rect & { layer: number; text: string })[] {
+    const rect = this.#canvas.getBoundingClientRect();
+    return this.#labels.map((l) => ({
+      layer: l.layer,
+      text: l.text,
+      left: rect.left + l.x0,
+      top: rect.top + l.y0,
+      right: rect.left + l.x1,
+      bottom: rect.top + l.y1,
+    }));
+  }
+
+  /** Egy jel befoglalója diagram-koordinátában; ismeretlen szemnél `null`. */
+  #nodeBounds(node: NodePlacement): { minX: number; minY: number; maxX: number; maxY: number } | null {
+    const scene = this.#scene;
+    const def = scene?.library.get(node.def);
+    if (!scene || !def) return null;
+    const insertion = scene.insertions?.get(node.id);
+    return shapesBounds(placedShapes(def, node, insertion ? { ...scene.symbols, insertion } : scene.symbols));
+  }
+
+  /** A kirajzolt iránynyíl doboza ablak-koordinátában, nyíl nélkül `null` (PQW-916). */
+  arrowBox(): Rect | null {
+    return this.#arrowBounds ? this.#clientRect(this.#arrowBounds) : null;
+  }
+
+  /** A szemek jeleinek dobozai ablak-koordinátában (PQW-916). */
+  stitchBoxes(): (Rect & { id: NodeId; layer: number })[] {
+    const scene = this.#scene;
+    if (!scene) return [];
+    const boxes: (Rect & { id: NodeId; layer: number })[] = [];
+    for (const node of scene.layout.nodes.values()) {
+      const bounds = this.#nodeBounds(node);
+      if (bounds) boxes.push({ id: node.id, layer: node.layer, ...this.#clientRect(bounds) });
+    }
+    return boxes;
   }
 
   /** A rács cellái ablak-koordinátában (böngészős tesztekhez). */
@@ -247,16 +335,28 @@ export class Board {
     // A teljes vásznat elfedő panel mögé nincs mit illeszteni (PQW-885).
     if (roomY < 1) return;
     if (!layout || layout.nodes.size === 0) {
-      Object.assign(this.#view, { scale: 1.5, x: insetLeft + 60, y: roomY * 0.7 });
+      // Balra egy feliratnyi hely marad (PQW-916): különben az 1. sor sorszáma
+      // rögtön az oldalsáv alá kerülne, mert a rajz a sáv mellett kezdődik.
+      Object.assign(this.#view, { scale: 1.5, x: insetLeft + 200, y: roomY * 0.7 });
       this.render();
       return;
     }
     const { minX, minY, maxX, maxY } = chartBounds(layout, this.#scene?.grid);
     const room = Math.max(width - insetRight - insetLeft, 120);
+    /*
+     * A sorfeliratok a rajz két szélén kívül állnak (PQW-916), fix képpontos
+     * mérettel: a helyüket ezért a rendelkezésre álló sávból vonjuk le, nem a
+     * rajz befoglalójához adjuk. E nélkül az „Egész minta” után a szélső
+     * felirat a panel alá csúszott.
+     */
+    const labelRoom = this.#labels.length === 0 ? 0 : this.#labels.reduce((max, l) => Math.max(max, l.x1 - l.x0), 0) + LABEL_GAP;
     // Alacsony látható sávban a margó is kisebb, hogy a minta ne kerüljön a takarásba.
     const marginY = Math.min(72, roomY / 2);
     // Az egész minta akkor is kifér, ha ehhez a nagyítás legkisebb lépcsőjénél kisebb lépték kell (PQW-887).
-    const scale = Math.min(2, Math.max(MIN_FIT_SCALE, Math.min((room - 48) / (maxX - minX), (roomY - marginY) / (maxY - minY))));
+    const scale = Math.min(
+      2,
+      Math.max(MIN_FIT_SCALE, Math.min((room - 48 - 2 * labelRoom) / (maxX - minX), (roomY - marginY) / (maxY - minY))),
+    );
     this.#view.scale = scale;
     this.#view.x = insetLeft + (room - (maxX - minX) * scale) / 2 - minX * scale;
     this.#view.y = (roomY - (maxY - minY) * scale) / 2 - minY * scale;
@@ -310,6 +410,7 @@ export class Board {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
     const scene = this.#scene;
+    this.#arrowBounds = null;
     if (!scene) return;
 
     const { scale, x, y } = this.#view;
@@ -353,39 +454,99 @@ export class Board {
       }
     }
 
-    // A sorszám a sor színével teli címkén, világos betűvel: a jelek mellett is kiugrik.
-    ctx.font = `700 12px Karla, system-ui, sans-serif`;
+    /*
+     * A sorfelirat a rajz mellett, a sor végénél áll (PQW-916): egy címkén a
+     * réteg neve és a szemszáma, „1. sor (12)”, a láncalapnál „Láncalap (12)”.
+     * A sorok kígyózva haladnak, ezért a végük — és velük a felirat — soronként
+     * magától vált oldalt; páros és páratlan sorra nem kell külön szabály. A
+     * címke a sor színével teli, a betű világos: a jelek mellett is kiugrik.
+     */
+    /*
+     * A felirat NEM nagyítódik a rajzzal: a saját, képernyő szerinti méretében
+     * rajzoljuk, ezért állítjuk vissza a transzformációt. A léptékkel együtt
+     * nőve nagyításban 130 képpontosra hízott, és kicsúszott az oldalsávok alá
+     * — a doboz-átfedés mérése ezt nem vette észre, a képernyőkép igen. Így a
+     * címke mindig ugyanakkora, és a látható sávon belül marad.
+     */
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.font = '700 12px Karla, system-ui, sans-serif';
     ctx.textBaseline = 'middle';
     this.#labels = [];
     const captions = chartLabels(scene.tradition ?? 'cyc');
+    const bounds = scene.layout.bounds;
+    // Az oldalsávok a vászon fölött ülnek: a feliratnak közéjük kell férnie. A
+    // méretüket a felület adja (`setInsets`), mert a `--side-start` CSS-változó
+    // `min(16rem, 80vw)` alakban jön vissza, abból nem olvasható képpont.
+    const { left: safeStart, right: safeEnd } = this.#insets;
+    // Rétegenként a megrajzolt jelek száma: ebből jön a láncalap szemszáma, és ez dönti el, mi kap feliratot.
+    const drawn = new Map<number, number>();
+    for (const node of scene.layout.nodes.values()) drawn.set(node.layer, (drawn.get(node.layer) ?? 0) + 1);
     for (const layer of scene.layout.layers) {
-      if (layer.index === 0) continue;
+      /*
+       * Csak annak van felirata, amiben már van szem. A most megnyitott sor a
+       * fordulóláncától még nem sor: a jelei ott vannak, a szemszáma mégis 0.
+       * Ilyenkor a „0 szem” felirat nemcsak félrevezető, hanem a készülő sor
+       * helyére ülne, és a megnövelt célterületével elvenné a kattintást a
+       * celláitól — a rácsos szerkesztés emiatt állt meg (mérve, PQW-916).
+       */
+      const count = drawn.get(layer.index) ?? 0;
+      if (count === 0) continue;
+      if (layer.index > 0 && layer.stitchCount === 0) continue;
       const rightwards = layer.start.x <= layer.end.x;
-      const text = captions.layer(layer.index);
+      /*
+       * A szemszám: a láncalapé a rajzolt láncszemekből (a mag a 0. réteget
+       * 0-val tartja nyilván), a varázskörnek nincs szemszáma, a többi sorét a
+       * mag adja.
+       */
+      const round = layer.shape === 'round';
+      const stitches = layer.index === 0 ? (round ? null : count) : layer.stitchCount;
+      const text = captions.rowLabel(layer.index, round, stitches);
       const labelWidth = ctx.measureText(text).width + 10;
-      const x0 = rightwards ? layer.start.x + 4 - labelWidth : layer.start.x - 4;
+      /*
+       * A felirat a RAJZ mellett áll, a sor végének oldalán. Nem a sor
+       * végpontjától mérünk: félkész sornál az a rajz közepén van, és a felirat
+       * a korábbi sorok szemeire ülne (a képen ez rögtön látszott, a
+       * doboz-átfedés viszont nem jelezte, mert függőlegesen a jelek közé
+       * esett). Így a feliratok két függőleges sávban állnak, a soruk
+       * magasságában, a jeleken kívül — és ha ott nem férnének el, a látható
+       * sáv széléhez simulnak, mert a nem látszó sorszám semmit sem ér.
+       */
+      const anchor = this.#toScreen({ x: rightwards ? bounds.maxX : bounds.minX, y: layer.end.y });
+      const wanted = rightwards ? anchor.x + LABEL_GAP : anchor.x - LABEL_GAP - labelWidth;
+      const lo = safeStart + 4;
+      const hi = Math.max(lo, width - safeEnd - labelWidth - 4);
+      const hugged = Math.min(Math.max(wanted, lo), hi);
+      /*
+       * A sávhoz simítás viszont nem tolhatja a feliratot a jelek fölé: szűk
+       * ablakban a hosszabb (angol) felirat így csúszott rá a láncalap
+       * szemeire. Takarni tilos, kilógni szabad — a kilógást az „Egész minta”
+       * rendezi, mert az illesztés a feliratokkal együtt számol.
+       */
+      const chartLeft = this.#toScreen({ x: bounds.minX, y: 0 }).x;
+      const chartRight = this.#toScreen({ x: bounds.maxX, y: 0 }).x;
+      const x0 = hugged + labelWidth > chartLeft && hugged < chartRight ? wanted : hugged;
       const label: Label = {
         layer: layer.index,
+        text,
         x0,
         x1: x0 + labelWidth,
-        y0: layer.start.y - LABEL_HEIGHT / 2,
-        y1: layer.start.y + LABEL_HEIGHT / 2,
+        y0: anchor.y - LABEL_HEIGHT / 2,
+        y1: anchor.y + LABEL_HEIGHT / 2,
       };
       this.#labels.push(label);
-      applyInk(ctx, colors[layer.side], line);
+      applyInk(ctx, colors[layer.side], 1);
       ctx.beginPath();
       ctx.roundRect(label.x0, label.y0, labelWidth, LABEL_HEIGHT, 4);
       ctx.fill();
-      applyInk(ctx, colors.background, line);
+      applyInk(ctx, colors.background, 1);
       ctx.textAlign = 'center';
-      ctx.fillText(text, (label.x0 + label.x1) / 2, layer.start.y);
-      applyInk(ctx, colors.text, line);
-      ctx.textAlign = rightwards ? 'left' : 'right';
-      ctx.fillText(captions.count(layer.stitchCount), layer.end.x, layer.end.y);
+      ctx.fillText(text, (label.x0 + label.x1) / 2, anchor.y);
     }
+    ctx.restore();
 
     // A most horgolt sor iránynyila: a sor elejéről a haladási irányba mutat (PQW-879), a sorszám mellől.
-    if (scene.direction) this.#drawDirection(this.#besideLabel(scene.direction), colors.accent, scale);
+    if (scene.direction) this.#drawDirection(this.#aboveRow(scene.direction), colors.accent, scale);
 
     // Hibák és figyelmeztetések a jelen: a hiba teli, a figyelmeztetés szaggatott karika, nem csak színben tér el.
     for (const finding of scene.findings) {
@@ -475,12 +636,27 @@ export class Board {
     ctx.setLineDash([]);
   }
 
-  /** A nyíl a sorszám címkéjének belső széléről indul, hogy ne takarja a számot. */
-  #besideLabel(arrow: DirectionArrow): DirectionArrow {
-    const { from, to } = arrow;
-    const label = this.#labels.find((l) => from.x >= l.x0 && from.x <= l.x1 && from.y >= l.y0 && from.y <= l.y1);
-    if (!label) return arrow;
-    return { from: { x: to.x >= from.x ? label.x1 : label.x0, y: from.y }, to };
+  /**
+   * A nyíl a sor jelei fölé (PQW-916). Vízszintesen ott marad, ahol a munka
+   * tart — a láncalap után ez a sor vége, ahonnan az első sor indul —, csak a
+   * szemek fölé emelkedik, különben átfut a jeleken. A sor a nyíl kezdőpontja
+   * alapján azonosítható: az mindig a réteg kezdő- vagy végpontja.
+   */
+  #aboveRow(arrow: DirectionArrow): DirectionArrow {
+    const scene = this.#scene;
+    if (!scene) return arrow;
+    const same = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y) < 1e-6;
+    const layer = scene.layout.layers.find((l) => same(l.start, arrow.from) || same(l.end, arrow.from));
+    if (!layer) return arrow;
+    let top = Infinity;
+    for (const node of scene.layout.nodes.values()) {
+      if (node.layer !== layer.index) continue;
+      const bounds = this.#nodeBounds(node);
+      if (bounds) top = Math.min(top, bounds.minY);
+    }
+    if (top === Infinity) return arrow;
+    const y = top - ARROW_LIFT;
+    return { from: { x: arrow.from.x, y }, to: { x: arrow.to.x, y } };
   }
 
   /** A sor elejét jelölő pötty, és onnan egy rövid nyíl a haladási irányba. */
@@ -511,9 +687,25 @@ export class Board {
       ctx.stroke();
     }
     // A sor eleje: kis teli pötty.
+    const dot = Math.max(3, 3 / scale);
     ctx.beginPath();
-    ctx.arc(arrow.from.x, arrow.from.y, Math.max(3, 3 / scale), 0, Math.PI * 2);
+    ctx.arc(arrow.from.x, arrow.from.y, dot, 0, Math.PI * 2);
     ctx.fill();
+
+    // A tényleg kirajzolt alakzatok befoglalója: ezt méri a böngészős teszt (PQW-916).
+    this.#arrowBounds = shapesBounds([
+      { kind: 'dot', role: 'dot', center: arrow.from, r: dot },
+      { kind: 'line', role: 'stem', from: arrow.from, to: tip },
+      ...[1, -1].map((sign) => {
+        const angle = Math.atan2(uy, ux) + sign * 2.5;
+        return {
+          kind: 'line' as const,
+          role: 'stem' as const,
+          from: tip,
+          to: { x: tip.x + Math.cos(angle) * head, y: tip.y + Math.sin(angle) * head },
+        };
+      }),
+    ]);
   }
 
   #resize(): void {

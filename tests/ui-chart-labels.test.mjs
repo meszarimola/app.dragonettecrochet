@@ -9,6 +9,7 @@ import { test } from 'node:test';
 import { layoutPattern } from '../src/core/layout.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
 import { chartLabels } from '../src/ui/chart-labels.ts';
+import { setUiLanguage } from '../src/ui/i18n.ts';
 import { chartSvg } from '../src/ui/chart-svg.ts';
 import { hdcRectangle } from './fixtures/examples.ts';
 
@@ -55,4 +56,43 @@ test('a CYC feliratai egyeznek a korábbi diagraméval', () => {
   assert.ok(svg.includes(`>${labels.count(15)}</text>`));
   assert.ok(svg.includes(`>${labels.layer(2)}</text>`));
   assert.ok(svg.includes(labels.note));
+});
+
+/*
+ * A rajz melletti sorfelirat (PQW-916): a réteg neve a felület nyelvéből, a
+ * szemszám alakja a hagyományból. A láncalap és a varázskör nem kap sorszámot,
+ * mert nem sor — a nevén szerepel.
+ */
+test('a sorfelirat a réteg nevével és a szemszámmal, magyarul és angolul', () => {
+  const labels = chartLabels('cyc');
+  assert.equal(labels.rowLabel(1, false, 12), '1. sor (12)');
+  assert.equal(labels.rowLabel(0, false, 12), 'Láncalap (12)');
+  assert.equal(labels.rowLabel(3, true, 18), '3. kör (18)');
+
+  setUiLanguage('en');
+  try {
+    const en = chartLabels('cyc');
+    assert.equal(en.rowLabel(1, false, 12), 'Row 1 (12)');
+    assert.equal(en.rowLabel(0, false, 12), 'Foundation chain (12)');
+    assert.equal(en.rowLabel(0, true, 6), 'Magic ring (6)');
+  } finally {
+    setUiLanguage('hu');
+  }
+});
+
+test('japán hagyományban a sorfelirat szemszáma is „目” egységgel megy', () => {
+  assert.equal(chartLabels('japanese').rowLabel(2, false, 15), '2. sor 15目');
+});
+
+test('a varázskör felirata szemszám nélkül áll: annak nincs értelmes szemszáma (PQW-916)', () => {
+  const labels = chartLabels('cyc');
+  assert.equal(labels.rowLabel(0, true, null), 'Varázskör');
+  assert.equal(chartLabels('japanese').rowLabel(0, true, null), 'Varázskör');
+
+  setUiLanguage('en');
+  try {
+    assert.equal(chartLabels('cyc').rowLabel(0, true, null), 'Magic ring');
+  } finally {
+    setUiLanguage('hu');
+  }
 });
