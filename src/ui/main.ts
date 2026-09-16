@@ -1430,9 +1430,11 @@ function renderTypes(): void {
       button.append(typeIcon(type.id));
       const label = span('type__label', '');
       label.append(span('type__name', type.name));
-      button.append(label);
-      if (!type.available) button.append(span('type__badge', texts().sections.types.soon));
+      // A „hamarosan” jelvény a név ALATT, a feliratdobozon belül (PQW-912): a
+      // keskeny sávban a név mellé nem fért el, és rárajzolódott a névre.
+      if (!type.available) label.append(span('type__badge', texts().sections.types.soon));
       else button.addEventListener('click', () => selectType(type.id));
+      button.append(label);
 
       item.append(button);
       return item;

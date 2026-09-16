@@ -1056,6 +1056,7 @@ body.is-selecting #board {
 .type__label {
   display: grid;
   gap: 0.1rem;
+  /* A felirat oszlopa zsugorodhat: a jelvény alatta áll, nem mellette (PQW-912). */
   min-inline-size: 0;
 }
 
@@ -1104,8 +1105,14 @@ body.is-selecting #board {
  * kellett görgetni egy négyelemű listában. A név így is egészben marad, mert a
  * felirat oszlopa zsugorodhat (`min-inline-size: 0` a `.type__label`-en).
  */
+/*
+ * A jelvény a feliratdobozban, a név ALATT áll (PQW-912): a keskeny sávban a név
+ * mellé nem fért el, és rárajzolódott. Saját sorban a kártya egy sorral nő, de a
+ * négy kártya így is elfér görgetés nélkül — a kétsoros elrendezés korábbi baja
+ * a lista nyújtása volt, nem a jelvény helye.
+ */
 .type__badge {
-  justify-self: end;
+  justify-self: start;
 }
 
 /* ---- Jobb oldali panel: összecsukható szakaszok (PQW-882) ---- */
