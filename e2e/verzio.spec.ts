@@ -36,6 +36,13 @@ for (const viewport of [
     await version.evaluate((element) => element.style.removeProperty('visibility'));
     expect(painted.equals(blank), 'a verziófelirat nem látszik: valami eltakarja').toBe(false);
 
+    // A szám nem felirat: a kétnyelvű szótár (PQW-900) nem fordítja, angolul is ugyanaz.
+    const hungarian = (await version.textContent()) ?? '';
+    await page.goto('/?lang=en');
+    await expect(page.locator('#version')).toHaveText(hungarian);
+    await expect(page.locator('#version')).toHaveText(/^v\d+\.\d+\.\d+$/);
+
+    await page.goto('/');
     // A vászon a teljes munkaterületet kitölti, fölötte a két oldalsáv. A felirat a bal
     // oldalsáv sávjában marad, így a szabad rajzterületből nem takar el semmit.
     const types = (await page.locator('#types').boundingBox())!;
