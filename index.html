@@ -671,6 +671,20 @@
                   <input id="garment-below" type="text" inputmode="decimal" autocomplete="off" value="14,5" />
                 </p>
               </div>
+              <p class="panel__field">
+                <label for="garment-growth">Növedék a felakasztott próbadarabból, %</label>
+                <input id="garment-growth" type="text" inputmode="decimal" autocomplete="off" value="0" aria-describedby="garment-growth-note" />
+              </p>
+              <p class="panel__note" id="garment-growth-note">
+                A horgolt anyag a súlyától és a mosástól hosszában nő. Mérd meg a mosott, blokkolt és felakasztott
+                próbadarabot: a megadott százalékkal a generátor ennyivel rövidebbre tervezi a hosszakat.
+              </p>
+              <p class="choice" id="garment-neckline-field">
+                <label>
+                  <input type="checkbox" id="garment-neckline" checked />
+                  Formázott nyakkivágás: a két váll a nyak két oldalán külön készül
+                </label>
+              </p>
               <div class="shape__group" id="garment-repeat-field">
                 <p class="choice">
                   <label><input type="checkbox" id="garment-repeat" /> A hátrész és az elejerész szemszáma mintaismétlésre</label>

@@ -85,7 +85,10 @@ export type Step =
   | { readonly kind: 'other-side' };
 
 export interface WrittenLayer {
+  /** A réteg sorszáma a gráfban; ez azonosítja a réteget. */
   readonly index: number;
+  /** A kiírt sorszám: az újrakezdett szakaszban újraindul (PQW-901). */
+  readonly row: number;
   readonly shape: 'row' | 'round';
   readonly side: 'right' | 'wrong';
   /** Az 1. sor a láncalapon: a horogtól számított hányadik láncszemnél kezd, és mit ér a kihagyott rész. */
@@ -125,8 +128,12 @@ export interface WrittenPiece {
     | { readonly kind: 'ring' }
     | { readonly kind: 'chain-ring'; readonly count: number };
   readonly layers: readonly WrittenLayer[];
-  /** A darab részei (PQW-863): a folytatólagosan kapcsolt rész neve az első köre előtt áll. */
-  readonly sections: readonly { readonly name: string; readonly layer: number }[];
+  /**
+   * A darab részei (PQW-863): a folytatólagosan kapcsolt rész neve az első
+   * köre előtt áll. Az elvágott fonal után újrakezdett szakasznál (PQW-901) az
+   * `over` mondja meg, melyik sor fölött folytatódik.
+   */
+  readonly sections: readonly { readonly name: string; readonly layer: number; readonly over?: number }[];
   /** A szegély a sorok után, a sorokból számolva (PQW-862); szegély nélkül `null`. */
   readonly border: WrittenBorder | null;
   /** Többszínű rácsmintánál (PQW-864) a színek, a kezdőszín és a színek soronként; máskor `null`. */
@@ -188,7 +195,14 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
   } else if (borderIndex >= 0) {
     throw new WrittenPatternError('A szegély választása hiányzik a darabból, ezért a szegély nem írható ki.', graph.layers[borderIndex]!.stitches);
   }
-  const sections = (piece.sections ?? []).map(({ name, layer }) => ({ name, layer }));
+  const sections: WrittenPiece['sections'] = [
+    ...(piece.sections ?? []).map(({ name, layer }) => ({ name, layer })),
+    // Elvágott fonal után új szakasz (PQW-901): a neve és a sor, amely fölött folytatódik.
+    ...graph.layers.flatMap((candidate) => {
+      const resume = candidate.opening?.kind === 'fasten-off' ? candidate.opening.resume : undefined;
+      return resume?.name === undefined ? [] : [{ name: resume.name, layer: candidate.index, over: graph.layers[candidate.below]!.row }];
+    }),
+  ];
   const grid = piece.grid;
   const colorwork: WrittenPiece['colorwork'] =
     grid && grid.colors.length > 1
@@ -215,7 +229,8 @@ function writtenLayer(
   tradition: Tradition,
 ): WrittenLayer {
   const layer = graph.layers[index]!;
-  const below = graph.layers[index - 1]!;
+  // Alapból az előző sor; elvágott fonal után a megadott sor fölött folytatódik (PQW-901).
+  const below = graph.layers[layer.below]!;
   // Az ovális 1. köre (PQW-890): elöl a horogtól távolodva, utána a láncszemek másik oldalán vissza.
   const oval = index === 1 && below.undersides.length > 0;
   const front = layer.direction === 1 && !oval ? below.positions : [...below.positions].reverse();
@@ -444,6 +459,7 @@ function writtenLayer(
 
   return {
     index,
+    row: layer.row,
     shape: layer.shape,
     side: layer.side,
     fromHook: hookRow

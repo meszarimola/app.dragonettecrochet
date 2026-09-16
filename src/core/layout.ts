@@ -343,7 +343,7 @@ class Layouter {
   #layer(layer: LayerInfo, direction: number): void {
     const graph = this.#graph;
     const W = this.#W;
-    const below = graph.layers[layer.index - 1]!;
+    const below = graph.layers[layer.below]!;
     const turning = new Set(layer.turningChain);
 
     const height = Math.max(
@@ -351,7 +351,8 @@ class Layouter {
       layer.turningChain.length ? this.#stem(layer.turningChain.length) : 0,
       ...layer.stitches.filter((id) => !turning.has(id)).map((id) => this.#height(id)),
     );
-    const previousTop = layer.index === 1 ? this.#base[0]! + (this.#round ? 0 : -ROW_GAP) : this.#top(layer.index - 1);
+    // Az újrakezdett szakasz az alatta megadott sor tetejére épül (PQW-901).
+    const previousTop = layer.index === 1 ? this.#base[0]! + (this.#round ? 0 : -ROW_GAP) : this.#top(layer.below);
     let base = this.#round ? previousTop + ROW_GAP : previousTop - ROW_GAP;
     this.#base[layer.index] = base;
 
@@ -447,7 +448,7 @@ class Layouter {
       // a jel normál méretben, a helyén marad, a karjai nem nyúlnak a távoli célpontig (PQW-879).
       const feet = this.#detached.has(id)
         ? graph.nodes.get(id)!.anchors.map(() => this.#point(base, axis))
-        : graph.nodes.get(id)!.anchors.map((anchor) => this.#foot(anchor, layer.index, base));
+        : graph.nodes.get(id)!.anchors.map((anchor) => this.#foot(anchor, layer.below, base));
       if (def.kind === 'slip') {
         // Körben a továbbvezető és a záró kúszószem ott látszik, ahová horgolták.
         const center = this.#round && feet[0] ? feet[0] : this.#point(up(base, SLIP_HEIGHT / 2), axis);
@@ -630,7 +631,7 @@ class Layouter {
   }
 
   /** A talp: a célpont oszlopa ennek a rétegnek a talpvonalán; korábbi sorba horgolt szemnél annak a sornak a tetején. */
-  #foot(anchor: Anchor, index: number, base: number): Point {
+  #foot(anchor: Anchor, below: number, base: number): Point {
     if (anchor.into === 'ring') return { x: 0, y: 0 };
     if (this.#round) {
       // Körben a kör sugara a helyigénnyel nő, ezért a talp a célpont valódi helyén van, nem a talpkörön.
@@ -642,8 +643,8 @@ class Layouter {
     }
     const axis = this.#anchorAxis(anchor) ?? 0;
     const target = anchor.into === 'stitch' || anchor.into === 'underside' ? anchor.id : this.#graph.spaces.get(anchor.id)?.chains[0];
-    const targetLayer = target === undefined ? index - 1 : (this.#graph.layerOf.get(target) ?? index - 1);
-    const line = targetLayer >= index - 1 ? base : (this.#base[targetLayer + 1] ?? base);
+    const targetLayer = target === undefined ? below : (this.#graph.layerOf.get(target) ?? below);
+    const line = targetLayer >= below ? base : (this.#base[targetLayer + 1] ?? base);
     return this.#point(line, axis);
   }
 

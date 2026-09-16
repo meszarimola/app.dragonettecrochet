@@ -32,7 +32,7 @@ const plan = (options) => {
 test('választható ruhadarabok, táblázatok és méretek', () => {
   assert.deepEqual(
     KIND_CHOICES.map((choice) => choice.label),
-    ['Sapka', 'Ledobott vállú pulóver'],
+    ['Sapka', 'Ledobott vállú pulóver', 'Felülről horgolt raglán'],
   );
   assert.deepEqual(
     TABLE_CHOICES.map((choice) => choice.label),
@@ -46,8 +46,8 @@ test('választható ruhadarabok, táblázatok és méretek', () => {
 });
 
 test('a mezők: a táblázat, a derék alatti hossz és az ismétlés csak pulóvernél; a feliratok a ruhadarabhoz', () => {
-  assert.deepEqual(garmentFieldState('hat'), { table: false, belowWaist: false, repeat: false });
-  assert.deepEqual(garmentFieldState('drop-shoulder'), { table: true, belowWaist: true, repeat: true });
+  assert.deepEqual(garmentFieldState('hat'), { table: false, belowWaist: false, neckline: false, repeat: false });
+  assert.deepEqual(garmentFieldState('drop-shoulder'), { table: true, belowWaist: true, neckline: true, repeat: true });
   assert.equal(easeLabel('hat'), 'Bőség a fejkörfogathoz, cm');
   assert.equal(hemLabel('hat'), 'Perem, cm');
   assert.match(easeNote('hat'), /46 cm alatt −2,5 cm, fölötte −5 cm/);
@@ -69,11 +69,11 @@ test('a sorozat mindig tartalmazza a rajz méretét', () => {
   assert.equal(normalizeGarment({ ...DEFAULT_HAT, repeat: { width: 4, edge: 2 } }).repeat, null);
 });
 
-test('pulóver kiírása: kész méret becsléssel, csónaknyak, formázott nyak terve, minden ellenőrzés igaz, a sorozat szövege', () => {
+test('pulóver kiírása: kész méret becsléssel, formázott nyak, minden ellenőrzés igaz, a sorozat szövege', () => {
   const view = garmentView(plan(DEFAULT_GARMENT), false);
   assert.match(view.size, /^M: kész mellbőség ≈ \d+ cm, hossz ≈ \d+ cm, ujjhossz ≈ \d+ cm\.$/);
-  assert.ok(view.details.some((line) => /csónaknyakként nyitva marad/.test(line)));
-  assert.ok(view.details.some((line) => /^Formázott nyak \(még csak terv/.test(line)));
+  assert.ok(view.details.some((line) => /^Váll: szélenként \d+ szem; a nyak \d+ szem\.$/.test(line)));
+  assert.ok(view.details.some((line) => /^Formázott nyak: elöl középen \d+ szem marad/.test(line)));
   assert.match(view.checks, /^Minden ellenőrzés igaz: (\d+)\/\1, 3 méret\.$/);
   assert.deepEqual(view.failed, []);
   assert.equal(view.series[0], 'S (M, L)');

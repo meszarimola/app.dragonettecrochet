@@ -23,6 +23,7 @@ import {
   type GarmentSeriesPlan,
   type HatPlan,
 } from '../core/garments.ts';
+import type { RaglanPlan } from '../core/raglan.ts';
 import { stitchById } from '../core/stitches.ts';
 import type { GarmentKind } from '../core/types.ts';
 import type { Choice } from './shapes-view.ts';
@@ -42,12 +43,15 @@ export function sizeChoices(kind: GarmentKind, table: BodyTableId): Choice<strin
 export interface GarmentFieldState {
   readonly table: boolean;
   readonly belowWaist: boolean;
+  /** A nyakkivágás választása csak pulóvernél (PQW-901). */
+  readonly neckline: boolean;
   readonly repeat: boolean;
 }
 
 export function garmentFieldState(kind: GarmentKind): GarmentFieldState {
   const sweater = kind === 'drop-shoulder';
-  return { table: sweater, belowWaist: sweater, repeat: sweater };
+  // A raglán is testméret-táblázatból dolgozik, de a nyakat és a mintaismétlést maga adja (PQW-901).
+  return { table: sweater || kind === 'raglan', belowWaist: sweater || kind === 'raglan', neckline: sweater, repeat: sweater };
 }
 
 export function easeLabel(kind: GarmentKind): string {
@@ -74,17 +78,19 @@ export function hemLabel(kind: GarmentKind): string {
  */
 export function defaultsFor(kind: GarmentKind, table: BodyTableId): GarmentOptions {
   if (kind === 'hat') return { ...DEFAULT_HAT, table };
-  if (table === 'women') return DEFAULT_GARMENT;
+  // A raglán bősége a „C” példa szerinti +8 cm; a nyakkivágást és a mintaismétlést nem használja.
+  const forKind = (options: GarmentOptions): GarmentOptions => (kind === 'raglan' ? { ...options, kind, easeCm: 8, repeat: null } : options);
+  if (table === 'women') return forKind(DEFAULT_GARMENT);
   const ids = garmentSizes(kind, table).map((size) => size.id);
   const middle = ids.includes('M') ? ids.indexOf('M') : Math.floor((ids.length - 1) / 2);
-  return {
+  return forKind({
     ...DEFAULT_GARMENT,
     table,
     size: ids[middle]!,
     from: ids[Math.max(0, middle - 1)]!,
     to: ids[Math.min(ids.length - 1, middle + 1)]!,
     belowWaistCm: BELOW_WAIST_CM[table],
-  };
+  });
 }
 
 /** A választás összhangba hozva: a sorozat mindig tartalmazza a rajz méretét; a mintaismétlés csak pulóvernél. */
@@ -99,6 +105,7 @@ export function normalizeGarment(options: GarmentOptions): GarmentOptions {
     size: base,
     from: ids[from]!,
     to: ids[to]!,
+    // A mintaismétlés csak a ledobott vállú pulóvernél számít (PQW-866, PQW-901).
     repeat: options.kind === 'drop-shoulder' ? options.repeat : null,
   };
 }
@@ -135,6 +142,10 @@ export function garmentView(plan: GarmentSeriesPlan, hasProfile: boolean): Garme
   if (base.plan.kind === 'hat') {
     size = `${base.name}: kész körméret ${approx}${cm(base.plan.finishedCm)} cm, magasság ${approx}${cm(base.plan.finishedHeightCm)} cm; ${base.plan.counts.length} kör.`;
     details.push(...hatDetails(base.plan));
+  } else if (base.plan.kind === 'raglan') {
+    const { finished } = base.plan;
+    size = `${base.name}: kész mellbőség ${approx}${cm(finished.chestCm)} cm, hossz ${approx}${cm(finished.lengthCm)} cm; ${base.plan.yokeRounds + base.plan.bodyRoundsBelow} kör.`;
+    details.push(...raglanDetails(base.plan));
   } else {
     const { finished } = base.plan;
     size = `${base.name}: kész mellbőség ${approx}${cm(finished.chestCm)} cm, hossz ${approx}${cm(finished.lengthCm)} cm, ujjhossz ${approx}${cm(finished.sleeveCm)} cm.`;
@@ -147,7 +158,12 @@ export function garmentView(plan: GarmentSeriesPlan, hasProfile: boolean): Garme
   }
 
   const prefix = (name: string) => (many ? `${name}: ` : '');
-  const failed = plan.sizes.flatMap((entry) => entry.plan.checks.filter((check) => !check.ok).map((check) => `${prefix(entry.name)}${check.label}: hamis.`));
+  // A hamis ellenőrzés mellé javaslat is jár, ha van (05 §9.6).
+  const failed = plan.sizes.flatMap((entry) =>
+    entry.plan.checks
+      .filter((check) => !check.ok)
+      .map((check) => `${prefix(entry.name)}${check.label}: hamis.${check.suggestion === undefined ? '' : ` ${check.suggestion}`}`),
+  );
   const checks =
     plan.checksPassed === plan.checksTotal
       ? `Minden ellenőrzés igaz: ${plan.checksPassed}/${plan.checksTotal}${many ? `, ${plan.sizes.length} méret` : ''}.`
@@ -174,12 +190,27 @@ function hatDetails(plan: HatPlan): string[] {
   ];
 }
 
+function raglanDetails(plan: RaglanPlan): string[] {
+  const { neck, target, finished, measures } = plan;
+  const lines = [
+    `Nyak: ${neck.stitches} szem körbe zárva; elöl és hátul ${neck.front} szem, ujjanként ${neck.sleeve} szem.`,
+    `Raglán: ${plan.yokeRounds} kör, körönként a négy raglánvonal mellett 2-2 szaporítás${
+      plan.bodyRounds.length > 0 ? `, és ${plan.bodyRounds.length} körben az elején és a hátán külön szaporítás is` : ''
+    }.`,
+    `Szétosztás: elöl és hátul ${target.front} szem, ujjanként ${target.sleeve} szem, a hónaljlánc ${plan.underarm} szem; a törzs ${plan.bodyStitches} szem.`,
+    `Törzs: ${plan.bodyRoundsBelow} kör a szétosztástól, ebből az utolsó ${plan.hemRounds} kör a szegély. Az ujjak a hónaljlánc és a kihagyott szemek mentén külön készülnek: azokat a rajz még nem tartalmazza.`,
+    `Bőség: ${signed(finished.easeCm)} cm (${FIT_EASE[fitLevelOf(finished.easeCm)].name}).`,
+  ];
+  lines.push(`Testméret: mellbőség ${formatNumber(measures.bustCm, 1)} cm, a táblázat tartományának közepe.`);
+  return lines;
+}
+
 function sweaterDetails(plan: DropShoulderPlan): string[] {
   const { panel, neck, sleeve, finished, measures } = plan;
   const lines = [
     `Hátrész és elejerész: ${panel.stitches} szem${panel.repeats !== null ? ` (${panel.repeats} ismétlés)` : ''}, ${panel.rows} sor, ebből ${panel.hemRows} sor szegély; láncalap ${panel.foundation} lsz. A karöltő az utolsó ${panel.armholeRows} sor.`,
-    `Váll: szélenként ${neck.shoulder} szem; a középső ${neck.stitches} szem csónaknyakként nyitva marad.`,
-    `Formázott nyak (még csak terv, a gráf csónaknyakkal készül): középen ${neck.front.center} szem, oldalanként ${neck.front.first} szem az első sorban, utána ${neck.front.later} sorban 1-1; hátul középen ${neck.back.center} szem.`,
+    `Váll: szélenként ${neck.shoulder} szem; a nyak ${neck.stitches} szem.`,
+    `Formázott nyak: elöl középen ${neck.front.center} szem marad, oldalanként ${neck.front.first} szem fogy az első sorban, utána ${neck.front.later} sorban 1-1; hátul középen ${neck.back.center} szem, ${neck.back.rows} sorban. Csónaknyaknál a vállvarrás hagyja nyitva a nyakat.`,
     `Ujj: ${sleeve.cuff} szemről ${sleeve.top} szemre, ${sleeve.rows} sor; ${sleeve.increases} szaporítás mindkét szélen${sleeve.first !== null ? `, az elsővel ${withArticle(`${sleeve.first}.`)} sorban` : ''}.`,
     `Bőség: ${signed(finished.easeCm)} cm (${FIT_EASE[fitLevelOf(finished.easeCm)].name})${
       finished.easeCm < DROP_SHOULDER_EASE[0] ? `; ledobott vállnál ${DROP_SHOULDER_EASE[0]}–${DROP_SHOULDER_EASE[1]} cm a szokásos, ennyivel testhezállóbb` : ''

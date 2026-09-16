@@ -431,6 +431,47 @@ describe('szegély a darab körül (03 §7.1, §10 H38, PQW-889)', () => {
   });
 });
 
+describe('két váll egy darabon belül, elvágott fonal után (PQW-901)', () => {
+  /** Négy szemes 1. sor, fölötte a bal váll, majd új fonallal a jobb váll az 1. sor fölött. */
+  const shoulders = (resume = { layer: 1, name: 'Jobb váll' }) => {
+    const builder = new PieceBuilder('p1', 'Elejerész');
+    const chains = builder.chain(5);
+    const row1 = [...chains.slice(0, 4)].reverse().map((chain) => builder.stitch('sc', chain));
+    builder.event('turn');
+    builder.chain(1);
+    for (const target of [row1[3], row1[2]]) builder.stitch('sc', target);
+    builder.event('fasten-off');
+    builder.chain(1);
+    for (const target of [row1[1], row1[0]]) builder.stitch('sc', target);
+    builder.event('fasten-off');
+    const piece = builder.build();
+    const events = piece.events.map((event, i) => (i === 1 ? { ...event, resume } : event));
+    return patternOf('Két váll', [{ ...piece, events }], { turningChainCounts: false });
+  };
+
+  test('a két váll hibátlan: a másik váll dolgozza fel a sor többi szemét', () => {
+    assert.deepEqual(validatePattern(shoulders(), testLibrary), []);
+  });
+
+  test('a két váll sorszáma egyezik, mert mindkettő az 1. sor fölött áll', () => {
+    const pattern = shoulders();
+    const graph = buildPieceGraph(pattern, pattern.pieces[0], testLibrary);
+    assert.deepEqual(
+      graph.layers.map((layer) => [layer.index, layer.below, layer.row]),
+      [
+        [0, 0, 0],
+        [1, 0, 1],
+        [2, 1, 2],
+        [3, 1, 2],
+      ],
+    );
+  });
+
+  test('nem létező sor fölött folytatva: hiba', () => {
+    assertOnly(shoulders({ layer: 9, name: 'Jobb váll' }), 'resume-layer', undefined, testLibrary);
+  });
+});
+
 test('minden szabálynak van tudásbázis-hivatkozása', () => {
   for (const [rule, def] of Object.entries(RULES)) {
     assert.match(def.reference, /^0[1-6] §\d/, `${rule}: hiányzó vagy hibás hivatkozás`);

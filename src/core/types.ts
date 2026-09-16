@@ -311,6 +311,14 @@ export interface LayerEvent {
   readonly jogFix?: 'slip-stitch' | 'back-loop';
   /** Jelölések a kör után az írott mintában: szem, tömés, a nyílás összehúzása (PQW-863). */
   readonly marks?: readonly RoundMark[];
+  /**
+   * A fonal elvágása után a következő szakasz nem az utolsó sor fölött
+   * folytatódik, hanem a megadott soréban (PQW-901): így lesz egy darabon
+   * belül két váll a nyakkivágás két oldalán, vagy a raglán ujja a hónalj
+   * szemeiben. A `name` a szakasz neve az írott mintában. Csak `fasten-off`
+   * eseményen van értelme.
+   */
+  readonly resume?: { readonly layer: number; readonly name?: string };
 }
 
 export interface Piece {
@@ -505,7 +513,7 @@ export interface Pattern {
 
 /* ---- Ruhadarabok (PQW-866) ---- */
 
-export type GarmentKind = 'hat' | 'drop-shoulder';
+export type GarmentKind = 'hat' | 'drop-shoulder' | 'raglan';
 
 /** A méretek táblázata: a CYC testméretek (body-sizes.ts), sapkánál a sapkaméretek. */
 export type GarmentTable = 'women' | 'men' | 'child' | 'baby' | 'hat';
@@ -633,6 +641,18 @@ export interface Layer {
   readonly piece: PieceId;
   /** A láncalap vagy a varázskör a 0., utána 1-től számozva. */
   readonly index: number;
+  /**
+   * Melyik réteg fölött áll: alapból az előző (`index − 1`). Elvágott fonal
+   * után a szakasz máshonnan folytatódhat (`LayerEvent.resume`, PQW-901),
+   * ilyenkor az ott megadott réteg.
+   */
+  readonly below: number;
+  /**
+   * A sor vagy kör kiírt száma. Alapból az `index`; a megadott sor fölött
+   * folytatódó szakaszban újraindul, ezért két szakasz sorszáma egyezhet
+   * (pl. a két váll), és a nevük különbözteti meg őket (PQW-901).
+   */
+  readonly row: number;
   readonly shape: 'row' | 'round';
   readonly stitches: readonly NodeId[];
   /** Szemszám: a láncszemek a `chainCounts`, a fordulólánc a `turningChainCounts` szerint. */
