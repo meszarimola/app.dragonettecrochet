@@ -21,6 +21,26 @@ TypeScriptet a Node beépített típuseltávolításával futtatják, fordítás
 függőség nélkül. A CI (`.github/workflows/ci.yml`) minden PR-on és a `main`,
 `develop` ágon lefuttatja a `check`, `build`, `test` lépéseket.
 
+## Kiadás
+
+A kiadás gitflow szerint megy: a `develop`-ról indul a release ág, onnan PR a
+`main`-be, és a `main` kerül élesbe.
+
+1. A release ág indításakor a verzió emelése:
+   `npm version <szám> --no-git-tag-version` (pl. `npm version 0.9.1
+   --no-git-tag-version`). A `--no-git-tag-version` miatt csak a
+   `package.json` (és a `package-lock.json`) változik, címke nem készül.
+2. A verzió változása a release commitban megy, a kiadás többi
+   előkészítésével együtt.
+3. A számozás rendje: a 0.x kiadásokat sorban adjuk; az 1.0 (GA) időpontjáról
+   a tulajdonos dönt.
+
+A tervező a futó verziót a bal alsó sarokban kiírja (`v0.9.0`). A szám a
+`package.json` `version` mezőjéből jön, build időben beégetve
+(`vite.config.ts` `define` → `__APP_VERSION__`), ezért deploy után ránézésre
+látszik, hogy tényleg frissült-e az oldal. Kézzel írt verziószám sehol nincs a
+forrásban; ezt a `tests/version.test.mjs` őrzi.
+
 ## Mit tud most
 
 A vászon a gráfot szerkeszti (PQW-857). Nem helyet választasz, hanem
