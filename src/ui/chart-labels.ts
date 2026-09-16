@@ -20,6 +20,13 @@ export interface ChartLabels {
   readonly layer: (index: number) => string;
   /** A szemszám a sor végén. */
   readonly count: (stitches: number) => string;
+  /**
+   * A sor felirata a rajz mellett, a sor végénél (PQW-916): a réteg neve és a
+   * szemszáma, „1. sor (12)”, „Láncalap (12)”, japánul „1. sor 12目”. A nevet a
+   * felület szótára adja, a szemszám alakját a hagyomány. `null` szemszámmal
+   * csak a név áll ott: a varázskörnek nincs értelmes szemszáma.
+   */
+  readonly rowLabel: (layer: number, round: boolean, stitches: number | null) => string;
   /** Az ismétlés felirata; ha a mintának nincs ismétlése, vagy a hagyomány nem írja a diagramra, `null`. */
   readonly repeat: (spec: RepeatSpec | undefined) => string | null;
   /** A jelmagyarázat megjegyzése a feliratokról. */
@@ -37,6 +44,7 @@ export function chartLabels(tradition: Tradition): ChartLabels {
     return {
       layer: (index) => String(index),
       count: (stitches) => `${stitches}目`,
+      rowLabel: (layer, round, stitches) => (stitches === null ? chart.layerName(layer, round) : `${chart.layerName(layer, round)} ${stitches}目`),
       repeat: (spec) => (spec ? `${spec.repeatWidth}目1模様` : null),
       note: chart.japaneseNote,
     };
@@ -44,6 +52,7 @@ export function chartLabels(tradition: Tradition): ChartLabels {
   return {
     layer: (index) => String(index),
     count: (stitches) => `(${stitches})`,
+    rowLabel: (layer, round, stitches) => (stitches === null ? chart.layerName(layer, round) : `${chart.layerName(layer, round)} (${stitches})`),
     repeat: () => null,
     note: chart.cycNote,
   };

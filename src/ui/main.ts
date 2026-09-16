@@ -431,6 +431,8 @@ function draw(): void {
   // Szem nélkül, kijelölés nélkül és teli vágólappal a kurzor a beillesztés helyét mutatja (PQW-875).
   const pasting = tool === null && clipboard !== null && selection.length === 0;
   const aiming = (tool !== null && isTargeted(tool)) || pasting;
+  // A sorfeliratok a nyitott oldalsávok között maradnak (PQW-916); a méretüket innen tudja a vászon.
+  board.setInsets(insetLeft(), insetRight());
   board.setScene({
     layout: derived.layout,
     library: derived.context.library,
@@ -2020,6 +2022,10 @@ if (navigator.webdriver) {
       // A rács befoglaló téglalapja (PQW-887).
       bounds: () => board.gridBounds(),
       labels: () => board.labels(),
+      // A sorfelirat, a nyíl és a szemek befoglaló téglalapja: az átfedést mérni kell, nem szemre nézni (PQW-916).
+      labelBoxes: () => board.labelBoxes(),
+      arrowBox: () => board.arrowBox(),
+      stitchBoxes: () => board.stitchBoxes(),
       cursor: () => {
         const point = cursorPoint();
         return point ? board.toClient(point) : null;
