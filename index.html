@@ -19,24 +19,18 @@
     <div class="app">
       <section class="consent" id="consent" tabindex="-1" aria-labelledby="consent-title" hidden>
         <div class="consent__text">
-          <h2 class="consent__title" id="consent-title">Mérhetem a látogatást?</h2>
+          <h2 class="consent__title" id="consent-title" data-i18n="consentTitle">Mérhetem a látogatást?</h2>
           <p class="consent__body">
-            A Google Analytics sütijeivel szeretném látni, hányan járnak az oldalon és a
-            mintatervezőben, és mely oldalakat nézik. Csak ha elfogadod: hirdetésre nem használom,
-            és a döntésed a jelkészlet „Süti-beállítások” gombjával bármikor megváltoztathatod.
-            <a href="https://dragonettecrochet.com/hu/adatkezeles/">Részletek az adatkezelési tájékoztatóban.</a>
+            <span data-i18n="consentBody">A Google Analytics sütijeivel szeretném látni, hányan járnak az oldalon és a mintatervezőben, és mely oldalakat nézik. Csak ha elfogadod: hirdetésre nem használom, és a döntésed a jelkészlet „Süti-beállítások” gombjával bármikor megváltoztathatod.</span>
+            <a href="https://dragonettecrochet.com/hu/adatkezeles/" data-i18n="consentDetails">Részletek az adatkezelési tájékoztatóban.</a>
           </p>
-          <p class="consent__current" data-consent-current="granted" hidden>
-            Jelenleg: a mérést elfogadtad.
-          </p>
-          <p class="consent__current" data-consent-current="denied" hidden>
-            Jelenleg: a mérést elutasítottad.
-          </p>
+          <p class="consent__current" data-consent-current="granted" data-i18n="consentGranted" hidden>Jelenleg: a mérést elfogadtad.</p>
+          <p class="consent__current" data-consent-current="denied" data-i18n="consentDenied" hidden>Jelenleg: a mérést elutasítottad.</p>
         </div>
 
         <div class="consent__actions">
-          <button type="button" class="consent__choice" data-consent="granted">Elfogadom</button>
-          <button type="button" class="consent__choice" data-consent="denied">Elutasítom</button>
+          <button type="button" class="consent__choice" data-consent="granted" data-i18n="consentAccept">Elfogadom</button>
+          <button type="button" class="consent__choice" data-consent="denied" data-i18n="consentDecline">Elutasítom</button>
         </div>
       </section>
 
@@ -44,17 +38,19 @@
         <div class="bar__lead">
           <a
             class="home"
+            id="home-link"
             href="https://dragonettecrochet.com/hu/"
             aria-label="Vissza a dragonettecrochet.com főoldalára"
+            data-i18n-label="homeLabel"
           >
             <svg class="home__icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
               <path d="M3 9.5 10 3.5l7 6" />
               <path d="M4.75 8.5V16h10.5V8.5" />
             </svg>
-            <span>Főoldal</span>
+            <span data-i18n="homeText">Főoldal</span>
           </a>
 
-          <h1 class="bar__title">Mintatervező</h1>
+          <h1 class="bar__title" data-i18n="barTitle">Mintatervező</h1>
 
           <button
             type="button"
@@ -66,41 +62,41 @@
             <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
               <path d="M4 6h12M4 10h12M4 14h8" />
             </svg>
-            <span>Mintatípus</span>
+            <span data-i18n="typesToggle">Mintatípus</span>
           </button>
         </div>
 
         <div class="tools">
-          <div class="tools__group" role="group" aria-label="Fájl">
-            <button type="button" class="tool" data-action="new" aria-label="Új minta" data-tip="Új minta">
+          <div class="tools__group" role="group" aria-label="Fájl" data-i18n-label="toolGroupFile">
+            <button type="button" class="tool" data-action="new" aria-label="Új minta" data-tip="Új minta" data-i18n-label="toolNewLabel" data-i18n-tip="toolNewTip">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path d="M5 2.75h6l4 4V17a.5.5 0 0 1-.5.5h-9A.5.5 0 0 1 5 17z" />
                 <path d="M11 2.75V7h4" />
                 <path d="M10 10v4M8 12h4" />
               </svg>
             </button>
-            <button type="button" class="tool" data-action="import-json" aria-label="JSON betöltése" data-tip="JSON betöltése">
+            <button type="button" class="tool" data-action="import-json" aria-label="JSON betöltése" data-tip="JSON betöltése" data-i18n-label="toolImportLabel" data-i18n-tip="toolImportTip">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path d="M10 3v7" />
                 <path d="M7 8l3 3 3-3" />
                 <path d="M4.5 13v2.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V13" />
               </svg>
             </button>
-            <button type="button" class="tool" data-action="export-json" aria-label="JSON mentése" data-tip="JSON mentése">
+            <button type="button" class="tool" data-action="export-json" aria-label="JSON mentése" data-tip="JSON mentése" data-i18n-label="toolExportJsonLabel" data-i18n-tip="toolExportJsonTip">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path d="M4.5 4h8l3 3v9h-11z" />
                 <path d="M7 4v3.5h5V4" />
                 <path d="M6.5 16v-4.5h7V16" />
               </svg>
             </button>
-            <button type="button" class="tool" data-action="export-png" aria-label="PNG" data-tip="PNG-kép mentése">
+            <button type="button" class="tool" data-action="export-png" aria-label="PNG" data-tip="PNG-kép mentése" data-i18n-label="toolExportPngLabel" data-i18n-tip="toolExportPngTip">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path d="M3.75 4.5h12.5v11H3.75z" />
                 <circle cx="7.5" cy="8" r="1.25" />
                 <path d="M4 15l4-4 3 3 2.5-2.5L16 14" />
               </svg>
             </button>
-            <button type="button" class="tool" data-action="export-svg" aria-label="SVG" data-tip="SVG-kép mentése (vektor)">
+            <button type="button" class="tool" data-action="export-svg" aria-label="SVG" data-tip="SVG-kép mentése (vektor)" data-i18n-label="toolExportSvgLabel" data-i18n-tip="toolExportSvgTip">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path d="M4 14c3-8 9-8 12 0" />
                 <path d="M3 12.5h2.5V15H3zM14.5 12.5H17V15h-2.5z" />
@@ -109,20 +105,20 @@
             <input type="file" id="import-file" accept="application/json,.json" hidden />
           </div>
 
-          <div class="tools__group" role="group" aria-label="Szerkesztés">
-            <button type="button" class="tool" data-action="undo" aria-label="Visszavonás" data-tip="Visszavonás (Ctrl+Z)" aria-keyshortcuts="Control+Z Meta+Z">
+          <div class="tools__group" role="group" aria-label="Szerkesztés" data-i18n-label="toolGroupEdit">
+            <button type="button" class="tool" data-action="undo" aria-label="Visszavonás" data-tip="Visszavonás (Ctrl+Z)" data-i18n-label="toolUndoLabel" data-i18n-tip="toolUndoTip" aria-keyshortcuts="Control+Z Meta+Z">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path d="M7.5 5.5 4 9l3.5 3.5" />
                 <path d="M4 9h7a4.5 4.5 0 0 1 0 9h-1" />
               </svg>
             </button>
-            <button type="button" class="tool" data-action="redo" aria-label="Újra" data-tip="Újra (Ctrl+Shift+Z)" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z Control+Y">
+            <button type="button" class="tool" data-action="redo" aria-label="Újra" data-tip="Újra (Ctrl+Shift+Z)" data-i18n-label="toolRedoLabel" data-i18n-tip="toolRedoTip" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z Control+Y">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path d="M12.5 5.5 16 9l-3.5 3.5" />
                 <path d="M16 9H9a4.5 4.5 0 0 0 0 9h1" />
               </svg>
             </button>
-            <button type="button" class="tool" data-action="delete-last" aria-label="Utolsó törlése" data-tip="Utolsó lépés törlése (Backspace)" aria-keyshortcuts="Backspace">
+            <button type="button" class="tool" data-action="delete-last" aria-label="Utolsó törlése" data-tip="Utolsó lépés törlése (Backspace)" data-i18n-label="toolDeleteLastLabel" data-i18n-tip="toolDeleteLastTip" aria-keyshortcuts="Backspace">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path d="M8 4.75h7.5a1 1 0 0 1 1 1v8.5a1 1 0 0 1-1 1H8l-5-5.25z" />
                 <path d="M10.5 8.5l4 3M14.5 8.5l-4 3" />
@@ -130,32 +126,32 @@
             </button>
           </div>
 
-          <div class="tools__group" role="group" aria-label="Sor és kör">
-            <button type="button" class="tool" data-action="same" aria-label="Még egy ugyanabba" data-tip="Még egy ugyanabba – szaporítás (Shift+Enter)" aria-keyshortcuts="Shift+Enter">
+          <div class="tools__group" role="group" aria-label="Sor és kör" data-i18n-label="toolGroupRow">
+            <button type="button" class="tool" data-action="same" aria-label="Még egy ugyanabba" data-tip="Még egy ugyanabba – szaporítás (Shift+Enter)" data-i18n-label="toolSameLabel" data-i18n-tip="toolSameTip" aria-keyshortcuts="Shift+Enter">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path d="M10 16.5V11" />
                 <path d="M10 11 5.5 4.5M10 11l4.5-6.5M10 11V4" />
               </svg>
             </button>
-            <button type="button" class="tool" data-action="fill-row" aria-label="Sor kitöltése" data-tip="Sor kitöltése a kiválasztott szemmel (Shift+F)" aria-keyshortcuts="Shift+F">
+            <button type="button" class="tool" data-action="fill-row" aria-label="Sor kitöltése" data-tip="Sor kitöltése a kiválasztott szemmel (Shift+F)" data-i18n-label="toolFillRowLabel" data-i18n-tip="toolFillRowTip" aria-keyshortcuts="Shift+F">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <rect x="3.75" y="4.5" width="12.5" height="11" rx="1" />
                 <path d="M6 8h8M6 11h8M6 14h5" />
               </svg>
             </button>
-            <button type="button" class="tool" data-action="end-row" aria-label="Sor vége, fordulás" data-tip="Sor vége, fordulás (F)" aria-keyshortcuts="F">
+            <button type="button" class="tool" data-action="end-row" aria-label="Sor vége, fordulás" data-tip="Sor vége, fordulás (F)" data-i18n-label="toolEndRowLabel" data-i18n-tip="toolEndRowTip" aria-keyshortcuts="F">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path d="M6 15V9a3 3 0 0 1 6 0v6" />
                 <path d="M3.75 11 6 8.25 8.25 11" />
               </svg>
             </button>
-            <button type="button" class="tool" data-action="close-round" aria-label="Kör zárása" data-tip="Kör zárása kúszószemmel; láncszemekből láncgyűrű (K)" aria-keyshortcuts="K">
+            <button type="button" class="tool" data-action="close-round" aria-label="Kör zárása" data-tip="Kör zárása kúszószemmel; láncszemekből láncgyűrű (K)" data-i18n-label="toolCloseRoundLabel" data-i18n-tip="toolCloseRoundTip" aria-keyshortcuts="K">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path d="M13.7 6.6A5.5 5.5 0 1 0 15.5 10" />
                 <path d="M11.4 4.7 14 6.4l-1 2.6" />
               </svg>
             </button>
-            <button type="button" class="tool" data-action="spiral-round" aria-label="Kör vége spirálban" data-tip="Kör vége spirálban, zárás nélkül (S)" aria-keyshortcuts="S">
+            <button type="button" class="tool" data-action="spiral-round" aria-label="Kör vége spirálban" data-tip="Kör vége spirálban, zárás nélkül (S)" data-i18n-label="toolSpiralLabel" data-i18n-tip="toolSpiralTip" aria-keyshortcuts="S">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path d="M10 10.25a.9.9 0 1 1 .9-1.1 2.4 2.4 0 1 1-3.3-1.9A4.2 4.2 0 1 1 5.5 13.6" />
                 <path d="M4.2 11.9 5.5 13.6l2-.7" />
@@ -163,13 +159,13 @@
             </button>
           </div>
 
-          <div class="tools__group" role="group" aria-label="Kijelölés">
-            <button type="button" class="tool" data-action="select-area" aria-pressed="false" aria-label="Terület kijelölése" data-tip="Terület kijelölése húzással. Szem nélkül kattintás: egy szem, Shift: több, sorszám: teljes sor">
+          <div class="tools__group" role="group" aria-label="Kijelölés" data-i18n-label="toolGroupSelect">
+            <button type="button" class="tool" data-action="select-area" aria-pressed="false" aria-label="Terület kijelölése" data-tip="Terület kijelölése húzással. Szem nélkül kattintás: egy szem, Shift: több, sorszám: teljes sor" data-i18n-label="toolSelectAreaLabel" data-i18n-tip="toolSelectAreaTip">
               <svg class="icon icon--dashed" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <rect x="4" y="5" width="12" height="10" rx="1" />
               </svg>
             </button>
-            <button type="button" class="tool" data-action="delete-selection" aria-label="Kijelölés törlése" data-tip="Kijelölt szemek törlése (Delete)" aria-keyshortcuts="Delete" disabled>
+            <button type="button" class="tool" data-action="delete-selection" aria-label="Kijelölés törlése" data-tip="Kijelölt szemek törlése (Delete)" data-i18n-label="toolDeleteSelectionLabel" data-i18n-tip="toolDeleteSelectionTip" aria-keyshortcuts="Delete" disabled>
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path d="M5 6h10" />
                 <path d="M8 6V4.25h4V6" />
@@ -177,7 +173,7 @@
                 <path d="M9 9v4.5M11 9v4.5" />
               </svg>
             </button>
-            <button type="button" class="tool" data-action="duplicate-selection" aria-label="Kijelölés duplikálása" data-tip="Kijelölés duplikálása, pl. a következő sorba (Ctrl+D)" aria-keyshortcuts="Control+D Meta+D" disabled>
+            <button type="button" class="tool" data-action="duplicate-selection" aria-label="Kijelölés duplikálása" data-tip="Kijelölés duplikálása, pl. a következő sorba (Ctrl+D)" data-i18n-label="toolDuplicateLabel" data-i18n-tip="toolDuplicateTip" aria-keyshortcuts="Control+D Meta+D" disabled>
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path d="M5 5h7v7H5z" />
                 <path d="M8 8h7v7H8z" />
@@ -185,34 +181,34 @@
             </button>
           </div>
 
-          <div class="tools__group" role="group" aria-label="Nézet">
-            <button type="button" class="tool" data-action="mirror" aria-pressed="false" aria-label="Tükrözött nézet" data-tip="Tükrözött nézet balkezeseknek (M)" aria-keyshortcuts="M">
+          <div class="tools__group" role="group" aria-label="Nézet" data-i18n-label="toolGroupView">
+            <button type="button" class="tool" data-action="mirror" aria-pressed="false" aria-label="Tükrözött nézet" data-tip="Tükrözött nézet balkezeseknek (M)" data-i18n-label="toolMirrorLabel" data-i18n-tip="toolMirrorTip" aria-keyshortcuts="M">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path class="icon--dashed" d="M10 3.5v13" />
                 <path d="M8 7 4 10l4 3zM12 7l4 3-4 3z" />
               </svg>
             </button>
-            <button type="button" class="tool" data-action="grid" aria-pressed="true" aria-label="Rács" data-tip="Rács ki és be (R)" aria-keyshortcuts="R">
+            <button type="button" class="tool" data-action="grid" aria-pressed="true" aria-label="Rács" data-tip="Rács ki és be (R)" data-i18n-label="toolGridLabel" data-i18n-tip="toolGridTip" aria-keyshortcuts="R">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path d="M3.75 3.75h12.5v12.5H3.75z" />
                 <path d="M3.75 8h12.5M3.75 12h12.5M8 3.75v12.5M12 3.75v12.5" />
               </svg>
             </button>
-            <button type="button" class="tool" data-action="zoom-out" aria-label="Kicsinyítés" data-tip="Kicsinyítés">
+            <button type="button" class="tool" data-action="zoom-out" aria-label="Kicsinyítés" data-tip="Kicsinyítés" data-i18n-label="toolZoomOutLabel" data-i18n-tip="toolZoomOutTip">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <circle cx="9" cy="9" r="5" />
                 <path d="M12.6 12.6 16.5 16.5" />
                 <path d="M7 9h4" />
               </svg>
             </button>
-            <button type="button" class="tool" data-action="zoom-in" aria-label="Nagyítás" data-tip="Nagyítás">
+            <button type="button" class="tool" data-action="zoom-in" aria-label="Nagyítás" data-tip="Nagyítás" data-i18n-label="toolZoomInLabel" data-i18n-tip="toolZoomInTip">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <circle cx="9" cy="9" r="5" />
                 <path d="M12.6 12.6 16.5 16.5" />
                 <path d="M7 9h4M9 7v4" />
               </svg>
             </button>
-            <button type="button" class="tool" data-action="fit" aria-label="Egész minta" data-tip="Egész minta a képernyőre">
+            <button type="button" class="tool" data-action="fit" aria-label="Egész minta" data-tip="Egész minta a képernyőre" data-i18n-label="toolFitLabel" data-i18n-tip="toolFitTip">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path d="M4 7V5h2M14 5h2v2M16 13v2h-2M6 15H4v-2" />
               </svg>
@@ -236,7 +232,7 @@
               <span id="error-count">Nincs hiba</span>
             </button>
 
-            <div class="menu__pop errors" id="errors" role="region" aria-label="Hibák és figyelmeztetések" hidden>
+            <div class="menu__pop errors" id="errors" role="region" aria-label="Hibák és figyelmeztetések" data-i18n-label="errorsRegionLabel" hidden>
               <p class="check__summary" id="summary"></p>
               <ul class="check__list" id="findings"></ul>
             </div>
@@ -248,9 +244,8 @@
             class="bar__toggle"
             aria-expanded="false"
             aria-controls="written"
-          >
-            Írott minta
-          </button>
+            data-i18n="writtenToggle"
+          >Írott minta</button>
 
           <button
             type="button"
@@ -258,16 +253,15 @@
             class="bar__toggle"
             aria-expanded="true"
             aria-controls="panel"
-          >
-            Szemek és beállítások
-          </button>
+            data-i18n="panelToggle"
+          >Szemek és beállítások</button>
         </div>
       </header>
 
       <main class="stage">
-        <nav class="types" id="types" aria-label="Mintatípus">
-          <h2 class="panel__title">Mintatípus</h2>
-          <p class="types__intro">A típus adja a kezdést és a körzárás alapértelmezését.</p>
+        <nav class="types" id="types" aria-label="Mintatípus" data-i18n-label="typesNavLabel">
+          <h2 class="panel__title" data-i18n="typesTitle">Mintatípus</h2>
+          <p class="types__intro" data-i18n="typesIntro">A típus adja a kezdést és a körzárás alapértelmezését.</p>
           <ul class="types__list" id="types-list"></ul>
         </nav>
 
@@ -277,6 +271,7 @@
           role="application"
           aria-roledescription="horgolásminta-diagram"
           aria-label="Diagram: nyilakkal a célpontok között, Enterrel horgolsz"
+          data-i18n-label="boardLabel"
           aria-describedby="status"
         ></canvas>
         <p class="status" id="status" role="status" aria-live="polite"></p>
@@ -290,84 +285,81 @@
             aria-orientation="horizontal"
             aria-controls="written"
             aria-label="Az írott minta magassága"
+            data-i18n-label="writtenGripLabel"
             aria-valuemin="0"
             aria-valuemax="100"
             aria-valuenow="50"
           ></div>
           <div class="written__head">
-            <h2 class="panel__title" id="written-title">Írott minta</h2>
+            <h2 class="panel__title" id="written-title" data-i18n="writtenTitle">Írott minta</h2>
             <div class="written__actions">
-              <button type="button" class="tool" id="written-full" data-action="written-full">Teljes nézet</button>
-              <button type="button" class="tool written__copy" data-action="copy-written">Másolás</button>
-              <button type="button" class="tool" data-action="close-written" aria-controls="written">Lecsukás</button>
+              <button type="button" class="tool" id="written-full" data-action="written-full" data-i18n="writtenFullView">Teljes nézet</button>
+              <button type="button" class="tool written__copy" data-action="copy-written" data-i18n="writtenCopy">Másolás</button>
+              <button type="button" class="tool" data-action="close-written" aria-controls="written" data-i18n="writtenClose">Lecsukás</button>
             </div>
           </div>
           <div class="written__body" id="written-body">
             <div class="written__notices" id="written-notices"></div>
-            <pre class="written__text" id="written-text" tabindex="0" aria-label="Az írott minta szövege"></pre>
+            <pre class="written__text" id="written-text" tabindex="0" aria-label="Az írott minta szövege" data-i18n-label="writtenTextLabel"></pre>
           </div>
         </aside>
 
-        <aside class="panel" id="panel" aria-label="Szemek és beállítások">
+        <aside class="panel" id="panel" aria-label="Szemek és beállítások" data-i18n-label="panelLabel">
           <details class="section" id="section-stitches" open>
-            <summary class="section__head"><h2 class="panel__title">Szemek</h2></summary>
+            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionStitchesTitle">Szemek</h2></summary>
             <p class="panel__hint" id="hint"></p>
             <p class="count" id="count-field" hidden>
-              <label for="chain-count">Láncszemek száma</label>
+              <label for="chain-count" data-i18n="stitchesChainCountLabel">Láncszemek száma</label>
               <input id="chain-count" type="number" min="1" max="500" step="1" value="12" inputmode="numeric" />
             </p>
             <fieldset class="insertion" id="insertion" aria-describedby="insertion-note" hidden>
-              <legend>Beszúrás</legend>
+              <legend data-i18n="stitchesInsertionLegend">Beszúrás</legend>
               <div class="insertion__options"></div>
               <p class="panel__note insertion__written" hidden></p>
-              <p class="panel__note" id="insertion-note">
-                A horgoló felől értendő; visszai soron a diagram a színoldalt mutatja.
-              </p>
+              <p class="panel__note" id="insertion-note" data-i18n="stitchesInsertionNote">A horgoló felől értendő; visszai soron a diagram a színoldalt mutatja.</p>
             </fieldset>
-            <div class="palette" id="palette" role="group" aria-label="Szemek"></div>
+            <div class="palette" id="palette" role="group" aria-label="Szemek" data-i18n-label="stitchesPaletteLabel"></div>
           </details>
 
           <details class="section" id="section-size">
-            <summary class="section__head"><h2 class="panel__title">Méret és fonal</h2></summary>
+            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionSizeTitle">Méret és fonal</h2></summary>
             <div class="size">
               <p class="size__notice" id="size-notice" hidden></p>
 
               <p class="panel__field">
-                <label for="size-profile">Profil</label>
+                <label for="size-profile" data-i18n="sizeProfileLabel">Profil</label>
                 <select id="size-profile" aria-describedby="size-profile-note"></select>
               </p>
-              <p class="panel__note" id="size-profile-note">
-                Egy fonal és tű mért mintasűrűsége. A mintával együtt mentődik, a JSON-exportban is.
-              </p>
+              <p class="panel__note" id="size-profile-note" data-i18n="sizeProfileNote">Egy fonal és tű mért mintasűrűsége. A mintával együtt mentődik, a JSON-exportban is.</p>
               <div class="size__actions">
-                <button type="button" class="tool" id="size-add">Új profil</button>
-                <button type="button" class="tool" id="size-remove">Profil törlése</button>
+                <button type="button" class="tool" id="size-add" data-i18n="sizeAdd">Új profil</button>
+                <button type="button" class="tool" id="size-remove" data-i18n="sizeRemove">Profil törlése</button>
               </div>
 
               <div class="size__editor" id="size-editor" hidden>
                 <fieldset class="size__group">
-                  <legend>Fonal</legend>
+                  <legend data-i18n="sizeYarnLegend">Fonal</legend>
                   <p class="panel__field">
-                    <label for="size-yarn-name">Név</label>
+                    <label for="size-yarn-name" data-i18n="sizeYarnNameLabel">Név</label>
                     <input id="size-yarn-name" type="text" maxlength="80" autocomplete="off" />
                   </p>
                   <p class="panel__field">
                     <span class="size__label">
-                      <label for="size-cyc">Vastagsági kategória (CYC)</label>
+                      <label for="size-cyc" data-i18n="sizeCycLabel">Vastagsági kategória (CYC)</label>
                       <span class="origin" id="size-origin-cyc" hidden></span>
                     </span>
                     <select id="size-cyc" aria-describedby="size-origin-cyc"></select>
                   </p>
                   <p class="panel__field">
                     <span class="size__label">
-                      <label for="size-meterage">Méter 100 g-on</label>
+                      <label for="size-meterage" data-i18n="sizeMeterageLabel">Méter 100 g-on</label>
                       <span class="origin" id="size-origin-meterage" hidden></span>
                     </span>
                     <input id="size-meterage" type="text" inputmode="decimal" autocomplete="off" aria-describedby="size-origin-meterage" />
                   </p>
                   <p class="panel__field">
                     <span class="size__label">
-                      <label for="size-ball">Egy gombolyag, g</label>
+                      <label for="size-ball" data-i18n="sizeBallLabel">Egy gombolyag, g</label>
                       <span class="origin" id="size-origin-ball" hidden></span>
                     </span>
                     <input id="size-ball" type="text" inputmode="decimal" autocomplete="off" aria-describedby="size-origin-ball" />
@@ -375,10 +367,10 @@
                 </fieldset>
 
                 <fieldset class="size__group">
-                  <legend>Tű</legend>
+                  <legend data-i18n="sizeHookLegend">Tű</legend>
                   <p class="panel__field">
                     <span class="size__label">
-                      <label for="size-hook">Méret, mm</label>
+                      <label for="size-hook" data-i18n="sizeHookLabel">Méret, mm</label>
                       <span class="origin" id="size-origin-hook" hidden></span>
                     </span>
                     <input id="size-hook" type="text" inputmode="decimal" autocomplete="off" aria-describedby="size-hook-sizes" />
@@ -387,143 +379,131 @@
                 </fieldset>
 
                 <fieldset class="size__group">
-                  <legend>Mintasűrűség szemenként</legend>
-                  <p class="panel__note">
-                    A próbadarab közepén 10 cm-en számolt szemek és sorok. Sorokhoz síkban, körökhöz körben mérj.
-                  </p>
+                  <legend data-i18n="sizeGaugeLegend">Mintasűrűség szemenként</legend>
+                  <p class="panel__note" data-i18n="sizeGaugeNote">A próbadarab közepén 10 cm-en számolt szemek és sorok. Sorokhoz síkban, körökhöz körben mérj.</p>
                   <ul class="gauges" id="size-gauges"></ul>
-                  <button type="button" class="tool size__add-gauge" id="size-gauge-add">Szem hozzáadása</button>
+                  <button type="button" class="tool size__add-gauge" id="size-gauge-add" data-i18n="sizeGaugeAdd">Szem hozzáadása</button>
                   <p class="choice">
-                    <label><input type="checkbox" id="size-blocked" /> Blokkolva mérve</label>
+                    <label><input type="checkbox" id="size-blocked" /> <span data-i18n="sizeBlockedLabel">Blokkolva mérve</span></label>
                   </p>
                 </fieldset>
 
                 <fieldset class="size__group">
                   <legend class="size__label">
-                    <span>Próbadarab</span>
+                    <span data-i18n="sizeSwatchLegend">Próbadarab</span>
                     <span class="origin" id="size-origin-swatch" hidden></span>
                   </legend>
                   <p class="panel__field">
-                    <label for="size-swatch-width">Szélesség, cm</label>
+                    <label for="size-swatch-width" data-i18n="sizeSwatchWidthLabel">Szélesség, cm</label>
                     <input id="size-swatch-width" type="text" inputmode="decimal" autocomplete="off" />
                   </p>
                   <p class="panel__field">
-                    <label for="size-swatch-height">Magasság, cm</label>
+                    <label for="size-swatch-height" data-i18n="sizeSwatchHeightLabel">Magasság, cm</label>
                     <input id="size-swatch-height" type="text" inputmode="decimal" autocomplete="off" />
                   </p>
                   <p class="panel__field">
-                    <label for="size-swatch-mass">Tömeg, g</label>
+                    <label for="size-swatch-mass" data-i18n="sizeSwatchMassLabel">Tömeg, g</label>
                     <input id="size-swatch-mass" type="text" inputmode="decimal" autocomplete="off" />
                   </p>
-                  <p class="panel__note">A tömegéből jön a fonalbecslés.</p>
+                  <p class="panel__note" data-i18n="sizeSwatchNote">A tömegéből jön a fonalbecslés.</p>
                 </fieldset>
               </div>
 
-              <h3 class="size__subtitle">Kész méret</h3>
+              <h3 class="size__subtitle" data-i18n="sizeFinishedTitle">Kész méret</h3>
               <div id="size-total"></div>
-              <div class="size__rows" id="size-rows" role="region" aria-label="Kész méret soronként" tabindex="0" hidden></div>
+              <div class="size__rows" id="size-rows" role="region" aria-label="Kész méret soronként" data-i18n-label="sizeRowsLabel" tabindex="0" hidden></div>
 
-              <h3 class="size__subtitle">Fonal</h3>
+              <h3 class="size__subtitle" data-i18n="sizeYarnTitle">Fonal</h3>
               <div id="size-yarn"></div>
 
               <p class="choice">
-                <label><input type="checkbox" id="size-aspect" aria-describedby="size-aspect-note" /> Arányhelyes nézet</label>
+                <label><input type="checkbox" id="size-aspect" aria-describedby="size-aspect-note" /> <span data-i18n="sizeAspectLabel">Arányhelyes nézet</span></label>
               </p>
-              <p class="panel__note" id="size-aspect-note">
-                A diagram cellái és a rács a valós szemarányt követik: a profilból, profil nélkül a becslésből.
-              </p>
+              <p class="panel__note" id="size-aspect-note" data-i18n="sizeAspectNote">A diagram cellái és a rács a valós szemarányt követik: a profilból, profil nélkül a becslésből.</p>
             </div>
           </details>
 
           <details class="section" id="section-shape">
-            <summary class="section__head"><h2 class="panel__title">Forma</h2></summary>
-            <div class="shape" role="group" aria-label="Sík forma létrehozása cm-ből">
-              <p class="panel__note">
-                Téglalapot, háromszöget, trapézt vagy rombuszt készít sorokban, a megadott méretből. Az új minta a mostani
-                helyére kerül; visszavonással a korábbi visszajön.
-              </p>
+            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionShapeTitle">Forma</h2></summary>
+            <div class="shape" role="group" aria-label="Sík forma létrehozása cm-ből" data-i18n-label="shapeGroupLabel">
+              <p class="panel__note" data-i18n="shapeNote">Téglalapot, háromszöget, trapézt vagy rombuszt készít sorokban, a megadott méretből. Az új minta a mostani helyére kerül; visszavonással a korábbi visszajön.</p>
               <p class="panel__field">
-                <label for="shape-kind">Forma</label>
+                <label for="shape-kind" data-i18n="shapeKindLabel">Forma</label>
                 <select id="shape-kind"></select>
               </p>
               <p class="panel__field">
-                <label for="shape-stitch">Szem</label>
+                <label for="shape-stitch" data-i18n="shapeStitchLabel">Szem</label>
                 <select id="shape-stitch"></select>
               </p>
               <p class="panel__field">
-                <label for="shape-width" id="shape-width-label">Szélesség, cm</label>
+                <label for="shape-width" id="shape-width-label" data-i18n="shapeWidthLabel">Szélesség, cm</label>
                 <input id="shape-width" type="text" inputmode="decimal" autocomplete="off" value="20" />
               </p>
               <p class="panel__field" id="shape-top-field" hidden>
-                <label for="shape-top">Felső él, cm</label>
+                <label for="shape-top" data-i18n="shapeTopLabel">Felső él, cm</label>
                 <input id="shape-top" type="text" inputmode="decimal" autocomplete="off" value="10" />
               </p>
               <p class="panel__field" id="shape-measure-field" hidden>
-                <label for="shape-measure">Magasság vagy az él szöge</label>
+                <label for="shape-measure" data-i18n="shapeMeasureLabel">Magasság vagy az él szöge</label>
                 <select id="shape-measure"></select>
               </p>
               <p class="panel__field" id="shape-height-field">
-                <label for="shape-height">Magasság, cm</label>
+                <label for="shape-height" data-i18n="shapeHeightLabel">Magasság, cm</label>
                 <input id="shape-height" type="text" inputmode="decimal" autocomplete="off" value="30" />
               </p>
               <div class="shape__group" id="shape-angle-field" hidden>
                 <p class="panel__field">
-                  <label for="shape-angle">Az él szöge a függőlegestől, fok</label>
+                  <label for="shape-angle" data-i18n="shapeAngleLabel">Az él szöge a függőlegestől, fok</label>
                   <input id="shape-angle" type="text" inputmode="decimal" autocomplete="off" value="45" aria-describedby="shape-angle-note" />
                 </p>
-                <p class="panel__note" id="shape-angle-note">Egyenlő szárú háromszögnél a csúcsszög ennek kétszerese.</p>
+                <p class="panel__note" id="shape-angle-note" data-i18n="shapeAngleNote">Egyenlő szárú háromszögnél a csúcsszög ennek kétszerese.</p>
               </div>
               <div class="shape__group" id="shape-repeat-fields">
                 <p class="choice">
-                  <label><input type="checkbox" id="shape-repeat" /> Mintaismétlés: „X többszöröse + Y”</label>
+                  <label><input type="checkbox" id="shape-repeat" /> <span data-i18n="shapeRepeatLabel">Mintaismétlés: „X többszöröse + Y”</span></label>
                 </p>
                 <div class="shape__pair">
                   <p class="panel__field">
-                    <label for="shape-repeat-x">X: egy ismétlés szemei</label>
+                    <label for="shape-repeat-x" data-i18n="shapeRepeatXLabel">X: egy ismétlés szemei</label>
                     <input id="shape-repeat-x" type="number" min="1" max="50" step="1" value="6" inputmode="numeric" disabled />
                   </p>
                   <p class="panel__field">
-                    <label for="shape-repeat-y">Y: szélső szemek</label>
+                    <label for="shape-repeat-y" data-i18n="shapeRepeatYLabel">Y: szélső szemek</label>
                     <input id="shape-repeat-y" type="number" min="0" max="50" step="1" value="2" inputmode="numeric" disabled />
                   </p>
                 </div>
                 <p class="panel__field">
-                  <label for="shape-rounding">Kerekítés</label>
+                  <label for="shape-rounding" data-i18n="shapeRoundingLabel">Kerekítés</label>
                   <select id="shape-rounding" disabled></select>
                 </p>
               </div>
               <div class="shape__group" id="shape-border-fields">
                 <p class="choice">
-                  <label><input type="checkbox" id="shape-border" aria-describedby="shape-border-note" /> Rövidpálcás szegély körben</label>
+                  <label><input type="checkbox" id="shape-border" aria-describedby="shape-border-note" /> <span data-i18n="shapeBorderLabel">Rövidpálcás szegély körben</span></label>
                 </p>
-                <p class="panel__note" id="shape-border-note">
-                  Sorvégenként rövidpálcás sorra 1, pálcásra 2, kétráhajtásosra 3 rp; a sarkokba 3 rp. Ferde élen a lépcsők
-                  meghagyott szemeibe 1-1 rp.
-                </p>
+                <p class="panel__note" id="shape-border-note" data-i18n="shapeBorderNote">Sorvégenként rövidpálcás sorra 1, pálcásra 2, kétráhajtásosra 3 rp; a sarkokba 3 rp. Ferde élen a lépcsők meghagyott szemeibe 1-1 rp.</p>
                 <div class="shape__group" id="shape-hdc-field" hidden>
                   <p class="panel__field">
-                    <label for="shape-hdc-row-end">Félpálcás sorvégre</label>
+                    <label for="shape-hdc-row-end" data-i18n="shapeHdcLabel">Félpálcás sorvégre</label>
                     <select id="shape-hdc-row-end" aria-describedby="shape-hdc-note"></select>
                   </p>
-                  <p class="panel__note" id="shape-hdc-note">A források eltérnek: van, amelyik 1, van, amelyik 2 rövidpálcát ír.</p>
+                  <p class="panel__note" id="shape-hdc-note" data-i18n="shapeHdcNote">A források eltérnek: van, amelyik 1, van, amelyik 2 rövidpálcát ír.</p>
                 </div>
                 <div class="shape__group" id="shape-border-repeat-field" hidden>
                   <p class="choice">
-                    <label><input type="checkbox" id="shape-border-repeat" aria-describedby="shape-border-repeat-note" /> Igazítás a következő szegélysor ismétléséhez</label>
+                    <label><input type="checkbox" id="shape-border-repeat" aria-describedby="shape-border-repeat-note" /> <span data-i18n="shapeBorderRepeatLabel">Igazítás a következő szegélysor ismétléséhez</span></label>
                   </p>
                   <div class="shape__pair">
                     <p class="panel__field">
-                      <label for="shape-border-x">X: a szegélysor ismétlésének szemei</label>
+                      <label for="shape-border-x" data-i18n="shapeBorderXLabel">X: a szegélysor ismétlésének szemei</label>
                       <input id="shape-border-x" type="number" min="1" max="50" step="1" value="4" inputmode="numeric" disabled />
                     </p>
                     <p class="panel__field">
-                      <label for="shape-border-y">Y: élenként kiegyenlítő szemek</label>
+                      <label for="shape-border-y" data-i18n="shapeBorderYLabel">Y: élenként kiegyenlítő szemek</label>
                       <input id="shape-border-y" type="number" min="0" max="50" step="1" value="0" inputmode="numeric" disabled />
                     </p>
                   </div>
-                  <p class="panel__note" id="shape-border-repeat-note">
-                    A sarkok közötti élek szemszáma „X többszöröse + Y” lesz; a különbség egyenletesen elosztva.
-                  </p>
+                  <p class="panel__note" id="shape-border-repeat-note" data-i18n="shapeBorderRepeatNote">A sarkok közötti élek szemszáma „X többszöröse + Y” lesz; a különbség egyenletesen elosztva.</p>
                 </div>
               </div>
               <div class="shape__preview" id="shape-preview-box" hidden>
@@ -534,83 +514,73 @@
                 <ul class="shape__details" id="shape-details"></ul>
               </div>
               <p class="panel__note" id="shape-source"></p>
-              <button type="button" class="tool shape__create" id="shape-create">Minta létrehozása</button>
+              <button type="button" class="tool shape__create" id="shape-create" data-i18n="shapeCreate">Minta létrehozása</button>
             </div>
           </details>
 
           <details class="section" id="section-shawl">
-            <summary class="section__head"><h2 class="panel__title">Kendő</h2></summary>
-            <div class="shape" role="group" aria-label="Kendő létrehozása méretből">
-              <p class="panel__note">
-                Háromszög-, félhold-, félkör-, kör- vagy Pi-kendőt, illetve stólát készít a megadott méretből, a
-                mintasűrűség szerinti szaporítással. Az új minta a mostani helyére kerül; visszavonással a korábbi
-                visszajön.
-              </p>
+            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionShawlTitle">Kendő</h2></summary>
+            <div class="shape" role="group" aria-label="Kendő létrehozása méretből" data-i18n-label="shawlGroupLabel">
+              <p class="panel__note" data-i18n="shawlNote">Háromszög-, félhold-, félkör-, kör- vagy Pi-kendőt, illetve stólát készít a megadott méretből, a mintasűrűség szerinti szaporítással. Az új minta a mostani helyére kerül; visszavonással a korábbi visszajön.</p>
               <p class="panel__field">
-                <label for="shawl-kind">Kendő</label>
+                <label for="shawl-kind" data-i18n="shawlKindLabel">Kendő</label>
                 <select id="shawl-kind"></select>
               </p>
               <p class="panel__field">
-                <label for="shawl-stitch">Szem</label>
+                <label for="shawl-stitch" data-i18n="shawlStitchLabel">Szem</label>
                 <select id="shawl-stitch"></select>
               </p>
               <p class="panel__field">
-                <label for="shawl-size" id="shawl-size-label">Mélység a gerincen, cm</label>
+                <label for="shawl-size" id="shawl-size-label" data-i18n="shawlSizeLabel">Mélység a gerincen, cm</label>
                 <input id="shawl-size" type="text" inputmode="decimal" autocomplete="off" value="40" />
               </p>
               <p class="panel__field" id="shawl-length-field" hidden>
-                <label for="shawl-length">Hossz, cm</label>
+                <label for="shawl-length" data-i18n="shawlLengthLabel">Hossz, cm</label>
                 <input id="shawl-length" type="text" inputmode="decimal" autocomplete="off" value="150" />
               </p>
               <div class="shape__group" id="shawl-rate-fields">
                 <p class="panel__field">
-                  <label for="shawl-rate">Szaporítási arány</label>
+                  <label for="shawl-rate" data-i18n="shawlRateLabel">Szaporítási arány</label>
                   <select id="shawl-rate" aria-describedby="shawl-rate-note"></select>
                 </p>
                 <p class="panel__field" id="shawl-custom-field" hidden>
-                  <label for="shawl-custom" id="shawl-custom-label">Szaporítás soronként, az egész sorra</label>
+                  <label for="shawl-custom" id="shawl-custom-label" data-i18n="shawlCustomLabel">Szaporítás soronként, az egész sorra</label>
                   <input id="shawl-custom" type="text" inputmode="decimal" autocomplete="off" value="8" />
                 </p>
-                <p class="panel__note" id="shawl-rate-note">
-                  A kiadott horgolt kendők gyakran eltérnek az elméleti aránytól, és a blokkolásra számítanak. A saját arány
-                  szögét és méretét az előnézet mutatja.
-                </p>
+                <p class="panel__note" id="shawl-rate-note" data-i18n="shawlRateNote">A kiadott horgolt kendők gyakran eltérnek az elméleti aránytól, és a blokkolásra számítanak. A saját arány szögét és méretét az előnézet mutatja.</p>
               </div>
               <p class="choice" id="shawl-wings-field">
-                <label><input type="checkbox" id="shawl-wings" /> Szárnyakkal: a második felében a széleken dupla szaporítás</label>
+                <label><input type="checkbox" id="shawl-wings" /> <span data-i18n="shawlWingsLabel">Szárnyakkal: a második felében a széleken dupla szaporítás</span></label>
               </p>
               <div class="shape__group">
                 <p class="choice">
-                  <label><input type="checkbox" id="shawl-edging" /> <span id="shawl-edging-label">Az utolsó sor a szegély ismétléséhez</span></label>
+                  <label><input type="checkbox" id="shawl-edging" /> <span id="shawl-edging-label" data-i18n="shawlEdgingLabel">Az utolsó sor a szegély ismétléséhez</span></label>
                 </p>
                 <div class="shape__pair">
                   <p class="panel__field">
-                    <label for="shawl-edging-x">X: egy ismétlés szemei</label>
+                    <label for="shawl-edging-x" data-i18n="shawlEdgingXLabel">X: egy ismétlés szemei</label>
                     <input id="shawl-edging-x" type="number" min="1" max="50" step="1" value="6" inputmode="numeric" disabled />
                   </p>
                   <p class="panel__field">
-                    <label for="shawl-edging-y">Y: szélső szemek</label>
+                    <label for="shawl-edging-y" data-i18n="shawlEdgingYLabel">Y: szélső szemek</label>
                     <input id="shawl-edging-y" type="number" min="0" max="50" step="1" value="3" inputmode="numeric" disabled />
                   </p>
                 </div>
               </div>
               <div class="shape__pair">
                 <p class="panel__field">
-                  <label for="shawl-block-width">Blokkolva szélesebb, %</label>
+                  <label for="shawl-block-width" data-i18n="shawlBlockWidthLabel">Blokkolva szélesebb, %</label>
                   <input id="shawl-block-width" type="text" inputmode="decimal" autocomplete="off" value="10" aria-describedby="shawl-block-note" />
                 </p>
                 <p class="panel__field">
-                  <label for="shawl-block-height">Blokkolva hosszabb, %</label>
+                  <label for="shawl-block-height" data-i18n="shawlBlockHeightLabel">Blokkolva hosszabb, %</label>
                   <input id="shawl-block-height" type="text" inputmode="decimal" autocomplete="off" value="5" aria-describedby="shawl-block-note" />
                 </p>
               </div>
-              <p class="panel__note" id="shawl-block-note">
-                Gyapjú blokkolva kb. 5–10%-kal szélesebb, a pamut alig változik; csipkénél mérd le a próbadarabot blokkolás
-                előtt és után.
-              </p>
+              <p class="panel__note" id="shawl-block-note" data-i18n="shawlBlockNote">Gyapjú blokkolva kb. 5–10%-kal szélesebb, a pamut alig változik; csipkénél mérd le a próbadarabot blokkolás előtt és után.</p>
               <div class="shape__preview" id="shawl-preview-box" hidden>
                 <svg id="shawl-preview" aria-hidden="true" focusable="false"></svg>
-                <p class="panel__note">Teli vonal: blokkolva; szaggatott: blokkolás nélkül.</p>
+                <p class="panel__note" data-i18n="shawlPreviewNote">Teli vonal: blokkolva; szaggatott: blokkolás nélkül.</p>
               </div>
               <div class="shape__result" aria-live="polite">
                 <p class="shape__size" id="shawl-result"></p>
@@ -618,70 +588,66 @@
                 <ul class="shawl__warnings" id="shawl-warnings"></ul>
               </div>
               <p class="panel__note" id="shawl-source"></p>
-              <button type="button" class="tool shape__create" id="shawl-create">Minta létrehozása</button>
+              <button type="button" class="tool shape__create" id="shawl-create" data-i18n="shawlCreate">Minta létrehozása</button>
             </div>
           </details>
 
           <details class="section" id="section-garment">
-            <summary class="section__head"><h2 class="panel__title">Ruhadarab</h2></summary>
-            <div class="shape" role="group" aria-label="Ruhadarab létrehozása testméretből">
-              <p class="panel__note">
-                Sapkát vagy ledobott vállú pulóvert készít testméretből, méretsorozattal. A rajz és a sorok a választott
-                méreté, a többi méret számai az írott minta „Méretek” részében állnak. Az új minta a mostani helyére kerül;
-                visszavonással a korábbi visszajön.
-              </p>
+            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionGarmentTitle">Ruhadarab</h2></summary>
+            <div class="shape" role="group" aria-label="Ruhadarab létrehozása testméretből" data-i18n-label="garmentGroupLabel">
+              <p class="panel__note" data-i18n="garmentNote">Sapkát vagy ledobott vállú pulóvert készít testméretből, méretsorozattal. A rajz és a sorok a választott méreté, a többi méret számai az írott minta „Méretek” részében állnak. Az új minta a mostani helyére kerül; visszavonással a korábbi visszajön.</p>
               <p class="panel__field">
-                <label for="garment-kind">Ruhadarab</label>
+                <label for="garment-kind" data-i18n="garmentKindLabel">Ruhadarab</label>
                 <select id="garment-kind"></select>
               </p>
               <p class="panel__field" id="garment-table-field">
-                <label for="garment-table">Testméret-táblázat</label>
+                <label for="garment-table" data-i18n="garmentTableLabel">Testméret-táblázat</label>
                 <select id="garment-table"></select>
               </p>
               <p class="panel__field">
-                <label for="garment-size">Méret a rajzhoz</label>
+                <label for="garment-size" data-i18n="garmentSizeLabel">Méret a rajzhoz</label>
                 <select id="garment-size"></select>
               </p>
               <div class="shape__pair">
                 <p class="panel__field">
-                  <label for="garment-from">Sorozat első mérete</label>
+                  <label for="garment-from" data-i18n="garmentFromLabel">Sorozat első mérete</label>
                   <select id="garment-from"></select>
                 </p>
                 <p class="panel__field">
-                  <label for="garment-to">Sorozat utolsó mérete</label>
+                  <label for="garment-to" data-i18n="garmentToLabel">Sorozat utolsó mérete</label>
                   <select id="garment-to"></select>
                 </p>
               </div>
               <p class="panel__field">
-                <label for="garment-stitch">Szem</label>
+                <label for="garment-stitch" data-i18n="garmentStitchLabel">Szem</label>
                 <select id="garment-stitch"></select>
               </p>
               <p class="panel__field">
-                <label for="garment-ease" id="garment-ease-label">Bőség a mellbőséghez, cm</label>
+                <label for="garment-ease" id="garment-ease-label" data-i18n="garmentEaseLabel">Bőség a mellbőséghez, cm</label>
                 <input id="garment-ease" type="text" inputmode="decimal" autocomplete="off" value="10" aria-describedby="garment-ease-note" />
               </p>
               <p class="panel__note" id="garment-ease-note"></p>
               <div class="shape__pair">
                 <p class="panel__field">
-                  <label for="garment-hem" id="garment-hem-label">Szegély és mandzsetta, cm</label>
+                  <label for="garment-hem" id="garment-hem-label" data-i18n="garmentHemLabel">Szegély és mandzsetta, cm</label>
                   <input id="garment-hem" type="text" inputmode="decimal" autocomplete="off" value="5" />
                 </p>
                 <p class="panel__field" id="garment-below-field">
-                  <label for="garment-below">Hossz a derék alatt, cm</label>
+                  <label for="garment-below" data-i18n="garmentBelowLabel">Hossz a derék alatt, cm</label>
                   <input id="garment-below" type="text" inputmode="decimal" autocomplete="off" value="14,5" />
                 </p>
               </div>
               <div class="shape__group" id="garment-repeat-field">
                 <p class="choice">
-                  <label><input type="checkbox" id="garment-repeat" /> A hátrész és az elejerész szemszáma mintaismétlésre</label>
+                  <label><input type="checkbox" id="garment-repeat" /> <span data-i18n="garmentRepeatLabel">A hátrész és az elejerész szemszáma mintaismétlésre</span></label>
                 </p>
                 <div class="shape__pair">
                   <p class="panel__field">
-                    <label for="garment-repeat-x">X: egy ismétlés szemei</label>
+                    <label for="garment-repeat-x" data-i18n="garmentRepeatXLabel">X: egy ismétlés szemei</label>
                     <input id="garment-repeat-x" type="number" min="1" max="50" step="1" value="4" inputmode="numeric" disabled />
                   </p>
                   <p class="panel__field">
-                    <label for="garment-repeat-y">Y: szélső szemek</label>
+                    <label for="garment-repeat-y" data-i18n="garmentRepeatYLabel">Y: szélső szemek</label>
                     <input id="garment-repeat-y" type="number" min="0" max="50" step="1" value="2" inputmode="numeric" disabled />
                   </p>
                 </div>
@@ -694,87 +660,77 @@
                 <ul class="shawl__warnings" id="garment-warnings"></ul>
               </div>
               <div id="garment-series-box" hidden>
-                <p class="panel__note">A méretsorozat, ahogy az írott mintába kerül:</p>
+                <p class="panel__note" data-i18n="garmentSeriesNote">A méretsorozat, ahogy az írott mintába kerül:</p>
                 <ul class="shape__details" id="garment-series"></ul>
               </div>
               <p class="panel__note" id="garment-source"></p>
-              <button type="button" class="tool shape__create" id="garment-create">Minta létrehozása</button>
+              <button type="button" class="tool shape__create" id="garment-create" data-i18n="garmentCreate">Minta létrehozása</button>
             </div>
           </details>
 
           <details class="section" id="section-grid">
-            <summary class="section__head"><h2 class="panel__title">Rácsminta</h2></summary>
-            <div class="grid-chart" role="group" aria-label="Rácsminta: filé, C2C, tapestry, graphgan, mozaik">
-              <p class="panel__note">
-                Filé, sarokból sarokba (C2C), tapestry, graphgan vagy mozaik cellánként. Elég az első 4–5 sort teljesen
-                megadni, a többinél a sor egy részét: a program felismeri az ismétlő egységet, és kiterjeszti a teljes
-                rácsra. Az új minta a mostani helyére kerül; visszavonással a korábbi visszajön.
-              </p>
+            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionGridTitle">Rácsminta</h2></summary>
+            <div class="grid-chart" role="group" aria-label="Rácsminta: filé, C2C, tapestry, graphgan, mozaik" data-i18n-label="gridGroupLabel">
+              <p class="panel__note" data-i18n="gridNote">Filé, sarokból sarokba (C2C), tapestry, graphgan vagy mozaik cellánként. Elég az első 4–5 sort teljesen megadni, a többinél a sor egy részét: a program felismeri az ismétlő egységet, és kiterjeszti a teljes rácsra. Az új minta a mostani helyére kerül; visszavonással a korábbi visszajön.</p>
               <p class="panel__field">
-                <label for="grid-technique">Technika</label>
+                <label for="grid-technique" data-i18n="gridTechniqueLabel">Technika</label>
                 <select id="grid-technique"></select>
               </p>
               <p class="panel__field" id="grid-mosaic-field" hidden>
-                <label for="grid-mosaic-rows">Mozaik</label>
+                <label for="grid-mosaic-rows" data-i18n="gridMosaicLabel">Mozaik</label>
                 <select id="grid-mosaic-rows"></select>
               </p>
               <div class="shape__pair">
                 <p class="panel__field">
-                  <label for="grid-width">Szélesség, cella</label>
+                  <label for="grid-width" data-i18n="gridWidthLabel">Szélesség, cella</label>
                   <input id="grid-width" type="number" min="1" max="80" step="1" value="12" inputmode="numeric" />
                 </p>
                 <p class="panel__field">
-                  <label for="grid-height">Magasság, sor</label>
+                  <label for="grid-height" data-i18n="gridHeightLabel">Magasság, sor</label>
                   <input id="grid-height" type="number" min="1" max="80" step="1" value="8" inputmode="numeric" />
                 </p>
               </div>
               <p class="panel__field">
-                <label for="grid-image">Kép betöltése a rácsba</label>
+                <label for="grid-image" data-i18n="gridImageLabel">Kép betöltése a rácsba</label>
                 <input id="grid-image" type="file" accept="image/png,image/jpeg,image/gif,image/webp" aria-describedby="grid-image-note" />
               </p>
-              <p class="panel__note" id="grid-image-note">
-                A kép a böngészőben marad, nem töltődik fel. A rács szélessége a megadott cellaszám, a magassága a kép és a
-                mintasűrűség arányából jön; filében a sötét rész teli cella, színes rácsban a legközelebbi szín.
-              </p>
+              <p class="panel__note" id="grid-image-note" data-i18n="gridImageNote">A kép a böngészőben marad, nem töltődik fel. A rács szélessége a megadott cellaszám, a magassága a kép és a mintasűrűség arányából jön; filében a sötét rész teli cella, színes rácsban a legközelebbi szín.</p>
               <fieldset class="grid-chart__colors" id="grid-colors-field" hidden>
-                <legend>Színek</legend>
+                <legend data-i18n="gridColorsLegend">Színek</legend>
                 <ul class="grid-chart__color-list" id="grid-colors"></ul>
-                <button type="button" class="tool grid-chart__action" id="grid-color-add">Szín hozzáadása</button>
+                <button type="button" class="tool grid-chart__action" id="grid-color-add" data-i18n="gridColorAdd">Szín hozzáadása</button>
               </fieldset>
               <fieldset class="choice grid-chart__brushes" id="grid-brushes"></fieldset>
               <p class="panel__note" id="grid-ratio"></p>
-              <div class="grid-chart__board" id="grid-board" role="grid" aria-label="Rácsszerkesztő" aria-describedby="grid-help"></div>
-              <p class="panel__note" id="grid-help">
-                Nyilakkal lépsz a cellák között, szóközzel vagy Enterrel festesz a választott ecsettel, Delete-tel törlöd a
-                cellát. Egérrel húzva több cellát festhetsz.
-              </p>
+              <div class="grid-chart__board" id="grid-board" role="grid" aria-label="Rácsszerkesztő" data-i18n-label="gridBoardLabel" aria-describedby="grid-help"></div>
+              <p class="panel__note" id="grid-help" data-i18n="gridHelp">Nyilakkal lépsz a cellák között, szóközzel vagy Enterrel festesz a választott ecsettel, Delete-tel törlöd a cellát. Egérrel húzva több cellát festhetsz.</p>
               <div class="grid-chart__group">
                 <p class="choice">
-                  <label><input type="checkbox" id="grid-unit-manual" /> Az ismétlő egységet kézzel jelölöm meg</label>
+                  <label><input type="checkbox" id="grid-unit-manual" /> <span data-i18n="gridUnitManualLabel">Az ismétlő egységet kézzel jelölöm meg</span></label>
                 </p>
                 <div class="shape__pair" id="grid-unit-fields" hidden>
                   <p class="panel__field">
-                    <label for="grid-unit-x">Első cella, balról</label>
+                    <label for="grid-unit-x" data-i18n="gridUnitXLabel">Első cella, balról</label>
                     <input id="grid-unit-x" type="number" min="1" max="80" step="1" value="1" inputmode="numeric" />
                   </p>
                   <p class="panel__field">
-                    <label for="grid-unit-y">Első sor, alulról</label>
+                    <label for="grid-unit-y" data-i18n="gridUnitYLabel">Első sor, alulról</label>
                     <input id="grid-unit-y" type="number" min="1" max="80" step="1" value="1" inputmode="numeric" />
                   </p>
                   <p class="panel__field">
-                    <label for="grid-unit-width">Az egység szélessége, cella</label>
+                    <label for="grid-unit-width" data-i18n="gridUnitWidthLabel">Az egység szélessége, cella</label>
                     <input id="grid-unit-width" type="number" min="1" max="80" step="1" value="4" inputmode="numeric" />
                   </p>
                   <p class="panel__field">
-                    <label for="grid-unit-height">Az egység magassága, sor</label>
+                    <label for="grid-unit-height" data-i18n="gridUnitHeightLabel">Az egység magassága, sor</label>
                     <input id="grid-unit-height" type="number" min="1" max="80" step="1" value="4" inputmode="numeric" />
                   </p>
                 </div>
                 <p class="panel__note grid-chart__unit" id="grid-unit" aria-live="polite"></p>
-                <button type="button" class="tool grid-chart__action" id="grid-fill">Kitöltés az ismétlő egységből</button>
+                <button type="button" class="tool grid-chart__action" id="grid-fill" data-i18n="gridFill">Kitöltés az ismétlő egységből</button>
               </div>
               <p class="choice">
-                <label><input type="checkbox" id="grid-lettering" /> Feliratos motívum: tükrözött nézetben figyelmeztet</label>
+                <label><input type="checkbox" id="grid-lettering" /> <span data-i18n="gridLetteringLabel">Feliratos motívum: tükrözött nézetben figyelmeztet</span></label>
               </p>
               <div class="shape__result">
                 <p class="shape__size" id="grid-size" aria-live="polite"></p>
@@ -782,103 +738,97 @@
                 <ul class="shawl__warnings" id="grid-warnings"></ul>
               </div>
               <p class="panel__note" id="grid-source"></p>
-              <ul class="shape__details" id="grid-yarn" aria-label="Fonal"></ul>
+              <ul class="shape__details" id="grid-yarn" aria-label="Fonal" data-i18n-label="gridYarnLabel"></ul>
               <div class="grid-chart__actions">
-                <button type="button" class="tool" id="grid-create">Minta létrehozása</button>
-                <button type="button" class="tool" id="grid-load" disabled>Rács a mostani mintából</button>
+                <button type="button" class="tool" id="grid-create" data-i18n="gridCreate">Minta létrehozása</button>
+                <button type="button" class="tool" id="grid-load" data-i18n="gridLoad" disabled>Rács a mostani mintából</button>
               </div>
             </div>
           </details>
 
           <details class="section" id="section-rounds">
-            <summary class="section__head"><h2 class="panel__title">Kör és motívum</h2></summary>
-            <div class="rounds" role="group" aria-label="Kör és motívum létrehozása">
-              <p class="panel__note">
-                Lapos kört, sokszöget vagy nagymama-négyzetet készít körönként. Az új minta a mostani helyére kerül;
-                visszavonással a korábbi visszajön.
-              </p>
+            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionRoundsTitle">Kör és motívum</h2></summary>
+            <div class="rounds" role="group" aria-label="Kör és motívum létrehozása" data-i18n-label="roundsGroupLabel">
+              <p class="panel__note" data-i18n="roundsNote">Lapos kört, sokszöget vagy nagymama-négyzetet készít körönként. Az új minta a mostani helyére kerül; visszavonással a korábbi visszajön.</p>
               <p class="panel__field">
-                <label for="rounds-shape">Forma</label>
+                <label for="rounds-shape" data-i18n="roundsShapeLabel">Forma</label>
                 <select id="rounds-shape"></select>
               </p>
               <p class="panel__field">
-                <label for="rounds-stitch">Szem</label>
+                <label for="rounds-stitch" data-i18n="roundsStitchLabel">Szem</label>
                 <select id="rounds-stitch"></select>
               </p>
               <p class="panel__field">
-                <label for="rounds-start">Kezdés</label>
+                <label for="rounds-start" data-i18n="roundsStartLabel">Kezdés</label>
                 <select id="rounds-start"></select>
               </p>
               <p class="panel__field">
-                <label for="rounds-count">Körök száma</label>
+                <label for="rounds-count" data-i18n="roundsCountLabel">Körök száma</label>
                 <input id="rounds-count" type="number" min="1" max="30" step="1" value="6" inputmode="numeric" />
               </p>
               <p class="panel__field">
-                <label for="rounds-closing">Kör vége</label>
+                <label for="rounds-closing" data-i18n="roundsClosingLabel">Kör vége</label>
                 <select id="rounds-closing" aria-describedby="rounds-closing-note"></select>
               </p>
-              <p class="panel__note" id="rounds-closing-note">Amigurumiban spirál, minden más körben haladó munkában zárt kör.</p>
+              <p class="panel__note" id="rounds-closing-note" data-i18n="roundsClosingNote">Amigurumiban spirál, minden más körben haladó munkában zárt kör.</p>
               <p class="choice">
-                <label><input type="checkbox" id="rounds-stagger" checked /> Eltolt szaporítás (kerekebb kör)</label>
+                <label><input type="checkbox" id="rounds-stagger" checked /> <span data-i18n="roundsStaggerLabel">Eltolt szaporítás (kerekebb kör)</span></label>
               </p>
               <p class="panel__field">
-                <label for="rounds-colors">Színváltás minden hányadik kör után (0: nincs)</label>
+                <label for="rounds-colors" data-i18n="roundsColorsLabel">Színváltás minden hányadik kör után (0: nincs)</label>
                 <input id="rounds-colors" type="number" min="0" max="30" step="1" value="0" inputmode="numeric" />
               </p>
               <p class="panel__field">
-                <label for="rounds-jog">Lépcsőjavítás spirálban</label>
+                <label for="rounds-jog" data-i18n="roundsJogLabel">Lépcsőjavítás spirálban</label>
                 <select id="rounds-jog"></select>
               </p>
               <p class="panel__note" id="rounds-note" aria-live="polite"></p>
-              <button type="button" class="tool rounds__create" id="rounds-create">Minta létrehozása</button>
+              <button type="button" class="tool rounds__create" id="rounds-create" data-i18n="roundsCreate">Minta létrehozása</button>
             </div>
           </details>
 
           <details class="section" id="section-amigurumi">
-            <summary class="section__head"><h2 class="panel__title">Amigurumi</h2></summary>
-            <div class="amigurumi" role="group" aria-label="Amigurumi rész létrehozása">
-              <p class="panel__note">
-                Gömböt, hengert, kúpot és más térbeli formát készít spirálban, a körben mért mintasűrűségből. Több rész
-                egy mintába kerülhet, varrva vagy folytatólagosan; az írott minta jelöli a szemet és a tömést.
-              </p>
+            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionAmigurumiTitle">Amigurumi</h2></summary>
+            <div class="amigurumi" role="group" aria-label="Amigurumi rész létrehozása" data-i18n-label="amigurumiGroupLabel">
+              <p class="panel__note" data-i18n="amigurumiNote">Gömböt, hengert, kúpot és más térbeli formát készít spirálban, a körben mért mintasűrűségből. Több rész egy mintába kerülhet, varrva vagy folytatólagosan; az írott minta jelöli a szemet és a tömést.</p>
               <p class="panel__field">
-                <label for="amigurumi-name">A rész neve</label>
+                <label for="amigurumi-name" data-i18n="amigurumiNameLabel">A rész neve</label>
                 <input id="amigurumi-name" type="text" value="Fej" autocomplete="off" />
               </p>
               <p class="panel__field">
-                <label for="amigurumi-shape">Forma</label>
+                <label for="amigurumi-shape" data-i18n="amigurumiShapeLabel">Forma</label>
                 <select id="amigurumi-shape"></select>
               </p>
               <p class="panel__field" data-field="method">
-                <label for="amigurumi-method">A gömb körterve</label>
+                <label for="amigurumi-method" data-i18n="amigurumiMethodLabel">A gömb körterve</label>
                 <select id="amigurumi-method"></select>
               </p>
               <p class="panel__field" data-field="diameter">
-                <label for="amigurumi-diameter">Átmérő (cm)</label>
+                <label for="amigurumi-diameter" data-i18n="amigurumiDiameterLabel">Átmérő (cm)</label>
                 <input id="amigurumi-diameter" type="text" inputmode="decimal" value="6" autocomplete="off" />
               </p>
               <p class="panel__field" data-field="height">
-                <label for="amigurumi-height">Magasság (cm)</label>
+                <label for="amigurumi-height" data-i18n="amigurumiHeightLabel">Magasság (cm)</label>
                 <input id="amigurumi-height" type="text" inputmode="decimal" value="8" autocomplete="off" />
               </p>
               <p class="panel__field" data-field="length">
-                <label for="amigurumi-length">Hossz (cm)</label>
+                <label for="amigurumi-length" data-i18n="amigurumiLengthLabel">Hossz (cm)</label>
                 <input id="amigurumi-length" type="text" inputmode="decimal" value="8" autocomplete="off" />
               </p>
               <p class="panel__field" data-field="width">
-                <label for="amigurumi-width">Szélesség (cm)</label>
+                <label for="amigurumi-width" data-i18n="amigurumiWidthLabel">Szélesség (cm)</label>
                 <input id="amigurumi-width" type="text" inputmode="decimal" value="5" autocomplete="off" />
               </p>
               <p class="panel__field" data-field="stitch">
-                <label for="amigurumi-stitch">Szem</label>
+                <label for="amigurumi-stitch" data-i18n="amigurumiStitchLabel">Szem</label>
                 <select id="amigurumi-stitch"></select>
               </p>
               <p class="panel__field" data-field="increases">
-                <label for="amigurumi-increases">Szaporítás körönként (tört is, pl. 2,5; üresen a magasságból)</label>
+                <label for="amigurumi-increases" data-i18n="amigurumiIncreasesLabel">Szaporítás körönként (tört is, pl. 2,5; üresen a magasságból)</label>
                 <input id="amigurumi-increases" type="text" inputmode="decimal" autocomplete="off" />
               </p>
               <p class="panel__field" data-field="profile">
-                <label for="amigurumi-profile">Profil: soronként sugár és magasság cm-ben</label>
+                <label for="amigurumi-profile" data-i18n="amigurumiProfileLabel">Profil: soronként sugár és magasság cm-ben</label>
                 <textarea id="amigurumi-profile" rows="4" aria-describedby="amigurumi-profile-note">
 0 0
 2,5 1
@@ -886,136 +836,134 @@
 0 6</textarea
                 >
               </p>
-              <p class="panel__note" data-field="profile" id="amigurumi-profile-note">
-                A kezdéstől a végig, pl. „2,5 4”: 2,5 cm sugár 4 cm magasan. A 0 sugarú vég zárt.
-              </p>
+              <p class="panel__note" data-field="profile" id="amigurumi-profile-note" data-i18n="amigurumiProfileNote">A kezdéstől a végig, pl. „2,5 4”: 2,5 cm sugár 4 cm magasan. A 0 sugarú vég zárt.</p>
               <p class="panel__field" data-field="bottom">
-                <label for="amigurumi-bottom">Kezdés</label>
+                <label for="amigurumi-bottom" data-i18n="amigurumiBottomLabel">Kezdés</label>
                 <select id="amigurumi-bottom"></select>
               </p>
               <p class="panel__field" data-field="top">
-                <label for="amigurumi-top">Vége</label>
+                <label for="amigurumi-top" data-i18n="amigurumiTopLabel">Vége</label>
                 <select id="amigurumi-top"></select>
               </p>
               <p class="choice">
-                <label><input type="checkbox" id="amigurumi-stagger" checked /> Eltolt szaporítás és fogyasztás</label>
+                <label><input type="checkbox" id="amigurumi-stagger" checked /> <span data-i18n="amigurumiStaggerLabel">Eltolt szaporítás és fogyasztás</span></label>
               </p>
               <p class="choice">
-                <label><input type="checkbox" id="amigurumi-eyes" checked /> Ide kerül a figura szeme (biztonsági vagy hímzett)</label>
+                <label><input type="checkbox" id="amigurumi-eyes" checked /> <span data-i18n="amigurumiEyesLabel">Ide kerül a figura szeme (biztonsági vagy hímzett)</span></label>
               </p>
               <p class="choice">
-                <label><input type="checkbox" id="amigurumi-under3" /> 3 év alatti gyereknek készül</label>
+                <label><input type="checkbox" id="amigurumi-under3" /> <span data-i18n="amigurumiUnder3Label">3 év alatti gyereknek készül</span></label>
               </p>
               <p class="panel__note" id="amigurumi-safety" hidden></p>
               <p class="panel__note" id="amigurumi-gauge"></p>
               <p class="panel__note" id="amigurumi-summary" aria-live="polite"></p>
-              <button type="button" class="tool amigurumi__action" id="amigurumi-create">Új minta ebből</button>
+              <button type="button" class="tool amigurumi__action" id="amigurumi-create" data-i18n="amigurumiCreate">Új minta ebből</button>
               <fieldset class="amigurumi__join">
-                <legend>Hozzáadás a mintához</legend>
+                <legend data-i18n="amigurumiJoinLegend">Hozzáadás a mintához</legend>
                 <p class="panel__field">
-                  <label for="amigurumi-join">Kapcsolás az előző részhez</label>
+                  <label for="amigurumi-join" data-i18n="amigurumiJoinLabel">Kapcsolás az előző részhez</label>
                   <select id="amigurumi-join"></select>
                 </p>
                 <p class="choice">
-                  <label><input type="checkbox" id="amigurumi-distribute" /> Eltérő szemszámnál egyenletes elosztás</label>
+                  <label><input type="checkbox" id="amigurumi-distribute" /> <span data-i18n="amigurumiDistributeLabel">Eltérő szemszámnál egyenletes elosztás</span></label>
                 </p>
-                <button type="button" class="tool amigurumi__action" id="amigurumi-add">Hozzáadás részként</button>
+                <button type="button" class="tool amigurumi__action" id="amigurumi-add" data-i18n="amigurumiAdd">Hozzáadás részként</button>
               </fieldset>
               <p class="panel__note" id="amigurumi-figure" hidden></p>
             </div>
           </details>
 
           <details class="section" id="section-notation">
-            <summary class="section__head"><h2 class="panel__title">Jelölés és jelek</h2></summary>
-            <div class="settings" role="group" aria-label="Jelölés és jelek">
+            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionNotationTitle">Jelölés és jelek</h2></summary>
+            <div class="settings" role="group" aria-label="Jelölés és jelek" data-i18n-label="notationGroupLabel">
             <p class="panel__field">
-              <label for="tradition">Előbeállítás</label>
-              <select id="tradition" aria-describedby="tradition-note">
-                <option value="cyc">Nemzetközi (CYC)</option>
-                <option value="japanese">Japán</option>
-              </select>
-            </p>
-            <p class="panel__note" id="tradition-note">
-              A mintához tartozik. A japán: JIS jelek, × rövidpálca, a fordulólánc a félpálcától
-              felfelé szemnek számít, a félpálca a 4., a pálca az 5. láncszemtől indul.
-            </p>
-            <p class="panel__field">
-              <label for="terms">Jelölés</label>
-              <select id="terms">
+              <label for="ui-language" data-i18n="uiLanguageLabel">A felület nyelve</label>
+              <select id="ui-language">
                 <option value="hu">Magyar</option>
-                <option value="en-US">Amerikai angol (US terms)</option>
-                <option value="en-GB">Brit angol (UK terms)</option>
+                <option value="en">English</option>
+              </select>
+            </p>
+            <p class="panel__note" id="ui-language-note" data-i18n="uiLanguageNote">A felület nyelve független a jelöléstől: angol felületen is dolgozhatsz magyar jelöléssel. A választás a címsorba is bekerül (?lang), így a link megosztható és újratölthető.</p>
+            <p class="panel__field">
+              <label for="tradition" data-i18n="traditionLabel">Előbeállítás</label>
+              <select id="tradition" aria-describedby="tradition-note">
+                <option value="cyc" data-i18n="traditionCyc">Nemzetközi (CYC)</option>
+                <option value="japanese" data-i18n="traditionJapanese">Japán</option>
+              </select>
+            </p>
+            <p class="panel__note" id="tradition-note" data-i18n="traditionNote">A mintához tartozik. A japán: JIS jelek, × rövidpálca, a fordulólánc a félpálcától felfelé szemnek számít, a félpálca a 4., a pálca az 5. láncszemtől indul.</p>
+            <p class="panel__field">
+              <label for="terms" data-i18n="termsLabel">Jelölés</label>
+              <select id="terms">
+                <option value="hu" data-i18n="termsHu">Magyar</option>
+                <option value="en-US" data-i18n="termsEnUs">Amerikai angol (US terms)</option>
+                <option value="en-GB" data-i18n="termsEnGb">Brit angol (UK terms)</option>
               </select>
             </p>
             <p class="panel__field">
-              <label for="chart-style">Jelstílus</label>
+              <label for="chart-style" data-i18n="chartStyleLabel">Jelstílus</label>
               <select id="chart-style">
-                <option value="cyc">CYC (Craft Yarn Council)</option>
-                <option value="jis">Japán (JIS)</option>
+                <option value="cyc" data-i18n="chartStyleCyc">CYC (Craft Yarn Council)</option>
+                <option value="jis" data-i18n="chartStyleJis">Japán (JIS)</option>
               </select>
             </p>
             <fieldset class="choice" id="sc-mark">
-              <legend>A rövidpálca jele</legend>
-              <label><input type="radio" name="sc-mark" value="plus" /> + (álló kereszt)</label>
-              <label><input type="radio" name="sc-mark" value="cross" /> × (ferde kereszt)</label>
+              <legend data-i18n="scMarkLegend">A rövidpálca jele</legend>
+              <label><input type="radio" name="sc-mark" value="plus" /> <span data-i18n="scMarkPlus">+ (álló kereszt)</span></label>
+              <label><input type="radio" name="sc-mark" value="cross" /> <span data-i18n="scMarkCross">× (ferde kereszt)</span></label>
             </fieldset>
-            <p class="panel__note" id="sc-mark-jis" hidden>A japán jelstílusban a rövidpálca jele ×.</p>
-            <p class="panel__note">
-              A jelölés és a jelstílus a felület nyelvétől független, és a minta adatán nem változtat: a paletta, a vászon,
-              az írott minta és az export is ezt követi.
-            </p>
+            <p class="panel__note" id="sc-mark-jis" data-i18n="scMarkJisNote" hidden>A japán jelstílusban a rövidpálca jele ×.</p>
+            <p class="panel__note" data-i18n="notationNote">A jelölés és a jelstílus a felület nyelvétől független, és a minta adatán nem változtat: a paletta, a vászon, az írott minta és az export is ezt követi.</p>
             </div>
           </details>
 
           <details class="section" id="section-pattern" open>
-            <summary class="section__head"><h2 class="panel__title" id="pattern-title">Minta</h2></summary>
+            <summary class="section__head"><h2 class="panel__title" id="pattern-title" data-i18n="sectionPatternTitle">Minta</h2></summary>
             <p class="panel__field">
-              <label for="title">Minta neve</label>
+              <label for="title" data-i18n="patternNameLabel">Minta neve</label>
               <input id="title" type="text" maxlength="120" />
             </p>
-            <p class="panel__note">A minta automatikusan mentődik ebbe a böngészőbe.</p>
+            <p class="panel__note" data-i18n="patternAutosaveNote">A minta automatikusan mentődik ebbe a böngészőbe.</p>
             <p class="choice">
-              <label><input type="checkbox" id="export-grid" checked /> Rács a PNG- és SVG-exportban</label>
+              <label><input type="checkbox" id="export-grid" checked /> <span data-i18n="patternExportGridLabel">Rács a PNG- és SVG-exportban</span></label>
             </p>
             <details class="keys">
-              <summary>Billentyűk</summary>
+              <summary data-i18n="keysSummary">Billentyűk</summary>
               <dl>
-                <dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd>szem kiválasztása</dd>
-                <dt><kbd>←</kbd> <kbd>→</kbd> <kbd>Home</kbd> <kbd>End</kbd></dt><dd>célpont a vásznon</dd>
-                <dt><kbd>Enter</kbd></dt><dd>horgolás a célpontba, láncszemnél a megadott számú láncszem</dd>
-                <dt><kbd>Shift</kbd>+<kbd>Enter</kbd></dt><dd>még egy ugyanabba (szaporítás)</dd>
-                <dt><kbd>Shift</kbd>+<kbd>F</kbd></dt><dd>a sor kitöltése a kiválasztott szemmel</dd>
-                <dt><kbd>F</kbd> / <kbd>K</kbd> / <kbd>S</kbd></dt><dd>sor vége és fordulás / kör zárása, láncszemekből láncgyűrű / kör vége spirálban</dd>
-                <dt><kbd>Backspace</kbd> / <kbd>Delete</kbd></dt><dd>a kijelölt szemek törlése, kijelölés nélkül az utolsó lépésé</dd>
-                <dt>Kattintás, <kbd>Shift</kbd>+kattintás, sorszám</dt><dd>szem nélkül: egy szem, több szem, a teljes sor kijelölése</dd>
-                <dt>Nyilak, <kbd>Home</kbd> <kbd>End</kbd></dt><dd>szem nélkül: kijelölés a szemek között, <kbd>Shift</kbd>-tel tartomány</dd>
-                <dt><kbd>Ctrl</kbd>+<kbd>A</kbd></dt><dd>minden szem kijelölése</dd>
-                <dt><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>Ctrl</kbd>+<kbd>V</kbd></dt><dd>másolás / beillesztés a kurzortól; a teljes sor új sorként kerül be</dd>
-                <dt><kbd>Ctrl</kbd>+<kbd>D</kbd></dt><dd>a kijelölés duplikálása, pl. a következő sorba</dd>
-                <dt><kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></dt><dd>visszavonás, újra</dd>
-                <dt><kbd>M</kbd></dt><dd>tükrözött nézet</dd>
-                <dt><kbd>R</kbd></dt><dd>rács ki és be</dd>
-                <dt><kbd>Esc</kbd></dt><dd>nincs kiválasztott szem: kattintással a jel kijelölése és igazítása</dd>
-                <dt><kbd>Alt</kbd>+nyilak</dt><dd>a kijelölt jel eltolása</dd>
+                <dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd data-i18n="keysPick">szem kiválasztása</dd>
+                <dt><kbd>←</kbd> <kbd>→</kbd> <kbd>Home</kbd> <kbd>End</kbd></dt><dd data-i18n="keysTarget">célpont a vásznon</dd>
+                <dt><kbd>Enter</kbd></dt><dd data-i18n="keysEnter">horgolás a célpontba, láncszemnél a megadott számú láncszem</dd>
+                <dt><kbd>Shift</kbd>+<kbd>Enter</kbd></dt><dd data-i18n="keysSame">még egy ugyanabba (szaporítás)</dd>
+                <dt><kbd>Shift</kbd>+<kbd>F</kbd></dt><dd data-i18n="keysFillRow">a sor kitöltése a kiválasztott szemmel</dd>
+                <dt><kbd>F</kbd> / <kbd>K</kbd> / <kbd>S</kbd></dt><dd data-i18n="keysRowRound">sor vége és fordulás / kör zárása, láncszemekből láncgyűrű / kör vége spirálban</dd>
+                <dt><kbd>Backspace</kbd> / <kbd>Delete</kbd></dt><dd data-i18n="keysDelete">a kijelölt szemek törlése, kijelölés nélkül az utolsó lépésé</dd>
+                <dt><span data-i18n="keysClickPrefix">Kattintás, </span><kbd>Shift</kbd><span data-i18n="keysClickSuffix">+kattintás, sorszám</span></dt><dd data-i18n="keysClickHint">szem nélkül: egy szem, több szem, a teljes sor kijelölése</dd>
+                <dt><span data-i18n="keysArrowsPrefix">Nyilak, </span><kbd>Home</kbd> <kbd>End</kbd></dt><dd><span data-i18n="keysArrowsHintPrefix">szem nélkül: kijelölés a szemek között, </span><kbd>Shift</kbd><span data-i18n="keysArrowsHintSuffix">-tel tartomány</span></dd>
+                <dt><kbd>Ctrl</kbd>+<kbd>A</kbd></dt><dd data-i18n="keysSelectAll">minden szem kijelölése</dd>
+                <dt><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>Ctrl</kbd>+<kbd>V</kbd></dt><dd data-i18n="keysCopyPaste">másolás / beillesztés a kurzortól; a teljes sor új sorként kerül be</dd>
+                <dt><kbd>Ctrl</kbd>+<kbd>D</kbd></dt><dd data-i18n="keysDuplicate">a kijelölés duplikálása, pl. a következő sorba</dd>
+                <dt><kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></dt><dd data-i18n="keysUndoRedo">visszavonás, újra</dd>
+                <dt><kbd>M</kbd></dt><dd data-i18n="keysMirror">tükrözött nézet</dd>
+                <dt><kbd>R</kbd></dt><dd data-i18n="keysGrid">rács ki és be</dd>
+                <dt><kbd>Esc</kbd></dt><dd data-i18n="keysEsc">nincs kiválasztott szem: kattintással a jel kijelölése és igazítása</dd>
+                <dt><kbd>Alt</kbd><span data-i18n="keysNudgeSuffix">+nyilak</span></dt><dd data-i18n="keysNudge">a kijelölt jel eltolása</dd>
               </dl>
             </details>
           </details>
 
           <section class="check" id="adjust" aria-labelledby="adjust-title" hidden>
-            <h2 class="panel__title" id="adjust-title">Kijelölt jel igazítása</h2>
+            <h2 class="panel__title" id="adjust-title" data-i18n="adjustTitle">Kijelölt jel igazítása</h2>
             <p class="panel__hint" id="adjust-name"></p>
-            <div class="adjust" role="group" aria-label="Eltolás">
-              <button type="button" class="tool" data-nudge="0,-2" aria-label="Fel">↑</button>
-              <button type="button" class="tool" data-nudge="-2,0" aria-label="Balra">←</button>
-              <button type="button" class="tool" data-nudge="2,0" aria-label="Jobbra">→</button>
-              <button type="button" class="tool" data-nudge="0,2" aria-label="Le">↓</button>
-              <button type="button" class="tool" data-action="unpin">Számolt helyre</button>
+            <div class="adjust" role="group" aria-label="Eltolás" data-i18n-label="adjustGroupLabel">
+              <button type="button" class="tool" data-nudge="0,-2" aria-label="Fel" data-i18n-label="adjustUp">↑</button>
+              <button type="button" class="tool" data-nudge="-2,0" aria-label="Balra" data-i18n-label="adjustLeft">←</button>
+              <button type="button" class="tool" data-nudge="2,0" aria-label="Jobbra" data-i18n-label="adjustRight">→</button>
+              <button type="button" class="tool" data-nudge="0,2" aria-label="Le" data-i18n-label="adjustDown">↓</button>
+              <button type="button" class="tool" data-action="unpin" data-i18n="adjustUnpin">Számolt helyre</button>
             </div>
           </section>
 
-          <button type="button" class="panel__consent" data-consent-open hidden>
-            Süti-beállítások
-          </button>
+          <button type="button" class="panel__consent" data-consent-open data-i18n="consentOpen" hidden>Süti-beállítások</button>
         </aside>
       </main>
     </div>

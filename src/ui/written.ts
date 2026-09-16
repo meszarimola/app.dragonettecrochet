@@ -15,35 +15,38 @@ import type { LiveCheck, WorkContext } from '../core/editor.ts';
 import { WrittenPatternError } from '../core/pattern-steps.ts';
 import { formatWrittenPattern, writePattern } from '../core/pattern-text.ts';
 import type { Locale, Pattern } from '../core/types.ts';
+import { texts } from './i18n.ts';
+import { SECTION_TEXTS } from './i18n/sections.ts';
+import { textLanguage } from './notation.ts';
 
 export type WrittenView =
   | { readonly kind: 'text'; readonly text: string; readonly notices: readonly string[] }
   | { readonly kind: 'message'; readonly message: string };
 
-const UNTITLED = 'Névtelen minta';
-
 export function writtenView(pattern: Pattern, context: WorkContext, check: LiveCheck, terms: Locale): WrittenView {
+  const { written, size } = texts().sections;
   if (pattern.pieces.every((piece) => piece.stitches.length === 0)) {
-    return { kind: 'message', message: 'Még nincs mit kiírni: kezdd láncalappal vagy varázskörrel.' };
+    return { kind: 'message', message: written.empty };
   }
 
   let text: string;
   try {
-    const titled = pattern.title.trim() ? pattern : { ...pattern, title: UNTITLED };
+    // A cím helye a szöveg nyelvén áll (a jelölésé), nem a felületén: a kiírt minta egynyelvű marad.
+    const untitled = SECTION_TEXTS[textLanguage(terms)].written.untitled;
+    const titled = pattern.title.trim() ? pattern : { ...pattern, title: untitled };
     text = formatWrittenPattern(writePattern(titled, context.library, terms));
   } catch (error) {
     if (error instanceof WrittenPatternError) {
-      return { kind: 'message', message: `Ez a minta még nem írható ki. ${error.message}` };
+      return { kind: 'message', message: written.notWritable(error.message) };
     }
-    return { kind: 'message', message: 'A minta szerkezete hibás, ezért nem írható ki; a hibákat az Ellenőrzés sorolja fel.' };
+    return { kind: 'message', message: written.broken };
   }
 
   const notices: string[] = [];
   if (check.remaining > 0) {
-    const layer = `${context.layer}. ${context.shape === 'round' ? 'kör' : 'sor'}`;
-    notices.push(`A ${layer} félkész, még ${check.remaining} célpont van hátra: a szöveg a mostani állapotot írja le.`);
+    notices.push(written.partial(size.result.layerLabel(context.layer, context.shape === 'round'), check.remaining));
   }
   const errors = check.findings.filter((finding) => finding.severity === 'error').length;
-  if (errors > 0) notices.push(`A mintában ${errors} hiba van (lásd Ellenőrzés), ezért a szöveg így nem követhető.`);
+  if (errors > 0) notices.push(written.errors(errors));
   return { kind: 'text', text, notices };
 }
