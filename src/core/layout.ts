@@ -36,7 +36,7 @@ import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
 import { CIRCLE, frameCoords, frameFor, frameNormal, framePoint, frameSide, perimeter, type Point, type RoundFrame } from './polygon.ts';
 import { curveLayout, rowCurve } from './row-curve.ts';
 import type { StitchLibrary } from './stitch-library.ts';
-import type { Anchor, NodeId, Pattern, StitchDef, StitchDefId } from './types.ts';
+import type { Anchor, NodeId, Pattern, RoundShape, StitchDef, StitchDefId } from './types.ts';
 import { validatePattern } from './validate.ts';
 
 export type { Point, RoundFrame } from './polygon.ts';
@@ -212,6 +212,12 @@ class Layouter {
   readonly #W: number;
   readonly #stem: (chainHeight: number) => number;
   readonly #round: boolean;
+  #roundShape: RoundShape | undefined;
+
+  /** Kúpos kör-e a réteg (PQW-908): a 2. körtől a megadott körig. */
+  #cone(index: number): boolean {
+    return this.#round && this.#roundShape?.kind === 'cone' && index >= 2 && index <= this.#roundShape.throughRound;
+  }
   /** Ovális kezdés (PQW-890): a láncalap egyenesen, az 1. kör a két oldalán. */
   readonly #oval: boolean;
   /** A körben horgolt darab alakja: kör vagy sokszög. */
@@ -235,8 +241,11 @@ class Layouter {
     this.#stem = stem;
     this.#detached = detached;
     this.#round = graph.layers[0]!.shape === 'round';
+    this.#roundShape = graph.piece.roundShape;
     this.#oval = this.#round && graph.layers[0]!.undersides.length > 0;
-    this.#frame = this.#round ? frameFor(graph.piece.corners) : CIRCLE;
+    // A kúp (PQW-908: a raglán vállrésze) kör alapú: a négy raglánvonal szaporítási pont, nem motívumsarok.
+    // Sarkos keretre húzva a rajz négyzetté torzulna, pedig a darab a valóságban körbefutó cső.
+    this.#frame = this.#round && graph.piece.roundShape?.kind !== 'cone' ? frameFor(graph.piece.corners) : CIRCLE;
   }
 
   run(): Raw {
@@ -388,7 +397,10 @@ class Layouter {
     const around = perimeter(this.#frame, 1);
     const unit = around / TAU;
     const scale = (radius: number) => (this.#round ? 1 / (radius * unit) : 1);
-    if (this.#round) {
+    // Lapos körnél a sugár akkorára nő, hogy a kör szemei kiférjenek a kerületén. A kúp (PQW-908: a raglán
+    // vállrésze) ennél lassabban nő: ott a sugarat a kelme adja (az előző kör teteje), a kör pedig kiterítve
+    // körcikket ad, mint a valóságban. Az 1. kör mindig a kerületéből indul, különben nem lenne mihez mérni.
+    if (this.#round && !this.#cone(layer.index)) {
       const width = items.reduce((sum, item) => sum + 2 * item.half, 0);
       base = Math.max(base, width / around - height / 2);
       this.#base[layer.index] = base;

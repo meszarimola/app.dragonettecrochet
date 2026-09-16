@@ -60,9 +60,14 @@ function validatePiece(pattern: Pattern, piece: Piece, library: StitchLibrary): 
   for (let index = 1; index < graph.layers.length; index += 1) {
     const opening = graph.layers[index]!.opening;
     const resume = opening?.kind === 'fasten-off' ? opening.resume : undefined;
-    if (resume !== undefined && (resume.layer < 1 || resume.layer >= index || graph.layers[resume.layer]!.shape !== 'row')) {
-      report('resume-layer', [opening!.after]);
-    }
+    // A két forrásból horgoló kör (PQW-908, pl. a raglán ujja) körre folytatódik, és a második forrás a
+    // megadott sor és a mostani szakasz között áll; minden más folytatás csak korábbi sor fölé mehet.
+    const twoSource = resume?.with !== undefined;
+    const target = resume === undefined ? null : graph.layers[resume.layer];
+    const badTarget = resume !== undefined && (resume.layer < 1 || resume.layer >= index || target === undefined);
+    const badShape = !badTarget && resume !== undefined && target!.shape !== (twoSource ? 'round' : 'row');
+    const badWith = twoSource && !(resume!.with! > resume!.layer && resume!.with! < index && graph.layers[resume!.with!]!.shape === 'round');
+    if (resume !== undefined && (badTarget || badShape || badWith)) report('resume-layer', [opening!.after]);
   }
   if (findings.length > 0) return findings;
 
@@ -214,8 +219,12 @@ function checkLayer(
   const layer = graph.layers[index]!;
   // Alapból az előző sor; elvágott fonal után a megadott sor fölött folytatódik (PQW-901).
   const below = graph.layers[layer.below]!;
-  const length = below.positions.length;
-  const positionIndex = new Map(below.positions.map((id, i) => [id, i]));
+  // Két forrásból horgoló kör (PQW-908): a második réteg pozíciói a `below` pozíciói után következnek,
+  // így a kör a két szakaszt egyetlen, folytonos alapnak látja (a raglán ujja: kihagyott szemek, majd hónaljlánc).
+  const alsoBelow = layer.alsoBelow === undefined ? null : graph.layers[layer.alsoBelow]!;
+  const basePositions = layer.basePositions ?? (alsoBelow === null ? below.positions : [...below.positions, ...alsoBelow.positions]);
+  const length = basePositions.length;
+  const positionIndex = new Map(basePositions.map((id, i) => [id, i]));
   const toWorking = (i: number) => (layer.direction === 1 ? i : length - 1 - i);
   const belowTurning = new Set(below.turningChain);
   const turningTop = below.turningChainCounts ? below.turningChain[below.turningChain.length - 1] : undefined;
@@ -261,7 +270,8 @@ function checkLayer(
       }
       const positions = anchor.into === 'space' ? spacePositions(below, graph.spaces.get(anchor.id)!) : targets;
       const indices = positions.map((target) => positionIndex.get(target));
-      if (targetLayer !== layer.below || indices.some((i) => i === undefined)) {
+      const fromSource = targetLayer === layer.below || (layer.alsoBelow !== undefined && targetLayer === layer.alsoBelow);
+      if (!fromSource || indices.some((i) => i === undefined)) {
         report('anchor-layer', [id]);
         layerInvalid = true;
         return;
@@ -297,7 +307,7 @@ function checkLayer(
   // hagyományban az 1. sorban is: ott a fordulólánc alatti alapláncszem (01 §8.3 szabály 15).
   const baseChain = index === 1 && below.shape === 'row' && hasBaseChain(layer.turningChainCounts, traditionOf(pattern.conventions));
   const optional = (index >= 2 || baseChain) && layer.turningChainCounts ? 0 : -1;
-  const positionAt = (w: number) => below.positions[layer.direction === 1 ? w : length - 1 - w]!;
+  const positionAt = (w: number) => basePositions[layer.direction === 1 ? w : length - 1 - w]!;
   const gap = (from: number, to: number) => {
     let count = 0;
     for (let w = from; w <= to; w += 1) if (w !== optional && !covered[w] && !skipped.has(positionAt(w))) count += 1;
@@ -379,9 +389,13 @@ function checkLayer(
   const elsewhere = new Set<NodeId>();
   let shared = false;
   if (graph.piece.events.some((event) => event.kind === 'fasten-off' && event.resume !== undefined)) {
+    // A két forrásból horgoló körnél (PQW-908) mindkét forrás számít: a vállrész körének szemeit a szétosztás,
+    // a hónaljlánc láncszemeit a törzs első köre dolgozza fel, ezért azok sem maradnak felhasználatlanul.
+    const sourceOf = (other: LayerInfo) =>
+      other.below === layer.below || (layer.alsoBelow !== undefined && other.below === layer.alsoBelow);
     for (const other of graph.layers) {
       if (other.index !== index && other.below === layer.below) shared = true;
-      if (other.index === index || other.below !== layer.below) continue;
+      if (other.index === index || !sourceOf(other)) continue;
       let first = Number.POSITIVE_INFINITY;
       for (const id of other.stitches) {
         for (const anchor of graph.nodes.get(id)!.anchors) {

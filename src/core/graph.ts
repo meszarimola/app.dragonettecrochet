@@ -258,6 +258,8 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     // Elvágott fonal után a szakasz a megadott sor fölött folytatódik (PQW-901): a nyakkivágás két oldalán a két váll.
     const resume = opening?.kind === 'fasten-off' ? opening.resume : undefined;
     const below = resume !== undefined && resume.layer >= 0 && resume.layer < index ? resume.layer : index - 1;
+    // Két forrásból horgoló kör (PQW-908): a második réteg pozíciói a `below` pozíciói után jönnek.
+    const alsoBelow = resume?.with !== undefined && resume.with > below && resume.with < index ? resume.with : undefined;
     const previous = layers[below]!;
     const last = segment[segment.length - 1]!;
     const closing = eventAfter.get(last.id) ?? null;
@@ -289,7 +291,10 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     // A sort kezdő szem dönti el a fordulólánc magasságát; a lejjebb horgolt hosszú szem nem ilyen (mozaik, PQW-894).
     const rest = segment.slice(head).filter((node) => kindOf(node) !== 'chain');
     const firstStitch = (rest.find((node) => !node.flags?.includes('spike')) ?? rest[0])?.id ?? null;
-    const joinSlip = closing?.kind === 'join-slip' && kindOf(last) === 'slip' ? last.id : null;
+    // A zárt kör utolsó szeme a záró kúszószem. Ha a kör után a fonal elvágásával másik szakasznál folytatódik
+    // a munka (PQW-908: a raglán ujja), ugyanaz a kúszószem viszi a fonal elvágását is: attól még záró szem.
+    const joined = closing?.kind === 'join-slip' || (closing?.kind === 'fasten-off' && closing.resume !== undefined);
+    const joinSlip = joined && kindOf(last) === 'slip' ? last.id : null;
 
     // A szegély a sorvégekbe is horgol, és kúszószemmel záródik: a darab körüli kör (PQW-889).
     const border = segment.some((node) => node.anchors.some((anchor) => anchor.into === 'row-end'));
@@ -301,13 +306,15 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     else shape = 'round';
 
     // Az újrakezdett szakasz a megadott sor fölött ugyanúgy indul, mint fordulás után: a másik oldaláról halad.
+    // A két forrásból horgoló kör (PQW-908) viszont körben folytatódik: ugyanabban az irányban, ugyanazzal az oldallal.
+    const resumedRound = resume?.with !== undefined;
     const side: Layer['side'] =
-      opening?.kind === 'turn' || resume !== undefined ? (previous.side === 'right' ? 'wrong' : 'right') : previous.side;
+      (opening?.kind === 'turn' || resume !== undefined) && !resumedRound ? (previous.side === 'right' ? 'wrong' : 'right') : previous.side;
 
     let direction: 1 | -1;
     if (border) direction = 1;
     else if (index === 1) direction = foundation === 'chain' && !roundStart ? -1 : 1;
-    else direction = opening?.kind === 'turn' || resume !== undefined ? -1 : 1;
+    else direction = (opening?.kind === 'turn' || resume !== undefined) && !resumedRound ? -1 : 1;
 
     let turningChainCounts = false;
     if (turningChain.length > 0) {
@@ -366,6 +373,9 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       piece: piece.id,
       index,
       below,
+      ...(alsoBelow === undefined
+        ? {}
+        : { alsoBelow, basePositions: baseRing(layers[below]!, layers[alsoBelow]!, segment, defs, new Set(piece.skipped)) }),
       // A kiírt sorszám az alatta lévő sorét követi: az újrakezdett szakaszban ezért indul újra (PQW-901).
       row: previous.row + 1,
       shape,
@@ -419,4 +429,32 @@ export function computeLayers(pattern: Pattern, library: StitchLibrary): Layer[]
       }),
     ),
   );
+}
+
+/**
+ * A kétforrású kör alapgyűrűje (PQW-908). A raglán ujja a vállrész kihagyott szemeibe és a
+ * szétosztás hónaljláncába kapaszkodik: ez a kettő a hónaljnál összeér, a köztük lévő testszemek
+ * pedig nem részei a csőnek. A futamokat szerkezetileg választjuk ki (kihagyott szemek, illetve
+ * láncszemek), a horgolt szemek csak azt döntik el, *melyik* futamról van szó — így az ellenőrző
+ * továbbra is észreveszi, ha a kör a saját gyűrűjén belül ugrik át egy szemet.
+ */
+function baseRing(
+  below: LayerInfo,
+  also: LayerInfo,
+  segment: readonly StitchNode[],
+  defs: Map<NodeId, StitchDef>,
+  skipped: ReadonlySet<NodeId>,
+): NodeId[] {
+  const targets = new Set<NodeId>();
+  for (const node of segment) for (const anchor of node.anchors) if (anchor.into === 'stitch') targets.add(anchor.id);
+  const run = (positions: readonly NodeId[], member: (id: NodeId) => boolean) => {
+    const at = positions.findIndex((id) => targets.has(id) && member(id));
+    if (at < 0) return [];
+    let from = at;
+    let to = at;
+    while (from > 0 && member(positions[from - 1]!)) from -= 1;
+    while (to < positions.length - 1 && member(positions[to + 1]!)) to += 1;
+    return positions.slice(from, to + 1);
+  };
+  return [...run(below.positions, (id) => skipped.has(id)), ...run(also.positions, (id) => defs.get(id)!.kind === 'chain')];
 }

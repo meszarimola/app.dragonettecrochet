@@ -233,7 +233,10 @@ function writtenLayer(
   const below = graph.layers[layer.below]!;
   // Az ovális 1. köre (PQW-890): elöl a horogtól távolodva, utána a láncszemek másik oldalán vissza.
   const oval = index === 1 && below.undersides.length > 0;
-  const front = layer.direction === 1 && !oval ? below.positions : [...below.positions].reverse();
+  // A kétforrású kör (PQW-908: a raglán ujja) a saját alapgyűrűjén halad: a vállrész kihagyott
+  // szemein és a hónaljláncon, nem az alatta lévő teljes körön.
+  const base = layer.basePositions ?? below.positions;
+  const front = layer.direction === 1 && !oval ? base : [...base].reverse();
   const working = oval ? [...front, ...below.positions] : front;
   const workingIndex = new Map(front.map((id, w) => [id, w]));
   const undersideIndex = new Map<NodeId, number>(oval ? below.positions.map((id, k) => [id, front.length + k]) : []);

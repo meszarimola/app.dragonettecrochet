@@ -310,7 +310,7 @@ function readPiece(value: unknown, path: string): Piece {
     value,
     path,
     ['id', 'name', 'stitches', 'spaces', 'rings', 'groups', 'events', 'skipped'],
-    ['corners', 'border', 'sections', 'grid', 'rowShape'],
+    ['corners', 'border', 'sections', 'grid', 'rowShape', 'roundShape'],
   );
   return {
     id: string(raw['id'], `${path}.id`),
@@ -331,7 +331,16 @@ function readPiece(value: unknown, path: string): Piece {
     ...(raw['grid'] === undefined ? {} : { grid: readGrid(raw['grid'], `${path}.grid`) }),
     // A PQW-893 előtti mentésben nincs: a sorok egyenesek.
     ...(raw['rowShape'] === undefined ? {} : { rowShape: readRowShape(raw['rowShape'], `${path}.rowShape`) }),
+    // A körben horgolt darab kúpos rajza a PQW-908 előtti mentésben nincs.
+    ...(raw['roundShape'] === undefined ? {} : { roundShape: readRoundShape(raw['roundShape'], `${path}.roundShape`) }),
   };
+}
+
+/** A körben horgolt darab rajzának alakja (PQW-908): kúp a megadott körig. */
+function readRoundShape(value: unknown, path: string): NonNullable<Piece['roundShape']> {
+  const kind = oneOf(isObject(value) ? value['kind'] : undefined, `${path}.kind`, ['cone'] as const);
+  const raw = object(value, path, ['kind', 'throughRound']);
+  return { kind, throughRound: integer(raw['throughRound'], `${path}.throughRound`, 2) };
 }
 
 /** A sorban horgolt kendő rajzának alakja; a szögek fokban, 0 és 360 között. */
@@ -485,10 +494,12 @@ function readEvent(value: unknown, path: string): LayerEvent {
 
 /** Elvágott fonal után a szakasz a megadott sor fölött folytatódik, a nevével (PQW-901). */
 function readResume(value: unknown, path: string): NonNullable<LayerEvent['resume']> {
-  const raw = object(value, path, ['layer'], ['name']);
+  const raw = object(value, path, ['layer'], ['name', 'with']);
   return {
     layer: integer(raw['layer'], `${path}.layer`, 1),
     ...(raw['name'] === undefined ? {} : { name: string(raw['name'], `${path}.name`) }),
+    // Két forrásból horgoló kör (PQW-908); a PQW-908 előtti mentésben nincs.
+    ...(raw['with'] === undefined ? {} : { with: integer(raw['with'], `${path}.with`, 1) }),
   };
 }
 
