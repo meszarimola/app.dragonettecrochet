@@ -28,7 +28,7 @@ const text = (pattern) => formatWrittenPattern(writePattern(pattern, libraryFor(
 
 /** Sík téglalap bordás szegéllyel. */
 function flat(options = DEFAULT_RIBBING) {
-  const shape = generateShape(emptyPattern(), { ...DEFAULT_SHAPE, widthCm: 10, heightCm: 6, stitch: 'dc', border: null });
+  const shape = generateShape(emptyPattern(), { ...DEFAULT_SHAPE, widthCm: 10, heightCm: 6, stitch: 'dc' });
   assert.ok(shape.ok, shape.reason);
   const piece = appendRibbing(shape.pattern, shape.pattern.pieces[0], libraryFor(shape.pattern), options);
   assert.equal(typeof piece, 'object', String(piece));
@@ -147,15 +147,9 @@ describe('a Forma generátor bordás szegéllyel', () => {
   const shapeWith = (patch) => generateShape(emptyPattern(), { ...DEFAULT_SHAPE, widthCm: 10, heightCm: 6, stitch: 'dc', ...patch });
 
   test('hibátlan mintát ad, a bordázat ismétlésként kiírva', () => {
-    const result = shapeWith({ border: null, ribbing: { rows: 2, width: 1 } });
+    const result = shapeWith({ ribbing: { rows: 2, width: 1 } });
     assert.ok(result.ok, result.reason);
     assert.deepEqual(errors(result.pattern), []);
     assert.match(text(result.pattern), /\[1 (Eerp|Herp), 1 (Eerp|Herp)\]/);
-  });
-
-  test('a bordás szegély és a körbefutó szegély együtt pontos okkal elutasított', () => {
-    const result = shapeWith({ border: { stitch: 'sc', hdcRowEnd: 2 }, ribbing: { rows: 2, width: 1 } });
-    assert.equal(result.ok, false);
-    assert.equal(result.reason.code, 'ribbing-with-border');
   });
 });

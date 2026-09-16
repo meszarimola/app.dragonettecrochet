@@ -27,7 +27,6 @@
  * megadott szemszám a gráf számolása (06 §5.3 V3).
  */
 
-import { appendBorder, borderOf, type BorderCode, type BorderCounts } from './border.ts';
 import { stitchDimensions, type DimensionBasis } from './gauge.ts';
 import { buildPieceGraph } from './graph.ts';
 import { text, type CoreText } from './messages.ts';
@@ -44,7 +43,6 @@ import type {
   NodeId,
   Pattern,
   Piece,
-  PieceBorder,
   RepeatSpec,
   Space,
   StitchDef,
@@ -102,9 +100,7 @@ export interface ShapeOptions {
   /** „X többszöröse + Y”; csak téglalapnál. */
   readonly repeat: ShapeRepeat | null;
   readonly rounding: RepeatRounding;
-  /** Szegély a darab körül; csak téglalapnál. */
-  readonly border: PieceBorder | null;
-  /** Bordás szegély a felső élen, relief szemmel (PQW-909); a körbefutó szegéllyel együtt nem választható. */
+  /** Bordás szegély a felső élen, relief szemmel (PQW-909). */
   readonly ribbing?: RibbingOptions | null;
 }
 
@@ -118,7 +114,6 @@ export const DEFAULT_SHAPE: ShapeOptions = {
   topWidthCm: 10,
   repeat: null,
   rounding: 'nearest',
-  border: null,
   ribbing: null,
 };
 
@@ -179,15 +174,11 @@ export interface ShapePlan {
   readonly chainExtensionRows: readonly number[];
   /** Azok a sorok (1-től), amelyek végén szemek maradnak meghagyva. */
   readonly unworkedRows: readonly number[];
-  readonly border: BorderCounts | null;
-  /** A méret a szegéllyel együtt, cm, a rövidpálca méretének eredetével is; szegély nélkül `null`. */
-  readonly borderedCm: { readonly widthCm: number; readonly heightCm: number; readonly source: ValueSource } | null;
 }
 
 /**
  * A forma elutasításának kódjai (PQW-904): a mag kódot és adatot ad, a mondatot
- * a felület állítja össze (`src/ui/i18n/core/shape.ts`). A szegély indoka is
- * ide tartozik, mert a terv a szegélyen is elbukhat (`BorderCode`).
+ * a felület állítja össze (`src/ui/i18n/core/shape.ts`).
  *
  * Az `internal-error` a „ez a program hibája” esetek közös kódja: `rule` a
  * megbukott ellenőrzési szabály, `row` (és `shape`) a tervtől eltérő sor, adat
@@ -202,8 +193,6 @@ export type ShapeCode =
   | 'shape-repeat-rectangle-only'
   | 'shape-repeat-width-range'
   | 'shape-repeat-edge-range'
-  | 'shape-border-repeat-width-range'
-  | 'shape-border-repeat-edge-range'
   | 'shape-too-narrow'
   | 'shape-max-stitches-width'
   | 'shape-max-stitches-size'
@@ -214,7 +203,6 @@ export type ShapeCode =
   | 'shape-too-steep'
   | 'shape-row-too-narrow'
   | 'internal-error'
-  | BorderCode
   | RibbingCode;
 
 export type ShapeText = CoreText<ShapeCode>;
@@ -226,15 +214,13 @@ export type ShapeResult =
 
 const fail = (reason: ShapeText): { readonly ok: false; readonly reason: ShapeText } => ({ ok: false, reason });
 
-/** Mi nem választható: hiányzó vagy tartományon kívüli méret, a formához nem illő mintaismétlés vagy szegély. */
+/** Mi nem választható: hiányzó vagy tartományon kívüli méret, a formához nem illő mintaismétlés. */
 export function shapeProblem(options: ShapeOptions): ShapeText | null {
   const cm = (value: number) => Number.isFinite(value) && value > 0 && value <= MAX_SHAPE_CM;
   if (!SHAPE_STITCHES.includes(options.stitch)) {
     return text('shape-basic-stitch-only');
   }
   if (options.ribbing) {
-    // A bordázat a felső élen fut, a szegély a darab körül: a kettő egyszerre nem rakható egymásra (PQW-909).
-    if (options.border) return text('ribbing-with-border');
     const ribbing = ribbingProblem(options.ribbing);
     if (ribbing !== null) return ribbing;
   }
@@ -252,17 +238,6 @@ export function shapeProblem(options: ShapeOptions): ShapeText | null {
     const { width, edge } = options.repeat;
     if (!Number.isInteger(width) || width < 1 || width > MAX_REPEAT) return text('shape-repeat-width-range', { max: MAX_REPEAT });
     if (!Number.isInteger(edge) || edge < 0 || edge > MAX_REPEAT) return text('shape-repeat-edge-range', { max: MAX_REPEAT });
-  }
-  if (options.border) {
-    if (options.border.stitch !== 'sc') return text('border-single-crochet-only');
-    // Igazítás a következő szegélysor ismétléséhez (PQW-898).
-    const repeat = options.border.repeat;
-    if (repeat && (!Number.isInteger(repeat.width) || repeat.width < 1 || repeat.width > MAX_REPEAT)) {
-      return text('shape-border-repeat-width-range', { max: MAX_REPEAT });
-    }
-    if (repeat && (!Number.isInteger(repeat.edge) || repeat.edge < 0 || repeat.edge > MAX_REPEAT)) {
-      return text('shape-border-repeat-edge-range', { max: MAX_REPEAT });
-    }
   }
   return null;
 }
@@ -460,18 +435,8 @@ export function planShape(pattern: Pattern, options: ShapeOptions): ShapePlanRes
     repeats,
     chainExtensionRows: shaping.flatMap((row, k) => (row.start > MAX_EDGE_CHANGE ? [k] : [])),
     unworkedRows: shaping.flatMap((row, k) => (row.end < -MAX_EDGE_CHANGE ? [k + 1] : [])),
-    border: null,
-    borderedCm: null,
   };
-  if (!options.border) return { ok: true, plan };
-
-  // A szegély szemei a sorok gráfjából (PQW-898): ferde élnél a lépcsők meghagyott szemeivel.
-  const counted = borderCountsOf(pattern, options, plan);
-  if ('code' in counted) return fail(counted);
-  // A szegély rövidpálcás köre minden oldalon egy rövidpálcás sor magasságát adja.
-  const sc = shapeGauge(pattern, 'sc');
-  const borderedCm = { widthCm: plan.widthCm + 2 * sc.rowCm, heightCm: heightCm + 2 * sc.rowCm, source: weakestSource([gauge.source, sc.source]) };
-  return { ok: true, plan: { ...plan, border: counted, borderedCm } };
+  return { ok: true, plan };
 }
 
 /** A minta konvenciói a formához: mintaismétlésnél az „X többszöröse + Y” a minta konvenciója lesz. */
@@ -485,26 +450,6 @@ function shapeConventions(pattern: Pattern, options: ShapeOptions): Pattern['con
       turningChainIncluded: pattern.conventions.repeat?.turningChainIncluded ?? false,
     },
   };
-}
-
-/** A szegély szemszámai a sorok gráfjából (PQW-898); ha a darab köré most nem készíthető, az ok. */
-function borderCountsOf(pattern: Pattern, options: ShapeOptions, plan: ShapePlan): BorderCounts | ShapeText {
-  const base: Pattern = { ...pattern, conventions: shapeConventions(pattern, options), pieces: [] };
-  const built = buildRows(base, plan.stitch, plan.counts, plan.shaping, true);
-  if (!(built instanceof RowWriter)) return built;
-  const piece: Piece = {
-    id: 'p1',
-    name: SHAPE_NAMES[options.shape],
-    stitches: built.stitches,
-    spaces: built.spaces,
-    rings: [],
-    groups: built.groups,
-    events: built.events,
-    skipped: built.skipped,
-  };
-  const whole: Pattern = { ...base, pieces: [piece] };
-  const result = borderOf(buildPieceGraph(whole, piece, libraryFor(whole)), options.border!);
-  return result.ok ? result.counts : result.reason;
 }
 
 /**
@@ -632,7 +577,6 @@ function buildRows(
   stitch: StitchDefId,
   counts: readonly number[],
   shapingRows: readonly RowShaping[],
-  bordered: boolean,
 ): RowWriter | ShapeText {
   const writer = new RowWriter();
   const def = resolveStitch(stitch)!;
@@ -657,7 +601,7 @@ function buildRows(
     below = [...(counting ? [turningTop] : []), ...made];
     const next = shapingRows[k + 1];
     if (next && next.start > MAX_EDGE_CHANGE) below.push(...writer.extension(next.start));
-    writer.event(k < rows - 1 || bordered ? 'turn' : 'fasten-off');
+    writer.event(k < rows - 1 ? 'turn' : 'fasten-off');
   }
   return writer;
 }
@@ -672,7 +616,7 @@ export function generateShape(pattern: Pattern, options: ShapeOptions): ShapeRes
   if (!planned.ok) return planned;
   const { plan } = planned;
   const base: Pattern = { ...pattern, conventions: shapeConventions(pattern, options), pieces: [] };
-  const built = buildRows(base, plan.stitch, plan.counts, plan.shaping, options.border !== null);
+  const built = buildRows(base, plan.stitch, plan.counts, plan.shaping);
   if (!(built instanceof RowWriter)) return fail(built);
 
   const name = SHAPE_NAMES[options.shape];
@@ -685,19 +629,15 @@ export function generateShape(pattern: Pattern, options: ShapeOptions): ShapeRes
     groups: built.groups,
     events: built.events,
     skipped: built.skipped,
-    ...(options.border ? { border: options.border } : {}),
   };
   const stated = withStatedCounts(base, piece, plan.counts);
   if ('code' in stated) return fail(stated);
-  // A szegély a gráfban is réteg a sorok után (PQW-889).
   const rowsPattern: Pattern = { ...base, pieces: [stated] };
-  // A bordás szegély a felső élen, a sorok után (PQW-909); a szegéllyel együtt nem választható.
+  // A bordás szegély a felső élen, a sorok után (PQW-909).
   const ribbed = options.ribbing ? appendRibbing(rowsPattern, stated, libraryFor(rowsPattern), options.ribbing) : stated;
   if ('code' in ribbed) return fail(ribbed);
-  const bordered = options.border ? appendBorder(rowsPattern, ribbed, libraryFor(rowsPattern), options.border) : ribbed;
-  if ('code' in bordered) return fail(bordered);
 
-  const result = withGeneratedTitle({ ...base, pieces: [bordered] }, pattern, name, [...Object.values(SHAPE_NAMES), ...Object.values(MOTIF_NAMES)]);
+  const result = withGeneratedTitle({ ...base, pieces: [ribbed] }, pattern, name, [...Object.values(SHAPE_NAMES), ...Object.values(MOTIF_NAMES)]);
   const errors = validatePattern(result, libraryFor(result)).filter((finding) => finding.severity === 'error');
   if (errors.length > 0) return fail(text('internal-error', { rule: errors[0]!.rule }));
   return { ok: true, pattern: result, plan };
@@ -854,7 +794,7 @@ export function plannedRows(
 ): Piece | ShapeText {
   if (counts.length === 0 || shaping.length !== counts.length) return text('internal-error');
   const base: Pattern = { ...pattern, pieces: [] };
-  const built = buildRows(base, stitch, counts, shaping, false);
+  const built = buildRows(base, stitch, counts, shaping);
   if (!(built instanceof RowWriter)) return built;
   const piece: Piece = {
     id,

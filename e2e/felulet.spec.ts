@@ -82,11 +82,15 @@ test('az írott minta a vászon alján, lenyitható panelben', async ({ page }) 
   const written = page.locator('#written');
   const writtenToggle = page.getByRole('button', { name: 'Írott minta' });
 
-  // Széles nézetben alapból nyitva, a stage alján.
+  // A panel csukva indul (PQW-911): induláskor a vászon szabad.
+  await expect(written).toBeHidden();
+  await expect(writtenToggle).toHaveAttribute('aria-expanded', 'false');
+
+  // Kinyitva a stage alján áll.
+  await writtenToggle.click();
   await expect(written).toBeVisible();
-  const stage = page.locator('.stage').boundingBox();
+  const stageBox = await page.locator('.stage').boundingBox();
   const box = await written.boundingBox();
-  const stageBox = await stage;
   expect(box!.y).toBeGreaterThan(stageBox!.y + stageBox!.height / 2);
 
   await writtenToggle.click();

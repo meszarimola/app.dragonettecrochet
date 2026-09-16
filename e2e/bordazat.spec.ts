@@ -52,10 +52,6 @@ for (const viewport of [
     expect(text).toMatch(/2 lsz \(nem számít szemnek\)/);
     // A bordázat ismétlésként áll, nem szemenként felsorolva.
     expect(text).toMatch(/\[1 (Eerp|Herp), 1 (Eerp|Herp)\]/);
-
-    // A körbefutó szegéllyel együtt nem választható: a bordázat mezői eltűnnek.
-    await page.locator('#shape-border').check();
-    await expect(page.locator('#shape-ribbing-fields')).toBeHidden();
   });
 
   test(`${viewport.width}×${viewport.height}: bordás peremű lapos kör, spirálban nem választható`, async ({ page }) => {

@@ -22,8 +22,6 @@ type RibbingEntries = Readonly<Record<RibbingCode, CoreEntry>>;
 export const RIBBING_HU: RibbingEntries = {
   'ribbing-rows-range': (data) => `A bordázat sorainak száma 1 és ${num(data, 'max')} között lehet.`,
   'ribbing-width-range': (data) => `A bordázat egysége 1 és ${num(data, 'max')} szem között lehet.`,
-  'ribbing-with-border':
-    'A bordás szegély és a körbefutó szegély együtt nem választható: a bordázat a felső élen fut, a szegély a darab körül.',
   'ribbing-stitch-missing': 'A bordázat szeme nincs a könyvtárban.',
   'ribbing-needs-row': 'A bordázat kész sorra vagy körre épül: előbb horgolj legalább egy sort.',
   'ribbing-after-join': 'A bordás perem a kör zárása (kúszószem) után kezdődik.',
@@ -39,7 +37,6 @@ export const RIBBING_HU: RibbingEntries = {
 export const RIBBING_EN: RibbingEntries = {
   'ribbing-rows-range': (data) => `The number of ribbing rows can be between 1 and ${num(data, 'max')}.`,
   'ribbing-width-range': (data) => `The ribbing unit can be between 1 and ${num(data, 'max')} stitches.`,
-  'ribbing-with-border': 'Ribbing and a surrounding border cannot be chosen together: the ribbing runs along the top edge, the border around the piece.',
   'ribbing-stitch-missing': 'The stitch of the ribbing is not in the library.',
   'ribbing-needs-row': 'Ribbing is built onto a finished row or round: work at least one row first.',
   'ribbing-after-join': 'A ribbed edge starts after the round is joined with a slip stitch.',

@@ -72,6 +72,9 @@ test('az írott minta a saját gombjával és a menüsorból is lecsukható', as
 
   const written = page.locator('#written');
   const writtenToggle = page.locator('#written-toggle');
+  // A panel csukva indul (PQW-911): előbb a menüsorból nyitjuk.
+  await expect(written).toBeHidden();
+  await writtenToggle.click();
   await expect(written).toBeVisible();
 
   await written.getByRole('button', { name: 'Lecsukás' }).click();
@@ -122,24 +125,22 @@ for (const viewport of [
     await page.setViewportSize(viewport);
     await open(page);
     const written = page.locator('#written');
-    // Alacsony ablakban a panel alapból csukva, hogy a vászon közepére lehessen kattintani (PQW-891).
+    // A panel minden ablakméretben csukva indul (PQW-911): a gombjával nyitjuk.
     const low = viewport.height < 640;
-    if (low) {
-      await expect(written).toBeHidden();
-      await page.locator('#written-toggle').click();
-    }
+    await expect(written).toBeHidden();
+    await page.locator('#written-toggle').click();
     await expect(written).toBeVisible();
 
     // 10 soros félpálcás téglalap billentyűvel: 1 = láncszem, 4 = félpálca, F = fordulás.
     await page.locator('#board').focus();
-    await page.keyboard.press('1');
+    await page.keyboard.press('Alt+1');
     await page.keyboard.press('Enter');
-    await page.keyboard.press('4');
+    await page.keyboard.press('Alt+4');
     for (let row = 1; row <= 10; row += 1) {
-      if (row > 1) await page.keyboard.press('f');
+      if (row > 1) await page.keyboard.press('Alt+f');
       for (let i = 0; i < 10; i += 1) await page.keyboard.press('Enter');
     }
-    await page.keyboard.press('f');
+    await page.keyboard.press('Alt+f');
     await expect(page.locator('#summary')).toContainText('11. sor következik.');
 
     const stage = await box(page, '.stage');

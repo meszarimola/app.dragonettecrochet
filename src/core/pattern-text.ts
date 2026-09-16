@@ -19,7 +19,7 @@
 
 import { sizingLines } from './garment-text.ts';
 import { article, dative, times } from './hungarian.ts';
-import { writtenPieces, type Step, type StepTarget, type WrittenBorder, type WrittenLayer, type WrittenPiece } from './pattern-steps.ts';
+import { writtenPieces, type Step, type StepTarget, type WrittenLayer, type WrittenPiece } from './pattern-steps.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { stitchLabel, stitchStructure } from './stitchText.ts';
 import { colorLetter } from './pixel-chart.ts';
@@ -112,47 +112,6 @@ export interface Vocabulary {
   };
   /** Az összevarrás sora az „Összeállítás” alatt (04 §5.4). */
   readonly sewing: (a: SewnEdge, b: SewnEdge, distributed: boolean) => string;
-  /** A szegély köre a sorok után (PQW-862, 03 §7.1); a `prefix`-ről ismeri fel a visszaolvasó. */
-  readonly border: {
-    readonly prefix: string;
-    readonly text: (parts: BorderParts) => string;
-    /** Ferde élű darab, csúcs vagy ismétléshez igazított szegély (PQW-898). */
-    readonly shaped: (parts: ShapedBorderParts) => string;
-    /** Az igazítás ismétlése a szövegből; ha nincs benne, `null`. */
-    readonly readRepeat: (text: string) => { readonly width: number; readonly edge: number } | null;
-  };
-}
-
-/** A ferde élű vagy igazított szegély egy éle a szövegben (PQW-898). */
-export interface ShapedBorderEdge {
-  /** 2 sarok, vagy 1 a csúcsnál. */
-  readonly corners: 1 | 2;
-  /** A sarkok közötti szemek, pl. „28 rp”; ha nincs, `null`. */
-  readonly stitches: string | null;
-  /** Igazítás: +n szembe 2 szem, −n kihagyott szem. */
-  readonly adjusted: number;
-}
-
-export interface ShapedBorderSide {
-  readonly perRow: string;
-  /** A lépcsők meghagyott szemeibe horgolt szemek; ha nincs, `null`. */
-  readonly exposed: string | null;
-  /** Az eggyel több (+) vagy kevesebb (−) szemet kapó sorvégek száma. */
-  readonly adjusted: number;
-  readonly total: string;
-}
-
-export interface ShapedBorderParts {
-  readonly turning: string;
-  readonly corner: string;
-  /** Két szem egy szembe, pl. „2 rp”. */
-  readonly double: string;
-  readonly top: ShapedBorderEdge;
-  readonly bottom: ShapedBorderEdge;
-  readonly sides: readonly [ShapedBorderSide, ShapedBorderSide];
-  readonly repeat: { readonly width: number; readonly edge: number } | null;
-  readonly count: string;
-  readonly join: string;
 }
 
 /**
@@ -168,18 +127,6 @@ export interface SewnEdge {
   readonly section?: string;
   readonly stitches?: { readonly from: number; readonly to: number };
   readonly rows?: { readonly to: number; readonly side: 'left' | 'right' };
-}
-
-/** A szegély sorának kiírt részei, mennyiséggel együtt: „3 rp”, „(288 szem)”. */
-export interface BorderParts {
-  readonly turning: string;
-  readonly corner: string;
-  readonly top: string;
-  readonly bottom: string;
-  readonly perRow: string;
-  readonly side: string;
-  readonly count: string;
-  readonly join: string;
 }
 
 const HU: Vocabulary = {
@@ -285,41 +232,6 @@ const HU: Vocabulary = {
     run: (count, letter) => `${count} ${letter}`,
   },
   sewing: (a, b, distributed) => `Varrás: ${huSewnEdge(a)} → ${huSewnEdge(b)}${distributed ? ', a szemeket egyenletesen elosztva' : ''}.`,
-  border: {
-    prefix: 'Szegély: ',
-    text: (p) =>
-      `Szegély: ${p.turning}, felső él: ${p.corner} a sarokszembe, ${p.top}, ${p.corner} a sarokszembe; ` +
-      `oldal: soronként ${p.perRow} a sor végére (${p.side}); ` +
-      `alsó él: ${p.corner} a sarokba, ${p.bottom} a láncalap láncszemeibe, ${p.corner} a sarokba; ` +
-      `másik oldal: soronként ${p.perRow} a sor végére (${p.side}) ${p.count}. ${p.join}`,
-    shaped: (p) => {
-      const adjust = (n: number) =>
-        n > 0 ? ` (${n} szembe ${p.double}, egyenletesen elosztva)` : n < 0 ? ` (${-n} szem kihagyásával, egyenletesen elosztva)` : '';
-      const top =
-        p.top.corners === 1
-          ? `${p.corner} a csúcsszembe`
-          : [`${p.corner} a sarokszembe`, ...(p.top.stitches ? [`${p.top.stitches}${adjust(p.top.adjusted)}`] : []), `${p.corner} a sarokszembe`].join(', ');
-      const bottom =
-        p.bottom.corners === 1
-          ? `${p.corner} a láncalap láncszemébe`
-          : [
-              `${p.corner} a sarokba`,
-              ...(p.bottom.stitches ? [`${p.bottom.stitches}${adjust(p.bottom.adjusted)} a láncalap láncszemeibe`] : []),
-              `${p.corner} a sarokba`,
-            ].join(', ');
-      const side = (s: ShapedBorderSide) =>
-        `soronként ${s.perRow} a sor végére` +
-        (s.exposed ? `, ${s.exposed} a lépcsők meghagyott szemeibe` : '') +
-        (s.adjusted ? `, ${Math.abs(s.adjusted)} sorvégbe eggyel ${s.adjusted > 0 ? 'több' : 'kevesebb'}, egyenletesen elosztva` : '') +
-        ` (${s.total})`;
-      const repeat = p.repeat ? `, a következő sor ismétléséhez igazítva (élenként ${p.repeat.width} többszöröse + ${p.repeat.edge})` : '';
-      return `Szegély: ${p.turning}, felső él: ${top}; oldal: ${side(p.sides[0])}; alsó él: ${bottom}; másik oldal: ${side(p.sides[1])}${repeat} ${p.count}. ${p.join}`;
-    },
-    readRepeat: (text) => {
-      const match = /\(élenként (\d+) többszöröse \+ (\d+)\)/.exec(text);
-      return match ? { width: Number(match[1]), edge: Number(match[2]) } : null;
-    },
-  },
 };
 
 /** A beszúrási módok a jóváhagyott szókészlet §3 szerint; az „esz” jóváhagyásra vár (PQW-869). */
@@ -432,39 +344,6 @@ function english(skipWord: string, skipVerb: string, skipMeaning: string, system
       run: (count, letter) => `${count} ${letter}`,
     },
     sewing: (a, b, distributed) => `Sew: ${enSewnEdge(a)} to ${enSewnEdge(b)}${distributed ? ', easing sts evenly' : ''}.`,
-    border: {
-      prefix: 'Border: ',
-      text: (p) =>
-        `Border: ${p.turning}, top edge: ${p.corner} in corner st, ${p.top}, ${p.corner} in corner st; ` +
-        `side: ${p.perRow} in each row end (${p.side}); ` +
-        `bottom edge: ${p.corner} in corner, ${p.bottom} along foundation ch, ${p.corner} in corner; ` +
-        `other side: ${p.perRow} in each row end (${p.side}) ${p.count}. ${p.join}`,
-      shaped: (p) => {
-        const skipping = `${skipVerb}${skipVerb.endsWith('p') ? 'ping' : 'ing'}`;
-        const adjust = (n: number) => (n > 0 ? ` (${p.double} in ${n} of them, spaced evenly)` : n < 0 ? ` (${skipping} ${-n} sts, spaced evenly)` : '');
-        const top =
-          p.top.corners === 1
-            ? `${p.corner} in top st`
-            : [`${p.corner} in corner st`, ...(p.top.stitches ? [`${p.top.stitches}${adjust(p.top.adjusted)}`] : []), `${p.corner} in corner st`].join(', ');
-        const bottom =
-          p.bottom.corners === 1
-            ? `${p.corner} in foundation ch`
-            : [`${p.corner} in corner`, ...(p.bottom.stitches ? [`${p.bottom.stitches}${adjust(p.bottom.adjusted)} along foundation ch`] : []), `${p.corner} in corner`].join(
-                ', ',
-              );
-        const side = (s: ShapedBorderSide) =>
-          `${s.perRow} in each row end` +
-          (s.exposed ? `, ${s.exposed} in unworked sts of the steps` : '') +
-          (s.adjusted ? `, ${Math.abs(s.adjusted)} row ends with one ${s.adjusted > 0 ? 'more' : 'fewer'}, spaced evenly` : '') +
-          ` (${s.total})`;
-        const repeat = p.repeat ? `, adjusted for the next round's repeat (multiple of ${p.repeat.width} + ${p.repeat.edge} per edge)` : '';
-        return `Border: ${p.turning}, top edge: ${top}; side: ${side(p.sides[0])}; bottom edge: ${bottom}; other side: ${side(p.sides[1])}${repeat} ${p.count}. ${p.join}`;
-      },
-      readRepeat: (text) => {
-        const match = /\(multiple of (\d+) \+ (\d+) per edge\)/.exec(text);
-        return match ? { width: Number(match[1]), edge: Number(match[2]) } : null;
-      },
-    },
   };
 }
 
@@ -687,11 +566,6 @@ export function renderStep(step: Step, library: StitchLibrary, locale: Locale, c
   return renderer.step(step);
 }
 
-/** A szegély sora; a visszaolvasó ezzel ellenőrzi, hogy a szegélyt pontosan így írnánk-e ki (PQW-862). */
-export function renderBorder(border: WrittenBorder, library: StitchLibrary, locale: Locale): string {
-  return new Renderer(library, locale, new Map()).border(border);
-}
-
 class Renderer {
   private readonly library: StitchLibrary;
   private readonly locale: Locale;
@@ -768,58 +642,7 @@ class Renderer {
         lines.push(`${v.layer.row(i + 1, i + 1)}: ${runs.map((run) => v.colorwork.run(run.count, colorLetter(run.color))).join(', ')}`);
       });
     }
-    if (piece.border) lines.push(this.border(piece.border));
     return lines;
-  }
-
-  /** A szegély köre: sarkonként 3 szem, a felső élen szemenként, az oldalon sorvégenként, a láncalap mentén láncszemenként (03 §7.1). */
-  border({ stitch, counts }: WrittenBorder): string {
-    const v = this.vocabulary;
-    const def = this.def(stitch);
-    const slip = this.byKind('slip');
-    for (const used of [def, this.byKind('chain'), slip]) this.use(used);
-    const quantity = (n: number) => v.quantity(n, refOf(def, this.locale));
-    const [first, second] = counts.sides;
-    // A téglalap szövege változatlan; a sarkok közötti szem nélküli él (csúcs, két szemes él) a ferde élű szöveget kapja.
-    const regular =
-      counts.topCorners === 2 &&
-      counts.bottomCorners === 2 &&
-      counts.top > 0 &&
-      counts.bottom > 0 &&
-      counts.repeat === null &&
-      counts.sides.every((side) => side.exposed === 0 && side.adjusted === 0) &&
-      first.total === second.total;
-    if (!regular) {
-      // Ferde élű darab, csúcs vagy ismétléshez igazított szegély (PQW-898).
-      const edge = (corners: 1 | 2, stitches: number, adjusted: number) => ({ corners, stitches: stitches > 0 ? quantity(stitches) : null, adjusted });
-      const side = (s: (typeof counts.sides)[number]) => ({
-        perRow: quantity(counts.perRow),
-        exposed: s.exposed > 0 ? quantity(s.exposed) : null,
-        adjusted: s.adjusted,
-        total: quantity(s.total),
-      });
-      return v.border.shaped({
-        turning: v.turningChain(def.turningChain, v.turningChainNotCounted),
-        corner: quantity(counts.corner),
-        double: quantity(2),
-        top: edge(counts.topCorners, counts.top, counts.topAdjusted),
-        bottom: edge(counts.bottomCorners, counts.bottom, counts.bottomAdjusted),
-        sides: [side(first), side(second)],
-        repeat: counts.repeat,
-        count: v.count(counts.total),
-        join: v.join(refOf(slip, this.locale), 'first-stitch'),
-      });
-    }
-    return v.border.text({
-      turning: v.turningChain(def.turningChain, v.turningChainNotCounted),
-      corner: quantity(counts.corner),
-      top: quantity(counts.top),
-      bottom: quantity(counts.bottom),
-      perRow: quantity(counts.perRow),
-      side: quantity(counts.side),
-      count: v.count(counts.total),
-      join: v.join(refOf(slip, this.locale), 'first-stitch'),
-    });
   }
 
   /** Egy sor a címke nélkül: „15 fp (15 szem). Fordítás.” */

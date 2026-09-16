@@ -28,7 +28,6 @@
  * fogyasztáson kívül, láncalap nélküli darab, darabok összekapcsolása.
  */
 
-import { borderLayerIndex, borderOf, borderOfLayer, type BorderCounts } from './border.ts';
 import { buildPieceGraph, spacePositions, type PieceGraph } from './graph.ts';
 import { modeAsWorked } from './insertion.ts';
 import { nested, text, type CoreData, type CoreText } from './messages.ts';
@@ -135,8 +134,6 @@ export interface WrittenPiece {
    * `over` mondja meg, melyik sor fölött folytatódik.
    */
   readonly sections: readonly { readonly name: string; readonly layer: number; readonly over?: number }[];
-  /** A szegély a sorok után, a sorokból számolva (PQW-862); szegély nélkül `null`. */
-  readonly border: WrittenBorder | null;
   /** Többszínű rácsmintánál (PQW-864) a színek, a kezdőszín és a színek soronként; máskor `null`. */
   readonly colorwork: {
     readonly technique: GridTechnique;
@@ -146,18 +143,12 @@ export interface WrittenPiece {
   } | null;
 }
 
-export interface WrittenBorder {
-  readonly stitch: StitchDefId;
-  readonly counts: BorderCounts;
-}
-
 /**
  * Amit egy sorról vagy körről nem tudunk kiírni (PQW-904): a mondat vége. A
  * sorszám, a sor/kör szava és a névelő a `layer-unsupported` burkolóé, tehát a
  * felület szótáráé — a mag csak azt mondja meg, MI a baj.
  */
 export type UnsupportedCode =
-  | 'row-end-stitch'
   | 'underside-place'
   | 'underside-backwards'
   | 'space-misplaced'
@@ -181,10 +172,8 @@ export type UnsupportedCode =
  *
  * - `layer-unsupported`: a sorra vagy körre mutató burkoló; az adatában az
  *   `inner` egy `UnsupportedCode`, az `index` a sorszám, a `shape` a sor/kör.
- * - `border-failed`: a szegély indoka a `border.ts`-ből jön, beágyazva; annak
- *   szövegét a szegély szótára adja (`src/ui/i18n/core/shape.ts`).
  */
-export type WrittenCode = 'needs-foundation' | 'foundation-event' | 'border-failed' | 'border-missing' | 'layer-unsupported' | UnsupportedCode;
+export type WrittenCode = 'needs-foundation' | 'foundation-event' | 'layer-unsupported' | UnsupportedCode;
 
 /** A gráf olyan része, amelyet az írott minta még nem tud kifejezni. */
 export class WrittenPatternError extends Error {
@@ -227,26 +216,12 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
 
   const row1 = graph.layers[1];
   const kind: WrittenPiece['foundation']['kind'] = chainRing ? 'chain-ring' : onChain ? 'chain' : 'ring';
-  // A szegély rétege (PQW-889) nem sor: a szegély mondata írja le.
-  const borderIndex = borderLayerIndex(graph);
-  const layers = graph.layers
-    .slice(1)
-    .flatMap((layer, i) => (layer.border ? [] : [writtenLayer(graph, i + 1, kind, library, traditionOf(pattern.conventions))]));
+  const layers = graph.layers.slice(1).map((_, i) => writtenLayer(graph, i + 1, kind, library, traditionOf(pattern.conventions)));
   const foundation: WrittenPiece['foundation'] = chainRing
     ? { kind: 'chain-ring', count: base.stitches.length }
     : onChain
       ? { kind: 'chain', count: base.stitches.length + (row1?.turningChain.length ?? 0) + (layers[0]?.fromHook?.chains ?? 0) }
       : { kind: 'ring' };
-  let border: WrittenBorder | null = null;
-  if (piece.border) {
-    // A PQW-889 előtti mentésben a szegélynek még nincs rétege: ott a sorokból számolunk.
-    const result = borderIndex >= 0 ? borderOfLayer(graph, borderIndex, piece.border) : borderOf(graph, piece.border);
-    // A szegély indoka a border.ts kódja; a szövegét a szegély szótára adja.
-    if (!result.ok) throw new WrittenPatternError(wrap('border-failed', result.reason));
-    border = { stitch: piece.border.stitch, counts: result.counts };
-  } else if (borderIndex >= 0) {
-    throw new WrittenPatternError(text('border-missing'), graph.layers[borderIndex]!.stitches);
-  }
   const sections: WrittenPiece['sections'] = [
     ...(piece.sections ?? []).map(({ name, layer }) => ({ name, layer })),
     // Elvágott fonal után új szakasz (PQW-901): a neve és a sor, amely fölött folytatódik.
@@ -260,7 +235,7 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
     grid && grid.colors.length > 1
       ? { technique: grid.technique, colors: grid.colors, startColor: piece.stitches[0]?.color ?? 0, rows: gridColorRows(grid.technique, grid.cells) }
       : null;
-  return { name: piece.name, foundation, layers, border, sections, colorwork };
+  return { name: piece.name, foundation, layers, sections, colorwork };
 }
 
 /** A horgoló felől nézett beszúrás: visszai soron a szálak és a relief megfordulnak (insertion.ts). */
@@ -315,7 +290,6 @@ function writtenLayer(
 
   const classify = (anchor: Anchor, owner: NodeId): { target: StepTarget; mode: StitchInsertion; into: 'stitch' | 'chain' } => {
     if (anchor.into === 'ring') return { target: 'ring', mode: 'both-loops', into: 'stitch' };
-    if (anchor.into === 'row-end') throw unsupported('row-end-stitch', owner);
     if (anchor.into === 'underside') {
       const w = undersideIndex.get(anchor.id);
       // A legtávolabbi láncszem másik oldalát a vége körbeéri: arra külön lépés nem íródik ki.

@@ -153,7 +153,6 @@ export const EDITOR_CORE_TEXTS: CoreDictionary<EditCode | CopyCode> = {
 
     /* ---- Kijelölés: másolás ---- */
     'copy-broken-pattern': 'A minta szerkezete hibás, ezért nem másolható.',
-    'copy-border': 'A szegély még nem másolható: csak sorokat vagy köröket jelölj ki.',
     'copy-layer-outside': (data) =>
       `A kijelölt ${huLayer(num(data, 'layer'), isRound(data))} olyan szemekbe is horgol, amelyek nincsenek kijelölve: jelöld ki az alatta lévő sort is.`,
     'copy-oval-first-round':
@@ -227,7 +226,6 @@ export const EDITOR_CORE_TEXTS: CoreDictionary<EditCode | CopyCode> = {
 
     /* ---- Selection: copying ---- */
     'copy-broken-pattern': 'The structure of the pattern is broken, so it cannot be copied.',
-    'copy-border': 'The border cannot be copied yet: select rows or rounds only.',
     'copy-layer-outside': (data) =>
       `The selected ${enLayer(num(data, 'layer'), isRound(data))} is also worked into stitches that are not selected: select the row below it as well.`,
     'copy-oval-first-round':

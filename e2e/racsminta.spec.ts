@@ -2,8 +2,8 @@
  * Rácsos technikák (PQW-864): a Filéhorgolás típus lenyitja a Rácsminta
  * szakaszt; kis filémotívum, amelynek csak az első sorai teljesek, a
  * felismert ismétlő egységgel hibátlan mintát ad; C2C-kép két színnel
- * hibátlan, az írott minta a színeket csempénként írja, és tükrözött nézetben
- * a feliratos motívum figyelmeztet.
+ * hibátlan, és az írott minta a színeket csempénként írja. A tükrözött nézet
+ * megszűnt (PQW-911), ezért a feliratos motívum nem ad figyelmeztetést.
  */
 
 import { expect, test, type Page } from '@playwright/test';
@@ -81,7 +81,7 @@ test('kis filémotívum: az első két sor teljes, a többi az ismétlő egység
   await expect(section.getByRole('button', { name: 'Rács a mostani mintából' })).toBeEnabled();
 });
 
-test('C2C-kép két színnel: 6 átlós sor, hibátlan, színek csempénként; tükrözött nézetben a feliratos motívum figyelmeztet', async ({ page }) => {
+test('C2C-kép két színnel: 6 átlós sor, hibátlan, színek csempénként; a feliratos motívum nem figyelmeztet', async ({ page }) => {
   await open(page);
   const section = page.locator('#section-grid');
   await section.locator('summary').click();
@@ -100,10 +100,9 @@ test('C2C-kép két színnel: 6 átlós sor, hibátlan, színek csempénként; t
   await expect(page.locator('#grid-size')).toHaveText(/, 6 átlós sor, 12 csempe\.$/);
   await expect(page.locator('#grid-details')).toContainText('Csempék színenként: A: 9, B: 3 csempe.');
 
+  // A tükrözött nézet gombja megszűnt (PQW-911): a feliratos motívum sem ad figyelmeztetést.
   await section.getByLabel(/Feliratos motívum/).check();
-  await page.locator('.tools [data-action="mirror"]').click();
-  await expect(page.locator('#grid-warnings')).toContainText('feliratos motívumban a betűk fordítva állnak');
-  await page.locator('.tools [data-action="mirror"]').click();
+  await expect(page.locator('.tools [data-action="mirror"]')).toHaveCount(0);
   await expect(page.locator('#grid-warnings li')).toHaveCount(0);
 
   await section.getByRole('button', { name: 'Minta létrehozása' }).click();

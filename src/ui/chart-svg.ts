@@ -229,14 +229,6 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
     if (layer.index === 0) continue;
     const rightwards = layer.start.x <= layer.end.x;
     const endAnchor = rightwards ? 'start' : 'end';
-    if (layer.border) {
-      // A szegély nem sor (PQW-897): sorszám helyett felirat, mellette a szemszám, mint a vásznon.
-      out.push(
-        `<text x="${num(layer.start.x)}" y="${num(layer.start.y)}" text-anchor="${rightwards ? 'end' : 'start'}">${escapeXml(captions.border)}</text>`,
-        `<text x="${num(layer.end.x)}" y="${num(layer.end.y)}" text-anchor="${endAnchor}">${escapeXml(captions.count(layer.stitchCount))}</text>`,
-      );
-      continue;
-    }
     const labelWidth = 7.4 * captions.layer(layer.index).length + 10;
     const x0 = rightwards ? layer.start.x + 4 - labelWidth : layer.start.x - 4;
     out.push(

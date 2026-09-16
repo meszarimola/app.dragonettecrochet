@@ -14,11 +14,16 @@ import { stitchName, stitchStructure } from '../core/stitchText.ts';
 import type { Locale, StitchDef } from '../core/types.ts';
 import { texts } from './i18n.ts';
 
-/** Gyorsbillentyű a paletta első kilenc szemének; a többi kattintással vagy Tabbal érhető el. */
+/**
+ * Gyorsbillentyű a paletta első kilenc szemének (PQW-911): a szám `Alt`-tal
+ * együtt választ, mert egyetlen karakter nem lehet parancs. A többi szem
+ * kattintással vagy Tabbal érhető el.
+ */
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
 export interface PaletteItem {
   readonly def: StitchDef;
+  /** A szám az `Alt`-kombinációhoz, pl. `1` az `Alt`+`1`-hez; kilenc fölött `null`. */
   readonly key: string | null;
   /** A név a jelöléssel, nagy kezdőbetűvel, rövidítéssel, pl. „Rövidpálca (rp)”, „Single crochet (sc)”. */
   readonly name: string;

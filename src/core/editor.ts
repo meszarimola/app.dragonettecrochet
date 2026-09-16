@@ -12,7 +12,6 @@
  * részben kezeli.
  */
 
-import { DEFAULT_BORDER, borderSteps } from './border.ts';
 import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
 import { effectiveInsertion, modeAsWorked, stitchInsertions } from './insertion.ts';
 import { text, type CoreText } from './messages.ts';
@@ -117,7 +116,6 @@ export type EditCode =
   | 'paste-would-break'
   /* ---- Kijelölés: másolás (selection.ts `CopyCode`) ---- */
   | 'copy-broken-pattern'
-  | 'copy-border'
   | 'copy-layer-outside'
   | 'copy-oval-first-round'
   | 'copy-anchor-unsupported';
@@ -156,9 +154,7 @@ export type Slot =
   | { readonly kind: 'stitch'; readonly id: NodeId }
   | { readonly kind: 'space'; readonly id: SpaceId; readonly chains: readonly NodeId[] }
   | { readonly kind: 'ring'; readonly id: RingId; readonly node: NodeId }
-  | { readonly kind: 'underside'; readonly id: NodeId }
-  /** A darab körüli szegély sorvég-célpontja: a sor szélső szeme (PQW-889, PQW-902). */
-  | { readonly kind: 'row-end'; readonly id: NodeId };
+  | { readonly kind: 'underside'; readonly id: NodeId };
 
 /** A szerkesztő módja a mintatípusból (PQW-899). */
 export interface EditorMode {
@@ -167,11 +163,6 @@ export interface EditorMode {
    * legtávolabbi láncszem után a láncszemek másik oldalán halad vissza.
    */
   readonly roundsOnChain?: boolean;
-  /**
-   * Szegély következik a darab körül (PQW-902): a célpontok a felső él szemei,
-   * a sorvégek, a lépcsők és a láncalap láncszemei, a szegély sorrendjében.
-   */
-  readonly borderRound?: boolean;
 }
 
 export interface WorkContext {
@@ -201,13 +192,13 @@ const slotKey = (slot: Slot) => `${slot.kind}:${slot.id}`;
 const anchorKey = (anchor: Anchor) => `${anchor.into}:${anchor.id}`;
 
 /**
- * A darab lezárult-e (PQW-897): az utolsó réteg után a fonal elvágása, vagy a
- * kész szegély (zárt kör a sorvégekkel). Utána nincs következő sor vagy kör.
+ * A darab lezárult-e (PQW-897): az utolsó réteg után a fonal elvágása. Utána
+ * nincs következő sor vagy kör.
  */
 export function pieceFinished(graph: PieceGraph | null): boolean {
   const last = graph?.layers.at(-1);
   if (!last || last.index === 0 || !last.closing) return false;
-  return last.closing.kind === 'fasten-off' || last.border;
+  return last.closing.kind === 'fasten-off';
 }
 
 export function contextOf(pattern: Pattern, mode: EditorMode = {}): WorkContext {
@@ -261,17 +252,7 @@ export function contextOf(pattern: Pattern, mode: EditorMode = {}): WorkContext 
   // A láncgyűrű (zárt láncalap) és a varázskör nem ovális.
   const plainChain = below.closing === null && below.stitches.length > 0 && below.stitches.every((id) => graph.defs.get(id)!.kind === 'chain');
   const oval = layer === 1 && below.index === 0 && (below.undersides.length > 0 || (mode.roundsOnChain === true && plainChain));
-  // Kézi szegély (PQW-902): az utolsó sor fordulása után a darab körüli célpontok, amíg a szegély készül.
-  // A szegély rétegét a gráf a sorvégbe horgolt szemekről ismeri fel; amíg csak a felső él szemei
-  // vannak meg, még sornak látszik, ezért a mód dönt. Kész szegélyre már nem kínálunk célpontot.
-  const borderElsewhere = graph.layers.some((candidate, index) => candidate.border && index !== layer);
-  const border =
-    mode.borderRound === true &&
-    layer >= 2 &&
-    !borderElsewhere &&
-    (graph.layers[layer]?.border === true ||
-      (graph.layers[layer] === undefined ? below.closing?.kind === 'turn' : graph.layers[layer]!.closing === null && below.closing?.kind === 'turn'));
-  const slots = border ? borderSlots(graph, piece, layer) : oval ? ovalSlots(graph, below) : layerSlots(graph, layer, below, reversed, shape);
+  const slots = oval ? ovalSlots(graph, below) : layerSlots(graph, layer, below, reversed, shape);
 
   const current = graph.layers[layer];
   // A még meg nem kezdett réteg oldala a gráf szabálya szerint: fordulás után a másik oldal (graph.ts).
@@ -295,19 +276,6 @@ export function contextOf(pattern: Pattern, mode: EditorMode = {}): WorkContext 
  * legtávolabbi láncszem nélkül: a vég szaporítása körbeér rajta. A másik oldal
  * az első szem után jelenik meg, addig nem tudni, melyik a kezdőlánc.
  */
-/**
- * A darab körüli szegély célpontjai a horgolás sorrendjében (PQW-902): a
- * szabályos szegély lépései (border.ts), lépésenként egy célponttal. A
- * sarkokba és az igazítás helyére több szem kerül; azt a „Még egy ugyanabba”
- * teszi hozzá, mint a kézi horgolásban máshol.
- */
-function borderSlots(graph: PieceGraph, piece: Piece, layer: number): Slot[] {
-  const steps = borderSteps(graph, layer - 1, piece.border ?? DEFAULT_BORDER);
-  // A szegély indoka kód és adat is lehet (PQW-904, border.ts): csak a lépések listája érdekel.
-  if (!Array.isArray(steps)) return [];
-  return steps.map((step): Slot => (step.kind === 'row-end' ? { kind: 'row-end', id: step.target } : { kind: 'stitch', id: step.target }));
-}
-
 function ovalSlots(graph: PieceGraph, below: LayerInfo): Slot[] {
   const current = graph.layers[1];
   const tail = current?.turningChain ?? [];
@@ -509,9 +477,7 @@ export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readon
   }
 
   const worked = append(piece, [{ def: def.id, anchors: [anchor], ...marks }]).piece;
-  // A kézzel kezdett szegélyhez a darab a szegély választását is megkapja, különben az írott minta nem tudná kiírni (PQW-902).
-  const withBorder = anchor.into === 'row-end' && worked.border === undefined ? { ...worked, border: DEFAULT_BORDER } : worked;
-  return done(withPiece(pattern, withBorder));
+  return done(withPiece(pattern, worked));
 }
 
 /**
@@ -548,11 +514,6 @@ function anchorFor(def: StitchDef, slot: Slot, requested: StitchInsertion | unde
       const mode = stitchModeFor(def, requested, side);
       return 'code' in mode ? mode : { into: 'underside', id: slot.id };
     }
-    case 'row-end': {
-      // A szegély sorvége a sor szélső szeme; a szegély szemei a szem oldalába mennek (PQW-902).
-      const mode = stitchModeFor(def, requested, side);
-      return 'code' in mode ? mode : { into: 'row-end', id: slot.id };
-    }
   }
 }
 
@@ -571,8 +532,6 @@ export function workIntoSame(pattern: Pattern, defId: StitchDefId): EditResult {
   if (!anchor || last.anchors.length !== 1) return refuse(text('same-single-anchor'));
 
   const appended = append(piece, [{ def: part.id, anchors: [anchor] }]);
-  // A szegély sorvégébe több szem is mehet, de az nem szaporítás: a sorvég nem szem (PQW-902).
-  if (anchor.into === 'row-end') return done(withPiece(pattern, appended.piece));
   // A láncszem másik oldalába horgolt szemből ugyanúgy szaporítás lesz, mint a szembe horgoltból (PQW-899).
   if (anchor.into !== 'stitch' && anchor.into !== 'underside') {
     if (!part.insertionModes.includes(anchor.into)) return refuse(text('same-wrong-target'));
@@ -843,7 +802,7 @@ export function liveCheck(pattern: Pattern, context: WorkContext = contextOf(pat
   const slotIndex = new Map<NodeId, number>();
   context.slots.forEach((slot, i) => {
     // Az ovális láncszeme kétszer célpont: a másik oldala a későbbi, ezért addig „még nincs kész” (PQW-899).
-    if (slot.kind === 'stitch' || slot.kind === 'underside' || slot.kind === 'row-end') slotIndex.set(slot.id, i);
+    if (slot.kind === 'stitch' || slot.kind === 'underside') slotIndex.set(slot.id, i);
     else if (slot.kind === 'space') for (const chain of slot.chains) slotIndex.set(chain, i);
     else if (slot.kind === 'ring') slotIndex.set(slot.node, i);
   });
