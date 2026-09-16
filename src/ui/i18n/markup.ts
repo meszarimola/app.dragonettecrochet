@@ -23,6 +23,11 @@ import type { Dictionary } from '../i18n.ts';
 
 export const MARKUP_TEXTS = {
   hu: {
+    // A dokumentum feje: a böngészőfül címe és a leírás (PQW-905)
+    docTitle: 'Mintatervező — Dragonette Crochet',
+    docDescription:
+      'A Dragonette Crochet mintatervezője: horgolásminták jeldiagramja szemgráfból, élő ellenőrzéssel, írott mintával és generátorokkal.',
+
     // Süti-sáv
     consentTitle: 'Mérhetem a látogatást?',
     consentBody:
@@ -381,6 +386,11 @@ export const MARKUP_TEXTS = {
     adjustUnpin: 'Számolt helyre',
   },
   en: {
+    // The document head: browser tab title and description (PQW-905)
+    docTitle: 'Pattern designer — Dragonette Crochet',
+    docDescription:
+      'The Dragonette Crochet pattern designer: crochet symbol charts from a stitch graph, with live checking, written patterns and generators.',
+
     // Cookie banner
     consentTitle: 'May I measure visits?',
     consentBody:

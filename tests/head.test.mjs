@@ -23,7 +23,8 @@ function headerValue(htaccess, name) {
 /** Egy meta elem `content` értéke a fejben. */
 function meta(name) {
   const tag = HEAD.match(new RegExp(`<meta\\s[^>]*name="${name}"[^>]*>`, 's'))?.[0];
-  return tag ? /content="([^"]*)"/.exec(tag)?.[1] : undefined;
+  // Önálló attribútumként keressük: a `data-i18n-content` neve is tartalmazza a `content="` részt (PQW-905).
+  return tag ? /\scontent="([^"]*)"/.exec(tag)?.[1] : undefined;
 }
 
 test('az X-Robots-Tag noindex, nofollow nélkül', () => {

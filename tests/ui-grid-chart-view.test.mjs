@@ -36,6 +36,7 @@ import {
   unitState,
   withTechnique,
   yarnLines,
+  colorLabel,
 } from '../src/ui/grid-chart-view.ts';
 import { GRID_CORE_TEXTS } from '../src/ui/i18n/core/grid.ts';
 import { renderCoreText } from '../src/ui/i18n/core/render.ts';
@@ -104,7 +105,8 @@ describe('ecsetek, cellák, színek', () => {
     const state = { ...defaultState('tapestry'), colors: [...DEFAULT_COLORS, { name: 'Kék', hex: '#2f5f9e' }], draft: [[0, 1, 2, null]] };
     const removed = removeColor(state, 1);
     assert.deepEqual(removed.draft, [[0, 0, 1, null]]);
-    assert.deepEqual(removed.colors.map((color) => color.name), ['Natúr', 'Kék']);
+    // A beépített szín azonosítót visz, a nevét a megjelenítés adja (PQW-905).
+    assert.deepEqual(removed.colors.map((color) => colorLabel(color)), ['Natúr', 'Kék']);
     assert.equal(removeColor({ ...state, colors: [DEFAULT_COLORS[0]] }, 0).colors.length, 1);
   });
 
