@@ -1064,12 +1064,6 @@ body.is-selecting #board {
   font-size: 0.9375rem;
 }
 
-.type__detail {
-  color: var(--c-text-soft);
-  font-size: 0.8125rem;
-  line-height: 1.35;
-}
-
 .type__badge {
   align-self: start;
   padding: 0.1rem 0.4rem;
@@ -1104,14 +1098,14 @@ body.is-selecting #board {
   gap: 0.5rem;
 }
 
-/* A „Hamarosan” címke a név alá kerül, nem vágja le a nevet. */
-.type {
-  grid-template-columns: auto 1fr;
-}
-
+/*
+ * A „Hamarosan” címke a név MELLETT áll, a harmadik oszlopban (PQW-912): a név
+ * alá tördelve a kártya kétszer olyan magas lett, és a keskenyebb sávban emiatt
+ * kellett görgetni egy négyelemű listában. A név így is egészben marad, mert a
+ * felirat oszlopa zsugorodhat (`min-inline-size: 0` a `.type__label`-en).
+ */
 .type__badge {
-  grid-column: 2;
-  justify-self: start;
+  justify-self: end;
 }
 
 /* ---- Jobb oldali panel: összecsukható szakaszok (PQW-882) ---- */
