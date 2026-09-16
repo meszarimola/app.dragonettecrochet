@@ -205,9 +205,15 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
   segments.forEach((segment, i) => {
     for (const node of segment) segmentOf.set(node.id, i + 1);
   });
+  // A szegély (PQW-889) a darab köré horgol, nem a sor fölé: attól, hogy a szegély belehorgol egy
+  // láncszembe (pl. a láncos hosszabbításéba), a sor szemszáma nem változik (PQW-902).
+  const borderSegments = new Set(
+    segments.flatMap((segment, i) => (segment.some((node) => node.anchors.some((anchor) => anchor.into === 'row-end')) ? [i + 1] : [])),
+  );
   const workedInto = new Set<NodeId>();
   for (const node of stitches) {
     const layer = segmentOf.get(node.id) ?? 0;
+    if (borderSegments.has(layer)) continue;
     for (const anchor of node.anchors) {
       const targets = anchor.into === 'stitch' || anchor.into === 'underside' ? [anchor.id] : anchor.into === 'space' ? (spaces.get(anchor.id)?.chains ?? []) : [];
       for (const target of targets) if ((segmentOf.get(target) ?? 0) < layer) workedInto.add(target);

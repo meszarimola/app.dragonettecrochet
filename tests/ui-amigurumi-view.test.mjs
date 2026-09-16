@@ -31,7 +31,7 @@ import {
   shapeOf,
 } from '../src/ui/amigurumi-view.ts';
 
-const DK = { stitchesPerCm: 1.9, roundsPerCm: 2, source: 'measured' };
+const DK = { stitchesPerCm: 1.9, roundsPerCm: 2, source: 'measured', hookMm: 3.5 };
 
 const form = (patch = {}) => ({
   name: 'Fej',
@@ -78,6 +78,7 @@ describe('választások és mezők', () => {
         ['sc', 'Rövidpálca'],
         ['hdc', 'Félpálca'],
         ['dc', 'Egyráhajtásos pálca'],
+        ['tr', 'Kétráhajtásos pálca'],
       ],
     );
   });

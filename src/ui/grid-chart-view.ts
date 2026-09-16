@@ -12,7 +12,6 @@ import { C2C_STITCH, generateC2C, planC2C } from '../core/c2c.ts';
 import { generateColorwork, planColorwork } from '../core/colorwork.ts';
 import { filetRowPositions, generateFilet, planFilet } from '../core/filet.ts';
 import { buildPieceGraph } from '../core/graph.ts';
-import { article } from '../core/hungarian.ts';
 import type { ChartLayout } from '../core/layout.ts';
 import { generateMosaic, planMosaic, repairMosaic, type MosaicRows } from '../core/mosaic.ts';
 import { patternSize } from '../core/pattern-size.ts';
@@ -22,7 +21,6 @@ import {
   MAX_GRID_SIDE,
   NO_CELL,
   OPEN,
-  TECHNIQUE_NAMES,
   TECHNIQUE_STITCH,
   c2cTileRows,
   cellCounts,
@@ -45,6 +43,7 @@ import { bounds, type Quantity } from '../core/quantity.ts';
 import { shapeGauge } from '../core/shapes.ts';
 import { libraryFor } from '../core/stitch-variants.ts';
 import type { GridTechnique, GridUnit, Pattern, PatternColor, ValueSource } from '../core/types.ts';
+import { texts } from './i18n.ts';
 import type { Choice } from './shapes-view.ts';
 import { formatNumber } from './size-view.ts';
 
@@ -53,25 +52,47 @@ export type EditorTechnique = GridTechnique;
 
 export const EDITOR_TECHNIQUES: readonly EditorTechnique[] = ['filet', 'c2c', 'tapestry', 'graphgan', 'mosaic'];
 
-export const TECHNIQUE_CHOICES: readonly Choice<EditorTechnique>[] = EDITOR_TECHNIQUES.map((value) => ({ value, label: TECHNIQUE_NAMES[value] }));
+export const TECHNIQUE_CHOICES: readonly Choice<EditorTechnique>[] = EDITOR_TECHNIQUES.map((value) => ({
+  value,
+  get label() {
+    return texts().panels.grid.techniques[value];
+  },
+}));
 
 export const MOSAIC_ROW_CHOICES: readonly Choice<'1' | '2'>[] = [
-  { value: '1', label: 'Egysoros: rácssoronként egy sor' },
-  { value: '2', label: 'Kétsoros: rácssoronként két sor' },
+  {
+    value: '1',
+    get label() {
+      return texts().panels.grid.mosaicRows.one;
+    },
+  },
+  {
+    value: '2',
+    get label() {
+      return texts().panels.grid.mosaicRows.two;
+    },
+  },
 ];
 
-export const DEFAULT_COLORS: readonly PatternColor[] = [
-  { name: 'Natúr', hex: '#f3ecdf' },
-  { name: 'Bordó', hex: '#8c2f4a' },
-];
+/** A rács alapszínei: a nevük a felület nyelvén javasolt, de a mintában szerkeszthető adat. */
+type ColorKey = 'natural' | 'burgundy' | 'blue' | 'green' | 'mustard' | 'black' | 'rose' | 'brown';
+
+const color = (key: ColorKey, hex: string): PatternColor => ({
+  get name() {
+    return texts().panels.grid.colors[key];
+  },
+  hex,
+});
+
+export const DEFAULT_COLORS: readonly PatternColor[] = [color('natural', '#f3ecdf'), color('burgundy', '#8c2f4a')];
 
 const MORE_COLORS: readonly PatternColor[] = [
-  { name: 'Kék', hex: '#2f5f9e' },
-  { name: 'Zöld', hex: '#3f7d4e' },
-  { name: 'Mustár', hex: '#c8932e' },
-  { name: 'Fekete', hex: '#241f2b' },
-  { name: 'Rózsa', hex: '#c86b85' },
-  { name: 'Barna', hex: '#7a5a3c' },
+  color('blue', '#2f5f9e'),
+  color('green', '#3f7d4e'),
+  color('mustard', '#c8932e'),
+  color('black', '#241f2b'),
+  color('rose', '#c86b85'),
+  color('brown', '#7a5a3c'),
 ];
 
 export const DEFAULT_WIDTH = 12;
@@ -130,7 +151,12 @@ export function resizeDraft(draft: readonly (readonly DraftCell[])[], width: num
 /** A következő új szín, vagy `null`, ha már nincs hely (mozaikban két szín van). */
 export function nextColor(colors: readonly PatternColor[], technique: EditorTechnique = 'tapestry'): PatternColor | null {
   if (colors.length >= (technique === 'mosaic' ? 2 : MAX_COLORS)) return null;
-  return MORE_COLORS.find((color) => !colors.some((other) => other.hex === color.hex)) ?? { name: `${colors.length + 1}. szín`, hex: '#8d819c' };
+  return (
+    MORE_COLORS.find((candidate) => !colors.some((other) => other.hex === candidate.hex)) ?? {
+      name: texts().panels.grid.colors.numbered(colors.length + 1),
+      hex: '#8d819c',
+    }
+  );
 }
 
 /** Szín törlése: a törölt színű cellák az első megmaradó színt kapják, a későbbi indexek eggyel lejjebb lépnek. */
@@ -156,27 +182,32 @@ export interface Brush {
 }
 
 export function brushesFor(state: GridEditorState): Brush[] {
-  const unset: Brush = { key: 'unset', value: null, label: 'Törlés: az ismétlésből töltődik', swatch: null };
+  const t = texts().panels.grid.brushes;
+  const unset: Brush = { key: 'unset', value: null, label: t.unset, swatch: null };
   if (!usesColors(state.technique)) {
     return [
-      { key: 'filled', value: FILLED, label: 'Teli cella', swatch: null },
-      { key: 'open', value: OPEN, label: 'Nyitott cella', swatch: null },
-      { key: 'none', value: NO_CELL, label: 'Nincs cella (alakítás)', swatch: null },
+      { key: 'filled', value: FILLED, label: t.filled, swatch: null },
+      { key: 'open', value: OPEN, label: t.open, swatch: null },
+      { key: 'none', value: NO_CELL, label: t.none, swatch: null },
       unset,
     ];
   }
-  return [...state.colors.map((color, i) => ({ key: `color-${i}`, value: i, label: `${colorLetter(i)}: ${color.name}`, swatch: color.hex })), unset];
+  return [
+    ...state.colors.map((entry, i) => ({ key: `color-${i}`, value: i, label: t.color(colorLetter(i), entry.name), swatch: entry.hex })),
+    unset,
+  ];
 }
 
 export function valueName(state: GridEditorState, value: DraftCell): string {
-  if (value === null) return 'nincs megadva';
-  if (!usesColors(state.technique)) return value === FILLED ? 'teli' : value === OPEN ? 'nyitott' : 'nincs cella';
-  return `${colorLetter(value)} szín, ${state.colors[value]?.name ?? 'ismeretlen'}`;
+  const t = texts().panels.grid.values;
+  if (value === null) return t.unset;
+  if (!usesColors(state.technique)) return value === FILLED ? t.filled : value === OPEN ? t.open : t.none;
+  return t.color(colorLetter(value), state.colors[value]?.name ?? t.unknown);
 }
 
 /** A cella akadálymentes neve: „3. sor, 5. cella: teli”. */
 export function cellLabel(state: GridEditorState, x: number, y: number): string {
-  return `${y + 1}. sor, ${x + 1}. cella: ${valueName(state, state.draft[y]?.[x] ?? null)}`;
+  return texts().panels.grid.cellLabel(y + 1, x + 1, valueName(state, state.draft[y]?.[x] ?? null));
 }
 
 export function cellAppearance(state: GridEditorState, value: DraftCell): { readonly className: string; readonly color: string | null } {
@@ -267,28 +298,25 @@ export interface UnitState {
   readonly problem: boolean;
 }
 
-const cellFrom = (unit: GridUnit) => `${article(unit.y + 1)} ${unit.y + 1}. sor ${unit.x + 1}. cellájától`;
+const cellFrom = (unit: GridUnit) => texts().panels.grid.unitFrom(unit.y + 1, unit.x + 1);
 
 export function unitState(state: GridEditorState): UnitState {
+  const t = texts().panels.grid;
   if (state.manualUnit) {
     const problem = unitProblem(state.draft, state.manualUnit);
     if (problem) return { unit: null, text: problem, problem: true };
     const { width, height } = state.manualUnit;
     const conflicts = unitConflicts(state.draft, state.manualUnit);
-    const note = conflicts > 0 ? ` ${conflicts} megadott cella eltér tőle (pl. szegély): ezek maradnak.` : '';
-    return { unit: state.manualUnit, text: `Ismétlő egység, kézzel: ${width} × ${height} cella, ${cellFrom(state.manualUnit)}.${note}`, problem: false };
+    const note = conflicts > 0 ? t.unitConflicts(conflicts) : '';
+    return { unit: state.manualUnit, text: t.manualUnit(width, height, cellFrom(state.manualUnit), note), problem: false };
   }
   if (!hasGaps(state.draft)) {
-    return {
-      unit: null,
-      text: 'Minden cella megadott. Elég az első sorokat teljesen megadni, a többinél a sor egy részét: a törölt cellákat a program az ismétlő egységből tölti ki.',
-      problem: false,
-    };
+    return { unit: null, text: t.allCellsSet, problem: false };
   }
   const detected = detectUnit(state.draft);
   if (!detected.ok) return { unit: null, text: detected.reason, problem: true };
   const { width, height } = detected.unit;
-  return { unit: detected.unit, text: `Ismétlő egység, felismerve: ${width} × ${height} cella. A meg nem adott cellák ebből töltődnek ki.`, problem: false };
+  return { unit: detected.unit, text: t.detectedUnit(width, height), problem: false };
 }
 
 export type ExpandedCells = { readonly ok: true; readonly cells: number[][] } | { readonly ok: false; readonly reason: string };
@@ -296,7 +324,7 @@ export type ExpandedCells = { readonly ok: true; readonly cells: number[][] } | 
 /** A kiterjesztett rács: a megadott cellák, a többi az ismétlő egységből. */
 export function expandedCells(state: GridEditorState, unit: UnitState = unitState(state)): ExpandedCells {
   if (hasGaps(state.draft) && !unit.unit) {
-    return { ok: false, reason: unit.problem ? unit.text : 'Van meg nem adott cella: add meg, vagy jelöld meg az ismétlő egységet.' };
+    return { ok: false, reason: unit.problem ? unit.text : texts().panels.grid.missingCells };
   }
   const width = state.draft[0]?.length ?? 0;
   return { ok: true, cells: expandDraft(state.draft, unit.unit, width, state.draft.length, defaultFill(state.technique)) };
@@ -315,28 +343,22 @@ export type SummaryResult = { readonly ok: true; readonly view: SummaryView } | 
 
 const cm = (value: number) => formatNumber(value, 1);
 
-/** „a 3., 5. és 7. sor”; hatnál több sornál az első hat. */
-function rowList(rows: readonly number[]): string {
-  const shown = rows.slice(0, 6).map((row) => `${row}.`);
-  const list = shown.length === 1 ? shown[0]! : `${shown.slice(0, -1).join(', ')} és ${shown.at(-1)!}`;
-  return `${article(rows[0]!)} ${list}${rows.length > shown.length ? ' és további' : ''} sor`;
-}
-
 /** Színenként a cellák száma: „A: 40, B: 12”. */
 function perColor(cells: readonly (readonly number[])[], unit: string): string {
+  const t = texts().panels.grid;
   return `${[...cellCounts(cells)]
     .sort((a, b) => a[0] - b[0])
-    .map(([color, count]) => `${colorLetter(color)}: ${count}`)
+    .map(([color, count]) => t.perColor(colorLetter(color), count))
     .join(', ')} ${unit}.`;
 }
 
 function sourceText(source: ValueSource): string {
-  return source === 'estimated'
-    ? 'A méret becslés a tűből: pontosabb, ha a Méret és fonal szakaszban mintasűrűséget adsz meg. A rács cellái is ebben az arányban látszanak.'
-    : 'A méret és a cellák aránya a megadott mintasűrűségből.';
+  const t = texts().panels.grid;
+  return source === 'estimated' ? t.sourceEstimated : t.sourceMeasured;
 }
 
 export function planSummary(pattern: Pattern, state: GridEditorState, mirrored: boolean): SummaryResult {
+  const t = texts().panels.grid;
   const unit = unitState(state);
   const expanded = expandedCells(state, unit);
   if (!expanded.ok) return { ok: false, reason: expanded.reason };
@@ -347,7 +369,7 @@ export function planSummary(pattern: Pattern, state: GridEditorState, mirrored: 
   const details: string[] = [];
   const mirror = mirrorWarning(cells, state.lettering, mirrored);
   if (mirror) warnings.push(mirror);
-  if (unit.unit) details.push(`Ismétlő egység: ${unit.unit.width} × ${unit.unit.height} cella, a teljes ${width} × ${height} cellás rácsra kiterjesztve.`);
+  if (unit.unit) details.push(t.unitDetail(unit.unit.width, unit.unit.height, width, height));
 
   let size: string;
   let source: ValueSource;
@@ -357,19 +379,19 @@ export function planSummary(pattern: Pattern, state: GridEditorState, mirrored: 
       if (!planned.ok) return planned;
       const { plan } = planned;
       source = plan.gauge.source;
-      size = `Tényleges méret: ${source === 'estimated' ? '≈ ' : ''}${cm(plan.widthCm)} × ${cm(plan.heightCm)} cm, ${plan.rows.length} sor.`;
-      details.push(`A legszélesebb sor ${plan.width} cella: 3 × ${plan.width} + 1 = ${filetRowPositions(plan.width)} pozíció.`);
-      details.push(`Láncalap: ${plan.foundation.chains} lsz; az első pálca a horogtól számított ${plan.foundation.fromHook}. láncszembe megy.`);
+      size = t.actualSize(source === 'estimated' ? '≈ ' : '', cm(plan.widthCm), cm(plan.heightCm), plan.rows.length);
+      details.push(t.filetPositions(plan.width, filetRowPositions(plan.width)));
+      details.push(t.filetFoundation(plan.foundation.chains, plan.foundation.fromHook));
       const open = plan.rows.filter((row) => row.row > 1 && row.start === 'open').map((row) => row.row);
-      if (open.length > 0) details.push(`Nyitott cellával kezdődik ${rowList(open)}: a fordulólánc után 2 lsz jön.`);
+      if (open.length > 0) details.push(t.openStartRows(open));
       const added = plan.rows.filter((row) => row.added > 0).map((row) => row.row);
-      if (added.length > 0) details.push(`Szaporítás a sor elején ${rowList(added)} előtt: az előző sor végén láncos hosszabbítás.`);
+      if (added.length > 0) details.push(t.addedRows(added));
       const left = plan.rows.filter((row) => row.left > 0).map((row) => row.row);
-      if (left.length > 0) details.push(`Meghagyott cellák ${rowList(left)} végén.`);
+      if (left.length > 0) details.push(t.leftRows(left));
       const removed = plan.rows.filter((row) => row.removed > 0).map((row) => row.row);
-      if (removed.length > 0) details.push(`Fogyasztás a sor elején ${rowList(removed)}ban: kúszószemek a cellák fölött.`);
+      if (removed.length > 0) details.push(t.removedRows(removed));
       const extended = plan.rows.filter((row) => row.extended > 0).map((row) => row.row);
-      if (extended.length > 0) details.push(`Szaporítás a sor végén ${rowList(extended)}ban: 2 lsz és háromráhajtásos pálca 2 sorral lejjebb.`);
+      if (extended.length > 0) details.push(t.extendedRows(extended));
       break;
     }
     case 'c2c': {
@@ -377,15 +399,11 @@ export function planSummary(pattern: Pattern, state: GridEditorState, mirrored: 
       if (!planned.ok) return planned;
       const { plan } = planned;
       source = plan.gauge.source;
-      size = `Tényleges méret: ${source === 'estimated' ? '≈ ' : ''}${cm(plan.widthCm)} × ${cm(plan.heightCm)} cm, ${plan.rows.length} átlós sor, ${width * height} csempe.`;
-      details.push(`Láncalap: ${plan.foundation.chains} lsz; az első pálca a horogtól számított ${plan.foundation.fromHook}. láncszembe megy.`);
+      size = t.c2cSize(source === 'estimated' ? '≈ ' : '', cm(plan.widthCm), cm(plan.heightCm), plan.rows.length, width * height);
+      details.push(t.filetFoundation(plan.foundation.chains, plan.foundation.fromHook));
       const firstDecrease = plan.rows.find((row) => row.start === 'decrease' || row.end === 'decrease')?.row;
-      details.push(
-        firstDecrease === undefined
-          ? 'Minden sor szaporít.'
-          : `Szaporítás az 1–${firstDecrease - 1}. sorig; utána az az oldal fogy, ahol a méret megvan, a másik még nő.`,
-      );
-      details.push(`Csempék színenként: ${perColor(cells, 'csempe')}`);
+      details.push(firstDecrease === undefined ? t.allIncrease : t.increaseUntil(firstDecrease - 1));
+      details.push(t.tilesPerColor(perColor(cells, t.tileUnit)));
       break;
     }
     case 'mosaic': {
@@ -393,10 +411,10 @@ export function planSummary(pattern: Pattern, state: GridEditorState, mirrored: 
       if (!planned.ok) return planned;
       const { plan } = planned;
       source = plan.gauge.source;
-      size = `Tényleges méret: ${source === 'estimated' ? '≈ ' : ''}${cm(plan.widthCm)} × ${cm(plan.heightCm)} cm, ${plan.rows.length} sor (${height} rácssor).`;
-      const long = plan.depth === 2 ? 'egyráhajtásos pálca 2' : 'kétráhajtásos pálca 3';
-      details.push(`${plan.variant === 1 ? 'Egysoros' : 'Kétsoros'} mozaik: a lejjebb horgolt szem ${long} sorral lejjebb, összesen ${plan.drops}.`);
-      details.push(`Soronként ${width} szem. Láncalap: ${plan.foundation.chains} lsz; az első szem a horogtól számított ${plan.foundation.fromHook}. láncszembe megy.`);
+      size = t.mosaicSize(source === 'estimated' ? '≈ ' : '', cm(plan.widthCm), cm(plan.heightCm), plan.rows.length, height);
+      const long = plan.depth === 2 ? t.mosaicDepthDc : t.mosaicDepthTr;
+      details.push(t.mosaic(plan.variant === 1 ? t.mosaicVariantOne : t.mosaicVariantTwo, long, plan.drops));
+      details.push(t.mosaicRow(width, plan.foundation.chains, plan.foundation.fromHook));
       break;
     }
     default: {
@@ -404,18 +422,18 @@ export function planSummary(pattern: Pattern, state: GridEditorState, mirrored: 
       if (!planned.ok) return planned;
       const { plan } = planned;
       source = plan.gauge.source;
-      size = `Tényleges méret: ${source === 'estimated' ? '≈ ' : ''}${cm(plan.widthCm)} × ${cm(plan.heightCm)} cm, ${height} sor.`;
-      details.push(`Soronként ${width} rp. Láncalap: ${plan.foundation.chains} lsz; az első szem a horogtól számított ${plan.foundation.fromHook}. láncszembe megy.`);
-      details.push(`Szemek színenként: ${perColor(cells, 'szem')}`);
+      size = t.colorworkSize(source === 'estimated' ? '≈ ' : '', cm(plan.widthCm), cm(plan.heightCm), height);
+      details.push(t.colorworkRow(width, plan.foundation.chains, plan.foundation.fromHook));
+      details.push(t.stitchesPerColor(perColor(cells, t.stitchUnit)));
       if (state.technique === 'tapestry') {
         const over = overCarriedRows(cells);
-        if (over.length > 0) warnings.push(`Tapestryben 3-nál több színt kell vinni ${rowList(over)}ban: ez haladó szint, a szövet merevebb lesz.`);
+        if (over.length > 0) warnings.push(t.tapestryCarry(over));
       }
     }
   }
   if (state.technique !== 'c2c') {
     const cell = editorCellSize(pattern, state.technique, state.mosaicRows);
-    details.push(`Négyzet alakú motívumhoz ${proportionalRows(width, cell, 1, 1)} sor kell ${width} cella szélességhez; most ${height} sor.`);
+    details.push(t.squareMotif(proportionalRows(width, cell, 1, 1), width, height));
   }
   return { ok: true, view: { size, details, warnings, source: sourceText(source) } };
 }
@@ -423,28 +441,28 @@ export function planSummary(pattern: Pattern, state: GridEditorState, mirrored: 
 /* ---- Fonal ---- */
 
 function meters(quantity: Quantity): string {
+  const t = texts().panels.grid;
   const [low, high] = bounds(quantity);
   return quantity.range
-    ? `≈ ${formatNumber(quantity.value, 0)} m (${formatNumber(low, 0)}–${formatNumber(high, 0)} m)`
-    : `${formatNumber(quantity.value, 0)} m`;
+    ? t.yarnRange(formatNumber(quantity.value, 0), formatNumber(low, 0), formatNumber(high, 0))
+    : t.yarnExact(formatNumber(quantity.value, 0));
 }
 
 /** A mostani rácsminta fonala tartalékkal, többszínű rácsnál színenként. Rácsminta nélkül üres. */
 export function yarnLines(pattern: Pattern): string[] {
+  const t = texts().panels.grid;
   const piece = pattern.pieces[0];
   const grid = piece?.grid;
   if (!piece || !grid) return [];
   const library = libraryFor(pattern);
   const result = patternSize(pattern, buildPieceGraph(pattern, piece, library), library).yarn;
-  if (result.kind === 'missing') {
-    return ['Fonalbecsléshez add meg a Méret és fonal szakaszban a próbadarab méretét és tömegét, a fonal hosszát és a gombolyag tömegét.'];
-  }
+  if (result.kind === 'missing') return [t.yarnMissing];
   const total = result.estimate.lengthWithBufferM;
-  if (grid.colors.length < 2) return [`Fonal tartalékkal: ${meters(total)}.`];
-  const lines = [...yarnByColor(grid.cells, grid.technique, total)].map(
-    ([color, quantity]) => `${colorLetter(color)} (${grid.colors[color]?.name ?? ''}): ${meters(quantity)}`,
+  if (grid.colors.length < 2) return [t.yarnTotal(meters(total))];
+  const lines = [...yarnByColor(grid.cells, grid.technique, total)].map(([color, quantity]) =>
+    t.yarnColor(colorLetter(color), grid.colors[color]?.name ?? '', meters(quantity)),
   );
-  if (grid.technique === 'tapestry') lines.push('Tapestryben a szemekben vitt szál miatt több is kellhet: a tartomány felső széle ezzel számol.');
+  if (grid.technique === 'tapestry') lines.push(t.yarnTapestry);
   return lines;
 }
 
@@ -453,6 +471,7 @@ export function yarnLines(pattern: Pattern): string[] {
 export type GenerateResult = { readonly ok: true; readonly pattern: Pattern; readonly message: string } | { readonly ok: false; readonly reason: string };
 
 export function generateFromState(pattern: Pattern, state: GridEditorState): GenerateResult {
+  const t = texts().panels.grid;
   const unit = unitState(state);
   const expanded = expandedCells(state, unit);
   if (!expanded.ok) return expanded;
@@ -462,7 +481,7 @@ export function generateFromState(pattern: Pattern, state: GridEditorState): Gen
       ? {
           ok: true,
           pattern: result.pattern,
-          message: `${TECHNIQUE_NAMES[state.technique]}: ${result.plan.rows.length} sor elkészült; visszavonással a korábbi minta visszajön.`,
+          message: t.generated(t.techniques[state.technique], result.plan.rows.length),
         }
       : result;
   switch (state.technique) {

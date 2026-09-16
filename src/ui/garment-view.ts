@@ -8,7 +8,7 @@
  * magot `.ts` kiterjesztéssel importálja.
  */
 
-import { BODY_TABLES, BODY_TABLES_ORDER, FIT_EASE, GARMENT_EASE, NEGATIVE_EASE_LIMIT, fitLevelOf, type BodyTableId } from '../core/body-sizes.ts';
+import { BODY_TABLES_ORDER, GARMENT_EASE, NEGATIVE_EASE_LIMIT, fitLevelOf, type BodyTableId } from '../core/body-sizes.ts';
 import { sizingLines } from '../core/garment-text.ts';
 import {
   BELOW_WAIST_CM,
@@ -16,7 +16,6 @@ import {
   DEFAULT_HAT,
   DROP_SHOULDER_EASE,
   GARMENT_KINDS,
-  GARMENT_NAMES,
   garmentSizes,
   type DropShoulderPlan,
   type GarmentOptions,
@@ -26,14 +25,26 @@ import {
 import type { RaglanPlan } from '../core/raglan.ts';
 import { stitchById } from '../core/stitches.ts';
 import type { GarmentKind } from '../core/types.ts';
+import { texts } from './i18n.ts';
 import type { Choice } from './shapes-view.ts';
 import { formatNumber } from './size-view.ts';
+import { termsLocale } from './notation.ts';
 
 export { STITCH_CHOICES } from './shapes-view.ts';
 
-export const KIND_CHOICES: readonly Choice<GarmentKind>[] = GARMENT_KINDS.map((value) => ({ value, label: GARMENT_NAMES[value] }));
+export const KIND_CHOICES: readonly Choice<GarmentKind>[] = GARMENT_KINDS.map((value) => ({
+  value,
+  get label() {
+    return texts().panels.garment.names[value];
+  },
+}));
 
-export const TABLE_CHOICES: readonly Choice<BodyTableId>[] = BODY_TABLES_ORDER.map((value) => ({ value, label: BODY_TABLES[value].name }));
+export const TABLE_CHOICES: readonly Choice<BodyTableId>[] = BODY_TABLES_ORDER.map((value) => ({
+  value,
+  get label() {
+    return texts().panels.garment.tables[value];
+  },
+}));
 
 export function sizeChoices(kind: GarmentKind, table: BodyTableId): Choice<string>[] {
   return garmentSizes(kind, table).map((size) => ({ value: size.id, label: size.name }));
@@ -55,21 +66,24 @@ export function garmentFieldState(kind: GarmentKind): GarmentFieldState {
 }
 
 export function easeLabel(kind: GarmentKind): string {
-  return kind === 'hat' ? 'Bőség a fejkörfogathoz, cm' : 'Bőség a mellbőséghez, cm';
+  const labels = texts().panels.garment.easeLabels;
+  return kind === 'hat' ? labels.hat : labels.sweater;
 }
 
 export function easeNote(kind: GarmentKind): string {
+  const t = texts().panels.garment;
   const limit = Math.round(NEGATIVE_EASE_LIMIT * 100);
   if (kind === 'hat') {
     const small = signedNumber(GARMENT_EASE.hatSmallHead, 1);
     const large = signedNumber(GARMENT_EASE.hatLargeHead, 0);
-    return `Üresen a fejmérettől függ: ${GARMENT_EASE.hatHeadLimitCm} cm alatt ${small} cm, fölötte ${large} cm. Horgolt anyagnál a negatív bőség legfeljebb kb. ${limit}%.`;
+    return t.easeHat(small, large, GARMENT_EASE.hatHeadLimitCm, limit);
   }
-  return `Ledobott vállnál ${DROP_SHOULDER_EASE[0]}–${DROP_SHOULDER_EASE[1]} cm bőség a szokásos. Horgolt anyagnál a negatív bőség legfeljebb kb. ${limit}%.`;
+  return t.easeSweater(DROP_SHOULDER_EASE[0], DROP_SHOULDER_EASE[1], limit);
 }
 
 export function hemLabel(kind: GarmentKind): string {
-  return kind === 'hat' ? 'Perem, cm' : 'Szegély és mandzsetta, cm';
+  const labels = texts().panels.garment.hemLabels;
+  return kind === 'hat' ? labels.hat : labels.sweater;
 }
 
 /**
@@ -130,124 +144,133 @@ function signedNumber(value: number, digits: number): string {
   return `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatNumber(Math.abs(value), digits)}`;
 }
 const signed = (value: number) => signedNumber(value, 0);
-const withArticle = (word: string) => `${/^[aáeéiíoóöőuúüű]/i.test(word) ? 'az' : 'a'} ${word}`;
-const capitalize = (text: string) => text.charAt(0).toLocaleUpperCase('hu') + text.slice(1);
 
 export function garmentView(plan: GarmentSeriesPlan, hasProfile: boolean): GarmentView {
+  const t = texts().panels.garment;
   const approx = plan.gauge.source === 'estimated' ? '≈ ' : '';
   const base = plan.sizes[plan.base]!;
   const many = plan.sizes.length > 1;
   const details: string[] = [];
   let size: string;
   if (base.plan.kind === 'hat') {
-    size = `${base.name}: kész körméret ${approx}${cm(base.plan.finishedCm)} cm, magasság ${approx}${cm(base.plan.finishedHeightCm)} cm; ${base.plan.counts.length} kör.`;
+    size = t.hatSize(base.name, approx, cm(base.plan.finishedCm), cm(base.plan.finishedHeightCm), base.plan.counts.length);
     details.push(...hatDetails(base.plan));
   } else if (base.plan.kind === 'raglan') {
     const { finished } = base.plan;
-    size = `${base.name}: kész mellbőség ${approx}${cm(finished.chestCm)} cm, hossz ${approx}${cm(finished.lengthCm)} cm; ${base.plan.yokeRounds + base.plan.bodyRoundsBelow} kör.`;
+    size = t.raglanSize(base.name, approx, cm(finished.chestCm), cm(finished.lengthCm), base.plan.yokeRounds + base.plan.bodyRoundsBelow);
     details.push(...raglanDetails(base.plan));
   } else {
     const { finished } = base.plan;
-    size = `${base.name}: kész mellbőség ${approx}${cm(finished.chestCm)} cm, hossz ${approx}${cm(finished.lengthCm)} cm, ujjhossz ${approx}${cm(finished.sleeveCm)} cm.`;
+    size = t.sweaterSize(base.name, approx, cm(finished.chestCm), cm(finished.lengthCm), cm(finished.sleeveCm));
     details.push(...sweaterDetails(base.plan));
   }
   if (plan.yarnMissing) {
-    details.push('Fonalbecsléshez add meg a Méret és fonal szakaszban a próbadarab méretét és tömegét, a fonal hosszát és a gombolyag tömegét.');
+    details.push(t.yarnMissing);
   } else if (base.yarn) {
-    details.push(`Fonal tartalékkal: kb. ${base.yarn.lengthM} m, ${base.yarn.balls} gombolyag.`);
+    details.push(t.yarn(base.yarn.lengthM, base.yarn.balls));
   }
 
-  const prefix = (name: string) => (many ? `${name}: ` : '');
-  // A hamis ellenőrzés mellé javaslat is jár, ha van (05 §9.6).
+  const prefix = (name: string) => (many ? t.prefix(name) : '');
+  // A hamis ellenőrzés mellé javaslat is jár, ha van (05 §9.6, PQW-901).
   const failed = plan.sizes.flatMap((entry) =>
     entry.plan.checks
       .filter((check) => !check.ok)
-      .map((check) => `${prefix(entry.name)}${check.label}: hamis.${check.suggestion === undefined ? '' : ` ${check.suggestion}`}`),
+      .map((check) => t.failedCheck(prefix(entry.name), check.label, check.suggestion === undefined ? '' : ` ${check.suggestion}`)),
   );
   const checks =
     plan.checksPassed === plan.checksTotal
-      ? `Minden ellenőrzés igaz: ${plan.checksPassed}/${plan.checksTotal}${many ? `, ${plan.sizes.length} méret` : ''}.`
-      : `${plan.checksPassed}/${plan.checksTotal} ellenőrzés igaz; a hamisak lent.`;
+      ? t.allChecks(plan.checksPassed, plan.checksTotal, many ? t.checkSizes(plan.sizes.length) : '')
+      : t.someChecks(plan.checksPassed, plan.checksTotal);
 
   const warnings: string[] = [];
   for (const entry of plan.sizes) {
-    warnings.push(...entry.plan.warnings.map((warning) => `${prefix(entry.name)}${warning}`));
-    if (entry.estimated.length > 0) warnings.push(`${entry.name}: a táblázatban nincs ${entry.estimated.join(' és ')}, ezért becsült.`);
-    warnings.push(...entry.flags.map((flag) => `A táblázat gyanús adata (${entry.name}): ${flag.note}`));
+    warnings.push(...entry.plan.warnings.map((warning) => t.warning(prefix(entry.name), warning)));
+    if (entry.estimated.length > 0) warnings.push(t.estimatedSize(entry.name, entry.estimated));
+    warnings.push(...entry.flags.map((flag) => t.flag(entry.name, flag.note)));
   }
-  for (const issue of plan.monotonic) warnings.push(`${capitalize(issue.label)} ${withArticle(issue.size)} méretnél kisebb, mint az előzőben.`);
+  for (const issue of plan.monotonic) warnings.push(t.monotonic(issue.label, issue.size));
 
-  const series = sizingLines({ kind: plan.kind, table: plan.table, sizes: plan.sizes.map((entry) => entry.id), base: plan.base, values: plan.values }, 'hu');
+  const series = sizingLines({ kind: plan.kind, table: plan.table, sizes: plan.sizes.map((entry) => entry.id), base: plan.base, values: plan.values }, termsLocale());
   return { size, details, checks, failed, warnings, series, source: sourceText(plan, hasProfile) };
 }
 
 function hatDetails(plan: HatPlan): string[] {
+  const t = texts().panels.garment;
   const easePct = Math.round((plan.measures.easeCm / plan.measures.headCm) * 100);
   return [
-    `Fejkörfogat ${formatNumber(plan.measures.headCm, 1)} cm, bőség ${signed(plan.measures.easeCm)} cm (${easePct}%): a sapka ${cm(plan.hatCm)} cm, ${plan.stitches} szem.`,
-    `Korona: ${plan.crownRounds} kör, körönként ${plan.increases} szaporítás (elméletileg ${formatNumber(plan.exactIncreases, 2)}), az utolsó körben igazítva.`,
-    `Oldal: ${plan.sideRounds} kör egyenesen${plan.brimRounds > 0 ? `, ebből az utolsó ${plan.brimRounds} kör a perem` : ''}.`,
+    t.hatHead(formatNumber(plan.measures.headCm, 1), signed(plan.measures.easeCm), easePct, cm(plan.hatCm), plan.stitches),
+    t.hatCrown(plan.crownRounds, plan.increases, formatNumber(plan.exactIncreases, 2)),
+    t.hatSide(plan.sideRounds, plan.brimRounds > 0 ? t.hatBrim(plan.brimRounds) : ''),
   ];
 }
 
 function raglanDetails(plan: RaglanPlan): string[] {
+  const t = texts().panels.garment;
   const { neck, target, finished, measures } = plan;
-  const lines = [
-    `Nyak: ${neck.stitches} szem körbe zárva; elöl és hátul ${neck.front} szem, ujjanként ${neck.sleeve} szem.`,
-    `Raglán: ${plan.yokeRounds} kör, körönként a négy raglánvonal mellett 2-2 szaporítás${
-      plan.bodyRounds.length > 0 ? `, és ${plan.bodyRounds.length} körben az elején és a hátán külön szaporítás is` : ''
-    }.`,
-    `Szétosztás: elöl és hátul ${target.front} szem, ujjanként ${target.sleeve} szem, a hónaljlánc ${plan.underarm} szem; a törzs ${plan.bodyStitches} szem.`,
-    `Törzs: ${plan.bodyRoundsBelow} kör a szétosztástól, ebből az utolsó ${plan.hemRounds} kör a szegély. Az ujjak a hónaljlánc és a kihagyott szemek mentén külön készülnek: azokat a rajz még nem tartalmazza.`,
-    `Bőség: ${signed(finished.easeCm)} cm (${FIT_EASE[fitLevelOf(finished.easeCm)].name}).`,
+  return [
+    t.raglanNeck(neck.stitches, neck.front, neck.sleeve),
+    t.raglanYoke(plan.yokeRounds, plan.bodyRounds.length > 0 ? t.raglanExtra(plan.bodyRounds.length) : ''),
+    t.raglanDivide(target.front, target.sleeve, plan.underarm, plan.bodyStitches),
+    t.raglanBody(plan.bodyRoundsBelow, plan.hemRounds),
+    t.ease(signed(finished.easeCm), t.fits[fitLevelOf(finished.easeCm)], ''),
+    t.body(formatNumber(measures.bustCm, 1)),
   ];
-  lines.push(`Testméret: mellbőség ${formatNumber(measures.bustCm, 1)} cm, a táblázat tartományának közepe.`);
-  return lines;
 }
 
 function sweaterDetails(plan: DropShoulderPlan): string[] {
+  const t = texts().panels.garment;
   const { panel, neck, sleeve, finished, measures } = plan;
   const lines = [
-    `Hátrész és elejerész: ${panel.stitches} szem${panel.repeats !== null ? ` (${panel.repeats} ismétlés)` : ''}, ${panel.rows} sor, ebből ${panel.hemRows} sor szegély; láncalap ${panel.foundation} lsz. A karöltő az utolsó ${panel.armholeRows} sor.`,
-    `Váll: szélenként ${neck.shoulder} szem; a nyak ${neck.stitches} szem.`,
-    `Formázott nyak: elöl középen ${neck.front.center} szem marad, oldalanként ${neck.front.first} szem fogy az első sorban, utána ${neck.front.later} sorban 1-1; hátul középen ${neck.back.center} szem, ${neck.back.rows} sorban. Csónaknyaknál a vállvarrás hagyja nyitva a nyakat.`,
-    `Ujj: ${sleeve.cuff} szemről ${sleeve.top} szemre, ${sleeve.rows} sor; ${sleeve.increases} szaporítás mindkét szélen${sleeve.first !== null ? `, az elsővel ${withArticle(`${sleeve.first}.`)} sorban` : ''}.`,
-    `Bőség: ${signed(finished.easeCm)} cm (${FIT_EASE[fitLevelOf(finished.easeCm)].name})${
-      finished.easeCm < DROP_SHOULDER_EASE[0] ? `; ledobott vállnál ${DROP_SHOULDER_EASE[0]}–${DROP_SHOULDER_EASE[1]} cm a szokásos, ennyivel testhezállóbb` : ''
-    }.`,
+    t.panel(
+      panel.stitches,
+      panel.repeats !== null ? t.panelRepeats(panel.repeats) : '',
+      panel.rows,
+      panel.hemRows,
+      panel.foundation,
+      panel.armholeRows,
+    ),
+    t.shoulder(neck.shoulder, neck.stitches),
+    t.neck(neck.front.center, neck.front.first, neck.front.later, neck.back.center),
+    t.sleeve(sleeve.cuff, sleeve.top, sleeve.rows, sleeve.increases, sleeve.first !== null ? t.sleeveFirst(sleeve.first) : ''),
+    t.ease(
+      signed(finished.easeCm),
+      t.fits[fitLevelOf(finished.easeCm)],
+      finished.easeCm < DROP_SHOULDER_EASE[0] ? t.easeNote(DROP_SHOULDER_EASE[0], DROP_SHOULDER_EASE[1]) : '',
+    ),
   ];
-  if (finished.upperArmEaseCm !== null) lines.push(`A felkaron ${signed(finished.upperArmEaseCm)} cm a bőség.`);
-  if (finished.shoulderDropCm !== null && finished.shoulderDropCm > 0) lines.push(`A vállvarrás kb. ${cm(finished.shoulderDropCm)} cm-rel lóg le a karra.`);
-  lines.push(`Testméret: mellbőség ${formatNumber(measures.bustCm, 1)} cm, a táblázat tartományának közepe.`);
+  if (finished.upperArmEaseCm !== null) lines.push(t.upperArm(signed(finished.upperArmEaseCm)));
+  if (finished.shoulderDropCm !== null && finished.shoulderDropCm > 0) lines.push(t.shoulderDrop(cm(finished.shoulderDropCm)));
+  lines.push(t.body(formatNumber(measures.bustCm, 1)));
   return lines;
 }
 
 function sourceText(plan: GarmentSeriesPlan, hasProfile: boolean): string {
-  const form = plan.kind === 'hat' ? 'körben' : 'síkban';
-  const stitch = stitchById(plan.stitch).terms.hu.name;
+  const t = texts().panels.garment;
+  const form = plan.kind === 'hat' ? t.formRounds : t.formRows;
+  const stitch = stitchById(plan.stitch).terms[termsLocale()].name;
+  const hookMm = formatNumber(plan.gauge.hookMm, 2);
   let gauge: string;
   switch (plan.gauge.basis) {
     case 'measured':
-      gauge = `${capitalize(withArticle(stitch))} ${plan.gauge.source === 'label' ? 'címkén megadott' : `${form} mért`} mintasűrűségéből.`;
+      gauge = t.gaugeMeasured(stitch, plan.gauge.source === 'label' ? t.gaugeFromLabel : t.gaugeMeasuredIn(form));
       break;
     case 'profile-stitch':
-      gauge = `Becslés: a profil más szemének ${form} mért mintasűrűségéből átszámolva.`;
+      gauge = t.gaugeProfileStitch(form);
       break;
     case 'profile-other-form':
-      gauge = `Becslés: a ${plan.kind === 'hat' ? 'síkban' : 'körben'} mért mintasűrűségből átszámolva.`;
+      gauge = t.gaugeOtherForm(plan.kind === 'hat' ? t.formRows : t.formRounds);
       break;
     case 'hook':
-      gauge = hasProfile
-        ? `Becslés a profil ${formatNumber(plan.gauge.hookMm, 2)} mm-es tűjéből, mert nincs mért mintasűrűség.`
-        : `Nincs profil: a méret becslés ${formatNumber(plan.gauge.hookMm, 2)} mm-es tűből. Pontosabb, ha a Méret és fonal szakaszban profilt adsz meg.`;
+      gauge = hasProfile ? t.gaugeHookProfile(hookMm) : t.gaugeHookNoProfile(hookMm);
       break;
   }
-  return `${gauge} A hosszt mosott, blokkolt és felakasztott próbadarabból érdemes mérni, mert a horgolt anyag hosszában nő.`;
+  return `${gauge} ${t.lengthNote}`;
 }
 
 /** Az állapotsor üzenete a létrehozás után. */
 export function generatedMessage(plan: GarmentSeriesPlan): string {
+  const t = texts().panels.garment;
   const base = plan.sizes[plan.base]!;
-  const series = plan.sizes.length > 1 ? ` (${plan.sizes.length} méretes sorozattal)` : '';
-  return `${GARMENT_NAMES[plan.kind]}, ${base.name} méret${series} elkészült; visszavonással a korábbi minta visszajön.`;
+  const series = plan.sizes.length > 1 ? t.generatedSeries(plan.sizes.length) : '';
+  return t.generated(t.names[plan.kind], base.name, series);
 }

@@ -9,7 +9,6 @@
 
 import {
   MOTIF_CORNERS,
-  MOTIF_NAMES,
   MOTIF_SHAPES,
   ROUND_STITCHES,
   motifStitch,
@@ -21,7 +20,9 @@ import {
 } from '../core/round-generator.ts';
 import type { FlatIncreases } from '../core/rounds.ts';
 import { stitchById } from '../core/stitches.ts';
+import { texts } from './i18n.ts';
 import { formatNumber } from './size-view.ts';
+import { termsLocale } from './notation.ts';
 
 export interface Choice<T extends string> {
   readonly value: T;
@@ -30,32 +31,40 @@ export interface Choice<T extends string> {
 
 const capitalize = (text: string) => text.charAt(0).toLocaleUpperCase('hu') + text.slice(1);
 
-/** A határozott névelő egy szó előtt: „a rövidpálca”, „az egyráhajtásos pálca”. */
-const withArticle = (word: string) => `${/^[aáeéiíoóöőuúüű]/i.test(word) ? 'az' : 'a'} ${word}`;
-
-export const SHAPE_CHOICES: readonly Choice<MotifShape>[] = MOTIF_SHAPES.map((value) => ({ value, label: MOTIF_NAMES[value] }));
+export const SHAPE_CHOICES: readonly Choice<MotifShape>[] = MOTIF_SHAPES.map((value) => ({
+  value,
+  get label() {
+    return texts().panels.round.names[value];
+  },
+}));
 
 export const STITCH_CHOICES: readonly Choice<string>[] = ROUND_STITCHES.map((value) => ({
   value,
-  label: capitalize(stitchById(value).terms.hu.name),
+  get label() {
+    return capitalize(stitchById(value).terms[termsLocale()].name);
+  },
 }));
 
-export const START_CHOICES: readonly Choice<RoundStart>[] = [
-  { value: 'magic-ring', label: 'Varázskör' },
-  { value: 'chain-ring', label: 'Láncgyűrű' },
-  { value: 'chain', label: 'Láncszembe (pl. 2 lsz, 6 rp a 2. láncszembe)' },
-];
+export const START_CHOICES: readonly Choice<RoundStart>[] = (['magic-ring', 'chain-ring', 'chain'] as const).map((value) => ({
+  value,
+  get label() {
+    return texts().panels.round.starts[value];
+  },
+}));
 
-export const CLOSING_CHOICES: readonly Choice<RoundClosing>[] = [
-  { value: 'join-slip', label: 'Zárt kör: kúszószem és kezdőlánc' },
-  { value: 'spiral', label: 'Spirál körjelölővel' },
-];
+export const CLOSING_CHOICES: readonly Choice<RoundClosing>[] = (['join-slip', 'spiral'] as const).map((value) => ({
+  value,
+  get label() {
+    return texts().panels.round.closings[value];
+  },
+}));
 
-export const JOG_CHOICES: readonly Choice<JogFix | 'none'>[] = [
-  { value: 'none', label: 'Nincs' },
-  { value: 'slip-stitch', label: 'Kúszószem az első szem helyett' },
-  { value: 'back-loop', label: 'Új szín az első szem hátsó szálába' },
-];
+export const JOG_CHOICES: readonly Choice<JogFix | 'none'>[] = (['none', 'slip-stitch', 'back-loop'] as const).map((value) => ({
+  value,
+  get label() {
+    return texts().panels.round.jogs[value];
+  },
+}));
 
 /** Melyik mező állítható a választott formánál. */
 export interface FieldState {
@@ -92,32 +101,31 @@ export function normalizeMotif(options: MotifOptions): MotifOptions {
 
 /** A szaporítás magyarázata a formához, az eredetével. */
 export function increaseNote(increases: FlatIncreases, options: MotifOptions): string {
-  const stitch = stitchById(motifStitch(options)).terms.hu.name;
+  const t = texts().panels.round;
+  const stitch = stitchById(motifStitch(options)).terms[termsLocale()].name;
   const aspect = formatNumber(increases.aspect, 2);
   let text: string;
   if (options.shape === 'granny-square') {
-    text = 'Sarkonként 3 erp, 2 lsz, 3 erp, oldalanként 3 erp, 1 lsz: a sarkok egymás fölé kerülnek.';
+    text = t.granny;
   } else if (options.shape === 'circle') {
-    text = `Körönként ${increases.count} szaporítás: 2π × ${aspect} ≈ ${formatNumber(increases.exact, 1)}, páros számra kerekítve.`;
+    text = t.circleIncreases(increases.count, aspect, formatNumber(increases.exact, 1));
   } else {
     const corners = MOTIF_CORNERS[options.shape]!;
-    text = `Körönként kb. ${formatNumber(increases.exact, 1)} szaporítás a ${corners} sarokban, egymás fölé kerülve (2 · ${corners} · tg(π/${corners}) × ${aspect}).`;
+    text = t.polygonIncreases(formatNumber(increases.exact, 1), corners, aspect);
   }
   return `${text} ${sourceNote(increases, stitch)}`;
 }
 
 function sourceNote(increases: FlatIncreases, stitch: string): string {
-  if (increases.source === 'estimated') {
-    return `Becslés ${withArticle(stitch)} szokásos körös magasság/szélesség arányából. Pontosabb, ha a Méret és fonal szakaszban megadod a körben mért mintasűrűséget.`;
-  }
-  const from = increases.from ? stitchById(increases.from).terms.hu.name : stitch;
-  const measured = increases.source === 'label' ? 'a címkén megadott körös mintasűrűségéből' : 'körben mért mintasűrűségéből';
-  return from === stitch
-    ? `${capitalize(withArticle(from))} ${measured}.`
-    : `${capitalize(withArticle(from))} ${measured}, ${withArticle(stitch)} arányára átszámolva.`;
+  const t = texts().panels.round;
+  if (increases.source === 'estimated') return t.estimated(stitch);
+  const from = increases.from ? stitchById(increases.from).terms[termsLocale()].name : stitch;
+  const measured = increases.source === 'label' ? t.fromLabel : t.fromMeasured;
+  return from === stitch ? t.sameStitch(from, measured) : t.convertedStitch(from, measured, stitch);
 }
 
 /** Az állapotsor üzenete a létrehozás után. */
 export function generatedMessage(options: MotifOptions): string {
-  return `${MOTIF_NAMES[options.shape]}, ${options.rounds} kör elkészült; visszavonással a korábbi minta visszajön.`;
+  const t = texts().panels.round;
+  return t.generated(t.names[options.shape], options.rounds);
 }

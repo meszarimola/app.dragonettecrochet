@@ -17,10 +17,10 @@ import { activeProfile, estimatedGauge, newProfile, patternSize, withActiveProfi
 import type { StitchLibrary } from '../core/stitch-library.js';
 import type { GaugeEntry, GaugeForm, Pattern, PatternGaugeProfile } from '../core/types.js';
 import { CYC_WEIGHTS } from '../core/yarn-weight.js';
+import { texts, uiLanguage, type UiLanguage } from './i18n.js';
 import {
-  FORM_LABELS,
-  SOURCE_LABELS,
   cycWeightLabel,
+  formLabel,
   formatNumber,
   gaugeEntryNote,
   gaugeStitchName,
@@ -28,6 +28,7 @@ import {
   profileLabel,
   profileOrigins,
   sizeView,
+  sourceLabel,
   type Origin,
   type SizeView,
   type ValueRow,
@@ -42,12 +43,14 @@ export interface SizePanelHost {
 
 const FORMS: readonly GaugeForm[] = ['rows', 'rounds'];
 
+/** A mező szövegeinek kulcsa; a felirat a használat pillanatában, a mostani nyelven kerül elő. */
+type FieldKey = 'meterage' | 'ball' | 'hook' | 'swatchWidth' | 'swatchHeight' | 'swatchMass';
+
 interface NumberField {
   readonly input: HTMLInputElement;
   readonly max: number;
   readonly required: boolean;
-  readonly invalid: string;
-  readonly message: string;
+  readonly key: FieldKey;
   get(profile: PatternGaugeProfile): number | null;
   set(profile: PatternGaugeProfile, value: number | null): PatternGaugeProfile;
 }
@@ -87,7 +90,7 @@ function setOrigin(badge: HTMLElement, value: Origin | null): void {
 }
 
 function capitalize(text: string): string {
-  return text.charAt(0).toLocaleUpperCase('hu') + text.slice(1);
+  return text.charAt(0).toLocaleUpperCase(uiLanguage()) + text.slice(1);
 }
 
 export class SizePanel {
@@ -114,6 +117,8 @@ export class SizePanel {
   #library: StitchLibrary | null = null;
   /** A legutóbb kiírt minta; ugyanarra nem számolunk újra. */
   #shown: Pattern | null = null;
+  /** A legutóbb kiírt nyelv; nyelvváltáskor a szakasz újra kiírja magát. */
+  #shownLanguage: UiLanguage | null = null;
   #gaugeKey = '';
 
   constructor(section: HTMLDetailsElement, host: SizePanelHost) {
@@ -145,16 +150,15 @@ export class SizePanel {
       swatch: find('size-origin-swatch'),
     };
     this.#cyc.replaceChildren(
-      option('', 'Nincs a címkén'),
+      option('', texts().sections.size.profile.noCyc),
       ...CYC_WEIGHTS.map((weight) => option(String(weight.weight), cycWeightLabel(weight.weight))),
     );
 
-    const swatch = (key: keyof PatternGaugeProfile['swatch'], id: string, invalid: string, message: string): NumberField => ({
+    const swatch = (key: keyof PatternGaugeProfile['swatch'], id: string, fieldKey: FieldKey): NumberField => ({
       input: find(id),
       max: Number.POSITIVE_INFINITY,
       required: false,
-      invalid,
-      message,
+      key: fieldKey,
       get: (profile) => profile.swatch[key],
       set: (profile, value) => ({ ...profile, swatch: { ...profile.swatch, [key]: value } }),
     });
@@ -163,8 +167,7 @@ export class SizePanel {
         input: find('size-meterage'),
         max: Number.POSITIVE_INFINITY,
         required: false,
-        invalid: 'A méter/100 g pozitív szám, vagy maradjon üresen.',
-        message: 'A fonal m/100 g értéke módosult.',
+        key: 'meterage',
         get: (profile) => profile.yarn.metersPer100g,
         set: (profile, value) => ({ ...profile, yarn: { ...profile.yarn, metersPer100g: value } }),
       },
@@ -172,8 +175,7 @@ export class SizePanel {
         input: find('size-ball'),
         max: Number.POSITIVE_INFINITY,
         required: false,
-        invalid: 'A gombolyag tömege pozitív szám, vagy maradjon üresen.',
-        message: 'A gombolyag tömege módosult.',
+        key: 'ball',
         get: (profile) => profile.yarn.ballMassG,
         set: (profile, value) => ({ ...profile, yarn: { ...profile.yarn, ballMassG: value } }),
       },
@@ -181,44 +183,48 @@ export class SizePanel {
         input: find('size-hook'),
         max: 30,
         required: true,
-        invalid: 'A tű mérete kötelező: 30 mm-nél nem nagyobb pozitív szám.',
-        message: 'A tű mérete módosult.',
+        key: 'hook',
         get: (profile) => profile.hookMm,
         set: (profile, value) => ({ ...profile, hookMm: value ?? profile.hookMm }),
       },
-      swatch('widthCm', 'size-swatch-width', 'A próbadarab szélessége pozitív szám, vagy maradjon üresen.', 'A próbadarab szélessége módosult.'),
-      swatch('heightCm', 'size-swatch-height', 'A próbadarab magassága pozitív szám, vagy maradjon üresen.', 'A próbadarab magassága módosult.'),
-      swatch('massG', 'size-swatch-mass', 'A próbadarab tömege pozitív szám, vagy maradjon üresen.', 'A próbadarab tömege módosult.'),
+      swatch('widthCm', 'size-swatch-width', 'swatchWidth'),
+      swatch('heightCm', 'size-swatch-height', 'swatchHeight'),
+      swatch('massG', 'size-swatch-mass', 'swatchMass'),
     ];
 
     this.#profile.addEventListener('change', () => {
       const next = withActiveProfile(this.#current(), this.#profile.value || null);
       const chosen = activeProfile(next);
-      host.commit(next, chosen ? `Profil: ${profileLabel(chosen)}.` : 'Profil nélkül: a méret becslés, tartománnyal.');
+      const words = texts().sections.size.profile;
+      host.commit(next, chosen ? words.chosen(profileLabel(chosen)) : words.cleared);
     });
     find<HTMLButtonElement>('size-add').addEventListener('click', () => {
       const pattern = this.#current();
-      host.commit(withProfile(pattern, newProfile(pattern)), 'Új profil: add meg a fonalat, a tűt és a mért értékeket.');
+      host.commit(withProfile(pattern, newProfile(pattern)), texts().sections.size.profile.added);
       this.#yarnName.focus();
     });
     this.#remove.addEventListener('click', () => {
       const pattern = this.#current();
       const profile = activeProfile(pattern);
       if (!profile) return;
-      host.commit(withoutProfile(pattern, profile.id), `Profil törölve: ${profileLabel(profile)}. Visszavonással visszajön.`);
+      host.commit(withoutProfile(pattern, profile.id), texts().sections.size.profile.removed(profileLabel(profile)));
       this.#profile.focus();
     });
 
     this.#yarnName.addEventListener('change', () =>
-      this.#edit((profile) => ({ ...profile, yarn: { ...profile.yarn, name: this.#yarnName.value.trim() } }), 'A fonal neve módosult.'),
+      this.#edit(
+        (profile) => ({ ...profile, yarn: { ...profile.yarn, name: this.#yarnName.value.trim() } }),
+        texts().sections.size.profile.nameChanged,
+      ),
     );
     this.#cyc.addEventListener('change', () => {
       const cycWeight = this.#cyc.value === '' ? null : Number(this.#cyc.value);
-      this.#edit((profile) => ({ ...profile, yarn: { ...profile.yarn, cycWeight } }), 'A fonal vastagsági kategóriája módosult.');
+      this.#edit((profile) => ({ ...profile, yarn: { ...profile.yarn, cycWeight } }), texts().sections.size.profile.cycChanged);
     });
     this.#blocked.addEventListener('change', () => {
       const blocked = this.#blocked.checked;
-      this.#edit((profile) => ({ ...profile, blocked }), blocked ? 'A profil blokkolva mért.' : 'A profil blokkolás nélkül mért.');
+      const words = texts().sections.size.profile;
+      this.#edit((profile) => ({ ...profile, blocked }), blocked ? words.blockedOn : words.blockedOff);
     });
     for (const field of this.#fields) {
       field.input.addEventListener('change', () => {
@@ -227,10 +233,10 @@ export class SizePanel {
         const value = readNumber(field.input, field.max);
         if (value === undefined || (field.required && value === null)) {
           field.input.value = numberValue(field.get(profile));
-          host.announce(field.invalid);
+          host.announce(texts().sections.size.profile.invalid[field.key]);
           return;
         }
-        if (value !== field.get(profile)) this.#edit((current) => field.set(current, value), field.message);
+        if (value !== field.get(profile)) this.#edit((current) => field.set(current, value), texts().sections.size.profile.changed[field.key]);
       });
     }
 
@@ -239,7 +245,7 @@ export class SizePanel {
       const button = (event.target as Element).closest<HTMLButtonElement>('button[data-remove]');
       if (!button) return;
       const index = Number(button.dataset.remove);
-      this.#edit((profile) => ({ ...profile, gauges: profile.gauges.filter((_, i) => i !== index) }), 'A mintasűrűség sora törölve.');
+      this.#edit((profile) => ({ ...profile, gauges: profile.gauges.filter((_, i) => i !== index) }), texts().sections.size.gauge.removed);
       this.#addGauge.focus();
     });
     this.#addGauge.addEventListener('click', () => this.#addGaugeEntry());
@@ -257,7 +263,7 @@ export class SizePanel {
     this.#pattern = pattern;
     this.#graph = graph;
     this.#library = library;
-    if (this.#section.open && pattern !== this.#shown) this.#render();
+    if (this.#section.open && (pattern !== this.#shown || uiLanguage() !== this.#shownLanguage)) this.#render();
   }
 
   #current(): Pattern {
@@ -279,14 +285,11 @@ export class SizePanel {
       ({ stitch, form }) => !used.has(`${stitch}/${form}`),
     );
     if (!free) {
-      this.#host.announce('Minden szem mindkét formában szerepel már.');
+      this.#host.announce(texts().sections.size.gauge.allUsed);
       return;
     }
     const entry: GaugeEntry = { ...free, stitchesPer10cm: null, rowsPer10cm: null, source: 'measured' };
-    this.#edit(
-      (current) => ({ ...current, gauges: [...current.gauges, entry] }),
-      'Új sor a mintasűrűséghez.',
-    );
+    this.#edit((current) => ({ ...current, gauges: [...current.gauges, entry] }), texts().sections.size.gauge.added);
     this.#gauges.querySelector<HTMLInputElement>(`li[data-index="${profile.gauges.length}"] [data-field="stitchesPer10cm"]`)?.focus();
   }
 
@@ -304,7 +307,7 @@ export class SizePanel {
       const value = readNumber(target as HTMLInputElement);
       if (value === undefined) {
         target.value = numberValue(entry[field]);
-        this.#host.announce('A 10 cm-en számolt szem és sor pozitív szám, vagy maradjon üresen.');
+        this.#host.announce(texts().sections.size.gauge.invalidNumber);
         return;
       }
       next = { ...entry, [field]: value };
@@ -314,7 +317,7 @@ export class SizePanel {
       if (duplicate) {
         target.value = entry[field];
         const name = library ? gaugeStitchName(library, next.stitch) : next.stitch;
-        this.#host.announce(`${capitalize(name)}, ${FORM_LABELS[next.form]}: ilyen sor már van.`);
+        this.#host.announce(texts().sections.size.gauge.duplicate(capitalize(name), formLabel(next.form)));
         return;
       }
     } else if (field === 'source') {
@@ -322,7 +325,10 @@ export class SizePanel {
     } else {
       return;
     }
-    this.#edit((current) => ({ ...current, gauges: current.gauges.map((old, i) => (i === index ? next : old)) }), 'A mintasűrűség módosult.');
+    this.#edit(
+      (current) => ({ ...current, gauges: current.gauges.map((old, i) => (i === index ? next : old)) }),
+      texts().sections.size.gauge.changed,
+    );
   }
 
   #render(): void {
@@ -330,10 +336,14 @@ export class SizePanel {
     const library = this.#library;
     if (!pattern || !library) return;
     this.#shown = pattern;
+    this.#shownLanguage = uiLanguage();
 
     const profile = activeProfile(pattern);
     const profiles = pattern.gauge?.profiles ?? [];
-    this.#profile.replaceChildren(option('', 'Profil nélkül (becslés)'), ...profiles.map((candidate) => option(candidate.id, profileLabel(candidate))));
+    this.#profile.replaceChildren(
+      option('', texts().sections.size.profile.none),
+      ...profiles.map((candidate) => option(candidate.id, profileLabel(candidate))),
+    );
     this.#profile.value = profile?.id ?? '';
     this.#remove.disabled = profile === null;
     this.#editor.hidden = profile === null;
@@ -355,7 +365,8 @@ export class SizePanel {
     setOrigin(this.#origins.swatch, origins.swatch);
     this.#hookSizes.textContent = hookSizesText(profile.hookMm);
 
-    const key = `${profile.id}:${profile.gauges.length}`;
+    // A nyelv is a kulcs része: nyelvváltáskor a sorok feliratai újraépülnek.
+    const key = `${profile.id}:${profile.gauges.length}:${uiLanguage()}`;
     if (key !== this.#gaugeKey) {
       this.#gaugeKey = key;
       this.#gauges.replaceChildren(...profile.gauges.map((_, i) => this.#gaugeRow(i, library)));
@@ -369,12 +380,13 @@ export class SizePanel {
       setValue(control('stitchesPer10cm'), numberValue(entry.stitchesPer10cm));
       setValue(control('rowsPer10cm'), numberValue(entry.rowsPer10cm));
       setValue(control('source'), entry.source);
-      row.querySelector('[data-rows-label]')!.textContent = entry.form === 'rows' ? 'Sor 10 cm-en' : 'Kör 10 cm-en';
+      const gauge = texts().sections.size.gauge;
+      row.querySelector('[data-rows-label]')!.textContent = entry.form === 'rows' ? gauge.rows : gauge.rounds;
       const note = row.querySelector<HTMLElement>('.gauge__note')!;
       note.textContent = gaugeEntryNote(entry, estimatedGauge(profile, library, entry.stitch, entry.form));
       note.hidden = note.textContent === '';
-      const name = `${capitalize(gaugeStitchName(library, entry.stitch))}, ${FORM_LABELS[entry.form]}`;
-      row.querySelector('[data-remove]')!.setAttribute('aria-label', `${name}: a sor törlése`);
+      const name = `${capitalize(gaugeStitchName(library, entry.stitch))}, ${formLabel(entry.form)}`;
+      row.querySelector('[data-remove]')!.setAttribute('aria-label', gauge.removeLabel(name));
     });
     this.#addGauge.disabled = profile.gauges.length >= GAUGE_STITCHES.length * FORMS.length;
   }
@@ -405,17 +417,18 @@ export class SizePanel {
       return el;
     };
 
-    const stitch = field('Szem', select(GAUGE_STITCHES.map((value) => [value, gaugeStitchName(library, value)])), 'stitch');
+    const words = texts().sections.size.gauge;
+    const stitch = field(words.stitch, select(GAUGE_STITCHES.map((value) => [value, gaugeStitchName(library, value)])), 'stitch');
     stitch.wrap.classList.add('gauge__stitch');
-    const form = field('Mérve', select(FORMS.map((value) => [value, FORM_LABELS[value]])), 'form');
-    const stitches = field('Szem 10 cm-en', number(), 'stitchesPer10cm');
-    const rows = field('Sor 10 cm-en', number(), 'rowsPer10cm');
+    const form = field(words.form, select(FORMS.map((value) => [value, formLabel(value)])), 'form');
+    const stitches = field(words.stitches, number(), 'stitchesPer10cm');
+    const rows = field(words.rows, number(), 'rowsPer10cm');
     rows.labelEl.dataset.rowsLabel = '';
     const source = field(
-      'Eredet',
+      words.source,
       select([
-        ['measured', SOURCE_LABELS.measured],
-        ['label', SOURCE_LABELS.label],
+        ['measured', sourceLabel('measured')],
+        ['label', sourceLabel('label')],
       ]),
       'source',
     );
@@ -423,7 +436,7 @@ export class SizePanel {
     note.id = id('note');
     note.hidden = true;
     for (const control of [stitches, rows]) control.wrap.querySelector('input')!.setAttribute('aria-describedby', note.id);
-    const remove = element('button', 'tool gauge__remove', 'Sor törlése');
+    const remove = element('button', 'tool gauge__remove', words.remove);
     remove.type = 'button';
     remove.dataset.remove = String(index);
     row.append(stitch.wrap, form.wrap, stitches.wrap, rows.wrap, source.wrap, note, remove);
@@ -448,7 +461,7 @@ export class SizePanel {
       const tr = element('tr');
       // Az eredet a sor fejlécében, hogy a keskeny panelben ne kelljen oldalra görgetni.
       const th = Object.assign(element('th', '', layer.label), { scope: 'row' });
-      th.append(element('span', `size__origin size__origin--${layer.source}`, SOURCE_LABELS[layer.source]));
+      th.append(element('span', `size__origin size__origin--${layer.source}`, sourceLabel(layer.source)));
       tr.append(th, element('td', '', layer.width), element('td', '', layer.height), element('td', '', layer.total));
       body.append(tr);
     }
@@ -467,8 +480,8 @@ function valueList(rows: readonly ValueRow[]): HTMLDListElement {
   for (const row of rows) {
     const item = element('div');
     const value = element('dd');
-    value.append(element('span', 'size__value', row.text.value), ' ', element('span', `origin origin--${row.text.source}`, SOURCE_LABELS[row.text.source]));
-    if (row.text.range) value.append(element('span', 'size__range', `tartomány: ${row.text.range}`));
+    value.append(element('span', 'size__value', row.text.value), ' ', element('span', `origin origin--${row.text.source}`, sourceLabel(row.text.source)));
+    if (row.text.range) value.append(element('span', 'size__range', texts().sections.size.result.range(row.text.range)));
     item.append(element('dt', '', row.label), value);
     list.append(item);
   }

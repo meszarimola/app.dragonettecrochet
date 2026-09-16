@@ -283,13 +283,14 @@ describe('szegély (03 §7.1 H)', () => {
     assert.equal(loadPattern(savePattern(shape(emptyPattern(), {}).pattern)).pattern.pieces[0].border, undefined);
   });
 
-  test('ferde élű darab köré is készül szegély (PQW-898); a láncos hosszabbítású, nagyon meredek él köré érthető okkal nem', () => {
+  test('ferde élű és láncos hosszabbítású, nagyon meredek él köré is készül szegély (PQW-898, PQW-902)', () => {
     const { pattern } = shape(emptyPattern(), { shape: 'isosceles-triangle', widthCm: 10, heightCm: 10 });
     const graph = buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));
     assert.ok(borderOf(graph, { stitch: 'sc', hdcRowEnd: 2 }).ok);
     const steep = planShape(emptyPattern(), { ...DEFAULT_SHAPE, shape: 'diamond', stitch: 'sc', widthCm: 20, heightCm: 4, border: { stitch: 'sc', hdcRowEnd: 2 } });
-    assert.equal(steep.ok, false);
-    assert.match(steep.reason, /láncos hosszabbítással/);
+    assert.ok(steep.ok, steep.reason);
+    assert.ok(steep.plan.chainExtensionRows.length > 0);
+    assert.ok(steep.plan.border.total > 0);
   });
 });
 
