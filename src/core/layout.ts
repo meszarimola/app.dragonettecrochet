@@ -154,6 +154,60 @@ interface Item {
   desired: number | undefined;
 }
 
+/**
+ * Mennyi helyet kér egy szem a rajzon (PQW-931).
+ *
+ * A tulajdonos elvárása: *„az első sorban lévő négyzetnek feleljen meg a
+ * második sorban 3 négyzet, ha 3-at szaporítok”*, és *„az a láncszem, ahova a
+ * szaporítás csatlakozik, ahogy adom hozzá a szaporítást és szélesedik, úgy
+ * csúszzon az ő négyzetének közepére”*.
+ *
+ * Ehhez egy szemnek annyi hely kell, amennyit a BELE horgolt szemek együtt
+ * elfoglalnak. Felfelé összegzünk: a legfelső sor szemei egy oszlopot kérnek,
+ * lejjebb mindenki a rá épülők igényének összegét, de legalább egy oszlopot.
+ *
+ * A fogyasztás (egy szem több célponttal) az igényét ELOSZTJA a célpontjai
+ * között: különben mindegyik alatt teljes szélességgel jelenne meg, és a sor
+ * fölöslegesen szétnyílna.
+ *
+ * Ez a szándékolt ára a tulajdonosi döntésnek: egy szem hozzáadása mostantól a
+ * KORÁBBI sorokat is átrendezi, mert az alatta lévő szem igénye megnő. A
+ * korábbi garancia (06 §5.3 2. pont) ezzel megszűnt.
+ */
+export function stitchWidths(graph: PieceGraph, W: number): Map<NodeId, number> {
+  const widths = new Map<NodeId, number>();
+  // Felülről lefelé: mire egy szemhez érünk, a rá épülők igénye már összegyűlt.
+  for (let index = graph.layers.length - 1; index >= 0; index -= 1) {
+    for (const id of graph.layers[index]!.stitches) {
+      const own = Math.max(W, widths.get(id) ?? 0);
+      widths.set(id, own);
+      const node = graph.nodes.get(id);
+      if (!node) continue;
+      const targets: NodeId[] = [];
+      for (const anchor of node.anchors) {
+        if (anchor.into === 'stitch' || anchor.into === 'underside') targets.push(anchor.id);
+        else if (anchor.into === 'space') targets.push(...(graph.spaces.get(anchor.id)?.chains ?? []));
+      }
+      if (targets.length === 0) continue;
+      /*
+       * EGY SZINTRE nézünk, nem a teljes részfára: a szem a saját alapigényét
+       * (`W`) adja tovább, nem a már felhalmozott szélességét.
+       *
+       * Mérés mutatta meg, miért: a teljes részfa összegzésével az alsó sorok
+       * olyan szélesek lettek, mint a legfelsők, és a legyező alakú kendő
+       * téglalappá lapult — a félkör 180° helyett 157°-ot fogott át. A
+       * tulajdonos kérése viszont egy szintről szól: „az első sorban lévő
+       * négyzetnek feleljen meg a második sorban 3 négyzet, ha 3-at
+       * szaporítok.” Ehhez elég, ha a szem a KÖZVETLENÜL beléje horgolt
+       * szemek számával szélesedik.
+       */
+      const share = W / targets.length;
+      for (const target of targets) widths.set(target, (widths.get(target) ?? 0) + share);
+    }
+  }
+  return widths;
+}
+
 /** Súlyozott monoton (nem csökkenő) regresszió. */
 export function isotonic(values: readonly number[], weights: readonly number[]): number[] {
   const blocks: { sum: number; weight: number; count: number }[] = [];
@@ -244,10 +298,20 @@ class Layouter {
   readonly #axis = new Map<NodeId, number>();
   /** Rétegenként a talpvonal: sorban y, körben sugár. */
   readonly #base: number[] = [];
+  /** Szemenként a kért szélesség: a bele horgolt szemek igényének összege (PQW-931). */
+  readonly #widths: ReadonlyMap<NodeId, number>;
 
   constructor(graph: PieceGraph, W: number, stem: (chainHeight: number) => number, detached: ReadonlySet<NodeId> = new Set()) {
     this.#graph = graph;
     this.#W = W;
+    /*
+     * A széthúzás csak a KÉZZEL horgolt rajzra vonatkozik (PQW-931). Az íves
+     * sorú, generált darab (kendő) elrendezése maradjon bitre azonos: a
+     * tulajdonos az UAT első körében a szabályos horgolást teszi rendbe, a
+     * kendő geometriáján nem dolgozunk. Üres térkép = mindenki az alapigényét
+     * kéri, vagyis a korábbi viselkedés.
+     */
+    this.#widths = graph.piece.rowShape ? new Map() : stitchWidths(graph, W);
     this.#stem = stem;
     this.#detached = detached;
     this.#round = graph.layers[0]!.shape === 'round';
@@ -329,13 +393,26 @@ class Layouter {
       }
       this.#base[0] = 10;
     } else {
+      /*
+       * A láncalap NEM fix rácson áll (PQW-931): minden láncszem annyi helyet
+       * kap, amennyit a bele horgolt szemek együtt kérnek, és a saját,
+       * kiszélesedett sávjának KÖZEPÉN áll. Ez a tulajdonos kérése: ahogy a
+       * szaporítás nő, a láncszem csússzon a négyzete közepére, és fölötte
+       * annyi négyzet legyen, ahány szem belekerült.
+       */
+      let x = 0;
       layer.stitches.forEach((id, i) => {
-        this.#axis.set(id, i * this.#W);
-        this.#place(id, 0, side, 'chain', [], { x: i * this.#W, y: 0 }, 0, this.#W * 0.8);
+        const width = this.#widths.get(id);
+        // Széthúzás nélkül a régi, fix rács — így az íves darab rajza sem mozdul.
+        const center = width === undefined ? i * this.#W : x + width / 2;
+        this.#axis.set(id, center);
+        this.#place(id, 0, side, 'chain', [], { x: center, y: 0 }, 0, this.#W * 0.8);
+        x += width ?? this.#W;
       });
       this.#base[0] = 0;
     }
-    const last = (layer.stitches.length - 1) * this.#W;
+    const lastId = layer.stitches.at(-1);
+    const last = (lastId === undefined ? undefined : this.#axis.get(lastId)) ?? (layer.stitches.length - 1) * this.#W;
     this.#layers.push({
       index: 0,
       shape: layer.shape,
@@ -393,9 +470,11 @@ class Layouter {
       const node = graph.nodes.get(id)!;
       const axes = node.anchors.map((a) => this.#anchorAxis(a)).filter((v): v is number => v !== undefined);
       const anchored = kind !== 'chain' && id !== layer.joinSlip && axes.length > 0;
+      // A kért szélesség legalább a jel sajátja, de a bele horgolt szemek igénye tágíthatja (PQW-931).
+      const ownHalf = kind === 'chain' ? W * 0.35 : kind === 'slip' ? W * 0.3 : W / 2;
       items.push({
         ids: [id],
-        half: kind === 'chain' ? W * 0.35 : kind === 'slip' ? W * 0.3 : W / 2,
+        half: Math.max(ownHalf, (this.#widths.get(id) ?? W) / 2),
         weight: anchored ? 1 : 0.01,
         desired: anchored ? axes.reduce((a, b) => a + b, 0) / axes.length : undefined,
       });

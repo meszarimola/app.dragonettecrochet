@@ -262,14 +262,45 @@ function layerColumns(input: Input, layer: number, axis: (p: Point) => number): 
   return columns;
 }
 
-/** A készülő sor oszlopai: célpontonként egy, a célpont fölött. */
+/**
+ * A készülő sor oszlopai (PQW-931): minden LERAKOTT SZEM kap egyet a saját
+ * helyén, a még üres célpontok pedig egyet-egyet a célpont fölött.
+ *
+ * Korábban célpontonként állt itt egy oszlop, ezért a szaporítás tagjai
+ * osztoztak a célpontjuk celláján: a tulajdonos 11 szem mellett csak 9
+ * négyzetet látott. A mérés szerint a fordulás UTÁN a sor már helyesen kapta a
+ * 11 celláját — a hiba csak a készülő sorra állt fenn, vagyis épp arra az
+ * állapotra, amelyben a horgoló dolgozik.
+ *
+ * A `slot` minden oszlopon megmarad, hogy a kiszélesedett helyen bárhová
+ * kattintva ugyanabba a célpontba lehessen tovább szaporítani.
+ */
 function workingColumns(input: Input, axis: (p: Point) => number | undefined): Column[] {
+  const { layout, context } = input;
+  // Célpontonként a beléje horgolt szemek, a fonal sorrendjében.
+  const worked = new Map<NodeId, NodeId[]>();
+  for (const id of context.graph?.layers[context.layer]?.stitches ?? []) {
+    for (const anchor of context.graph?.nodes.get(id)?.anchors ?? []) {
+      if (anchor.into !== 'stitch' && anchor.into !== 'underside') continue;
+      worked.set(anchor.id, [...(worked.get(anchor.id) ?? []), id]);
+    }
+  }
+
   const columns: Column[] = [];
-  input.context.slots.forEach((_, slot) => {
-    const point = targetPoint(input.layout, input.context, slot);
-    const at = point ? axis(point) : undefined;
-    if (at === undefined) return;
-    columns.push({ at, node: null, slot, order: slot });
+  const push = (at: number | undefined, node: NodeId | null, slot: number) => {
+    if (at !== undefined) columns.push({ at, node, slot, order: columns.length });
+  };
+  context.slots.forEach((target, slot) => {
+    const ids = worked.get(target.id) ?? [];
+    if (ids.length === 0) {
+      const point = targetPoint(layout, context, slot);
+      push(point ? axis(point) : undefined, null, slot);
+      return;
+    }
+    for (const id of ids) {
+      const node = layout.nodes.get(id);
+      push(node ? axis(node.top) : undefined, id, slot);
+    }
   });
   return columns;
 }
