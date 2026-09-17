@@ -46,9 +46,10 @@
         "mainEntityOfPage": "https://dragonettecrochet.com/en/crochet-pattern-designer/"
       }
     </script>
-    <!-- Ikonok a főoldalé szerint (PQW-853), saját származásból: a CSP img-src 'self' engedi.
+    <!-- Ikonok a főoldalé szerint (PQW-853), a D6 szitakötő-jelből (PQW-922, scripts/generate-icons.mjs), saját származásból: a CSP img-src 'self' engedi.
          A theme-color a --c-bg token értéke; meta tagben CSS-változó nem használható, az egyezést a tests/head.test.mjs őrzi. -->
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#faf7f3" />
   </head>
@@ -100,6 +101,18 @@
             <span data-i18n="homeText">Főoldal</span>
           </a>
 
+          <!-- A D6 szitakötő-jel (PQW-922) díszítő elem: a név a címben szövegként marad. -->
+          <svg class="brand-mark" viewBox="40 36 120 120" aria-hidden="true" focusable="false">
+            <ellipse class="brand-mark__wing" cx="100" cy="92" rx="16" ry="54" transform="rotate(58 100 92)" />
+            <ellipse class="brand-mark__wing" cx="100" cy="92" rx="16" ry="54" transform="rotate(122 100 92)" />
+            <ellipse class="brand-mark__wing-inner" cx="100" cy="92" rx="9" ry="32" transform="rotate(58 100 92)" />
+            <ellipse class="brand-mark__wing-inner" cx="100" cy="92" rx="9" ry="32" transform="rotate(122 100 92)" />
+            <ellipse class="brand-mark__body" cx="100" cy="112" rx="5.5" ry="34" />
+            <ellipse class="brand-mark__body" cx="100" cy="76" rx="9" ry="16" />
+            <circle class="brand-mark__body" cx="100" cy="56" r="9.5" />
+            <circle class="brand-mark__eye" cx="96" cy="53" r="2.6" />
+            <circle class="brand-mark__eye" cx="104" cy="53" r="2.6" />
+          </svg>
           <h1 class="bar__title" data-i18n="barTitle">Mintatervező</h1>
         </div>
 
