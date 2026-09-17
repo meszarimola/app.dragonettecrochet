@@ -560,7 +560,8 @@ const hu: PanelTexts = {
       unknown: 'ismeretlen',
       color: (letter, name) => `${letter} szín, ${name}`,
     },
-    cellLabel: (row, cell, value) => `${row}. sor, ${cell}. cella: ${value}`,
+    // A rács a horgolt sorokat számozza 1-től, a láncalap viszont maga az 1. sor (PQW-923).
+    cellLabel: (row, cell, value) => `${row + 1}. sor, ${cell}. cella: ${value}`,
     inUnit: ', ismétlő egység',
     unitFrom: (row, cell) => `${article(row)} ${row}. sor ${cell}. cellájától`,
     manualUnit: (width, height, from, note) => `Ismétlő egység, kézzel: ${width} × ${height} cella, ${from}.${note}`,
@@ -919,7 +920,7 @@ const en: PanelTexts = {
       unknown: 'unknown',
       color: (letter, name) => `colour ${letter}, ${name}`,
     },
-    cellLabel: (row, cell, value) => `row ${row}, cell ${cell}: ${value}`,
+    cellLabel: (row, cell, value) => `row ${row + 1}, cell ${cell}: ${value}`,
     inUnit: ', repeating unit',
     unitFrom: (row, cell) => `from row ${row}, cell ${cell}`,
     manualUnit: (width, height, from, note) => `Repeating unit, by hand: ${width} × ${height} cells, ${from}.${note}`,

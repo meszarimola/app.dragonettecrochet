@@ -105,7 +105,7 @@ describe('ismétlő egység (tulajdonosi pontosítás, 2026-09-15)', () => {
     });
     assert.equal(
       hu(unitProblem(rows, { x: 0, y: 0, width: 2, height: 3 })),
-      'Az ismétlő egység (2 × 3 cella) nem teljes: add meg a 3. sor 1. celláját.',
+      'Az ismétlő egység (2 × 3 cella) nem teljes: add meg a 4. sor 1. celláját.',
     );
     assert.equal(unitProblem(rows, { x: 3, y: 0, width: 2, height: 1 }).code, 'unit-outside');
     assert.match(hu(unitProblem(rows, { x: 3, y: 0, width: 2, height: 1 })), /rácson belül/);

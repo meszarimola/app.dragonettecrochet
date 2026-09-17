@@ -232,11 +232,11 @@ describe('alakítás egész cellánként (03 §10 F30)', () => {
     assert.equal(reason([[1, 2]]).code, 'filet-cell-kind');
 
     // A magyar mondat a mai: névelő, sorszám és ragozás a szótárból.
-    assert.match(hu(reason(chart('####', '###-'))), /^A 2\. sor végén az új cella csak nyitott lehet/);
-    assert.match(hu(reason(chart('.###', '-###', '####'))), /^A 3\. sor végén a szaporítás nem éri el a két sorral lejjebbi szemet/);
+    assert.match(hu(reason(chart('####', '###-'))), /^A 3\. sor végén az új cella csak nyitott lehet/);
+    assert.match(hu(reason(chart('.###', '-###', '####'))), /^A 4\. sor végén a szaporítás nem éri el a két sorral lejjebbi szemet/);
     assert.match(hu(reason(chart('###.', '###-'), notCounting())), /fordulóláncnak szemnek kell számítania/);
-    assert.match(hu(reason(chart('#-#'))), /^Az 1\. sorban a cellák között üres hely van/);
-    assert.equal(hu(reason(chart('###', '---'))), 'Az 1. sorban nincs cella: a filé minden sora legalább egy cella.');
+    assert.match(hu(reason(chart('#-#'))), /^A 2\. sorban a cellák között üres hely van/);
+    assert.equal(hu(reason(chart('###', '---'))), 'A 2. sorban nincs cella: a filé minden sora legalább egy cella.');
     assert.match(hu(reason([])), /legalább egy sort/);
     assert.match(hu(reason([[1, 2]])), /teli, nyitott vagy üres/);
   });

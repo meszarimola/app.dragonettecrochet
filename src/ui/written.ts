@@ -52,13 +52,12 @@ export function writtenView(pattern: Pattern, context: WorkContext, check: LiveC
   const notices: string[] = [];
   if (check.remaining > 0) {
     /*
-     * A láncalap az 1. sor (PQW-923): az írott minta számozásában a réteg
-     * indexénél eggyel nagyobb szám áll. A méretpanel sorlistája viszont a saját
-     * számozását tartja (ott az 1. sor az első horgolt sor), ezért a szótári
-     * `layerLabel` marad, és csak ez a hívás tolódik.
+     * A sorszámot a szótári `layerLabel` tolja el (PQW-923): a láncalap az 1.
+     * sor, ezért sorokban a kiírt szám a réteg indexénél eggyel nagyobb. Itt
+     * tehát a réteg indexét adjuk át nyersen — korábban itt is toltam egyet, és
+     * a kettő összeadódott.
      */
-    const roundShape = context.shape === 'round';
-    notices.push(written.partial(size.result.layerLabel(context.layer + (roundShape ? 0 : 1), roundShape), check.remaining));
+    notices.push(written.partial(size.result.layerLabel(context.layer, context.shape === 'round'), check.remaining));
   }
   const errors = check.findings.filter((finding) => finding.severity === 'error').length;
   if (errors > 0) notices.push(written.errors(errors));

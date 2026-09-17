@@ -29,19 +29,35 @@ export type GridCoreCode = GridAimCode | GridPatternCode | ChartCode | FiletCode
 
 /* ---- Magyar nyelvtan: a névelő, a sor neve és a szín szava ---- */
 
-/** „A 3. sor”, „Az 5. sor”: nagybetűs határozott névelővel (korábban a mag `rowName`-je). */
+/**
+ * A rács sorának neve: „A 3. sor”, „Az 5. sor”, nagybetűs határozott névelővel.
+ *
+ * A rács a horgolt sorokat számozza 1-től, a láncalap viszont maga az 1. sor
+ * (PQW-923), ezért a kiírt szám eggyel nagyobb — így a rács üzenete ugyanazt a
+ * sort nevezi meg, mint a rajz felirata és az írott minta.
+ */
+const gridRow = (row: number): number => row + 1;
+
 function huRow(row: number): string {
-  const word = article(row);
-  return `${word.charAt(0).toUpperCase()}${word.slice(1)} ${row}. sor`;
+  const shown = gridRow(row);
+  const word = article(shown);
+  return `${word.charAt(0).toUpperCase()}${word.slice(1)} ${shown}. sor`;
 }
 
 /** „az A szín”, „a B szín”: a mag a szín indexét adja. */
 const huColor = (index: number) => `${index === 0 ? 'az' : 'a'} ${colorLetter(index)} szín`;
 
-/** A réteg neve a mondat közepén: „a láncalap”, „a varázskör”, „az 1. sor”, „a 3. kör”. */
+/**
+ * A réteg neve a mondat közepén: „a varázskör”, „az 1. sor”, „a 3. kör”.
+ *
+ * Sorokban a láncalap az 1. sor (PQW-923), ezért a kiírt szám a réteg indexénél
+ * eggyel nagyobb. Körben a számozás változatlan, és a körös kezdés a nevén áll.
+ */
 function huLayer(layer: number, round: boolean, start: string): string {
-  if (layer === 0) return start === 'ring' ? 'a varázskör' : 'a láncalap';
-  return `${article(layer)} ${layer}. ${round ? 'kör' : 'sor'}`;
+  if (round) return layer === 0 ? (start === 'ring' ? 'a varázskör' : 'a láncalap') : `${article(layer)} ${layer}. kör`;
+  // A `row` itt már a kiírt sorszám (a réteg indexe + 1), ezért nem megy rajta a `gridRow`.
+  const row = layer + 1;
+  return `${article(row)} ${row}. sor`;
 }
 
 /** Hova horgolhatsz: a varázskörbe, különben a réteg szemeibe. */
@@ -53,7 +69,13 @@ const HU_NOTHING = 'Nem került le szem.';
 const EN_NOTHING = 'No stitch was worked.';
 
 const enLayer = (layer: number, round: boolean, start: string) =>
-  layer === 0 ? (start === 'ring' ? 'the magic ring' : 'the foundation chain') : `${round ? 'round' : 'row'} ${layer}`;
+  round
+    ? layer === 0
+      ? start === 'ring'
+        ? 'the magic ring'
+        : 'the foundation chain'
+      : `round ${layer}`
+    : `row ${layer + 1}`;
 
 const enInto = (layer: number, round: boolean, start: string) =>
   layer === 0 && start === 'ring' ? 'into the magic ring' : `into the stitches of ${enLayer(layer, round, start)}`;
@@ -82,7 +104,7 @@ export const GRID_CORE_TEXTS: CoreDictionary<GridCoreCode> = {
     'unit-not-found': 'Nem találtam ismétlődést: rajzolj legalább két teljes ismétlést, vagy jelöld meg az ismétlő egységet.',
     'unit-incomplete': (data) => {
       const row = num(data, 'row');
-      return `Az ismétlő egység (${num(data, 'width')} × ${num(data, 'height')} cella) nem teljes: add meg ${article(row)} ${row}. sor ${num(data, 'cell')}. celláját.`;
+      return `Az ismétlő egység (${num(data, 'width')} × ${num(data, 'height')} cella) nem teljes: add meg ${article(gridRow(row))} ${gridRow(row)}. sor ${num(data, 'cell')}. celláját.`;
     },
     'unit-size': 'Az ismétlő egység mérete és helye pozitív egész szám legyen.',
     'unit-outside': 'Az ismétlő egység a megadott rácson belül legyen.',
@@ -136,7 +158,7 @@ export const GRID_CORE_TEXTS: CoreDictionary<GridCoreCode> = {
     'unit-empty-grid': 'The grid is empty: give at least one row.',
     'unit-not-found': 'No repeat found: draw at least two full repeats, or mark the repeating unit.',
     'unit-incomplete': (data) =>
-      `The repeating unit (${num(data, 'width')} × ${num(data, 'height')} cells) is not complete: give cell ${num(data, 'cell')} of row ${num(data, 'row')}.`,
+      `The repeating unit (${num(data, 'width')} × ${num(data, 'height')} cells) is not complete: give cell ${num(data, 'cell')} of row ${gridRow(num(data, 'row'))}.`,
     'unit-size': 'The size and the position of the repeating unit must be positive whole numbers.',
     'unit-outside': 'The repeating unit must be inside the grid you gave.',
     'mirror-lettering':
@@ -152,21 +174,21 @@ export const GRID_CORE_TEXTS: CoreDictionary<GridCoreCode> = {
     'filet-too-many-rows': (data) => `At most ${num(data, 'max')} rows are allowed.`,
     'filet-ragged': (data) => `Every row must have the same number of cells, at most ${num(data, 'max')}.`,
     'filet-cell-kind': 'In filet a cell can be filled, open or an empty space.',
-    'filet-empty-row': (data) => `Row ${num(data, 'row')} has no cells: every filet row is at least one cell.`,
-    'filet-gap-row': (data) => `There is an empty space between the cells of row ${num(data, 'row')}: a filet row is continuous.`,
-    'filet-extend-counting': (data) => `For an increase at the end of row ${num(data, 'row')} the turning chain has to count as a stitch.`,
+    'filet-empty-row': (data) => `Row ${gridRow(num(data, 'row'))} has no cells: every filet row is at least one cell.`,
+    'filet-gap-row': (data) => `There is an empty space between the cells of row ${gridRow(num(data, 'row'))}: a filet row is continuous.`,
+    'filet-extend-counting': (data) => `For an increase at the end of row ${gridRow(num(data, 'row'))} the turning chain has to count as a stitch.`,
     'filet-extend-open': (data) =>
-      `The new cell at the end of row ${num(data, 'row')} can only be open (2 ch and a long stitch): draw it open, and fill the solid cell in the next row.`,
+      `The new cell at the end of row ${gridRow(num(data, 'row'))} can only be open (2 ch and a long stitch): draw it open, and fill the solid cell in the next row.`,
     'filet-extend-reach': (data) =>
-      `The increase at the end of row ${num(data, 'row')} does not reach the stitch two rows below, because the previous row started with a decrease: move it one row.`,
+      `The increase at the end of row ${gridRow(num(data, 'row'))} does not reach the stitch two rows below, because the previous row started with a decrease: move it one row.`,
 
     'mosaic-two-colors': 'Mosaic is worked with two colours: the colour of the rows alternates.',
     'mosaic-min-width': 'A mosaic row is at least 3 cells: the two outer cells are always the colour of the row.',
     'mosaic-base-row': (data) => `Row 1 is the base row: every cell must be colour ${colorLetter(num(data, 'color'))}.`,
     'mosaic-edge-colors': (data) =>
-      `The two outer cells of row ${num(data, 'row')} must be colour ${colorLetter(num(data, 'color'))}: there is no skip at the edge of a row.`,
+      `The two outer cells of row ${gridRow(num(data, 'row'))} must be colour ${colorLetter(num(data, 'color'))}: there is no skip at the edge of a row.`,
     'mosaic-stacked-skip': (data) =>
-      `There is a skip under cell ${num(data, 'cell')} of row ${num(data, 'row')} as well: in mosaic two skips cannot sit on top of each other.`,
+      `There is a skip under cell ${num(data, 'cell')} of row ${gridRow(num(data, 'row'))} as well: in mosaic two skips cannot sit on top of each other.`,
 
     'c2c-turning-chain':
       'The 3 chains of a C2C tile stand in place of the first double crochet: in the pattern the turning chain of the double crochet has to count as a stitch.',

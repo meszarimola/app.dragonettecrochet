@@ -259,7 +259,8 @@ const hu: SectionTexts = {
       noLayers: 'Még nincs sor vagy kör: kezdd láncalappal vagy varázskörrel, és horgolj legalább egy sort.',
       mixedTotal: 'Sorokból és körökből álló darab teljes mérete még nem számolható; soronként lent látszik.',
       headers: (round) => (round ? ['Kör', 'Kerület, cm', 'Magasság, cm', 'Sugár, cm'] : ['Sor', 'Szélesség, cm', 'Magasság, cm', 'Eddig, cm']),
-      layerLabel: (index, round) => `${index}. ${round ? 'kör' : 'sor'}`,
+      // A láncalap az 1. sor (PQW-923): sorokban a kiírt szám a réteg indexénél eggyel nagyobb.
+      layerLabel: (index, round) => (round ? `${index}. kör` : `${index + 1}. sor`),
       yarnInPiece: 'Fonal a darabban',
       lengthWithBuffer: 'Hossz tartalékkal',
       balls: 'Gombolyag',
@@ -418,7 +419,7 @@ const en: SectionTexts = {
       mixedTotal: 'The finished size of a piece made of both rows and rounds cannot be worked out yet; it is shown row by row below.',
       headers: (round) =>
         round ? ['Round', 'Circumference, cm', 'Height, cm', 'Radius, cm'] : ['Row', 'Width, cm', 'Height, cm', 'Total, cm'],
-      layerLabel: (index, round) => `${round ? 'Round' : 'Row'} ${index}`,
+      layerLabel: (index, round) => (round ? `Round ${index}` : `Row ${index + 1}`),
       yarnInPiece: 'Yarn in the piece',
       lengthWithBuffer: 'Length with extra',
       balls: 'Balls',
