@@ -74,7 +74,7 @@ test('a téglalap csak cellákra kattintva készül; ahol nincs mibe horgolni, �
   const old = cells.find((cell) => cell.layer === layer - 2);
   expect(old).toBeTruthy();
   await page.mouse.click(old!.x, old!.y);
-  await expect(status).toHaveText(/^Ez a láncalap egyik helye\. Most a 2\. sor készül: .*Nem került le szem\.$/);
+  await expect(status).toHaveText(/^Ez az 1\. sor egyik helye\. Most a 3\. sor készül: .*Nem került le szem\.$/);
   await expect(summary).toContainText('3. sor következik.');
 
   // 2. sor: a készülő sor celláiba, a célpontok fölé kattintva; a fordulólánc alatti szem (0.) kimarad.

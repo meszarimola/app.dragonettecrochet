@@ -72,7 +72,7 @@ for (const viewport of [
     // A láncalap utáni fordulás elfogadott lépés, hibának tűnő üzenet nélkül.
     await page.locator('[data-action="end-row"]').click();
     const status = page.locator('#status');
-    await expect(status).toContainText('Láncalap kész, a munka megfordítva.');
+    await expect(status).toContainText('Az 1. sor kész, a munka megfordítva.');
     await expect(status).toContainText('2. sor következik.');
     await expect(status).not.toContainText('még nincs szem');
 
@@ -103,7 +103,7 @@ for (const viewport of [
     await board.focus();
     await page.keyboard.press('Enter');
     await page.keyboard.press('Alt+f');
-    await expect(page.locator('#status')).toContainText('Láncalap kész, a munka megfordítva.');
+    await expect(page.locator('#status')).toContainText('Az 1. sor kész, a munka megfordítva.');
     await page.keyboard.press('Alt+3'); // rövidpálca
     await page.keyboard.press('Shift+Alt+f'); // sor kitöltése
     await expect(page.locator('#summary')).toContainText('2. sor: 39 szem');

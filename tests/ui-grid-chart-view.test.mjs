@@ -78,10 +78,10 @@ describe('ecsetek, cellák, színek', () => {
 
   test('a cella akadálymentes neve a sorral, a cellával és az értékkel', () => {
     const state = filet(['#?', '.-']);
-    assert.equal(cellLabel(state, 0, 1), '2. sor, 1. cella: teli');
-    assert.equal(cellLabel(state, 1, 1), '2. sor, 2. cella: nincs megadva');
-    assert.equal(cellLabel(state, 1, 0), '1. sor, 2. cella: nincs cella');
-    assert.equal(cellLabel({ ...defaultState('tapestry'), draft: [[1]] }, 0, 0), '1. sor, 1. cella: B szín, Bordó');
+    assert.equal(cellLabel(state, 0, 1), '3. sor, 1. cella: teli');
+    assert.equal(cellLabel(state, 1, 1), '3. sor, 2. cella: nincs megadva');
+    assert.equal(cellLabel(state, 1, 0), '2. sor, 2. cella: nincs cella');
+    assert.equal(cellLabel({ ...defaultState('tapestry'), draft: [[1]] }, 0, 0), '2. sor, 1. cella: B szín, Bordó');
     assert.deepEqual(cellAppearance(state, 1), { className: 'grid-cell grid-cell--filled', color: null });
     assert.deepEqual(cellAppearance(defaultState('graphgan'), 1), { className: 'grid-cell grid-cell--color', color: '#8c2f4a' });
   });
@@ -316,7 +316,7 @@ describe('a magból jövő üzenetek szótára (PQW-904)', () => {
 
   test('a magyar mondat a mai szöveg: a névelőt, a ragozást és a szín szavát a szótár teszi hozzá', () => {
     const hu = (message) => renderCoreText(GRID_CORE_TEXTS.hu, message);
-    assert.equal(hu({ code: 'filet-empty-row', data: { row: 1 } }), 'Az 1. sorban nincs cella: a filé minden sora legalább egy cella.');
+    assert.equal(hu({ code: 'filet-empty-row', data: { row: 1 } }), 'A 2. sorban nincs cella: a filé minden sora legalább egy cella.');
     assert.equal(hu({ code: 'mosaic-base-row', data: { color: 0 } }), 'Az 1. sor az alapsor: minden cellája az A szín legyen.');
     assert.equal(
       hu({ code: 'aim-other-layer', data: { layer: 0, current: 4, shape: 'round', start: 'ring' } }),
@@ -324,7 +324,7 @@ describe('a magból jövő üzenetek szótára (PQW-904)', () => {
     );
     assert.equal(
       hu({ code: 'aim-other-layer', data: { layer: 2, current: 5, shape: 'row' } }),
-      'Ez a 2. sor egyik helye. Most az 5. sor készül: csak a 4. sor szemeibe horgolhatsz. Nem került le szem.',
+      'Ez a 3. sor egyik helye. Most a 6. sor készül: csak az 5. sor szemeibe horgolhatsz. Nem került le szem.',
     );
     // Ismeretlen kódnál a felület nem dől el: a kód maga látszik (render.ts).
     assert.equal(hu({ code: 'nincs-ilyen' }), 'nincs-ilyen');

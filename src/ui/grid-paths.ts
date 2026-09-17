@@ -114,19 +114,29 @@ export function gridPaths(grid: ChartGrid): GridPaths {
     if (cell.layer === 0) continue;
     const band = grid.bands.find((candidate) => candidate.layer === cell.layer);
     const dashed = band?.working ?? false;
+    /*
+     * A készülő sorban nincs számoló kiemelés (PQW-923). Ott a cellák a még le
+     * nem rakott szemek helyét mutatják, és a minden 5. és 10. cellánál
+     * vastagabb (2–3 képpontos) vonal szabálytalan közökben tagolta a hosszú
+     * láncalapot — a tulajdonos ezt jelezte zavarónak. Megmértem: a 42
+     * láncszemes mintán mind a 41 függőleges vonal a készülő sor sávjából jött,
+     * közülük nyolc kiemelt súlyú. A kiemelés a kész sorok számolását segíti,
+     * ott megmarad.
+     */
+    const weight = band?.working ? 'cell' : cellWeight(cell.emphasis);
     const { area } = cell;
     if (area.kind === 'rect') {
       // A sáv szélén a sáv vonala zár; a cella csak a belső oldalvonalat adja.
       if (band?.area.kind === 'rect' && area.x1 >= band.area.x1 - 1e-6) continue;
-      lines.push({ d: `M${num(area.x1)} ${num(area.y0)}V${num(area.y1)}`, weight: cellWeight(cell.emphasis), dashed });
+      lines.push({ d: `M${num(area.x1)} ${num(area.y0)}V${num(area.y1)}`, weight, dashed });
     } else if (area.kind === 'strip') {
       // A sáv szélén a sáv vonala zár, mint a téglalapnál.
       const end = area.top.at(-1)!;
       const edge = band?.area.kind === 'strip' ? band.area.top.at(-1) : undefined;
       if (edge && Math.hypot(edge.x - end.x, edge.y - end.y) < 1e-6) continue;
-      lines.push({ d: polyline(area.right), weight: cellWeight(cell.emphasis), dashed });
+      lines.push({ d: polyline(area.right), weight, dashed });
     } else if (!isFull(area)) {
-      lines.push({ d: radial(area, area.r0, area.r1, area.a1), weight: cellWeight(cell.emphasis), dashed });
+      lines.push({ d: radial(area, area.r0, area.r1, area.a1), weight, dashed });
     }
   }
 

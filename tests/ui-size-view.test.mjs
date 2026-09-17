@@ -72,7 +72,7 @@ test('profil nélkül a szakasz kimondja, hogy a méret becslés, és minden ér
     assert.ok(row.text.range);
   }
   assert.deepEqual(view.headers, ['Sor', 'Szélesség, cm', 'Magasság, cm', 'Eddig, cm']);
-  assert.equal(view.layers[0].label, '1. sor');
+  assert.equal(view.layers[0].label, '2. sor');
   assert.equal(view.layers[0].source, 'estimated');
   assert.match(view.layers[0].width, /^≈ \d+,\d$/);
   assert.deepEqual(view.yarn, []);

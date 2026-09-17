@@ -129,8 +129,8 @@ describe('a rács hibái', () => {
     // A magyar mondat a mai: a névelő, a szín szava és a sor neve a szótárból.
     assert.match(hu(mosaicProblem(chart('aaa'), [COLORS[0]])), /két színnel/);
     assert.equal(hu(mosaicProblem(chart('aba'), COLORS)), 'Az 1. sor az alapsor: minden cellája az A szín legyen.');
-    assert.match(hu(mosaicProblem(chart('abb', 'aaa'), COLORS)), /^A 2\. sor két szélső cellája a B szín legyen/);
-    assert.match(hu(mosaicProblem(chart('aabaa', 'bbabb', 'aaaaa'), COLORS)), /^A 3\. sor 3\. cellája alatt is kihagyás van/);
+    assert.match(hu(mosaicProblem(chart('abb', 'aaa'), COLORS)), /^A 3\. sor két szélső cellája a B szín legyen/);
+    assert.match(hu(mosaicProblem(chart('aabaa', 'bbabb', 'aaaaa'), COLORS)), /^A 4\. sor 3\. cellája alatt is kihagyás van/);
     assert.match(hu(mosaicProblem(chart('aa'), COLORS)), /legalább 3 cella/);
     assert.equal(mosaicProblem(MOTIF, COLORS), null);
     assert.equal(planMosaic(cyc(), chart('aba'), COLORS, 1).ok, false);

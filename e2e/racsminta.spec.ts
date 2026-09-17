@@ -55,7 +55,7 @@ test('kis filémotívum: az első két sor teljes, a többi az ismétlő egység
     if (x % 2 === 1) await page.keyboard.press('Space');
     await page.keyboard.press('ArrowRight');
   }
-  await expect(cell(page, 1, 1)).toHaveAttribute('aria-label', '2. sor, 2. cella: teli');
+  await expect(cell(page, 1, 1)).toHaveAttribute('aria-label', '3. sor, 2. cella: teli');
 
   // A 3. és a 4. sorban csak az első két cella (az ismétlés) van megadva, a többi törölve: az ismétlésből töltődik.
   for (const y of [2, 3]) {
