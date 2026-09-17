@@ -1,6 +1,6 @@
 {
   "name": "app-dragonettecrochet",
-  "version": "0.15.1",
+  "version": "0.16.0",
   "private": true,
   "type": "module",
   "description": "Jeldiagram-szerkesztő a Dragonette Crochet mintáihoz — vanilla TS + canvas.",
