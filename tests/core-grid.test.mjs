@@ -108,12 +108,12 @@ describe('célzás a rácson', () => {
     // A névelő, a ragozás és a „sor” szava a felületé; a magyar mondat a mai.
     assert.equal(
       hu(aim(grid, old.center).message),
-      'Ez az 1. sor egyik helye. Most a 3. sor készül: csak a 2. sor szemeibe horgolhatsz. Nem került le szem.',
+      'Ez a 2. sor egyik helye. Most a 4. sor készül: csak a 3. sor szemeibe horgolhatsz. Nem került le szem.',
     );
     const foundation = grid.cells.find((cell) => cell.layer === 0);
-    // A 0. réteg neve a kezdésé: sorban láncalap, körben varázskör.
+    // A 0. réteg neve sorban „az 1. sor” (PQW-923: a láncalap az 1. sor), körben a varázskör.
     assert.deepEqual(aim(grid, foundation.center).message.data, { layer: 0, current: 3, shape: 'row', start: 'chain' });
-    assert.match(hu(aim(grid, foundation.center).message), /^Ez a láncalap egyik helye\. Most a 3\. sor készül/);
+    assert.match(hu(aim(grid, foundation.center).message), /^Ez az 1\. sor egyik helye\. Most a 4\. sor készül/);
   });
 
   test('a nem számító fordulólánc helye a célpontok sorában sem célpont', () => {
