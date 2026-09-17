@@ -451,9 +451,27 @@ class Layouter {
     for (const item of scaled) {
       const axis = this.#axis.get(item.ids[0]!)!;
       if (item === stack) {
-        const step = height / item.ids.length;
+        /*
+         * A fordulólánc ÁTNYÚLIK a sorhatáron (PQW-931). A tulajdonos szava:
+         * „a három elemes függőleges láncnak az alsó szeme az 1. sorhoz (alsó
+         * sor) tartozik, a másik kettő tartozik a felső sorhoz.” Korábban mind
+         * a sor saját sávjában állt, ezért a lánctalpba horgoláskor az egész
+         * köteg együtt ugrott fel.
+         *
+         * A lépésköz zárt alakban adódik, nem becsülve. Két kikötés van:
+         * a köteg TETEJE a sor tetejét éri el (a fordulólánc a sort kezdő szem
+         * helyett áll, tehát olyan magas, mint a sor), és az ELSŐ láncszem
+         * teteje pont a sorhatáron ül, vagyis maga a láncszem az alatta lévő
+         * sorban van. Ebből: n elem, az i-edik közepe `base + (i - 0.5) * step`,
+         * és a két kikötés együtt `step = height / (n - 1)`.
+         *
+         * Így három láncszemnél egy kerül alulra és kettő felülre; kettőnél
+         * (félpálca) egy-egy; egynél (rövidpálca) a lánc az alsó sorban áll.
+         */
+        const n = item.ids.length;
+        const step = n > 1 ? height / (n - 1) : height;
         item.ids.forEach((id, i) => {
-          const center = this.#point(up(base, (i + 0.5) * step), axis);
+          const center = this.#point(up(base, (i - 0.5) * step), axis);
           const normal = frameNormal(this.#frame, axis);
           const along = this.#round ? Math.atan2(-Math.sin(normal), Math.cos(normal)) : Math.PI / 2;
           this.#place(id, layer.index, side, 'chain', [], center, along, Math.min(step * 0.95, W * 0.8));

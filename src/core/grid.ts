@@ -282,9 +282,28 @@ function rowGrid(input: Input): { bands: GridBand[]; cells: GridCell[] } {
   const working = context.layer;
   const nodes = (layer: number) => byLayer[layer] ?? [];
 
+  /*
+   * A fordulólánc NEM számít bele a sáv függőleges kiterjedésébe (PQW-931).
+   *
+   * A tulajdonos döntése szerint a fordulólánc átnyúlik a sorhatáron: az alsó
+   * láncszeme az alatta lévő sor sávjában áll. Ha a sáv magasságát ő is
+   * alakítaná, magával húzná a sávot — a sáv rálógna az alatta lévő sorra, a
+   * cellák összecsúsznának, és a célzás eltörne. Ezt a próba azonnal meg is
+   * mutatta.
+   *
+   * Vízszintesen viszont beleszámít (`extraX` lentebb): a láncnak a sávon
+   * BELÜL kell lennie oldalirányban, csak a magasságot nem ő szabja meg.
+   */
+  const turning = new Set((context.graph?.layers ?? []).flatMap((l) => l.turningChain ?? []));
+  const shaping = (layer: number) => {
+    const all = nodes(layer);
+    const rest = all.filter((n) => !turning.has(n.id));
+    // Ha a sorban egyelőre CSAK fordulólánc van, ő marad a mérce — különben nincs mihez mérni.
+    return rest.length > 0 ? rest : all;
+  };
   // Felfelé a y csökken. A tető a legmagasabb jel, a talpvonal a legfelső talppont.
-  const topOf = (layer: number) => Math.min(...nodes(layer).map((n) => n.top.y - (n.role === 'chain' ? CHAIN_REACH : 0)));
-  const bottomOf = (layer: number) => Math.max(...nodes(layer).map((n) => n.top.y + (n.role === 'chain' ? CHAIN_REACH : 0)));
+  const topOf = (layer: number) => Math.min(...shaping(layer).map((n) => n.top.y - (n.role === 'chain' ? CHAIN_REACH : 0)));
+  const bottomOf = (layer: number) => Math.max(...shaping(layer).map((n) => n.top.y + (n.role === 'chain' ? CHAIN_REACH : 0)));
   const baseOf = (layer: number) => {
     const feet = nodes(layer).flatMap((n) => n.feet.map((foot) => foot.y));
     return feet.length > 0 ? Math.min(...feet) : undefined;
@@ -335,7 +354,17 @@ function rowGrid(input: Input): { bands: GridBand[]; cells: GridCell[] } {
     // A sor eleje: ahol a sorszám áll. A láncalapnál az 1. sor kezdő oldala.
     const fromStart: 1 | -1 = placement && layer > 0 ? (placement.start.x <= placement.end.x ? 1 : -1) : startOfFirstRow(layout);
     const columns = layer === working ? workingColumns(input, axisX) : layerColumns(input, layer, axisX);
-    addBand(layer, upper(layer), lower[layer]!, columns, nodes(layer).map((n) => n.top.x), fromStart);
+    /*
+     * A fölötte lévő sor fordulólánca IDE lóg le (PQW-931), ezért oldalirányban
+     * ez a sáv fogadja be. Enélkül a lelógó láncszem sáv nélküli résbe esne:
+     * függőlegesen már itt van, vízszintesen viszont a sávon kívül — a
+     * kattintás néma maradna, üzenet nélkül. (A magasságot továbbra sem ő
+     * szabja meg, lásd a `shaping` szűrőt fent.)
+     */
+    const dipping = nodes(layer + 1)
+      .filter((n) => turning.has(n.id))
+      .map((n) => n.top.x);
+    addBand(layer, upper(layer), lower[layer]!, columns, [...nodes(layer).map((n) => n.top.x), ...dipping], fromStart);
   }
   if (working > last && context.slots.length > 0) {
     const y1 = upper(last);
