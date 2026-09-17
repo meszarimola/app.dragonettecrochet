@@ -133,8 +133,6 @@ const hu = {
     worked: (name: string): string => `${name} horgolva.`,
     workedInto: (name: string, mode: string): string => `${name} horgolva${mode}.`,
     increase: (name: string): string => `${name}: szaporítás.`,
-    crossed: (name: string): string => `${name}: keresztezett szem.`,
-    nothingPlaced: 'Nem került le szem.',
     sameAgain: 'Még egy ugyanabba.',
     fillRow: (mode: string): string => `Sor kitöltve${mode}.`,
     needTargetStitch: 'Előbb válassz célpontba horgolható szemet a sor kitöltéséhez.',
@@ -154,8 +152,7 @@ const hu = {
 
   /* ---- Párbeszédablakok ---- */
   dialog: {
-    crossedQuestion: 'Ez a célpont már mögötted van. Keresztezett szemet szeretnél?',
-    crossedConfirm: 'Keresztezett szem',
+    /* A szaporítás és a pótlás nem kérdez (PQW-931, PQW-932): csak a törlés marad. */
     deleteQuestion: (selected: number, dependents: number, where: readonly LayerCount[]): string =>
       `A kijelölt ${selected} szembe még ${dependents} szem horgol: ${huLayerCounts(where, dependents)}. Velük együtt törlöd?`,
     deleteConfirm: 'Törlés velük együtt',
@@ -305,8 +302,6 @@ const en: typeof hu = {
     worked: (name) => `${name} worked.`,
     workedInto: (name, mode) => `${name} worked${mode}.`,
     increase: (name) => `${name}: increase.`,
-    crossed: (name) => `${name}: crossed stitch.`,
-    nothingPlaced: 'No stitch was worked.',
     sameAgain: 'One more into the same target.',
     fillRow: (mode) => `Row filled${mode}.`,
     needTargetStitch: 'To fill the row, first choose a stitch that is worked into a target.',
@@ -324,8 +319,6 @@ const en: typeof hu = {
   },
 
   dialog: {
-    crossedQuestion: 'This target is already behind you. Do you want a crossed stitch?',
-    crossedConfirm: 'Crossed stitch',
     deleteQuestion: (selected, dependents, where) =>
       `${stitches(dependents)} are still worked into the ${stitches(selected)} you selected: ${enLayerCounts(where, dependents)}. Delete them together?`,
     deleteConfirm: 'Delete together',

@@ -532,14 +532,14 @@ function withProgress(message: Message): Message {
   return tail === '' ? message : [...message, ` ${tail}`];
 }
 
-function commit(result: EditResult, message: Message, toast = true): void {
+function commit(result: EditResult, message: Message): void {
   if (!result.ok) {
     announce(renderCoreText(EDITOR_CORE_TEXTS[uiLanguage()], result.reason));
     return;
   }
   // A minta nem változott (pl. fordulás a láncalap után): nincs visszavonható lépés, csak az üzenet.
   if (result.pattern === history.present) {
-    announce(withProgress(message), toast);
+    announce(withProgress(message));
     return;
   }
   history = record(history, result.pattern);
@@ -547,7 +547,7 @@ function commit(result: EditResult, message: Message, toast = true): void {
   persist(history.present);
   // Előbb újraszámolunk, hogy az állapotsor már az új mintát írja le.
   refresh();
-  announce(withProgress(message), toast);
+  announce(withProgress(message));
   const point = cursorPoint() ?? lastTop();
   if (point) showPoint(point);
 }
@@ -567,10 +567,9 @@ function lastTop(): Point | undefined {
  * és nem látja az üzenetet.” A műveletek állapotát a RAJZRÓL kell leolvasni,
  * ezért az új minta és a fordulás nem bukkant fel többé.
  */
-function announce(message: Message, toast = true): void {
+function announce(message: Message): void {
   if (typeof message === 'string') status.textContent = message;
   else status.replaceChildren(...message);
-  if (toast) showToast(status.textContent ?? '');
 }
 
 function layerName(context: WorkContext): string {
@@ -727,7 +726,7 @@ function updateControls(): void {
         showPoint(derived.layout.nodes.get(first)!.top);
         highlightFinding(finding.nodes);
         // Nem bukkan fel doboz (PQW-929); az élő régió a képernyőolvasóé.
-        announce(findings.marked, false);
+        announce(findings.marked);
       });
       item.append(button);
       /*
@@ -1143,22 +1142,15 @@ async function workAtCursor(): Promise<void> {
     return;
   }
 
-  // A haladási irány ellen lévő (már mögötted hagyott) szabad célpont: keresztezett szem?
-  if (slot && context.frontier >= 0 && idx <= context.frontier) {
-    const yes = await askConfirm({
-      message: messages.dialog.crossedQuestion,
-      confirmLabel: messages.dialog.crossedConfirm,
-    });
-    if (!yes) {
-      announce(messages.work.nothingPlaced);
-      return;
-    }
-    commit(
-      work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx, ['crossed'], editorMode()),
-      withStitchName(messages.work.crossed, name, named),
-    );
-    return;
-  }
+  /*
+   * A már „mögötted hagyott” szabad célpont sem kérdés többé (PQW-932).
+   *
+   * A tulajdonos: „feltételezed, hogy sorban halad az alkotó a minta
+   * alkotásánál… amikor valaki a mintát alkotja, akkor nincs folytonosság. a
+   * sort úgy és olyan formában hozza létre, olyan sorrendben, ahogy csak
+   * akarja.” Egy kihagyott helyre visszatérni PÓTLÁS, nem keresztezett szem —
+   * ezért a szem ugyanúgy kerül le, mint bárhová máshol.
+   */
 
   const mode = slot?.kind === 'stitch' ? insertionSuffix(insertionPanel.insertion) : '';
   commit(
@@ -1390,7 +1382,6 @@ const ACTIONS: Record<string, () => void> = {
     commit(
       endRow(history.present, tool),
       onFoundationChain(derived.context) ? texts().messages.work.foundationDone : texts().messages.work.rowEnd,
-      false,
     );
     // A fordulás megtörtént: innentől látszik a következő sor felirata (PQW-931).
     turnedOn = history.present;
@@ -1442,7 +1433,7 @@ const ACTIONS: Record<string, () => void> = {
      * maradhat csendben, mert a `#summary` nem élő régió: a képernyőolvasó az
      * üres minta kezdőmondatát kapja, ugyanazt, amit a hibalista teteje ír.
      */
-    commit({ ok: true, pattern: { ...emptyPattern(), ...(gauge ? { gauge } : {}) } }, texts().messages.summary.empty, false);
+    commit({ ok: true, pattern: { ...emptyPattern(), ...(gauge ? { gauge } : {}) } }, texts().messages.summary.empty);
     /*
      * Az új minta üres, ezért a panel csukódjon (PQW-915). A tárolt állapotot
      * szándékosan NEM írjuk át: ha a felhasználó legközelebb kinyitja, a
