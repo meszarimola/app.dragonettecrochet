@@ -116,23 +116,73 @@ async function withWarning(page: Page): Promise<void> {
   for (let i = 0; i < 12; i += 1) await page.keyboard.press('Enter');
 }
 
-test('a figyelmeztetésre kattintva nincs kiemelő négyzet a szemen (PQW-923)', async ({ page }) => {
+/** 22 láncszem, de csak öt rövidpálca: hosszú, be nem horgolt „farok” marad. */
+async function withTail(page: Page): Promise<void> {
+  await page.locator('#board').focus();
+  await page.keyboard.press('Alt+1');
+  await page.locator('#chain-count').focus();
+  await page.keyboard.press('ControlOrMeta+A');
+  await page.keyboard.type('22');
+  await page.locator('#board').focus();
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Alt+3');
+  for (let i = 0; i < 5; i += 1) await page.keyboard.press('Enter');
+  await page.keyboard.press('Alt+f');
+}
+
+/** A kiemelt szemek a vásznon; üres tömb, ha a rajz tiszta. */
+const highlight = (page: Page): Promise<string[]> =>
+  page.evaluate(() => (window as unknown as Record<string, Record<string, () => string[]>>).mintatervezoRacs!['highlight']!());
+
+/*
+ * A tulajdonos döntése az UAT első köréből (PQW-930): „a rajzon ne is legyen
+ * megjelölve a hiba, vagy figyelmeztetés, csak a jobb felső sarokban… ha
+ * rákattint a felhasználó és kiválasztja a hibát, akkor a mintán jelölje meg
+ * pirossal, de piros szaggatottal és 5 mp múlva tűnjön el”.
+ *
+ * Ez részben visszavonja a PQW-923-at: ott a kattintás azért nem emelt ki, mert
+ * a rajzon alapból is ott volt minden karika, és attól lett zsúfolt.
+ */
+test('a rajz alapból tiszta, a találatra kattintva jelölés jön, és öt másodperc után eltűnik (PQW-930)', async ({ page }) => {
   await open(page);
   await withWarning(page);
 
-  // A figyelmeztetés listája a menüsor jobb széléről nyílik.
+  expect(await highlight(page), 'alapból semmi nincs megjelölve a rajzon').toEqual([]);
+
   await page.locator('#error-toggle').click();
   const finding = page.locator('#findings button.finding').first();
   await expect(finding).toBeVisible();
   await finding.click();
 
-  /*
-   * A kattintás odagörget, de nem jelöl ki: a kijelöléshez kötött gombok
-   * tétlenek maradnak. (A kiemelő négyzet a vásznon rajzolódott, ezért a
-   * kijelölés hiányát mérjük, ami ugyanazt jelenti.)
-   */
+  expect((await highlight(page)).length, 'a kiválasztott találat szemei megjelölve').toBeGreaterThan(0);
+
+  // Jelöl, de nem JELÖL KI: a kijelöléshez kötött gombok tétlenek maradnak.
   await expect(page.locator('[data-action="delete-selection"]'), 'a kattintás nem jelöl ki').toBeDisabled();
   await expect(page.locator('[data-action="duplicate-selection"]')).toBeDisabled();
+
+  // Öt másodperc után magától eltűnik, hogy ne maradjon ott zavarni.
+  await expect.poll(() => highlight(page), { timeout: 9000 }).toEqual([]);
+});
+
+test('a láncalap be nem horgolt farka figyelmeztetés, nem hiba (PQW-930)', async ({ page }) => {
+  await open(page);
+  await withTail(page);
+
+  await page.locator('#error-toggle').click();
+  const list = page.locator('#findings');
+  await expect(list, 'a farok nem hibaként jelenik meg').not.toContainText('Hiba:');
+  await expect(list, 'hanem figyelmeztetésként').toContainText('Figyelmeztetés:');
+});
+
+test('a találat kártyáján nincs tudásbázis-hivatkozás (PQW-930)', async ({ page }) => {
+  await open(page);
+  await withWarning(page);
+
+  await page.locator('#error-toggle').click();
+  const list = page.locator('#findings');
+  await expect(list, 'a végfelhasználót nem érdekli a tudásbázis').not.toContainText('Tudásbázis');
+  await expect(list, 'a lenyíló is kikerült').not.toContainText('Részletek');
+  await expect(page.locator('#findings details')).toHaveCount(0);
 });
 
 
