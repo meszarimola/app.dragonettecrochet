@@ -45,20 +45,17 @@ export function hdcRectangle(options: HdcRectangleOptions = {}): Example {
   const stitches = 15;
   const rowCount = options.rows ?? 22;
   const b = new PieceBuilder('p1', 'Félpálcás téglalap');
-  // A félpálcák száma soronként; a sor első szeme helyett a fordulólánc áll.
-  const worked = stitches - 1;
-  const fromHook = options.firstStitchFromHook ?? 4;
+  // Minden szem a láncalap egy-egy láncszemébe megy; a fordulólánc nem szem (PQW-924).
+  const worked = stitches;
+  const fromHook = options.firstStitchFromHook ?? 3;
   const foundation = b.chain(worked + fromHook - 1);
-  // A be nem horgolt láncalap-végből legalább kettőnél az első az alapláncszem (graph.ts).
-  const base = fromHook - 1 >= 2 ? 1 : 0;
-  const rows: NodeId[][] = [foundation.slice(0, worked + base)];
+  const rows: NodeId[][] = [foundation.slice(0, worked)];
   const turningChains: NodeId[][] = [[]];
 
   let row: NodeId[] = [];
   for (let i = worked - 1; i >= 0; i -= 1) row.push(b.stitch('hdc', foundation[i]!));
   rows.push(row);
-  turningChains.push(foundation.slice(worked + base));
-  let turningTop = foundation.at(-1)!;
+  turningChains.push(foundation.slice(worked));
   b.event('turn', stitches);
 
   for (let r = 2; r <= rowCount; r += 1) {
@@ -66,8 +63,8 @@ export function hdcRectangle(options: HdcRectangleOptions = {}): Example {
     const chains = options.turningChain?.row === r ? options.turningChain.chains : def === 'rev-sc' ? 1 : 2;
     const turning = b.chain(chains);
     turningChains.push(turning);
-    // A fordulólánc alatti szem kimarad, az utolsó szem az előző fordulólánc tetejébe megy.
-    const targets = [...[...row].reverse().slice(1), turningTop];
+    // Az előző sor minden szemébe megy egy szem; a fordulólánc csak magasságot ad (PQW-924).
+    const targets = [...row].reverse();
     if (r === 2 && options.row2SkipsFirst) {
       row = [...b.inSame('inc-2hdc', ['hdc', 'hdc'], targets[1]!), ...targets.slice(2).map((t) => b.stitch('hdc', t))];
     } else if (r === 2 && options.row2SkipsOneInMiddle) {
@@ -80,7 +77,6 @@ export function hdcRectangle(options: HdcRectangleOptions = {}): Example {
       row = targets.map((t) => b.stitch(def, t));
     }
     rows.push(row);
-    turningTop = turning.at(-1)!;
     if (r === rowCount) {
       if (options.trailingChains) b.chain(options.trailingChains);
       b.event('fasten-off', stitches);
@@ -93,14 +89,15 @@ export function hdcRectangle(options: HdcRectangleOptions = {}): Example {
 
 /*
  * ---- 03 §3.1 B: pálcás téglalap, 16 szem × 16 sor ----
- * A 3 láncszemes fordulólánc számít, és egy alapláncszemen áll (PQW-891): 19
- * láncszem, az 1. sor a horogtól számított 5. láncszembe kezd.
+ * A pálcánál 3 láncszemet hagyunk ki (PQW-924): 19 láncszem, az 1. sor a
+ * horogtól számított 4. láncszembe kezd, és onnantól minden láncszembe egy
+ * pálca megy — így lesz 16 szem.
  */
 
 export interface DcRectangleOptions {
   readonly rows?: number;
-  /** A 2. sor az alatta lévő szembe kezd, és kihagyja az előző fordulólánc tetejét. */
-  readonly row2MissesTurningChain?: boolean;
+  /** A 2. sor kihagyja az előző sor első szemét: attól egy szem kimarad a sorból. */
+  readonly row2SkipsFirst?: boolean;
 }
 
 export function dcRectangle(options: DcRectangleOptions = {}): Example {
@@ -111,9 +108,8 @@ export function dcRectangle(options: DcRectangleOptions = {}): Example {
   const rows: NodeId[][] = [foundation.slice(0, stitches)];
   const turningChains: NodeId[][] = [[]];
 
-  let turningTop = foundation[foundation.length - 1]!;
   let row: NodeId[] = [];
-  for (let i = stitches - 2; i >= 0; i -= 1) row.push(b.stitch('dc', foundation[i]!));
+  for (let i = stitches - 1; i >= 0; i -= 1) row.push(b.stitch('dc', foundation[i]!));
   rows.push(row);
   turningChains.push(foundation.slice(stitches));
   b.event('turn', stitches);
@@ -121,12 +117,13 @@ export function dcRectangle(options: DcRectangleOptions = {}): Example {
   for (let r = 2; r <= rowCount; r += 1) {
     const chains = b.chain(3);
     turningChains.push(chains);
+    // Az előző sor minden szemébe megy egy pálca; a fordulólánc nem célpont (PQW-924).
     const below = [...row].reverse();
-    const targets = r === 2 && options.row2MissesTurningChain ? below : [...below.slice(1), turningTop];
+    const targets = r === 2 && options.row2SkipsFirst ? below.slice(1) : below;
     row = targets.map((t) => b.stitch('dc', t));
     rows.push(row);
-    turningTop = chains[2]!;
-    b.event(r === rowCount ? 'fasten-off' : 'turn', stitches);
+    // A bejelentett szemszám a sor tényleges hossza: kihagyásnál eggyel kevesebb.
+    b.event(r === rowCount ? 'fasten-off' : 'turn', row.length);
   }
   return { pattern: patternOf('Pálcás téglalap (03 §3.1 B)', [b.build()]), rows, turningChains };
 }
@@ -157,12 +154,13 @@ export function shellStitch(options: ShellOptions = {}): Example {
     j += 3;
     row1.push(b.stitch('sc', at(j)));
   }
-  // A forrásban az 1. sor rövidpálcás fordulólánca nem számít, a 2. sor 3 láncszeme igen: soronkénti felülírás.
-  b.event('turn', 6 * n + 1, { turningChainCounts: true });
+  // A fordulólánc egyik sorban sem szem (PQW-924): nincs soronkénti felülírás.
+  b.event('turn', 6 * n + 1);
 
   const chains = b.chain(3);
   const q = [...row1].reverse();
-  const row2: NodeId[] = [...b.inSame('inc-2dc', ['dc', 'dc'], q[0]!)];
+  // A sort kezdő fordulólánc nem szem (PQW-924), ezért a szaporítás adja a három pálcát.
+  const row2: NodeId[] = [...b.inSame('inc-3dc', ['dc', 'dc', 'dc'], q[0]!)];
   for (let rep = 0; rep < n - 1; rep += 1) {
     row2.push(b.stitch('sc', q[3 + 6 * rep]!));
     row2.push(...b.inSame('shell-5dc', ['dc', 'dc', 'dc', 'dc', 'dc'], q[6 + 6 * rep]!));
@@ -303,7 +301,7 @@ export function wave(options: WaveOptions = {}): Example {
   const width = 8 * n + 2;
   const repeat = (unit: readonly string[]) => Array.from({ length: n }, () => unit).flat();
   const heights1 = ['sc', 'sc', ...repeat(['hdc', 'dc', 'tr', 'tr', 'dc', 'hdc', 'sc', 'sc'])];
-  const heights3 = ['tr', ...repeat(['dc', 'hdc', 'sc', 'sc', 'hdc', 'dc', 'tr', 'tr'])];
+  const heights3 = ['tr', 'tr', ...repeat(['dc', 'hdc', 'sc', 'sc', 'hdc', 'dc', 'tr', 'tr'])];
 
   const b = new PieceBuilder('p1', 'Hullám');
   const foundation = b.chain(width + 1);
@@ -312,8 +310,8 @@ export function wave(options: WaveOptions = {}): Example {
 
   const chains2 = b.chain(1);
   const row2 = [...row1].reverse().map((t) => b.stitch('sc', t));
-  // A forrásban a rövidpálcás fordulóláncok nem számítanak, a 3. sor 4 láncszeme igen: soronkénti felülírás.
-  b.event('turn', width, options.flatRow3 ? undefined : { turningChainCounts: true });
+  // A fordulólánc egyik sorban sem szem (PQW-924): nincs soronkénti felülírás.
+  b.event('turn', width);
 
   const q = [...row2].reverse();
   let chains3: NodeId[];
@@ -323,7 +321,8 @@ export function wave(options: WaveOptions = {}): Example {
     row3 = q.map((t) => b.stitch('sc', t));
   } else {
     chains3 = b.chain(4);
-    row3 = heights3.map((def, j) => b.stitch(def, q[j + 1]!));
+    // A fordulólánc nem szem (PQW-924): a 3. sor is az előző sor minden szemébe horgol.
+    row3 = heights3.map((def, j) => b.stitch(def, q[j]!));
   }
   b.event('fasten-off', width);
 

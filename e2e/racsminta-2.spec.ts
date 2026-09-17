@@ -82,8 +82,9 @@ test('alakított filé: a sor eleji fogyasztás és a sor végi szaporítás hib
   await expect(page.locator('#status')).toContainText('Filé: 3 sor elkészült');
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
   const text = await writtenText(page);
-  expect(text).toContain('háromráhajtásos pálca 2 sorral lejjebb');
-  expect(text).toMatch(/4\. sor: 4 ksz, 3 lsz/);
+  // A sor végi szélesítés láncból épül (03 §5.2, PQW-924), a fogyasztásnál a fordulólánc nem ül oszlopon.
+  expect(text).toMatch(/3\. sor: .*, 3 lsz \(\d+ szem\)/);
+  expect(text).toMatch(/4\. sor: 3 ksz, 3 lsz/);
 });
 
 test('kép betöltése: a rács a megadott szélességű, a kép sötét fele teli cella', async ({ page }) => {

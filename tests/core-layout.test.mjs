@@ -31,8 +31,8 @@ describe('sorok', () => {
 
   test('a szem az alatta lévő szem oszlopában áll, függőleges szárral (01 §8.4 szabály 18)', () => {
     for (let row = 2; row <= 3; row += 1) {
-      // A fordulólánc alatti szem kimarad, az utolsó szem az előző fordulólánc tetejébe megy (PQW-891).
-      const below = [...[...example.rows[row - 1]].reverse().slice(1), example.turningChains[row - 1].at(-1)];
+      // A sor az alatta lévő sor minden szemébe horgol; a fordulólánc nem célpont (PQW-924).
+      const below = [...example.rows[row - 1]].reverse();
       example.rows[row].forEach((id, i) => {
         const node = at(id);
         assert.equal(node.role, 'stitch');
@@ -75,12 +75,17 @@ describe('sorok', () => {
     assert.ok(chains[0].top.y > chains[1].top.y);
   });
 
-  test('a számító fordulólánc az alatta lévő szem oszlopában áll (03 §1.3)', () => {
+  test('a fordulólánc a sor első szeme mellett, kívül áll (PQW-924)', () => {
+    /*
+     * A fordulólánc nem szem, ezért nem ül az alatta lévő szem oszlopában: a
+     * sor minden szeme az alatta lévő sor egy-egy szemébe megy, a fordulólánc
+     * pedig a sor szélén kívülre kerül.
+     */
     const dc = dcRectangle({ rows: 3 });
     const dcChart = layout(dc.pattern);
-    const below = dc.rows[1];
     const chain = dcChart.nodes.get(dc.turningChains[2][2]);
-    assert.ok(near(chain.top.x, dcChart.nodes.get(below[below.length - 1]).top.x));
+    const xs = dc.rows[2].map((id) => dcChart.nodes.get(id).top.x);
+    assert.ok(chain.top.x > Math.max(...xs) || chain.top.x < Math.min(...xs), 'a fordulólánc a sor szemein kívül áll');
   });
 
   test('a sormagasság a legmagasabb szemből jön; a jelek közös talpvonalon állnak (03 §2.2)', () => {

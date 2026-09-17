@@ -140,7 +140,7 @@ export const RULES = {
     severity: 'error',
     reference: '03 §10 A2, 03 §1.2',
     summary:
-      'Rossz láncalap: az 1. sor első szeme nem a fordulólánc után következő láncszembe megy; számító fordulóláncnál az alatta álló alapláncszem utánira, és az alapláncszembe nem horgolunk (PQW-891).',
+      'Rossz láncalap: az 1. sor első szeme nem a kihagyott láncszemek után következő láncszembe megy; a kihagyott láncszemekbe nem horgolunk. Hogy hány láncszem marad ki, az a szem magasságától és a hagyománytól függ (PQW-924).',
     message: 'Az 1. sor első szeme nem a megfelelő láncszembe került.',
   },
   'turning-chain-height': {
@@ -166,14 +166,6 @@ export const RULES = {
     reference: '03 §10 E23, 03 §4.2',
     summary: 'Ismételt mintában a sor több vagy kevesebb pozíciót ad, mint amennyit felhasznál.',
     message: 'Az ismételt mintában a sor több vagy kevesebb szemet ad, mint amennyit felhasznál.',
-  },
-
-  /* ---- Magasság ---- */
-  'mixed-heights': {
-    severity: 'warning',
-    reference: '03 §10 D19, 03 §2.3',
-    summary: 'Keverten magas szemek, és a következő 1–3 sor nem egyenlíti ki őket.',
-    message: 'Különböző magasságú szemek egy sorban, és a következő sorok nem egyenlítik ki.',
   },
 
   /* ---- Körök (PQW-861); csak a befejezett körökön ---- */

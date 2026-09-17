@@ -30,7 +30,7 @@ import { TECHNIQUE_NAMES, c2cTileRows, cellSize, colorChartProblem, type CellSiz
 import { foundationChainLength } from './repeat.ts';
 import { shapeGauge, type ShapeGauge } from './shapes.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
-import { firstChainFromHook, traditionOf, turningChainCountsFor } from './tradition.ts';
+import { firstChainFromHook, skippedChains, traditionOf, turningChainCountsFor } from './tradition.ts';
 import type { GridUnit, NodeId, Pattern, PatternColor, Piece } from './types.ts';
 
 export const C2C_STITCH = 'dc';
@@ -76,7 +76,7 @@ export interface C2CPlan {
 }
 
 /** A C2C saját üzenete (PQW-904); a mondat a felületé. */
-export type C2CCode = 'c2c-turning-chain';
+export type C2CCode = 'c2c-turning-chain' | 'c2c-repeated-increase';
 
 export type C2CPlanResult = { readonly ok: true; readonly plan: C2CPlan } | { readonly ok: false; readonly reason: CoreText<C2CCode | ChartCode> };
 export type C2CResult =
@@ -119,7 +119,8 @@ export function planC2C(pattern: Pattern, cells: ChartRows, colors: readonly Pat
       height,
       rows,
       foundation: {
-        chains: foundationChainLength(1 + TILE_STITCHES, def.turningChain, true, tradition),
+        // Az első csempe három pálca; a fordulólánc nem szem (PQW-924).
+        chains: foundationChainLength(TILE_STITCHES, def.turningChain, true, tradition),
         fromHook: firstChainFromHook(def.turningChain, true, tradition),
       },
       gauge,
@@ -142,10 +143,11 @@ function buildC2C(pattern: Pattern, plan: C2CPlan): GridWriter {
   const turningChain = resolveStitch(C2C_STITCH)!.turningChain;
 
   const first = plan.rows[0]!.tiles[0]!;
-  const worked = foundationChainLength(1 + TILE_STITCHES, turningChain, true, tradition) - turningChain;
+  // A láncalap horgolt része: a kihagyott láncszemek nem tartoznak bele (PQW-924).
+  const worked = foundationChainLength(TILE_STITCHES, turningChain, true, tradition) - skippedChains(turningChain, true);
   const base = [...writer.chains(worked, first.color)].reverse();
   const firstSpace = writer.spaceOf(writer.chains(turningChain, first.color));
-  // Japán hagyományban a fordulólánc egy alapláncszemen áll: az első pálca eggyel később kezd (tradition.ts).
+  // Az első csempe a láncalap horgolt részének végén áll.
   const offset = worked - TILE_STITCHES;
   const firstStitches = base.slice(offset).map((id) => writer.add(C2C_STITCH, [intoStitch(id)], first.color));
   let previous: BuiltTile[] = [{ space: firstSpace, stitches: firstStitches }];
@@ -153,13 +155,18 @@ function buildC2C(pattern: Pattern, plan: C2CPlan): GridWriter {
   for (const row of plan.rows.slice(1)) {
     const built: BuiltTile[] = [];
     let tiles = row.tiles;
-    // Szaporítás: az előző sor végén 3 lsz az új csempe színével, erre áll az új csempe.
-    const extension = row.start === 'increase' ? writer.space(TILE_STITCHES, tiles[0]!.color).chains : null;
     writer.event('turn');
-    if (extension) {
+    if (row.start === 'increase') {
+      /*
+       * A szaporító sor a saját `ch 6`-jával indul (03 §5.5): az első három
+       * láncszem az új csempe láncíve, a következő háromba dolgozunk bele —
+       * ugyanúgy, ahogy az első csempe épül. Korábban ez a három láncszem az
+       * előző sor végére került, és ott a láncalap végéhez tapadt (PQW-924).
+       */
       const tile = tiles[0]!;
+      const base = [...writer.chains(TILE_STITCHES, tile.color)].reverse();
       const space = writer.spaceOf(writer.chains(turningChain, tile.color));
-      const stitches = [...extension].reverse().map((id) => writer.add(C2C_STITCH, [intoStitch(id)], tile.color));
+      const stitches = base.map((id) => writer.add(C2C_STITCH, [intoStitch(id)], tile.color));
       built.push({ space, stitches });
       tiles = tiles.slice(1);
     }
@@ -223,5 +230,14 @@ export function generateC2C(pattern: Pattern, options: C2COptions): C2CResult {
     lettering: options.lettering,
   });
   const finished = finishGridPattern(base, piece);
-  return finished.ok ? { ok: true, pattern: finished.pattern, plan } : finished;
+  if (finished.ok) return { ok: true, pattern: finished.pattern, plan };
+  /*
+   * Két egymást követő szaporító átlós sornál a csempe láncíve és a láncalap
+   * vége összekeveredik, ezért a minta nem megy át az ellenőrzőn (PQW-926).
+   * Ez nem programhiba, hanem egy egyelőre nem támogatott alakzat: mondjuk meg
+   * érthetően, ne nyers szabálynévvel.
+   */
+  const rule = finished.reason.data?.['rule'];
+  if (rule === 'foundation-chain' || rule === 'anchor-layer') return fail(text('c2c-repeated-increase'));
+  return finished;
 }

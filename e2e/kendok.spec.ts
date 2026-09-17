@@ -44,7 +44,7 @@ test('fentről induló háromszög: blokkolt és blokkolatlan méret, saját ar�
   await section.getByRole('button', { name: 'Minta létrehozása' }).click();
   await expect(page.locator('#status')).toContainText(/Fentről induló háromszög, \d+ sor elkészült; visszavonással a korábbi minta visszajön\./);
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
-  expect(await writtenText(page)).toMatch(/3\. sor: 3 lsz \(1 erp-nek számít\), .*\(\d+ szem\)\. Fordítás\./);
+  expect(await writtenText(page)).toMatch(/3\. sor: 3 lsz \(fordulólánc\), .*\(\d+ szem\)\. Fordítás\./);
 
   await page.keyboard.press('ControlOrMeta+Z');
   await expect(page.locator('#status')).toContainText('Visszavonva.');

@@ -32,11 +32,11 @@ test('félpálcás téglalap: 22 sor, soronként 15 szem, a fordulólánc nem sz
   assert.ok(layers.every((layer) => layer.shape === 'row'));
 });
 
-test('a láncalap végén álló fordulólánc az 1. sorhoz tartozik, az alapláncszeme a láncalaphoz: együtt N + T láncszem (03 §1.2, PQW-891)', () => {
+test('a láncalap végén álló fordulólánc az 1. sorhoz tartozik: a láncalappal együtt N + kihagyás láncszem (03 §1.2, PQW-924)', () => {
   const layers = layersOf(hdcRectangle());
-  // 14 félpálca és az alapláncszem a láncalap pozíciói; a fordulólánc az 1. sor első szeme.
+  // 15 félpálca a láncalap 15 pozíciójába; a fordulólánc nem szem, csak a sor elején álló lánc.
   assert.equal(layers[0].positionCount, 15);
-  const turningChain = layers[1].stitches.length - (layers[1].stitchCount - 1);
+  const turningChain = layers[1].stitches.length - layers[1].stitchCount;
   assert.equal(turningChain, 2);
   const foundation = layers[0].positionCount + turningChain;
   assert.equal(foundation, 17);
@@ -172,7 +172,7 @@ test('a sor fordulóláncának konvenciója soronként felülírható (README §
 
   assert.deepEqual(
     computeLayers(pattern, testLibrary).map((layer) => layer.stitchCount),
-    [0, 16, 15],
+    [0, 16, 16],
   );
 });
 

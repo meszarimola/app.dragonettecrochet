@@ -74,7 +74,8 @@ test('profil nélkül a szakasz kimondja, hogy a méret becslés, és minden ér
   assert.deepEqual(view.headers, ['Sor', 'Szélesség, cm', 'Magasság, cm', 'Eddig, cm']);
   assert.equal(view.layers[0].label, '2. sor');
   assert.equal(view.layers[0].source, 'estimated');
-  assert.match(view.layers[0].width, /^≈ \d+,\d$/);
+  // A szélesség kerek szám is lehet: a sor 15 szemes (PQW-924).
+  assert.match(view.layers[0].width, /^≈ \d+(,\d)?$/);
   assert.deepEqual(view.yarn, []);
   assert.equal(view.yarnNote, 'A fonalbecsléshez hiányzik: egy profil a próbadarab tömegével.');
 });

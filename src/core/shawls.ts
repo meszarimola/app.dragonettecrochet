@@ -40,7 +40,7 @@ import { DEFAULT_MOTIF, MOTIF_NAMES, circlePlan, plannedRounds, type RoundPlan }
 import { flatIncreases } from './rounds.ts';
 import { DEFAULT_SHAPE, SHAPE_NAMES, SHAPE_STITCHES, generateShape, planShape, shapeGauge, type ShapeCode, type ShapeRepeat } from './shapes.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
-import { hasBaseChain, traditionOf, turningChainCountsFor } from './tradition.ts';
+import { skippedChains, traditionOf, turningChainCountsFor } from './tradition.ts';
 import type { Anchor, LayerEvent, NodeId, Pattern, Piece, StitchDef, StitchDefId, StitchGroup, StitchNode, ValueSource } from './types.ts';
 import { validatePattern } from './validate.ts';
 import { withGeneratedTitle } from './pattern-title.ts';
@@ -794,28 +794,32 @@ function turnedRows(pattern: Pattern, def: StitchDef, layout: RoundPlan, name: s
 
   const tradition = traditionOf(pattern.conventions);
   const counting = turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition, 'row');
-  const baseChain = hasBaseChain(counting, tradition);
-  // Láncalap: a célláncszem, számító fordulóláncnál az alapláncszem, és az 1. sor fordulólánca (03 §1.2, PQW-891).
-  const worked = 1 + (baseChain ? 1 : 0);
-  const foundation = chains(worked + def.turningChain);
-  const target = foundation.slice(0, worked).reverse()[baseChain ? 1 : 0]!;
-  let turningTop = foundation.at(-1)!;
-  let below = [...(counting ? [turningTop] : []), ...into(target, layout.first - (counting ? 1 : 0))];
+  /*
+   * Láncalap: a célláncszem és a kihagyott láncszemek (PQW-924). Korábban itt
+   * kézzel léptünk át egy „alapláncszemet”, ezért a kendő eggyel többet hagyott
+   * ki, mint a szerkesztő; most a közös szabályból számol.
+   */
+  const skipped = skippedChains(def.turningChain, counting);
+  const foundation = chains(1 + skipped);
+  const target = foundation[0]!;
+  let below = into(target, layout.first);
 
   for (const [i, plan] of layout.rounds.entries()) {
     events.push({ after: previous!, kind: 'turn' });
-    turningTop = chains(def.turningChain).at(-1)!;
+    // A fordulóláncot lerakjuk (magasságot ad), de nem célpont (PQW-924).
+    chains(def.turningChain);
     const working = [...below].reverse();
     // A magyar névelő a felületé: a mag csak a sor számát adja (PQW-904).
     if (plan.length !== working.length) return text('shawl-row-plan-mismatch', { row: i + 2 });
     const made: NodeId[] = [];
     for (const [w, n] of plan.entries()) {
-      // A számító fordulólánc az első pozíción ül: oda eggyel kevesebb szem megy.
-      const extra = w === 0 && counting ? n - 1 : n;
+      // A fordulólánc nem ül pozíción (PQW-924): minden szembe a terv szerinti szám megy.
+      const extra = n;
       if (extra > MAX_INTO_ONE) return text('shawl-too-many-into-one', { row: i + 2, count: extra });
       if (extra > 0) made.push(...into(working[w]!, extra));
     }
-    below = [...(counting ? [turningTop] : []), ...made];
+    // A fordulólánc teteje nem célpont: a következő sor az előző sor szemeibe horgol (PQW-924).
+    below = [...made];
   }
   events.push({ after: previous!, kind: 'fasten-off' });
   return { id: 'p1', name, stitches, spaces: [], rings: [], groups, events, skipped: [] };

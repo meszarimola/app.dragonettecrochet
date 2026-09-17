@@ -113,7 +113,8 @@ describe('fentről induló háromszög (05 §1.4)', () => {
     const from = firstChainFromHook(dc.turningChain, turningChainCountsFor(pattern.conventions.turningChainCounts, dc, tradition, 'row'), tradition);
     const hu = formatWrittenPattern(writePattern(pattern, libraryFor(pattern), 'hu'));
     assert.match(hu, new RegExp(`2\\. sor: hagyj ki ${from - 1} láncszemet, majd .*\\(8 szem\\)\\. Fordítás\\.`));
-    assert.match(hu, /3\. sor: 3 lsz \(1 erp-nek számít\), 2 erp ugyanabba a szembe, .* \(16 szem\)\. Fordítás\./);
+    // A fordulólánc nem szem, a sor az előző sor minden szemébe horgol (PQW-924).
+    assert.match(hu, /3\. sor: 3 lsz \(fordulólánc\), .* \(16 szem\)\. Fordítás\./);
     assert.match(hu, /46\. sor: .* \(360 szem\)\. A fonal elvágása\./);
   });
 

@@ -51,7 +51,7 @@ test('jelölésváltáskor a szöveg is vált', () => {
   assert.equal(view(pattern, 'en-US').text, fixture('en-US', 'felpalcas-teglalap'));
   const british = view(pattern, 'en-GB').text;
   assert.match(british, /^Abbreviations \(UK terms\)$/m);
-  assert.match(british, /14 htr \(15 sts\)/);
+  assert.match(british, /15 htr \(15 sts\)/);
   assert.doesNotMatch(british, /\b(sc|hdc|sl st)\b/);
 });
 
@@ -63,14 +63,14 @@ test('névtelen mintánál a szöveg címe „Névtelen minta”', () => {
 test('félkész sor: a szöveg látszik, megjegyzéssel', () => {
   const result = view(halfRow(2));
   assert.equal(result.kind, 'text');
-  assert.match(result.text, /3\. sor: 1 lsz \(1 rp-nek számít\), 2 rp \(3 szem\)\.$/m);
+  assert.match(result.text, /3\. sor: 1 lsz \(fordulólánc\), 2 rp \(2 szem\)\.$/m);
   assert.deepEqual(result.notices, ['A 3. sor félkész, még 2 célpont van hátra: a szöveg a mostani állapotot írja le.']);
 });
 
 test('hibás minta: a szöveg mellett megjegyzés a hibák számával', () => {
   let pattern = halfRow(1);
-  // Két szem kihagyása a sor közepén: az ellenőrző hibát jelez.
-  pattern = ok(work(pattern, { def: 'sc', count: 1 }, 4));
+  // Két szem kihagyása a sor közepén: az ellenőrző hibát jelez. A sor négyszemes (PQW-924).
+  pattern = ok(work(pattern, { def: 'sc', count: 1 }, 3));
   const result = view(pattern);
   assert.equal(result.kind, 'text');
   assert.ok(result.notices.some((notice) => /^A mintában \d+ hiba van \(lásd Ellenőrzés\)/.test(notice)), result.notices.join(' | '));

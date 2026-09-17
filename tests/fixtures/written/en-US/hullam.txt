@@ -18,5 +18,5 @@ treble (tr)
 Hullám
 Row 1 – foundation: ch 19.
 Row 2: skip 1 ch, 2 sc, [hdc, dc, 2 tr, dc, hdc, 2 sc] 2 times (18 sts). Turn.
-Row 3: ch 1 (does not count as a st), 18 sc (18 sts). Turn.
-Row 4: ch 4 (counts as 1 tr), tr, [dc, hdc, 2 sc, hdc, dc, 2 tr] 2 times (18 sts). Fasten off.
+Row 3: ch 1 (turning chain), 18 sc (18 sts). Turn.
+Row 4: ch 4 (turning chain), 2 tr, [dc, hdc, 2 sc, hdc, dc, 2 tr] 2 times (18 sts). Fasten off.

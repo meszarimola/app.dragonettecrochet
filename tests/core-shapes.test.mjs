@@ -113,14 +113,14 @@ describe('mintaismétlés: „X többszöröse + Y” (03 §4.1, 05 §4.2)', () 
   const width = (patch) => plan(sc(), { stitch: 'sc', widthCm: 20, heightCm: 5, repeat: { width: 6, edge: 2 }, ...patch });
 
   test('a legközelebbi, felfelé (bővebb) és lefelé (szűkebb) kerekítés', () => {
-    assert.deepEqual([width({}).counts[0], width({}).repeats], [39, 6]);
-    assert.deepEqual([width({ rounding: 'up' }).counts[0], width({ rounding: 'up' }).repeats], [45, 7]);
-    assert.equal(width({ rounding: 'down' }).counts[0], 39);
+    assert.deepEqual([width({}).counts[0], width({}).repeats], [38, 6]);
+    assert.deepEqual([width({ rounding: 'up' }).counts[0], width({ rounding: 'up' }).repeats], [44, 7]);
+    assert.equal(width({ rounding: 'down' }).counts[0], 38);
   });
 
   test('félúton a bővebb irányba', () => {
     // 21 cm = 42 szem, pontosan 39 és 45 között.
-    assert.equal(width({ widthCm: 21 }).counts[0], 45);
+    assert.equal(width({ widthCm: 21 }).counts[0], 44);
   });
 
   test('a minta konvenciója az ismétlés lesz, és az ellenőrző ismétlési egyensúlya is rendben', () => {

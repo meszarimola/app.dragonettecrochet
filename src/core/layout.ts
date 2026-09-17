@@ -406,14 +406,18 @@ class Layouter {
       desired: item.desired === undefined ? undefined : direction * item.desired,
     }));
 
-    // A fordulólánc helye: a számító az alatta lévő szem oszlopában, a nem számító az első szem mellett kívül.
+    /*
+     * A fordulólánc helye: az első szem mellett kívül. Sorban a fordulólánc nem
+     * szem (PQW-924), ezért nem ül az alatta lévő szem oszlopában; körben a
+     * kezdőlánc továbbra is a saját pozícióján áll.
+     */
     const stack = scaled.find((item) => item.ids[0] === layer.turningChain[0] && layer.turningChain.length > 0);
     if (stack) {
       const workingFirst = layer.direction === 1 ? below.positions[0] : below.positions[below.positions.length - 1];
       const firstAnchored = scaled.find((item) => item !== stack && item.weight === 1)?.desired;
       const underneath = workingFirst === undefined ? undefined : this.#axis.get(workingFirst);
       if (this.#round && layer.index === 1) stack.desired = this.#oval ? 0 : Math.PI / 2;
-      else if (layer.turningChainCounts && layer.index >= 2 && underneath !== undefined) stack.desired = direction * underneath;
+      else if (layer.shape === 'round' && layer.turningChainCounts && layer.index >= 2 && underneath !== undefined) stack.desired = direction * underneath;
       else if (firstAnchored !== undefined) stack.desired = firstAnchored - 2 * stack.half;
       else if (underneath !== undefined) stack.desired = direction * underneath - (layer.turningChainCounts ? 0 : 2 * stack.half);
       else stack.desired = 0;

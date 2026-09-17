@@ -91,7 +91,7 @@ describe('a mag segédfüggvényei', () => {
 
 describe('lerakás a választott móddal', () => {
   test('sor kitöltése hátsó szálba: színoldali soron a tárolt mód is hátsó szál, visszai soron első szál', () => {
-    // 7 láncszem: soronként 6 szem, ebből 5 rövidpálca és a fordulólánc.
+    // 7 láncszem: 2 kihagyás után soronként 5 rövidpálca; a fordulólánc nem szem (PQW-924).
     const pattern = twoRows('sc', 'back-loop');
     assert.deepEqual(storedModes(pattern, 1), Array(5).fill('back-loop'));
     assert.deepEqual(storedModes(pattern, 2), Array(5).fill('front-loop'));
@@ -148,7 +148,8 @@ describe('duplikálás: a horgoló felől nézett mód marad', () => {
   test('a visszai sor színoldali sorként megfordítva tárolódik', () => {
     const pattern = twoRows('hdc', 'back-loop');
     const copy = ok(duplicateSelection(pattern, layerSelection(pattern, 2)));
-    assert.deepEqual(storedModes(copy, 3), Array(4).fill('back-loop'));
+    // A fordulólánc nem szem (PQW-924): a sor mind az öt szeme a másolatba kerül.
+    assert.deepEqual(storedModes(copy, 3), Array(5).fill('back-loop'));
     assert.deepEqual(findings(copy), []);
     // A 3. sor után fordulás áll, a duplikált 4. sor a minta vége: a záró mondat nélkül vetjük össze.
     // A kiírt sorszám a rétegénél eggyel nagyobb (PQW-923): a láncalap az 1. sor.
@@ -166,7 +167,7 @@ describe('duplikálás: a horgoló felől nézett mód marad', () => {
 
 describe('írott minta és visszaolvasás (szókészlet §3)', () => {
   const cases = [
-    ['sc', 'back-loop', 'hu', /3\. sor: 1 lsz \(1 rp-nek számít\), 7 rp \(hsz\)/, 'hsz – hátsó szálba'],
+    ['sc', 'back-loop', 'hu', /3\. sor: 1 lsz \(fordulólánc\), 7 rp \(hsz\)/, 'hsz – hátsó szálba'],
     ['sc', 'front-loop', 'hu', /7 rp \(esz\)/, 'esz – első szálba'],
     ['dc', 'front-post', 'hu', /\d Eerp/, 'Eerp – első relief egyráhajtásos pálca (elölről hurkolt)'],
     ['dc', 'back-post', 'hu', /\d Herp/, 'Herp – hátsó relief egyráhajtásos pálca (hátulról hurkolt)'],

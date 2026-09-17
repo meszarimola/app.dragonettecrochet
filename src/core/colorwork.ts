@@ -20,7 +20,7 @@ import { TECHNIQUE_NAMES, cellSize, colorChartProblem, type CellSize, type Chart
 import { foundationChainLength } from './repeat.ts';
 import { shapeGauge, type ShapeGauge } from './shapes.ts';
 import { resolveStitch } from './stitch-variants.ts';
-import { firstChainFromHook, traditionOf, turningChainCountsFor } from './tradition.ts';
+import { firstChainFromHook, skippedChains, traditionOf, turningChainCountsFor } from './tradition.ts';
 import type { GridUnit, NodeId, Pattern, PatternColor } from './types.ts';
 
 export type ColorworkTechnique = 'tapestry' | 'graphgan';
@@ -101,17 +101,20 @@ function buildColorwork(pattern: Pattern, plan: ColorworkPlan): GridWriter {
   const writer = new GridWriter();
   const tradition = traditionOf(pattern.conventions);
   const { turningChain, turningChainCounts: counting, width } = plan;
-  const worked = foundationChainLength(width, turningChain, counting, tradition) - turningChain;
-  // Számító fordulóláncnál ő az első cella: a sor többi szeme a cellák száma mínusz egy.
-  const first = counting ? 1 : 0;
+  // A láncalap horgolt része: a kihagyott láncszemek nem tartoznak bele (PQW-924).
+  const skipped = skippedChains(turningChain, counting);
+  const worked = foundationChainLength(width, turningChain, counting, tradition) - skipped;
+  // A fordulólánc nem cella: minden cellába valódi szem kerül.
+  const first = 0;
   let below: NodeId[] = writer.chains(worked, plan.rows[0]!.cells[0]);
 
   plan.rows.forEach((row, k) => {
     const working = [...below].reverse();
     // Japán hagyományban a számító fordulólánc egy alapláncszemen áll (tradition.ts); a későbbi sorokban az előző sor tetején.
     const start = k === 0 ? worked - (width - first) : first;
-    const turning = writer.chains(turningChain, row.cells[0]);
-    const produced: NodeId[] = counting ? [turning[turning.length - 1]!] : [];
+    // Az 1. sor előtt a kihagyott láncszemek, később a fordulólánc; egyik sem cella (PQW-924).
+    writer.chains(k === 0 ? skipped : turningChain, row.cells[0]);
+    const produced: NodeId[] = [];
     for (let c = first; c < width; c += 1) {
       produced.push(writer.add(COLORWORK_STITCH, [intoStitch(working[start + c - first]!)], row.cells[c]));
     }

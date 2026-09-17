@@ -116,7 +116,7 @@ describe('célzás a rácson', () => {
     assert.match(hu(aim(grid, foundation.center).message), /^Ez az 1\. sor egyik helye\. Most a 4\. sor készül/);
   });
 
-  test('a nem számító fordulólánc helye a célpontok sorában sem célpont', () => {
+  test('a fordulólánc helye a célpontok sorában sem célpont (PQW-924)', () => {
     // A V-szem mintában a fordulólánc kifejezetten nem számít.
     const example = vStitchPattern();
     const { grid, layout } = build(example.pattern);
@@ -127,13 +127,12 @@ describe('célzás a rácson', () => {
     assert.equal(aimAt(grid, hit).message.code, 'aim-not-target');
     assert.match(hu(aimAt(grid, hit).message), /^Ide nem horgolhatsz: ez a hely nem célpont/);
 
-    // A számító fordulólánc teteje viszont célpont: a következő sor utolsó szeme oda megy (PQW-891).
+    // A fordulólánc teteje sem célpont (PQW-924): a sor az alatta lévő sor szemeibe horgol.
     const counting = hdcRectangle({ rows: 2 });
     const built = build(counting.pattern);
     const top = counting.turningChains[2].at(-1);
     const slot = built.context.slots.findIndex((candidate) => candidate.id === top);
-    assert.ok(slot >= 0, 'a fordulólánc teteje a célpontok között');
-    assert.deepEqual(aim(built.grid, built.layout.nodes.get(top).top), { kind: 'target', slot });
+    assert.equal(slot, -1, 'a fordulólánc teteje nincs a célpontok között');
   });
 
   test('a félkész sorban, ahol alatta nincs szem, nincs mibe horgolni', () => {

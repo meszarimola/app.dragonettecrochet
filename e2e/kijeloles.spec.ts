@@ -124,7 +124,7 @@ test('kijelölés billentyűzettel és területtel; kevés célpontnál figyelme
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('Shift+Home');
   // A sor a fordulólánc 2 láncszemével és 4 félpálcával: a fordulólánc az 1. szem helyett áll (PQW-891).
-  await expect(status).toContainText('Kijelölve: 6 szem (3. sor: 6 szem)');
+  await expect(status).toContainText('Kijelölve: 7 szem (3. sor: 7 szem)');
   await page.keyboard.press('ControlOrMeta+d');
   await expect(summary).toContainText('3 sor. 4. sor: 5 szem.');
   await page.keyboard.press('ControlOrMeta+z');

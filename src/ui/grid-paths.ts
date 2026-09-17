@@ -46,7 +46,6 @@ const num = (value: number) => String(Math.round(value * 100) / 100);
 const TAU = 2 * Math.PI;
 
 const rowWeight = (emphasis: Emphasis): LineWeight => (emphasis === 'none' ? 'row' : emphasis);
-const cellWeight = (emphasis: Emphasis): LineWeight => (emphasis === 'none' ? 'cell' : emphasis);
 
 function circle(r: number): string {
   return `M${num(r)} 0A${num(r)} ${num(r)} 0 1 0 ${num(-r)} 0A${num(r)} ${num(r)} 0 1 0 ${num(r)} 0Z`;
@@ -115,15 +114,16 @@ export function gridPaths(grid: ChartGrid): GridPaths {
     const band = grid.bands.find((candidate) => candidate.layer === cell.layer);
     const dashed = band?.working ?? false;
     /*
-     * A készülő sorban nincs számoló kiemelés (PQW-923). Ott a cellák a még le
-     * nem rakott szemek helyét mutatják, és a minden 5. és 10. cellánál
-     * vastagabb (2–3 képpontos) vonal szabálytalan közökben tagolta a hosszú
-     * láncalapot — a tulajdonos ezt jelezte zavarónak. Megmértem: a 42
-     * láncszemes mintán mind a 41 függőleges vonal a készülő sor sávjából jött,
-     * közülük nyolc kiemelt súlyú. A kiemelés a kész sorok számolását segíti,
-     * ott megmarad.
+     * A cellák közötti vonalak soha nem kapnak számoló kiemelést (PQW-924).
+     *
+     * A PQW-923-ban a kiemelést csak a készülő sorból vettem ki, a kész
+     * sorokban meghagytam — a tulajdonos viszont az exportált képen továbbra is
+     * ötös csoportosítást látott, és a tervezőben is ugyanez volt (a két rajzoló
+     * ezt a kódot használja közösen, tehát nem tértek el egymástól: a 42
+     * láncszemes mintán csak azért nem látszott, mert ott csak készülő sor volt).
+     * A sorok vízszintes vonalai megtartják a kiemelést: azok nem tagolják a sort.
      */
-    const weight = band?.working ? 'cell' : cellWeight(cell.emphasis);
+    const weight: LineWeight = 'cell';
     const { area } = cell;
     if (area.kind === 'rect') {
       // A sáv szélén a sáv vonala zár; a cella csak a belső oldalvonalat adja.

@@ -19,7 +19,7 @@ import { formatWrittenPattern, writePattern } from '../src/core/pattern-text.ts'
 import { foundationChainLength, repeatCounts } from '../src/core/repeat.ts';
 import { stitchById } from '../src/core/stitches.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
-import { firstChainFromHook, stitchTurningChainCounts, traditionOf, withTradition } from '../src/core/tradition.ts';
+import { firstChainFromHook, skippedChains, stitchTurningChainCounts, traditionOf, withTradition } from '../src/core/tradition.ts';
 import { validatePattern } from '../src/core/validate.ts';
 import { PieceBuilder, patternOf } from './fixtures/builder.ts';
 import { testLibrary } from './fixtures/library.ts';
@@ -41,12 +41,11 @@ function rectangle(id, stitches, rows, tradition) {
   let row = [];
   for (let k = firstChainFromHook(chains, counts, tradition); k <= length; k += 1) row.push(b.stitch(id, fromHook(k)));
   b.event('turn', stitches);
-  let top = fromHook(1);
   for (let r = 2; r <= rows; r += 1) {
-    const turning = b.chain(chains);
+    b.chain(chains);
+    // A fordulólánc nem szem (PQW-924): az előző sor minden szemébe megy egy szem.
     const below = [...row].reverse();
-    row = (counts ? [...below.slice(1), top] : below).map((target) => b.stitch(id, target));
-    top = turning[chains - 1];
+    row = below.map((target) => b.stitch(id, target));
     b.event(r === rows ? 'fasten-off' : 'turn', stitches);
   }
   return patternOf(`${id} téglalap`, [b.build()], tradition === 'japanese' ? { tradition } : {});
@@ -99,14 +98,18 @@ test('sorban CYC szerint minden szem fordulólánca számít szemnek, japánban 
 // prettier-ignore
 const FOUNDATION = [
   // szem   N    CYC: lsz  horogtól   japán: lsz  horogtól
-  ['sc',    20,  21,       3,         21,         2],
-  ['hdc',   20,  22,       4,         22,         4],
-  ['dc',    20,  23,       5,         23,         5],
-  ['tr',    20,  24,       6,         24,         6],
-  ['dtr',   20,  25,       7,         25,         7],
+  // A kihagyott láncszemek száma a tulajdonos táblázata szerint (PQW-924): rp 2,
+  // fp 2, erp 3, krp 4, hrp 5. A láncalap a kért szemszám és a kihagyás összege,
+  // és a kihagyás után minden láncszembe egy szem megy — így pontosan N szem lesz.
+  // Japán hagyományban a rövidpálca fordulólánca nem számít: ott 1 a kihagyás.
+  ['sc',    20,  22,       3,         21,         2],
+  ['hdc',   20,  22,       3,         22,         3],
+  ['dc',    20,  23,       4,         23,         4],
+  ['tr',    20,  24,       5,         24,         5],
+  ['dtr',   20,  25,       6,         25,         6],
 ];
 
-test('láncalap N szemhez sorban: mindkét hagyományban N + T; a rövidpálca CYC-ben a 3., japánban a 2., a félpálca a 4., a pálca az 5., a három ráhajtásos a 7. láncszemtől (01 §2.2, §8.3, PQW-891)', () => {
+test('láncalap N szemhez sorban: a kért szemszám és a kihagyás összege; az első szem a kihagyás utáni láncszembe megy (PQW-924)', () => {
   for (const [id, n, cycChains, cycFrom, japaneseChains, japaneseFrom] of FOUNDATION) {
     const def = stitchById(id);
     for (const [tradition, chains, from] of [
@@ -120,15 +123,18 @@ test('láncalap N szemhez sorban: mindkét hagyományban N + T; a rövidpálca C
   }
 });
 
-test('CYC sorban a fordulólánc mindig számít: a 2. sor a rövidpálcánál a 3., félpálcánál a 4., pálcánál az 5., kétráhajtásos pálcánál a 6. láncszemtől, a láncalap N + T (PQW-891)', () => {
-  for (const [id, from] of [['sc', 3], ['hdc', 4], ['dc', 5], ['tr', 6]]) {
+test('CYC sorban a kihagyás: rövidpálcánál és félpálcánál 2, pálcánál 3, kétráhajtásos pálcánál 4 — a láncalap ennyivel hosszabb a szemszámnál (PQW-924)', () => {
+  for (const [id, from] of [['sc', 3], ['hdc', 3], ['dc', 4], ['tr', 5]]) {
     const def = stitchById(id);
     const counts = stitchTurningChainCounts(def, 'cyc', 'row');
     assert.equal(counts, true, `${id}: számít`);
     assert.equal(firstChainFromHook(def.turningChain, counts, 'cyc'), from, `${id}: horogtól`);
     for (const n of [10, 20, 39]) {
-      assert.equal(foundationChainLength(n, def.turningChain, true), n + def.turningChain, `${id}, ${n} szem: láncalap`);
-      assert.equal(foundationChainLength(n, def.turningChain, true, 'cyc'), n + def.turningChain, `${id}, ${n} szem, CYC: láncalap`);
+      const chains = n + skippedChains(def.turningChain, true);
+      assert.equal(foundationChainLength(n, def.turningChain, true), chains, `${id}, ${n} szem: láncalap`);
+      assert.equal(foundationChainLength(n, def.turningChain, true, 'cyc'), chains, `${id}, ${n} szem, CYC: láncalap`);
+      // A kihagyás után minden láncszembe egy szem megy: pontosan a kért szemszám.
+      assert.equal(chains - (firstChainFromHook(def.turningChain, counts, 'cyc') - 1), n, `${id}, ${n} szem: belehorgolt`);
     }
   }
 });
@@ -140,18 +146,26 @@ test('körben a kezdőlánc CYC szerint változatlanul a szemkönyvtár alapért
   }
 });
 
-test('ismétlésnél a számító fordulólánc mindkét hagyományban alapláncszemen áll: a láncalap és a 2. sor pozíciói eggyel többek', () => {
+test('ismétlésnél a láncalap a kihagyással hosszabb, és a sor annyi helyet ad, ahány szeme van (PQW-924)', () => {
   const spec = { repeatWidth: 6, edgeStitches: 1, turningChainIncluded: false };
   const cyc = repeatCounts(spec, 3, 3, true);
   const japanese = repeatCounts(spec, 3, 3, true, 'japanese');
   assert.deepEqual(japanese, cyc);
-  assert.deepEqual(cyc, { chains: 23, workedChains: 19, firstRowPositions: 20 });
-  const notCounting = repeatCounts(spec, 3, 3, false);
-  assert.equal(cyc.chains, notCounting.chains + 1);
-  assert.equal(cyc.workedChains, notCounting.workedChains);
-  assert.equal(cyc.firstRowPositions, notCounting.firstRowPositions + 1);
+  // 19 szem, pálca: 3 kihagyás, 22 láncszem, és a sor 19 helyet ad a következőnek.
+  assert.deepEqual(cyc, { chains: 22, workedChains: 19, firstRowPositions: 19 });
+
+  /*
+   * Pálcánál a kihagyás akkor is 3, ha a fordulólánc nem számít, ezért a két
+   * eset egybeesik. A különbség a rövidpálcánál látszik: ott a számító
+   * fordulólánc 2 láncszemet hagy ki, a nem számító csak egyet.
+   */
+  assert.deepEqual(repeatCounts(spec, 3, 3, false), cyc);
+  const scCounting = repeatCounts(spec, 3, 1, true);
+  const scNot = repeatCounts(spec, 3, 1, false);
+  assert.equal(scCounting.chains, scNot.chains + 1);
+  assert.equal(scCounting.firstRowPositions, scNot.firstRowPositions, 'a szemszám egyik esetben sem változik');
   // Nem számító fordulóláncnál a két hagyomány egyezik.
-  assert.deepEqual(repeatCounts(spec, 3, 1, false, 'japanese'), repeatCounts(spec, 3, 1, false));
+  assert.deepEqual(repeatCounts(spec, 3, 1, false, 'japanese'), scNot);
 });
 
 /* ---- A gráf, az ellenőrző és az írott minta ---- */
@@ -165,7 +179,7 @@ describe('japán előbeállítással a téglalap a japán konvenció szerint sz�
 
       const { turningChain } = stitchById(id);
       const graph = buildPieceGraph(pattern, pattern.pieces[0], testLibrary);
-      assert.equal(graph.layers[1].turningChain.length, turningChain, 'az alapláncszem nem a fordulólánc része');
+      assert.equal(graph.layers[1].turningChain.length, turningChain, 'a fordulólánc hossza a szem szerinti');
       assert.equal(graph.layers[0].stitches.length + turningChain, n + turningChain);
 
       const from = firstChainFromHook(turningChain, stitchTurningChainCounts(stitchById(id), 'japanese', 'row'), 'japanese');
@@ -176,14 +190,14 @@ describe('japán előbeállítással a téglalap a japán konvenció szerint sz�
   }
 });
 
-test('a tulajdonos sála: 40 láncszem, fordulás, 2 láncszem kihagyása, utána minden láncszembe 1 rövidpálca (PQW-891)', () => {
+test('a tulajdonos sála: 41 láncszem, fordulás, 2 láncszem kihagyása, utána minden láncszembe 1 rövidpálca (PQW-924)', () => {
   const pattern = rectangle('sc', 39, 3, 'cyc');
   assert.deepEqual(findings(pattern), []);
-  assert.equal(pattern.pieces[0].stitches.findIndex((node) => node.def !== 'ch'), 40, 'a láncalap 40 láncszem');
+  assert.equal(pattern.pieces[0].stitches.findIndex((node) => node.def !== 'ch'), 41, 'a láncalap 41 láncszem');
   assert.deepEqual(stitchCounts(pattern), [0, 39, 39, 39]);
 
   const text = textOf(pattern);
-  assert.ok(text.includes('1. sor – alapsor: 40 lsz.'), text);
+  assert.ok(text.includes('1. sor – alapsor: 41 lsz.'), text);
   // A tulajdonos mondata (PQW-895): a kihagyott láncszemek száma, és hogy minden láncszembe 1 rp megy.
   assert.ok(text.split('\n').includes('2. sor: hagyj ki 2 láncszemet, majd minden láncszembe 1 rp (39 szem). Fordítás.'), text);
   assert.ok(textOf(pattern, 'en-US').split('\n').includes('Row 2: skip 2 ch, sc in each ch across (39 sts). Turn.'));
@@ -199,7 +213,7 @@ test('a tulajdonos sála: 40 láncszem, fordulás, 2 láncszem kihagyása, után
 describe('a láncalapra horgolt 2. sor egyszerű mondata (PQW-895)', () => {
   const firstRow = (pattern, locale) => textOf(pattern, locale).split('\n').find((line) => /^(2\. sor|Row 2):/.test(line));
 
-  test('a kihagyott láncszemek száma a horogtól számított első láncszem mínusz 1: rp 2, fp 3, erp 4, krp 5', () => {
+  test('a kihagyott láncszemek száma a tulajdonos táblázata szerint: rp 2, fp 2, erp 3, krp 4 (PQW-924)', () => {
     const skips = [];
     for (const [id, n] of [['sc', 12], ['hdc', 12], ['dc', 12], ['tr', 12]]) {
       const pattern = rectangle(id, n, 2, 'cyc');
@@ -210,17 +224,18 @@ describe('a láncalapra horgolt 2. sor egyszerű mondata (PQW-895)', () => {
       assert.equal(firstRow(pattern, 'hu'), `2. sor: hagyj ki ${skip} láncszemet, majd minden láncszembe 1 ${def.terms.hu.abbr} (${n} szem). Fordítás.`);
       assert.equal(firstRow(pattern, 'en-US'), `Row 2: skip ${skip} ch, ${def.terms['en-US'].abbr} in each ch across (${n} sts). Turn.`);
       assert.equal(firstRow(pattern, 'en-GB'), `Row 2: miss ${skip} ch, ${def.terms['en-GB'].abbr} in each ch across (${n} sts). Turn.`);
-      // A számolásról nincs megjegyzés az 1. sorban; a 2. sor fordulólánca megmarad.
+      // A számolásról nincs megjegyzés; a 2. sor fordulólánca megmarad, de nem szem (PQW-924).
       assert.doesNotMatch(textOf(pattern), /kihagyott láncszemek|számítanak/);
-      assert.match(textOf(pattern), new RegExp(`3\\. sor: ${def.turningChain} lsz \\(1 ${def.terms.hu.abbr}-[a-z]+ számít\\)`));
+      assert.match(textOf(pattern), new RegExp(`3\\. sor: ${def.turningChain} lsz \\(fordulólánc\\),`));
+      assert.doesNotMatch(textOf(pattern), /-nak számít|-nek számít/);
     }
-    assert.deepEqual(skips, [2, 3, 4, 5]);
+    assert.deepEqual(skips, [2, 2, 3, 4]);
   });
 
-  test('félpálca és pálca: „hagyj ki 3 láncszemet” és „hagyj ki 4 láncszemet”, és mindhárom jelöléssel visszaolvasható', () => {
+  test('félpálca és pálca: „hagyj ki 2 láncszemet” és „hagyj ki 3 láncszemet”, és mindhárom jelöléssel visszaolvasható', () => {
     for (const [id, expected] of [
-      ['hdc', '2. sor: hagyj ki 3 láncszemet, majd minden láncszembe 1 fp (15 szem). Fordítás.'],
-      ['dc', '2. sor: hagyj ki 4 láncszemet, majd minden láncszembe 1 erp (15 szem). Fordítás.'],
+      ['hdc', '2. sor: hagyj ki 2 láncszemet, majd minden láncszembe 1 fp (15 szem). Fordítás.'],
+      ['dc', '2. sor: hagyj ki 3 láncszemet, majd minden láncszembe 1 erp (15 szem). Fordítás.'],
     ]) {
       const pattern = rectangle(id, 15, 3, 'cyc');
       assert.equal(firstRow(pattern, 'hu'), expected);
@@ -242,28 +257,37 @@ describe('a láncalapra horgolt 2. sor egyszerű mondata (PQW-895)', () => {
     }
   });
 
-  test('a PQW-895 előtti mondattal mentett sál szövege is visszaolvasható, ugyanarra a gráfra', () => {
+  /*
+   * A PQW-895 előtti mentés a megszűnt fogalomra épül: a sor eleji láncszemeket
+   * szemnek számolja. Az ilyen szöveget nem értelmezzük át csendben (PQW-924,
+   * a PQW-911-es szegélyek precedense szerint), hanem érthetően elutasítjuk.
+   */
+  test('a PQW-895 előtti mondattal mentett szöveget a betöltő elutasítja, megmondva az okot és a teendőt', () => {
     const pattern = rectangle('sc', 39, 3, 'cyc');
-    for (const [locale, oldLine] of [
-      ['hu', '2. sor: a horogtól számított 3. láncszemtől kezdve (a kihagyott láncszemek 1 rp-nek számítanak) 38 rp (39 szem). Fordítás.'],
-      ['en-US', 'Row 2: Starting in 3rd ch from hook (skipped ch count as 1 sc), 38 sc (39 sts). Turn.'],
-      ['en-GB', 'Row 2: Starting in 3rd ch from hook (skipped ch count as 1 dc), 38 dc (39 sts). Turn.'],
+    for (const [locale, oldLine, expected] of [
+      ['hu', '2. sor: a horogtól számított 3. láncszemtől kezdve (a kihagyott láncszemek 1 rp-nek számítanak) 38 rp (39 szem). Fordítás.', /korábbi szabály szerint készült/],
+      ['en-US', 'Row 2: Starting in 3rd ch from hook (skipped ch count as 1 sc), 38 sc (39 sts). Turn.', /earlier rule/],
+      ['en-GB', 'Row 2: Starting in 3rd ch from hook (skipped ch count as 1 dc), 38 dc (39 sts). Turn.', /earlier rule/],
     ]) {
       const text = textOf(pattern, locale);
       const old = text.replace(firstRow(pattern, locale), oldLine);
       assert.notEqual(old, text);
       const result = readPattern(old, { library: testLibrary, locale, conventions: pattern.conventions });
-      assert.equal(result.ok, true, `${locale}: ${JSON.stringify(result.error)}`);
-      assert.deepEqual(canonicalPattern(result.pattern), canonicalPattern(pattern), locale);
+      assert.equal(result.ok, false, locale);
+      assert.match(result.error.message, expected, locale);
+      // A hibás sor helyét is megmondja: a láncalap után következő sor.
+      assert.equal(result.error.line, 2 + text.split('\n').indexOf(firstRow(pattern, locale)) - 1);
+      // A teendő is benne van, nem csak az ok.
+      assert.match(result.error.message, locale === 'hu' ? /Írd át a sort|generáld újra/ : /Rewrite the row|generate the pattern again/);
     }
   });
 
-  test('a régi mondatban a beállítástól eltérő számolás továbbra is hiba', () => {
+  test('a régi mondat megjegyzés nélkül is elutasított: az sem a mai alak', () => {
     const pattern = rectangle('sc', 15, 3, 'cyc');
     const old = textOf(pattern).replace(firstRow(pattern, 'hu'), '2. sor: a horogtól számított 3. láncszemtől kezdve 14 rp (15 szem). Fordítás.');
     const result = readPattern(old, { library: testLibrary, locale: 'hu', conventions: pattern.conventions });
     assert.equal(result.ok, false);
-    assert.match(result.error.message, /fordulóláncának számolása eltér/);
+    assert.match(result.error.message, /korábbi szabály szerint készült/);
   });
 });
 
@@ -271,7 +295,8 @@ test('a CYC szerinti rövidpálcás darab japán hagyományban hiba, a japán CY
   const cyc = rectangle('sc', 15, 3, 'cyc');
   const japanese = rectangle('sc', 15, 3, 'japanese');
   assert.ok(rules(asTradition(cyc, 'japanese')).includes('foundation-chain'));
-  assert.ok(rules(asTradition(japanese, 'cyc')).includes('turning-chain-placement'));
+  // A japán darab 1 kihagyással készült; CYC-ben 2 járna, ezért a láncalap hibás (PQW-924).
+  assert.ok(rules(asTradition(japanese, 'cyc')).includes('foundation-chain'));
   for (const id of ['hdc', 'dc']) {
     assert.deepEqual(findings(asTradition(rectangle(id, 15, 3, 'cyc'), 'japanese')), [], `${id}: CYC japánként`);
     assert.deepEqual(findings(asTradition(rectangle(id, 15, 3, 'japanese'), 'cyc')), [], `${id}: japán CYC-ként`);
@@ -286,7 +311,8 @@ test('ugyanaz a rövidpálcás darab CYC és japán előbeállítással: ugyanan
   const shape = (pattern) =>
     computeLayers(pattern, testLibrary).map(({ shape, side, stitchCount, positionCount }) => ({ shape, side, stitchCount, positionCount }));
   assert.deepEqual(shape(japanese), shape(cyc));
-  assert.equal(japanese.pieces[0].stitches.length, cyc.pieces[0].stitches.length + 3, 'CYC-ben soronként egy rövidpálcát a fordulólánc helyettesít');
+  // Japánban a rövidpálca fordulólánca nem számít, ezért ott 1 a kihagyás és eggyel rövidebb a láncalap (PQW-924).
+  assert.equal(japanese.pieces[0].stitches.length, cyc.pieces[0].stitches.length - 1, 'japánban eggyel rövidebb a láncalap');
 
   // A szöveg csak a sorok elején tér el: honnan indul az 1. sor, és számít-e a fordulólánc.
   const [a, b] = [textOf(cyc).split('\n'), textOf(japanese).split('\n')];
@@ -294,15 +320,18 @@ test('ugyanaz a rövidpálcás darab CYC és japán előbeállítással: ugyanan
   const differing = a.map((line, i) => [line, b[i]]).filter(([x, y]) => x !== y);
   assert.ok(differing.length > 0);
   for (const [x, y] of differing) {
-    assert.match(x, /^\d+(–\d+)?\. sor: /);
+    // A láncalap hossza is eltér: rövidpálcánál CYC-ben 2, japánban 1 a kihagyás (PQW-924).
+    assert.match(x, /^\d+(–\d+)?\. sor(: | – alapsor: )/);
     assert.equal(x.split(':')[0], y.split(':')[0]);
-    assert.equal(x.match(/\(\d+ szem\)/)[0], y.match(/\(\d+ szem\)/)[0]);
+    // A láncalap sorában nincs szemszám, csak láncszem: azt nem vetjük össze.
+    if (!x.includes(' – alapsor: ')) assert.equal(x.match(/\(\d+ szem\)/)[0], y.match(/\(\d+ szem\)/)[0]);
   }
-  assert.ok(a.includes('1. sor – alapsor: 16 lsz.') && b.includes('1. sor – alapsor: 16 lsz.'));
+  // CYC-ben 2, japánban 1 a kihagyás, ezért a láncalap 17, illetve 16 láncszem (PQW-924).
+  assert.ok(a.includes('1. sor – alapsor: 17 lsz.') && b.includes('1. sor – alapsor: 16 lsz.'));
   assert.match(textOf(cyc), /2\. sor: hagyj ki 2 láncszemet, majd minden láncszembe 1 rp \(15 szem\)/);
-  assert.match(textOf(cyc), /1 lsz \(1 rp-nek számít\)/);
+  assert.match(textOf(cyc), /1 lsz \(fordulólánc\)/);
   assert.match(textOf(japanese), /2\. sor: hagyj ki 1 láncszemet, majd minden láncszembe 1 rp \(15 szem\)/);
-  assert.match(textOf(japanese), /1 lsz \(nem számít szemnek\)/);
+  assert.match(textOf(japanese), /1 lsz \(fordulólánc\)/);
 });
 
 test('a félpálcás darab CYC és japán előbeállítással azonos: ugyanaz a gráf és ugyanaz a szöveg', () => {
@@ -312,8 +341,9 @@ test('a félpálcás darab CYC és japán előbeállítással azonos: ugyanaz a 
   assert.deepEqual(japanese.pieces, cyc.pieces);
   assert.equal(textOf(japanese), textOf(cyc));
   assert.ok(textOf(japanese).split('\n').includes('1. sor – alapsor: 17 lsz.'));
-  assert.match(textOf(japanese), /2\. sor: hagyj ki 3 láncszemet, majd minden láncszembe 1 fp \(15 szem\)/);
-  assert.match(textOf(japanese), /2 lsz \(1 fp-nek számít\)/);
+  // Japánban a félpálca fordulólánca számít, ezért ott is 2 a kihagyás (PQW-924).
+  assert.match(textOf(japanese), /2\. sor: hagyj ki 2 láncszemet, majd minden láncszembe 1 fp \(15 szem\)/);
+  assert.match(textOf(japanese), /2 lsz \(fordulólánc\)/);
 });
 
 test('a pálcás darab láncalapja CYC-ben és japánban is N + T, a szemszám ugyanaz', () => {
@@ -340,10 +370,11 @@ test('a japán írott minta visszaolvasva ugyanazt a gráfot adja, mindhárom je
 describe('a szerkesztő japán előbeállítással', () => {
   const foundation = (count) => ok(work(ok(setTradition(emptyPattern(), 'japanese')), { def: 'ch', count }, 0));
 
-  test('a vezetett kurzor a félpálcát a 4., a pálcát az 5. láncszembe teszi, a rövidpálcát a 2.-ba', () => {
+  test('a vezetett kurzor a félpálcát a 3., a pálcát a 4. láncszembe teszi, a rövidpálcát a 2.-ba (PQW-924)', () => {
+    // Japánban a rövidpálca fordulólánca nem számít, ezért ott 1 a kihagyás.
     const pattern = foundation(12);
-    assert.equal(defaultCursor(pattern, contextOf(pattern), 'hdc'), 3);
-    assert.equal(defaultCursor(pattern, contextOf(pattern), 'dc'), 4);
+    assert.equal(defaultCursor(pattern, contextOf(pattern), 'hdc'), 2);
+    assert.equal(defaultCursor(pattern, contextOf(pattern), 'dc'), 3);
     assert.equal(defaultCursor(pattern, contextOf(pattern), 'sc'), 1);
   });
 
@@ -380,4 +411,27 @@ describe('a szerkesztő japán előbeállítással', () => {
     assert.equal(bad.ok, false);
     assert.equal(bad.error.path, '$.conventions.tradition');
   });
+});
+
+
+/*
+ * A kihagyott láncszemek száma az 1. sor kezdésénél (PQW-924).
+ *
+ * A tulajdonos táblázata az irányadó, és felülírja a PQW-891 „fordulólánc + 2”
+ * szabályát: a félpálcától kezdve eggyel kevesebb láncszemet hagyunk ki. A
+ * fordulólánc hossza nem változik, csak a kihagyás.
+ */
+test('a kihagyott láncszemek: rp 2, fp 2, erp 3, krp 4, hrp 5 (PQW-924)', () => {
+  for (const [id, skipped] of [
+    ['sc', 2],
+    ['hdc', 2],
+    ['dc', 3],
+    ['tr', 4],
+    ['dtr', 5],
+  ]) {
+    const def = stitchById(id);
+    const counts = stitchTurningChainCounts(def, 'cyc', 'row');
+    // Az első szem a kihagyott láncszemek utáni láncszembe megy.
+    assert.equal(firstChainFromHook(def.turningChain, counts, 'cyc') - 1, skipped, `${id}: kihagyott láncszemek`);
+  }
 });

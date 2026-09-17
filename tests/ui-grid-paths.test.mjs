@@ -55,8 +55,9 @@ test('sokszög-rács (PQW-888): egyenes oldalú gyűrűk, körív nélkül', () 
  * A tulajdonos hosszú láncalapon szabálytalan, 3–5 szemes csoportokra tagolt
  * vastag függőleges vonalakat látott. Ezek a rács cellahatárai voltak: a cellák
  * a szemek tényleges helyéből kapják a szélességüket, a láncszemek pedig
- * egyenetlen közűek, ráadásul minden 5. és 10. vonal vastagabb. A cella
- * megmarad — rá kattintva továbbra is lehet horgolni —, csak a vonala nem.
+ * egyenetlen közűek, és akkor még minden 5. és 10. cellavonal vastagabb is
+ * volt. (A cellavonalak kiemelését azóta a PQW-924 teljesen megszüntette.) A
+ * cella megmarad — rá kattintva továbbra is lehet horgolni —, csak a vonala nem.
  */
 test('a láncalap cellái nem kapnak elválasztó vonalat, a többi sor igen', () => {
   const grid = gridOf(hdcRectangle({ rows: 4 }).pattern, 'rows');
@@ -79,4 +80,35 @@ test('a láncalap cellái nem kapnak elválasztó vonalat, a többi sor igen', (
 
   // A többi sorban viszont megmaradnak: a rács ott továbbra is segít számolni.
   assert.ok(verticals.length > 0, 'a sorokban maradnak cellavonalak');
+});
+
+
+/*
+ * A cellák közötti vonalak soha nem kapnak számoló kiemelést (PQW-924).
+ *
+ * A PQW-923-ban csak a készülő sorból vettem ki a kiemelést, a kész sorokban
+ * meghagytam — a tulajdonos viszont az exportált képen továbbra is ötös
+ * csoportosítást látott. A tervező és az export ugyanezt a kódot használja,
+ * ezért itt egy helyen zárjuk ki mindkettőre.
+ */
+test('egyetlen függőleges cellavonal sem kiemelt súlyú, sem készülő, sem kész sorban', () => {
+  for (const rows of [2, 6, 11]) {
+    const grid = gridOf(hdcRectangle({ rows }).pattern, 'rows');
+    const vertical = gridPaths(grid).lines.filter((line) => /^M[-\d.]+ [-\d.]+V[-\d.]+$/.test(line.d));
+    assert.ok(vertical.length > 0, `${rows} sor: vannak cellavonalak`);
+    assert.deepEqual(
+      [...new Set(vertical.map((line) => line.weight))],
+      ['cell'],
+      `${rows} sor: a cellavonalak egységesen vékonyak`,
+    );
+    /*
+     * A sorok vízszintes vonalai megtartják a kiemelést: azok a sorokat
+     * számolják, nem a szemeket tagolják. Ez csak ott látszik, ahol van
+     * legalább öt sor.
+     */
+    if (rows >= 5) {
+      const horizontal = gridPaths(grid).lines.filter((line) => !/^M[-\d.]+ [-\d.]+V[-\d.]+$/.test(line.d));
+      assert.ok(horizontal.some((line) => line.weight === 'five' || line.weight === 'ten'), `${rows} sor: a sorvonalak kiemelése megmarad`);
+    }
+  }
 });

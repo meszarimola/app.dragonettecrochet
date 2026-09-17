@@ -133,7 +133,7 @@ describe('ismétlő egység és terv', () => {
     assert.match(summary.view.size, /^Tényleges méret: ≈ \d+(,\d)? × \d+(,\d)? cm, 4 sor\.$/);
     assert.ok(summary.view.details.includes('Ismétlő egység: 2 × 2 cella, a teljes 8 × 4 cellás rácsra kiterjesztve.'));
     assert.ok(summary.view.details.includes('A legszélesebb sor 8 cella: 3 × 8 + 1 = 25 pozíció.'));
-    assert.ok(summary.view.details.includes('Láncalap: 28 lsz; az első pálca a horogtól számított 5. láncszembe megy.'));
+    assert.ok(summary.view.details.includes('Láncalap: 28 lsz; az első pálca a horogtól számított 4. láncszembe megy.'));
     assert.match(summary.view.source, /^A méret becslés a tűből/);
   });
 
@@ -169,7 +169,8 @@ describe('ismétlő egység és terv', () => {
     const summary = planSummary(emptyPattern(), state, false);
     assert.ok(summary.ok, summary.reason);
     assert.match(summary.view.size, /, 4 átlós sor, 6 csempe\.$/);
-    assert.ok(summary.view.details.includes('Láncalap: 7 lsz; az első pálca a horogtól számított 5. láncszembe megy.'));
+    // A csempe nyitó három láncszeme láncív (03 §5.5): 3 + 3 láncszem, az első pálca a 4.-be megy.
+    assert.ok(summary.view.details.includes('Láncalap: 6 lsz; az első pálca a horogtól számított 4. láncszembe megy.'));
     assert.ok(summary.view.details.includes('Szaporítás az 1–2. sorig; utána az az oldal fogy, ahol a méret megvan, a másik még nő.'));
     assert.ok(summary.view.details.includes('Csempék színenként: A: 2, B: 4 csempe.'));
   });
@@ -191,7 +192,11 @@ describe('ismétlő egység és terv', () => {
 describe('létrehozás, fonal, visszatöltés, keret', () => {
   test('a létrehozott minta hibátlan, a rács visszatölthető a szerkesztőbe', () => {
     for (const technique of ['filet', 'c2c', 'tapestry', 'graphgan']) {
-      const state = technique === 'filet' ? filet(['#.#.', '.#.#', '####']) : { ...defaultState(technique), draft: [[0, 1, 0], [1, 1, 0]] };
+      // C2C-ben ma csak az 1 × 1 és a 2 × 1 alakzat épül fel (PQW-926).
+      const state =
+        technique === 'filet'
+          ? filet(['#.#.', '.#.#', '####'])
+          : { ...defaultState(technique), draft: technique === 'c2c' ? [[0, 1]] : [[0, 1, 0], [1, 1, 0]] };
       const result = generateFromState(emptyPattern(), state);
       assert.ok(result.ok, `${technique}: ${result.reason}`);
       assert.match(result.message, /^.+: \d+ sor elkészült; visszavonással a korábbi minta visszajön\.$/);
@@ -234,7 +239,8 @@ describe('létrehozás, fonal, visszatöltés, keret', () => {
     assert.ok(frame.y0 < frame.y1);
     assert.equal(unitFrames(pattern, layout, false), frames);
 
-    const c2c = generateFromState(emptyPattern(), { ...defaultState('c2c'), draft: [[0, 1, 0], [1, 0, 1]], manualUnit: { x: 0, y: 0, width: 2, height: 1 } });
+    // C2C-ben ma csak az 1 × 1 és a 2 × 1 alakzat épül fel (PQW-926).
+    const c2c = generateFromState(emptyPattern(), { ...defaultState('c2c'), draft: [[0, 1]], manualUnit: { x: 0, y: 0, width: 2, height: 1 } });
     assert.ok(c2c.ok, c2c.reason);
     const tiles = unitFrames(c2c.pattern, layoutPattern(c2c.pattern, libraryFor(c2c.pattern)), false);
     assert.equal(tiles.length, 2);

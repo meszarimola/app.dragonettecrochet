@@ -11,11 +11,10 @@ st(s) – stitch(es)
 Stitch key (US terms)
 chain (ch)
 single crochet (sc)
-increase (inc): 2 dc in same st
 shell (sh): 5 dc in same st
 increase (inc): 3 dc in same st
 
 Kagylóminta
 Row 1 – foundation: ch 20.
 Row 2: skip 1 ch, sc, [sk 2 ch, sh, sk 2 ch, sc] 3 times (19 sts). Turn.
-Row 3: ch 3 (counts as 1 dc), 2 dc in same st, sk 2 sts, sc, [sk 2 sts, sh, sk 2 sts, sc] 2 times, sk 2 sts, 3 dc in next st (19 sts). Fasten off.
+Row 3: ch 3 (turning chain), 3 dc in next st, sk 2 sts, sc, [sk 2 sts, sh, sk 2 sts, sc] 2 times, sk 2 sts, 3 dc in next st (19 sts). Fasten off.
