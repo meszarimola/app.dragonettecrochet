@@ -140,7 +140,7 @@ export const RULES = {
     severity: 'error',
     reference: '03 §10 A2, 03 §1.2',
     summary:
-      'Rossz láncalap: az 1. sor első szeme nem a fordulólánc után következő láncszembe megy; számító fordulóláncnál az alatta álló alapláncszem utánira, és az alapláncszembe nem horgolunk (PQW-891).',
+      'Rossz láncalap: az 1. sor első szeme nem a kihagyott láncszemek után következő láncszembe megy; a kihagyott láncszemekbe nem horgolunk. Hogy hány láncszem marad ki, az a szem magasságától és a hagyománytól függ (PQW-924).',
     message: 'Az 1. sor első szeme nem a megfelelő láncszembe került.',
   },
   'turning-chain-height': {

@@ -56,7 +56,7 @@ test('az írott minta a jóváhagyott kifejezésekkel: szem, szemszám', () => {
   assert.equal(hu.skip(2, 'stitch'), '2 szem kihagyása');
   assert.equal(hu.phrases['next-stitch'], 'a következő szembe');
   assert.equal(hu.phrases['same-stitch'], 'ugyanabba a szembe');
-  assert.equal(hu.turningChainNotCounted, 'nem számít szemnek');
+  assert.equal(hu.turningChainNotCounted, 'fordulólánc');
 });
 
 test('a kidolgozott példák magyar írott mintájában és jelmagyarázatában nincs „öltés”', () => {

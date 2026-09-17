@@ -23,7 +23,7 @@ import { MAX_CARRIED_COLORS } from './pixel-chart.ts';
 import { roundFindings } from './rounds.ts';
 import { RULES, type RuleId } from './rules.ts';
 import type { StitchLibrary } from './stitch-library.ts';
-import { hasBaseChain, traditionOf } from './tradition.ts';
+import { skippedChains } from './tradition.ts';
 import type { Anchor, Finding, NodeId, Pattern, Piece, PieceId, StitchNode } from './types.ts';
 
 export function validatePattern(pattern: Pattern, library: StitchLibrary): Finding[] {
@@ -223,6 +223,7 @@ function checkLayer(
   const positionIndex = new Map(basePositions.map((id, i) => [id, i]));
   const toWorking = (i: number) => (layer.direction === 1 ? i : length - 1 - i);
   const belowTurning = new Set(below.turningChain);
+  // Körben a kezdőlánc teteje célpont marad (oda megy a záró kúszószem); sorban a fordulólánc nem az.
   const turningTop = below.turningChainCounts ? below.turningChain[below.turningChain.length - 1] : undefined;
   const kind = (id: NodeId) => graph.defs.get(id)!.kind;
 
@@ -250,7 +251,9 @@ function checkLayer(
             : [graph.rings.get(anchor.id)!.node];
       const targetLayer = graph.layerOf.get(targets[0]!) ?? -1;
 
-      if (anchor.into === 'stitch' && belowTurning.has(anchor.id) && anchor.id !== turningTop) {
+      // Sorban a fordulóláncba nem horgolunk, mert nem szem (PQW-924): a teteje sem célpont.
+      const intoTurning = belowTurning.has(anchor.id) && (below.shape === 'row' || anchor.id !== turningTop);
+      if (anchor.into === 'stitch' && intoTurning) {
         report('turning-chain-placement', [id, anchor.id]);
         layerInvalid = true;
         return;
@@ -299,10 +302,12 @@ function checkLayer(
 
   const walkStart = findingCount();
   const skipped = new Set(graph.piece.skipped);
-  // Ha a sor fordulólánca számít, az alatta lévő szem (a sor első pozíciója) kimaradhat (03 §1.3). Japán
-  // hagyományban az 1. sorban is: ott a fordulólánc alatti alapláncszem (01 §8.3 szabály 15).
-  const baseChain = index === 1 && below.shape === 'row' && hasBaseChain(layer.turningChainCounts, traditionOf(pattern.conventions));
-  const optional = (index >= 2 || baseChain) && layer.turningChainCounts ? 0 : -1;
+  /*
+   * Sorban a fordulólánc nem szem (PQW-924), ezért nincs olyan pozíció, amely
+   * miatta kimaradhatna: az alatta lévő sor minden szemébe kell egy szem.
+   * Körben a kezdőlánc alatti szem továbbra is kimaradhat (03 §1.3).
+   */
+  const optional = layer.shape === 'round' && index >= 2 && layer.turningChainCounts ? 0 : -1;
   const positionAt = (w: number) => basePositions[layer.direction === 1 ? w : length - 1 - w]!;
   const gap = (from: number, to: number) => {
     let count = 0;
@@ -407,26 +412,25 @@ function checkLayer(
     }
   }
 
-  // Számító fordulólánc: a következő sor utolsó szeme a tetejébe megy (03 §10 A4), hacsak a sor
-  // vége szándékosan meghagyott szemekkel nem fogy (lépcsős él, 05 §4.4, PQW-862).
-  const topWorking = turningTop !== undefined && layer.direction === -1 && below.shape === 'row' ? length - 1 : -1;
-  if (topWorking >= 0 && !covered[topWorking] && !skipped.has(turningTop!) && !elsewhere.has(turningTop!)) {
-    report('turning-chain-placement', [previous!.node.id, turningTop!]);
-  }
+  /*
+   * A fordulólánc tetejébe nem megy szem (PQW-924). Korábban itt azt vártuk el,
+   * hogy a sor utolsó szeme oda kerüljön — ez a fogalom megszűnt, a sor az
+   * alatta lévő sor minden szemébe horgol egyet.
+   */
 
   // Felhasználatlan pozíciók a sor két szélén; a sor belsejét az ugrás szabálya nézi (03 §10 B8, C15).
   const first = entries[0]!.min;
   // Megosztott soron a szakasz fordulólánca a saját első pozícióján ül, nem a sor elején (PQW-901).
   const seat = shared && layer.turningChainCounts ? first - 1 : -1;
   for (let w = 0; w < length; w += 1) {
-    if (covered[w] || (w > first && w < frontier) || w === optional || w === topWorking || w === seat) continue;
+    if (covered[w] || (w > first && w < frontier) || w === optional || w === seat) continue;
     if (!skipped.has(positionAt(w)) && !elsewhere.has(positionAt(w))) report('unused-position', [positionAt(w)]);
   }
 
   const repeat = pattern.conventions.repeat;
   if (repeat && layer.shape === 'row' && findingCount() === walkStart) {
-    // A japán alapláncszem már a láncalap pozíciója, ezért ott nem adódik hozzá.
-    const consumed = length + (index === 1 && layer.turningChainCounts && !baseChain ? 1 : 0);
+    // A fordulólánc nem pozíció (PQW-924): a sor annyi helyet használ, ahány szeme van.
+    const consumed = length;
     if (consumed !== layer.positionCount) report('repeat-balance', layer.stitches);
   }
 }
@@ -470,12 +474,18 @@ function checkCountsAndChains(graph: PieceGraph, index: number, report: Report):
     const onChain = index === 1 && below.shape === 'row' && below.stitches.length > 0 && kind(below.stitches[0]!) === 'chain';
     if (onChain) {
       /*
-       * Az „alapláncszem” fogalma megszűnt (PQW-924): a kihagyott láncszemek
-       * után következő láncszembe megy az 1. sor első szeme, külön kihagyott
-       * alapláncszem nélkül. A szerkesztő és az ellenőrző ugyanazt a szabályt
-       * használja, ezért itt már csak a fordulólánc hosszát nézzük.
+       * A láncalapon a kihagyott láncszemek száma a döntő (PQW-924): rövidpálca
+       * és félpálca 2, egyráhajtásos pálca 3, kétráhajtásos 4, háromráhajtásos
+       * 5. A szerkesztő, a generátorok és az ellenőrző ugyanabból a
+       * függvényből dolgozik, ezért nem tudnak elcsúszni egymástól.
+       *
+       * A mérce a sor első szeme előtt álló láncszemek száma — akár fordulólánc,
+       * akár láncív. A C2C csempéjének nyitó három láncszeme `ch-3 space`
+       * (03 §5.5), nem fordulólánc, de ugyanúgy kihagyott láncszem.
        */
-      if (layer.turningChain.length !== expected) report('foundation-chain', [...layer.turningChain, firstStitch]);
+      const skipped = skippedChains(expected, layer.turningChainCounts);
+      const leading = layer.stitches.slice(0, layer.stitches.indexOf(firstStitch)).filter((id) => kind(id) === 'chain');
+      if (leading.length !== skipped) report('foundation-chain', [...leading, firstStitch]);
     } else {
       const startsWithChain =
         layer.opening?.kind === 'turn' || layer.opening?.kind === 'join-slip' || (index === 1 && below.shape === 'round');

@@ -65,6 +65,12 @@ export interface Vocabulary {
   readonly fromHook: (chain: number, note: string | null) => string;
   /** A PQW-895 előtti megjegyzés a kihagyott láncszemekről: „1 erp-nek számítanak”; csak visszaolvasáshoz. */
   readonly skippedChainsCount: (def: StitchDef, locale: Locale) => string;
+  /**
+   * A korábbi szabály szerint készült szöveg elutasítása (PQW-924). A
+   * fordulólánc már nem számít szemnek, ezért az ilyen sort nem értelmezzük át
+   * csendben: megmondjuk, mi a baj, és mit tehet a horgoló.
+   */
+  readonly legacyTurningChain: string;
   readonly count: (n: number) => string;
   readonly chain: (n: number) => string;
   readonly skip: (n: number, what: 'stitch' | 'chain' | 'space') => string;
@@ -155,11 +161,19 @@ const HU: Vocabulary = {
   otherSide: 'a láncszemek másik oldalán vissza:',
   fromHook: (chain, note) => `a horogtól számított ${chain}. láncszemtől kezdve${note ? ` (${note})` : ''} `,
   skippedChainsCount: (def, locale) => `a kihagyott láncszemek 1 ${huDative(def, locale)} számítanak`,
+  legacyTurningChain:
+    'Ez a sor a korábbi szabály szerint készült: a sor eleji láncszemeket szemnek számolja, amit ez a verzió már nem ismer. Írd át a sort a mai alakra („hagyj ki 2 láncszemet, majd …”), vagy generáld újra a mintát.',
   count: (n) => `(${n} szem)`,
   chain: (n) => `${n} lsz`,
   skip: (n, what) => `${n} ${what === 'stitch' ? 'szem' : what === 'chain' ? 'láncszem' : 'láncív'} kihagyása`,
   turningChain: (n, note) => `${n} lsz (${note})`,
-  turningChainNotCounted: 'nem számít szemnek',
+  /*
+   * A sort kezdő láncszemek megnevezése (PQW-924). Korábban „nem számít
+   * szemnek” állt itt, ami a megszűnt fogalmat tagadta; a semleges megnevezés
+   * ugyanúgy megkülönbözteti a sor eleji láncszemeket, de nem állít semmit
+   * arról, hogy szemnek számítanának.
+   */
+  turningChainNotCounted: 'fordulólánc',
   turningChainCounts: (def, locale) => `1 ${huDative(def, locale)} számít`,
   repeat: (inner, n) => `[${inner}] ${times(n)}`,
   quantity: (count, ref) => `${count} ${ref}`,
@@ -272,12 +286,14 @@ function english(skipWord: string, skipVerb: string, skipMeaning: string, system
     otherSide: 'working back along the other side of the chain:',
     fromHook: (chain, note) => `Starting in ${ordinal(chain)} ch from hook${note ? ` (${note})` : ''}, `,
     skippedChainsCount: (def, locale) => `skipped ch count as 1 ${refOf(def, locale)}`,
+    legacyTurningChain:
+      'This row was written under the earlier rule, where the chains at the start of a row counted as a stitch; this version no longer reads that. Rewrite the row in the current form ("skip 2 ch, …"), or generate the pattern again.',
     count: (n) => `(${n} ${n === 1 ? 'st' : 'sts'})`,
     chain: (n) => `ch ${n}`,
     skip: (n, what) =>
       `${skipWord} ${n} ${what === 'stitch' ? (n === 1 ? 'st' : 'sts') : what === 'chain' ? 'ch' : n === 1 ? 'ch-sp' : 'ch-sps'}`,
     turningChain: (n, note) => `ch ${n} (${note})`,
-    turningChainNotCounted: 'does not count as a st',
+    turningChainNotCounted: 'turning chain',
     turningChainCounts: (def, locale) => `counts as 1 ${refOf(def, locale)}`,
     repeat: (inner, n) => `[${inner}] ${n} times`,
     quantity: (count, ref) => (count === 1 ? ref : `${count} ${ref}`),

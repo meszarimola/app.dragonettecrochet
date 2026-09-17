@@ -44,7 +44,7 @@ import {
 } from './ribbing.ts';
 import { MOTIF_NAMES } from './round-generator.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
-import { hasBaseChain, traditionOf, turningChainCountsFor } from './tradition.ts';
+import { skippedChains, traditionOf, turningChainCountsFor } from './tradition.ts';
 import type {
   Anchor,
   LayerEvent,
@@ -612,18 +612,16 @@ function buildRows(
   const def = resolveStitch(stitch)!;
   const tradition = traditionOf(pattern.conventions);
   const counting = turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition, 'row');
-  const baseChain = hasBaseChain(counting, tradition);
   const rows = counts.length;
 
-  // Láncalap: az 1. sor láncszemei, számító fordulóláncnál az alapláncszem, és az 1. sor fordulólánca (03 §1.2, PQW-891).
-  const worked = counts[0]! - (counting ? 1 : 0) + (baseChain ? 1 : 0);
-  const foundation = writer.chains(worked + def.turningChain);
+  // Láncalap: a sor szemei és a kihagyott láncszemek; minden láncszembe egy szem megy (03 §1.2, PQW-924).
+  const worked = counts[0]!;
+  const foundation = writer.chains(worked + skippedChains(def.turningChain, counting));
   let below = foundation.slice(0, worked);
-  let turningTop = foundation[foundation.length - 1]!;
 
   /*
    * A bordázat az alsó szegély sorain (PQW-913): az 1. sor sima marad, mert a láncalap köré nem lehet relief
-   * szemet horgolni. A bordás sor fordulólánca rövidebb és nem számít szemnek, ezért nincs ülő pozíciója; a
+   * szemet horgolni. A bordás sor fordulólánca rövidebb, és sorban a fordulóláncnak nincs ülő pozíciója (PQW-924); a
    * relief mód a célpont oszlopát követi, így a bordák felfelé végigfutnak.
    */
   const ribUntil = ribbing === null ? 0 : Math.min(rows, 1 + ribbing.rows);
@@ -634,7 +632,7 @@ function buildRows(
       const opening = writer.events[writer.events.length - 1];
       if (opening) writer.events[writer.events.length - 1] = ribbedOpening(opening);
       writer.chains(ribbedTurningChain(def));
-    } else if (k > 0) turningTop = writer.chains(def.turningChain).at(-1)!;
+    } else if (k > 0) writer.chains(def.turningChain);
     const shaping = shapingRows[k]!;
     // A sok szemes szaporítás a sor elején az előző sor láncos hosszabbítása: ebben a sorban már sima.
     const own = { start: shaping.start > MAX_EDGE_CHANGE ? 0 : shaping.start, end: shaping.end };
@@ -644,14 +642,19 @@ function buildRows(
       ribbed && ribbing !== null
         ? (w: number) => {
             const target = working[w]!;
-            // Láncszem köré sima szem megy: a számító fordulólánc teteje és a láncos hosszabbítás ilyen.
+            // Láncszem köré sima szem megy: a láncos hosszabbítás ilyen.
             return writer.chainIds.has(target) ? ('both-loops' as const) : ribbingColumnMode(column.get(target) ?? 0, ribbing.width);
           }
         : undefined;
-    const made = writer.row(def, working, ribbed ? false : k === 0 ? baseChain : counting, own, k + 1, mode);
+    /*
+     * Sorban nincs „ülőhely” a fordulóláncnak (PQW-924): az alatta lévő sor
+     * minden szemébe kerül egy szem, a fordulólánc csak magasságot ad.
+     */
+    const made = writer.row(def, working, false, own, k + 1, mode);
     if (!Array.isArray(made)) return made;
     if (ribbed) made.forEach((node, i) => column.set(node, column.get(working[i]!) ?? 0));
-    below = [...(!ribbed && counting ? [turningTop] : []), ...made];
+    // A fordulólánc teteje nem célpont: a következő sor az előző sor szemeibe horgol (PQW-924).
+    below = [...made];
     const next = shapingRows[k + 1];
     if (next && next.start > MAX_EDGE_CHANGE) below.push(...writer.extension(next.start));
     writer.event(k < rows - 1 ? 'turn' : 'fasten-off');
@@ -764,7 +767,6 @@ export function plannedSections(
   const def = resolveStitch(stitch)!;
   const tradition = traditionOf(base.conventions);
   const counting = turningChainCountsFor(base.conventions.turningChainCounts, def, tradition, 'row');
-  const baseChain = hasBaseChain(counting, tradition);
 
   // Rétegenként a pozíciók a fonal sorrendjében; a 0. a láncalap.
   const positions: NodeId[][] = [];
@@ -774,19 +776,16 @@ export function plannedSections(
 
   for (const [s, section] of sections.entries()) {
     let below: NodeId[];
-    let turningTop: NodeId;
     if (s === 0) {
-      // Láncalap: az 1. sor láncszemei, számító fordulóláncnál az alapláncszem, és az 1. sor fordulólánca (03 §1.2, PQW-891).
-      const worked = section.counts[0]! - (counting ? 1 : 0) + (baseChain ? 1 : 0);
-      const foundation = writer.chains(worked + def.turningChain);
+      // Láncalap: a sor szemei és a kihagyott láncszemek (03 §1.2, PQW-924).
+      const worked = section.counts[0]!;
+      const foundation = writer.chains(worked + skippedChains(def.turningChain, counting));
       positions[0] = foundation.slice(0, worked);
       below = [...positions[0]!];
-      turningTop = foundation[foundation.length - 1]!;
     } else {
       const over = section.over ?? 0;
       if (over < 1 || over > layer || positions[over] === undefined) return broken;
       below = [...positions[over]!];
-      turningTop = '';
     }
     for (let k = 0; k < section.counts.length; k += 1) {
       // A bordázat a darab alján van: csak az első szakasz 2. sorától, mert a láncalap köré nem megy relief szem.
@@ -795,7 +794,7 @@ export function plannedSections(
         const opening = writer.events[writer.events.length - 1];
         if (opening) writer.events[writer.events.length - 1] = ribbedOpening(opening);
         writer.chains(ribbedTurningChain(def));
-      } else if (s > 0 || k > 0) turningTop = writer.chains(def.turningChain).at(-1)!;
+      } else if (s > 0 || k > 0) writer.chains(def.turningChain);
       // A szakasz első sora az alatta lévő sor egy szakaszán dolgozik; a többi sora a saját előző során.
       const from = k === 0 ? Math.max(0, section.from ?? 0) : 0;
       const span = k === 0 ? section.span : undefined;
@@ -808,10 +807,12 @@ export function plannedSections(
               return writer.chainIds.has(target) ? ('both-loops' as const) : ribbingColumnMode(ribColumn.get(target) ?? 0, ribbing.width);
             }
           : undefined;
-      const made = writer.row(def, working, ribbed ? false : s === 0 && k === 0 ? baseChain : counting, section.shaping[k]!, layer + 1, mode);
+      // Sorban nincs „ülőhely” a fordulóláncnak (PQW-924).
+      const made = writer.row(def, working, false, section.shaping[k]!, layer + 1, mode);
       if (!Array.isArray(made)) return made;
       if (ribbed) made.forEach((node, i) => ribColumn.set(node, ribColumn.get(working[i]!) ?? 0));
-      below = [...(!ribbed && counting ? [turningTop] : []), ...made];
+      // A fordulólánc teteje nem célpont: a következő sor az előző sor szemeibe horgol (PQW-924).
+    below = [...made];
       layer += 1;
       positions[layer] = below;
       if (k < section.counts.length - 1) {

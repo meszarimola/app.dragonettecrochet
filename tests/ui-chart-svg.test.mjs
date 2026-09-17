@@ -61,7 +61,7 @@ test('a téglalap SVG-je: sorszámok, szemszámok, mindkét oldal színe, jelmag
 test('a jelmagyarázat a csoportot mutatja, nem a tagjait', () => {
   const { pattern } = shellStitch({ repeats: 2 });
   const ids = legendStitches(pattern, libraryFor(pattern)).map((def) => def.id);
-  assert.deepEqual(ids, ['ch', 'sc', 'shell-5dc', 'inc-2dc', 'inc-3dc']);
+  assert.deepEqual(ids, ['ch', 'sc', 'shell-5dc', 'inc-3dc']);
   assert.match(render(pattern), /kagyló: 5 erp egy szembe/);
 });
 

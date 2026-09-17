@@ -57,7 +57,7 @@ describe('bordás szegély sík darabon', () => {
     assert.equal(last.stitchCount, before.stitchCount);
   });
 
-  test('a relief sor fordulólánca nem számít szemnek, és egy láncszemmel rövidebb', () => {
+  test('a relief sor fordulólánca fordulólánc, és egy láncszemmel rövidebb', () => {
     const pattern = flat();
     const graph = buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));
     const ribbed = graph.layers[graph.layers.length - 1];

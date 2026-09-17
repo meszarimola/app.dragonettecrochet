@@ -59,11 +59,11 @@ test('a téglalap csak cellákra kattintva készül; ahol nincs mibe horgolni, �
   await page.locator('#board').click();
   await fit.click();
 
-  // 1. sor: rövidpálcák a láncalap celláiba; a horogtól az 1. láncszem a fordulólánc, a 2. az alapláncszeme,
-  // a fordulólánc az 1. rövidpálca helyett áll (PQW-891): 4 rp és a fordulólánc.
+  // 1. sor: rövidpálcák a láncalap celláiba; rövidpálcánál 2 láncszemet hagyunk ki (PQW-924), a többibe
+  // egy-egy rövidpálca megy: 6 láncszemből 4 szem.
   await palette.getByRole('button', { name: /Rövidpálca \(rp\)/ }).first().click();
   for (const slot of [2, 3, 4, 5]) await clickSlot(page, slot, 'alsó');
-  await expect(summary).toContainText('2. sor: 5 szem');
+  await expect(summary).toContainText('2. sor: 4 szem');
 
   await page.getByRole('button', { name: 'Sor vége, fordulás' }).click();
   await fit.click();
@@ -77,9 +77,9 @@ test('a téglalap csak cellákra kattintva készül; ahol nincs mibe horgolni, �
   await expect(status).toHaveText(/^Ez az 1\. sor egyik helye\. Most a 3\. sor készül: .*Nem került le szem\.$/);
   await expect(summary).toContainText('3. sor következik.');
 
-  // 2. sor: a készülő sor celláiba, a célpontok fölé kattintva; a fordulólánc alatti szem (0.) kimarad.
-  for (const slot of [1, 2, 3, 4]) await clickSlot(page, slot, 'készülő');
-  await expect(summary).toContainText('3. sor: 5 szem');
+  // 2. sor: a készülő sor celláiba, a célpontok fölé kattintva; minden szembe kerül egy (PQW-924).
+  for (const slot of [0, 1, 2, 3]) await clickSlot(page, slot, 'készülő');
+  await expect(summary).toContainText('3. sor: 4 szem');
   await expect(summary).toContainText('Nincs hiba és figyelmeztetés.');
 
   // A sorszám önálló, kattintható célterület: a teljes sort jelöli ki (PQW-875).
@@ -87,8 +87,8 @@ test('a téglalap csak cellákra kattintva készül; ahol nincs mibe horgolni, �
   const label = (await racs(page)).labels.find((candidate) => candidate.layer === 1);
   expect(label).toBeTruthy();
   await page.mouse.click(label!.x, label!.y);
-  await expect(status).toHaveText('2. sor kijelölve: 5 szem.');
-  await expect(summary).toContainText('3. sor: 5 szem');
+  await expect(status).toHaveText('2. sor kijelölve: 4 szem.');
+  await expect(summary).toContainText('3. sor: 4 szem');
 });
 
 test('a rács a nézet csoportban ki- és bekapcsolható, megmarad, és választhatóan kerül az SVG-exportba', async ({ page }) => {
@@ -105,7 +105,7 @@ test('a rács a nézet csoportban ki- és bekapcsolható, megmarad, és választ
   await page.keyboard.press('Enter');
   await page.keyboard.press('Alt+3');
   for (let i = 0; i < 5; i += 1) await page.keyboard.press('Enter');
-  await expect(page.locator('#summary')).toContainText('2. sor: 5 szem');
+  await expect(page.locator('#summary')).toContainText('2. sor: 4 szem');
   expect((await racs(page)).cells.length).toBeGreaterThan(0);
 
   await grid.click();

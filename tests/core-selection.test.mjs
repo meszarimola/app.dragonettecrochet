@@ -62,17 +62,18 @@ const byId = (pattern, id) => nodes(pattern).find((node) => node.id === id);
  * a fordulólánc számít első szemnek, így soronként `width` − 1 szemet horgolunk.
  */
 function hdcRectangle(width, rows) {
+  // Félpálcánál 2 láncszemet hagyunk ki, és minden láncszembe egy szem megy (PQW-924).
   let pattern = chains(emptyPattern(), width + 2);
   for (let row = 1; row <= rows; row += 1) {
     if (row > 1) pattern = ok(endRow(pattern, 'hdc'));
-    for (let i = 0; i < width - 1; i += 1) pattern = stitch(pattern, 'hdc');
+    for (let i = 0; i < width; i += 1) pattern = stitch(pattern, 'hdc');
   }
   return pattern;
 }
 
 /**
  * 14 láncszemes láncalap a kagylóminta forrásának szabályával (03 §4.2 E): a
- * rövidpálcás fordulólánc nem számít szemnek, az 1. sor első rövidpálcája a
+ * rövidpálcás fordulólánc fordulólánc, az 1. sor első rövidpálcája a
  * 2. láncszembe megy (mint a `shellStitch` mintapéldában, PQW-891).
  */
 function shellFoundation() {
@@ -95,8 +96,10 @@ function shellRows() {
     pattern = stitch(pattern, 'shell-5dc', at);
     pattern = stitch(pattern, 'sc', at + 3);
   }
-  pattern = turnCounting(ok(endRow(pattern, 'dc')));
+  pattern = ok(endRow(pattern, 'dc'));
+  // A fordulólánc nem szem (PQW-924): a szaporítás adja mind a három pálcát.
   pattern = stitch(pattern, 'dc', 0);
+  pattern = ok(workIntoSame(pattern, 'dc'));
   pattern = ok(workIntoSame(pattern, 'dc'));
   pattern = stitch(pattern, 'sc', 3);
   pattern = stitch(pattern, 'shell-5dc', 6);
@@ -131,7 +134,7 @@ describe('kijelölés', () => {
   test('a sorszámmal a teljes sor a fordulólánccal, Ctrl+A-val minden szem', () => {
     const pattern = hdcRectangle(3, 2);
     const row2 = layerSelection(pattern, 2);
-    assert.equal(row2.length, 4, 'a 3 szemes sor: 2 láncszemes fordulólánc (az 1. szem) és 2 félpálca');
+    assert.equal(row2.length, 5, 'a 3 szemes sor: a 2 láncszemes fordulólánc (nem szem) és 3 félpálca');
     assert.deepEqual(row2.slice(0, 2).map((id) => byId(pattern, id).def), ['ch', 'ch']);
     assert.equal(selectAll(pattern).length, nodes(pattern).length);
     assert.deepEqual(layerSelection(pattern, 9), []);
@@ -245,8 +248,8 @@ describe('másolás, beillesztés, duplikálás', () => {
     const pattern = hdcRectangle(10, 2);
     const fragment = copied(copySelection(pattern, layerSelection(pattern, 2)));
     assert.equal(fragment.startsLayer, true);
-    // A számító fordulólánc alatti szem kimarad: a 10 szemes sor 9 célpontra épül a kezdőhelytől.
-    assert.equal(fragment.span, 9);
+    // A fordulólánc nem foglal helyet (PQW-924): a 10 szemes sor 10 célpontra épül.
+    assert.equal(fragment.span, 10);
     const pasted = ok(pasteFragment(pattern, fragment));
     assert.deepEqual(counts(pasted), [0, 10, 10, 10]);
     assert.deepEqual(findings(pasted), []);
@@ -262,7 +265,7 @@ describe('másolás, beillesztés, duplikálás', () => {
   test('a meglévő fordulóláncot felhasználja, nem horgol kétszer fordulóláncot', () => {
     const pattern = ok(endRow(hdcRectangle(6, 2), 'hdc'));
     const pasted = ok(pasteFragment(pattern, copied(copySelection(pattern, layerSelection(pattern, 2)))));
-    assert.equal(nodes(pasted).length, nodes(pattern).length + 5, 'a fordulólánc az 1. szem: 5 új félpálca');
+    assert.equal(nodes(pasted).length, nodes(pattern).length + 6, 'a fordulólánc nem szem: 6 új félpálca');
     assert.deepEqual(counts(pasted), [0, 6, 6, 6]);
     assert.deepEqual(findings(pasted), []);
   });
@@ -285,7 +288,7 @@ describe('másolás, beillesztés, duplikálás', () => {
     // A 3. sor ugyanúgy épül, mint az 1.: rövidpálca, kagyló, rövidpálca, kagyló, rövidpálca.
     assert.deepEqual(
       pattern.pieces[0].groups.map((group) => group.def),
-      ['shell-5dc', 'shell-5dc', 'inc-2dc', 'shell-5dc', 'inc-3dc', 'shell-5dc', 'shell-5dc', 'inc-2dc', 'shell-5dc', 'inc-3dc'],
+      ['shell-5dc', 'shell-5dc', 'inc-3dc', 'shell-5dc', 'inc-3dc', 'shell-5dc', 'shell-5dc', 'inc-3dc', 'shell-5dc', 'inc-3dc'],
     );
   });
 

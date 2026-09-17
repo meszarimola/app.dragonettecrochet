@@ -140,6 +140,8 @@ export const GRID_CORE_TEXTS: CoreDictionary<GridCoreCode> = {
 
     /* ---- C2C és színes rácsok ---- */
     'c2c-turning-chain': 'A C2C-csempe 3 láncszeme az első pálca helyett áll: a mintában a pálca fordulóláncának szemnek kell számítania.',
+    'c2c-repeated-increase':
+      'Ez a C2C-alakzat egyelőre nem készíthető el: a program a csempék láncívét még nem tudja minden alakzatban helyesen felépíteni. Ma az 1 × 1 és a 2 × 1 méret működik.',
     'colorwork-min-width': 'Ha a fordulólánc szemnek számít, a sor legalább 2 cella legyen.',
   },
   en: {
@@ -192,6 +194,8 @@ export const GRID_CORE_TEXTS: CoreDictionary<GridCoreCode> = {
 
     'c2c-turning-chain':
       'The 3 chains of a C2C tile stand in place of the first double crochet: in the pattern the turning chain of the double crochet has to count as a stitch.',
+    'c2c-repeated-increase':
+      'This C2C shape cannot be made yet: the program cannot build the chain space of the tiles correctly in every shape. For now 1 × 1 and 2 × 1 work.',
     'colorwork-min-width': 'If the turning chain counts as a stitch, a row must be at least 2 cells.',
   },
 };

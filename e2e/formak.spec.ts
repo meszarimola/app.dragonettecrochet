@@ -40,7 +40,7 @@ test('20 × 30 cm-es félpálcás téglalap profil nélkül: becsült tényleges
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
   const text = await writtenText(page);
   // A 2 láncszemes fordulólánc az 1. félpálca helyett áll, alapláncszemen (PQW-891).
-  expect(text).toMatch(/2\. sor: hagyj ki 3 láncszemet, majd minden láncszembe 1 fp \(\d+ szem\)\. Fordítás\./);
+  expect(text).toMatch(/2\. sor: hagyj ki 2 láncszemet, majd minden láncszembe 1 fp \(\d+ szem\)\. Fordítás\./);
 
   await page.keyboard.press('ControlOrMeta+Z');
   await expect(page.locator('#status')).toContainText('Visszavonva.');
@@ -62,6 +62,6 @@ test('egyenlő szárú háromszög az él szögéből: hibátlan, az írott mint
   await expect(page.locator('#status')).toContainText('Egyenlő szárú háromszög,');
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
   // Az alapszem a félpálca: az élek félpálcák összehorgolásával fogynak.
-  expect(await writtenText(page)).toMatch(/\d\. sor: 2 lsz \(1 fp-nek számít\), [23] fp összehorgolása, \d+ fp, [23] fp összehorgolása \(\d+ szem\)\./);
+  expect(await writtenText(page)).toMatch(/\d\. sor: 2 lsz \(fordulólánc\), [23] fp összehorgolása, \d+ fp, [23] fp összehorgolása \(\d+ szem\)\./);
 
 });

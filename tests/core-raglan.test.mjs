@@ -306,8 +306,8 @@ describe('bordás szegély és mandzsetta a raglánon (PQW-913)', () => {
     const ribbed = text.split('\n').filter((line) => /^\d+([–-]\d+)?\. kör:/.test(line) && /Eerp|Herp/.test(line));
     // A törzs alsó szegélye és az ujjak mandzsettája: legalább három bordás körsor.
     assert.ok(ribbed.length >= 3, ribbed.join('\n'));
-    // A bordás kör fordulólánca nem számít szemnek, és a bordázat ismétlésként áll.
-    assert.ok(ribbed.every((line) => line.includes('nem számít szemnek')), ribbed.join('\n'));
+    // A bordás kör fordulólánca fordulólánc, és a bordázat ismétlésként áll.
+    assert.ok(ribbed.every((line) => line.includes('fordulólánc')), ribbed.join('\n'));
     assert.ok(
       ribbed.some((line) => /\(1 (Eerp|Herp), 1 (Eerp|Herp)\) ×\d+/.test(line)),
       ribbed.join('\n'),

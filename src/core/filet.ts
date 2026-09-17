@@ -163,8 +163,11 @@ export function planFilet(pattern: Pattern, cells: ChartRows): FiletPlanResult {
   }
 
   const first = rows[0]!;
-  // Számító fordulóláncnál a nyitott első cella 2 láncszeme a láncalap folytatása (03 §5.2).
-  const merged = counting && first.start === 'open';
+  /*
+   * A sor első oszlopa valódi szem (PQW-924), ezért a nyitott első cella két
+   * láncszeme a sorhoz tartozik, nem a láncalap folytatása — a korábbi
+   * „összevont” kezdés fogalma megszűnt.
+   */
   const gauge = shapeGauge(pattern, FILET_STITCH);
   const widest = Math.max(...rows.map((row) => row.cells.length));
   return {
@@ -172,8 +175,8 @@ export function planFilet(pattern: Pattern, cells: ChartRows): FiletPlanResult {
     plan: {
       rows,
       foundation: {
-        chains: foundationChainLength(first.positions, def.turningChain, counting, tradition) + (merged ? 2 : 0),
-        fromHook: firstChainFromHook(def.turningChain, counting, tradition) + (merged ? 4 : 0),
+        chains: foundationChainLength(first.positions, def.turningChain, counting, tradition),
+        fromHook: firstChainFromHook(def.turningChain, counting, tradition),
       },
       turningChain: def.turningChain,
       turningChainCounts: counting,
@@ -200,21 +203,18 @@ function buildFilet(pattern: Pattern, plan: FiletPlan): GridWriter {
     const working = [...below].reverse();
     // Sor eleji fogyasztás: kúszószemek a cellák fölött; számító fordulóláncnál az oszlopba is, arra áll a fordulólánc.
     const seat = 3 * row.removed;
-    for (let w = 0; w < seat + (counting && row.removed > 0 ? 1 : 0); w += 1) writer.add('sl-st', [intoStitch(working[w]!)]);
+    // A fordulólánc nem ül oszlopon (PQW-924): csak a cellák fölött megy kúszószem.
+    for (let w = 0; w < seat; w += 1) writer.add('sl-st', [intoStitch(working[w]!)]);
     // Az első cella kitöltő pozíciója: az 1. sorban a láncalapon a fordulólánc után.
     const start = k === 0 ? worked - 3 * row.cells.length : seat + 1;
-    const turning = writer.chains(turningChain);
-    const produced: NodeId[] = [counting ? turning[turning.length - 1]! : writer.add(FILET_STITCH, [intoStitch(working[seat]!)])];
+    writer.chains(turningChain);
+    // Az első cella kitöltő szeme mindig valódi szem: a fordulólánc nem szem (PQW-924).
+    const produced: NodeId[] = [writer.add(FILET_STITCH, [intoStitch(working[seat]!)])];
     const regular = row.cells.length - row.extended;
     row.cells.forEach((cell, c) => {
       const base = start + 3 * c;
-      if (c >= regular) {
-        // Sor végi szaporítás: 2 lsz és háromráhajtásos pálca az előző sor fordulólánca alatti szembe (PQW-894).
-        const beneath = history[k - 1]!;
-        produced.push(...writer.space(2).chains);
-        produced.push(writer.add('dtr', [intoStitch(beneath[beneath.length - 1]!)], 0, ['spike']));
-        return;
-      }
+      // A sor végi szélesítés láncát a ciklus után, egyben rakjuk le.
+      if (c >= regular) return;
       if (cell === FILLED) {
         produced.push(writer.add(FILET_STITCH, [intoStitch(working[base]!)]), writer.add(FILET_STITCH, [intoStitch(working[base + 1]!)]));
       } else {
@@ -225,8 +225,14 @@ function buildFilet(pattern: Pattern, plan: FiletPlan): GridWriter {
     });
     // A sor végén meghagyott cellák (03 §10 F30).
     if (row.extended === 0) writer.skipped.push(...working.slice(start + 3 * row.cells.length));
+    /*
+     * A sor végi lánc: a saját szélesítés (03 §5.2, „Filet edge shaping”) és a
+     * következő sor eleji hosszabbítása egyetlen láncívbe kerül — külön
+     * láncívekként a kiírás nem tudná egy futamként olvasni őket.
+     */
     const next = plan.rows[k + 1];
-    if (next && next.added > 0) produced.push(...writer.space(3 * next.added).chains);
+    const tail = 3 * (row.extended + (next?.added ?? 0));
+    if (tail > 0) produced.push(...writer.space(tail).chains);
     writer.event(next ? 'turn' : 'fasten-off');
     history.push(produced);
     below = produced;

@@ -27,7 +27,7 @@ import { TECHNIQUE_NAMES, cellSize, colorChartProblem, type CellSize, type Chart
 import { foundationChainLength } from './repeat.ts';
 import { shapeGauge, type ShapeGauge } from './shapes.ts';
 import { resolveStitch } from './stitch-variants.ts';
-import { firstChainFromHook, traditionOf, turningChainCountsFor } from './tradition.ts';
+import { firstChainFromHook, skippedChains, traditionOf, turningChainCountsFor } from './tradition.ts';
 import type { GridUnit, NodeId, Pattern, PatternColor } from './types.ts';
 
 /** Hány horgolt sor egy rácssor: egysoros vagy kétsoros mozaik. */
@@ -165,9 +165,11 @@ function buildMosaic(pattern: Pattern, plan: MosaicPlan): GridWriter {
   const writer = new GridWriter();
   const tradition = traditionOf(pattern.conventions);
   const { turningChain, turningChainCounts: counting, width, depth } = plan;
-  const worked = foundationChainLength(width, turningChain, counting, tradition) - turningChain;
-  // Számító fordulóláncnál ő az első cella.
-  const first = counting ? 1 : 0;
+  // A láncalap horgolt része: a kihagyott láncszemek nem tartoznak bele (PQW-924).
+  const skipped = skippedChains(turningChain, counting);
+  const worked = foundationChainLength(width, turningChain, counting, tradition) - skipped;
+  // A fordulólánc nem cella: minden cellába valódi szem kerül.
+  const first = 0;
   // Soronként a pozíciók a fonal sorrendjében; a 0. a láncalap horgolt része.
   const history: NodeId[][] = [writer.chains(worked, plan.rows[0]!.color)];
 
@@ -175,8 +177,12 @@ function buildMosaic(pattern: Pattern, plan: MosaicPlan): GridWriter {
     const working = [...history[k]!].reverse();
     const start = k === 0 ? worked - (width - first) : first;
     const under = (c: number) => working[start + c - first]!;
-    const turning = writer.chains(turningChain, row.color);
-    const produced: NodeId[] = counting ? [turning[turning.length - 1]!] : [];
+    /*
+     * Az 1. sor előtt a láncalap végén a kihagyott láncszemek állnak (PQW-924),
+     * a későbbi sorok előtt a fordulólánc. Egyik sem cella.
+     */
+    writer.chains(k === 0 ? skipped : turningChain, row.color);
+    const produced: NodeId[] = [];
     for (let c = first; c < width; c += 1) {
       const kind = row.cells[c]!;
       if (kind === 'skip') {

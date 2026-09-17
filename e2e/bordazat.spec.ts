@@ -49,7 +49,7 @@ for (const viewport of [
 
     const text = await writtenText(page);
     // A bordás sor 2 láncszemmel kezdődik, mert láncszem nem állhat relief szem helyett (01 §2.2 [S25]).
-    expect(text).toMatch(/2 lsz \(nem számít szemnek\)/);
+    expect(text).toMatch(/2 lsz \(fordulólánc\)/);
     // A bordázat ismétlésként áll, nem szemenként felsorolva.
     expect(text).toMatch(/\[1 (Eerp|Herp), 1 (Eerp|Herp)\]/);
   });

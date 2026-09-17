@@ -131,7 +131,7 @@ describe('a 6 cm-es DK-gömb kidolgozott példája (04 §4.4)', () => {
     assert.deepEqual(lines(pattern, 'en-US'), [
       'Magic ring.',
       'Work in a continuous spiral; do not join. Place a marker in first st of rnd and move it up each rnd.',
-      'Rnd 1: ch 1 (does not count as a st), 6 sc in ring (6).',
+      'Rnd 1: ch 1 (turning chain), 6 sc in ring (6).',
       'Rnd 2: inc x6 (12).',
       'Rnd 3: (sc, inc) x6 (18).',
       'Rnd 4: sc, (inc, 2 sc) x5, inc, sc (24).',

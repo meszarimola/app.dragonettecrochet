@@ -5,28 +5,23 @@
  * csendben (README §4.3, §4.4).
  */
 
+import { skippedChains } from './tradition.ts';
 import type { RepeatSpec, Tradition } from './types.ts';
 
 /**
- * Láncalap N szemhez, T láncszemes fordulólánccal (03 §1.2): `N + T`.
+ * Láncalap N szemhez (03 §1.2, PQW-924): **a kért szemszám + a kihagyás**.
  *
- * A hossz a PQW-924-ben sem változott, csak a kihagyás (`tradition.ts`,
- * `firstChainFromHook`): a tulajdonos sálája 39 rövidpálcás sorhoz 40
- * láncszem, 20 félpálcás sorhoz 22. Az „alapláncszem” fogalma megszűnt, ezért
- * a hosszból nincs több levonás vagy hozzáadás.
+ * A kihagyott láncszemek után minden láncszembe egy szem kerül, ezért a sorban
+ * pontosan N szem lesz. 20 szemre: rövidpálca és félpálca 22 láncszem,
+ * egyráhajtásos pálca 23, kétráhajtásos 24, háromráhajtásos 25.
  */
 export function foundationChainLength(
   stitches: number,
   turningChain: number,
-  /*
-   * A hossz a PQW-924 óta egyikükön sem múlik, de a paraméterek maradnak: hat
-   * hívó és a tesztek adják őket, és a kihagyás szabálya (`firstChainFromHook`)
-   * továbbra is mindkettőt használja.
-   */
-  _turningChainCounts: boolean,
+  turningChainCounts: boolean,
   _tradition: Tradition = 'cyc',
 ): number {
-  return stitches + turningChain;
+  return stitches + skippedChains(turningChain, turningChainCounts);
 }
 
 export interface RepeatCounts {
@@ -61,8 +56,9 @@ export function repeatCounts(
   const multiple = spec.repeatWidth * repeats + spec.edgeStitches;
   const workedChains = spec.turningChainIncluded ? multiple - turningChain : multiple;
   return {
-    chains: workedChains + turningChain,
+    chains: workedChains + skippedChains(turningChain, turningChainCounts),
     workedChains,
-    firstRowPositions: workedChains + (turningChainCounts ? 1 : 0),
+    // A kihagyott láncszemek nem szemek: a sor annyi helyet ad, ahány láncszembe horgoltunk (PQW-924).
+    firstRowPositions: workedChains,
   };
 }

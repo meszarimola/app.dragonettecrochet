@@ -81,7 +81,7 @@ test('kis filémotívum: az első két sor teljes, a többi az ismétlő egység
   await expect(section.getByRole('button', { name: 'Rács a mostani mintából' })).toBeEnabled();
 });
 
-test('C2C-kép két színnel: 6 átlós sor, hibátlan, színek csempénként; a feliratos motívum nem figyelmeztet', async ({ page }) => {
+test('C2C-kép két színnel: 6 átlós sor, színek csempénként; a létrehozás egyelőre érthetően elutasít (PQW-926)', async ({ page }) => {
   await open(page);
   const section = page.locator('#section-grid');
   await section.locator('summary').click();
@@ -105,11 +105,13 @@ test('C2C-kép két színnel: 6 átlós sor, hibátlan, színek csempénként; a
   await expect(page.locator('.tools [data-action="mirror"]')).toHaveCount(0);
   await expect(page.locator('#grid-warnings li')).toHaveCount(0);
 
+  /*
+   * A minta létrehozása ma érthető üzenettel elutasít: a program a csempék
+   * láncívét még nem tudja minden alakzatban felépíteni (PQW-926). A rács, a
+   * csempeszámok és a figyelmeztetések ettől függetlenül helyesek, ezért a
+   * fentieket továbbra is ellenőrizzük.
+   */
   await section.getByRole('button', { name: 'Minta létrehozása' }).click();
-  await expect(page.locator('#status')).toContainText('Sarokból sarokba (C2C): 6 sor elkészült');
-  await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
-  const text = await writtenText(page);
-  expect(text).toContain('Színek: A – Natúr, B – Bordó.');
-  expect(text).toContain('Színek csempénként, a haladási irányban:');
-  expect(text).toContain('(az utolsó ráhajtásnál válts');
+  await expect(page.locator('#status')).toContainText('Ez a C2C-alakzat egyelőre nem készíthető el');
+  await expect(page.locator('#status')).toContainText('1 × 1 és a 2 × 1 méret működik');
 });

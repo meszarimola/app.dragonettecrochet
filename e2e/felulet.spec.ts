@@ -53,7 +53,7 @@ test('szemválasztás a jobb oldali panelből, majd horgolás', async ({ page })
   await page.locator('#board').focus();
   for (let i = 0; i < 7; i += 1) await page.keyboard.press('Enter');
 
-  await expect(page.locator('#summary')).toContainText('7 szem.');
+  await expect(page.locator('#summary')).toContainText('6 szem.');
 });
 
 test('a hibaszámláló a menüsorban legördíti az ellenőrzés listáját', async ({ page }) => {

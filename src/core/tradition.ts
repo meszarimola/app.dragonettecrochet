@@ -44,29 +44,25 @@ export function turningChainCountsFor(
 }
 
 /**
- * Áll-e a láncalapon a fordulólánc egy alapláncszemen: számító fordulóláncnál
- * mindig (PQW-891). A hagyomány már nem dönt róla, csak arról, hogy a
- * fordulólánc számít-e; a paraméter a meglévő hívások miatt marad.
+ * A láncalap elején kihagyott láncszemek száma — a tulajdonos táblázata
+ * (PQW-924): rövidpálca 2, félpálca 2, egyráhajtásos pálca 3, kétráhajtásos 4,
+ * háromráhajtásos 5, vagyis `max(2, fordulólánc)`.
+ *
+ * Ez az egyetlen forrás: a láncalap hossza (`foundationChainLength`) és az első
+ * szem helye is ebből számol, így nem tudnak elcsúszni egymástól. A kihagyott
+ * láncszemek **nem** szemek: a sor szemszáma a beléjük horgolt szemek száma,
+ * ami pontosan a kért szemszám (20 félpálca: 22 láncszem, 2 kihagyás, 20 szem).
+ *
+ * Ha a fordulólánc nem számít szemnek (japán rövidpálca), a kihagyás a
+ * fordulólánc hossza.
  */
-export function hasBaseChain(turningChainCounts: boolean, _tradition: Tradition): boolean {
-  return turningChainCounts;
+export function skippedChains(turningChain: number, turningChainCounts: boolean): number {
+  return turningChainCounts ? Math.max(2, turningChain) : turningChain;
 }
 
-/**
- * Az 1. sor első szeme a horogtól számított hányadik láncszembe megy.
- *
- * A kihagyott láncszemek száma a tulajdonos táblázata szerint (PQW-924):
- * rövidpálca 2, félpálca 2, egyráhajtásos pálca 3, kétráhajtásos 4,
- * háromráhajtásos 5 — vagyis `max(2, fordulólánc)`, és az első szem az ezután
- * következő láncszembe kerül. Ez felülírja a PQW-891 „fordulólánc + 2”
- * szabályát: a félpálcától kezdve eggyel kevesebb láncszemet hagyunk ki. A
- * fordulólánc hossza változatlan.
- *
- * Ha a fordulólánc nem számít szemnek (japán rövidpálca), akkor nem foglal
- * láncszemet, ezért ott marad a „fordulólánc + 1”.
- */
-export function firstChainFromHook(turningChain: number, turningChainCounts: boolean, tradition: Tradition): number {
-  return hasBaseChain(turningChainCounts, tradition) ? Math.max(2, turningChain) + 1 : turningChain + 1;
+/** Az 1. sor első szeme a horogtól számított hányadik láncszembe megy: a kihagyás után a következőbe. */
+export function firstChainFromHook(turningChain: number, turningChainCounts: boolean, _tradition: Tradition): number {
+  return skippedChains(turningChain, turningChainCounts) + 1;
 }
 
 /** A konvenciók az új hagyománnyal. A `cyc` nem íródik ki, így a régi mentések változatlanok maradnak. */

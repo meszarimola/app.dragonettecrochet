@@ -117,7 +117,7 @@ export const RULE_TEXTS = {
     /* ---- Foundation chain, turning chain, counts ---- */
     'foundation-chain': {
       summary:
-        'Wrong foundation chain: the first stitch of row 1 does not go into the chain that follows the turning chain; with a counting turning chain it goes into the chain after the foundation chain below it, and that foundation chain is not worked into (PQW-891).',
+        'Wrong foundation chain: the first stitch of row 1 does not go into the chain that follows the skipped chains, and the skipped chains are not worked into. How many chains are skipped depends on the height of the stitch and on the tradition (PQW-924).',
       message: 'The first stitch of row 1 went into the wrong chain.',
     },
     'turning-chain-height': {

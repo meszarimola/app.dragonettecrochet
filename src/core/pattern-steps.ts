@@ -32,7 +32,7 @@ import { buildPieceGraph, spacePositions, type PieceGraph } from './graph.ts';
 import { modeAsWorked } from './insertion.ts';
 import { nested, text, type CoreData, type CoreText } from './messages.ts';
 import type { StitchLibrary } from './stitch-library.ts';
-import { hasBaseChain, traditionOf } from './tradition.ts';
+import { skippedChains, traditionOf } from './tradition.ts';
 import { gridColorRows, type ColorRun } from './pixel-chart.ts';
 import type {
   Anchor,
@@ -253,7 +253,7 @@ function writtenLayer(
   index: number,
   start: WrittenPiece['foundation']['kind'],
   library: StitchLibrary,
-  tradition: Tradition,
+  _tradition: Tradition,
 ): WrittenLayer {
   const layer = graph.layers[index]!;
   // Alapból az előző sor; elvágott fonal után a megadott sor fölött folytatódik (PQW-901).
@@ -269,16 +269,24 @@ function writtenLayer(
   const undersideIndex = new Map<NodeId, number>(oval ? below.positions.map((id, k) => [id, front.length + k]) : []);
   let otherSide = false;
   const defOf = (id: NodeId) => graph.defs.get(id)!;
-  const countsAs = layer.firstStitch !== null && layer.turningChainCounts ? countsAsOf(defOf(layer.firstStitch)) : null;
+  /*
+   * A „3 lsz (1 erp-nek számít)” megjegyzés a fordulóláncot szemnek mondja.
+   * Sorban ez a fogalom megszűnt (PQW-924), ezért ott nincs megjegyzés; körben
+   * a kezdőlánc valóban egy pálca helyett áll, ott megmarad.
+   */
+  const countsAs =
+    layer.shape === 'round' && layer.firstStitch !== null && layer.turningChainCounts ? countsAsOf(defOf(layer.firstStitch)) : null;
   const hookRow = index === 1 && start === 'chain';
   const ringSpace = start === 'chain-ring' ? graph.spaceOfChain.get(graph.layers[0]!.stitches[0]!)?.id : undefined;
-  // Az 1. sor számító fordulólánca egy alapláncszemen áll; abba nem horgolunk (PQW-891). A láncszembe horgolt 1. körben nincs ilyen.
-  const baseChain = hookRow && layer.shape === 'row' && hasBaseChain(layer.turningChainCounts, tradition);
 
   const steps: Step[] = [];
   // Fordulás után a sor eleji kúszószemek a cellák fölött haladnak (filé fogyasztás, PQW-894): a kurzor a sor elejéről indul.
   const slipsFirst = layer.opening?.kind === 'turn' && layer.travelSlips.length > 0;
-  const cursorStart = !slipsFirst && (index >= 2 || baseChain) && layer.turningChainCounts ? 1 : 0;
+  /*
+   * Sorban a fordulólánc nem foglal pozíciót (PQW-924): a kurzor a sor elejéről
+   * indul. Körben a kezdőlánc szem marad, ott az első hely az övé.
+   */
+  const cursorStart = !slipsFirst && layer.shape === 'round' && index >= 2 && layer.turningChainCounts ? 1 : 0;
   let cursor = cursorStart;
   let last: Last = cursorStart === 1 ? { kind: 'stitch', w: 0 } : null;
 
@@ -492,7 +500,13 @@ function writtenLayer(
     shape: layer.shape,
     side: layer.side,
     fromHook: hookRow
-      ? { chain: layer.turningChain.length + (baseChain ? 2 : 1) + leadChains + leadSkipped, countsAs, chains: leadChains, eachChain }
+      ? {
+          // A kihagyott láncszemek után következő láncszem a közös szabályból (PQW-924).
+          chain: skippedChains(layer.turningChain.length, layer.turningChainCounts) + 1 + leadChains + leadSkipped,
+          countsAs,
+          chains: leadChains,
+          eachChain,
+        }
       : null,
     steps: written,
     stitchCount: layer.stitchCount,

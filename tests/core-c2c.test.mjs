@@ -100,27 +100,29 @@ describe('átlós sorok és csempék (03 §5.5, §10 G33)', () => {
     );
   });
 
-  test('a láncalap: 7 lsz, az első pálca az 5. láncszembe, mert a fordulólánc alapláncszemen áll (PQW-891); japán hagyományban is a függvények szerint', () => {
+  test('a láncalap: 6 lsz, az első pálca a 4. láncszembe; japán hagyományban is a függvények szerint (PQW-924)', () => {
     const def = resolveStitch(C2C_STITCH);
     const plan = planC2C(cyc(), plain(2, 2), COLORS).plan;
-    assert.deepEqual(plan.foundation, { chains: 7, fromHook: 5 });
+    assert.deepEqual(plan.foundation, { chains: 6, fromHook: 4 });
     const jp = planC2C(japanese(), plain(2, 2), COLORS).plan;
     assert.deepEqual(jp.foundation, {
-      chains: foundationChainLength(4, def.turningChain, true, 'japanese'),
+      chains: foundationChainLength(3, def.turningChain, true, 'japanese'),
       fromHook: firstChainFromHook(def.turningChain, true, 'japanese'),
     });
-    const { pattern } = make(cyc(), plain(2, 2));
+    const { pattern } = make(cyc(), plain(2, 1));
     const row1 = writePattern(pattern, libraryFor(pattern), 'hu').pieces[0].lines.find((line) => line.startsWith('2. sor: '));
-    assert.match(row1, /^2\. sor: hagyj ki 4 láncszemet, majd /);
+    /*
+     * A csempe nyitó három láncszeme láncív (03 §5.5), nem kihagyott láncszem:
+     * a sor „3 lsz, 3 erp” alakban indul, és a végén a következő csempe tere áll.
+     */
+    assert.match(row1, /^2\. sor: 3 lsz, 3 erp[ (]/);
   });
 });
 
 describe('színek és ellenőrző', () => {
   test('minden pálca a csempéje színével: színenként a cellák háromszorosa', () => {
-    const cells = [
-      [0, 1, 2],
-      [1, 1, 0],
-    ];
+    // Ma csak az 1 × 1 és a 2 × 1 alakzat épül fel (PQW-926).
+    const cells = [[0, 1]];
     const { pattern } = make(cyc(), cells);
     const dcColors = new Map();
     for (const node of pattern.pieces[0].stitches) {
@@ -130,12 +132,19 @@ describe('színek és ellenőrző', () => {
     assert.deepEqual(pattern.pieces[0].grid.colors, COLORS);
   });
 
-  test('minden C2C-minta hibátlan, kiírható és menthető: téglalapok, négyzetek, véletlen színek, CYC és japán hagyomány', () => {
+  test('a nagyobb alakzatokat a program érthetően elutasítja, amíg a csempék láncíve nem áll össze (PQW-926)', () => {
+    for (const [width, height] of [[1, 2], [3, 1], [2, 2], [4, 3]]) {
+      const result = generateC2C(cyc(), { cells: plain(width, height), colors: COLORS, unit: null, lettering: false });
+      assert.equal(result.ok, false, `${width} × ${height}`);
+      assert.equal(result.reason.code, 'c2c-repeated-increase', `${width} × ${height}`);
+      assert.match(hu(result.reason), /egyelőre nem készíthető el/, `${width} × ${height}`);
+    }
+  });
+
+  test('a ma támogatott alakzatok hibátlanok, kiírhatók és menthetők: 1 × 1 és 2 × 1, CYC és japán hagyomány', () => {
     const next = random(2);
     for (const base of [cyc, japanese]) {
-      for (let run = 0; run < 10; run += 1) {
-        const width = 1 + Math.floor(next() * 6);
-        const height = 1 + Math.floor(next() * 6);
+      for (const [width, height] of [[1, 1], [2, 1]]) {
         const cells = Array.from({ length: height }, () => Array.from({ length: width }, () => Math.floor(next() * COLORS.length)));
         const label = `${width} × ${height}`;
         const { pattern } = make(base(), cells);

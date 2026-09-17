@@ -355,7 +355,12 @@ export function startCursor(
   // A horogtól számított láncszem 1-től, a célpont 0-tól számozott.
   if (foundationChain) return Math.min(def ? firstChainFromHook(def.turningChain, counts, tradition) - 1 : 1, slots.length - 1);
 
-  if (start.turningChain > 0 && counts && slots.length > 1) return 1;
+  /*
+   * Körben a kezdőlánc az első pozíción ül, oda nem horgolunk. Sorban a
+   * fordulólánc nem foglal helyet (PQW-924): az alatta lévő sor minden szemébe
+   * megy szem, ezért a kurzor a sor elejéről indul.
+   */
+  if (start.shape === 'round' && start.turningChain > 0 && counts && slots.length > 1) return 1;
   return 0;
 }
 

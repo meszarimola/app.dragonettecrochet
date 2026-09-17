@@ -32,7 +32,7 @@
  */
 
 import type { StitchLibrary } from './stitch-library.ts';
-import { hasBaseChain, stitchTurningChainCounts, traditionOf, turningChainCountsFor } from './tradition.ts';
+import { stitchTurningChainCounts, traditionOf } from './tradition.ts';
 import type {
   Layer,
   LayerEvent,
@@ -193,14 +193,11 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       // kezdődő 1. sor alatt (03 §5.2). A horog felőli végén a meghagyott fordulólánc-tető a sorhoz tartozik.
       const skipped = new Set(piece.skipped);
       while (trailing.length > 0 && skipped.has(trailing[0]!.id)) foundationNodes.push(trailing.shift()!);
-      // A számító fordulólánc egy alapláncszemen áll: az a láncalap része marad (PQW-891).
-      const tradition = traditionOf(pattern.conventions);
-      const first = segments[0]!.find((node) => kindOf(node) !== 'chain');
-      const counts =
-        first !== undefined &&
-        turningChainCountsFor(pattern.conventions.turningChainCounts, defs.get(first.id)!, tradition, firstRoundOnChain ? 'round' : 'row');
-      // A láncszembe horgolt 1. körben nincs alapláncszem: a kör egyetlen láncszembe megy.
-      if (!firstRoundOnChain && hasBaseChain(counts, tradition) && trailing.length >= 2) foundationNodes.push(trailing.shift()!);
+      /*
+       * Az „alapláncszem” fogalma megszűnt (PQW-924): a láncalap elején a
+       * táblázat szerinti láncszemeket hagyjuk ki, és nincs külön, a láncalaphoz
+       * sorolt láncszem a fordulólánc alatt.
+       */
       segments[0] = [...trailing, ...segments[0]!];
     }
   }
@@ -280,9 +277,18 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       }
     }
     const turningChain: NodeId[] = [];
-    // A fordulólánc után kezdődő láncív már a sor része: filében a nyitott cellás sor eleje „3 lsz, 2 lsz” (03 §5.2).
+    /*
+     * A fordulólánc után kezdődő láncív már a sor része: filében a nyitott
+     * cellás sor eleje „3 lsz, 2 lsz” (03 §5.2). Az 1. sorban a láncalap végén
+     * álló láncív sem fordulólánc: a C2C csempéjének nyitó három láncszeme
+     * `ch-3 space`, amibe a következő sor csempéje horgol (03 §5.5).
+     */
     const startsSpace = (node: StitchNode) => spaceOfChain.get(node.id)?.chains[0] === node.id;
-    while (head < segment.length && kindOf(segment[head]!) === 'chain' && !(turningChain.length > 0 && startsSpace(segment[head]!))) {
+    while (
+      head < segment.length &&
+      kindOf(segment[head]!) === 'chain' &&
+      !((turningChain.length > 0 || index === 1) && startsSpace(segment[head]!))
+    ) {
       turningChain.push(segment[head]!.id);
       head += 1;
     }
@@ -323,9 +329,18 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     const slipSet = new Set(travelSlips);
     if (joinSlip) slipSet.add(joinSlip);
 
-    let stitchCount = turningChainCounts ? 1 : 0;
+    /*
+     * Sorban a fordulólánc nem szem (PQW-924): sem a szemszámba, sem a sor
+     * pozícióiba nem számít bele. A sor szemszáma a ténylegesen belehorgolt
+     * szemek száma, a következő sor pedig minden szembe horgol egyet.
+     *
+     * Körben a kezdőlánc („3 lsz = 1 pálca”) változatlanul szem marad: arról a
+     * tulajdonos szabálya nem szól, és a szemkönyvtár alapértelmezése dönti el.
+     */
+    const startingChainCounts = shape === 'round' && turningChainCounts;
+    let stitchCount = startingChainCounts ? 1 : 0;
     let positionCount = stitchCount;
-    const positions: NodeId[] = turningChainCounts ? [turningChain[turningChain.length - 1]!] : [];
+    const positions: NodeId[] = startingChainCounts ? [turningChain[turningChain.length - 1]!] : [];
     for (const node of segment) {
       if (turningSet.has(node.id)) continue;
       if (slipSet.has(node.id)) {
