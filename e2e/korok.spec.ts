@@ -51,6 +51,7 @@ test('lapos kör rövidpálcával: becsült szaporítás, hibátlan körök, a k
 });
 
 test('nagymama-négyzet láncgyűrűvel, és a K billentyű a láncszemekből láncgyűrűt zár', async ({ page }) => {
+  test.skip(true, 'PQW-925: a nagymama-négyzet ideiglenesen kikapcsolva');
   await open(page);
   await generate(page, { shape: 'Nagymama-négyzet', start: 'Láncgyűrű', rounds: 3 });
 
@@ -93,6 +94,7 @@ for (const viewport of [
   { width: 1000, height: 506 },
 ]) {
   test(`${viewport.width}×${viewport.height}: a 6 körös nagymama-négyzet diagramja négyzet, és a jelek nem torlódnak`, async ({ page }) => {
+    test.skip(true, 'PQW-925: a nagymama-négyzet ideiglenesen kikapcsolva');
     await page.setViewportSize(viewport);
     await open(page);
     await generate(page, { shape: 'Nagymama-négyzet', rounds: 6 });

@@ -8,6 +8,15 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
 
+/*
+ * PQW-925: a filéhorgolás mintatípus és a Rácsminta szakasz az átvételi
+ * tesztelés első körében ki van kapcsolva. NEM töröljük a teszteket: a típus
+ * visszakapcsolásakor ez az egy blokk kerül ki.
+ */
+test.beforeEach(() => {
+  test.skip(true, 'PQW-925: a filéhorgolás mintatípus ideiglenesen kikapcsolva');
+});
+
 async function open(page: Page): Promise<void> {
   await page.goto('/');
   const deny = page.getByRole('button', { name: 'Elutasítom' });
