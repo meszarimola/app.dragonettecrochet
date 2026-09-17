@@ -355,10 +355,7 @@ export const MARKUP_TEXTS = {
     chartStyleLabel: 'Jelstílus',
     chartStyleCyc: 'CYC (Craft Yarn Council)',
     chartStyleJis: 'Japán (JIS)',
-    scMarkLegend: 'A rövidpálca jele',
-    scMarkPlus: '+ (álló kereszt)',
-    scMarkCross: '× (ferde kereszt)',
-    scMarkJisNote: 'A japán jelstílusban a rövidpálca jele ×.',
+    /* A rövidpálca jelének választása kikerült (PQW-929): a jel a jelstílusból jön. */
     notationNote:
       'A jelölés és a jelstílus a felület nyelvétől független, és a minta adatán nem változtat: a paletta, a vászon, az írott minta és az export is ezt követi.',
 
@@ -737,10 +734,6 @@ export const MARKUP_TEXTS = {
     chartStyleLabel: 'Symbol style',
     chartStyleCyc: 'CYC (Craft Yarn Council)',
     chartStyleJis: 'Japanese (JIS)',
-    scMarkLegend: 'The symbol for single crochet',
-    scMarkPlus: '+ (upright cross)',
-    scMarkCross: '× (diagonal cross)',
-    scMarkJisNote: 'In the Japanese symbol style the single crochet symbol is ×.',
     notationNote:
       'The notation and the symbol style are independent of the interface language, and do not change the pattern data: the palette, the canvas, the written pattern and the export all follow them.',
 

@@ -25,7 +25,19 @@ export type UiLanguage = 'hu' | 'en';
 
 export const TERMS: readonly Locale[] = ['hu', 'en-US', 'en-GB'];
 export const CHART_STYLES: readonly ChartStyle[] = ['cyc', 'jis'];
-const SINGLE_CROCHET: readonly PatternNotation['singleCrochet'][] = ['plus', 'cross'];
+/**
+ * A rövidpálca jele a JELSTÍLUSBÓL következik (PQW-929): CYC-ben `+`, japán
+ * (JIS) stílusban `×`, ahogy a JIS előírja.
+ *
+ * Korábban külön, tárolt beállítás volt hozzá a jelölési panelen. A tulajdonos
+ * az UAT első körében kimondta: „a rövidpálca jele legyen a + jel. ne az x”.
+ * A választás azért is volt csapda, mert a böngésző tárolójából egy régi „×”
+ * visszajött, és onnantól minden mintában ferde kereszt látszott — így nincs
+ * mit visszahozni.
+ */
+export function singleCrochetFor(chartStyle: ChartStyle): PatternNotation['singleCrochet'] {
+  return chartStyle === 'jis' ? 'cross' : 'plus';
+}
 
 /** A `<html lang>` értékéből: `en`, `en-GB` → angol, minden más magyar. */
 export function uiLanguageOf(lang: string): UiLanguage {
@@ -33,7 +45,7 @@ export function uiLanguageOf(lang: string): UiLanguage {
 }
 
 export function defaultNotation(ui: UiLanguage): PatternNotation {
-  return { terms: ui === 'en' ? 'en-US' : 'hu', chartStyle: 'cyc', singleCrochet: 'plus' };
+  return { terms: ui === 'en' ? 'en-US' : 'hu', chartStyle: 'cyc', singleCrochet: singleCrochetFor('cyc') };
 }
 
 /** A böngészőben tárolt beállítás; ami hiányzik vagy érvénytelen, az az alapértelmezés. */
@@ -47,10 +59,12 @@ export function readNotation(stored: string | null, ui: UiLanguage): PatternNota
   }
   if (typeof raw !== 'object' || raw === null) return defaults;
   const value = raw as Record<string, unknown>;
+  const chartStyle = pick(value['chartStyle'], CHART_STYLES, defaults.chartStyle);
   return {
     terms: pick(value['terms'], TERMS, defaults.terms),
-    chartStyle: pick(value['chartStyle'], CHART_STYLES, defaults.chartStyle),
-    singleCrochet: pick(value['singleCrochet'], SINGLE_CROCHET, defaults.singleCrochet),
+    chartStyle,
+    // Tárolt értéket NEM olvasunk: a jel a stílusból jön (PQW-929).
+    singleCrochet: singleCrochetFor(chartStyle),
   };
 }
 
@@ -111,9 +125,8 @@ export function chartStyleLabel(style: ChartStyle): string {
 
 /** Az előbeállítás jelei: japánnál JIS és ×, nemzetközinél CYC és +. A szövegjelölés marad. */
 export function notationForTradition(notation: PatternNotation, tradition: Tradition): PatternNotation {
-  return tradition === 'japanese'
-    ? { ...notation, chartStyle: 'jis', singleCrochet: 'cross' }
-    : { ...notation, chartStyle: 'cyc', singleCrochet: 'plus' };
+  const chartStyle: ChartStyle = tradition === 'japanese' ? 'jis' : 'cyc';
+  return { ...notation, chartStyle, singleCrochet: singleCrochetFor(chartStyle) };
 }
 
 export function traditionLabel(tradition: Tradition): string {

@@ -49,8 +49,15 @@ export interface Scene {
   /** A húzott kijelölő téglalap két sarka diagram-koordinátában. */
   readonly marquee?: { readonly from: Point; readonly to: Point } | null;
   readonly findings: readonly Finding[];
-  /** A most horgolt sor iránynyila, vagy `null`. */
+  /** A most horgolt sor iránya; ebből jön a következő sor nyila (PQW-929). */
   readonly direction: DirectionArrow | null;
+  /**
+   * A KÖVETKEZŐ sor jelzése a sorszámok sávjában (PQW-929): a réteg neve és
+   * indexe. `null`, ha nincs nyitott, még üres sor. A nyilat a `direction`
+   * adja. A tulajdonos döntése: a fordulás ne üzenetben látszódjon, hanem a
+   * rajzon.
+   */
+  readonly nextRow?: { readonly text: string; readonly layer: number } | null;
   /** A jelek stílusa és a rövidpálca jele (PQW-868). */
   readonly symbols: SymbolOptions;
   /** A szemek tárolt, színoldali beszúrási módja a talp jelöléséhez (PQW-869); hiányában a szem alapértelmezése. */
@@ -107,8 +114,6 @@ const HIT = 16;
 const LABEL_HEIGHT = 16;
 /** A sorfelirat ennyivel áll a sor végétől kifelé, hogy ne érjen szemhez (PQW-916). */
 const LABEL_GAP = 12;
-/** Az iránynyíl ennyivel áll a sor jelei fölött (PQW-916). */
-const ARROW_LIFT = 12;
 /** A sorszám célterülete a képernyőn legalább ekkora (WCAG 2.5.8). */
 const MIN_TARGET = 24;
 
@@ -483,30 +488,35 @@ export class Board {
      * SVG-export közösen számolja (PQW-923, `rowCaptions`). Korábban külön
      * számolták, és el is tértek: az exportban a szemszám a mintára került.
      */
-    for (const { layer, text, rightwards, side, end } of rowCaptions(scene.layout, scene.tradition ?? 'cyc')) {
+    const chartLeft = this.#toScreen({ x: bounds.minX, y: 0 }).x;
+    const chartRight = this.#toScreen({ x: bounds.maxX, y: 0 }).x;
+    /*
+     * Egy felirat elhelyezése és kirajzolása. A sorszámok ÉS a következő sor
+     * jelzése (PQW-929) is ezt használja: így a nyíl sem tud a rajzra mászni,
+     * mert a beszorítás mindkettőre ugyanúgy érvényes.
+     *
+     * A felirat a RAJZ mellett áll, a soráé a sor végének oldalán. Nem a sor
+     * végpontjától mérünk: félkész sornál az a rajz közepén van, és a felirat a
+     * korábbi sorok szemeire ülne (a képen ez rögtön látszott, a doboz-átfedés
+     * viszont nem jelezte, mert függőlegesen a jelek közé esett). Így a
+     * feliratok két függőleges sávban állnak, a soruk magasságában, a jeleken
+     * kívül — és ha ott nem férnének el, a látható sáv széléhez simulnak, mert
+     * a nem látszó sorszám semmit sem ér.
+     */
+    const drawPill = (layer: number, text: string, rightwards: boolean, y: number, fill: string, dy = 0): void => {
       const labelWidth = ctx.measureText(text).width + 10;
-      /*
-       * A felirat a RAJZ mellett áll, a sor végének oldalán. Nem a sor
-       * végpontjától mérünk: félkész sornál az a rajz közepén van, és a felirat
-       * a korábbi sorok szemeire ülne (a képen ez rögtön látszott, a
-       * doboz-átfedés viszont nem jelezte, mert függőlegesen a jelek közé
-       * esett). Így a feliratok két függőleges sávban állnak, a soruk
-       * magasságában, a jeleken kívül — és ha ott nem férnének el, a látható
-       * sáv széléhez simulnak, mert a nem látszó sorszám semmit sem ér.
-       */
-      const anchor = this.#toScreen({ x: rightwards ? bounds.maxX : bounds.minX, y: end.y });
+      const screen = this.#toScreen({ x: rightwards ? bounds.maxX : bounds.minX, y });
+      const anchor = { x: screen.x, y: screen.y + dy };
       const wanted = rightwards ? anchor.x + LABEL_GAP : anchor.x - LABEL_GAP - labelWidth;
       const lo = safeStart + 4;
       const hi = Math.max(lo, width - safeEnd - labelWidth - 4);
       const hugged = Math.min(Math.max(wanted, lo), hi);
       /*
-       * A sávhoz simítás viszont nem tolhatja a feliratot a jelek fölé: szűk
-       * ablakban a hosszabb (angol) felirat így csúszott rá a láncalap
-       * szemeire. Takarni tilos, kilógni szabad — a kilógást az „Egész minta”
-       * rendezi, mert az illesztés a feliratokkal együtt számol.
+       * A sávhoz simítás nem tolhatja a feliratot a jelek fölé: szűk ablakban a
+       * hosszabb (angol) felirat így csúszott rá a láncalap szemeire. Takarni
+       * tilos, kilógni szabad — a kilógást az „Egész minta” rendezi, mert az
+       * illesztés a feliratokkal együtt számol.
        */
-      const chartLeft = this.#toScreen({ x: bounds.minX, y: 0 }).x;
-      const chartRight = this.#toScreen({ x: bounds.maxX, y: 0 }).x;
       const x0 = hugged + labelWidth > chartLeft && hugged < chartRight ? wanted : hugged;
       const label: Label = {
         layer,
@@ -517,18 +527,56 @@ export class Board {
         y1: anchor.y + LABEL_HEIGHT / 2,
       };
       this.#labels.push(label);
-      applyInk(ctx, colors[side], 1);
+      applyInk(ctx, fill, 1);
       ctx.beginPath();
       ctx.roundRect(label.x0, label.y0, labelWidth, LABEL_HEIGHT, 4);
       ctx.fill();
       applyInk(ctx, colors.background, 1);
       ctx.textAlign = 'center';
       ctx.fillText(text, (label.x0 + label.x1) / 2, anchor.y);
+    };
+
+    /*
+     * Melyik réteg kap feliratot és milyen szöveggel: ezt a tervező és az
+     * SVG-export közösen számolja (PQW-923, `rowCaptions`). Korábban külön
+     * számolták, és el is tértek: az exportban a szemszám a mintára került.
+     */
+    for (const { layer, text, rightwards, side, end } of rowCaptions(scene.layout, scene.tradition ?? 'cyc')) {
+      drawPill(layer, text, rightwards, end.y, colors[side]);
+    }
+
+    /*
+     * A KÖVETKEZŐ sor a sorszámok sávjában, nyíllal (PQW-929). A tulajdonos
+     * döntése: a fordulás után ne üzenet tájékoztasson, hanem a rajz — „ahova
+     * az 1. sort írtad, ott legyen még egy sor, a nyíllal”. A nyíl korábban a
+     * rajzra került, és a rácsra meg a sor téglalapjára mászott; itt a
+     * feliratok beszorítása védi. A felirat a munka mostani oldalán áll, a nyíl
+     * a haladás irányába mutat.
+     */
+    if (scene.nextRow && scene.direction) {
+      const { from, to } = scene.direction;
+      const leftwards = to.x < from.x;
+      const text = leftwards ? `← ${scene.nextRow.text}` : `${scene.nextRow.text} →`;
+      /*
+       * Egy felirat-magassággal feljebb: a következő sor a rajzon is a mostani
+       * FÖLÖTT lesz. Erre azért kell külön eltolás, mert a még el nem kezdett
+       * sor nincs benne az elrendezésben, így a saját magasságát nem tudjuk —
+       * az irány a mostani sor végéből jön, és eltolás nélkül a pirula épp
+       * annak a feliratára ült (a próbán ez rögtön kiderült).
+       */
+      drawPill(
+        scene.nextRow.layer,
+        text,
+        from.x >= (bounds.minX + bounds.maxX) / 2,
+        from.y,
+        colors.accent,
+        -(LABEL_HEIGHT + 4),
+      );
     }
     ctx.restore();
 
-    // A most horgolt sor iránynyila: a sor elejéről a haladási irányba mutat (PQW-879), a sorszám mellől.
-    if (scene.direction) this.#drawDirection(this.#aboveRow(scene.direction), colors.accent, scale);
+    // A nyíl a feliratsávban áll (PQW-929): a rajznak nincs többé nyíl-doboza.
+    this.#arrowBounds = null;
 
     // Hibák és figyelmeztetések a jelen: a hiba teli, a figyelmeztetés szaggatott karika, nem csak színben tér el.
     for (const finding of scene.findings) {
@@ -621,77 +669,14 @@ export class Board {
     ctx.setLineDash([]);
   }
 
-  /**
-   * A nyíl a sor jelei fölé (PQW-916). Vízszintesen ott marad, ahol a munka
-   * tart — a láncalap után ez a sor vége, ahonnan az első sor indul —, csak a
-   * szemek fölé emelkedik, különben átfut a jeleken. A sor a nyíl kezdőpontja
-   * alapján azonosítható: az mindig a réteg kezdő- vagy végpontja.
+  /*
+   * A `#aboveRow` és a `#drawDirection` kikerült (PQW-929). A nyilat a sor
+   * jelei fölé emelték, vízszintesen a sor kezdőpontjában hagyva — így viszont
+   * épp a KÖVETKEZŐ sor rácssávjába és téglalapjába esett, amit a kód nem is
+   * vizsgált. A tulajdonos döntése: a nyíl a rajz MELLETT álljon, a sorszámmal
+   * együtt. Most a feliratsáv `drawPill` hívása rajzolja, ezért a beszorítás
+   * rá is érvényes, és nem tud takarni.
    */
-  #aboveRow(arrow: DirectionArrow): DirectionArrow {
-    const scene = this.#scene;
-    if (!scene) return arrow;
-    const same = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y) < 1e-6;
-    const layer = scene.layout.layers.find((l) => same(l.start, arrow.from) || same(l.end, arrow.from));
-    if (!layer) return arrow;
-    let top = Infinity;
-    for (const node of scene.layout.nodes.values()) {
-      if (node.layer !== layer.index) continue;
-      const bounds = this.#nodeBounds(node);
-      if (bounds) top = Math.min(top, bounds.minY);
-    }
-    if (top === Infinity) return arrow;
-    const y = top - ARROW_LIFT;
-    return { from: { x: arrow.from.x, y }, to: { x: arrow.to.x, y } };
-  }
-
-  /** A sor elejét jelölő pötty, és onnan egy rövid nyíl a haladási irányba. */
-  #drawDirection(arrow: DirectionArrow, color: string, scale: number): void {
-    const ctx = this.#ctx;
-    const dx = arrow.to.x - arrow.from.x;
-    const dy = arrow.to.y - arrow.from.y;
-    const length = Math.hypot(dx, dy);
-    if (length < 1e-6) return;
-    const ux = dx / length;
-    const uy = dy / length;
-    // A nyíl rövid, a sor szélességétől függetlenül, hogy csak az irányt jelezze.
-    const shaft = Math.min(46, length);
-    const tip = { x: arrow.from.x + ux * shaft, y: arrow.from.y + uy * shaft };
-    const head = 8;
-
-    applyInk(ctx, color, Math.max(2, 2 / scale));
-    ctx.beginPath();
-    ctx.moveTo(arrow.from.x, arrow.from.y);
-    ctx.lineTo(tip.x, tip.y);
-    ctx.stroke();
-    // Nyílhegy: két rövid vonal a csúcsból visszafelé.
-    for (const sign of [1, -1]) {
-      const angle = Math.atan2(uy, ux) + sign * 2.5;
-      ctx.beginPath();
-      ctx.moveTo(tip.x, tip.y);
-      ctx.lineTo(tip.x + Math.cos(angle) * head, tip.y + Math.sin(angle) * head);
-      ctx.stroke();
-    }
-    // A sor eleje: kis teli pötty.
-    const dot = Math.max(3, 3 / scale);
-    ctx.beginPath();
-    ctx.arc(arrow.from.x, arrow.from.y, dot, 0, Math.PI * 2);
-    ctx.fill();
-
-    // A tényleg kirajzolt alakzatok befoglalója: ezt méri a böngészős teszt (PQW-916).
-    this.#arrowBounds = shapesBounds([
-      { kind: 'dot', role: 'dot', center: arrow.from, r: dot },
-      { kind: 'line', role: 'stem', from: arrow.from, to: tip },
-      ...[1, -1].map((sign) => {
-        const angle = Math.atan2(uy, ux) + sign * 2.5;
-        return {
-          kind: 'line' as const,
-          role: 'stem' as const,
-          from: tip,
-          to: { x: tip.x + Math.cos(angle) * head, y: tip.y + Math.sin(angle) * head },
-        };
-      }),
-    ]);
-  }
 
   #resize(): void {
     const { width, height } = this.#canvas.getBoundingClientRect();
