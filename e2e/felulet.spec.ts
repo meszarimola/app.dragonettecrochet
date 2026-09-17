@@ -48,6 +48,22 @@ test('a nagymama-négyzet a motívumválasztóban nem választható, jelölésse
   await expect(granny).toHaveText(/Nagymama-négyzet — Hamarosan/);
 });
 
+/*
+ * A tulajdonos döntése (PQW-929): „a rövidpálca jele legyen a + jel. ne az x”.
+ * A jel mostantól a jelstílusból következik, ezért a választás kikerült — egy
+ * korábbi „×” a böngésző tárolójából sem jöhet vissza. A jel geometriáját az
+ * egységtesztek mérik (tests/ui-symbols.test.mjs), itt a felület a tárgy.
+ */
+test('a rövidpálca jele nem választható külön (PQW-929)', async ({ page }) => {
+  await open(page);
+
+  await page.locator('#section-notation').click();
+  await expect(page.locator('#sc-mark'), 'a + / × választás kikerült').toHaveCount(0);
+  await expect(page.locator('#sc-mark-jis'), 'a hozzá tartozó jegyzet is').toHaveCount(0);
+  // A jelstílus viszont továbbra is választható: abból jön a jel.
+  await expect(page.locator('#chart-style')).toBeVisible();
+});
+
 test('szemválasztás a jobb oldali panelből, majd horgolás', async ({ page }) => {
   await open(page);
 

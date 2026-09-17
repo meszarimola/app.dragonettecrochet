@@ -67,22 +67,41 @@ function overlaps(a: Rect, b: Rect): boolean {
 
 const describe = (r: Rect) => `[${r.left.toFixed(1)}, ${r.top.toFixed(1)} – ${r.right.toFixed(1)}, ${r.bottom.toFixed(1)}]`;
 
-test('a kurzor nyila a sor fölött áll, és nem takar szemet (PQW-916)', async ({ page }) => {
+/*
+ * A nyíl a rajzról a sorszámok sávjába került (PQW-929). A PQW-916 megoldása a
+ * sor jelei fölé emelte, de épp a KÖVETKEZŐ sor rácssávjába és téglalapjára
+ * esett; a tulajdonos döntése: „mellé tedd, ne rá. és írd ki, hogy hanyadik
+ * sor.” A mérés ezért már nem a rajzon keresi a nyilat, hanem a feliratok
+ * között — és azt is ellenőrzi, hogy a felirat nem takar semmit.
+ */
+test('a következő sor felirata a rajz mellett áll, nyíllal, és nem takar semmit (PQW-929)', async ({ page }) => {
   await open(page);
-  await foundationTurnAndRow(page);
 
-  const arrow = await api<Rect | null>(page, 'arrowBox');
-  expect(arrow, 'fordulás után van iránynyíl').not.toBeNull();
+  // 12 láncszem, majd fordulás: a 2. sor nyitva van, de még üres.
+  await page.locator('#board').focus();
+  await page.keyboard.press('Alt+1');
+  await page.locator('#chain-count').focus();
+  await page.keyboard.press('ControlOrMeta+A');
+  await page.keyboard.type('12');
+  await page.locator('#board').focus();
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Alt+f');
+
+  expect(await api<Rect | null>(page, 'arrowBox'), 'a rajzon nincs többé iránynyíl').toBeNull();
+
+  const labels = await api<LabelBox[]>(page, 'labelBoxes');
+  const next = labels.find((label) => /[←→]/.test(label.text));
+  expect(next, `a következő sor felirata nyíllal: ${labels.map((l) => l.text).join(' | ')}`).toBeDefined();
+  expect(next!.text, 'kiírja, hányadik sor következik').toMatch(/2\. sor/);
+
   const stitches = await api<StitchBox[]>(page, 'stitchBoxes');
-  expect(stitches.length, '12 láncszem és az 1. sor három szeme').toBe(15);
-
   for (const stitch of stitches) {
-    expect(overlaps(arrow!, stitch), `a nyíl ${describe(arrow!)} takarja a ${stitch.id} szemet ${describe(stitch)}`).toBe(false);
+    expect(overlaps(next!, stitch), `a felirat ${describe(next!)} takarja a ${stitch.id} szemet ${describe(stitch)}`).toBe(false);
   }
-
-  // „A sor fölött”: a nyíl alja a szemek teteje fölött van.
-  const highest = Math.min(...stitches.map((stitch) => stitch.top));
-  expect(arrow!.bottom, 'a nyíl a sor fölé kerül, nem a szemek magasságába').toBeLessThanOrEqual(highest + 0.5);
+  // A sorszámok feliratára sem csúszik rá: a láncalap feliratával sem fedi egymást.
+  for (const other of labels.filter((label) => label !== next)) {
+    expect(overlaps(next!, other), `a következő sor felirata takarja ezt: „${other.text}”`).toBe(false);
+  }
 });
 
 test('minden sor mellett ott a sorszám és a szemszám, takarás nélkül (PQW-916)', async ({ page }) => {

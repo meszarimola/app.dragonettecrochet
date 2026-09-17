@@ -141,8 +141,6 @@ const writtenGrip = must<HTMLDivElement>('#written-grip');
 const writtenFull = must<HTMLButtonElement>('#written-full');
 const termsSelect = must<HTMLSelectElement>('#terms');
 const styleSelect = must<HTMLSelectElement>('#chart-style');
-const scMarkField = must<HTMLFieldSetElement>('#sc-mark');
-const scMarkJis = must<HTMLParagraphElement>('#sc-mark-jis');
 const traditionSelect = must<HTMLSelectElement>('#tradition');
 const typesNav = must<HTMLElement>('#types');
 const typesToggle = must<HTMLButtonElement>('#types-toggle');
@@ -304,6 +302,24 @@ function directionArrow(): DirectionArrow | null {
 }
 
 /**
+ * A következő sor jelzése a rajz mellé (PQW-929).
+ *
+ * A tulajdonos döntése az UAT első köréből: a fordulás ne felbukkanó üzenetben
+ * látszódjon — „a felhasználó nem figyel egy pillanatra, és nem látja” —, hanem
+ * ott, ahol a sorszámok állnak: „ahova az 1. sort írtad, ott legyen még egy
+ * sor, a nyíllal”.
+ *
+ * Csak nyitott, még üres sornál van értelme: ha már került bele szem, a sor a
+ * saját feliratát kapja a `rowCaptions`-től. A lezárt darab után nincs
+ * következő sor (PQW-897), ahogy a haladás mondatában sem.
+ */
+function nextRowMarker(): { text: string; layer: number } | null {
+  const { context } = derived;
+  if (!context.graph || context.started || pieceFinished(context.graph)) return null;
+  return { text: capitalize(layerName(context)), layer: context.layer };
+}
+
+/**
  * A szerkesztő módja: amigurumiban a láncalapon kör indul, ovális is (PQW-899);
  * a szegély gombbal a célpontok a darab kerületén futnak (PQW-902).
  */
@@ -448,7 +464,13 @@ function draw(): void {
     findings: derived.check.findings,
     grid: derived.grid,
     tradition: traditionOf(derived.pattern.conventions),
-    direction: tool && isTargeted(tool) ? directionArrow() : null,
+    /*
+     * Az irány már nem a rajzra rajzolódik, hanem a következő sor feliratába
+     * kerül a sorszámok sávjában (PQW-929). Ezért nem a szemválasztáshoz
+     * kötjük: a fordulás után azonnal látszania kell, szem választása nélkül is.
+     */
+    direction: directionArrow(),
+    nextRow: nextRowMarker(),
     symbols,
     insertions: nodeInsertions(derived.pattern.pieces[0]),
     // A rácsminta ismétlő egysége kerettel (PQW-864, C2C-ben csempénként), a lejjebb horgolt szem talpa (PQW-894).
@@ -462,19 +484,24 @@ function isTargeted(id: StitchDefId): boolean {
   return kind !== 'chain' && kind !== 'space' && kind !== 'ring' && kind !== 'picot';
 }
 
-/** Az üzenet a haladás mondatával kiegészítve. */
+/** Az üzenet a haladás mondatával kiegészítve. Üres üzenetnél csak a haladás. */
 function withProgress(message: Message): Message {
-  return typeof message === 'string' ? `${message} ${progress()}` : [...message, ` ${progress()}`];
+  const tail = progress();
+  if (typeof message === 'string') {
+    if (message === '') return tail;
+    return tail === '' ? message : `${message} ${tail}`;
+  }
+  return tail === '' ? message : [...message, ` ${tail}`];
 }
 
-function commit(result: EditResult, message: Message): void {
+function commit(result: EditResult, message: Message, toast = true): void {
   if (!result.ok) {
     announce(renderCoreText(EDITOR_CORE_TEXTS[uiLanguage()], result.reason));
     return;
   }
   // A minta nem változott (pl. fordulás a láncalap után): nincs visszavonható lépés, csak az üzenet.
   if (result.pattern === history.present) {
-    announce(withProgress(message));
+    announce(withProgress(message), toast);
     return;
   }
   history = record(history, result.pattern);
@@ -482,7 +509,7 @@ function commit(result: EditResult, message: Message): void {
   persist(history.present);
   // Előbb újraszámolunk, hogy az állapotsor már az új mintát írja le.
   refresh();
-  announce(withProgress(message));
+  announce(withProgress(message), toast);
   const point = cursorPoint() ?? lastTop();
   if (point) showPoint(point);
 }
@@ -492,17 +519,20 @@ function lastTop(): Point | undefined {
   return last ? derived.layout.nodes.get(last.id)?.top : undefined;
 }
 
-function announce(message: Message): void {
+/*
+ * A visszajelzés MINDIG bekerül a rejtett élő régióba — az a képernyőolvasóé —,
+ * a felül felbukkanó doboz viszont nem mindig indokolt (`toast`).
+ *
+ * A doboz a PQW-923-ban a figyelmeztetésekhez készült, és a PQW-924-ben minden
+ * művelet visszajelzését megkapta. A tulajdonos ezt az UAT első körében
+ * visszavonta (PQW-929): „ne üzengess. a felhasználó nem figyel egy pillanatra,
+ * és nem látja az üzenetet.” A műveletek állapotát a RAJZRÓL kell leolvasni,
+ * ezért az új minta és a fordulás nem bukkant fel többé.
+ */
+function announce(message: Message, toast = true): void {
   if (typeof message === 'string') status.textContent = message;
   else status.replaceChildren(...message);
-  /*
-   * A vászon fölött nincs többé lebegő szöveg (PQW-916), ezért a művelet
-   * eredményének nem maradt látható nyoma: a fordulás után a képernyőn semmi
-   * nem történt (PQW-924). A művelet visszajelzése mostantól a felül
-   * felbukkanó dobozban is megjelenik, és három másodperc után magától
-   * eltűnik — a rejtett élő régió a képernyőolvasóé marad.
-   */
-  showToast(status.textContent ?? '');
+  if (toast) showToast(status.textContent ?? '');
 }
 
 function layerName(context: WorkContext): string {
@@ -864,12 +894,7 @@ function syncNotationControls(): void {
   relabelSelects(document);
   termsSelect.value = notation.terms;
   styleSelect.value = notation.chartStyle;
-  const jis = notation.chartStyle === 'jis';
-  scMarkField.hidden = jis;
-  scMarkJis.hidden = !jis;
-  for (const radio of scMarkField.querySelectorAll<HTMLInputElement>('input[name="sc-mark"]')) {
-    radio.checked = radio.value === notation.singleCrochet;
-  }
+  // A rövidpálca jelét nem választja a felhasználó: a jelstílusból jön (PQW-929).
 }
 
 termsSelect.addEventListener('change', () => {
@@ -880,11 +905,6 @@ termsSelect.addEventListener('change', () => {
 styleSelect.addEventListener('change', () => {
   const chartStyle = styleSelect.value as PatternNotation['chartStyle'];
   applyNotation({ ...notation, chartStyle }, texts().messages.notation.chartStyle(chartStyleLabel(chartStyle)));
-});
-
-scMarkField.addEventListener('change', (event) => {
-  const singleCrochet = (event.target as HTMLInputElement).value as PatternNotation['singleCrochet'];
-  applyNotation({ ...notation, singleCrochet }, texts().messages.notation.singleCrochet(singleCrochet === 'plus' ? '+' : '×'));
 });
 
 // Az előbeállítás a mintához tartozik: a számolás a mintában, a jelek a jelölésben változnak (PQW-876).
@@ -1331,10 +1351,16 @@ const ACTIONS: Record<string, () => void> = {
           texts().messages.work.fillRow(insertionSuffix(insertionPanel.insertion)),
         )
       : announce(texts().messages.work.needTargetStitch),
+  /*
+   * A fordulás nem üzenget (PQW-929): a következő sor a rajz mellett, a
+   * sorszámok sávjában jelenik meg, nyíllal. Az élő régió megmarad, hogy a
+   * képernyőolvasó továbbra is hallja, mi történt.
+   */
   'end-row': () =>
     commit(
       endRow(history.present, tool),
       onFoundationChain(derived.context) ? texts().messages.work.foundationDone : texts().messages.work.rowEnd,
+      false,
     ),
   'close-round': () =>
     commit(
@@ -1375,7 +1401,14 @@ const ACTIONS: Record<string, () => void> = {
     selection = [];
     // A profilok a horgolóhoz tartoznak, nem a mintához: az új mintába is átkerülnek (PQW-859).
     const gauge = history.present.gauge;
-    commit({ ok: true, pattern: { ...emptyPattern(), ...(gauge ? { gauge } : {}) } }, texts().messages.work.newPattern);
+    /*
+     * Nem bukkan fel üzenet (PQW-929): a „visszavonással a korábbi visszajön”
+     * mondatot a tulajdonos felesleges információnak ítélte — az Undo a
+     * menüsorban ott van, nem kell elmondani. A rejtett élő régió viszont nem
+     * maradhat csendben, mert a `#summary` nem élő régió: a képernyőolvasó az
+     * üres minta kezdőmondatát kapja, ugyanazt, amit a hibalista teteje ír.
+     */
+    commit({ ok: true, pattern: { ...emptyPattern(), ...(gauge ? { gauge } : {}) } }, texts().messages.summary.empty, false);
     /*
      * Az új minta üres, ezért a panel csukódjon (PQW-915). A tárolt állapotot
      * szándékosan NEM írjuk át: ha a felhasználó legközelebb kinyitja, a
