@@ -312,9 +312,24 @@ function directionArrow(): DirectionArrow | null {
  * saját feliratát kapja a `rowCaptions`-től. A lezárt darab után nincs
  * következő sor (PQW-897), ahogy a haladás mondatában sem.
  */
+/*
+ * A fordulás ténye a láncalapon NEM látszik a mintán (PQW-931). Mérve: a
+ * láncalap után a fordulás előtti és utáni minta bitre azonos, mert ott a
+ * fordulás nem hoz létre eseményt. A tulajdonos viszont azt kéri, hogy a
+ * következő sor felirata csak a fordulás UTÁN jelenjen meg: „letettem most egy
+ * sor láncszemet — és a 2. sor jelzés alapból ott van.”
+ *
+ * Ezért a felület jegyzi meg, MELYIK mintán fordult a horgoló. A hivatkozás
+ * azonossága a kulcs: visszavonásnál vagy új mintánál másik minta lesz a
+ * jelenlegi, a hivatkozás nem egyezik, és a felirat magától eltűnik — külön
+ * visszaállítás nélkül.
+ */
+let turnedOn: Pattern | null = null;
+
 function nextRowMarker(): { text: string; layer: number } | null {
   const { context } = derived;
   if (!context.graph || context.started || pieceFinished(context.graph)) return null;
+  if (onFoundationChain(context) && turnedOn !== history.present) return null;
   return { text: capitalize(layerName(context)), layer: context.layer };
 }
 
@@ -1371,12 +1386,16 @@ const ACTIONS: Record<string, () => void> = {
    * sorszámok sávjában jelenik meg, nyíllal. Az élő régió megmarad, hogy a
    * képernyőolvasó továbbra is hallja, mi történt.
    */
-  'end-row': () =>
+  'end-row': () => {
     commit(
       endRow(history.present, tool),
       onFoundationChain(derived.context) ? texts().messages.work.foundationDone : texts().messages.work.rowEnd,
       false,
-    ),
+    );
+    // A fordulás megtörtént: innentől látszik a következő sor felirata (PQW-931).
+    turnedOn = history.present;
+    draw();
+  },
   'close-round': () =>
     commit(
       closeRound(history.present),

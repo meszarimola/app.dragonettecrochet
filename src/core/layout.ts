@@ -189,7 +189,19 @@ export function stitchWidths(graph: PieceGraph, W: number): Map<NodeId, number> 
         else if (anchor.into === 'space') targets.push(...(graph.spaces.get(anchor.id)?.chains ?? []));
       }
       if (targets.length === 0) continue;
-      const share = own / targets.length;
+      /*
+       * EGY SZINTRE nézünk, nem a teljes részfára: a szem a saját alapigényét
+       * (`W`) adja tovább, nem a már felhalmozott szélességét.
+       *
+       * Mérés mutatta meg, miért: a teljes részfa összegzésével az alsó sorok
+       * olyan szélesek lettek, mint a legfelsők, és a legyező alakú kendő
+       * téglalappá lapult — a félkör 180° helyett 157°-ot fogott át. A
+       * tulajdonos kérése viszont egy szintről szól: „az első sorban lévő
+       * négyzetnek feleljen meg a második sorban 3 négyzet, ha 3-at
+       * szaporítok.” Ehhez elég, ha a szem a KÖZVETLENÜL beléje horgolt
+       * szemek számával szélesedik.
+       */
+      const share = W / targets.length;
       for (const target of targets) widths.set(target, (widths.get(target) ?? 0) + share);
     }
   }
