@@ -16,7 +16,7 @@
 import { aimAt, chartBounds, gridHit, type ChartGrid } from '../core/grid.js';
 import type { ChartLayout, NodePlacement, Point } from '../core/layout.js';
 import type { StitchLibrary } from '../core/stitch-library.js';
-import type { Finding, NodeId, StitchInsertion, Tradition } from '../core/types.js';
+import type { NodeId, StitchInsertion, Tradition } from '../core/types.js';
 import { rowCaptions } from './chart-labels.js';
 import { gridPaths, LINE_WIDTH, type GridPaths } from './grid-paths.js';
 import { gridCoreText } from './i18n/core/grid.js';
@@ -48,7 +48,12 @@ export interface Scene {
   readonly affected?: readonly NodeId[];
   /** A húzott kijelölő téglalap két sarka diagram-koordinátában. */
   readonly marquee?: { readonly from: Point; readonly to: Point } | null;
-  readonly findings: readonly Finding[];
+  /**
+   * A kiválasztott találat szemei, piros szaggatott kiemeléssel (PQW-930).
+   * A rajz alapból tiszta: a találatok a menüsor jobb felső jelzőjén élnek, és
+   * csak a felhasználó kérésére, átmenetileg kerülnek a mintára.
+   */
+  readonly highlight?: readonly NodeId[] | null;
   /** A most horgolt sor iránya; ebből jön a következő sor nyila (PQW-929). */
   readonly direction: DirectionArrow | null;
   /**
@@ -578,23 +583,29 @@ export class Board {
     // A nyíl a feliratsávban áll (PQW-929): a rajznak nincs többé nyíl-doboza.
     this.#arrowBounds = null;
 
-    // Hibák és figyelmeztetések a jelen: a hiba teli, a figyelmeztetés szaggatott karika, nem csak színben tér el.
-    for (const finding of scene.findings) {
-      const error = finding.severity === 'error';
-      applyInk(ctx, error ? colors.error : colors.warning, Math.max(2, 1.5 / scale));
-      ctx.setLineDash(error ? [] : [4, 3]);
-      // A figyelmeztetés halványabb a hibánál (PQW-923): jelez, de nem viszi el a figyelmet a mintáról.
-      ctx.globalAlpha = error ? 1 : 0.45;
-      for (const id of finding.nodes) {
+    /*
+     * A rajz alapból TISZTA (PQW-930). Korábban minden találatot bekarikáztunk
+     * — a hibát tömören, a figyelmeztetést szaggatottan. A tulajdonos döntése:
+     * „a rajzon ne is legyen megjelölve a hiba, vagy figyelmeztetés, csak a
+     * jobb felső sarokban”.
+     *
+     * A jelölés mostantól a felhasználó kifejezett kérésére jelenik meg,
+     * EGYETLEN kiválasztott találatra, piros szaggatottal — és magától
+     * eltűnik. Az időzítést a felület tartja (`highlight`), a vászon csak
+     * kirajzolja, amit kap.
+     */
+    if (scene.highlight?.length) {
+      applyInk(ctx, colors.error, Math.max(2, 1.5 / scale));
+      ctx.setLineDash([4, 3]);
+      for (const id of scene.highlight) {
         const node = scene.layout.nodes.get(id);
         if (!node) continue;
         ctx.beginPath();
         ctx.arc(node.top.x, node.top.y, 12, 0, Math.PI * 2);
         ctx.stroke();
       }
+      ctx.setLineDash([]);
     }
-    ctx.globalAlpha = 1;
-    ctx.setLineDash([]);
 
     // A kijelölés folytonos, a törlésnél érintett szemek szaggatott keretben: nem csak színben térnek el (PQW-875).
     applyInk(ctx, colors.accent, Math.max(1.5, 1 / scale));

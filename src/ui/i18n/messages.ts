@@ -85,9 +85,12 @@ const hu = {
     error: 'Hiba: ',
     warning: 'Figyelmeztetés: ',
     nodes: (count: number): string => ` · ${count} szem`,
-    details: 'Részletek',
-    reference: (reference: string): string => `Tudásbázis: ${reference}`,
-    selected: 'Kijelölve a hiba első szeme.',
+    /*
+     * A „Részletek” lenyíló és benne a tudásbázis-hivatkozás kikerült
+     * (PQW-930): „a végfelhasználónak fogalma sincs a tudásbázisról és
+     * egyébként nem is érdekli”. A hivatkozás a `RULES`-ban megmarad.
+     */
+    marked: 'A találat szemei megjelölve a mintán.',
   },
 
   /* ---- Az igazítás panel ---- */
@@ -275,9 +278,7 @@ const en: typeof hu = {
     error: 'Error: ',
     warning: 'Warning: ',
     nodes: (count) => ` · ${stitches(count)}`,
-    details: 'Details',
-    reference: (reference) => `Knowledge base: ${reference}`,
-    selected: 'The first stitch of the error is selected.',
+    marked: 'The stitches of the finding are marked on the chart.',
   },
 
   adjust: {

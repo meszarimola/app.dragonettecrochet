@@ -122,14 +122,27 @@ export const RULES = {
     summary: 'Egy pozíció kimarad láncszem és legyező nélkül.',
     message: 'Egy szem kimaradt a sorban.',
   },
+  /*
+   * A sor két végén kihagyott pozíció FIGYELMEZTETÉS, nem hiba (PQW-930).
+   *
+   * A tulajdonos döntése az UAT első köréből: „nagyon szigorúan vetted a minták
+   * elkészítését. a való életben ez sokkal lazábban működik, sokkal kevésbé
+   * kötött a horgolás, pont azért egy nagyon kreatív folyamat.” A láncalapból
+   * kilógó, be nem horgolt „farok” szándékos is lehet, ezért jelezzük, de nem
+   * minősítjük hibának.
+   *
+   * A sor KÖZEPÉN kimaradt szem külön szabály (`reach`, `reach-single`), és az
+   * marad, ami volt: ott a lyuk nem stílus kérdése.
+   */
   'unused-position': {
-    severity: 'error',
+    severity: 'warning',
     reference: '03 §10 B8',
     summary: 'Az előző sor egy pozíciója nincs felhasználva, és nincs jelölten kihagyva vagy áthidalva.',
     message: 'Az alatta lévő sor egy szemébe nem került semmi.',
   },
+  // Ugyanaz a jelenség a lánc felől nézve: szintén figyelmeztetés (PQW-930).
   'floating-chain': {
-    severity: 'error',
+    severity: 'warning',
     reference: '03 §10 C18, 03 §9.8',
     summary: 'Lógó lánc: a sor végi láncszemekbe semmi nem horgol, és nem fordulólánc.',
     message: 'A sor végén olyan láncszemek maradtak, amelyekbe semmi nem horgol.',
