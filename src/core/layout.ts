@@ -304,7 +304,14 @@ class Layouter {
   constructor(graph: PieceGraph, W: number, stem: (chainHeight: number) => number, detached: ReadonlySet<NodeId> = new Set()) {
     this.#graph = graph;
     this.#W = W;
-    this.#widths = stitchWidths(graph, W);
+    /*
+     * A széthúzás csak a KÉZZEL horgolt rajzra vonatkozik (PQW-931). Az íves
+     * sorú, generált darab (kendő) elrendezése maradjon bitre azonos: a
+     * tulajdonos az UAT első körében a szabályos horgolást teszi rendbe, a
+     * kendő geometriáján nem dolgozunk. Üres térkép = mindenki az alapigényét
+     * kéri, vagyis a korábbi viselkedés.
+     */
+    this.#widths = graph.piece.rowShape ? new Map() : stitchWidths(graph, W);
     this.#stem = stem;
     this.#detached = detached;
     this.#round = graph.layers[0]!.shape === 'round';
@@ -394,12 +401,13 @@ class Layouter {
        * annyi négyzet legyen, ahány szem belekerült.
        */
       let x = 0;
-      layer.stitches.forEach((id) => {
-        const width = this.#widths.get(id) ?? this.#W;
-        const center = x + width / 2;
+      layer.stitches.forEach((id, i) => {
+        const width = this.#widths.get(id);
+        // Széthúzás nélkül a régi, fix rács — így az íves darab rajza sem mozdul.
+        const center = width === undefined ? i * this.#W : x + width / 2;
         this.#axis.set(id, center);
         this.#place(id, 0, side, 'chain', [], { x: center, y: 0 }, 0, this.#W * 0.8);
-        x += width;
+        x += width ?? this.#W;
       });
       this.#base[0] = 0;
     }
