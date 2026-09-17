@@ -6,6 +6,16 @@
 
 import { expect, test, type Page } from '@playwright/test';
 
+/*
+ * PQW-925: az amigurumi mintatípus az átvételi tesztelés első körében ki van
+ * kapcsolva, ezért ezek a tesztek nem futnak. NEM töröljük őket: a típus
+ * visszakapcsolásakor ez az egy blokk kerül ki, és a fedettség egyben
+ * visszajön.
+ */
+test.beforeEach(() => {
+  test.skip(true, 'PQW-925: az amigurumi mintatípus ideiglenesen kikapcsolva');
+});
+
 async function open(page: Page): Promise<void> {
   await page.goto('/');
   const deny = page.getByRole('button', { name: 'Elutasítom' });

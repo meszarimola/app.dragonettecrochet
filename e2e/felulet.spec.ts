@@ -12,19 +12,40 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
-test('mintatípus: a szabályos, a filé és az amigurumi aktív, a szabálytalan „hamarosan” és inaktív', async ({ page }) => {
+test('mintatípus: az UAT első körében csak a szabályos aktív, a többi „hamarosan” és inaktív (PQW-925)', async ({ page }) => {
   await open(page);
 
-  await expect(page.getByRole('button', { name: /Szabályos horgolás/ })).toHaveAttribute('aria-pressed', 'true');
-  for (const name of ['Filéhorgolás', 'Amigurumi']) {
-    const item = page.getByRole('button', { name: new RegExp(name) });
-    await expect(item).toBeEnabled();
-    await expect(item).not.toContainText('Hamarosan');
-  }
+  const regular = page.getByRole('button', { name: /Szabályos horgolás/ });
+  await expect(regular).toBeEnabled();
+  await expect(regular).toHaveAttribute('aria-pressed', 'true');
+  await expect(regular).not.toContainText('Hamarosan');
 
-  const irregular = page.getByRole('button', { name: /Szabálytalan horgolás/ });
-  await expect(irregular).toBeDisabled();
-  await expect(irregular).toContainText('Hamarosan');
+  // A filé és az amigurumi ideiglenesen kikapcsolva; a szabálytalan a saját jegyére vár.
+  for (const name of ['Filéhorgolás', 'Amigurumi', 'Szabálytalan horgolás']) {
+    const item = page.getByRole('button', { name: new RegExp(name) });
+    await expect(item).toBeDisabled();
+    await expect(item).toContainText('Hamarosan');
+  }
+});
+
+test('a kikapcsolt horgolásfajták szakaszai nem látszanak a panelen (PQW-925)', async ({ page }) => {
+  await open(page);
+
+  // A panelt meg sem építjük kikapcsolt típusnál: a szakasz rejtett.
+  await expect(page.locator('#section-grid')).toBeHidden();
+  await expect(page.locator('#section-amigurumi')).toBeHidden();
+  // A szabályos horgolás szakaszai a helyükön vannak.
+  await expect(page.locator('#section-rounds')).toBeAttached();
+  await expect(page.locator('#section-shape')).toBeAttached();
+});
+
+test('a nagymama-négyzet a motívumválasztóban nem választható, jelöléssel (PQW-925)', async ({ page }) => {
+  await open(page);
+
+  await page.locator('#section-rounds').click();
+  const granny = page.locator('#rounds-shape option[value="granny-square"]');
+  await expect(granny).toBeDisabled();
+  await expect(granny).toHaveText(/Nagymama-négyzet — Hamarosan/);
 });
 
 test('szemválasztás a jobb oldali panelből, majd horgolás', async ({ page }) => {

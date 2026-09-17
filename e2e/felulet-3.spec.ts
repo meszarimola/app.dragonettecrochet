@@ -76,6 +76,8 @@ test('a mintatípus-sáv csukható, és az állapota megmarad újratöltés utá
 });
 
 test('a típusválasztás nem nyitja fel az írott minta panelt', async ({ page }) => {
+  // PQW-925: az amigurumi típusra kattint, ami ideiglenesen kikapcsolva.
+  test.skip(true, 'PQW-925: az amigurumi mintatípus ideiglenesen kikapcsolva');
   await open(page);
   const written = page.locator('#written');
   await expect(written).toBeHidden();

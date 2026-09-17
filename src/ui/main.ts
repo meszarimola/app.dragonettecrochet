@@ -422,8 +422,9 @@ function refresh(message?: Message): void {
   shapesPanel.update(derived.pattern);
   shawlsPanel.update(derived.pattern);
   garmentPanel.update(derived.pattern);
-  amigurumiPanel.update(derived.pattern);
-  gridPanel.update(derived.pattern, mirror);
+  // Kikapcsolt horgolásfajtánál a panel nem is épült meg (PQW-925).
+  amigurumiPanel?.update(derived.pattern);
+  gridPanel?.update(derived.pattern, mirror);
   if (message !== undefined) announce(message);
 }
 
@@ -1981,36 +1982,62 @@ const garmentPanel = new GarmentPanel(must<HTMLDetailsElement>('#section-garment
   announce,
 });
 
+/* ---- Kikapcsolt horgolásfajták (PQW-925) ---- */
+
+/**
+ * Egy mintatípushoz tartozó panel csak akkor épül meg, ha a típus be van
+ * kapcsolva (PQW-925). Kikapcsolt típusnál a szakasz elrejtve, a panel pedig
+ * `null`: így a kikapcsolt horgolásfajta kódútvonala futás közben
+ * elérhetetlen, miközben a fájlok a helyükön maradnak. A visszakapcsolás a
+ * `pattern-types.ts` listájában egy `true`.
+ */
+function panelFor<T>(type: PatternTypeId, selector: string, build: (section: HTMLDetailsElement) => T): T | null {
+  const section = must<HTMLDetailsElement>(selector);
+  if (isAvailableType(type)) return build(section);
+  section.hidden = true;
+  return null;
+}
+
 /* ---- Amigurumi (PQW-863) ---- */
 
-const amigurumiPanel = new AmigurumiPanel(must<HTMLDetailsElement>('#section-amigurumi'), {
-  commit: (pattern, message) => {
-    selectedNode = null;
-    selection = [];
-    commit({ ok: true, pattern }, message);
-    fitBoard();
-  },
-  announce,
-});
+const amigurumiPanel = panelFor(
+  'amigurumi',
+  '#section-amigurumi',
+  (section) =>
+    new AmigurumiPanel(section, {
+      commit: (pattern, message) => {
+        selectedNode = null;
+        selection = [];
+        commit({ ok: true, pattern }, message);
+        fitBoard();
+      },
+      announce,
+    }),
+);
 
 /* ---- Rácsminta (PQW-864) ---- */
 
-const gridPanel = new GridChartPanel(must<HTMLDetailsElement>('#section-grid'), {
-  commit: (pattern, message) => {
-    selectedNode = null;
-    selection = [];
-    commit({ ok: true, pattern }, message);
-    fitBoard();
-  },
-  announce,
-});
+const gridPanel = panelFor(
+  'filet',
+  '#section-grid',
+  (section) =>
+    new GridChartPanel(section, {
+      commit: (pattern, message) => {
+        selectedNode = null;
+        selection = [];
+        commit({ ok: true, pattern }, message);
+        fitBoard();
+      },
+      announce,
+    }),
+);
 
 /**
  * Amigurumiban az írott minta az elsődleges nézet: a panel nagyban nyílik, és az Amigurumi szakasz lenyílik.
  * Filéhorgolásnál a Rácsminta szakasz nyílik le (PQW-864).
  */
 function showTypeView(id: PatternTypeId): void {
-  if (id === 'filet') gridPanel.reveal();
+  if (id === 'filet') gridPanel?.reveal();
   const share = writtenShareFor(id, NARROW.matches);
   if (share === null) return;
   /*
@@ -2020,7 +2047,7 @@ function showTypeView(id: PatternTypeId): void {
    * szöveg továbbra is az elsődleges nézet, de a felhasználó dönt róla.
    */
   if (!written.hidden) applyWrittenShare(share);
-  amigurumiPanel.reveal();
+  amigurumiPanel?.reveal();
 }
 
 /* ---- Indulás ---- */

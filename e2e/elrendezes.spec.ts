@@ -336,6 +336,8 @@ for (const [viewport, rounds] of [
   [{ width: 1000, height: 506 }, 6],
 ] as const) {
   test(`${viewport.width}×${viewport.height}: az „Egész minta” a körben horgolt minta rácsát is a látható részre illeszti`, async ({ page }) => {
+    // PQW-925: nagymama-négyzetet használ, ami ideiglenesen kikapcsolva.
+    test.skip(true, 'PQW-925: a nagymama-négyzet ideiglenesen kikapcsolva');
     await page.setViewportSize(viewport);
     await open(page);
     await openWritten(page);

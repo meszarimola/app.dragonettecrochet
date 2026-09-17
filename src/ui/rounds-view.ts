@@ -27,14 +27,31 @@ import { termsLocale } from './notation.ts';
 export interface Choice<T extends string> {
   readonly value: T;
   readonly label: string;
+  /** Még nem érhető el: a lista mutatja, de nem választható (PQW-925). */
+  readonly soon?: boolean;
 }
 
 const capitalize = (text: string) => text.charAt(0).toLocaleUpperCase('hu') + text.slice(1);
 
+/**
+ * Ideiglenesen kikapcsolt motívumok (PQW-925). A nagymama-négyzet az átvételi
+ * tesztelés első köréig nem választható: előbb a szabályos horgolás egyszerű
+ * útját tesszük rendbe. A generátor kódja a helyén marad; a visszakapcsolás
+ * ennyi: üres lista.
+ */
+export const DISABLED_MOTIFS: readonly MotifShape[] = ['granny-square'];
+
+/**
+ * A kikapcsolt motívum felirata a MEGLÉVŐ szótárkulcsot használja
+ * (`sections.types.soon`), ugyanazt, amit a mintatípusok „hamarosan” jelvénye
+ * — így magyarul és angolul is helyes, új szöveg nélkül.
+ */
 export const SHAPE_CHOICES: readonly Choice<MotifShape>[] = MOTIF_SHAPES.map((value) => ({
   value,
+  soon: DISABLED_MOTIFS.includes(value),
   get label() {
-    return texts().panels.round.names[value];
+    const name = texts().panels.round.names[value];
+    return DISABLED_MOTIFS.includes(value) ? `${name} — ${texts().sections.types.soon}` : name;
   },
 }));
 
