@@ -1,7 +1,9 @@
 /*
- * A bal oldali mintatípus-menü tartalma (PQW-873). Aktív a „szabályos
- * horgolás”, a filéhorgolás (PQW-864) és az amigurumi (PQW-863); a
- * szabálytalan horgolás „hamarosan” jelzéssel, inaktívan látszik.
+ * A bal oldali mintatípus-menü tartalma (PQW-873). Az átvételi tesztelés első
+ * körében egyedül a „szabályos horgolás” aktív (PQW-925): a filéhorgolás
+ * (PQW-864) és az amigurumi (PQW-863) ideiglenesen kikapcsolva, a szabálytalan
+ * horgolás pedig a saját jegyére vár — mind a három „hamarosan” jelzéssel,
+ * inaktívan látszik.
  */
 
 import { strict as assert } from 'node:assert';
@@ -38,9 +40,15 @@ test('minden típusnak van neve és magyarázata', () => {
   }
 });
 
-test('a szabályos horgolás, a filéhorgolás (PQW-864) és az amigurumi (PQW-863) aktív, a szabálytalan hamarosan', () => {
+test('az UAT első körében csak a szabályos horgolás aktív (PQW-925)', () => {
   const available = PATTERN_TYPES.filter((type) => type.available).map((type) => type.id);
-  assert.deepEqual(available, ['regular', 'filet', 'amigurumi']);
+  assert.deepEqual(available, ['regular']);
+});
+
+test('a kikapcsolt típusok a listában maradnak, nem törölve (PQW-925)', () => {
+  // A letiltás ideiglenes: a menüpont látszik, csak nem választható.
+  const soon = PATTERN_TYPES.filter((type) => !type.available).map((type) => type.id);
+  assert.deepEqual(soon, ['filet', 'amigurumi', 'irregular']);
 });
 
 test('amigurumiban az írott minta nagyban, keskeny ablakban teljes nézetben nyílik; máshol nem változik (PQW-863)', () => {
@@ -56,8 +64,9 @@ test('az alapértelmezett típus aktív', () => {
 
 test('isAvailableType csak a bekapcsolt, ismert azonosítóra igaz', () => {
   assert.ok(isAvailableType('regular'));
-  assert.ok(isAvailableType('amigurumi'));
-  assert.ok(isAvailableType('filet'));
+  // PQW-925: kikapcsolva, ezért tárolt értékből sem állhat vissza.
+  assert.ok(!isAvailableType('amigurumi'));
+  assert.ok(!isAvailableType('filet'));
   assert.ok(!isAvailableType('irregular'));
   assert.ok(!isAvailableType('nincs-ilyen'));
 });

@@ -115,8 +115,9 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
 - **Felület** (PQW-873): ikonos menüsor csoportokba rendezve (fájl,
   szerkesztés, sor és kör, kijelölés, nézet), minden ikonon tooltip a
   gyorsbillentyűvel (saját tooltip: azonnal, fókuszra és inaktív gombon is);
-  bal oldalt lenyitható **mintatípus**-menü (a szabályos horgolás és az
-  amigurumi aktív, a többi „hamarosan”); jobb oldalt összecsukható szakaszok: legfelül a
+  bal oldalt lenyitható **mintatípus**-menü (az átvételi tesztelés első
+  körében csak a szabályos horgolás aktív, a többi „hamarosan” — PQW-925);
+  jobb oldalt összecsukható szakaszok: legfelül a
   **szemek** listája csoportokkal és jel-előnézettel, alatta a ritkán állított
   jelölés és jelek (alapból csukva), majd a minta neve (PQW-882). A kijelölés
   csoportban a terület kijelölése, a kijelölés törlése és duplikálása (PQW-875).
@@ -549,6 +550,14 @@ npm test   # a build után: CSP ↔ azonosító, inline szkript, közös süti
   felakasztott próbadarabból, súly- és esésfigyelmeztetés; a hamis ellenőrzés
   automatikus javítása a fázisok hosszával; babacipő és zokni. A „Szabálytalan
   horgolás” mintatípus a tulajdonos döntéséig „hamarosan” marad.
+- **Az átvételi tesztelés első köre** (PQW-925): a tulajdonos döntése szerint
+  előbb a szabályos horgolást tesszük rendbe, ezért a **filéhorgolás** (vele a
+  Rácsminta szakasz minden technikája: filé, C2C, tapestry, graphgan, mozaik),
+  az **amigurumi** és a **nagymama-négyzet** ideiglenesen ki van kapcsolva. Ez
+  nem kivezetés: a kód a helyén van, a kikapcsolt típus szakasza rejtve és a
+  panelje meg sem épül, a böngészős tesztek pedig kihagyva, nem törölve. A
+  visszakapcsolás a `src/ui/pattern-types.ts` listájában egy `true`, a
+  nagymama-négyzeté pedig a `DISABLED_MOTIFS` kiürítése.
 - **Önhosztolt betűk.** Az Instrument Serif és a Karla fájljai még nincsenek
   itt, ezért rendszerbetűk ugranak be. A Google Fonts CDN-t nem használjuk: az
   EU-ban hozzájárulás nélkül továbbítaná a látogató IP-címét.

@@ -158,6 +158,8 @@ function fill<T extends string>(select: HTMLSelectElement, choices: readonly Cho
       const option = document.createElement('option');
       option.value = choice.value;
       option.textContent = choice.label;
+      // A még el nem érhető választás látszik, de nem választható (PQW-925).
+      option.disabled = choice.soon === true;
       return option;
     }),
   );

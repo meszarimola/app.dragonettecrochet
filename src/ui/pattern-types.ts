@@ -6,10 +6,16 @@
  * alapértelmezését; a még el nem készült típusok „hamarosan” jelzéssel,
  * inaktívan látszanak, és mérföldkövenként kapcsolnak be (PQW-861…866).
  *
- * Aktív a „szabályos horgolás” (sík sorok, kör és motívum), a filéhorgolás
- * (PQW-864: filé, C2C, tapestry és graphgan rácsból, ismétlő egységgel) és az
- * amigurumi (PQW-863: 3D formák spirálban, részekből). A szabálytalan
+ * Aktív a „szabályos horgolás” (sík sorok, kör és motívum). A szabálytalan
  * horgolás a saját jegyében készül el.
+ *
+ * A filéhorgolás (PQW-864: filé, C2C, tapestry, graphgan és mozaik rácsból) és
+ * az amigurumi (PQW-863: 3D formák spirálban, részekből) az átvételi tesztelés
+ * első körére IDEIGLENESEN ki van kapcsolva (PQW-925). A tulajdonos döntése:
+ * előbb a szabályos horgolást tesszük rendbe, a többi addig ne vigye el a
+ * figyelmet. A kód a helyén marad, csak nem érhető el; a visszakapcsolás
+ * ennyi: `true` a listában. A `main.ts` a kikapcsolt típus szakaszát is
+ * elrejti, és a paneljét meg sem építi.
  */
 
 import type { GridKind } from '../core/grid.ts';
@@ -44,8 +50,9 @@ const patternType = (id: PatternTypeId, available: boolean): PatternType => ({
 
 export const PATTERN_TYPES: readonly PatternType[] = [
   patternType('regular', true),
-  patternType('filet', true),
-  patternType('amigurumi', true),
+  // PQW-925: az átvételi tesztelés első köréig kikapcsolva, nem kivezetve.
+  patternType('filet', false),
+  patternType('amigurumi', false),
   patternType('irregular', false),
 ];
 

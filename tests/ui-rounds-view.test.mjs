@@ -40,7 +40,12 @@ describe('választások', () => {
   test('forma, szem, kezdés, körvég és lépcsőjavítás magyar felirattal', () => {
     assert.deepEqual(
       SHAPE_CHOICES.map((choice) => choice.label),
-      ['Lapos kör', 'Négyzet', 'Hatszög', 'Nyolcszög', 'Nagymama-négyzet'],
+      ['Lapos kör', 'Négyzet', 'Hatszög', 'Nyolcszög', 'Nagymama-négyzet — Hamarosan'],
+    );
+    // PQW-925: a nagymama-négyzet az UAT első köréig nem választható, de látszik.
+    assert.deepEqual(
+      SHAPE_CHOICES.filter((choice) => choice.soon).map((choice) => choice.value),
+      ['granny-square'],
     );
     assert.deepEqual(
       STITCH_CHOICES.map((choice) => choice.label),
