@@ -3,13 +3,49 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title data-i18n="docTitle">Mintatervező — Dragonette Crochet</title>
+    <title data-i18n="docTitle">Ingyenes horgolásminta-tervező és jeldiagram-készítő — Dragonette</title>
     <meta
       name="description"
       data-i18n-content="docDescription"
-      content="A Dragonette Crochet mintatervezője: horgolásminták jeldiagramja szemgráfból, élő ellenőrzéssel, írott mintával és generátorokkal."
+      content="Ingyenes horgolásminta-tervező a böngészőben: jeldiagram sorokhoz és körökhöz, élő ellenőrzés, írott minta, kendő, ruhadarab, amigurumi és filé, PNG/SVG export."
     />
-    <meta name="robots" content="noindex" />
+    <!-- Kereshető belépő (PQW-918): a gyökér indexelhető (tulajdonosi döntés, 2026-09-16),
+         a canonical a query nélküli gyökér, így a ?lang=en változat nem lesz külön találat.
+         Az OG-kép a főoldalé, abszolút URL-lel; a megosztási előnézetek a statikus magyar fejet olvassák. -->
+    <link rel="canonical" href="https://app.dragonettecrochet.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Dragonette Crochet" />
+    <meta property="og:url" content="https://app.dragonettecrochet.com/" />
+    <meta property="og:title" data-i18n-content="docTitle" content="Ingyenes horgolásminta-tervező és jeldiagram-készítő — Dragonette" />
+    <meta property="og:description" data-i18n-content="docDescription" content="Ingyenes horgolásminta-tervező a böngészőben: jeldiagram sorokhoz és körökhöz, élő ellenőrzés, írott minta, kendő, ruhadarab, amigurumi és filé, PNG/SVG export." />
+    <meta property="og:image" content="https://dragonettecrochet.com/img/og-hu.png" />
+    <meta property="og:locale" content="hu_HU" />
+    <meta property="og:locale:alternate" content="en_GB" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <!-- Strukturált adat (PQW-918): adatblokk, nem futó szkript, ezért a CSP script-src 'self' nem érinti.
+         A publisher a főoldal Organization-jére, a mainEntityOfPage a főoldali leíró oldalra mutat. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "@id": "https://dragonettecrochet.com/#designer",
+        "name": "Dragonette Crochet Pattern Designer",
+        "alternateName": "Dragonette horgolásminta-tervező",
+        "description": "Free in-browser crochet pattern designer and chart maker: symbol charts for rows and rounds, live checking, written patterns, shawls, garments, amigurumi and filet, with PNG and SVG export.",
+        "applicationCategory": "DesignApplication",
+        "operatingSystem": "Web browser",
+        "url": "https://app.dragonettecrochet.com/",
+        "inLanguage": ["hu", "en"],
+        "isAccessibleForFree": true,
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "HUF"
+        },
+        "publisher": { "@id": "https://dragonettecrochet.com/#organization" },
+        "mainEntityOfPage": "https://dragonettecrochet.com/en/crochet-pattern-designer/"
+      }
+    </script>
     <!-- Ikonok a főoldalé szerint (PQW-853), saját származásból: a CSP img-src 'self' engedi.
          A theme-color a --c-bg token értéke; meta tagben CSS-változó nem használható, az egyezést a tests/head.test.mjs őrzi. -->
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
@@ -17,6 +53,19 @@
     <meta name="theme-color" content="#faf7f3" />
   </head>
   <body>
+    <!-- JS nélkül (és a JS-t nem futtató bejárók számára) rövid leírás és a főoldali leíró oldalak (PQW-918). -->
+    <noscript>
+      <div class="noscript" lang="hu">
+        <h1>Ingyenes horgolásminta-tervező és jeldiagram-készítő</h1>
+        <p>A Dragonette Crochet mintatervezője a böngészőben fut: horgolásminták jeldiagramja sorokhoz és körökhöz, élő ellenőrzéssel, írott mintával, kendő-, ruhadarab- és amigurumi-formákkal, filé- és más rácsos technikákkal, PNG és SVG exporttal. A használatához JavaScript kell.</p>
+        <p><a href="https://dragonettecrochet.com/hu/horgolasminta-tervezo/">Bővebben a horgolásminta-tervezőről</a></p>
+      </div>
+      <div class="noscript" lang="en">
+        <h2>Free crochet pattern designer and chart maker</h2>
+        <p>The Dragonette Crochet pattern designer runs in your browser: crochet symbol charts for rows and rounds with live checking, written patterns, shawl, garment and amigurumi shapes, filet and other grid techniques, and PNG and SVG export. It needs JavaScript.</p>
+        <p><a href="https://dragonettecrochet.com/en/crochet-pattern-designer/">More about the crochet pattern designer</a></p>
+      </div>
+    </noscript>
     <div class="app">
       <section class="consent" id="consent" tabindex="-1" aria-labelledby="consent-title" hidden>
         <div class="consent__text">

@@ -478,7 +478,8 @@ A fejléc bal oldalán a **Főoldal** gomb visz vissza a
 | `src/ui/consent.ts`, `src/ui/analytics.ts` | **A fő oldal repójából másolva, változtatás nélkül** (csak az import kiterjesztése `.js`). Ha ott változik, itt is kell. |
 | `src/ui/consentBanner.ts` | A süti-sáv és a jelkészlet „Süti-beállítások" gombja. |
 | `src/config.ts` | A GA4 mérési azonosító (`mintatervező` property). Üres stringre a mérés és a süti-sáv kikapcsol. |
-| `public/.htaccess` | Biztonsági fejlécek és cache. A CSP a GA-azonosítóval együtt változik — a `tests/analytics.test.mjs` őrzi. Az `X-Robots-Tag` `noindex`, nofollow nélkül, és nincs robots.txt-tiltás (PQW-853) — a `tests/head.test.mjs` őrzi a forrásban és a buildelt kimenetben is. |
+| `public/.htaccess` | Biztonsági fejlécek és cache. A CSP a GA-azonosítóval együtt változik — a `tests/analytics.test.mjs` őrzi. A gyökér indexelhető: nincs `X-Robots-Tag` `noindex` (tulajdonosi döntés, 2026-09-16, PQW-918) — a `tests/head.test.mjs` őrzi a forrásban és a buildelt kimenetben is. |
+| `public/robots.txt` | Mindent enged; a keresők és az AI-bejárók (GPTBot, ClaudeBot, PerplexityBot stb.) saját `Allow: /` csoportot kapnak (PQW-918). |
 | `public/favicon.ico`, `public/apple-touch-icon.png` | A főoldal ikonjai, saját származásból (PQW-853). A fejben a magyar leírás és a `--c-bg` token színű `theme-color` (`tests/head.test.mjs`). |
 | `tests/*.test.mjs` | `node:test` tesztek; a `core-*` a magot, a `ui-*` a jelrajzot, a palettát és az SVG-t, az `analytics` a süti-sávot és a CSP-t, a `hu-vocabulary` a magyar szóhasználatot (szem = stitch) nézi. |
 | `tests/fixtures/written/` | Az írott minta rögzített szövege kidolgozott példánként (`hu`, `en-US`); a magyart a tulajdonos hagyja jóvá. |

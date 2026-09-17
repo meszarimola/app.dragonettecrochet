@@ -23,10 +23,10 @@ import type { Dictionary } from '../i18n.ts';
 
 export const MARKUP_TEXTS = {
   hu: {
-    // A dokumentum feje: a böngészőfül címe és a leírás (PQW-905)
-    docTitle: 'Mintatervező — Dragonette Crochet',
+    // A dokumentum feje: a böngészőfül címe és a leírás (PQW-905), a keresett kifejezésekkel (PQW-918)
+    docTitle: 'Ingyenes horgolásminta-tervező és jeldiagram-készítő — Dragonette',
     docDescription:
-      'A Dragonette Crochet mintatervezője: horgolásminták jeldiagramja szemgráfból, élő ellenőrzéssel, írott mintával és generátorokkal.',
+      'Ingyenes horgolásminta-tervező a böngészőben: jeldiagram sorokhoz és körökhöz, élő ellenőrzés, írott minta, kendő, ruhadarab, amigurumi és filé, PNG/SVG export.',
 
     // Süti-sáv
     consentTitle: 'Mérhetem a látogatást?',
@@ -402,10 +402,10 @@ export const MARKUP_TEXTS = {
     adjustUnpin: 'Számolt helyre',
   },
   en: {
-    // The document head: browser tab title and description (PQW-905)
-    docTitle: 'Pattern designer — Dragonette Crochet',
+    // The document head: browser tab title and description (PQW-905), with the searched phrases (PQW-918)
+    docTitle: 'Free Crochet Pattern Designer & Chart Maker — Dragonette',
     docDescription:
-      'The Dragonette Crochet pattern designer: crochet symbol charts from a stitch graph, with live checking, written patterns and generators.',
+      'Free crochet pattern designer and chart maker in your browser: symbol charts for rows and rounds, live checking, written patterns, shawls, garments, amigurumi.',
 
     // Cookie banner
     consentTitle: 'May I measure visits?',

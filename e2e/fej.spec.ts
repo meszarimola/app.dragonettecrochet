@@ -1,5 +1,5 @@
 /*
- * A tervező feje (PQW-853): a saját favicon és az apple-touch-icon betöltődik,
+ * A tervező feje (PQW-853, PQW-918): a saját favicon és az apple-touch-icon betöltődik,
  * a buildelt oldalon ott a leírás és a theme-color, és betöltéskor nincs
  * konzolhiba.
  */
@@ -13,9 +13,11 @@ test('favicon, apple-touch-icon, leírás és theme-color a buildelt oldalon; ko
   });
   await page.goto('/');
 
-  await expect(page.locator('head meta[name="description"]')).toHaveAttribute('content', /mintatervező/i);
+  await expect(page.locator('head meta[name="description"]')).toHaveAttribute('content', /horgolásminta-tervező/i);
   await expect(page.locator('head meta[name="theme-color"]')).toHaveAttribute('content', '#faf7f3');
-  await expect(page.locator('head meta[name="robots"]')).toHaveAttribute('content', 'noindex');
+  // A gyökér indexelhető (PQW-918).
+  await expect(page.locator('head meta[name="robots"]')).toHaveCount(0);
+  await expect(page.locator('head link[rel="canonical"]')).toHaveAttribute('href', 'https://app.dragonettecrochet.com/');
 
   for (const selector of ['head link[rel="icon"]', 'head link[rel="apple-touch-icon"]']) {
     const href = await page.locator(selector).getAttribute('href');
