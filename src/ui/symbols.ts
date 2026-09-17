@@ -573,6 +573,52 @@ export function placedShapes(def: StitchDef, placement: Placement, options: Symb
   return out;
 }
 
+/**
+ * A jel befoglaló téglalapja diagram-koordinátában (PQW-916). A böngészős
+ * tesztek ezzel mérik, hogy a nyíl és a sorfelirat nem takar szemet; a görbénél
+ * a vezérlőpont is beleszámít, ezért a doboz inkább nagyobb a valósnál, mint
+ * kisebb — átfedésre ez a biztonságos irány.
+ */
+export function shapesBounds(shapes: readonly Shape[]): { minX: number; minY: number; maxX: number; maxY: number } | null {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  const add = (x: number, y: number) => {
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  };
+  for (const shape of shapes) {
+    switch (shape.kind) {
+      case 'line':
+        add(shape.from.x, shape.from.y);
+        add(shape.to.x, shape.to.y);
+        break;
+      case 'curve':
+        add(shape.from.x, shape.from.y);
+        add(shape.control.x, shape.control.y);
+        add(shape.to.x, shape.to.y);
+        break;
+      case 'ellipse': {
+        // A forgatott ellipszis félméretei: a tengelyek vetülete a két irányra.
+        const [c, s] = [Math.cos(shape.rotation), Math.sin(shape.rotation)];
+        const halfX = Math.hypot(shape.rx * c, shape.ry * s);
+        const halfY = Math.hypot(shape.rx * s, shape.ry * c);
+        add(shape.center.x - halfX, shape.center.y - halfY);
+        add(shape.center.x + halfX, shape.center.y + halfY);
+        break;
+      }
+      case 'dot':
+        add(shape.center.x - shape.r, shape.center.y - shape.r);
+        add(shape.center.x + shape.r, shape.center.y + shape.r);
+        break;
+    }
+  }
+  return minX === Infinity ? null : { minX, minY, maxX, maxY };
+}
+
 /* ---- Vászon ---- */
 
 /** A jelek tintaszíne a `--c-ink` design tokenből. Konkrét szín a kódban nincs. */

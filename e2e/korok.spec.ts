@@ -41,9 +41,9 @@ test('lapos kör rövidpálcával: becsült szaporítás, hibátlan körök, a k
   expect(text).toContain('3. kör: 1 lsz (nem számít szemnek), (szap., 1 rp) ×6 (18). Kör zárása: 1 ksz az első szembe.');
   expect(text).toContain('4. kör: 1 lsz (nem számít szemnek), 1 rp, (szap., 2 rp) ×5, szap., 1 rp (24).');
 
-  // A körszámok a vásznon: négy kör címkéje.
+  // A körszámok a vásznon: a négy kör címkéje, és a PQW-916 óta a varázskör (0. réteg) felirata is.
   const labels = await page.evaluate(() => (window as unknown as { mintatervezoRacs: { labels(): unknown[] } }).mintatervezoRacs.labels());
-  expect(labels).toHaveLength(4);
+  expect(labels).toHaveLength(5);
 
   // Visszavonással a korábbi (üres) minta jön vissza.
   await page.keyboard.press('ControlOrMeta+Z');

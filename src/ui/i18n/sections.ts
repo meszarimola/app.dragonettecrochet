@@ -23,6 +23,7 @@ import type { StitchSectionId } from '../../core/stitches.ts';
 import type { ChartStyle, GaugeForm, Locale, StitchInsertion, Tradition, ValueSource } from '../../core/types.ts';
 import type { Dictionary } from '../i18n.ts';
 import type { PatternTypeId } from '../pattern-types.ts';
+import { enLayer, huLayer } from './core/layer-counts.ts';
 
 /** Egy mintatípus a bal oldali menüben. */
 interface TypeEntry {
@@ -151,6 +152,8 @@ export interface SectionTexts {
     readonly unitFrame: string;
     readonly spike: string;
     readonly mirror: string;
+    /** A réteg neve a diagram sorfeliratában (PQW-916): „1. sor”, „Láncalap”, „3. kör”. */
+    readonly layerName: (layer: number, round: boolean) => string;
     /** A sorszám és a szemszám megjegyzése hagyományonként. */
     readonly cycNote: string;
     readonly japaneseNote: string;
@@ -160,6 +163,9 @@ export interface SectionTexts {
     readonly details: string;
   };
 }
+
+/** Mondat elején és feliraton nagybetűvel: „láncalap” → „Láncalap”. */
+const capitalize = (value: string) => `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
 
 const hu: SectionTexts = {
   types: {
@@ -309,6 +315,7 @@ const hu: SectionTexts = {
     unitFrame: 'Szaggatott keret: az ismétlő egység.',
     spike: 'Pötty a szár végén: a lejjebb, a kihagyott szembe horgolt szem.',
     mirror: 'Tükrözött nézet balkezeseknek.',
+    layerName: (layer, round) => capitalize(huLayer(layer, round)),
     cycNote: 'A sorszám a sor kezdő oldalán áll, zárójelben a szemszám.',
     japaneseNote: 'A sorszám a sor kezdő oldalán áll, a végén a szemszám: 18目 = 18 szem; 11目1模様 = 11 szemenként ismétlődő minta.',
   },
@@ -466,6 +473,7 @@ const en: SectionTexts = {
     unitFrame: 'Dashed frame: the repeat unit.',
     spike: 'Dot at the foot of the stem: a spike stitch worked lower, into the skipped stitch.',
     mirror: 'Mirrored view for left-handed crocheters.',
+    layerName: (layer, round) => capitalize(enLayer(layer, round)),
     cycNote: 'The row number is at the starting side of the row, the stitch count in brackets.',
     japaneseNote: 'The row number is at the starting side of the row, the stitch count at the end: 18目 = 18 stitches; 11目1模様 = a pattern repeating every 11 stitches.',
   },
