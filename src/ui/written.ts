@@ -51,7 +51,14 @@ export function writtenView(pattern: Pattern, context: WorkContext, check: LiveC
 
   const notices: string[] = [];
   if (check.remaining > 0) {
-    notices.push(written.partial(size.result.layerLabel(context.layer, context.shape === 'round'), check.remaining));
+    /*
+     * A láncalap az 1. sor (PQW-923): az írott minta számozásában a réteg
+     * indexénél eggyel nagyobb szám áll. A méretpanel sorlistája viszont a saját
+     * számozását tartja (ott az 1. sor az első horgolt sor), ezért a szótári
+     * `layerLabel` marad, és csak ez a hívás tolódik.
+     */
+    const roundShape = context.shape === 'round';
+    notices.push(written.partial(size.result.layerLabel(context.layer + (roundShape ? 0 : 1), roundShape), check.remaining));
   }
   const errors = check.findings.filter((finding) => finding.severity === 'error').length;
   if (errors > 0) notices.push(written.errors(errors));

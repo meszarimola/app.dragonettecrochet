@@ -33,8 +33,14 @@ const hu = {
 
   /* ---- Sor és kör ---- */
   layer: {
-    /** A sor vagy kör neve: „3. sor”, „Row 3”. */
-    name: (index: number, round: boolean): string => `${index}. ${round ? 'kör' : 'sor'}`,
+    /**
+     * A sor vagy kör neve: „3. sor”, „Row 3”.
+     *
+     * A láncalap az 1. sor (PQW-923), ezért sorokban a kiírt szám a réteg
+     * indexénél eggyel nagyobb — így az állapotsor, a rajz felirata és az írott
+     * minta ugyanarra a sorra ugyanazt a számot mondja. Körben változatlan.
+     */
+    name: (index: number, round: boolean): string => `${index + (round ? 0 : 1)}. ${round ? 'kör' : 'sor'}`,
     /** Hány sor vagy kör van kész. */
     count: (count: number, round: boolean): string => `${count} ${round ? 'kör' : 'sor'}`,
   },
@@ -229,7 +235,7 @@ const en: typeof hu = {
   },
 
   layer: {
-    name: (index, round) => `${round ? 'Round' : 'Row'} ${index}`,
+    name: (index, round) => `${round ? 'Round' : 'Row'} ${index + (round ? 0 : 1)}`,
     count: (count, round) => `${count} ${round ? (count === 1 ? 'round' : 'rounds') : count === 1 ? 'row' : 'rows'}`,
   },
 

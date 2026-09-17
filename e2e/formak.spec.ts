@@ -40,7 +40,7 @@ test('20 × 30 cm-es félpálcás téglalap profil nélkül: becsült tényleges
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
   const text = await writtenText(page);
   // A 2 láncszemes fordulólánc az 1. félpálca helyett áll, alapláncszemen (PQW-891).
-  expect(text).toMatch(/1\. sor: hagyj ki 3 láncszemet, majd minden láncszembe 1 fp \(\d+ szem\)\. Fordítás\./);
+  expect(text).toMatch(/2\. sor: hagyj ki 3 láncszemet, majd minden láncszembe 1 fp \(\d+ szem\)\. Fordítás\./);
 
   await page.keyboard.press('ControlOrMeta+Z');
   await expect(page.locator('#status')).toContainText('Visszavonva.');

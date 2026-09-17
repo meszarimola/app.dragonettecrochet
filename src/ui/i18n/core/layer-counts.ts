@@ -13,12 +13,23 @@
 
 import type { LayerCount } from '../../../core/selection.ts';
 
-/** „2. sor”, „3. kör”; a 0. réteg a láncalap vagy a varázskör. */
+/**
+ * „2. sor”, „3. kör”.
+ *
+ * Sorokban a láncalap az 1. sor (PQW-923, tulajdonosi döntés): a szemeit
+ * horgolás közben is használjuk, ezért nem külön néven, hanem sorként szerepel.
+ * A rá következő sor így a 2., vagyis a kiírt sorszám a réteg indexénél eggyel
+ * nagyobb.
+ *
+ * Körben a számozás változatlan: a varázskör, a láncgyűrű és az ovális kezdés a
+ * mai nevén marad, hogy a kész amigurumi minták körszámai ne csússzanak el. Ott
+ * a 0. réteg neve a kezdés fajtájából jön, nem sorszámból.
+ */
 export const huLayer = (layer: number, round: boolean): string =>
-  layer === 0 ? (round ? 'varázskör' : 'láncalap') : `${layer}. ${round ? 'kör' : 'sor'}`;
+  round ? (layer === 0 ? 'varázskör' : `${layer}. kör`) : `${layer + 1}. sor`;
 
 export const enLayer = (layer: number, round: boolean): string =>
-  layer === 0 ? (round ? 'magic ring' : 'foundation chain') : `${round ? 'round' : 'row'} ${layer}`;
+  round ? (layer === 0 ? 'magic ring' : `round ${layer}`) : `row ${layer + 1}`;
 
 export const huStitches = (count: number): string => `${count} szem`;
 

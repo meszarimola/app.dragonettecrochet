@@ -26,14 +26,23 @@ test('a téglalap SVG-je: sorszámok, szemszámok, mindkét oldal színe, jelmag
   assert.equal(svg.match(/<svg/g).length, 1);
   assert.match(svg, /<\/svg>\n$/);
   assert.doesNotMatch(svg, /NaN|undefined|Infinity/);
-  for (const row of [1, 2, 3]) assert.match(svg, new RegExp(`>${row}</text>`));
-  assert.equal(svg.match(/>\(15\)</g).length, 3);
+  /*
+   * A sorszám és a szemszám egy feliraton (PQW-923), ugyanúgy, ahogy a tervező
+   * vásznán; külön „(15)” szöveg már nem kerül a mintára. A láncalap az 1. sor.
+   */
+  assert.match(svg, />1\. sor – alapsor \(\d+\)</);
+  for (const row of [2, 3, 4]) assert.match(svg, new RegExp(`>${row}\\. sor \\(15\\)</text>`));
+  assert.doesNotMatch(svg, />\(15\)</);
   // Mindkét oldal csoportjában van szár.
   assert.match(svg, /data-side="right"[^>]*>\n(?:<(?!\/g>)[^\n]*\n)*<line/);
   assert.match(svg, /data-side="wrong"[^>]*>\n(?:<(?!\/g>)[^\n]*\n)*<line/);
-  // Az 1. sor száma a jobb oldalon, a 2. soré a bal oldalon (03 §2.1).
-  const x = (row) => Number(svg.match(new RegExp(`x="(-?[\\d.]+)"[^>]*>${row}</text>`))[1]);
-  assert.ok(x(1) > x(2));
+  /*
+   * A felirat a sor VÉGÉNEK oldalán áll (PQW-916/923), nem a kezdetén: ezért a
+   * 2. sor felirata a bal, a 3. soré a jobb oldalon van — a korábbi elvárás
+   * fordítva szólt, mert akkor a sorszám a kezdő oldalon állt.
+   */
+  const x = (row) => Number(svg.match(new RegExp(`x="(-?[\\d.]+)"[^>]*>${row}\\. sor \\(15\\)</text>`))[1]);
+  assert.ok(x(3) > x(2));
   assert.match(svg, /Jelmagyarázat/);
   assert.match(svg, />félpálca \(fp\)</);
   assert.match(svg, />láncszem \(lsz\)</);

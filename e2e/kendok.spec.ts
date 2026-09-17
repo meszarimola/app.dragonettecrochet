@@ -44,7 +44,7 @@ test('fentről induló háromszög: blokkolt és blokkolatlan méret, saját ar�
   await section.getByRole('button', { name: 'Minta létrehozása' }).click();
   await expect(page.locator('#status')).toContainText(/Fentről induló háromszög, \d+ sor elkészült; visszavonással a korábbi minta visszajön\./);
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
-  expect(await writtenText(page)).toMatch(/2\. sor: 3 lsz \(1 erp-nek számít\), .*\(\d+ szem\)\. Fordítás\./);
+  expect(await writtenText(page)).toMatch(/3\. sor: 3 lsz \(1 erp-nek számít\), .*\(\d+ szem\)\. Fordítás\./);
 
   await page.keyboard.press('ControlOrMeta+Z');
   await expect(page.locator('#status')).toContainText('Visszavonva.');
@@ -68,7 +68,7 @@ test('félkör rövidpálcával: sugár, egyenletes szaporítás, hibátlan', as
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
   // A rövidpálcás fordulólánc az 1. szem helyett áll, alapláncszemen (PQW-891).
   expect(await writtenText(page)).toMatch(
-    /1\. sor: hagyj ki 2 láncszemet, majd \d+ rp a következő láncszembe \(\d+ szem\)\. Fordítás\./,
+    /2\. sor: hagyj ki 2 láncszemet, majd \d+ rp a következő láncszembe \(\d+ szem\)\. Fordítás\./,
   );
 });
 

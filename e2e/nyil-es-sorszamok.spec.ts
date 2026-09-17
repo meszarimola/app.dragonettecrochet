@@ -94,7 +94,7 @@ test('minden sor mellett ott a sorszám és a szemszám, takarás nélkül (PQW-
   const arrow = await api<Rect | null>(page, 'arrowBox');
 
   /*
-   * A láncalap is kap feliratot, a nevével és a szemszámával. A szám a rajzon
+   * A láncalap a PQW-923 óta maga az 1. sor, a szemszámával. A szám a rajzon
    * lévő láncszem-jeleké: fordulás után kettő közülük az 1. sor fordulóláncába
    * kerül át (a félpálca a horogtól számított 3. láncszembe megy), ezért a
    * tizenkettőből tíz marad a 0. rétegen. A felirat így a rajzzal egyezik, és
@@ -102,11 +102,11 @@ test('minden sor mellett ott a sorszám és a szemszám, takarás nélkül (PQW-
    */
   const foundation = labels.find((label) => label.layer === 0);
   expect(foundation, 'a láncalapnak is van felirata').toBeDefined();
-  expect(foundation!.text, 'a láncalap neve és a rajzolt láncszemei').toMatch(/^Láncalap \(\d+\)$/);
+  expect(foundation!.text, 'a láncalap az 1. sor, a rajzolt láncszemeivel').toMatch(/^1\. sor – alapsor \(\d+\)$/);
 
   const row = labels.find((label) => label.layer === 1);
   expect(row, 'az 1. sornak is van felirata').toBeDefined();
-  expect(row!.text, 'a sorszám és a szemszám egy feliraton').toMatch(/^1\. sor \(\d+\)$/);
+  expect(row!.text, 'a sorszám és a szemszám egy feliraton').toMatch(/^2\. sor \(\d+\)$/);
 
   /*
    * A felirat a RAJZ mellett áll, nem a rajzon belül. A doboz-átfedés erre
@@ -183,7 +183,7 @@ test('1000×506, angol felület: a hosszabb felirat sem csúszik a szemekre (PQW
   const labels = await api<LabelBox[]>(page, 'labelBoxes');
   const stitches = await api<StitchBox[]>(page, 'stitchBoxes');
   const arrow = await api<Rect | null>(page, 'arrowBox');
-  expect(labels.map((label) => label.text)).toContain('Foundation chain (10)');
+  expect(labels.map((label) => label.text)).toContain('Row 1 – foundation (10)');
 
   for (const label of labels) {
     for (const stitch of stitches) {

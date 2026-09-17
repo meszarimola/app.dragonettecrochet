@@ -40,7 +40,9 @@ test('japán hagyománnyal az export feliratai: „目” szemszám, japán megj
     colors: { right: '#000', wrong: '#00f', text: '#111', background: '#fff' },
     tradition: 'japanese',
   });
-  assert.ok(svg.includes('>15目</text>'));
+  // A szemszám a sorfelirat része, nem külön szöveg a mintán (PQW-923): a 2. réteg kiírt száma 3.
+  assert.ok(svg.includes('>3. sor 15目</text>'));
+  assert.ok(!svg.includes('>15目</text>'));
   assert.ok(!svg.includes('>(15)</text>'));
   assert.ok(svg.includes(chartLabels('japanese').note));
   assert.ok(svg.includes('Ismétlés: 6目1模様.'));
@@ -53,27 +55,32 @@ test('a CYC feliratai egyeznek a korábbi diagraméval', () => {
     colors: { right: '#000', wrong: '#00f', text: '#111', background: '#fff' },
   });
   const labels = chartLabels('cyc');
-  assert.ok(svg.includes(`>${labels.count(15)}</text>`));
-  assert.ok(svg.includes(`>${labels.layer(2)}</text>`));
+  // Egy címkén a sorszám és a szemszám, ahogy a tervező vásznán (PQW-923).
+  assert.ok(svg.includes('>3. sor (15)</text>'));
+  assert.ok(!svg.includes(`>${labels.count(15)}</text>`));
   assert.ok(svg.includes(labels.note));
 });
 
 /*
  * A rajz melletti sorfelirat (PQW-916): a réteg neve a felület nyelvéből, a
- * szemszám alakja a hagyományból. A láncalap és a varázskör nem kap sorszámot,
- * mert nem sor — a nevén szerepel.
+ * szemszám alakja a hagyományból.
+ *
+ * A láncalap a PQW-923 óta maga az 1. sor (tulajdonosi döntés), ezért a
+ * belehorgolt sor a 2. — a kiírt szám a réteg indexénél eggyel nagyobb. Körben
+ * a számozás változatlan: a varázskör a nevén szerepel, hogy a kész amigurumi
+ * minták körszámai ne csússzanak el.
  */
 test('a sorfelirat a réteg nevével és a szemszámmal, magyarul és angolul', () => {
   const labels = chartLabels('cyc');
-  assert.equal(labels.rowLabel(1, false, 12), '1. sor (12)');
-  assert.equal(labels.rowLabel(0, false, 12), 'Láncalap (12)');
+  assert.equal(labels.rowLabel(1, false, 12), '2. sor (12)');
+  assert.equal(labels.rowLabel(0, false, 12), '1. sor – alapsor (12)');
   assert.equal(labels.rowLabel(3, true, 18), '3. kör (18)');
 
   setUiLanguage('en');
   try {
     const en = chartLabels('cyc');
-    assert.equal(en.rowLabel(1, false, 12), 'Row 1 (12)');
-    assert.equal(en.rowLabel(0, false, 12), 'Foundation chain (12)');
+    assert.equal(en.rowLabel(1, false, 12), 'Row 2 (12)');
+    assert.equal(en.rowLabel(0, false, 12), 'Row 1 – foundation (12)');
     assert.equal(en.rowLabel(0, true, 6), 'Magic ring (6)');
   } finally {
     setUiLanguage('hu');
@@ -81,7 +88,7 @@ test('a sorfelirat a réteg nevével és a szemszámmal, magyarul és angolul', 
 });
 
 test('japán hagyományban a sorfelirat szemszáma is „目” egységgel megy', () => {
-  assert.equal(chartLabels('japanese').rowLabel(2, false, 15), '2. sor 15目');
+  assert.equal(chartLabels('japanese').rowLabel(2, false, 15), '3. sor 15目');
 });
 
 test('a varázskör felirata szemszám nélkül áll: annak nincs értelmes szemszáma (PQW-916)', () => {

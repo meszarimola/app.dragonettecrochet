@@ -339,7 +339,15 @@ class PieceReader {
     // A kiírt sorszám az újrakezdett szakaszban újraindul (PQW-901), a gráf rétegei viszont sorban állnak.
     const layerOfRow = new Map<number, number>();
     let graphIndex = 1;
-    let expectedRow = 1;
+    /*
+     * Hol kezdődik a kiírt sorszámozás (PQW-923): sorokban a 2. sorral, mert az
+     * 1. sor maga a láncalap; körben viszont az 1. körrel, mert a varázskör, a
+     * láncgyűrű és az ovális kezdés számozása változatlan maradt. Az első
+     * fejléc alakja dönti el, onnantól folytonosnak kell lennie.
+     */
+    let expectedRow: number | null = null;
+    /** Az első fejléc szigorú; az újrakezdett szakaszé bármilyen számmal indulhat. */
+    let firstHeader = true;
     layerLines.forEach((line, i) => {
       const resume = this.resumeHeading(line);
       if (resume !== null) {
@@ -349,10 +357,20 @@ class PieceReader {
         if (last?.kind !== 'fasten-off') throw new ReadFailure(line.number, 'Az új szakasz előtt a fonalat el kell vágni.');
         this.events[this.events.length - 1] = { ...last, resume: { layer: target, name: resume.name } };
         this.pendingResume = target;
-        expectedRow = resume.row + 1;
+        /*
+         * Az újrakezdett szakasz első fejléce mondja meg, hol folytatódik a
+         * számozás (PQW-923). Korábban itt fix `+1` állt, de a szakasz első
+         * sora nem mindig a hivatkozott sor utáni: a raglán ujja a vállrész
+         * sora fölött ugyanazzal a számmal indul, a nyakkivágás két válla
+         * viszont eggyel nagyobbal. A szakaszon belül a folytonosságot
+         * továbbra is ellenőrizzük.
+         */
+        expectedRow = null;
         return;
       }
       const header = this.header(line);
+      if (expectedRow === null) expectedRow = firstHeader ? (header.shape === 'row' ? 2 : 1) : header.from;
+      firstHeader = false;
       if (header.from !== expectedRow) throw new ReadFailure(line.number, `A sorszám nem folytatódik: ${expectedRow} helyett ${header.from}.`);
       for (let row = header.from; row <= header.to; row += 1) {
         const isLast = i === layerLines.length - 1 && row === header.to;
@@ -417,17 +435,27 @@ class PieceReader {
       this.rings.push({ id: `r${this.rings.length + 1}`, node });
       return;
     }
-    const count = Number(/\d+/.exec(line.text)?.[0]);
-    if (Number.isInteger(count) && count >= 1 && line.text === v.chainRing(count, refOf(this.byKind('slip'), this.options.locale))) {
+    /*
+     * A láncszemek számát nem a helye azonosítja a mondatban, hanem az, hogy
+     * vele a szövegíró pontosan ezt a sort írná ki (PQW-923). A láncalap sora
+     * ugyanis „1. sor – alapsor: 17 lsz.” alakot kapott: ott az első szám a
+     * sorszám, nem a láncszemeké, és az első találat 1-et adott volna.
+     */
+    const numbers = [...line.text.matchAll(/\d+/g)].map((match) => Number(match[0])).filter((value) => value >= 1);
+    const countFor = (make: (value: number) => string): number | undefined => numbers.find((value) => line.text === make(value));
+    const slip = refOf(this.byKind('slip'), this.options.locale);
+    const ringCount = countFor((value) => v.chainRing(value, slip));
+    if (ringCount !== undefined) {
       // Láncgyűrű: a zárás eseménye az utolsó láncszem után; a kúszószem az 1. körrel együtt kerül be.
       this.foundation = 'chain-ring';
-      const chains = this.chains(count);
+      const chains = this.chains(ringCount);
       this.ringSpace = `s${this.spaces.length + 1}`;
       this.spaces.push({ id: this.ringSpace, chains });
       this.events.push({ after: chains[chains.length - 1]!, kind: 'join-slip' });
       return;
     }
-    if (!Number.isInteger(count) || count < 1 || line.text !== v.foundation(count)) {
+    const count = countFor((value) => v.foundation(value));
+    if (count === undefined) {
       throw new ReadFailure(line.number, `Láncalapot vagy varázskört vártunk: „${line.text}”.`);
     }
     this.chains(count);
@@ -446,7 +474,8 @@ class PieceReader {
     if (open <= 0) return null;
     const name = line.text.slice(0, open);
     const row = Number(/\d+/.exec(line.text.slice(open))?.[0]);
-    return Number.isInteger(row) && this.vocabulary.resumeSection(name, row) === line.text ? { name, row } : null;
+    // A szövegben a kiírt sorszám áll, a formázó viszont a rétegét várja (PQW-923): onnan az eggyel kisebb szám.
+    return Number.isInteger(row) && this.vocabulary.resumeSection(name, row - 1) === line.text ? { name, row } : null;
   }
 
   private header(line: Line): LayerHeader {
@@ -456,7 +485,8 @@ class PieceReader {
     const from = numbers[0] ?? NaN;
     const to = numbers[1] ?? from;
     const v = this.vocabulary.layer;
-    const shape = label === v.row(from, to) ? 'row' : label === v.round(from, to) ? 'round' : null;
+    // A sor formázója a réteg indexéből írja a kiírt számot, és az eggyel nagyobb (PQW-923): innen visszafelé kell nézni.
+    const shape = label === v.row(from - 1, to - 1) ? 'row' : label === v.round(from, to) ? 'round' : null;
     if (shape === null || to < from) throw new ReadFailure(line.number, `Nem értelmezhető sorkezdet: „${line.text}”.`);
     return { line: line.number, shape, from, to, body: line.text.slice(colon + 2) };
   }
@@ -760,7 +790,8 @@ class PieceReader {
       if (stated !== undefined && stated !== layer.stitchCount) {
         throw new ReadFailure(
           this.layerLines.get(layer.index) ?? 0,
-          `${layer.index}. ${layer.shape === 'row' ? 'sor' : 'kör'}: a szöveg ${stated} szemet ír, a visszaolvasott gráf szerint ${layer.stitchCount}.`,
+          // A hibaüzenet a kiírt sorszámot mondja, hogy a szövegben meg lehessen találni (PQW-923).
+          `${layer.shape === 'row' ? `${layer.index + 1}. sor` : `${layer.index}. kör`}: a szöveg ${stated} szemet ír, a visszaolvasott gráf szerint ${layer.stitchCount}.`,
         );
       }
     }

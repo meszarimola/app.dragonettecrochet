@@ -62,31 +62,31 @@ test('a sorszámmal kijelölt sor másolása, beillesztése a következő sorké
   const status = page.locator('#status');
   const duplicate = page.locator('.tools [data-action="duplicate-selection"]');
   const remove = page.locator('.tools [data-action="delete-selection"]');
-  await expect(summary).toContainText('2. sor: 5 szem');
+  await expect(summary).toContainText('3. sor: 5 szem');
   await expect(duplicate).toBeDisabled();
   await expect(remove).toBeDisabled();
 
   await clickLabel(page, 2);
-  await expect(status).toHaveText('2. sor kijelölve: 5 szem.');
+  await expect(status).toHaveText('3. sor kijelölve: 5 szem.');
   await expect(duplicate).toBeEnabled();
   await expect(remove).toBeEnabled();
 
   await page.keyboard.press('ControlOrMeta+c');
   await expect(status).toContainText('a vágólapon');
   await page.keyboard.press('ControlOrMeta+v');
-  await expect(summary).toContainText('3 sor. 3. sor: 5 szem.');
+  await expect(summary).toContainText('3 sor. 4. sor: 5 szem.');
   await expect(summary).toContainText('Nincs hiba és figyelmeztetés.');
 
   // Egy visszavonás az egész beillesztést visszaveszi.
   await page.keyboard.press('ControlOrMeta+z');
-  await expect(summary).toContainText('2 sor. 2. sor: 5 szem.');
+  await expect(summary).toContainText('2 sor. 3. sor: 5 szem.');
 
   await clickLabel(page, 2);
   await duplicate.click();
-  await expect(summary).toContainText('3 sor. 3. sor: 5 szem.');
+  await expect(summary).toContainText('3 sor. 4. sor: 5 szem.');
   await expect(summary).toContainText('Nincs hiba és figyelmeztetés.');
   await page.getByRole('button', { name: 'Visszavonás' }).click();
-  await expect(summary).toContainText('2 sor. 2. sor: 5 szem.');
+  await expect(summary).toContainText('2 sor. 3. sor: 5 szem.');
 });
 
 test('középső szem törlése: az érintett szemek megjelennek, a törlés megszakítható, vagy velük együtt megy', async ({ page }) => {
@@ -101,17 +101,17 @@ test('középső szem törlése: az érintett szemek megjelennek, a törlés meg
 
   await page.keyboard.press('Delete');
   await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText('még 1 szem horgol: 2. sor: 1 szem');
+  await expect(dialog).toContainText('még 1 szem horgol: 3. sor: 1 szem');
   await dialog.getByRole('button', { name: 'Megszakítás' }).click();
   await expect(dialog).toBeHidden();
   await expect(page.locator('#status')).toHaveText('A törlés megszakítva; a minta nem változott.');
-  await expect(summary).toContainText('2. sor: 5 szem');
+  await expect(summary).toContainText('3. sor: 5 szem');
 
   await page.getByRole('button', { name: 'Kijelölés törlése' }).click();
   await dialog.getByRole('button', { name: 'Törlés velük együtt' }).click();
-  await expect(summary).toContainText('2. sor: 4 szem');
+  await expect(summary).toContainText('3. sor: 4 szem');
   await page.keyboard.press('ControlOrMeta+z');
-  await expect(summary).toContainText('2. sor: 5 szem');
+  await expect(summary).toContainText('3. sor: 5 szem');
 });
 
 test('kijelölés billentyűzettel és területtel; kevés célpontnál figyelmeztet, és nem illeszt be', async ({ page }) => {
@@ -124,9 +124,9 @@ test('kijelölés billentyűzettel és területtel; kevés célpontnál figyelme
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('Shift+Home');
   // A sor a fordulólánc 2 láncszemével és 4 félpálcával: a fordulólánc az 1. szem helyett áll (PQW-891).
-  await expect(status).toContainText('Kijelölve: 6 szem (2. sor: 6 szem)');
+  await expect(status).toContainText('Kijelölve: 6 szem (3. sor: 6 szem)');
   await page.keyboard.press('ControlOrMeta+d');
-  await expect(summary).toContainText('3 sor. 3. sor: 5 szem.');
+  await expect(summary).toContainText('3 sor. 4. sor: 5 szem.');
   await page.keyboard.press('ControlOrMeta+z');
   await page.keyboard.press('Escape');
 
@@ -148,5 +148,5 @@ test('kijelölés billentyűzettel és területtel; kevés célpontnál figyelme
   await page.keyboard.press('ControlOrMeta+d');
   await expect(status).toContainText('Nincs elég célpont');
   await expect(status).toContainText('A minta nem változott.');
-  await expect(summary).toContainText('2 sor. 2. sor: 5 szem.');
+  await expect(summary).toContainText('2 sor. 3. sor: 5 szem.');
 });

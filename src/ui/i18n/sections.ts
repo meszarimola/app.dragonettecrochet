@@ -315,7 +315,8 @@ const hu: SectionTexts = {
     unitFrame: 'Szaggatott keret: az ismétlő egység.',
     spike: 'Pötty a szár végén: a lejjebb, a kihagyott szembe horgolt szem.',
     mirror: 'Tükrözött nézet balkezeseknek.',
-    layerName: (layer, round) => capitalize(huLayer(layer, round)),
+    // A rajzon a láncalap sora a pontosítást is megkapja (PQW-923); mondat közepén a rövid alak áll.
+    layerName: (layer, round) => (layer === 0 && !round ? '1. sor – alapsor' : capitalize(huLayer(layer, round))),
     cycNote: 'A sorszám a sor kezdő oldalán áll, zárójelben a szemszám.',
     japaneseNote: 'A sorszám a sor kezdő oldalán áll, a végén a szemszám: 18目 = 18 szem; 11目1模様 = 11 szemenként ismétlődő minta.',
   },
@@ -473,7 +474,8 @@ const en: SectionTexts = {
     unitFrame: 'Dashed frame: the repeat unit.',
     spike: 'Dot at the foot of the stem: a spike stitch worked lower, into the skipped stitch.',
     mirror: 'Mirrored view for left-handed crocheters.',
-    layerName: (layer, round) => capitalize(enLayer(layer, round)),
+    // A rajzon a láncalap sora a pontosítást is megkapja (PQW-923); mondat közepén a rövid alak áll.
+    layerName: (layer, round) => (layer === 0 && !round ? 'Row 1 – foundation' : capitalize(enLayer(layer, round))),
     cycNote: 'The row number is at the starting side of the row, the stitch count in brackets.',
     japaneseNote: 'The row number is at the starting side of the row, the stitch count at the end: 18目 = 18 stitches; 11目1模様 = a pattern repeating every 11 stitches.',
   },

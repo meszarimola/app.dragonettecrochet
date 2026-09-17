@@ -121,7 +121,7 @@ describe('írott minta és visszaolvasás', () => {
       hu.includes('1. kör: hagyj ki 1 láncszemet, majd 6 rp, 4 rp a következő láncszembe, a láncszemek másik oldalán vissza: 5 rp, 3 rp a következő láncszembe (18).'),
       hu,
     );
-    assert.match(hu, /Láncalap: 8 lsz\./);
+    assert.match(hu, /1. sor – alapsor: 8 lsz\./);
     assert.match(textOf(pattern, 'en-US'), /Rnd 1: skip 1 ch, 6 sc, 4 sc in next ch, working back along the other side of the chain: 5 sc, 3 sc in next ch \(18\)\./);
     assert.match(textOf(pattern, 'en-GB'), /Rnd 1: miss 1 ch, 6 dc, 4 dc in next ch, working back along the other side of the chain: 5 dc, 3 dc in next ch \(18\)\./);
   });
