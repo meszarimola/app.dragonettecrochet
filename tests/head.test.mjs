@@ -124,7 +124,7 @@ test('JS nélkül is van szöveg: magyar és angol leírás a főoldali leíró 
 
 test('saját favicon és apple-touch-icon, külső hivatkozás nélkül; a fájlok a public/-ban', () => {
   const links = [...HEAD.matchAll(/<link\s[^>]*rel="(icon|apple-touch-icon)"[^>]*>/g)].map((match) => ({ rel: match[1], href: /href="([^"]*)"/.exec(match[0])?.[1] }));
-  assert.deepEqual(links.map((link) => link.rel).sort(), ['apple-touch-icon', 'icon']);
+  assert.deepEqual(links.map((link) => link.rel).sort(), ['apple-touch-icon', 'icon', 'icon']);
   for (const { href } of links) {
     assert.match(href, /^\/[\w.-]+$/, `${href}: saját származású, relatív út`);
     assert.ok(existsSync(new URL(`../public${href}`, import.meta.url)), `${href} hiányzik a public/-ból`);
@@ -135,4 +135,9 @@ test('a theme-color a --c-bg design token értéke', () => {
   const token = /--c-bg:\s*(#[0-9a-f]{6})/i.exec(read('src/ui/styles.css'))?.[1];
   assert.ok(token, 'nincs --c-bg token');
   assert.equal(meta('theme-color')?.toLowerCase(), token.toLowerCase());
+});
+
+test('SVG favicon a D6 jellel, a 32 px-es ICO megmarad tartalékként (PQW-922)', () => {
+  assert.match(HEAD, /<link rel="icon" type="image\/svg\+xml" href="\/favicon\.svg" \/>/);
+  assert.match(HEAD, /<link rel="icon" href="\/favicon\.ico" sizes="32x32" \/>/);
 });

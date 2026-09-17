@@ -28,6 +28,11 @@
   --c-grid: #b8adc6;
   --c-grid-row: #8d819c;
   --c-grid-strong: #6f6480;
+  /* A D6 szitakötő-jel (PQW-922) színei; csak a márkajel használja őket.
+   * A test a --c-ink, a "CROCHET" szó színe a --c-accent. */
+  --c-brand-wing: #c5b2e4;
+  --c-brand-wing-inner: #8a6fb8;
+  --c-brand-eye: #fdfbf8;
 
   --font-display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
   --font-body: 'Karla', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -224,6 +229,31 @@ button {
   font-size: 1.25rem;
   font-weight: 400;
   color: var(--c-ink);
+}
+
+/* A D6 márkajel a cím előtt (PQW-922): legalább 20 px magas jel, a
+ * szoros kivágás a jel körüli szabad teret is tartalmazza. */
+.brand-mark {
+  flex-shrink: 0;
+  inline-size: 2rem;
+  block-size: 2rem;
+  margin-inline-end: -0.25rem;
+}
+
+.brand-mark__wing {
+  fill: var(--c-brand-wing);
+}
+
+.brand-mark__wing-inner {
+  fill: var(--c-brand-wing-inner);
+}
+
+.brand-mark__body {
+  fill: var(--c-ink);
+}
+
+.brand-mark__eye {
+  fill: var(--c-brand-eye);
 }
 
 /* Kivezetés a fő oldalra. Kerettel áll, nem puszta szövegként: ez az
