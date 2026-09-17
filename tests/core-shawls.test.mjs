@@ -106,15 +106,15 @@ describe('fentről induló háromszög (05 §1.4)', () => {
     assert.ok(sizes.unblocked.widthCm < sizes.blocked.widthCm && sizes.unblocked.depthCm < sizes.blocked.depthCm);
   });
 
-  test('„A” példa írott mintája: az 1. sor a hagyomány szerinti láncszembe, a 2. sor „3 lsz, 2 erp ugyanabba a szembe”', () => {
+  test('„A” példa írott mintája: a 2. sor a hagyomány szerinti láncszembe, a 3. sor „3 lsz, 2 erp ugyanabba a szembe”', () => {
     const { pattern } = shawl(exampleA(), { kind: 'triangle', stitch: 'dc', sizeCm: 80 });
     const dc = resolveStitch('dc');
     const tradition = traditionOf(pattern.conventions);
     const from = firstChainFromHook(dc.turningChain, turningChainCountsFor(pattern.conventions.turningChainCounts, dc, tradition, 'row'), tradition);
     const hu = formatWrittenPattern(writePattern(pattern, libraryFor(pattern), 'hu'));
-    assert.match(hu, new RegExp(`1\\. sor: hagyj ki ${from - 1} láncszemet, majd .*\\(8 szem\\)\\. Fordítás\\.`));
-    assert.match(hu, /2\. sor: 3 lsz \(1 erp-nek számít\), 2 erp ugyanabba a szembe, .* \(16 szem\)\. Fordítás\./);
-    assert.match(hu, /45\. sor: .* \(360 szem\)\. A fonal elvágása\./);
+    assert.match(hu, new RegExp(`2\\. sor: hagyj ki ${from - 1} láncszemet, majd .*\\(8 szem\\)\\. Fordítás\\.`));
+    assert.match(hu, /3\. sor: 3 lsz \(1 erp-nek számít\), 2 erp ugyanabba a szembe, .* \(16 szem\)\. Fordítás\./);
+    assert.match(hu, /46\. sor: .* \(360 szem\)\. A fonal elvágása\./);
   });
 
   test('rövidpálcával 20 × 22-nél 3,64 szaporítás: 124 sor, csak +4 és +2, a +2 felváltva a széleken és a gerincen', () => {

@@ -110,18 +110,18 @@ describe('sor, láncalap és fordulólánc (03 §5.2, §10 G32)', () => {
   test('későbbi sor: teli kezdésnél 3 lsz, nyitott kezdésnél a fordulólánc után a cella 2 láncszeme', () => {
     const { pattern } = make(cyc(), chart('.##', '###'));
     const [, , row2] = lines(pattern);
-    assert.match(row2, /^2\. sor: 3 lsz \(1 erp-nek számít\), 2 lsz, 2 szem kihagyása, /);
+    assert.match(row2, /^3\. sor: 3 lsz \(1 erp-nek számít\), 2 lsz, 2 szem kihagyása, /);
     assert.equal(graphOf(pattern).layers[2].turningChain.length, 3);
     assert.deepEqual(findings(pattern), []);
   });
 
-  test('nyitott kezdésű 1. sor az írott mintában: a láncalap 3N + 6, és a 9. láncszemtől indul', () => {
+  test('nyitott kezdésű 2. sor az írott mintában: a láncalap 3N + 6, és a 9. láncszemtől indul', () => {
     const { pattern } = make(cyc(), chart('###.'));
     const [foundation, row1] = lines(pattern);
-    assert.equal(foundation, 'Láncalap: 18 lsz.');
+    assert.equal(foundation, '1. sor – alapsor: 18 lsz.');
     // A kihagyott 8 láncszem: 3 lsz fordulólánc, 1 alapláncszem, a nyitott cella 2 lsz-e és 2 kihagyott láncszeme (PQW-895).
-    assert.equal(row1, '1. sor: hagyj ki 8 láncszemet, majd minden láncszembe 1 erp (11 szem). A fonal elvágása.');
-    assert.match(lines(pattern, 'en-US')[1], /^Row 1: skip 8 ch, dc in each ch across \(11 sts\)\./);
+    assert.equal(row1, '2. sor: hagyj ki 8 láncszemet, majd minden láncszembe 1 erp (11 szem). A fonal elvágása.');
+    assert.match(lines(pattern, 'en-US')[1], /^Row 2: skip 8 ch, dc in each ch across \(11 sts\)\./);
   });
 });
 
@@ -159,7 +159,7 @@ describe('alakítás egész cellánként (03 §10 F30)', () => {
     assert.deepEqual(findings(pattern), []);
     const [, row1, row2] = lines(pattern);
     assert.match(row1, /, 3 lsz \(\d+ szem\)\. Fordítás\.$/);
-    assert.match(row2, /^2\. sor: 3 lsz \(1 erp-nek számít\), 12 erp /);
+    assert.match(row2, /^3\. sor: 3 lsz \(1 erp-nek számít\), 12 erp /);
   });
 
   test('a sor elején fogyasztás kúszószemekkel a cellák fölött; a fordulólánc az oszlopon áll (PQW-894)', () => {
@@ -173,7 +173,7 @@ describe('alakítás egész cellánként (03 §10 F30)', () => {
     );
     assert.deepEqual(findings(pattern), []);
     const [, , row2] = lines(pattern);
-    assert.match(row2, /^2\. sor: 4 ksz, 3 lsz \(1 erp-nek számít\), 9 erp \(10 szem\)\. A fonal elvágása\.$/);
+    assert.match(row2, /^3\. sor: 4 ksz, 3 lsz \(1 erp-nek számít\), 9 erp \(10 szem\)\. A fonal elvágása\.$/);
   });
 
   test('a sor végén szaporítás: 2 lsz és háromráhajtásos pálca a fordulólánc alatti szembe, jelölt hosszú szemként (PQW-894)', () => {

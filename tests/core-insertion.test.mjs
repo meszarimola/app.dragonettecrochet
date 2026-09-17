@@ -150,9 +150,10 @@ describe('duplikálás: a horgoló felől nézett mód marad', () => {
     const copy = ok(duplicateSelection(pattern, layerSelection(pattern, 2)));
     assert.deepEqual(storedModes(copy, 3), Array(4).fill('back-loop'));
     assert.deepEqual(findings(copy), []);
-    // A 2. sor után fordulás áll, a duplikált 3. sor a minta vége: a záró mondat nélkül vetjük össze.
+    // A 3. sor után fordulás áll, a duplikált 4. sor a minta vége: a záró mondat nélkül vetjük össze.
+    // A kiírt sorszám a rétegénél eggyel nagyobb (PQW-923): a láncalap az 1. sor.
     const row = (n) => text(copy, 'hu').split('\n').find((line) => line.startsWith(`${n}. sor:`)).slice(2).replace(/ Fordítás\.$/, '');
-    assert.equal(row(3), row(2));
+    assert.equal(row(4), row(3));
   });
 
   test('azonos oldalú sorba változatlanul', () => {
@@ -165,7 +166,7 @@ describe('duplikálás: a horgoló felől nézett mód marad', () => {
 
 describe('írott minta és visszaolvasás (szókészlet §3)', () => {
   const cases = [
-    ['sc', 'back-loop', 'hu', /2\. sor: 1 lsz \(1 rp-nek számít\), 7 rp \(hsz\)/, 'hsz – hátsó szálba'],
+    ['sc', 'back-loop', 'hu', /3\. sor: 1 lsz \(1 rp-nek számít\), 7 rp \(hsz\)/, 'hsz – hátsó szálba'],
     ['sc', 'front-loop', 'hu', /7 rp \(esz\)/, 'esz – első szálba'],
     ['dc', 'front-post', 'hu', /\d Eerp/, 'Eerp – első relief egyráhajtásos pálca (elölről hurkolt)'],
     ['dc', 'back-post', 'hu', /\d Herp/, 'Herp – hátsó relief egyráhajtásos pálca (hátulról hurkolt)'],

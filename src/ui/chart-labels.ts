@@ -12,6 +12,7 @@
  * magot `.ts` kiterjesztéssel importálja.
  */
 
+import type { ChartLayout, Point } from '../core/layout.ts';
 import type { RepeatSpec, Tradition } from '../core/types.ts';
 import { texts } from './i18n.ts';
 
@@ -56,4 +57,50 @@ export function chartLabels(tradition: Tradition): ChartLabels {
     repeat: () => null,
     note: chart.cycNote,
   };
+}
+
+/** Egy sorfelirat a rajzon: melyik réteghez tartozik, mit mond, és hol a sor vége. */
+export interface RowCaption {
+  readonly layer: number;
+  readonly text: string;
+  /** A sor vége jobbra esik-e: a felirat ezen az oldalon áll. */
+  readonly rightwards: boolean;
+  /** A sor színoldala: a címke ezzel a színnel teli. */
+  readonly side: 'right' | 'wrong';
+  /** A sor vége diagram-koordinátában; a felirat ehhez igazodik. */
+  readonly end: Point;
+}
+
+/**
+ * A rajz sorfeliratai: melyik réteg kap feliratot, és milyen szöveggel (PQW-923).
+ *
+ * A tervező vászna és az SVG-export (így az abból rasterizált PNG is) ugyanezt
+ * használja, hogy a kettő ne mondhasson mást — korábban az export a szemszámot
+ * külön, a mintára írta. Csak az elhelyezés marad külön: a vásznon a felirat
+ * fix képpontos, az exportban a rajzzal együtt méreteződik.
+ *
+ * Felirata annak van, amiben már van szem. A most megnyitott sor a
+ * fordulóláncától még nem sor: a jelei ott vannak, a szemszáma mégis 0.
+ */
+export function rowCaptions(layout: ChartLayout, tradition: Tradition): RowCaption[] {
+  const captions = chartLabels(tradition);
+  const drawn = new Map<number, number>();
+  for (const node of layout.nodes.values()) drawn.set(node.layer, (drawn.get(node.layer) ?? 0) + 1);
+  const out: RowCaption[] = [];
+  for (const layer of layout.layers) {
+    const count = drawn.get(layer.index) ?? 0;
+    if (count === 0) continue;
+    if (layer.index > 0 && layer.stitchCount === 0) continue;
+    const round = layer.shape === 'round';
+    // A láncalap szemszámát a mag nem tartja nyilván (a 0. réteg 0-t mond), a rajz a saját jeleiből számolja.
+    const stitches = layer.index === 0 ? (round ? null : count) : layer.stitchCount;
+    out.push({
+      layer: layer.index,
+      text: captions.rowLabel(layer.index, round, stitches),
+      rightwards: layer.start.x <= layer.end.x,
+      side: layer.side,
+      end: layer.end,
+    });
+  }
+  return out;
 }

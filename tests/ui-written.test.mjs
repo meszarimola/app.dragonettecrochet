@@ -22,7 +22,7 @@ function ok(result) {
   return result.pattern;
 }
 
-/** Láncalap, egy teljes rövidpálcás sor (a fordulólánc az első szem, PQW-891), fordulás, és a 2. sorból `done` szem. */
+/** Láncalap, egy teljes rövidpálcás sor (a fordulólánc az első szem, PQW-891), fordulás, és a 3. sorból `done` szem. */
 function halfRow(done) {
   let pattern = ok(work(emptyPattern(), { def: 'ch', count: 6 }, 0));
   const sc = () => {
@@ -63,8 +63,8 @@ test('névtelen mintánál a szöveg címe „Névtelen minta”', () => {
 test('félkész sor: a szöveg látszik, megjegyzéssel', () => {
   const result = view(halfRow(2));
   assert.equal(result.kind, 'text');
-  assert.match(result.text, /2\. sor: 1 lsz \(1 rp-nek számít\), 2 rp \(3 szem\)\.$/m);
-  assert.deepEqual(result.notices, ['A 2. sor félkész, még 2 célpont van hátra: a szöveg a mostani állapotot írja le.']);
+  assert.match(result.text, /3\. sor: 1 lsz \(1 rp-nek számít\), 2 rp \(3 szem\)\.$/m);
+  assert.deepEqual(result.notices, ['A 3. sor félkész, még 2 célpont van hátra: a szöveg a mostani állapotot írja le.']);
 });
 
 test('hibás minta: a szöveg mellett megjegyzés a hibák számával', () => {
@@ -87,7 +87,7 @@ test('amit a szöveg még nem tud kifejezni: érthető üzenet, nem kivétel', (
   assert.equal(result.kind, 'message');
   // A magyar mondat betűre ugyanaz, mint a PQW-904 előtt: a névelőt, a sor szavát
   // és a mondatvéget a felületi szótár illeszti össze a mag kódjaiból.
-  assert.equal(result.message, 'Ez a minta még nem írható ki. A(z) 2. sor keresztezett szemet tartalmaz.');
+  assert.equal(result.message, 'Ez a minta még nem írható ki. A(z) 3. sor keresztezett szemet tartalmaz.');
   // A felhasználói üzenetben nincs belső fogalom (PQW-879).
   assert.doesNotMatch(result.message, /réteg|darab/i);
 });

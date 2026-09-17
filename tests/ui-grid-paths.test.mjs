@@ -48,3 +48,35 @@ test('sokszög-rács (PQW-888): egyenes oldalú gyűrűk, körív nélkül', () 
   assert.ok(paths.bands.slice(1).every((band) => band.evenOdd && corners(band.d) === 12), 'a gyűrű két hatszög');
   assert.doesNotMatch(JSON.stringify(paths), /NaN|undefined|Infinity/);
 });
+
+/*
+ * A láncalapnak nincsenek cellavonalai (PQW-923).
+ *
+ * A tulajdonos hosszú láncalapon szabálytalan, 3–5 szemes csoportokra tagolt
+ * vastag függőleges vonalakat látott. Ezek a rács cellahatárai voltak: a cellák
+ * a szemek tényleges helyéből kapják a szélességüket, a láncszemek pedig
+ * egyenetlen közűek, ráadásul minden 5. és 10. vonal vastagabb. A cella
+ * megmarad — rá kattintva továbbra is lehet horgolni —, csak a vonala nem.
+ */
+test('a láncalap cellái nem kapnak elválasztó vonalat, a többi sor igen', () => {
+  const grid = gridOf(hdcRectangle({ rows: 4 }).pattern, 'rows');
+  const paths = gridPaths(grid);
+  const foundationCells = grid.cells.filter((cell) => cell.layer === 0);
+  assert.ok(foundationCells.length > 0, 'a láncalapnak vannak cellái: a kattintás továbbra is működik');
+
+  // A cellavonalak a cella jobb szélén, függőlegesen futnak: „M<x> <y>V<y2>”.
+  const verticals = paths.lines.filter((line) => /^M[-\d.]+ [-\d.]+V[-\d.]+$/.test(line.d));
+  const xOf = (line) => Number(/^M([-\d.]+) /.exec(line.d)[1]);
+  const yOf = (line) => Number(/^M[-\d.]+ ([-\d.]+)V/.exec(line.d)[1]);
+
+  const band = grid.bands.find((candidate) => candidate.layer === 0);
+  assert.ok(band && band.area.kind === 'rect');
+  const inFoundation = verticals.filter((line) => {
+    const y = yOf(line);
+    return y >= Math.min(band.area.y0, band.area.y1) - 0.01 && y <= Math.max(band.area.y0, band.area.y1) + 0.01;
+  });
+  assert.deepEqual(inFoundation.map(xOf), [], 'a láncalap sávjában nincs cellavonal');
+
+  // A többi sorban viszont megmaradnak: a rács ott továbbra is segít számolni.
+  assert.ok(verticals.length > 0, 'a sorokban maradnak cellavonalak');
+});

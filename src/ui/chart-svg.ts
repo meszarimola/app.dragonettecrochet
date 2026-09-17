@@ -23,7 +23,7 @@ import { VOCABULARIES } from '../core/pattern-text.ts';
 import type { StitchLibrary } from '../core/stitch-library.ts';
 import { stitchLabel } from '../core/stitchText.ts';
 import type { Locale, Pattern, StitchDef, StitchInsertion, Tradition } from '../core/types.ts';
-import { chartLabels } from './chart-labels.ts';
+import { chartLabels, rowCaptions } from './chart-labels.ts';
 import { gridPaths, LINE_WIDTH } from './grid-paths.ts';
 import { texts } from './i18n.ts';
 import { chartStyleLabel, textLanguage, termsLabel } from './notation.ts';
@@ -168,11 +168,19 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
     LEGEND_ICON +
     12 +
     7.4 * Math.max(...labels.map((l) => l.length), ...markedLabels.map(([stitch, mode]) => stitch.length + mode.length + 3), ...notes.map((n) => n.length));
-  const width = Math.max(chartWidth, textWidth, 360) + 2 * MARGIN;
+  /*
+   * A sorfeliratok a rajz két szélén kívül állnak (PQW-923), ezért helyet
+   * kell nekik hagyni, különben az export levágja őket. A becslés ugyanaz,
+   * mint a jelmagyarázaté: 12 px-es betűnél karakterenként kb. 7,4 px.
+   */
+  const rows = rowCaptions(layout, options.tradition ?? 'cyc');
+  const labelRoom = rows.length === 0 ? 0 : Math.max(...rows.map((row) => 7.4 * row.text.length + 10)) + 12;
+  const drawWidth = chartWidth + 2 * labelRoom;
+  const width = Math.max(drawWidth, textWidth, 360) + 2 * MARGIN;
   const legendTop = MARGIN + TITLE + chartHeight + MARGIN;
   const height = legendTop + 28 + legendRows * LEGEND_ROW + MARGIN;
 
-  const ox = MARGIN + (width - 2 * MARGIN - chartWidth) / 2 - bounds.minX;
+  const ox = MARGIN + (width - 2 * MARGIN - drawWidth) / 2 + labelRoom - bounds.minX;
   const oy = MARGIN + TITLE - bounds.minY;
 
   const out: string[] = [];
@@ -223,18 +231,19 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
     out.push('</g>');
   }
 
-  // A sorszám a sor színével teli címkén, világos betűvel, mint a vásznon.
+  /*
+   * A sorfelirat a rajz mellett, a sor végének oldalán, a sor színével teli
+   * címkén — pontosan úgy, ahogy a tervező vásznán (PQW-923). A szöveget és a
+   * sorrendet a közös `rowCaptions` adja, ezért a kettő nem térhet el. Korábban
+   * itt a szemszám külön szövegként, a minta fölé került.
+   */
   out.push(`<g ${FONT} font-size="12" fill="${colors.text}" dominant-baseline="middle">`);
-  for (const layer of layout.layers) {
-    if (layer.index === 0) continue;
-    const rightwards = layer.start.x <= layer.end.x;
-    const endAnchor = rightwards ? 'start' : 'end';
-    const labelWidth = 7.4 * captions.layer(layer.index).length + 10;
-    const x0 = rightwards ? layer.start.x + 4 - labelWidth : layer.start.x - 4;
+  for (const caption of rows) {
+    const labelWidth = 7.4 * caption.text.length + 10;
+    const x0 = caption.rightwards ? bounds.maxX + 12 : bounds.minX - 12 - labelWidth;
     out.push(
-      `<rect x="${num(x0)}" y="${num(layer.start.y - LABEL_HEIGHT / 2)}" width="${num(labelWidth)}" height="${LABEL_HEIGHT}" rx="4" fill="${colors[layer.side]}"/>`,
-      `<text x="${num(x0 + labelWidth / 2)}" y="${num(layer.start.y)}" text-anchor="middle" font-weight="700" fill="${colors.background}">${escapeXml(captions.layer(layer.index))}</text>`,
-      `<text x="${num(layer.end.x)}" y="${num(layer.end.y)}" text-anchor="${endAnchor}">${escapeXml(captions.count(layer.stitchCount))}</text>`,
+      `<rect x="${num(x0)}" y="${num(caption.end.y - LABEL_HEIGHT / 2)}" width="${num(labelWidth)}" height="${LABEL_HEIGHT}" rx="4" fill="${colors[caption.side]}"/>`,
+      `<text x="${num(x0 + labelWidth / 2)}" y="${num(caption.end.y)}" text-anchor="middle" font-weight="700" fill="${colors.background}">${escapeXml(caption.text)}</text>`,
     );
   }
   out.push('</g></g>');

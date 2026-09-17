@@ -36,7 +36,8 @@ async function rectangle(page: Page, stitchKey: string, width: number, rows: num
  */
 function comparable(text: string): string {
   const lines = text.trimEnd().split('\n').slice(1);
-  const start = lines.findIndex((line) => /^(Láncalap|Foundation):/.test(line));
+  // A láncalap sora a PQW-923 óta „1. sor – alapsor:”, angolul „Row 1 – foundation:”.
+  const start = lines.findIndex((line) => /^(1\. sor – alapsor|Row 1 – foundation):/.test(line));
   lines.splice(start - 1, 1);
   lines[lines.length - 1] = lines.at(-1)!.replace(/ (A fonal elvágása|Fasten off)\.$/, '');
   return lines.join('\n');
@@ -55,13 +56,13 @@ test('írott minta: a téglalap rögzített szövege a panelben, és jelölésv�
   // Az írott minta panelje csukva indul (PQW-911), és csukva nem frissül.
   await page.locator('#written-toggle').click();
   const text = page.locator('#written-text');
-  await expect(text).toContainText('22. sor:');
+  await expect(text).toContainText('23. sor:');
   expect(comparable((await text.textContent())!)).toBe(comparable(await fixture('hu', 'felpalcas-teglalap')));
 
   // A jelölés szakasza alapból csukva van (PQW-882).
   await page.locator('#section-notation').evaluate((el) => { (el as HTMLDetailsElement).open = true; });
   await page.locator('#terms').selectOption('en-US');
-  await expect(text).toContainText('Row 22:');
+  await expect(text).toContainText('Row 23:');
   expect(comparable((await text.textContent())!)).toBe(comparable(await fixture('en-US', 'felpalcas-teglalap')));
   await expect(page.locator('#palette')).toContainText('Half double crochet (hdc)');
 
@@ -88,7 +89,7 @@ test('10 × 10 félpálcás téglalap csak billentyűzettel, hibátlanul', async
   await rectangle(page, 'Alt+4', 10, 10, 12);
 
   await expect(page.locator('#summary')).toContainText('10 sor.');
-  await expect(page.locator('#summary')).toContainText('10. sor: 10 szem.');
+  await expect(page.locator('#summary')).toContainText('11. sor: 10 szem.');
   await expect(page.locator('#summary')).toContainText('Nincs hiba és figyelmeztetés.');
   await expect(page.locator('#findings li')).toHaveCount(0);
 });
@@ -99,7 +100,7 @@ test('a minta újratöltés után megmarad, és JSON-ként visszatölthető', as
   await page.keyboard.press('Alt+1');
   await rectangle(page, 'Alt+3', 5, 2, 6);
   const before = await page.locator('#summary').textContent();
-  expect(before).toContain('2. sor: 5 szem.');
+  expect(before).toContain('3. sor: 5 szem.');
 
   await page.reload();
   await expect(page.locator('#summary')).toHaveText(before!);
@@ -160,12 +161,12 @@ test('japán előbeállítással a félpálcás téglalap a japán szabály szer
   await page.keyboard.press('Alt+1');
   await rectangle(page, 'Alt+4', 9, 3, 12);
 
-  await expect(page.locator('#summary')).toContainText('3. sor: 10 szem.');
+  await expect(page.locator('#summary')).toContainText('4. sor: 10 szem.');
   await expect(page.locator('#summary')).toContainText('Nincs hiba és figyelmeztetés.');
   // Az írott minta panelje csukva indul (PQW-911), és csukva nem frissül.
   await page.locator('#written-toggle').click();
   const text = page.locator('#written-text');
-  await expect(text).toContainText('1. sor: hagyj ki 3 láncszemet, majd minden láncszembe 1 fp (10 szem).');
+  await expect(text).toContainText('2. sor: hagyj ki 3 láncszemet, majd minden láncszembe 1 fp (10 szem).');
   await expect(text).toContainText('2 lsz (1 fp-nek számít)');
 
   await page.reload();
@@ -193,7 +194,7 @@ test('a láncalapra a vezetett kurzorral hibátlan rövidpálcás sor készül',
   // Enterrel végig: a kurzor mindig a következő szabad célpontra ugrik a haladási irányban.
   for (let i = 0; i < 11; i += 1) await page.keyboard.press('Enter');
 
-  await expect(page.locator('#summary')).toContainText('1. sor: 11 szem');
+  await expect(page.locator('#summary')).toContainText('2. sor: 11 szem');
   await expect(page.locator('#summary')).toContainText('Nincs hiba és figyelmeztetés.');
   await expect(page.locator('#findings li')).toHaveCount(0);
 });
@@ -204,7 +205,7 @@ test('foglalt célpontnál kérdés jön, és a „Mégse” után nem kerül le
   await page.keyboard.press('Alt+4'); // félpálca
   await page.keyboard.press('Enter'); // egy szem
   // Egy félpálca és a számító fordulólánc (PQW-891).
-  await expect(page.locator('#summary')).toContainText('1. sor: 2 szem');
+  await expect(page.locator('#summary')).toContainText('2. sor: 2 szem');
 
   // A kurzort a most horgolt (foglalt) célpontra visszük.
   await page.locator('#board').focus();
@@ -226,14 +227,14 @@ test('foglalt célpontnál kérdés jön, és a „Mégse” után nem kerül le
   await expect(dialog).toBeHidden();
   await expect(page.locator('#status')).toHaveText('Nem került le szem.');
   // Egy félpálca és a számító fordulólánc (PQW-891).
-  await expect(page.locator('#summary')).toContainText('1. sor: 2 szem');
+  await expect(page.locator('#summary')).toContainText('2. sor: 2 szem');
 
   // „Szaporítás” után viszont lekerül a szem.
   await page.locator('#board').focus();
   await page.keyboard.press('Enter');
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: 'Szaporítás' }).click();
-  await expect(page.locator('#summary')).toContainText('1. sor: 3 szem');
+  await expect(page.locator('#summary')).toContainText('2. sor: 3 szem');
 });
 
 test('a „Sor kitöltése” egy lépésben kitölti a sort, és egy lépésben visszavonható', async ({ page }) => {
@@ -241,11 +242,11 @@ test('a „Sor kitöltése” egy lépésben kitölti a sort, és egy lépésben
   await foundation(page, 12);
   await page.keyboard.press('Alt+4'); // félpálca
   await page.getByRole('button', { name: 'Sor kitöltése' }).click();
-  await expect(page.locator('#summary')).toContainText('1. sor: 10 szem');
+  await expect(page.locator('#summary')).toContainText('2. sor: 10 szem');
   await expect(page.locator('#summary')).toContainText('Nincs hiba és figyelmeztetés.');
 
   // Egy visszavonás az egész kitöltést visszaveszi.
   await page.getByRole('button', { name: 'Visszavonás' }).click();
-  await expect(page.locator('#summary')).not.toContainText('1. sor: 10 szem');
-  await expect(page.locator('#summary')).toContainText('1. sor következik.');
+  await expect(page.locator('#summary')).not.toContainText('2. sor: 10 szem');
+  await expect(page.locator('#summary')).toContainText('2. sor következik.');
 });

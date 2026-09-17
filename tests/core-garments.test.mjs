@@ -166,7 +166,7 @@ describe('„B” példa: ledobott vállú pulóver, mellbőség 96 cm, +10 cm b
     assert.ok(Math.abs(plan.finished.upperArmEaseCm - 14.67) < 0.01);
   });
 
-  test('ujj fentről: 2. soronként 7-szer, 3. soronként 5-ször, a végén 3 sor egyenes (32 ÷ 13 = 2 maradék 6)', () => {
+  test('ujj fentről: 3. soronként 7-szer, 4. soronként 5-ször, a végén 3 sor egyenes (32 ÷ 13 = 2 maradék 6)', () => {
     const { schedule } = plan.sleeve;
     assert.equal(schedule.every, 2);
     assert.equal(schedule.remainder, 6);
@@ -176,7 +176,7 @@ describe('„B” példa: ledobott vállú pulóver, mellbőség 96 cm, +10 cm b
     assert.equal(64 - 2 * 12, 40);
   });
 
-  test('mandzsettától felfelé a 4 sor szegély után: az első szaporítás a 9. sorban, a felső él 64 szem', () => {
+  test('mandzsettától felfelé a 4 sor szegély után: az első szaporítás a 10. sorban, a felső él 64 szem', () => {
     assert.equal(plan.sleeve.first, 9);
     assert.equal(plan.sleeve.increaseRows.length, 12);
     const { counts } = sleeveRowsOf(plan);
@@ -343,8 +343,10 @@ describe('generált minta', () => {
     const text = formatWrittenPattern(writePattern(front, library, 'hu'));
     const split = neckSplitRow(base, 'front');
     // A megosztás fölött a két váll ugyanazokkal a sorszámokkal, a szakasz neve különbözteti meg őket.
-    assert.match(text, new RegExp(`A másik váll \\(a ${split}\\. sor fölött\\):`));
-    assert.equal(text.match(new RegExp(`^${split + 1}\\. sor: `, 'gm')).length, 2);
+    // A kiírt sorszám a rétegénél eggyel nagyobb (PQW-923): a láncalap az 1. sor.
+    assert.match(text, new RegExp(`A másik váll \\(a ${split + 1}\\. sor fölött\\):`));
+    // A két váll közös kezdősora a hivatkozott sor utáni: „(a 45. sor fölött)” után mindkettő a 46. sorral indul.
+    assert.equal(text.match(new RegExp(`^${split + 2}\\. sor: `, 'gm')).length, 2);
     const result = readPattern(text, { library, locale: 'hu', conventions: front.conventions });
     assert.ok(result.ok, result.ok ? '' : `${result.error.line}: ${result.error.message}`);
     // A darab azonosítóját a beolvasó maga osztja ki: a gráf attól még ugyanaz.
@@ -510,6 +512,6 @@ describe('bordás szegély és mandzsetta a ledobott vállú pulóveren (PQW-913
     assert.ok(ribbed.every((line) => line.includes('nem számít szemnek')), ribbed.join('\n'));
     assert.ok(ribbed.some((line) => /\[1 (Eerp|Herp), 1 (Eerp|Herp)\]/.test(line)), ribbed.join('\n'));
     // Az 1. sor sima marad: a láncalap köré nem lehet relief szemet horgolni.
-    assert.ok(!/^1\. sor:.*(Eerp|Herp)/m.test(text), 'az 1. sor nem lehet bordás');
+    assert.ok(!/^2\. sor:.*(Eerp|Herp)/m.test(text), 'a 2. sor nem lehet bordás');
   });
 });

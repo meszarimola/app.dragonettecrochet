@@ -80,7 +80,7 @@ function shellFoundation() {
   return { ...pattern, conventions: { ...pattern.conventions, turningChainCounts: false } };
 }
 
-/** A 2. sor nyitó eseménye: a pálcás fordulólánc itt szemnek számít (soronkénti felülírás). */
+/** A 2. réteg nyitó eseménye: a pálcás fordulólánc itt szemnek számít (soronkénti felülírás). */
 function turnCounting(pattern) {
   const [piece] = pattern.pieces;
   const events = piece.events.map((event, i) => (i === piece.events.length - 1 ? { ...event, conventions: { turningChainCounts: true } } : event));
@@ -203,7 +203,7 @@ describe('törlés', () => {
     const result = deleteStitches(pattern, [body(pattern, 1)[2]]);
     assert.equal(result.ok, false);
     assert.equal(result.reason.code, 'has-dependents');
-    assert.match(huText(result.reason), /még 2 szem horgol \(2\. sor: 1 szem, 3\. sor: 1 szem\)/);
+    assert.match(huText(result.reason), /még 2 szem horgol \(3\. sor: 1 szem, 4\. sor: 1 szem\)/);
     assert.deepEqual(pattern, before);
   });
 
@@ -252,7 +252,7 @@ describe('másolás, beillesztés, duplikálás', () => {
     assert.deepEqual(findings(pasted), []);
   });
 
-  test('az 1. sor a láncalapról is a következő sorként illeszthető be', () => {
+  test('a 2. sor a láncalapról is a következő sorként illeszthető be', () => {
     const pattern = hdcRectangle(10, 2);
     const pasted = ok(pasteFragment(pattern, copied(copySelection(pattern, layerSelection(pattern, 1)))));
     assert.deepEqual(counts(pasted), [0, 10, 10, 10]);
@@ -267,7 +267,7 @@ describe('másolás, beillesztés, duplikálás', () => {
     assert.deepEqual(findings(pasted), []);
   });
 
-  test('duplikálás: „ismételd a 2. sort” egy lépésben, egymás után többször is', () => {
+  test('duplikálás: „ismételd a 3. sort” egy lépésben, egymás után többször is', () => {
     let pattern = hdcRectangle(5, 2);
     const row2 = layerSelection(pattern, 2);
     pattern = ok(duplicateSelection(pattern, row2));
@@ -352,7 +352,7 @@ describe('másolás, beillesztés, duplikálás', () => {
     const result = copySelection(pattern, [body(pattern, 2)[0], ...layerSelection(pattern, 3)]);
     assert.equal(result.ok, false);
     assert.equal(result.reason.code, 'copy-layer-outside');
-    assert.match(huText(result.reason), /3\. sor olyan szemekbe is horgol, amelyek nincsenek kijelölve/);
+    assert.match(huText(result.reason), /4\. sor olyan szemekbe is horgol, amelyek nincsenek kijelölve/);
   });
 
   test('a láncalap csak üres mintába illeszthető', () => {

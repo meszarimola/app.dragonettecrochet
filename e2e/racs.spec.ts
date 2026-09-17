@@ -53,7 +53,7 @@ test('a téglalap csak cellákra kattintva készül; ahol nincs mibe horgolni, �
   const status = page.locator('#status');
   const fit = page.getByRole('button', { name: 'Egész minta' });
 
-  // Láncalap: a láncszem célpont nélkül megy, egy kattintás a vásznon.
+  // Láncalap (a rajzon: 1. sor): a láncszem célpont nélkül megy, egy kattintás a vásznon.
   await palette.getByRole('button', { name: /Láncszem/ }).first().click();
   await page.locator('#chain-count').fill('6');
   await page.locator('#board').click();
@@ -63,11 +63,11 @@ test('a téglalap csak cellákra kattintva készül; ahol nincs mibe horgolni, �
   // a fordulólánc az 1. rövidpálca helyett áll (PQW-891): 4 rp és a fordulólánc.
   await palette.getByRole('button', { name: /Rövidpálca \(rp\)/ }).first().click();
   for (const slot of [2, 3, 4, 5]) await clickSlot(page, slot, 'alsó');
-  await expect(summary).toContainText('1. sor: 5 szem');
+  await expect(summary).toContainText('2. sor: 5 szem');
 
   await page.getByRole('button', { name: 'Sor vége, fordulás' }).click();
   await fit.click();
-  await expect(summary).toContainText('2. sor következik.');
+  await expect(summary).toContainText('3. sor következik.');
 
   // A láncalap már nem célpont: üzenet jön, és nem kerül le szem.
   const { layer, cells } = await racs(page);
@@ -75,11 +75,11 @@ test('a téglalap csak cellákra kattintva készül; ahol nincs mibe horgolni, �
   expect(old).toBeTruthy();
   await page.mouse.click(old!.x, old!.y);
   await expect(status).toHaveText(/^Ez a láncalap egyik helye\. Most a 2\. sor készül: .*Nem került le szem\.$/);
-  await expect(summary).toContainText('2. sor következik.');
+  await expect(summary).toContainText('3. sor következik.');
 
   // 2. sor: a készülő sor celláiba, a célpontok fölé kattintva; a fordulólánc alatti szem (0.) kimarad.
   for (const slot of [1, 2, 3, 4]) await clickSlot(page, slot, 'készülő');
-  await expect(summary).toContainText('2. sor: 5 szem');
+  await expect(summary).toContainText('3. sor: 5 szem');
   await expect(summary).toContainText('Nincs hiba és figyelmeztetés.');
 
   // A sorszám önálló, kattintható célterület: a teljes sort jelöli ki (PQW-875).
@@ -87,8 +87,8 @@ test('a téglalap csak cellákra kattintva készül; ahol nincs mibe horgolni, �
   const label = (await racs(page)).labels.find((candidate) => candidate.layer === 1);
   expect(label).toBeTruthy();
   await page.mouse.click(label!.x, label!.y);
-  await expect(status).toHaveText('1. sor kijelölve: 5 szem.');
-  await expect(summary).toContainText('2. sor: 5 szem');
+  await expect(status).toHaveText('2. sor kijelölve: 5 szem.');
+  await expect(summary).toContainText('3. sor: 5 szem');
 });
 
 test('a rács a nézet csoportban ki- és bekapcsolható, megmarad, és választhatóan kerül az SVG-exportba', async ({ page }) => {
@@ -105,7 +105,7 @@ test('a rács a nézet csoportban ki- és bekapcsolható, megmarad, és választ
   await page.keyboard.press('Enter');
   await page.keyboard.press('Alt+3');
   for (let i = 0; i < 5; i += 1) await page.keyboard.press('Enter');
-  await expect(page.locator('#summary')).toContainText('1. sor: 5 szem');
+  await expect(page.locator('#summary')).toContainText('2. sor: 5 szem');
   expect((await racs(page)).cells.length).toBeGreaterThan(0);
 
   await grid.click();

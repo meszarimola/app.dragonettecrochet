@@ -76,7 +76,7 @@ test('kis filémotívum: az első két sor teljes, a többi az ismétlő egység
   await expect(page.locator('#status')).toContainText('Filé: 4 sor elkészült; visszavonással a korábbi minta visszajön.');
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
   const text = await writtenText(page);
-  expect(text).toMatch(/Láncalap: \d+ lsz\./);
+  expect(text).toMatch(/1. sor – alapsor: \d+ lsz\./);
   expect(text).toMatch(/\[[^\]]+\] \d+-(szor|szer|ször)/);
   await expect(section.getByRole('button', { name: 'Rács a mostani mintából' })).toBeEnabled();
 });
