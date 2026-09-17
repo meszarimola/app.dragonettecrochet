@@ -40,12 +40,8 @@ async function mixedHeights(page: Page): Promise<void> {
   for (let i = 0; i < 3; i += 1) await page.keyboard.press('Enter');
 }
 
-test('a fordulás után a doboz fent bukkan fel, és három másodperc után eltűnik (PQW-923, PQW-924)', async ({ page }) => {
-  await open(page);
-  const alert = page.locator('#alert');
-  await expect(alert, 'művelet nélkül nincs doboz').toBeHidden();
-
-  // 12 láncszem, majd fordulás: a PQW-924 előtt erre semmi látható nem történt.
+/** 12 láncszem lerakása billentyűvel; a doboz ekkor még üzen. */
+async function chains(page: Page): Promise<void> {
   await page.locator('#board').focus();
   await page.keyboard.press('Alt+1');
   await page.locator('#chain-count').focus();
@@ -53,11 +49,18 @@ test('a fordulás után a doboz fent bukkan fel, és három másodperc után elt
   await page.keyboard.type('12');
   await page.locator('#board').focus();
   await page.keyboard.press('Enter');
-  await page.keyboard.press('Alt+f');
+}
 
-  await expect(alert, 'a fordulásról van látható visszajelzés').toBeVisible();
+test('a doboz fent bukkan fel, és három másodperc után eltűnik (PQW-923)', async ({ page }) => {
+  await open(page);
+  const alert = page.locator('#alert');
+  await expect(alert, 'művelet nélkül nincs doboz').toBeHidden();
+
+  await chains(page);
+
+  await expect(alert, 'a lerakott láncszemekről van látható visszajelzés').toBeVisible();
   await expect(alert).toHaveAttribute('aria-live', 'polite');
-  await expect(alert, 'megmondja, melyik sor következik').toContainText('2. sor következik');
+  await expect(alert, 'megmondja, mi történt').toContainText('12 láncszem');
 
   // A menüsort nem takarja: alatta kezdődik.
   const bar = (await page.locator('header.bar').boundingBox())!;
@@ -67,6 +70,29 @@ test('a fordulás után a doboz fent bukkan fel, és három másodperc után elt
   // Három másodperc után magától eltűnik; a tartós jelző marad.
   await expect(alert).toBeHidden({ timeout: 5000 });
   await expect(page.locator('#error-count'), 'a sarki jelző megmarad').toBeVisible();
+});
+
+/*
+ * A tulajdonos döntése az UAT első köréből (PQW-929): „ne üzengess. a
+ * felhasználó nem figyel egy pillanatra, és nem látja az üzenetet.” A fordulás
+ * és az új minta ezért nem bukkan fel — az állapotot a rajzról kell leolvasni.
+ * A rejtett élő régió viszont megmarad a képernyőolvasónak.
+ */
+test('a fordulás és az új minta nem üzenget, de az élő régió megmarad (PQW-929)', async ({ page }) => {
+  await open(page);
+  const alert = page.locator('#alert');
+
+  await chains(page);
+  // Megvárjuk, míg a láncszemek doboza magától eltűnik, különben az övét mérnénk.
+  await expect(alert).toBeHidden({ timeout: 5000 });
+
+  await page.keyboard.press('Alt+f');
+  await expect(alert, 'a fordulás nem üzenget').toBeHidden();
+  await expect(page.locator('#status'), 'az élő régió viszont elmondja').toContainText('a munka megfordítva');
+
+  await page.getByRole('button', { name: 'Új minta' }).click();
+  await expect(alert, 'az új minta nem üzenget').toBeHidden();
+  await expect(page.locator('#status'), 'az élő régió az üres minta kezdését mondja').toContainText('Üres minta');
 });
 
 /**

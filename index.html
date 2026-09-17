@@ -1005,12 +1005,14 @@
                 <option value="jis" data-i18n="chartStyleJis">Japán (JIS)</option>
               </select>
             </p>
-            <fieldset class="choice" id="sc-mark">
-              <legend data-i18n="scMarkLegend">A rövidpálca jele</legend>
-              <label><input type="radio" name="sc-mark" value="plus" /> <span data-i18n="scMarkPlus">+ (álló kereszt)</span></label>
-              <label><input type="radio" name="sc-mark" value="cross" /> <span data-i18n="scMarkCross">× (ferde kereszt)</span></label>
-            </fieldset>
-            <p class="panel__note" id="sc-mark-jis" data-i18n="scMarkJisNote" hidden>A japán jelstílusban a rövidpálca jele ×.</p>
+            <!--
+              A rövidpálca jelének választása kikerült (PQW-929). A tulajdonos
+              döntése: „a rövidpálca jele legyen a + jel. ne az x”. A jel
+              mostantól a JELSTÍLUSBÓL következik — CYC-ben +, japán (JIS)
+              stílusban ×, ahogy a JIS előírja —, ezért nincs mit külön
+              választani, és egy korábbi „×” választás sem jöhet vissza a
+              böngésző tárolójából.
+            -->
             <p class="panel__note" data-i18n="notationNote">A jelölés és a jelstílus a felület nyelvétől független, és a minta adatán nem változtat: a paletta, a vászon, az írott minta és az export is ezt követi.</p>
             </div>
           </details>

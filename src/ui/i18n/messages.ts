@@ -118,7 +118,7 @@ const hu = {
   notation: {
     terms: (label: string): string => `Jelölés: ${label}.`,
     chartStyle: (label: string): string => `Jelstílus: ${label}.`,
-    singleCrochet: (mark: string): string => `A rövidpálca jele: ${mark}.`,
+    /* A rövidpálca jelét nem választja a felhasználó (PQW-929), ezért nincs róla visszajelzés. */
     tradition: (label: string): string => `Előbeállítás: ${label}. A jelek és a számolás is ezt követik.`,
   },
 
@@ -153,7 +153,7 @@ const hu = {
     redo: 'Újra.',
     nudged: 'Jel eltolva.',
     unpinned: 'A jel a számolt helyére került.',
-    newPattern: 'Új minta; visszavonással a korábbi visszajön.',
+    /* Az új minta nem üzenget (PQW-929): felesleges információ volt. */
     titleChanged: 'A minta neve módosult.',
   },
 
@@ -304,7 +304,6 @@ const en: typeof hu = {
   notation: {
     terms: (label) => `Notation: ${label}.`,
     chartStyle: (label) => `Symbol style: ${label}.`,
-    singleCrochet: (mark) => `Single crochet symbol: ${mark}.`,
     tradition: (label) => `Preset: ${label}. The symbols and the stitch counts follow it too.`,
   },
 
@@ -337,7 +336,6 @@ const en: typeof hu = {
     redo: 'Redone.',
     nudged: 'Symbol moved.',
     unpinned: 'The symbol is back at its calculated place.',
-    newPattern: 'New pattern; undo brings the previous one back.',
     titleChanged: 'The pattern name has changed.',
   },
 

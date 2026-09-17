@@ -46,9 +46,16 @@ test('hiányzó vagy érvénytelen beállítás helyett mezőnként az alapérte
   for (const stored of [null, '', 'nem json', '[]', 'null', '42']) {
     assert.deepEqual(readNotation(stored, 'hu'), defaultNotation('hu'), String(stored));
   }
+  // A rövidpálca jele nem tárolt beállítás, hanem a jelstílusból jön (PQW-929): JIS → ×.
   assert.deepEqual(readNotation('{"terms":"jp","chartStyle":"jis","singleCrochet":"x"}', 'en'), {
     terms: 'en-US',
     chartStyle: 'jis',
+    singleCrochet: 'cross',
+  });
+  // Egy korábban tárolt „×” CYC stílusban sem jön vissza: a tulajdonos + jelet kért.
+  assert.deepEqual(readNotation('{"terms":"hu","chartStyle":"cyc","singleCrochet":"cross"}', 'hu'), {
+    terms: 'hu',
+    chartStyle: 'cyc',
     singleCrochet: 'plus',
   });
 });
