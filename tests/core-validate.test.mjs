@@ -438,6 +438,21 @@ test('minden szabálynak van tudásbázis-hivatkozása', () => {
   }
 });
 
+/*
+ * A tulajdonos döntése az UAT első köréből (PQW-930): „nagyon szigorúan vetted
+ * a minták elkészítését. a való életben ez sokkal lazábban működik… van egy
+ * hosszú »farok« az első alapláncból. hibaként jelölted. ne jelöld, csak
+ * warninggal.”
+ *
+ * A sor két végén kihagyott pozíció szándékos is lehet, ezért jelezzük, de nem
+ * minősítjük hibának. A sor KÖZEPÉN kimaradt szem külön szabály (`reach`,
+ * `reach-single`), és az hiba marad: ott a lyuk nem stílus kérdése.
+ */
+test('a sorvégi, be nem horgolt farok figyelmeztetés, nem hiba (PQW-930)', () => {
+  assert.equal(RULES['unused-position'].severity, 'warning');
+  assert.equal(RULES['floating-chain'].severity, 'warning');
+});
+
 test('minden szabály felhasználói üzenete a „szem” szóval, belső fogalom és tudásbázis-kód nélkül (PQW-879)', () => {
   for (const [rule, def] of Object.entries(RULES)) {
     assert.ok(def.message.trim(), `${rule}: hiányzó felhasználói üzenet`);

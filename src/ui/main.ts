@@ -445,6 +445,29 @@ function refresh(message?: Message): void {
 }
 
 /** A vászon a már kiszámolt adatokból; a kijelölő téglalap húzásához ennyi elég. */
+/**
+ * A kiválasztott találat kiemelése a mintán (PQW-930).
+ *
+ * A rajz alapból tiszta: a hibák és figyelmeztetések a menüsor jobb felső
+ * jelzőjén élnek. Ha a felhasználó a listából kiválaszt egyet, az érintett
+ * szemek piros szaggatott karikát kapnak — és öt másodperc múlva magától
+ * eltűnik, hogy ne maradjon ott zavarni. A tulajdonos kérése szó szerint:
+ * „pirossal, de piros szaggatottal és 5 mp múlva tűnjön el”.
+ */
+const HIGHLIGHT_MS = 5000;
+let highlighted: readonly NodeId[] = [];
+let highlightTimer: ReturnType<typeof setTimeout> | undefined;
+
+function highlightFinding(nodes: readonly NodeId[]): void {
+  clearTimeout(highlightTimer);
+  highlighted = nodes;
+  draw();
+  highlightTimer = setTimeout(() => {
+    highlighted = [];
+    draw();
+  }, HIGHLIGHT_MS);
+}
+
 function draw(): void {
   // Szem nélkül, kijelölés nélkül és teli vágólappal a kurzor a beillesztés helyét mutatja (PQW-875).
   const pasting = tool === null && clipboard !== null && selection.length === 0;
@@ -461,7 +484,8 @@ function draw(): void {
     selection,
     affected,
     marquee,
-    findings: derived.check.findings,
+    // A találatok nem a rajzon élnek (PQW-930), csak a kiválasztott kiemelése.
+    highlight: highlighted,
     grid: derived.grid,
     tradition: traditionOf(derived.pattern.conventions),
     /*
@@ -680,23 +704,27 @@ function updateControls(): void {
         const first = finding.nodes.find((id) => derived.layout.nodes.has(id));
         if (!first) return;
         /*
-         * A figyelmeztetésre kattintva odagörgetünk, de nem jelölünk ki
-         * (PQW-923): a kiemelő négyzet zsúfolttá tette a rajzot, és a szem
-         * helyét a szaggatott karika úgyis mutatja.
+         * Odagörgetünk ÉS megjelöljük a mintán (PQW-930): piros szaggatottal,
+         * öt másodpercre. A PQW-923 ezt még kivette, mert akkor a rajzon
+         * alapból is ott volt minden karika, és attól lett zsúfolt; most a rajz
+         * tiszta, és a jelölés a felhasználó kifejezett kérésére jön.
          */
         closePopover(errorsPop, errorToggle);
         showPoint(derived.layout.nodes.get(first)!.top);
+        highlightFinding(finding.nodes);
+        // Nem bukkan fel doboz (PQW-929); az élő régió a képernyőolvasóé.
+        announce(findings.marked, false);
       });
       item.append(button);
-      if (rule) {
-        const details = document.createElement('details');
-        details.className = 'finding__more';
-        const more = document.createElement('summary');
-        more.textContent = findings.details;
-        const body = span('finding__ref', findings.reference(finding.reference));
-        details.append(more, body);
-        item.append(details);
-      }
+      /*
+       * A „Részletek” lenyíló kikerült (PQW-930). Egyedül a tudásbázis-kódot
+       * tartalmazta, arról pedig a tulajdonos ezt mondta: „a végfelhasználónak
+       * fogalma sincs a tudásbázisról és egyébként nem is érdekli”. A szabály
+       * saját magyarázata sem való ide: belső fogalmakkal beszél (pozíció,
+       * áthidalás). A kártyán marad, ami a horgolónak szól: az üzenet és az
+       * érintett szemek száma. A hivatkozás a `RULES`-ban és a tudásbázisban
+       * megmarad, a fejlesztésnek.
+       */
       return item;
     }),
   );
@@ -2137,6 +2165,8 @@ if (navigator.webdriver) {
       // A sorfelirat, a nyíl és a szemek befoglaló téglalapja: az átfedést mérni kell, nem szemre nézni (PQW-916).
       labelBoxes: () => board.labelBoxes(),
       arrowBox: () => board.arrowBox(),
+      // A kiválasztott találat kiemelt szemei; üres, ha nincs vagy már eltűnt (PQW-930).
+      highlight: () => [...highlighted],
       stitchBoxes: () => board.stitchBoxes(),
       cursor: () => {
         const point = cursorPoint();
