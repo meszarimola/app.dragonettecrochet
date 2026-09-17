@@ -582,9 +582,8 @@ class PieceReader {
         body = body.slice(v.skipChains(n).length);
         countsFromSettings = true;
       } else if (legacy) {
-        chain = n;
-        fromHookCounts = legacy.def;
-        body = body.slice(legacy.text.length);
+        // A korábbi szabály szerinti szöveget nem értelmezzük át csendben (PQW-924).
+        fail(v.legacyTurningChain);
       } else countsFromSettings = true;
       if (chain < 1 || chain > working.length) {
         fail(`Az 1. sor elején azt vártuk, hány láncszemet hagyunk ki: „${v.skipChains(2).trim()}”.`);
@@ -610,7 +609,11 @@ class PieceReader {
     const turning = steps.find((step): step is Step & { kind: 'turning-chain' } => step.kind === 'turning-chain');
     const textCounts = fromHookCounts !== null || (turning !== undefined && turning.countsAs !== null);
 
-    const state = { cursor: index >= 2 && textCounts ? 1 : 0, last: null as Last, otherSide: false };
+    /*
+     * Sorban a fordulólánc nem foglal helyet (PQW-924): a kurzor a sor elejéről
+     * indul, ahogy a lépésbontásban is. Körben a kezdőlánc szem marad.
+     */
+    const state = { cursor: round && index >= 2 && textCounts ? 1 : 0, last: null as Last, otherSide: false };
     // A láncszemek másik oldalán a célpont a láncszem másik oldala (PQW-890).
     const anchorOf = (id: NodeId, mode: StitchInsertion): Anchor => (state.otherSide ? { into: 'underside', id } : { into: 'stitch', id, mode: modeAsWorked(mode, side) });
     const anchoredAtStart = this.anchoredCount;
@@ -750,8 +753,16 @@ class PieceReader {
     const hasTurning = turning !== undefined || (index === 1 && this.foundation === 'chain' && working.length < below.positions.length);
     if (hasTurning && firstStitch !== undefined) {
       const firstDef = library.get(this.node(firstStitch).def)!;
-      const expected = turningChainCountsFor(conventions.turningChainCounts, firstDef, traditionOf(conventions), round ? 'round' : 'row');
+      /*
+       * Sorban a fordulólánc soha nem szem (PQW-924), ezért ott ez az elvárás
+       * mindig hamis: a mai szöveg („fordulólánc”) egyezik vele, és nem
+       * keletkezik se felesleges felülírás, se hamis hiba. Körben a kezdőlánc
+       * a könyvtár és a minta beállítása szerint számít.
+       */
+      const expected = round && turningChainCountsFor(conventions.turningChainCounts, firstDef, traditionOf(conventions), 'round');
       if (expected !== textCounts && !countsFromSettings) {
+        // Sorban a fordulólánc nem lehet szem (PQW-924): az ilyen szöveget elutasítjuk, nem írjuk felül csendben.
+        if (!round) fail(v.legacyTurningChain);
         if (opening === null) fail('Az 1. sor fordulóláncának számolása eltér a minta beállításától.');
         this.events[this.events.length - 1] = { ...opening!, conventions: { ...opening!.conventions, turningChainCounts: textCounts } };
       }

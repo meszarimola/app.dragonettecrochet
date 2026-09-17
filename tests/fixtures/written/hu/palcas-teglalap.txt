@@ -10,6 +10,6 @@ egyráhajtásos pálca (erp)
 
 Pálcás téglalap
 1. sor – alapsor: 19 lsz.
-2. sor: hagyj ki 4 láncszemet, majd minden láncszembe 1 erp (16 szem). Fordítás.
-3–16. sor: 3 lsz (1 erp-nek számít), 15 erp (16 szem). Fordítás.
-17. sor: 3 lsz (1 erp-nek számít), 15 erp (16 szem). A fonal elvágása.
+2. sor: hagyj ki 3 láncszemet, majd minden láncszembe 1 erp (16 szem). Fordítás.
+3–16. sor: 3 lsz (fordulólánc), 16 erp (16 szem). Fordítás.
+17. sor: 3 lsz (fordulólánc), 16 erp (16 szem). A fonal elvágása.

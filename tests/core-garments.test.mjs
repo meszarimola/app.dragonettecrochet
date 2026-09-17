@@ -508,8 +508,8 @@ describe('bordás szegély és mandzsetta a ledobott vállú pulóveren (PQW-913
     const ribbed = rowLines(text).filter((line) => /Eerp|Herp/.test(line));
     // Két panel és két ujj, soronként: a darab alján mindenhol van bordázat.
     assert.ok(ribbed.length >= 4, ribbed.join('\n'));
-    // A bordás sor fordulólánca nem számít szemnek (01 §2.2 [S25]), és a bordázat ismétlésként áll.
-    assert.ok(ribbed.every((line) => line.includes('nem számít szemnek')), ribbed.join('\n'));
+    // A bordás sor fordulólánca fordulólánc (01 §2.2 [S25]), és a bordázat ismétlésként áll.
+    assert.ok(ribbed.every((line) => line.includes('fordulólánc')), ribbed.join('\n'));
     assert.ok(ribbed.some((line) => /\[1 (Eerp|Herp), 1 (Eerp|Herp)\]/.test(line)), ribbed.join('\n'));
     // Az 1. sor sima marad: a láncalap köré nem lehet relief szemet horgolni.
     assert.ok(!/^2\. sor:.*(Eerp|Herp)/m.test(text), 'a 2. sor nem lehet bordás');

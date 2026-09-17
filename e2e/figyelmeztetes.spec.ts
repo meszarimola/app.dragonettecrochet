@@ -19,12 +19,13 @@ async function open(page: Page): Promise<void> {
 }
 
 /**
- * Olyan minta, amelyre a program figyelmeztetést ad, de hibát nem: egy sorban
- * kevert magasságú szemek (rövidpálca és egyráhajtásos pálca). Megmértem: a
- * félkész sor már „1 figyelmeztetés”-t ad, fordulás után viszont hibák is
- * keletkeznének, azért nem fordulunk.
+ * Vegyes magasságú sor: rövidpálca és egyráhajtásos pálca egymás mellett.
+ *
+ * A PQW-924 óta ez NEM ad figyelmeztetést — a tulajdonos szerint így készül a
+ * hullámos minta —, ezért a felbukkanó doboz tesztje a fordulás üzenetére épül,
+ * ez a beállítás pedig azt rögzíti, hogy figyelmeztetés nem keletkezik.
  */
-async function withWarning(page: Page): Promise<void> {
+async function mixedHeights(page: Page): Promise<void> {
   await page.locator('#board').focus();
   await page.keyboard.press('Alt+1');
   await page.locator('#chain-count').focus();
@@ -39,18 +40,24 @@ async function withWarning(page: Page): Promise<void> {
   for (let i = 0; i < 3; i += 1) await page.keyboard.press('Enter');
 }
 
-test('a figyelmeztetés fent bukkan fel, és három másodperc után eltűnik (PQW-923)', async ({ page }) => {
+test('a fordulás után a doboz fent bukkan fel, és három másodperc után eltűnik (PQW-923, PQW-924)', async ({ page }) => {
   await open(page);
   const alert = page.locator('#alert');
-  await expect(alert, 'figyelmeztetés nélkül nincs doboz').toBeHidden();
+  await expect(alert, 'művelet nélkül nincs doboz').toBeHidden();
 
-  await withWarning(page);
-  await expect(alert, 'a figyelmeztetés felbukkan').toBeVisible();
+  // 12 láncszem, majd fordulás: a PQW-924 előtt erre semmi látható nem történt.
+  await page.locator('#board').focus();
+  await page.keyboard.press('Alt+1');
+  await page.locator('#chain-count').focus();
+  await page.keyboard.press('ControlOrMeta+A');
+  await page.keyboard.type('12');
+  await page.locator('#board').focus();
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Alt+f');
+
+  await expect(alert, 'a fordulásról van látható visszajelzés').toBeVisible();
   await expect(alert).toHaveAttribute('aria-live', 'polite');
-  await expect(alert).not.toBeEmpty();
-  // A szöveg egyszer írja ki a „Figyelmeztetés” szót, kettős kettőspont nélkül.
-  await expect(alert).not.toContainText(': :');
-  await expect(alert).toContainText('Figyelmeztetés:');
+  await expect(alert, 'megmondja, melyik sor következik').toContainText('2. sor következik');
 
   // A menüsort nem takarja: alatta kezdődik.
   const bar = (await page.locator('header.bar').boundingBox())!;
@@ -61,6 +68,27 @@ test('a figyelmeztetés fent bukkan fel, és három másodperc után eltűnik (P
   await expect(alert).toBeHidden({ timeout: 5000 });
   await expect(page.locator('#error-count'), 'a sarki jelző megmarad').toBeVisible();
 });
+
+/**
+ * Egy megmaradt figyelmeztetés: rövidpálcás sor után pálcás sor, ahol a sort
+ * kezdő láncszemek magassága nem illik a sort kezdő szemhez. (A vegyes
+ * magasság PQW-924 óta nem ad bejegyzést, ezért nem az szolgál kiváltóként.)
+ */
+async function withWarning(page: Page): Promise<void> {
+  await page.locator('#board').focus();
+  await page.keyboard.press('Alt+1');
+  await page.locator('#chain-count').focus();
+  await page.keyboard.press('ControlOrMeta+A');
+  await page.keyboard.type('12');
+  await page.locator('#board').focus();
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Alt+f');
+  await page.keyboard.press('Alt+3');
+  for (let i = 0; i < 12; i += 1) await page.keyboard.press('Enter');
+  await page.keyboard.press('Alt+f');
+  await page.keyboard.press('Alt+5');
+  for (let i = 0; i < 12; i += 1) await page.keyboard.press('Enter');
+}
 
 test('a figyelmeztetésre kattintva nincs kiemelő négyzet a szemen (PQW-923)', async ({ page }) => {
   await open(page);
@@ -79,4 +107,14 @@ test('a figyelmeztetésre kattintva nincs kiemelő négyzet a szemen (PQW-923)',
    */
   await expect(page.locator('[data-action="delete-selection"]'), 'a kattintás nem jelöl ki').toBeDisabled();
   await expect(page.locator('[data-action="duplicate-selection"]')).toBeDisabled();
+});
+
+
+test('a vegyes szemmagasság nem ad figyelmeztetést (PQW-924)', async ({ page }) => {
+  await open(page);
+  await mixedHeights(page);
+
+  // A tulajdonos szerint így készül a hullámos minta: ez szándékos, nem hiba.
+  await expect(page.locator('#error-count'), 'nincs figyelmeztetés a jelzőn').toHaveText('Nincs hiba');
+  await expect(page.locator('#alert')).not.toContainText('Figyelmeztetés:');
 });

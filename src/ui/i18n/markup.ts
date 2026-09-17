@@ -203,7 +203,7 @@ export const MARKUP_TEXTS = {
     shapeRoundingLabel: 'Kerekítés',
     shapeRibbingLabel: 'Bordás szegély a felső élen',
     shapeRibbingNote:
-      'Váltakozó első és hátsó relief pálca (Eerp, Herp) az utolsó sor szemeinek pálcája köré: a szemszám nem változik. A sor 2 láncszemmel kezdődik, mert láncszem nem állhat relief szem helyett, és a fordulólánc tetejébe sima pálca kerül.',
+      'Váltakozó első és hátsó relief pálca (Eerp, Herp) az utolsó sor szemeinek pálcája köré: a szemszám nem változik. A sor 2 láncszemmel kezdődik, mert láncszem nem állhat relief szem helyett; a fordulólánc csak magasságot ad, a tetejébe nem kerül szem.',
     shapeRibbingRowsLabel: 'A bordázat sorai',
     shapeRibbingWidthLabel: 'A borda szélessége (1×1, 2×2)',
     shapeCreate: 'Minta létrehozása',
@@ -347,7 +347,7 @@ export const MARKUP_TEXTS = {
     traditionCyc: 'Nemzetközi (CYC)',
     traditionJapanese: 'Japán',
     traditionNote:
-      'A mintához tartozik. A japán: JIS jelek, × rövidpálca, a fordulólánc a félpálcától felfelé szemnek számít, a félpálca a 4., a pálca az 5. láncszemtől indul.',
+      'A mintához tartozik. A japán: JIS jelek, × rövidpálca, és a rövidpálcás sor a horogtól számított 2. láncszembe indul (a nemzetközinél a 3.-ba); a félpálca a 3., a pálca a 4. láncszemtől indul.',
     termsLabel: 'Jelölés',
     termsHu: 'Magyar',
     termsEnUs: 'Amerikai angol (US terms)',
@@ -584,7 +584,7 @@ export const MARKUP_TEXTS = {
     shapeRoundingLabel: 'Rounding',
     shapeRibbingLabel: 'Ribbed edging along the top edge',
     shapeRibbingNote:
-      'Alternating front and back post stitches (FPdc, BPdc) around the posts of the last row: the stitch count stays the same. The row starts with ch 2, because a chain cannot stand in for a post stitch, and a plain stitch goes into the top of the turning chain.',
+      'Alternating front and back post stitches (FPdc, BPdc) around the posts of the last row: the stitch count stays the same. The row starts with ch 2, because a chain cannot stand in for a post stitch; the turning chain only gives height, and no stitch goes into its top.',
     shapeRibbingRowsLabel: 'Ribbing rows',
     shapeRibbingWidthLabel: 'Rib width (1×1, 2×2)',
     shapeCreate: 'Create pattern',
@@ -729,7 +729,7 @@ export const MARKUP_TEXTS = {
     traditionCyc: 'International (CYC)',
     traditionJapanese: 'Japanese',
     traditionNote:
-      'It belongs to the pattern. The Japanese one: JIS symbols, × for single crochet, the turning chain counts as a stitch from half double crochet upwards, half double crochet starts in the 4th and double crochet in the 5th chain.',
+      'It belongs to the pattern. The Japanese one: JIS symbols, × for single crochet, and a single crochet row starts in the 2nd chain from the hook (the 3rd in the international one); half double crochet starts in the 3rd and double crochet in the 4th chain.',
     termsLabel: 'Notation',
     termsHu: 'Hungarian',
     termsEnUs: 'American English (US terms)',

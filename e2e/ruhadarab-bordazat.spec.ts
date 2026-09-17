@@ -75,8 +75,8 @@ for (const viewport of [
     await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
 
     const text = await writtenText(page);
-    // A bordás sor fordulólánca egy láncszemmel rövidebb, és nem számít szemnek (01 §2.2 [S25]).
-    expect(text).toMatch(/2 lsz \(nem számít szemnek\)/);
+    // A bordás sor fordulólánca egy láncszemmel rövidebb, és fordulólánc (01 §2.2 [S25]).
+    expect(text).toMatch(/2 lsz \(fordulólánc\)/);
     // A bordázat ismétlésként áll, nem szemenként felsorolva.
     expect(text).toMatch(/\[1 (Eerp|Herp), 1 (Eerp|Herp)\]/);
     // Az 1. sor sima marad: a láncalap köré nem lehet relief szemet horgolni.

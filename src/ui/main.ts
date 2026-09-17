@@ -494,6 +494,14 @@ function lastTop(): Point | undefined {
 function announce(message: Message): void {
   if (typeof message === 'string') status.textContent = message;
   else status.replaceChildren(...message);
+  /*
+   * A vászon fölött nincs többé lebegő szöveg (PQW-916), ezért a művelet
+   * eredményének nem maradt látható nyoma: a fordulás után a képernyőn semmi
+   * nem történt (PQW-924). A művelet visszajelzése mostantól a felül
+   * felbukkanó dobozban is megjelenik, és három másodperc után magától
+   * eltűnik — a rejtett élő régió a képernyőolvasóé marad.
+   */
+  showToast(status.textContent ?? '');
 }
 
 function layerName(context: WorkContext): string {
@@ -574,7 +582,14 @@ function showNewWarning(findings: readonly Finding[]): void {
     return;
   }
   // A szótári címke már tartalmazza a kettőspontot („Figyelmeztetés: ”), ezért itt nem teszünk hozzá újat.
-  alertBox.textContent = `${texts().messages.findings.warning}${ruleText(first.rule)?.message ?? first.rule}`;
+  showToast(`${texts().messages.findings.warning}${ruleText(first.rule)?.message ?? first.rule}`);
+}
+
+/** A felül felbukkanó doboz: három másodpercre megmutat egy üzenetet (PQW-923, PQW-924). */
+function showToast(text: string): void {
+  if (text.trim() === '') return;
+  clearTimeout(alertTimer);
+  alertBox.textContent = text;
   alertBox.hidden = false;
   alertTimer = setTimeout(() => {
     alertBox.hidden = true;

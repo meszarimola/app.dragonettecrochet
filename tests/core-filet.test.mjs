@@ -76,10 +76,10 @@ describe('sor, láncalap és fordulólánc (03 §5.2, §10 G32)', () => {
     );
   });
 
-  test('teli kezdés: 3N + 4 láncszem, az első pálca az 5. láncszembe; nyitott kezdés: 3N + 6, a 9. láncszembe (PQW-891)', () => {
-    // A fordulólánc az első oszlop helyett áll, egy alapláncszemen (tradition.ts).
+  test('teli és nyitott kezdés: 3N + 4 láncszem, és az első pálca a 4. láncszembe megy (PQW-924)', () => {
+    // A sor első oszlopa valódi pálca, a nyitott cella láncszemei a sorhoz tartoznak.
     const filled = make(cyc(), chart('#####'));
-    assert.deepEqual(filled.plan.foundation, { chains: 19, fromHook: 5 });
+    assert.deepEqual(filled.plan.foundation, { chains: 19, fromHook: 4 });
     assert.deepEqual(foundationOf(filled.pattern), filled.plan.foundation);
 
     const open = make(cyc(), chart('.####'));
@@ -87,7 +87,7 @@ describe('sor, láncalap és fordulólánc (03 §5.2, §10 G32)', () => {
     assert.equal(open.plan.rows[0].start, 'filled');
     const openStart = make(cyc(), chart('####.'));
     assert.equal(openStart.plan.rows[0].start, 'open');
-    assert.deepEqual(openStart.plan.foundation, { chains: 21, fromHook: 9 });
+    assert.deepEqual(openStart.plan.foundation, { chains: 19, fromHook: 4 });
     assert.deepEqual(foundationOf(openStart.pattern), openStart.plan.foundation);
     assert.deepEqual(findings(openStart.pattern), []);
   });
@@ -110,18 +110,22 @@ describe('sor, láncalap és fordulólánc (03 §5.2, §10 G32)', () => {
   test('későbbi sor: teli kezdésnél 3 lsz, nyitott kezdésnél a fordulólánc után a cella 2 láncszeme', () => {
     const { pattern } = make(cyc(), chart('.##', '###'));
     const [, , row2] = lines(pattern);
-    assert.match(row2, /^3\. sor: 3 lsz \(1 erp-nek számít\), 2 lsz, 2 szem kihagyása, /);
+    // A sor első oszlopa valódi pálca, utána a nyitott cella két láncszeme (PQW-924).
+    assert.match(row2, /^3\. sor: 3 lsz \(fordulólánc\), 1 erp, 2 lsz, 2 szem kihagyása, /);
     assert.equal(graphOf(pattern).layers[2].turningChain.length, 3);
     assert.deepEqual(findings(pattern), []);
   });
 
-  test('nyitott kezdésű 2. sor az írott mintában: a láncalap 3N + 6, és a 9. láncszemtől indul', () => {
+  test('nyitott kezdésű 2. sor az írott mintában: a láncalap 3N + 4, és a 4. láncszemtől indul (PQW-924)', () => {
     const { pattern } = make(cyc(), chart('###.'));
     const [foundation, row1] = lines(pattern);
-    assert.equal(foundation, '1. sor – alapsor: 18 lsz.');
-    // A kihagyott 8 láncszem: 3 lsz fordulólánc, 1 alapláncszem, a nyitott cella 2 lsz-e és 2 kihagyott láncszeme (PQW-895).
-    assert.equal(row1, '2. sor: hagyj ki 8 láncszemet, majd minden láncszembe 1 erp (11 szem). A fonal elvágása.');
-    assert.match(lines(pattern, 'en-US')[1], /^Row 2: skip 8 ch, dc in each ch across \(11 sts\)\./);
+    assert.equal(foundation, '1. sor – alapsor: 16 lsz.');
+    /*
+     * A kihagyás a pálca szerinti 3 láncszem (PQW-924); a nyitott cella két
+     * láncszeme és két kihagyott láncszeme már a sorhoz tartozik.
+     */
+    assert.equal(row1, '2. sor: hagyj ki 3 láncszemet, majd 1 erp, 2 lsz, 2 láncszem kihagyása, 10 erp (11 szem). A fonal elvágása.');
+    assert.match(lines(pattern, 'en-US')[1], /^Row 2: skip 3 ch, /);
   });
 });
 
@@ -159,7 +163,7 @@ describe('alakítás egész cellánként (03 §10 F30)', () => {
     assert.deepEqual(findings(pattern), []);
     const [, row1, row2] = lines(pattern);
     assert.match(row1, /, 3 lsz \(\d+ szem\)\. Fordítás\.$/);
-    assert.match(row2, /^3\. sor: 3 lsz \(1 erp-nek számít\), 12 erp /);
+    assert.match(row2, /^3\. sor: 3 lsz \(fordulólánc\), 13 erp /);
   });
 
   test('a sor elején fogyasztás kúszószemekkel a cellák fölött; a fordulólánc az oszlopon áll (PQW-894)', () => {
@@ -173,18 +177,23 @@ describe('alakítás egész cellánként (03 §10 F30)', () => {
     );
     assert.deepEqual(findings(pattern), []);
     const [, , row2] = lines(pattern);
-    assert.match(row2, /^3\. sor: 4 ksz, 3 lsz \(1 erp-nek számít\), 9 erp \(10 szem\)\. A fonal elvágása\.$/);
+    // A fordulólánc nem ül oszlopon, ezért eggyel kevesebb kúszószem és eggyel több pálca (PQW-924).
+    assert.match(row2, /^3\. sor: 3 ksz, 3 lsz \(fordulólánc\), 10 erp \(10 szem\)\. A fonal elvágása\.$/);
   });
 
-  test('a sor végén szaporítás: 2 lsz és háromráhajtásos pálca a fordulólánc alatti szembe, jelölt hosszú szemként (PQW-894)', () => {
+  test('a sor végén szélesítés: három láncszem, ahogy a sor elején is (03 §5.2, PQW-924)', () => {
     const { pattern, plan } = make(cyc(), chart('####', '###.', '###-'));
     assert.deepEqual(plan.rows.map((row) => row.extended), [0, 1, 0]);
     assert.deepEqual(findings(pattern), []);
     const [, , row2] = lines(pattern);
-    assert.match(row2, /, 2 lsz, 1 háromráhajtásos pálca 2 sorral lejjebb \(\d+ szem\)\. Fordítás\.$/);
-    const long = pattern.pieces[0].stitches.filter((node) => node.def === 'dtr');
-    assert.equal(long.length, 1);
-    assert.deepEqual(long[0].flags, ['spike']);
+    assert.match(row2, /, 3 lsz \(\d+ szem\)\. Fordítás\.$/);
+    /*
+     * A korábbi megoldás egy lejjebb horgolt hosszú szemmel kapaszkodott a
+     * fordulólánc alatti szembe; az a szem a PQW-924 óta nincs meg, és a
+     * tudásbázis szerint a szélesítés láncból is épülhet (03 §5.2).
+     */
+    assert.deepEqual(pattern.pieces[0].stitches.filter((node) => node.def === 'dtr'), []);
+    assert.deepEqual(pattern.pieces[0].stitches.filter((node) => node.flags?.includes('spike')), []);
   });
 
   test('a lejjebb horgolt szem visszaolvasható az írott mintából, mindhárom jelöléssel (PQW-902)', () => {

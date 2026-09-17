@@ -6,7 +6,8 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
-import { emptyPattern, endRow, fillRow, work } from '../src/core/editor.ts';
+import { contextOf, emptyPattern, endRow, fillRow, work } from '../src/core/editor.ts';
+import { chartGrid } from '../src/core/grid.ts';
 import { layoutPattern } from '../src/core/layout.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
 import { chartSvg, escapeXml, legendInsertions, legendStitches } from '../src/ui/chart-svg.ts';
@@ -60,7 +61,7 @@ test('a téglalap SVG-je: sorszámok, szemszámok, mindkét oldal színe, jelmag
 test('a jelmagyarázat a csoportot mutatja, nem a tagjait', () => {
   const { pattern } = shellStitch({ repeats: 2 });
   const ids = legendStitches(pattern, libraryFor(pattern)).map((def) => def.id);
-  assert.deepEqual(ids, ['ch', 'sc', 'shell-5dc', 'inc-2dc', 'inc-3dc']);
+  assert.deepEqual(ids, ['ch', 'sc', 'shell-5dc', 'inc-3dc']);
   assert.match(render(pattern), /kagyló: 5 erp egy szembe/);
 });
 
@@ -160,4 +161,55 @@ test('rácsminta: az ismétlő egység szaggatott kerettel, a lejjebb horgolt sz
   assert.doesNotMatch(svg, /NaN|undefined|Infinity/);
   const plain = render(hdcRectangle({ rows: 2 }).pattern);
   assert.doesNotMatch(plain, /data-unit-frame|data-spike|Szaggatott keret|Pötty a szár/);
+});
+
+
+/*
+ * Az exportált kép rácsa ugyanaz, mint a tervezőé (PQW-924).
+ *
+ * A hiba azért maradt benn, mert a teszt hatóköre szűk volt: csak a tervezőt
+ * néztük. Az export a közös `gridPaths`-ból és ugyanabból a súlytáblából
+ * dolgozik, ezért itt a kimenetén ellenőrizzük, hogy nincs vastag függőleges
+ * vonal — vagyis a minta nincs ötösével tagolva.
+ */
+test('az exportált rácsban nincs vastag függőleges cellavonal (PQW-924)', () => {
+  const { pattern } = hdcRectangle({ rows: 6 });
+  const library = libraryFor(pattern);
+  const grid = chartGrid(pattern, library, 'rows', contextOf(pattern));
+  const svg = chartSvg(pattern, layoutPattern(pattern, library, {}), library, {
+    colors: COLORS,
+    grid: { grid, colors: { rowA: '#eee', rowB: '#ddd', cell: '#ccc', row: '#bbb', emphasis: '#999' } },
+  });
+  const thickVertical = [...svg.matchAll(/<path d="M([-\d.]+) ([-\d.]+)V([-\d.]+)"[^>]*stroke-width="([\d.]+)"/g)].filter(
+    (match) => Number(match[4]) > 1,
+  );
+  assert.deepEqual(thickVertical.map((match) => match[4]), [], 'az exportban minden függőleges cellavonal vékony');
+});
+
+
+/*
+ * Az export sorszámozása ugyanaz, mint a tervezőé (PQW-923, PQW-924).
+ *
+ * A tulajdonos a kiélesített képen a bal szélen egy kék „0”-t látott: a régi
+ * export a réteg indexét írta ki sorszámként, így a láncalap „0” lett. Azóta a
+ * láncalap az 1. sor, és a szemszámát a rajz a saját jeleiből számolja. Ez a
+ * teszt őrzi, hogy a számozás ne csúszhasson vissza.
+ */
+test('az exportban a láncalap az 1. sor, és nincs „0” sorszám (PQW-924)', () => {
+  const { pattern } = hdcRectangle({ rows: 6 });
+  const library = libraryFor(pattern);
+  const grid = chartGrid(pattern, library, 'rows', contextOf(pattern));
+  const svg = chartSvg(pattern, layoutPattern(pattern, library, {}), library, {
+    colors: COLORS,
+    grid: { grid, colors: { rowA: '#eee', rowB: '#ddd', cell: '#ccc', row: '#bbb', emphasis: '#999' } },
+  });
+  const texts = [...svg.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((match) => match[1].trim());
+  assert.deepEqual(texts.filter((text) => text === '0'), [], 'nincs önálló „0” felirat');
+  assert.ok(
+    texts.some((text) => text.startsWith('1. sor – alapsor')),
+    `a láncalap az 1. sor: ${JSON.stringify(texts.slice(0, 3))}`,
+  );
+  // A sorok a láncalaptól folytonosan számozódnak, kihagyás nélkül.
+  const rows = texts.filter((text) => /^\d+\. sor/.test(text)).map((text) => Number.parseInt(text, 10));
+  assert.deepEqual(rows, [1, 2, 3, 4, 5, 6, 7], 'folytonos sorszámozás a láncalaptól');
 });

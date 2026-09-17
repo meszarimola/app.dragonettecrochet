@@ -38,8 +38,8 @@ test('lapos kör rövidpálcával: becsült szaporítás, hibátlan körök, a k
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
 
   const text = await writtenText(page);
-  expect(text).toContain('3. kör: 1 lsz (nem számít szemnek), (szap., 1 rp) ×6 (18). Kör zárása: 1 ksz az első szembe.');
-  expect(text).toContain('4. kör: 1 lsz (nem számít szemnek), 1 rp, (szap., 2 rp) ×5, szap., 1 rp (24).');
+  expect(text).toContain('3. kör: 1 lsz (fordulólánc), (szap., 1 rp) ×6 (18). Kör zárása: 1 ksz az első szembe.');
+  expect(text).toContain('4. kör: 1 lsz (fordulólánc), 1 rp, (szap., 2 rp) ×5, szap., 1 rp (24).');
 
   // A körszámok a vásznon: a négy kör címkéje, és a PQW-916 óta a varázskör (0. réteg) felirata is.
   const labels = await page.evaluate(() => (window as unknown as { mintatervezoRacs: { labels(): unknown[] } }).mintatervezoRacs.labels());

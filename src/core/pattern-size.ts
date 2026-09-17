@@ -109,8 +109,8 @@ export function gaugeContextOf(pattern: Pattern, library: StitchLibrary): GaugeC
 /**
  * A sorok és körök szemei a méretszámításhoz, a 0. réteg (láncalap, varázskör)
  * nélkül. Ami nem ad szélességet, kimarad: a nem számító fordulólánc, a kör
- * továbbvezető és záró kúszószeme. A számító fordulólánc egy szem, a sor első
- * szemének méretével.
+ * továbbvezető és záró kúszószeme. Sorban a fordulólánc nem szem (PQW-924);
+ * körben a kezdőlánc egy szem, a kör első szemének méretével.
  */
 export function sizeLayers(graph: PieceGraph): SizeLayer[] {
   const layers: SizeLayer[] = [];
@@ -118,7 +118,7 @@ export function sizeLayers(graph: PieceGraph): SizeLayer[] {
     const skipped = new Set<string>([...layer.turningChain, ...layer.travelSlips, ...(layer.joinSlip ? [layer.joinSlip] : [])]);
     const stitches: StitchDefId[] = [];
     const first = layer.firstStitch ? graph.defs.get(layer.firstStitch) : undefined;
-    if (layer.turningChainCounts && layer.turningChain.length > 0 && first) stitches.push(first.id);
+    if (layer.shape === 'round' && layer.turningChainCounts && layer.turningChain.length > 0 && first) stitches.push(first.id);
     for (const id of layer.stitches) {
       const def = graph.defs.get(id);
       if (def && !skipped.has(id)) stitches.push(def.id);

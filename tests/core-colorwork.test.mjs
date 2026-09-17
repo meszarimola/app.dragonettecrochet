@@ -79,11 +79,10 @@ describe('sorok, láncalap, színek (03 §5.3, §5.4)', () => {
     ];
     const { pattern } = make(cyc(), cells, 'graphgan');
     const graph = graphOf(pattern);
-    // Számító fordulóláncnál (sorban mindig, PQW-891) a fordulólánc a sor első cellája.
+    // A fordulólánc nem cella (PQW-924): a sor színei a szemeié.
     const colorsOf = (layer) => {
       const color = (id) => graph.nodes.get(id).color ?? 0;
-      const stitches = layer.stitches.filter((id) => graph.defs.get(id).kind !== 'chain').map(color);
-      return layer.turningChainCounts ? [color(layer.turningChain[0]), ...stitches] : stitches;
+      return layer.stitches.filter((id) => graph.defs.get(id).kind !== 'chain').map(color);
     };
     assert.deepEqual(colorsOf(graph.layers[1]), [3, 2, 1, 0]);
     assert.deepEqual(colorsOf(graph.layers[2]), [3, 2, 1, 0]);
@@ -92,11 +91,10 @@ describe('sorok, láncalap, színek (03 §5.3, §5.4)', () => {
     assert.equal(pattern.pieces[0].grid.technique, 'graphgan');
   });
 
-  test('számító fordulóláncnál a fordulólánc a sor első cellája', () => {
+  test('minden cellába valódi szem kerül, a fordulólánc nem cella (PQW-924)', () => {
     const { pattern } = make(counting(), [[0, 1, 2]]);
     const [layer] = graphOf(pattern).layers.slice(1);
-    assert.ok(layer.turningChainCounts);
-    assert.equal(layer.stitches.filter((id) => pattern.pieces[0].stitches.find((node) => node.id === id).def === COLORWORK_STITCH).length, 2);
+    assert.equal(layer.stitches.filter((id) => pattern.pieces[0].stitches.find((node) => node.id === id).def === COLORWORK_STITCH).length, 3);
   });
 });
 

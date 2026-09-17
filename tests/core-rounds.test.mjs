@@ -134,7 +134,7 @@ describe('körgenerátor: a tudásbázis táblázatai (04 §3.1, §3.2)', () => 
       const rounds = lines(pattern, 'en-US')
         .filter((line) => line.startsWith('Rnd '))
         .map((line) => line.replace(/ Fasten off\.$/, ''));
-      assert.equal(rounds[0], 'Rnd 1: ch 1 (does not count as a st), 6 sc in ring (6).');
+      assert.equal(rounds[0], 'Rnd 1: ch 1 (turning chain), 6 sc in ring (6).');
       assert.deepEqual(rounds.slice(1), table.slice(1).map(expected));
     });
   }
@@ -150,7 +150,7 @@ describe('körgenerátor: a tudásbázis táblázatai (04 §3.1, §3.2)', () => 
 
   test('zárt körben kezdőlánccal és kúszószemmel; a szemszám ugyanaz', () => {
     const pattern = motif({ rounds: 3, stagger: false });
-    assert.equal(lines(pattern, 'hu')[3], '3. kör: 1 lsz (nem számít szemnek), (1 rp, szap.) ×6 (18). Kör zárása: 1 ksz az első szembe.');
+    assert.equal(lines(pattern, 'hu')[3], '3. kör: 1 lsz (fordulólánc), (1 rp, szap.) ×6 (18). Kör zárása: 1 ksz az első szembe.');
     assert.equal(pattern.conventions.roundEnd, 'join-slip');
   });
 
@@ -169,7 +169,7 @@ describe('körgenerátor: a tudásbázis táblázatai (04 §3.1, §3.2)', () => 
     assert.equal(lines(pattern, 'en-US')[2], 'Rnd 2: ch 2 (counts as 1 hdc), hdc in same ch, inc x7 (16). Join with sl st to top of beg ch.');
     assert.equal(
       lines(motif({ stitch: 'hdc', rounds: 1 }), 'hu')[1],
-      '1. kör: 2 lsz (nem számít szemnek), 8 fp a varázskörbe (8). Kör zárása: 1 ksz az első szembe.',
+      '1. kör: 2 lsz (fordulólánc), 8 fp a varázskörbe (8). Kör zárása: 1 ksz az első szembe.',
     );
   });
 });

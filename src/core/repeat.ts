@@ -5,27 +5,31 @@
  * csendben (README §4.3, §4.4).
  */
 
-import { hasBaseChain } from './tradition.ts';
+import { skippedChains } from './tradition.ts';
 import type { RepeatSpec, Tradition } from './types.ts';
 
 /**
- * Láncalap N szemhez, T láncszemes fordulólánccal (03 §1.2, 01 §8.3 szabály 15):
- * `N + T`. Ha a fordulólánc nem számít szemnek, az első szem a horogtól
- * számított `T + 1`. láncszembe megy; ha számít, a fordulólánc egy
- * alapláncszemen áll, és az első szem a `T + 2`. láncszembe megy (PQW-891,
- * tradition.ts).
+ * Láncalap N szemhez (03 §1.2, PQW-924): **a kért szemszám + a kihagyás**.
+ *
+ * A kihagyott láncszemek után minden láncszembe egy szem kerül, ezért a sorban
+ * pontosan N szem lesz. 20 szemre: rövidpálca és félpálca 22 láncszem,
+ * egyráhajtásos pálca 23, kétráhajtásos 24, háromráhajtásos 25.
  */
 export function foundationChainLength(
   stitches: number,
   turningChain: number,
   turningChainCounts: boolean,
-  tradition: Tradition = 'cyc',
+  _tradition: Tradition = 'cyc',
 ): number {
-  return stitches + turningChain - (turningChainCounts && !hasBaseChain(turningChainCounts, tradition) ? 1 : 0);
+  return stitches + skippedChains(turningChain, turningChainCounts);
 }
 
 export interface RepeatCounts {
-  /** A láncalap hossza a fordulólánccal, japán hagyományban az alapláncszemmel is. */
+  /**
+   * A láncalap hossza: a kihagyott láncszemek és a beledolgozottak együtt.
+   * Ugyanabból a kihagyásból számol, mint a `foundationChainLength` — a kettő
+   * korábban elcsúszott egymástól (PQW-924).
+   */
   readonly chains: number;
   /** A láncalap láncszemei, amelyekbe az 1. sor horgol. */
   readonly workedChains: number;
@@ -47,13 +51,14 @@ export function repeatCounts(
   repeats: number,
   turningChain: number,
   turningChainCounts: boolean,
-  tradition: Tradition = 'cyc',
+  _tradition: Tradition = 'cyc',
 ): RepeatCounts {
   const multiple = spec.repeatWidth * repeats + spec.edgeStitches;
   const workedChains = spec.turningChainIncluded ? multiple - turningChain : multiple;
   return {
-    chains: workedChains + turningChain + (hasBaseChain(turningChainCounts, tradition) ? 1 : 0),
+    chains: workedChains + skippedChains(turningChain, turningChainCounts),
     workedChains,
-    firstRowPositions: workedChains + (turningChainCounts ? 1 : 0),
+    // A kihagyott láncszemek nem szemek: a sor annyi helyet ad, ahány láncszembe horgoltunk (PQW-924).
+    firstRowPositions: workedChains,
   };
 }

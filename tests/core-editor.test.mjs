@@ -65,10 +65,11 @@ const findings = (pattern) => validatePattern(pattern, libraryFor(pattern));
  * fordulólánc a sor első szeme, soronként `width − 1` félpálcát horgolunk (PQW-891).
  */
 function hdcRectangle(width, rows) {
+  // Félpálcánál 2 láncszemet hagyunk ki, és minden láncszembe egy szem megy (PQW-924).
   let pattern = chains(emptyPattern(), width + 2);
   for (let row = 1; row <= rows; row += 1) {
     if (row > 1) pattern = ok(endRow(pattern, 'hdc'));
-    for (let i = 1; i < width; i += 1) pattern = stitch(pattern, 'hdc');
+    for (let i = 0; i < width; i += 1) pattern = stitch(pattern, 'hdc');
   }
   return pattern;
 }
@@ -80,10 +81,11 @@ describe('félpálcás téglalap csak alapértelmezett célpontokkal', () => {
     assert.deepEqual(findings(pattern), []);
   });
 
-  test('az 1. sor első szeme a horogtól számított T + 2. láncszembe megy: rp 3., fp 4., erp 5. (PQW-891)', () => {
+  test('az 1. sor első szeme a kihagyás utáni láncszembe megy: rp és fp a 3., erp a 4. (PQW-924)', () => {
+    // A célpont 0-tól számozott, a láncszem a horogtól 1-től: a kihagyás száma adja az indexet.
     const pattern = chains(emptyPattern(), 12);
-    assert.equal(defaultCursor(pattern, contextOf(pattern), 'hdc'), 3);
-    assert.equal(defaultCursor(pattern, contextOf(pattern), 'dc'), 4);
+    assert.equal(defaultCursor(pattern, contextOf(pattern), 'hdc'), 2);
+    assert.equal(defaultCursor(pattern, contextOf(pattern), 'dc'), 3);
     assert.equal(defaultCursor(pattern, contextOf(pattern), 'sc'), 2);
   });
 
@@ -92,9 +94,9 @@ describe('félpálcás téglalap csak alapértelmezett célpontokkal', () => {
     const context = contextOf(pattern);
     assert.equal(context.turningChain, 3);
     assert.equal(context.layer, 2);
-    // A számító fordulólánc alatti szem kimarad (03 §1.3); sorban minden szem fordulólánca számít (PQW-891).
-    assert.equal(defaultCursor(pattern, context, 'dc'), 1);
-    assert.equal(defaultCursor(pattern, context, 'hdc'), 1);
+    // A fordulólánc nem foglal helyet (PQW-924): a sor az alatta lévő sor első szemébe kezd.
+    assert.equal(defaultCursor(pattern, context, 'dc'), 0);
+    assert.equal(defaultCursor(pattern, context, 'hdc'), 0);
   });
 
   test('a sor utolsó célpontja után nincs következő: nem horgol kétszer ugyanabba', () => {
@@ -120,25 +122,24 @@ describe('félpálcás téglalap csak alapértelmezett célpontokkal', () => {
     let pattern = ok(endRow(full, 'hdc'));
     for (let i = 0; i < 4; i += 1) pattern = stitch(pattern, 'hdc');
     assert.ok(findings(pattern).some((finding) => finding.rule === 'unused-position'));
-    // 10 célpont: a fordulólánc alatti kimarad, 4 foglalt, 5 van hátra.
-    assert.deepEqual(liveCheck(pattern), { findings: [], remaining: 5 });
+    // 10 célpont: a fordulólánc nem foglal helyet (PQW-924), 4 foglalt, 6 van hátra.
+    assert.deepEqual(liveCheck(pattern), { findings: [], remaining: 6 });
   });
 
   test('a félkész sor elején kihagyott szem viszont hiba marad', () => {
     let pattern = ok(endRow(hdcRectangle(6, 1), 'hdc'));
-    // A fordulólánc alatti szem (0.) után a következőt (1.) is kihagyjuk.
+    // A 2. szemnél kezdünk: az alatta lévő sor első két szeme használatlan marad (PQW-924).
     pattern = stitch(pattern, 'hdc', 2);
     pattern = stitch(pattern, 'hdc');
     assert.deepEqual(
       liveCheck(pattern).findings.map((finding) => finding.rule),
-      ['unused-position'],
+      ['unused-position', 'unused-position'],
     );
   });
 });
 
 test('kagyló 6 × 2 + 1: szaporítás „még egy ugyanabba”, hibátlan (03 §4.2 E)', () => {
-  // A forrásban az 1. sor rövidpálcás fordulólánca nem számít, a 2. sor 3 láncszeme igen:
-  // a minta beállítása kifejezetten „nem számít”, a 2. sort nyitó fordulás soronként felülírja (PQW-891).
+  // A fordulólánc egyik sorban sem szem (PQW-924): nincs soronkénti felülírás.
   const start = emptyPattern();
   let pattern = chains({ ...start, conventions: { ...start.conventions, turningChainCounts: false } }, 14);
   pattern = stitch(pattern, 'sc');
@@ -147,12 +148,9 @@ test('kagyló 6 × 2 + 1: szaporítás „még egy ugyanabba”, hibátlan (03 �
     pattern = stitch(pattern, 'sc', at + 3);
   }
   pattern = ok(endRow(pattern, 'dc'));
-  const [row1] = pattern.pieces;
-  pattern = {
-    ...pattern,
-    pieces: [{ ...row1, events: row1.events.map((event) => (event.kind === 'turn' ? { ...event, conventions: { turningChainCounts: true } } : event)) }],
-  };
+  // A sort kezdő fordulólánc nem szem (PQW-924), ezért a szaporítás adja mind a három pálcát.
   pattern = stitch(pattern, 'dc', 0);
+  pattern = ok(workIntoSame(pattern, 'dc'));
   pattern = ok(workIntoSame(pattern, 'dc'));
   pattern = stitch(pattern, 'sc', 3);
   pattern = stitch(pattern, 'shell-5dc', 6);
@@ -162,7 +160,7 @@ test('kagyló 6 × 2 + 1: szaporítás „még egy ugyanabba”, hibátlan (03 �
   pattern = ok(workIntoSame(pattern, 'dc'));
 
   const piece = pattern.pieces[0];
-  assert.deepEqual(piece.groups.map((group) => group.def), ['shell-5dc', 'shell-5dc', 'inc-2dc', 'shell-5dc', 'inc-3dc']);
+  assert.deepEqual(piece.groups.map((group) => group.def), ['shell-5dc', 'shell-5dc', 'inc-3dc', 'shell-5dc', 'inc-3dc']);
   assert.deepEqual(counts(pattern), [0, 13, 13]);
   assert.deepEqual(findings(pattern), []);
 });
@@ -302,7 +300,8 @@ describe('sor kitöltése (PQW-879)', () => {
     const base = chains(emptyPattern(), 12);
     const filled = ok(fillRow(base, { def: 'hdc', count: 1 }));
     let byHand = base;
-    for (let i = 0; i < 9; i += 1) byHand = stitch(byHand, 'hdc');
+    // 12 láncszem, 2 kihagyás: 10 szem fér a sorba (PQW-924).
+    for (let i = 0; i < 10; i += 1) byHand = stitch(byHand, 'hdc');
     assert.deepEqual(counts(filled), counts(byHand));
   });
 
@@ -335,33 +334,36 @@ describe('sor kezdése a láncalapon (PQW-891)', () => {
     assert.ok(start.ok, start.ok ? '' : huText(start.reason));
     assert.equal(start.pattern, pattern, 'a láncalap utáni fordulás nem változtat a mintán');
     assert.equal(canEndRow(contextOf(pattern)), true);
-    assert.equal(defaultCursor(pattern, contextOf(pattern), def), turningChain + 1, `${def}: a horogtól számított ${turningChain + 2}. láncszem`);
+    // A kihagyás a tulajdonos táblázata szerint legalább kettő (PQW-924).
+    const skipped = Math.max(2, turningChain);
+    assert.equal(defaultCursor(pattern, contextOf(pattern), def), skipped, `${def}: a horogtól számított ${skipped + 1}. láncszem`);
 
     pattern = ok(fillRow(pattern, { def, count: 1 }));
-    const stitches = total - turningChain;
+    const stitches = total - skipped;
     assert.equal(layerOf(pattern, 1).stitchCount, stitches);
     // Az 1. sor fordulólánca a láncalap vége, nincs saját csomópontja: az első horgolt szem közvetlenül a láncszemek után jön.
     const first = pattern.pieces[0].stitches[total];
     assert.equal(first.def, def);
-    assert.deepEqual(first.anchors.map((anchor) => anchor.id), [chainFromHook(pattern, total, turningChain + 2)]);
+    assert.deepEqual(first.anchors.map((anchor) => anchor.id), [chainFromHook(pattern, total, skipped + 1)]);
     assert.deepEqual(findings(pattern), []);
 
     pattern = ok(endRow(pattern, def));
     pattern = ok(fillRow(pattern, { def, count: 1 }));
     assert.equal(layerOf(pattern, 2).stitchCount, stitches);
-    // A 2. sor utolsó szeme az 1. sor fordulóláncának tetejébe megy: a láncalap utolsó láncszeme.
-    assert.deepEqual(pattern.pieces[0].stitches.at(-1).anchors.map((anchor) => anchor.id), [chainFromHook(pattern, total, 1)]);
+    // A fordulólánc teteje nem célpont (PQW-924): a 2. sor utolsó szeme az 1. sor első szemébe megy.
+    assert.deepEqual(pattern.pieces[0].stitches.at(-1).anchors.map((anchor) => anchor.id), [first.id]);
     assert.deepEqual(findings(pattern), []);
     return pattern;
   }
 
   test('sál: 40 lsz, fordítás, 2 láncszem kimarad, 39 rp a 3. láncszemtől; a 2. sor is 39 szem', () => {
     const pattern = twoRows('sc', 1, 40);
+    // Az 1. sor első rövidpálcája a horogtól 3. láncszembe; a 2. sor utolsó szeme ebbe a szembe.
     assert.equal(pattern.pieces[0].stitches[40].anchors[0].id, 'n38');
-    assert.equal(pattern.pieces[0].stitches.at(-1).anchors[0].id, 'n40');
+    assert.equal(pattern.pieces[0].stitches.at(-1).anchors[0].id, 'n41');
   });
 
-  test('félpálca a 4., pálca az 5. láncszemtől: N szemhez N + T láncszem', () => {
+  test('félpálca a 3., pálca a 4. láncszemtől: a kihagyás után minden láncszembe egy szem (PQW-924)', () => {
     twoRows('hdc', 2, 20);
     twoRows('dc', 3, 20);
   });
