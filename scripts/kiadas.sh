@@ -245,8 +245,13 @@ main() {
   LEPES="2. minőségi kapuk"
   cim "2. Minőségi kapuk"
   npm run check
+  # A build a tesztek ELŐTT fut, mert a tests/version.test.mjs a BUILDELT
+  # kimenetben keresi a verziót: állott vagy hiányzó dist/ mellett elbukik, és
+  # az egész kiadást megállítja egy olyan hibával, aminek semmi köze a
+  # kiadáshoz (PQW-928). A későbbi build a kiadott állapotból újra lefut.
+  npm run build >/dev/null
   npm test
-  zold "✓ típusellenőrzés és egységtesztek rendben"
+  zold "✓ típusellenőrzés, build és egységtesztek rendben"
   if (( BONGESZO )); then
     npx playwright test
     zold "✓ a böngészős készlet is zöld"
