@@ -94,13 +94,15 @@ test('a felület nyelve és a minta jelölése független egymástól', async ({
 
 test('a böngészőfül címe és a leírás a felület nyelvét követi (PQW-905)', async ({ page }) => {
   await open(page);
-  await expect(page).toHaveTitle(/Mintatervező/);
-  await expect(page.locator('head meta[name="description"]')).toHaveAttribute('content', /mintatervezője/i);
+  await expect(page).toHaveTitle(/Horgolásminta-tervező/i);
+  await expect(page.locator('head meta[name="description"]')).toHaveAttribute('content', /horgolásminta-tervező/i);
+  await expect(page.locator('head meta[property="og:title"]')).toHaveAttribute('content', /horgolásminta-tervező/i);
 
   await openNotation(page);
   await page.locator('#ui-language').selectOption('en');
-  await expect(page).toHaveTitle(/Pattern designer/);
-  await expect(page.locator('head meta[name="description"]')).toHaveAttribute('content', /pattern designer/i);
+  await expect(page).toHaveTitle(/Crochet Pattern Designer/);
+  await expect(page.locator('head meta[name="description"]')).toHaveAttribute('content', /crochet pattern designer/i);
+  await expect(page.locator('head meta[property="og:title"]')).toHaveAttribute('content', /Crochet Pattern Designer/);
 });
 
 test('a választott nyelv megmarad a következő megnyitásig (PQW-906)', async ({ page }) => {
