@@ -137,12 +137,6 @@ export const RULE_TEXTS = {
       message: 'In the repeated pattern the row gives more or fewer stitches than it uses up.',
     },
 
-    /* ---- Heights ---- */
-    'mixed-heights': {
-      summary: 'Mixed stitch heights, and the next 1-3 rows do not even them out.',
-      message: 'Stitches of different heights in one row, and the rows that follow do not even them out.',
-    },
-
     /* ---- Rounds (PQW-861) ---- */
     'round-growth': {
       summary: 'The position count of the round is more than double or less than half of the previous round.',

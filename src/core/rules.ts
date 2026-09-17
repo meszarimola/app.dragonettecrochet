@@ -168,14 +168,6 @@ export const RULES = {
     message: 'Az ismételt mintában a sor több vagy kevesebb szemet ad, mint amennyit felhasznál.',
   },
 
-  /* ---- Magasság ---- */
-  'mixed-heights': {
-    severity: 'warning',
-    reference: '03 §10 D19, 03 §2.3',
-    summary: 'Keverten magas szemek, és a következő 1–3 sor nem egyenlíti ki őket.',
-    message: 'Különböző magasságú szemek egy sorban, és a következő sorok nem egyenlítik ki.',
-  },
-
   /* ---- Körök (PQW-861); csak a befejezett körökön ---- */
   'round-growth': {
     severity: 'warning',

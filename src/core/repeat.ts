@@ -5,27 +5,36 @@
  * csendben (README §4.3, §4.4).
  */
 
-import { hasBaseChain } from './tradition.ts';
 import type { RepeatSpec, Tradition } from './types.ts';
 
 /**
- * Láncalap N szemhez, T láncszemes fordulólánccal (03 §1.2, 01 §8.3 szabály 15):
- * `N + T`. Ha a fordulólánc nem számít szemnek, az első szem a horogtól
- * számított `T + 1`. láncszembe megy; ha számít, a fordulólánc egy
- * alapláncszemen áll, és az első szem a `T + 2`. láncszembe megy (PQW-891,
- * tradition.ts).
+ * Láncalap N szemhez, T láncszemes fordulólánccal (03 §1.2): `N + T`.
+ *
+ * A hossz a PQW-924-ben sem változott, csak a kihagyás (`tradition.ts`,
+ * `firstChainFromHook`): a tulajdonos sálája 39 rövidpálcás sorhoz 40
+ * láncszem, 20 félpálcás sorhoz 22. Az „alapláncszem” fogalma megszűnt, ezért
+ * a hosszból nincs több levonás vagy hozzáadás.
  */
 export function foundationChainLength(
   stitches: number,
   turningChain: number,
-  turningChainCounts: boolean,
-  tradition: Tradition = 'cyc',
+  /*
+   * A hossz a PQW-924 óta egyikükön sem múlik, de a paraméterek maradnak: hat
+   * hívó és a tesztek adják őket, és a kihagyás szabálya (`firstChainFromHook`)
+   * továbbra is mindkettőt használja.
+   */
+  _turningChainCounts: boolean,
+  _tradition: Tradition = 'cyc',
 ): number {
-  return stitches + turningChain - (turningChainCounts && !hasBaseChain(turningChainCounts, tradition) ? 1 : 0);
+  return stitches + turningChain;
 }
 
 export interface RepeatCounts {
-  /** A láncalap hossza a fordulólánccal, japán hagyományban az alapláncszemmel is. */
+  /**
+   * A láncalap hossza: a kihagyott láncszemek és a beledolgozottak együtt.
+   * Ugyanabból a kihagyásból számol, mint a `foundationChainLength` — a kettő
+   * korábban elcsúszott egymástól (PQW-924).
+   */
   readonly chains: number;
   /** A láncalap láncszemei, amelyekbe az 1. sor horgol. */
   readonly workedChains: number;
@@ -47,12 +56,12 @@ export function repeatCounts(
   repeats: number,
   turningChain: number,
   turningChainCounts: boolean,
-  tradition: Tradition = 'cyc',
+  _tradition: Tradition = 'cyc',
 ): RepeatCounts {
   const multiple = spec.repeatWidth * repeats + spec.edgeStitches;
   const workedChains = spec.turningChainIncluded ? multiple - turningChain : multiple;
   return {
-    chains: workedChains + turningChain + (hasBaseChain(turningChainCounts, tradition) ? 1 : 0),
+    chains: workedChains + turningChain,
     workedChains,
     firstRowPositions: workedChains + (turningChainCounts ? 1 : 0),
   };

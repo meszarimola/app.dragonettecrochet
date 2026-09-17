@@ -189,10 +189,16 @@ describe('cikcakk, elrontva (03 §4.2 G)', () => {
   });
 });
 
-describe('hullám, elrontva (03 §2.3)', () => {
-  test('a 3. sor is rövidpálca, az 1. sor hullámát semmi nem egyenlíti ki: figyelmeztetés', () => {
+describe('hullám: a vegyes szemmagasság nem hiba (PQW-924)', () => {
+  test('a 3. sor is rövidpálca: a hullámos minta így készül, nincs figyelmeztetés', () => {
+    /*
+     * A tulajdonos a horgolás szakértője: a különböző magasságú szemek egy
+     * sorban szándékos tervezői eszköz, nem hiba. Korábban a program itt
+     * „mixed-heights” figyelmeztetést adott, és a rajzon körbe is karikázta a
+     * szemeket (PQW-924).
+     */
     const example = wave({ flatRow3: true });
-    assertOnly(example.pattern, 'mixed-heights', [example.rows[1]]);
+    assert.deepEqual(validatePattern(example.pattern, testLibrary), []);
   });
 });
 

@@ -72,10 +72,9 @@ function validatePiece(pattern: Pattern, piece: Piece, library: StitchLibrary): 
 
   for (let index = 1; index < graph.layers.length; index += 1) {
     // Az ovális 1. köre a láncszemek mindkét oldalába horgol (PQW-890): saját bejárása van.
-    if (index === 1 && graph.layers[0]!.undersides.length > 0) checkChainSides(pattern, graph, index, invalidAnchors, report);
+    if (index === 1 && graph.layers[0]!.undersides.length > 0) checkChainSides(graph, index, invalidAnchors, report);
     else checkLayer(pattern, graph, index, invalidAnchors, report, () => findings.length);
   }
-  checkHeights(graph, invalidAnchors, report);
   // Körök: növekedés, kunkorodás, fodrosodás, egymás fölé kerülő szaporítás, spirál lépcsője (PQW-861).
   for (const finding of roundFindings(pattern, graph, library)) report(finding.rule, finding.nodes);
   // Tapestry: soronként 3-nál több vitt szín haladó szint (03 §5.3, §10 G36, PQW-864).
@@ -295,7 +294,7 @@ function checkLayer(
     }
   }
 
-  checkCountsAndChains(pattern, graph, index, report);
+  checkCountsAndChains(graph, index, report);
   if (layerInvalid || entries.length === 0) return;
 
   const walkStart = findingCount();
@@ -447,7 +446,7 @@ function workedBetween(graph: PieceGraph, targets: readonly NodeId[], fromLayer:
   return false;
 }
 
-function checkCountsAndChains(pattern: Pattern, graph: PieceGraph, index: number, report: Report): void {
+function checkCountsAndChains(graph: PieceGraph, index: number, report: Report): void {
   const layer = graph.layers[index]!;
   const below = graph.layers[index - 1]!;
   const kind = (id: NodeId) => graph.defs.get(id)!.kind;
@@ -470,14 +469,13 @@ function checkCountsAndChains(pattern: Pattern, graph: PieceGraph, index: number
     // A láncgyűrűbe és a láncszembe horgolt 1. kör kör, nem láncalapra horgolt sor: ott a kezdőlánc magasságát nézzük.
     const onChain = index === 1 && below.shape === 'row' && below.stitches.length > 0 && kind(below.stitches[0]!) === 'chain';
     if (onChain) {
-      // A számító fordulólánc egy alapláncszemen áll, abba az 1. sor nem horgol (PQW-891). Egyetlen láncszemnél
-      // ez még a láncszembe horgolt, zárás előtti 1. kör is lehet („2 lsz, 6 rp a 2. láncszembe”), ott nem jelzünk.
-      const base = below.stitches[below.stitches.length - 1]!;
-      const baseWorked =
-        hasBaseChain(layer.turningChainCounts, traditionOf(pattern.conventions)) &&
-        below.stitches.length > 1 &&
-        layer.stitches.some((id) => graph.nodes.get(id)!.anchors.some((anchor) => anchor.into === 'stitch' && anchor.id === base));
-      if (layer.turningChain.length !== expected || baseWorked) report('foundation-chain', [...layer.turningChain, firstStitch]);
+      /*
+       * Az „alapláncszem” fogalma megszűnt (PQW-924): a kihagyott láncszemek
+       * után következő láncszembe megy az 1. sor első szeme, külön kihagyott
+       * alapláncszem nélkül. A szerkesztő és az ellenőrző ugyanazt a szabályt
+       * használja, ezért itt már csak a fordulólánc hosszát nézzük.
+       */
+      if (layer.turningChain.length !== expected) report('foundation-chain', [...layer.turningChain, firstStitch]);
     } else {
       const startsWithChain =
         layer.opening?.kind === 'turn' || layer.opening?.kind === 'join-slip' || (index === 1 && below.shape === 'round');
@@ -512,74 +510,10 @@ function isWorkedInto(graph: PieceGraph, chain: NodeId): boolean {
   );
 }
 
-/* ---- 4. Magasság ---- */
-
-/**
- * Halmozott magasság láncszem-egységben (01 §8.1 szabály 1): a szem
- * magassága és annak a célpontnak a halmozott magassága, amelybe horgolták.
- * Ha egy sor szemei különböző magasak, a következő 1–3 sornak ki kell
- * egyenlítenie, vagyis egy sorban minden szemnek azonos halmozott
- * magasságra kell érnie (03 §10 D19, 03 §2.3).
+/*
+ * A magasság ellenőrzése megszűnt (PQW-924): a különböző magasságú szemek egy
+ * sorban szándékos tervezői eszköz — így készül a hullámos minta —, nem hiba.
  */
-function checkHeights(graph: PieceGraph, invalidAnchors: ReadonlySet<string>, report: Report): void {
-  // A C2C-csempék sorában a kúszószem és a pálca szándékosan eltérő magas: a csempék átlósan fekszenek (03 §5.5, PQW-864).
-  if (graph.piece.grid?.technique === 'c2c') return;
-  const height = new Map<NodeId, number>();
-  // A fordulólánc a sort kezdő szem magasságát adja. A hosszát a `foundation-chain` és a `turning-chain-height`
-  // nézi; ha itt a tényleges hosszal számolnánk, a rövidebb számító fordulólánc kevert magasságként is jelezne.
-  const turningHeight = (layer: LayerInfo) =>
-    layer.firstStitch === null ? layer.turningChain.length : graph.defs.get(layer.firstStitch)!.turningChain;
-  const counting = (layer: LayerInfo) =>
-    layer.stitches.filter((id) => {
-      const kind = graph.defs.get(id)!.kind;
-      // A lejjebb horgolt hosszú szem a sor magasságáig ér, nem az alatta lévő sorra épül (mozaik, PQW-894).
-      const spike = graph.nodes.get(id)!.flags?.includes('spike') === true;
-      return kind !== 'chain' && kind !== 'picot' && kind !== 'ring' && id !== layer.joinSlip && !layer.travelSlips.includes(id) && !spike;
-    });
-
-  for (const id of graph.layers[0]!.stitches) height.set(id, 0);
-  graph.layers.forEach((layer, index) => {
-    if (index === 0) return;
-    const below = graph.layers[index - 1]!;
-    for (const id of counting(layer)) {
-      const node = graph.nodes.get(id)!;
-      let base = 0;
-      node.anchors.forEach((anchor, anchorIndex) => {
-        if (invalidAnchors.has(anchorRef(id, anchorIndex))) return;
-        const targets = anchor.into === 'stitch' ? [anchor.id] : anchor.into === 'space' ? graph.spaces.get(anchor.id)!.chains : [];
-        for (const target of targets) base = Math.max(base, height.get(target) ?? 0);
-      });
-      height.set(id, base + graph.defs.get(id)!.chainHeight);
-    }
-    if (layer.turningChainCounts) {
-      const basePosition = index === 1 ? undefined : below.positions[layer.direction === 1 ? 0 : below.positions.length - 1];
-      const top = (basePosition === undefined ? 0 : (height.get(basePosition) ?? 0)) + turningHeight(layer);
-      for (const id of layer.turningChain) height.set(id, top);
-    }
-    const rowTop = Math.max(0, ...counting(layer).map((id) => height.get(id)!));
-    for (const id of layer.stitches) if (!height.has(id)) height.set(id, rowTop);
-  });
-
-  const levels = (layer: LayerInfo, values: (id: NodeId) => number) => {
-    const set = new Set(counting(layer).map(values));
-    if (layer.turningChainCounts) set.add(values(layer.turningChain[layer.turningChain.length - 1]!));
-    return set;
-  };
-  const own = (id: NodeId) =>
-    graph.layers[graph.layerOf.get(id)!]!.turningChain.includes(id)
-      ? turningHeight(graph.layers[graph.layerOf.get(id)!]!)
-      : graph.defs.get(id)!.chainHeight;
-
-  graph.layers.forEach((layer, index) => {
-    if (index === 0 || layer.shape !== 'row' || levels(layer, own).size < 2) return;
-    for (let later = index; later <= index + 3 && later < graph.layers.length; later += 1) {
-      const candidate = graph.layers[later]!;
-      if (candidate.shape !== 'row') break;
-      if (levels(candidate, (id) => height.get(id)!).size === 1) return;
-    }
-    report('mixed-heights', counting(layer));
-  });
-}
 
 /* ---- Ovális kezdés (PQW-890) ---- */
 
@@ -590,7 +524,7 @@ function checkHeights(graph: PieceGraph, invalidAnchors: ReadonlySet<string>, re
  * elmaradhat, mert a végén a szaporítás körbeér rajta. A célpontok sorrendje
  * a haladási irány; egy célpontba több szem csak jelölt szaporításként mehet.
  */
-function checkChainSides(pattern: Pattern, graph: PieceGraph, index: number, invalidAnchors: ReadonlySet<string>, report: Report): void {
+function checkChainSides(graph: PieceGraph, index: number, invalidAnchors: ReadonlySet<string>, report: Report): void {
   const layer = graph.layers[index]!;
   const chains = graph.layers[0]!.positions;
   const W = chains.length;
@@ -625,7 +559,7 @@ function checkChainSides(pattern: Pattern, graph: PieceGraph, index: number, inv
     });
   }
 
-  checkCountsAndChains(pattern, graph, index, report);
+  checkCountsAndChains(graph, index, report);
   if (invalid) return;
   for (let w = 0; w < 2 * W; w += 1) {
     const worked = used.get(w) ?? [];

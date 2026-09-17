@@ -99,11 +99,14 @@ test('sorban CYC szerint minden szem fordulólánca számít szemnek, japánban 
 // prettier-ignore
 const FOUNDATION = [
   // szem   N    CYC: lsz  horogtól   japán: lsz  horogtól
+  // A kihagyott láncszemek száma a tulajdonos táblázata szerint (PQW-924): rp 2,
+  // fp 2, erp 3, krp 4, hrp 5 — vagyis az első szem a kihagyás utáni láncszembe
+  // megy. A láncalap hossza (N + fordulólánc) változatlan.
   ['sc',    20,  21,       3,         21,         2],
-  ['hdc',   20,  22,       4,         22,         4],
-  ['dc',    20,  23,       5,         23,         5],
-  ['tr',    20,  24,       6,         24,         6],
-  ['dtr',   20,  25,       7,         25,         7],
+  ['hdc',   20,  22,       3,         22,         3],
+  ['dc',    20,  23,       4,         23,         4],
+  ['tr',    20,  24,       5,         24,         5],
+  ['dtr',   20,  25,       6,         25,         6],
 ];
 
 test('láncalap N szemhez sorban: mindkét hagyományban N + T; a rövidpálca CYC-ben a 3., japánban a 2., a félpálca a 4., a pálca az 5., a három ráhajtásos a 7. láncszemtől (01 §2.2, §8.3, PQW-891)', () => {
@@ -120,8 +123,8 @@ test('láncalap N szemhez sorban: mindkét hagyományban N + T; a rövidpálca C
   }
 });
 
-test('CYC sorban a fordulólánc mindig számít: a 2. sor a rövidpálcánál a 3., félpálcánál a 4., pálcánál az 5., kétráhajtásos pálcánál a 6. láncszemtől, a láncalap N + T (PQW-891)', () => {
-  for (const [id, from] of [['sc', 3], ['hdc', 4], ['dc', 5], ['tr', 6]]) {
+test('CYC sorban a fordulólánc mindig számít: a 2. sor a rövidpálcánál és a félpálcánál a 3., pálcánál a 4., kétráhajtásos pálcánál az 5. láncszemtől, a láncalap N + T (PQW-891, PQW-924)', () => {
+  for (const [id, from] of [['sc', 3], ['hdc', 3], ['dc', 4], ['tr', 5]]) {
     const def = stitchById(id);
     const counts = stitchTurningChainCounts(def, 'cyc', 'row');
     assert.equal(counts, true, `${id}: számít`);
@@ -380,4 +383,27 @@ describe('a szerkesztő japán előbeállítással', () => {
     assert.equal(bad.ok, false);
     assert.equal(bad.error.path, '$.conventions.tradition');
   });
+});
+
+
+/*
+ * A kihagyott láncszemek száma az 1. sor kezdésénél (PQW-924).
+ *
+ * A tulajdonos táblázata az irányadó, és felülírja a PQW-891 „fordulólánc + 2”
+ * szabályát: a félpálcától kezdve eggyel kevesebb láncszemet hagyunk ki. A
+ * fordulólánc hossza nem változik, csak a kihagyás.
+ */
+test('a kihagyott láncszemek: rp 2, fp 2, erp 3, krp 4, hrp 5 (PQW-924)', () => {
+  for (const [id, skipped] of [
+    ['sc', 2],
+    ['hdc', 2],
+    ['dc', 3],
+    ['tr', 4],
+    ['dtr', 5],
+  ]) {
+    const def = stitchById(id);
+    const counts = stitchTurningChainCounts(def, 'cyc', 'row');
+    // Az első szem a kihagyott láncszemek utáni láncszembe megy.
+    assert.equal(firstChainFromHook(def.turningChain, counts, 'cyc') - 1, skipped, `${id}: kihagyott láncszemek`);
+  }
 });

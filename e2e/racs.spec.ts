@@ -130,6 +130,20 @@ test('a rács a nézet csoportban ki- és bekapcsolható, megmarad, és választ
   expect(withGrid).toContain('data-grid="rows"');
   expect(withGrid).toContain('Rács: váltakozó sávok');
 
+  /*
+   * A rács a szemeket nem tagolja csoportokra (PQW-924). A tulajdonos az
+   * exportált képen látta a vastag függőleges vonalakat, ezért itt a letöltött
+   * fájlban nézzük meg, nem csak a tervezőben: a tervező és az export ugyanazt
+   * a rácsot rajzolja, közös kódból.
+   */
+  const thickVertical = [...withGrid.matchAll(/<path d="M[-\d.]+ [-\d.]+V[-\d.]+"[^>]*stroke-width="([\d.]+)"/g)]
+    .map((match) => Number(match[1]))
+    .filter((width) => width > 1);
+  expect(thickVertical, 'az exportált rácsban nincs vastag függőleges cellavonal').toEqual([]);
+  // A sorszámozás is az új: a láncalap az 1. sor, nincs „0” sorszám.
+  expect(withGrid).toContain('1. sor – alapsor');
+  expect(withGrid).not.toMatch(/>0<\/text>/);
+
   await page.locator('#export-grid').uncheck();
   const withoutGrid = await exportSvg();
   expect(withoutGrid).not.toContain('data-grid');
