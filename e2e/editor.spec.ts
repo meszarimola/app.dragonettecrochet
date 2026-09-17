@@ -199,7 +199,7 @@ test('a láncalapra a vezetett kurzorral hibátlan rövidpálcás sor készül',
   await expect(page.locator('#findings li')).toHaveCount(0);
 });
 
-test('foglalt célpontnál kérdés jön, és a „Mégse” után nem kerül le szem', async ({ page }) => {
+test('foglalt célpontra kérdés nélkül kerül a szaporítás', async ({ page }) => {
   await open(page);
   await foundation(page, 12);
   await page.keyboard.press('Alt+4'); // félpálca
@@ -219,22 +219,19 @@ test('foglalt célpontnál kérdés jön, és a „Mégse” után nem kerül le
   }
   expect(onUsed).toBe(true);
 
+  /*
+   * A kurzor odavitele maga a szándék, ezért nincs megerősítő kérdés
+   * (PQW-931): az Enter azonnal leteszi a második szemet ugyanabba a célpontba.
+   */
   await page.keyboard.press('Enter');
-  const dialog = page.locator('dialog.ask');
-  await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText('már horgoltál');
-  await dialog.getByRole('button', { name: 'Mégse' }).click();
-  await expect(dialog).toBeHidden();
-  await expect(page.locator('#status')).toHaveText('Nem került le szem.');
-  // Egy félpálca és a számító fordulólánc (PQW-891).
-  await expect(page.locator('#summary')).toContainText('2. sor: 1 szem');
-
-  // „Szaporítás” után viszont lekerül a szem.
-  await page.locator('#board').focus();
-  await page.keyboard.press('Enter');
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole('button', { name: 'Szaporítás' }).click();
   await expect(page.locator('#summary')).toContainText('2. sor: 2 szem');
+  await expect(page.locator('#status')).toContainText('szaporítás');
+  await expect(page.locator('dialog.ask')).toBeHidden();
+
+  // Harmadszorra sem kérdez: a szaporítás akárhányszor ismételhető.
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#summary')).toContainText('2. sor: 3 szem');
+  await expect(page.locator('dialog.ask')).toBeHidden();
 });
 
 test('a „Sor kitöltése” egy lépésben kitölti a sort, és egy lépésben visszavonható', async ({ page }) => {
