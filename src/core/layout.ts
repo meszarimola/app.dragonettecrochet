@@ -53,7 +53,11 @@ export interface NodePlacement {
   readonly feet: readonly Point[];
   /** Szárnál a tető; a többinél a középpont. Ide mutat, ami ebbe horgol. */
   readonly top: Point;
-  /** Láncszemnél a hossztengely szöge radiánban (0 = vízszintes). */
+  /**
+   * A sor menti tengely szöge radiánban a csomópont helyén (0 = vízszintes):
+   * láncszemnél egyben a hossztengelye. Szárnál a jel ehhez igazítja a
+   * kereszt- és a tetővonalát, nem a (szaporításnál ferde) szárhoz (PQW-931).
+   */
   readonly angle: number;
   /** Láncszemnél a hossza. */
   readonly size: number;
@@ -194,6 +198,17 @@ interface Raw {
   nodes: Map<NodeId, NodePlacement>;
   layers: LayerPlacement[];
   frame: RoundFrame;
+}
+
+/**
+ * A sor menti tengely szöge körben, a kifelé mutató `normal` irány szögéből. A
+ * `polar` a vászon lefelé növő y-ához negálja a szinuszt, ezért kifelé (cos,
+ * −sin) mutat, a sor menti érintő pedig (−sin, −cos). Ez NEM a kifelé mutató
+ * irány szöge, amellyel a fordulólánc-köteg áll: azt összekeverve körben
+ * minden jel elfordul.
+ */
+function alongRow(normal: number): number {
+  return Math.atan2(-Math.cos(normal), -Math.sin(normal));
 }
 
 /** A kör egy sarka: a szem vagy a láncív, amelybe a következő kör sarokcsoportja kerül. */
@@ -450,7 +465,7 @@ class Layouter {
       if (def.kind === 'chain') {
         // A láncszem a kör mentén fekszik: sokszögben az oldallal párhuzamosan.
         const normal = frameNormal(this.#frame, axis);
-        const along = this.#round ? Math.atan2(-Math.cos(normal), -Math.sin(normal)) : 0;
+        const along = this.#round ? alongRow(normal) : 0;
         this.#place(id, layer.index, side, 'chain', [], this.#point(up(top, -6), axis), along, W * 0.7);
         continue;
       }
@@ -465,7 +480,14 @@ class Layouter {
         this.#place(id, layer.index, side, 'slip', feet, center, 0, 0);
         continue;
       }
-      this.#place(id, layer.index, side, 'stitch', feet, this.#point(up(base, this.#stem(def.chainHeight)), axis), 0, 0);
+      /*
+       * A sor tengelye a szem helyén: a jel ehhez igazítja a keresztvonalát és
+       * a tetővonalát. Szaporításnál a szár megdől (a talp a célpont
+       * oszlopában, a tető a saját pozíciójában), és ha a kereszt a szárhoz
+       * igazodna, a rövidpálca + jele ×-szé fordulna (PQW-931).
+       */
+      const along = this.#round ? alongRow(frameNormal(this.#frame, axis)) : 0;
+      this.#place(id, layer.index, side, 'stitch', feet, this.#point(up(base, this.#stem(def.chainHeight)), axis), along, 0);
     }
     for (const [id, host] of picots) {
       const hostTop = this.#nodes.get(host)!.top;
