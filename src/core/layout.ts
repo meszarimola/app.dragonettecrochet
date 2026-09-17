@@ -53,7 +53,11 @@ export interface NodePlacement {
   readonly feet: readonly Point[];
   /** Szárnál a tető; a többinél a középpont. Ide mutat, ami ebbe horgol. */
   readonly top: Point;
-  /** Láncszemnél a hossztengely szöge radiánban (0 = vízszintes). */
+  /**
+   * A sor menti tengely szöge radiánban a csomópont helyén (0 = vízszintes):
+   * láncszemnél egyben a hossztengelye. Szárnál a jel ehhez igazítja a
+   * kereszt- és a tetővonalát, nem a (szaporításnál ferde) szárhoz (PQW-931).
+   */
   readonly angle: number;
   /** Láncszemnél a hossza. */
   readonly size: number;
@@ -194,6 +198,17 @@ interface Raw {
   nodes: Map<NodeId, NodePlacement>;
   layers: LayerPlacement[];
   frame: RoundFrame;
+}
+
+/**
+ * A sor menti tengely szöge körben, a kifelé mutató `normal` irány szögéből. A
+ * `polar` a vászon lefelé növő y-ához negálja a szinuszt, ezért kifelé (cos,
+ * −sin) mutat, a sor menti érintő pedig (−sin, −cos). Ez NEM a kifelé mutató
+ * irány szöge, amellyel a fordulólánc-köteg áll: azt összekeverve körben
+ * minden jel elfordul.
+ */
+function alongRow(normal: number): number {
+  return Math.atan2(-Math.cos(normal), -Math.sin(normal));
 }
 
 /** A kör egy sarka: a szem vagy a láncív, amelybe a következő kör sarokcsoportja kerül. */
@@ -436,9 +451,27 @@ class Layouter {
     for (const item of scaled) {
       const axis = this.#axis.get(item.ids[0]!)!;
       if (item === stack) {
-        const step = height / item.ids.length;
+        /*
+         * A fordulólánc ÁTNYÚLIK a sorhatáron (PQW-931). A tulajdonos szava:
+         * „a három elemes függőleges láncnak az alsó szeme az 1. sorhoz (alsó
+         * sor) tartozik, a másik kettő tartozik a felső sorhoz.” Korábban mind
+         * a sor saját sávjában állt, ezért a lánctalpba horgoláskor az egész
+         * köteg együtt ugrott fel.
+         *
+         * A lépésköz zárt alakban adódik, nem becsülve. Két kikötés van:
+         * a köteg TETEJE a sor tetejét éri el (a fordulólánc a sort kezdő szem
+         * helyett áll, tehát olyan magas, mint a sor), és az ELSŐ láncszem
+         * teteje pont a sorhatáron ül, vagyis maga a láncszem az alatta lévő
+         * sorban van. Ebből: n elem, az i-edik közepe `base + (i - 0.5) * step`,
+         * és a két kikötés együtt `step = height / (n - 1)`.
+         *
+         * Így három láncszemnél egy kerül alulra és kettő felülre; kettőnél
+         * (félpálca) egy-egy; egynél (rövidpálca) a lánc az alsó sorban áll.
+         */
+        const n = item.ids.length;
+        const step = n > 1 ? height / (n - 1) : height;
         item.ids.forEach((id, i) => {
-          const center = this.#point(up(base, (i + 0.5) * step), axis);
+          const center = this.#point(up(base, (i - 0.5) * step), axis);
           const normal = frameNormal(this.#frame, axis);
           const along = this.#round ? Math.atan2(-Math.sin(normal), Math.cos(normal)) : Math.PI / 2;
           this.#place(id, layer.index, side, 'chain', [], center, along, Math.min(step * 0.95, W * 0.8));
@@ -450,7 +483,7 @@ class Layouter {
       if (def.kind === 'chain') {
         // A láncszem a kör mentén fekszik: sokszögben az oldallal párhuzamosan.
         const normal = frameNormal(this.#frame, axis);
-        const along = this.#round ? Math.atan2(-Math.cos(normal), -Math.sin(normal)) : 0;
+        const along = this.#round ? alongRow(normal) : 0;
         this.#place(id, layer.index, side, 'chain', [], this.#point(up(top, -6), axis), along, W * 0.7);
         continue;
       }
@@ -465,7 +498,14 @@ class Layouter {
         this.#place(id, layer.index, side, 'slip', feet, center, 0, 0);
         continue;
       }
-      this.#place(id, layer.index, side, 'stitch', feet, this.#point(up(base, this.#stem(def.chainHeight)), axis), 0, 0);
+      /*
+       * A sor tengelye a szem helyén: a jel ehhez igazítja a keresztvonalát és
+       * a tetővonalát. Szaporításnál a szár megdől (a talp a célpont
+       * oszlopában, a tető a saját pozíciójában), és ha a kereszt a szárhoz
+       * igazodna, a rövidpálca + jele ×-szé fordulna (PQW-931).
+       */
+      const along = this.#round ? alongRow(frameNormal(this.#frame, axis)) : 0;
+      this.#place(id, layer.index, side, 'stitch', feet, this.#point(up(base, this.#stem(def.chainHeight)), axis), along, 0);
     }
     for (const [id, host] of picots) {
       const hostTop = this.#nodes.get(host)!.top;

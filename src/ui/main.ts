@@ -35,7 +35,6 @@ import {
   type EditResult,
   type EditorMode,
   type LiveCheck,
-  type Slot,
   type WorkContext,
 } from '../core/editor.js';
 import { canRedo, canUndo, createHistory, record, redo, undo, type History } from '../core/history.js';
@@ -1092,14 +1091,6 @@ function paletteSection(section: ReturnType<typeof buildPalette>[number]): HTMLD
 
 /* ---- Műveletek ---- */
 
-/** A célpont neve a kérdésekben: „szembe”, „láncszembe”, „láncívbe”, „varázskörbe”. */
-function slotWord(slot: Slot): string {
-  const words = texts().messages.slot;
-  if (slot.kind === 'space') return words.space;
-  if (slot.kind === 'ring') return words.ring;
-  return derived.context.graph?.defs.get(slot.id)?.kind === 'chain' ? words.chain : words.stitch;
-}
-
 async function workAtCursor(): Promise<void> {
   const messages = texts().messages;
   if (!tool) {
@@ -1126,16 +1117,12 @@ async function workAtCursor(): Promise<void> {
   const idx = cursor;
   const slot = context.slots[idx];
 
-  // Foglalt célpont: nem tesz le csendben szemet, hanem megkérdezi a szaporítást (PQW-879).
+  /*
+   * Foglalt célpont: a szaporítás kérdés nélkül megtörténik (PQW-931). A
+   * horgoló azért vitte ide a kurzort, mert ebbe a szembe még egy szemet akar;
+   * a megerősítő kérdés (PQW-879) csak megismételte a saját szándékát.
+   */
   if (slot && context.used[idx]) {
-    const yes = await askConfirm({
-      message: messages.dialog.increaseQuestion(slotWord(slot)),
-      confirmLabel: messages.dialog.increaseConfirm,
-    });
-    if (!yes) {
-      announce(messages.work.nothingPlaced);
-      return;
-    }
     const increase = idx === context.frontier ? workIntoSame(history.present, tool) : work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx, [], editorMode());
     commit(increase, withStitchName(messages.work.increase, name, named));
     return;

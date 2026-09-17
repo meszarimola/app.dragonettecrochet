@@ -200,12 +200,26 @@ test('nem megengedett beszúrási módra hibát dob', () => {
 
 /* ---- Rövidpálca: + vagy × ---- */
 
-test('a rövidpálca alapból +: a keresztvonal merőleges a szárra', () => {
+test('a rövidpálca alapból +: a keresztvonal a sor tengelyén áll', () => {
   const shapes = symbolShapes(stitchById('sc'));
-  const [stem] = stems(shapes);
   const cross = shapes.find((shape) => shape.role === 'cross');
+  // A jel saját terében a sor tengelye a vízszintes (PQW-931).
+  assert.ok(near(cross.from.y, cross.to.y));
+  assert.ok(Math.abs(cross.to.x - cross.from.x) > 1);
+  // Álló szárnál ez merőleges is a szárra: az eddigi állítás nem sérült meg.
+  const [stem] = stems(shapes);
   const dot = (stem.to.x - stem.from.x) * (cross.to.x - cross.from.x) + (stem.to.y - stem.from.y) * (cross.to.y - cross.from.y);
   assert.ok(near(dot, 0));
+});
+
+test('a szaporítás legyezőjében a ferde szárak keresztvonala is vízszintes marad', () => {
+  const shapes = symbolShapes(stitchById('inc-2sc'));
+  const crosses = shapes.filter((shape) => shape.role === 'cross');
+  assert.equal(crosses.length, 2);
+  // A + nem fordul el a legyező szárainak dőlésével (PQW-929, PQW-931).
+  for (const cross of crosses) assert.ok(near(cross.from.y, cross.to.y), JSON.stringify(cross));
+  // A szárak viszont ferdék maradtak: a jel nem lett kiegyenesítve.
+  assert.ok(stems(shapes).every((stem) => Math.abs(stem.to.x - stem.from.x) > 1));
 });
 
 test('× beállítással két átló, függőleges szár nélkül, összetett jelben is', () => {

@@ -125,14 +125,6 @@ const hu = {
     tradition: (label: string): string => `Előbeállítás: ${label}. A jelek és a számolás is ezt követik.`,
   },
 
-  /* ---- A célpont neve a kérdésekben ---- */
-  slot: {
-    space: 'láncívbe',
-    ring: 'varázskörbe',
-    chain: 'láncszembe',
-    stitch: 'szembe',
-  },
-
   /* ---- Horgolás és szerkesztés ---- */
   work: {
     needStitch: 'Előbb válassz szemet a jelkészletből (Alt+1–9).',
@@ -162,8 +154,6 @@ const hu = {
 
   /* ---- Párbeszédablakok ---- */
   dialog: {
-    increaseQuestion: (slot: string): string => `Ebbe a ${slot} már horgoltál. Szaporítást szeretnél?`,
-    increaseConfirm: 'Szaporítás',
     crossedQuestion: 'Ez a célpont már mögötted van. Keresztezett szemet szeretnél?',
     crossedConfirm: 'Keresztezett szem',
     deleteQuestion: (selected: number, dependents: number, where: readonly LayerCount[]): string =>
@@ -308,13 +298,6 @@ const en: typeof hu = {
     tradition: (label) => `Preset: ${label}. The symbols and the stitch counts follow it too.`,
   },
 
-  slot: {
-    space: 'chain space',
-    ring: 'magic ring',
-    chain: 'chain',
-    stitch: 'stitch',
-  },
-
   work: {
     needStitch: 'First choose a stitch from the symbol set (Alt+1–9).',
     needStitchShort: 'First choose a stitch.',
@@ -341,8 +324,6 @@ const en: typeof hu = {
   },
 
   dialog: {
-    increaseQuestion: (slot) => `You have already worked into this ${slot}. Do you want an increase?`,
-    increaseConfirm: 'Increase',
     crossedQuestion: 'This target is already behind you. Do you want a crossed stitch?',
     crossedConfirm: 'Crossed stitch',
     deleteQuestion: (selected, dependents, where) =>
