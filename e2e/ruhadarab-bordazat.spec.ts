@@ -80,7 +80,7 @@ for (const viewport of [
     // A bordázat ismétlésként áll, nem szemenként felsorolva.
     expect(text).toMatch(/\[1 (Eerp|Herp), 1 (Eerp|Herp)\]/);
     // Az 1. sor sima marad: a láncalap köré nem lehet relief szemet horgolni.
-    expect(text).not.toMatch(/^1\. sor:.*(Eerp|Herp)/m);
+    expect(text).not.toMatch(/^2\. sor:.*(Eerp|Herp)/m);
   });
 
   test(`${viewport.width}×${viewport.height}: felülről horgolt raglán bordás szegéllyel és mandzsettával`, async ({ page }) => {

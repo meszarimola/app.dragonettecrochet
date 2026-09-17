@@ -133,10 +133,12 @@ const HU: Vocabulary = {
   system: null,
   headings: { abbreviations: 'Rövidítések', legend: 'Jelmagyarázat', assembly: 'Összeállítás', sizes: 'Méretek' },
   layer: {
-    row: (from, to) => `${range(from, to)}. sor`,
+    // A láncalap az 1. sor (PQW-923), ezért a belehorgolt sor a 2.: a kiírt szám a rétegénél eggyel nagyobb.
+    row: (from, to) => `${range(from + 1, to + 1)}. sor`,
+    // Körben a számozás változatlan: a varázskör és a láncgyűrű a mai nevén marad.
     round: (from, to) => `${range(from, to)}. kör`,
   },
-  foundation: (chains) => `Láncalap: ${chains} lsz.`,
+  foundation: (chains) => `1. sor – alapsor: ${chains} lsz.`,
   ring: 'Varázskör.',
   chainRing: (chains, slip) => `Láncgyűrű: ${chains} lsz, 1 ${slip}-szel gyűrűvé zárva.`,
   roundCount: (n) => `(${n})`,
@@ -202,7 +204,8 @@ const HU: Vocabulary = {
     'close-opening': 'A fonalat fűzd át a maradék szemek első szálán, és húzd össze a nyílást.',
   },
   section: (name) => `${name}, folytatólagosan:`,
-  resumeSection: (name, row) => `${name} (${article(row)} ${row}. sor fölött):`,
+  // A kiírt sorszám a rétegénél eggyel nagyobb, mert a láncalap az 1. sor (PQW-923).
+  resumeSection: (name, row) => `${name} (${article(row + 1)} ${row + 1}. sor fölött):`,
   // Új magyar mondatok, jóváhagyásra várnak (PQW-864, PQW-894).
   down: (depth) => `${depth} sorral lejjebb`,
   colorwork: {
@@ -248,10 +251,12 @@ function english(skipWord: string, skipVerb: string, skipMeaning: string, system
     system,
     headings: { abbreviations: `Abbreviations (${system})`, legend: `Stitch key (${system})`, assembly: 'Assembly', sizes: 'Sizes' },
     layer: {
-      row: (from, to) => `${from === to ? 'Row' : 'Rows'} ${range(from, to)}`,
+      // A láncalap az 1. sor (PQW-923), ezért a belehorgolt sor a 2.: a kiírt szám a rétegénél eggyel nagyobb.
+      row: (from, to) => `${from === to ? 'Row' : 'Rows'} ${range(from + 1, to + 1)}`,
+      // Körben a számozás változatlan: a varázskör és a láncgyűrű a mai nevén marad.
       round: (from, to) => `${from === to ? 'Rnd' : 'Rnds'} ${range(from, to)}`,
     },
-    foundation: (chains) => `Foundation: ch ${chains}.`,
+    foundation: (chains) => `Row 1 – foundation: ch ${chains}.`,
     ring: 'Magic ring.',
     chainRing: (chains, slip) => `Chain ring: ch ${chains}, join with ${slip} to form a ring.`,
     roundCount: (n) => `(${n})`,
@@ -317,7 +322,8 @@ function english(skipWord: string, skipVerb: string, skipMeaning: string, system
       'close-opening': 'Weave the tail through the front loops of the remaining sts and pull tight.',
     },
     section: (name) => `${name}, worked continuously:`,
-    resumeSection: (name, row) => `${name} (worked over row ${row}):`,
+    // A kiírt sorszám a rétegénél eggyel nagyobb, mert a láncalap az 1. sor (PQW-923).
+    resumeSection: (name, row) => `${name} (worked over row ${row + 1}):`,
     down: (depth) => `in st ${depth} rows below`,
     colorwork: {
       colors: (items) => `Colors: ${items.map((item) => `${item.letter} – ${item.name}`).join(', ')}.`,

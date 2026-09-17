@@ -141,7 +141,7 @@ for (const viewport of [
       for (let i = 0; i < 10; i += 1) await page.keyboard.press('Enter');
     }
     await page.keyboard.press('Alt+f');
-    await expect(page.locator('#summary')).toContainText('11. sor következik.');
+    await expect(page.locator('#summary')).toContainText('12. sor következik.');
 
     const stage = await box(page, '.stage');
     const types = await box(page, '#types');

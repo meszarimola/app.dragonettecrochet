@@ -65,7 +65,7 @@ import {
 import { libraryFor, resolveStitch } from '../core/stitch-variants.js';
 import { stitchName } from '../core/stitchText.js';
 import { traditionOf } from '../core/tradition.js';
-import type { Locale, NodeId, Pattern, PatternNotation, StitchDef, StitchDefId, Tradition } from '../core/types.js';
+import type { Finding, Locale, NodeId, Pattern, PatternNotation, StitchDef, StitchDefId, Tradition } from '../core/types.js';
 import { validatePattern } from '../core/validate.js';
 import { Board, type Area, type DirectionArrow, type Target } from './board.js';
 import { chartSvg } from './chart-svg.js';
@@ -122,6 +122,7 @@ const panel = must<HTMLElement>('#panel');
 const toggle = must<HTMLButtonElement>('#panel-toggle');
 const hint = must<HTMLParagraphElement>('#hint');
 const status = must<HTMLParagraphElement>('#status');
+const alertBox = must<HTMLParagraphElement>('#alert');
 const countField = must<HTMLElement>('#count-field');
 const countInput = must<HTMLInputElement>('#chain-count');
 const summary = must<HTMLParagraphElement>('#summary');
@@ -547,6 +548,39 @@ function describeTarget(index: number): Message {
   return withStitchName((name) => target.at(index + 1, derived.context.slots.length, name, used), what, named);
 }
 
+/* ---- Felbukkanó figyelmeztetés ---- */
+
+/** Ameddig a felbukkanó doboz látszik (PQW-923). */
+const ALERT_MS = 3000;
+let alertTimer: ReturnType<typeof setTimeout> | undefined;
+/** A legutóbb megmutatott figyelmeztetések; csak a változásra villan fel a doboz. */
+let shownWarnings = '';
+
+/**
+ * Új figyelmeztetésnél a doboz felbukkan a vászon tetején, és három másodperc
+ * után magától eltűnik (PQW-923). A menüsor jobb szélén lévő tartós jelző
+ * marad: ott bármikor visszanézhető, mi a baj. Udvarias élő régió, ezért nem
+ * szakítja félbe a képernyőolvasót.
+ */
+function showNewWarning(findings: readonly Finding[]): void {
+  const warnings = findings.filter((finding) => finding.severity === 'warning');
+  const key = warnings.map((finding) => `${finding.rule}:${finding.nodes.join(',')}`).join('|');
+  if (key === shownWarnings) return;
+  shownWarnings = key;
+  clearTimeout(alertTimer);
+  const first = warnings[0];
+  if (!first) {
+    alertBox.hidden = true;
+    return;
+  }
+  // A szótári címke már tartalmazza a kettőspontot („Figyelmeztetés: ”), ezért itt nem teszünk hozzá újat.
+  alertBox.textContent = `${texts().messages.findings.warning}${ruleText(first.rule)?.message ?? first.rule}`;
+  alertBox.hidden = false;
+  alertTimer = setTimeout(() => {
+    alertBox.hidden = true;
+  }, ALERT_MS);
+}
+
 /* ---- Vezérlők állapota ---- */
 
 function updateControls(): void {
@@ -570,6 +604,7 @@ function updateControls(): void {
   const layers = context.graph ? context.graph.layers.length - 1 : 0;
   const errors = check.findings.filter((f) => f.severity === 'error').length;
   const warnings = check.findings.length - errors;
+  showNewWarning(check.findings);
   const errorBar = texts().messages.errorBar;
   errorCount.textContent =
     check.findings.length === 0
@@ -598,10 +633,12 @@ function updateControls(): void {
       button.addEventListener('click', () => {
         const first = finding.nodes.find((id) => derived.layout.nodes.has(id));
         if (!first) return;
-        selectedNode = first;
-        if (tool === null) selection = expandSelection(history.present, [first]);
+        /*
+         * A figyelmeztetésre kattintva odagörgetünk, de nem jelölünk ki
+         * (PQW-923): a kiemelő négyzet zsúfolttá tette a rajzot, és a szem
+         * helyét a szaggatott karika úgyis mutatja.
+         */
         closePopover(errorsPop, errorToggle);
-        refresh(texts().messages.findings.selected);
         showPoint(derived.layout.nodes.get(first)!.top);
       });
       item.append(button);

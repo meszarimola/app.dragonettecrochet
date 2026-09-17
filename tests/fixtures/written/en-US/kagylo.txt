@@ -16,6 +16,6 @@ shell (sh): 5 dc in same st
 increase (inc): 3 dc in same st
 
 Kagylóminta
-Foundation: ch 20.
-Row 1: skip 1 ch, sc, [sk 2 ch, sh, sk 2 ch, sc] 3 times (19 sts). Turn.
-Row 2: ch 3 (counts as 1 dc), 2 dc in same st, sk 2 sts, sc, [sk 2 sts, sh, sk 2 sts, sc] 2 times, sk 2 sts, 3 dc in next st (19 sts). Fasten off.
+Row 1 – foundation: ch 20.
+Row 2: skip 1 ch, sc, [sk 2 ch, sh, sk 2 ch, sc] 3 times (19 sts). Turn.
+Row 3: ch 3 (counts as 1 dc), 2 dc in same st, sk 2 sts, sc, [sk 2 sts, sh, sk 2 sts, sc] 2 times, sk 2 sts, 3 dc in next st (19 sts). Fasten off.

@@ -59,15 +59,16 @@ export const WRITTEN_CORE_TEXTS: CoreDictionary<WrittenCode> = {
   hu: {
     ...HU_REASONS,
     // A névelő is a felületé: a mai szöveg az „A(z)” alakot használja.
+    // A láncalap az 1. sor (PQW-923): sorokban a kiírt szám a rétegénél eggyel nagyobb, körben változatlan.
     'layer-unsupported': (data) =>
-      `A(z) ${num(data, 'index')}. ${isRound(data) ? 'kör' : 'sor'} ${HU_REASONS[str(data, 'inner') as UnsupportedCode] ?? ''}.`,
+      `A(z) ${num(data, 'index') + (isRound(data) ? 0 : 1)}. ${isRound(data) ? 'kör' : 'sor'} ${HU_REASONS[str(data, 'inner') as UnsupportedCode] ?? ''}.`,
     'needs-foundation': 'A minta láncalappal vagy varázskörrel kezdődik; enélkül még nem írható ki.',
     'foundation-event': 'A láncalapon lévő esemény még nem írható ki.',
   },
   en: {
     ...EN_REASONS,
     'layer-unsupported': (data) =>
-      `${isRound(data) ? 'Round' : 'Row'} ${num(data, 'index')} ${EN_REASONS[str(data, 'inner') as UnsupportedCode] ?? ''}.`,
+      `${isRound(data) ? 'Round' : 'Row'} ${num(data, 'index') + (isRound(data) ? 0 : 1)} ${EN_REASONS[str(data, 'inner') as UnsupportedCode] ?? ''}.`,
     'needs-foundation': 'The pattern starts with a foundation chain or a magic ring; without one it cannot be written yet.',
     'foundation-event': 'An event on the foundation chain cannot be written yet.',
   },

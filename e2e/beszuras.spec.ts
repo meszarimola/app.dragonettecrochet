@@ -47,7 +47,7 @@ test('hátsó szálas rövidpálcás sor és reliefes sor: a mód billentyűzett
   await page.locator('#written-toggle').click();
   // A fordulólánc az 1. rövidpálca helyett áll (PQW-891): 8 láncszemből 6 rp a 3. láncszemtől.
   await expect(page.locator('#written-text')).toContainText(
-    '1. sor: hagyj ki 2 láncszemet, majd minden láncszembe 1 rp (hsz)',
+    '2. sor: hagyj ki 2 láncszemet, majd minden láncszembe 1 rp (hsz)',
   );
   await expect(page.locator('#written-text')).toContainText('hsz – hátsó szálba');
 

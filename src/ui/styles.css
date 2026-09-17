@@ -356,6 +356,34 @@ body.is-selecting #board {
   border: 0;
 }
 
+/*
+ * A felbukkanó figyelmeztetés (PQW-923): a vászon tetején, a menüsor alatt, a
+ * két nyitott oldalsáv között középen. Három másodperc után magától eltűnik, a
+ * tartós jelzés pedig a menüsor jobb szélén marad. A menüsort nem takarja: a
+ * munkaterületen belül áll.
+ */
+.alert {
+  position: absolute;
+  z-index: 6;
+  inset-block-start: 0.75rem;
+  inset-inline: var(--side-start) var(--side-end);
+  inline-size: fit-content;
+  max-inline-size: min(28rem, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--c-warning);
+  border-radius: 8px;
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+}
+
+.alert[hidden] {
+  display: none;
+}
+
 /* ---- Jelkészlet-panel ---- */
 
 .panel {

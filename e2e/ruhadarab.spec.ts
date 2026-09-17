@@ -59,7 +59,7 @@ test('ledobott vállú pulóver M méretben, S–L sorozattal: négy darab varr�
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
   const text = await writtenText(page);
   expect(text).toContain('Méretek\nS (M, L)');
-  expect(text).toMatch(/Bal ujj\nLáncalap: \d+ lsz\./);
+  expect(text).toMatch(/Bal ujj\n1. sor – alapsor: \d+ lsz\./);
   expect(text).toMatch(/Varrás: Hátrész, 1–\d+\. sor bal széle \(\d+ sorvég\) → Elejerész/);
 
   await page.keyboard.press('ControlOrMeta+Z');

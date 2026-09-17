@@ -103,6 +103,15 @@ export function gridPaths(grid: ChartGrid): GridPaths {
   }
 
   for (const cell of grid.cells) {
+    /*
+     * A láncalap celláinak nincs elválasztó vonaluk (PQW-923). A cellák a
+     * szemek tényleges helyéből kapják a szélességüket, a láncszemek pedig
+     * egyenetlen közűek: a függőleges vonalak így szabálytalan, 3–5 szemes
+     * csoportokra tagolták a hosszú láncot, és minden 5. vastagabb is volt.
+     * A cella megmarad — a rá kattintás továbbra is horgol —, csak a vonala
+     * nem: a hosszú lánc egybefüggő sorként olvasható.
+     */
+    if (cell.layer === 0) continue;
     const band = grid.bands.find((candidate) => candidate.layer === cell.layer);
     const dashed = band?.working ?? false;
     const { area } = cell;

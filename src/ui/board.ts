@@ -17,7 +17,7 @@ import { aimAt, chartBounds, gridHit, type ChartGrid } from '../core/grid.js';
 import type { ChartLayout, NodePlacement, Point } from '../core/layout.js';
 import type { StitchLibrary } from '../core/stitch-library.js';
 import type { Finding, NodeId, StitchInsertion, Tradition } from '../core/types.js';
-import { chartLabels } from './chart-labels.js';
+import { rowCaptions } from './chart-labels.js';
 import { gridPaths, LINE_WIDTH, type GridPaths } from './grid-paths.js';
 import { gridCoreText } from './i18n/core/grid.js';
 import { applyInk, drawShapes, placedShapes, shapesBounds, type SymbolOptions } from './symbols.js';
@@ -473,35 +473,17 @@ export class Board {
     ctx.font = '700 12px Karla, system-ui, sans-serif';
     ctx.textBaseline = 'middle';
     this.#labels = [];
-    const captions = chartLabels(scene.tradition ?? 'cyc');
     const bounds = scene.layout.bounds;
     // Az oldalsávok a vászon fölött ülnek: a feliratnak közéjük kell férnie. A
     // méretüket a felület adja (`setInsets`), mert a `--side-start` CSS-változó
     // `min(16rem, 80vw)` alakban jön vissza, abból nem olvasható képpont.
     const { left: safeStart, right: safeEnd } = this.#insets;
-    // Rétegenként a megrajzolt jelek száma: ebből jön a láncalap szemszáma, és ez dönti el, mi kap feliratot.
-    const drawn = new Map<number, number>();
-    for (const node of scene.layout.nodes.values()) drawn.set(node.layer, (drawn.get(node.layer) ?? 0) + 1);
-    for (const layer of scene.layout.layers) {
-      /*
-       * Csak annak van felirata, amiben már van szem. A most megnyitott sor a
-       * fordulóláncától még nem sor: a jelei ott vannak, a szemszáma mégis 0.
-       * Ilyenkor a „0 szem” felirat nemcsak félrevezető, hanem a készülő sor
-       * helyére ülne, és a megnövelt célterületével elvenné a kattintást a
-       * celláitól — a rácsos szerkesztés emiatt állt meg (mérve, PQW-916).
-       */
-      const count = drawn.get(layer.index) ?? 0;
-      if (count === 0) continue;
-      if (layer.index > 0 && layer.stitchCount === 0) continue;
-      const rightwards = layer.start.x <= layer.end.x;
-      /*
-       * A szemszám: a láncalapé a rajzolt láncszemekből (a mag a 0. réteget
-       * 0-val tartja nyilván), a varázskörnek nincs szemszáma, a többi sorét a
-       * mag adja.
-       */
-      const round = layer.shape === 'round';
-      const stitches = layer.index === 0 ? (round ? null : count) : layer.stitchCount;
-      const text = captions.rowLabel(layer.index, round, stitches);
+    /*
+     * Melyik réteg kap feliratot és milyen szöveggel: ezt a tervező és az
+     * SVG-export közösen számolja (PQW-923, `rowCaptions`). Korábban külön
+     * számolták, és el is tértek: az exportban a szemszám a mintára került.
+     */
+    for (const { layer, text, rightwards, side, end } of rowCaptions(scene.layout, scene.tradition ?? 'cyc')) {
       const labelWidth = ctx.measureText(text).width + 10;
       /*
        * A felirat a RAJZ mellett áll, a sor végének oldalán. Nem a sor
@@ -512,7 +494,7 @@ export class Board {
        * magasságában, a jeleken kívül — és ha ott nem férnének el, a látható
        * sáv széléhez simulnak, mert a nem látszó sorszám semmit sem ér.
        */
-      const anchor = this.#toScreen({ x: rightwards ? bounds.maxX : bounds.minX, y: layer.end.y });
+      const anchor = this.#toScreen({ x: rightwards ? bounds.maxX : bounds.minX, y: end.y });
       const wanted = rightwards ? anchor.x + LABEL_GAP : anchor.x - LABEL_GAP - labelWidth;
       const lo = safeStart + 4;
       const hi = Math.max(lo, width - safeEnd - labelWidth - 4);
@@ -527,7 +509,7 @@ export class Board {
       const chartRight = this.#toScreen({ x: bounds.maxX, y: 0 }).x;
       const x0 = hugged + labelWidth > chartLeft && hugged < chartRight ? wanted : hugged;
       const label: Label = {
-        layer: layer.index,
+        layer,
         text,
         x0,
         x1: x0 + labelWidth,
@@ -535,7 +517,7 @@ export class Board {
         y1: anchor.y + LABEL_HEIGHT / 2,
       };
       this.#labels.push(label);
-      applyInk(ctx, colors[layer.side], 1);
+      applyInk(ctx, colors[side], 1);
       ctx.beginPath();
       ctx.roundRect(label.x0, label.y0, labelWidth, LABEL_HEIGHT, 4);
       ctx.fill();
@@ -553,6 +535,8 @@ export class Board {
       const error = finding.severity === 'error';
       applyInk(ctx, error ? colors.error : colors.warning, Math.max(2, 1.5 / scale));
       ctx.setLineDash(error ? [] : [4, 3]);
+      // A figyelmeztetés halványabb a hibánál (PQW-923): jelez, de nem viszi el a figyelmet a mintáról.
+      ctx.globalAlpha = error ? 1 : 0.45;
       for (const id of finding.nodes) {
         const node = scene.layout.nodes.get(id);
         if (!node) continue;
@@ -561,6 +545,7 @@ export class Board {
         ctx.stroke();
       }
     }
+    ctx.globalAlpha = 1;
     ctx.setLineDash([]);
 
     // A kijelölés folytonos, a törlésnél érintett szemek szaggatott keretben: nem csak színben térnek el (PQW-875).

@@ -240,7 +240,7 @@ describe('kezdés és körvég (04 §1.1, §2)', () => {
     assert.equal(first.stitchCount, 6);
     assert.deepEqual(validatePattern(pattern, libraryFor(pattern)), []);
     assert.deepEqual(lines(pattern, 'hu').slice(0, 2), [
-      'Láncalap: 2 lsz.',
+      '1. sor – alapsor: 2 lsz.',
       '1. kör: hagyj ki 1 láncszemet, majd 6 rp a következő láncszembe (6). Kör zárása: 1 ksz az első szembe.',
     ]);
   });

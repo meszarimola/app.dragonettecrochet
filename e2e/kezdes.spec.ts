@@ -37,23 +37,24 @@ async function elementIdAt(page: Page, point: { x: number; y: number }): Promise
 async function expectScarfRows(page: Page, rows: number): Promise<void> {
   // Az összegzés a készülő sort mutatja; a korábbi sorokat az írott minta.
   const summary = page.locator('#summary');
-  await expect(summary).toContainText(`${rows}. sor: 39 szem`);
+  // A láncalap az 1. sor (PQW-923): a horgolt sorok száma eggyel kisebb a kiírt sorszámnál.
+  await expect(summary).toContainText(`${rows + 1}. sor: 39 szem`);
   await expect(summary).toContainText('Nincs hiba és figyelmeztetés.');
   await expect(page.locator('#findings li')).toHaveCount(0);
 
   const written = page.locator('#written');
   if (await written.isHidden()) await page.locator('#written-toggle').click();
   const text = page.locator('#written-text');
-  await expect(text).toContainText('Láncalap: 40 lsz.');
-  await expect(text).toContainText('1. sor: hagyj ki 2 láncszemet, majd minden láncszembe 1 rp (39 szem).');
-  if (rows >= 2) await expect(text).toContainText('2. sor: 1 lsz (1 rp-nek számít), 38 rp (39 szem).');
+  await expect(text).toContainText('1. sor – alapsor: 40 lsz.');
+  await expect(text).toContainText('2. sor: hagyj ki 2 láncszemet, majd minden láncszembe 1 rp (39 szem).');
+  if (rows >= 2) await expect(text).toContainText('3. sor: 1 lsz (1 rp-nek számít), 38 rp (39 szem).');
 }
 
 for (const viewport of [
   { width: 1000, height: 506 },
   { width: 1440, height: 900 },
 ]) {
-  test(`${viewport.width}×${viewport.height}: sál kattintással: 40 láncszem a vászonra, F, az 1. rövidpálca a 3. láncszembe, sor kitöltése, 2. sor`, async ({ page }) => {
+  test(`${viewport.width}×${viewport.height}: sál kattintással: 40 láncszem a vászonra, F, az 1. rövidpálca a 3. láncszembe, sor kitöltése, 3. sor`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await open(page);
 
@@ -66,13 +67,13 @@ for (const viewport of [
     await page.getByRole('button', { name: /^Láncszem/ }).first().click();
     await setChainCount(page, 40);
     await page.mouse.click(center.x, center.y);
-    await expect(page.locator('#summary')).toContainText('1. sor következik.');
+    await expect(page.locator('#summary')).toContainText('2. sor következik.');
 
     // A láncalap utáni fordulás elfogadott lépés, hibának tűnő üzenet nélkül.
     await page.locator('[data-action="end-row"]').click();
     const status = page.locator('#status');
     await expect(status).toContainText('Láncalap kész, a munka megfordítva.');
-    await expect(status).toContainText('1. sor következik.');
+    await expect(status).toContainText('2. sor következik.');
     await expect(status).not.toContainText('még nincs szem');
 
     // Az első rövidpálca kattintással a kurzor célpontjára: a horogtól számított 3. láncszembe.
@@ -81,17 +82,17 @@ for (const viewport of [
     const target = await cursorPoint(page);
     expect(await elementIdAt(page, target)).toBe('board');
     await page.mouse.click(target.x, target.y);
-    await expect(page.locator('#summary')).toContainText('1. sor: 2 szem');
+    await expect(page.locator('#summary')).toContainText('2. sor: 2 szem');
 
     await page.getByRole('button', { name: 'Sor kitöltése' }).click();
-    await expect(page.locator('#summary')).toContainText('1. sor: 39 szem');
+    await expect(page.locator('#summary')).toContainText('2. sor: 39 szem');
 
     await page.locator('[data-action="end-row"]').click();
     await page.getByRole('button', { name: 'Sor kitöltése' }).click();
     await expectScarfRows(page, 2);
   });
 
-  test(`${viewport.width}×${viewport.height}: sál csak billentyűzettel: 40 láncszem, F, rövidpálca, Shift+F, 2. sor`, async ({ page }) => {
+  test(`${viewport.width}×${viewport.height}: sál csak billentyűzettel: 40 láncszem, F, rövidpálca, Shift+F, 3. sor`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await open(page);
 
@@ -105,7 +106,7 @@ for (const viewport of [
     await expect(page.locator('#status')).toContainText('Láncalap kész, a munka megfordítva.');
     await page.keyboard.press('Alt+3'); // rövidpálca
     await page.keyboard.press('Shift+Alt+f'); // sor kitöltése
-    await expect(page.locator('#summary')).toContainText('1. sor: 39 szem');
+    await expect(page.locator('#summary')).toContainText('2. sor: 39 szem');
     await page.keyboard.press('Alt+f');
     await page.keyboard.press('Shift+Alt+f');
     await expectScarfRows(page, 2);

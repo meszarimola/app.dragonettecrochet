@@ -110,8 +110,8 @@ describe('átlós sorok és csempék (03 §5.5, §10 G33)', () => {
       fromHook: firstChainFromHook(def.turningChain, true, 'japanese'),
     });
     const { pattern } = make(cyc(), plain(2, 2));
-    const row1 = writePattern(pattern, libraryFor(pattern), 'hu').pieces[0].lines.find((line) => line.startsWith('1. sor: '));
-    assert.match(row1, /^1\. sor: hagyj ki 4 láncszemet, majd /);
+    const row1 = writePattern(pattern, libraryFor(pattern), 'hu').pieces[0].lines.find((line) => line.startsWith('2. sor: '));
+    assert.match(row1, /^2\. sor: hagyj ki 4 láncszemet, majd /);
   });
 });
 
