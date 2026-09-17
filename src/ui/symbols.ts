@@ -147,6 +147,11 @@ function normal(t: Point): Point {
   return { x: -t.y, y: t.x };
 }
 
+/** A sor „felfelé” iránya a sor menti tengelyből: a `normal` megfordítása. */
+function rowUp(across: Point): Point {
+  return { x: across.y, y: -across.x };
+}
+
 /** Az irány szöge a vászon forgatási irányában (0 = vízszintes). */
 function rotationOf(direction: Point): number {
   return Math.atan2(direction.y, direction.x);
@@ -199,18 +204,28 @@ function chainOval(center: Point, rx: number, ry: number, rotation: number): Sha
  * Egy szem a száron. Rövidpálca-magasságig kereszt, fölötte szár, igény
  * szerint tetővonal, és a ráhajtásonkénti ferde vonalak a szár közepén.
  * Összetett jelben (`compact`) a kereszt és a ferde vonalak rövidebbek.
+ *
+ * Az `across` a SOR menti tengely a jel helyén, és a kereszt- meg a tetővonal
+ * ehhez igazodik, nem a szárhoz (PQW-931). A szár ferde lehet: szaporításnál a
+ * talp a célpont oszlopában marad, a tető a szem saját pozíciójában. Ha a
+ * kereszt a szárhoz igazodna, a rövidpálcánál ez ~53°, és a + jel ×-szé
+ * fordulna, vagyis más jellé — a rövidpálca jele + (PQW-929). A ráhajtások
+ * ferde vonalai viszont a száron ülő jelölések, ezért maradnak a szárhoz
+ * mérve.
  */
-function drawStitch(out: Shape[], part: StitchDef, stem: Stem, options: SymbolOptions, withBar: boolean, compact: boolean): void {
+function drawStitch(out: Shape[], part: StitchDef, stem: Stem, across: Point, options: SymbolOptions, withBar: boolean, compact: boolean): void {
   if (part.chainHeight <= 1) {
-    const { point: mid, tangent } = stem.at(0.5);
-    const across = normal(tangent);
+    const { point: mid } = stem.at(0.5);
     const half = stem.length * (compact ? ARM_COMPACT : ARM_SINGLE);
 
     if (options.singleCrochet === 'plus' && options.style !== 'jis') {
       out.push(stem.shape, line('cross', add(mid, scale(across, -half)), add(mid, scale(across, half))));
     } else {
-      const rising = add(tangent, across);
-      const falling = add(tangent, scale(across, -1));
+      // A × két átlója: a sor tengelyéhez képest 45°-on, szár nélkül. A ferde
+      // szárnál is × marad, mert az sem fordulhat + jellé.
+      const up = rowUp(across);
+      const rising = add(up, across);
+      const falling = add(up, scale(across, -1));
       out.push(
         line('cross', add(mid, scale(rising, -half)), add(mid, scale(rising, half))),
         line('cross', add(mid, scale(falling, -half)), add(mid, scale(falling, half))),
@@ -221,10 +236,7 @@ function drawStitch(out: Shape[], part: StitchDef, stem: Stem, options: SymbolOp
 
   out.push(stem.shape);
 
-  if (withBar) {
-    const top = stem.at(1);
-    out.push(bar(top.point, normal(top.tangent)));
-  }
+  if (withBar) out.push(bar(stem.at(1).point, across));
 
   const hatches = hatchCount(part);
   const hatchHalf = compact ? HATCH_HALF_COMPACT : HATCH_HALF;
@@ -264,7 +276,7 @@ function drawGroup(out: Shape[], def: GroupStitchDef, options: SymbolOptions): P
       const along = normal(scale(direction, -1));
       out.push(chainOval(scale(direction, reach * 0.8), SMALL_CHAIN_RX, SMALL_CHAIN_RY, rotationOf(along)));
     } else {
-      drawStitch(out, member, lineStem(FOOT, scale(direction, stemLength(member.chainHeight))), options, true, true);
+      drawStitch(out, member, lineStem(FOOT, scale(direction, stemLength(member.chainHeight))), RIGHT, options, true, true);
     }
   });
 
@@ -280,7 +292,7 @@ function drawJoined(out: Shape[], def: JoinedStitchDef, options: SymbolOptions):
   if (def.base === 'spread') {
     // Fogyasztás: külön talpakból egy tetőbe futó szárak (01 §8.4 szabály 18).
     const feet = Array.from({ length: n }, (_, i) => ({ x: (i - (n - 1) / 2) * SPREAD_GAP, y: 0 }));
-    for (const foot of feet) drawStitch(out, part, lineStem(foot, top), options, false, true);
+    for (const foot of feet) drawStitch(out, part, lineStem(foot, top), RIGHT, options, false, true);
     if (part.chainHeight >= 2) out.push(bar(top, RIGHT));
     return feet;
   }
@@ -288,7 +300,7 @@ function drawJoined(out: Shape[], def: JoinedStitchDef, options: SymbolOptions):
   if (def.closure === 'complete') {
     // Popcorn: teljes szárak legyezőben, a tetejük köré rajzolt zárással (01 §6.1).
     const tops = fan(n).map((direction) => scale(direction, length));
-    for (const end of tops) drawStitch(out, part, lineStem(FOOT, end), options, false, true);
+    for (const end of tops) drawStitch(out, part, lineStem(FOOT, end), RIGHT, options, false, true);
 
     const xs = tops.map((p) => p.x);
     const ys = tops.map((p) => p.y);
@@ -307,7 +319,7 @@ function drawJoined(out: Shape[], def: JoinedStitchDef, options: SymbolOptions):
   // Fürt, bogyó, puff: egy talpból kidomborodó és egy tetőbe visszafutó szárak.
   for (let i = 0; i < n; i++) {
     const control = { x: 2 * (i - (n - 1) / 2) * LENS_GAP, y: top.y / 2 };
-    drawStitch(out, part, curveStem(FOOT, control, top), options, false, true);
+    drawStitch(out, part, curveStem(FOOT, control, top), RIGHT, options, false, true);
   }
   if (part.chainHeight >= 2) out.push(bar(top, RIGHT));
   return [FOOT];
@@ -420,7 +432,7 @@ function symbolBody(def: StitchDef, options: SymbolOptions): { shapes: Shape[]; 
       break;
     case 'basic': {
       const top = scale(UP, stemLength(def.chainHeight));
-      drawStitch(out, def, lineStem(FOOT, top), options, true, false);
+      drawStitch(out, def, lineStem(FOOT, top), RIGHT, options, true, false);
       if (!def.workableTop) tilde(out, top);
       break;
     }
@@ -546,17 +558,18 @@ export function placedShapes(def: StitchDef, placement: Placement, options: Symb
   }
 
   const part = def.kind === 'joined' ? stitchById(def.part) : def;
+  // A sor menti tengely a jel helyén; sima sorban vízszintes, körben érintő irányú.
+  const across = { x: Math.cos(placement.angle), y: Math.sin(placement.angle) };
   const feet = placement.feet.length > 0 ? placement.feet : [add(top, { x: 0, y: stemLength(part.chainHeight) })];
   const insertion = options.insertion ?? def.insertionModes[0];
   const mark = insertion !== undefined && isMark(insertion) ? insertion : null;
   const out: Shape[] = [];
 
   if (def.kind === 'joined' && def.base === 'spread') {
-    for (const foot of feet) drawStitch(out, part, lineStem(foot, top), options, false, true);
-    const mean = scale(add(...feet), 1 / feet.length);
-    if (part.chainHeight >= 2) out.push(bar(top, normal(unit(add(top, scale(mean, -1))))));
+    for (const foot of feet) drawStitch(out, part, lineStem(foot, top), across, options, false, true);
+    if (part.chainHeight >= 2) out.push(bar(top, across));
   } else if (def.kind === 'basic') {
-    drawStitch(out, def, lineStem(feet[0]!, top), options, true, false);
+    drawStitch(out, def, lineStem(feet[0]!, top), across, options, true, false);
     if (!def.workableTop) tilde(out, top);
   } else {
     // Egy alapba horgolt összetett jel: a kész jel a talp–tető irányba forgatva.

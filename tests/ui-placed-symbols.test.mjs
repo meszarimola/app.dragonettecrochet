@@ -25,6 +25,45 @@ test('alapszem: a szár a talptól a tetőig tart, ferdén is, a tetővonal a te
   assert.ok(samePoint({ x: (bar.from.x + bar.to.x) / 2, y: (bar.from.y + bar.to.y) / 2 }, top));
 });
 
+test('szaporítás: a ferde szárú rövidpálca jele + marad, nem fordul ×-szé (PQW-931)', () => {
+  // Második szem ugyanabba a célpontba: a talp a célpont oszlopában marad, a
+  // tető a szem saját pozíciójába csúszik, a szár tehát megdől.
+  const shapes = placedShapes(stitchById('sc'), stitchAt([{ x: 0, y: 0 }], { x: 24, y: -18 }));
+  const [stem] = byRole(shapes, 'stem');
+  assert.ok(Math.abs(stem.to.x - stem.from.x) > 1, 'a szár ferde marad');
+
+  const [cross] = byRole(shapes, 'cross');
+  assert.ok(near(cross.from.y, cross.to.y), `a keresztvonal vízszintes: ${JSON.stringify(cross)}`);
+  assert.ok(Math.abs(cross.to.x - cross.from.x) > 1);
+});
+
+test('szaporítás × módban: a két átló 45°-on marad, nem fordul + jellé', () => {
+  const shapes = placedShapes(stitchById('sc'), stitchAt([{ x: 0, y: 0 }], { x: 24, y: -18 }), { singleCrochet: 'cross' });
+  const crosses = byRole(shapes, 'cross');
+  assert.equal(crosses.length, 2);
+  assert.equal(byRole(shapes, 'stem').length, 0);
+  for (const arm of crosses) {
+    assert.ok(near(Math.abs(arm.to.x - arm.from.x), Math.abs(arm.to.y - arm.from.y)), JSON.stringify(arm));
+  }
+});
+
+test('körben a keresztvonal és a tetővonal a sor menti szöghöz fordul, nem a szárhoz', () => {
+  const angle = Math.PI / 3;
+  const along = { x: Math.cos(angle), y: Math.sin(angle) };
+  const direction = (shape) => {
+    const delta = { x: shape.to.x - shape.from.x, y: shape.to.y - shape.from.y };
+    const length = Math.hypot(delta.x, delta.y);
+    return { x: delta.x / length, y: delta.y / length };
+  };
+
+  // Álló szár, elfordult sor: a jelnek a sorral kell fordulnia.
+  const sc = { ...stitchAt([{ x: 0, y: 0 }], { x: 0, y: -18 }), angle };
+  assert.ok(samePoint(direction(byRole(placedShapes(stitchById('sc'), sc), 'cross')[0]), along));
+
+  const dc = { ...stitchAt([{ x: 0, y: 0 }], { x: 0, y: -34 }), angle };
+  assert.ok(samePoint(direction(byRole(placedShapes(stitchById('dc'), dc), 'bar')[0]), along));
+});
+
 test('fogyasztás: minden talpból egy szár, mind ugyanabba a tetőbe fut', () => {
   const feet = [{ x: 0, y: 0 }, { x: 24, y: 0 }, { x: 48, y: 0 }];
   const top = { x: 24, y: -34 };
