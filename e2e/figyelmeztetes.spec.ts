@@ -51,16 +51,22 @@ async function chains(page: Page): Promise<void> {
   await page.keyboard.press('Enter');
 }
 
-test('a doboz fent bukkan fel, és három másodperc után eltűnik (PQW-923)', async ({ page }) => {
+/*
+ * A doboz MÁR CSAK figyelmeztetést mutat (PQW-932). A műveletek visszajelzése
+ * megszűnt — a tulajdonos: „csak akkor írj ki tooltipet ha explicit kérem…
+ * senkit nem érdekel”. A figyelmeztetést viszont ő maga kérte ide a
+ * PQW-923-ban, ezért az marad, és a mechanizmust azon mérjük.
+ */
+test('a figyelmeztetés doboza fent bukkan fel, és három másodperc után eltűnik (PQW-923)', async ({ page }) => {
   await open(page);
   const alert = page.locator('#alert');
   await expect(alert, 'művelet nélkül nincs doboz').toBeHidden();
 
-  await chains(page);
+  await withWarning(page);
 
-  await expect(alert, 'a lerakott láncszemekről van látható visszajelzés').toBeVisible();
+  await expect(alert, 'a figyelmeztetésről van látható visszajelzés').toBeVisible();
   await expect(alert).toHaveAttribute('aria-live', 'polite');
-  await expect(alert, 'megmondja, mi történt').toContainText('12 láncszem');
+  await expect(alert, 'figyelmeztetésként jelöli').toContainText('Figyelmeztetés:');
 
   // A menüsort nem takarja: alatta kezdődik.
   const bar = (await page.locator('header.bar').boundingBox())!;
@@ -162,6 +168,37 @@ test('a rajz alapból tiszta, a találatra kattintva jelölés jön, és öt má
 
   // Öt másodperc után magától eltűnik, hogy ne maradjon ott zavarni.
   await expect.poll(() => highlight(page), { timeout: 9000 }).toEqual([]);
+});
+
+/*
+ * A tulajdonos szava (PQW-932): „csak akkor írj ki tooltipet ha explicit
+ * kérem”, és a műveletek visszajelzéséről: „senkit nem érdekel”. Külön pont,
+ * hogy a minta alkotása nem folytonos: „a sort úgy és olyan formában hozza
+ * létre, olyan sorrendben, ahogy csak akarja” — egy kihagyott helyre
+ * visszatérni pótlás, nem keresztezett szem, ezért nincs kérdés.
+ */
+test('a műveletek nem üzengetnek, és a pótlás nem kérdez (PQW-932)', async ({ page }) => {
+  await open(page);
+  const alert = page.locator('#alert');
+
+  await chains(page);
+  await expect(alert, 'a láncszemek lerakása nem üzenget').toBeHidden();
+
+  await page.keyboard.press('Alt+f');
+  await expect(alert, 'a fordulás nem üzenget').toBeHidden();
+
+  await page.keyboard.press('Alt+5');
+  for (let i = 0; i < 3; i += 1) await page.keyboard.press('Enter');
+  await expect(alert, 'a szem lerakása nem üzenget').toBeHidden();
+
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(alert, 'a visszavonás nem üzenget').toBeHidden();
+
+  // Visszalépve egy korábban kihagyott célpontra a szem kérdés nélkül kerül le.
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', { name: 'Keresztezett szem' }), 'nincs kérdés a pótlásról').toHaveCount(0);
+  await expect(alert, 'és nem is üzenget').toBeHidden();
 });
 
 test('a láncalap be nem horgolt farka figyelmeztetés, nem hiba (PQW-930)', async ({ page }) => {
