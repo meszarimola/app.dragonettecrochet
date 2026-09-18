@@ -211,6 +211,14 @@ export class Board {
     return this.targetAt(clientX, clientY);
   }
 
+  /** Üres cella egy lezárt sorban a mutató alatt: ide még kerülhet szem (PQW-950). */
+  gapUnder(clientX: number, clientY: number): { layer: number; into: NodeId } | null {
+    const grid = this.#scene?.grid;
+    if (!grid) return null;
+    const hit = gridHit(grid, this.toChart(clientX, clientY));
+    return hit?.kind === 'cell' && hit.cell.gap ? { layer: hit.cell.layer, into: hit.cell.gap } : null;
+  }
+
   /** A láncalap cellahatára a mutató alatt: ide szúrható be egy láncszem (PQW-941). */
   seamUnder(clientX: number, clientY: number): GridSeam | null {
     const grid = this.#scene?.grid;

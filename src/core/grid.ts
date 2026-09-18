@@ -85,6 +85,8 @@ export interface GridCell {
   readonly node: NodeId | null;
   /** A célpont indexe (editor.ts `slots`), ha ide horgolhatsz; különben `null`. */
   readonly slot: number | null;
+  /** Üres cella egy lezárt sorban: az alatta lévő be nem horgolt pozíció (PQW-950). */
+  readonly gap: NodeId | null;
   readonly center: Point;
   readonly area: GridArea;
   /** A cella záró oldalvonalának hangsúlya: minden 5. és 10. cella után. */
@@ -187,6 +189,8 @@ interface Column {
   readonly at: number;
   readonly node: NodeId | null;
   readonly slot: number | null;
+  /** Üres cella egy lezárt sorban: az alatta lévő be nem horgolt pozíció (PQW-950). */
+  readonly gap?: NodeId;
   /** A sor elejétől számolt sorrend. */
   readonly order: number;
 }
@@ -258,6 +262,34 @@ function layerColumns(input: Input, layer: number, axis: (p: Point) => number): 
     // Az egymás fölötti láncszemek egy oszlopot adnak: az elsőre célzunk.
     if (columns.some((column) => Math.abs(column.at - at) < 1e-6)) continue;
     columns.push({ at, node: id, slot, order: columns.length });
+  }
+
+  /*
+   * ÜRES CELLA a lezárt sorban (PQW-950): az alatta lévő sor pozíciója, amelybe
+   * ez a sor nem horgolt — például mert a horgoló utólag szúrt be egy
+   * láncszemet a láncalapba. A tulajdonos szava: „ha a második sorba szeretnék
+   * visszamenni, hogy oda tegyek szemet az újonnan 1. sorba beszúrt láncszem
+   * fölé, azt viszont nem tudom”. A cella innentől ott van, és fogadja a szemet.
+   */
+  const graph = context.graph;
+  const row = graph?.layers[layer];
+  const under = graph?.layers[layer - 1];
+  if (graph && row && under && layer >= 1 && layer !== context.layer && row.shape === 'row') {
+    const worked = new Set(row.stitches.flatMap((id) => graph.nodes.get(id)!.anchors.map((anchor) => anchor.id)));
+    /*
+     * Az alatta lévő sor fordulóláncának teteje célpont, de nem kötelező
+     * (PQW-944): a korábbi szabály szerint készült minták elfutnak mellette.
+     * Az nem lyuk a kelmében, ezért nem is kap üres cellát.
+     */
+    const optional = under.turningChainCounts ? under.turningChain[under.turningChain.length - 1] : undefined;
+    for (const id of under.positions) {
+      if (worked.has(id) || id === optional) continue;
+      const node = layout.nodes.get(id);
+      if (!node) continue;
+      const at = axis(node.top);
+      if (columns.some((column) => Math.abs(column.at - at) < 1e-6)) continue;
+      columns.push({ at, node: null, slot: null, gap: id, order: columns.length });
+    }
   }
   return columns;
 }
@@ -396,6 +428,7 @@ function rowGrid(input: Input): { bands: GridBand[]; cells: GridCell[] } {
         index,
         node: column.node,
         slot: column.slot,
+        gap: column.gap ?? null,
         center: { x: column.at, y: (y0 + y1) / 2 },
         area: { kind: 'rect', x0: span[0], x1: span[1], y0, y1 },
         emphasis: emphasisOf(index + 1),
@@ -504,6 +537,7 @@ function roundGrid(input: Input): { bands: GridBand[]; cells: GridCell[] } {
         index: column.order,
         node: column.node,
         slot: column.slot,
+        gap: column.gap ?? null,
         center: full && r0 === 0 ? { x: 0, y: 0 } : framePoint(frame, (r0 + r1) / 2, column.at),
         area: { kind: 'sector', r0, r1, a0, a1, ...shaped },
         emphasis: emphasisOf(column.order + 1),

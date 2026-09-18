@@ -9,6 +9,7 @@ import { describe, test } from 'node:test';
 import {
   canEndRow,
   insertChain,
+  workIntoGap,
   closeRound,
   contextOf,
   defaultCursor,
@@ -921,5 +922,54 @@ describe('láncszem beszúrása a láncalapba (PQW-941)', () => {
     assert.equal(insertChain(pattern, { left: chains.at(-1), right: null }).reason.code, 'insert-at-turning-chain');
     const ring = ok(work(emptyPattern(), { def: 'magic-ring', count: 1 }, 0));
     assert.equal(insertChain(ring, { left: null, right: null }).reason.code, 'insert-needs-chain-base');
+  });
+});
+
+/*
+ * Szem egy korábbi sor üres cellájába (PQW-950).
+ *
+ * A tulajdonos a beszúrás után: „ha a második sorba szeretnék visszamenni,
+ * hogy oda tegyek szemet az újonnan 1. sorba beszúrt láncszem fölé, azt
+ * viszont nem tudom. ezt tudnánk módosítani?”
+ */
+describe('szem a korábbi sor üres cellájába (PQW-950)', () => {
+  /** 14 láncszem, kitöltött 2. sor, a 3. sor félkész, majd beszúrás a láncalapba. */
+  const withGap = () => {
+    let pattern = ok(work(emptyPattern(), { def: 'ch', count: 14 }, 0));
+    pattern = ok(endRow(pattern));
+    pattern = ok(fillRow(pattern, { def: 'dc', count: 1 }));
+    pattern = ok(endRow(pattern));
+    for (let i = 0; i < 3; i += 1) pattern = stitch(pattern, 'dc');
+    const base = buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern)).layers[0].stitches;
+    return ok(insertChain(pattern, { left: base[4], right: base[5] }));
+  };
+  const freeUnder = (pattern, layer) => {
+    const graph = buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));
+    const worked = new Set(graph.layers[layer].stitches.flatMap((id) => graph.nodes.get(id).anchors.map((anchor) => anchor.id)));
+    return graph.layers[layer - 1].positions.find((id) => !worked.has(id));
+  };
+
+  test('a beszúrt láncszem fölé kerülhet szem, a sor többi szeme nem mozdul', () => {
+    const pattern = withGap();
+    const gap = freeUnder(pattern, 1);
+    assert.ok(gap, 'van üres hely a láncalapban');
+    const before = pattern.pieces[0].stitches.filter((node) => node.def === 'dc');
+    const filled = ok(workIntoGap(pattern, 1, gap, { def: 'dc', count: 1 }));
+    const graph = buildPieceGraph(filled, filled.pieces[0], libraryFor(filled));
+    assert.equal(graph.layers[1].stitches.length, buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern)).layers[1].stitches.length + 1);
+    assert.equal(freeUnder(filled, 1), undefined, 'nincs több üres hely');
+    // A korábbi szemek ugyanoda horgolnak, és a fonal útja ép.
+    const after = new Map(filled.pieces[0].stitches.map((node) => [node.id, node]));
+    for (const node of before) assert.deepEqual(after.get(node.id).anchors, node.anchors, node.id);
+    assert.ok(filled.pieces[0].stitches.every((node, i) => node.prev === (i === 0 ? null : filled.pieces[0].stitches[i - 1].id)));
+    assert.deepEqual(findings(filled).filter((finding) => finding.severity === 'error'), []);
+  });
+
+  test('foglalt helyre és nem alapszemmel nem megy', () => {
+    const pattern = withGap();
+    const graph = buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));
+    const taken = graph.nodes.get(graph.layers[1].stitches.at(-1)).anchors[0].id;
+    assert.equal(workIntoGap(pattern, 1, taken, { def: 'dc', count: 1 }).reason.code, 'gap-not-free');
+    assert.equal(workIntoGap(pattern, 1, freeUnder(pattern, 1), { def: 'ch', count: 1 }).reason.code, 'gap-needs-basic');
   });
 });
