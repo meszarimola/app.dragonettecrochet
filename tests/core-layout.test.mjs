@@ -7,7 +7,7 @@
 import { strict as assert } from 'node:assert';
 import { describe, test } from 'node:test';
 
-import { deleteLast, emptyPattern, setPinned } from '../src/core/editor.ts';
+import { contextOf, defaultCursor, deleteLast, emptyPattern, endRow, setPinned, work } from '../src/core/editor.ts';
 import { buildPieceGraph } from '../src/core/graph.ts';
 import { isotonic, layoutPattern, ROW_GAP } from '../src/core/layout.ts';
 import { frameCoords } from '../src/core/polygon.ts';
@@ -410,5 +410,52 @@ describe('hibás célpontú szem: normál méret a saját helyén (PQW-879)', ()
     assert.equal(node.feet.length, 1);
     assert.ok(near(node.feet[0].x, node.top.x), 'a szár függőleges');
     assert.ok(near(stemOf(node), normalHdcStem), 'normál szárhossz');
+  });
+});
+
+/*
+ * A fordulólánc annak a szemnek a magassága, amelyik helyett áll (PQW-934).
+ *
+ * A tulajdonos jelentése: rövidpálcával indított sorba tett egy egyráhajtásos
+ * pálcát, mire a sort kezdő két láncszem lecsúszott, és a jelük kilógott az
+ * alsó sáv aljából. Szó szerint: „az eredeti helyzete jó volt, nem kell
+ * magasságot állítani, hiszen ő a rövidpálca magassága lesz — helyesen.”
+ */
+describe('a fordulólánc magassága a sajátja, nem a soré (PQW-934)', () => {
+  /** 22 láncszem, fordulás rövidpálcára, majd a felsorolt szemek a sor elejétől. */
+  const row = (defs) => {
+    let pattern = ok(work(emptyPattern(), { def: 'ch', count: 22 }, 0));
+    pattern = ok(endRow(pattern, 'sc'));
+    for (const def of defs) {
+      const context = contextOf(pattern);
+      pattern = ok(work(pattern, { def, count: 1 }, defaultCursor(pattern, context, def)));
+    }
+    return pattern;
+  };
+
+  /** A sort kezdő láncszemek helye a rajzon. */
+  const turningChain = (pattern) => {
+    const graph = buildPieceGraph(pattern, pattern.pieces[0], testLibrary);
+    const chart = layout(pattern);
+    return graph.layers[1].turningChain.map((id) => chart.nodes.get(id));
+  };
+
+  test('a sorba tett magasabb szem nem mozdítja el a sort kezdő láncszemeket', () => {
+    const short = turningChain(row(['sc', 'sc']));
+    const tall = turningChain(row(['sc', 'sc', 'dc']));
+
+    assert.equal(short.length, tall.length, 'ugyanannyi láncszem kezdi a sort');
+    for (const [i, chain] of short.entries()) {
+      assert.ok(near(tall[i].top.y, chain.top.y), `a(z) ${i + 1}. láncszem helyben maradt`);
+      assert.ok(near(tall[i].size, chain.size), `a(z) ${i + 1}. láncszem mérete nem változott`);
+    }
+  });
+
+  test('a sor viszont megnő a magasabb szemtől: csak a fordulólánc marad', () => {
+    const short = layout(row(['sc', 'sc']));
+    const tall = layout(row(['sc', 'sc', 'dc']));
+    // A pálca teteje magasabbra kerül, mint a rövidpálcáé: a sor tényleg nőtt.
+    const highest = (chart) => Math.min(...[...chart.nodes.values()].filter((node) => node.role === 'stitch').map((node) => node.top.y));
+    assert.ok(highest(tall) < highest(short), 'a sor teteje feljebb került');
   });
 });
