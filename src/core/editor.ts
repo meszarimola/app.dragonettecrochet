@@ -490,13 +490,19 @@ export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readon
     const count = Math.trunc(tool.count);
     if (!(count >= 1 && count <= MAX_CHAINS)) return refuse(text('chain-count-range', { min: 1, max: MAX_CHAINS }));
     if (def.kind === 'space' && piece.stitches.length === 0) return refuse(text('space-needs-row'));
-    const { piece: next, ids } = append(
-      piece,
-      Array.from({ length: count }, () => ({ def: 'ch', anchors: [] })),
-    );
-    if (def.kind === 'chain') return done(withPiece(pattern, next));
+    const nodes = Array.from({ length: count }, () => ({ def: 'ch', anchors: [] }));
+    /*
+     * A láncszem is oda kerül, ahová a horgoló mutat (PQW-935). Célpontja
+     * nincs, helye viszont van: a megkattintott oszlopokat FOGLALJA EL, és
+     * ezzel az alattuk lévő szemeket kihagyja. Ezt jegyezzük fel — ebből tudja
+     * a rajz, hová tegye, az írott minta pedig, hogy „hagyj ki N szemet”.
+     */
+    const covered = coveredByChains(pattern, piece, cursor, count, mode);
+    const { piece: next, ids } = insertAt(piece, covered.at, nodes);
+    const withSkips = { ...next, skipped: [...next.skipped, ...covered.skipped] };
+    if (def.kind === 'chain') return done(withPiece(pattern, withSkips));
     const space = { id: nextId('s', piece.spaces.map((s) => s.id)), chains: ids };
-    return done(withPiece(pattern, { ...next, spaces: [...next.spaces, space] }));
+    return done(withPiece(pattern, { ...withSkips, spaces: [...withSkips.spaces, space] }));
   }
 
   if (piece.stitches.length === 0) return refuse(text('needs-foundation'));
@@ -522,7 +528,7 @@ export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readon
     const mode = stitchModeFor(def, tool.insertion, context.side);
     if ('code' in mode) return refuse(mode);
     const anchors = slots.map((slot): Anchor => ({ into: 'stitch', id: slot.id, mode: mode.mode }));
-    return done(withPiece(pattern, insertAt(piece, at, [{ def: def.id, anchors, ...marks }]).piece));
+    return done(withPiece(pattern, clearSkips(insertAt(piece, at, [{ def: def.id, anchors, ...marks }]).piece, anchors)));
   }
 
   const anchor = anchorFor(def, first, tool.insertion, context.side);
@@ -540,11 +546,57 @@ export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readon
     if (def.producesSpaces > 0 && chains.length > 0) {
       spaces = [...spaces, { id: nextId('s', spaces.map((s) => s.id)), chains }];
     }
-    return done(withPiece(pattern, { ...next, groups: [...next.groups, group], spaces }));
+    return done(withPiece(pattern, clearSkips({ ...next, groups: [...next.groups, group], spaces }, [anchor])));
   }
 
   const worked = insertAt(piece, at, [{ def: def.id, anchors: [anchor], ...marks }]).piece;
-  return done(withPiece(pattern, worked));
+  return done(withPiece(pattern, clearSkips(worked, [anchor])));
+}
+
+/** Amibe szem kerül, az nem kihagyott többé (PQW-935): a két állapot kizárja egymást. */
+function clearSkips(piece: Piece, anchors: readonly Anchor[]): Piece {
+  if (piece.skipped.length === 0) return piece;
+  const worked = new Set(anchors.map((anchor) => anchor.id));
+  const skipped = piece.skipped.filter((id) => !worked.has(id));
+  return skipped.length === piece.skipped.length ? piece : { ...piece, skipped };
+}
+
+/**
+ * Hová kerülnek a láncszemek, és mit takarnak el (PQW-935).
+ *
+ * A tulajdonos jelentése: a láncszem mindig a sor végére került, akárhová
+ * kattintott — mérve a 9. és a 6. célpontra állított kurzorral bitre ugyanoda.
+ * Szó szerint: „azt vártam volna, hogy ha a másodikba klikkelek… akkor abba a
+ * cellába tegye a láncszemet.”
+ *
+ * A láncszemnek nincs célpontja, helye viszont van: annyi oszlopot foglal el,
+ * ahány láncszem készül, a megkattintott oszloptól kezdve. Az ezek alatt lévő
+ * szemek KIHAGYOTTAK — a lánc áthidalja őket. Ezt a `skipped` őrzi, ebből
+ * számol a rajz (layout.ts) és az írott minta.
+ *
+ * A láncalapon és az alapértelmezett kurzoron ez semmit nem változtat: ott a
+ * lánc marad a sor végén, ahogy eddig.
+ */
+function coveredByChains(
+  pattern: Pattern,
+  piece: Piece,
+  cursor: number,
+  count: number,
+  mode: EditorMode,
+): { at: number; skipped: NodeId[] } {
+  const context = contextOf(pattern, mode);
+  if (!context.graph || context.slots.length === 0) return { at: piece.stitches.length, skipped: [] };
+  const at = fabricIndex(piece, context, cursor);
+  // A lánc csak ELŐRE hidal át: a munkaél mögé visszanyúlva vagy foglalt célponton csak követi a szemet.
+  if (cursor <= context.frontier || context.used[cursor] !== false) return { at, skipped: [] };
+  const already = new Set(piece.skipped);
+  const skipped: NodeId[] = [];
+  for (let i = cursor; i < Math.min(cursor + count, context.slots.length); i += 1) {
+    const slot = context.slots[i]!;
+    if (context.used[i] || slot.kind !== 'stitch' || already.has(slot.id)) continue;
+    skipped.push(slot.id);
+  }
+  return { at, skipped };
 }
 
 /**
@@ -830,7 +882,7 @@ export function deleteLast(pattern: Pattern): EditResult {
       : undefined;
 
   const stitches = piece.stitches.filter((node) => !remove.has(node.id));
-  return done(
+  const result = done(
     withPiece(pattern, {
       ...piece,
       stitches,
@@ -844,6 +896,23 @@ export function deleteLast(pattern: Pattern): EditResult {
       skipped: piece.skipped.filter((id) => !remove.has(id)),
     }),
   );
+  return result.ok ? done(withoutStaleSkips(result.pattern)) : result;
+}
+
+/**
+ * A már nem érvényes kihagyások (PQW-935): a munka még el sem érte őket.
+ *
+ * Kihagyni csak azt lehet, amin a munka túljutott. Ha a lépés törlése
+ * visszahozza a munkaélt, az előtte lévő jelölés értelmét veszti — enélkül a
+ * törlés nem adná vissza pontosan a törlés előtti mintát.
+ */
+function withoutStaleSkips(pattern: Pattern): Pattern {
+  const piece = pieceOf(pattern);
+  if (piece.skipped.length === 0) return pattern;
+  const context = contextOf(pattern);
+  const ahead = new Set(context.slots.flatMap((slot, i) => (i > context.frontier && slot.kind === 'stitch' ? [slot.id] : [])));
+  const skipped = piece.skipped.filter((id) => !ahead.has(id));
+  return skipped.length === piece.skipped.length ? pattern : withPiece(pattern, { ...piece, skipped });
 }
 
 /** Kézi igazítás: eltolás a számolt helyhez képest. `null` visszaállítja. A topológián nem változtat. */
