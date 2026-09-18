@@ -405,8 +405,16 @@ function writtenLayer(
           i += 1;
           run.push(stitches[i]!);
         }
-        const space = graph.spaceOfChain.get(id);
-        if (!space || space.chains.length !== run.length || !run.every((chain) => space.chains.includes(chain))) {
+        /*
+         * Puszta láncszem-futam is kifejezhető (PQW-937). A láncív csak akkor
+         * mérce, ha van: a horgoló a sor közepén egyszerű láncszemeket is tesz
+         * le — így készül a hullámos minta —, és eddig ilyenkor az írott minta
+         * megállt azzal, hogy „még nem tudja kifejezni”. A rajz helyes volt.
+         */
+        const spaces = new Set(run.map((chain) => graph.spaceOfChain.get(chain)).filter((space) => space !== undefined));
+        if (spaces.size > 1) throw unsupported('chain-run', id);
+        const space = [...spaces][0];
+        if (space && (space.chains.length !== run.length || !run.every((chain) => space.chains.includes(chain)))) {
           throw unsupported('chain-run', id);
         }
         steps.push({ kind: 'chain', count: run.length });

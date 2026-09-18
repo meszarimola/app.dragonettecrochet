@@ -506,21 +506,48 @@ class Layouter {
       .filter((value): value is number => value !== undefined)
       .sort((a, b) => direction * (a - b));
     if (bridged.length > 0) {
-      let next = 0;
-      let behind: number | undefined;
       const loose = (item: Item) =>
         item.desired === undefined && item.ids[0] !== layer.turningChain[0] && this.#def(item.ids[0]!).kind === 'chain';
+      /*
+       * A párosítás RÉSENKÉNT megy, nem a sor elejétől végigszámolva (PQW-936).
+       *
+       * Az első változat egyetlen mutatóval haladt végig a soron, ezért ha egy
+       * résben más volt a láncszemek és az áthidalt szemek száma — mert egybe
+       * utóbb mégis szem került, vagy két láncsor ugyanarra a helyre nyúlt —,
+       * onnantól MINDEN későbbi láncszem elcsúszott, a legvégén pedig hely
+       * híján visszaesett az előtte lévő szem mellé. A tulajdonos ezt látta:
+       * „köti a láncszemet a következő cellához az erp után”, és jól mondta,
+       * hogy ez ismétlődő mintában újra és újra előjön.
+       *
+       * Két szem közötti rést csak az ő áthidalt szemeik érintik, ezért egy rés
+       * hibája nem gyűrűzik tovább. Kevesebb láncszem középre kerül, több
+       * egyenletesen oszlik el a rés fölött.
+       */
+      let run: Item[] = [];
+      let behind: number | undefined;
+      const settle = (ahead: number | undefined) => {
+        if (run.length > 0) {
+          const gap = bridged.filter(
+            (at) =>
+              (behind === undefined || direction * (at - behind) > 0) && (ahead === undefined || direction * (ahead - at) > 0),
+          );
+          if (gap.length > 0) {
+            run.forEach((item, i) => {
+              item.desired = gap[Math.min(gap.length - 1, Math.floor(((i + 0.5) * gap.length) / run.length))]!;
+            });
+          }
+        }
+        run = [];
+      };
       for (const item of items) {
         if (item.weight === 1) {
+          settle(item.desired);
           behind = item.desired;
           continue;
         }
-        if (!loose(item)) continue;
-        while (next < bridged.length && behind !== undefined && direction * (bridged[next]! - behind) <= 0) next += 1;
-        if (next >= bridged.length) break;
-        item.desired = bridged[next]!;
-        next += 1;
+        if (loose(item)) run.push(item);
       }
+      settle(undefined);
     }
 
     // Körben a paraméter a kör közepének kerületén mérve; a kör legalább akkora, hogy kiférjen.

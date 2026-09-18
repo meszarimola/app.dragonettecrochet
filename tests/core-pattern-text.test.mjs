@@ -13,7 +13,9 @@ import { describe, test } from 'node:test';
 
 import { canonicalPattern } from '../src/core/canonical.ts';
 import { dative, times } from '../src/core/hungarian.ts';
+import { contextOf, defaultCursor, emptyPattern, endRow, work, workIntoSame } from '../src/core/editor.ts';
 import { readPattern } from '../src/core/pattern-read.ts';
+import { libraryFor } from '../src/core/stitch-variants.ts';
 import { WrittenPatternError, foldRepeats, mergeSteps } from '../src/core/pattern-steps.ts';
 import { formatWrittenPattern, ordinal, writePattern } from '../src/core/pattern-text.ts';
 import { PieceBuilder, patternOf } from './fixtures/builder.ts';
@@ -462,4 +464,46 @@ test('részeshatározó: rövidítésnél kötőjellel, névnél hangrend szerin
 
 test('angol sorszám: 1st, 2nd, 3rd, 4th, 11th, 21st', () => {
   assert.deepEqual([1, 2, 3, 4, 11, 12, 13, 21, 22].map(ordinal), ['1st', '2nd', '3rd', '4th', '11th', '12th', '13th', '21st', '22nd']);
+});
+
+/*
+ * A sor közepére tett puszta láncszemek (PQW-937).
+ *
+ * A tulajdonos így készíti a hullámos mintát: szaporítócsomó, kihagyás,
+ * láncszemek, kihagyás. A rajz ezt helyesen mutatta, az írott minta viszont
+ * megállt azzal, hogy „még nem tudja kifejezni” — mert a láncszem-futamot
+ * csak akkor fogadta el, ha az egyben láncív is volt.
+ */
+describe('a sor közepén álló láncszemek írott mintája (PQW-937)', () => {
+  const ok = (result) => {
+    assert.ok(result.ok, JSON.stringify(result.reason));
+    return result.pattern;
+  };
+  const cluster = (pattern, slot) => {
+    const first = ok(work(pattern, { def: 'dc', count: 1 }, slot));
+    return ok(workIntoSame(ok(workIntoSame(first, 'dc', slot)), 'dc', slot));
+  };
+
+  /** A tulajdonos ismétlődő mintája: 3 erp egy szembe, kihagyás, 3 láncszem, kihagyás. */
+  const wavePattern = () => {
+    let pattern = ok(endRow(ok(work(emptyPattern(), { def: 'ch', count: 22 }, 0)), 'sc'));
+    for (const def of ['sc', 'sc', 'dc', 'dc']) {
+      pattern = ok(work(pattern, { def, count: 1 }, defaultCursor(pattern, contextOf(pattern), def)));
+    }
+    for (const slot of [6, 12]) {
+      pattern = cluster(pattern, slot);
+      pattern = ok(work(pattern, { def: 'ch', count: 3 }, slot + 2));
+    }
+    return cluster(pattern, 18);
+  };
+
+  test('a láncszemek és a kihagyások kimondva, láncív nélkül is', () => {
+    const pattern = wavePattern();
+    const row = instructions(writePattern(pattern, libraryFor(pattern), 'hu')).split('\n').find((line) => line.startsWith('2. sor'));
+
+    assert.ok(row, 'a 2. sor leírása elkészül, nem áll meg kifejezhetetlenül');
+    assert.match(row, /3 lsz/, 'a láncszemek kimondva');
+    assert.match(row, /kihagyás/, 'a kihagyott szemek kimondva');
+    assert.match(row, /3 erp a következő láncszembe/, 'a szaporítócsomó kimondva');
+  });
 });

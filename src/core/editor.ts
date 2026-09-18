@@ -326,8 +326,14 @@ export function defaultCursor(pattern: Pattern, context: WorkContext, tool: Stit
   // haladási irányban, a foglaltakat átugorva (PQW-879); a sor végén a célpontokon kívülre.
   if (frontier >= 0) {
     if (slots[frontier]!.kind === 'ring') return frontier;
+    /*
+     * A lánccal áthidalt helyeken is túllépünk (PQW-936): a munka már elhaladt
+     * fölöttük, oda szemet tenni ellentmondás lenne. Enélkül az Enter a
+     * láncszemek MÖGÉ tett volna, és a lánc otthon nélkül maradt volna.
+     */
+    const bridged = new Set(pieceOf(pattern).skipped);
     let next = frontier + 1;
-    while (next < slots.length && used[next]) next += 1;
+    while (next < slots.length && (used[next] || bridged.has(slots[next]!.id))) next += 1;
     return next;
   }
   return startCursor(pattern, context, tool);
