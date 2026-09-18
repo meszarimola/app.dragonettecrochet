@@ -780,15 +780,34 @@ describe('a fordulólánc a helyén áll, amint leteszik (PQW-946)', () => {
     assert.ok(x > cell.area.x0 && x < cell.area.x1, `a lánc a sor első cellájában: ${x} ∉ (${cell.area.x0}, ${cell.area.x1})`);
   });
 
-  test('a lánc egyik szeme sem lóg bele az alatta lévő sorba', () => {
-    const first = place(afterTurn());
-    const library = libraryFor(first);
-    const layout = layoutPattern(first, library);
-    const grid = chartGrid(first, library, 'rows', contextOf(first), {});
+  /*
+   * A JELÉVEL együtt kell beleférnie (PQW-947). A tulajdonos a v0.36.0-ról:
+   * „nem annyira mint az előbb, de még mindig kilóg a 3. sor cellájából” — a
+   * középpont a talpvonalon ült, a jel alsó fele pedig lelógott.
+   */
+  const fitsBand = (pattern, tool) => {
+    const library = libraryFor(pattern);
+    const layout = layoutPattern(pattern, library);
+    const grid = chartGrid(pattern, library, 'rows', contextOf(pattern), {});
     const band = grid.bands.find((candidate) => candidate.layer === 2);
-    for (const id of buildPieceGraph(first, first.pieces[0], library).layers[2].turningChain) {
-      const { y } = layout.nodes.get(id).top;
-      assert.ok(y <= band.area.y1 && y >= band.area.y0, `${id} a saját sávjában: ${y} ∉ [${band.area.y0}, ${band.area.y1}]`);
+    for (const id of buildPieceGraph(pattern, pattern.pieces[0], library).layers[2].turningChain) {
+      const node = layout.nodes.get(id);
+      const bottom = node.top.y + node.size / 2;
+      const top = node.top.y - node.size / 2;
+      assert.ok(bottom <= band.area.y1, `${tool}: ${id} alja ${bottom.toFixed(1)} > a sáv alja ${band.area.y1.toFixed(1)}`);
+      assert.ok(top >= band.area.y0, `${tool}: ${id} teteje ${top.toFixed(1)} < a sáv teteje ${band.area.y0.toFixed(1)}`);
+    }
+  };
+
+  test('a lánc a jelével együtt a saját sávjában marad, mindhárom magasságnál', () => {
+    for (const tool of ['sc', 'hdc', 'dc']) {
+      let pattern = ok(work(emptyPattern(), { def: 'ch', count: 11 }, 0));
+      pattern = ok(endRow(pattern));
+      pattern = ok(fillRow(pattern, { def: tool, count: 1 }));
+      pattern = ok(endRow(pattern));
+      pattern = ok(work(pattern, { def: tool, count: 1 }, defaultCursor(pattern, contextOf(pattern), tool)));
+      pattern = ok(work(pattern, { def: tool, count: 1 }, defaultCursor(pattern, contextOf(pattern), tool)));
+      fitsBand(pattern, tool);
     }
   });
 
