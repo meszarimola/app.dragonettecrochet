@@ -33,6 +33,8 @@ export interface HdcRectangleOptions {
   readonly turningChain?: { readonly row: number; readonly chains: number };
   /** A 2. sor az első szemet kihagyja, és a következőbe két félpálcát horgol. */
   readonly row2SkipsFirst?: boolean;
+  /** A 2. sor KÉT szemet hagy ki az elején: az egyiket a fordulólánc állja, a másik tényleg kimarad. */
+  readonly row2SkipsTwo?: boolean;
   /** A 2. sor közepén egy szem kimarad, a sor végén szaporítás pótolja. */
   readonly row2SkipsOneInMiddle?: boolean;
   /** Ebben a sorban rákhurok készül félpálca helyett. */
@@ -65,9 +67,21 @@ export function hdcRectangle(options: HdcRectangleOptions = {}): Example {
     const chains = options.turningChain?.row === r ? options.turningChain.chains : def === 'rev-sc' ? 1 : 2;
     const turning = b.chain(chains);
     turningChains.push(turning);
-    // Az előző sor minden szemébe megy egy szem; a fordulólánc csak magasságot ad (PQW-924).
+    /*
+     * A kidolgozott példa a PQW-944 ELŐTTI szerkezetet őrzi: a sor az alatta
+     * lévő sor minden szemébe horgol, a fordulólánc pedig a szövet mellett
+     * áll. A szerkesztő ma már a fordulóláncot az első szem helyére teszi; a
+     * példák és a generátorok átállítása külön feladat (PQW-945).
+     */
     const targets = [...row].reverse();
-    if (r === 2 && options.row2SkipsFirst) {
+    if (r === 2 && options.row2SkipsTwo) {
+      row = [
+        ...b.inSame('inc-2hdc', ['hdc', 'hdc'], targets[2]!),
+        ...targets.slice(3, -1).map((t) => b.stitch('hdc', t)),
+        // A szemszám a szaporításokkal kijön; csak a kihagyott pozíció marad hiba.
+        ...b.inSame('inc-2hdc', ['hdc', 'hdc'], targets.at(-1)!),
+      ];
+    } else if (r === 2 && options.row2SkipsFirst) {
       row = [...b.inSame('inc-2hdc', ['hdc', 'hdc'], targets[1]!), ...targets.slice(2).map((t) => b.stitch('hdc', t))];
     } else if (r === 2 && options.row2SkipsOneInMiddle) {
       row = [

@@ -29,7 +29,7 @@ function halfRow(done) {
     pattern = ok(work(pattern, { def: 'sc', count: 1 }, defaultCursor(pattern, contextOf(pattern), 'sc')));
   };
   for (let i = 0; i < 4; i += 1) sc();
-  pattern = ok(endRow(pattern, 'sc'));
+  pattern = ok(endRow(pattern));
   for (let i = 0; i < done; i += 1) sc();
   return pattern;
 }
@@ -63,14 +63,15 @@ test('névtelen mintánál a szöveg címe „Névtelen minta”', () => {
 test('félkész sor: a szöveg látszik, megjegyzéssel', () => {
   const result = view(halfRow(2));
   assert.equal(result.kind, 'text');
-  assert.match(result.text, /3\. sor: 1 lsz \(1 rp-nek számít\), 2 rp \(3 szem\)\.$/m);
-  assert.deepEqual(result.notices, ['A 3. sor félkész, még 2 célpont van hátra: a szöveg a mostani állapotot írja le.']);
+  // A fordulólánc a sor első szemének helyén ül, ezért a szöveg kiírja a kihagyást (PQW-944).
+  assert.match(result.text, /3\. sor: 1 lsz \(1 rp-nek számít\), 1 szem kihagyása, 1 rp \(2 szem\)\.$/m);
+  assert.deepEqual(result.notices, ['A 3. sor félkész, még 3 célpont van hátra: a szöveg a mostani állapotot írja le.']);
 });
 
 test('hibás minta: a szöveg mellett megjegyzés a hibák számával', () => {
-  let pattern = halfRow(1);
-  // Két szem kihagyása a sor közepén: az ellenőrző hibát jelez. A sor négyszemes (PQW-924).
-  pattern = ok(work(pattern, { def: 'sc', count: 1 }, 3));
+  let pattern = halfRow(2);
+  // Két szem kihagyása a sor közepén: az ellenőrző hibát jelez (PQW-944: az első szem a fordulólánc).
+  pattern = ok(work(pattern, { def: 'sc', count: 1 }, 4));
   const result = view(pattern);
   assert.equal(result.kind, 'text');
   assert.ok(result.notices.some((notice) => /^A mintában \d+ hiba van \(lásd Ellenőrzés\)/.test(notice)), result.notices.join(' | '));

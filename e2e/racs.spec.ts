@@ -79,7 +79,7 @@ test('a téglalap csak cellákra kattintva készül; ahol nincs mibe horgolni, �
 
   // 2. sor: a készülő sor celláiba, a célpontok fölé kattintva; minden szembe kerül egy (PQW-924).
   for (const slot of [0, 1, 2, 3]) await clickSlot(page, slot, 'készülő');
-  await expect(summary).toContainText('3. sor: 5 szem');
+  await expect(summary).toContainText('3. sor: 4 szem, még 1 célpont');
   await expect(summary).toContainText('Nincs hiba és figyelmeztetés.');
 
   // A sorszám önálló, kattintható célterület: a teljes sort jelöli ki (PQW-875).
@@ -88,7 +88,7 @@ test('a téglalap csak cellákra kattintva készül; ahol nincs mibe horgolni, �
   expect(label).toBeTruthy();
   await page.mouse.click(label!.x, label!.y);
   await expect(status).toHaveText('2. sor kijelölve: 5 szem.');
-  await expect(summary).toContainText('3. sor: 5 szem');
+  await expect(summary).toContainText('3. sor: 4 szem, még 1 célpont');
 });
 
 test('a rács a nézet csoportban ki- és bekapcsolható, megmarad, és választhatóan kerül az SVG-exportba', async ({ page }) => {

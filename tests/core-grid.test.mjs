@@ -133,7 +133,7 @@ describe('célzás a rácson', () => {
     assert.match(hu(aim(grid, foundation.center).message), /^Ez az 1\. sor egyik helye\. Most a 4\. sor készül/);
   });
 
-  test('a fordulólánc helye a célpontok sorában sem célpont (PQW-924)', () => {
+  test('a fordulólánc alsó szeme nem célpont, a teteje viszont az (PQW-944)', () => {
     // A V-szem mintában a fordulólánc kifejezetten nem számít.
     const example = vStitchPattern();
     const { grid, layout } = build(example.pattern);
@@ -150,12 +150,12 @@ describe('célzás a rácson', () => {
     assert.equal(aimAt(grid, hit).kind, 'refused');
     assert.equal(aimAt(grid, hit).message.code, 'aim-other-layer');
 
-    // A fordulólánc teteje sem célpont (PQW-924): a sor az alatta lévő sor szemeibe horgol.
+    // A fordulólánc TETEJE célpont (PQW-944): oda megy a következő sor utolsó szeme.
     const counting = hdcRectangle({ rows: 2 });
     const built = build(counting.pattern);
     const top = counting.turningChains[2].at(-1);
     const slot = built.context.slots.findIndex((candidate) => candidate.id === top);
-    assert.equal(slot, -1, 'a fordulólánc teteje nincs a célpontok között');
+    assert.ok(slot >= 0, 'a fordulólánc teteje a célpontok között van');
   });
 
   test('a félkész sorban, ahol alatta nincs szem, nincs mibe horgolni', () => {
@@ -163,7 +163,9 @@ describe('célzás a rácson', () => {
     const empty = emptyPattern();
     let pattern = ok(work({ ...empty, conventions: { ...empty.conventions, turningChainCounts: false } }, { def: 'ch', count: 7 }, 0));
     for (let slot = 1; slot <= 6; slot += 1) pattern = ok(work(pattern, { def: 'sc', count: 1 }, slot));
-    pattern = ok(endRow(pattern, 'sc'));
+    pattern = ok(endRow(pattern));
+    // A fordulólánc itt nem szem, ezért nem áll szem helyére: a horgoló maga teszi le (PQW-944).
+    pattern = ok(work(pattern, { def: 'ch', count: 1 }, 0));
     pattern = ok(work(pattern, { def: 'sc', count: 1 }, 0));
 
     const { grid, layout, context } = build(pattern);
@@ -212,7 +214,8 @@ describe('sávok és vonalak', () => {
   test('a cellák a sor elejétől számolva: az 1. sor jobbról balra, minden 5. cella után hangsúlyos vonal', () => {
     const { grid } = build(hdcRectangle({ rows: 2 }).pattern);
     const row1 = grid.cells.filter((cell) => cell.layer === 1).sort((a, b) => a.index - b.index);
-    assert.equal(row1.length, 15);
+    // 15 félpálca és a fordulólánc oszlopa (PQW-944).
+    assert.equal(row1.length, 16);
     assert.ok(row1.every((cell, i) => i === 0 || cell.center.x < row1[i - 1].center.x));
     assert.deepEqual(row1.filter((cell) => cell.emphasis !== 'none').map((cell) => [cell.index + 1, cell.emphasis]), [
       [5, 'five'],
@@ -337,7 +340,7 @@ describe('a függőleges fordulólánc egy cellát kap (PQW-943)', () => {
   /** `chains` láncszem, fordulás, majd egy `tool` a `cursor`. célpontba. */
   const started = (chains, tool, cursor) => {
     let pattern = ok(work(emptyPattern(), { def: 'ch', count: chains }, 0));
-    pattern = ok(endRow(pattern, tool));
+    pattern = ok(endRow(pattern));
     pattern = ok(work(pattern, { def: tool, count: 1 }, cursor));
     const library = libraryFor(pattern);
     const context = contextOf(pattern);

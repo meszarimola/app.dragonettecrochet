@@ -314,7 +314,7 @@ test('ugyanaz a rövidpálcás darab CYC és japán előbeállítással: ugyanan
   for (const pattern of [cyc, japanese]) assert.deepEqual(findings(pattern), []);
 
   const shape = (pattern) =>
-    computeLayers(pattern, testLibrary).map(({ shape, side, stitchCount, positionCount }) => ({ shape, side, stitchCount, positionCount }));
+    computeLayers(pattern, testLibrary).map(({ shape, side, stitchCount }) => ({ shape, side, stitchCount }));
   assert.deepEqual(shape(japanese), shape(cyc));
   // Japánban a rövidpálca fordulólánca nem számít, ezért ott 1 a kihagyás és eggyel rövidebb a láncalap (PQW-924).
   assert.equal(japanese.pieces[0].stitches.length, cyc.pieces[0].stitches.length - 1, 'japánban eggyel rövidebb a láncalap');
@@ -392,7 +392,7 @@ describe('a szerkesztő japán előbeállítással', () => {
   test('sorkitöltéssel: 12 láncszemből hibátlan félpálcás téglalap, soronként 10 szem', () => {
     let pattern = foundation(12);
     for (let row = 1; row <= 4; row += 1) {
-      if (row > 1) pattern = ok(endRow(pattern, 'hdc'));
+      if (row > 1) pattern = ok(endRow(pattern));
       pattern = ok(fillRow(pattern, { def: 'hdc', count: 1 }));
     }
     assert.deepEqual(validatePattern(pattern, libraryFor(pattern)), []);

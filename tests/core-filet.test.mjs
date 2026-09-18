@@ -68,10 +68,11 @@ describe('sor, láncalap és fordulólánc (03 §5.2, §10 G32)', () => {
     const { pattern } = make(cyc(), chart('###', '###'));
     const layers = graphOf(pattern).layers.slice(1);
     assert.deepEqual(
+      // A pozíciók közé a fordulólánc teteje is beletartozik (PQW-944).
       layers.map((layer) => [layer.positionCount, layer.stitchCount]),
       [
-        [10, 10],
-        [10, 10],
+        [11, 10],
+        [11, 10],
       ],
     );
   });

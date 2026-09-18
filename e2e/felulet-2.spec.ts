@@ -71,7 +71,8 @@ async function rectangle(page: Page, width: number, rows: number): Promise<void>
   await page.keyboard.press('Alt+4');
   for (let row = 1; row <= rows; row += 1) {
     if (row > 1) await page.keyboard.press('Alt+f');
-    for (let i = 0; i < width; i += 1) await page.keyboard.press('Enter');
+    // A fordult sor első szeme a fordulólánc lesz (PQW-944), ezért ott eggyel többször horgolunk.
+    for (let i = 0; i < width + (row > 1 ? 1 : 0); i += 1) await page.keyboard.press('Enter');
   }
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Egész minta' }).click();

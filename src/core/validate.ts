@@ -251,8 +251,8 @@ function checkLayer(
             : [graph.rings.get(anchor.id)!.node];
       const targetLayer = graph.layerOf.get(targets[0]!) ?? -1;
 
-      // Sorban a fordulóláncba nem horgolunk, mert nem szem (PQW-924): a teteje sem célpont.
-      const intoTurning = belowTurning.has(anchor.id) && (below.shape === 'row' || anchor.id !== turningTop);
+      // A fordulólánc TETEJE célpont — oda megy a sor utolsó szeme (PQW-944) —, az alsó láncszemei nem.
+      const intoTurning = belowTurning.has(anchor.id) && anchor.id !== turningTop;
       if (anchor.into === 'stitch' && intoTurning) {
         report('turning-chain-placement', [id, anchor.id]);
         layerInvalid = true;
@@ -413,25 +413,36 @@ function checkLayer(
   }
 
   /*
-   * A fordulólánc tetejébe nem megy szem (PQW-924). Korábban itt azt vártuk el,
-   * hogy a sor utolsó szeme oda kerüljön — ez a fogalom megszűnt, a sor az
-   * alatta lévő sor minden szemébe horgol egyet.
+   * Az alatta lévő sor fordulóláncának teteje célpont (PQW-944): oda mehet a
+   * sor utolsó szeme. Nem KÖTELEZŐ viszont odahorgolni: a korábbi szabály
+   * szerint készült minták (a generátorok mai kimenete is) a fordulólánc
+   * mellett futnak el, és attól még hibátlanok.
    */
+  const belowTop = below.shape === 'row' ? turningTop : undefined;
 
   // Felhasználatlan pozíciók a sor két szélén; a sor belsejét az ugrás szabálya nézi (03 §10 B8, C15).
   const first = entries[0]!.min;
-  // Megosztott soron a szakasz fordulólánca a saját első pozícióján ül, nem a sor elején (PQW-901).
-  const seat = shared && layer.turningChainCounts ? first - 1 : -1;
+  /*
+   * A számító fordulólánc a sor első szemének helyén ül (PQW-944): az alatta
+   * lévő pozícióba már nem megy szem, és ez nem hiányzó szem. Megosztott soron
+   * ugyanez a szakasz saját első pozíciójára vonatkozik (PQW-901).
+   */
+  const seat = layer.turningChainCounts && (layer.shape === 'row' || shared) ? first - 1 : -1;
   for (let w = 0; w < length; w += 1) {
     if (covered[w] || (w > first && w < frontier) || w === optional || w === seat) continue;
+    if (positionAt(w) === belowTop) continue;
     if (!skipped.has(positionAt(w)) && !elsewhere.has(positionAt(w))) report('unused-position', [positionAt(w)]);
   }
 
   const repeat = pattern.conventions.repeat;
   if (repeat && layer.shape === 'row' && findingCount() === walkStart) {
-    // A fordulólánc nem pozíció (PQW-924): a sor annyi helyet használ, ahány szeme van.
-    const consumed = length;
-    if (consumed !== layer.positionCount) report('repeat-balance', layer.stitches);
+    /*
+     * A sor annyi helyet használ, ahány szeme van. A saját fordulólánca is
+     * pozíció (PQW-944), de az az alatta lévő sorból nem fogyaszt helyet,
+     * ezért az összevetésből kimarad.
+     */
+    const own = layer.positionCount - (layer.turningChainCounts && layer.shape === 'row' ? 1 : 0);
+    if (length - (belowTop === undefined ? 0 : 1) !== own) report('repeat-balance', layer.stitches);
   }
 }
 

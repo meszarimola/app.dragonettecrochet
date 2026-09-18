@@ -21,12 +21,13 @@ import { testLibrary } from './fixtures/library.ts';
 const layersOf = (example) => computeLayers(example.pattern, testLibrary);
 const counts = (layers) => layers.map((layer) => [layer.stitchCount, layer.positionCount]);
 
-test('félpálcás téglalap: 22 sor, soronként 15 szem, a fordulólánc nem számít (03 §3.1 A)', () => {
+test('félpálcás téglalap: 22 sor, soronként 15 félpálca, a fordulólánc a 16. pozíció (03 §3.1 A, PQW-944)', () => {
   const example = hdcRectangle();
   const layers = layersOf(example);
 
   assert.equal(layers.length, 23);
-  assert.deepEqual(counts(layers.slice(1)), Array.from({ length: 22 }, () => [15, 15]));
+  // 15 belehorgolt félpálca, és a fordulólánc teteje a 16. pozíció: oda mehet a következő sor utolsó szeme.
+  assert.deepEqual(counts(layers.slice(1)), Array.from({ length: 22 }, () => [15, 16]));
   assert.deepEqual(layers[0].stitches, example.rows[0]);
   assert.deepEqual(layers[1].stitches, [...example.turningChains[1], ...example.rows[1]]);
   assert.ok(layers.every((layer) => layer.shape === 'row'));
@@ -47,7 +48,7 @@ test('pálcás téglalap: a számító fordulólánc alapláncszemen áll, 19 l�
   const layers = layersOf(dcRectangle());
 
   assert.equal(layers[0].positionCount, 16);
-  assert.deepEqual(counts(layers.slice(1)), Array.from({ length: 16 }, () => [16, 16]));
+  assert.deepEqual(counts(layers.slice(1)), Array.from({ length: 16 }, () => [16, 17]));
   assert.equal(layers[0].positionCount + 3, 19);
   assert.equal(layers[0].positionCount + 3, foundationChainLength(16, 3, true));
 });

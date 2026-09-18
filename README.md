@@ -76,6 +76,15 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
   szemet összehorgol.
 - **Még egy ugyanabba** (`Shift`+`Enter`): egy szemből szaporítás, a
   szaporításból és a kagylóból eggyel nagyobb lesz (pl. `inc-3dc`).
+- **Fordulás** (`F`, PQW-944): a fordulás maga nem rak le láncszemet, hanem
+  megnyitja a következő sort — a rácsa azonnal látszik, teljes magasságban. A
+  **fordulóláncot a sor első szeme hozza magával**, a saját magasságában
+  (rövidpálca 1, félpálca 2, egyráhajtásos pálca 3 láncszem), és **az első szem
+  helyére áll**: a lánc alatti pozícióba nem megy szem, a sor utolsó szeme
+  pedig az előző sor fordulóláncának tetejébe. Így az oszlopok soronként fedik
+  egymást, és a szemszám sem fogy. Ez csak az alapszemekre vonatkozik és csak
+  akkor, ha a fordulólánc szemnek számít; fogyasztásnál, csokornál és
+  `turningChainCounts: false` mellett a horgoló maga teszi le a láncot.
 - **Sor vége, fordulás** (`F`) a kiválasztott szem fordulóláncával;
   **kör zárása** (`K`) kúszószemmel a kör első pozíciójába, csak láncszemekből
   láncgyűrű; **kör vége spirálban** (`S`), zárás nélkül (PQW-861).

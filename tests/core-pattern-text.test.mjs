@@ -408,7 +408,8 @@ describe('visszaolvasás: eltérés esetén pontos hibaüzenet', () => {
 
   test('több szem, mint amennyi az előző sorban van', () => {
     const result = readBack(text.replace('3. sor: 2 lsz (1 fp-nek számít), 15 fp', '3. sor: 2 lsz (1 fp-nek számít), 16 fp'), pattern, 'hu');
-    assert.deepEqual(result.error, { line: lineOf('3. sor:'), message: 'Nincs több szem az előző sorban ehhez: „16 fp”.' });
+    // A fordulólánc teteje is célpont (PQW-944), ezért a 16. szem még elfér; a szemszám viszont nem jön ki.
+    assert.deepEqual(result.error, { line: lineOf('3. sor:'), message: '3. sor: a szöveg 16 szemet ír, a visszaolvasott gráf szerint 17.' });
   });
 
   test('ismeretlen tétel', () => {
@@ -486,7 +487,7 @@ describe('a sor közepén álló láncszemek írott mintája (PQW-937)', () => {
 
   /** A tulajdonos ismétlődő mintája: 3 erp egy szembe, kihagyás, 3 láncszem, kihagyás. */
   const wavePattern = () => {
-    let pattern = ok(endRow(ok(work(emptyPattern(), { def: 'ch', count: 22 }, 0)), 'sc'));
+    let pattern = ok(endRow(ok(work(emptyPattern(), { def: 'ch', count: 22 }, 0))));
     for (const def of ['sc', 'sc', 'dc', 'dc']) {
       pattern = ok(work(pattern, { def, count: 1 }, defaultCursor(pattern, contextOf(pattern), def)));
     }
