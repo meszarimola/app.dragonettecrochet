@@ -505,7 +505,7 @@ export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readon
      */
     const covered = coveredByChains(pattern, piece, cursor, count, mode);
     const { piece: next, ids } = insertAt(piece, covered.at, nodes);
-    const withSkips = { ...next, skipped: [...next.skipped, ...covered.skipped] };
+    const withSkips = { ...next, skipped: covered.skipped };
     if (def.kind === 'chain') return done(withPiece(pattern, withSkips));
     const space = { id: nextId('s', piece.spaces.map((s) => s.id)), chains: ids };
     return done(withPiece(pattern, { ...withSkips, spaces: [...withSkips.spaces, space] }));
@@ -589,16 +589,27 @@ function coveredByChains(
   cursor: number,
   count: number,
   mode: EditorMode,
-): { at: number; skipped: NodeId[] } {
+): { at: number; skipped: readonly NodeId[] } {
   const context = contextOf(pattern, mode);
-  if (!context.graph || context.slots.length === 0) return { at: piece.stitches.length, skipped: [] };
+  if (!context.graph || context.slots.length === 0) return { at: piece.stitches.length, skipped: piece.skipped };
+  /*
+   * Előbb takarítás (PQW-939). A korábbi verziókból örökölt minta gazdátlan
+   * jelöléseket hordozhat: olyan helyeket, amelyek fölül a láncszemet azóta
+   * törölték. A mérés szerint két ilyen árva jelölés elég volt ahhoz, hogy a
+   * horgoló által megmutatott oszlop helyett (x=84) a lánc közvetlenül az
+   * előtte lévő szem mellé kerüljön (x=132) — a tulajdonos: „a 2. sor utolsó
+   * láncszemét azt közvetlenül az erp után teszi… pedig kihagytam cellákat”.
+   *
+   * Így a minta minden szerkesztéssel tisztul, nem csak törléskor.
+   */
+  const clean = pieceOf(withoutStaleSkips(pattern));
   const at = fabricIndex(piece, context, cursor);
   // A lánc csak ELŐRE hidal át: a munkaél mögé visszanyúlva vagy foglalt célponton csak követi a szemet.
-  if (cursor <= context.frontier || context.used[cursor] !== false) return { at, skipped: [] };
+  if (cursor <= context.frontier || context.used[cursor] !== false) return { at, skipped: clean.skipped };
   // A kurzortól a következő `count` SZABAD és még el nem foglalt hely: két lánc nem ülhet egy oszlopban.
-  const already = new Set(piece.skipped);
-  const skipped: NodeId[] = [];
-  for (let i = cursor; i < context.slots.length && skipped.length < count; i += 1) {
+  const already = new Set(clean.skipped);
+  const skipped: NodeId[] = [...clean.skipped];
+  for (let i = cursor; i < context.slots.length && skipped.length - clean.skipped.length < count; i += 1) {
     const slot = context.slots[i]!;
     if (context.used[i] || slot.kind !== 'stitch' || already.has(slot.id)) continue;
     skipped.push(slot.id);
