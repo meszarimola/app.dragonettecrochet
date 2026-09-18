@@ -824,3 +824,35 @@ describe('a fordulólánc a helyén áll, amint leteszik (PQW-946)', () => {
     assert.ok(captions.includes('3. sor (1)'), captions.join(' | '));
   });
 });
+
+/*
+ * A fordulólánc jelei nem takarják egymást (PQW-948).
+ *
+ * A tulajdonos a v0.37.0-ról: „most meg össze van csúszva az egész, mint egy
+ * fektetett audi jel… a rövidpálca jó, de bármi ami egy karikánál több,
+ * összecsúszik.” Mérve: a jelek 3,7–12,4 képponttal fedték egymást.
+ */
+describe('a fordulólánc jelei külön állnak (PQW-948)', () => {
+  const rowWith = (tool) => {
+    let pattern = ok(work(emptyPattern(), { def: 'ch', count: 11 }, 0));
+    pattern = ok(endRow(pattern));
+    pattern = ok(fillRow(pattern, { def: tool, count: 1 }));
+    pattern = ok(endRow(pattern));
+    pattern = ok(work(pattern, { def: tool, count: 1 }, defaultCursor(pattern, contextOf(pattern), tool)));
+    return ok(work(pattern, { def: tool, count: 1 }, defaultCursor(pattern, contextOf(pattern), tool)));
+  };
+
+  for (const [tool, chains] of [['hdc', 2], ['dc', 3], ['tr', 4]]) {
+    test(`${tool}: a ${chains} láncszem között rés marad`, () => {
+      const pattern = rowWith(tool);
+      const library = libraryFor(pattern);
+      const layout = layoutPattern(pattern, library);
+      const stack = buildPieceGraph(pattern, pattern.pieces[0], library).layers[2].turningChain.map((id) => layout.nodes.get(id));
+      assert.equal(stack.length, chains);
+      stack.slice(1).forEach((node, i) => {
+        const gap = stack[i].top.y - node.top.y - (stack[i].size + node.size) / 2;
+        assert.ok(gap > 0, `${tool}: a ${i + 1}. és a ${i + 2}. láncszem között ${gap.toFixed(1)} a rés`);
+      });
+    });
+  }
+});

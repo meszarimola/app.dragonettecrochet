@@ -651,19 +651,23 @@ class Layouter {
          * viszont teljesen a saját sorában (PQW-946) — a tulajdonos: „a 3. sor
          * teljesen különálló”.
          */
-        const size = Math.min(step * 0.95, W * 0.8);
         /*
          * A LÁNCALAP fordulólánca félig az alsó sorban áll: onnan indul a
-         * munka. A fordult soré viszont a JELÉVEL EGYÜTT a saját sorában
-         * (PQW-947) — a tulajdonos: „még mindig kilóg a 3. sor cellájából”.
-         * Ezért ott a lánc nem a középpontjaival, hanem a teljes hosszával
-         * tölti ki a fordulólánc magasságát: az alsó jel alja a sor
-         * talpvonalán ül, a felsőé a tetején. A sávot így nem nyújtja meg.
+         * munka, a legalsó láncszeme maga a láncalap vége.
+         *
+         * A fordult sor lánca viszont a JELÉVEL EGYÜTT a saját sorában marad
+         * (PQW-947), egymást nem takarva (PQW-948). Ezért ott a fordulólánc
+         * magasságát OSZTJUK szét: n láncszem mindegyike a magasság n-ed
+         * részét kapja, a jele alig kisebb ennél — így az alsó a sor
+         * talpvonalán ül, a felső a tetején, és látszik köztük a rés. A
+         * tulajdonos két jelentése: „még mindig kilóg a 3. sor cellájából”, és
+         * „bármi ami egy karikánál több, összecsúszik”.
          */
         const stacked = layer.index <= 1 || this.#round;
-        const inner = n > 1 ? (span - size) / (n - 1) : 0;
+        const slice = span / n;
+        const size = stacked ? Math.min(step * 0.95, W * 0.8) : Math.min(slice * 0.9, W * 0.8);
         item.ids.forEach((id, i) => {
-          const offset = stacked ? (i - 0.5) * step : size / 2 + i * inner;
+          const offset = stacked ? (i - 0.5) * step : (i + 0.5) * slice;
           const center = this.#point(up(base, offset), axis);
           const normal = frameNormal(this.#frame, axis);
           const along = this.#round ? Math.atan2(-Math.sin(normal), Math.cos(normal)) : Math.PI / 2;
