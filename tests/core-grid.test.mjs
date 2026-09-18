@@ -9,7 +9,7 @@ import { strict as assert } from 'node:assert';
 import { describe, test } from 'node:test';
 
 import { contextOf, emptyPattern, endRow, setPinned, work } from '../src/core/editor.ts';
-import { aimAt, chartBounds, chartGrid, contains, emphasisOf, gridHit } from '../src/core/grid.ts';
+import { aimAt, chartBounds, chartGrid, contains, emphasisOf, gridHit, seamAt } from '../src/core/grid.ts';
 import { article } from '../src/core/hungarian.ts';
 import { layoutPattern } from '../src/core/layout.ts';
 import { framePoint } from '../src/core/polygon.ts';
@@ -376,5 +376,49 @@ describe('a függőleges fordulólánc egy cellát kap (PQW-943)', () => {
     const base = grid.bands.find((candidate) => candidate.layer === 0);
     const row = grid.bands.find((candidate) => candidate.layer === 1);
     assert.equal(row.area.y1, base.area.y0, 'a két sáv pontosan találkozik, nem lóg egymásra');
+  });
+});
+
+/*
+ * A beszúrás helye a rácson (PQW-941): a láncalap két cellája közötti vonal.
+ * A tulajdonos választása: „két szem közé kattintok”.
+ */
+describe('a láncalap cellahatárai a beszúráshoz (PQW-941)', () => {
+  const started = () => {
+    let pattern = ok(work(emptyPattern(), { def: 'ch', count: 8 }, 0));
+    pattern = ok(endRow(pattern));
+    return ok(work(pattern, { def: 'sc', count: 1 }, contextOf(pattern).slots.length - 6));
+  };
+
+  test('a két cella közötti vonalon a két szomszédot adja vissza', () => {
+    const pattern = started();
+    const { grid } = build(pattern);
+    const cells = grid.cells.filter((cell) => cell.layer === 0).sort((a, b) => a.area.x0 - b.area.x0);
+    const boundary = { x: cells[1].area.x1, y: (grid.bands[0].area.y0 + grid.bands[0].area.y1) / 2 };
+    const seam = seamAt(grid, boundary);
+    assert.ok(seam, 'a határvonalon van beszúrási hely');
+    assert.equal(seam.left, cells[1].node);
+    assert.equal(seam.right, cells[2].node);
+  });
+
+  test('a lánc két szélén az egyik szomszéd hiányzik', () => {
+    const pattern = started();
+    const { grid } = build(pattern);
+    const cells = grid.cells.filter((cell) => cell.layer === 0).sort((a, b) => a.area.x0 - b.area.x0);
+    const y = (grid.bands[0].area.y0 + grid.bands[0].area.y1) / 2;
+    assert.deepEqual(
+      [seamAt(grid, { x: cells[0].area.x0, y }).left, seamAt(grid, { x: cells.at(-1).area.x1, y }).right],
+      [null, null],
+    );
+  });
+
+  test('a cella közepén nincs beszúrási hely, és más sorban sem', () => {
+    const pattern = started();
+    const { grid } = build(pattern);
+    const cells = grid.cells.filter((cell) => cell.layer === 0).sort((a, b) => a.area.x0 - b.area.x0);
+    const y = (grid.bands[0].area.y0 + grid.bands[0].area.y1) / 2;
+    assert.equal(seamAt(grid, { x: cells[1].center.x, y }), null, 'a cella közepén nem');
+    const above = grid.bands.find((band) => band.layer === 1);
+    assert.equal(seamAt(grid, { x: cells[1].area.x1, y: (above.area.y0 + above.area.y1) / 2 }), null, 'a 2. sorban nem');
   });
 });

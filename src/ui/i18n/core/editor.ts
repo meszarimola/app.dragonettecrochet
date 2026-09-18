@@ -119,6 +119,8 @@ export const EDITOR_CORE_TEXTS: CoreDictionary<EditCode | CopyCode> = {
     'no-turn-in-round': 'Körben nem fordulunk: zárd a kört.',
     'ring-needs-chains': (data) =>
       `A láncgyűrűhöz legalább ${num(data, 'min')} láncszem kell; 2 láncszemnél horgold az 1. kört a 2. láncszembe.`,
+    'insert-needs-chain-base': 'Láncszemet a láncalapba lehet beszúrni: ehhez láncszemes kezdés kell.',
+    'insert-at-turning-chain': 'A láncalapnak ezen a végén az 1. sor fordulólánca áll: ide nem szúrunk be láncszemet.',
     'round-empty': 'Ebben a körben még nincs szem.',
     'no-close-in-row': 'Sorban nincs körzárás: a sor végén fordulunk.',
     'round-no-first-stitch': 'A körnek nincs első szeme, amelybe zárni lehetne.',
@@ -189,6 +191,8 @@ export const EDITOR_CORE_TEXTS: CoreDictionary<EditCode | CopyCode> = {
     'no-turn-in-round': 'You do not turn in a round: join the round.',
     'ring-needs-chains': (data) =>
       `A chain ring needs at least ${num(data, 'min')} chains; with 2 chains work round 1 into the 2nd chain.`,
+    'insert-needs-chain-base': 'A chain can be inserted into the foundation chain: that needs a chain start.',
+    'insert-at-turning-chain': 'This end of the foundation carries the turning chain of row 1: no chain is inserted here.',
     'round-empty': 'There is no stitch in this round yet.',
     'no-close-in-row': 'A row is not joined: at the end of a row you turn.',
     'round-no-first-stitch': 'The round has no first stitch to join into.',
