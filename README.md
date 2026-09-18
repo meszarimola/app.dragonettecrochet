@@ -81,6 +81,15 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
   marad. Rákattintva a kiválasztott alapszem oda kerül, a sor többi szeme
   mozdulatlanul — az új szem a kelme sorrendjébe illeszkedik, nem a fonal
   végére. Így nem kell visszavonni a fölötte lévő sorokat.
+- **Láncív** (PQW-951): ha egy láncszemsor TÖBB szemből áll, mint ahány szemet
+  áthidal — például 5 láncszem 3 kihagyott szem fölött, ahogy a kagylós minta
+  kéri —, akkor ívet rajzolunk. A két rögzített szem nem mozdul: a köztük lévő
+  helyet a láncszemek egyenlően osztják el, a jelük ehhez tömörödik, és ami
+  vízszintesen nem fér el, az fölfelé megy: az ív a húr fölé emelkedik,
+  legfeljebb a sor magasságának feléig, és minden láncszem a saját érintőjéhez
+  fordul. Az ív annyi cellát kap, ahány láncszemből áll — lent három, fent öt —,
+  a cellák célpontja pedig az alattuk lévő áthidalt szemé marad. Ahol a lánc
+  elfér (filé, hálóminta, egy-két láncszem), minden marad laposan.
 - **Horgolás:** szem kiválasztása (`1`–`9` vagy a jelkészlet), a célpont
   nyilakkal vagy az egérrel, horgolás `Enter`-rel vagy kattintással. A kurzor
   a következő szabad célpontra lép; a fogyasztás annyi célpontot használ, ahány

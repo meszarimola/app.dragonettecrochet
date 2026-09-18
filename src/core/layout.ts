@@ -151,9 +151,22 @@ export function layoutPattern(pattern: Pattern, library: StitchLibrary, options:
 
 interface Item {
   readonly ids: readonly NodeId[];
-  readonly half: number;
+  /** Az ív a saját láncszemeit összébb húzza, ezért ez állítható (PQW-951). */
+  half: number;
   readonly weight: number;
   desired: number | undefined;
+}
+
+/** Egy láncív a rajzon: a láncszemei a húr fölé emelkednek (PQW-951). */
+interface Arc {
+  readonly ids: readonly NodeId[];
+  /** A húr két vége a haladás tengelyén: a két rögzített szem belső széle. */
+  readonly start: number;
+  readonly end: number;
+  /** Az ív magassága a húr fölött. */
+  readonly rise: number;
+  /** A tömörödött láncszemjel hossza. */
+  readonly size: number;
 }
 
 /**
@@ -451,7 +464,7 @@ class Layouter {
      * viszont marad, ami volt.
      */
     const chainSpan = layer.turningChain.length ? this.#stem(layer.turningChain.length) : 0;
-    const height = Math.max(
+    const stitchHeight = Math.max(
       CHAIN_HEIGHT,
       chainSpan,
       ...layer.stitches.filter((id) => !turning.has(id)).map((id) => this.#height(id)),
@@ -504,6 +517,7 @@ class Layouter {
      * az előtte lévő szem mögött van. Ahol nincs ilyen, minden marad a régiben.
      */
     const skipped = new Set(this.#graph.piece.skipped);
+    const arcs: Arc[] = [];
     const bridged = below.positions
       .filter((id) => skipped.has(id))
       .map((id) => this.#axis.get(id))
@@ -528,36 +542,65 @@ class Layouter {
        * egyenletesen oszlik el a rés fölött.
        */
       let run: Item[] = [];
-      let behind: number | undefined;
-      const settle = (ahead: number | undefined) => {
+      let behind: Item | undefined;
+      const settle = (ahead: Item | undefined) => {
         if (run.length > 0) {
+          const from = behind?.desired;
+          const to = ahead?.desired;
           const gap = bridged.filter(
-            (at) =>
-              (behind === undefined || direction * (at - behind) > 0) && (ahead === undefined || direction * (ahead - at) > 0),
+            (at) => (from === undefined || direction * (at - from) > 0) && (to === undefined || direction * (to - at) > 0),
           );
           /*
-           * A rés ELSŐ jelöléseit vesszük, nem a közepét (PQW-938). A
-           * láncszemek a kurzortól egymás után foglalják el a helyeket, tehát
-           * az elsők az övék. Ha árva jelölés maradna a résben, a szétosztás
-           * a sor túlsó felére dobta volna a láncszemet — a tulajdonos pont
-           * ezt látta.
+           * TÖBB LÁNCSZEM, MINT AHÁNY SZEMET ÁTHIDAL: ez az ÍV (PQW-951).
+           *
+           * A tulajdonos a kagylós mintát rajzolta: egy rövidpálca, 5 láncszem,
+           * és a következő rövidpálca az alsó sor 5. szemébe — alul 3 kihagyott
+           * szem, felül 5 láncszem. „ha beillesztem a következő rövidpálcát,
+           * akkor ilyen csúnyán adja ki a mintakészítő.”
+           *
+           * Azért csúnya, mert a láncszemek csak akkor kaptak helyet, ha jutott
+           * nekik áthidalt szem: 5-ből 3. A maradék kettő a szomszéd rövidpálca
+           * oszlopába sodródott, és KITOLTA onnan — a mérés szerint a sor első
+           * szeme x=564 helyett 587,6-ra került, vagyis a kelme szélén kívülre.
+           *
+           * A valóságban nem a pálca mozdul, hanem a lánc ível. Ezért a rés
+           * két rögzített szeme közötti helyet a láncszemek EGYÜTT kapják meg:
+           * annyifelé osztva, ahányan vannak, és a jelük ennyire tömörödik. Ami
+           * így sem fér el vízszintesen, az fölfelé megy (`#arc`).
            */
-          run.forEach((item, i) => {
-            if (i < gap.length) item.desired = gap[i]!;
-          });
+          const space =
+            from !== undefined && to !== undefined && behind && ahead ? Math.abs(to - from) - behind.half - ahead.half : 0;
+          if (!this.#round && run.length > gap.length && gap.length > 0 && space > 0) {
+            arcs.push(this.#arc(run, from!, direction, space, behind!.half, stitchHeight));
+          } else {
+            /*
+             * A rés ELSŐ jelöléseit vesszük, nem a közepét (PQW-938). A
+             * láncszemek a kurzortól egymás után foglalják el a helyeket, tehát
+             * az elsők az övék. Ha árva jelölés maradna a résben, a szétosztás
+             * a sor túlsó felére dobta volna a láncszemet — a tulajdonos pont
+             * ezt látta.
+             */
+            run.forEach((item, i) => {
+              if (i < gap.length) item.desired = gap[i]!;
+            });
+          }
         }
         run = [];
       };
       for (const item of items) {
         if (item.weight === 1) {
-          settle(item.desired);
-          behind = item.desired;
+          settle(item);
+          behind = item;
           continue;
         }
         if (loose(item)) run.push(item);
       }
       settle(undefined);
     }
+    // Az ív a sorból nyúlik fölfelé, ezért a sor magassága befogadja.
+    const height = stitchHeight + arcs.reduce((most, arc) => Math.max(most, arc.rise), 0);
+    const arcOf = new Map<NodeId, Arc>();
+    for (const arc of arcs) for (const id of arc.ids) arcOf.set(id, arc);
 
     // Körben a paraméter a kör közepének kerületén mérve; a kör legalább akkora, hogy kiférjen.
     // Az egységnyi belső sugár kerülete körben 2π, sokszögben 2n · tg(π/n).
@@ -613,6 +656,8 @@ class Layouter {
 
     const side = layer.side;
     const top = this.#round ? base + height : base - height;
+    // A lapos láncszem ott marad, ahol eddig: a sor szemeinek tetején (PQW-951).
+    const chainLine = this.#round ? base + stitchHeight : base - stitchHeight;
     const up = (from: number, by: number) => (this.#round ? from + by : from - by);
     for (const item of scaled) {
       const axis = this.#axis.get(item.ids[0]!)!;
@@ -678,10 +723,24 @@ class Layouter {
       const id = item.ids[0]!;
       const def = this.#def(id);
       if (def.kind === 'chain') {
+        const arc = arcOf.get(id);
+        if (arc) {
+          /*
+           * Az ív (PQW-951): a láncszem a húr fölé emelkedik, és a saját
+           * érintőjéhez fordul. A görbe parabola, mert a kiemelés zárt
+           * alakban adódik belőle: a húr közepén `rise`, a két végén nulla.
+           */
+          const width = arc.end - arc.start;
+          const u = width === 0 ? 0.5 : Math.min(1, Math.max(0, (axis - arc.start) / width));
+          const center = this.#point(up(chainLine, -6 + 4 * arc.rise * u * (1 - u)), axis);
+          const slope = width === 0 ? 0 : -(4 * arc.rise * (1 - 2 * u)) / width;
+          this.#place(id, layer.index, side, 'chain', [], center, Math.atan(slope), arc.size);
+          continue;
+        }
         // A láncszem a kör mentén fekszik: sokszögben az oldallal párhuzamosan.
         const normal = frameNormal(this.#frame, axis);
         const along = this.#round ? alongRow(normal) : 0;
-        this.#place(id, layer.index, side, 'chain', [], this.#point(up(top, -6), axis), along, W * 0.7);
+        this.#place(id, layer.index, side, 'chain', [], this.#point(up(chainLine, -6), axis), along, W * 0.7);
         continue;
       }
       // A hibás célpontú szem talpa a saját oszlopában, ennek a sornak a talpvonalán:
@@ -894,6 +953,41 @@ class Layouter {
     const targetLayer = target === undefined ? below : (this.#graph.layerOf.get(target) ?? below);
     const line = targetLayer >= below ? base : (this.#base[targetLayer + 1] ?? base);
     return this.#point(line, axis);
+  }
+
+  /**
+   * Egy láncív elrendezése (PQW-951): a láncszemek a két rögzített szem
+   * közötti helyet EGYENLŐEN osztják el, és ami vízszintesen nem fér el, az
+   * fölfelé megy.
+   *
+   * A tulajdonos döntése: *„a pálca nem mozdul, a láncszemek tömörödnek, lapos
+   * íven mennek körbe”*. Ezért a szomszédok helyét soha nem vesszük el: a
+   * láncszemek féltávolsága a rés n-ed részére csökken, a jelük ugyanennyire.
+   *
+   * Az emelés a HIÁNYBÓL adódik, nem díszként: n láncszem természetes hossza
+   * `n · 0,7W`; amivel ez a húrnál hosszabb, annyival domborodik. Parabolánál a
+   * többlethossz `8h²/3c`, ebből `h = √(3·c·hiány/8)`. A tulajdonos „lapos”
+   * ívet kért, ezért a magasság legfeljebb a sor feléig ér — ami így sem fér
+   * el, azt a tömörödés veszi fel.
+   */
+  #arc(run: Item[], from: number, direction: number, space: number, before: number, stitchHeight: number): Arc {
+    const n = run.length;
+    const slice = space / n;
+    const start = from + direction * before;
+    run.forEach((item, i) => {
+      item.half = Math.min(item.half, slice / 2);
+      item.desired = start + direction * (i + 0.5) * slice;
+    });
+    const natural = this.#W * 0.7;
+    const missing = n * natural - space;
+    const sagitta = missing > 0 ? Math.sqrt((3 * space * missing) / 8) : 0;
+    return {
+      ids: run.map((item) => item.ids[0]!),
+      start,
+      end: start + direction * space,
+      rise: Math.min(sagitta, stitchHeight / 2, CHAIN_HEIGHT),
+      size: Math.min(natural, slice * 0.95),
+    };
   }
 
   #place(

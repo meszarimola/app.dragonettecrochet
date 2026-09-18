@@ -583,3 +583,85 @@ describe('az árva jelölés nem viszi el a láncszemet (PQW-938)', () => {
     assert.ok(near(chainX(dirty)[0], column, 1), 'árva jelölésekkel is a megmutatott oszlopban');
   });
 });
+
+/*
+ * PQW-951: több láncszem, mint ahány szemet áthidal — ez az ív.
+ *
+ * A tulajdonos a kagylós mintát rajzolta: rövidpálca, 5 láncszem, és a
+ * következő rövidpálca az alsó sor 5. szemébe. Korábban a láncszemek
+ * kitolták az oszlopából a rövidpálcát („ilyen csúnyán adja ki a
+ * mintakészítő”), most a rés jut nekik, és ami nem fér el, az fölfelé megy.
+ */
+describe('a láncszemsor íve (PQW-951)', () => {
+  /** Láncalap, majd: rövidpálca, `chainCount` láncszem, rövidpálca a 4. helyre. */
+  const arcPattern = (chainCount = 5) => {
+    let pattern = chains(emptyPattern(), 24);
+    pattern = ok(endRow(pattern));
+    pattern = ok(work(pattern, { def: 'sc', count: 1 }, 0));
+    pattern = ok(work(pattern, { def: 'ch', count: chainCount }, 1));
+    return ok(work(pattern, { def: 'sc', count: 1 }, 4));
+  };
+  const parts = (pattern) => {
+    const placed = layout(pattern);
+    const row = [...placed.nodes.values()].filter((node) => node.layer === 1);
+    return {
+      placed,
+      base: [...placed.nodes.values()].filter((node) => node.layer === 0).map((node) => node.top.x),
+      stitches: row.filter((node) => node.role === 'stitch'),
+      chains: row.filter((node) => node.role === 'chain'),
+    };
+  };
+
+  test('a rögzített szem a saját oszlopában marad, a lánc nem tolja ki', () => {
+    const { base, stitches } = parts(arcPattern());
+    // A láncalap jobbról balra: az utolsó szem az első célpont, a negyedik a második.
+    assert.deepEqual(
+      stitches.map((node) => node.top.x),
+      [base.at(-1), base.at(-5)],
+    );
+  });
+
+  test('a láncszemek a két szem között egyenletesen oszlanak el, és nem érnek egymásba', () => {
+    const { stitches, chains: arc } = parts(arcPattern());
+    const xs = arc.map((node) => node.top.x);
+    const steps = xs.slice(1).map((x, i) => xs[i] - x);
+    assert.equal(arc.length, 5);
+    assert.ok(steps.every((step) => near(step, steps[0])), `egyenletes: ${steps}`);
+    assert.ok(xs.every((x) => x < stitches[0].top.x && x > stitches[1].top.x), 'a két szem között');
+    assert.ok(
+      arc.every((node) => node.size <= steps[0] + 1e-6),
+      `a jel nem szélesebb a lépésköznél: ${arc[0].size} > ${steps[0]}`,
+    );
+  });
+
+  test('az ív a közepén emelkedik a legmagasabbra, és a végein megdől', () => {
+    const { chains: arc } = parts(arcPattern());
+    const ys = arc.map((node) => node.top.y);
+    const middle = ys[2];
+    assert.ok(middle < ys[0] && middle < ys[4], `a közepe följebb: ${ys}`);
+    assert.ok(near(ys[0], ys[4]) && near(ys[1], ys[3]), `szimmetrikus: ${ys}`);
+    assert.ok(near(arc[2].angle, 0), 'a tetején vízszintes');
+    assert.ok(arc[0].angle > 0.1 && arc[4].angle < -0.1, `a végei megdőlnek: ${arc.map((n) => n.angle)}`);
+  });
+
+  test('a sor nem lóg túl a láncalapon', () => {
+    const { base, placed } = parts(arcPattern());
+    const row = [...placed.nodes.values()].filter((node) => node.layer === 1).map((node) => node.top.x);
+    assert.ok(Math.max(...row) <= Math.max(...base) + 1e-6, 'jobbra nem');
+    assert.ok(Math.min(...row) >= Math.min(...base) - 1e-6, 'balra nem');
+  });
+
+  test('ahol a lánc elfér, marad laposan: 3 láncszem 3 kihagyott szem fölött', () => {
+    let pattern = chains(emptyPattern(), 24);
+    pattern = ok(endRow(pattern));
+    pattern = ok(work(pattern, { def: 'sc', count: 1 }, 0));
+    pattern = ok(work(pattern, { def: 'ch', count: 3 }, 1));
+    pattern = ok(work(pattern, { def: 'sc', count: 1 }, 4));
+    const { chains: flat } = parts(pattern);
+    assert.equal(flat.length, 3);
+    assert.ok(
+      flat.every((node) => near(node.top.y, flat[0].top.y) && node.angle === 0),
+      'egy vonalban, dőlés nélkül',
+    );
+  });
+});

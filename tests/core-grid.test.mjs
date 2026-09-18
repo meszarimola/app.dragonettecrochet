@@ -422,3 +422,77 @@ describe('a láncalap cellahatárai a beszúráshoz (PQW-941)', () => {
     assert.equal(seamAt(grid, { x: cells[1].area.x1, y: (above.area.y0 + above.area.y1) / 2 }), null, 'a 2. sorban nem');
   });
 });
+
+/*
+ * PQW-951: a láncív saját cellái. A tulajdonos: „ha több cellára van szükség,
+ * akkor legyen úgy… csak hogy lenn pl van 3, felül meg 5.”
+ */
+describe('a láncív cellái (PQW-951)', () => {
+  const arcPattern = () => {
+    let pattern = ok(work(emptyPattern(), { def: 'ch', count: 24 }, 0));
+    pattern = ok(endRow(pattern));
+    pattern = ok(work(pattern, { def: 'sc', count: 1 }, 0));
+    pattern = ok(work(pattern, { def: 'ch', count: 5 }, 1));
+    return ok(work(pattern, { def: 'sc', count: 1 }, 4));
+  };
+  const rowCells = (grid, layer) => grid.cells.filter((cell) => cell.layer === layer);
+
+  test('az 5 láncszem 5 cellát kap az alsó 3 cella helyén, ugyanazon a szakaszon', () => {
+    const pattern = arcPattern();
+    const { grid } = build(pattern);
+    const stitches = rowCells(grid, 1).filter((cell) => cell.node !== null && cell.slot !== null);
+    const arc = rowCells(grid, 1).slice(1, 6);
+    assert.equal(arc.length, 5);
+    assert.ok(
+      arc.every((cell) => cell.node !== null),
+      'mind az öt cellának van szeme',
+    );
+    // A két rögzített szem közötti szakaszt osztják fel, lent három szem áll alatta.
+    const below = rowCells(grid, 0).slice(1, 4);
+    assert.ok(near(arc[0].area.x1, below[0].area.x1) || arc[0].area.x1 <= below[0].area.x1 + 24, 'a szakasz nem nő');
+    const widths = arc.map((cell) => cell.area.x1 - cell.area.x0);
+    assert.ok(
+      widths.every((width) => width < below[0].area.x1 - below[0].area.x0),
+      `az ív cellái keskenyebbek az alattuk lévőknél: ${widths}`,
+    );
+    assert.ok(stitches.length >= 7, 'a sor minden jele cellát kapott');
+  });
+
+  test('a cellák sorrendje és célpontja nem borul fel', () => {
+    const { grid } = build(arcPattern());
+    const cells = rowCells(grid, 1);
+    const slots = cells.map((cell) => cell.slot).filter((slot) => slot !== null);
+    assert.deepEqual(
+      slots,
+      [...slots].sort((a, b) => a - b),
+      `a célpontok a sor mentén nőnek: ${slots}`,
+    );
+    const widths = cells.map((cell) => cell.area.x1 - cell.area.x0);
+    assert.ok(Math.min(...widths) > 5, `nincs elfajult cella: ${Math.min(...widths)}`);
+  });
+
+  test('a készülő sor sávja nem szélesebb a láncalapénál', () => {
+    const { grid } = build(arcPattern());
+    const base = grid.bands.find((band) => band.layer === 0);
+    const row = grid.bands.find((band) => band.layer === 1);
+    assert.ok(row.area.x1 <= base.area.x1 + 1e-6 && row.area.x0 >= base.area.x0 - 1e-6, 'a sáv a láncalapon belül');
+  });
+
+  test('az ív alatt áthidalt szem lezárt sorban sem kap üres cellát, a ki nem horgolt sorvég igen', () => {
+    const pattern = ok(endRow(arcPattern()));
+    const { grid } = build(pattern);
+    const piece = pattern.pieces[0];
+    // A két rövidpálca közé eső, áthidalt szemek: fölöttük ott az ív.
+    const worked = new Set(piece.stitches.flatMap((stitch) => stitch.anchors.map((anchor) => anchor.id)));
+    const base = piece.stitches.filter((stitch) => stitch.def === 'ch').map((stitch) => stitch.id).slice(0, 24);
+    const marks = base.map((id, index) => (worked.has(id) ? index : -1)).filter((index) => index >= 0);
+    const inside = new Set(base.filter((id, index) => index > marks[0] && index < marks.at(-1) && piece.skipped.includes(id)));
+    assert.ok(inside.size === 3, `az ív három szemet hidal át: ${inside.size}`);
+    const gaps = rowCells(grid, 1).filter((cell) => cell.gap !== null);
+    assert.ok(
+      gaps.every((cell) => !inside.has(cell.gap)),
+      'az ív alatti szemek nem lyukak',
+    );
+    assert.ok(gaps.length > 0, 'a sor végén ki nem horgolt szemek viszont azok');
+  });
+});
