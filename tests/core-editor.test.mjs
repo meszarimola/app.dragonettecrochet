@@ -499,3 +499,50 @@ describe('a láncszem a megmutatott oszlopba kerül (PQW-935)', () => {
     assert.deepEqual(bridged(back), []);
   });
 });
+
+/*
+ * A korábbi verziókból örökölt, gazdátlan áthidalás-jelölések (PQW-939).
+ *
+ * A jelölés az alatta lévő SZEMRE mutat, ezért a fölötte lévő láncszem
+ * törlésekor korábban ott maradt. A régi mentések ezt magukkal hozzák, és a
+ * rajz az árva jelölést adta oda az új láncszemnek: a tulajdonos által
+ * megmutatott oszlop helyett a lánc közvetlenül az előtte lévő szem mellé
+ * került. Szó szerint: „a 2. sor utolsó láncszemét azt közvetlenül az erp után
+ * teszi… pedig kihagytam cellákat.”
+ *
+ * A minta ezért minden szerkesztéssel tisztul, nem csak törléskor.
+ */
+describe('a minta kitisztul az árva áthidalásokból (PQW-939)', () => {
+  const row = () => {
+    let pattern = ok(endRow(chains(emptyPattern(), 22), 'sc'));
+    for (const def of ['sc', 'sc']) {
+      pattern = ok(work(pattern, { def, count: 1 }, defaultCursor(pattern, contextOf(pattern), def)));
+    }
+    const slot = defaultCursor(pattern, contextOf(pattern), 'dc');
+    return { pattern: ok(work(pattern, { def: 'dc', count: 1 }, slot)), slot };
+  };
+
+  /** Ugyanaz a minta, de a megadott célpontokon gazdátlan jelöléssel. */
+  const withOrphans = (pattern, slots) => {
+    const piece = pattern.pieces[0];
+    const orphans = slots.map((i) => contextOf(pattern).slots[i].id);
+    return { ...pattern, pieces: [{ ...piece, skipped: [...piece.skipped, ...orphans] }, ...pattern.pieces.slice(1)] };
+  };
+
+  test('az új láncszem a megmutatott helyet foglalja el, nem az árvát', () => {
+    const { pattern, slot } = row();
+    const dirty = withOrphans(pattern, [slot + 1, slot + 2]);
+
+    const placed = ok(work(dirty, { def: 'ch', count: 1 }, slot + 3));
+    assert.deepEqual(placed.pieces[0].skipped, [contextOf(pattern).slots[slot + 3].id], 'csak a megmutatott hely marad');
+  });
+
+  test('a takarítás nem nyúl a jogos jelölésekhez', () => {
+    const { pattern, slot } = row();
+    const withChain = ok(work(pattern, { def: 'ch', count: 2 }, slot + 1));
+    assert.equal(withChain.pieces[0].skipped.length, 2, 'két láncszem két helyet foglal');
+
+    const again = ok(work(withChain, { def: 'ch', count: 1 }, slot + 4));
+    assert.equal(again.pieces[0].skipped.length, 3, 'a korábbi kettő megmarad, az új mellé');
+  });
+});
