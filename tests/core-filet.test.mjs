@@ -111,7 +111,7 @@ describe('sor, láncalap és fordulólánc (03 §5.2, §10 G32)', () => {
     const { pattern } = make(cyc(), chart('.##', '###'));
     const [, , row2] = lines(pattern);
     // A sor első oszlopa valódi pálca, utána a nyitott cella két láncszeme (PQW-924).
-    assert.match(row2, /^3\. sor: 3 lsz \(fordulólánc\), 1 erp, 2 lsz, 2 szem kihagyása, /);
+    assert.match(row2, /^3\. sor: 3 lsz \(1 erp-nek számít\), 1 erp, 2 lsz, 2 szem kihagyása, /);
     assert.equal(graphOf(pattern).layers[2].turningChain.length, 3);
     assert.deepEqual(findings(pattern), []);
   });
@@ -124,7 +124,7 @@ describe('sor, láncalap és fordulólánc (03 §5.2, §10 G32)', () => {
      * A kihagyás a pálca szerinti 3 láncszem (PQW-924); a nyitott cella két
      * láncszeme és két kihagyott láncszeme már a sorhoz tartozik.
      */
-    assert.equal(row1, '2. sor: hagyj ki 3 láncszemet, majd 1 erp, 2 lsz, 2 láncszem kihagyása, 10 erp (11 szem). A fonal elvágása.');
+    assert.equal(row1, '2. sor: hagyj ki 3 láncszemet, majd 1 erp, 2 lsz, 2 láncszem kihagyása, 10 erp (14 szem). A fonal elvágása.');
     assert.match(lines(pattern, 'en-US')[1], /^Row 2: skip 3 ch, /);
   });
 });
@@ -163,7 +163,7 @@ describe('alakítás egész cellánként (03 §10 F30)', () => {
     assert.deepEqual(findings(pattern), []);
     const [, row1, row2] = lines(pattern);
     assert.match(row1, /, 3 lsz \(\d+ szem\)\. Fordítás\.$/);
-    assert.match(row2, /^3\. sor: 3 lsz \(fordulólánc\), 13 erp /);
+    assert.match(row2, /^3\. sor: 3 lsz \(1 erp-nek számít\), 13 erp /);
   });
 
   test('a sor elején fogyasztás kúszószemekkel a cellák fölött; a fordulólánc az oszlopon áll (PQW-894)', () => {
@@ -178,7 +178,7 @@ describe('alakítás egész cellánként (03 §10 F30)', () => {
     assert.deepEqual(findings(pattern), []);
     const [, , row2] = lines(pattern);
     // A fordulólánc nem ül oszlopon, ezért eggyel kevesebb kúszószem és eggyel több pálca (PQW-924).
-    assert.match(row2, /^3\. sor: 3 ksz, 3 lsz \(fordulólánc\), 10 erp \(10 szem\)\. A fonal elvágása\.$/);
+    assert.match(row2, /^3\. sor: 3 ksz, 3 lsz \(1 erp-nek számít\), 10 erp \(11 szem\)\. A fonal elvágása\.$/);
   });
 
   test('a sor végén szélesítés: három láncszem, ahogy a sor elején is (03 §5.2, PQW-924)', () => {

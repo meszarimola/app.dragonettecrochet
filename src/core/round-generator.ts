@@ -458,7 +458,7 @@ function grannySquare(writer: Writer, options: MotifOptions): CoreText<MotifCode
 function withStatedCounts(pattern: Pattern, piece: Piece): Piece {
   const graph = buildPieceGraph({ ...pattern, pieces: [piece] }, piece, libraryFor({ ...pattern, pieces: [piece] }));
   const stated = new Map<NodeId, number>();
-  for (const layer of graph.layers.slice(1)) if (layer.closing) stated.set(layer.closing.after, layer.stitchCount);
+  for (const layer of graph.layers.slice(1)) if (layer.closing) stated.set(layer.closing.after, layer.writtenCount);
   return {
     ...piece,
     events: piece.events.map((event) => (stated.has(event.after) ? { ...event, statedCount: stated.get(event.after)! } : event)),

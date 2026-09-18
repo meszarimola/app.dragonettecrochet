@@ -11,6 +11,6 @@ double crochet (dc)
 
 Pálcás téglalap
 Row 1 – foundation: ch 19.
-Row 2: skip 3 ch, dc in each ch across (16 sts). Turn.
-Rows 3–16: ch 3 (turning chain), 16 dc (16 sts). Turn.
-Row 17: ch 3 (turning chain), 16 dc (16 sts). Fasten off.
+Row 2: skip 3 ch, dc in each ch across (17 sts). Turn.
+Rows 3–16: ch 3 (counts as 1 dc), 16 dc (17 sts). Turn.
+Row 17: ch 3 (counts as 1 dc), 16 dc (17 sts). Fasten off.

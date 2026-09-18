@@ -93,7 +93,7 @@ export function rowCaptions(layout: ChartLayout, tradition: Tradition): RowCapti
     if (layer.index > 0 && layer.stitchCount === 0) continue;
     const round = layer.shape === 'round';
     // A láncalap szemszámát a mag nem tartja nyilván (a 0. réteg 0-t mond), a rajz a saját jeleiből számolja.
-    const stitches = layer.index === 0 ? (round ? null : count) : layer.stitchCount;
+    const stitches = layer.index === 0 ? (round ? null : count) : layer.writtenCount;
     out.push({
       layer: layer.index,
       text: captions.rowLabel(layer.index, round, stitches),

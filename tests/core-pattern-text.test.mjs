@@ -176,8 +176,8 @@ describe('összevonás és a legrövidebb ismétlődő egység (06 §5.3 pont 5)
   test('az azonos sorok egy sorba kerülnek, a befejező sor külön', () => {
     const { pieces } = writePattern(hdcRectangle({ rows: 4 }).pattern, testLibrary, 'hu');
     assert.deepEqual(pieces[0].lines.slice(2), [
-      '3–4. sor: 2 lsz (fordulólánc), 15 fp (15 szem). Fordítás.',
-      '5. sor: 2 lsz (fordulólánc), 15 fp (15 szem). A fonal elvágása.',
+      '3–4. sor: 2 lsz (1 fp-nek számít), 15 fp (16 szem). Fordítás.',
+      '5. sor: 2 lsz (1 fp-nek számít), 15 fp (16 szem). A fonal elvágása.',
     ]);
   });
 });
@@ -186,34 +186,34 @@ describe('összevonás és a legrövidebb ismétlődő egység (06 §5.3 pont 5)
 
 describe('a minta konvenciói a szövegben', () => {
   /*
-   * A soronkénti „itt a fordulólánc szemnek számít” felülírás a PQW-924 óta
-   * értelmét vesztette: sorban a fordulólánc soha nem szem. A szöveg ezért nem
-   * is hordozza, a betöltő pedig az ilyen régi mentést érthetően elutasítja.
+   * A fordulólánc sorban is a sor első szeme (PQW-940), ezért a szöveg ki is
+   * mondja: „3 lsz (1 erp-nek számít)”. Ahol a sor beállítása mást mond — a
+   * bordás sor (ribbing.ts) —, ott a szöveg „fordulóláncot” ír, és a
+   * visszaolvasó a sort megnyitó eseményre teszi vissza a felülírást.
    */
-  test('a soronkénti fordulólánc-felülírás nem jelenik meg a szövegben, és a régi alakot a betöltő elutasítja', () => {
+  test('a fordulólánc a sorban is szem, és a soronkénti felülírás oda-vissza megy a szövegen', () => {
     const example = dcRectangle({ rows: 2 });
     const piece = example.pattern.pieces[0];
-    const events = piece.events.map((event) => ({ ...event, statedCount: 16 }));
-    const pattern = { ...example.pattern, pieces: [{ ...piece, events }] };
-
-    const text = textOf(pattern, 'hu');
-    assert.match(text, /3\. sor: 3 lsz \(fordulólánc\), 16 erp \(16 szem\)\. A fonal elvágása\./);
-    assert.doesNotMatch(text, /-nek számít|-nak számít/);
-    const result = readBack(text, pattern, 'hu');
+    const text = textOf(example.pattern, 'hu');
+    assert.match(text, /3\. sor: 3 lsz \(1 erp-nek számít\), 16 erp \(17 szem\)\. A fonal elvágása\./);
+    const result = readBack(text, example.pattern, 'hu');
     assert.ok(result.ok, JSON.stringify(result.error));
-    assert.equal(result.pattern.pieces[0].events[0].conventions, undefined, 'nincs soronkénti felülírás');
+    assert.equal(result.pattern.pieces[0].events[0].conventions, undefined, 'nincs felesleges felülírás');
 
-    // A régi alakot a betöltő elutasítja, megnevezve az okot és a teendőt.
-    const old = text.replace('3 lsz (fordulólánc)', '3 lsz (1 erp-nek számít)');
-    const rejected = readBack(old, pattern, 'hu');
-    assert.equal(rejected.ok, false);
-    assert.match(rejected.error.message, /korábbi szabály szerint készült/);
+    // Soronkénti felülírás: a fordulólánc itt nem szem, és a szöveg ezt viszi át.
+    const events = piece.events.map((event, i) => (i === 0 ? { ...event, conventions: { turningChainCounts: false }, statedCount: 16 } : event));
+    const override = { ...example.pattern, pieces: [{ ...piece, events }] };
+    const overridden = textOf(override, 'hu');
+    assert.match(overridden, /3\. sor: 3 lsz \(fordulólánc\), 16 erp \(16 szem\)\./);
+    const back = readBack(overridden, override, 'hu');
+    assert.ok(back.ok, JSON.stringify(back.error));
+    assert.deepEqual(back.pattern.pieces[0].events[0].conventions, { turningChainCounts: false });
   });
 
   test('a számító kúszószem a szemszámban (szókészlet D7), és visszaolvasható', () => {
     const example = grannySquare();
     const conventions = { ...example.pattern.conventions, joinSlipStitchCounts: true };
-    const counts = [21, 40, 40];
+    const counts = [21, 40, 56];
     const piece = example.pattern.pieces[0];
     const pattern = {
       ...example.pattern,
@@ -222,7 +222,7 @@ describe('a minta konvenciói a szövegben', () => {
     };
     const text = textOf(pattern, 'en-US');
     // Körben a szemszám egység nélkül áll: „(21)” (04 §5.9, PQW-861).
-    assert.match(text, /\(21\)\.[\s\S]*\(40\)\.[\s\S]*\(40\)\./);
+    assert.match(text, /\(21\)\.[\s\S]*\(40\)\.[\s\S]*\(56\)\./);
     const result = readBack(text, pattern, 'en-US');
     assert.ok(result.ok, JSON.stringify(result.error));
     assert.deepEqual(canonicalPattern(result.pattern), canonicalPattern(pattern));
@@ -257,16 +257,16 @@ describe('a minta konvenciói a szövegben', () => {
  * az utolsó szem is hátsó szálba megy az előző fordulólánc tetejébe.
  */
 function backLoopRows() {
-  // 6 láncszem, rövidpálcánál 2 kihagyás: soronként 4 szem; a fordulólánc nem szem (PQW-924).
+  // 6 láncszem, rövidpálcánál 2 kihagyás: soronként 4 rövidpálca, a fordulólánccal együtt 5 szem (PQW-940).
   const b = new PieceBuilder('p1', 'Hátsó szálas csík');
   const foundation = b.chain(6);
   let row = foundation.slice(0, 4).reverse().map((id) => b.stitch('sc', id));
-  b.event('turn', 4);
+  b.event('turn', 5);
   for (let r = 2; r <= 3; r += 1) {
     b.chain(1);
     const targets = [...row].reverse();
     row = targets.map((id) => b.stitch('sc', { into: 'stitch', id, mode: 'back-loop' }));
-    b.event(r === 3 ? 'fasten-off' : 'turn', 4);
+    b.event(r === 3 ? 'fasten-off' : 'turn', 5);
   }
   return patternOf('Hátsó szálas csík', [b.build()]);
 }
@@ -274,14 +274,14 @@ function backLoopRows() {
 describe('beszúrási mód: visszai soron az első és a hátsó szál megfordul (03 §2.1)', () => {
   test('magyarul: a színoldali hátsó szál a visszai soron első szál', () => {
     const lines = writePattern(backLoopRows(), testLibrary, 'hu').pieces[0].lines;
-    assert.equal(lines[2], '3. sor: 1 lsz (fordulólánc), 4 rp (esz) (4 szem). Fordítás.');
-    assert.equal(lines[3], '4. sor: 1 lsz (fordulólánc), 4 rp (hsz) (4 szem). A fonal elvágása.');
+    assert.equal(lines[2], '3. sor: 1 lsz (1 rp-nek számít), 4 rp (esz) (5 szem). Fordítás.');
+    assert.equal(lines[3], '4. sor: 1 lsz (1 rp-nek számít), 4 rp (hsz) (5 szem). A fonal elvágása.');
   });
 
   test('angolul: FLO a visszai, BLO a színoldali soron', () => {
     const lines = writePattern(backLoopRows(), testLibrary, 'en-US').pieces[0].lines;
-    assert.match(lines[2], /4 sc FLO \(4 sts\)/);
-    assert.match(lines[3], /4 sc BLO \(4 sts\)/);
+    assert.match(lines[2], /4 sc FLO \(5 sts\)/);
+    assert.match(lines[3], /4 sc BLO \(5 sts\)/);
   });
 
   for (const locale of LOCALES) {
@@ -397,27 +397,27 @@ describe('visszaolvasás: eltérés esetén pontos hibaüzenet', () => {
   });
 
   test('rossz szemszám: a sor és a két szám', () => {
-    const wrong = text.replace('minden láncszembe 1 fp (15 szem). Fordítás.', 'minden láncszembe 1 fp (16 szem). Fordítás.');
+    const wrong = text.replace('minden láncszembe 1 fp (16 szem). Fordítás.', 'minden láncszembe 1 fp (17 szem). Fordítás.');
     assert.notEqual(wrong, text);
     const result = readBack(wrong, pattern, 'hu');
     assert.deepEqual(result, {
       ok: false,
-      error: { line: lineOf('2. sor:'), message: '2. sor: a szöveg 16 szemet ír, a visszaolvasott gráf szerint 15.' },
+      error: { line: lineOf('2. sor:'), message: '2. sor: a szöveg 17 szemet ír, a visszaolvasott gráf szerint 16.' },
     });
   });
 
   test('több szem, mint amennyi az előző sorban van', () => {
-    const result = readBack(text.replace('3. sor: 2 lsz (fordulólánc), 15 fp', '3. sor: 2 lsz (fordulólánc), 16 fp'), pattern, 'hu');
+    const result = readBack(text.replace('3. sor: 2 lsz (1 fp-nek számít), 15 fp', '3. sor: 2 lsz (1 fp-nek számít), 16 fp'), pattern, 'hu');
     assert.deepEqual(result.error, { line: lineOf('3. sor:'), message: 'Nincs több szem az előző sorban ehhez: „16 fp”.' });
   });
 
   test('ismeretlen tétel', () => {
-    const result = readBack(text.replace('15 fp (15 szem). A fonal', '15 hamispálca (15 szem). A fonal'), pattern, 'hu');
+    const result = readBack(text.replace('15 fp (16 szem). A fonal', '15 hamispálca (16 szem). A fonal'), pattern, 'hu');
     assert.deepEqual(result.error, { line: lineOf('3. sor:'), message: 'Nem értelmezhető tétel: „15 hamispálca”.' });
   });
 
   test('hiányzó sorvég egy közbülső sorban', () => {
-    const result = readBack(text.replace('(15 szem). Fordítás.', '(15 szem).'), pattern, 'hu');
+    const result = readBack(text.replace('(16 szem). Fordítás.', '(16 szem).'), pattern, 'hu');
     assert.deepEqual(result.error, { line: lineOf('2. sor:'), message: 'A sor vége hiányzik: fordítás, a kör zárása vagy a fonal elvágása.' });
   });
 

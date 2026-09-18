@@ -313,14 +313,14 @@ describe('amigurumi, elrontva (04 §5.4, §5.7, PQW-863)', () => {
 describe('a megadott szemszám a láncszemek számolása szerint (03 §10 B10, PQW-870)', () => {
   const withChainCounts = (example, chainCounts) => ({ ...example.pattern, conventions: { ...example.pattern.conventions, chainCounts } });
 
-  test('ha egyik láncszem sem számít, az 1. sor láncívekkel megadott szemszáma hibás', () => {
+  test('ha egyik láncszem sem számít, mindkét sor megadott szemszáma hibás', () => {
     const example = vStitchPattern();
-    assertOnly(withChainCounts(example, false), 'stated-count', [[example.rows[1].at(-1)]]);
+    assertOnly(withChainCounts(example, false), 'stated-count', [[example.rows[1].at(-1)], [example.rows[2].at(-1)]]);
   });
 
-  test('ha minden láncszem számít, az utolsó sor díszívek nélkül megadott szemszáma hibás', () => {
+  test('ha csak a belehorgolt láncszemek számítanak, az utolsó sor díszíveivel megadott szemszáma hibás', () => {
     const example = vStitchPattern();
-    assertOnly(withChainCounts(example, true), 'stated-count', [[example.rows[2].at(-1)]]);
+    assertOnly(withChainCounts(example, 'worked-into'), 'stated-count', [[example.rows[2].at(-1)]]);
   });
 });
 

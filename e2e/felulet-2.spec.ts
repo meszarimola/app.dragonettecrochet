@@ -83,18 +83,18 @@ test('a Ctrl+C és a Ctrl+V a vásznon másol és illeszt, a szövegmezőben vis
   await rectangle(page, 5, 2);
   const summary = page.locator('#summary');
   const status = page.locator('#status');
-  await expect(summary).toContainText('3. sor: 5 szem');
+  await expect(summary).toContainText('3. sor: 6 szem');
 
   // A vásznon: a sorszámmal kijelölt sor a vágólapra, majd új sorként vissza.
   const label = (await labels(page)).find((candidate) => candidate.layer === 2);
   expect(label, 'a 3. sor sorszáma').toBeTruthy();
   await page.mouse.click(label!.x, label!.y);
-  await expect(status).toHaveText('3. sor kijelölve: 5 szem.');
+  await expect(status).toHaveText('3. sor kijelölve: 6 szem.');
 
   await page.keyboard.press('ControlOrMeta+c');
   await expect(status).toContainText('a vágólapon');
   await page.keyboard.press('ControlOrMeta+v');
-  await expect(summary).toContainText('3 sor. 4. sor: 5 szem.');
+  await expect(summary).toContainText('3 sor. 4. sor: 6 szem.');
   await expect(summary).toContainText('Nincs hiba és figyelmeztetés.');
 
   /*
@@ -128,7 +128,7 @@ test('a Ctrl+C és a Ctrl+V a vásznon másol és illeszt, a szövegmezőben vis
   expect(await log(), 'a szövegmezőben a böngésző alapértelmezése marad').toEqual([false, false]);
   await expect(title).toHaveValue('Nyári kendő');
   // A mintán semmi nem változott: a mező billentyűi nem jutottak el a vászonhoz.
-  await expect(summary).toContainText('3 sor. 4. sor: 5 szem.');
+  await expect(summary).toContainText('3 sor. 4. sor: 6 szem.');
 
   // A vásznon ugyanez a két billentyű a szerkesztőé.
   await page.locator('#board').focus();

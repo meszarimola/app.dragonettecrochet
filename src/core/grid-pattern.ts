@@ -94,7 +94,7 @@ export function gridPiece(pattern: Pattern, name: string, writer: GridWriter, gr
   const whole = { ...pattern, pieces: [piece] };
   const graph = buildPieceGraph(whole, piece, libraryFor(whole));
   const stated = new Map<NodeId, number>();
-  for (const layer of graph.layers.slice(1)) if (layer.closing) stated.set(layer.closing.after, layer.stitchCount);
+  for (const layer of graph.layers.slice(1)) if (layer.closing) stated.set(layer.closing.after, layer.writtenCount);
   return { ...piece, events: piece.events.map((event) => ({ ...event, statedCount: stated.get(event.after)! })) };
 }
 

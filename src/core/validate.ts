@@ -455,7 +455,7 @@ function checkCountsAndChains(graph: PieceGraph, index: number, report: Report):
   const below = graph.layers[index - 1]!;
   const kind = (id: NodeId) => graph.defs.get(id)!.kind;
 
-  if (layer.closing?.statedCount !== undefined && layer.closing.statedCount !== layer.stitchCount) {
+  if (layer.closing?.statedCount !== undefined && layer.closing.statedCount !== layer.writtenCount) {
     report('stated-count', [layer.closing.after]);
   }
 
