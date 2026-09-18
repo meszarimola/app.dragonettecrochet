@@ -39,7 +39,6 @@ export interface Scene {
   readonly layout: ChartLayout;
   readonly library: StitchLibrary;
   readonly targets: readonly Target[];
-  readonly cursor: number | null;
   readonly hover: number | null;
   readonly selected: NodeId | null;
   /** A kijelölt szemek (PQW-875); a `selected` ezek közül a fókusz. */
@@ -637,17 +636,15 @@ export class Board {
       ctx.setLineDash([]);
     }
 
+    /*
+     * A kurzor korikája lekerült a rajzról (PQW-947). A tulajdonos kétszer is
+     * kérte: „ez a kis hülye lila kör még mindig ott van”. A szabad célpontok
+     * pöttye marad, és az egér alatti célpont továbbra is kigyűrűzik.
+     */
     scene.targets.forEach((target, i) => {
-      if (target.used && i !== scene.cursor && i !== scene.hover) return;
+      if (target.used && i !== scene.hover) return;
       ctx.beginPath();
-      if (i === scene.cursor) {
-        applyInk(ctx, colors.accent, Math.max(2.5, 2 / scale));
-        ctx.globalAlpha = 0.25;
-        ctx.arc(target.point.x, target.point.y, 10, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalAlpha = 1;
-        ctx.stroke();
-      } else if (i === scene.hover) {
+      if (i === scene.hover) {
         applyInk(ctx, colors.accent, Math.max(1.5, 1 / scale));
         ctx.arc(target.point.x, target.point.y, 8, 0, Math.PI * 2);
         ctx.stroke();
