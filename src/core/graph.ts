@@ -417,6 +417,22 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     });
   });
 
+  /*
+   * A láncalap szemszáma (PQW-942). Az 1. sor fordulólánca a láncalap saját
+   * láncszemeiből lesz: azok kikerülnek a láncalapból, és FÜGGŐLEGESEN állnak
+   * össze egyetlen oszlopba. Az az oszlop a láncalapé is — a fordulólánc
+   * talpa ott van —, ezért a láncalap szemszáma a megmaradt láncszemei plusz
+   * egy. 10 láncszemből 3 fordulóláncnál: 10 − 3 + 1 = 8.
+   *
+   * Ha a sor a láncalap utolsó szemében kezdődik, nincs fordulólánc, és a
+   * láncalap a saját hosszát mondja.
+   */
+  const base = layers[0];
+  if (base !== undefined && base.shape === 'row') {
+    const risen = (layers[1]?.turningChain.length ?? 0) > 0 ? 1 : 0;
+    layers[0] = { ...base, writtenCount: base.positionCount + risen };
+  }
+
   return { piece, nodes, order, defs, spaces, rings, spaceOfChain, groupOf, layerOf, layers };
 }
 

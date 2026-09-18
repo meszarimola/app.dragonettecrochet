@@ -20,7 +20,8 @@ import {
   work,
   workIntoSame,
 } from '../src/core/editor.ts';
-import { computeLayers } from '../src/core/graph.ts';
+import { buildPieceGraph, computeLayers } from '../src/core/graph.ts';
+import { layoutPattern } from '../src/core/layout.ts';
 import { loadPattern, savePattern } from '../src/core/pattern-json.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
 import { validatePattern } from '../src/core/validate.ts';
@@ -606,5 +607,53 @@ describe('a sor kiírt szemszáma a fordulólánccal és a láncszemekkel (PQW-9
     const withChains = put(pattern, 'ch', 3);
     const after = computeLayers(withChains, libraryFor(withChains))[1].writtenCount;
     assert.equal(after - before, 3, 'a három láncszem hárommal emeli a szemszámot');
+  });
+});
+
+/*
+ * A láncalap szemszáma (PQW-942). A tulajdonos jelentése: „a kulcs/hiba akkor
+ * van, amikor függőlegessé válik kettő vagy annál több szem.”
+ *
+ * Az 1. sor fordulólánca a láncalap SAJÁT láncszemeiből lesz: azok kikerülnek a
+ * láncalapból, és függőlegesen állnak össze egy oszlopba. Az az oszlop a
+ * láncalapé is, mert a fordulólánc talpa ott van — ezért a láncalap szemszáma a
+ * megmaradt láncszemei plusz egy. A tulajdonos példája: „10 − 3 + 1 = 8”.
+ */
+describe('a láncalap szemszáma a fordulólánc oszlopával (PQW-942)', () => {
+  /** A láncalap és a rá horgolt sor rétegei: `count` láncszem, egy erp a `cursor`. célpontba. */
+  const rows = (chains, cursor) => {
+    let pattern = ok(work(emptyPattern(), { def: 'ch', count: chains }, 0));
+    pattern = ok(endRow(pattern, 'dc'));
+    pattern = ok(work(pattern, { def: 'dc', count: 1 }, cursor));
+    const library = libraryFor(pattern);
+    // A `computeLayers` a fordulóláncot nem adja vissza, ezért a teljes gráf kell.
+    return { layers: buildPieceGraph(pattern, pattern.pieces[0], library).layers, pattern };
+  };
+
+  test('1. eset: 10 láncszem, a 3 láncszemes fordulólánc után a láncalap 8', () => {
+    const { layers } = rows(10, 3);
+    assert.equal(layers[1].turningChain.length, 3, 'három láncszem fordul függőlegesbe');
+    assert.equal(layers[0].positionCount, 7, 'hét láncszem marad a láncalapban');
+    assert.equal(layers[0].writtenCount, 8, '10 − 3 + 1');
+  });
+
+  test('2. eset: fordulólánc nélkül a láncalap a saját hosszát mondja', () => {
+    const { layers } = rows(12, 0);
+    assert.equal(layers[1].turningChain.length, 0, 'a sor a legutolsó láncszemben kezdődik');
+    assert.equal(layers[0].writtenCount, 12);
+  });
+
+  test('3. eset: 12 láncszem, a 2 láncszemes fordulólánc után a láncalap 11', () => {
+    const { layers } = rows(12, 2);
+    assert.equal(layers[1].turningChain.length, 2);
+    assert.equal(layers[0].writtenCount, 11, '12 − 2 + 1');
+  });
+
+  test('a fordulólánc egyetlen oszlopban áll, nem szétterítve', () => {
+    const { pattern } = rows(10, 3);
+    const layout = layoutPattern(pattern, libraryFor(pattern));
+    const [, row] = buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern)).layers;
+    const columns = new Set(row.turningChain.map((id) => layout.nodes.get(id).top.x));
+    assert.equal(columns.size, 1, 'a három láncszem egymás fölött');
   });
 });

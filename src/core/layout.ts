@@ -420,7 +420,8 @@ class Layouter {
       shape: layer.shape,
       side,
       stitchCount: 0,
-      writtenCount: 0,
+      // A láncalap kiírt szemszáma a gráfé: a megmaradt láncszemei és a fordulólánc oszlopa (PQW-942).
+      writtenCount: layer.writtenCount,
       start: this.#round ? { x: 0, y: 0 } : { x: -this.#W, y: 0 },
       end: this.#round ? { x: 0, y: 0 } : { x: last + this.#W, y: 0 },
     });
