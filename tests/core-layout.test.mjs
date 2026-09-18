@@ -530,3 +530,56 @@ describe('a láncszemek résenként párosulnak az áthidalt helyekkel (PQW-936)
     }
   });
 });
+
+/*
+ * Az árva áthidalás-jelölések (PQW-938).
+ *
+ * A tulajdonos egyetlen láncszemet tett le a szaporítócsomó után, és az a sor
+ * túlsó felére került: „most valami nagyon rossz… a 3 erp után nézd hova tette
+ * az első láncszemet”, majd „pedig a második cellába kattintottam”.
+ *
+ * Az ok: a jelölés az alatta lévő SZEMRE mutat, amit a láncszem törlése nem
+ * érint, ezért a jelölés gazdátlanul ott maradt. A rajz pedig a rés jelölései
+ * KÖZÉ osztotta szét a láncszemet — harminc árva jelölésnél a sor közepére.
+ *
+ * Két kapu védi: a törlés eldobja a gazdátlan jelöléseket (core-editor), a
+ * rajz pedig a rés ELSŐ jelöléseit veszi, nem a közepét. Ez utóbbi itt a mérce.
+ */
+describe('az árva jelölés nem viszi el a láncszemet (PQW-938)', () => {
+  /** 40 láncszem, fordulás, két rövidpálca, majd három pálca egy célpontba. */
+  const cluster = () => {
+    let pattern = ok(endRow(chains(emptyPattern(), 40), 'sc'));
+    for (const def of ['sc', 'sc']) {
+      pattern = ok(work(pattern, { def, count: 1 }, defaultCursor(pattern, contextOf(pattern), def)));
+    }
+    const slot = defaultCursor(pattern, contextOf(pattern), 'dc');
+    const first = ok(work(pattern, { def: 'dc', count: 1 }, slot));
+    return { pattern: ok(workIntoSame(ok(workIntoSame(first, 'dc', slot)), 'dc', slot)), slot };
+  };
+
+  /** Ugyanaz a minta, de tele gazdátlan jelöléssel a sor további részén. */
+  const withOrphans = (pattern, from, count) => {
+    const piece = pattern.pieces[0];
+    const orphans = contextOf(pattern).slots.slice(from, from + count).map((slot) => slot.id);
+    return { ...pattern, pieces: [{ ...piece, skipped: [...piece.skipped, ...orphans] }, ...pattern.pieces.slice(1)] };
+  };
+
+  test('a láncszem a megmutatott oszlopban marad árva jelölések között is', () => {
+    const { pattern, slot } = cluster();
+    const placed = ok(work(pattern, { def: 'ch', count: 1 }, slot + 2));
+
+    const column = layout(placed).nodes.get(contextOf(placed).slots[slot + 2].id).top.x;
+    const chainX = (candidate) => {
+      const all = [...layout(candidate).nodes.values()].filter((node) => node.layer === 1 && node.role === 'chain');
+      const edge = Math.max(...all.map((node) => node.top.x));
+      return all.filter((node) => node.top.x < edge - 1).map((node) => node.top.x);
+    };
+
+    assert.deepEqual(chainX(placed).length, 1, 'egy láncszem áll a sorban');
+    assert.ok(near(chainX(placed)[0], column, 1), 'a megmutatott oszlopban');
+
+    // Húsz árva jelölés a sor további részén: a láncszem nem mozdul.
+    const dirty = withOrphans(placed, slot + 5, 20);
+    assert.ok(near(chainX(dirty)[0], column, 1), 'árva jelölésekkel is a megmutatott oszlopban');
+  });
+});
