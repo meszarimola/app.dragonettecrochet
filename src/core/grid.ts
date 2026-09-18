@@ -632,6 +632,45 @@ export function gridHit(grid: ChartGrid, p: Point): GridHit {
 }
 
 /**
+ * A láncalap két cellája közötti hely (PQW-941): ide szúrható be egy láncszem,
+ * miközben a fölötte lévő sor már készül.
+ *
+ * A `left` és a `right` a RAJZ szerinti két szomszéd; a lánc két szélén az
+ * egyik hiányzik. A `at` a határvonal, hogy a felület meg tudja mutatni, hová
+ * kerül az új szem.
+ */
+export interface GridSeam {
+  readonly left: NodeId | null;
+  readonly right: NodeId | null;
+  readonly at: { readonly x: number; readonly y0: number; readonly y1: number };
+}
+
+/** A láncalap sávjában a mutatóhoz legközelebbi cellahatár, ha elég közel van. */
+export function seamAt(grid: ChartGrid, p: Point, tolerance = 4): GridSeam | null {
+  if (grid.shape !== 'row') return null;
+  const found = grid.bands.find((candidate) => candidate.layer === 0);
+  if (!found || found.area.kind !== 'rect' || !contains(found.area, p)) return null;
+  const area = found.area;
+  const cells = grid.cells
+    .filter((cell) => cell.layer === 0 && cell.area.kind === 'rect')
+    .map((cell) => ({ node: cell.node, area: cell.area as Extract<GridArea, { kind: 'rect' }> }))
+    .sort((a, b) => a.area.x0 - b.area.x0);
+  if (cells.length === 0) return null;
+
+  let best: GridSeam | null = null;
+  let distance = tolerance;
+  const consider = (x: number, left: NodeId | null, right: NodeId | null) => {
+    const away = Math.abs(p.x - x);
+    if (away > distance) return;
+    distance = away;
+    best = { left, right, at: { x, y0: area.y0, y1: area.y1 } };
+  };
+  consider(cells[0]!.area.x0, null, cells[0]!.node);
+  cells.forEach((cell, i) => consider(cell.area.x1, cell.node, cells[i + 1]?.node ?? null));
+  return best;
+}
+
+/**
  * A célzás üzenetei (PQW-904): a mag a kódot és az értékeket adja, a mondatot
  * a felület állítja össze (src/ui/i18n/core/grid.ts). A névelő, a ragozás és a
  * sor/kör szava is a felületé; itt csak rétegszám és alak van.

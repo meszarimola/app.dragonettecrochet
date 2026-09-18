@@ -8,6 +8,7 @@ import { describe, test } from 'node:test';
 
 import {
   canEndRow,
+  insertChain,
   closeRound,
   contextOf,
   defaultCursor,
@@ -855,4 +856,70 @@ describe('a fordulólánc jelei külön állnak (PQW-948)', () => {
       });
     });
   }
+});
+
+/*
+ * Láncszem beszúrása a láncalapba (PQW-941).
+ *
+ * A tulajdonos kérése: „a második sor végéhez érve jövök rá, hogy az alap az
+ * nem elég hosszú, még kéne láncszem – viszont ezt csak úgy tudom módosítani,
+ * hogy ha undo-val visszamegyek az alaphoz… használhatóság szempontjából
+ * borzasztó rossz.” A fölötte lévő sor nem mozdul: üres cella marad a
+ * beszúrás fölött.
+ */
+describe('láncszem beszúrása a láncalapba (PQW-941)', () => {
+  /** 8 láncszem, fordulás, négy rövidpálca: a 2. sor félkész. */
+  const halfDone = () => {
+    let pattern = ok(work(emptyPattern(), { def: 'ch', count: 8 }, 0));
+    pattern = ok(endRow(pattern));
+    for (let i = 0; i < 4; i += 1) pattern = stitch(pattern, 'sc');
+    return pattern;
+  };
+  const base = (pattern) => buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern)).layers[0];
+  /** A fonal útja ép: minden szem az előtte lévőre mutat. */
+  const yarnPath = (pattern) =>
+    pattern.pieces[0].stitches.every((node, i) => node.prev === (i === 0 ? null : pattern.pieces[0].stitches[i - 1].id));
+
+  test('két láncszem közé: a láncalap eggyel hosszabb, a fonal útja ép', () => {
+    const pattern = halfDone();
+    const chains = base(pattern).stitches;
+    const longer = ok(insertChain(pattern, { left: chains[1], right: chains[2] }));
+    assert.equal(base(longer).stitches.length, chains.length + 1);
+    assert.ok(yarnPath(longer), 'a fonal útja ép');
+    assert.deepEqual(findings(longer).filter((finding) => finding.severity === 'error'), []);
+  });
+
+  test('a lánc eleje elé: ott hosszabbít a horgoló, ha elfogyott az alap', () => {
+    const pattern = halfDone();
+    const chains = base(pattern).stitches;
+    const longer = ok(insertChain(pattern, { left: null, right: chains[0] }));
+    assert.equal(base(longer).stitches.length, chains.length + 1);
+    assert.ok(yarnPath(longer));
+    assert.deepEqual(findings(longer).filter((finding) => finding.severity === 'error'), []);
+  });
+
+  test('a 2. sor szemei a helyükön maradnak, a beszúrás fölött üres cella marad', () => {
+    const pattern = halfDone();
+    const chains = base(pattern).stitches;
+    const before = pattern.pieces[0].stitches.filter((node) => node.def === 'sc');
+    const longer = ok(insertChain(pattern, { left: chains[1], right: chains[2] }));
+    const after = longer.pieces[0].stitches.filter((node) => node.def === 'sc');
+    assert.deepEqual(
+      after.map((node) => node.anchors),
+      before.map((node) => node.anchors),
+      'a szemek ugyanabba a láncszembe horgolnak, mint előtte',
+    );
+    // Az új láncszembe nem horgol semmi: a fölötte lévő cella üres.
+    const worked = new Set(after.flatMap((node) => node.anchors.map((anchor) => anchor.id)));
+    const inserted = base(longer).stitches.find((id) => !base(pattern).stitches.includes(id));
+    assert.ok(inserted && !worked.has(inserted), 'az új láncszem fölött nincs szem');
+  });
+
+  test('a fordulólánc végébe nem szúr be, és láncalap nélkül sem', () => {
+    const pattern = halfDone();
+    const chains = base(pattern).stitches;
+    assert.equal(insertChain(pattern, { left: chains.at(-1), right: null }).reason.code, 'insert-at-turning-chain');
+    const ring = ok(work(emptyPattern(), { def: 'magic-ring', count: 1 }, 0));
+    assert.equal(insertChain(ring, { left: null, right: null }).reason.code, 'insert-needs-chain-base');
+  });
 });

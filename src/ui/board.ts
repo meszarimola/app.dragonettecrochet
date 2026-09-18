@@ -13,7 +13,7 @@
  * minta hagyományát követik (src/ui/chart-labels.ts, PQW-876).
  */
 
-import { aimAt, chartBounds, gridHit, type ChartGrid } from '../core/grid.js';
+import { aimAt, chartBounds, gridHit, seamAt, type ChartGrid, type GridSeam } from '../core/grid.js';
 import type { ChartLayout, NodePlacement, Point } from '../core/layout.js';
 import type { StitchLibrary } from '../core/stitch-library.js';
 import type { NodeId, StitchInsertion, Tradition } from '../core/types.js';
@@ -39,6 +39,8 @@ export interface Scene {
   readonly library: StitchLibrary;
   readonly targets: readonly Target[];
   readonly hover: number | null;
+  /** A láncalap cellahatára, ahová a mutató beszúrna (PQW-941). */
+  readonly seam?: GridSeam['at'] | null;
   readonly selected: NodeId | null;
   /** A kijelölt szemek (PQW-875); a `selected` ezek közül a fókusz. */
   readonly selection?: readonly NodeId[];
@@ -207,6 +209,12 @@ export class Board {
       }
     }
     return this.targetAt(clientX, clientY);
+  }
+
+  /** A láncalap cellahatára a mutató alatt: ide szúrható be egy láncszem (PQW-941). */
+  seamUnder(clientX: number, clientY: number): GridSeam | null {
+    const grid = this.#scene?.grid;
+    return grid ? seamAt(grid, this.toChart(clientX, clientY)) : null;
   }
 
   /** A sorszám a mutató alatt: a sor vagy kör száma, vagy `null`. */
@@ -644,6 +652,18 @@ export class Board {
      * Marad az EGÉR ALATTI célpont gyűrűje: az csak akkor látszik, amikor a
      * horgoló odamutat, és megmondja, hova kerül a szem.
      */
+    /*
+     * A beszúrás helye (PQW-941): amíg a horgoló a láncalap két szeme közé
+     * mutat, egy függőleges vonal mutatja, hova kerül az új láncszem.
+     */
+    if (scene.seam) {
+      applyInk(ctx, colors.accent, Math.max(2.5, 2 / scale));
+      ctx.beginPath();
+      ctx.moveTo(scene.seam.x, scene.seam.y0);
+      ctx.lineTo(scene.seam.x, scene.seam.y1);
+      ctx.stroke();
+    }
+
     const hovered = scene.hover === null ? undefined : scene.targets[scene.hover];
     if (hovered) {
       applyInk(ctx, colors.accent, Math.max(1.5, 1 / scale));
