@@ -502,7 +502,6 @@ function draw(): void {
     layout: derived.layout,
     library: derived.context.library,
     targets: aiming ? derived.targets : [],
-    cursor: aiming && derived.targets.length ? cursor : null,
     hover,
     selected: selectedNode,
     selection,
