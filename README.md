@@ -63,6 +63,13 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
   csak akkor, ha valami beléje horgol. A láncszemek számolása mintánként
   átállítható (`chainCounts`), a fordulóláncé soronként is (`turningChainCounts`
   a sort megnyitó eseményen: ezzel dolgozik a bordás sor).
+- **A láncalap szemszáma** (PQW-942): az 1. sor fordulólánca a láncalap saját
+  láncszemeiből lesz — azok kikerülnek a láncalapból, és függőlegesen állnak
+  össze egyetlen oszlopba. Az az oszlop a láncalapé is, mert a fordulólánc
+  talpa ott van, ezért a láncalap szemszáma a megmaradt láncszemei **plusz
+  egy**: 10 láncszemből 3 fordulólánccal 10 − 3 + 1 = 8. Ha a sor a láncalap
+  utolsó szemében kezdődik, nincs fordulólánc, és a láncalap a saját hosszát
+  mondja.
 - **Horgolás:** szem kiválasztása (`1`–`9` vagy a jelkészlet), a célpont
   nyilakkal vagy az egérrel, horgolás `Enter`-rel vagy kattintással. A kurzor
   a következő szabad célpontra lép; a fogyasztás annyi célpontot használ, ahány

@@ -198,7 +198,7 @@ test('a tulajdonos sála: 41 láncszem, fordulás, 2 láncszem kihagyása, után
   assert.equal(pattern.pieces[0].stitches.findIndex((node) => node.def !== 'ch'), 41, 'a láncalap 41 láncszem');
   assert.deepEqual(stitchCounts(pattern), [0, 39, 39, 39]);
   // A kiírt szemszám a fordulólánccal együtt (PQW-940).
-  assert.deepEqual(computeLayers(pattern, testLibrary).map((layer) => layer.writtenCount), [0, 40, 40, 40]);
+  assert.deepEqual(computeLayers(pattern, testLibrary).map((layer) => layer.writtenCount), [40, 40, 40, 40]);
 
   const text = textOf(pattern);
   assert.ok(text.includes('1. sor – alapsor: 41 lsz.'), text);
