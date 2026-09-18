@@ -112,10 +112,10 @@ describe('fentről induló háromszög (05 §1.4)', () => {
     const tradition = traditionOf(pattern.conventions);
     const from = firstChainFromHook(dc.turningChain, turningChainCountsFor(pattern.conventions.turningChainCounts, dc, tradition, 'row'), tradition);
     const hu = formatWrittenPattern(writePattern(pattern, libraryFor(pattern), 'hu'));
-    assert.match(hu, new RegExp(`2\\. sor: hagyj ki ${from - 1} láncszemet, majd .*\\(8 szem\\)\\. Fordítás\\.`));
-    // A fordulólánc nem szem, a sor az előző sor minden szemébe horgol (PQW-924).
-    assert.match(hu, /3\. sor: 3 lsz \(fordulólánc\), .* \(16 szem\)\. Fordítás\./);
-    assert.match(hu, /46\. sor: .* \(360 szem\)\. A fonal elvágása\./);
+    // A kiírt szemszám a fordulólánccal együtt (PQW-940); a sor az előző sor minden szemébe horgol.
+    assert.match(hu, new RegExp(`2\\. sor: hagyj ki ${from - 1} láncszemet, majd .*\\(9 szem\\)\\. Fordítás\\.`));
+    assert.match(hu, /3\. sor: 3 lsz \(1 erp-nek számít\), .* \(17 szem\)\. Fordítás\./);
+    assert.match(hu, /46\. sor: .* \(361 szem\)\. A fonal elvágása\./);
   });
 
   test('rövidpálcával 20 × 22-nél 3,64 szaporítás: 124 sor, csak +4 és +2, a +2 felváltva a széleken és a gerincen', () => {

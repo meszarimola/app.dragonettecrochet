@@ -53,7 +53,16 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
   (PQW-891): az 1. sor első szemének célpontja magától a rövidpálcánál a
   horogtól számított 3., félpálcánál a 4., egyráhajtásos pálcánál az 5.
   láncszem, N szemhez N + T láncszem kell, és a sorok utolsó szeme az előző
-  fordulólánc tetejébe megy. Egy 40 láncszemes sál rövidpálcás sora így 39 szem.
+  fordulólánc tetejébe megy. Egy 40 láncszemes sál rövidpálcás sora így 38
+  rövidpálca, a fordulólánccal együtt 39 szem.
+- **Szemszám** (tulajdonosi döntés, PQW-940): a sor kiírt szemszámába a
+  fordulólánc a sor első szemeként beleszámít, és a láncszemek is szemek. A
+  gráf ezért két számot tart: a `writtenCount` az, amit a minta kiír és amit a
+  horgoló megszámol a soron; a `stitchCount` a szerkezeté, vagyis hány szembe
+  horgolhat a következő sor — abban a fordulólánc nincs benne, és a láncszem
+  csak akkor, ha valami beléje horgol. A láncszemek számolása mintánként
+  átállítható (`chainCounts`), a fordulóláncé soronként is (`turningChainCounts`
+  a sort megnyitó eseményen: ezzel dolgozik a bordás sor).
 - **Horgolás:** szem kiválasztása (`1`–`9` vagy a jelkészlet), a célpont
   nyilakkal vagy az egérrel, horgolás `Enter`-rel vagy kattintással. A kurzor
   a következő szabad célpontra lép; a fogyasztás annyi célpontot használ, ahány

@@ -167,7 +167,7 @@ describe('duplikálás: a horgoló felől nézett mód marad', () => {
 
 describe('írott minta és visszaolvasás (szókészlet §3)', () => {
   const cases = [
-    ['sc', 'back-loop', 'hu', /3\. sor: 1 lsz \(fordulólánc\), 7 rp \(hsz\)/, 'hsz – hátsó szálba'],
+    ['sc', 'back-loop', 'hu', /3\. sor: 1 lsz \(1 rp-nek számít\), 7 rp \(hsz\)/, 'hsz – hátsó szálba'],
     ['sc', 'front-loop', 'hu', /7 rp \(esz\)/, 'esz – első szálba'],
     ['dc', 'front-post', 'hu', /\d Eerp/, 'Eerp – első relief egyráhajtásos pálca (elölről hurkolt)'],
     ['dc', 'back-post', 'hu', /\d Herp/, 'Herp – hátsó relief egyráhajtásos pálca (hátulról hurkolt)'],

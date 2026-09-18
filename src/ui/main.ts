@@ -596,7 +596,7 @@ function progress(): string {
   if (pieceFinished(context.graph)) return '';
   const progressTexts = texts().messages.progress;
   if (!context.started) return progressTexts.next(capitalize(layerName(context)));
-  const count = context.graph.layers[context.layer]?.stitchCount ?? 0;
+  const count = context.graph.layers[context.layer]?.writtenCount ?? 0;
   const rest = check.remaining > 0 ? progressTexts.remaining(check.remaining) : '';
   return `${progressTexts.current(capitalize(layerName(context)), count, rest)}${roundEndHint(context, check)}`;
 }
@@ -1683,7 +1683,7 @@ canvas.addEventListener('pointerdown', (event) => {
     const ids = layerSelection(history.present, label);
     selectionAnchor = ids[0] ?? null;
     const name = texts().messages.layer.name(label, layer?.shape === 'round');
-    setSelection(event.shiftKey ? [...selection, ...ids] : ids, null, texts().messages.selection.layer(name, layer?.stitchCount ?? 0));
+    setSelection(event.shiftKey ? [...selection, ...ids] : ids, null, texts().messages.selection.layer(name, layer?.writtenCount ?? 0));
     return;
   }
   if (tool) {

@@ -62,6 +62,6 @@ test('egyenlő szárú háromszög az él szögéből: hibátlan, az írott mint
   await expect(page.locator('#status')).toContainText('Egyenlő szárú háromszög,');
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
   // Az alapszem a félpálca: az élek félpálcák összehorgolásával fogynak.
-  expect(await writtenText(page)).toMatch(/\d\. sor: 2 lsz \(fordulólánc\), [23] fp összehorgolása, \d+ fp, [23] fp összehorgolása \(\d+ szem\)\./);
+  expect(await writtenText(page)).toMatch(/\d\. sor: 2 lsz \(1 fp-nek számít\), [23] fp összehorgolása, \d+ fp, [23] fp összehorgolása \(\d+ szem\)\./);
 
 });

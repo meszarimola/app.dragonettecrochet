@@ -108,8 +108,8 @@ export interface WrittenLayer {
     readonly eachChain: boolean;
   } | null;
   readonly steps: readonly Step[];
-  /** Szemszám, ahogy a gráf számolja (graph.ts). */
-  readonly stitchCount: number;
+  /** A kiírt szemszám, ahogy a gráf számolja (graph.ts, PQW-940). */
+  readonly writtenCount: number;
   readonly closing: LayerEvent['kind'] | null;
   /** A kört záró kúszószem célpontja. */
   readonly joinTo: 'turning-chain' | 'first-stitch' | null;
@@ -271,11 +271,12 @@ function writtenLayer(
   const defOf = (id: NodeId) => graph.defs.get(id)!;
   /*
    * A „3 lsz (1 erp-nek számít)” megjegyzés a fordulóláncot szemnek mondja.
-   * Sorban ez a fogalom megszűnt (PQW-924), ezért ott nincs megjegyzés; körben
-   * a kezdőlánc valóban egy pálca helyett áll, ott megmarad.
+   * A fordulólánc sorban is a sor első szeme (PQW-940), ezért a megjegyzés
+   * sorban is megjelenik — kivéve, ahol a sor beállítása kimondja, hogy nem
+   * szem (bordás sor, ribbing.ts). Így a szöveg és a kiírt szemszám ugyanazt
+   * mondja, és a visszaolvasó is ugyanoda jut.
    */
-  const countsAs =
-    layer.shape === 'round' && layer.firstStitch !== null && layer.turningChainCounts ? countsAsOf(defOf(layer.firstStitch)) : null;
+  const countsAs = layer.firstStitch !== null && layer.turningChainCounts ? countsAsOf(defOf(layer.firstStitch)) : null;
   const hookRow = index === 1 && start === 'chain';
   const ringSpace = start === 'chain-ring' ? graph.spaceOfChain.get(graph.layers[0]!.stitches[0]!)?.id : undefined;
 
@@ -517,7 +518,7 @@ function writtenLayer(
         }
       : null,
     steps: written,
-    stitchCount: layer.stitchCount,
+    writtenCount: layer.writtenCount,
     closing: layer.closing?.kind ?? null,
     joinTo,
     colorChange: layer.closing?.colorChange === true,

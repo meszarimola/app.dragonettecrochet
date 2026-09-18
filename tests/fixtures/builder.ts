@@ -165,7 +165,7 @@ export const DEFAULT_CONVENTIONS: PatternConventions = {
   roundEnd: 'stitch-default',
   picotCounts: false,
   joinSlipStitchCounts: false,
-  chainCounts: 'worked-into',
+  chainCounts: true,
 };
 
 export function patternOf(title: string, pieces: readonly Piece[], conventions: Partial<PatternConventions> = {}): Pattern {

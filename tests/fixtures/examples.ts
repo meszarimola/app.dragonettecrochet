@@ -45,8 +45,10 @@ export function hdcRectangle(options: HdcRectangleOptions = {}): Example {
   const stitches = 15;
   const rowCount = options.rows ?? 22;
   const b = new PieceBuilder('p1', 'Félpálcás téglalap');
-  // Minden szem a láncalap egy-egy láncszemébe megy; a fordulólánc nem szem (PQW-924).
+  // Minden szem a láncalap egy-egy láncszemébe megy; a fordulólánc a sor első szeme (PQW-940).
   const worked = stitches;
+  /** A kiírt szemszám: a belehorgolt szemek és a fordulólánc (PQW-940). */
+  const stated = stitches + 1;
   const fromHook = options.firstStitchFromHook ?? 3;
   const foundation = b.chain(worked + fromHook - 1);
   const rows: NodeId[][] = [foundation.slice(0, worked)];
@@ -56,7 +58,7 @@ export function hdcRectangle(options: HdcRectangleOptions = {}): Example {
   for (let i = worked - 1; i >= 0; i -= 1) row.push(b.stitch('hdc', foundation[i]!));
   rows.push(row);
   turningChains.push(foundation.slice(worked));
-  b.event('turn', stitches);
+  b.event('turn', stated);
 
   for (let r = 2; r <= rowCount; r += 1) {
     const def = r === options.crabRow ? 'rev-sc' : 'hdc';
@@ -79,9 +81,10 @@ export function hdcRectangle(options: HdcRectangleOptions = {}): Example {
     rows.push(row);
     if (r === rowCount) {
       if (options.trailingChains) b.chain(options.trailingChains);
-      b.event('fasten-off', stitches);
+      // A lógó lánc is szem (PQW-940): a kiírt szemszám vele együtt értendő.
+      b.event('fasten-off', stated + (options.trailingChains ?? 0));
     } else {
-      b.event('turn', stitches);
+      b.event('turn', stated);
     }
   }
   return { pattern: patternOf('Félpálcás téglalap (03 §3.1 A)', [b.build()]), rows, turningChains };
@@ -104,6 +107,8 @@ export function dcRectangle(options: DcRectangleOptions = {}): Example {
   const stitches = 16;
   const rowCount = options.rows ?? 16;
   const b = new PieceBuilder('p1', 'Pálcás téglalap');
+  /** A kiírt szemszám: a belehorgolt szemek és a fordulólánc (PQW-940). */
+  const stated = stitches + 1;
   const foundation = b.chain(stitches + 3);
   const rows: NodeId[][] = [foundation.slice(0, stitches)];
   const turningChains: NodeId[][] = [[]];
@@ -112,7 +117,7 @@ export function dcRectangle(options: DcRectangleOptions = {}): Example {
   for (let i = stitches - 1; i >= 0; i -= 1) row.push(b.stitch('dc', foundation[i]!));
   rows.push(row);
   turningChains.push(foundation.slice(stitches));
-  b.event('turn', stitches);
+  b.event('turn', stated);
 
   for (let r = 2; r <= rowCount; r += 1) {
     const chains = b.chain(3);
@@ -122,8 +127,8 @@ export function dcRectangle(options: DcRectangleOptions = {}): Example {
     const targets = r === 2 && options.row2SkipsFirst ? below.slice(1) : below;
     row = targets.map((t) => b.stitch('dc', t));
     rows.push(row);
-    // A bejelentett szemszám a sor tényleges hossza: kihagyásnál eggyel kevesebb.
-    b.event(r === rowCount ? 'fasten-off' : 'turn', row.length);
+    // A bejelentett szemszám a sor tényleges hossza és a fordulólánc: kihagyásnál eggyel kevesebb.
+    b.event(r === rowCount ? 'fasten-off' : 'turn', row.length + 1);
   }
   return { pattern: patternOf('Pálcás téglalap (03 §3.1 B)', [b.build()]), rows, turningChains };
 }
@@ -219,8 +224,8 @@ export function vStitchPattern(options: VStitchOptions = {}): Example {
   const row2: NodeId[] = [b.stitch('dc', q[0]!)];
   for (const space of vs.slice(0, n).reverse()) row2.push(...v({ space }, true));
   row2.push(b.stitch('dc', q[3 * n + 1]!));
-  // A 2. sor láncíveibe semmi nem horgol: díszívek, nem számítanak.
-  b.event('fasten-off', 2 * n + 2);
+  // A 2. sor láncívei is szemek: a láncszem szem (PQW-940).
+  b.event('fasten-off', 3 * n + 2);
 
   return {
     pattern: patternOf('V-szem (03 §4.2 F)', [b.build()], {
@@ -393,8 +398,8 @@ export function grannySquare(options: GrannyOptions = {}): Example {
   // A 3. körben az oldalívek sorrendje: minden sarok után a hozzá tartozó oldalív.
   const r3 = round(r2.firstDc, r2.corners, r2.sides);
   const join3 = b.stitch('sl-st', r3.chains[2]!);
-  // A 3. kör íveibe semmi nem horgol, ezért csak a 36 pálca számít.
-  b.event('join-slip', 36);
+  // A láncszemek is szemek (PQW-940): 36 pálca és 16 láncszem.
+  b.event('join-slip', 52);
 
   return {
     pattern: patternOf('Nagymama-négyzet (03 §8)', [b.build()]),

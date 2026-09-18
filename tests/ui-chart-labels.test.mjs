@@ -40,10 +40,10 @@ test('japán hagyománnyal az export feliratai: „目” szemszám, japán megj
     colors: { right: '#000', wrong: '#00f', text: '#111', background: '#fff' },
     tradition: 'japanese',
   });
-  // A szemszám a sorfelirat része, nem külön szöveg a mintán (PQW-923): a 2. réteg kiírt száma 3.
-  assert.ok(svg.includes('>3. sor 15目</text>'));
-  assert.ok(!svg.includes('>15目</text>'));
-  assert.ok(!svg.includes('>(15)</text>'));
+  // A szemszám a sorfelirat része, nem külön szöveg a mintán (PQW-923); a fordulólánc a sor első szeme (PQW-940).
+  assert.ok(svg.includes('>3. sor 16目</text>'));
+  assert.ok(!svg.includes('>16目</text>'));
+  assert.ok(!svg.includes('>(16)</text>'));
   assert.ok(svg.includes(chartLabels('japanese').note));
   assert.ok(svg.includes('Ismétlés: 6目1模様.'));
 });
@@ -56,8 +56,8 @@ test('a CYC feliratai egyeznek a korábbi diagraméval', () => {
   });
   const labels = chartLabels('cyc');
   // Egy címkén a sorszám és a szemszám, ahogy a tervező vásznán (PQW-923).
-  assert.ok(svg.includes('>3. sor (15)</text>'));
-  assert.ok(!svg.includes(`>${labels.count(15)}</text>`));
+  assert.ok(svg.includes('>3. sor (16)</text>'));
+  assert.ok(!svg.includes(`>${labels.count(16)}</text>`));
   assert.ok(svg.includes(labels.note));
 });
 

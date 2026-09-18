@@ -835,7 +835,7 @@ function withStatedCounts(pattern: Pattern, piece: Piece, counts: readonly numbe
       // A sor/kör szava és a névelő a felületé: a mag a sorszámot és a `shape`-et adja.
       return text('internal-error', { row: layer.index, shape: layer.shape === 'round' ? 'round' : 'row' });
     }
-    if (layer.closing) stated.set(layer.closing.after, layer.stitchCount);
+    if (layer.closing) stated.set(layer.closing.after, layer.writtenCount);
   }
   return { ...piece, events: piece.events.map((event) => (stated.has(event.after) ? { ...event, statedCount: stated.get(event.after)! } : event)) };
 }

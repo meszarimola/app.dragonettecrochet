@@ -17,4 +17,4 @@ chain space (ch-sp)
 V-szem
 Row 1 – foundation: ch 17.
 Row 2: skip 3 ch, dc, sk 1 ch, V-st, [sk 2 ch, V-st] 3 times, sk 1 ch, dc (14 sts). Turn.
-Row 3: ch 3 (turning chain), dc, [V-st in next ch-sp] 4 times, sk 1 st, dc (10 sts). Fasten off.
+Row 3: ch 3 (turning chain), dc, [V-st in next ch-sp] 4 times, sk 1 st, dc (14 sts). Fasten off.

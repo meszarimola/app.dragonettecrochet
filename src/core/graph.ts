@@ -232,6 +232,7 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     shape: roundStart ? 'round' : 'row',
     stitches: foundationIds,
     stitchCount: 0,
+    writtenCount: 0,
     positionCount: foundationIds.length,
     side: 'right',
     turningChain: [],
@@ -330,16 +331,22 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     if (joinSlip) slipSet.add(joinSlip);
 
     /*
-     * Sorban a fordulólánc nem szem (PQW-924): sem a szemszámba, sem a sor
-     * pozícióiba nem számít bele. A sor szemszáma a ténylegesen belehorgolt
-     * szemek száma, a következő sor pedig minden szembe horgol egyet.
+     * Két szám, mert két kérdés (PQW-940).
      *
-     * Körben a kezdőlánc („3 lsz = 1 pálca”) változatlanul szem marad: arról a
-     * tulajdonos szabálya nem szól, és a szemkönyvtár alapértelmezése dönti el.
+     * `stitchCount` a SZERKEZET: hány szembe horgolhat a következő sor.
+     * Sorban a fordulólánc nem ilyen szem (PQW-924), a láncszem pedig akkor,
+     * ha valami beléje horgol. Konvenció nem billenti el; a generátorok és az
+     * ellenőrző erre támaszkodnak. Körben a kezdőlánc („3 lsz = 1 pálca”)
+     * változatlanul szem, ahogy eddig is.
+     *
+     * `writtenCount` az, amit a minta KIÍR és amit a horgoló megszámol a
+     * soron: a fordulólánc a sor első szeme sorban is, a láncszemek pedig a
+     * `chainCounts` szerint számítanak — alapból mind.
      */
     const startingChainCounts = shape === 'round' && turningChainCounts;
     let stitchCount = startingChainCounts ? 1 : 0;
     let positionCount = stitchCount;
+    let writtenCount = turningChainCounts ? 1 : 0;
     const positions: NodeId[] = startingChainCounts ? [turningChain[turningChain.length - 1]!] : [];
     for (const node of segment) {
       if (turningSet.has(node.id)) continue;
@@ -347,13 +354,15 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
         const counted = conventions.joinSlipStitchCounts ? 1 : 0;
         stitchCount += counted;
         positionCount += counted;
+        writtenCount += counted;
         continue;
       }
       const def = defs.get(node.id)!;
       switch (def.kind) {
         case 'chain':
+          if (workedInto.has(node.id)) stitchCount += 1;
           if (conventions.chainCounts === true || (conventions.chainCounts === 'worked-into' && workedInto.has(node.id))) {
-            stitchCount += 1;
+            writtenCount += 1;
           }
           positionCount += 1;
           positions.push(node.id);
@@ -365,6 +374,7 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
         case 'picot':
           if (conventions.picotCounts) {
             stitchCount += 1;
+            writtenCount += 1;
             positionCount += 1;
             positions.push(node.id);
           }
@@ -372,6 +382,7 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
         default:
           stitchCount += def.produces;
           positionCount += def.produces;
+          writtenCount += def.produces;
           positions.push(node.id);
       }
     }
@@ -390,6 +401,7 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       shape,
       stitches: ids,
       stitchCount,
+      writtenCount,
       positionCount,
       side,
       turningChain,
@@ -424,7 +436,7 @@ export function spacePositions(below: LayerInfo, space: Space): readonly NodeId[
 export function computeLayers(pattern: Pattern, library: StitchLibrary): Layer[] {
   return pattern.pieces.flatMap((piece) =>
     buildPieceGraph(pattern, piece, library).layers.map(
-      ({ piece: pieceId, index, below, row, shape, stitches, stitchCount, positionCount, side }) => ({
+      ({ piece: pieceId, index, below, row, shape, stitches, stitchCount, writtenCount, positionCount, side }) => ({
         piece: pieceId,
         index,
         below,
@@ -432,6 +444,7 @@ export function computeLayers(pattern: Pattern, library: StitchLibrary): Layer[]
         shape,
         stitches,
         stitchCount,
+        writtenCount,
         positionCount,
         side,
       }),
