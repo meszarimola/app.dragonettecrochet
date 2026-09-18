@@ -70,6 +70,13 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
   egy**: 10 láncszemből 3 fordulólánccal 10 − 3 + 1 = 8. Ha a sor a láncalap
   utolsó szemében kezdődik, nincs fordulólánc, és a láncalap a saját hosszát
   mondja.
+- **Beszúrás a láncalapba** (PQW-941): a láncalap két szeme közötti vonalra
+  kattintva új láncszem kerül oda, akkor is, ha a fölötte lévő sor már készül —
+  nem kell visszavonni a sort azért, mert menet közben derül ki, hogy kevés az
+  alap. A mutató alatt egy függőleges vonal jelzi, hová kerül. Az új
+  láncszemhez nem tartozik szem, ezért üres cella marad fölötte, és a fölötte
+  lévő sor szemei a helyükön maradnak. A lánc fordulóláncos végébe nem szúrunk
+  be: ott az 1. sor kihagyása romlana el.
 - **Horgolás:** szem kiválasztása (`1`–`9` vagy a jelkészlet), a célpont
   nyilakkal vagy az egérrel, horgolás `Enter`-rel vagy kattintással. A kurzor
   a következő szabad célpontra lép; a fogyasztás annyi célpontot használ, ahány

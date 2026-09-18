@@ -91,6 +91,8 @@ export type EditCode =
   | 'row-empty'
   | 'no-turn-in-round'
   | 'ring-needs-chains'
+  | 'insert-needs-chain-base'
+  | 'insert-at-turning-chain'
   | 'round-empty'
   | 'no-close-in-row'
   | 'round-no-first-stitch'
@@ -803,6 +805,47 @@ export function endRow(pattern: Pattern): EditResult {
   if (context.shape === 'round') return refuse(text('no-turn-in-round'));
   const last = piece.stitches[piece.stitches.length - 1]!;
   return done(withPiece(pattern, { ...piece, events: [...piece.events, { after: last.id, kind: 'turn' }] }));
+}
+
+/**
+ * Láncszem beszúrása a láncalapba, két meglévő szem közé vagy a lánc végére
+ * (PQW-941).
+ *
+ * A tulajdonos kérése: „a második sor végéhez érve jövök rá, hogy az alap az
+ * nem elég hosszú, még kéne láncszem – viszont ezt csak úgy tudom módosítani,
+ * hogy ha undo-val visszamegyek az alaphoz… ez így funkcionálisan helyes, de
+ * használhatóság szempontjából borzasztó rossz.”
+ *
+ * A két szomszéd a RAJZ szerinti bal és jobb oldali láncszem; bármelyik
+ * hiányozhat, ha a horgoló a láncalap két vége mellé mutat. A fonal útjában az
+ * új szem a későbbi szomszéd elé kerül, a `prev` lánc pedig újrafűződik
+ * (insertAt). A fölötte lévő sorok nem mozdulnak: az új láncszemhez egyszerűen
+ * nem tartozik szem, ezért üres cella marad fölötte.
+ */
+export function insertChain(pattern: Pattern, between: { readonly left: NodeId | null; readonly right: NodeId | null }): EditResult {
+  const piece = pieceOf(pattern);
+  const context = contextOf(pattern);
+  const base = context.graph?.layers[0];
+  if (!base || base.shape !== 'row' || base.stitches.length === 0) return refuse(text('insert-needs-chain-base'));
+
+  const at = (id: NodeId | null) => (id === null ? -1 : piece.stitches.findIndex((node) => node.id === id));
+  const [left, right] = [at(between.left), at(between.right)];
+  const known = [left, right].filter((index) => index >= 0);
+  if (known.length === 0) return refuse(text('insert-needs-chain-base'));
+
+  let index: number;
+  if (known.length === 2) index = Math.max(left, right);
+  else {
+    /*
+     * A láncalap szélén csak a fonal ELEJE elé szúrunk. A másik vég az 1. sor
+     * fordulólánca: oda új láncszem a kihagyást növelné, és az 1. sor kezdése
+     * romlana el (03 §1.2).
+     */
+    const only = known[0]!;
+    if (piece.stitches[only]!.id !== base.stitches[0]) return refuse(text('insert-at-turning-chain'));
+    index = only;
+  }
+  return done(withPiece(pattern, insertAt(piece, index, [{ def: 'ch', anchors: [] }]).piece));
 }
 
 /** Ennyi láncszemből lehet láncgyűrű; kevesebbnél a „2 lsz, 6 rp a 2. láncszembe” kezdés való. */

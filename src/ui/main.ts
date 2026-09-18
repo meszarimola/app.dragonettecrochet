@@ -38,9 +38,9 @@ import {
   type WorkContext,
 } from '../core/editor.js';
 import { canRedo, canUndo, createHistory, record, redo, undo, type History } from '../core/history.js';
-import { chartGrid, targetPoint, type ChartGrid } from '../core/grid.js';
+import { chartGrid, targetPoint, type ChartGrid, type GridSeam } from '../core/grid.js';
 import { layoutPattern, type ChartLayout, type Point } from '../core/layout.js';
-import { pieceFinished, withoutStaleSkips } from '../core/editor.js';
+import { insertChain, pieceFinished, withoutStaleSkips } from '../core/editor.js';
 import { loadPattern, savePattern } from '../core/pattern-json.js';
 import { aspectStem, gaugeContextOf } from '../core/pattern-size.js';
 import { roundEndFor } from '../core/rounds.js';
@@ -217,6 +217,8 @@ let cursor = 0;
 /** A felhasználó mozgatta-e a kurzort; ha nem, a kurzor a következő alapértelmezett célpontra ugrik. */
 let cursorMoved = false;
 let hover: number | null = null;
+/** A láncalap cellahatára a mutató alatt: ide szúr be a kattintás egy láncszemet (PQW-941). */
+let seam: GridSeam | null = null;
 /** A kijelölés fókusza: az utoljára kijelölt szem; ezt igazítja az igazítás panel. */
 let selectedNode: NodeId | null = null;
 /** A kijelölt szemek fonalsorrendben, egész egységekkel (PQW-875). */
@@ -503,6 +505,7 @@ function draw(): void {
     library: derived.context.library,
     targets: aiming ? derived.targets : [],
     hover,
+    seam: seam?.at ?? null,
     selected: selectedNode,
     selection,
     affected,
@@ -1694,6 +1697,18 @@ canvas.addEventListener('pointerdown', (event) => {
     setSelection(event.shiftKey ? [...selection, ...ids] : ids, null, texts().messages.selection.layer(name, layer?.writtenCount ?? 0));
     return;
   }
+  /*
+   * A láncalap két szeme közé kattintva oda kerül egy új láncszem (PQW-941).
+   * A tulajdonos kérése: a második sor közben derül ki, hogy kevés az alap, és
+   * ne kelljen visszavonni az egész sort. A fölötte lévő sor nem mozdul: az új
+   * láncszemhez egyszerűen nem tartozik szem, ezért üres cella marad fölötte.
+   */
+  const insert = board.seamUnder(event.clientX, event.clientY);
+  if (insert) {
+    commit(insertChain(history.present, insert), texts().messages.work.chainInserted);
+    seam = null;
+    return;
+  }
   if (tool) {
     if (!isPlaced(tool)) {
       void workAtCursor();
@@ -1773,6 +1788,11 @@ canvas.addEventListener('pointermove', (event) => {
       refresh();
     }
     return;
+  }
+  const nextSeam = board.seamUnder(event.clientX, event.clientY);
+  if ((nextSeam?.at.x ?? null) !== (seam?.at.x ?? null)) {
+    seam = nextSeam;
+    refresh();
   }
   if (!tool || !isTargeted(tool)) return;
   const aim = board.aimUnder(event.clientX, event.clientY);
