@@ -277,6 +277,17 @@ function layerColumns(input: Input, layer: number, axis: (p: Point) => number): 
  */
 function workingColumns(input: Input, axis: (p: Point) => number | undefined): Column[] {
   const { layout, context } = input;
+  /*
+   * A fordulólánc láncszemei EGYMÁS FÖLÖTT állnak, egyetlen oszlopban, de
+   * célpontként külön-külön szerepelnek. Vízszintesre vetítve mindegyik a
+   * saját oszlopát kérné ugyanazon az x-en, és a sor ott két-három (részben
+   * nulla széles) cellára esne szét — a tulajdonos jelentése szerint „ott két
+   * cella van, és egy kellene legyen” (PQW-943).
+   *
+   * Ezért a fordulólánc egyetlen cellát kap. A cella a lánc TETEJÉRE mutat: a
+   * célpontok a legfelső láncszemmel kezdődnek, és oda horgol a sor.
+   */
+  const turning = new Set(context.graph?.layers[context.layer]?.turningChain ?? []);
   // Célpontonként a beléje horgolt szemek, a fonal sorrendjében.
   const worked = new Map<NodeId, NodeId[]>();
   for (const id of context.graph?.layers[context.layer]?.stitches ?? []) {
@@ -290,7 +301,12 @@ function workingColumns(input: Input, axis: (p: Point) => number | undefined): C
   const push = (at: number | undefined, node: NodeId | null, slot: number) => {
     if (at !== undefined) columns.push({ at, node, slot, order: columns.length });
   };
+  let turningColumn = false;
   context.slots.forEach((target, slot) => {
+    if (turning.has(target.id)) {
+      if (turningColumn) return;
+      turningColumn = true;
+    }
     const ids = worked.get(target.id) ?? [];
     if (ids.length === 0) {
       const point = targetPoint(layout, context, slot);
@@ -334,6 +350,14 @@ function rowGrid(input: Input): { bands: GridBand[]; cells: GridCell[] } {
   };
   // Felfelé a y csökken. A tető a legmagasabb jel, a talpvonal a legfelső talppont.
   const topOf = (layer: number) => Math.min(...shaping(layer).map((n) => n.top.y - (n.role === 'chain' ? CHAIN_REACH : 0)));
+  /*
+   * A legfelső sor sávjának teteje viszont a fordulóláncot IS befogadja
+   * (PQW-943): ha a sor első szeme magasabb a többinél — mert nagyobb hurkot
+   * akarunk a sor végére —, a sáv és vele a cellák magassága a legmagasabbhoz
+   * igazodik, nem vág bele a láncba. Lefelé továbbra sem ő szabja meg a
+   * határt, így a sáv nem lóg rá az alatta lévő sorra (PQW-931).
+   */
+  const ceilingOf = (layer: number) => Math.min(...nodes(layer).map((n) => n.top.y - (n.role === 'chain' ? CHAIN_REACH : 0)));
   const bottomOf = (layer: number) => Math.max(...shaping(layer).map((n) => n.top.y + (n.role === 'chain' ? CHAIN_REACH : 0)));
   const baseOf = (layer: number) => {
     const feet = nodes(layer).flatMap((n) => n.feet.map((foot) => foot.y));
@@ -346,7 +370,7 @@ function rowGrid(input: Input): { bands: GridBand[]; cells: GridCell[] } {
     lower[layer] =
       layer === 0 ? bottomOf(0) + HALF_GAP : base !== undefined ? base + HALF_GAP : topOf(layer - 1) - HALF_GAP;
   }
-  const upper = (layer: number) => (layer < last ? lower[layer + 1]! : topOf(layer) - HALF_GAP);
+  const upper = (layer: number) => (layer < last ? lower[layer + 1]! : ceilingOf(layer) - HALF_GAP);
 
   const bands: GridBand[] = [];
   const cells: GridCell[] = [];
