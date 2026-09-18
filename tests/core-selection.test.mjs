@@ -375,3 +375,42 @@ describe('másolás, beillesztés, duplikálás', () => {
     assert.deepEqual(undo(history).present, pattern);
   });
 });
+
+/*
+ * A törléssel gazdátlanná vált áthidalás-jelölések (PQW-938).
+ *
+ * A jelölés az alatta lévő SZEMRE mutat, amit a láncszem törlése nem érint,
+ * ezért ott maradt gazdátlanul. A tulajdonos ezt látta: egyetlen láncszemet
+ * tett le, és az a sor túlsó felére került.
+ */
+describe('a törlés eldobja a gazdátlan áthidalásokat (PQW-938)', () => {
+  const build = () => {
+    let pattern = ok(work(emptyPattern(), { def: 'ch', count: 40 }, 0));
+    pattern = ok(endRow(pattern, 'sc'));
+    for (const def of ['sc', 'sc', 'dc']) {
+      pattern = ok(work(pattern, { def, count: 1 }, defaultCursor(pattern, contextOf(pattern), def)));
+    }
+    return pattern;
+  };
+
+  test('a kijelölt láncszemekkel a jelöléseik is eltűnnek', () => {
+    const base = build();
+    const cursor = defaultCursor(base, contextOf(base), 'ch') + 1;
+    const withChains = ok(work(base, { def: 'ch', count: 5 }, cursor));
+    assert.equal(withChains.pieces[0].skipped.length, 5, 'öt hely áthidalva');
+
+    const ids = withChains.pieces[0].stitches.filter((node) => node.def === 'ch').slice(-5).map((node) => node.id);
+    const deleted = ok(deleteStitches(withChains, ids));
+    assert.deepEqual(deleted.pieces[0].skipped, [], 'a láncszemekkel a jelölésük is elment');
+  });
+
+  test('a megmaradó láncszemek jelölése megmarad', () => {
+    const base = build();
+    const cursor = defaultCursor(base, contextOf(base), 'ch') + 1;
+    const withChains = ok(work(base, { def: 'ch', count: 5 }, cursor));
+
+    const ids = withChains.pieces[0].stitches.filter((node) => node.def === 'ch').slice(-2).map((node) => node.id);
+    const deleted = ok(deleteStitches(withChains, ids));
+    assert.equal(deleted.pieces[0].skipped.length, 3, 'a maradék három láncszemé megmarad');
+  });
+});

@@ -595,9 +595,10 @@ function coveredByChains(
   const at = fabricIndex(piece, context, cursor);
   // A lánc csak ELŐRE hidal át: a munkaél mögé visszanyúlva vagy foglalt célponton csak követi a szemet.
   if (cursor <= context.frontier || context.used[cursor] !== false) return { at, skipped: [] };
+  // A kurzortól a következő `count` SZABAD és még el nem foglalt hely: két lánc nem ülhet egy oszlopban.
   const already = new Set(piece.skipped);
   const skipped: NodeId[] = [];
-  for (let i = cursor; i < Math.min(cursor + count, context.slots.length); i += 1) {
+  for (let i = cursor; i < context.slots.length && skipped.length < count; i += 1) {
     const slot = context.slots[i]!;
     if (context.used[i] || slot.kind !== 'stitch' || already.has(slot.id)) continue;
     skipped.push(slot.id);
@@ -906,18 +907,57 @@ export function deleteLast(pattern: Pattern): EditResult {
 }
 
 /**
- * A már nem érvényes kihagyások (PQW-935): a munka még el sem érte őket.
+ * A gazdátlan kihagyások eldobása (PQW-938).
  *
- * Kihagyni csak azt lehet, amin a munka túljutott. Ha a lépés törlése
- * visszahozza a munkaélt, az előtte lévő jelölés értelmét veszti — enélkül a
- * törlés nem adná vissza pontosan a törlés előtti mintát.
+ * Egy hely akkor számít áthidaltnak, ha VAN fölötte láncszem. Törléskor a
+ * láncszem eltűnik, a jelölés viszont az alatta lévő SZEMRE mutat, amit nem
+ * törölt senki — így a jelölés ott maradt gazdátlanul. A tulajdonos ezt látta:
+ * egyetlen láncszemet tett le, és az a sor túlsó felére került, mert a rajz
+ * árva jelölések közé osztotta szét.
+ *
+ * A szabály: két szem között annyi jelölés maradhat, ahány láncszem áll ott;
+ * a fölös a haladási irány szerinti végéről esik ki. A korábbi sorok
+ * jelöléseihez nem nyúlunk.
  */
-function withoutStaleSkips(pattern: Pattern): Pattern {
+export function withoutStaleSkips(pattern: Pattern): Pattern {
   const piece = pieceOf(pattern);
   if (piece.skipped.length === 0) return pattern;
   const context = contextOf(pattern);
-  const ahead = new Set(context.slots.flatMap((slot, i) => (i > context.frontier && slot.kind === 'stitch' ? [slot.id] : [])));
-  const skipped = piece.skipped.filter((id) => !ahead.has(id));
+  const layer = context.graph?.layers[context.layer];
+  if (!layer || !context.graph) return pattern;
+
+  const index = new Map(context.slots.map((slot, i) => [slotKey(slot), i]));
+  const at = new Map(context.slots.map((slot, i) => [slot.id, i]));
+  const marks = piece.skipped.filter((id) => at.has(id)).sort((a, b) => at.get(a)! - at.get(b)!);
+  if (marks.length === 0) return pattern;
+
+  const kept = new Set<NodeId>();
+  let run = 0;
+  let behind = -1;
+  const claim = (ahead: number) => {
+    for (const id of marks) {
+      if (run === 0) break;
+      const where = at.get(id)!;
+      if (where <= behind || where >= ahead || kept.has(id)) continue;
+      kept.add(id);
+      run -= 1;
+    }
+    run = 0;
+  };
+  for (const id of layer.stitches) {
+    const reach = (context.graph.nodes.get(id)?.anchors ?? [])
+      .map((anchor) => index.get(anchorKey(anchor)))
+      .filter((value): value is number => value !== undefined);
+    if (reach.length > 0) {
+      claim(Math.min(...reach));
+      behind = Math.max(...reach);
+      continue;
+    }
+    if (context.graph.defs.get(id)?.kind === 'chain' && !layer.turningChain.includes(id)) run += 1;
+  }
+  claim(context.slots.length);
+
+  const skipped = piece.skipped.filter((id) => !at.has(id) || kept.has(id));
   return skipped.length === piece.skipped.length ? pattern : withPiece(pattern, { ...piece, skipped });
 }
 
