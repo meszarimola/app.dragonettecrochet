@@ -40,7 +40,7 @@ import {
 import { canRedo, canUndo, createHistory, record, redo, undo, type History } from '../core/history.js';
 import { chartGrid, targetPoint, type ChartGrid } from '../core/grid.js';
 import { layoutPattern, type ChartLayout, type Point } from '../core/layout.js';
-import { pieceFinished } from '../core/editor.js';
+import { pieceFinished, withoutStaleSkips } from '../core/editor.js';
 import { loadPattern, savePattern } from '../core/pattern-json.js';
 import { aspectStem, gaugeContextOf } from '../core/pattern-size.js';
 import { roundEndFor } from '../core/rounds.js';
@@ -353,7 +353,8 @@ function restore(): Pattern {
   }
   if (!saved) return emptyPattern();
   const loaded = loadPattern(saved);
-  if (loaded.ok && structuralProblem(loaded.pattern) === null) return loaded.pattern;
+  // A korábbi verziókból örökölt gazdátlan áthidalás-jelölések itt esnek ki (PQW-939).
+  if (loaded.ok && structuralProblem(loaded.pattern) === null) return withoutStaleSkips(loaded.pattern);
   try {
     localStorage.setItem(`${STORAGE_KEY}:hibas`, saved);
   } catch {
