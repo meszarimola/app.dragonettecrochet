@@ -1135,9 +1135,15 @@ async function workAtCursor(): Promise<void> {
    * Foglalt célpont: a szaporítás kérdés nélkül megtörténik (PQW-931). A
    * horgoló azért vitte ide a kurzort, mert ebbe a szembe még egy szemet akar;
    * a megerősítő kérdés (PQW-879) csak megismételte a saját szándékát.
+   *
+   * A szaporítás ABBA a szembe megy, amelyikbe kattintott (PQW-933), akkor is,
+   * ha az a sorban hátrébb van — korábban a legutoljára lerakottba ment. Ami
+   * nem szaporítható (nem alapszem, vagy más szem ül a célpontban), az sima
+   * lerakás marad ugyanoda.
    */
   if (slot && context.used[idx]) {
-    const increase = idx === context.frontier ? workIntoSame(history.present, tool) : work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx, [], editorMode());
+    const same = workIntoSame(history.present, tool, idx, editorMode());
+    const increase = same.ok ? same : work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx, [], editorMode());
     commit(increase, withStitchName(messages.work.increase, name, named));
     return;
   }

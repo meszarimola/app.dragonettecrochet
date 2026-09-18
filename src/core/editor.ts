@@ -388,6 +388,66 @@ function append(piece: Piece, nodes: readonly Omit<StitchNode, 'id' | 'prev'>[])
   return { piece: { ...piece, stitches }, ids };
 }
 
+/**
+ * Hol a helye az új szemnek a fonal sorrendjében (PQW-933).
+ *
+ * A tulajdonos szava: „ez mintakészítés, nem aktuális horgolás, tehát szabadon
+ * lehet visszafele módosítani.” Aki mintát alkot, nem sorban halad: kihagy egy
+ * helyet és később pótolja, vagy visszamegy egy korábbi szembe szaporítani.
+ *
+ * Az így hozzáadott szem a KELME sorrendjébe kerül, a célpontja mellé — nem a
+ * lista végére. Enélkül a fonal sorrendje elvált a kelme sorrendjétől, és a
+ * rajz azt követte: a mérés szerint a rés pótlásakor az új szem a sor végére
+ * ugrott (x=132 a saját 156 helyett), az előtte lévőt pedig maga előtt tolta
+ * és megdöntötte (talp 132, tető 156). Az ellenőrző ugyanezt „a haladási
+ * irány ellen” hibának látta, az írott minta pedig visszafelé olvasta a sort.
+ *
+ * A szabály: az új szem a sor első olyan szeme ELÉ kerül, amely már messzebbre
+ * ér nála. Előre haladva ilyen nincs, tehát a sor vége a helye — vagyis
+ * pontosan a régi hozzáfűzés.
+ */
+function fabricIndex(piece: Piece, context: WorkContext, cursor: number): number {
+  const { graph } = context;
+  const layer = graph?.layers[context.layer];
+  if (!graph || !layer) return piece.stitches.length;
+  const slotIndex = new Map(context.slots.map((slot, i) => [slotKey(slot), i]));
+  const reach = (id: NodeId): number => {
+    const found = (graph.nodes.get(id)?.anchors ?? []).map((anchor) => slotIndex.get(anchorKey(anchor)));
+    const known = found.filter((value): value is number => value !== undefined);
+    // Célpont nélküli elem (fordulólánc, láncszem, pikó) nem ér sehová: a helyén marad.
+    return known.length > 0 ? Math.max(...known) : -1;
+  };
+  const ahead = layer.stitches.find((id) => reach(id) > cursor);
+  const index = ahead === undefined ? -1 : piece.stitches.findIndex((node) => node.id === ahead);
+  return index < 0 ? piece.stitches.length : index;
+}
+
+/** Új szemek a fonal útjának adott pontjára; a `prev` lánc a tömb sorrendjéből újraszövődik (validate.ts). */
+function insertAt(
+  piece: Piece,
+  index: number,
+  nodes: readonly Omit<StitchNode, 'id' | 'prev'>[],
+): { piece: Piece; ids: NodeId[] } {
+  if (index >= piece.stitches.length) return append(piece, nodes);
+  const taken = piece.stitches.map((node) => node.id);
+  const ids: NodeId[] = [];
+  const made = nodes.map((node): StitchNode => {
+    const id = nextId('n', taken);
+    taken.push(id);
+    ids.push(id);
+    return { id, prev: null, ...node };
+  });
+  const list = [...piece.stitches.slice(0, index), ...made, ...piece.stitches.slice(index)];
+  // Az elvágás utáni szakasz eleje `prev: null` marad; minden más a tömbbeli előzőjére mutat.
+  const cut = new Set(piece.events.filter((event) => event.kind === 'fasten-off').map((event) => event.after));
+  const stitches = list.map((node, i): StitchNode => {
+    const previous = list[i - 1];
+    const prev = previous === undefined || cut.has(previous.id) ? null : previous.id;
+    return node.prev === prev ? node : { ...node, prev };
+  });
+  return { piece: { ...piece, stitches }, ids };
+}
+
 /* ---- Műveletek ---- */
 
 export interface Tool {
@@ -451,6 +511,8 @@ export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readon
   if (!first) {
     return refuse(text(context.slots.length > 0 ? 'row-end-reached' : 'no-slots'));
   }
+  // A szem a kelme sorrendjébe kerül, nem a lista végére (PQW-933).
+  const at = fabricIndex(piece, context, cursor);
 
   if (def.kind === 'joined' && def.base === 'spread') {
     const slots = context.slots.slice(cursor, cursor + def.consumes);
@@ -460,7 +522,7 @@ export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readon
     const mode = stitchModeFor(def, tool.insertion, context.side);
     if ('code' in mode) return refuse(mode);
     const anchors = slots.map((slot): Anchor => ({ into: 'stitch', id: slot.id, mode: mode.mode }));
-    return done(withPiece(pattern, append(piece, [{ def: def.id, anchors, ...marks }]).piece));
+    return done(withPiece(pattern, insertAt(piece, at, [{ def: def.id, anchors, ...marks }]).piece));
   }
 
   const anchor = anchorFor(def, first, tool.insertion, context.side);
@@ -471,7 +533,7 @@ export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readon
       def: member,
       anchors: resolveStitch(member)?.kind === 'chain' ? [] : [anchor],
     }));
-    const { piece: next, ids } = append(piece, members);
+    const { piece: next, ids } = insertAt(piece, at, members);
     const group = { id: nextId('g', piece.groups.map((g) => g.id)), def: def.id, members: ids };
     let spaces = next.spaces;
     const chains = ids.filter((_, i) => members[i]!.anchors.length === 0);
@@ -481,7 +543,7 @@ export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readon
     return done(withPiece(pattern, { ...next, groups: [...next.groups, group], spaces }));
   }
 
-  const worked = append(piece, [{ def: def.id, anchors: [anchor], ...marks }]).piece;
+  const worked = insertAt(piece, at, [{ def: def.id, anchors: [anchor], ...marks }]).piece;
   return done(withPiece(pattern, worked));
 }
 
@@ -527,23 +589,27 @@ function anchorFor(def: StitchDef, slot: Slot, requested: StitchInsertion | unde
  * szaporítás lesz, a szaporításból vagy kagylóból eggyel nagyobb. Láncívbe és
  * varázskörbe csoport nélkül is mehet több szem (01 §8.2 szabály 11).
  */
-export function workIntoSame(pattern: Pattern, defId: StitchDefId): EditResult {
+export function workIntoSame(pattern: Pattern, defId: StitchDefId, cursor?: number, mode: EditorMode = {}): EditResult {
   const piece = pieceOf(pattern);
   const part = resolveStitch(defId);
   const last = piece.stitches[piece.stitches.length - 1];
   if (!part || part.kind !== 'basic' || !part.workableTop) return refuse(text('same-needs-basic'));
-  if (!last || hasEventAfterLast(piece)) return refuse(text('same-no-stitch'));
-  const anchor = last.anchors[0];
-  if (!anchor || last.anchors.length !== 1) return refuse(text('same-single-anchor'));
+  // A szaporítás abba a szembe megy, amelyikbe a horgoló kattintott (PQW-933); kurzor nélkül az utolsóba.
+  const host = cursor === undefined ? last : hostAt(pattern, piece, cursor, mode);
+  if (!host || (host === last && hasEventAfterLast(piece))) return refuse(text('same-no-stitch'));
+  const anchor = host.anchors[0];
+  if (!anchor || host.anchors.length !== 1) return refuse(text('same-single-anchor'));
 
-  const appended = append(piece, [{ def: part.id, anchors: [anchor] }]);
+  // A csoport tagjai egymás után állnak (03 §10 C14): az új szem a célpontjában lévők mögé kerül.
+  const behind = piece.groups.find((candidate) => candidate.members.includes(host.id))?.members.at(-1) ?? host.id;
+  const appended = insertAt(piece, piece.stitches.findIndex((node) => node.id === behind) + 1, [{ def: part.id, anchors: [anchor] }]);
   // A láncszem másik oldalába horgolt szemből ugyanúgy szaporítás lesz, mint a szembe horgoltból (PQW-899).
   if (anchor.into !== 'stitch' && anchor.into !== 'underside') {
     if (!part.insertionModes.includes(anchor.into)) return refuse(text('same-wrong-target'));
     return done(withPiece(pattern, appended.piece));
   }
 
-  const group = piece.groups.find((candidate) => candidate.members.includes(last.id));
+  const group = piece.groups.find((candidate) => candidate.members.includes(host.id));
   if (group) {
     const members = piece.stitches.filter((node) => group.members.includes(node.id));
     if (members.some((node) => node.def !== part.id)) return refuse(text('same-other-group'));
@@ -555,10 +621,22 @@ export function workIntoSame(pattern: Pattern, defId: StitchDefId): EditResult {
     return done(withPiece(pattern, { ...appended.piece, groups }));
   }
 
-  if (last.def !== part.id) return refuse(text('same-other-stitch'));
+  if (host.def !== part.id) return refuse(text('same-other-stitch'));
   const def = increase(part, 2);
-  const created = { id: nextId('g', piece.groups.map((g) => g.id)), def: def.id, members: [last.id, appended.ids[0]!] };
+  const created = { id: nextId('g', piece.groups.map((g) => g.id)), def: def.id, members: [host.id, appended.ids[0]!] };
   return done(withPiece(pattern, { ...appended.piece, groups: [...appended.piece.groups, created] }));
+}
+
+/** A megkattintott célpontba horgolt utolsó szem: a szaporítás gazdája (PQW-933). */
+function hostAt(pattern: Pattern, piece: Piece, cursor: number, mode: EditorMode): StitchNode | undefined {
+  const context = contextOf(pattern, mode);
+  const slot = context.slots[cursor];
+  const layer = context.graph?.layers[context.layer];
+  if (!slot || !layer || !context.graph) return undefined;
+  const key = slotKey(slot);
+  const into = layer.stitches.filter((id) => context.graph!.nodes.get(id)!.anchors.some((anchor) => anchorKey(anchor) === key));
+  const id = into.at(-1);
+  return piece.stitches.find((node) => node.id === id);
 }
 
 /**

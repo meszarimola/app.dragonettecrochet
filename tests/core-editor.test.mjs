@@ -380,3 +380,62 @@ describe('sor kezdése a láncalapon (PQW-891)', () => {
     assert.match(huText(result.reason), /\S/);
   });
 });
+
+/*
+ * A minta alkotása nem folytonos (PQW-933).
+ *
+ * A tulajdonos szava: „amikor valaki a mintát alkotja, akkor nincs
+ * folytonosság. a sort úgy és olyan formában hozza létre, olyan sorrendben,
+ * ahogy csak akarja”, és „abba szaporítson, amelyikbe kattintok, még ha az
+ * visszafele haladást is jelentene — de ez mintakészítés, nem aktuális
+ * horgolás”.
+ *
+ * Ezért az utólag hozzáadott szem a KELME sorrendjébe kerül, a célpontja mellé.
+ * A fonal útja (a `prev` lánc és a tömb sorrendje) ezt követi, mert a rajz
+ * oszlopait, az írott mintát és az ellenőrzőt is ez vezeti.
+ */
+describe('a sor tetszőleges sorrendben készül (PQW-933)', () => {
+  /** 12 láncszem, fordulás, majd pálcák a megadott célpontokba. */
+  const row = (slots) => {
+    const turned = ok(endRow(chains(emptyPattern(), 12), 'dc'));
+    return slots.reduce((pattern, slot) => ok(work(pattern, { def: 'dc', count: 1 }, slot)), turned);
+  };
+
+  /** A réteg szemei a fonal sorrendjében, mindegyik mellett a célpontja. */
+  const path = (pattern) =>
+    pattern.pieces[0].stitches.filter((node) => node.anchors.length > 0).map((node) => [node.id, node.anchors[0].id]);
+
+  test('a kihagyott helyre tett szem a fonal útján is oda kerül, ahová a kelmén', () => {
+    // A 3. és 4. célpontba pálca, az 5. kimarad, a 6.-ba megint pálca.
+    const gap = row([3, 4, 6]);
+    assert.deepEqual(path(gap), [['n13', 'n9'], ['n14', 'n8'], ['n15', 'n6']]);
+
+    // A rés pótlása: a szem a 6. célpontba horgolt elé kerül, nem a sor végére.
+    const filled = ok(work(gap, { def: 'dc', count: 1 }, 5));
+    assert.deepEqual(path(filled), [['n13', 'n9'], ['n14', 'n8'], ['n16', 'n7'], ['n15', 'n6']]);
+    assert.equal(filled.pieces[0].stitches.find((node) => node.id === 'n15').prev, 'n16');
+
+    // A pótlás nem a haladási irány elleni szem: az ellenőrzőnek nincs mit jeleznie.
+    assert.deepEqual(findings(filled).map((finding) => finding.rule), ['unused-position', 'unused-position', 'unused-position', 'unused-position', 'unused-position']);
+  });
+
+  test('a szaporítás abba a szembe megy, amelyikbe a horgoló kattintott', () => {
+    const four = row([3, 4, 5, 6]);
+
+    // A 4. célpont a sorban hátrébb van: régen az utolsó szem mellé került a szaporítás.
+    const increased = ok(workIntoSame(four, 'dc', 4));
+    assert.deepEqual(path(increased), [['n13', 'n9'], ['n14', 'n8'], ['n17', 'n8'], ['n15', 'n7'], ['n16', 'n6']]);
+    assert.deepEqual(increased.pieces[0].groups, [{ id: 'g1', def: 'inc-2dc', members: ['n14', 'n17'] }]);
+
+    // Utána a sor végén is a jó szembe szaporít, nem a legutóbb lerakottba.
+    const both = ok(workIntoSame(increased, 'dc', 6));
+    assert.deepEqual(both.pieces[0].groups.at(-1), { id: 'g2', def: 'inc-2dc', members: ['n16', 'n18'] });
+    assert.deepEqual(findings(both).filter((finding) => finding.rule !== 'unused-position'), []);
+  });
+
+  test('előre haladva a szem a sor végére kerül, mint eddig', () => {
+    const forward = row([3, 4, 5, 6]);
+    assert.deepEqual(path(forward), [['n13', 'n9'], ['n14', 'n8'], ['n15', 'n7'], ['n16', 'n6']]);
+    assert.deepEqual(forward.pieces[0].stitches.map((node) => node.prev), [null, ...forward.pieces[0].stitches.slice(0, -1).map((node) => node.id)]);
+  });
+});
