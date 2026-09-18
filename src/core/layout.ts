@@ -441,9 +441,15 @@ class Layouter {
     const below = graph.layers[layer.below]!;
     const turning = new Set(layer.turningChain);
 
+    /*
+     * A fordulólánc SAJÁT magassága: azé a szemé, amelyik helyett áll (PQW-934).
+     * Nem a sor legmagasabb szeméé — a sor később megnőhet, a fordulólánc
+     * viszont marad, ami volt.
+     */
+    const chainSpan = layer.turningChain.length ? this.#stem(layer.turningChain.length) : 0;
     const height = Math.max(
       CHAIN_HEIGHT,
-      layer.turningChain.length ? this.#stem(layer.turningChain.length) : 0,
+      chainSpan,
       ...layer.stitches.filter((id) => !turning.has(id)).map((id) => this.#height(id)),
     );
     // Az újrakezdett szakasz az alatta megadott sor tetejére épül (PQW-901).
@@ -538,17 +544,26 @@ class Layouter {
          * köteg együtt ugrott fel.
          *
          * A lépésköz zárt alakban adódik, nem becsülve. Két kikötés van:
-         * a köteg TETEJE a sor tetejét éri el (a fordulólánc a sort kezdő szem
-         * helyett áll, tehát olyan magas, mint a sor), és az ELSŐ láncszem
-         * teteje pont a sorhatáron ül, vagyis maga a láncszem az alatta lévő
-         * sorban van. Ebből: n elem, az i-edik közepe `base + (i - 0.5) * step`,
-         * és a két kikötés együtt `step = height / (n - 1)`.
+         * a köteg TETEJE elér a SAJÁT magasságáig (a fordulólánc a sort kezdő
+         * szem helyett áll, tehát olyan magas, mint az a szem), és az ELSŐ
+         * láncszem teteje pont a sorhatáron ül, vagyis maga a láncszem az
+         * alatta lévő sorban van. Ebből: n elem, az i-edik közepe
+         * `base + (i - 0.5) * step`, a két kikötés együtt `step = span / (n - 1)`.
          *
          * Így három láncszemnél egy kerül alulra és kettő felülre; kettőnél
          * (félpálca) egy-egy; egynél (rövidpálca) a lánc az alsó sorban áll.
+         *
+         * A mérce a fordulólánc SAJÁT magassága, nem a soré (PQW-934). A
+         * tulajdonos jelentése: a rövidpálcával kezdett sorba tett első pálca
+         * megnövelte a sort, és a fordulólánc lecsúszott vele — mérve y=1,0-ről
+         * 5,0-re, ahol a jele már kilógott az alsó sáv aljából (a sáv 9-ig tart,
+         * a 19,2 magas láncszem 14,6-ig ért). Szó szerint: „az eredeti helyzete
+         * jó volt, nem kell magasságot állítani, hiszen ő a rövidpálca
+         * magassága lesz — helyesen.”
          */
         const n = item.ids.length;
-        const step = n > 1 ? height / (n - 1) : height;
+        const span = chainSpan > 0 ? chainSpan : height;
+        const step = n > 1 ? span / (n - 1) : span;
         item.ids.forEach((id, i) => {
           const center = this.#point(up(base, (i - 0.5) * step), axis);
           const normal = frameNormal(this.#frame, axis);
