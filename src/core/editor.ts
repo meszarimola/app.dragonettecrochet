@@ -262,8 +262,14 @@ export function contextOf(pattern: Pattern, mode: EditorMode = {}): WorkContext 
     for (const anchor of graph.nodes.get(id)!.anchors) worked.add(anchorKey(anchor));
   }
   const used = slots.map((slot) => worked.has(slotKey(slot)));
-  const frontier = used.lastIndexOf(true);
   const turningChain = current?.turningChain.length ?? 0;
+  /*
+   * A fordulólánc a sor első célpontjának helyén ül (PQW-944): oda már nem
+   * horgolunk, ezért foglalt. Enélkül a rajz szabad cellának mutatta, a
+   * célpont pöttye ott maradt, és a horgoló fölé tehetett volna még egy szemet.
+   */
+  if (turningChain > 0 && shape === 'row' && layer > 1 && current?.turningChainCounts && used.length > 0) used[0] = true;
+  const frontier = used.lastIndexOf(true);
   const started = (current?.stitches.length ?? 0) > turningChain;
 
   return { library, graph, layer, shape, side, slots, used, frontier, turningChain, started, oval };

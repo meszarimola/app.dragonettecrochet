@@ -297,6 +297,14 @@ function directionArrow(): DirectionArrow | null {
   // Az 1. sor még nincs a gráfban: a láncalap felől jobbról balra indul (03 §1.2).
   const base = layout.layers.find((layer) => layer.index === 0);
   if (context.layer === 1 && base && base.shape === 'row') return { from: base.end, to: base.start };
+  /*
+   * A frissen megnyitott sor sincs még az elrendezésben (PQW-946): a fordulás
+   * után a horgoló csak az üres rácsot látta, a „3. sor →” felirat pedig csak
+   * az első szem lerakásakor jelent meg. Az irány az alatta lévő sorból jön,
+   * megfordítva — fordulás után a munka a másik irányba halad.
+   */
+  const below = layout.layers.find((layer) => layer.index === context.layer - 1);
+  if (below && below.shape === 'row') return { from: below.end, to: below.start };
   return null;
 }
 
@@ -328,7 +336,8 @@ let turnedOn: Pattern | null = null;
 
 function nextRowMarker(): { text: string; layer: number } | null {
   const { context } = derived;
-  if (!context.graph || context.started || pieceFinished(context.graph)) return null;
+  // A fordulólánctól a sor már elkezdődött, és a saját feliratát kapja (PQW-946): a nyilas jelzés lelép.
+  if (!context.graph || context.started || context.turningChain > 0 || pieceFinished(context.graph)) return null;
   if (onFoundationChain(context) && turnedOn !== history.present) return null;
   return { text: capitalize(layerName(context)), layer: context.layer };
 }

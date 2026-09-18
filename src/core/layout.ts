@@ -590,8 +590,16 @@ class Layouter {
       const firstAnchored = scaled.find((item) => item !== stack && item.weight === 1)?.desired;
       const underneath = workingFirst === undefined ? undefined : this.#axis.get(workingFirst);
       if (this.#round && layer.index === 1) stack.desired = this.#oval ? 0 : Math.PI / 2;
-      else if (layer.shape === 'round' && layer.turningChainCounts && layer.index >= 2 && underneath !== undefined) stack.desired = direction * underneath;
-      else if (firstAnchored !== undefined) stack.desired = firstAnchored - 2 * stack.half;
+      /*
+       * A fordulólánc a sor első célpontjának oszlopában áll (PQW-944), sorban
+       * és körben is — feltéve, hogy a sor tényleg kihagyja azt a helyet.
+       * A korábbi szabály szerint készült minták (a generátorok mai kimenete)
+       * oda horgolják az első szemüket, ezért ott a lánc a szövet mellé marad,
+       * különben két jel kerülne egy oszlopba.
+       */
+      else if (layer.turningChainCounts && layer.index >= 2 && underneath !== undefined && firstAnchored !== direction * underneath) {
+        stack.desired = direction * underneath;
+      } else if (firstAnchored !== undefined) stack.desired = firstAnchored - 2 * stack.half;
       else if (underneath !== undefined) stack.desired = direction * underneath - (layer.turningChainCounts ? 0 : 2 * stack.half);
       else stack.desired = 0;
     }
@@ -637,8 +645,15 @@ class Layouter {
         const n = item.ids.length;
         const span = chainSpan > 0 ? chainSpan : height;
         const step = n > 1 ? span / (n - 1) : span;
+        /*
+         * A LÁNCALAP fordulólánca félig az alsó sorban áll: onnan indul a
+         * munka, a legalsó láncszeme maga a láncalap vége. A fordult soré
+         * viszont teljesen a saját sorában (PQW-946) — a tulajdonos: „a 3. sor
+         * teljesen különálló”.
+         */
+        const dip = layer.index <= 1 || this.#round ? 0.5 : 0;
         item.ids.forEach((id, i) => {
-          const center = this.#point(up(base, (i - 0.5) * step), axis);
+          const center = this.#point(up(base, (i - dip) * step), axis);
           const normal = frameNormal(this.#frame, axis);
           const along = this.#round ? Math.atan2(-Math.sin(normal), Math.cos(normal)) : Math.PI / 2;
           this.#place(id, layer.index, side, 'chain', [], center, along, Math.min(step * 0.95, W * 0.8));

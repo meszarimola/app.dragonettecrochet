@@ -90,7 +90,8 @@ export function rowCaptions(layout: ChartLayout, tradition: Tradition): RowCapti
   for (const layer of layout.layers) {
     const count = drawn.get(layer.index) ?? 0;
     if (count === 0) continue;
-    if (layer.index > 0 && layer.stitchCount === 0) continue;
+    // A fordulólánc a sor első szeme (PQW-944), ezért a sor tőle már sor: felirata van.
+    if (layer.index > 0 && layer.writtenCount === 0) continue;
     const round = layer.shape === 'round';
     // A varázskörnek nincs értelmes szemszáma; a láncalapé a gráfé (PQW-942): a fordulólánc oszlopa is beleszámít.
     const stitches = layer.index === 0 && round ? null : layer.writtenCount;
