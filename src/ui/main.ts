@@ -268,7 +268,7 @@ function derive(pattern: Pattern): Derived {
   const stem = stemFor(pattern, context);
   const layout = layoutPattern(pattern, context.library, { mirror, stemLength: stem });
   const check = liveCheck(pattern, context);
-  const targets = context.slots.map((_, i) => ({ point: targetPoint(layout, context, i) ?? { x: 0, y: 0 }, used: context.used[i] ?? false }));
+  const targets = context.slots.map((_, i) => ({ point: targetPoint(layout, context, i) ?? { x: 0, y: 0 } }));
   const grid = showGrid ? chartGrid(pattern, context.library, gridKindOf(context), context, { mirror, stemLength: stem }) : null;
   return { pattern, context, layout, check, targets, grid };
 }

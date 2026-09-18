@@ -24,7 +24,6 @@ import { applyInk, drawShapes, placedShapes, shapesBounds, type SymbolOptions } 
 
 export interface Target {
   readonly point: Point;
-  readonly used: boolean;
 }
 
 /** A most horgolt sor haladási irányát és elejét mutató nyíl (PQW-879). */
@@ -637,23 +636,21 @@ export class Board {
     }
 
     /*
-     * A kurzor korikája lekerült a rajzról (PQW-947). A tulajdonos kétszer is
-     * kérte: „ez a kis hülye lila kör még mindig ott van”. A szabad célpontok
-     * pöttye marad, és az egér alatti célpont továbbra is kigyűrűzik.
+     * A rajz a célpontokat nem jelöli (PQW-947, PQW-949). A tulajdonos előbb a
+     * kurzor karikáját kérte le — „ez a kis hülye lila kör” —, majd a szabad
+     * célpontok pöttyeit: „az új sornál a tetejére mindig tesz egy csomó
+     * pöttyöt. ezt leveszed kérlek?”
+     *
+     * Marad az EGÉR ALATTI célpont gyűrűje: az csak akkor látszik, amikor a
+     * horgoló odamutat, és megmondja, hova kerül a szem.
      */
-    scene.targets.forEach((target, i) => {
-      if (target.used && i !== scene.hover) return;
+    const hovered = scene.hover === null ? undefined : scene.targets[scene.hover];
+    if (hovered) {
+      applyInk(ctx, colors.accent, Math.max(1.5, 1 / scale));
       ctx.beginPath();
-      if (i === scene.hover) {
-        applyInk(ctx, colors.accent, Math.max(1.5, 1 / scale));
-        ctx.arc(target.point.x, target.point.y, 8, 0, Math.PI * 2);
-        ctx.stroke();
-      } else {
-        applyInk(ctx, colors.accent, line);
-        ctx.arc(target.point.x, target.point.y, 2.5, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    });
+      ctx.arc(hovered.point.x, hovered.point.y, 8, 0, Math.PI * 2);
+      ctx.stroke();
+    }
   }
 
   /** A rács: váltakozó színű sávok, halvány cellavonalak, erősebb sorhatár, hangsúlyos 5. és 10. vonal. */
