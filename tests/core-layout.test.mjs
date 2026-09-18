@@ -7,7 +7,7 @@
 import { strict as assert } from 'node:assert';
 import { describe, test } from 'node:test';
 
-import { contextOf, defaultCursor, deleteLast, emptyPattern, endRow, setPinned, work } from '../src/core/editor.ts';
+import { contextOf, defaultCursor, deleteLast, emptyPattern, endRow, setPinned, work, workIntoSame } from '../src/core/editor.ts';
 import { buildPieceGraph } from '../src/core/graph.ts';
 import { isotonic, layoutPattern, ROW_GAP } from '../src/core/layout.ts';
 import { frameCoords } from '../src/core/polygon.ts';
@@ -19,6 +19,8 @@ import { testLibrary } from './fixtures/library.ts';
 
 const layout = (pattern, options) => layoutPattern(pattern, testLibrary, options);
 const near = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
+/** Láncalap a tesztekhez. */
+const chains = (pattern, count) => ok(work(pattern, { def: 'ch', count }, 0));
 const ok = (result) => {
   assert.ok(result.ok, result.reason);
   return result.pattern;
@@ -457,5 +459,74 @@ describe('a fordulólánc magassága a sajátja, nem a soré (PQW-934)', () => {
     // A pálca teteje magasabbra kerül, mint a rövidpálcáé: a sor tényleg nőtt.
     const highest = (chart) => Math.min(...[...chart.nodes.values()].filter((node) => node.role === 'stitch').map((node) => node.top.y));
     assert.ok(highest(tall) < highest(short), 'a sor teteje feljebb került');
+  });
+});
+
+/*
+ * Az ismétlődő minta láncszemei (PQW-936).
+ *
+ * A tulajdonos mintája: „(3 erp 1 szembe, egy kihagy, 3 láncszem, egy kihagy)”
+ * ismételve. A jelentés: a második szaporítócsomó után a láncszem már nem oda
+ * került, ahová mutatott — „köti a láncszemet a következő cellához az erp
+ * után” —, és jól mondta, hogy ez ismétlődve újra és újra előjön.
+ *
+ * Az ok: a láncszemek és az áthidalt helyek a sor elejétől végigszámolva
+ * párosultak. Ha egy résben elcsúszott a szám, onnantól MINDEN későbbi
+ * láncszem elcsúszott. A párosítás ezért résenként megy.
+ */
+describe('a láncszemek résenként párosulnak az áthidalt helyekkel (PQW-936)', () => {
+  const cluster = (pattern, slot) => {
+    const first = ok(work(pattern, { def: 'dc', count: 1 }, slot));
+    return ok(workIntoSame(ok(workIntoSame(first, 'dc', slot)), 'dc', slot));
+  };
+
+  /** 22 láncszem, fordulás, két rövidpálca és két pálca, majd a kért ismétlések. */
+  const repeats = (units) => {
+    let pattern = ok(endRow(chains(emptyPattern(), 22), 'sc'));
+    for (const def of ['sc', 'sc', 'dc', 'dc']) {
+      pattern = ok(work(pattern, { def, count: 1 }, defaultCursor(pattern, contextOf(pattern), def)));
+    }
+    for (const slot of units) {
+      pattern = cluster(pattern, slot);
+      pattern = ok(work(pattern, { def: 'ch', count: 3 }, slot + 2));
+    }
+    return pattern;
+  };
+
+  /** A sor láncszemei a haladási irányban, a sort kezdő fordulóláncot elhagyva. */
+  const rowChains = (pattern) => {
+    const chart = layout(pattern);
+    const all = [...chart.nodes.values()].filter((node) => node.layer === 1 && node.role === 'chain');
+    const edge = Math.max(...all.map((node) => node.top.x));
+    return all.filter((node) => node.top.x < edge - 1).map((node) => node.top.x).sort((a, b) => b - a);
+  };
+
+  /** A célpontok oszlopai a rajzon. */
+  const columns = (pattern, slots) => {
+    const chart = layout(pattern);
+    const context = contextOf(pattern);
+    return slots.map((i) => chart.nodes.get(context.slots[i].id).top.x);
+  };
+
+  test('minden ismétlés láncszemei a saját oszlopukba kerülnek', () => {
+    const pattern = repeats([6, 12]);
+    const wanted = columns(pattern, [8, 9, 10, 14, 15, 16]);
+    for (const [i, x] of rowChains(pattern).entries()) {
+      assert.ok(near(x, wanted[i], 1), `a(z) ${i + 1}. láncszem a saját oszlopában: ${x} ≉ ${wanted[i]}`);
+    }
+  });
+
+  test('az egyik rés változása nem mozdítja el a többi rés láncszemeit', () => {
+    const pattern = repeats([6, 12]);
+    const second = rowChains(pattern).slice(3);
+
+    // Az első rés egyik áthidalt helyére mégis szem kerül: az a rés átrendeződik.
+    const changed = ok(work(pattern, { def: 'dc', count: 1 }, 9));
+    const after = rowChains(changed).slice(3);
+
+    assert.equal(after.length, 3, 'a második futam megmaradt');
+    for (const [i, x] of after.entries()) {
+      assert.ok(near(x, second[i], 1e-6), `a második futam ${i + 1}. láncszeme nem mozdult: ${x} ≉ ${second[i]}`);
+    }
   });
 });
