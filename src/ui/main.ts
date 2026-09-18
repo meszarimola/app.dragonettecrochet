@@ -40,7 +40,7 @@ import {
 import { canRedo, canUndo, createHistory, record, redo, undo, type History } from '../core/history.js';
 import { chartGrid, targetPoint, type ChartGrid, type GridSeam } from '../core/grid.js';
 import { layoutPattern, type ChartLayout, type Point } from '../core/layout.js';
-import { insertChain, pieceFinished, withoutStaleSkips } from '../core/editor.js';
+import { insertChain, pieceFinished, withoutStaleSkips, workIntoGap } from '../core/editor.js';
 import { loadPattern, savePattern } from '../core/pattern-json.js';
 import { aspectStem, gaugeContextOf } from '../core/pattern-size.js';
 import { roundEndFor } from '../core/rounds.js';
@@ -1707,6 +1707,18 @@ canvas.addEventListener('pointerdown', (event) => {
   if (insert) {
     commit(insertChain(history.present, insert), texts().messages.work.chainInserted);
     seam = null;
+    return;
+  }
+  /*
+   * Üres cella egy LEZÁRT sorban (PQW-950): a beszúrt láncszem fölött maradt
+   * hely. A tulajdonos: „ha a második sorba szeretnék visszamenni, hogy oda
+   * tegyek szemet az újonnan 1. sorba beszúrt láncszem fölé, azt viszont nem
+   * tudom”. A kiválasztott szem odakerül, a sor többi szeme nem mozdul.
+   */
+  const gap = tool && isTargeted(tool) ? board.gapUnder(event.clientX, event.clientY) : null;
+  if (gap && tool) {
+    const into = { def: tool, count: Number(countInput.value), insertion: insertionPanel.insertion };
+    commit(workIntoGap(history.present, gap.layer, gap.into, into, editorMode()), texts().messages.work.gapFilled);
     return;
   }
   if (tool) {
