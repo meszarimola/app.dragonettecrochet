@@ -522,6 +522,17 @@ function isTargeted(id: StitchDefId): boolean {
   return kind !== 'chain' && kind !== 'space' && kind !== 'ring' && kind !== 'picot';
 }
 
+/**
+ * Van-e helye a rajzon, ahová a kattintás teszi (PQW-935). A célponthoz kötött
+ * szemen kívül a láncszem és a láncív is ilyen: célpontja nincs, de a horgoló
+ * megmutatja, melyik oszlopot foglalja el. A varázskör a darab kezdete, a pikó
+ * az előző szemen ül: ezeket a kattintás helye nem mozgatja.
+ */
+function isPlaced(id: StitchDefId): boolean {
+  const kind = resolveStitch(id)?.kind;
+  return isTargeted(id) || kind === 'chain' || kind === 'space';
+}
+
 /** Az üzenet a haladás mondatával kiegészítve. Üres üzenetnél csak a haladás. */
 function withProgress(message: Message): Message {
   const tail = progress();
@@ -1675,7 +1686,7 @@ canvas.addEventListener('pointerdown', (event) => {
     return;
   }
   if (tool) {
-    if (!isTargeted(tool)) {
+    if (!isPlaced(tool)) {
       void workAtCursor();
       return;
     }
@@ -1684,8 +1695,17 @@ canvas.addEventListener('pointerdown', (event) => {
     if (typeof aim === 'string') announce(aim);
     const index = typeof aim === 'number' ? aim : null;
     if (index === null) {
-      drag = { kind: 'pan', last: { x: event.clientX, y: event.clientY } };
-      canvas.setPointerCapture(event.pointerId);
+      /*
+       * A láncszem cella nélkül is lekerül (PQW-935): a láncalapot üres
+       * vásznon rakja le a horgoló, ott még nincs mire célozni. Célponthoz
+       * kötött szemnél viszont a rácson kívüli kattintás a rajzot húzza.
+       */
+      if (isTargeted(tool)) {
+        drag = { kind: 'pan', last: { x: event.clientX, y: event.clientY } };
+        canvas.setPointerCapture(event.pointerId);
+        return;
+      }
+      void workAtCursor();
       return;
     }
     cursor = index;

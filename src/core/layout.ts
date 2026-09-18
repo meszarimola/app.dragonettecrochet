@@ -486,6 +486,43 @@ class Layouter {
       });
     }
 
+    /*
+     * A láncszem helye: az általa áthidalt, kihagyott szem oszlopa (PQW-935).
+     *
+     * A láncszemnek nincs célpontja, ezért eddig a szomszédai közé
+     * interpolálódott — a sor végén pedig egyszerűen az utolsó szem mellé
+     * került, akárhová tette a horgoló. A tulajdonos: „azt vártam volna, hogy
+     * ha a másodikba klikkelek… akkor abba a cellába tegye a láncszemet.”
+     *
+     * A kihagyott szemeket (`piece.skipped`) a szerkesztő jegyzi fel, amikor a
+     * lánc áthidalja őket. A hozzárendelés a fonal sorrendjében megy: minden
+     * láncszem a soron következő olyan kihagyott szem fölé kerül, amelyik már
+     * az előtte lévő szem mögött van. Ahol nincs ilyen, minden marad a régiben.
+     */
+    const skipped = new Set(this.#graph.piece.skipped);
+    const bridged = below.positions
+      .filter((id) => skipped.has(id))
+      .map((id) => this.#axis.get(id))
+      .filter((value): value is number => value !== undefined)
+      .sort((a, b) => direction * (a - b));
+    if (bridged.length > 0) {
+      let next = 0;
+      let behind: number | undefined;
+      const loose = (item: Item) =>
+        item.desired === undefined && item.ids[0] !== layer.turningChain[0] && this.#def(item.ids[0]!).kind === 'chain';
+      for (const item of items) {
+        if (item.weight === 1) {
+          behind = item.desired;
+          continue;
+        }
+        if (!loose(item)) continue;
+        while (next < bridged.length && behind !== undefined && direction * (bridged[next]! - behind) <= 0) next += 1;
+        if (next >= bridged.length) break;
+        item.desired = bridged[next]!;
+        next += 1;
+      }
+    }
+
     // Körben a paraméter a kör közepének kerületén mérve; a kör legalább akkora, hogy kiférjen.
     // Az egységnyi belső sugár kerülete körben 2π, sokszögben 2n · tg(π/n).
     const around = perimeter(this.#frame, 1);

@@ -226,7 +226,9 @@ describe('az utolsó lépés törlése', () => {
     assert.deepEqual(ok(deleteLast(shell)), chains(emptyPattern(), 8));
 
     const base = stitch(chains(emptyPattern(), 4), 'sc');
-    const space = ok(work(base, { def: 'ch-sp', count: 3 }, 0));
+    // A láncív is oda kerül, ahová a kurzor mutat (PQW-935), ezért a munkaélen adjuk hozzá:
+    // a sor elejére téve nem ő lenne az utolsó lépés, hanem a mögé került rövidpálca.
+    const space = ok(work(base, { def: 'ch-sp', count: 3 }, defaultCursor(base, contextOf(base), 'ch-sp')));
     assert.deepEqual(ok(deleteLast(space)), base);
   });
 
@@ -437,5 +439,63 @@ describe('a sor tetszőleges sorrendben készül (PQW-933)', () => {
     const forward = row([3, 4, 5, 6]);
     assert.deepEqual(path(forward), [['n13', 'n9'], ['n14', 'n8'], ['n15', 'n7'], ['n16', 'n6']]);
     assert.deepEqual(forward.pieces[0].stitches.map((node) => node.prev), [null, ...forward.pieces[0].stitches.slice(0, -1).map((node) => node.id)]);
+  });
+});
+
+/*
+ * A láncszem helye (PQW-935): célpontja nincs, helye van.
+ *
+ * A tulajdonos jelentése szerint a láncszem a kurzortól függetlenül mindig a
+ * sor végére került: „azt vártam volna, hogy ha a másodikba klikkelek… akkor
+ * abba a cellába tegye a láncszemet.” A láncszem annyi oszlopot foglal el,
+ * ahány készül, és az alattuk lévő szemeket áthidalja.
+ */
+describe('a láncszem a megmutatott oszlopba kerül (PQW-935)', () => {
+  const row = () => {
+    const turned = ok(endRow(chains(emptyPattern(), 22), 'sc'));
+    const first = defaultCursor(turned, contextOf(turned), 'dc');
+    return ok(work(turned, { def: 'dc', count: 1 }, first));
+  };
+
+  /** Az utolsó láncszem célpontjai szerinti helye: melyik célpontot hidalja át. */
+  const bridged = (pattern) => pattern.pieces[0].skipped;
+
+  test('a kurzoron álló szabad célpontot foglalja el, és áthidalja', () => {
+    const base = row();
+    const context = contextOf(base);
+    const far = context.frontier + 3;
+
+    const placed = ok(work(base, { def: 'ch', count: 1 }, far));
+    assert.deepEqual(bridged(placed), [context.slots[far].id], 'a megmutatott célpontot hidalja át');
+
+    // Máshová mutatva máshová kerül: a javítás előtt a kettő azonos volt.
+    const nearer = ok(work(base, { def: 'ch', count: 1 }, context.frontier + 1));
+    assert.notDeepEqual(bridged(nearer), bridged(placed));
+  });
+
+  test('több láncszem több oszlopot foglal el', () => {
+    const base = row();
+    const context = contextOf(base);
+    const from = context.frontier + 2;
+    const placed = ok(work(base, { def: 'ch', count: 3 }, from));
+    assert.deepEqual(bridged(placed), [from, from + 1, from + 2].map((i) => context.slots[i].id));
+  });
+
+  test('amibe utóbb mégis szem kerül, az nem marad kihagyott', () => {
+    const base = row();
+    const context = contextOf(base);
+    const at = context.frontier + 2;
+    const withChain = ok(work(base, { def: 'ch', count: 1 }, at));
+    assert.equal(bridged(withChain).length, 1);
+
+    const worked = ok(work(withChain, { def: 'dc', count: 1 }, at));
+    assert.deepEqual(bridged(worked), [], 'a beléje horgolt szem törli a kihagyást');
+  });
+
+  test('a munkaél mögé visszanyúlva a lánc nem hidal át semmit', () => {
+    const base = row();
+    const context = contextOf(base);
+    const back = ok(work(base, { def: 'ch', count: 1 }, context.frontier));
+    assert.deepEqual(bridged(back), []);
   });
 });
