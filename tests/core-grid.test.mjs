@@ -320,3 +320,62 @@ test('határozott névelő a számjeggyel írt szám előtt: az 1., a 2., az 5.,
   for (const [n, expected] of Object.entries(cases)) assert.equal(article(Number(n)), expected, n);
   assert.throws(() => article(-1), RangeError);
 });
+
+/*
+ * A függőleges fordulólánc egyetlen cellája (PQW-943).
+ *
+ * A tulajdonos jelentése: „itt a 2. sorban, ahol az 1. sor végén lévő
+ * függőleges láncszem van: a 2. sorban ott két cella van, és egy kellene
+ * legyen.” A fordulólánc láncszemei egymás fölött állnak, célpontként viszont
+ * külön-külön szerepelnek; vízszintesre vetítve ezért esett szét a cella.
+ *
+ * A másik kérése ugyanide tartozik: ha a sor első szeme magasabb a többinél
+ * (nagyobb hurok a sor végére), „a 2. sor cellamagasságát a legmagasabbhoz
+ * igazítsa” — a sáv ne vágjon bele a láncba.
+ */
+describe('a függőleges fordulólánc egy cellát kap (PQW-943)', () => {
+  /** `chains` láncszem, fordulás, majd egy `tool` a `cursor`. célpontba. */
+  const started = (chains, tool, cursor) => {
+    let pattern = ok(work(emptyPattern(), { def: 'ch', count: chains }, 0));
+    pattern = ok(endRow(pattern, tool));
+    pattern = ok(work(pattern, { def: tool, count: 1 }, cursor));
+    const library = libraryFor(pattern);
+    const context = contextOf(pattern);
+    const layout = layoutPattern(pattern, library, {});
+    return { grid: chartGrid(pattern, library, 'rows', context, {}), layout, context, pattern, library };
+  };
+  /** A készülő sor cellái a rajz szerinti sorrendben. */
+  const rowCells = (grid, layer) => grid.cells.filter((cell) => cell.layer === layer);
+
+  test('két láncszemes fordulólánc: egy cella, nem kettő', () => {
+    const { grid, context } = started(10, 'sc', 2);
+    const turning = new Set(context.graph.layers[1].turningChain);
+    const onChain = rowCells(grid, 1).filter((cell) => cell.slot !== null && turning.has(context.slots[cell.slot].id));
+    assert.equal(onChain.length, 1, 'a fordulólánc oszlopában egyetlen cella áll');
+    assert.ok(onChain[0].area.x1 - onChain[0].area.x0 > 20, `a cella teljes szélességű: ${onChain[0].area.x1 - onChain[0].area.x0}`);
+  });
+
+  test('négy láncszemes fordulólánc: akkor is egy cella, nulla szélesség nélkül', () => {
+    const { grid, context } = started(10, 'sc', 4);
+    assert.equal(context.graph.layers[1].turningChain.length, 4);
+    const cells = rowCells(grid, 1);
+    for (const cell of cells) assert.ok(cell.area.x1 - cell.area.x0 > 0, `a(z) ${cell.index}. cella nem nulla széles`);
+    const turning = new Set(context.graph.layers[1].turningChain);
+    assert.equal(cells.filter((cell) => cell.slot !== null && turning.has(context.slots[cell.slot].id)).length, 1);
+  });
+
+  test('a magasabb fordulólánc a sáv tetejét is megemeli, nem lóg ki', () => {
+    const { grid, layout, context } = started(10, 'sc', 4);
+    const band = grid.bands.find((candidate) => candidate.layer === 1);
+    const tops = context.graph.layers[1].turningChain.map((id) => layout.nodes.get(id).top.y);
+    assert.ok(band.area.y0 < Math.min(...tops), `a sáv teteje (${band.area.y0}) a lánc fölött (${Math.min(...tops)})`);
+    for (const cell of rowCells(grid, 1)) assert.equal(cell.area.y0, band.area.y0, 'a cellák a sávval együtt magasodnak');
+  });
+
+  test('a fordulólánc lefelé nem húzza a sávot: a láncalap sávja a helyén marad', () => {
+    const { grid } = started(10, 'sc', 4);
+    const base = grid.bands.find((candidate) => candidate.layer === 0);
+    const row = grid.bands.find((candidate) => candidate.layer === 1);
+    assert.equal(row.area.y1, base.area.y0, 'a két sáv pontosan találkozik, nem lóg egymásra');
+  });
+});
