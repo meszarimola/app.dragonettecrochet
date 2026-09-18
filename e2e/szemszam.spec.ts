@@ -66,3 +66,31 @@ test('a tulajdonos 2. sora 22 szemet mutat, nem 13-at (PQW-940)', async ({ page 
   await expect(written).toContainText('(22 szem)');
   await expect(written).not.toContainText('(13 szem)');
 });
+
+/*
+ * A láncalap szemszáma (PQW-942). A tulajdonos esete: 10 láncszem, új sor,
+ * egyráhajtásos pálca a javasolt célpontba. Ekkor 3 láncszem függőlegessé
+ * válik, és a láncalap 10 − 3 + 1 = 8 szem.
+ */
+interface LabelBox {
+  readonly text: string;
+}
+
+const labels = (page: Page): Promise<LabelBox[]> =>
+  page.evaluate(() => (window as unknown as { mintatervezoRacs: { labelBoxes(): LabelBox[] } }).mintatervezoRacs.labelBoxes());
+
+test('a láncalap a függőleges fordulólánc oszlopát is számolja (PQW-942)', async ({ page }) => {
+  await start(page);
+
+  await pick(page, /Láncszem \(lsz\)/);
+  await page.locator('#chain-count').fill('10');
+  await page.locator('#board').click();
+  await expect.poll(async () => (await labels(page)).map((label) => label.text)).toContain('1. sor – alapsor (10)');
+
+  await page.getByRole('button', { name: 'Fordulás' }).click();
+  await pick(page, /Egyráhajtásos pálca \(erp\)/);
+  await page.locator('#board').press('Enter');
+
+  // Három láncszem állt függőlegesbe: 10 − 3 + 1 = 8.
+  await expect.poll(async () => (await labels(page)).map((label) => label.text)).toContain('1. sor – alapsor (8)');
+});

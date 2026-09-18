@@ -151,12 +151,13 @@ test('a díszlánc, amibe semmi nem horgol, nem számít, akkor sem, ha nem az u
 
 test('a láncszemek számolása mintánként felülírható: mind számít, vagy egyik sem (PQW-870, PQW-940)', () => {
   // A beállítás a KIÍRT szemszámot billenti; a szerkezeté ettől nem mozdul (PQW-940).
-  assert.deepEqual(writtenCounts(withChainCounts(vStitchPattern(), true)), [0, 14, 14]);
-  assert.deepEqual(writtenCounts(withChainCounts(vStitchPattern(), false)), [0, 10, 10]);
+  // A láncalap száma a megmaradt láncszemei és a fordulólánc oszlopa (PQW-942).
+  assert.deepEqual(writtenCounts(withChainCounts(vStitchPattern(), true)), [15, 14, 14]);
+  assert.deepEqual(writtenCounts(withChainCounts(vStitchPattern(), false)), [15, 10, 10]);
   assert.deepEqual(writtenCounts(withChainCounts(grannySquare(), true)), [0, 20, 36, 52]);
   assert.deepEqual(writtenCounts(withChainCounts(grannySquare(), false)), [0, 12, 24, 36]);
-  assert.deepEqual(writtenCounts(scMesh({ decorative: true }, { chainCounts: true })), [0, 5, 3]);
-  assert.deepEqual(writtenCounts(scMesh({}, { chainCounts: false })), [0, 3, 5]);
+  assert.deepEqual(writtenCounts(scMesh({ decorative: true }, { chainCounts: true })), [6, 5, 3]);
+  assert.deepEqual(writtenCounts(scMesh({}, { chainCounts: false })), [6, 3, 5]);
   // A szerkezet szemszáma, a pozíciószám és a fordulólánc számolása nem változik.
   assert.deepEqual(stitchCounts(withChainCounts(vStitchPattern(), true)), stitchCounts(withChainCounts(vStitchPattern(), false)));
   assert.deepEqual(counts(layersOf({ pattern: withChainCounts(vStitchPattern(), false) })), [
@@ -164,7 +165,7 @@ test('a láncszemek számolása mintánként felülírható: mind számít, vagy
     [14, 14],
     [10, 14],
   ]);
-  assert.deepEqual(writtenCounts(withChainCounts(dcRectangle({ rows: 2 }), false)), [0, 17, 17]);
+  assert.deepEqual(writtenCounts(withChainCounts(dcRectangle({ rows: 2 }), false)), [17, 17, 17]);
 });
 
 test('a sor fordulóláncának konvenciója soronként felülírható (README §4.3)', () => {

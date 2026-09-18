@@ -202,7 +202,7 @@ test('1000×506, angol felület: a hosszabb felirat sem csúszik a szemekre (PQW
   const labels = await api<LabelBox[]>(page, 'labelBoxes');
   const stitches = await api<StitchBox[]>(page, 'stitchBoxes');
   const arrow = await api<Rect | null>(page, 'arrowBox');
-  expect(labels.map((label) => label.text)).toContain('Row 1 – foundation (10)');
+  expect(labels.map((label) => label.text)).toContain('Row 1 – foundation (11)');
 
   for (const label of labels) {
     for (const stitch of stitches) {
