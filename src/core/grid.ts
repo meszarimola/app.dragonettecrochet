@@ -282,8 +282,17 @@ function layerColumns(input: Input, layer: number, axis: (p: Point) => number): 
      * Az nem lyuk a kelmében, ezért nem is kap üres cellát.
      */
     const optional = under.turningChainCounts ? under.turningChain[under.turningChain.length - 1] : undefined;
-    for (const id of under.positions) {
-      if (worked.has(id) || id === optional) continue;
+    /*
+     * Az ÁTHIDALT szem nem lyuk a kelmében: fölötte ott a lánc (PQW-951).
+     * Csak a sor KÉT VÉGE KÖZÖTT áthidalt szem ilyen — a sor eleje vagy vége
+     * előtt kihagyott szem a formázás (fogyasztás) éle, oda a horgoló
+     * visszatérhet, tehát az üres cellája marad.
+     */
+    const bridged = new Set(graph.piece.skipped);
+    const at = under.positions.map((id, index) => (worked.has(id) ? index : -1)).filter((index) => index >= 0);
+    const inside = (index: number) => at.length > 0 && index > at[0]! && index < at[at.length - 1]!;
+    for (const [index, id] of under.positions.entries()) {
+      if (worked.has(id) || id === optional || (bridged.has(id) && inside(index))) continue;
       const node = layout.nodes.get(id);
       if (!node) continue;
       const at = axis(node.top);
@@ -350,7 +359,52 @@ function workingColumns(input: Input, axis: (p: Point) => number | undefined): C
       push(node ? axis(node.top) : undefined, id, slot);
     }
   });
-  return columns;
+
+  /*
+   * A LÁNCÍV saját cellái (PQW-951). A tulajdonos: „ha több cellára van
+   * szükség, akkor legyen úgy… csak hogy lenn pl van 3, felül meg 5.”
+   *
+   * Az ívet TÖBB láncszem adja, mint ahány szemet áthidal, ezért az alatta lévő
+   * célpontok cellái nem elegendők: 3 cellába 5 jel nem fér. Az ív láncszemei
+   * veszik át a helyüket — annyi cella lesz, ahány láncszem, ugyanazon a
+   * szakaszon egyenlően elosztva. A célpont megmarad (a legközelebbi áthidalt
+   * szemé), hogy az ívre kattintva továbbra is az alatta lévő szembe lehessen
+   * horgolni.
+   */
+  const graph = context.graph;
+  const row = graph?.layers[context.layer];
+  if (!graph || !row || row.shape !== 'row') return columns;
+  const runs: NodeId[][] = [];
+  let current: NodeId[] = [];
+  for (const id of row.stitches) {
+    if (turning.has(id)) continue;
+    if (graph.defs.get(id)?.kind === 'chain') current.push(id);
+    else {
+      if (current.length > 0) runs.push(current);
+      current = [];
+    }
+  }
+  if (current.length > 0) runs.push(current);
+
+  const result = [...columns];
+  for (const run of runs) {
+    const places = run.map((id) => layout.nodes.get(id)).filter((node): node is NodePlacement => node !== undefined);
+    if (places.length < 2 || places.length !== run.length) continue;
+    const xs = places.map((node) => axis(node.top)).filter((value): value is number => value !== undefined);
+    if (xs.length !== places.length) continue;
+    const low = Math.min(...xs);
+    const high = Math.max(...xs);
+    const reach = (high - low) / (xs.length - 1) / 2;
+    const covered = result.filter((column) => column.node === null && column.at >= low - reach && column.at <= high + reach);
+    if (covered.length === 0 || covered.length >= xs.length) continue;
+    for (const column of covered) result.splice(result.indexOf(column), 1);
+    places.forEach((node, i) => {
+      const at = xs[i]!;
+      const nearest = covered.reduce((best, column) => (Math.abs(column.at - at) < Math.abs(best.at - at) ? column : best));
+      result.push({ at, node: node.id, slot: nearest.slot, order: result.length });
+    });
+  }
+  return result;
 }
 
 /* ---- Sorrács ---- */
