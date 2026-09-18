@@ -56,7 +56,7 @@ function storedModes(pattern, layer) {
 /** Két sor ugyanazzal a horgoló felől nézett móddal; a fordulólánc a sor első szeme, tárolt mód nélkül (PQW-891). */
 function twoRows(def, insertion, chainCount = 7) {
   let pattern = fill(chains(emptyPattern(), chainCount), def, insertion);
-  pattern = ok(endRow(pattern, def));
+  pattern = ok(endRow(pattern));
   return fill(pattern, def, insertion);
 }
 
@@ -137,7 +137,7 @@ describe('lerakás a választott móddal', () => {
 
   test('a láthatatlan fogyasztás visszai soron is hibátlan: a horgoló felől első szál, tárolva hátsó', () => {
     let pattern = fill(chains(emptyPattern(), 7), 'sc');
-    pattern = ok(endRow(pattern, 'sc'));
+    pattern = ok(endRow(pattern));
     pattern = ok(work(pattern, { def: 'invdec', count: 1 }, defaultCursor(pattern, contextOf(pattern), 'invdec')));
     assert.deepEqual(pattern.pieces[0].stitches.at(-1).anchors.map((anchor) => anchor.mode), ['back-loop', 'back-loop']);
     assert.deepEqual(findings(pattern).filter((finding) => finding.rule === 'insertion-mode'), []);
@@ -167,7 +167,8 @@ describe('duplikálás: a horgoló felől nézett mód marad', () => {
 
 describe('írott minta és visszaolvasás (szókészlet §3)', () => {
   const cases = [
-    ['sc', 'back-loop', 'hu', /3\. sor: 1 lsz \(1 rp-nek számít\), 7 rp \(hsz\)/, 'hsz – hátsó szálba'],
+    // A fordulólánc a sor első szemének helyén ül, ezért a szöveg kiírja a kihagyást (PQW-944).
+    ['sc', 'back-loop', 'hu', /3\. sor: 1 lsz \(1 rp-nek számít\), 1 szem kihagyása, 7 rp \(hsz\)/, 'hsz – hátsó szálba'],
     ['sc', 'front-loop', 'hu', /7 rp \(esz\)/, 'esz – első szálba'],
     ['dc', 'front-post', 'hu', /\d Eerp/, 'Eerp – első relief egyráhajtásos pálca (elölről hurkolt)'],
     ['dc', 'back-post', 'hu', /\d Herp/, 'Herp – hátsó relief egyráhajtásos pálca (hátulról hurkolt)'],

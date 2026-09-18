@@ -25,7 +25,7 @@
  * szemre a generátor pontos okkal nemet mond, nem talál ki rá jelölést.
  */
 
-import { buildPieceGraph } from './graph.ts';
+import { buildPieceGraph, type LayerInfo } from './graph.ts';
 import { text, type CoreText } from './messages.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import type { Anchor, LayerEvent, NodeId, Pattern, Piece, StitchDef, StitchDefId, StitchInsertion, StitchNode } from './types.ts';
@@ -115,8 +115,15 @@ export function appendRibbing(pattern: Pattern, piece: Piece, library: StitchLib
   if (!def) return text('ribbing-stitch-missing');
 
   const graph = buildPieceGraph(pattern, piece, library);
-  const last = graph.layers[graph.layers.length - 1];
-  if (!last || last.index === 0) return text('ribbing-needs-row');
+  const found = graph.layers[graph.layers.length - 1];
+  if (!found || found.index === 0) return text('ribbing-needs-row');
+  /*
+   * A bordázat a darab szemeire épül. A sor fordulóláncának teteje pozíció
+   * ugyan (PQW-944), de a relief szem nem horgolható bele — nincs szára —,
+   * ezért a bordázat kihagyja.
+   */
+  const top = found.shape === 'row' && found.turningChainCounts ? found.turningChain[found.turningChain.length - 1] : undefined;
+  const last: LayerInfo = top === undefined ? found : { ...found, positions: found.positions.filter((id) => id !== top) };
 
   const round = last.shape === 'round';
   if (round && last.closing?.kind !== 'join-slip') return text('ribbing-after-join');

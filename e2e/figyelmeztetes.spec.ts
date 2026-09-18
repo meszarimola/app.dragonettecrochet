@@ -118,6 +118,17 @@ async function withWarning(page: Page): Promise<void> {
   await page.keyboard.press('Alt+3');
   for (let i = 0; i < 12; i += 1) await page.keyboard.press('Enter');
   await page.keyboard.press('Alt+f');
+  /*
+   * A fordulóláncot a sor első szeme hozza (PQW-944), ezért a magasság magától
+   * stimmelne. A figyelmeztetéshez a horgoló maga tesz le EGY láncszemet, és
+   * utána pálcával folytatja: a lánc alacsonyabb, mint a sort kezdő szem.
+   */
+  await page.keyboard.press('Alt+1');
+  await page.locator('#chain-count').focus();
+  await page.keyboard.press('ControlOrMeta+A');
+  await page.keyboard.type('1');
+  await page.locator('#board').focus();
+  await page.keyboard.press('Enter');
   await page.keyboard.press('Alt+5');
   for (let i = 0; i < 12; i += 1) await page.keyboard.press('Enter');
 }

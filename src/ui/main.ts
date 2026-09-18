@@ -1398,7 +1398,7 @@ const ACTIONS: Record<string, () => void> = {
    */
   'end-row': () => {
     commit(
-      endRow(history.present, tool),
+      endRow(history.present),
       onFoundationChain(derived.context) ? texts().messages.work.foundationDone : texts().messages.work.rowEnd,
     );
     // A fordulás megtörtént: innentől látszik a következő sor felirata (PQW-931).

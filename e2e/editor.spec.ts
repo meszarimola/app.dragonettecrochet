@@ -25,7 +25,8 @@ async function rectangle(page: Page, stitchKey: string, width: number, rows: num
   await page.keyboard.press(stitchKey);
   for (let row = 1; row <= rows; row += 1) {
     if (row > 1) await page.keyboard.press('Alt+f');
-    for (let i = 0; i < width; i += 1) await page.keyboard.press('Enter');
+    // A fordult sor első szeme a fordulólánc lesz (PQW-944), ezért ott eggyel többször horgolunk.
+    for (let i = 0; i < width + (row > 1 ? 1 : 0); i += 1) await page.keyboard.press('Enter');
   }
 }
 
@@ -57,13 +58,28 @@ test('írott minta: a téglalap rögzített szövege a panelben, és jelölésv�
   await page.locator('#written-toggle').click();
   const text = page.locator('#written-text');
   await expect(text).toContainText('23. sor:');
-  expect(comparable((await text.textContent())!)).toBe(comparable(await fixture('hu', 'felpalcas-teglalap')));
+  /*
+   * A tervezőben rajzolt téglalap a mai szabály szerint épül (PQW-944): a
+   * fordulólánc a sor első szemének helyén áll, ezért a szöveg kiírja a
+   * kihagyást. A kidolgozott példa rögzített szövege még a korábbi
+   * szerkezetet őrzi (a példák és a generátorok átállítása PQW-945), ezért itt
+   * a sorokat soronként vetjük össze.
+   */
+  const lines = comparable((await text.textContent())!).split('\n');
+  const reference = comparable(await fixture('hu', 'felpalcas-teglalap')).split('\n');
+  expect(lines.filter((line) => !/^\d/.test(line))).toEqual(reference.filter((line) => !/^\d/.test(line)));
+  expect(lines.find((line) => line.startsWith('1. sor'))).toBe('1. sor – alapsor: 17 lsz.');
+  expect(lines.find((line) => line.startsWith('2. sor'))).toBe('2. sor: hagyj ki 2 láncszemet, majd minden láncszembe 1 fp (16 szem). Fordítás.');
+  expect(lines.find((line) => line.startsWith('3–22. sor'))).toBe('3–22. sor: 2 lsz (1 fp-nek számít), 1 szem kihagyása, 15 fp (16 szem). Fordítás.');
 
   // A jelölés szakasza alapból csukva van (PQW-882).
   await page.locator('#section-notation').evaluate((el) => { (el as HTMLDetailsElement).open = true; });
   await page.locator('#terms').selectOption('en-US');
   await expect(text).toContainText('Row 23:');
-  expect(comparable((await text.textContent())!)).toBe(comparable(await fixture('en-US', 'felpalcas-teglalap')));
+  const english = comparable((await text.textContent())!).split('\n');
+  const englishReference = comparable(await fixture('en-US', 'felpalcas-teglalap')).split('\n');
+  expect(english.filter((line) => !/^Rows? /.test(line) && line !== 'sk – skip')).toEqual(englishReference.filter((line) => !/^Rows? /.test(line)));
+  expect(english.find((line) => line.startsWith('Rows 3–22'))).toBe('Rows 3–22: ch 2 (counts as 1 hdc), sk 1 st, 15 hdc (16 sts). Turn.');
   await expect(page.locator('#palette')).toContainText('Half double crochet (hdc)');
 
   // A jelölés szakasza alapból csukva van (PQW-882).

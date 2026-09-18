@@ -362,11 +362,11 @@ export function startCursor(
   if (foundationChain) return Math.min(def ? firstChainFromHook(def.turningChain, counts, tradition) - 1 : 1, slots.length - 1);
 
   /*
-   * Körben a kezdőlánc az első pozíción ül, oda nem horgolunk. Sorban a
-   * fordulólánc nem foglal helyet (PQW-924): az alatta lévő sor minden szemébe
-   * megy szem, ezért a kurzor a sor elejéről indul.
+   * A fordulólánc az első pozíción ül — körben a kezdőlánc, sorban a sor első
+   * szemének helyén álló lánc (PQW-944) —, oda már nem horgolunk: a kurzor a
+   * második célpontra lép.
    */
-  if (start.shape === 'round' && start.turningChain > 0 && counts && slots.length > 1) return 1;
+  if (start.turningChain > 0 && counts && slots.length > 1) return 1;
   return 0;
 }
 
@@ -519,6 +519,27 @@ export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readon
   }
 
   const context = contextOf(pattern, mode);
+
+  /*
+   * A fordult sor első szeme MAGA a fordulólánc (PQW-944): a program a szem
+   * magasságának megfelelő láncszemet teszi le helyette — rövidpálcánál 1,
+   * félpálcánál 2, egyráhajtásos pálcánál 3 —, és az a sor első szemének
+   * helyére áll. Csak az elsőre vonatkozik; onnantól az kerül le, amit a
+   * horgoló választ.
+   *
+   * Csak az ALAPSZEMEKRE (rövidpálca, félpálca, pálcák) vonatkozik: a
+   * fogyasztás, a csokor és a kagyló alakít, azt nem cseréljük láncra — ott a
+   * horgoló maga teszi le a láncot. A láncalapra horgolt 1. sor is kimarad:
+   * ott a fordulólánc a láncalap végéből lesz, aszerint, hányadik láncszembe
+   * megy az első szem (PQW-891). Ha a minta szerint a fordulólánc nem szem
+   * (`turningChainCounts: false`), akkor sem áll szem helyére.
+   */
+  const turnsInto = turningChainCountsFor(pattern.conventions.turningChainCounts, def, traditionOf(pattern.conventions), 'row');
+  if (startsTurnedRow(context) && def.kind === 'basic' && def.turningChain > 0 && turnsInto) {
+    const nodes = Array.from({ length: def.turningChain }, () => ({ def: 'ch' as StitchDefId, anchors: [] }));
+    return done(withPiece(pattern, append(piece, nodes).piece));
+  }
+
   const first = context.slots[cursor];
   if (!first) {
     return refuse(text(context.slots.length > 0 ? 'row-end-reached' : 'no-slots'));
@@ -744,28 +765,38 @@ export function onFoundationChain(context: WorkContext): boolean {
   return context.graph !== null && context.layer === 1 && context.shape === 'row' && !context.started && context.turningChain === 0;
 }
 
+/**
+ * A fordult sor legelején állunk-e: a sorban még nincs se szem, se fordulólánc
+ * (PQW-944). A láncalapra horgolt 1. sor nem ilyen: ott a fordulólánc a
+ * láncalap végéből lesz.
+ */
+export function startsTurnedRow(context: WorkContext): boolean {
+  return context.graph !== null && context.shape === 'row' && context.layer > 1 && !context.started && context.turningChain === 0;
+}
+
 /** Fordulhat-e most a munka: a sorban van szem, vagy a láncalap kész (PQW-891). */
 export function canEndRow(context: WorkContext): boolean {
   return (context.started && context.shape === 'row') || onFoundationChain(context);
 }
 
 /**
- * Sor vége és fordulás, utána a fordulólánc a kiválasztott szem magasságában
- * (01 §8.3 szabály 12). A láncalap után a fordulás a minta szerkezetében már
- * benne van (az 1. sor visszafelé halad, a fordulólánc a láncalap vége), ezért
- * ott a minta nem változik, az 1. sor következik (PQW-891).
+ * Sor vége és fordulás. A fordulás MAGA nem rak le láncszemet (PQW-944): a
+ * fordulóláncot a sor első szeme hozza magával, a saját magasságában, és a
+ * helyére áll (01 §8.3 szabály 12). Így fordulás után a készülő sor rácsa
+ * teljes magasságában látszik, és nem lóg a szövet mellé egy magányos lánc.
+ *
+ * A láncalap után a fordulás a minta szerkezetében már benne van (az 1. sor
+ * visszafelé halad, a fordulólánc a láncalap vége), ezért ott a minta nem
+ * változik, az 1. sor következik (PQW-891).
  */
-export function endRow(pattern: Pattern, tool: StitchDefId | null): EditResult {
+export function endRow(pattern: Pattern): EditResult {
   const piece = pieceOf(pattern);
   const context = contextOf(pattern);
   if (onFoundationChain(context)) return done(pattern);
   if (!context.graph || !context.started) return refuse(text('row-empty'));
   if (context.shape === 'round') return refuse(text('no-turn-in-round'));
   const last = piece.stitches[piece.stitches.length - 1]!;
-  let next: Piece = { ...piece, events: [...piece.events, { after: last.id, kind: 'turn' }] };
-  const chains = tool ? (resolveStitch(tool)?.turningChain ?? 0) : 0;
-  if (chains > 0) next = append(next, Array.from({ length: chains }, () => ({ def: 'ch', anchors: [] }))).piece;
-  return done(withPiece(pattern, next));
+  return done(withPiece(pattern, { ...piece, events: [...piece.events, { after: last.id, kind: 'turn' }] }));
 }
 
 /** Ennyi láncszemből lehet láncgyűrű; kevesebbnél a „2 lsz, 6 rp a 2. láncszembe” kezdés való. */

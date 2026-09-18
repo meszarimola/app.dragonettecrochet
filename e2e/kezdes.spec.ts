@@ -47,7 +47,8 @@ async function expectScarfRows(page: Page, rows: number): Promise<void> {
   const text = page.locator('#written-text');
   await expect(text).toContainText('1. sor – alapsor: 40 lsz.');
   await expect(text).toContainText('2. sor: hagyj ki 2 láncszemet, majd minden láncszembe 1 rp (39 szem).');
-  if (rows >= 2) await expect(text).toContainText('3. sor: 1 lsz (1 rp-nek számít), 38 rp (39 szem).');
+  // A fordulólánc a sor első szemének helyén ül, ezért a szöveg kiírja a kihagyást (PQW-944).
+  if (rows >= 2) await expect(text).toContainText('3. sor: 1 lsz (1 rp-nek számít), 1 szem kihagyása, 38 rp (39 szem).');
 }
 
 for (const viewport of [

@@ -331,7 +331,7 @@ describe('a javítás előtti szabállyal mentett minta betöltése nem törik e
       assert.doesNotThrow(() => writtenView(pattern, context, check, 'hu'));
 
       // A szerkesztőben tovább lehet horgolni: fordulás és sorkitöltés hibadobás nélkül.
-      const turned = endRow(pattern, def);
+      const turned = endRow(pattern);
       assert.equal(turned.ok, true, turned.reason);
       assert.doesNotThrow(() => fillRow(turned.pattern, { def, count: 1 }));
     });

@@ -558,7 +558,7 @@ export function pasteFragment(pattern: Pattern, fragment: Fragment, cursor?: num
     if (context.started) {
       const closed =
         context.shape === 'row'
-          ? endRow(current, null)
+          ? endRow(current)
           : fragment.opening === 'spiral'
             ? spiral(current)
             : closeRound(current);

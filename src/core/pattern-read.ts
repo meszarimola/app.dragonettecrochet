@@ -610,8 +610,9 @@ class PieceReader {
     const textCounts = fromHookCounts !== null || (turning !== undefined && turning.countsAs !== null);
 
     /*
-     * Sorban a fordulólánc nem foglal helyet (PQW-924): a kurzor a sor elejéről
-     * indul, ahogy a lépésbontásban is. Körben a kezdőlánc szem marad.
+     * Körben a kezdőlánc az első pozíción ül, ott a kurzor a másodikról indul.
+     * Sorban a fordulólánc helyét a szöveg mondja meg („1 szem kihagyása”),
+     * ezért ott a sor elejéről indulunk (PQW-944).
      */
     const state = { cursor: round && index >= 2 && textCounts ? 1 : 0, last: null as Last, otherSide: false };
     // A láncszemek másik oldalán a célpont a láncszem másik oldala (PQW-890).
@@ -742,7 +743,15 @@ class PieceReader {
     // viszont csak odavezet, ahol a szakasz kezdődik: azokat a szemeket a másik szakasz dolgozza fel (PQW-901).
     for (const { positions, anchoredBefore } of skips) {
       const navigation = resumed !== null && anchoredBefore === anchoredAtStart;
-      if (!navigation && (anchoredBefore === anchoredAtStart || anchoredBefore === this.anchoredCount)) this.skipped.push(...positions);
+      /*
+       * A sor elején álló EGYETLEN kihagyás a fordulólánc helye (PQW-944), nem
+       * szándékos kihagyás: a lánc ül ott. A szerkesztő sem jelöli meg, ezért
+       * a visszaolvasás sem teheti — különben a két gráf elcsúszna.
+       */
+      const seat = !round && index >= 2 && textCounts && anchoredBefore === anchoredAtStart && positions.length === 1;
+      if (!navigation && !seat && (anchoredBefore === anchoredAtStart || anchoredBefore === this.anchoredCount)) {
+        this.skipped.push(...positions);
+      }
     }
 
     const layerNodes = this.stitches.slice(firstNode).map((node) => node.id);

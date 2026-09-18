@@ -284,8 +284,9 @@ function writtenLayer(
   // Fordulás után a sor eleji kúszószemek a cellák fölött haladnak (filé fogyasztás, PQW-894): a kurzor a sor elejéről indul.
   const slipsFirst = layer.opening?.kind === 'turn' && layer.travelSlips.length > 0;
   /*
-   * Sorban a fordulólánc nem foglal pozíciót (PQW-924): a kurzor a sor elejéről
-   * indul. Körben a kezdőlánc szem marad, ott az első hely az övé.
+   * Körben a kezdőlánc az első pozíción ül, ott a kurzor a másodikról indul.
+   * Sorban a fordulólánc helyét a szöveg mondja ki („1 szem kihagyása”), így a
+   * kiírás és a visszaolvasás ugyanonnan számol (PQW-944).
    */
   const cursorStart = !slipsFirst && layer.shape === 'round' && index >= 2 && layer.turningChainCounts ? 1 : 0;
   let cursor = cursorStart;
