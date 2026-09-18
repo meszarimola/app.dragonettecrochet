@@ -26,6 +26,7 @@ import { layoutPattern } from '../src/core/layout.ts';
 import { loadPattern, savePattern } from '../src/core/pattern-json.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
 import { validatePattern } from '../src/core/validate.ts';
+import { rowCaptions } from '../src/ui/chart-labels.ts';
 import { EDITOR_CORE_TEXTS } from '../src/ui/i18n/core/editor.ts';
 import { renderCoreText } from '../src/ui/i18n/core/render.ts';
 
@@ -746,5 +747,61 @@ describe('a fordulólánc az első szem helyén (PQW-944)', () => {
     // A javítás előtt a lerakott lánc 11 képpontra nyomta össze ezt a sávot.
     assert.ok(working.area.y1 - working.area.y0 >= 24, `teljes magasságú sáv: ${working.area.y1 - working.area.y0}`);
     assert.equal(grid.cells.filter((cell) => cell.layer === working.layer).length, 11, 'mind a 11 cella megjelenik');
+  });
+});
+
+/*
+ * A frissen letett fordulólánc a helyén áll (PQW-946).
+ *
+ * A tulajdonos négy pontja a v0.35.0-ról: a lánc legalsó szeme rácsúszik az
+ * alatta lévő sorra; a célpont pöttye ott marad a lánc celláján; a 3. sor
+ * felirata csak a második szem után jelenik meg; és a lánc a rács elé csúszik,
+ * amíg nincs mellette szem — így a cellája szabadnak látszik, pedig ott már van
+ * egy öltés.
+ */
+describe('a fordulólánc a helyén áll, amint leteszik (PQW-946)', () => {
+  /** 10 láncszem, kitöltött 2. sor pálcával, fordulás, majd az első szem. */
+  const afterTurn = () => {
+    let pattern = ok(work(emptyPattern(), { def: 'ch', count: 10 }, 0));
+    pattern = ok(endRow(pattern));
+    pattern = ok(fillRow(pattern, { def: 'dc', count: 1 }));
+    return ok(endRow(pattern));
+  };
+  const place = (pattern) => ok(work(pattern, { def: 'dc', count: 1 }, defaultCursor(pattern, contextOf(pattern), 'dc')));
+
+  test('a lánc rögtön a saját cellájába kerül, nem a rács elé', () => {
+    const first = place(afterTurn());
+    const library = libraryFor(first);
+    const layout = layoutPattern(first, library);
+    const grid = chartGrid(first, library, 'rows', contextOf(first), {});
+    const chain = buildPieceGraph(first, first.pieces[0], library).layers[2].turningChain[0];
+    const cell = grid.cells.filter((candidate) => candidate.layer === 2).find((candidate) => candidate.index === 0);
+    const x = layout.nodes.get(chain).top.x;
+    assert.ok(x > cell.area.x0 && x < cell.area.x1, `a lánc a sor első cellájában: ${x} ∉ (${cell.area.x0}, ${cell.area.x1})`);
+  });
+
+  test('a lánc egyik szeme sem lóg bele az alatta lévő sorba', () => {
+    const first = place(afterTurn());
+    const library = libraryFor(first);
+    const layout = layoutPattern(first, library);
+    const grid = chartGrid(first, library, 'rows', contextOf(first), {});
+    const band = grid.bands.find((candidate) => candidate.layer === 2);
+    for (const id of buildPieceGraph(first, first.pieces[0], library).layers[2].turningChain) {
+      const { y } = layout.nodes.get(id).top;
+      assert.ok(y <= band.area.y1 && y >= band.area.y0, `${id} a saját sávjában: ${y} ∉ [${band.area.y0}, ${band.area.y1}]`);
+    }
+  });
+
+  test('a lánc cellája foglalt: nincs rajta szabad célpont', () => {
+    const first = place(afterTurn());
+    const context = contextOf(first);
+    assert.equal(context.used[0], true, 'a fordulólánc helye foglalt');
+    assert.equal(defaultCursor(first, context, 'dc'), 1, 'a kurzor a második célponton áll');
+  });
+
+  test('a sor felirata már a fordulólánctól látszik', () => {
+    const first = place(afterTurn());
+    const captions = rowCaptions(layoutPattern(first, libraryFor(first)), 'cyc').map((caption) => caption.text);
+    assert.ok(captions.includes('3. sor (1)'), captions.join(' | '));
   });
 });
