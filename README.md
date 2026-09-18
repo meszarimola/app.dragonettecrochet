@@ -77,6 +77,10 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
   láncszemhez nem tartozik szem, ezért üres cella marad fölötte, és a fölötte
   lévő sor szemei a helyükön maradnak. A lánc fordulóláncos végébe nem szúrunk
   be: ott az 1. sor kihagyása romlana el.
+- **Üres cella egy lezárt sorban** (PQW-950): a beszúrás fölött üres cella
+  marad. Rákattintva a kiválasztott alapszem oda kerül, a sor többi szeme
+  mozdulatlanul — az új szem a kelme sorrendjébe illeszkedik, nem a fonal
+  végére. Így nem kell visszavonni a fölötte lévő sorokat.
 - **Horgolás:** szem kiválasztása (`1`–`9` vagy a jelkészlet), a célpont
   nyilakkal vagy az egérrel, horgolás `Enter`-rel vagy kattintással. A kurzor
   a következő szabad célpontra lép; a fogyasztás annyi célpontot használ, ahány

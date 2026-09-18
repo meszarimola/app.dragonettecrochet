@@ -93,6 +93,8 @@ export type EditCode =
   | 'ring-needs-chains'
   | 'insert-needs-chain-base'
   | 'insert-at-turning-chain'
+  | 'gap-needs-basic'
+  | 'gap-not-free'
   | 'round-empty'
   | 'no-close-in-row'
   | 'round-no-first-stitch'
@@ -846,6 +848,52 @@ export function insertChain(pattern: Pattern, between: { readonly left: NodeId |
     index = only;
   }
   return done(withPiece(pattern, insertAt(piece, index, [{ def: 'ch', anchors: [] }]).piece));
+}
+
+/**
+ * Szem egy KORÁBBI sor üres cellájába (PQW-950).
+ *
+ * A tulajdonos: a láncalapba beszúrt láncszem fölött üres cella maradt a 2.
+ * sorban, „ha a második sorba szeretnék visszamenni, hogy oda tegyek szemet
+ * az újonnan 1. sorba beszúrt láncszem fölé, azt viszont nem tudom”.
+ *
+ * Az új szem a KELME sorrendjébe kerül (PQW-933): a sor azon szeme elé, amely
+ * már távolabbra ér, mint a megcélzott hely. Így a fonal útja a rajz szerinti
+ * marad, és a sor többi szeme nem mozdul.
+ */
+export function workIntoGap(pattern: Pattern, layer: number, into: NodeId, tool: Tool, mode: EditorMode = {}): EditResult {
+  const def = resolveStitch(tool.def);
+  if (!def) return refuse(text('unknown-stitch', { id: tool.def }));
+  // Az első körben alapszem kerülhet az üres cellába; a csokor és a fogyasztás későbbre marad.
+  if (def.kind !== 'basic') return refuse(text('gap-needs-basic'));
+
+  const piece = pieceOf(pattern);
+  const context = contextOf(pattern, mode);
+  const graph = context.graph;
+  const row = graph?.layers[layer];
+  const below = graph?.layers[layer - 1];
+  if (!graph || !row || !below || row.shape !== 'row') return refuse(text('gap-not-free'));
+
+  const slots = layerSlots(graph, layer, below, row.direction === -1, row.shape);
+  const place = slots.findIndex((slot) => slot.kind === 'stitch' && slot.id === into);
+  const worked = new Set(row.stitches.flatMap((id) => graph.nodes.get(id)!.anchors.map((anchor) => anchorKey(anchor))));
+  if (place < 0 || worked.has(slotKey(slots[place]!))) return refuse(text('gap-not-free'));
+
+  const anchor = anchorFor(def, slots[place]!, tool.insertion, row.side);
+  if ('code' in anchor) return refuse(anchor);
+
+  const index = new Map(slots.map((slot, i) => [slotKey(slot), i]));
+  const reach = (id: NodeId): number => {
+    const found = (graph.nodes.get(id)?.anchors ?? []).map((candidate) => index.get(anchorKey(candidate)));
+    const known = found.filter((value): value is number => value !== undefined);
+    return known.length > 0 ? Math.max(...known) : -1;
+  };
+  const ahead = row.stitches.find((id) => reach(id) > place);
+  const at =
+    ahead === undefined
+      ? piece.stitches.findIndex((node) => node.id === row.stitches[row.stitches.length - 1]) + 1
+      : piece.stitches.findIndex((node) => node.id === ahead);
+  return done(withPiece(pattern, clearSkips(insertAt(piece, at, [{ def: def.id, anchors: [anchor] }]).piece, [anchor])));
 }
 
 /** Ennyi láncszemből lehet láncgyűrű; kevesebbnél a „2 lsz, 6 rp a 2. láncszembe” kezdés való. */
