@@ -17,7 +17,7 @@
  * horgol), láncív egyetlen láncszemébe horgolt szemet, több darabot.
  */
 
-import { closeRound, contextOf, defaultCursor, endRow, layerSlots, startCursor, type EditCode, type EditResult, type Slot } from './editor.ts';
+import { closeRound, contextOf, defaultCursor, endRow, layerSlots, startCursor, withoutStaleSkips, type EditCode, type EditResult, type Slot } from './editor.ts';
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
 import { modeAsWorked } from './insertion.ts';
 import { text, type CoreText } from './messages.ts';
@@ -268,7 +268,8 @@ export function deleteStitches(pattern: Pattern, ids: Iterable<NodeId>, options:
     );
   }
   const remove = new Set([...plan.selected, ...plan.dependents]);
-  return done(withPiece(pattern, withoutNodes(pattern, piece, remove)));
+  // A törléssel gazdátlanná vált áthidalás-jelölések is kiesnek (PQW-938).
+  return done(withoutStaleSkips(withPiece(pattern, withoutNodes(pattern, piece, remove))));
 }
 
 function withoutNodes(pattern: Pattern, piece: Piece, remove: ReadonlySet<NodeId>): Piece {

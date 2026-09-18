@@ -531,11 +531,16 @@ class Layouter {
             (at) =>
               (behind === undefined || direction * (at - behind) > 0) && (ahead === undefined || direction * (ahead - at) > 0),
           );
-          if (gap.length > 0) {
-            run.forEach((item, i) => {
-              item.desired = gap[Math.min(gap.length - 1, Math.floor(((i + 0.5) * gap.length) / run.length))]!;
-            });
-          }
+          /*
+           * A rés ELSŐ jelöléseit vesszük, nem a közepét (PQW-938). A
+           * láncszemek a kurzortól egymás után foglalják el a helyeket, tehát
+           * az elsők az övék. Ha árva jelölés maradna a résben, a szétosztás
+           * a sor túlsó felére dobta volna a láncszemet — a tulajdonos pont
+           * ezt látta.
+           */
+          run.forEach((item, i) => {
+            if (i < gap.length) item.desired = gap[i]!;
+          });
         }
         run = [];
       };
