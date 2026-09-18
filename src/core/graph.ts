@@ -322,7 +322,10 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       const setting = opening?.conventions?.turningChainCounts ?? conventions.turningChainCounts;
       turningChainCounts =
         setting === 'stitch-default'
-          ? firstStitch !== null && stitchTurningChainCounts(defs.get(firstStitch)!, traditionOf(conventions), shape)
+          ? firstStitch !== null
+            ? stitchTurningChainCounts(defs.get(firstStitch)!, traditionOf(conventions), shape)
+            : // Ha a sorban egyelőre CSAK a fordulólánc van, ő maga a sor első szeme (PQW-944).
+              shape === 'row' && index >= 2
           : setting;
     }
 

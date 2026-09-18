@@ -61,29 +61,27 @@ describe('sorrács: a cellák pontosan a számolt pozíciókon', () => {
     });
   }
 
-  test('a sor minden jele a saját sávjában áll; a fordulólánc a kimondott kivétel (PQW-931)', () => {
+  test('a fordult sor minden jele a saját sávjában áll, a fordulólánc is (PQW-946)', () => {
     const example = hdcRectangle({ rows: 3 });
     const { grid, layout } = build(example.pattern);
-    const turning = new Set(example.turningChains.flat());
+    const foundationTurning = new Set(example.turningChains[1]);
     for (const node of layout.nodes.values()) {
-      if (turning.has(node.id)) continue;
+      // A LÁNCALAP fordulólánca átnyúlik a sorhatáron: onnan indul a munka.
+      if (foundationTurning.has(node.id)) continue;
       const band = grid.bands.find((candidate) => candidate.layer === node.layer);
       assert.ok(contains(band.area, node.top), `${node.id} (${node.layer}. sor)`);
     }
 
     /*
-     * A fordulólánc ÁTNYÚLIK a sorhatáron (PQW-931). A tulajdonos szava: „a
-     * három elemes függőleges láncnak az alsó szeme az 1. sorhoz (alsó sor)
-     * tartozik, a másik kettő tartozik a felső sorhoz.” Félpálcánál a lánc két
-     * szemből áll: egy alul, egy felül.
-     *
-     * A sáv MAGASSÁGÁT viszont nem ő szabja meg — különben magával húzná a
-     * sávot az alatta lévő sorra, és a cellák összecsúsznának.
+     * A tulajdonos szava a v0.35.0-ról: „a 3 lánc legalsó szeme rácsúszik a
+     * második sorra. emeld ki, hogy külön álljon. az első sornál ez érthető,
+     * hogy rácsúszik, mert onnan indul, viszont itt a 3. sor teljesen
+     * különálló.”
      */
     const stack = example.turningChains[2];
     const own = grid.bands.find((candidate) => candidate.layer === 2);
-    assert.ok(!contains(own.area, layout.nodes.get(stack[0]).top), 'az alsó láncszem kilóg a saját sávjából');
-    assert.ok(contains(own.area, layout.nodes.get(stack.at(-1)).top), 'a felső láncszem a saját sávjában marad');
+    assert.ok(contains(own.area, layout.nodes.get(stack[0]).top), 'az alsó láncszem is a saját sávjában áll');
+    assert.ok(contains(own.area, layout.nodes.get(stack.at(-1)).top), 'a felső láncszem is');
   });
 
   test('a kézi igazítás a rácsot nem mozdítja', () => {
@@ -146,9 +144,9 @@ describe('célzás a rácson', () => {
      */
     const chain = layout.nodes.get(example.turningChains[2][0]).top;
     const hit = gridHit(grid, chain);
-    assert.equal(hit.kind, 'band', 'a lelógó láncszem sávba esik, nem cellába');
+    // A fordult sor lánca a SAJÁT sávjában áll (PQW-946), a cellája viszont nem célpont.
     assert.equal(aimAt(grid, hit).kind, 'refused');
-    assert.equal(aimAt(grid, hit).message.code, 'aim-other-layer');
+    assert.equal(aimAt(grid, hit).message.code, 'aim-not-target');
 
     // A fordulólánc TETEJE célpont (PQW-944): oda megy a következő sor utolsó szeme.
     const counting = hdcRectangle({ rows: 2 });
@@ -172,13 +170,11 @@ describe('célzás a rácson', () => {
     assert.equal(grid.layer, 2);
     // A 2. sor nem számító fordulólánca a sor első szeme mellett kívül áll: alatta nincs célpont.
     /*
-     * A PQW-931 óta ez a láncszem az alatta lévő sor sávjába lóg le, ezért a
-     * válasz onnan jön: nem célpont. Ide továbbra sem lehet horgolni, csak az
-     * indoklás pontosabb.
+     * A fordult sor lánca a saját sávjában áll (PQW-946), a sor elején, ahol az
+     * alatta lévő sorban nincs szem: oda nem lehet horgolni.
      */
     const chain = layout.nodes.get(context.graph.layers[2].turningChain[0]).top;
-    assert.deepEqual(aim(grid, chain), { kind: 'refused', message: { code: 'aim-not-target' } });
-    assert.match(hu(aim(grid, chain).message), /^Ide nem horgolhatsz: ez a hely nem célpont/);
+    assert.deepEqual(aim(grid, chain), { kind: 'refused', message: { code: 'aim-no-stitch' } });
     // A célpontok cellái a félkész sorban is a célpontokra mutatnak.
     const cells = grid.cells.filter((cell) => cell.layer === 2);
     assert.deepEqual(cells.map((cell) => cell.slot).sort((a, b) => a - b), context.slots.map((_, i) => i));

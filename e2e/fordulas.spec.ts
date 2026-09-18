@@ -74,3 +74,20 @@ test('az első szem hozza a fordulóláncot: rövidpálcából egy láncszem (PQ
   await page.locator('#board').press('Enter');
   expect((await nodes(page)).filter((node) => node.layer === layer).map((node) => node.def)).toEqual(['ch', 'sc']);
 });
+
+test('a fordulás után rögtön látszik, hogy a 3. sor következik (PQW-946)', async ({ page }) => {
+  await twoRowsThenTurn(page);
+
+  const labels = (): Promise<string[]> =>
+    page.evaluate(() =>
+      (window as unknown as { mintatervezoRacs: { labelBoxes(): { text: string }[] } }).mintatervezoRacs
+        .labelBoxes()
+        .map((label) => label.text),
+    );
+
+  // Fordulás után a nyilas jelzés, az első szem (a fordulólánc) után a sor saját felirata.
+  await expect.poll(labels).toContain('3. sor →');
+  await page.locator('#board').press('Enter');
+  await expect.poll(labels).toContain('3. sor (1)');
+  expect(await labels()).not.toContain('3. sor →');
+});
