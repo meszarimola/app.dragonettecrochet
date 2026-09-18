@@ -710,15 +710,14 @@ function withStatedCounts(pattern: Pattern, piece: Piece, counts: readonly numbe
   const graph = buildPieceGraph(whole, piece, libraryFor(whole));
   const extension = new Set(piece.spaces.flatMap((space) => space.chains));
   const anchored = new Set(piece.stitches.flatMap((node) => node.anchors.flatMap((anchor) => (anchor.into === 'stitch' ? [anchor.id] : []))));
-  const { chainCounts } = pattern.conventions;
   const stated = new Map<NodeId, number>();
   for (const layer of graph.layers.slice(1)) {
-    const chains = layer.stitches.filter((id) => extension.has(id));
-    const counted = chainCounts === true ? chains.length : chainCounts === false ? 0 : chains.filter((id) => anchored.has(id)).length;
+    // A `stitchCount` a szerkezeté: a belehorgolt bővítőlánc szem, a többi nem (PQW-940).
+    const counted = layer.stitches.filter((id) => extension.has(id) && anchored.has(id)).length;
     if (layer.stitchCount - counted !== counts[layer.index - 1]) {
       return text('internal-error', { row: layer.index });
     }
-    if (layer.closing) stated.set(layer.closing.after, layer.stitchCount);
+    if (layer.closing) stated.set(layer.closing.after, layer.writtenCount);
   }
   return { ...piece, events: piece.events.map((event) => ({ ...event, statedCount: stated.get(event.after)! })) };
 }

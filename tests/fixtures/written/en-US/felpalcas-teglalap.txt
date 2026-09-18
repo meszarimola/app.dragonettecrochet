@@ -11,6 +11,6 @@ half double crochet (hdc)
 
 Félpálcás téglalap
 Row 1 – foundation: ch 17.
-Row 2: skip 2 ch, hdc in each ch across (15 sts). Turn.
-Rows 3–22: ch 2 (turning chain), 15 hdc (15 sts). Turn.
-Row 23: ch 2 (turning chain), 15 hdc (15 sts). Fasten off.
+Row 2: skip 2 ch, hdc in each ch across (16 sts). Turn.
+Rows 3–22: ch 2 (counts as 1 hdc), 15 hdc (16 sts). Turn.
+Row 23: ch 2 (counts as 1 hdc), 15 hdc (16 sts). Fasten off.

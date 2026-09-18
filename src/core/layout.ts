@@ -68,6 +68,8 @@ export interface LayerPlacement {
   readonly shape: LayerInfo['shape'];
   readonly side: LayerInfo['side'];
   readonly stitchCount: number;
+  /** A kiírt szemszám: a rajz felirata ezt mutatja (PQW-940). */
+  readonly writtenCount: number;
   /** A sorszám helye a sor kezdő oldalán. */
   readonly start: Point;
   /** A szemszám helye a sor végén. */
@@ -418,6 +420,7 @@ class Layouter {
       shape: layer.shape,
       side,
       stitchCount: 0,
+      writtenCount: 0,
       start: this.#round ? { x: 0, y: 0 } : { x: -this.#W, y: 0 },
       end: this.#round ? { x: 0, y: 0 } : { x: last + this.#W, y: 0 },
     });
@@ -694,6 +697,7 @@ class Layouter {
       shape: layer.shape,
       side,
       stitchCount: layer.stitchCount,
+      writtenCount: layer.writtenCount,
       start: this.#point(middle, startAxis),
       end: this.#point(middle, endAxis),
     });

@@ -546,3 +546,65 @@ describe('a minta kitisztul az árva áthidalásokból (PQW-939)', () => {
     assert.equal(again.pieces[0].skipped.length, 3, 'a korábbi kettő megmarad, az új mellé');
   });
 });
+
+/*
+ * A sor szemszáma (PQW-940). A tulajdonos sora a v0.31.0-ban (13)-at mutatott,
+ * pedig 22 szem van benne: a program sem a fordulóláncot, sem a láncszemeket
+ * nem számolta.
+ *
+ * A tulajdonos szabálya (2026-09-18): a fordulólánc a sor első szeme, és a
+ * láncszemek is szemek. A SZERKEZET száma külön él tovább: abba a fordulólánc
+ * nem tartozik bele, mert a következő sor nem horgol beléje.
+ */
+describe('a sor kiírt szemszáma a fordulólánccal és a láncszemekkel (PQW-940)', () => {
+  const put = (pattern, def, count = 1) => ok(work(pattern, { def, count }, defaultCursor(pattern, contextOf(pattern), def)));
+  const cluster = (pattern, def, count) => {
+    const at = defaultCursor(pattern, contextOf(pattern), def);
+    let next = ok(work(pattern, { def, count: 1 }, at));
+    for (let i = 1; i < count; i += 1) next = ok(workIntoSame(next, def, at));
+    return next;
+  };
+
+  /** A tulajdonos 2. sora: 1 fordulólánc, 2 rp, 2 erp, 3-as csokor, 3 lsz, 3-as csokor, 3 lsz, 3-as csokor, 2 lsz. */
+  const ownersRow = () => {
+    let pattern = ok(work(emptyPattern(), { def: 'ch', count: 22 }, 0));
+    pattern = ok(endRow(pattern, 'sc'));
+    pattern = put(pattern, 'sc');
+    pattern = put(pattern, 'sc');
+    pattern = put(pattern, 'dc');
+    pattern = put(pattern, 'dc');
+    pattern = cluster(pattern, 'dc', 3);
+    pattern = put(pattern, 'ch', 3);
+    pattern = cluster(pattern, 'dc', 3);
+    pattern = put(pattern, 'ch', 3);
+    pattern = cluster(pattern, 'dc', 3);
+    return put(pattern, 'ch', 2);
+  };
+
+  test('a tulajdonos sora 22 szem, nem 13', () => {
+    const [, row] = computeLayers(ownersRow(), libraryFor(ownersRow()));
+    assert.equal(row.writtenCount, 22, 'a kiírt szemszám');
+    // A szerkezeté a belehorgolható szemeké: fordulólánc nélkül, és a láncszem csak akkor, ha valami beléje horgol.
+    assert.equal(row.stitchCount, 13);
+  });
+
+  test('a fordulólánc a sor első szeme: két rövidpálca után 3 a kiírt szám', () => {
+    let pattern = ok(work(emptyPattern(), { def: 'ch', count: 10 }, 0));
+    pattern = ok(endRow(pattern, 'sc'));
+    pattern = put(pattern, 'sc');
+    pattern = put(pattern, 'sc');
+    const [, row] = computeLayers(pattern, libraryFor(pattern));
+    assert.equal(row.writtenCount, 3);
+    assert.equal(row.stitchCount, 2);
+  });
+
+  test('a láncszem is szem, akkor is, ha még nincs fölötte sor', () => {
+    let pattern = ok(work(emptyPattern(), { def: 'ch', count: 10 }, 0));
+    pattern = ok(endRow(pattern, 'sc'));
+    pattern = put(pattern, 'sc');
+    const before = computeLayers(pattern, libraryFor(pattern))[1].writtenCount;
+    const withChains = put(pattern, 'ch', 3);
+    const after = computeLayers(withChains, libraryFor(withChains))[1].writtenCount;
+    assert.equal(after - before, 3, 'a három láncszem hárommal emeli a szemszámot');
+  });
+});

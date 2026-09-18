@@ -13,4 +13,4 @@ láncív
 V-szem
 1. sor – alapsor: 17 lsz.
 2. sor: hagyj ki 3 láncszemet, majd 1 erp, 1 láncszem kihagyása, V-szem, [2 láncszem kihagyása, V-szem] 3-szor, 1 láncszem kihagyása, 1 erp (14 szem). Fordítás.
-3. sor: 3 lsz (fordulólánc), 1 erp, [V-szem a következő láncívbe] 4-szer, 1 szem kihagyása, 1 erp (10 szem). A fonal elvágása.
+3. sor: 3 lsz (fordulólánc), 1 erp, [V-szem a következő láncívbe] 4-szer, 1 szem kihagyása, 1 erp (14 szem). A fonal elvágása.

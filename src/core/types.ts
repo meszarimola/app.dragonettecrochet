@@ -269,10 +269,13 @@ export interface PatternConventions extends RowConventions {
   /**
    * Számítanak-e a láncszemek a szemszámba; a fordulóláncra a
    * `turningChainCounts` vonatkozik (03 §4.3, §10 B10).
+   * - `true`: minden láncszem számít. Ez az alapértelmezés (tulajdonosi
+   *   döntés, PQW-940): a tervező a sorában megszámolja a láncszemeket is,
+   *   és a készülő sor fölött még nincs, ami beléjük horgoljon.
    * - `worked-into`: akkor, ha egy későbbi sor vagy kör beléjük horgol,
    *   egyenként vagy láncívként, egészben. A díszlánc, amibe semmi nem
-   *   horgol, nem számít (tulajdonosi döntés, PQW-870).
-   * - `true`: minden láncszem számít; `false`: egyik sem.
+   *   horgol, nem számít (PQW-870); mintánkénti beállításként megmaradt.
+   * - `false`: egyik sem.
    */
   readonly chainCounts: 'worked-into' | boolean;
   /** A számolási hagyomány; hiányában `cyc` (a PQW-876 előtti mentés). */
@@ -665,8 +668,20 @@ export interface Layer {
   readonly row: number;
   readonly shape: 'row' | 'round';
   readonly stitches: readonly NodeId[];
-  /** Szemszám: a láncszemek a `chainCounts`, a fordulólánc a `turningChainCounts` szerint. */
+  /**
+   * A SZERKEZET szemszáma: hány szem áll a sorban, amibe a következő sor
+   * belehorgolhat. A fordulólánc sorban nem szem (PQW-924), a láncszem pedig
+   * akkor, ha valami beléje horgol. Konvenció nem billenti el: a generátorok
+   * és az ellenőrző erre a számra támaszkodnak.
+   */
   readonly stitchCount: number;
+  /**
+   * A KIÍRT szemszám: ezt mondja az írott minta és a rajz felirata, és ezt
+   * számolja meg a horgoló a soron (tulajdonosi döntés, PQW-940). A
+   * fordulólánc a sor első szeme, a láncszemek a `chainCounts` szerint
+   * számítanak — alapból mind.
+   */
+  readonly writtenCount: number;
   /** Pozíciószám, láncszemmel együtt. */
   readonly positionCount: number;
   /** A színe (`right`) vagy a visszája (`wrong`) néz a horgoló felé (01 §8.4 szabály 19). */

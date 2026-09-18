@@ -32,8 +32,8 @@ test('a téglalap SVG-je: sorszámok, szemszámok, mindkét oldal színe, jelmag
    * vásznán; külön „(15)” szöveg már nem kerül a mintára. A láncalap az 1. sor.
    */
   assert.match(svg, />1\. sor – alapsor \(\d+\)</);
-  for (const row of [2, 3, 4]) assert.match(svg, new RegExp(`>${row}\\. sor \\(15\\)</text>`));
-  assert.doesNotMatch(svg, />\(15\)</);
+  for (const row of [2, 3, 4]) assert.match(svg, new RegExp(`>${row}\\. sor \\(16\\)</text>`));
+  assert.doesNotMatch(svg, />\(16\)</);
   // Mindkét oldal csoportjában van szár.
   assert.match(svg, /data-side="right"[^>]*>\n(?:<(?!\/g>)[^\n]*\n)*<line/);
   assert.match(svg, /data-side="wrong"[^>]*>\n(?:<(?!\/g>)[^\n]*\n)*<line/);
@@ -42,7 +42,7 @@ test('a téglalap SVG-je: sorszámok, szemszámok, mindkét oldal színe, jelmag
    * 2. sor felirata a bal, a 3. soré a jobb oldalon van — a korábbi elvárás
    * fordítva szólt, mert akkor a sorszám a kezdő oldalon állt.
    */
-  const x = (row) => Number(svg.match(new RegExp(`x="(-?[\\d.]+)"[^>]*>${row}\\. sor \\(15\\)</text>`))[1]);
+  const x = (row) => Number(svg.match(new RegExp(`x="(-?[\\d.]+)"[^>]*>${row}\\. sor \\(16\\)</text>`))[1]);
   assert.ok(x(3) > x(2));
   assert.match(svg, /Jelmagyarázat/);
   assert.match(svg, />félpálca \(fp\)</);

@@ -492,7 +492,7 @@ export function writePattern(pattern: Pattern, library: StitchLibrary, locale: L
       return { name, layer: rowOf(layer), count: stitches.count, ...named, stitches: { from: stitches.from + 1, to: stitches.from + stitches.count } };
     }
     if (rows) return { name, layer: rowOf(layer), count: rows.to - layer + 1, ...named, rows: { to: rowOf(rows.to), side: rows.side } };
-    return { name, layer: rowOf(layer), count: written_?.layers.find((candidate) => candidate.index === layer)?.stitchCount ?? 0, ...named };
+    return { name, layer: rowOf(layer), count: written_?.layers.find((candidate) => candidate.index === layer)?.writtenCount ?? 0, ...named };
   };
   const assembly = (pattern.joins ?? []).map((join) => vocabulary.sewing(edge(join.a), edge(join.b), join.distribution !== undefined));
 
@@ -685,7 +685,7 @@ class Renderer {
     }
     if (layer.fromHook?.eachChain && only?.kind === 'stitch') items = v.eachChain(this.step({ ...only, count: 1 }));
     else items = this.steps(layer.steps);
-    let text = `${prefix}${items} ${this.round ? v.roundCount(layer.stitchCount) : v.count(layer.stitchCount)}.`;
+    let text = `${prefix}${items} ${this.round ? v.roundCount(layer.writtenCount) : v.count(layer.writtenCount)}.`;
     const slip = this.byKind('slip');
     if (layer.closing === 'join-slip') {
       this.use(slip);

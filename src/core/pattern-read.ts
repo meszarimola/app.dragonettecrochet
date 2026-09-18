@@ -754,15 +754,14 @@ class PieceReader {
     if (hasTurning && firstStitch !== undefined) {
       const firstDef = library.get(this.node(firstStitch).def)!;
       /*
-       * Sorban a fordulólánc soha nem szem (PQW-924), ezért ott ez az elvárás
-       * mindig hamis: a mai szöveg („fordulólánc”) egyezik vele, és nem
-       * keletkezik se felesleges felülírás, se hamis hiba. Körben a kezdőlánc
-       * a könyvtár és a minta beállítása szerint számít.
+       * A fordulólánc sorban is a sor első szeme (PQW-940), ezért az elvárást
+       * a könyvtár és a minta beállítása adja, sorban és körben egyaránt. Ha a
+       * szöveg mást mond — például a bordás sor, ahol a fordulólánc nem szem
+       * (ribbing.ts) —, a sort megnyitó esemény kapja meg a felülírást, és a
+       * minta konvenciója változatlan marad.
        */
-      const expected = round && turningChainCountsFor(conventions.turningChainCounts, firstDef, traditionOf(conventions), 'round');
+      const expected = turningChainCountsFor(conventions.turningChainCounts, firstDef, traditionOf(conventions), round ? 'round' : 'row');
       if (expected !== textCounts && !countsFromSettings) {
-        // Sorban a fordulólánc nem lehet szem (PQW-924): az ilyen szöveget elutasítjuk, nem írjuk felül csendben.
-        if (!round) fail(v.legacyTurningChain);
         if (opening === null) fail('Az 1. sor fordulóláncának számolása eltér a minta beállításától.');
         this.events[this.events.length - 1] = { ...opening!, conventions: { ...opening!.conventions, turningChainCounts: textCounts } };
       }
@@ -798,11 +797,11 @@ class PieceReader {
     const graph = buildPieceGraph(pattern, piece, this.options.library);
     for (const layer of graph.layers.slice(1)) {
       const stated = layer.closing?.statedCount ?? (this.pendingCount?.index === layer.index ? this.pendingCount.stated : undefined);
-      if (stated !== undefined && stated !== layer.stitchCount) {
+      if (stated !== undefined && stated !== layer.writtenCount) {
         throw new ReadFailure(
           this.layerLines.get(layer.index) ?? 0,
           // A hibaüzenet a kiírt sorszámot mondja, hogy a szövegben meg lehessen találni (PQW-923).
-          `${layer.shape === 'row' ? `${layer.index + 1}. sor` : `${layer.index}. kör`}: a szöveg ${stated} szemet ír, a visszaolvasott gráf szerint ${layer.stitchCount}.`,
+          `${layer.shape === 'row' ? `${layer.index + 1}. sor` : `${layer.index}. kör`}: a szöveg ${stated} szemet ír, a visszaolvasott gráf szerint ${layer.writtenCount}.`,
         );
       }
     }
