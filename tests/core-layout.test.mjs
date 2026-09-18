@@ -427,7 +427,7 @@ describe('a fordulólánc magassága a sajátja, nem a soré (PQW-934)', () => {
   /** 22 láncszem, fordulás rövidpálcára, majd a felsorolt szemek a sor elejétől. */
   const row = (defs) => {
     let pattern = ok(work(emptyPattern(), { def: 'ch', count: 22 }, 0));
-    pattern = ok(endRow(pattern, 'sc'));
+    pattern = ok(endRow(pattern));
     for (const def of defs) {
       const context = contextOf(pattern);
       pattern = ok(work(pattern, { def, count: 1 }, defaultCursor(pattern, context, def)));
@@ -482,7 +482,7 @@ describe('a láncszemek résenként párosulnak az áthidalt helyekkel (PQW-936)
 
   /** 22 láncszem, fordulás, két rövidpálca és két pálca, majd a kért ismétlések. */
   const repeats = (units) => {
-    let pattern = ok(endRow(chains(emptyPattern(), 22), 'sc'));
+    let pattern = ok(endRow(chains(emptyPattern(), 22)));
     for (const def of ['sc', 'sc', 'dc', 'dc']) {
       pattern = ok(work(pattern, { def, count: 1 }, defaultCursor(pattern, contextOf(pattern), def)));
     }
@@ -548,7 +548,7 @@ describe('a láncszemek résenként párosulnak az áthidalt helyekkel (PQW-936)
 describe('az árva jelölés nem viszi el a láncszemet (PQW-938)', () => {
   /** 40 láncszem, fordulás, két rövidpálca, majd három pálca egy célpontba. */
   const cluster = () => {
-    let pattern = ok(endRow(chains(emptyPattern(), 40), 'sc'));
+    let pattern = ok(endRow(chains(emptyPattern(), 40)));
     for (const def of ['sc', 'sc']) {
       pattern = ok(work(pattern, { def, count: 1 }, defaultCursor(pattern, contextOf(pattern), def)));
     }

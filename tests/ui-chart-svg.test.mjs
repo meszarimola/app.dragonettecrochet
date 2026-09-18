@@ -112,7 +112,7 @@ test('a beszúrási mód a talpon és a jelmagyarázatban, CYC és JIS jelstílu
   };
   let pattern = done(work(emptyPattern(), { def: 'ch', count: 6 }, 0));
   pattern = done(fillRow(pattern, { def: 'sc', count: 1, insertion: 'back-loop' }));
-  pattern = done(endRow(pattern, 'sc'));
+  pattern = done(endRow(pattern));
   pattern = done(fillRow(pattern, { def: 'sc', count: 1, insertion: 'back-loop' }));
   const library = libraryFor(pattern);
 

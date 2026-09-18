@@ -333,21 +333,23 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     /*
      * Két szám, mert két kérdés (PQW-940).
      *
-     * `stitchCount` a SZERKEZET: hány szembe horgolhat a következő sor.
-     * Sorban a fordulólánc nem ilyen szem (PQW-924), a láncszem pedig akkor,
-     * ha valami beléje horgol. Konvenció nem billenti el; a generátorok és az
-     * ellenőrző erre támaszkodnak. Körben a kezdőlánc („3 lsz = 1 pálca”)
-     * változatlanul szem, ahogy eddig is.
+     * `stitchCount` a SZERKEZET: hány szembe horgolhat a következő sor. A
+     * láncszem akkor ilyen szem, ha valami beléje horgol; konvenció nem
+     * billenti el, a generátorok és az ellenőrző erre támaszkodnak. A
+     * fordulólánc a sor első szemének helyén áll (PQW-944), ezért sorban is
+     * pozíció: a teteje a következő sor utolsó célpontja.
      *
      * `writtenCount` az, amit a minta KIÍR és amit a horgoló megszámol a
      * soron: a fordulólánc a sor első szeme sorban is, a láncszemek pedig a
      * `chainCounts` szerint számítanak — alapból mind.
      */
     const startingChainCounts = shape === 'round' && turningChainCounts;
+    // A fordulólánc teteje sorban is pozíció: oda megy a következő sor utolsó szeme (PQW-944).
+    const startingChainIsPosition = turningChainCounts;
     let stitchCount = startingChainCounts ? 1 : 0;
-    let positionCount = stitchCount;
+    let positionCount = startingChainIsPosition ? 1 : 0;
     let writtenCount = turningChainCounts ? 1 : 0;
-    const positions: NodeId[] = startingChainCounts ? [turningChain[turningChain.length - 1]!] : [];
+    const positions: NodeId[] = startingChainIsPosition ? [turningChain[turningChain.length - 1]!] : [];
     for (const node of segment) {
       if (turningSet.has(node.id)) continue;
       if (slipSet.has(node.id)) {

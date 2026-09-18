@@ -65,8 +65,9 @@ function hdcRectangle(width, rows) {
   // Félpálcánál 2 láncszemet hagyunk ki, és minden láncszembe egy szem megy (PQW-924).
   let pattern = chains(emptyPattern(), width + 2);
   for (let row = 1; row <= rows; row += 1) {
-    if (row > 1) pattern = ok(endRow(pattern, 'hdc'));
-    for (let i = 0; i < width; i += 1) pattern = stitch(pattern, 'hdc');
+    if (row > 1) pattern = ok(endRow(pattern));
+    // A fordult sor első szeme a fordulólánc lesz (PQW-944), ezért ott eggyel többször horgolunk.
+    for (let i = 0; i < width + (row > 1 ? 1 : 0); i += 1) pattern = stitch(pattern, 'hdc');
   }
   return pattern;
 }
@@ -96,8 +97,9 @@ function shellRows() {
     pattern = stitch(pattern, 'shell-5dc', at);
     pattern = stitch(pattern, 'sc', at + 3);
   }
-  pattern = ok(endRow(pattern, 'dc'));
-  // A fordulólánc nem szem (PQW-924): a szaporítás adja mind a három pálcát.
+  pattern = ok(endRow(pattern));
+  // A fordulólánc itt nem szem (a minta beállítása), ezért a horgoló maga teszi le (PQW-944).
+  pattern = chains(pattern, 3);
   pattern = stitch(pattern, 'dc', 0);
   pattern = ok(workIntoSame(pattern, 'dc'));
   pattern = ok(workIntoSame(pattern, 'dc'));
@@ -211,7 +213,7 @@ describe('törlés', () => {
   });
 
   test('ha semmi nem horgol bele, rögtön töröl; a sor vége az előző szemre kerül', () => {
-    const pattern = ok(endRow(hdcRectangle(3, 2), null));
+    const pattern = ok(endRow(hdcRectangle(3, 2)));
     const lastOfRow2 = body(pattern, 2).at(-1);
     assert.deepEqual(deletionPlan(pattern, [lastOfRow2]).dependents, []);
     const deleted = ok(deleteStitches(pattern, [lastOfRow2]));
@@ -263,9 +265,10 @@ describe('másolás, beillesztés, duplikálás', () => {
   });
 
   test('a meglévő fordulóláncot felhasználja, nem horgol kétszer fordulóláncot', () => {
-    const pattern = ok(endRow(hdcRectangle(6, 2), 'hdc'));
+    const pattern = ok(endRow(hdcRectangle(6, 2)));
     const pasted = ok(pasteFragment(pattern, copied(copySelection(pattern, layerSelection(pattern, 2)))));
-    assert.equal(nodes(pasted).length, nodes(pattern).length + 6, 'a fordulólánc nem szem: 6 új félpálca');
+    // A másolt sor a fordulóláncát is hozza (PQW-944): 2 láncszem és 6 félpálca.
+    assert.equal(nodes(pasted).length, nodes(pattern).length + 8, 'fordulólánc és 6 új félpálca');
     assert.deepEqual(counts(pasted), [0, 6, 6, 6]);
     assert.deepEqual(findings(pasted), []);
   });
@@ -326,26 +329,28 @@ describe('másolás, beillesztés, duplikálás', () => {
     const row = pasteFragment(narrow, copied(copySelection(wide, layerSelection(wide, 2))));
     assert.equal(row.ok, false);
     assert.equal(row.reason.code, 'paste-span-mismatch');
-    assert.match(huText(row.reason), /10 szemre épül, alatta most 8 van: a szemszám nem jön ki/);
+    assert.match(huText(row.reason), /11 szemre épül, alatta most 9 van: a szemszám nem jön ki/);
     assert.deepEqual(narrow, narrowBefore);
   });
 
   test('foglalt célpontra, a haladási irány ellen és más fajtájú célpontra nem illeszt be', () => {
-    let pattern = ok(endRow(hdcRectangle(6, 1), 'hdc'));
-    pattern = stitch(pattern, 'hdc', 0);
-    pattern = stitch(pattern, 'hdc', 2);
+    let pattern = ok(endRow(hdcRectangle(6, 1)));
+    // Az első szem a fordulólánc (PQW-944), utána két félpálca az 1. és a 3. célpontba.
+    pattern = stitch(pattern, 'hdc');
+    pattern = stitch(pattern, 'hdc', 1);
+    pattern = stitch(pattern, 'hdc', 3);
     const fragment = copied(copySelection(pattern, body(pattern, 2).slice(0, 1)));
-    const used = pasteFragment(pattern, fragment, 0);
+    const used = pasteFragment(pattern, fragment, 1);
     assert.equal(used.reason.code, 'paste-slot-used');
     assert.match(huText(used.reason), /célpontba már horgoltál/);
-    const backwards = pasteFragment(pattern, fragment, 1);
+    const backwards = pasteFragment(pattern, fragment, 2);
     assert.equal(backwards.reason.code, 'paste-against-direction');
     assert.match(huText(backwards.reason), /haladási irány ellen/);
-    assert.equal(pasteFragment(pattern, fragment, 3).ok, true);
+    assert.equal(pasteFragment(pattern, fragment, 4).ok, true);
 
     const ring = stitch(chains(ok(work(emptyPattern(), { def: 'magic-ring', count: 1 }, 0)), 1), 'sc', 0);
     const intoRing = copied(copySelection(ring, [nodes(ring).at(-1).id]));
-    const wrongKind = pasteFragment(ok(endRow(hdcRectangle(3, 1), 'hdc')), intoRing);
+    const wrongKind = pasteFragment(ok(endRow(hdcRectangle(3, 1))), intoRing);
     assert.equal(wrongKind.reason.code, 'paste-slot-kind');
     assert.match(huText(wrongKind.reason), /célpont szem, a másolt szem viszont varázskörbe horgolt/);
   });
@@ -386,7 +391,7 @@ describe('másolás, beillesztés, duplikálás', () => {
 describe('a törlés eldobja a gazdátlan áthidalásokat (PQW-938)', () => {
   const build = () => {
     let pattern = ok(work(emptyPattern(), { def: 'ch', count: 40 }, 0));
-    pattern = ok(endRow(pattern, 'sc'));
+    pattern = ok(endRow(pattern));
     for (const def of ['sc', 'sc', 'dc']) {
       pattern = ok(work(pattern, { def, count: 1 }, defaultCursor(pattern, contextOf(pattern), def)));
     }

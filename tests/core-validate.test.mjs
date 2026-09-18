@@ -67,10 +67,19 @@ describe('félpálcás téglalap, elrontva (03 §3.1 A)', () => {
     assertOnly(example.pattern, 'turning-chain-height', [example.turningChains[5]]);
   });
 
-  test('a 2. sor kihagyja az első szemet, és a következőbe szaporít', () => {
-    const example = hdcRectangle({ row2SkipsFirst: true });
-    // Az 1. sor utolsó szemébe semmi nem kerül: a fordulólánc nem pótolja (PQW-924).
+  test('a 2. sor két szemet hagy ki az elején: a fordulólánc csak az egyiket állja (PQW-944)', () => {
+    const example = hdcRectangle({ row2SkipsTwo: true });
+    // Az első kimaradt pozíció a fordulóláncé; a másodikba tényleg nem ment szem.
     assertOnly(example.pattern, 'unused-position', [[example.rows[1].at(-1)]]);
+  });
+
+  test('a 2. sor kihagyja az első szemet: a fordulólánc áll ott, ezért nem hiba (PQW-944)', () => {
+    const example = hdcRectangle({ row2SkipsFirst: true });
+    /*
+     * A számító fordulólánc a sor első szemének helyén ül, ezért az alatta
+     * lévő pozícióba nem megy szem — ez nem kimaradt szem.
+     */
+    assert.deepEqual(validatePattern(example.pattern, testLibrary), []);
   });
 
   test('a 2. sor közepén egy szem kimarad: figyelmeztetés', () => {
@@ -123,10 +132,9 @@ describe('félpálcás téglalap, elrontva (03 §3.1 A)', () => {
 });
 
 describe('pálcás téglalap, elrontva (03 §3.1 B)', () => {
-  test('a 2. sor kihagyja az előző sor első szemét: az a szem használatlan marad', () => {
-    // A fordulólánc nem pótolja a kimaradt szemet (PQW-924).
+  test('a 2. sor kihagyja az előző sor első szemét: a fordulólánc áll ott (PQW-944)', () => {
     const example = dcRectangle({ row2SkipsFirst: true });
-    assertOnly(example.pattern, 'unused-position', [[example.rows[1].at(-1)]]);
+    assert.deepEqual(validatePattern(example.pattern, testLibrary), []);
   });
 
   test('a 2. sor egyik szeme a 3. sor szemébe van horgolva', () => {
