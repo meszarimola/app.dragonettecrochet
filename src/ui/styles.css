@@ -300,7 +300,11 @@ button {
   display: block;
   inline-size: 100%;
   block-size: 100%;
-  /* The drawing surface handles its own touches: one finger draws, two zoom. */
+}
+
+/* Only the free-form surface handles its own touches: one finger draws, two
+   zoom. The grid chart has no pinch of its own, so the browser keeps its. */
+#board-irregular {
   touch-action: none;
 }
 

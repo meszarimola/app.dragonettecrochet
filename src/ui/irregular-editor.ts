@@ -177,8 +177,6 @@ function clampSide(value: number): number {
 
 /** How far a row's number stands from its first stitch. */
 const LABEL_GAP = 18;
-/** How long the autosave waits for the hand to stop moving. */
-const SAVE_DELAY = 400;
 /** Below this a drag is a click, and the annotation takes its natural size. */
 const MIN_NOTE_SPAN = 8;
 const ROW_ARROW: Record<RowDirection, string> = { ltr: '→', rtl: '←', cw: '↻', ccw: '↺' };
@@ -448,8 +446,11 @@ export class IrregularEditor {
   }
 
   unmount(): void {
-    this.flush();
     this.#mounted = false;
+    // A finger still down when the view closes would look like one half of a
+    // pinch forever, and single-finger drawing would never work again.
+    this.#touches.clear();
+    this.#pinch = null;
     this.#draft = null;
     this.#drag = null;
     this.#panel.hide();
@@ -709,29 +710,6 @@ export class IrregularEditor {
     });
   }
 
-  #saveSoon: ReturnType<typeof setTimeout> | null = null;
-
-  /**
-   * Only while a drag is in flight: it commits on every pointer move, and
-   * writing the whole pattern each time is what makes a big chart stutter.
-   * KB: interface.md §50
-   */
-  /** Writes anything still waiting, so nothing is lost on the way out. */
-  flush(): void {
-    if (this.#saveSoon === null) return;
-    clearTimeout(this.#saveSoon);
-    this.#saveSoon = null;
-    this.#persist();
-  }
-
-  #persistSoon(): void {
-    if (this.#saveSoon !== null) clearTimeout(this.#saveSoon);
-    this.#saveSoon = setTimeout(() => {
-      this.#saveSoon = null;
-      this.#persist();
-    }, SAVE_DELAY);
-  }
-
   #persist(): void {
     try {
       localStorage.setItem(IRREGULAR_STORAGE_KEY, saveIrregular(this.#withNotation()));
@@ -756,10 +734,7 @@ export class IrregularEditor {
     if (next !== this.#history.present) {
       this.#history = record(this.#history, next);
       this.#pruneSelection();
-      // A drag commits on every pointer move; anything else is a single act and
-      // is written at once, so nothing is ever a moment behind what is on screen.
-      if (this.#drag === null) this.#persist();
-      else this.#persistSoon();
+      this.#persist();
     }
     this.refresh();
     if (message !== undefined) this.#host.announce(message);
@@ -2020,6 +1995,8 @@ export class IrregularEditor {
    */
   #touches = new Map<number, Point>();
   #pinch: { gap: number; middle: Point } | null = null;
+  /** What the first finger found, so a second finger can put it all back. */
+  #beforeTouch: { steps: number; selection: Set<string> } | null = null;
 
   #onDown(event: PointerEvent): void {
     this.#canvas.focus({ preventScroll: true });
@@ -2027,11 +2004,14 @@ export class IrregularEditor {
     if (event.pointerType === 'touch') {
       this.#touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
       if (this.#touches.size === 2) {
-        this.#endDrag();
-        this.#pinch = this.#pinchOf();
+        this.#startPinch();
         return;
       }
       if (this.#touches.size > 2) return;
+      // The first finger acts at once, because waiting to see whether a second
+      // one is coming would make every tap feel slow. If one does come, what the
+      // first finger did is put back. KB: interface.md §50
+      this.#beforeTouch = { steps: this.#history.past.length, selection: new Set(this.#selection) };
     }
     const point = this.#board.toChart(event.clientX, event.clientY);
     this.#pointer = point;
@@ -2187,6 +2167,23 @@ export class IrregularEditor {
     this.#drag = { kind: 'scale', handle, start: point, base, anchor };
   }
 
+  /**
+   * A pinch takes back whatever the first finger did on its way down — a placed
+   * stitch, a cleared or changed selection — so zooming never draws.
+   */
+  #startPinch(): void {
+    this.#endDrag();
+    const before = this.#beforeTouch;
+    this.#beforeTouch = null;
+    if (before !== null) {
+      while (this.#history.past.length > before.steps) this.#history = undo(this.#history);
+      this.#selection = before.selection;
+      this.#persist();
+      this.refresh();
+    }
+    this.#pinch = this.#pinchOf();
+  }
+
   #pinchOf(): { gap: number; middle: Point } | null {
     const [first, second] = [...this.#touches.values()];
     if (first === undefined || second === undefined) return null;
@@ -2203,8 +2200,7 @@ export class IrregularEditor {
       if (this.#touches.size >= 2 && was !== null) {
         const now = this.#pinchOf();
         if (now === null) return;
-        this.#board.zoomAt(now.gap / was.gap, was.middle.x, was.middle.y);
-        this.#board.pan(now.middle.x - was.middle.x, now.middle.y - was.middle.y);
+        this.#board.zoomAndPan(now.gap / was.gap, was.middle, now.middle);
         this.#pinch = now;
         return;
       }
@@ -2409,9 +2405,12 @@ export class IrregularEditor {
   #onUp(event?: PointerEvent): void {
     if (event !== undefined && event.pointerType === 'touch') {
       this.#touches.delete(event.pointerId);
-      if (this.#touches.size < 2 && this.#pinch !== null) {
-        this.#pinch = null;
-        this.#endDrag();
+      this.#beforeTouch = null;
+      if (this.#pinch !== null) {
+        // Lifting one of three fingers leaves a different pair, so the gesture
+        // is re-seeded rather than measured against the pair that just changed.
+        this.#pinch = this.#touches.size >= 2 ? this.#pinchOf() : null;
+        if (this.#pinch === null) this.#endDrag();
         return;
       }
     }
@@ -2441,8 +2440,6 @@ export class IrregularEditor {
     }
     const draft = this.#draft;
     this.#drag = null;
-    // The drag is over, so whatever it coalesced is written now.
-    this.flush();
     if (draft === null) {
       if (drag.kind === 'move' && drag.drop !== null) this.#selection.delete(drag.drop);
       this.refresh();
@@ -2458,7 +2455,6 @@ export class IrregularEditor {
 
   #endDrag(): void {
     this.#drag = null;
-    this.flush();
     this.#draft = null;
     this.refresh();
   }

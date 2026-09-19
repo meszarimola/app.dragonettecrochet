@@ -219,6 +219,18 @@ export class FreeBoard {
   }
 
   /** Zooming keeps the point under the pointer where it is. */
+  /** One redraw for a pinch, which does both at once, instead of two. */
+  zoomAndPan(factor: number, around: Point, to: Point): void {
+    const rect = this.#canvas.getBoundingClientRect();
+    const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, this.#view.scale * factor));
+    const k = scale / this.#view.scale;
+    const [px, py] = [around.x - rect.left, around.y - rect.top];
+    this.#view.x = px - (px - this.#view.x) * k + (to.x - around.x);
+    this.#view.y = py - (py - this.#view.y) * k + (to.y - around.y);
+    this.#view.scale = scale;
+    this.render();
+  }
+
   zoomAt(factor: number, clientX: number, clientY: number): void {
     const rect = this.#canvas.getBoundingClientRect();
     const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, this.#view.scale * factor));
