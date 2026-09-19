@@ -930,8 +930,22 @@ test('export: SVG, PNG és PDF a szabálytalan típusból (AS-13)', async ({ pag
   await page.locator('[data-action="export-svg"]').click();
   const svg = await readFile((await (await svgDownload).path()) ?? '', 'utf8');
   expect(svg.startsWith('<svg'), 'vektoros SVG készült').toBe(true);
-  expect(svg, 'a rejtett sor szemei nincsenek benne').not.toContain('data-row="r2"');
-  expect((svg.match(/<g class="ink"/g) ?? []).length, 'a látható szemek benne vannak').toBeGreaterThan(0);
+  // The hidden row's stitch must leave no geometry behind, not merely be invisible.
+  const drawn = (svg.match(/<(path|ellipse|circle|line)\b/g) ?? []).length;
+  expect(drawn, 'a látható szemek benne vannak').toBeGreaterThan(0);
+  const everything = await page.evaluate(() => {
+    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+    return (JSON.parse(raw).items ?? []).length;
+  });
+  expect(everything, 'a mintában öt szem van, egy a rejtett sorban').toBe(5);
+  await page.locator('#rows-list li').nth(1).getByRole('button', { name: 'Látható' }).click();
+  const shownAgain = page.waitForEvent('download');
+  await page.locator('#file-toggle').click();
+  await page.locator('[data-action="export-svg"]').click();
+  const all = await readFile((await (await shownAgain).path()) ?? '', 'utf8');
+  const drawnAll = (all.match(/<(path|ellipse|circle|line)\b/g) ?? []).length;
+  expect(drawnAll, 'a sor visszakapcsolva több alakzat kerül a fájlba').toBeGreaterThan(drawn);
+  await page.locator('#rows-list li').nth(1).getByRole('button', { name: 'Látható' }).click();
 
   const pngDownload = page.waitForEvent('download');
   await page.locator('#file-toggle').click();

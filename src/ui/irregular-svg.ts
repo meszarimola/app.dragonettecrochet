@@ -42,7 +42,9 @@ const LEGEND_ROW = 30;
 const LEGEND_GAP = 10;
 const LEGEND_COLUMN = 190;
 const LEGEND_FONT = 13;
-const CHAR_WIDTH = 7;
+// Capitals, digits and the separator run wider than an average letter, and a
+// clipped legend line is worse than a little slack.
+const CHAR_WIDTH = 8.4;
 const STROKE = 2;
 const GUIDE_OPACITY = 0.25;
 const GRID_LINES = 400;
@@ -262,7 +264,9 @@ function drawLegend(block: LegendBlock, lines: readonly LegendLine[], ink: strin
       const [midX, midY] = [(bounds.minX + bounds.maxX) / 2, (bounds.minY + bounds.maxY) / 2];
       const place = `translate(${num(slot.x + LEGEND_ICON / 2)} ${num(slot.y)}) scale(${num(fit)}) translate(${num(-midX)} ${num(-midY)})`;
       out.push(
-        `<g class="ink" stroke="${escapeXml(ink)}" color="${escapeXml(ink)}" stroke-width="${num(STROKE / fit)}" transform="${place}">${shapes.map(shapeToSvg).join('')}</g>`,
+        // The document's own stylesheet beats a presentation attribute, so the
+        // width that undoes the icon's scale has to be inline.
+        `<g class="ink" stroke="${escapeXml(ink)}" color="${escapeXml(ink)}" style="stroke-width:${num(STROKE / fit)}" transform="${place}">${shapes.map(shapeToSvg).join('')}</g>`,
       );
     }
     out.push(

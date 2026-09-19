@@ -139,7 +139,7 @@ import { IrregularLayersPanel } from './irregular-layers-panel.ts';
 import { IrregularPanel } from './irregular-panel.ts';
 import { IrregularRowsPanel, rowName } from './irregular-rows-panel.ts';
 import { type IrregularSvgOptions, irregularBox, irregularSvg, type LegendLine } from './irregular-svg.ts';
-import { type PageOrientation, type PageSize, pageCount, writePdf } from './pdf.ts';
+import { type PageOrientation, type PageSize, MAX_SIDE as PDF_MAX_SIDE, pageCount, writePdf } from './pdf.ts';
 import type { Shape, SymbolOptions } from './symbols.ts';
 
 export const IRREGULAR_STORAGE_KEY = 'dc-mintatervezo:minta-szabalytalan';
@@ -150,6 +150,12 @@ const ROTATE_SNAP = 15;
 const ARC_STITCH = 'ch';
 /** Eight sectors is the doily default the spec names. */
 const DEFAULT_REPEAT_COUNT = 8;
+
+/** The PDF writer takes at most ten pages on a side; the panel agrees with it. */
+function clampSide(value: number): number {
+  if (!Number.isFinite(value)) return 1;
+  return Math.min(PDF_MAX_SIDE, Math.max(1, Math.round(value)));
+}
 /** A fan is a shell by default, and a shell is made of double crochets. */
 const FAN_STITCH = 'dc';
 /** How long a typed digit waits for the next one before it stands alone. */
@@ -1474,7 +1480,14 @@ export class IrregularEditor {
   };
 
   setExport(patch: Partial<typeof this.export>): void {
-    this.#export = { ...this.#export, ...patch };
+    const next = { ...this.#export, ...patch };
+    // The writer clamps the page grid; the panel must show what the file will get.
+    this.#export = {
+      ...next,
+      across: clampSide(next.across),
+      down: clampSide(next.down),
+      scale: [1, 2, 4].includes(next.scale) ? next.scale : 2,
+    };
     this.refresh();
   }
 
@@ -1530,17 +1543,20 @@ export class IrregularEditor {
   exportPdf(): Uint8Array {
     const pattern = this.#history.present;
     const symbols = this.#host.symbols();
-    const shapes: Shape[] = [];
+    // The colours come with the stitches: a chart that tells rounds apart by
+    // colour must not print black.
+    const runs: { shapes: Shape[]; color: string | null }[] = [];
     for (const item of pattern.items) {
       if (!isVisible(pattern, item)) continue;
-      shapes.push(...itemShapes(item, symbols, entryGlyph(pattern, item.keyEntryId)));
+      const color = item.color ?? rowById(pattern, item.rowId)?.color ?? null;
+      const last = runs[runs.length - 1];
+      const shapes = itemShapes(item, symbols, entryGlyph(pattern, item.keyEntryId));
+      if (last !== undefined && last.color === color) last.shapes.push(...shapes);
+      else runs.push({ shapes: [...shapes], color });
     }
-    const box = irregularBox(pattern, {
-      legend: this.legend.visible ? { block: this.legend, lines: this.#legendLines() } : null,
-      background: null,
-      guides: false,
-    });
-    return writePdf({ shapes, lineWidth: 1.6 }, box, {
+    // The legend is not drawn on the PDF yet, so no room is kept for it.
+    const box = irregularBox(pattern, { legend: null, background: null, guides: false });
+    return writePdf({ shapes: [], runs, lineWidth: 1.6 }, box, {
       title: pattern.title,
       size: this.#export.size,
       orientation: this.#export.orientation,

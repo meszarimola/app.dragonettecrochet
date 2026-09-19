@@ -3,10 +3,29 @@ import type { Point, Shape } from './symbols.ts';
 export type PageSize = 'a4' | 'letter';
 export type PageOrientation = 'auto' | 'portrait' | 'landscape';
 
+export interface PdfRun {
+  readonly shapes: readonly Shape[];
+  /** A `#rrggbb` colour, or nothing for black. */
+  readonly color: string | null;
+}
+
 export interface PdfPage {
   /** Shapes in chart units; the writer scales and tiles them. */
   readonly shapes: readonly Shape[];
+  /** Coloured runs, drawn instead of `shapes` when given, so a chart keeps its colours. */
+  readonly runs?: readonly PdfRun[];
   readonly lineWidth: number;
+}
+
+/** A hex colour as PDF's own 0..1 components, or nothing when it is not one. */
+function colorOps(color: string | null): string | null {
+  if (color === null) return null;
+  const hex = /^#([0-9a-f]{6})$/i.exec(color);
+  if (hex === null) return null;
+  const digits = hex[1] ?? '';
+  const parts = [0, 2, 4].map((at) => Number.parseInt(digits.slice(at, at + 2), 16) / 255);
+  const written = parts.map((part) => num(part)).join(' ');
+  return `${written} RG ${written} rg`;
 }
 
 export interface PdfOptions {
@@ -28,7 +47,8 @@ export interface PdfBox {
 const A4 = [595.28, 841.89] as const;
 const LETTER = [612, 792] as const;
 
-const MAX_SIDE = 10;
+/** At most ten pages on a side, so a mistyped grid cannot ask for thousands. */
+export const MAX_SIDE = 10;
 const MARGIN = 28;
 const TITLE_BAND = 24;
 const TITLE_SIZE = 12;
@@ -233,8 +253,17 @@ export function writePdf(page: PdfPage, box: PdfBox, options: PdfOptions): Uint8
   const plan = fitChart(paper, across, down, chart);
   const title = options.title || '';
   const stroke = Number.isFinite(page.lineWidth) && page.lineWidth > 0 ? page.lineWidth : 1;
-  const drawing = page.shapes
-    .map(shapeToPdf)
+  const runs: readonly PdfRun[] = page.runs ?? [{ shapes: page.shapes, color: null }];
+  const drawing = runs
+    .map((run) => {
+      const ops = run.shapes
+        .map(shapeToPdf)
+        .filter((piece) => piece.length > 0)
+        .join('\n');
+      if (ops.length === 0) return '';
+      const ink = colorOps(run.color);
+      return ink === null ? ops : `${ink}\n${ops}\n0 G 0 g`;
+    })
     .filter((ops) => ops.length > 0)
     .join('\n');
   const baseline = paper.height - MARGIN - TITLE_SIZE;
@@ -253,6 +282,9 @@ export function writePdf(page: PdfPage, box: PdfBox, options: PdfOptions): Uint8
       }
       lines.push(
         'q',
+        // Without a clip, every tile draws the whole chart, so a neighbour's
+        // stitches land in this page's margins and straight through its title.
+        `${num(MARGIN)} ${num(MARGIN)} ${num(paper.width - 2 * MARGIN)} ${num(paper.height - 2 * MARGIN - TITLE_BAND)} re W n`,
         `${num(plan.scale)} 0 0 ${num(-plan.scale)} ${num(shiftX)} ${num(shiftY)} cm`,
         `${num(stroke)} w 1 J 1 j`,
       );

@@ -2168,11 +2168,16 @@ function updateIrregularControls(editor: IrregularEditor): void {
 // KB: interface.md §9 — the free-form type brings its own canvas, so the two never paint over each other.
 /** A picture as a data URL, so an exported SVG carries it inside itself. */
 function pictureHref(picture: HTMLImageElement): string {
+  // A phone photo re-encoded as a base64 PNG is tens of megabytes, all of it
+  // inlined into the SVG string and rasterised again for the PNG. A tracing
+  // photo does not need more than this, and the tab survives.
+  const widest = 2000;
+  const shrink = Math.min(1, widest / Math.max(1, picture.naturalWidth));
   const out = document.createElement('canvas');
-  out.width = picture.naturalWidth;
-  out.height = picture.naturalHeight;
-  out.getContext('2d')?.drawImage(picture, 0, 0);
-  return out.toDataURL('image/png');
+  out.width = Math.max(1, Math.round(picture.naturalWidth * shrink));
+  out.height = Math.max(1, Math.round(picture.naturalHeight * shrink));
+  out.getContext('2d')?.drawImage(picture, 0, 0, out.width, out.height);
+  return out.toDataURL('image/jpeg', 0.82);
 }
 
 function showIrregularView(on: boolean): void {
