@@ -21,6 +21,7 @@ export interface KeyPanelHost {
   setLabel(keyEntryId: string, value: string | null): void;
   resetKey(): void;
   setLegend(patch: Partial<LegendBlock>): void;
+  addCustom(name: string, abbreviation: string, glyph: string): void;
 }
 
 const PREVIEW = 34;
@@ -72,6 +73,28 @@ export class IrregularKeyPanel {
       if (columns !== undefined) this.#host.setLegend({ columns });
     });
     this.#list.addEventListener('change', (event) => this.#onChange(event));
+    const name = must<HTMLInputElement>(section, '#key-custom-name');
+    const abbreviation = must<HTMLInputElement>(section, '#key-custom-abbr');
+    const glyph = must<HTMLSelectElement>(section, '#key-custom-glyph');
+    glyph.replaceChildren(
+      ...ALTERNATIVE_GLYPHS.map((id) => {
+        const choice = document.createElement('option');
+        choice.value = id;
+        choice.textContent = texts().irregular.glyph[id];
+        return choice;
+      }),
+    );
+    must<HTMLButtonElement>(section, '#key-custom-add').addEventListener('click', () => {
+      const wanted = name.value.trim();
+      // A stitch with no name could never be told apart in the legend.
+      if (wanted === '') {
+        name.focus();
+        return;
+      }
+      this.#host.addCustom(wanted, abbreviation.value.trim(), glyph.value);
+      name.value = '';
+      abbreviation.value = '';
+    });
   }
 
   #onChange(event: Event): void {

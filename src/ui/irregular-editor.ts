@@ -16,13 +16,16 @@ import {
   flipItems,
   type ItemPatch,
   isSelectable,
+  isVisible,
   itemsBox,
   itemsOf,
   moveItems,
   type PolarPatch,
   pasteItems,
+  patchBackground,
   rotateItems,
   rowById,
+  setBackground,
   setGrid,
   setGridSize,
   setPolar,
@@ -55,6 +58,7 @@ import {
 } from '../core/irregular-groups.ts';
 import { isIrregularJson, loadIrregular, saveIrregular } from '../core/irregular-json.ts';
 import {
+  addCustomEntry,
   entryGlyph,
   entryLabel,
   entryName,
@@ -97,9 +101,11 @@ import {
 import { basePoint, fitShape, placeOnShape, suggestShape } from '../core/irregular-shape.ts';
 import { angleFromCenter, radialRotation, snapPoint } from '../core/irregular-snap.ts';
 import {
+  type BackgroundImage,
   type ChainArcGroup,
   DEFAULT_ARC_BULGE,
   DEFAULT_ARC_COUNT,
+  DEFAULT_BACKGROUND_OPACITY,
   DEFAULT_FAN_COUNT,
   DEFAULT_FAN_SPREAD,
   FAN_LENGTH_RANGE,
@@ -114,9 +120,8 @@ import {
   type RowLineShape,
   type ShapeSide,
 } from '../core/irregular-types.ts';
-import { stitchById } from '../core/stitches.ts';
-import { stitchName } from '../core/stitchText.ts';
 import type { Locale, PatternNotation, StitchDefId } from '../core/types.ts';
+import { type BackgroundStoreCode, getBackground, pruneBackgrounds, putBackground } from './background-store.ts';
 import { IRREGULAR_JSON_CORE_TEXTS } from './i18n/core/irregular-json.ts';
 import { renderCoreText } from './i18n/core/render.ts';
 import { texts, uiLanguage } from './i18n.ts';
@@ -214,6 +219,7 @@ export interface IrregularHost {
 type Drag =
   | { kind: 'move'; from: Point; anchor: Point; drop: string | null }
   | { kind: 'polar'; from: Point; center: Point }
+  | { kind: 'background'; from: Point; at: Point }
   | { kind: 'arc-draw'; from: Point; to: Point }
   | { kind: 'fan-draw'; from: Point; to: Point }
   | { kind: 'arc-grip'; id: string; grip: ArcHandleId }
@@ -259,7 +265,8 @@ export class IrregularEditor {
   #history: History<IrregularPattern>;
   #draft: IrregularPattern | null = null;
   #selection = new Set<string>();
-  #stitch: StitchDefId | null = null;
+  /** A key entry id: a library stitch, or one the crocheter made up. */
+  #stitch: string | null = null;
   #isolated: ReadonlySet<string> | null = null;
   #repeat = { count: DEFAULT_REPEAT_COUNT, range: 360 };
   #arcTool = false;
@@ -316,6 +323,7 @@ export class IrregularEditor {
       setLabel: (id, value) => this.#commitKey(id, { labelOverride: value }),
       resetKey: () => this.#commit(resetToPreset(this.#history.present), texts().irregular.keyReset),
       setLegend: (patch) => this.#setLegend(patch),
+      addCustom: (name, abbreviation, glyph) => this.#addCustom(name, abbreviation, glyph),
     });
     this.#panel = new IrregularPanel(sections.properties, {
       patch: (patch) => this.#patch(patch),
@@ -342,6 +350,9 @@ export class IrregularEditor {
       clearRowLine: () => this.clearRowLine(),
       setRepeat: (count, range) => this.setRepeat(count, range),
       repeat: () => this.repeatAround(),
+      loadBackground: () => this.pickBackground(),
+      removeBackground: () => this.removeBackground(),
+      patchBackground: (patch) => this.#commit(patchBackground(this.#history.present, patch)),
     });
     this.#hoverCapable = window.matchMedia('(hover: hover)').matches;
     this.#listen();
@@ -381,6 +392,7 @@ export class IrregularEditor {
 
   mount(): void {
     this.#mounted = true;
+    void this.#restoreBackground();
     this.#panel.reveal();
     this.#rowsPanel.reveal();
     this.#layersPanel.reveal();
@@ -557,6 +569,25 @@ export class IrregularEditor {
     this.#commit(redrawn);
   }
 
+  /**
+   * A stitch of the crocheter's own: it has no definition in the library, only
+   * a name and a symbol, which is all the drawing and the legend need.
+   * KB: interface.md §41
+   */
+  #addCustom(name: string, abbreviation: string, glyph: string): void {
+    const made = addCustomEntry(this.#history.present, name, glyph);
+    const named =
+      abbreviation === ''
+        ? made.pattern
+        : updateKeyEntry(made.pattern, made.id, { abbreviationOverride: abbreviation });
+    // Laying the palette down clears the armed stitch, so arm the new one after.
+    this.#host.armStitch(null);
+    this.#arcTool = false;
+    this.#fanTool = false;
+    this.#stitch = made.id;
+    this.#commit(named, texts().irregular.customAdded(name));
+  }
+
   #setLegend(patch: Partial<LegendBlock>): void {
     const current = this.legend;
     // The first time it is actually shown it drops below the drawing, not on top of it.
@@ -579,11 +610,21 @@ export class IrregularEditor {
     const pattern = this.#history.present;
     const terms = this.#host.terms();
     const words = texts().irregular;
-    return sharedGlyphs(pattern, (id) => drawnGlyph(id, entryGlyph(pattern, id))).flatMap((clash) => {
+    const clashes = sharedGlyphs(pattern, (id) => drawnGlyph(id, entryGlyph(pattern, id))).flatMap((clash) => {
       const [first, second] = clash.keyEntryIds;
       if (first === undefined || second === undefined) return [];
       return [words.sharedGlyph(entryName(pattern, first, terms), entryName(pattern, second, terms))];
     });
+    const trouble = this.backgroundTrouble;
+    // A fresh pattern is one empty row by design; only a later one is a mistake.
+    const empty =
+      pattern.rows.length < 2
+        ? []
+        : pattern.rows
+            .filter((row) => pattern.items.every((item) => item.rowId !== row.id))
+            .map((row) => words.rowEmpty(rowName(pattern, row.id)));
+    const hidden = pattern.items.some((item) => !isVisible(pattern, item)) ? [words.hiddenNotExported] : [];
+    return [...clashes, ...empty, ...hidden, ...(trouble === null ? [] : [trouble])];
   }
 
   #legendEntries(): LegendEntry[] {
@@ -1071,6 +1112,134 @@ export class IrregularEditor {
     this.#commit(this.#loose(flipItems(this.#history.present, this.#selection, axis)));
   }
 
+  // -- background image --------------------------------------------------------
+
+  #image: { id: string; picture: HTMLImageElement } | null = null;
+  #backgroundTrouble: BackgroundStoreCode | null = null;
+
+  #backgroundView(): { placement: BackgroundImage; image: CanvasImageSource } | null {
+    const placement = this.pattern.background;
+    const loaded = this.#image;
+    if (placement === undefined || loaded === null || loaded.id !== placement.id) return null;
+    return { placement, image: loaded.picture };
+  }
+
+  /** The warning the issues list shows when the picture could not be kept. */
+  get backgroundTrouble(): string | null {
+    if (this.#backgroundTrouble === null) return null;
+    return texts().irregular.bgTrouble[this.#backgroundTrouble];
+  }
+
+  pickBackground(): void {
+    const chooser = document.createElement('input');
+    chooser.type = 'file';
+    chooser.accept = 'image/png,image/jpeg';
+    chooser.addEventListener('change', () => {
+      const file = chooser.files?.[0];
+      if (file !== undefined) void this.loadBackground(file);
+    });
+    chooser.click();
+  }
+
+  /**
+   * The picture's bytes go to the browser's own store, never into the pattern's
+   * autosave slot: a photo is megabytes and the slot is not. KB: interface.md §47
+   */
+  async loadBackground(file: Blob): Promise<void> {
+    const stored = await putBackground(file);
+    if (!stored.ok) {
+      this.#backgroundTrouble = stored.error.code;
+      this.refresh();
+      this.#host.announce(texts().irregular.bgTrouble[stored.error.code]);
+      return;
+    }
+    const picture = await this.#decode(file);
+    if (picture === null) {
+      this.#backgroundTrouble = 'failed';
+      this.refresh();
+      return;
+    }
+    this.#backgroundTrouble = null;
+    this.#image = { id: stored.id, picture };
+    const middle = this.#board.viewCenter(this.#host.insets().bottom);
+    const next = setBackground(this.#history.present, {
+      id: stored.id,
+      x: middle.x,
+      y: middle.y,
+      width: picture.naturalWidth,
+      height: picture.naturalHeight,
+      rotation: 0,
+      opacity: DEFAULT_BACKGROUND_OPACITY,
+      visible: true,
+      locked: false,
+      inExport: false,
+    });
+    this.#commit(next, texts().irregular.bgLoaded);
+    this.#board.fit(this.#host.insets().bottom);
+    void pruneBackgrounds(this.#keptBackgrounds());
+  }
+
+  /**
+   * The picture's bytes are not deleted here: removing is undoable, and a blob
+   * thrown away on the way out could not come back. They go when nothing in the
+   * history points at them any more. KB: interface.md §47
+   */
+  removeBackground(): void {
+    const current = this.#history.present.background;
+    if (current === undefined) return;
+    this.#image = null;
+    this.#backgroundTrouble = null;
+    this.#commit(setBackground(this.#history.present, null), texts().irregular.bgRemoved);
+  }
+
+  /** Every picture the undo history can still reach. */
+  #keptBackgrounds(): string[] {
+    const ids = new Set<string>();
+    for (const state of [...this.#history.past, this.#history.present, ...this.#history.future]) {
+      const id = state.background?.id;
+      if (id !== undefined) ids.add(id);
+    }
+    return [...ids];
+  }
+
+  /** A pattern file dropped on the canvas loads, the same as through the menu. */
+  async #dropPattern(file: Blob): Promise<void> {
+    const source = await file.text();
+    if (isIrregularJson(source)) this.importJson(source);
+  }
+
+  #decode(blob: Blob): Promise<HTMLImageElement | null> {
+    return new Promise((resolve) => {
+      const picture = new Image();
+      const url = URL.createObjectURL(blob);
+      picture.addEventListener('load', () => {
+        URL.revokeObjectURL(url);
+        resolve(picture);
+      });
+      picture.addEventListener('error', () => {
+        URL.revokeObjectURL(url);
+        resolve(null);
+      });
+      picture.src = url;
+    });
+  }
+
+  /** Brings the stored picture back after a reload, so a traced chart opens as it was. */
+  async #restoreBackground(): Promise<void> {
+    const placement = this.#history.present.background;
+    if (placement === undefined || this.#image?.id === placement.id) return;
+    const found = await getBackground(placement.id);
+    if (!found.ok) {
+      this.#backgroundTrouble = found.error.code;
+      this.refresh();
+      return;
+    }
+    const picture = await this.#decode(found.blob);
+    if (picture === null) return;
+    this.#image = { id: placement.id, picture };
+    this.refresh();
+  }
+
   // -- circular repeat -------------------------------------------------------
 
   setRepeat(count: number, range: number): void {
@@ -1306,8 +1475,11 @@ export class IrregularEditor {
     const shown = this.#host.notation().terms;
     const note = recorded !== undefined && recorded !== shown ? this.#host.notationNote(recorded, shown) : '';
     this.#setSelection([]);
+    this.#image = null;
+    this.#backgroundTrouble = null;
     this.#commit(loaded.pattern, file.loaded(note));
-    this.#board.fit(this.#host.insets().bottom);
+    // A file may name a tracing photo this browser has; fetch it before fitting.
+    void this.#restoreBackground().then(() => this.#board.fit(this.#host.insets().bottom));
     return true;
   }
 
@@ -1348,12 +1520,14 @@ export class IrregularEditor {
       arc: this.selectedGroup,
       arcPreview: this.#drawingPreview(),
       rowLine: this.#activeRowLine(),
+      background: this.#backgroundView(),
       legend: { block: this.legend, entries: this.#legendEntries() },
     });
     this.#panel.update(itemsOf(pattern, this.#selection), this.#preferences.rectPartial, pattern.items.length);
     this.#panel.updateArc(this.selectedArc);
     this.#panel.updateFan(this.selectedFan);
     this.#panel.updateRepeat(this.#selection.size > 0);
+    this.#panel.updateBackground(this.#history.present.background ?? null, this.#image?.picture.naturalWidth ?? 1);
     this.#panel.updateArrange({
       shown: this.#arrangeTargets().items.length >= 2,
       perpendicular: this.#preferences.perpendicular,
@@ -1451,6 +1625,19 @@ export class IrregularEditor {
   // -- pointer -------------------------------------------------------------
 
   #listen(): void {
+    // Dropping a picture on the drawing area loads it, which is how a photo
+    // usually arrives. KB: interface.md §47
+    this.#canvas.addEventListener('dragover', (event) => {
+      if (event.dataTransfer?.types.includes('Files') === true) event.preventDefault();
+    });
+    this.#canvas.addEventListener('drop', (event) => {
+      const file = event.dataTransfer?.files[0];
+      if (file === undefined) return;
+      // Whatever was dropped, the browser must not open it over the editor.
+      event.preventDefault();
+      if (file.type.startsWith('image/')) void this.loadBackground(file);
+      else void this.#dropPattern(file);
+    });
     this.#canvas.addEventListener('pointerdown', (event) => {
       if (!this.#mounted) return;
       this.#onDown(event);
@@ -1543,6 +1730,22 @@ export class IrregularEditor {
       return;
     }
 
+    // The photo is behind everything, so it is grabbed only when nothing else was.
+    if (
+      this.#stitch === null &&
+      !this.#arcTool &&
+      !this.#fanTool &&
+      // The circle guide's knob often sits over the photo; it wins.
+      !this.#board.polarCenterAt(event.clientX, event.clientY) &&
+      this.#board.backgroundAt(event.clientX, event.clientY)
+    ) {
+      const placement = this.#history.present.background;
+      if (placement !== undefined) {
+        this.#drag = { kind: 'background', from: point, at: { x: placement.x, y: placement.y } };
+        return;
+      }
+    }
+
     // The circle guide's knob is only grabbable while no stitch is waiting to be placed.
     if (this.#stitch === null && this.#board.polarCenterAt(event.clientX, event.clientY)) {
       this.#drag = { kind: 'polar', from: point, center: this.#history.present.guides.polar.center };
@@ -1603,9 +1806,9 @@ export class IrregularEditor {
       insertion: 'both-loops',
     });
     this.#joinIsolation([made.id]);
-    const def = stitchById(stitch);
     const row = made.pattern.rows.findIndex((candidate) => candidate.id === made.pattern.activeRowId) + 1;
-    const name = def === undefined ? stitch : stitchName(def, this.#host.notation().terms);
+    // A stitch of the crocheter's own has no library entry, so the key names it.
+    const name = entryName(made.pattern, stitch, this.#host.terms());
     this.#commit(made.pattern, texts().irregular.placed(name, row, made.pattern.items.length));
   }
 
@@ -1666,6 +1869,13 @@ export class IrregularEditor {
         this.#refreshScene();
         return;
       }
+      case 'background':
+        this.#draft = patchBackground(this.#history.present, {
+          x: drag.at.x + (point.x - drag.from.x),
+          y: drag.at.y + (point.y - drag.from.y),
+        });
+        this.#refreshScene();
+        return;
       case 'polar':
         this.#draft = setPolar(this.#history.present, {
           center: { x: drag.center.x + (point.x - drag.from.x), y: drag.center.y + (point.y - drag.from.y) },
