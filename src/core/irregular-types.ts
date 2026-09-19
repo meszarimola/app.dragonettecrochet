@@ -99,6 +99,30 @@ export interface PolarGuide {
   readonly startAngle: number;
 }
 
+/**
+ * A run of stitches generated from a path, which stays editable: move an end,
+ * change the bulge or the count and the members are laid out again.
+ * `memberIds` is the run in working order.
+ */
+export interface ChainArcGroup {
+  readonly id: string;
+  readonly kind: 'chainArc';
+  readonly rowId: string;
+  readonly layerId: string;
+  readonly keyEntryId: string;
+  readonly shape: ArcShape;
+  readonly start: Point;
+  readonly end: Point;
+  /** How far the middle of the arc stands off the chord, in chart units; the sign picks the side. */
+  readonly bulge: number;
+  readonly count: number;
+  readonly memberIds: readonly string[];
+}
+
+export type ArcShape = 'arc' | 'straight';
+
+export type IrregularGroup = ChainArcGroup;
+
 export interface IrregularGuides {
   readonly grid: { readonly visible: boolean; readonly size: number };
   readonly polar: PolarGuide;
@@ -114,6 +138,8 @@ export interface IrregularPattern {
   readonly rows: readonly IrregularRow[];
   readonly layers: readonly IrregularLayer[];
   readonly items: readonly IrregularItem[];
+  /** Absent while the pattern has no parametric group. */
+  readonly groups?: readonly IrregularGroup[];
   /** There is always exactly one active row and one active layer. */
   readonly activeRowId: string;
   readonly activeLayerId: string;
@@ -139,6 +165,10 @@ export const POLAR_RANGE = {
   spacing: { min: 4, max: 400 },
   spokes: { min: 1, max: 180 },
 } as const;
+export const DEFAULT_ARC_COUNT = 5;
+export const ARC_COUNT_RANGE = { min: 2, max: 200 } as const;
+/** The preset bulge, as a share of the chord. KB: core-geometry §52 */
+export const DEFAULT_ARC_BULGE = 0.25;
 export const NUDGE_STEP = 1;
 export const NUDGE_STEP_LARGE = 10;
 export const EXPORT_MARGIN = 20;

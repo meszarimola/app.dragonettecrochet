@@ -1,7 +1,7 @@
 // The free-form editor's properties panel. KB: interface.md §7, §8
 
 import type { AlignMode, DistributeAxis, FlipAxis, ItemPatch, PolarPatch } from '../core/irregular-document.ts';
-import type { IrregularGuides, IrregularItem } from '../core/irregular-types.ts';
+import type { ChainArcGroup, IrregularGuides, IrregularItem } from '../core/irregular-types.ts';
 import { stitchById } from '../core/stitches.ts';
 import type { StitchInsertion } from '../core/types.ts';
 import { texts } from './i18n.ts';
@@ -16,6 +16,10 @@ export interface IrregularPanelHost {
   setSnap(on: boolean): void;
   setPolar(patch: PolarPatch): void;
   setRadial(on: boolean): void;
+  setArcCount(count: number): void;
+  setArcShape(shape: ChainArcGroup['shape']): void;
+  setArcBulge(bulge: number): void;
+  explodeArc(): void;
 }
 
 const INSERTIONS: readonly StitchInsertion[] = ['both-loops', 'front-loop', 'back-loop', 'front-post', 'back-post'];
@@ -73,6 +77,10 @@ export class IrregularPanel {
   readonly #spokes: HTMLInputElement;
   readonly #startAngle: HTMLInputElement;
   readonly #radial: HTMLInputElement;
+  readonly #arc: HTMLElement;
+  readonly #arcCount: HTMLInputElement;
+  readonly #arcShape: HTMLSelectElement;
+  readonly #arcBulge: HTMLInputElement;
   #items: readonly IrregularItem[] = [];
 
   constructor(section: HTMLDetailsElement, host: IrregularPanelHost) {
@@ -100,6 +108,10 @@ export class IrregularPanel {
     this.#spokes = must<HTMLInputElement>(section, '#guide-spokes');
     this.#startAngle = must<HTMLInputElement>(section, '#guide-start-angle');
     this.#radial = must<HTMLInputElement>(section, '#guide-radial');
+    this.#arc = must<HTMLElement>(section, '#props-arc');
+    this.#arcCount = must<HTMLInputElement>(section, '#arc-count');
+    this.#arcShape = must<HTMLSelectElement>(section, '#arc-shape');
+    this.#arcBulge = must<HTMLInputElement>(section, '#arc-bulge');
     this.#listen();
   }
 
@@ -150,6 +162,31 @@ export class IrregularPanel {
       this.#number(this.#startAngle, (value) => this.#host.setPolar({ startAngle: value })),
     );
     this.#radial.addEventListener('change', () => this.#host.setRadial(this.#radial.checked));
+    this.#arcCount.addEventListener('change', () =>
+      this.#number(this.#arcCount, (value) => this.#host.setArcCount(value)),
+    );
+    this.#arcBulge.addEventListener('change', () =>
+      this.#number(this.#arcBulge, (value) => this.#host.setArcBulge(value)),
+    );
+    this.#arcShape.addEventListener('change', () => {
+      if (this.#arcShape.value === 'arc' || this.#arcShape.value === 'straight') {
+        this.#host.setArcShape(this.#arcShape.value);
+      }
+    });
+    must<HTMLButtonElement>(this.#section, '#arc-explode').addEventListener('click', () => this.#host.explodeArc());
+  }
+
+  updateArc(arc: ChainArcGroup | null): void {
+    this.#arc.hidden = arc === null;
+    if (arc === null) return;
+    const words = texts().irregular;
+    if (document.activeElement !== this.#arcShape) {
+      this.#arcShape.replaceChildren(option('arc', words.arcShapeArc), option('straight', words.arcShapeStraight));
+      this.#arcShape.value = arc.shape;
+    }
+    this.#setNumber(this.#arcCount, arc.count);
+    this.#setNumber(this.#arcBulge, Math.round(arc.bulge));
+    this.#arcBulge.disabled = arc.shape === 'straight';
   }
 
   updateGuides(guides: IrregularGuides, radial: boolean): void {

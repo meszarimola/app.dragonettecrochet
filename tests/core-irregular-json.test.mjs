@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import { describe, test } from 'node:test';
 
 import { addStitch, emptyIrregularPattern } from '../src/core/irregular-document.ts';
+import { addChainArc, updateChainArc } from '../src/core/irregular-groups.ts';
 import { isIrregularJson, loadIrregular, saveIrregular } from '../src/core/irregular-json.ts';
 import { DEFAULT_POLAR, IRREGULAR_FORMAT_VERSION } from '../src/core/irregular-types.ts';
 import { savePattern } from '../src/core/pattern-json.ts';
@@ -152,5 +153,69 @@ describe('the circle guide keeps its limits on the way in (PQW-966)', () => {
 
   test('a start angle outside a single turn is refused', () => {
     broken((raw) => (raw.guides.polar.startAngle = 900), '$.guides.polar.startAngle', 'expected-in-range');
+  });
+});
+
+describe('a chain arc survives the file, still editable (PQW-967, FR-FILE-3)', () => {
+  const glyph = { width: 24, height: 12 };
+  const arced = () => {
+    const start = emptyIrregularPattern({ title: 'Free-form chart', layerNames: ['Drawing', 'Labels'] });
+    return addChainArc(
+      start,
+      {
+        rowId: start.activeRowId,
+        layerId: start.activeLayerId,
+        keyEntryId: 'ch',
+        shape: 'arc',
+        start: { x: 0, y: 0 },
+        end: { x: 100, y: 0 },
+        bulge: 25,
+        count: 5,
+      },
+      glyph,
+    );
+  };
+
+  test('the round trip keeps the recipe, so the arc can still be re-laid out', () => {
+    const { pattern, id } = arced();
+    const result = loadIrregular(saveIrregular(pattern));
+    assert.ok(result.ok, 'it loads');
+    assert.deepEqual(result.pattern.groups, pattern.groups, 'the group came back whole');
+    const wider = updateChainArc(result.pattern, id, { count: 8 }, glyph);
+    assert.equal(wider.items.length, 8, 'and it lays out again from the file');
+  });
+
+  test('a pattern with no group writes no empty list', () => {
+    const plain = emptyIrregularPattern({ title: 'Free-form chart', layerNames: ['Drawing', 'Labels'] });
+    assert.equal(Object.hasOwn(JSON.parse(saveIrregular(plain)), 'groups'), false, 'no groups field');
+  });
+
+  const broken = (change, path, code) => {
+    const raw = JSON.parse(saveIrregular(arced().pattern));
+    change(raw);
+    const result = loadIrregular(JSON.stringify(raw));
+    assert.equal(result.ok, false, 'refused');
+    assert.equal(result.error.path, path, 'and it says where');
+    assert.equal(result.error.message.code, code, 'and what was wrong');
+  };
+
+  test('a group pointing at a stitch that is not in the file is refused', () => {
+    broken((raw) => (raw.groups[0].memberIds[2] = 'ghost'), '$.groups[0].memberIds[2]', 'unknown-item');
+  });
+
+  test('a count that disagrees with the listed stitches is refused', () => {
+    broken((raw) => (raw.groups[0].count = 4), '$.groups[0].count', 'group-count-mismatch');
+  });
+
+  test('a group on a row that is not in the file is refused', () => {
+    broken((raw) => (raw.groups[0].rowId = 'ghost'), '$.groups[0].rowId', 'unknown-row');
+  });
+
+  test('two groups claiming the same stitch are refused', () => {
+    const raw = JSON.parse(saveIrregular(arced().pattern));
+    raw.groups.push({ ...raw.groups[0], id: 'g2' });
+    const result = loadIrregular(JSON.stringify(raw));
+    assert.equal(result.ok, false, 'refused');
+    assert.equal(result.error.message.code, 'shared-group-member', 'the same stitch twice');
   });
 });

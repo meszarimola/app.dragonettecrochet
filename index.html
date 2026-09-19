@@ -245,6 +245,18 @@
             </button>
           </div>
 
+          <div class="tools__group" role="group" aria-label="Rajzeszközök" data-i18n-label="toolGroupDraw" id="tools-irregular" hidden>
+            <button type="button" class="tool" data-action="chain-arc" aria-pressed="false" aria-label="Láncív" data-tip="Láncív: nyomd le a kezdőpontnál és húzd a végpontig. A kijelölt ív számbillentyűvel állítható." data-i18n-label="toolChainArcLabel" data-i18n-tip="toolChainArcTip">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M3 13.5c3.5-7 10.5-7 14 0" />
+                <ellipse cx="5.2" cy="10.6" rx="1.5" ry="0.85" transform="rotate(-38 5.2 10.6)" />
+                <ellipse cx="10" cy="8.3" rx="1.5" ry="0.85" />
+                <ellipse cx="14.8" cy="10.6" rx="1.5" ry="0.85" transform="rotate(38 14.8 10.6)" />
+              </svg>
+              <span class="tool__label" data-i18n="toolLabelChainArc">Láncív</span>
+            </button>
+          </div>
+
           <div class="tools__group" role="group" aria-label="Nézet" data-i18n-label="toolGroupView">
             <button type="button" class="tool" data-action="grid" aria-pressed="true" aria-label="Rács" data-tip="Rács ki és be (Alt+R)" data-i18n-label="toolGridLabel" data-i18n-tip="toolGridTip" aria-keyshortcuts="Alt+R">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
@@ -451,6 +463,25 @@
                 <label for="prop-rect-mode" data-i18n="propRectModeLabel">Kijelölés téglalappal</label>
                 <select id="prop-rect-mode"></select>
               </p>
+              <div id="props-arc" hidden>
+                <h3 class="panel__title" data-i18n="arcTitle">Láncív</h3>
+                <p class="panel__field">
+                  <label for="arc-count" data-i18n="arcCountLabel">Szemek száma</label>
+                  <input id="arc-count" type="number" min="2" max="200" step="1" inputmode="numeric" />
+                </p>
+                <p class="panel__field">
+                  <label for="arc-shape" data-i18n="arcShapeLabel">Alak</label>
+                  <select id="arc-shape"></select>
+                </p>
+                <p class="panel__field">
+                  <label for="arc-bulge" data-i18n="arcBulgeLabel">Hajlás</label>
+                  <input id="arc-bulge" type="number" step="1" inputmode="numeric" />
+                </p>
+                <p class="props__row">
+                  <button type="button" class="button" id="arc-explode" data-i18n="arcExplode">Szétbontás</button>
+                </p>
+                <p class="panel__note" data-i18n="arcHint">A két végpont és a középső fogantyú a vásznon húzható. Kijelölt ívnél a számbillentyűk a szemek számát állítják.</p>
+              </div>
               <p class="panel__note" id="props-count" role="status" aria-live="polite"></p>
             </div>
             <div class="props" role="group" aria-label="Segédvonalak és illesztés" data-i18n-label="guidesGroupLabel">

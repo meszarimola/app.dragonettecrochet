@@ -35,6 +35,10 @@ export const IRREGULAR_JSON_CORE_TEXTS: CoreDictionary<IrregularJsonCode> = {
     'unknown-layer': 'A szem olyan rétegre hivatkozik, ami nincs a fájlban.',
     'duplicate-key-entry-id': 'Két jelkulcs-bejegyzés ugyanazzal az azonosítóval szerepel.',
     'key-entry-unnamed': 'A jelkulcs bejegyzése se szemet, se saját nevet nem ad meg.',
+    'duplicate-group-id': 'Két csoport ugyanazzal az azonosítóval szerepel.',
+    'shared-group-member': 'Ugyanaz a szem két csoporthoz tartozik.',
+    'group-count-mismatch': 'A csoport darabszáma nem egyezik a benne felsorolt szemekkel.',
+    'unknown-item': 'A csoport olyan szemre hivatkozik, ami nincs a fájlban.',
   },
   en: {
     'invalid-json': (data) => `Not valid JSON: ${str(data, 'detail')}`,
@@ -61,5 +65,9 @@ export const IRREGULAR_JSON_CORE_TEXTS: CoreDictionary<IrregularJsonCode> = {
     'unknown-layer': 'A stitch points at a layer that is not in the file.',
     'duplicate-key-entry-id': 'Two stitch key entries carry the same identifier.',
     'key-entry-unnamed': 'A stitch key entry names neither a stitch nor a name of its own.',
+    'duplicate-group-id': 'Two groups carry the same identifier.',
+    'shared-group-member': 'The same stitch belongs to two groups.',
+    'group-count-mismatch': 'The group\u2019s count does not match the stitches it lists.',
+    'unknown-item': 'A group points at a stitch that is not in the file.',
   },
 };

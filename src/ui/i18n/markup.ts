@@ -375,6 +375,18 @@ export const MARKUP_TEXTS = {
     guideStartAngleLabel: 'Kezdőszög (fok)',
     guideRadialLabel: 'Sugárirányú forgatás',
     guidePolarHint: 'A körrács közepét a vásznon, a pontjánál fogva húzhatod.',
+    toolGroupDraw: 'Rajzeszközök',
+    toolChainArcLabel: 'Láncív',
+    toolChainArcTip:
+      'Láncív: nyomd le a kezdőpontnál és húzd a végpontig. A kijelölt ív számbillentyűvel állítható.',
+    toolLabelChainArc: 'Láncív',
+    arcTitle: 'Láncív',
+    arcCountLabel: 'Szemek száma',
+    arcShapeLabel: 'Alak',
+    arcBulgeLabel: 'Hajlás',
+    arcExplode: 'Szétbontás',
+    arcHint:
+      'A két végpont és a középső fogantyú a vásznon húzható. Kijelölt ívnél a számbillentyűk a szemek számát állítják.',
 
     sectionNotationTitle: 'Jelölés és jelek',
     notationGroupLabel: 'Jelölés és jelek',
@@ -803,6 +815,17 @@ export const MARKUP_TEXTS = {
     guideStartAngleLabel: 'Start angle (degrees)',
     guideRadialLabel: 'Turn stitches outwards',
     guidePolarHint: 'Drag the circle guide by the dot at its middle.',
+    toolGroupDraw: 'Drawing tools',
+    toolChainArcLabel: 'Chain arc',
+    toolChainArcTip: 'Chain arc: press at the start and drag to the end. With an arc selected, digits set the count.',
+    toolLabelChainArc: 'Chain arc',
+    arcTitle: 'Chain arc',
+    arcCountLabel: 'Number of stitches',
+    arcShapeLabel: 'Shape',
+    arcBulgeLabel: 'Bulge',
+    arcExplode: 'Break apart',
+    arcHint:
+      'Drag the two ends and the middle handle on the canvas. With an arc selected, the digit keys set the number of stitches.',
 
     sectionNotationTitle: 'Notation and symbols',
     notationGroupLabel: 'Notation and symbols',
