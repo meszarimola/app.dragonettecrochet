@@ -445,7 +445,8 @@ export interface Placement {
  * glyph stretches with the symbol. KB: 01 §8.1
  *
  * An ellipse is scaled along its own axes, which is exact while it sits square
- * to the glyph and a close approximation once it does not.
+ * to the glyph and a close approximation once it does not. A mirror negates its
+ * own angle as well, which a plain turn does not.
  */
 export function stretchShapes(
   shapes: readonly Shape[],
@@ -460,6 +461,7 @@ export function stretchShapes(
     return { x: offset.x + dx * cos - dy * sin, y: offset.y + dx * sin + dy * cos };
   };
   const [kx, ky] = [Math.abs(scale.x), Math.abs(scale.y)];
+  const mirrored = scale.x * scale.y < 0;
   return shapes.map((shape): Shape => {
     switch (shape.kind) {
       case 'line':
@@ -472,7 +474,7 @@ export function stretchShapes(
           center: map(shape.center),
           rx: shape.rx * kx,
           ry: shape.ry * ky,
-          rotation: shape.rotation + rotation,
+          rotation: mirrored ? rotation - shape.rotation : rotation + shape.rotation,
         };
       case 'dot':
         return { ...shape, center: map(shape.center), r: shape.r * Math.min(kx, ky) };

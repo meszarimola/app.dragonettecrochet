@@ -189,15 +189,21 @@ export function itemsOf(pattern: IrregularPattern, ids: Iterable<string>): Irreg
 }
 
 /**
- * The copy lands to the right of the selection, a gap away. The gap is the mean
- * spacing of the selected stitches, so a repeated row keeps its rhythm.
+ * The copy lands to the right of the selection, one whole run further along, so
+ * a repeated row keeps its rhythm: the step is the mean centre-to-centre spacing
+ * times the number of stitches. A single stitch, or a stack with no spacing to
+ * read, steps by its own width and a small gap instead.
  */
 export function duplicateOffset(items: readonly IrregularItem[]): Point {
   const box = itemsBox(items);
   if (box === null) return { x: 0, y: 0 };
   const width = box.maxX - box.minX;
-  const gap = items.length > 1 ? width / (items.length - 1) : SINGLE_DUPLICATE_GAP;
-  return { x: width + gap, y: 0 };
+  const fallback = { x: width + SINGLE_DUPLICATE_GAP, y: 0 };
+  if (items.length < 2) return fallback;
+  const centers = items.map((item) => item.x);
+  const span = Math.max(...centers) - Math.min(...centers);
+  if (span <= 0) return fallback;
+  return { x: (span / (items.length - 1)) * items.length, y: 0 };
 }
 
 export function duplicateItems(

@@ -579,7 +579,15 @@ board's own `ResizeObserver` repainted over the free-form drawing. A hidden
 canvas cannot race.
 
 `main.ts` keeps one branch each in `refresh()` and `updateControls()`, and the
-shared toolbar actions route on `irregular.active`. The file menu routes on what
+shared toolbar actions route on `irregular.active`.
+
+The keyboard is the trap. Hiding a toolbar group hides the buttons, not the
+shortcuts behind them, and the regular pattern is only hidden, not gone — so a
+stray Alt+F, Enter or Delete used to crochet into it silently, with the free-form
+canvas unchanged and a row-shaped status line as the only sign. `irregularKey`
+therefore **swallows by default**: it lets through only the palette digits, the
+grid and the shared undo and redo, and returns `true` for everything else the
+regular handler would act on. `e2e/szabalytalan.spec.ts` guards it. The file menu routes on what
 the file *is*, not on the type that is showing: a free-form JSON switches to
 this type, a regular one switches back.
 

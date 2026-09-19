@@ -142,3 +142,29 @@ test('the JSON round trip keeps the free-form chart (AS-12)', async ({ page }) =
   await page.keyboard.press('ControlOrMeta+A');
   await expect(page.locator('#status')).toContainText('3 szem kijelölve');
 });
+
+test('keys that belong to rows never reach the regular pattern hiding behind this type', async ({ page }) => {
+  await open(page);
+
+  // A regular pattern of two chains to compare against.
+  await page.locator('#board').focus();
+  await page.keyboard.press('Alt+1');
+  await page.locator('#board').focus();
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+  const before = await page.locator('#summary').textContent();
+
+  await chooseIrregular(page);
+  await page.locator(board).focus();
+  // Filling, turning, closing, spiralling and crocheting all belong to rows.
+  for (const key of ['Alt+f', 'Shift+Alt+f', 'Alt+k', 'Alt+s', 'Enter', 'Enter']) {
+    await page.keyboard.press(key);
+  }
+  // Delete with a toolbar button focused used to delete the regular pattern's last stitch.
+  await page.getByRole('button', { name: 'Duplikálás' }).focus();
+  await page.keyboard.press('Delete');
+  await page.keyboard.press('Backspace');
+
+  await page.getByRole('button', { name: /Szabályos horgolás/ }).click();
+  await expect(page.locator('#summary')).toHaveText(before ?? '');
+});

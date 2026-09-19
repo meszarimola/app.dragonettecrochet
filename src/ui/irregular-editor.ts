@@ -28,7 +28,7 @@ import { isIrregularJson, loadIrregular, saveIrregular } from '../core/irregular
 import type { IrregularItem, IrregularPattern, Point } from '../core/irregular-types.ts';
 import { stitchById } from '../core/stitches.ts';
 import { stitchName } from '../core/stitchText.ts';
-import type { PatternNotation, StitchDefId } from '../core/types.ts';
+import type { Locale, PatternNotation, StitchDefId } from '../core/types.ts';
 import { IRREGULAR_JSON_CORE_TEXTS } from './i18n/core/irregular-json.ts';
 import { renderCoreText } from './i18n/core/render.ts';
 import { texts, uiLanguage } from './i18n.ts';
@@ -54,6 +54,7 @@ export interface IrregularHost {
   symbols(): SymbolOptions;
   notation(): PatternNotation;
   insets(): { left: number; right: number; bottom: number };
+  notationNote(recorded: Locale, shown: Locale): string;
   refreshControls(): void;
 }
 
@@ -228,6 +229,12 @@ export class IrregularEditor {
     this.refresh();
   }
 
+  /** Replacing the selection forgets the repeat step; duplicating keeps it. */
+  #setSelection(ids: Iterable<string>): void {
+    this.#selection = new Set(ids);
+    this.#lastDuplicate = null;
+  }
+
   #pruneSelection(): void {
     const live = new Set(this.#history.present.items.map((item) => item.id));
     for (const id of [...this.#selection]) if (!live.has(id)) this.#selection.delete(id);
@@ -271,14 +278,14 @@ export class IrregularEditor {
 
   selectAll(): void {
     const pattern = this.#history.present;
-    this.#selection = new Set(pattern.items.filter((item) => this.#reachable(item)).map((item) => item.id));
+    this.#setSelection(pattern.items.filter((item) => this.#reachable(item)).map((item) => item.id));
     this.refresh();
     this.#host.announce(texts().irregular.selected(this.#selection.size));
   }
 
   clearSelection(): void {
     if (this.#selection.size === 0 && this.#stitch === null) return;
-    this.#selection.clear();
+    this.#setSelection([]);
     this.refresh();
   }
 
@@ -286,7 +293,7 @@ export class IrregularEditor {
     const count = this.#selection.size;
     if (count === 0) return;
     const next = deleteItems(this.#history.present, this.#selection);
-    this.#selection.clear();
+    this.#setSelection([]);
     this.#commit(next, texts().irregular.deleted(count));
   }
 
@@ -319,7 +326,7 @@ export class IrregularEditor {
     const first = this.#clipboard[0];
     const offset = at !== null && first !== undefined ? { x: at.x - first.x, y: at.y - first.y } : { x: 10, y: 10 };
     const made = pasteItems(this.#history.present, this.#clipboard, offset);
-    this.#selection = new Set(made.ids);
+    this.#setSelection(made.ids);
     this.#commit(made.pattern, texts().irregular.pasted(made.ids.length));
   }
 
@@ -345,11 +352,13 @@ export class IrregularEditor {
   }
 
   #align(mode: AlignMode): void {
-    this.#commit(alignItems(this.#history.present, this.#selection, mode), texts().irregular.aligned);
+    const next = alignItems(this.#history.present, this.#selection, mode);
+    this.#commit(next, next === this.#history.present ? undefined : texts().irregular.aligned);
   }
 
   #distribute(axis: DistributeAxis): void {
-    this.#commit(distributeItems(this.#history.present, this.#selection, axis), texts().irregular.spread);
+    const next = distributeItems(this.#history.present, this.#selection, axis);
+    this.#commit(next, next === this.#history.present ? undefined : texts().irregular.spread);
   }
 
   #flip(axis: FlipAxis): void {
@@ -362,7 +371,7 @@ export class IrregularEditor {
     return saveIrregular(this.#withNotation());
   }
 
-  /** `false` means the file belongs to another pattern type and nothing changed. */
+  /** `true` only when the pattern really was loaded, so the caller can hold off switching type. */
   importJson(source: string): boolean {
     if (!isIrregularJson(source)) {
       this.#host.announce(texts().irregular.wrongFileKind);
@@ -372,10 +381,14 @@ export class IrregularEditor {
     if (!loaded.ok) {
       const message = renderCoreText(IRREGULAR_JSON_CORE_TEXTS[uiLanguage()], loaded.error.message);
       this.#host.announce(texts().messages.file.loadFailed(message, loaded.error.path));
-      return true;
+      return false;
     }
-    this.#selection.clear();
-    this.#commit(loaded.pattern, texts().messages.file.loaded(''));
+    const file = texts().messages.file;
+    const recorded = loaded.pattern.notation?.terms;
+    const shown = this.#host.notation().terms;
+    const note = recorded !== undefined && recorded !== shown ? this.#host.notationNote(recorded, shown) : '';
+    this.#setSelection([]);
+    this.#commit(loaded.pattern, file.loaded(note));
     this.#board.fit(this.#host.insets().bottom);
     return true;
   }
@@ -393,6 +406,8 @@ export class IrregularEditor {
 
   refresh(): void {
     if (!this.#mounted) return;
+    const room = this.#host.insets();
+    this.#board.setInsets(room.left, room.right);
     const pattern = this.pattern;
     this.#board.setScene({
       pattern,
@@ -511,14 +526,14 @@ export class IrregularEditor {
         if (this.#selection.has(hit)) this.#selection.delete(hit);
         else this.#selection.add(hit);
       } else if (!this.#selection.has(hit)) {
-        this.#selection = new Set([hit]);
+        this.#setSelection([hit]);
       }
       this.#drag = { kind: 'move', last: point, moved: false };
       this.refresh();
       return;
     }
 
-    if (!additive) this.#selection.clear();
+    if (!additive) this.#setSelection([]);
     this.#drag = { kind: 'marquee', from: point, to: point, additive };
     this.refresh();
   }
@@ -635,7 +650,8 @@ export class IrregularEditor {
     const kx = horizontal ? Math.abs(point.x - drag.anchor.x) / spanX : 1;
     const ky = vertical ? Math.abs(point.y - drag.anchor.y) / spanY : 1;
     // KB: interface.md §21 — several stitches keep their shape, so one factor drives both axes.
-    const k = Math.max(MIN_SIZE / 100, horizontal && vertical ? Math.min(kx, ky) : Math.max(kx, ky));
+    const along = horizontal && vertical ? Math.min(kx, ky) : horizontal ? kx : ky;
+    const k = Math.max(MIN_SIZE / 100, along);
     const moved = drag.base.map((item) => ({
       ...item,
       x: drag.anchor.x + (item.x - drag.anchor.x) * k,
@@ -656,7 +672,7 @@ export class IrregularEditor {
     if (drag.kind === 'marquee') {
       const ids = this.#board.itemsInRect(drag.from, drag.to, this.#preferences.rectPartial);
       if (drag.additive) for (const id of ids) this.#selection.add(id);
-      else this.#selection = new Set(ids);
+      else this.#setSelection(ids);
       this.#drag = null;
       this.refresh();
       if (ids.length > 0) this.#host.announce(texts().irregular.selected(this.#selection.size));

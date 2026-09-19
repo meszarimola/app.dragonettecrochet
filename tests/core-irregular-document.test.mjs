@@ -254,6 +254,26 @@ describe('duplicateOffset and duplicateItems', () => {
     assert.deepEqual(duplicateOffset(pattern.items), { x: 34, y: 0 });
   });
 
+  test('a run of stitches is copied one whole run further along, keeping the rhythm', () => {
+    // Three stitches 30 apart: the copies continue the same 30 spacing, not a wider gap.
+    const pattern = place(base(), [{ x: 0 }, { x: 30 }, { x: 60 }]);
+    const offset = duplicateOffset(pattern.items);
+
+    assert.deepEqual(offset, { x: 90, y: 0 });
+
+    const { pattern: next } = duplicateItems(pattern, ['i1', 'i2', 'i3'], offset);
+    assert.deepEqual(xs(next), [0, 30, 60, 90, 120, 150]);
+  });
+
+  test('stitches stacked on one spot step by their width instead, so the copies do not land on them', () => {
+    const pattern = place(base(), [
+      { x: 0, y: 0, width: 24 },
+      { x: 0, y: 40, width: 24 },
+    ]);
+
+    assert.deepEqual(duplicateOffset(pattern.items), { x: 34, y: 0 });
+  });
+
   test('several stitches keep their arrangement, land to the right and take fresh ids', () => {
     const drawn = place(base(), [{ x: 0 }, { x: 30 }, { x: 60 }]);
     // The copy belongs to the row and layer it was made from, not to whatever is active now.

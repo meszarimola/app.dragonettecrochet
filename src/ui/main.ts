@@ -1113,13 +1113,12 @@ async function exportPng(): Promise<void> {
 async function importJson(file: File): Promise<void> {
   const file_ = texts().messages.file;
   const source = await file.text();
-  // The file decides the type, not the type the file (PQW-963).
+  // The file decides the type, not the type the file (PQW-963). The switch waits
+  // until the file has actually loaded, so a broken one leaves the view alone.
   if (isIrregularJson(source)) {
-    if (patternType !== 'irregular') selectType('irregular');
-    ensureIrregular().importJson(source);
+    if (ensureIrregular().importJson(source) && patternType !== 'irregular') selectType('irregular');
     return;
   }
-  if (patternType === 'irregular') selectType(DEFAULT_PATTERN_TYPE);
   const loaded = loadPattern(source);
   if (!loaded.ok) {
     announce(file_.loadFailed(renderCoreText(JSON_CORE_TEXTS[uiLanguage()], loaded.error.message), loaded.error.path));
@@ -1130,6 +1129,7 @@ async function importJson(file: File): Promise<void> {
     announce(file_.brokenStructure(problem));
     return;
   }
+  if (patternType === 'irregular') selectType(DEFAULT_PATTERN_TYPE);
   selectedNode = null;
   selection = [];
   const recorded = loaded.pattern.notation?.terms;
@@ -1242,9 +1242,14 @@ function commitInserted(result: EditResult, message: string): void {
 }
 
 // KB: interface.md §11 — letters by key, so a Hungarian layout behaves like an English one.
+//
+// Anything this editor does not use must still be swallowed: the regular pattern
+// is only hidden, not gone, and a stray Alt+F or Enter would crochet into it.
 function irregularKey(editor: IrregularEditor, event: KeyboardEvent, key: string, onBoard: boolean): boolean {
   if ((event.ctrlKey || event.metaKey) && !event.altKey) {
     const lower = key.toLowerCase();
+    // Undo and redo go through the shared actions, which route themselves.
+    if (lower === 'z' || lower === 'y') return false;
     const commands: Record<string, () => void> = {
       a: () => editor.selectAll(),
       c: () => editor.copySelection(),
@@ -1258,18 +1263,22 @@ function irregularKey(editor: IrregularEditor, event: KeyboardEvent, key: string
     command();
     return true;
   }
-  if (event.altKey) return false;
+  if (event.altKey) {
+    // The palette digits and the grid are shared; filling, turning, closing and
+    // spiralling belong to rows, which this type does not have.
+    return !(/^Digit[1-9]$/.test(event.code) || event.code === 'KeyR');
+  }
   if (key === 'Escape') {
     editor.clearSelection();
     if (tool !== null) select(null);
     return true;
   }
-  if (!onBoard) return false;
   if (key === 'Delete' || key === 'Backspace') {
     event.preventDefault();
     editor.deleteSelection();
     return true;
   }
+  if (!onBoard) return false;
   const step = event.shiftKey ? NUDGE_STEP_LARGE : NUDGE_STEP;
   const nudges: Record<string, readonly [number, number]> = {
     ArrowLeft: [-step, 0],
@@ -1278,10 +1287,13 @@ function irregularKey(editor: IrregularEditor, event: KeyboardEvent, key: string
     ArrowDown: [0, step],
   };
   const move = nudges[key];
-  if (move === undefined) return false;
-  event.preventDefault();
-  editor.nudge(move[0], move[1]);
-  return true;
+  if (move !== undefined) {
+    event.preventDefault();
+    editor.nudge(move[0], move[1]);
+    return true;
+  }
+  // These move the target cursor and crochet in the regular type. Here they do nothing.
+  return key === 'Home' || key === 'End' || key === 'Enter';
 }
 
 // Holding Space pans, as it does in the regular type.
@@ -2075,6 +2087,7 @@ function ensureIrregular(): IrregularEditor {
     symbols: () => symbols,
     notation: () => notation,
     insets: () => ({ left: insetLeft(), right: insetRight(), bottom: insetBottom() }),
+    notationNote: (recorded, shown) => texts().messages.file.notationNote(termsLabel(recorded), termsLabel(shown)),
     refreshControls: () => {
       if (irregular !== null) updateIrregularControls(irregular);
     },

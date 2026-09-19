@@ -146,8 +146,10 @@ export class IrregularPanel {
   update(items: readonly IrregularItem[], rectPartial: boolean, total: number): void {
     this.#items = items;
     const words = texts().irregular;
-    this.#rectMode.replaceChildren(option('partial', words.rectPartial), option('full', words.rectFull));
-    this.#rectMode.value = rectPartial ? 'partial' : 'full';
+    if (document.activeElement !== this.#rectMode) {
+      this.#rectMode.replaceChildren(option('partial', words.rectPartial), option('full', words.rectFull));
+      this.#rectMode.value = rectPartial ? 'partial' : 'full';
+    }
     this.#count.textContent = items.length === 0 ? words.selectedNone : words.selected(items.length);
     this.#empty.hidden = items.length > 0;
     this.#fields.hidden = items.length === 0;
@@ -175,7 +177,9 @@ export class IrregularPanel {
       this.#rotation,
       shared(items, (item) => Math.round(item.rotation)),
     );
-    this.#color.value = shared(items, (item) => item.color) ?? DEFAULT_COLOR;
+    if (document.activeElement !== this.#color) {
+      this.#color.value = shared(items, (item) => item.color) ?? DEFAULT_COLOR;
+    }
     this.#updateInsertion(items);
   }
 
@@ -183,13 +187,15 @@ export class IrregularPanel {
     const names = texts().sections.insertion.names;
     const allowed = allowedInsertions(items);
     this.#insertionField.hidden = allowed.length < 2;
-    if (allowed.length < 2) return;
+    if (allowed.length < 2 || document.activeElement === this.#insertion) return;
     this.#insertion.replaceChildren(...allowed.map((mode) => option(mode, names[mode])));
     const mode = shared(items, (item) => item.insertion);
     this.#insertion.value = mode ?? '';
   }
 
   #setNumber(input: HTMLInputElement, value: number | null): void {
+    // A redraw must not swallow a half-typed number.
+    if (document.activeElement === input) return;
     input.value = value === null ? '' : String(value);
     input.placeholder = value === null ? '—' : '';
   }
