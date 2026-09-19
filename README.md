@@ -8,6 +8,7 @@ mert saját aldomainre kerül.
 
 ```bash
 npm install
+git config core.hooksPath .githooks   # a commit előtti ellenőrzések; klónonként egyszer
 npm run dev      # http://localhost:5173
 npm run check    # típusellenőrzés: az egész src/, majd a src/core/ DOM nélkül
 npm run build    # tsc --noEmit + vite build → dist/
