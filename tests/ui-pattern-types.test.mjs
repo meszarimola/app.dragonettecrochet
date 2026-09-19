@@ -1,9 +1,9 @@
 /*
  * The contents of the pattern-type menu on the left (PQW-873). In the first
- * round of acceptance testing only regular crochet is active (PQW-925): filet
- * crochet (PQW-864) and amigurumi (PQW-863) are switched off for now, and
- * irregular crochet is waiting for its own ticket — all three stay visible but
- * inactive, marked as coming soon.
+ * round of acceptance testing only regular crochet was active (PQW-925): filet
+ * crochet (PQW-864) and amigurumi (PQW-863) are switched off for now and stay
+ * visible but inactive, marked as coming soon. Irregular crochet joined them as
+ * an active type with its own free-form editor (PQW-963).
  */
 
 import { strict as assert } from 'node:assert';
@@ -43,15 +43,15 @@ test('every type has a name and an explanation', () => {
   }
 });
 
-test('only regular crochet is active in the first UAT round (PQW-925)', () => {
+test('regular and irregular crochet are the active types (PQW-925, PQW-963)', () => {
   const available = PATTERN_TYPES.filter((type) => type.available).map((type) => type.id);
-  assert.deepEqual(available, ['regular']);
+  assert.deepEqual(available, ['regular', 'irregular']);
 });
 
 test('the switched-off types stay in the list instead of being removed (PQW-925)', () => {
   // The block is temporary: the menu item is visible, only not selectable.
   const soon = PATTERN_TYPES.filter((type) => !type.available).map((type) => type.id);
-  assert.deepEqual(soon, ['filet', 'amigurumi', 'irregular']);
+  assert.deepEqual(soon, ['filet', 'amigurumi']);
 });
 
 test('amigurumi opens the written pattern large, full width in a narrow window, and leaves other types unchanged (PQW-863)', () => {
@@ -70,6 +70,7 @@ test('isAvailableType is true only for an enabled, known id', () => {
   // PQW-925: switched off, so not even a stored value may bring it back.
   assert.ok(!isAvailableType('amigurumi'));
   assert.ok(!isAvailableType('filet'));
-  assert.ok(!isAvailableType('irregular'));
+  // PQW-963: the free-form editor makes this one a real choice.
+  assert.ok(isAvailableType('irregular'));
   assert.ok(!isAvailableType('nincs-ilyen'));
 });

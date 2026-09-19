@@ -71,6 +71,11 @@ they do not identify the visitor, so they survive a refusal of the cookie
 banner. The generator panels' choices, the proportional view and the grid editor
 deliberately live only in the page — persisting them would mean a new key.
 
+The free-form type (PQW-963) added two more, approved with it: its own pattern
+slot, so switching types never overwrites the other type's work, and one key
+holding its interface preferences as a small JSON object rather than a key per
+preference.
+
 Every storage access is wrapped in `try/catch`: in a private window or with
 storage blocked the call throws, and the editor must still start. When a write
 fails the setting simply does not survive a reload.
@@ -129,6 +134,9 @@ The code stays where it is. Re-enabling a pattern type is a `true` in the list i
 `pattern-types.ts`; re-enabling a motif is an empty `DISABLED_MOTIFS` list.
 `main.ts` also hides a disabled type's section and does not build its panel at
 all, so the disabled path is unreachable at run time while the files remain.
+
+Irregular crochet left this list in PQW-963: it is an active type now, with its
+own editor. See §39.
 
 A disabled motif's label reuses the dictionary key the "soon" badge already uses,
 so it is correct in both languages without new text.
@@ -547,3 +555,46 @@ overflowed and the page began to scroll by one pixel.
 - In a wide view the open written panel and the status line stand between the
   side bars rather than sliding under them (PQW-884); in a narrow view the side
   bars open over the panel and the status line.
+
+## §39 The free-form type is a second editor, not a second mode
+
+Irregular crochet (PQW-963) works on geometry: a symbol carries its own place,
+size and turn. Regular crochet works on topology — a stitch carries `prev` and
+`anchors`, and `layoutPattern` derives the picture. Neither model can express
+the other, so the free-form type brings its own document (`IrregularPattern`),
+its own reader and writer with its own format version, its own undo stack and
+its own autosave slot. `src/core/history.ts` was already generic and is shared
+untouched.
+
+Two things are deliberately shared rather than copied: the glyph engine and the
+notation. `placedShapes` and `symbolShapes` in `symbols.ts` take any placement
+the caller builds, so the free-form renderer hands them a transform of its own
+and gets back the same `Shape[]` the regular chart draws. `stretchShapes` was
+added beside `transformShapes` for the one thing the regular chart never needed:
+scaling a glyph differently along each axis.
+
+The two editors own **separate canvases**, `#board` and `#board-irregular`, and
+the inactive one is hidden. They were on one canvas first, and the regular
+board's own `ResizeObserver` repainted over the free-form drawing. A hidden
+canvas cannot race.
+
+`main.ts` keeps one branch each in `refresh()` and `updateControls()`, and the
+shared toolbar actions route on `irregular.active`.
+
+The keyboard is the trap. Hiding a toolbar group hides the buttons, not the
+shortcuts behind them, and the regular pattern is only hidden, not gone — so a
+stray Alt+F, Enter or Delete used to crochet into it silently, with the free-form
+canvas unchanged and a row-shaped status line as the only sign. `irregularKey`
+therefore **swallows by default**: it lets through only the palette digits, the
+grid and the shared undo and redo, and returns `true` for everything else the
+regular handler would act on. `e2e/szabalytalan.spec.ts` guards it. The file menu routes on what
+the file *is*, not on the type that is showing: a free-form JSON switches to
+this type, a regular one switches back.
+
+## §40 The free-form type does not confirm and does not chat
+
+The specification asked for a dialog before deleting a row that still holds
+stitches. §4 and `decisions.md §4` say the program does not ask about an action
+the user clicked. The decision stands: nothing is confirmed, the status line
+names what happened, and undo takes it back. Raised with the owner in the plan
+for PQW-963 and left for her to overrule if she wants the dialog.

@@ -13,7 +13,7 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
-test('pattern type: in the first round of the UAT only the regular one is active, the rest are „hamarosan” and inactive (PQW-925)', async ({
+test('pattern type: regular and irregular crochet are selectable, the rest are „hamarosan” and inactive (PQW-925, PQW-963)', async ({
   page,
 }) => {
   await open(page);
@@ -23,8 +23,12 @@ test('pattern type: in the first round of the UAT only the regular one is active
   await expect(regular).toHaveAttribute('aria-pressed', 'true');
   await expect(regular).not.toContainText('Hamarosan');
 
-  // Filet and amigurumi are temporarily switched off; the irregular one is waiting for its own ticket.
-  for (const name of ['Filéhorgolás', 'Amigurumi', 'Szabálytalan horgolás']) {
+  const irregular = page.getByRole('button', { name: /Szabálytalan horgolás/ });
+  await expect(irregular).toBeEnabled();
+  await expect(irregular).not.toContainText('Hamarosan');
+
+  // Filet and amigurumi are temporarily switched off.
+  for (const name of ['Filéhorgolás', 'Amigurumi']) {
     const item = page.getByRole('button', { name: new RegExp(name) });
     await expect(item).toBeDisabled();
     await expect(item).toContainText('Hamarosan');
