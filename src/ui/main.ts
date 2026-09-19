@@ -33,6 +33,8 @@ import {
 import { type ChartGrid, chartGrid, type GridSeam, targetPoint } from '../core/grid.js';
 import { canRedo, canUndo, createHistory, type History, record, redo, undo } from '../core/history.js';
 import { nodeInsertions } from '../core/insertion.js';
+import { isIrregularJson } from '../core/irregular-json.js';
+import { NUDGE_STEP, NUDGE_STEP_LARGE } from '../core/irregular-types.js';
 import { type ChartLayout, layoutPattern, type Point } from '../core/layout.js';
 import { loadPattern, savePattern } from '../core/pattern-json.js';
 import { aspectStem, gaugeContextOf } from '../core/pattern-size.js';
@@ -90,11 +92,9 @@ import {
   uiLanguage,
   urlWithLanguage,
 } from './i18n.js';
-import { isIrregularJson } from '../core/irregular-json.js';
-import { NUDGE_STEP, NUDGE_STEP_LARGE } from '../core/irregular-types.js';
-import { IrregularEditor } from './irregular-editor.js';
 import { InsertionPanel } from './insertion-panel.js';
 import { insertionSuffix } from './insertion-view.js';
+import { IrregularEditor } from './irregular-editor.js';
 import {
   chartStyleLabel,
   defaultNotation,
@@ -1312,10 +1312,8 @@ const ACTIONS: Record<string, () => void> = {
   },
   'delete-last': () => commit(deleteLast(history.present), texts().messages.work.deleteLast),
   'select-area': () => (irregular?.active === true ? select(null) : setAreaMode(!areaMode)),
-  'delete-selection': () =>
-    irregular?.active === true ? irregular.deleteSelection() : void deleteSelection(),
-  'duplicate-selection': () =>
-    irregular?.active === true ? irregular.duplicateSelection() : duplicateSelected(),
+  'delete-selection': () => (irregular?.active === true ? irregular.deleteSelection() : void deleteSelection()),
+  'duplicate-selection': () => (irregular?.active === true ? irregular.duplicateSelection() : duplicateSelected()),
   same: () =>
     tool
       ? commit(workIntoSame(history.present, tool), texts().messages.work.sameAgain)
