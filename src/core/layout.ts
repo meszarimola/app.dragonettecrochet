@@ -219,9 +219,34 @@ export function stitchWidths(graph: PieceGraph, W: number): Map<NodeId, number> 
       const share = W / targets.length;
       for (const target of targets) widths.set(target, (widths.get(target) ?? 0) + share);
     }
+    /*
+     * A LÁNCÍV továbbadja az igényét az áthidalt szemeknek (PQW-953).
+     *
+     * A láncszemnek nincs célpontja, ezért a rá épülő legyező igénye eddig
+     * megállt nála: a 3. sor hat pálcája 144 px-et kért, az ív viszont 38-on
+     * állt, és a sor a fordulóláncát tolta ki a kelméről. A tulajdonos:
+     * „a harmadik sornál már így elcsúszik.”
+     *
+     * Közvetlenül egy szembe horgolva ugyanez rendben van — a szaporítás
+     * kiszélesíti az alatta lévő cellát (PQW-931). A lánc alatt ugyanennek kell
+     * történnie: amit a láncsor kér, azt a rés viseli.
+     *
+     * Csak a TÖBBLET megy tovább: amit a láncszemekre épülő szemek kérnek a
+     * saját oszlopukon felül. A lánc maga marad, ami volt — különben minden ív
+     * szétfeszítené az alatta lévő sort, és a PQW-951 tömörödése elveszne.
+     */
+    // Csak sorban: körben (nagymama-négyzet, motívumok) a sarkok lánca máshogy viselkedik.
+    if (graph.layers[index]!.shape !== 'row') continue;
+    for (const bridge of chainBridges(graph, index)) {
+      const extra = bridge.chains.reduce((sum, id) => sum + Math.max(0, (widths.get(id) ?? W) - W), 0);
+      if (bridge.bridged.length === 0 || extra <= 0) continue;
+      const each = W + extra / bridge.bridged.length;
+      for (const id of bridge.bridged) widths.set(id, Math.max(widths.get(id) ?? 0, each));
+    }
   }
   return widths;
 }
+
 
 /** Súlyozott monoton (nem csökkenő) regresszió. */
 export function isotonic(values: readonly number[], weights: readonly number[]): number[] {
@@ -992,6 +1017,14 @@ class Layouter {
    * el, azt a tömörödés veszi fel.
    */
   #arc(run: Item[], from: number, direction: number, space: number, before: number, stitchHeight: number): Arc {
+    const natural = this.#W * 0.7;
+    /*
+     * A láncszemek EGYENLETESEN osztoznak a résen, akkor is, ha a rés a
+     * fölötte álló legyező miatt kitágult (PQW-953). A hely, amire a legyező
+     * szüksége van, a rés SZÉLESSÉGÉBŐL jön (lásd `stitchWidths`), nem abból,
+     * hogy alatta egy láncszem kövérre hízik — a legyező szárai amúgy is a
+     * célpontjukhoz futnak össze.
+     */
     const n = run.length;
     const slice = space / n;
     const start = from + direction * before;
@@ -999,14 +1032,19 @@ class Layouter {
       item.half = Math.min(item.half, slice / 2);
       item.desired = start + direction * (i + 0.5) * slice;
     });
-    const natural = this.#W * 0.7;
+    /*
+     * Az emelés a hiányból: n láncszem természetes hossza `n · 0,7W`; amivel ez
+     * a húrnál hosszabb, annyival domborodik (parabolánál `h = √(3c·hiány/8)`).
+     * Ahol a rés a fölötte álló legyező miatt kitágult, nincs hiány — de a
+     * láncsor ott is ív, ezért marad egy lapos domborulat.
+     */
     const missing = n * natural - space;
     const sagitta = missing > 0 ? Math.sqrt((3 * space * missing) / 8) : 0;
     return {
       ids: run.map((item) => item.ids[0]!),
       start,
       end: start + direction * space,
-      rise: Math.min(sagitta, stitchHeight / 2, CHAIN_HEIGHT),
+      rise: Math.min(Math.max(sagitta, space * 0.1), stitchHeight / 2, CHAIN_HEIGHT),
       size: Math.min(natural, slice * 0.95),
     };
   }
