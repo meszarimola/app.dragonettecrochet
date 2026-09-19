@@ -1,6 +1,6 @@
 // Copying stitches around a centre: the circular repeat of the free-form chart.
 
-import { itemsOf, nextId, normalizeAngle } from './irregular-document.ts';
+import { itemsOf, normalizeAngle } from './irregular-document.ts';
 import type { IrregularItem, IrregularPattern, Point } from './irregular-types.ts';
 
 export interface RepeatSpec {
@@ -49,19 +49,33 @@ export function repeatAngles(spec: RepeatSpec): number[] {
  * away from the centre still does. A copy of a group member is a plain stitch:
  * a turned recipe is a new recipe, and a group gains no member from a repeat.
  */
+/** The largest stitch number already in use, so the copies can simply count on from it. */
+function highestId(items: readonly IrregularItem[]): number {
+  const pattern = /^i(\d+)$/;
+  let max = 0;
+  for (const item of items) {
+    const match = pattern.exec(item.id);
+    if (match !== null) max = Math.max(max, Number(match[1]));
+  }
+  return max;
+}
+
 export function circularRepeat(pattern: IrregularPattern, ids: ReadonlySet<string>, spec: RepeatSpec): RepeatResult {
   const angles = repeatAngles(spec);
   const chosen = itemsOf(pattern, ids);
   if (angles.length === 0 || chosen.length === 0 || !isFinitePoint(spec.center)) return { pattern, ids: [] };
   const { center } = spec;
-  const taken = pattern.items.map((item) => item.id);
+  let next = highestId(pattern.items);
   const copies: IrregularItem[] = [];
   const made: string[] = [];
   for (const angle of angles) {
     const radians = (angle * Math.PI) / 180;
     const [cos, sin] = [Math.cos(radians), Math.sin(radians)];
     for (const item of chosen) {
-      const id = nextId('i', [...taken, ...made]);
+      // Counting up from one number beats rescanning every id for every copy:
+      // sixty-four turns of a large motif is tens of thousands of stitches.
+      next += 1;
+      const id = `i${next}`;
       made.push(id);
       const [dx, dy] = [item.x - center.x, item.y - center.y];
       copies.push({

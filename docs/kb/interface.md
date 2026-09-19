@@ -732,7 +732,18 @@ locking would be a lie: the point is to be able to drag across a crowded area
 without catching what is underneath.
 
 Isolating the last stitch and deleting it leaves no cage behind: when nothing
-isolated survives, isolation ends by itself.
+isolated survives, isolation ends by itself. That check runs on **every commit**,
+not only on undo — otherwise deleting the isolated stitches leaves a cage full of
+dead ids, and the whole chart becomes faded and unclickable with no way out but
+Escape. A new pattern clears it for the same reason.
+
+**Unreachable means unreachable from every direction**, including "select all".
+A cage that a keyboard shortcut steps over is not a cage: isolating three
+stitches and pressing Ctrl+A then Delete would have emptied the chart.
+
+**Whatever is made while isolating joins the isolation** — a placed, pasted,
+duplicated or repeated stitch. Otherwise it would be selected and faded at once:
+movable from the panel, unclickable on the canvas.
 
 **Körkörös ismétlés** is the opposite — an ordinary edit, one undo step. Its
 centre is the circle guide's middle when the guide is showing, because that is

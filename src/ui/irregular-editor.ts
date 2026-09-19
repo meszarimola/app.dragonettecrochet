@@ -644,6 +644,7 @@ export class IrregularEditor {
     const next = reseatGroups(candidate);
     if (next !== this.#history.present) {
       this.#history = record(this.#history, next);
+      this.#pruneSelection();
       this.#persist();
     }
     this.refresh();
@@ -670,6 +671,16 @@ export class IrregularEditor {
     this.#lastDuplicate = null;
   }
 
+  /**
+   * A stitch made while isolating joins the isolation. Otherwise it would be
+   * selected and faded at once — visible, movable by the panel, and unclickable.
+   * KB: interface.md §45
+   */
+  #joinIsolation(ids: Iterable<string>): void {
+    if (this.#isolated === null) return;
+    this.#isolated = new Set([...this.#isolated, ...ids]);
+  }
+
   #pruneSelection(): void {
     const live = new Set(this.#history.present.items.map((item) => item.id));
     for (const id of [...this.#selection]) if (!live.has(id)) this.#selection.delete(id);
@@ -683,6 +694,7 @@ export class IrregularEditor {
 
   newPattern(): void {
     this.#selection.clear();
+    this.#isolated = null;
     this.#history = createHistory(this.#empty());
     this.#persist();
     this.refresh();
@@ -996,6 +1008,7 @@ export class IrregularEditor {
     const offset = this.#lastDuplicate ?? duplicateOffset(chosen);
     const made = duplicateItems(this.#history.present, this.#selection, offset);
     this.#lastDuplicate = offset;
+    this.#joinIsolation(made.ids);
     this.#selection = new Set(made.ids);
     this.#commit(made.pattern, texts().irregular.duplicated(made.ids.length));
   }
@@ -1018,6 +1031,7 @@ export class IrregularEditor {
     const first = this.#clipboard[0];
     const offset = at !== null && first !== undefined ? { x: at.x - first.x, y: at.y - first.y } : { x: 10, y: 10 };
     const made = pasteItems(this.#history.present, this.#clipboard, offset);
+    this.#joinIsolation(made.ids);
     this.#setSelection(made.ids);
     this.#commit(made.pattern, texts().irregular.pasted(made.ids.length));
   }
@@ -1083,8 +1097,11 @@ export class IrregularEditor {
       range: this.#repeat.range,
     });
     if (made.pattern === this.#history.present) return;
+    this.#joinIsolation(made.ids);
     this.#setSelection([...this.#selection, ...made.ids]);
-    this.#commit(made.pattern, texts().irregular.repeated(made.ids.length));
+    // The count the panel asks for is sectors, so that is what the status line says.
+    const turns = Math.max(0, Math.round(this.#repeat.count) - 1);
+    this.#commit(made.pattern, texts().irregular.repeated(turns));
   }
 
   // -- arranging -----------------------------------------------------------
@@ -1423,6 +1440,7 @@ export class IrregularEditor {
   }
 
   #reachable(item: IrregularItem): boolean {
+    if (this.#isolated !== null && !this.#isolated.has(item.id)) return false;
     const pattern = this.#history.present;
     const row = rowById(pattern, item.rowId);
     const layer = pattern.layers.find((candidate) => candidate.id === item.layerId);
@@ -1584,6 +1602,7 @@ export class IrregularEditor {
       rotation: this.#placedRotation(point),
       insertion: 'both-loops',
     });
+    this.#joinIsolation([made.id]);
     const def = stitchById(stitch);
     const row = made.pattern.rows.findIndex((candidate) => candidate.id === made.pattern.activeRowId) + 1;
     const name = def === undefined ? stitch : stitchName(def, this.#host.notation().terms);

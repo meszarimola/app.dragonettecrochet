@@ -749,6 +749,22 @@ test('kiemelés: csak a kijelölt szemek érhetők el, Esc kilép (AS-20)', asyn
   await page.mouse.up();
   await expect(page.locator('#props-count'), 'a téglalap is csak a kiemeltekre hat').toContainText('2');
 
+  // Select all must not reach outside the cage either, or Delete would empty the chart.
+  await page.locator(board).focus();
+  await page.keyboard.press('Control+a');
+  await expect(page.locator('#props-count'), 'a mindent kijelölés is csak a kiemeltekre hat').toContainText('2');
+  await page.keyboard.press('Delete');
+  const left = await page.evaluate(() => {
+    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+    return (JSON.parse(raw).items ?? []).length;
+  });
+  expect(left, 'a kiemelésen kívüli két szem megmaradt').toBe(2);
+  await expect(isolate, 'a kiemelés véget ért, mert nem maradt benne semmi').toHaveAttribute('aria-pressed', 'false');
+
+  await page.locator(board).click({ position: { x: 420, y: 380 } });
+  await expect(page.locator('#props-count'), 'és a maradék újra elérhető').toContainText('1');
+  await page.keyboard.press('Control+z');
+
   await page.locator(board).focus();
   await page.keyboard.press('Escape');
   await expect(isolate, 'az Esc kilép a kiemelésből').toHaveAttribute('aria-pressed', 'false');
