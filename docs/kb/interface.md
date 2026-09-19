@@ -773,3 +773,22 @@ result.
 
 Cited from: `src/ui/irregular-editor.ts` (`#grippedRowLine`) and
 `src/ui/irregular-board.ts` (`rowLineGripAt`).
+
+## §47 The tracing photo lives outside the pattern
+
+A photo to trace is megabytes; the pattern's autosave slot is `localStorage`,
+which is small and throws when it is full. So the **bytes go to IndexedDB** and
+only the id and the placement go into the chart. If the picture cannot be kept —
+too big, no room, no IndexedDB at all — the **pattern still saves**, and the
+issues list says the picture will not come back on a reload. Losing a tracing
+photo is a nuisance; losing the chart is not.
+
+The photo is drawn under every layer and is never part of an export unless its
+own switch says so: a tracing photo has no place in a finished chart.
+
+It is grabbed only when nothing else was — a stitch over it always wins — and
+only while it is unlocked, which is what locking is for. Dropping an image file
+on the drawing area loads it, because that is how a photo usually arrives.
+
+Cited from: `src/ui/background-store.ts`, `src/ui/irregular-editor.ts`
+(`loadBackground`) and `src/ui/irregular-board.ts` (`backgroundAt`).

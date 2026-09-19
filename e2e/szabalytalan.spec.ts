@@ -870,3 +870,41 @@ test('körkörös ismétlés: nyolc szektor a körrács közepe körül (AS-8)',
   await page.keyboard.press('Control+z');
   expect((await state()).count, 'egyetlen visszavonás viszi vissza az egészet').toBe(1);
 });
+
+test('saját szem: hozzáadás a jelkulcshoz, majd lerakás (FR-KEY-4)', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+  await page.locator('#section-irregular-key > summary').click();
+
+  await page.locator('#key-custom-name').fill('Bogyó');
+  await page.locator('#key-custom-abbr').fill('bgy');
+  await page.locator('#key-custom-glyph').selectOption('asterisk');
+  await page.locator('#key-custom-add').click();
+  await expect(page.locator('#status')).toContainText('Bogyó');
+
+  // The new stitch is armed, so a click on the canvas places it.
+  await page.locator(board).click({ position: { x: 520, y: 380 } });
+  const placed = await page.evaluate(() => {
+    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+    const parsed = JSON.parse(raw);
+    return {
+      items: (parsed.items ?? []).length,
+      keyEntryId: (parsed.items ?? [])[0]?.keyEntryId ?? '',
+      key: (parsed.stitchKey ?? []).map((entry: { customName: string; glyphOverride: string }) => ({
+        name: entry.customName,
+        glyph: entry.glyphOverride,
+      })),
+    };
+  });
+  expect(placed.items, 'egy szem lekerült').toBe(1);
+  expect(placed.key, 'a jelkulcsban ott a saját szem').toContainEqual({ name: 'Bogyó', glyph: 'asterisk' });
+  expect(placed.keyEntryId, 'és a lerakott szem arra hivatkozik').toBe(
+    (await page.evaluate(() => {
+      const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+      return (JSON.parse(raw).stitchKey ?? [])[0]?.id ?? '';
+    })) as string,
+  );
+
+  // It shows up in the legend list with its own name.
+  await expect(page.locator('#key-list li').filter({ hasText: 'Bogyó' })).toHaveCount(1);
+});

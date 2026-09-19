@@ -1,6 +1,7 @@
 // Edit operations on the free-form chart document. KB: core-geometry §29
 
 import {
+  type BackgroundImage,
   DEFAULT_GRID_SIZE,
   DEFAULT_POLAR,
   GRID_SIZE_RANGE,
@@ -352,6 +353,50 @@ export function withIrregularNotation(pattern: IrregularPattern, notation: Patte
   return { ...pattern, notation };
 }
 
+export type BackgroundPatch = Partial<Omit<BackgroundImage, 'id'>>;
+
+export function setBackground(pattern: IrregularPattern, background: BackgroundImage | null): IrregularPattern {
+  if (background === null) {
+    if (pattern.background === undefined) return pattern;
+    const { background: _gone, ...rest } = pattern;
+    return rest;
+  }
+  return { ...pattern, background };
+}
+
+export function patchBackground(pattern: IrregularPattern, patch: BackgroundPatch): IrregularPattern {
+  const current = pattern.background;
+  if (current === undefined) return pattern;
+  const next: BackgroundImage = {
+    ...current,
+    x: finiteOr(patch.x, current.x),
+    y: finiteOr(patch.y, current.y),
+    width: Math.max(1, finiteOr(patch.width, current.width)),
+    height: Math.max(1, finiteOr(patch.height, current.height)),
+    rotation: normalizeAngle(finiteOr(patch.rotation, current.rotation)),
+    opacity: clamp(finiteOr(patch.opacity, current.opacity), 0, 1),
+    visible: patch.visible ?? current.visible,
+    locked: patch.locked ?? current.locked,
+    inExport: patch.inExport ?? current.inExport,
+  };
+  if (sameBackground(current, next)) return pattern;
+  return { ...pattern, background: next };
+}
+
+function sameBackground(a: BackgroundImage, b: BackgroundImage): boolean {
+  return (
+    a.x === b.x &&
+    a.y === b.y &&
+    a.width === b.width &&
+    a.height === b.height &&
+    a.rotation === b.rotation &&
+    a.opacity === b.opacity &&
+    a.visible === b.visible &&
+    a.locked === b.locked &&
+    a.inExport === b.inExport
+  );
+}
+
 export function setGrid(pattern: IrregularPattern, visible: boolean): IrregularPattern {
   if (pattern.guides.grid.visible === visible) return pattern;
   return { ...pattern, guides: { ...pattern.guides, grid: { ...pattern.guides.grid, visible } } };
@@ -396,8 +441,8 @@ function samePolar(a: PolarGuide, b: PolarGuide): boolean {
   );
 }
 
-function finiteOr(value: number, fallback: number): number {
-  return Number.isFinite(value) ? value : fallback;
+function finiteOr(value: number | undefined, fallback: number): number {
+  return value !== undefined && Number.isFinite(value) ? value : fallback;
 }
 
 function clamp(value: number, min: number, max: number): number {

@@ -3,6 +3,7 @@
 import {
   ARC_COUNT_RANGE,
   type ArcShape,
+  type BackgroundImage,
   DEFAULT_POLAR,
   FAN_COUNT_RANGE,
   FAN_LENGTH_RANGE,
@@ -226,7 +227,7 @@ function readIrregular(value: unknown, path: string): IrregularPattern {
     value,
     path,
     ['formatVersion', 'type', 'title', 'rows', 'layers', 'items', 'activeRowId', 'activeLayerId', 'guides'],
-    ['titleGenerated', 'notation', 'stitchKey', 'legend', 'groups'],
+    ['titleGenerated', 'notation', 'stitchKey', 'legend', 'groups', 'background'],
   );
   const rows = array(raw['rows'], `${path}.rows`, readRow);
   if (rows.length === 0) throw new FormatError(`${path}.rows`, 'expected-nonempty-array');
@@ -282,6 +283,7 @@ function readIrregular(value: unknown, path: string): IrregularPattern {
     guides: readGuides(raw['guides'], `${path}.guides`),
     ...(raw['stitchKey'] === undefined ? {} : { stitchKey: readStitchKey(raw['stitchKey'], `${path}.stitchKey`) }),
     ...(raw['legend'] === undefined ? {} : { legend: readLegend(raw['legend'], `${path}.legend`) }),
+    ...(raw['background'] === undefined ? {} : { background: readBackground(raw['background'], `${path}.background`) }),
   };
 }
 
@@ -324,6 +326,35 @@ function readLegend(value: unknown, path: string): LegendBlock {
     showCounts: boolean(raw['showCounts'], `${path}.showCounts`),
   };
 }
+
+function readBackground(value: unknown, path: string): BackgroundImage {
+  const raw = object(value, path, [
+    'id',
+    'x',
+    'y',
+    'width',
+    'height',
+    'rotation',
+    'opacity',
+    'visible',
+    'locked',
+    'inExport',
+  ]);
+  return {
+    id: string(raw['id'], `${path}.id`),
+    x: finite(raw['x'], `${path}.x`),
+    y: finite(raw['y'], `${path}.y`),
+    width: positive(raw['width'], `${path}.width`),
+    height: positive(raw['height'], `${path}.height`),
+    rotation: ranged(finite(raw['rotation'], `${path}.rotation`), `${path}.rotation`, ANGLE_RANGE),
+    opacity: ranged(finite(raw['opacity'], `${path}.opacity`), `${path}.opacity`, OPACITY_RANGE),
+    visible: boolean(raw['visible'], `${path}.visible`),
+    locked: boolean(raw['locked'], `${path}.locked`),
+    inExport: boolean(raw['inExport'], `${path}.inExport`),
+  };
+}
+
+const OPACITY_RANGE = { min: 0, max: 1 } as const;
 
 function readPoint(value: unknown, path: string): { x: number; y: number } {
   const raw = object(value, path, ['x', 'y']);

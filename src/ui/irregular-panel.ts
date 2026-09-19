@@ -1,7 +1,21 @@
 // The free-form editor's properties panel. KB: interface.md §7, §8
 
-import type { AlignMode, DistributeAxis, FlipAxis, ItemPatch, PolarPatch } from '../core/irregular-document.ts';
-import type { ChainArcGroup, FanGroup, IrregularGuides, IrregularItem, RowLineShape } from '../core/irregular-types.ts';
+import type {
+  AlignMode,
+  BackgroundPatch,
+  DistributeAxis,
+  FlipAxis,
+  ItemPatch,
+  PolarPatch,
+} from '../core/irregular-document.ts';
+import type {
+  BackgroundImage,
+  ChainArcGroup,
+  FanGroup,
+  IrregularGuides,
+  IrregularItem,
+  RowLineShape,
+} from '../core/irregular-types.ts';
 import { stitchById } from '../core/stitches.ts';
 import type { StitchInsertion } from '../core/types.ts';
 import { texts } from './i18n.ts';
@@ -31,6 +45,9 @@ export interface IrregularPanelHost {
   clearRowLine(): void;
   setRepeat(count: number, range: number): void;
   repeat(): void;
+  loadBackground(): void;
+  removeBackground(): void;
+  patchBackground(patch: BackgroundPatch): void;
 }
 
 export interface ArrangeView {
@@ -109,6 +126,14 @@ export class IrregularPanel {
   readonly #repeat: HTMLElement;
   readonly #repeatCount: HTMLInputElement;
   readonly #repeatRange: HTMLInputElement;
+  readonly #bgFields: HTMLElement;
+  readonly #bgOpacity: HTMLInputElement;
+  readonly #bgScale: HTMLInputElement;
+  readonly #bgRotation: HTMLInputElement;
+  readonly #bgVisible: HTMLInputElement;
+  readonly #bgLocked: HTMLInputElement;
+  readonly #bgInExport: HTMLInputElement;
+  #bgNaturalWidth = 1;
   #items: readonly IrregularItem[] = [];
 
   constructor(section: HTMLDetailsElement, host: IrregularPanelHost) {
@@ -151,6 +176,13 @@ export class IrregularPanel {
     this.#repeat = must<HTMLElement>(section, '#props-repeat');
     this.#repeatCount = must<HTMLInputElement>(section, '#repeat-count');
     this.#repeatRange = must<HTMLInputElement>(section, '#repeat-range');
+    this.#bgFields = must<HTMLElement>(section, '#bg-fields');
+    this.#bgOpacity = must<HTMLInputElement>(section, '#bg-opacity');
+    this.#bgScale = must<HTMLInputElement>(section, '#bg-scale');
+    this.#bgRotation = must<HTMLInputElement>(section, '#bg-rotation');
+    this.#bgVisible = must<HTMLInputElement>(section, '#bg-visible');
+    this.#bgLocked = must<HTMLInputElement>(section, '#bg-locked');
+    this.#bgInExport = must<HTMLInputElement>(section, '#bg-in-export');
     this.#listen();
   }
 
@@ -247,6 +279,39 @@ export class IrregularPanel {
     this.#repeatCount.addEventListener('change', sendRepeat);
     this.#repeatRange.addEventListener('change', sendRepeat);
     must<HTMLButtonElement>(this.#section, '#repeat-run').addEventListener('click', () => this.#host.repeat());
+    must<HTMLButtonElement>(this.#section, '#bg-load').addEventListener('click', () => this.#host.loadBackground());
+    must<HTMLButtonElement>(this.#section, '#bg-remove').addEventListener('click', () => this.#host.removeBackground());
+    this.#bgOpacity.addEventListener('change', () =>
+      this.#number(this.#bgOpacity, (value) => this.#host.patchBackground({ opacity: value / 100 })),
+    );
+    // The picture scales uniformly, so one number drives both sides.
+    this.#bgScale.addEventListener('change', () =>
+      this.#number(this.#bgScale, (value) => {
+        const width = (this.#bgNaturalWidth * value) / 100;
+        this.#host.patchBackground({ width });
+      }),
+    );
+    this.#bgRotation.addEventListener('change', () =>
+      this.#number(this.#bgRotation, (value) => this.#host.patchBackground({ rotation: value })),
+    );
+    this.#bgVisible.addEventListener('change', () => this.#host.patchBackground({ visible: this.#bgVisible.checked }));
+    this.#bgLocked.addEventListener('change', () => this.#host.patchBackground({ locked: this.#bgLocked.checked }));
+    this.#bgInExport.addEventListener('change', () =>
+      this.#host.patchBackground({ inExport: this.#bgInExport.checked }),
+    );
+  }
+
+  updateBackground(background: BackgroundImage | null, naturalWidth: number): void {
+    this.#bgFields.hidden = background === null;
+    must<HTMLButtonElement>(this.#section, '#bg-remove').disabled = background === null;
+    if (background === null) return;
+    this.#bgNaturalWidth = naturalWidth > 0 ? naturalWidth : 1;
+    this.#setNumber(this.#bgOpacity, Math.round(background.opacity * 100));
+    this.#setNumber(this.#bgScale, Math.round((background.width / this.#bgNaturalWidth) * 100));
+    this.#setNumber(this.#bgRotation, Math.round(background.rotation));
+    this.#setToggle(this.#bgVisible, background.visible);
+    this.#setToggle(this.#bgLocked, background.locked);
+    this.#setToggle(this.#bgInExport, background.inExport);
   }
 
   updateRepeat(shown: boolean): void {

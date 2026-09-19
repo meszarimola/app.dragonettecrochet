@@ -198,6 +198,27 @@ export interface GlyphSize {
   readonly height: number;
 }
 
+/**
+ * A photo traced over. The bytes live outside the pattern, in the browser's own
+ * store, so a big picture can never break the pattern's autosave; only the
+ * placement is part of the chart.
+ */
+export interface BackgroundImage {
+  readonly id: string;
+  /** The centre of the image on the chart. */
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+  readonly rotation: number;
+  /** How solid it is drawn, 0 to 1. */
+  readonly opacity: number;
+  readonly visible: boolean;
+  readonly locked: boolean;
+  /** Off by default: a tracing photo has no place in the finished chart. */
+  readonly inExport: boolean;
+}
+
 export interface IrregularGuides {
   readonly grid: { readonly visible: boolean; readonly size: number };
   readonly polar: PolarGuide;
@@ -222,6 +243,7 @@ export interface IrregularPattern {
   /** Absent while the pattern is happy with the preset. */
   readonly stitchKey?: readonly StitchKeyEntry[];
   readonly legend?: LegendBlock;
+  readonly background?: BackgroundImage;
 }
 
 /** Abstract canvas units: at 100% zoom one unit is one CSS pixel. */
@@ -243,6 +265,7 @@ export const POLAR_RANGE = {
 export const DEFAULT_ARC_COUNT = 5;
 export const ARC_COUNT_RANGE = { min: 2, max: 200 } as const;
 /** The preset bulge, as a share of the chord. KB: core-geometry §52 */
+export const DEFAULT_BACKGROUND_OPACITY = 0.4;
 export const DEFAULT_ARC_BULGE = 0.25;
 export const DEFAULT_FAN_COUNT = 5;
 /** Its own range: a fan is not an arc, and one must not silently set the other. */
