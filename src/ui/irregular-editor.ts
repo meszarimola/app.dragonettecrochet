@@ -133,11 +133,13 @@ import {
   type LegendEntry,
   rowLinePath,
 } from './irregular-board.ts';
-import { drawnGlyph, itemShapes, naturalSize } from './irregular-glyph.ts';
+import { drawnGlyph, itemShapes, naturalGlyph, naturalSize } from './irregular-glyph.ts';
 import { IrregularKeyPanel } from './irregular-key-panel.ts';
 import { IrregularLayersPanel } from './irregular-layers-panel.ts';
 import { IrregularPanel } from './irregular-panel.ts';
 import { IrregularRowsPanel, rowName } from './irregular-rows-panel.ts';
+import { type IrregularSvgOptions, irregularBox, irregularSvg, type LegendLine } from './irregular-svg.ts';
+import { type PageOrientation, type PageSize, MAX_SIDE as PDF_MAX_SIDE, pageCount, writePdf } from './pdf.ts';
 import type { Shape, SymbolOptions } from './symbols.ts';
 
 export const IRREGULAR_STORAGE_KEY = 'dc-mintatervezo:minta-szabalytalan';
@@ -148,6 +150,12 @@ const ROTATE_SNAP = 15;
 const ARC_STITCH = 'ch';
 /** Eight sectors is the doily default the spec names. */
 const DEFAULT_REPEAT_COUNT = 8;
+
+/** The PDF writer takes at most ten pages on a side; the panel agrees with it. */
+function clampSide(value: number): number {
+  if (!Number.isFinite(value)) return 1;
+  return Math.min(PDF_MAX_SIDE, Math.max(1, Math.round(value)));
+}
 /** A fan is a shell by default, and a shell is made of double crochets. */
 const FAN_STITCH = 'dc';
 /** How long a typed digit waits for the next one before it stands alone. */
@@ -212,6 +220,12 @@ export interface IrregularHost {
   notationNote(recorded: Locale, shown: Locale): string;
   terms(): Locale;
   refreshControls(): void;
+  /** Whether the guides go into the picture, from the shared export setting. */
+  gridInExport(): boolean;
+  ink(): string;
+  /** A picture the SVG can carry inside itself. */
+  imageHref(picture: HTMLImageElement): string;
+  savePdf(): void;
   /** Lets the editor lay the palette's stitch down when another tool takes over. */
   armStitch(id: StitchDefId | null): void;
 }
@@ -353,6 +367,8 @@ export class IrregularEditor {
       loadBackground: () => this.pickBackground(),
       removeBackground: () => this.removeBackground(),
       patchBackground: (patch) => this.#commit(patchBackground(this.#history.present, patch)),
+      setExport: (patch) => this.setExport(patch),
+      savePdf: () => this.#host.savePdf(),
     });
     this.#hoverCapable = window.matchMedia('(hover: hover)').matches;
     this.#listen();
@@ -1452,6 +1468,113 @@ export class IrregularEditor {
     return groups.size === 0 ? pattern : explodeGroups(pattern, groups);
   }
 
+  // -- export ----------------------------------------------------------------
+
+  #export = {
+    scale: 2,
+    transparent: false,
+    size: 'a4' as PageSize,
+    orientation: 'auto' as PageOrientation,
+    across: 1,
+    down: 1,
+  };
+
+  setExport(patch: Partial<typeof this.export>): void {
+    const next = { ...this.#export, ...patch };
+    // The writer clamps the page grid; the panel must show what the file will get.
+    this.#export = {
+      ...next,
+      across: clampSide(next.across),
+      down: clampSide(next.down),
+      scale: [1, 2, 4].includes(next.scale) ? next.scale : 2,
+    };
+    this.refresh();
+  }
+
+  get export(): {
+    scale: number;
+    transparent: boolean;
+    size: PageSize;
+    orientation: PageOrientation;
+    across: number;
+    down: number;
+  } {
+    return this.#export;
+  }
+
+  get exportEmpty(): boolean {
+    const pattern = this.#history.present;
+    return !pattern.items.some((item) => isVisible(pattern, item));
+  }
+
+  /** Everything the two vector outputs need, gathered in one place. */
+  #svgOptions(): IrregularSvgOptions {
+    const pattern = this.#history.present;
+    const placement = pattern.background;
+    const loaded = this.#image;
+    const photo =
+      placement !== undefined && placement.inExport && loaded !== null && loaded.id === placement.id
+        ? { placement, href: this.#host.imageHref(loaded.picture) }
+        : null;
+    return {
+      symbols: this.#host.symbols(),
+      glyphOf: (keyEntryId) => entryGlyph(pattern, keyEntryId),
+      legend: this.legend.visible ? { block: this.legend, lines: this.#legendLines() } : null,
+      guides: this.#host.gridInExport(),
+      background: photo,
+      paper: this.#export.transparent ? null : '#ffffff',
+      ink: this.#host.ink(),
+    };
+  }
+
+  #legendLines(): LegendLine[] {
+    const symbols = this.#host.symbols();
+    return this.#legendEntries().map((entry) => ({
+      text: entry.text,
+      shapes: naturalGlyph(entry.keyEntryId, 'both-loops', symbols, entry.glyph)?.shapes ?? [],
+    }));
+  }
+
+  exportSvg(): string {
+    return irregularSvg(this.#history.present, this.#svgOptions());
+  }
+
+  /** The chart as one flat run of shapes, which is all the PDF writer needs. */
+  exportPdf(): Uint8Array {
+    const pattern = this.#history.present;
+    const symbols = this.#host.symbols();
+    // The colours come with the stitches: a chart that tells rounds apart by
+    // colour must not print black.
+    const runs: { shapes: Shape[]; color: string | null }[] = [];
+    for (const item of pattern.items) {
+      if (!isVisible(pattern, item)) continue;
+      const color = item.color ?? rowById(pattern, item.rowId)?.color ?? null;
+      const last = runs[runs.length - 1];
+      const shapes = itemShapes(item, symbols, entryGlyph(pattern, item.keyEntryId));
+      if (last !== undefined && last.color === color) last.shapes.push(...shapes);
+      else runs.push({ shapes: [...shapes], color });
+    }
+    // The legend is not drawn on the PDF yet, so no room is kept for it.
+    const box = irregularBox(pattern, { legend: null, background: null, guides: false });
+    return writePdf({ shapes: [], runs, lineWidth: 1.6 }, box, {
+      title: pattern.title,
+      size: this.#export.size,
+      orientation: this.#export.orientation,
+      across: this.#export.across,
+      down: this.#export.down,
+    });
+  }
+
+  get pdfPages(): number {
+    return pageCount({
+      title: '',
+      size: this.#export.size,
+      orientation: this.#export.orientation,
+      across: this.#export.across,
+      down: this.#export.down,
+    });
+  }
+
   // -- file ----------------------------------------------------------------
 
   exportJson(): string {
@@ -1527,7 +1650,8 @@ export class IrregularEditor {
     this.#panel.updateArc(this.selectedArc);
     this.#panel.updateFan(this.selectedFan);
     this.#panel.updateRepeat(this.#selection.size > 0);
-    this.#panel.updateBackground(this.#history.present.background ?? null, this.#image?.picture.naturalWidth ?? 1);
+    this.#panel.updateBackground(this.#history.present.background ?? null, this.#image?.picture.naturalWidth ?? 0);
+    this.#panel.updateExport(this.#export);
     this.#panel.updateArrange({
       shown: this.#arrangeTargets().items.length >= 2,
       perpendicular: this.#preferences.perpendicular,

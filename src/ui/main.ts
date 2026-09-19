@@ -1090,18 +1090,23 @@ function exportSvgText(): string {
 }
 
 async function exportPng(): Promise<void> {
-  const url = URL.createObjectURL(new Blob([exportSvgText()], { type: 'image/svg+xml' }));
+  const free = irregular?.active === true ? irregular : null;
+  if (free !== null && free.exportEmpty) return announce(texts().irregular.exportEmpty);
+  const scale = free === null ? 2 : free.export.scale;
+  const source = free === null ? exportSvgText() : free.exportSvg();
+  const name = free === null ? history.present.title : free.title;
+  const url = URL.createObjectURL(new Blob([source], { type: 'image/svg+xml' }));
   try {
     const image = new Image();
     image.src = url;
     await image.decode();
     const out = document.createElement('canvas');
-    out.width = image.width * 2;
-    out.height = image.height * 2;
+    out.width = image.width * scale;
+    out.height = image.height * scale;
     out.getContext('2d')?.drawImage(image, 0, 0, out.width, out.height);
     const blob = await new Promise<Blob | null>((resolve) => out.toBlob(resolve, 'image/png'));
     if (!blob) throw new Error('üres kép');
-    download(blob, `${slug(history.present.title)}.png`, 'image/png');
+    download(blob, `${slug(name)}.png`, 'image/png');
     announce(texts().messages.file.pngSaved);
   } catch {
     announce(texts().messages.file.pngFailed);
@@ -1395,10 +1400,23 @@ const ACTIONS: Record<string, () => void> = {
   },
   'import-json': () => importFile.click(),
   'export-svg': () => {
+    if (irregular?.active === true) {
+      if (irregular.exportEmpty) return announce(texts().irregular.exportEmpty);
+      download(irregular.exportSvg(), `${slug(irregular.title)}.svg`, 'image/svg+xml');
+      return announce(texts().messages.file.svgSaved);
+    }
     download(exportSvgText(), `${slug(history.present.title)}.svg`, 'image/svg+xml');
     announce(texts().messages.file.svgSaved);
   },
   'export-png': () => void exportPng(),
+  'export-pdf': () => {
+    if (irregular?.active !== true) return;
+    if (irregular.exportEmpty) return announce(texts().irregular.exportEmpty);
+    const bytes = irregular.exportPdf();
+    const pdf = new Blob([bytes.slice().buffer], { type: 'application/pdf' });
+    download(pdf, `${slug(irregular.title)}.pdf`, 'application/pdf');
+    announce(texts().irregular.pdfSaved(irregular.pdfPages));
+  },
   'copy-written': () => void copyWritten(),
   'written-full': () => toggleWrittenFull(),
   'close-written': () => {
@@ -2104,6 +2122,10 @@ function ensureIrregular(): IrregularEditor {
     insets: () => ({ left: insetLeft(), right: insetRight(), bottom: insetBottom() }),
     notationNote: (recorded, shown) => texts().messages.file.notationNote(termsLabel(recorded), termsLabel(shown)),
     armStitch: (id) => select(id),
+    gridInExport: () => exportGrid.checked,
+    ink: () => getComputedStyle(document.documentElement).getPropertyValue('--c-ink').trim(),
+    imageHref: (picture) => pictureHref(picture),
+    savePdf: () => ACTIONS['export-pdf']?.(),
     terms: () => notation.terms,
     refreshControls: () => {
       if (irregular !== null) updateIrregularControls(irregular);
@@ -2144,6 +2166,20 @@ function updateIrregularControls(editor: IrregularEditor): void {
 }
 
 // KB: interface.md §9 — the free-form type brings its own canvas, so the two never paint over each other.
+/** A picture as a data URL, so an exported SVG carries it inside itself. */
+function pictureHref(picture: HTMLImageElement): string {
+  // A phone photo re-encoded as a base64 PNG is tens of megabytes, all of it
+  // inlined into the SVG string and rasterised again for the PNG. A tracing
+  // photo does not need more than this, and the tab survives.
+  const widest = 2000;
+  const shrink = Math.min(1, widest / Math.max(1, picture.naturalWidth));
+  const out = document.createElement('canvas');
+  out.width = Math.max(1, Math.round(picture.naturalWidth * shrink));
+  out.height = Math.max(1, Math.round(picture.naturalHeight * shrink));
+  out.getContext('2d')?.drawImage(picture, 0, 0, out.width, out.height);
+  return out.toDataURL('image/jpeg', 0.82);
+}
+
 function showIrregularView(on: boolean): void {
   canvas.hidden = on;
   irregularCanvas.hidden = !on;
@@ -2151,9 +2187,8 @@ function showIrregularView(on: boolean): void {
   must<HTMLElement>('#tools-irregular').hidden = !on;
   writtenToggle.hidden = on;
   if (on) setOpen(written, writtenToggle, false);
-  // The free-form image and print output arrives with its own ticket; until then it would save the wrong chart.
-  setDisabled('export-png', on);
-  setDisabled('export-svg', on);
+  setDisabled('export-png', false);
+  setDisabled('export-svg', false);
 }
 
 // KB: interface.md §10

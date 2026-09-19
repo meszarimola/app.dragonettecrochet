@@ -800,3 +800,35 @@ is loaded.
 
 Cited from: `src/ui/background-store.ts`, `src/ui/irregular-editor.ts`
 (`loadBackground`) and `src/ui/irregular-board.ts` (`backgroundAt`).
+
+## §48 The free-form chart's own way out
+
+The regular type's SVG comes from its layout engine; the free-form type's comes
+from the same shapes the canvas draws, so what is exported is what was on
+screen. PNG is that SVG rasterised, as it already is for the regular type.
+
+**A hidden row or layer is not in the file at all** — not hidden with an
+attribute, not drawn transparent. It must not be recoverable from what is shared.
+The tracing photo is out unless its own switch says otherwise, and the guides
+follow the existing "Rács a PNG- és SVG-exportban" setting.
+
+**Colour survives into the PDF.** A chart that tells its rounds apart by colour
+would otherwise print black, with nothing to say so. Each run of stitches
+sharing an ink is written once with that ink.
+
+**Every tile is clipped.** Without it each page draws the whole chart, so a
+neighbour's stitches land in this page's margins and straight through its title.
+
+**The legend is on the SVG and the PNG, not yet on the PDF** — and the PDF no
+longer keeps room for it, which used to push the chart off-centre to make space
+for a blank region.
+
+**The PDF is written by hand**, because the repo has no runtime dependencies and
+is not taking one for this. Base-14 Helvetica, no embedded font: the four
+Hungarian double-acute letters have no place in WinAnsi, so they take four of its
+undefined codes by their standard glyph names. The chart is scaled uniformly
+across the chosen page grid, with an overlap so a taped-together chart has no
+gap, and the title on every page.
+
+Cited from: `src/ui/irregular-svg.ts`, `src/ui/pdf.ts` and `src/ui/main.ts`
+(`exportPng`, the `export-*` actions).
