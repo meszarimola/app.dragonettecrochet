@@ -177,6 +177,8 @@ function clampSide(value: number): number {
 
 /** How far a row's number stands from its first stitch. */
 const LABEL_GAP = 18;
+/** How long the autosave waits for the hand to stop moving. */
+const SAVE_DELAY = 400;
 /** Below this a drag is a click, and the annotation takes its natural size. */
 const MIN_NOTE_SPAN = 8;
 const ROW_ARROW: Record<RowDirection, string> = { ltr: '→', rtl: '←', cw: '↻', ccw: '↺' };
@@ -446,6 +448,7 @@ export class IrregularEditor {
   }
 
   unmount(): void {
+    this.flush();
     this.#mounted = false;
     this.#draft = null;
     this.#drag = null;
@@ -706,6 +709,29 @@ export class IrregularEditor {
     });
   }
 
+  #saveSoon: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Only while a drag is in flight: it commits on every pointer move, and
+   * writing the whole pattern each time is what makes a big chart stutter.
+   * KB: interface.md §50
+   */
+  /** Writes anything still waiting, so nothing is lost on the way out. */
+  flush(): void {
+    if (this.#saveSoon === null) return;
+    clearTimeout(this.#saveSoon);
+    this.#saveSoon = null;
+    this.#persist();
+  }
+
+  #persistSoon(): void {
+    if (this.#saveSoon !== null) clearTimeout(this.#saveSoon);
+    this.#saveSoon = setTimeout(() => {
+      this.#saveSoon = null;
+      this.#persist();
+    }, SAVE_DELAY);
+  }
+
   #persist(): void {
     try {
       localStorage.setItem(IRREGULAR_STORAGE_KEY, saveIrregular(this.#withNotation()));
@@ -730,7 +756,10 @@ export class IrregularEditor {
     if (next !== this.#history.present) {
       this.#history = record(this.#history, next);
       this.#pruneSelection();
-      this.#persist();
+      // A drag commits on every pointer move; anything else is a single act and
+      // is written at once, so nothing is ever a moment behind what is on screen.
+      if (this.#drag === null) this.#persist();
+      else this.#persistSoon();
     }
     this.refresh();
     if (message !== undefined) this.#host.announce(message);
@@ -1952,12 +1981,14 @@ export class IrregularEditor {
       if (!this.#mounted) return;
       this.#onMove(event);
     });
-    this.#canvas.addEventListener('pointerup', () => {
+    this.#canvas.addEventListener('pointerup', (event) => {
       if (!this.#mounted) return;
-      this.#onUp();
+      this.#onUp(event);
     });
-    this.#canvas.addEventListener('pointercancel', () => {
+    this.#canvas.addEventListener('pointercancel', (event) => {
       if (!this.#mounted) return;
+      this.#touches.delete(event.pointerId);
+      this.#pinch = null;
       this.#endDrag();
     });
     this.#canvas.addEventListener('pointerleave', () => {
@@ -1982,9 +2013,26 @@ export class IrregularEditor {
     this.#spaceDown = down;
   }
 
+  /**
+   * Two fingers zoom and pan; one finger uses whatever tool is armed. A second
+   * finger arriving mid-drag cancels that drag, so a pinch never leaves a
+   * half-made stitch behind. KB: interface.md §50
+   */
+  #touches = new Map<number, Point>();
+  #pinch: { gap: number; middle: Point } | null = null;
+
   #onDown(event: PointerEvent): void {
     this.#canvas.focus({ preventScroll: true });
     this.#canvas.setPointerCapture(event.pointerId);
+    if (event.pointerType === 'touch') {
+      this.#touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (this.#touches.size === 2) {
+        this.#endDrag();
+        this.#pinch = this.#pinchOf();
+        return;
+      }
+      if (this.#touches.size > 2) return;
+    }
     const point = this.#board.toChart(event.clientX, event.clientY);
     this.#pointer = point;
 
@@ -2139,7 +2187,28 @@ export class IrregularEditor {
     this.#drag = { kind: 'scale', handle, start: point, base, anchor };
   }
 
+  #pinchOf(): { gap: number; middle: Point } | null {
+    const [first, second] = [...this.#touches.values()];
+    if (first === undefined || second === undefined) return null;
+    return {
+      gap: Math.max(1, Math.hypot(second.x - first.x, second.y - first.y)),
+      middle: { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 },
+    };
+  }
+
   #onMove(event: PointerEvent): void {
+    if (event.pointerType === 'touch' && this.#touches.has(event.pointerId)) {
+      this.#touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      const was = this.#pinch;
+      if (this.#touches.size >= 2 && was !== null) {
+        const now = this.#pinchOf();
+        if (now === null) return;
+        this.#board.zoomAt(now.gap / was.gap, was.middle.x, was.middle.y);
+        this.#board.pan(now.middle.x - was.middle.x, now.middle.y - was.middle.y);
+        this.#pinch = now;
+        return;
+      }
+    }
     const point = this.#board.toChart(event.clientX, event.clientY);
     this.#pointer = point;
     const drag = this.#drag;
@@ -2337,7 +2406,15 @@ export class IrregularEditor {
     this.#commit(made.pattern, texts().irregular.arcAdded(this.#arcCount, row));
   }
 
-  #onUp(): void {
+  #onUp(event?: PointerEvent): void {
+    if (event !== undefined && event.pointerType === 'touch') {
+      this.#touches.delete(event.pointerId);
+      if (this.#touches.size < 2 && this.#pinch !== null) {
+        this.#pinch = null;
+        this.#endDrag();
+        return;
+      }
+    }
     const drag = this.#drag;
     if (drag === null) return;
     if (drag.kind === 'marquee') {
@@ -2364,6 +2441,8 @@ export class IrregularEditor {
     }
     const draft = this.#draft;
     this.#drag = null;
+    // The drag is over, so whatever it coalesced is written now.
+    this.flush();
     if (draft === null) {
       if (drag.kind === 'move' && drag.drop !== null) this.#selection.delete(drag.drop);
       this.refresh();
@@ -2379,6 +2458,7 @@ export class IrregularEditor {
 
   #endDrag(): void {
     this.#drag = null;
+    this.flush();
     this.#draft = null;
     this.refresh();
   }

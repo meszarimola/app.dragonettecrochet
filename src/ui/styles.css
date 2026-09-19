@@ -300,6 +300,8 @@ button {
   display: block;
   inline-size: 100%;
   block-size: 100%;
+  /* The drawing surface handles its own touches: one finger draws, two zoom. */
+  touch-action: none;
 }
 
 body.is-armed #board,

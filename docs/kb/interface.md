@@ -857,6 +857,30 @@ interrupting an action the crocheter already chose, and a prompt is exactly that
 Cited from: `src/core/irregular-types.ts` (`AnnotationItem`),
 `src/ui/irregular-note.ts` and `src/ui/irregular-editor.ts` (`#refreshLabels`).
 
+## §50 What keeps a big chart usable on a tablet
+
+**One finger uses the armed tool; two zoom and move the drawing area.** The
+canvas takes `touch-action: none` so the browser never steals the gesture. A
+second finger arriving mid-drag cancels that drag, so a pinch can never leave a
+half-made stitch behind.
+
+**Only what is on screen is drawn.** A chart of thousands otherwise redraws
+every stitch on every frame. Items are culled against the visible rectangle with
+a little slack, so nothing pops in during a pan.
+
+**The autosave is delayed only while a drag is in flight.** A drag commits on
+every pointer move, and writing the whole pattern each time is what makes a big
+chart stutter — but a single act is written at once, so the stored pattern is
+never a moment behind what is on screen. The delay is **flushed** when the drag
+ends, when the editor closes, when the page hides and when the tab goes away: a
+delayed save that outlives the page is worse than no delay at all.
+
+Delaying every write instead broke thirteen browser tests that read the stored
+pattern straight after an action — which is exactly what a person does when they
+close the tab after one last change.
+
+Cited from: `src/ui/irregular-editor.ts` (`#persistSoon`, `flush`, the touch
+handlers) and `src/ui/irregular-board.ts` (`#visibleBox`).
 ## §51 "Item" is not a synonym for "stitch"
 
 Making annotations items of the same list made every place that said *item* and

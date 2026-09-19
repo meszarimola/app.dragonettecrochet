@@ -1317,6 +1317,11 @@ document.addEventListener('keyup', (event) => {
   if (event.code === 'Space') irregular?.setSpaceDown(false);
 });
 window.addEventListener('blur', () => irregular?.setSpaceDown(false));
+// A delayed autosave must not outlive the page.
+window.addEventListener('pagehide', () => irregular?.flush());
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') irregular?.flush();
+});
 
 const ACTIONS: Record<string, () => void> = {
   undo: () => {

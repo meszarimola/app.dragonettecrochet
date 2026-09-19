@@ -97,6 +97,12 @@ export function rowLinePath(line: RowLine): GroupPath {
 // a fan different from the one that lands.
 
 const ARC_SAMPLES = 48;
+/** How far past the edge a stitch is still drawn, so nothing pops in on a pan. */
+const VIEW_SLACK = 80;
+
+function overlaps(box: Box, seen: Box): boolean {
+  return box.minX <= seen.maxX && box.maxX >= seen.minX && box.minY <= seen.maxY && box.maxY >= seen.minY;
+}
 
 function widen(box: Box | null, extra: Box): Box {
   if (box === null) return extra;
@@ -254,6 +260,18 @@ export class FreeBoard {
     this.#view.x = this.#insets.left + (room - drawWidth * scale) / 2 - box.minX * scale;
     this.#view.y = (roomY - drawHeight * scale) / 2 - box.minY * scale;
     this.render();
+  }
+
+  /** What the canvas can show right now, in chart units, with a little slack. */
+  #visibleBox(width: number, height: number): Box {
+    const { scale, x, y } = this.#view;
+    const slack = VIEW_SLACK / scale;
+    return {
+      minX: -x / scale - slack,
+      minY: -y / scale - slack,
+      maxX: (width - x) / scale + slack,
+      maxY: (height - y) / scale + slack,
+    };
   }
 
   #contentBox(): Box | null {
@@ -495,8 +513,11 @@ export class FreeBoard {
     if (scene.background !== null) this.#drawBackground(scene.background.placement, scene.background.image);
     if (scene.pattern.guides.polar.visible) this.#drawPolar(scene.pattern.guides.polar, colors.grid, colors.accent);
     const order = new Map(scene.pattern.layers.map((layer, index) => [layer.id, index]));
+    // KB: interface.md §50 — a chart of thousands only draws what is on screen.
+    const seen = this.#visibleBox(width, height);
     const drawable = scene.pattern.items
       .filter((item) => isVisible(scene.pattern, item))
+      .filter((item) => overlaps(itemBox(item), seen))
       .map((item, index) => ({ item, index, layer: order.get(item.layerId) ?? 0 }))
       .sort((a, b) => a.layer - b.layer || a.index - b.index);
 

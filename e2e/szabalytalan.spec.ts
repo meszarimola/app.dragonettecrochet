@@ -1058,3 +1058,89 @@ test('felirat és nyíl: lerakás, szöveg és betűméret (FR-ANN-5, FR-ANN-6)'
   // Neither of them is a stitch.
   await expect(page.locator('#rows-list li').first(), 'a sor szemszáma nulla maradt').toContainText('0');
 });
+
+test('teljesítmény: ezer szem is kezelhető marad, és a mentés kivárja a kezet (FR-PERF)', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+
+  // One real stitch first, so the autosave slot holds a whole pattern to grow.
+  await armDoubleCrochet(page);
+  await place(page, 400, 300);
+  await page.waitForTimeout(700);
+
+  // A thousand stitches, straight into the autosave slot, then reloaded.
+  await page.evaluate(() => {
+    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+    const parsed = JSON.parse(raw);
+    const items = [];
+    for (let index = 0; index < 1000; index += 1) {
+      items.push({
+        id: `i${index + 1}`,
+        kind: 'stitch',
+        keyEntryId: 'dc',
+        insertion: 'both-loops',
+        rowId: parsed.activeRowId,
+        layerId: parsed.activeLayerId,
+        color: null,
+        x: (index % 40) * 30,
+        y: Math.floor(index / 40) * 45,
+        width: 14,
+        height: 34,
+        rotation: 0,
+        flipX: false,
+        flipY: false,
+      });
+    }
+    localStorage.setItem('dc-mintatervezo:minta-szabalytalan', JSON.stringify({ ...parsed, items }));
+  });
+  await page.reload();
+  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  if (await deny.isVisible()) await deny.click();
+  await expect(page.locator(board)).toBeVisible();
+  await expect(page.locator('#rows-list li').first(), 'ezer szem betöltve').toContainText('1000');
+
+  // Drawing a frame must stay quick enough to work with.
+  const drew = await page.evaluate(async () => {
+    const started = performance.now();
+    for (let frame = 0; frame < 10; frame += 1) {
+      window.dispatchEvent(new Event('resize'));
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+    return performance.now() - started;
+  });
+  expect(drew, 'tíz újrarajzolás másodpercen belül').toBeLessThan(1000);
+
+  // A single act saves at once; only a drag coalesces its writes.
+  await armDoubleCrochet(page);
+  await place(page, 300, 300);
+  const stored = async (): Promise<number> =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+      return (JSON.parse(raw).items ?? []).length;
+    });
+  expect(await stored(), 'a lerakott szem azonnal mentve').toBe(1001);
+
+  // Dragging the selection writes once, at the end, not on every move.
+  await page.keyboard.press('Escape');
+  await page.locator(board).click({ position: { x: 300, y: 300 } });
+  const before = await page.evaluate(() => {
+    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+    return JSON.parse(raw).items.at(-1).x as number;
+  });
+  const rect = await page.locator(board).boundingBox();
+  if (rect === null) throw new Error('no board');
+  await page.mouse.move(rect.x + 300, rect.y + 300);
+  await page.mouse.down();
+  await page.mouse.move(rect.x + 340, rect.y + 320, { steps: 12 });
+  const midway = await page.evaluate(() => {
+    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+    return JSON.parse(raw).items.at(-1).x as number;
+  });
+  expect(midway, 'húzás közben nem ír minden képkockán').toBe(before);
+  await page.mouse.up();
+  const after = await page.evaluate(() => {
+    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+    return JSON.parse(raw).items.at(-1).x as number;
+  });
+  expect(after, 'a húzás végén viszont ment').toBeGreaterThan(before);
+});
