@@ -982,3 +982,30 @@ data and break every reader that walks columns.
 
 Cited from: `src/core/ribbing.ts` (module header and the `column` map) and
 `src/core/raglan.ts` (`ribbedRound`).
+
+## §51 Guides snap differently from stitches
+
+A guide — the square grid, the circle guide — is a lattice: every point in the
+plane has a nearest crossing, so when snapping is on and the guide is showing,
+the guide **always** takes the point. "Showing" means drawn, not merely switched
+on: the renderer gives up on a grid finer than four screen pixels, and an
+invisible lattice must not quietly move a stitch, so the interface passes
+`gridDrawn` and the core honours it. A tolerance there would catch some clicks
+and drop others, and with a wide grid most of the plane is further from a
+crossing than any sensible tolerance, so the tool would feel broken.
+
+A neighbouring stitch is a single point. It takes the stitch only from within
+the tolerance, and only when it is nearer than the guide's crossing. The
+tolerance arrives in chart units: the interface divides a fixed screen distance
+by the zoom, so snapping feels the same however far in you are.
+
+Each stitch offers three targets: its middle, and the two ends of its own
+upright axis, turned with it. Stacking is how crochet works, so a turned stitch
+has to offer turned ends.
+
+Angles around the circle guide are **degrees clockwise from straight up**, the
+same convention as an item's rotation — so a spoke angle and the turn of a
+stitch sitting on it are the same number, and "turn the stitch outwards" is
+simply "set its rotation to its angle from the middle".
+
+Cited from: `src/core/irregular-snap.ts`.

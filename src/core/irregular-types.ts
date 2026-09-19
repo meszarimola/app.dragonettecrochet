@@ -86,8 +86,22 @@ export interface LegendBlock {
   readonly showCounts: boolean;
 }
 
+/**
+ * The circle guide. `startAngle` and the spoke angles are degrees clockwise
+ * from straight up, the same convention as an item's rotation.
+ */
+export interface PolarGuide {
+  readonly visible: boolean;
+  readonly center: Point;
+  readonly rings: number;
+  readonly spacing: number;
+  readonly spokes: number;
+  readonly startAngle: number;
+}
+
 export interface IrregularGuides {
   readonly grid: { readonly visible: boolean; readonly size: number };
+  readonly polar: PolarGuide;
   readonly snap: boolean;
 }
 
@@ -111,6 +125,20 @@ export interface IrregularPattern {
 
 /** Abstract canvas units: at 100% zoom one unit is one CSS pixel. */
 export const DEFAULT_GRID_SIZE = 20;
+export const GRID_SIZE_RANGE = { min: 2, max: 200 } as const;
+export const DEFAULT_POLAR: PolarGuide = {
+  visible: false,
+  center: { x: 0, y: 0 },
+  rings: 8,
+  spacing: 40,
+  spokes: 12,
+  startAngle: 0,
+};
+export const POLAR_RANGE = {
+  rings: { min: 1, max: 60 },
+  spacing: { min: 4, max: 400 },
+  spokes: { min: 1, max: 180 },
+} as const;
 export const NUDGE_STEP = 1;
 export const NUDGE_STEP_LARGE = 10;
 export const EXPORT_MARGIN = 20;

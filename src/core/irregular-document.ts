@@ -2,12 +2,16 @@
 
 import {
   DEFAULT_GRID_SIZE,
+  DEFAULT_POLAR,
+  GRID_SIZE_RANGE,
   IRREGULAR_FORMAT_VERSION,
   type IrregularItem,
   type IrregularLayer,
   type IrregularPattern,
   type IrregularRow,
+  POLAR_RANGE,
   type Point,
+  type PolarGuide,
   type StitchItem,
   type Transform,
 } from './irregular-types.ts';
@@ -45,7 +49,7 @@ export function emptyIrregularPattern(options: EmptyOptions): IrregularPattern {
     items: [],
     activeRowId: 'r1',
     activeLayerId: 'l1',
-    guides: { grid: { visible: false, size: DEFAULT_GRID_SIZE }, snap: false },
+    guides: { grid: { visible: false, size: DEFAULT_GRID_SIZE }, polar: DEFAULT_POLAR, snap: false },
   };
 }
 
@@ -56,6 +60,7 @@ export interface StitchSpec {
   readonly width: number;
   readonly height: number;
   readonly insertion: StitchInsertion;
+  readonly rotation?: number;
 }
 
 export function addStitch(pattern: IrregularPattern, spec: StitchSpec): { pattern: IrregularPattern; id: string } {
@@ -75,7 +80,7 @@ export function addStitch(pattern: IrregularPattern, spec: StitchSpec): { patter
     y: spec.y,
     width: spec.width,
     height: spec.height,
-    rotation: 0,
+    rotation: normalizeAngle(spec.rotation ?? 0),
     flipX: false,
     flipY: false,
   };
@@ -350,6 +355,54 @@ export function withIrregularNotation(pattern: IrregularPattern, notation: Patte
 export function setGrid(pattern: IrregularPattern, visible: boolean): IrregularPattern {
   if (pattern.guides.grid.visible === visible) return pattern;
   return { ...pattern, guides: { ...pattern.guides, grid: { ...pattern.guides.grid, visible } } };
+}
+
+export function setGridSize(pattern: IrregularPattern, size: number): IrregularPattern {
+  const wanted = clamp(Math.round(size), GRID_SIZE_RANGE.min, GRID_SIZE_RANGE.max);
+  if (pattern.guides.grid.size === wanted) return pattern;
+  return { ...pattern, guides: { ...pattern.guides, grid: { ...pattern.guides.grid, size: wanted } } };
+}
+
+export function setSnap(pattern: IrregularPattern, snap: boolean): IrregularPattern {
+  if (pattern.guides.snap === snap) return pattern;
+  return { ...pattern, guides: { ...pattern.guides, snap } };
+}
+
+export type PolarPatch = Partial<Omit<PolarGuide, 'center'>> & { readonly center?: Point };
+
+export function setPolar(pattern: IrregularPattern, patch: PolarPatch): IrregularPattern {
+  const current = pattern.guides.polar;
+  const next: PolarGuide = {
+    visible: patch.visible ?? current.visible,
+    center: patch.center ?? current.center,
+    rings: clamp(Math.round(patch.rings ?? current.rings), POLAR_RANGE.rings.min, POLAR_RANGE.rings.max),
+    spacing: clamp(patch.spacing ?? current.spacing, POLAR_RANGE.spacing.min, POLAR_RANGE.spacing.max),
+    spokes: clamp(Math.round(patch.spokes ?? current.spokes), POLAR_RANGE.spokes.min, POLAR_RANGE.spokes.max),
+    startAngle: normalizeAngle(finiteOr(patch.startAngle ?? current.startAngle, 0)),
+  };
+  if (samePolar(current, next)) return pattern;
+  return { ...pattern, guides: { ...pattern.guides, polar: next } };
+}
+
+function samePolar(a: PolarGuide, b: PolarGuide): boolean {
+  return (
+    a.visible === b.visible &&
+    a.center.x === b.center.x &&
+    a.center.y === b.center.y &&
+    a.rings === b.rings &&
+    a.spacing === b.spacing &&
+    a.spokes === b.spokes &&
+    a.startAngle === b.startAngle
+  );
+}
+
+function finiteOr(value: number, fallback: number): number {
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min;
+  return Math.min(max, Math.max(min, value));
 }
 
 export function rowById(pattern: IrregularPattern, id: string): IrregularRow | undefined {

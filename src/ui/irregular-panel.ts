@@ -1,7 +1,7 @@
 // The free-form editor's properties panel. KB: interface.md §7, §8
 
-import type { AlignMode, DistributeAxis, FlipAxis, ItemPatch } from '../core/irregular-document.ts';
-import type { IrregularItem } from '../core/irregular-types.ts';
+import type { AlignMode, DistributeAxis, FlipAxis, ItemPatch, PolarPatch } from '../core/irregular-document.ts';
+import type { IrregularGuides, IrregularItem } from '../core/irregular-types.ts';
 import { stitchById } from '../core/stitches.ts';
 import type { StitchInsertion } from '../core/types.ts';
 import { texts } from './i18n.ts';
@@ -12,6 +12,10 @@ export interface IrregularPanelHost {
   distribute(axis: DistributeAxis): void;
   flip(axis: FlipAxis): void;
   setRectPartial(partial: boolean): void;
+  setGridSize(size: number): void;
+  setSnap(on: boolean): void;
+  setPolar(patch: PolarPatch): void;
+  setRadial(on: boolean): void;
 }
 
 const INSERTIONS: readonly StitchInsertion[] = ['both-loops', 'front-loop', 'back-loop', 'front-post', 'back-post'];
@@ -60,6 +64,15 @@ export class IrregularPanel {
   readonly #insertionField: HTMLElement;
   readonly #color: HTMLInputElement;
   readonly #rectMode: HTMLSelectElement;
+  readonly #gridSize: HTMLInputElement;
+  readonly #snap: HTMLInputElement;
+  readonly #polar: HTMLInputElement;
+  readonly #polarFields: HTMLElement;
+  readonly #rings: HTMLInputElement;
+  readonly #spacing: HTMLInputElement;
+  readonly #spokes: HTMLInputElement;
+  readonly #startAngle: HTMLInputElement;
+  readonly #radial: HTMLInputElement;
   #items: readonly IrregularItem[] = [];
 
   constructor(section: HTMLDetailsElement, host: IrregularPanelHost) {
@@ -78,6 +91,15 @@ export class IrregularPanel {
     this.#insertionField = must<HTMLElement>(section, '#prop-insertion').closest('p') ?? this.#fields;
     this.#color = must<HTMLInputElement>(section, '#prop-color');
     this.#rectMode = must<HTMLSelectElement>(section, '#prop-rect-mode');
+    this.#gridSize = must<HTMLInputElement>(section, '#guide-grid-size');
+    this.#snap = must<HTMLInputElement>(section, '#guide-snap');
+    this.#polar = must<HTMLInputElement>(section, '#guide-polar');
+    this.#polarFields = must<HTMLElement>(section, '#guide-polar-fields');
+    this.#rings = must<HTMLInputElement>(section, '#guide-rings');
+    this.#spacing = must<HTMLInputElement>(section, '#guide-spacing');
+    this.#spokes = must<HTMLInputElement>(section, '#guide-spokes');
+    this.#startAngle = must<HTMLInputElement>(section, '#guide-start-angle');
+    this.#radial = must<HTMLInputElement>(section, '#guide-radial');
     this.#listen();
   }
 
@@ -110,6 +132,40 @@ export class IrregularPanel {
       if (spread !== undefined) this.#host.distribute(spread as DistributeAxis);
     });
     this.#rectMode.addEventListener('change', () => this.#host.setRectPartial(this.#rectMode.value === 'partial'));
+    this.#gridSize.addEventListener('change', () =>
+      this.#number(this.#gridSize, (value) => this.#host.setGridSize(value)),
+    );
+    this.#snap.addEventListener('change', () => this.#host.setSnap(this.#snap.checked));
+    this.#polar.addEventListener('change', () => this.#host.setPolar({ visible: this.#polar.checked }));
+    this.#rings.addEventListener('change', () =>
+      this.#number(this.#rings, (value) => this.#host.setPolar({ rings: value })),
+    );
+    this.#spacing.addEventListener('change', () =>
+      this.#number(this.#spacing, (value) => this.#host.setPolar({ spacing: value })),
+    );
+    this.#spokes.addEventListener('change', () =>
+      this.#number(this.#spokes, (value) => this.#host.setPolar({ spokes: value })),
+    );
+    this.#startAngle.addEventListener('change', () =>
+      this.#number(this.#startAngle, (value) => this.#host.setPolar({ startAngle: value })),
+    );
+    this.#radial.addEventListener('change', () => this.#host.setRadial(this.#radial.checked));
+  }
+
+  updateGuides(guides: IrregularGuides, radial: boolean): void {
+    this.#setNumber(this.#gridSize, guides.grid.size);
+    this.#setToggle(this.#snap, guides.snap);
+    this.#setToggle(this.#polar, guides.polar.visible);
+    this.#polarFields.hidden = !guides.polar.visible;
+    this.#setNumber(this.#rings, guides.polar.rings);
+    this.#setNumber(this.#spacing, Math.round(guides.polar.spacing));
+    this.#setNumber(this.#spokes, guides.polar.spokes);
+    this.#setNumber(this.#startAngle, Math.round(guides.polar.startAngle));
+    this.#setToggle(this.#radial, radial);
+  }
+
+  #setToggle(input: HTMLInputElement, on: boolean): void {
+    if (document.activeElement !== input) input.checked = on;
   }
 
   #number(input: HTMLInputElement, apply: (value: number) => void): void {
