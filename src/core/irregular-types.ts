@@ -98,7 +98,44 @@ export interface StitchItem extends Transform {
   readonly color: string | null;
 }
 
-export type IrregularItem = StitchItem;
+/**
+ * Everything on the chart that is not a stitch: a row number, a round's start
+ * marker, a repeat bracket, a piece of free text, an arrow. One kind with a
+ * discriminator rather than five item types — one reader branch, one drawing
+ * pass, one panel block. Annotations never count as stitches (D12).
+ */
+export type NoteKind = 'label' | 'marker' | 'bracket' | 'text' | 'arrow';
+
+export interface AnnotationItem extends Transform {
+  readonly id: string;
+  readonly kind: 'annotation';
+  readonly note: NoteKind;
+  readonly rowId: string;
+  readonly layerId: string;
+  readonly color: string | null;
+  /** What it says. A label composes its own text from the row it follows. */
+  readonly text: string;
+  readonly fontSize: number;
+  /** The row a label or a start marker belongs to, so it follows that row. */
+  readonly linkedRowId?: string;
+  /** A label may carry the row's direction as an arrow. */
+  readonly withArrow?: boolean;
+  /** A start marker may be dotted rather than solid. */
+  readonly dotted?: boolean;
+}
+
+export type IrregularItem = StitchItem | AnnotationItem;
+
+export const DEFAULT_FONT_SIZE = 16;
+export const FONT_SIZE_RANGE = { min: 6, max: 96 } as const;
+
+export function isStitch(item: IrregularItem): item is StitchItem {
+  return item.kind === 'stitch';
+}
+
+export function isAnnotation(item: IrregularItem): item is AnnotationItem {
+  return item.kind === 'annotation';
+}
 
 /**
  * One line of the pattern's own stitch key. An entry exists only when it says

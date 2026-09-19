@@ -1,15 +1,20 @@
 // Edit operations on the free-form chart document. KB: core-geometry §29
 
 import {
+  type AnnotationItem,
   type BackgroundImage,
+  DEFAULT_FONT_SIZE,
   DEFAULT_GRID_SIZE,
   DEFAULT_POLAR,
+  FONT_SIZE_RANGE,
   GRID_SIZE_RANGE,
   IRREGULAR_FORMAT_VERSION,
   type IrregularItem,
   type IrregularLayer,
   type IrregularPattern,
   type IrregularRow,
+  isStitch,
+  type NoteKind,
   POLAR_RANGE,
   type Point,
   type PolarGuide,
@@ -225,7 +230,7 @@ export function duplicateItems(
   for (const item of chosen) {
     const id = nextId('i', [...taken, ...made]);
     made.push(id);
-    copies.push({ ...item, id, x: item.x + offset.x, y: item.y + offset.y });
+    copies.push(unlinked({ ...item, id, x: item.x + offset.x, y: item.y + offset.y }));
   }
   return { pattern: { ...pattern, items: [...pattern.items, ...copies] }, ids: made };
 }
@@ -242,16 +247,26 @@ export function pasteItems(
   const copies = items.map((item) => {
     const id = nextId('i', [...taken, ...made]);
     made.push(id);
-    return {
+    return unlinked({
       ...item,
       id,
       rowId: pattern.activeRowId,
       layerId: pattern.activeLayerId,
       x: item.x + offset.x,
       y: item.y + offset.y,
-    };
+    });
   });
   return { pattern: { ...pattern, items: [...pattern.items, ...copies] }, ids: made };
+}
+
+/**
+ * A copied row number must not keep naming the row it was copied from, or it
+ * would sit on one row and forever read another's number.
+ */
+function unlinked(item: IrregularItem): IrregularItem {
+  if (isStitch(item) || item.linkedRowId === undefined) return item;
+  const { linkedRowId: _gone, ...rest } = item;
+  return rest;
 }
 
 export type FlipAxis = 'horizontal' | 'vertical';
@@ -459,12 +474,82 @@ export function layerById(pattern: IrregularPattern, id: string): IrregularLayer
 }
 
 /** KB: 03 §10 — every placed symbol is one stitch, compound glyphs included. */
+/** Annotations never count as stitches (D12), so a row's number stays honest. */
 export function rowCount(pattern: IrregularPattern, rowId: string): number {
-  return pattern.items.reduce((total, item) => (item.rowId === rowId ? total + 1 : total), 0);
+  return pattern.items.reduce((total, item) => (isStitch(item) && item.rowId === rowId ? total + 1 : total), 0);
 }
 
 export function stitchCount(pattern: IrregularPattern): number {
-  return pattern.items.length;
+  return pattern.items.reduce((total, item) => (isStitch(item) ? total + 1 : total), 0);
+}
+
+export interface NoteSpec {
+  readonly note: NoteKind;
+  /** The row it lives on, so hiding that row hides it too. The active one by default. */
+  readonly rowId?: string;
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+  readonly text: string;
+  readonly fontSize?: number;
+  readonly rotation?: number;
+  readonly linkedRowId?: string;
+  readonly withArrow?: boolean;
+  readonly dotted?: boolean;
+}
+
+export function addNote(pattern: IrregularPattern, spec: NoteSpec): { pattern: IrregularPattern; id: string } {
+  const id = nextId(
+    'n',
+    pattern.items.map((item) => item.id),
+  );
+  const item: AnnotationItem = {
+    id,
+    kind: 'annotation',
+    note: spec.note,
+    rowId: spec.rowId ?? pattern.activeRowId,
+    layerId: pattern.activeLayerId,
+    color: null,
+    text: spec.text,
+    fontSize: clamp(spec.fontSize ?? DEFAULT_FONT_SIZE, FONT_SIZE_RANGE.min, FONT_SIZE_RANGE.max),
+    x: spec.x,
+    y: spec.y,
+    width: Math.max(1, spec.width),
+    height: Math.max(1, spec.height),
+    rotation: normalizeAngle(spec.rotation ?? 0),
+    flipX: false,
+    flipY: false,
+    ...(spec.linkedRowId === undefined ? {} : { linkedRowId: spec.linkedRowId }),
+    ...(spec.withArrow === undefined ? {} : { withArrow: spec.withArrow }),
+    ...(spec.dotted === undefined ? {} : { dotted: spec.dotted }),
+  };
+  return { pattern: { ...pattern, items: [...pattern.items, item] }, id };
+}
+
+export type NotePatch = Partial<Pick<AnnotationItem, 'text' | 'fontSize' | 'withArrow' | 'dotted'>>;
+
+export function updateNotes(pattern: IrregularPattern, ids: ReadonlySet<string>, patch: NotePatch): IrregularPattern {
+  let changed = false;
+  const items = pattern.items.map((item) => {
+    if (!ids.has(item.id) || isStitch(item)) return item;
+    const next: AnnotationItem = {
+      ...item,
+      text: patch.text ?? item.text,
+      fontSize: clamp(patch.fontSize ?? item.fontSize, FONT_SIZE_RANGE.min, FONT_SIZE_RANGE.max),
+      ...(patch.withArrow === undefined ? {} : { withArrow: patch.withArrow }),
+      ...(patch.dotted === undefined ? {} : { dotted: patch.dotted }),
+    };
+    const same =
+      next.text === item.text &&
+      next.fontSize === item.fontSize &&
+      next.withArrow === item.withArrow &&
+      next.dotted === item.dotted;
+    if (same) return item;
+    changed = true;
+    return next;
+  });
+  return changed ? { ...pattern, items } : pattern;
 }
 
 /** Hidden or locked rows and layers keep their stitches out of reach. */

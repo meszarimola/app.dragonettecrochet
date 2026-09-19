@@ -4,6 +4,7 @@ import { canRedo, canUndo, createHistory, type History, record, redo, undo } fro
 import { bulgeThrough, presetBulge } from '../core/irregular-arc.ts';
 import {
   type AlignMode,
+  addNote,
   addStitch,
   alignItems,
   type DistributeAxis,
@@ -17,9 +18,11 @@ import {
   type ItemPatch,
   isSelectable,
   isVisible,
+  itemBox,
   itemsBox,
   itemsOf,
   moveItems,
+  type NotePatch,
   type PolarPatch,
   pasteItems,
   patchBackground,
@@ -32,6 +35,7 @@ import {
   setSnap,
   setTitle,
   updateItems,
+  updateNotes,
   withIrregularNotation,
 } from '../core/irregular-document.ts';
 import {
@@ -95,12 +99,14 @@ import {
   type RowPatch,
   type RowStitches,
   reorderRows,
+  rowNumber,
   setActiveRow,
   updateRow,
 } from '../core/irregular-rows.ts';
 import { basePoint, fitShape, placeOnShape, suggestShape } from '../core/irregular-shape.ts';
 import { angleFromCenter, radialRotation, snapPoint } from '../core/irregular-snap.ts';
 import {
+  type AnnotationItem,
   type BackgroundImage,
   type ChainArcGroup,
   DEFAULT_ARC_BULGE,
@@ -108,13 +114,17 @@ import {
   DEFAULT_BACKGROUND_OPACITY,
   DEFAULT_FAN_COUNT,
   DEFAULT_FAN_SPREAD,
+  DEFAULT_FONT_SIZE,
   FAN_LENGTH_RANGE,
   type FanGroup,
   type IrregularGroup,
   type IrregularItem,
   type IrregularPattern,
+  isStitch,
   type LegendBlock,
+  type NoteKind,
   type Point,
+  type RowDirection,
   type RowKind,
   type RowLine,
   type RowLineShape,
@@ -136,10 +146,18 @@ import {
 import { drawnGlyph, itemShapes, naturalGlyph, naturalSize } from './irregular-glyph.ts';
 import { IrregularKeyPanel } from './irregular-key-panel.ts';
 import { IrregularLayersPanel } from './irregular-layers-panel.ts';
+import { noteDrawing, noteSize } from './irregular-note.ts';
 import { IrregularPanel } from './irregular-panel.ts';
 import { IrregularRowsPanel, rowName } from './irregular-rows-panel.ts';
 import { type IrregularSvgOptions, irregularBox, irregularSvg, type LegendLine } from './irregular-svg.ts';
-import { type PageOrientation, type PageSize, MAX_SIDE as PDF_MAX_SIDE, pageCount, writePdf } from './pdf.ts';
+import {
+  type PageOrientation,
+  type PageSize,
+  MAX_SIDE as PDF_MAX_SIDE,
+  type PdfText,
+  pageCount,
+  writePdf,
+} from './pdf.ts';
 import type { Shape, SymbolOptions } from './symbols.ts';
 
 export const IRREGULAR_STORAGE_KEY = 'dc-mintatervezo:minta-szabalytalan';
@@ -156,6 +174,12 @@ function clampSide(value: number): number {
   if (!Number.isFinite(value)) return 1;
   return Math.min(PDF_MAX_SIDE, Math.max(1, Math.round(value)));
 }
+
+/** How far a row's number stands from its first stitch. */
+const LABEL_GAP = 18;
+/** Below this a drag is a click, and the annotation takes its natural size. */
+const MIN_NOTE_SPAN = 8;
+const ROW_ARROW: Record<RowDirection, string> = { ltr: '→', rtl: '←', cw: '↻', ccw: '↺' };
 /** A fan is a shell by default, and a shell is made of double crochets. */
 const FAN_STITCH = 'dc';
 /** How long a typed digit waits for the next one before it stands alone. */
@@ -234,6 +258,7 @@ type Drag =
   | { kind: 'move'; from: Point; anchor: Point; drop: string | null }
   | { kind: 'polar'; from: Point; center: Point }
   | { kind: 'background'; from: Point; at: Point }
+  | { kind: 'note-draw'; note: NoteKind; from: Point; to: Point }
   | { kind: 'arc-draw'; from: Point; to: Point }
   | { kind: 'fan-draw'; from: Point; to: Point }
   | { kind: 'arc-grip'; id: string; grip: ArcHandleId }
@@ -369,6 +394,9 @@ export class IrregularEditor {
       patchBackground: (patch) => this.#commit(patchBackground(this.#history.present, patch)),
       setExport: (patch) => this.setExport(patch),
       savePdf: () => this.#host.savePdf(),
+      patchNotes: (patch) => this.patchNotes(patch),
+      numberRows: () => this.numberRows(),
+      addStartMarker: () => this.addStartMarker(),
     });
     this.#hoverCapable = window.matchMedia('(hover: hover)').matches;
     this.#listen();
@@ -567,7 +595,7 @@ export class IrregularEditor {
     const was = entryGlyph(pattern, id);
     const now = entryGlyph(next, id);
     const items = next.items.map((item) => {
-      if (item.keyEntryId !== id) return item;
+      if (!isStitch(item) || item.keyEntryId !== id) return item;
       const before = naturalSize(item.keyEntryId, item.insertion, symbols, was);
       const after = naturalSize(item.keyEntryId, item.insertion, symbols, now);
       return {
@@ -698,7 +726,7 @@ export class IrregularEditor {
 
   #commit(candidate: IrregularPattern, message?: string): void {
     this.#draft = null;
-    const next = reseatGroups(candidate);
+    const next = this.#refreshLabels(reseatGroups(candidate));
     if (next !== this.#history.present) {
       this.#history = record(this.#history, next);
       this.#pruneSelection();
@@ -765,6 +793,7 @@ export class IrregularEditor {
     if (id !== null) {
       this.#arcTool = false;
       this.#fanTool = false;
+      this.#note = null;
     }
     this.#stitch = id;
     this.refresh();
@@ -835,6 +864,7 @@ export class IrregularEditor {
   #setTool(tool: 'none' | 'arc' | 'fan'): void {
     this.#arcTool = tool === 'arc';
     this.#fanTool = tool === 'fan';
+    this.#note = null;
     if (tool !== 'none') {
       this.#stitch = null;
       this.#host.armStitch(null);
@@ -1300,7 +1330,7 @@ export class IrregularEditor {
     const pattern = this.#history.present;
     const rowId = this.#rowOfSelection() ?? pattern.activeRowId;
     const order = rowOrder(pattern, rowId);
-    const inRow = itemsOfRow(pattern, rowId).filter((item) => isSelectable(pattern, item));
+    const inRow = itemsOfRow(pattern, rowId).filter((item) => isStitch(item) && isSelectable(pattern, item));
     const chosen = this.#selection.size === 0 ? inRow : inRow.filter((item) => this.#selection.has(item.id));
     const byId = new Map(chosen.map((item) => [item.id, item]));
     const items: IrregularItem[] = [];
@@ -1396,7 +1426,7 @@ export class IrregularEditor {
   #arrangeIntoFan(items: IrregularItem[], rowId: string): void {
     const first = items[0];
     if (first === undefined) return;
-    const oneKind = items.every((item) => item.keyEntryId === first.keyEntryId);
+    const oneKind = isStitch(first) && items.every((item) => isStitch(item) && item.keyEntryId === first.keyEntryId);
     const bases = items.map(basePoint);
     const origin = centerOf(bases);
     const tops = items.map((item) => topPoint(item));
@@ -1466,6 +1496,148 @@ export class IrregularEditor {
       if (group !== undefined) groups.add(group.id);
     }
     return groups.size === 0 ? pattern : explodeGroups(pattern, groups);
+  }
+
+  // -- annotations -------------------------------------------------------------
+
+  #note: NoteKind | null = null;
+
+  get noteArmed(): NoteKind | null {
+    return this.#note;
+  }
+
+  toggleNoteTool(note: NoteKind): void {
+    const wanted = this.#note === note ? null : note;
+    this.#note = wanted;
+    if (wanted !== null) {
+      this.#arcTool = false;
+      this.#fanTool = false;
+      this.#stitch = null;
+      this.#host.armStitch(null);
+    }
+    this.refresh();
+  }
+
+  /** The annotations the selection holds, when it holds only annotations. */
+  get selectedNotes(): AnnotationItem[] {
+    const chosen = itemsOf(this.#history.present, this.#selection);
+    const notes = chosen.filter((item): item is AnnotationItem => !isStitch(item));
+    return notes.length === chosen.length ? notes : [];
+  }
+
+  patchNotes(patch: NotePatch): void {
+    if (this.#selection.size === 0) return;
+    this.#commit(updateNotes(this.#history.present, this.#selection, patch));
+  }
+
+  /** What a row's label says: its number, and its direction when asked for. */
+  #labelText(pattern: IrregularPattern, rowId: string, withArrow: boolean): string {
+    const row = rowById(pattern, rowId);
+    const number = rowNumber(pattern, rowId);
+    const words = texts().irregular;
+    if (row === undefined || !withArrow) return words.rowLabel(number, '');
+    const arrow = ROW_ARROW[row.direction];
+    return row.direction === 'rtl' ? words.rowLabelBefore(number, arrow) : words.rowLabel(number, arrow);
+  }
+
+  /** FR-ANN-1: one label per row, beside the row's first stitch. */
+  numberRows(): void {
+    let pattern = this.#history.present;
+    let made = 0;
+    for (const row of pattern.rows) {
+      if (pattern.items.some((item) => !isStitch(item) && item.note === 'label' && item.linkedRowId === row.id)) {
+        continue;
+      }
+      const first = rowOrder(pattern, row.id)
+        .map((id) => pattern.items.find((item) => item.id === id))
+        .find((item) => item !== undefined && isStitch(item));
+      const box = first === undefined ? null : itemBox(first);
+      const at = box === null ? { x: 0, y: 0 } : { x: box.minX - LABEL_GAP, y: (box.minY + box.maxY) / 2 };
+      const text = this.#labelText(pattern, row.id, true);
+      const size = noteSize('label', text, DEFAULT_FONT_SIZE);
+      pattern = addNote(pattern, {
+        note: 'label',
+        rowId: row.id,
+        x: at.x,
+        y: at.y,
+        width: size.width,
+        height: size.height,
+        text,
+        linkedRowId: row.id,
+        withArrow: true,
+      }).pattern;
+      made += 1;
+    }
+    if (made === 0) return;
+    this.#commit(pattern, texts().irregular.notesNumbered(made));
+  }
+
+  /** FR-ANN-3: a short marker where a round starts. */
+  addStartMarker(): void {
+    const pattern = this.#history.present;
+    const row = rowById(pattern, pattern.activeRowId);
+    if (row?.kind !== 'round') {
+      this.#host.announce(texts().irregular.startMarkerNeedsRound);
+      return;
+    }
+    const first = rowOrder(pattern, row.id)
+      .map((id) => pattern.items.find((item) => item.id === id))
+      .find((item) => item !== undefined && isStitch(item));
+    const box = first === undefined ? null : itemBox(first);
+    const at =
+      box === null
+        ? this.#board.viewCenter(this.#host.insets().bottom)
+        : { x: (box.minX + box.maxX) / 2, y: box.minY - LABEL_GAP };
+    const size = noteSize('marker', '', DEFAULT_FONT_SIZE);
+    const made = addNote(pattern, {
+      note: 'marker',
+      rowId: row.id,
+      x: at.x,
+      y: at.y,
+      width: size.width,
+      height: size.height,
+      text: '',
+      linkedRowId: row.id,
+      dotted: true,
+    });
+    this.#setSelection([made.id]);
+    this.#commit(made.pattern, texts().irregular.startMarkerAdded);
+  }
+
+  /** Labels follow their row: the number and the arrow are rebuilt on every commit. */
+  #refreshLabels(pattern: IrregularPattern): IrregularPattern {
+    let changed = false;
+    const items = pattern.items.map((item) => {
+      if (isStitch(item) || item.note !== 'label' || item.linkedRowId === undefined) return item;
+      if (rowById(pattern, item.linkedRowId) === undefined) return item;
+      const text = this.#labelText(pattern, item.linkedRowId, item.withArrow === true);
+      if (text === item.text) return item;
+      changed = true;
+      return { ...item, text };
+    });
+    return changed ? { ...pattern, items } : pattern;
+  }
+
+  #placeNote(note: NoteKind, from: Point, to: Point): void {
+    const pattern = this.#history.present;
+    const spread = Math.hypot(to.x - from.x, to.y - from.y);
+    // KB: interface.md §40 — no dialog asks for the words. The annotation lands
+    // and the panel's text field takes the focus, so typing goes straight in.
+    const text = '';
+    const size = noteSize(note, text, DEFAULT_FONT_SIZE);
+    const wide = note === 'text' || spread < MIN_NOTE_SPAN ? size.width : spread;
+    const made = addNote(pattern, {
+      note,
+      x: (from.x + to.x) / 2,
+      y: (from.y + to.y) / 2,
+      width: wide,
+      height: size.height,
+      text,
+      rotation: spread < MIN_NOTE_SPAN ? 0 : angleFromCenter(from, to) - 90,
+    });
+    this.#setSelection([made.id]);
+    this.#commit(made.pattern, texts().irregular.noteAdded);
+    if (note === 'text' || note === 'bracket') this.#panel.focusNoteText();
   }
 
   // -- export ----------------------------------------------------------------
@@ -1546,17 +1718,26 @@ export class IrregularEditor {
     // The colours come with the stitches: a chart that tells rounds apart by
     // colour must not print black.
     const runs: { shapes: Shape[]; color: string | null }[] = [];
+    const words: PdfText[] = [];
     for (const item of pattern.items) {
       if (!isVisible(pattern, item)) continue;
       const color = item.color ?? rowById(pattern, item.rowId)?.color ?? null;
       const last = runs[runs.length - 1];
-      const shapes = itemShapes(item, symbols, entryGlyph(pattern, item.keyEntryId));
+      let shapes: Shape[];
+      if (isStitch(item)) {
+        shapes = [...itemShapes(item, symbols, entryGlyph(pattern, item.keyEntryId))];
+      } else {
+        const drawing = noteDrawing(item);
+        shapes = [...drawing.shapes];
+        // A row's number is words, not strokes; the print needs them too.
+        for (const piece of drawing.texts) words.push({ ...piece, color });
+      }
       if (last !== undefined && last.color === color) last.shapes.push(...shapes);
-      else runs.push({ shapes: [...shapes], color });
+      else runs.push({ shapes, color });
     }
     // The legend is not drawn on the PDF yet, so no room is kept for it.
     const box = irregularBox(pattern, { legend: null, background: null, guides: false });
-    return writePdf({ shapes: [], runs, lineWidth: 1.6 }, box, {
+    return writePdf({ shapes: [], runs, texts: words, lineWidth: 1.6 }, box, {
       title: pattern.title,
       size: this.#export.size,
       orientation: this.#export.orientation,
@@ -1652,6 +1833,7 @@ export class IrregularEditor {
     this.#panel.updateRepeat(this.#selection.size > 0);
     this.#panel.updateBackground(this.#history.present.background ?? null, this.#image?.picture.naturalWidth ?? 0);
     this.#panel.updateExport(this.#export);
+    this.#panel.updateNotes(this.selectedNotes);
     this.#panel.updateArrange({
       shown: this.#arrangeTargets().items.length >= 2,
       perpendicular: this.#preferences.perpendicular,
@@ -1844,6 +2026,11 @@ export class IrregularEditor {
       return;
     }
 
+    if (this.#note !== null) {
+      this.#drag = { kind: 'note-draw', note: this.#note, from: point, to: point };
+      return;
+    }
+
     if (this.#arcTool) {
       this.#drag = { kind: 'arc-draw', from: point, to: point };
       return;
@@ -1978,6 +2165,7 @@ export class IrregularEditor {
         this.#refreshScene();
         return;
       }
+      case 'note-draw':
       case 'arc-draw':
       case 'fan-draw':
         drag.to = point;
@@ -2159,6 +2347,12 @@ export class IrregularEditor {
       this.#drag = null;
       this.refresh();
       if (ids.length > 0) this.#host.announce(texts().irregular.selected(this.#selection.size));
+      return;
+    }
+    if (drag.kind === 'note-draw') {
+      this.#drag = null;
+      this.#draft = null;
+      this.#placeNote(drag.note, drag.from, drag.to);
       return;
     }
     if (drag.kind === 'arc-draw' || drag.kind === 'fan-draw') {

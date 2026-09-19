@@ -3,15 +3,18 @@
 import { type Box, isVisible, itemsBox, rowById, unionBox } from '../core/irregular-document.ts';
 import { directionOf, ringRadii, spokeAngles } from '../core/irregular-snap.ts';
 import {
+  type AnnotationItem,
   type BackgroundImage,
   EXPORT_MARGIN,
   type IrregularItem,
   type IrregularPattern,
+  isStitch,
   type LegendBlock,
   type PolarGuide,
 } from '../core/irregular-types.ts';
 import { escapeXml, shapeToSvg } from './chart-svg.ts';
 import { itemShapes } from './irregular-glyph.ts';
+import { noteDrawing } from './irregular-note.ts';
 import { type Shape, type SymbolOptions, shapesBounds } from './symbols.ts';
 
 export interface LegendLine {
@@ -236,18 +239,46 @@ function drawItems(
   out: string[],
 ): void {
   let open: string | null = null;
+  const close = (): void => {
+    if (open !== null) out.push('</g>');
+    open = null;
+  };
   for (const item of items) {
+    const ink = inkOf(pattern, item, options.ink);
+    if (!isStitch(item)) {
+      // An annotation carries words, which cannot live in a stroke group.
+      close();
+      drawNote(item, ink, out);
+      continue;
+    }
     const shapes = itemShapes(item, options.symbols, options.glyphOf(item.keyEntryId)).filter(isFiniteShape);
     if (shapes.length === 0) continue;
-    const ink = inkOf(pattern, item, options.ink);
     if (ink !== open) {
-      if (open !== null) out.push('</g>');
+      close();
       out.push(`<g class="ink" stroke="${escapeXml(ink)}" color="${escapeXml(ink)}">`);
       open = ink;
     }
     for (const shape of shapes) out.push(shapeToSvg(shape));
   }
-  if (open !== null) out.push('</g>');
+  close();
+}
+
+function drawNote(item: AnnotationItem, ink: string, out: string[]): void {
+  const drawing = noteDrawing(item);
+  const shapes = drawing.shapes.filter(isFiniteShape);
+  if (shapes.length > 0) {
+    out.push(
+      `<g class="ink" stroke="${escapeXml(ink)}" color="${escapeXml(ink)}">${shapes.map(shapeToSvg).join('')}</g>`,
+    );
+  }
+  for (const piece of drawing.texts) {
+    if (piece.text === '') continue;
+    const turn =
+      piece.rotation === 0 ? '' : ` transform="rotate(${num(piece.rotation)} ${num(piece.at.x)} ${num(piece.at.y)})"`;
+    out.push(
+      `<text x="${num(piece.at.x)}" y="${num(piece.at.y)}" ${FONT} font-size="${num(piece.size)}" fill="${escapeXml(ink)}" text-anchor="${piece.anchor}" dominant-baseline="middle"${turn}>${escapeXml(piece.text)}</text>`,
+    );
+  }
 }
 
 function drawLegend(block: LegendBlock, lines: readonly LegendLine[], ink: string, out: string[]): void {

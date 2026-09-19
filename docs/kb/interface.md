@@ -832,3 +832,49 @@ gap, and the title on every page.
 
 Cited from: `src/ui/irregular-svg.ts`, `src/ui/pdf.ts` and `src/ui/main.ts`
 (`exportPng`, the `export-*` actions).
+
+## §49 Annotations are one kind with a discriminator
+
+The spec sketches five item types — row number, start marker, repeat bracket,
+text, arrow. They are **one** kind with a `note` discriminator: one reader
+branch, one drawing pass, one panel block instead of five of each. They differ
+in what they draw, not in what they are.
+
+**An annotation is never a stitch.** The row's count and the pattern's count
+both skip them, which is what D12 asks for and what makes the number in the rows
+panel trustworthy. Counting all of a row's items, rather than its stitches, was
+the bug this rule exists to prevent.
+
+**A row number belongs to its row twice over**: `linkedRowId` says which row it
+names, so the number and the arrow are rebuilt on every commit and follow
+reordering and a change of direction; and `rowId` puts it *on* that row, so
+hiding the row hides its number too.
+
+**No dialog asks for the words.** A text or a bracket lands empty and the
+panel's text field takes the focus, so typing goes straight in — `§40` forbids
+interrupting an action the crocheter already chose, and a prompt is exactly that.
+
+Cited from: `src/core/irregular-types.ts` (`AnnotationItem`),
+`src/ui/irregular-note.ts` and `src/ui/irregular-editor.ts` (`#refreshLabels`).
+
+## §51 "Item" is not a synonym for "stitch"
+
+Making annotations items of the same list made every place that said *item* and
+meant *stitch* wrong at once, and the type checker caught only the ones that
+touched a stitch's own fields. The rest had to be found by reading:
+
+- the counts in the rows **and layers** panels,
+- the crochet order, which decides the order overlay, a round's centre and
+  therefore a round's whole reading order,
+- what an arrange acts on when nothing is selected,
+- a row's bounding box, which even row spacing measures from,
+- and what "this row is empty" means.
+
+Every one of them is about stitches. The rule to carry forward: **when a
+function says `items` and the answer is about crochet, it wants `isStitch`.**
+
+A copied row number drops the row it named: a label that sits on one row and
+forever reads another's number is worse than one with no number at all.
+
+Cited from: `src/core/irregular-order.ts`, `src/core/irregular-layers.ts`,
+`src/core/irregular-rowline.ts` and `src/core/irregular-document.ts` (`unlinked`).
