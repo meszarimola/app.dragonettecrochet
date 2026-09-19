@@ -665,3 +665,67 @@ describe('a láncszemsor íve (PQW-951)', () => {
     );
   });
 });
+
+/*
+ * PQW-952: a mintakészítés nem sorfolytonos. A tulajdonos: „berakom előre a
+ * rövidpálcát, és utólag adom közé a láncszemeket, akkor pedig szétcsúszik.”
+ * A `piece.skipped` csak az előre készülő láncot jegyzi fel, ezért az áthidalt
+ * szemeket a kelméből kell kiolvasni.
+ */
+describe('a láncív a szerkesztés sorrendjétől függetlenül ugyanaz (PQW-952)', () => {
+  const started = () => ok(endRow(chains(emptyPattern(), 25)));
+  const columns = [0, 4, 8, 12, 16, 20];
+
+  /** Szekvenciálisan: rövidpálca, 5 láncszem, rövidpálca, … */
+  const inOrder = () => {
+    let pattern = started();
+    let cursor = 0;
+    for (let i = 0; i < columns.length; i += 1) {
+      pattern = ok(work(pattern, { def: 'sc', count: 1 }, cursor));
+      if (i === columns.length - 1) break;
+      pattern = ok(work(pattern, { def: 'ch', count: 5 }, cursor + 1));
+      cursor += 4;
+    }
+    return pattern;
+  };
+
+  /** Előbb minden rövidpálca, utána a láncszemek a résekbe. */
+  const afterwards = () => {
+    let pattern = started();
+    for (const slot of columns) pattern = ok(work(pattern, { def: 'sc', count: 1 }, slot));
+    for (const slot of [1, 5, 9, 13, 17]) pattern = ok(work(pattern, { def: 'ch', count: 5 }, slot));
+    return pattern;
+  };
+
+  const row = (pattern) =>
+    [...layout(pattern).nodes.values()]
+      .filter((node) => node.layer === 1)
+      .sort((a, b) => b.top.x - a.top.x)
+      .map((node) => [node.def, node.top.x, node.top.y, node.angle, node.size]);
+
+  test('a két sorrend ugyanazt a rajzot adja', () => {
+    assert.deepEqual(row(afterwards()), row(inOrder()));
+  });
+
+  test('utólag berakott lánc mellett is a saját oszlopában marad a rövidpálca', () => {
+    const pattern = afterwards();
+    const placed = layout(pattern);
+    const base = [...placed.nodes.values()].filter((node) => node.layer === 0).sort((a, b) => b.top.x - a.top.x);
+    const stitches = [...placed.nodes.values()]
+      .filter((node) => node.layer === 1 && node.role === 'stitch')
+      .sort((a, b) => b.top.x - a.top.x);
+    stitches.forEach((node, i) => {
+      assert.ok(near(node.top.x, base[columns[i]].top.x, 1e-6), `${i}. rövidpálca: ${node.top.x}`);
+    });
+    assert.equal(stitches.length, columns.length);
+  });
+
+  test('a lánc utólag sem tolja ki a sort a láncalapon túlra', () => {
+    const placed = layout(afterwards());
+    const all = [...placed.nodes.values()];
+    const base = all.filter((node) => node.layer === 0).map((node) => node.top.x);
+    const above = all.filter((node) => node.layer === 1).map((node) => node.top.x);
+    assert.ok(Math.max(...above) <= Math.max(...base) + 1e-6, 'jobbra nem');
+    assert.ok(Math.min(...above) >= Math.min(...base) - 1e-6, 'balra nem');
+  });
+});

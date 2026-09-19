@@ -89,7 +89,11 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
   legfeljebb a sor magasságának feléig, és minden láncszem a saját érintőjéhez
   fordul. Az ív annyi cellát kap, ahány láncszemből áll — lent három, fent öt —,
   a cellák célpontja pedig az alattuk lévő áthidalt szemé marad. Ahol a lánc
-  elfér (filé, hálóminta, egy-két láncszem), minden marad laposan.
+  elfér (filé, hálóminta, egy-két láncszem), minden marad laposan. Hogy mit
+  hidal át a lánc, azt a rajz a kelméből olvassa ki — a két szomszédos
+  rögzített szem célpontja közötti helyekből —, nem a szerkesztés sorrendjéből
+  (PQW-952). Ezért mindegy, hogy a láncszemek a szemek után készülnek-e, vagy
+  utólag kerülnek két kész szem közé: a rajz ugyanaz.
 - **Horgolás:** szem kiválasztása (`1`–`9` vagy a jelkészlet), a célpont
   nyilakkal vagy az egérrel, horgolás `Enter`-rel vagy kattintással. A kurzor
   a következő szabad célpontra lép; a fogyasztás annyi célpontot használ, ahány
