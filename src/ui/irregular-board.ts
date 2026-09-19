@@ -1,7 +1,8 @@
 // The free-form drawing surface. KB: interface.md §1, §15
 
 import { type Box, isSelectable, isVisible, itemBox, itemsBox, rowById } from '../core/irregular-document.ts';
-import type { IrregularItem, IrregularPattern, LegendBlock } from '../core/irregular-types.ts';
+import { directionOf, ringRadii, spokeAngles } from '../core/irregular-snap.ts';
+import type { IrregularItem, IrregularPattern, LegendBlock, PolarGuide } from '../core/irregular-types.ts';
 import { itemShapes, naturalGlyph } from './irregular-glyph.ts';
 import {
   applyInk,
@@ -20,6 +21,8 @@ const HANDLE = 8;
 const HANDLE_HIT = 14;
 const ROTATE_ARM = 26;
 const GRID_LIMIT = 400;
+const POLAR_KNOB = 5;
+const POLAR_FADE = 0.55;
 const FADED = 0.28;
 const ORDER_FONT = 11;
 const LEGEND_ICON = 22;
@@ -170,7 +173,81 @@ export class FreeBoard {
   #contentBox(): Box | null {
     const scene = this.#scene;
     if (scene === null) return null;
-    return itemsBox(scene.pattern.items.filter((item) => isVisible(scene.pattern, item)));
+    const box = itemsBox(scene.pattern.items.filter((item) => isVisible(scene.pattern, item)));
+    const polar = scene.pattern.guides.polar;
+    if (!polar.visible) return box;
+    const reach = polar.rings * polar.spacing;
+    const circle: Box = {
+      minX: polar.center.x - reach,
+      maxX: polar.center.x + reach,
+      minY: polar.center.y - reach,
+      maxY: polar.center.y + reach,
+    };
+    if (box === null) return circle;
+    return {
+      minX: Math.min(box.minX, circle.minX),
+      maxX: Math.max(box.maxX, circle.maxX),
+      minY: Math.min(box.minY, circle.minY),
+      maxY: Math.max(box.maxY, circle.maxY),
+    };
+  }
+
+  /** The chart point in the middle of the free part of the canvas. */
+  viewCenter(insetBottom = 0): Point {
+    const { width, height } = this.#canvas.getBoundingClientRect();
+    const room = Math.max(width - this.#insets.left - this.#insets.right, 120);
+    const { scale, x, y } = this.#view;
+    return {
+      x: (this.#insets.left + room / 2 - x) / scale,
+      y: ((height - insetBottom) / 2 - y) / scale,
+    };
+  }
+
+  onScreen(point: Point): boolean {
+    const { width, height } = this.#canvas.getBoundingClientRect();
+    const screen = this.#toScreen(point);
+    return (
+      screen.x >= this.#insets.left && screen.x <= width - this.#insets.right && screen.y >= 0 && screen.y <= height
+    );
+  }
+
+  /** Whether the click landed on the circle guide's middle knob. */
+  polarCenterAt(clientX: number, clientY: number): boolean {
+    const scene = this.#scene;
+    if (scene === null || !scene.pattern.guides.polar.visible) return false;
+    const rect = this.#canvas.getBoundingClientRect();
+    const screen = this.#toScreen(scene.pattern.guides.polar.center);
+    return (
+      Math.abs(screen.x - (clientX - rect.left)) <= HANDLE_HIT &&
+      Math.abs(screen.y - (clientY - rect.top)) <= HANDLE_HIT
+    );
+  }
+
+  #drawPolar(polar: PolarGuide, color: string, accent: string): void {
+    const ctx = this.#ctx;
+    const scale = this.#view.scale;
+    const reach = polar.rings * polar.spacing;
+    ctx.save();
+    ctx.globalAlpha = POLAR_FADE;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1 / scale;
+    ctx.beginPath();
+    for (const radius of ringRadii(polar)) {
+      ctx.moveTo(polar.center.x + radius, polar.center.y);
+      ctx.arc(polar.center.x, polar.center.y, radius, 0, Math.PI * 2);
+    }
+    for (const angle of spokeAngles(polar)) {
+      const direction = directionOf(angle);
+      ctx.moveTo(polar.center.x, polar.center.y);
+      ctx.lineTo(polar.center.x + direction.x * reach, polar.center.y + direction.y * reach);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.arc(polar.center.x, polar.center.y, POLAR_KNOB / scale, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   }
 
   /** Topmost first, so a click takes what the eye takes. */
@@ -277,6 +354,7 @@ export class FreeBoard {
 
     ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * x, dpr * y);
     const line = Math.max(1.2, 2 / scale);
+    if (scene.pattern.guides.polar.visible) this.#drawPolar(scene.pattern.guides.polar, colors.grid, colors.accent);
     const order = new Map(scene.pattern.layers.map((layer, index) => [layer.id, index]));
     const drawable = scene.pattern.items
       .filter((item) => isVisible(scene.pattern, item))

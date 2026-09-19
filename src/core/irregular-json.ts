@@ -1,6 +1,7 @@
 // The free-form chart file. KB: core-domain §8, core-domain §11
 
 import {
+  DEFAULT_POLAR,
   IRREGULAR_FORMAT_VERSION,
   type IrregularGuides,
   type IrregularItem,
@@ -8,6 +9,7 @@ import {
   type IrregularPattern,
   type IrregularRow,
   type LegendBlock,
+  type PolarGuide,
   type RowDirection,
   type RowKind,
   type StitchKeyEntry,
@@ -161,6 +163,12 @@ function positive(value: unknown, path: string): number {
     throw new FormatError(path, 'expected-positive');
   }
   return value;
+}
+
+function count(value: unknown, path: string): number {
+  const found = positive(value, path);
+  if (!Number.isInteger(found)) throw new FormatError(path, 'expected-positive');
+  return found;
 }
 
 function hexOrNull(value: unknown, path: string): string | null {
@@ -362,13 +370,28 @@ function readItem(value: unknown, path: string): IrregularItem {
 }
 
 function readGuides(value: unknown, path: string): IrregularGuides {
-  const raw = object(value, path, ['grid', 'snap']);
+  const raw = object(value, path, ['grid', 'snap'], ['polar']);
   const grid = object(raw['grid'], `${path}.grid`, ['visible', 'size']);
   return {
     grid: {
       visible: boolean(grid['visible'], `${path}.grid.visible`),
       size: positive(grid['size'], `${path}.grid.size`),
     },
+    // Written since PQW-966; a file from before that keeps the preset circle guide.
+    polar: raw['polar'] === undefined ? DEFAULT_POLAR : readPolar(raw['polar'], `${path}.polar`),
     snap: boolean(raw['snap'], `${path}.snap`),
+  };
+}
+
+function readPolar(value: unknown, path: string): PolarGuide {
+  const raw = object(value, path, ['visible', 'center', 'rings', 'spacing', 'spokes', 'startAngle']);
+  const center = object(raw['center'], `${path}.center`, ['x', 'y']);
+  return {
+    visible: boolean(raw['visible'], `${path}.visible`),
+    center: { x: finite(center['x'], `${path}.center.x`), y: finite(center['y'], `${path}.center.y`) },
+    rings: count(raw['rings'], `${path}.rings`),
+    spacing: positive(raw['spacing'], `${path}.spacing`),
+    spokes: count(raw['spokes'], `${path}.spokes`),
+    startAngle: finite(raw['startAngle'], `${path}.startAngle`),
   };
 }

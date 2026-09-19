@@ -17,10 +17,14 @@ import {
   itemsBox,
   itemsOf,
   moveItems,
+  type PolarPatch,
   pasteItems,
   rotateItems,
   rowById,
   setGrid,
+  setGridSize,
+  setPolar,
+  setSnap,
   setTitle,
   updateItems,
   withIrregularNotation,
@@ -63,6 +67,7 @@ import {
   setActiveRow,
   updateRow,
 } from '../core/irregular-rows.ts';
+import { radialRotation, snapPoint } from '../core/irregular-snap.ts';
 import type { IrregularItem, IrregularPattern, LegendBlock, Point, RowKind } from '../core/irregular-types.ts';
 import { stitchById } from '../core/stitches.ts';
 import { stitchName } from '../core/stitchText.ts';
@@ -86,11 +91,14 @@ const MIN_SIZE = 2;
 
 interface Preferences {
   readonly rectPartial: boolean;
+  readonly radial: boolean;
   readonly fadeOthers: boolean;
   readonly showOrder: boolean;
 }
 
-const DEFAULT_PREFERENCES: Preferences = { rectPartial: true, fadeOthers: false, showOrder: false };
+const DEFAULT_PREFERENCES: Preferences = { rectPartial: true, radial: false, fadeOthers: false, showOrder: false };
+/** How near, in screen pixels, a snap target has to be to take the point. */
+const SNAP_REACH = 10;
 
 const DEFAULT_LEGEND: LegendBlock = {
   visible: false,
@@ -117,7 +125,8 @@ export interface IrregularHost {
 }
 
 type Drag =
-  | { kind: 'move'; last: Point; moved: boolean }
+  | { kind: 'move'; from: Point; anchor: Point; moved: boolean }
+  | { kind: 'polar'; from: Point; center: Point }
   | { kind: 'pan'; last: Point }
   | { kind: 'marquee'; from: Point; to: Point; additive: boolean }
   | { kind: 'scale'; handle: HandleId; start: Point; base: readonly IrregularItem[]; anchor: Point }
@@ -132,7 +141,12 @@ function readPreferences(): Preferences {
     const stored = parsed as Record<string, unknown>;
     const flag = (name: keyof Preferences): boolean =>
       typeof stored[name] === 'boolean' ? (stored[name] as boolean) : DEFAULT_PREFERENCES[name];
-    return { rectPartial: flag('rectPartial'), fadeOthers: flag('fadeOthers'), showOrder: flag('showOrder') };
+    return {
+      rectPartial: flag('rectPartial'),
+      radial: flag('radial'),
+      fadeOthers: flag('fadeOthers'),
+      showOrder: flag('showOrder'),
+    };
   } catch {
     return DEFAULT_PREFERENCES;
   }
@@ -204,6 +218,10 @@ export class IrregularEditor {
       distribute: (axis) => this.#distribute(axis),
       flip: (axis) => this.#flip(axis),
       setRectPartial: (partial) => this.#setPreference({ rectPartial: partial }),
+      setGridSize: (size) => this.#commit(setGridSize(this.#history.present, size)),
+      setSnap: (on) => this.#commit(setSnap(this.#history.present, on)),
+      setPolar: (patch) => this.#setPolar(patch),
+      setRadial: (on) => this.#setPreference({ radial: on }),
     });
     this.#hoverCapable = window.matchMedia('(hover: hover)').matches;
     this.#listen();
@@ -550,6 +568,32 @@ export class IrregularEditor {
     this.#commit(setGrid(this.#history.present, !this.gridVisible));
   }
 
+  /**
+   * Switching the circle guide on brings it where you are looking, unless its
+   * middle is already on screen — otherwise the guide would be drawn off-canvas.
+   */
+  #setPolar(patch: PolarPatch): void {
+    const current = this.#history.present.guides.polar;
+    const arriving = patch.visible === true && !current.visible;
+    const home =
+      arriving && !this.#board.onScreen(current.center)
+        ? this.#board.viewCenter(this.#host.insets().bottom)
+        : undefined;
+    this.#commit(setPolar(this.#history.present, home === undefined ? patch : { ...patch, center: home }));
+  }
+
+  /** The nearest guide or neighbouring stitch, measured in chart units. */
+  #snap(point: Point, skip?: ReadonlySet<string>): Point {
+    return snapPoint(this.#history.present, point, SNAP_REACH / this.#board.scale, skip);
+  }
+
+  /** What a stitch dropped here is turned to: away from the middle of the circle guide. */
+  #placedRotation(point: Point): number {
+    const polar = this.#history.present.guides.polar;
+    if (!this.#preferences.radial || !polar.visible) return 0;
+    return radialRotation(polar, point);
+  }
+
   zoom(factor: number): void {
     this.#board.zoom(factor);
   }
@@ -733,6 +777,7 @@ export class IrregularEditor {
       manualOrder: isManualOrder(committed, orderRow),
       orderPlace: this.#orderPlace(committed, orderRow),
     });
+    this.#panel.updateGuides(committed.guides, this.#preferences.radial);
     this.#layersPanel.update(committed, this.#selection.size);
     this.#keyPanel.update(committed, this.#host.terms(), this.#host.symbols(), this.legend);
     this.#host.refreshControls();
@@ -740,8 +785,10 @@ export class IrregularEditor {
 
   #ghost(): readonly Shape[] | null {
     const stitch = this.#stitch;
-    const at = this.#pointer;
-    if (stitch === null || at === null || !this.#hoverCapable || this.#drag !== null) return null;
+    const pointer = this.#pointer;
+    if (stitch === null || pointer === null || !this.#hoverCapable || this.#drag !== null) return null;
+    // The ghost sits where the stitch would land, snapping and turn included.
+    const at = this.#snap(pointer);
     const glyph = entryGlyph(this.pattern, stitch);
     const size = naturalSize(stitch, 'both-loops', this.#host.symbols(), glyph);
     return itemShapes(
@@ -757,7 +804,7 @@ export class IrregularEditor {
         y: at.y,
         width: size.width,
         height: size.height,
-        rotation: 0,
+        rotation: this.#placedRotation(at),
         flipX: false,
         flipY: false,
       },
@@ -833,6 +880,12 @@ export class IrregularEditor {
       return;
     }
 
+    // The circle guide's knob is only grabbable while no stitch is waiting to be placed.
+    if (this.#stitch === null && this.#board.polarCenterAt(event.clientX, event.clientY)) {
+      this.#drag = { kind: 'polar', from: point, center: this.#history.present.guides.polar.center };
+      return;
+    }
+
     if (this.#stitch !== null) {
       this.#place(point);
       return;
@@ -847,7 +900,13 @@ export class IrregularEditor {
       } else if (!this.#selection.has(hit)) {
         this.#setSelection([hit]);
       }
-      this.#drag = { kind: 'move', last: point, moved: false };
+      const anchor = itemsOf(this.#history.present, this.#selection).find((item) => item.id === hit);
+      this.#drag = {
+        kind: 'move',
+        from: point,
+        anchor: anchor === undefined ? point : { x: anchor.x, y: anchor.y },
+        moved: false,
+      };
       this.refresh();
       return;
     }
@@ -861,9 +920,10 @@ export class IrregularEditor {
     return /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
   }
 
-  #place(point: Point): void {
+  #place(raw: Point): void {
     const stitch = this.#stitch;
     if (stitch === null) return;
+    const point = this.#snap(raw);
     const glyph = entryGlyph(this.#history.present, stitch);
     const size = naturalSize(stitch, 'both-loops', this.#host.symbols(), glyph);
     const made = addStitch(this.#history.present, {
@@ -872,6 +932,7 @@ export class IrregularEditor {
       y: point.y,
       width: size.width,
       height: size.height,
+      rotation: this.#placedRotation(point),
       insertion: 'both-loops',
     });
     const def = stitchById(stitch);
@@ -910,13 +971,26 @@ export class IrregularEditor {
         drag.last = { x: event.clientX, y: event.clientY };
         return;
       case 'move': {
-        const moved = moveItems(this.pattern, this.#selection, point.x - drag.last.x, point.y - drag.last.y);
-        drag.last = point;
+        const [rawX, rawY] = [point.x - drag.from.x, point.y - drag.from.y];
+        // KB: interface.md §43 — holding ⌘ or Ctrl while dragging puts snapping aside.
+        const free = event.metaKey || event.ctrlKey;
+        const landing = free ? null : this.#snap({ x: drag.anchor.x + rawX, y: drag.anchor.y + rawY }, this.#selection);
         drag.moved = true;
-        this.#draft = moved;
+        this.#draft = moveItems(
+          this.#history.present,
+          this.#selection,
+          landing === null ? rawX : landing.x - drag.anchor.x,
+          landing === null ? rawY : landing.y - drag.anchor.y,
+        );
         this.#refreshScene();
         return;
       }
+      case 'polar':
+        this.#draft = setPolar(this.#history.present, {
+          center: { x: drag.center.x + (point.x - drag.from.x), y: drag.center.y + (point.y - drag.from.y) },
+        });
+        this.#refreshScene();
+        return;
       case 'marquee':
         drag.to = point;
         this.#refreshScene();

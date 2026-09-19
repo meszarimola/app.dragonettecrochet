@@ -648,3 +648,26 @@ WCAG 2.2 (§36) and a separate touch path for the tablet this type is meant for
 moves. Buttons are one control that works for all three. Raised with the owner
 when the panel shipped; the drag gesture can be added on top later without
 changing anything else.
+
+## §43 Snapping steps aside for ⌘, and only during a drag
+
+Holding ⌘ (Ctrl on Windows) **while dragging** puts snapping aside for that
+drag. It is not a mode and there is no third state to get stuck in: let go and
+the next drag snaps again.
+
+The same key means "add to the selection" on a press, which is not a conflict:
+the selection reads it at pointer-down, the drag reads it on every move.
+
+A drag snaps the item the drag **started on**, not the middle of the selection
+box. Dragging a stitch by the one under the pointer is what the hand expects,
+and with several stitches selected the rest follow by the same offset, so the
+block keeps its shape.
+
+The circle guide's middle is dragged by the dot drawn on it. The dot is only
+grabbable while **no stitch is armed** — with a stitch on the pointer a click
+places it, because that is what the click was for. To get a guide back that has
+been dragged off-screen, use "Illeszd a képernyőre": the fit takes the guide in
+as well as the stitches.
+
+Cited from: `src/ui/irregular-editor.ts` (`#snap`, `#onMove`) and
+`src/ui/irregular-board.ts` (`polarCenterAt`, `#contentBox`).

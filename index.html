@@ -453,6 +453,42 @@
               </p>
               <p class="panel__note" id="props-count" role="status" aria-live="polite"></p>
             </div>
+            <div class="props" role="group" aria-label="Segédvonalak és illesztés" data-i18n-label="guidesGroupLabel">
+              <h3 class="panel__title" data-i18n="guidesTitle">Segédvonalak</h3>
+              <p class="panel__field">
+                <label for="guide-grid-size" data-i18n="guideGridSizeLabel">Rács mérete</label>
+                <input id="guide-grid-size" type="number" min="2" max="200" step="1" inputmode="numeric" />
+              </p>
+              <p class="choice">
+                <label><input type="checkbox" id="guide-snap" /> <span data-i18n="guideSnapLabel">Illesztés</span></label>
+              </p>
+              <p class="panel__note" data-i18n="guideSnapHint">Az új szem a rácsra, a körrácsra vagy a szomszédos szemre ugrik. Húzás közben a ⌘ (Windowson a Ctrl) lenyomva tartva nem ugrik.</p>
+              <p class="choice">
+                <label><input type="checkbox" id="guide-polar" /> <span data-i18n="guidePolarLabel">Körrács</span></label>
+              </p>
+              <div id="guide-polar-fields" hidden>
+                <p class="panel__field">
+                  <label for="guide-rings" data-i18n="guideRingsLabel">Gyűrűk száma</label>
+                  <input id="guide-rings" type="number" min="1" max="60" step="1" inputmode="numeric" />
+                </p>
+                <p class="panel__field">
+                  <label for="guide-spacing" data-i18n="guideSpacingLabel">Gyűrűk távolsága</label>
+                  <input id="guide-spacing" type="number" min="4" max="400" step="1" inputmode="numeric" />
+                </p>
+                <p class="panel__field">
+                  <label for="guide-spokes" data-i18n="guideSpokesLabel">Küllők száma</label>
+                  <input id="guide-spokes" type="number" min="1" max="180" step="1" inputmode="numeric" />
+                </p>
+                <p class="panel__field">
+                  <label for="guide-start-angle" data-i18n="guideStartAngleLabel">Kezdőszög (fok)</label>
+                  <input id="guide-start-angle" type="number" min="0" max="359" step="1" inputmode="numeric" />
+                </p>
+                <p class="choice">
+                  <label><input type="checkbox" id="guide-radial" /> <span data-i18n="guideRadialLabel">Sugárirányú forgatás</span></label>
+                </p>
+                <p class="panel__note" data-i18n="guidePolarHint">A körrács közepét a vásznon, a pontjánál fogva húzhatod.</p>
+              </div>
+            </div>
           </details>
           <details class="section" id="section-irregular-rows" hidden>
             <summary class="section__head"><h2 class="panel__title" data-i18n="sectionRowsTitle">Sorok és körök</h2></summary>

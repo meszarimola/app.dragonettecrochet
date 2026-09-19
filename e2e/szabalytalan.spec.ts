@@ -285,3 +285,85 @@ test('two stitches drawn with one symbol are reported in the issues list (AS-5)'
   await page.locator('#error-toggle').click();
   await expect(page.locator('#findings')).toContainText('Ugyanaz a jel két szemet jelöl');
 });
+
+/** Every stitch in the autosaved pattern, with the guides that were in force. */
+async function stored(page: Page): Promise<{
+  items: { x: number; y: number; rotation: number }[];
+  polar: { center: { x: number; y: number }; visible: boolean };
+  grid: { visible: boolean; size: number };
+  snap: boolean;
+}> {
+  return page.evaluate(() => {
+    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+    const parsed = JSON.parse(raw);
+    return {
+      items: parsed.items ?? [],
+      polar: parsed.guides?.polar ?? { center: { x: 0, y: 0 }, visible: false },
+      grid: parsed.guides?.grid ?? { visible: false, size: 0 },
+      snap: parsed.guides?.snap ?? false,
+    };
+  });
+}
+
+test('snapping puts a new stitch on the grid, whatever the click hits', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+
+  await page.locator('#guide-grid-size').fill('25');
+  await page.locator('#guide-grid-size').blur();
+  await page.locator('[data-action="grid"]').click();
+  await page.locator('#guide-snap').check();
+  await expect(page.locator('#guide-snap')).toBeChecked();
+
+  await armDoubleCrochet(page);
+  for (const [x, y] of [
+    [483, 257],
+    [563, 331],
+    [643, 259],
+  ]) {
+    await place(page, x, y);
+  }
+
+  const { items, grid, snap } = await stored(page);
+  expect(grid.size, 'a rács mérete a beírt érték').toBe(25);
+  expect(snap, 'az illesztés be van kapcsolva').toBe(true);
+  expect(grid.visible, 'a rács látszik').toBe(true);
+  expect(items, 'három szem került le').toHaveLength(3);
+  for (const item of items) {
+    // A negative multiple gives -0, which is not `0` to a strict comparison.
+    expect(Math.abs(item.x % 25), 'a szem a rács vonalára került vízszintesen').toBe(0);
+    expect(Math.abs(item.y % 25), 'a szem a rács vonalára került függőlegesen').toBe(0);
+  }
+});
+
+test('the circle guide turns the new stitches away from its middle (AS-6 előkészítése)', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+
+  await page.locator('#guide-polar').check();
+  await expect(page.locator('#guide-polar-fields')).toBeVisible();
+  await page.locator('#guide-radial').check();
+
+  await armDoubleCrochet(page);
+  for (const [x, y] of [
+    [520, 200],
+    [660, 320],
+    [520, 440],
+    [380, 320],
+  ]) {
+    await place(page, x, y);
+  }
+
+  const { items, polar } = await stored(page);
+  expect(polar.visible, 'a körrács látszik').toBe(true);
+  expect(items, 'négy szem került le').toHaveLength(4);
+
+  const turns = items.map((item) => {
+    const wanted = (Math.atan2(item.x - polar.center.x, polar.center.y - item.y) * 180) / Math.PI;
+    return Math.abs(((item.rotation - wanted + 540) % 360) - 180);
+  });
+  for (const gap of turns) {
+    expect(gap, 'a szem teteje a középponttól kifelé néz').toBeLessThan(0.01);
+  }
+  expect(new Set(items.map((item) => Math.round(item.rotation))).size, 'a négy irány négyféle elfordulás').toBe(4);
+});
