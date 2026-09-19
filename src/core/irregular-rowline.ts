@@ -2,7 +2,7 @@
 
 import { type Box, itemBox, rowById, unionBox } from './irregular-document.ts';
 import { itemsOfRow } from './irregular-rows.ts';
-import type { IrregularPattern, IrregularRow, Point, RowLine } from './irregular-types.ts';
+import { type IrregularPattern, type IrregularRow, isStitch, type Point, type RowLine } from './irregular-types.ts';
 
 const MIN_RADIUS = 1;
 const ORIGIN: Point = { x: 0, y: 0 };
@@ -116,7 +116,7 @@ export function spaceRows(pattern: IrregularPattern, rowIds: readonly string[], 
   let placed = 0;
   for (const row of following) {
     const line = row.line;
-    if (row.locked || (line === undefined && itemsOfRow(pattern, row.id).length === 0)) {
+    if (row.locked || (line === undefined && itemsOfRow(pattern, row.id).filter(isStitch).length === 0)) {
       skipped.push({ rowId: row.id, code: 'nothing-to-move' });
       continue;
     }
@@ -373,7 +373,7 @@ function shiftedBox(box: Box, shift: Point): Box {
 /** Where a row stands: its stitches and its line together, once the move is done. */
 function movedBox(pattern: IrregularPattern, row: IrregularRow, move: RowMove): Box | null {
   const boxes: Box[] = [];
-  const stitches = unionBox(itemsOfRow(pattern, row.id).map(itemBox));
+  const stitches = unionBox(itemsOfRow(pattern, row.id).filter(isStitch).map(itemBox));
   if (stitches !== null) boxes.push(shiftedBox(stitches, move.shift));
   const line = move.line ?? (row.line === undefined ? undefined : shiftedLine(row.line, move.shift));
   if (line !== undefined) boxes.push(lineBox(line));

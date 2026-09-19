@@ -1,6 +1,7 @@
 // The free-form chart file. KB: core-domain §8, core-domain §11
 
 import {
+  type AnnotationItem,
   ARC_COUNT_RANGE,
   type ArcShape,
   type BackgroundImage,
@@ -9,6 +10,7 @@ import {
   FAN_LENGTH_RANGE,
   FAN_SPREAD_RANGE,
   type FanMode,
+  FONT_SIZE_RANGE,
   IRREGULAR_FORMAT_VERSION,
   type IrregularGroup,
   type IrregularGuides,
@@ -17,6 +19,7 @@ import {
   type IrregularPattern,
   type IrregularRow,
   type LegendBlock,
+  type NoteKind,
   POLAR_RANGE,
   type PolarGuide,
   type RowDirection,
@@ -401,6 +404,53 @@ function readRow(value: unknown, path: string): IrregularRow {
   };
 }
 
+const NOTE_KINDS: readonly NoteKind[] = ['label', 'marker', 'bracket', 'text', 'arrow'];
+
+function readNote(value: unknown, path: string): AnnotationItem {
+  const raw = object(
+    value,
+    path,
+    [
+      'id',
+      'kind',
+      'note',
+      'rowId',
+      'layerId',
+      'color',
+      'text',
+      'fontSize',
+      'x',
+      'y',
+      'width',
+      'height',
+      'rotation',
+      'flipX',
+      'flipY',
+    ],
+    ['linkedRowId', 'withArrow', 'dotted'],
+  );
+  return {
+    id: string(raw['id'], `${path}.id`),
+    kind: oneOf(raw['kind'], `${path}.kind`, ['annotation'] as const),
+    note: oneOf(raw['note'], `${path}.note`, NOTE_KINDS),
+    rowId: string(raw['rowId'], `${path}.rowId`),
+    layerId: string(raw['layerId'], `${path}.layerId`),
+    color: hexOrNull(raw['color'], `${path}.color`),
+    text: text(raw['text'], `${path}.text`),
+    fontSize: ranged(positive(raw['fontSize'], `${path}.fontSize`), `${path}.fontSize`, FONT_SIZE_RANGE),
+    x: finite(raw['x'], `${path}.x`),
+    y: finite(raw['y'], `${path}.y`),
+    width: positive(raw['width'], `${path}.width`),
+    height: positive(raw['height'], `${path}.height`),
+    rotation: finite(raw['rotation'], `${path}.rotation`),
+    flipX: boolean(raw['flipX'], `${path}.flipX`),
+    flipY: boolean(raw['flipY'], `${path}.flipY`),
+    ...(raw['linkedRowId'] === undefined ? {} : { linkedRowId: string(raw['linkedRowId'], `${path}.linkedRowId`) }),
+    ...(raw['withArrow'] === undefined ? {} : { withArrow: boolean(raw['withArrow'], `${path}.withArrow`) }),
+    ...(raw['dotted'] === undefined ? {} : { dotted: boolean(raw['dotted'], `${path}.dotted`) }),
+  };
+}
+
 const ROW_LINE_SHAPES: readonly RowLineShape[] = ['line', 'arc', 'circle'];
 const SHAPE_SIDES: readonly ShapeSide[] = ['left', 'right', 'outside', 'inside'];
 
@@ -446,6 +496,8 @@ function readLayer(value: unknown, path: string): IrregularLayer {
 }
 
 function readItem(value: unknown, path: string): IrregularItem {
+  if (!isObject(value)) throw new FormatError(path, 'expected-object');
+  if (value['kind'] === 'annotation') return readNote(value, path);
   const raw = object(value, path, [
     'id',
     'kind',

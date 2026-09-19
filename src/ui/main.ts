@@ -1336,6 +1336,9 @@ const ACTIONS: Record<string, () => void> = {
   'delete-last': () => commit(deleteLast(history.present), texts().messages.work.deleteLast),
   'select-area': () => (irregular?.active === true ? select(null) : setAreaMode(!areaMode)),
   'chain-arc': () => irregular?.toggleArcTool(),
+  'note-text': () => irregular?.toggleNoteTool('text'),
+  'note-arrow': () => irregular?.toggleNoteTool('arrow'),
+  'note-bracket': () => irregular?.toggleNoteTool('bracket'),
   fan: () => irregular?.toggleFanTool(),
   isolate: () => irregular?.toggleIsolate(),
   repeat: () => irregular?.repeatAround(),
@@ -2146,6 +2149,12 @@ function updateIrregularControls(editor: IrregularEditor): void {
   must<HTMLButtonElement>('[data-action="chain-arc"]').setAttribute('aria-pressed', String(editor.arcArmed));
   must<HTMLButtonElement>('[data-action="fan"]').setAttribute('aria-pressed', String(editor.fanArmed));
   must<HTMLButtonElement>('[data-action="isolate"]').setAttribute('aria-pressed', String(editor.isolating));
+  for (const note of ['text', 'arrow', 'bracket'] as const) {
+    must<HTMLButtonElement>(`[data-action="note-${note}"]`).setAttribute(
+      'aria-pressed',
+      String(editor.noteArmed === note),
+    );
+  }
   setDisabled('repeat', editor.selectionSize === 0);
   must<HTMLButtonElement>('[data-action="grid"]').setAttribute('aria-pressed', String(editor.gridVisible));
   if (document.activeElement !== titleInput) titleInput.value = editor.title;

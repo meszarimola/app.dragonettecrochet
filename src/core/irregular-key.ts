@@ -1,7 +1,7 @@
 // The pattern's own stitch key (jelkulcs). KB: 01 §6.1, 01 §8.5
 
 import { nextId } from './irregular-document.ts';
-import type { IrregularPattern, StitchKeyEntry } from './irregular-types.ts';
+import { type IrregularPattern, isStitch, type StitchKeyEntry } from './irregular-types.ts';
 import { STITCHES } from './stitches.ts';
 import { stitchLabel, stitchName } from './stitchText.ts';
 import type { Locale, StitchDef } from './types.ts';
@@ -106,7 +106,7 @@ export function removeCustomEntry(pattern: IrregularPattern, id: string): Irregu
   return {
     ...pattern,
     stitchKey: keyEntries(pattern).filter((candidate) => candidate.id !== id),
-    items: pattern.items.filter((item) => item.keyEntryId !== id),
+    items: pattern.items.filter((item) => !isStitch(item) || item.keyEntryId !== id),
   };
 }
 
@@ -155,7 +155,9 @@ export interface KeyUsage {
  */
 export function keyUsage(pattern: IrregularPattern): KeyUsage[] {
   const counts = new Map<string, number>();
-  for (const item of pattern.items) counts.set(item.keyEntryId, (counts.get(item.keyEntryId) ?? 0) + 1);
+  for (const item of pattern.items) {
+    if (isStitch(item)) counts.set(item.keyEntryId, (counts.get(item.keyEntryId) ?? 0) + 1);
+  }
   const order = new Map(STITCHES.map((stitch, index) => [stitch.id, index]));
   return [...counts.entries()]
     .map(([keyEntryId, count]) => ({ keyEntryId, count }))

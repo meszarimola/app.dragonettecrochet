@@ -1,12 +1,20 @@
 // The stitch order within one row of the free-form chart. KB: core-geometry §29
 
 import { rowById } from './irregular-document.ts';
-import type { IrregularItem, IrregularPattern, IrregularRow, Point, RowDirection } from './irregular-types.ts';
+import {
+  type IrregularItem,
+  type IrregularPattern,
+  type IrregularRow,
+  isStitch,
+  type Point,
+  type RowDirection,
+} from './irregular-types.ts';
 
 const TURN = Math.PI * 2;
 
+/** Annotations sit on a row but are not worked, so they are not in its order. */
 function rowItems(pattern: IrregularPattern, rowId: string): IrregularItem[] {
-  return pattern.items.filter((item) => item.rowId === rowId);
+  return pattern.items.filter((item) => isStitch(item) && item.rowId === rowId);
 }
 
 /** The centre of the round is the centre of its own stitches. */

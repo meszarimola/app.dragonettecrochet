@@ -9,9 +9,22 @@ export interface PdfRun {
   readonly color: string | null;
 }
 
+/** A word drawn on the chart, in chart units, with the chart. */
+export interface PdfText {
+  readonly at: Point;
+  readonly text: string;
+  readonly size: number;
+  /** Degrees clockwise from up, as an item's rotation. */
+  readonly rotation: number;
+  readonly anchor: 'start' | 'middle' | 'end';
+  readonly color: string | null;
+}
+
 export interface PdfPage {
   /** Shapes in chart units; the writer scales and tiles them. */
   readonly shapes: readonly Shape[];
+  /** Words that belong to the chart, such as a row's number. */
+  readonly texts?: readonly PdfText[];
   /** Coloured runs, drawn instead of `shapes` when given, so a chart keeps its colours. */
   readonly runs?: readonly PdfRun[];
   readonly lineWidth: number;
@@ -232,8 +245,37 @@ function textOps(text: string, x: number, y: number, fontSize: number): string {
   return `BT /F1 ${num(fontSize)} Tf 1 0 0 1 ${num(x)} ${num(y)} Tm ${literal(winAnsi(text))} Tj ET`;
 }
 
+/**
+ * The page is flipped so the chart's y grows down; text drawn inside it would
+ * come out upside down, so each word carries its own un-flip.
+ */
+function chartTexts(texts: readonly PdfText[]): string[] {
+  const out: string[] = [];
+  for (const piece of texts) {
+    const written = piece.text.trim();
+    if (written === '' || !Number.isFinite(piece.at.x) || !Number.isFinite(piece.at.y)) continue;
+    const size = Number.isFinite(piece.size) && piece.size > 0 ? piece.size : 1;
+    const radians = ((Number.isFinite(piece.rotation) ? piece.rotation : 0) * Math.PI) / 180;
+    const [cos, sin] = [Math.cos(radians), Math.sin(radians)];
+    const width = markerWidth(written, size);
+    const shift = piece.anchor === 'middle' ? -width / 2 : piece.anchor === 'end' ? -width : 0;
+    const ink = colorOps(piece.color);
+    out.push('q');
+    if (ink !== null) out.push(ink);
+    // Undo the page's vertical flip, then turn the word the way the item is.
+    out.push(
+      `1 0 0 -1 ${num(piece.at.x)} ${num(piece.at.y)} cm`,
+      `${num(cos)} ${num(-sin)} ${num(sin)} ${num(cos)} 0 0 cm`,
+      `BT /F1 ${num(size)} Tf 1 0 0 1 ${num(shift)} ${num(-size * 0.35)} Tm ${literal(winAnsi(written))} Tj ET`,
+      'Q',
+    );
+  }
+  return out;
+}
+
 function markerWidth(marker: string, fontSize: number): number {
   let em = 0;
+  // Digits and the period are measured; anything else takes an average advance.
   for (const char of marker) em += char === '.' ? PERIOD_WIDTH : DIGIT_WIDTH;
   return em * fontSize;
 }
@@ -289,6 +331,7 @@ export function writePdf(page: PdfPage, box: PdfBox, options: PdfOptions): Uint8
         `${num(stroke)} w 1 J 1 j`,
       );
       if (drawing.length > 0) lines.push(drawing);
+      lines.push(...chartTexts(page.texts ?? []));
       lines.push('Q');
       streams.push(lines.join('\n'));
     }
