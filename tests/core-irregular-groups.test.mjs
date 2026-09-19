@@ -13,6 +13,7 @@ import {
   addFan,
   arcRotation,
   clampCount,
+  clampFanCount,
   explodeGroups,
   forgetBrokenGroups,
   groupById,
@@ -29,7 +30,7 @@ import {
 import { saveIrregular } from '../src/core/irregular-json.ts';
 import { addLayer, deleteLayer, moveItemsToLayer, setActiveLayer } from '../src/core/irregular-layers.ts';
 import { addRow, deleteRow, moveItemsToRow, setActiveRow } from '../src/core/irregular-rows.ts';
-import { ARC_COUNT_RANGE } from '../src/core/irregular-types.ts';
+import { ARC_COUNT_RANGE, FAN_COUNT_RANGE } from '../src/core/irregular-types.ts';
 
 const base = () => emptyIrregularPattern({ title: 'Free-form chart', layerNames: ['Drawing', 'Labels'] });
 
@@ -324,5 +325,34 @@ describe('a fan is a group like any other (PQW-968)', () => {
     const { pattern, id } = fanned();
     const first = groupById(pattern, id)?.memberIds[0] ?? '';
     assert.equal(groupsOf(forgetBrokenGroups(deleteItems(pattern, new Set([first])))).length, 0, 'forgotten');
+  });
+});
+
+describe('a fan is clamped by its own limits, not the arc’s (PQW-968)', () => {
+  test('a broken direction cannot poison a fresh fan', () => {
+    const start = base();
+    const made = addFan(
+      start,
+      {
+        rowId: start.activeRowId,
+        layerId: start.activeLayerId,
+        keyEntryId: 'dc',
+        mode: 'spread',
+        origin: { x: 0, y: 0 },
+        direction: Number.NaN,
+        spreadAngle: 120,
+        length: 60,
+        count: 5,
+      },
+      UPRIGHT,
+    );
+    assert.equal(made.pattern.groups?.[0]?.direction, 0, 'not NaN');
+    assert.ok(saveIrregular(made.pattern).length > 0, 'so the pattern still saves');
+  });
+
+  test('the fan count has its own range', () => {
+    assert.equal(clampFanCount(0), FAN_COUNT_RANGE.min, 'too few');
+    assert.equal(clampFanCount(10_000), FAN_COUNT_RANGE.max, 'too many');
+    assert.equal(clampFanCount(Number.NaN), FAN_COUNT_RANGE.min, 'not a number');
   });
 });

@@ -4,6 +4,7 @@ import {
   ARC_COUNT_RANGE,
   type ArcShape,
   DEFAULT_POLAR,
+  FAN_COUNT_RANGE,
   FAN_LENGTH_RANGE,
   FAN_SPREAD_RANGE,
   type FanMode,
@@ -449,7 +450,7 @@ function readGroup(
     if (!itemIds.has(id)) throw new FormatError(where, 'unknown-item');
     return id;
   });
-  const count = whole(raw['count'], `${path}.count`, ARC_COUNT_RANGE);
+  const count = whole(raw['count'], `${path}.count`, kind === 'fan' ? FAN_COUNT_RANGE : ARC_COUNT_RANGE);
   if (count !== memberIds.length) throw new FormatError(`${path}.count`, 'group-count-mismatch');
   const common = {
     id: string(raw['id'], `${path}.id`),

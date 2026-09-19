@@ -35,6 +35,7 @@ import {
   addFan,
   type ChainArcPatch,
   clampCount,
+  clampFanCount,
   clampSpread,
   explodeGroups,
   type FanPatch,
@@ -631,8 +632,13 @@ export class IrregularEditor {
   }
 
   setStitch(id: StitchDefId | null): void {
+    // Arming the palette lays every drawing tool down, or the canvas would keep
+    // drawing groups while the palette claimed a stitch was waiting.
+    if (id !== null) {
+      this.#arcTool = false;
+      this.#fanTool = false;
+    }
     this.#stitch = id;
-    if (id !== null) this.#arcTool = false;
     this.refresh();
   }
 
@@ -684,8 +690,9 @@ export class IrregularEditor {
   }
 
   setFanCount(count: number): void {
-    this.#fanCount = clampCount(count);
-    this.#patchFan({ count: this.#fanCount });
+    this.#fanCount = clampFanCount(count);
+    if (this.selectedFan === null) return;
+    this.#patchFan({ count: this.#fanCount }, texts().irregular.fanCount(this.#fanCount));
   }
 
   setFanSpread(angle: number): void {
@@ -702,13 +709,13 @@ export class IrregularEditor {
     this.#patchFan({ mode });
   }
 
-  #patchFan(patch: FanPatch): void {
+  #patchFan(patch: FanPatch, message?: string): void {
     const fan = this.selectedFan;
     if (fan === null) return;
     const next = updateFan(this.#history.present, fan.id, patch, this.#fanGlyph(fan.keyEntryId));
     const group = groupById(next, fan.id);
     if (group !== undefined) this.#selection = new Set(group.memberIds);
-    this.#commit(next);
+    this.#commit(next, message);
   }
 
   /** A fan stretches its glyph to the length, so it is measured at its natural size. */
@@ -798,7 +805,9 @@ export class IrregularEditor {
   explodeSelectedGroup(): void {
     const group = this.selectedGroup;
     if (group === null) return;
-    this.#commit(explodeGroups(this.#history.present, [group.id]), texts().irregular.arcExploded(group.count));
+    const words = texts().irregular;
+    const said = group.kind === 'fan' ? words.fanExploded(group.count) : words.arcExploded(group.count);
+    this.#commit(explodeGroups(this.#history.present, [group.id]), said);
   }
 
   /**

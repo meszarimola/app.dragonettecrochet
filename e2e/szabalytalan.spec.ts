@@ -613,7 +613,16 @@ test('legyező: szétnyíló rajzolás, N átállítása, összefutóra váltás
     expect(Math.abs(point.y - meeting.y), 'a csúcsok egy pontban találkoznak').toBeLessThan(0.001);
   }
 
+  // Arming the palette must lay the fan tool down, or every click draws a fan.
+  await expect(fanTool, 'az eszköz a rajzolás után is fel van véve').toHaveAttribute('aria-pressed', 'true');
+  await armDoubleCrochet(page);
+  await expect(fanTool, 'a paletta leteszi a legyező eszközt').toHaveAttribute('aria-pressed', 'false');
+  await place(page, 260, 250);
+  expect((await fan()).items, 'a kattintás egy szemet rakott le, nem egy legyezőt').toBe(8);
+  await page.keyboard.press('Escape');
+  await page.locator(board).click({ position: { x: 500, y: 460 } });
+
   await page.locator('#fan-explode').click();
   expect((await fan()).kind, 'szétbontva már nincs csoport').toBe('');
-  expect((await fan()).items, 'de a hét szem megmarad').toBe(7);
+  expect((await fan()).items, 'de a hét szem és a külön lerakott megmarad').toBe(8);
 });

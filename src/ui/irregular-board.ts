@@ -2,6 +2,7 @@
 
 import { arcAt } from '../core/irregular-arc.ts';
 import { type Box, isSelectable, isVisible, itemBox, itemsBox, rowById } from '../core/irregular-document.ts';
+import { fanAngles } from '../core/irregular-fan.ts';
 import { directionOf, ringRadii, spokeAngles } from '../core/irregular-snap.ts';
 import type {
   ArcShape,
@@ -69,13 +70,8 @@ function isFan(path: GroupPath): path is FanPath {
   return 'origin' in path;
 }
 
-/** The rays of a fan, from one outer stitch to the other. */
-function fanRays(fan: FanPath): number[] {
-  const count = Math.max(1, Math.round(fan.count));
-  if (count === 1) return [fan.direction];
-  const step = fan.spreadAngle / (count - 1);
-  return Array.from({ length: count }, (_, index) => fan.direction - fan.spreadAngle / 2 + index * step);
-}
+// The dashed preview asks the core where the rays are, so it can never promise
+// a fan different from the one that lands.
 
 const ARC_SAMPLES = 48;
 
@@ -624,7 +620,7 @@ export class FreeBoard {
     ctx.beginPath();
     if (isFan(path)) {
       const middle = this.#toScreen(path.origin);
-      for (const angle of fanRays(path)) {
+      for (const angle of fanAngles(path)) {
         const ray = directionOf(angle);
         const tip = this.#toScreen({
           x: path.origin.x + ray.x * path.length,

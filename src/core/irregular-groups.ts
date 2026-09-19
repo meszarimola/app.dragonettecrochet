@@ -6,6 +6,7 @@ import { fanShapes } from './irregular-fan.ts';
 import {
   ARC_COUNT_RANGE,
   type ChainArcGroup,
+  FAN_COUNT_RANGE,
   FAN_LENGTH_RANGE,
   FAN_SPREAD_RANGE,
   type FanGroup,
@@ -113,10 +114,10 @@ export function addFan(
     ...spec,
     id: nextGroupId(pattern),
     kind: 'fan',
-    count: clampCount(spec.count),
+    count: clampFanCount(spec.count),
     spreadAngle: clampSpread(spec.spreadAngle),
     length: clampLength(spec.length),
-    direction: normalizeAngle(spec.direction),
+    direction: normalizeAngle(finiteOr(spec.direction, 0)),
     memberIds: [],
   };
   return { pattern: laidOut(pattern, group, glyph), id: group.id };
@@ -132,7 +133,7 @@ export function updateFan(pattern: IrregularPattern, id: string, patch: FanPatch
     direction: normalizeAngle(finiteOr(patch.direction, group.direction)),
     spreadAngle: clampSpread(finiteOr(patch.spreadAngle, group.spreadAngle)),
     length: clampLength(finiteOr(patch.length, group.length)),
-    count: patch.count === undefined ? group.count : clampCount(patch.count),
+    count: patch.count === undefined ? group.count : clampFanCount(patch.count),
   };
   if (sameFan(group, next)) return pattern;
   return laidOut(pattern, next, glyph);
@@ -152,6 +153,11 @@ function sameFan(a: FanGroup, b: FanGroup): boolean {
 
 function finiteOr(value: number | undefined, fallback: number): number {
   return value !== undefined && Number.isFinite(value) ? value : fallback;
+}
+
+export function clampFanCount(count: number): number {
+  if (!Number.isFinite(count)) return FAN_COUNT_RANGE.min;
+  return Math.min(FAN_COUNT_RANGE.max, Math.max(FAN_COUNT_RANGE.min, Math.round(count)));
 }
 
 export function clampSpread(angle: number): number {

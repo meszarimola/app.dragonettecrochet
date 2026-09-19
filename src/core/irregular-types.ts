@@ -208,6 +208,8 @@ export const ARC_COUNT_RANGE = { min: 2, max: 200 } as const;
 /** The preset bulge, as a share of the chord. KB: core-geometry §52 */
 export const DEFAULT_ARC_BULGE = 0.25;
 export const DEFAULT_FAN_COUNT = 5;
+/** Its own range: a fan is not an arc, and one must not silently set the other. */
+export const FAN_COUNT_RANGE = { min: 2, max: 200 } as const;
 export const DEFAULT_FAN_SPREAD = 120;
 export const FAN_SPREAD_RANGE = { min: 5, max: 350 } as const;
 export const FAN_LENGTH_RANGE = { min: 4, max: 2000 } as const;
