@@ -1,11 +1,4 @@
-/*
- * Az „Amigurumi” szakasz tartalma (PQW-863): a formák és a mezőik, a forma a
- * mezők szövegéből, a körterv összefoglalója a görbülettel és a mérettel, a
- * mintasűrűség eredete, a figura részei és magassága.
- *
- * DOM nélküli, ezért a Node is futtatja (tests/ui-amigurumi-view.test.mjs), és a
- * magot `.ts` kiterjesztéssel importálja.
- */
+// KB: interface.md §1
 
 import type { JoinMethod, PartOptions } from '../core/amigurumi-generator.ts';
 import {
@@ -59,7 +52,7 @@ export const TOP_CHOICES: readonly Choice<PieceEnd>[] = (['closed', 'open'] as c
   },
 }));
 
-/** Az ovális szeme (PQW-899); a neve a jelölést követi, nem a felület nyelvét (PQW-900). */
+// KB: interface.md §2 — the name follows the notation, not the interface language.
 export const STITCH_CHOICES: readonly Choice<OvalStitch>[] = OVAL_STITCHES.map((value) => {
   return {
     value,
@@ -77,7 +70,7 @@ export const JOIN_CHOICES: readonly Choice<JoinMethod>[] = (['sewn', 'continuous
   },
 }));
 
-/** A görbület neve körönként (04 §8, §9.6). A „fogyó (záródik)” új kifejezés, jóváhagyásra vár. */
+// KB: 04 §8, §9.6; interface.md §32
 export const CURVATURE_NAMES: Readonly<Record<Curvature, string>> = {
   get flat() {
     return texts().panels.amigurumi.curvatures.flat;
@@ -96,17 +89,14 @@ export const CURVATURE_NAMES: Readonly<Record<Curvature, string>> = {
   },
 };
 
-/** A mezők értéke, ahogy a felületen áll: a számok szövegként, tizedesvesszővel is. */
 export interface AmigurumiForm {
   readonly name: string;
   readonly shape: ShapeKind;
   readonly method: SphereMethod;
   readonly diameter: string;
   readonly height: string;
-  /** Az ovális hossza és szélessége (PQW-890). */
   readonly length: string;
   readonly width: string;
-  /** Az ovális szeme (PQW-899). */
   readonly stitch: OvalStitch;
   readonly increases: string;
   readonly profile: string;
@@ -119,7 +109,6 @@ export interface AmigurumiForm {
   readonly distribute: boolean;
 }
 
-/** Melyik mező tartozik a formához. */
 export interface FieldState {
   readonly method: boolean;
   readonly diameter: boolean;
@@ -148,13 +137,11 @@ export function fieldState(shape: ShapeKind): FieldState {
   };
 }
 
-/** Szám a mező szövegéből, tizedesvesszővel is; üresen vagy hibásan `NaN`. */
 export function parseNumber(text: string): number {
   const trimmed = text.trim().replace(',', '.');
   return trimmed === '' ? Number.NaN : Number(trimmed);
 }
 
-/** A profil soronként „sugár magasság” cm-ben (pl. „2,5 4”); hiba esetén az üzenet. */
 export function parseProfile(text: string): ProfilePoint[] | string {
   const lines = text
     .split('\n')
@@ -172,7 +159,6 @@ export function parseProfile(text: string): ProfilePoint[] | string {
   return points;
 }
 
-/** A forma a mezőkből; hiba esetén az üzenet. A méret határait a mag nézi (`shapeProblem`). */
 export function shapeOf(form: AmigurumiForm): ShapeSpec | string {
   const diameterCm = parseNumber(form.diameter);
   const heightCm = parseNumber(form.height);
@@ -196,7 +182,7 @@ export function shapeOf(form: AmigurumiForm): ShapeSpec | string {
       return { kind: 'revolution', profile, bottom: form.bottom, top: form.top };
     }
     case 'oval':
-      // A rövidpálca nem íródik ki, így a PQW-899 előtti mentés és az új ugyanaz marad.
+      // KB: interface.md §29 — the default stitch stays unwritten, so old and new saves match.
       return { kind: 'oval', lengthCm: parseNumber(form.length), widthCm: parseNumber(form.width), ...(form.stitch === 'sc' ? {} : { stitch: form.stitch }) };
   }
 }
@@ -207,16 +193,10 @@ export function partOf(form: AmigurumiForm): PartOptions | string {
   return { name: form.name, shape, stagger: form.stagger, eyes: form.eyes };
 }
 
-/**
- * A rész neve a felületen: a megadott név, enélkül a forma neve a felület
- * nyelvén. A mentett mintába a mag magyar neve kerül (`partName`,
- * `SHAPE_NAMES`), mert az a minta címének és a darab nevének a része.
- */
 export function partLabel(part: PartOptions): string {
   return part.name.trim() || texts().panels.amigurumi.names[part.shape.kind];
 }
 
-/** Az egymás utáni azonos görbületű körök: „1–6. kör lapos”. */
 export function curvatureRuns(diagnoses: readonly RoundDiagnosis[]): { from: number; to: number; curvature: Curvature }[] {
   const runs: { from: number; to: number; curvature: Curvature }[] = [];
   for (const diagnosis of diagnoses) {
@@ -229,11 +209,9 @@ export function curvatureRuns(diagnoses: readonly RoundDiagnosis[]): { from: num
 
 const cm = (value: number) => formatNumber(value, 1);
 
-/** A körterv összefoglalója: körszám, méret, görbület körönként, a hátsó szálas körök. */
 export function scheduleSummary(schedule: Schedule, gauge: RoundGauge): string {
   const t = texts().panels.amigurumi;
   const { counts } = schedule;
-  // Az ovális 1. köre lapos kezdés: a görbület a végek körönkénti szaporításához mérve (PQW-890).
   const before = schedule.start === 'ring' ? 0 : schedule.oval ? counts[0]! - 2 * schedule.oval.perEnd : counts[0]!;
   const measures = schedule.oval
     ? t.ovalMeasures(cm(schedule.widthCm), cm(schedule.oval.widthCm), schedule.oval.chains)
@@ -250,11 +228,6 @@ export function scheduleSummary(schedule: Schedule, gauge: RoundGauge): string {
   return parts.join(' ');
 }
 
-/**
- * A forma előnézete a mezőkből: az összefoglaló, vagy mi a gond. A `gaugeOf`
- * adja a forma mintasűrűségét, ha nem a rövidpálcáé (a félpálcás és pálcás
- * ovális, PQW-899; amigurumi.ts `shapeGaugeOf`).
- */
 export function previewNote(form: AmigurumiForm, gauge: RoundGauge, gaugeOf: (shape: ShapeSpec) => RoundGauge = () => gauge): string {
   const shape = shapeOf(form);
   if (typeof shape === 'string') return shape;
@@ -263,7 +236,6 @@ export function previewNote(form: AmigurumiForm, gauge: RoundGauge, gaugeOf: (sh
   return planned.ok ? scheduleSummary(planned.schedule, own) : amigurumiCoreText(planned.reason);
 }
 
-/** Honnan jön a körszám és a szaporítás. */
 export function gaugeNote(gauge: RoundGauge): string {
   const t = texts().panels.amigurumi;
   const density = t.density(formatNumber(gauge.stitchesPerCm * 10, 1), formatNumber(gauge.roundsPerCm * 10, 1));
@@ -271,7 +243,6 @@ export function gaugeNote(gauge: RoundGauge): string {
   return t.gaugeMeasured(gauge.source === 'label' ? t.gaugeFromLabel : t.gaugeFromRounds, density);
 }
 
-/** A minta részei és a figura magassága; ha nincs rész, `null`. */
 export function figureNote(pattern: Pattern, gauge: RoundGauge): string | null {
   const t = texts().panels.amigurumi;
   const size = figureSize(pattern, gauge);
@@ -279,7 +250,6 @@ export function figureNote(pattern: Pattern, gauge: RoundGauge): string | null {
   const parts = size.parts.flatMap((part) =>
     part.sections.map((section, i) => {
       const schedule = section.schedule;
-      // A lapos ovális hossza és szélessége; a vastagsága csak a figura magasságában számít (PQW-899).
       const measures = schedule.oval
         ? t.flatOval(cm(schedule.widthCm), cm(schedule.oval.widthCm))
         : t.partMeasures(cm(schedule.widthCm), cm(schedule.heightCm));

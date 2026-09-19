@@ -1,11 +1,4 @@
-/*
- * A „Kendő” szakasz tartalma (PQW-865): a választható kendők, a mezők a
- * formához, a terv kiírása a kapott szöggel, a blokkolt és a blokkolatlan
- * mérettel, a figyelmeztetések és az előnézet körvonalai.
- *
- * DOM nélküli, ezért a Node is futtatja (tests/ui-shawls-view.test.mjs), és a
- * magot `.ts` kiterjesztéssel importálja.
- */
+// KB: interface.md §1
 
 import {
   DEVIATION_LIMIT,
@@ -46,15 +39,10 @@ export const RATE_CHOICES: readonly Choice<RateChoice>[] = (['theory', 'custom']
   },
 }));
 
-/**
- * A mag indoka mondattá a felület nyelvén (PQW-904): a mag kódot és adatot ad,
- * a sor és a kör szava, a névelő és a ragozás itt kerül a mondatba.
- */
 export function shawlReason(reason: ShawlText): string {
   return renderCoreText(SHAPE_CORE_TEXTS[uiLanguage()], reason);
 }
 
-/** Melyik mező látszik a választott kendőnél. */
 export interface ShawlFieldState {
   readonly length: boolean;
   readonly rate: boolean;
@@ -67,7 +55,6 @@ export function shawlFieldState(options: ShawlOptions): ShawlFieldState {
   return { length: stole, rate: !stole, custom: !stole && options.rate === 'custom', wings: options.kind === 'triangle' };
 }
 
-/** A fő méret mezőjének felirata. */
 export function sizeLabel(kind: ShawlKind): string {
   const labels = texts().panels.shawl.sizeLabels;
   switch (kind) {
@@ -83,19 +70,16 @@ export function sizeLabel(kind: ShawlKind): string {
   }
 }
 
-/** A saját arány mezőjének felirata: mire vonatkozik a szám. */
 export function rateLabel(kind: ShawlKind): string {
   return texts().panels.shawl.rateLabels[kind];
 }
 
-/** A szegélyhez igazítás felirata: a szimmetrikus kendőben félenként. */
 export function edgingLabel(kind: ShawlKind): string {
   const t = texts().panels.shawl;
   const what = ROUND_SHAWLS.includes(kind) ? t.edgingWhat.round : kind === 'stole' ? t.edgingWhat.row : t.edgingWhat.lastRow;
   return t.edgingLabel(what, SYMMETRIC_SHAWLS.includes(kind));
 }
 
-/** A választás a kendőhöz igazítva: a szárnyak csak háromszögnél, a saját arány a stólánál nem számít. */
 export function normalizeShawl(options: ShawlOptions): ShawlOptions {
   return {
     ...options,
@@ -110,12 +94,9 @@ const percent = (ratio: number) => formatNumber(ratio * 100, 0);
 const angle = (value: number) => formatNumber(value, 0);
 
 export interface ShawlView {
-  /** A blokkolt és a blokkolatlan méret, a sorok száma; becslésnél „≈”. */
   readonly size: string;
   readonly details: readonly string[];
-  /** Kunkorodás, fodrosodás, szög: figyelmeztetés, nem hiba. */
   readonly warnings: readonly string[];
-  /** Honnan jön a szemméret, és melyik méret mért. */
   readonly source: string;
 }
 
@@ -129,7 +110,6 @@ export function shawlView(plan: ShawlPlan, options: ShawlOptions, sizes: ShawlSi
   const approx = plan.gauge.source === 'estimated' ? '≈ ' : '';
   const rows = plan.counts.length;
   const noun = plan.worked === 'rounds' ? t.roundNoun : t.rowNoun;
-  // A nem mért állapot mindig becslés a nyúlásból.
   const [measured, other] = sizes.measured === 'blocked' ? [sizes.blocked, sizes.unblocked] : [sizes.unblocked, sizes.blocked];
   const [measuredName, otherName] = sizes.measured === 'blocked' ? [t.blockedName, t.unblockedName] : [t.unblockedName, t.blockedName];
   const size = t.sizeLine(measuredName, approx, dimensions(measured, plan.kind), otherName, dimensions(other, plan.kind), rows, noun);
@@ -224,17 +204,14 @@ function gaugeText(plan: ShawlPlan, stitch: string, hasProfile: boolean): string
 }
 
 export interface ShawlOutline {
-  /** Az előnézet mérete cm-ben: a blokkolt és a blokkolatlan körvonal közül a nagyobb. */
   readonly width: number;
   readonly height: number;
-  /** A két körvonal pontjai SVG-sorrendben, középre igazítva. */
   readonly blocked: string;
   readonly unblocked: string;
 }
 
 const round = (value: number) => Math.round(value * 100) / 100;
 
-/** Az előnézet: a blokkolt körvonal teli, a blokkolatlan szaggatott; a kettő a felső szél közepéhez igazítva. */
 export function shawlOutline(sizes: ShawlSizes): ShawlOutline {
   const width = Math.max(sizes.blocked.widthCm, sizes.unblocked.widthCm);
   const height = Math.max(sizes.blocked.depthCm, sizes.unblocked.depthCm);
@@ -243,7 +220,6 @@ export function shawlOutline(sizes: ShawlSizes): ShawlOutline {
   return { width: round(width), height: round(height), blocked: points(sizes.blocked), unblocked: points(sizes.unblocked) };
 }
 
-/** Az állapotsor üzenete a létrehozás után. */
 export function generatedMessage(plan: ShawlPlan): string {
   const t = texts().panels.shawl;
   return t.generated(t.names[plan.kind], plan.counts.length, plan.worked === 'rounds' ? t.roundNoun : t.rowNoun);

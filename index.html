@@ -9,9 +9,7 @@
       data-i18n-content="docDescription"
       content="Ingyenes horgolásminta-tervező a böngészőben: jeldiagram sorokhoz és körökhöz, élő ellenőrzés, írott minta, kendő, ruhadarab, amigurumi és filé, PNG/SVG export."
     />
-    <!-- Kereshető belépő (PQW-918): a gyökér indexelhető (tulajdonosi döntés, 2026-09-16),
-         a canonical a query nélküli gyökér, így a ?lang=en változat nem lesz külön találat.
-         Az OG-kép a főoldalé, abszolút URL-lel; a megosztási előnézetek a statikus magyar fejet olvassák. -->
+    <!-- KB: interface.md §34 -->
     <link rel="canonical" href="https://app.dragonettecrochet.com/" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Dragonette Crochet" />
@@ -22,8 +20,7 @@
     <meta property="og:locale" content="hu_HU" />
     <meta property="og:locale:alternate" content="en_GB" />
     <meta name="twitter:card" content="summary_large_image" />
-    <!-- Strukturált adat (PQW-918): adatblokk, nem futó szkript, ezért a CSP script-src 'self' nem érinti.
-         A publisher a főoldal Organization-jére, a mainEntityOfPage a főoldali leíró oldalra mutat. -->
+    <!-- KB: interface.md §34 -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -46,15 +43,13 @@
         "mainEntityOfPage": "https://dragonettecrochet.com/en/crochet-pattern-designer/"
       }
     </script>
-    <!-- Ikonok a főoldalé szerint (PQW-853), a D6 szitakötő-jelből (PQW-922, scripts/generate-icons.mjs), saját származásból: a CSP img-src 'self' engedi.
-         A theme-color a --c-bg token értéke; meta tagben CSS-változó nem használható, az egyezést a tests/head.test.mjs őrzi. -->
+    <!-- KB: interface.md §34 -->
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#faf7f3" />
   </head>
   <body>
-    <!-- JS nélkül (és a JS-t nem futtató bejárók számára) rövid leírás és a főoldali leíró oldalak (PQW-918). -->
     <noscript>
       <div class="noscript" lang="hu">
         <h1>Ingyenes horgolásminta-tervező és jeldiagram-készítő</h1>
@@ -101,7 +96,6 @@
             <span data-i18n="homeText">Főoldal</span>
           </a>
 
-          <!-- A D6 szitakötő-jel (PQW-922) díszítő elem: a név a címben szövegként marad. -->
           <svg class="brand-mark" viewBox="40 36 120 120" aria-hidden="true" focusable="false">
             <ellipse class="brand-mark__wing" cx="100" cy="92" rx="16" ry="54" transform="rotate(58 100 92)" />
             <ellipse class="brand-mark__wing" cx="100" cy="92" rx="16" ry="54" transform="rotate(122 100 92)" />
@@ -118,7 +112,7 @@
 
         <div class="tools">
           <div class="tools__group" role="group" aria-label="Nézet és panelek" data-i18n-label="toolGroupPanels">
-            <!-- A bal sáv nyitása és csukása a menüsorból, hogy csukott sávnál is elérhető legyen (PQW-912). -->
+            <!-- In the toolbar, so the side bar can be reopened once it is closed. -->
             <button type="button" class="tool" id="types-toggle" aria-expanded="true" aria-controls="types" aria-label="Mintatípus sáv" data-tip="A mintatípus sáv nyitása és csukása" data-i18n-label="toolTypesLabel" data-i18n-tip="toolTypesTip">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path d="M7.5 5 12.5 10l-5 5" />
@@ -205,7 +199,6 @@
             </button>
             <button type="button" class="tool" data-action="end-row" aria-label="Sor vége, fordulás" data-tip="Sor vége, fordulás (Alt+F)" data-i18n-label="toolEndRowLabel" data-i18n-tip="toolEndRowTip" aria-keyshortcuts="Alt+F">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <!-- A horgolás vízszintesen halad, ezért a fordulás íve is vízszintes (PQW-911). -->
                 <path d="M5 6h6a3 3 0 0 1 0 6H5" />
                 <path d="M7.75 9.75 5 12l2.75 2.25" />
               </svg>
@@ -283,7 +276,6 @@
               <span class="tool__label" data-i18n="toolLabelFit">Teljes</span>
             </button>
           </div>
-          <!-- A panelek kapcsolói a menüsor jobb szélén, jobbról balra (PQW-912). -->
           <div class="tools__group tools__group--end" role="group" aria-label="Panelek" data-i18n-label="toolGroupViews">
             <button type="button" class="tool" id="panel-toggle" aria-expanded="true" aria-controls="panel" aria-label="Szemek és beállítások" data-tip="A jobb oldali panel nyitása és csukása" data-i18n-label="panelToggle" data-i18n-tip="toolPanelTip">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
@@ -324,7 +316,7 @@
           <h2 class="panel__title" data-i18n="typesTitle">Mintatípus</h2>
           <p class="types__intro" data-i18n="typesIntro">A típus adja a kezdést és a körzárás alapértelmezését.</p>
           <ul class="types__list" id="types-list"></ul>
-          <!-- A futó verzió (PQW-903): a szöveget a main.ts írja be a buildbe égetett konstansból. -->
+          <!-- KB: decisions.md §5 -->
           <p class="version" id="version" aria-hidden="true"></p>
         </nav>
 
@@ -339,12 +331,7 @@
         ></canvas>
         <p class="status" id="status" role="status" aria-live="polite"></p>
 
-        <!--
-          Felbukkanó figyelmeztetés (PQW-923): a vászon tetején, a menüsor alatt,
-          három másodperc után magától eltűnik. A tartós jelzés a menüsor jobb
-          szélén marad. Udvarias élő régió: felolvassa a segédtechnika, de nem
-          szakítja félbe a munkát.
-        -->
+        <!-- KB: interface.md §20 -->
         <p class="alert" id="alert" role="status" aria-live="polite" hidden></p>
 
         <aside class="written" id="written" aria-labelledby="written-title" hidden>
@@ -1005,14 +992,7 @@
                 <option value="jis" data-i18n="chartStyleJis">Japán (JIS)</option>
               </select>
             </p>
-            <!--
-              A rövidpálca jelének választása kikerült (PQW-929). A tulajdonos
-              döntése: „a rövidpálca jele legyen a + jel. ne az x”. A jel
-              mostantól a JELSTÍLUSBÓL következik — CYC-ben +, japán (JIS)
-              stílusban ×, ahogy a JIS előírja —, ezért nincs mit külön
-              választani, és egy korábbi „×” választás sem jöhet vissza a
-              böngésző tárolójából.
-            -->
+            <!-- KB: interface.md §21 -->
             <p class="panel__note" data-i18n="notationNote">A jelölés és a jelstílus a felület nyelvétől független, és a minta adatán nem változtat: a paletta, a vászon, az írott minta és az export is ezt követi.</p>
             </div>
           </details>

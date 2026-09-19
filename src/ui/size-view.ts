@@ -1,14 +1,4 @@
-/*
- * A „Méret és fonal” szakasz szövegei (PQW-859), DOM nélkül: kész méret
- * soronként és a teljes darabra, fonalbecslés, a tűméret átváltása, és minden
- * érték mellett az eredete (mért, címkéről, becsült). A becslés mindig
- * tartománnyal jelenik meg; profil nélkül a szakasz ezt külön ki is mondja.
- *
- * A feliratok a felület nyelvén szólnak (PQW-900, src/ui/i18n/sections.ts); a
- * számalak és a mértékegységek mindkét nyelven a magyarok (cm, g, m, mm).
- *
- * A felület a magot `.ts` kiterjesztéssel importálja.
- */
+// KB: interface.md §1, §3
 
 import { hookByMm, isSteelHook, nearestHookSize, type HookSize } from '../core/hook-sizes.ts';
 import { yarnWeightOf, type PatternSize } from '../core/pattern-size.ts';
@@ -20,23 +10,17 @@ import { CYC_WEIGHTS } from '../core/yarn-weight.ts';
 import { texts, uiLanguage } from './i18n.ts';
 import { termsLocale } from './notation.ts';
 
-/** Egy érték eredete a felület nyelvén: „mért”, „címkéről”, „becsült”. */
 export function sourceLabel(source: ValueSource): string {
   return texts().sections.size.sources[source];
 }
 
-/** A mintasűrűség mérésének formája: „síkban”, „körben”. */
 export function formLabel(form: GaugeForm): string {
   return texts().sections.size.forms[form];
 }
 
 const formats = new Map<string, Intl.NumberFormat>();
 
-/**
- * Számalak legfeljebb `digits` tizedessel, a FELÜLET nyelve szerint (PQW-905):
- * magyarul tizedesvessző („19,7”), angolul tizedespont („19.7”). A mértékegység
- * (cm, g, m, mm) mindkét nyelven ugyanaz, azt a szótár adja.
- */
+// KB: interface.md §3
 export function formatNumber(value: number, digits = 1): string {
   const language = uiLanguage();
   const key = `${language}:${digits}`;
@@ -49,10 +33,8 @@ export function formatNumber(value: number, digits = 1): string {
 }
 
 export interface ValueText {
-  /** Az érték mértékegységgel; becslésnél „≈” előtaggal. */
   readonly value: string;
   readonly source: ValueSource;
-  /** A tartomány; pontos értéknél, vagy ha a két határ kerekítve egyezik, `null`. */
   readonly range: string | null;
 }
 
@@ -64,12 +46,10 @@ export function quantityText(quantity: Quantity, unit: string, digits: number): 
   return { value, source: quantity.source, range: min === max ? null : `${min}–${max}${suffix}` };
 }
 
-/** Cm: 1 cm alatt két tizedes, fölötte egy. */
 export function cmText(quantity: Quantity, unit = 'cm'): ValueText {
   return quantityText(quantity, unit, quantity.value < 1 ? 2 : 1);
 }
 
-/** Egysoros alak: „≈ 8,5 cm (becsült: 6,5–11,2 cm)”, „8,5 cm (mért)”. */
 export function valueLine(text: ValueText): string {
   return `${text.value} (${sourceLabel(text.source)}${text.range ? `: ${text.range}` : ''})`;
 }
@@ -79,7 +59,7 @@ function hookNames(size: HookSize): string {
   return [size.us ? `US ${size.us}` : null, size.oldUk ? hook.oldUk(size.oldUk) : null].filter((part) => part !== null).join(' · ');
 }
 
-/** A tű amerikai és régi brit mérete a mm mellé (02 §2); a kulcs mindig a mm. */
+// KB: 02 §2
 export function hookSizesText(mm: number): string {
   const hook = texts().sections.size.hook;
   if (isSteelHook(mm)) return hook.steel;
@@ -99,14 +79,12 @@ export function gaugeStitchName(library: StitchLibrary, id: StitchDefId): string
   return def ? stitchName(def, termsLocale()) : id;
 }
 
-/** A profil neve a választóban: fonal, tű, blokkolás. */
 export function profileLabel(profile: PatternGaugeProfile): string {
   const words = texts().sections.size.profile;
   const name = profile.yarn.name.trim() || words.unnamedYarn;
   return `${name} · ${formatNumber(profile.hookMm, 2)} mm · ${profile.blocked ? words.blocked : words.unblocked}`;
 }
 
-/** Egy érték eredete a mező mellett; ha nincs mit jelölni, `null`. */
 export interface Origin {
   readonly text: string;
   readonly source: ValueSource;
@@ -122,7 +100,6 @@ export interface ProfileOrigins {
 
 const origin = (source: ValueSource, text = sourceLabel(source)): Origin => ({ text, source });
 
-/** A profil mezőinek eredete. A vastagság a m/100 g-ből becsült, ha a címkéről nincs megadva. */
 export function profileOrigins(profile: PatternGaugeProfile): ProfileOrigins {
   const weight = yarnWeightOf(profile);
   const { widthCm, heightCm, massG } = profile.swatch;
@@ -139,7 +116,6 @@ export function profileOrigins(profile: PatternGaugeProfile): ProfileOrigins {
   };
 }
 
-/** A hiányos gauge-sor megjegyzése, a profil szerinti becsléssel; kitöltött sornál üres. */
 export function gaugeEntryNote(entry: GaugeEntry, estimate: { readonly stitchesPer10cm: number; readonly rowsPer10cm: number }): string {
   if (entry.stitchesPer10cm !== null && entry.rowsPer10cm !== null) return '';
   return texts().sections.size.gauge.note(formatNumber(estimate.stitchesPer10cm), formatNumber(estimate.rowsPer10cm), entry.form);
@@ -159,11 +135,9 @@ export interface LayerRow {
 }
 
 export interface SizeView {
-  /** Figyelmeztetés, ha a méret (részben) becslés; mért méretnél `null`. */
   readonly notice: string | null;
   readonly total: readonly ValueRow[];
   readonly totalNote: string | null;
-  /** A soronkénti táblázat oszlopai: sor, szélesség, magasság, eddig; az eredet a sor fejlécében. */
   readonly headers: readonly string[];
   readonly layers: readonly LayerRow[];
   readonly yarn: readonly ValueRow[];

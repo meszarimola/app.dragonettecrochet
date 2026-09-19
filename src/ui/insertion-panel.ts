@@ -1,9 +1,4 @@
-/*
- * A „Beszúrás” választó a Szemek szakaszban (PQW-869): natív rádiógombok,
- * ezért billentyűzettel a Tab és a nyilak kezelik, a képernyőolvasó a
- * csoport nevével és a mód nevével olvassa fel. A tartalom az
- * insertion-view.ts-ből jön.
- */
+// KB: interface.md §24
 
 import type { Locale, StitchDef, StitchInsertion } from '../core/types.js';
 import { texts } from './i18n.js';
@@ -14,7 +9,6 @@ export class InsertionPanel {
   readonly #field: HTMLFieldSetElement;
   readonly #options: HTMLElement;
   readonly #written: HTMLElement;
-  /** A legutóbb választott mód; másik szemnél is ez érvényes, ha az a szem megengedi. */
   #preferred: StitchInsertion = 'both-loops';
   #def: StitchDef | undefined;
   #terms: Locale = 'hu';
@@ -33,12 +27,11 @@ export class InsertionPanel {
     });
   }
 
-  /** A lerakáskor érvényes mód a horgoló felől; `undefined`, ha a szemnek nincs választható módja. */
   get insertion(): StitchInsertion | undefined {
     return this.#choice?.selected;
   }
 
-  /** A kiválasztott szem vagy a jelölés változott: a gombok csak ekkor épülnek újra, a fókusz így nem vész el. */
+  // KB: interface.md §8 — rebuild only on a real change, or the focus is lost.
   update(def: StitchDef | undefined, terms: Locale): void {
     this.#def = def;
     this.#terms = terms;
