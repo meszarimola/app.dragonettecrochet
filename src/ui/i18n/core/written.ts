@@ -1,22 +1,14 @@
 /*
- * Az írott minta hibái mondattá (PQW-904).
+ * Written-pattern failures as sentences. The core gives the layer index, the
+ * shape and the code of the sentence ending; the article, the row or round word
+ * and the joining of the two are the dictionary's.
  *
- * A kódokat a mag adja (`src/core/pattern-steps.ts`, `WrittenCode`); a mondat
- * itt készül, a felület nyelvén. A magyar ág betűre azonos a PQW-904 előtti
- * szövegekkel: ez átvezetés, nem újrafogalmazás.
- *
- * - `layer-unsupported`: a mag csak a sorszámot (`index`), a sor/kör formáját
- *   (`shape`) és a mondatvég kódját (`inner`) adja. A névelő, a sor/kör szava és
- *   a mondatvég összeillesztése a felületé — a magyar „A(z)” alak változatlan.
+ * KB: dictionaries.md §1, §5
  */
 
 import type { UnsupportedCode, WrittenCode } from '../../../core/pattern-steps.ts';
 import { type CoreDictionary, isRound, num, str } from './render.ts';
 
-/**
- * A mondatvégek: önmagukban nem mondatok, a `layer-unsupported` burkoló illeszti
- * őket a sor vagy a kör mögé.
- */
 const HU_REASONS: Readonly<Record<UnsupportedCode, string>> = {
   'underside-place': 'a láncszem másik oldalába olyan helyen horgol, amely még nem írható ki',
   'underside-backwards': 'a láncszemek másik oldalán a haladási iránnyal szemben horgol',
@@ -58,8 +50,7 @@ const EN_REASONS: Readonly<Record<UnsupportedCode, string>> = {
 export const WRITTEN_CORE_TEXTS: CoreDictionary<WrittenCode> = {
   hu: {
     ...HU_REASONS,
-    // A névelő is a felületé: a mai szöveg az „A(z)” alakot használja.
-    // A láncalap az 1. sor (PQW-923): sorokban a kiírt szám a rétegénél eggyel nagyobb, körben változatlan.
+    // The printed row number is one higher than the layer index. KB: interface.md §33
     'layer-unsupported': (data) =>
       `A(z) ${num(data, 'index') + (isRound(data) ? 0 : 1)}. ${isRound(data) ? 'kör' : 'sor'} ${HU_REASONS[str(data, 'inner') as UnsupportedCode] ?? ''}.`,
     'needs-foundation': 'A minta láncalappal vagy varázskörrel kezdődik; enélkül még nem írható ki.',

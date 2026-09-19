@@ -1,15 +1,8 @@
 /*
- * A rácsos terület magból jövő üzenetei (PQW-904): a rács célzása (grid.ts), a
- * rácsminta (pixel-chart.ts), a filé, a mozaik, a C2C és a színes rácsok.
+ * Core messages of the grid area: aiming on the grid, the grid chart, filet,
+ * mosaic, C2C and the colourwork grids.
  *
- * A mag kódot és adatot ad (`CoreText`), a mondat itt készül. A magyar névelő
- * (`article`), a ragozás („…ban”, „…szemeibe”), a sor és a kör szava, a
- * „varázskör”/„láncalap” és a szín szava is ide tartozik: a magban csak
- * rétegszám, sorszám, cellaszám, színindex és `shape` van.
- *
- * A magyar ág betűre a korábbi magbeli szöveg: a magyar felület nem változik.
- *
- * DOM nélküli, ezért a Node is futtatja.
+ * KB: dictionaries.md §1, §5
  */
 
 import type { C2CCode } from '../../../core/c2c.ts';
@@ -24,18 +17,9 @@ import { colorLetter, type ChartCode } from '../../../core/pixel-chart.ts';
 import { uiLanguage } from '../../i18n.ts';
 import { isRound, num, renderCoreText, str, type CoreDictionary } from './render.ts';
 
-/** A terület minden kódja: ha a magban új születik, a szótár fordítási hibát ad. */
 export type GridCoreCode = GridAimCode | GridPatternCode | ChartCode | FiletCode | MosaicCode | C2CCode | ColorworkCode;
 
-/* ---- Magyar nyelvtan: a névelő, a sor neve és a szín szava ---- */
-
-/**
- * A rács sorának neve: „A 3. sor”, „Az 5. sor”, nagybetűs határozott névelővel.
- *
- * A rács a horgolt sorokat számozza 1-től, a láncalap viszont maga az 1. sor
- * (PQW-923), ezért a kiírt szám eggyel nagyobb — így a rács üzenete ugyanazt a
- * sort nevezi meg, mint a rajz felirata és az írott minta.
- */
+/** The grid numbers the worked rows from 1, but the foundation chain is row 1. KB: interface.md §33 */
 const gridRow = (row: number): number => row + 1;
 
 function huRow(row: number): string {
@@ -44,27 +28,19 @@ function huRow(row: number): string {
   return `${word.charAt(0).toUpperCase()}${word.slice(1)} ${shown}. sor`;
 }
 
-/** „az A szín”, „a B szín”: a mag a szín indexét adja. */
 const huColor = (index: number) => `${index === 0 ? 'az' : 'a'} ${colorLetter(index)} szín`;
 
-/**
- * A réteg neve a mondat közepén: „a varázskör”, „az 1. sor”, „a 3. kör”.
- *
- * Sorokban a láncalap az 1. sor (PQW-923), ezért a kiírt szám a réteg indexénél
- * eggyel nagyobb. Körben a számozás változatlan, és a körös kezdés a nevén áll.
- */
+/** Layer 0 is named, not numbered, when the work started in the round. KB: interface.md §33 */
 function huLayer(layer: number, round: boolean, start: string): string {
   if (round) return layer === 0 ? (start === 'ring' ? 'a varázskör' : 'a láncalap') : `${article(layer)} ${layer}. kör`;
-  // A `row` itt már a kiírt sorszám (a réteg indexe + 1), ezért nem megy rajta a `gridRow`.
+  // `row` is already the printed number, so `gridRow` must not be applied to it again.
   const row = layer + 1;
   return `${article(row)} ${row}. sor`;
 }
 
-/** Hova horgolhatsz: a varázskörbe, különben a réteg szemeibe. */
 const huInto = (layer: number, round: boolean, start: string) =>
   layer === 0 && start === 'ring' ? 'a varázskörbe' : `${huLayer(layer, round, start)} szemeibe`;
 
-/** A közös utótag: a kattintás nem rakott le szemet. */
 const HU_NOTHING = 'Nem került le szem.';
 const EN_NOTHING = 'No stitch was worked.';
 
@@ -84,7 +60,6 @@ const capitalize = (value: string) => `${value.charAt(0).toUpperCase()}${value.s
 
 export const GRID_CORE_TEXTS: CoreDictionary<GridCoreCode> = {
   hu: {
-    /* ---- Célzás a rácson (grid.ts) ---- */
     'aim-no-stitch': `Ebben a cellában nincs mibe horgolni: alatta nincs szem. ${HU_NOTHING}`,
     'aim-not-target': `Ide nem horgolhatsz: ez a hely nem célpont (például nem számító fordulólánc). ${HU_NOTHING}`,
     'aim-other-layer': (data) => {
@@ -96,10 +71,8 @@ export const GRID_CORE_TEXTS: CoreDictionary<GridCoreCode> = {
       return `Ez ${here} egyik helye. Most ${working} készül: csak ${huInto(current - 1, round, start)} horgolhatsz. ${HU_NOTHING}`;
     },
 
-    /* ---- A generált minta (grid-pattern.ts) ---- */
     'pattern-invalid': (data) => `A generált minta nem ment át az ellenőrzőn (${str(data, 'rule')}): ez a program hibája, kérlek, jelezd.`,
 
-    /* ---- Ismétlő egység és rács (pixel-chart.ts) ---- */
     'unit-empty-grid': 'A rács üres: adj meg legalább egy sort.',
     'unit-not-found': 'Nem találtam ismétlődést: rajzolj legalább két teljes ismétlést, vagy jelöld meg az ismétlő egységet.',
     'unit-incomplete': (data) => {
@@ -117,7 +90,6 @@ export const GRID_CORE_TEXTS: CoreDictionary<GridCoreCode> = {
     'chart-too-many-colors': (data) => `Legfeljebb ${num(data, 'max')} szín lehet.`,
     'chart-color-index': 'Minden cellának a színlista egyik színe legyen.',
 
-    /* ---- Filé (filet.ts) ---- */
     'filet-no-rows': 'Adj meg legalább egy sort.',
     'filet-too-many-rows': (data) => `Legfeljebb ${num(data, 'max')} sor lehet.`,
     'filet-ragged': (data) => `Minden sor ugyanannyi cella legyen, legfeljebb ${num(data, 'max')}.`,
@@ -130,7 +102,6 @@ export const GRID_CORE_TEXTS: CoreDictionary<GridCoreCode> = {
     'filet-extend-reach': (data) =>
       `${huRow(num(data, 'row'))} végén a szaporítás nem éri el a két sorral lejjebbi szemet, mert az előző sor eleji fogyasztással kezdődött: told el egy sorral.`,
 
-    /* ---- Mozaik (mosaic.ts) ---- */
     'mosaic-two-colors': 'A mozaik két színnel készül: a sorok színe váltakozik.',
     'mosaic-min-width': 'A mozaik sora legalább 3 cella: a két szélső cella mindig a sor színe.',
     'mosaic-base-row': (data) => `Az 1. sor az alapsor: minden cellája ${huColor(num(data, 'color'))} legyen.`,
@@ -138,7 +109,6 @@ export const GRID_CORE_TEXTS: CoreDictionary<GridCoreCode> = {
     'mosaic-stacked-skip': (data) =>
       `${huRow(num(data, 'row'))} ${num(data, 'cell')}. cellája alatt is kihagyás van: mozaikban két kihagyás nem kerülhet egymás fölé.`,
 
-    /* ---- C2C és színes rácsok ---- */
     'c2c-turning-chain': 'A C2C-csempe 3 láncszeme az első pálca helyett áll: a mintában a pálca fordulóláncának szemnek kell számítania.',
     'c2c-repeated-increase':
       'Ez a C2C-alakzat egyelőre nem készíthető el: a program a csempék láncívét még nem tudja minden alakzatban helyesen felépíteni. Ma az 1 × 1 és a 2 × 1 méret működik.',
@@ -200,7 +170,6 @@ export const GRID_CORE_TEXTS: CoreDictionary<GridCoreCode> = {
   },
 };
 
-/** A magból jövő rácsos üzenet mondata a felület mostani nyelvén. */
 export function gridCoreText(message: CoreText<GridCoreCode>): string {
   return renderCoreText(GRID_CORE_TEXTS[uiLanguage()], message);
 }

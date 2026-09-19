@@ -1,34 +1,19 @@
 /*
- * Az index.html statikus feliratai (PQW-900).
+ * The static labels of index.html (PQW-900), a flat key-to-text dictionary the
+ * `data-i18n*` attributes point at. An unknown key throws, so a key in the HTML
+ * and a key here have to match exactly.
  *
- * - Lapos kulcs→szöveg szótár: a jelölésben a `data-i18n` (szöveg),
- *   `data-i18n-tip` (saját tooltip) és `data-i18n-label` (`aria-label`)
- *   attribútumok hivatkoznak rá, a behelyettesítést az `applyStaticTexts`
- *   végzi (i18n.ts). Ismeretlen kulcsnál hibát dob, ezért a kulcsnévnek a
- *   HTML-ben és itt pontosan egyeznie kell.
- * - A magyar értékek betűre azonosak a jelölésben álló mai szöveggel: a
- *   behelyettesítés a magyar felületen semmit nem változtat. Aki a HTML-ben
- *   javít egy feliratot, itt is javítsa.
- * - A több elemből álló feliratok (jelölőnégyzet melletti szöveg, link előtti
- *   mondat, billentyűtáblázat) külön `<span>`-ben állnak, mert a `data-i18n`
- *   a teljes `textContent`-et cseréli, és a gyerekelemeket (input, kbd, a)
- *   kitörölné.
- * - A szemnevek és az írott minta nyelve NEM innen jön: azt a minta jelölése
- *   adja (notation.ts, pattern-text.ts), a felület nyelvétől függetlenül.
- *
- * DOM nélküli, ezért a Node is futtatja.
+ * KB: dictionaries.md §7
  */
 
 import type { Dictionary } from '../i18n.ts';
 
 export const MARKUP_TEXTS = {
   hu: {
-    // A dokumentum feje: a böngészőfül címe és a leírás (PQW-905), a keresett kifejezésekkel (PQW-918)
     docTitle: 'Ingyenes horgolásminta-tervező és jeldiagram-készítő — Dragonette',
     docDescription:
       'Ingyenes horgolásminta-tervező a böngészőben: jeldiagram sorokhoz és körökhöz, élő ellenőrzés, írott minta, kendő, ruhadarab, amigurumi és filé, PNG/SVG export.',
 
-    // Süti-sáv
     consentTitle: 'Mérhetem a látogatást?',
     consentBody:
       'A Google Analytics sütijeivel szeretném látni, hányan járnak az oldalon és a mintatervezőben, és mely oldalakat nézik. Csak ha elfogadod: hirdetésre nem használom, és a döntésed a jelkészlet „Süti-beállítások” gombjával bármikor megváltoztathatod.',
@@ -39,7 +24,6 @@ export const MARKUP_TEXTS = {
     consentDecline: 'Elutasítom',
     consentOpen: 'Süti-beállítások',
 
-    // Menüsor
     homeLabel: 'Vissza a dragonettecrochet.com főoldalára',
     homeText: 'Főoldal',
     barTitle: 'Mintatervező',
@@ -47,14 +31,12 @@ export const MARKUP_TEXTS = {
     writtenToggle: 'Írott minta',
     panelToggle: 'Szemek és beállítások',
 
-    // Eszközcsoportok
     toolGroupFile: 'Fájl',
     toolGroupEdit: 'Szerkesztés',
     toolGroupRow: 'Sor és kör',
     toolGroupSelect: 'Kijelölés',
     toolGroupView: 'Nézet',
 
-    // Fájl
     toolNewLabel: 'Új minta',
     toolNewTip: 'Új minta',
     toolImportLabel: 'JSON betöltése',
@@ -66,17 +48,14 @@ export const MARKUP_TEXTS = {
     toolExportSvgLabel: 'SVG',
     toolExportSvgTip: 'SVG-kép mentése (vektor)',
 
-    // Szerkesztés
     toolUndoLabel: 'Visszavonás',
     toolUndoTip: 'Visszavonás (Ctrl+Z)',
     toolRedoLabel: 'Újra',
     toolRedoTip: 'Újra (Ctrl+Shift+Z)',
 
-    // Sor és kör
     toolFillRowLabel: 'Sor kitöltése',
     toolFillRowTip: 'Sor kitöltése a kiválasztott szemmel (Shift+Alt+F)',
 
-    // A fájlműveletek lenyíló menüje és az ikonok alatti egyszavas feliratok (PQW-911)
     toolFileMenuLabel: 'Fájlműveletek',
     toolFileMenuTip: 'Mentés, betöltés és képexport',
     toolLabelNew: 'Új',
@@ -95,7 +74,6 @@ export const MARKUP_TEXTS = {
     toolLabelZoomIn: 'Nagyítás',
     toolLabelFit: 'Teljes',
 
-    // A panelek kapcsolói a menüsorban (PQW-912)
     toolGroupPanels: 'Nézet és panelek',
     toolGroupViews: 'Panelek',
     toolTypesLabel: 'Mintatípus sáv',
@@ -113,7 +91,6 @@ export const MARKUP_TEXTS = {
     toolSpiralLabel: 'Kör vége spirálban',
     toolSpiralTip: 'Kör vége spirálban, zárás nélkül (Alt+S)',
 
-    // Kijelölés
     toolSelectAreaLabel: 'Terület kijelölése',
     toolSelectAreaTip:
       'Terület kijelölése húzással. Szem nélkül kattintás: egy szem, Shift: több, sorszám: teljes sor',
@@ -122,7 +99,6 @@ export const MARKUP_TEXTS = {
     toolDuplicateLabel: 'Kijelölés duplikálása',
     toolDuplicateTip: 'Kijelölés duplikálása, pl. a következő sorba (Ctrl+D)',
 
-    // Nézet
     toolGridLabel: 'Rács',
     toolGridTip: 'Rács ki és be (Alt+R)',
     toolZoomOutLabel: 'Kicsinyítés',
@@ -132,13 +108,11 @@ export const MARKUP_TEXTS = {
     toolFitLabel: 'Egész minta',
     toolFitTip: 'Egész minta a képernyőre',
 
-    // Mintatípus-menü és vászon
     typesNavLabel: 'Mintatípus',
     typesTitle: 'Mintatípus',
     typesIntro: 'A típus adja a kezdést és a körzárás alapértelmezését.',
     boardLabel: 'Diagram: nyilakkal a célpontok között, Enterrel horgolsz',
 
-    // Írott minta
     writtenGripLabel: 'Az írott minta magassága',
     writtenTitle: 'Írott minta',
     writtenFullView: 'Teljes nézet',
@@ -147,14 +121,12 @@ export const MARKUP_TEXTS = {
     writtenTextLabel: 'Az írott minta szövege',
     panelLabel: 'Szemek és beállítások',
 
-    // Szemek
     sectionStitchesTitle: 'Szemek',
     stitchesChainCountLabel: 'Láncszemek száma',
     stitchesInsertionLegend: 'Beszúrás',
     stitchesInsertionNote: 'A horgoló felől értendő; visszai soron a diagram a színoldalt mutatja.',
     stitchesPaletteLabel: 'Szemek',
 
-    // Méret és fonal
     sectionSizeTitle: 'Méret és fonal',
     sizeProfileLabel: 'Profil',
     sizeProfileNote: 'Egy fonal és tű mért mintasűrűsége. A mintával együtt mentődik, a JSON-exportban is.',
@@ -184,7 +156,6 @@ export const MARKUP_TEXTS = {
     sizeAspectNote:
       'A diagram cellái és a rács a valós szemarányt követik: a profilból, profil nélkül a becslésből.',
 
-    // Forma
     sectionShapeTitle: 'Forma',
     shapeGroupLabel: 'Sík forma létrehozása cm-ből',
     shapeNote:
@@ -208,7 +179,6 @@ export const MARKUP_TEXTS = {
     shapeRibbingWidthLabel: 'A borda szélessége (1×1, 2×2)',
     shapeCreate: 'Minta létrehozása',
 
-    // Kendő
     sectionShawlTitle: 'Kendő',
     shawlGroupLabel: 'Kendő létrehozása méretből',
     shawlNote:
@@ -232,7 +202,6 @@ export const MARKUP_TEXTS = {
     shawlPreviewNote: 'Teli vonal: blokkolva; szaggatott: blokkolás nélkül.',
     shawlCreate: 'Minta létrehozása',
 
-    // Ruhadarab
     sectionGarmentTitle: 'Ruhadarab',
     garmentGroupLabel: 'Ruhadarab létrehozása testméretből',
     garmentNote:
@@ -261,7 +230,6 @@ export const MARKUP_TEXTS = {
     garmentRibbingWidthLabel: 'A borda szélessége (1×1, 2×2)',
     garmentCreate: 'Minta létrehozása',
 
-    // Rácsminta
     sectionGridTitle: 'Rácsminta',
     gridGroupLabel: 'Rácsminta: filé, C2C, tapestry, graphgan, mozaik',
     gridNote:
@@ -289,7 +257,6 @@ export const MARKUP_TEXTS = {
     gridCreate: 'Minta létrehozása',
     gridLoad: 'Rács a mostani mintából',
 
-    // Kör és motívum
     sectionRoundsTitle: 'Kör és motívum',
     roundsGroupLabel: 'Kör és motívum létrehozása',
     roundsNote:
@@ -310,7 +277,6 @@ export const MARKUP_TEXTS = {
     roundsRibbingWidthLabel: 'A borda szélessége (1×1, 2×2)',
     roundsCreate: 'Minta létrehozása',
 
-    // Amigurumi
     sectionAmigurumiTitle: 'Amigurumi',
     amigurumiGroupLabel: 'Amigurumi rész létrehozása',
     amigurumiNote:
@@ -337,7 +303,6 @@ export const MARKUP_TEXTS = {
     amigurumiDistributeLabel: 'Eltérő szemszámnál egyenletes elosztás',
     amigurumiAdd: 'Hozzáadás részként',
 
-    // Jelölés és jelek
     sectionNotationTitle: 'Jelölés és jelek',
     notationGroupLabel: 'Jelölés és jelek',
     uiLanguageLabel: 'A felület nyelve',
@@ -355,17 +320,15 @@ export const MARKUP_TEXTS = {
     chartStyleLabel: 'Jelstílus',
     chartStyleCyc: 'CYC (Craft Yarn Council)',
     chartStyleJis: 'Japán (JIS)',
-    /* A rövidpálca jelének választása kikerült (PQW-929): a jel a jelstílusból jön. */
+    /* The single crochet symbol is no longer chosen here (PQW-929): it comes from the symbol style. KB: decisions.md §4 */
     notationNote:
       'A jelölés és a jelstílus a felület nyelvétől független, és a minta adatán nem változtat: a paletta, a vászon, az írott minta és az export is ezt követi.',
 
-    // Minta
     sectionPatternTitle: 'Minta',
     patternNameLabel: 'Minta neve',
     patternAutosaveNote: 'A minta automatikusan mentődik ebbe a böngészőbe.',
     patternExportGridLabel: 'Rács a PNG- és SVG-exportban',
 
-    // Billentyűk
     keysSummary: 'Billentyűk',
     keysPick: 'szem kiválasztása',
     keysTarget: 'célpont a vásznon',
@@ -389,7 +352,6 @@ export const MARKUP_TEXTS = {
     keysNudgeSuffix: '+nyilak',
     keysNudge: 'a kijelölt jel eltolása',
 
-    // Kijelölt jel igazítása
     adjustTitle: 'Kijelölt jel igazítása',
     adjustGroupLabel: 'Eltolás',
     adjustUp: 'Fel',
@@ -399,12 +361,10 @@ export const MARKUP_TEXTS = {
     adjustUnpin: 'Számolt helyre',
   },
   en: {
-    // The document head: browser tab title and description (PQW-905), with the searched phrases (PQW-918)
     docTitle: 'Free Crochet Pattern Designer & Chart Maker — Dragonette',
     docDescription:
       'Free crochet pattern designer and chart maker in your browser: symbol charts for rows and rounds, live checking, written patterns, shawls, garments, amigurumi.',
 
-    // Cookie banner
     consentTitle: 'May I measure visits?',
     consentBody:
       'With Google Analytics cookies I would like to see how many people visit the site and the pattern designer, and which pages they look at. Only if you accept: I do not use it for advertising, and you can change your decision any time with the “Cookie settings” button in the stitch palette.',
@@ -415,7 +375,6 @@ export const MARKUP_TEXTS = {
     consentDecline: 'Decline',
     consentOpen: 'Cookie settings',
 
-    // Toolbar
     homeLabel: 'Back to the dragonettecrochet.com home page',
     homeText: 'Home',
     barTitle: 'Pattern designer',
@@ -423,14 +382,12 @@ export const MARKUP_TEXTS = {
     writtenToggle: 'Written pattern',
     panelToggle: 'Stitches and settings',
 
-    // Tool groups
     toolGroupFile: 'File',
     toolGroupEdit: 'Edit',
     toolGroupRow: 'Row and round',
     toolGroupSelect: 'Selection',
     toolGroupView: 'View',
 
-    // File
     toolNewLabel: 'New pattern',
     toolNewTip: 'New pattern',
     toolImportLabel: 'Open JSON',
@@ -442,17 +399,14 @@ export const MARKUP_TEXTS = {
     toolExportSvgLabel: 'SVG',
     toolExportSvgTip: 'Save SVG image (vector)',
 
-    // Edit
     toolUndoLabel: 'Undo',
     toolUndoTip: 'Undo (Ctrl+Z)',
     toolRedoLabel: 'Redo',
     toolRedoTip: 'Redo (Ctrl+Shift+Z)',
 
-    // Row and round
     toolFillRowLabel: 'Fill row',
     toolFillRowTip: 'Fill the row with the selected stitch (Shift+Alt+F)',
 
-    // The file menu and the one-word labels under the icons (PQW-911)
     toolFileMenuLabel: 'File actions',
     toolFileMenuTip: 'Save, load and image export',
     toolLabelNew: 'New',
@@ -471,7 +425,6 @@ export const MARKUP_TEXTS = {
     toolLabelZoomIn: 'Larger',
     toolLabelFit: 'Fit',
 
-    // The panel toggles in the toolbar (PQW-912)
     toolGroupPanels: 'View and panels',
     toolGroupViews: 'Panels',
     toolTypesLabel: 'Pattern type sidebar',
@@ -489,7 +442,6 @@ export const MARKUP_TEXTS = {
     toolSpiralLabel: 'End round in a spiral',
     toolSpiralTip: 'End of round in a spiral, without joining (Alt+S)',
 
-    // Selection
     toolSelectAreaLabel: 'Select area',
     toolSelectAreaTip:
       'Select an area by dragging. With no stitch chosen, click: one stitch, Shift: several, row number: the whole row',
@@ -498,7 +450,6 @@ export const MARKUP_TEXTS = {
     toolDuplicateLabel: 'Duplicate selection',
     toolDuplicateTip: 'Duplicate the selection, e.g. into the next row (Ctrl+D)',
 
-    // View
     toolGridLabel: 'Grid',
     toolGridTip: 'Grid on and off (Alt+R)',
     toolZoomOutLabel: 'Zoom out',
@@ -508,13 +459,11 @@ export const MARKUP_TEXTS = {
     toolFitLabel: 'Whole pattern',
     toolFitTip: 'Fit the whole pattern to the screen',
 
-    // Pattern types and canvas
     typesNavLabel: 'Pattern type',
     typesTitle: 'Pattern type',
     typesIntro: 'The type sets the start and the default for closing rounds.',
     boardLabel: 'Chart: move between targets with the arrow keys, crochet with Enter',
 
-    // Written pattern
     writtenGripLabel: 'Height of the written pattern',
     writtenTitle: 'Written pattern',
     writtenFullView: 'Full view',
@@ -523,7 +472,6 @@ export const MARKUP_TEXTS = {
     writtenTextLabel: 'Text of the written pattern',
     panelLabel: 'Stitches and settings',
 
-    // Stitches
     sectionStitchesTitle: 'Stitches',
     stitchesChainCountLabel: 'Number of chains',
     stitchesInsertionLegend: 'Insertion',
@@ -531,7 +479,6 @@ export const MARKUP_TEXTS = {
       'Seen from the crocheter; on a wrong-side row the chart shows the right side.',
     stitchesPaletteLabel: 'Stitches',
 
-    // Size and yarn
     sectionSizeTitle: 'Size and yarn',
     sizeProfileLabel: 'Profile',
     sizeProfileNote:
@@ -562,7 +509,6 @@ export const MARKUP_TEXTS = {
     sizeAspectNote:
       'The chart cells and the grid follow the real stitch proportions: from the profile, or without one from the estimate.',
 
-    // Shape
     sectionShapeTitle: 'Shape',
     shapeGroupLabel: 'Create a flat shape from cm',
     shapeNote:
@@ -586,7 +532,6 @@ export const MARKUP_TEXTS = {
     shapeRibbingWidthLabel: 'Rib width (1×1, 2×2)',
     shapeCreate: 'Create pattern',
 
-    // Shawl
     sectionShawlTitle: 'Shawl',
     shawlGroupLabel: 'Create a shawl from measurements',
     shawlNote:
@@ -610,7 +555,6 @@ export const MARKUP_TEXTS = {
     shawlPreviewNote: 'Solid line: blocked; dashed: unblocked.',
     shawlCreate: 'Create pattern',
 
-    // Garment
     sectionGarmentTitle: 'Garment',
     garmentGroupLabel: 'Create a garment from body measurements',
     garmentNote:
@@ -639,7 +583,6 @@ export const MARKUP_TEXTS = {
     garmentRibbingWidthLabel: 'Rib width (1×1, 2×2)',
     garmentCreate: 'Create pattern',
 
-    // Grid chart
     sectionGridTitle: 'Grid chart',
     gridGroupLabel: 'Grid chart: filet, C2C, tapestry, graphgan, mosaic',
     gridNote:
@@ -667,7 +610,6 @@ export const MARKUP_TEXTS = {
     gridCreate: 'Create pattern',
     gridLoad: 'Grid from the current pattern',
 
-    // Rounds and motifs
     sectionRoundsTitle: 'Round and motif',
     roundsGroupLabel: 'Create a round or motif',
     roundsNote:
@@ -688,7 +630,6 @@ export const MARKUP_TEXTS = {
     roundsRibbingWidthLabel: 'Rib width (1×1, 2×2)',
     roundsCreate: 'Create pattern',
 
-    // Amigurumi
     sectionAmigurumiTitle: 'Amigurumi',
     amigurumiGroupLabel: 'Create an amigurumi piece',
     amigurumiNote:
@@ -716,7 +657,6 @@ export const MARKUP_TEXTS = {
     amigurumiDistributeLabel: 'Distribute evenly when the stitch counts differ',
     amigurumiAdd: 'Add as a piece',
 
-    // Notation and symbols
     sectionNotationTitle: 'Notation and symbols',
     notationGroupLabel: 'Notation and symbols',
     uiLanguageLabel: 'Interface language',
@@ -737,13 +677,11 @@ export const MARKUP_TEXTS = {
     notationNote:
       'The notation and the symbol style are independent of the interface language, and do not change the pattern data: the palette, the canvas, the written pattern and the export all follow them.',
 
-    // Pattern
     sectionPatternTitle: 'Pattern',
     patternNameLabel: 'Pattern name',
     patternAutosaveNote: 'The pattern is saved automatically in this browser.',
     patternExportGridLabel: 'Grid in the PNG and SVG export',
 
-    // Keys
     keysSummary: 'Keys',
     keysPick: 'choose a stitch',
     keysTarget: 'target on the canvas',
@@ -767,7 +705,6 @@ export const MARKUP_TEXTS = {
     keysNudgeSuffix: '+arrows',
     keysNudge: 'nudge the selected symbol',
 
-    // Nudging the selected symbol
     adjustTitle: 'Nudge the selected symbol',
     adjustGroupLabel: 'Nudge',
     adjustUp: 'Up',

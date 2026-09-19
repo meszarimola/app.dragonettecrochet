@@ -1,21 +1,9 @@
 /*
- * A szerkesztő és a kijelölés üzenetei a felület nyelvén (PQW-904).
+ * Editor and selection core messages as sentences. The core gives a layer
+ * index, a `shape` and an `unchanged` flag; the article, the suffix, the row or
+ * round word and the closing "the pattern is unchanged" are added here.
  *
- * A mag kódot és adatot ad (`EditCode`, `CopyCode`); a mondat itt készül. A
- * magyar szöveg betűre az, ami eddig a magban állt: ez átvezetés, nem
- * újrafogalmazás, ezért a magyar felület egy karakterrel sem változik.
- *
- * Két dolog nem a felület nyelvét követi:
- * - a SZEMNÉV a minta JELÖLÉSÉÉ (PQW-868), ezért a `termsLocale()`-ból jön, nem
- *   a szótárból; a `stitchName` adattal a main.ts helyőrzőt adhat, hogy a nevet
- *   saját `lang` attribútumú elemben írja ki (PQW-853);
- * - a BESZÚRÁSI MÓD neve a felület szótáráé (`sections.ts` `insertion.names`),
- *   így a mag `insertion.ts`-e érintetlen marad.
- *
- * A névelő, a rag, a sor/kör szava és a „A minta nem változott.” záró mondat is
- * ide tartozik: a mag csak rétegszámot, `shape`-et és `unchanged` jelzőt ad.
- *
- * DOM nélküli, ezért a Node is futtatja.
+ * KB: dictionaries.md §1, §5, §6
  */
 
 import type { EditCode } from '../../../core/editor.ts';
@@ -31,8 +19,8 @@ import { bool, isRound, list, num, str, type CoreDictionary } from './render.ts'
 type Language = 'hu' | 'en';
 
 /**
- * A szem neve a JELÖLÉS nyelvén. A felület a `stitchName` adattal helyőrzőt
- * adhat (main.ts `withStitchName`), hogy a név saját `lang` attribútumot kapjon.
+ * The stitch name follows the NOTATION, not the interface language, so it is not
+ * read from the dictionary. KB: interface.md §2, §3
  */
 function stitchName(data: CoreData): string {
   const marked = str(data, 'stitchName');
@@ -41,27 +29,21 @@ function stitchName(data: CoreData): string {
   return resolveStitch(id)?.terms[termsLocale()].name ?? id;
 }
 
-/** A beszúrási mód neve a felület nyelvén (szókészlet §3). */
 const insertionName = (language: Language, mode: string): string =>
   SECTION_TEXTS[language].insertion.names[mode as StitchInsertion] ?? mode;
 
-/** A választható módok felsorolása, a mag `allowed` listájából. */
 const insertionList = (language: Language, data: CoreData): string =>
   list(data, 'allowed')
     .map((mode) => insertionName(language, String(mode)))
     .join(', ');
-
-/* ---- Magyar segédek ---- */
 
 const huShape = (data: CoreData): string => (isRound(data) ? 'kör' : 'sor');
 
 const HU_SLOT_NOUN: Readonly<Record<string, string>> = { space: 'láncív', ring: 'varázskör', stitch: 'szem' };
 const HU_SLOT_INTO: Readonly<Record<string, string>> = { space: 'láncívbe', ring: 'varázskörbe', stitch: 'szembe' };
 
-/** A művelet félig sem hajtódott végre: a mag `unchanged` jelzője zárja a mondatot. */
 const huUnchanged = (data: CoreData): string => (bool(data, 'unchanged') ? ' A minta nem változott.' : '');
 
-/** A mag párhuzamos listái rétegenkénti bontássá; a mondat a `layer-counts.ts`-é. */
 const byLayer = (data: CoreData): readonly LayerCount[] => {
   const shapes = list(data, 'shapes');
   const counts = list(data, 'counts');
@@ -72,10 +54,7 @@ const byLayer = (data: CoreData): readonly LayerCount[] => {
   }));
 };
 
-/** „2. sor: 1 szem, 3. sor: 1 szem”. */
 const huByLayer = (data: CoreData): string => huLayerCounts(byLayer(data));
-
-/* ---- Angol segédek ---- */
 
 const enShape = (data: CoreData): string => (isRound(data) ? 'round' : 'row');
 
@@ -85,13 +64,9 @@ const enUnchanged = (data: CoreData): string => (bool(data, 'unchanged') ? ' The
 
 const enByLayer = (data: CoreData): string => enLayerCounts(byLayer(data));
 
-/**
- * A két terület egy szótárban: a másolás kódjai (`CopyCode`) az `EditCode`
- * részhalmaza, mert a duplikálás továbbadja őket az `EditResult`-ban.
- */
+/** One dictionary for two areas: `CopyCode` is a subset of `EditCode`, because duplication passes those codes on in the `EditResult`. */
 export const EDITOR_CORE_TEXTS: CoreDictionary<EditCode | CopyCode> = {
   hu: {
-    /* ---- Szerkesztő ---- */
     'tradition-unchanged': 'A minta már ezt a hagyományt követi.',
     'unknown-stitch': (data) => `Ismeretlen szem: ${str(data, 'id')}`,
     'ring-only-at-start': 'Varázskör csak a minta elején lehet.',
@@ -130,7 +105,6 @@ export const EDITOR_CORE_TEXTS: CoreDictionary<EditCode | CopyCode> = {
     'pattern-empty': 'A minta üres.',
     'no-such-node': (data) => `Nincs ilyen szem: ${str(data, 'id')}`,
 
-    /* ---- Kijelölés: törlés és beillesztés ---- */
     'no-selection': 'Nincs kijelölt szem.',
     'has-dependents': (data) =>
       `A kijelölt szemekbe még ${huStitches(num(data, 'count'))} horgol (${huByLayer(data)}); csak velük együtt törölhető.${huUnchanged(data)}`,
@@ -155,7 +129,6 @@ export const EDITOR_CORE_TEXTS: CoreDictionary<EditCode | CopyCode> = {
     'paste-no-reuse-slots': (data) => `Nincs elég célpont a beillesztéshez.${huUnchanged(data)}`,
     'paste-would-break': (data) => `A beillesztés hibás szerkezetet adna, ezért nem illesztettem be.${huUnchanged(data)}`,
 
-    /* ---- Kijelölés: másolás ---- */
     'copy-broken-pattern': 'A minta szerkezete hibás, ezért nem másolható.',
     'copy-layer-outside': (data) =>
       `A kijelölt ${huLayer(num(data, 'layer'), isRound(data))} olyan szemekbe is horgol, amelyek nincsenek kijelölve: jelöld ki az alatta lévő sort is.`,
@@ -165,7 +138,6 @@ export const EDITOR_CORE_TEXTS: CoreDictionary<EditCode | CopyCode> = {
       'A kijelölés egy szeme nem a közvetlenül alatta lévő sor egy célpontjába horgol (pl. hosszú szem, vagy egy láncív egyik láncszeme); ezt még nem lehet másolni.',
   },
   en: {
-    /* ---- Editor ---- */
     'tradition-unchanged': 'The pattern already follows this preset.',
     'unknown-stitch': (data) => `Unknown stitch: ${str(data, 'id')}`,
     'ring-only-at-start': 'A magic ring can only be at the start of the pattern.',
@@ -204,7 +176,6 @@ export const EDITOR_CORE_TEXTS: CoreDictionary<EditCode | CopyCode> = {
     'pattern-empty': 'The pattern is empty.',
     'no-such-node': (data) => `There is no such stitch: ${str(data, 'id')}`,
 
-    /* ---- Selection: deleting and pasting ---- */
     'no-selection': 'No stitch is selected.',
     'has-dependents': (data) =>
       `${enStitches(num(data, 'count'))} are still worked into the selected stitches (${enByLayer(data)}); they can only be deleted together.${enUnchanged(data)}`,
@@ -232,7 +203,6 @@ export const EDITOR_CORE_TEXTS: CoreDictionary<EditCode | CopyCode> = {
     'paste-no-reuse-slots': (data) => `There are not enough targets to paste into.${enUnchanged(data)}`,
     'paste-would-break': (data) => `Pasting would give a broken structure, so nothing was pasted.${enUnchanged(data)}`,
 
-    /* ---- Selection: copying ---- */
     'copy-broken-pattern': 'The structure of the pattern is broken, so it cannot be copied.',
     'copy-layer-outside': (data) =>
       `The selected ${enLayer(num(data, 'layer'), isRound(data))} is also worked into stitches that are not selected: select the row below it as well.`,

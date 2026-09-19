@@ -1,16 +1,8 @@
 /*
- * A bordázat magból jövő üzenetei mondattá (PQW-904, PQW-909).
+ * Ribbing messages, spread into the Shape, the Round-and-motif and the garment
+ * dictionaries.
  *
- * A bordás szegély két generátorban is választható: a Forma a darab felső élén
- * (`shapes.ts`), a Kör és motívum a perem körül (`round-generator.ts`). A két
- * kódkészlet ezért egyaránt tartalmazza a `RibbingCode`-ot, és mindkét szótár
- * kötelezően teljes — ha a mondatok két helyen állnának, elcsúszhatnának
- * egymástól. Ezért laknak itt, és mindkét szótár innen veszi át őket.
- *
- * A magyar ág betűre az, ami korábban a magban állt (`src/core/ribbing.ts`):
- * átvezetés, nem újrafogalmazás.
- *
- * DOM nélküli, ezért a Node is futtatja.
+ * KB: dictionaries.md §4
  */
 
 import type { RibbingCode } from '../../../core/ribbing.ts';

@@ -1,21 +1,10 @@
 /*
- * A Forma és a Kendő magból jövő üzenetei mondattá (PQW-904).
+ * Shape and Shawl core messages as sentences. `internal-error` is their shared
+ * code for "this is a bug in the program": `rule` names the check that failed
+ * and `row` the row or round that left the plan; with no data at all the row
+ * plan itself was incomplete.
  *
- * A mag kódot és adatot ad (`ShapeCode`, `ShawlCode`), a mondat
- * itt készül. A magyar ág betűre a mai szöveg: ez átvezetés, nem
- * újrafogalmazás, ezért a magyar felület megjelenése nem változik.
- *
- * Ami a magban nincs, és itt kerül a mondatba:
- * - a sor és a kör szava: a mag `shape: 'row' | 'round'` értéket ad (`isRound`);
- * - a magyar névelő: a mai szöveg „A(z)” alakja marad, mert a megjelenés egy
- *   karakterrel sem változhat;
- * - a határok és a sorszámok: a magban az adat mezői, itt a mondat helyén.
- *
- * Az `internal-error` a „ez a program hibája” esetek közös kódja: `rule` a
- * megbukott szabály, `row` (és `shape`) a tervtől eltérő sor vagy kör, adat
- * nélkül a hiányos sorterv.
- *
- * DOM nélküli, ezért a Node is futtatja.
+ * KB: dictionaries.md §1, §5
  */
 
 import type { CoreData } from '../../../core/messages.ts';
@@ -24,19 +13,15 @@ import type { ShawlCode } from '../../../core/shawls.ts';
 import { RIBBING_EN, RIBBING_HU } from './ribbing.ts';
 import { isRound, num, str, type CoreDictionary, type CoreEntry } from './render.ts';
 
-/** A három terület kódkészlete együtt; a kendő a stólához a forma kódjait is használja. */
 type ShapeCoreCode = ShapeCode | ShawlCode;
 
 type Entries = Readonly<Record<ShapeCoreCode, CoreEntry>>;
 
-/** A sor vagy a kör szava magyarul: a mag csak a `shape`-et adja. */
 const huNoun = (data: CoreData): string => (isRound(data) ? 'kör' : 'sor');
 
 const hu: Entries = {
-  /* ---- Bordázat (a Kör és motívum szótárával közös, PQW-909) ---- */
   ...RIBBING_HU,
 
-  /* ---- Forma ---- */
   'shape-basic-stitch-only': 'Ehhez a generátorhoz alapszemet válassz: rövidpálca, félpálca, egyráhajtásos vagy kétráhajtásos pálca.',
   'shape-width-range': (data) => `A szélesség 0 és ${num(data, 'max')} cm közötti szám legyen.`,
   'shape-height-range': (data) => `A magasság 0 és ${num(data, 'max')} cm közötti szám legyen.`,
@@ -55,7 +40,6 @@ const hu: Entries = {
   'shape-too-steep': 'Ilyen meredek élt ennyi sorban nem lehet horgolni: adj meg nagyobb magasságot.',
   'shape-row-too-narrow': (data) => `A(z) ${num(data, 'row')}. sor túl keskeny ehhez az alakításhoz: adj meg nagyobb méretet vagy laposabb élt.`,
 
-  /* ---- Kendő ---- */
   'shawl-basic-stitch-only': 'Ehhez a generátorhoz alapszemet válassz: rövidpálca, félpálca, egyráhajtásos vagy kétráhajtásos pálca.',
   'shawl-size-range': (data) => `A méret 0 és ${num(data, 'max')} cm közötti szám legyen.`,
   'shawl-length-range': (data) => `A hossz 0 és ${num(data, 'max')} cm közötti szám legyen.`,
@@ -83,7 +67,6 @@ const hu: Entries = {
   'shawl-too-many-into-one': (data) =>
     `A(z) ${num(data, 'row')}. sorban egy szembe ${num(data, 'count')} szem kerülne: válassz kisebb szaporítást, vagy nagyobb méretet.`,
 
-  /* ---- Közös belső hiba ---- */
   'internal-error': (data) => {
     const rule = str(data, 'rule');
     if (rule !== '') return `A generált minta nem ment át az ellenőrzőn (${rule}): ez a program hibája, kérlek, jelezd.`;
@@ -94,10 +77,8 @@ const hu: Entries = {
 };
 
 const en: Entries = {
-  /* ---- Ribbing (shared with the Circle and motif dictionary, PQW-909) ---- */
   ...RIBBING_EN,
 
-  /* ---- Shape ---- */
   'shape-basic-stitch-only': 'Choose a basic stitch for this generator: single, half double, double or treble crochet.',
   'shape-width-range': (data) => `The width should be a number between 0 and ${num(data, 'max')} cm.`,
   'shape-height-range': (data) => `The height should be a number between 0 and ${num(data, 'max')} cm.`,
@@ -116,7 +97,6 @@ const en: Entries = {
   'shape-too-steep': 'Such a steep edge cannot be crocheted in this many rows: give a larger height.',
   'shape-row-too-narrow': (data) => `Row ${num(data, 'row')} is too narrow for this shaping: give a larger size or a flatter edge.`,
 
-  /* ---- Shawl ---- */
   'shawl-basic-stitch-only': 'Choose a basic stitch for this generator: single, half double, double or treble crochet.',
   'shawl-size-range': (data) => `The size should be a number between 0 and ${num(data, 'max')} cm.`,
   'shawl-length-range': (data) => `The length should be a number between 0 and ${num(data, 'max')} cm.`,
@@ -146,7 +126,6 @@ const en: Entries = {
   'shawl-too-many-into-one': (data) =>
     `Row ${num(data, 'row')} would put ${num(data, 'count')} stitches into one stitch: choose a smaller increase rate, or a larger size.`,
 
-  /* ---- Shared internal error ---- */
   'internal-error': (data) => {
     const rule = str(data, 'rule');
     if (rule !== '') return `The generated pattern did not pass the checker (${rule}): this is a bug, please report it.`;

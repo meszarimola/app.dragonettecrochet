@@ -1,22 +1,9 @@
 /*
- * A kör-, a forma- és az amigurumi-generátor üzenetei a felület nyelvén
- * (PQW-904).
+ * Shape, piece and round-and-motif core messages as sentences. Two of them
+ * quote an interface element: the „Új minta ebből” button, whose label is taken
+ * from `markup.ts` so the two cannot drift apart, and the Check panel.
  *
- * A mag kódot és adatot ad (`CoreText`, src/core/messages.ts); a mondat itt
- * készül. A magyar ág betűre az, ami korábban a magban állt: átvezetés, nem
- * újrafogalmazás. A magyar névelő és a mezők neve („Az átmérő”, „A hossz”,
- * „A(z) 3. kör”) is ide tartozik, mert az a felület nyelvének a dolga.
- *
- * Két üzenet felületi elemet idéz: az „Új minta ebből” gombot és az Ellenőrzés
- * panelt. A gomb nevét a jelölés szótárából vesszük (`markup.ts`), hogy a két
- * hely ne csúszhasson el; az Ellenőrzésre ugyanúgy hivatkozunk, ahogy a
- * `sections.ts` írott mintás üzenete.
- *
- * A formák és a motívumok NEVE nem itt van: az a minta címébe és a darab
- * nevébe kerül, ezért a magban marad magyarul (`SHAPE_NAMES`, `MOTIF_NAMES`).
- * A panelek listái a `panels.ts` neveit mutatják.
- *
- * DOM nélküli, ezért a Node is futtatja.
+ * KB: dictionaries.md §1, §5, §6
  */
 
 import type { AmigurumiCode } from '../../../core/amigurumi-generator.ts';
@@ -28,10 +15,8 @@ import { RIBBING_EN, RIBBING_HU } from './ribbing.ts';
 import { num, renderCoreText, str } from './render.ts';
 import type { CoreDictionary, CoreEntry } from './render.ts';
 
-/** A szakasz teljes kódkészlete: a forma, a rész és a motívum üzenetei. */
 export type AmigurumiCoreCode = AmigurumiCode | MotifCode;
 
-/** A méret mezőjének neve névelővel; a mag csak az azonosítót adja (`SizeField`). */
 const HU_FIELDS: Readonly<Record<string, string>> = {
   diameter: 'Az átmérő',
   height: 'A magasság',
@@ -46,11 +31,6 @@ const EN_FIELDS: Readonly<Record<string, string>> = {
   width: 'The width',
 };
 
-/**
- * A közös `internal-error` kód belső oka (`data.inner`): a mondat eleje. A
- * végét — „ez a program hibája, kérlek, jelezd.” — mindegyik osztja, így egy
- * újabb belső ellentmondás csak egy sor itt.
- */
 const HU_INTERNAL: Readonly<Record<string, (data: CoreData) => string>> = {
   'oval-round-count': (data) => `Az ovális ${num(data, 'round')}. köre ${num(data, 'count')} szem lett ${num(data, 'expected')} helyett`,
 };
@@ -64,10 +44,8 @@ const huInternal = (data: CoreData): string => HU_INTERNAL[str(data, 'inner')]?.
 const enInternal = (data: CoreData): string => EN_INTERNAL[str(data, 'inner')]?.(data) ?? '';
 
 const hu: Readonly<Record<AmigurumiCoreCode, CoreEntry>> = {
-  /* ---- Bordázat (a Forma szótárával közös, PQW-909) ---- */
   ...RIBBING_HU,
 
-  /* ---- Forma és körterv (amigurumi.ts) ---- */
   'size-range': (data) => `${HU_FIELDS[str(data, 'field')] ?? ''} 0 és ${num(data, 'max')} cm közötti szám lehet.`,
   'cone-increases-range': (data) => `A körönkénti szaporítás 0 és ${num(data, 'max')} közötti szám lehet, pl. 2,5.`,
   'oval-length': 'Az ovális hossza legalább akkora legyen, mint a szélessége: a hosszabbik méret a hossz.',
@@ -81,7 +59,6 @@ const hu: Readonly<Record<AmigurumiCoreCode, CoreEntry>> = {
   'distribution-mismatch': (data) =>
     `Az elosztás nem illik a két szélhez: a ${num(data, 'small')} szemes szél minden szeméhez legalább 1 szem kell, összesen ${num(data, 'large')}.`,
 
-  /* ---- Részek (amigurumi-generator.ts) ---- */
   'open-start-piece': 'Nyitott kezdésű rész csak folytatólagosan, egy előző rész nyitott végéhez kapcsolható.',
   'no-previous-piece': `Előbb hozz létre egy részt az „${MARKUP_TEXTS.hu.amigurumiCreate}” gombbal; a következő rész ehhez kapcsolódik.`,
   'previous-piece-broken': 'Az előző rész szerkezete hibás, ezért nem kapcsolható hozzá új rész; a hibákat az Ellenőrzés sorolja fel.',
@@ -97,7 +74,6 @@ const hu: Readonly<Record<AmigurumiCoreCode, CoreEntry>> = {
   'oval-ends-increase': (data) => `Az ovális ${num(data, 'round')}. körében a végek szaporítása nem fér el.`,
   'internal-error': (data) => `${huInternal(data)}: ez a program hibája, kérlek, jelezd.`,
 
-  /* ---- Kör és motívum (round-generator.ts) ---- */
   'rounds-range': (data) => `A körök száma 1 és ${num(data, 'max')} között lehet.`,
   'color-rounds-whole': 'A színváltás köreinek száma nem negatív egész szám.',
   'base-stitch': 'Ehhez a generátorhoz alapszemet válassz: rövidpálca, félpálca vagy pálca.',
@@ -110,10 +86,8 @@ const hu: Readonly<Record<AmigurumiCoreCode, CoreEntry>> = {
 };
 
 const en: Readonly<Record<AmigurumiCoreCode, CoreEntry>> = {
-  /* ---- Ribbing (shared with the Shape dictionary, PQW-909) ---- */
   ...RIBBING_EN,
 
-  /* ---- Shape and round plan ---- */
   'size-range': (data) => `${EN_FIELDS[str(data, 'field')] ?? ''} must be a number between 0 and ${num(data, 'max')} cm.`,
   'cone-increases-range': (data) => `The increases per round must be a number between 0 and ${num(data, 'max')}, e.g. 2.5.`,
   'oval-length': 'The length of the oval must be at least as large as its width: the longer measurement is the length.',
@@ -128,7 +102,6 @@ const en: Readonly<Record<AmigurumiCoreCode, CoreEntry>> = {
   'distribution-mismatch': (data) =>
     `The distribution does not fit the two edges: every stitch of the ${num(data, 'small')}-stitch edge needs at least 1 stitch, ${num(data, 'large')} in total.`,
 
-  /* ---- Pieces ---- */
   'open-start-piece': 'A piece with an open start can only be added as a continuation, joined to the open end of a previous piece.',
   'no-previous-piece': `First create a piece with the “${MARKUP_TEXTS.en.amigurumiCreate}” button; the next piece is joined to it.`,
   'previous-piece-broken':
@@ -145,7 +118,6 @@ const en: Readonly<Record<AmigurumiCoreCode, CoreEntry>> = {
   'oval-ends-increase': (data) => `In round ${num(data, 'round')} of the oval the increases at the ends do not fit.`,
   'internal-error': (data) => `${enInternal(data)}: this is a bug in the program, please report it.`,
 
-  /* ---- Round and motif ---- */
   'rounds-range': (data) => `The number of rounds can be between 1 and ${num(data, 'max')}.`,
   'color-rounds-whole': 'The number of rounds between colour changes must be a non-negative whole number.',
   'base-stitch': 'Choose a basic stitch for this generator: single crochet, half double crochet or double crochet.',
@@ -159,7 +131,6 @@ const en: Readonly<Record<AmigurumiCoreCode, CoreEntry>> = {
 
 export const AMIGURUMI_CORE_TEXTS: CoreDictionary<AmigurumiCoreCode> = { hu, en };
 
-/** A magból jövő üzenet mondata a felület mostani nyelvén. */
 export function amigurumiCoreText(message: CoreText<AmigurumiCoreCode>): string {
   return renderCoreText(AMIGURUMI_CORE_TEXTS[uiLanguage()], message);
 }

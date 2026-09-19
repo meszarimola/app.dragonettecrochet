@@ -1,8 +1,8 @@
 /*
- * Böngészős tesztek a buildelt kimeneten (`npm run test:e2e` előtte buildel).
+ * Browser tests against the built output; `npm run test:e2e` builds first.
  *
- * Saját port, `--strictPort`-tal: ha foglalt, a futás hibával áll meg, és nem
- * egy másik worktree előnézetét méri.
+ * Its own port with `--strictPort`: if the port is taken the run fails instead
+ * of measuring another worktree's preview. KB: incidents.md §3
  */
 
 import { defineConfig, devices } from '@playwright/test';

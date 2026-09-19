@@ -1,21 +1,9 @@
 /*
- * A ruhadarabok magüzenetei mondattá (PQW-904).
+ * Garment core messages as sentences. The core gives size and measurement ids
+ * and raw numbers; the names, the number format, and the article and capital
+ * that a sentence needs are the interface's (`panels.ts`).
  *
- * A mag (garments.ts, raglan.ts, body-sizes.ts) kódot és nyers adatot ad
- * (`CoreText<GarmentCode>`); a mondat itt készül, a felület nyelvén. A magyar
- * ág betűre a mai szöveg: ez átvezetés, nem újrafogalmazás.
- *
- * Ami a felületé, nem a magé:
- * - a méret neve: a mag azonosítót ad (`adult-m`, `8`), a nevet a
- *   `hatSizeName`/`bodySizeName` adja a felület nyelvéből képzett `Locale`-lal;
- * - a mértéknév: a mag a mérés azonosítóját adja, a nevet itteni táblázat;
- * - a számok alakja: magyarul tizedesvessző és `hu` csoportosítás, angolul
- *   tizedespont;
- * - a nagybetűsítés és a névelő: azt a panelek szótára teszi hozzá
- *   (`i18n/panels.ts` `monotonic`, `failedCheck`, `flag`).
- *
- * DOM nélküli, ezért a Node is futtatja, és a magot `.ts` kiterjesztéssel
- * importálja.
+ * KB: dictionaries.md §1, §5
  */
 
 import { bodySizeName, hatSizeName, type BodyMeasure, type BodyTableId } from '../../../core/body-sizes.ts';
@@ -26,8 +14,6 @@ import type { GarmentTable, Locale } from '../../../core/types.ts';
 import { list, num, renderCoreText, str, type CoreDictionary, type CoreEntry } from './render.ts';
 import { RIBBING_EN, RIBBING_HU } from './ribbing.ts';
 import { SHAPE_CORE_TEXTS } from './shape.ts';
-
-/* ---- Mértéknevek: a mag a mérés azonosítóját adja ---- */
 
 const HU_MEASURES: Readonly<Record<BodyMeasure, string>> = {
   chest: 'mellbőség',
@@ -58,8 +44,6 @@ const EN_MEASURES: Readonly<Record<BodyMeasure, string>> = {
 const measure = (data: CoreData, key: string, names: Readonly<Record<BodyMeasure, string>>): string =>
   names[str(data, key) as BodyMeasure] ?? str(data, key);
 
-/* ---- Számok és tartományok nyelvenként ---- */
-
 const huNumber = (value: string | number): string => String(value).replace('.', ',');
 
 const range = (data: CoreData, key: string, format: (value: string | number) => string): string => {
@@ -71,21 +55,20 @@ const range = (data: CoreData, key: string, format: (value: string | number) => 
 const huRange = (data: CoreData, key: string) => range(data, key, huNumber);
 const enRange = (data: CoreData, key: string) => range(data, key, String);
 
-/** A méret neve a mondatba: a mag azonosítót és a táblázat fajtáját adja. */
 function sizeName(data: CoreData, locale: Locale): string {
   const id = str(data, 'size');
   const table = str(data, 'table') as GarmentTable;
   return table === 'hat' ? hatSizeName(id, locale) : bodySizeName(table as BodyTableId, id, locale);
 }
 
-/** A beágyazott üzenet: a méretenkénti elutasításban az elutasítás oka. */
 function inner(data: CoreData, language: 'hu' | 'en'): string {
   return renderCoreText(GARMENT_CORE_TEXTS[language], { code: str(data, 'inner') as GarmentCode, data });
 }
 
 /**
- * A darab építőjének hibája: a sorgenerátor kódját a forma szótára írja ki, a
- * körgenerátor pedig — amíg nem áll kódra — kész mondatot ad (`message`).
+ * The row generator's failure arrives as a code the Shape dictionary writes out;
+ * the round generator has not moved to codes yet and still hands over a finished
+ * sentence in `message`.
  */
 function pieceProblem(data: CoreData, language: 'hu' | 'en'): string {
   const message = str(data, 'message');
@@ -94,9 +77,7 @@ function pieceProblem(data: CoreData, language: 'hu' | 'en'): string {
 }
 
 const hu: Readonly<Record<GarmentCode, CoreEntry>> = {
-  // A bordázat üzenetei a saját területéről: a ruhadarab ugyanazt a magot használja (PQW-913).
   ...RIBBING_HU,
-  /* Választás és tartomány */
   'stitch-choice': 'Ehhez a generátorhoz alapszemet válassz: rövidpálca, félpálca, egyráhajtásos vagy kétráhajtásos pálca.',
   'pick-size': 'Válassz méretet a listából.',
   'series-range': 'A méretsorozat a választott méretet is tartalmazza: az első méret ne legyen nagyobb, az utolsó ne legyen kisebb nála.',
@@ -108,12 +89,10 @@ const hu: Readonly<Record<GarmentCode, CoreEntry>> = {
   'repeat-width': (d) => `Az ismétlés szemszáma (X) 1 és ${num(d, 'max')} közötti egész szám legyen.`,
   'repeat-edge': (d) => `A szélső szemek száma (Y) 0 és ${num(d, 'max')} közötti egész szám legyen.`,
 
-  /* A táblázat mérete és a méretenkénti elutasítás */
   'unknown-size': (d) => `Ismeretlen méret: ${str(d, 'size')}.`,
   'missing-measure': (d) => `A(z) ${str(d, 'size')} méretnél hiányzik a táblázatból egy szükséges méret.`,
   'size-problem': (d) => `${sizeName(d, 'hu')} méret: ${inner(d, 'hu')}`,
 
-  /* Sapka */
   'head-range': (d) => `A fejkörfogat 0 és ${num(d, 'max')} cm közötti szám legyen.`,
   'negative-ease-head': (d) => `A negatív bőség legfeljebb a fejkörfogat ${num(d, 'limit')}%-a lehet (most ${num(d, 'actual')}%): a horgolt anyag kevéssé nyúlik.`,
   'hat-height': (d) => `A sapka magassága legyen nagyobb a korona sugaránál (${num(d, 'radius')} cm).`,
@@ -121,7 +100,6 @@ const hu: Readonly<Record<GarmentCode, CoreEntry>> = {
   'hat-side': 'A sapka oldala legalább egy kör legyen: adj meg nagyobb magasságot.',
   'max-rounds': (d) => `Legfeljebb ${num(d, 'max')} kör lehet: adj meg kisebb méretet.`,
 
-  /* Ledobott vállú pulóver */
   'negative-ease-bust': (d) => `A negatív bőség legfeljebb a mellbőség ${num(d, 'limit')}%-a lehet (most ${num(d, 'actual')}%): a horgolt anyag kevéssé nyúlik.`,
   'panel-narrow': 'A hátrész túl keskeny: adj meg nagyobb méretet vagy vékonyabb fonalat.',
   'max-stitches': (d) => `Egy sorban legfeljebb ${num(d, 'max')} szem lehet: adj meg kisebb méretet vagy vastagabb fonalat.`,
@@ -134,7 +112,6 @@ const hu: Readonly<Record<GarmentCode, CoreEntry>> = {
   'max-total-sweater': (d) => `A pulóverben legfeljebb ${num(d, 'max').toLocaleString('hu')} szem lehet: válassz kisebb méretet vagy vastagabb fonalat.`,
   'max-total-raglan': (d) => `A raglánban legfeljebb ${num(d, 'max').toLocaleString('hu')} szem lehet: válassz kisebb méretet vagy vastagabb fonalat.`,
 
-  /* Felülről horgolt raglán */
   'underarm-long': 'A hónaljlánc túl hosszú ehhez a mellbőséghez: adj meg rövidebb hónaljláncot.',
   'sleeve-narrow': 'Az ujj túl keskeny ehhez a hónaljlánchoz: adj meg rövidebb hónaljláncot.',
   'yoke-min': 'A raglán mélysége legalább két kör legyen: adj meg nagyobb raglánmélységet.',
@@ -148,19 +125,16 @@ const hu: Readonly<Record<GarmentCode, CoreEntry>> = {
   'body-short': 'A törzs hiányzó szemei nem férnek el a raglánkörökben: adj meg mélyebb raglánt vagy kisebb bőséget.',
   'body-length-yoke': 'A pulóver hossza legyen nagyobb a raglán mélységénél.',
 
-  /* Program- és gráfhiba: a `rule` mondja meg, melyik lépésnél akadt el. */
   'internal-error': (d) => {
     const rule = str(d, 'rule');
     if (rule === 'raglan-stitch') return 'Ismeretlen szem a raglánhoz: ez a program hibája, kérlek, jelezd.';
     if (rule === 'raglan-neck-round') return 'A nyak köre nem a terv szerinti: ez a program hibája, kérlek, jelezd.';
     if (rule === 'raglan-round-plan') return `A(z) ${num(d, 'round')}. kör terve nem illik az előző körhöz: ez a program hibája, kérlek, jelezd.`;
     if (rule === 'raglan-divide') return 'A szétosztás köre nem a terv szerinti: ez a program hibája, kérlek, jelezd.';
-    // Az ellenőrző szabályai sokan vannak: a szabály azonosítója a mondatba kerül.
     return `A generált minta nem ment át az ellenőrzőn (${rule}): ez a program hibája, kérlek, jelezd.`;
   },
   'piece-error': (d) => pieceProblem(d, 'hu'),
 
-  /* Figyelmeztetések */
   'negative-ease-warning': (d) =>
     `A negatív bőség ${num(d, 'actual')}%: horgolt anyagnál ${num(d, 'limit')}% fölött csak nyúlós, bordás szemmel működik (05 §3.5, §7.2).`,
   'cuff-wide': 'A mandzsetta szélesebb lenne az ujj felső élénél, ezért az ujj egyenes.',
@@ -168,12 +142,10 @@ const hu: Readonly<Record<GarmentCode, CoreEntry>> = {
   'raglan-extra-rounds': (d) =>
     `A sarkok szaporítása ${num(d, 'missing')} szemmel kevesebbet ad a törzsnek, mint kell: ${num(d, 'rounds')} körben külön törzsszaporítás is van (05 §4 „C” példa).`,
 
-  /* A táblázatból hiányzó, becsült méretek */
   'estimated-armhole-depth': 'karöltőmélység',
   'estimated-cuff': 'mandzsetta',
   'estimated-upper-arm': 'felkarbőség',
 
-  /* Ellenőrzések és javaslatok: sapka */
   'check-crown-target': 'A korona utolsó köre a tervezett szemszám',
   'check-crown-doubling': 'A korona egyik körében sincs duplázásnál több szaporítás',
   'check-side-count': 'Az oldal minden köre a tervezett szemszám',
@@ -181,7 +153,6 @@ const hu: Readonly<Record<GarmentCode, CoreEntry>> = {
   'check-height': 'A kész magasság legfeljebb másfél körrel tér el a tervezettől',
   'check-negative-ease': (d) => `A negatív bőség legfeljebb ${num(d, 'limit')}%`,
 
-  /* Ellenőrzések és javaslatok: pulóver */
   'check-panel-repeat': (d) => `A hátrész és az elejerész szemszáma ${num(d, 'width')} többszöröse + ${num(d, 'edge')}`,
   'check-even-rows': 'Minden függőleges szakasz páros számú sor',
   'suggest-even-rows': 'Állíts a szegély magasságán vagy a hosszon fél sornyit: a szakaszok páros sorszámra kerekednek.',
@@ -197,7 +168,6 @@ const hu: Readonly<Record<GarmentCode, CoreEntry>> = {
   'suggest-side-seam': 'Adj nagyobb hosszt, vagy sekélyebb karöltőt: a karöltő az egész darabot elfoglalja.',
   'suggest-negative-ease-bust': (d) => `A negatív bőség legfeljebb ${num(d, 'cm')} cm lehet ekkora mellbőségnél: a horgolt anyag ennél kevésbé nyúlik.`,
 
-  /* Ellenőrzések és javaslatok: raglán */
   'check-raglan-sections': 'Az elő, a hát és az ujjak egyszerre érik el a célszemszámot a szétosztásnál',
   'suggest-raglan-sections': 'Állíts a raglán mélységén vagy a nyak bőségén: a szakaszok nem ugyanannyi kör alatt telnek be.',
   'check-raglan-growth': (d) => `Egy szakasz körönként legfeljebb ${num(d, 'max')} szemmel nő`,
@@ -209,7 +179,6 @@ const hu: Readonly<Record<GarmentCode, CoreEntry>> = {
   'check-even-rounds': 'A raglán és a törzs körszáma páros',
   'suggest-negative-ease-raglan': (d) => `A negatív bőség legfeljebb ${num(d, 'cm')} cm lehet ekkora mellbőségnél.`,
 
-  /* A méretsorozat monotonitása: a névelőt és a nagybetűt a panel teszi hozzá. */
   'monotonic-hat-stitches': 'a sapka szemszáma',
   'monotonic-rounds': 'a körök száma',
   'monotonic-raglan-body': 'a törzs szemszáma',
@@ -219,7 +188,6 @@ const hu: Readonly<Record<GarmentCode, CoreEntry>> = {
   'monotonic-cuff': 'a mandzsetta szemszáma',
   'monotonic-sleeve-top': 'az ujj felső éle',
 
-  /* A testméret-táblázat gyanús adatai */
   'flag-inch-mismatch': (d) =>
     `${measure(d, 'measure', HU_MEASURES)}: ${huRange(d, 'inch')}" = ${huRange(d, 'converted')} cm, a táblázatban ${huRange(d, 'cm')} cm.`,
   'flag-not-monotonic': (d) =>
@@ -229,9 +197,7 @@ const hu: Readonly<Record<GarmentCode, CoreEntry>> = {
 };
 
 const en: Readonly<Record<GarmentCode, CoreEntry>> = {
-  // A bordázat üzenetei a saját területéről: a ruhadarab ugyanazt a magot használja (PQW-913).
   ...RIBBING_EN,
-  /* Választás és tartomány */
   'stitch-choice': 'For this generator choose a basic stitch: single, half double, double or treble crochet.',
   'pick-size': 'Choose a size from the list.',
   'series-range': 'The size range has to contain the chosen size: the first size must not be larger and the last one not smaller than it.',
@@ -243,12 +209,10 @@ const en: Readonly<Record<GarmentCode, CoreEntry>> = {
   'repeat-width': (d) => `The stitch count of the repeat (X) must be a whole number between 1 and ${num(d, 'max')}.`,
   'repeat-edge': (d) => `The number of edge stitches (Y) must be a whole number between 0 and ${num(d, 'max')}.`,
 
-  /* A táblázat mérete és a méretenkénti elutasítás */
   'unknown-size': (d) => `Unknown size: ${str(d, 'size')}.`,
   'missing-measure': (d) => `A measurement needed at size ${str(d, 'size')} is missing from the table.`,
   'size-problem': (d) => `Size ${sizeName(d, 'en-US')}: ${inner(d, 'en')}`,
 
-  /* Sapka */
   'head-range': (d) => `The head circumference must be a number between 0 and ${num(d, 'max')} cm.`,
   'negative-ease-head': (d) =>
     `The negative ease can be at most ${num(d, 'limit')}% of the head circumference (now ${num(d, 'actual')}%): crochet fabric stretches little.`,
@@ -257,7 +221,6 @@ const en: Readonly<Record<GarmentCode, CoreEntry>> = {
   'hat-side': 'The side of the hat must be at least one round: give a greater height.',
   'max-rounds': (d) => `There can be at most ${num(d, 'max')} rounds: give a smaller size.`,
 
-  /* Ledobott vállú pulóver */
   'negative-ease-bust': (d) =>
     `The negative ease can be at most ${num(d, 'limit')}% of the bust (now ${num(d, 'actual')}%): crochet fabric stretches little.`,
   'panel-narrow': 'The back is too narrow: give a larger size or a thinner yarn.',
@@ -271,7 +234,6 @@ const en: Readonly<Record<GarmentCode, CoreEntry>> = {
   'max-total-sweater': (d) => `The sweater can have at most ${num(d, 'max').toLocaleString('en')} stitches: choose a smaller size or a thicker yarn.`,
   'max-total-raglan': (d) => `The raglan can have at most ${num(d, 'max').toLocaleString('en')} stitches: choose a smaller size or a thicker yarn.`,
 
-  /* Felülről horgolt raglán */
   'underarm-long': 'The underarm chain is too long for this bust: give a shorter underarm chain.',
   'sleeve-narrow': 'The sleeve is too narrow for this underarm chain: give a shorter underarm chain.',
   'yoke-min': 'The raglan depth must be at least two rounds: give a greater raglan depth.',
@@ -285,7 +247,6 @@ const en: Readonly<Record<GarmentCode, CoreEntry>> = {
   'body-short': 'The stitches missing from the body do not fit into the raglan rounds: give a deeper raglan or less ease.',
   'body-length-yoke': 'The length of the sweater must be greater than the raglan depth.',
 
-  /* Program- és gráfhiba */
   'internal-error': (d) => {
     const rule = str(d, 'rule');
     if (rule === 'raglan-stitch') return 'Unknown stitch for the raglan: this is a bug in the program, please report it.';
@@ -298,7 +259,6 @@ const en: Readonly<Record<GarmentCode, CoreEntry>> = {
   },
   'piece-error': (d) => pieceProblem(d, 'en'),
 
-  /* Figyelmeztetések */
   'negative-ease-warning': (d) =>
     `The negative ease is ${num(d, 'actual')}%: in crochet fabric above ${num(d, 'limit')}% it only works with a stretchy, ribbed stitch (05 §3.5, §7.2).`,
   'cuff-wide': 'The cuff would be wider than the top of the sleeve, so the sleeve is straight.',
@@ -306,12 +266,10 @@ const en: Readonly<Record<GarmentCode, CoreEntry>> = {
   'raglan-extra-rounds': (d) =>
     `The increases at the corners give the body ${num(d, 'missing')} stitches fewer than needed: in ${num(d, 'rounds')} rounds the front and back also get their own increases (05 §4, worked example C).`,
 
-  /* A táblázatból hiányzó, becsült méretek */
   'estimated-armhole-depth': 'armhole depth',
   'estimated-cuff': 'cuff',
   'estimated-upper-arm': 'upper arm',
 
-  /* Ellenőrzések és javaslatok: sapka */
   'check-crown-target': 'The last round of the crown has the planned stitch count',
   'check-crown-doubling': 'No round of the crown increases by more than doubling',
   'check-side-count': 'Every round of the side has the planned stitch count',
@@ -319,7 +277,6 @@ const en: Readonly<Record<GarmentCode, CoreEntry>> = {
   'check-height': 'The finished height differs from the planned one by at most one and a half rounds',
   'check-negative-ease': (d) => `The negative ease is at most ${num(d, 'limit')}%`,
 
-  /* Ellenőrzések és javaslatok: pulóver */
   'check-panel-repeat': (d) => `The stitch count of the back and the front is a multiple of ${num(d, 'width')} plus ${num(d, 'edge')}`,
   'check-even-rows': 'Every vertical section has an even number of rows',
   'suggest-even-rows': 'Adjust the height of the hem or the length by half a row: the sections round to an even number of rows.',
@@ -335,7 +292,6 @@ const en: Readonly<Record<GarmentCode, CoreEntry>> = {
   'suggest-side-seam': 'Give a greater length, or a shallower armhole: the armhole takes up the whole piece.',
   'suggest-negative-ease-bust': (d) => `The negative ease can be at most ${num(d, 'cm')} cm at this bust: crochet fabric stretches less than that.`,
 
-  /* Ellenőrzések és javaslatok: raglán */
   'check-raglan-sections': 'The front, the back and the sleeves reach their target stitch count at the divide at the same time',
   'suggest-raglan-sections': 'Adjust the raglan depth or the neck circumference: the sections do not fill up in the same number of rounds.',
   'check-raglan-growth': (d) => `A section grows by at most ${num(d, 'max')} stitches per round`,
@@ -347,7 +303,6 @@ const en: Readonly<Record<GarmentCode, CoreEntry>> = {
   'check-even-rounds': 'The raglan and the body have an even number of rounds',
   'suggest-negative-ease-raglan': (d) => `The negative ease can be at most ${num(d, 'cm')} cm at this bust.`,
 
-  /* A méretsorozat monotonitása */
   'monotonic-hat-stitches': 'the stitch count of the hat',
   'monotonic-rounds': 'the number of rounds',
   'monotonic-raglan-body': 'the stitch count of the body',
@@ -357,7 +312,6 @@ const en: Readonly<Record<GarmentCode, CoreEntry>> = {
   'monotonic-cuff': 'the stitch count of the cuff',
   'monotonic-sleeve-top': 'the top of the sleeve',
 
-  /* A testméret-táblázat gyanús adatai */
   'flag-inch-mismatch': (d) =>
     `${measure(d, 'measure', EN_MEASURES)}: ${enRange(d, 'inch')}" = ${enRange(d, 'converted')} cm, the table has ${enRange(d, 'cm')} cm.`,
   'flag-not-monotonic': (d) => `${measure(d, 'measure', EN_MEASURES)}: ${enRange(d, 'cm')} cm, smaller than at the previous size (${enRange(d, 'previous')} cm).`,
