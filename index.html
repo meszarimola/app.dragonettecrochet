@@ -255,6 +255,16 @@
               </svg>
               <span class="tool__label" data-i18n="toolLabelChainArc">Láncív</span>
             </button>
+            <button type="button" class="tool" data-action="fan" aria-pressed="false" aria-label="Legyező" data-tip="Legyező: kattints az alappontra és húzd az irányba. A kijelölt legyező számbillentyűvel állítható." data-i18n-label="toolFanLabel" data-i18n-tip="toolFanTip">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M10 17V7" />
+                <path d="M10 17 4.5 9" />
+                <path d="M10 17 15.5 9" />
+                <path d="M10 17 6.8 7.6" />
+                <path d="M10 17 13.2 7.6" />
+              </svg>
+              <span class="tool__label" data-i18n="toolLabelFan">Legyező</span>
+            </button>
           </div>
 
           <div class="tools__group" role="group" aria-label="Nézet" data-i18n-label="toolGroupView">
@@ -481,6 +491,29 @@
                   <button type="button" class="button" id="arc-explode" data-i18n="arcExplode">Szétbontás</button>
                 </p>
                 <p class="panel__note" data-i18n="arcHint">A két végpont és a középső fogantyú a vásznon húzható. Kijelölt ívnél a számbillentyűk a szemek számát állítják.</p>
+              </div>
+              <div id="props-fan" hidden>
+                <h3 class="panel__title" data-i18n="fanTitle">Legyező</h3>
+                <p class="panel__field">
+                  <label for="fan-mode" data-i18n="fanModeLabel">Fajta</label>
+                  <select id="fan-mode"></select>
+                </p>
+                <p class="panel__field">
+                  <label for="fan-count" data-i18n="fanCountLabel">Szemek száma</label>
+                  <input id="fan-count" type="number" min="2" max="200" step="1" inputmode="numeric" />
+                </p>
+                <p class="panel__field">
+                  <label for="fan-spread" data-i18n="fanSpreadLabel">Szétnyílás (fok)</label>
+                  <input id="fan-spread" type="number" min="5" max="350" step="1" inputmode="numeric" />
+                </p>
+                <p class="panel__field">
+                  <label for="fan-length" data-i18n="fanLengthLabel">Hossz</label>
+                  <input id="fan-length" type="number" min="4" max="2000" step="1" inputmode="numeric" />
+                </p>
+                <p class="props__row">
+                  <button type="button" class="button" id="fan-explode" data-i18n="fanExplode">Szétbontás</button>
+                </p>
+                <p class="panel__note" data-i18n="fanHint">Az alappont és a középső sugár vége a vásznon húzható. Kijelölt legyezőnél a számbillentyűk a szemek számát állítják.</p>
               </div>
               <p class="panel__note" id="props-count" role="status" aria-live="polite"></p>
             </div>

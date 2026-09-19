@@ -10,8 +10,10 @@ import { describe, test } from 'node:test';
 import { addStitch, deleteItems, emptyIrregularPattern, moveItems } from '../src/core/irregular-document.ts';
 import {
   addChainArc,
+  addFan,
   arcRotation,
   clampCount,
+  clampFanCount,
   explodeGroups,
   forgetBrokenGroups,
   groupById,
@@ -22,12 +24,13 @@ import {
   reseatGroups,
   translateGroups,
   updateChainArc,
+  updateFan,
   withWholeGroups,
 } from '../src/core/irregular-groups.ts';
 import { saveIrregular } from '../src/core/irregular-json.ts';
 import { addLayer, deleteLayer, moveItemsToLayer, setActiveLayer } from '../src/core/irregular-layers.ts';
 import { addRow, deleteRow, moveItemsToRow, setActiveRow } from '../src/core/irregular-rows.ts';
-import { ARC_COUNT_RANGE } from '../src/core/irregular-types.ts';
+import { ARC_COUNT_RANGE, FAN_COUNT_RANGE } from '../src/core/irregular-types.ts';
 
 const base = () => emptyIrregularPattern({ title: 'Free-form chart', layerNames: ['Drawing', 'Labels'] });
 
@@ -253,5 +256,103 @@ describe('a group can never name a row, layer or stitch that is gone (PQW-967)',
     assert.equal(reseatGroups(pattern), pattern, 'the very same pattern');
     const plain = base();
     assert.equal(reseatGroups(plain), plain, 'and one with no group at all');
+  });
+});
+
+describe('a fan is a group like any other (PQW-968)', () => {
+  const fanned = (pattern = base(), spec = {}) => {
+    const start = pattern;
+    return addFan(
+      start,
+      {
+        rowId: start.activeRowId,
+        layerId: start.activeLayerId,
+        keyEntryId: 'dc',
+        mode: 'spread',
+        origin: { x: 0, y: 0 },
+        direction: 0,
+        spreadAngle: 120,
+        length: 60,
+        count: 5,
+        ...spec,
+      },
+      UPRIGHT,
+    );
+  };
+
+  test('it puts one stitch per count into the active row', () => {
+    const { pattern, id } = fanned();
+    assert.equal(pattern.items.length, 5, 'five stitches');
+    assert.equal(groupById(pattern, id)?.kind, 'fan', 'and they are a fan');
+    for (const item of members(pattern, id)) assert.equal(item?.rowId, pattern.activeRowId, 'the active row');
+  });
+
+  test('changing the count keeps the stitches that were already there', () => {
+    const { pattern, id } = fanned();
+    const before = groupById(pattern, id)?.memberIds ?? [];
+    const next = updateFan(pattern, id, { count: 7 }, UPRIGHT);
+    assert.deepEqual(groupById(next, id)?.memberIds.slice(0, 5), before, 'the first five are the same');
+    assert.equal(next.items.length, 7, 'and the pattern holds seven');
+  });
+
+  test('the length and the spread stay inside their range', () => {
+    const { pattern, id } = fanned();
+    assert.equal(updateFan(pattern, id, { spreadAngle: 5000 }, UPRIGHT).groups?.[0]?.spreadAngle, 350, 'capped');
+    assert.equal(updateFan(pattern, id, { length: 0 }, UPRIGHT).groups?.[0]?.length, 4, 'a fan has to have a length');
+  });
+
+  test('a change that changes nothing gives back the very same pattern', () => {
+    const { pattern, id } = fanned();
+    assert.equal(updateFan(pattern, id, {}, UPRIGHT), pattern, 'nothing at all');
+    assert.equal(updateFan(pattern, id, { count: 5 }, UPRIGHT), pattern, 'the same count');
+  });
+
+  test('a fan patch never touches a chain arc, and the other way round', () => {
+    const { pattern, id } = withArc();
+    assert.equal(updateFan(pattern, id, { count: 9 }, FLAT), pattern, 'an arc is not a fan');
+    const fan = fanned();
+    assert.equal(updateChainArc(fan.pattern, fan.id, { count: 9 }, UPRIGHT), fan.pattern, 'and a fan is not an arc');
+  });
+
+  test('moving a whole fan carries its middle with it', () => {
+    const { pattern, id } = fanned();
+    const all = new Set(groupById(pattern, id)?.memberIds ?? []);
+    const moved = translateGroups(pattern, all, 12, -8);
+    assert.deepEqual(groupById(moved, id)?.origin, { x: 12, y: -8 }, 'the origin followed');
+  });
+
+  test('deleting one of its stitches forgets the fan', () => {
+    const { pattern, id } = fanned();
+    const first = groupById(pattern, id)?.memberIds[0] ?? '';
+    assert.equal(groupsOf(forgetBrokenGroups(deleteItems(pattern, new Set([first])))).length, 0, 'forgotten');
+  });
+});
+
+describe('a fan is clamped by its own limits, not the arc’s (PQW-968)', () => {
+  test('a broken direction cannot poison a fresh fan', () => {
+    const start = base();
+    const made = addFan(
+      start,
+      {
+        rowId: start.activeRowId,
+        layerId: start.activeLayerId,
+        keyEntryId: 'dc',
+        mode: 'spread',
+        origin: { x: 0, y: 0 },
+        direction: Number.NaN,
+        spreadAngle: 120,
+        length: 60,
+        count: 5,
+      },
+      UPRIGHT,
+    );
+    assert.equal(made.pattern.groups?.[0]?.direction, 0, 'not NaN');
+    assert.ok(saveIrregular(made.pattern).length > 0, 'so the pattern still saves');
+  });
+
+  test('the fan count has its own range', () => {
+    assert.equal(clampFanCount(0), FAN_COUNT_RANGE.min, 'too few');
+    assert.equal(clampFanCount(10_000), FAN_COUNT_RANGE.max, 'too many');
+    assert.equal(clampFanCount(Number.NaN), FAN_COUNT_RANGE.min, 'not a number');
   });
 });
