@@ -1,26 +1,9 @@
 /*
- * A jobb oldali generátorpanelek szövegei (PQW-900): a választólisták
- * feliratai, a mezőfeliratok, a tervek kiírása, a figyelmeztetések és az
- * állapotsor üzenetei a létrehozás után.
+ * The right-hand generator panels (PQW-900): list labels, field labels, the
+ * printed plan, the warnings and the status line after generating. Grouped by
+ * area: `shape`, `shawl`, `round`, `amigurumi`, `grid`, `garment`.
  *
- * Területenként csoportosítva: `shape` (Forma), `shawl` (Kendő), `round` (Kör
- * és motívum), `amigurumi`, `grid` (Rácsminta), `garment` (Ruhadarab).
- *
- * Amit NEM fordítunk:
- * - a szemnevek: azok a minta jelöléséből jönnek (PQW-868,
- *   `stitchById(...).terms`), nem a felület nyelvéből. A mondatok ezért a
- *   szemnevet paraméterként kapják;
- * - a mértékegységek (cm, g, m, mm, °) és a számalak: mindkét nyelven a maiak
- *   (`formatNumber`, magyar tizedesvessző).
- *
- * A magyar ág betűre a mai szöveg: a böngészős és a Node tesztek erre néznek.
- * A paraméteres mondatok függvények, a fix szövegek sztringek; a két nyelv
- * kulcskészlete, fajtája és paraméterszáma azonos (tests/ui-i18n.test.mjs),
- * ezért az egyik nyelven nem használt paraméter neve aláhúzással kezdődik.
- *
- * A magyar nyelvtani segédek (névelő, toldalékolás) csak a magyar ágon élnek.
- * DOM nélküli, ezért a Node is futtatja, és a magot `.ts` kiterjesztéssel
- * importálja.
+ * KB: dictionaries.md §1, §5, §8
  */
 
 import { article } from '../../core/hungarian.ts';
@@ -33,7 +16,6 @@ import type { ShawlKind } from '../../core/shawls.ts';
 import type { GarmentKind, GridTechnique, PieceEnd, ShapeSpec, SphereMethod } from '../../core/types.ts';
 import type { Dictionary } from '../i18n.ts';
 
-/** Az amigurumi formái; a „forgástest” a profilból készül. */
 type ShapeKind = ShapeSpec['kind'];
 
 export interface PanelTexts {
@@ -266,7 +248,6 @@ export interface PanelTexts {
     readonly yarnMissing: string;
     readonly yarn: (meters: number, balls: number) => string;
     readonly prefix: (name: string) => string;
-    /** A hamis ellenőrzés és — ha van — a javítási javaslat (PQW-901). */
     readonly failedCheck: (prefix: string, label: string, suggestion: string) => string;
     readonly allChecks: (passed: number, total: number, sizes: string) => string;
     readonly checkSizes: (count: number) => string;
@@ -290,14 +271,12 @@ export interface PanelTexts {
     readonly upperArm: (ease: string) => string;
     readonly shoulderDrop: (drop: string) => string;
     readonly body: (bust: string) => string;
-    /** Felülről horgolt raglán (PQW-901). */
     readonly raglanSize: (name: string, approx: string, chest: string, length: string, rounds: number) => string;
     readonly raglanNeck: (stitches: number, front: number, sleeve: number) => string;
     readonly raglanYoke: (rounds: number, extra: string) => string;
     readonly raglanExtra: (rounds: number) => string;
     readonly raglanDivide: (front: number, sleeve: number, underarm: number, body: number) => string;
     readonly raglanBody: (rounds: number, hemRounds: number) => string;
-    /** Az ujj csöve a hónaljtól a mandzsettáig (PQW-913). */
     readonly raglanSleeve: (rounds: number, decreases: number, cuff: number, cuffRounds: number) => string;
     readonly formRounds: string;
     readonly formRows: string;
@@ -314,25 +293,18 @@ export interface PanelTexts {
   };
 }
 
-/* ---- Magyar nyelvtani segédek: csak a magyar ágon ---- */
-
 const huCapitalize = (text: string): string => text.charAt(0).toLocaleUpperCase('hu') + text.slice(1);
 
-/** A határozott névelő egy szó előtt: „a félpálca”, „az egyráhajtásos pálca”. */
 const huArticle = (word: string): string => `${/^[aáeéiíoóöőuúüű]/i.test(word) ? 'az' : 'a'} ${word}`;
 
-/** „a 3., 5. és 7. sor”; hatnál több sornál az első hat. */
 function huRowList(rows: readonly number[]): string {
   const shown = rows.slice(0, 6).map((row) => `${row}.`);
   const list = shown.length === 1 ? shown[0]! : `${shown.slice(0, -1).join(', ')} és ${shown.at(-1)!}`;
   return `${article(rows[0]!)} ${list}${rows.length > shown.length ? ' és további' : ''} sor`;
 }
 
-/* ---- Angol segédek ---- */
-
 const enCapitalize = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
 
-/** „rows 3, 5 and 7”, „row 3”; hatnál több sornál az első hat. */
 function enRowList(rows: readonly number[]): string {
   const shown = rows.slice(0, 6).map((row) => `${row}`);
   const list = shown.length === 1 ? shown[0]! : `${shown.slice(0, -1).join(', ')} and ${shown.at(-1)!}`;
@@ -560,7 +532,7 @@ const hu: PanelTexts = {
       unknown: 'ismeretlen',
       color: (letter, name) => `${letter} szín, ${name}`,
     },
-    // A rács a horgolt sorokat számozza 1-től, a láncalap viszont maga az 1. sor (PQW-923).
+    // KB: interface.md §33
     cellLabel: (row, cell, value) => `${row + 1}. sor, ${cell}. cella: ${value}`,
     inUnit: ', ismétlő egység',
     unitFrom: (row, cell) => `${article(row)} ${row}. sor ${cell}. cellájától`,

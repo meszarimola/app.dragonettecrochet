@@ -1,12 +1,9 @@
 /*
- * A minta betöltésének hibái mondattá (PQW-904).
+ * Pattern-loading failures as sentences. The caller writes the failing field's
+ * path (`LoadError.path`) beside the sentence, so only the failure itself is
+ * here.
  *
- * A kódokat és az értékeket a mag adja (`src/core/pattern-json.ts`, `JsonCode`);
- * a mondat itt készül, a felület nyelvén. A hibás mező útvonalát
- * (`LoadError.path`) a hívó írja a mondat mellé, ezért itt csak maga a hiba áll.
- *
- * A magyar ág betűre azonos a PQW-904 előtti szövegekkel: ez átvezetés, nem
- * újrafogalmazás.
+ * KB: dictionaries.md §1
  */
 
 import type { JsonCode } from '../../../core/pattern-json.ts';
@@ -14,7 +11,7 @@ import { type CoreDictionary, list, num, str } from './render.ts';
 
 export const JSON_CORE_TEXTS: CoreDictionary<JsonCode> = {
   hu: {
-    // A JS saját hibaszövege: nyers adat, nem fordítjuk.
+    // The engine's own wording: raw data, not translated.
     'invalid-json': (data) => `Nem érvényes JSON: ${str(data, 'detail')}`,
     'unsupported-version': (data) =>
       `A minta újabb formátumú (${num(data, 'found')}), mint amit ez a verzió ismer (${num(data, 'known')}).`,

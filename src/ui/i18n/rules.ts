@@ -1,35 +1,21 @@
 /*
- * Az ellenőrző szabályainak szövege a felület nyelvén (PQW-900).
+ * The checker's rule texts in the interface language (PQW-900). The Hungarian
+ * branch is derived from the core's `RULES`, never hand-copied; the English
+ * branch is a hand-written translation, rule by rule.
  *
- * - A mag magyar szövege az alap: a `src/core/rules.ts` `RULES` objektuma adja a
- *   `summary` és a `message` mezőt, és a mag magyar marad. A felület csak
- *   kiválasztja, melyik nyelven mutatja ugyanazt a szabályt.
- * - Ezért a magyar ág nincs kézzel másolva, hanem a `RULES`-ból származik: így
- *   nem csúszhat el a magtól, és egy magyar szöveg javítása egy helyen történik.
- *   Az angol ág a kézzel írt fordítás, szabályazonosítónként.
- * - A `summary` a szerkesztőnek és a teszteknek szól (rövid, szakmai leírás), a
- *   `message` a felhasználónak a szerkesztőben (PQW-879): belső fogalom (réteg,
- *   darab) és tudásbázis-kód nélkül. A `severity` és a `reference` nem fordul,
- *   mert azok nem szövegek: a magból jönnek.
- * - A felhasználónak szóló üzenetek szándékosan kerülik a jelölésfüggő
- *   szemneveket, mert a felület nyelve és a minta jelölése két független
- *   beállítás (PQW-868).
- *
- * DOM nélküli, ezért a Node is futtatja, és a magot `.ts` kiterjesztéssel
- * importálja.
+ * KB: dictionaries.md §2, decisions.md §3
  */
 
 import { RULES, type RuleId } from '../../core/rules.ts';
 import type { Dictionary } from '../i18n.ts';
 
 export interface RuleText {
-  /** Rövid leírás a szerkesztőnek és a teszteknek. */
+  /** Short description, for the editor and the tests. */
   readonly summary: string;
-  /** A felhasználónak szóló üzenet a szerkesztőben. */
+  /** The sentence the user reads in the editor. */
   readonly message: string;
 }
 
-/** A magyar szöveg a magból: minden szabály a `RULES` `summary`/`message` mezőjével. */
 const HU_TEXTS = Object.fromEntries(
   Object.entries(RULES).map(([id, rule]) => [id, { summary: rule.summary, message: rule.message }]),
 ) as Readonly<Record<RuleId, RuleText>>;
@@ -37,7 +23,6 @@ const HU_TEXTS = Object.fromEntries(
 export const RULE_TEXTS = {
   hu: HU_TEXTS,
   en: {
-    /* ---- Structure ---- */
     'unknown-stitch': {
       summary: 'The stitch is not in the library, or it cannot be a node (compound group, chain-space element).',
       message: 'There is an unknown stitch in the pattern.',
@@ -51,7 +36,6 @@ export const RULE_TEXTS = {
       message: 'The yarn path breaks: a stitch does not continue from the previous one.',
     },
 
-    /* ---- Targets ---- */
     'future-anchor': {
       summary: 'The stitch is worked into a stitch, chain space or ring that is made later.',
       message: 'This stitch anchors into a stitch that is only made later.',
@@ -114,7 +98,6 @@ export const RULE_TEXTS = {
       message: 'Chains are left at the end of the row with nothing worked into them.',
     },
 
-    /* ---- Foundation chain, turning chain, counts ---- */
     'foundation-chain': {
       summary:
         'Wrong foundation chain: the first stitch of row 1 does not go into the chain that follows the skipped chains, and the skipped chains are not worked into. How many chains are skipped depends on the height of the stitch and on the tradition (PQW-924).',
@@ -137,7 +120,6 @@ export const RULE_TEXTS = {
       message: 'In the repeated pattern the row gives more or fewer stitches than it uses up.',
     },
 
-    /* ---- Rounds (PQW-861) ---- */
     'round-growth': {
       summary: 'The position count of the round is more than double or less than half of the previous round.',
       message: 'In this round the stitch count more than doubles or drops to half: one round can take at most a doubling or a halving.',
@@ -160,7 +142,6 @@ export const RULE_TEXTS = {
         'In a spiral a color change leaves a jog. Fix it like this: work a slip stitch instead of the first stitch of the next round, or join the new color in the back loop of the first stitch.',
     },
 
-    /* ---- Amigurumi (PQW-863) ---- */
     'join-edge': {
       summary: 'The seam points to a piece or a round that does not exist.',
       message: 'The seam points to a part or a round that is not there.',
@@ -174,7 +155,6 @@ export const RULE_TEXTS = {
       message: 'A toy meant for a child under 3 must not have safety eyes or beads: embroider the eyes instead.',
     },
 
-    /* ---- Grid techniques (PQW-864) ---- */
     'carried-colors': {
       summary: 'In tapestry more than 3 colors have to be carried inside the stitches in one row.',
       message:

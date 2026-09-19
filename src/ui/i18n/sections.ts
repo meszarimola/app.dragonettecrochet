@@ -1,20 +1,9 @@
 /*
- * A panel szakaszainak és a mintatípus-menünek a szövegei (PQW-900).
+ * The panel sections and the pattern-type menu (PQW-900): the size and yarn
+ * section, the written-pattern panel, the insertion modes, the palette group
+ * titles, the notation names, the chart export labels and the dialog buttons.
  *
- * Ide a felhasználónak szóló szöveg kerül, nyelvenként ugyanazzal a
- * kulcskészlettel: a mintatípus-menü, a „Méret és fonal” szakasz, az írott
- * minta panel üzenetei, a beszúrási módok, a paletta csoportcímei, a jelölés
- * nevei, a diagramexport feliratai és a párbeszédablak gombjai.
- *
- * Amit NEM fordítunk:
- * - a szemnevek és az írott minta szava: azok a minta jelöléséből jönnek
- *   (PQW-868, src/core/pattern-text.ts), nem a felület nyelvéből;
- * - a japán hagyomány diagramfeliratai („18目”, „縁編み”): azok a jelöléshez
- *   tartoznak (01 §6.2), csak a magyarázó megjegyzésük kétnyelvű;
- * - a mértékegységek (cm, g, m, mm) és a számalak: mindkét nyelven a maiak.
- *
- * A paraméteres mondatok függvények, a fix szövegek sztringek. DOM nélküli,
- * ezért a Node is futtatja, és a magot `.ts` kiterjesztéssel importálja.
+ * KB: dictionaries.md §1, §6, interface.md §2
  */
 
 import type { DimensionBasis } from '../../core/gauge.ts';
@@ -25,7 +14,6 @@ import type { Dictionary } from '../i18n.ts';
 import type { PatternTypeId } from '../pattern-types.ts';
 import { enLayer, huLayer } from './core/layer-counts.ts';
 
-/** Egy mintatípus a bal oldali menüben. */
 interface TypeEntry {
   readonly name: string;
   readonly detail: string;
@@ -34,7 +22,6 @@ interface TypeEntry {
 export interface SectionTexts {
   readonly types: {
     readonly menu: Readonly<Record<PatternTypeId, TypeEntry>>;
-    /** A még el nem készült típus jelzése. */
     readonly soon: string;
   };
   readonly size: {
@@ -110,7 +97,6 @@ export interface SectionTexts {
       readonly yarnInPiece: string;
       readonly lengthWithBuffer: string;
       readonly balls: string;
-      /** A gombolyagszám mértékegysége; a többi egység (cm, g, m) mindkét nyelven ugyanaz. */
       readonly ballsUnit: string;
       readonly yarnNote: (ballMassG: string, ballLengthM: string) => string;
       readonly missingNote: (list: string) => string;
@@ -123,7 +109,7 @@ export interface SectionTexts {
     readonly broken: string;
     readonly partial: (layer: string, remaining: number) => string;
     readonly errors: (count: number) => string;
-    /** A cím helye a szövegben, ha a mintának nincs címe; a szöveg nyelve a jelölésé. */
+    /** Stands in for a missing title; its language is the notation's, not the interface's. */
     readonly untitled: string;
   };
   readonly insertion: {
@@ -152,9 +138,7 @@ export interface SectionTexts {
     readonly unitFrame: string;
     readonly spike: string;
     readonly mirror: string;
-    /** A réteg neve a diagram sorfeliratában (PQW-916): „1. sor”, „Láncalap”, „3. kör”. */
     readonly layerName: (layer: number, round: boolean) => string;
-    /** A sorszám és a szemszám megjegyzése hagyományonként. */
     readonly cycNote: string;
     readonly japaneseNote: string;
   };
@@ -164,7 +148,6 @@ export interface SectionTexts {
   };
 }
 
-/** Mondat elején és feliraton nagybetűvel: „láncalap” → „Láncalap”. */
 const capitalize = (value: string) => `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
 
 const hu: SectionTexts = {
@@ -172,7 +155,7 @@ const hu: SectionTexts = {
     menu: {
       regular: { name: 'Szabályos horgolás', detail: 'Sík sorok, kör és motívum (pl. nagymama-négyzet).' },
       filet: { name: 'Filéhorgolás', detail: 'Rács teli és nyitott cellákkal; C2C, tapestry és graphgan is.' },
-      // Az „írott minta” szó nem szerepelhet: a panel kapcsolójának akadálymentes neve egyedi marad.
+      // The words „írott minta” may not appear here: the panel toggle's accessible name has to stay unique.
       amigurumi: { name: 'Amigurumi', detail: 'Térbeli forma spirálban, részekből: gömb, henger, kúp. A mintát szövegként írja, a rajz kiegészítés.' },
       irregular: { name: 'Szabálytalan horgolás', detail: 'Formázott, amorf darab (pl. ruhadarab, babacipő).' },
     },
@@ -259,7 +242,7 @@ const hu: SectionTexts = {
       noLayers: 'Még nincs sor vagy kör: kezdd láncalappal vagy varázskörrel, és horgolj legalább egy sort.',
       mixedTotal: 'Sorokból és körökből álló darab teljes mérete még nem számolható; soronként lent látszik.',
       headers: (round) => (round ? ['Kör', 'Kerület, cm', 'Magasság, cm', 'Sugár, cm'] : ['Sor', 'Szélesség, cm', 'Magasság, cm', 'Eddig, cm']),
-      // A láncalap az 1. sor (PQW-923): sorokban a kiírt szám a réteg indexénél eggyel nagyobb.
+      // KB: interface.md §33
       layerLabel: (index, round) => (round ? `${index}. kör` : `${index + 1}. sor`),
       yarnInPiece: 'Fonal a darabban',
       lengthWithBuffer: 'Hossz tartalékkal',
@@ -316,7 +299,7 @@ const hu: SectionTexts = {
     unitFrame: 'Szaggatott keret: az ismétlő egység.',
     spike: 'Pötty a szár végén: a lejjebb, a kihagyott szembe horgolt szem.',
     mirror: 'Tükrözött nézet balkezeseknek.',
-    // A rajzon a láncalap sora a pontosítást is megkapja (PQW-923); mondat közepén a rövid alak áll.
+    // On the chart the foundation row also gets the longer label; mid-sentence the short form stands.
     layerName: (layer, round) => (layer === 0 && !round ? '1. sor – alapsor' : capitalize(huLayer(layer, round))),
     cycNote: 'A sorszám a sor kezdő oldalán áll, zárójelben a szemszám.',
     japaneseNote: 'A sorszám a sor kezdő oldalán áll, a végén a szemszám: 18目 = 18 szem; 11目1模様 = 11 szemenként ismétlődő minta.',
@@ -475,7 +458,7 @@ const en: SectionTexts = {
     unitFrame: 'Dashed frame: the repeat unit.',
     spike: 'Dot at the foot of the stem: a spike stitch worked lower, into the skipped stitch.',
     mirror: 'Mirrored view for left-handed crocheters.',
-    // A rajzon a láncalap sora a pontosítást is megkapja (PQW-923); mondat közepén a rövid alak áll.
+    // On the chart the foundation row also gets the longer label; mid-sentence the short form stands.
     layerName: (layer, round) => (layer === 0 && !round ? 'Row 1 – foundation' : capitalize(enLayer(layer, round))),
     cycNote: 'The row number is at the starting side of the row, the stitch count in brackets.',
     japaneseNote: 'The row number is at the starting side of the row, the stitch count at the end: 18目 = 18 stitches; 11目1模様 = a pattern repeating every 11 stitches.',
