@@ -9,6 +9,9 @@ to load the whole knowledge base into context.
 | File | Read it when |
 |---|---|
 | [decisions.md](decisions.md) | Wondering why something is built the way it is |
+| [core-geometry.md](core-geometry.md) | Layout, grid, graph, editing, the technique generators |
+| [core-domain.md](core-domain.md) | Stitches, garments, gauge, validation, the written pattern |
+| [core-support.md](core-support.md) | Quantities, yarn estimates, polygons, colourwork, history |
 | [interface.md](interface.md) | Working on `src/ui/`, the canvas, the panels or the stylesheet |
 | [incidents.md](incidents.md) | Before any worktree, release or bulk change |
 | [testing.md](testing.md) | A test fails in a way you did not expect |

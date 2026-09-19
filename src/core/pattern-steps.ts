@@ -1,32 +1,4 @@
-/*
- * Az írott minta nyelvfüggetlen lépéssora a gráfból (06 §5.3 pont 5).
- *
- * Rétegenként végigmegyünk a szemeken a fonal útján, és mindegyiket egy
- * lépéssé alakítjuk, amely az előző réteg pozícióihoz képest mondja meg, hová
- * megy. A szöveg (pattern-text.ts) ebből készül, a visszaolvasás
- * (pattern-read.ts) ugyanezt a jelentést olvassa vissza.
- *
- * A célpont jelentése egy kurzorhoz kötött, amely az előző réteg pozícióin
- * halad a haladási irányban:
- * - `next`: a kurzor alatti pozíció, utána a kurzor továbblép. Kiírva nincs
- *   helyhatározó: „5 rp” öt egymás utáni pozícióba megy.
- * - `same`: ugyanaz a pozíció, mint az előző célpont. Ha a sor fordulólánca
- *   számít, a sor elején ez a fordulólánc alatti szem (03 §1.3), és a kurzor
- *   ezért az 1. pozíción kezd.
- * - `next-space`: az első láncív a kurzortól; a közbeeső szemeket kihagyjuk,
- *   ahogy a minták is írják („3 erp a következő láncívbe”).
- * - `same-space`, `ring`: az előző láncív, illetve a varázskör.
- * - `chain-ring`: a láncgyűrű (PQW-861).
- * - `none`: nem horgolunk bele semmibe (pikó).
- *
- * Megállapodások a visszaolvasáshoz:
- * - A sor közbeni láncszemek mindig egy láncívet adnak (01 §8.2 szabály 11).
- * - Visszai soron az első és a hátsó szál, illetve a relief megfordul, mert a
- *   gráf a színoldali látványt tárolja (03 §2.1, 01 §8.4 szabály 21).
- *
- * Nem írható ki még: keresztezett és hosszú szem, több célpontú szem
- * fogyasztáson kívül, láncalap nélküli darab, darabok összekapcsolása.
- */
+// KB: core-domain §24; 01 §8.2 rule 11, 01 §8.4 rule 21, 03 §1.3, 03 §2.1, 06 §5.3
 
 import { buildPieceGraph, spacePositions, type PieceGraph } from './graph.ts';
 import { modeAsWorked } from './insertion.ts';
@@ -49,10 +21,10 @@ import type {
   Tradition,
 } from './types.ts';
 
-/** A `down`: hosszú szem korábbi sorba (PQW-894); a lépés `depth` mezője mondja meg, hány sorral lejjebb. */
+/** KB: 03 §5.6 */
 export type StepTarget = 'next' | 'same' | 'next-space' | 'same-space' | 'ring' | 'chain-ring' | 'none' | 'down';
 
-/** A szín, amelyre a lépés utolsó szemének utolsó ráhajtásánál váltasz (03 §6, §10 G35, PQW-864). */
+/** KB: 03 §6, 03 §10 G35 */
 interface ColorChange {
   readonly changeTo?: number;
 }
@@ -63,11 +35,10 @@ export type Step =
       readonly def: StitchDefId;
       readonly count: number;
       readonly target: StepTarget;
-      /** A horgoló felől nézett beszúrás: visszai soron már megfordítva. */
+      /** Insertion as seen from the crocheter: already flipped on a wrong-side row. */
       readonly mode: StitchInsertion;
-      /** Láncszembe vagy szembe megy; csak a kiírt helyhatározóhoz kell. */
       readonly into: 'stitch' | 'chain';
-      /** `down` célpontnál: hány sorral lejjebb (2 vagy 3). */
+      /** For a `down` target: how many rows lower (2 or 3). */
       readonly depth?: number;
     } & ColorChange)
   | ({
@@ -81,43 +52,31 @@ export type Step =
   | { readonly kind: 'skip'; readonly count: number; readonly what: 'stitch' | 'chain' | 'space' }
   | ({ readonly kind: 'turning-chain'; readonly count: number; readonly countsAs: StitchDefId | null } & ColorChange)
   | { readonly kind: 'repeat'; readonly steps: readonly Step[]; readonly times: number }
-  /** Az ovális 1. körében a láncszemek másik oldalára fordulás (PQW-890). */
+  /** KB: 04 §3.4 */
   | { readonly kind: 'other-side' };
 
 export interface WrittenLayer {
-  /** A réteg sorszáma a gráfban; ez azonosítja a réteget. */
   readonly index: number;
-  /** A kiírt sorszám: az újrakezdett szakaszban újraindul (PQW-901). */
+  /** KB: core-domain §12 */
   readonly row: number;
   readonly shape: 'row' | 'round';
   readonly side: 'right' | 'wrong';
-  /** Az 1. sor a láncalapon: a horogtól számított hányadik láncszemnél kezd, és mit ér a kihagyott rész. */
   readonly fromHook: {
     readonly chain: number;
     readonly countsAs: StitchDefId | null;
-    /**
-     * A láncalap folytatásaként kiírt sor eleji láncszemek: számító
-     * fordulóláncnál a láncív és a kihagyott láncszemek a láncalapba kerülnek
-     * (filé nyitott kezdés: 3N + 6 lsz, a 9. láncszemtől, 03 §5.2, PQW-891). Máskor 0.
-     */
+    /** With a counting turning chain the chain space and the skipped chains belong to the foundation. Otherwise 0. KB: 03 §5.2 */
     readonly chains: number;
-    /**
-     * A kihagyás után minden megmaradt láncszembe pontosan egy szem kerül, sorban,
-     * egyetlen tételben: „minden láncszembe 1 rp” (PQW-895).
-     */
+    /** After the skip, exactly one stitch into every remaining chain, as a single item. */
     readonly eachChain: boolean;
   } | null;
   readonly steps: readonly Step[];
-  /** A kiírt szemszám, ahogy a gráf számolja (graph.ts, PQW-940). */
+  /** KB: core-domain §10 */
   readonly writtenCount: number;
   readonly closing: LayerEvent['kind'] | null;
-  /** A kört záró kúszószem célpontja. */
   readonly joinTo: 'turning-chain' | 'first-stitch' | null;
-  /** A következő kör új színnel kezdődik (PQW-861). */
   readonly colorChange: boolean;
-  /** A spirál lépcsőjavítása a színváltásnál. */
   readonly jogFix: LayerEvent['jogFix'] | null;
-  /** Jelölések a kör után: szem, tömés, a nyílás összehúzása (PQW-863). */
+  /** KB: 04 §5.6, 04 §5.7 */
   readonly marks: readonly RoundMark[];
 }
 
@@ -128,13 +87,8 @@ export interface WrittenPiece {
     | { readonly kind: 'ring' }
     | { readonly kind: 'chain-ring'; readonly count: number };
   readonly layers: readonly WrittenLayer[];
-  /**
-   * A darab részei (PQW-863): a folytatólagosan kapcsolt rész neve az első
-   * köre előtt áll. Az elvágott fonal után újrakezdett szakasznál (PQW-901) az
-   * `over` mondja meg, melyik sor fölött folytatódik.
-   */
+  /** `over` says which row a section resumed after a fasten-off continues above. KB: core-domain §12 */
   readonly sections: readonly { readonly name: string; readonly layer: number; readonly over?: number }[];
-  /** Többszínű rácsmintánál (PQW-864) a színek, a kezdőszín és a színek soronként; máskor `null`. */
   readonly colorwork: {
     readonly technique: GridTechnique;
     readonly colors: readonly PatternColor[];
@@ -143,11 +97,7 @@ export interface WrittenPiece {
   } | null;
 }
 
-/**
- * Amit egy sorról vagy körről nem tudunk kiírni (PQW-904): a mondat vége. A
- * sorszám, a sor/kör szava és a névelő a `layer-unsupported` burkolóé, tehát a
- * felület szótáráé — a mag csak azt mondja meg, MI a baj.
- */
+// KB: core-domain §2
 export type UnsupportedCode =
   | 'underside-place'
   | 'underside-backwards'
@@ -166,36 +116,28 @@ export type UnsupportedCode =
   | 'anchor-count'
   | 'join-target';
 
-/**
- * Az írott minta hibái kódként; a mondatot a felület szótára írja
- * (`src/ui/i18n/core/written.ts`).
- *
- * - `layer-unsupported`: a sorra vagy körre mutató burkoló; az adatában az
- *   `inner` egy `UnsupportedCode`, az `index` a sorszám, a `shape` a sor/kör.
- */
+// KB: core-domain §2
 export type WrittenCode = 'needs-foundation' | 'foundation-event' | 'layer-unsupported' | UnsupportedCode;
 
-/** A gráf olyan része, amelyet az írott minta még nem tud kifejezni. */
 export class WrittenPatternError extends Error {
   readonly code: WrittenCode;
   readonly data: CoreData | undefined;
   readonly nodes: readonly NodeId[];
 
   constructor(message: CoreText<WrittenCode>, nodes: readonly NodeId[] = []) {
-    // Az `Error.message` maga a kód: a fejlesztői napló így is olvasható marad.
+    // The `Error.message` is the code itself, so the developer log stays readable.
     super(message.code);
     this.code = message.code;
     this.data = message.data;
     this.nodes = nodes;
   }
 
-  /** A hiba kódja és adata egy üzenetként, a felület szótárának. */
   get coreText(): CoreText<WrittenCode> {
     return this.data === undefined ? { code: this.code } : { code: this.code, data: this.data };
   }
 }
 
-/** A `nested()` kódja általános; ezen a területen a szűk kódkészlet érvényes. */
+/** `nested()`'s code is generic; in this area the narrow code set applies. */
 function wrap(code: WrittenCode, inner: CoreText): CoreText<WrittenCode> {
   return nested(code, inner) as CoreText<WrittenCode>;
 }
@@ -210,7 +152,7 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
   const first = base.stitches[0];
   if (first === undefined) throw new WrittenPatternError(text('needs-foundation'));
   const onChain = graph.defs.get(first)!.kind === 'chain';
-  // A láncgyűrű zárása az egyetlen esemény, amely a láncalapon állhat (PQW-861).
+  // Closing a chain ring is the only event that can sit on the foundation.
   const chainRing = onChain && base.shape === 'round' && base.closing?.kind === 'join-slip';
   if (base.closing !== null && !chainRing) throw new WrittenPatternError(text('foundation-event'), [base.closing.after]);
 
@@ -224,7 +166,6 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
       : { kind: 'ring' };
   const sections: WrittenPiece['sections'] = [
     ...(piece.sections ?? []).map(({ name, layer }) => ({ name, layer })),
-    // Elvágott fonal után új szakasz (PQW-901): a neve és a sor, amely fölött folytatódik.
     ...graph.layers.flatMap((candidate) => {
       const resume = candidate.opening?.kind === 'fasten-off' ? candidate.opening.resume : undefined;
       return resume?.name === undefined ? [] : [{ name: resume.name, layer: candidate.index, over: graph.layers[candidate.below]!.row }];
@@ -238,10 +179,9 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
   return { name: piece.name, foundation, layers, sections, colorwork };
 }
 
-/** A horgoló felől nézett beszúrás: visszai soron a szálak és a relief megfordulnak (insertion.ts). */
+/** Seen from the crocheter: on a wrong-side row the loops and the post side flip. KB: 01 §8.4 rule 21 */
 export { modeAsWorked };
 
-/** Aminek a számító fordulólánc számít: a sort kezdő szem, összetett szemnél a részszeme. */
 export function countsAsOf(def: StitchDef): StitchDefId {
   return def.kind === 'joined' ? def.part : def.id;
 }
@@ -256,12 +196,10 @@ function writtenLayer(
   _tradition: Tradition,
 ): WrittenLayer {
   const layer = graph.layers[index]!;
-  // Alapból az előző sor; elvágott fonal után a megadott sor fölött folytatódik (PQW-901).
   const below = graph.layers[layer.below]!;
-  // Az ovális 1. köre (PQW-890): elöl a horogtól távolodva, utána a láncszemek másik oldalán vissza.
+  // KB: 04 §3.4
   const oval = index === 1 && below.undersides.length > 0;
-  // A kétforrású kör (PQW-908: a raglán ujja) a saját alapgyűrűjén halad: a vállrész kihagyott
-  // szemein és a hónaljláncon, nem az alatta lévő teljes körön.
+  // KB: core-domain §12
   const base = layer.basePositions ?? below.positions;
   const front = layer.direction === 1 && !oval ? base : [...base].reverse();
   const working = oval ? [...front, ...below.positions] : front;
@@ -269,25 +207,15 @@ function writtenLayer(
   const undersideIndex = new Map<NodeId, number>(oval ? below.positions.map((id, k) => [id, front.length + k]) : []);
   let otherSide = false;
   const defOf = (id: NodeId) => graph.defs.get(id)!;
-  /*
-   * A „3 lsz (1 erp-nek számít)” megjegyzés a fordulóláncot szemnek mondja.
-   * A fordulólánc sorban is a sor első szeme (PQW-940), ezért a megjegyzés
-   * sorban is megjelenik — kivéve, ahol a sor beállítása kimondja, hogy nem
-   * szem (bordás sor, ribbing.ts). Így a szöveg és a kiírt szemszám ugyanazt
-   * mondja, és a visszaolvasó is ugyanoda jut.
-   */
+  // KB: core-domain §10, core-domain §17
   const countsAs = layer.firstStitch !== null && layer.turningChainCounts ? countsAsOf(defOf(layer.firstStitch)) : null;
   const hookRow = index === 1 && start === 'chain';
   const ringSpace = start === 'chain-ring' ? graph.spaceOfChain.get(graph.layers[0]!.stitches[0]!)?.id : undefined;
 
   const steps: Step[] = [];
-  // Fordulás után a sor eleji kúszószemek a cellák fölött haladnak (filé fogyasztás, PQW-894): a kurzor a sor elejéről indul.
+  // After a turn the leading slip stitches travel over the cells, so the cursor starts at the beginning of the row. KB: 03 §5.2
   const slipsFirst = layer.opening?.kind === 'turn' && layer.travelSlips.length > 0;
-  /*
-   * Körben a kezdőlánc az első pozíción ül, ott a kurzor a másodikról indul.
-   * Sorban a fordulólánc helyét a szöveg mondja ki („1 szem kihagyása”), így a
-   * kiírás és a visszaolvasás ugyanonnan számol (PQW-944).
-   */
+  // KB: core-domain §17
   const cursorStart = !slipsFirst && layer.shape === 'round' && index >= 2 && layer.turningChainCounts ? 1 : 0;
   let cursor = cursorStart;
   let last: Last = cursorStart === 1 ? { kind: 'stitch', w: 0 } : null;
@@ -302,7 +230,7 @@ function writtenLayer(
     if (anchor.into === 'ring') return { target: 'ring', mode: 'both-loops', into: 'stitch' };
     if (anchor.into === 'underside') {
       const w = undersideIndex.get(anchor.id);
-      // A legtávolabbi láncszem másik oldalát a vége körbeéri: arra külön lépés nem íródik ki.
+      // The far chain's other side is wrapped by the end increase, so no separate step is written for it.
       if (w === undefined || w === front.length) throw unsupported('underside-place', owner);
       if (!otherSide) {
         steps.push({ kind: 'other-side' });
@@ -351,11 +279,11 @@ function writtenLayer(
     return { target: 'next', mode, into };
   };
 
-  // A sorszám és a sor/kör szava adat marad: a mondatot a felület szótára rakja össze.
+  // KB: core-domain §2
   const unsupported = (reason: UnsupportedCode, node: NodeId) =>
     new WrittenPatternError(wrap('layer-unsupported', text(reason, { index, shape: layer.shape })), [node]);
 
-  // Színváltás: az előző szem utolsó ráhajtásánál, vagyis az előző lépésnél (03 §6, §10 G35).
+  // KB: 03 §6, 03 §10 G35
   const colorOf = (nodeId: NodeId) => graph.nodes.get(nodeId)!.color ?? 0;
   const markChange = (color: number) => {
     for (let k = steps.length - 1; k >= 0; k -= 1) {
@@ -372,7 +300,7 @@ function writtenLayer(
     const id = stitches[i]!;
     const previousNode = graph.nodes.get(id)!.prev;
     if (previousNode !== null && colorOf(previousNode) !== colorOf(id)) markChange(colorOf(id));
-    // A láncgyűrű kúszószeme a kezdés része, a láncgyűrű sora írja le.
+    // The chain ring's slip stitch is part of the start and is described by the chain-ring row.
     if (handled.has(id) || id === layer.joinSlip || (ringSpace !== undefined && index === 1 && layer.travelSlips.includes(id))) continue;
     const node = graph.nodes.get(id)!;
     const def = defOf(id);
@@ -381,7 +309,7 @@ function writtenLayer(
     if (layer.turningChain.includes(id)) {
       for (const chain of layer.turningChain) handled.add(chain);
       if (!hookRow) steps.push({ kind: 'turning-chain', count: layer.turningChain.length, countsAs });
-      // A kúszószemek után a fordulólánc az utolsó átkúszott pozíción áll.
+      // After the travelling slip stitches the turning chain stands on the last position crossed.
       if (slipsFirst) last = { kind: 'stitch', w: cursor - 1 };
       continue;
     }
@@ -407,12 +335,7 @@ function writtenLayer(
           i += 1;
           run.push(stitches[i]!);
         }
-        /*
-         * Puszta láncszem-futam is kifejezhető (PQW-937). A láncív csak akkor
-         * mérce, ha van: a horgoló a sor közepén egyszerű láncszemeket is tesz
-         * le — így készül a hullámos minta —, és eddig ilyenkor az írott minta
-         * megállt azzal, hogy „még nem tudja kifejezni”. A rajz helyes volt.
-         */
+        // KB: core-domain §25
         const spaces = new Set(run.map((chain) => graph.spaceOfChain.get(chain)).filter((space) => space !== undefined));
         if (spaces.size > 1) throw unsupported('chain-run', id);
         const space = [...spaces][0];
@@ -433,8 +356,7 @@ function writtenLayer(
         const anchor = node.anchors[0];
         const depth = anchor?.into === 'stitch' ? index - (graph.layerOf.get(anchor.id) ?? index) : 0;
         if (node.flags?.includes('spike') && anchor?.into === 'stitch' && node.anchors.length === 1 && depth >= 2) {
-          // Hosszú szem korábbi sorba (mozaik, filé sor végi szaporítás, PQW-894). A mozaikban a fölötte kihagyott
-          // láncszem helyén halad át, ezért a kurzor azon is továbblép.
+          // In mosaic the spike passes over the skipped chain above it, so the cursor steps over that too. KB: 03 §5.6
           if (cursor < working.length && graph.piece.skipped.includes(working[cursor]!)) cursor += 1;
           last = null;
           steps.push({ kind: 'stitch', def: def.id, count: 1, target: 'down', depth, mode: modeAsWorked(anchor.mode, layer.side), into: 'stitch' });
@@ -458,14 +380,14 @@ function writtenLayer(
     }
   }
 
-  // A következő sor első szeme más színű: a sor utolsó szeménél váltasz (03 §6).
+  // KB: 03 §6
   const lastNode = stitches[stitches.length - 1];
   if (lastNode !== undefined) {
     const next = graph.piece.stitches[graph.order.get(lastNode)! + 1];
     if (next && next.prev === lastNode && colorOf(next.id) !== colorOf(lastNode)) markChange(colorOf(next.id));
   }
 
-  // Kihagyás a sor végén: csak a szándékosan kihagyott szemekig (03 §10 B8).
+  // KB: 03 §10 B8
   const skippedAtEnd = working.map((id, w) => (w >= cursor && graph.piece.skipped.includes(id) ? w : -1));
   const lastSkipped = Math.max(-1, ...skippedAtEnd);
   if (lastSkipped >= cursor) skip(cursor, lastSkipped + 1);
@@ -480,7 +402,7 @@ function writtenLayer(
     joinTo = layer.turningChainCounts ? 'turning-chain' : 'first-stitch';
   }
 
-  // Számító fordulóláncnál a sor eleji láncív és a kihagyott láncszemek a láncalap folytatása (filé nyitott kezdés, 03 §5.2).
+  // KB: 03 §5.2
   let leadChains = 0;
   let leadSkipped = 0;
   const [firstStep, secondStep] = steps;
@@ -491,7 +413,7 @@ function writtenLayer(
   }
 
   const written = foldRepeats(mergeSteps(steps, library), layer.shape === 'round');
-  // Minden megmaradt láncszembe egy alapszem vagy kúszószem, színváltás nélkül (PQW-895).
+  // Into every remaining chain one basic or slip stitch, with no color change.
   const [only] = written;
   const onlyKind = only?.kind === 'stitch' ? library.get(only.def)?.kind : undefined;
   const eachChain =
@@ -511,7 +433,7 @@ function writtenLayer(
     side: layer.side,
     fromHook: hookRow
       ? {
-          // A kihagyott láncszemek után következő láncszem a közös szabályból (PQW-924).
+          // KB: core-domain §5
           chain: skippedChains(layer.turningChain.length, layer.turningChainCounts) + 1 + leadChains + leadSkipped,
           countsAs,
           chains: leadChains,
@@ -528,9 +450,6 @@ function writtenLayer(
   };
 }
 
-/* ---- Összevonás és ismétlés ---- */
-
-/** Összevonás: „rp, rp, rp” → „3 rp”; egy láncívbe vagy a varázskörbe horgolt szemek egy tételbe. */
 export function mergeSteps(steps: readonly Step[], library: StitchLibrary): Step[] {
   const merged: Step[] = [];
   for (const step of steps) {
@@ -539,7 +458,7 @@ export function mergeSteps(steps: readonly Step[], library: StitchLibrary): Step
       merged[merged.length - 1] = { ...previous, count: previous.count + step.count };
       continue;
     }
-    // Színváltás után új tétel kezdődik: a váltás a tétel utolsó szeménél áll.
+    // A color change starts a new item: the change sits at the item's last stitch.
     if (previous?.kind === 'stitch' && step.kind === 'stitch' && previous.changeTo === undefined && sameRun(previous, step, library)) {
       merged[merged.length - 1] = {
         ...previous,
@@ -562,16 +481,7 @@ function sameRun(a: Step & { kind: 'stitch' }, b: Step & { kind: 'stitch' }, lib
   return (a.target === 'ring' || a.target === 'chain-ring') && b.target === a.target;
 }
 
-/**
- * A legrövidebb ismétlődő egység: az a szomszédos ismétlés, amely a legtöbb
- * lépést takarítja meg. Egyenlő megtakarításnál az az egység nyer, amely nem
- * kihagyással végződik, aztán a későbbi kezdetű: így a szélső szemek az
- * ismétlés előtt állnak, ahogy a minták írják (03 §2.3, §4.2). Körben
- * (`preferEarly`) előbb a láncszemmel záruló egység nyer, aztán a korábbi
- * kezdetű, így a félbemaradt ismétlés a végére kerül: „1 rp, (szap., 2 rp) ×5,
- * szap., 1 rp” (04 §3.2). Az ismétlés
- * előtti és utáni részben tovább keresünk; egymásba ágyazott ismétlés nincs.
- */
+// KB: core-domain §26; 03 §2.3, 03 §4.2, 04 §3.2
 export function foldRepeats(steps: readonly Step[], preferEarly = false): Step[] {
   const keys = steps.map((step) => JSON.stringify(step));
   const n = steps.length;
@@ -619,7 +529,6 @@ interface Candidate {
   readonly startsSame: boolean;
 }
 
-/** A lépés egy már megkezdett célpontba megy („ugyanabba a láncívbe”): ott nem kezdődhet ismétlés körben. */
 function startsInSameTarget(step: Step): boolean {
   return (step.kind === 'stitch' || step.kind === 'group') && (step.target === 'same' || step.target === 'same-space');
 }
@@ -627,7 +536,7 @@ function startsInSameTarget(step: Step): boolean {
 function better(a: Candidate, b: Candidate, preferEarly: boolean): boolean {
   if (a.saved !== b.saved) return a.saved > b.saved;
   if (a.endsWithSkip !== b.endsWithSkip) return !a.endsWithSkip;
-  // Körben az egység új célpontnál kezdődik, és láncszemmel zárul: „(3 erp, 2 lsz) ×3” (03 §8).
+  // KB: 03 §8
   if (preferEarly && a.startsSame !== b.startsSame) return !a.startsSame;
   if (preferEarly && a.endsWithChain !== b.endsWithChain) return a.endsWithChain;
   if (a.start !== b.start) return preferEarly ? a.start < b.start : a.start > b.start;

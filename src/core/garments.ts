@@ -1,39 +1,4 @@
-/*
- * Ruhadarabok (PQW-866, első rész): sapka és ledobott vállú pulóver
- * testméretből, méretenkénti szabásrajzzal, sortervvel és méretsorozattal. A
- * kész gráfot ugyanaz az ellenőrző, rajz és írott minta dolgozza fel, mint a
- * kézzel horgoltat.
- *
- * - Szabásrajzból sorok (05 §4.1, §4.2, §9.5): minden vízszintes méret szem,
- *   a mintaismétlésre kerekítve a bőség irányába (bő darabnál felfelé); minden
- *   függőleges szakasz páros sorszám; a lejtő a „mágikus képlettel”, egyenes
- *   véggel oszlik el (05 §4.4, garment-math.ts).
- * - Ledobott váll (05 §2.1, §9.5, „B” példa): a hátrész és az elejerész
- *   téglalap, a szélessége a kész körméret fele. Az ujj felső éle a karöltő
- *   mélységének kétszerese, a hossza a hátközép–kézfej hossz mínusz a darab
- *   szélességének fele; mandzsettától felfelé szaporítva. A nyak most
- *   csónaknyak: a vállvarrás a két szélről a vállak szemét varrja, a középső
- *   szemek nyitva maradnak. A formázott nyak fogyasztásait a terv kiszámolja
- *   (05 „B” 5. lépés), de a gráf még nem tudja a két vállat egy darabon belül
- *   külön horgolni: ez nyitott.
- * - A pulóver négy darab (hátrész, elejerész, bal és jobb ujj); a jobb ujj a
- *   bal tükörképe (05 §4.5). A varrások a darabok közti kapcsolások: a váll a
- *   felső sor szakaszai, az oldal és az ujj alja a sorvégek (PQW-889), az ujj
- *   felső éle a karöltő sorvégeibe egyenletes elosztással.
- * - Méretsorozat (05 §3.8, §9.6): a táblázat minden méretére újraszámolunk; a
- *   testméret a CYC tartomány közepe. Méretenként és fázisonként igaz/hamis
- *   ellenőrzés, a méretek között a szemszámok nem csökkenhetnek.
- * - Sapka (05 §5, §9.7, „D” példa): a kész körméret a fej és a (negatív)
- *   bőség összege; a korona lapos kör, a körönkénti szaporítás `2π·h/w`
- *   körüli egész, a jelöltek közül az, amelyiknél a korona köreinek száma a
- *   legközelebb áll a sugárhoz; az utolsó koronakör igazítja a szemszámot.
- *   Utána egyenes oldal, az utolsó köreiben a perem.
- * - A negatív bőség horgolásnál legfeljebb kb. 10% (05 §3.5, §7.2): efölött
- *   figyelmeztetés, 15% fölött a generátor megtagadja.
- *
- * A fordulólánc és a láncalap a minta hagyománya szerint áll (tradition.ts,
- * repeat.ts): N szemhez `N + T` láncszem.
- */
+// KB: 05 §2.1, 05 §3.5, 05 §3.8, 05 §4, 05 §5, 05 §7.2, 05 §9.5, 05 §9.6, 05 §9.7
 
 import { evenDistribution } from './amigurumi.ts';
 import {
@@ -92,65 +57,46 @@ export const PIECE_NAMES = { back: 'Hátrész', front: 'Elejerész', leftSleeve:
 
 export const GARMENT_STITCHES: readonly StitchDefId[] = SHAPE_STITCHES;
 export const MAX_GARMENT_CM = 200;
-/** Egy sorban legfeljebb ennyi szem (shapes.ts `MAX_SHAPE_STITCHES`). */
 export const MAX_GARMENT_STITCHES = 500;
 export const MAX_GARMENT_ROWS = 400;
-/** A létrehozott mintában legfeljebb ennyi szem: nagyobb gráfot a szerkesztő már lassan rajzol. */
+/** A bigger graph gets slow to draw in the editor. */
 export const MAX_GARMENT_TOTAL = 60000;
 export const MAX_REPEAT = 50;
-/** A ledobott váll karöltője a CYC karöltőmélységnél ennyiszer mélyebb („B” példa: 17,5–19 cm helyett 21 cm). */
+/** KB: 05 §4 */
 export const DROP_ARMHOLE_FACTOR = 1.14;
-/** A nyak szélessége a keresztháti szélességből („B” példa: 18,5 cm a kb. 40 cm-hez). */
+/** KB: 05 §4 */
 export const NECK_RATIO = 0.46;
-/** A mandzsetta a felkarbőségből („B” példa: 26 cm a 28 cm-hez), és felkarbőség nélkül a mellbőségből. */
+/** KB: 05 §4 */
 export const CUFF_RATIO = 0.93;
 export const CUFF_CHEST_RATIO = 0.28;
-/** Az ujj felső éle és a két karöltő ennyivel térhet el: ennyi még bedolgozható (05 §4.6, a horgolásnál az alsó érték). */
+/** How far the sleeve top and the two armholes may differ and still be eased in. KB: 05 §4.6 */
 export const SEAM_EASING_CM = 4;
-/** Ledobott vállnál a szokásos bőség, cm (05 §2.1). */
+/** KB: 05 §2.1 */
 export const DROP_SHOULDER_EASE: readonly [number, number] = [15, 30];
-/** A raglán mélysége a karöltőmélységnél ennyivel több (05 §4 „C” példa: 17,5–19 cm helyett 20 cm). */
+/** KB: 05 §4 */
 export const RAGLAN_YOKE_ALLOWANCE_CM = 1.5;
 
 export interface GarmentOptions {
   readonly kind: GarmentKind;
-  /** Pulóvernél a testméret-táblázat; sapkánál nem számít. */
   readonly table: BodyTableId;
-  /** A gráf mérete. */
   readonly size: string;
-  /** A méretsorozat első és utolsó mérete a táblázat sorrendjében; a `size` köztük van. */
   readonly from: string;
   readonly to: string;
   readonly stitch: StitchDefId;
-  /** Bőség, cm: pulóvernél a mellbőséghez, sapkánál a fejkörfogathoz; `null`: sapkánál a fejmérettől függő −2,5 vagy −5 cm. */
+  /** `null`: for a hat the ease follows the head size. KB: 05 §3.5 */
   readonly easeCm: number | null;
-  /** Pulóvernél az alsó szegély és a mandzsetta, sapkánál a perem magassága, cm. */
   readonly hemCm: number;
-  /** Pulóvernél a hossz a derék alatt (férfiaknál a csípőig mért háthosszhoz), cm. */
   readonly belowWaistCm: number;
-  /** Pulóvernél a hátrész és az elejerész szemszáma „X többszöröse + Y”. */
   readonly repeat: ShapeRepeat | null;
-  /**
-   * Pulóvernél a nyakkivágás (PQW-901): `boat` csónaknyak, a vállvarrás hagyja
-   * nyitva a nyakat; `shaped` formázott, a két váll a nyak két oldalán külön
-   * készül, a fonal elvágása után.
-   */
+  /** `boat`: the shoulder seam leaves the neck open. `shaped`: the two shoulders are made separately after fastening off. KB: core-domain §12 */
   readonly neckline: 'boat' | 'shaped';
-  /**
-   * Növedék: a mosott, blokkolt, felakasztott próbadarab hosszában ennyi
-   * százalékkal nő (05 §7.1, §7.2, §9.8). A hosszakat ezzel osztjuk, hogy a
-   * kész darab a tervezett méretű maradjon; 0: nincs korrekció.
-   */
+  /** Percent the washed, blocked, hung swatch grows lengthwise; lengths are divided by it. KB: 05 §7.1, 05 §7.2, 05 §9.8 */
   readonly growthPct: number;
-  /**
-   * Bordás szegély és mandzsetta relief szemekkel (PQW-909, PQW-913): a szegély
-   * és a mandzsetta meglévő sorai közül ennyi lesz bordás. A nyak bordázata még
-   * nincs meg: ahhoz a gráfnak az él mentén kellene szemeket felszedni.
-   */
+  /** How many of the existing hem and cuff rows become ribbing. Neck ribbing would need picking up stitches along an edge, which the graph cannot do yet. */
   readonly ribbing?: RibbingOptions | null;
 }
 
-/** A táblázatonkénti hossz a derék alatt, cm: nőknél a „B” példa 58 cm-es hossza az M mérethez. */
+/** KB: 05 §4 */
 export const BELOW_WAIST_CM: Readonly<Record<BodyTableId, number>> = { women: 14.5, men: 0, child: 8, baby: 4 };
 
 export const DEFAULT_GARMENT: GarmentOptions = {
@@ -180,18 +126,9 @@ export const DEFAULT_HAT: GarmentOptions = {
   hemCm: 3,
 };
 
-/**
- * A ruhadarabok üzeneteinek kódjai (PQW-904): elutasítás, ellenőrzés és a
- * hozzá tartozó javaslat, figyelmeztetés, becsült méret és a méretsorozat
- * monotonitása. A mag csak kódot és nyers adatot ad; a mondatot a felület
- * állítja össze (`src/ui/i18n/core/garment.ts`). A szűk unió őrzi, hogy a
- * szótárból ne maradhasson ki kód. A testméret-táblázat gyanúi ugyanebbe a
- * szótárba tartoznak, ezért a `BodySizeCode` is része az uniónak.
- */
+// KB: core-domain §2
 export type GarmentCode =
-  // A bordázat üzenetei (PQW-913): a ruhadarab ugyanazt a magot használja, mint a Forma szakasz.
   | RibbingCode
-  // Választás és tartomány (`garmentProblem`).
   | 'stitch-choice'
   | 'pick-size'
   | 'series-range'
@@ -202,18 +139,15 @@ export type GarmentCode =
   | 'below-waist-range'
   | 'repeat-width'
   | 'repeat-edge'
-  // A táblázat mérete és a méretenkénti elutasítás.
   | 'unknown-size'
   | 'missing-measure'
   | 'size-problem'
-  // Sapka.
   | 'head-range'
   | 'negative-ease-head'
   | 'hat-height'
   | 'hat-crown'
   | 'hat-side'
   | 'max-rounds'
-  // Ledobott vállú pulóver.
   | 'negative-ease-bust'
   | 'panel-narrow'
   | 'max-stitches'
@@ -225,7 +159,6 @@ export type GarmentCode =
   | 'sleeve-increases'
   | 'max-total-sweater'
   | 'max-total-raglan'
-  // Felülről horgolt raglán.
   | 'underarm-long'
   | 'sleeve-narrow'
   | 'yoke-min'
@@ -236,26 +169,21 @@ export type GarmentCode =
   | 'yoke-body-many'
   | 'body-short'
   | 'body-length-yoke'
-  // Program- és gráfhiba.
   | 'internal-error'
   | 'piece-error'
-  // Figyelmeztetések.
   | 'negative-ease-warning'
   | 'cuff-wide'
   | 'upper-arm-ease'
   | 'raglan-extra-rounds'
-  // A táblázatból hiányzó, becsült méretek.
   | 'estimated-armhole-depth'
   | 'estimated-cuff'
   | 'estimated-upper-arm'
-  // Ellenőrzések és javaslatok: sapka.
   | 'check-crown-target'
   | 'check-crown-doubling'
   | 'check-side-count'
   | 'check-brim'
   | 'check-height'
   | 'check-negative-ease'
-  // Ellenőrzések és javaslatok: pulóver.
   | 'check-panel-repeat'
   | 'check-even-rows'
   | 'suggest-even-rows'
@@ -270,7 +198,6 @@ export type GarmentCode =
   | 'check-side-seam'
   | 'suggest-side-seam'
   | 'suggest-negative-ease-bust'
-  // Ellenőrzések és javaslatok: raglán.
   | 'check-raglan-sections'
   | 'suggest-raglan-sections'
   | 'check-raglan-growth'
@@ -281,7 +208,6 @@ export type GarmentCode =
   | 'suggest-raglan-sleeve'
   | 'check-even-rounds'
   | 'suggest-negative-ease-raglan'
-  // A méretsorozat monotonitása.
   | 'monotonic-hat-stitches'
   | 'monotonic-rounds'
   | 'monotonic-raglan-body'
@@ -292,39 +218,31 @@ export type GarmentCode =
   | 'monotonic-sleeve-top'
   | BodySizeCode;
 
-/** Üzenet-e a visszatérés: a terv és a darab helyett kód és adat. */
 export function isGarmentText(value: object): value is CoreText<GarmentCode> {
   return 'code' in value;
 }
 
-/**
- * A sor- és a körgenerátor hibája a ruhadarab üzenetébe (`piece-error`): a
- * kódját és az adatait a szótár a saját területének szövegével írja ki. A
- * körgenerátor még kész mondattal utasít el; az addig `message`-ként utazik.
- */
+/** The round generator still refuses with a finished sentence; until then it travels as `message`. */
 function pieceProblem(problem: string | CoreText): CoreText<GarmentCode> {
   return typeof problem === 'string' ? text('piece-error', { message: problem }) : text('piece-error', { inner: problem.code, ...(problem.data ?? {}) });
 }
 
-/** A választható méretek azonosítója a táblázat sorrendjében; a nevet a felület adja. */
 export function garmentSizes(kind: GarmentKind, table: BodyTableId): string[] {
   if (kind === 'hat') return HAT_SIZES.map((size) => size.id);
   return BODY_TABLES[table].sizes.map((size) => size.id);
 }
 
-/** Egy igaz/hamis ellenőrzés (05 §3.8 7. pont, §8.3 utolsó pont). */
+/** KB: 05 §3.8, 05 §8.3 */
 export interface GarmentCheck {
   readonly id: string;
   readonly label: CoreText<GarmentCode>;
   readonly ok: boolean;
-  /** Mit érdemes állítani, ha hamis (05 §9.6: a fázisok hosszát igazítjuk, nem a teljes hosszt). */
+  /** Adjust the length of the phases, not the total length. KB: 05 §9.6 */
   readonly suggestion?: CoreText<GarmentCode>;
 }
 
 const pct = (ratio: number) => Math.round(ratio * 100);
 const sum = (values: readonly number[]) => values.reduce((total, n) => total + n, 0);
-
-/* ---- Sapka ---- */
 
 export interface HatMeasures {
   readonly headCm: number;
@@ -336,17 +254,12 @@ export interface HatMeasures {
 export interface HatPlan {
   readonly kind: 'hat';
   readonly measures: HatMeasures;
-  /** A kész körméret terve: fej + bőség, cm. */
   readonly hatCm: number;
-  /** A körönkénti szaporítás elméletileg (`2π·h/w`) és választva. */
   readonly exactIncreases: number;
   readonly increases: number;
-  /** A korona utolsó köre és az oldal szemszáma. */
   readonly stitches: number;
-  /** Körönként a szemszám; a 0. elem az 1. kör. */
   readonly counts: readonly number[];
   readonly layout: RoundPlan;
-  /** A korona körei, az igazító körrel együtt. */
   readonly crownRounds: number;
   readonly sideRounds: number;
   readonly brimRounds: number;
@@ -356,7 +269,7 @@ export interface HatPlan {
   readonly warnings: readonly CoreText<GarmentCode>[];
 }
 
-/** A sapka terve a fejből, a bőségből és a szemméretből (05 §9.7); hibánál az ok kódja. */
+/** KB: 05 §9.7 */
 export function hatPlan(measures: HatMeasures, gauge: { readonly stitchCm: number; readonly rowCm: number }): HatPlan | CoreText<GarmentCode> {
   const { headCm, easeCm, heightCm, brimCm } = measures;
   if (!(headCm > 0 && headCm <= MAX_GARMENT_CM)) return text('head-range', { max: MAX_GARMENT_CM });
@@ -430,12 +343,12 @@ export function hatPlan(measures: HatMeasures, gauge: { readonly stitchCm: numbe
   };
 }
 
-/** A növedékkel csökkentett hossz (05 §7.2, §9.8): a felakasztott próbadarab nyúlása. */
+/** KB: 05 §7.2, 05 §9.8 */
 export function withoutGrowth(lengthCm: number, growthPct: number): number {
   return Number.isFinite(growthPct) && growthPct > 0 ? lengthCm / (1 + growthPct / 100) : lengthCm;
 }
 
-/** A sapka méretei a sapkatáblázatból (05 §5.2): a magasság a fül közepéig mért hossz, a növedékkel csökkentve. */
+/** KB: 05 §5.2 */
 export function hatMeasures(sizeId: string, easeCm: number | null, brimCm: number, growthPct = 0): HatMeasures | null {
   const size = HAT_SIZES.find((candidate) => candidate.id === sizeId);
   if (!size) return null;
@@ -443,18 +356,13 @@ export function hatMeasures(sizeId: string, easeCm: number | null, brimCm: numbe
   return { headCm, easeCm: easeCm ?? hatEase(headCm), heightCm: withoutGrowth(inchToCm(size.midEarIn), growthPct), brimCm };
 }
 
-/* ---- Ledobott vállú pulóver ---- */
-
 export interface DropShoulderMeasures {
   readonly bustCm: number;
   readonly easeCm: number;
   readonly neckToWristCm: number;
   readonly upperArmCm: number | null;
-  /** A ledobott váll karöltőjének mélysége (a CYC értéknél mélyebb). */
   readonly armholeDepthCm: number;
-  /** A teljes hossz a vállvarrástól, a szegéllyel. */
   readonly bodyLengthCm: number;
-  /** Az alsó szegély és a mandzsetta magassága. */
   readonly hemCm: number;
   readonly neckWidthCm: number;
   readonly frontNeckDepthCm: number;
@@ -463,7 +371,6 @@ export interface DropShoulderMeasures {
   readonly crossBackCm: number | null;
 }
 
-/** A sor első szemének adatai a láncalaphoz: fordulólánc, számít-e, hagyomány. */
 export interface RowStart {
   readonly turningChain: number;
   readonly counting: boolean;
@@ -474,7 +381,6 @@ export interface DropShoulderPlan {
   readonly kind: 'drop-shoulder';
   readonly measures: DropShoulderMeasures;
   readonly panel: {
-    /** A szem pontos értéke a kerekítés előtt. */
     readonly exact: number;
     readonly stitches: number;
     readonly repeats: number | null;
@@ -483,13 +389,12 @@ export interface DropShoulderPlan {
     readonly bodyRows: number;
     readonly rows: number;
     readonly armholeRows: number;
-    /** Az oldalvarrás sorai: a karöltő alatt. */
     readonly sideRows: number;
   };
   readonly neck: {
     readonly stitches: number;
     readonly shoulder: number;
-    /** A formázott nyak (05 „B” 5. lépés): középen meghagyott szemek, oldalanként az első sor és a további sorok fogyasztása. */
+    /** KB: 05 §4 */
     readonly front: { readonly center: number; readonly perSide: number; readonly first: number; readonly later: number; readonly rows: number };
     readonly back: { readonly center: number; readonly rows: number; readonly perRow: number };
   };
@@ -500,11 +405,9 @@ export interface DropShoulderPlan {
     readonly cuffRows: number;
     readonly shapedRows: number;
     readonly rows: number;
-    /** Szaporítások párban (mindkét szélen 1-1). */
     readonly increases: number;
-    /** A lejtő fentről lefelé, a „B” példa leírása szerint. */
     readonly schedule: SlopeSchedule;
-    /** A szaporító sorok a mandzsettától, 1-től, a mandzsetta soraival együtt számolva. */
+    /** Counted from the cuff, from 1, including the cuff rows. */
     readonly increaseRows: readonly number[];
     readonly first: number | null;
     readonly runs: readonly ShapingRun[];
@@ -516,26 +419,21 @@ export interface DropShoulderPlan {
     readonly lengthCm: number;
     readonly sleeveCm: number;
     readonly upperArmEaseCm: number | null;
-    /** A vállvarrás ennyivel lóg le a vállról a karra (05 „B” 6. lépés). */
+    /** KB: 05 §4 */
     readonly shoulderDropCm: number | null;
   };
   readonly checks: readonly GarmentCheck[];
   readonly warnings: readonly CoreText<GarmentCode>[];
 }
 
-/** A páros különbségű legközelebbi egész: a két váll így egyforma. */
+/** Nearest integer of the same parity, so the two shoulders come out equal. */
 function nearestWithParity(exact: number, parityOf: number): number {
   const low = Math.floor(exact);
   const candidates = [low - 1, low, low + 1, low + 2].filter((n) => (parityOf - n) % 2 === 0);
   return candidates.reduce((best, n) => (Math.abs(n - exact) < Math.abs(best - exact) ? n : best));
 }
 
-/**
- * A ledobott vállú pulóver terve egy méretre (05 §9.5, „B” példa); hibánál az
- * ok kódja. A `minNeck` az előző méret nyaka: a sorozatban a nyak nem lehet
- * kisebb (05 §9.6), ezért ha a párosság miatt kisebb lenne, a legközelebbi
- * nagyobb jó párosságú szám lesz.
- */
+/** `minNeck` is the previous size's neck: a series must not shrink, so if parity would make it smaller, the next larger number of the right parity wins. KB: 05 §9.6 */
 export function dropShoulderPlan(
   m: DropShoulderMeasures,
   gauge: { readonly stitchCm: number; readonly rowCm: number },
@@ -565,7 +463,7 @@ export function dropShoulderPlan(
   if (armholeRows < 2 || armholeRows >= rows) return text('armhole-fit');
   const sideRows = rows - armholeRows;
 
-  // Nyak: a vállak egyformák, ezért a nyak szemszámának párossága a sorét követi.
+  // The shoulders are equal, so the parity of the neck count follows the row's.
   let neck = nearestWithParity(m.neckWidthCm / stitchCm, stitches);
   if (neck < minNeck) neck = minNeck + ((stitches - minNeck) % 2);
   if (neck < 2 || neck > stitches - 4) return text('neck-fit');
@@ -579,7 +477,7 @@ export function dropShoulderPlan(
   const backPerRow = backRows > 0 ? 1 : 0;
   const backCenter = neck - 2 * backRows * backPerRow;
 
-  // Ujj: a felső él a karöltő kétszerese, a mandzsetta és a felső él páros, hogy a szaporítás párban jöjjön (05 „B” 7–9.).
+  // The cuff and the top edge are even, so the increases come in pairs. KB: 05 §4
   const top = roundEven((2 * m.armholeDepthCm) / stitchCm, 'up');
   const warnings: CoreText<GarmentCode>[] = [];
   let cuff = roundEven(m.cuffWidthCm / stitchCm, 'up');
@@ -595,7 +493,7 @@ export function dropShoulderPlan(
   let schedule = slopeSchedule(shapedRows, increases, true);
   let reversed = schedule ? reversedEventRows(schedule, shapedRows) : null;
   if (!reversed) {
-    // Ha az első szakasz egyetlen sor lenne, a szaporítás a 2. sortól oszlik el: így is legfeljebb soronként 1-1 (05 §4.4).
+    // If the first phase were a single row, the increases start from row 2, still at most one pair per row. KB: 05 §4.4
     const shifted = slopeSchedule(shapedRows - 1, increases, true);
     if (shifted) {
       schedule = { ...shifted, intervals: [shifted.intervals[0]! + 1, ...shifted.intervals.slice(1)] };
@@ -707,16 +605,10 @@ export function dropShoulderPlan(
 
 export interface GradedMeasures {
   readonly measures: DropShoulderMeasures;
-  /** A táblázatban hiányzó, becsült méretek kódja; a nevet a felület adja. */
   readonly estimated: readonly CoreText<GarmentCode>[];
 }
 
-/**
- * A pulóver méretei a táblázat egy méretéből (05 §3.8, §9.6): a tartomány
- * közepe, a ledobott váll karöltője a CYC értéknél mélyebb, a nyak a
- * keresztháti szélességből, a mandzsetta a felkarból, a hossz a derékig mért
- * háthossz és a derék alatti hossz összege. A hiányzó méreteket becsüljük.
- */
+// KB: 05 §3.8, 05 §9.6
 export function dropShoulderMeasures(
   table: BodyTable,
   sizeId: string,
@@ -746,7 +638,7 @@ export function dropShoulderMeasures(
       neckToWristCm: mid(v.neckToWrist),
       upperArmCm,
       armholeDepthCm,
-      // A hosszt a növedék csökkenti: a mosott, blokkolt, felakasztott próbadarab nyúlása (05 §7.2).
+      // KB: 05 §7.2
       bodyLengthCm: withoutGrowth(mid(length) + options.belowWaistCm, options.growthPct ?? 0),
       hemCm: options.hemCm,
       neckWidthCm: NECK_RATIO * crossBackCm,
@@ -759,27 +651,20 @@ export function dropShoulderMeasures(
   };
 }
 
-/* ---- Méretsorozat ---- */
-
-/** Egy méret terve: sapka, ledobott vállú pulóver vagy raglán. */
 export type GarmentSizePlan = HatPlan | DropShoulderPlan | RaglanPlan;
 
 export interface SizePlan {
   readonly id: string;
   readonly plan: GarmentSizePlan;
-  /** A táblázat gyanús értékei ennél a méretnél (body-sizes.ts). */
   readonly flags: readonly DataFlag[];
   readonly estimated: readonly CoreText<GarmentCode>[];
-  /** A darab(ok) területe, cm². */
   readonly areaCm2: number;
-  /** Fonal tartalékkal és gombolyag, ha a profilból becsülhető. */
   readonly yarn: { readonly lengthM: number; readonly balls: number } | null;
 }
 
 export interface MonotonicIssue {
   readonly key: string;
   readonly label: CoreText<GarmentCode>;
-  /** A méret azonosítója, amelyben az érték kisebb, mint az előzőben. */
   readonly size: string;
 }
 
@@ -789,14 +674,11 @@ export interface GarmentSeriesPlan {
   readonly stitch: StitchDefId;
   readonly gauge: ShapeGauge;
   readonly sizes: readonly SizePlan[];
-  /** A gráf méretének indexe a `sizes`-ban. */
   readonly base: number;
   readonly monotonic: readonly MonotonicIssue[];
   readonly checksPassed: number;
   readonly checksTotal: number;
-  /** Miért nincs fonalbecslés; `null`, ha van. */
   readonly yarnMissing: readonly YarnMissing[] | null;
-  /** A sorozat számai a mintába (types.ts `PatternGarment`). */
   readonly values: Readonly<Record<string, readonly number[]>>;
 }
 
@@ -809,7 +691,6 @@ export type GarmentResult =
 
 const fail = (reason: CoreText<GarmentCode>): { readonly ok: false; readonly reason: CoreText<GarmentCode> } => ({ ok: false, reason });
 
-/** Mi nem választható: szem, méret, bőség, szegély, ismétlés. */
 export function garmentProblem(options: GarmentOptions): CoreText<GarmentCode> | null {
   if (!GARMENT_STITCHES.includes(options.stitch)) {
     return text('stitch-choice');
@@ -824,7 +705,6 @@ export function garmentProblem(options: GarmentOptions): CoreText<GarmentCode> |
   if (options.kind === 'drop-shoulder' && options.easeCm === null) return text('ease-required');
   if (!(Number.isFinite(options.hemCm) && options.hemCm >= 0 && options.hemCm <= 50)) return text('hem-range');
   if (!(Number.isFinite(options.growthPct) && options.growthPct >= 0 && options.growthPct <= 50)) return text('growth-range');
-  // A bordázat ugyanazokkal a korlátokkal, mint a Forma szakaszban (PQW-909).
   if (options.ribbing) {
     const ribbing = ribbingProblem(options.ribbing);
     if (ribbing !== null) return ribbing;
@@ -840,11 +720,7 @@ export function garmentProblem(options: GarmentOptions): CoreText<GarmentCode> |
   return null;
 }
 
-/**
- * A raglán méretei a táblázat egy méretéből (05 §2.3, §4 „C” példa): a nyak a
- * keresztháti szélességből, a raglán mélysége a karöltőmélységből, a hónaljlánc
- * a felkar hatoda. A hiányzó méreteket becsüljük.
- */
+// KB: 05 §2.3, 05 §4
 export function raglanMeasures(
   table: BodyTable,
   sizeId: string,
@@ -854,7 +730,7 @@ export function raglanMeasures(
   if (!size) return text('unknown-size', { size: sizeId });
   const v = size.values;
   const length = v.backWaist ?? v.backHip;
-  // Az ujj csöve a hónaljtól indul, ezért a karhossz is kell (PQW-913); a CYC táblázatok mind megadják.
+  // The sleeve tube starts at the underarm, so the arm length is needed too; every CYC table gives it.
   if (!v.chest || !length || !v.crossBack || !v.armLength) return text('missing-measure', { size: sizeId });
   const estimated: CoreText<GarmentCode>[] = [];
   const bustCm = mid(v.chest);
@@ -864,7 +740,7 @@ export function raglanMeasures(
     estimated.push(text('estimated-armhole-depth'));
     armholeDepthCm = bustCm / 6 + 5;
   }
-  // A felkarbőség a mérés, az ujj körmérete ezen felül a bőség; a mandzsetta a nyers felkarból jön (05 „B”).
+  // The upper arm is the measurement, the sleeve circumference adds ease, the cuff comes from the raw upper arm. KB: 05 §4
   const rawUpperArmCm = v.upperArm ? mid(v.upperArm) : null;
   const upperArmCm = rawUpperArmCm === null ? null : rawUpperArmCm + GARMENT_EASE.sleeve;
   if (upperArmCm === null) estimated.push(text('estimated-upper-arm'));
@@ -875,13 +751,13 @@ export function raglanMeasures(
       bustCm,
       easeCm: options.easeCm ?? 0,
       upperArmCm,
-      // A nyak körmérete a keresztháti szélességből (05 §2.3): a váll szélességének kb. 1,2-szerese.
+      // KB: 05 §2.3
       neckCm: NECK_RATIO * mid(v.crossBack) * 2.6,
-      // A raglán mélysége a karöltőnél kb. 1–2 cm-rel több (05 §4 „C” példa).
+      // KB: 05 §4
       yokeDepthCm: armholeDepthCm + RAGLAN_YOKE_ALLOWANCE_CM,
       underarmCm: (upperArmCm ?? bustCm / 3) / 8,
       bodyLengthCm: withoutGrowth(mid(length) + options.belowWaistCm, options.growthPct ?? 0),
-      // Az ujj a hónaljtól a mandzsetta aljáig; a növedék a hosszakat rövidíti (05 §7.2, PQW-913).
+      // KB: 05 §7.2
       sleeveLengthCm: withoutGrowth(mid(v.armLength), options.growthPct ?? 0),
       cuffCm,
       hemCm: options.hemCm,
@@ -890,7 +766,7 @@ export function raglanMeasures(
   };
 }
 
-/** A sapka és a raglán szemmérete körben, a ledobott vállú pulóveré sorban. */
+/** A hat and a raglan are measured in rounds, a drop-shoulder sweater in rows. */
 function garmentGauge(pattern: Pattern, kind: GarmentKind, stitch: StitchDefId): ShapeGauge {
   if (kind === 'drop-shoulder') return shapeGauge(pattern, stitch);
   const def = resolveStitch(stitch) ?? resolveStitch('sc')!;
@@ -915,7 +791,7 @@ const MONOTONIC: Readonly<Record<GarmentKind, readonly { readonly key: string; r
     { key: 'raglanSleeve', label: text('monotonic-raglan-sleeve') },
     { key: 'raglanNeck', label: text('monotonic-neck') },
   ],
-  // Csak szemszámok: az ujj sorai nagyobb méretben csökkenhetnek, mert a szélesebb darabbal a váll lejjebb lóg (05 „B” 8. lépés).
+  // Stitch counts only: sleeve rows may drop in a larger size, because a wider piece drops the shoulder further. KB: 05 §4
   'drop-shoulder': [
     { key: 'panelStitches', label: text('monotonic-panel') },
     { key: 'neck', label: text('monotonic-neck') },
@@ -924,7 +800,7 @@ const MONOTONIC: Readonly<Record<GarmentKind, readonly { readonly key: string; r
   ],
 };
 
-/** A sorozat számai egy méretre; a kulcsok a garment-text.ts szerint. */
+/** One number per size, keyed by `SERIES_KEYS`. */
 function sizeValues(plan: GarmentSizePlan): Record<string, number> {
   if (plan.kind === 'raglan') {
     return {
@@ -985,10 +861,9 @@ function sizeValues(plan: GarmentSizePlan): Record<string, number> {
   };
 }
 
-/** A darab(ok) területe a fonalhoz, cm². */
 function areaOf(plan: GarmentSizePlan, gauge: ShapeGauge): number {
   if (plan.kind === 'raglan') {
-    // A vállrész csonka kúp palástja, a törzs henger, az ujjak henger a hónaljtól a kézfejig.
+    // The yoke is a truncated cone, the body a cylinder, the sleeves cylinders from underarm to wrist.
     const yoke = ((plan.neck.stitches + plan.bodyStitches) / 2) * gauge.stitchCm * plan.yokeRounds * gauge.rowCm;
     const body = plan.bodyStitches * gauge.stitchCm * plan.bodyRoundsBelow * gauge.rowCm;
     const sleeves = 2 * plan.sleeveStitches * gauge.stitchCm * plan.yokeRounds * gauge.rowCm;
@@ -1003,7 +878,6 @@ function areaOf(plan: GarmentSizePlan, gauge: ShapeGauge): number {
   return 2 * panel + 2 * sleeve;
 }
 
-/** A méretsorozat terve a minta mintasűrűségével; a gráfot a `generateGarment` építi. */
 export function planGarment(pattern: Pattern, options: GarmentOptions): GarmentPlanResult {
   const problem = garmentProblem(options);
   if (problem) return fail(problem);
@@ -1050,7 +924,7 @@ export function planGarment(pattern: Pattern, options: GarmentOptions): GarmentP
       const previous = sizes.at(-1)?.plan;
       plan = dropShoulderPlan(graded.measures, gauge, start, options.repeat, previous?.kind === 'drop-shoulder' ? previous.neck.stitches : 0);
     }
-    // Sorozatban az elutasítás megmondja, melyik méretnél akadt el; a méret nevét a felület teszi bele.
+    // In a series the rejection names the size it stopped at; the name itself comes from the UI.
     if (isGarmentText(plan)) {
       return fail(series.length > 1 ? text('size-problem', { size: id, table, inner: plan.code, ...(plan.data ?? {}) }) : plan);
     }
@@ -1103,29 +977,21 @@ export function planGarment(pattern: Pattern, options: GarmentOptions): GarmentP
   };
 }
 
-/* ---- Gráfépítés ---- */
-
 const stitchEdge = (piece: string, layer: number, from: number, count: number) => ({ piece, layer, stitches: { from, count } });
 const rowsEdge = (piece: string, from: number, to: number, side: 'left' | 'right') => ({ piece, layer: from, rows: { to, side } });
 
-/** Két szél varrása; eltérő hossznál egyenletes elosztással. */
 function seam(a: PieceJoin['a'], countA: number, b: PieceJoin['b'], countB: number): PieceJoin {
   return countA === countB ? { a, b } : { a, b, distribution: evenDistribution(countA, countB) };
 }
 
-/**
- * A pulóver varrásai (05 §9.5 9. pont). A darabokat színükkel egymás felé
- * fordítva varrjuk, ezért a hátrész bal széle az elejerész jobb szélére kerül,
- * és a hátrész sorának eleje az elejerész sorának végére.
- */
+// Pieces are seamed right sides together, so the back's left edge meets the front's right edge, and the start of a back row meets the end of a front row. KB: 05 §9.5
 export function dropShoulderJoins(plan: DropShoulderPlan, neckline: GarmentOptions['neckline'] = 'boat'): PieceJoin[] {
   const { stitches, rows, armholeRows } = plan.panel;
   const { shoulder } = plan.neck;
   const { top, rows: sleeveRows } = plan.sleeve;
   const half = top / 2;
   const shaped = neckline === 'shaped';
-  // Formázott nyaknál a darab a megosztásig egy szakasz, fölötte a vállak. A karöltő mindkét darabon ugyanott
-  // kezdődik (a felső éltől számítva), ezért az oldalvarrás hossza egyforma; a karöltő a törzs tetejéig tart (PQW-901).
+  // KB: core-domain §12
   const bodyRows = (part: 'front' | 'back') => (shaped ? neckSplitRow(plan, part) : rows);
   const sideRows = rows - armholeRows;
   const sleeve = (piece: string, backSide: 'left' | 'right', frontSide: 'left' | 'right'): PieceJoin[] => [
@@ -1133,7 +999,7 @@ export function dropShoulderJoins(plan: DropShoulderPlan, neckline: GarmentOptio
     seam(stitchEdge(piece, sleeveRows, half, half), half, rowsEdge('p2', sideRows + 1, bodyRows('front'), frontSide), bodyRows('front') - sideRows),
     { a: rowsEdge(piece, 1, sleeveRows, 'left'), b: rowsEdge(piece, 1, sleeveRows, 'right') },
   ];
-  // Formázott nyaknál a váll egy-egy teljes sor a szakasza tetején; csónaknyaknál a felső sor egy szakasza.
+  // With a shaped neck the shoulder is a whole row at the top of its section; with a boat neck it is a run of the top row.
   const shoulderSeams: PieceJoin[] = shaped
     ? [
         { a: stitchEdge('p1', neckSplitRow(plan, 'back') + plan.neck.back.rows, 0, shoulder), b: stitchEdge('p2', rows + plan.neck.front.rows, 0, shoulder) },
@@ -1152,17 +1018,12 @@ export function dropShoulderJoins(plan: DropShoulderPlan, neckline: GarmentOptio
   ];
 }
 
-/** A formázott nyakkivágás megosztási sora: a váll alakítása e fölött készül (PQW-901). */
+/** KB: core-domain §12 */
 export function neckSplitRow(plan: DropShoulderPlan, part: 'front' | 'back'): number {
   return plan.panel.rows - (part === 'front' ? plan.neck.front.rows : plan.neck.back.rows);
 }
 
-/**
- * A hátrész és az elejerész sorai formázott nyakkivágással (PQW-901): a
- * megosztásig egy szakasz, fölötte a két váll. A váll belső élén fogy a nyak:
- * elöl az első sorban több szem, utána soronként egy; hátul soronként egy. A
- * két váll közötti szemek a nyak közepén maradnak.
- */
+// KB: core-domain §12; 05 §4
 export function panelSections(plan: DropShoulderPlan, part: 'front' | 'back'): RowSection[] {
   const { stitches } = plan.panel;
   const { shoulder } = plan.neck;
@@ -1178,7 +1039,7 @@ export function panelSections(plan: DropShoulderPlan, part: 'front' | 'back'): R
         };
   const split = neckSplitRow(plan, part);
   const span = shoulder + neck.perSide;
-  // A váll belső éle a sor vége az egyik, a sor eleje a másik oldalon.
+  // The inner edge of the shoulder is the end of the row on one side and the start of it on the other.
   const shoulderRows = (inner: 'start' | 'end') => {
     const counts: number[] = [];
     const shaping: RowShaping[] = [];
@@ -1198,7 +1059,6 @@ export function panelSections(plan: DropShoulderPlan, part: 'front' | 'back'): R
   ];
 }
 
-/** Az ujj sorainak szemszáma és alakítása a mandzsettától. */
 export function sleeveRowsOf(plan: DropShoulderPlan): { readonly counts: number[]; readonly shaping: RowShaping[] } {
   const increase = new Set(plan.sleeve.increaseRows);
   const shaping: RowShaping[] = [];
@@ -1213,11 +1073,7 @@ export function sleeveRowsOf(plan: DropShoulderPlan): { readonly counts: number[
 
 const GENERATED_NAMES = [...Object.values(GARMENT_NAMES)];
 
-/**
- * Új minta a ruhadarabból, a választott méret gráfjával és a méretsorozattal.
- * A mintából a címet (ha nem generált), a jelölést, a profilokat és a
- * konvenciókat veszi át.
- */
+// KB: core-domain §1
 export function generateGarment(pattern: Pattern, options: GarmentOptions): GarmentResult {
   const planned = planGarment(pattern, options);
   if (!planned.ok) return planned;
@@ -1253,7 +1109,7 @@ export function generateGarment(pattern: Pattern, options: GarmentOptions): Garm
     const panelCounts = Array<number>(shoulderPlan.panel.rows).fill(shoulderPlan.panel.stitches);
     const flat = panelCounts.map(() => ({ start: 0, end: 0 }));
     const sleeve = sleeveRowsOf(shoulderPlan);
-    // Formázott nyaknál a darab két vállal folytatódik a megosztás fölött (PQW-901).
+    // KB: core-domain §12
     const shaped = options.neckline === 'shaped' && shoulderPlan.neck.front.rows > 0 && shoulderPlan.neck.back.rows > 0;
     const panel = (part: 'front' | 'back', pieceName: string, id: string) =>
       shaped
@@ -1262,9 +1118,9 @@ export function generateGarment(pattern: Pattern, options: GarmentOptions): Garm
     const pieces = [
       panel('back', PIECE_NAMES.back, 'p1'),
       panel('front', PIECE_NAMES.front, 'p2'),
-      // A mandzsetta az ujj alján van: a bordázat ugyanúgy az első sorokra kerül (PQW-913).
+      // The cuff is at the bottom of the sleeve, so the ribbing goes on the first rows just the same.
       plannedRows(base, options.stitch, sleeve.counts, sleeve.shaping, PIECE_NAMES.leftSleeve, 'p3', options.ribbing ?? null),
-      // A jobb ujj a bal tükörképe (05 §4.5): a sor eleje és vége felcserélődik.
+      // KB: 05 §4.5
       plannedRows(base, options.stitch, sleeve.counts, mirrorShaping(sleeve.shaping), PIECE_NAMES.rightSleeve, 'p4', options.ribbing ?? null),
     ];
     const built: Piece[] = [];

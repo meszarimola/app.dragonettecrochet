@@ -1,37 +1,18 @@
-/*
- * Gauge-profil: a próbadarabok mérései a docs/calibration/ formátumában, és a
- * belőlük számolt profilok (PQW-859; a formátum: PQW-860).
- *
- * A mérési fájl nyers leolvasásokat tárol. Az átlagot, a szórást, az
- * szemenkénti méretet, a területre jutó tömeget és a blokkolás hatását itt
- * számoljuk, hogy egy elírást egy helyen lehessen javítani
- * (docs/calibration/README.md, „Derived values”).
- *
- * Egy fájl mérésenként (blokkolás előtt, után) egy mintát ad. A profil a
- * horgoló × fonal × tű × blokkolás szerint gyűjti össze őket, szemenként és
- * azon belül formánként, mert a gauge-et abban a formában kell mérni, ahogy
- * használjuk (README §4.2). Minden profilérték mért; ami hiányzik, azt a
- * `gauge.ts` becsüli, és becslésként jelöli.
- */
+// KB: 02 §3.1, 02 §3.7, 02 §4.3, 02 §6.4, 06 §5.2
 
 import type { Sourced, StitchDefId, StitchInsertion } from './types.ts';
 import { classifyByMeterage, metersPer100g } from './yarn-weight.ts';
 
-/* ---- Típusok ---- */
-
 export const GAUGE_SAMPLE_SCHEMA_VERSION = 1;
 
-/** Amiből szemméret jön: sík sorok, cső vagy lapos kör. */
 export type WorkedIn = 'rows' | 'rounds-tube' | 'rounds-flat';
 
-/** A mérési fájl formái; a láncszemsor csak a láncszem hosszát adja. */
 export type SampleForm = WorkedIn | 'chain';
 
 export type SampleInsertion = Extract<StitchInsertion, 'both-loops' | 'back-loop' | 'front-loop'>;
 
 export type FabricShape = 'flat' | 'cupping' | 'ruffling';
 
-/** Átlag, mintabeli szórás (n − 1) és a leolvasások száma. */
 export interface Stat {
   readonly mean: number;
   readonly sd: number;
@@ -50,7 +31,6 @@ export interface SampleYarn {
   readonly colour: string | null;
   readonly dyeLot: string | null;
   readonly fibre: readonly Fibre[];
-  /** A címkéről; `null`, ha nincs rajta. */
   readonly cycWeight: number | null;
   readonly label: {
     readonly lengthM: number | null;
@@ -60,34 +40,28 @@ export interface SampleYarn {
   };
 }
 
-/** Egy leolvasássor terjedelme a tűrés fölött: a feszesség a darabon belül változott (02 §3.1, §9 10.). */
+// KB: 02 §3.1, 02 §9 — the tension varied inside one swatch.
 export interface DriftWarning {
-  /** A leolvasások helye a fájlban, pl. `$.measurements[0].grid.widthMm`. */
   readonly path: string;
-  /** `(max − min) / átlag`. */
   readonly spread: number;
 }
 
 export const DRIFT_LIMIT = 0.05;
 
-/** Egy mérés egy fájlból, a számolt értékekkel (06 §5.2 `GaugeSample`). */
+// KB: 06 §5.2
 export interface GaugeSample {
-  /** A fájl azonosítója, `GS-ÉÉÉÉHHNN-SS`. */
   readonly sampleId: string;
   readonly date: string;
   readonly crocheterId: string;
   readonly yarn: SampleYarn;
   readonly hookMm: number;
-  /** Könyvtári azonosító: a kalibrációs `slst` itt `sl-st`. */
+  /** Library id: the calibration files' `slst` is `sl-st` here. */
   readonly stitch: StitchDefId;
   readonly insertion: SampleInsertion;
   readonly workedIn: SampleForm;
   readonly blocked: boolean;
-  /** Szemenkénti szélesség leolvasásonként, mm. Láncszemsornál üres. */
   readonly widthReadingsMm: readonly number[];
-  /** Soronkénti (körönkénti) magasság leolvasásonként, mm. */
   readonly heightReadingsMm: readonly number[];
-  /** Láncszemenkénti hossz leolvasásonként, mm. Csak láncszemsornál. */
   readonly chainReadingsMm: readonly number[];
   readonly widthMm: Stat | null;
   readonly heightMm: Stat | null;
@@ -96,23 +70,21 @@ export interface GaugeSample {
   readonly swatchMassG: number | null;
   readonly massPerAreaGPerCm2: number | null;
   readonly yarnPerStitchCm: number | null;
-  /** Lapos körnél: lapos maradt, csészésedik vagy fodrosodik. */
   readonly shape: FabricShape | null;
   readonly drift: readonly DriftWarning[];
   readonly photoIds: readonly string[];
   readonly notes: string | null;
 }
 
-/** Egy szem egy formában, a profil összes mintájából. */
 export interface StitchGauge {
-  /** Honnan jön a mérés; hiányában mért. A felületen megadott címkeadat `label` (PQW-859). */
+  /** Absent means measured; `label` is yarn-label data typed into the editor. */
   readonly source?: 'measured' | 'label';
   readonly widthMm: Stat;
   readonly heightMm: Stat;
   readonly massPerAreaGPerCm2: number | null;
   readonly yarnPerStitchCm: number | null;
   readonly shape: FabricShape | null;
-  /** Blokkolt profilban a blokkolás előttihez képest, relatív; máshol `null` (02 §3.7). */
+  /** KB: 02 §3.7 */
   readonly blockingChange: { readonly width: number; readonly height: number } | null;
   readonly samples: readonly string[];
 }
@@ -121,31 +93,25 @@ export interface ProfileYarn {
   readonly id: string;
   readonly name: string;
   readonly fibre: readonly Fibre[];
-  /** A címkéről, vagy ha ott nincs, a méterből becsülve. */
   readonly cycWeight: Sourced<number> | null;
   readonly metersPer100g: Sourced<number> | null;
   readonly label: { readonly lengthM: number | null; readonly massG: number | null };
 }
 
-/** A tervező ebből számol méretet (06 §5.2 `GaugeProfile`, docs/calibration/README.md). */
+// KB: 06 §5.2
 export interface GaugeProfile {
-  /** Pl. `owner-pelda-pamut-125-4mm-unblocked`. */
   readonly id: string;
   readonly crocheterId: string;
   readonly yarn: ProfileYarn;
   readonly hookMm: number;
   readonly blocked: boolean;
-  /** Szemkulcs (`sc`, `sc/back-loop`) → forma → mérés. */
   readonly perStitch: Readonly<Partial<Record<string, Readonly<Partial<Record<WorkedIn, StitchGauge>>>>>>;
   readonly chainLengthMm: Stat | null;
   readonly samples: readonly string[];
 }
 
-/* ---- Betöltés ---- */
-
 export interface SampleLoadError {
   readonly code: 'invalid-json' | 'unsupported-version' | 'invalid-format';
-  /** A hibás mező útvonala, pl. `$.measurements[0].grid.widthMm`. */
   readonly path: string;
   readonly message: string;
 }
@@ -154,7 +120,6 @@ export type SampleLoadResult =
   | { readonly ok: true; readonly samples: readonly GaugeSample[] }
   | { readonly ok: false; readonly error: SampleLoadError };
 
-/** Egy `GS-….json` mérési fájl; mérésenként egy minta. */
 export function loadGaugeSample(text: string): SampleLoadResult {
   let value: unknown;
   try {
@@ -192,7 +157,7 @@ function isObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** Objektum a kötelező mezőkkel; ismeretlen mező hiba, hogy az elírás ne vesszen el. */
+/** An unknown field is an error, so a typo in a calibration file is never silently dropped. */
 function object(value: unknown, path: string, required: readonly string[], optional: readonly string[] = []): JsonObject {
   if (!isObject(value)) throw new FormatError(path, 'Objektumot vártunk.');
   for (const key of required) {
@@ -260,14 +225,14 @@ function array<T>(value: unknown, path: string, read: (item: unknown, path: stri
   return value.map((item, index) => read(item, `${path}[${index}]`));
 }
 
-/** Egyedi leolvasások mm-ben, legalább három, sosem előre átlagolva. */
+/** KB: 02 §9 — individual readings, at least three, never pre-averaged. */
 function readings(value: unknown, path: string): number[] {
   const values = array(value, path, positive);
   if (values.length < 3) throw new FormatError(path, 'Legalább három leolvasást vártunk.');
   return values;
 }
 
-/** A kalibrációs szemazonosító a könyvtáréra (docs/calibration/README.md, „Identifiers”). */
+/** The calibration files use their own stitch ids; this maps them onto the library's. */
 const CALIBRATION_STITCHES: Readonly<Record<string, StitchDefId>> = {
   ch: 'ch',
   slst: 'sl-st',
@@ -509,13 +474,10 @@ function readPhoto(value: unknown, path: string): string {
   return matching(raw['file'], `${path}.file`, /^[A-Za-z0-9._-]+\.(jpe?g|png|heic)$/, 'Fényképfájl nevét vártunk.');
 }
 
-/* ---- Számolt értékek ---- */
-
 function mean(values: readonly number[]): number {
   return values.reduce((total, value) => total + value, 0) / values.length;
 }
 
-/** Átlag és mintabeli szórás; üres listára `null`. */
 export function stat(values: readonly number[]): Stat | null {
   const n = values.length;
   if (n === 0) return null;
@@ -524,10 +486,7 @@ export function stat(values: readonly number[]): Stat | null {
   return { mean: average, sd, n };
 }
 
-/**
- * Fonal szemenként, cm: a területre jutó tömegből, a szem területéből és a
- * címke hossz/tömeg arányából (docs/calibration/README.md, „Derived values”).
- */
+// KB: 02 §6.4
 export function yarnPerStitchCm(massPerAreaGPerCm2: number, widthMm: number, heightMm: number, lengthM: number, massG: number): number {
   return massPerAreaGPerCm2 * ((widthMm * heightMm) / 100) * (lengthM / massG) * 100;
 }
@@ -567,14 +526,14 @@ function derive(measurement: Measurement, construction: Construction, yarn: Samp
     checkDrift(grid.widthMm, `${path}.grid.widthMm`);
     checkDrift(grid.heightMm, `${path}.grid.heightMm`);
     if (swatch.widthMm !== null && swatch.heightMm !== null) {
-      // A cső kilapítva két réteg.
+      // A tube measured flat is two layers.
       const layers = construction.workedIn === 'rounds-tube' ? 2 : 1;
       area = (layers * swatch.widthMm * swatch.heightMm) / 100;
     }
   }
   if (circle && construction.lastRoundStitches !== null && construction.rounds !== null) {
     const { lastRoundStitches, rounds } = construction;
-    // A külső kör kerülete az utolsó kör szemein; a sugár körönként egy körmagasságnyit nő (02 §4.3).
+    // KB: 02 §4.3
     widths = circle.diameterMm.map((diameter) => (Math.PI * diameter) / lastRoundStitches);
     heights = circle.diameterMm.map((diameter) => diameter / 2 / rounds);
     checkDrift(circle.diameterMm, `${path}.circle.diameterMm`);
@@ -609,15 +568,12 @@ function derive(measurement: Measurement, construction: Construction, yarn: Samp
   };
 }
 
-/* ---- Profilok ---- */
-
 const WORKED_IN: readonly WorkedIn[] = ['rows', 'rounds-tube', 'rounds-flat'];
 
 export function profileId(crocheterId: string, yarnId: string, hookMm: number, blocked: boolean): string {
   return `${crocheterId}-${yarnId}-${hookMm}mm-${blocked ? 'blocked' : 'unblocked'}`;
 }
 
-/** A beszúrás csak akkor része a kulcsnak, ha nem a két szál (docs/calibration/README.md). */
 export function stitchKey(stitch: StitchDefId, insertion: SampleInsertion): string {
   return insertion === 'both-loops' ? stitch : `${stitch}/${insertion}`;
 }
@@ -634,10 +590,7 @@ function relativeChange(before: number, after: number): number {
   return (after - before) / before;
 }
 
-/**
- * Profilok a mintákból: horgoló × fonal × tű × blokkolás szerint. Az azonos
- * kulcsú minták leolvasásai összeadódnak, az `n` a leolvasások száma.
- */
+// Samples that share a key pool their readings; `n` is the total number of readings.
 export function buildGaugeProfiles(samples: readonly GaugeSample[]): GaugeProfile[] {
   const groups = new Map<string, GaugeSample[]>();
   const sorted = [...samples].sort((a, b) => compare(a.sampleId, b.sampleId) || Number(a.blocked) - Number(b.blocked));
@@ -726,7 +679,7 @@ function profileYarn(yarn: SampleYarn): ProfileYarn {
   };
 }
 
-/** A blokkolt profil szemeihez a blokkolás előttihez képesti változás (02 §3.7). */
+// KB: 02 §3.7
 function withBlockingChange(profile: GaugeProfile, profiles: readonly GaugeProfile[]): GaugeProfile {
   if (!profile.blocked) return profile;
   const beforeId = profileId(profile.crocheterId, profile.yarn.id, profile.hookMm, false);
