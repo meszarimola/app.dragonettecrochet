@@ -387,6 +387,18 @@ export const MARKUP_TEXTS = {
     arcExplode: 'Szétbontás',
     arcHint:
       'A két végpont és a középső fogantyú a vásznon húzható. Kijelölt ívnél a számbillentyűk a szemek számát állítják.',
+    toolFanLabel: 'Legyező',
+    toolFanTip:
+      'Legyező: kattints az alappontra és húzd az irányba. A kijelölt legyező számbillentyűvel állítható.',
+    toolLabelFan: 'Legyező',
+    fanTitle: 'Legyező',
+    fanModeLabel: 'Fajta',
+    fanCountLabel: 'Szemek száma',
+    fanSpreadLabel: 'Szétnyílás (fok)',
+    fanLengthLabel: 'Hossz',
+    fanExplode: 'Szétbontás',
+    fanHint:
+      'Az alappont és a középső sugár vége a vásznon húzható. Kijelölt legyezőnél a számbillentyűk a szemek számát állítják.',
 
     sectionNotationTitle: 'Jelölés és jelek',
     notationGroupLabel: 'Jelölés és jelek',
@@ -826,6 +838,17 @@ export const MARKUP_TEXTS = {
     arcExplode: 'Break apart',
     arcHint:
       'Drag the two ends and the middle handle on the canvas. With an arc selected, the digit keys set the number of stitches.',
+    toolFanLabel: 'Fan',
+    toolFanTip: 'Fan: click the base point and drag in the direction. With a fan selected, digits set the count.',
+    toolLabelFan: 'Fan',
+    fanTitle: 'Fan',
+    fanModeLabel: 'Kind',
+    fanCountLabel: 'Number of stitches',
+    fanSpreadLabel: 'Spread (degrees)',
+    fanLengthLabel: 'Length',
+    fanExplode: 'Break apart',
+    fanHint:
+      'Drag the base point and the end of the middle ray on the canvas. With a fan selected, the digit keys set the number of stitches.',
 
     sectionNotationTitle: 'Notation and symbols',
     notationGroupLabel: 'Notation and symbols',

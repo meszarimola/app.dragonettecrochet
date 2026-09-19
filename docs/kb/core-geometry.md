@@ -1042,4 +1042,17 @@ pulled apart onto different rows. Without it, deleting a row or a layer left a
 group naming something that no longer existed, the writer refused the pattern,
 and the autosave failed silently from then on.
 
-Cited from: `src/core/irregular-arc.ts` and `src/core/irregular-groups.ts`.
+**A fan is the same recipe with a different path.** In `spread` mode `origin` is
+the shared base point every stitch is worked into; in `converge` it is the
+shared top point they meet at, and the base points lie a `length` away around
+it. Both modes put the members at the **same centres** — only the shared end and
+the half-turn differ, which is why one module serves both. A fan's length
+stretches the whole glyph (D11), so the width keeps the glyph's proportions.
+
+**Kinds share one layout path.** `memberShapes` is the only place that knows
+which kind a group is; everything else — laying out, reseating, translating,
+forgetting — works on any group. Adding a third kind means adding a case there
+and a reader branch, nothing more.
+
+Cited from: `src/core/irregular-arc.ts`, `src/core/irregular-fan.ts` and
+`src/core/irregular-groups.ts`.

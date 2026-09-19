@@ -2,24 +2,23 @@
 
 import { arcStops } from './irregular-arc.ts';
 import { nextId, normalizeAngle } from './irregular-document.ts';
+import { fanShapes } from './irregular-fan.ts';
 import {
   ARC_COUNT_RANGE,
   type ChainArcGroup,
+  FAN_LENGTH_RANGE,
+  FAN_SPREAD_RANGE,
+  type FanGroup,
+  type GlyphSize,
   type IrregularGroup,
   type IrregularItem,
   type IrregularPattern,
+  type MemberShape,
   type Point,
   type StitchItem,
 } from './irregular-types.ts';
 
-/**
- * What the interface measured for the glyph. The core owns the rule that
- * follows from it, so the turn is decided in one place and can be tested.
- */
-export interface GlyphSize {
-  readonly width: number;
-  readonly height: number;
-}
+export type { GlyphSize } from './irregular-types.ts';
 
 export interface ChainArcSpec {
   readonly rowId: string;
@@ -33,6 +32,20 @@ export interface ChainArcSpec {
 }
 
 export type ChainArcPatch = Partial<Pick<ChainArcGroup, 'shape' | 'start' | 'end' | 'bulge' | 'count'>>;
+
+export interface FanSpec {
+  readonly rowId: string;
+  readonly layerId: string;
+  readonly keyEntryId: string;
+  readonly mode: FanGroup['mode'];
+  readonly origin: Point;
+  readonly direction: number;
+  readonly spreadAngle: number;
+  readonly length: number;
+  readonly count: number;
+}
+
+export type FanPatch = Partial<Pick<FanGroup, 'mode' | 'origin' | 'direction' | 'spreadAngle' | 'length' | 'count'>>;
 
 export function groupsOf(pattern: IrregularPattern): readonly IrregularGroup[] {
   return pattern.groups ?? [];
@@ -80,15 +93,93 @@ export function arcRotation(angle: number, glyph: GlyphSize): number {
   return normalizeAngle(glyph.width > glyph.height ? angle - 90 : angle);
 }
 
+/** Where each member of a group sits, whatever kind of group it is. */
+export function memberShapes(group: IrregularGroup, glyph: GlyphSize): MemberShape[] {
+  if (group.kind === 'fan') return fanShapes(group, glyph);
+  return arcStops(group).map((stop) => ({
+    at: stop.at,
+    rotation: arcRotation(stop.angle, glyph),
+    width: glyph.width,
+    height: glyph.height,
+  }));
+}
+
+export function addFan(
+  pattern: IrregularPattern,
+  spec: FanSpec,
+  glyph: GlyphSize,
+): { pattern: IrregularPattern; id: string } {
+  const group: FanGroup = {
+    ...spec,
+    id: nextGroupId(pattern),
+    kind: 'fan',
+    count: clampCount(spec.count),
+    spreadAngle: clampSpread(spec.spreadAngle),
+    length: clampLength(spec.length),
+    direction: normalizeAngle(spec.direction),
+    memberIds: [],
+  };
+  return { pattern: laidOut(pattern, group, glyph), id: group.id };
+}
+
+export function updateFan(pattern: IrregularPattern, id: string, patch: FanPatch, glyph: GlyphSize): IrregularPattern {
+  const group = groupById(pattern, id);
+  if (group === undefined || group.kind !== 'fan') return pattern;
+  const next: FanGroup = {
+    ...group,
+    mode: patch.mode ?? group.mode,
+    origin: patch.origin ?? group.origin,
+    direction: normalizeAngle(finiteOr(patch.direction, group.direction)),
+    spreadAngle: clampSpread(finiteOr(patch.spreadAngle, group.spreadAngle)),
+    length: clampLength(finiteOr(patch.length, group.length)),
+    count: patch.count === undefined ? group.count : clampCount(patch.count),
+  };
+  if (sameFan(group, next)) return pattern;
+  return laidOut(pattern, next, glyph);
+}
+
+function sameFan(a: FanGroup, b: FanGroup): boolean {
+  return (
+    a.mode === b.mode &&
+    a.origin.x === b.origin.x &&
+    a.origin.y === b.origin.y &&
+    a.direction === b.direction &&
+    a.spreadAngle === b.spreadAngle &&
+    a.length === b.length &&
+    a.count === b.count
+  );
+}
+
+function finiteOr(value: number | undefined, fallback: number): number {
+  return value !== undefined && Number.isFinite(value) ? value : fallback;
+}
+
+export function clampSpread(angle: number): number {
+  return clamp(angle, FAN_SPREAD_RANGE.min, FAN_SPREAD_RANGE.max);
+}
+
+export function clampLength(length: number): number {
+  return clamp(length, FAN_LENGTH_RANGE.min, FAN_LENGTH_RANGE.max);
+}
+
+function clamp(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min;
+  return Math.min(max, Math.max(min, value));
+}
+
+function nextGroupId(pattern: IrregularPattern): string {
+  return nextId(
+    'g',
+    groupsOf(pattern).map((group) => group.id),
+  );
+}
+
 export function addChainArc(
   pattern: IrregularPattern,
   spec: ChainArcSpec,
   glyph: GlyphSize,
 ): { pattern: IrregularPattern; id: string } {
-  const id = nextId(
-    'g',
-    groupsOf(pattern).map((group) => group.id),
-  );
+  const id = nextGroupId(pattern);
   const group: ChainArcGroup = { ...spec, id, kind: 'chainArc', count: clampCount(spec.count), memberIds: [] };
   return { pattern: laidOut(pattern, group, glyph), id };
 }
@@ -100,7 +191,7 @@ export function updateChainArc(
   glyph: GlyphSize,
 ): IrregularPattern {
   const group = groupById(pattern, id);
-  if (group === undefined) return pattern;
+  if (group === undefined || group.kind !== 'chainArc') return pattern;
   const next: ChainArcGroup = {
     ...group,
     shape: patch.shape ?? group.shape,
@@ -131,14 +222,13 @@ export function translateGroups(
   if (groups.length === 0 || (dx === 0 && dy === 0)) return pattern;
   const touched = groups.filter((group) => group.memberIds.some((member) => ids.has(member)));
   if (touched.length === 0) return pattern;
-  const moved = new Map(
+  const shift = (point: Point): Point => ({ x: point.x + dx, y: point.y + dy });
+  const moved = new Map<string, IrregularGroup>(
     touched.map((group) => [
       group.id,
-      {
-        ...group,
-        start: { x: group.start.x + dx, y: group.start.y + dy },
-        end: { x: group.end.x + dx, y: group.end.y + dy },
-      },
+      group.kind === 'fan'
+        ? { ...group, origin: shift(group.origin) }
+        : { ...group, start: shift(group.start), end: shift(group.end) },
     ]),
   );
   return { ...pattern, groups: groups.map((group) => moved.get(group.id) ?? group) };
@@ -224,8 +314,8 @@ function sameArc(a: ChainArcGroup, b: ChainArcGroup): boolean {
  * one, so raising the count keeps every stitch that was already there and the
  * selection survives.
  */
-function laidOut(pattern: IrregularPattern, group: ChainArcGroup, glyph: GlyphSize): IrregularPattern {
-  const stops = arcStops(group);
+function laidOut(pattern: IrregularPattern, group: IrregularGroup, glyph: GlyphSize): IrregularPattern {
+  const stops = memberShapes(group, glyph);
   const taken = new Set(pattern.items.map((item) => item.id));
   for (const id of group.memberIds) taken.delete(id);
   const memberIds: string[] = [];
@@ -244,15 +334,15 @@ function laidOut(pattern: IrregularPattern, group: ChainArcGroup, glyph: GlyphSi
       color: null,
       x: stop.at.x,
       y: stop.at.y,
-      width: glyph.width,
-      height: glyph.height,
-      rotation: arcRotation(stop.angle, glyph),
+      width: stop.width,
+      height: stop.height,
+      rotation: stop.rotation,
       flipX: false,
       flipY: false,
     });
   });
 
-  const next: ChainArcGroup = { ...group, memberIds };
+  const next: IrregularGroup = { ...group, memberIds };
   const byId = new Map(members.map((member) => [member.id, member]));
   const dropped = new Set(group.memberIds.filter((id) => !byId.has(id)));
   const items: IrregularItem[] = [];

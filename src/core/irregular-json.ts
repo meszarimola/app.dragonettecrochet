@@ -4,6 +4,9 @@ import {
   ARC_COUNT_RANGE,
   type ArcShape,
   DEFAULT_POLAR,
+  FAN_LENGTH_RANGE,
+  FAN_SPREAD_RANGE,
+  type FanMode,
   IRREGULAR_FORMAT_VERSION,
   type IrregularGroup,
   type IrregularGuides,
@@ -433,19 +436,10 @@ function readGroup(
   layerIds: ReadonlySet<string>,
   itemIds: ReadonlySet<string>,
 ): IrregularGroup {
-  const raw = object(value, path, [
-    'id',
-    'kind',
-    'rowId',
-    'layerId',
-    'keyEntryId',
-    'shape',
-    'start',
-    'end',
-    'bulge',
-    'count',
-    'memberIds',
-  ]);
+  if (!isObject(value)) throw new FormatError(path, 'expected-object');
+  const kind = oneOf(value['kind'], `${path}.kind`, GROUP_KINDS);
+  const shared = kind === 'fan' ? FAN_FIELDS : ARC_FIELDS;
+  const raw = object(value, path, shared);
   const rowId = string(raw['rowId'], `${path}.rowId`);
   if (!rowIds.has(rowId)) throw new FormatError(`${path}.rowId`, 'unknown-row');
   const layerId = string(raw['layerId'], `${path}.layerId`);
@@ -457,20 +451,64 @@ function readGroup(
   });
   const count = whole(raw['count'], `${path}.count`, ARC_COUNT_RANGE);
   if (count !== memberIds.length) throw new FormatError(`${path}.count`, 'group-count-mismatch');
-  return {
+  const common = {
     id: string(raw['id'], `${path}.id`),
-    kind: oneOf(raw['kind'], `${path}.kind`, ['chainArc'] as const),
     rowId,
     layerId,
     keyEntryId: string(raw['keyEntryId'], `${path}.keyEntryId`),
+    count,
+    memberIds,
+  };
+  if (kind === 'fan') {
+    return {
+      ...common,
+      kind,
+      mode: oneOf(raw['mode'], `${path}.mode`, FAN_MODES),
+      origin: readPoint(raw['origin'], `${path}.origin`),
+      direction: ranged(finite(raw['direction'], `${path}.direction`), `${path}.direction`, ANGLE_RANGE),
+      spreadAngle: ranged(finite(raw['spreadAngle'], `${path}.spreadAngle`), `${path}.spreadAngle`, FAN_SPREAD_RANGE),
+      length: ranged(positive(raw['length'], `${path}.length`), `${path}.length`, FAN_LENGTH_RANGE),
+    };
+  }
+  return {
+    ...common,
+    kind,
     shape: oneOf(raw['shape'], `${path}.shape`, ARC_SHAPES),
     start: readPoint(raw['start'], `${path}.start`),
     end: readPoint(raw['end'], `${path}.end`),
     bulge: finite(raw['bulge'], `${path}.bulge`),
-    count,
-    memberIds,
   };
 }
+
+const GROUP_KINDS: readonly IrregularGroup['kind'][] = ['chainArc', 'fan'];
+const FAN_MODES: readonly FanMode[] = ['spread', 'converge'];
+const ARC_FIELDS = [
+  'id',
+  'kind',
+  'rowId',
+  'layerId',
+  'keyEntryId',
+  'shape',
+  'start',
+  'end',
+  'bulge',
+  'count',
+  'memberIds',
+];
+const FAN_FIELDS = [
+  'id',
+  'kind',
+  'rowId',
+  'layerId',
+  'keyEntryId',
+  'mode',
+  'origin',
+  'direction',
+  'spreadAngle',
+  'length',
+  'count',
+  'memberIds',
+];
 
 const ANGLE_RANGE = { min: 0, max: 360 } as const;
 

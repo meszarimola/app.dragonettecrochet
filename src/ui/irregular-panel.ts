@@ -1,7 +1,7 @@
 // The free-form editor's properties panel. KB: interface.md §7, §8
 
 import type { AlignMode, DistributeAxis, FlipAxis, ItemPatch, PolarPatch } from '../core/irregular-document.ts';
-import type { ChainArcGroup, IrregularGuides, IrregularItem } from '../core/irregular-types.ts';
+import type { ChainArcGroup, FanGroup, IrregularGuides, IrregularItem } from '../core/irregular-types.ts';
 import { stitchById } from '../core/stitches.ts';
 import type { StitchInsertion } from '../core/types.ts';
 import { texts } from './i18n.ts';
@@ -20,6 +20,10 @@ export interface IrregularPanelHost {
   setArcShape(shape: ChainArcGroup['shape']): void;
   setArcBulge(bulge: number): void;
   explodeArc(): void;
+  setFanCount(count: number): void;
+  setFanSpread(angle: number): void;
+  setFanLength(length: number): void;
+  setFanMode(mode: FanGroup['mode']): void;
 }
 
 const INSERTIONS: readonly StitchInsertion[] = ['both-loops', 'front-loop', 'back-loop', 'front-post', 'back-post'];
@@ -81,6 +85,11 @@ export class IrregularPanel {
   readonly #arcCount: HTMLInputElement;
   readonly #arcShape: HTMLSelectElement;
   readonly #arcBulge: HTMLInputElement;
+  readonly #fan: HTMLElement;
+  readonly #fanCount: HTMLInputElement;
+  readonly #fanSpread: HTMLInputElement;
+  readonly #fanLength: HTMLInputElement;
+  readonly #fanMode: HTMLSelectElement;
   #items: readonly IrregularItem[] = [];
 
   constructor(section: HTMLDetailsElement, host: IrregularPanelHost) {
@@ -112,6 +121,11 @@ export class IrregularPanel {
     this.#arcCount = must<HTMLInputElement>(section, '#arc-count');
     this.#arcShape = must<HTMLSelectElement>(section, '#arc-shape');
     this.#arcBulge = must<HTMLInputElement>(section, '#arc-bulge');
+    this.#fan = must<HTMLElement>(section, '#props-fan');
+    this.#fanCount = must<HTMLInputElement>(section, '#fan-count');
+    this.#fanSpread = must<HTMLInputElement>(section, '#fan-spread');
+    this.#fanLength = must<HTMLInputElement>(section, '#fan-length');
+    this.#fanMode = must<HTMLSelectElement>(section, '#fan-mode');
     this.#listen();
   }
 
@@ -174,6 +188,34 @@ export class IrregularPanel {
       }
     });
     must<HTMLButtonElement>(this.#section, '#arc-explode').addEventListener('click', () => this.#host.explodeArc());
+    this.#fanCount.addEventListener('change', () =>
+      this.#number(this.#fanCount, (value) => this.#host.setFanCount(value)),
+    );
+    this.#fanSpread.addEventListener('change', () =>
+      this.#number(this.#fanSpread, (value) => this.#host.setFanSpread(value)),
+    );
+    this.#fanLength.addEventListener('change', () =>
+      this.#number(this.#fanLength, (value) => this.#host.setFanLength(value)),
+    );
+    this.#fanMode.addEventListener('change', () => {
+      if (this.#fanMode.value === 'spread' || this.#fanMode.value === 'converge') {
+        this.#host.setFanMode(this.#fanMode.value);
+      }
+    });
+    must<HTMLButtonElement>(this.#section, '#fan-explode').addEventListener('click', () => this.#host.explodeArc());
+  }
+
+  updateFan(fan: FanGroup | null): void {
+    this.#fan.hidden = fan === null;
+    if (fan === null) return;
+    const words = texts().irregular;
+    if (document.activeElement !== this.#fanMode) {
+      this.#fanMode.replaceChildren(option('spread', words.fanSpread), option('converge', words.fanConverge));
+      this.#fanMode.value = fan.mode;
+    }
+    this.#setNumber(this.#fanCount, fan.count);
+    this.#setNumber(this.#fanSpread, Math.round(fan.spreadAngle));
+    this.#setNumber(this.#fanLength, Math.round(fan.length));
   }
 
   updateArc(arc: ChainArcGroup | null): void {

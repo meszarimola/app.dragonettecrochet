@@ -121,7 +121,45 @@ export interface ChainArcGroup {
 
 export type ArcShape = 'arc' | 'straight';
 
-export type IrregularGroup = ChainArcGroup;
+/**
+ * Stitches radiating from one point. In `spread` mode `origin` is the shared
+ * base point they are all worked into; in `converge` it is the shared top point
+ * they meet at, and the base points lie on an arc of radius `length` around it.
+ */
+export interface FanGroup {
+  readonly id: string;
+  readonly kind: 'fan';
+  readonly rowId: string;
+  readonly layerId: string;
+  readonly keyEntryId: string;
+  readonly mode: FanMode;
+  readonly origin: Point;
+  /** Where the middle of the fan points, degrees clockwise from up. */
+  readonly direction: number;
+  /** The angle between the two outer stitches. */
+  readonly spreadAngle: number;
+  readonly length: number;
+  readonly count: number;
+  readonly memberIds: readonly string[];
+}
+
+export type FanMode = 'spread' | 'converge';
+
+export type IrregularGroup = ChainArcGroup | FanGroup;
+
+/** Where one member of a group sits and how big it is drawn. */
+export interface MemberShape {
+  readonly at: Point;
+  readonly rotation: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+/** What the interface measured for a glyph at its natural size. */
+export interface GlyphSize {
+  readonly width: number;
+  readonly height: number;
+}
 
 export interface IrregularGuides {
   readonly grid: { readonly visible: boolean; readonly size: number };
@@ -169,6 +207,10 @@ export const DEFAULT_ARC_COUNT = 5;
 export const ARC_COUNT_RANGE = { min: 2, max: 200 } as const;
 /** The preset bulge, as a share of the chord. KB: core-geometry §52 */
 export const DEFAULT_ARC_BULGE = 0.25;
+export const DEFAULT_FAN_COUNT = 5;
+export const DEFAULT_FAN_SPREAD = 120;
+export const FAN_SPREAD_RANGE = { min: 5, max: 350 } as const;
+export const FAN_LENGTH_RANGE = { min: 4, max: 2000 } as const;
 export const NUDGE_STEP = 1;
 export const NUDGE_STEP_LARGE = 10;
 export const EXPORT_MARGIN = 20;

@@ -6,6 +6,7 @@ import { directionOf, ringRadii, spokeAngles } from '../core/irregular-snap.ts';
 import type {
   ArcShape,
   Point as ChartPoint,
+  FanMode,
   IrregularItem,
   IrregularPattern,
   LegendBlock,
@@ -41,7 +42,8 @@ const LEGEND_COLUMN = 190;
 
 export type HandleId = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'rotate';
 
-export type ArcHandleId = 'start' | 'end' | 'bulge';
+/** The grips a parametric group offers: three for an arc, two for a fan. */
+export type ArcHandleId = 'start' | 'end' | 'bulge' | 'origin' | 'reach';
 
 /** Enough of a chain arc to draw its path: the group itself, or one being drawn. */
 export interface ArcPath {
@@ -49,6 +51,30 @@ export interface ArcPath {
   readonly start: ChartPoint;
   readonly end: ChartPoint;
   readonly bulge: number;
+}
+
+/** Enough of a fan to draw its rays. */
+export interface FanPath {
+  readonly mode: FanMode;
+  readonly origin: ChartPoint;
+  readonly direction: number;
+  readonly spreadAngle: number;
+  readonly length: number;
+  readonly count: number;
+}
+
+export type GroupPath = ArcPath | FanPath;
+
+function isFan(path: GroupPath): path is FanPath {
+  return 'origin' in path;
+}
+
+/** The rays of a fan, from one outer stitch to the other. */
+function fanRays(fan: FanPath): number[] {
+  const count = Math.max(1, Math.round(fan.count));
+  if (count === 1) return [fan.direction];
+  const step = fan.spreadAngle / (count - 1);
+  return Array.from({ length: count }, (_, index) => fan.direction - fan.spreadAngle / 2 + index * step);
 }
 
 const ARC_SAMPLES = 48;
@@ -81,10 +107,10 @@ export interface FreeScene {
   readonly fadeOthers: boolean;
   /** Item ids of the active row in crochet order, when the overlay is on. */
   readonly order: readonly string[] | null;
-  /** The selected chain arc's path, so its ends and bulge can be grabbed. */
-  readonly arc: ArcPath | null;
-  /** The arc being drawn right now, drawn but not yet grabbable. */
-  readonly arcPreview: ArcPath | null;
+  /** The selected group's path, so its grips can be grabbed. */
+  readonly arc: GroupPath | null;
+  /** The group being drawn right now, drawn but not yet grabbable. */
+  readonly arcPreview: GroupPath | null;
   readonly legend: LegendView | null;
 }
 
@@ -559,13 +585,20 @@ export class FreeBoard {
   }
 
   /** Where the three grips of an arc sit, in chart units. */
-  #arcHandles(arc: ArcPath): ReadonlyMap<ArcHandleId, ChartPoint> {
+  #arcHandles(path: GroupPath): ReadonlyMap<ArcHandleId, ChartPoint> {
+    if (isFan(path)) {
+      const reach = directionOf(path.direction);
+      return new Map<ArcHandleId, ChartPoint>([
+        ['origin', path.origin],
+        ['reach', { x: path.origin.x + reach.x * path.length, y: path.origin.y + reach.y * path.length }],
+      ]);
+    }
     const grips = new Map<ArcHandleId, ChartPoint>([
-      ['start', arc.start],
-      ['end', arc.end],
+      ['start', path.start],
+      ['end', path.end],
     ]);
     // A straight arc ignores its bulge, so offering the grip would be a lie.
-    if (arc.shape !== 'straight') grips.set('bulge', arcAt(arc, 0.5).at);
+    if (path.shape !== 'straight') grips.set('bulge', arcAt(path, 0.5).at);
     return grips;
   }
 
@@ -581,7 +614,7 @@ export class FreeBoard {
     return null;
   }
 
-  #drawArcPath(arc: ArcPath, color: string, grips: boolean): void {
+  #drawArcPath(path: GroupPath, color: string, grips: boolean): void {
     const ctx = this.#ctx;
     ctx.save();
     ctx.strokeStyle = color;
@@ -589,17 +622,30 @@ export class FreeBoard {
     ctx.globalAlpha = grips ? 0.7 : 0.45;
     ctx.setLineDash([5, 4]);
     ctx.beginPath();
-    for (let step = 0; step <= ARC_SAMPLES; step += 1) {
-      const screen = this.#toScreen(arcAt(arc, step / ARC_SAMPLES).at);
-      if (step === 0) ctx.moveTo(screen.x, screen.y);
-      else ctx.lineTo(screen.x, screen.y);
+    if (isFan(path)) {
+      const middle = this.#toScreen(path.origin);
+      for (const angle of fanRays(path)) {
+        const ray = directionOf(angle);
+        const tip = this.#toScreen({
+          x: path.origin.x + ray.x * path.length,
+          y: path.origin.y + ray.y * path.length,
+        });
+        ctx.moveTo(middle.x, middle.y);
+        ctx.lineTo(tip.x, tip.y);
+      }
+    } else {
+      for (let step = 0; step <= ARC_SAMPLES; step += 1) {
+        const screen = this.#toScreen(arcAt(path, step / ARC_SAMPLES).at);
+        if (step === 0) ctx.moveTo(screen.x, screen.y);
+        else ctx.lineTo(screen.x, screen.y);
+      }
     }
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.globalAlpha = 1;
     if (grips) {
       ctx.fillStyle = color;
-      for (const point of this.#arcHandles(arc).values()) {
+      for (const point of this.#arcHandles(path).values()) {
         const screen = this.#toScreen(point);
         ctx.beginPath();
         ctx.arc(screen.x, screen.y, HANDLE / 2 + 1, 0, Math.PI * 2);
