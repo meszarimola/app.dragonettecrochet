@@ -41,6 +41,8 @@ before merging — once at a wide window and once at a short one.
 
 ## Before you open the PR
 
+- Run `/review` if you have not already — it covers what this codebase needs beyond the build.
+
 - Did the change make any `docs/kb/` or `docs/knowledge-base/` section stale?
   Update it **in this PR**.
 - Does the PR description carry `PQW-<n>`?
