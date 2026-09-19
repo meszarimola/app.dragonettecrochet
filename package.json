@@ -1,6 +1,6 @@
 {
   "name": "app-dragonettecrochet",
-  "version": "0.51.0",
+  "version": "0.52.0",
   "private": true,
   "type": "module",
   "description": "Stitch-chart editor for the Dragonette Crochet patterns — vanilla TypeScript and canvas.",
