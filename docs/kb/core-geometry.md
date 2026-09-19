@@ -1009,3 +1009,37 @@ stitch sitting on it are the same number, and "turn the stitch outwards" is
 simply "set its rotation to its angle from the middle".
 
 Cited from: `src/core/irregular-snap.ts`.
+
+## §52 A chain arc is a recipe, not a drawing
+
+A chain arc stores the path and the count, never the stitches' coordinates. The
+stitches are made from it, and are made again whenever an end moves, the bulge
+changes, the count changes or the key's chain symbol changes. `memberIds` is the
+run in working order, and ids are kept where the new run overlaps the old one —
+so raising the count keeps every stitch that was already there, and the
+selection survives.
+
+**Sign.** With y growing down, the left normal of a direction `(dx, dy)` is
+`(dy, -dx)`. A positive bulge puts the arc's apex at `chordMid + leftNormal *
+bulge`, so a left-to-right drag bows **upward**. Reverse the drag and the same
+positive bulge bows downward: the side follows the drag, not the screen.
+
+**Fallbacks, never exceptions.** A zero-length chord gives every stitch at the
+start. A bulge near zero, a non-finite bulge, or a radius that overflows gives
+the straight chord. `shape: 'straight'` ignores the bulge. Nothing throws, and
+nothing returns `NaN` — a chart that cannot be drawn is worse than a chart drawn
+plainly.
+
+**The turn follows the glyph, not the stitch.** A glyph wider than it is tall — a
+chain drawn as a flat oval — already lies along its own long axis, so it turns a
+quarter less than an upright one such as "0". The interface measures the glyph;
+the core owns the rule, so it can be tested.
+
+**A group is seated by its stitches, not by what it remembers.** `reseatGroups`
+runs on every edit: it puts each group on the row and layer its stitches
+actually sit on, and forgets any group whose stitches are gone or have been
+pulled apart onto different rows. Without it, deleting a row or a layer left a
+group naming something that no longer existed, the writer refused the pattern,
+and the autosave failed silently from then on.
+
+Cited from: `src/core/irregular-arc.ts` and `src/core/irregular-groups.ts`.
