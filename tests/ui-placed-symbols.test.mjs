@@ -1,6 +1,6 @@
 /*
- * A jel a diagram helyén (PQW-857): a szár a talptól a tetőig tart, a
- * fogyasztás szárai egy tetőbe futnak, a láncszem a megadott irányban áll.
+ * Symbols placed on the chart (PQW-857): the stem runs from foot to top,
+ * decrease stems meet in a single top, and the chain sits at the given angle.
  */
 
 import { strict as assert } from 'node:assert';
@@ -14,7 +14,7 @@ const samePoint = (p, q) => near(p.x, q.x) && near(p.y, q.y);
 const byRole = (shapes, role) => shapes.filter((shape) => shape.role === role);
 const stitchAt = (feet, top) => ({ role: 'stitch', feet, top, angle: 0, size: 0 });
 
-test('alapszem: a szár a talptól a tetőig tart, ferdén is, a tetővonal a tetőn', () => {
+test('basic stitch: the stem runs from foot to top even when slanted, and the top bar sits on the top', () => {
   const foot = { x: 10, y: 0 };
   const top = { x: 30, y: -40 };
   const shapes = placedShapes(stitchById('dc'), stitchAt([foot], top));
@@ -25,19 +25,19 @@ test('alapszem: a szár a talptól a tetőig tart, ferdén is, a tetővonal a te
   assert.ok(samePoint({ x: (bar.from.x + bar.to.x) / 2, y: (bar.from.y + bar.to.y) / 2 }, top));
 });
 
-test('szaporítás: a ferde szárú rövidpálca jele + marad, nem fordul ×-szé (PQW-931)', () => {
-  // Második szem ugyanabba a célpontba: a talp a célpont oszlopában marad, a
-  // tető a szem saját pozíciójába csúszik, a szár tehát megdől.
+test('increase: a single crochet on a slanted stem keeps its + symbol and does not turn into an × (PQW-931)', () => {
+  // Second stitch into the same target: the foot stays in the column of the target
+  // while the top slides to the position of the stitch, so the stem leans.
   const shapes = placedShapes(stitchById('sc'), stitchAt([{ x: 0, y: 0 }], { x: 24, y: -18 }));
   const [stem] = byRole(shapes, 'stem');
-  assert.ok(Math.abs(stem.to.x - stem.from.x) > 1, 'a szár ferde marad');
+  assert.ok(Math.abs(stem.to.x - stem.from.x) > 1, 'the stem stays slanted');
 
   const [cross] = byRole(shapes, 'cross');
-  assert.ok(near(cross.from.y, cross.to.y), `a keresztvonal vízszintes: ${JSON.stringify(cross)}`);
+  assert.ok(near(cross.from.y, cross.to.y), `the cross bar is horizontal: ${JSON.stringify(cross)}`);
   assert.ok(Math.abs(cross.to.x - cross.from.x) > 1);
 });
 
-test('szaporítás × módban: a két átló 45°-on marad, nem fordul + jellé', () => {
+test('increase in × mode: both diagonals stay at 45° and do not turn into a +', () => {
   const shapes = placedShapes(stitchById('sc'), stitchAt([{ x: 0, y: 0 }], { x: 24, y: -18 }), { singleCrochet: 'cross' });
   const crosses = byRole(shapes, 'cross');
   assert.equal(crosses.length, 2);
@@ -47,7 +47,7 @@ test('szaporítás × módban: a két átló 45°-on marad, nem fordul + jellé'
   }
 });
 
-test('körben a keresztvonal és a tetővonal a sor menti szöghöz fordul, nem a szárhoz', () => {
+test('in the round the cross bar and the top bar follow the angle of the row, not the stem', () => {
   const angle = Math.PI / 3;
   const along = { x: Math.cos(angle), y: Math.sin(angle) };
   const direction = (shape) => {
@@ -56,7 +56,7 @@ test('körben a keresztvonal és a tetővonal a sor menti szöghöz fordul, nem 
     return { x: delta.x / length, y: delta.y / length };
   };
 
-  // Álló szár, elfordult sor: a jelnek a sorral kell fordulnia.
+  // Upright stem, rotated row: the symbol has to turn with the row.
   const sc = { ...stitchAt([{ x: 0, y: 0 }], { x: 0, y: -18 }), angle };
   assert.ok(samePoint(direction(byRole(placedShapes(stitchById('sc'), sc), 'cross')[0]), along));
 
@@ -64,7 +64,7 @@ test('körben a keresztvonal és a tetővonal a sor menti szöghöz fordul, nem 
   assert.ok(samePoint(direction(byRole(placedShapes(stitchById('dc'), dc), 'bar')[0]), along));
 });
 
-test('fogyasztás: minden talpból egy szár, mind ugyanabba a tetőbe fut', () => {
+test('decrease: one stem from every foot, all running into the same top', () => {
   const feet = [{ x: 0, y: 0 }, { x: 24, y: 0 }, { x: 48, y: 0 }];
   const top = { x: 24, y: -34 };
   const shapes = placedShapes(stitchById('dc3tog'), stitchAt(feet, top));
@@ -74,12 +74,12 @@ test('fogyasztás: minden talpból egy szár, mind ugyanabba a tetőbe fut', () 
   assert.equal(byRole(shapes, 'bar').length, 1);
 });
 
-test('láthatatlan fogyasztás: az első szál jele minden talpon', () => {
+test('invisible decrease: the front loop mark appears on every foot', () => {
   const shapes = placedShapes(stitchById('invdec'), stitchAt([{ x: 0, y: 0 }, { x: 24, y: 0 }], { x: 12, y: -18 }));
   assert.equal(byRole(shapes, 'front-loop').length, 2);
 });
 
-test('egy alapba horgolt összetett jel függőlegesen a könyvtári jel, eltolva a talpra', () => {
+test('a compound symbol worked into one base stays the upright library symbol, shifted onto its foot', () => {
   const def = stitchById('bobble-5dc');
   const foot = { x: 5, y: 7 };
   const top = { x: 5, y: 7 - stemLength(3) };
@@ -89,7 +89,7 @@ test('egy alapba horgolt összetett jel függőlegesen a könyvtári jel, eltolv
   for (const key of ['minY', 'maxY']) assert.ok(Math.abs(placed[key] - canonical[key] - 7) < 1e-9);
 });
 
-test('láncszem: ellipszis a középpontban, a megadott szögben, a hosszánál nem hosszabb', () => {
+test('chain: an ellipse on the centre point, at the given angle, never longer than its span', () => {
   const [oval] = placedShapes(stitchById('ch'), { role: 'chain', feet: [], top: { x: 3, y: 4 }, angle: Math.PI / 2, size: 10 });
   assert.equal(oval.kind, 'ellipse');
   assert.deepEqual(oval.center, { x: 3, y: 4 });
@@ -97,7 +97,7 @@ test('láncszem: ellipszis a középpontban, a megadott szögben, a hosszánál 
   assert.ok(oval.rx <= 5);
 });
 
-test('rákhurok hullámvonallal; minden szem véges alakzatot ad a diagramon', () => {
+test('reverse single crochet gets a wavy line, and every stitch yields finite shapes on the chart', () => {
   const rev = placedShapes(stitchById('rev-sc'), stitchAt([{ x: 0, y: 0 }], { x: 0, y: -18 }));
   assert.equal(byRole(rev, 'tilde').length, 2);
   for (const def of STITCHES) {
@@ -109,10 +109,10 @@ test('rákhurok hullámvonallal; minden szem véges alakzatot ad a diagramon', (
   }
 });
 
-test('a vászon a tárolt, színoldali módot rajzolja, a szem listájával össze nem vetve, hibát nem dobva (PQW-869)', () => {
+test('the canvas draws the stored right-side insertion mode without checking it against the stitch and without throwing (PQW-869)', () => {
   const crab = placedShapes(stitchById('rev-sc'), stitchAt([{ x: 0, y: 0 }], { x: 0, y: -18 }), { singleCrochet: 'plus', insertion: 'back-loop' });
   assert.equal(byRole(crab, 'back-loop').length, 1);
-  // Visszai soron a láthatatlan fogyasztás színoldalról hátsó szálas.
+  // On a wrong-side row the invisible decrease reads as back loop from the right side.
   const invdec = placedShapes(stitchById('invdec'), stitchAt([{ x: 0, y: 0 }, { x: 24, y: 0 }], { x: 12, y: -18 }), {
     singleCrochet: 'plus',
     insertion: 'back-loop',
@@ -121,7 +121,7 @@ test('a vászon a tárolt, színoldali módot rajzolja, a szem listájával öss
   assert.equal(byRole(invdec, 'front-loop').length, 0);
 });
 
-test('egy alapba horgolt összetett jel a választott mód jelölésével a talpon, JIS-ben a hátsó szál vonal (PQW-869)', () => {
+test('a compound symbol worked into one base marks the chosen mode on its foot, and in JIS the back loop is a line (PQW-869)', () => {
   const foot = { x: 0, y: 0 };
   const top = { x: 0, y: -stemLength(3) };
   for (const style of ['cyc', 'jis']) {
@@ -129,9 +129,9 @@ test('egy alapba horgolt összetett jel a választott mód jelölésével a talp
     const marks = byRole(shapes, 'back-loop');
     assert.equal(marks.length, 1, style);
     assert.equal(marks[0].kind, style === 'jis' ? 'line' : 'curve');
-    assert.ok(marks.every((mark) => (mark.kind === 'line' ? mark.from.y : mark.control.y) > -6), `${style}: a jelölés a talpnál`);
+    assert.ok(marks.every((mark) => (mark.kind === 'line' ? mark.from.y : mark.control.y) > -6), `${style}: the mark sits at the foot`);
   }
-  // A jelmagyarázat és a paletta jele továbbra is hibát dob tiltott módra, a vászon jele nem.
+  // The legend and palette symbols still throw on a forbidden mode; the canvas symbol does not.
   const relief = { singleCrochet: 'plus', insertion: 'front-post' };
   assert.throws(() => symbolShapes(stitchById('bobble-5dc'), relief), RangeError);
   assert.doesNotThrow(() => placedShapes(stitchById('bobble-5dc'), stitchAt([foot], top), relief));

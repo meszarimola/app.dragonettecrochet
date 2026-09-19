@@ -1,14 +1,15 @@
 /*
- * A felület nyelve (PQW-900): a szótár teljessége és a nyelvválasztás logikája.
+ * The language of the interface (PQW-900): completeness of the dictionary and
+ * the logic that picks a language.
  *
- * A szótár szerkezetét nem ismerjük előre (területenként külön fájl), ezért
- * bejárjuk: minden kulcsútnak mindkét nyelven léteznie kell, azonos fajtával
- * (szöveg vagy függvény) és a függvényeknél azonos paraméterszámmal. Ez az a
- * teszt, amely megfogja a fordítatlan és a kimaradt felületi szöveget.
+ * The shape of the dictionary is not known up front (one file per area), so we
+ * walk it: every key path has to exist in both languages, with the same kind
+ * (text or function) and, for functions, the same parameter count. This is the
+ * test that catches untranslated and missing interface text.
  *
- * A magyar felület nem változhat: az index.html mai magyar feliratait
- * összevetjük a szótár magyar ágával, tehát a behelyettesítés ugyanazt írja ki,
- * mint ami ma a jelölésben áll.
+ * The Hungarian interface must not change: the Hungarian labels standing in
+ * index.html today are compared with the Hungarian branch of the dictionary, so
+ * the substitution prints exactly what the markup says today.
  */
 
 import { strict as assert } from 'node:assert';
@@ -21,10 +22,10 @@ import { UI_LANGUAGES, UI_TEXTS, homeUrl, languageFromSearch, resolveUiLanguage,
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const INDEX = read('index.html');
-/** A magyar felületre jellemző ékezetes betűk: ahol ilyen van, ott fordítani kell. */
+/** The accented letters typical of the Hungarian interface: wherever one shows up, that text still needs translating. */
 const HUNGARIAN = /[áéíóöőúüűÁÉÍÓÖŐÚÜŰ]/;
 
-/** A szótár leveleinek kulcsútja és értéke: `{ 'status.next': fn }`. */
+/** Key path and value of every leaf of the dictionary: `{ 'status.next': fn }`. */
 function leaves(value, prefix = '', into = new Map()) {
   for (const [key, item] of Object.entries(value)) {
     const path = prefix ? `${prefix}.${key}` : key;
@@ -34,54 +35,54 @@ function leaves(value, prefix = '', into = new Map()) {
   return into;
 }
 
-test('a szótár minden területe ugyanazt a kulcskészletet adja mindkét nyelven', () => {
+test('every area of the dictionary exposes the same set of keys in both languages', () => {
   const [first, ...rest] = UI_LANGUAGES.map((language) => leaves(UI_TEXTS[language]));
-  assert.ok(first.size > 100, `túl kevés kulcs: ${first.size}`);
+  assert.ok(first.size > 100, `too few keys: ${first.size}`);
   for (const other of rest) {
     assert.deepEqual([...other.keys()].sort(), [...first.keys()].sort());
   }
 });
 
-test('az azonos kulcsok fajtája és paraméterszáma is egyezik a nyelvek között', () => {
+test('matching keys also agree on kind and parameter count across the languages', () => {
   const hu = leaves(UI_TEXTS.hu);
   const en = leaves(UI_TEXTS.en);
   for (const [path, value] of hu) {
     const other = en.get(path);
-    assert.equal(typeof other, typeof value, `${path}: eltérő fajta`);
-    assert.ok(typeof value === 'string' || typeof value === 'function', `${path}: se nem szöveg, se nem függvény`);
-    if (typeof value === 'function') assert.equal(other.length, value.length, `${path}: eltérő paraméterszám`);
-    else assert.ok(value.length > 0 && other.length > 0, `${path}: üres szöveg`);
+    assert.equal(typeof other, typeof value, `${path}: different kind`);
+    assert.ok(typeof value === 'string' || typeof value === 'function', `${path}: neither a string nor a function`);
+    if (typeof value === 'function') assert.equal(other.length, value.length, `${path}: different parameter count`);
+    else assert.ok(value.length > 0 && other.length > 0, `${path}: empty text`);
   }
 });
 
-test('nincs fordítatlan felületi szöveg: ahol a magyar ékezetes, ott az angol más', () => {
+test('no interface text is left untranslated: wherever the Hungarian is accented the English differs', () => {
   const hu = leaves(UI_TEXTS.hu);
   const en = leaves(UI_TEXTS.en);
   const untranslated = [...hu]
     .filter(([path, value]) => typeof value === 'string' && HUNGARIAN.test(value) && value === en.get(path))
     .map(([path]) => path);
-  assert.deepEqual(untranslated, [], `fordítatlan kulcsok: ${untranslated.join(', ')}`);
+  assert.deepEqual(untranslated, [], `untranslated keys: ${untranslated.join(', ')}`);
 });
 
-test('az angol ágban nincs magyar ékezetes szöveg', () => {
+test('the English branch holds no accented Hungarian text', () => {
   const leftovers = [...leaves(UI_TEXTS.en)]
     .filter(([, value]) => typeof value === 'string' && HUNGARIAN.test(value))
     .map(([path, value]) => `${path}: ${value}`);
   assert.deepEqual(leftovers, []);
 });
 
-test('a szótárak területenként külön fájlban vannak, hogy a nyelvek bővíthetők legyenek', () => {
+test('dictionaries live in one file per area so that further languages can be added', () => {
   const files = readdirSync(new URL('../src/ui/i18n/', import.meta.url)).filter((name) => name.endsWith('.ts'));
   assert.ok(files.length >= 5, files.join(', '));
 });
 
-/** Az index.html `data-i18n*` hivatkozásai: `[{ key, kind, tag, attributes, body }]`. */
+/** The `data-i18n*` references of index.html: `[{ key, kind, tag, attributes, body }]`. */
 function markupUses() {
   const uses = [];
   for (const match of INDEX.matchAll(/<(\w+)\s([^>]*data-i18n[^>]*)>/g)) {
     const [, tag, attributes] = match;
     const rest = INDEX.slice(match.index + match[0].length);
-    // Az önzáró elemnek (a fejben lévő meta) nincs törzse; ott a `content` attribútumot nézzük.
+    // A self-closing element (the meta in the head) has no body; there we read the `content` attribute.
     const end = rest.indexOf(`</${tag}>`);
     const body = end === -1 ? '' : rest.slice(0, end);
     for (const kind of ['i18n', 'i18n-tip', 'i18n-label', 'i18n-content']) {
@@ -92,14 +93,14 @@ function markupUses() {
   return uses;
 }
 
-test('az index.html minden hivatkozott felirata benne van a szótárban', () => {
+test('every label referenced from index.html is present in the dictionary', () => {
   const uses = markupUses();
-  assert.ok(uses.length > 40, `túl kevés felirat a jelölésben: ${uses.length}`);
+  assert.ok(uses.length > 40, `too few labels in the markup: ${uses.length}`);
   const missing = uses.filter((use) => MARKUP_TEXTS.hu[use.key] === undefined).map((use) => use.key);
   assert.deepEqual([...new Set(missing)], []);
 });
 
-test('a szótár minden felirata használatban van (jelölésben vagy a felület kódjában)', () => {
+test('every label in the dictionary is in use, in the markup or in the interface code', () => {
   const used = new Set(markupUses().map((use) => use.key));
   const sources = readdirSync(new URL('../src/ui/', import.meta.url))
     .filter((name) => name.endsWith('.ts'))
@@ -109,29 +110,29 @@ test('a szótár minden felirata használatban van (jelölésben vagy a felület
   assert.deepEqual(dead, []);
 });
 
-test('a magyar felület nem változik: a szótár magyar ága egyezik a jelölés mai szövegével', () => {
+test('the Hungarian interface does not change: the Hungarian branch matches the text in the markup today', () => {
   const differences = [];
   for (const { key, kind, attributes, body } of markupUses()) {
     const expected = MARKUP_TEXTS.hu[key];
     if (expected === undefined) continue;
     if (kind === 'i18n') {
-      if (/[<&]/.test(body)) continue; // összetett tartalom: nem hasonlítható össze szövegként
-      // A szóközök normalizálva: a jelölés tördelése és a szándékos záró szóköz
-      // (ami egy `<kbd>` elem előtt áll) nem szövegeltérés.
+      if (/[<&]/.test(body)) continue; // rich content: cannot be compared as plain text
+      // Whitespace is normalised: the line wrapping of the markup and the deliberate
+      // trailing space (the one standing before a `<kbd>` element) are not text differences.
       const text = body.replace(/\s+/g, ' ').trim();
       if (text && text !== expected.replace(/\s+/g, ' ').trim()) differences.push(`${key}: „${text}” ≠ „${expected}”`);
       continue;
     }
     const attribute = kind === 'i18n-tip' ? 'data-tip' : kind === 'i18n-content' ? 'content' : 'aria-label';
-    // Önálló attribútumként: a `data-i18n-tip` és a `data-i18n-content` neve is
-    // tartalmazza a keresett attribútum nevét, ezért szóközre horgonyozunk.
+    // As a standalone attribute: the names `data-i18n-tip` and `data-i18n-content` also
+    // contain the attribute name we are looking for, so we anchor on whitespace.
     const value = new RegExp(`(?:^|\\s)${attribute}="([^"]*)"`).exec(attributes)?.[1];
     if (value !== undefined && value !== expected) differences.push(`${key} (${attribute}): „${value}” ≠ „${expected}”`);
   }
   assert.deepEqual(differences, []);
 });
 
-test('a `?lang` paraméter magyarra és angolra állít, mást nem fogad el', () => {
+test('the `?lang` parameter switches to Hungarian or English and accepts nothing else', () => {
   assert.equal(languageFromSearch('?lang=en'), 'en');
   assert.equal(languageFromSearch('?lang=EN-GB'), 'en');
   assert.equal(languageFromSearch('?lang=hu'), 'hu');
@@ -141,31 +142,31 @@ test('a `?lang` paraméter magyarra és angolra állít, mást nem fogad el', ()
   assert.equal(languageFromSearch('?other=en'), null);
 });
 
-test('paraméter és tárolt érték nélkül a dokumentum nyelve dönt, és az alapértelmezés a magyar', () => {
+test('with no parameter and no stored value the document language decides, defaulting to Hungarian', () => {
   assert.equal(resolveUiLanguage('', null, 'hu'), 'hu');
   assert.equal(resolveUiLanguage('', null, 'en'), 'en');
   assert.equal(resolveUiLanguage('', null, 'en-GB'), 'en');
   assert.equal(resolveUiLanguage('', null, ''), 'hu');
 });
 
-test('a feloldás sorrendje: a `?lang` erősebb a tároltnál, a tárolt a dokumentum nyelvénél (PQW-906)', () => {
-  assert.equal(resolveUiLanguage('?lang=en', 'hu', 'hu'), 'en', 'a megosztott link mindig a saját nyelvét adja');
+test('resolution order: `?lang` outranks the stored value, and the stored value outranks the document language (PQW-906)', () => {
+  assert.equal(resolveUiLanguage('?lang=en', 'hu', 'hu'), 'en', 'a shared link always serves its own language');
   assert.equal(resolveUiLanguage('?lang=hu', 'en', 'en'), 'hu');
-  assert.equal(resolveUiLanguage('', 'en', 'hu'), 'en', 'a tárolt választás erősebb a dokumentum nyelvénél');
+  assert.equal(resolveUiLanguage('', 'en', 'hu'), 'en', 'the stored choice outranks the document language');
   assert.equal(resolveUiLanguage('', 'hu', 'en'), 'hu');
 });
 
-test('a sérült vagy ismeretlen tárolt érték nem borítja fel az indulást (PQW-906)', () => {
+test('a corrupt or unknown stored value does not break startup (PQW-906)', () => {
   for (const stored of [null, '', ' ', 'ja', 'de-DE', '{"lang":"en"}', 'HU', ' en ']) {
     const resolved = resolveUiLanguage('', stored, 'hu');
     assert.ok(resolved === 'hu' || resolved === 'en', `${stored}: ${resolved}`);
   }
-  assert.equal(resolveUiLanguage('', 'ja', 'hu'), 'hu', 'ismeretlen értéknél az alapnyelv jön');
-  assert.equal(resolveUiLanguage('', 'HU', 'en'), 'hu', 'a kis-nagybetű és a szóköz nem számít');
+  assert.equal(resolveUiLanguage('', 'ja', 'hu'), 'hu', 'an unknown value falls back to the default language');
+  assert.equal(resolveUiLanguage('', 'HU', 'en'), 'hu', 'case and surrounding whitespace do not matter');
   assert.equal(resolveUiLanguage('', ' en ', 'hu'), 'en');
 });
 
-test('a főoldal linkje és a megosztható cím a választott nyelven', () => {
+test('the home link and the shareable URL use the chosen language', () => {
   assert.match(homeUrl('hu'), /\/hu\/$/);
   assert.match(homeUrl('en'), /\/en\/$/);
   assert.equal(urlWithLanguage('https://app.dragonettecrochet.com/', 'en'), 'https://app.dragonettecrochet.com/?lang=en');

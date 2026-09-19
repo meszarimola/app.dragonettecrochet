@@ -1,8 +1,9 @@
 /*
- * Sarokból sarokba (PQW-864): W + H − 1 átlós sor, a d. átló csempéi, a
- * szaporító és fogyasztó szakasz oldalanként (03 §5.5, §10 G33), a láncalap
- * a hagyomány függvényeiből, a színek csempénként, és hogy minden C2C-minta
- * hibátlanul átmegy az ellenőrzőn, kiírható és menthető.
+ * Corner to corner (PQW-864): W + H − 1 diagonal rows, the tiles of diagonal
+ * d, the increase and decrease phases per side (03 §5.5, §10 G33), the
+ * foundation chain from the tradition helpers, the colours per tile, and that
+ * every C2C pattern passes the validator cleanly and can be written out and
+ * saved.
  */
 
 import { strict as assert } from 'node:assert';
@@ -36,7 +37,7 @@ const make = (pattern, cells, colors = COLORS) => {
   assert.ok(result.ok, JSON.stringify(result.reason));
   return result;
 };
-/** A mag kódot és adatot ad; a mondat a felület szótárában készül (PQW-904). */
+/** The core hands over a code and data; the sentence is built in the UI dictionary (PQW-904). */
 const hu = (message) => renderCoreText(GRID_CORE_TEXTS.hu, message);
 const findings = (pattern) => validatePattern(pattern, libraryFor(pattern));
 
@@ -48,7 +49,7 @@ function random(seed) {
   };
 }
 
-describe('átlós sorok és csempék (03 §5.5, §10 G33)', () => {
+describe('diagonal rows and tiles (03 §5.5, §10 G33)', () => {
   const SIZES = [
     [1, 1],
     [3, 2],
@@ -59,31 +60,31 @@ describe('átlós sorok és csempék (03 §5.5, §10 G33)', () => {
     [6, 3],
   ];
 
-  test('W × H rács W + H − 1 sor, a d. sorban min(d, W, H, W + H − d) csempe, és minden cella pontosan egyszer', () => {
+  test('a W × H chart makes W + H − 1 rows, row d holds min(d, W, H, W + H − d) tiles, and every cell appears exactly once', () => {
     for (const [width, height] of SIZES) {
       const plan = planC2C(cyc(), plain(width, height), COLORS).plan;
       assert.equal(plan.rows.length, c2cRowCount(width, height), `${width} × ${height}`);
-      plan.rows.forEach((row) => assert.equal(row.tiles.length, tilesInRow(row.row, width, height), `${width} × ${height}, ${row.row}. sor`));
+      plan.rows.forEach((row) => assert.equal(row.tiles.length, tilesInRow(row.row, width, height), `${width} × ${height}, row ${row.row}`));
       const cells = plan.rows.flatMap((row) => row.tiles.map((tile) => `${tile.x},${tile.y}`));
       assert.equal(cells.length, width * height);
       assert.equal(new Set(cells).size, width * height);
     }
   });
 
-  test('a kép jobb alsó sarkából indul, és a bal felsőben ér véget', () => {
+  test('it starts at the bottom right corner of the picture and ends at the top left', () => {
     const plan = planC2C(cyc(), plain(5, 2), COLORS).plan;
     assert.deepEqual(plan.rows[0].tiles[0], { x: 4, y: 0, color: 0 });
     assert.deepEqual(plan.rows.at(-1).tiles, [{ x: 0, y: 1, color: 0 }]);
   });
 
-  test('szaporító és fogyasztó szakasz: egy oldal addig nő, amíg a mérete meg nincs, a két oldal függetlenül vált', () => {
+  test('increase and decrease phases: a side keeps growing until it reaches its size, and the two sides switch over independently', () => {
     for (const [width, height] of SIZES) {
       const plan = planC2C(cyc(), plain(width, height), COLORS).plan;
-      // A páros sor a jobb élen (magasság), a páratlan az alsó élen (szélesség) kezd.
+      // An even row starts on the right edge (height), an odd row on the bottom edge (width).
       for (const row of plan.rows.slice(1)) {
         const [startSide, endSide] = row.row % 2 === 0 ? [height, width] : [width, height];
-        assert.equal(row.start, row.row <= startSide ? 'increase' : 'decrease', `${width} × ${height}, ${row.row}. sor eleje`);
-        assert.equal(row.end, row.row <= endSide ? 'increase' : 'decrease', `${width} × ${height}, ${row.row}. sor vége`);
+        assert.equal(row.start, row.row <= startSide ? 'increase' : 'decrease', `${width} × ${height}, start of row ${row.row}`);
+        assert.equal(row.end, row.row <= endSide ? 'increase' : 'decrease', `${width} × ${height}, end of row ${row.row}`);
       }
     }
     const plan = planC2C(cyc(), plain(5, 2), COLORS).plan;
@@ -100,7 +101,7 @@ describe('átlós sorok és csempék (03 §5.5, §10 G33)', () => {
     );
   });
 
-  test('a láncalap: 6 lsz, az első pálca a 4. láncszembe; japán hagyományban is a függvények szerint (PQW-924)', () => {
+  test('the foundation: 6 ch with the first double crochet into the 4th chain; in the Japanese tradition it follows the helpers too (PQW-924)', () => {
     const def = resolveStitch(C2C_STITCH);
     const plan = planC2C(cyc(), plain(2, 2), COLORS).plan;
     assert.deepEqual(plan.foundation, { chains: 6, fromHook: 4 });
@@ -112,27 +113,28 @@ describe('átlós sorok és csempék (03 §5.5, §10 G33)', () => {
     const { pattern } = make(cyc(), plain(2, 1));
     const row1 = writePattern(pattern, libraryFor(pattern), 'hu').pieces[0].lines.find((line) => line.startsWith('2. sor: '));
     /*
-     * A csempe nyitó három láncszeme láncív (03 §5.5), nem kihagyott láncszem:
-     * a sor „3 lsz, 3 erp” alakban indul, és a végén a következő csempe tere áll.
+     * The three opening chains of a tile are a chain space (03 §5.5), not
+     * skipped chains: the row starts as „3 lsz, 3 erp”, and the space for the
+     * next tile stands at its end.
      */
     assert.match(row1, /^2\. sor: 3 lsz, 3 erp[ (]/);
   });
 });
 
-describe('színek és ellenőrző', () => {
-  test('minden pálca a csempéje színével: színenként a cellák háromszorosa', () => {
-    // Ma csak az 1 × 1 és a 2 × 1 alakzat épül fel (PQW-926).
+describe('colours and the validator', () => {
+  test('every double crochet takes the colour of its tile: three times the cell count per colour', () => {
+    // Today only the 1 × 1 and 2 × 1 shapes actually build (PQW-926).
     const cells = [[0, 1]];
     const { pattern } = make(cyc(), cells);
     const dcColors = new Map();
     for (const node of pattern.pieces[0].stitches) {
       if (node.def === C2C_STITCH) dcColors.set(node.color ?? 0, (dcColors.get(node.color ?? 0) ?? 0) + 1);
     }
-    for (const [color, count] of cellCounts(cells)) assert.equal(dcColors.get(color), 3 * count, `${color}. szín`);
+    for (const [color, count] of cellCounts(cells)) assert.equal(dcColors.get(color), 3 * count, `colour ${color}`);
     assert.deepEqual(pattern.pieces[0].grid.colors, COLORS);
   });
 
-  test('a nagyobb alakzatokat a program érthetően elutasítja, amíg a csempék láncíve nem áll össze (PQW-926)', () => {
+  test('larger shapes are refused with an understandable reason until the chain space of the tiles works out (PQW-926)', () => {
     for (const [width, height] of [[1, 2], [3, 1], [2, 2], [4, 3]]) {
       const result = generateC2C(cyc(), { cells: plain(width, height), colors: COLORS, unit: null, lettering: false });
       assert.equal(result.ok, false, `${width} × ${height}`);
@@ -141,7 +143,7 @@ describe('színek és ellenőrző', () => {
     }
   });
 
-  test('a ma támogatott alakzatok hibátlanok, kiírhatók és menthetők: 1 × 1 és 2 × 1, CYC és japán hagyomány', () => {
+  test('the shapes supported today are clean, writable and saveable: 1 × 1 and 2 × 1, in the CYC and Japanese traditions', () => {
     const next = random(2);
     for (const base of [cyc, japanese]) {
       for (const [width, height] of [[1, 1], [2, 1]]) {
@@ -159,13 +161,13 @@ describe('színek és ellenőrző', () => {
     }
   });
 
-  test('hibás rácsnál és nem számító fordulóláncnál érthető ok', () => {
+  test('a bad chart and a non-counting turning chain are both rejected with an understandable reason', () => {
     const reason = (pattern, cells, colors = COLORS) => {
       const result = planC2C(pattern, cells, colors);
       assert.equal(result.ok, false);
       return result.reason;
     };
-    // A mag kódot és adatot ad; a mondat a felület szótárából jön (PQW-904).
+    // The core hands over a code and data; the sentence comes from the UI dictionary (PQW-904).
     assert.equal(reason(cyc(), []).code, 'chart-no-rows');
     assert.equal(reason(cyc(), [[0, 3]]).code, 'chart-color-index');
     assert.equal(reason(cyc(), [[0]], []).code, 'chart-no-colors');

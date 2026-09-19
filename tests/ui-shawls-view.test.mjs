@@ -1,7 +1,7 @@
 /*
- * A „Kendő” szakasz tartalma (PQW-865): a választások, a mezők a kendőhöz, a
- * terv kiírása a szöggel, a blokkolt és blokkolatlan mérettel, a
- * figyelmeztetések szövege és az előnézet körvonalai.
+ * Contents of the „Kendő” section (PQW-865): the choices, the fields per
+ * shawl, the plan printout with its angle and its blocked and unblocked size,
+ * the wording of the warnings, and the preview outlines.
  */
 
 import { strict as assert } from 'node:assert';
@@ -45,8 +45,8 @@ const viewOf = (pattern, patch, hasProfile = true) => {
   return { view: shawlView(planned.plan, chosen, sizes, hasProfile), plan: planned.plan, sizes };
 };
 
-describe('választások és mezők', () => {
-  test('a kendők magyar néven, a tudásbázis sorrendjében; elméleti vagy saját arány', () => {
+describe('choices and fields', () => {
+  test('shawl kinds appear with Hungarian names in knowledge-base order, with a theoretical or a custom rate', () => {
     assert.deepEqual(
       KIND_CHOICES.map((choice) => choice.label),
       ['Fentről induló háromszög', 'Aszimmetrikus háromszög', 'Félhold', 'Félkör', 'Kör', 'Pi-kendő', 'Eltolt Pi-kendő', 'Téglalap stóla'],
@@ -54,14 +54,14 @@ describe('választások és mezők', () => {
     assert.deepEqual(RATE_CHOICES.map((choice) => choice.value), ['theory', 'custom']);
   });
 
-  test('a mezők a kendőhöz: szárny csak háromszögnél, hossz csak stólánál, saját arány csak választva', () => {
+  test('fields per shawl: wings only on a triangle, length only on a stole, the custom rate only once it is selected', () => {
     assert.deepEqual(shawlFieldState(options()), { length: false, rate: true, custom: false, wings: true });
     assert.deepEqual(shawlFieldState(options({ kind: 'stole', rate: 'custom' })), { length: true, rate: false, custom: false, wings: false });
     assert.deepEqual(shawlFieldState(options({ kind: 'semicircle', rate: 'custom' })), { length: false, rate: true, custom: true, wings: false });
     assert.equal(normalizeShawl(options({ kind: 'crescent', wings: true })).wings, false);
   });
 
-  test('a feliratok a kendőhöz: mélység, él, sugár; mire vonatkozik az arány; a szegély félenként a szimmetrikus kendőben', () => {
+  test('labels per shawl: depth, edge, radius; what the rate applies to; edging counted per half on a symmetric shawl', () => {
     assert.deepEqual(
       ['triangle', 'asymmetric-triangle', 'semicircle', 'pi', 'stole'].map(sizeLabel),
       ['Mélység a gerincen, cm', 'Az egyenes él, cm', 'Sugár, cm', 'Sugár, cm', 'Szélesség, cm'],
@@ -73,8 +73,8 @@ describe('választások és mezők', () => {
   });
 });
 
-describe('a terv kiírása', () => {
-  test('„A” példa: blokkolt mért méret, blokkolás nélkül becslés; az arány, a szög és a sorok', () => {
+describe('the plan printout', () => {
+  test('example „A”: the blocked size is measured and the unblocked one estimated, with the rate, the angle and the rows', () => {
     const { view } = viewOf(withGauge('dc', 16, 8, true), { kind: 'triangle', stitch: 'dc', sizeCm: 80 });
     assert.match(view.size, /^Blokkolva 159 × 80 cm, blokkolás nélkül ≈ \d+ × \d+ cm; 45 sor\.$/);
     assert.ok(view.details.includes('Az 1. sor 8 szem, az utolsó 360 szem.'), view.details.join('\n'));
@@ -84,13 +84,13 @@ describe('a terv kiírása', () => {
     assert.match(view.source, /^Az egyráhajtásos pálca síkban mért mintasűrűségéből\. A profil blokkolva mért/);
   });
 
-  test('saját arány: figyelmeztetés, nem hiba, a százalékkal', () => {
+  test('a custom rate gives a warning with the percentage, not an error', () => {
     const { view } = viewOf(withGauge('dc', 16, 8, true), { kind: 'triangle', stitch: 'dc', sizeCm: 80, rate: 'custom', customRate: 6 });
     assert.equal(view.warnings.length, 1);
     assert.match(view.warnings[0], /^A választott szaporítás az elméletinek kb\. 75%-a: a kendő mélyebb és keskenyebb lesz.*Ez figyelmeztetés, nem hiba\./);
   });
 
-  test('Pi-kendő: a duplázó körök, az ideálishoz mért tartomány, és a blokkolás figyelmeztetése; profil nélkül becslés', () => {
+  test('Pi shawl: the doubling rounds, the range against the ideal, and the blocking warning; estimated without a profile', () => {
     const { view } = viewOf(emptyPattern(), { kind: 'pi', stitch: 'sc', sizeCm: 10 }, false);
     assert.ok(view.details.includes('Duplázás a 2., 4., 8., 16. körben, közte sima körök.'), view.details.join('\n'));
     assert.ok(view.details.some((line) => /^A körök szemszáma az ideálishoz képest \d+–\d+%\.$/.test(line)));
@@ -99,14 +99,14 @@ describe('a terv kiírása', () => {
     assert.match(view.source, /^Nincs profil: a méret becslés 4 mm-es tűből\./);
   });
 
-  test('szegélyhez igazítás: a változás félenként', () => {
+  test('fitting to the edging: the adjustment is counted per half', () => {
     const { view } = viewOf(withGauge('dc', 16, 8, true), { kind: 'triangle', stitch: 'dc', sizeCm: 80, edging: { width: 6, edge: 3 } });
     assert.ok(view.details.includes('Szegélyhez: 6 többszöröse + 3 félenként, 30 ismétlés (+3 szem félenként).'), view.details.join('\n'));
   });
 });
 
-describe('a mag indoka mondattá (PQW-904)', () => {
-  test('a sor és a kör szava a szótáré: a mag csak a `shape`-et adja', () => {
+describe('turning a core reason into a sentence (PQW-904)', () => {
+  test('the words for row and round come from the dictionary: the core only supplies `shape`', () => {
     assert.equal(shawlReason({ code: 'shawl-min-rows', data: { rows: 2, shape: 'row' } }), 'Ehhez a kendőhöz legalább 2 sor kell: adj meg nagyobb méretet.');
     assert.equal(shawlReason({ code: 'shawl-min-rows', data: { rows: 2, shape: 'round' } }), 'Ehhez a kendőhöz legalább 2 kör kell: adj meg nagyobb méretet.');
     assert.equal(
@@ -119,7 +119,7 @@ describe('a mag indoka mondattá (PQW-904)', () => {
     );
   });
 
-  test('a névelő és a sorszám a felületen kerül a mondatba; a stóla a forma kódjait is átveszi', () => {
+  test('the article and the ordinal are put into the sentence by the UI, and the stole reuses the shape codes too', () => {
     assert.equal(
       shawlReason({ code: 'shawl-too-many-into-one', data: { row: 3, count: 14 } }),
       'A(z) 3. sorban egy szembe 14 szem kerülne: válassz kisebb szaporítást, vagy nagyobb méretet.',
@@ -127,21 +127,21 @@ describe('a mag indoka mondattá (PQW-904)', () => {
     assert.equal(shawlReason({ code: 'shape-too-steep' }), 'Ilyen meredek élt ennyi sorban nem lehet horgolni: adj meg nagyobb magasságot.');
   });
 
-  test('a tervező elutasítása a felületen a mai mondat', () => {
+  test('a rejection from the planner renders as the sentence used today', () => {
     const planned = planShawl(emptyPattern(), options({ sizeCm: 0.5 }));
     assert.equal(planned.ok, false);
     assert.equal(shawlReason(planned.reason), 'Ehhez a kendőhöz legalább 2 sor kell: adj meg nagyobb mélységet.');
   });
 });
 
-describe('előnézet és üzenet', () => {
-  test('a blokkolt és a blokkolatlan körvonal ugyanabban a keretben, a felső szél közepéhez igazítva', () => {
+describe('preview and message', () => {
+  test('the blocked and the unblocked outline share one frame, aligned to the middle of the top edge', () => {
     const { sizes, plan } = viewOf(withGauge('dc', 16, 8, true), { kind: 'triangle', stitch: 'dc', sizeCm: 80 });
     const outline = shawlOutline(sizes);
     assert.equal(outline.blocked.split(' ').length, 4);
     assert.equal(outline.unblocked.split(' ').length, 4);
     assert.ok(outline.width >= sizes.unblocked.widthCm && outline.height >= sizes.unblocked.depthCm);
-    // A nyak pontja mindkét körvonalon középen.
+    // The neck point sits in the middle on both outlines.
     const neck = (points) => Number(points.split(' ')[0].split(',')[0]);
     assert.ok(Math.abs(neck(outline.blocked) - outline.width / 2) < 0.01);
     assert.ok(Math.abs(neck(outline.unblocked) - outline.width / 2) < 0.01);

@@ -1,8 +1,8 @@
 /*
- * Sík formák cm-ből (PQW-862): a tudásbázis kidolgozott példái (03 §3.1 A–D,
- * §7.1 H), az élek egyenletes alakítása, a láncos hosszabbítás és a meghagyott
- * szemek, a mintaismétlés kerekítése, és hogy minden generált minta
- * hibátlanul átmegy az ellenőrzőn, kiírható és visszaolvasható.
+ * Flat shapes from centimetres (PQW-862): the worked examples of the knowledge
+ * base (03 §3.1 A–D, §7.1 H), even shaping along the edges, chain extensions
+ * and unworked stitches, rounding to the stitch repeat, and that every
+ * generated pattern validates cleanly, writes out and reads back.
  */
 
 import { strict as assert } from 'node:assert';
@@ -29,7 +29,7 @@ import { withTradition } from '../src/core/tradition.ts';
 import { validatePattern } from '../src/core/validate.ts';
 import { dcRectangle, hdcRectangle } from './fixtures/examples.ts';
 
-/** Minta profillal, amelyben a szem síkban mérve adott szem és sor 10 cm-en. */
+/** A pattern whose profile measures the stitch at the given stitches and rows per 10 cm in rows. */
 function withRowGauge(stitch, stitchesPer10cm, rowsPer10cm, pattern = emptyPattern()) {
   const profile = {
     id: 'sik',
@@ -44,7 +44,7 @@ function withRowGauge(stitch, stitchesPer10cm, rowsPer10cm, pattern = emptyPatte
 
 const japanese = () => ({ ...emptyPattern(), conventions: withTradition(emptyPattern().conventions, 'japanese') });
 
-/** A mag kódot és adatot ad az indokra (PQW-904); a hibaüzenethez ez elég. */
+/** The core gives a code and data as the reason (PQW-904); that is enough for the failure message. */
 const why = (result) => (result.ok ? '' : JSON.stringify(result.reason));
 const shape = (pattern, patch) => {
   const result = generateShape(pattern, { ...DEFAULT_SHAPE, ...patch });
@@ -68,8 +68,8 @@ const sameGraph = (a, b) => {
   assert.deepEqual(x.skipped, y.skipped);
 };
 
-describe('téglalap (03 §3.1 A, B)', () => {
-  test('A: 10 × 20 cm félpálcával, 15 × 11 mintasűrűséggel 15 szem × 22 sor, 17 láncszemes láncalap: a kidolgozott példa gráfja', () => {
+describe('rectangle (03 §3.1 A, B)', () => {
+  test('A: 10 × 20 cm in hdc at a 15 × 11 gauge is 15 stitches × 22 rows on a 17-chain foundation, matching the worked example graph', () => {
     const { pattern, plan } = shape(withRowGauge('hdc', 15, 11), { stitch: 'hdc', widthCm: 10, heightCm: 20 });
     assert.deepEqual(plan.counts, Array(22).fill(15));
     assert.equal(leadingChains(pattern.pieces[0]), 17);
@@ -77,7 +77,7 @@ describe('téglalap (03 §3.1 A, B)', () => {
     sameGraph(pattern, hdcRectangle().pattern);
   });
 
-  test('B: pálcával 16 × 8 mintasűrűséggel 16 szem × 16 sor; a számító fordulólánc és az alapláncszeme miatt 19 láncszem (PQW-891)', () => {
+  test('B: in dc at a 16 × 8 gauge it is 16 stitches × 16 rows, and the counting turning chain plus its foundation chain make 19 chains (PQW-891)', () => {
     const { pattern, plan } = shape(withRowGauge('dc', 16, 8), { stitch: 'dc', widthCm: 10, heightCm: 20 });
     assert.deepEqual(plan.counts, Array(16).fill(16));
     assert.equal(leadingChains(pattern.pieces[0]), 19);
@@ -85,7 +85,7 @@ describe('téglalap (03 §3.1 A, B)', () => {
     sameGraph(pattern, dcRectangle().pattern);
   });
 
-  test('a tényleges méret a kerekített szem- és sorszámból', () => {
+  test('the finished size follows from the rounded stitch and row counts', () => {
     const result = plan(withRowGauge('hdc', 15, 11), { stitch: 'hdc', widthCm: 20.3, heightCm: 30 });
     assert.equal(result.counts[0], 30);
     assert.equal(result.counts.length, 33);
@@ -94,44 +94,44 @@ describe('téglalap (03 §3.1 A, B)', () => {
     assert.equal(result.angleDeg, null);
   });
 
-  test('profil nélkül becslés a tűből, mért profillal mérés', () => {
+  test('without a profile the gauge is estimated from the hook, with a measured profile it is measured', () => {
     assert.equal(plan(emptyPattern(), {}).gauge.source, 'estimated');
     assert.equal(plan(emptyPattern(), {}).gauge.basis, 'hook');
     assert.equal(plan(withRowGauge('hdc', 15, 11), {}).gauge.source, 'measured');
   });
 
-  test('a cím: az alapértelmezett és a generátor adta cím helyett a forma neve, a saját cím marad', () => {
+  test('the shape name replaces the default title and an earlier generated one, but a user-given title is kept', () => {
     assert.equal(shape(emptyPattern(), {}).pattern.title, 'Téglalap');
     assert.equal(shape(emptyPattern('Lapos kör'), { shape: 'right-triangle', widthCm: 10, heightCm: 10 }).pattern.title, 'Derékszögű háromszög');
     assert.equal(shape(emptyPattern('Nyári takaró'), {}).pattern.title, 'Nyári takaró');
   });
 });
 
-describe('mintaismétlés: „X többszöröse + Y” (03 §4.1, 05 §4.2)', () => {
-  // Rövidpálca 20 szem / 10 cm: 20 cm-en pontosan 40 szem; 6 + 2 többszörösei a számító fordulólánccal (+1): 39, 45.
+describe('stitch repeat: "multiple of X + Y" (03 §4.1, 05 §4.2)', () => {
+  // Single crochet at 20 stitches / 10 cm: exactly 40 stitches over 20 cm; the multiples of 6 + 2 with the counting turning chain (+1) are 39 and 45.
   const sc = () => withRowGauge('sc', 20, 20);
   const width = (patch) => plan(sc(), { stitch: 'sc', widthCm: 20, heightCm: 5, repeat: { width: 6, edge: 2 }, ...patch });
 
-  test('a legközelebbi, felfelé (bővebb) és lefelé (szűkebb) kerekítés', () => {
+  test('rounding to the nearest, up (wider) and down (narrower)', () => {
     assert.deepEqual([width({}).counts[0], width({}).repeats], [38, 6]);
     assert.deepEqual([width({ rounding: 'up' }).counts[0], width({ rounding: 'up' }).repeats], [44, 7]);
     assert.equal(width({ rounding: 'down' }).counts[0], 38);
   });
 
-  test('félúton a bővebb irányba', () => {
-    // 21 cm = 42 szem, pontosan 39 és 45 között.
+  test('a tie rounds towards the wider side', () => {
+    // 21 cm = 42 stitches, exactly halfway between 39 and 45.
     assert.equal(width({ widthCm: 21 }).counts[0], 44);
   });
 
-  test('a minta konvenciója az ismétlés lesz, és az ellenőrző ismétlési egyensúlya is rendben', () => {
+  test('the repeat becomes a pattern convention, and the validator finds the repeat balanced', () => {
     const { pattern } = shape(sc(), { stitch: 'sc', widthCm: 20, heightCm: 5, repeat: { width: 6, edge: 2 } });
     assert.deepEqual(pattern.conventions.repeat, { repeatWidth: 6, edgeStitches: 2, turningChainIncluded: false });
     assert.deepEqual(findings(pattern), []);
   });
 });
 
-describe('ferde él (03 §3.2, §3.4; 05 §4.4)', () => {
-  test('C: derékszögű háromszög 15 × 20 cm, rövidpálca 16 × 18: 24 szemről 2-re 36 soron, 22 fogyasztás, soronként legfeljebb 1; a számító fordulólánc miatt a legkisebb sor 2 szem', () => {
+describe('sloped edge (03 §3.2, §3.4; 05 §4.4)', () => {
+  test('C: a 15 × 20 cm right triangle in sc at 16 × 18 runs from 24 stitches to 2 over 36 rows, 22 decreases, at most one per row; the counting turning chain keeps the smallest row at 2 stitches', () => {
     const { pattern, plan } = shape(withRowGauge('sc', 16, 18), { shape: 'right-triangle', stitch: 'sc', widthCm: 15, heightCm: 20 });
     assert.equal(plan.counts.length, 36);
     assert.equal(plan.counts[0], 24);
@@ -139,30 +139,30 @@ describe('ferde él (03 §3.2, §3.4; 05 §4.4)', () => {
     const steps = changes(plan.counts);
     assert.ok(steps.every((step) => step === 0 || step === -1));
     assert.equal(steps.filter((step) => step === -1).length, 22);
-    // Az egyik él egyenes: a változás soronként csak a sor egyik végén van.
+    // One edge stays straight: each row changes at one end only.
     assert.ok(plan.shaping.every((row) => row.start === 0 || row.end === 0));
     assert.deepEqual(findings(pattern), []);
   });
 
-  test('D: egyenlő szárú háromszög 20 × 15 cm, pálca 16 × 8: 32 szemről 2-re 12 soron, páros változással, 3 pálca összehorgolásával', () => {
+  test('D: a 20 × 15 cm isosceles triangle in dc at 16 × 8 runs from 32 stitches to 2 over 12 rows, in even steps, using dc3tog', () => {
     const { pattern, plan } = shape(withRowGauge('dc', 16, 8), { shape: 'isosceles-triangle', stitch: 'dc', widthCm: 20, heightCm: 15 });
     assert.equal(plan.counts.length, 12);
     assert.deepEqual([plan.counts[0], plan.counts.at(-1)], [32, 2]);
     assert.ok(changes(plan.counts).every((step) => step === -2 || step === -4));
-    // A lineáris céltól (32 → 2) soronként legfeljebb egy szemnyit tér el élenként.
-    plan.counts.forEach((count, k) => assert.ok(Math.abs(count - (32 - (30 * k) / 11)) <= 2, `${k + 1}. sor: ${count}`));
+    // Every row stays within one stitch per edge of the linear target (32 → 2).
+    plan.counts.forEach((count, k) => assert.ok(Math.abs(count - (32 - (30 * k) / 11)) <= 2, `row ${k + 1}: ${count}`));
     assert.ok(pattern.pieces[0].stitches.some((node) => node.def === 'dc3tog'));
     assert.deepEqual(findings(pattern), []);
   });
 
-  test('szögből: rövidpálcánál 16 × 18-nál soronként 1 fogyasztás kb. 48,4° (03 §3.2 táblázat)', () => {
+  test('from an angle: in sc at 16 × 18 one decrease per row is about 48.4° (03 §3.2 table)', () => {
     const result = plan(withRowGauge('sc', 16, 18), { shape: 'right-triangle', stitch: 'sc', widthCm: 15, measure: 'angle', angleDeg: 48.4 });
     const steps = changes(result.counts);
     assert.ok(steps.filter((step) => step === -1).length >= steps.length - 1, steps.join(','));
     assert.ok(Math.abs(result.angleDeg - 48.4) < 1.5, String(result.angleDeg));
   });
 
-  test('trapéz: a felső él a megadott szélesség közelében, páros változással; szélesedő trapéz is', () => {
+  test('trapezoid: the top edge lands near the requested width in even steps, widening as well as narrowing', () => {
     const narrowing = plan(withRowGauge('sc', 20, 20), { shape: 'trapezoid', stitch: 'sc', widthCm: 20, topWidthCm: 12, heightCm: 10 });
     assert.deepEqual([narrowing.counts[0], narrowing.counts.at(-1)], [40, 24]);
     const widening = plan(withRowGauge('sc', 20, 20), { shape: 'trapezoid', stitch: 'sc', widthCm: 12, topWidthCm: 20, heightCm: 10 });
@@ -170,7 +170,7 @@ describe('ferde él (03 §3.2, §3.4; 05 §4.4)', () => {
     for (const result of [narrowing, widening]) assert.ok(changes(result.counts).every((step) => step % 2 === 0));
   });
 
-  test('rombusz: csúcsról a legszélesebb sorig szaporít, onnan ugyanúgy fogyaszt; a csúcs a sor párosságától 2 vagy 3 szem, mert a számító fordulólánc miatt legalább 2', () => {
+  test('diamond: it increases from the tip to the widest row and mirrors that decreasing; the tip is 2 or 3 stitches by parity, never under 2 because of the counting turning chain', () => {
     const odd = plan(withRowGauge('sc', 20, 20), { shape: 'diamond', stitch: 'sc', widthCm: 10.5, heightCm: 10.5 });
     const { counts } = odd;
     assert.equal(counts.length, 21);
@@ -182,15 +182,15 @@ describe('ferde él (03 §3.2, §3.4; 05 §4.4)', () => {
     assert.deepEqual([even.counts[0], Math.max(...even.counts), even.counts.at(-1)], [2, 20, 2]);
   });
 
-  test('a sorok széle: a páratlan sor eleje a jobb, a vége a bal szélen; a szélesség a szemszám', () => {
+  test('row extents: an odd row starts at the right edge and ends at the left, and the width is the stitch count', () => {
     const result = plan(withRowGauge('sc', 16, 18), { shape: 'right-triangle', stitch: 'sc', widthCm: 15, heightCm: 20 });
     const extents = rowExtents(result);
     extents.forEach((row, k) => assert.equal(row.right - row.left, result.counts[k]));
-    // A ferde él a bal oldali: a jobb szél egyenes.
+    // The sloped edge is the left one: the right edge stays straight.
     assert.ok(extents.every((row) => row.right === 24));
   });
 
-  test('élenként soronként legfeljebb 2 egy szembe: meredek fogyasztásnál a sor végén meghagyott szemek, a számító fordulólánc tetejével', () => {
+  test('at most 2 into one stitch per edge per row: a steep decrease leaves stitches unworked at the end of the row, along with the top of the counting turning chain', () => {
     const { pattern, plan } = shape(emptyPattern(), { shape: 'isosceles-triangle', stitch: 'dc', widthCm: 30, heightCm: 6 });
     assert.ok(plan.shaping.every((row) => row.start >= -MAX_EDGE_CHANGE && row.end <= MAX_EDGE_CHANGE));
     assert.ok(plan.unworkedRows.length > 0);
@@ -200,25 +200,25 @@ describe('ferde él (03 §3.2, §3.4; 05 §4.4)', () => {
     assert.deepEqual(findings(pattern), []);
     assert.match(formatWrittenPattern(writePattern(pattern, libraryFor(pattern), 'hu')), /\d+ szem kihagyása \(\d+ szem\)\. Fordítás\./);
 
-    // A meghagyott szemek jelölése nélkül az ellenőrző hibát jelez: ettől jó a sor vége.
+    // Without the unworked stitches marked the validator reports a finding: that marking is what makes the row end sound.
     const unmarked = { ...pattern, pieces: [{ ...piece, skipped: [] }] };
     const rules = new Set(findings(unmarked).map((finding) => finding.rule));
     assert.ok(rules.has('turning-chain-placement') || rules.has('unused-position'), [...rules].join(', '));
   });
 
-  test('élenként soronként legfeljebb 2 egy szembe: meredek szaporításnál láncos hosszabbítás az előző sor végén', () => {
+  test('at most 2 into one stitch per edge per row: a steep increase extends the end of the previous row with chains', () => {
     const { pattern, plan } = shape(emptyPattern(), { shape: 'diamond', stitch: 'sc', widthCm: 30, heightCm: 5 });
     assert.ok(plan.chainExtensionRows.length > 0);
     assert.ok(plan.shaping.every((row) => row.start >= -MAX_EDGE_CHANGE && row.end <= MAX_EDGE_CHANGE));
     for (const row of plan.chainExtensionRows) {
       const graph = buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));
       const layer = graph.layers[row];
-      assert.equal(graph.defs.get(layer.stitches.at(-1)).kind, 'chain', `${row}. sor végén láncszem`);
+      assert.equal(graph.defs.get(layer.stitches.at(-1)).kind, 'chain', `chain at the end of row ${row}`);
     }
     assert.deepEqual(findings(pattern), []);
   });
 
-  test('ami nem horgolható, arra érthető kód és adat jön (PQW-904)', () => {
+  test('what cannot be crocheted comes back as a readable code with data (PQW-904)', () => {
     const refuse = (patch) => {
       const result = planShape(emptyPattern(), { ...DEFAULT_SHAPE, ...patch });
       assert.equal(result.ok, false);
@@ -226,17 +226,17 @@ describe('ferde él (03 §3.2, §3.4; 05 §4.4)', () => {
     };
     assert.equal(refuse({ shape: 'right-triangle', stitch: 'tr', widthCm: 30, heightCm: 4 }).code, 'shape-too-steep');
     assert.equal(refuse({ widthCm: 0.2 }).code, 'shape-too-narrow');
-    // A sorok száma az adatba kerül: a rombuszhoz legalább 3 sor kell.
+    // The row count travels in the data: a diamond needs at least 3 rows.
     assert.deepEqual(refuse({ shape: 'diamond', heightCm: 0.5 }), { code: 'shape-min-rows', data: { rows: 3 } });
     assert.equal(refuse({ shape: 'trapezoid', widthCm: 10, topWidthCm: 10, measure: 'angle' }).code, 'shape-trapezoid-equal-edges');
   });
 });
 
-describe('a választások ellenőrzése', () => {
-  test('mintaismétlés most csak téglalapnál; a méret és a szög tartományban', () => {
+describe('validating the options', () => {
+  test('a stitch repeat is rectangle-only for now, and size and angle must stay in range', () => {
     assert.equal(shapeProblem({ ...DEFAULT_SHAPE, shape: 'diamond', repeat: { width: 4, edge: 1 } }).code, 'shape-repeat-rectangle-only');
     assert.equal(shapeProblem({ ...DEFAULT_SHAPE, shape: 'trapezoid' }), null);
-    // A határ az adatba kerül, nem a mondatba (PQW-904).
+    // The limit travels in the data, not in a sentence (PQW-904).
     assert.deepEqual(shapeProblem({ ...DEFAULT_SHAPE, widthCm: Number.NaN }), { code: 'shape-width-range', data: { max: MAX_SHAPE_CM } });
     assert.equal(shapeProblem({ ...DEFAULT_SHAPE, shape: 'isosceles-triangle', measure: 'angle', angleDeg: 90 }).code, 'shape-angle-range');
     assert.equal(shapeProblem({ ...DEFAULT_SHAPE, repeat: { width: 0, edge: 1 } }).code, 'shape-repeat-width-range');
@@ -245,7 +245,7 @@ describe('a választások ellenőrzése', () => {
   });
 });
 
-describe('minden generált minta hibátlan, kiírható és visszaolvasható', () => {
+describe('every generated pattern validates cleanly, writes out and reads back', () => {
   const sizes = [
     [20, 30],
     [30, 5],
@@ -253,10 +253,10 @@ describe('minden generált minta hibátlan, kiírható és visszaolvasható', ()
   ];
   for (const [tradition, base] of [
     ['CYC', emptyPattern],
-    ['japán', japanese],
+    ['Japanese', japanese],
   ]) {
     for (const flat of FLAT_SHAPES) {
-      test(`${flat}, ${tradition} hagyomány: minden szemmel és mérettel`, () => {
+      test(`${flat}, ${tradition} tradition: every stitch and every size`, () => {
         for (const stitch of SHAPE_STITCHES) {
           for (const [widthCm, heightCm] of sizes) {
             const name = `${stitch} ${widthCm} × ${heightCm}`;
@@ -268,7 +268,7 @@ describe('minden generált minta hibátlan, kiírható és visszaolvasható', ()
             }
             const { pattern, plan } = result;
             assert.deepEqual(findings(pattern), [], name);
-            if (flat !== 'right-triangle') assert.ok(changes(plan.counts).every((step) => step % 2 === 0), `${name}: páros változás`);
+            if (flat !== 'right-triangle') assert.ok(changes(plan.counts).every((step) => step % 2 === 0), `${name}: even steps`);
             const library = libraryFor(pattern);
             for (const locale of ['hu', 'en-US', 'en-GB']) {
               const back = readPattern(formatWrittenPattern(writePattern(pattern, library, locale)), { library, locale, conventions: pattern.conventions });

@@ -1,8 +1,10 @@
 /*
- * Beszúrási mód lerakáskor (PQW-869): a horgoló felől választott mód a gráfban
- * színoldali módként tárolódik; minden lerakási út (horgolás, sor kitöltése,
- * duplikálás) tiszteletben tartja; az írott minta a szókészlet rövidítéseivel
- * írja ki és visszaolvassa; a tiltott mód érthető okkal elutasított.
+ * Insertion mode when placing stitches (PQW-869): the mode chosen from the
+ * crocheter's side is stored in the graph as a right-side mode; every path
+ * that places a stitch (working, filling a row, duplicating) honours it; the
+ * written pattern spells it out with the abbreviations of the vocabulary and
+ * reads it back; and a forbidden mode is refused with an understandable
+ * reason.
  */
 
 import { strict as assert } from 'node:assert';
@@ -27,7 +29,7 @@ import { validatePattern } from '../src/core/validate.ts';
 import { EDITOR_CORE_TEXTS } from '../src/ui/i18n/core/editor.ts';
 import { renderCoreText } from '../src/ui/i18n/core/render.ts';
 
-/** A mag kódot és adatot ad (PQW-904); a magyar mondat a felület szótárából jön. */
+/** The core hands over a code and data (PQW-904); the Hungarian sentence comes from the UI dictionary. */
 const huText = (reason) => renderCoreText(EDITOR_CORE_TEXTS.hu, reason);
 
 function ok(result) {
@@ -47,35 +49,35 @@ const withoutStatedCounts = (pattern) => ({
   pieces: pattern.pieces.map((piece) => ({ ...piece, events: piece.events.map(({ statedCount: _, ...event }) => event) })),
 });
 
-/** A réteg szemeinek tárolt, színoldali módja, a láncszemek nélkül. */
+/** The stored right-side mode of the stitches of a layer, leaving the chains out. */
 function storedModes(pattern, layer) {
   const modes = nodeInsertions(pattern.pieces[0]);
   return layerSelection(pattern, layer).filter((id) => modes.has(id)).map((id) => modes.get(id));
 }
 
-/** Két sor ugyanazzal a horgoló felől nézett móddal; a fordulólánc a sor első szeme, tárolt mód nélkül (PQW-891). */
+/** Two rows in the same mode as seen from the crocheter's side; the turning chain is the first stitch of the row and carries no stored mode (PQW-891). */
 function twoRows(def, insertion, chainCount = 7) {
   let pattern = fill(chains(emptyPattern(), chainCount), def, insertion);
   pattern = ok(endRow(pattern));
   return fill(pattern, def, insertion);
 }
 
-describe('a mag segédfüggvényei', () => {
-  test('a megengedett módok a könyvtár insertionModes listájából, láncív és gyűrű nélkül', () => {
+describe('the helper functions of the core', () => {
+  test('the allowed modes come from the insertionModes list of the library, without chain spaces and rings', () => {
     assert.deepEqual(stitchInsertions(stitchById('dc')), STITCH_INSERTIONS);
     assert.deepEqual(stitchInsertions(stitchById('sl-st')), ['both-loops', 'front-loop', 'back-loop']);
     assert.deepEqual(stitchInsertions(stitchById('rev-sc')), ['both-loops']);
     assert.deepEqual(stitchInsertions(stitchById('ch')), []);
   });
 
-  test('az érvényes mód a kért, ha megengedett, különben a szem alapértelmezése', () => {
+  test('the effective mode is the requested one when it is allowed, otherwise the default of the stitch', () => {
     assert.equal(effectiveInsertion(stitchById('sc'), 'back-post'), 'back-post');
     assert.equal(effectiveInsertion(stitchById('sl-st'), 'back-post'), 'both-loops');
     assert.equal(effectiveInsertion(stitchById('invdec'), null), 'front-loop');
     assert.equal(effectiveInsertion(stitchById('ch'), 'back-loop'), undefined);
   });
 
-  test('a visszai sor megfordítása önmaga inverze, a színoldalon nem változtat', () => {
+  test('flipping a wrong-side row is its own inverse and leaves the right side untouched', () => {
     for (const mode of STITCH_INSERTIONS) {
       assert.equal(modeAsWorked(mode, 'right'), mode);
       assert.equal(modeAsWorked(modeAsWorked(mode, 'wrong'), 'wrong'), mode);
@@ -84,22 +86,22 @@ describe('a mag segédfüggvényei', () => {
     assert.equal(modeAsWorked('front-post', 'wrong'), 'back-post');
   });
 
-  test('minden módnak a szókészlet szerinti magyar neve van', () => {
+  test('every mode carries its Hungarian name from the vocabulary', () => {
     assert.deepEqual(Object.values(INSERTION_NAMES), ['mindkét szál', 'első szál', 'hátsó szál', 'első relief', 'hátsó relief']);
   });
 });
 
-describe('lerakás a választott móddal', () => {
-  test('sor kitöltése hátsó szálba: színoldali soron a tárolt mód is hátsó szál, visszai soron első szál', () => {
-    // 7 láncszem: 2 kihagyás után soronként 5 rövidpálca; a fordulólánc nem szem (PQW-924).
+describe('placing stitches in the chosen mode', () => {
+  test('filling a row into the back loop: on a right-side row the stored mode is back loop too, on a wrong-side row it is front loop', () => {
+    // 7 chains: after 2 skips that is 5 single crochets per row; the turning chain is not a stitch (PQW-924).
     const pattern = twoRows('sc', 'back-loop');
     assert.deepEqual(storedModes(pattern, 1), Array(5).fill('back-loop'));
     assert.deepEqual(storedModes(pattern, 2), Array(5).fill('front-loop'));
     assert.deepEqual(findings(pattern), []);
   });
 
-  test('egy szem a kurzorhoz, relieffel; mód nélkül a szem alapértelmezése', () => {
-    // A pálca az 5. láncszemtől: két pálcához 6 láncszem kell (PQW-891).
+  test('a single stitch at the cursor, worked as a post stitch; with no mode given the default of the stitch applies', () => {
+    // The double crochet starts at the 5th chain: two of them need 6 chains (PQW-891).
     let pattern = chains(emptyPattern(), 6);
     const at = (p) => defaultCursor(p, contextOf(p), 'dc');
     pattern = ok(work(pattern, { def: 'dc', count: 1, insertion: 'front-post' }, at(pattern)));
@@ -107,7 +109,7 @@ describe('lerakás a választott móddal', () => {
     assert.deepEqual(storedModes(pattern, 1), ['front-post', 'both-loops']);
   });
 
-  test('a fogyasztás minden célpontja és a szaporítás minden tagja a választott móddal', () => {
+  test('every target of a decrease and every member of an increase uses the chosen mode', () => {
     let pattern = chains(emptyPattern(), 6);
     pattern = ok(work(pattern, { def: 'sc2tog', count: 1, insertion: 'front-loop' }, defaultCursor(pattern, contextOf(pattern), 'sc2tog')));
     pattern = ok(work(pattern, { def: 'inc-2sc', count: 1, insertion: 'back-loop' }, defaultCursor(pattern, contextOf(pattern), 'inc-2sc')));
@@ -116,12 +118,12 @@ describe('lerakás a választott móddal', () => {
     assert.deepEqual(members.map((node) => node.anchors[0].mode), ['back-loop', 'back-loop']);
   });
 
-  test('tiltott módra érthető ok, és a minta nem változik', () => {
+  test('a forbidden mode gives an understandable reason and leaves the pattern unchanged', () => {
     const pattern = chains(emptyPattern(), 5);
     const at = defaultCursor(pattern, contextOf(pattern), 'sl-st');
     const result = work(pattern, { def: 'sl-st', count: 1, insertion: 'front-post' }, at);
     assert.equal(result.ok, false);
-    // A mag a szem és a módok azonosítóját adja; a mondat a szótárban készül, a szemnév a jelölés nyelvén.
+    // The core hands over the ids of the stitch and the modes; the sentence is built in the dictionary, with the stitch name in the language of the notation.
     assert.equal(result.reason.code, 'insertion-not-allowed');
     assert.deepEqual(result.reason.data, { stitch: 'sl-st', requested: 'front-post', allowed: ['both-loops', 'front-loop', 'back-loop'] });
     assert.equal(huText(result.reason), 'A(z) kúszószem nem horgolható így: első relief. Választható: mindkét szál, első szál, hátsó szál.');
@@ -129,13 +131,13 @@ describe('lerakás a választott móddal', () => {
     assert.equal(filled.ok, false);
   });
 
-  test('varázskörbe a szálválasztás nem számít: a szem a gyűrűbe kerül', () => {
+  test('into a magic ring the loop choice does not matter: the stitch goes into the ring', () => {
     let pattern = ok(work(emptyPattern(), { def: 'magic-ring', count: 1 }, 0));
     pattern = ok(work(pattern, { def: 'sc', count: 1, insertion: 'back-loop' }, 0));
     assert.deepEqual(pattern.pieces[0].stitches[1].anchors, [{ into: 'ring', id: 'r1' }]);
   });
 
-  test('a láthatatlan fogyasztás visszai soron is hibátlan: a horgoló felől első szál, tárolva hátsó', () => {
+  test('the invisible decrease is clean on a wrong-side row too: front loop from the crocheter, stored as back loop', () => {
     let pattern = fill(chains(emptyPattern(), 7), 'sc');
     pattern = ok(endRow(pattern));
     pattern = ok(work(pattern, { def: 'invdec', count: 1 }, defaultCursor(pattern, contextOf(pattern), 'invdec')));
@@ -144,20 +146,20 @@ describe('lerakás a választott móddal', () => {
   });
 });
 
-describe('duplikálás: a horgoló felől nézett mód marad', () => {
-  test('a visszai sor színoldali sorként megfordítva tárolódik', () => {
+describe('duplicating: the mode as seen from the crocheter stays put', () => {
+  test('a wrong-side row is stored flipped, as a right-side row', () => {
     const pattern = twoRows('hdc', 'back-loop');
     const copy = ok(duplicateSelection(pattern, layerSelection(pattern, 2)));
-    // A fordulólánc nem szem (PQW-924): a sor mind az öt szeme a másolatba kerül.
+    // The turning chain is not a stitch (PQW-924): all five stitches of the row land in the copy.
     assert.deepEqual(storedModes(copy, 3), Array(5).fill('back-loop'));
     assert.deepEqual(findings(copy), []);
-    // A 3. sor után fordulás áll, a duplikált 4. sor a minta vége: a záró mondat nélkül vetjük össze.
-    // A kiírt sorszám a rétegénél eggyel nagyobb (PQW-923): a láncalap az 1. sor.
+    // Row 3 is followed by a turn and the duplicated row 4 ends the pattern, so we compare them without the closing sentence.
+    // The written row number is one more than the layer index (PQW-923): the foundation is row 1.
     const row = (n) => text(copy, 'hu').split('\n').find((line) => line.startsWith(`${n}. sor:`)).slice(2).replace(/ Fordítás\.$/, '');
     assert.equal(row(4), row(3));
   });
 
-  test('azonos oldalú sorba változatlanul', () => {
+  test('into a row of the same side it copies unchanged', () => {
     let pattern = twoRows('hdc', 'back-loop');
     pattern = ok(duplicateSelection(pattern, layerSelection(pattern, 2)));
     const copy = ok(duplicateSelection(pattern, layerSelection(pattern, 2)));
@@ -165,9 +167,9 @@ describe('duplikálás: a horgoló felől nézett mód marad', () => {
   });
 });
 
-describe('írott minta és visszaolvasás (szókészlet §3)', () => {
+describe('written pattern and reading it back (szókészlet §3)', () => {
   const cases = [
-    // A fordulólánc a sor első szemének helyén ül, ezért a szöveg kiírja a kihagyást (PQW-944).
+    // The turning chain sits where the first stitch of the row would be, so the text spells out the skip (PQW-944).
     ['sc', 'back-loop', 'hu', /3\. sor: 1 lsz \(1 rp-nek számít\), 1 szem kihagyása, 7 rp \(hsz\)/, 'hsz – hátsó szálba'],
     ['sc', 'front-loop', 'hu', /7 rp \(esz\)/, 'esz – első szálba'],
     ['dc', 'front-post', 'hu', /\d Eerp/, 'Eerp – első relief egyráhajtásos pálca (elölről hurkolt)'],
@@ -186,7 +188,7 @@ describe('írott minta és visszaolvasás (szókészlet §3)', () => {
       if (abbreviation) assert.ok(written.split('\n').includes(abbreviation), written);
       const result = readBack(written, pattern, locale);
       assert.ok(result.ok, JSON.stringify(result.error));
-      // A szöveg szemszáma visszaolvasva megadott szemszám lesz; a szerkesztő nem ír ilyet, ezért nélküle vetjük össze.
+      // Read back, the stitch count in the text becomes a stated count; the editor never writes one, so we compare without it.
       assert.deepEqual(withoutStatedCounts(canonicalPattern(result.pattern)), withoutStatedCounts(canonicalPattern(pattern)));
     });
   }
