@@ -453,6 +453,74 @@ export function spacePositions(below: LayerInfo, space: Space): readonly NodeId[
   return whole ? [turningChain[turningChain.length - 1]!] : space.chains;
 }
 
+/** Egy láncszemsor és az általa áthidalt pozíciók az alatta lévő rétegben (PQW-952). */
+export interface ChainBridge {
+  readonly chains: readonly NodeId[];
+  readonly bridged: readonly NodeId[];
+}
+
+/**
+ * Melyik láncszemsor mit hidal át — a KELMÉBŐL olvasva, nem a szerkesztés
+ * sorrendjéből (PQW-952).
+ *
+ * A `piece.skipped` csak akkor jegyzi fel az áthidalt szemeket, ha a lánc a
+ * munkaéltől ELŐRE készül. A tulajdonos viszont nem sorfolytonosan dolgozik:
+ * *„berakom előre a rövidpálcát, és utólag adom közé a láncszemeket, akkor
+ * pedig szétcsúszik”*. Ilyenkor a jelölés üres marad, és a rajz nem tudja,
+ * hogy a láncszemek egy rést hidalnak át — mérve a sor első rövidpálcája 120
+ * px-rel a kelmén kívülre került.
+ *
+ * A kelme viszont egyértelmű: két egymás után rögzített szem között a
+ * láncszemek mindazt áthidalják, ami a két célpont között van. Ezt adja vissza
+ * ez a függvény, a sor eleji és sor végi lánccal nem foglalkozva — ott nincs
+ * két oldalról határolt rés.
+ */
+export function chainBridges(graph: PieceGraph, index: number): ChainBridge[] {
+  const layer = graph.layers[index];
+  const below = layer === undefined ? undefined : graph.layers[layer.below];
+  if (!layer || !below || index === 0) return [];
+  const turning = new Set(layer.turningChain);
+  const seat = new Map<NodeId, number>();
+  below.positions.forEach((id, at) => seat.set(id, at));
+  const seatsOf = (id: NodeId): number[] => {
+    const node = graph.nodes.get(id);
+    if (!node) return [];
+    const targets: NodeId[] = [];
+    for (const anchor of node.anchors) {
+      if (anchor.into === 'stitch' || anchor.into === 'underside') targets.push(anchor.id);
+      else if (anchor.into === 'space') targets.push(...(graph.spaces.get(anchor.id)?.chains ?? []));
+    }
+    return targets.map((target) => seat.get(target)).filter((at): at is number => at !== undefined);
+  };
+
+  const bridges: ChainBridge[] = [];
+  let run: NodeId[] = [];
+  let behind: number[] = [];
+  for (const id of layer.stitches) {
+    if (turning.has(id)) continue;
+    const kind = graph.defs.get(id)?.kind;
+    if (kind === 'chain') {
+      run.push(id);
+      continue;
+    }
+    // A pikó az előtte lévő szemen ül: nem szakítja meg a láncsort.
+    if (kind === 'picot') continue;
+    const ahead = seatsOf(id);
+    if (run.length > 0 && behind.length > 0 && ahead.length > 0) {
+      // A rés BELSŐ két széle, akármelyik irányban halad a sor.
+      const [from, to] =
+        Math.max(...behind) < Math.min(...ahead)
+          ? [Math.max(...behind), Math.min(...ahead)]
+          : [Math.max(...ahead), Math.min(...behind)];
+      const bridged = below.positions.slice(from + 1, to);
+      if (bridged.length > 0) bridges.push({ chains: run, bridged });
+    }
+    run = [];
+    if (ahead.length > 0) behind = ahead;
+  }
+  return bridges;
+}
+
 /** A minta összes rétege darabonként, a `types.ts` `Layer` alakjában. */
 export function computeLayers(pattern: Pattern, library: StitchLibrary): Layer[] {
   return pattern.pieces.flatMap((piece) =>
