@@ -4,18 +4,21 @@ import { arcAt } from '../core/irregular-arc.ts';
 import { type Box, isSelectable, isVisible, itemBox, itemsBox, rowById } from '../core/irregular-document.ts';
 import { fanAngles } from '../core/irregular-fan.ts';
 import { directionOf, ringRadii, spokeAngles } from '../core/irregular-snap.ts';
-import type {
-  ArcShape,
-  BackgroundImage,
-  Point as ChartPoint,
-  FanMode,
-  IrregularItem,
-  IrregularPattern,
-  LegendBlock,
-  PolarGuide,
-  RowLine,
+import {
+  type AnnotationItem,
+  type ArcShape,
+  type BackgroundImage,
+  type Point as ChartPoint,
+  type FanMode,
+  type IrregularItem,
+  type IrregularPattern,
+  isStitch,
+  type LegendBlock,
+  type PolarGuide,
+  type RowLine,
 } from '../core/irregular-types.ts';
 import { itemShapes, naturalGlyph } from './irregular-glyph.ts';
+import { noteDrawing } from './irregular-note.ts';
 import {
   applyInk,
   drawCentered,
@@ -503,7 +506,11 @@ export class FreeBoard {
         (scene.fadeOthers && item.rowId !== scene.pattern.activeRowId);
       ctx.globalAlpha = dim ? FADED : 1;
       applyInk(ctx, this.#inkOf(scene.pattern, item, colors.ink), line);
-      drawShapes(ctx, itemShapes(item, scene.symbols, scene.glyphOf(item.keyEntryId)));
+      if (isStitch(item)) {
+        drawShapes(ctx, itemShapes(item, scene.symbols, scene.glyphOf(item.keyEntryId)));
+      } else {
+        this.#drawNote(item, line);
+      }
     }
     ctx.globalAlpha = 1;
 
@@ -622,6 +629,25 @@ export class FreeBoard {
     }
     ctx.stroke();
     ctx.restore();
+  }
+
+  /** An annotation carries words as well as strokes, so it is drawn on its own. */
+  #drawNote(item: AnnotationItem, line: number): void {
+    const ctx = this.#ctx;
+    const drawing = noteDrawing(item);
+    drawShapes(ctx, drawing.shapes);
+    for (const piece of drawing.texts) {
+      ctx.save();
+      ctx.translate(piece.at.x, piece.at.y);
+      ctx.rotate((piece.rotation * Math.PI) / 180);
+      ctx.font = `${piece.size}px system-ui, sans-serif`;
+      ctx.textAlign = piece.anchor === 'middle' ? 'center' : piece.anchor;
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = ctx.strokeStyle;
+      ctx.fillText(piece.text, 0, 0);
+      ctx.restore();
+    }
+    ctx.lineWidth = line;
   }
 
   #drawSelection(color: string): void {

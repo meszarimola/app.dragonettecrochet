@@ -1,8 +1,9 @@
 // The free-form editor's rows and rounds panel. KB: interface.md §7, §39
 
+import { rowCount } from '../core/irregular-document.ts';
 import type { RowAlign } from '../core/irregular-rowline.ts';
 import type { RowPatch, RowStitches } from '../core/irregular-rows.ts';
-import { itemsOfRow, rowNumber } from '../core/irregular-rows.ts';
+import { rowNumber } from '../core/irregular-rows.ts';
 import type { IrregularPattern, IrregularRow, RowDirection, RowKind } from '../core/irregular-types.ts';
 import { texts } from './i18n.ts';
 
@@ -232,7 +233,7 @@ export class IrregularRowsPanel {
       element('span', 'rows__number', words.rowName(index + 1, row.kind === 'round')),
       swatch,
       element('span', 'rows__arrow', ARROWS[row.direction]),
-      element('span', 'rows__count', words.rowCount(itemsOfRow(pattern, row.id).length)),
+      element('span', 'rows__count', words.rowCount(rowCount(pattern, row.id))),
     );
     item.append(
       pick,

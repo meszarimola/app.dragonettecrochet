@@ -6,15 +6,18 @@ import type {
   DistributeAxis,
   FlipAxis,
   ItemPatch,
+  NotePatch,
   PolarPatch,
 } from '../core/irregular-document.ts';
-import type {
-  BackgroundImage,
-  ChainArcGroup,
-  FanGroup,
-  IrregularGuides,
-  IrregularItem,
-  RowLineShape,
+import {
+  type AnnotationItem,
+  type BackgroundImage,
+  type ChainArcGroup,
+  type FanGroup,
+  type IrregularGuides,
+  type IrregularItem,
+  isStitch,
+  type RowLineShape,
 } from '../core/irregular-types.ts';
 import { stitchById } from '../core/stitches.ts';
 import type { StitchInsertion } from '../core/types.ts';
@@ -50,6 +53,9 @@ export interface IrregularPanelHost {
   patchBackground(patch: BackgroundPatch): void;
   setExport(patch: ExportView): void;
   savePdf(): void;
+  patchNotes(patch: NotePatch): void;
+  numberRows(): void;
+  addStartMarker(): void;
 }
 
 export interface ExportView {
@@ -93,7 +99,7 @@ function shared<T>(items: readonly IrregularItem[], read: (item: IrregularItem) 
 
 function allowedInsertions(items: readonly IrregularItem[]): StitchInsertion[] {
   return INSERTIONS.filter((mode) =>
-    items.every((item) => stitchById(item.keyEntryId)?.insertionModes.includes(mode) ?? false),
+    items.every((item) => isStitch(item) && (stitchById(item.keyEntryId)?.insertionModes.includes(mode) ?? false)),
   );
 }
 
@@ -150,6 +156,11 @@ export class IrregularPanel {
   readonly #exportOrientation: HTMLSelectElement;
   readonly #exportAcross: HTMLInputElement;
   readonly #exportDown: HTMLInputElement;
+  readonly #note: HTMLElement;
+  readonly #noteText: HTMLInputElement;
+  readonly #noteSize: HTMLInputElement;
+  readonly #noteArrow: HTMLInputElement;
+  readonly #noteDotted: HTMLInputElement;
   #bgNaturalWidth = 1;
   #bgRatio = 1;
   #items: readonly IrregularItem[] = [];
@@ -207,6 +218,11 @@ export class IrregularPanel {
     this.#exportOrientation = must<HTMLSelectElement>(section, '#export-orientation');
     this.#exportAcross = must<HTMLInputElement>(section, '#export-across');
     this.#exportDown = must<HTMLInputElement>(section, '#export-down');
+    this.#note = must<HTMLElement>(section, '#props-note');
+    this.#noteText = must<HTMLInputElement>(section, '#note-text');
+    this.#noteSize = must<HTMLInputElement>(section, '#note-size');
+    this.#noteArrow = must<HTMLInputElement>(section, '#note-arrow');
+    this.#noteDotted = must<HTMLInputElement>(section, '#note-dotted');
     this.#listen();
   }
 
@@ -348,6 +364,36 @@ export class IrregularPanel {
       this.#number(this.#exportDown, (value) => this.#host.setExport({ down: value })),
     );
     must<HTMLButtonElement>(this.#section, '#export-pdf').addEventListener('click', () => this.#host.savePdf());
+    this.#noteText.addEventListener('change', () => this.#host.patchNotes({ text: this.#noteText.value }));
+    this.#noteSize.addEventListener('change', () =>
+      this.#number(this.#noteSize, (value) => this.#host.patchNotes({ fontSize: value })),
+    );
+    this.#noteArrow.addEventListener('change', () => this.#host.patchNotes({ withArrow: this.#noteArrow.checked }));
+    this.#noteDotted.addEventListener('change', () => this.#host.patchNotes({ dotted: this.#noteDotted.checked }));
+    must<HTMLButtonElement>(this.#section, '#notes-numbers').addEventListener('click', () => this.#host.numberRows());
+    must<HTMLButtonElement>(this.#section, '#notes-start').addEventListener('click', () => this.#host.addStartMarker());
+  }
+
+  /** A fresh annotation has no words yet, so the field is ready for them. */
+  focusNoteText(): void {
+    if (this.#note.hidden) return;
+    this.#noteText.focus();
+    this.#noteText.select();
+  }
+
+  updateNotes(notes: readonly AnnotationItem[]): void {
+    this.#note.hidden = notes.length === 0;
+    const first = notes[0];
+    if (first === undefined) return;
+    const kinds = new Set(notes.map((note) => note.note));
+    // A label writes its own words from the row it follows; the rest are typed.
+    must<HTMLElement>(this.#section, '#note-text').closest('p')?.toggleAttribute('hidden', kinds.has('label'));
+    must<HTMLElement>(this.#section, '#note-arrow-row').hidden = !kinds.has('label');
+    must<HTMLElement>(this.#section, '#note-dotted-row').hidden = !kinds.has('marker');
+    if (document.activeElement !== this.#noteText) this.#noteText.value = first.text;
+    this.#setNumber(this.#noteSize, Math.round(first.fontSize));
+    this.#setToggle(this.#noteArrow, first.withArrow === true);
+    this.#setToggle(this.#noteDotted, first.dotted === true);
   }
 
   updateExport(view: Required<ExportView>): void {
@@ -520,7 +566,7 @@ export class IrregularPanel {
     this.#insertionField.hidden = allowed.length < 2;
     if (allowed.length < 2 || document.activeElement === this.#insertion) return;
     this.#insertion.replaceChildren(...allowed.map((mode) => option(mode, names[mode])));
-    const mode = shared(items, (item) => item.insertion);
+    const mode = shared(items, (item) => (isStitch(item) ? item.insertion : null));
     this.#insertion.value = mode ?? '';
   }
 

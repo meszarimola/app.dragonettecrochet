@@ -1,7 +1,7 @@
 // Turning a placed free-form symbol into drawable shapes. KB: interface.md §21, §22, §39
 
 import { findStitch } from '../core/irregular-key.ts';
-import type { IrregularItem } from '../core/irregular-types.ts';
+import type { StitchItem } from '../core/irregular-types.ts';
 import type { StitchDef, StitchInsertion } from '../core/types.ts';
 import {
   ALTERNATIVE_GLYPHS,
@@ -95,7 +95,7 @@ export function naturalSize(
 }
 
 export function itemShapes(
-  item: IrregularItem,
+  item: StitchItem,
   options: SymbolOptions,
   glyphOverride: string | null = null,
 ): readonly Shape[] {

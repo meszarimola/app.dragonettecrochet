@@ -967,3 +967,87 @@ test('export: SVG, PNG és PDF a szabálytalan típusból (AS-13)', async ({ pag
   expect((pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) ?? []).length, 'négy lapon').toBe(4);
   await expect(page.locator('#status')).toContainText('4');
 });
+
+test('feliratok: sorszámok követik a sort, és nem számítanak szemnek (AS-9)', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+  await armDoubleCrochet(page);
+  for (const x of [460, 520, 580]) await place(page, x, 340);
+  await page.locator('#row-new').click();
+  await armDoubleCrochet(page);
+  for (const x of [460, 520, 580]) await place(page, x, 440);
+  await page.locator(board).focus();
+  await page.keyboard.press('Escape');
+
+  const read = async (): Promise<{ labels: { text: string; row: string }[]; counts: string[] }> => ({
+    labels: await page.evaluate(() => {
+      const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+      return (JSON.parse(raw).items ?? [])
+        .filter((item: { kind: string; note?: string }) => item.kind === 'annotation' && item.note === 'label')
+        .map((item: { text: string; linkedRowId: string }) => ({ text: item.text, row: item.linkedRowId }));
+    }),
+    counts: await page.locator('#rows-list li').allInnerTexts(),
+  });
+
+  await page.locator('#notes-numbers').click();
+  const made = await read();
+  expect(made.labels, 'soronként egy sorszám').toHaveLength(2);
+  expect(made.labels[0].text, 'az első sor balról jobbra megy').toContain('1');
+  expect(made.labels[0].text, 'és viszi az iránynyilat').toContain('→');
+
+  // An annotation is never a stitch: the row counts must not have moved.
+  expect(made.counts[0], 'az első sor továbbra is három szem').toContain('3');
+  expect(made.counts[1], 'a második is').toContain('3');
+
+  // Turning the row the other way turns the label's arrow with it.
+  await page.locator('#rows-list li').first().locator('.rows__pick').click();
+  await page.locator('#row-direction').selectOption('rtl');
+  const turned = await read();
+  const first = turned.labels.find((label) => label.row === made.labels[0].row);
+  expect(first?.text, 'a nyíl megfordult').toContain('←');
+
+  // A second press adds nothing: every row already has one.
+  await page.locator('#notes-numbers').click();
+  expect((await read()).labels, 'nem duplázódik').toHaveLength(2);
+});
+
+test('felirat és nyíl: lerakás, szöveg és betűméret (FR-ANN-5, FR-ANN-6)', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+
+  await page.locator('[data-action="note-text"]').click();
+  await page.locator(board).click({ position: { x: 520, y: 320 } });
+  await expect(page.locator('#props-note'), 'megjelenik a felirat blokkja').toBeVisible();
+  await expect(page.locator('#note-text'), 'és a szövegmező kapja a fókuszt').toBeFocused();
+  await page.locator('#note-text').fill('Ismételd 6×');
+  await page.locator('#note-text').blur();
+
+  const notes = async (): Promise<{ note: string; text: string; fontSize: number }[]> =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+      return (JSON.parse(raw).items ?? []).filter((item: { kind: string }) => item.kind === 'annotation');
+    });
+
+  const written = await notes();
+  expect(written, 'egy felirat').toHaveLength(1);
+  expect(written[0].text, 'a beírt szöveggel').toBe('Ismételd 6×');
+
+  await page.locator('#note-size').fill('28');
+  await page.locator('#note-size').blur();
+  expect((await notes())[0].fontSize, 'a betűméret állítható').toBe(28);
+
+  // An arrow is drawn by dragging, and carries no text.
+  await page.locator('[data-action="note-arrow"]').click();
+  const rect = await page.locator(board).boundingBox();
+  if (rect === null) throw new Error('no board');
+  await page.mouse.move(rect.x + 400, rect.y + 460);
+  await page.mouse.down();
+  await page.mouse.move(rect.x + 620, rect.y + 500, { steps: 10 });
+  await page.mouse.up();
+  const both = await notes();
+  expect(both, 'felirat és nyíl').toHaveLength(2);
+  expect(both[1].note, 'a második nyíl').toBe('arrow');
+
+  // Neither of them is a stitch.
+  await expect(page.locator('#rows-list li').first(), 'a sor szemszáma nulla maradt').toContainText('0');
+});
