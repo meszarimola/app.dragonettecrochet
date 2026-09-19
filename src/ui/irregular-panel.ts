@@ -48,6 +48,17 @@ export interface IrregularPanelHost {
   loadBackground(): void;
   removeBackground(): void;
   patchBackground(patch: BackgroundPatch): void;
+  setExport(patch: ExportView): void;
+  savePdf(): void;
+}
+
+export interface ExportView {
+  readonly scale?: number;
+  readonly transparent?: boolean;
+  readonly size?: 'a4' | 'letter';
+  readonly orientation?: 'auto' | 'portrait' | 'landscape';
+  readonly across?: number;
+  readonly down?: number;
 }
 
 export interface ArrangeView {
@@ -132,6 +143,13 @@ export class IrregularPanel {
   readonly #bgRotation: HTMLInputElement;
   readonly #bgVisible: HTMLInputElement;
   readonly #bgLocked: HTMLInputElement;
+  readonly #bgInExport: HTMLInputElement;
+  readonly #exportScale: HTMLSelectElement;
+  readonly #exportTransparent: HTMLInputElement;
+  readonly #exportSize: HTMLSelectElement;
+  readonly #exportOrientation: HTMLSelectElement;
+  readonly #exportAcross: HTMLInputElement;
+  readonly #exportDown: HTMLInputElement;
   #bgNaturalWidth = 1;
   #bgRatio = 1;
   #items: readonly IrregularItem[] = [];
@@ -182,6 +200,13 @@ export class IrregularPanel {
     this.#bgRotation = must<HTMLInputElement>(section, '#bg-rotation');
     this.#bgVisible = must<HTMLInputElement>(section, '#bg-visible');
     this.#bgLocked = must<HTMLInputElement>(section, '#bg-locked');
+    this.#bgInExport = must<HTMLInputElement>(section, '#bg-in-export');
+    this.#exportScale = must<HTMLSelectElement>(section, '#export-scale');
+    this.#exportTransparent = must<HTMLInputElement>(section, '#export-transparent');
+    this.#exportSize = must<HTMLSelectElement>(section, '#export-page-size');
+    this.#exportOrientation = must<HTMLSelectElement>(section, '#export-orientation');
+    this.#exportAcross = must<HTMLInputElement>(section, '#export-across');
+    this.#exportDown = must<HTMLInputElement>(section, '#export-down');
     this.#listen();
   }
 
@@ -296,6 +321,56 @@ export class IrregularPanel {
     );
     this.#bgVisible.addEventListener('change', () => this.#host.patchBackground({ visible: this.#bgVisible.checked }));
     this.#bgLocked.addEventListener('change', () => this.#host.patchBackground({ locked: this.#bgLocked.checked }));
+    this.#bgInExport.addEventListener('change', () =>
+      this.#host.patchBackground({ inExport: this.#bgInExport.checked }),
+    );
+    this.#exportScale.addEventListener('change', () =>
+      this.#host.setExport({ scale: Number(this.#exportScale.value) }),
+    );
+    this.#exportTransparent.addEventListener('change', () =>
+      this.#host.setExport({ transparent: this.#exportTransparent.checked }),
+    );
+    this.#exportSize.addEventListener('change', () => {
+      if (this.#exportSize.value === 'a4' || this.#exportSize.value === 'letter') {
+        this.#host.setExport({ size: this.#exportSize.value });
+      }
+    });
+    this.#exportOrientation.addEventListener('change', () => {
+      const wanted = this.#exportOrientation.value;
+      if (wanted === 'auto' || wanted === 'portrait' || wanted === 'landscape') {
+        this.#host.setExport({ orientation: wanted });
+      }
+    });
+    this.#exportAcross.addEventListener('change', () =>
+      this.#number(this.#exportAcross, (value) => this.#host.setExport({ across: value })),
+    );
+    this.#exportDown.addEventListener('change', () =>
+      this.#number(this.#exportDown, (value) => this.#host.setExport({ down: value })),
+    );
+    must<HTMLButtonElement>(this.#section, '#export-pdf').addEventListener('click', () => this.#host.savePdf());
+  }
+
+  updateExport(view: Required<ExportView>): void {
+    const words = texts().irregular;
+    if (document.activeElement !== this.#exportScale) {
+      this.#exportScale.replaceChildren(...[1, 2, 4].map((times) => option(String(times), words.scaleName(times))));
+      this.#exportScale.value = String(view.scale);
+    }
+    if (document.activeElement !== this.#exportSize) {
+      this.#exportSize.replaceChildren(option('a4', words.pageA4), option('letter', words.pageLetter));
+      this.#exportSize.value = view.size;
+    }
+    if (document.activeElement !== this.#exportOrientation) {
+      this.#exportOrientation.replaceChildren(
+        option('auto', words.orientAuto),
+        option('portrait', words.orientPortrait),
+        option('landscape', words.orientLandscape),
+      );
+      this.#exportOrientation.value = view.orientation;
+    }
+    this.#setToggle(this.#exportTransparent, view.transparent);
+    this.#setNumber(this.#exportAcross, view.across);
+    this.#setNumber(this.#exportDown, view.down);
   }
 
   updateBackground(background: BackgroundImage | null, naturalWidth: number): void {
@@ -313,6 +388,7 @@ export class IrregularPanel {
     this.#setNumber(this.#bgRotation, Math.round(background.rotation));
     this.#setToggle(this.#bgVisible, background.visible);
     this.#setToggle(this.#bgLocked, background.locked);
+    this.#setToggle(this.#bgInExport, background.inExport);
   }
 
   updateRepeat(shown: boolean): void {

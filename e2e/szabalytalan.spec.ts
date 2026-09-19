@@ -908,3 +908,48 @@ test('saját szem: hozzáadás a jelkulcshoz, majd lerakás (FR-KEY-4)', async (
   // It shows up in the legend list with its own name.
   await expect(page.locator('#key-list li').filter({ hasText: 'Bogyó' })).toHaveCount(1);
 });
+
+test('export: SVG, PNG és PDF a szabálytalan típusból (AS-13)', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+  await armDoubleCrochet(page);
+  for (const x of [440, 500, 560, 620]) await place(page, x, 380);
+  await page.locator(board).focus();
+  await page.keyboard.press('Escape');
+
+  // A hidden row must not reach the file at all.
+  await page.locator('#row-new').click();
+  await armDoubleCrochet(page);
+  await place(page, 500, 480);
+  await page.locator(board).focus();
+  await page.keyboard.press('Escape');
+  await page.locator('#rows-list li').nth(1).getByRole('button', { name: 'Látható' }).click();
+
+  const svgDownload = page.waitForEvent('download');
+  await page.locator('#file-toggle').click();
+  await page.locator('[data-action="export-svg"]').click();
+  const svg = await readFile((await (await svgDownload).path()) ?? '', 'utf8');
+  expect(svg.startsWith('<svg'), 'vektoros SVG készült').toBe(true);
+  expect(svg, 'a rejtett sor szemei nincsenek benne').not.toContain('data-row="r2"');
+  expect((svg.match(/<g class="ink"/g) ?? []).length, 'a látható szemek benne vannak').toBeGreaterThan(0);
+
+  const pngDownload = page.waitForEvent('download');
+  await page.locator('#file-toggle').click();
+  await page.locator('[data-action="export-png"]').click();
+  const png = await (await pngDownload).path();
+  expect(png, 'PNG is készült').toBeTruthy();
+
+  // PDF over four pages, from the panel.
+  await page.locator('#export-across').fill('2');
+  await page.locator('#export-across').blur();
+  await page.locator('#export-down').fill('2');
+  await page.locator('#export-down').blur();
+  const pdfDownload = page.waitForEvent('download');
+  await page.locator('#export-pdf').click();
+  const pdfPath = (await (await pdfDownload).path()) ?? '';
+  const pdf = await readFile(pdfPath);
+  expect(pdf.subarray(0, 8).toString('latin1'), 'valódi PDF fejléc').toBe('%PDF-1.4');
+  expect(pdf.subarray(-6).toString('latin1').trim(), 'és rendes vége').toBe('%%EOF');
+  expect((pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) ?? []).length, 'négy lapon').toBe(4);
+  await expect(page.locator('#status')).toContainText('4');
+});
