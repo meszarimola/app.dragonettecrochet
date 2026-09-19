@@ -1,7 +1,7 @@
 /*
- * Az írott minta panelje (PQW-868): a rögzített szöveg a választott
- * jelöléssel, a félkész és a hibás minta megjegyzése, és érthető üzenet, ha a
- * minta még nem írható ki.
+ * The written pattern panel (PQW-868): the recorded text in the chosen
+ * notation, the notices for a half-finished and for an invalid pattern, and a
+ * readable message when the pattern cannot be written out yet.
  */
 
 import { strict as assert } from 'node:assert';
@@ -22,7 +22,7 @@ function ok(result) {
   return result.pattern;
 }
 
-/** Láncalap, egy teljes rövidpálcás sor (a fordulólánc az első szem, PQW-891), fordulás, és a 3. sorból `done` szem. */
+/** Foundation chain, one complete single crochet row (the turning chain is the first stitch, PQW-891), a turn, then `done` stitches of row 3. */
 function halfRow(done) {
   let pattern = ok(work(emptyPattern(), { def: 'ch', count: 6 }, 0));
   const sc = () => {
@@ -34,19 +34,19 @@ function halfRow(done) {
   return pattern;
 }
 
-test('üres mintánál üzenet, nem hiba', () => {
+test('an empty pattern gets a message, not an error', () => {
   assert.deepEqual(view(emptyPattern()), {
     kind: 'message',
     message: 'Még nincs mit kiírni: kezdd láncalappal vagy varázskörrel.',
   });
 });
 
-test('a kész téglalapnál a rögzített szöveg áll, megjegyzés nélkül', () => {
+test('a finished rectangle renders the recorded text, with no notice', () => {
   const { pattern } = hdcRectangle();
   assert.deepEqual(view(pattern), { kind: 'text', text: fixture('hu', 'felpalcas-teglalap'), notices: [] });
 });
 
-test('jelölésváltáskor a szöveg is vált', () => {
+test('switching notation switches the written text as well', () => {
   const { pattern } = hdcRectangle();
   assert.equal(view(pattern, 'en-US').text, fixture('en-US', 'felpalcas-teglalap'));
   const british = view(pattern, 'en-GB').text;
@@ -55,29 +55,29 @@ test('jelölésváltáskor a szöveg is vált', () => {
   assert.doesNotMatch(british, /\b(sc|hdc|sl st)\b/);
 });
 
-test('névtelen mintánál a szöveg címe „Névtelen minta”', () => {
+test('an untitled pattern gets „Névtelen minta” as the heading of the text', () => {
   const { pattern } = hdcRectangle({ rows: 1 });
   assert.match(view({ ...pattern, title: '  ' }).text, /^Névtelen minta\n/);
 });
 
-test('félkész sor: a szöveg látszik, megjegyzéssel', () => {
+test('a half-finished row still renders the text, with a notice', () => {
   const result = view(halfRow(2));
   assert.equal(result.kind, 'text');
-  // A fordulólánc a sor első szemének helyén ül, ezért a szöveg kiírja a kihagyást (PQW-944).
+  // The turning chain sits where the first stitch of the row would be, so the text spells out the skip (PQW-944).
   assert.match(result.text, /3\. sor: 1 lsz \(1 rp-nek számít\), 1 szem kihagyása, 1 rp \(2 szem\)\.$/m);
   assert.deepEqual(result.notices, ['A 3. sor félkész, még 3 célpont van hátra: a szöveg a mostani állapotot írja le.']);
 });
 
-test('hibás minta: a szöveg mellett megjegyzés a hibák számával', () => {
+test('an invalid pattern renders the text plus a notice counting the errors', () => {
   let pattern = halfRow(2);
-  // Két szem kihagyása a sor közepén: az ellenőrző hibát jelez (PQW-944: az első szem a fordulólánc).
+  // Skipping two stitches mid-row: the checker reports an error (PQW-944: the first stitch is the turning chain).
   pattern = ok(work(pattern, { def: 'sc', count: 1 }, 4));
   const result = view(pattern);
   assert.equal(result.kind, 'text');
   assert.ok(result.notices.some((notice) => /^A mintában \d+ hiba van \(lásd Ellenőrzés\)/.test(notice)), result.notices.join(' | '));
 });
 
-test('amit a szöveg még nem tud kifejezni: érthető üzenet, nem kivétel', () => {
+test('what the written text cannot express yet gets a readable message, not an exception', () => {
   const { pattern, rows } = hdcRectangle({ rows: 2 });
   const piece = pattern.pieces[0];
   const crossed = {
@@ -86,14 +86,14 @@ test('amit a szöveg még nem tud kifejezni: érthető üzenet, nem kivétel', (
   };
   const result = view(crossed);
   assert.equal(result.kind, 'message');
-  // A magyar mondat betűre ugyanaz, mint a PQW-904 előtt: a névelőt, a sor szavát
-  // és a mondatvéget a felületi szótár illeszti össze a mag kódjaiból.
+  // The Hungarian sentence is the same to the letter as before PQW-904: the article,
+  // the word for the row and the closing clause are assembled by the UI dictionary from the core codes.
   assert.equal(result.message, 'Ez a minta még nem írható ki. A(z) 3. sor keresztezett szemet tartalmaz.');
-  // A felhasználói üzenetben nincs belső fogalom (PQW-879).
+  // No internal concept leaks into the user-facing message (PQW-879).
   assert.doesNotMatch(result.message, /réteg|darab/i);
 });
 
-test('a mag kódot és adatot ad, a mondatot a felület rakja össze (PQW-904)', () => {
+test('the core supplies a code and data, and the interface assembles the sentence (PQW-904)', () => {
   const { pattern, rows } = hdcRectangle({ rows: 2 });
   const piece = pattern.pieces[0];
   const crossed = {
@@ -103,7 +103,7 @@ test('a mag kódot és adatot ad, a mondatot a felület rakja össze (PQW-904)',
   assert.throws(
     () => writtenPieces(crossed, testLibrary),
     (error) => {
-      // A sorszám és a sor/kör formája adat, a mondatvég külön kód: magyar mondat nincs a magban.
+      // The row number and the row/round shape are data, the closing clause is a separate code: the core holds no Hungarian sentence.
       assert.equal(error.code, 'layer-unsupported');
       assert.deepEqual(error.data, { inner: 'crossed', index: 2, shape: 'row' });
       assert.deepEqual(error.nodes, [rows[2][3]]);

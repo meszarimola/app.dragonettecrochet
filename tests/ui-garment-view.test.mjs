@@ -1,7 +1,7 @@
 /*
- * A „Ruhadarab” szakasz tartalma (PQW-866): választások, alapértékek, a
- * sorozat összhangja, a terv kiírása az ellenőrzésekkel, a táblázat gyanús
- * adatai és a létrehozás üzenete.
+ * The contents of the garment section (PQW-866): the choices, the defaults,
+ * a consistent size series, the plan printed with its checks, suspicious
+ * entries in the size table, and the message shown after generating.
  */
 
 import { strict as assert } from 'node:assert';
@@ -29,7 +29,7 @@ const plan = (options) => {
   return result.plan;
 };
 
-test('választható ruhadarabok, táblázatok és méretek', () => {
+test('the selectable garments, size tables and sizes', () => {
   assert.deepEqual(
     KIND_CHOICES.map((choice) => choice.label),
     ['Sapka', 'Ledobott vállú pulóver', 'Felülről horgolt raglán'],
@@ -45,8 +45,8 @@ test('választható ruhadarabok, táblázatok és méretek', () => {
   assert.equal(sizeChoices('hat', 'women')[8].label, 'Felnőtt M');
 });
 
-test('a mezők: a táblázat, a derék alatti hossz és az ismétlés csak pulóvernél; a feliratok a ruhadarabhoz', () => {
-  // A bordázat a szegély és a mandzsetta sorain készül: a sapkának nincs ilyen sora (PQW-913).
+test('fields: table, below-waist length and repeat appear only for a sweater, and the labels follow the garment', () => {
+  // Ribbing is worked on the hem and cuff rows: a hat has no such rows (PQW-913).
   assert.deepEqual(garmentFieldState('hat'), { table: false, belowWaist: false, neckline: false, repeat: false, ribbing: false });
   assert.deepEqual(garmentFieldState('drop-shoulder'), { table: true, belowWaist: true, neckline: true, repeat: true, ribbing: true });
   assert.equal(garmentFieldState('raglan').ribbing, true);
@@ -56,7 +56,7 @@ test('a mezők: a táblázat, a derék alatti hossz és az ismétlés csak puló
   assert.match(easeNote('drop-shoulder'), /15–30 cm bőség a szokásos/);
 });
 
-test('alapértékek: a táblázat közepe a szomszédos méretekkel, a derék alatti hossz táblázatonként', () => {
+test('defaults: the middle of the table with its neighbouring sizes, and a per-table below-waist length', () => {
   assert.deepEqual(defaultsFor('drop-shoulder', 'women'), DEFAULT_GARMENT);
   const men = defaultsFor('drop-shoulder', 'men');
   assert.deepEqual([men.from, men.size, men.to, men.belowWaistCm], ['S', 'M', 'L', 0]);
@@ -65,13 +65,13 @@ test('alapértékek: a táblázat közepe a szomszédos méretekkel, a derék al
   assert.equal(defaultsFor('hat', 'women').size, 'adult-m');
 });
 
-test('a sorozat mindig tartalmazza a rajz méretét', () => {
+test('the size series always contains the charted size', () => {
   const normalized = normalizeGarment({ ...DEFAULT_GARMENT, from: 'L', to: 'XS' });
   assert.deepEqual([normalized.from, normalized.size, normalized.to], ['M', 'M', 'M']);
   assert.equal(normalizeGarment({ ...DEFAULT_HAT, repeat: { width: 4, edge: 2 } }).repeat, null);
 });
 
-test('pulóver kiírása: kész méret becsléssel, formázott nyak, minden ellenőrzés igaz, a sorozat szövege', () => {
+test('sweater report: estimated finished size, shaped neckline, all checks true, and the series text', () => {
   const view = garmentView(plan(DEFAULT_GARMENT), false);
   assert.match(view.size, /^M: kész mellbőség ≈ \d+ cm, hossz ≈ \d+ cm, ujjhossz ≈ \d+ cm\.$/);
   assert.ok(view.details.some((line) => /^Váll: szélenként \d+ szem; a nyak \d+ szem\.$/.test(line)));
@@ -83,12 +83,12 @@ test('pulóver kiírása: kész méret becsléssel, formázott nyak, minden elle
   assert.ok(view.details.some((line) => /Fonalbecsléshez add meg/.test(line)));
 });
 
-test('a táblázat gyanús adata figyelmeztetés a méretnél', () => {
+test('a suspicious table entry raises a warning on that size', () => {
   const view = garmentView(plan({ ...DEFAULT_GARMENT, size: '2X', from: '2X', to: '3X' }), false);
   assert.ok(view.warnings.some((line) => /^A táblázat gyanús adata \(2X\): háthossz a derékig és keresztháti szélesség/.test(line)), view.warnings.join('\n'));
 });
 
-test('sapka kiírása és a létrehozás üzenete', () => {
+test('hat report and the message shown after generating', () => {
   const series = plan(DEFAULT_HAT);
   const view = garmentView(series, false);
   assert.match(view.size, /^Felnőtt M: kész körméret ≈ \d+ cm, magasság ≈ \d+ cm; \d+ kör\.$/);

@@ -16,8 +16,8 @@ function near(actual, expected, epsilon = 1e-9) {
 const rows = (count, stitches) => Array.from({ length: count }, () => ({ shape: 'row', stitches }));
 const scRow = (count) => Array.from({ length: count }, () => 'sc');
 
-describe('sorokban horgolt darab', () => {
-  test('20 × 20 rövidpálca a profillal: mért szélesség és magasság soronként és összesen', () => {
+describe('piece worked in rows', () => {
+  test('20 × 20 single crochet with a profile: measured width and height per row and in total', () => {
     const size = pieceSize(rows(20, scRow(20)), { library, profile: unblocked, hookMm: 4 });
     assert.equal(size.source, 'measured');
     assert.equal(size.estimated, false);
@@ -37,7 +37,7 @@ describe('sorokban horgolt darab', () => {
     assert.equal(size.total.widthCm.range, null);
   });
 
-  test('profil nélkül a méret becslés, tartománnyal, és ezt egyértelműen jelzi', () => {
+  test('without a profile the size is an estimate with a range, and says so', () => {
     const size = pieceSize(rows(20, scRow(20)), { library, profile: null, hookMm: 4 });
     assert.equal(size.estimated, true);
     assert.equal(size.source, 'estimated');
@@ -51,7 +51,7 @@ describe('sorokban horgolt darab', () => {
     assert.ok(heightCm.range[0] < heightCm.value && heightCm.value < heightCm.range[1]);
   });
 
-  test('vegyes sorban a sor magassága a legmagasabb szemé, a szélesség a szemeké összesen', () => {
+  test('in a mixed row the height comes from the tallest stitch and the width from all the stitches', () => {
     const [row] = pieceSize([{ shape: 'row', stitches: ['sc', 'dc', 'sc'] }], { library, profile: unblocked, hookMm: 4 }).layers;
     assert.equal(row.source, 'estimated');
     assert.deepEqual(row.basis, ['measured', 'profile-stitch']);
@@ -61,7 +61,7 @@ describe('sorokban horgolt darab', () => {
     near(row.widthCm.range[1], 0.565 * 3.1);
   });
 
-  test('a pikó nem ad szélességet és magasságot', () => {
+  test('a picot adds no width and no height', () => {
     const context = { library, profile: unblocked, hookMm: 4 };
     const plain = pieceSize([{ shape: 'row', stitches: ['sc', 'sc'] }], context).layers[0];
     const withPicot = pieceSize([{ shape: 'row', stitches: ['sc', 'picot', 'sc'] }], context).layers[0];
@@ -69,10 +69,10 @@ describe('sorokban horgolt darab', () => {
   });
 });
 
-describe('körben horgolt darab', () => {
+describe('piece worked in rounds', () => {
   const circle = Array.from({ length: 8 }, (_, i) => ({ shape: 'round', stitches: scRow(6 * (i + 1)) }));
 
-  test('WE-001: 8 kör rövidpálca a cső gauge-éből 80 mm átmérő, a mért 78,5–80 mm ±5 %-on belül', () => {
+  test('WE-001: 8 rounds of single crochet from the in-the-round gauge give an 80 mm diameter, within ±5 % of the measured 78.5–80 mm', () => {
     const size = pieceSize(circle, { library, profile: unblocked, hookMm: 4 });
     assert.equal(size.source, 'measured');
     assert.equal(size.total.form, 'circle');
@@ -91,36 +91,36 @@ describe('körben horgolt darab', () => {
     assert.equal(deviation.withinTolerance, true);
   });
 
-  test('profil nélkül a kör is becslés', () => {
+  test('without a profile the circle is an estimate too', () => {
     const size = pieceSize(circle, { library, profile: null, hookMm: 4 });
     assert.equal(size.estimated, true);
     assert.ok(size.total.widthCm.range);
   });
 
-  test('a varázskör nem ad méretet', () => {
+  test('the magic ring adds no size', () => {
     const withRing = pieceSize([{ shape: 'round', stitches: ['magic-ring'] }, ...circle], { library, profile: unblocked, hookMm: 4 });
     near(withRing.total.widthCm.value, 8);
   });
 });
 
-describe('szélső esetek', () => {
+describe('edge cases', () => {
   const context = { library, profile: unblocked, hookMm: 4 };
 
-  test('sorokat és köröket is tartalmazó darabnak csak soronkénti mérete van', () => {
+  test('a piece mixing rows and rounds has per-layer sizes only', () => {
     const size = pieceSize([...rows(1, scRow(4)), { shape: 'round', stitches: scRow(6) }], context);
     assert.equal(size.layers.length, 2);
     assert.equal(size.total, null);
   });
 
-  test('üres darab', () => {
+  test('empty piece', () => {
     assert.deepEqual(pieceSize([], context), { layers: [], total: null, source: 'measured', estimated: false });
   });
 
-  test('ismeretlen szem hibát ad', () => {
+  test('an unknown stitch throws', () => {
     assert.throws(() => pieceSize(rows(1, ['nincs-ilyen']), context), RangeError);
   });
 
-  test('5 %-nál nagyobb eltérés tűrésen kívül', () => {
+  test('a deviation over 5 % is out of tolerance', () => {
     assert.equal(sizeDeviation(80, [84, 85, 86]).withinTolerance, false);
     assert.equal(sizeDeviation(80, [84, 84, 84]).withinTolerance, true);
   });

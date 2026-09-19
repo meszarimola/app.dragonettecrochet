@@ -1,6 +1,6 @@
 /*
- * A diagram feliratai hagyományonként (PQW-876): CYC-ben zárójeles szemszám,
- * japánban „目” egységgel, az ismétlés „目1模様” alakban.
+ * Chart labels per tradition (PQW-876): a bracketed stitch count in CYC, the
+ * „目” unit in Japanese, and the repeat written as „目1模様”.
  */
 
 import { strict as assert } from 'node:assert';
@@ -15,14 +15,14 @@ import { hdcRectangle } from './fixtures/examples.ts';
 
 const SHELL = { repeatWidth: 6, edgeStitches: 1, turningChainIncluded: false };
 
-test('CYC: sorszám, zárójeles szemszám, ismétlés nincs a diagramon', () => {
+test('CYC: row number, bracketed stitch count, and no repeat on the chart', () => {
   const labels = chartLabels('cyc');
   assert.equal(labels.layer(3), '3');
   assert.equal(labels.count(18), '(18)');
   assert.equal(labels.repeat(SHELL), null);
 });
 
-test('japán: a szemszám és az ismétlés számokkal, „目” egységgel (01 §6.2)', () => {
+test('Japanese: stitch count and repeat as numbers with the „目” unit (01 §6.2)', () => {
   const labels = chartLabels('japanese');
   assert.equal(labels.layer(3), '3');
   assert.equal(labels.count(18), '18目');
@@ -32,7 +32,7 @@ test('japán: a szemszám és az ismétlés számokkal, „目” egységgel (01
   assert.match(labels.note, /11目1模様/);
 });
 
-test('japán hagyománnyal az export feliratai: „目” szemszám, japán megjegyzés és ismétlés', () => {
+test('export labels in the Japanese tradition: a „目” stitch count, the Japanese note and the repeat', () => {
   const { pattern } = hdcRectangle({ rows: 2 });
   const repeated = { ...pattern, conventions: { ...pattern.conventions, repeat: SHELL } };
   const library = libraryFor(repeated);
@@ -40,7 +40,7 @@ test('japán hagyománnyal az export feliratai: „目” szemszám, japán megj
     colors: { right: '#000', wrong: '#00f', text: '#111', background: '#fff' },
     tradition: 'japanese',
   });
-  // A szemszám a sorfelirat része, nem külön szöveg a mintán (PQW-923); a fordulólánc a sor első szeme (PQW-940).
+  // The stitch count belongs to the row label, not to a separate text on the chart (PQW-923); the turning chain is the first stitch of the row (PQW-940).
   assert.ok(svg.includes('>3. sor 16目</text>'));
   assert.ok(!svg.includes('>16目</text>'));
   assert.ok(!svg.includes('>(16)</text>'));
@@ -48,29 +48,30 @@ test('japán hagyománnyal az export feliratai: „目” szemszám, japán megj
   assert.ok(svg.includes('Ismétlés: 6目1模様.'));
 });
 
-test('a CYC feliratai egyeznek a korábbi diagraméval', () => {
+test('the CYC labels match those of the earlier chart', () => {
   const { pattern } = hdcRectangle({ rows: 2 });
   const library = libraryFor(pattern);
   const svg = chartSvg(pattern, layoutPattern(pattern, library, {}), library, {
     colors: { right: '#000', wrong: '#00f', text: '#111', background: '#fff' },
   });
   const labels = chartLabels('cyc');
-  // Egy címkén a sorszám és a szemszám, ahogy a tervező vásznán (PQW-923).
+  // Row number and stitch count on a single label, just like on the designer canvas (PQW-923).
   assert.ok(svg.includes('>3. sor (16)</text>'));
   assert.ok(!svg.includes(`>${labels.count(16)}</text>`));
   assert.ok(svg.includes(labels.note));
 });
 
 /*
- * A rajz melletti sorfelirat (PQW-916): a réteg neve a felület nyelvéből, a
- * szemszám alakja a hagyományból.
+ * The row label beside the chart (PQW-916): the layer name comes from the
+ * interface language, the shape of the stitch count from the tradition.
  *
- * A láncalap a PQW-923 óta maga az 1. sor (tulajdonosi döntés), ezért a
- * belehorgolt sor a 2. — a kiírt szám a réteg indexénél eggyel nagyobb. Körben
- * a számozás változatlan: a varázskör a nevén szerepel, hogy a kész amigurumi
- * minták körszámai ne csússzanak el.
+ * Since PQW-923 the foundation chain is row 1 itself (an owner decision), so
+ * the row worked into it is row 2 — the printed number is one greater than the
+ * layer index. In the round the numbering is unchanged: the magic ring appears
+ * under its name, so round numbers in finished amigurumi patterns do not
+ * shift.
  */
-test('a sorfelirat a réteg nevével és a szemszámmal, magyarul és angolul', () => {
+test('the row label carries the layer name and the stitch count, in Hungarian and in English', () => {
   const labels = chartLabels('cyc');
   assert.equal(labels.rowLabel(1, false, 12), '2. sor (12)');
   assert.equal(labels.rowLabel(0, false, 12), '1. sor – alapsor (12)');
@@ -87,11 +88,11 @@ test('a sorfelirat a réteg nevével és a szemszámmal, magyarul és angolul', 
   }
 });
 
-test('japán hagyományban a sorfelirat szemszáma is „目” egységgel megy', () => {
+test('in the Japanese tradition the row label stitch count also uses the „目” unit', () => {
   assert.equal(chartLabels('japanese').rowLabel(2, false, 15), '3. sor 15目');
 });
 
-test('a varázskör felirata szemszám nélkül áll: annak nincs értelmes szemszáma (PQW-916)', () => {
+test('the magic ring label stands without a stitch count, having no meaningful one (PQW-916)', () => {
   const labels = chartLabels('cyc');
   assert.equal(labels.rowLabel(0, true, null), 'Varázskör');
   assert.equal(chartLabels('japanese').rowLabel(0, true, null), 'Varázskör');

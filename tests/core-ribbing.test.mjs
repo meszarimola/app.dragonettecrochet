@@ -1,8 +1,8 @@
 /*
- * Bordás szegély és perem relief szemekkel (PQW-909; 01 §2.2 [S25], §4.3, 03 §7.1):
- * a bordázat a sorépítőben szemenkénti beszúrási móddal készül, sík darab
- * szélén és körben horgolt darab peremén is, ismétlésként kiírva és
- * visszaolvashatóan.
+ * Ribbed edging and rim worked with post stitches (PQW-909; 01 §2.2 [S25], §4.3, 03 §7.1):
+ * the ribbing is built in the row builder with a per-stitch insertion mode, on
+ * the edge of a flat piece and on the rim of a piece worked in the round,
+ * written out as a repeat and readable back.
  */
 
 import { strict as assert } from 'node:assert';
@@ -26,7 +26,7 @@ const errors = (pattern) =>
 
 const text = (pattern) => formatWrittenPattern(writePattern(pattern, libraryFor(pattern), 'hu'));
 
-/** Sík téglalap bordás szegéllyel. */
+/** Flat rectangle with a ribbed edging. */
 function flat(options = DEFAULT_RIBBING) {
   const shape = generateShape(emptyPattern(), { ...DEFAULT_SHAPE, widthCm: 10, heightCm: 6, stitch: 'dc' });
   assert.ok(shape.ok, shape.reason);
@@ -35,7 +35,7 @@ function flat(options = DEFAULT_RIBBING) {
   return { ...shape.pattern, pieces: [piece] };
 }
 
-/** Körben horgolt darab bordás peremmel; a szemszámot az ismétléshez igazítjuk. */
+/** Piece worked in the round with a ribbed rim; the stitch count is matched to the repeat. */
 function roundPiece(options = DEFAULT_RIBBING) {
   const motif = generateMotif(emptyPattern(), { ...DEFAULT_MOTIF, shape: 'circle', stitch: 'dc', rounds: 3, closing: 'join-slip' });
   assert.ok(motif.ok, motif.reason);
@@ -43,12 +43,12 @@ function roundPiece(options = DEFAULT_RIBBING) {
   return { pattern: motif.pattern, piece };
 }
 
-describe('bordás szegély sík darabon', () => {
-  test('a bordázat hibátlanul átmegy az ellenőrzőn', () => {
+describe('ribbed edging on a flat piece', () => {
+  test('the ribbing passes validation with no errors', () => {
     assert.deepEqual(errors(flat()), []);
   });
 
-  test('a bordázat nem változtatja meg a szemszámot', () => {
+  test('the ribbing leaves the stitch count unchanged', () => {
     const pattern = flat();
     const graph = buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));
     const layers = graph.layers.filter((layer) => layer.index > 0);
@@ -57,44 +57,44 @@ describe('bordás szegély sík darabon', () => {
     assert.equal(last.stitchCount, before.stitchCount);
   });
 
-  test('a relief sor fordulólánca fordulólánc, és egy láncszemmel rövidebb', () => {
+  test('the turning chain of a post-stitch row does not count as a stitch and is one chain shorter', () => {
     const pattern = flat();
     const graph = buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));
     const ribbed = graph.layers[graph.layers.length - 1];
     assert.equal(ribbed.turningChainCounts, false);
-    // Pálcánál 3 lsz helyett 2 lsz (01 §2.2 [S25]).
+    // For a double crochet, 2 chains instead of 3 (01 §2.2 [S25]).
     assert.equal(ribbed.turningChain.length, 2);
   });
 
-  test('a bordázat ismétlésként íródik ki, nem szemenként felsorolva', () => {
+  test('the ribbing is written as a repeat, not listed stitch by stitch', () => {
     const written = text(flat());
     assert.match(written, /\[1 (Eerp|Herp), 1 (Eerp|Herp)\]/);
     assert.match(written, /Eerp – első relief egyráhajtásos pálca/);
     assert.match(written, /Herp – hátsó relief egyráhajtásos pálca/);
   });
 
-  test('az írott minta visszaolvasható', () => {
+  test('the written pattern reads back', () => {
     const pattern = flat();
     const written = text(pattern);
     const back = readPattern(written, { library: libraryFor(pattern), locale: 'hu', conventions: pattern.conventions });
     assert.ok(back.ok, back.ok ? '' : back.reason);
   });
 
-  test('a 2×2 bordázat is átmegy az ellenőrzőn', () => {
+  test('2×2 ribbing passes validation too', () => {
     assert.deepEqual(errors(flat({ rows: 2, width: 2 })), []);
   });
 });
 
-describe('bordás perem körben', () => {
-  test('a bordás perem hibátlanul átmegy az ellenőrzőn', () => {
+describe('ribbed rim in the round', () => {
+  test('the ribbed rim passes validation with no errors', () => {
     const { pattern, piece } = roundPiece();
     assert.ok(!('code' in piece), JSON.stringify(piece));
     assert.deepEqual(errors({ ...pattern, pieces: [piece] }), []);
   });
 
-  test('körben a nem záródó szemszámot pontos okkal utasítja el', () => {
+  test('in the round a stitch count that does not divide into the repeat is refused with a precise reason', () => {
     const { piece } = roundPiece({ rows: 1, width: 5 });
-    // A mag kódot és adatot ad, a mondatot a felület írja (PQW-904).
+    // The core returns a code and data; the sentence is written by the UI (PQW-904).
     assert.equal(piece.code, 'ribbing-round-multiple');
     assert.equal(piece.data.unit, 10);
     assert.equal(piece.data.nearest % 10, 0);
@@ -102,8 +102,8 @@ describe('bordás perem körben', () => {
   });
 });
 
-describe('a bordázat elutasításai', () => {
-  test('a sorok száma és a borda szélessége tartományon belül kell legyen', () => {
+describe('ribbing refusals', () => {
+  test('the row count and the rib width must be within range', () => {
     assert.equal(ribbingProblem({ rows: 0, width: 1 }).code, 'ribbing-rows-range');
     assert.deepEqual(ribbingProblem({ rows: MAX_RIBBING_ROWS + 1, width: 1 }), {
       code: 'ribbing-rows-range',
@@ -113,7 +113,7 @@ describe('a bordázat elutasításai', () => {
     assert.equal(ribbingProblem(DEFAULT_RIBBING), null);
   });
 
-  test('láncalapra nem horgolható bordázat', () => {
+  test('ribbing cannot be worked onto a foundation chain', () => {
     const pattern = emptyPattern();
     const piece = { id: 'p1', name: 'Darab', stitches: [], spaces: [], rings: [], groups: [], events: [], skipped: [] };
     const result = appendRibbing(pattern, piece, libraryFor(pattern), DEFAULT_RIBBING);
@@ -121,15 +121,15 @@ describe('a bordázat elutasításai', () => {
   });
 });
 
-describe('a relief szem jelölése', () => {
-  test('a rajz jelmagyarázata jelöli a relief szemeket (PQW-869 jelölésével)', () => {
+describe('post-stitch notation', () => {
+  test('the chart legend marks the post stitches (with the PQW-869 notation)', () => {
     const pattern = flat();
     const marked = legendInsertions(pattern, libraryFor(pattern)).map(({ def, mode }) => `${def.id}/${mode}`);
     assert.ok(marked.includes('dc/front-post'), marked.join(', '));
     assert.ok(marked.includes('dc/back-post'), marked.join(', '));
   });
 
-  test('a bordázat mindhárom jelölésben a szabvány szerint íródik ki', () => {
+  test('the ribbing is written per standard in all three notations', () => {
     const pattern = flat();
     const library = libraryFor(pattern);
     const written = (locale) => formatWrittenPattern(writePattern(pattern, library, locale));
@@ -137,16 +137,16 @@ describe('a relief szem jelölése', () => {
     assert.match(written('hu'), /Herp/);
     assert.match(written('en-US'), /FPdc/);
     assert.match(written('en-US'), /BPdc/);
-    // A brit jelölésben az egyráhajtásos pálca „tr”.
+    // In UK notation the one-yarn-over double crochet is "tr".
     assert.match(written('en-GB'), /FPtr/);
     assert.match(written('en-GB'), /BPtr/);
   });
 });
 
-describe('a Forma generátor bordás szegéllyel', () => {
+describe('the Shape generator with a ribbed edging', () => {
   const shapeWith = (patch) => generateShape(emptyPattern(), { ...DEFAULT_SHAPE, widthCm: 10, heightCm: 6, stitch: 'dc', ...patch });
 
-  test('hibátlan mintát ad, a bordázat ismétlésként kiírva', () => {
+  test('produces an error-free pattern with the ribbing written as a repeat', () => {
     const result = shapeWith({ ribbing: { rows: 2, width: 1 } });
     assert.ok(result.ok, result.reason);
     assert.deepEqual(errors(result.pattern), []);

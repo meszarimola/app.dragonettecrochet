@@ -1,8 +1,9 @@
 /*
- * Tapestry és graphgan (PQW-864): cellánként egy rövidpálca, a láncalap a
- * hagyomány függvényeiből, a szem színe a cella színe a haladási irányban
- * (03 §5.3, §5.4), a 3-nál több vitt szín figyelmeztetése (03 §10 G36), és
- * hogy minden minta hibátlanul átmegy az ellenőrzőn és menthető.
+ * Tapestry and graphgan (PQW-864): one single crochet per cell, the foundation
+ * chain from the tradition helpers, a stitch taking its cell colour in the
+ * direction of work (03 §5.3, §5.4), the warning for carrying more than 3
+ * colours (03 §10 G36), and that every pattern passes the validator cleanly
+ * and can be saved.
  */
 
 import { strict as assert } from 'node:assert';
@@ -24,7 +25,7 @@ const COLORS = ['Fehér', 'Piros', 'Kék', 'Zöld', 'Sárga'].map((name, i) => (
 
 const cyc = () => emptyPattern();
 const japanese = () => ({ ...emptyPattern(), conventions: withTradition(emptyPattern().conventions, 'japanese') });
-/** Számító rövidpálcás fordulólánc: a sor első szemét a fordulólánc helyettesíti. */
+/** A counting single crochet turning chain: it stands in for the first stitch of the row. */
 const counting = () => ({ ...emptyPattern(), conventions: { ...emptyPattern().conventions, turningChainCounts: true } });
 
 const make = (pattern, cells, technique = 'tapestry') => {
@@ -32,7 +33,7 @@ const make = (pattern, cells, technique = 'tapestry') => {
   assert.ok(result.ok, JSON.stringify(result.reason));
   return result;
 };
-/** A mag kódot és adatot ad; a mondat a felület szótárában készül (PQW-904). */
+/** The core hands over a code and data; the sentence is built in the UI dictionary (PQW-904). */
 const hu = (message) => renderCoreText(GRID_CORE_TEXTS.hu, message);
 const findings = (pattern) => validatePattern(pattern, libraryFor(pattern));
 const graphOf = (pattern) => buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));
@@ -45,8 +46,8 @@ function random(seed) {
   };
 }
 
-describe('sorok, láncalap, színek (03 §5.3, §5.4)', () => {
-  test('egy cella egy rövidpálca: soronként W szem; a láncalap és az első szem a hagyomány függvényeiből', () => {
+describe('rows, foundation chain and colours (03 §5.3, §5.4)', () => {
+  test('one cell is one single crochet: W stitches per row; the foundation and the first stitch come from the tradition helpers', () => {
     const def = resolveStitch(COLORWORK_STITCH);
     for (const base of [cyc, japanese, counting]) {
       const pattern = base();
@@ -72,34 +73,34 @@ describe('sorok, láncalap, színek (03 §5.3, §5.4)', () => {
     }
   });
 
-  test('a szem színe a cella színe a haladási irányban: a páratlan sor jobbról balra, a páros balról jobbra', () => {
+  test('a stitch takes its cell colour in the direction of work: odd rows run right to left, even rows left to right', () => {
     const cells = [
       [0, 1, 2, 3],
       [3, 2, 1, 0],
     ];
     const { pattern } = make(cyc(), cells, 'graphgan');
     const graph = graphOf(pattern);
-    // A fordulólánc nem cella (PQW-924): a sor színei a szemeié.
+    // The turning chain is not a cell (PQW-924): the colours of a row belong to its stitches.
     const colorsOf = (layer) => {
       const color = (id) => graph.nodes.get(id).color ?? 0;
       return layer.stitches.filter((id) => graph.defs.get(id).kind !== 'chain').map(color);
     };
     assert.deepEqual(colorsOf(graph.layers[1]), [3, 2, 1, 0]);
     assert.deepEqual(colorsOf(graph.layers[2]), [3, 2, 1, 0]);
-    // A fordulólánc a sor első cellájának színével készül.
+    // The turning chain is worked in the colour of the first cell of the row.
     assert.equal(graph.nodes.get(graph.layers[2].turningChain[0]).color, 3);
     assert.equal(pattern.pieces[0].grid.technique, 'graphgan');
   });
 
-  test('minden cellába valódi szem kerül, a fordulólánc nem cella (PQW-924)', () => {
+  test('every cell gets a real stitch, and the turning chain is not a cell (PQW-924)', () => {
     const { pattern } = make(counting(), [[0, 1, 2]]);
     const [layer] = graphOf(pattern).layers.slice(1);
     assert.equal(layer.stitches.filter((id) => pattern.pieces[0].stitches.find((node) => node.id === id).def === COLORWORK_STITCH).length, 3);
   });
 });
 
-describe('ellenőrző és mentés', () => {
-  test('tapestryben a 3-nál több színű sor figyelmeztetést kap, graphganban nem (03 §10 G36)', () => {
+describe('validator and saving', () => {
+  test('in tapestry a row with more than 3 colours is warned about, in graphgan it is not (03 §10 G36)', () => {
     const cells = [
       [0, 1, 2, 3, 0],
       [0, 1, 2, 0, 0],
@@ -112,7 +113,7 @@ describe('ellenőrző és mentés', () => {
     assert.deepEqual(findings(make(cyc(), cells, 'graphgan').pattern), []);
   });
 
-  test('minden tapestry- és graphganminta hibátlan, kiírható és menthető: véletlen rácsok három konvencióval', () => {
+  test('every tapestry and graphgan pattern is clean, writable and saveable: random charts under three conventions', () => {
     const next = random(36);
     for (const base of [cyc, japanese, counting]) {
       for (const technique of ['tapestry', 'graphgan']) {
@@ -132,8 +133,8 @@ describe('ellenőrző és mentés', () => {
     }
   });
 
-  test('hibás rácsnál érthető ok', () => {
-    // A mag kódot ad, a mondat a felület szótárából jön (PQW-904).
+  test('a bad chart is rejected with an understandable reason', () => {
+    // The core hands over a code; the sentence comes from the UI dictionary (PQW-904).
     assert.equal(planColorwork(cyc(), 'tapestry', [[0, 9]], COLORS).reason.code, 'chart-color-index');
     assert.equal(planColorwork(counting(), 'tapestry', [[0]], COLORS).reason.code, 'colorwork-min-width');
     assert.match(hu(planColorwork(cyc(), 'tapestry', [[0, 9]], COLORS).reason), /színlista egyik színe/);
