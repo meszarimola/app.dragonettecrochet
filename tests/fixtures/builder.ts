@@ -1,6 +1,6 @@
 /*
- * Darabépítő a tesztekhez: szemenként, a fonal útján haladva rakja össze a
- * `Piece`-t, és kiosztja az azonosítókat.
+ * Builds a `Piece` for the tests one stitch at a time, following the yarn path,
+ * and assigns the ids.
  */
 
 import type {
@@ -20,7 +20,7 @@ import type {
   StitchNode,
 } from '../../src/core/types.ts';
 
-/** Szem azonosítója (mindkét szálba), láncív, gyűrű vagy teljes célpont. */
+/** A stitch id (both loops), a chain space, a ring, or a whole target. */
 export type Target = NodeId | { readonly space: SpaceId } | { readonly ring: RingId } | Anchor;
 
 function toAnchor(target: Target): Anchor {
@@ -47,7 +47,7 @@ export class PieceBuilder {
     this.name = name;
   }
 
-  /** Az utoljára horgolt szem. */
+  /** The stitch worked most recently. */
   get last(): NodeId {
     if (this.previous === null) throw new Error('Még nincs szem.');
     return this.previous;
@@ -75,7 +75,7 @@ export class PieceBuilder {
     return Array.from({ length: count }, () => this.stitch('ch'));
   }
 
-  /** `count` láncszem, és belőlük egy láncív. */
+  /** `count` chains, and one chain space made from them. */
   chainSpace(count: number): SpaceId {
     return this.space(this.chain(count));
   }
@@ -93,7 +93,7 @@ export class PieceBuilder {
     return id;
   }
 
-  /** Ugyanabba a célpontba horgolt szemek egy csoportban, pl. kagyló. */
+  /** Stitches worked into the same target as one group, such as a shell. */
   inSame(def: StitchDefId, members: readonly StitchDefId[], target: Target): NodeId[] {
     const ids = members.map((member) => (member === 'ch' ? this.stitch('ch') : this.stitch(member, target)));
     this.group(def, ids);
@@ -132,7 +132,7 @@ export class PieceBuilder {
   }
 }
 
-/** Egy szem átírása a kész mintában: így készülnek a szándékosan elrontott változatok. */
+/** Rewrites one stitch in a finished pattern: how the deliberately broken variants are made. */
 export function editNode(
   pattern: Pattern,
   id: NodeId,
