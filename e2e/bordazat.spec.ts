@@ -1,8 +1,9 @@
 /*
- * Bordás szegély és perem relief szemekkel (PQW-909): a „Forma” szakaszból
- * bordás szegélyű téglalap, a „Kör és motívum” szakaszból bordás peremű lapos
- * kör. Mindkettő hibátlan, az írott minta a bordázatot ismétlésként írja, és a
- * nem választható párosítások mezői eltűnnek.
+ * Ribbed edging and brim with post stitches (PQW-909): a rectangle with a
+ * ribbed edging from the „Forma” section, a flat circle with a ribbed brim from
+ * the „Kör és motívum” section. Both are error-free, the written pattern writes
+ * the ribbing as a repeat, and the fields of combinations that cannot be chosen
+ * disappear.
  */
 
 import { expect, test, type Page } from '@playwright/test';
@@ -28,7 +29,7 @@ for (const viewport of [
   { width: 1440, height: 900 },
   { width: 1000, height: 506 },
 ]) {
-  test(`${viewport.width}×${viewport.height}: bordás szegélyű téglalap, a bordázat ismétlésként kiírva`, async ({ page }) => {
+  test(`${viewport.width}×${viewport.height}: rectangle with a ribbed edging, the ribbing written as a repeat`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await open(page);
     const section = await openSection(page, 'section-shape');
@@ -37,7 +38,7 @@ for (const viewport of [
     await page.locator('#shape-width').fill('10');
     await page.locator('#shape-height').fill('6');
 
-    // A bordázat sorai és egysége csak bekapcsolva látszanak.
+    // The rows and the unit of the ribbing are only visible once it is switched on.
     await expect(page.locator('#shape-ribbing-pair')).toBeHidden();
     await page.locator('#shape-ribbing').check();
     await expect(page.locator('#shape-ribbing-pair')).toBeVisible();
@@ -48,13 +49,13 @@ for (const viewport of [
     await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
 
     const text = await writtenText(page);
-    // A bordás sor 2 láncszemmel kezdődik, mert láncszem nem állhat relief szem helyett (01 §2.2 [S25]).
+    // The ribbed row starts with 2 chain stitches, because a chain stitch cannot stand in place of a post stitch (01 §2.2 [S25]).
     expect(text).toMatch(/2 lsz \(fordulólánc\)/);
-    // A bordázat ismétlésként áll, nem szemenként felsorolva.
+    // The ribbing stands as a repeat, not listed stitch by stitch.
     expect(text).toMatch(/\[1 (Eerp|Herp), 1 (Eerp|Herp)\]/);
   });
 
-  test(`${viewport.width}×${viewport.height}: bordás peremű lapos kör, spirálban nem választható`, async ({ page }) => {
+  test(`${viewport.width}×${viewport.height}: flat circle with a ribbed brim, not available in a spiral`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await open(page);
     const section = await openSection(page, 'section-rounds');
@@ -69,7 +70,7 @@ for (const viewport of [
     await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
     expect(await writtenText(page)).toMatch(/\(1 (Eerp|Herp), 1 (Eerp|Herp)\) ×\d+/);
 
-    // A bordás perem a kör zárása után kezdődik: spirálban nincs honnan indulnia.
+    // The ribbed brim starts after the round is closed: in a spiral there is nowhere for it to start.
     await page.locator('#rounds-closing').selectOption('spiral');
     await expect(page.locator('#rounds-ribbing-fields')).toBeHidden();
   });

@@ -1,12 +1,12 @@
 /*
- * A tervező feje (PQW-853, PQW-918, PQW-922): a saját favicon (ICO és SVG) és az apple-touch-icon betöltődik,
- * a buildelt oldalon ott a leírás és a theme-color, és betöltéskor nincs
- * konzolhiba.
+ * The head of the designer (PQW-853, PQW-918, PQW-922): its own favicon (ICO and SVG) and the apple-touch-icon load,
+ * the description and the theme-color are on the built page, and there is no
+ * console error on load.
  */
 
 import { expect, test } from '@playwright/test';
 
-test('favicon, apple-touch-icon, leírás és theme-color a buildelt oldalon; konzolhiba nélkül', async ({ page, request }) => {
+test('favicon, apple-touch-icon, description and theme-color on the built page; without a console error', async ({ page, request }) => {
   const errors: string[] = [];
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text());
@@ -15,7 +15,7 @@ test('favicon, apple-touch-icon, leírás és theme-color a buildelt oldalon; ko
 
   await expect(page.locator('head meta[name="description"]')).toHaveAttribute('content', /horgolásminta-tervező/i);
   await expect(page.locator('head meta[name="theme-color"]')).toHaveAttribute('content', '#faf7f3');
-  // A gyökér indexelhető (PQW-918).
+  // The root is indexable (PQW-918).
   await expect(page.locator('head meta[name="robots"]')).toHaveCount(0);
   await expect(page.locator('head link[rel="canonical"]')).toHaveAttribute('href', 'https://app.dragonettecrochet.com/');
 
@@ -29,7 +29,7 @@ test('favicon, apple-touch-icon, leírás és theme-color a buildelt oldalon; ko
   expect(errors).toEqual([]);
 });
 
-test('a menüsorban a D6 szitakötő-jel a cím előtt, díszítő elemként, legalább 20 px magasan (PQW-922)', async ({ page }) => {
+test('in the menu bar the D6 dragonfly mark stands before the title, as a decorative element, at least 20 px tall (PQW-922)', async ({ page }) => {
   await page.goto('/');
   const mark = page.locator('.bar__lead svg.brand-mark');
   await expect(mark).toBeVisible();

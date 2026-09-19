@@ -1,8 +1,11 @@
 /*
- * Körök és motívumok (PQW-861): a „Kör és motívum” szakaszból lapos kör és
- * nagymama-négyzet, az írott minta körsoraival; a K billentyű a láncszemekből
- * láncgyűrűt zár. A nagymama-négyzet diagramja négyzet, a jelei nem
- * torlódnak (PQW-888).
+ * Circles and motifs (PQW-861): a flat circle and a granny square from the
+ * „Kör és motívum” section, with the round-by-round written pattern; the K key
+ * closes a chain ring from the chain stitches. The diagram of the granny square
+ * is a square, and its symbols do not crowd (PQW-888).
+ *
+ * The granny square is switched off for the first round of the UAT
+ * (KB: owner-decisions.md §13), so those tests are skipped.
  */
 
 import { expect, test, type Page } from '@playwright/test';
@@ -28,7 +31,7 @@ async function writtenText(page: Page): Promise<string> {
   return (await page.locator('#written-text').textContent()) ?? '';
 }
 
-test('lapos kör rövidpálcával: becsült szaporítás, hibátlan körök, a körök sora a tudásbázis szerint', async ({ page }) => {
+test('flat circle in single crochet: estimated increases, error-free rounds, the sequence of rounds follows the knowledge base', async ({ page }) => {
   await open(page);
   await generate(page, { rounds: 4 });
 
@@ -41,17 +44,17 @@ test('lapos kör rövidpálcával: becsült szaporítás, hibátlan körök, a k
   expect(text).toContain('3. kör: 1 lsz (fordulólánc), (szap., 1 rp) ×6 (18). Kör zárása: 1 ksz az első szembe.');
   expect(text).toContain('4. kör: 1 lsz (fordulólánc), 1 rp, (szap., 2 rp) ×5, szap., 1 rp (24).');
 
-  // A körszámok a vásznon: a négy kör címkéje, és a PQW-916 óta a varázskör (0. réteg) felirata is.
+  // The round numbers on the canvas: the labels of the four rounds, and since PQW-916 the label of the magic ring (layer 0) as well.
   const labels = await page.evaluate(() => (window as unknown as { mintatervezoRacs: { labels(): unknown[] } }).mintatervezoRacs.labels());
   expect(labels).toHaveLength(5);
 
-  // Visszavonással a korábbi (üres) minta jön vissza.
+  // Undo brings back the earlier (empty) pattern.
   await page.keyboard.press('ControlOrMeta+Z');
   await expect(page.locator('#status')).toContainText('Visszavonva.');
 });
 
-test('nagymama-négyzet láncgyűrűvel, és a K billentyű a láncszemekből láncgyűrűt zár', async ({ page }) => {
-  test.skip(true, 'PQW-925: a nagymama-négyzet ideiglenesen kikapcsolva');
+test('granny square with a chain ring, and the K key closes a chain ring from the chain stitches', async ({ page }) => {
+  test.skip(true, 'PQW-925: the granny square is temporarily switched off');
   await open(page);
   await generate(page, { shape: 'Nagymama-négyzet', start: 'Láncgyűrű', rounds: 3 });
 
@@ -62,7 +65,7 @@ test('nagymama-négyzet láncgyűrűvel, és a K billentyű a láncszemekből l�
   expect(text).toContain('1. kör: 3 lsz (1 erp-nek számít), 2 erp a gyűrűbe, 2 lsz, (3 erp a gyűrűbe, 2 lsz) ×3 (20).');
   expect(text).toMatch(/3\. kör: .*\(36\)\. Kör zárása: 1 ksz a kezdőlánc tetejébe\./);
 
-  // Új minta, 6 láncszem, K: láncgyűrű. A láncszemek száma a Láncszem kiválasztása után látszik.
+  // New pattern, 6 chain stitches, K: chain ring. The number of chain stitches is visible once the chain stitch is selected.
   await page.locator('[data-action="new"]').click();
   await page.locator('#board').focus();
   await page.keyboard.press('Alt+1');
@@ -83,7 +86,7 @@ interface Placed {
   readonly y: number;
 }
 
-/** A jelek teteje ablak-koordinátában (`window.mintatervezoKijeloles`, src/ui/main.ts). */
+/** The top of the symbols in window coordinates (`window.mintatervezoKijeloles`, src/ui/main.ts). */
 const placedNodes = (page: Page) =>
   page.evaluate(() => (window as unknown as { mintatervezoKijeloles: { nodes(): Placed[] } }).mintatervezoKijeloles.nodes());
 
@@ -93,26 +96,26 @@ for (const viewport of [
   { width: 1440, height: 900 },
   { width: 1000, height: 506 },
 ]) {
-  test(`${viewport.width}×${viewport.height}: a 6 körös nagymama-négyzet diagramja négyzet, és a jelek nem torlódnak`, async ({ page }) => {
-    test.skip(true, 'PQW-925: a nagymama-négyzet ideiglenesen kikapcsolva');
+  test(`${viewport.width}×${viewport.height}: the diagram of the 6-round granny square is a square, and the symbols do not crowd`, async ({ page }) => {
+    test.skip(true, 'PQW-925: the granny square is temporarily switched off');
     await page.setViewportSize(viewport);
     await open(page);
     await generate(page, { shape: 'Nagymama-négyzet', rounds: 6 });
     await expect(page.locator('#status')).toContainText('Nagymama-négyzet, 6 kör elkészült;');
     await page.getByRole('button', { name: 'Egész minta' }).click();
 
-    // A kúszószem a talpán ül, nem a kör vonalán: nem számít bele.
+    // The slip stitch sits on its base, not on the line of the round: it does not count.
     const nodes = (await placedNodes(page)).filter((node) => node.layer > 0 && node.def !== 'sl-st');
     const xs = nodes.map((node) => node.x);
     const ys = nodes.map((node) => node.y);
     const [width, height] = [Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)];
     expect(Math.abs(width - height) / width).toBeLessThan(0.05);
-    // Négyzetben a sarok √2-ször olyan messze van a középtől, mint az oldal közepe; körben ugyanolyan messze.
+    // In a square the corner is √2 times as far from the centre as the middle of the side; in a circle they are equally far.
     const [cx, cy] = [(Math.max(...xs) + Math.min(...xs)) / 2, (Math.max(...ys) + Math.min(...ys)) / 2];
     const farthest = Math.max(...nodes.map((node) => Math.hypot(node.x - cx, node.y - cy)));
     expect(farthest / (width / 2)).toBeGreaterThan(1.3);
 
-    // Egy kör jelei: a legközelebbi szomszéd sehol sincs a szokásos távolság harmadánál közelebb.
+    // The symbols of one round: the nearest neighbour is nowhere closer than a third of the usual distance.
     const nearest = nodes.map((node) =>
       Math.min(...nodes.filter((other) => other !== node && other.layer === node.layer).map((other) => Math.hypot(other.x - node.x, other.y - node.y))),
     );

@@ -1,21 +1,22 @@
 /*
- * Rácsos technikák (PQW-864): a Filéhorgolás típus lenyitja a Rácsminta
- * szakaszt; kis filémotívum, amelynek csak az első sorai teljesek, a
- * felismert ismétlő egységgel hibátlan mintát ad; C2C-kép két színnel
- * hibátlan, és az írott minta a színeket csempénként írja. A tükrözött nézet
- * megszűnt (PQW-911), ezért a feliratos motívum nem ad figyelmeztetést.
+ * Grid-based techniques (PQW-864): the „Filéhorgolás” type opens the
+ * „Rácsminta” section; a small filet motif whose first rows alone are complete
+ * gives an error-free pattern with the recognised repeat unit; a C2C image with
+ * two colours is error-free, and the written pattern writes the colours per tile.
+ * The mirrored view is gone (PQW-911), so the motif with lettering gives no
+ * warning.
  */
 
 import { expect, test, type Page } from '@playwright/test';
 
 /*
- * PQW-925: a filéhorgolás mintatípus — és vele a Rácsminta szakasz minden
- * technikája (filé, C2C, tapestry, graphgan, mozaik) — az átvételi tesztelés
- * első körében ki van kapcsolva. NEM töröljük a teszteket: a típus
- * visszakapcsolásakor ez az egy blokk kerül ki.
+ * The filet crochet pattern type — and with it every technique of the grid
+ * section — is switched off for the first round of acceptance testing
+ * (KB: owner-decisions.md §13). We do NOT delete the tests: when the type is
+ * switched back on, this single block is what goes away.
  */
 test.beforeEach(() => {
-  test.skip(true, 'PQW-925: a filéhorgolás mintatípus ideiglenesen kikapcsolva');
+  test.skip(true, 'PQW-925: the filet crochet pattern type is temporarily switched off');
 });
 
 async function open(page: Page): Promise<void> {
@@ -42,7 +43,7 @@ async function setSize(page: Page, width: number, height: number): Promise<void>
 
 const cell = (page: Page, x: number, y: number) => page.locator(`#grid-board [data-x="${x}"][data-y="${y}"]`);
 
-test('kis filémotívum: az első két sor teljes, a többi az ismétlő egységből; billentyűzettel festve, hibátlan, ismétlésként írva', async ({ page }) => {
+test('small filet motif: the first two rows are complete, the rest come from the repeat unit; painted from the keyboard, error-free, written as a repeat', async ({ page }) => {
   await open(page);
   await page.locator('.type[data-type="filet"]').click();
   const section = page.locator('#section-grid');
@@ -52,7 +53,7 @@ test('kis filémotívum: az első két sor teljes, a többi az ismétlő egység
   await expect(page.locator('#grid-board [role="gridcell"]')).toHaveCount(32);
   await expect(page.locator('#grid-ratio')).toContainText('a rács a mintasűrűség arányában látszik');
 
-  // 1. sor: teli minden páros cella; 2. sor: teli minden páratlan (a nyitott az alapértelmezés).
+  // Row 1: every even cell filled; row 2: every odd one filled (open is the default).
   await section.getByRole('radio', { name: 'Teli cella' }).check();
   await cell(page, 0, 0).focus();
   for (let x = 0; x < 8; x += 1) {
@@ -67,7 +68,7 @@ test('kis filémotívum: az első két sor teljes, a többi az ismétlő egység
   }
   await expect(cell(page, 1, 1)).toHaveAttribute('aria-label', '3. sor, 2. cella: teli');
 
-  // A 3. és a 4. sorban csak az első két cella (az ismétlés) van megadva, a többi törölve: az ismétlésből töltődik.
+  // In rows 3 and 4 only the first two cells (the repeat) are given, the rest deleted: they fill in from the repeat.
   for (const y of [2, 3]) {
     await cell(page, 0, y).focus();
     for (let x = 0; x < 8; x += 1) {
@@ -80,7 +81,7 @@ test('kis filémotívum: az első két sor teljes, a többi az ismétlő egység
   await expect(page.locator('#grid-board .is-unit')).toHaveCount(4);
   await expect(page.locator('#grid-details')).toContainText('Ismétlő egység: 2 × 2 cella, a teljes 8 × 4 cellás rácsra kiterjesztve.');
 
-  // A rács billentyűi nem jutottak el a vászonhoz: a Delete nem az utolsó lépést törölte.
+  // The keys of the grid did not reach the canvas: Delete did not undo the last step.
   await expect(page.locator('#status')).not.toContainText('törölve');
   await section.getByRole('button', { name: 'Minta létrehozása' }).click();
   await expect(page.locator('#status')).toContainText('Filé: 4 sor elkészült; visszavonással a korábbi minta visszajön.');
@@ -91,7 +92,7 @@ test('kis filémotívum: az első két sor teljes, a többi az ismétlő egység
   await expect(section.getByRole('button', { name: 'Rács a mostani mintából' })).toBeEnabled();
 });
 
-test('C2C-kép két színnel: 6 átlós sor, színek csempénként; a létrehozás egyelőre érthetően elutasít (PQW-926)', async ({ page }) => {
+test('C2C image with two colours: 6 diagonal rows, colours per tile; creation is still refused, understandably (PQW-926)', async ({ page }) => {
   await open(page);
   const section = page.locator('#section-grid');
   await section.locator('summary').click();
@@ -110,16 +111,16 @@ test('C2C-kép két színnel: 6 átlós sor, színek csempénként; a létrehoz�
   await expect(page.locator('#grid-size')).toHaveText(/, 6 átlós sor, 12 csempe\.$/);
   await expect(page.locator('#grid-details')).toContainText('Csempék színenként: A: 9, B: 3 csempe.');
 
-  // A tükrözött nézet gombja megszűnt (PQW-911): a feliratos motívum sem ad figyelmeztetést.
+  // The button of the mirrored view is gone (PQW-911): the motif with lettering gives no warning either.
   await section.getByLabel(/Feliratos motívum/).check();
   await expect(page.locator('.tools [data-action="mirror"]')).toHaveCount(0);
   await expect(page.locator('#grid-warnings li')).toHaveCount(0);
 
   /*
-   * A minta létrehozása ma érthető üzenettel elutasít: a program a csempék
-   * láncívét még nem tudja minden alakzatban felépíteni (PQW-926). A rács, a
-   * csempeszámok és a figyelmeztetések ettől függetlenül helyesek, ezért a
-   * fentieket továbbra is ellenőrizzük.
+   * Creating the pattern is refused today with a clear message: the program
+   * cannot yet build the chain arc of the tiles in every shape (PQW-926). The
+   * grid, the tile counts and the warnings are correct regardless, so we go on
+   * checking the above.
    */
   await section.getByRole('button', { name: 'Minta létrehozása' }).click();
   await expect(page.locator('#status')).toContainText('Ez a C2C-alakzat egyelőre nem készíthető el');

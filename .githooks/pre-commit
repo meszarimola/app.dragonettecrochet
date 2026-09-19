@@ -28,9 +28,13 @@ fi
 #    Hungarian-to-English migration does not block every commit meanwhile.
 sources=$(printf '%s\n' "$staged" | grep -E '\.(ts|mjs|js|astro)$' | grep -vE '^(src/ui/i18n/|tests/fixtures/)' || true)
 if [ -n "$sources" ]; then
+  # Quoted material is evidence, not prose: a comment may name a Hungarian UI
+  # label or quote the owner verbatim and still be written in English. Strip
+  # anything inside „ ” guillemets before judging the line.
   hungarian=$(git diff --cached -U0 -- $sources \
     | grep -E '^\+' | grep -vE '^\+\+\+' \
     | grep -E '^\+\s*(//|\*|/\*|<!--)' \
+    | sed 's/„[^”]*”//g' \
     | grep -E '[áéíóöőúüűÁÉÍÓÖŐÚÜŰ]' || true)
   if [ -n "$hungarian" ]; then
     echo "pre-commit: new comment is not in English:" >&2

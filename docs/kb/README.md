@@ -10,6 +10,7 @@ to load the whole knowledge base into context.
 |---|---|
 | [decisions.md](decisions.md) | Wondering why something is built the way it is |
 | [incidents.md](incidents.md) | Before any worktree, release or bulk change |
+| [owner-decisions.md](owner-decisions.md) | A test asserts a behaviour and you want to know who asked for it |
 | [testing.md](testing.md) | A test fails in a way you did not expect |
 
 ## Conventions
