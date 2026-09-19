@@ -1,12 +1,14 @@
 /*
- * Fordítási próba: kifejezhető-e egy kidolgozott példa a src/core/types.ts
- * felületével. Nem fut; az `npm run check` ellenőrzi (tsconfig.core.json).
+ * A compile-time probe: can a worked example be expressed through the core's
+ * public types? It never runs; `npm run check` is what exercises it, through
+ * tsconfig.core.json.
  *
- * A példa rövidpálcás sorokban:
- * - láncalap: 4 láncszem (3 szem + 1 fordulólánc, ami nem számít);
- * - 1. sor: 3 rövidpálca a horogtól számított második láncszemtől (3);
- * - fordulás, 1 láncszem;
- * - 2. sor: 2 rövidpálca az első szembe, a maradék kettő összehorgolva (3).
+ * The example, in single crochet rows:
+ * - foundation: 4 chains (3 stitches plus 1 turning chain, which does not count);
+ * - row 1: 3 single crochet from the second chain from the hook (3);
+ * - turn, 1 chain;
+ * - row 2: 2 single crochet into the first stitch, the remaining two worked
+ *   together (3).
  */
 
 import type { GroupStitchDef, JoinedStitchDef, Pattern, SimpleStitchDef } from '../src/core/types.ts';
@@ -24,7 +26,7 @@ export const singleCrochet = {
   turningChain: 1,
   turningChainCounts: false,
   roundEnd: 'spiral',
-  // A rövidpálca maga a mértékegység.
+  // Single crochet is the unit of measure itself.
   heightFactor: { value: 1, source: 'estimated' },
   consumes: 1,
   produces: 1,

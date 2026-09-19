@@ -1,10 +1,10 @@
 /*
- * A tudásbázis kidolgozott példái szemgráfként.
+ * The worked examples of the knowledge base as stitch graphs.
  *
- * Mindegyik függvény a mintát és a szemek azonosítóit adja vissza, hogy a
- * tesztek célzottan elronthassák. A beállítások a szerkezetet változtató
- * hibákhoz kellenek; a célpontot vagy szemet cserélő hibák az `editNode`-dal
- * készülnek.
+ * Every function returns the pattern and the ids of the stitches, so the tests
+ * can break them deliberately. The options are there for the errors that change
+ * the structure; errors that swap a target or a stitch are made with
+ * `editNode`.
  */
 
 import type { NodeId, Pattern, SpaceId } from '../../src/core/types.ts';
@@ -12,34 +12,35 @@ import { PieceBuilder, patternOf, type Target } from './builder.ts';
 
 export interface Example {
   readonly pattern: Pattern;
-  /** Soronként vagy körönként a szemek (fordulólánc nélkül) a fonal sorrendjében; a 0. elem a láncalap. */
+  /** The stitches of each row or round (without the turning chain) in yarn order; element 0 is the foundation chain. */
   readonly rows: readonly (readonly NodeId[])[];
-  /** Soronként a fordulólánc vagy kezdőlánc; a 0. elem üres. */
+  /** The turning chain or beginning chain of each row; element 0 is empty. */
   readonly turningChains: readonly (readonly NodeId[])[];
 }
 
 /*
- * ---- 03 §3.1 A: félpálcás téglalap, 15 szem × 22 sor ----
- * A javított szabály szerint (PQW-891): a 2 láncszemes fordulólánc az 1. félpálca
- * helyett áll, egy alapláncszemen; az 1. sor a horogtól számított 4. láncszembe
- * kezd, a sorok utolsó szeme az előző fordulólánc tetejébe megy.
+ * ---- 03 §3.1 A: half double crochet rectangle, 15 stitches × 22 rows ----
+ * Under the corrected rule (PQW-891): the 2-chain turning chain stands in place
+ * of the 1st half double crochet, on one foundation chain stitch; row 1 starts
+ * in the 3rd chain from the hook, and the last stitch of a row goes into the top
+ * of the previous turning chain.
  */
 
 export interface HdcRectangleOptions {
   readonly rows?: number;
-  /** Hányadik láncszembe megy az 1. sor első szeme a horogtól; helyesen a 4. */
+  /** Which chain from the hook the first stitch of row 1 goes into; correctly the 3rd. */
   readonly firstStitchFromHook?: number;
-  /** Egy sor fordulóláncának hossza; helyesen 2. */
+  /** The length of one row's turning chain; correctly 2. */
   readonly turningChain?: { readonly row: number; readonly chains: number };
-  /** A 2. sor az első szemet kihagyja, és a következőbe két félpálcát horgol. */
+  /** Row 2 skips the first stitch and works two half double crochets into the next one. */
   readonly row2SkipsFirst?: boolean;
-  /** A 2. sor KÉT szemet hagy ki az elején: az egyiket a fordulólánc állja, a másik tényleg kimarad. */
+  /** Row 2 skips TWO stitches at the start: the turning chain covers one of them, the other really is left out. */
   readonly row2SkipsTwo?: boolean;
-  /** A 2. sor közepén egy szem kimarad, a sor végén szaporítás pótolja. */
+  /** One stitch is left out in the middle of row 2, and an increase at the end of the row makes up for it. */
   readonly row2SkipsOneInMiddle?: boolean;
-  /** Ebben a sorban rákhurok készül félpálca helyett. */
+  /** This row is worked in crab stitch instead of half double crochet. */
   readonly crabRow?: number;
-  /** Láncszemek az utolsó sor végén, a fonal elvágása előtt. */
+  /** Chain stitches at the end of the last row, before the yarn is cut off. */
   readonly trailingChains?: number;
 }
 
@@ -47,9 +48,9 @@ export function hdcRectangle(options: HdcRectangleOptions = {}): Example {
   const stitches = 15;
   const rowCount = options.rows ?? 22;
   const b = new PieceBuilder('p1', 'Félpálcás téglalap');
-  // Minden szem a láncalap egy-egy láncszemébe megy; a fordulólánc a sor első szeme (PQW-940).
+  // Every stitch goes into a chain of the foundation chain; the turning chain is the first stitch of the row (PQW-940).
   const worked = stitches;
-  /** A kiírt szemszám: a belehorgolt szemek és a fordulólánc (PQW-940). */
+  /** The stated stitch count: the stitches worked plus the turning chain (PQW-940). */
   const stated = stitches + 1;
   const fromHook = options.firstStitchFromHook ?? 3;
   const foundation = b.chain(worked + fromHook - 1);
@@ -68,17 +69,18 @@ export function hdcRectangle(options: HdcRectangleOptions = {}): Example {
     const turning = b.chain(chains);
     turningChains.push(turning);
     /*
-     * A kidolgozott példa a PQW-944 ELŐTTI szerkezetet őrzi: a sor az alatta
-     * lévő sor minden szemébe horgol, a fordulólánc pedig a szövet mellett
-     * áll. A szerkesztő ma már a fordulóláncot az első szem helyére teszi; a
-     * példák és a generátorok átállítása külön feladat (PQW-945).
+     * The worked example keeps the structure from BEFORE PQW-944: the row works
+     * into every stitch of the row below it, and the turning chain stands beside
+     * the fabric. The editor today already puts the turning chain in the place
+     * of the first stitch; moving the examples and the generators over is a task
+     * of its own (PQW-945).
      */
     const targets = [...row].reverse();
     if (r === 2 && options.row2SkipsTwo) {
       row = [
         ...b.inSame('inc-2hdc', ['hdc', 'hdc'], targets[2]!),
         ...targets.slice(3, -1).map((t) => b.stitch('hdc', t)),
-        // A szemszám a szaporításokkal kijön; csak a kihagyott pozíció marad hiba.
+        // The increases make the stitch count come out right; only the skipped position stays an error.
         ...b.inSame('inc-2hdc', ['hdc', 'hdc'], targets.at(-1)!),
       ];
     } else if (r === 2 && options.row2SkipsFirst) {
@@ -95,7 +97,7 @@ export function hdcRectangle(options: HdcRectangleOptions = {}): Example {
     rows.push(row);
     if (r === rowCount) {
       if (options.trailingChains) b.chain(options.trailingChains);
-      // A lógó lánc is szem (PQW-940): a kiírt szemszám vele együtt értendő.
+      // The trailing chain is a stitch too (PQW-940): the stated stitch count is meant to include it.
       b.event('fasten-off', stated + (options.trailingChains ?? 0));
     } else {
       b.event('turn', stated);
@@ -105,15 +107,15 @@ export function hdcRectangle(options: HdcRectangleOptions = {}): Example {
 }
 
 /*
- * ---- 03 §3.1 B: pálcás téglalap, 16 szem × 16 sor ----
- * A pálcánál 3 láncszemet hagyunk ki (PQW-924): 19 láncszem, az 1. sor a
- * horogtól számított 4. láncszembe kezd, és onnantól minden láncszembe egy
- * pálca megy — így lesz 16 szem.
+ * ---- 03 §3.1 B: double crochet rectangle, 16 stitches × 16 rows ----
+ * For double crochet we skip 3 chains (PQW-924): 19 chains, row 1 starts in the
+ * 4th chain from the hook, and from there one double crochet goes into every
+ * chain — which makes 16 stitches.
  */
 
 export interface DcRectangleOptions {
   readonly rows?: number;
-  /** A 2. sor kihagyja az előző sor első szemét: attól egy szem kimarad a sorból. */
+  /** Row 2 skips the first stitch of the previous row: that leaves the row one stitch short. */
   readonly row2SkipsFirst?: boolean;
 }
 
@@ -121,7 +123,7 @@ export function dcRectangle(options: DcRectangleOptions = {}): Example {
   const stitches = 16;
   const rowCount = options.rows ?? 16;
   const b = new PieceBuilder('p1', 'Pálcás téglalap');
-  /** A kiírt szemszám: a belehorgolt szemek és a fordulólánc (PQW-940). */
+  /** The stated stitch count: the stitches worked plus the turning chain (PQW-940). */
   const stated = stitches + 1;
   const foundation = b.chain(stitches + 3);
   const rows: NodeId[][] = [foundation.slice(0, stitches)];
@@ -136,24 +138,24 @@ export function dcRectangle(options: DcRectangleOptions = {}): Example {
   for (let r = 2; r <= rowCount; r += 1) {
     const chains = b.chain(3);
     turningChains.push(chains);
-    // Az előző sor minden szemébe megy egy pálca; a fordulólánc nem célpont (PQW-924).
+    // One double crochet goes into every stitch of the previous row; the turning chain is not a target (PQW-924).
     const below = [...row].reverse();
     const targets = r === 2 && options.row2SkipsFirst ? below.slice(1) : below;
     row = targets.map((t) => b.stitch('dc', t));
     rows.push(row);
-    // A bejelentett szemszám a sor tényleges hossza és a fordulólánc: kihagyásnál eggyel kevesebb.
+    // The stated stitch count is the row's actual length plus the turning chain: one less when a stitch is skipped.
     b.event(r === rowCount ? 'fasten-off' : 'turn', row.length + 1);
   }
   return { pattern: patternOf('Pálcás téglalap (03 §3.1 B)', [b.build()]), rows, turningChains };
 }
 
-/* ---- 03 §4.2 E: kagyló, 6 többszöröse + 1 (+1 fordulólánc) ---- */
+/* ---- 03 §4.2 E: shell, multiple of 6 + 1 (+1 turning chain) ---- */
 
 export interface ShellOptions {
   readonly repeats?: number;
-  /** Az első ismétlésben 3 láncszemet hagy ki 2 helyett. */
+  /** The first repeat skips 3 chains instead of 2. */
   readonly firstRepeatSkipsThree?: boolean;
-  /** Az első kagyló csoportjának definíciója; helyesen `shell-5dc`. */
+  /** The definition of the first shell's group; correctly `shell-5dc`. */
   readonly firstShellDef?: string;
 }
 
@@ -173,12 +175,12 @@ export function shellStitch(options: ShellOptions = {}): Example {
     j += 3;
     row1.push(b.stitch('sc', at(j)));
   }
-  // A fordulólánc egyik sorban sem szem (PQW-924): nincs soronkénti felülírás.
+  // The turning chain is not a stitch in any of the rows (PQW-924): there is no per-row override.
   b.event('turn', 6 * n + 1);
 
   const chains = b.chain(3);
   const q = [...row1].reverse();
-  // A sort kezdő fordulólánc nem szem (PQW-924), ezért a szaporítás adja a három pálcát.
+  // The turning chain starting the row is not a stitch (PQW-924), so the increase supplies the three double crochets.
   const row2: NodeId[] = [...b.inSame('inc-3dc', ['dc', 'dc', 'dc'], q[0]!)];
   for (let rep = 0; rep < n - 1; rep += 1) {
     row2.push(b.stitch('sc', q[3 + 6 * rep]!));
@@ -202,11 +204,11 @@ export function shellStitch(options: ShellOptions = {}): Example {
   };
 }
 
-/* ---- 03 §4.2 F: V-szem, 3 többszöröse + 2, a fordulólánc nem számít ---- */
+/* ---- 03 §4.2 F: V-stitch, multiple of 3 + 2, the turning chain does not count ---- */
 
 export interface VStitchOptions {
   readonly repeats?: number;
-  /** Az első V-szem két pálcája nincs csoportként jelölve. */
+  /** The two double crochets of the first V-stitch are not marked as a group. */
   readonly firstVUngrouped?: boolean;
 }
 
@@ -230,7 +232,7 @@ export function vStitchPattern(options: VStitchOptions = {}): Example {
   const row1: NodeId[] = [b.stitch('dc', at(0))];
   for (let rep = 0; rep < n; rep += 1) row1.push(...v(at(2 + 3 * rep), !(rep === 0 && options.firstVUngrouped)));
   row1.push(b.stitch('dc', at(3 * n + 1)));
-  // Az 1. sor láncíveibe a 2. sor horgol, ezért a láncszemeik beleszámítanak (PQW-870).
+  // Row 2 works into row 1's chain spaces, so their chains count (PQW-870).
   b.event('turn', 3 * n + 2);
 
   const chains = b.chain(3);
@@ -238,7 +240,7 @@ export function vStitchPattern(options: VStitchOptions = {}): Example {
   const row2: NodeId[] = [b.stitch('dc', q[0]!)];
   for (const space of vs.slice(0, n).reverse()) row2.push(...v({ space }, true));
   row2.push(b.stitch('dc', q[3 * n + 1]!));
-  // A 2. sor láncívei is szemek: a láncszem szem (PQW-940).
+  // Row 2's chain spaces are stitches too: a chain is a stitch (PQW-940).
   b.event('fasten-off', 3 * n + 2);
 
   return {
@@ -251,10 +253,10 @@ export function vStitchPattern(options: VStitchOptions = {}): Example {
   };
 }
 
-/* ---- 03 §4.2 G: cikcakk erp-vel, 4-es távolság, ismétlés 2·4 + 4 = 12, szélén fél völgy ---- */
+/* ---- 03 §4.2 G: chevron in double crochet, spacing 4, repeat 2·4 + 4 = 12, half valley at the edge ---- */
 
 export interface ChevronExample extends Example {
-  /** A 2. sor első teljes völgye (3 pálca összehorgolva) és a három célpontja. */
+  /** The first full valley of row 2 (3 double crochets worked together) and its three targets. */
   readonly valley: { readonly node: NodeId; readonly targets: readonly NodeId[]; readonly before: NodeId };
 }
 
@@ -307,11 +309,11 @@ export function chevron(repeats = 2): ChevronExample {
   };
 }
 
-/* ---- 03 §2.3: hullám, 8 többszöröse + 2, három sor ---- */
+/* ---- 03 §2.3: wave, multiple of 8 + 2, three rows ---- */
 
 export interface WaveOptions {
   readonly repeats?: number;
-  /** A 3. sor is csupa rövidpálca, így nem egyenlíti ki az 1. sort. */
+  /** Row 3 is all single crochet too, so it does not even out row 1. */
   readonly flatRow3?: boolean;
 }
 
@@ -329,7 +331,7 @@ export function wave(options: WaveOptions = {}): Example {
 
   const chains2 = b.chain(1);
   const row2 = [...row1].reverse().map((t) => b.stitch('sc', t));
-  // A fordulólánc egyik sorban sem szem (PQW-924): nincs soronkénti felülírás.
+  // The turning chain is not a stitch in any of the rows (PQW-924): there is no per-row override.
   b.event('turn', width);
 
   const q = [...row2].reverse();
@@ -340,7 +342,7 @@ export function wave(options: WaveOptions = {}): Example {
     row3 = q.map((t) => b.stitch('sc', t));
   } else {
     chains3 = b.chain(4);
-    // A fordulólánc nem szem (PQW-924): a 3. sor is az előző sor minden szemébe horgol.
+    // The turning chain is not a stitch (PQW-924): row 3 too works into every stitch of the previous row.
     row3 = heights3.map((def, j) => b.stitch(def, q[j]!));
   }
   b.event('fasten-off', width);
@@ -355,12 +357,12 @@ export function wave(options: WaveOptions = {}): Example {
   };
 }
 
-/* ---- 03 §8: nagymama-négyzet 1–3. köre, oldalt 1, a sarkokban 2 láncszemes ív ---- */
+/* ---- 03 §8: granny square, rounds 1–3, a 1-chain space on the sides and a 2-chain space in the corners ---- */
 
 export interface GrannyOptions {
-  /** A 2. kör megadott szemszáma; helyesen 36, mert a 3. kör minden ívébe horgol (PQW-870). */
+  /** The stated stitch count of round 2; correctly 36, because round 3 works into all of its chain spaces (PQW-870). */
   readonly round2StatedCount?: number;
-  /** A 2. kör záró kúszószeme a kör első pálcájába megy a kezdőlánc teteje helyett. */
+  /** Round 2's closing slip stitch goes into the round's first double crochet, not the top of the beginning chain. */
   readonly round2JoinsFirstDc?: boolean;
 }
 
@@ -370,7 +372,7 @@ export function grannySquare(options: GrannyOptions = {}): Example {
 
   const cluster = (target: Target, count = 3) => Array.from({ length: count }, () => b.stitch('dc', target));
 
-  // 1. kör: 3 lsz (1 erp), 2 erp, 2 lsz, (3 erp, 2 lsz) ×3, kúszószem a kezdőlánc tetejébe.
+  // Round 1: ch 3 (1 dc), 2 dc, ch 2, (3 dc, ch 2) ×3, slip stitch into the top of the beginning chain.
   const tc1 = b.chain(3);
   const r1: NodeId[] = [...cluster({ ring }, 2)];
   const corners1: SpaceId[] = [b.chainSpace(2)];
@@ -379,10 +381,13 @@ export function grannySquare(options: GrannyOptions = {}): Example {
     corners1.push(b.chainSpace(2));
   }
   r1.push(b.stitch('sl-st', tc1[2]!));
-  // 12 pálca és a sarkok 8 láncszeme, mert a 2. kör a sarokívekbe horgol (PQW-870).
+  // 12 double crochets and the 8 chains of the corners, because round 2 works into the corner chain spaces (PQW-870).
   b.event('join-slip', 20);
 
-  // Egy kör 2. köre és a továbbiak: kúszószemmel a sarokívhez, 3 lsz, és minden ívbe a megfelelő csoport.
+  /*
+   * Round 2 of a motif and the ones after it: slip stitch over to the corner
+   * chain space, 3 chains, and the matching group into every chain space.
+   */
   const round = (firstDcs: readonly NodeId[], corners: readonly SpaceId[], sides: readonly SpaceId[]) => {
     const nodes = [b.stitch('sl-st', firstDcs[0]!), b.stitch('sl-st', firstDcs[1]!), b.stitch('sl-st', { space: corners[0]! })];
     const chains = b.chain(3);
@@ -409,10 +414,10 @@ export function grannySquare(options: GrannyOptions = {}): Example {
   const join2 = b.stitch('sl-st', options.round2JoinsFirstDc ? r2.firstDc[0]! : r2.chains[2]!);
   b.event('join-slip', options.round2StatedCount ?? 36);
 
-  // A 3. körben az oldalívek sorrendje: minden sarok után a hozzá tartozó oldalív.
+  // The order of the side chain spaces in round 3: after every corner comes the side chain space that belongs to it.
   const r3 = round(r2.firstDc, r2.corners, r2.sides);
   const join3 = b.stitch('sl-st', r3.chains[2]!);
-  // A láncszemek is szemek (PQW-940): 36 pálca és 16 láncszem.
+  // The chains are stitches too (PQW-940): 36 double crochets and 16 chains.
   b.event('join-slip', 52);
 
   return {
