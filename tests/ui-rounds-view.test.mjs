@@ -8,18 +8,18 @@ import { describe, test } from 'node:test';
 
 import { emptyPattern } from '../src/core/editor.ts';
 import { DEFAULT_MOTIF, motifIncreases, motifProblem } from '../src/core/round-generator.ts';
+import { amigurumiCoreText } from '../src/ui/i18n/core/amigurumi.ts';
 import {
   CLOSING_CHOICES,
-  JOG_CHOICES,
-  SHAPE_CHOICES,
-  START_CHOICES,
-  STITCH_CHOICES,
   fieldState,
   generatedMessage,
   increaseNote,
+  JOG_CHOICES,
   normalizeMotif,
+  SHAPE_CHOICES,
+  START_CHOICES,
+  STITCH_CHOICES,
 } from '../src/ui/rounds-view.ts';
-import { amigurumiCoreText } from '../src/ui/i18n/core/amigurumi.ts';
 
 const options = (patch = {}) => ({ ...DEFAULT_MOTIF, ...patch });
 
@@ -91,7 +91,10 @@ describe('fields per shape', () => {
     assert.equal(fieldState(options({ closing: 'spiral' })).jogFix, false);
     assert.equal(fieldState(options({ closing: 'spiral', colorEvery: 2 })).jogFix, true);
     assert.equal(normalizeMotif(options({ jogFix: 'slip-stitch' })).jogFix, null);
-    assert.equal(normalizeMotif(options({ closing: 'spiral', colorEvery: 2, jogFix: 'slip-stitch' })).jogFix, 'slip-stitch');
+    assert.equal(
+      normalizeMotif(options({ closing: 'spiral', colorEvery: 2, jogFix: 'slip-stitch' })).jogFix,
+      'slip-stitch',
+    );
   });
 });
 
@@ -103,7 +106,10 @@ describe('the increase note', () => {
     assert.match(note, /Becslés a rövidpálca szokásos körös magasság\/szélesség arányából/);
 
     const dc = options({ stitch: 'dc' });
-    assert.match(increaseNote(motifIncreases(emptyPattern(), dc), dc), /^Körönként 12 szaporítás[\s\S]*Becslés az egyráhajtásos pálca/);
+    assert.match(
+      increaseNote(motifIncreases(emptyPattern(), dc), dc),
+      /^Körönként 12 szaporítás[\s\S]*Becslés az egyráhajtásos pálca/,
+    );
   });
 
   test('from the gauge measured in the round, converted when another stitch is chosen', () => {
@@ -111,14 +117,23 @@ describe('the increase note', () => {
     const sc = options();
     assert.match(increaseNote(motifIncreases(pattern, sc), sc), /A rövidpálca körben mért mintasűrűségéből\.$/);
     const dc = options({ stitch: 'dc' });
-    assert.match(increaseNote(motifIncreases(pattern, dc), dc), /A rövidpálca körben mért mintasűrűségéből, az egyráhajtásos pálca arányára átszámolva\.$/);
+    assert.match(
+      increaseNote(motifIncreases(pattern, dc), dc),
+      /A rövidpálca körben mért mintasűrűségéből, az egyráhajtásos pálca arányára átszámolva\.$/,
+    );
   });
 
   test('polygons increase in the corners, the granny square follows its own corner rule', () => {
     const square = options({ shape: 'square' });
-    assert.match(increaseNote(motifIncreases(emptyPattern(), square), square), /^Körönként kb\. 8 szaporítás a 4 sarokban, egymás fölé kerülve/);
+    assert.match(
+      increaseNote(motifIncreases(emptyPattern(), square), square),
+      /^Körönként kb\. 8 szaporítás a 4 sarokban, egymás fölé kerülve/,
+    );
     const granny = normalizeMotif(options({ shape: 'granny-square' }));
-    assert.match(increaseNote(motifIncreases(emptyPattern(), granny), granny), /^Sarkonként 3 erp, 2 lsz, 3 erp, oldalanként 3 erp, 1 lsz/);
+    assert.match(
+      increaseNote(motifIncreases(emptyPattern(), granny), granny),
+      /^Sarkonként 3 erp, 2 lsz, 3 erp, oldalanként 3 erp, 1 lsz/,
+    );
   });
 
   test('the status message names the shape and the number of rounds', () => {
@@ -133,6 +148,9 @@ describe('the increase note', () => {
     assert.deepEqual(problem, { code: 'rounds-range', data: { max: 30 } });
     assert.equal(amigurumiCoreText(problem), 'A körök száma 1 és 30 között lehet.');
     // The Hungarian article belongs to the UI as well: the core carries only the round number.
-    assert.equal(amigurumiCoreText({ code: 'round-plan-mismatch', data: { round: 3 } }), 'A(z) 3. kör terve nem illik az előző körhöz.');
+    assert.equal(
+      amigurumiCoreText({ code: 'round-plan-mismatch', data: { round: 3 } }),
+      'A(z) 3. kör terve nem illik az előző körhöz.',
+    );
   });
 });

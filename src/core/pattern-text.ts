@@ -2,23 +2,48 @@
 
 import { sizingLines } from './garment-text.ts';
 import { article, dative, times } from './hungarian.ts';
-import { writtenPieces, type Step, type StepTarget, type WrittenLayer, type WrittenPiece } from './pattern-steps.ts';
+import { type Step, type StepTarget, type WrittenLayer, type WrittenPiece, writtenPieces } from './pattern-steps.ts';
+import { colorLetter } from './pixel-chart.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { stitchLabel, stitchStructure } from './stitchText.ts';
-import { colorLetter } from './pixel-chart.ts';
-import type { GridTechnique, JoinEdge, Locale, Pattern, RoundMark, StitchDef, StitchDefId, StitchInsertion } from './types.ts';
+import type {
+  GridTechnique,
+  JoinEdge,
+  Locale,
+  Pattern,
+  RoundMark,
+  StitchDef,
+  StitchDefId,
+  StitchInsertion,
+} from './types.ts';
 
 /** KB: core-domain §3 */
 const colorArticle = (letter: string) => ('AEF'.includes(letter) ? 'az' : 'a');
 
 /** `next` is written only for an increase; elsewhere the cursor's next position is the default. */
-export type PhraseKey = 'next-stitch' | 'next-chain' | 'same-stitch' | 'same-chain' | 'next-space' | 'same-space' | 'ring' | 'chain-ring';
+export type PhraseKey =
+  | 'next-stitch'
+  | 'next-chain'
+  | 'same-stitch'
+  | 'same-chain'
+  | 'next-space'
+  | 'same-space'
+  | 'ring'
+  | 'chain-ring';
 
 export interface Vocabulary {
   /** The system name that always stands in the English headings; Hungarian has none. */
   readonly system: string | null;
-  readonly headings: { readonly abbreviations: string; readonly legend: string; readonly assembly: string; readonly sizes: string };
-  readonly layer: { readonly row: (from: number, to: number) => string; readonly round: (from: number, to: number) => string };
+  readonly headings: {
+    readonly abbreviations: string;
+    readonly legend: string;
+    readonly assembly: string;
+    readonly sizes: string;
+  };
+  readonly layer: {
+    readonly row: (from: number, to: number) => string;
+    readonly round: (from: number, to: number) => string;
+  };
   readonly foundation: (chains: number) => string;
   readonly ring: string;
   readonly chainRing: (chains: number, slip: string) => string;
@@ -199,7 +224,8 @@ const HU: Vocabulary = {
       technique === 'c2c' ? 'Színek csempénként, a haladási irányban:' : 'Színek szemenként, a haladási irányban:',
     run: (count, letter) => `${count} ${letter}`,
   },
-  sewing: (a, b, distributed) => `Varrás: ${huSewnEdge(a)} → ${huSewnEdge(b)}${distributed ? ', a szemeket egyenletesen elosztva' : ''}.`,
+  sewing: (a, b, distributed) =>
+    `Varrás: ${huSewnEdge(a)} → ${huSewnEdge(b)}${distributed ? ', a szemeket egyenletesen elosztva' : ''}.`,
 };
 
 /** KB: core-domain §23 */
@@ -214,7 +240,12 @@ function english(skipWord: string, skipVerb: string, skipMeaning: string, system
   return {
     // US and UK "dc" mean different stitches, so the system name stands in both headings.
     system,
-    headings: { abbreviations: `Abbreviations (${system})`, legend: `Stitch key (${system})`, assembly: 'Assembly', sizes: 'Sizes' },
+    headings: {
+      abbreviations: `Abbreviations (${system})`,
+      legend: `Stitch key (${system})`,
+      assembly: 'Assembly',
+      sizes: 'Sizes',
+    },
     layer: {
       // KB: core-domain §22
       row: (from, to) => `${from === to ? 'Row' : 'Rows'} ${range(from + 1, to + 1)}`,
@@ -230,7 +261,9 @@ function english(skipWord: string, skipVerb: string, skipMeaning: string, system
     spiral: 'Work in a continuous spiral; do not join. Place a marker in first st of rnd and move it up each rnd.',
     colorChange: `Change to new ${color} for next rnd.`,
     jogFix: (fix, slip) =>
-      fix === 'slip-stitch' ? `Jog fix: work first st of next rnd as ${slip}.` : `Jog fix: join new ${color} in back loop of first st of next rnd.`,
+      fix === 'slip-stitch'
+        ? `Jog fix: work first st of next rnd as ${slip}.`
+        : `Jog fix: join new ${color} in back loop of first st of next rnd.`,
     // KB: core-domain §23 — the owner asked for the skip to be spelled out as a verb.
     skipChains: (n) => `${skipVerb} ${n} ch, `,
     eachChain: (item) => `${item} in each ch across`,
@@ -265,7 +298,8 @@ function english(skipWord: string, skipVerb: string, skipMeaning: string, system
     mode: (mode, text) => {
       if (mode === 'back-loop') return `${text} BLO`;
       if (mode === 'front-loop') return `${text} FLO`;
-      if (mode === 'front-post' || mode === 'back-post') return text.replace(/^(\d+ )?/, `$1${mode === 'front-post' ? 'FP' : 'BP'}`);
+      if (mode === 'front-post' || mode === 'back-post')
+        return text.replace(/^(\d+ )?/, `$1${mode === 'front-post' ? 'FP' : 'BP'}`);
       return text;
     },
     modeMarks: { 'back-loop': ['BLO'], 'front-loop': ['FLO'], 'front-post': ['FP'], 'back-post': ['BP'] },
@@ -313,10 +347,13 @@ function english(skipWord: string, skipVerb: string, skipMeaning: string, system
         mosaic: `Mosaic: one ${color} per row. For a cell of the other ${color}, ch 1 and skip 1 st; a dropped st goes into the skipped st behind the ch. Carry the unused yarn up the side.`,
       },
       rowsHeading: (technique) =>
-        technique === 'c2c' ? `Tile ${color}s per row, in working order:` : `Stitch ${color}s per row, in working order:`,
+        technique === 'c2c'
+          ? `Tile ${color}s per row, in working order:`
+          : `Stitch ${color}s per row, in working order:`,
       run: (count, letter) => `${count} ${letter}`,
     },
-    sewing: (a, b, distributed) => `Sew: ${enSewnEdge(a)} to ${enSewnEdge(b)}${distributed ? ', easing sts evenly' : ''}.`,
+    sewing: (a, b, distributed) =>
+      `Sew: ${enSewnEdge(a)} to ${enSewnEdge(b)}${distributed ? ', easing sts evenly' : ''}.`,
   };
 }
 
@@ -333,15 +370,19 @@ function range(from: number, to: number): string {
 
 function huSewnEdge(edge: SewnEdge): string {
   const where = `${edge.name}${edge.section === undefined ? '' : `, ${edge.section}`}`;
-  if (edge.rows) return `${where}, ${range(edge.layer, edge.rows.to)}. sor ${edge.rows.side === 'left' ? 'bal' : 'jobb'} széle (${edge.count} sorvég)`;
-  if (edge.stitches) return `${where}, ${edge.layer}. sor ${range(edge.stitches.from, edge.stitches.to)}. szeme (${edge.count})`;
+  if (edge.rows)
+    return `${where}, ${range(edge.layer, edge.rows.to)}. sor ${edge.rows.side === 'left' ? 'bal' : 'jobb'} széle (${edge.count} sorvég)`;
+  if (edge.stitches)
+    return `${where}, ${edge.layer}. sor ${range(edge.stitches.from, edge.stitches.to)}. szeme (${edge.count})`;
   return `${where}, ${edge.layer}. kör (${edge.count})`;
 }
 
 function enSewnEdge(edge: SewnEdge): string {
   const where = `${edge.name}${edge.section === undefined ? '' : `, ${edge.section}`}`;
-  if (edge.rows) return `${where}, ${edge.layer === edge.rows.to ? 'Row' : 'Rows'} ${range(edge.layer, edge.rows.to)}, ${edge.rows.side} edge (${edge.count} row ends)`;
-  if (edge.stitches) return `${where}, Row ${edge.layer}, sts ${range(edge.stitches.from, edge.stitches.to)} (${edge.count})`;
+  if (edge.rows)
+    return `${where}, ${edge.layer === edge.rows.to ? 'Row' : 'Rows'} ${range(edge.layer, edge.rows.to)}, ${edge.rows.side} edge (${edge.count} row ends)`;
+  if (edge.stitches)
+    return `${where}, Row ${edge.layer}, sts ${range(edge.stitches.from, edge.stitches.to)} (${edge.count})`;
   return `${where}, Rnd ${edge.layer} (${edge.count})`;
 }
 
@@ -418,17 +459,38 @@ export function writePattern(pattern: Pattern, library: StitchLibrary, locale: L
     // KB: core-domain §12
     const rowOf = (at: number) => written_?.layers.find((candidate) => candidate.index === at)?.row ?? at;
     // KB: core-domain §12
-    const ambiguous = written_?.layers.some((candidate) => candidate.index !== layer && candidate.row === rowOf(layer)) === true;
+    const ambiguous =
+      written_?.layers.some((candidate) => candidate.index !== layer && candidate.row === rowOf(layer)) === true;
     const sections = (written_?.sections ?? []).filter((section) => section.layer <= layer);
     const section = ambiguous && sections.length > 0 ? sections[sections.length - 1]!.name : undefined;
     const named = section === undefined ? {} : { section };
     if (stitches) {
-      return { name, layer: rowOf(layer), count: stitches.count, ...named, stitches: { from: stitches.from + 1, to: stitches.from + stitches.count } };
+      return {
+        name,
+        layer: rowOf(layer),
+        count: stitches.count,
+        ...named,
+        stitches: { from: stitches.from + 1, to: stitches.from + stitches.count },
+      };
     }
-    if (rows) return { name, layer: rowOf(layer), count: rows.to - layer + 1, ...named, rows: { to: rowOf(rows.to), side: rows.side } };
-    return { name, layer: rowOf(layer), count: written_?.layers.find((candidate) => candidate.index === layer)?.writtenCount ?? 0, ...named };
+    if (rows)
+      return {
+        name,
+        layer: rowOf(layer),
+        count: rows.to - layer + 1,
+        ...named,
+        rows: { to: rowOf(rows.to), side: rows.side },
+      };
+    return {
+      name,
+      layer: rowOf(layer),
+      count: written_?.layers.find((candidate) => candidate.index === layer)?.writtenCount ?? 0,
+      ...named,
+    };
   };
-  const assembly = (pattern.joins ?? []).map((join) => vocabulary.sewing(edge(join.a), edge(join.b), join.distribution !== undefined));
+  const assembly = (pattern.joins ?? []).map((join) =>
+    vocabulary.sewing(edge(join.a), edge(join.b), join.distribution !== undefined),
+  );
 
   const text = pieces.flatMap((piece) => piece.lines).join('\n');
   const abbreviations = new Map<string, string>();
@@ -437,9 +499,12 @@ export function writePattern(pattern: Pattern, library: StitchLibrary, locale: L
     if (abbr) abbreviations.set(abbr, name);
   }
   const shortDef = shortIncrease === null ? undefined : library.get(shortIncrease);
-  const increasePart = renderer.shortIncreaseUsed && shortDef?.kind === 'group' ? library.get(shortDef.members[0]!) : undefined;
-  if (increasePart) abbreviations.set(vocabulary.increase.abbr, vocabulary.increase.meaning(refOf(increasePart, locale)));
-  for (const { abbr, meaning, used: pattern } of vocabulary.general) if (pattern.test(text)) abbreviations.set(abbr, meaning);
+  const increasePart =
+    renderer.shortIncreaseUsed && shortDef?.kind === 'group' ? library.get(shortDef.members[0]!) : undefined;
+  if (increasePart)
+    abbreviations.set(vocabulary.increase.abbr, vocabulary.increase.meaning(refOf(increasePart, locale)));
+  for (const { abbr, meaning, used: pattern } of vocabulary.general)
+    if (pattern.test(text)) abbreviations.set(abbr, meaning);
 
   return {
     locale,
@@ -478,7 +543,9 @@ export function legendOf(pattern: Pattern, library: StitchLibrary, locale: Local
       for (const def of library.values()) if (def.kind === 'space') ids.add(def.id);
     }
   }
-  return [...library.values()].filter((def) => ids.has(def.id)).map((def) => ({ def: def.id, label: legendLabel(def, library, locale) }));
+  return [...library.values()]
+    .filter((def) => ids.has(def.id))
+    .map((def) => ({ def: def.id, label: legendLabel(def, library, locale) }));
 }
 
 /** One pattern, one wording: the decrease reads the same in the key as in the rows. */
@@ -526,7 +593,12 @@ class Renderer {
   round = false;
   shortIncreaseUsed = false;
 
-  constructor(library: StitchLibrary, locale: Locale, used: Map<string, StitchDef>, shortIncrease: StitchDefId | null = null) {
+  constructor(
+    library: StitchLibrary,
+    locale: Locale,
+    used: Map<string, StitchDef>,
+    shortIncrease: StitchDefId | null = null,
+  ) {
     this.library = library;
     this.locale = locale;
     this.vocabulary = VOCABULARIES[locale];
@@ -555,7 +627,8 @@ class Renderer {
         v.colorwork.colors(
           colorwork.colors.map((color, i) => ({
             letter: colorLetter(i),
-            name: (color.id === undefined ? undefined : v.colorwork.colorNames[color.id]) ?? color.name ?? colorLetter(i),
+            name:
+              (color.id === undefined ? undefined : v.colorwork.colorNames[color.id]) ?? color.name ?? colorLetter(i),
           })),
         ),
       );
@@ -566,7 +639,9 @@ class Renderer {
 
     const bodies = piece.layers.map((layer) => this.body(layer));
     // The continuous section's name goes before its first round, and identical rounds stop being merged there.
-    const sections = new Map(piece.sections.filter((section) => section.layer > 1).map((section) => [section.layer, section]));
+    const sections = new Map(
+      piece.sections.filter((section) => section.layer > 1).map((section) => [section.layer, section]),
+    );
     for (let i = 0; i < piece.layers.length; ) {
       let j = i;
       while (
@@ -580,7 +655,8 @@ class Renderer {
       const { shape, index, row } = piece.layers[i]!;
       const section = sections.get(index);
       // KB: core-domain §12
-      if (section !== undefined) lines.push(section.over === undefined ? v.section(section.name) : v.resumeSection(section.name, section.over));
+      if (section !== undefined)
+        lines.push(section.over === undefined ? v.section(section.name) : v.resumeSection(section.name, section.over));
       const label = shape === 'row' ? v.layer.row(row, piece.layers[j]!.row) : v.layer.round(row, piece.layers[j]!.row);
       lines.push(`${label}: ${bodies[i]}`);
       i = j + 1;
@@ -588,7 +664,9 @@ class Renderer {
     if (colorwork && colorwork.rows.length > 0) {
       lines.push(v.colorwork.rowsHeading(colorwork.technique));
       colorwork.rows.forEach((runs, i) => {
-        lines.push(`${v.layer.row(i + 1, i + 1)}: ${runs.map((run) => v.colorwork.run(run.count, colorLetter(run.color))).join(', ')}`);
+        lines.push(
+          `${v.layer.row(i + 1, i + 1)}: ${runs.map((run) => v.colorwork.run(run.count, colorLetter(run.color))).join(', ')}`,
+        );
       });
     }
     return lines;
@@ -630,12 +708,16 @@ class Renderer {
 
   steps(steps: readonly Step[]): string {
     // The "other side" sentence ends with a colon: the items continue after it without a comma. KB: 04 §3.4
-    return steps.map((step, i) => `${i === 0 ? '' : steps[i - 1]!.kind === 'other-side' ? ' ' : ', '}${this.step(step)}`).join('');
+    return steps
+      .map((step, i) => `${i === 0 ? '' : steps[i - 1]!.kind === 'other-side' ? ' ' : ', '}${this.step(step)}`)
+      .join('');
   }
 
   step(step: Step): string {
     const text = this.stepText(step);
-    return 'changeTo' in step && step.changeTo !== undefined ? `${text} ${this.vocabulary.colorwork.change(colorLetter(step.changeTo))}` : text;
+    return 'changeTo' in step && step.changeTo !== undefined
+      ? `${text} ${this.vocabulary.colorwork.change(colorLetter(step.changeTo))}`
+      : text;
   }
 
   private stepText(step: Step): string {
@@ -652,12 +734,17 @@ class Renderer {
         this.use(this.byKind('chain'));
         const counts = step.countsAs === null ? null : this.def(step.countsAs);
         if (counts) this.use(counts);
-        return v.turningChain(step.count, counts ? v.turningChainCounts(counts, this.locale) : v.turningChainNotCounted);
+        return v.turningChain(
+          step.count,
+          counts ? v.turningChainCounts(counts, this.locale) : v.turningChainNotCounted,
+        );
       }
       case 'other-side':
         return v.otherSide;
       case 'repeat':
-        return this.round ? v.roundRepeat(this.steps(step.steps), step.times) : v.repeat(this.steps(step.steps), step.times);
+        return this.round
+          ? v.roundRepeat(this.steps(step.steps), step.times)
+          : v.repeat(this.steps(step.steps), step.times);
       case 'stitch': {
         const def = this.def(step.def);
         let text: string;
@@ -672,7 +759,8 @@ class Renderer {
           this.use(def);
           text = itemName(def, this.locale, this.library);
         }
-        const place = step.target === 'down' ? ` ${v.down(step.depth ?? 2)}` : this.phrase(step.target, step.into, false);
+        const place =
+          step.target === 'down' ? ` ${v.down(step.depth ?? 2)}` : this.phrase(step.target, step.into, false);
         return `${v.mode(shownMode(def, step.mode), text)}${place}`;
       }
       case 'group': {

@@ -2,14 +2,27 @@
 // KB: core-geometry §39
 
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
-import { text, type CoreText } from './messages.ts';
+import { type CoreText, text } from './messages.ts';
 import { gaugeContextOf } from './pattern-size.ts';
-import { appendRibbing, ribbingProblem, type RibbingCode, type RibbingOptions } from './ribbing.ts';
-import { flatIncreases, type FlatIncreases } from './rounds.ts';
+import { withGeneratedTitle } from './pattern-title.ts';
+import { appendRibbing, type RibbingCode, type RibbingOptions, ribbingProblem } from './ribbing.ts';
+import { type FlatIncreases, flatIncreases } from './rounds.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import { traditionOf, turningChainCountsFor } from './tradition.ts';
-import type { Anchor, LayerEvent, NodeId, Pattern, Piece, Ring, Space, SpaceId, StitchDef, StitchDefId, StitchGroup, StitchNode } from './types.ts';
-import { withGeneratedTitle } from './pattern-title.ts';
+import type {
+  Anchor,
+  LayerEvent,
+  NodeId,
+  Pattern,
+  Piece,
+  Ring,
+  Space,
+  SpaceId,
+  StitchDef,
+  StitchDefId,
+  StitchGroup,
+  StitchNode,
+} from './types.ts';
 
 export type MotifShape = 'circle' | 'square' | 'hexagon' | 'octagon' | 'granny-square';
 export type RoundStart = 'magic-ring' | 'chain-ring' | 'chain';
@@ -122,7 +135,12 @@ export function generateMotif(pattern: Pattern, options: MotifOptions): MotifRes
       ? grannySquare(writer, options)
       : options.shape === 'circle'
         ? plainRounds(writer, def, options, circlePlan(increases.count, options.rounds, options.stagger))
-        : plainRounds(writer, def, options, polygonPlan(MOTIF_CORNERS[options.shape]!, increases.exact, options.rounds));
+        : plainRounds(
+            writer,
+            def,
+            options,
+            polygonPlan(MOTIF_CORNERS[options.shape]!, increases.exact, options.rounds),
+          );
   if (built !== null) return { ok: false, reason: built };
 
   const name = MOTIF_NAMES[options.shape];
@@ -236,7 +254,8 @@ class Writer {
 
   into(def: StitchDefId, anchor: Anchor, n: number): NodeId[] {
     const ids = Array.from({ length: n }, () => this.add(def, [anchor]));
-    if (anchor.into === 'stitch' && n >= 2) this.groups.push({ id: `g${this.groups.length + 1}`, def: `inc-${n}${def}`, members: ids });
+    if (anchor.into === 'stitch' && n >= 2)
+      this.groups.push({ id: `g${this.groups.length + 1}`, def: `inc-${n}${def}`, members: ids });
     return ids;
   }
 
@@ -284,7 +303,12 @@ function endRound(writer: Writer, options: MotifOptions, round: number, first: N
   } else writer.event(last ? 'fasten-off' : 'spiral', extra);
 }
 
-function startInto(writer: Writer, options: MotifOptions, def: StitchDef, stitches: number): Anchor | CoreText<MotifCode> {
+function startInto(
+  writer: Writer,
+  options: MotifOptions,
+  def: StitchDef,
+  stitches: number,
+): Anchor | CoreText<MotifCode> {
   const chain = def.turningChain;
   switch (options.start) {
     case 'magic-ring': {
@@ -306,7 +330,12 @@ function startInto(writer: Writer, options: MotifOptions, def: StitchDef, stitch
   }
 }
 
-function plainRounds(writer: Writer, def: StitchDef, options: MotifOptions, plan: RoundPlan): CoreText<MotifCode> | null {
+function plainRounds(
+  writer: Writer,
+  def: StitchDef,
+  options: MotifOptions,
+  plan: RoundPlan,
+): CoreText<MotifCode> | null {
   const counts = writer.countsFor(def);
   const spiral = options.closing === 'spiral';
 
@@ -393,6 +422,8 @@ function withStatedCounts(pattern: Pattern, piece: Piece): Piece {
   for (const layer of graph.layers.slice(1)) if (layer.closing) stated.set(layer.closing.after, layer.writtenCount);
   return {
     ...piece,
-    events: piece.events.map((event) => (stated.has(event.after) ? { ...event, statedCount: stated.get(event.after)! } : event)),
+    events: piece.events.map((event) =>
+      stated.has(event.after) ? { ...event, statedCount: stated.get(event.after)! } : event,
+    ),
   };
 }

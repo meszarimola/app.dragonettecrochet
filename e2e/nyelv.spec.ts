@@ -9,7 +9,7 @@
  * however, are visible while closed, so we measure the interface language on them.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 /** Load and reject the cookie bar; the button by an attribute that is independent of language. */
 async function open(page: Page, search = ''): Promise<void> {
@@ -49,7 +49,9 @@ test('without the parameter it stays Hungarian, and the home link is Hungarian t
   await expect(page.locator('#ui-language')).toHaveValue('hu');
 });
 
-test('the manual chooser switches within the page, and writes the language into the address bar too', async ({ page }) => {
+test('the manual chooser switches within the page, and writes the language into the address bar too', async ({
+  page,
+}) => {
   await open(page);
   await openNotation(page);
 

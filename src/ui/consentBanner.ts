@@ -1,5 +1,5 @@
 import { disableAnalytics, enableAnalytics } from './analytics.js';
-import { readConsent, writeConsent, type ConsentChoice } from './consent.js';
+import { type ConsentChoice, readConsent, writeConsent } from './consent.js';
 
 export function setupConsentBanner(measurementId: string): void {
   const banner = document.querySelector<HTMLElement>('#consent');

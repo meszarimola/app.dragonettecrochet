@@ -32,8 +32,7 @@ export function parseConsent(cookies: string): Consent | null {
 }
 
 export function sharedCookieDomain(hostname: string): string | undefined {
-  const isOwnDomain =
-    hostname === SHARED_COOKIE_DOMAIN || hostname.endsWith(`.${SHARED_COOKIE_DOMAIN}`);
+  const isOwnDomain = hostname === SHARED_COOKIE_DOMAIN || hostname.endsWith(`.${SHARED_COOKIE_DOMAIN}`);
   return isOwnDomain ? SHARED_COOKIE_DOMAIN : undefined;
 }
 
@@ -51,12 +50,7 @@ export function expireCookieLines(name: string, { hostname, secure }: CookieCont
   return [hostOnlyLine, cookieLine(name, '', 0, { hostname, secure })];
 }
 
-function cookieLine(
-  name: string,
-  value: string,
-  maxAgeSeconds: number,
-  { hostname, secure }: CookieContext,
-): string {
+function cookieLine(name: string, value: string, maxAgeSeconds: number, { hostname, secure }: CookieContext): string {
   const domain = sharedCookieDomain(hostname);
   return [
     `${name}=${value}`,

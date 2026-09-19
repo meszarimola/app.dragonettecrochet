@@ -1,7 +1,17 @@
 // KB: 01 §6.1, 01 §6.3, 01 §8.4, 03 §2.1, 03 §4.4
 
 import { buildPieceGraph, chainBridges, type LayerInfo, type PieceGraph } from './graph.ts';
-import { CIRCLE, frameCoords, frameFor, frameNormal, framePoint, frameSide, perimeter, type Point, type RoundFrame } from './polygon.ts';
+import {
+  CIRCLE,
+  frameCoords,
+  frameFor,
+  frameNormal,
+  framePoint,
+  frameSide,
+  type Point,
+  perimeter,
+  type RoundFrame,
+} from './polygon.ts';
 import { curveLayout, rowCurve } from './row-curve.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import type { Anchor, NodeId, Pattern, RoundShape, StitchDef, StitchDefId } from './types.ts';
@@ -98,7 +108,6 @@ export function layoutPattern(pattern: Pattern, library: StitchLibrary, options:
   return curve ? curveLayout(chart, curve, W) : chart;
 }
 
-
 interface Item {
   readonly ids: readonly NodeId[];
   // KB: core-geometry §14
@@ -146,7 +155,6 @@ export function stitchWidths(graph: PieceGraph, W: number): Map<NodeId, number> 
   return widths;
 }
 
-
 // KB: core-geometry §9
 export function isotonic(values: readonly number[], weights: readonly number[]): number[] {
   const blocks: { sum: number; weight: number; count: number }[] = [];
@@ -179,9 +187,11 @@ export function spread(items: readonly Item[]): number[] {
     if (l !== undefined && r !== undefined) return l + ((r - l) * (i - left)) / (right - left);
     return l ?? r ?? 0;
   });
-  return isotonic(z, items.map((item) => item.weight)).map((value, i) => value + offsets[i]!);
+  return isotonic(
+    z,
+    items.map((item) => item.weight),
+  ).map((value, i) => value + offsets[i]!);
 }
-
 
 interface Raw {
   nodes: Map<NodeId, NodePlacement>;
@@ -229,7 +239,12 @@ class Layouter {
   // KB: core-geometry §10
   readonly #widths: ReadonlyMap<NodeId, number>;
 
-  constructor(graph: PieceGraph, W: number, stem: (chainHeight: number) => number, detached: ReadonlySet<NodeId> = new Set()) {
+  constructor(
+    graph: PieceGraph,
+    W: number,
+    stem: (chainHeight: number) => number,
+    detached: ReadonlySet<NodeId> = new Set(),
+  ) {
     this.#graph = graph;
     this.#W = W;
     // KB: core-geometry §11
@@ -290,7 +305,16 @@ class Layouter {
       layer.stitches.forEach((id, k) => {
         const axis = (Math.PI * (n - k)) / n;
         this.#axis.set(id, axis);
-        this.#place(id, 0, side, 'chain', [], { x: half * Math.cos(axis), y: 0 }, 0, Math.min(this.#W * 0.8, ((2 * half) / n) * 0.9));
+        this.#place(
+          id,
+          0,
+          side,
+          'chain',
+          [],
+          { x: half * Math.cos(axis), y: 0 },
+          0,
+          Math.min(this.#W * 0.8, ((2 * half) / n) * 0.9),
+        );
       });
       this.#base[0] = half + 8;
     } else if (this.#round && chains.length > 0) {
@@ -414,7 +438,8 @@ class Layouter {
           const from = behind?.desired;
           const to = ahead?.desired;
           const marks = bridged.filter(
-            (at) => (from === undefined || direction * (at - from) > 0) && (to === undefined || direction * (to - at) > 0),
+            (at) =>
+              (from === undefined || direction * (at - from) > 0) && (to === undefined || direction * (to - at) > 0),
           );
           const gap =
             marks.length > 0 || this.#round
@@ -425,7 +450,9 @@ class Layouter {
                   .sort((a, b) => direction * (a - b));
           // KB: core-geometry §14
           const space =
-            from !== undefined && to !== undefined && behind && ahead ? Math.abs(to - from) - behind.half - ahead.half : 0;
+            from !== undefined && to !== undefined && behind && ahead
+              ? Math.abs(to - from) - behind.half - ahead.half
+              : 0;
           if (!this.#round && run.length > gap.length && gap.length > 0 && space > 0) {
             arcs.push(this.#arc(run, from!, direction, space, behind!.half, stitchHeight));
           } else {
@@ -474,10 +501,16 @@ class Layouter {
       const firstAnchored = scaled.find((item) => item !== stack && item.weight === 1)?.desired;
       const underneath = workingFirst === undefined ? undefined : this.#axis.get(workingFirst);
       if (this.#round && layer.index === 1) stack.desired = this.#oval ? 0 : Math.PI / 2;
-      else if (layer.turningChainCounts && layer.index >= 2 && underneath !== undefined && firstAnchored !== direction * underneath) {
+      else if (
+        layer.turningChainCounts &&
+        layer.index >= 2 &&
+        underneath !== undefined &&
+        firstAnchored !== direction * underneath
+      ) {
         stack.desired = direction * underneath;
       } else if (firstAnchored !== undefined) stack.desired = firstAnchored - 2 * stack.half;
-      else if (underneath !== undefined) stack.desired = direction * underneath - (layer.turningChainCounts ? 0 : 2 * stack.half);
+      else if (underneath !== undefined)
+        stack.desired = direction * underneath - (layer.turningChainCounts ? 0 : 2 * stack.half);
       else stack.desired = 0;
     }
     if (this.#round && scaled.every((item) => item.desired === undefined) && scaled[0]) scaled[0].desired = Math.PI / 2;
@@ -540,7 +573,16 @@ class Layouter {
         continue;
       }
       const along = this.#round ? alongRow(frameNormal(this.#frame, axis)) : 0;
-      this.#place(id, layer.index, side, 'stitch', feet, this.#point(up(base, this.#stem(def.chainHeight)), axis), along, 0);
+      this.#place(
+        id,
+        layer.index,
+        side,
+        'stitch',
+        feet,
+        this.#point(up(base, this.#stem(def.chainHeight)), axis),
+        along,
+        0,
+      );
     }
     for (const [id, host] of picots) {
       const hostTop = this.#nodes.get(host)!.top;
@@ -557,9 +599,13 @@ class Layouter {
     const margin = W * scale(base + height / 2);
     const middle = up(base, height / 2);
     // KB: core-geometry §18
-    const startAxis = this.#round ? Math.max(first - direction * margin, frameSide(this.#frame, first)[0]) : first - direction * margin;
+    const startAxis = this.#round
+      ? Math.max(first - direction * margin, frameSide(this.#frame, first)[0])
+      : first - direction * margin;
     const shifted = startAxis - (first - direction * margin);
-    const endAxis = this.#round ? first - direction * (margin + Math.min(2 * margin, Math.PI / 3)) + shifted : last + direction * margin;
+    const endAxis = this.#round
+      ? first - direction * (margin + Math.min(2 * margin, Math.PI / 3)) + shifted
+      : last + direction * margin;
     this.#layers.push({
       index: layer.index,
       shape: layer.shape,
@@ -583,7 +629,9 @@ class Layouter {
     const refs = this.#cornerRefs(layer);
     this.#corners[layer.index] = refs;
     if (!refs) return;
-    const axes = refs.map((ref) => (ref.space ? this.#anchorAxis({ into: 'space', id: ref.id }) : this.#axis.get(ref.id)));
+    const axes = refs.map((ref) =>
+      ref.space ? this.#anchorAxis({ into: 'space', id: ref.id }) : this.#axis.get(ref.id),
+    );
     if (axes.some((axis) => axis === undefined)) {
       this.#corners[layer.index] = null;
       return;
@@ -631,7 +679,10 @@ class Layouter {
       ...items.flatMap((_, i) => (i < first ? [{ index: i, wrapped: true }] : [])),
     ];
     if (seam.length === 0) return;
-    const row: Item[] = seam.map(({ index, wrapped }) => ({ ...items[index]!, desired: positions[index]! + (wrapped ? TAU : 0) }));
+    const row: Item[] = seam.map(({ index, wrapped }) => ({
+      ...items[index]!,
+      desired: positions[index]! + (wrapped ? TAU : 0),
+    }));
     const from = positions[last]!;
     const to = positions[first]! + TAU;
     const lo = from + items[last]!.half + row[0]!.half;
@@ -666,17 +717,24 @@ class Layouter {
     const previous = this.#corners[layer.index - 1];
     if (!previous) return null;
     const below = graph.layers[layer.index - 1]!;
-    const excluded = new Set<NodeId>([...layer.turningChain, ...layer.travelSlips, ...(layer.joinSlip ? [layer.joinSlip] : [])]);
+    const excluded = new Set<NodeId>([
+      ...layer.turningChain,
+      ...layer.travelSlips,
+      ...(layer.joinSlip ? [layer.joinSlip] : []),
+    ]);
     const order = (id: NodeId) => graph.order.get(id)!;
     const refs: CornerRef[] = [];
     for (const corner of previous) {
       const children = layer.stitches.filter(
         (id) =>
           !excluded.has(id) &&
-          graph.nodes.get(id)!.anchors.some((anchor) => anchor.into === (corner.space ? 'space' : 'stitch') && anchor.id === corner.id),
+          graph.nodes
+            .get(id)!
+            .anchors.some((anchor) => anchor.into === (corner.space ? 'space' : 'stitch') && anchor.id === corner.id),
       );
       const top = layer.turningChain[layer.turningChain.length - 1];
-      if (!corner.space && layer.turningChainCounts && top !== undefined && below.positions[0] === corner.id) children.unshift(top);
+      if (!corner.space && layer.turningChainCounts && top !== undefined && below.positions[0] === corner.id)
+        children.unshift(top);
       if (children.length === 0) return null;
       const from = order(children[0]!);
       const to = order(children[children.length - 1]!);
@@ -701,14 +759,23 @@ class Layouter {
     if (anchor.into === 'ring') return { x: 0, y: 0 };
     if (this.#round) {
       // KB: core-geometry §19
-      const ids = anchor.into === 'stitch' || anchor.into === 'underside' ? [anchor.id] : (this.#graph.spaces.get(anchor.id)?.chains ?? []);
+      const ids =
+        anchor.into === 'stitch' || anchor.into === 'underside'
+          ? [anchor.id]
+          : (this.#graph.spaces.get(anchor.id)?.chains ?? []);
       const tops = ids.map((id) => this.#nodes.get(id)?.top).filter((p): p is Point => p !== undefined);
       if (tops.length > 0) {
-        return { x: tops.reduce((sum, p) => sum + p.x, 0) / tops.length, y: tops.reduce((sum, p) => sum + p.y, 0) / tops.length };
+        return {
+          x: tops.reduce((sum, p) => sum + p.x, 0) / tops.length,
+          y: tops.reduce((sum, p) => sum + p.y, 0) / tops.length,
+        };
       }
     }
     const axis = this.#anchorAxis(anchor) ?? 0;
-    const target = anchor.into === 'stitch' || anchor.into === 'underside' ? anchor.id : this.#graph.spaces.get(anchor.id)?.chains[0];
+    const target =
+      anchor.into === 'stitch' || anchor.into === 'underside'
+        ? anchor.id
+        : this.#graph.spaces.get(anchor.id)?.chains[0];
     const targetLayer = target === undefined ? below : (this.#graph.layerOf.get(target) ?? below);
     const line = targetLayer >= below ? base : (this.#base[targetLayer + 1] ?? base);
     return this.#point(line, axis);
@@ -748,7 +815,6 @@ class Layouter {
     this.#nodes.set(id, { id, def: this.#graph.nodes.get(id)!.def, layer, side, role, feet, top, angle, size });
   }
 }
-
 
 function finish(graph: PieceGraph, raw: Raw, mirror: boolean, W: number, withPins = true): ChartLayout {
   const offset = (id: NodeId): Point => {

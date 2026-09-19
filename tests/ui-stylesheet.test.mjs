@@ -12,7 +12,9 @@ const css = readFileSync(new URL('../src/ui/styles.css', import.meta.url), 'utf8
 
 /** Brace balance, ignoring comments and string literals. */
 function unclosedBlocks(source) {
-  const code = source.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' ')).replace(/'[^'\n]*'|"[^"\n]*"/g, "''");
+  const code = source
+    .replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' '))
+    .replace(/'[^'\n]*'|"[^"\n]*"/g, "''");
   const open = [];
   let line = 1;
   for (const char of code) {

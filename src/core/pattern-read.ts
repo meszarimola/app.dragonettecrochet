@@ -4,13 +4,13 @@ import { buildPieceGraph, type PieceGraph } from './graph.ts';
 import { isStitchInsertion } from './insertion.ts';
 import { modeAsWorked, type Step, type StepTarget } from './pattern-steps.ts';
 import {
-  VOCABULARIES,
   isDecrease,
   isIncrease,
+  type PhraseKey,
   refOf,
   renderStep,
-  type PhraseKey,
   type StepContext,
+  VOCABULARIES,
   type Vocabulary,
 } from './pattern-text.ts';
 import type { StitchLibrary } from './stitch-library.ts';
@@ -46,7 +46,9 @@ export interface ReadError {
   readonly message: string;
 }
 
-export type ReadResult = { readonly ok: true; readonly pattern: Pattern } | { readonly ok: false; readonly error: ReadError };
+export type ReadResult =
+  | { readonly ok: true; readonly pattern: Pattern }
+  | { readonly ok: false; readonly error: ReadError };
 
 class ReadFailure extends Error {
   readonly line: number;
@@ -88,7 +90,8 @@ function read(text: string, options: ReadOptions): Pattern {
   if (current.length > 0) blocks.push(current);
 
   const [titleBlock, ...rest] = blocks;
-  if (!titleBlock || titleBlock.length !== 1) throw new ReadFailure(titleBlock?.[1]?.number ?? 1, 'A szöveg első bekezdése a minta címe, egyetlen sorban.');
+  if (!titleBlock || titleBlock.length !== 1)
+    throw new ReadFailure(titleBlock?.[1]?.number ?? 1, 'A szöveg első bekezdése a minta címe, egyetlen sorban.');
   // The sizes block is descriptive and the assembly seams are not read back. KB: core-domain §27
   const headings = new Set([
     vocabulary.headings.sizes,
@@ -141,7 +144,11 @@ function splitItems(text: string): string[] {
 
 const MODES: readonly StitchInsertion[] = ['both-loops', 'back-loop', 'front-loop', 'front-post', 'back-post'];
 
-const PHRASE_TARGETS: readonly { readonly key: PhraseKey; readonly target: StepTarget; readonly into: 'stitch' | 'chain' }[] = [
+const PHRASE_TARGETS: readonly {
+  readonly key: PhraseKey;
+  readonly target: StepTarget;
+  readonly into: 'stitch' | 'chain';
+}[] = [
   { key: 'next-stitch', target: 'next', into: 'stitch' },
   { key: 'next-chain', target: 'next', into: 'chain' },
   { key: 'same-stitch', target: 'same', into: 'stitch' },
@@ -155,7 +162,13 @@ const PHRASE_TARGETS: readonly { readonly key: PhraseKey; readonly target: StepT
 /** KB: 03 §5 */
 const DOWN_DEPTHS = [2, 3];
 
-function parseItem(text: string, line: number, options: ReadOptions, vocabulary: Vocabulary, context: StepContext = {}): Step {
+function parseItem(
+  text: string,
+  line: number,
+  options: ReadOptions,
+  vocabulary: Vocabulary,
+  context: StepContext = {},
+): Step {
   const { library, locale } = options;
   const matches = (step: Step) => {
     try {
@@ -201,7 +214,9 @@ function parseItem(text: string, line: number, options: ReadOptions, vocabulary:
     { kind: 'skip', count: n, what: 'chain' },
     { kind: 'skip', count: n, what: 'space' },
     { kind: 'turning-chain', count: n, countsAs: null },
-    ...defs.filter((def) => def.kind === 'basic').map((def): Step => ({ kind: 'turning-chain', count: n, countsAs: def.id })),
+    ...defs
+      .filter((def) => def.kind === 'basic')
+      .map((def): Step => ({ kind: 'turning-chain', count: n, countsAs: def.id })),
   ];
   const found = simple.find(matches);
   if (found) return found;
@@ -213,7 +228,9 @@ function parseItem(text: string, line: number, options: ReadOptions, vocabulary:
   // KB: 03 §5.6
   const downDepth = DOWN_DEPTHS.find((depth) => text.endsWith(` ${vocabulary.down(depth)}`));
   if (downDepth !== undefined) targets.unshift({ target: 'down', into: 'stitch' });
-  const modes = MODES.filter((mode) => mode === 'both-loops' || vocabulary.modeMarks[mode].some((mark) => text.includes(mark)));
+  const modes = MODES.filter(
+    (mode) => mode === 'both-loops' || vocabulary.modeMarks[mode].some((mark) => text.includes(mark)),
+  );
 
   for (const def of defs) {
     if (def.kind === 'chain' || def.kind === 'space' || def.kind === 'ring') continue;
@@ -245,7 +262,8 @@ function parseItem(text: string, line: number, options: ReadOptions, vocabulary:
 
 function probe(def: StitchDef, library: StitchLibrary, locale: Locale): string {
   if (def.kind === 'group' && isIncrease(def)) return refOf(library.get(def.members[0]!) ?? def, locale);
-  if (def.kind === 'joined' && isDecrease(def)) return locale === 'hu' ? refOf(library.get(def.part) ?? def, locale) : 'tog';
+  if (def.kind === 'joined' && isDecrease(def))
+    return locale === 'hu' ? refOf(library.get(def.part) ?? def, locale) : 'tog';
   return refOf(def, locale);
 }
 
@@ -298,14 +316,16 @@ class PieceReader {
 
   read(): Piece {
     const [nameLine, foundationLine, ...rest] = this.lines;
-    if (!foundationLine) throw new ReadFailure(nameLine!.number, 'A darab neve után a láncalap vagy a varázskör következik.');
+    if (!foundationLine)
+      throw new ReadFailure(nameLine!.number, 'A darab neve után a láncalap vagy a varázskör következik.');
     this.readFoundation(foundationLine);
     this.spiral = rest[0]?.text === this.vocabulary.spiral;
     const body = this.spiral ? rest.slice(1) : rest;
     // The name of a continuously attached section is not a round; sections are not read back.
     const sectionSuffix = this.vocabulary.section('');
     const layerLines = body.filter(
-      (line) => !(line.text.endsWith(sectionSuffix) && line.text.length > sectionSuffix.length && !line.text.includes(': ')),
+      (line) =>
+        !(line.text.endsWith(sectionSuffix) && line.text.length > sectionSuffix.length && !line.text.includes(': ')),
     );
 
     // KB: core-domain §12, core-domain §22
@@ -321,7 +341,8 @@ class PieceReader {
         const target = layerOfRow.get(resume.row);
         if (target === undefined) throw new ReadFailure(line.number, `Nincs ilyen sor: ${resume.row}.`);
         const last = this.events[this.events.length - 1];
-        if (last?.kind !== 'fasten-off') throw new ReadFailure(line.number, 'Az új szakasz előtt a fonalat el kell vágni.');
+        if (last?.kind !== 'fasten-off')
+          throw new ReadFailure(line.number, 'Az új szakasz előtt a fonalat el kell vágni.');
         this.events[this.events.length - 1] = { ...last, resume: { layer: target, name: resume.name } };
         this.pendingResume = target;
         // KB: core-domain §12, core-domain §22
@@ -331,7 +352,8 @@ class PieceReader {
       const header = this.header(line);
       if (expectedRow === null) expectedRow = firstHeader ? (header.shape === 'row' ? 2 : 1) : header.from;
       firstHeader = false;
-      if (header.from !== expectedRow) throw new ReadFailure(line.number, `A sorszám nem folytatódik: ${expectedRow} helyett ${header.from}.`);
+      if (header.from !== expectedRow)
+        throw new ReadFailure(line.number, `A sorszám nem folytatódik: ${expectedRow} helyett ${header.from}.`);
       for (let row = header.from; row <= header.to; row += 1) {
         const isLast = i === layerLines.length - 1 && row === header.to;
         // Two sections can share a row number; the row points at the earliest layer numbered that way. KB: core-domain §12
@@ -397,7 +419,8 @@ class PieceReader {
     }
     // KB: core-domain §27
     const numbers = [...line.text.matchAll(/\d+/g)].map((match) => Number(match[0])).filter((value) => value >= 1);
-    const countFor = (make: (value: number) => string): number | undefined => numbers.find((value) => line.text === make(value));
+    const countFor = (make: (value: number) => string): number | undefined =>
+      numbers.find((value) => line.text === make(value));
     const slip = refOf(this.byKind('slip'), this.options.locale);
     const ringCount = countFor((value) => v.chainRing(value, slip));
     if (ringCount !== undefined) {
@@ -496,7 +519,9 @@ class PieceReader {
     const countMatch = /^(.*) (\(\d+(?: [^()]+)?\))\.$/.exec(body);
     const stated = Number(/\d+/.exec(countMatch?.[2] ?? '')?.[0]);
     if (!countMatch || countMatch[2] !== (round ? v.roundCount(stated) : v.count(stated))) {
-      fail(round ? 'Hiányzik a szemszám a kör végén, pl. „(18).”' : 'Hiányzik a szemszám a sor végén, pl. „(15 szem).”');
+      fail(
+        round ? 'Hiányzik a szemszám a kör végén, pl. „(18).”' : 'Hiányzik a szemszám a sor végén, pl. „(15 szem).”',
+      );
     }
     body = countMatch![1]!;
 
@@ -505,16 +530,20 @@ class PieceReader {
     const resumed = this.pendingResume;
     this.pendingResume = null;
     const below = graph.layers[resumed ?? graph.layers.length - 1]!;
-    const opening = index === 1 ? (this.foundation === 'chain-ring' ? this.events[0]! : null) : this.events[this.events.length - 1]!;
-    const direction = index === 1 ? (this.foundation === 'chain' ? -1 : 1) : resumed !== null || opening!.kind === 'turn' ? -1 : 1;
+    const opening =
+      index === 1 ? (this.foundation === 'chain-ring' ? this.events[0]! : null) : this.events[this.events.length - 1]!;
+    const direction =
+      index === 1 ? (this.foundation === 'chain' ? -1 : 1) : resumed !== null || opening!.kind === 'turn' ? -1 : 1;
     // The chain ring's slip stitch goes into the first chain: on the yarn path it is round 1's first stitch.
-    if (index === 1 && this.foundation === 'chain-ring') this.add(slip, [{ into: 'stitch', id: this.stitches[0]!.id, mode: 'both-loops' }]);
+    if (index === 1 && this.foundation === 'chain-ring')
+      this.add(slip, [{ into: 'stitch', id: this.stitches[0]!.id, mode: 'both-loops' }]);
     let working = direction === 1 ? [...below.positions] : [...below.positions].reverse();
     const previousSide = index === 1 ? 'right' : below.side;
-    const side = resumed !== null || opening?.kind === 'turn' ? (previousSide === 'right' ? 'wrong' : 'right') : previousSide;
+    const side =
+      resumed !== null || opening?.kind === 'turn' ? (previousSide === 'right' ? 'wrong' : 'right') : previousSide;
 
     // Row 1 on the foundation: the chains nearest the hook are the turning chain.
-    let fromHookCounts: StitchDef | null = null;
+    const fromHookCounts: StitchDef | null = null;
     // The new row 1 does not print whether the turning chain counts: the pattern's setting decides. KB: core-domain §5
     let countsFromSettings = false;
     let eachChain = false;
@@ -546,8 +575,13 @@ class PieceReader {
 
     const context: StepContext = { round, shortIncrease: this.shortIncrease };
     // KB: 04 §3.4
-    const items = splitItems(body).flatMap((item) => (item.startsWith(`${v.otherSide} `) ? [v.otherSide, item.slice(v.otherSide.length + 1)] : [item]));
-    const steps = items.map((item): Step => (item === v.otherSide ? { kind: 'other-side' } : parseItem(item, header.line, this.options, v, context)));
+    const items = splitItems(body).flatMap((item) =>
+      item.startsWith(`${v.otherSide} `) ? [v.otherSide, item.slice(v.otherSide.length + 1)] : [item],
+    );
+    const steps = items.map(
+      (item): Step =>
+        item === v.otherSide ? { kind: 'other-side' } : parseItem(item, header.line, this.options, v, context),
+    );
     if (eachChain) {
       // One stitch into each remaining chain, as a single item.
       const [only] = steps;
@@ -562,7 +596,8 @@ class PieceReader {
     // KB: core-domain §17
     const state = { cursor: round && index >= 2 && textCounts ? 1 : 0, last: null as Last, otherSide: false };
     // KB: 04 §3.4
-    const anchorOf = (id: NodeId, mode: StitchInsertion): Anchor => (state.otherSide ? { into: 'underside', id } : { into: 'stitch', id, mode: modeAsWorked(mode, side) });
+    const anchorOf = (id: NodeId, mode: StitchInsertion): Anchor =>
+      state.otherSide ? { into: 'underside', id } : { into: 'stitch', id, mode: modeAsWorked(mode, side) };
     const anchoredAtStart = this.anchoredCount;
     if (state.cursor === 1) state.last = { kind: 'stitch', w: 0 };
     const firstNode = this.stitches.length;
@@ -579,7 +614,8 @@ class PieceReader {
           const deeper = graph.layers[index - depth];
           if (!deeper || deeper.positions.length === 0) return missing(`Nincs ${depth} sorral lejjebbi sor`);
           // Every row runs against the previous one, so a row `depth` lower is in yarn order when `depth` is even and reversed when it is odd.
-          const line = (direction === -1) === (depth % 2 === 1) ? [...deeper.positions].reverse() : [...deeper.positions];
+          const line =
+            (direction === -1) === (depth % 2 === 1) ? [...deeper.positions].reverse() : [...deeper.positions];
           const at = Math.min(state.cursor, line.length - 1);
           // KB: 03 §5.6
           if (state.cursor < working.length && this.skipped.includes(working[state.cursor]!)) state.cursor += 1;
@@ -611,9 +647,7 @@ class PieceReader {
         }
         case 'next': {
           if (state.cursor + consumes > working.length) return missing('Nincs több szem az előző sorban');
-          const anchors = working
-            .slice(state.cursor, state.cursor + consumes)
-            .map((id) => anchorOf(id, mode));
+          const anchors = working.slice(state.cursor, state.cursor + consumes).map((id) => anchorOf(id, mode));
           state.cursor += consumes;
           state.last = { kind: 'stitch', w: state.cursor - 1 };
           return anchors;
@@ -624,8 +658,9 @@ class PieceReader {
     const apply = (step: Step, item: string): void => {
       switch (step.kind) {
         case 'other-side':
-            // KB: 04 §3.4
-          if (index !== 1 || this.foundation !== 'chain' || state.otherSide) return fail(`Nem értelmezhető tétel: „${item}”.`);
+          // KB: 04 §3.4
+          if (index !== 1 || this.foundation !== 'chain' || state.otherSide)
+            return fail(`Nem értelmezhető tétel: „${item}”.`);
           state.otherSide = true;
           working = [...working].reverse().slice(1);
           state.cursor = 0;
@@ -651,8 +686,12 @@ class PieceReader {
             }
             return;
           }
-          if (state.cursor + step.count > working.length) fail(`Nincs ennyi kihagyható szem az előző sorban: „${item}”.`);
-          skips.push({ positions: working.slice(state.cursor, state.cursor + step.count), anchoredBefore: this.anchoredCount });
+          if (state.cursor + step.count > working.length)
+            fail(`Nincs ennyi kihagyható szem az előző sorban: „${item}”.`);
+          skips.push({
+            positions: working.slice(state.cursor, state.cursor + step.count),
+            anchoredBefore: this.anchoredCount,
+          });
           state.cursor += step.count;
           return;
         }
@@ -675,7 +714,11 @@ class PieceReader {
             const target = c > 0 && step.target === 'next-space' ? 'same-space' : step.target;
             const consumes = def.kind === 'joined' && def.base === 'spread' ? def.consumes : 1;
             // KB: 03 §5.6
-            this.add(def, resolve(target, step.mode, item, consumes, step.depth ?? 2), target === 'down' ? ['spike'] : []);
+            this.add(
+              def,
+              resolve(target, step.mode, item, consumes, step.depth ?? 2),
+              target === 'down' ? ['spike'] : [],
+            );
           }
         }
       }
@@ -693,18 +736,30 @@ class PieceReader {
     }
 
     const layerNodes = this.stitches.slice(firstNode).map((node) => node.id);
-    const afterTurning = turningNodes.length > 0 ? layerNodes.slice(layerNodes.indexOf(turningNodes[turningNodes.length - 1]!) + 1) : layerNodes;
+    const afterTurning =
+      turningNodes.length > 0
+        ? layerNodes.slice(layerNodes.indexOf(turningNodes[turningNodes.length - 1]!) + 1)
+        : layerNodes;
     const firstStitch = afterTurning.find((id) => library.get(this.node(id).def)?.kind !== 'chain');
 
     // If the text disagrees with the pattern setting, the row gets an override.
-    const hasTurning = turning !== undefined || (index === 1 && this.foundation === 'chain' && working.length < below.positions.length);
+    const hasTurning =
+      turning !== undefined || (index === 1 && this.foundation === 'chain' && working.length < below.positions.length);
     if (hasTurning && firstStitch !== undefined) {
       const firstDef = library.get(this.node(firstStitch).def)!;
       // KB: core-domain §10, core-domain §17
-      const expected = turningChainCountsFor(conventions.turningChainCounts, firstDef, traditionOf(conventions), round ? 'round' : 'row');
+      const expected = turningChainCountsFor(
+        conventions.turningChainCounts,
+        firstDef,
+        traditionOf(conventions),
+        round ? 'round' : 'row',
+      );
       if (expected !== textCounts && !countsFromSettings) {
         if (opening === null) fail('Az 1. sor fordulóláncának számolása eltér a minta beállításától.');
-        this.events[this.events.length - 1] = { ...opening!, conventions: { ...opening!.conventions, turningChainCounts: textCounts } };
+        this.events[this.events.length - 1] = {
+          ...opening!,
+          conventions: { ...opening!.conventions, turningChainCounts: textCounts },
+        };
       }
     }
 
@@ -719,7 +774,12 @@ class PieceReader {
       this.add(slip, [{ into: 'stitch', id: target!, mode: 'both-loops' }]);
     }
     if (ending || spiralEnd) {
-      this.events.push({ after: this.previous ?? fail('Üres sor.'), kind: ending ? ending[1] : 'spiral', statedCount: stated, ...marks });
+      this.events.push({
+        after: this.previous ?? fail('Üres sor.'),
+        kind: ending ? ending[1] : 'spiral',
+        statedCount: stated,
+        ...marks,
+      });
       if (ending?.[1] === 'fasten-off') this.previous = null;
     } else {
       this.pendingCount = { index, stated };
@@ -734,10 +794,16 @@ class PieceReader {
   }
 
   private checkCounts(piece: Piece): void {
-    const pattern: Pattern = { formatVersion: 1, title: this.title, conventions: this.options.conventions, pieces: [piece] };
+    const pattern: Pattern = {
+      formatVersion: 1,
+      title: this.title,
+      conventions: this.options.conventions,
+      pieces: [piece],
+    };
     const graph = buildPieceGraph(pattern, piece, this.options.library);
     for (const layer of graph.layers.slice(1)) {
-      const stated = layer.closing?.statedCount ?? (this.pendingCount?.index === layer.index ? this.pendingCount.stated : undefined);
+      const stated =
+        layer.closing?.statedCount ?? (this.pendingCount?.index === layer.index ? this.pendingCount.stated : undefined);
       if (stated !== undefined && stated !== layer.writtenCount) {
         throw new ReadFailure(
           this.layerLines.get(layer.index) ?? 0,

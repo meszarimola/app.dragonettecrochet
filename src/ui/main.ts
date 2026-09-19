@@ -11,25 +11,29 @@ import {
   contextOf,
   defaultCursor,
   deleteLast,
+  type EditorMode,
+  type EditResult,
   emptyPattern,
   endRoundSpiral,
   endRow,
   fillRow,
+  insertChain,
+  type LiveCheck,
   liveCheck,
   onFoundationChain,
+  pieceFinished,
   setPinned,
   setTradition,
-  work,
-  workIntoSame,
-  type EditResult,
-  type EditorMode,
-  type LiveCheck,
   type WorkContext,
+  withoutStaleSkips,
+  work,
+  workIntoGap,
+  workIntoSame,
 } from '../core/editor.js';
-import { canRedo, canUndo, createHistory, record, redo, undo, type History } from '../core/history.js';
-import { chartGrid, targetPoint, type ChartGrid, type GridSeam } from '../core/grid.js';
-import { layoutPattern, type ChartLayout, type Point } from '../core/layout.js';
-import { insertChain, pieceFinished, withoutStaleSkips, workIntoGap } from '../core/editor.js';
+import { type ChartGrid, chartGrid, type GridSeam, targetPoint } from '../core/grid.js';
+import { canRedo, canUndo, createHistory, type History, record, redo, undo } from '../core/history.js';
+import { nodeInsertions } from '../core/insertion.js';
+import { type ChartLayout, layoutPattern, type Point } from '../core/layout.js';
 import { loadPattern, savePattern } from '../core/pattern-json.js';
 import { aspectStem, gaugeContextOf } from '../core/pattern-size.js';
 import { roundEndFor } from '../core/rounds.js';
@@ -40,6 +44,8 @@ import {
   describeByLayer,
   duplicateSelection,
   expandSelection,
+  type FocusMove,
+  type Fragment,
   layerSelection,
   nodesInRect,
   pasteFragment,
@@ -47,55 +53,85 @@ import {
   selectAll,
   stepFocus,
   toggleUnit,
-  type FocusMove,
-  type Fragment,
 } from '../core/selection.js';
 import { libraryFor, resolveStitch } from '../core/stitch-variants.js';
 import { stitchName } from '../core/stitchText.js';
 import { traditionOf } from '../core/tradition.js';
-import type { Finding, Locale, NodeId, Pattern, PatternNotation, StitchDef, StitchDefId, Tradition } from '../core/types.js';
+import type {
+  Finding,
+  Locale,
+  NodeId,
+  Pattern,
+  PatternNotation,
+  StitchDef,
+  StitchDefId,
+  Tradition,
+} from '../core/types.js';
 import { validatePattern } from '../core/validate.js';
-import { Board, type Area, type DirectionArrow, type Target } from './board.js';
+import { AmigurumiPanel } from './amigurumi-panel.js';
+import { type Area, Board, type DirectionArrow, type Target } from './board.js';
 import { chartSvg } from './chart-svg.js';
 import { setupConsentBanner } from './consentBanner.js';
 import { askConfirm } from './dialog.js';
-import { applyStaticTexts, homeUrl, resolveUiLanguage, setUiLanguage, texts, uiLanguage, urlWithLanguage, type UiLanguage } from './i18n.js';
-import { currentPlatform, modifierCombo, modifierName } from './platform.js';
+import { GarmentPanel } from './garment-panel.js';
+import { GridChartPanel } from './grid-chart-panel.js';
+import { spikeNodes, unitFrames } from './grid-chart-view.js';
 import { EDITOR_CORE_TEXTS } from './i18n/core/editor.js';
 import { JSON_CORE_TEXTS } from './i18n/core/json.js';
 import { renderCoreText } from './i18n/core/render.js';
 import { RULE_TEXTS, type RuleText } from './i18n/rules.js';
 import {
+  applyStaticTexts,
+  homeUrl,
+  resolveUiLanguage,
+  setUiLanguage,
+  texts,
+  type UiLanguage,
+  uiLanguage,
+  urlWithLanguage,
+} from './i18n.js';
+import { InsertionPanel } from './insertion-panel.js';
+import { insertionSuffix } from './insertion-view.js';
+import {
   chartStyleLabel,
   defaultNotation,
   notationForTradition,
   readNotation,
-  symbolOptionsFor,
   setTermsLocale,
+  symbolOptionsFor,
   termsLabel,
   textLanguage,
   traditionLabel,
   withNotation,
   writeNotation,
 } from './notation.js';
-import { relabelSelects } from './select-labels.js';
 import { buildPalette, type PaletteItem } from './palette.js';
-import { InsertionPanel } from './insertion-panel.js';
-import { insertionSuffix } from './insertion-view.js';
-import { nodeInsertions } from '../core/insertion.js';
-import { AmigurumiPanel } from './amigurumi-panel.js';
-import { GridChartPanel } from './grid-chart-panel.js';
-import { spikeNodes, unitFrames } from './grid-chart-view.js';
+import {
+  DEFAULT_PATTERN_TYPE,
+  gridKind,
+  isAvailableType,
+  PATTERN_TYPES,
+  type PatternTypeId,
+  writtenShareFor,
+} from './pattern-types.js';
+import { currentPlatform, modifierCombo, modifierName } from './platform.js';
 import { RoundsPanel } from './rounds-panel.js';
+import { relabelSelects } from './select-labels.js';
 import { ShapesPanel } from './shapes-panel.js';
 import { ShawlsPanel } from './shawls-panel.js';
-import { GarmentPanel } from './garment-panel.js';
 import { SizePanel } from './size-panel.js';
-import { DEFAULT_PATTERN_TYPE, PATTERN_TYPES, gridKind, isAvailableType, writtenShareFor, type PatternTypeId } from './pattern-types.js';
-import { applyInk, drawCentered, readInk, shapeBounds, stemLength, symbolShapes, type SymbolOptions } from './symbols.js';
+import {
+  applyInk,
+  drawCentered,
+  readInk,
+  type SymbolOptions,
+  shapeBounds,
+  stemLength,
+  symbolShapes,
+} from './symbols.js';
 import { alignTooltips } from './tooltip.js';
 import { writtenView } from './written.js';
-import { dragCollapses, dragSize, isFull, keySize, percentOf, statusPlace, type SizeRange } from './written-size.js';
+import { dragCollapses, dragSize, isFull, keySize, percentOf, type SizeRange, statusPlace } from './written-size.js';
 
 function must<T extends Element>(selector: string): T {
   const el = document.querySelector<T>(selector);
@@ -161,7 +197,7 @@ const startLanguage = resolveUiLanguage(location.search, storedUiLanguage(), doc
 setUiLanguage(startLanguage);
 document.documentElement.lang = startLanguage;
 applyStaticTexts(document, texts().markup);
-  showModifierNames();
+showModifierNames();
 if (homeLink) homeLink.href = homeUrl(startLanguage);
 
 type Message = string | readonly (string | Node)[];
@@ -214,7 +250,6 @@ interface Derived {
   readonly grid: ChartGrid | null;
 }
 
-
 let derived = derive(history.present);
 
 function derive(pattern: Pattern): Derived {
@@ -223,7 +258,9 @@ function derive(pattern: Pattern): Derived {
   const layout = layoutPattern(pattern, context.library, { mirror, stemLength: stem });
   const check = liveCheck(pattern, context);
   const targets = context.slots.map((_, i) => ({ point: targetPoint(layout, context, i) ?? { x: 0, y: 0 } }));
-  const grid = showGrid ? chartGrid(pattern, context.library, gridKindOf(context), context, { mirror, stemLength: stem }) : null;
+  const grid = showGrid
+    ? chartGrid(pattern, context.library, gridKindOf(context), context, { mirror, stemLength: stem })
+    : null;
   return { pattern, context, layout, check, targets, grid };
 }
 
@@ -264,7 +301,6 @@ function nextRowMarker(): { text: string; layer: number } | null {
 function editorMode(): EditorMode {
   return { roundsOnChain: patternType === 'amigurumi' };
 }
-
 
 function restore(): Pattern {
   let saved: string | null = null;
@@ -334,7 +370,8 @@ function structuralProblem(pattern: Pattern): string | null {
 
 const insetRight = () => (panel.hidden ? 0 : panel.getBoundingClientRect().width);
 const insetLeft = () => (typesNav.hidden ? 0 : typesNav.getBoundingClientRect().width);
-const insetBottom = () => (written.hidden ? 0 : Math.max(0, canvas.getBoundingClientRect().bottom - written.getBoundingClientRect().top));
+const insetBottom = () =>
+  written.hidden ? 0 : Math.max(0, canvas.getBoundingClientRect().bottom - written.getBoundingClientRect().top);
 const fitBoard = () => board.fit(insetRight(), insetLeft(), insetBottom());
 const showPoint = (point: Point) => board.ensureVisible(point, insetRight(), insetLeft(), insetBottom());
 
@@ -541,7 +578,8 @@ function updateControls(): void {
   const empty = (pattern.pieces[0]?.stitches.length ?? 0) === 0;
   setDisabled('undo', !canUndo(history));
   setDisabled('redo', !canRedo(history));
-  const canFill = tool !== null && isTargeted(tool) && context.graph !== null && context.slots.some((_, i) => !context.used[i]);
+  const canFill =
+    tool !== null && isTargeted(tool) && context.graph !== null && context.slots.some((_, i) => !context.used[i]);
   setDisabled('fill-row', !canFill);
   setDisabled('end-row', !canEndRow(context));
   setDisabled('close-round', !canCloseRound(pattern, context));
@@ -562,7 +600,9 @@ function updateControls(): void {
   errorCount.textContent =
     check.findings.length === 0
       ? errorBar.none
-      : [errors ? errorBar.errors(errors) : '', warnings ? errorBar.warnings(warnings) : ''].filter(Boolean).join(' · ');
+      : [errors ? errorBar.errors(errors) : '', warnings ? errorBar.warnings(warnings) : '']
+          .filter(Boolean)
+          .join(' · ');
   errorToggle.classList.toggle('has-errors', errors > 0);
   errorToggle.classList.toggle('has-warnings', errors === 0 && warnings > 0);
   const summaryTexts = texts().messages.summary;
@@ -582,7 +622,11 @@ function updateControls(): void {
       const severity = span('finding__severity', finding.severity === 'error' ? findings.error : findings.warning);
       const rule = ruleText(finding.rule);
       // KB: decisions.md §3
-      button.append(severity, rule?.message ?? finding.rule, span('finding__count', findings.nodes(finding.nodes.length)));
+      button.append(
+        severity,
+        rule?.message ?? finding.rule,
+        span('finding__count', findings.nodes(finding.nodes.length)),
+      );
       button.addEventListener('click', () => {
         const first = finding.nodes.find((id) => derived.layout.nodes.has(id));
         if (!first) return;
@@ -945,7 +989,9 @@ async function workAtCursor(): Promise<void> {
   // KB: interface.md §28
   if (slot && context.used[idx]) {
     const same = workIntoSame(history.present, tool, idx, editorMode());
-    const increase = same.ok ? same : work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx, [], editorMode());
+    const increase = same.ok
+      ? same
+      : work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx, [], editorMode());
     commit(increase, withStitchName(messages.work.increase, name, named));
     return;
   }
@@ -967,7 +1013,12 @@ function nudge(dx: number, dy: number): void {
 }
 
 function slug(title: string): string {
-  const base = title.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const base = title
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
   return base || texts().messages.file.fallbackName;
 }
 
@@ -992,7 +1043,13 @@ function exportSvgText(): string {
   const stem = stemFor(pattern, context);
   const grid = {
     grid: chartGrid(pattern, library, gridKindOf(context), context, { mirror, stemLength: stem }),
-    colors: { rowA: token('--c-row-a'), rowB: token('--c-row-b'), cell: token('--c-grid'), row: token('--c-grid-row'), strong: token('--c-grid-strong') },
+    colors: {
+      rowA: token('--c-row-a'),
+      rowB: token('--c-row-b'),
+      cell: token('--c-grid'),
+      row: token('--c-grid-row'),
+      strong: token('--c-grid-strong'),
+    },
   };
   const layout = layoutPattern(pattern, library, { mirror, stemLength: stem });
   return chartSvg(pattern, layout, library, {
@@ -1000,7 +1057,12 @@ function exportSvgText(): string {
     unitFrames: unitFrames(pattern, layout, mirror),
     spikes: spikeNodes(pattern),
     ...(exportGrid.checked ? { grid } : {}),
-    colors: { right: token('--c-ink'), wrong: token('--c-ink-wrong'), text: token('--c-text'), background: token('--c-bg') },
+    colors: {
+      right: token('--c-ink'),
+      wrong: token('--c-ink-wrong'),
+      text: token('--c-text'),
+      background: token('--c-bg'),
+    },
     mirror,
     terms: notation.terms,
     symbols,
@@ -1043,7 +1105,8 @@ async function importJson(file: File): Promise<void> {
   selectedNode = null;
   selection = [];
   const recorded = loaded.pattern.notation?.terms;
-  const note = recorded && recorded !== notation.terms ? file_.notationNote(termsLabel(recorded), termsLabel(notation.terms)) : '';
+  const note =
+    recorded && recorded !== notation.terms ? file_.notationNote(termsLabel(recorded), termsLabel(notation.terms)) : '';
   commit({ ok: true, pattern: loaded.pattern }, file_.loaded(note));
   fitBoard();
 }
@@ -1083,7 +1146,11 @@ async function deleteSelection(): Promise<void> {
     affected = plan.dependents;
     draw();
     const yes = await askConfirm({
-      message: messages.dialog.deleteQuestion(plan.selected.length, plan.dependents.length, describeByLayer(pattern, plan.dependents)),
+      message: messages.dialog.deleteQuestion(
+        plan.selected.length,
+        plan.dependents.length,
+        describeByLayer(pattern, plan.dependents),
+      ),
       confirmLabel: messages.dialog.deleteConfirm,
       cancelLabel: messages.dialog.cancel,
     });
@@ -1108,14 +1175,19 @@ function copySelected(): void {
   const result = copySelection(history.present, selection);
   if (!result.ok) return announce(renderCoreText(EDITOR_CORE_TEXTS[uiLanguage()], result.reason));
   clipboard = result.fragment;
-  const where = result.fragment.startsLayer ? selectionTexts.asLayer(result.fragment.shape === 'round') : selectionTexts.atCursor;
+  const where = result.fragment.startsLayer
+    ? selectionTexts.asLayer(result.fragment.shape === 'round')
+    : selectionTexts.atCursor;
   announce(selectionTexts.copied(result.fragment.stitches.length, where));
 }
 
 function pasteClipboard(): void {
   const selectionTexts = texts().messages.selection;
   if (!clipboard) return announce(selectionTexts.clipboardEmpty);
-  commitInserted(pasteFragment(history.present, clipboard, cursorMoved ? cursor : undefined), selectionTexts.pasted(clipboard.stitches.length));
+  commitInserted(
+    pasteFragment(history.present, clipboard, cursorMoved ? cursor : undefined),
+    selectionTexts.pasted(clipboard.stitches.length),
+  );
 }
 
 function duplicateSelected(): void {
@@ -1159,11 +1231,17 @@ const ACTIONS: Record<string, () => void> = {
   'delete-selection': () => void deleteSelection(),
   'duplicate-selection': () => duplicateSelected(),
   same: () =>
-    tool ? commit(workIntoSame(history.present, tool), texts().messages.work.sameAgain) : announce(texts().messages.work.needStitchShort),
+    tool
+      ? commit(workIntoSame(history.present, tool), texts().messages.work.sameAgain)
+      : announce(texts().messages.work.needStitchShort),
   'fill-row': () =>
     tool && isTargeted(tool)
       ? commit(
-          fillRow(history.present, { def: tool, count: Number(countInput.value), insertion: insertionPanel.insertion }, editorMode()),
+          fillRow(
+            history.present,
+            { def: tool, count: Number(countInput.value), insertion: insertionPanel.insertion },
+            editorMode(),
+          ),
           texts().messages.work.fillRow(insertionSuffix(insertionPanel.insertion)),
         )
       : announce(texts().messages.work.needTargetStitch),
@@ -1196,7 +1274,11 @@ const ACTIONS: Record<string, () => void> = {
   'zoom-out': () => board.zoom(0.8),
   fit: () => fitBoard(),
   'export-json': () => {
-    download(savePattern(withNotation(history.present, notation)), `${slug(history.present.title)}.json`, 'application/json');
+    download(
+      savePattern(withNotation(history.present, notation)),
+      `${slug(history.present.title)}.json`,
+      'application/json',
+    );
     announce(texts().messages.file.jsonSaved);
   },
   'import-json': () => importFile.click(),
@@ -1246,7 +1328,10 @@ titleInput.addEventListener('change', () => {
   const title = titleInput.value.trim();
   // KB: interface.md §29
   if (title !== history.present.title) {
-    commit({ ok: true, pattern: { ...history.present, title, titleGenerated: false } }, texts().messages.work.titleChanged);
+    commit(
+      { ok: true, pattern: { ...history.present, title, titleGenerated: false } },
+      texts().messages.work.titleChanged,
+    );
   }
 });
 
@@ -1375,13 +1460,23 @@ writtenToggle.addEventListener('click', () => {
 });
 
 // KB: interface.md §13 — pointer, touch and keyboard.
-let gripDrag: { readonly pointer: number; readonly y: number; readonly size: number; readonly share: number | null } | null = null;
+let gripDrag: {
+  readonly pointer: number;
+  readonly y: number;
+  readonly size: number;
+  readonly share: number | null;
+} | null = null;
 
 writtenGrip.addEventListener('pointerdown', (event) => {
   if (event.button !== 0) return;
   event.preventDefault();
   writtenGrip.setPointerCapture(event.pointerId);
-  gripDrag = { pointer: event.pointerId, y: event.clientY, size: written.getBoundingClientRect().height, share: writtenShare };
+  gripDrag = {
+    pointer: event.pointerId,
+    y: event.clientY,
+    size: written.getBoundingClientRect().height,
+    share: writtenShare,
+  };
 });
 
 writtenGrip.addEventListener('pointermove', (event) => {
@@ -1427,7 +1522,11 @@ canvas.addEventListener('pointerdown', (event) => {
     const ids = layerSelection(history.present, label);
     selectionAnchor = ids[0] ?? null;
     const name = texts().messages.layer.name(label, layer?.shape === 'round');
-    setSelection(event.shiftKey ? [...selection, ...ids] : ids, null, texts().messages.selection.layer(name, layer?.writtenCount ?? 0));
+    setSelection(
+      event.shiftKey ? [...selection, ...ids] : ids,
+      null,
+      texts().messages.selection.layer(name, layer?.writtenCount ?? 0),
+    );
     return;
   }
   // KB: interface.md §28
@@ -1494,7 +1593,13 @@ canvas.addEventListener('pointerdown', (event) => {
   // Clicking an already selected stitch keeps the selection, so it stays deletable and duplicable.
   setSelection(selection.includes(id) ? selection : [id], id);
   const pinned = history.present.pieces[0]?.stitches.find((n) => n.id === id)?.pinned;
-  drag = { kind: 'node', id, start: board.toChart(event.clientX, event.clientY), base: { x: pinned?.x ?? 0, y: pinned?.y ?? 0 }, moved: false };
+  drag = {
+    kind: 'node',
+    id,
+    start: board.toChart(event.clientX, event.clientY),
+    base: { x: pinned?.x ?? 0, y: pinned?.y ?? 0 },
+    moved: false,
+  };
 });
 
 canvas.addEventListener('pointermove', (event) => {
@@ -1550,7 +1655,11 @@ function endDrag(event: PointerEvent): void {
       return;
     }
     const inside = nodesInRect(history.present, derived.layout, from, to);
-    setSelection(additive ? [...selection, ...inside] : inside, null, inside.length === 0 ? texts().messages.selection.emptyRect : undefined);
+    setSelection(
+      additive ? [...selection, ...inside] : inside,
+      null,
+      inside.length === 0 ? texts().messages.selection.emptyRect : undefined,
+    );
     return;
   }
   if (drag?.kind === 'node' && drag.moved && preview) {
@@ -1591,7 +1700,12 @@ function moveCursor(step: number): void {
 }
 
 function moveFocus(move: FocusMove, extend: boolean): void {
-  const focus = stepFocus(history.present, derived.layout, selectedNode ?? selection[selection.length - 1] ?? null, move);
+  const focus = stepFocus(
+    history.present,
+    derived.layout,
+    selectedNode ?? selection[selection.length - 1] ?? null,
+    move,
+  );
   if (!focus) {
     announce(texts().messages.selection.emptyPattern);
     return;
@@ -1611,7 +1725,8 @@ document.addEventListener('keydown', (event) => {
   const target = event.target as HTMLElement;
   // In a text field the browser's default wins, with one exception: Enter in the chain-count field
   // crochets, which is what the palette hint promises.
-  const chainCountEnter = target === countInput && event.key === 'Enter' && !event.ctrlKey && !event.metaKey && !event.altKey;
+  const chainCountEnter =
+    target === countInput && event.key === 'Enter' && !event.ctrlKey && !event.metaKey && !event.altKey;
   if (target.closest('input, textarea, select, dialog') && !chainCountEnter) return;
   if (chainCountEnter) {
     event.preventDefault();
@@ -1664,7 +1779,12 @@ document.addEventListener('keydown', (event) => {
   }
 
   if (event.altKey) {
-    const arrows: Record<string, [number, number]> = { ArrowLeft: [-2, 0], ArrowRight: [2, 0], ArrowUp: [0, -2], ArrowDown: [0, 2] };
+    const arrows: Record<string, [number, number]> = {
+      ArrowLeft: [-2, 0],
+      ArrowRight: [2, 0],
+      ArrowUp: [0, -2],
+      ArrowDown: [0, 2],
+    };
     const delta = arrows[key];
     if (delta && selectedNode) {
       event.preventDefault();
@@ -1714,7 +1834,14 @@ document.addEventListener('keydown', (event) => {
   }
 
   if (onBoard) {
-    const moves: Record<string, FocusMove> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', Home: 'first', End: 'last' };
+    const moves: Record<string, FocusMove> = {
+      ArrowLeft: 'left',
+      ArrowRight: 'right',
+      ArrowUp: 'up',
+      ArrowDown: 'down',
+      Home: 'first',
+      End: 'last',
+    };
     const move = moves[key];
     if (move && tool === null && (selection.length > 0 || clipboard === null)) {
       event.preventDefault();
@@ -1742,7 +1869,6 @@ document.addEventListener('keydown', (event) => {
       return;
     }
   }
-
 });
 
 const sizePanel = new SizePanel(must<HTMLDetailsElement>('#section-size'), {
@@ -1896,7 +2022,13 @@ if (navigator.webdriver) {
     },
     mintatervezoKijeloles: {
       selection: () => [...selection],
-      nodes: () => [...derived.layout.nodes.values()].map((node) => ({ id: node.id, def: node.def, layer: node.layer, ...board.toClient(node.top) })),
+      nodes: () =>
+        [...derived.layout.nodes.values()].map((node) => ({
+          id: node.id,
+          def: node.def,
+          layer: node.layer,
+          ...board.toClient(node.top),
+        })),
     },
   });
 }

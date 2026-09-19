@@ -1,20 +1,35 @@
 // KB: core-support §6
 import { buildPieceGraph } from './graph.ts';
-import { text, type CoreText } from './messages.ts';
+import { type CoreText, text } from './messages.ts';
+import { withGeneratedTitle } from './pattern-title.ts';
 import { TECHNIQUE_NAMES } from './pixel-chart.ts';
 import { MOTIF_NAMES } from './round-generator.ts';
 import { SHAPE_NAMES } from './shapes.ts';
 import { libraryFor } from './stitch-variants.ts';
-import type { Anchor, LayerEvent, NodeId, Pattern, Piece, PieceGrid, Space, StitchDefId, StitchFlag, StitchNode } from './types.ts';
+import type {
+  Anchor,
+  LayerEvent,
+  NodeId,
+  Pattern,
+  Piece,
+  PieceGrid,
+  Space,
+  StitchDefId,
+  StitchFlag,
+  StitchNode,
+} from './types.ts';
 import { validatePattern } from './validate.ts';
-import { withGeneratedTitle } from './pattern-title.ts';
 
 export type GridPatternCode = 'pattern-invalid';
 
-export type GridResult = { readonly ok: true; readonly pattern: Pattern } | { readonly ok: false; readonly reason: CoreText<GridPatternCode> };
+export type GridResult =
+  | { readonly ok: true; readonly pattern: Pattern }
+  | { readonly ok: false; readonly reason: CoreText<GridPatternCode> };
 
 // KB: core-domain §2
-export const fail = <Code extends string>(reason: CoreText<Code>): { readonly ok: false; readonly reason: CoreText<Code> } => ({ ok: false, reason });
+export const fail = <Code extends string>(
+  reason: CoreText<Code>,
+): { readonly ok: false; readonly reason: CoreText<Code> } => ({ ok: false, reason });
 
 export const intoStitch = (id: NodeId): Anchor => ({ into: 'stitch', id, mode: 'both-loops' });
 

@@ -10,8 +10,6 @@ import { test } from 'node:test';
 import { emptyPattern } from '../src/core/editor.ts';
 import { DEFAULT_GARMENT, DEFAULT_HAT, planGarment } from '../src/core/garments.ts';
 import {
-  KIND_CHOICES,
-  TABLE_CHOICES,
   defaultsFor,
   easeLabel,
   easeNote,
@@ -19,8 +17,10 @@ import {
   garmentView,
   generatedMessage,
   hemLabel,
+  KIND_CHOICES,
   normalizeGarment,
   sizeChoices,
+  TABLE_CHOICES,
 } from '../src/ui/garment-view.ts';
 
 const plan = (options) => {
@@ -47,8 +47,20 @@ test('the selectable garments, size tables and sizes', () => {
 
 test('fields: table, below-waist length and repeat appear only for a sweater, and the labels follow the garment', () => {
   // Ribbing is worked on the hem and cuff rows: a hat has no such rows (PQW-913).
-  assert.deepEqual(garmentFieldState('hat'), { table: false, belowWaist: false, neckline: false, repeat: false, ribbing: false });
-  assert.deepEqual(garmentFieldState('drop-shoulder'), { table: true, belowWaist: true, neckline: true, repeat: true, ribbing: true });
+  assert.deepEqual(garmentFieldState('hat'), {
+    table: false,
+    belowWaist: false,
+    neckline: false,
+    repeat: false,
+    ribbing: false,
+  });
+  assert.deepEqual(garmentFieldState('drop-shoulder'), {
+    table: true,
+    belowWaist: true,
+    neckline: true,
+    repeat: true,
+    ribbing: true,
+  });
   assert.equal(garmentFieldState('raglan').ribbing, true);
   assert.equal(easeLabel('hat'), 'Bőség a fejkörfogathoz, cm');
   assert.equal(hemLabel('hat'), 'Perem, cm');
@@ -85,7 +97,12 @@ test('sweater report: estimated finished size, shaped neckline, all checks true,
 
 test('a suspicious table entry raises a warning on that size', () => {
   const view = garmentView(plan({ ...DEFAULT_GARMENT, size: '2X', from: '2X', to: '3X' }), false);
-  assert.ok(view.warnings.some((line) => /^A táblázat gyanús adata \(2X\): háthossz a derékig és keresztháti szélesség/.test(line)), view.warnings.join('\n'));
+  assert.ok(
+    view.warnings.some((line) =>
+      /^A táblázat gyanús adata \(2X\): háthossz a derékig és keresztháti szélesség/.test(line),
+    ),
+    view.warnings.join('\n'),
+  );
 });
 
 test('hat report and the message shown after generating', () => {
@@ -93,5 +110,8 @@ test('hat report and the message shown after generating', () => {
   const view = garmentView(series, false);
   assert.match(view.size, /^Felnőtt M: kész körméret ≈ \d+ cm, magasság ≈ \d+ cm; \d+ kör\.$/);
   assert.ok(view.details.some((line) => /^Korona: \d+ kör, körönként \d+ szaporítás/.test(line)));
-  assert.equal(generatedMessage(series), 'Sapka, Felnőtt M méret (3 méretes sorozattal) elkészült; visszavonással a korábbi minta visszajön.');
+  assert.equal(
+    generatedMessage(series),
+    'Sapka, Felnőtt M méret (3 méretes sorozattal) elkészült; visszavonással a korábbi minta visszajön.',
+  );
 });

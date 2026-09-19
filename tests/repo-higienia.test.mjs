@@ -12,8 +12,8 @@
  * into something else on the file system.
  */
 
-import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { test } from 'node:test';
 
 /** Mode and path of every tracked file, read from the git index. */
@@ -36,7 +36,9 @@ test('version control holds no symbolic link', () => {
 });
 
 test('node_modules is not tracked', () => {
-  const tracked = trackedFiles().filter((file) => file.path === 'node_modules' || file.path.startsWith('node_modules/'));
+  const tracked = trackedFiles().filter(
+    (file) => file.path === 'node_modules' || file.path.startsWith('node_modules/'),
+  );
   assert.equal(tracked.length, 0, `tracked node_modules: ${tracked.map((file) => file.path).join(', ')}`);
 });
 

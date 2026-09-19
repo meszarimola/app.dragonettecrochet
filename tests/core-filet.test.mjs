@@ -33,7 +33,10 @@ const chart = (...lines) =>
 
 const cyc = () => emptyPattern();
 const japanese = () => ({ ...emptyPattern(), conventions: withTradition(emptyPattern().conventions, 'japanese') });
-const notCounting = () => ({ ...emptyPattern(), conventions: { ...emptyPattern().conventions, turningChainCounts: false } });
+const notCounting = () => ({
+  ...emptyPattern(),
+  conventions: { ...emptyPattern().conventions, turningChainCounts: false },
+});
 
 const make = (pattern, cells, unit = null) => {
   const result = generateFilet(pattern, { cells, unit, lettering: false });
@@ -127,7 +130,10 @@ describe('the row, the foundation and the turning chain (03 §5.2, §10 G32)', (
      * two chains of the open cell and its two skipped chains already belong to
      * the row.
      */
-    assert.equal(row1, '2. sor: hagyj ki 3 láncszemet, majd 1 erp, 2 lsz, 2 láncszem kihagyása, 10 erp (14 szem). A fonal elvágása.');
+    assert.equal(
+      row1,
+      '2. sor: hagyj ki 3 láncszemet, majd 1 erp, 2 lsz, 2 láncszem kihagyása, 10 erp (14 szem). A fonal elvágása.',
+    );
     assert.match(lines(pattern, 'en-US')[1], /^Row 2: skip 3 ch, /);
   });
 });
@@ -143,7 +149,8 @@ describe('every filet pattern is clean and can be saved', () => {
         const label = `${name} ${JSON.stringify(cells)}`;
         const { pattern } = make(base(), cells);
         assert.deepEqual(findings(pattern), [], label);
-        for (const locale of ['hu', 'en-US', 'en-GB']) assert.ok(formatWrittenPattern(writePattern(pattern, libraryFor(pattern), locale)), label);
+        for (const locale of ['hu', 'en-US', 'en-GB'])
+          assert.ok(formatWrittenPattern(writePattern(pattern, libraryFor(pattern), locale)), label);
         const loaded = loadPattern(savePattern(pattern));
         assert.ok(loaded.ok, label);
         assert.deepEqual(loaded.pattern, pattern, label);
@@ -186,7 +193,10 @@ describe('shaping by whole cells (03 §10 F30)', () => {
 
   test('widening at the end of the row takes three chains, just as at the start of the row (03 §5.2, PQW-924)', () => {
     const { pattern, plan } = make(cyc(), chart('####', '###.', '###-'));
-    assert.deepEqual(plan.rows.map((row) => row.extended), [0, 1, 0]);
+    assert.deepEqual(
+      plan.rows.map((row) => row.extended),
+      [0, 1, 0],
+    );
     assert.deepEqual(findings(pattern), []);
     const [, , row2] = lines(pattern);
     assert.match(row2, /, 3 lsz \(\d+ szem\)\. Fordítás\.$/);
@@ -196,8 +206,14 @@ describe('shaping by whole cells (03 §10 F30)', () => {
      * the knowledge base allows widening to be built from chains as well
      * (03 §5.2).
      */
-    assert.deepEqual(pattern.pieces[0].stitches.filter((node) => node.def === 'dtr'), []);
-    assert.deepEqual(pattern.pieces[0].stitches.filter((node) => node.flags?.includes('spike')), []);
+    assert.deepEqual(
+      pattern.pieces[0].stitches.filter((node) => node.def === 'dtr'),
+      [],
+    );
+    assert.deepEqual(
+      pattern.pieces[0].stitches.filter((node) => node.flags?.includes('spike')),
+      [],
+    );
   });
 
   test('the dropped stitch can be read back from the written pattern in all three notations (PQW-902)', () => {
@@ -225,7 +241,8 @@ describe('shaping by whole cells (03 §10 F30)', () => {
       ],
     );
     assert.deepEqual(findings(pattern), []);
-    for (const locale of ['hu', 'en-US', 'en-GB']) assert.ok(formatWrittenPattern(writePattern(pattern, libraryFor(pattern), locale)));
+    for (const locale of ['hu', 'en-US', 'en-GB'])
+      assert.ok(formatWrittenPattern(writePattern(pattern, libraryFor(pattern), locale)));
     assert.deepEqual(loadPattern(savePattern(pattern)).pattern, pattern);
   });
 
@@ -246,7 +263,10 @@ describe('shaping by whole cells (03 §10 F30)', () => {
 
     // The Hungarian sentence is the one we ship today: article, row number and inflection come from the dictionary.
     assert.match(hu(reason(chart('####', '###-'))), /^A 3\. sor végén az új cella csak nyitott lehet/);
-    assert.match(hu(reason(chart('.###', '-###', '####'))), /^A 4\. sor végén a szaporítás nem éri el a két sorral lejjebbi szemet/);
+    assert.match(
+      hu(reason(chart('.###', '-###', '####'))),
+      /^A 4\. sor végén a szaporítás nem éri el a két sorral lejjebbi szemet/,
+    );
     assert.match(hu(reason(chart('###.', '###-'), notCounting())), /fordulóláncnak szemnek kell számítania/);
     assert.match(hu(reason(chart('#-#'))), /^A 2\. sorban a cellák között üres hely van/);
     assert.equal(hu(reason(chart('###', '---'))), 'A 2. sorban nincs cella: a filé minden sora legalább egy cella.');
@@ -258,7 +278,9 @@ describe('shaping by whole cells (03 §10 F30)', () => {
 describe('the repeat unit (owner clarification, 2026-09-15)', () => {
   test('the graph is built from the expanded chart, the row is written out as a repeat, and the unit is saved with the piece', () => {
     // The chart as the designer drew it: `?` is a cell that was not given.
-    const drawn = chart('#.------', '.#.#.#.#', '#.#.#.#.').map((row, y) => row.map((cell, x) => (y === 2 && x >= 2 ? null : cell)));
+    const drawn = chart('#.------', '.#.#.#.#', '#.#.#.#.').map((row, y) =>
+      row.map((cell, x) => (y === 2 && x >= 2 ? null : cell)),
+    );
     const unit = { x: 0, y: 0, width: 2, height: 2 };
     const cells = expandDraft(drawn, unit, 12, 6);
     const { pattern } = make(cyc(), cells, unit);

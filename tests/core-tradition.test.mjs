@@ -17,9 +17,15 @@ import { loadPattern, savePattern } from '../src/core/pattern-json.ts';
 import { readPattern } from '../src/core/pattern-read.ts';
 import { formatWrittenPattern, writePattern } from '../src/core/pattern-text.ts';
 import { foundationChainLength, repeatCounts } from '../src/core/repeat.ts';
-import { stitchById } from '../src/core/stitches.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
-import { firstChainFromHook, skippedChains, stitchTurningChainCounts, traditionOf, withTradition } from '../src/core/tradition.ts';
+import { stitchById } from '../src/core/stitches.ts';
+import {
+  firstChainFromHook,
+  skippedChains,
+  stitchTurningChainCounts,
+  traditionOf,
+  withTradition,
+} from '../src/core/tradition.ts';
 import { validatePattern } from '../src/core/validate.ts';
 import { PieceBuilder, patternOf } from './fixtures/builder.ts';
 import { testLibrary } from './fixtures/library.ts';
@@ -58,7 +64,10 @@ const textOf = (pattern, locale = 'hu') => formatWrittenPattern(writePattern(pat
 const findings = (pattern) => validatePattern(pattern, testLibrary);
 const rules = (pattern) => [...new Set(findings(pattern).map((finding) => finding.rule))];
 const stitchCounts = (pattern) => computeLayers(pattern, testLibrary).map((layer) => layer.stitchCount);
-const asTradition = (pattern, tradition) => ({ ...pattern, conventions: withTradition(pattern.conventions, tradition) });
+const asTradition = (pattern, tradition) => ({
+  ...pattern,
+  conventions: withTradition(pattern.conventions, tradition),
+});
 
 function ok(result) {
   assert.ok(result.ok, result.reason);
@@ -70,11 +79,11 @@ function ok(result) {
 // prettier-ignore
 const STANDING = [
   // stitch turning ch   CYC row: counts  CYC round: counts  Japanese: counts
-  ['sc',    1,           true,            false,           false],
-  ['hdc',   2,           true,            false,           true],
-  ['dc',    3,           true,            true,            true],
-  ['tr',    4,           true,            true,            true],
-  ['dtr',   5,           true,            true,            true],
+  ['sc', 1, true, false, false],
+  ['hdc', 2, true, false, true],
+  ['dc', 3, true, true, true],
+  ['tr', 4, true, true, true],
+  ['dtr', 5, true, true, true],
 ];
 
 test('in rows every turning chain counts as a stitch under CYC and in Japanese only from half double crochet up; in rounds CYC counts from double crochet up (01 §3.3, PQW-891)', () => {
@@ -93,7 +102,12 @@ test('in rows every turning chain counts as a stitch under CYC and in Japanese o
   assert.equal(stitchTurningChainCounts(stitchById('dc2tog'), 'japanese', 'row'), true);
   for (const id of ['ch', 'sl-st', 'magic-ring']) {
     for (const tradition of ['cyc', 'japanese']) {
-      for (const shape of ['row', 'round']) assert.equal(stitchTurningChainCounts(stitchById(id), tradition, shape), false, `${id}, ${tradition}, ${shape}`);
+      for (const shape of ['row', 'round'])
+        assert.equal(
+          stitchTurningChainCounts(stitchById(id), tradition, shape),
+          false,
+          `${id}, ${tradition}, ${shape}`,
+        );
     }
   }
 });
@@ -105,11 +119,11 @@ const FOUNDATION = [
   // dtr 5. The foundation chain is the requested stitch count plus the skip, and
   // after the skip one stitch goes into every chain — so it lands on exactly N.
   // In Japanese tradition the sc turning chain does not count: there the skip is 1.
-  ['sc',    20,  22,       3,         21,         2],
-  ['hdc',   20,  22,       3,         22,         3],
-  ['dc',    20,  23,       4,         23,         4],
-  ['tr',    20,  24,       5,         24,         5],
-  ['dtr',   20,  25,       6,         25,         6],
+  ['sc', 20, 22, 3, 21, 2],
+  ['hdc', 20, 22, 3, 22, 3],
+  ['dc', 20, 23, 4, 23, 4],
+  ['tr', 20, 24, 5, 24, 5],
+  ['dtr', 20, 25, 6, 25, 6],
 ];
 
 test('a foundation chain for N stitches in a row is the requested count plus the skip, and the first stitch goes into the chain after the skip (PQW-924)', () => {
@@ -120,14 +134,23 @@ test('a foundation chain for N stitches in a row is the requested count plus the
       ['japanese', japaneseChains, japaneseFrom],
     ]) {
       const counts = stitchTurningChainCounts(def, tradition, 'row');
-      assert.equal(foundationChainLength(n, def.turningChain, counts, tradition), chains, `${id}, ${tradition}: foundation chain`);
+      assert.equal(
+        foundationChainLength(n, def.turningChain, counts, tradition),
+        chains,
+        `${id}, ${tradition}: foundation chain`,
+      );
       assert.equal(firstChainFromHook(def.turningChain, counts, tradition), from, `${id}, ${tradition}: from the hook`);
     }
   }
 });
 
 test('the CYC row skip is 2 for sc and hdc, 3 for dc and 4 for tr, and the foundation chain is exactly that much longer than the stitch count (PQW-924)', () => {
-  for (const [id, from] of [['sc', 3], ['hdc', 3], ['dc', 4], ['tr', 5]]) {
+  for (const [id, from] of [
+    ['sc', 3],
+    ['hdc', 3],
+    ['dc', 4],
+    ['tr', 5],
+  ]) {
     const def = stitchById(id);
     const counts = stitchTurningChainCounts(def, 'cyc', 'row');
     assert.equal(counts, true, `${id}: counts as a stitch`);
@@ -135,9 +158,17 @@ test('the CYC row skip is 2 for sc and hdc, 3 for dc and 4 for tr, and the found
     for (const n of [10, 20, 39]) {
       const chains = n + skippedChains(def.turningChain, true);
       assert.equal(foundationChainLength(n, def.turningChain, true), chains, `${id}, ${n} sts: foundation chain`);
-      assert.equal(foundationChainLength(n, def.turningChain, true, 'cyc'), chains, `${id}, ${n} sts, CYC: foundation chain`);
+      assert.equal(
+        foundationChainLength(n, def.turningChain, true, 'cyc'),
+        chains,
+        `${id}, ${n} sts, CYC: foundation chain`,
+      );
       // After the skip one stitch goes into every chain: exactly the requested count.
-      assert.equal(chains - (firstChainFromHook(def.turningChain, counts, 'cyc') - 1), n, `${id}, ${n} sts: worked into the chain`);
+      assert.equal(
+        chains - (firstChainFromHook(def.turningChain, counts, 'cyc') - 1),
+        n,
+        `${id}, ${n} sts: worked into the chain`,
+      );
     }
   }
 });
@@ -174,7 +205,12 @@ test('with a repeat the foundation chain grows by the skip, and the row offers a
 /* ---- The graph, the validator and the written pattern ---- */
 
 describe('with the Japanese preset a rectangle counts by the Japanese convention', () => {
-  for (const [id, n] of [['sc', 10], ['hdc', 15], ['dc', 16], ['tr', 12]]) {
+  for (const [id, n] of [
+    ['sc', 10],
+    ['hdc', 15],
+    ['dc', 16],
+    ['tr', 12],
+  ]) {
     test(`${id}: validates clean with ${n} stitches per row, and the foundation chain and turning chain follow the Japanese rule`, () => {
       const pattern = rectangle(id, n, 4, 'japanese');
       assert.deepEqual(findings(pattern), []);
@@ -185,7 +221,11 @@ describe('with the Japanese preset a rectangle counts by the Japanese convention
       assert.equal(graph.layers[1].turningChain.length, turningChain, 'the turning chain length comes from the stitch');
       assert.equal(graph.layers[0].stitches.length + turningChain, n + turningChain);
 
-      const from = firstChainFromHook(turningChain, stitchTurningChainCounts(stitchById(id), 'japanese', 'row'), 'japanese');
+      const from = firstChainFromHook(
+        turningChain,
+        stitchTurningChainCounts(stitchById(id), 'japanese', 'row'),
+        'japanese',
+      );
       const text = textOf(pattern);
       assert.match(text, new RegExp(`1. sor – alapsor: ${n + turningChain} lsz\\.`));
       assert.match(text, new RegExp(`2\\. sor: hagyj ki ${from - 1} láncszemet, majd minden láncszembe 1 `));
@@ -196,31 +236,53 @@ describe('with the Japanese preset a rectangle counts by the Japanese convention
 test("the owner's scarf: 41 chains, turn, skip 2 chains, then 1 single crochet into every chain (PQW-924)", () => {
   const pattern = rectangle('sc', 39, 3, 'cyc');
   assert.deepEqual(findings(pattern), []);
-  assert.equal(pattern.pieces[0].stitches.findIndex((node) => node.def !== 'ch'), 41, 'the foundation chain is 41 chains');
+  assert.equal(
+    pattern.pieces[0].stitches.findIndex((node) => node.def !== 'ch'),
+    41,
+    'the foundation chain is 41 chains',
+  );
   assert.deepEqual(stitchCounts(pattern), [0, 39, 39, 39]);
   // The written stitch count includes the turning chain (PQW-940).
-  assert.deepEqual(computeLayers(pattern, testLibrary).map((layer) => layer.writtenCount), [40, 40, 40, 40]);
+  assert.deepEqual(
+    computeLayers(pattern, testLibrary).map((layer) => layer.writtenCount),
+    [40, 40, 40, 40],
+  );
 
   const text = textOf(pattern);
   assert.ok(text.includes('1. sor – alapsor: 41 lsz.'), text);
   // The owner's sentence (PQW-895): how many chains to skip, and that one single crochet goes into every chain.
-  assert.ok(text.split('\n').includes('2. sor: hagyj ki 2 láncszemet, majd minden láncszembe 1 rp (40 szem). Fordítás.'), text);
+  assert.ok(
+    text.split('\n').includes('2. sor: hagyj ki 2 láncszemet, majd minden láncszembe 1 rp (40 szem). Fordítás.'),
+    text,
+  );
   assert.ok(textOf(pattern, 'en-US').split('\n').includes('Row 2: skip 2 ch, sc in each ch across (40 sts). Turn.'));
   // British English uses its own verb and stitch name: a US sc is a UK dc.
   assert.ok(textOf(pattern, 'en-GB').split('\n').includes('Row 2: miss 2 ch, dc in each ch across (40 sts). Turn.'));
   for (const locale of ['hu', 'en-US', 'en-GB']) {
-    const result = readPattern(textOf(pattern, locale), { library: testLibrary, locale, conventions: pattern.conventions });
+    const result = readPattern(textOf(pattern, locale), {
+      library: testLibrary,
+      locale,
+      conventions: pattern.conventions,
+    });
     assert.equal(result.ok, true, `${locale}: ${JSON.stringify(result.error)}`);
     assert.deepEqual(canonicalPattern(result.pattern), canonicalPattern(pattern), locale);
   }
 });
 
 describe('the plain sentence for row 2 worked into the foundation chain (PQW-895)', () => {
-  const firstRow = (pattern, locale) => textOf(pattern, locale).split('\n').find((line) => /^(2\. sor|Row 2):/.test(line));
+  const firstRow = (pattern, locale) =>
+    textOf(pattern, locale)
+      .split('\n')
+      .find((line) => /^(2\. sor|Row 2):/.test(line));
 
   test("skipped chains follow the owner's table: sc 2, hdc 2, dc 3, tr 4 (PQW-924)", () => {
     const skips = [];
-    for (const [id, n] of [['sc', 12], ['hdc', 12], ['dc', 12], ['tr', 12]]) {
+    for (const [id, n] of [
+      ['sc', 12],
+      ['hdc', 12],
+      ['dc', 12],
+      ['tr', 12],
+    ]) {
       const pattern = rectangle(id, n, 2, 'cyc');
       assert.deepEqual(findings(pattern), [], id);
       const def = stitchById(id);
@@ -228,12 +290,24 @@ describe('the plain sentence for row 2 worked into the foundation chain (PQW-895
       skips.push(skip);
       // The written stitch count includes the turning chain (PQW-940).
       const stated = n + 1;
-      assert.equal(firstRow(pattern, 'hu'), `2. sor: hagyj ki ${skip} láncszemet, majd minden láncszembe 1 ${def.terms.hu.abbr} (${stated} szem). Fordítás.`);
-      assert.equal(firstRow(pattern, 'en-US'), `Row 2: skip ${skip} ch, ${def.terms['en-US'].abbr} in each ch across (${stated} sts). Turn.`);
-      assert.equal(firstRow(pattern, 'en-GB'), `Row 2: miss ${skip} ch, ${def.terms['en-GB'].abbr} in each ch across (${stated} sts). Turn.`);
+      assert.equal(
+        firstRow(pattern, 'hu'),
+        `2. sor: hagyj ki ${skip} láncszemet, majd minden láncszembe 1 ${def.terms.hu.abbr} (${stated} szem). Fordítás.`,
+      );
+      assert.equal(
+        firstRow(pattern, 'en-US'),
+        `Row 2: skip ${skip} ch, ${def.terms['en-US'].abbr} in each ch across (${stated} sts). Turn.`,
+      );
+      assert.equal(
+        firstRow(pattern, 'en-GB'),
+        `Row 2: miss ${skip} ch, ${def.terms['en-GB'].abbr} in each ch across (${stated} sts). Turn.`,
+      );
       // The old sentence claiming the skipped chains count as one stitch is gone; the turning chain, however, is a stitch (PQW-940).
       assert.doesNotMatch(textOf(pattern), /kihagyott láncszemek/);
-      assert.match(textOf(pattern), new RegExp(`3\\. sor: ${def.turningChain} lsz \\(1 ${def.terms.hu.abbr}-nek számít\\),`));
+      assert.match(
+        textOf(pattern),
+        new RegExp(`3\\. sor: ${def.turningChain} lsz \\(1 ${def.terms.hu.abbr}-nek számít\\),`),
+      );
     }
     assert.deepEqual(skips, [2, 2, 3, 4]);
   });
@@ -246,7 +320,11 @@ describe('the plain sentence for row 2 worked into the foundation chain (PQW-895
       const pattern = rectangle(id, 15, 3, 'cyc');
       assert.equal(firstRow(pattern, 'hu'), expected);
       for (const locale of ['hu', 'en-US', 'en-GB']) {
-        const result = readPattern(textOf(pattern, locale), { library: testLibrary, locale, conventions: pattern.conventions });
+        const result = readPattern(textOf(pattern, locale), {
+          library: testLibrary,
+          locale,
+          conventions: pattern.conventions,
+        });
         assert.equal(result.ok, true, `${id} ${locale}: ${JSON.stringify(result.error)}`);
         assert.deepEqual(canonicalPattern(result.pattern), canonicalPattern(pattern), `${id} ${locale}`);
       }
@@ -255,9 +333,16 @@ describe('the plain sentence for row 2 worked into the foundation chain (PQW-895
 
   test('in Japanese tradition the non-counting single crochet turning chain skips only 1 chain, and it reads back', () => {
     const pattern = rectangle('sc', 15, 3, 'japanese');
-    assert.equal(firstRow(pattern, 'hu'), '2. sor: hagyj ki 1 láncszemet, majd minden láncszembe 1 rp (15 szem). Fordítás.');
+    assert.equal(
+      firstRow(pattern, 'hu'),
+      '2. sor: hagyj ki 1 láncszemet, majd minden láncszembe 1 rp (15 szem). Fordítás.',
+    );
     for (const locale of ['hu', 'en-US', 'en-GB']) {
-      const result = readPattern(textOf(pattern, locale), { library: testLibrary, locale, conventions: pattern.conventions });
+      const result = readPattern(textOf(pattern, locale), {
+        library: testLibrary,
+        locale,
+        conventions: pattern.conventions,
+      });
       assert.equal(result.ok, true, `${locale}: ${JSON.stringify(result.error)}`);
       assert.deepEqual(canonicalPattern(result.pattern), canonicalPattern(pattern), locale);
     }
@@ -272,9 +357,21 @@ describe('the plain sentence for row 2 worked into the foundation chain (PQW-895
   test('text saved with the pre-PQW-895 sentence is rejected on load, naming both the reason and the remedy', () => {
     const pattern = rectangle('sc', 39, 3, 'cyc');
     for (const [locale, oldLine, expected] of [
-      ['hu', '2. sor: a horogtól számított 3. láncszemtől kezdve (a kihagyott láncszemek 1 rp-nek számítanak) 38 rp (39 szem). Fordítás.', /korábbi szabály szerint készült/],
-      ['en-US', 'Row 2: Starting in 3rd ch from hook (skipped ch count as 1 sc), 38 sc (39 sts). Turn.', /earlier rule/],
-      ['en-GB', 'Row 2: Starting in 3rd ch from hook (skipped ch count as 1 dc), 38 dc (39 sts). Turn.', /earlier rule/],
+      [
+        'hu',
+        '2. sor: a horogtól számított 3. láncszemtől kezdve (a kihagyott láncszemek 1 rp-nek számítanak) 38 rp (39 szem). Fordítás.',
+        /korábbi szabály szerint készült/,
+      ],
+      [
+        'en-US',
+        'Row 2: Starting in 3rd ch from hook (skipped ch count as 1 sc), 38 sc (39 sts). Turn.',
+        /earlier rule/,
+      ],
+      [
+        'en-GB',
+        'Row 2: Starting in 3rd ch from hook (skipped ch count as 1 dc), 38 dc (39 sts). Turn.',
+        /earlier rule/,
+      ],
     ]) {
       const text = textOf(pattern, locale);
       const old = text.replace(firstRow(pattern, locale), oldLine);
@@ -285,13 +382,19 @@ describe('the plain sentence for row 2 worked into the foundation chain (PQW-895
       // It reports where the bad line is, too: the row after the foundation chain.
       assert.equal(result.error.line, 2 + text.split('\n').indexOf(firstRow(pattern, locale)) - 1);
       // The remedy is in there as well, not only the reason.
-      assert.match(result.error.message, locale === 'hu' ? /Írd át a sort|generáld újra/ : /Rewrite the row|generate the pattern again/);
+      assert.match(
+        result.error.message,
+        locale === 'hu' ? /Írd át a sort|generáld újra/ : /Rewrite the row|generate the pattern again/,
+      );
     }
   });
 
   test('the old sentence is rejected without its parenthetical too: that is not the current form either', () => {
     const pattern = rectangle('sc', 15, 3, 'cyc');
-    const old = textOf(pattern).replace(firstRow(pattern, 'hu'), '2. sor: a horogtól számított 3. láncszemtől kezdve 14 rp (15 szem). Fordítás.');
+    const old = textOf(pattern).replace(
+      firstRow(pattern, 'hu'),
+      '2. sor: a horogtól számított 3. láncszemtől kezdve 14 rp (15 szem). Fordítás.',
+    );
     const result = readPattern(old, { library: testLibrary, locale: 'hu', conventions: pattern.conventions });
     assert.equal(result.ok, false);
     assert.match(result.error.message, /korábbi szabály szerint készült/);
@@ -319,7 +422,11 @@ test('the same single crochet piece under the CYC and the Japanese preset: the s
     computeLayers(pattern, testLibrary).map(({ shape, side, stitchCount }) => ({ shape, side, stitchCount }));
   assert.deepEqual(shape(japanese), shape(cyc));
   // In Japanese the sc turning chain does not count, so the skip is 1 and the foundation chain is one shorter (PQW-924).
-  assert.equal(japanese.pieces[0].stitches.length, cyc.pieces[0].stitches.length - 1, 'the Japanese foundation chain is one chain shorter');
+  assert.equal(
+    japanese.pieces[0].stitches.length,
+    cyc.pieces[0].stitches.length - 1,
+    'the Japanese foundation chain is one chain shorter',
+  );
 
   // The text differs only at the start of the rows: where row 1 begins, and whether the turning chain counts.
   const [a, b] = [textOf(cyc).split('\n'), textOf(japanese).split('\n')];
@@ -331,11 +438,11 @@ test('the same single crochet piece under the CYC and the Japanese preset: the s
     assert.match(x, /^\d+(–\d+)?\. sor(: | – alapsor: )/);
     assert.equal(x.split(':')[0], y.split(':')[0]);
     /*
-      * The stitch count differs too: the turning chain is the first stitch of the
-      * row (PQW-940), and in Japanese the sc one does not count while under CYC it
-      * does — so CYC reads one higher. The structure (how many stitches are worked
-      * into the row) is the same either way.
-      */
+     * The stitch count differs too: the turning chain is the first stitch of the
+     * row (PQW-940), and in Japanese the sc one does not count while under CYC it
+     * does — so CYC reads one higher. The structure (how many stitches are worked
+     * into the row) is the same either way.
+     */
     if (!x.includes(' – alapsor: ')) {
       assert.equal(Number(x.match(/\((\d+) szem\)/)[1]), Number(y.match(/\((\d+) szem\)/)[1]) + 1);
     }
@@ -372,7 +479,11 @@ test('reading the Japanese written pattern back gives the same graph in all thre
   for (const id of ['sc', 'hdc', 'dc']) {
     const pattern = rectangle(id, 8, 3, 'japanese');
     for (const locale of ['hu', 'en-US', 'en-GB']) {
-      const result = readPattern(textOf(pattern, locale), { library: testLibrary, locale, conventions: pattern.conventions });
+      const result = readPattern(textOf(pattern, locale), {
+        library: testLibrary,
+        locale,
+        conventions: pattern.conventions,
+      });
       assert.equal(result.ok, true, `${id}, ${locale}: ${JSON.stringify(result.error)}`);
       assert.deepEqual(canonicalPattern(result.pattern), canonicalPattern(pattern), `${id}, ${locale}`);
     }
@@ -426,7 +537,6 @@ describe('the editor with the Japanese preset', () => {
     assert.equal(bad.error.path, '$.conventions.tradition');
   });
 });
-
 
 /*
  * How many chains are skipped when row 1 starts (PQW-924).

@@ -1,9 +1,9 @@
 import type { WorkContext } from './editor.ts';
 import { chainBridges } from './graph.ts';
-import { layoutPattern, type ChartLayout, type LayoutOptions, type NodePlacement, type Point } from './layout.ts';
-import { text, type CoreText } from './messages.ts';
+import { type ChartLayout, type LayoutOptions, layoutPattern, type NodePlacement, type Point } from './layout.ts';
+import { type CoreText, text } from './messages.ts';
 import { CIRCLE, frameCoords, framePoint, outline, type RoundFrame } from './polygon.ts';
-import { curveStrip, outlineOf, rowCurve, type RowCurve } from './row-curve.ts';
+import { curveStrip, outlineOf, type RowCurve, rowCurve } from './row-curve.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import type { NodeId, Pattern } from './types.ts';
 
@@ -161,7 +161,14 @@ function slotNodes(context: WorkContext): Map<NodeId, number> {
   const map = new Map<NodeId, number>();
   context.slots.forEach((slot, i) => {
     // KB: core-geometry §5
-    const ids = slot.kind === 'underside' ? [] : slot.kind === 'stitch' ? [slot.id] : slot.kind === 'space' ? slot.chains : [slot.node];
+    const ids =
+      slot.kind === 'underside'
+        ? []
+        : slot.kind === 'stitch'
+          ? [slot.id]
+          : slot.kind === 'space'
+            ? slot.chains
+            : [slot.node];
     for (const id of ids) if (!map.has(id)) map.set(id, i);
   });
   return map;
@@ -174,7 +181,10 @@ export function targetPoint(layout: ChartLayout, context: WorkContext, index: nu
   const ids = slot.kind === 'stitch' ? [slot.id] : slot.kind === 'space' ? slot.chains : [slot.node];
   const points = ids.map((id) => layout.nodes.get(id)?.top).filter((p): p is Point => p !== undefined);
   if (points.length === 0) return undefined;
-  return { x: points.reduce((s, p) => s + p.x, 0) / points.length, y: points.reduce((s, p) => s + p.y, 0) / points.length };
+  return {
+    x: points.reduce((s, p) => s + p.x, 0) / points.length,
+    y: points.reduce((s, p) => s + p.y, 0) / points.length,
+  };
 }
 
 function undersidePoint(layout: ChartLayout, context: WorkContext, id: NodeId): Point | undefined {
@@ -182,7 +192,9 @@ function undersidePoint(layout: ChartLayout, context: WorkContext, id: NodeId): 
   if (!chain) return undefined;
   const normal = { x: -Math.sin(chain.angle), y: Math.cos(chain.angle) };
   const graph = context.graph;
-  const front = graph?.layers[1]?.stitches.find((node) => graph.nodes.get(node)!.anchors.some((anchor) => anchor.into === 'stitch' && anchor.id === id));
+  const front = graph?.layers[1]?.stitches.find((node) =>
+    graph.nodes.get(node)!.anchors.some((anchor) => anchor.into === 'stitch' && anchor.id === id),
+  );
   const top = front ? layout.nodes.get(front)?.top : undefined;
   // With no stitch worked in front of it, the point goes below the chain.
   const toward = top ? Math.sign((top.x - chain.top.x) * normal.x + (top.y - chain.top.y) * normal.y) || -1 : -1;
@@ -216,7 +228,10 @@ function layerColumns(input: Input, layer: number, axis: (p: Point) => number): 
   if (graph && row && under && layer >= 1 && layer !== context.layer && row.shape === 'row') {
     const worked = new Set(row.stitches.flatMap((id) => graph.nodes.get(id)!.anchors.map((anchor) => anchor.id)));
     const optional = under.turningChainCounts ? under.turningChain[under.turningChain.length - 1] : undefined;
-    const bridged = new Set([...graph.piece.skipped, ...chainBridges(graph, layer).flatMap((bridge) => bridge.bridged)]);
+    const bridged = new Set([
+      ...graph.piece.skipped,
+      ...chainBridges(graph, layer).flatMap((bridge) => bridge.bridged),
+    ]);
     const at = under.positions.map((id, index) => (worked.has(id) ? index : -1)).filter((index) => index >= 0);
     const inside = (index: number) => at.length > 0 && index > at[0]! && index < at[at.length - 1]!;
     for (const [index, id] of under.positions.entries()) {
@@ -290,18 +305,21 @@ function workingColumns(input: Input, axis: (p: Point) => number | undefined): C
     const low = Math.min(...xs);
     const high = Math.max(...xs);
     const reach = (high - low) / (xs.length - 1) / 2;
-    const covered = result.filter((column) => column.node === null && column.at >= low - reach && column.at <= high + reach);
+    const covered = result.filter(
+      (column) => column.node === null && column.at >= low - reach && column.at <= high + reach,
+    );
     if (covered.length === 0 || covered.length >= xs.length) continue;
     for (const column of covered) result.splice(result.indexOf(column), 1);
     places.forEach((node, i) => {
       const at = xs[i]!;
-      const nearest = covered.reduce((best, column) => (Math.abs(column.at - at) < Math.abs(best.at - at) ? column : best));
+      const nearest = covered.reduce((best, column) =>
+        Math.abs(column.at - at) < Math.abs(best.at - at) ? column : best,
+      );
       result.push({ at, node: node.id, slot: nearest.slot, order: result.length });
     });
   }
   return result;
 }
-
 
 function rowGrid(input: Input): { bands: GridBand[]; cells: GridCell[] } {
   const { layout, context, W, byLayer } = input;
@@ -317,9 +335,12 @@ function rowGrid(input: Input): { bands: GridBand[]; cells: GridCell[] } {
     return rest.length > 0 ? rest : all;
   };
   // y decreases upward.
-  const topOf = (layer: number) => Math.min(...shaping(layer).map((n) => n.top.y - (n.role === 'chain' ? CHAIN_REACH : 0)));
-  const ceilingOf = (layer: number) => Math.min(...nodes(layer).map((n) => n.top.y - (n.role === 'chain' ? CHAIN_REACH : 0)));
-  const bottomOf = (layer: number) => Math.max(...shaping(layer).map((n) => n.top.y + (n.role === 'chain' ? CHAIN_REACH : 0)));
+  const topOf = (layer: number) =>
+    Math.min(...shaping(layer).map((n) => n.top.y - (n.role === 'chain' ? CHAIN_REACH : 0)));
+  const ceilingOf = (layer: number) =>
+    Math.min(...nodes(layer).map((n) => n.top.y - (n.role === 'chain' ? CHAIN_REACH : 0)));
+  const bottomOf = (layer: number) =>
+    Math.max(...shaping(layer).map((n) => n.top.y + (n.role === 'chain' ? CHAIN_REACH : 0)));
   const baseOf = (layer: number) => {
     const feet = nodes(layer).flatMap((n) => n.feet.map((foot) => foot.y));
     return feet.length > 0 ? Math.min(...feet) : undefined;
@@ -348,7 +369,9 @@ function rowGrid(input: Input): { bands: GridBand[]; cells: GridCell[] } {
       working: layer === working,
       area: { kind: 'rect', x0: Math.min(...xs), x1: Math.max(...xs), y0, y1 },
     });
-    const ranked = columns.map((column, i) => ({ column, span: spans[i]! })).sort((a, b) => fromStart * (a.column.at - b.column.at));
+    const ranked = columns
+      .map((column, i) => ({ column, span: spans[i]! }))
+      .sort((a, b) => fromStart * (a.column.at - b.column.at));
     ranked.forEach(({ column, span }, index) => {
       cells.push({
         layer,
@@ -367,7 +390,8 @@ function rowGrid(input: Input): { bands: GridBand[]; cells: GridCell[] } {
   for (let layer = 0; layer <= last; layer += 1) {
     const placement = layout.layers[layer];
     // KB: 01 §6.3
-    const fromStart: 1 | -1 = placement && layer > 0 ? (placement.start.x <= placement.end.x ? 1 : -1) : startOfFirstRow(layout);
+    const fromStart: 1 | -1 =
+      placement && layer > 0 ? (placement.start.x <= placement.end.x ? 1 : -1) : startOfFirstRow(layout);
     const columns = layer === working ? workingColumns(input, axisX) : layerColumns(input, layer, axisX);
     const dipping = nodes(layer + 1)
       .filter((n) => turning.has(n.id))
@@ -384,7 +408,10 @@ function rowGrid(input: Input): { bands: GridBand[]; cells: GridCell[] } {
   return { bands, cells };
 }
 
-function curved(grid: { bands: GridBand[]; cells: GridCell[] }, curve: RowCurve): { bands: GridBand[]; cells: GridCell[] } {
+function curved(
+  grid: { bands: GridBand[]; cells: GridCell[] },
+  curve: RowCurve,
+): { bands: GridBand[]; cells: GridCell[] } {
   const strip = (area: GridArea): GridArea =>
     area.kind === 'rect' ? { kind: 'strip', ...curveStrip(area.x0, area.x1, area.y0, area.y1, curve) } : area;
   return {
@@ -415,7 +442,6 @@ function spansOf(columns: readonly Column[], half: number): (readonly [number, n
   return result;
 }
 
-
 const normalize = (angle: number) => ((angle % TAU) + TAU) % TAU;
 // 0 at the centre, where the perimeter parameter is undefined.
 const aroundOf = (frame: RoundFrame, p: Point) => {
@@ -429,7 +455,8 @@ function roundGrid(input: Input): { bands: GridBand[]; cells: GridCell[] } {
   const working = context.layer;
   const shaped = frame.sides >= 3 ? { frame } : {};
   const reach = (n: NodePlacement) => (n.role === 'ring' ? RING_REACH : n.role === 'chain' ? CHAIN_REACH : 0);
-  const outerOf = (layer: number) => Math.max(0, ...(byLayer[layer] ?? []).map((n) => frameCoords(frame, n.top).r + reach(n)));
+  const outerOf = (layer: number) =>
+    Math.max(0, ...(byLayer[layer] ?? []).map((n) => frameCoords(frame, n.top).r + reach(n)));
 
   const bands: GridBand[] = [];
   const cells: GridCell[] = [];
@@ -495,7 +522,6 @@ function arcsOf(columns: readonly Column[]): (readonly [number, number])[] {
   return result;
 }
 
-
 function boundsOf(bands: readonly GridBand[], cells: readonly GridCell[]): ChartGrid['bounds'] {
   let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
   for (const { area } of [...bands, ...cells]) {
@@ -535,7 +561,6 @@ export function chartBounds(layout: ChartLayout, grid: ChartGrid | null | undefi
     maxY: Math.max(layout.bounds.maxY, grid.bounds.maxY),
   };
 }
-
 
 export function contains(area: GridArea, p: Point): boolean {
   if (area.kind === 'rect') return p.x >= area.x0 && p.x <= area.x1 && p.y >= area.y0 && p.y <= area.y1;

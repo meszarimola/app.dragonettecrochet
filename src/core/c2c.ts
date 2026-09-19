@@ -2,11 +2,27 @@
 // KB: core-geometry §42, §54
 
 import { buildPieceGraph, spacePositions } from './graph.ts';
-import { fail, finishGridPattern, gridPiece, GridWriter, intoSpace, intoStitch, type GridPatternCode } from './grid-pattern.ts';
-import { text, type CoreText } from './messages.ts';
-import { TECHNIQUE_NAMES, c2cTileRows, cellSize, colorChartProblem, type CellSize, type ChartCode, type ChartRows } from './pixel-chart.ts';
+import {
+  fail,
+  finishGridPattern,
+  type GridPatternCode,
+  GridWriter,
+  gridPiece,
+  intoSpace,
+  intoStitch,
+} from './grid-pattern.ts';
+import { type CoreText, text } from './messages.ts';
+import {
+  type CellSize,
+  type ChartCode,
+  type ChartRows,
+  c2cTileRows,
+  cellSize,
+  colorChartProblem,
+  TECHNIQUE_NAMES,
+} from './pixel-chart.ts';
 import { foundationChainLength } from './repeat.ts';
-import { shapeGauge, type ShapeGauge } from './shapes.ts';
+import { type ShapeGauge, shapeGauge } from './shapes.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import { firstChainFromHook, skippedChains, traditionOf, turningChainCountsFor } from './tradition.ts';
 import type { GridUnit, NodeId, Pattern, PatternColor, Piece } from './types.ts';
@@ -18,7 +34,8 @@ export const TILE_STITCHES = 3;
 // KB: 03 §5.5, 03 §10 G33
 export const c2cRowCount = (width: number, height: number) => width + height - 1;
 
-export const tilesInRow = (row: number, width: number, height: number) => Math.min(row, width, height, width + height - row);
+export const tilesInRow = (row: number, width: number, height: number) =>
+  Math.min(row, width, height, width + height - row);
 
 export interface C2CTile {
   // `x` counts from the left, `y` from the bottom, both 0-based.
@@ -49,7 +66,9 @@ export interface C2CPlan {
 
 export type C2CCode = 'c2c-turning-chain' | 'c2c-repeated-increase';
 
-export type C2CPlanResult = { readonly ok: true; readonly plan: C2CPlan } | { readonly ok: false; readonly reason: CoreText<C2CCode | ChartCode> };
+export type C2CPlanResult =
+  | { readonly ok: true; readonly plan: C2CPlan }
+  | { readonly ok: false; readonly reason: CoreText<C2CCode | ChartCode> };
 export type C2CResult =
   | { readonly ok: true; readonly pattern: Pattern; readonly plan: C2CPlan }
   | { readonly ok: false; readonly reason: CoreText<C2CCode | ChartCode | GridPatternCode> };
@@ -112,7 +131,8 @@ function buildC2C(pattern: Pattern, plan: C2CPlan): GridWriter {
 
   const first = plan.rows[0]!.tiles[0]!;
   // KB: core-geometry §42
-  const worked = foundationChainLength(TILE_STITCHES, turningChain, true, tradition) - skippedChains(turningChain, true);
+  const worked =
+    foundationChainLength(TILE_STITCHES, turningChain, true, tradition) - skippedChains(turningChain, true);
   const base = [...writer.chains(worked, first.color)].reverse();
   const firstSpace = writer.spaceOf(writer.chains(turningChain, first.color));
   // The first tile sits at the END of the worked foundation chain.
@@ -141,7 +161,9 @@ function buildC2C(pattern: Pattern, plan: C2CPlan): GridWriter {
       }
       writer.add(SLIP, [intoSpace(below.space)], tile.color);
       const space = writer.space(TILE_STITCHES, tile.color).id;
-      const stitches = Array.from({ length: TILE_STITCHES }, () => writer.add(C2C_STITCH, [intoSpace(below.space)], tile.color));
+      const stitches = Array.from({ length: TILE_STITCHES }, () =>
+        writer.add(C2C_STITCH, [intoSpace(below.space)], tile.color),
+      );
       built.push({ space, stitches });
     });
     previous = built;

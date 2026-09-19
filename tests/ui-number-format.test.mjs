@@ -24,10 +24,22 @@ function withLanguage(language, run) {
 }
 
 test('decimal comma in Hungarian, decimal point in English', () => {
-  assert.equal(withLanguage('hu', () => formatNumber(19.7)), '19,7');
-  assert.equal(withLanguage('en', () => formatNumber(19.7)), '19.7');
-  assert.equal(withLanguage('hu', () => formatNumber(8.45, 2)), '8,45');
-  assert.equal(withLanguage('en', () => formatNumber(8.45, 2)), '8.45');
+  assert.equal(
+    withLanguage('hu', () => formatNumber(19.7)),
+    '19,7',
+  );
+  assert.equal(
+    withLanguage('en', () => formatNumber(19.7)),
+    '19.7',
+  );
+  assert.equal(
+    withLanguage('hu', () => formatNumber(8.45, 2)),
+    '8,45',
+  );
+  assert.equal(
+    withLanguage('en', () => formatNumber(8.45, 2)),
+    '8.45',
+  );
 });
 
 test('decimal places and rounding behave the same in both languages', () => {
@@ -42,8 +54,14 @@ test('decimal places and rounding behave the same in both languages', () => {
 });
 
 test('neither language groups thousands: stitch counts and metres stay unbroken', () => {
-  assert.equal(withLanguage('hu', () => formatNumber(12500)), '12500');
-  assert.equal(withLanguage('en', () => formatNumber(12500)), '12500');
+  assert.equal(
+    withLanguage('hu', () => formatNumber(12500)),
+    '12500',
+  );
+  assert.equal(
+    withLanguage('en', () => formatNumber(12500)),
+    '12500',
+  );
 });
 
 test('a language switch shows up at once, so nothing sticks in a cache', () => {

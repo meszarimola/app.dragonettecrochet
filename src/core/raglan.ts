@@ -2,13 +2,13 @@
 
 import { NEGATIVE_EASE_LIMIT, NEGATIVE_EASE_MAX } from './body-sizes.ts';
 import { evenPositions, eventRows, intentOf, roundEven, roundStitches, slopeSchedule } from './garment-math.ts';
+import type { GarmentCheck, GarmentCode } from './garments.ts';
 import { buildPieceGraph } from './graph.ts';
-import { text, type CoreText } from './messages.ts';
-import { ribbedOpening, ribbedTurningChain, ribbingColumnMode, type RibbingOptions } from './ribbing.ts';
+import { type CoreText, text } from './messages.ts';
+import { type RibbingOptions, ribbedOpening, ribbedTurningChain, ribbingColumnMode } from './ribbing.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import { traditionOf, turningChainCountsFor } from './tradition.ts';
 import type { Anchor, LayerEvent, NodeId, Pattern, Piece, Space, SpaceId, StitchGroup, StitchNode } from './types.ts';
-import type { GarmentCheck, GarmentCode } from './garments.ts';
 
 // KB: 05 §2.3
 export const RAGLAN_PER_ROUND = 8;
@@ -114,7 +114,8 @@ class RaglanWriter {
 
   into(def: string, anchor: Anchor, n: number): NodeId[] {
     const ids = Array.from({ length: n }, () => this.add(def, [anchor]));
-    if (anchor.into === 'stitch' && n >= 2) this.groups.push({ id: `g${this.groups.length + 1}`, def: `inc-${n}${def}`, members: ids });
+    if (anchor.into === 'stitch' && n >= 2)
+      this.groups.push({ id: `g${this.groups.length + 1}`, def: `inc-${n}${def}`, members: ids });
     return ids;
   }
 
@@ -151,7 +152,12 @@ export function raglanPiece(
 ): Piece | CoreText<GarmentCode> {
   const def = resolveStitch(stitch);
   if (!def) return text('internal-error', { rule: 'raglan-stitch' });
-  const counting = turningChainCountsFor(pattern.conventions.turningChainCounts, def, traditionOf(pattern.conventions), 'round');
+  const counting = turningChainCountsFor(
+    pattern.conventions.turningChainCounts,
+    def,
+    traditionOf(pattern.conventions),
+    'round',
+  );
   const writer = new RaglanWriter();
 
   const neckChains = writer.chains(plan.neck.stitches);
@@ -164,7 +170,12 @@ export function raglanPiece(
   if (firstRound.length !== plan.neck.stitches) return text('internal-error', { rule: 'raglan-neck-round' });
   closeRound(writer, firstRound[0]!);
 
-  let below = { back: firstRound.slice(0, plan.neck.back), sleeveA: [] as NodeId[], front: [] as NodeId[], sleeveB: [] as NodeId[] };
+  let below = {
+    back: firstRound.slice(0, plan.neck.back),
+    sleeveA: [] as NodeId[],
+    front: [] as NodeId[],
+    sleeveB: [] as NodeId[],
+  };
   {
     let at = plan.neck.back;
     below.sleeveA = firstRound.slice(at, at + plan.neck.sleeve);
@@ -179,7 +190,11 @@ export function raglanPiece(
     const chain = writer.chains(def.turningChain);
     const top = chain[chain.length - 1]!;
     // KB: 05 §4, 05 §4.4
-    const section = (positions: readonly NodeId[], target: number, first: boolean): NodeId[] | CoreText<GarmentCode> => {
+    const section = (
+      positions: readonly NodeId[],
+      target: number,
+      first: boolean,
+    ): NodeId[] | CoreText<GarmentCode> => {
       const seated = first && counting ? 1 : 0;
       const growth = target - positions.length;
       if (growth < 0 || growth > positions.length) return text('internal-error', { rule: 'raglan-round-plan', round });
@@ -194,7 +209,12 @@ export function raglanPiece(
       });
       return out;
     };
-    const made: Record<'back' | 'sleeveA' | 'front' | 'sleeveB', NodeId[]> = { back: [], sleeveA: [], front: [], sleeveB: [] };
+    const made: Record<'back' | 'sleeveA' | 'front' | 'sleeveB', NodeId[]> = {
+      back: [],
+      sleeveA: [],
+      front: [],
+      sleeveB: [],
+    };
     for (const [key, target] of [
       ['back', want.back],
       ['sleeveA', want.sleeve],
@@ -207,7 +227,12 @@ export function raglanPiece(
     }
     const first = counting ? top : made.back[0]!;
     closeRound(writer, first);
-    below = { back: counting ? [top, ...made.back] : made.back, sleeveA: made.sleeveA, front: made.front, sleeveB: made.sleeveB };
+    below = {
+      back: counting ? [top, ...made.back] : made.back,
+      sleeveA: made.sleeveA,
+      front: made.front,
+      sleeveB: made.sleeveB,
+    };
   }
   // KB: 05 §2.3 — the underarm chain counts into the body AND into the sleeve.
   const underarmChains: NodeId[][] = [];
@@ -258,7 +283,8 @@ export function raglanPiece(
     return made;
   };
 
-  const ribBodyFrom = ribbing !== null && plan.hemRounds > 0 ? plan.bodyRoundsBelow - plan.hemRounds + 1 : Number.POSITIVE_INFINITY;
+  const ribBodyFrom =
+    ribbing !== null && plan.hemRounds > 0 ? plan.bodyRoundsBelow - plan.hemRounds + 1 : Number.POSITIVE_INFINITY;
   const bodyColumn = new Map<NodeId, number>();
   for (let round = 2; round <= plan.bodyRoundsBelow; round += 1) {
     if (ribbing !== null && round >= ribBodyFrom) {
@@ -313,7 +339,9 @@ export function raglanPiece(
     const decreaseAt = new Set(plan.sleeve.decreaseRounds);
     // KB: core-geometry §33
     const ribCuffFrom =
-      ribbing !== null && plan.sleeve.cuffRounds > 0 ? plan.sleeve.rounds - plan.sleeve.cuffRounds + 1 : Number.POSITIVE_INFINITY;
+      ribbing !== null && plan.sleeve.cuffRounds > 0
+        ? plan.sleeve.rounds - plan.sleeve.cuffRounds + 1
+        : Number.POSITIVE_INFINITY;
     const cuffColumn = new Map<NodeId, number>();
     for (let r = 2; r <= plan.sleeve.rounds; r += 1) {
       if (ribbing !== null && r >= ribCuffFrom) {
@@ -329,7 +357,9 @@ export function raglanPiece(
       if (decreaseAt.has(r) && positions.length >= 6) {
         built.push(writer.add(`${def.id}2tog`, [both(positions[0]!), both(positions[1]!)]));
         for (const position of positions.slice(2, -2)) built.push(...writer.into(def.id, both(position), 1));
-        built.push(writer.add(`${def.id}2tog`, [both(positions[positions.length - 2]!), both(positions[positions.length - 1]!)]));
+        built.push(
+          writer.add(`${def.id}2tog`, [both(positions[positions.length - 2]!), both(positions[positions.length - 1]!)]),
+        );
       } else {
         for (const position of positions) built.push(...writer.into(def.id, both(position), 1));
       }
@@ -360,11 +390,19 @@ function withStated(pattern: Pattern, piece: Piece): Piece {
   const graph = buildPieceGraph(whole, piece, libraryFor(whole));
   const stated = new Map<NodeId, number>();
   for (const layer of graph.layers.slice(1)) if (layer.closing) stated.set(layer.closing.after, layer.writtenCount);
-  return { ...piece, events: piece.events.map((event) => (stated.has(event.after) ? { ...event, statedCount: stated.get(event.after)! } : event)) };
+  return {
+    ...piece,
+    events: piece.events.map((event) =>
+      stated.has(event.after) ? { ...event, statedCount: stated.get(event.after)! } : event,
+    ),
+  };
 }
 
 // KB: 05 §4, 05 §9.5 — `stitchCm`/`rowCm` are measured in the round, not flat.
-export function raglanPlan(m: RaglanMeasures, gauge: { readonly stitchCm: number; readonly rowCm: number }): RaglanPlan | CoreText<GarmentCode> {
+export function raglanPlan(
+  m: RaglanMeasures,
+  gauge: { readonly stitchCm: number; readonly rowCm: number },
+): RaglanPlan | CoreText<GarmentCode> {
   const { stitchCm, rowCm } = gauge;
   const ratio = -m.easeCm / m.bustCm;
   if (ratio > NEGATIVE_EASE_MAX) {
@@ -403,7 +441,8 @@ export function raglanPlan(m: RaglanMeasures, gauge: { readonly stitchCm: number
   let underarmStitches = underarm;
   let frontTarget = front;
   let backTarget = back;
-  const fits = (f: number, b: number) => Math.max(Math.ceil((f - (neckFront + cornerGain)) / 2), Math.ceil((b - (neckBack + cornerGain)) / 2)) <= yokeRounds;
+  const fits = (f: number, b: number) =>
+    Math.max(Math.ceil((f - (neckFront + cornerGain)) / 2), Math.ceil((b - (neckBack + cornerGain)) / 2)) <= yokeRounds;
   const maxUnderarm = Math.max(underarm, Math.round(MAX_UNDERARM_SHARE * bodyStitches));
   while (!fits(frontTarget, backTarget) && underarmStitches < maxUnderarm) {
     underarmStitches += 1;

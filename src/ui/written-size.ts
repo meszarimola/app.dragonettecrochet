@@ -57,7 +57,11 @@ export function dragCollapses(start: number, rise: number, range: SizeRange): bo
 }
 
 // KB: interface.md §13
-export function statusPlace(panel: number, status: number, stage: number): { readonly block: number; readonly lift: number } {
+export function statusPlace(
+  panel: number,
+  status: number,
+  stage: number,
+): { readonly block: number; readonly lift: number } {
   const lift = Math.max(0, Math.min(panel, panel + status - stage));
   return { block: panel - lift, lift };
 }

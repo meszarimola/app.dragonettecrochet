@@ -13,12 +13,18 @@
  */
 
 import { strict as assert } from 'node:assert';
-import { readFileSync } from 'node:fs';
-import { readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import { MARKUP_TEXTS } from '../src/ui/i18n/markup.ts';
-import { UI_LANGUAGES, UI_TEXTS, homeUrl, languageFromSearch, resolveUiLanguage, urlWithLanguage } from '../src/ui/i18n.ts';
+import {
+  homeUrl,
+  languageFromSearch,
+  resolveUiLanguage,
+  UI_LANGUAGES,
+  UI_TEXTS,
+  urlWithLanguage,
+} from '../src/ui/i18n.ts';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const INDEX = read('index.html');
@@ -106,7 +112,9 @@ test('every label in the dictionary is in use, in the markup or in the interface
     .filter((name) => name.endsWith('.ts'))
     .map((name) => read(`src/ui/${name}`))
     .join('\n');
-  const dead = Object.keys(MARKUP_TEXTS.hu).filter((key) => !used.has(key) && !sources.includes(`'${key}'`) && !sources.includes(`"${key}"`));
+  const dead = Object.keys(MARKUP_TEXTS.hu).filter(
+    (key) => !used.has(key) && !sources.includes(`'${key}'`) && !sources.includes(`"${key}"`),
+  );
   assert.deepEqual(dead, []);
 });
 
@@ -127,7 +135,8 @@ test('the Hungarian interface does not change: the Hungarian branch matches the 
     // As a standalone attribute: the names `data-i18n-tip` and `data-i18n-content` also
     // contain the attribute name we are looking for, so we anchor on whitespace.
     const value = new RegExp(`(?:^|\\s)${attribute}="([^"]*)"`).exec(attributes)?.[1];
-    if (value !== undefined && value !== expected) differences.push(`${key} (${attribute}): „${value}” ≠ „${expected}”`);
+    if (value !== undefined && value !== expected)
+      differences.push(`${key} (${attribute}): „${value}” ≠ „${expected}”`);
   }
   assert.deepEqual(differences, []);
 });
@@ -169,6 +178,12 @@ test('a corrupt or unknown stored value does not break startup (PQW-906)', () =>
 test('the home link and the shareable URL use the chosen language', () => {
   assert.match(homeUrl('hu'), /\/hu\/$/);
   assert.match(homeUrl('en'), /\/en\/$/);
-  assert.equal(urlWithLanguage('https://app.dragonettecrochet.com/', 'en'), 'https://app.dragonettecrochet.com/?lang=en');
-  assert.equal(urlWithLanguage('https://app.dragonettecrochet.com/?lang=en', 'hu'), 'https://app.dragonettecrochet.com/?lang=hu');
+  assert.equal(
+    urlWithLanguage('https://app.dragonettecrochet.com/', 'en'),
+    'https://app.dragonettecrochet.com/?lang=en',
+  );
+  assert.equal(
+    urlWithLanguage('https://app.dragonettecrochet.com/?lang=en', 'hu'),
+    'https://app.dragonettecrochet.com/?lang=hu',
+  );
 });

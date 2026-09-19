@@ -8,7 +8,7 @@
  * KB: owner-decisions.md §9
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 interface Cell {
   readonly layer: number;
@@ -32,7 +32,9 @@ const workingLayer = (page: Page): Promise<number> =>
   page.evaluate(() => (window as unknown as { mintatervezoRacs: { layer(): number } }).mintatervezoRacs.layer());
 
 const nodes = (page: Page): Promise<Node[]> =>
-  page.evaluate(() => (window as unknown as { mintatervezoKijeloles: { nodes(): Node[] } }).mintatervezoKijeloles.nodes());
+  page.evaluate(() =>
+    (window as unknown as { mintatervezoKijeloles: { nodes(): Node[] } }).mintatervezoKijeloles.nodes(),
+  );
 
 /** The own cell of the target in the bottom row: that is where the crocheter points. */
 async function targetCell(page: Page, slot: number): Promise<Cell> {
@@ -49,14 +51,23 @@ async function cluster(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
   await page.getByRole('button', { name: 'Új minta' }).click();
   const palette = page.locator('#palette');
-  await palette.getByRole('button', { name: /Láncszem \(lsz\)/ }).first().click();
+  await palette
+    .getByRole('button', { name: /Láncszem \(lsz\)/ })
+    .first()
+    .click();
   await page.locator('#chain-count').fill('22');
   await page.locator('#board').click();
   await page.getByRole('button', { name: 'Fordulás' }).click();
-  await palette.getByRole('button', { name: /Rövidpálca \(rp\)/ }).first().click();
+  await palette
+    .getByRole('button', { name: /Rövidpálca \(rp\)/ })
+    .first()
+    .click();
   await page.locator('#board').press('Enter');
   await page.locator('#board').press('Enter');
-  await palette.getByRole('button', { name: /Egyráhajtásos pálca \(erp\)/ }).first().click();
+  await palette
+    .getByRole('button', { name: /Egyráhajtásos pálca \(erp\)/ })
+    .first()
+    .click();
   await page.locator('#board').press('Enter');
   await page.locator('#board').press('Shift+Enter');
   await page.locator('#board').press('Shift+Enter');
@@ -77,7 +88,11 @@ test('the chain stitch goes into the cell that was clicked, not to the end of th
 
   // The cluster sits in target 5. The chain stitch goes into the 8th: skipping two.
   const wanted = await targetCell(page, 8);
-  await page.locator('#palette').getByRole('button', { name: /Láncszem \(lsz\)/ }).first().click();
+  await page
+    .locator('#palette')
+    .getByRole('button', { name: /Láncszem \(lsz\)/ })
+    .first()
+    .click();
   await page.locator('#chain-count').fill('1');
   await page.mouse.click(wanted.x, wanted.y);
 
@@ -89,7 +104,10 @@ test('the chain stitch goes into the cell that was clicked, not to the end of th
 test('clicking into two different cells puts the chain stitch in two separate places (PQW-935)', async ({ page }) => {
   await cluster(page);
   const palette = page.locator('#palette');
-  await palette.getByRole('button', { name: /Láncszem \(lsz\)/ }).first().click();
+  await palette
+    .getByRole('button', { name: /Láncszem \(lsz\)/ })
+    .first()
+    .click();
   await page.locator('#chain-count').fill('1');
 
   const first = await targetCell(page, 7);

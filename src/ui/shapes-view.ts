@@ -2,21 +2,21 @@
 
 import {
   FLAT_SHAPES,
-  SHAPE_STITCHES,
-  rowExtents,
   type FlatShape,
   type RepeatRounding,
+  rowExtents,
+  SHAPE_STITCHES,
   type ShapeMeasure,
   type ShapeOptions,
   type ShapePlan,
   type ShapeText,
 } from '../core/shapes.ts';
 import { stitchById } from '../core/stitches.ts';
-import { texts, uiLanguage } from './i18n.ts';
 import { renderCoreText } from './i18n/core/render.ts';
 import { SHAPE_CORE_TEXTS } from './i18n/core/shape.ts';
-import { formatNumber } from './size-view.ts';
+import { texts, uiLanguage } from './i18n.ts';
 import { termsLocale } from './notation.ts';
+import { formatNumber } from './size-view.ts';
 
 export interface Choice<T extends string> {
   readonly value: T;
@@ -54,12 +54,14 @@ export const MEASURE_CHOICES: readonly Choice<ShapeMeasure>[] = [
   },
 ];
 
-export const ROUNDING_CHOICES: readonly Choice<RepeatRounding>[] = (['nearest', 'up', 'down'] as const).map((value) => ({
-  value,
-  get label() {
-    return texts().panels.shape.roundings[value];
-  },
-}));
+export const ROUNDING_CHOICES: readonly Choice<RepeatRounding>[] = (['nearest', 'up', 'down'] as const).map(
+  (value) => ({
+    value,
+    get label() {
+      return texts().panels.shape.roundings[value];
+    },
+  }),
+);
 
 export function shapeReason(reason: ShapeText): string {
   return renderCoreText(SHAPE_CORE_TEXTS[uiLanguage()], reason);

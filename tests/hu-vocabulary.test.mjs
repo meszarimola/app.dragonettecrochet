@@ -11,7 +11,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import { layoutPattern } from '../src/core/layout.ts';
-import { VOCABULARIES, formatWrittenPattern, writePattern } from '../src/core/pattern-text.ts';
+import { formatWrittenPattern, VOCABULARIES, writePattern } from '../src/core/pattern-text.ts';
 import { RULES } from '../src/core/rules.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
 import { STITCHES } from '../src/core/stitches.ts';
@@ -74,7 +74,10 @@ test('no „öltés” in the recorded Hungarian pattern texts', () => {
 
 test('no „öltés” in the Hungarian names and structures of the stitch library', () => {
   for (const def of STITCHES) {
-    assertNoUnitWord([stitchName(def, 'hu'), stitchLabel(def, 'hu'), stitchStructure(def, 'hu') ?? ''].join('\n'), def.id);
+    assertNoUnitWord(
+      [stitchName(def, 'hu'), stitchLabel(def, 'hu'), stitchStructure(def, 'hu') ?? ''].join('\n'),
+      def.id,
+    );
   }
 });
 

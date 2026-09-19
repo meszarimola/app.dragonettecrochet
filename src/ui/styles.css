@@ -24,8 +24,8 @@
   --c-brand-wing-inner: #8a6fb8;
   --c-brand-eye: #fdfbf8;
 
-  --font-display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
-  --font-body: 'Karla', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --font-body: "Karla", system-ui, -apple-system, "Segoe UI", sans-serif;
 
   --ls-micro: 0.14em;
 
@@ -409,7 +409,7 @@ body.is-selecting #board {
   border-color: var(--c-accent);
 }
 
-.stitch[aria-pressed='true'] {
+.stitch[aria-pressed="true"] {
   border-color: var(--c-accent);
   background: var(--c-selection);
 }
@@ -524,7 +524,7 @@ body.is-selecting #board {
   opacity: 0.55;
 }
 
-.tool[aria-pressed='true'] {
+.tool[aria-pressed="true"] {
   border-color: var(--c-accent);
   background: var(--c-selection);
   color: var(--c-accent);
@@ -749,7 +749,7 @@ body.is-selecting #board {
 
 /* KB: interface.md §36 */
 .written__grip::before {
-  content: '';
+  content: "";
   position: absolute;
   inset-block-start: calc(50% - 2px);
   inset-inline-start: calc(50% - 1.5rem);
@@ -1007,7 +1007,7 @@ body.is-selecting #board {
   border-color: var(--c-accent);
 }
 
-.type[aria-pressed='true'] {
+.type[aria-pressed="true"] {
   border-color: var(--c-accent);
   background: var(--c-selection);
 }
@@ -1113,7 +1113,7 @@ body.is-selecting #board {
 }
 
 .section__head::after {
-  content: '';
+  content: "";
   inline-size: 0.5rem;
   block-size: 0.5rem;
   margin-inline-end: 0.25rem;
@@ -1153,7 +1153,7 @@ body.is-selecting #board {
 }
 
 /* In pairs: both loops on a row of its own, then front and back loop, then the posts. */
-.insertion__options label:has(input[value='both-loops']) {
+.insertion__options label:has(input[value="both-loops"]) {
   grid-column: 1 / -1;
 }
 
@@ -1571,12 +1571,12 @@ body.is-selecting #board {
 }
 
 /* KB: interface.md §12 */
-.tools .tool[data-tip-align='start']::after {
+.tools .tool[data-tip-align="start"]::after {
   inset-inline-start: 0;
   translate: none;
 }
 
-.tools .tool[data-tip-align='end']::after {
+.tools .tool[data-tip-align="end"]::after {
   inset-inline-start: auto;
   inset-inline-end: 0;
   translate: none;
@@ -1643,7 +1643,7 @@ body.is-selecting #board {
   font-size: 0.875rem;
 }
 
-.grid-chart__color input[type='color'] {
+.grid-chart__color input[type="color"] {
   inline-size: 44px;
   block-size: 44px;
   padding: 2px;
@@ -1652,7 +1652,7 @@ body.is-selecting #board {
   background: #fff;
 }
 
-.grid-chart__color input[type='text'] {
+.grid-chart__color input[type="text"] {
   min-inline-size: 0;
   min-block-size: 44px;
   padding: 0.4rem 0.6rem;

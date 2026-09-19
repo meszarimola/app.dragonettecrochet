@@ -9,8 +9,8 @@ import { test } from 'node:test';
 import { layoutPattern } from '../src/core/layout.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
 import { chartLabels } from '../src/ui/chart-labels.ts';
-import { setUiLanguage } from '../src/ui/i18n.ts';
 import { chartSvg } from '../src/ui/chart-svg.ts';
+import { setUiLanguage } from '../src/ui/i18n.ts';
 import { hdcRectangle } from './fixtures/examples.ts';
 
 const SHELL = { repeatWidth: 6, edgeStitches: 1, turningChainIncluded: false };

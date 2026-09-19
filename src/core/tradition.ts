@@ -32,6 +32,8 @@ export function firstChainFromHook(turningChain: number, turningChainCounts: boo
 }
 
 export function withTradition(conventions: PatternConventions, tradition: Tradition): PatternConventions {
-  const rest = Object.fromEntries(Object.entries(conventions).filter(([key]) => key !== 'tradition')) as unknown as PatternConventions;
+  const rest = Object.fromEntries(
+    Object.entries(conventions).filter(([key]) => key !== 'tradition'),
+  ) as unknown as PatternConventions;
   return tradition === 'cyc' ? rest : { ...rest, tradition };
 }

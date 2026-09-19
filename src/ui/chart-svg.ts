@@ -1,6 +1,6 @@
 // KB: 01 §6.1, 03 §2.1, 03 §10 I42; interface.md §1, §14
 
-import { chartBounds, type ChartGrid } from '../core/grid.ts';
+import { type ChartGrid, chartBounds } from '../core/grid.ts';
 import { nodeInsertions } from '../core/insertion.ts';
 import type { ChartLayout } from '../core/layout.ts';
 import { VOCABULARIES } from '../core/pattern-text.ts';
@@ -10,8 +10,15 @@ import type { Locale, Pattern, StitchDef, StitchInsertion, Tradition } from '../
 import { chartLabels, rowCaptions } from './chart-labels.ts';
 import { gridPaths, LINE_WIDTH } from './grid-paths.ts';
 import { texts } from './i18n.ts';
-import { chartStyleLabel, textLanguage, termsLabel } from './notation.ts';
-import { DEFAULT_SYMBOL_OPTIONS, placedShapes, shapeBounds, symbolShapes, type Shape, type SymbolOptions } from './symbols.ts';
+import { chartStyleLabel, termsLabel, textLanguage } from './notation.ts';
+import {
+  DEFAULT_SYMBOL_OPTIONS,
+  placedShapes,
+  type Shape,
+  type SymbolOptions,
+  shapeBounds,
+  symbolShapes,
+} from './symbols.ts';
 
 export interface ChartColors {
   readonly right: string;
@@ -35,7 +42,12 @@ export interface ChartSvgOptions {
   readonly symbols?: SymbolOptions;
   readonly grid?: { readonly grid: ChartGrid; readonly colors: GridColors };
   readonly tradition?: Tradition;
-  readonly unitFrames?: readonly { readonly x0: number; readonly y0: number; readonly x1: number; readonly y1: number }[];
+  readonly unitFrames?: readonly {
+    readonly x0: number;
+    readonly y0: number;
+    readonly x1: number;
+    readonly y1: number;
+  }[];
   readonly spikes?: ReadonlySet<string>;
 }
 
@@ -44,12 +56,15 @@ const TITLE = 36;
 const LEGEND_ROW = 34;
 const LEGEND_ICON = 26;
 const LABEL_HEIGHT = 16;
-const FONT = "font-family=\"Karla, system-ui, -apple-system, 'Segoe UI', sans-serif\"";
+const FONT = 'font-family="Karla, system-ui, -apple-system, \'Segoe UI\', sans-serif"';
 
 const num = (value: number) => String(Math.round(value * 100) / 100);
 
 export function escapeXml(text: string): string {
-  return text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]!);
+  return text.replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]!,
+  );
 }
 
 export function shapeToSvg(shape: Shape): string {
@@ -59,7 +74,9 @@ export function shapeToSvg(shape: Shape): string {
     case 'curve':
       return `<path d="M${num(shape.from.x)} ${num(shape.from.y)}Q${num(shape.control.x)} ${num(shape.control.y)} ${num(shape.to.x)} ${num(shape.to.y)}"/>`;
     case 'ellipse': {
-      const rotate = shape.rotation ? ` transform="rotate(${num((shape.rotation * 180) / Math.PI)} ${num(shape.center.x)} ${num(shape.center.y)})"` : '';
+      const rotate = shape.rotation
+        ? ` transform="rotate(${num((shape.rotation * 180) / Math.PI)} ${num(shape.center.x)} ${num(shape.center.y)})"`
+        : '';
       return `<ellipse cx="${num(shape.center.x)}" cy="${num(shape.center.y)}" rx="${num(shape.rx)}" ry="${num(shape.ry)}"${rotate}/>`;
     }
     case 'dot':
@@ -84,7 +101,10 @@ export function legendStitches(pattern: Pattern, library: StitchLibrary): Stitch
   return [...seen.values()];
 }
 
-export function legendInsertions(pattern: Pattern, library: StitchLibrary): { readonly def: StitchDef; readonly mode: StitchInsertion }[] {
+export function legendInsertions(
+  pattern: Pattern,
+  library: StitchLibrary,
+): { readonly def: StitchDef; readonly mode: StitchInsertion }[] {
   const piece = pattern.pieces[0];
   const modes = nodeInsertions(piece);
   const seen = new Map<string, { readonly def: StitchDef; readonly mode: StitchInsertion }>();
@@ -98,7 +118,12 @@ export function legendInsertions(pattern: Pattern, library: StitchLibrary): { re
   return [...seen.values()];
 }
 
-export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchLibrary, options: ChartSvgOptions): string {
+export function chartSvg(
+  pattern: Pattern,
+  layout: ChartLayout,
+  library: StitchLibrary,
+  options: ChartSvgOptions,
+): string {
   const { colors } = options;
   const terms = options.terms ?? 'hu';
   const symbols = options.symbols ?? DEFAULT_SYMBOL_OPTIONS;
@@ -135,7 +160,12 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
   const textWidth =
     LEGEND_ICON +
     12 +
-    7.4 * Math.max(...labels.map((l) => l.length), ...markedLabels.map(([stitch, mode]) => stitch.length + mode.length + 3), ...notes.map((n) => n.length));
+    7.4 *
+      Math.max(
+        ...labels.map((l) => l.length),
+        ...markedLabels.map(([stitch, mode]) => stitch.length + mode.length + 3),
+        ...notes.map((n) => n.length),
+      );
   // KB: interface.md §17
   const rows = rowCaptions(layout, options.tradition ?? 'cyc');
   const labelRoom = rows.length === 0 ? 0 : Math.max(...rows.map((row) => 7.4 * row.text.length + 10)) + 12;
@@ -165,11 +195,15 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
     const stroke = { cell: c.cell, row: c.row, five: c.strong, ten: c.strong };
     out.push('<g class="grid">');
     for (const band of bands) {
-      out.push(`<path d="${band.d}" fill="${band.tone === 0 ? c.rowA : c.rowB}"${band.evenOdd ? ' fill-rule="evenodd"' : ''}/>`);
+      out.push(
+        `<path d="${band.d}" fill="${band.tone === 0 ? c.rowA : c.rowB}"${band.evenOdd ? ' fill-rule="evenodd"' : ''}/>`,
+      );
     }
     for (const line of lines) {
       const dash = line.dashed ? ' stroke-dasharray="4 3"' : '';
-      out.push(`<path d="${line.d}" fill="none" stroke="${stroke[line.weight]}" stroke-width="${LINE_WIDTH[line.weight]}"${dash}/>`);
+      out.push(
+        `<path d="${line.d}" fill="none" stroke="${stroke[line.weight]}" stroke-width="${LINE_WIDTH[line.weight]}"${dash}/>`,
+      );
     }
     out.push('</g>');
   }
@@ -187,7 +221,8 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
       const def = library.get(node.def);
       if (node.side !== side || !def) continue;
       const insertion = insertions.get(node.id);
-      for (const shape of placedShapes(def, node, insertion ? { ...symbols, insertion } : symbols)) out.push(shapeToSvg(shape));
+      for (const shape of placedShapes(def, node, insertion ? { ...symbols, insertion } : symbols))
+        out.push(shapeToSvg(shape));
       const foot = options.spikes?.has(node.id) ? node.feet[0] : undefined;
       if (foot) out.push(`<circle class="fill" data-spike="" cx="${num(foot.x)}" cy="${num(foot.y)}" r="3.5"/>`);
     }
@@ -240,7 +275,11 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
 
   marked.forEach(({ def, mode }, i) => {
     const [stitch, modeName] = markedLabels[i]!;
-    legendIcon(symbolShapes(def, { ...symbols, insertion: mode }), `<tspan lang="${textLanguage(terms)}">${escapeXml(stitch)}</tspan> – ${escapeXml(modeName)}`, y);
+    legendIcon(
+      symbolShapes(def, { ...symbols, insertion: mode }),
+      `<tspan lang="${textLanguage(terms)}">${escapeXml(stitch)}</tspan> – ${escapeXml(modeName)}`,
+      y,
+    );
     y += LEGEND_ROW;
   });
 

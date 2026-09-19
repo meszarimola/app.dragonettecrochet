@@ -1,11 +1,11 @@
 // KB: 01 §4.4, 01 §8.4, 03 §5.2, 03 §10 F30, 03 §10 G32
 // KB: core-geometry §42
 
-import { finishGridPattern, fail, gridPiece, GridWriter, intoStitch, type GridPatternCode } from './grid-pattern.ts';
-import { text, type CoreText } from './messages.ts';
-import { FILLED, MAX_GRID_SIDE, NO_CELL, OPEN, TECHNIQUE_NAMES, type ChartRows } from './pixel-chart.ts';
+import { fail, finishGridPattern, type GridPatternCode, GridWriter, gridPiece, intoStitch } from './grid-pattern.ts';
+import { type CoreText, text } from './messages.ts';
+import { type ChartRows, FILLED, MAX_GRID_SIDE, NO_CELL, OPEN, TECHNIQUE_NAMES } from './pixel-chart.ts';
 import { foundationChainLength } from './repeat.ts';
-import { shapeGauge, type ShapeGauge } from './shapes.ts';
+import { type ShapeGauge, shapeGauge } from './shapes.ts';
 import { resolveStitch } from './stitch-variants.ts';
 import { firstChainFromHook, traditionOf, turningChainCountsFor } from './tradition.ts';
 import type { GridUnit, NodeId, Pattern } from './types.ts';
@@ -50,7 +50,9 @@ export type FiletCode =
   | 'filet-extend-open'
   | 'filet-extend-reach';
 
-export type FiletPlanResult = { readonly ok: true; readonly plan: FiletPlan } | { readonly ok: false; readonly reason: CoreText<FiletCode> };
+export type FiletPlanResult =
+  | { readonly ok: true; readonly plan: FiletPlan }
+  | { readonly ok: false; readonly reason: CoreText<FiletCode> };
 export type FiletResult =
   | { readonly ok: true; readonly pattern: Pattern; readonly plan: FiletPlan }
   | { readonly ok: false; readonly reason: CoreText<FiletCode | GridPatternCode> };
@@ -174,7 +176,10 @@ function buildFilet(pattern: Pattern, plan: FiletPlan): GridWriter {
       const base = start + 3 * c;
       if (c >= regular) return;
       if (cell === FILLED) {
-        produced.push(writer.add(FILET_STITCH, [intoStitch(working[base]!)]), writer.add(FILET_STITCH, [intoStitch(working[base + 1]!)]));
+        produced.push(
+          writer.add(FILET_STITCH, [intoStitch(working[base]!)]),
+          writer.add(FILET_STITCH, [intoStitch(working[base + 1]!)]),
+        );
       } else {
         produced.push(...writer.space(2).chains);
         writer.skipped.push(working[base]!, working[base + 1]!);

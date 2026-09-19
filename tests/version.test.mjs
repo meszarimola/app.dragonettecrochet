@@ -5,7 +5,7 @@
  */
 
 import { strict as assert } from 'node:assert';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import config from '../vite.config.ts';

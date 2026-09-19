@@ -8,17 +8,8 @@
 
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
-
-import {
-  STITCHES,
-  STITCH_SECTIONS,
-  cluster,
-  decrease,
-  increase,
-  shell,
-  stitchById,
-} from '../src/core/stitches.ts';
 import { roundEndFor } from '../src/core/rounds.ts';
+import { cluster, decrease, increase, STITCH_SECTIONS, STITCHES, shell, stitchById } from '../src/core/stitches.ts';
 import { stitchLabel, stitchName, stitchStructure } from '../src/core/stitchText.ts';
 
 const LOCALES = ['hu', 'en-US', 'en-GB'];
@@ -28,31 +19,31 @@ const LOCALES = ['hu', 'en-US', 'en-GB'];
 // prettier-ignore
 const TABLE = [
   // id               kind       yarn ov.  ch hght.  turning ch   consumes  produces  spaces
-  ['ch',              'chain',   0,        1,        0,           0,        1,  0],
-  ['sl-st',           'slip',    0,        0,        0,           1,        1,  0],
-  ['sc',              'basic',   0,        1,        1,           1,        1,  0],
-  ['hdc',             'basic',   1,        2,        2,           1,        1,  0],
-  ['dc',              'basic',   1,        3,        3,           1,        1,  0],
-  ['tr',              'basic',   2,        4,        4,           1,        1,  0],
-  ['dtr',             'basic',   3,        5,        5,           1,        1,  0],
-  ['inc-2sc',         'group',   0,        1,        1,           1,        2,  0],
-  ['inc-2dc',         'group',   1,        3,        3,           1,        2,  0],
-  ['sc2tog',          'joined',  0,        1,        1,           2,        1,  0],
-  ['sc3tog',          'joined',  0,        1,        1,           3,        1,  0],
-  ['dc2tog',          'joined',  1,        3,        3,           2,        1,  0],
-  ['dc3tog',          'joined',  1,        3,        3,           3,        1,  0],
-  ['invdec',          'joined',  0,        1,        1,           2,        1,  0],
-  ['shell-5dc',       'group',   1,        3,        3,           1,        5,  0],
-  ['v-st-dc',         'group',   1,        3,        3,           1,        2,  1],
-  ['cl-3dc',          'joined',  1,        3,        3,           1,        1,  0],
-  ['cl-3dc-spread',   'joined',  1,        3,        3,           3,        1,  0],
-  ['puff-3',          'joined',  1,        2,        2,           1,        1,  0],
-  ['bobble-5dc',      'joined',  1,        3,        3,           1,        1,  0],
-  ['popcorn-5dc',     'joined',  1,        3,        3,           1,        1,  0],
-  ['picot',           'picot',   0,        0,        0,           0,        0,  0],
-  ['rev-sc',          'basic',   0,        1,        1,           1,        1,  0],
-  ['ch-sp',           'space',   0,        0,        0,           0,        0,  1],
-  ['magic-ring',      'ring',    0,        0,        0,           0,        0,  0],
+  ['ch', 'chain', 0, 1, 0, 0, 1, 0],
+  ['sl-st', 'slip', 0, 0, 0, 1, 1, 0],
+  ['sc', 'basic', 0, 1, 1, 1, 1, 0],
+  ['hdc', 'basic', 1, 2, 2, 1, 1, 0],
+  ['dc', 'basic', 1, 3, 3, 1, 1, 0],
+  ['tr', 'basic', 2, 4, 4, 1, 1, 0],
+  ['dtr', 'basic', 3, 5, 5, 1, 1, 0],
+  ['inc-2sc', 'group', 0, 1, 1, 1, 2, 0],
+  ['inc-2dc', 'group', 1, 3, 3, 1, 2, 0],
+  ['sc2tog', 'joined', 0, 1, 1, 2, 1, 0],
+  ['sc3tog', 'joined', 0, 1, 1, 3, 1, 0],
+  ['dc2tog', 'joined', 1, 3, 3, 2, 1, 0],
+  ['dc3tog', 'joined', 1, 3, 3, 3, 1, 0],
+  ['invdec', 'joined', 0, 1, 1, 2, 1, 0],
+  ['shell-5dc', 'group', 1, 3, 3, 1, 5, 0],
+  ['v-st-dc', 'group', 1, 3, 3, 1, 2, 1],
+  ['cl-3dc', 'joined', 1, 3, 3, 1, 1, 0],
+  ['cl-3dc-spread', 'joined', 1, 3, 3, 3, 1, 0],
+  ['puff-3', 'joined', 1, 2, 2, 1, 1, 0],
+  ['bobble-5dc', 'joined', 1, 3, 3, 1, 1, 0],
+  ['popcorn-5dc', 'joined', 1, 3, 3, 1, 1, 0],
+  ['picot', 'picot', 0, 0, 0, 0, 0, 0],
+  ['rev-sc', 'basic', 0, 1, 1, 1, 1, 0],
+  ['ch-sp', 'space', 0, 0, 0, 0, 0, 1],
+  ['magic-ring', 'ring', 0, 0, 0, 0, 0, 0],
 ];
 
 test('the table lists exactly the stitches of the library, in order', () => {
@@ -93,10 +84,26 @@ test('an unknown id throws', () => {
 test('every stitch of the documented set is present', () => {
   const names = new Set(STITCHES.map((stitch) => stitch.terms.hu.name));
   for (const name of [
-    'láncszem', 'kúszószem', 'rövidpálca', 'félpálca', 'egyráhajtásos pálca',
-    'kétráhajtásos pálca', 'háromráhajtásos pálca', 'szaporítás', 'fogyasztás',
-    'láthatatlan fogyasztás', 'kagyló', 'V-szem', 'fürt', 'puff', 'bogyó',
-    'popcorn', 'pikó', 'rákhurok', 'láncív', 'varázskör',
+    'láncszem',
+    'kúszószem',
+    'rövidpálca',
+    'félpálca',
+    'egyráhajtásos pálca',
+    'kétráhajtásos pálca',
+    'háromráhajtásos pálca',
+    'szaporítás',
+    'fogyasztás',
+    'láthatatlan fogyasztás',
+    'kagyló',
+    'V-szem',
+    'fürt',
+    'puff',
+    'bogyó',
+    'popcorn',
+    'pikó',
+    'rákhurok',
+    'láncív',
+    'varázskör',
   ]) {
     assert.ok(names.has(name), `missing: ${name}`);
   }
@@ -107,20 +114,27 @@ test('every stitch of the documented set is present', () => {
 // prettier-ignore
 const VOCABULARY = [
   // id         hungarian                  hu abbr  US name                  abbr       UK name                  abbr
-  ['ch',        'láncszem',                'lsz',   'chain',                 'ch',      'chain',                 'ch'],
-  ['sl-st',     'kúszószem',               'ksz',   'slip stitch',           'sl st',   'slip stitch',           'ss'],
-  ['sc',        'rövidpálca',              'rp',    'single crochet',        'sc',      'double crochet',        'dc'],
-  ['hdc',       'félpálca',                'fp',    'half double crochet',   'hdc',     'half treble',           'htr'],
-  ['dc',        'egyráhajtásos pálca',     'erp',   'double crochet',        'dc',      'treble',                'tr'],
-  ['tr',        'kétráhajtásos pálca',     'krp',   'treble',                'tr',      'double treble',         'dtr'],
-  ['dtr',       'háromráhajtásos pálca',   null,    'double treble',         'dtr',     'triple treble',         'trtr'],
+  ['ch', 'láncszem', 'lsz', 'chain', 'ch', 'chain', 'ch'],
+  ['sl-st', 'kúszószem', 'ksz', 'slip stitch', 'sl st', 'slip stitch', 'ss'],
+  ['sc', 'rövidpálca', 'rp', 'single crochet', 'sc', 'double crochet', 'dc'],
+  ['hdc', 'félpálca', 'fp', 'half double crochet', 'hdc', 'half treble', 'htr'],
+  ['dc', 'egyráhajtásos pálca', 'erp', 'double crochet', 'dc', 'treble', 'tr'],
+  ['tr', 'kétráhajtásos pálca', 'krp', 'treble', 'tr', 'double treble', 'dtr'],
+  ['dtr', 'háromráhajtásos pálca', null, 'double treble', 'dtr', 'triple treble', 'trtr'],
 ];
 
 for (const [id, hu, huAbbr, us, usAbbr, gb, gbAbbr] of VOCABULARY) {
   test(`${id}: the approved name and abbreviation in all three notations`, () => {
     const { terms } = stitchById(id);
     assert.deepEqual(
-      [terms.hu.name, terms.hu.abbr, terms['en-US'].name, terms['en-US'].abbr, terms['en-GB'].name, terms['en-GB'].abbr],
+      [
+        terms.hu.name,
+        terms.hu.abbr,
+        terms['en-US'].name,
+        terms['en-US'].abbr,
+        terms['en-GB'].name,
+        terms['en-GB'].abbr,
+      ],
       [hu, huAbbr, us, usAbbr, gb, gbAbbr],
     );
   });
@@ -129,7 +143,10 @@ for (const [id, hu, huAbbr, us, usAbbr, gb, gbAbbr] of VOCABULARY) {
 test('the UK name is the US name shifted one step up: sc → dc → tr → dtr', () => {
   const ladder = ['sc', 'dc', 'tr', 'dtr'].map(stitchById);
   for (let i = 0; i < ladder.length - 1; i++) {
-    assert.deepEqual(ladder[i].terms['en-GB'], { ...ladder[i + 1].terms['en-US'], aliases: ladder[i].terms['en-GB'].aliases });
+    assert.deepEqual(ladder[i].terms['en-GB'], {
+      ...ladder[i + 1].terms['en-US'],
+      aliases: ladder[i].terms['en-GB'].aliases,
+    });
   }
 });
 
@@ -182,16 +199,21 @@ test('sc also answers to kispálca and dc to nagypálca (D2, D3)', () => {
 // prettier-ignore
 const TEXTS = [
   // id              hungarian                                US                                     UK
-  ['sc',             'rövidpálca (rp)',                       'single crochet (sc)',                  'double crochet (dc)'],
-  ['dtr',            'háromráhajtásos pálca',                 'double treble (dtr)',                  'triple treble (trtr)'],
-  ['inc-2sc',        'szaporítás: 2 rp egy szembe',          'increase (inc): 2 sc in same st',      'increase (inc): 2 dc in same st'],
-  ['sc2tog',         'fogyasztás: 2 rp 2 szemen át',         'decrease (dec): sc2tog',               'decrease (dec): dc2tog'],
-  ['shell-5dc',      'kagyló: 5 erp egy szembe',             'shell (sh): 5 dc in same st',          'shell: 5 tr in same st'],
-  ['v-st-dc',        'V-szem: (erp, 1 lsz, erp) egy szembe', 'V-stitch (V-st): (dc, ch 1, dc) in same st', 'V-stitch: (tr, ch 1, tr) in same st'],
-  ['cl-3dc',         'fürt: 3 erp egy szembe',               'cluster (CL): 3 dc in same st',        'cluster (CL): 3 tr in same st'],
-  ['cl-3dc-spread',  'fürt: 3 erp 3 szemen át',              'cluster (CL): dc3tog',                 'cluster (CL): tr3tog'],
-  ['puff-3',         'puff',                                  'puff stitch (ps)',                     'puff stitch'],
-  ['rev-sc',         'rákhurok',                              'reverse single crochet (rev sc)',      'reverse double crochet'],
+  ['sc', 'rövidpálca (rp)', 'single crochet (sc)', 'double crochet (dc)'],
+  ['dtr', 'háromráhajtásos pálca', 'double treble (dtr)', 'triple treble (trtr)'],
+  ['inc-2sc', 'szaporítás: 2 rp egy szembe', 'increase (inc): 2 sc in same st', 'increase (inc): 2 dc in same st'],
+  ['sc2tog', 'fogyasztás: 2 rp 2 szemen át', 'decrease (dec): sc2tog', 'decrease (dec): dc2tog'],
+  ['shell-5dc', 'kagyló: 5 erp egy szembe', 'shell (sh): 5 dc in same st', 'shell: 5 tr in same st'],
+  [
+    'v-st-dc',
+    'V-szem: (erp, 1 lsz, erp) egy szembe',
+    'V-stitch (V-st): (dc, ch 1, dc) in same st',
+    'V-stitch: (tr, ch 1, tr) in same st',
+  ],
+  ['cl-3dc', 'fürt: 3 erp egy szembe', 'cluster (CL): 3 dc in same st', 'cluster (CL): 3 tr in same st'],
+  ['cl-3dc-spread', 'fürt: 3 erp 3 szemen át', 'cluster (CL): dc3tog', 'cluster (CL): tr3tog'],
+  ['puff-3', 'puff', 'puff stitch (ps)', 'puff stitch'],
+  ['rev-sc', 'rákhurok', 'reverse single crochet (rev sc)', 'reverse double crochet'],
 ];
 
 for (const [id, hu, us, gb] of TEXTS) {
@@ -216,13 +238,13 @@ test('a part stitch with no abbreviation is spelled out in the structure', () =>
 // prettier-ignore
 const CONVENTIONS = [
   // id         ch counts (round)       round end
-  ['sc',        false,                  'join-slip'],
-  ['hdc',       false,                  'join-slip'],
-  ['dc',        true,                   'join-slip'],
-  ['tr',        true,                   'join-slip'],
-  ['dtr',       true,                   'join-slip'],
-  ['inc-2sc',   false,                  'join-slip'],
-  ['dc2tog',    true,                   'join-slip'],
+  ['sc', false, 'join-slip'],
+  ['hdc', false, 'join-slip'],
+  ['dc', true, 'join-slip'],
+  ['tr', true, 'join-slip'],
+  ['dtr', true, 'join-slip'],
+  ['inc-2sc', false, 'join-slip'],
+  ['dc2tog', true, 'join-slip'],
 ];
 
 for (const [id, counts, roundEnd] of CONVENTIONS) {
@@ -248,7 +270,14 @@ test('a compound stitch inherits the height, turning chain and round end of its 
     const partId = def.kind === 'joined' ? def.part : def.kind === 'group' ? def.members[0] : null;
     if (!partId) continue;
     const part = stitchById(partId);
-    for (const field of ['yarnOvers', 'chainHeight', 'turningChain', 'turningChainCounts', 'roundEnd', 'heightFactor']) {
+    for (const field of [
+      'yarnOvers',
+      'chainHeight',
+      'turningChain',
+      'turningChainCounts',
+      'roundEnd',
+      'heightFactor',
+    ]) {
       assert.deepEqual(def[field], part[field], `${def.id}.${field}`);
     }
   }

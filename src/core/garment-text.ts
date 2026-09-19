@@ -27,7 +27,16 @@ export const DROP_SHOULDER_KEYS = [
   'timesB',
 ] as const;
 
-export const HAT_KEYS = ['hatCm', 'heightCm', 'increases', 'crownRounds', 'hatStitches', 'sideRounds', 'brimRounds', 'totalRounds'] as const;
+export const HAT_KEYS = [
+  'hatCm',
+  'heightCm',
+  'increases',
+  'crownRounds',
+  'hatStitches',
+  'sideRounds',
+  'brimRounds',
+  'totalRounds',
+] as const;
 
 export const RAGLAN_KEYS = [
   'raglanChestCm',
@@ -65,7 +74,7 @@ const huOrdinal = (n: number) => (n > 0 ? `${n}.` : '–');
 function enOrdinal(n: number): string {
   if (n <= 0) return '–';
   const teen = n % 100 >= 11 && n % 100 <= 13;
-  const suffix = teen ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th';
+  const suffix = teen ? 'th' : (({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th');
   return `${n}${suffix}`;
 }
 
@@ -82,10 +91,17 @@ export function sizingLines(garment: PatternGarment, locale: Locale): string[] {
   const any = (key: string) => (values(key) ?? []).some((n) => n > 0);
   const s = (key: string) => seriesText(values(key));
   const ordinal = (key: string) => seriesText(values(key), hu ? huOrdinal : enOrdinal);
-  const names = garment.sizes.map((id) => (garment.table === 'hat' ? hatSizeName(id, locale) : bodySizeName(garment.table, id, locale)));
+  const names = garment.sizes.map((id) =>
+    garment.table === 'hat' ? hatSizeName(id, locale) : bodySizeName(garment.table, id, locale),
+  );
   const base = names[garment.base] ?? names[0]!;
 
-  const lines = [seriesText(names.map((_, i) => i), (i) => names[i]!)];
+  const lines = [
+    seriesText(
+      names.map((_, i) => i),
+      (i) => names[i]!,
+    ),
+  ];
   if (names.length > 1) {
     lines.push(
       hu
@@ -95,7 +111,11 @@ export function sizingLines(garment: PatternGarment, locale: Locale): string[] {
   }
 
   if (garment.kind === 'hat') {
-    lines.push(hu ? `Kész körméret: ${s('hatCm')} cm; magasság: ${s('heightCm')} cm.` : `Finished circumference: ${s('hatCm')} cm; height: ${s('heightCm')} cm.`);
+    lines.push(
+      hu
+        ? `Kész körméret: ${s('hatCm')} cm; magasság: ${s('heightCm')} cm.`
+        : `Finished circumference: ${s('hatCm')} cm; height: ${s('heightCm')} cm.`,
+    );
     lines.push(
       hu
         ? `Korona: ${s('crownRounds')} kör, körönként ${s('increases')} szaporítással, az utolsó körben a szemszám igazítva: ${s('hatStitches')} szem.`
@@ -174,13 +194,19 @@ export function sizingLines(garment: PatternGarment, locale: Locale): string[] {
           (b ? `, then every ${ordinal('everyB')} row ${s('timesB')} times` : '') +
           `: ${s('sleeveTop')} sts; ${s('sleeveRows')} rows in total.`;
     } else {
-      shaping = hu ? `Az ujj egyenes, alakítás nélkül: ${s('sleeveRows')} sor.` : `Work the sleeve even: ${s('sleeveRows')} rows.`;
+      shaping = hu
+        ? `Az ujj egyenes, alakítás nélkül: ${s('sleeveRows')} sor.`
+        : `Work the sleeve even: ${s('sleeveRows')} rows.`;
     }
     lines.push(`${start} ${shaping}`);
   }
 
   if (any('yarnM')) {
-    lines.push(hu ? `Fonal tartalékkal: kb. ${s('yarnM')} m, ${s('balls')} gombolyag.` : `Yarn with buffer: approx. ${s('yarnM')} m, ${s('balls')} balls.`);
+    lines.push(
+      hu
+        ? `Fonal tartalékkal: kb. ${s('yarnM')} m, ${s('balls')} gombolyag.`
+        : `Yarn with buffer: approx. ${s('yarnM')} m, ${s('balls')} balls.`,
+    );
   }
   return lines;
 }

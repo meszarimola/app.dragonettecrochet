@@ -154,7 +154,8 @@ function measuredGauge(profile: GaugeProfile | null, key: string, forms: readonl
 function singleCrochetBase(shape: LayerShape, context: GaugeContext): StitchDimensions {
   const { library, profile } = context;
   const sc = measuredGauge(profile, 'sc', FORMS[shape]);
-  if (sc) return { widthMm: fromGauge(sc, sc.widthMm.mean), heightMm: fromGauge(sc, sc.heightMm.mean), basis: 'measured' };
+  if (sc)
+    return { widthMm: fromGauge(sc, sc.widthMm.mean), heightMm: fromGauge(sc, sc.heightMm.mean), basis: 'measured' };
 
   // KB: 02 §8
   for (const key of Object.keys(profile?.perStitch ?? {})) {
@@ -180,7 +181,12 @@ export function stitchDimensions(def: StitchDef, shape: LayerShape, context: Gau
   if (def.kind === 'picot' || def.kind === 'space' || def.kind === 'ring') return null;
 
   const own = measuredGauge(context.profile, measurementKey(def), FORMS[shape]);
-  if (own) return { widthMm: fromGauge(own, own.widthMm.mean), heightMm: fromGauge(own, own.heightMm.mean), basis: 'measured' };
+  if (own)
+    return {
+      widthMm: fromGauge(own, own.widthMm.mean),
+      heightMm: fromGauge(own, own.heightMm.mean),
+      basis: 'measured',
+    };
 
   const base = singleCrochetBase(shape, context);
   const chainLength = context.profile?.chainLengthMm;

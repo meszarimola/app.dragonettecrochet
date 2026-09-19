@@ -2,7 +2,14 @@ import { strict as assert } from 'node:assert';
 import { describe, test } from 'node:test';
 
 import { buildGaugeProfiles, loadGaugeSample, profileId, stat, stitchKey } from '../src/core/gauge-profile.ts';
-import { ROWS_EXAMPLE, TUBE_EXAMPLE, exampleJson, exampleProfiles, exampleText, samplesFrom } from './fixtures/calibration.ts';
+import {
+  exampleJson,
+  exampleProfiles,
+  exampleText,
+  ROWS_EXAMPLE,
+  samplesFrom,
+  TUBE_EXAMPLE,
+} from './fixtures/calibration.ts';
 
 function near(actual, expected, epsilon = 1e-9) {
   assert.ok(Math.abs(actual - expected) <= epsilon, `${actual} ≠ ${expected} (±${epsilon})`);
@@ -65,7 +72,13 @@ describe('loading a measurement file (docs/calibration/)', () => {
 
   test('flat circle: width from the circumference, round height from the radius, area from the diameter', () => {
     const text = edited(TUBE_EXAMPLE, (file) => {
-      file.construction = { workedIn: 'rounds-flat', start: 'magic-ring', roundJoin: 'spiral', rounds: 8, lastRoundStitches: 48 };
+      file.construction = {
+        workedIn: 'rounds-flat',
+        start: 'magic-ring',
+        roundJoin: 'spiral',
+        rounds: 8,
+        lastRoundStitches: 48,
+      };
       const [measurement] = file.measurements;
       delete measurement.grid;
       measurement.circle = { diameterMm: [80, 81, 79], shape: 'cupping' };
@@ -136,7 +149,10 @@ describe('a broken measurement file', () => {
   });
 
   test('a structural field the construction requires is missing', () => {
-    assert.equal(loadError(edited(TUBE_EXAMPLE, (file) => delete file.construction.rounds)).path, '$.construction.rounds');
+    assert.equal(
+      loadError(edited(TUBE_EXAMPLE, (file) => delete file.construction.rounds)).path,
+      '$.construction.rounds',
+    );
   });
 
   test('fewer than three readings', () => {
@@ -210,7 +226,9 @@ describe('profiles', () => {
 
   test('the insertion becomes part of the key unless it is both loops', () => {
     assert.equal(stitchKey('sc', 'both-loops'), 'sc');
-    const [profile] = buildGaugeProfiles(samplesFrom(edited(TUBE_EXAMPLE, (file) => (file.stitch.insertion = 'back-loop'))));
+    const [profile] = buildGaugeProfiles(
+      samplesFrom(edited(TUBE_EXAMPLE, (file) => (file.stitch.insertion = 'back-loop'))),
+    );
     assert.deepEqual(Object.keys(profile.perStitch), ['sc/back-loop']);
   });
 

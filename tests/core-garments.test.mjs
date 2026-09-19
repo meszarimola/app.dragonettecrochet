@@ -9,6 +9,7 @@ import { strict as assert } from 'node:assert';
 import { describe, test } from 'node:test';
 
 import { WOMEN } from '../src/core/body-sizes.ts';
+import { canonicalPattern } from '../src/core/canonical.ts';
 import { emptyPattern } from '../src/core/editor.ts';
 import {
   evenIncreases,
@@ -25,15 +26,14 @@ import {
   DEFAULT_HAT,
   dropShoulderMeasures,
   dropShoulderPlan,
-  generateGarment,
   garmentSizes,
+  generateGarment,
   hatPlan,
   neckSplitRow,
   planGarment,
   sleeveRowsOf,
 } from '../src/core/garments.ts';
 import { buildPieceGraph } from '../src/core/graph.ts';
-import { canonicalPattern } from '../src/core/canonical.ts';
 import { loadPattern, savePattern } from '../src/core/pattern-json.ts';
 import { readPattern } from '../src/core/pattern-read.ts';
 import { formatWrittenPattern, writePattern } from '../src/core/pattern-text.ts';
@@ -85,7 +85,10 @@ describe('the basics of the schematic maths', () => {
   });
 
   test('even row counts: 42.4 → 42, 16.8 → 16, 1.6 → 2; rounding up 63 → 64', () => {
-    assert.deepEqual([42.4, 16.8, 1.6, 32.2].map((x) => roundEven(x)), [42, 16, 2, 32]);
+    assert.deepEqual(
+      [42.4, 16.8, 1.6, 32.2].map((x) => roundEven(x)),
+      [42, 16, 2, 32],
+    );
     assert.equal(roundEven(63, 'up'), 64);
     assert.equal(roundEven(62, 'up'), 62);
   });
@@ -126,8 +129,14 @@ describe('the basics of the schematic maths', () => {
   });
 
   test('mirroring swaps the start and the end of a row; mirrored twice it is the original again', () => {
-    const shaping = [{ start: 1, end: 0 }, { start: 0, end: -2 }];
-    assert.deepEqual(mirrorShaping(shaping), [{ start: 0, end: 1 }, { start: -2, end: 0 }]);
+    const shaping = [
+      { start: 1, end: 0 },
+      { start: 0, end: -2 },
+    ];
+    assert.deepEqual(mirrorShaping(shaping), [
+      { start: 0, end: 1 },
+      { start: -2, end: 0 },
+    ]);
     assert.deepEqual(mirrorShaping(mirrorShaping(shaping)), shaping);
   });
 });
@@ -208,7 +217,10 @@ describe('worked example „D”: adult women hat in half double crochet', () =>
     assert.equal(plan.crownRounds, 9);
     assert.equal(plan.sideRounds, 12);
     assert.equal(plan.brimRounds, 3);
-    assert.deepEqual(plan.checks.filter((check) => !check.ok), []);
+    assert.deepEqual(
+      plan.checks.filter((check) => !check.ok),
+      [],
+    );
   });
 
   test('negative ease above 15% is refused, above 10% it warns', () => {
@@ -232,13 +244,18 @@ describe('size series', () => {
     assert.equal(plan.checksPassed, plan.checksTotal);
     assert.deepEqual(plan.monotonic, []);
     const neck = plan.values.neck;
-    assert.ok(neck.every((n, i) => i === 0 || n >= neck[i - 1]), neck.join(' '));
+    assert.ok(
+      neck.every((n, i) => i === 0 || n >= neck[i - 1]),
+      neck.join(' '),
+    );
   });
 
   test('men, child and baby tables: every size can be planned and every check passes', () => {
     for (const table of ['men', 'child', 'baby']) {
       const ids = garmentSizes('drop-shoulder', table);
-      const plan = planned(options({ table, size: ids[0], from: ids[0], to: ids.at(-1), belowWaistCm: table === 'men' ? 0 : 6 }));
+      const plan = planned(
+        options({ table, size: ids[0], from: ids[0], to: ids.at(-1), belowWaistCm: table === 'men' ? 0 : 6 }),
+      );
       assert.equal(plan.checksPassed, plan.checksTotal, table);
       assert.deepEqual(plan.monotonic, [], table);
     }
@@ -273,7 +290,10 @@ describe('size series', () => {
     // Negative ease over 10% of the bust: the plan is still produced, but the check fails.
     const plan = planned(options({ easeCm: -10, from: 'M', to: 'M' }));
     const failing = plan.sizes[0].plan.checks.filter((check) => !check.ok);
-    assert.deepEqual(failing.map((check) => check.id), ['negative-ease']);
+    assert.deepEqual(
+      failing.map((check) => check.id),
+      ['negative-ease'],
+    );
     assert.equal(failing[0].label.code, 'check-negative-ease');
     assert.equal(failing[0].suggestion.code, 'suggest-negative-ease-bust');
     assert.equal(failing[0].suggestion.data.cm, 9);
@@ -313,7 +333,10 @@ describe('generated pattern', () => {
     assert.equal(pattern.title, 'Ledobott vállú pulóver');
     assert.deepEqual(pattern.garment.sizes, ['S', 'M', 'L']);
     assert.equal(pattern.garment.base, 1);
-    assert.deepEqual(findings(pattern).filter((finding) => finding.severity === 'error'), []);
+    assert.deepEqual(
+      findings(pattern).filter((finding) => finding.severity === 'error'),
+      [],
+    );
     const base = plan.sizes[1].plan;
     // The sleeve is seamed into the armhole with even distribution, its two halves onto the back and the front.
     // With a shaped neck the armhole runs to the top of the body and the shoulders are worked above the split (PQW-901).
@@ -321,7 +344,10 @@ describe('generated pattern', () => {
     const split = neckSplitRow(base, 'back');
     assert.deepEqual(sleeveJoin.a.stitches, { from: 0, count: base.sleeve.top / 2 });
     assert.deepEqual(sleeveJoin.b.rows, { to: split, side: 'left' });
-    assert.equal(sleeveJoin.distribution.reduce((sum, n) => sum + n, 0), Math.max(base.sleeve.top / 2, split - (base.panel.rows - base.panel.armholeRows)));
+    assert.equal(
+      sleeveJoin.distribution.reduce((sum, n) => sum + n, 0),
+      Math.max(base.sleeve.top / 2, split - (base.panel.rows - base.panel.armholeRows)),
+    );
   });
 
   test('the right sleeve mirrors the left one: the rows have identical stitch counts', () => {
@@ -352,7 +378,10 @@ describe('generated pattern', () => {
     // The reader assigns the piece id itself: that does not make the graph any different.
     const sameId = (piece) => ({ ...piece, id: 'p1' });
     assert.deepEqual(canonicalPattern(result.pattern).pieces.map(sameId), canonicalPattern(front).pieces.map(sameId));
-    assert.deepEqual(validatePattern(result.pattern, library).filter((finding) => finding.severity === 'error'), []);
+    assert.deepEqual(
+      validatePattern(result.pattern, library).filter((finding) => finding.severity === 'error'),
+      [],
+    );
   });
 
   test('hat: no findings, and the straight side raises no curling warning', () => {
@@ -363,9 +392,15 @@ describe('generated pattern', () => {
 
   test('a seam pointing at an edge that does not exist is an error', () => {
     const { pattern } = generated(DEFAULT_GARMENT);
-    const broken = { ...pattern, joins: [{ ...pattern.joins[0], a: { ...pattern.joins[0].a, stitches: { from: 1000, count: 5 } } }] };
+    const broken = {
+      ...pattern,
+      joins: [{ ...pattern.joins[0], a: { ...pattern.joins[0].a, stitches: { from: 1000, count: 5 } } }],
+    };
     assert.ok(findings(broken).some((finding) => finding.rule === 'join-edge'));
-    const rows = { ...pattern, joins: [{ a: { piece: 'p1', layer: 1, rows: { to: 999, side: 'left' } }, b: pattern.joins[2].b }] };
+    const rows = {
+      ...pattern,
+      joins: [{ a: { piece: 'p1', layer: 1, rows: { to: 999, side: 'left' } }, b: pattern.joins[2].b }],
+    };
     assert.ok(findings(rows).some((finding) => finding.rule === 'join-edge'));
   });
 
@@ -376,9 +411,18 @@ describe('generated pattern', () => {
     assert.match(text, /Hátrész és elejerész \(2 db\): láncalap \d+ \(\d+, \d+\) lsz; \d+ \(\d+, \d+\) szem/);
     assert.match(text, /Szaporíts mindkét szélen 1-1 szemet a \d+\. \(\d+\., \d+\.\) sorban/);
     // With a shaped neck each shoulder is a full row, and the section name tells identical row numbers apart (PQW-901).
-    assert.match(text, /Varrás: Hátrész, \d+\. sor 1–\d+\. szeme \(\d+\) → Elejerész, A másik váll, \d+\. sor 1–\d+\. szeme \(\d+\)\./);
-    assert.match(text, /Varrás: Hátrész, 1–\d+\. sor bal széle \(\d+ sorvég\) → Elejerész, 1–\d+\. sor jobb széle \(\d+ sorvég\)\./);
-    assert.match(text, /Varrás: Bal ujj, \d+\. sor 1–\d+\. szeme \(\d+\) → Hátrész, \d+–\d+\. sor bal széle \(\d+ sorvég\), a szemeket egyenletesen elosztva\./);
+    assert.match(
+      text,
+      /Varrás: Hátrész, \d+\. sor 1–\d+\. szeme \(\d+\) → Elejerész, A másik váll, \d+\. sor 1–\d+\. szeme \(\d+\)\./,
+    );
+    assert.match(
+      text,
+      /Varrás: Hátrész, 1–\d+\. sor bal széle \(\d+ sorvég\) → Elejerész, 1–\d+\. sor jobb széle \(\d+ sorvég\)\./,
+    );
+    assert.match(
+      text,
+      /Varrás: Bal ujj, \d+\. sor 1–\d+\. szeme \(\d+\) → Hátrész, \d+–\d+\. sor bal széle \(\d+ sorvég\), a szemeket egyenletesen elosztva\./,
+    );
     const english = formatWrittenPattern(writePattern(pattern, libraryFor(pattern), 'en-US'));
     assert.match(english, /\n\nSizes\nS \(M, L\)\nThe rows and chart are for size M;/);
     assert.match(english, /Sew: Back|Sew: Hátrész, Rows 1–\d+, left edge \(\d+ row ends\) to Elejerész/);
@@ -424,7 +468,10 @@ describe('generated pattern', () => {
     const yarn = plan.values.yarnM;
     assert.ok(yarn[0] < yarn[1] && yarn[1] < yarn[2], yarn.join(' '));
     const { pattern: made } = generated(DEFAULT_GARMENT, pattern);
-    assert.match(formatWrittenPattern(writePattern(made, libraryFor(made), 'hu')), /Fonal tartalékkal: kb\. \d+ \(\d+, \d+\) m, \d+ \(\d+, \d+\) gombolyag\./);
+    assert.match(
+      formatWrittenPattern(writePattern(made, libraryFor(made), 'hu')),
+      /Fonal tartalékkal: kb\. \d+ \(\d+, \d+\) m, \d+ \(\d+, \d+\) gombolyag\./,
+    );
     // With the gauge of worked example „B”, size M (94 + 10 cm, a 52 cm panel) is exactly 78 stitches.
     assert.equal(plan.sizes[1].plan.panel.stitches, 78);
   });
@@ -490,7 +537,9 @@ describe('ribbed hem and cuff on the drop-shoulder sweater (PQW-913)', () => {
 
   /** The layer stitch counts per piece: ribbing must not change these. */
   const counts = (pattern) =>
-    pattern.pieces.map((piece) => buildPieceGraph(pattern, piece, libraryFor(pattern)).layers.map((layer) => layer.stitchCount));
+    pattern.pieces.map((piece) =>
+      buildPieceGraph(pattern, piece, libraryFor(pattern)).layers.map((layer) => layer.stitchCount),
+    );
 
   for (const neckline of ['boat', 'shaped']) {
     test(`with a ${neckline === 'boat' ? 'boat' : 'shaped'} neckline the ribbing is sound and the stitch counts stay unchanged`, () => {
@@ -509,8 +558,14 @@ describe('ribbed hem and cuff on the drop-shoulder sweater (PQW-913)', () => {
     // Two panels and two sleeves, row by row: every piece has ribbing at its bottom.
     assert.ok(ribbed.length >= 4, ribbed.join('\n'));
     // The turning chain of a ribbing row is a turning chain (01 §2.2 [S25]), and the ribbing is written as a repeat.
-    assert.ok(ribbed.every((line) => line.includes('fordulólánc')), ribbed.join('\n'));
-    assert.ok(ribbed.some((line) => /\[1 (Eerp|Herp), 1 (Eerp|Herp)\]/.test(line)), ribbed.join('\n'));
+    assert.ok(
+      ribbed.every((line) => line.includes('fordulólánc')),
+      ribbed.join('\n'),
+    );
+    assert.ok(
+      ribbed.some((line) => /\[1 (Eerp|Herp), 1 (Eerp|Herp)\]/.test(line)),
+      ribbed.join('\n'),
+    );
     // Row 1 stays plain: you cannot work a post stitch around the foundation chain.
     assert.ok(!/^2\. sor:.*(Eerp|Herp)/m.test(text), 'row 2 must not be ribbed');
   });

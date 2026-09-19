@@ -1,21 +1,21 @@
 // KB: interface.md §1
 
 import {
+  type JogFix,
   MOTIF_CORNERS,
   MOTIF_SHAPES,
-  ROUND_STITCHES,
-  motifStitch,
-  type JogFix,
   type MotifOptions,
   type MotifShape,
+  motifStitch,
+  ROUND_STITCHES,
   type RoundClosing,
   type RoundStart,
 } from '../core/round-generator.ts';
 import type { FlatIncreases } from '../core/rounds.ts';
 import { stitchById } from '../core/stitches.ts';
 import { texts } from './i18n.ts';
-import { formatNumber } from './size-view.ts';
 import { termsLocale } from './notation.ts';
+import { formatNumber } from './size-view.ts';
 
 export interface Choice<T extends string> {
   readonly value: T;
@@ -44,12 +44,14 @@ export const STITCH_CHOICES: readonly Choice<string>[] = ROUND_STITCHES.map((val
   },
 }));
 
-export const START_CHOICES: readonly Choice<RoundStart>[] = (['magic-ring', 'chain-ring', 'chain'] as const).map((value) => ({
-  value,
-  get label() {
-    return texts().panels.round.starts[value];
-  },
-}));
+export const START_CHOICES: readonly Choice<RoundStart>[] = (['magic-ring', 'chain-ring', 'chain'] as const).map(
+  (value) => ({
+    value,
+    get label() {
+      return texts().panels.round.starts[value];
+    },
+  }),
+);
 
 export const CLOSING_CHOICES: readonly Choice<RoundClosing>[] = (['join-slip', 'spiral'] as const).map((value) => ({
   value,
@@ -58,12 +60,14 @@ export const CLOSING_CHOICES: readonly Choice<RoundClosing>[] = (['join-slip', '
   },
 }));
 
-export const JOG_CHOICES: readonly Choice<JogFix | 'none'>[] = (['none', 'slip-stitch', 'back-loop'] as const).map((value) => ({
-  value,
-  get label() {
-    return texts().panels.round.jogs[value];
-  },
-}));
+export const JOG_CHOICES: readonly Choice<JogFix | 'none'>[] = (['none', 'slip-stitch', 'back-loop'] as const).map(
+  (value) => ({
+    value,
+    get label() {
+      return texts().panels.round.jogs[value];
+    },
+  }),
+);
 
 export interface FieldState {
   readonly stitch: boolean;
@@ -92,7 +96,12 @@ export function fieldState(options: MotifOptions): FieldState {
 export function normalizeMotif(options: MotifOptions): MotifOptions {
   const granny = options.shape === 'granny-square';
   const next: MotifOptions = granny
-    ? { ...options, stitch: 'dc', closing: 'join-slip', start: options.start === 'chain' ? 'magic-ring' : options.start }
+    ? {
+        ...options,
+        stitch: 'dc',
+        closing: 'join-slip',
+        start: options.start === 'chain' ? 'magic-ring' : options.start,
+      }
     : options;
   const chosen = fieldState(next).ribbing ? next : { ...next, ribbing: null };
   return fieldState(chosen).jogFix ? chosen : { ...chosen, jogFix: null };

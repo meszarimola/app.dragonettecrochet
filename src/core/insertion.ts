@@ -1,6 +1,12 @@
 import type { InsertionMode, Layer, NodeId, Piece, StitchDef, StitchInsertion } from './types.ts';
 
-export const STITCH_INSERTIONS: readonly StitchInsertion[] = ['both-loops', 'front-loop', 'back-loop', 'front-post', 'back-post'];
+export const STITCH_INSERTIONS: readonly StitchInsertion[] = [
+  'both-loops',
+  'front-loop',
+  'back-loop',
+  'front-post',
+  'back-post',
+];
 
 export const INSERTION_NAMES: Readonly<Record<StitchInsertion, string>> = {
   'both-loops': 'mindkét szál',
@@ -37,7 +43,10 @@ export function stitchInsertions(def: StitchDef): StitchInsertion[] {
   return STITCH_INSERTIONS.filter((mode) => def.insertionModes.includes(mode));
 }
 
-export function effectiveInsertion(def: StitchDef, requested: StitchInsertion | null | undefined): StitchInsertion | undefined {
+export function effectiveInsertion(
+  def: StitchDef,
+  requested: StitchInsertion | null | undefined,
+): StitchInsertion | undefined {
   const allowed = stitchInsertions(def);
   return requested && allowed.includes(requested) ? requested : allowed[0];
 }

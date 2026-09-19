@@ -19,13 +19,23 @@ test('row grid: one fill per band, lines from lightest to heaviest, and no broke
   const grid = gridOf(hdcRectangle({ rows: 11 }).pattern, 'rows');
   const paths = gridPaths(grid);
   assert.equal(paths.bands.length, grid.bands.length);
-  assert.deepEqual(paths.bands.slice(0, 3).map((band) => band.tone), [0, 1, 0]);
+  assert.deepEqual(
+    paths.bands.slice(0, 3).map((band) => band.tone),
+    [0, 1, 0],
+  );
   const text = JSON.stringify(paths);
   assert.doesNotMatch(text, /NaN|undefined|Infinity/);
   const order = ['cell', 'row', 'five', 'ten'];
   const weights = paths.lines.map((line) => order.indexOf(line.weight));
-  assert.ok(weights.every((w, i) => i === 0 || w >= weights[i - 1]), 'the emphasised line is drawn last');
-  for (const weight of order) assert.ok(paths.lines.some((line) => line.weight === weight), weight);
+  assert.ok(
+    weights.every((w, i) => i === 0 || w >= weights[i - 1]),
+    'the emphasised line is drawn last',
+  );
+  for (const weight of order)
+    assert.ok(
+      paths.lines.some((line) => line.weight === weight),
+      weight,
+    );
   // The lines of the row in progress, still empty, are dashed.
   assert.ok(paths.lines.some((line) => line.dashed));
   assert.ok(LINE_WIDTH.ten > LINE_WIDTH.five && LINE_WIDTH.five > LINE_WIDTH.row);
@@ -35,7 +45,10 @@ test('concentric grid: arcs and evenodd-filled annuli', () => {
   const paths = gridPaths(gridOf(grannySquare().pattern, 'rounds'));
   assert.equal(paths.bands[0].evenOdd, false, 'the magic ring is a solid disc');
   assert.ok(paths.bands.slice(1).every((band) => band.evenOdd && /A/.test(band.d)));
-  assert.ok(paths.lines.some((line) => /L/.test(line.d)), 'radial cell boundary');
+  assert.ok(
+    paths.lines.some((line) => /L/.test(line.d)),
+    'radial cell boundary',
+  );
   assert.doesNotMatch(JSON.stringify(paths), /NaN|undefined|Infinity/);
 });
 
@@ -43,9 +56,15 @@ test('polygon grid (PQW-888): straight-sided rings with no arc', () => {
   const { pattern } = generateMotif(emptyPattern(), { ...DEFAULT_MOTIF, shape: 'hexagon', rounds: 3 });
   const paths = gridPaths(gridOf(pattern, 'rounds'));
   const corners = (d) => (d.match(/[ML]/g) ?? []).length;
-  assert.ok(paths.bands.every((band) => !/A/.test(band.d)), 'no arc');
+  assert.ok(
+    paths.bands.every((band) => !/A/.test(band.d)),
+    'no arc',
+  );
   assert.equal(corners(paths.bands[0].d), 6, 'the centre band is a solid hexagon');
-  assert.ok(paths.bands.slice(1).every((band) => band.evenOdd && corners(band.d) === 12), 'a ring is two hexagons');
+  assert.ok(
+    paths.bands.slice(1).every((band) => band.evenOdd && corners(band.d) === 12),
+    'a ring is two hexagons',
+  );
   assert.doesNotMatch(JSON.stringify(paths), /NaN|undefined|Infinity/);
 });
 
@@ -83,7 +102,6 @@ test('the foundation chain cells get no separator line, while the other rows do'
   assert.ok(verticals.length > 0, 'cell lines remain in the rows');
 });
 
-
 /*
  * Lines between cells never get counting emphasis (PQW-924).
  *
@@ -108,7 +126,10 @@ test('no vertical cell line carries an emphasised weight, in a row in progress o
      */
     if (rows >= 5) {
       const horizontal = gridPaths(grid).lines.filter((line) => !/^M[-\d.]+ [-\d.]+V[-\d.]+$/.test(line.d));
-      assert.ok(horizontal.some((line) => line.weight === 'five' || line.weight === 'ten'), `${rows} rows: the row lines keep their emphasis`);
+      assert.ok(
+        horizontal.some((line) => line.weight === 'five' || line.weight === 'ten'),
+        `${rows} rows: the row lines keep their emphasis`,
+      );
     }
   }
 });

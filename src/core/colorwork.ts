@@ -1,9 +1,16 @@
 // KB: 03 §5.3, §5.4, core-support §10
-import { fail, finishGridPattern, gridPiece, GridWriter, intoStitch, type GridPatternCode } from './grid-pattern.ts';
-import { text, type CoreText } from './messages.ts';
-import { TECHNIQUE_NAMES, cellSize, colorChartProblem, type CellSize, type ChartCode, type ChartRows } from './pixel-chart.ts';
+import { fail, finishGridPattern, type GridPatternCode, GridWriter, gridPiece, intoStitch } from './grid-pattern.ts';
+import { type CoreText, text } from './messages.ts';
+import {
+  type CellSize,
+  type ChartCode,
+  type ChartRows,
+  cellSize,
+  colorChartProblem,
+  TECHNIQUE_NAMES,
+} from './pixel-chart.ts';
 import { foundationChainLength } from './repeat.ts';
-import { shapeGauge, type ShapeGauge } from './shapes.ts';
+import { type ShapeGauge, shapeGauge } from './shapes.ts';
 import { resolveStitch } from './stitch-variants.ts';
 import { firstChainFromHook, skippedChains, traditionOf, turningChainCountsFor } from './tradition.ts';
 import type { GridUnit, NodeId, Pattern, PatternColor } from './types.ts';
@@ -51,7 +58,12 @@ export interface ColorworkOptions {
   readonly lettering: boolean;
 }
 
-export function planColorwork(pattern: Pattern, technique: ColorworkTechnique, cells: ChartRows, colors: readonly PatternColor[]): ColorworkPlanResult {
+export function planColorwork(
+  pattern: Pattern,
+  technique: ColorworkTechnique,
+  cells: ChartRows,
+  colors: readonly PatternColor[],
+): ColorworkPlanResult {
   const problem = colorChartProblem(cells, colors);
   if (problem) return fail(problem);
   const def = resolveStitch(COLORWORK_STITCH)!;

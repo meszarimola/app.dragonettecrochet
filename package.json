@@ -19,6 +19,7 @@
     "fust": "playwright test --config playwright.prod.config.ts"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.14",
     "@playwright/test": "^1.63.0",
     "typescript": "^5.9.2",
     "vite": "^7.1.5"

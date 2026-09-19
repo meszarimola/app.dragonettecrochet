@@ -1,7 +1,7 @@
 // KB: interface.md §1, §22, §24 — here the mode is the crocheter's; stored it flips on a wrong-side row.
 
 import { effectiveInsertion, stitchInsertions } from '../core/insertion.ts';
-import { VOCABULARIES, refOf } from '../core/pattern-text.ts';
+import { refOf, VOCABULARIES } from '../core/pattern-text.ts';
 import type { Locale, StitchDef, StitchInsertion } from '../core/types.ts';
 import { texts, uiLanguage } from './i18n.ts';
 
@@ -16,7 +16,11 @@ export interface InsertionChoice {
   readonly written: string | null;
 }
 
-export function insertionChoice(def: StitchDef | undefined, preferred: StitchInsertion, terms: Locale): InsertionChoice | null {
+export function insertionChoice(
+  def: StitchDef | undefined,
+  preferred: StitchInsertion,
+  terms: Locale,
+): InsertionChoice | null {
   if (!def) return null;
   const allowed = stitchInsertions(def);
   const selected = effectiveInsertion(def, preferred);

@@ -7,7 +7,7 @@ import { strict as assert } from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
-import { STITCHES, STITCH_SECTIONS } from '../src/core/stitches.ts';
+import { STITCH_SECTIONS, STITCHES } from '../src/core/stitches.ts';
 import { stitchName, stitchStructure } from '../src/core/stitchText.ts';
 import { buildPalette } from '../src/ui/palette.ts';
 
@@ -67,7 +67,10 @@ for (const terms of ['hu', 'en-US', 'en-GB']) {
 }
 
 test('the palette defaults to Hungarian notation, and „dc” means different things in US and UK terms', () => {
-  const name = (terms, id) => buildPalette(terms).flatMap((s) => s.items).find((item) => item.def.id === id).name;
+  const name = (terms, id) =>
+    buildPalette(terms)
+      .flatMap((s) => s.items)
+      .find((item) => item.def.id === id).name;
   assert.equal(name(undefined, 'sc'), 'Rövidpálca (rp)');
   assert.equal(name('en-US', 'sc'), 'Single crochet (sc)');
   assert.equal(name('en-GB', 'sc'), 'Double crochet (dc)');

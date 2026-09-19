@@ -1,34 +1,34 @@
 // KB: interface.md §7, §24, §26
 
-import { MAX_GRID_SIDE, type DraftCell } from '../core/pixel-chart.js';
+import { type DraftCell, MAX_GRID_SIDE } from '../core/pixel-chart.js';
 import type { Pattern } from '../core/types.js';
-import { texts } from './i18n.js';
 import {
-  MOSAIC_ROW_CHOICES,
-  TECHNIQUE_CHOICES,
   brushesFor,
   cellAppearance,
   cellLabel,
   cellPixels,
   colorLabel,
   defaultState,
+  type EditorTechnique,
   editorCellSize,
   expandedCells,
+  type GridEditorState,
   generateFromState,
   imageGridSize,
   imageToDraft,
+  MOSAIC_ROW_CHOICES,
   nextColor,
   planSummary,
   removeColor,
   resizeDraft,
   stateFromPattern,
+  TECHNIQUE_CHOICES,
   unitState,
   usesColors,
   withTechnique,
   yarnLines,
-  type EditorTechnique,
-  type GridEditorState,
 } from './grid-chart-view.js';
+import { texts } from './i18n.js';
 import { formatNumber } from './size-view.js';
 
 export interface GridChartPanelHost {
@@ -41,7 +41,10 @@ interface Cell {
   readonly y: number;
 }
 
-function fill(select: HTMLSelectElement, choices: readonly { readonly value: string; readonly label: string }[]): HTMLSelectElement {
+function fill(
+  select: HTMLSelectElement,
+  choices: readonly { readonly value: string; readonly label: string }[],
+): HTMLSelectElement {
   select.replaceChildren(
     ...choices.map((choice) => {
       const option = document.createElement('option');
@@ -112,7 +115,9 @@ export class GridChartPanel {
     this.#board = field('grid-board');
     this.#manual = field('grid-unit-manual');
     this.#unitFields = field('grid-unit-fields');
-    this.#unitInputs = ['grid-unit-x', 'grid-unit-y', 'grid-unit-width', 'grid-unit-height'].map((id) => field<HTMLInputElement>(id));
+    this.#unitInputs = ['grid-unit-x', 'grid-unit-y', 'grid-unit-width', 'grid-unit-height'].map((id) =>
+      field<HTMLInputElement>(id),
+    );
     this.#unit = field('grid-unit');
     this.#fill = field('grid-fill');
     this.#lettering = field('grid-lettering');
@@ -154,7 +159,9 @@ export class GridChartPanel {
     });
     this.#manual.addEventListener('change', () => this.#readUnit());
     for (const input of this.#unitInputs) input.addEventListener('input', () => this.#readUnit());
-    this.#lettering.addEventListener('change', () => this.#setState({ ...this.#state, lettering: this.#lettering.checked }));
+    this.#lettering.addEventListener('change', () =>
+      this.#setState({ ...this.#state, lettering: this.#lettering.checked }),
+    );
     this.#fill.addEventListener('click', () => this.#fillFromUnit());
     this.#load.addEventListener('click', () => this.#loadFromPattern());
     field<HTMLButtonElement>('grid-create').addEventListener('click', () => this.#create());
@@ -258,7 +265,13 @@ export class GridChartPanel {
       const image = new Image();
       image.src = url;
       await image.decode();
-      const size = imageGridSize(image.naturalWidth, image.naturalHeight, this.#state.draft[0]?.length ?? 1, this.#pattern, this.#state);
+      const size = imageGridSize(
+        image.naturalWidth,
+        image.naturalHeight,
+        this.#state.draft[0]?.length ?? 1,
+        this.#pattern,
+        this.#state,
+      );
       const canvas = document.createElement('canvas');
       canvas.width = size.width;
       canvas.height = size.height;
@@ -269,7 +282,10 @@ export class GridChartPanel {
       this.#manual.checked = false;
       this.#unitFields.hidden = true;
       this.#focus = { x: 0, y: 0 };
-      this.#setState({ ...this.#state, draft: imageToDraft(pixels, size.width, size.height, this.#state), manualUnit: null }, true);
+      this.#setState(
+        { ...this.#state, draft: imageToDraft(pixels, size.width, size.height, this.#state), manualUnit: null },
+        true,
+      );
       this.#host.announce(texts().panels.grid.imageLoaded(size.width, size.height));
     } catch {
       this.#host.announce(texts().panels.grid.imageFailed);
@@ -342,7 +358,9 @@ export class GridChartPanel {
         name.autocomplete = 'off';
         name.setAttribute('aria-label', t.colorNameLabel(letter));
         // KB: interface.md §25
-        name.addEventListener('change', () => this.#editColor(i, { name: name.value.trim() || t.colorFallback(letter) }, true));
+        name.addEventListener('change', () =>
+          this.#editColor(i, { name: name.value.trim() || t.colorFallback(letter) }, true),
+        );
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'tool';
@@ -408,7 +426,10 @@ export class GridChartPanel {
     this.#board.style.setProperty('--cell-height', `${pixels.height}px`);
     this.#board.setAttribute('aria-rowcount', String(height));
     this.#board.setAttribute('aria-colcount', String(width));
-    this.#ratio.textContent = texts().panels.grid.cellRatio(formatNumber(size.widthCm, 1), formatNumber(size.heightCm, 1));
+    this.#ratio.textContent = texts().panels.grid.cellRatio(
+      formatNumber(size.widthCm, 1),
+      formatNumber(size.heightCm, 1),
+    );
 
     this.#cells = Array.from({ length: height }, () => []);
     const rows: HTMLElement[] = [];
@@ -467,7 +488,9 @@ export class GridChartPanel {
   #paint(cell: Cell, value: DraftCell): void {
     const current = this.#state.draft[cell.y]?.[cell.x];
     if (current === undefined || current === value) return;
-    const draft = this.#state.draft.map((row, y) => (y === cell.y ? row.map((old, x) => (x === cell.x ? value : old)) : row));
+    const draft = this.#state.draft.map((row, y) =>
+      y === cell.y ? row.map((old, x) => (x === cell.x ? value : old)) : row,
+    );
     this.#state = { ...this.#state, draft };
     this.#updateCell(cell, unitState(this.#state).unit);
     this.#schedule();

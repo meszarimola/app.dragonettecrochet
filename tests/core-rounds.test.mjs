@@ -26,8 +26,8 @@ import { layoutPattern } from '../src/core/layout.ts';
 import { loadPattern, savePattern } from '../src/core/pattern-json.ts';
 import { readPattern } from '../src/core/pattern-read.ts';
 import { gaugeContextOf } from '../src/core/pattern-size.ts';
-import { VOCABULARIES, formatWrittenPattern, writePattern } from '../src/core/pattern-text.ts';
-import { DEFAULT_MOTIF, circlePlan, generateMotif, polygonPlan } from '../src/core/round-generator.ts';
+import { formatWrittenPattern, VOCABULARIES, writePattern } from '../src/core/pattern-text.ts';
+import { circlePlan, DEFAULT_MOTIF, generateMotif, polygonPlan } from '../src/core/round-generator.ts';
 import { flatIncreases, niceIncreases } from '../src/core/rounds.ts';
 import { libraryFor, resolveStitch } from '../src/core/stitch-variants.ts';
 import { withTradition } from '../src/core/tradition.ts';
@@ -47,7 +47,8 @@ const ok = (result) => {
 const motif = (patch = {}, base = emptyPattern()) => ok(generateMotif(base, { ...DEFAULT_MOTIF, ...patch }));
 const graphOf = (pattern) => buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));
 const lines = (pattern, locale) => writePattern(pattern, libraryFor(pattern), locale).pieces[0].lines;
-const estimate = (id, corners) => flatIncreases(resolveStitch(id), gaugeContextOf(emptyPattern(), libraryFor(emptyPattern())), corners);
+const estimate = (id, corners) =>
+  flatIncreases(resolveStitch(id), gaugeContextOf(emptyPattern(), libraryFor(emptyPattern())), corners);
 const japanese = () => ({ ...emptyPattern(), conventions: withTradition(emptyPattern().conventions, 'japanese') });
 
 /** A pattern with a profile whose single crochet, measured in rounds, gives the stated stitches and rounds per 10 cm. */
@@ -65,7 +66,10 @@ function withRoundGauge(pattern, stitchesPer10cm, rowsPer10cm) {
 
 describe('the increases a flat circle needs (04 §0, §1.2, §9.0)', () => {
   test('without a profile it estimates from the usual round aspect ratio: sc 6, hdc 8, dc 12, tr 16', () => {
-    assert.deepEqual(['sc', 'hdc', 'dc', 'tr'].map((id) => estimate(id).count), [6, 8, 12, 16]);
+    assert.deepEqual(
+      ['sc', 'hdc', 'dc', 'tr'].map((id) => estimate(id).count),
+      [6, 8, 12, 16],
+    );
     const sc = estimate('sc');
     assert.equal(sc.source, 'estimated');
     assert.equal(sc.from, null);
@@ -98,7 +102,12 @@ describe('the increases a flat circle needs (04 §0, §1.2, §9.0)', () => {
 
   test('the measured ratio reaches the generator too: a taller round takes more increases', () => {
     const pattern = motif({ rounds: 2 }, withRoundGauge(emptyPattern(), 20, 14));
-    assert.deepEqual(graphOf(pattern).layers.slice(1).map((layer) => layer.stitchCount), [8, 16]);
+    assert.deepEqual(
+      graphOf(pattern)
+        .layers.slice(1)
+        .map((layer) => layer.stitchCount),
+      [8, 16],
+    );
   });
 });
 
@@ -123,7 +132,8 @@ describe('round generator: the knowledge base tables (04 §3.1, §3.2)', () => {
     [8, '3 sc, (inc, 6 sc) x5, inc, 3 sc', 48],
   ];
   /** A table row as we write it: US text spells a single stitch without the number. */
-  const expected = ([round, instruction, count]) => `Rnd ${round}: ${instruction.replace(/\b1 sc\b/g, 'sc')} (${count}).`;
+  const expected = ([round, instruction, count]) =>
+    `Rnd ${round}: ${instruction.replace(/\b1 sc\b/g, 'sc')} (${count}).`;
 
   for (const [name, stagger, table] of [
     ['basic (04 §3.1)', false, BASE],
@@ -140,7 +150,10 @@ describe('round generator: the knowledge base tables (04 §3.1, §3.2)', () => {
   }
 
   test('the Hungarian line reproduces the worked example from the ticket: „3. kör: (1 rp, szap.) ×6 (18)”', () => {
-    assert.equal(lines(motif({ rounds: 3, stagger: false, closing: 'spiral' }), 'hu').at(-1), '3. kör: (1 rp, szap.) ×6 (18). A fonal elvágása.');
+    assert.equal(
+      lines(motif({ rounds: 3, stagger: false, closing: 'spiral' }), 'hu').at(-1),
+      '3. kör: (1 rp, szap.) ×6 (18). A fonal elvágása.',
+    );
   });
 
   test('the plan over positions: without stagger it is (k − 2 sts, inc), with stagger it shifts by half a repeat', () => {
@@ -150,13 +163,21 @@ describe('round generator: the knowledge base tables (04 §3.1, §3.2)', () => {
 
   test('a joined round gets a turning chain and a closing slip stitch, and the stitch count is unchanged', () => {
     const pattern = motif({ rounds: 3, stagger: false });
-    assert.equal(lines(pattern, 'hu')[3], '3. kör: 1 lsz (fordulólánc), (1 rp, szap.) ×6 (18). Kör zárása: 1 ksz az első szembe.');
+    assert.equal(
+      lines(pattern, 'hu')[3],
+      '3. kör: 1 lsz (fordulólánc), (1 rp, szap.) ×6 (18). Kör zárása: 1 ksz az első szembe.',
+    );
     assert.equal(pattern.conventions.roundEnd, 'join-slip');
   });
 
   test('in a double crochet round the 3-chain turning chain is the first stitch (vocabulary K1)', () => {
     const pattern = motif({ stitch: 'dc', rounds: 2 });
-    assert.deepEqual(graphOf(pattern).layers.slice(1).map((layer) => layer.stitchCount), [12, 24]);
+    assert.deepEqual(
+      graphOf(pattern)
+        .layers.slice(1)
+        .map((layer) => layer.stitchCount),
+      [12, 24],
+    );
     assert.equal(
       lines(pattern, 'hu')[2],
       '2. kör: 3 lsz (1 erp-nek számít), 1 erp ugyanabba a láncszembe, szap. ×11 (24). Kör zárása: 1 ksz a kezdőlánc tetejébe.',
@@ -165,8 +186,14 @@ describe('round generator: the knowledge base tables (04 §3.1, §3.2)', () => {
 
   test('with the Japanese preset the half double crochet turning chain counts too, in Hungarian and in English', () => {
     const pattern = motif({ stitch: 'hdc', rounds: 2 }, japanese());
-    assert.equal(lines(pattern, 'hu')[1], '1. kör: 2 lsz (1 fp-nek számít), 7 fp a varázskörbe (8). Kör zárása: 1 ksz a kezdőlánc tetejébe.');
-    assert.equal(lines(pattern, 'en-US')[2], 'Rnd 2: ch 2 (counts as 1 hdc), hdc in same ch, inc x7 (16). Join with sl st to top of beg ch.');
+    assert.equal(
+      lines(pattern, 'hu')[1],
+      '1. kör: 2 lsz (1 fp-nek számít), 7 fp a varázskörbe (8). Kör zárása: 1 ksz a kezdőlánc tetejébe.',
+    );
+    assert.equal(
+      lines(pattern, 'en-US')[2],
+      'Rnd 2: ch 2 (counts as 1 hdc), hdc in same ch, inc x7 (16). Join with sl st to top of beg ch.',
+    );
     assert.equal(
       lines(motif({ stitch: 'hdc', rounds: 1 }), 'hu')[1],
       '1. kör: 2 lsz (fordulólánc), 8 fp a varázskörbe (8). Kör zárása: 1 ksz az első szembe.',
@@ -177,7 +204,12 @@ describe('round generator: the knowledge base tables (04 §3.1, §3.2)', () => {
 describe('polygons and the granny square (04 §6, §9.5, 03 §8)', () => {
   test('a square in single crochet: 8 increases per round, 3 sc into one stitch at every corner', () => {
     const pattern = motif({ shape: 'square', rounds: 4 });
-    assert.deepEqual(graphOf(pattern).layers.slice(1).map((layer) => layer.stitchCount), [8, 16, 24, 32]);
+    assert.deepEqual(
+      graphOf(pattern)
+        .layers.slice(1)
+        .map((layer) => layer.stitchCount),
+      [8, 16, 24, 32],
+    );
     assert.equal(pattern.pieces[0].corners, 4);
     assert.equal(pattern.pieces[0].groups.length, 12);
     assert.ok(pattern.pieces[0].groups.every((group) => group.def === 'inc-3sc'));
@@ -191,28 +223,51 @@ describe('polygons and the granny square (04 §6, §9.5, 03 §8)', () => {
     for (const group of piece.groups) {
       const target = graph.nodes.get(group.members[0]).anchors[0].id;
       if (graph.layerOf.get(group.members[0]) < 3) continue;
-      assert.equal(groupOf.get(target)?.members[1], target, `${group.id}: into the middle stitch of the previous corner`);
+      assert.equal(
+        groupOf.get(target)?.members[1],
+        target,
+        `${group.id}: into the middle stitch of the previous corner`,
+      );
     }
   });
 
   test('hexagon and octagon: the flat polygon value per round, capped at doubling', () => {
-    assert.deepEqual(graphOf(motif({ shape: 'hexagon', rounds: 5 })).layers.slice(1).map((layer) => layer.stitchCount), [6, 12, 21, 28, 35]);
+    assert.deepEqual(
+      graphOf(motif({ shape: 'hexagon', rounds: 5 }))
+        .layers.slice(1)
+        .map((layer) => layer.stitchCount),
+      [6, 12, 21, 28, 35],
+    );
     const octagon = polygonPlan(8, 2 * 8 * Math.tan(Math.PI / 8), 6);
-    assert.deepEqual([octagon.first, ...octagon.rounds.map((into) => into.reduce((sum, n) => sum + n, 0))], [8, 13, 20, 27, 33, 40]);
+    assert.deepEqual(
+      [octagon.first, ...octagon.rounds.map((into) => into.reduce((sum, n) => sum + n, 0))],
+      [8, 13, 20, 27, 33, 40],
+    );
   });
 
   test('granny square: three rounds reproduce the worked example of 03 §8 exactly', () => {
-    assert.deepEqual(canonicalPiece(motif({ shape: 'granny-square', rounds: 3 }).pieces[0]), canonicalPiece(grannySquare().pattern.pieces[0]));
+    assert.deepEqual(
+      canonicalPiece(motif({ shape: 'granny-square', rounds: 3 }).pieces[0]),
+      canonicalPiece(grannySquare().pattern.pieces[0]),
+    );
   });
 
   test('granny square: the position count grows by 16 per round (16n + 4)', () => {
     const pattern = motif({ shape: 'granny-square', rounds: 5, start: 'chain-ring' });
-    assert.deepEqual(graphOf(pattern).layers.slice(1).map((layer) => layer.positionCount), [20, 36, 52, 68, 84]);
+    assert.deepEqual(
+      graphOf(pattern)
+        .layers.slice(1)
+        .map((layer) => layer.positionCount),
+      [20, 36, 52, 68, 84],
+    );
   });
 
   test('a granny square cannot be started in a chain and cannot be worked in a spiral', () => {
     assert.equal(generateMotif(emptyPattern(), { ...DEFAULT_MOTIF, shape: 'granny-square', start: 'chain' }).ok, false);
-    assert.equal(generateMotif(emptyPattern(), { ...DEFAULT_MOTIF, shape: 'granny-square', closing: 'spiral' }).ok, false);
+    assert.equal(
+      generateMotif(emptyPattern(), { ...DEFAULT_MOTIF, shape: 'granny-square', closing: 'spiral' }).ok,
+      false,
+    );
   });
 });
 
@@ -227,7 +282,10 @@ describe('starts and round endings (04 §1.1, §2)', () => {
     assert.equal(first.stitchCount, 12);
     assert.deepEqual(validatePattern(pattern, libraryFor(pattern)), []);
     assert.equal(lines(pattern, 'hu')[0], 'Láncgyűrű: 4 lsz, 1 ksz-szel gyűrűvé zárva.');
-    assert.equal(lines(pattern, 'hu')[1], '1. kör: 3 lsz (1 erp-nek számít), 11 erp a gyűrűbe (12). Kör zárása: 1 ksz a kezdőlánc tetejébe.');
+    assert.equal(
+      lines(pattern, 'hu')[1],
+      '1. kör: 3 lsz (1 erp-nek számít), 11 erp a gyűrűbe (12). Kör zárása: 1 ksz a kezdőlánc tetejébe.',
+    );
     assert.equal(lines(pattern, 'en-US')[0], 'Chain ring: ch 4, join with sl st to form a ring.');
   });
 
@@ -255,7 +313,10 @@ describe('starts and round endings (04 §1.1, §2)', () => {
   test('spiral: from round 2 there is no turning chain or slip stitch, and the marker note appears once at the start of the piece', () => {
     const pattern = motif({ rounds: 3, closing: 'spiral' });
     const piece = pattern.pieces[0];
-    assert.deepEqual(piece.events.map((event) => event.kind), ['spiral', 'spiral', 'fasten-off']);
+    assert.deepEqual(
+      piece.events.map((event) => event.kind),
+      ['spiral', 'spiral', 'fasten-off'],
+    );
     assert.equal(piece.stitches.filter((node) => node.def === 'sl-st').length, 0);
     const text = lines(pattern, 'hu');
     assert.equal(text[1], VOCABULARIES.hu.spiral);
@@ -267,7 +328,12 @@ describe('starts and round endings (04 §1.1, §2)', () => {
     const pattern = motif({ rounds: 4, closing: 'spiral', colorEvery: 2, jogFix: 'slip-stitch' });
     assert.deepEqual(
       pattern.pieces[0].events.map((event) => [event.colorChange ?? false, event.jogFix ?? null]),
-      [[false, null], [true, 'slip-stitch'], [false, null], [false, null]],
+      [
+        [false, null],
+        [true, 'slip-stitch'],
+        [false, null],
+        [false, null],
+      ],
     );
     assert.equal(
       lines(pattern, 'hu')[3],
@@ -291,7 +357,11 @@ describe('starts and round endings (04 §1.1, §2)', () => {
         const text = formatWrittenPattern(writePattern(pattern, library, locale));
         const result = readPattern(text, { library, locale, conventions: pattern.conventions });
         assert.ok(result.ok, `${pattern.pieces[0].name}, ${locale}: ${JSON.stringify(result.error)}`);
-        assert.deepEqual(canonicalPattern(result.pattern).pieces, canonicalPattern(pattern).pieces, `${pattern.pieces[0].name}, ${locale}`);
+        assert.deepEqual(
+          canonicalPattern(result.pattern).pieces,
+          canonicalPattern(pattern).pieces,
+          `${pattern.pieces[0].name}, ${locale}`,
+        );
       }
     }
   });
@@ -307,7 +377,10 @@ describe('in the editor: K closes chains into a chain ring, S carries on in a sp
     assert.equal(piece.stitches.at(-1).def, 'sl-st');
     const context = contextOf(pattern);
     assert.equal(context.shape, 'round');
-    assert.deepEqual(context.slots.map((slot) => slot.kind), ['space']);
+    assert.deepEqual(
+      context.slots.map((slot) => slot.kind),
+      ['space'],
+    );
     assert.equal(canEndRound(context), false);
 
     pattern = ok(work(pattern, { def: 'ch', count: 3 }, 0));
@@ -397,7 +470,10 @@ describe('radial layout', () => {
       const anchors = graph.nodes.get(node.id).anchors;
       node.feet.forEach((foot, i) => {
         const target = layout.nodes.get(anchors[i].id).top;
-        assert.ok(Math.hypot(foot.x - target.x, foot.y - target.y) < 1e-6, `${node.id}: foot sits on top of its target`);
+        assert.ok(
+          Math.hypot(foot.x - target.x, foot.y - target.y) < 1e-6,
+          `${node.id}: foot sits on top of its target`,
+        );
       });
       assert.ok(radius(node.top) > Math.max(...node.feet.map(radius)), `${node.id}: points outward`);
       checked += 1;
@@ -408,14 +484,25 @@ describe('radial layout', () => {
   test('every round gets a place for its round number and stitch count', () => {
     const pattern = motif({ rounds: 4 });
     const { layers } = layoutPattern(pattern, libraryFor(pattern));
-    assert.deepEqual(layers.slice(1).map((layer) => [layer.index, layer.stitchCount]), [[1, 6], [2, 12], [3, 18], [4, 24]]);
-    for (const layer of layers.slice(1)) assert.ok([layer.start.x, layer.start.y, layer.end.x, layer.end.y].every(Number.isFinite));
+    assert.deepEqual(
+      layers.slice(1).map((layer) => [layer.index, layer.stitchCount]),
+      [
+        [1, 6],
+        [2, 12],
+        [3, 18],
+        [4, 24],
+      ],
+    );
+    for (const layer of layers.slice(1))
+      assert.ok([layer.start.x, layer.start.y, layer.end.x, layer.end.y].every(Number.isFinite));
   });
 
   test('the chains of a chain ring sit at an equal distance from the centre', () => {
     const pattern = motif({ stitch: 'dc', rounds: 1, start: 'chain-ring' });
     const layout = layoutPattern(pattern, libraryFor(pattern));
-    const radii = [...layout.nodes.values()].filter((node) => node.layer === 0).map((node) => Math.hypot(node.top.x, node.top.y));
+    const radii = [...layout.nodes.values()]
+      .filter((node) => node.layer === 0)
+      .map((node) => Math.hypot(node.top.x, node.top.y));
     assert.equal(radii.length, 4);
     for (const r of radii) assert.ok(r > 0 && Math.abs(r - radii[0]) < 1e-6);
   });

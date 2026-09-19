@@ -7,7 +7,7 @@
  */
 
 import { readFile } from 'node:fs/promises';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 /*
  * The filet crochet pattern type is switched off for the first round of
@@ -48,7 +48,9 @@ async function writtenText(page: Page): Promise<string> {
 
 const cell = (page: Page, x: number, y: number) => page.locator(`#grid-board [data-x="${x}"][data-y="${y}"]`);
 
-test('mosaic with one skip: error-free, the written pattern marks the stitch worked lower down, the SVG marks its base', async ({ page }) => {
+test('mosaic with one skip: error-free, the written pattern marks the stitch worked lower down, the SVG marks its base', async ({
+  page,
+}) => {
   await open(page);
   const section = await openGrid(page);
   await page.locator('#grid-technique').selectOption({ label: 'Mozaik' });
@@ -59,7 +61,9 @@ test('mosaic with one skip: error-free, the written pattern marks the stitch wor
   // A cell of colour A in the middle of row 2: a skip there, and above it in row 3 a double crochet worked lower down.
   await section.getByRole('radio', { name: 'A: Natúr' }).check();
   await cell(page, 2, 1).click();
-  await expect(page.locator('#grid-details')).toContainText('Egysoros mozaik: a lejjebb horgolt szem egyráhajtásos pálca 2 sorral lejjebb, összesen 1.');
+  await expect(page.locator('#grid-details')).toContainText(
+    'Egysoros mozaik: a lejjebb horgolt szem egyráhajtásos pálca 2 sorral lejjebb, összesen 1.',
+  );
 
   await section.getByRole('button', { name: 'Minta létrehozása' }).click();
   await expect(page.locator('#status')).toContainText('Mozaik: 4 sor elkészült');
@@ -75,7 +79,9 @@ test('mosaic with one skip: error-free, the written pattern marks the stitch wor
   expect(svg).toContain('Pötty a szár végén');
 });
 
-test('shaped filet: the decrease at the start of the row and the increase at the end of the row are error-free, and the written pattern spells them out', async ({ page }) => {
+test('shaped filet: the decrease at the start of the row and the increase at the end of the row are error-free, and the written pattern spells them out', async ({
+  page,
+}) => {
   await open(page);
   await page.locator('.type[data-type="filet"]').click();
   const section = await openGrid(page);
@@ -97,7 +103,9 @@ test('shaped filet: the decrease at the start of the row and the increase at the
   expect(text).toMatch(/4\. sor: 3 ksz, 3 lsz/);
 });
 
-test('loading an image: the grid has the given width, and the dark half of the image is filled cells', async ({ page }) => {
+test('loading an image: the grid has the given width, and the dark half of the image is filled cells', async ({
+  page,
+}) => {
   await open(page);
   await page.locator('.type[data-type="filet"]').click();
   await openGrid(page);

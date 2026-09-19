@@ -9,7 +9,7 @@
  * 3 chain stitches, 3 dc into one stitch, 2 chain stitches — 22 in total.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 /** New pattern with a clean sheet; we reject the cookie bar. */
 async function start(page: Page): Promise<void> {
@@ -77,7 +77,9 @@ interface LabelBox {
 }
 
 const labels = (page: Page): Promise<LabelBox[]> =>
-  page.evaluate(() => (window as unknown as { mintatervezoRacs: { labelBoxes(): LabelBox[] } }).mintatervezoRacs.labelBoxes());
+  page.evaluate(() =>
+    (window as unknown as { mintatervezoRacs: { labelBoxes(): LabelBox[] } }).mintatervezoRacs.labelBoxes(),
+  );
 
 test('the foundation chain counts the column of the vertical turning chain too (PQW-942)', async ({ page }) => {
   await start(page);

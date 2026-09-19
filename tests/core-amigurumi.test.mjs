@@ -7,8 +7,6 @@
 
 import { strict as assert } from 'node:assert';
 import { describe, test } from 'node:test';
-
-import { addAmigurumiPart, createAmigurumi, markRound } from '../src/core/amigurumi-generator.ts';
 import {
   capHeight,
   clampGrowth,
@@ -26,6 +24,7 @@ import {
   startCount,
   towardConsensus,
 } from '../src/core/amigurumi.ts';
+import { addAmigurumiPart, createAmigurumi, markRound } from '../src/core/amigurumi-generator.ts';
 import { canonicalPattern } from '../src/core/canonical.ts';
 import { emptyPattern } from '../src/core/editor.ts';
 import { buildPieceGraph } from '../src/core/graph.ts';
@@ -155,7 +154,10 @@ describe('the worked example of the 6 cm DK ball (04 §4.4)', () => {
       hu[10],
       '15. kör: 1 rp, (láthatatlan fogyasztás, 3 rp) ×5, láthatatlan fogyasztás, 2 rp (24). Tedd be a biztonsági szemeket. Kezdd el a tömést, és a nyílás bezárásáig tömd tovább.',
     );
-    assert.equal(hu.at(-1), '18. kör: (láthatatlan fogyasztás) ×6 (6). A fonal elvágása. A fonalat fűzd át a maradék szemek első szálán, és húzd össze a nyílást.');
+    assert.equal(
+      hu.at(-1),
+      '18. kör: (láthatatlan fogyasztás) ×6 (6). A fonal elvágása. A fonalat fűzd át a maradék szemek első szálán, és húzd össze a nyílást.',
+    );
   });
 
   test('the generated sphere is error-free, the graph stitch counts match the round plan, and the note lands on round 15', () => {
@@ -163,7 +165,9 @@ describe('the worked example of the 6 cm DK ball (04 §4.4)', () => {
       const pattern = ok(createAmigurumi(dkPattern(), part(shape), false));
       assert.deepEqual(rules(pattern), []);
       assert.deepEqual(
-        graphOf(pattern).layers.slice(1).map((layer) => layer.stitchCount),
+        graphOf(pattern)
+          .layers.slice(1)
+          .map((layer) => layer.stitchCount),
         plan(shape).counts,
       );
     }
@@ -252,11 +256,23 @@ describe('shapes (04 §4.1–§4.6, §9.3)', () => {
   test('invalid input gives an understandable message, an oversized shape hits the round limit', () => {
     const reason = (shape) => shapeSchedule(shape, DK).reason;
     // The core returns a code and data; the field name and the article belong to the dictionary (PQW-904).
-    assert.deepEqual(reason({ ...SPHERE_6N, diameterCm: Number.NaN }), { code: 'size-range', data: { field: 'diameter', max: 100 } });
+    assert.deepEqual(reason({ ...SPHERE_6N, diameterCm: Number.NaN }), {
+      code: 'size-range',
+      data: { field: 'diameter', max: 100 },
+    });
     assert.equal(hu(reason({ ...SPHERE_6N, diameterCm: Number.NaN })), 'Az átmérő 0 és 100 cm közötti szám lehet.');
-    assert.equal(reason({ kind: 'cone', diameterCm: 5, heightCm: 5, increases: 20, top: 'open' }).code, 'cone-increases-range');
-    assert.match(hu(reason({ kind: 'cone', diameterCm: 5, heightCm: 5, increases: 20, top: 'open' })), /szaporítás 0 és 12/);
-    assert.equal(reason({ kind: 'revolution', profile: [{ radiusCm: 1, heightCm: 0 }], bottom: 'closed', top: 'open' }).code, 'profile-points');
+    assert.equal(
+      reason({ kind: 'cone', diameterCm: 5, heightCm: 5, increases: 20, top: 'open' }).code,
+      'cone-increases-range',
+    );
+    assert.match(
+      hu(reason({ kind: 'cone', diameterCm: 5, heightCm: 5, increases: 20, top: 'open' })),
+      /szaporítás 0 és 12/,
+    );
+    assert.equal(
+      reason({ kind: 'revolution', profile: [{ radiusCm: 1, heightCm: 0 }], bottom: 'closed', top: 'open' }).code,
+      'profile-points',
+    );
     assert.equal(reason({ ...SPHERE_6N, diameterCm: 60 }).code, 'too-many-rounds');
     assert.match(hu(reason({ ...SPHERE_6N, diameterCm: 60 })), /legfeljebb 120 kör/);
   });
@@ -321,7 +337,10 @@ describe('limits (04 §3, §9.0)', () => {
       position += op === 'dec' ? 2 : 1;
     }
     assert.equal(increases.length, 4);
-    assert.ok(increases.every((at) => !blocked.has(at)), increases.join(', '));
+    assert.ok(
+      increases.every((at) => !blocked.has(at)),
+      increases.join(', '),
+    );
   });
 
   test('lifting the pole: on a sphere 3, 9, 14 → 6, 12, 16; on a pointed profile it stays at the pole stitch count', () => {
@@ -374,7 +393,10 @@ describe('joining parts (04 §5.4)', () => {
     );
     const written = writePattern(pattern, libraryFor(pattern), 'hu');
     assert.deepEqual(written.assembly, ['Varrás: Test, 15. kör (30) → Fej, 14. kör (30).']);
-    assert.match(formatWrittenPattern(written), /\n\nÖsszeállítás\nVarrás: Test, 15\. kör \(30\) → Fej, 14\. kör \(30\)\.\n$/);
+    assert.match(
+      formatWrittenPattern(written),
+      /\n\nÖsszeállítás\nVarrás: Test, 15\. kör \(30\) → Fej, 14\. kör \(30\)\.\n$/,
+    );
   });
 
   test('sewn with differing counts: an error without distribution, passing with even distribution', () => {
@@ -382,7 +404,10 @@ describe('joining parts (04 §5.4)', () => {
     const refused = headAndBody({ method: 'sewn', distribute: false }, body);
     assert.equal(refused.ok, false);
     assert.equal(refused.reason.code, 'sewn-count-differs');
-    assert.equal(hu(refused.reason), 'Az új rész 15. körén 27 szem van, az előző rész 15. körén 24. Kapcsold be az egyenletes elosztást, vagy igazítsd a méretet.');
+    assert.equal(
+      hu(refused.reason),
+      'Az új rész 15. körén 27 szem van, az előző rész 15. körén 24. Kapcsold be az egyenletes elosztást, vagy igazítsd a méretet.',
+    );
 
     const pattern = ok(headAndBody({ method: 'sewn', distribute: true }, body));
     assert.deepEqual(pattern.joins[0].distribution, evenDistribution(27, 24));
@@ -403,8 +428,14 @@ describe('joining parts (04 §5.4)', () => {
   });
 
   test('distribution: at least 1 for every stitch of the smaller edge, summing to the larger count', () => {
-    assert.deepEqual(evenDistribution(18, 24), [2, 1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1].map((n, i) => spread(24, 18)[i]));
-    assert.equal(evenDistribution(24, 18).reduce((sum, n) => sum + n, 0), 24);
+    assert.deepEqual(
+      evenDistribution(18, 24),
+      [2, 1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1].map((n, i) => spread(24, 18)[i]),
+    );
+    assert.equal(
+      evenDistribution(24, 18).reduce((sum, n) => sum + n, 0),
+      24,
+    );
     assert.equal(distributionProblem(30, 30, undefined), null);
     assert.equal(distributionProblem(30, 24, undefined).code, 'join-count-differs');
     assert.match(hu(distributionProblem(30, 24, undefined)), /eltér \(30 és 24 szem\)/);
@@ -414,9 +445,17 @@ describe('joining parts (04 §5.4)', () => {
   });
 
   test('continuous: the new part works into the open end of the previous one, one piece with two sections, error-free', () => {
-    const head = ok(createAmigurumi(dkPattern(), part({ kind: 'hemisphere', diameterCm: 6, method: '6n', top: 'open' }, { name: 'Fej', eyes: true }), false));
+    const head = ok(
+      createAmigurumi(
+        dkPattern(),
+        part({ kind: 'hemisphere', diameterCm: 6, method: '6n', top: 'open' }, { name: 'Fej', eyes: true }),
+        false,
+      ),
+    );
     const body = { kind: 'cylinder', diameterCm: 6, heightCm: 3, bottom: 'open', top: 'closed' };
-    const pattern = ok(addAmigurumiPart(head, part(body, { name: 'Test' }), { method: 'continuous', distribute: false }, false));
+    const pattern = ok(
+      addAmigurumiPart(head, part(body, { name: 'Test' }), { method: 'continuous', distribute: false }, false),
+    );
     assert.equal(pattern.pieces.length, 1);
     assert.equal(pattern.joins, undefined);
     assert.deepEqual(
@@ -435,18 +474,29 @@ describe('joining parts (04 §5.4)', () => {
   });
 
   test('continuous with differing counts is an error and passes with distribution; it is refused onto a closed end and with a closed-start part', () => {
-    const head = ok(createAmigurumi(dkPattern(), part({ kind: 'hemisphere', diameterCm: 6, method: '6n', top: 'open' }), false));
+    const head = ok(
+      createAmigurumi(dkPattern(), part({ kind: 'hemisphere', diameterCm: 6, method: '6n', top: 'open' }), false),
+    );
     const narrow = { kind: 'cylinder', diameterCm: 5, heightCm: 3, bottom: 'open', top: 'closed' };
     const refused = addAmigurumiPart(head, part(narrow), { method: 'continuous', distribute: false }, false);
     assert.equal(refused.reason.code, 'continuous-count-differs');
-    assert.equal(hu(refused.reason), 'Az előző rész utolsó köre 36 szem, az új rész első köre 30 szem. Kapcsold be az egyenletes elosztást, vagy igazítsd a méretet.');
+    assert.equal(
+      hu(refused.reason),
+      'Az előző rész utolsó köre 36 szem, az új rész első köre 30 szem. Kapcsold be az egyenletes elosztást, vagy igazítsd a méretet.',
+    );
     const pattern = ok(addAmigurumiPart(head, part(narrow), { method: 'continuous', distribute: true }, false));
     assert.equal(graphOf(pattern).layers[10].stitchCount, 30);
     assert.deepEqual(rules(pattern), []);
 
     const closedHead = ok(createAmigurumi(dkPattern(), part(SPHERE_6N), false));
-    assert.equal(addAmigurumiPart(closedHead, part(narrow), { method: 'continuous', distribute: true }, false).reason.code, 'continuous-closed-end');
-    assert.equal(addAmigurumiPart(head, part(BODY), { method: 'continuous', distribute: true }, false).reason.code, 'continuous-needs-open-start');
+    assert.equal(
+      addAmigurumiPart(closedHead, part(narrow), { method: 'continuous', distribute: true }, false).reason.code,
+      'continuous-closed-end',
+    );
+    assert.equal(
+      addAmigurumiPart(head, part(BODY), { method: 'continuous', distribute: true }, false).reason.code,
+      'continuous-needs-open-start',
+    );
     const first = addAmigurumiPart(emptyPattern(), part(BODY), { method: 'sewn', distribute: true }, false);
     assert.equal(first.reason.code, 'no-previous-piece');
     // The button name belongs to the UI: it enters the sentence from the dictionary (PQW-904).
@@ -476,7 +526,9 @@ describe('size estimation (04 §5.8, §9.7)', () => {
   });
 
   test('continuous: the part heights add up', () => {
-    const head = ok(createAmigurumi(dkPattern(), part({ kind: 'hemisphere', diameterCm: 6, method: '6n', top: 'open' }), false));
+    const head = ok(
+      createAmigurumi(dkPattern(), part({ kind: 'hemisphere', diameterCm: 6, method: '6n', top: 'open' }), false),
+    );
     const body = { kind: 'cylinder', diameterCm: 6, heightCm: 3, bottom: 'open', top: 'closed' };
     const size = figureSize(ok(addAmigurumiPart(head, part(body), { method: 'continuous', distribute: false }, false)));
     assert.ok(Math.abs(size.heightCm - (36 / (Math.PI * 1.9) / 2 + 3)) < 1e-9);
@@ -490,7 +542,10 @@ describe('notes and toy safety (04 §5.7)', () => {
     assert.deepEqual(marks, ['embroider-eyes', 'stuffing', 'close-opening']);
     assert.deepEqual(pattern.toy, { under3: true });
     assert.deepEqual(rules(pattern), []);
-    assert.match(lines(pattern, 'hu')[10], /Hímezd ki a szemeket: 3 év alatti gyereknek szánt játékba nem kerülhet biztonsági szem\./);
+    assert.match(
+      lines(pattern, 'hu')[10],
+      /Hímezd ki a szemeket: 3 év alatti gyereknek szánt játékba nem kerülhet biztonsági szem\./,
+    );
   });
 
   test('a toy marked for under 3 that still has safety eyes raises a warning', () => {
@@ -513,11 +568,23 @@ describe('notes and toy safety (04 §5.7)', () => {
 describe('reading back and saving', () => {
   const patterns = () => [
     ok(createAmigurumi(dkPattern(), part(SPHERE_6N, { eyes: true }), false)),
-    ok(createAmigurumi(emptyPattern(), part({ kind: 'cone', diameterCm: 5, heightCm: 6, increases: 2.5, top: 'closed' }), true)),
+    ok(
+      createAmigurumi(
+        emptyPattern(),
+        part({ kind: 'cone', diameterCm: 5, heightCm: 6, increases: 2.5, top: 'closed' }),
+        true,
+      ),
+    ),
     ok(headAndBody({ method: 'sewn', distribute: true }, { ...BODY, diameterCm: 4.5 })),
     ok(
       addAmigurumiPart(
-        ok(createAmigurumi(dkPattern(), part({ kind: 'hemisphere', diameterCm: 6, method: '6n', top: 'open' }, { name: 'Fej', eyes: true }), false)),
+        ok(
+          createAmigurumi(
+            dkPattern(),
+            part({ kind: 'hemisphere', diameterCm: 6, method: '6n', top: 'open' }, { name: 'Fej', eyes: true }),
+            false,
+          ),
+        ),
         part({ kind: 'cylinder', diameterCm: 5, heightCm: 3, bottom: 'open', top: 'closed' }, { name: 'Test' }),
         { method: 'continuous', distribute: true },
         false,
@@ -532,7 +599,11 @@ describe('reading back and saving', () => {
         const text = formatWrittenPattern(writePattern(pattern, library, locale));
         const result = readPattern(text, { library, locale, conventions: pattern.conventions });
         assert.ok(result.ok, `${pattern.title}, ${locale}: ${JSON.stringify(result.error)}`);
-        assert.deepEqual(canonicalPattern(result.pattern).pieces, canonicalPattern(pattern).pieces, `${pattern.title}, ${locale}`);
+        assert.deepEqual(
+          canonicalPattern(result.pattern).pieces,
+          canonicalPattern(pattern).pieces,
+          `${pattern.title}, ${locale}`,
+        );
       }
     }
   });
@@ -554,9 +625,21 @@ describe('reading back and saving', () => {
       assert.equal(result.ok, false);
       return result.error.path;
     };
-    assert.equal(fails((p) => (p.pieces[0].sections[0].shape.kind = 'torus')), '$.pieces[0].sections[0].shape.kind');
-    assert.equal(fails((p) => (p.joins[0].a.layer = 0)), '$.joins[0].a.layer');
-    assert.equal(fails((p) => (p.pieces[0].events[0].marks = ['glitter'])), '$.pieces[0].events[0].marks[0]');
-    assert.equal(fails((p) => (p.toy = { under3: 'igen' })), '$.toy.under3');
+    assert.equal(
+      fails((p) => (p.pieces[0].sections[0].shape.kind = 'torus')),
+      '$.pieces[0].sections[0].shape.kind',
+    );
+    assert.equal(
+      fails((p) => (p.joins[0].a.layer = 0)),
+      '$.joins[0].a.layer',
+    );
+    assert.equal(
+      fails((p) => (p.pieces[0].events[0].marks = ['glitter'])),
+      '$.pieces[0].events[0].marks[0]',
+    );
+    assert.equal(
+      fails((p) => (p.toy = { under3: 'igen' })),
+      '$.toy.under3',
+    );
   });
 });

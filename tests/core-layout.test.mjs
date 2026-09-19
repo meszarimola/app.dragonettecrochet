@@ -7,14 +7,31 @@
 import { strict as assert } from 'node:assert';
 import { describe, test } from 'node:test';
 
-import { contextOf, defaultCursor, deleteLast, emptyPattern, endRow, setPinned, work, workIntoSame } from '../src/core/editor.ts';
+import {
+  contextOf,
+  defaultCursor,
+  deleteLast,
+  emptyPattern,
+  endRow,
+  setPinned,
+  work,
+  workIntoSame,
+} from '../src/core/editor.ts';
 import { buildPieceGraph } from '../src/core/graph.ts';
 import { isotonic, layoutPattern, ROW_GAP } from '../src/core/layout.ts';
 import { frameCoords } from '../src/core/polygon.ts';
 import { DEFAULT_MOTIF, generateMotif } from '../src/core/round-generator.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
-import { chevron, dcRectangle, grannySquare, hdcRectangle, shellStitch, vStitchPattern, wave } from './fixtures/examples.ts';
 import { editNode } from './fixtures/builder.ts';
+import {
+  chevron,
+  dcRectangle,
+  grannySquare,
+  hdcRectangle,
+  shellStitch,
+  vStitchPattern,
+  wave,
+} from './fixtures/examples.ts';
 import { testLibrary } from './fixtures/library.ts';
 
 const layout = (pattern, options) => layoutPattern(pattern, testLibrary, options);
@@ -62,7 +79,12 @@ describe('rows', () => {
     assert.ok(row2.start.x < row2.end.x);
     assert.deepEqual(
       chart.layers.map((layer) => [layer.index, layer.side, layer.stitchCount]),
-      [[0, 'right', 0], [1, 'right', 15], [2, 'wrong', 15], [3, 'right', 15]],
+      [
+        [0, 'right', 0],
+        [1, 'right', 15],
+        [2, 'wrong', 15],
+        [3, 'right', 15],
+      ],
     );
     assert.ok(example.rows[2].every((id) => at(id).side === 'wrong'));
   });
@@ -87,7 +109,10 @@ describe('rows', () => {
     const dcChart = layout(dc.pattern);
     const chain = dcChart.nodes.get(dc.turningChains[2][2]);
     const xs = dc.rows[2].map((id) => dcChart.nodes.get(id).top.x);
-    assert.ok(chain.top.x > Math.max(...xs) || chain.top.x < Math.min(...xs), 'the turning chain stands outside the stitches of the row');
+    assert.ok(
+      chain.top.x > Math.max(...xs) || chain.top.x < Math.min(...xs),
+      'the turning chain stands outside the stitches of the row',
+    );
   });
 
   test('row height comes from the tallest stitch; the symbols stand on a common baseline (03 §2.2)', () => {
@@ -121,7 +146,10 @@ describe('fanning and converging', () => {
     const chart = layout(example.pattern);
     const valley = chart.nodes.get(example.valley.node);
     const targets = example.valley.targets.map((id) => chart.nodes.get(id).top.x);
-    assert.deepEqual(valley.feet.map((foot) => foot.x.toFixed(3)), targets.map((x) => x.toFixed(3)));
+    assert.deepEqual(
+      valley.feet.map((foot) => foot.x.toFixed(3)),
+      targets.map((x) => x.toFixed(3)),
+    );
     assert.ok(valley.top.x > Math.min(...targets) && valley.top.x < Math.max(...targets));
   });
 
@@ -157,7 +185,8 @@ test('in the round the symbols point radially outward, with the magic ring at th
     assert.ok(near(foot.x, chains.reduce((a, p) => a + p.x, 0) / chains.length), id);
     assert.ok(near(foot.y, chains.reduce((a, p) => a + p.y, 0) / chains.length), id);
   }
-  const radius = (row) => Math.max(...example.rows[row].map((id) => Math.hypot(chart.nodes.get(id).top.x, chart.nodes.get(id).top.y)));
+  const radius = (row) =>
+    Math.max(...example.rows[row].map((id) => Math.hypot(chart.nodes.get(id).top.x, chart.nodes.get(id).top.y)));
   assert.ok(radius(1) < radius(2) && radius(2) < radius(3));
 });
 
@@ -167,7 +196,8 @@ test('the layout does not jump while editing: deleting the last stitch leaves th
   for (let i = 0; i < 6; i += 1) edited = ok(deleteLast(edited));
   const before = layout(pattern);
   const after = layout(edited);
-  for (const id of [...rows[0], ...rows[1], ...rows[2]]) assert.deepEqual(after.nodes.get(id), before.nodes.get(id), id);
+  for (const id of [...rows[0], ...rows[1], ...rows[2]])
+    assert.deepEqual(after.nodes.get(id), before.nodes.get(id), id);
 });
 
 test('mirrored view: everything flips horizontally and the row number moves to the other side (01 §8.4 szabály 22)', () => {
@@ -208,7 +238,11 @@ describe('polygon (PQW-888)', () => {
   const motif = (patch) => {
     const pattern = ok(generateMotif(emptyPattern(), { ...DEFAULT_MOTIF, rounds: 6, ...patch }));
     const library = libraryFor(pattern);
-    return { pattern, chart: layoutPattern(pattern, library), graph: buildPieceGraph(pattern, pattern.pieces[0], library) };
+    return {
+      pattern,
+      chart: layoutPattern(pattern, library),
+      graph: buildPieceGraph(pattern, pattern.pieces[0], library),
+    };
   };
   const angleOf = (p) => Math.atan2(-p.y, p.x);
   /** The difference of two angles, between −π and π. */
@@ -216,16 +250,23 @@ describe('polygon (PQW-888)', () => {
   /** The angles of the polygon corners: a horizontal top side. */
   const cornersOf = (n) => Array.from({ length: n }, (_, j) => Math.PI / 2 + Math.PI / n + (2 * Math.PI * j) / n);
   const cornerAt = (n, angle, eps) => cornersOf(n).findIndex((corner) => Math.abs(turn(angle, corner)) < eps);
-  const stitchesIn = (chart, layer) => [...chart.nodes.values()].filter((node) => node.layer === layer && node.role === 'stitch');
-  const mean = (points) => ({ x: points.reduce((s, p) => s + p.x, 0) / points.length, y: points.reduce((s, p) => s + p.y, 0) / points.length });
+  const stitchesIn = (chart, layer) =>
+    [...chart.nodes.values()].filter((node) => node.layer === layer && node.role === 'stitch');
+  const mean = (points) => ({
+    x: points.reduce((s, p) => s + p.x, 0) / points.length,
+    y: points.reduce((s, p) => s + p.y, 0) / points.length,
+  });
   const lastRound = (chart) => Math.max(...[...chart.nodes.values()].map((node) => node.layer));
 
   test('granny square: the corner groups of round 3 sit in the four corners of the square and the side groups along its sides (03 §8)', () => {
     const { chart, graph } = motif({ shape: 'granny-square', rounds: 3 });
     assert.equal(chart.frame?.sides, 4);
-    const inRound = (layer) => graph.piece.spaces.filter((space) => space.chains.every((id) => graph.layers[layer].stitches.includes(id)));
+    const inRound = (layer) =>
+      graph.piece.spaces.filter((space) => space.chains.every((id) => graph.layers[layer].stitches.includes(id)));
     const childrenOf = (space) =>
-      graph.layers[3].stitches.filter((id) => graph.nodes.get(id).anchors.some((anchor) => anchor.into === 'space' && anchor.id === space.id));
+      graph.layers[3].stitches.filter((id) =>
+        graph.nodes.get(id).anchors.some((anchor) => anchor.into === 'space' && anchor.id === space.id),
+      );
     const corners = inRound(2).filter((space) => space.chains.length === 2);
     const sides = inRound(2).filter((space) => space.chains.length === 1);
     assert.deepEqual([corners.length, sides.length], [4, 4]);
@@ -238,7 +279,10 @@ describe('polygon (PQW-888)', () => {
       const corner = cornerAt(4, angleOf(mean(tops)), 15 * DEGREE);
       assert.ok(corner >= 0, `${space.id}: the group is in the corner`);
       const c = cornersOf(4)[corner];
-      assert.ok(angles.some((a) => turn(a, c) < 0) && angles.some((a) => turn(a, c) > 0), `${space.id}: the group straddles the corner`);
+      assert.ok(
+        angles.some((a) => turn(a, c) < 0) && angles.some((a) => turn(a, c) > 0),
+        `${space.id}: the group straddles the corner`,
+      );
       hit.add(corner);
     }
     assert.equal(hit.size, 4, 'a group in all four corners');
@@ -279,7 +323,10 @@ describe('polygon (PQW-888)', () => {
         if (stitch === 'dc') assert.equal(hit.size, n, 'an increase in every corner of the last round');
         for (let layer = 1; layer <= rounds; layer += 1) {
           const radii = stitchesIn(chart, layer).map((node) => frameCoords(chart.frame, node.top).r);
-          assert.ok(radii.every((r) => near(r, radii[0])), `${stitch} round ${layer}: straight sides`);
+          assert.ok(
+            radii.every((r) => near(r, radii[0])),
+            `${stitch} round ${layer}: straight sides`,
+          );
         }
       }
     });
@@ -290,7 +337,10 @@ describe('polygon (PQW-888)', () => {
     assert.equal(chart.frame, undefined);
     for (let layer = 1; layer <= 6; layer += 1) {
       const radii = stitchesIn(chart, layer).map((node) => Math.hypot(node.top.x, node.top.y));
-      assert.ok(radii.every((r) => near(r, radii[0])), `round ${layer}`);
+      assert.ok(
+        radii.every((r) => near(r, radii[0])),
+        `round ${layer}`,
+      );
     }
   });
 
@@ -301,7 +351,9 @@ describe('polygon (PQW-888)', () => {
     tops.slice(1).forEach((r, i) => assert.ok(near(r - tops[i], 18 + ROW_GAP), `round ${i + 2}`));
     const granny = motif({ shape: 'granny-square' }).chart;
     const grannyTops = [1, 2, 3, 4, 5, 6].map((layer) => frameCoords(granny.frame, stitchesIn(granny, layer)[0].top).r);
-    grannyTops.slice(1).forEach((r, i) => assert.ok(r - grannyTops[i] >= 34 + ROW_GAP - 1e-6, `granny square round ${i + 2}`));
+    grannyTops
+      .slice(1)
+      .forEach((r, i) => assert.ok(r - grannyTops[i] >= 34 + ROW_GAP - 1e-6, `granny square round ${i + 2}`));
   });
 
   test('a new round does not move the earlier rounds (06 §5.3)', () => {
@@ -325,7 +377,10 @@ describe('polygon (PQW-888)', () => {
       for (const a of nodes) {
         for (const b of nodes) {
           if (a.id >= b.id || a.layer !== b.layer || a.role === 'slip' || b.role === 'slip') continue;
-          assert.ok(Math.hypot(a.top.x - b.top.x, a.top.y - b.top.y) >= W / 3, `${a.id} and ${b.id} (round ${a.layer})`);
+          assert.ok(
+            Math.hypot(a.top.x - b.top.x, a.top.y - b.top.y) >= W / 3,
+            `${a.id} and ${b.id} (round ${a.layer})`,
+          );
         }
       }
 
@@ -333,10 +388,20 @@ describe('polygon (PQW-888)', () => {
         x: node.top.x + (sign * node.size * Math.cos(node.angle)) / 2,
         y: node.top.y + (sign * node.size * Math.sin(node.angle)) / 2,
       });
-      const segment = (node) => (node.role === 'stitch' ? [node.feet[0], node.top] : node.role === 'chain' ? [end(node, -1), end(node, 1)] : null);
+      const segment = (node) =>
+        node.role === 'stitch'
+          ? [node.feet[0], node.top]
+          : node.role === 'chain'
+            ? [end(node, -1), end(node, 1)]
+            : null;
       const side = (a, b, c) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
-      const crosses = ([p1, p2], [q1, q2]) => side(q1, q2, p1) * side(q1, q2, p2) < -1e-9 && side(p1, p2, q1) * side(p1, p2, q2) < -1e-9;
-      const targets = (id) => graph.nodes.get(id).anchors.map((anchor) => anchor.id).join();
+      const crosses = ([p1, p2], [q1, q2]) =>
+        side(q1, q2, p1) * side(q1, q2, p2) < -1e-9 && side(p1, p2, q1) * side(p1, p2, q2) < -1e-9;
+      const targets = (id) =>
+        graph.nodes
+          .get(id)
+          .anchors.map((anchor) => anchor.id)
+          .join();
       const into = (stitch, chain) => {
         const space = graph.spaceOfChain.get(chain.id);
         return graph.nodes.get(stitch.id).anchors.some((anchor) => anchor.id === chain.id || anchor.id === space?.id);
@@ -346,7 +411,8 @@ describe('polygon (PQW-888)', () => {
           const [sa, sb] = [segment(a), segment(b)];
           if (!sa || !sb || a.id === b.id || a.role === 'chain') continue;
           // Within one round, two stems with different targets, or a stem and a chain; plus a chain space and a stem of the next round not worked into it.
-          const sameRound = a.layer === b.layer && a.id < b.id && !(b.role === 'stitch' && targets(a.id) === targets(b.id));
+          const sameRound =
+            a.layer === b.layer && a.id < b.id && !(b.role === 'stitch' && targets(a.id) === targets(b.id));
           const nextRound = b.role === 'chain' && a.layer === b.layer + 1 && !into(a, b);
           if (sameRound || nextRound) assert.ok(!crosses(sa, sb), `${a.id} × ${b.id}`);
         }
@@ -360,7 +426,10 @@ describe('polygon (PQW-888)', () => {
       for (const a of labels) {
         for (const b of labels) {
           if (a.index >= b.index) continue;
-          assert.ok(a.x1 <= b.x0 || b.x1 <= a.x0 || a.y1 <= b.y0 || b.y1 <= a.y0, `round numbers ${a.index} and ${b.index}`);
+          assert.ok(
+            a.x1 <= b.x0 || b.x1 <= a.x0 || a.y1 <= b.y0 || b.y1 <= a.y0,
+            `round numbers ${a.index} and ${b.index}`,
+          );
         }
       }
     });
@@ -458,7 +527,8 @@ describe('the turning chain keeps its own height, not the height of the row (PQW
     const short = layout(row(['sc', 'sc']));
     const tall = layout(row(['sc', 'sc', 'dc']));
     // The top of the double crochet ends up higher than that of the single crochet: the row really did grow.
-    const highest = (chart) => Math.min(...[...chart.nodes.values()].filter((node) => node.role === 'stitch').map((node) => node.top.y));
+    const highest = (chart) =>
+      Math.min(...[...chart.nodes.values()].filter((node) => node.role === 'stitch').map((node) => node.top.y));
     assert.ok(highest(tall) < highest(short), 'the top of the row moved up');
   });
 });
@@ -499,7 +569,10 @@ describe('chains pair with the spanned slots gap by gap (PQW-936)', () => {
     const chart = layout(pattern);
     const all = [...chart.nodes.values()].filter((node) => node.layer === 1 && node.role === 'chain');
     const edge = Math.max(...all.map((node) => node.top.x));
-    return all.filter((node) => node.top.x < edge - 1).map((node) => node.top.x).sort((a, b) => b - a);
+    return all
+      .filter((node) => node.top.x < edge - 1)
+      .map((node) => node.top.x)
+      .sort((a, b) => b - a);
   };
 
   /** The columns of the targets in the chart. */
@@ -563,7 +636,9 @@ describe('an orphaned marker does not drag the chain away (PQW-938)', () => {
   /** The same pattern, but full of ownerless markers over the rest of the row. */
   const withOrphans = (pattern, from, count) => {
     const piece = pattern.pieces[0];
-    const orphans = contextOf(pattern).slots.slice(from, from + count).map((slot) => slot.id);
+    const orphans = contextOf(pattern)
+      .slots.slice(from, from + count)
+      .map((slot) => slot.id);
     return { ...pattern, pieces: [{ ...piece, skipped: [...piece.skipped, ...orphans] }, ...pattern.pieces.slice(1)] };
   };
 
@@ -629,8 +704,14 @@ describe('the arc of a run of chains (PQW-951)', () => {
     const xs = arc.map((node) => node.top.x);
     const steps = xs.slice(1).map((x, i) => xs[i] - x);
     assert.equal(arc.length, 5);
-    assert.ok(steps.every((step) => near(step, steps[0])), `evenly spaced: ${steps}`);
-    assert.ok(xs.every((x) => x < stitches[0].top.x && x > stitches[1].top.x), 'between the two stitches');
+    assert.ok(
+      steps.every((step) => near(step, steps[0])),
+      `evenly spaced: ${steps}`,
+    );
+    assert.ok(
+      xs.every((x) => x < stitches[0].top.x && x > stitches[1].top.x),
+      'between the two stitches',
+    );
     assert.ok(
       arc.every((node) => node.size <= steps[0] + 1e-6),
       `the symbol is no wider than the step: ${arc[0].size} > ${steps[0]}`,
@@ -771,15 +852,24 @@ describe('a fan built on a chain space fits (PQW-953)', () => {
       chainTop.every((x) => near(x, chainTop[0])),
       'in one column',
     );
-    assert.ok(near(chainTop[0], Math.min(...below)), `on the last stitch of row 2: ${chainTop[0]} ≠ ${Math.min(...below)}`);
+    assert.ok(
+      near(chainTop[0], Math.min(...below)),
+      `on the last stitch of row 2: ${chainTop[0]} ≠ ${Math.min(...below)}`,
+    );
   });
 
   test('row 3 does not overhang row 2', () => {
     const placed = layout(fan());
     const below = nodesOf(placed, 1).map((node) => node.top.x);
     const above = nodesOf(placed, 2).map((node) => node.top.x);
-    assert.ok(Math.min(...above) >= Math.min(...below) - 1e-6, `to the left: ${Math.min(...above)} < ${Math.min(...below)}`);
-    assert.ok(Math.max(...above) <= Math.max(...below) + 1e-6, `to the right: ${Math.max(...above)} > ${Math.max(...below)}`);
+    assert.ok(
+      Math.min(...above) >= Math.min(...below) - 1e-6,
+      `to the left: ${Math.min(...above)} < ${Math.min(...below)}`,
+    );
+    assert.ok(
+      Math.max(...above) <= Math.max(...below) + 1e-6,
+      `to the right: ${Math.max(...above)} > ${Math.max(...below)}`,
+    );
   });
 
   test('the stems of the fan converge to one point while their tops spread apart', () => {
@@ -812,7 +902,14 @@ describe('a fan built on a chain space fits (PQW-953)', () => {
     // The columns of the two spanned stitches grow, so three neighbouring gaps widen.
     const surplus = widened.map((gap, i) => gap - before[i]);
     assert.equal(surplus.filter((extra) => extra > 0.001).length, 3, `only under the fan: ${surplus}`);
-    assert.ok(near(surplus.reduce((sum, extra) => sum + extra, 0), 120, 0.5), `the surplus matches what the fan needs: ${surplus}`);
+    assert.ok(
+      near(
+        surplus.reduce((sum, extra) => sum + extra, 0),
+        120,
+        0.5,
+      ),
+      `the surplus matches what the fan needs: ${surplus}`,
+    );
     assert.ok(
       before.every((gap) => near(gap, 24)),
       'without a fan every column is the same',

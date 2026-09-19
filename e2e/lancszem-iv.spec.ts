@@ -8,7 +8,7 @@
  * KB: owner-decisions.md §10
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 interface Cell {
   readonly layer: number;
@@ -31,7 +31,9 @@ const cells = (page: Page): Promise<Cell[]> =>
   page.evaluate(() => (window as unknown as { mintatervezoRacs: { cells(): Cell[] } }).mintatervezoRacs.cells());
 
 const boxes = (page: Page): Promise<Box[]> =>
-  page.evaluate(() => (window as unknown as { mintatervezoRacs: { stitchBoxes(): Box[] } }).mintatervezoRacs.stitchBoxes());
+  page.evaluate(() =>
+    (window as unknown as { mintatervezoRacs: { stitchBoxes(): Box[] } }).mintatervezoRacs.stitchBoxes(),
+  );
 
 /** The symbols of one layer from right to left — the direction of travel of row 2. */
 const rightToLeft = async (page: Page, layer: number): Promise<Box[]> =>
@@ -42,7 +44,9 @@ const pick = async (page: Page, name: RegExp): Promise<void> => {
   if ((await button.getAttribute('aria-pressed')) !== 'true') await button.click();
 };
 
-test('5 chain stitches over 3 skipped stitches make an arc, and the single crochet stays in place (PQW-951)', async ({ page }) => {
+test('5 chain stitches over 3 skipped stitches make an arc, and the single crochet stays in place (PQW-951)', async ({
+  page,
+}) => {
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
@@ -116,7 +120,9 @@ test('5 chain stitches over 3 skipped stitches make an arc, and the single croch
   expect(between.length, 'three stitches below, five cells above').toBe(5);
 });
 
-test('the chain gives an arc when placed between two finished single crochets afterwards too (PQW-952)', async ({ page }) => {
+test('the chain gives an arc when placed between two finished single crochets afterwards too (PQW-952)', async ({
+  page,
+}) => {
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();

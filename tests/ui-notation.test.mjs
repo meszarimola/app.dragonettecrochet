@@ -9,11 +9,11 @@ import { test } from 'node:test';
 
 import { loadPattern, savePattern } from '../src/core/pattern-json.ts';
 import {
-  TERMS,
   defaultNotation,
   notationForTradition,
   readNotation,
   symbolOptionsFor,
+  TERMS,
   termsLabel,
   textLanguage,
   traditionLabel,
@@ -37,7 +37,11 @@ test('the interface language and the notation can be set independently', () => {
   for (const ui of ['hu', 'en']) {
     for (const terms of TERMS) {
       const stored = writeNotation({ terms, chartStyle: 'jis', singleCrochet: 'cross' });
-      assert.deepEqual(readNotation(stored, ui), { terms, chartStyle: 'jis', singleCrochet: 'cross' }, `${ui}, ${terms}`);
+      assert.deepEqual(
+        readNotation(stored, ui),
+        { terms, chartStyle: 'jis', singleCrochet: 'cross' },
+        `${ui}, ${terms}`,
+      );
     }
   }
 });
@@ -62,7 +66,10 @@ test('a missing or invalid setting falls back to the default field by field', ()
 
 test('the symbol drawing options come from the chart style and the single crochet symbol', () => {
   assert.deepEqual(symbolOptionsFor(defaultNotation('hu')), { singleCrochet: 'plus', style: 'cyc' });
-  assert.deepEqual(symbolOptionsFor({ terms: 'hu', chartStyle: 'jis', singleCrochet: 'plus' }), { singleCrochet: 'plus', style: 'jis' });
+  assert.deepEqual(symbolOptionsFor({ terms: 'hu', chartStyle: 'jis', singleCrochet: 'plus' }), {
+    singleCrochet: 'plus',
+    style: 'jis',
+  });
 });
 
 test('a saved pattern records the notation it was made with, and the graph is left alone', () => {

@@ -10,8 +10,8 @@ import { validatePattern } from '../src/core/validate.ts';
 import { JSON_CORE_TEXTS } from '../src/ui/i18n/core/json.ts';
 import { renderCoreText } from '../src/ui/i18n/core/render.ts';
 import { writtenView } from '../src/ui/written.ts';
-import { PieceBuilder, editNode, patternOf } from './fixtures/builder.ts';
-import { WORKED_EXAMPLES, dcRectangle } from './fixtures/examples.ts';
+import { editNode, PieceBuilder, patternOf } from './fixtures/builder.ts';
+import { dcRectangle, WORKED_EXAMPLES } from './fixtures/examples.ts';
 import { testLibrary } from './fixtures/library.ts';
 
 describe('loading a saved pattern gives back the same graph', () => {
@@ -121,16 +121,36 @@ describe('a broken profile fails with its field path (PQW-859)', () => {
     ['the selected profile does not exist', (raw) => (raw.gauge.active = 'p9'), '$.gauge.active'],
     ['a zero hook size', (raw) => (raw.gauge.profiles[0].hookMm = 0), '$.gauge.profiles[0].hookMm'],
     ['a hook larger than 30 mm', (raw) => (raw.gauge.profiles[0].hookMm = 31), '$.gauge.profiles[0].hookMm'],
-    ['an unknown yarn weight', (raw) => (raw.gauge.profiles[0].yarn.cycWeight = 8), '$.gauge.profiles[0].yarn.cycWeight'],
-    ['a stitch that cannot be measured', (raw) => (raw.gauge.profiles[0].gauges[0].stitch = 'ch'), '$.gauge.profiles[0].gauges[0].stitch'],
-    ['a negative stitch count', (raw) => (raw.gauge.profiles[0].gauges[0].stitchesPer10cm = -1), '$.gauge.profiles[0].gauges[0].stitchesPer10cm'],
-    ['an estimated source', (raw) => (raw.gauge.profiles[0].gauges[0].source = 'estimated'), '$.gauge.profiles[0].gauges[0].source'],
+    [
+      'an unknown yarn weight',
+      (raw) => (raw.gauge.profiles[0].yarn.cycWeight = 8),
+      '$.gauge.profiles[0].yarn.cycWeight',
+    ],
+    [
+      'a stitch that cannot be measured',
+      (raw) => (raw.gauge.profiles[0].gauges[0].stitch = 'ch'),
+      '$.gauge.profiles[0].gauges[0].stitch',
+    ],
+    [
+      'a negative stitch count',
+      (raw) => (raw.gauge.profiles[0].gauges[0].stitchesPer10cm = -1),
+      '$.gauge.profiles[0].gauges[0].stitchesPer10cm',
+    ],
+    [
+      'an estimated source',
+      (raw) => (raw.gauge.profiles[0].gauges[0].source = 'estimated'),
+      '$.gauge.profiles[0].gauges[0].source',
+    ],
     [
       'the same stitch twice in the same form',
       (raw) => raw.gauge.profiles[0].gauges.push({ ...raw.gauge.profiles[0].gauges[0] }),
       '$.gauge.profiles[0].gauges[2]',
     ],
-    ['the same profile twice', (raw) => raw.gauge.profiles.push({ ...raw.gauge.profiles[0] }), '$.gauge.profiles[1].id'],
+    [
+      'the same profile twice',
+      (raw) => raw.gauge.profiles.push({ ...raw.gauge.profiles[0] }),
+      '$.gauge.profiles[1].id',
+    ],
     ['an unknown field', (raw) => (raw.gauge.profiles[0].fibre = []), '$.gauge.profiles[0].fibre'],
   ];
   for (const [name, spoil, path] of cases) {
@@ -150,14 +170,20 @@ test('the optional fields survive a round trip too', () => {
   const piece = pattern.pieces[0];
   const withExtras = {
     ...pattern,
-    conventions: { ...pattern.conventions, chainCounts: false, repeat: { repeatWidth: 1, edgeStitches: 0, turningChainIncluded: false } },
+    conventions: {
+      ...pattern.conventions,
+      chainCounts: false,
+      repeat: { repeatWidth: 1, edgeStitches: 0, turningChainIncluded: false },
+    },
     pieces: [
       {
         ...piece,
         stitches: piece.stitches.map((node) =>
           node.id === rows[2][0] ? { ...node, flags: ['crossed'], pinned: { x: 1.5, y: -2, rotation: 90 } } : node,
         ),
-        events: piece.events.map((event, i) => (i === 0 ? { ...event, conventions: { turningChainCounts: false } } : event)),
+        events: piece.events.map((event, i) =>
+          i === 0 ? { ...event, conventions: { turningChainCounts: false } } : event,
+        ),
         skipped: [rows[1][0]],
       },
     ],
@@ -240,11 +266,23 @@ describe('format errors are reported with a field path', () => {
   const saved = () => JSON.parse(savePattern(dcRectangle({ rows: 2 }).pattern));
   const cases = [
     ['a missing title', (raw) => delete raw.title, '$.title'],
-    ['an unknown field on a stitch', (raw) => (raw.pieces[0].stitches[0].color = 'piros'), '$.pieces[0].stitches[0].color'],
-    ['an unknown insertion mode', (raw) => (raw.pieces[0].stitches[20].anchors[0].mode = 'third-loop'), '$.pieces[0].stitches[20].anchors[0].mode'],
+    [
+      'an unknown field on a stitch',
+      (raw) => (raw.pieces[0].stitches[0].color = 'piros'),
+      '$.pieces[0].stitches[0].color',
+    ],
+    [
+      'an unknown insertion mode',
+      (raw) => (raw.pieces[0].stitches[20].anchors[0].mode = 'third-loop'),
+      '$.pieces[0].stitches[20].anchors[0].mode',
+    ],
     ['an unknown chain-counting rule', (raw) => (raw.conventions.chainCounts = 'mindig'), '$.conventions.chainCounts'],
     ['a wrong event kind', (raw) => (raw.pieces[0].events[0].kind = 'forditas'), '$.pieces[0].events[0].kind'],
-    ['a negative stitch count', (raw) => (raw.pieces[0].events[0].statedCount = -1), '$.pieces[0].events[0].statedCount'],
+    [
+      'a negative stitch count',
+      (raw) => (raw.pieces[0].events[0].statedCount = -1),
+      '$.pieces[0].events[0].statedCount',
+    ],
     ['an older version that never existed', (raw) => (raw.formatVersion = 0), '$.formatVersion'],
   ];
   for (const [name, mutate, path] of cases) {

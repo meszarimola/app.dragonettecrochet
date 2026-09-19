@@ -127,7 +127,11 @@ export function loadGaugeSample(text: string): SampleLoadResult {
   } catch {
     return fail('invalid-json', '$', 'Érvénytelen JSON.');
   }
-  if (isObject(value) && typeof value['schemaVersion'] === 'number' && value['schemaVersion'] !== GAUGE_SAMPLE_SCHEMA_VERSION) {
+  if (
+    isObject(value) &&
+    typeof value['schemaVersion'] === 'number' &&
+    value['schemaVersion'] !== GAUGE_SAMPLE_SCHEMA_VERSION
+  ) {
     return fail('unsupported-version', '$.schemaVersion', `Ismeretlen sémaverzió: ${value['schemaVersion']}.`);
   }
   try {
@@ -158,7 +162,12 @@ function isObject(value: unknown): value is JsonObject {
 }
 
 /** An unknown field is an error, so a typo in a calibration file is never silently dropped. */
-function object(value: unknown, path: string, required: readonly string[], optional: readonly string[] = []): JsonObject {
+function object(
+  value: unknown,
+  path: string,
+  required: readonly string[],
+  optional: readonly string[] = [],
+): JsonObject {
   if (!isObject(value)) throw new FormatError(path, 'Objektumot vártunk.');
   for (const key of required) {
     if (!(key in value)) throw new FormatError(`${path}.${key}`, 'Hiányzó mező.');
@@ -198,7 +207,8 @@ function boolean(value: unknown, path: string): boolean {
 }
 
 function positive(value: unknown, path: string): number {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) throw new FormatError(path, 'Pozitív számot vártunk.');
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0)
+    throw new FormatError(path, 'Pozitív számot vártunk.');
   return value;
 }
 
@@ -208,12 +218,21 @@ function positiveOrNull(value: unknown, path: string): number | null {
 
 function integer(value: unknown, path: string, min: number, max = Number.POSITIVE_INFINITY): number {
   if (typeof value !== 'number' || !Number.isInteger(value) || value < min || value > max) {
-    throw new FormatError(path, max === Number.POSITIVE_INFINITY ? `Legalább ${min} értékű egészet vártunk.` : `${min} és ${max} közötti egészet vártunk.`);
+    throw new FormatError(
+      path,
+      max === Number.POSITIVE_INFINITY
+        ? `Legalább ${min} értékű egészet vártunk.`
+        : `${min} és ${max} közötti egészet vártunk.`,
+    );
   }
   return value;
 }
 
-function oneOf<const T extends string | number | boolean | null>(value: unknown, path: string, allowed: readonly T[]): T {
+function oneOf<const T extends string | number | boolean | null>(
+  value: unknown,
+  path: string,
+  allowed: readonly T[],
+): T {
   if (!allowed.includes(value as T)) {
     throw new FormatError(path, `Megengedett értékek: ${allowed.map((item) => JSON.stringify(item)).join(', ')}.`);
   }
@@ -354,7 +373,8 @@ function readSampleFile(value: unknown): GaugeSample[] {
 
 function readYarn(value: unknown, path: string): SampleYarn {
   const raw = object(value, path, ['id', 'brand', 'line'], ['colour', 'dyeLot', 'fibre', 'cycWeight', 'label']);
-  const label = 'label' in raw ? object(raw['label'], `${path}.label`, [], ['lengthM', 'massG', 'hookMmMin', 'hookMmMax']) : {};
+  const label =
+    'label' in raw ? object(raw['label'], `${path}.label`, [], ['lengthM', 'massG', 'hookMmMin', 'hookMmMax']) : {};
   const labelPath = `${path}.label`;
   return {
     id: slug(raw['id'], `${path}.id`),
@@ -363,7 +383,9 @@ function readYarn(value: unknown, path: string): SampleYarn {
     colour: optional(raw, 'colour', path, nullableText),
     dyeLot: optional(raw, 'dyeLot', path, nullableText),
     fibre: optional(raw, 'fibre', path, (item, itemPath) => array(item, itemPath, readFibre)) ?? [],
-    cycWeight: optional(raw, 'cycWeight', path, (item, itemPath) => (item === null ? null : integer(item, itemPath, 0, 7))),
+    cycWeight: optional(raw, 'cycWeight', path, (item, itemPath) =>
+      item === null ? null : integer(item, itemPath, 0, 7),
+    ),
     label: {
       lengthM: optional(label, 'lengthM', labelPath, positiveOrNull),
       massG: optional(label, 'massG', labelPath, positiveOrNull),
@@ -385,7 +407,17 @@ function readConstruction(value: unknown, path: string): Construction {
     value,
     path,
     ['workedIn'],
-    ['foundationChains', 'rows', 'turningChain', 'start', 'roundJoin', 'rounds', 'stitchesPerRound', 'lastRoundStitches', 'chains'],
+    [
+      'foundationChains',
+      'rows',
+      'turningChain',
+      'start',
+      'roundJoin',
+      'rounds',
+      'stitchesPerRound',
+      'lastRoundStitches',
+      'chains',
+    ],
   );
   const workedIn = oneOf(raw['workedIn'], `${path}.workedIn`, ['rows', 'rounds-tube', 'rounds-flat', 'chain']);
   for (const key of CONSTRUCTION_REQUIRED[workedIn]) {
@@ -406,7 +438,12 @@ function readConstruction(value: unknown, path: string): Construction {
 }
 
 function readMeasurement(value: unknown, path: string, form: SampleForm): Measurement {
-  const raw = object(value, path, ['state', 'blocking', 'tool'], ['grid', 'circle', 'chain', 'swatch', 'photos', 'notes']);
+  const raw = object(
+    value,
+    path,
+    ['state', 'blocking', 'tool'],
+    ['grid', 'circle', 'chain', 'swatch', 'photos', 'notes'],
+  );
   const state = oneOf(raw['state'], `${path}.state`, ['unblocked', 'blocked']);
   if (state === 'unblocked') {
     if (raw['blocking'] !== null) throw new FormatError(`${path}.blocking`, 'Blokkolás előtti mérésnél null.');
@@ -418,7 +455,8 @@ function readMeasurement(value: unknown, path: string, form: SampleForm): Measur
 
   const block = MEASUREMENT_BLOCK[form];
   for (const other of ['grid', 'circle', 'chain']) {
-    if (other !== block && other in raw) throw new FormatError(`${path}.${other}`, `Ehhez a formához (${form}) a \`${block}\` mérés tartozik.`);
+    if (other !== block && other in raw)
+      throw new FormatError(`${path}.${other}`, `Ehhez a formához (${form}) a \`${block}\` mérés tartozik.`);
   }
   if (!(block in raw)) throw new FormatError(`${path}.${block}`, 'Hiányzó mező.');
 
@@ -428,7 +466,12 @@ function readMeasurement(value: unknown, path: string, form: SampleForm): Measur
     circle: block === 'circle' ? readCircle(raw['circle'], `${path}.circle`) : null,
     chain:
       block === 'chain'
-        ? { lengthMm: readings(object(raw['chain'], `${path}.chain`, ['lengthMm'])['lengthMm'], `${path}.chain.lengthMm`) }
+        ? {
+            lengthMm: readings(
+              object(raw['chain'], `${path}.chain`, ['lengthMm'])['lengthMm'],
+              `${path}.chain.lengthMm`,
+            ),
+          }
         : null,
     swatch: readSwatch(raw, path),
     photos: optional(raw, 'photos', path, (item, itemPath) => array(item, itemPath, readPhoto)) ?? [],
@@ -487,7 +530,13 @@ export function stat(values: readonly number[]): Stat | null {
 }
 
 // KB: 02 §6.4
-export function yarnPerStitchCm(massPerAreaGPerCm2: number, widthMm: number, heightMm: number, lengthM: number, massG: number): number {
+export function yarnPerStitchCm(
+  massPerAreaGPerCm2: number,
+  widthMm: number,
+  heightMm: number,
+  lengthM: number,
+  massG: number,
+): number {
   return massPerAreaGPerCm2 * ((widthMm * heightMm) / 100) * (lengthM / massG) * 100;
 }
 
@@ -598,7 +647,9 @@ export function buildGaugeProfiles(samples: readonly GaugeSample[]): GaugeProfil
     const id = profileId(sample.crocheterId, sample.yarn.id, sample.hookMm, sample.blocked);
     groups.set(id, [...(groups.get(id) ?? []), sample]);
   }
-  const profiles = [...groups.entries()].sort(([a], [b]) => compare(a, b)).map(([id, group]) => buildProfile(id, group));
+  const profiles = [...groups.entries()]
+    .sort(([a], [b]) => compare(a, b))
+    .map(([id, group]) => buildProfile(id, group));
   return profiles.map((profile) => withBlockingChange(profile, profiles));
 }
 

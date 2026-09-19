@@ -3,7 +3,7 @@
 // KB: 04 §0, 04 §2, 04 §3.2, 04 §6.1, 04 §8, 04 §9.0, 04 §9.6
 // KB: core-geometry §34
 
-import { stitchDimensions, type GaugeContext } from './gauge.ts';
+import { type GaugeContext, stitchDimensions } from './gauge.ts';
 import type { LayerInfo, PieceGraph } from './graph.ts';
 import { isPostMode } from './insertion.ts';
 import { gaugeContextOf } from './pattern-size.ts';
@@ -76,7 +76,8 @@ function measuredAspect(id: StitchDefId, context: GaugeContext): { aspect: numbe
   const def = context.library.get(id);
   const size = def ? stitchDimensions(def, 'round', context) : null;
   if (!size || size.basis !== 'measured' || size.widthMm.value <= 0) return null;
-  const source: ValueSource = size.widthMm.source === 'label' || size.heightMm.source === 'label' ? 'label' : 'measured';
+  const source: ValueSource =
+    size.widthMm.source === 'label' || size.heightMm.source === 'label' ? 'label' : 'measured';
   return { aspect: size.heightMm.value / size.widthMm.value, source };
 }
 
@@ -88,7 +89,8 @@ export interface RoundFinding {
 export function roundFindings(pattern: Pattern, graph: PieceGraph, library: StitchLibrary): RoundFinding[] {
   const findings: RoundFinding[] = [];
   for (const event of graph.piece.events) {
-    if (event.kind === 'spiral' && event.colorChange && !event.jogFix) findings.push({ rule: 'spiral-color-jog', nodes: [event.after] });
+    if (event.kind === 'spiral' && event.colorChange && !event.jogFix)
+      findings.push({ rule: 'spiral-color-jog', nodes: [event.after] });
   }
   const { layers } = graph;
   if (layers[0]?.shape !== 'round') return findings;
@@ -104,7 +106,8 @@ export function roundFindings(pattern: Pattern, graph: PieceGraph, library: Stit
     // KB: core-geometry §36
     const previous = layer.basePositions?.length ?? layers[index - 1]!.positionCount;
     const count = layer.positionCount;
-    if (previous > 0 && (count > 2 * previous || 2 * count < previous)) findings.push({ rule: 'round-growth', nodes: worked(graph, layer) });
+    if (previous > 0 && (count > 2 * previous || 2 * count < previous))
+      findings.push({ rule: 'round-growth', nodes: worked(graph, layer) });
     const def = tallest(graph, layer, library);
     // KB: core-geometry §35
     const ribbed = layer.stitches.some((id) =>
@@ -114,7 +117,8 @@ export function roundFindings(pattern: Pattern, graph: PieceGraph, library: Stit
   }
 
   // KB: core-geometry §35
-  const solid = (graph.piece.sections?.length ?? 0) > 0 || pattern.garment?.kind === 'hat' || pattern.garment?.kind === 'raglan';
+  const solid =
+    (graph.piece.sections?.length ?? 0) > 0 || pattern.garment?.kind === 'hat' || pattern.garment?.kind === 'raglan';
   for (const run of solid ? [] : runs(ratios, (ratio) => ratio < CUPPING_RATIO, 2)) {
     findings.push({ rule: 'round-cupping', nodes: run.flatMap((index) => worked(graph, layers[index]!)) });
   }

@@ -1,20 +1,28 @@
 // KB: 02 §4.2, 02 §6.5, 02 §8
 
-import { pieceSize, type LayerInput, type PieceSize } from './finished-size.ts';
+import { type LayerInput, type PieceSize, pieceSize } from './finished-size.ts';
+import { type GaugeContext, type LayerShape, stitchDimensions } from './gauge.ts';
 import type { GaugeProfile, StitchGauge, WorkedIn } from './gauge-profile.ts';
-import { stitchDimensions, type GaugeContext, type LayerShape } from './gauge.ts';
 import type { PieceGraph } from './graph.ts';
 import { DEFAULT_COLUMN, ROW_GAP } from './layout.ts';
 import { measured } from './quantity.ts';
 import type { StitchLibrary } from './stitch-library.ts';
-import type { GaugeForm, Pattern, PatternGauge, PatternGaugeProfile, Sourced, StitchDef, StitchDefId } from './types.ts';
-import { yarnFromMassPerArea, type YarnEstimate } from './yarn-estimate.ts';
+import type {
+  GaugeForm,
+  Pattern,
+  PatternGauge,
+  PatternGaugeProfile,
+  Sourced,
+  StitchDef,
+  StitchDefId,
+} from './types.ts';
+import { type YarnEstimate, yarnFromMassPerArea } from './yarn-estimate.ts';
 import { classifyByMeterage } from './yarn-weight.ts';
 
 export const DEFAULT_HOOK_MM = 4;
 
 // The round gauge is entered as a tube measurement, the primary round gauge. KB: 02 §4.3
-const WORKED_IN: Readonly<Record<GaugeForm, WorkedIn>> = { rows: 'rows', 'rounds': 'rounds-tube' };
+const WORKED_IN: Readonly<Record<GaugeForm, WorkedIn>> = { rows: 'rows', rounds: 'rounds-tube' };
 
 export function activeProfile(pattern: Pattern): PatternGaugeProfile | null {
   const gauge = pattern.gauge;
@@ -90,10 +98,15 @@ export function gaugeContextOf(pattern: Pattern, library: StitchLibrary): GaugeC
 export function sizeLayers(graph: PieceGraph): SizeLayer[] {
   const layers: SizeLayer[] = [];
   for (const layer of graph.layers.slice(1)) {
-    const skipped = new Set<string>([...layer.turningChain, ...layer.travelSlips, ...(layer.joinSlip ? [layer.joinSlip] : [])]);
+    const skipped = new Set<string>([
+      ...layer.turningChain,
+      ...layer.travelSlips,
+      ...(layer.joinSlip ? [layer.joinSlip] : []),
+    ]);
     const stitches: StitchDefId[] = [];
     const first = layer.firstStitch ? graph.defs.get(layer.firstStitch) : undefined;
-    if (layer.shape === 'round' && layer.turningChainCounts && layer.turningChain.length > 0 && first) stitches.push(first.id);
+    if (layer.shape === 'round' && layer.turningChainCounts && layer.turningChain.length > 0 && first)
+      stitches.push(first.id);
     for (const id of layer.stitches) {
       const def = graph.defs.get(id);
       if (def && !skipped.has(id)) stitches.push(def.id);
@@ -110,7 +123,12 @@ export interface SizeLayer extends LayerInput {
 export type YarnMissing = 'profile' | 'swatch' | 'meterage' | 'ball' | 'size';
 
 export type YarnResult =
-  | { readonly kind: 'estimate'; readonly estimate: YarnEstimate; readonly ballMassG: number; readonly ballLengthM: number }
+  | {
+      readonly kind: 'estimate';
+      readonly estimate: YarnEstimate;
+      readonly ballMassG: number;
+      readonly ballLengthM: number;
+    }
   | { readonly kind: 'missing'; readonly missing: readonly YarnMissing[] };
 
 export interface PatternSize {
@@ -141,7 +159,12 @@ export function patternSize(pattern: Pattern, graph: PieceGraph | null, library:
   if (!size?.total) missing.push('size');
 
   const yarn: YarnResult =
-    missing.length === 0 && profile && massPerArea !== null && ballLength !== null && profile.yarn.ballMassG !== null && size?.total
+    missing.length === 0 &&
+    profile &&
+    massPerArea !== null &&
+    ballLength !== null &&
+    profile.yarn.ballMassG !== null &&
+    size?.total
       ? {
           kind: 'estimate',
           estimate: yarnFromMassPerArea(measured(massPerArea), size.total.areaCm2, {
@@ -176,13 +199,16 @@ export function newProfile(pattern: Pattern): PatternGaugeProfile {
 export function withProfile(pattern: Pattern, profile: PatternGaugeProfile): Pattern {
   const { profiles } = gaugeOf(pattern);
   const exists = profiles.some((candidate) => candidate.id === profile.id);
-  const next = exists ? profiles.map((candidate) => (candidate.id === profile.id ? profile : candidate)) : [...profiles, profile];
+  const next = exists
+    ? profiles.map((candidate) => (candidate.id === profile.id ? profile : candidate))
+    : [...profiles, profile];
   return { ...pattern, gauge: { active: profile.id, profiles: next } };
 }
 
 export function withActiveProfile(pattern: Pattern, id: string | null): Pattern {
   const gauge = gaugeOf(pattern);
-  if (id !== null && !gauge.profiles.some((profile) => profile.id === id)) throw new RangeError(`Nincs ilyen profil: ${id}.`);
+  if (id !== null && !gauge.profiles.some((profile) => profile.id === id))
+    throw new RangeError(`Nincs ilyen profil: ${id}.`);
   return { ...pattern, gauge: { ...gauge, active: id } };
 }
 
@@ -206,14 +232,21 @@ export function estimatedGauge(
   const context: GaugeContext = { library, profile: gaugeProfileOf(profile), hookMm: profile.hookMm };
   const dimensions = def ? stitchDimensions(def, form === 'rows' ? 'row' : 'round', context) : null;
   if (!dimensions) throw new RangeError(`Nem mérhető szem: ${stitch}.`);
-  return { stitchesPer10cm: oneDecimal(100 / dimensions.widthMm.value), rowsPer10cm: oneDecimal(100 / dimensions.heightMm.value) };
+  return {
+    stitchesPer10cm: oneDecimal(100 / dimensions.widthMm.value),
+    rowsPer10cm: oneDecimal(100 / dimensions.heightMm.value),
+  };
 }
 
 // Floor so the symbol stays readable.
 const MIN_STEM = 4;
 
 // KB: core-domain §6
-export function aspectStem(context: GaugeContext, shape: LayerShape, columnWidth = DEFAULT_COLUMN): (chainHeight: number) => number {
+export function aspectStem(
+  context: GaugeContext,
+  shape: LayerShape,
+  columnWidth = DEFAULT_COLUMN,
+): (chainHeight: number) => number {
   const sc = context.library.get('sc');
   const base = sc ? stitchDimensions(sc, shape, context) : null;
   if (!base) throw new RangeError('A könyvtárban nincs rövidpálca.');

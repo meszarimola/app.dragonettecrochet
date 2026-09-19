@@ -16,13 +16,13 @@ import { readPattern } from '../src/core/pattern-read.ts';
 import { formatWrittenPattern, writePattern } from '../src/core/pattern-text.ts';
 import {
   DEFAULT_SHAWL,
+  generateShawl,
   MAX_INTO_ONE,
   MAX_SHAWL_CM,
-  SHAWL_KINDS,
-  SHAWL_STITCHES,
-  generateShawl,
   piRounds,
   planShawl,
+  SHAWL_KINDS,
+  SHAWL_STITCHES,
   shawlProblem,
   shawlSizes,
 } from '../src/core/shawls.ts';
@@ -31,7 +31,12 @@ import { firstChainFromHook, traditionOf, turningChainCountsFor, withTradition }
 import { validatePattern } from '../src/core/validate.ts';
 
 /** A pattern whose profile puts the stitch at the given stitches and rows/rounds per 10 cm. */
-function withGauge(stitch, stitchesPer10cm, rowsPer10cm, { blocked = false, form = 'rows', pattern = emptyPattern() } = {}) {
+function withGauge(
+  stitch,
+  stitchesPer10cm,
+  rowsPer10cm,
+  { blocked = false, form = 'rows', pattern = emptyPattern() } = {},
+) {
   const profile = {
     id: 'kendo',
     yarn: { name: 'Merinó', cycWeight: 1, metersPer100g: null, ballMassG: null },
@@ -60,7 +65,8 @@ const plan = (pattern, patch) => {
 const changes = (counts) => counts.slice(1).map((count, i) => count - counts[i]);
 const findings = (pattern) => validatePattern(pattern, libraryFor(pattern));
 const errors = (pattern) => findings(pattern).filter((finding) => finding.severity === 'error');
-const near = (actual, expected, tolerance, name) => assert.ok(Math.abs(actual - expected) <= tolerance, `${name}: ${actual} ≉ ${expected}`);
+const near = (actual, expected, tolerance, name) =>
+  assert.ok(Math.abs(actual - expected) <= tolerance, `${name}: ${actual} ≉ ${expected}`);
 const sameGraph = (a, b) => {
   const [x, y] = [canonicalPattern(a).pieces[0], canonicalPattern(b).pieces[0]];
   assert.deepEqual(x.stitches, y.stitches);
@@ -75,7 +81,10 @@ describe('top-down triangle (05 §1.4)', () => {
   test('worked example A: 45 rows, 8 increases per row, row n has 8n stitches and the last has 360; it validates cleanly', () => {
     const { pattern, plan } = shawl(exampleA(), { kind: 'triangle', stitch: 'dc', sizeCm: 80 });
     assert.equal(plan.counts.length, 45);
-    assert.deepEqual(plan.counts, Array.from({ length: 45 }, (_, i) => 8 * (i + 1)));
+    assert.deepEqual(
+      plan.counts,
+      Array.from({ length: 45 }, (_, i) => 8 * (i + 1)),
+    );
     assert.equal(plan.counts.at(-1), 360);
     assert.equal(plan.theoryRate, 8);
     assert.deepEqual([plan.edgeRate, plan.spineRate], [2, 2]);
@@ -110,7 +119,11 @@ describe('top-down triangle (05 §1.4)', () => {
     const { pattern } = shawl(exampleA(), { kind: 'triangle', stitch: 'dc', sizeCm: 80 });
     const dc = resolveStitch('dc');
     const tradition = traditionOf(pattern.conventions);
-    const from = firstChainFromHook(dc.turningChain, turningChainCountsFor(pattern.conventions.turningChainCounts, dc, tradition, 'row'), tradition);
+    const from = firstChainFromHook(
+      dc.turningChain,
+      turningChainCountsFor(pattern.conventions.turningChainCounts, dc, tradition, 'row'),
+      tradition,
+    );
     const hu = formatWrittenPattern(writePattern(pattern, libraryFor(pattern), 'hu'));
     // The stated stitch count includes the turning chain (PQW-940); the row works into every stitch of the row below.
     assert.match(hu, new RegExp(`2\\. sor: hagyj ki ${from - 1} láncszemet, majd .*\\(9 szem\\)\\. Fordítás\\.`));
@@ -122,7 +135,10 @@ describe('top-down triangle (05 §1.4)', () => {
     const result = plan(withGauge('sc', 20, 22), { kind: 'triangle', stitch: 'sc', sizeCm: 80 });
     assert.equal(result.counts.length, 124);
     const steps = changes(result.counts);
-    assert.ok(steps.every((step) => step === 2 || step === 4), steps.join(','));
+    assert.ok(
+      steps.every((step) => step === 2 || step === 4),
+      steps.join(','),
+    );
     near(steps.reduce((sum, step) => sum + step, 0) / steps.length, (4 * 2) / 2.2, 0.02, 'mean');
     // Every +2 row increases either on the edges only (one each) or on the spine only (the two centre stitches), alternating.
     const twos = result.layout.rounds.filter((into) => into.reduce((sum, n) => sum + n, 0) - into.length === 2);
@@ -132,8 +148,17 @@ describe('top-down triangle (05 §1.4)', () => {
   });
 
   test('a smaller custom rate: deeper and narrower, the neck edge curves down, a warning is raised but the pattern is still generated', () => {
-    const { pattern, plan: custom } = shawl(exampleA(), { kind: 'triangle', stitch: 'dc', sizeCm: 80, rate: 'custom', customRate: 6 });
-    assert.deepEqual(custom.warnings.map((warning) => warning.kind), ['narrow']);
+    const { pattern, plan: custom } = shawl(exampleA(), {
+      kind: 'triangle',
+      stitch: 'dc',
+      sizeCm: 80,
+      rate: 'custom',
+      customRate: 6,
+    });
+    assert.deepEqual(
+      custom.warnings.map((warning) => warning.kind),
+      ['narrow'],
+    );
     near(custom.warnings[0].ratio, 0.75, 0.01, 'ratio');
     assert.ok(changes(custom.counts).every((step) => step === 6));
     const sizes = shawlSizes(custom, DEFAULT_SHAWL.blocking);
@@ -141,9 +166,17 @@ describe('top-down triangle (05 §1.4)', () => {
     near(sizes.blocked.spineCm, 80, 1.5, 'the spine is the requested depth');
     assert.deepEqual(errors(pattern), []);
     // A larger rate: flatter.
-    assert.deepEqual(plan(exampleA(), { kind: 'triangle', stitch: 'dc', sizeCm: 80, rate: 'custom', customRate: 10 }).warnings.map((w) => w.kind), ['wide']);
+    assert.deepEqual(
+      plan(exampleA(), { kind: 'triangle', stitch: 'dc', sizeCm: 80, rate: 'custom', customRate: 10 }).warnings.map(
+        (w) => w.kind,
+      ),
+      ['wide'],
+    );
     // Within 15% there is no warning.
-    assert.deepEqual(plan(exampleA(), { kind: 'triangle', stitch: 'dc', sizeCm: 80, rate: 'custom', customRate: 7.2 }).warnings, []);
+    assert.deepEqual(
+      plan(exampleA(), { kind: 'triangle', stitch: 'dc', sizeCm: 80, rate: 'custom', customRate: 7.2 }).warnings,
+      [],
+    );
   });
 
   test('wings: over the second half the edges increase twice as fast, while the spine is unchanged', () => {
@@ -175,7 +208,10 @@ describe('asymmetric triangle and crescent (05 §1.5, §1.6)', () => {
     result.layout.rounds.forEach((into, i) => {
       const row = i + 2;
       const middle = row % 2 === 0 ? into.slice(2) : into.slice(0, -2);
-      assert.ok(middle.every((n) => n === 1), `row ${row}: on the sloped edge only`);
+      assert.ok(
+        middle.every((n) => n === 1),
+        `row ${row}: on the sloped edge only`,
+      );
     });
     near(shawlSizes(result, DEFAULT_SHAWL.blocking).unblocked.tipAngleDeg, 45, 1.5, 'angle');
   });
@@ -194,20 +230,56 @@ describe('asymmetric triangle and crescent (05 §1.5, §1.6)', () => {
 
 describe('semicircle, circle and pi shawl (05 §1.2, §1.3)', () => {
   test('semicircle the Omdahl way: +9 per row in dc and row n has 9n stitches; Inner Child: +3 in sc', () => {
-    const omdahl = plan(withGauge('dc', 16, 8), { kind: 'semicircle', stitch: 'dc', sizeCm: 20, rate: 'custom', customRate: 9 });
-    assert.deepEqual(omdahl.counts, omdahl.counts.map((_, i) => 9 * (i + 1)));
-    const inner = plan(withGauge('sc', 20, 20), { kind: 'semicircle', stitch: 'sc', sizeCm: 5, rate: 'custom', customRate: 3 });
-    assert.deepEqual(inner.counts, inner.counts.map((_, i) => 3 * (i + 1)));
+    const omdahl = plan(withGauge('dc', 16, 8), {
+      kind: 'semicircle',
+      stitch: 'dc',
+      sizeCm: 20,
+      rate: 'custom',
+      customRate: 9,
+    });
+    assert.deepEqual(
+      omdahl.counts,
+      omdahl.counts.map((_, i) => 9 * (i + 1)),
+    );
+    const inner = plan(withGauge('sc', 20, 20), {
+      kind: 'semicircle',
+      stitch: 'sc',
+      sizeCm: 5,
+      rate: 'custom',
+      customRate: 3,
+    });
+    assert.deepEqual(
+      inner.counts,
+      inner.counts.map((_, i) => 3 * (i + 1)),
+    );
     // In sc at 20 × 20, π · h/w = 3.14: a rate of 3 is still within 15%.
     near(inner.theoryRate, Math.PI, 1e-9, 'π · h/w');
     assert.deepEqual(inner.warnings, []);
   });
 
   test('semicircle: the increases are spread evenly along the row; too few warns about cupping, too many about ruffling', () => {
-    const cupped = plan(withGauge('dc', 16, 8), { kind: 'semicircle', stitch: 'dc', sizeCm: 20, rate: 'custom', customRate: 4 });
-    assert.deepEqual(cupped.warnings.map((warning) => warning.kind), ['cupping']);
-    const ruffled = plan(withGauge('dc', 16, 8), { kind: 'semicircle', stitch: 'dc', sizeCm: 20, rate: 'custom', customRate: 9 });
-    assert.deepEqual(ruffled.warnings.map((warning) => warning.kind), ['ruffling']);
+    const cupped = plan(withGauge('dc', 16, 8), {
+      kind: 'semicircle',
+      stitch: 'dc',
+      sizeCm: 20,
+      rate: 'custom',
+      customRate: 4,
+    });
+    assert.deepEqual(
+      cupped.warnings.map((warning) => warning.kind),
+      ['cupping'],
+    );
+    const ruffled = plan(withGauge('dc', 16, 8), {
+      kind: 'semicircle',
+      stitch: 'dc',
+      sizeCm: 20,
+      rate: 'custom',
+      customRate: 9,
+    });
+    assert.deepEqual(
+      ruffled.warnings.map((warning) => warning.kind),
+      ['ruffling'],
+    );
     for (const into of cupped.layout.rounds.slice(4)) {
       const at = into.flatMap((n, i) => (n === 2 ? [i] : []));
       const gaps = at.slice(1).map((i, j) => i - at[j]);
@@ -219,7 +291,10 @@ describe('semicircle, circle and pi shawl (05 §1.2, §1.3)', () => {
     const result = plan(emptyPattern(), { kind: 'circle', stitch: 'sc', sizeCm: 6 });
     assert.equal(result.worked, 'rounds');
     assert.equal(result.chosenRate, 6);
-    assert.deepEqual(result.counts, result.counts.map((_, i) => 6 * (i + 1)));
+    assert.deepEqual(
+      result.counts,
+      result.counts.map((_, i) => 6 * (i + 1)),
+    );
   });
 
   test('pi shawl: doubling on rounds 2, 4, 8 and 16, and just before a doubling it sits at about half the ideal (05 §1.3 [DERIVED])', () => {
@@ -227,7 +302,10 @@ describe('semicircle, circle and pi shawl (05 §1.2, §1.3)', () => {
     const pi = plan(emptyPattern(), { kind: 'pi', stitch: 'sc', sizeCm: 10 });
     assert.deepEqual(pi.counts.slice(0, 16), [6, 12, 12, 24, 24, 24, 24, 48, 48, 48, 48, 48, 48, 48, 48, 96]);
     assert.ok(pi.ratio.min < 0.55, String(pi.ratio.min));
-    assert.deepEqual(pi.warnings.map((warning) => warning.kind), ['pi-blocking']);
+    assert.deepEqual(
+      pi.warnings.map((warning) => warning.kind),
+      ['pi-blocking'],
+    );
   });
 
   test('shifted pi shawl: doubling on round round(2^k · 0.75), staying closer to the ideal than the plain pi', () => {
@@ -251,7 +329,13 @@ describe('semicircle, circle and pi shawl (05 §1.2, §1.3)', () => {
 
 describe('rectangular stole and finished size (05 §1.7, §1.8)', () => {
   test('a stole is a flat rectangle: the same stitch count every row, with the width rounded to the edging repeat', () => {
-    const { pattern, plan: stole } = shawl(withGauge('dc', 16, 8), { kind: 'stole', stitch: 'dc', sizeCm: 37.5, lengthCm: 50, edging: { width: 6, edge: 2 } });
+    const { pattern, plan: stole } = shawl(withGauge('dc', 16, 8), {
+      kind: 'stole',
+      stitch: 'dc',
+      sizeCm: 37.5,
+      lengthCm: 50,
+      edging: { width: 6, edge: 2 },
+    });
     assert.equal(stole.counts.length, 40);
     assert.ok(stole.counts.every((count) => count === stole.counts[0]));
     assert.ok(stole.edging.repeats > 0);
@@ -261,11 +345,17 @@ describe('rectangular stole and finished size (05 §1.7, §1.8)', () => {
   });
 
   test('from an unblocked profile the blocked size is larger by the stretch, and from a blocked profile the unblocked size is smaller', () => {
-    const unblocked = shawlSizes(plan(withGauge('dc', 16, 8), { kind: 'stole', stitch: 'dc', sizeCm: 40, lengthCm: 100 }), { widthPct: 10, heightPct: 5 });
+    const unblocked = shawlSizes(
+      plan(withGauge('dc', 16, 8), { kind: 'stole', stitch: 'dc', sizeCm: 40, lengthCm: 100 }),
+      { widthPct: 10, heightPct: 5 },
+    );
     assert.equal(unblocked.measured, 'unblocked');
     near(unblocked.blocked.widthCm, unblocked.unblocked.widthCm * 1.1, 1e-9, 'width');
     near(unblocked.blocked.depthCm, unblocked.unblocked.depthCm * 1.05, 1e-9, 'length');
-    const blocked = shawlSizes(plan(withGauge('dc', 16, 8, { blocked: true }), { kind: 'stole', stitch: 'dc', sizeCm: 40, lengthCm: 100 }), { widthPct: 10, heightPct: 5 });
+    const blocked = shawlSizes(
+      plan(withGauge('dc', 16, 8, { blocked: true }), { kind: 'stole', stitch: 'dc', sizeCm: 40, lengthCm: 100 }),
+      { widthPct: 10, heightPct: 5 },
+    );
     assert.equal(blocked.measured, 'blocked');
     near(blocked.unblocked.widthCm, blocked.blocked.widthCm / 1.1, 1e-9, 'width');
   });
@@ -282,11 +372,17 @@ describe('validating the options', () => {
   test('size, rate, edging repeat and stretch must stay in range, with a readable code and data (PQW-904)', () => {
     assert.equal(shawlProblem(DEFAULT_SHAWL), null);
     assert.equal(shawlProblem(options({ stitch: 'sc2tog' })).code, 'shawl-basic-stitch-only');
-    assert.deepEqual(shawlProblem(options({ sizeCm: Number.NaN })), { code: 'shawl-size-range', data: { max: MAX_SHAWL_CM } });
+    assert.deepEqual(shawlProblem(options({ sizeCm: Number.NaN })), {
+      code: 'shawl-size-range',
+      data: { max: MAX_SHAWL_CM },
+    });
     assert.equal(shawlProblem(options({ kind: 'stole', lengthCm: 0 })).code, 'shawl-length-range');
     assert.equal(shawlProblem(options({ rate: 'custom', customRate: 0 })).code, 'shawl-rate-range');
     assert.equal(shawlProblem(options({ edging: { width: 0, edge: 1 } })).code, 'shawl-edging-width-range');
-    assert.equal(shawlProblem(options({ blocking: { widthPct: Number.NaN, heightPct: 5 } })).code, 'shawl-blocking-range');
+    assert.equal(
+      shawlProblem(options({ blocking: { widthPct: Number.NaN, heightPct: 5 } })).code,
+      'shawl-blocking-range',
+    );
     const refuse = (patch) => {
       const result = planShawl(emptyPattern(), options(patch));
       assert.equal(result.ok, false);
@@ -298,7 +394,10 @@ describe('validating the options', () => {
       code: 'shawl-first-row-into-one',
       data: { max: MAX_INTO_ONE },
     });
-    assert.ok(/^shawl-max-/.test(refuse({ kind: 'pi', stitch: 'sc', sizeCm: 300 }).code), refuse({ kind: 'pi', stitch: 'sc', sizeCm: 300 }).code);
+    assert.ok(
+      /^shawl-max-/.test(refuse({ kind: 'pi', stitch: 'sc', sizeCm: 300 }).code),
+      refuse({ kind: 'pi', stitch: 'sc', sizeCm: 300 }).code,
+    );
   });
 
   test('the words for row and round stay out of the core: the data carries `shape` instead (PQW-904)', () => {
@@ -322,7 +421,10 @@ describe('validating the options', () => {
 
 describe('every generated shawl validates cleanly, writes out and reads back', () => {
   // A counting turning chain on every stitch, single crochet included: after the foundation-chain fix (PQW-891) that is the rule for sc.
-  const counting = () => ({ ...emptyPattern(), conventions: { ...emptyPattern().conventions, turningChainCounts: true } });
+  const counting = () => ({
+    ...emptyPattern(),
+    conventions: { ...emptyPattern().conventions, turningChainCounts: true },
+  });
   for (const [tradition, base] of [
     ['CYC', emptyPattern],
     ['Japanese', japanese],
@@ -331,7 +433,10 @@ describe('every generated shawl validates cleanly, writes out and reads back', (
     for (const kind of SHAWL_KINDS) {
       test(`${kind}, ${tradition} tradition: every stitch, theoretical and custom rate, adjusted to the edging`, () => {
         for (const stitch of SHAWL_STITCHES) {
-          for (const patch of [{ sizeCm: 12 }, { sizeCm: 6, rate: 'custom', customRate: 5, wings: true, edging: { width: 4, edge: 1 } }]) {
+          for (const patch of [
+            { sizeCm: 12 },
+            { sizeCm: 6, rate: 'custom', customRate: 5, wings: true, edging: { width: 4, edge: 1 } },
+          ]) {
             const name = `${stitch} ${JSON.stringify(patch)}`;
             const result = generateShawl(base(), options({ kind, stitch, lengthCm: 8, ...patch }));
             if (!result.ok) {
@@ -340,10 +445,18 @@ describe('every generated shawl validates cleanly, writes out and reads back', (
             }
             const { pattern, plan } = result;
             assert.deepEqual(errors(pattern), [], name);
-            if (kind === 'triangle' || kind === 'crescent') assert.ok(changes(plan.counts).every((step) => step % 2 === 0), `${name}: even steps`);
+            if (kind === 'triangle' || kind === 'crescent')
+              assert.ok(
+                changes(plan.counts).every((step) => step % 2 === 0),
+                `${name}: even steps`,
+              );
             const library = libraryFor(pattern);
             for (const locale of ['hu', 'en-US']) {
-              const back = readPattern(formatWrittenPattern(writePattern(pattern, library, locale)), { library, locale, conventions: pattern.conventions });
+              const back = readPattern(formatWrittenPattern(writePattern(pattern, library, locale)), {
+                library,
+                locale,
+                conventions: pattern.conventions,
+              });
               assert.ok(back.ok, `${name} ${locale}: ${JSON.stringify(back.error)}`);
               sameGraph(back.pattern, pattern);
             }

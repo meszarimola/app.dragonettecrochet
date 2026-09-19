@@ -5,7 +5,7 @@
  * and the written pattern is produced.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
@@ -24,7 +24,9 @@ async function writtenText(page: Page): Promise<string> {
   return (await page.locator('#written-text').textContent()) ?? '';
 }
 
-test('20 × 30 cm half double crochet rectangle without a profile: estimated actual size, error-free rows, undone in one step', async ({ page }) => {
+test('20 × 30 cm half double crochet rectangle without a profile: estimated actual size, error-free rows, undone in one step', async ({
+  page,
+}) => {
   await open(page);
   const section = await openShapes(page);
 
@@ -37,7 +39,9 @@ test('20 × 30 cm half double crochet rectangle without a profile: estimated act
   await expect(page.locator('#shape-top')).toBeHidden();
 
   await section.getByRole('button', { name: 'Minta létrehozása' }).click();
-  await expect(page.locator('#status')).toContainText(/Téglalap, \d+ sor elkészült; visszavonással a korábbi minta visszajön\./);
+  await expect(page.locator('#status')).toContainText(
+    /Téglalap, \d+ sor elkészült; visszavonással a korábbi minta visszajön\./,
+  );
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
   const text = await writtenText(page);
   // The 2-chain turning chain stands in place of half double crochet 1, on a foundation chain stitch (PQW-891).
@@ -63,6 +67,7 @@ test('isosceles triangle from the angle of the edge: error-free, the written pat
   await expect(page.locator('#status')).toContainText('Egyenlő szárú háromszög,');
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
   // The base stitch is the half double crochet: the edges decrease by crocheting half double crochets together.
-  expect(await writtenText(page)).toMatch(/\d\. sor: 2 lsz \(1 fp-nek számít\), [23] fp összehorgolása, \d+ fp, [23] fp összehorgolása \(\d+ szem\)\./);
-
+  expect(await writtenText(page)).toMatch(
+    /\d\. sor: 2 lsz \(1 fp-nek számít\), [23] fp összehorgolása, \d+ fp, [23] fp összehorgolása \(\d+ szem\)\./,
+  );
 });

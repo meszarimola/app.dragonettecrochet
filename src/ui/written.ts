@@ -4,10 +4,10 @@ import type { LiveCheck, WorkContext } from '../core/editor.ts';
 import { WrittenPatternError } from '../core/pattern-steps.ts';
 import { formatWrittenPattern, writePattern } from '../core/pattern-text.ts';
 import type { Locale, Pattern } from '../core/types.ts';
-import { texts, uiLanguage } from './i18n.ts';
 import { renderCoreText } from './i18n/core/render.ts';
 import { WRITTEN_CORE_TEXTS } from './i18n/core/written.ts';
 import { SECTION_TEXTS } from './i18n/sections.ts';
+import { texts, uiLanguage } from './i18n.ts';
 import { textLanguage } from './notation.ts';
 
 export type WrittenView =

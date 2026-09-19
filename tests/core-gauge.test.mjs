@@ -1,9 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { describe, test } from 'node:test';
-
-import { buildGaugeProfiles } from '../src/core/gauge-profile.ts';
 import {
-  SC_WIDTH_PER_HOOK_MM,
   countForLength,
   gaugeDeviation,
   gaugeMatches,
@@ -11,17 +8,19 @@ import {
   per10cm,
   rowHeightMm,
   rowsForHeight,
+  SC_WIDTH_PER_HOOK_MM,
   scaleRowHeight,
   stitchDimensions,
+  stitchesForWidth,
   stitchHeightFactor,
   stitchWidthMm,
-  stitchesForWidth,
   widthForStitches,
 } from '../src/core/gauge.ts';
+import { buildGaugeProfiles } from '../src/core/gauge-profile.ts';
 import { estimate, measured } from '../src/core/quantity.ts';
 import { createStitchLibrary } from '../src/core/stitch-library.ts';
 import { STITCHES, stitchById } from '../src/core/stitches.ts';
-import { ROWS_EXAMPLE, exampleJson, exampleProfiles, samplesFrom } from './fixtures/calibration.ts';
+import { exampleJson, exampleProfiles, ROWS_EXAMPLE, samplesFrom } from './fixtures/calibration.ts';
 
 const library = createStitchLibrary(STITCHES);
 const INCH_4 = 10.16;
@@ -120,7 +119,9 @@ describe('estimating without a measurement', () => {
   });
 
   test('every estimated height factor carries a range, and the dc range covers the knowledge base range', () => {
-    for (const def of STITCHES.filter((stitch) => ['basic', 'joined', 'group', 'slip', 'chain'].includes(stitch.kind))) {
+    for (const def of STITCHES.filter((stitch) =>
+      ['basic', 'joined', 'group', 'slip', 'chain'].includes(stitch.kind),
+    )) {
       const factor = stitchHeightFactor(def);
       assert.equal(factor.source, 'estimated', def.id);
       assert.ok(factor.range[0] <= factor.value && factor.value <= factor.range[1], def.id);
@@ -177,7 +178,9 @@ describe('stitch size from a gauge profile', () => {
   });
 
   test('a joined stitch takes the size of its part stitch', () => {
-    const decrease = STITCHES.find((stitch) => stitch.kind === 'joined' && stitch.part === 'sc' && stitch.base === 'spread');
+    const decrease = STITCHES.find(
+      (stitch) => stitch.kind === 'joined' && stitch.part === 'sc' && stitch.base === 'spread',
+    );
     assert.equal(stitchDimensions(decrease, 'row', withProfile(unblocked)).basis, 'measured');
   });
 

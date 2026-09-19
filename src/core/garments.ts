@@ -3,20 +3,19 @@
 import { evenDistribution } from './amigurumi.ts';
 import {
   BODY_TABLES,
-  GARMENT_EASE,
-  HAT_SIZES,
-  NEGATIVE_EASE_LIMIT,
-  NEGATIVE_EASE_MAX,
-  hatEase,
-  inchToCm,
-  mid,
-  tableFlags,
   type BodySizeCode,
   type BodyTable,
   type BodyTableId,
   type DataFlag,
+  GARMENT_EASE,
+  HAT_SIZES,
+  hatEase,
+  inchToCm,
+  mid,
+  NEGATIVE_EASE_LIMIT,
+  NEGATIVE_EASE_MAX,
+  tableFlags,
 } from './body-sizes.ts';
-import { stitchDimensions } from './gauge.ts';
 import {
   evenIncreases,
   intentOf,
@@ -25,23 +24,42 @@ import {
   roundEven,
   roundStitches,
   roundToRepeat,
-  shapingRuns,
-  slopeSchedule,
   type ShapingRun,
   type SlopeSchedule,
+  shapingRuns,
+  slopeSchedule,
 } from './garment-math.ts';
-import { text, type CoreText } from './messages.ts';
+import { stitchDimensions } from './gauge.ts';
+import { type CoreText, text } from './messages.ts';
 import { activeProfile, ballLengthM, gaugeContextOf, swatchMassPerArea, type YarnMissing } from './pattern-size.ts';
-import { raglanPiece, raglanPlan, type RaglanMeasures, type RaglanPlan } from './raglan.ts';
 import { withGeneratedTitle } from './pattern-title.ts';
 import { measured, weakestSource } from './quantity.ts';
+import { type RaglanMeasures, type RaglanPlan, raglanPiece, raglanPlan } from './raglan.ts';
 import { foundationChainLength } from './repeat.ts';
-import { ribbingProblem, type RibbingCode, type RibbingOptions } from './ribbing.ts';
-import { DEFAULT_MOTIF, circlePlan, plannedRounds, type RoundPlan } from './round-generator.ts';
-import { SHAPE_STITCHES, plannedRows, plannedSections, shapeGauge, type RowSection, type RowShaping, type ShapeGauge, type ShapeRepeat } from './shapes.ts';
+import { type RibbingCode, type RibbingOptions, ribbingProblem } from './ribbing.ts';
+import { circlePlan, DEFAULT_MOTIF, plannedRounds, type RoundPlan } from './round-generator.ts';
+import {
+  plannedRows,
+  plannedSections,
+  type RowSection,
+  type RowShaping,
+  SHAPE_STITCHES,
+  type ShapeGauge,
+  type ShapeRepeat,
+  shapeGauge,
+} from './shapes.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import { traditionOf, turningChainCountsFor } from './tradition.ts';
-import type { GarmentKind, GarmentTable, Pattern, PatternGarment, Piece, PieceJoin, StitchDefId, Tradition } from './types.ts';
+import type {
+  GarmentKind,
+  GarmentTable,
+  Pattern,
+  PatternGarment,
+  Piece,
+  PieceJoin,
+  StitchDefId,
+  Tradition,
+} from './types.ts';
 import { validatePattern } from './validate.ts';
 import { yarnFromMassPerArea } from './yarn-estimate.ts';
 
@@ -53,7 +71,12 @@ export const GARMENT_NAMES: Readonly<Record<GarmentKind, string>> = {
   raglan: 'Felülről horgolt raglán',
 };
 
-export const PIECE_NAMES = { back: 'Hátrész', front: 'Elejerész', leftSleeve: 'Bal ujj', rightSleeve: 'Jobb ujj' } as const;
+export const PIECE_NAMES = {
+  back: 'Hátrész',
+  front: 'Elejerész',
+  leftSleeve: 'Bal ujj',
+  rightSleeve: 'Jobb ujj',
+} as const;
 
 export const GARMENT_STITCHES: readonly StitchDefId[] = SHAPE_STITCHES;
 export const MAX_GARMENT_CM = 200;
@@ -224,7 +247,9 @@ export function isGarmentText(value: object): value is CoreText<GarmentCode> {
 
 /** The round generator still refuses with a finished sentence; until then it travels as `message`. */
 function pieceProblem(problem: string | CoreText): CoreText<GarmentCode> {
-  return typeof problem === 'string' ? text('piece-error', { message: problem }) : text('piece-error', { inner: problem.code, ...(problem.data ?? {}) });
+  return typeof problem === 'string'
+    ? text('piece-error', { message: problem })
+    : text('piece-error', { inner: problem.code, ...(problem.data ?? {}) });
 }
 
 export function garmentSizes(kind: GarmentKind, table: BodyTableId): string[] {
@@ -270,7 +295,10 @@ export interface HatPlan {
 }
 
 /** KB: 05 §9.7 */
-export function hatPlan(measures: HatMeasures, gauge: { readonly stitchCm: number; readonly rowCm: number }): HatPlan | CoreText<GarmentCode> {
+export function hatPlan(
+  measures: HatMeasures,
+  gauge: { readonly stitchCm: number; readonly rowCm: number },
+): HatPlan | CoreText<GarmentCode> {
   const { headCm, easeCm, heightCm, brimCm } = measures;
   if (!(headCm > 0 && headCm <= MAX_GARMENT_CM)) return text('head-range', { max: MAX_GARMENT_CM });
   const ratio = -easeCm / headCm;
@@ -292,7 +320,10 @@ export function hatPlan(measures: HatMeasures, gauge: { readonly stitchCm: numbe
     const delta = stitches - I * full;
     const crown = full + (delta > 0 ? 1 : 0);
     const score = [Math.abs(crown - ideal), Math.abs(I - exact)] as const;
-    const better = !best || score[0] < best.score[0] - 1e-9 || (Math.abs(score[0] - best.score[0]) <= 1e-9 && score[1] < best.score[1]);
+    const better =
+      !best ||
+      score[0] < best.score[0] - 1e-9 ||
+      (Math.abs(score[0] - best.score[0]) <= 1e-9 && score[1] < best.score[1]);
     if (better) best = { I, full, delta, crown, score };
   }
   if (!best) return text('hat-crown');
@@ -304,7 +335,11 @@ export function hatPlan(measures: HatMeasures, gauge: { readonly stitchCm: numbe
   const correction = best.delta > 0 ? evenIncreases(best.I * best.full, best.delta) : null;
   const layout: RoundPlan = {
     first: best.I,
-    rounds: [...circle.rounds, ...(correction ? [correction] : []), ...Array.from({ length: sideRounds }, () => Array<number>(stitches).fill(1))],
+    rounds: [
+      ...circle.rounds,
+      ...(correction ? [correction] : []),
+      ...Array.from({ length: sideRounds }, () => Array<number>(stitches).fill(1)),
+    ],
   };
   const counts = [best.I];
   for (const into of layout.rounds) counts.push(sum(into));
@@ -314,11 +349,23 @@ export function hatPlan(measures: HatMeasures, gauge: { readonly stitchCm: numbe
   const finishedHeightCm = totalRounds * gauge.rowCm;
   const checks: GarmentCheck[] = [
     { id: 'crown-target', label: text('check-crown-target'), ok: counts[best.crown - 1] === stitches },
-    { id: 'crown-doubling', label: text('check-crown-doubling'), ok: correction === null || best.delta <= best.I * best.full },
-    { id: 'side-count', label: text('check-side-count'), ok: counts.slice(best.crown).every((count) => count === stitches) },
+    {
+      id: 'crown-doubling',
+      label: text('check-crown-doubling'),
+      ok: correction === null || best.delta <= best.I * best.full,
+    },
+    {
+      id: 'side-count',
+      label: text('check-side-count'),
+      ok: counts.slice(best.crown).every((count) => count === stitches),
+    },
     { id: 'brim', label: text('check-brim'), ok: brimRounds <= sideRounds },
     { id: 'height', label: text('check-height'), ok: Math.abs(finishedHeightCm - heightCm) <= 1.5 * gauge.rowCm },
-    { id: 'negative-ease', label: text('check-negative-ease', { limit: pct(NEGATIVE_EASE_LIMIT) }), ok: ratio <= NEGATIVE_EASE_LIMIT + 1e-9 },
+    {
+      id: 'negative-ease',
+      label: text('check-negative-ease', { limit: pct(NEGATIVE_EASE_LIMIT) }),
+      ok: ratio <= NEGATIVE_EASE_LIMIT + 1e-9,
+    },
   ];
   const warnings: CoreText<GarmentCode>[] = [];
   if (ratio > NEGATIVE_EASE_LIMIT + 1e-9) {
@@ -353,7 +400,12 @@ export function hatMeasures(sizeId: string, easeCm: number | null, brimCm: numbe
   const size = HAT_SIZES.find((candidate) => candidate.id === sizeId);
   if (!size) return null;
   const headCm = inchToCm(size.headIn);
-  return { headCm, easeCm: easeCm ?? hatEase(headCm), heightCm: withoutGrowth(inchToCm(size.midEarIn), growthPct), brimCm };
+  return {
+    headCm,
+    easeCm: easeCm ?? hatEase(headCm),
+    heightCm: withoutGrowth(inchToCm(size.midEarIn), growthPct),
+    brimCm,
+  };
 }
 
 export interface DropShoulderMeasures {
@@ -395,7 +447,13 @@ export interface DropShoulderPlan {
     readonly stitches: number;
     readonly shoulder: number;
     /** KB: 05 §4 */
-    readonly front: { readonly center: number; readonly perSide: number; readonly first: number; readonly later: number; readonly rows: number };
+    readonly front: {
+      readonly center: number;
+      readonly perSide: number;
+      readonly first: number;
+      readonly later: number;
+      readonly rows: number;
+    };
     readonly back: { readonly center: number; readonly rows: number; readonly perRow: number };
   };
   readonly sleeve: {
@@ -537,7 +595,10 @@ export function dropShoulderPlan(
     {
       id: 'sleeve-rows',
       label: text('check-sleeve-rows'),
-      ok: sum(schedule.intervals) + schedule.tail === shapedRows && increaseRows.length === increases && (increaseRows.at(-1) ?? 0) <= sleeveRows,
+      ok:
+        sum(schedule.intervals) + schedule.tail === shapedRows &&
+        increaseRows.length === increases &&
+        (increaseRows.at(-1) ?? 0) <= sleeveRows,
       suggestion: text('suggest-sleeve-rows'),
     },
     {
@@ -569,7 +630,17 @@ export function dropShoulderPlan(
   return {
     kind: 'drop-shoulder',
     measures: m,
-    panel: { exact, stitches, repeats: repeat ? (stitches - repeat.edge) / repeat.width : null, foundation, hemRows, bodyRows, rows, armholeRows, sideRows },
+    panel: {
+      exact,
+      stitches,
+      repeats: repeat ? (stitches - repeat.edge) / repeat.width : null,
+      foundation,
+      hemRows,
+      bodyRows,
+      rows,
+      armholeRows,
+      sideRows,
+    },
     neck: {
       stitches: neck,
       shoulder,
@@ -689,7 +760,10 @@ export type GarmentResult =
   | { readonly ok: true; readonly pattern: Pattern; readonly plan: GarmentSeriesPlan }
   | { readonly ok: false; readonly reason: CoreText<GarmentCode> };
 
-const fail = (reason: CoreText<GarmentCode>): { readonly ok: false; readonly reason: CoreText<GarmentCode> } => ({ ok: false, reason });
+const fail = (reason: CoreText<GarmentCode>): { readonly ok: false; readonly reason: CoreText<GarmentCode> } => ({
+  ok: false,
+  reason,
+});
 
 export function garmentProblem(options: GarmentOptions): CoreText<GarmentCode> | null {
   if (!GARMENT_STITCHES.includes(options.stitch)) {
@@ -704,12 +778,16 @@ export function garmentProblem(options: GarmentOptions): CoreText<GarmentCode> |
   }
   if (options.kind === 'drop-shoulder' && options.easeCm === null) return text('ease-required');
   if (!(Number.isFinite(options.hemCm) && options.hemCm >= 0 && options.hemCm <= 50)) return text('hem-range');
-  if (!(Number.isFinite(options.growthPct) && options.growthPct >= 0 && options.growthPct <= 50)) return text('growth-range');
+  if (!(Number.isFinite(options.growthPct) && options.growthPct >= 0 && options.growthPct <= 50))
+    return text('growth-range');
   if (options.ribbing) {
     const ribbing = ribbingProblem(options.ribbing);
     if (ribbing !== null) return ribbing;
   }
-  if (options.kind === 'drop-shoulder' && !(Number.isFinite(options.belowWaistCm) && options.belowWaistCm >= -30 && options.belowWaistCm <= 100)) {
+  if (
+    options.kind === 'drop-shoulder' &&
+    !(Number.isFinite(options.belowWaistCm) && options.belowWaistCm >= -30 && options.belowWaistCm <= 100)
+  ) {
     return text('below-waist-range');
   }
   if (options.kind === 'drop-shoulder' && options.repeat) {
@@ -781,7 +859,9 @@ function garmentGauge(pattern: Pattern, kind: GarmentKind, stitch: StitchDefId):
   };
 }
 
-const MONOTONIC: Readonly<Record<GarmentKind, readonly { readonly key: string; readonly label: CoreText<GarmentCode> }[]>> = {
+const MONOTONIC: Readonly<
+  Record<GarmentKind, readonly { readonly key: string; readonly label: CoreText<GarmentCode> }[]>
+> = {
   hat: [
     { key: 'hatStitches', label: text('monotonic-hat-stitches') },
     { key: 'totalRounds', label: text('monotonic-rounds') },
@@ -922,11 +1002,19 @@ export function planGarment(pattern: Pattern, options: GarmentOptions): GarmentP
       if (isGarmentText(graded)) return fail(graded);
       estimated = graded.estimated;
       const previous = sizes.at(-1)?.plan;
-      plan = dropShoulderPlan(graded.measures, gauge, start, options.repeat, previous?.kind === 'drop-shoulder' ? previous.neck.stitches : 0);
+      plan = dropShoulderPlan(
+        graded.measures,
+        gauge,
+        start,
+        options.repeat,
+        previous?.kind === 'drop-shoulder' ? previous.neck.stitches : 0,
+      );
     }
     // In a series the rejection names the size it stopped at; the name itself comes from the UI.
     if (isGarmentText(plan)) {
-      return fail(series.length > 1 ? text('size-problem', { size: id, table, inner: plan.code, ...(plan.data ?? {}) }) : plan);
+      return fail(
+        series.length > 1 ? text('size-problem', { size: id, table, inner: plan.code, ...(plan.data ?? {}) }) : plan,
+      );
     }
     const areaCm2 = areaOf(plan, gauge);
     const yarn =
@@ -977,8 +1065,16 @@ export function planGarment(pattern: Pattern, options: GarmentOptions): GarmentP
   };
 }
 
-const stitchEdge = (piece: string, layer: number, from: number, count: number) => ({ piece, layer, stitches: { from, count } });
-const rowsEdge = (piece: string, from: number, to: number, side: 'left' | 'right') => ({ piece, layer: from, rows: { to, side } });
+const stitchEdge = (piece: string, layer: number, from: number, count: number) => ({
+  piece,
+  layer,
+  stitches: { from, count },
+});
+const rowsEdge = (piece: string, from: number, to: number, side: 'left' | 'right') => ({
+  piece,
+  layer: from,
+  rows: { to, side },
+});
 
 function seam(a: PieceJoin['a'], countA: number, b: PieceJoin['b'], countB: number): PieceJoin {
   return countA === countB ? { a, b } : { a, b, distribution: evenDistribution(countA, countB) };
@@ -995,15 +1091,31 @@ export function dropShoulderJoins(plan: DropShoulderPlan, neckline: GarmentOptio
   const bodyRows = (part: 'front' | 'back') => (shaped ? neckSplitRow(plan, part) : rows);
   const sideRows = rows - armholeRows;
   const sleeve = (piece: string, backSide: 'left' | 'right', frontSide: 'left' | 'right'): PieceJoin[] => [
-    seam(stitchEdge(piece, sleeveRows, 0, half), half, rowsEdge('p1', sideRows + 1, bodyRows('back'), backSide), bodyRows('back') - sideRows),
-    seam(stitchEdge(piece, sleeveRows, half, half), half, rowsEdge('p2', sideRows + 1, bodyRows('front'), frontSide), bodyRows('front') - sideRows),
+    seam(
+      stitchEdge(piece, sleeveRows, 0, half),
+      half,
+      rowsEdge('p1', sideRows + 1, bodyRows('back'), backSide),
+      bodyRows('back') - sideRows,
+    ),
+    seam(
+      stitchEdge(piece, sleeveRows, half, half),
+      half,
+      rowsEdge('p2', sideRows + 1, bodyRows('front'), frontSide),
+      bodyRows('front') - sideRows,
+    ),
     { a: rowsEdge(piece, 1, sleeveRows, 'left'), b: rowsEdge(piece, 1, sleeveRows, 'right') },
   ];
   // With a shaped neck the shoulder is a whole row at the top of its section; with a boat neck it is a run of the top row.
   const shoulderSeams: PieceJoin[] = shaped
     ? [
-        { a: stitchEdge('p1', neckSplitRow(plan, 'back') + plan.neck.back.rows, 0, shoulder), b: stitchEdge('p2', rows + plan.neck.front.rows, 0, shoulder) },
-        { a: stitchEdge('p1', rows + plan.neck.back.rows, 0, shoulder), b: stitchEdge('p2', neckSplitRow(plan, 'front') + plan.neck.front.rows, 0, shoulder) },
+        {
+          a: stitchEdge('p1', neckSplitRow(plan, 'back') + plan.neck.back.rows, 0, shoulder),
+          b: stitchEdge('p2', rows + plan.neck.front.rows, 0, shoulder),
+        },
+        {
+          a: stitchEdge('p1', rows + plan.neck.back.rows, 0, shoulder),
+          b: stitchEdge('p2', neckSplitRow(plan, 'front') + plan.neck.front.rows, 0, shoulder),
+        },
       ]
     : [
         { a: stitchEdge('p1', rows, 0, shoulder), b: stitchEdge('p2', rows, stitches - shoulder, shoulder) },
@@ -1053,9 +1165,19 @@ export function panelSections(plan: DropShoulderPlan, part: 'front' | 'back'): R
   const firstShoulder = shoulderRows('end');
   const secondShoulder = shoulderRows('start');
   return [
-    { counts: Array<number>(split).fill(stitches), shaping: Array.from({ length: split }, () => ({ start: 0, end: 0 })) },
+    {
+      counts: Array<number>(split).fill(stitches),
+      shaping: Array.from({ length: split }, () => ({ start: 0, end: 0 })),
+    },
     { over: split, from: 0, span, counts: firstShoulder.counts, shaping: firstShoulder.shaping },
-    { name: 'A másik váll', over: split, from: span + neck.center, span, counts: secondShoulder.counts, shaping: secondShoulder.shaping },
+    {
+      name: 'A másik váll',
+      over: split,
+      from: span + neck.center,
+      span,
+      counts: secondShoulder.counts,
+      shaping: secondShoulder.shaping,
+    },
   ];
 }
 
@@ -1082,7 +1204,13 @@ export function generateGarment(pattern: Pattern, options: GarmentOptions): Garm
   const name = GARMENT_NAMES[options.kind];
   const { joins: _joins, garment: _garment, toy: _toy, ...rest } = pattern;
   let base: Pattern = { ...rest, pieces: [] };
-  const garment: PatternGarment = { kind: plan.kind, table: plan.table, sizes: plan.sizes.map((entry) => entry.id), base: plan.base, values: plan.values };
+  const garment: PatternGarment = {
+    kind: plan.kind,
+    table: plan.table,
+    sizes: plan.sizes.map((entry) => entry.id),
+    base: plan.base,
+    values: plan.values,
+  };
 
   let result: Pattern;
   if (size.plan.kind === 'raglan') {
@@ -1096,13 +1224,21 @@ export function generateGarment(pattern: Pattern, options: GarmentOptions): Garm
     result = { ...base, pieces: [piece], garment };
   } else if (size.plan.kind === 'hat') {
     base = { ...base, conventions: { ...base.conventions, roundEnd: 'join-slip' } };
-    const motif = { ...DEFAULT_MOTIF, shape: 'circle' as const, stitch: options.stitch, start: 'magic-ring' as const, closing: 'join-slip' as const };
+    const motif = {
+      ...DEFAULT_MOTIF,
+      shape: 'circle' as const,
+      stitch: options.stitch,
+      start: 'magic-ring' as const,
+      closing: 'join-slip' as const,
+    };
     const piece = plannedRounds(base, motif, size.plan.layout, name);
     if (typeof piece === 'string') return fail(pieceProblem(piece));
     result = { ...base, pieces: [piece], garment };
   } else {
     const shoulderPlan = size.plan;
-    const total = 2 * shoulderPlan.panel.stitches * shoulderPlan.panel.rows + 2 * shoulderPlan.sleeve.rows * shoulderPlan.sleeve.top;
+    const total =
+      2 * shoulderPlan.panel.stitches * shoulderPlan.panel.rows +
+      2 * shoulderPlan.sleeve.rows * shoulderPlan.sleeve.top;
     if (total > MAX_GARMENT_TOTAL) {
       return fail(text('max-total-sweater', { max: MAX_GARMENT_TOTAL }));
     }
@@ -1113,15 +1249,38 @@ export function generateGarment(pattern: Pattern, options: GarmentOptions): Garm
     const shaped = options.neckline === 'shaped' && shoulderPlan.neck.front.rows > 0 && shoulderPlan.neck.back.rows > 0;
     const panel = (part: 'front' | 'back', pieceName: string, id: string) =>
       shaped
-        ? plannedSections(base, options.stitch, panelSections(shoulderPlan, part), pieceName, id, options.ribbing ?? null)
+        ? plannedSections(
+            base,
+            options.stitch,
+            panelSections(shoulderPlan, part),
+            pieceName,
+            id,
+            options.ribbing ?? null,
+          )
         : plannedRows(base, options.stitch, panelCounts, flat, pieceName, id, options.ribbing ?? null);
     const pieces = [
       panel('back', PIECE_NAMES.back, 'p1'),
       panel('front', PIECE_NAMES.front, 'p2'),
       // The cuff is at the bottom of the sleeve, so the ribbing goes on the first rows just the same.
-      plannedRows(base, options.stitch, sleeve.counts, sleeve.shaping, PIECE_NAMES.leftSleeve, 'p3', options.ribbing ?? null),
+      plannedRows(
+        base,
+        options.stitch,
+        sleeve.counts,
+        sleeve.shaping,
+        PIECE_NAMES.leftSleeve,
+        'p3',
+        options.ribbing ?? null,
+      ),
       // KB: 05 §4.5
-      plannedRows(base, options.stitch, sleeve.counts, mirrorShaping(sleeve.shaping), PIECE_NAMES.rightSleeve, 'p4', options.ribbing ?? null),
+      plannedRows(
+        base,
+        options.stitch,
+        sleeve.counts,
+        mirrorShaping(sleeve.shaping),
+        PIECE_NAMES.rightSleeve,
+        'p4',
+        options.ribbing ?? null,
+      ),
     ];
     const built: Piece[] = [];
     for (const piece of pieces) {

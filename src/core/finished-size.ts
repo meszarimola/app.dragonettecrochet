@@ -97,7 +97,11 @@ export interface SizeDeviation {
 }
 
 // KB: 02 §3.3, 02 §9
-export function sizeDeviation(predictedMm: number, readingsMm: readonly number[], tolerance = GAUGE_TOLERANCE): SizeDeviation {
+export function sizeDeviation(
+  predictedMm: number,
+  readingsMm: readonly number[],
+  tolerance = GAUGE_TOLERANCE,
+): SizeDeviation {
   if (readingsMm.length === 0) throw new RangeError('Legalább egy leolvasást vártunk.');
   const meanMm = readingsMm.reduce((total, value) => total + value, 0) / readingsMm.length;
   const deviation = (meanMm - predictedMm) / predictedMm;

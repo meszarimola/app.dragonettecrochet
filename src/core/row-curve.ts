@@ -33,18 +33,24 @@ export function rowCurve(layout: ChartLayout, shape: RowShape): RowCurve | null 
 
   const feet = first.flatMap((node) => (node.role === 'stitch' ? node.feet : []));
   const xs = first.map((node) => node.top.x);
-  const center = feet.length > 0 ? feet.reduce((sum, p) => sum + p.x, 0) / feet.length : (Math.min(...xs) + Math.max(...xs)) / 2;
+  const center =
+    feet.length > 0 ? feet.reduce((sum, p) => sum + p.x, 0) / feet.length : (Math.min(...xs) + Math.max(...xs)) / 2;
 
   const half = clamp(shape.neckAngle / 2, 5, 175) * DEG;
   const tip = shape.kind === 'chevron' ? clamp(shape.tipAngle / 2, 5, 85) * DEG : 0;
   const radiusFor = (reach: number) =>
-    shape.kind === 'arc' ? reach / half : Math.max(reach * 0.05, (reach * Math.sin(tip) * Math.sin(half + tip)) / Math.sin(half));
+    shape.kind === 'arc'
+      ? reach / half
+      : Math.max(reach * 0.05, (reach * Math.sin(tip) * Math.sin(half + tip)) / Math.sin(half));
 
   const bands: Band[] = [];
   byLayer.forEach((nodes, layer) => {
     if (!nodes || nodes.length === 0) return;
     const xs = nodes.map((node) => node.top.x);
-    bands[layer] = { top: Math.max(...nodes.map((node) => -node.top.y)), reach: Math.max((Math.max(...xs) - Math.min(...xs)) / 2, 1) };
+    bands[layer] = {
+      top: Math.max(...nodes.map((node) => -node.top.y)),
+      reach: Math.max((Math.max(...xs) - Math.min(...xs)) / 2, 1),
+    };
   });
 
   // Knots are (height measured upwards, radius); the radius is linear in between.
@@ -114,12 +120,21 @@ export function curveLayout(layout: ChartLayout, curve: RowCurve, pad: number): 
     include(top);
     feet.forEach(include);
   }
-  const layers = layout.layers.map((layer) => ({ ...layer, start: curve.point(layer.start), end: curve.point(layer.end) }));
+  const layers = layout.layers.map((layer) => ({
+    ...layer,
+    start: curve.point(layer.start),
+    end: curve.point(layer.end),
+  }));
   for (const layer of layers.slice(1)) {
     include(layer.start);
     include(layer.end);
   }
-  return { ...layout, nodes, layers, bounds: { minX: minX - pad, minY: minY - pad, maxX: maxX + pad, maxY: maxY + pad } };
+  return {
+    ...layout,
+    nodes,
+    layers,
+    bounds: { minX: minX - pad, minY: minY - pad, maxX: maxX + pad, maxY: maxY + pad },
+  };
 }
 
 // Maximum deviation from the true line, in chart units.
@@ -161,5 +176,10 @@ export function curveStrip(x0: number, x1: number, y0: number, y1: number, curve
 
 // Winds top left-to-right, right side down, bottom right-to-left, left side up.
 export function outlineOf(edges: { readonly [K in keyof CurvedEdges]: readonly Point[] }): Point[] {
-  return [...edges.top, ...edges.right.slice(1, -1), ...[...edges.bottom].reverse(), ...[...edges.left].reverse().slice(1, -1)];
+  return [
+    ...edges.top,
+    ...edges.right.slice(1, -1),
+    ...[...edges.bottom].reverse(),
+    ...[...edges.left].reverse().slice(1, -1),
+  ];
 }

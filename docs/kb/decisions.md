@@ -55,3 +55,48 @@ of a row stays an error — there the hole is not a matter of style.
 
 When in doubt about severity, that is the test: is it a choice a crocheter could
 plausibly make on purpose?
+
+## §7 Biome here, ESLint on the main site
+
+Biome and oxlint parse only the frontmatter fence of an `.astro` file, which is
+why the main site uses ESLint. This repo has no `.astro` at all: 217 files of
+plain TypeScript with zero runtime dependencies. Biome checks all of it in about
+**a tenth of a second**, against ESLint's several seconds, and needs one binary
+and one config instead of five packages and a plugin graph.
+
+The two repos share the **style contract** — 120 columns, single quotes,
+semicolons, trailing commas, always-parenthesised arrows — not the binary. There
+is no monorepo and no shared code, so a shared config would be two copies that
+drift anyway.
+
+The step runs inside the existing `build` job, before the type check. The `e2e`
+job owns the critical path, so this adds nothing to the wall clock.
+
+**Excluded:** `tests/fixtures/**` and `src/ui/i18n/**`. A formatter does not
+change a string value, but those are the frozen paths and keeping them outside
+the tool means no one has to reason about whether a reformat was safe.
+
+Two rules are lowered rather than switched off, so the findings stay visible:
+
+- `useIterableCallbackReturn` (31) and `noVoidTypeReturn` (10) are warnings until
+  PQW-956 decides how many are real bugs. **Do not turn them off** — a callback
+  in `.map` or `.filter` that returns nothing gives a silently wrong result.
+- `noAssignInExpressions` (6) is a warning. Five are the `(arr[i] ??= []).push(x)`
+  idiom, which is clear. The sixth, in `round-generator.ts`, uses `reduce` with a
+  comma operator purely for its side effect, and that one is worth rewriting.
+
+## §8 The non-null assertion ceiling
+
+`noNonNullAssertion` is off, and `tests/non-null.test.mjs` caps the total at 777
+instead. A warn-level rule would emit 777 warnings that nobody reads and would
+train everyone to ignore the warning channel; an error-level rule would be a
+permanently red build. Neither is auto-fixable: every fix is a real decision, and
+in `layout.ts` they sit in canvas render paths where a runtime guard changes both
+behaviour and cost.
+
+The count comes from the TypeScript compiler API, not a regex — a regex cannot
+tell `a!.b` from `a !== b`, and undercounted by four.
+
+The test also fails if the count drops by more than 40 without the ceiling being
+lowered, so a real improvement gets locked in rather than quietly leaving room to
+regress.

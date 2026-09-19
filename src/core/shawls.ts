@@ -1,23 +1,60 @@
 // KB: 02 §8; 05 §1.1, 05 §1.2, 05 §1.3, 05 §1.4, 05 §1.5, 05 §1.6, 05 §1.7, 05 §1.8, 05 §9.4
 
-import { stitchDimensions, type DimensionBasis } from './gauge.ts';
+import { type DimensionBasis, stitchDimensions } from './gauge.ts';
 import { buildPieceGraph } from './graph.ts';
-import { text, type CoreText } from './messages.ts';
+import { type CoreText, text } from './messages.ts';
 import { activeProfile, gaugeContextOf } from './pattern-size.ts';
+import { withGeneratedTitle } from './pattern-title.ts';
 import { weakestSource } from './quantity.ts';
-import { DEFAULT_MOTIF, MOTIF_NAMES, circlePlan, plannedRounds, type RoundPlan } from './round-generator.ts';
+import { circlePlan, DEFAULT_MOTIF, MOTIF_NAMES, plannedRounds, type RoundPlan } from './round-generator.ts';
 import { flatIncreases } from './rounds.ts';
-import { DEFAULT_SHAPE, SHAPE_NAMES, SHAPE_STITCHES, generateShape, planShape, shapeGauge, type ShapeCode, type ShapeRepeat } from './shapes.ts';
+import {
+  DEFAULT_SHAPE,
+  generateShape,
+  planShape,
+  SHAPE_NAMES,
+  SHAPE_STITCHES,
+  type ShapeCode,
+  type ShapeRepeat,
+  shapeGauge,
+} from './shapes.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import { skippedChains, traditionOf, turningChainCountsFor } from './tradition.ts';
-import type { Anchor, LayerEvent, NodeId, Pattern, Piece, StitchDef, StitchDefId, StitchGroup, StitchNode, ValueSource } from './types.ts';
+import type {
+  Anchor,
+  LayerEvent,
+  NodeId,
+  Pattern,
+  Piece,
+  StitchDef,
+  StitchDefId,
+  StitchGroup,
+  StitchNode,
+  ValueSource,
+} from './types.ts';
 import { validatePattern } from './validate.ts';
-import { withGeneratedTitle } from './pattern-title.ts';
 
-export type ShawlKind = 'triangle' | 'asymmetric-triangle' | 'crescent' | 'semicircle' | 'circle' | 'pi' | 'shifted-pi' | 'stole';
+export type ShawlKind =
+  | 'triangle'
+  | 'asymmetric-triangle'
+  | 'crescent'
+  | 'semicircle'
+  | 'circle'
+  | 'pi'
+  | 'shifted-pi'
+  | 'stole';
 export type RateChoice = 'theory' | 'custom';
 
-export const SHAWL_KINDS: readonly ShawlKind[] = ['triangle', 'asymmetric-triangle', 'crescent', 'semicircle', 'circle', 'pi', 'shifted-pi', 'stole'];
+export const SHAWL_KINDS: readonly ShawlKind[] = [
+  'triangle',
+  'asymmetric-triangle',
+  'crescent',
+  'semicircle',
+  'circle',
+  'pi',
+  'shifted-pi',
+  'stole',
+];
 
 export const SHAWL_NAMES: Readonly<Record<ShawlKind, string>> = {
   triangle: 'Fentről induló háromszög',
@@ -167,8 +204,12 @@ export type ShawlCode =
 
 export type ShawlText = CoreText<ShawlCode>;
 
-export type ShawlPlanResult = { readonly ok: true; readonly plan: ShawlPlan } | { readonly ok: false; readonly reason: ShawlText };
-export type ShawlResult = { readonly ok: true; readonly pattern: Pattern; readonly plan: ShawlPlan } | { readonly ok: false; readonly reason: ShawlText };
+export type ShawlPlanResult =
+  | { readonly ok: true; readonly plan: ShawlPlan }
+  | { readonly ok: false; readonly reason: ShawlText };
+export type ShawlResult =
+  | { readonly ok: true; readonly pattern: Pattern; readonly plan: ShawlPlan }
+  | { readonly ok: false; readonly reason: ShawlText };
 
 const fail = (reason: ShawlText): { readonly ok: false; readonly reason: ShawlText } => ({ ok: false, reason });
 
@@ -181,12 +222,15 @@ export function shawlProblem(options: ShawlOptions): ShawlText | null {
   if (options.kind === 'stole' && !cm(options.lengthCm)) return text('shawl-length-range', { max: MAX_SHAWL_CM });
   if (options.kind !== 'stole' && options.rate === 'custom') {
     const rate = options.customRate;
-    if (!(Number.isFinite(rate) && rate > 0 && rate <= MAX_SHAWL_RATE)) return text('shawl-rate-range', { max: MAX_SHAWL_RATE });
+    if (!(Number.isFinite(rate) && rate > 0 && rate <= MAX_SHAWL_RATE))
+      return text('shawl-rate-range', { max: MAX_SHAWL_RATE });
   }
   if (options.edging) {
     const { width, edge } = options.edging;
-    if (!Number.isInteger(width) || width < 1 || width > MAX_EDGING) return text('shawl-edging-width-range', { max: MAX_EDGING });
-    if (!Number.isInteger(edge) || edge < 0 || edge > MAX_EDGING) return text('shawl-edging-edge-range', { max: MAX_EDGING });
+    if (!Number.isInteger(width) || width < 1 || width > MAX_EDGING)
+      return text('shawl-edging-width-range', { max: MAX_EDGING });
+    if (!Number.isInteger(edge) || edge < 0 || edge > MAX_EDGING)
+      return text('shawl-edging-edge-range', { max: MAX_EDGING });
   }
   const { widthPct, heightPct } = options.blocking;
   if (![widthPct, heightPct].every((pct) => Number.isFinite(pct) && pct > -50 && pct <= 100)) {
@@ -259,7 +303,12 @@ export function planShawl(pattern: Pattern, options: ShawlOptions): ShawlPlanRes
   const gauge = shawlGauge(pattern, options.kind, options.stitch);
   const def = resolveStitch(options.stitch)!;
   // Only rows matter here; a shawl in rounds is built by the round generator.
-  const counting = turningChainCountsFor(pattern.conventions.turningChainCounts, def, traditionOf(pattern.conventions), 'row');
+  const counting = turningChainCountsFor(
+    pattern.conventions.turningChainCounts,
+    def,
+    traditionOf(pattern.conventions),
+    'row',
+  );
   const r = gauge.rowCm / gauge.stitchCm;
   const custom = options.rate === 'custom';
 
@@ -298,12 +347,22 @@ export function planShawl(pattern: Pattern, options: ShawlOptions): ShawlPlanRes
   if (counts.reduce((sum, n) => sum + n, 0) > MAX_SHAWL_TOTAL) {
     return fail(text('shawl-max-total'));
   }
-    // Row 1 goes into a single chain; with a counting turning chain one of the stitches is that chain. KB: core-domain §5
+  // Row 1 goes into a single chain; with a counting turning chain one of the stitches is that chain. KB: core-domain §5
   if (planned.worked === 'rows' && options.kind !== 'stole' && counts[0]! - (counting ? 1 : 0) > MAX_INTO_ONE) {
     return fail(text('shawl-first-row-into-one', { max: MAX_INTO_ONE }));
   }
 
-  return { ok: true, plan: { ...planned, kind: options.kind, stitch: options.stitch, gauge, counts, warnings: warningsOf(options.kind, planned) } };
+  return {
+    ok: true,
+    plan: {
+      ...planned,
+      kind: options.kind,
+      stitch: options.stitch,
+      gauge,
+      counts,
+      warnings: warningsOf(options.kind, planned),
+    },
+  };
 }
 
 type PlanBody = Omit<ShawlPlan, 'kind' | 'stitch' | 'gauge' | 'counts' | 'warnings'>;
@@ -315,7 +374,9 @@ function symmetricPlan(options: ShawlOptions, gauge: ShawlGauge, r: number, cust
   const chosenRate = custom ? options.customRate : theoryRate;
   // The spine angle against the row: a quarter of the row per half for a triangle, no spine increase for a crescent.
   const spineHalf = triangle ? chosenRate / 4 : 0;
-  const rows = Math.round((options.sizeCm * Math.sin(Math.atan2(gauge.rowCm, spineHalf * gauge.stitchCm))) / gauge.rowCm);
+  const rows = Math.round(
+    (options.sizeCm * Math.sin(Math.atan2(gauge.rowCm, spineHalf * gauge.stitchCm))) / gauge.rowCm,
+  );
   if (rows < 2) return text('shawl-min-rows-depth');
   if (rows > MAX_SHAWL_ROWS) return text('shawl-max-rows-depth', { max: MAX_SHAWL_ROWS });
 
@@ -399,11 +460,18 @@ function asymmetricPlan(options: ShawlOptions, gauge: ShawlGauge, r: number, cus
   const grow = schedule(chosenRate, rows, 1);
   const first = Math.max(2, Math.round(chosenRate) + 1);
   const last = () => first + grow.reduce((sum, g) => sum + g, 0);
-  const edging = tailEdging(options, rows, last, (k, delta) => {
-    if (grow[k]! + delta < 0) return false;
-    grow[k]! += delta;
-    return true;
-  }, () => [...grow], (saved) => grow.splice(0, rows, ...saved));
+  const edging = tailEdging(
+    options,
+    rows,
+    last,
+    (k, delta) => {
+      if (grow[k]! + delta < 0) return false;
+      grow[k]! += delta;
+      return true;
+    },
+    () => [...grow],
+    (saved) => grow.splice(0, rows, ...saved),
+  );
   if (edging !== null && 'code' in edging) return edging;
 
   const rounds: number[][] = [];
@@ -457,11 +525,18 @@ function semicirclePlan(options: ShawlOptions, gauge: ShawlGauge, r: number, cus
   const grow = schedule(chosenRate, rows, 1);
   const last = () => first + grow.reduce((sum, g) => sum + g, 0);
   // The change fits into the last row in one go: the row spreads it evenly.
-  const edging = tailEdging(options, rows, last, (k, delta) => {
-    if (grow[k]! + delta < 0) return false;
-    grow[k]! += delta;
-    return true;
-  }, () => [...grow], (saved) => grow.splice(0, rows, ...saved));
+  const edging = tailEdging(
+    options,
+    rows,
+    last,
+    (k, delta) => {
+      if (grow[k]! + delta < 0) return false;
+      grow[k]! += delta;
+      return true;
+    },
+    () => [...grow],
+    (saved) => grow.splice(0, rows, ...saved),
+  );
   if (edging !== null && 'code' in edging) return edging;
 
   const rounds: number[][] = [];
@@ -491,7 +566,13 @@ function ratioOf(counts: readonly number[], ideal: number): ShawlPlan['ratio'] {
 }
 
 /** KB: 05 §1.1, 05 §1.3 */
-function roundPlan(pattern: Pattern, options: ShawlOptions, gauge: ShawlGauge, def: StitchDef, custom: boolean): PlanBody | ShawlText {
+function roundPlan(
+  pattern: Pattern,
+  options: ShawlOptions,
+  gauge: ShawlGauge,
+  def: StitchDef,
+  custom: boolean,
+): PlanBody | ShawlText {
   const increases = flatIncreases(def, gaugeContextOf(pattern, libraryFor(pattern)));
   const theoryRate = increases.exact;
   const chosenRate = custom ? Math.max(3, Math.round(options.customRate)) : increases.count;
@@ -539,7 +620,8 @@ function roundPlan(pattern: Pattern, options: ShawlOptions, gauge: ShawlGauge, d
 /** KB: 05 §1.3 */
 export function piRounds(shifted: boolean, rounds: number): Set<number> {
   const result = new Set<number>();
-  for (let k = 1; 2 ** k * (shifted ? 0.75 : 1) <= rounds; k += 1) result.add(Math.round(2 ** k * (shifted ? 0.75 : 1)));
+  for (let k = 1; 2 ** k * (shifted ? 0.75 : 1) <= rounds; k += 1)
+    result.add(Math.round(2 ** k * (shifted ? 0.75 : 1)));
   return result;
 }
 
@@ -576,7 +658,8 @@ function warningsOf(kind: ShawlKind, plan: PlanBody): ShawlWarning[] {
   const warnings: ShawlWarning[] = [];
   if (plan.ratio) {
     if (kind === 'pi' || kind === 'shifted-pi') {
-      if (plan.ratio.min < 1 - DEVIATION_LIMIT || plan.ratio.max > 1 + DEVIATION_LIMIT) warnings.push({ kind: 'pi-blocking', ratio: plan.ratio.min });
+      if (plan.ratio.min < 1 - DEVIATION_LIMIT || plan.ratio.max > 1 + DEVIATION_LIMIT)
+        warnings.push({ kind: 'pi-blocking', ratio: plan.ratio.min });
     } else if (plan.ratio.min < 1 - DEVIATION_LIMIT) warnings.push({ kind: 'cupping', ratio: plan.ratio.min });
     else if (plan.ratio.max > 1 + DEVIATION_LIMIT) warnings.push({ kind: 'ruffling', ratio: plan.ratio.max });
   } else if (kind === 'triangle' && plan.theoryRate > 0) {
@@ -612,14 +695,18 @@ export function shawlSizes(plan: ShawlPlan, blocking: ShawlBlocking): ShawlSizes
   const h = 1 + blocking.heightPct / 100;
   const { stitchCm, rowCm } = plan.gauge;
   const measured = shawlGeometry(plan, stitchCm, rowCm);
-  if (plan.gauge.blocked) return { measured: 'blocked', blocked: measured, unblocked: shawlGeometry(plan, stitchCm / w, rowCm / h) };
+  if (plan.gauge.blocked)
+    return { measured: 'blocked', blocked: measured, unblocked: shawlGeometry(plan, stitchCm / w, rowCm / h) };
   return { measured: 'unblocked', unblocked: measured, blocked: shawlGeometry(plan, stitchCm * w, rowCm * h) };
 }
 
 export function shawlGeometry(plan: ShawlPlan, stitchCm: number, rowCm: number): ShawlGeometry {
   const rows = plan.counts.length;
   const last = plan.counts.at(-1)!;
-  const framed = (points: [number, number][], extra: Omit<ShawlGeometry, 'widthCm' | 'depthCm' | 'outline'>): ShawlGeometry => {
+  const framed = (
+    points: [number, number][],
+    extra: Omit<ShawlGeometry, 'widthCm' | 'depthCm' | 'outline'>,
+  ): ShawlGeometry => {
     const xs = points.map(([x]) => x);
     const ys = points.map(([, y]) => y);
     const [minX, minY] = [Math.min(...xs), Math.min(...ys)];
@@ -638,7 +725,10 @@ export function shawlGeometry(plan: ShawlPlan, stitchCm: number, rowCm: number):
       const edge: [number, number] = [plan.edgeRate * stitchCm * rows, rowCm * rows];
       // Rotated so that the spine points straight down.
       const turn = Math.atan2(spine[0], spine[1]);
-      const rotate = ([x, y]: [number, number]): [number, number] => [x * Math.cos(turn) - y * Math.sin(turn), x * Math.sin(turn) + y * Math.cos(turn)];
+      const rotate = ([x, y]: [number, number]): [number, number] => [
+        x * Math.cos(turn) - y * Math.sin(turn),
+        x * Math.sin(turn) + y * Math.cos(turn),
+      ];
       const tip = rotate(edge);
       const bottom = rotate(spine);
       const thetaSpine = Math.atan2(rowCm, plan.spineRate * stitchCm);
@@ -657,7 +747,11 @@ export function shawlGeometry(plan: ShawlPlan, stitchCm: number, rowCm: number):
           [last * stitchCm, rows * rowCm],
           [0, rows * rowCm],
         ],
-        { neckAngleDeg: null, tipAngleDeg: degrees(Math.atan2(rowCm, plan.edgeRate * stitchCm)), spineCm: rows * rowCm },
+        {
+          neckAngleDeg: null,
+          tipAngleDeg: degrees(Math.atan2(rowCm, plan.edgeRate * stitchCm)),
+          spineCm: rows * rowCm,
+        },
       );
     case 'semicircle':
     case 'circle':
@@ -745,7 +839,12 @@ function withStatedCounts(pattern: Pattern, piece: Piece, counts: readonly numbe
     }
     if (layer.closing) stated.set(layer.closing.after, layer.writtenCount);
   }
-  return { ...piece, events: piece.events.map((event) => (stated.has(event.after) ? { ...event, statedCount: stated.get(event.after)! } : event)) };
+  return {
+    ...piece,
+    events: piece.events.map((event) =>
+      stated.has(event.after) ? { ...event, statedCount: stated.get(event.after)! } : event,
+    ),
+  };
 }
 
 const tenth = (value: number) => Math.round(value * 10) / 10;
@@ -759,7 +858,10 @@ function withRowShape(piece: Piece, plan: ShawlPlan): Piece {
     case 'crescent':
       return { ...piece, rowShape: { kind: 'arc', neckAngle: tenth(neckAngleDeg ?? 180) } };
     case 'triangle':
-      return { ...piece, rowShape: { kind: 'chevron', neckAngle: tenth(neckAngleDeg ?? 180), tipAngle: tenth(tipAngleDeg ?? 90) } };
+      return {
+        ...piece,
+        rowShape: { kind: 'chevron', neckAngle: tenth(neckAngleDeg ?? 180), tipAngle: tenth(tipAngleDeg ?? 90) },
+      };
     default:
       return piece;
   }
@@ -784,7 +886,13 @@ export function generateShawl(pattern: Pattern, options: ShawlOptions): ShawlRes
     let piece: Piece | string | ShawlText;
     let conventions = pattern.conventions;
     if (plan.worked === 'rounds') {
-      const options = { ...DEFAULT_MOTIF, shape: 'circle' as const, stitch: plan.stitch, start: 'magic-ring' as const, closing: 'join-slip' as const };
+      const options = {
+        ...DEFAULT_MOTIF,
+        shape: 'circle' as const,
+        stitch: plan.stitch,
+        start: 'magic-ring' as const,
+        closing: 'join-slip' as const,
+      };
       piece = plannedRounds(base, options, plan.layout, name);
       conventions = { ...conventions, roundEnd: 'join-slip' };
     } else piece = turnedRows(base, def, plan.layout, name);
@@ -795,7 +903,11 @@ export function generateShawl(pattern: Pattern, options: ShawlOptions): ShawlRes
     result = { ...base, conventions, pieces: [withRowShape(stated, plan)] };
   }
 
-  result = withGeneratedTitle(result, pattern, name, [...Object.values(SHAWL_NAMES), ...Object.values(SHAPE_NAMES), ...Object.values(MOTIF_NAMES)]);
+  result = withGeneratedTitle(result, pattern, name, [
+    ...Object.values(SHAWL_NAMES),
+    ...Object.values(SHAPE_NAMES),
+    ...Object.values(MOTIF_NAMES),
+  ]);
   const errors = validatePattern(result, libraryFor(result)).filter((finding) => finding.severity === 'error');
   if (errors.length > 0) return fail(text('internal-error', { rule: errors[0]!.rule }));
   return { ok: true, pattern: result, plan };

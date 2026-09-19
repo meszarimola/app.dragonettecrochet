@@ -126,7 +126,11 @@ export const SINGLE_CROCHET = basic(
 
 export const HALF_DOUBLE_CROCHET = basic(
   'hdc',
-  terms(term('félpálca', 'fp', ['egyráhajtásos félpálca']), term('half double crochet', 'hdc'), term('half treble', 'htr')),
+  terms(
+    term('félpálca', 'fp', ['egyráhajtásos félpálca']),
+    term('half double crochet', 'hdc'),
+    term('half treble', 'htr'),
+  ),
   1,
   2,
   1.6,
@@ -281,11 +285,7 @@ function sameBase(part: StitchDef, n: number, closure: 'partial' | 'complete' | 
 export const INVISIBLE_DECREASE: JoinedStitchDef = {
   ...decrease(SINGLE_CROCHET, 2),
   id: 'invdec',
-  terms: terms(
-    term('láthatatlan fogyasztás'),
-    term('invisible decrease', 'invdec'),
-    term('invisible decrease'),
-  ),
+  terms: terms(term('láthatatlan fogyasztás'), term('invisible decrease', 'invdec'), term('invisible decrease')),
   // Front loops only; the back loops stay inside the amigurumi. KB: 01 §4.4
   insertionModes: ['front-loop'],
 };
@@ -337,11 +337,7 @@ export const PICOT: SimpleStitchDef = {
 export const CHAIN_SPACE: SimpleStitchDef = {
   id: 'ch-sp',
   kind: 'space',
-  terms: terms(
-    term('láncív'),
-    term('chain space', 'ch-sp', ['chain loop', 'ch-lp']),
-    term('chain space', 'ch-sp'),
-  ),
+  terms: terms(term('láncív'), term('chain space', 'ch-sp', ['chain loop', 'ch-lp']), term('chain space', 'ch-sp')),
   ...NO_HEIGHT,
   consumes: 0,
   produces: 0,

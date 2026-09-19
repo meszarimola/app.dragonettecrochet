@@ -5,7 +5,7 @@
  */
 
 import { readFile } from 'node:fs/promises';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
@@ -47,7 +47,9 @@ function comparable(text: string): string {
 const fixture = (locale: string, name: string) =>
   readFile(new URL(`../tests/fixtures/written/${locale}/${name}.txt`, import.meta.url), 'utf8');
 
-test('written pattern: the recorded text of the rectangle in the panel, and the text changes when the notation changes', async ({ page }) => {
+test('written pattern: the recorded text of the rectangle in the panel, and the text changes when the notation changes', async ({
+  page,
+}) => {
   test.slow();
   await open(page);
   await page.locator('#board').focus();
@@ -69,21 +71,33 @@ test('written pattern: the recorded text of the rectangle in the panel, and the 
   const reference = comparable(await fixture('hu', 'felpalcas-teglalap')).split('\n');
   expect(lines.filter((line) => !/^\d/.test(line))).toEqual(reference.filter((line) => !/^\d/.test(line)));
   expect(lines.find((line) => line.startsWith('1. sor'))).toBe('1. sor – alapsor: 17 lsz.');
-  expect(lines.find((line) => line.startsWith('2. sor'))).toBe('2. sor: hagyj ki 2 láncszemet, majd minden láncszembe 1 fp (16 szem). Fordítás.');
-  expect(lines.find((line) => line.startsWith('3–22. sor'))).toBe('3–22. sor: 2 lsz (1 fp-nek számít), 1 szem kihagyása, 15 fp (16 szem). Fordítás.');
+  expect(lines.find((line) => line.startsWith('2. sor'))).toBe(
+    '2. sor: hagyj ki 2 láncszemet, majd minden láncszembe 1 fp (16 szem). Fordítás.',
+  );
+  expect(lines.find((line) => line.startsWith('3–22. sor'))).toBe(
+    '3–22. sor: 2 lsz (1 fp-nek számít), 1 szem kihagyása, 15 fp (16 szem). Fordítás.',
+  );
 
   // The notation section starts closed (PQW-882).
-  await page.locator('#section-notation').evaluate((el) => { (el as HTMLDetailsElement).open = true; });
+  await page.locator('#section-notation').evaluate((el) => {
+    (el as HTMLDetailsElement).open = true;
+  });
   await page.locator('#terms').selectOption('en-US');
   await expect(text).toContainText('Row 23:');
   const english = comparable((await text.textContent())!).split('\n');
   const englishReference = comparable(await fixture('en-US', 'felpalcas-teglalap')).split('\n');
-  expect(english.filter((line) => !/^Rows? /.test(line) && line !== 'sk – skip')).toEqual(englishReference.filter((line) => !/^Rows? /.test(line)));
-  expect(english.find((line) => line.startsWith('Rows 3–22'))).toBe('Rows 3–22: ch 2 (counts as 1 hdc), sk 1 st, 15 hdc (16 sts). Turn.');
+  expect(english.filter((line) => !/^Rows? /.test(line) && line !== 'sk – skip')).toEqual(
+    englishReference.filter((line) => !/^Rows? /.test(line)),
+  );
+  expect(english.find((line) => line.startsWith('Rows 3–22'))).toBe(
+    'Rows 3–22: ch 2 (counts as 1 hdc), sk 1 st, 15 hdc (16 sts). Turn.',
+  );
   await expect(page.locator('#palette')).toContainText('Half double crochet (hdc)');
 
   // The notation section starts closed (PQW-882).
-  await page.locator('#section-notation').evaluate((el) => { (el as HTMLDetailsElement).open = true; });
+  await page.locator('#section-notation').evaluate((el) => {
+    (el as HTMLDetailsElement).open = true;
+  });
   await page.locator('#terms').selectOption('en-GB');
   await expect(text).toContainText('Abbreviations (UK terms)');
   // The turning chain stands in place of stitch 1 (PQW-891): 14 half double crochets and the turning chain.
@@ -133,7 +147,9 @@ test('the pattern survives a reload, and can be loaded back as JSON', async ({ p
   await page.getByRole('button', { name: 'Új minta' }).click();
   await expect(page.locator('#summary')).toContainText('Üres minta');
 
-  await page.locator('#import-file').setInputFiles({ name: 'minta.json', mimeType: 'application/json', buffer: Buffer.from(json) });
+  await page
+    .locator('#import-file')
+    .setInputFiles({ name: 'minta.json', mimeType: 'application/json', buffer: Buffer.from(json) });
   await expect(page.locator('#summary')).toHaveText(before!);
 });
 
@@ -164,10 +180,14 @@ test('PNG and SVG export with a stitch key', async ({ page }) => {
 
 /* ---- Japanese preset (PQW-876) ---- */
 
-test('with the Japanese preset the half double crochet rectangle is error-free by the Japanese rule, and the pattern remembers it', async ({ page }) => {
+test('with the Japanese preset the half double crochet rectangle is error-free by the Japanese rule, and the pattern remembers it', async ({
+  page,
+}) => {
   await open(page);
   // The notation section starts closed (PQW-882).
-  await page.locator('#section-notation').evaluate((el) => { (el as HTMLDetailsElement).open = true; });
+  await page.locator('#section-notation').evaluate((el) => {
+    (el as HTMLDetailsElement).open = true;
+  });
   await page.locator('#tradition').selectOption('japanese');
   await expect(page.locator('#chart-style')).toHaveValue('jis');
   await expect(page.locator('#status')).toContainText('Előbeállítás: japán');

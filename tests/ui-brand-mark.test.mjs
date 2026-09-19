@@ -26,7 +26,10 @@ function token(name) {
 function shapes(svg) {
   return [...svg.matchAll(/<(ellipse|circle)\s([^>]*?)\/?>/g)].map(([, tag, attrs]) => {
     const pairs = [...attrs.matchAll(/([\w-]+)="([^"]*)"/g)].filter(([, name]) => !['fill', 'class'].includes(name));
-    return `${tag} ${pairs.map(([, name, value]) => `${name}=${value}`).sort().join(' ')}`;
+    return `${tag} ${pairs
+      .map(([, name, value]) => `${name}=${value}`)
+      .sort()
+      .join(' ')}`;
   });
 }
 
@@ -45,7 +48,17 @@ function pngSize(buffer) {
 
 test('favicon.svg is the approved D6 drawing in the brand palette colours', () => {
   assert.equal(shapes(FAVICON).length, 9);
-  assert.deepEqual(fills(FAVICON), ['#c5b2e4', '#c5b2e4', '#8a6fb8', '#8a6fb8', '#241f2b', '#241f2b', '#241f2b', '#fdfbf8', '#fdfbf8']);
+  assert.deepEqual(fills(FAVICON), [
+    '#c5b2e4',
+    '#c5b2e4',
+    '#8a6fb8',
+    '#8a6fb8',
+    '#241f2b',
+    '#241f2b',
+    '#241f2b',
+    '#fdfbf8',
+    '#fdfbf8',
+  ]);
   assert.match(FAVICON, /viewBox="40 36 120 120"/);
 });
 
@@ -68,7 +81,12 @@ test('the brand mark colours come from the design tokens and match the palette',
   assert.equal(token('c-brand-wing'), '#c5b2e4');
   assert.equal(token('c-brand-wing-inner'), '#8a6fb8');
   assert.equal(token('c-brand-eye'), '#fdfbf8');
-  for (const [part, name] of [['wing', 'c-brand-wing'], ['wing-inner', 'c-brand-wing-inner'], ['body', 'c-ink'], ['eye', 'c-brand-eye']]) {
+  for (const [part, name] of [
+    ['wing', 'c-brand-wing'],
+    ['wing-inner', 'c-brand-wing-inner'],
+    ['body', 'c-ink'],
+    ['eye', 'c-brand-eye'],
+  ]) {
     assert.match(CSS, new RegExp(`\\.brand-mark__${part}\\s*\\{\\s*fill:\\s*var\\(--${name}\\);`), part);
   }
 });

@@ -1,10 +1,9 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
-
-import { STITCHES } from '../src/core/stitches.ts';
 import { libraryFor, resolveStitch } from '../src/core/stitch-variants.ts';
+import { STITCHES } from '../src/core/stitches.ts';
 import { validatePattern } from '../src/core/validate.ts';
-import { shellStitch, chevron } from './fixtures/examples.ts';
+import { chevron, shellStitch } from './fixtures/examples.ts';
 
 test('every stitch in the library resolves by its id', () => {
   for (const def of STITCHES) assert.equal(resolveStitch(def.id), def);
@@ -12,12 +11,12 @@ test('every stitch in the library resolves by its id', () => {
 
 // prettier-ignore
 const VARIANTS = [
-  ['inc-3dc',       'group',  1, 3],
-  ['inc-4hdc',      'group',  1, 4],
-  ['shell-7dc',     'group',  1, 7],
-  ['sc4tog',        'joined', 4, 1],
-  ['tr2tog',        'joined', 2, 1],
-  ['cl-4tr',        'joined', 1, 1],
+  ['inc-3dc', 'group', 1, 3],
+  ['inc-4hdc', 'group', 1, 4],
+  ['shell-7dc', 'group', 1, 7],
+  ['sc4tog', 'joined', 4, 1],
+  ['tr2tog', 'joined', 2, 1],
+  ['cl-4tr', 'joined', 1, 1],
   ['cl-2dc-spread', 'joined', 2, 1],
 ];
 

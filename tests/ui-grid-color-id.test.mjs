@@ -13,7 +13,7 @@ import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
 import { VOCABULARIES } from '../src/core/pattern-text.ts';
-import { DEFAULT_COLORS, colorLabel } from '../src/ui/grid-chart-view.ts';
+import { colorLabel, DEFAULT_COLORS } from '../src/ui/grid-chart-view.ts';
 import { setUiLanguage } from '../src/ui/i18n.ts';
 
 /** Restores the Hungarian interface afterwards so no other test depends on order. */
@@ -33,7 +33,10 @@ test('built-in colours carry an id, not a name', () => {
     assert.equal(color.name, undefined, 'the name of a built-in colour belongs to the display, not to the saved data');
     assert.match(color.hex, /^#[0-9a-f]{6}$/i);
   }
-  assert.deepEqual(DEFAULT_COLORS.map((color) => color.id), ['natural', 'burgundy']);
+  assert.deepEqual(
+    DEFAULT_COLORS.map((color) => color.id),
+    ['natural', 'burgundy'],
+  );
 });
 
 test('the saved data comes out identical in both languages', () => {
@@ -45,23 +48,47 @@ test('the saved data comes out identical in both languages', () => {
 });
 
 test('the displayed name follows the interface language', () => {
-  assert.equal(withLanguage('hu', () => colorLabel(DEFAULT_COLORS[0])), 'Natúr');
-  assert.equal(withLanguage('en', () => colorLabel(DEFAULT_COLORS[0])), 'Natural');
-  assert.equal(withLanguage('hu', () => colorLabel(DEFAULT_COLORS[1])), 'Bordó');
-  assert.equal(withLanguage('en', () => colorLabel(DEFAULT_COLORS[1])), 'Burgundy');
+  assert.equal(
+    withLanguage('hu', () => colorLabel(DEFAULT_COLORS[0])),
+    'Natúr',
+  );
+  assert.equal(
+    withLanguage('en', () => colorLabel(DEFAULT_COLORS[0])),
+    'Natural',
+  );
+  assert.equal(
+    withLanguage('hu', () => colorLabel(DEFAULT_COLORS[1])),
+    'Bordó',
+  );
+  assert.equal(
+    withLanguage('en', () => colorLabel(DEFAULT_COLORS[1])),
+    'Burgundy',
+  );
 });
 
 test('a user-given name is never translated, and an older pattern saved with a name still shows', () => {
   const own = { name: 'Anyu fonala', hex: '#123456' };
-  assert.equal(withLanguage('hu', () => colorLabel(own)), 'Anyu fonala');
-  assert.equal(withLanguage('en', () => colorLabel(own)), 'Anyu fonala');
+  assert.equal(
+    withLanguage('hu', () => colorLabel(own)),
+    'Anyu fonala',
+  );
+  assert.equal(
+    withLanguage('en', () => colorLabel(own)),
+    'Anyu fonala',
+  );
 
   // A save from before PQW-905 holds only a name: it is shown unchanged.
   const legacy = { name: 'Natúr', hex: '#f3ecdf' };
-  assert.equal(withLanguage('en', () => colorLabel(legacy)), 'Natúr');
+  assert.equal(
+    withLanguage('en', () => colorLabel(legacy)),
+    'Natúr',
+  );
 
   // An unknown id does not make the row vanish either: the fallback text is used.
-  assert.equal(withLanguage('hu', () => colorLabel({ id: 'nincs-ilyen', hex: '#000000' }, 'A')), 'A');
+  assert.equal(
+    withLanguage('hu', () => colorLabel({ id: 'nincs-ilyen', hex: '#000000' }, 'A')),
+    'A',
+  );
   assert.equal(colorLabel(undefined, 'A'), 'A');
 });
 

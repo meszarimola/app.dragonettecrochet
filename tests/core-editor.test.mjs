@@ -8,8 +8,6 @@ import { describe, test } from 'node:test';
 
 import {
   canEndRow,
-  insertChain,
-  workIntoGap,
   closeRound,
   contextOf,
   defaultCursor,
@@ -17,9 +15,11 @@ import {
   emptyPattern,
   endRow,
   fillRow,
+  insertChain,
   liveCheck,
   setPinned,
   work,
+  workIntoGap,
   workIntoSame,
 } from '../src/core/editor.ts';
 import { buildPieceGraph, computeLayers } from '../src/core/graph.ts';
@@ -105,7 +105,11 @@ describe('half double crochet rectangle using only default targets', () => {
     assert.equal(context.layer, 2);
     // We stand at the very start of the row: the first stitch's place gets a chain matching its height.
     assert.equal(defaultCursor(pattern, context, 'dc'), 0);
-    for (const [tool, chains] of [['sc', 1], ['hdc', 2], ['dc', 3]]) {
+    for (const [tool, chains] of [
+      ['sc', 1],
+      ['hdc', 2],
+      ['dc', 3],
+    ]) {
       const first = ok(work(pattern, { def: tool, count: 1 }, 0));
       const layer = computeLayers(first, libraryFor(first))[2];
       assert.equal(layer.stitches.length, chains, `${tool}: ${chains} chains`);
@@ -190,7 +194,10 @@ test('shell stitch 6 × 2 + 1: increasing with "one more into the same", clean (
   pattern = ok(workIntoSame(pattern, 'dc'));
 
   const piece = pattern.pieces[0];
-  assert.deepEqual(piece.groups.map((group) => group.def), ['shell-5dc', 'shell-5dc', 'inc-3dc', 'shell-5dc', 'inc-3dc']);
+  assert.deepEqual(
+    piece.groups.map((group) => group.def),
+    ['shell-5dc', 'shell-5dc', 'inc-3dc', 'shell-5dc', 'inc-3dc'],
+  );
   assert.deepEqual(counts(pattern), [0, 13, 13]);
   assert.deepEqual(findings(pattern), []);
 });
@@ -375,7 +382,11 @@ describe('starting a row on the foundation chain (PQW-891)', () => {
     assert.equal(canEndRow(contextOf(pattern)), true);
     // By the owner's table the skip is at least two (PQW-924).
     const skipped = Math.max(2, turningChain);
-    assert.equal(defaultCursor(pattern, contextOf(pattern), def), skipped, `${def}: chain number ${skipped + 1} counted from the hook`);
+    assert.equal(
+      defaultCursor(pattern, contextOf(pattern), def),
+      skipped,
+      `${def}: chain number ${skipped + 1} counted from the hook`,
+    );
 
     pattern = ok(fillRow(pattern, { def, count: 1 }));
     const stitches = total - skipped;
@@ -383,14 +394,20 @@ describe('starting a row on the foundation chain (PQW-891)', () => {
     // Row 1's turning chain is the end of the foundation chain and has no node of its own: the first worked stitch comes right after the chains.
     const first = pattern.pieces[0].stitches[total];
     assert.equal(first.def, def);
-    assert.deepEqual(first.anchors.map((anchor) => anchor.id), [chainFromHook(pattern, total, skipped + 1)]);
+    assert.deepEqual(
+      first.anchors.map((anchor) => anchor.id),
+      [chainFromHook(pattern, total, skipped + 1)],
+    );
     assert.deepEqual(findings(pattern), []);
 
     pattern = ok(endRow(pattern));
     pattern = ok(fillRow(pattern, { def, count: 1 }));
     assert.equal(layerOf(pattern, 2).stitchCount, stitches);
     // The top of the turning chain is a target (PQW-944): row 2's last stitch goes there, into the foundation chain's last chain.
-    assert.deepEqual(pattern.pieces[0].stitches.at(-1).anchors.map((anchor) => anchor.id), [pattern.pieces[0].stitches[total - 1].id]);
+    assert.deepEqual(
+      pattern.pieces[0].stitches.at(-1).anchors.map((anchor) => anchor.id),
+      [pattern.pieces[0].stitches[total - 1].id],
+    );
     assert.deepEqual(findings(pattern), []);
     return pattern;
   }
@@ -447,15 +464,27 @@ describe('a row can be made in any order (PQW-933)', () => {
   test('a stitch put into a skipped place lands in the same spot on the yarn path as on the fabric', () => {
     // A double into targets 3 and 4, target 5 skipped, another double into 6.
     const gap = row([3, 4, 6]);
-    assert.deepEqual(path(gap), [['n13', 'n9'], ['n14', 'n8'], ['n15', 'n6']]);
+    assert.deepEqual(path(gap), [
+      ['n13', 'n9'],
+      ['n14', 'n8'],
+      ['n15', 'n6'],
+    ]);
 
     // Filling the gap: the stitch goes before the one worked into target 6, not at the end of the row.
     const filled = ok(work(gap, { def: 'dc', count: 1 }, 5));
-    assert.deepEqual(path(filled), [['n13', 'n9'], ['n14', 'n8'], ['n16', 'n7'], ['n15', 'n6']]);
+    assert.deepEqual(path(filled), [
+      ['n13', 'n9'],
+      ['n14', 'n8'],
+      ['n16', 'n7'],
+      ['n15', 'n6'],
+    ]);
     assert.equal(filled.pieces[0].stitches.find((node) => node.id === 'n15').prev, 'n16');
 
     // The fill-in is not a stitch against the direction of travel: validation has nothing to report on that count.
-    assert.deepEqual(findings(filled).map((finding) => finding.rule), ['unused-position', 'unused-position', 'unused-position', 'unused-position', 'unused-position']);
+    assert.deepEqual(
+      findings(filled).map((finding) => finding.rule),
+      ['unused-position', 'unused-position', 'unused-position', 'unused-position', 'unused-position'],
+    );
   });
 
   test('an increase goes into the stitch the crocheter clicked on', () => {
@@ -463,19 +492,36 @@ describe('a row can be made in any order (PQW-933)', () => {
 
     // Target 4 sits further back in the row: the increase used to land next to the last stitch instead.
     const increased = ok(workIntoSame(four, 'dc', 4));
-    assert.deepEqual(path(increased), [['n13', 'n9'], ['n14', 'n8'], ['n17', 'n8'], ['n15', 'n7'], ['n16', 'n6']]);
+    assert.deepEqual(path(increased), [
+      ['n13', 'n9'],
+      ['n14', 'n8'],
+      ['n17', 'n8'],
+      ['n15', 'n7'],
+      ['n16', 'n6'],
+    ]);
     assert.deepEqual(increased.pieces[0].groups, [{ id: 'g1', def: 'inc-2dc', members: ['n14', 'n17'] }]);
 
     // Afterwards it still increases into the right stitch at the end of the row, not into the most recently placed one.
     const both = ok(workIntoSame(increased, 'dc', 6));
     assert.deepEqual(both.pieces[0].groups.at(-1), { id: 'g2', def: 'inc-2dc', members: ['n16', 'n18'] });
-    assert.deepEqual(findings(both).filter((finding) => finding.rule !== 'unused-position'), []);
+    assert.deepEqual(
+      findings(both).filter((finding) => finding.rule !== 'unused-position'),
+      [],
+    );
   });
 
   test('moving forwards, a stitch still lands at the end of the row as before', () => {
     const forward = row([3, 4, 5, 6]);
-    assert.deepEqual(path(forward), [['n13', 'n9'], ['n14', 'n8'], ['n15', 'n7'], ['n16', 'n6']]);
-    assert.deepEqual(forward.pieces[0].stitches.map((node) => node.prev), [null, ...forward.pieces[0].stitches.slice(0, -1).map((node) => node.id)]);
+    assert.deepEqual(path(forward), [
+      ['n13', 'n9'],
+      ['n14', 'n8'],
+      ['n15', 'n7'],
+      ['n16', 'n6'],
+    ]);
+    assert.deepEqual(
+      forward.pieces[0].stitches.map((node) => node.prev),
+      [null, ...forward.pieces[0].stitches.slice(0, -1).map((node) => node.id)],
+    );
   });
 });
 
@@ -516,7 +562,10 @@ describe('a chain stitch lands in the column it was pointed at (PQW-935)', () =>
     const context = contextOf(base);
     const from = context.frontier + 2;
     const placed = ok(work(base, { def: 'ch', count: 3 }, from));
-    assert.deepEqual(bridged(placed), [from, from + 1, from + 2].map((i) => context.slots[i].id));
+    assert.deepEqual(
+      bridged(placed),
+      [from, from + 1, from + 2].map((i) => context.slots[i].id),
+    );
   });
 
   test('a place that does get a stitch later no longer counts as skipped', () => {
@@ -572,7 +621,11 @@ describe('the pattern is cleaned of orphaned bridging marks (PQW-939)', () => {
     const dirty = withOrphans(pattern, [slot + 1, slot + 2]);
 
     const placed = ok(work(dirty, { def: 'ch', count: 1 }, slot + 3));
-    assert.deepEqual(placed.pieces[0].skipped, [contextOf(pattern).slots[slot + 3].id], 'only the place it was pointed at remains');
+    assert.deepEqual(
+      placed.pieces[0].skipped,
+      [contextOf(pattern).slots[slot + 3].id],
+      'only the place it was pointed at remains',
+    );
   });
 
   test('the cleanup leaves legitimate marks alone', () => {
@@ -596,7 +649,8 @@ describe('the pattern is cleaned of orphaned bridging marks (PQW-939)', () => {
  * not work into it.
  */
 describe('the written stitch count of a row includes the turning chain and the chain stitches (PQW-940)', () => {
-  const put = (pattern, def, count = 1) => ok(work(pattern, { def, count }, defaultCursor(pattern, contextOf(pattern), def)));
+  const put = (pattern, def, count = 1) =>
+    ok(work(pattern, { def, count }, defaultCursor(pattern, contextOf(pattern), def)));
   const cluster = (pattern, def, count) => {
     const at = defaultCursor(pattern, contextOf(pattern), def);
     let next = ok(work(pattern, { def, count: 1 }, at));
@@ -730,7 +784,10 @@ describe('the turning chain stands in the place of the first stitch (PQW-944)', 
     };
     assert.deepEqual(span(layers[2]), span(layers[1]), 'row 3 occupies the same columns as row 2');
     assert.deepEqual(span(layers[3]), span(layers[1]));
-    assert.deepEqual(layers.map((layer) => layer.writtenCount), [11, 11, 11, 11]);
+    assert.deepEqual(
+      layers.map((layer) => layer.writtenCount),
+      [11, 11, 11, 11],
+    );
     assert.deepEqual(findings(pattern), []);
   });
 
@@ -775,7 +832,8 @@ describe('the turning chain stands in its place as soon as it is laid down (PQW-
     pattern = ok(fillRow(pattern, { def: 'dc', count: 1 }));
     return ok(endRow(pattern));
   };
-  const place = (pattern) => ok(work(pattern, { def: 'dc', count: 1 }, defaultCursor(pattern, contextOf(pattern), 'dc')));
+  const place = (pattern) =>
+    ok(work(pattern, { def: 'dc', count: 1 }, defaultCursor(pattern, contextOf(pattern), 'dc')));
 
   test('the chain lands in its own cell right away, not in front of the grid', () => {
     const first = place(afterTurn());
@@ -785,7 +843,10 @@ describe('the turning chain stands in its place as soon as it is laid down (PQW-
     const chain = buildPieceGraph(first, first.pieces[0], library).layers[2].turningChain[0];
     const cell = grid.cells.filter((candidate) => candidate.layer === 2).find((candidate) => candidate.index === 0);
     const x = layout.nodes.get(chain).top.x;
-    assert.ok(x > cell.area.x0 && x < cell.area.x1, `the chain sits in the row's first cell: ${x} ∉ (${cell.area.x0}, ${cell.area.x1})`);
+    assert.ok(
+      x > cell.area.x0 && x < cell.area.x1,
+      `the chain sits in the row's first cell: ${x} ∉ (${cell.area.x0}, ${cell.area.x1})`,
+    );
   });
 
   /*
@@ -802,8 +863,14 @@ describe('the turning chain stands in its place as soon as it is laid down (PQW-
       const node = layout.nodes.get(id);
       const bottom = node.top.y + node.size / 2;
       const top = node.top.y - node.size / 2;
-      assert.ok(bottom <= band.area.y1, `${tool}: the bottom of ${id} at ${bottom.toFixed(1)} is past the band's bottom at ${band.area.y1.toFixed(1)}`);
-      assert.ok(top >= band.area.y0, `${tool}: the top of ${id} at ${top.toFixed(1)} is past the band's top at ${band.area.y0.toFixed(1)}`);
+      assert.ok(
+        bottom <= band.area.y1,
+        `${tool}: the bottom of ${id} at ${bottom.toFixed(1)} is past the band's bottom at ${band.area.y1.toFixed(1)}`,
+      );
+      assert.ok(
+        top >= band.area.y0,
+        `${tool}: the top of ${id} at ${top.toFixed(1)} is past the band's top at ${band.area.y0.toFixed(1)}`,
+      );
     }
   };
 
@@ -850,12 +917,18 @@ describe('the turning chain symbols stand apart (PQW-948)', () => {
     return ok(work(pattern, { def: tool, count: 1 }, defaultCursor(pattern, contextOf(pattern), tool)));
   };
 
-  for (const [tool, chains] of [['hdc', 2], ['dc', 3], ['tr', 4]]) {
+  for (const [tool, chains] of [
+    ['hdc', 2],
+    ['dc', 3],
+    ['tr', 4],
+  ]) {
     test(`${tool}: a gap is left between the ${chains} chains`, () => {
       const pattern = rowWith(tool);
       const library = libraryFor(pattern);
       const layout = layoutPattern(pattern, library);
-      const stack = buildPieceGraph(pattern, pattern.pieces[0], library).layers[2].turningChain.map((id) => layout.nodes.get(id));
+      const stack = buildPieceGraph(pattern, pattern.pieces[0], library).layers[2].turningChain.map((id) =>
+        layout.nodes.get(id),
+      );
       assert.equal(stack.length, chains);
       stack.slice(1).forEach((node, i) => {
         const gap = stack[i].top.y - node.top.y - (stack[i].size + node.size) / 2;
@@ -885,7 +958,9 @@ describe('inserting a chain into the foundation chain (PQW-941)', () => {
   const base = (pattern) => buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern)).layers[0];
   /** The yarn path is intact: every stitch points at the one before it. */
   const yarnPath = (pattern) =>
-    pattern.pieces[0].stitches.every((node, i) => node.prev === (i === 0 ? null : pattern.pieces[0].stitches[i - 1].id));
+    pattern.pieces[0].stitches.every(
+      (node, i) => node.prev === (i === 0 ? null : pattern.pieces[0].stitches[i - 1].id),
+    );
 
   test('between two chains: the foundation chain is one longer and the yarn path is intact', () => {
     const pattern = halfDone();
@@ -893,7 +968,10 @@ describe('inserting a chain into the foundation chain (PQW-941)', () => {
     const longer = ok(insertChain(pattern, { left: chains[1], right: chains[2] }));
     assert.equal(base(longer).stitches.length, chains.length + 1);
     assert.ok(yarnPath(longer), 'the yarn path is intact');
-    assert.deepEqual(findings(longer).filter((finding) => finding.severity === 'error'), []);
+    assert.deepEqual(
+      findings(longer).filter((finding) => finding.severity === 'error'),
+      [],
+    );
   });
 
   test('before the start of the chain: that is where the crocheter lengthens it when the base runs out', () => {
@@ -902,7 +980,10 @@ describe('inserting a chain into the foundation chain (PQW-941)', () => {
     const longer = ok(insertChain(pattern, { left: null, right: chains[0] }));
     assert.equal(base(longer).stitches.length, chains.length + 1);
     assert.ok(yarnPath(longer));
-    assert.deepEqual(findings(longer).filter((finding) => finding.severity === 'error'), []);
+    assert.deepEqual(
+      findings(longer).filter((finding) => finding.severity === 'error'),
+      [],
+    );
   });
 
   test('the stitches of row 2 stay where they are, and an empty cell is left above the insertion', () => {
@@ -951,7 +1032,9 @@ describe('a stitch into an empty cell of an earlier row (PQW-950)', () => {
   };
   const freeUnder = (pattern, layer) => {
     const graph = buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));
-    const worked = new Set(graph.layers[layer].stitches.flatMap((id) => graph.nodes.get(id).anchors.map((anchor) => anchor.id)));
+    const worked = new Set(
+      graph.layers[layer].stitches.flatMap((id) => graph.nodes.get(id).anchors.map((anchor) => anchor.id)),
+    );
     return graph.layers[layer - 1].positions.find((id) => !worked.has(id));
   };
 
@@ -962,13 +1045,23 @@ describe('a stitch into an empty cell of an earlier row (PQW-950)', () => {
     const before = pattern.pieces[0].stitches.filter((node) => node.def === 'dc');
     const filled = ok(workIntoGap(pattern, 1, gap, { def: 'dc', count: 1 }));
     const graph = buildPieceGraph(filled, filled.pieces[0], libraryFor(filled));
-    assert.equal(graph.layers[1].stitches.length, buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern)).layers[1].stitches.length + 1);
+    assert.equal(
+      graph.layers[1].stitches.length,
+      buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern)).layers[1].stitches.length + 1,
+    );
     assert.equal(freeUnder(filled, 1), undefined, 'no empty place is left');
     // The earlier stitches work into the same places, and the yarn path is intact.
     const after = new Map(filled.pieces[0].stitches.map((node) => [node.id, node]));
     for (const node of before) assert.deepEqual(after.get(node.id).anchors, node.anchors, node.id);
-    assert.ok(filled.pieces[0].stitches.every((node, i) => node.prev === (i === 0 ? null : filled.pieces[0].stitches[i - 1].id)));
-    assert.deepEqual(findings(filled).filter((finding) => finding.severity === 'error'), []);
+    assert.ok(
+      filled.pieces[0].stitches.every(
+        (node, i) => node.prev === (i === 0 ? null : filled.pieces[0].stitches[i - 1].id),
+      ),
+    );
+    assert.deepEqual(
+      findings(filled).filter((finding) => finding.severity === 'error'),
+      [],
+    );
   });
 
   test('it refuses a taken place, and refuses a stitch that is not a basic one', () => {
@@ -976,6 +1069,9 @@ describe('a stitch into an empty cell of an earlier row (PQW-950)', () => {
     const graph = buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));
     const taken = graph.nodes.get(graph.layers[1].stitches.at(-1)).anchors[0].id;
     assert.equal(workIntoGap(pattern, 1, taken, { def: 'dc', count: 1 }).reason.code, 'gap-not-free');
-    assert.equal(workIntoGap(pattern, 1, freeUnder(pattern, 1), { def: 'ch', count: 1 }).reason.code, 'gap-needs-basic');
+    assert.equal(
+      workIntoGap(pattern, 1, freeUnder(pattern, 1), { def: 'ch', count: 1 }).reason.code,
+      'gap-needs-basic',
+    );
   });
 });

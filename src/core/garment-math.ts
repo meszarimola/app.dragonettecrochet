@@ -80,7 +80,10 @@ export interface ShapingRun {
 }
 
 // `first` is an absolute row number; the runs that follow it are gaps between rows.
-export function shapingRuns(rows: readonly number[]): { readonly first: number | null; readonly runs: readonly ShapingRun[] } {
+export function shapingRuns(rows: readonly number[]): {
+  readonly first: number | null;
+  readonly runs: readonly ShapingRun[];
+} {
   if (rows.length === 0) return { first: null, runs: [] };
   const runs: ShapingRun[] = [];
   for (let i = 1; i < rows.length; i += 1) {

@@ -8,7 +8,7 @@
  * therefore deliberately starts from the `nyitva` state.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 const WRITTEN_KEY = 'dc-mintatervezo:irott-minta';
 

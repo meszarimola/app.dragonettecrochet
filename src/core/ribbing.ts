@@ -2,9 +2,19 @@
 // KB: core-geometry §47, §59
 
 import { buildPieceGraph, type LayerInfo } from './graph.ts';
-import { text, type CoreText } from './messages.ts';
+import { type CoreText, text } from './messages.ts';
 import type { StitchLibrary } from './stitch-library.ts';
-import type { Anchor, LayerEvent, NodeId, Pattern, Piece, StitchDef, StitchDefId, StitchInsertion, StitchNode } from './types.ts';
+import type {
+  Anchor,
+  LayerEvent,
+  NodeId,
+  Pattern,
+  Piece,
+  StitchDef,
+  StitchDefId,
+  StitchInsertion,
+  StitchNode,
+} from './types.ts';
 
 // KB: 01 §4.2
 export const RIBBING_STITCH: StitchDefId = 'dc';
@@ -60,7 +70,12 @@ export function ribbedOpening(event: LayerEvent): LayerEvent {
   return { ...event, conventions: { ...event.conventions, turningChainCounts: false } };
 }
 
-export function appendRibbing(pattern: Pattern, piece: Piece, library: StitchLibrary, options: RibbingOptions): Piece | RibbingText {
+export function appendRibbing(
+  pattern: Pattern,
+  piece: Piece,
+  library: StitchLibrary,
+  options: RibbingOptions,
+): Piece | RibbingText {
   const problem = ribbingProblem(options);
   if (problem !== null) return problem;
   const def = library.get(RIBBING_STITCH);
@@ -70,8 +85,10 @@ export function appendRibbing(pattern: Pattern, piece: Piece, library: StitchLib
   const found = graph.layers[graph.layers.length - 1];
   if (!found || found.index === 0) return text('ribbing-needs-row');
   // KB: core-geometry §48
-  const top = found.shape === 'row' && found.turningChainCounts ? found.turningChain[found.turningChain.length - 1] : undefined;
-  const last: LayerInfo = top === undefined ? found : { ...found, positions: found.positions.filter((id) => id !== top) };
+  const top =
+    found.shape === 'row' && found.turningChainCounts ? found.turningChain[found.turningChain.length - 1] : undefined;
+  const last: LayerInfo =
+    top === undefined ? found : { ...found, positions: found.positions.filter((id) => id !== top) };
 
   const round = last.shape === 'round';
   if (round && last.closing?.kind !== 'join-slip') return text('ribbing-after-join');
@@ -93,7 +110,8 @@ export function appendRibbing(pattern: Pattern, piece: Piece, library: StitchLib
   const events: LayerEvent[] = [...piece.events];
   const opensRib = ribbedOpening;
   const ended = events[events.length - 1];
-  if (ended) events[events.length - 1] = opensRib(!round && ended.kind === 'fasten-off' ? { ...ended, kind: 'turn' } : ended);
+  if (ended)
+    events[events.length - 1] = opensRib(!round && ended.kind === 'fasten-off' ? { ...ended, kind: 'turn' } : ended);
   const numberOf = (ids: readonly string[], prefix: string) =>
     Math.max(0, ...ids.map((id) => (new RegExp(`^${prefix}(\\d+)$`).exec(id) ? Number(id.slice(prefix.length)) : 0)));
   let nextNode = numberOf(

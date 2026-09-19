@@ -151,7 +151,15 @@ function chainOval(center: Point, rx: number, ry: number, rotation: number): Sha
 }
 
 // KB: interface.md §21 — `across` is the ROW axis at this point, and the cross and bar follow it.
-function drawStitch(out: Shape[], part: StitchDef, stem: Stem, across: Point, options: SymbolOptions, withBar: boolean, compact: boolean): void {
+function drawStitch(
+  out: Shape[],
+  part: StitchDef,
+  stem: Stem,
+  across: Point,
+  options: SymbolOptions,
+  withBar: boolean,
+  compact: boolean,
+): void {
   if (part.chainHeight <= 1) {
     const { point: mid } = stem.at(0.5);
     const half = stem.length * (compact ? ARM_COMPACT : ARM_SINGLE);
@@ -208,7 +216,15 @@ function drawGroup(out: Shape[], def: GroupStitchDef, options: SymbolOptions): P
       const along = normal(scale(direction, -1));
       out.push(chainOval(scale(direction, reach * 0.8), SMALL_CHAIN_RX, SMALL_CHAIN_RY, rotationOf(along)));
     } else {
-      drawStitch(out, member, lineStem(FOOT, scale(direction, stemLength(member.chainHeight))), RIGHT, options, true, true);
+      drawStitch(
+        out,
+        member,
+        lineStem(FOOT, scale(direction, stemLength(member.chainHeight))),
+        RIGHT,
+        options,
+        true,
+        true,
+      );
     }
   });
 
@@ -281,7 +297,11 @@ function isMark(mode: InsertionMode): mode is InsertionMark {
 // KB: 01 §6.1, §6.2, §8.4; interface.md §32
 function insertionMark(mode: InsertionMark, foot: Point, style: ChartStyle = 'cyc'): Shape {
   if (mode === 'back-loop' && style === 'jis') {
-    return line(mode, add(foot, { x: -JIS_LOOP_HALF, y: JIS_LOOP_DROP }), add(foot, { x: JIS_LOOP_HALF, y: JIS_LOOP_DROP }));
+    return line(
+      mode,
+      add(foot, { x: -JIS_LOOP_HALF, y: JIS_LOOP_DROP }),
+      add(foot, { x: JIS_LOOP_HALF, y: JIS_LOOP_DROP }),
+    );
   }
 
   const curve = (from: Point, control: Point, to: Point): Shape => ({
@@ -421,7 +441,10 @@ export interface Placement {
 
 export function transformShapes(shapes: readonly Shape[], rotation: number, k: number, offset: Point): Shape[] {
   const [cos, sin] = [Math.cos(rotation), Math.sin(rotation)];
-  const map = (p: Point): Point => ({ x: offset.x + k * (p.x * cos - p.y * sin), y: offset.y + k * (p.x * sin + p.y * cos) });
+  const map = (p: Point): Point => ({
+    x: offset.x + k * (p.x * cos - p.y * sin),
+    y: offset.y + k * (p.x * sin + p.y * cos),
+  });
   return shapes.map((shape): Shape => {
     switch (shape.kind) {
       case 'line':
@@ -429,7 +452,13 @@ export function transformShapes(shapes: readonly Shape[], rotation: number, k: n
       case 'curve':
         return { ...shape, from: map(shape.from), control: map(shape.control), to: map(shape.to) };
       case 'ellipse':
-        return { ...shape, center: map(shape.center), rx: shape.rx * k, ry: shape.ry * k, rotation: shape.rotation + rotation };
+        return {
+          ...shape,
+          center: map(shape.center),
+          rx: shape.rx * k,
+          ry: shape.ry * k,
+          rotation: shape.rotation + rotation,
+        };
       case 'dot':
         return { ...shape, center: map(shape.center), r: shape.r * k };
     }
@@ -437,7 +466,11 @@ export function transformShapes(shapes: readonly Shape[], rotation: number, k: n
 }
 
 // KB: 01 §8.4; interface.md §22
-export function placedShapes(def: StitchDef, placement: Placement, options: SymbolOptions = DEFAULT_SYMBOL_OPTIONS): Shape[] {
+export function placedShapes(
+  def: StitchDef,
+  placement: Placement,
+  options: SymbolOptions = DEFAULT_SYMBOL_OPTIONS,
+): Shape[] {
   const { top } = placement;
   switch (placement.role) {
     case 'chain': {
@@ -483,7 +516,9 @@ export function placedShapes(def: StitchDef, placement: Placement, options: Symb
 }
 
 // KB: interface.md §23
-export function shapesBounds(shapes: readonly Shape[]): { minX: number; minY: number; maxX: number; maxY: number } | null {
+export function shapesBounds(
+  shapes: readonly Shape[],
+): { minX: number; minY: number; maxX: number; maxY: number } | null {
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
