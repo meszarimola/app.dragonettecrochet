@@ -1,12 +1,4 @@
-/*
- * A „Ruhadarab” szakasz tartalma (PQW-866): a választható ruhadarabok,
- * táblázatok és méretek, a mezők alapértéke, a választott méret terve, az
- * ellenőrzések összesítése, a figyelmeztetések (a táblázat gyanús adatai is)
- * és a méretsorozat szövege, ahogy az írott mintába kerül.
- *
- * DOM nélküli, ezért a Node is futtatja (tests/ui-garment-view.test.mjs), és a
- * magot `.ts` kiterjesztéssel importálja.
- */
+// KB: interface.md §1
 
 import { BODY_TABLES_ORDER, GARMENT_EASE, NEGATIVE_EASE_LIMIT, bodySizeName, fitLevelOf, hatSizeName, type BodyTableId } from '../core/body-sizes.ts';
 import { sizingLines } from '../core/garment-text.ts';
@@ -50,19 +42,10 @@ export const TABLE_CHOICES: readonly Choice<BodyTableId>[] = BODY_TABLES_ORDER.m
   },
 }));
 
-/**
- * A mag üzenete mondattá a felület nyelvén (PQW-904): a mag kódot és adatot
- * ad, a szótár a mondatot.
- */
 export function garmentText(message: CoreText<GarmentCode>): string {
   return renderCoreText(GARMENT_CORE_TEXTS[uiLanguage()], message);
 }
 
-/**
- * A méret neve a felület nyelvén: a mag csak azonosítót ad, a nevet a
- * sapka- és a testméret-táblázat adja (PQW-904). Az írott minta ugyanezt a
- * függvényt a JELÖLÉS nyelvével hívja (garment-text.ts).
- */
 export function sizeName(table: GarmentTable, id: string): string {
   const locale: Locale = uiLanguage() === 'en' ? 'en-US' : 'hu';
   return table === 'hat' ? hatSizeName(id, locale) : bodySizeName(table, id, locale);
@@ -73,26 +56,21 @@ export function sizeChoices(kind: GarmentKind, table: BodyTableId): Choice<strin
   return garmentSizes(kind, table).map((id) => ({ value: id, label: sizeName(garmentTable, id) }));
 }
 
-/** Melyik mező látszik: a táblázat, a derék alatti hossz és a mintaismétlés csak a pulóvernél. */
 export interface GarmentFieldState {
   readonly table: boolean;
   readonly belowWaist: boolean;
-  /** A nyakkivágás választása csak pulóvernél (PQW-901). */
   readonly neckline: boolean;
   readonly repeat: boolean;
-  /** Bordás szegély és mandzsetta (PQW-913); a sapka pereme nem ez. */
   readonly ribbing: boolean;
 }
 
 export function garmentFieldState(kind: GarmentKind): GarmentFieldState {
   const sweater = kind === 'drop-shoulder';
-  // A raglán is testméret-táblázatból dolgozik, de a nyakat és a mintaismétlést maga adja (PQW-901).
   return {
     table: sweater || kind === 'raglan',
     belowWaist: sweater || kind === 'raglan',
     neckline: sweater,
     repeat: sweater,
-    // A bordázat a szegély és a mandzsetta sorain készül: a sapkának nincs ilyen sora (PQW-913).
     ribbing: sweater || kind === 'raglan',
   };
 }
@@ -118,13 +96,8 @@ export function hemLabel(kind: GarmentKind): string {
   return kind === 'hat' ? labels.hat : labels.sweater;
 }
 
-/**
- * A mezők alapértéke a ruhadarabhoz és a táblázathoz: a méret a táblázat
- * közepe (vagy az M), a sorozat a szomszédos méretekkel.
- */
 export function defaultsFor(kind: GarmentKind, table: BodyTableId): GarmentOptions {
   if (kind === 'hat') return { ...DEFAULT_HAT, table };
-  // A raglán bősége a „C” példa szerinti +8 cm; a nyakkivágást és a mintaismétlést nem használja.
   const forKind = (options: GarmentOptions): GarmentOptions => (kind === 'raglan' ? { ...options, kind, easeCm: 8, repeat: null } : options);
   if (table === 'women') return forKind(DEFAULT_GARMENT);
   const ids = garmentSizes(kind, table);
@@ -139,7 +112,6 @@ export function defaultsFor(kind: GarmentKind, table: BodyTableId): GarmentOptio
   });
 }
 
-/** A választás összhangba hozva: a sorozat mindig tartalmazza a rajz méretét; a mintaismétlés csak pulóvernél. */
 export function normalizeGarment(options: GarmentOptions): GarmentOptions {
   const ids = garmentSizes(options.kind, options.table);
   const base = ids.includes(options.size) ? options.size : defaultsFor(options.kind, options.table).size;
@@ -151,27 +123,21 @@ export function normalizeGarment(options: GarmentOptions): GarmentOptions {
     size: base,
     from: ids[from]!,
     to: ids[to]!,
-    // A mintaismétlés csak a ledobott vállú pulóvernél számít (PQW-866, PQW-901).
     repeat: options.kind === 'drop-shoulder' ? options.repeat : null,
   };
 }
 
 export interface GarmentView {
-  /** A rajz méretének kész mérete; becslésnél „≈”. */
   readonly size: string;
   readonly details: readonly string[];
-  /** „24/24 ellenőrzés igaz, 3 méret.” */
   readonly checks: string;
-  /** A hamis ellenőrzések, méretenként. */
   readonly failed: readonly string[];
   readonly warnings: readonly string[];
-  /** A méretsorozat sorai, ahogy az írott mintába kerülnek. */
   readonly series: readonly string[];
   readonly source: string;
 }
 
 const cm = (value: number) => formatNumber(value, 0);
-/** Előjeles szám nyomdai mínuszjellel: „+11”, „−2,5”. */
 function signedNumber(value: number, digits: number): string {
   return `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatNumber(Math.abs(value), digits)}`;
 }
@@ -204,7 +170,7 @@ export function garmentView(plan: GarmentSeriesPlan, hasProfile: boolean): Garme
   }
 
   const prefix = (name: string) => (many ? t.prefix(name) : '');
-  // A hamis ellenőrzés mellé javaslat is jár, ha van (05 §9.6, PQW-901).
+  // KB: 05 §9.6
   const failed = plan.sizes.flatMap((entry) =>
     entry.plan.checks
       .filter((check) => !check.ok)
@@ -308,7 +274,6 @@ function sourceText(plan: GarmentSeriesPlan, hasProfile: boolean): string {
   return `${gauge} ${t.lengthNote}`;
 }
 
-/** Az állapotsor üzenete a létrehozás után. */
 export function generatedMessage(plan: GarmentSeriesPlan): string {
   const t = texts().panels.garment;
   const base = plan.sizes[plan.base]!;

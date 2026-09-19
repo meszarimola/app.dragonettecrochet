@@ -1,12 +1,4 @@
-/*
- * Az „Amigurumi” szakasz (PQW-863): a rész neve, a forma és a mérete, az
- * eltolás, a szem helye és a játékbiztonság, a körterv előnézete; új minta egy
- * részből, vagy új rész hozzáadása varrva vagy folytatólagosan.
- *
- * A mezők az index.html-ben vannak. A létrehozás és a hozzáadás a mintát
- * cseréli, ezért visszavonható; új tárolókulcs nincs, a választás csak a lapon
- * él. A szakasz csak nyitva számol, mert a vászon egérmozgásra is frissít.
- */
+// KB: interface.md §7
 
 import { addAmigurumiPart, createAmigurumi } from '../core/amigurumi-generator.js';
 import { roundGaugeOf, shapeGaugeOf } from '../core/amigurumi.js';
@@ -34,7 +26,6 @@ import { amigurumiCoreText } from './i18n/core/amigurumi.js';
 import type { Choice } from './rounds-view.js';
 
 export interface AmigurumiPanelHost {
-  /** Az új minta a visszavonási veremre, az üzenettel. */
   commit(pattern: Pattern, message: string): void;
   announce(message: string): void;
 }
@@ -102,7 +93,6 @@ export class AmigurumiPanel {
     field<HTMLButtonElement>('amigurumi-add').addEventListener('click', () => this.#add());
   }
 
-  /** A szakasz lenyitása, pl. az amigurumi mintatípus kiválasztásakor. */
   reveal(): void {
     this.#section.open = true;
   }

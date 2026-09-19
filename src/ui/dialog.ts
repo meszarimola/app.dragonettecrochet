@@ -1,34 +1,18 @@
-/*
- * Kis megerősítő párbeszédablak (PQW-879).
- *
- * A vezetett horgolás közben a foglalt vagy a haladási irány elleni célpontnál
- * nem tesz le csendben hibás szemet, hanem megkérdezi a felhasználót. A szöveg
- * a „szem” szóhasználattal, belső fogalom nélkül; a tudásbázis-hivatkozás — ha
- * van — csak lenyitható részletként.
- *
- * A natív `<dialog>` modálisan nyílik, az Esc és a háttérre kattintás a „Mégse”
- * felel meg. Egyszerre csak egy párbeszéd lehet nyitva; ígéretet ad vissza,
- * amely a választással teljesül.
- */
+// KB: decisions.md §3, §4
 
 import { texts } from './i18n.js';
 
 export interface ConfirmOptions {
-  /** A fő kérdés, a felhasználónak szóló nyelven. */
   readonly message: string;
-  /** A megerősítő gomb szövege, pl. „Szaporítás”. */
   readonly confirmLabel: string;
-  /** Az elutasító gomb szövege; alapból „Mégse”. */
   readonly cancelLabel?: string;
-  /** Lenyitható részlet, pl. tudásbázis-hivatkozás. */
   readonly detail?: string;
 }
 
 let open: HTMLDialogElement | null = null;
 
-/** `true`, ha a felhasználó a megerősítő gombot választotta; `false` minden más esetben. */
 export function askConfirm(options: ConfirmOptions): Promise<boolean> {
-  // Ha valamiért már nyitva van egy párbeszéd, azt lezárjuk (Mégse), és újat nyitunk.
+  // Only one dialog may be open: an earlier one is cancelled, not stacked.
   open?.close();
 
   const dialog = document.createElement('dialog');
@@ -79,12 +63,10 @@ export function askConfirm(options: ConfirmOptions): Promise<boolean> {
     };
     cancel.addEventListener('click', () => finish(false));
     confirm.addEventListener('click', () => finish(true));
-    // Esc: a natív `cancel` esemény.
     dialog.addEventListener('cancel', (event) => {
       event.preventDefault();
       finish(false);
     });
-    // Kattintás a háttérre (a dialog dobozán kívül).
     dialog.addEventListener('click', (event) => {
       if (event.target === dialog) finish(false);
     });
