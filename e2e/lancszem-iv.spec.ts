@@ -172,3 +172,60 @@ test('a lánc utólag, két kész rövidpálca közé téve is ívet ad (PQW-952
     expect(arc[2]!.top, `${gap + 1}. rés íve`).toBeLessThan(arc[0]!.top - 1);
   }
 });
+
+test('a láncívbe horgolt legyező elfér, a 3. sor nem csúszik le a kelméről (PQW-953)', async ({ page }) => {
+  await page.goto('/');
+  const deny = page.locator('[data-consent="denied"]');
+  if (await deny.isVisible()) await deny.click();
+  await page.getByRole('button', { name: 'Új minta' }).click();
+
+  await pick(page, /Láncszem \(lsz\)/);
+  await page.locator('#chain-count').fill('12');
+  await page.locator('#board').click();
+  await page.getByRole('button', { name: 'Fordulás' }).click();
+
+  const above = async (layer: number, column: number): Promise<Cell> => {
+    const all = await cells(page);
+    const base = all.filter((cell) => cell.layer === 0).sort((a, b) => b.x - a.x);
+    const at = base[column]!.x;
+    return all
+      .filter((cell) => cell.layer === layer)
+      .reduce((best, cell) => (Math.abs(cell.x - at) < Math.abs(best.x - at) ? cell : best));
+  };
+
+  // 2. sor: rövidpálca, 5 láncszem, … négy rövidpálcával.
+  for (const column of [0, 3, 6, 9]) {
+    await pick(page, /Rövidpálca \(rp\)/);
+    const cell = await above(1, column);
+    await page.mouse.click(cell.x, cell.y);
+    if (column === 9) break;
+    await pick(page, /Láncszem \(lsz\)/);
+    await page.locator('#chain-count').fill('5');
+    const gap = await above(1, column + 1);
+    await page.mouse.click(gap.x, gap.y);
+  }
+  await expect.poll(async () => (await rightToLeft(page, 1)).length).toBe(19);
+
+  // 3. sor: fordulólánc, majd hat pálca ugyanabba a láncszembe.
+  await page.getByRole('button', { name: 'Fordulás' }).click();
+  await pick(page, /Egyráhajtásos pálca \(erp\)/);
+  await page.locator('#board').press('Enter');
+  for (let i = 0; i < 6; i += 1) {
+    const target = (await cells(page)).find((cell) => cell.layer === 2 && cell.slot === 3);
+    expect(target, `${i + 1}. pálca célpontja`).toBeTruthy();
+    await page.mouse.click(target!.x, target!.y);
+  }
+  await expect.poll(async () => (await rightToLeft(page, 2)).length).toBe(9);
+
+  const second = await rightToLeft(page, 1);
+  const third = await rightToLeft(page, 2);
+  const middle = (box: Box) => (box.left + box.right) / 2;
+
+  // A 3. sor a 2. soron belül marad.
+  expect(Math.min(...third.map(middle))).toBeGreaterThanOrEqual(Math.min(...second.map(middle)) - 1);
+  expect(Math.max(...third.map(middle))).toBeLessThanOrEqual(Math.max(...second.map(middle)) + 1);
+
+  // A fordulólánc a 2. sor utolsó szemén áll.
+  const turning = third.slice(-3);
+  expect(Math.abs(middle(turning[0]!) - Math.min(...second.map(middle)))).toBeLessThan(2);
+});

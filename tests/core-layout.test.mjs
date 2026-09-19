@@ -729,3 +729,89 @@ describe('a láncív a szerkesztés sorrendjétől függetlenül ugyanaz (PQW-95
     assert.ok(Math.min(...above) >= Math.min(...base) - 1e-6, 'balra nem');
   });
 });
+
+/*
+ * PQW-953: a láncívbe horgolt legyező. A tulajdonos: „a harmadik sornál már
+ * így elcsúszik.” Az ívnek annyi helyet kell tartania, amennyit a rá épülő
+ * szemek kérnek — különben a sor a fordulóláncát tolja ki a kelméről.
+ */
+describe('a láncívre épülő legyező elfér (PQW-953)', () => {
+  /** Kagylós kezdet: 12 alapszem, 4 rövidpálca, közöttük 5-5 láncszem. */
+  const shell = () => {
+    let pattern = ok(endRow(chains(emptyPattern(), 12)));
+    let cursor = 0;
+    for (let i = 0; i < 4; i += 1) {
+      pattern = ok(work(pattern, { def: 'sc', count: 1 }, cursor));
+      if (i === 3) break;
+      pattern = ok(work(pattern, { def: 'ch', count: 5 }, cursor + 1));
+      cursor += 3;
+    }
+    return ok(endRow(pattern));
+  };
+  /** Fordulólánc, majd `count` pálca ugyanabba a láncszembe. */
+  const fan = (count = 6) => {
+    let pattern = ok(work(shell(), { def: 'dc', count: 1 }, 0));
+    for (let i = 0; i < count; i += 1) pattern = ok(work(pattern, { def: 'dc', count: 1 }, 3));
+    return pattern;
+  };
+  const nodesOf = (placed, layer) => [...placed.nodes.values()].filter((node) => node.layer === layer);
+
+  test('a 3. sor fordulólánca a 2. sor utolsó szemén áll', () => {
+    const placed = layout(fan());
+    const below = nodesOf(placed, 1).map((node) => node.top.x);
+    const chainTop = nodesOf(placed, 2)
+      .filter((node) => node.role === 'chain')
+      .map((node) => node.top.x);
+    assert.ok(chainTop.length === 3, 'három láncszemből áll a fordulólánc');
+    assert.ok(
+      chainTop.every((x) => near(x, chainTop[0])),
+      'egy oszlopban',
+    );
+    assert.ok(near(chainTop[0], Math.min(...below)), `a 2. sor utolsó szemén: ${chainTop[0]} ≠ ${Math.min(...below)}`);
+  });
+
+  test('a 3. sor nem lóg túl a 2. soron', () => {
+    const placed = layout(fan());
+    const below = nodesOf(placed, 1).map((node) => node.top.x);
+    const above = nodesOf(placed, 2).map((node) => node.top.x);
+    assert.ok(Math.min(...above) >= Math.min(...below) - 1e-6, `balra: ${Math.min(...above)} < ${Math.min(...below)}`);
+    assert.ok(Math.max(...above) <= Math.max(...below) + 1e-6, `jobbra: ${Math.max(...above)} > ${Math.max(...below)}`);
+  });
+
+  test('a legyező szárai egy pontba futnak össze, a tetejük szétnyílik', () => {
+    const placed = layout(fan());
+    const stems = nodesOf(placed, 2)
+      .filter((node) => node.role === 'stitch')
+      .sort((a, b) => a.top.x - b.top.x);
+    assert.equal(stems.length, 6);
+    const feet = stems.map((node) => node.feet[0].x);
+    assert.ok(
+      feet.every((x) => near(x, feet[0])),
+      `közös talp: ${feet}`,
+    );
+    assert.ok(stems.at(-1).top.x - stems[0].top.x > 100, 'a tetők szétnyílnak');
+  });
+
+  test('a legyező alatt a rés szélesebb lesz, máshol marad a régi', () => {
+    const wide = layout(fan());
+    const plain = layout(shell());
+    const gaps = (placed) => {
+      const xs = [...placed.nodes.values()]
+        .filter((node) => node.layer === 0)
+        .map((node) => node.top.x)
+        .sort((a, b) => a - b);
+      return xs.slice(1).map((x, i) => Math.round((x - xs[i]) * 10) / 10);
+    };
+    const widened = gaps(wide);
+    const before = gaps(plain);
+    assert.ok(Math.max(...widened) > Math.max(...before), 'a legyező alatt tágul');
+    // A két áthidalt szem oszlopa nő, ezért három szomszédos hézag tágul.
+    const surplus = widened.map((gap, i) => gap - before[i]);
+    assert.equal(surplus.filter((extra) => extra > 0.001).length, 3, `csak a legyező alatt: ${surplus}`);
+    assert.ok(near(surplus.reduce((sum, extra) => sum + extra, 0), 120, 0.5), `a többlet a legyező igénye: ${surplus}`);
+    assert.ok(
+      before.every((gap) => near(gap, 24)),
+      'legyező nélkül minden oszlop egyforma',
+    );
+  });
+});
