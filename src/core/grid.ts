@@ -24,6 +24,7 @@
  */
 
 import type { WorkContext } from './editor.ts';
+import { chainBridges } from './graph.ts';
 import { layoutPattern, type ChartLayout, type LayoutOptions, type NodePlacement, type Point } from './layout.ts';
 import { text, type CoreText } from './messages.ts';
 import { CIRCLE, frameCoords, framePoint, outline, type RoundFrame } from './polygon.ts';
@@ -288,7 +289,7 @@ function layerColumns(input: Input, layer: number, axis: (p: Point) => number): 
      * előtt kihagyott szem a formázás (fogyasztás) éle, oda a horgoló
      * visszatérhet, tehát az üres cellája marad.
      */
-    const bridged = new Set(graph.piece.skipped);
+    const bridged = new Set([...graph.piece.skipped, ...chainBridges(graph, layer).flatMap((bridge) => bridge.bridged)]);
     const at = under.positions.map((id, index) => (worked.has(id) ? index : -1)).filter((index) => index >= 0);
     const inside = (index: number) => at.length > 0 && index > at[0]! && index < at[at.length - 1]!;
     for (const [index, id] of under.positions.entries()) {

@@ -31,7 +31,7 @@
  * szomszédaik közé.
  */
 
-import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
+import { buildPieceGraph, chainBridges, type LayerInfo, type PieceGraph } from './graph.ts';
 import { CIRCLE, frameCoords, frameFor, frameNormal, framePoint, frameSide, perimeter, type Point, type RoundFrame } from './polygon.ts';
 import { curveLayout, rowCurve } from './row-curve.ts';
 import type { StitchLibrary } from './stitch-library.ts';
@@ -518,12 +518,19 @@ class Layouter {
      */
     const skipped = new Set(this.#graph.piece.skipped);
     const arcs: Arc[] = [];
+    /*
+     * Mit hidal át egy láncsor: a KELMÉBŐL, nem a szerkesztés sorrendjéből
+     * (PQW-952). A `skipped` csak az előre készülő láncot jegyzi fel, a
+     * horgoló viszont utólag is beteheti a láncszemeket két kész szem közé.
+     */
+    const structural = new Map<NodeId, readonly NodeId[]>();
+    for (const bridge of chainBridges(this.#graph, layer.index)) structural.set(bridge.chains[0]!, bridge.bridged);
     const bridged = below.positions
       .filter((id) => skipped.has(id))
       .map((id) => this.#axis.get(id))
       .filter((value): value is number => value !== undefined)
       .sort((a, b) => direction * (a - b));
-    if (bridged.length > 0) {
+    if (bridged.length > 0 || (!this.#round && structural.size > 0)) {
       const loose = (item: Item) =>
         item.desired === undefined && item.ids[0] !== layer.turningChain[0] && this.#def(item.ids[0]!).kind === 'chain';
       /*
@@ -547,9 +554,23 @@ class Layouter {
         if (run.length > 0) {
           const from = behind?.desired;
           const to = ahead?.desired;
-          const gap = bridged.filter(
+          const marks = bridged.filter(
             (at) => (from === undefined || direction * (at - from) > 0) && (to === undefined || direction * (to - at) > 0),
           );
+          /*
+           * Ahol a jelölés hallgat, a KELME mondja meg, mit hidal át a lánc
+           * (PQW-952). A `skipped` csak az előre készülő láncot jegyzi fel;
+           * utólag két kész szem közé tett láncszemeknél üres marad, és a rés
+           * nélkül a lánc teljes oszlopokat kér, ami kitolja a szomszédját.
+           * Ahol van jelölés, az marad a mérvadó (PQW-936, PQW-938).
+           */
+          const gap =
+            marks.length > 0 || this.#round
+              ? marks
+              : (structural.get(run[0]!.ids[0]!) ?? [])
+                  .map((id) => this.#axis.get(id))
+                  .filter((value): value is number => value !== undefined)
+                  .sort((a, b) => direction * (a - b));
           /*
            * TÖBB LÁNCSZEM, MINT AHÁNY SZEMET ÁTHIDAL: ez az ÍV (PQW-951).
            *
