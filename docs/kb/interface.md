@@ -719,6 +719,40 @@ the tool down and arming it again.
 Cited from: `src/ui/irregular-editor.ts` (`#loose`, `#shifted`, `typeArcCount`,
 `#onDown`) and `src/ui/main.ts` (`irregularKey`).
 
+## §45 Isolating is a view; repeating is an edit
+
+**Kiemelés** puts the rest of the pattern out of reach so one part of a busy
+chart can be worked on. It is a view and nothing else: it records no undo step,
+it is not saved with the pattern, and leaving it changes nothing. Escape leaves
+it, which is why Escape checks isolation before it clears the selection.
+
+While isolating, the stitches outside are faded **and unreachable** — not only
+dimmed. A marquee that sweeps across them takes none of them. Dimming without
+locking would be a lie: the point is to be able to drag across a crowded area
+without catching what is underneath.
+
+Isolating the last stitch and deleting it leaves no cage behind: when nothing
+isolated survives, isolation ends by itself. That check runs on **every commit**,
+not only on undo — otherwise deleting the isolated stitches leaves a cage full of
+dead ids, and the whole chart becomes faded and unclickable with no way out but
+Escape. A new pattern clears it for the same reason.
+
+**Unreachable means unreachable from every direction**, including "select all".
+A cage that a keyboard shortcut steps over is not a cage: isolating three
+stitches and pressing Ctrl+A then Delete would have emptied the chart.
+
+**Whatever is made while isolating joins the isolation** — a placed, pasted,
+duplicated or repeated stitch. Otherwise it would be selected and faded at once:
+movable from the panel, unclickable on the canvas.
+
+**Körkörös ismétlés** is the opposite — an ordinary edit, one undo step. Its
+centre is the circle guide's middle when the guide is showing, because that is
+the wheel being worked around; otherwise the middle of what is selected. The
+count includes the original, so eight means a doily of eight sectors, and the
+label says so.
+
+Cited from: `src/ui/irregular-editor.ts` (`toggleIsolate`, `repeatAround`) and
+`src/ui/irregular-board.ts` (`#reachable`).
 
 ## §46 A row line is reshaped on its own; the stitches follow on a button
 

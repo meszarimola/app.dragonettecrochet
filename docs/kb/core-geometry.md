@@ -1095,3 +1095,25 @@ stitches is read as an arc.
 one stitch is one place in the row, not five.
 
 Cited from: `src/core/irregular-shape.ts` and `src/core/irregular-rowline.ts`.
+
+## §54 A circular repeat copies stitches, never recipes
+
+The count is the **total including the original**, because a doily of eight
+sectors is eight, not nine. Over a full circle the step is `360 / count`, so the
+copies close the ring without doubling up on the original; over a smaller range
+it is `range / (count - 1)`, so the first and last copies land on the two ends
+of the range.
+
+A copy keeps the **row of the stitch it came from** — every sector of a round is
+the same round — and its own rotation grows by the same angle as its position,
+so a stitch that pointed outwards still points outwards.
+
+**Copies of a group are plain stitches.** A rotated recipe is a new recipe, and
+nothing in the group machinery knows what a copy is, so the copies simply carry
+no group and the original group still lists exactly its own members. This falls
+out of copying the items and leaving `groups` alone; it needs no code.
+
+The turn uses the same rotation matrix as `rotateItems`, so a repeat and a
+rotate can never disagree.
+
+Cited from: `src/core/irregular-repeat.ts`.
