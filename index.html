@@ -492,6 +492,26 @@
                 </p>
                 <p class="panel__note" data-i18n="arcHint">A két végpont és a középső fogantyú a vásznon húzható. Kijelölt ívnél a számbillentyűk a szemek számát állítják.</p>
               </div>
+              <div id="props-arrange" hidden>
+                <h3 class="panel__title" data-i18n="arrangeTitle">Elrendezés</h3>
+                <p class="props__row">
+                  <button type="button" class="button" data-arrange="line" data-i18n="arrangeLine">Egyenesre</button>
+                  <button type="button" class="button" data-arrange="arc" data-i18n="arrangeArc">Ívre</button>
+                  <button type="button" class="button" data-arrange="circle" data-i18n="arrangeCircle">Körvonalra</button>
+                  <button type="button" class="button" data-arrange="fan" data-i18n="arrangeFan">Legyezőbe</button>
+                </p>
+                <p class="props__row">
+                  <button type="button" class="button" id="arrange-even" data-i18n="arrangeEven">Egyenletessé tesz</button>
+                  <button type="button" class="button" id="arrange-flip" data-i18n="arrangeFlip">Szemek a másik oldalra</button>
+                </p>
+                <p class="choice">
+                  <label><input type="checkbox" id="arrange-perpendicular" checked /> <span data-i18n="arrangePerpendicular">Merőlegesre forgatás</span></label>
+                </p>
+                <p class="props__row" id="rowline-row" hidden>
+                  <button type="button" class="button" id="rowline-clear" data-i18n="rowLineClear">Sorvonal megszüntetése</button>
+                </p>
+                <p class="panel__note" data-i18n="arrangeHint">Egy egész sor elrendezése után a sor megjegyzi az alakot: a sorvonal fogantyúival átalakítható, és az „Egyenletessé tesz” ráteszi a szemeket.</p>
+              </div>
               <div id="props-fan" hidden>
                 <h3 class="panel__title" data-i18n="fanTitle">Legyező</h3>
                 <p class="panel__field">
@@ -563,6 +583,20 @@
                 <button type="button" class="button" id="row-insert" data-i18n="rowInsertAfter">Beszúrás az aktív után</button>
               </p>
               <ul class="rows__list" id="rows-list"></ul>
+              <h3 class="panel__title" data-i18n="rowsTogetherTitle">Sorok egymáshoz</h3>
+              <p class="panel__field">
+                <label for="row-spacing" data-i18n="rowSpacingLabel">Sortávolság</label>
+                <input id="row-spacing" type="number" min="1" max="2000" step="1" inputmode="numeric" value="40" />
+              </p>
+              <p class="props__row">
+                <button type="button" class="button" id="rows-space" data-i18n="rowsSpace">Egyenletes sortávolság</button>
+              </p>
+              <p class="props__row">
+                <button type="button" class="button" data-row-align="start" data-i18n="rowsAlignStart">Kezdetre</button>
+                <button type="button" class="button" data-row-align="center" data-i18n="rowsAlignCenter">Középre</button>
+                <button type="button" class="button" data-row-align="end" data-i18n="rowsAlignEnd">Végére</button>
+                <button type="button" class="button" data-row-align="concentric" data-i18n="rowsAlignConcentric">Koncentrikusra</button>
+              </p>
               <p class="panel__field">
                 <label for="row-kind" data-i18n="rowKindLabel">Az aktív fajtája</label>
                 <select id="row-kind"></select>

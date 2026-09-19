@@ -15,6 +15,7 @@ import {
   type FlipAxis,
   flipItems,
   type ItemPatch,
+  isSelectable,
   itemsBox,
   itemsOf,
   moveItems,
@@ -79,10 +80,12 @@ import {
   rowOrder,
   setOrderPosition,
 } from '../core/irregular-order.ts';
+import { alignRows, type RowAlign, rowLine, setRowLine, spaceRows } from '../core/irregular-rowline.ts';
 import {
   addRow,
   deleteRow,
   insertRowAfterActive,
+  itemsOfRow,
   moveItemsToRow,
   type RowPatch,
   type RowStitches,
@@ -90,6 +93,7 @@ import {
   setActiveRow,
   updateRow,
 } from '../core/irregular-rows.ts';
+import { basePoint, fitShape, placeOnShape, suggestShape } from '../core/irregular-shape.ts';
 import { angleFromCenter, radialRotation, snapPoint } from '../core/irregular-snap.ts';
 import {
   type ChainArcGroup,
@@ -105,6 +109,9 @@ import {
   type LegendBlock,
   type Point,
   type RowKind,
+  type RowLine,
+  type RowLineShape,
+  type ShapeSide,
 } from '../core/irregular-types.ts';
 import { stitchById } from '../core/stitches.ts';
 import { stitchName } from '../core/stitchText.ts';
@@ -112,7 +119,14 @@ import type { Locale, PatternNotation, StitchDefId } from '../core/types.ts';
 import { IRREGULAR_JSON_CORE_TEXTS } from './i18n/core/irregular-json.ts';
 import { renderCoreText } from './i18n/core/render.ts';
 import { texts, uiLanguage } from './i18n.ts';
-import { type ArcHandleId, FreeBoard, type GroupPath, type HandleId, type LegendEntry } from './irregular-board.ts';
+import {
+  type ArcHandleId,
+  FreeBoard,
+  type GroupPath,
+  type HandleId,
+  type LegendEntry,
+  rowLinePath,
+} from './irregular-board.ts';
 import { drawnGlyph, itemShapes, naturalSize } from './irregular-glyph.ts';
 import { IrregularKeyPanel } from './irregular-key-panel.ts';
 import { IrregularLayersPanel } from './irregular-layers-panel.ts';
@@ -135,11 +149,36 @@ const MIN_SIZE = 2;
 interface Preferences {
   readonly rectPartial: boolean;
   readonly radial: boolean;
+  readonly perpendicular: boolean;
   readonly fadeOthers: boolean;
   readonly showOrder: boolean;
 }
 
-const DEFAULT_PREFERENCES: Preferences = { rectPartial: true, radial: false, fadeOthers: false, showOrder: false };
+const DEFAULT_PREFERENCES: Preferences = {
+  rectPartial: true,
+  radial: false,
+  perpendicular: true,
+  fadeOthers: false,
+  showOrder: false,
+};
+/** Turning the stitches to the other side of a shape. */
+const OTHER_SIDE: Record<ShapeSide, ShapeSide> = {
+  left: 'right',
+  right: 'left',
+  outside: 'inside',
+  inside: 'outside',
+};
+
+function centerOf(points: readonly Point[]): Point {
+  if (points.length === 0) return { x: 0, y: 0 };
+  const sum = points.reduce((total, point) => ({ x: total.x + point.x, y: total.y + point.y }), { x: 0, y: 0 });
+  return { x: sum.x / points.length, y: sum.y / points.length };
+}
+
+function topPoint(item: IrregularItem): Point {
+  const radians = (item.rotation * Math.PI) / 180;
+  return { x: item.x + Math.sin(radians) * (item.height / 2), y: item.y - Math.cos(radians) * (item.height / 2) };
+}
 /** How near, in screen pixels, a snap target has to be to take the point. */
 const SNAP_REACH = 10;
 
@@ -175,6 +214,7 @@ type Drag =
   | { kind: 'arc-draw'; from: Point; to: Point }
   | { kind: 'fan-draw'; from: Point; to: Point }
   | { kind: 'arc-grip'; id: string; grip: ArcHandleId }
+  | { kind: 'rowline-grip'; rowId: string; grip: ArcHandleId }
   | { kind: 'pan'; last: Point }
   | { kind: 'marquee'; from: Point; to: Point; additive: boolean }
   | { kind: 'scale'; handle: HandleId; start: Point; base: readonly IrregularItem[]; anchor: Point }
@@ -192,6 +232,7 @@ function readPreferences(): Preferences {
     return {
       rectPartial: flag('rectPartial'),
       radial: flag('radial'),
+      perpendicular: flag('perpendicular'),
       fadeOthers: flag('fadeOthers'),
       showOrder: flag('showOrder'),
     };
@@ -252,6 +293,8 @@ export class IrregularEditor {
       setShowOrder: (on) => this.#setPreference({ showOrder: on }),
       moveInOrder: (delta) => this.#moveInOrder(delta),
       setOrderPlace: (place) => this.#setOrderPlace(place),
+      spaceRows: (spacing) => this.spaceRows(spacing),
+      alignRows: (mode) => this.alignRows(mode),
       resetOrder: () => this.#resetOrder(),
     });
     this.#layersPanel = new IrregularLayersPanel(sections.layers, {
@@ -287,6 +330,11 @@ export class IrregularEditor {
       setFanSpread: (angle) => this.setFanSpread(angle),
       setFanLength: (length) => this.setFanLength(length),
       setFanMode: (mode) => this.setFanMode(mode),
+      arrange: (kind) => this.arrange(kind),
+      evenOut: () => this.evenOut(),
+      flipArrangeSide: () => this.flipArrangeSide(),
+      setPerpendicular: (on) => this.setPerpendicular(on),
+      clearRowLine: () => this.clearRowLine(),
     });
     this.#hoverCapable = window.matchMedia('(hover: hover)').matches;
     this.#listen();
@@ -969,6 +1017,185 @@ export class IrregularEditor {
     this.#commit(this.#loose(flipItems(this.#history.present, this.#selection, axis)));
   }
 
+  // -- arranging -----------------------------------------------------------
+
+  /**
+   * What an arrange acts on: the selection when there is one, otherwise the
+   * whole active row. Always in crochet order, because that is the order the
+   * stitches are laid down in. KB: core-geometry §53
+   */
+  #arrangeTargets(): { items: IrregularItem[]; rowId: string; wholeRow: boolean } {
+    const pattern = this.#history.present;
+    const rowId = this.#rowOfSelection() ?? pattern.activeRowId;
+    const order = rowOrder(pattern, rowId);
+    const inRow = itemsOfRow(pattern, rowId).filter((item) => isSelectable(pattern, item));
+    const chosen = this.#selection.size === 0 ? inRow : inRow.filter((item) => this.#selection.has(item.id));
+    const byId = new Map(chosen.map((item) => [item.id, item]));
+    const items: IrregularItem[] = [];
+    for (const id of order) {
+      const item = byId.get(id);
+      if (item !== undefined) items.push(item);
+    }
+    for (const item of chosen) if (!order.includes(item.id)) items.push(item);
+    return { items, rowId, wholeRow: items.length === inRow.length && inRow.length > 0 };
+  }
+
+  arrange(kind: RowLineShape | 'fan'): void {
+    const target = this.#arrangeTargets();
+    if (target.items.length < 2) {
+      this.#host.announce(texts().irregular.tooFewToArrange);
+      return;
+    }
+    if (kind === 'fan') {
+      this.#arrangeIntoFan(target.items, target.rowId);
+      return;
+    }
+    const shape = suggestShape(target.items.map(basePoint), kind);
+    if (shape === null) {
+      this.#host.announce(texts().irregular.noShapeFits);
+      return;
+    }
+    this.#applyShape(target, { ...shape, perpendicular: this.#preferences.perpendicular });
+  }
+
+  evenOut(): void {
+    const target = this.#arrangeTargets();
+    if (target.items.length < 2) {
+      this.#host.announce(texts().irregular.tooFewToArrange);
+      return;
+    }
+    // A row that remembers a shape is evened out onto that one, not onto a new fit.
+    const stored = rowLine(this.#history.present, target.rowId);
+    const shape = stored ?? fitShape(target.items.map(basePoint));
+    if (shape === undefined || shape === null) {
+      this.#host.announce(texts().irregular.noShapeFits);
+      return;
+    }
+    this.#applyShape(target, shape, texts().irregular.evenedOut(target.items.length));
+  }
+
+  flipArrangeSide(): void {
+    const target = this.#arrangeTargets();
+    const stored = rowLine(this.#history.present, target.rowId);
+    if (stored === undefined || target.items.length < 2) {
+      this.#host.announce(texts().irregular.noShapeFits);
+      return;
+    }
+    const side = OTHER_SIDE[stored.side];
+    this.#applyShape(target, { ...stored, side });
+  }
+
+  clearRowLine(): void {
+    const rowId = this.#rowOfSelection() ?? this.#history.present.activeRowId;
+    if (rowLine(this.#history.present, rowId) === undefined) return;
+    this.#commit(setRowLine(this.#history.present, rowId, null), texts().irregular.rowLineCleared);
+  }
+
+  setPerpendicular(on: boolean): void {
+    this.#setPreference({ perpendicular: on });
+  }
+
+  get rowLineShown(): boolean {
+    const rowId = this.#rowOfSelection() ?? this.#history.present.activeRowId;
+    return rowLine(this.#history.present, rowId) !== undefined;
+  }
+
+  /** Moves the stitches onto the shape, and lets a whole row remember it. */
+  #applyShape(
+    target: { items: IrregularItem[]; rowId: string; wholeRow: boolean },
+    shape: RowLine,
+    message?: string,
+  ): void {
+    const placed = placeOnShape(target.items, shape);
+    const byId = new Map(placed.map((item) => [item.id, item]));
+    const moved: IrregularPattern = {
+      ...this.#history.present,
+      items: this.#history.present.items.map((item) => byId.get(item.id) ?? item),
+    };
+    const loosened = this.#looseIds(
+      target.items.map((item) => item.id),
+      moved,
+    );
+    const next = target.wholeRow ? setRowLine(loosened, target.rowId, shape) : loosened;
+    this.#commit(next, message ?? texts().irregular.arranged(target.items.length));
+  }
+
+  /** FR-ARRANGE-8: one kind of stitch becomes a real fan, so it stays editable. */
+  #arrangeIntoFan(items: IrregularItem[], rowId: string): void {
+    const first = items[0];
+    if (first === undefined) return;
+    const oneKind = items.every((item) => item.keyEntryId === first.keyEntryId);
+    const bases = items.map(basePoint);
+    const origin = centerOf(bases);
+    const tops = items.map((item) => topPoint(item));
+    const direction = angleFromCenter(origin, centerOf(tops));
+    const length = items.reduce((sum, item) => sum + item.height, 0) / items.length;
+    if (!oneKind) {
+      const shape: RowLine = {
+        shape: 'arc',
+        start: bases[0] ?? origin,
+        end: bases[bases.length - 1] ?? origin,
+        bulge: 0,
+        side: 'left',
+        perpendicular: this.#preferences.perpendicular,
+      };
+      this.#applyShape({ items, rowId, wholeRow: false }, shape);
+      return;
+    }
+    const gone = forgetBrokenGroups(deleteItems(this.#history.present, new Set(items.map((item) => item.id))));
+    const made = addFan(
+      gone,
+      {
+        rowId,
+        layerId: first.layerId,
+        keyEntryId: first.keyEntryId,
+        mode: 'spread',
+        origin,
+        direction,
+        spreadAngle: this.#fanSpread,
+        length,
+        count: items.length,
+      },
+      this.#fanGlyph(first.keyEntryId),
+    );
+    const group = groupById(made.pattern, made.id);
+    this.#setSelection(group === undefined ? [] : group.memberIds);
+    this.#commit(made.pattern, texts().irregular.arranged(items.length));
+  }
+
+  spaceRows(spacing: number): void {
+    const pattern = this.#history.present;
+    const ids = pattern.rows.map((row) => row.id);
+    const result = spaceRows(pattern, ids, spacing);
+    const words = texts().irregular;
+    const skippedRound = result.skipped.some((entry) => entry.code === 'round-without-line');
+    if (result.pattern === pattern) {
+      // Nothing moved, and there are several reasons for that: name the right one.
+      this.#host.announce(skippedRound ? words.roundNeedsLine : words.rowsAlreadySpaced);
+      return;
+    }
+    // The first row is the anchor and never moves, so it is not one of the moved.
+    const moved = Math.max(0, ids.length - result.skipped.length - 1);
+    this.#commit(result.pattern, skippedRound ? words.roundNeedsLine : words.rowsSpaced(moved));
+  }
+
+  alignRows(mode: RowAlign): void {
+    const pattern = this.#history.present;
+    const ids = pattern.rows.map((row) => row.id);
+    const next = alignRows(pattern, ids, mode);
+    this.#commit(next, next === pattern ? undefined : texts().irregular.rowsAligned);
+  }
+
+  /** Arranging moves stitches on their own, so any group they were in is forgotten. */
+  #looseIds(ids: readonly string[], pattern: IrregularPattern): IrregularPattern {
+    const groups = new Set<string>();
+    for (const id of ids) {
+      const group = groupOfItem(this.#history.present, id);
+      if (group !== undefined) groups.add(group.id);
+    }
+    return groups.size === 0 ? pattern : explodeGroups(pattern, groups);
+  }
+
   // -- file ----------------------------------------------------------------
 
   exportJson(): string {
@@ -1032,11 +1259,17 @@ export class IrregularEditor {
       order: this.#preferences.showOrder ? rowOrder(pattern, orderRow) : null,
       arc: this.selectedGroup,
       arcPreview: this.#drawingPreview(),
+      rowLine: this.#activeRowLine(),
       legend: { block: this.legend, entries: this.#legendEntries() },
     });
     this.#panel.update(itemsOf(pattern, this.#selection), this.#preferences.rectPartial, pattern.items.length);
     this.#panel.updateArc(this.selectedArc);
     this.#panel.updateFan(this.selectedFan);
+    this.#panel.updateArrange({
+      shown: this.#arrangeTargets().items.length >= 2,
+      perpendicular: this.#preferences.perpendicular,
+      hasRowLine: this.rowLineShown,
+    });
   }
 
   refresh(): void {
@@ -1055,6 +1288,14 @@ export class IrregularEditor {
     this.#layersPanel.update(committed, this.#selection.size);
     this.#keyPanel.update(committed, this.#host.terms(), this.#host.symbols(), this.legend);
     this.#host.refreshControls();
+  }
+
+  /** The shape the active row remembers, drawn as a thin guide behind the work. */
+  #activeRowLine(): GroupPath | null {
+    const pattern = this.pattern;
+    const rowId = this.#rowOfSelection() ?? pattern.activeRowId;
+    const line = rowLine(pattern, rowId);
+    return line === undefined ? null : rowLinePath(line);
   }
 
   /** The dashed path that follows the pointer while a group is being drawn. */
@@ -1181,6 +1422,18 @@ export class IrregularEditor {
     const armed = this.selectedGroup;
     if (grip !== null && armed !== null) {
       this.#drag = { kind: 'arc-grip', id: armed.id, grip };
+      return;
+    }
+
+    // The row line is a guide behind the work, so its grips come after the
+    // selection's own but before anything that would start a new drawing.
+    const lineGrip = this.#board.rowLineGripAt(event.clientX, event.clientY);
+    if (lineGrip !== null && this.selectedGroup === null) {
+      this.#drag = {
+        kind: 'rowline-grip',
+        rowId: this.#rowOfSelection() ?? this.#history.present.activeRowId,
+        grip: lineGrip,
+      };
       return;
     }
 
@@ -1317,6 +1570,11 @@ export class IrregularEditor {
         this.#refreshScene();
         return;
       }
+      case 'rowline-grip': {
+        this.#draft = this.#grippedRowLine(drag, this.#snap(point, this.#selection));
+        this.#refreshScene();
+        return;
+      }
       case 'polar':
         this.#draft = setPolar(this.#history.present, {
           center: { x: drag.center.x + (point.x - drag.from.x), y: drag.center.y + (point.y - drag.from.y) },
@@ -1387,6 +1645,30 @@ export class IrregularEditor {
       ...this.#history.present,
       items: this.#history.present.items.map((item) => byId.get(item.id) ?? item),
     };
+  }
+
+  /**
+   * Reshaping a row line changes the line alone; the stitches follow only when
+   * "Egyenletessé tesz" is pressed. KB: interface.md §46
+   */
+  #grippedRowLine(drag: Extract<Drag, { kind: 'rowline-grip' }>, point: Point): IrregularPattern {
+    const pattern = this.#history.present;
+    const line = rowLine(pattern, drag.rowId);
+    if (line === undefined) return pattern;
+    if (line.shape === 'circle') {
+      const next =
+        drag.grip === 'origin'
+          ? { ...line, center: point }
+          : { ...line, radius: Math.max(1, Math.hypot(point.x - line.center.x, point.y - line.center.y)) };
+      return setRowLine(pattern, drag.rowId, next);
+    }
+    const next =
+      drag.grip === 'bulge' && line.shape === 'arc'
+        ? { ...line, bulge: bulgeThrough(line.start, line.end, point) }
+        : drag.grip === 'start'
+          ? { ...line, start: point }
+          : { ...line, end: point };
+    return setRowLine(pattern, drag.rowId, next);
   }
 
   /** What the arc becomes while one of its three grips is being dragged. */

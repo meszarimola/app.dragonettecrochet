@@ -1,5 +1,6 @@
 // The free-form editor's rows and rounds panel. KB: interface.md §7, §39
 
+import type { RowAlign } from '../core/irregular-rowline.ts';
 import type { RowPatch, RowStitches } from '../core/irregular-rows.ts';
 import { itemsOfRow, rowNumber } from '../core/irregular-rows.ts';
 import type { IrregularPattern, IrregularRow, RowDirection, RowKind } from '../core/irregular-types.ts';
@@ -19,6 +20,8 @@ export interface RowsPanelHost {
   moveInOrder(delta: number): void;
   setOrderPlace(position: number): void;
   resetOrder(): void;
+  spaceRows(spacing: number): void;
+  alignRows(mode: RowAlign): void;
 }
 
 export interface RowsView {
@@ -109,6 +112,15 @@ export class IrregularRowsPanel {
   #active = '';
 
   #listen(): void {
+    const spacing = must<HTMLInputElement>(this.#section, '#row-spacing');
+    must<HTMLButtonElement>(this.#section, '#rows-space').addEventListener('click', () => {
+      const value = Number(spacing.value);
+      if (Number.isFinite(value)) this.#host.spaceRows(value);
+    });
+    this.#section.addEventListener('click', (event) => {
+      const mode = (event.target as Element).closest<HTMLElement>('[data-row-align]')?.dataset['rowAlign'];
+      if (mode !== undefined) this.#host.alignRows(mode as RowAlign);
+    });
     must<HTMLButtonElement>(this.#section, '#row-new').addEventListener('click', () => this.#host.addRow('row'));
     must<HTMLButtonElement>(this.#section, '#row-new-round').addEventListener('click', () =>
       this.#host.addRow('round'),

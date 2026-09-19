@@ -1056,3 +1056,42 @@ and a reader branch, nothing more.
 
 Cited from: `src/core/irregular-arc.ts`, `src/core/irregular-fan.ts` and
 `src/core/irregular-groups.ts`.
+
+## §53 Fitting a shape to stitches, and what "fits" means
+
+Arranging places stitches by their **base points**, because that is where a
+stitch is worked and what a crocheter reads. `placeOnShape` moves the base
+point; the centre follows from it.
+
+**Spacing differs from a chain arc's on purpose.** A chain arc insets half a
+spacing at each end, because the chains sit *between* the two ends. A row sits
+*on* the ends of its shape, so `shapeStops` walks the path at `i/(count-1)` and
+the first and last stitches land exactly on the ends. On a circle the stitches
+spread all the way round from the start angle, so the last does not land on the
+first.
+
+**One rotation formula covers every shape.** A circle is walked clockwise, so
+the left of the direction of travel already points outwards: the rotation is
+`along − 90` for `left`/`outside` and `along + 90` for `right`/`inside`,
+whatever the shape. An open shape therefore accepts all four sides rather than
+rejecting two of them.
+
+**What counts as fitting.**
+
+| Shape | Accepted when |
+|---|---|
+| Line | every base point is within the tolerance of a total-least-squares fit |
+| Arc | the same, and the bulge is bigger than the tolerance — a flatter arc says nothing a line did not |
+| Circle | the same, and the points span at least **300°** of it |
+
+The simplest that fits wins, in that order. The 300° threshold is the judgement
+call: it makes a round of six or more read as a circle, while a three-quarter
+arc still reads as an arc. Reading a deliberate three-quarter arc as a closed
+round would push stitches into a gap the crocheter left on purpose, which is the
+more visible mistake, so the threshold leans that way. A round of four or five
+stitches is read as an arc.
+
+**Stitches sharing a base point take one position together** — a fan worked into
+one stitch is one place in the row, not five.
+
+Cited from: `src/core/irregular-shape.ts` and `src/core/irregular-rowline.ts`.

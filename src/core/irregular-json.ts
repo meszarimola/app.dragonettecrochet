@@ -20,6 +20,9 @@ import {
   type PolarGuide,
   type RowDirection,
   type RowKind,
+  type RowLine,
+  type RowLineShape,
+  type ShapeSide,
   type StitchKeyEntry,
 } from './irregular-types.ts';
 import type { CoreData, CoreText } from './messages.ts';
@@ -350,7 +353,7 @@ function readNotation(value: unknown, path: string): PatternNotation {
 }
 
 function readRow(value: unknown, path: string): IrregularRow {
-  const raw = object(value, path, ['id', 'kind', 'direction', 'color', 'visible', 'locked'], ['order']);
+  const raw = object(value, path, ['id', 'kind', 'direction', 'color', 'visible', 'locked'], ['order', 'line']);
   const order = raw['order'];
   return {
     id: string(raw['id'], `${path}.id`),
@@ -362,7 +365,43 @@ function readRow(value: unknown, path: string): IrregularRow {
     ...(order === undefined
       ? {}
       : { order: order === 'auto' ? ('auto' as const) : array(order, `${path}.order`, string) }),
+    // Written since PQW-969; a row saved before it simply has no shape.
+    ...(raw['line'] === undefined ? {} : { line: readRowLine(raw['line'], `${path}.line`) }),
   };
+}
+
+const ROW_LINE_SHAPES: readonly RowLineShape[] = ['line', 'arc', 'circle'];
+const SHAPE_SIDES: readonly ShapeSide[] = ['left', 'right', 'outside', 'inside'];
+
+function readRowLine(value: unknown, path: string): RowLine {
+  if (!isObject(value)) throw new FormatError(path, 'expected-object');
+  const shape = oneOf(value['shape'], `${path}.shape`, ROW_LINE_SHAPES);
+  const fields =
+    shape === 'circle'
+      ? ['shape', 'center', 'radius', 'startAngle', 'side', 'perpendicular']
+      : shape === 'arc'
+        ? ['shape', 'start', 'end', 'bulge', 'side', 'perpendicular']
+        : ['shape', 'start', 'end', 'side', 'perpendicular'];
+  const raw = object(value, path, fields);
+  const common = {
+    side: oneOf(raw['side'], `${path}.side`, SHAPE_SIDES),
+    perpendicular: boolean(raw['perpendicular'], `${path}.perpendicular`),
+  };
+  if (shape === 'circle') {
+    return {
+      ...common,
+      shape,
+      center: readPoint(raw['center'], `${path}.center`),
+      radius: positive(raw['radius'], `${path}.radius`),
+      startAngle: ranged(finite(raw['startAngle'], `${path}.startAngle`), `${path}.startAngle`, ANGLE_RANGE),
+    };
+  }
+  const ends = {
+    start: readPoint(raw['start'], `${path}.start`),
+    end: readPoint(raw['end'], `${path}.end`),
+  };
+  if (shape === 'arc') return { ...common, ...ends, shape, bulge: finite(raw['bulge'], `${path}.bulge`) };
+  return { ...common, ...ends, shape };
 }
 
 function readLayer(value: unknown, path: string): IrregularLayer {
