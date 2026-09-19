@@ -1,21 +1,4 @@
-/*
- * Az írott minta szövege a lépéssorból (pattern-steps.ts), magyarul, amerikai
- * és brit jelöléssel.
- *
- * - Egy mintán belül egyetlen jelölés van: minden név és rövidítés a választott
- *   jelölés `StitchDef.terms` bejegyzéséből jön, az `aliases` soha
- *   (01 §8.5 szabály 24–25).
- * - A brit szöveg ugyanaz a sablon, mint az amerikai, csak a brit nevekkel
- *   (egy fokkal eltolva) és a „miss” szóval. Az angol címsorok megnevezik a
- *   rendszert („US terms”, „UK terms”); a felületi kapcsoló a PQW-868.
- * - A sor végén a szemszám áll, ahogy a gráf számolja (06 §5.3 pont 1).
- * - Az egymás utáni azonos sorok egy sorba kerülnek („2–21. sor”, 04 §9.8).
- * - Rövidítéslista és jelmagyarázat csak a mintában ténylegesen használt
- *   szemekkel és rövidítésekkel (01 §8.5 szabály 27).
- *
- * A kifejezéseket a visszaolvasó (pattern-read.ts) is innen veszi, így a kettő
- * nem térhet el.
- */
+// KB: 01 §8.5, 04 §5.9, 04 §9.8, 06 §5.3
 
 import { sizingLines } from './garment-text.ts';
 import { article, dative, times } from './hungarian.ts';
@@ -25,51 +8,39 @@ import { stitchLabel, stitchStructure } from './stitchText.ts';
 import { colorLetter } from './pixel-chart.ts';
 import type { GridTechnique, JoinEdge, Locale, Pattern, RoundMark, StitchDef, StitchDefId, StitchInsertion } from './types.ts';
 
-/** A szín betűje előtt a névelő: „az A”, „az E”, „az F”, máskor „a” (az A–H betűkre). */
+/** KB: core-domain §3 */
 const colorArticle = (letter: string) => ('AEF'.includes(letter) ? 'az' : 'a');
 
-/* ---- Szókészlet ---- */
-
-/** Helyhatározók; a `next` csak szaporításnál íródik ki, máskor a kurzor következő pozíciója az alapértelmezés. */
+/** `next` is written only for an increase; elsewhere the cursor's next position is the default. */
 export type PhraseKey = 'next-stitch' | 'next-chain' | 'same-stitch' | 'same-chain' | 'next-space' | 'same-space' | 'ring' | 'chain-ring';
 
 export interface Vocabulary {
-  /** Angol jelölésnél a rendszer neve, amely a címsorokban mindig ott áll; magyarul nincs. */
+  /** The system name that always stands in the English headings; Hungarian has none. */
   readonly system: string | null;
   readonly headings: { readonly abbreviations: string; readonly legend: string; readonly assembly: string; readonly sizes: string };
   readonly layer: { readonly row: (from: number, to: number) => string; readonly round: (from: number, to: number) => string };
   readonly foundation: (chains: number) => string;
   readonly ring: string;
-  /** A láncgyűrű kezdősora a kúszószem rövidítésével (PQW-861). */
   readonly chainRing: (chains: number, slip: string) => string;
-  /** Körben a szemszám: „(18)” (04 §5.9). */
+  /** KB: 04 §5.9 */
   readonly roundCount: (n: number) => string;
-  /** Körben az ismétlés: „(1 rp, szap.) ×6”; egyszavas tételnél zárójel nélkül: „szap. ×6”. */
+  /** KB: 04 §5.9 */
   readonly roundRepeat: (inner: string, n: number) => string;
-  /** Körben a kétszemes szaporítás rövid alakja és jelentése a rövidítéslistában. */
   readonly increase: { readonly abbr: string; readonly meaning: (part: string) => string };
-  /** Spirálban a darab elején, egyszer: zárás nélkül, körjelölővel (04 §2). */
+  /** KB: 04 §2 */
   readonly spiral: string;
   readonly colorChange: string;
   readonly jogFix: (fix: 'slip-stitch' | 'back-loop', slip: string) => string;
-  /**
-   * A láncalapra horgolt 1. sor eleje (PQW-895): „hagyj ki 2 láncszemet, majd ”. A kihagyott
-   * láncszemek száma a horogtól számított első munkált láncszem sorszáma mínusz 1.
-   */
+  /** The number of skipped chains is the index of the first worked chain from the hook, minus 1. KB: 03 §1.2 */
   readonly skipChains: (n: number) => string;
-  /** Az 1. sor, ha minden megmaradt láncszembe pontosan egy szem kerül: „minden láncszembe 1 rp”. */
   readonly eachChain: (item: string) => string;
-  /** Az ovális 1. körében a láncszemek másik oldalára fordulás (PQW-890); utána kettőspont, a tételek vessző nélkül folytatódnak. */
+  /** Followed by a colon; the items continue after it without a comma. KB: 04 §3.4 */
   readonly otherSide: string;
-  /** A PQW-895 előtti 1. sor eleje; csak a régi szövegek visszaolvasásához. */
+  /** Kept only for reading back older texts. KB: core-domain §11 */
   readonly fromHook: (chain: number, note: string | null) => string;
-  /** A PQW-895 előtti megjegyzés a kihagyott láncszemekről: „1 erp-nek számítanak”; csak visszaolvasáshoz. */
+  /** Kept only for reading back older texts. KB: core-domain §11 */
   readonly skippedChainsCount: (def: StitchDef, locale: Locale) => string;
-  /**
-   * A korábbi szabály szerint készült szöveg elutasítása (PQW-924). A
-   * fordulólánc már nem számít szemnek, ezért az ilyen sort nem értelmezzük át
-   * csendben: megmondjuk, mi a baj, és mit tehet a horgoló.
-   */
+  /** An older text is refused, not silently reinterpreted. KB: core-domain §5 */
   readonly legacyTurningChain: string;
   readonly count: (n: number) => string;
   readonly chain: (n: number) => string;
@@ -81,55 +52,40 @@ export interface Vocabulary {
   readonly quantity: (count: number, ref: string) => string;
   readonly decrease: (n: number, part: StitchDef, locale: Locale) => string;
   readonly phrases: Readonly<Record<PhraseKey, string>>;
-  /**
-   * A beszúrási mód a hivatkozáson (PQW-869): magyarul `(hsz)`/`(esz)` utótag, reliefnél
-   * egyráhajtásos pálcán `Eerp`/`Herp`, máshol a mód neve; angolul `BLO`/`FLO` utótag,
-   * reliefnél `FP`/`BP` előtag.
-   */
+  /** KB: 01 §4.3 */
   readonly mode: (mode: StitchInsertion, text: string) => string;
-  /** Amiről az értelmezés felismeri a módot egy tételben. */
   readonly modeMarks: Readonly<Record<Exclude<StitchInsertion, 'both-loops'>, readonly string[]>>;
   readonly closings: { readonly turn: string; readonly 'fasten-off': string };
   readonly join: (slip: string, to: 'turning-chain' | 'first-stitch') => string;
-  /** Nem szemnévből jövő rövidítések, ha a szövegben előfordulnak. */
   readonly general: readonly { readonly abbr: string; readonly meaning: string; readonly used: RegExp }[];
-  /** A kör utáni jelölések mondata (PQW-863, 04 §5.6, §5.7, §9.8). */
+  /** KB: 04 §5.6, 04 §5.7, 04 §9.8 */
   readonly marks: Readonly<Record<RoundMark, string>>;
-  /** A folytatólagosan kapcsolt rész sora az első köre előtt. */
   readonly section: (name: string) => string;
-  /**
-   * Az elvágott fonal után újrakezdett szakasz sora (PQW-901): a neve és a
-   * sor, amely fölött folytatódik. A visszaolvasó ebből tudja, hol folytassa.
-   */
+  /** The reader uses this to know where to resume. KB: core-domain §12 */
   readonly resumeSection: (name: string, row: number) => string;
-  /** A korábbi sorba horgolt hosszú szem helye (mozaik, filé sor végi szaporítás, PQW-894). */
+  /** KB: 03 §5.6 */
   readonly down: (depth: number) => string;
-  /** Rácsos technikák (PQW-864): színek, kezdőszín, színváltás, a technika megjegyzése, színek soronként. */
   readonly colorwork: {
     readonly colors: (items: readonly { readonly letter: string; readonly name: string }[]) => string;
-    /** A beépített színek neve azonosító szerint (PQW-905); a saját nevet nem fordítjuk. */
+    /** A name the user typed is not translated. */
     readonly colorNames: Readonly<Record<string, string>>;
     readonly start: (letter: string) => string;
-    /** Az előző szem utolsó ráhajtásánál (03 §6, §10 G35). */
+    /** KB: 03 §6, 03 §10 G35 */
     readonly change: (letter: string) => string;
     readonly note: Readonly<Partial<Record<GridTechnique, string>>>;
     readonly rowsHeading: (technique: GridTechnique) => string;
     readonly run: (count: number, letter: string) => string;
   };
-  /** Az összevarrás sora az „Összeállítás” alatt (04 §5.4). */
+  /** KB: 04 §5.4 */
   readonly sewing: (a: SewnEdge, b: SewnEdge, distributed: boolean) => string;
 }
 
-/**
- * Egy összevarrt szél a szövegben: a darab neve, a kör és a szemszáma; a sor
- * egy szakaszánál a szemek 1-től, sorvégeknél az utolsó sor és a szél, a
- * szemszám ilyenkor a sorok száma (PQW-866).
- */
+/** For row ends the stitch count is the number of rows. KB: 04 §5.4 */
 export interface SewnEdge {
   readonly name: string;
   readonly layer: number;
   readonly count: number;
-  /** A darab szakasza, ha a sorszám önmagában nem egyértelmű (két váll, PQW-901). */
+  /** Needed when the row number alone is ambiguous (two shoulders). KB: core-domain §12 */
   readonly section?: string;
   readonly stitches?: { readonly from: number; readonly to: number };
   readonly rows?: { readonly to: number; readonly side: 'left' | 'right' };
@@ -139,9 +95,9 @@ const HU: Vocabulary = {
   system: null,
   headings: { abbreviations: 'Rövidítések', legend: 'Jelmagyarázat', assembly: 'Összeállítás', sizes: 'Méretek' },
   layer: {
-    // A láncalap az 1. sor (PQW-923), ezért a belehorgolt sor a 2.: a kiírt szám a rétegénél eggyel nagyobb.
+    // KB: core-domain §22
     row: (from, to) => `${range(from + 1, to + 1)}. sor`,
-    // Körben a számozás változatlan: a varázskör és a láncgyűrű a mai nevén marad.
+    // In rounds the numbering is unchanged.
     round: (from, to) => `${range(from, to)}. kör`,
   },
   foundation: (chains) => `1. sor – alapsor: ${chains} lsz.`,
@@ -167,12 +123,7 @@ const HU: Vocabulary = {
   chain: (n) => `${n} lsz`,
   skip: (n, what) => `${n} ${what === 'stitch' ? 'szem' : what === 'chain' ? 'láncszem' : 'láncív'} kihagyása`,
   turningChain: (n, note) => `${n} lsz (${note})`,
-  /*
-   * A sort kezdő láncszemek megnevezése (PQW-924). Korábban „nem számít
-   * szemnek” állt itt, ami a megszűnt fogalmat tagadta; a semleges megnevezés
-   * ugyanúgy megkülönbözteti a sor eleji láncszemeket, de nem állít semmit
-   * arról, hogy szemnek számítanának.
-   */
+  // KB: core-domain §5
   turningChainNotCounted: 'fordulólánc',
   turningChainCounts: (def, locale) => `1 ${huDative(def, locale)} számít`,
   repeat: (inner, n) => `[${inner}] ${times(n)}`,
@@ -190,7 +141,7 @@ const HU: Vocabulary = {
   },
   mode: (mode, text) => {
     if (mode === 'both-loops') return text;
-    // Az E- és H- előtag csak az egyráhajtásos pálcánál igazolt (szókészlet §3, [S38]); máshol a relief kiírva.
+    // The E- and H- prefix is only attested for double crochet; elsewhere the post stitch is spelled out. KB: 01 §4.3
     const post = mode === 'front-post' || mode === 'back-post' ? /^(\d+ )?erp$/.exec(text) : null;
     if (post) return `${post[1] ?? ''}${mode === 'front-post' ? 'E' : 'H'}erp`;
     return `${text} (${HU_MODES[mode]})`;
@@ -205,12 +156,12 @@ const HU: Vocabulary = {
   join: (slip, to) => `Kör zárása: 1 ${slip} ${to === 'turning-chain' ? 'a kezdőlánc tetejébe' : 'az első szembe'}.`,
   general: [
     { abbr: 'Eerp', meaning: 'első relief egyráhajtásos pálca (elölről hurkolt)', used: /\bEerp\b/ },
-    // Az „esz” nem szerepel a szókészletben (§3: nincs forrás); jóváhagyásra vár (PQW-869).
+    // KB: core-domain §23
     { abbr: 'esz', meaning: 'első szálba', used: /\(esz\)/ },
     { abbr: 'Herp', meaning: 'hátsó relief egyráhajtásos pálca (hátulról hurkolt)', used: /\bHerp\b/ },
     { abbr: 'hsz', meaning: 'hátsó szálba', used: /\(hsz\)/ },
   ],
-  // Új magyar mondatok, jóváhagyásra várnak (PQW-863).
+  // KB: core-domain §23
   marks: {
     'safety-eyes': 'Tedd be a biztonsági szemeket.',
     'embroider-eyes': 'Hímezd ki a szemeket: 3 év alatti gyereknek szánt játékba nem kerülhet biztonsági szem.',
@@ -218,9 +169,9 @@ const HU: Vocabulary = {
     'close-opening': 'A fonalat fűzd át a maradék szemek első szálán, és húzd össze a nyílást.',
   },
   section: (name) => `${name}, folytatólagosan:`,
-  // A kiírt sorszám a rétegénél eggyel nagyobb, mert a láncalap az 1. sor (PQW-923).
+  // KB: core-domain §22
   resumeSection: (name, row) => `${name} (${article(row + 1)} ${row + 1}. sor fölött):`,
-  // Új magyar mondatok, jóváhagyásra várnak (PQW-864, PQW-894).
+  // KB: core-domain §23
   down: (depth) => `${depth} sorral lejjebb`,
   colorwork: {
     colors: (items) => `Színek: ${items.map((item) => `${item.letter} – ${item.name}`).join(', ')}.`,
@@ -251,7 +202,7 @@ const HU: Vocabulary = {
   sewing: (a, b, distributed) => `Varrás: ${huSewnEdge(a)} → ${huSewnEdge(b)}${distributed ? ', a szemeket egyenletesen elosztva' : ''}.`,
 };
 
-/** A beszúrási módok a jóváhagyott szókészlet §3 szerint; az „esz” jóváhagyásra vár (PQW-869). */
+/** KB: core-domain §23 */
 const HU_MODES: Readonly<Record<Exclude<StitchInsertion, 'both-loops'>, string>> = {
   'back-loop': 'hsz',
   'front-loop': 'esz',
@@ -261,13 +212,13 @@ const HU_MODES: Readonly<Record<Exclude<StitchInsertion, 'both-loops'>, string>>
 
 function english(skipWord: string, skipVerb: string, skipMeaning: string, system: string, color: string): Vocabulary {
   return {
-    // Az amerikai és a brit „dc” mást jelent, ezért a rendszer neve mindkét címsorban ott áll (PQW-868).
+    // US and UK "dc" mean different stitches, so the system name stands in both headings.
     system,
     headings: { abbreviations: `Abbreviations (${system})`, legend: `Stitch key (${system})`, assembly: 'Assembly', sizes: 'Sizes' },
     layer: {
-      // A láncalap az 1. sor (PQW-923), ezért a belehorgolt sor a 2.: a kiírt szám a rétegénél eggyel nagyobb.
+      // KB: core-domain §22
       row: (from, to) => `${from === to ? 'Row' : 'Rows'} ${range(from + 1, to + 1)}`,
-      // Körben a számozás változatlan: a varázskör és a láncgyűrű a mai nevén marad.
+      // In rounds the numbering is unchanged.
       round: (from, to) => `${from === to ? 'Rnd' : 'Rnds'} ${range(from, to)}`,
     },
     foundation: (chains) => `Row 1 – foundation: ch ${chains}.`,
@@ -280,7 +231,7 @@ function english(skipWord: string, skipVerb: string, skipMeaning: string, system
     colorChange: `Change to new ${color} for next rnd.`,
     jogFix: (fix, slip) =>
       fix === 'slip-stitch' ? `Jog fix: work first st of next rnd as ${slip}.` : `Jog fix: join new ${color} in back loop of first st of next rnd.`,
-    // Az 1. sor elején a kihagyás kiírt igével áll, ahogy a tulajdonos kérte: „skip 2 ch”, britül „miss 2 ch” (PQW-895).
+    // KB: core-domain §23 — the owner asked for the skip to be spelled out as a verb.
     skipChains: (n) => `${skipVerb} ${n} ch, `,
     eachChain: (item) => `${item} in each ch across`,
     otherSide: 'working back along the other side of the chain:',
@@ -338,7 +289,7 @@ function english(skipWord: string, skipVerb: string, skipMeaning: string, system
       'close-opening': 'Weave the tail through the front loops of the remaining sts and pull tight.',
     },
     section: (name) => `${name}, worked continuously:`,
-    // A kiírt sorszám a rétegénél eggyel nagyobb, mert a láncalap az 1. sor (PQW-923).
+    // KB: core-domain §22
     resumeSection: (name, row) => `${name} (worked over row ${row + 1}):`,
     down: (depth) => `in st ${depth} rows below`,
     colorwork: {
@@ -369,7 +320,7 @@ function english(skipWord: string, skipVerb: string, skipMeaning: string, system
   };
 }
 
-// A brit „miss” a 01 §3.1 szerint szerkesztői következtetés [E]; a brit kimenet még nincs jóváhagyva.
+// The British "miss" is an editorial inference, and the British output is not approved yet. KB: 01 §3.1
 export const VOCABULARIES: Readonly<Record<Locale, Vocabulary>> = {
   hu: HU,
   'en-US': english('sk', 'skip', 'skip', 'US terms', 'color'),
@@ -380,7 +331,6 @@ function range(from: number, to: number): string {
   return from === to ? `${from}` : `${from}–${to}`;
 }
 
-/** „Hátrész, 1–30. sor bal széle (30 sorvég)”, „Hátrész, 46. sor 1–26. szeme (26)”, „Fej, 12. kör (36)”. */
 function huSewnEdge(edge: SewnEdge): string {
   const where = `${edge.name}${edge.section === undefined ? '' : `, ${edge.section}`}`;
   if (edge.rows) return `${where}, ${range(edge.layer, edge.rows.to)}. sor ${edge.rows.side === 'left' ? 'bal' : 'jobb'} széle (${edge.count} sorvég)`;
@@ -401,17 +351,11 @@ export function ordinal(n: number): string {
   return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
 }
 
-/* ---- Szemnevek ---- */
-
-/**
- * A kiírt beszúrási mód: a szem egyetlen megengedett módja nem kerül ki, mert a
- * szem neve már tartalmazza, pl. a láthatatlan fogyasztás az első szálakba (PQW-863).
- */
+/** A stitch's single allowed mode is not written out: its name already says it. */
 export function shownMode(def: StitchDef, mode: StitchInsertion): StitchInsertion {
   return def.insertionModes.length === 1 && def.insertionModes[0] === mode ? 'both-loops' : mode;
 }
 
-/** Hivatkozás egy szemre a szövegben: a rövidítés, ha van, különben a név. */
 export function refOf(def: StitchDef, locale: Locale): string {
   const { name, abbr } = def.terms[locale];
   return abbr ?? name;
@@ -430,11 +374,7 @@ function huDative(def: StitchDef, locale: Locale): string {
   return abbr ? dative(abbr, true) : dative(name, false);
 }
 
-/**
- * Egy összetett szem neve a sorban. Ha a könyvtárban több szemnek is ez a
- * neve (pl. a kétféle fürt), a szerkezet zárójelben mellette áll, hogy a
- * visszaolvasás egyértelmű legyen.
- */
+/** If several stitches in the library share a name (the two kinds of cluster), the structure is added in brackets so reading back stays unambiguous. */
 export function itemName(def: StitchDef, locale: Locale, library: StitchLibrary): string {
   const ref = refOf(def, locale);
   const clash = [...library.values()].some(
@@ -444,8 +384,6 @@ export function itemName(def: StitchDef, locale: Locale, library: StitchLibrary)
   return structure ? `${ref} (${structure})` : ref;
 }
 
-/* ---- A minta szövege ---- */
-
 export interface Abbreviation {
   readonly abbr: string;
   readonly meaning: string;
@@ -453,7 +391,6 @@ export interface Abbreviation {
 
 export interface LegendEntry {
   readonly def: StitchDefId;
-  /** „szaporítás: 2 erp egy szembe”. A jelet a felület rajzolja az azonosító alapján. */
   readonly label: string;
 }
 
@@ -463,13 +400,10 @@ export interface WrittenPatternText {
   readonly abbreviations: readonly Abbreviation[];
   readonly legend: readonly LegendEntry[];
   readonly pieces: readonly { readonly name: string; readonly lines: readonly string[] }[];
-  /** Az összevarrások sorai (PQW-863); a folytatólagos kapcsolás a darab sorai között áll. */
   readonly assembly: readonly string[];
-  /** A ruhadarab méretsorozata „S (M, L)” alakban (PQW-866); más mintában üres. */
   readonly sizes: readonly string[];
 }
 
-/** Az írott minta: rövidítéslista, jelmagyarázat és darabonként a sorok. */
 export function writePattern(pattern: Pattern, library: StitchLibrary, locale: Locale): WrittenPatternText {
   const vocabulary = VOCABULARIES[locale];
   const used = new Map<string, StitchDef>();
@@ -481,9 +415,9 @@ export function writePattern(pattern: Pattern, library: StitchLibrary, locale: L
     const index = pattern.pieces.findIndex((piece) => piece.id === id);
     const name = pattern.pieces[index]?.name ?? id;
     const written_ = written[index];
-    // A varrás a kiírt sorszámot mondja; az újrakezdett szakaszban ez nem a réteg sorszáma, ezért a szakasz neve is kell (PQW-901).
+    // KB: core-domain §12
     const rowOf = (at: number) => written_?.layers.find((candidate) => candidate.index === at)?.row ?? at;
-    // A szakasz neve csak akkor kell, ha a sorszám önmagában nem egyértelmű: két szakasz ugyanazzal a számmal (PQW-901).
+    // KB: core-domain §12
     const ambiguous = written_?.layers.some((candidate) => candidate.index !== layer && candidate.row === rowOf(layer)) === true;
     const sections = (written_?.sections ?? []).filter((section) => section.layer <= layer);
     const section = ambiguous && sections.length > 0 ? sections[sections.length - 1]!.name : undefined;
@@ -520,11 +454,10 @@ export function writePattern(pattern: Pattern, library: StitchLibrary, locale: L
   };
 }
 
-/** A teljes szöveg: cím, rövidítések, jelmagyarázat, darabok, üres sorral elválasztva. */
 export function formatWrittenPattern(written: WrittenPatternText): string {
   const { headings } = VOCABULARIES[written.locale];
   const blocks: string[][] = [[written.title]];
-  // A méretek a cím után állnak (05 §8.1).
+  // KB: 05 §8.1
   if (written.sizes.length > 0) blocks.push([headings.sizes, ...written.sizes]);
   if (written.abbreviations.length > 0) {
     blocks.push([headings.abbreviations, ...written.abbreviations.map(({ abbr, meaning }) => `${abbr} – ${meaning}`)]);
@@ -535,7 +468,6 @@ export function formatWrittenPattern(written: WrittenPatternText): string {
   return `${blocks.map((block) => block.join('\n')).join('\n\n')}\n`;
 }
 
-/** A mintában használt szemek a könyvtár sorrendjében: önálló szemek, csoportok, és a láncív, ha horgolnak bele. */
 export function legendOf(pattern: Pattern, library: StitchLibrary, locale: Locale): LegendEntry[] {
   const ids = new Set<StitchDefId>();
   for (const piece of pattern.pieces) {
@@ -549,18 +481,14 @@ export function legendOf(pattern: Pattern, library: StitchLibrary, locale: Local
   return [...library.values()].filter((def) => ids.has(def.id)).map((def) => ({ def: def.id, label: legendLabel(def, library, locale) }));
 }
 
-/** A fogyasztás a jelmagyarázatban ugyanúgy szerepel, mint a sorokban, hogy egy mintán belül egy kifejezés legyen. */
+/** One pattern, one wording: the decrease reads the same in the key as in the rows. */
 function legendLabel(def: StitchDef, library: StitchLibrary, locale: Locale): string {
   if (locale !== 'hu' || def.kind !== 'joined' || !isDecrease(def)) return stitchLabel(def, locale);
   const part = library.get(def.part);
   return part ? `${def.terms.hu.name}: ${VOCABULARIES.hu.decrease(def.parts, part, locale)}` : stitchLabel(def, locale);
 }
 
-/**
- * A körökben „szap.” rövid alakkal írható szaporítás: ha a körökben egyetlen
- * fajta kétszemes szaporítás szerepel, különben `null`, és a szaporítás
- * kiírva áll (04 §5.9).
- */
+/** `null` when the rounds hold more than one kind of two-stitch increase; then it is spelled out. KB: 04 §5.9 */
 export function shortIncreaseOf(pieces: readonly WrittenPiece[], library: StitchLibrary): StitchDefId | null {
   const ids = new Set<StitchDefId>();
   const visit = (steps: readonly Step[]) => {
@@ -575,13 +503,13 @@ export function shortIncreaseOf(pieces: readonly WrittenPiece[], library: Stitch
   return ids.size === 1 ? [...ids][0]! : null;
 }
 
-/** Hol áll a tétel: körben a rövidebb alak, és a „szap.” jelentése (04 §5.9). */
+/** KB: 04 §5.9 */
 export interface StepContext {
   readonly round?: boolean;
   readonly shortIncrease?: StitchDefId | null;
 }
 
-/** Egyetlen lépés szövege; a visszaolvasó ezzel ellenőrzi, hogy egy tételt pontosan így írnánk-e ki. */
+/** The reader uses this to check that it would write an item exactly this way. */
 export function renderStep(step: Step, library: StitchLibrary, locale: Locale, context: StepContext = {}): string {
   const renderer = new Renderer(library, locale, new Map(), context.shortIncrease ?? null);
   renderer.round = context.round === true;
@@ -594,9 +522,8 @@ class Renderer {
   private readonly vocabulary: Vocabulary;
   private readonly used: Map<string, StitchDef>;
   private readonly shortIncrease: StitchDefId | null;
-  /** Körben a rövidebb alak: „(1 rp, szap.) ×6 (18)” (04 §5.9). */
+  /** KB: 04 §5.9 */
   round = false;
-  /** Szerepelt-e a „szap.”, hogy a rövidítéslistába kerüljön. */
   shortIncreaseUsed = false;
 
   constructor(library: StitchLibrary, locale: Locale, used: Map<string, StitchDef>, shortIncrease: StitchDefId | null = null) {
@@ -623,7 +550,7 @@ class Renderer {
     if (piece.layers.some((layer) => layer.closing === 'spiral')) lines.push(v.spiral);
     const { colorwork } = piece;
     if (colorwork) {
-      // A beépített szín neve a jelölés nyelvén, a sajátja úgy, ahogy a felhasználó írta (PQW-905).
+      // A built-in color's name follows the notation language; a name the user typed stays as written.
       lines.push(
         v.colorwork.colors(
           colorwork.colors.map((color, i) => ({
@@ -638,7 +565,7 @@ class Renderer {
     }
 
     const bodies = piece.layers.map((layer) => this.body(layer));
-    // A folytatólagosan kapcsolt rész neve az első köre előtt; ott az azonos körök összevonása is megszakad.
+    // The continuous section's name goes before its first round, and identical rounds stop being merged there.
     const sections = new Map(piece.sections.filter((section) => section.layer > 1).map((section) => [section.layer, section]));
     for (let i = 0; i < piece.layers.length; ) {
       let j = i;
@@ -652,7 +579,7 @@ class Renderer {
       }
       const { shape, index, row } = piece.layers[i]!;
       const section = sections.get(index);
-      // Az újrakezdett szakasz neve megmondja, melyik sor fölött folytatódik (PQW-901).
+      // KB: core-domain §12
       if (section !== undefined) lines.push(section.over === undefined ? v.section(section.name) : v.resumeSection(section.name, section.over));
       const label = shape === 'row' ? v.layer.row(row, piece.layers[j]!.row) : v.layer.round(row, piece.layers[j]!.row);
       lines.push(`${label}: ${bodies[i]}`);
@@ -667,14 +594,12 @@ class Renderer {
     return lines;
   }
 
-  /** Egy sor a címke nélkül: „15 fp (15 szem). Fordítás.” */
   body(layer: WrittenLayer): string {
     const v = this.vocabulary;
     this.round = layer.shape === 'round';
     let prefix = '';
     let items: string;
-    // A láncalapra horgolt 1. sor: „hagyj ki 2 láncszemet, majd minden láncszembe 1 rp” (PQW-895).
-    // A kihagyott láncszemek számításáról nincs megjegyzés; a későbbi sorok fordulólánca mondja meg.
+    // The chain count is not explained here; the turning chain of the later rows says it. KB: 03 §1.2
     const [only] = layer.steps;
     if (layer.fromHook) {
       const skipped = layer.fromHook.chain - 1;
@@ -691,7 +616,7 @@ class Renderer {
       this.use(slip);
       text += ` ${v.join(refOf(slip, this.locale), layer.joinTo!)}`;
     } else if (layer.closing === 'turn' || layer.closing === 'fasten-off') {
-      // A spirál a darab elején egyszer szerepel (`Vocabulary.spiral`), körönként nincs kiírva.
+      // The spiral note appears once at the start of the piece, not per round.
       text += ` ${v.closings[layer.closing]}`;
     }
     if (layer.colorChange) text += ` ${v.colorChange}`;
@@ -704,7 +629,7 @@ class Renderer {
   }
 
   steps(steps: readonly Step[]): string {
-    // A „másik oldal” mondata kettősponttal végződik: utána vessző nélkül folytatódik (PQW-890).
+    // The "other side" sentence ends with a colon: the items continue after it without a comma. KB: 04 §3.4
     return steps.map((step, i) => `${i === 0 ? '' : steps[i - 1]!.kind === 'other-side' ? ' ' : ', '}${this.step(step)}`).join('');
   }
 
@@ -779,7 +704,7 @@ class Renderer {
       case 'same':
         return ` ${phrases[into === 'chain' ? 'same-chain' : 'same-stitch']}`;
       case 'ring':
-        // A varázskör neve kiírva szerepel („a varázskörbe”, „in ring”), rövidítése nem kerül a listára.
+        // The magic ring is spelled out, so its abbreviation never reaches the list.
         return ` ${phrases.ring}`;
       case 'chain-ring':
         return ` ${phrases['chain-ring']}`;

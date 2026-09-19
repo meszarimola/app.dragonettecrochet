@@ -1,21 +1,4 @@
-/*
- * A „Rácsminta” szakasz (PQW-864, PQW-894): technika, mozaikváltozat, méret,
- * színek és ecset, kép betöltése, a rácsszerkesztő a mintasűrűség szerinti
- * cellaaránnyal, az ismétlő egység (felismerve vagy kézzel), feliratos motívum,
- * a terv és a fonal színenként, és a minta létrehozása.
- *
- * A rács `role="grid"`, bejárható tabindexszel: nyilakkal lépsz, szóközzel vagy
- * Enterrel festesz, Delete-tel törölsz; egérrel húzva több cellát festhetsz. A
- * kezelt billentyűk nem jutnak el a vászon gyorsbillentyűihez.
- *
- * A kép a böngészőben marad: vászonra rajzolva, a rács méretére kicsinyítve
- * olvassuk ki a képpontjait, szerverre semmi nem kerül (a CSP a `blob:` képet
- * engedi).
- *
- * A mezők az index.html-ben vannak. A létrehozás a mintát cseréli, ezért egy
- * lépésben visszavonható. Új tárolókulcs nincs: a rács a lapon él, a
- * létrehozott minta a darabbal menti, és innen visszatölthető.
- */
+// KB: interface.md §7, §24, §26
 
 import { MAX_GRID_SIDE, type DraftCell } from '../core/pixel-chart.js';
 import type { Pattern } from '../core/types.js';
@@ -49,7 +32,6 @@ import {
 import { formatNumber } from './size-view.js';
 
 export interface GridChartPanelHost {
-  /** Az új minta a visszavonási veremre, az üzenettel. */
   commit(pattern: Pattern, message: string): void;
   announce(message: string): void;
 }
@@ -141,7 +123,7 @@ export class GridChartPanel {
     this.#yarn = field('grid-yarn');
     this.#load = field('grid-load');
 
-    // A rács csak az első nyitáskor épül: a késve érkező `toggle` ne írja felül a közben beírt méretet.
+    // KB: interface.md §8
     section.addEventListener('toggle', () => {
       if (!section.open) return;
       if (this.#cells.length === 0) this.#rebuild();
@@ -178,7 +160,7 @@ export class GridChartPanel {
     field<HTMLButtonElement>('grid-create').addEventListener('click', () => this.#create());
 
     this.#board.addEventListener('keydown', (event) => this.#onKey(event));
-    // A fókusz bármilyen úton kerül egy cellára (Tab, felolvasó, kattintás), a billentyűk arra a cellára vonatkoznak.
+    // KB: interface.md §24
     this.#board.addEventListener('focusin', (event) => {
       const cell = this.#cellOf(event.target);
       if (!cell || (cell.x === this.#focus.x && cell.y === this.#focus.y)) return;
@@ -217,12 +199,9 @@ export class GridChartPanel {
     else this.#schedule();
   }
 
-  /** A Filéhorgolás mintatípusnál a szakasz lenyílik. */
   reveal(): void {
     this.#section.open = true;
   }
-
-  /* ---- Állapot ---- */
 
   #setState(next: GridEditorState, rebuild = false): void {
     this.#state = next;
@@ -236,7 +215,7 @@ export class GridChartPanel {
     this.#technique.value = technique;
     this.#mosaicRows.value = String(this.#state.mosaicRows);
     this.#mosaicField.hidden = technique !== 'mosaic';
-    // A fókuszban lévő mezőbe épp gépelnek: azt nem írjuk felül.
+    // KB: interface.md §8
     const write = (input: HTMLInputElement, value: number) => {
       if (document.activeElement !== input) input.value = String(value);
     };
@@ -271,7 +250,7 @@ export class GridChartPanel {
     this.#setState({ ...this.#state, draft: resizeDraft(draft, width, height) }, true);
   }
 
-  /** A kép a megadott szélességre, a mintasűrűség szerinti magasságra kicsinyítve kerül a rácsba (PQW-894). */
+  // KB: interface.md §26
   async #loadImage(file: File): Promise<void> {
     if (!this.#pattern) return;
     const url = URL.createObjectURL(file);
@@ -344,8 +323,6 @@ export class GridChartPanel {
     this.#host.commit(result.pattern, result.message);
   }
 
-  /* ---- Színek és ecset ---- */
-
   #renderColors(): void {
     const t = texts().panels.grid;
     const { colors, technique } = this.#state;
@@ -364,14 +341,13 @@ export class GridChartPanel {
         name.value = colorLabel(color);
         name.autocomplete = 'off';
         name.setAttribute('aria-label', t.colorNameLabel(letter));
-        // Amit a felhasználó ír be, az saját név (PQW-905): az azonosító elmarad, és a szöveg nem fordul.
+        // KB: interface.md §25
         name.addEventListener('change', () => this.#editColor(i, { name: name.value.trim() || t.colorFallback(letter) }, true));
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'tool';
         remove.textContent = t.remove;
         remove.setAttribute('aria-label', t.colorRemoveLabel(letter));
-        // A mozaik mindig két színnel készül.
         remove.disabled = colors.length <= (technique === 'mosaic' ? 2 : 1);
         remove.addEventListener('click', () => {
           this.#brush = 0;
@@ -391,8 +367,7 @@ export class GridChartPanel {
   #editColor(index: number, patch: { hex?: string; name?: string }, rebuild = false): void {
     const colors = this.#state.colors.map((color, i) => {
       if (i !== index) return color;
-      // Saját név esetén a beépített azonosító elmarad, hogy a mentett minta azt
-      // vigye, amit a felhasználó írt; a szín cseréje az azonosítót nem bántja.
+      // KB: interface.md §25
       return patch.name === undefined ? { ...color, ...patch } : { name: patch.name, hex: patch.hex ?? color.hex };
     });
     this.#setState({ ...this.#state, colors }, rebuild);
@@ -422,8 +397,6 @@ export class GridChartPanel {
       }),
     );
   }
-
-  /* ---- A rács ---- */
 
   #buildBoard(): void {
     const { draft, technique, mosaicRows } = this.#state;
@@ -513,7 +486,7 @@ export class GridChartPanel {
       case 'ArrowRight':
         next = { x: Math.min(width - 1, x + 1), y };
         break;
-      // Fent a magasabb sorszámú sor áll.
+      // KB: interface.md §24 — up is the higher row index.
       case 'ArrowUp':
         next = { x, y: Math.min(height - 1, y + 1) };
         break;
@@ -547,8 +520,6 @@ export class GridChartPanel {
     event.stopPropagation();
     if (next) this.#moveFocus(next);
   }
-
-  /* ---- Összegzés ---- */
 
   #render(): void {
     if (!this.#section.open || !this.#pattern) return;

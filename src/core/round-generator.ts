@@ -1,26 +1,5 @@
-/*
- * Kör- és motívumgenerátor (PQW-861): lapos kör, négyzet, hatszög, nyolcszög
- * és nagymama-négyzet szemgráfként. A kész gráfot ugyanaz az ellenőrző, rajz és
- * írott minta dolgozza fel, mint a kézzel horgoltat.
- *
- * - Kezdés (04 §1.1): varázskör; láncgyűrű (4 lsz, kúszószemmel zárva, nagyobb
- *   kezdésnél körönként 4 szemre 1 láncszem); „2 lsz, n szem a 2. láncszembe”
- *   (magasabb szemnél a kezdőlánc hosszával több láncszem).
- * - Kör vége (04 §2): zárt kör kúszószemmel és kezdőlánccal, vagy spirál. A
- *   tulajdonos döntése: amigurumiban spirál, minden más körben haladó munkában
- *   zárt kör; a generátor alapértelmezése ezért a zárt kör.
- * - Lapos kör (04 §3.1, §3.2): a szaporítás a kör-mintasűrűségből (rounds.ts),
- *   a k-adik körben `(k − 2 szem, szap.)`; eltolva a páratlan körben
- *   `(szap., k − 2 szem)`, a páros körben a szaporítások fél ismétléssel
- *   odébb kerülnek.
- * - Sokszög (04 §6.1, §9.5): a sokszög lapos értékét a sarkokban adjuk hozzá,
- *   körönként hibaösszegzéssel kerekítve; a sarok új szeme a sarokcsoport
- *   közepe, így a sarkok egymás fölé kerülnek. Egy körben legfeljebb duplázás.
- * - Nagymama-négyzet (03 §8): erp-hármasok, a sarkokban 2, oldalt 1 láncszemes
- *   ív; a kör a kezdőlánc felé kúszószemekkel jut a sarokívhez.
- *
- * Minden kör után a mintában megadott szemszám a gráf számolása (06 §5.3 V3).
- */
+// KB: 03 §8, 04 §1.1, 04 §2, 04 §3.1, 04 §3.2, 04 §6.1, 04 §9.5, 06 §5.3 V3
+// KB: core-geometry §39
 
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
 import { text, type CoreText } from './messages.ts';
@@ -40,7 +19,6 @@ export type JogFix = NonNullable<LayerEvent['jogFix']>;
 export const MOTIF_SHAPES: readonly MotifShape[] = ['circle', 'square', 'hexagon', 'octagon', 'granny-square'];
 export const ROUND_STARTS: readonly RoundStart[] = ['magic-ring', 'chain-ring', 'chain'];
 
-/** A sokszög sarkainak száma; a kör `undefined`. */
 export const MOTIF_CORNERS: Readonly<Record<MotifShape, number | undefined>> = {
   circle: undefined,
   square: 4,
@@ -49,12 +27,7 @@ export const MOTIF_CORNERS: Readonly<Record<MotifShape, number | undefined>> = {
   'granny-square': 4,
 };
 
-/**
- * A motívumok neve a minta CÍMÉBE és a darab nevébe kerül
- * (`withGeneratedTitle`), és a mentett mintába íródik: ezért magyar marad a
- * magban, a felület nyelvétől függetlenül (PQW-904). A panel listája a saját
- * szótárát használja (`texts().panels.round.names`).
- */
+// KB: core-geometry §37
 export const MOTIF_NAMES: Readonly<Record<MotifShape, string>> = {
   circle: 'Lapos kör',
   square: 'Négyzet',
@@ -63,10 +36,8 @@ export const MOTIF_NAMES: Readonly<Record<MotifShape, string>> = {
   'granny-square': 'Nagymama-négyzet',
 };
 
-/** A generátor alapszemei. A nagymama-négyzet mindig egyráhajtásos pálcás. */
 export const ROUND_STITCHES: readonly StitchDefId[] = ['sc', 'hdc', 'dc', 'tr'];
 export const MAX_ROUNDS = 30;
-/** Egy láncszembe legfeljebb ennyi szem kerülhet egy csoportban (stitch-variants.ts). */
 const MAX_INTO_ONE = 12;
 
 export interface MotifOptions {
@@ -75,13 +46,10 @@ export interface MotifOptions {
   readonly rounds: number;
   readonly start: RoundStart;
   readonly closing: RoundClosing;
-  /** Eltolt szaporítás; csak a lapos körnél számít. */
   readonly stagger: boolean;
-  /** Színváltás minden ennyiedik kör után; 0: nincs. */
+  // 0 means no colour change.
   readonly colorEvery: number;
-  /** Lépcsőjavítás spirálban a színváltásnál; `null`: nincs. */
   readonly jogFix: JogFix | null;
-  /** Bordás perem a kör zárása után, relief szemmel (PQW-909); spirálban nem választható. */
   readonly ribbing?: RibbingOptions | null;
 }
 
@@ -97,11 +65,6 @@ export const DEFAULT_MOTIF: MotifOptions = {
   ribbing: null,
 };
 
-/**
- * A motívumgenerátor üzenetei kódként (PQW-904): a mondatot a felület állítja
- * össze (src/ui/i18n/core/amigurumi.ts). A magyar névelő („A(z) 3. kör”) is a
- * felületé; a magban csak a körszám marad.
- */
 export type MotifCode =
   | 'rounds-range'
   | 'color-rounds-whole'
@@ -117,18 +80,15 @@ export type MotifResult =
   | { readonly ok: true; readonly pattern: Pattern; readonly increases: FlatIncreases }
   | { readonly ok: false; readonly reason: CoreText<MotifCode> };
 
-/** A választott forma és szem alapszeme: a nagymama-négyzeté az egyráhajtásos pálca. */
 export function motifStitch(options: Pick<MotifOptions, 'shape' | 'stitch'>): StitchDefId {
   return options.shape === 'granny-square' ? 'dc' : options.stitch;
 }
 
-/** A körönkénti szaporítás a minta profiljából (vagy becsléssel), a formához. */
 export function motifIncreases(pattern: Pattern, options: Pick<MotifOptions, 'shape' | 'stitch'>): FlatIncreases {
   const def = resolveStitch(motifStitch(options)) ?? resolveStitch('sc')!;
   return flatIncreases(def, gaugeContextOf(pattern, libraryFor(pattern)), MOTIF_CORNERS[options.shape]);
 }
 
-/** Mi nem választható a formához: a nagymama-négyzet láncszembe nem kezdhető és nem spirál. */
 export function motifProblem(options: MotifOptions): CoreText<MotifCode> | null {
   if (!Number.isInteger(options.rounds) || options.rounds < 1 || options.rounds > MAX_ROUNDS) {
     return text('rounds-range', { max: MAX_ROUNDS });
@@ -140,7 +100,7 @@ export function motifProblem(options: MotifOptions): CoreText<MotifCode> | null 
     if (options.closing === 'spiral') return text('granny-spiral');
   }
   if (options.ribbing) {
-    // A bordás perem a kör zárása után kezdődik: a spirálnak nincs zárása, ahonnan indulhatna (PQW-909).
+    // A spiral has no join for the ribbed edge to start from.
     if (options.closing === 'spiral') return text('ribbing-spiral');
     const ribbing = ribbingProblem(options.ribbing);
     if (ribbing !== null) return ribbing;
@@ -148,10 +108,6 @@ export function motifProblem(options: MotifOptions): CoreText<MotifCode> | null 
   return null;
 }
 
-/**
- * Új minta a formából. A mintából a címet (ha nem az alapértelmezett), a
- * jelölést, a profilokat és a konvenciókat veszi át; a körzárás a választás.
- */
 export function generateMotif(pattern: Pattern, options: MotifOptions): MotifResult {
   const problem = motifProblem(options);
   if (problem) return { ok: false, reason: problem };
@@ -172,46 +128,34 @@ export function generateMotif(pattern: Pattern, options: MotifOptions): MotifRes
   const name = MOTIF_NAMES[options.shape];
   const piece = writer.piece('p1', name, MOTIF_CORNERS[options.shape]);
   const stated = withStatedCounts(base, piece);
-  // Bordás perem a kör zárása után, relief szemmel (PQW-909).
   const whole: Pattern = { ...base, pieces: [stated] };
   const ribbed = options.ribbing ? appendRibbing(whole, stated, libraryFor(whole), options.ribbing) : stated;
   if ('code' in ribbed) return { ok: false, reason: ribbed };
-  // Az alapértelmezett és a generátor adta címet a forma neve váltja; a saját címet megtartjuk (PQW-896).
   const result = withGeneratedTitle({ ...base, pieces: [ribbed] }, pattern, name, Object.values(MOTIF_NAMES));
   return { ok: true, pattern: result, increases };
 }
 
-/**
- * Egy darab egy kész körtervből, a motívum kezdésével és körvégével (PQW-865):
- * a kendő köreit (kör, Pi-kendő) a kendőgenerátor tervezi, a gráfot ez építi.
- * A kész darabon a körvégi szemszám a gráf számolása; hibánál az ok.
- */
 export function plannedRounds(pattern: Pattern, options: MotifOptions, plan: RoundPlan, name: string): Piece | string {
   const def = resolveStitch(motifStitch(options))!;
   const base: Pattern = { ...pattern, conventions: { ...pattern.conventions, roundEnd: options.closing }, pieces: [] };
   const writer = new Writer(base);
   const built = plainRounds(writer, def, { ...options, rounds: plan.rounds.length + 1 }, plan);
-  // Átmeneti (PQW-904): a hívók (shawls.ts, garments.ts) még `string`-et várnak, mert az ő
-  // üzeneteik külön tiketen készülnek; a kód megy át, nem mondat, és mindkét hívó belső hibaként
-  // veszi át. Ezeket az ágakat nem is érik el: varázskörrel kezdenek, a kész körterv pedig
-  // legfeljebb duplázik. Velük együtt törlendő, akkor ez is `CoreText`-et ad.
+  // KB: core-geometry §38
   if (built !== null) return built.code;
   return withStatedCounts(base, writer.piece('p1', name));
 }
 
-/* ---- Tervek: hány szem megy az előző kör egyes pozícióiba ---- */
-
+// `rounds[i]` describes round i + 2: one entry per position of the round below, in order,
+// holding how many stitches are worked into that position.
 export interface RoundPlan {
-  /** Az 1. kör szemszáma. */
   readonly first: number;
-  /** A 2. körtől körönként: az előző kör pozícióiba horgolt szemek száma, sorrendben. */
   readonly rounds: readonly (readonly number[])[];
 }
 
 const ones = (n: number) => Array<number>(n).fill(1);
 const repeat = (unit: readonly number[], times: number) => Array.from({ length: times }, () => unit).flat();
 
-/** Lapos kör `s` szaporítással (04 §3.1), eltolva a 04 §3.2 táblázata szerint. */
+// KB: 04 §3.1, 04 §3.2
 export function circlePlan(s: number, rounds: number, stagger: boolean): RoundPlan {
   const plan: number[][] = [];
   for (let k = 2; k <= rounds; k += 1) {
@@ -230,11 +174,7 @@ export function circlePlan(s: number, rounds: number, stagger: boolean): RoundPl
   return { first: s, rounds: plan };
 }
 
-/**
- * Szabályos sokszög `n` sarokkal, körönként `exact` szaporítással (04 §9.5):
- * az 1. kör `n` egyforma oldal, mindegyik a sarokszemmel végződik; utána a
- * szaporítás a sarkokba kerül, a maradék körönként másik sarkokba.
- */
+// KB: 04 §6.1, 04 §9.5
 export function polygonPlan(n: number, exact: number, rounds: number): RoundPlan {
   const first = Math.max(n, n * Math.round(exact / n));
   const plan: number[][] = [];
@@ -256,8 +196,6 @@ export function polygonPlan(n: number, exact: number, rounds: number): RoundPlan
   }
   return { first, rounds: plan };
 }
-
-/* ---- Gráfépítés ---- */
 
 class Writer {
   readonly stitches: StitchNode[] = [];
@@ -296,7 +234,6 @@ class Writer {
     return { into: 'ring', id };
   }
 
-  /** `n` szem egy célpontba; szembe horgolva kettőtől szaporításként, láncívbe és gyűrűbe csoport nélkül. */
   into(def: StitchDefId, anchor: Anchor, n: number): NodeId[] {
     const ids = Array.from({ length: n }, () => this.add(def, [anchor]));
     if (anchor.into === 'stitch' && n >= 2) this.groups.push({ id: `g${this.groups.length + 1}`, def: `inc-${n}${def}`, members: ids });
@@ -335,7 +272,6 @@ class Writer {
 
 const both = (id: NodeId): Anchor => ({ into: 'stitch', id, mode: 'both-loops' });
 
-/** A kör vége: zárás a kör első pozíciójába, spirálban az esemény; színváltással. */
 function endRound(writer: Writer, options: MotifOptions, round: number, first: NodeId): void {
   const last = round === options.rounds;
   const color = options.colorEvery > 0 && !last && round % options.colorEvery === 0;
@@ -348,7 +284,6 @@ function endRound(writer: Writer, options: MotifOptions, round: number, first: N
   } else writer.event(last ? 'fasten-off' : 'spiral', extra);
 }
 
-/** Az 1. kör célpontja a kezdés szerint; hiba esetén az üzenet. */
 function startInto(writer: Writer, options: MotifOptions, def: StitchDef, stitches: number): Anchor | CoreText<MotifCode> {
   const chain = def.turningChain;
   switch (options.start) {
@@ -371,17 +306,16 @@ function startInto(writer: Writer, options: MotifOptions, def: StitchDef, stitch
   }
 }
 
-/** Lapos kör és sokszög: az 1. kör a kezdésbe, utána a terv szerint. */
 function plainRounds(writer: Writer, def: StitchDef, options: MotifOptions, plan: RoundPlan): CoreText<MotifCode> | null {
   const counts = writer.countsFor(def);
   const spiral = options.closing === 'spiral';
 
-  // 1. kör: a kezdőlánc (számító kezdőláncnál ez az első szem), a többi szem a kezdésbe.
+  // KB: 01 §8.3, 03 §1.1
   const firstCounts = counts;
   const produced = plan.first - (firstCounts ? 1 : 0);
   const target = startInto(writer, options, def, produced);
   if (!('into' in target)) return target;
-  // A „2 lsz” kezdésnél a kezdőlánc az alapláncszem utáni láncszemek; máskor most horgoljuk.
+  // KB: 04 §1.1 — in the 'ch 2' start the turning chain is already on the hook.
   const turning =
     options.start === 'chain'
       ? writer.stitches.slice(writer.stitches.length - def.turningChain).map((node) => node.id)
@@ -408,7 +342,7 @@ function plainRounds(writer: Writer, def: StitchDef, options: MotifOptions, plan
   return null;
 }
 
-/** Nagymama-négyzet (03 §8): a 03 §8 kidolgozott példája tetszőleges körszámra. */
+// KB: 03 §8, 03 §10 H41
 function grannySquare(writer: Writer, options: MotifOptions): CoreText<MotifCode> | null {
   const dc = resolveStitch('dc')!;
   const counts = writer.countsFor(dc);
@@ -416,7 +350,6 @@ function grannySquare(writer: Writer, options: MotifOptions): CoreText<MotifCode
   const target = startInto(writer, options, dc, 12);
   if (!('into' in target)) return target;
 
-  // 1. kör: 3 lsz, 2 erp, 2 lsz, (3 erp, 2 lsz) ×3, zárás.
   let turning = writer.chains(3);
   let firstDcs = writer.into('dc', target, firstCluster);
   let corners: SpaceId[] = [writer.space(writer.chains(2))];
@@ -428,7 +361,6 @@ function grannySquare(writer: Writer, options: MotifOptions): CoreText<MotifCode
   endRound(writer, options, 1, counts ? turning[2]! : firstDcs[0]!);
 
   for (let k = 2; k <= options.rounds; k += 1) {
-    // Kúszószemekkel a kör első sarokívéhez.
     for (const id of firstDcs) writer.add('sl-st', [both(id)]);
     writer.add('sl-st', [{ into: 'space', id: corners[0]! }]);
     turning = writer.chains(3);
@@ -454,7 +386,7 @@ function grannySquare(writer: Writer, options: MotifOptions): CoreText<MotifCode
   return null;
 }
 
-/** A körvégi eseményekbe a gráf szerinti szemszám; a láncgyűrű zárása a 0. réteg vége, oda nem kerül. */
+// KB: 06 §5.3 V3
 function withStatedCounts(pattern: Pattern, piece: Piece): Piece {
   const graph = buildPieceGraph({ ...pattern, pieces: [piece] }, piece, libraryFor({ ...pattern, pieces: [piece] }));
   const stated = new Map<NodeId, number>();

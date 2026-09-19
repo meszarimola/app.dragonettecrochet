@@ -1,7 +1,7 @@
 /*
- * A mag böngésző nélkül fut, ezért csak a saját mappájából importálhat.
- * A DOM-globálisok (document, window, canvas) használatát a
- * tsconfig.core.json fogja meg az `npm run check`-ben.
+ * The core runs without a browser, so it may only pull in modules that live in
+ * its own folder. Use of the DOM globals (document, window, canvas) is caught
+ * by tsconfig.core.json during `npm run check`.
  */
 
 import { strict as assert } from 'node:assert';
@@ -17,11 +17,11 @@ function coreFiles() {
   return readdirSync(CORE, { recursive: true }).filter((file) => file.endsWith('.ts'));
 }
 
-test('a src/core/ nem üres', () => {
+test('src/core/ is not empty', () => {
   assert.ok(coreFiles().length > 0);
 });
 
-test('a src/core/ csak a saját mappájából importál', () => {
+test('src/core/ only pulls in modules within its own folder', () => {
   for (const file of coreFiles()) {
     const fileUrl = new URL(file, CORE);
     const source = readFileSync(fileUrl, 'utf8');
@@ -29,7 +29,7 @@ test('a src/core/ csak a saját mappájából importál', () => {
     for (const [, from, bare] of source.matchAll(IMPORT_SPECIFIER)) {
       const specifier = from ?? bare;
       const staysInCore = specifier.startsWith('.') && new URL(specifier, fileUrl).href.startsWith(CORE.href);
-      assert.ok(staysInCore, `src/core/${file}: a magon kívülről importál: ${specifier}`);
+      assert.ok(staysInCore, `src/core/${file}: reaches outside the core: ${specifier}`);
     }
   }
 });

@@ -1,6 +1,6 @@
 /*
- * Az ellenőrző: a tudásbázis kidolgozott példái hibátlanok, és minden
- * szándékosan elrontott változatukra pontosan a várt szabály jelez.
+ * Validation: the worked examples from the knowledge base are clean, and every
+ * deliberately broken variant of them reports exactly the rule expected.
  */
 
 import { strict as assert } from 'node:assert';
@@ -30,7 +30,7 @@ import { testLibrary } from './fixtures/library.ts';
 
 const tested = new Set();
 
-/** A találatok szabályai; ha `nodes` meg van adva, a találatok érintett szemei is. */
+/** Asserts which rules the findings carry, and which stitches they touch when `nodes` is given. */
 function assertOnly(pattern, rule, nodes, library = testLibrary) {
   const findings = validatePattern(pattern, library);
   assert.deepEqual([...new Set(findings.map((finding) => finding.rule))], [rule], JSON.stringify(findings, null, 1));
@@ -43,7 +43,7 @@ function assertOnly(pattern, rule, nodes, library = testLibrary) {
   return findings;
 }
 
-describe('a kidolgozott példák gráfként hibátlanok', () => {
+describe('the worked examples validate cleanly as graphs', () => {
   for (const [name, make] of Object.entries(WORKED_EXAMPLES)) {
     test(name, () => {
       assert.deepEqual(validatePattern(make().pattern, testLibrary), []);
@@ -51,50 +51,51 @@ describe('a kidolgozott példák gráfként hibátlanok', () => {
   }
 });
 
-/** A következő sor célpontjai sorrendben: a fordulólánc alatti szem kimarad, az utolsó a fordulólánc teteje (PQW-891). */
-// A fordulólánc nem célpont (PQW-924): a következő sor az előző sor minden szemébe horgol.
+/** The next row's targets in order: the stitch under the turning chain is left out, the last one is the top of the turning chain (PQW-891). */
+// The turning chain is not a target (PQW-924): the next row works into every stitch of the previous row.
 const targetsOf = (row) => [...row].reverse();
 
-describe('félpálcás téglalap, elrontva (03 §3.1 A)', () => {
-  test('rossz láncalap: az első félpálca a 4. láncszembe megy a 3. helyett', () => {
-    // Félpálcánál 2 láncszemet hagyunk ki (PQW-924); a 4. láncszemnél 3 maradna fordulóláncnak.
+describe('half double crochet rectangle, broken (03 §3.1 A)', () => {
+  test('wrong foundation chain: the first half double goes into the 4th chain instead of the 3rd', () => {
+    // A half double skips 2 chains (PQW-924); starting at the 4th chain would leave 3 as the turning chain.
     const example = hdcRectangle({ firstStitchFromHook: 4 });
     assertOnly(example.pattern, 'foundation-chain', [[...example.turningChains[1], example.rows[1][0]]]);
   });
 
-  test('az 5. sor fordulólánca 1 láncszem 2 helyett: figyelmeztetés', () => {
+  test('row 5 turns with 1 chain instead of 2: a warning', () => {
     const example = hdcRectangle({ turningChain: { row: 5, chains: 1 } });
     assertOnly(example.pattern, 'turning-chain-height', [example.turningChains[5]]);
   });
 
-  test('a 2. sor két szemet hagy ki az elején: a fordulólánc csak az egyiket állja (PQW-944)', () => {
+  test('row 2 skips two stitches at the start: the turning chain covers only one of them (PQW-944)', () => {
     const example = hdcRectangle({ row2SkipsTwo: true });
-    // Az első kimaradt pozíció a fordulóláncé; a másodikba tényleg nem ment szem.
+    // The first skipped position belongs to the turning chain; the second one really did get no stitch.
     assertOnly(example.pattern, 'unused-position', [[example.rows[1].at(-1)]]);
   });
 
-  test('a 2. sor kihagyja az első szemet: a fordulólánc áll ott, ezért nem hiba (PQW-944)', () => {
+  test('row 2 skips the first stitch: the turning chain stands there, so it is not an error (PQW-944)', () => {
     const example = hdcRectangle({ row2SkipsFirst: true });
     /*
-     * A számító fordulólánc a sor első szemének helyén ül, ezért az alatta
-     * lévő pozícióba nem megy szem — ez nem kimaradt szem.
+     * A turning chain that counts as a stitch sits in the place of the row's
+     * first stitch, so the position below it gets no stitch — that is not a
+     * skipped stitch.
      */
     assert.deepEqual(validatePattern(example.pattern, testLibrary), []);
   });
 
-  test('a 2. sor közepén egy szem kimarad: figyelmeztetés', () => {
+  test('a stitch is missing in the middle of row 2: a warning', () => {
     const example = hdcRectangle({ row2SkipsOneInMiddle: true });
     assertOnly(example.pattern, 'reach-single', [[example.rows[2][6], example.rows[2][7]]]);
   });
 
-  test('a 3. sorban két szem célpontja fel van cserélve, jelölés nélkül', () => {
+  test('two stitches in row 3 have their targets swapped, with no marking', () => {
     const { pattern, rows, turningChains } = hdcRectangle();
     const below = targetsOf(rows[2]);
     const swapped = editNode(editNode(pattern, rows[3][5], { anchors: [below[6]] }), rows[3][6], { anchors: [below[5]] });
     assertOnly(swapped, 'against-direction', [[rows[3][5], rows[3][6]]]);
   });
 
-  test('ugyanez keresztezett szemként jelölve hibátlan (03 §10 C13)', () => {
+  test('the same thing marked as crossed stitches is clean (03 §10 C13)', () => {
     const { pattern, rows, turningChains } = hdcRectangle();
     const below = targetsOf(rows[2]);
     let crossed = editNode(editNode(pattern, rows[3][5], { anchors: [below[6]] }), rows[3][6], { anchors: [below[5]] });
@@ -108,22 +109,22 @@ describe('félpálcás téglalap, elrontva (03 §3.1 A)', () => {
     assert.deepEqual(validatePattern(crossed, testLibrary), []);
   });
 
-  test('a 2. sor utolsó szeme a fordulólánc alsó láncszemébe megy a teteje helyett', () => {
+  test('the last stitch of row 2 goes into the bottom chain of the turning chain instead of its top', () => {
     const { pattern, rows, turningChains } = hdcRectangle();
     const broken = editNode(pattern, rows[2].at(-1), { anchors: [turningChains[1][0]] });
     assertOnly(broken, 'turning-chain-placement', [[rows[2].at(-1), turningChains[1][0]]]);
   });
 
-  test('lógó lánc: két láncszem az utolsó sor végén', () => {
+  test('floating chain: two chain stitches at the end of the last row', () => {
     const example = hdcRectangle({ trailingChains: 2 });
     const stitches = example.pattern.pieces[0].stitches;
     assertOnly(example.pattern, 'floating-chain', [stitches.slice(-2).map((node) => node.id)]);
   });
 
-  test('a rákhurok sora után még egy sor készül', () => {
+  test('another row is worked after the crab stitch row', () => {
     const example = hdcRectangle({ crabRow: 21 });
     const findings = assertOnly(example.pattern, 'unworkable-top');
-    // A fordulólánc teteje már nem célpont (PQW-924): a 22. sor minden szeme rákhurokba menne.
+    // The top of the turning chain is no longer a target (PQW-924): every stitch of row 22 would go into a crab stitch.
     assert.deepEqual(
       findings.map((finding) => finding.nodes),
       example.rows[22].map((id) => [id]),
@@ -131,102 +132,102 @@ describe('félpálcás téglalap, elrontva (03 §3.1 A)', () => {
   });
 });
 
-describe('pálcás téglalap, elrontva (03 §3.1 B)', () => {
-  test('a 2. sor kihagyja az előző sor első szemét: a fordulólánc áll ott (PQW-944)', () => {
+describe('double crochet rectangle, broken (03 §3.1 B)', () => {
+  test('row 2 skips the first stitch of the previous row: the turning chain stands there (PQW-944)', () => {
     const example = dcRectangle({ row2SkipsFirst: true });
     assert.deepEqual(validatePattern(example.pattern, testLibrary), []);
   });
 
-  test('a 2. sor egyik szeme a 3. sor szemébe van horgolva', () => {
+  test('a stitch in row 2 is worked into a stitch of row 3', () => {
     const { pattern, rows } = dcRectangle();
     assertOnly(editNode(pattern, rows[2][3], { anchors: [rows[3][3]] }), 'future-anchor', [[rows[2][3]]]);
   });
 
-  test('a 3. sor egyik szeme az 1. sorba megy, hosszú szemként jelölés nélkül', () => {
+  test('a stitch in row 3 reaches down into row 1 without being marked as a spike stitch', () => {
     const { pattern, rows } = dcRectangle();
     assertOnly(editNode(pattern, rows[3][3], { anchors: [rows[1][3]] }), 'anchor-layer', [[rows[3][3]]]);
   });
 
-  test('egy szem előző szeme nem a fonal útján előtte lévő', () => {
+  test('a stitch names a previous stitch that is not the one before it on the yarn path', () => {
     const { pattern, rows } = dcRectangle();
     assertOnly(editNode(pattern, rows[2][5], { prev: rows[2][3] }), 'yarn-path', [[rows[2][5]]]);
   });
 
-  test('nem létező szembe horgolás', () => {
+  test('working into a stitch that does not exist', () => {
     const { pattern, rows } = dcRectangle();
     assertOnly(editNode(pattern, rows[2][5], { anchors: ['nincs-ilyen'] }), 'dangling-reference', [[rows[2][5]]]);
   });
 
-  test('a könyvtárban nem szereplő szem', () => {
+  test('a stitch that is not in the library', () => {
     const { pattern, rows } = dcRectangle();
     assertOnly(editNode(pattern, rows[2][5], { def: 'hamispalca' }), 'unknown-stitch', [[rows[2][5]]]);
   });
 });
 
-describe('kagyló 6+1, elrontva (03 §4.2 E)', () => {
-  test('az első ismétlés 3 láncszemet hagy ki 2 helyett', () => {
+describe('shell stitch 6+1, broken (03 §4.2 E)', () => {
+  test('the first repeat skips 3 chains instead of 2', () => {
     assertOnly(shellStitch({ firstRepeatSkipsThree: true }).pattern, 'repeat-balance');
   });
 
-  test('az első kagyló V-szemként van jelölve', () => {
+  test('the first shell is marked as a V stitch', () => {
     const example = shellStitch({ firstShellDef: 'v-st-dc' });
     assertOnly(example.pattern, 'group-mismatch', [example.rows[1].slice(1, 6)]);
   });
 });
 
-describe('V-szem, elrontva (03 §4.2 F)', () => {
-  test('az első V két pálcája egy szemben, csoport nélkül', () => {
+describe('V stitch, broken (03 §4.2 F)', () => {
+  test('the two doubles of the first V sit in one stitch with no group', () => {
     const example = vStitchPattern({ firstVUngrouped: true });
     assertOnly(example.pattern, 'unmarked-increase', [[example.rows[1][1], example.rows[1][3]]]);
   });
 });
 
-describe('cikcakk, elrontva (03 §4.2 G)', () => {
-  test('a völgyben összehorgolás helyett 2 kihagyott szem és egy pálca', () => {
+describe('chevron, broken (03 §4.2 G)', () => {
+  test('the valley has 2 skipped stitches and a plain double instead of a decrease', () => {
     const { pattern, valley } = chevron();
     const broken = editNode(pattern, valley.node, { def: 'dc', anchors: [valley.targets[2]] });
     assertOnly(broken, 'reach', [[valley.before, valley.node]]);
   });
 
-  test('a völgy három célpontja egy sima pálcán, fogyasztásként jelölés nélkül', () => {
+  test('the three targets of the valley sit on a plain double with no decrease marking', () => {
     const { pattern, valley } = chevron();
     assertOnly(editNode(pattern, valley.node, { def: 'dc' }), 'unmarked-decrease', [[valley.node]]);
   });
 
-  test('a völgy két pálca összehorgolása, de három célponttal', () => {
+  test('the valley is a two-double decrease but has three targets', () => {
     const { pattern, valley } = chevron();
     assertOnly(editNode(pattern, valley.node, { def: 'dc2tog' }), 'anchor-count', [[valley.node]]);
   });
 });
 
-describe('hullám: a vegyes szemmagasság nem hiba (PQW-924)', () => {
-  test('a 3. sor is rövidpálca: a hullámos minta így készül, nincs figyelmeztetés', () => {
+describe('wave: mixed stitch heights are not an error (PQW-924)', () => {
+  test('row 3 is single crochet too: this is how the wave pattern is made, so no warning', () => {
     /*
-     * A tulajdonos a horgolás szakértője: a különböző magasságú szemek egy
-     * sorban szándékos tervezői eszköz, nem hiba. Korábban a program itt
-     * „mixed-heights” figyelmeztetést adott, és a rajzon körbe is karikázta a
-     * szemeket (PQW-924).
+     * The owner is the crochet expert: stitches of different heights in one
+     * row are a deliberate design device, not a mistake. The program used to
+     * raise a "mixed-heights" warning here and circled those stitches on the
+     * chart as well (PQW-924).
      */
     const example = wave({ flatRow3: true });
     assert.deepEqual(validatePattern(example.pattern, testLibrary), []);
   });
 });
 
-describe('nagymama-négyzet, elrontva (03 §8)', () => {
-  test('a 2. kör végén a láncívek nélkül számolt szemszám (24 a 36 helyett, PQW-870)', () => {
+describe('granny square, broken (03 §8)', () => {
+  test('round 2 states a stitch count that leaves out the chain spaces (24 instead of 36, PQW-870)', () => {
     const example = grannySquare({ round2StatedCount: 24 });
     assertOnly(example.pattern, 'stated-count', [[example.rows[2].at(-1)]]);
   });
 
-  test('a 2. kör záró kúszószeme az első pálcába megy a kezdőlánc teteje helyett', () => {
+  test('the closing slip stitch of round 2 goes into the first double instead of the top of the starting chain', () => {
     const example = grannySquare({ round2JoinsFirstDc: true });
     assertOnly(example.pattern, 'round-join', [[example.rows[2].at(-1)]]);
   });
 });
 
-/* ---- Körök (PQW-861) ---- */
+/* ---- Rounds (PQW-861) ---- */
 
-/** Rövidpálcás kör varázskörből, zárt körökkel: az 1. kör 6 szem, utána körönként a megadott horgolás. */
+/** Single crochet in the round from a magic ring, rounds closed: round 1 has 6 stitches, then each round works as given. */
 function scRounds(...rounds) {
   const b = new PieceBuilder('p1', 'Kör');
   const ring = b.ring();
@@ -248,38 +249,38 @@ const plainEach = (b, below) => below.map((target) => b.stitch('sc', target));
 const byThree = (b, below) => Array.from({ length: below.length / 3 }, (_, i) => b.stitch('sc3tog', ...below.slice(3 * i, 3 * i + 3)));
 const motif = (patch) => generateMotif(emptyPattern(), { ...DEFAULT_MOTIF, ...patch }).pattern;
 
-describe('körök, elrontva (04 §2, §3.2, §8, §9, PQW-861)', () => {
-  test('a generált lapos kör eltolt szaporítással hibátlan', () => {
+describe('rounds, broken (04 §2, §3.2, §8, §9, PQW-861)', () => {
+  test('the generated flat circle with staggered increases is clean', () => {
     assert.deepEqual(validatePattern(motif({ rounds: 8 }), testLibrary), []);
   });
 
-  test('egy körben a felénél kevesebb szem marad: 12-ből 4', () => {
+  test('one round keeps less than half its stitches: 12 down to 4', () => {
     assertOnly(scRounds(increaseEach, byThree), 'round-growth');
   });
 
-  test('két körön át szaporítás nélkül: kunkorodik', () => {
+  test('two rounds with no increases: it cups', () => {
     assertOnly(scRounds(increaseEach, plainEach, plainEach), 'round-cupping');
   });
 
-  test('egy kör szaporítás nélkül még nem kunkorodás', () => {
+  test('a single round without increases is not cupping yet', () => {
     assert.deepEqual(validatePattern(scRounds(increaseEach, plainEach), testLibrary), []);
   });
 
-  test('a lapos érték kétszerese egy körben: fodrosodik', () => {
+  test('twice the flat rate of increases in one round: it ruffles', () => {
     assertOnly(scRounds(increaseEach, increaseEach), 'round-ruffling');
   });
 
-  test('eltolás nélkül a szaporítások a 3–5. körben egymás fölé kerülnek; a 4. körig még nem jelez', () => {
+  test('without staggering, the increases stack up in rounds 3-5; through round 4 nothing is reported', () => {
     assertOnly(motif({ rounds: 5, stagger: false }), 'stacked-increases');
     assert.deepEqual(validatePattern(motif({ rounds: 4, stagger: false }), testLibrary), []);
   });
 
-  test('spirálban színváltás lépcsőjavítás nélkül; javítással nem jelez', () => {
+  test('a color change in a spiral with no jog fix; with the fix nothing is reported', () => {
     assertOnly(motif({ rounds: 4, closing: 'spiral', colorEvery: 2 }), 'spiral-color-jog');
     assert.deepEqual(validatePattern(motif({ rounds: 4, closing: 'spiral', colorEvery: 2, jogFix: 'back-loop' }), testLibrary), []);
   });
 
-  test('sokszögben a sarkok szándékosan egymás fölött vannak: nem jelez', () => {
+  test('in a polygon the corners stack deliberately: nothing is reported', () => {
     for (const shape of ['square', 'hexagon', 'octagon', 'granny-square']) {
       const pattern = motif({ shape, rounds: 6 });
       assert.deepEqual(validatePattern(pattern, libraryFor(pattern)), [], shape);
@@ -289,51 +290,51 @@ describe('körök, elrontva (04 §2, §3.2, §8, §9, PQW-861)', () => {
 
 /* ---- Amigurumi (PQW-863) ---- */
 
-/** Fej (6 cm-es gömb) és test (5 cm-es henger, nyitott tetővel) varrva, egyenletes elosztással: 28 szem a 30-ra. */
+/** Head (a 6 cm sphere) and body (a 5 cm cylinder with an open top) sewn together with even distribution: 28 stitches onto 30. */
 function headAndBody(under3 = false) {
   const head = createAmigurumi(emptyPattern(), { name: 'Fej', shape: { kind: 'sphere', diameterCm: 6, method: '6n' }, stagger: true, eyes: true }, under3);
   const body = { name: 'Test', shape: { kind: 'cylinder', diameterCm: 5, heightCm: 5, bottom: 'closed', top: 'open' }, stagger: true, eyes: false };
   return addAmigurumiPart(head.pattern, body, { method: 'sewn', distribute: true }, under3).pattern;
 }
 
-describe('amigurumi, elrontva (04 §5.4, §5.7, PQW-863)', () => {
-  test('a generált fej-test figura elosztással hibátlan, 3 év alatti gyereknek is', () => {
+describe('amigurumi, broken (04 §5.4, §5.7, PQW-863)', () => {
+  test('the generated head-and-body figure with distribution is clean, including for a child under 3', () => {
     assert.deepEqual(validatePattern(headAndBody(), testLibrary), []);
     assert.deepEqual(validatePattern(headAndBody(true), testLibrary), []);
   });
 
-  test('a két összevarrt szél szemszáma eltér, és nincs elosztás', () => {
+  test('the two sewn edges have different stitch counts and there is no distribution', () => {
     const pattern = headAndBody();
     const { distribution: _distribution, ...join } = pattern.joins[0];
     assertOnly({ ...pattern, joins: [join] }, 'join-count');
   });
 
-  test('az összevarrás nem létező körre mutat', () => {
+  test('the seam points at a round that does not exist', () => {
     const pattern = headAndBody();
     assertOnly({ ...pattern, joins: [{ ...pattern.joins[0], b: { piece: 'p1', layer: 40 } }] }, 'join-edge');
   });
 
-  test('3 év alatti gyereknek szánt játékban biztonsági szem', () => {
+  test('safety eyes in a toy meant for a child under 3', () => {
     assertOnly({ ...headAndBody(), toy: { under3: true } }, 'toy-safety-eyes');
   });
 });
 
-describe('a megadott szemszám a láncszemek számolása szerint (03 §10 B10, PQW-870)', () => {
+describe('the stated stitch count follows the chain-counting convention (03 §10 B10, PQW-870)', () => {
   const withChainCounts = (example, chainCounts) => ({ ...example.pattern, conventions: { ...example.pattern.conventions, chainCounts } });
 
-  test('ha egyik láncszem sem számít, mindkét sor megadott szemszáma hibás', () => {
+  test('when no chain counts, the stated count of both rows is wrong', () => {
     const example = vStitchPattern();
     assertOnly(withChainCounts(example, false), 'stated-count', [[example.rows[1].at(-1)], [example.rows[2].at(-1)]]);
   });
 
-  test('ha csak a belehorgolt láncszemek számítanak, az utolsó sor díszíveivel megadott szemszáma hibás', () => {
+  test('when only worked-into chains count, the stated count of the last row is wrong because it includes its decorative arches', () => {
     const example = vStitchPattern();
     assertOnly(withChainCounts(example, 'worked-into'), 'stated-count', [[example.rows[2].at(-1)]]);
   });
 });
 
-describe('a szem által nem engedett beszúrási mód (01 §4.3, PQW-869)', () => {
-  test('a befejező rákhurok-sor hátsó szálba', () => {
+describe('an insertion mode the stitch does not allow (01 §4.3, PQW-869)', () => {
+  test('the finishing crab stitch row worked into the back loop', () => {
     const example = hdcRectangle({ rows: 3, crabRow: 3 });
     const id = example.rows[3][0];
     const node = example.pattern.pieces[0].stitches.find((candidate) => candidate.id === id);
@@ -342,8 +343,8 @@ describe('a szem által nem engedett beszúrási mód (01 §4.3, PQW-869)', () =
   });
 });
 
-describe('rácsos technikák (PQW-864)', () => {
-  test('tapestryben egy sorban 4 szín: figyelmeztetés a vitt színekre (03 §10 G36)', () => {
+describe('grid-based techniques (PQW-864)', () => {
+  test('4 colors in one tapestry row: a warning about the carried colors (03 §10 G36)', () => {
     const colors = ['Fehér', 'Piros', 'Kék', 'Zöld'].map((name) => ({ name, hex: '#000000' }));
     const cells = [
       [0, 1, 2, 3],
@@ -354,7 +355,7 @@ describe('rácsos technikák (PQW-864)', () => {
     assertOnly(result.pattern, 'carried-colors');
   });
 
-  /** Mozaik: a 3., 4. és 5. sorban lejjebb horgolt szem (PQW-894). */
+  /** Mosaic: a spike stitch in rows 3, 4 and 5 (PQW-894). */
   const mosaic = () => {
     const cells = [
       [0, 0, 0, 0, 0, 0, 0],
@@ -375,21 +376,21 @@ describe('rácsos technikák (PQW-864)', () => {
     return { pattern: result.pattern, graph, drop };
   };
 
-  test('mozaik: a lejjebb horgolt szem 4 sorral lejjebb túl mély (03 §5.6, §10 C17)', () => {
+  test('mosaic: a spike stitch reaching 4 rows down is too deep (03 §5.6, §10 C17)', () => {
     const { pattern, graph, drop } = mosaic();
     assert.deepEqual(validatePattern(pattern, testLibrary), []);
     const deep = graph.layers[1].stitches.find((id) => graph.defs.get(id).kind !== 'chain');
     assertOnly(editNode(pattern, drop.id, { anchors: [deep] }), 'spike-depth', [[drop.id]]);
   });
 
-  test('mozaik: jelölés nélkül, vagy már horgolt szembe lejjebb horgolni hiba (03 §10 C17)', () => {
+  test('mosaic: a spike stitch left unmarked, or aimed at an already worked stitch, is an error (03 §10 C17)', () => {
     const { pattern, graph, drop } = mosaic();
     const unflagged = {
       ...pattern,
       pieces: [{ ...pattern.pieces[0], stitches: pattern.pieces[0].stitches.map((node) => (node.id === drop.id ? { ...node, flags: undefined } : node)) }],
     };
     assert.ok(validatePattern(unflagged, testLibrary).some((finding) => finding.rule === 'anchor-layer' && finding.nodes.includes(drop.id)));
-    // A 3. sor egyik szemébe a 4. sor már horgolt: oda nem mehet lejjebb horgolt szem.
+    // Row 4 already worked into this stitch of row 3: a spike stitch cannot go there.
     const worked = graph.layers[4].stitches
       .map((id) => graph.nodes.get(id))
       .find((node) => !node.flags && node.anchors.length === 1 && graph.layerOf.get(node.anchors[0].id) === 3);
@@ -398,8 +399,8 @@ describe('rácsos technikák (PQW-864)', () => {
   });
 });
 
-describe('két váll egy darabon belül, elvágott fonal után (PQW-901)', () => {
-  /** Négy szemes 1. sor, fölötte a bal váll, majd új fonallal a jobb váll az 1. sor fölött. */
+describe('two shoulders within one piece, after fastening off (PQW-901)', () => {
+  /** A four-stitch row 1, the left shoulder above it, then the right shoulder above row 1 with a new yarn. */
   const shoulders = (resume = { layer: 1, name: 'Jobb váll' }) => {
     const builder = new PieceBuilder('p1', 'Elejerész');
     const chains = builder.chain(5);
@@ -416,11 +417,11 @@ describe('két váll egy darabon belül, elvágott fonal után (PQW-901)', () =>
     return patternOf('Két váll', [{ ...piece, events }], { turningChainCounts: false });
   };
 
-  test('a két váll hibátlan: a másik váll dolgozza fel a sor többi szemét', () => {
+  test('both shoulders are clean: the other shoulder works the rest of the row', () => {
     assert.deepEqual(validatePattern(shoulders(), testLibrary), []);
   });
 
-  test('a két váll sorszáma egyezik, mert mindkettő az 1. sor fölött áll', () => {
+  test('both shoulders get the same row number because both sit above row 1', () => {
     const pattern = shoulders();
     const graph = buildPieceGraph(pattern, pattern.pieces[0], testLibrary);
     assert.deepEqual(
@@ -434,42 +435,43 @@ describe('két váll egy darabon belül, elvágott fonal után (PQW-901)', () =>
     );
   });
 
-  test('nem létező sor fölött folytatva: hiba', () => {
+  test('resuming above a row that does not exist: an error', () => {
     assertOnly(shoulders({ layer: 9, name: 'Jobb váll' }), 'resume-layer', undefined, testLibrary);
   });
 });
 
-test('minden szabálynak van tudásbázis-hivatkozása', () => {
+test('every rule has a knowledge-base reference', () => {
   for (const [rule, def] of Object.entries(RULES)) {
-    assert.match(def.reference, /^0[1-6] §\d/, `${rule}: hiányzó vagy hibás hivatkozás`);
-    assert.ok(def.summary.trim(), `${rule}: hiányzó leírás`);
+    assert.match(def.reference, /^0[1-6] §\d/, `${rule}: missing or malformed reference`);
+    assert.ok(def.summary.trim(), `${rule}: missing summary`);
   }
 });
 
 /*
- * A tulajdonos döntése az UAT első köréből (PQW-930): „nagyon szigorúan vetted
- * a minták elkészítését. a való életben ez sokkal lazábban működik… van egy
- * hosszú »farok« az első alapláncból. hibaként jelölted. ne jelöld, csak
- * warninggal.”
+ * The owner's decision from the first round of UAT (PQW-930): "you took the
+ * making of patterns far too strictly. in real life this works much more
+ * loosely... there is a long 'tail' left over from the foundation chain. you
+ * flagged it as an error. don't - make it only a warning."
  *
- * A sor két végén kihagyott pozíció szándékos is lehet, ezért jelezzük, de nem
- * minősítjük hibának. A sor KÖZEPÉN kimaradt szem külön szabály (`reach`,
- * `reach-single`), és az hiba marad: ott a lyuk nem stílus kérdése.
+ * A skipped position at either end of a row can be deliberate, so we report it
+ * without calling it an error. A stitch missing in the MIDDLE of a row is a
+ * separate rule (`reach`, `reach-single`) and stays an error: there the hole
+ * is not a matter of style.
  */
-test('a sorvégi, be nem horgolt farok figyelmeztetés, nem hiba (PQW-930)', () => {
+test('an unworked tail at the end of a row is a warning, not an error (PQW-930)', () => {
   assert.equal(RULES['unused-position'].severity, 'warning');
   assert.equal(RULES['floating-chain'].severity, 'warning');
 });
 
-test('minden szabály felhasználói üzenete a „szem” szóval, belső fogalom és tudásbázis-kód nélkül (PQW-879)', () => {
+test('every rule has a user-facing message using the word „szem”, with no internal concept and no knowledge-base code (PQW-879)', () => {
   for (const [rule, def] of Object.entries(RULES)) {
-    assert.ok(def.message.trim(), `${rule}: hiányzó felhasználói üzenet`);
-    // A főszövegben nincs „réteg”, „darab”, sem tudásbázis-kód (§ vagy 0X-jelölés).
-    assert.doesNotMatch(def.message, /réteg|darab|§|\b0[1-6] /i, `${rule}: az üzenet belső fogalmat vagy tudásbázis-kódot tartalmaz`);
+    assert.ok(def.message.trim(), `${rule}: missing user-facing message`);
+    // The body text carries no 'réteg', no 'darab' and no knowledge-base code (a § or a 0X marker).
+    assert.doesNotMatch(def.message, /réteg|darab|§|\b0[1-6] /i, `${rule}: the message carries an internal concept or a knowledge-base code`);
   }
 });
 
 after(() => {
-  // Minden szabályhoz van legalább egy elrontott példa.
+  // Every rule has at least one broken example.
   assert.deepEqual([...tested].sort(), Object.keys(RULES).sort());
 });

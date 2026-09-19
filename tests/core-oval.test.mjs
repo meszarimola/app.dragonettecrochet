@@ -1,8 +1,8 @@
 /*
- * Ovális láncalapról (PQW-890; 04 §3.4, §9.4): a láncszem másik oldala mint
- * célpont, a körterv (az 1. kör 2L + 2, utána rövidpálcánál körönként +6), a
- * generált gráf és az ellenőrzője, az írott minta és a visszaolvasás, a mentés,
- * a rajz, és az ovális részként.
+ * The oval foundation chain (PQW-890; 04 §3.4, §9.4): the other side of a chain
+ * stitch as a target, the round schedule (round 1 is 2L + 2, then +6 per round
+ * for single crochet), the generated graph and its validator, the written
+ * pattern and reading it back, saving, the layout, and the oval as a part.
  */
 
 import { strict as assert } from 'node:assert';
@@ -24,13 +24,13 @@ import { validatePattern } from '../src/core/validate.ts';
 import { AMIGURUMI_CORE_TEXTS } from '../src/ui/i18n/core/amigurumi.ts';
 import { renderCoreText } from '../src/ui/i18n/core/render.ts';
 
-/** A 04 §4.4 mintasűrűsége: DK pamut, 3,5 mm-es tű. */
+/** The gauge of 04 §4.4: DK cotton, 3.5 mm hook. */
 const DK = { stitchesPerCm: 1.9, roundsPerCm: 2, source: 'measured', hookMm: 3.5 };
 
 const part = (shape, extra = {}) => ({ name: '', shape, stagger: true, eyes: false, ...extra });
 const oval = (lengthCm, widthCm) => ({ kind: 'oval', lengthCm, widthCm });
 
-/** A mag kódot és adatot ad (PQW-904); a magyar mondat a felület szótárából jön. */
+/** The core returns a code and data (PQW-904); the Hungarian sentence comes from the UI dictionary. */
 const hu = (message) => renderCoreText(AMIGURUMI_CORE_TEXTS.hu, message);
 const why = (result) => (result.ok ? '' : typeof result.reason === 'string' ? result.reason : hu(result.reason));
 
@@ -43,8 +43,8 @@ const rules = (pattern) => validatePattern(pattern, libraryFor(pattern)).map((fi
 const graphOf = (pattern, index = 0) => buildPieceGraph(pattern, pattern.pieces[index], libraryFor(pattern));
 const textOf = (pattern, locale = 'hu') => formatWrittenPattern(writePattern(pattern, libraryFor(pattern), locale));
 
-describe('a körterv (04 §9.4)', () => {
-  test('az 1. kör 2L + 2 szem L láncszemből, utána körönként +6; a láncszemek a hosszból, a körök a szélességből', () => {
+describe('round schedule (04 §9.4)', () => {
+  test('round 1 has 2L + 2 stitches over L chains, then +6 per round; chains come from the length, rounds from the width', () => {
     for (const [lengthCm, widthCm] of [
       [8, 5],
       [12, 4],
@@ -57,24 +57,24 @@ describe('a körterv (04 §9.4)', () => {
       assert.equal(start, 'chain');
       assert.equal(end, 'open');
       assert.equal(plan.perEnd, 3);
-      assert.equal(counts[0], 2 * plan.chains + 2, `${lengthCm} × ${widthCm}: az 1. kör`);
-      assert.ok(counts.slice(1).every((count, i) => count - counts[i] === 6), `${lengthCm} × ${widthCm}: +6 körönként`);
+      assert.equal(counts[0], 2 * plan.chains + 2, `${lengthCm} × ${widthCm}: round 1`);
+      assert.ok(counts.slice(1).every((count, i) => count - counts[i] === 6), `${lengthCm} × ${widthCm}: +6 per round`);
       assert.equal(counts.length, Math.round((widthCm / 2) * DK.roundsPerCm));
       assert.ok(plan.chains >= 3);
     }
   });
 
-  test('a hossz a hosszabbik méret; hibás méretnél érthető üzenet', () => {
+  test('length must be the larger dimension, and an invalid size says why', () => {
     assert.equal(shapeSchedule(oval(4, 6), DK).reason.code, 'oval-length');
     assert.match(hu(shapeSchedule(oval(4, 6), DK).reason), /hossza legalább akkora/);
-    // A mezőnév és a névelő a szótáré: a magban csak a mező azonosítója marad (PQW-904).
+    // The field name and its article belong to the dictionary: the core keeps only the field id (PQW-904).
     assert.deepEqual(shapeSchedule(oval(Number.NaN, 4), DK).reason, { code: 'size-range', data: { field: 'length', max: 100 } });
     assert.match(hu(shapeSchedule(oval(Number.NaN, 4), DK).reason), /^A hossz /);
   });
 });
 
-describe('a generált ovális gráfja', () => {
-  test('az 1. kör elöl minden láncszembe, a legtávolabbiba 4 rp, a másik oldalon vissza, a horoghoz legközelebbibe 3 rp', () => {
+describe('graph of the generated oval', () => {
+  test('round 1 works into every chain on the front, 4 sc into the farthest chain, then back along the other side with 3 sc into the chain nearest the hook', () => {
     const pattern = ok(createAmigurumi(emptyPattern(), part(oval(8, 5)), false));
     assert.deepEqual(rules(pattern), []);
     const graph = graphOf(pattern);
@@ -85,7 +85,7 @@ describe('a generált ovális gráfja', () => {
 
     const anchors = first.stitches.flatMap((id) => graph.nodes.get(id).anchors);
     const into = (kind, id) => anchors.filter((anchor) => anchor.into === kind && anchor.id === id).length;
-    // Fonalsorrendben az első láncszem a legtávolabbi a horogtól.
+    // In yarn order the first chain is the one farthest from the hook.
     assert.equal(into('stitch', base.positions[0]), 4);
     assert.equal(into('underside', base.positions[0]), 0);
     assert.equal(into('stitch', base.positions[W - 1]), 1);
@@ -95,14 +95,14 @@ describe('a generált ovális gráfja', () => {
     assert.deepEqual(groups.map((group) => group.def).sort(), ['inc-3sc', 'inc-4sc']);
   });
 
-  test('a körök szemszáma a körterv szerint; eltolással és anélkül, becsült és mért mintasűrűséggel is hibátlan, hosszú oválisnál is', () => {
+  test('round stitch counts follow the schedule; clean with and without stagger, with estimated and measured gauge, and for a long oval', () => {
     const dk = { ...emptyPattern(), gauge: undefined };
     for (const base of [emptyPattern(), dk]) {
       for (const shape of [oval(8, 5), oval(15, 12), oval(5, 1)]) {
         for (const stagger of [true, false]) {
           const result = createAmigurumi(base, part(shape, { stagger }), false);
           const pattern = ok(result);
-          assert.deepEqual(rules(pattern), [], `${shape.lengthCm} × ${shape.widthCm}, eltolás: ${stagger}`);
+          assert.deepEqual(rules(pattern), [], `${shape.lengthCm} × ${shape.widthCm}, stagger: ${stagger}`);
           assert.deepEqual(
             computeLayers(pattern, libraryFor(pattern)).slice(1).map((layer) => layer.stitchCount),
             result.schedule.counts,
@@ -113,8 +113,8 @@ describe('a generált ovális gráfja', () => {
   });
 });
 
-describe('írott minta és visszaolvasás', () => {
-  test('az 1. kör: kihagyás, elöl a láncszemekbe, a láncszemek másik oldalán vissza', () => {
+describe('written pattern and reading it back', () => {
+  test('round 1 reads as a skip, the stitches into the front of the chain, then back along the other side', () => {
     const pattern = ok(createAmigurumi(emptyPattern(), part(oval(8, 5)), false));
     const hu = textOf(pattern);
     assert.ok(
@@ -126,7 +126,7 @@ describe('írott minta és visszaolvasás', () => {
     assert.match(textOf(pattern, 'en-GB'), /Rnd 1: miss 1 ch, 6 dc, 4 dc in next ch, working back along the other side of the chain: 5 dc, 3 dc in next ch \(18\)\./);
   });
 
-  test('a szöveg visszaolvasva ugyanazt a gráfot adja, mindhárom jelöléssel', () => {
+  test('reading the text back gives the same graph in all three notations', () => {
     for (const shape of [oval(8, 5), oval(14, 8)]) {
       const pattern = ok(createAmigurumi(emptyPattern(), part(shape), false));
       const library = libraryFor(pattern);
@@ -138,7 +138,7 @@ describe('írott minta és visszaolvasás', () => {
     }
   });
 
-  test('a „másik oldal” csak a láncalapra horgolt 1. körben értelmezhető', () => {
+  test('the other side of the chain is only meaningful in round 1 on a foundation chain', () => {
     const pattern = ok(createAmigurumi(emptyPattern(), part(oval(8, 5)), false));
     const text = textOf(pattern).replace('2. kör: ', '2. kör: a láncszemek másik oldalán vissza: ');
     const back = readPattern(text, { library: libraryFor(pattern), locale: 'hu', conventions: pattern.conventions });
@@ -146,8 +146,8 @@ describe('írott minta és visszaolvasás', () => {
   });
 });
 
-describe('mentés', () => {
-  test('a láncszem másik oldala és az ovális forma a JSON-mentésben megmarad; a móddal megadott másik oldal hibás', () => {
+describe('saving', () => {
+  test('the chain underside and the oval shape survive a JSON round trip; an underside anchor with a loop mode is rejected', () => {
     const pattern = ok(createAmigurumi(emptyPattern(), part(oval(8, 5)), false));
     const loaded = loadPattern(savePattern(pattern));
     assert.ok(loaded.ok);
@@ -159,27 +159,28 @@ describe('mentés', () => {
   });
 });
 
-describe('az ellenőrző az ovális 1. körén', () => {
-  /** Egykörös ovális: a hibák nem húzódnak át a következő körbe. */
+describe('the validator on round 1 of an oval', () => {
+  /** A single-round oval: faults cannot leak into a following round. */
   const single = () => ok(createAmigurumi(emptyPattern(), part(oval(5, 1)), false));
   const withAnchor = (pattern, id, anchors) => ({
     ...pattern,
     pieces: [{ ...pattern.pieces[0], stitches: pattern.pieces[0].stitches.map((node) => (node.id === id ? { ...node, anchors } : node)) }],
   });
 
-  test('az egykörös ovális hibátlan', () => {
+  test('a single-round oval validates clean', () => {
     const pattern = single();
     assert.equal(graphOf(pattern).layers.length, 2);
     assert.deepEqual(rules(pattern), []);
   });
 
-  test('a másik oldal egy láncszeme kimarad: felhasználatlan pozíció', () => {
+  test('leaving out one chain on the other side reports an unused position', () => {
     const pattern = single();
     const graph = graphOf(pattern);
     const [base, first] = graph.layers;
     const back = first.stitches.find((id) => graph.nodes.get(id).anchors[0]?.into === 'underside' && !graph.groupOf.has(id));
     const target = graph.nodes.get(back).anchors[0].id;
-    // A szem a következő láncszem másik oldalába kerül: ott kettő lesz jelöletlenül, ez kimarad.
+    // The stitch moves into the next chain underside: that one then holds two without a marked
+    // increase, and this one is left out.
     const next = base.positions[base.positions.indexOf(target) + 1];
     const broken = withAnchor(pattern, back, [{ into: 'underside', id: next }]);
     const found = new Set(rules(broken));
@@ -187,7 +188,7 @@ describe('az ellenőrző az ovális 1. körén', () => {
     assert.deepEqual([...found].filter((rule) => rule !== 'unused-position' && rule !== 'unmarked-increase'), []);
   });
 
-  test('a másik oldal célpontja nem a láncalap láncszeme, hanem az 1. kör egy korábbi szeme: rossz sorba mutat', () => {
+  test('an underside anchor aimed at an earlier round 1 stitch instead of a foundation chain points at the wrong layer', () => {
     const pattern = single();
     const graph = graphOf(pattern);
     const first = graph.layers[1];
@@ -197,7 +198,7 @@ describe('az ellenőrző az ovális 1. körén', () => {
     assert.deepEqual([...new Set(rules(broken))], ['anchor-layer']);
   });
 
-  test('elöl két szem célpontja felcserélve: a haladási iránnyal szemben', () => {
+  test('swapping the targets of two stitches on the front works against the direction of travel', () => {
     const pattern = single();
     const graph = graphOf(pattern);
     const first = graph.layers[1];
@@ -208,8 +209,8 @@ describe('az ellenőrző az ovális 1. körén', () => {
   });
 });
 
-describe('rajz és részek', () => {
-  test('a rajzon a láncalap egyenesen, az 1. kör elöl és a másik oldalán a láncalap két oldalán áll', () => {
+describe('layout and parts', () => {
+  test('the layout draws the foundation chain straight, with the front and underside stitches of round 1 on opposite sides of it', () => {
     const pattern = ok(createAmigurumi(emptyPattern(), part(oval(8, 5)), false));
     const graph = graphOf(pattern);
     const layout = layoutPattern(pattern, libraryFor(pattern));
@@ -224,7 +225,7 @@ describe('rajz és részek', () => {
     assert.notDeepEqual([...front], [...back]);
   });
 
-  test('részként: talpként egy gömbhöz varrva, és a fal folytatólagosan az ovális szélén', () => {
+  test('as a part: sewn to a sphere as a sole, and a wall continued from the edge of the oval', () => {
     const head = ok(createAmigurumi(emptyPattern(), part({ kind: 'sphere', diameterCm: 6, method: '6n' }, { name: 'Fej' }), false));
     const sewn = ok(addAmigurumiPart(head, part(oval(8, 5), { name: 'Talp' }), { method: 'sewn', distribute: true }, false));
     assert.deepEqual(rules(sewn), []);
@@ -235,21 +236,21 @@ describe('rajz és részek', () => {
     const joined = ok(addAmigurumiPart(sole, part(wall, { name: 'Fal' }), { method: 'continuous', distribute: true }, false));
     assert.deepEqual(rules(joined), []);
     assert.deepEqual(joined.pieces[0].sections.map((section) => section.name), ['Talp', 'Fal']);
-    // A lapos talp nem tömött: a tömés jelölése nincs az ovális után.
+    // A flat sole is not stuffed: no stuffing note follows the oval.
     assert.ok(!textOf(sole).includes('tömés'));
   });
 
-  test('önállóan a kör- és a gömbösítő ellenőrzés nem jelez; a mintasűrűség a profilból', () => {
+  test('on its own the round and sphere checks stay quiet; the gauge comes from the profile', () => {
     assert.equal(roundGaugeOf(emptyPattern()).source, 'estimated');
   });
 });
 
-/* ---- PQW-899: félpálcás és pálcás ovális, kézi horgolás, másolás, a figura magassága ---- */
+/* ---- PQW-899: half double and double crochet ovals, crocheting by hand, copying, figure height ---- */
 
 const withTradition = (tradition) => ({ ...emptyPattern(), conventions: { ...emptyPattern().conventions, tradition } });
 
-describe('félpálcás és pálcás ovális (PQW-899)', () => {
-  test('végenként a lapos érték fele: félpálcánál körönként +8, pálcánál +12; a láncszemek a szem kezdőláncával', () => {
+describe('half double and double crochet ovals (PQW-899)', () => {
+  test('each end increases by half the flat-circle value: +8 per round for hdc, +12 for dc; the chain count includes the turning chain of the stitch', () => {
     const base = emptyPattern();
     for (const [stitch, perEnd, turningChain] of [
       ['sc', 3, 1],
@@ -261,15 +262,15 @@ describe('félpálcás és pálcás ovális (PQW-899)', () => {
       const { counts, oval: plan } = planned.schedule;
       assert.deepEqual([plan.stitch, plan.perEnd, plan.turningChain], [stitch, perEnd, turningChain]);
       const W = plan.chains - turningChain;
-      assert.equal(counts[0], 2 * W - 2 + 2 * perEnd, `${stitch}: az 1. kör`);
-      assert.ok(counts.slice(1).every((count, i) => count - counts[i] === 2 * perEnd), `${stitch}: +${2 * perEnd} körönként`);
+      assert.equal(counts[0], 2 * W - 2 + 2 * perEnd, `${stitch}: round 1`);
+      assert.ok(counts.slice(1).every((count, i) => count - counts[i] === 2 * perEnd), `${stitch}: +${2 * perEnd} per round`);
     }
-    // A rövidpálcás ovális a PQW-890 szerint marad: 2L + 2.
+    // The single crochet oval stays as PQW-890 defined it: 2L + 2.
     const sc = shapeSchedule(oval(8, 5), DK).schedule;
     assert.equal(sc.counts[0], 2 * sc.oval.chains + 2);
   });
 
-  test('kétráhajtásos pálcás ovális (PQW-902): végenként 8 szaporítás, 4 láncszemes kezdőlánccal, hibátlanul', () => {
+  test('treble crochet oval (PQW-902): 8 increases per end over a 4-chain turning chain, and it validates clean', () => {
     const base = emptyPattern();
     const planned = shapeSchedule({ ...oval(16, 10), stitch: 'tr' }, roundGaugeOf(base, 'tr'));
     assert.ok(planned.ok, why(planned));
@@ -282,13 +283,13 @@ describe('félpálcás és pálcás ovális (PQW-899)', () => {
     assert.match(textOf(pattern), /1\. kör: hagyj ki 4 láncszemet, majd \d+ krp, 9 krp a következő láncszembe, a láncszemek másik oldalán vissza: /);
   });
 
-  test('a generált ovális hibátlan, a körök szemszáma a körterv szerint, CYC és japán hagyománnyal, eltolással és anélkül', () => {
+  test('the generated oval validates clean and its round counts follow the schedule, under CYC and Japanese tradition, with and without stagger', () => {
     for (const base of [emptyPattern(), withTradition('japanese')]) {
       for (const stitch of ['hdc', 'dc', 'tr']) {
         for (const stagger of [true, false]) {
           const result = createAmigurumi(base, part({ ...oval(12, 8), stitch }, { stagger }), false);
           const pattern = ok(result);
-          const label = `${stitch}, ${base.conventions.tradition ?? 'cyc'}, eltolás: ${stagger}`;
+          const label = `${stitch}, ${base.conventions.tradition ?? 'cyc'}, stagger: ${stagger}`;
           assert.deepEqual(rules(pattern), [], label);
           assert.deepEqual(computeLayers(pattern, libraryFor(pattern)).slice(1).map((layer) => layer.stitchCount), result.schedule.counts, label);
         }
@@ -296,7 +297,7 @@ describe('félpálcás és pálcás ovális (PQW-899)', () => {
     }
   });
 
-  test('a számító kezdőlánc (pálca) a horoghoz legközelebbi vég egyik szeme; a nem számító (félpálca) nem', () => {
+  test('a counting turning chain (dc) is one of the stitches at the end nearest the hook; a non-counting one (hdc) is not', () => {
     const dc = ok(createAmigurumi(emptyPattern(), part({ ...oval(8, 5), stitch: 'dc' }), false));
     const hdc = ok(createAmigurumi(emptyPattern(), part({ ...oval(8, 5), stitch: 'hdc' }), false));
     const first = (pattern) => graphOf(pattern).layers[1];
@@ -307,7 +308,7 @@ describe('félpálcás és pálcás ovális (PQW-899)', () => {
     assert.deepEqual(groups(hdc), ['inc-5hdc', 'inc-4hdc']);
   });
 
-  test('az írott minta a szem kezdőláncának kihagyásával, és visszaolvasva ugyanazt a gráfot adja, mindhárom jelöléssel', () => {
+  test('the written pattern skips the turning chain of the stitch, and reads back to the same graph in all three notations', () => {
     const dc = ok(createAmigurumi(emptyPattern(), part({ ...oval(8, 5), stitch: 'dc' }), false));
     assert.ok(
       textOf(dc).includes('1. kör: hagyj ki 3 láncszemet, majd 6 erp, 7 erp a következő láncszembe, a láncszemek másik oldalán vissza: 5 erp, 5 erp a következő láncszembe (24).'),
@@ -326,7 +327,7 @@ describe('félpálcás és pálcás ovális (PQW-899)', () => {
     }
   });
 
-  test('mentés: a szem megmarad, a szem nélküli régi mentés rövidpálcás, ismeretlen szem hibás', () => {
+  test('saving keeps the stitch, an older save without one loads as single crochet, and an unknown stitch is rejected', () => {
     const pattern = ok(createAmigurumi(emptyPattern(), part({ ...oval(8, 5), stitch: 'hdc' }), false));
     const loaded = loadPattern(savePattern(pattern));
     assert.ok(loaded.ok);
@@ -338,19 +339,19 @@ describe('félpálcás és pálcás ovális (PQW-899)', () => {
     assert.equal(loadPattern(JSON.stringify(raw)).ok, false);
   });
 
-  test('a figura magassága: a lapos ovális a kelme vastagságával járul hozzá, nem a körmagassággal', () => {
+  test('figure height: a flat oval contributes the fabric thickness, not a round height', () => {
     const base = emptyPattern();
     for (const stitch of ['sc', 'dc']) {
       const gauge = roundGaugeOf(base, stitch);
       const sole = ok(createAmigurumi(base, part({ ...oval(8, 5), stitch }, { name: 'Talp' }), false));
       const size = figureSize(sole);
-      // A vastagság két fonalátmérő, a fonal átmérője a tűből (02 §1.6); a szem magasságától független.
+      // Thickness is two yarn diameters and the yarn diameter comes from the hook (02 §1.6); it does not depend on stitch height.
       const thickness = fabricThicknessCm(gauge.hookMm);
       assert.equal(size.parts[0].sections[0].schedule.heightCm, thickness, stitch);
       assert.equal(size.heightCm, thickness, stitch);
-      assert.ok(size.widthCm >= 7 && size.widthCm <= 9, `${stitch}: a hossz a szélesség`);
+      assert.ok(size.widthCm >= 7 && size.widthCm <= 9, `${stitch}: length is the width`);
     }
-    // Varrva a gömb a talpra ül: a figura magassága a gömbé és a talp vastagságáé, a besüllyedő süveggel csökkentve.
+    // Sewn on, the sphere sits on the sole: figure height is the sphere plus the sole thickness, less the cap that sinks in.
     const head = ok(createAmigurumi(base, part({ kind: 'sphere', diameterCm: 6, method: '6n' }, { name: 'Test' }), false));
     const figure = figureSize(ok(addAmigurumiPart(head, part(oval(8, 5), { name: 'Talp' }), { method: 'sewn', distribute: true }, false)));
     const alone = figureSize(head);
@@ -358,13 +359,13 @@ describe('félpálcás és pálcás ovális (PQW-899)', () => {
   });
 });
 
-describe('kézi horgolás a láncszem másik oldalába (PQW-899)', () => {
+describe('crocheting into the other side of the chain by hand (PQW-899)', () => {
   const mode = { roundsOnChain: true };
   const chains = (count) => ok(work(emptyPattern(), { def: 'ch', count }, 0));
   const cursorOf = (pattern, stitch = 'sc', editorMode = mode) => defaultCursor(pattern, contextOf(pattern, editorMode), stitch);
   const place = (pattern, stitch = 'sc') => ok(work(pattern, { def: stitch, count: 1 }, cursorOf(pattern, stitch), [], mode));
 
-  /** Az 1. kör a vezetett kurzorral: elöl a legtávolabbi láncszemig, ott `far` szem, a másik oldalon vissza, a végén `near` szem. */
+  /** Round 1 with the guided cursor: along the front to the farthest chain, `far` stitches there, back along the other side, and `near` stitches at the end. */
   function guided(count, stitch = 'sc', far = 4, near = 3) {
     let pattern = chains(count);
     do pattern = place(pattern, stitch);
@@ -375,7 +376,7 @@ describe('kézi horgolás a láncszem másik oldalába (PQW-899)', () => {
     return ok(endRoundSpiral(pattern));
   }
 
-  test('amigurumiban a láncalapon a kurzor a kezdőlánc utáni láncszemre áll; sorban marad a sor szabálya', () => {
+  test('on a foundation chain in amigurumi mode the cursor lands on the chain after the turning chain; in row mode the row rule still applies', () => {
     const pattern = chains(8);
     assert.equal(cursorOf(pattern, 'sc'), 1);
     assert.equal(cursorOf(pattern, 'hdc'), 2);
@@ -384,7 +385,7 @@ describe('kézi horgolás a láncszem másik oldalába (PQW-899)', () => {
     assert.equal(contextOf(pattern, {}).oval, false);
   });
 
-  test('a másik oldal célpontjai az első szem után jelennek meg, a legtávolabbi láncszem nélkül; a vég után oda ugrik a kurzor', () => {
+  test('underside targets appear after the first stitch, without the farthest chain, and the cursor jumps there once the end is worked', () => {
     let pattern = chains(8);
     assert.equal(contextOf(pattern, mode).slots.length, 8);
     pattern = place(pattern);
@@ -400,7 +401,7 @@ describe('kézi horgolás a láncszem másik oldalába (PQW-899)', () => {
     assert.equal(at.slots[cursorOf(pattern)].id, base.positions[1]);
   });
 
-  test('a vezetett kurzorral horgolt 1. kör hibátlan, és ugyanaz, mint a generált ovális 1. köre', () => {
+  test('round 1 crocheted with the guided cursor validates clean and matches round 1 of the generated oval', () => {
     const manual = guided(8);
     assert.deepEqual(rules(manual), []);
     const generated = ok(createAmigurumi(emptyPattern(), part(oval(8, 5)), false));
@@ -410,24 +411,24 @@ describe('kézi horgolás a láncszem másik oldalába (PQW-899)', () => {
     for (const stitch of ['hdc', 'dc']) assert.deepEqual(rules(guided(9, stitch, 5, 4)), [], stitch);
   });
 
-  test('horgolás közben nem jelez hibát a láncalap kezdése: a kör a kezdőlánc utáni láncszembe megy', () => {
+  test('the foundation-chain start is not flagged mid-crochet: the round goes into the chain after the turning chain', () => {
     let pattern = chains(8);
     for (let k = 0; k < 7; k += 1) pattern = place(pattern);
     for (let k = 0; k < 3; k += 1) pattern = ok(workIntoSame(pattern, 'sc'));
-    // A gráf még sornak látja (a másik oldalon nincs szem), az ellenőrző ezért jelezné a láncalap kezdését.
+    // The graph still sees a row (nothing on the other side yet), so the validator would flag the foundation-chain start.
     assert.deepEqual(rules(pattern), ['foundation-chain']);
     const context = contextOf(pattern, mode);
     assert.deepEqual(liveCheck(pattern, context).findings, []);
-    // A másik oldal első szemével kör lesz, és a láncalap kezdésének jelzése magától elmúlik;
-    // a még hátralévő célpontok („felhasználatlan pozíció”) a félkész kör jelzései.
+    // The first underside stitch makes it a round and the foundation-chain finding clears itself;
+    // the targets still left over are just the half-finished round reporting an unused position.
     const back = place(pattern);
     assert.deepEqual([...new Set(rules(back))], ['unused-position']);
     assert.deepEqual(liveCheck(back, contextOf(back, mode)).findings, []);
-    // Sorban a jelzés megmarad: ott a fordulólánc alapláncszemét is át kell ugrani.
+    // In row mode the finding stays: there the base chain of the turning chain has to be skipped too.
     assert.deepEqual(liveCheck(pattern, contextOf(pattern)).findings.map((finding) => finding.rule), ['foundation-chain']);
   });
 
-  test('a „Sor kitöltése” a legtávolabbi láncszem után a láncszemek másik oldalán folytatódik', () => {
+  test('fill row continues along the other side of the chain once it passes the farthest chain', () => {
     const filled = ok(fillRow(chains(8), { def: 'sc', count: 1 }, mode));
     const anchors = filled.pieces[0].stitches.flatMap((node) => node.anchors);
     assert.deepEqual(
@@ -435,12 +436,12 @@ describe('kézi horgolás a láncszem másik oldalába (PQW-899)', () => {
       [7, 6],
     );
     assert.deepEqual(rules(ok(endRoundSpiral(filled))), []);
-    // Mód nélkül sor marad: a másik oldalba nem horgol.
+    // Without that mode it stays a row: nothing is worked into the other side.
     const row = ok(fillRow(chains(8), { def: 'sc', count: 1 }));
     assert.ok(row.pieces[0].stitches.every((node) => node.anchors.every((anchor) => anchor.into !== 'underside')));
   });
 
-  test('a másik oldal célpontja a rajzon a láncszem túloldalán áll, szemben az elöl belehorgolt szemmel', () => {
+  test('in the layout an underside target sits on the far side of the chain, opposite the stitch worked into its front', () => {
     let pattern = chains(8);
     for (let k = 0; k < 3; k += 1) pattern = place(pattern);
     const context = contextOf(pattern, mode);
@@ -453,13 +454,13 @@ describe('kézi horgolás a láncszem másik oldalába (PQW-899)', () => {
     assert.ok(Math.sign(back.y - chain.y) !== Math.sign(front.y - chain.y), `${back.y} / ${front.y} / ${chain.y}`);
   });
 
-  test('másolás: az 1. kör egyedül érthető üzenettel nem másolható; a láncalappal együtt üres mintába beilleszthető, duplikálni nem', () => {
+  test('copying: round 1 alone is refused with a reason; together with the foundation chain it pastes into an empty pattern but cannot be duplicated', () => {
     const pattern = guided(8);
     const graph = graphOf(pattern);
     const [base, first] = graph.layers;
     const alone = copySelection(pattern, first.stitches);
     assert.equal(alone.ok, false);
-    // A kijelölés üzenetei a saját kódkészletükkel (PQW-904, másik terület): itt a kód számít.
+    // Selection reasons use their own code set (PQW-904, a different area): here the code is what matters.
     assert.equal(alone.reason.code, 'copy-oval-first-round');
     assert.equal(duplicateSelection(pattern, first.stitches).reason.code, 'copy-oval-first-round');
 

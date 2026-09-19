@@ -1,12 +1,4 @@
-/*
- * A „Forma” szakasz (PQW-862): forma, szem, méretek cm-ben vagy az él szögével,
- * téglalapnál mintaismétlés, előnézet a tényleges mérettel, és a
- * minta létrehozása.
- *
- * A mezők az index.html-ben vannak. A létrehozás a mintát cseréli, ezért egy
- * lépésben visszavonható; új tárolókulcs nincs, a választás csak a lapon él. A
- * szakasz csak nyitva számol, mert a vászon egérmozgásra is frissít.
- */
+// KB: interface.md §7
 
 import { activeProfile } from '../core/pattern-size.js';
 import { generateShape, planShape, type ShapeOptions } from '../core/shapes.js';
@@ -28,14 +20,12 @@ import {
 } from './shapes-view.js';
 
 export interface ShapesPanelHost {
-  /** Az új minta a visszavonási veremre, az üzenettel. */
   commit(pattern: Pattern, message: string): void;
   announce(message: string): void;
 }
 
 const SVG = 'http://www.w3.org/2000/svg';
 
-/** A szám a mezőből; tizedesvesszőt és -pontot is elfogad. Üres vagy érvénytelen mezőre `NaN`: az okot a mag adja. */
 function decimal(input: HTMLInputElement): number {
   const text = input.value.trim().replace(',', '.');
   return text === '' ? Number.NaN : Number(text);
@@ -142,7 +132,6 @@ export class ShapesPanel {
   }
 
   #options(): ShapeOptions {
-    // Bordás szegély a felső élen (PQW-909).
     const ribbing = this.#ribbing.checked ? { rows: decimal(this.#ribbingRows), width: decimal(this.#ribbingWidth) } : null;
     return normalizeShape({
       ribbing,
@@ -169,7 +158,6 @@ export class ShapesPanel {
 
     const planned = planShape(this.#pattern, options);
     const view = planned.ok ? shapeView(planned.plan, options, activeProfile(this.#pattern) !== null) : null;
-    // Az indok mondata a felületé (PQW-904): a mag kódot és adatot ad.
     const reason = planned.ok ? null : shapeReason(planned.reason);
     const key = JSON.stringify([planned.ok ? view : reason, planned.ok ? shapeOutline(planned.plan) : null]);
     if (key === this.#shown) return;
@@ -194,7 +182,6 @@ export class ShapesPanel {
     this.#draw(shapeOutline(planned.plan));
   }
 
-  /** Az előnézet: a forma lépcsős körvonala a tényleges arányban. */
   #draw(outline: ShapeOutline | null): void {
     this.#previewBox.hidden = outline === null;
     if (!outline) {

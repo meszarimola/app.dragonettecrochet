@@ -1,7 +1,7 @@
 /*
- * A stíluslap épsége (PQW-881). Egy ütközésfeloldásnál kimaradt záró zárójel
- * után a böngésző a stíluslap további részét eldobta, és a felület szétesett;
- * sem a build, sem a többi teszt nem vette észre.
+ * Stylesheet integrity (PQW-881). A closing brace lost while resolving a
+ * conflict made the browser drop the rest of the stylesheet and the interface
+ * fell apart; neither the build nor the other tests noticed.
  */
 
 import { strict as assert } from 'node:assert';
@@ -10,7 +10,7 @@ import { test } from 'node:test';
 
 const css = readFileSync(new URL('../src/ui/styles.css', import.meta.url), 'utf8');
 
-/** A kapcsos zárójelek egyensúlya megjegyzések és karakterláncok nélkül. */
+/** Brace balance, ignoring comments and string literals. */
 function unclosedBlocks(source) {
   const code = source.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' ')).replace(/'[^'\n]*'|"[^"\n]*"/g, "''");
   const open = [];
@@ -19,21 +19,21 @@ function unclosedBlocks(source) {
     if (char === '\n') line += 1;
     else if (char === '{') open.push(line);
     else if (char === '}') {
-      assert.ok(open.length > 0, `fölösleges „}” a ${line}. sorban`);
+      assert.ok(open.length > 0, `stray „}” on line ${line}`);
       open.pop();
     }
   }
   return open;
 }
 
-test('a stíluslap minden blokkja le van zárva', () => {
-  assert.deepEqual(unclosedBlocks(css), [], 'le nem zárt blokk kezdősora(i)');
+test('every block in the stylesheet is closed', () => {
+  assert.deepEqual(unclosedBlocks(css), [], 'starting line(s) of the unclosed block(s)');
 });
 
-test('az ellenőrzés kiszúrja a hiányzó záró zárójelet', () => {
+test('the check spots a missing closing brace', () => {
   assert.deepEqual(unclosedBlocks('.a {\n  color: red;\n/* megjegyzés { */\n.b { content: "}"; }\n'), [1]);
 });
 
-test('nincs ütközésjelölő a stíluslapban', () => {
+test('the stylesheet carries no merge conflict markers', () => {
   assert.doesNotMatch(css, /^(<{7}|={7}|>{7})/m);
 });

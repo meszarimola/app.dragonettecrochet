@@ -20,8 +20,8 @@ function loadError(text) {
   return result.error;
 }
 
-describe('mérési fájl betöltése (docs/calibration/)', () => {
-  test('a sík példafájl mérésenként egy mintát ad: blokkolás előtt és után', () => {
+describe('loading a measurement file (docs/calibration/)', () => {
+  test('the flat example file yields one sample per measurement: before and after blocking', () => {
     const [before, after] = samplesFrom(exampleText(ROWS_EXAMPLE));
     assert.equal(before.sampleId, 'GS-20260915-01');
     assert.equal(before.blocked, false);
@@ -33,7 +33,7 @@ describe('mérési fájl betöltése (docs/calibration/)', () => {
     assert.match(before.notes, /Kitalált példaértékek/);
   });
 
-  test('szemenkénti szélesség és sormagasság: az átlag osztva a lefedett szem- és sorszámmal', () => {
+  test('per-stitch width and row height divide the mean by the stitches and rows it spans', () => {
     const [before, after] = samplesFrom(exampleText(ROWS_EXAMPLE));
     near(before.widthMm.mean, 5.65);
     near(before.widthMm.sd, 0.05);
@@ -44,17 +44,17 @@ describe('mérési fájl betöltése (docs/calibration/)', () => {
     assert.deepEqual(before.drift, []);
   });
 
-  test('területre jutó tömeg és szemenkénti fonal a mért tömegből és a címkéből', () => {
+  test('mass per area and yarn per stitch come from the weighed swatch and the label', () => {
     const [before, after] = samplesFrom(exampleText(ROWS_EXAMPLE));
     assert.equal(before.massPerAreaGPerCm2, null);
     assert.equal(before.yarnPerStitchCm, null);
     near(after.swatchAreaCm2, 144.9);
     near(after.massPerAreaGPerCm2, 8.6 / 144.9);
-    // g/cm² × szemterület (cm²) × 2,5 m/g × 100 cm/m
+    // g/cm² × stitch area (cm²) × 2.5 m/g × 100 cm/m
     near(after.yarnPerStitchCm, (8.6 / 144.9) * ((5.7 * 4.45) / 100) * 2.5 * 100);
   });
 
-  test('a cső területe a kilapított szélesség kétszerese', () => {
+  test('a tube swatch has twice the area of its flattened width', () => {
     const [tube] = samplesFrom(exampleText(TUBE_EXAMPLE));
     assert.equal(tube.workedIn, 'rounds-tube');
     near(tube.widthMm.mean, 5.5);
@@ -63,7 +63,7 @@ describe('mérési fájl betöltése (docs/calibration/)', () => {
     near(tube.massPerAreaGPerCm2, 9.5 / 134.4);
   });
 
-  test('lapos kör: szélesség a kerületből, körmagasság a sugárból, terület az átmérőből', () => {
+  test('flat circle: width from the circumference, round height from the radius, area from the diameter', () => {
     const text = edited(TUBE_EXAMPLE, (file) => {
       file.construction = { workedIn: 'rounds-flat', start: 'magic-ring', roundJoin: 'spiral', rounds: 8, lastRoundStitches: 48 };
       const [measurement] = file.measurements;
@@ -78,7 +78,7 @@ describe('mérési fájl betöltése (docs/calibration/)', () => {
     assert.equal(circle.shape, 'cupping');
   });
 
-  test('láncszemsor: láncszemenkénti hossz, és a profilban külön érték', () => {
+  test('chain row: length per chain, kept as its own value in the profile', () => {
     const text = edited(ROWS_EXAMPLE, (file) => {
       file.stitch = { id: 'ch', insertion: 'both-loops' };
       file.construction = { workedIn: 'chain', chains: 20 };
@@ -92,12 +92,12 @@ describe('mérési fájl betöltése (docs/calibration/)', () => {
     assert.deepEqual(profile.perStitch, {});
   });
 
-  test('a kalibrációs `slst` a könyvtár `sl-st` azonosítója lesz', () => {
+  test('the calibration `slst` maps onto the library id `sl-st`', () => {
     const [sample] = samplesFrom(edited(TUBE_EXAMPLE, (file) => (file.stitch.id = 'slst')));
     assert.equal(sample.stitch, 'sl-st');
   });
 
-  test('5 %-nál nagyobb szórás a leolvasásokban figyelmeztetést ad (02 §3.1, §9 10.)', () => {
+  test('a spread wider than 5 % across the readings reports drift (02 §3.1, §9 10.)', () => {
     const [sample] = samplesFrom(edited(TUBE_EXAMPLE, (file) => (file.measurements[0].grid.widthMm = [56, 57, 60])));
     assert.equal(sample.drift.length, 1);
     assert.equal(sample.drift[0].path, '$.measurements[0].grid.widthMm');
@@ -105,22 +105,22 @@ describe('mérési fájl betöltése (docs/calibration/)', () => {
   });
 });
 
-describe('hibás mérési fájl', () => {
-  test('érvénytelen JSON', () => {
+describe('a broken measurement file', () => {
+  test('invalid JSON', () => {
     assert.equal(loadError('{"schemaVersion": 1,').code, 'invalid-json');
   });
 
-  test('ismeretlen sémaverzió', () => {
+  test('unknown schema version', () => {
     const error = loadError(edited(ROWS_EXAMPLE, (file) => (file.schemaVersion = 2)));
     assert.deepEqual([error.code, error.path], ['unsupported-version', '$.schemaVersion']);
   });
 
-  test('hiányzó kötelező mező, mezőútvonallal', () => {
+  test('a missing required field, reported with its field path', () => {
     const error = loadError(edited(ROWS_EXAMPLE, (file) => delete file.hook.mm));
     assert.deepEqual([error.code, error.path], ['invalid-format', '$.hook.mm']);
   });
 
-  test('ismeretlen mező: az elírás nem vész el', () => {
+  test('an unknown field: the typo is not silently swallowed', () => {
     assert.equal(loadError(edited(ROWS_EXAMPLE, (file) => (file.megjegyzes = 'x'))).path, '$.megjegyzes');
     assert.equal(
       loadError(edited(ROWS_EXAMPLE, (file) => (file.measurements[0].grid.widthMM = [1, 2, 3]))).path,
@@ -128,39 +128,39 @@ describe('hibás mérési fájl', () => {
     );
   });
 
-  test('a formához nem illő mérés', () => {
+  test('a measurement that does not fit the construction', () => {
     const error = loadError(
       edited(ROWS_EXAMPLE, (file) => (file.measurements[0].circle = { diameterMm: [1, 2, 3], shape: 'flat' })),
     );
     assert.equal(error.path, '$.measurements[0].circle');
   });
 
-  test('a formához kötelező szerkezeti adat hiányzik', () => {
+  test('a structural field the construction requires is missing', () => {
     assert.equal(loadError(edited(TUBE_EXAMPLE, (file) => delete file.construction.rounds)).path, '$.construction.rounds');
   });
 
-  test('háromnál kevesebb leolvasás', () => {
+  test('fewer than three readings', () => {
     const error = loadError(edited(ROWS_EXAMPLE, (file) => (file.measurements[0].grid.widthMm = [56, 57])));
     assert.equal(error.path, '$.measurements[0].grid.widthMm');
   });
 
-  test('két mérésnél az első blokkolás előtti, a második utáni', () => {
+  test('with two measurements the first must be unblocked and the second blocked', () => {
     const error = loadError(edited(ROWS_EXAMPLE, (file) => file.measurements.reverse()));
     assert.equal(error.path, '$.measurements');
   });
 
-  test('blokkolás előtti mérésnél nincs blokkolási mód', () => {
+  test('an unblocked measurement may not carry a blocking method', () => {
     const error = loadError(edited(ROWS_EXAMPLE, (file) => (file.measurements[0].blocking = { method: 'wet' })));
     assert.equal(error.path, '$.measurements[0].blocking');
   });
 
-  test('a `ch` szem csak láncszemsorban', () => {
+  test('the `ch` stitch is only allowed in a chain row', () => {
     assert.equal(loadError(edited(ROWS_EXAMPLE, (file) => (file.stitch.id = 'ch'))).path, '$.stitch.id');
   });
 });
 
-describe('profilok', () => {
-  test('horgoló × fonal × tű × blokkolás szerint; a kulcsban a formák külön', () => {
+describe('profiles', () => {
+  test('grouped by crocheter × yarn × hook × blocking, with each form keyed separately', () => {
     const { profiles, unblocked, blocked } = exampleProfiles();
     assert.deepEqual(
       profiles.map((profile) => profile.id),
@@ -173,7 +173,7 @@ describe('profilok', () => {
     assert.deepEqual(unblocked.perStitch.sc['rounds-tube'].samples, ['GS-20260915-02']);
   });
 
-  test('a fonal: név, szál, címkéről vett kategória és m/100 g', () => {
+  test('the yarn keeps its name, fibre, and the CYC weight and m/100 g read off the label', () => {
     const { unblocked } = exampleProfiles();
     assert.equal(unblocked.yarn.name, 'Példa Pamut 125');
     assert.deepEqual(unblocked.yarn.fibre, [{ material: 'pamut', percent: 100 }]);
@@ -181,12 +181,12 @@ describe('profilok', () => {
     assert.deepEqual(unblocked.yarn.metersPer100g, { value: 250, source: 'label' });
   });
 
-  test('ha a címkén nincs kategória, a méterből becsüli, és ezt jelöli', () => {
+  test('with no CYC weight on the label it is estimated from the meterage, and marked estimated', () => {
     const [profile] = buildGaugeProfiles(samplesFrom(edited(TUBE_EXAMPLE, (file) => delete file.yarn.cycWeight)));
     assert.deepEqual(profile.yarn.cycWeight, { value: 3, source: 'estimated' });
   });
 
-  test('a blokkolt profil tudja, mennyit változott a blokkolástól', () => {
+  test('the blocked profile records how much blocking changed it', () => {
     const { unblocked, blocked } = exampleProfiles();
     assert.equal(unblocked.perStitch.sc.rows.blockingChange, null);
     const change = blocked.perStitch.sc.rows.blockingChange;
@@ -195,7 +195,7 @@ describe('profilok', () => {
     near(blocked.perStitch.sc.rows.massPerAreaGPerCm2, 8.6 / 144.9);
   });
 
-  test('az azonos kulcsú minták leolvasásai összeadódnak, az n a leolvasások száma', () => {
+  test('samples sharing a key pool their readings, and n counts the readings', () => {
     const second = edited(TUBE_EXAMPLE, (file) => {
       file.id = 'GS-20260916-01';
       file.measurements[0].grid.widthMm = [60, 60, 60];
@@ -208,13 +208,13 @@ describe('profilok', () => {
     near(tube.massPerAreaGPerCm2, 9.5 / 134.4);
   });
 
-  test('a beszúrás a kulcs része, ha nem a két szál', () => {
+  test('the insertion becomes part of the key unless it is both loops', () => {
     assert.equal(stitchKey('sc', 'both-loops'), 'sc');
     const [profile] = buildGaugeProfiles(samplesFrom(edited(TUBE_EXAMPLE, (file) => (file.stitch.insertion = 'back-loop'))));
     assert.deepEqual(Object.keys(profile.perStitch), ['sc/back-loop']);
   });
 
-  test('a profil sima JSON: mentés és visszaolvasás után ugyanaz', () => {
+  test('a profile is plain JSON: it survives a save and reload unchanged', () => {
     const { profiles } = exampleProfiles();
     assert.deepEqual(JSON.parse(JSON.stringify(profiles)), profiles);
   });

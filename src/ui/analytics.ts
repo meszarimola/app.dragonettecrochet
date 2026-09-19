@@ -32,7 +32,7 @@ export function enableAnalytics(measurementId: string): void {
 
   const dataLayer = (window.dataLayer ??= []);
   window.gtag = function gtag() {
-    // A gtag.js csak az `arguments` objektumot dolgozza fel, a tömbbé alakítottat némán eldobja.
+    // gtag.js reads the `arguments` object itself; an array built from it is dropped silently.
     dataLayer.push(arguments);
   };
 

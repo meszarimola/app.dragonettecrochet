@@ -1,7 +1,8 @@
 /*
- * A minta mérete és fonala a mintával mentett profilból (PQW-859): a
- * felületen megadott profil a mag profiljaként, a méret rétegei, a
- * fonalbecslés, a profilok kezelése és az arányhelyes szárhossz.
+ * The size and yarn of a pattern, taken from the profile saved with it
+ * (PQW-859): the profile entered in the UI seen as a core profile, the layers
+ * that make up the size, the yarn estimate, managing profiles, and the stem
+ * length in the true-to-proportion view.
  */
 
 import { strict as assert } from 'node:assert';
@@ -48,8 +49,8 @@ function sized(pattern) {
   return patternSize(pattern, context.graph, context.library);
 }
 
-describe('a felületen megadott profil a mag profiljaként', () => {
-  test('szem/10 cm és sor/10 cm mm-re váltva; a körben mért a cső, a címkéről vett címkeként', () => {
+describe('a profile entered in the UI, seen as a core profile', () => {
+  test('stitches/10 cm and rows/10 cm converted to mm; a gauge measured in the round becomes the tube, one taken from the label stays label-sourced', () => {
     const converted = gaugeProfileOf(
       profile({
         gauges: [entry('sc', 'rows', 20, 25, 'label'), entry('sc', 'rounds', 18, 16), entry('hdc', 'rows', null, 15)],
@@ -63,11 +64,11 @@ describe('a felületen megadott profil a mag profiljaként', () => {
     near(flat.massPerAreaGPerCm2, 14.2 / 225);
     near(converted.perStitch.sc['rounds-tube'].widthMm.mean, 100 / 18);
     assert.equal(converted.perStitch.sc['rounds-tube'].source, 'measured');
-    // A hiányos sor nem mérés.
+    // An incomplete row is not a measurement.
     assert.equal(converted.perStitch.hdc, undefined);
   });
 
-  test('a fonal: m/100 g a címkéről, a vastagság a m/100 g-ből becsülve, a gombolyag hossza', () => {
+  test('the yarn: m/100 g from the label, the weight class estimated from that m/100 g, and the length of the ball', () => {
     const converted = gaugeProfileOf(profile());
     assert.deepEqual(converted.yarn.metersPer100g, { value: 200, source: 'label' });
     assert.deepEqual(converted.yarn.cycWeight, { value: 4, source: 'estimated' });
@@ -77,9 +78,9 @@ describe('a felületen megadott profil a mag profiljaként', () => {
     assert.equal(labelled.yarn.label.lengthM, null);
   });
 
-  test('02 §4.2 kidolgozott példa: 4 mm-es tű, rövidpálca mérés nélkül ≈ 17,7 szem és 22 sor 10 cm-en', () => {
+  test('02 §4.2 worked example: on a 4 mm hook, single crochet without a measurement gives ≈ 17,7 sts and 22 rows over 10 cm', () => {
     assert.deepEqual(estimatedGauge(profile(), testLibrary, 'sc', 'rows'), { stitchesPer10cm: 17.7, rowsPer10cm: 22.2 });
-    // Mért rövidpálcából a félpálca szélessége ugyanaz, a sor magasabb.
+    // Starting from a measured single crochet, half double crochet keeps the width and gets a taller row.
     const measured = profile({ gauges: [entry('sc', 'rows', 20, 25)] });
     const hdc = estimatedGauge(measured, testLibrary, 'hdc', 'rows');
     assert.equal(hdc.stitchesPer10cm, 20);
@@ -87,8 +88,8 @@ describe('a felületen megadott profil a mag profiljaként', () => {
   });
 });
 
-describe('a minta mérete', () => {
-  test('profil nélkül becslés az alapértelmezett tűből, tartománnyal; a régi mentésnek sincs profilja', () => {
+describe('the size of the pattern', () => {
+  test('without a profile the size is estimated from the default hook, with a range; an old save has no profile either', () => {
     const size = sized(hdcRectangle().pattern);
     assert.equal(size.profile, null);
     assert.equal(size.hookMm, DEFAULT_HOOK_MM);
@@ -101,7 +102,7 @@ describe('a minta mérete', () => {
     assert.deepEqual(size.yarn, { kind: 'missing', missing: ['profile'] });
   });
 
-  test('mért profillal a méret mért; a címkéről vett gauge címkeként jelölt', () => {
+  test('with a measured profile the size is measured; a gauge taken from the label is marked as label-sourced', () => {
     const { pattern } = hdcRectangle();
     const measured = sized(withProfile(pattern, profile({ gauges: [entry('hdc', 'rows', 17.7, 15)] })));
     assert.equal(measured.size.estimated, false);
@@ -113,7 +114,7 @@ describe('a minta mérete', () => {
     assert.equal(label.size.source, 'label');
   });
 
-  test('a rétegek: a nem számító fordulólánc kimarad, a számító egy szem; a sorszámok megmaradnak', () => {
+  test('the layers: a non-counting turning chain is left out and a counting one is one stitch, while the row indexes are kept', () => {
     for (const make of [hdcRectangle, dcRectangle]) {
       const { graph } = contextOf(make().pattern);
       const layers = sizeLayers(graph);
@@ -128,7 +129,7 @@ describe('a minta mérete', () => {
     }
   });
 
-  test('körben a kör záró és továbbvezető kúszószeme nem ad kerületet; a darab lapos kör', () => {
+  test('in the round the joining and travelling slip stitches add no circumference, and the piece is a flat circle', () => {
     const { pattern } = grannySquare();
     const { graph } = contextOf(pattern);
     const layers = sizeLayers(graph);
@@ -136,22 +137,22 @@ describe('a minta mérete', () => {
     for (const layer of layers) {
       const info = graph.layers[layer.index];
       const slips = info.travelSlips.length + (info.joinSlip ? 1 : 0);
-      assert.ok(slips > 0, `${layer.index}. kör: a példában van kúszószem`);
+      assert.ok(slips > 0, `round ${layer.index}: the example does have a slip stitch`);
       const turning = info.turningChainCounts && info.turningChain.length > 0 ? 1 : 0;
       assert.equal(layer.stitches.length, info.stitches.length - slips - info.turningChain.length + turning);
     }
     assert.equal(sized(pattern).size.total.form, 'circle');
   });
 
-  test('üres minta: nincs méret, és a fonalhoz a profil és a méret is hiányzik', () => {
+  test('an empty pattern has no size, and the yarn is missing both the profile and the size', () => {
     const size = sized(emptyPattern());
     assert.equal(size.size, null);
     assert.deepEqual(size.yarn, { kind: 'missing', missing: ['profile', 'size'] });
   });
 });
 
-describe('fonalbecslés a próbadarab tömegéből', () => {
-  test('02 §6.5 metrikus példa: 15 × 15 cm, 14,2 g; 100 × 130 cm, 200 m/100 g → 820 g, 1640 m, 10 gombolyag', () => {
+describe('yarn estimated from the mass of the swatch', () => {
+  test('02 §6.5 metric example: 15 × 15 cm, 14,2 g; 100 × 130 cm at 200 m/100 g → 820 g, 1640 m, 10 balls', () => {
     const swatch = profile({ swatch: { widthCm: 15, heightCm: 15, massG: 14.2 } });
     near(swatchMassPerArea(swatch), 0.0631, 1e-4);
     assert.equal(ballLengthM(swatch), 200);
@@ -162,7 +163,7 @@ describe('fonalbecslés a próbadarab tömegéből', () => {
     assert.equal(yarn.balls.value, 10);
   });
 
-  test('a minta területéből, tartalékkal, egész gombolyagra kerekítve', () => {
+  test('from the area of the pattern, with buffer, rounded up to whole balls', () => {
     const { pattern } = hdcRectangle();
     const size = sized(
       withProfile(pattern, profile({ gauges: [entry('hdc', 'rows', 17.7, 15)], swatch: { widthCm: 15, heightCm: 15, massG: 14.2 } })),
@@ -174,15 +175,15 @@ describe('fonalbecslés a próbadarab tömegéből', () => {
     assert.equal(estimate.balls.source, 'estimated');
   });
 
-  test('hiányzó adatnál megmondja, mi hiányzik', () => {
+  test('when data is missing it says what is missing', () => {
     const { pattern } = hdcRectangle();
     const bare = profile({ yarn: { name: '', cycWeight: null, metersPer100g: null, ballMassG: null } });
     assert.deepEqual(sized(withProfile(pattern, bare)).yarn, { kind: 'missing', missing: ['swatch', 'meterage', 'ball'] });
   });
 });
 
-describe('profilok a mintában', () => {
-  test('új, váltás, törlés; az utolsó törlése után a mintában nincs gauge mező', () => {
+describe('profiles inside the pattern', () => {
+  test('creating, switching and deleting; after the last one is deleted the pattern has no gauge field', () => {
     let pattern = emptyPattern();
     const first = newProfile(pattern);
     assert.equal(first.id, 'p1');
@@ -190,7 +191,7 @@ describe('profilok a mintában', () => {
     pattern = withProfile(pattern, { ...first, hookMm: 5 });
     const second = newProfile(pattern);
     assert.equal(second.id, 'p2');
-    assert.equal(second.hookMm, 5, 'az új profil a kiválasztott tűjével indul');
+    assert.equal(second.hookMm, 5, 'a new profile starts with the hook of the selected one');
     pattern = withProfile(pattern, second);
     assert.equal(activeProfile(pattern).id, 'p2');
 
@@ -206,20 +207,20 @@ describe('profilok a mintában', () => {
   });
 });
 
-describe('arányhelyes nézet', () => {
+describe('the true-to-proportion view', () => {
   const stemFor = (pattern, shape) => aspectStem(gaugeContextOf(pattern, testLibrary), shape);
 
-  test('profil nélkül síkban a rövidpálcás sor osztása 0,8 oszlopszélesség, körben 1', () => {
+  test('without a profile a flat single crochet row spans 0,8 column widths, and 1 in the round', () => {
     near(stemFor(emptyPattern(), 'row')(1) + ROW_GAP, 24 * 0.8);
     near(stemFor(emptyPattern(), 'round')(1) + ROW_GAP, 24);
   });
 
-  test('a mért szemarány: 20 szem és 25 sor 10 cm-en → 0,8; a mért pálca a saját magasságával', () => {
+  test('the measured stitch ratio: 20 sts and 25 rows over 10 cm → 0,8; a measured double crochet uses its own height', () => {
     const pattern = withProfile(emptyPattern(), profile({ gauges: [entry('sc', 'rows', 20, 25), entry('dc', 'rows', 20, 10)] }));
     const stem = stemFor(pattern, 'row');
     near(stem(1) + ROW_GAP, 24 * 0.8);
     near(stem(3) + ROW_GAP, 24 * 2);
-    // Kúszószem-magasságon (nincs ilyen alapszem) a legrövidebb szár.
+    // At slip stitch height (there is no such basic stitch) the shortest stem applies.
     assert.equal(stem(0), 4);
   });
 });

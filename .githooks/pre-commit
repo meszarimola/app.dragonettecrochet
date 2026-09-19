@@ -28,14 +28,23 @@ fi
 #    Hungarian-to-English migration does not block every commit meanwhile.
 sources=$(printf '%s\n' "$staged" | grep -E '\.(ts|mjs|js|astro)$' | grep -vE '^(src/ui/i18n/|tests/fixtures/)' || true)
 if [ -n "$sources" ]; then
-  # Quoted material is evidence, not prose: a comment may name a Hungarian UI
-  # label or quote the owner verbatim and still be written in English. Strip
-  # anything inside „ ” guillemets before judging the line.
+  # A comment is flagged only when it reads as Hungarian PROSE.
+  #
+  # Naming a control in this product means writing Hungarian, so "contains an
+  # accented character" flags far more English comments than Hungarian ones.
+  # Instead: drop anything quoted, then keep the line only if it still has
+  # Hungarian accents AND carries no ordinary English word. A Hungarian sentence
+  # has no "the", "and", "is", "that"; an English one naming „Méretek” does.
+  #
+  # It misses accent-free Hungarian, which no cheap test catches. This is a net,
+  # not a proof — review still reads the comment.
   hungarian=$(git diff --cached -U0 -- $sources \
     | grep -E '^\+' | grep -vE '^\+\+\+' \
     | grep -E '^\+\s*(//|\*|/\*|<!--)' \
-    | sed 's/„[^”]*”//g' \
-    | grep -E '[áéíóöőúüűÁÉÍÓÖŐÚÜŰ]' || true)
+    | sed -e 's/„[^”]*”//g' -e "s/'[^']*'//g" -e 's/"[^"]*"//g' \
+    | grep -E '[áéíóöőúüűÁÉÍÓÖŐÚÜŰ]' \
+    | grep -viE '\b(the|and|is|are|was|were|with|that|this|from|when|which|not|but|for|into|its|each|only|because|so|then|than|does|do|has|have)\b' || true)
+
   if [ -n "$hungarian" ]; then
     echo "pre-commit: new comment is not in English:" >&2
     printf '%s\n' "$hungarian" | head -5 >&2

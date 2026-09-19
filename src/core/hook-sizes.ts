@@ -1,24 +1,14 @@
-/*
- * Horgolótű-méretek: mm, amerikai és régi brit/kanadai jelölés (02 §2).
- *
- * A kulcs mindig a mm, mert a tű méretét a szár átmérője adja (02 §2.1). Az
- * amerikai betűk és számok a mérettel nőnek, a régi brit számok csökkennek.
- * Az acéltűk számozása gyártónként eltér, ezért azt csak becslésként,
- * tartománnyal adjuk vissza (02 §2.2).
- */
+// KB: 02 §2.1, 02 §2.2
 
 import type { Quantity } from './quantity.ts';
 import { estimate } from './quantity.ts';
 
 export interface HookSize {
   readonly mm: number;
-  /** A CYC amerikai jelölése, pl. `H-8`. */
   readonly us: string | null;
-  /** Régi brit és kanadai szám, pl. `6`; a legnagyobbak `0`, `00`, `000`. */
   readonly oldUk: string | null;
 }
 
-/** Normál (fonal-) horgolótűk, 02 §2.1. */
 export const HOOK_SIZES: readonly HookSize[] = [
   { mm: 2, us: null, oldUk: '14' },
   { mm: 2.25, us: 'B-1', oldUk: '13' },
@@ -42,7 +32,7 @@ export const HOOK_SIZES: readonly HookSize[] = [
   { mm: 8, us: 'L-11', oldUk: '0' },
   { mm: 9, us: 'M/N-13', oldUk: '00' },
   { mm: 10, us: 'N/P-15', oldUk: '000' },
-  // A crochetcalc a 12 mm-t jelöli O/16-nak: vitatott (02 §2.1).
+  // KB: 02 §2.1 — there is no agreed US label for 12 mm.
   { mm: 11.5, us: 'P-16', oldUk: null },
   { mm: 12, us: null, oldUk: null },
   { mm: 15, us: 'P/Q', oldUk: null },
@@ -55,19 +45,16 @@ export const HOOK_SIZES: readonly HookSize[] = [
 
 const MM_EPSILON = 1e-6;
 
-/** A pontosan ekkora szabványos tű; ha nincs ilyen, `null`. */
 export function hookByMm(mm: number): HookSize | null {
   return HOOK_SIZES.find((size) => Math.abs(size.mm - mm) < MM_EPSILON) ?? null;
 }
 
-/** A legközelebbi szabványos tű. */
 export function nearestHookSize(mm: number): HookSize {
   let nearest = HOOK_SIZES[0];
   for (const size of HOOK_SIZES) if (Math.abs(size.mm - mm) < Math.abs(nearest.mm - mm)) nearest = size;
   return nearest;
 }
 
-/** A jelölés darabjai: betűk és számok, a „½” tizedesként (`K-10½` → `K`, `10.5`). */
 function usTokens(label: string): string[] {
   return label
     .toUpperCase()
@@ -78,12 +65,7 @@ function usTokens(label: string): string[] {
     .map((token) => (/^\d+(?:\.\d+)?$/.test(token) ? String(Number(token)) : token));
 }
 
-/**
- * Mm az amerikai jelölésből. Egy jelölés több tűre is illhet (`G` a 4 és a
- * 4,25 mm, `Q` a 15, 15,75 és 16 mm), ezért minden jelöltet visszaad,
- * növekvő sorrendben. Egyezik, ha a megadott minden darabja szerepel a
- * jelölésben: `H`, `8`, `H-8` és `h8` is a 5 mm.
- */
+// One US label can fit several hooks (G is 4 and 4.25 mm), so every match is returned. KB: 02 §2.1
 export function mmFromUs(label: string): readonly number[] {
   const wanted = usTokens(label);
   if (wanted.length === 0) return [];
@@ -94,13 +76,13 @@ export function mmFromUs(label: string): readonly number[] {
   }).map((size) => size.mm);
 }
 
-/** Mm a régi brit számból; a `0`, `00`, `000` különböző tű. */
+// `0`, `00` and `000` are three different hooks, so old-UK sizes stay strings. KB: 02 §2.1
 export function mmFromOldUk(label: string): number | null {
   const wanted = label.trim();
   return HOOK_SIZES.find((size) => size.oldUk === wanted)?.mm ?? null;
 }
 
-/** Acéltű 2 mm alatt (02 §2.2). */
+// KB: 02 §2.2
 export function isSteelHook(mm: number): boolean {
   return mm < 2;
 }
@@ -110,11 +92,7 @@ interface SteelSeries {
   readonly mm: Readonly<Record<string, readonly number[]>>;
 }
 
-/**
- * Az acéltűk amerikai számozása forrásonként (02 §2.2). A CYC második
- * sorának „4/0 = 1,75” és a második „12 = 0,60” értéke kétértelmű, ezért
- * kimaradt.
- */
+// KB: 02 §2.2 — the ambiguous CYC second-row values (4/0 = 1.75, 12 = 0.60) are left out.
 export const STEEL_HOOK_SERIES: readonly SteelSeries[] = [
   {
     source: '02 §2.2 A sor: magyar táblázat, a CYC első oszlopa',
@@ -137,11 +115,7 @@ export const STEEL_HOOK_SERIES: readonly SteelSeries[] = [
   { source: '02 §2.2 Clover (keresési kivonat)', mm: { '0': [1.75] } },
 ];
 
-/**
- * Mm az amerikai acéltűszámból, becslésként: az érték az első olyan
- * forrásé, amelyben a szám szerepel, a tartomány az összes forrásé. A tű
- * valós mm-ét a tűről kell leolvasni (02 §9 9.).
- */
+// KB: 02 §2.2, 02 §9
 export function mmFromUsSteel(label: string): Quantity | null {
   const wanted = label.trim();
   const values = STEEL_HOOK_SERIES.flatMap((series) => (Object.hasOwn(series.mm, wanted) ? (series.mm[wanted] ?? []) : []));

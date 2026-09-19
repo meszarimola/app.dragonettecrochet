@@ -1,13 +1,4 @@
-/*
- * A „Kendő” szakasz (PQW-865): kendőforma, szem, méret, elméleti vagy saját
- * szaporítási arány, szárnyak, az utolsó sor a szegélyhez, blokkolási nyúlás;
- * előnézet a blokkolt és a blokkolatlan körvonallal, figyelmeztetések, és a
- * minta létrehozása.
- *
- * A mezők az index.html-ben vannak. A létrehozás a mintát cseréli, ezért egy
- * lépésben visszavonható; új tárolókulcs nincs, a választás csak a lapon él. A
- * szakasz csak nyitva számol, mert a vászon egérmozgásra is frissít.
- */
+// KB: interface.md §7
 
 import { activeProfile } from '../core/pattern-size.js';
 import { generateShawl, planShawl, shawlSizes, type ShawlOptions } from '../core/shawls.js';
@@ -30,14 +21,12 @@ import {
 } from './shawls-view.js';
 
 export interface ShawlsPanelHost {
-  /** Az új minta a visszavonási veremre, az üzenettel. */
   commit(pattern: Pattern, message: string): void;
   announce(message: string): void;
 }
 
 const SVG = 'http://www.w3.org/2000/svg';
 
-/** A szám a mezőből; tizedesvesszőt és -pontot is elfogad. Üres vagy érvénytelen mezőre `NaN`: az okot a mag adja. */
 function decimal(input: HTMLInputElement): number {
   const text = input.value.trim().replace(',', '.');
   return text === '' ? Number.NaN : Number(text);
@@ -152,7 +141,6 @@ export class ShawlsPanel {
     const sizes = planned.ok ? shawlSizes(planned.plan, options.blocking) : null;
     const view = planned.ok && sizes ? shawlView(planned.plan, options, sizes, activeProfile(this.#pattern) !== null) : null;
     const outline = sizes ? shawlOutline(sizes) : null;
-    // Az indok mondata a felületé (PQW-904): a mag kódot és adatot ad.
     const reason = planned.ok ? null : shawlReason(planned.reason);
     const key = JSON.stringify([planned.ok ? view : reason, outline]);
     if (key === this.#shown) return;
@@ -173,7 +161,6 @@ export class ShawlsPanel {
     this.#draw(outline);
   }
 
-  /** Az előnézet: a blokkolt körvonal teli, a blokkolatlan szaggatott. */
   #draw(outline: ShawlOutline | null): void {
     this.#previewBox.hidden = outline === null;
     if (!outline) {

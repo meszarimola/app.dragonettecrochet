@@ -1,16 +1,4 @@
-/*
- * A szemkönyvtár: minden szem és összetett szem adatként.
- *
- * Itt van minden, ami a számoláshoz, a jel rajzához és a szöveghez kell, a
- * src/core/types.ts `StitchDef` felülete szerint. A nevek a jóváhagyott
- * szókészletből jönnek (docs/stitch-vocabulary-proposal.md), a számok a
- * tudásbázisból (01 §2, §4, §8).
- *
- * Az összetett szemeket építőfüggvény készíti a részszemből. Így a
- * magasság, a fordulólánc és a körzárás mindig a részszemmel egyezik, és
- * bármilyen n megadható. A könyvtárban a gyakori változatok szerepelnek, a
- * paletta ezekből épül.
- */
+// KB: 01 §2, 01 §4, 01 §8
 
 import type {
   GroupStitchDef,
@@ -25,11 +13,7 @@ import type {
 
 type Terms = Readonly<Record<Locale, StitchTerm>>;
 
-/**
- * Egy jelölés neve. Az `aliases` csak értelmezéshez kell; a kis- és nagybetűt
- * az értelmezés nem különbözteti meg, ezért az „RP” alakot nem soroljuk fel
- * (szókészlet D5).
- */
+/** `aliases` are for parsing only, and matching ignores case. KB: 01 §8.5 */
 function term(name: string, abbr: string | null = null, aliases: readonly string[] = []): StitchTerm {
   return { name, abbr, aliases };
 }
@@ -38,7 +22,7 @@ function terms(hu: StitchTerm, us: StitchTerm, gb: StitchTerm): Terms {
   return { hu, 'en-US': us, 'en-GB': gb };
 }
 
-/* ---- Beszúrási módok (01 §4.3) ---- */
+// KB: 01 §4.3
 
 const ALL_INSERTIONS: readonly InsertionMode[] = [
   'both-loops',
@@ -50,24 +34,12 @@ const ALL_INSERTIONS: readonly InsertionMode[] = [
   'ring',
 ];
 
-/** Kúszószem és egy alapba horgolt összetett szem: relief nélkül. */
 const WITHOUT_POST: readonly InsertionMode[] = ['both-loops', 'front-loop', 'back-loop', 'space', 'ring'];
 
-/** Több szemen át horgolt szem: csak szembe szúrható. */
+/** A stitch worked across several stitches cannot go into a space or a ring. */
 const INTO_STITCHES: readonly InsertionMode[] = ['both-loops', 'front-loop', 'back-loop'];
 
-/* ---- Alapértelmezések ---- */
-
-/**
- * A láncszem-magasságból következő alapértelmezések:
- * - a fordulólánc a sort kezdő szem láncszem-magassága (01 §8.3 szabály 12):
- *   rövidpálcánál 1, félpálcánál 2, egyráhajtásos pálcánál 3 láncszem;
- * - a `turningChainCounts` a kör kezdőláncáé: egyráhajtásos pálcától számít
- *   szemnek, alatta nem (szókészlet K1). Sorban a fordulólánc minden szemnél
- *   számít, és alapláncszemen áll (PQW-891); ezt a tradition.ts dönti el;
- * - a körzárás zárt kör: a spirál az amigurumi mintatípusból jön, nem a szem
- *   magasságából (szókészlet K2, tulajdonosi döntés, PQW-892, rounds.ts).
- */
+// KB: core-domain §9; 01 §8.3 rule 12
 function heightDefaults(chainHeight: number) {
   return {
     chainHeight,
@@ -77,12 +49,10 @@ function heightDefaults(chainHeight: number) {
   } as const;
 }
 
-/** Becsült valós magasság a rövidpálcához képest; a gauge-profil felülírja (README §4.1). */
 function estimated(value: number) {
   return { value, source: 'estimated' } as const;
 }
 
-/** Nem szerkezeti elem (pikó, láncív, varázskör): nincs saját magassága és fordulólánca. */
 const NO_HEIGHT = {
   yarnOvers: 0,
   chainHeight: 0,
@@ -91,8 +61,6 @@ const NO_HEIGHT = {
   roundEnd: 'join-slip',
   heightFactor: estimated(0),
 } as const;
-
-/* ---- Alapszemek (szókészlet §1) ---- */
 
 function basic(id: StitchDefId, names: Terms, yarnOvers: number, chainHeight: number, height: number): SimpleStitchDef {
   return {
@@ -115,7 +83,7 @@ export const CHAIN: SimpleStitchDef = {
   kind: 'chain',
   terms: terms(term('láncszem', 'lsz', ['légszem']), term('chain', 'ch'), term('chain', 'ch')),
   yarnOvers: 0,
-  // A láncszem a magasság mértékegysége, de sort nem kezd, ezért nincs fordulólánca.
+  // The chain is the unit of height, but it never starts a row, so it has no turning chain.
   chainHeight: 1,
   turningChain: 0,
   turningChainCounts: false,
@@ -125,20 +93,20 @@ export const CHAIN: SimpleStitchDef = {
   produces: 1,
   producesSpaces: 0,
   workableTop: true,
-  // A horgon lévő hurokból készül, semmibe nem szúrunk bele.
+  // Made from the loop already on the hook: there is nothing to insert into.
   insertionModes: [],
 };
 
 export const SLIP_STITCH: SimpleStitchDef = {
   id: 'sl-st',
   kind: 'slip',
-  // A „hamispálca” szándékosan nincs itt: kétértelmű, rákérdezünk (szókészlet D1).
+  // "hamispalca" is deliberately not an alias: it is ambiguous, so the editor asks instead.
   terms: terms(term('kúszószem', 'ksz'), term('slip stitch', 'sl st'), term('slip stitch', 'ss')),
   yarnOvers: 0,
   ...heightDefaults(0),
-  // 01 §2.3: 1–2 mm a rövidpálca 6–8 mm-éhez képest.
+  // KB: 01 §2.3
   heightFactor: estimated(0.2),
-  // Illesztésnél és továbbvezetésnél mintánként kikapcsolható a számolása (szókészlet D7).
+  // KB: core-domain §9
   consumes: 1,
   produces: 1,
   producesSpaces: 0,
@@ -146,10 +114,7 @@ export const SLIP_STITCH: SimpleStitchDef = {
   insertionModes: WITHOUT_POST,
 };
 
-/*
- * A valós magasságarányok a 01 §2.3 mért középértékei (rp 1, fp 1,6, erp 2,6,
- * krp 3,9). A háromráhajtásos pálcáé ebből továbbvezetett becslés.
- */
+// KB: 01 §2.3 — the triple-treble ratio is extrapolated from the measured ones.
 
 export const SINGLE_CROCHET = basic(
   'sc',
@@ -183,7 +148,7 @@ export const TREBLE = basic(
   3.9,
 );
 
-// A „hrp” rövidítés nincs megerősítve, ezért a név kiírva szerepel (szókészlet D4).
+// KB: 01 §8.5 — there is no confirmed abbreviation, so the name is spelled out.
 export const DOUBLE_TREBLE = basic(
   'dtr',
   terms(term('háromráhajtásos pálca'), term('double treble', 'dtr'), term('triple treble', 'trtr')),
@@ -192,7 +157,7 @@ export const DOUBLE_TREBLE = basic(
   4.9,
 );
 
-/** A rákhurok: rövidpálca visszafelé. Szegély, a tetejébe nem lehet horgolni (01 §8.2 szabály 10). */
+/** Crab stitch: single crochet worked backwards. Edging; it cannot be worked into. KB: 01 §8.2 rule 10 */
 export const REVERSE_SINGLE_CROCHET: SimpleStitchDef = {
   ...basic(
     'rev-sc',
@@ -209,7 +174,7 @@ export const REVERSE_SINGLE_CROCHET: SimpleStitchDef = {
   insertionModes: ['both-loops'],
 };
 
-/* ---- Összetett szemek építőfüggvényei (szókészlet §2, 01 §4.4) ---- */
+// KB: 01 §4.4
 
 function assertCount(n: number, min: number, what: string): void {
   if (!Number.isInteger(n) || n < min) {
@@ -223,7 +188,7 @@ function assertPart(part: StitchDef, what: string): void {
   }
 }
 
-/** A részszemtől örökölt tulajdonságok. A `yarnOvers` egy részszem ráhajtásait jelenti. */
+/** `yarnOvers` stays the yarn-overs of ONE part stitch. */
 function inherit(part: StitchDef) {
   return {
     yarnOvers: part.yarnOvers,
@@ -239,7 +204,7 @@ const INCREASE_TERMS = terms(term('szaporítás'), term('increase', 'inc'), term
 const DECREASE_TERMS = terms(term('fogyasztás'), term('decrease', 'dec'), term('decrease', 'dec'));
 const CLUSTER_TERMS = terms(term('fürt'), term('cluster', 'CL'), term('cluster', 'CL'));
 
-/** Szaporítás: n szem egy szembe, 1 → n (01 §5). */
+/** KB: 01 §5 */
 export function increase(part: StitchDef, n: number): GroupStitchDef {
   assertPart(part, 'szaporítás');
   assertCount(n, 2, 'szaporítás');
@@ -257,7 +222,7 @@ export function increase(part: StitchDef, n: number): GroupStitchDef {
   };
 }
 
-/** Fogyasztás: n szemből egy, n → 1 (01 §5). */
+/** KB: 01 §5 */
 export function decrease(part: StitchDef, n: number): JoinedStitchDef {
   assertPart(part, 'fogyasztás');
   assertCount(n, 2, 'fogyasztás');
@@ -278,7 +243,7 @@ export function decrease(part: StitchDef, n: number): JoinedStitchDef {
   };
 }
 
-/** Kagyló: n szem egy szembe vagy láncívbe, 1 → n (01 §4.4). */
+/** KB: 01 §4.4 */
 export function shell(part: StitchDef, n: number): GroupStitchDef {
   assertPart(part, 'kagyló');
   assertCount(n, 2, 'kagyló');
@@ -290,7 +255,7 @@ export function shell(part: StitchDef, n: number): GroupStitchDef {
   };
 }
 
-/** Fürt. Egy szembe (`same`, 1 → 1) vagy n szemen át (`spread`, n → 1); a név nem dönti el (szókészlet D6). */
+/** `same` (1 -> 1) or `spread` (n -> 1); the name does not decide, so it is required. KB: 01 §4.4 */
 export function cluster(part: StitchDef, n: number, base: 'same' | 'spread'): JoinedStitchDef {
   assertPart(part, 'fürt');
   assertCount(n, 2, 'fürt');
@@ -302,7 +267,7 @@ export function cluster(part: StitchDef, n: number, base: 'same' | 'spread'): Jo
   };
 }
 
-/** Egy szembe horgolt részszemek egy tetővel: 1 → 1 (01 §8.2 szabály 7). */
+/** KB: 01 §8.2 rule 7 */
 function sameBase(part: StitchDef, n: number, closure: 'partial' | 'complete' | 'loops'): JoinedStitchDef {
   return {
     ...decrease(part, n),
@@ -313,8 +278,6 @@ function sameBase(part: StitchDef, n: number, closure: 'partial' | 'complete' | 
   };
 }
 
-/* ---- A könyvtár ---- */
-
 export const INVISIBLE_DECREASE: JoinedStitchDef = {
   ...decrease(SINGLE_CROCHET, 2),
   id: 'invdec',
@@ -323,7 +286,7 @@ export const INVISIBLE_DECREASE: JoinedStitchDef = {
     term('invisible decrease', 'invdec'),
     term('invisible decrease'),
   ),
-  // Az első szálakba szúrunk, a hátsók az amigurumi belsejében maradnak (01 §4.4).
+  // Front loops only; the back loops stay inside the amigurumi. KB: 01 §4.4
   insertionModes: ['front-loop'],
 };
 
@@ -336,28 +299,28 @@ export const V_STITCH: GroupStitchDef = {
   members: [DOUBLE_CROCHET.id, CHAIN.id, DOUBLE_CROCHET.id],
 };
 
-/** Puff: csak felhúzott hurkok, félpálca magasságú (01 §4.4). */
+/** KB: 01 §4.4 */
 export const PUFF: JoinedStitchDef = {
   ...sameBase(HALF_DOUBLE_CROCHET, 3, 'loops'),
   id: 'puff-3',
   terms: terms(term('puff'), term('puff stitch', 'ps', ['puff']), term('puff stitch')),
 };
 
-/** Bogyó: félig kész egyráhajtásos pálcák egy szembe, egy tetővel (01 §4.4). */
+/** KB: 01 §4.4 */
 export const BOBBLE: JoinedStitchDef = {
   ...sameBase(DOUBLE_CROCHET, 5, 'partial'),
   id: 'bobble-5dc',
   terms: terms(term('bogyó'), term('bobble', 'bo'), term('bobble')),
 };
 
-/** Popcorn: teljes egyráhajtásos pálcák egy szembe, utólag összezárva (01 §4.4). */
+/** KB: 01 §4.4 */
 export const POPCORN: JoinedStitchDef = {
   ...sameBase(DOUBLE_CROCHET, 5, 'complete'),
   id: 'popcorn-5dc',
   terms: terms(term('popcorn'), term('popcorn', 'pc'), term('popcorn')),
 };
 
-/** Háromláncszemes pikó. Díszítés, alapból nem számít szemnek (szókészlet D7). */
+/** A picot does not count as a stitch by default. KB: core-domain §9 */
 export const PICOT: SimpleStitchDef = {
   id: 'picot',
   kind: 'picot',
@@ -370,11 +333,7 @@ export const PICOT: SimpleStitchDef = {
   insertionModes: [],
 };
 
-/**
- * Láncív. A láncszemek száma és a kihagyott szemek a lerakáskor dőlnek el
- * („ch k, sk m”), ezért itt nincs fogyasztás; a következő sor egyetlen
- * célpontként kezeli (01 §8.2 szabály 11).
- */
+/** The chain count and the skipped stitches are decided on placement, so there is no `consumes` here. KB: 01 §8.2 rule 11 */
 export const CHAIN_SPACE: SimpleStitchDef = {
   id: 'ch-sp',
   kind: 'space',
@@ -391,7 +350,7 @@ export const CHAIN_SPACE: SimpleStitchDef = {
   insertionModes: [],
 };
 
-/** Varázskör. Nem szem, hanem egy beszúrási pont (04 §1.1). */
+/** Not a stitch but an insertion point. KB: 04 §1.1 */
 export const MAGIC_RING: SimpleStitchDef = {
   id: 'magic-ring',
   kind: 'ring',
@@ -411,7 +370,7 @@ export interface StitchSection {
   readonly stitches: readonly StitchDef[];
 }
 
-/** A könyvtár csoportokban, a paletta sorrendjében. */
+/** In palette order. */
 export const STITCH_SECTIONS: readonly StitchSection[] = [
   {
     id: 'basic',
