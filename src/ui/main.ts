@@ -817,6 +817,7 @@ function applyNotation(next: PatternNotation, message: string): void {
   syncNotationControls();
   renderPalette();
   select(tool);
+  irregular?.applyNotation();
   announce(message);
 }
 

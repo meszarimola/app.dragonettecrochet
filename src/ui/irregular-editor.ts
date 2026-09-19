@@ -153,7 +153,6 @@ export class IrregularEditor {
   mount(): void {
     this.#mounted = true;
     this.#panel.reveal();
-    this.#applyNotation();
     this.refresh();
     this.#board.fit(this.#host.insets().bottom);
   }
@@ -189,7 +188,7 @@ export class IrregularEditor {
 
   #persist(): void {
     try {
-      localStorage.setItem(IRREGULAR_STORAGE_KEY, saveIrregular(this.#history.present));
+      localStorage.setItem(IRREGULAR_STORAGE_KEY, saveIrregular(this.#withNotation()));
     } catch {
       this.#host.announce(texts().messages.storage.saveFailed);
     }
@@ -360,7 +359,7 @@ export class IrregularEditor {
   // -- file ----------------------------------------------------------------
 
   exportJson(): string {
-    return saveIrregular(withIrregularNotation(this.#history.present, this.#host.notation()));
+    return saveIrregular(this.#withNotation());
   }
 
   /** `false` means the file belongs to another pattern type and nothing changed. */
@@ -382,13 +381,12 @@ export class IrregularEditor {
   }
 
   applyNotation(): void {
-    this.#applyNotation();
+    this.#persist();
     this.refresh();
   }
 
-  #applyNotation(): void {
-    const next = withIrregularNotation(this.#history.present, this.#host.notation());
-    if (next !== this.#history.present) this.#history = { ...this.#history, present: next };
+  #withNotation(): IrregularPattern {
+    return withIrregularNotation(this.#history.present, this.#host.notation());
   }
 
   // -- drawing -------------------------------------------------------------
@@ -632,8 +630,6 @@ export class IrregularEditor {
       }
       return updateItems(this.#history.present, this.#selection, { width, height });
     }
-    const box = this.#board.selectionBox();
-    if (box === null) return this.#history.present;
     const spanX = Math.max(Math.abs(drag.start.x - drag.anchor.x), MIN_SIZE);
     const spanY = Math.max(Math.abs(drag.start.y - drag.anchor.y), MIN_SIZE);
     const kx = horizontal ? Math.abs(point.x - drag.anchor.x) / spanX : 1;
