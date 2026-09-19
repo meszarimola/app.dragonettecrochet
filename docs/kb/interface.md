@@ -699,9 +699,16 @@ thing the crocheter made, and half an arc is not a thing. From there:
   the alternative is a group that claims stitches it no longer describes.
 - **Deleting** a stitch forgets its group for the same reason.
 
+Because a group that named a deleted row or layer could not be written to a file
+at all — and the failure was silent, so every later autosave failed too — the
+repair runs on **every commit**, not at the few places that could break it. See
+`core-geometry §52`.
+
 With an arc selected the **digit keys set the stitch count**, and digits typed
 one after the other build one number, so "1" then "2" is twelve; a pause of
-about a second starts a new one. The digits are free to mean this because the
+about a second starts a new one. The typed digits are kept as they were typed,
+not read back from the count — the count has a floor of two, so reading it back
+made every number starting with 0 or 1 unreachable. The digits are free to mean this because the
 palette's shortcuts are ⌥+digit.
 
 The arc tool stays armed after an arc, the way the palette stays armed after a

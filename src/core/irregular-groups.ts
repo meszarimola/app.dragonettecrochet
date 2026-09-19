@@ -153,6 +153,43 @@ export function explodeGroups(pattern: IrregularPattern, ids: Iterable<string>):
   return withGroups(pattern, kept);
 }
 
+/**
+ * Puts each group on the row and layer its stitches actually sit on, and forgets
+ * any group whose stitches are gone or no longer agree. A group that named a
+ * deleted row could not be written to a file at all, so this runs on every edit
+ * rather than at the few places that could break it. KB: core-geometry §52
+ */
+export function reseatGroups(pattern: IrregularPattern): IrregularPattern {
+  const groups = groupsOf(pattern);
+  if (groups.length === 0) return pattern;
+  const byId = new Map(pattern.items.map((item) => [item.id, item]));
+  const kept: IrregularGroup[] = [];
+  let changed = false;
+  for (const group of groups) {
+    const members = group.memberIds.map((id) => byId.get(id));
+    const first = members[0];
+    if (first === undefined || members.some((member) => member === undefined)) {
+      changed = true;
+      continue;
+    }
+    const together =
+      members.every((member) => member?.rowId === first.rowId) &&
+      members.every((member) => member?.layerId === first.layerId);
+    if (!together) {
+      changed = true;
+      continue;
+    }
+    if (group.rowId === first.rowId && group.layerId === first.layerId) {
+      kept.push(group);
+      continue;
+    }
+    kept.push({ ...group, rowId: first.rowId, layerId: first.layerId });
+    changed = true;
+  }
+  if (!changed) return pattern;
+  return withGroups(pattern, kept);
+}
+
 /** Forgets any group that lost a member, so no group ever describes stitches that are gone. */
 export function forgetBrokenGroups(pattern: IrregularPattern): IrregularPattern {
   const alive = new Set(pattern.items.map((item) => item.id));

@@ -560,11 +560,13 @@ export class FreeBoard {
 
   /** Where the three grips of an arc sit, in chart units. */
   #arcHandles(arc: ArcPath): ReadonlyMap<ArcHandleId, ChartPoint> {
-    return new Map<ArcHandleId, ChartPoint>([
+    const grips = new Map<ArcHandleId, ChartPoint>([
       ['start', arc.start],
       ['end', arc.end],
-      ['bulge', arcAt(arc, 0.5).at],
     ]);
+    // A straight arc ignores its bulge, so offering the grip would be a lie.
+    if (arc.shape !== 'straight') grips.set('bulge', arcAt(arc, 0.5).at);
+    return grips;
   }
 
   arcHandleAt(clientX: number, clientY: number): ArcHandleId | null {

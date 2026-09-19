@@ -19,10 +19,14 @@ import {
   groupsOf,
   holdsWholeGroups,
   relayoutGroup,
+  reseatGroups,
   translateGroups,
   updateChainArc,
   withWholeGroups,
 } from '../src/core/irregular-groups.ts';
+import { saveIrregular } from '../src/core/irregular-json.ts';
+import { addLayer, deleteLayer, moveItemsToLayer, setActiveLayer } from '../src/core/irregular-layers.ts';
+import { addRow, deleteRow, moveItemsToRow, setActiveRow } from '../src/core/irregular-rows.ts';
 import { ARC_COUNT_RANGE } from '../src/core/irregular-types.ts';
 
 const base = () => emptyIrregularPattern({ title: 'Free-form chart', layerNames: ['Drawing', 'Labels'] });
@@ -202,5 +206,52 @@ describe('forgetting a group', () => {
   test('an untouched group survives the check', () => {
     const { pattern } = withArc();
     assert.equal(forgetBrokenGroups(pattern), pattern, 'the very same pattern');
+  });
+});
+
+describe('a group can never name a row, layer or stitch that is gone (PQW-967)', () => {
+  const save = (pattern) => saveIrregular(pattern);
+
+  test('deleting the layer an arc was drawn on forgets the group, and the pattern still saves', () => {
+    const extra = addLayer(base(), 'Second');
+    const { pattern } = withArc(setActiveLayer(extra.pattern, extra.id));
+    const gone = deleteLayer(pattern, extra.id);
+    assert.throws(() => save(gone), /unknown-/, 'without the repair the file cannot be written');
+    const fixed = reseatGroups(gone);
+    assert.equal(groupsOf(fixed).length, 0, 'the group is forgotten');
+    assert.ok(save(fixed).length > 0, 'and the pattern saves again');
+  });
+
+  test('deleting the row an arc was drawn on, keeping its stitches, moves the group with them', () => {
+    const second = addRow(base(), 'row');
+    const { pattern, id } = withArc(setActiveRow(second.pattern, second.id));
+    const gone = deleteRow(pattern, second.id, 'move');
+    assert.throws(() => save(gone), /unknown-row/, 'without the repair the file cannot be written');
+    const fixed = reseatGroups(gone);
+    assert.equal(groupById(fixed, id)?.rowId, fixed.items[0]?.rowId, 'the group sits where its stitches sit');
+    assert.ok(save(fixed).length > 0, 'and the pattern saves again');
+  });
+
+  test('moving a whole arc to another row takes the recipe with it', () => {
+    const { pattern, id } = withArc();
+    const second = addRow(pattern, 'row');
+    const moved = reseatGroups(moveItemsToRow(second.pattern, new Set(pattern.items.map((i) => i.id)), second.id));
+    assert.equal(groupById(moved, id)?.rowId, second.id, 'the group followed');
+    const again = updateChainArc(moved, id, { count: 6 }, FLAT);
+    for (const item of members(again, id)) assert.equal(item?.rowId, second.id, 'so a relayout does not drag it back');
+  });
+
+  test('stitches pulled apart onto different rows forget their group', () => {
+    const { pattern } = withArc();
+    const second = addRow(pattern, 'row');
+    const split = moveItemsToRow(second.pattern, new Set([pattern.items[0].id]), second.id);
+    assert.equal(groupsOf(reseatGroups(split)).length, 0, 'a group over two rows is no group');
+  });
+
+  test('a pattern that is already seated right is given back unchanged', () => {
+    const { pattern } = withArc();
+    assert.equal(reseatGroups(pattern), pattern, 'the very same pattern');
+    const plain = base();
+    assert.equal(reseatGroups(plain), plain, 'and one with no group at all');
   });
 });

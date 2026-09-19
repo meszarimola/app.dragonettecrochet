@@ -1035,4 +1035,11 @@ chain drawn as a flat oval — already lies along its own long axis, so it turns
 quarter less than an upright one such as "0". The interface measures the glyph;
 the core owns the rule, so it can be tested.
 
+**A group is seated by its stitches, not by what it remembers.** `reseatGroups`
+runs on every edit: it puts each group on the row and layer its stitches
+actually sit on, and forgets any group whose stitches are gone or have been
+pulled apart onto different rows. Without it, deleting a row or a layer left a
+group naming something that no longer existed, the writer refused the pattern,
+and the autosave failed silently from then on.
+
 Cited from: `src/core/irregular-arc.ts` and `src/core/irregular-groups.ts`.

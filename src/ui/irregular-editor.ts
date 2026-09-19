@@ -42,6 +42,7 @@ import {
   groupsOf,
   holdsWholeGroups,
   relayoutGroup,
+  reseatGroups,
   translateGroups,
   updateChainArc,
   withWholeGroups,
@@ -205,6 +206,7 @@ export class IrregularEditor {
   #arcTool = false;
   #arcCount = DEFAULT_ARC_COUNT;
   #arcTyped = 0;
+  #arcTypedText = '';
   #drag: Drag | null = null;
   #preferences = readPreferences();
   #clipboard: readonly IrregularItem[] = [];
@@ -560,8 +562,9 @@ export class IrregularEditor {
 
   // -- history -------------------------------------------------------------
 
-  #commit(next: IrregularPattern, message?: string): void {
+  #commit(candidate: IrregularPattern, message?: string): void {
     this.#draft = null;
+    const next = reseatGroups(candidate);
     if (next !== this.#history.present) {
       this.#history = record(this.#history, next);
       this.#persist();
@@ -618,7 +621,7 @@ export class IrregularEditor {
 
   /** The chain arc the selection holds, when it holds exactly one and nothing else. */
   get selectedArc(): ChainArcGroup | null {
-    const groups = groupsOf(this.#history.present).filter((group) =>
+    const groups = groupsOf(this.pattern).filter((group) =>
       group.memberIds.some((member) => this.#selection.has(member)),
     );
     const only = groups.length === 1 ? groups[0] : undefined;
@@ -659,9 +662,8 @@ export class IrregularEditor {
     const now = Date.now();
     const fresh = now - this.#arcTyped > ARC_TYPING_GAP;
     this.#arcTyped = now;
-    const arc = this.selectedArc;
-    const grown = fresh ? digit : `${arc === null ? '' : String(arc.count)}${digit}`;
-    const wanted = Number(grown);
+    this.#arcTypedText = `${fresh ? '' : this.#arcTypedText}${digit}`;
+    const wanted = Number(this.#arcTypedText);
     if (!Number.isFinite(wanted)) return;
     this.setArcCount(wanted);
   }
@@ -939,7 +941,7 @@ export class IrregularEditor {
   #arcPreview(): ArcPath | null {
     const drag = this.#drag;
     if (drag?.kind !== 'arc-draw') return null;
-    const [start, end] = [drag.from, drag.to];
+    const [start, end] = [this.#snap(drag.from), this.#snap(drag.to)];
     if (start.x === end.x && start.y === end.y) return null;
     return { shape: 'arc', start, end, bulge: presetBulge(start, end, DEFAULT_ARC_BULGE) };
   }

@@ -484,6 +484,15 @@ test('láncív: rajzolás húzással, majd N átállítása 7-re (AS-3)', async 
   expect(grown.items, 'a rajzlapon is hét van').toBe(7);
   await expect(page.locator('#arc-count')).toHaveValue('7');
 
+  // Digits typed one after the other build one number, so 1 then 2 is twelve.
+  await page.waitForTimeout(1100);
+  await page.keyboard.press('1');
+  await page.keyboard.press('2');
+  await expect(page.locator('#arc-count'), 'egymás után ütött számjegyek egy számot adnak').toHaveValue('12');
+  await page.waitForTimeout(1100);
+  await page.keyboard.press('7');
+  await expect(page.locator('#arc-count'), 'szünet után új szám kezdődik').toHaveValue('7');
+
   // The stitches follow the arc: the middle one sits higher than the two ends.
   const heights = await page.evaluate(() => {
     const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
