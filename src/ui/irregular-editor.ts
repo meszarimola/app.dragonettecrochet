@@ -447,6 +447,10 @@ export class IrregularEditor {
 
   unmount(): void {
     this.#mounted = false;
+    // A finger still down when the view closes would look like one half of a
+    // pinch forever, and single-finger drawing would never work again.
+    this.#touches.clear();
+    this.#pinch = null;
     this.#draft = null;
     this.#drag = null;
     this.#panel.hide();
@@ -1952,12 +1956,14 @@ export class IrregularEditor {
       if (!this.#mounted) return;
       this.#onMove(event);
     });
-    this.#canvas.addEventListener('pointerup', () => {
+    this.#canvas.addEventListener('pointerup', (event) => {
       if (!this.#mounted) return;
-      this.#onUp();
+      this.#onUp(event);
     });
-    this.#canvas.addEventListener('pointercancel', () => {
+    this.#canvas.addEventListener('pointercancel', (event) => {
       if (!this.#mounted) return;
+      this.#touches.delete(event.pointerId);
+      this.#pinch = null;
       this.#endDrag();
     });
     this.#canvas.addEventListener('pointerleave', () => {
@@ -1982,9 +1988,31 @@ export class IrregularEditor {
     this.#spaceDown = down;
   }
 
+  /**
+   * Two fingers zoom and pan; one finger uses whatever tool is armed. A second
+   * finger arriving mid-drag cancels that drag, so a pinch never leaves a
+   * half-made stitch behind. KB: interface.md §50
+   */
+  #touches = new Map<number, Point>();
+  #pinch: { gap: number; middle: Point } | null = null;
+  /** What the first finger found, so a second finger can put it all back. */
+  #beforeTouch: { steps: number; selection: Set<string> } | null = null;
+
   #onDown(event: PointerEvent): void {
     this.#canvas.focus({ preventScroll: true });
     this.#canvas.setPointerCapture(event.pointerId);
+    if (event.pointerType === 'touch') {
+      this.#touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (this.#touches.size === 2) {
+        this.#startPinch();
+        return;
+      }
+      if (this.#touches.size > 2) return;
+      // The first finger acts at once, because waiting to see whether a second
+      // one is coming would make every tap feel slow. If one does come, what the
+      // first finger did is put back. KB: interface.md §50
+      this.#beforeTouch = { steps: this.#history.past.length, selection: new Set(this.#selection) };
+    }
     const point = this.#board.toChart(event.clientX, event.clientY);
     this.#pointer = point;
 
@@ -2139,7 +2167,44 @@ export class IrregularEditor {
     this.#drag = { kind: 'scale', handle, start: point, base, anchor };
   }
 
+  /**
+   * A pinch takes back whatever the first finger did on its way down — a placed
+   * stitch, a cleared or changed selection — so zooming never draws.
+   */
+  #startPinch(): void {
+    this.#endDrag();
+    const before = this.#beforeTouch;
+    this.#beforeTouch = null;
+    if (before !== null) {
+      while (this.#history.past.length > before.steps) this.#history = undo(this.#history);
+      this.#selection = before.selection;
+      this.#persist();
+      this.refresh();
+    }
+    this.#pinch = this.#pinchOf();
+  }
+
+  #pinchOf(): { gap: number; middle: Point } | null {
+    const [first, second] = [...this.#touches.values()];
+    if (first === undefined || second === undefined) return null;
+    return {
+      gap: Math.max(1, Math.hypot(second.x - first.x, second.y - first.y)),
+      middle: { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 },
+    };
+  }
+
   #onMove(event: PointerEvent): void {
+    if (event.pointerType === 'touch' && this.#touches.has(event.pointerId)) {
+      this.#touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      const was = this.#pinch;
+      if (this.#touches.size >= 2 && was !== null) {
+        const now = this.#pinchOf();
+        if (now === null) return;
+        this.#board.zoomAndPan(now.gap / was.gap, was.middle, now.middle);
+        this.#pinch = now;
+        return;
+      }
+    }
     const point = this.#board.toChart(event.clientX, event.clientY);
     this.#pointer = point;
     const drag = this.#drag;
@@ -2337,7 +2402,18 @@ export class IrregularEditor {
     this.#commit(made.pattern, texts().irregular.arcAdded(this.#arcCount, row));
   }
 
-  #onUp(): void {
+  #onUp(event?: PointerEvent): void {
+    if (event !== undefined && event.pointerType === 'touch') {
+      this.#touches.delete(event.pointerId);
+      this.#beforeTouch = null;
+      if (this.#pinch !== null) {
+        // Lifting one of three fingers leaves a different pair, so the gesture
+        // is re-seeded rather than measured against the pair that just changed.
+        this.#pinch = this.#touches.size >= 2 ? this.#pinchOf() : null;
+        if (this.#pinch === null) this.#endDrag();
+        return;
+      }
+    }
     const drag = this.#drag;
     if (drag === null) return;
     if (drag.kind === 'marquee') {

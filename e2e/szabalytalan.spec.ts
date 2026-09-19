@@ -1058,3 +1058,108 @@ test('felirat és nyíl: lerakás, szöveg és betűméret (FR-ANN-5, FR-ANN-6)'
   // Neither of them is a stitch.
   await expect(page.locator('#rows-list li').first(), 'a sor szemszáma nulla maradt').toContainText('0');
 });
+
+test('teljesítmény: ezer szem is kezelhető marad, és a mentés kivárja a kezet (FR-PERF)', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+
+  // One real stitch first, so the autosave slot holds a whole pattern to grow.
+  await armDoubleCrochet(page);
+  await place(page, 400, 300);
+  await page.waitForTimeout(700);
+
+  // A thousand stitches, straight into the autosave slot, then reloaded.
+  await page.evaluate(() => {
+    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+    const parsed = JSON.parse(raw);
+    const items = [];
+    for (let index = 0; index < 1000; index += 1) {
+      items.push({
+        id: `i${index + 1}`,
+        kind: 'stitch',
+        keyEntryId: 'dc',
+        insertion: 'both-loops',
+        rowId: parsed.activeRowId,
+        layerId: parsed.activeLayerId,
+        color: null,
+        x: (index % 40) * 30,
+        y: Math.floor(index / 40) * 45,
+        width: 14,
+        height: 34,
+        rotation: 0,
+        flipX: false,
+        flipY: false,
+      });
+    }
+    localStorage.setItem('dc-mintatervezo:minta-szabalytalan', JSON.stringify({ ...parsed, items }));
+  });
+  await page.reload();
+  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  if (await deny.isVisible()) await deny.click();
+  await expect(page.locator(board)).toBeVisible();
+  await expect(page.locator('#rows-list li').first(), 'ezer szem betöltve').toContainText('1000');
+
+  // Really resizing is what makes the board redraw, so that is what is timed.
+  const started = Date.now();
+  for (let step = 0; step < 6; step += 1) {
+    await page.setViewportSize({ width: 1200 + step * 40, height: 800 });
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+  }
+  expect(Date.now() - started, 'hat teljes újrarajzolás két másodpercen belül').toBeLessThan(2000);
+
+  // Every act is written at once, so nothing is ever behind what is on screen.
+  await armDoubleCrochet(page);
+  await place(page, 300, 300);
+  const stored = await page.evaluate(() => {
+    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+    return (JSON.parse(raw).items ?? []).length;
+  });
+  expect(stored, 'a lerakott szem azonnal mentve').toBe(1001);
+});
+
+test('csippentés nagyít, és nem rajzol: amit az első ujj csinált, visszakerül (FR-TOUCH)', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+  await armDoubleCrochet(page);
+
+  const items = async (): Promise<number> =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+      return (JSON.parse(raw).items ?? []).length;
+    });
+
+  const rect = await page.locator(board).boundingBox();
+  if (rect === null) throw new Error('no board');
+  const first = await page.context().newCDPSession(page);
+
+  // Two fingers down with a stitch armed: the first finger must not leave one.
+  await first.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [{ x: rect.x + 400, y: rect.y + 400, id: 1 }],
+  });
+  await first.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [
+      { x: rect.x + 400, y: rect.y + 400, id: 1 },
+      { x: rect.x + 600, y: rect.y + 400, id: 2 },
+    ],
+  });
+  await first.send('Input.dispatchTouchEvent', {
+    type: 'touchMove',
+    touchPoints: [
+      { x: rect.x + 340, y: rect.y + 400, id: 1 },
+      { x: rect.x + 660, y: rect.y + 400, id: 2 },
+    ],
+  });
+  await first.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+
+  expect(await items(), 'a csippentés nem rakott le szemet').toBe(0);
+
+  // One finger still draws.
+  await first.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [{ x: rect.x + 500, y: rect.y + 300, id: 3 }],
+  });
+  await first.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  expect(await items(), 'egy ujj viszont lerak').toBe(1);
+});

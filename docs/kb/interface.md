@@ -857,6 +857,38 @@ interrupting an action the crocheter already chose, and a prompt is exactly that
 Cited from: `src/core/irregular-types.ts` (`AnnotationItem`),
 `src/ui/irregular-note.ts` and `src/ui/irregular-editor.ts` (`#refreshLabels`).
 
+## §50 What keeps a big chart usable on a tablet
+
+**One finger uses the armed tool; two zoom and move the drawing area.** The
+canvas takes `touch-action: none` so the browser never steals the gesture. A
+second finger arriving mid-drag cancels that drag, so a pinch can never leave a
+half-made stitch behind.
+
+**Only what is on screen is drawn.** A chart of thousands otherwise redraws
+every stitch on every frame. Items are culled against the visible rectangle with
+a little slack, so nothing pops in during a pan.
+
+**There is no delayed autosave, and there is no need for one.** A drag builds a
+draft and redraws; it does not commit, so nothing is written until the pointer
+comes up. A debounce was written for this and then removed: it could never run,
+and its test could never fail. A write that never happens needs no optimising,
+and dead machinery that looks like care is worse than none.
+
+**A pinch takes back what the first finger did.** The first finger acts at once,
+because waiting to see whether a second one is coming would make every tap feel
+slow — so when a second finger does arrive, the undo steps the first one made
+are unwound and its selection is put back. Otherwise pinching to zoom with a
+stitch armed drops a stray stitch into the pattern, and pinching over empty
+canvas silently clears the selection.
+
+Lifting one of three fingers leaves a **different pair**, so the gesture is
+re-seeded rather than measured against the pair that just changed, and a finger
+still down when the view closes is forgotten — otherwise it looks like one half
+of a pinch forever and single-finger drawing never works again.
+
+Cited from: `src/ui/irregular-editor.ts` (`#startPinch`, the touch handlers) and
+`src/ui/irregular-board.ts` (`#visibleBox`, `zoomAndPan`).
+
 ## §51 "Item" is not a synonym for "stitch"
 
 Making annotations items of the same list made every place that said *item* and
