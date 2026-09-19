@@ -1,12 +1,4 @@
-/*
- * A „Rácsminta” szakasz tartalma (PQW-864, PQW-894): a technikák, az ecsetek,
- * a rács mérete és cellaaránya, az ismétlő egység állapota, a terv kiírása, a
- * fonal színenként, a minta létrehozása, a kép betöltése a rácsba, és az
- * ismétlő egység kerete a diagramon és az exportban.
- *
- * DOM nélküli, ezért a Node is futtatja (tests/ui-grid-chart-view.test.mjs), és a
- * magot `.ts` kiterjesztéssel importálja.
- */
+// KB: interface.md §1
 
 import { C2C_STITCH, generateC2C, planC2C } from '../core/c2c.ts';
 import { generateColorwork, planColorwork } from '../core/colorwork.ts';
@@ -49,7 +41,6 @@ import type { CoreText } from '../core/messages.ts';
 import type { Choice } from './shapes-view.ts';
 import { formatNumber } from './size-view.ts';
 
-/** A szerkesztőben választható technikák. */
 export type EditorTechnique = GridTechnique;
 
 export const EDITOR_TECHNIQUES: readonly EditorTechnique[] = ['filet', 'c2c', 'tapestry', 'graphgan', 'mosaic'];
@@ -76,19 +67,14 @@ export const MOSAIC_ROW_CHOICES: readonly Choice<'1' | '2'>[] = [
   },
 ];
 
-/**
- * A rács alapszínei. A mentett mintába a nyelvfüggetlen azonosító kerül
- * (PQW-905), a nevet a megjelenítés adja; amit a felhasználó átír, az saját
- * névként marad, és nem fordul.
- */
+// KB: interface.md §25
 type ColorKey = 'natural' | 'burgundy' | 'blue' | 'green' | 'mustard' | 'black' | 'rose' | 'brown';
 
 const color = (key: ColorKey, hex: string): PatternColor => ({ id: key, hex });
 
-/** A szín megjelenített neve: a beépítetté a szótárból, a sajáté a mintából. */
 export function colorLabel(entry: PatternColor | undefined, fallback = ''): string {
   if (!entry) return fallback;
-  // A csoportban a nevek mellett egy függvény is áll (`numbered`), ezért olvasás után ellenőrizzük a fajtát.
+  // The group holds a function (`numbered`) beside the names, so check the type after reading.
   const names: Readonly<Record<string, unknown>> = texts().panels.grid.colors;
   const named = entry.id === undefined ? undefined : names[entry.id];
   return (typeof named === 'string' ? named : undefined) ?? entry.name ?? fallback;
@@ -110,22 +96,18 @@ export const DEFAULT_HEIGHT = 8;
 
 export interface GridEditorState {
   readonly technique: EditorTechnique;
-  /** Sorok alulról, cellák balról; `null`: meg nem adott cella, az ismétlő egység tölti ki. */
+  // KB: interface.md §24 — rows run bottom-up; `null` is a cell the repeat unit fills.
   readonly draft: readonly (readonly DraftCell[])[];
   readonly colors: readonly PatternColor[];
-  /** A kézzel megjelölt ismétlő egység; `null`: a program keresi. */
   readonly manualUnit: GridUnit | null;
   readonly lettering: boolean;
-  /** Mozaikban rácssoronként hány horgolt sor (PQW-894). */
   readonly mosaicRows: MosaicRows;
 }
 
 export const usesColors = (technique: EditorTechnique) => technique !== 'filet';
 
-/** Az új rács cellái: filében nyitott háló, színes rácsban az első szín. */
 export const defaultFill = (technique: EditorTechnique): number => (technique === 'filet' ? OPEN : 0);
 
-/** Az új rács: mozaikban minden sor a saját színével (horgolható alap), máskor egyforma cellák. */
 export function defaultDraft(technique: EditorTechnique, width: number, height: number): DraftCell[][] {
   if (technique !== 'mosaic') return emptyDraft(width, height, defaultFill(technique));
   return Array.from({ length: height }, (_, y) => Array.from({ length: width }, () => y % 2));
@@ -135,10 +117,6 @@ export function defaultState(technique: EditorTechnique = 'filet', width = DEFAU
   return { technique, draft: defaultDraft(technique, width, height), colors: DEFAULT_COLORS, manualUnit: null, lettering: false, mosaicRows: 1 };
 }
 
-/**
- * Másik technika: a filé és a színes rács cellái nem vihetők át, a méret és a
- * színek maradnak. Mozaikba váltáskor a rács a sorok színével indul, és két szín marad.
- */
 export function withTechnique(state: GridEditorState, technique: EditorTechnique): GridEditorState {
   if (technique === state.technique) return state;
   const width = state.draft[0]?.length ?? DEFAULT_WIDTH;
@@ -153,28 +131,21 @@ export function withTechnique(state: GridEditorState, technique: EditorTechnique
   };
 }
 
-/** A rács új mérete: a meglévő cellák maradnak, az új cellák meg nem adottak. */
 export function resizeDraft(draft: readonly (readonly DraftCell[])[], width: number, height: number): DraftCell[][] {
   return Array.from({ length: height }, (_, y) => Array.from({ length: width }, (_, x) => draft[y]?.[x] ?? null));
 }
 
-/** A következő új szín, vagy `null`, ha már nincs hely (mozaikban két szín van). */
 export function nextColor(colors: readonly PatternColor[], technique: EditorTechnique = 'tapestry'): PatternColor | null {
   if (colors.length >= (technique === 'mosaic' ? 2 : MAX_COLORS)) return null;
   return (
     MORE_COLORS.find((candidate) => !colors.some((other) => other.hex === candidate.hex)) ?? {
-      // Tartalék szín: ennek a neve a felület nyelvén kerül a mintába, nem
-      // azonosítóként (PQW-905). Nyolc beépített szín van, és a `MAX_COLORS` is
-      // ennyi, ezért ide csak akkor jutunk, ha a felhasználó átszínezéssel
-      // ütközést okoz — gyakorlatilag elérhetetlen. Ha a korlát egyszer nő, és
-      // ez az ág valóban használatba kerül, azonosítót kell adni neki is.
+      // KB: interface.md §25 — no id here; the branch is effectively unreachable.
       name: texts().panels.grid.colors.numbered(colors.length + 1),
       hex: '#8d819c',
     }
   );
 }
 
-/** Szín törlése: a törölt színű cellák az első megmaradó színt kapják, a későbbi indexek eggyel lejjebb lépnek. */
 export function removeColor(state: GridEditorState, index: number): GridEditorState {
   if (state.colors.length <= 1) return state;
   const shift = (cell: DraftCell) => (cell === null ? null : cell === index ? 0 : cell > index ? cell - 1 : cell);
@@ -185,14 +156,10 @@ export function removeColor(state: GridEditorState, index: number): GridEditorSt
   };
 }
 
-/* ---- Ecset és cella ---- */
-
 export interface Brush {
-  /** A választó értéke. */
   readonly key: string;
   readonly value: DraftCell;
   readonly label: string;
-  /** A szín mintája; filében `null`. */
   readonly swatch: string | null;
 }
 
@@ -220,7 +187,6 @@ export function valueName(state: GridEditorState, value: DraftCell): string {
   return t.color(colorLetter(value), colorLabel(state.colors[value], t.unknown));
 }
 
-/** A cella akadálymentes neve: „3. sor, 5. cella: teli”. */
 export function cellLabel(state: GridEditorState, x: number, y: number): string {
   return texts().panels.grid.cellLabel(y + 1, x + 1, valueName(state, state.draft[y]?.[x] ?? null));
 }
@@ -234,13 +200,11 @@ export function cellAppearance(state: GridEditorState, value: DraftCell): { read
   return { className: 'grid-cell grid-cell--color', color: state.colors[value]?.hex ?? null };
 }
 
-/** Egy cella mérete a mintasűrűségből: a technika szeme a minta profiljából, profil nélkül becsléssel. Kétsoros mozaikban két sor magas. */
 export function editorCellSize(pattern: Pattern, technique: EditorTechnique, mosaicRows: MosaicRows = 1): CellSize {
   const size = cellSize(technique, shapeGauge(pattern, TECHNIQUE_STITCH[technique]));
   return technique === 'mosaic' ? { widthCm: size.widthCm, heightCm: size.heightCm * mosaicRows } : size;
 }
 
-/** A cella képernyőmérete a valós arányban: a hosszabb oldal `base` pixel, a rövidebb legalább `min`. */
 export function cellPixels(cell: CellSize, base = 20, min = 8): { readonly width: number; readonly height: number } {
   const ratio = cell.widthCm / cell.heightCm;
   if (!Number.isFinite(ratio) || ratio <= 0) return { width: base, height: base };
@@ -249,11 +213,9 @@ export function cellPixels(cell: CellSize, base = 20, min = 8): { readonly width
     : { width: Math.max(min, Math.round(base * ratio)), height: base };
 }
 
-/* ---- Kép a rácsba (PQW-894) ---- */
-
 const clampSide = (value: number) => Math.min(MAX_GRID_SIDE, Math.max(1, Math.round(value)));
 
-/** A betöltött kép rácsmérete: a szélesség a megadott cellaszám, a magasság a kép és a cella valós arányából (03 §5.1). */
+// KB: 03 §5.1; interface.md §26
 export function imageGridSize(
   imageWidth: number,
   imageHeight: number,
@@ -268,18 +230,13 @@ export function imageGridSize(
 
 const rgb = (hex: string): [number, number, number] => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
 
-/**
- * A kép képpontjai (RGBA, felülről lefelé, `width` × `height`) cellákká:
- * filében a képátlagnál sötétebb cella teli, színes rácsban a legközelebbi
- * szín. Az átlátszó képpont fehér. Mozaikban a rács horgolhatóvá igazul.
- */
 export function imageToDraft(pixels: ArrayLike<number>, width: number, height: number, state: GridEditorState): number[][] {
   const pixel = (x: number, y: number): [number, number, number] => {
     const i = (y * width + x) * 4;
     const alpha = (pixels[i + 3] ?? 255) / 255;
     return [0, 1, 2].map((c) => (pixels[i + c] ?? 255) * alpha + 255 * (1 - alpha)) as [number, number, number];
   };
-  // A rács alulról felfelé áll, a kép felülről lefelé.
+  // KB: interface.md §24 — the grid runs bottom-up, the image top-down.
   const source = (x: number, row: number) => pixel(x, height - 1 - row);
   if (!usesColors(state.technique)) {
     const lightness = ([r, g, b]: [number, number, number]) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
@@ -304,12 +261,9 @@ export function imageToDraft(pixels: ArrayLike<number>, width: number, height: n
   return state.technique === 'mosaic' ? repairMosaic(cells) : cells;
 }
 
-/* ---- Ismétlő egység ---- */
-
 export interface UnitState {
   readonly unit: GridUnit | null;
   readonly text: string;
-  /** Az egység hibás vagy nem ismerhető fel, pedig van meg nem adott cella. */
   readonly problem: boolean;
 }
 
@@ -336,7 +290,6 @@ export function unitState(state: GridEditorState): UnitState {
 
 export type ExpandedCells = { readonly ok: true; readonly cells: number[][] } | { readonly ok: false; readonly reason: string };
 
-/** A kiterjesztett rács: a megadott cellák, a többi az ismétlő egységből. */
 export function expandedCells(state: GridEditorState, unit: UnitState = unitState(state)): ExpandedCells {
   if (hasGaps(state.draft) && !unit.unit) {
     return { ok: false, reason: unit.problem ? unit.text : texts().panels.grid.missingCells };
@@ -344,8 +297,6 @@ export function expandedCells(state: GridEditorState, unit: UnitState = unitStat
   const width = state.draft[0]?.length ?? 0;
   return { ok: true, cells: expandDraft(state.draft, unit.unit, width, state.draft.length, defaultFill(state.technique)) };
 }
-
-/* ---- Terv ---- */
 
 export interface SummaryView {
   readonly size: string;
@@ -358,7 +309,6 @@ export type SummaryResult = { readonly ok: true; readonly view: SummaryView } | 
 
 const cm = (value: number) => formatNumber(value, 1);
 
-/** Színenként a cellák száma: „A: 40, B: 12”. */
 function perColor(cells: readonly (readonly number[])[], unit: string): string {
   const t = texts().panels.grid;
   return `${[...cellCounts(cells)]
@@ -453,8 +403,6 @@ export function planSummary(pattern: Pattern, state: GridEditorState, mirrored: 
   return { ok: true, view: { size, details, warnings, source: sourceText(source) } };
 }
 
-/* ---- Fonal ---- */
-
 function meters(quantity: Quantity): string {
   const t = texts().panels.grid;
   const [low, high] = bounds(quantity);
@@ -463,7 +411,6 @@ function meters(quantity: Quantity): string {
     : t.yarnExact(formatNumber(quantity.value, 0));
 }
 
-/** A mostani rácsminta fonala tartalékkal, többszínű rácsnál színenként. Rácsminta nélkül üres. */
 export function yarnLines(pattern: Pattern): string[] {
   const t = texts().panels.grid;
   const piece = pattern.pieces[0];
@@ -481,8 +428,6 @@ export function yarnLines(pattern: Pattern): string[] {
   return lines;
 }
 
-/* ---- Létrehozás és betöltés ---- */
-
 export type GenerateResult = { readonly ok: true; readonly pattern: Pattern; readonly message: string } | { readonly ok: false; readonly reason: string };
 
 export function generateFromState(pattern: Pattern, state: GridEditorState): GenerateResult {
@@ -491,7 +436,6 @@ export function generateFromState(pattern: Pattern, state: GridEditorState): Gen
   const expanded = expandedCells(state, unit);
   if (!expanded.ok) return expanded;
   const common = { cells: expanded.cells, unit: unit.unit, lettering: state.lettering };
-  // A mag kódot és adatot ad; a mondat a szótárból jön (PQW-904).
   const done = (
     result: { ok: true; pattern: Pattern; plan: { rows: readonly unknown[] } } | { ok: false; reason: CoreText<GridCoreCode> },
   ): GenerateResult =>
@@ -514,7 +458,6 @@ export function generateFromState(pattern: Pattern, state: GridEditorState): Gen
   }
 }
 
-/** A mostani minta rácsa a szerkesztőbe, ha rácsmintából készült. */
 export function stateFromPattern(pattern: Pattern): GridEditorState | null {
   const grid = pattern.pieces[0]?.grid;
   if (!grid) return null;
@@ -528,8 +471,6 @@ export function stateFromPattern(pattern: Pattern): GridEditorState | null {
   };
 }
 
-/* ---- Az ismétlő egység a diagramon és az exportban ---- */
-
 export interface Frame {
   readonly x0: number;
   readonly y0: number;
@@ -539,11 +480,7 @@ export interface Frame {
 
 let frameCache: { readonly layout: ChartLayout; readonly pattern: Pattern; readonly mirrored: boolean; readonly frames: Frame[] } | null = null;
 
-/**
- * Az ismétlő egység keretei diagram-koordinátában. Sorban horgolt rácsnál egy
- * keret: az egység sorai, és a sor szemeinek szélessége a cellák arányában. A
- * C2C átlós soraiban csempénként egy keret, a csempe pálcái köré (PQW-894).
- */
+// KB: interface.md §27
 export function unitFrames(pattern: Pattern, layout: ChartLayout, mirrored: boolean): Frame[] {
   if (frameCache && frameCache.layout === layout && frameCache.pattern === pattern && frameCache.mirrored === mirrored) return frameCache.frames;
   const frames = computeFrames(pattern, layout, mirrored);
@@ -575,7 +512,6 @@ function computeFrames(pattern: Pattern, layout: ChartLayout, mirrored: boolean)
     c2cTileRows(cells[0]?.length ?? 0, cells.length).forEach((row, i) => {
       const layer = graph.layers[i + 1];
       if (!layer) return;
-      // A csempe 3 pálcája a sor pálcái között hármasával, a haladási irányban.
       const stitches = layer.stitches.filter((id) => graph.defs.get(id)!.id === C2C_STITCH);
       row.tiles.forEach((tile, t) => {
         if (!inUnit(tile.x, tile.y)) return;
@@ -590,7 +526,6 @@ function computeFrames(pattern: Pattern, layout: ChartLayout, mirrored: boolean)
     return frames;
   }
 
-  // Mozaikban egy rácssor egy vagy két horgolt sor. A lejjebb horgolt szem talpa nem nyújtja le a keretet.
   const perRow = grid.technique === 'mosaic' ? (grid.mosaicRows ?? 1) : 1;
   const spikes = spikeNodes(pattern);
   let [x0, x1, y0, y1] = [Infinity, -Infinity, Infinity, -Infinity];
@@ -600,7 +535,6 @@ function computeFrames(pattern: Pattern, layout: ChartLayout, mirrored: boolean)
     for (let pass = 0; pass < perRow; pass += 1) {
       const layer = graph.layers[y * perRow + pass + 1];
       if (!layer) return [];
-      // A sor végi láncos hosszabbítás már a következő sorhoz tartozik.
       const ids = [...layer.stitches];
       while (ids.length > 0 && graph.defs.get(ids[ids.length - 1]!)!.kind === 'chain') ids.pop();
       const nodes = ids.map((id) => layout.nodes.get(id)).filter((node) => node !== undefined);
@@ -611,7 +545,6 @@ function computeFrames(pattern: Pattern, layout: ChartLayout, mirrored: boolean)
       const xs = nodes.map((node) => node.top.x);
       const minX = Math.min(...xs);
       const maxX = Math.max(...xs);
-      // Filében a cellahatár az oszlop, színes rácsban két szem között van.
       const step = grid.technique === 'filet' || count < 2 ? 0 : (maxX - minX) / (count - 1) / 2;
       const at = (column: number) => {
         const t = (column - from) / count;
@@ -631,7 +564,6 @@ function computeFrames(pattern: Pattern, layout: ChartLayout, mirrored: boolean)
   return Number.isFinite(x0) && Number.isFinite(y0) ? [{ x0, y0: y0 - 4, x1, y1: y1 + 4 }] : [];
 }
 
-/** A lejjebb horgolt hosszú szemek (mozaik, filé sor végi szaporítás): a diagram a talpukat jelöli (PQW-894). */
 export function spikeNodes(pattern: Pattern): ReadonlySet<string> {
   return new Set((pattern.pieces[0]?.stitches ?? []).filter((node) => node.flags?.includes('spike')).map((node) => node.id));
 }

@@ -1,15 +1,4 @@
-/*
- * A „Méret és fonal” szakasz (PQW-859): profil-szerkesztő, váltás a profilok
- * között, kész méret és fonalbecslés, az arányhelyes nézet kapcsolója.
- *
- * Gépelés közben semmi nem épül újra: a mezők az index.html-ben vannak, és
- * frissítéskor csak az értékük változik (a fókuszban lévőé nem). A szemenkénti
- * gauge sorai csak akkor épülnek újra, ha a profil vagy a sorok száma változik.
- * Minden módosítás a mintát változtatja, ezért visszavonható, és a mintával
- * mentődik (a böngészőben és a JSON-ben is); új tárolókulcs nincs.
- *
- * A szakasz csak nyitva számol, mert a vászon egérmozgásra is frissít.
- */
+// KB: interface.md §7, §8
 
 import type { PieceGraph } from '../core/graph.js';
 import { GAUGE_STITCHES } from '../core/pattern-json.js';
@@ -35,7 +24,6 @@ import {
 } from './size-view.js';
 
 export interface SizePanelHost {
-  /** A módosított minta a visszavonási veremre, az üzenettel. */
   commit(pattern: Pattern, message: string): void;
   announce(message: string): void;
   setAspect(on: boolean): void;
@@ -43,7 +31,6 @@ export interface SizePanelHost {
 
 const FORMS: readonly GaugeForm[] = ['rows', 'rounds'];
 
-/** A mező szövegeinek kulcsa; a felirat a használat pillanatában, a mostani nyelven kerül elő. */
 type FieldKey = 'meterage' | 'ball' | 'hook' | 'swatchWidth' | 'swatchHeight' | 'swatchMass';
 
 interface NumberField {
@@ -68,7 +55,6 @@ function option(value: string, label: string): HTMLOptionElement {
   return el;
 }
 
-/** Üres mezőre `null`, érvénytelenre `undefined`. Tizedesvesszőt és -pontot is elfogad. */
 function readNumber(input: HTMLInputElement, max = Number.POSITIVE_INFINITY): number | null | undefined {
   const text = input.value.trim().replace(',', '.');
   if (text === '') return null;
@@ -78,7 +64,6 @@ function readNumber(input: HTMLInputElement, max = Number.POSITIVE_INFINITY): nu
 
 const numberValue = (value: number | null) => (value === null ? '' : formatNumber(value, 3));
 
-/** A mező értéke, kivéve ha épp abban gépel valaki. */
 function setValue(input: HTMLInputElement | HTMLSelectElement, value: string): void {
   if (document.activeElement !== input && input.value !== value) input.value = value;
 }
@@ -115,9 +100,7 @@ export class SizePanel {
   #pattern: Pattern | null = null;
   #graph: PieceGraph | null = null;
   #library: StitchLibrary | null = null;
-  /** A legutóbb kiírt minta; ugyanarra nem számolunk újra. */
   #shown: Pattern | null = null;
-  /** A legutóbb kiírt nyelv; nyelvváltáskor a szakasz újra kiírja magát. */
   #shownLanguage: UiLanguage | null = null;
   #gaugeKey = '';
 
@@ -258,7 +241,6 @@ export class SizePanel {
     });
   }
 
-  /** A minta változott (vagy csak a nézet): nyitott szakaszban újraszámol. */
   update(pattern: Pattern, graph: PieceGraph | null, library: StitchLibrary): void {
     this.#pattern = pattern;
     this.#graph = graph;
@@ -365,7 +347,6 @@ export class SizePanel {
     setOrigin(this.#origins.swatch, origins.swatch);
     this.#hookSizes.textContent = hookSizesText(profile.hookMm);
 
-    // A nyelv is a kulcs része: nyelvváltáskor a sorok feliratai újraépülnek.
     const key = `${profile.id}:${profile.gauges.length}:${uiLanguage()}`;
     if (key !== this.#gaugeKey) {
       this.#gaugeKey = key;
@@ -459,7 +440,6 @@ export class SizePanel {
     const body = element('tbody');
     for (const layer of view.layers) {
       const tr = element('tr');
-      // Az eredet a sor fejlécében, hogy a keskeny panelben ne kelljen oldalra görgetni.
       const th = Object.assign(element('th', '', layer.label), { scope: 'row' });
       th.append(element('span', `size__origin size__origin--${layer.source}`, sourceLabel(layer.source)));
       tr.append(th, element('td', '', layer.width), element('td', '', layer.height), element('td', '', layer.total));
@@ -474,7 +454,6 @@ export class SizePanel {
   }
 }
 
-/** Érték, eredet és tartomány soronként. */
 function valueList(rows: readonly ValueRow[]): HTMLDListElement {
   const list = element('dl', 'size__values');
   for (const row of rows) {
