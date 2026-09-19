@@ -684,3 +684,30 @@ the selection always belongs to the drag.
 
 Cited from: `src/ui/irregular-editor.ts` (`#snap`, `#onMove`) and
 `src/ui/irregular-board.ts` (`polarCenterAt`, `handleAt`, `#contentBox`).
+
+## §44 A group is selected, edited and broken as one
+
+Clicking any stitch of a chain arc selects the **whole** arc: a group is the
+thing the crocheter made, and half an arc is not a thing. From there:
+
+- **Moving** the whole group carries its path with it, so it stays the arc it
+  was.
+- **Anything else** — rotating, resizing, flipping, aligning, spreading, typing
+  a coordinate, or moving only part of it — makes the recipe a lie, so the group
+  is forgotten and its stitches stay exactly where they are. That is what
+  "Szétbontás" does deliberately, and it is what these edits do quietly, because
+  the alternative is a group that claims stitches it no longer describes.
+- **Deleting** a stitch forgets its group for the same reason.
+
+With an arc selected the **digit keys set the stitch count**, and digits typed
+one after the other build one number, so "1" then "2" is twelve; a pause of
+about a second starts a new one. The digits are free to mean this because the
+palette's shortcuts are ⌥+digit.
+
+The arc tool stays armed after an arc, the way the palette stays armed after a
+stitch, so several arcs come one after another. The **grips of the selected arc
+win over the armed tool**, so the arc just drawn can be nudged without laying
+the tool down and arming it again.
+
+Cited from: `src/ui/irregular-editor.ts` (`#loose`, `#shifted`, `typeArcCount`,
+`#onDown`) and `src/ui/main.ts` (`irregularKey`).

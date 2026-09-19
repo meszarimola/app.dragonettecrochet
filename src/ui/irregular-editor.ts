@@ -1,6 +1,7 @@
 // The free-form chart editor (PQW-963). KB: interface.md §1, §9, §19
 
 import { canRedo, canUndo, createHistory, type History, record, redo, undo } from '../core/history.ts';
+import { bulgeThrough, presetBulge } from '../core/irregular-arc.ts';
 import {
   type AlignMode,
   addStitch,
@@ -29,6 +30,22 @@ import {
   updateItems,
   withIrregularNotation,
 } from '../core/irregular-document.ts';
+import {
+  addChainArc,
+  type ChainArcPatch,
+  clampCount,
+  explodeGroups,
+  forgetBrokenGroups,
+  type GlyphSize,
+  groupById,
+  groupOfItem,
+  groupsOf,
+  holdsWholeGroups,
+  relayoutGroup,
+  translateGroups,
+  updateChainArc,
+  withWholeGroups,
+} from '../core/irregular-groups.ts';
 import { isIrregularJson, loadIrregular, saveIrregular } from '../core/irregular-json.ts';
 import {
   entryGlyph,
@@ -68,14 +85,23 @@ import {
   updateRow,
 } from '../core/irregular-rows.ts';
 import { radialRotation, snapPoint } from '../core/irregular-snap.ts';
-import type { IrregularItem, IrregularPattern, LegendBlock, Point, RowKind } from '../core/irregular-types.ts';
+import {
+  type ChainArcGroup,
+  DEFAULT_ARC_BULGE,
+  DEFAULT_ARC_COUNT,
+  type IrregularItem,
+  type IrregularPattern,
+  type LegendBlock,
+  type Point,
+  type RowKind,
+} from '../core/irregular-types.ts';
 import { stitchById } from '../core/stitches.ts';
 import { stitchName } from '../core/stitchText.ts';
 import type { Locale, PatternNotation, StitchDefId } from '../core/types.ts';
 import { IRREGULAR_JSON_CORE_TEXTS } from './i18n/core/irregular-json.ts';
 import { renderCoreText } from './i18n/core/render.ts';
 import { texts, uiLanguage } from './i18n.ts';
-import { FreeBoard, type HandleId, type LegendEntry } from './irregular-board.ts';
+import { type ArcHandleId, type ArcPath, FreeBoard, type HandleId, type LegendEntry } from './irregular-board.ts';
 import { drawnGlyph, itemShapes, naturalSize } from './irregular-glyph.ts';
 import { IrregularKeyPanel } from './irregular-key-panel.ts';
 import { IrregularLayersPanel } from './irregular-layers-panel.ts';
@@ -87,6 +113,10 @@ export const IRREGULAR_STORAGE_KEY = 'dc-mintatervezo:minta-szabalytalan';
 export const IRREGULAR_PREFS_KEY = 'dc-mintatervezo:szabalytalan-beallitasok';
 
 const ROTATE_SNAP = 15;
+/** The chain arc is made of chains; the key decides what a chain looks like. */
+const ARC_STITCH = 'ch';
+/** How long a typed digit waits for the next one before it stands alone. */
+const ARC_TYPING_GAP = 900;
 const MIN_SIZE = 2;
 
 interface Preferences {
@@ -122,11 +152,15 @@ export interface IrregularHost {
   notationNote(recorded: Locale, shown: Locale): string;
   terms(): Locale;
   refreshControls(): void;
+  /** Lets the editor lay the palette's stitch down when another tool takes over. */
+  armStitch(id: StitchDefId | null): void;
 }
 
 type Drag =
   | { kind: 'move'; from: Point; anchor: Point; drop: string | null }
   | { kind: 'polar'; from: Point; center: Point }
+  | { kind: 'arc-draw'; from: Point; to: Point }
+  | { kind: 'arc-grip'; id: string; grip: ArcHandleId }
   | { kind: 'pan'; last: Point }
   | { kind: 'marquee'; from: Point; to: Point; additive: boolean }
   | { kind: 'scale'; handle: HandleId; start: Point; base: readonly IrregularItem[]; anchor: Point }
@@ -168,6 +202,9 @@ export class IrregularEditor {
   #draft: IrregularPattern | null = null;
   #selection = new Set<string>();
   #stitch: StitchDefId | null = null;
+  #arcTool = false;
+  #arcCount = DEFAULT_ARC_COUNT;
+  #arcTyped = 0;
   #drag: Drag | null = null;
   #preferences = readPreferences();
   #clipboard: readonly IrregularItem[] = [];
@@ -222,6 +259,10 @@ export class IrregularEditor {
       setSnap: (on) => this.#commit(setSnap(this.#history.present, on)),
       setPolar: (patch) => this.#setPolar(patch),
       setRadial: (on) => this.#setPreference({ radial: on }),
+      setArcCount: (count) => this.setArcCount(count),
+      setArcShape: (shape) => this.setArcShape(shape),
+      setArcBulge: (bulge) => this.setArcBulge(bulge),
+      explodeArc: () => this.explodeSelectedArc(),
     });
     this.#hoverCapable = window.matchMedia('(hover: hover)').matches;
     this.#listen();
@@ -428,7 +469,13 @@ export class IrregularEditor {
         height: (item.height / before.height) * after.height,
       };
     });
-    this.#commit({ ...next, items });
+    // KB: interface.md §41 — an arc is drawn from the key too, so it is laid out again.
+    let redrawn: IrregularPattern = { ...next, items };
+    for (const group of groupsOf(redrawn)) {
+      if (group.keyEntryId !== id) continue;
+      redrawn = relayoutGroup(redrawn, group.id, naturalSize(id, 'both-loops', symbols, now));
+    }
+    this.#commit(redrawn);
   }
 
   #setLegend(patch: Partial<LegendBlock>): void {
@@ -561,7 +608,107 @@ export class IrregularEditor {
 
   setStitch(id: StitchDefId | null): void {
     this.#stitch = id;
+    if (id !== null) this.#arcTool = false;
     this.refresh();
+  }
+
+  get arcArmed(): boolean {
+    return this.#arcTool;
+  }
+
+  /** The chain arc the selection holds, when it holds exactly one and nothing else. */
+  get selectedArc(): ChainArcGroup | null {
+    const groups = groupsOf(this.#history.present).filter((group) =>
+      group.memberIds.some((member) => this.#selection.has(member)),
+    );
+    const only = groups.length === 1 ? groups[0] : undefined;
+    if (only === undefined || only.memberIds.length !== this.#selection.size) return null;
+    return only.memberIds.every((member) => this.#selection.has(member)) ? only : null;
+  }
+
+  toggleArcTool(): void {
+    this.#arcTool = !this.#arcTool;
+    if (this.#arcTool) {
+      this.#stitch = null;
+      this.#host.armStitch(null);
+    }
+    this.refresh();
+  }
+
+  /** The size the arc's chains are drawn at, measured from the key's own symbol. */
+  #arcGlyph(keyEntryId: string): GlyphSize {
+    return naturalSize(keyEntryId, 'both-loops', this.#host.symbols(), entryGlyph(this.#history.present, keyEntryId));
+  }
+
+  setArcCount(count: number): void {
+    const arc = this.selectedArc;
+    const wanted = clampCount(count);
+    this.#arcCount = wanted;
+    if (arc === null || arc.count === wanted) return;
+    const next = updateChainArc(this.#history.present, arc.id, { count: wanted }, this.#arcGlyph(arc.keyEntryId));
+    const group = groupById(next, arc.id);
+    if (group !== undefined) this.#selection = new Set(group.memberIds);
+    this.#commit(next, texts().irregular.arcCount(wanted));
+  }
+
+  /**
+   * Digits typed one after the other build one number, so "1" then "2" is
+   * twelve; a pause starts a new one. KB: interface.md §44
+   */
+  typeArcCount(digit: string): void {
+    const now = Date.now();
+    const fresh = now - this.#arcTyped > ARC_TYPING_GAP;
+    this.#arcTyped = now;
+    const arc = this.selectedArc;
+    const grown = fresh ? digit : `${arc === null ? '' : String(arc.count)}${digit}`;
+    const wanted = Number(grown);
+    if (!Number.isFinite(wanted)) return;
+    this.setArcCount(wanted);
+  }
+
+  setArcShape(shape: ChainArcGroup['shape']): void {
+    this.#patchArc({ shape });
+  }
+
+  setArcBulge(bulge: number): void {
+    this.#patchArc({ bulge });
+  }
+
+  #patchArc(patch: ChainArcPatch): void {
+    const arc = this.selectedArc;
+    if (arc === null) return;
+    const next = updateChainArc(this.#history.present, arc.id, patch, this.#arcGlyph(arc.keyEntryId));
+    const group = groupById(next, arc.id);
+    if (group !== undefined) this.#selection = new Set(group.memberIds);
+    this.#commit(next);
+  }
+
+  explodeSelectedArc(): void {
+    const arc = this.selectedArc;
+    if (arc === null) return;
+    this.#commit(explodeGroups(this.#history.present, [arc.id]), texts().irregular.arcExploded(arc.count));
+  }
+
+  /**
+   * A group describes how its stitches were made. Editing one of them on its own
+   * makes that description a lie, so the group is forgotten and the stitches stay.
+   * KB: interface.md §44
+   */
+  #loose(pattern: IrregularPattern): IrregularPattern {
+    const ids = new Set<string>();
+    for (const id of this.#selection) {
+      const group = groupOfItem(this.#history.present, id);
+      if (group !== undefined) ids.add(group.id);
+    }
+    return ids.size === 0 ? pattern : explodeGroups(pattern, ids);
+  }
+
+  /** Moving a whole group carries its path; moving part of one breaks it up. */
+  #shifted(pattern: IrregularPattern, dx: number, dy: number): IrregularPattern {
+    if (holdsWholeGroups(this.#history.present, this.#selection)) {
+      return translateGroups(pattern, this.#selection, dx, dy);
+    }
+    return this.#loose(pattern);
   }
 
   toggleGrid(): void {
@@ -628,7 +775,7 @@ export class IrregularEditor {
   deleteSelection(): void {
     const count = this.#selection.size;
     if (count === 0) return;
-    const next = deleteItems(this.#history.present, this.#selection);
+    const next = forgetBrokenGroups(deleteItems(this.#history.present, this.#selection));
     this.#setSelection([]);
     this.#commit(next, texts().irregular.deleted(count));
   }
@@ -668,13 +815,13 @@ export class IrregularEditor {
 
   nudge(dx: number, dy: number): void {
     if (this.#selection.size === 0) return;
-    this.#commit(moveItems(this.#history.present, this.#selection, dx, dy));
+    this.#commit(this.#shifted(moveItems(this.#history.present, this.#selection, dx, dy), dx, dy));
   }
 
   rotateSelection(degrees: number): void {
     if (this.#selection.size === 0) return;
     const pivot = this.#selection.size === 1 ? null : this.#selectionCenter();
-    this.#commit(rotateItems(this.#history.present, this.#selection, degrees, pivot));
+    this.#commit(this.#loose(rotateItems(this.#history.present, this.#selection, degrees, pivot)));
   }
 
   #selectionCenter(): Point | null {
@@ -684,21 +831,21 @@ export class IrregularEditor {
 
   #patch(patch: ItemPatch): void {
     if (this.#selection.size === 0) return;
-    this.#commit(updateItems(this.#history.present, this.#selection, patch));
+    this.#commit(this.#loose(updateItems(this.#history.present, this.#selection, patch)));
   }
 
   #align(mode: AlignMode): void {
-    const next = alignItems(this.#history.present, this.#selection, mode);
+    const next = this.#loose(alignItems(this.#history.present, this.#selection, mode));
     this.#commit(next, next === this.#history.present ? undefined : texts().irregular.aligned);
   }
 
   #distribute(axis: DistributeAxis): void {
-    const next = distributeItems(this.#history.present, this.#selection, axis);
+    const next = this.#loose(distributeItems(this.#history.present, this.#selection, axis));
     this.#commit(next, next === this.#history.present ? undefined : texts().irregular.spread);
   }
 
   #flip(axis: FlipAxis): void {
-    this.#commit(flipItems(this.#history.present, this.#selection, axis));
+    this.#commit(this.#loose(flipItems(this.#history.present, this.#selection, axis)));
   }
 
   // -- file ----------------------------------------------------------------
@@ -762,9 +909,12 @@ export class IrregularEditor {
       glyphOf: (keyEntryId) => entryGlyph(pattern, keyEntryId),
       fadeOthers: this.#preferences.fadeOthers,
       order: this.#preferences.showOrder ? rowOrder(pattern, orderRow) : null,
+      arc: this.selectedArc,
+      arcPreview: this.#arcPreview(),
       legend: { block: this.legend, entries: this.#legendEntries() },
     });
     this.#panel.update(itemsOf(pattern, this.#selection), this.#preferences.rectPartial, pattern.items.length);
+    this.#panel.updateArc(this.selectedArc);
   }
 
   refresh(): void {
@@ -783,6 +933,15 @@ export class IrregularEditor {
     this.#layersPanel.update(committed, this.#selection.size);
     this.#keyPanel.update(committed, this.#host.terms(), this.#host.symbols(), this.legend);
     this.#host.refreshControls();
+  }
+
+  /** The dashed path that follows the pointer while an arc is being drawn. */
+  #arcPreview(): ArcPath | null {
+    const drag = this.#drag;
+    if (drag?.kind !== 'arc-draw') return null;
+    const [start, end] = [drag.from, drag.to];
+    if (start.x === end.x && start.y === end.y) return null;
+    return { shape: 'arc', start, end, bulge: presetBulge(start, end, DEFAULT_ARC_BULGE) };
   }
 
   #ghost(): readonly Shape[] | null {
@@ -876,9 +1035,28 @@ export class IrregularEditor {
     }
     if (event.button !== 0) return;
 
+    /*
+     * An arc's own grips come before everything else. They sit on the corners of
+     * its selection box, and resizing an arc only breaks it up, so the endpoint
+     * is what the hand was reaching for. They also beat the armed tool, which
+     * stays armed, so the arc just drawn can be nudged without laying it down.
+     * KB: interface.md §44
+     */
+    const grip = this.#board.arcHandleAt(event.clientX, event.clientY);
+    const armed = this.selectedArc;
+    if (grip !== null && armed !== null) {
+      this.#drag = { kind: 'arc-grip', id: armed.id, grip };
+      return;
+    }
+
     const handle = this.#board.handleAt(event.clientX, event.clientY);
     if (handle !== null) {
       this.#startHandle(handle, point);
+      return;
+    }
+
+    if (this.#arcTool) {
+      this.#drag = { kind: 'arc-draw', from: point, to: point };
       return;
     }
 
@@ -903,7 +1081,8 @@ export class IrregularEditor {
         if (this.#selection.has(hit)) drop = hit;
         else this.#selection.add(hit);
       } else if (!this.#selection.has(hit)) {
-        this.#setSelection([hit]);
+        // KB: interface.md §44 — touching one stitch of a group takes the group.
+        this.#setSelection(withWholeGroups(this.#history.present, [hit]));
       }
       const anchor = itemsOf(this.#history.present, this.#selection).find((item) => item.id === hit);
       this.#drag = {
@@ -980,12 +1159,20 @@ export class IrregularEditor {
         // KB: interface.md §43 — holding ⌘ or Ctrl while dragging puts snapping aside.
         const free = event.metaKey || event.ctrlKey;
         const landing = free ? null : this.#snap({ x: drag.anchor.x + rawX, y: drag.anchor.y + rawY }, this.#selection);
-        this.#draft = moveItems(
-          this.#history.present,
-          this.#selection,
+        const [dx, dy] = [
           landing === null ? rawX : landing.x - drag.anchor.x,
           landing === null ? rawY : landing.y - drag.anchor.y,
-        );
+        ];
+        this.#draft = this.#shifted(moveItems(this.#history.present, this.#selection, dx, dy), dx, dy);
+        this.#refreshScene();
+        return;
+      }
+      case 'arc-draw':
+        drag.to = point;
+        this.#refreshScene();
+        return;
+      case 'arc-grip': {
+        this.#draft = this.#grippedArc(drag, this.#snap(point, this.#selection));
         this.#refreshScene();
         return;
       }
@@ -1000,17 +1187,14 @@ export class IrregularEditor {
         this.#refreshScene();
         return;
       case 'scale':
-        this.#draft = this.#scaled(drag, point, event.shiftKey);
+        this.#draft = this.#loose(this.#scaled(drag, point, event.shiftKey));
         this.#refreshScene();
         return;
       case 'rotate': {
         const turn = angleOf(drag.center, point) - drag.startAngle;
         const step = event.shiftKey ? Math.round(turn / ROTATE_SNAP) * ROTATE_SNAP : turn;
-        this.#draft = rotateItems(
-          this.#history.present,
-          this.#selection,
-          step,
-          drag.base.length === 1 ? null : drag.center,
+        this.#draft = this.#loose(
+          rotateItems(this.#history.present, this.#selection, step, drag.base.length === 1 ? null : drag.center),
         );
         this.#refreshScene();
         return;
@@ -1064,6 +1248,49 @@ export class IrregularEditor {
     };
   }
 
+  /** What the arc becomes while one of its three grips is being dragged. */
+  #grippedArc(drag: Extract<Drag, { kind: 'arc-grip' }>, point: Point): IrregularPattern {
+    const arc = groupById(this.#history.present, drag.id);
+    if (arc === undefined || arc.kind !== 'chainArc') return this.#history.present;
+    const patch: ChainArcPatch =
+      drag.grip === 'bulge'
+        ? { bulge: bulgeThrough(arc.start, arc.end, point) }
+        : drag.grip === 'start'
+          ? { start: point }
+          : { end: point };
+    return updateChainArc(this.#history.present, arc.id, patch, this.#arcGlyph(arc.keyEntryId));
+  }
+
+  /** A press and a drag give the two ends; the preset bulge bows it to the left. */
+  #finishArcDraw(drag: Extract<Drag, { kind: 'arc-draw' }>): void {
+    const start = this.#snap(drag.from);
+    const end = this.#snap(drag.to);
+    if (start.x === end.x && start.y === end.y) {
+      this.refresh();
+      return;
+    }
+    const keyEntryId = ARC_STITCH;
+    const pattern = this.#history.present;
+    const made = addChainArc(
+      pattern,
+      {
+        rowId: pattern.activeRowId,
+        layerId: pattern.activeLayerId,
+        keyEntryId,
+        shape: 'arc',
+        start,
+        end,
+        bulge: presetBulge(start, end, DEFAULT_ARC_BULGE),
+        count: this.#arcCount,
+      },
+      this.#arcGlyph(keyEntryId),
+    );
+    const group = groupById(made.pattern, made.id);
+    this.#setSelection(group === undefined ? [] : group.memberIds);
+    const row = made.pattern.rows.findIndex((candidate) => candidate.id === pattern.activeRowId) + 1;
+    this.#commit(made.pattern, texts().irregular.arcAdded(this.#arcCount, row));
+  }
+
   #onUp(): void {
     const drag = this.#drag;
     if (drag === null) return;
@@ -1074,6 +1301,12 @@ export class IrregularEditor {
       this.#drag = null;
       this.refresh();
       if (ids.length > 0) this.#host.announce(texts().irregular.selected(this.#selection.size));
+      return;
+    }
+    if (drag.kind === 'arc-draw') {
+      this.#drag = null;
+      this.#draft = null;
+      this.#finishArcDraw(drag);
       return;
     }
     const draft = this.#draft;

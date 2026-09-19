@@ -66,14 +66,23 @@ test('every menu bar icon button shows a tooltip under the mouse, the inactive o
   expect(count).toBeGreaterThan(10);
   expect(await page.locator('.tools .tool[title]').count()).toBe(0);
 
+  /*
+   * A tool group can belong to one pattern type and be hidden in the others
+   * (PQW-967), and a button nobody can see cannot show a tooltip. The shown
+   * ones are still counted, so this cannot quietly become a test of nothing.
+   */
+  let shown = 0;
   for (let i = 0; i < count; i += 1) {
     const tool = tools.nth(i);
     const tip = await tool.getAttribute('data-tip');
     expect(tip, `button without a tooltip: ${await tool.getAttribute('data-action')}`).toBeTruthy();
+    if (!(await tool.isVisible())) continue;
+    shown += 1;
     await tool.hover({ force: true });
     await expect.poll(() => tipDisplay(tool)).toBe('block');
     expect(await tipText(tool)).toBe(JSON.stringify(tip));
   }
+  expect(shown, 'a menüsor látható gombjai').toBeGreaterThan(10);
 
   // Without a mouse no tooltip is visible.
   await page.mouse.move(0, 0);
@@ -124,7 +133,15 @@ test('in a narrow window even a visible tooltip does not hang off to the right',
   const tools = page.locator('.tools__group > .tool, .tools .menu > .tool');
   const count = await tools.count();
   expect(count).toBeGreaterThan(10);
-  for (let i = 0; i < count; i += 1) await check(tools.nth(i));
+  let shown = 0;
+  for (let i = 0; i < count; i += 1) {
+    const tool = tools.nth(i);
+    // Hidden groups belong to another pattern type; they have no tooltip to place.
+    if (!(await tool.isVisible())) continue;
+    shown += 1;
+    await check(tool);
+  }
+  expect(shown, 'a menüsor látható gombjai').toBeGreaterThan(10);
 
   // Then the items of the file actions, with the menu opened (PQW-911).
   await page.locator('#file-toggle').click();

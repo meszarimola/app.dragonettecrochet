@@ -1,8 +1,11 @@
 // The free-form chart file. KB: core-domain §8, core-domain §11
 
 import {
+  ARC_COUNT_RANGE,
+  type ArcShape,
   DEFAULT_POLAR,
   IRREGULAR_FORMAT_VERSION,
+  type IrregularGroup,
   type IrregularGuides,
   type IrregularItem,
   type IrregularLayer,
@@ -41,6 +44,10 @@ export type IrregularJsonCode =
   | 'unknown-row'
   | 'unknown-layer'
   | 'duplicate-key-entry-id'
+  | 'duplicate-group-id'
+  | 'shared-group-member'
+  | 'group-count-mismatch'
+  | 'unknown-item'
   | 'key-entry-unnamed';
 
 export interface IrregularLoadError {
@@ -212,7 +219,7 @@ function readIrregular(value: unknown, path: string): IrregularPattern {
     value,
     path,
     ['formatVersion', 'type', 'title', 'rows', 'layers', 'items', 'activeRowId', 'activeLayerId', 'guides'],
-    ['titleGenerated', 'notation', 'stitchKey', 'legend'],
+    ['titleGenerated', 'notation', 'stitchKey', 'legend', 'groups'],
   );
   const rows = array(raw['rows'], `${path}.rows`, readRow);
   if (rows.length === 0) throw new FormatError(`${path}.rows`, 'expected-nonempty-array');
@@ -227,6 +234,24 @@ function readIrregular(value: unknown, path: string): IrregularPattern {
     if (!rowIds.has(item.rowId)) throw new FormatError(`${path}.items[${index}].rowId`, 'unknown-row');
     if (!layerIds.has(item.layerId)) throw new FormatError(`${path}.items[${index}].layerId`, 'unknown-layer');
   });
+
+  const itemIds = new Set(items.map((item) => item.id));
+  const groups =
+    raw['groups'] === undefined
+      ? undefined
+      : array(raw['groups'], `${path}.groups`, (entry, where) => readGroup(entry, where, rowIds, layerIds, itemIds));
+  if (groups !== undefined) {
+    idsOf(groups, `${path}.groups`, 'duplicate-group-id');
+    const claimed = new Set<string>();
+    groups.forEach((group, index) => {
+      group.memberIds.forEach((member, spot) => {
+        if (claimed.has(member)) {
+          throw new FormatError(`${path}.groups[${index}].memberIds[${spot}]`, 'shared-group-member');
+        }
+        claimed.add(member);
+      });
+    });
+  }
 
   const activeRowId = string(raw['activeRowId'], `${path}.activeRowId`);
   if (!rowIds.has(activeRowId)) throw new FormatError(`${path}.activeRowId`, 'unknown-row');
@@ -246,6 +271,7 @@ function readIrregular(value: unknown, path: string): IrregularPattern {
     items,
     activeRowId,
     activeLayerId,
+    ...(groups === undefined || groups.length === 0 ? {} : { groups }),
     guides: readGuides(raw['guides'], `${path}.guides`),
     ...(raw['stitchKey'] === undefined ? {} : { stitchKey: readStitchKey(raw['stitchKey'], `${path}.stitchKey`) }),
     ...(raw['legend'] === undefined ? {} : { legend: readLegend(raw['legend'], `${path}.legend`) }),
@@ -391,6 +417,58 @@ function readGuides(value: unknown, path: string): IrregularGuides {
     // Written since PQW-966; a file from before that keeps the preset circle guide.
     polar: raw['polar'] === undefined ? DEFAULT_POLAR : readPolar(raw['polar'], `${path}.polar`),
     snap: boolean(raw['snap'], `${path}.snap`),
+  };
+}
+
+const ARC_SHAPES: readonly ArcShape[] = ['arc', 'straight'];
+
+/**
+ * A group is read against the items it claims: a run pointing at a stitch that
+ * is not in the file would draw nothing and could never be laid out again.
+ */
+function readGroup(
+  value: unknown,
+  path: string,
+  rowIds: ReadonlySet<string>,
+  layerIds: ReadonlySet<string>,
+  itemIds: ReadonlySet<string>,
+): IrregularGroup {
+  const raw = object(value, path, [
+    'id',
+    'kind',
+    'rowId',
+    'layerId',
+    'keyEntryId',
+    'shape',
+    'start',
+    'end',
+    'bulge',
+    'count',
+    'memberIds',
+  ]);
+  const rowId = string(raw['rowId'], `${path}.rowId`);
+  if (!rowIds.has(rowId)) throw new FormatError(`${path}.rowId`, 'unknown-row');
+  const layerId = string(raw['layerId'], `${path}.layerId`);
+  if (!layerIds.has(layerId)) throw new FormatError(`${path}.layerId`, 'unknown-layer');
+  const memberIds = array(raw['memberIds'], `${path}.memberIds`, (member, where) => {
+    const id = string(member, where);
+    if (!itemIds.has(id)) throw new FormatError(where, 'unknown-item');
+    return id;
+  });
+  const count = whole(raw['count'], `${path}.count`, ARC_COUNT_RANGE);
+  if (count !== memberIds.length) throw new FormatError(`${path}.count`, 'group-count-mismatch');
+  return {
+    id: string(raw['id'], `${path}.id`),
+    kind: oneOf(raw['kind'], `${path}.kind`, ['chainArc'] as const),
+    rowId,
+    layerId,
+    keyEntryId: string(raw['keyEntryId'], `${path}.keyEntryId`),
+    shape: oneOf(raw['shape'], `${path}.shape`, ARC_SHAPES),
+    start: readPoint(raw['start'], `${path}.start`),
+    end: readPoint(raw['end'], `${path}.end`),
+    bulge: finite(raw['bulge'], `${path}.bulge`),
+    count,
+    memberIds,
   };
 }
 

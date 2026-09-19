@@ -1278,6 +1278,12 @@ function irregularKey(editor: IrregularEditor, event: KeyboardEvent, key: string
     editor.deleteSelection();
     return true;
   }
+  // KB: interface.md §44 — with an arc selected the digits are its stitch count.
+  if (/^[0-9]$/.test(key) && editor.selectedArc !== null && !event.shiftKey) {
+    event.preventDefault();
+    editor.typeArcCount(key);
+    return true;
+  }
   if (!onBoard) return false;
   const step = event.shiftKey ? NUDGE_STEP_LARGE : NUDGE_STEP;
   const nudges: Record<string, readonly [number, number]> = {
@@ -1324,6 +1330,7 @@ const ACTIONS: Record<string, () => void> = {
   },
   'delete-last': () => commit(deleteLast(history.present), texts().messages.work.deleteLast),
   'select-area': () => (irregular?.active === true ? select(null) : setAreaMode(!areaMode)),
+  'chain-arc': () => irregular?.toggleArcTool(),
   'delete-selection': () => (irregular?.active === true ? irregular.deleteSelection() : void deleteSelection()),
   'duplicate-selection': () => (irregular?.active === true ? irregular.duplicateSelection() : duplicateSelected()),
   same: () =>
@@ -2093,6 +2100,7 @@ function ensureIrregular(): IrregularEditor {
     notation: () => notation,
     insets: () => ({ left: insetLeft(), right: insetRight(), bottom: insetBottom() }),
     notationNote: (recorded, shown) => texts().messages.file.notationNote(termsLabel(recorded), termsLabel(shown)),
+    armStitch: (id) => select(id),
     terms: () => notation.terms,
     refreshControls: () => {
       if (irregular !== null) updateIrregularControls(irregular);
@@ -2106,7 +2114,11 @@ function updateIrregularControls(editor: IrregularEditor): void {
   setDisabled('redo', !editor.canRedo);
   setDisabled('delete-selection', editor.selectionSize === 0);
   setDisabled('duplicate-selection', editor.selectionSize === 0);
-  must<HTMLButtonElement>('[data-action="select-area"]').setAttribute('aria-pressed', String(tool === null));
+  must<HTMLButtonElement>('[data-action="select-area"]').setAttribute(
+    'aria-pressed',
+    String(tool === null && !editor.arcArmed),
+  );
+  must<HTMLButtonElement>('[data-action="chain-arc"]').setAttribute('aria-pressed', String(editor.arcArmed));
   must<HTMLButtonElement>('[data-action="grid"]').setAttribute('aria-pressed', String(editor.gridVisible));
   if (document.activeElement !== titleInput) titleInput.value = editor.title;
   const issues = editor.issues();
@@ -2130,6 +2142,7 @@ function showIrregularView(on: boolean): void {
   canvas.hidden = on;
   irregularCanvas.hidden = !on;
   must<HTMLElement>('#tools-row').hidden = on;
+  must<HTMLElement>('#tools-irregular').hidden = !on;
   writtenToggle.hidden = on;
   if (on) setOpen(written, writtenToggle, false);
   // The free-form image and print output arrives with its own ticket; until then it would save the wrong chart.

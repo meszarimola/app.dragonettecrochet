@@ -429,3 +429,96 @@ test('⌘ + kattintás húzás nélkül továbbra is kivesz egy szemet a kijelö
   await page.locator(board).click({ position: { x: 560, y: 300 }, modifiers: ['Meta'] });
   await expect(page.locator('#props-count'), 'a középső kikerült').toContainText('2');
 });
+
+test('láncív: rajzolás húzással, majd N átállítása 7-re (AS-3)', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+
+  // Row 2 is the active one, so the arc has to land there.
+  await page.locator('#row-new').click();
+  await expect(page.locator('#rows-list li')).toHaveCount(2);
+
+  // The free-form tool group is hidden in the other types, so its tooltip is checked here.
+  const arcTool = page.locator('[data-action="chain-arc"]');
+  await expect(arcTool).toBeVisible();
+  await expect(arcTool).toHaveAttribute('data-tip', /Láncív/);
+  await arcTool.click();
+  await expect(arcTool).toHaveAttribute('aria-pressed', 'true');
+
+  const rect = await page.locator(board).boundingBox();
+  if (rect === null) throw new Error('no board');
+  await page.mouse.move(rect.x + 420, rect.y + 380);
+  await page.mouse.down();
+  await page.mouse.move(rect.x + 700, rect.y + 380, { steps: 12 });
+  await page.mouse.up();
+
+  const arc = async (): Promise<{ count: number; members: number; items: number; rowId: string; shape: string }> =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+      const parsed = JSON.parse(raw);
+      const group = (parsed.groups ?? [])[0] ?? { count: 0, memberIds: [], rowId: '', shape: '' };
+      return {
+        count: group.count,
+        members: group.memberIds.length,
+        items: (parsed.items ?? []).length,
+        rowId: group.rowId,
+        shape: group.shape,
+      };
+    });
+
+  const drawn = await arc();
+  expect(drawn.count, 'öt szemmel indul').toBe(5);
+  expect(drawn.items, 'és öt szem került a rajzlapra').toBe(5);
+  expect(drawn.shape, 'ív, nem egyenes').toBe('arc');
+  await expect(page.locator('#status')).toContainText('2. sor');
+
+  // The whole arc is selected right after drawing, so a digit sets its count.
+  await expect(page.locator('#props-count')).toContainText('5');
+  await expect(page.locator('#props-arc')).toBeVisible();
+  await page.locator(board).focus();
+  await page.keyboard.press('7');
+
+  const grown = await arc();
+  expect(grown.count, 'hét szem').toBe(7);
+  expect(grown.members, 'és a csoport is hetet sorol fel').toBe(7);
+  expect(grown.items, 'a rajzlapon is hét van').toBe(7);
+  await expect(page.locator('#arc-count')).toHaveValue('7');
+
+  // The stitches follow the arc: the middle one sits higher than the two ends.
+  const heights = await page.evaluate(() => {
+    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+    return (JSON.parse(raw).items ?? []).map((item: { y: number }) => item.y);
+  });
+  const first = heights[0] ?? 0;
+  const middle = heights[3] ?? 0;
+  const last = heights[6] ?? 0;
+  expect(middle, 'a közepe feljebb domborodik').toBeLessThan(first);
+  expect(Math.abs(first - last), 'a két vége egy magasságban van').toBeLessThan(0.001);
+
+  // The endpoint grip sits on the selection box's corner and must win over it:
+  // resizing would only break the arc up, which is not what the hand reached for.
+  const ends = await page.evaluate(() => {
+    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+    const group = (JSON.parse(raw).groups ?? [])[0];
+    return { start: group.start, end: group.end };
+  });
+  const view = { x: 420 - ends.start.x, y: 380 - ends.start.y };
+  await page.mouse.move(rect.x + ends.end.x + view.x, rect.y + ends.end.y + view.y);
+  await page.mouse.down();
+  await page.mouse.move(rect.x + ends.end.x + view.x + 60, rect.y + ends.end.y + view.y + 40, { steps: 10 });
+  await page.mouse.up();
+  const dragged = await arc();
+  expect(dragged.count, 'a végpont húzása nem bontotta szét az ívet').toBe(7);
+  const moved = await page.evaluate(() => {
+    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+    return (JSON.parse(raw).groups ?? [])[0].end;
+  });
+  expect(moved.x, 'hanem a végpontot vitte').toBeCloseTo(ends.end.x + 60, 6);
+  expect(moved.y, 'hanem a végpontot vitte').toBeCloseTo(ends.end.y + 40, 6);
+
+  // Breaking it apart keeps every stitch and forgets only the recipe.
+  await page.locator('#arc-explode').click();
+  const gone = await arc();
+  expect(gone.items, 'a hét szem megmarad').toBe(7);
+  expect(gone.count, 'de a csoport eltűnt').toBe(0);
+});
