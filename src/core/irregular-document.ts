@@ -230,7 +230,7 @@ export function duplicateItems(
   for (const item of chosen) {
     const id = nextId('i', [...taken, ...made]);
     made.push(id);
-    copies.push({ ...item, id, x: item.x + offset.x, y: item.y + offset.y });
+    copies.push(unlinked({ ...item, id, x: item.x + offset.x, y: item.y + offset.y }));
   }
   return { pattern: { ...pattern, items: [...pattern.items, ...copies] }, ids: made };
 }
@@ -247,16 +247,26 @@ export function pasteItems(
   const copies = items.map((item) => {
     const id = nextId('i', [...taken, ...made]);
     made.push(id);
-    return {
+    return unlinked({
       ...item,
       id,
       rowId: pattern.activeRowId,
       layerId: pattern.activeLayerId,
       x: item.x + offset.x,
       y: item.y + offset.y,
-    };
+    });
   });
   return { pattern: { ...pattern, items: [...pattern.items, ...copies] }, ids: made };
+}
+
+/**
+ * A copied row number must not keep naming the row it was copied from, or it
+ * would sit on one row and forever read another's number.
+ */
+function unlinked(item: IrregularItem): IrregularItem {
+  if (isStitch(item) || item.linkedRowId === undefined) return item;
+  const { linkedRowId: _gone, ...rest } = item;
+  return rest;
 }
 
 export type FlipAxis = 'horizontal' | 'vertical';

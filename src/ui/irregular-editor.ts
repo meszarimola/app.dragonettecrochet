@@ -150,7 +150,14 @@ import { noteDrawing, noteSize } from './irregular-note.ts';
 import { IrregularPanel } from './irregular-panel.ts';
 import { IrregularRowsPanel, rowName } from './irregular-rows-panel.ts';
 import { type IrregularSvgOptions, irregularBox, irregularSvg, type LegendLine } from './irregular-svg.ts';
-import { type PageOrientation, type PageSize, MAX_SIDE as PDF_MAX_SIDE, pageCount, writePdf } from './pdf.ts';
+import {
+  type PageOrientation,
+  type PageSize,
+  MAX_SIDE as PDF_MAX_SIDE,
+  type PdfText,
+  pageCount,
+  writePdf,
+} from './pdf.ts';
 import type { Shape, SymbolOptions } from './symbols.ts';
 
 export const IRREGULAR_STORAGE_KEY = 'dc-mintatervezo:minta-szabalytalan';
@@ -786,6 +793,7 @@ export class IrregularEditor {
     if (id !== null) {
       this.#arcTool = false;
       this.#fanTool = false;
+      this.#note = null;
     }
     this.#stitch = id;
     this.refresh();
@@ -856,6 +864,7 @@ export class IrregularEditor {
   #setTool(tool: 'none' | 'arc' | 'fan'): void {
     this.#arcTool = tool === 'arc';
     this.#fanTool = tool === 'fan';
+    this.#note = null;
     if (tool !== 'none') {
       this.#stitch = null;
       this.#host.armStitch(null);
@@ -1321,7 +1330,7 @@ export class IrregularEditor {
     const pattern = this.#history.present;
     const rowId = this.#rowOfSelection() ?? pattern.activeRowId;
     const order = rowOrder(pattern, rowId);
-    const inRow = itemsOfRow(pattern, rowId).filter((item) => isSelectable(pattern, item));
+    const inRow = itemsOfRow(pattern, rowId).filter((item) => isStitch(item) && isSelectable(pattern, item));
     const chosen = this.#selection.size === 0 ? inRow : inRow.filter((item) => this.#selection.has(item.id));
     const byId = new Map(chosen.map((item) => [item.id, item]));
     const items: IrregularItem[] = [];
@@ -1709,20 +1718,26 @@ export class IrregularEditor {
     // The colours come with the stitches: a chart that tells rounds apart by
     // colour must not print black.
     const runs: { shapes: Shape[]; color: string | null }[] = [];
+    const words: PdfText[] = [];
     for (const item of pattern.items) {
       if (!isVisible(pattern, item)) continue;
       const color = item.color ?? rowById(pattern, item.rowId)?.color ?? null;
       const last = runs[runs.length - 1];
-      // An annotation's words are not shapes, so only its strokes reach the PDF.
-      const shapes = isStitch(item)
-        ? itemShapes(item, symbols, entryGlyph(pattern, item.keyEntryId))
-        : [...noteDrawing(item).shapes];
+      let shapes: Shape[];
+      if (isStitch(item)) {
+        shapes = [...itemShapes(item, symbols, entryGlyph(pattern, item.keyEntryId))];
+      } else {
+        const drawing = noteDrawing(item);
+        shapes = [...drawing.shapes];
+        // A row's number is words, not strokes; the print needs them too.
+        for (const piece of drawing.texts) words.push({ ...piece, color });
+      }
       if (last !== undefined && last.color === color) last.shapes.push(...shapes);
-      else runs.push({ shapes: [...shapes], color });
+      else runs.push({ shapes, color });
     }
     // The legend is not drawn on the PDF yet, so no room is kept for it.
     const box = irregularBox(pattern, { legend: null, background: null, guides: false });
-    return writePdf({ shapes: [], runs, lineWidth: 1.6 }, box, {
+    return writePdf({ shapes: [], runs, texts: words, lineWidth: 1.6 }, box, {
       title: pattern.title,
       size: this.#export.size,
       orientation: this.#export.orientation,

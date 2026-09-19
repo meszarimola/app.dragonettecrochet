@@ -1,7 +1,7 @@
 // Layers of the free-form drawing. KB: interface.md §39
 
 import { nextId } from './irregular-document.ts';
-import type { IrregularLayer, IrregularPattern } from './irregular-types.ts';
+import { type IrregularLayer, type IrregularPattern, isStitch } from './irregular-types.ts';
 
 export type LayerPatch = Partial<Pick<IrregularLayer, 'name' | 'visible' | 'locked'>>;
 
@@ -72,6 +72,7 @@ export function moveItemsToLayer(pattern: IrregularPattern, ids: Iterable<string
   return changed ? { ...pattern, items } : pattern;
 }
 
+/** Stitches on the layer; annotations sit on one but are not stitches (D12). */
 export function itemsOfLayer(pattern: IrregularPattern, layerId: string): number {
-  return pattern.items.reduce((total, item) => (item.layerId === layerId ? total + 1 : total), 0);
+  return pattern.items.reduce((total, item) => (isStitch(item) && item.layerId === layerId ? total + 1 : total), 0);
 }

@@ -856,3 +856,25 @@ interrupting an action the crocheter already chose, and a prompt is exactly that
 
 Cited from: `src/core/irregular-types.ts` (`AnnotationItem`),
 `src/ui/irregular-note.ts` and `src/ui/irregular-editor.ts` (`#refreshLabels`).
+
+## §51 "Item" is not a synonym for "stitch"
+
+Making annotations items of the same list made every place that said *item* and
+meant *stitch* wrong at once, and the type checker caught only the ones that
+touched a stitch's own fields. The rest had to be found by reading:
+
+- the counts in the rows **and layers** panels,
+- the crochet order, which decides the order overlay, a round's centre and
+  therefore a round's whole reading order,
+- what an arrange acts on when nothing is selected,
+- a row's bounding box, which even row spacing measures from,
+- and what "this row is empty" means.
+
+Every one of them is about stitches. The rule to carry forward: **when a
+function says `items` and the answer is about crochet, it wants `isStitch`.**
+
+A copied row number drops the row it named: a label that sits on one row and
+forever reads another's number is worse than one with no number at all.
+
+Cited from: `src/core/irregular-order.ts`, `src/core/irregular-layers.ts`,
+`src/core/irregular-rowline.ts` and `src/core/irregular-document.ts` (`unlinked`).

@@ -387,7 +387,9 @@ export class IrregularPanel {
     if (first === undefined) return;
     const kinds = new Set(notes.map((note) => note.note));
     // A label writes its own words from the row it follows; the rest are typed.
-    must<HTMLElement>(this.#section, '#note-text').closest('p')?.toggleAttribute('hidden', kinds.has('label'));
+    // An arrow and a marker draw no words, so a text field would write into nothing.
+    const writes = [...kinds].every((kind) => kind === 'text' || kind === 'bracket');
+    must<HTMLElement>(this.#section, '#note-text').closest('p')?.toggleAttribute('hidden', !writes);
     must<HTMLElement>(this.#section, '#note-arrow-row').hidden = !kinds.has('label');
     must<HTMLElement>(this.#section, '#note-dotted-row').hidden = !kinds.has('marker');
     if (document.activeElement !== this.#noteText) this.#noteText.value = first.text;

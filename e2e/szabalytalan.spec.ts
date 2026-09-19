@@ -1009,6 +1009,13 @@ test('feliratok: sorszámok követik a sort, és nem számítanak szemnek (AS-9)
   // A second press adds nothing: every row already has one.
   await page.locator('#notes-numbers').click();
   expect((await read()).labels, 'nem duplázódik').toHaveLength(2);
+
+  // The numbers go into the print too, not only into the picture.
+  const pdfDownload = page.waitForEvent('download');
+  await page.locator('#export-pdf').click();
+  const pdf = await readFile((await (await pdfDownload).path()) ?? '');
+  const inside = pdf.toString('latin1');
+  expect((inside.match(/Tj/g) ?? []).length, 'a sorszámok szövegként a PDF-ben vannak').toBeGreaterThan(2);
 });
 
 test('felirat és nyíl: lerakás, szöveg és betűméret (FR-ANN-5, FR-ANN-6)', async ({ page }) => {
