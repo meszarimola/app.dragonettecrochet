@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Local commit gate.
+#
+# This repository is private on a free GitHub plan, so branch protection is
+# unavailable and a red CI cannot stop a merge. This hook is the real gate.
+# It must stay under about two seconds or it will be bypassed.
+#
+# Install: git config core.hooksPath .githooks
+set -euo pipefail
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged" ] && exit 0
+
+fail=0
+
+# 1. Frozen paths hold Hungarian user-facing product content.
+frozen=$(printf '%s\n' "$staged" | grep -E '^(src/ui/i18n/|tests/fixtures/)' || true)
+if [ -n "$frozen" ]; then
+  if [ "${ALLOW_FROZEN:-}" != "1" ]; then
+    echo "pre-commit: frozen path staged — this is user-facing product content:" >&2
+    printf '  %s\n' $frozen >&2
+    echo "  See .claude/rules/frozen-paths.md. Intentional? ALLOW_FROZEN=1 git commit …" >&2
+    fail=1
+  fi
+fi
+
+# 2. Developer text is English. Check only ADDED lines, so the pending
+#    Hungarian-to-English migration does not block every commit meanwhile.
+sources=$(printf '%s\n' "$staged" | grep -E '\.(ts|mjs|js|astro)$' | grep -vE '^(src/ui/i18n/|tests/fixtures/)' || true)
+if [ -n "$sources" ]; then
+  hungarian=$(git diff --cached -U0 -- $sources \
+    | grep -E '^\+' | grep -vE '^\+\+\+' \
+    | grep -E '^\+\s*(//|\*|/\*|<!--)' \
+    | grep -E '[áéíóöőúüűÁÉÍÓÖŐÚÜŰ]' || true)
+  if [ -n "$hungarian" ]; then
+    echo "pre-commit: new comment is not in English:" >&2
+    printf '%s\n' "$hungarian" | head -5 >&2
+    echo "  Developer text is English (CLAUDE.md rule 7)." >&2
+    fail=1
+  fi
+fi
+
+# 3. Lint the staged files, once a linter is configured.
+if [ -f package.json ] && node -e "process.exit(require('./package.json').scripts?.lint?0:1)" 2>/dev/null; then
+  npm run --silent lint || fail=1
+fi
+
+exit $fail
