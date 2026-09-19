@@ -4,6 +4,7 @@ import { type Box, itemBox, rowById, unionBox } from './irregular-document.ts';
 import { itemsOfRow } from './irregular-rows.ts';
 import type { IrregularPattern, IrregularRow, Point, RowLine } from './irregular-types.ts';
 
+const MIN_RADIUS = 1;
 const ORIGIN: Point = { x: 0, y: 0 };
 
 function finite(value: number, fallback = 0): number {
@@ -206,6 +207,12 @@ interface Reference {
   readonly at: Point;
   /** The circle the rounds that follow become concentric with, when the first row has one. */
   readonly circle: { readonly center: Point; readonly radius: number } | null;
+  /**
+   * The one direction every row steps along. Each row's own left normal would
+   * point the other way on a turned row, and flat crochet turns every row, so
+   * the rows would land on alternating sides of the first one.
+   */
+  readonly normal: Point | null;
 }
 
 function referenceOf(pattern: IrregularPattern, anchor: IrregularRow): Reference {
@@ -213,13 +220,22 @@ function referenceOf(pattern: IrregularPattern, anchor: IrregularRow): Reference
   if (line !== undefined) {
     if (line.shape === 'circle') {
       const center = finitePoint(line.center);
-      return { at: center, circle: { center, radius: Math.max(0, finite(line.radius)) } };
+      return { at: center, circle: { center, radius: positiveRadius(line.radius) }, normal: null };
     }
-    return { at: chordMiddle(line.start, line.end), circle: null };
+    return { at: chordMiddle(line.start, line.end), circle: null, normal: leftNormal(line.start, line.end) };
   }
   const box = rowBox(pattern, anchor);
-  if (box === null) return { at: ORIGIN, circle: null };
-  return { at: { x: (box.minX + box.maxX) / 2, y: (box.minY + box.maxY) / 2 }, circle: null };
+  if (box === null) return { at: ORIGIN, circle: null, normal: null };
+  return {
+    at: { x: (box.minX + box.maxX) / 2, y: (box.minY + box.maxY) / 2 },
+    circle: null,
+    normal: null,
+  };
+}
+
+/** The file refuses a radius of zero, so a shrinking circle stops just short of it. */
+function positiveRadius(radius: number): number {
+  return Math.max(MIN_RADIUS, finite(radius));
 }
 
 function lineMove(row: IrregularRow, line: RowLine, reference: Reference, target: number): RowMove | null {
@@ -227,17 +243,23 @@ function lineMove(row: IrregularRow, line: RowLine, reference: Reference, target
     const circle = reference.circle;
     const center = finitePoint(line.center);
     if (circle === null) {
-      const radius = Math.max(0, finite(line.radius) + target);
-      return { rowId: row.id, shift: ORIGIN, line: { ...line, center, radius } };
+      return {
+        rowId: row.id,
+        shift: ORIGIN,
+        line: { ...line, center, radius: positiveRadius(finite(line.radius) + target) },
+      };
     }
     return {
       rowId: row.id,
       shift: { x: circle.center.x - center.x, y: circle.center.y - center.y },
-      line: { ...line, center: circle.center, radius: Math.max(0, circle.radius + target) },
+      line: { ...line, center: circle.center, radius: positiveRadius(circle.radius + target) },
     };
   }
-  const normal = leftNormal(line.start, line.end);
-  if (normal === null) return null;
+  // A shape nobody can read has no place to go, whatever the reference says.
+  const own = leftNormal(line.start, line.end);
+  if (own === null) return null;
+  // The reference decides the direction; a turned row must not step the other way.
+  const normal = reference.normal ?? own;
   const middle = chordMiddle(line.start, line.end);
   const stands = (middle.x - reference.at.x) * normal.x + (middle.y - reference.at.y) * normal.y;
   const delta = target - stands;

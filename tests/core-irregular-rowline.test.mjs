@@ -527,3 +527,33 @@ describe('broken input', () => {
     assert.doesNotThrow(() => alignRows(wrong, ['r1', 'r2', 'r3'], 'center'), 'aligning it throws nothing either');
   });
 });
+
+describe('what the review found in row spacing (PQW-969)', () => {
+  test('turned rows stack on one side, not alternating sides', () => {
+    // Flat crochet turns every row, so row 2's own line runs the other way.
+    const base = stacked([0, 0, 0]);
+    const withLines = setRowLine(
+      setRowLine(setRowLine(base, 'r1', straight(0)), 'r2', {
+        ...straight(0),
+        start: { x: 100, y: 0 },
+        end: { x: 0, y: 0 },
+      }),
+      'r3',
+      straight(0),
+    );
+    const { pattern: next } = spaceRows(withLines, ['r1', 'r2', 'r3'], 40);
+    const ys = ['r1', 'r2', 'r3'].map((id) => lineY(next, id));
+    const steps = [ys[1] - ys[0], ys[2] - ys[1]];
+    near(steps[0], steps[1], 'both steps go the same way');
+    near(Math.abs(steps[0]), 40, 'and both are the spacing');
+  });
+
+  test('a circle row line never shrinks to nothing, because the file would refuse it', () => {
+    const middle = { x: 0, y: 0 };
+    const base = setRowLine(setRowLine(stacked([0, 0, 0]), 'r1', ring(middle, 10)), 'r2', ring(middle, 10));
+    const { pattern: next } = spaceRows(base, ['r1', 'r2'], -1000);
+    const line = rowLine(next, 'r2');
+    assert.equal(line?.shape, 'circle', 'still a circle');
+    assert.ok((line?.radius ?? 0) > 0, 'with a radius a file can hold');
+  });
+});

@@ -718,3 +718,24 @@ the tool down and arming it again.
 
 Cited from: `src/ui/irregular-editor.ts` (`#loose`, `#shifted`, `typeArcCount`,
 `#onDown`) and `src/ui/main.ts` (`irregularKey`).
+
+
+## §46 A row line is reshaped on its own; the stitches follow on a button
+
+Dragging a row line's grips changes **only the line**. The stitches stay where
+they are until "Egyenletessé tesz" puts them on the new shape. That is the
+spec's own flow, and it is what makes the row line a live parameter panel: you
+see the shape you are aiming at before the stitches commit to it.
+
+The row line is a guide behind the work, so its grips are hit-tested **after**
+the selection's own grips and handles, and only when no group is selected. A
+selected arc's endpoint always wins over the row line's, because the arc is the
+thing under the hand.
+
+This is why the spec's popup parameter panel per arrange button (P70) is not
+built. Arranging happens from where the stitches are now, and the shape it
+produced stays on the canvas to be adjusted. One less modal, and the same
+result.
+
+Cited from: `src/ui/irregular-editor.ts` (`#grippedRowLine`) and
+`src/ui/irregular-board.ts` (`rowLineGripAt`).

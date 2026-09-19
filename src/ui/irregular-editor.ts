@@ -214,6 +214,7 @@ type Drag =
   | { kind: 'arc-draw'; from: Point; to: Point }
   | { kind: 'fan-draw'; from: Point; to: Point }
   | { kind: 'arc-grip'; id: string; grip: ArcHandleId }
+  | { kind: 'rowline-grip'; rowId: string; grip: ArcHandleId }
   | { kind: 'pan'; last: Point }
   | { kind: 'marquee'; from: Point; to: Point; additive: boolean }
   | { kind: 'scale'; handle: HandleId; start: Point; base: readonly IrregularItem[]; anchor: Point }
@@ -1163,25 +1164,26 @@ export class IrregularEditor {
   }
 
   spaceRows(spacing: number): void {
-    const ids = this.#history.present.rows.map((row) => row.id);
-    const result = spaceRows(this.#history.present, ids, spacing);
-    if (result.pattern === this.#history.present) {
-      this.#host.announce(texts().irregular.roundNeedsLine);
+    const pattern = this.#history.present;
+    const ids = pattern.rows.map((row) => row.id);
+    const result = spaceRows(pattern, ids, spacing);
+    const words = texts().irregular;
+    const skippedRound = result.skipped.some((entry) => entry.code === 'round-without-line');
+    if (result.pattern === pattern) {
+      // Nothing moved, and there are several reasons for that: name the right one.
+      this.#host.announce(skippedRound ? words.roundNeedsLine : words.rowsAlreadySpaced);
       return;
     }
-    const skippedRound = result.skipped.some((entry) => entry.code === 'round-without-line');
-    this.#commit(
-      result.pattern,
-      skippedRound
-        ? texts().irregular.roundNeedsLine
-        : texts().irregular.rowsSpaced(ids.length - result.skipped.length),
-    );
+    // The first row is the anchor and never moves, so it is not one of the moved.
+    const moved = Math.max(0, ids.length - result.skipped.length - 1);
+    this.#commit(result.pattern, skippedRound ? words.roundNeedsLine : words.rowsSpaced(moved));
   }
 
   alignRows(mode: RowAlign): void {
-    const ids = this.#history.present.rows.map((row) => row.id);
-    const next = alignRows(this.#history.present, ids, mode);
-    this.#commit(next, next === this.#history.present ? undefined : texts().irregular.rowsAligned(ids.length));
+    const pattern = this.#history.present;
+    const ids = pattern.rows.map((row) => row.id);
+    const next = alignRows(pattern, ids, mode);
+    this.#commit(next, next === pattern ? undefined : texts().irregular.rowsAligned);
   }
 
   /** Arranging moves stitches on their own, so any group they were in is forgotten. */
@@ -1423,6 +1425,18 @@ export class IrregularEditor {
       return;
     }
 
+    // The row line is a guide behind the work, so its grips come after the
+    // selection's own but before anything that would start a new drawing.
+    const lineGrip = this.#board.rowLineGripAt(event.clientX, event.clientY);
+    if (lineGrip !== null && this.selectedGroup === null) {
+      this.#drag = {
+        kind: 'rowline-grip',
+        rowId: this.#rowOfSelection() ?? this.#history.present.activeRowId,
+        grip: lineGrip,
+      };
+      return;
+    }
+
     const handle = this.#board.handleAt(event.clientX, event.clientY);
     if (handle !== null) {
       this.#startHandle(handle, point);
@@ -1556,6 +1570,11 @@ export class IrregularEditor {
         this.#refreshScene();
         return;
       }
+      case 'rowline-grip': {
+        this.#draft = this.#grippedRowLine(drag, this.#snap(point, this.#selection));
+        this.#refreshScene();
+        return;
+      }
       case 'polar':
         this.#draft = setPolar(this.#history.present, {
           center: { x: drag.center.x + (point.x - drag.from.x), y: drag.center.y + (point.y - drag.from.y) },
@@ -1626,6 +1645,30 @@ export class IrregularEditor {
       ...this.#history.present,
       items: this.#history.present.items.map((item) => byId.get(item.id) ?? item),
     };
+  }
+
+  /**
+   * Reshaping a row line changes the line alone; the stitches follow only when
+   * "Egyenletessé tesz" is pressed. KB: interface.md §46
+   */
+  #grippedRowLine(drag: Extract<Drag, { kind: 'rowline-grip' }>, point: Point): IrregularPattern {
+    const pattern = this.#history.present;
+    const line = rowLine(pattern, drag.rowId);
+    if (line === undefined) return pattern;
+    if (line.shape === 'circle') {
+      const next =
+        drag.grip === 'origin'
+          ? { ...line, center: point }
+          : { ...line, radius: Math.max(1, Math.hypot(point.x - line.center.x, point.y - line.center.y)) };
+      return setRowLine(pattern, drag.rowId, next);
+    }
+    const next =
+      drag.grip === 'bulge' && line.shape === 'arc'
+        ? { ...line, bulge: bulgeThrough(line.start, line.end, point) }
+        : drag.grip === 'start'
+          ? { ...line, start: point }
+          : { ...line, end: point };
+    return setRowLine(pattern, drag.rowId, next);
   }
 
   /** What the arc becomes while one of its three grips is being dragged. */

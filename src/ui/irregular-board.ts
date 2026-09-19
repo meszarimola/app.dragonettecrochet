@@ -468,7 +468,7 @@ export class FreeBoard {
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.#drawOrder(scene, colors.accent);
-    if (scene.rowLine !== null) this.#drawArcPath(scene.rowLine, colors.grid, false);
+    if (scene.rowLine !== null) this.#drawArcPath(scene.rowLine, colors.grid, true);
     if (scene.arcPreview !== null) this.#drawArcPath(scene.arcPreview, colors.accent, false);
     if (scene.arc !== null) this.#drawArcPath(scene.arc, colors.accent, true);
     this.#drawSelection(colors.accent);
@@ -630,9 +630,20 @@ export class FreeBoard {
   arcHandleAt(clientX: number, clientY: number): ArcHandleId | null {
     const scene = this.#scene;
     if (scene === null || scene.arc === null) return null;
+    return this.#gripAt(scene.arc, clientX, clientY);
+  }
+
+  /** The grips of the row line the active row remembers, so its shape can be reshaped. */
+  rowLineGripAt(clientX: number, clientY: number): ArcHandleId | null {
+    const scene = this.#scene;
+    if (scene === null || scene.rowLine === null) return null;
+    return this.#gripAt(scene.rowLine, clientX, clientY);
+  }
+
+  #gripAt(path: GroupPath, clientX: number, clientY: number): ArcHandleId | null {
     const rect = this.#canvas.getBoundingClientRect();
     const [px, py] = [clientX - rect.left, clientY - rect.top];
-    for (const [id, point] of this.#arcHandles(scene.arc)) {
+    for (const [id, point] of this.#arcHandles(path)) {
       const screen = this.#toScreen(point);
       if (Math.abs(screen.x - px) <= HANDLE_HIT && Math.abs(screen.y - py) <= HANDLE_HIT) return id;
     }
@@ -651,8 +662,11 @@ export class FreeBoard {
       const middle = this.#toScreen(path.center);
       const edge = directionOf(path.startAngle);
       const rim = this.#toScreen({ x: path.center.x + edge.x * path.radius, y: path.center.y + edge.y * path.radius });
-      ctx.moveTo(rim.x, rim.y);
-      ctx.arc(middle.x, middle.y, Math.hypot(rim.x - middle.x, rim.y - middle.y), 0, Math.PI * 2);
+      const radius = Math.hypot(rim.x - middle.x, rim.y - middle.y);
+      // The arc starts at screen angle 0, so the pen has to be put there first;
+      // anywhere else and canvas draws a chord across the circle to reach it.
+      ctx.moveTo(middle.x + radius, middle.y);
+      ctx.arc(middle.x, middle.y, radius, 0, Math.PI * 2);
     } else if (isFan(path)) {
       const middle = this.#toScreen(path.origin);
       for (const angle of fanAngles(path)) {

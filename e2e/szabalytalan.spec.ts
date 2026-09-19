@@ -715,3 +715,53 @@ test('elrendezés: körvonalra, a sor megjegyzi az alakot, Egyenletessé tesz z�
   expect((await state()).line, 'a sorvonal megszűnt').toBe(null);
   expect((await state()).items, 'a szemek a helyükön maradtak').toBe(7);
 });
+
+test('a sorvonal fogantyúval átalakítható, a szemek csak az Egyenletessé teszre követik', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+  await armDoubleCrochet(page);
+  for (const x of [420, 480, 540, 600]) await place(page, x, 400);
+  await page.locator(board).focus();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Control+a');
+  await page.locator('[data-arrange="line"]').click();
+
+  const read = async (): Promise<{
+    line: { start: { x: number; y: number }; end: { x: number; y: number } };
+    ys: number[];
+  }> =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+      const parsed = JSON.parse(raw);
+      return {
+        line: parsed.rows[0].line,
+        ys: (parsed.items ?? []).map((item: { y: number }) => item.y),
+      };
+    });
+
+  const before = await read();
+  expect(before.line, 'a sor megjegyezte az egyenest').toBeTruthy();
+
+  // Drag the line's end grip downward. Only the line may move.
+  const first = await page.evaluate(() => {
+    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+    return (JSON.parse(raw).items ?? [])[0] as { x: number; y: number };
+  });
+  const rect = await page.locator(board).boundingBox();
+  if (rect === null) throw new Error('no board');
+  // The first stitch sits on the line's start, so the view offset follows from it.
+  const view = { x: 420 - first.x, y: 400 - first.y };
+  await page.mouse.move(rect.x + before.line.end.x + view.x, rect.y + before.line.end.y + view.y);
+  await page.mouse.down();
+  await page.mouse.move(rect.x + before.line.end.x + view.x, rect.y + before.line.end.y + view.y + 80, { steps: 10 });
+  await page.mouse.up();
+
+  const reshaped = await read();
+  expect(reshaped.line.end.y - before.line.end.y, 'a vonal vége lejjebb került').toBeGreaterThan(70);
+  expect(reshaped.ys, 'a szemek még nem mozdultak').toEqual(before.ys);
+
+  await page.locator('#arrange-even').click();
+  const evened = await read();
+  expect(evened.ys, 'az Egyenletessé tesz viszi rá őket').not.toEqual(before.ys);
+  expect(evened.ys[3], 'az utolsó szem a vonal új végén').toBeGreaterThan(before.ys[3]);
+});
