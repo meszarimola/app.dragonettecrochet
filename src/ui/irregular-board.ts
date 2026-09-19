@@ -12,6 +12,7 @@ import type {
   IrregularPattern,
   LegendBlock,
   PolarGuide,
+  RowLine,
 } from '../core/irregular-types.ts';
 import { itemShapes, naturalGlyph } from './irregular-glyph.ts';
 import {
@@ -64,10 +65,28 @@ export interface FanPath {
   readonly count: number;
 }
 
-export type GroupPath = ArcPath | FanPath;
+/** A circle guide line, drawn for a round that remembers one. */
+export interface CirclePath {
+  readonly center: ChartPoint;
+  readonly radius: number;
+  readonly startAngle: number;
+}
+
+export type GroupPath = ArcPath | FanPath | CirclePath;
 
 function isFan(path: GroupPath): path is FanPath {
-  return 'origin' in path;
+  return 'direction' in path;
+}
+
+function isCircle(path: GroupPath): path is CirclePath {
+  return 'radius' in path;
+}
+
+/** The shape a row remembers, as something the canvas can draw and grab. */
+export function rowLinePath(line: RowLine): GroupPath {
+  if (line.shape === 'circle') return { center: line.center, radius: line.radius, startAngle: line.startAngle };
+  if (line.shape === 'arc') return { shape: 'arc', start: line.start, end: line.end, bulge: line.bulge };
+  return { shape: 'straight', start: line.start, end: line.end, bulge: 0 };
 }
 
 // The dashed preview asks the core where the rays are, so it can never promise
@@ -107,6 +126,8 @@ export interface FreeScene {
   readonly arc: GroupPath | null;
   /** The group being drawn right now, drawn but not yet grabbable. */
   readonly arcPreview: GroupPath | null;
+  /** The active row's remembered shape, drawn as a thin guide. */
+  readonly rowLine: GroupPath | null;
   readonly legend: LegendView | null;
 }
 
@@ -447,6 +468,7 @@ export class FreeBoard {
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.#drawOrder(scene, colors.accent);
+    if (scene.rowLine !== null) this.#drawArcPath(scene.rowLine, colors.grid, false);
     if (scene.arcPreview !== null) this.#drawArcPath(scene.arcPreview, colors.accent, false);
     if (scene.arc !== null) this.#drawArcPath(scene.arc, colors.accent, true);
     this.#drawSelection(colors.accent);
@@ -582,6 +604,13 @@ export class FreeBoard {
 
   /** Where the three grips of an arc sit, in chart units. */
   #arcHandles(path: GroupPath): ReadonlyMap<ArcHandleId, ChartPoint> {
+    if (isCircle(path)) {
+      const edge = directionOf(path.startAngle);
+      return new Map<ArcHandleId, ChartPoint>([
+        ['origin', path.center],
+        ['reach', { x: path.center.x + edge.x * path.radius, y: path.center.y + edge.y * path.radius }],
+      ]);
+    }
     if (isFan(path)) {
       const reach = directionOf(path.direction);
       return new Map<ArcHandleId, ChartPoint>([
@@ -618,7 +647,13 @@ export class FreeBoard {
     ctx.globalAlpha = grips ? 0.7 : 0.45;
     ctx.setLineDash([5, 4]);
     ctx.beginPath();
-    if (isFan(path)) {
+    if (isCircle(path)) {
+      const middle = this.#toScreen(path.center);
+      const edge = directionOf(path.startAngle);
+      const rim = this.#toScreen({ x: path.center.x + edge.x * path.radius, y: path.center.y + edge.y * path.radius });
+      ctx.moveTo(rim.x, rim.y);
+      ctx.arc(middle.x, middle.y, Math.hypot(rim.x - middle.x, rim.y - middle.y), 0, Math.PI * 2);
+    } else if (isFan(path)) {
       const middle = this.#toScreen(path.origin);
       for (const angle of fanAngles(path)) {
         const ray = directionOf(angle);

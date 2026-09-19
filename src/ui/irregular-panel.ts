@@ -1,7 +1,7 @@
 // The free-form editor's properties panel. KB: interface.md §7, §8
 
 import type { AlignMode, DistributeAxis, FlipAxis, ItemPatch, PolarPatch } from '../core/irregular-document.ts';
-import type { ChainArcGroup, FanGroup, IrregularGuides, IrregularItem } from '../core/irregular-types.ts';
+import type { ChainArcGroup, FanGroup, IrregularGuides, IrregularItem, RowLineShape } from '../core/irregular-types.ts';
 import { stitchById } from '../core/stitches.ts';
 import type { StitchInsertion } from '../core/types.ts';
 import { texts } from './i18n.ts';
@@ -24,6 +24,17 @@ export interface IrregularPanelHost {
   setFanSpread(angle: number): void;
   setFanLength(length: number): void;
   setFanMode(mode: FanGroup['mode']): void;
+  arrange(kind: RowLineShape | 'fan'): void;
+  evenOut(): void;
+  flipArrangeSide(): void;
+  setPerpendicular(on: boolean): void;
+  clearRowLine(): void;
+}
+
+export interface ArrangeView {
+  readonly shown: boolean;
+  readonly perpendicular: boolean;
+  readonly hasRowLine: boolean;
 }
 
 const INSERTIONS: readonly StitchInsertion[] = ['both-loops', 'front-loop', 'back-loop', 'front-post', 'back-post'];
@@ -90,6 +101,9 @@ export class IrregularPanel {
   readonly #fanSpread: HTMLInputElement;
   readonly #fanLength: HTMLInputElement;
   readonly #fanMode: HTMLSelectElement;
+  readonly #arrange: HTMLElement;
+  readonly #rowLineRow: HTMLElement;
+  readonly #perpendicular: HTMLInputElement;
   #items: readonly IrregularItem[] = [];
 
   constructor(section: HTMLDetailsElement, host: IrregularPanelHost) {
@@ -126,6 +140,9 @@ export class IrregularPanel {
     this.#fanSpread = must<HTMLInputElement>(section, '#fan-spread');
     this.#fanLength = must<HTMLInputElement>(section, '#fan-length');
     this.#fanMode = must<HTMLSelectElement>(section, '#fan-mode');
+    this.#arrange = must<HTMLElement>(section, '#props-arrange');
+    this.#rowLineRow = must<HTMLElement>(section, '#rowline-row');
+    this.#perpendicular = must<HTMLInputElement>(section, '#arrange-perpendicular');
     this.#listen();
   }
 
@@ -203,6 +220,23 @@ export class IrregularPanel {
       }
     });
     must<HTMLButtonElement>(this.#section, '#fan-explode').addEventListener('click', () => this.#host.explodeArc());
+    this.#section.addEventListener('click', (event) => {
+      const target = (event.target as Element).closest<HTMLElement>('[data-arrange]');
+      const kind = target?.dataset['arrange'];
+      if (kind !== undefined) this.#host.arrange(kind as RowLineShape | 'fan');
+    });
+    must<HTMLButtonElement>(this.#section, '#arrange-even').addEventListener('click', () => this.#host.evenOut());
+    must<HTMLButtonElement>(this.#section, '#arrange-flip').addEventListener('click', () =>
+      this.#host.flipArrangeSide(),
+    );
+    must<HTMLButtonElement>(this.#section, '#rowline-clear').addEventListener('click', () => this.#host.clearRowLine());
+    this.#perpendicular.addEventListener('change', () => this.#host.setPerpendicular(this.#perpendicular.checked));
+  }
+
+  updateArrange(view: ArrangeView): void {
+    this.#arrange.hidden = !view.shown;
+    this.#rowLineRow.hidden = !view.hasRowLine;
+    this.#setToggle(this.#perpendicular, view.perpendicular);
   }
 
   updateFan(fan: FanGroup | null): void {

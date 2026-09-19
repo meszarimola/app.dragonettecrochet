@@ -15,6 +15,41 @@ export type RowKind = 'row' | 'round';
 /** `ltr`/`rtl` belong to a row, `cw`/`ccw` to a round. */
 export type RowDirection = 'ltr' | 'rtl' | 'cw' | 'ccw';
 
+/** Which side of an open shape the stitches stand on, or of a circle. */
+export type ShapeSide = 'left' | 'right' | 'outside' | 'inside';
+
+/**
+ * The shape a row was arranged on and remembers. `bulge` follows the chain
+ * arc's convention: the signed distance the middle stands off the chord, on the
+ * left of start → end.
+ */
+export type RowLine =
+  | {
+      readonly shape: 'line';
+      readonly start: Point;
+      readonly end: Point;
+      readonly side: ShapeSide;
+      readonly perpendicular: boolean;
+    }
+  | {
+      readonly shape: 'arc';
+      readonly start: Point;
+      readonly end: Point;
+      readonly bulge: number;
+      readonly side: ShapeSide;
+      readonly perpendicular: boolean;
+    }
+  | {
+      readonly shape: 'circle';
+      readonly center: Point;
+      readonly radius: number;
+      readonly startAngle: number;
+      readonly side: ShapeSide;
+      readonly perpendicular: boolean;
+    };
+
+export type RowLineShape = RowLine['shape'];
+
 export interface IrregularRow {
   readonly id: string;
   readonly kind: RowKind;
@@ -24,6 +59,8 @@ export interface IrregularRow {
   readonly locked: boolean;
   /** `auto` reads the order off the positions; a list is the crocheter's own. */
   readonly order?: 'auto' | readonly string[];
+  /** Absent until the row has been arranged on a shape. */
+  readonly line?: RowLine;
 }
 
 export interface IrregularLayer {
@@ -213,6 +250,8 @@ export const FAN_COUNT_RANGE = { min: 2, max: 200 } as const;
 export const DEFAULT_FAN_SPREAD = 120;
 export const FAN_SPREAD_RANGE = { min: 5, max: 350 } as const;
 export const FAN_LENGTH_RANGE = { min: 4, max: 2000 } as const;
+/** How far a point may stand off a shape and still count as lying on it. */
+export const FIT_TOLERANCE = 6;
 export const NUDGE_STEP = 1;
 export const NUDGE_STEP_LARGE = 10;
 export const EXPORT_MARGIN = 20;
