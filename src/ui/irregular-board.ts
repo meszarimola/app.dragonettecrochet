@@ -19,6 +19,7 @@ const MAX_SCALE = 8;
 const HIT_SLACK = 6;
 const HANDLE = 8;
 const HANDLE_HIT = 14;
+const HANDLE_MIN_HIT = 4;
 const ROTATE_ARM = 26;
 const GRID_LIMIT = 400;
 const POLAR_KNOB = 5;
@@ -203,18 +204,26 @@ export class FreeBoard {
     };
   }
 
-  onScreen(point: Point): boolean {
+  onScreen(point: Point, insetBottom = 0): boolean {
     const { width, height } = this.#canvas.getBoundingClientRect();
     const screen = this.#toScreen(point);
     return (
-      screen.x >= this.#insets.left && screen.x <= width - this.#insets.right && screen.y >= 0 && screen.y <= height
+      screen.x >= this.#insets.left &&
+      screen.x <= width - this.#insets.right &&
+      screen.y >= 0 &&
+      screen.y <= height - insetBottom
     );
   }
 
-  /** Whether the click landed on the circle guide's middle knob. */
+  /**
+   * Whether the click landed on the circle guide's middle knob. A stitch drawn
+   * over the middle — a magic ring's first stitch — wins, because the stitches
+   * are the drawing and the guide sits behind them.
+   */
   polarCenterAt(clientX: number, clientY: number): boolean {
     const scene = this.#scene;
     if (scene === null || !scene.pattern.guides.polar.visible) return false;
+    if (this.itemAt(clientX, clientY) !== null) return false;
     const rect = this.#canvas.getBoundingClientRect();
     const screen = this.#toScreen(scene.pattern.guides.polar.center);
     return (
@@ -320,14 +329,24 @@ export class FreeBoard {
     return points;
   }
 
+  /**
+   * A thin stitch is barely wider than a handle, so a fixed hit box would cover
+   * the whole thing and every drag would resize instead of move. The reach
+   * therefore never grows past a third of the box, leaving the middle free.
+   * The rotate arm stands outside the box and keeps the full reach.
+   */
   handleAt(clientX: number, clientY: number): HandleId | null {
     const box = this.selectionBox();
     if (box === null) return null;
     const rect = this.#canvas.getBoundingClientRect();
     const [px, py] = [clientX - rect.left, clientY - rect.top];
+    const scale = this.#view.scale;
+    const reachX = Math.min(HANDLE_HIT, Math.max(HANDLE_MIN_HIT, ((box.maxX - box.minX) * scale) / 3));
+    const reachY = Math.min(HANDLE_HIT, Math.max(HANDLE_MIN_HIT, ((box.maxY - box.minY) * scale) / 3));
     for (const [id, point] of this.#handlePoints(box)) {
       const screen = this.#toScreen(point);
-      if (Math.abs(screen.x - px) <= HANDLE_HIT && Math.abs(screen.y - py) <= HANDLE_HIT) return id;
+      const [nearX, nearY] = id === 'rotate' ? [HANDLE_HIT, HANDLE_HIT] : [reachX, reachY];
+      if (Math.abs(screen.x - px) <= nearX && Math.abs(screen.y - py) <= nearY) return id;
     }
     return null;
   }
@@ -448,6 +467,18 @@ export class FreeBoard {
   #inkOf(pattern: IrregularPattern, item: IrregularItem, fallback: string): string {
     if (item.color !== null) return item.color;
     return rowById(pattern, item.rowId)?.color ?? fallback;
+  }
+
+  /**
+   * Whether the square grid is drawn at this zoom. Too fine to see is too fine
+   * to snap to: an invisible lattice must not quietly move a stitch.
+   */
+  gridDrawn(): boolean {
+    const scene = this.#scene;
+    if (scene === null || !scene.pattern.guides.grid.visible) return false;
+    const { width, height } = this.#canvas.getBoundingClientRect();
+    const step = scene.pattern.guides.grid.size * this.#view.scale;
+    return step >= 4 && width / step <= GRID_LIMIT && height / step <= GRID_LIMIT;
   }
 
   #drawGrid(size: number, color: string, width: number, height: number): void {

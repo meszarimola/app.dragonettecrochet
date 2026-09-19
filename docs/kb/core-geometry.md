@@ -987,7 +987,10 @@ Cited from: `src/core/ribbing.ts` (module header and the `column` map) and
 
 A guide — the square grid, the circle guide — is a lattice: every point in the
 plane has a nearest crossing, so when snapping is on and the guide is showing,
-the guide **always** takes the point. A tolerance there would catch some clicks
+the guide **always** takes the point. "Showing" means drawn, not merely switched
+on: the renderer gives up on a grid finer than four screen pixels, and an
+invisible lattice must not quietly move a stitch, so the interface passes
+`gridDrawn` and the core honours it. A tolerance there would catch some clicks
 and drop others, and with a wide grid most of the plane is further from a
 crossing than any sensible tolerance, so the tool would feel broken.
 

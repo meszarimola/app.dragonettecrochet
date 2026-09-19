@@ -64,13 +64,18 @@ export function itemAnchors(item: IrregularItem): Point[] {
  * tolerance is in chart units, so the caller divides the screen distance by the
  * zoom and snapping feels the same however far in you are.
  */
-export function snapPoint(
-  pattern: IrregularPattern,
-  point: Point,
-  tolerance: number,
-  skip?: ReadonlySet<string>,
-): Point {
+export interface SnapOptions {
+  /** How near a single point has to be, in chart units, to take the stitch. */
+  readonly tolerance: number;
+  /** The stitches being dragged: they do not snap to themselves. */
+  readonly skip?: ReadonlySet<string>;
+  /** False when the grid is on but too fine to be drawn at this zoom. */
+  readonly gridDrawn?: boolean;
+}
+
+export function snapPoint(pattern: IrregularPattern, point: Point, options: SnapOptions): Point {
   if (!pattern.guides.snap) return point;
+  const { tolerance, skip } = options;
   let best = point;
   let nearest = Number.POSITIVE_INFINITY;
   const offer = (candidate: Point, reach: number): void => {
@@ -81,7 +86,7 @@ export function snapPoint(
     }
   };
   const { grid, polar } = pattern.guides;
-  if (grid.visible) {
+  if (grid.visible && (options.gridDrawn ?? true)) {
     const crossing = { x: Math.round(point.x / grid.size) * grid.size, y: Math.round(point.y / grid.size) * grid.size };
     offer(crossing, Number.POSITIVE_INFINITY);
   }

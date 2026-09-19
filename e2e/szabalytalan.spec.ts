@@ -367,3 +367,65 @@ test('the circle guide turns the new stitches away from its middle (AS-6 előké
   }
   expect(new Set(items.map((item) => Math.round(item.rotation))).size, 'a négy irány négyféle elfordulás').toBe(4);
 });
+
+test('⌘ a húzáson az illesztést kapcsolja ki, nem a kijelölést bontja meg', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+  await armDoubleCrochet(page);
+
+  // Where the chart's origin sits on the canvas, measured with the first stitch,
+  // so the drag can start exactly on a stitch and not on a resize handle.
+  await place(page, 500, 300);
+  const first = (await stored(page)).items[0];
+  if (first === undefined) throw new Error('no stitch');
+  const view = { x: 500 - first.x, y: 300 - first.y };
+
+  await page.locator('#guide-grid-size').fill('20');
+  await page.locator('#guide-grid-size').blur();
+  await page.locator('[data-action="grid"]').click();
+  await page.locator('#guide-snap').check();
+
+  await page.locator(board).focus();
+  await page.keyboard.press('Escape');
+  await place(page, 500, 300);
+  await expect(page.locator('#props-count')).toContainText('1');
+
+  const rect = await page.locator(board).boundingBox();
+  if (rect === null) throw new Error('no board');
+  const drag = async (from: { x: number; y: number }, dx: number, dy: number, free: boolean): Promise<void> => {
+    if (free) await page.keyboard.down('Meta');
+    await page.mouse.move(rect.x + from.x + view.x, rect.y + from.y + view.y);
+    await page.mouse.down();
+    await page.mouse.move(rect.x + from.x + view.x + dx, rect.y + from.y + view.y + dy, { steps: 10 });
+    await page.mouse.up();
+    if (free) await page.keyboard.up('Meta');
+  };
+
+  await drag(first, 37, 23, true);
+  await expect(page.locator('#props-count'), 'a kijelölés együtt marad').toContainText('1');
+  const free = (await stored(page)).items[0];
+  if (free === undefined) throw new Error('no stitch');
+  expect(free.x - first.x, 'pont annyit mozdult, amennyit húztam').toBeCloseTo(37, 6);
+  expect(free.y - first.y, 'pont annyit mozdult, amennyit húztam').toBeCloseTo(23, 6);
+
+  // The same drag without the key lands on the grid.
+  await drag(free, 11, 7, false);
+  const snapped = (await stored(page)).items[0];
+  if (snapped === undefined) throw new Error('no stitch');
+  expect(Math.abs(snapped.x % 20), 'billentyű nélkül a rácsra ugrik').toBe(0);
+  expect(Math.abs(snapped.y % 20), 'billentyű nélkül a rácsra ugrik').toBe(0);
+});
+
+test('⌘ + kattintás húzás nélkül továbbra is kivesz egy szemet a kijelölésből', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+  await armDoubleCrochet(page);
+  for (const x of [480, 560, 640]) await place(page, x, 300);
+  await page.locator(board).focus();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Control+a');
+  await expect(page.locator('#props-count')).toContainText('3');
+
+  await page.locator(board).click({ position: { x: 560, y: 300 }, modifiers: ['Meta'] });
+  await expect(page.locator('#props-count'), 'a középső kikerült').toContainText('2');
+});

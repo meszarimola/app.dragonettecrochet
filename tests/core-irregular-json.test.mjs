@@ -126,12 +126,31 @@ describe('the circle guide in the file (PQW-966)', () => {
     assert.ok(result.ok, 'the older file is accepted');
     assert.deepEqual(result.pattern.guides.polar, DEFAULT_POLAR, 'the preset circle guide fills the gap');
   });
+});
 
-  test('a broken circle guide is refused, it is not quietly replaced', () => {
+describe('the circle guide keeps its limits on the way in (PQW-966)', () => {
+  const broken = (change, path, code) => {
     const raw = JSON.parse(saveIrregular(sample()));
-    raw.guides.polar.spokes = 2.5;
+    change(raw);
     const result = loadIrregular(JSON.stringify(raw));
     assert.equal(result.ok, false, 'refused');
-    assert.equal(result.error.path, '$.guides.polar.spokes', 'and it says where');
+    assert.equal(result.error.path, path, 'and it says where');
+    assert.equal(result.error.message.code, code, 'and what was wrong');
+  };
+
+  test('a ring count nothing could draw is refused, not clamped', () => {
+    broken((raw) => (raw.guides.polar.rings = 1_000_000), '$.guides.polar.rings', 'expected-in-range');
+  });
+
+  test('a fractional spoke count is called what it is', () => {
+    broken((raw) => (raw.guides.polar.spokes = 2.5), '$.guides.polar.spokes', 'expected-whole-number');
+  });
+
+  test('a ring spacing beyond the range is refused', () => {
+    broken((raw) => (raw.guides.polar.spacing = 5000), '$.guides.polar.spacing', 'expected-in-range');
+  });
+
+  test('a start angle outside a single turn is refused', () => {
+    broken((raw) => (raw.guides.polar.startAngle = 900), '$.guides.polar.startAngle', 'expected-in-range');
   });
 });

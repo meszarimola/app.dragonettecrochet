@@ -103,49 +103,57 @@ describe('what a stitch offers to snap to', () => {
 describe('snapping', () => {
   test('switched off, the point is left where it is', () => {
     const pattern = setGrid(base(), true);
-    nearPoint(snapPoint(pattern, { x: 13, y: 7 }, 10), { x: 13, y: 7 }, 'untouched');
+    nearPoint(snapPoint(pattern, { x: 13, y: 7 }, { tolerance: 10 }), { x: 13, y: 7 }, 'untouched');
   });
 
   test('a visible grid takes the point to the nearest crossing', () => {
     const pattern = setSnap(setGridSize(setGrid(base(), true), 20), true);
-    nearPoint(snapPoint(pattern, { x: 23, y: 37 }, 10), { x: 20, y: 40 }, 'the nearest crossing');
+    nearPoint(snapPoint(pattern, { x: 23, y: 37 }, { tolerance: 10 }), { x: 20, y: 40 }, 'the nearest crossing');
   });
 
   test('a hidden grid offers nothing, however close the crossing is', () => {
     const pattern = setSnap(setGridSize(base(), 20), true);
-    nearPoint(snapPoint(pattern, { x: 23, y: 37 }, 10), { x: 23, y: 37 }, 'untouched');
+    nearPoint(snapPoint(pattern, { x: 23, y: 37 }, { tolerance: 10 }), { x: 23, y: 37 }, 'untouched');
   });
 
   test('a wide grid still takes the point: a guide has a crossing everywhere', () => {
     const pattern = setSnap(setGridSize(setGrid(base(), true), 100), true);
-    nearPoint(snapPoint(pattern, { x: 40, y: 60 }, 10), { x: 0, y: 100 }, 'the nearest crossing, far as it is');
+    nearPoint(
+      snapPoint(pattern, { x: 40, y: 60 }, { tolerance: 10 }),
+      { x: 0, y: 100 },
+      'the nearest crossing, far as it is',
+    );
   });
 
   test('with no guide showing, a stitch too far away leaves the point alone', () => {
     const placed = stitch(setSnap(base(), true), { x: 100, y: 100 });
-    nearPoint(snapPoint(placed, { x: 40, y: 60 }, 10), { x: 40, y: 60 }, 'out of reach');
+    nearPoint(snapPoint(placed, { x: 40, y: 60 }, { tolerance: 10 }), { x: 40, y: 60 }, 'out of reach');
   });
 
   test('a nearer stitch beats the grid, a farther one does not', () => {
     const grid = setSnap(setGridSize(setGrid(base(), true), 20), true);
     const near = stitch(grid, { x: 26, y: 40, height: 20 });
-    nearPoint(snapPoint(near, { x: 25, y: 40 }, 10), { x: 26, y: 40 }, 'the stitch, one unit away');
+    nearPoint(snapPoint(near, { x: 25, y: 40 }, { tolerance: 10 }), { x: 26, y: 40 }, 'the stitch, one unit away');
     const far = stitch(grid, { x: 33, y: 40, height: 20 });
-    nearPoint(snapPoint(far, { x: 25, y: 40 }, 10), { x: 20, y: 40 }, 'the crossing, five units away');
+    nearPoint(snapPoint(far, { x: 25, y: 40 }, { tolerance: 10 }), { x: 20, y: 40 }, 'the crossing, five units away');
   });
 
   test('the stitches being dragged do not snap to themselves', () => {
     const grid = setSnap(base(), true);
     const pattern = stitch(grid, { x: 26, y: 40, height: 20 });
     const id = pattern.items[0].id;
-    nearPoint(snapPoint(pattern, { x: 25, y: 40 }, 10, new Set([id])), { x: 25, y: 40 }, 'untouched');
+    nearPoint(
+      snapPoint(pattern, { x: 25, y: 40 }, { tolerance: 10, skip: new Set([id]) }),
+      { x: 25, y: 40 },
+      'untouched',
+    );
   });
 
   test('a hidden row offers nothing to snap to', () => {
     const grid = setSnap(base(), true);
     const placed = stitch(grid, { x: 26, y: 40, height: 20 });
     const pattern = { ...placed, rows: placed.rows.map((row) => ({ ...row, visible: false })) };
-    nearPoint(snapPoint(pattern, { x: 25, y: 40 }, 10), { x: 25, y: 40 }, 'untouched');
+    nearPoint(snapPoint(pattern, { x: 25, y: 40 }, { tolerance: 10 }), { x: 25, y: 40 }, 'untouched');
   });
 
   test('the circle guide offers its crossings too', () => {
@@ -153,7 +161,7 @@ describe('snapping', () => {
       setPolar(base(), { visible: true, center: { x: 0, y: 0 }, rings: 3, spacing: 50, spokes: 4, startAngle: 0 }),
       true,
     );
-    nearPoint(snapPoint(pattern, { x: 48, y: 4 }, 10), { x: 50, y: 0 }, 'the first ring, to the right');
+    nearPoint(snapPoint(pattern, { x: 48, y: 4 }, { tolerance: 10 }), { x: 50, y: 0 }, 'the first ring, to the right');
   });
 });
 
@@ -188,5 +196,19 @@ describe('the guide settings keep themselves sane', () => {
     assert.equal(setGridSize(pattern, pattern.guides.grid.size), pattern, 'the same grid size');
     assert.equal(setSnap(pattern, pattern.guides.snap), pattern, 'the same snapping');
     assert.equal(setPolar(pattern, { visible: false }), pattern, 'the same circle guide');
+  });
+});
+
+describe('a grid too fine to draw is too fine to snap to (PQW-966)', () => {
+  test('with the grid not drawn, the point is left alone', () => {
+    const pattern = setSnap(setGridSize(setGrid(base(), true), 4), true);
+    nearPoint(snapPoint(pattern, { x: 13, y: 7 }, { tolerance: 10, gridDrawn: false }), { x: 13, y: 7 }, 'untouched');
+    nearPoint(snapPoint(pattern, { x: 13, y: 7 }, { tolerance: 10, gridDrawn: true }), { x: 12, y: 8 }, 'snapped');
+  });
+});
+
+describe('a broken setting cannot poison the guide (PQW-966)', () => {
+  test('a start angle that is not a number falls back to zero', () => {
+    assert.equal(setPolar(base(), { startAngle: Number.NaN }).guides.polar.startAngle, 0, 'not NaN');
   });
 });

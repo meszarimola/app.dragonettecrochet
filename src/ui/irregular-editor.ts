@@ -125,7 +125,7 @@ export interface IrregularHost {
 }
 
 type Drag =
-  | { kind: 'move'; from: Point; anchor: Point; moved: boolean }
+  | { kind: 'move'; from: Point; anchor: Point; drop: string | null }
   | { kind: 'polar'; from: Point; center: Point }
   | { kind: 'pan'; last: Point }
   | { kind: 'marquee'; from: Point; to: Point; additive: boolean }
@@ -575,16 +575,18 @@ export class IrregularEditor {
   #setPolar(patch: PolarPatch): void {
     const current = this.#history.present.guides.polar;
     const arriving = patch.visible === true && !current.visible;
-    const home =
-      arriving && !this.#board.onScreen(current.center)
-        ? this.#board.viewCenter(this.#host.insets().bottom)
-        : undefined;
+    const room = this.#host.insets().bottom;
+    const home = arriving && !this.#board.onScreen(current.center, room) ? this.#board.viewCenter(room) : undefined;
     this.#commit(setPolar(this.#history.present, home === undefined ? patch : { ...patch, center: home }));
   }
 
   /** The nearest guide or neighbouring stitch, measured in chart units. */
   #snap(point: Point, skip?: ReadonlySet<string>): Point {
-    return snapPoint(this.#history.present, point, SNAP_REACH / this.#board.scale, skip);
+    return snapPoint(this.#history.present, point, {
+      tolerance: SNAP_REACH / this.#board.scale,
+      ...(skip === undefined ? {} : { skip }),
+      gridDrawn: this.#board.gridDrawn(),
+    });
   }
 
   /** What a stitch dropped here is turned to: away from the middle of the circle guide. */
@@ -894,8 +896,11 @@ export class IrregularEditor {
     const hit = this.#board.itemAt(event.clientX, event.clientY);
     const additive = event.shiftKey || event.metaKey || (event.ctrlKey && !this.#isApple());
     if (hit !== null) {
+      // KB: interface.md §43 — taking a stitch back out of the selection waits
+      // for the pointer to come up, so ⌘ can also mean "drag without snapping".
+      let drop: string | null = null;
       if (additive) {
-        if (this.#selection.has(hit)) this.#selection.delete(hit);
+        if (this.#selection.has(hit)) drop = hit;
         else this.#selection.add(hit);
       } else if (!this.#selection.has(hit)) {
         this.#setSelection([hit]);
@@ -905,7 +910,7 @@ export class IrregularEditor {
         kind: 'move',
         from: point,
         anchor: anchor === undefined ? point : { x: anchor.x, y: anchor.y },
-        moved: false,
+        drop,
       };
       this.refresh();
       return;
@@ -975,7 +980,6 @@ export class IrregularEditor {
         // KB: interface.md §43 — holding ⌘ or Ctrl while dragging puts snapping aside.
         const free = event.metaKey || event.ctrlKey;
         const landing = free ? null : this.#snap({ x: drag.anchor.x + rawX, y: drag.anchor.y + rawY }, this.#selection);
-        drag.moved = true;
         this.#draft = moveItems(
           this.#history.present,
           this.#selection,
@@ -1075,6 +1079,7 @@ export class IrregularEditor {
     const draft = this.#draft;
     this.#drag = null;
     if (draft === null) {
+      if (drag.kind === 'move' && drag.drop !== null) this.#selection.delete(drag.drop);
       this.refresh();
       return;
     }

@@ -9,6 +9,7 @@ import {
   type IrregularPattern,
   type IrregularRow,
   type LegendBlock,
+  POLAR_RANGE,
   type PolarGuide,
   type RowDirection,
   type RowKind,
@@ -31,6 +32,8 @@ export type IrregularJsonCode =
   | 'expected-array'
   | 'expected-nonempty-array'
   | 'expected-positive'
+  | 'expected-whole-number'
+  | 'expected-in-range'
   | 'expected-hex-color'
   | 'duplicate-row-id'
   | 'duplicate-layer-id'
@@ -165,10 +168,18 @@ function positive(value: unknown, path: string): number {
   return value;
 }
 
-function count(value: unknown, path: string): number {
-  const found = positive(value, path);
-  if (!Number.isInteger(found)) throw new FormatError(path, 'expected-positive');
-  return found;
+/** Whole numbers with a ceiling: a file may not ask for a million rings. */
+function whole(value: unknown, path: string, range: { readonly min: number; readonly max: number }): number {
+  const found = finite(value, path);
+  if (!Number.isInteger(found)) throw new FormatError(path, 'expected-whole-number');
+  return ranged(found, path, range);
+}
+
+function ranged(value: number, path: string, range: { readonly min: number; readonly max: number }): number {
+  if (value < range.min || value > range.max) {
+    throw new FormatError(path, 'expected-in-range', { min: range.min, max: range.max });
+  }
+  return value;
 }
 
 function hexOrNull(value: unknown, path: string): string | null {
@@ -383,15 +394,17 @@ function readGuides(value: unknown, path: string): IrregularGuides {
   };
 }
 
+const ANGLE_RANGE = { min: 0, max: 360 } as const;
+
 function readPolar(value: unknown, path: string): PolarGuide {
   const raw = object(value, path, ['visible', 'center', 'rings', 'spacing', 'spokes', 'startAngle']);
   const center = object(raw['center'], `${path}.center`, ['x', 'y']);
   return {
     visible: boolean(raw['visible'], `${path}.visible`),
     center: { x: finite(center['x'], `${path}.center.x`), y: finite(center['y'], `${path}.center.y`) },
-    rings: count(raw['rings'], `${path}.rings`),
-    spacing: positive(raw['spacing'], `${path}.spacing`),
-    spokes: count(raw['spokes'], `${path}.spokes`),
-    startAngle: finite(raw['startAngle'], `${path}.startAngle`),
+    rings: whole(raw['rings'], `${path}.rings`, POLAR_RANGE.rings),
+    spacing: ranged(positive(raw['spacing'], `${path}.spacing`), `${path}.spacing`, POLAR_RANGE.spacing),
+    spokes: whole(raw['spokes'], `${path}.spokes`, POLAR_RANGE.spokes),
+    startAngle: ranged(finite(raw['startAngle'], `${path}.startAngle`), `${path}.startAngle`, ANGLE_RANGE),
   };
 }

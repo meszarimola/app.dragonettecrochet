@@ -378,7 +378,7 @@ export function setPolar(pattern: IrregularPattern, patch: PolarPatch): Irregula
     rings: clamp(Math.round(patch.rings ?? current.rings), POLAR_RANGE.rings.min, POLAR_RANGE.rings.max),
     spacing: clamp(patch.spacing ?? current.spacing, POLAR_RANGE.spacing.min, POLAR_RANGE.spacing.max),
     spokes: clamp(Math.round(patch.spokes ?? current.spokes), POLAR_RANGE.spokes.min, POLAR_RANGE.spokes.max),
-    startAngle: normalizeAngle(patch.startAngle ?? current.startAngle),
+    startAngle: normalizeAngle(finiteOr(patch.startAngle ?? current.startAngle, 0)),
   };
   if (samePolar(current, next)) return pattern;
   return { ...pattern, guides: { ...pattern.guides, polar: next } };
@@ -394,6 +394,10 @@ function samePolar(a: PolarGuide, b: PolarGuide): boolean {
     a.spokes === b.spokes &&
     a.startAngle === b.startAngle
   );
+}
+
+function finiteOr(value: number, fallback: number): number {
+  return Number.isFinite(value) ? value : fallback;
 }
 
 function clamp(value: number, min: number, max: number): number {
