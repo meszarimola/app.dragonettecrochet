@@ -1,251 +1,225 @@
-/*
- * Az ellenőrző szabályai: azonosító, súlyosság és a tudásbázis pontja.
- *
- * Minden `Finding` innen kapja a `severity` és a `reference` mezőt, így egy
- * szabály hivatkozása egyetlen helyen van. A hivatkozások a
- * docs/knowledge-base/ jelentéseire mutatnak.
- */
+// KB: core-domain §14
 
 import type { Finding } from './types.ts';
 
 export interface RuleDef {
   readonly severity: Finding['severity'];
   readonly reference: string;
-  /** Rövid magyar leírás a szerkesztőnek és a teszteknek. */
+  /** Developer-facing; never rendered to the user. KB: core-domain §14 */
   readonly summary: string;
-  /**
-   * A felhasználónak szóló üzenet a szerkesztőben (PQW-879): a „szem”
-   * szóhasználattal, belső fogalom (réteg, darab) és tudásbázis-kód nélkül —
-   * a hivatkozás csak lenyitható részletként jelenik meg.
-   */
+  /** Shown to the user in the editor: frozen Hungarian, no internal term, no knowledge-base code. KB: core-domain §14 */
   readonly message: string;
 }
 
 export const RULES = {
-  /* ---- Szerkezet: ha ezek közül bármelyik jelez, a többi ellenőrzés nem fut ---- */
   'unknown-stitch': {
     severity: 'error',
     reference: '06 §5.2',
-    summary: 'A szem nincs a könyvtárban, vagy nem lehet csomópont (összetett csoport, láncív-elem).',
+    summary: 'The stitch is not in the library, or it cannot be a node (compound group, chain-space element).',
     message: 'Ismeretlen szem van a mintában.',
   },
   'dangling-reference': {
     severity: 'error',
     reference: '06 §5.2',
-    summary: 'Nem létező szemre, láncívre, gyűrűre vagy csoportra mutató hivatkozás, vagy ismétlődő azonosító.',
+    summary: 'A reference to a stitch, chain space, ring or group that does not exist, or a duplicate id.',
     message: 'A minta egy szem olyan célpontra mutat, amely nincs meg.',
   },
   'yarn-path': {
     severity: 'error',
     reference: '06 §5.3 V2',
-    summary: 'Az előző szem nem a fonal útján előtte lévő, vagy fonalszakasz a fonal elvágása nélkül kezdődik.',
+    summary: 'The previous stitch is not the one before it on the yarn path, or a yarn run starts without cutting the yarn.',
     message: 'A fonal útja megszakad: egy szem nem az előző után folytatódik.',
   },
 
-  /* ---- Célpontok ---- */
   'future-anchor': {
     severity: 'error',
     reference: '06 §5.3 V1',
-    summary: 'A szem később készülő szembe, láncívbe vagy gyűrűbe van horgolva.',
+    summary: 'The stitch is worked into a stitch, chain space or ring that is made later.',
     message: 'Ez a szem egy csak később elkészülő szembe kapaszkodik.',
   },
   'anchor-layer': {
     severity: 'error',
     reference: '03 §10 C16, C17',
-    summary: 'A célpont nem az előző sor horgolható pozíciója; korábbi sorba csak hosszú szem mehet.',
+    summary: 'The target is not a workable position of the previous row; only a spike stitch may reach an earlier row.',
     message: 'Ez a szem nem az alatta lévő sor egy szemébe kapaszkodik.',
   },
   'resume-layer': {
     severity: 'error',
     reference: '03 §10 C16, 05 §9.5',
-    summary: 'A fonal elvágása után megadott folytatás nem létező vagy nem korábbi sorra mutat.',
+    summary: 'After fastening off, the section would continue over a row that does not exist or is not an earlier row.',
     message: 'A fonal elvágása után a munka egy olyan sor fölött folytatódna, amely nincs meg, vagy nem korábbi sor.',
   },
   'turning-chain-placement': {
     severity: 'error',
     reference: '03 §10 A4, 03 §1.3',
-    summary: 'Számító fordulóláncnál a sor utolsó szeme nem a tetejébe megy, vagy nem számító fordulóláncba horgoltak.',
+    summary:
+      'With a counting turning chain the last stitch of the row does not go into its top, or a stitch was worked into a turning chain that does not count.',
     message: 'A sor eleji láncszemekhez rosszul illeszkedik a sor eleje vagy vége.',
   },
   'unworkable-top': {
     severity: 'error',
     reference: '01 §8.2 szabály 10',
-    summary: 'Bele nem horgolható tetejű szembe (pl. rákhurok) horgoltak.',
+    summary: 'A stitch was worked into the top of a stitch that cannot be worked into (e.g. crab stitch).',
     message: 'Ennek a szemnek a tetejébe nem lehet belehorgolni.',
   },
   'insertion-mode': {
     severity: 'error',
     reference: '01 §4.3',
     summary:
-      'A szem ezzel a beszúrási móddal nem horgolható: a horgoló felől nézett mód nincs a szem (összetett szemnél a csoport) insertionModes listájában (PQW-869).',
+      'The stitch cannot be worked in this insertion mode: the mode as seen from the crocheter is not in the insertionModes list of the stitch (for a compound stitch, of the group) (PQW-869).',
     message: 'Ez a szem ebben a beszúrási módban nem horgolható (pl. rákhurok hátsó szálba, kagyló reliefben): válassz másik módot.',
   },
   'anchor-count': {
     severity: 'error',
     reference: '03 §10 C12',
-    summary: 'A szem célpontjainak száma nem egyezik azzal, amennyit a szem felhasznál.',
+    summary: 'The number of targets of the stitch does not match how many it uses up.',
     message: 'Ez a szem nem annyi szembe kapaszkodik, amennyibe kellene.',
   },
   'unmarked-increase': {
     severity: 'error',
     reference: '03 §10 C14',
-    summary: 'Több szem egy célpontban, de nincs szaporításnak, kagylónak vagy V-szemnek jelölve.',
+    summary: 'Several stitches in one target, but not marked as an increase, a shell or a V-stitch.',
     message: 'Több szem került ugyanabba a szembe. Ha ezt szeretted, jelöld szaporításnak.',
   },
   'unmarked-decrease': {
     severity: 'error',
     reference: '03 §10 C14',
-    summary: 'Több célpont egy szemben, de nincs fogyasztásnak vagy fürtnek jelölve.',
+    summary: 'Several targets in one stitch, but not marked as a decrease or a cluster.',
     message: 'Egy szem több szembe kapaszkodik. Ha ezt szeretted, jelöld fogyasztásnak.',
   },
   'group-mismatch': {
     severity: 'error',
     reference: '03 §10 C14, 01 §8.2 szabály 7',
-    summary: 'A csoport tagjai nem egymás utáni, egy célpontba horgolt szemek a csoport definíciója szerint.',
+    summary: 'The members of the group are not consecutive stitches worked into one target, as the definition of the group requires.',
     message: 'A szaporítás vagy a kagyló szemei nem egymás után, ugyanabba a szembe kerültek.',
   },
   'against-direction': {
     severity: 'error',
     reference: '03 §10 C13',
-    summary: 'A célpont a haladási irány ellen van, és a szem nincs keresztezettnek vagy reliefnek jelölve.',
+    summary: 'The target lies against the working direction, and the stitch is not marked as crossed or as a post stitch.',
     message: 'Ez a szem a haladási iránnyal szemben lévő szembe kapaszkodik. Ha szándékos, jelöld keresztezett szemnek.',
   },
   'reach': {
     severity: 'error',
     reference: '03 §10 C15, 03 §4.2',
-    summary: 'Túl nagy ugrás: a kihagyott pozíciókat sem láncszem, sem legyező nem hidalja át.',
+    summary: 'Too large a jump: the skipped positions are bridged by neither chains nor a fan.',
     message: 'Túl nagy ugrás: a kimaradt szemeket sem láncszem, sem szaporítás nem hidalja át.',
   },
   'reach-single': {
     severity: 'warning',
     reference: '03 §10 C15',
-    summary: 'Egy pozíció kimarad láncszem és legyező nélkül.',
+    summary: 'One position is left out without a chain or a fan.',
     message: 'Egy szem kimaradt a sorban.',
   },
-  /*
-   * A sor két végén kihagyott pozíció FIGYELMEZTETÉS, nem hiba (PQW-930).
-   *
-   * A tulajdonos döntése az UAT első köréből: „nagyon szigorúan vetted a minták
-   * elkészítését. a való életben ez sokkal lazábban működik, sokkal kevésbé
-   * kötött a horgolás, pont azért egy nagyon kreatív folyamat.” A láncalapból
-   * kilógó, be nem horgolt „farok” szándékos is lehet, ezért jelezzük, de nem
-   * minősítjük hibának.
-   *
-   * A sor KÖZEPÉN kimaradt szem külön szabály (`reach`, `reach-single`), és az
-   * marad, ami volt: ott a lyuk nem stílus kérdése.
-   */
+  // KB: core-domain §15; 03 §10 B8
   'unused-position': {
     severity: 'warning',
     reference: '03 §10 B8',
-    summary: 'Az előző sor egy pozíciója nincs felhasználva, és nincs jelölten kihagyva vagy áthidalva.',
+    summary: 'A position of the previous row is unused, and it is not marked as skipped or bridged.',
     message: 'Az alatta lévő sor egy szemébe nem került semmi.',
   },
-  // Ugyanaz a jelenség a lánc felől nézve: szintén figyelmeztetés (PQW-930).
+  // KB: core-domain §15
   'floating-chain': {
     severity: 'warning',
     reference: '03 §10 C18, 03 §9.8',
-    summary: 'Lógó lánc: a sor végi láncszemekbe semmi nem horgol, és nem fordulólánc.',
+    summary: 'Floating chain: nothing works into the chains at the end of the row, and they are not a turning chain.',
     message: 'A sor végén olyan láncszemek maradtak, amelyekbe semmi nem horgol.',
   },
 
-  /* ---- Láncalap, fordulólánc, számok ---- */
   'foundation-chain': {
     severity: 'error',
     reference: '03 §10 A2, 03 §1.2',
     summary:
-      'Rossz láncalap: az 1. sor első szeme nem a kihagyott láncszemek után következő láncszembe megy; a kihagyott láncszemekbe nem horgolunk. Hogy hány láncszem marad ki, az a szem magasságától és a hagyománytól függ (PQW-924).',
+      'Wrong foundation chain: the first stitch of row 1 does not go into the chain that follows the skipped chains, and the skipped chains are not worked into. How many chains are skipped depends on the height of the stitch and on the tradition (PQW-924).',
     message: 'Az 1. sor első szeme nem a megfelelő láncszembe került.',
   },
   'turning-chain-height': {
     severity: 'warning',
     reference: '03 §10 A1, D20',
-    summary: 'A fordulólánc magassága eltér a sort kezdő szemétől.',
+    summary: 'The height of the turning chain differs from the stitch that starts the row.',
     message: 'A sor eleji láncszemek magassága nem illik a sort kezdő szemhez.',
   },
   'stated-count': {
     severity: 'error',
     reference: '03 §10 B7, B10, 06 §5.3 V3',
-    summary: 'A megadott szemszám eltér a számolttól.',
+    summary: 'The stated stitch count differs from the counted one.',
     message: 'A megadott szemszám nem egyezik a megszámolttal.',
   },
   'round-join': {
     severity: 'error',
     reference: '06 §5.3 V4',
-    summary: 'A kör záró kúszószeme nem a kör első szemébe vagy a kezdőlánc tetejébe megy.',
+    summary: 'The closing slip stitch of the round does not go into the first stitch of the round or into the top of the beginning chain.',
     message: 'A kört záró szem nem a kör első szemébe megy.',
   },
   'repeat-balance': {
     severity: 'error',
     reference: '03 §10 E23, 03 §4.2',
-    summary: 'Ismételt mintában a sor több vagy kevesebb pozíciót ad, mint amennyit felhasznál.',
+    summary: 'In a repeated pattern the row gives more or fewer positions than it uses up.',
     message: 'Az ismételt mintában a sor több vagy kevesebb szemet ad, mint amennyit felhasznál.',
   },
 
-  /* ---- Körök (PQW-861); csak a befejezett körökön ---- */
   'round-growth': {
     severity: 'warning',
     reference: '04 §9.0',
-    summary: 'A kör pozíciószáma több mint kétszerese vagy kevesebb mint fele az előző körének.',
+    summary: 'The position count of the round is more than double or less than half of the previous round.',
     message: 'Ebben a körben a szemszám több mint duplájára nő vagy felére csökken: egy körben legfeljebb duplázás vagy felezés fér bele.',
   },
   'round-cupping': {
     severity: 'warning',
     reference: '04 §8, §9.6',
-    summary: 'Legalább két egymás utáni körben a szaporítás a lapos érték ~85%-a alatt: a darab kunkorodik.',
+    summary: 'In at least two consecutive rounds the increase stays below ~85% of the flat value: the piece cups.',
     message: 'Kevés a szaporítás: ha laposnak szánod, ezek a körök kunkorodnak. Szaporíts többet, vagy a külső köröket horgold nagyobb tűvel.',
   },
   'round-ruffling': {
     severity: 'warning',
     reference: '04 §8, §9.6',
-    summary: 'A körben a szaporítás a lapos érték ~130%-a fölött: a darab fodrosodik.',
+    summary: 'The increase in the round is above ~130% of the flat value: the piece ruffles.',
     message: 'Sok a szaporítás: ez a kör fodrosodik. Horgolj 1–2 kört szaporítás nélkül, vagy szaporíts kevesebbet.',
   },
   'stacked-increases': {
     severity: 'warning',
     reference: '04 §3.2, §8, §9.6',
-    summary: 'Három vagy több körön a szaporítások egymás fölé kerülnek (sokszögben szándékos, ott nem jelez).',
+    summary: 'Over three or more rounds the increases stack on top of each other (intentional in a polygon, where it does not flag).',
     message: 'A szaporítások három körön át egymás fölé kerülnek, ezért a kör sokszögletű lesz. Told el őket körönként (eltolt szaporítás).',
   },
   'spiral-color-jog': {
     severity: 'warning',
     reference: '04 §2',
-    summary: 'Spirálban színváltás lépcsőjavítás nélkül.',
+    summary: 'Color change in a spiral without a jog fix.',
     message:
       'Spirálban a színváltás lépcsőt hagy. Javítás: a következő kör első szeme helyett kúszószem, vagy az új színt az első szem hátsó szálába kapcsold be.',
   },
 
-  /* ---- Amigurumi (PQW-863) ---- */
   'join-edge': {
     severity: 'error',
     reference: '04 §5.4',
-    summary: 'Az összevarrás nem létező darabra vagy körre mutat.',
+    summary: 'The seam points to a piece or a round that does not exist.',
     message: 'Az összevarrás egy olyan részre vagy körre mutat, amely nincs meg.',
   },
   'join-count': {
     severity: 'error',
     reference: '04 §5.4, §9.0',
-    summary: 'A két összevarrt szél szemszáma eltér, és nincs megadva elosztás, vagy az elosztás nem illik a két szélhez.',
+    summary: 'The stitch counts of the two sewn edges differ, and no distribution is given, or the distribution does not fit the two edges.',
     message: 'A két összevarrt szél szemszáma eltér. Add meg, hogyan oszlanak el a szemek, vagy igazítsd a részek méretét.',
   },
   'toy-safety-eyes': {
     severity: 'warning',
     reference: '04 §5.7, §9.6',
-    summary: '3 év alatti gyereknek szánt játékban biztonsági szem van jelölve.',
+    summary: 'Safety eyes are marked in a toy intended for a child under 3.',
     message: '3 év alatti gyereknek szánt játékba nem kerülhet biztonsági szem vagy gyöngy: a szemeket hímezd ki.',
   },
 
-  /* ---- Rácsos technikák (PQW-864) ---- */
   'carried-colors': {
     severity: 'warning',
     reference: '03 §5.3, §10 G36',
-    summary: 'Tapestryben egy sorban 3-nál több színt kell a szemekben vinni.',
+    summary: 'In tapestry more than 3 colors have to be carried inside the stitches in one row.',
     message:
       'Ebben a sorban 3-nál több színt kell a szemekben vinni: ez haladó szint, és a szövet merevebb lesz. Egyszerűsítsd a sort, vagy horgold graphganként, színenként külön gombolyaggal.',
   },
   'spike-depth': {
     severity: 'error',
     reference: '03 §5.6, §10 C17, G34',
-    summary: 'A hosszú szem 3 sornál mélyebbre, korábbi sorba van horgolva (PQW-894).',
+    summary: 'The spike stitch is worked more than 3 rows down, into an earlier row (PQW-894).',
     message: 'Ez a hosszú szem túl mélyre megy: legfeljebb 3 sorral lejjebb, egy kihagyott szembe horgolhatsz.',
   },
 } as const satisfies Record<string, RuleDef>;

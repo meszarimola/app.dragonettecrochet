@@ -1,12 +1,4 @@
-/*
- * A szemkönyvtár változatai azonosító alapján.
- *
- * A könyvtár (stitches.ts) a gyakori változatokat sorolja fel, de az
- * építőfüggvények bármilyen n-re elkészítik az összetett szemet. A szerkesztőben
- * például „még egy ugyanabba” egy `inc-2dc`-ből `inc-3dc`-t csinál, amely a
- * palettán nincs. Az azonosító maga írja le a szerkezetet, így a mentett
- * mintából is visszaállítható.
- */
+// KB: core-domain §4
 
 import { createStitchLibrary, type StitchLibrary } from './stitch-library.ts';
 import { STITCHES, cluster, decrease, increase, shell } from './stitches.ts';
@@ -14,7 +6,6 @@ import type { Pattern, StitchDef, StitchDefId } from './types.ts';
 
 const BY_ID = new Map(STITCHES.map((def) => [def.id, def]));
 
-/** Ennyinél több részszemet nem fogadunk el azonosítóból: elírás, nem minta. */
 const MAX_PARTS = 12;
 
 function partOf(id: string): StitchDef | undefined {
@@ -27,7 +18,6 @@ function count(text: string): number | undefined {
   return Number.isInteger(n) && n >= 2 && n <= MAX_PARTS ? n : undefined;
 }
 
-/** A könyvtár szeme, vagy az azonosítóból felépített változat; ismeretlennél `undefined`. */
 export function resolveStitch(id: StitchDefId): StitchDef | undefined {
   const known = BY_ID.get(id);
   if (known) return known;
@@ -57,7 +47,6 @@ export function resolveStitch(id: StitchDefId): StitchDef | undefined {
   return undefined;
 }
 
-/** A teljes könyvtár, kiegészítve a mintában használt változatokkal. Ismeretlen azonosítót kihagy; azt az ellenőrző jelzi. */
 export function libraryFor(pattern: Pattern): StitchLibrary {
   const extra = new Map<StitchDefId, StitchDef>();
   for (const piece of pattern.pieces) {

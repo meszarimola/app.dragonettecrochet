@@ -1,19 +1,9 @@
-/*
- * A ruhadarab méretsorozatának szövege (PQW-866, 05 §8.1, §8.2): a méretek
- * „S (M, L)” alakban, utána a kész méretek, darabonként a láncalap, a
- * szemszám, a sorok, a vállvarrás, az ujj szaporítása és a fonal, mindig a
- * méretek sorrendjében: az első méret száma elöl, a többié zárójelben.
- *
- * A számok a mintával mentett sorozatból jönnek (types.ts `PatternGarment`),
- * így a szöveg a mentés után sem változik. A sorokat soronként a gráf írja, a
- * gráf mérete szerint; ezt a blokk második mondata mondja ki.
- */
+// KB: 05 §8.1, 05 §8.2
 
 import { bodySizeName, hatSizeName } from './body-sizes.ts';
 import { article } from './hungarian.ts';
 import type { Locale, PatternGarment } from './types.ts';
 
-/** Ledobott vállú pulóver: a kész méretek (cm), a hátrész és elejerész, a váll és az ujj számai. */
 export const DROP_SHOULDER_KEYS = [
   'chestCm',
   'lengthCm',
@@ -37,10 +27,8 @@ export const DROP_SHOULDER_KEYS = [
   'timesB',
 ] as const;
 
-/** Sapka: a kész körméret és magasság (cm), a korona és az oldal körei. */
 export const HAT_KEYS = ['hatCm', 'heightCm', 'increases', 'crownRounds', 'hatStitches', 'sideRounds', 'brimRounds', 'totalRounds'] as const;
 
-/** Felülről horgolt raglán: a nyak, a raglánkörök, a szétosztás és a törzs számai. */
 export const RAGLAN_KEYS = [
   'raglanChestCm',
   'raglanLengthCm',
@@ -56,19 +44,16 @@ export const RAGLAN_KEYS = [
   'raglanTargetSleeve',
   'raglanBelowRounds',
   'raglanHemRounds',
-  // Az ujj csöve a hónaljtól a mandzsettáig (PQW-913).
   'raglanSleeveRounds',
   'raglanSleeveDecreases',
   'raglanSleeveCuff',
   'raglanSleeveCuffRounds',
 ] as const;
 
-/** Fonal méretenként, ha a profilból becsülhető (m tartalékkal, gombolyag). */
 export const YARN_KEYS = ['yarnM', 'balls'] as const;
 
 export const SERIES_KEYS: readonly string[] = [...DROP_SHOULDER_KEYS, ...HAT_KEYS, ...RAGLAN_KEYS, ...YARN_KEYS];
 
-/** „80 (86, 92)”: az első méret elöl, a többi zárójelben. */
 export function seriesText(values: readonly number[] | undefined, format: (n: number) => string = String): string {
   if (!values || values.length === 0) return '';
   const [first, ...rest] = values.map(format);
@@ -84,15 +69,13 @@ function enOrdinal(n: number): string {
   return `${n}${suffix}`;
 }
 
-/** A névelő a méret neve előtt: „az M”, „az XL”, „a 2X”, „az 5X”, „a Felnőtt M”. */
 function sizeArticle(name: string): 'a' | 'az' {
   if (/^\d/.test(name)) return article(Number.parseInt(name, 10));
-  // Egybetűs vagy betűkódos méret: a betű kiejtett neve dönt (ef, el, em, en, er, es, iksz).
+  // KB: core-domain §3
   if (/^[A-Z]{1,3}$/.test(name)) return 'AEFILMNORSX'.includes(name[0]!) ? 'az' : 'a';
   return /^[aáeéiíoóöőuúüű]/i.test(name) ? 'az' : 'a';
 }
 
-/** A méretsorozat sorai az írott minta „Méretek” blokkjába. */
 export function sizingLines(garment: PatternGarment, locale: Locale): string[] {
   const hu = locale === 'hu';
   const values = (key: string) => garment.values[key];

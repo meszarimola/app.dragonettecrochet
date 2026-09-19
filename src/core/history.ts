@@ -1,25 +1,16 @@
-/*
- * Visszavonás és újra: állapotok verme.
- *
- * Az állapot megváltoztathatatlan (a minta sima JSON-objektum, a szerkesztő
- * műveletei újat adnak), ezért elég a korábbi állapotokat eltenni. Az új
- * változás törli az újra-vermet, mint minden szerkesztőben.
- */
-
+// KB: core-geometry §29, core-support §9
 export interface History<T> {
   readonly past: readonly T[];
   readonly present: T;
   readonly future: readonly T[];
 }
 
-/** Ennyi lépés vonható vissza; a legrégebbi kiesik. */
 export const HISTORY_LIMIT = 200;
 
 export function createHistory<T>(present: T): History<T> {
   return { past: [], present, future: [] };
 }
 
-/** Új állapot. Ha azonos a mostanival, nem lesz belőle lépés. */
 export function record<T>(history: History<T>, next: T): History<T> {
   if (Object.is(next, history.present)) return history;
   const past = [...history.past, history.present];

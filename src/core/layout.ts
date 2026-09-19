@@ -1,35 +1,4 @@
-/*
- * A diagram elrendezése a gráfból: hely, irány, legyező, összefutás, sorszám,
- * színe és visszája. Tiszta függvény, böngésző nélkül.
- *
- * Konvenciók (01 §6.1, §6.3, §8.4; 03 §2.1, §4.4):
- * - A jel talpa ott van, ahová horgolták: az alatta lévő szem oszlopában. A
- *   szaporítás szárai egy talpból legyezőben nyílnak, a fogyasztás szárai egy
- *   tetőbe futnak — ez magától adódik, mert a talp a célpont, a tető a saját
- *   oszlop.
- * - Sorban a jelek függőlegesek, a sorok alulról felfelé, kígyózva haladnak:
- *   jobbkezesnek az 1. sor jobbról balra; a sorszám a sor kezdő oldalán áll.
- * - A sormagasság a sor legmagasabb szeméből jön; egy sor jelei közös
- *   talpvonalon állnak.
- * - Körben a jelek sugárirányúak, a körök a középből az óramutatóval
- *   ellentétesen haladnak.
- * - Sokszögben (négyzet, hatszög, nyolcszög, nagymama-négyzet) a körök a
- *   sokszög oldalai mentén haladnak, a jelek az oldalra merőlegesek, a
- *   sarokcsoportok a sarkokban, egymás fölött ülnek (polygon.ts, PQW-888). A
- *   körök távolsága itt is a jelek magasságából jön; a sokszög kerülete
- *   nagyobb a köréhez képest, ezért a jelek nem torlódnak.
- * - Tükrözött nézetben (balkezeseknek) minden vízszintesen tükröződik (01 §8.4 szabály 22).
- *
- * Stabil szerkesztés közben (06 §5.3 2. pont): egy réteg csak az alatta lévő
- * rétegtől és a saját szemeitől függ, ezért új szem csak a saját sorát
- * rendezheti át, a korábbi sorokat nem.
- *
- * Egy sor oszlopai: minden szem oda szeretne kerülni, ahová horgolták, de a
- * fonal sorrendjében, legalább fél-fél szélességnyi távolságra egymástól. Ezt
- * súlyozott monoton regresszió adja (pool adjacent violators): a legyező a
- * célpontja köré, a fogyasztás a célpontjai közé kerül, a láncszemek a
- * szomszédaik közé.
- */
+// KB: 01 §6.1, 01 §6.3, 01 §8.4, 03 §2.1, 03 §4.4
 
 import { buildPieceGraph, chainBridges, type LayerInfo, type PieceGraph } from './graph.ts';
 import { CIRCLE, frameCoords, frameFor, frameNormal, framePoint, frameSide, perimeter, type Point, type RoundFrame } from './polygon.ts';
@@ -40,7 +9,6 @@ import { validatePattern } from './validate.ts';
 
 export type { Point, RoundFrame } from './polygon.ts';
 
-/** Hogyan rajzolandó a csomópont: szárral, láncszemként, pontként, pikóként vagy gyűrűként. */
 export type NodeRole = 'stitch' | 'chain' | 'slip' | 'picot' | 'ring';
 
 export interface NodePlacement {
@@ -49,17 +17,13 @@ export interface NodePlacement {
   readonly layer: number;
   readonly side: 'right' | 'wrong';
   readonly role: NodeRole;
-  /** Szárnál a beszúrási pontok, célpontonként egy; a többinél üres. */
+  // One foot per anchor, in anchor order; empty for roles without a stem.
   readonly feet: readonly Point[];
-  /** Szárnál a tető; a többinél a középpont. Ide mutat, ami ebbe horgol. */
+  // The top for stemmed nodes, the centre otherwise; anchors point here.
   readonly top: Point;
-  /**
-   * A sor menti tengely szöge radiánban a csomópont helyén (0 = vízszintes):
-   * láncszemnél egyben a hossztengelye. Szárnál a jel ehhez igazítja a
-   * kereszt- és a tetővonalát, nem a (szaporításnál ferde) szárhoz (PQW-931).
-   */
+  // Radians, 0 = horizontal: the row axis at the node, not the (slanted) stem.
+  // KB: core-geometry §10
   readonly angle: number;
-  /** Láncszemnél a hossza. */
   readonly size: number;
 }
 
@@ -68,37 +32,32 @@ export interface LayerPlacement {
   readonly shape: LayerInfo['shape'];
   readonly side: LayerInfo['side'];
   readonly stitchCount: number;
-  /** A kiírt szemszám: a rajz felirata ezt mutatja (PQW-940). */
+  // The count printed on the chart, which can differ from stitchCount.
   readonly writtenCount: number;
-  /** A sorszám helye a sor kezdő oldalán. */
+  // Where the row number is drawn, on the starting side of the row.
   readonly start: Point;
-  /** A szemszám helye a sor végén. */
+  // Where the stitch count is drawn, at the end of the row.
   readonly end: Point;
 }
 
 export interface ChartLayout {
   readonly nodes: ReadonlyMap<NodeId, NodePlacement>;
-  /** Rétegenként, a 0. (láncalap vagy varázskör) is. */
+  // Layer 0 is the foundation chain or the magic ring.
   readonly layers: readonly LayerPlacement[];
   readonly bounds: { readonly minX: number; readonly minY: number; readonly maxX: number; readonly maxY: number };
-  /** Sokszögben horgolt darabnál az alakja (PQW-888); sorban és lapos körben hiányzik. */
   readonly frame?: RoundFrame;
 }
 
 export interface LayoutOptions {
-  /** Balkezes, tükrözött nézet. */
   readonly mirror?: boolean;
-  /** Egy szem oszlopszélessége. */
   readonly columnWidth?: number;
-  /** A szár hossza láncszem-magasságból; a felület a jelrajzéval adja át (src/ui/symbols.ts). */
   readonly stemLength?: (chainHeight: number) => number;
-  /** Egyenes sorok a darab íves alakja helyett (PQW-893); a rács ebből számol, és maga görbíti. */
+  // Lay the rows out straight, ignoring the piece's row shape.
   readonly straight?: boolean;
 }
 
 export const DEFAULT_COLUMN = 24;
 const defaultStem = (chainHeight: number) => 10 + 8 * chainHeight;
-/** Hézag két sor között, és a láncszem magassága a sorban. */
 export const ROW_GAP = 6;
 const CHAIN_HEIGHT = 12;
 const SLIP_HEIGHT = 6;
@@ -106,21 +65,13 @@ const TAU = 2 * Math.PI;
 
 const EMPTY: ChartLayout = { nodes: new Map(), layers: [], bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0 } };
 
-/**
- * A hibás célpontú szemek (elrontott vagy félrehorgolt), amelyeknek a szárát a
- * saját oszlopában, normál méretben rajzoljuk, nem a távoli célpontig nyújtva:
- * a később készülő, korábbi sorba vagy a haladási irány ellen mutató célpont
- * (PQW-879). A szabályozott, jelölt nyúlás (keresztezett, hosszú szem, relief)
- * ezekhez nem tartozik, mert az ellenőrző sem jelzi hibának.
- */
+// KB: core-geometry §12
 const DETACHED_RULES = new Set(['future-anchor', 'anchor-layer', 'against-direction', 'turning-chain-placement']);
 
-/** A hibás célpontú szemek azonosítói az ellenőrző találataiból. */
 function detachedNodes(pattern: Pattern, library: StitchLibrary): Set<NodeId> {
   const set = new Set<NodeId>();
   for (const finding of validatePattern(pattern, library)) {
     if (!DETACHED_RULES.has(finding.rule)) continue;
-    // A haladási irány elleni találat a megelőző (helyes) szemet is felsorolja; a hibás az utolsó.
     const nodes = finding.rule === 'against-direction' ? finding.nodes.slice(-1) : finding.nodes.slice(0, 1);
     for (const id of nodes) set.add(id);
   }
@@ -140,58 +91,35 @@ export function layoutPattern(pattern: Pattern, library: StitchLibrary, options:
   const stem = options.stemLength ?? defaultStem;
   const raw = new Layouter(graph, W, stem, detachedNodes(pattern, library)).run();
   const chart = finish(graph, raw, options.mirror ?? false, W);
-  // Sorban horgolt kendő (PQW-893): az egyenes elrendezés íven vagy megtörve (row-curve.ts), a kézi igazítás nélküli helyekből.
+  // KB: core-geometry §11
   const shape = piece.rowShape;
   if (!shape || options.straight || graph.layers[0]!.shape !== 'row') return chart;
   const curve = rowCurve(finish(graph, raw, options.mirror ?? false, W, false), shape);
   return curve ? curveLayout(chart, curve, W) : chart;
 }
 
-/* ---- Egy sor oszlopai ---- */
 
 interface Item {
   readonly ids: readonly NodeId[];
-  /** Az ív a saját láncszemeit összébb húzza, ezért ez állítható (PQW-951). */
+  // KB: core-geometry §14
   half: number;
   readonly weight: number;
   desired: number | undefined;
 }
 
-/** Egy láncív a rajzon: a láncszemei a húr fölé emelkednek (PQW-951). */
+// KB: core-geometry §14
 interface Arc {
   readonly ids: readonly NodeId[];
-  /** A húr két vége a haladás tengelyén: a két rögzített szem belső széle. */
+  // The chord ends on the travel axis: the inner edges of the two anchored stitches.
   readonly start: number;
   readonly end: number;
-  /** Az ív magassága a húr fölött. */
   readonly rise: number;
-  /** A tömörödött láncszemjel hossza. */
   readonly size: number;
 }
 
-/**
- * Mennyi helyet kér egy szem a rajzon (PQW-931).
- *
- * A tulajdonos elvárása: *„az első sorban lévő négyzetnek feleljen meg a
- * második sorban 3 négyzet, ha 3-at szaporítok”*, és *„az a láncszem, ahova a
- * szaporítás csatlakozik, ahogy adom hozzá a szaporítást és szélesedik, úgy
- * csúszzon az ő négyzetének közepére”*.
- *
- * Ehhez egy szemnek annyi hely kell, amennyit a BELE horgolt szemek együtt
- * elfoglalnak. Felfelé összegzünk: a legfelső sor szemei egy oszlopot kérnek,
- * lejjebb mindenki a rá épülők igényének összegét, de legalább egy oszlopot.
- *
- * A fogyasztás (egy szem több célponttal) az igényét ELOSZTJA a célpontjai
- * között: különben mindegyik alatt teljes szélességgel jelenne meg, és a sor
- * fölöslegesen szétnyílna.
- *
- * Ez a szándékolt ára a tulajdonosi döntésnek: egy szem hozzáadása mostantól a
- * KORÁBBI sorokat is átrendezi, mert az alatta lévő szem igénye megnő. A
- * korábbi garancia (06 §5.3 2. pont) ezzel megszűnt.
- */
+// KB: core-geometry §10
 export function stitchWidths(graph: PieceGraph, W: number): Map<NodeId, number> {
   const widths = new Map<NodeId, number>();
-  // Felülről lefelé: mire egy szemhez érünk, a rá épülők igénye már összegyűlt.
   for (let index = graph.layers.length - 1; index >= 0; index -= 1) {
     for (const id of graph.layers[index]!.stitches) {
       const own = Math.max(W, widths.get(id) ?? 0);
@@ -204,38 +132,9 @@ export function stitchWidths(graph: PieceGraph, W: number): Map<NodeId, number> 
         else if (anchor.into === 'space') targets.push(...(graph.spaces.get(anchor.id)?.chains ?? []));
       }
       if (targets.length === 0) continue;
-      /*
-       * EGY SZINTRE nézünk, nem a teljes részfára: a szem a saját alapigényét
-       * (`W`) adja tovább, nem a már felhalmozott szélességét.
-       *
-       * Mérés mutatta meg, miért: a teljes részfa összegzésével az alsó sorok
-       * olyan szélesek lettek, mint a legfelsők, és a legyező alakú kendő
-       * téglalappá lapult — a félkör 180° helyett 157°-ot fogott át. A
-       * tulajdonos kérése viszont egy szintről szól: „az első sorban lévő
-       * négyzetnek feleljen meg a második sorban 3 négyzet, ha 3-at
-       * szaporítok.” Ehhez elég, ha a szem a KÖZVETLENÜL beléje horgolt
-       * szemek számával szélesedik.
-       */
       const share = W / targets.length;
       for (const target of targets) widths.set(target, (widths.get(target) ?? 0) + share);
     }
-    /*
-     * A LÁNCÍV továbbadja az igényét az áthidalt szemeknek (PQW-953).
-     *
-     * A láncszemnek nincs célpontja, ezért a rá épülő legyező igénye eddig
-     * megállt nála: a 3. sor hat pálcája 144 px-et kért, az ív viszont 38-on
-     * állt, és a sor a fordulóláncát tolta ki a kelméről. A tulajdonos:
-     * „a harmadik sornál már így elcsúszik.”
-     *
-     * Közvetlenül egy szembe horgolva ugyanez rendben van — a szaporítás
-     * kiszélesíti az alatta lévő cellát (PQW-931). A lánc alatt ugyanennek kell
-     * történnie: amit a láncsor kér, azt a rés viseli.
-     *
-     * Csak a TÖBBLET megy tovább: amit a láncszemekre épülő szemek kérnek a
-     * saját oszlopukon felül. A lánc maga marad, ami volt — különben minden ív
-     * szétfeszítené az alatta lévő sort, és a PQW-951 tömörödése elveszne.
-     */
-    // Csak sorban: körben (nagymama-négyzet, motívumok) a sarkok lánca máshogy viselkedik.
     if (graph.layers[index]!.shape !== 'row') continue;
     for (const bridge of chainBridges(graph, index)) {
       const extra = bridge.chains.reduce((sum, id) => sum + Math.max(0, (widths.get(id) ?? W) - W), 0);
@@ -248,7 +147,7 @@ export function stitchWidths(graph: PieceGraph, W: number): Map<NodeId, number> 
 }
 
 
-/** Súlyozott monoton (nem csökkenő) regresszió. */
+// KB: core-geometry §9
 export function isotonic(values: readonly number[], weights: readonly number[]): number[] {
   const blocks: { sum: number; weight: number; count: number }[] = [];
   values.forEach((value, i) => {
@@ -264,10 +163,7 @@ export function isotonic(values: readonly number[], weights: readonly number[]):
   return blocks.flatMap((block) => Array<number>(block.count).fill(block.sum / block.weight));
 }
 
-/**
- * Az elemek helye a haladás tengelyén: a kívánt helyükhöz a lehető
- * legközelebb, sorrendben, a félszélességek összegénél nem közelebb.
- */
+// KB: core-geometry §9
 export function spread(items: readonly Item[]): number[] {
   const offsets: number[] = [];
   items.forEach((item, i) => offsets.push(i === 0 ? 0 : offsets[i - 1]! + items[i - 1]!.half + item.half));
@@ -286,7 +182,6 @@ export function spread(items: readonly Item[]): number[] {
   return isotonic(z, items.map((item) => item.weight)).map((value, i) => value + offsets[i]!);
 }
 
-/* ---- Rétegek ---- */
 
 interface Raw {
   nodes: Map<NodeId, NodePlacement>;
@@ -294,18 +189,14 @@ interface Raw {
   frame: RoundFrame;
 }
 
-/**
- * A sor menti tengely szöge körben, a kifelé mutató `normal` irány szögéből. A
- * `polar` a vászon lefelé növő y-ához negálja a szinuszt, ezért kifelé (cos,
- * −sin) mutat, a sor menti érintő pedig (−sin, −cos). Ez NEM a kifelé mutató
- * irány szöge, amellyel a fordulólánc-köteg áll: azt összekeverve körben
- * minden jel elfordul.
- */
+// The row-axis angle in rounds, derived from the outward normal's angle.
+// `polar` negates the sine for the canvas y-axis, so outward is (cos, -sin)
+// and the along-row tangent is (-sin, -cos). This is NOT the outward angle.
 function alongRow(normal: number): number {
   return Math.atan2(-Math.cos(normal), -Math.sin(normal));
 }
 
-/** A kör egy sarka: a szem vagy a láncív, amelybe a következő kör sarokcsoportja kerül. */
+// KB: core-geometry §18
 interface CornerRef {
   readonly space: boolean;
   readonly id: string;
@@ -318,47 +209,37 @@ class Layouter {
   readonly #round: boolean;
   #roundShape: RoundShape | undefined;
 
-  /** Kúpos kör-e a réteg (PQW-908): a 2. körtől a megadott körig. */
+  // KB: core-geometry §19
   #cone(index: number): boolean {
     return this.#round && this.#roundShape?.kind === 'cone' && index >= 2 && index <= this.#roundShape.throughRound;
   }
-  /** Ovális kezdés (PQW-890): a láncalap egyenesen, az 1. kör a két oldalán. */
   readonly #oval: boolean;
-  /** A körben horgolt darab alakja: kör vagy sokszög. */
   readonly #frame: RoundFrame;
-  /** Sokszögben rétegenként a sarkok, a fonal sorrendjében; ha nem követhetők, `null`. */
+  // Corners per layer in yarn order; null when they cannot be traced.
   readonly #corners: (readonly CornerRef[] | null)[] = [];
-  /** A sarkok helye a kerület menti paraméterben, az 1. körtől rögzítve. */
+  // KB: core-geometry §18
   #cornerAxes: number[] | null = null;
-  /** Hibás célpontú szemek: a száruk a saját oszlopukban, normál méretben áll. */
   readonly #detached: ReadonlySet<NodeId>;
   readonly #nodes = new Map<NodeId, NodePlacement>();
   readonly #layers: LayerPlacement[] = [];
-  /** Sorban a vízszintes oszlop, körben a szög (radián). */
+  // x in rows, the perimeter parameter (an angle in a circle) in rounds.
   readonly #axis = new Map<NodeId, number>();
-  /** Rétegenként a talpvonal: sorban y, körben sugár. */
+  // Baseline per layer: y in rows, radius in rounds.
   readonly #base: number[] = [];
-  /** Szemenként a kért szélesség: a bele horgolt szemek igényének összege (PQW-931). */
+  // KB: core-geometry §10
   readonly #widths: ReadonlyMap<NodeId, number>;
 
   constructor(graph: PieceGraph, W: number, stem: (chainHeight: number) => number, detached: ReadonlySet<NodeId> = new Set()) {
     this.#graph = graph;
     this.#W = W;
-    /*
-     * A széthúzás csak a KÉZZEL horgolt rajzra vonatkozik (PQW-931). Az íves
-     * sorú, generált darab (kendő) elrendezése maradjon bitre azonos: a
-     * tulajdonos az UAT első körében a szabályos horgolást teszi rendbe, a
-     * kendő geometriáján nem dolgozunk. Üres térkép = mindenki az alapigényét
-     * kéri, vagyis a korábbi viselkedés.
-     */
+    // KB: core-geometry §11
     this.#widths = graph.piece.rowShape ? new Map() : stitchWidths(graph, W);
     this.#stem = stem;
     this.#detached = detached;
     this.#round = graph.layers[0]!.shape === 'round';
     this.#roundShape = graph.piece.roundShape;
     this.#oval = this.#round && graph.layers[0]!.undersides.length > 0;
-    // A kúp (PQW-908: a raglán vállrésze) kör alapú: a négy raglánvonal szaporítási pont, nem motívumsarok.
-    // Sarkos keretre húzva a rajz négyzetté torzulna, pedig a darab a valóságban körbefutó cső.
+    // KB: core-geometry §19
     this.#frame = this.#round && graph.piece.roundShape?.kind !== 'cone' ? frameFor(graph.piece.corners) : CIRCLE;
   }
 
@@ -393,10 +274,8 @@ class Layouter {
     }
   }
 
-  /**
-   * Sorban (x, y), körben (belső sugár, kerület menti paraméter) → pont; a
-   * paraméter az óramutatóval ellentétesen nő. Lapos körben ez a sugár és a szög.
-   */
+  // Rows: (x, y). Rounds: (inner radius, perimeter parameter), growing
+  // counterclockwise; in a flat circle that is radius and angle.
   #point(base: number, axis: number): Point {
     return this.#round ? framePoint(this.#frame, base, axis) : { x: axis, y: base };
   }
@@ -405,8 +284,7 @@ class Layouter {
     const side = layer.side;
     const chains = layer.stitches.filter((id) => this.#def(id).kind === 'chain');
     if (this.#round && chains.length > 0 && this.#oval) {
-      // Ovális (PQW-890): a láncalap egyenesen a közepén. A paraméter a horogtól távolodva nő (0-tól π-ig),
-      // a láncszem másik oldala a tükörképe (π-től 2π-ig), így az 1. kör körbeér a láncalap két oldalán.
+      // KB: core-geometry §19
       const n = layer.stitches.length;
       const half = Math.max(this.#W, (n * this.#W * 0.8) / 2);
       layer.stitches.forEach((id, k) => {
@@ -416,13 +294,13 @@ class Layouter {
       });
       this.#base[0] = half + 8;
     } else if (this.#round && chains.length > 0) {
-      // Láncgyűrű: a láncszemek kis körön a középpont körül; a „2 lsz” kezdés egyetlen láncszeme középen (PQW-861).
+      // KB: core-geometry §19
       const radius = chains.length === 1 ? 0 : Math.max(6, (chains.length * this.#W * 0.6) / (2 * Math.PI));
       layer.stitches.forEach((id, i) => {
         const axis = Math.PI / 2 + (2 * Math.PI * i) / layer.stitches.length;
         this.#axis.set(id, axis);
         const along = Math.atan2(-Math.cos(axis), -Math.sin(axis));
-        // A láncgyűrű sokszögben is kerek.
+        // The chain ring stays round even in a polygon.
         this.#place(id, 0, side, 'chain', [], framePoint(CIRCLE, radius, axis), along, this.#W * 0.6);
       });
       this.#base[0] = radius + 8;
@@ -433,17 +311,10 @@ class Layouter {
       }
       this.#base[0] = 10;
     } else {
-      /*
-       * A láncalap NEM fix rácson áll (PQW-931): minden láncszem annyi helyet
-       * kap, amennyit a bele horgolt szemek együtt kérnek, és a saját,
-       * kiszélesedett sávjának KÖZEPÉN áll. Ez a tulajdonos kérése: ahogy a
-       * szaporítás nő, a láncszem csússzon a négyzete közepére, és fölötte
-       * annyi négyzet legyen, ahány szem belekerült.
-       */
+      // KB: core-geometry §17
       let x = 0;
       layer.stitches.forEach((id, i) => {
         const width = this.#widths.get(id);
-        // Széthúzás nélkül a régi, fix rács — így az íves darab rajza sem mozdul.
         const center = width === undefined ? i * this.#W : x + width / 2;
         this.#axis.set(id, center);
         this.#place(id, 0, side, 'chain', [], { x: center, y: 0 }, 0, this.#W * 0.8);
@@ -458,7 +329,7 @@ class Layouter {
       shape: layer.shape,
       side,
       stitchCount: 0,
-      // A láncalap kiírt szemszáma a gráfé: a megmaradt láncszemei és a fordulólánc oszlopa (PQW-942).
+      // KB: core-geometry §17
       writtenCount: layer.writtenCount,
       start: this.#round ? { x: 0, y: 0 } : { x: -this.#W, y: 0 },
       end: this.#round ? { x: 0, y: 0 } : { x: last + this.#W, y: 0 },
@@ -483,23 +354,19 @@ class Layouter {
     const below = graph.layers[layer.below]!;
     const turning = new Set(layer.turningChain);
 
-    /*
-     * A fordulólánc SAJÁT magassága: azé a szemé, amelyik helyett áll (PQW-934).
-     * Nem a sor legmagasabb szeméé — a sor később megnőhet, a fordulólánc
-     * viszont marad, ami volt.
-     */
+    // KB: core-geometry §15
     const chainSpan = layer.turningChain.length ? this.#stem(layer.turningChain.length) : 0;
     const stitchHeight = Math.max(
       CHAIN_HEIGHT,
       chainSpan,
       ...layer.stitches.filter((id) => !turning.has(id)).map((id) => this.#height(id)),
     );
-    // Az újrakezdett szakasz az alatta megadott sor tetejére épül (PQW-901).
+    // A restarted section builds on the top of the row it names.
     const previousTop = layer.index === 1 ? this.#base[0]! + (this.#round ? 0 : -ROW_GAP) : this.#top(layer.below);
     let base = this.#round ? previousTop + ROW_GAP : previousTop - ROW_GAP;
     this.#base[layer.index] = base;
 
-    // Elemek a fonal sorrendjében; a fordulólánc egy oszlop, a pikó az előző elemen ül.
+    // Items in yarn order; the turning chain is one item, a picot rides its host.
     const items: Item[] = [];
     const picots = new Map<NodeId, NodeId>();
     for (const id of layer.stitches) {
@@ -518,7 +385,6 @@ class Layouter {
       const node = graph.nodes.get(id)!;
       const axes = node.anchors.map((a) => this.#anchorAxis(a)).filter((v): v is number => v !== undefined);
       const anchored = kind !== 'chain' && id !== layer.joinSlip && axes.length > 0;
-      // A kért szélesség legalább a jel sajátja, de a bele horgolt szemek igénye tágíthatja (PQW-931).
       const ownHalf = kind === 'chain' ? W * 0.35 : kind === 'slip' ? W * 0.3 : W / 2;
       items.push({
         ids: [id],
@@ -528,26 +394,9 @@ class Layouter {
       });
     }
 
-    /*
-     * A láncszem helye: az általa áthidalt, kihagyott szem oszlopa (PQW-935).
-     *
-     * A láncszemnek nincs célpontja, ezért eddig a szomszédai közé
-     * interpolálódott — a sor végén pedig egyszerűen az utolsó szem mellé
-     * került, akárhová tette a horgoló. A tulajdonos: „azt vártam volna, hogy
-     * ha a másodikba klikkelek… akkor abba a cellába tegye a láncszemet.”
-     *
-     * A kihagyott szemeket (`piece.skipped`) a szerkesztő jegyzi fel, amikor a
-     * lánc áthidalja őket. A hozzárendelés a fonal sorrendjében megy: minden
-     * láncszem a soron következő olyan kihagyott szem fölé kerül, amelyik már
-     * az előtte lévő szem mögött van. Ahol nincs ilyen, minden marad a régiben.
-     */
+    // KB: core-geometry §13
     const skipped = new Set(this.#graph.piece.skipped);
     const arcs: Arc[] = [];
-    /*
-     * Mit hidal át egy láncsor: a KELMÉBŐL, nem a szerkesztés sorrendjéből
-     * (PQW-952). A `skipped` csak az előre készülő láncot jegyzi fel, a
-     * horgoló viszont utólag is beteheti a láncszemeket két kész szem közé.
-     */
     const structural = new Map<NodeId, readonly NodeId[]>();
     for (const bridge of chainBridges(this.#graph, layer.index)) structural.set(bridge.chains[0]!, bridge.bridged);
     const bridged = below.positions
@@ -558,21 +407,6 @@ class Layouter {
     if (bridged.length > 0 || (!this.#round && structural.size > 0)) {
       const loose = (item: Item) =>
         item.desired === undefined && item.ids[0] !== layer.turningChain[0] && this.#def(item.ids[0]!).kind === 'chain';
-      /*
-       * A párosítás RÉSENKÉNT megy, nem a sor elejétől végigszámolva (PQW-936).
-       *
-       * Az első változat egyetlen mutatóval haladt végig a soron, ezért ha egy
-       * résben más volt a láncszemek és az áthidalt szemek száma — mert egybe
-       * utóbb mégis szem került, vagy két láncsor ugyanarra a helyre nyúlt —,
-       * onnantól MINDEN későbbi láncszem elcsúszott, a legvégén pedig hely
-       * híján visszaesett az előtte lévő szem mellé. A tulajdonos ezt látta:
-       * „köti a láncszemet a következő cellához az erp után”, és jól mondta,
-       * hogy ez ismétlődő mintában újra és újra előjön.
-       *
-       * Két szem közötti rést csak az ő áthidalt szemeik érintik, ezért egy rés
-       * hibája nem gyűrűzik tovább. Kevesebb láncszem középre kerül, több
-       * egyenletesen oszlik el a rés fölött.
-       */
       let run: Item[] = [];
       let behind: Item | undefined;
       const settle = (ahead: Item | undefined) => {
@@ -582,13 +416,6 @@ class Layouter {
           const marks = bridged.filter(
             (at) => (from === undefined || direction * (at - from) > 0) && (to === undefined || direction * (to - at) > 0),
           );
-          /*
-           * Ahol a jelölés hallgat, a KELME mondja meg, mit hidal át a lánc
-           * (PQW-952). A `skipped` csak az előre készülő láncot jegyzi fel;
-           * utólag két kész szem közé tett láncszemeknél üres marad, és a rés
-           * nélkül a lánc teljes oszlopokat kér, ami kitolja a szomszédját.
-           * Ahol van jelölés, az marad a mérvadó (PQW-936, PQW-938).
-           */
           const gap =
             marks.length > 0 || this.#round
               ? marks
@@ -596,36 +423,12 @@ class Layouter {
                   .map((id) => this.#axis.get(id))
                   .filter((value): value is number => value !== undefined)
                   .sort((a, b) => direction * (a - b));
-          /*
-           * TÖBB LÁNCSZEM, MINT AHÁNY SZEMET ÁTHIDAL: ez az ÍV (PQW-951).
-           *
-           * A tulajdonos a kagylós mintát rajzolta: egy rövidpálca, 5 láncszem,
-           * és a következő rövidpálca az alsó sor 5. szemébe — alul 3 kihagyott
-           * szem, felül 5 láncszem. „ha beillesztem a következő rövidpálcát,
-           * akkor ilyen csúnyán adja ki a mintakészítő.”
-           *
-           * Azért csúnya, mert a láncszemek csak akkor kaptak helyet, ha jutott
-           * nekik áthidalt szem: 5-ből 3. A maradék kettő a szomszéd rövidpálca
-           * oszlopába sodródott, és KITOLTA onnan — a mérés szerint a sor első
-           * szeme x=564 helyett 587,6-ra került, vagyis a kelme szélén kívülre.
-           *
-           * A valóságban nem a pálca mozdul, hanem a lánc ível. Ezért a rés
-           * két rögzített szeme közötti helyet a láncszemek EGYÜTT kapják meg:
-           * annyifelé osztva, ahányan vannak, és a jelük ennyire tömörödik. Ami
-           * így sem fér el vízszintesen, az fölfelé megy (`#arc`).
-           */
+          // KB: core-geometry §14
           const space =
             from !== undefined && to !== undefined && behind && ahead ? Math.abs(to - from) - behind.half - ahead.half : 0;
           if (!this.#round && run.length > gap.length && gap.length > 0 && space > 0) {
             arcs.push(this.#arc(run, from!, direction, space, behind!.half, stitchHeight));
           } else {
-            /*
-             * A rés ELSŐ jelöléseit vesszük, nem a közepét (PQW-938). A
-             * láncszemek a kurzortól egymás után foglalják el a helyeket, tehát
-             * az elsők az övék. Ha árva jelölés maradna a résben, a szétosztás
-             * a sor túlsó felére dobta volna a láncszemet — a tulajdonos pont
-             * ezt látta.
-             */
             run.forEach((item, i) => {
               if (i < gap.length) item.desired = gap[i]!;
             });
@@ -643,19 +446,15 @@ class Layouter {
       }
       settle(undefined);
     }
-    // Az ív a sorból nyúlik fölfelé, ezért a sor magassága befogadja.
     const height = stitchHeight + arcs.reduce((most, arc) => Math.max(most, arc.rise), 0);
     const arcOf = new Map<NodeId, Arc>();
     for (const arc of arcs) for (const id of arc.ids) arcOf.set(id, arc);
 
-    // Körben a paraméter a kör közepének kerületén mérve; a kör legalább akkora, hogy kiférjen.
-    // Az egységnyi belső sugár kerülete körben 2π, sokszögben 2n · tg(π/n).
+    // The perimeter at unit inner radius is 2π in a circle, 2n·tan(π/n) in a polygon.
     const around = perimeter(this.#frame, 1);
     const unit = around / TAU;
     const scale = (radius: number) => (this.#round ? 1 / (radius * unit) : 1);
-    // Lapos körnél a sugár akkorára nő, hogy a kör szemei kiférjenek a kerületén. A kúp (PQW-908: a raglán
-    // vállrésze) ennél lassabban nő: ott a sugarat a kelme adja (az előző kör teteje), a kör pedig kiterítve
-    // körcikket ad, mint a valóságban. Az 1. kör mindig a kerületéből indul, különben nem lenne mihez mérni.
+    // KB: core-geometry §19
     if (this.#round && !this.#cone(layer.index)) {
       const width = items.reduce((sum, item) => sum + 2 * item.half, 0);
       base = Math.max(base, width / around - height / 2);
@@ -668,24 +467,13 @@ class Layouter {
       desired: item.desired === undefined ? undefined : direction * item.desired,
     }));
 
-    /*
-     * A fordulólánc helye: az első szem mellett kívül. Sorban a fordulólánc nem
-     * szem (PQW-924), ezért nem ül az alatta lévő szem oszlopában; körben a
-     * kezdőlánc továbbra is a saját pozícióján áll.
-     */
+    // KB: core-geometry §16
     const stack = scaled.find((item) => item.ids[0] === layer.turningChain[0] && layer.turningChain.length > 0);
     if (stack) {
       const workingFirst = layer.direction === 1 ? below.positions[0] : below.positions[below.positions.length - 1];
       const firstAnchored = scaled.find((item) => item !== stack && item.weight === 1)?.desired;
       const underneath = workingFirst === undefined ? undefined : this.#axis.get(workingFirst);
       if (this.#round && layer.index === 1) stack.desired = this.#oval ? 0 : Math.PI / 2;
-      /*
-       * A fordulólánc a sor első célpontjának oszlopában áll (PQW-944), sorban
-       * és körben is — feltéve, hogy a sor tényleg kihagyja azt a helyet.
-       * A korábbi szabály szerint készült minták (a generátorok mai kimenete)
-       * oda horgolják az első szemüket, ezért ott a lánc a szövet mellé marad,
-       * különben két jel kerülne egy oszlopba.
-       */
       else if (layer.turningChainCounts && layer.index >= 2 && underneath !== undefined && firstAnchored !== direction * underneath) {
         stack.desired = direction * underneath;
       } else if (firstAnchored !== undefined) stack.desired = firstAnchored - 2 * stack.half;
@@ -702,58 +490,15 @@ class Layouter {
 
     const side = layer.side;
     const top = this.#round ? base + height : base - height;
-    // A lapos láncszem ott marad, ahol eddig: a sor szemeinek tetején (PQW-951).
     const chainLine = this.#round ? base + stitchHeight : base - stitchHeight;
     const up = (from: number, by: number) => (this.#round ? from + by : from - by);
     for (const item of scaled) {
       const axis = this.#axis.get(item.ids[0]!)!;
       if (item === stack) {
-        /*
-         * A fordulólánc ÁTNYÚLIK a sorhatáron (PQW-931). A tulajdonos szava:
-         * „a három elemes függőleges láncnak az alsó szeme az 1. sorhoz (alsó
-         * sor) tartozik, a másik kettő tartozik a felső sorhoz.” Korábban mind
-         * a sor saját sávjában állt, ezért a lánctalpba horgoláskor az egész
-         * köteg együtt ugrott fel.
-         *
-         * A lépésköz zárt alakban adódik, nem becsülve. Két kikötés van:
-         * a köteg TETEJE elér a SAJÁT magasságáig (a fordulólánc a sort kezdő
-         * szem helyett áll, tehát olyan magas, mint az a szem), és az ELSŐ
-         * láncszem teteje pont a sorhatáron ül, vagyis maga a láncszem az
-         * alatta lévő sorban van. Ebből: n elem, az i-edik közepe
-         * `base + (i - 0.5) * step`, a két kikötés együtt `step = span / (n - 1)`.
-         *
-         * Így három láncszemnél egy kerül alulra és kettő felülre; kettőnél
-         * (félpálca) egy-egy; egynél (rövidpálca) a lánc az alsó sorban áll.
-         *
-         * A mérce a fordulólánc SAJÁT magassága, nem a soré (PQW-934). A
-         * tulajdonos jelentése: a rövidpálcával kezdett sorba tett első pálca
-         * megnövelte a sort, és a fordulólánc lecsúszott vele — mérve y=1,0-ről
-         * 5,0-re, ahol a jele már kilógott az alsó sáv aljából (a sáv 9-ig tart,
-         * a 19,2 magas láncszem 14,6-ig ért). Szó szerint: „az eredeti helyzete
-         * jó volt, nem kell magasságot állítani, hiszen ő a rövidpálca
-         * magassága lesz — helyesen.”
-         */
+        // KB: core-geometry §15
         const n = item.ids.length;
         const span = chainSpan > 0 ? chainSpan : height;
         const step = n > 1 ? span / (n - 1) : span;
-        /*
-         * A LÁNCALAP fordulólánca félig az alsó sorban áll: onnan indul a
-         * munka, a legalsó láncszeme maga a láncalap vége. A fordult soré
-         * viszont teljesen a saját sorában (PQW-946) — a tulajdonos: „a 3. sor
-         * teljesen különálló”.
-         */
-        /*
-         * A LÁNCALAP fordulólánca félig az alsó sorban áll: onnan indul a
-         * munka, a legalsó láncszeme maga a láncalap vége.
-         *
-         * A fordult sor lánca viszont a JELÉVEL EGYÜTT a saját sorában marad
-         * (PQW-947), egymást nem takarva (PQW-948). Ezért ott a fordulólánc
-         * magasságát OSZTJUK szét: n láncszem mindegyike a magasság n-ed
-         * részét kapja, a jele alig kisebb ennél — így az alsó a sor
-         * talpvonalán ül, a felső a tetején, és látszik köztük a rés. A
-         * tulajdonos két jelentése: „még mindig kilóg a 3. sor cellájából”, és
-         * „bármi ami egy karikánál több, összecsúszik”.
-         */
         const stacked = layer.index <= 1 || this.#round;
         const slice = span / n;
         const size = stacked ? Math.min(step * 0.95, W * 0.8) : Math.min(slice * 0.9, W * 0.8);
@@ -771,11 +516,7 @@ class Layouter {
       if (def.kind === 'chain') {
         const arc = arcOf.get(id);
         if (arc) {
-          /*
-           * Az ív (PQW-951): a láncszem a húr fölé emelkedik, és a saját
-           * érintőjéhez fordul. A görbe parabola, mert a kiemelés zárt
-           * alakban adódik belőle: a húr közepén `rise`, a két végén nulla.
-           */
+          // KB: core-geometry §14
           const width = arc.end - arc.start;
           const u = width === 0 ? 0.5 : Math.min(1, Math.max(0, (axis - arc.start) / width));
           const center = this.#point(up(chainLine, -6 + 4 * arc.rise * u * (1 - u)), axis);
@@ -783,29 +524,21 @@ class Layouter {
           this.#place(id, layer.index, side, 'chain', [], center, Math.atan(slope), arc.size);
           continue;
         }
-        // A láncszem a kör mentén fekszik: sokszögben az oldallal párhuzamosan.
         const normal = frameNormal(this.#frame, axis);
         const along = this.#round ? alongRow(normal) : 0;
         this.#place(id, layer.index, side, 'chain', [], this.#point(up(chainLine, -6), axis), along, W * 0.7);
         continue;
       }
-      // A hibás célpontú szem talpa a saját oszlopában, ennek a sornak a talpvonalán:
-      // a jel normál méretben, a helyén marad, a karjai nem nyúlnak a távoli célpontig (PQW-879).
+      // KB: core-geometry §12
       const feet = this.#detached.has(id)
         ? graph.nodes.get(id)!.anchors.map(() => this.#point(base, axis))
         : graph.nodes.get(id)!.anchors.map((anchor) => this.#foot(anchor, layer.below, base));
       if (def.kind === 'slip') {
-        // Körben a továbbvezető és a záró kúszószem ott látszik, ahová horgolták.
+        // In rounds a travel or joining slip stitch is drawn where it was worked.
         const center = this.#round && feet[0] ? feet[0] : this.#point(up(base, SLIP_HEIGHT / 2), axis);
         this.#place(id, layer.index, side, 'slip', feet, center, 0, 0);
         continue;
       }
-      /*
-       * A sor tengelye a szem helyén: a jel ehhez igazítja a keresztvonalát és
-       * a tetővonalát. Szaporításnál a szár megdől (a talp a célpont
-       * oszlopában, a tető a saját pozíciójában), és ha a kereszt a szárhoz
-       * igazodna, a rövidpálca + jele ×-szé fordulna (PQW-931).
-       */
       const along = this.#round ? alongRow(frameNormal(this.#frame, axis)) : 0;
       this.#place(id, layer.index, side, 'stitch', feet, this.#point(up(base, this.#stem(def.chainHeight)), axis), along, 0);
     }
@@ -823,10 +556,9 @@ class Layouter {
     const last = positions[positions.length - 1] ?? first;
     const margin = W * scale(base + height / 2);
     const middle = up(base, height / 2);
-    // Sokszögben a körszám a kör első szemének oldalán marad: így a körszámok egymás fölött, elkülönülve állnak (PQW-888).
+    // KB: core-geometry §18
     const startAxis = this.#round ? Math.max(first - direction * margin, frameSide(this.#frame, first)[0]) : first - direction * margin;
     const shifted = startAxis - (first - direction * margin);
-    // Körben a kör vége a kezdete mellé ér: a szemszám a körszám mögé kerül, hogy ne takarják egymást (PQW-861).
     const endAxis = this.#round ? first - direction * (margin + Math.min(2 * margin, Math.PI / 3)) + shifted : last + direction * margin;
     this.#layers.push({
       index: layer.index,
@@ -846,12 +578,7 @@ class Layouter {
     return this.#tops[index] ?? this.#base[index] ?? 0;
   }
 
-  /**
-   * Sokszögben a kör sarkai a sokszög sarkaiba kerülnek (PQW-888): a kör helyei
-   * sarokról sarokra lineárisan igazodnak, a sorrendjük és az arányuk marad.
-   * Az 1. körben a sarkok a saját szerkezetéből jönnek, utána az előző kör
-   * sarkaiból; így a réteg csak önmagától és az alatta lévőtől függ (06 §5.3).
-   */
+  // KB: core-geometry §18
   #alignCorners(layer: LayerInfo, items: readonly Item[], positions: number[]): void {
     const refs = this.#cornerRefs(layer);
     this.#corners[layer.index] = refs;
@@ -864,7 +591,6 @@ class Layouter {
     const actual = axes as number[];
     const n = this.#frame.sides;
     if (layer.index === 1 || !this.#cornerAxes) {
-      // Az 1. kör első sarka a hozzá legközelebbi sokszögsarokba; a többi sorban utána.
       const step = TAU / n;
       const first = this.#frame.corner + Math.ceil((actual[0]! - step / 2 - this.#frame.corner) / step) * step;
       this.#cornerAxes = actual.map((_, j) => first + j * step);
@@ -889,14 +615,8 @@ class Layouter {
     });
   }
 
-  /**
-   * A kör eleje és vége ugyanarra az oldalra esik, az utolsó és az első sarok
-   * közé. A sor menti elosztás ezt nem látja, ezért a kör eleje hátrafelé, a
-   * vége előrefelé csúszhat, és a két vég egymásra kerül. Ha így van, ezen az
-   * oldalon a két sarok között újra szétosztjuk a helyeket.
-   */
+  // KB: core-geometry §18
   #spreadSeam(items: readonly Item[], positions: number[], refs: readonly CornerRef[]): void {
-    // A sarok elemei: a sarokszem, vagy a sarokív láncszemei.
     const indicesOf = (ref: CornerRef) => {
       const ids = ref.space ? (this.#graph.spaces.get(ref.id)?.chains ?? []) : [ref.id];
       return items.flatMap((item, i) => (item.ids.some((id) => ids.includes(id)) ? [i] : []));
@@ -906,7 +626,6 @@ class Layouter {
     if (tail.length === 0 || head.length === 0) return;
     const last = Math.max(...tail);
     const first = Math.min(...head);
-    // A varrat: az utolsó sarok utáni, majd a kör elején az első sarok előtti elemek.
     const seam = [
       ...items.flatMap((_, i) => (i > last ? [{ index: i, wrapped: false }] : [])),
       ...items.flatMap((_, i) => (i < first ? [{ index: i, wrapped: true }] : [])),
@@ -928,13 +647,7 @@ class Layouter {
     });
   }
 
-  /**
-   * A kör sarkai. Az 1. körben a láncívek, ha éppen annyi van, ahány sarok
-   * (nagymama-négyzet); különben a pozíciók egyenlő oldalakra osztva, mindegyik
-   * oldal a sarokszemmel végződik (round-generator.ts `polygonPlan`). Később
-   * az előző kör sarkába horgolt csoport közepe: a csoporton belüli láncív
-   * (nagymama-négyzet), vagy a középső szem.
-   */
+  // KB: core-geometry §18
   #cornerRefs(layer: LayerInfo): CornerRef[] | null {
     const graph = this.#graph;
     const n = this.#frame.sides;
@@ -962,7 +675,6 @@ class Layouter {
           !excluded.has(id) &&
           graph.nodes.get(id)!.anchors.some((anchor) => anchor.into === (corner.space ? 'space' : 'stitch') && anchor.id === corner.id),
       );
-      // A számító kezdőlánc az előző kör első pozíciójába horgolt szemnek számít.
       const top = layer.turningChain[layer.turningChain.length - 1];
       if (!corner.space && layer.turningChainCounts && top !== undefined && below.positions[0] === corner.id) children.unshift(top);
       if (children.length === 0) return null;
@@ -983,11 +695,12 @@ class Layouter {
     return refs;
   }
 
-  /** A talp: a célpont oszlopa ennek a rétegnek a talpvonalán; korábbi sorba horgolt szemnél annak a sornak a tetején. */
+  // The target's column on this layer's baseline — or on that row's top
+  // for a stitch worked into an earlier row.
   #foot(anchor: Anchor, below: number, base: number): Point {
     if (anchor.into === 'ring') return { x: 0, y: 0 };
     if (this.#round) {
-      // Körben a kör sugara a helyigénnyel nő, ezért a talp a célpont valódi helyén van, nem a talpkörön.
+      // KB: core-geometry §19
       const ids = anchor.into === 'stitch' || anchor.into === 'underside' ? [anchor.id] : (this.#graph.spaces.get(anchor.id)?.chains ?? []);
       const tops = ids.map((id) => this.#nodes.get(id)?.top).filter((p): p is Point => p !== undefined);
       if (tops.length > 0) {
@@ -1001,30 +714,9 @@ class Layouter {
     return this.#point(line, axis);
   }
 
-  /**
-   * Egy láncív elrendezése (PQW-951): a láncszemek a két rögzített szem
-   * közötti helyet EGYENLŐEN osztják el, és ami vízszintesen nem fér el, az
-   * fölfelé megy.
-   *
-   * A tulajdonos döntése: *„a pálca nem mozdul, a láncszemek tömörödnek, lapos
-   * íven mennek körbe”*. Ezért a szomszédok helyét soha nem vesszük el: a
-   * láncszemek féltávolsága a rés n-ed részére csökken, a jelük ugyanennyire.
-   *
-   * Az emelés a HIÁNYBÓL adódik, nem díszként: n láncszem természetes hossza
-   * `n · 0,7W`; amivel ez a húrnál hosszabb, annyival domborodik. Parabolánál a
-   * többlethossz `8h²/3c`, ebből `h = √(3·c·hiány/8)`. A tulajdonos „lapos”
-   * ívet kért, ezért a magasság legfeljebb a sor feléig ér — ami így sem fér
-   * el, azt a tömörödés veszi fel.
-   */
+  // KB: core-geometry §14
   #arc(run: Item[], from: number, direction: number, space: number, before: number, stitchHeight: number): Arc {
     const natural = this.#W * 0.7;
-    /*
-     * A láncszemek EGYENLETESEN osztoznak a résen, akkor is, ha a rés a
-     * fölötte álló legyező miatt kitágult (PQW-953). A hely, amire a legyező
-     * szüksége van, a rés SZÉLESSÉGÉBŐL jön (lásd `stitchWidths`), nem abból,
-     * hogy alatta egy láncszem kövérre hízik — a legyező szárai amúgy is a
-     * célpontjukhoz futnak össze.
-     */
     const n = run.length;
     const slice = space / n;
     const start = from + direction * before;
@@ -1032,12 +724,6 @@ class Layouter {
       item.half = Math.min(item.half, slice / 2);
       item.desired = start + direction * (i + 0.5) * slice;
     });
-    /*
-     * Az emelés a hiányból: n láncszem természetes hossza `n · 0,7W`; amivel ez
-     * a húrnál hosszabb, annyival domborodik (parabolánál `h = √(3c·hiány/8)`).
-     * Ahol a rés a fölötte álló legyező miatt kitágult, nincs hiány — de a
-     * láncsor ott is ív, ezért marad egy lapos domborulat.
-     */
     const missing = n * natural - space;
     const sagitta = missing > 0 ? Math.sqrt((3 * space * missing) / 8) : 0;
     return {
@@ -1063,7 +749,6 @@ class Layouter {
   }
 }
 
-/* ---- Kézi igazítás, tükrözés, befoglaló téglalap ---- */
 
 function finish(graph: PieceGraph, raw: Raw, mirror: boolean, W: number, withPins = true): ChartLayout {
   const offset = (id: NodeId): Point => {

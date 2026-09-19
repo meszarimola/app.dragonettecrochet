@@ -1,34 +1,21 @@
-/*
- * Fonalvastagság: a Craft Yarn Council kategóriái, a méter/100 g és a
- * metrikus finomsági szám (02 §1).
- *
- * A CYC-táblázat szabvány, de „csak irányelv”: a tartományok a jellemző
- * fonalakat írják le, nem tűréseket (02 §1.1). A méterből becsült kategória
- * saját, a források közepén húzott határokon alapul, ezért mindig becslés,
- * és felülírható (02 §1.4).
- */
-
+// KB: 02 §1, core-support §3
 import type { Quantity, Range } from './quantity.ts';
 import { estimate } from './quantity.ts';
 
 export type CycWeight = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
-/** Tartomány, amelynek egyik vége nyitott: a táblázat „≤ 6” vagy „≥ 15” értéke. */
+// `null` marks an open end of a table range ("≤ 6", "≥ 15").
 export type OpenRange = readonly [min: number | null, max: number | null];
 
+// KB: 02 §1.1
 export interface CycWeightClass {
   readonly weight: CycWeight;
-  /** A CYC angol neve. */
   readonly name: string;
-  /** A gauge szeme: a csipkefonalé egyráhajtásos pálca, a többié rövidpálca (02 §1.1). */
   readonly gaugeStitch: 'sc' | 'dc';
-  /** Szem 4 hüvelyken (10,16 cm). */
   readonly stitchesPer4in: OpenRange;
-  /** Ajánlott horgolótű, mm. A csipkefonalnál az acéltűtől a normál 2,25 mm-ig. */
   readonly hookMm: OpenRange;
 }
 
-/** CYC Standard Yarn Weight System, horgolás (02 §1.1). */
 export const CYC_WEIGHTS: readonly CycWeightClass[] = [
   { weight: 0, name: 'Lace', gaugeStitch: 'dc', stitchesPer4in: [32, 42], hookMm: [1.4, 2.25] },
   { weight: 1, name: 'Super Fine', gaugeStitch: 'sc', stitchesPer4in: [21, 32], hookMm: [2.25, 3.5] },
@@ -46,15 +33,12 @@ export function cycWeightClass(weight: CycWeight): CycWeightClass {
 
 export const INCH_CM = 2.54;
 
-/** Szem/4 hüvelyk → szem/10 cm (02 §8 `gaugePer10cm`). */
+// KB: 02 §8
 export function per10cmFromPer4in(count: number): number {
   return (count * 10) / (4 * INCH_CM);
 }
 
-/**
- * Becsült szem/10 cm a kategória táblázatából: a tartomány közepe, a
- * tartománnyal. Nyitott végű kategóriára (Jumbo) `null`.
- */
+// `null` for a category with an open-ended gauge range (Jumbo).
 export function cycGaugePer10cm(weight: CycWeight): { readonly stitch: 'sc' | 'dc'; readonly perTenCm: Quantity } | null {
   const { gaugeStitch, stitchesPer4in } = cycWeightClass(weight);
   const [min, max] = stitchesPer4in;
@@ -63,19 +47,18 @@ export function cycGaugePer10cm(weight: CycWeight): { readonly stitch: 'sc' | 'd
   return { stitch: gaugeStitch, perTenCm: estimate((range[0] + range[1]) / 2, range) };
 }
 
-/** Méter/100 g a címke hosszából és tömegéből (02 §1.4). */
 export function metersPer100g(lengthM: number, massG: number): number {
   return (lengthM / massG) * 100;
 }
 
+// KB: 02 §1.4
 export interface MeterageClass {
   readonly weight: CycWeight;
-  /** A határ közelében több kategória is szóba jön (02 §1.4, „aran → 5 boundary”). */
   readonly candidates: readonly CycWeight[];
   readonly source: 'estimated';
 }
 
-/** A javasolt osztályozás alsó határai, m/100 g (02 §1.4, DERIVED). */
+// Lower bounds in m/100 g, in descending order: the first match wins.
 const METERAGE_CLASSES: readonly { readonly min: number; readonly weight: CycWeight; readonly candidates: readonly CycWeight[] }[] = [
   { min: 600, weight: 0, candidates: [0] },
   { min: 350, weight: 1, candidates: [1] },
@@ -88,20 +71,15 @@ const METERAGE_CLASSES: readonly { readonly min: number; readonly weight: CycWei
   { min: 0, weight: 7, candidates: [7] },
 ];
 
-/**
- * Vastagsági kategória a méterből. Csak hasonló sűrűségű fonalakra jó: a
- * légies, bolyhos fonal grammonként jóval vastagabb (02 §1.4).
- */
+// KB: 02 §1.4, core-support §3
 export function classifyByMeterage(m100: number): MeterageClass {
   if (!(m100 > 0)) throw new RangeError(`Pozitív m/100 g értéket vártunk: ${m100}.`);
   const match = METERAGE_CLASSES.find((entry) => m100 >= entry.min) ?? METERAGE_CLASSES[METERAGE_CLASSES.length - 1];
   return { weight: match.weight, candidates: match.candidates, source: 'estimated' };
 }
 
-/**
- * Metrikus finomsági szám (Nm = m/g) a címkéről, sodrott jelöléssel is:
- * „2/28” két szál Nm 28-ból, az eredő Nm 14 (02 §1.5). Érvénytelenre `null`.
- */
+// "2/28" is two plies of Nm 28, so Nm 14. `null` when the label does not parse.
+// KB: 02 §1.5
 export function parseMetricCount(label: string): number | null {
   const match = /^\s*(?:(\d+)\s*\/\s*)?(\d+(?:[.,]\d+)?)\s*$/.exec(label);
   if (!match) return null;
@@ -115,7 +93,7 @@ export function metersPer100gFromNm(nm: number): number {
   return 100 * nm;
 }
 
-/** tex = g / 1000 m (02 §1.5). */
+// KB: 02 §1.5
 export function texFromNm(nm: number): number {
   return 1000 / nm;
 }

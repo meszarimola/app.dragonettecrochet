@@ -1,14 +1,4 @@
-/*
- * A rácsos technikák közös gráfírója (PQW-864): a filé, a C2C és a színes
- * rácsok ugyanígy rakják össze a darabot, és ugyanazon az ellenőrzőn
- * mennek át, mint a kézzel horgolt minta.
- *
- * - A szemek a fonal útján, az azonosítók sorrendben (`n1`, `n2`…).
- * - A szín a szemen áll; az első szín (0) nem íródik ki, így a mentés és az
- *   összevetés (canonical.ts) egyforma marad.
- * - A sor végi szemszám a gráf számolása (06 §5.3 V3).
- */
-
+// KB: core-support §6
 import { buildPieceGraph } from './graph.ts';
 import { text, type CoreText } from './messages.ts';
 import { TECHNIQUE_NAMES } from './pixel-chart.ts';
@@ -19,15 +9,13 @@ import type { Anchor, LayerEvent, NodeId, Pattern, Piece, PieceGrid, Space, Stit
 import { validatePattern } from './validate.ts';
 import { withGeneratedTitle } from './pattern-title.ts';
 
-/** A rácsos generátorok közös hibája: a generált minta megbukott az ellenőrzőn. */
 export type GridPatternCode = 'pattern-invalid';
 
 export type GridResult = { readonly ok: true; readonly pattern: Pattern } | { readonly ok: false; readonly reason: CoreText<GridPatternCode> };
 
-/** Sikertelen eredmény a mag kódjával és adatával; a mondatot a felület állítja össze (PQW-904). */
+// KB: core-domain §2
 export const fail = <Code extends string>(reason: CoreText<Code>): { readonly ok: false; readonly reason: CoreText<Code> } => ({ ok: false, reason });
 
-/** Beszúrás egy szembe vagy láncszembe, mindkét szálba. */
 export const intoStitch = (id: NodeId): Anchor => ({ into: 'stitch', id, mode: 'both-loops' });
 
 export const intoSpace = (id: string): Anchor => ({ into: 'space', id });
@@ -39,7 +27,7 @@ export class GridWriter {
   readonly skipped: NodeId[] = [];
   #previous: NodeId | null = null;
 
-  /** A `flags` pl. a lejjebb horgolt hosszú szem jelölése (`spike`, PQW-894). */
+  // Colour 0 is the first colour and is left out of the node.
   add(def: StitchDefId, anchors: readonly Anchor[] = [], color = 0, flags: readonly StitchFlag[] = []): NodeId {
     const id = `n${this.stitches.length + 1}`;
     this.stitches.push({
@@ -58,7 +46,6 @@ export class GridWriter {
     return Array.from({ length: count }, () => this.add('ch', [], color));
   }
 
-  /** Láncszemek, amelyeket a következő sor láncívként vagy egyenként használ; az azonosítója is. */
   space(count: number, color = 0): { readonly id: string; readonly chains: NodeId[] } {
     const chains = this.chains(count, color);
     const id = `s${this.spaces.length + 1}`;
@@ -66,7 +53,6 @@ export class GridWriter {
     return { id, chains };
   }
 
-  /** A már lerakott láncszemek láncívként (pl. a C2C-csempe fordulólánca). */
   spaceOf(chains: readonly NodeId[]): string {
     const id = `s${this.spaces.length + 1}`;
     this.spaces.push({ id, chains });
@@ -78,7 +64,7 @@ export class GridWriter {
   }
 }
 
-/** A darab a gráfból és a rácsmintából, a sor végi szemszámmal. */
+// KB: 06 §5.3 V3
 export function gridPiece(pattern: Pattern, name: string, writer: GridWriter, grid: PieceGrid): Piece {
   const piece: Piece = {
     id: 'p1',
@@ -98,11 +84,7 @@ export function gridPiece(pattern: Pattern, name: string, writer: GridWriter, gr
   return { ...piece, events: piece.events.map((event) => ({ ...event, statedCount: stated.get(event.after)! })) };
 }
 
-/**
- * Az új minta a darabbal: a cím marad, ha nem az alapértelmezett vagy egy
- * generátor adta; a jelölés, a profilok és a konvenciók megmaradnak. A
- * generált minta nem hozhat hibát az ellenőrzőben.
- */
+// KB: core-support §6, core-domain §1
 export function finishGridPattern(pattern: Pattern, piece: Piece): GridResult {
   const generated = [...Object.values(SHAPE_NAMES), ...Object.values(MOTIF_NAMES), ...Object.values(TECHNIQUE_NAMES)];
   const result = withGeneratedTitle({ ...pattern, pieces: [piece] }, pattern, piece.name, generated);

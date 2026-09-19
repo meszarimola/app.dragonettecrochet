@@ -1,20 +1,7 @@
-/*
- * Láncalap és „X többszöröse + Y” számítása a konvenciókból.
- *
- * A két vitatott konvenciót a minta kifejezetten tárolja, sosem feltételezzük
- * csendben (README §4.3, §4.4).
- */
-
 import { skippedChains } from './tradition.ts';
 import type { RepeatSpec, Tradition } from './types.ts';
 
-/**
- * Láncalap N szemhez (03 §1.2, PQW-924): **a kért szemszám + a kihagyás**.
- *
- * A kihagyott láncszemek után minden láncszembe egy szem kerül, ezért a sorban
- * pontosan N szem lesz. 20 szemre: rövidpálca és félpálca 22 láncszem,
- * egyráhajtásos pálca 23, kétráhajtásos 24, háromráhajtásos 25.
- */
+// KB: 03 §1.2
 export function foundationChainLength(
   stitches: number,
   turningChain: number,
@@ -25,27 +12,14 @@ export function foundationChainLength(
 }
 
 export interface RepeatCounts {
-  /**
-   * A láncalap hossza: a kihagyott láncszemek és a beledolgozottak együtt.
-   * Ugyanabból a kihagyásból számol, mint a `foundationChainLength` — a kettő
-   * korábban elcsúszott egymástól (PQW-924).
-   */
+  // KB: core-geometry §1
   readonly chains: number;
-  /** A láncalap láncszemei, amelyekbe az 1. sor horgol. */
   readonly workedChains: number;
-  /**
-   * Az 1. sor pozíciószáma: a felhasznált láncszemek, és ha a fordulólánc
-   * számít, eggyel több. Kiegyensúlyozott mintában ennyi helyet ad a sor
-   * (03 §4.2).
-   */
+  // KB: 03 §4.2, core-geometry §1
   readonly firstRowPositions: number;
 }
 
-/**
- * „X többszöröse + Y” n ismétléssel (03 §4.1, README §4.4). Ha a
- * `turningChainIncluded` igaz, a fordulólánc már benne van az Y-ban; ha
- * hamis, a fordulólánc hozzáadódik.
- */
+// KB: 03 §4.1
 export function repeatCounts(
   spec: RepeatSpec,
   repeats: number,
@@ -58,7 +32,6 @@ export function repeatCounts(
   return {
     chains: workedChains + skippedChains(turningChain, turningChainCounts),
     workedChains,
-    // A kihagyott láncszemek nem szemek: a sor annyi helyet ad, ahány láncszembe horgoltunk (PQW-924).
     firstRowPositions: workedChains,
   };
 }

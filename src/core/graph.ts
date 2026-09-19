@@ -1,35 +1,5 @@
-/*
- * A szemgráfból számolt sorok és körök (rétegek).
- *
- * A sor nincs eltárolva: a szemek sorrendjéből és a sor végi eseményekből
- * számoljuk (06 §5.1 elv 3, 06 §3.2 „layers”). Egy darab rétegei:
- * - 0. réteg: a láncalap vagy a varázskör;
- * - utána minden réteg az előző esemény utáni szemtől a következő esemény
- *   szeméig tart.
- *
- * Megállapodások, amelyekre az ellenőrző épít:
- * - A láncalap végén a be nem horgolt láncszemek az 1. sor fordulólánca, ezért
- *   az 1. réteghez tartoznak, nem a 0.-hoz (03 §1.2: a láncalap `N + T`).
- * - A számító fordulólánc alatti alapláncszem a 0. réteg utolsó pozíciója
- *   marad: a fordulólánc „áll” rajta (PQW-891, tradition.ts).
- * - Később a sor elején álló láncszemek a fordulólánc vagy a kezdőlánc; a
- *   fordulás eseménye után következnek.
- * - Zárt körben a kör eleji kúszószemek a továbbvezetés, a záró kúszószem az
- *   esemény szeme; mindkettő a `joinSlipStitchCounts` szerint számít (D7).
- * - A számító fordulólánc egy szem, és egyetlen horgolható pozíciója a
- *   teteje, vagyis az utolsó láncszeme (03 §1.3). A nem számító fordulóláncba
- *   nem horgolunk (03 §10 A4).
- * - A többi láncszem mindig pozíció. A szemszámba a `chainCounts` szerint
- *   számít: alapból akkor, ha egy későbbi réteg beléjük horgol, egyenként
- *   vagy láncívként; a díszlánc nem (03 §10 B10, PQW-870). A 0. réteg
- *   szemszáma mindig 0.
- *
- * - Körben kezdődik a darab a varázskörrel, a láncgyűrűvel és a láncszembe
- *   horgolt, körként zárt 1. körrel (PQW-861); ilyenkor a 0. réteg is kör.
- *
- * Nem kezeli még: láncszem nélküli alapsort (foundation stitches, 03 §1.4), a
- * darabok összekapcsolását.
- */
+// KB: core-geometry §20, §21, §22
+// KB: 03 §1.2, 03 §1.3, 03 §10 A4, 03 §10 B10, 04 §1.1, 04 §3.4, 06 §3.2, 06 §5.1
 
 import type { StitchLibrary } from './stitch-library.ts';
 import { stitchTurningChainCounts, traditionOf } from './tradition.ts';
@@ -48,40 +18,21 @@ import type {
   StitchNode,
 } from './types.ts';
 
-/** Egy réteg a gráfból számolva, az ellenőrzőhöz szükséges részletekkel. */
 export interface LayerInfo extends Layer {
-  /** A fordulólánc vagy a kezdőlánc láncszemei a fonal sorrendjében. */
   readonly turningChain: readonly NodeId[];
   readonly turningChainCounts: boolean;
-  /** Az esemény, amely a réteget megnyitja; a 0. és az 1. rétegnél `null`. */
   readonly opening: LayerEvent | null;
-  /** Az esemény a réteg utolsó szeme után; ha a darab esemény nélkül ér véget, `null`. */
   readonly closing: LayerEvent | null;
-  /** Kúszószemek a zárt kör elején, amelyekkel a fonal a kezdőhelyre jut. */
   readonly travelSlips: readonly NodeId[];
-  /** A kört záró kúszószem. */
   readonly joinSlip: NodeId | null;
-  /** A sor első nem láncszem szeme a fordulólánc után; ez dönti el a fordulólánc magasságát. */
   readonly firstStitch: NodeId | null;
-  /**
-   * Haladási irány az előző réteg fonalsorrendjéhez képest: fordulás után és
-   * a láncalapra `-1`, körben és a varázskörre `1` (01 §8.4 szabály 19–20).
-   */
+  /** -1 after a turn and on the foundation chain, 1 in the round. KB: 01 §8.4 */
   readonly direction: 1 | -1;
-  /** A következő réteg horgolható pozíciói a réteg fonalsorrendjében; a számító fordulólánc teteje elöl. */
   readonly positions: readonly NodeId[];
-  /**
-   * A láncalap láncszemei, amelyeknek a másik oldalába is horgol az 1. kör (az
-   * ovális kezdés, 04 §3.4, PQW-890), fonalsorrendben; csak a 0. rétegen, máskor üres.
-   */
+  /** Only on layer 0; empty on every other layer. KB: 04 §3.4 */
   readonly undersides: readonly NodeId[];
 }
 
-/**
- * Egy sor két széle: az eleje a fordulólánc teteje (ennek híján az első
- * pozíció), a vége az utolsó pozíció. A ruhadarabok sorvégi varrásához kell
- * (amigurumi.ts `sewnEdge`, PQW-866).
- */
 export function rowEdges(layer: LayerInfo): { readonly start: NodeId; readonly end: NodeId } | null {
   const start = layer.turningChain[layer.turningChain.length - 1] ?? layer.positions[0];
   const end = layer.positions[layer.positions.length - 1];
@@ -91,7 +42,6 @@ export function rowEdges(layer: LayerInfo): { readonly start: NodeId; readonly e
 export interface PieceGraph {
   readonly piece: Piece;
   readonly nodes: ReadonlyMap<NodeId, StitchNode>;
-  /** A szem helye a fonal útján (0-tól). */
   readonly order: ReadonlyMap<NodeId, number>;
   readonly defs: ReadonlyMap<NodeId, StitchDef>;
   readonly spaces: ReadonlyMap<SpaceId, Space>;
@@ -102,11 +52,7 @@ export interface PieceGraph {
   readonly layers: readonly LayerInfo[];
 }
 
-/**
- * A darab gráfja rétegekkel. Szerkezetileg érvényes darabot vár (minden
- * hivatkozás létezik, minden szem a könyvtárban van); ezt a
- * `validatePattern` ellenőrzi előbb.
- */
+/** Expects a structurally valid piece; `validatePattern` checks that first. */
 export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchLibrary): PieceGraph {
   const nodes = new Map(piece.stitches.map((node) => [node.id, node]));
   const order = new Map(piece.stitches.map((node, index) => [node.id, index]));
@@ -126,7 +72,6 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
   for (const group of piece.groups) for (const member of group.members) groupOf.set(member, group);
   const eventAfter = new Map(piece.events.map((event) => [event.after, event]));
 
-  // A 0. réteg: a varázskör, vagy a darab eleji láncszemek.
   const stitches = piece.stitches;
   let cursor = 0;
   let foundation: 'chain' | 'ring' | 'none' = 'none';
@@ -156,13 +101,10 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
   }
   if (current.length > 0) segments.push(current);
 
-  // Körben kezdődik a darab (PQW-861): varázskörrel; láncgyűrűvel, azaz a
-  // kúszószemmel gyűrűvé zárt láncszemekkel (a zárás eseménye az utolsó
-  // láncszem után áll, a kúszószem az 1. kör továbbvezetése); vagy a láncszembe
-  // horgolt 1. körrel („2 lsz, 6 rp a 2. láncszembe”), amelyet kör zár.
+  // KB: 04 §1.1, core-geometry §21
   const roundEvent = (event: LayerEvent | undefined) => event?.kind === 'join-slip' || event?.kind === 'spiral';
   const chainRing = foundation === 'chain' && eventAfter.get(foundationNodes[foundationNodes.length - 1]!.id)?.kind === 'join-slip';
-  // Az ovális 1. köre (PQW-890) a láncszemek másik oldalába is horgol: kör akkor is, ha a darab ott véget ér.
+  // KB: 04 §3.4
   const firstRoundOnChain =
     foundation === 'chain' &&
     !chainRing &&
@@ -170,11 +112,9 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     (roundEvent(eventAfter.get(segments[0]!.at(-1)!.id)) || segments[0]!.some((node) => node.anchors.some((anchor) => anchor.into === 'underside')));
   const roundStart = foundation === 'ring' || chainRing || firstRoundOnChain;
 
-  // Az 1. sor fordulólánca a láncalap végén: amibe az 1. sor nem horgol. A 2. sor
-  // horgolhat a tetejébe, ha számít, ezért csak az 1. sor célpontjait nézzük.
+  // KB: 03 §1.2
   if (foundation === 'chain' && !chainRing && segments.length > 0) {
     const anchored = new Set<NodeId>();
-    // A kört záró kúszószem a kezdőlánc tetejébe mehet: az nem az 1. kör célpontja.
     const segmentEnd = segments[0]!.at(-1)!;
     const closingSlip = kindOf(segmentEnd) === 'slip' && eventAfter.get(segmentEnd.id)?.kind === 'join-slip' ? segmentEnd : undefined;
     for (const node of segments[0]!) {
@@ -189,20 +129,15 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       while (foundationNodes.length > 0 && !anchored.has(foundationNodes[foundationNodes.length - 1]!.id)) {
         trailing.unshift(foundationNodes.pop()!);
       }
-      // A láncalap felőli, szándékosan kihagyott láncszemek a láncalap részei: filében a nyitott cellával
-      // kezdődő 1. sor alatt (03 §5.2). A horog felőli végén a meghagyott fordulólánc-tető a sorhoz tartozik.
+      // KB: 03 §5.2
       const skipped = new Set(piece.skipped);
       while (trailing.length > 0 && skipped.has(trailing[0]!.id)) foundationNodes.push(trailing.shift()!);
-      /*
-       * Az „alapláncszem” fogalma megszűnt (PQW-924): a láncalap elején a
-       * táblázat szerinti láncszemeket hagyjuk ki, és nincs külön, a láncalaphoz
-       * sorolt láncszem a fordulólánc alatt.
-       */
+      // KB: core-geometry §22
       segments[0] = [...trailing, ...segments[0]!];
     }
   }
 
-  // Amibe egy későbbi réteg horgol: a láncszem egyenként, a láncív minden láncszeme egészben (PQW-870).
+  // KB: 03 §10 B10
   const segmentOf = new Map<NodeId, number>();
   segments.forEach((segment, i) => {
     for (const node of segment) segmentOf.set(node.id, i + 1);
@@ -220,7 +155,6 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
   const layers: LayerInfo[] = [];
   const layerOf = new Map<NodeId, number>();
 
-  // Az ovális kezdés (PQW-890): a láncalap láncszemeinek másik oldala is célpont.
   const undersideTargets = new Set(stitches.flatMap((node) => node.anchors.flatMap((anchor) => (anchor.into === 'underside' ? [anchor.id] : []))));
   const foundationIds = foundationNodes.map((node) => node.id);
   const foundationLast = foundationNodes[foundationNodes.length - 1];
@@ -251,10 +185,9 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
   segments.forEach((segment, segmentIndex) => {
     const index = segmentIndex + 1;
     const opening = layers[index - 1]!.closing;
-    // Elvágott fonal után a szakasz a megadott sor fölött folytatódik (PQW-901): a nyakkivágás két oldalán a két váll.
+    // KB: core-geometry §25
     const resume = opening?.kind === 'fasten-off' ? opening.resume : undefined;
     const below = resume !== undefined && resume.layer >= 0 && resume.layer < index ? resume.layer : index - 1;
-    // Két forrásból horgoló kör (PQW-908): a második réteg pozíciói a `below` pozíciói után jönnek.
     const alsoBelow = resume?.with !== undefined && resume.with > below && resume.with < index ? resume.with : undefined;
     const previous = layers[below]!;
     const last = segment[segment.length - 1]!;
@@ -263,13 +196,11 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     let head = 0;
     const travelSlips: NodeId[] = [];
     if (opening?.kind === 'join-slip' || opening?.kind === 'turn') {
-      // A záratlan kör végén álló kúszószem még nem záró szem, hanem továbbvezetés (pl. a láncgyűrű kúszószeme).
+      // KB: core-geometry §21
       while (head < segment.length && kindOf(segment[head]!) === 'slip' && (segment[head] !== last || closing === null)) {
         travelSlips.push(segment[head]!.id);
         head += 1;
       }
-      // Fordulás után a sor eleji kúszószem csak akkor továbbvezetés, ha fordulólánc követi (filé sor eleji fogyasztás,
-      // PQW-894). Ha láncív jön utána, a kúszószem a sor része (C2C: kúszószemek a csempén át a láncívbe).
       const next = segment[head];
       const turning = next !== undefined && kindOf(next) === 'chain' && !spaceOfChain.has(next.id);
       if (opening.kind === 'turn' && !turning) {
@@ -278,12 +209,7 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       }
     }
     const turningChain: NodeId[] = [];
-    /*
-     * A fordulólánc után kezdődő láncív már a sor része: filében a nyitott
-     * cellás sor eleje „3 lsz, 2 lsz” (03 §5.2). Az 1. sorban a láncalap végén
-     * álló láncív sem fordulólánc: a C2C csempéjének nyitó három láncszeme
-     * `ch-3 space`, amibe a következő sor csempéje horgol (03 §5.5).
-     */
+    // KB: 03 §5.2, 03 §5.5
     const startsSpace = (node: StitchNode) => spaceOfChain.get(node.id)?.chains[0] === node.id;
     while (
       head < segment.length &&
@@ -293,11 +219,10 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       turningChain.push(segment[head]!.id);
       head += 1;
     }
-    // A sort kezdő szem dönti el a fordulólánc magasságát; a lejjebb horgolt hosszú szem nem ilyen (mozaik, PQW-894).
+    // KB: 03 §1.1, 03 §10 C17
     const rest = segment.slice(head).filter((node) => kindOf(node) !== 'chain');
     const firstStitch = (rest.find((node) => !node.flags?.includes('spike')) ?? rest[0])?.id ?? null;
-    // A zárt kör utolsó szeme a záró kúszószem. Ha a kör után a fonal elvágásával másik szakasznál folytatódik
-    // a munka (PQW-908: a raglán ujja), ugyanaz a kúszószem viszi a fonal elvágását is: attól még záró szem.
+    // KB: core-geometry §25
     const joined = closing?.kind === 'join-slip' || (closing?.kind === 'fasten-off' && closing.resume !== undefined);
     const joinSlip = joined && kindOf(last) === 'slip' ? last.id : null;
 
@@ -307,8 +232,6 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     else if (opening.kind === 'fasten-off') shape = previous.shape;
     else shape = 'round';
 
-    // Az újrakezdett szakasz a megadott sor fölött ugyanúgy indul, mint fordulás után: a másik oldaláról halad.
-    // A két forrásból horgoló kör (PQW-908) viszont körben folytatódik: ugyanabban az irányban, ugyanazzal az oldallal.
     const resumedRound = resume?.with !== undefined;
     const side: Layer['side'] =
       (opening?.kind === 'turn' || resume !== undefined) && !resumedRound ? (previous.side === 'right' ? 'wrong' : 'right') : previous.side;
@@ -324,7 +247,7 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
         setting === 'stitch-default'
           ? firstStitch !== null
             ? stitchTurningChainCounts(defs.get(firstStitch)!, traditionOf(conventions), shape)
-            : // Ha a sorban egyelőre CSAK a fordulólánc van, ő maga a sor első szeme (PQW-944).
+            : // KB: core-geometry §23
               shape === 'row' && index >= 2
           : setting;
     }
@@ -333,21 +256,8 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     const slipSet = new Set(travelSlips);
     if (joinSlip) slipSet.add(joinSlip);
 
-    /*
-     * Két szám, mert két kérdés (PQW-940).
-     *
-     * `stitchCount` a SZERKEZET: hány szembe horgolhat a következő sor. A
-     * láncszem akkor ilyen szem, ha valami beléje horgol; konvenció nem
-     * billenti el, a generátorok és az ellenőrző erre támaszkodnak. A
-     * fordulólánc a sor első szemének helyén áll (PQW-944), ezért sorban is
-     * pozíció: a teteje a következő sor utolsó célpontja.
-     *
-     * `writtenCount` az, amit a minta KIÍR és amit a horgoló megszámol a
-     * soron: a fordulólánc a sor első szeme sorban is, a láncszemek pedig a
-     * `chainCounts` szerint számítanak — alapból mind.
-     */
+    // KB: core-geometry §23
     const startingChainCounts = shape === 'round' && turningChainCounts;
-    // A fordulólánc teteje sorban is pozíció: oda megy a következő sor utolsó szeme (PQW-944).
     const startingChainIsPosition = turningChainCounts;
     let stitchCount = startingChainCounts ? 1 : 0;
     let positionCount = startingChainIsPosition ? 1 : 0;
@@ -401,7 +311,7 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       ...(alsoBelow === undefined
         ? {}
         : { alsoBelow, basePositions: baseRing(layers[below]!, layers[alsoBelow]!, segment, defs, new Set(piece.skipped)) }),
-      // A kiírt sorszám az alatta lévő sorét követi: az újrakezdett szakaszban ezért indul újra (PQW-901).
+      // KB: core-geometry §25
       row: previous.row + 1,
       shape,
       stitches: ids,
@@ -422,16 +332,7 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     });
   });
 
-  /*
-   * A láncalap szemszáma (PQW-942). Az 1. sor fordulólánca a láncalap saját
-   * láncszemeiből lesz: azok kikerülnek a láncalapból, és FÜGGŐLEGESEN állnak
-   * össze egyetlen oszlopba. Az az oszlop a láncalapé is — a fordulólánc
-   * talpa ott van —, ezért a láncalap szemszáma a megmaradt láncszemei plusz
-   * egy. 10 láncszemből 3 fordulóláncnál: 10 − 3 + 1 = 8.
-   *
-   * Ha a sor a láncalap utolsó szemében kezdődik, nincs fordulólánc, és a
-   * láncalap a saját hosszát mondja.
-   */
+  // KB: core-geometry §22
   const base = layers[0];
   if (base !== undefined && base.shape === 'row') {
     const risen = (layers[1]?.turningChain.length ?? 0) > 0 ? 1 : 0;
@@ -441,11 +342,7 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
   return { piece, nodes, order, defs, spaces, rings, spaceOfChain, groupOf, layerOf, layers };
 }
 
-/**
- * A láncív horgolható pozíciói az alatta lévő rétegben. A számító
- * fordulóláncból álló láncívnek (a C2C-csempe láncíve, 03 §5.5) egyetlen
- * pozíciója van: a fordulólánc teteje (03 §1.3).
- */
+/** KB: 03 §1.3, 03 §5.5 */
 export function spacePositions(below: LayerInfo, space: Space): readonly NodeId[] {
   const { turningChain } = below;
   const whole =
@@ -453,28 +350,12 @@ export function spacePositions(below: LayerInfo, space: Space): readonly NodeId[
   return whole ? [turningChain[turningChain.length - 1]!] : space.chains;
 }
 
-/** Egy láncszemsor és az általa áthidalt pozíciók az alatta lévő rétegben (PQW-952). */
 export interface ChainBridge {
   readonly chains: readonly NodeId[];
   readonly bridged: readonly NodeId[];
 }
 
-/**
- * Melyik láncszemsor mit hidal át — a KELMÉBŐL olvasva, nem a szerkesztés
- * sorrendjéből (PQW-952).
- *
- * A `piece.skipped` csak akkor jegyzi fel az áthidalt szemeket, ha a lánc a
- * munkaéltől ELŐRE készül. A tulajdonos viszont nem sorfolytonosan dolgozik:
- * *„berakom előre a rövidpálcát, és utólag adom közé a láncszemeket, akkor
- * pedig szétcsúszik”*. Ilyenkor a jelölés üres marad, és a rajz nem tudja,
- * hogy a láncszemek egy rést hidalnak át — mérve a sor első rövidpálcája 120
- * px-rel a kelmén kívülre került.
- *
- * A kelme viszont egyértelmű: két egymás után rögzített szem között a
- * láncszemek mindazt áthidalják, ami a két célpont között van. Ezt adja vissza
- * ez a függvény, a sor eleji és sor végi lánccal nem foglalkozva — ott nincs
- * két oldalról határolt rés.
- */
+// KB: core-geometry §24
 export function chainBridges(graph: PieceGraph, index: number): ChainBridge[] {
   const layer = graph.layers[index];
   const below = layer === undefined ? undefined : graph.layers[layer.below];
@@ -503,11 +384,11 @@ export function chainBridges(graph: PieceGraph, index: number): ChainBridge[] {
       run.push(id);
       continue;
     }
-    // A pikó az előtte lévő szemen ül: nem szakítja meg a láncsort.
+    // A picot sits on the stitch before it and does not break the chain run.
     if (kind === 'picot') continue;
     const ahead = seatsOf(id);
     if (run.length > 0 && behind.length > 0 && ahead.length > 0) {
-      // A rés BELSŐ két széle, akármelyik irányban halad a sor.
+      // The inner edges of the gap, whichever direction the row runs.
       const [from, to] =
         Math.max(...behind) < Math.min(...ahead)
           ? [Math.max(...behind), Math.min(...ahead)]
@@ -521,7 +402,6 @@ export function chainBridges(graph: PieceGraph, index: number): ChainBridge[] {
   return bridges;
 }
 
-/** A minta összes rétege darabonként, a `types.ts` `Layer` alakjában. */
 export function computeLayers(pattern: Pattern, library: StitchLibrary): Layer[] {
   return pattern.pieces.flatMap((piece) =>
     buildPieceGraph(pattern, piece, library).layers.map(
@@ -541,13 +421,7 @@ export function computeLayers(pattern: Pattern, library: StitchLibrary): Layer[]
   );
 }
 
-/**
- * A kétforrású kör alapgyűrűje (PQW-908). A raglán ujja a vállrész kihagyott szemeibe és a
- * szétosztás hónaljláncába kapaszkodik: ez a kettő a hónaljnál összeér, a köztük lévő testszemek
- * pedig nem részei a csőnek. A futamokat szerkezetileg választjuk ki (kihagyott szemek, illetve
- * láncszemek), a horgolt szemek csak azt döntik el, *melyik* futamról van szó — így az ellenőrző
- * továbbra is észreveszi, ha a kör a saját gyűrűjén belül ugrik át egy szemet.
- */
+// KB: core-geometry §25
 function baseRing(
   below: LayerInfo,
   also: LayerInfo,
