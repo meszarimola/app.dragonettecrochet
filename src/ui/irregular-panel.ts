@@ -29,6 +29,8 @@ export interface IrregularPanelHost {
   flipArrangeSide(): void;
   setPerpendicular(on: boolean): void;
   clearRowLine(): void;
+  setRepeat(count: number, range: number): void;
+  repeat(): void;
 }
 
 export interface ArrangeView {
@@ -104,6 +106,9 @@ export class IrregularPanel {
   readonly #arrange: HTMLElement;
   readonly #rowLineRow: HTMLElement;
   readonly #perpendicular: HTMLInputElement;
+  readonly #repeat: HTMLElement;
+  readonly #repeatCount: HTMLInputElement;
+  readonly #repeatRange: HTMLInputElement;
   #items: readonly IrregularItem[] = [];
 
   constructor(section: HTMLDetailsElement, host: IrregularPanelHost) {
@@ -143,6 +148,9 @@ export class IrregularPanel {
     this.#arrange = must<HTMLElement>(section, '#props-arrange');
     this.#rowLineRow = must<HTMLElement>(section, '#rowline-row');
     this.#perpendicular = must<HTMLInputElement>(section, '#arrange-perpendicular');
+    this.#repeat = must<HTMLElement>(section, '#props-repeat');
+    this.#repeatCount = must<HTMLInputElement>(section, '#repeat-count');
+    this.#repeatRange = must<HTMLInputElement>(section, '#repeat-range');
     this.#listen();
   }
 
@@ -231,6 +239,18 @@ export class IrregularPanel {
     );
     must<HTMLButtonElement>(this.#section, '#rowline-clear').addEventListener('click', () => this.#host.clearRowLine());
     this.#perpendicular.addEventListener('change', () => this.#host.setPerpendicular(this.#perpendicular.checked));
+    const sendRepeat = (): void => {
+      const count = Number(this.#repeatCount.value);
+      const range = Number(this.#repeatRange.value);
+      if (Number.isFinite(count) && Number.isFinite(range)) this.#host.setRepeat(count, range);
+    };
+    this.#repeatCount.addEventListener('change', sendRepeat);
+    this.#repeatRange.addEventListener('change', sendRepeat);
+    must<HTMLButtonElement>(this.#section, '#repeat-run').addEventListener('click', () => this.#host.repeat());
+  }
+
+  updateRepeat(shown: boolean): void {
+    this.#repeat.hidden = !shown;
   }
 
   updateArrange(view: ArrangeView): void {

@@ -80,6 +80,7 @@ import {
   rowOrder,
   setOrderPosition,
 } from '../core/irregular-order.ts';
+import { circularRepeat } from '../core/irregular-repeat.ts';
 import { alignRows, type RowAlign, rowLine, setRowLine, spaceRows } from '../core/irregular-rowline.ts';
 import {
   addRow,
@@ -140,6 +141,8 @@ export const IRREGULAR_PREFS_KEY = 'dc-mintatervezo:szabalytalan-beallitasok';
 const ROTATE_SNAP = 15;
 /** The chain arc is made of chains; the key decides what a chain looks like. */
 const ARC_STITCH = 'ch';
+/** Eight sectors is the doily default the spec names. */
+const DEFAULT_REPEAT_COUNT = 8;
 /** A fan is a shell by default, and a shell is made of double crochets. */
 const FAN_STITCH = 'dc';
 /** How long a typed digit waits for the next one before it stands alone. */
@@ -257,6 +260,8 @@ export class IrregularEditor {
   #draft: IrregularPattern | null = null;
   #selection = new Set<string>();
   #stitch: StitchDefId | null = null;
+  #isolated: ReadonlySet<string> | null = null;
+  #repeat = { count: DEFAULT_REPEAT_COUNT, range: 360 };
   #arcTool = false;
   #fanTool = false;
   #fanCount = DEFAULT_FAN_COUNT;
@@ -335,6 +340,8 @@ export class IrregularEditor {
       flipArrangeSide: () => this.flipArrangeSide(),
       setPerpendicular: (on) => this.setPerpendicular(on),
       clearRowLine: () => this.clearRowLine(),
+      setRepeat: (count, range) => this.setRepeat(count, range),
+      repeat: () => this.repeatAround(),
     });
     this.#hoverCapable = window.matchMedia('(hover: hover)').matches;
     this.#listen();
@@ -666,6 +673,10 @@ export class IrregularEditor {
   #pruneSelection(): void {
     const live = new Set(this.#history.present.items.map((item) => item.id));
     for (const id of [...this.#selection]) if (!live.has(id)) this.#selection.delete(id);
+    if (this.#isolated === null) return;
+    const kept = [...this.#isolated].filter((id) => live.has(id));
+    // Isolating the last stitch and deleting it must not leave an empty cage.
+    this.#isolated = kept.length === 0 ? null : new Set(kept);
   }
 
   // -- actions -------------------------------------------------------------
@@ -688,6 +699,31 @@ export class IrregularEditor {
     }
     this.#stitch = id;
     this.refresh();
+  }
+
+  get isolating(): boolean {
+    return this.#isolated !== null;
+  }
+
+  /**
+   * Isolating puts the rest of the pattern out of reach so a busy chart can be
+   * worked on in one place. It is a view, not an edit: nothing is recorded.
+   * KB: interface.md §45
+   */
+  toggleIsolate(): void {
+    if (this.#isolated !== null) {
+      this.#isolated = null;
+      this.refresh();
+      this.#host.announce(texts().irregular.isolateOff);
+      return;
+    }
+    if (this.#selection.size === 0) {
+      this.#host.announce(texts().irregular.isolateNeedsSelection);
+      return;
+    }
+    this.#isolated = new Set(this.#selection);
+    this.refresh();
+    this.#host.announce(texts().irregular.isolateOn(this.#selection.size));
   }
 
   get arcArmed(): boolean {
@@ -936,6 +972,10 @@ export class IrregularEditor {
   }
 
   clearSelection(): void {
+    if (this.#isolated !== null) {
+      this.toggleIsolate();
+      return;
+    }
     if (this.#selection.size === 0 && this.#stitch === null) return;
     this.#setSelection([]);
     this.refresh();
@@ -1015,6 +1055,36 @@ export class IrregularEditor {
 
   #flip(axis: FlipAxis): void {
     this.#commit(this.#loose(flipItems(this.#history.present, this.#selection, axis)));
+  }
+
+  // -- circular repeat -------------------------------------------------------
+
+  setRepeat(count: number, range: number): void {
+    this.#repeat = { count, range };
+  }
+
+  /**
+   * The centre is the circle guide's middle when it is showing, because that is
+   * the wheel the crocheter is working around; otherwise the middle of what is
+   * selected. KB: interface.md §45
+   */
+  #repeatCenter(): Point {
+    const polar = this.#history.present.guides.polar;
+    if (polar.visible) return polar.center;
+    const box = this.#board.selectionBox();
+    return box === null ? { x: 0, y: 0 } : { x: (box.minX + box.maxX) / 2, y: (box.minY + box.maxY) / 2 };
+  }
+
+  repeatAround(): void {
+    if (this.#selection.size === 0) return;
+    const made = circularRepeat(this.#history.present, this.#selection, {
+      center: this.#repeatCenter(),
+      count: this.#repeat.count,
+      range: this.#repeat.range,
+    });
+    if (made.pattern === this.#history.present) return;
+    this.#setSelection([...this.#selection, ...made.ids]);
+    this.#commit(made.pattern, texts().irregular.repeated(made.ids.length));
   }
 
   // -- arranging -----------------------------------------------------------
@@ -1256,6 +1326,7 @@ export class IrregularEditor {
       hover: null,
       glyphOf: (keyEntryId) => entryGlyph(pattern, keyEntryId),
       fadeOthers: this.#preferences.fadeOthers,
+      isolated: this.#isolated,
       order: this.#preferences.showOrder ? rowOrder(pattern, orderRow) : null,
       arc: this.selectedGroup,
       arcPreview: this.#drawingPreview(),
@@ -1265,6 +1336,7 @@ export class IrregularEditor {
     this.#panel.update(itemsOf(pattern, this.#selection), this.#preferences.rectPartial, pattern.items.length);
     this.#panel.updateArc(this.selectedArc);
     this.#panel.updateFan(this.selectedFan);
+    this.#panel.updateRepeat(this.#selection.size > 0);
     this.#panel.updateArrange({
       shown: this.#arrangeTargets().items.length >= 2,
       perpendicular: this.#preferences.perpendicular,

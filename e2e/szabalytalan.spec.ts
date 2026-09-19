@@ -716,6 +716,46 @@ test('elrendezés: körvonalra, a sor megjegyzi az alakot, Egyenletessé tesz z�
   expect((await state()).items, 'a szemek a helyükön maradtak').toBe(7);
 });
 
+test('kiemelés: csak a kijelölt szemek érhetők el, Esc kilép (AS-20)', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+  await armDoubleCrochet(page);
+  for (const x of [420, 500, 580, 660]) await place(page, x, 380);
+  await page.locator(board).focus();
+  await page.keyboard.press('Escape');
+
+  // Isolate the middle two.
+  await page.locator(board).click({ position: { x: 500, y: 380 } });
+  await page.locator(board).click({ position: { x: 580, y: 380 }, modifiers: ['Shift'] });
+  await expect(page.locator('#props-count')).toContainText('2');
+
+  const isolate = page.locator('[data-action="isolate"]');
+  await isolate.click();
+  await expect(isolate).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#status')).toContainText('kiemelve');
+
+  // A stitch outside the isolation cannot be selected any more.
+  await page.locator(board).click({ position: { x: 420, y: 380 } });
+  await expect(page.locator('#props-count'), 'a kiemelésen kívüli szem nem jelölhető ki').toContainText(
+    'Nincs kijelölt szem',
+  );
+
+  // Nor can a marquee reach it: the rectangle sweeps across all four stitches.
+  const rect = await page.locator(board).boundingBox();
+  if (rect === null) throw new Error('no board');
+  await page.mouse.move(rect.x + 380, rect.y + 320);
+  await page.mouse.down();
+  await page.mouse.move(rect.x + 700, rect.y + 440, { steps: 10 });
+  await page.mouse.up();
+  await expect(page.locator('#props-count'), 'a téglalap is csak a kiemeltekre hat').toContainText('2');
+
+  await page.locator(board).focus();
+  await page.keyboard.press('Escape');
+  await expect(isolate, 'az Esc kilép a kiemelésből').toHaveAttribute('aria-pressed', 'false');
+  await page.locator(board).click({ position: { x: 420, y: 380 } });
+  await expect(page.locator('#props-count'), 'utána újra elérhető az egész minta').toContainText('1');
+});
+
 test('a sorvonal fogantyúval átalakítható, a szemek csak az Egyenletessé teszre követik', async ({ page }) => {
   await open(page);
   await chooseIrregular(page);
@@ -764,4 +804,53 @@ test('a sorvonal fogantyúval átalakítható, a szemek csak az Egyenletessé te
   const evened = await read();
   expect(evened.ys, 'az Egyenletessé tesz viszi rá őket').not.toEqual(before.ys);
   expect(evened.ys[3], 'az utolsó szem a vonal új végén').toBeGreaterThan(before.ys[3]);
+});
+
+test('körkörös ismétlés: nyolc szektor a körrács közepe körül (AS-8)', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+  await page.locator('#guide-polar').check();
+  await armDoubleCrochet(page);
+  await place(page, 560, 260);
+  await page.locator(board).focus();
+  await page.keyboard.press('Escape');
+  await page.locator(board).click({ position: { x: 560, y: 260 } });
+  await expect(page.locator('#props-count')).toContainText('1');
+  await expect(page.locator('#props-repeat')).toBeVisible();
+
+  await page.locator('#repeat-count').fill('8');
+  await page.locator('#repeat-count').blur();
+  await page.locator('#repeat-run').click();
+
+  const state = async (): Promise<{ count: number; radii: number[]; angles: number[] }> =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+      const parsed = JSON.parse(raw);
+      const middle = parsed.guides.polar.center;
+      const items = parsed.items ?? [];
+      return {
+        count: items.length,
+        radii: items.map((item: { x: number; y: number }) => Math.hypot(item.x - middle.x, item.y - middle.y)),
+        angles: items
+          .map((item: { x: number; y: number }) => {
+            const raw = (Math.atan2(item.x - middle.x, middle.y - item.y) * 180) / Math.PI;
+            return (raw + 360) % 360;
+          })
+          .sort((a: number, b: number) => a - b),
+      };
+    });
+
+  const made = await state();
+  expect(made.count, 'nyolc darab, az eredetivel együtt').toBe(8);
+  for (const radius of made.radii) {
+    expect(Math.abs(radius - made.radii[0]), 'mind ugyanolyan messze a középponttól').toBeLessThan(0.001);
+  }
+  for (let i = 1; i < made.angles.length; i += 1) {
+    expect(made.angles[i] - made.angles[i - 1], 'negyvenöt fokonként').toBeCloseTo(45, 3);
+  }
+
+  // One undo step takes the whole ring back.
+  await page.locator(board).focus();
+  await page.keyboard.press('Control+z');
+  expect((await state()).count, 'egyetlen visszavonás viszi vissza az egészet').toBe(1);
 });

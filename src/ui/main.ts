@@ -1332,6 +1332,8 @@ const ACTIONS: Record<string, () => void> = {
   'select-area': () => (irregular?.active === true ? select(null) : setAreaMode(!areaMode)),
   'chain-arc': () => irregular?.toggleArcTool(),
   fan: () => irregular?.toggleFanTool(),
+  isolate: () => irregular?.toggleIsolate(),
+  repeat: () => irregular?.repeatAround(),
   'delete-selection': () => (irregular?.active === true ? irregular.deleteSelection() : void deleteSelection()),
   'duplicate-selection': () => (irregular?.active === true ? irregular.duplicateSelection() : duplicateSelected()),
   same: () =>
@@ -2121,6 +2123,8 @@ function updateIrregularControls(editor: IrregularEditor): void {
   );
   must<HTMLButtonElement>('[data-action="chain-arc"]').setAttribute('aria-pressed', String(editor.arcArmed));
   must<HTMLButtonElement>('[data-action="fan"]').setAttribute('aria-pressed', String(editor.fanArmed));
+  must<HTMLButtonElement>('[data-action="isolate"]').setAttribute('aria-pressed', String(editor.isolating));
+  setDisabled('repeat', editor.selectionSize === 0);
   must<HTMLButtonElement>('[data-action="grid"]').setAttribute('aria-pressed', String(editor.gridVisible));
   if (document.activeElement !== titleInput) titleInput.value = editor.title;
   const issues = editor.issues();
