@@ -598,3 +598,53 @@ stitches. §4 and `decisions.md §4` say the program does not ask about an actio
 the user clicked. The decision stands: nothing is confirmed, the status line
 names what happened, and undo takes it back. Raised with the owner in the plan
 for PQW-963 and left for her to overrule if she wants the dialog.
+
+## §41 In the free-form type the stitch key decides the symbol, not the stitch
+
+A regular chart draws a stitch from its definition and the notation. A free-form
+pattern carries its own key (PQW-965): an entry may override the symbol, the
+abbreviation and the legend text, and an entry of the crocheter's own has no
+library stitch behind it at all. So the view never asks "what is this stitch?"
+without also asking "what does this pattern draw it with?" — `naturalGlyph` takes
+the override, and `irregular-key.ts` resolves the name, the abbreviation and the
+legend text.
+
+Two consequences worth knowing:
+
+- **An entry exists only when it says something the library does not.** Clearing
+  the last override deletes the entry, so a pattern that accepts the preset
+  carries no key at all and its file stays short. This is also why the preset
+  reads "Saját" from `hasOverrides` rather than from the key's mere presence.
+- **`stitchById` throws on an unknown id**, and a key entry may legitimately name
+  a stitch this build does not have — a file from a newer version, or one of the
+  crocheter's own. `findStitch` in `irregular-key.ts` is the lookup that returns
+  `undefined` instead, and the free-form view uses only that one.
+- **A stitch stores the size it is drawn at**, measured from its symbol when it
+  was placed. Change the symbol and that size belongs to the old one, so the new
+  symbol would be squeezed into the old one's box — a chain's oval is wide, the
+  "0" that replaces it is tall. `#setGlyph` rescales every stitch of the entry,
+  keeping whatever stretch the crocheter gave it. A browser test pins this down
+  by the drawn proportions, because a test that only reads the saved key passes
+  either way.
+- **The ambiguity check compares what is drawn**, not what the entries are
+  called. The library's own symbols never collide, so only the alternatives need
+  naming: `drawnGlyph` maps a chain to `oval` and a slip stitch to `dot`, which
+  is what lets it notice that a chain redrawn as `dot` now shares the slip
+  stitch's symbol.
+
+The alternative symbols (`ALTERNATIVE_GLYPHS` in `symbols.ts`) exist for the same
+reason: the reference charts draw a chain as "0" or as a dot, a single crochet as
+"+" or "×", a double crochet as a dagger. Without them the key could only swap one
+library stitch's symbol for another's.
+
+## §42 The free-form panels reorder with buttons, not by dragging
+
+The specification asks for rows to be reordered by dragging. They are reordered
+with up and down buttons instead, and so are layers.
+
+Dragging a list item is a mouse gesture: it needs a keyboard equivalent for
+WCAG 2.2 (§36) and a separate touch path for the tablet this type is meant for
+(D8), and it would still have to keep the row numbers live while the pointer
+moves. Buttons are one control that works for all three. Raised with the owner
+when the panel shipped; the drag gesture can be added on top later without
+changing anything else.

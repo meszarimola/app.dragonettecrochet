@@ -31,6 +31,8 @@ export const IRREGULAR_JSON_CORE_TEXTS: CoreDictionary<IrregularJsonCode> = {
     'duplicate-item-id': 'Két szem ugyanazzal az azonosítóval szerepel.',
     'unknown-row': 'A szem olyan sorra hivatkozik, ami nincs a fájlban.',
     'unknown-layer': 'A szem olyan rétegre hivatkozik, ami nincs a fájlban.',
+    'duplicate-key-entry-id': 'Két jelkulcs-bejegyzés ugyanazzal az azonosítóval szerepel.',
+    'key-entry-unnamed': 'A jelkulcs bejegyzése se szemet, se saját nevet nem ad meg.',
   },
   en: {
     'invalid-json': (data) => `Not valid JSON: ${str(data, 'detail')}`,
@@ -53,5 +55,7 @@ export const IRREGULAR_JSON_CORE_TEXTS: CoreDictionary<IrregularJsonCode> = {
     'duplicate-item-id': 'Two stitches carry the same identifier.',
     'unknown-row': 'A stitch points at a row that is not in the file.',
     'unknown-layer': 'A stitch points at a layer that is not in the file.',
+    'duplicate-key-entry-id': 'Two stitch key entries carry the same identifier.',
+    'key-entry-unnamed': 'A stitch key entry names neither a stitch nor a name of its own.',
   },
 };

@@ -22,6 +22,8 @@ export interface IrregularRow {
   readonly color: string | null;
   readonly visible: boolean;
   readonly locked: boolean;
+  /** `auto` reads the order off the positions; a list is the crocheter's own. */
+  readonly order?: 'auto' | readonly string[];
 }
 
 export interface IrregularLayer {
@@ -61,6 +63,29 @@ export interface StitchItem extends Transform {
 
 export type IrregularItem = StitchItem;
 
+/**
+ * One line of the pattern's own stitch key. An entry exists only when it says
+ * something the library does not: an override, or a stitch of the crocheter's
+ * own. Everything else follows the notation, so a pattern that accepts the
+ * preset carries no key at all.
+ */
+export interface StitchKeyEntry {
+  readonly id: string;
+  /** The library stitch this stands for, or `null` for one of the crocheter's own. */
+  readonly stitch: string | null;
+  readonly customName: string | null;
+  readonly glyphOverride: string | null;
+  readonly abbreviationOverride: string | null;
+  readonly labelOverride: string | null;
+}
+
+export interface LegendBlock {
+  readonly visible: boolean;
+  readonly position: Point;
+  readonly columns: 1 | 2 | 3;
+  readonly showCounts: boolean;
+}
+
 export interface IrregularGuides {
   readonly grid: { readonly visible: boolean; readonly size: number };
   readonly snap: boolean;
@@ -79,6 +104,9 @@ export interface IrregularPattern {
   readonly activeRowId: string;
   readonly activeLayerId: string;
   readonly guides: IrregularGuides;
+  /** Absent while the pattern is happy with the preset. */
+  readonly stitchKey?: readonly StitchKeyEntry[];
+  readonly legend?: LegendBlock;
 }
 
 /** Abstract canvas units: at 100% zoom one unit is one CSS pixel. */

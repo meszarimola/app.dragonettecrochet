@@ -648,3 +648,75 @@ export function drawCentered(ctx: CanvasRenderingContext2D, shapes: readonly Sha
   drawShapes(ctx, shapes);
   ctx.restore();
 }
+
+/* ---- Alternative glyphs for a free-form stitch key ---- */
+
+export type AlternativeGlyphId = 'oval' | 'zero' | 'dot' | 'arc' | 'plus' | 'cross' | 'asterisk' | 'bar' | 'dagger';
+
+export const ALTERNATIVE_GLYPHS: readonly AlternativeGlyphId[] = [
+  'oval',
+  'zero',
+  'dot',
+  'arc',
+  'plus',
+  'cross',
+  'asterisk',
+  'bar',
+  'dagger',
+];
+
+const GLYPH_HALF = 7;
+const GLYPH_CENTER: Point = { x: 0, y: -GLYPH_HALF };
+const GLYPH_TOP: Point = { x: 0, y: -2 * GLYPH_HALF };
+const ASTERISK_ANGLES: readonly number[] = [90, 30, 150];
+const DAGGER_BAR_HALF = 4.5;
+const DAGGER_BAR_Y = -11;
+
+function asteriskShapes(): Shape[] {
+  return ASTERISK_ANGLES.map((degrees) => {
+    const angle = (degrees * Math.PI) / 180;
+    const arm = scale({ x: Math.cos(angle), y: -Math.sin(angle) }, GLYPH_HALF);
+    return line('cross', add(GLYPH_CENTER, scale(arm, -1)), add(GLYPH_CENTER, arm));
+  });
+}
+
+/** The glyph on its own, upright, in the same local space as `symbolShapes`. */
+export function alternativeGlyphShapes(id: AlternativeGlyphId): Shape[] {
+  switch (id) {
+    case 'oval':
+      return [chainOval({ x: 0, y: -CHAIN_RY }, CHAIN_RX, CHAIN_RY, 0)];
+    case 'zero':
+      return [chainOval({ x: 0, y: -CHAIN_RX }, CHAIN_RY, CHAIN_RX, 0)];
+    case 'dot':
+      return [{ kind: 'dot', role: 'dot', center: { x: 0, y: -SLIP_R }, r: SLIP_R }];
+    case 'arc':
+      return [
+        {
+          kind: 'curve',
+          role: 'chain',
+          from: { x: -CHAIN_RX, y: 0 },
+          control: { x: 0, y: -2 * CHAIN_RX },
+          to: { x: CHAIN_RX, y: 0 },
+        },
+      ];
+    case 'plus':
+      return [
+        line('cross', FOOT, GLYPH_TOP),
+        line('cross', { x: -GLYPH_HALF, y: -GLYPH_HALF }, { x: GLYPH_HALF, y: -GLYPH_HALF }),
+      ];
+    case 'cross':
+      return [
+        line('cross', { x: -GLYPH_HALF, y: 0 }, { x: GLYPH_HALF, y: -2 * GLYPH_HALF }),
+        line('cross', { x: -GLYPH_HALF, y: -2 * GLYPH_HALF }, { x: GLYPH_HALF, y: 0 }),
+      ];
+    case 'asterisk':
+      return asteriskShapes();
+    case 'bar':
+      return [line('stem', FOOT, GLYPH_TOP)];
+    case 'dagger':
+      return [
+        line('stem', FOOT, GLYPH_TOP),
+        line('bar', { x: -DAGGER_BAR_HALF, y: DAGGER_BAR_Y }, { x: DAGGER_BAR_HALF, y: DAGGER_BAR_Y }),
+      ];
+  }
+}
