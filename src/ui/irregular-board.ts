@@ -320,7 +320,7 @@ export class FreeBoard {
     ctx.textBaseline = 'middle';
     order.forEach((id, index) => {
       const item = byId.get(id);
-      if (item === undefined) return;
+      if (item === undefined || !isVisible(scene.pattern, item)) return;
       const box = itemBox(item);
       const at = this.#toScreen({ x: item.x, y: box.minY });
       ctx.fillStyle = color;

@@ -17,6 +17,7 @@ export interface RowsPanelHost {
   setFadeOthers(on: boolean): void;
   setShowOrder(on: boolean): void;
   moveInOrder(delta: number): void;
+  setOrderPlace(position: number): void;
   resetOrder(): void;
 }
 
@@ -25,6 +26,8 @@ export interface RowsView {
   readonly showOrder: boolean;
   readonly selectionSize: number;
   readonly manualOrder: boolean;
+  /** Where the one selected stitch sits in its row, or `null` when that is not one stitch. */
+  readonly orderPlace: number | null;
 }
 
 const KINDS: readonly RowKind[] = ['row', 'round'];
@@ -83,6 +86,8 @@ export class IrregularRowsPanel {
   readonly #fade: HTMLInputElement;
   readonly #showOrder: HTMLInputElement;
   readonly #orderControls: HTMLElement;
+  readonly #orderPlaceField: HTMLElement;
+  readonly #orderPlace: HTMLInputElement;
   readonly #note: HTMLElement;
 
   constructor(section: HTMLDetailsElement, host: RowsPanelHost) {
@@ -95,6 +100,8 @@ export class IrregularRowsPanel {
     this.#fade = must<HTMLInputElement>(section, '#row-fade');
     this.#showOrder = must<HTMLInputElement>(section, '#row-order-overlay');
     this.#orderControls = must<HTMLElement>(section, '#order-controls');
+    this.#orderPlaceField = must<HTMLElement>(section, '#order-place-field');
+    this.#orderPlace = must<HTMLInputElement>(section, '#order-place');
     this.#note = must<HTMLElement>(section, '#rows-note');
     this.#listen();
   }
@@ -139,6 +146,10 @@ export class IrregularRowsPanel {
     );
     must<HTMLButtonElement>(this.#section, '#order-later').addEventListener('click', () => this.#host.moveInOrder(1));
     must<HTMLButtonElement>(this.#section, '#order-reset').addEventListener('click', () => this.#host.resetOrder());
+    this.#orderPlace.addEventListener('change', () => {
+      const place = Number(this.#orderPlace.value);
+      if (Number.isFinite(place)) this.#host.setOrderPlace(place);
+    });
     this.#list.addEventListener('click', (event) => this.#onList(event));
   }
 
@@ -185,6 +196,10 @@ export class IrregularRowsPanel {
     this.#fade.checked = view.fadeOthers;
     this.#showOrder.checked = view.showOrder;
     this.#orderControls.hidden = view.selectionSize !== 1;
+    this.#orderPlaceField.hidden = view.orderPlace === null;
+    if (view.orderPlace !== null && document.activeElement !== this.#orderPlace) {
+      this.#orderPlace.value = String(view.orderPlace);
+    }
     must<HTMLButtonElement>(this.#section, '#row-move-items').disabled = view.selectionSize === 0;
     must<HTMLButtonElement>(this.#section, '#row-delete').disabled = pattern.rows.length < 2;
     must<HTMLButtonElement>(this.#section, '#row-delete-keep').disabled = pattern.rows.length < 2;

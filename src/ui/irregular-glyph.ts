@@ -108,6 +108,23 @@ export function itemShapes(
   return stretchShapes(glyph.shapes, glyph.center, scale, (item.rotation * Math.PI) / 180, { x: item.x, y: item.y });
 }
 
+/**
+ * Two stitches drawn with one symbol make a chart ambiguous, and the check has to
+ * compare what is *drawn*, not what the entries are called. The library's own
+ * symbols never collide with each other, so only the alternatives need naming: a
+ * chain's oval and a slip stitch's dot have a symbol here that an override can
+ * also name.
+ */
+const PRESET_GLYPH: Readonly<Record<string, AlternativeGlyphId>> = {
+  ch: 'oval',
+  'sl-st': 'dot',
+};
+
+export function drawnGlyph(keyEntryId: string, glyphOverride: string | null): string {
+  if (glyphOverride !== null) return glyphOverride;
+  return PRESET_GLYPH[keyEntryId] ?? `preset:${keyEntryId}`;
+}
+
 export function clearGlyphCache(): void {
   cache.clear();
 }

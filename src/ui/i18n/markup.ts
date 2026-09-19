@@ -322,6 +322,7 @@ export const MARKUP_TEXTS = {
     orderEarlier: 'Előrébb',
     orderLater: 'Hátrébb',
     orderReset: 'Automatikus sorrend',
+    orderPlaceLabel: 'Helye a sorban',
     sectionLayersTitle: 'Rétegek',
     layersGroupLabel: 'A rajz rétegei',
     layersNote: 'A réteg a rajzot rendezi, a sor a horgolás sorrendjét. Minden elem pontosan egy rétegen van.',
@@ -735,6 +736,7 @@ export const MARKUP_TEXTS = {
     orderEarlier: 'Earlier',
     orderLater: 'Later',
     orderReset: 'Automatic order',
+    orderPlaceLabel: 'Position in the row',
     sectionLayersTitle: 'Layers',
     layersGroupLabel: 'The drawing’s layers',
     layersNote:

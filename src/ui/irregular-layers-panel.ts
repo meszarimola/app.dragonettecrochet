@@ -78,9 +78,12 @@ export class IrregularLayersPanel {
 
   update(pattern: IrregularPattern, selectionSize: number): void {
     this.#active = pattern.activeLayerId;
-    // The list reads top down, so the topmost layer comes first.
-    const shown = [...pattern.layers].reverse();
-    this.#list.replaceChildren(...shown.map((layer) => this.#entry(pattern, layer)));
+    // Rebuilding would throw away the name field under the cursor, and the focus with it.
+    if (!this.#list.contains(document.activeElement)) {
+      // The list reads top down, so the topmost layer comes first.
+      const shown = [...pattern.layers].reverse();
+      this.#list.replaceChildren(...shown.map((layer) => this.#entry(pattern, layer)));
+    }
     must<HTMLButtonElement>(this.#section, '#layer-delete').disabled = pattern.layers.length < 2;
     must<HTMLButtonElement>(this.#section, '#layer-move-items').disabled = selectionSize === 0;
   }

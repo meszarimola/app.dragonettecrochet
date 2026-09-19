@@ -209,8 +209,22 @@ test('the stitch key changes the symbol everywhere, and the legend can go on the
   await expect(chain).toContainText('3');
 
   // The pattern may draw a chain with any symbol it likes; the reference charts use „0”.
+  // The chain's oval lies flat and the „0” stands upright, so the drawn stitches
+  // have to turn with it — the symbol must not be squeezed into the old one's box.
+  const widthOf = async (): Promise<number[]> =>
+    page.evaluate(() => {
+      const saved = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+      const items = (JSON.parse(saved).items ?? []) as { width: number; height: number }[];
+      return items.map((item) => item.width / item.height);
+    });
+  const flat = await widthOf();
+  expect(flat.every((ratio) => ratio > 1)).toBe(true);
+
   await chain.locator('select').selectOption('zero');
   await expect(chain.locator('select')).toHaveValue('zero');
+  const upright = await widthOf();
+  expect(upright).toHaveLength(flat.length);
+  expect(upright.every((ratio) => ratio < 1)).toBe(true);
 
   await page.locator('#legend-on-image').check();
   await expect(page.locator('#legend-on-image')).toBeChecked();
@@ -250,4 +264,24 @@ test('layers: a second layer takes the selected stitches, and hiding it hides th
   await page.locator(board).focus();
   await page.keyboard.press('ControlOrMeta+A');
   await expect(page.locator('#props-count')).toContainText('Nincs kijelölt szem');
+});
+
+test('two stitches drawn with one symbol are reported in the issues list (AS-5)', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+  await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
+
+  // A chain and a slip stitch, then the chain redrawn as a dot — the slip stitch's own symbol.
+  await page.locator(board).focus();
+  await page.keyboard.press('Alt+1');
+  await place(page, 500, 400);
+  await page.keyboard.press('Alt+2');
+  await place(page, 560, 400);
+
+  await page.locator('#section-irregular-key > summary').click();
+  await page.locator('#key-list li').filter({ hasText: 'láncszem' }).locator('select').selectOption('dot');
+  await expect(page.locator('#key-preset')).toContainText('Saját');
+
+  await page.locator('#error-toggle').click();
+  await expect(page.locator('#findings')).toContainText('Ugyanaz a jel két szemet jelöl');
 });

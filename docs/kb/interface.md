@@ -619,6 +619,18 @@ Two consequences worth knowing:
   a stitch this build does not have — a file from a newer version, or one of the
   crocheter's own. `findStitch` in `irregular-key.ts` is the lookup that returns
   `undefined` instead, and the free-form view uses only that one.
+- **A stitch stores the size it is drawn at**, measured from its symbol when it
+  was placed. Change the symbol and that size belongs to the old one, so the new
+  symbol would be squeezed into the old one's box — a chain's oval is wide, the
+  "0" that replaces it is tall. `#setGlyph` rescales every stitch of the entry,
+  keeping whatever stretch the crocheter gave it. A browser test pins this down
+  by the drawn proportions, because a test that only reads the saved key passes
+  either way.
+- **The ambiguity check compares what is drawn**, not what the entries are
+  called. The library's own symbols never collide, so only the alternatives need
+  naming: `drawnGlyph` maps a chain to `oval` and a slip stitch to `dot`, which
+  is what lets it notice that a chain redrawn as `dot` now shares the slip
+  stitch's symbol.
 
 The alternative symbols (`ALTERNATIVE_GLYPHS` in `symbols.ts`) exist for the same
 reason: the reference charts draw a chain as "0" or as a dot, a single crochet as

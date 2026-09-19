@@ -40,7 +40,8 @@ export function emptyEntry(id: string, stitch: string | null): StitchKeyEntry {
   return {
     id,
     stitch,
-    customName: null,
+    // An entry names a stitch or names itself; a nameless one cannot be written back.
+    customName: stitch === null ? id : null,
     glyphOverride: null,
     abbreviationOverride: null,
     labelOverride: null,
@@ -73,6 +74,11 @@ export function updateKeyEntry(pattern: IrregularPattern, id: string, patch: Ent
   return { ...pattern, stitchKey: keep ? [...others, next] : others };
 }
 
+/**
+ * A stitch of the crocheter's own, for what no library entry covers (FR-KEY-4).
+ * The key panel offers it from the next stage, once the palette grows a group
+ * to place one from; the model and its rules belong with the rest of the key.
+ */
 export function addCustomEntry(
   pattern: IrregularPattern,
   name: string,

@@ -5,6 +5,16 @@ import type { IrregularItem, IrregularPattern, IrregularRow, RowDirection, RowKi
 
 export type RowPatch = Partial<Pick<IrregularRow, 'kind' | 'direction' | 'color' | 'visible' | 'locked'>>;
 
+const ROW_WAYS: readonly RowDirection[] = ['ltr', 'rtl'];
+const ROUND_WAYS: readonly RowDirection[] = ['cw', 'ccw'];
+
+/** Changing the kind carries the direction with it: a round has no left to right. */
+function directionFor(kind: RowKind, direction: RowDirection): RowDirection {
+  const allowed = kind === 'round' ? ROUND_WAYS : ROW_WAYS;
+  if (allowed.includes(direction)) return direction;
+  return kind === 'round' ? 'ccw' : 'ltr';
+}
+
 export type RowStitches = 'delete' | 'move';
 
 /** A row's number is its place in the list, so nothing stores it. */
@@ -65,9 +75,18 @@ export function setActiveRow(pattern: IrregularPattern, rowId: string): Irregula
 export function updateRow(pattern: IrregularPattern, rowId: string, patch: RowPatch): IrregularPattern {
   const current = pattern.rows.find((row) => row.id === rowId);
   if (current === undefined) return pattern;
-  const keys = Object.keys(patch) as (keyof RowPatch)[];
-  if (keys.every((key) => patch[key] === current[key])) return pattern;
-  return { ...pattern, rows: pattern.rows.map((row) => (row.id === rowId ? { ...row, ...patch } : row)) };
+  const merged = { ...current, ...patch };
+  const next: IrregularRow = { ...merged, direction: directionFor(merged.kind, merged.direction) };
+  if (
+    next.kind === current.kind &&
+    next.direction === current.direction &&
+    next.color === current.color &&
+    next.visible === current.visible &&
+    next.locked === current.locked
+  ) {
+    return pattern;
+  }
+  return { ...pattern, rows: pattern.rows.map((row) => (row.id === rowId ? next : row)) };
 }
 
 export function moveItemsToRow(pattern: IrregularPattern, ids: Iterable<string>, rowId: string): IrregularPattern {

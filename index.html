@@ -495,6 +495,10 @@
                 <button type="button" class="button" id="order-later" data-i18n="orderLater">Hátrébb</button>
                 <button type="button" class="button" id="order-reset" data-i18n="orderReset">Automatikus sorrend</button>
               </p>
+              <p class="panel__field" id="order-place-field" hidden>
+                <label for="order-place" data-i18n="orderPlaceLabel">Helye a sorban</label>
+                <input id="order-place" type="number" min="1" step="1" inputmode="numeric" />
+              </p>
               <p class="panel__note" id="rows-note" role="status" aria-live="polite"></p>
             </div>
           </details>
@@ -517,6 +521,7 @@
             <div class="key" role="group" aria-label="A minta jelkulcsa" data-i18n-label="keyGroupLabel">
               <p class="panel__note" data-i18n="keyNote">A mintában használt szemek. A jelet, a rövidítést és a jelmagyarázat szövegét szemenként átírhatod; amit nem írsz át, az az előbeállítást követi.</p>
               <ul class="key__list" id="key-list"></ul>
+              <p class="panel__note" id="key-preset" role="status" aria-live="polite"></p>
               <p class="props__row">
                 <button type="button" class="button" id="key-reset" data-i18n="keyReset">Visszaállítás az előbeállításra</button>
               </p>

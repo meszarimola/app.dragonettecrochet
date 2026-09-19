@@ -26,7 +26,15 @@ import {
   withIrregularNotation,
 } from '../core/irregular-document.ts';
 import { isIrregularJson, loadIrregular, saveIrregular } from '../core/irregular-json.ts';
-import { entryGlyph, entryLabel, keyUsage, resetToPreset, updateKeyEntry } from '../core/irregular-key.ts';
+import {
+  entryGlyph,
+  entryLabel,
+  entryName,
+  keyUsage,
+  resetToPreset,
+  sharedGlyphs,
+  updateKeyEntry,
+} from '../core/irregular-key.ts';
 import {
   addLayer,
   deleteLayer,
@@ -36,7 +44,14 @@ import {
   setActiveLayer,
   updateLayer,
 } from '../core/irregular-layers.ts';
-import { isManualOrder, moveInOrder, resetOrder, rowOrder } from '../core/irregular-order.ts';
+import {
+  isManualOrder,
+  moveInOrder,
+  orderPosition,
+  resetOrder,
+  rowOrder,
+  setOrderPosition,
+} from '../core/irregular-order.ts';
 import {
   addRow,
   deleteRow,
@@ -56,7 +71,7 @@ import { IRREGULAR_JSON_CORE_TEXTS } from './i18n/core/irregular-json.ts';
 import { renderCoreText } from './i18n/core/render.ts';
 import { texts, uiLanguage } from './i18n.ts';
 import { FreeBoard, type HandleId, type LegendEntry } from './irregular-board.ts';
-import { itemShapes, naturalSize } from './irregular-glyph.ts';
+import { drawnGlyph, itemShapes, naturalSize } from './irregular-glyph.ts';
 import { IrregularKeyPanel } from './irregular-key-panel.ts';
 import { IrregularLayersPanel } from './irregular-layers-panel.ts';
 import { IrregularPanel } from './irregular-panel.ts';
@@ -165,6 +180,7 @@ export class IrregularEditor {
       setFadeOthers: (on) => this.#setPreference({ fadeOthers: on }),
       setShowOrder: (on) => this.#setPreference({ showOrder: on }),
       moveInOrder: (delta) => this.#moveInOrder(delta),
+      setOrderPlace: (place) => this.#setOrderPlace(place),
       resetOrder: () => this.#resetOrder(),
     });
     this.#layersPanel = new IrregularLayersPanel(sections.layers, {
@@ -176,7 +192,7 @@ export class IrregularEditor {
       moveSelection: (layerId) => this.#moveSelectionToLayer(layerId),
     });
     this.#keyPanel = new IrregularKeyPanel(sections.key, {
-      setGlyph: (id, glyph) => this.#commitKey(id, { glyphOverride: glyph }),
+      setGlyph: (id, glyph) => this.#setGlyph(id, glyph),
       setAbbreviation: (id, value) => this.#commitKey(id, { abbreviationOverride: value }),
       setLabel: (id, value) => this.#commitKey(id, { labelOverride: value }),
       resetKey: () => this.#commit(resetToPreset(this.#history.present), texts().irregular.keyReset),
@@ -344,9 +360,21 @@ export class IrregularEditor {
     this.#commit(moveInOrder(this.#history.present, item.rowId, id, delta));
   }
 
+  #setOrderPlace(place: number): void {
+    const id = this.#onlySelected();
+    const rowId = this.#rowOfSelection();
+    if (id === null || rowId === null) return;
+    this.#commit(setOrderPosition(this.#history.present, rowId, id, place));
+  }
+
   #resetOrder(): void {
     const rowId = this.#rowOfSelection() ?? this.#history.present.activeRowId;
     this.#commit(resetOrder(this.#history.present, rowId), texts().irregular.orderReset);
+  }
+
+  #orderPlace(pattern: IrregularPattern, rowId: string): number | null {
+    const id = this.#onlySelected();
+    return id === null ? null : orderPosition(pattern, rowId, id);
   }
 
   #rowOfSelection(): string | null {
@@ -355,25 +383,63 @@ export class IrregularEditor {
     return this.#history.present.items.find((candidate) => candidate.id === id)?.rowId ?? null;
   }
 
-  #commitKey(
-    id: string,
-    patch: { glyphOverride?: string | null; abbreviationOverride?: string | null; labelOverride?: string | null },
-  ): void {
+  #commitKey(id: string, patch: { abbreviationOverride?: string | null; labelOverride?: string | null }): void {
     this.#commit(updateKeyEntry(this.#history.present, id, patch));
+  }
+
+  /**
+   * A stitch stores the size it is drawn at, measured from its symbol. Give it a
+   * different symbol and the stored size still belongs to the old one, so the new
+   * symbol would be squeezed into the old one's box. Each stitch keeps the stretch
+   * the crocheter gave it and takes the new symbol's proportions.
+   */
+  #setGlyph(id: string, glyph: string | null): void {
+    const pattern = this.#history.present;
+    const next = updateKeyEntry(pattern, id, { glyphOverride: glyph });
+    if (next === pattern) return;
+    const symbols = this.#host.symbols();
+    const was = entryGlyph(pattern, id);
+    const now = entryGlyph(next, id);
+    const items = next.items.map((item) => {
+      if (item.keyEntryId !== id) return item;
+      const before = naturalSize(item.keyEntryId, item.insertion, symbols, was);
+      const after = naturalSize(item.keyEntryId, item.insertion, symbols, now);
+      return {
+        ...item,
+        width: (item.width / before.width) * after.width,
+        height: (item.height / before.height) * after.height,
+      };
+    });
+    this.#commit({ ...next, items });
   }
 
   #setLegend(patch: Partial<LegendBlock>): void {
     const current = this.legend;
-    // Turning it on for the first time drops it below the drawing, not on top of it.
-    const stored = this.#history.present.legend;
-    const position =
-      stored === undefined && patch.visible === true ? this.#legendHome() : (patch.position ?? current.position);
+    // The first time it is actually shown it drops below the drawing, not on top of it.
+    const untouched = current.position.x === 0 && current.position.y === 0;
+    const showing = patch.visible === true && !current.visible;
+    const position = showing && untouched ? this.#legendHome() : (patch.position ?? current.position);
     this.#commit({ ...this.#history.present, legend: { ...current, ...patch, position } });
   }
 
   #legendHome(): Point {
     const box = itemsBox(this.#history.present.items);
     return box === null ? { x: 0, y: 0 } : { x: box.minX, y: box.maxY + 60 };
+  }
+
+  /**
+   * One symbol standing for two stitches makes the chart ambiguous: "•" is a slip
+   * stitch in one reference chart and a chain in another. KB: 01 §6.1
+   */
+  issues(): string[] {
+    const pattern = this.#history.present;
+    const terms = this.#host.terms();
+    const words = texts().irregular;
+    return sharedGlyphs(pattern, (id) => drawnGlyph(id, entryGlyph(pattern, id))).flatMap((clash) => {
+      const [first, second] = clash.keyEntryIds;
+      if (first === undefined || second === undefined) return [];
+      return [words.sharedGlyph(entryName(pattern, first, terms), entryName(pattern, second, terms))];
+    });
   }
 
   #legendEntries(): LegendEntry[] {
@@ -628,7 +694,12 @@ export class IrregularEditor {
 
   // -- drawing -------------------------------------------------------------
 
-  refresh(): void {
+  /**
+   * The drawing alone. A pointer move redraws dozens of times a second, and
+   * rebuilding the row, layer and key lists that often costs a canvas per key
+   * entry and a forced style read each time.
+   */
+  #refreshScene(): void {
     if (!this.#mounted) return;
     const room = this.#host.insets();
     this.#board.setInsets(room.left, room.right);
@@ -648,11 +719,19 @@ export class IrregularEditor {
       legend: { block: this.legend, entries: this.#legendEntries() },
     });
     this.#panel.update(itemsOf(pattern, this.#selection), this.#preferences.rectPartial, pattern.items.length);
+  }
+
+  refresh(): void {
+    this.#refreshScene();
+    if (!this.#mounted) return;
+    const committed = this.#history.present;
+    const orderRow = this.#rowOfSelection() ?? committed.activeRowId;
     this.#rowsPanel.update(committed, {
       fadeOthers: this.#preferences.fadeOthers,
       showOrder: this.#preferences.showOrder,
       selectionSize: this.#selection.size,
       manualOrder: isManualOrder(committed, orderRow),
+      orderPlace: this.#orderPlace(committed, orderRow),
     });
     this.#layersPanel.update(committed, this.#selection.size);
     this.#keyPanel.update(committed, this.#host.terms(), this.#host.symbols(), this.legend);
@@ -663,7 +742,8 @@ export class IrregularEditor {
     const stitch = this.#stitch;
     const at = this.#pointer;
     if (stitch === null || at === null || !this.#hoverCapable || this.#drag !== null) return null;
-    const size = naturalSize(stitch, 'both-loops', this.#host.symbols());
+    const glyph = entryGlyph(this.pattern, stitch);
+    const size = naturalSize(stitch, 'both-loops', this.#host.symbols(), glyph);
     return itemShapes(
       {
         id: 'ghost',
@@ -682,6 +762,7 @@ export class IrregularEditor {
         flipY: false,
       },
       this.#host.symbols(),
+      glyph,
     );
   }
 
@@ -715,7 +796,7 @@ export class IrregularEditor {
     this.#canvas.addEventListener('pointerleave', () => {
       if (!this.#mounted) return;
       this.#pointer = null;
-      this.refresh();
+      this.#refreshScene();
     });
     this.#canvas.addEventListener(
       'wheel',
@@ -783,7 +864,8 @@ export class IrregularEditor {
   #place(point: Point): void {
     const stitch = this.#stitch;
     if (stitch === null) return;
-    const size = naturalSize(stitch, 'both-loops', this.#host.symbols());
+    const glyph = entryGlyph(this.#history.present, stitch);
+    const size = naturalSize(stitch, 'both-loops', this.#host.symbols(), glyph);
     const made = addStitch(this.#history.present, {
       keyEntryId: stitch,
       x: point.x,
@@ -819,7 +901,7 @@ export class IrregularEditor {
     this.#pointer = point;
     const drag = this.#drag;
     if (drag === null) {
-      if (this.#stitch !== null && this.#hoverCapable) this.refresh();
+      if (this.#stitch !== null && this.#hoverCapable) this.#refreshScene();
       return;
     }
     switch (drag.kind) {
@@ -832,16 +914,16 @@ export class IrregularEditor {
         drag.last = point;
         drag.moved = true;
         this.#draft = moved;
-        this.refresh();
+        this.#refreshScene();
         return;
       }
       case 'marquee':
         drag.to = point;
-        this.refresh();
+        this.#refreshScene();
         return;
       case 'scale':
         this.#draft = this.#scaled(drag, point, event.shiftKey);
-        this.refresh();
+        this.#refreshScene();
         return;
       case 'rotate': {
         const turn = angleOf(drag.center, point) - drag.startAngle;
@@ -852,7 +934,7 @@ export class IrregularEditor {
           step,
           drag.base.length === 1 ? null : drag.center,
         );
-        this.refresh();
+        this.#refreshScene();
         return;
       }
     }

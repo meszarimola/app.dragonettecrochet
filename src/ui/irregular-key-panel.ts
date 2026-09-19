@@ -5,6 +5,7 @@ import {
   entryGlyph,
   entryLabel,
   entryName,
+  hasOverrides,
   type KeyUsage,
   keyUsage,
 } from '../core/irregular-key.ts';
@@ -12,14 +13,7 @@ import type { IrregularPattern, LegendBlock } from '../core/irregular-types.ts';
 import type { Locale } from '../core/types.ts';
 import { texts } from './i18n.ts';
 import { naturalGlyph } from './irregular-glyph.ts';
-import {
-  ALTERNATIVE_GLYPHS,
-  type AlternativeGlyphId,
-  applyInk,
-  drawCentered,
-  readInk,
-  type SymbolOptions,
-} from './symbols.ts';
+import { ALTERNATIVE_GLYPHS, applyInk, drawCentered, readInk, type SymbolOptions } from './symbols.ts';
 
 export interface KeyPanelHost {
   setGlyph(keyEntryId: string, glyph: string | null): void;
@@ -59,6 +53,7 @@ export class IrregularKeyPanel {
   readonly #onImage: HTMLInputElement;
   readonly #columns: HTMLSelectElement;
   readonly #counts: HTMLInputElement;
+  readonly #preset: HTMLElement;
   #ink = '#000';
 
   constructor(section: HTMLDetailsElement, host: KeyPanelHost) {
@@ -68,6 +63,7 @@ export class IrregularKeyPanel {
     this.#onImage = must<HTMLInputElement>(section, '#legend-on-image');
     this.#columns = must<HTMLSelectElement>(section, '#legend-columns');
     this.#counts = must<HTMLInputElement>(section, '#legend-counts');
+    this.#preset = must<HTMLElement>(section, '#key-preset');
     must<HTMLButtonElement>(section, '#key-reset').addEventListener('click', () => this.#host.resetKey());
     this.#onImage.addEventListener('change', () => this.#host.setLegend({ visible: this.#onImage.checked }));
     this.#counts.addEventListener('change', () => this.#host.setLegend({ showCounts: this.#counts.checked }));
@@ -98,12 +94,16 @@ export class IrregularKeyPanel {
 
   update(pattern: IrregularPattern, terms: Locale, symbols: SymbolOptions, legend: LegendBlock): void {
     this.#ink = readInk(document.documentElement);
+    this.#preset.textContent = hasOverrides(pattern) ? texts().irregular.presetCustom : '';
     const used = keyUsage(pattern);
     const words = texts().irregular;
-    if (used.length === 0) {
-      this.#list.replaceChildren(element('li', 'panel__note', words.keyEmpty));
-    } else {
-      this.#list.replaceChildren(...used.map((usage) => this.#entry(pattern, usage, terms, symbols)));
+    // Rebuilding would throw away the field under the cursor, and the focus with it.
+    if (!this.#list.contains(document.activeElement)) {
+      if (used.length === 0) {
+        this.#list.replaceChildren(element('li', 'panel__note', words.keyEmpty));
+      } else {
+        this.#list.replaceChildren(...used.map((usage) => this.#entry(pattern, usage, terms, symbols)));
+      }
     }
     if (document.activeElement !== this.#onImage) this.#onImage.checked = legend.visible;
     if (document.activeElement !== this.#counts) this.#counts.checked = legend.showCounts;
@@ -168,8 +168,4 @@ export class IrregularKeyPanel {
     }
     return canvas;
   }
-}
-
-export function isAlternative(id: string): id is AlternativeGlyphId {
-  return (ALTERNATIVE_GLYPHS as readonly string[]).includes(id);
 }
