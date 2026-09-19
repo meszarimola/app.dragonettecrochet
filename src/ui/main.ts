@@ -2078,16 +2078,22 @@ const gridPanel = panelFor(
     }),
 );
 
-const irregularPanelSection = must<HTMLDetailsElement>('#section-irregular');
+const irregularSections = {
+  properties: must<HTMLDetailsElement>('#section-irregular'),
+  rows: must<HTMLDetailsElement>('#section-irregular-rows'),
+  layers: must<HTMLDetailsElement>('#section-irregular-layers'),
+  key: must<HTMLDetailsElement>('#section-irregular-key'),
+};
 
 function ensureIrregular(): IrregularEditor {
   if (irregular !== null) return irregular;
-  irregular = new IrregularEditor(irregularCanvas, irregularPanelSection, {
+  irregular = new IrregularEditor(irregularCanvas, irregularSections, {
     announce,
     symbols: () => symbols,
     notation: () => notation,
     insets: () => ({ left: insetLeft(), right: insetRight(), bottom: insetBottom() }),
     notationNote: (recorded, shown) => texts().messages.file.notationNote(termsLabel(recorded), termsLabel(shown)),
+    terms: () => notation.terms,
     refreshControls: () => {
       if (irregular !== null) updateIrregularControls(irregular);
     },
@@ -2103,8 +2109,20 @@ function updateIrregularControls(editor: IrregularEditor): void {
   must<HTMLButtonElement>('[data-action="select-area"]').setAttribute('aria-pressed', String(tool === null));
   must<HTMLButtonElement>('[data-action="grid"]').setAttribute('aria-pressed', String(editor.gridVisible));
   if (document.activeElement !== titleInput) titleInput.value = editor.title;
-  errorCount.textContent = texts().messages.errorBar.none;
-  errorToggle.classList.remove('has-errors', 'has-warnings');
+  const issues = editor.issues();
+  const errorBar = texts().messages.errorBar;
+  errorCount.textContent = issues.length === 0 ? errorBar.none : errorBar.warnings(issues.length);
+  errorToggle.classList.remove('has-errors');
+  errorToggle.classList.toggle('has-warnings', issues.length > 0);
+  summary.textContent = issues.length === 0 ? errorBar.none : '';
+  findingList.replaceChildren(
+    ...issues.map((text) => {
+      const entry = document.createElement('li');
+      entry.className = 'finding';
+      entry.textContent = text;
+      return entry;
+    }),
+  );
 }
 
 // KB: interface.md §9 — the free-form type brings its own canvas, so the two never paint over each other.

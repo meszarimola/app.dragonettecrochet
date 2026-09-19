@@ -613,8 +613,10 @@ npm test   # a build után: CSP ↔ azonosító, inline szkript, közös süti
   típussal. Elkészült: vászon nagyítással és mozgatással, szemlerakás,
   kijelölés téglalappal, mozgatás, forgatás, nyújtás, tükrözés, igazítás és
   egyenletes elosztás, Tulajdonságok panel, visszavonás, JSON mentés és
-  betöltés. Még nincs: sorok és körök panel, rétegek, jelkulcs, láncív,
-  legyező, körkörös ismétlés, feliratok, kép- és PDF-export, érintés.
+  betöltés, sorok és körök soronkénti színnel és szemszámmal, szemsorrend a
+  soron belül, rétegek, saját jelkulcs a jel cseréjével és jelmagyarázat a
+  képen. Még nincs: láncív, legyező, körkörös ismétlés, elrendezés és
+  „Egyenletessé tesz”, feliratok, kép- és PDF-export, érintés.
 
 - **Az átvételi tesztelés első köre** (PQW-925): a tulajdonos döntése szerint
   előbb a szabályos horgolást tesszük rendbe, ezért a **filéhorgolás** (vele a

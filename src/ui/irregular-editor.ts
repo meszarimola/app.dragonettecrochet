@@ -14,6 +14,7 @@ import {
   type FlipAxis,
   flipItems,
   type ItemPatch,
+  itemsBox,
   itemsOf,
   moveItems,
   pasteItems,
@@ -25,16 +26,56 @@ import {
   withIrregularNotation,
 } from '../core/irregular-document.ts';
 import { isIrregularJson, loadIrregular, saveIrregular } from '../core/irregular-json.ts';
-import type { IrregularItem, IrregularPattern, Point } from '../core/irregular-types.ts';
+import {
+  entryGlyph,
+  entryLabel,
+  entryName,
+  keyUsage,
+  resetToPreset,
+  sharedGlyphs,
+  updateKeyEntry,
+} from '../core/irregular-key.ts';
+import {
+  addLayer,
+  deleteLayer,
+  type LayerPatch,
+  moveItemsToLayer,
+  reorderLayers,
+  setActiveLayer,
+  updateLayer,
+} from '../core/irregular-layers.ts';
+import {
+  isManualOrder,
+  moveInOrder,
+  orderPosition,
+  resetOrder,
+  rowOrder,
+  setOrderPosition,
+} from '../core/irregular-order.ts';
+import {
+  addRow,
+  deleteRow,
+  insertRowAfterActive,
+  moveItemsToRow,
+  type RowPatch,
+  type RowStitches,
+  reorderRows,
+  setActiveRow,
+  updateRow,
+} from '../core/irregular-rows.ts';
+import type { IrregularItem, IrregularPattern, LegendBlock, Point, RowKind } from '../core/irregular-types.ts';
 import { stitchById } from '../core/stitches.ts';
 import { stitchName } from '../core/stitchText.ts';
 import type { Locale, PatternNotation, StitchDefId } from '../core/types.ts';
 import { IRREGULAR_JSON_CORE_TEXTS } from './i18n/core/irregular-json.ts';
 import { renderCoreText } from './i18n/core/render.ts';
 import { texts, uiLanguage } from './i18n.ts';
-import { FreeBoard, type HandleId } from './irregular-board.ts';
-import { itemShapes, naturalSize } from './irregular-glyph.ts';
+import { FreeBoard, type HandleId, type LegendEntry } from './irregular-board.ts';
+import { drawnGlyph, itemShapes, naturalSize } from './irregular-glyph.ts';
+import { IrregularKeyPanel } from './irregular-key-panel.ts';
+import { IrregularLayersPanel } from './irregular-layers-panel.ts';
 import { IrregularPanel } from './irregular-panel.ts';
+import { IrregularRowsPanel, rowName } from './irregular-rows-panel.ts';
 import type { Shape, SymbolOptions } from './symbols.ts';
 
 export const IRREGULAR_STORAGE_KEY = 'dc-mintatervezo:minta-szabalytalan';
@@ -45,9 +86,25 @@ const MIN_SIZE = 2;
 
 interface Preferences {
   readonly rectPartial: boolean;
+  readonly fadeOthers: boolean;
+  readonly showOrder: boolean;
 }
 
-const DEFAULT_PREFERENCES: Preferences = { rectPartial: true };
+const DEFAULT_PREFERENCES: Preferences = { rectPartial: true, fadeOthers: false, showOrder: false };
+
+const DEFAULT_LEGEND: LegendBlock = {
+  visible: false,
+  position: { x: 0, y: 0 },
+  columns: 1,
+  showCounts: false,
+};
+
+export interface IrregularSections {
+  readonly properties: HTMLDetailsElement;
+  readonly rows: HTMLDetailsElement;
+  readonly layers: HTMLDetailsElement;
+  readonly key: HTMLDetailsElement;
+}
 
 export interface IrregularHost {
   announce(message: string): void;
@@ -55,6 +112,7 @@ export interface IrregularHost {
   notation(): PatternNotation;
   insets(): { left: number; right: number; bottom: number };
   notationNote(recorded: Locale, shown: Locale): string;
+  terms(): Locale;
   refreshControls(): void;
 }
 
@@ -71,8 +129,10 @@ function readPreferences(): Preferences {
     if (raw === null) return DEFAULT_PREFERENCES;
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== 'object' || parsed === null) return DEFAULT_PREFERENCES;
-    const value = (parsed as Record<string, unknown>)['rectPartial'];
-    return { rectPartial: typeof value === 'boolean' ? value : DEFAULT_PREFERENCES.rectPartial };
+    const stored = parsed as Record<string, unknown>;
+    const flag = (name: keyof Preferences): boolean =>
+      typeof stored[name] === 'boolean' ? (stored[name] as boolean) : DEFAULT_PREFERENCES[name];
+    return { rectPartial: flag('rectPartial'), fadeOthers: flag('fadeOthers'), showOrder: flag('showOrder') };
   } catch {
     return DEFAULT_PREFERENCES;
   }
@@ -86,6 +146,9 @@ export class IrregularEditor {
   readonly #canvas: HTMLCanvasElement;
   readonly #board: FreeBoard;
   readonly #panel: IrregularPanel;
+  readonly #rowsPanel: IrregularRowsPanel;
+  readonly #layersPanel: IrregularLayersPanel;
+  readonly #keyPanel: IrregularKeyPanel;
   readonly #host: IrregularHost;
   #history: History<IrregularPattern>;
   #draft: IrregularPattern | null = null;
@@ -100,20 +163,47 @@ export class IrregularEditor {
   #mounted = false;
   #spaceDown = false;
 
-  constructor(canvas: HTMLCanvasElement, section: HTMLDetailsElement, host: IrregularHost) {
+  constructor(canvas: HTMLCanvasElement, sections: IrregularSections, host: IrregularHost) {
     this.#canvas = canvas;
     this.#host = host;
     this.#board = new FreeBoard(canvas);
     this.#history = createHistory(this.#restore());
-    this.#panel = new IrregularPanel(section, {
+    this.#rowsPanel = new IrregularRowsPanel(sections.rows, {
+      addRow: (kind) => this.#addRow(kind),
+      insertRow: () => this.#insertRow(),
+      deleteRow: (rowId, stitches) => this.#deleteRow(rowId, stitches),
+      activate: (rowId) => this.#activateRow(rowId),
+      update: (rowId, patch) => this.#updateRow(rowId, patch),
+      reorder: (rowId, toIndex) => this.#commit(reorderRows(this.#history.present, rowId, toIndex)),
+      selectRow: (rowId) => this.selectRow(rowId),
+      moveSelection: (rowId) => this.#moveSelectionToRow(rowId),
+      setFadeOthers: (on) => this.#setPreference({ fadeOthers: on }),
+      setShowOrder: (on) => this.#setPreference({ showOrder: on }),
+      moveInOrder: (delta) => this.#moveInOrder(delta),
+      setOrderPlace: (place) => this.#setOrderPlace(place),
+      resetOrder: () => this.#resetOrder(),
+    });
+    this.#layersPanel = new IrregularLayersPanel(sections.layers, {
+      addLayer: () => this.#addLayer(),
+      deleteLayer: (layerId) => this.#deleteLayer(layerId),
+      activate: (layerId) => this.#commit(setActiveLayer(this.#history.present, layerId)),
+      update: (layerId, patch) => this.#updateLayer(layerId, patch),
+      reorder: (layerId, toIndex) => this.#commit(reorderLayers(this.#history.present, layerId, toIndex)),
+      moveSelection: (layerId) => this.#moveSelectionToLayer(layerId),
+    });
+    this.#keyPanel = new IrregularKeyPanel(sections.key, {
+      setGlyph: (id, glyph) => this.#setGlyph(id, glyph),
+      setAbbreviation: (id, value) => this.#commitKey(id, { abbreviationOverride: value }),
+      setLabel: (id, value) => this.#commitKey(id, { labelOverride: value }),
+      resetKey: () => this.#commit(resetToPreset(this.#history.present), texts().irregular.keyReset),
+      setLegend: (patch) => this.#setLegend(patch),
+    });
+    this.#panel = new IrregularPanel(sections.properties, {
       patch: (patch) => this.#patch(patch),
       align: (mode) => this.#align(mode),
       distribute: (axis) => this.#distribute(axis),
       flip: (axis) => this.#flip(axis),
-      setRectPartial: (partial) => {
-        this.#preferences = { rectPartial: partial };
-        this.#persistPreferences();
-      },
+      setRectPartial: (partial) => this.#setPreference({ rectPartial: partial }),
     });
     this.#hoverCapable = window.matchMedia('(hover: hover)').matches;
     this.#listen();
@@ -154,6 +244,9 @@ export class IrregularEditor {
   mount(): void {
     this.#mounted = true;
     this.#panel.reveal();
+    this.#rowsPanel.reveal();
+    this.#layersPanel.reveal();
+    this.#keyPanel.reveal();
     this.refresh();
     this.#board.fit(this.#host.insets().bottom);
   }
@@ -163,6 +256,203 @@ export class IrregularEditor {
     this.#draft = null;
     this.#drag = null;
     this.#panel.hide();
+    this.#rowsPanel.hide();
+    this.#layersPanel.hide();
+    this.#keyPanel.hide();
+  }
+
+  #setPreference(patch: Partial<Preferences>): void {
+    this.#preferences = { ...this.#preferences, ...patch };
+    this.#persistPreferences();
+    this.refresh();
+  }
+
+  // -- structure -----------------------------------------------------------
+
+  get legend(): LegendBlock {
+    return this.#history.present.legend ?? DEFAULT_LEGEND;
+  }
+
+  #addRow(kind: RowKind): void {
+    const made = addRow(this.#history.present, kind);
+    this.#commit(setActiveRow(made.pattern, made.id), texts().irregular.rowAdded(rowName(made.pattern, made.id)));
+  }
+
+  #insertRow(): void {
+    const made = insertRowAfterActive(this.#history.present);
+    this.#commit(setActiveRow(made.pattern, made.id), texts().irregular.rowAdded(rowName(made.pattern, made.id)));
+  }
+
+  #deleteRow(rowId: string, stitches: RowStitches): void {
+    const words = texts().irregular;
+    if (this.#history.present.rows.length < 2) {
+      this.#host.announce(words.rowOnlyOne);
+      return;
+    }
+    const name = rowName(this.#history.present, rowId);
+    const next = deleteRow(this.#history.present, rowId, stitches);
+    this.#setSelection([]);
+    this.#commit(next, words.rowRemoved(name));
+  }
+
+  #activateRow(rowId: string): void {
+    const next = setActiveRow(this.#history.present, rowId);
+    this.#commit(next, texts().irregular.rowActivated(rowName(next, rowId)));
+  }
+
+  #updateRow(rowId: string, patch: RowPatch): void {
+    this.#commit(updateRow(this.#history.present, rowId, patch));
+  }
+
+  selectRow(rowId: string): void {
+    const ids = this.#history.present.items.filter((item) => item.rowId === rowId).map((item) => item.id);
+    this.#setSelection(ids);
+    this.refresh();
+    this.#host.announce(texts().irregular.selected(ids.length));
+  }
+
+  #moveSelectionToRow(rowId: string): void {
+    const count = this.#selection.size;
+    if (count === 0) return;
+    const next = moveItemsToRow(this.#history.present, this.#selection, rowId);
+    this.#commit(next, texts().irregular.itemsMovedToRow(count, rowName(next, rowId)));
+  }
+
+  #addLayer(): void {
+    const words = texts().irregular;
+    const name = `${words.layerName} ${this.#history.present.layers.length + 1}`;
+    const made = addLayer(this.#history.present, name);
+    this.#commit(setActiveLayer(made.pattern, made.id), words.layerAdded(name));
+  }
+
+  #deleteLayer(layerId: string): void {
+    if (this.#history.present.layers.length < 2) {
+      this.#host.announce(texts().irregular.layerOnlyOne);
+      return;
+    }
+    this.#setSelection([]);
+    this.#commit(deleteLayer(this.#history.present, layerId));
+  }
+
+  #updateLayer(layerId: string, patch: LayerPatch): void {
+    this.#commit(updateLayer(this.#history.present, layerId, patch));
+  }
+
+  #moveSelectionToLayer(layerId: string): void {
+    const count = this.#selection.size;
+    if (count === 0) return;
+    const next = moveItemsToLayer(this.#history.present, this.#selection, layerId);
+    const layer = next.layers.find((candidate) => candidate.id === layerId);
+    this.#commit(next, texts().irregular.itemsMovedToLayer(count, layer?.name ?? ''));
+  }
+
+  #onlySelected(): string | null {
+    if (this.#selection.size !== 1) return null;
+    const [id] = [...this.#selection];
+    return id ?? null;
+  }
+
+  #moveInOrder(delta: number): void {
+    const id = this.#onlySelected();
+    if (id === null) return;
+    const item = this.#history.present.items.find((candidate) => candidate.id === id);
+    if (item === undefined) return;
+    this.#commit(moveInOrder(this.#history.present, item.rowId, id, delta));
+  }
+
+  #setOrderPlace(place: number): void {
+    const id = this.#onlySelected();
+    const rowId = this.#rowOfSelection();
+    if (id === null || rowId === null) return;
+    this.#commit(setOrderPosition(this.#history.present, rowId, id, place));
+  }
+
+  #resetOrder(): void {
+    const rowId = this.#rowOfSelection() ?? this.#history.present.activeRowId;
+    this.#commit(resetOrder(this.#history.present, rowId), texts().irregular.orderReset);
+  }
+
+  #orderPlace(pattern: IrregularPattern, rowId: string): number | null {
+    const id = this.#onlySelected();
+    return id === null ? null : orderPosition(pattern, rowId, id);
+  }
+
+  #rowOfSelection(): string | null {
+    const id = this.#onlySelected();
+    if (id === null) return null;
+    return this.#history.present.items.find((candidate) => candidate.id === id)?.rowId ?? null;
+  }
+
+  #commitKey(id: string, patch: { abbreviationOverride?: string | null; labelOverride?: string | null }): void {
+    this.#commit(updateKeyEntry(this.#history.present, id, patch));
+  }
+
+  /**
+   * A stitch stores the size it is drawn at, measured from its symbol. Give it a
+   * different symbol and the stored size still belongs to the old one, so the new
+   * symbol would be squeezed into the old one's box. Each stitch keeps the stretch
+   * the crocheter gave it and takes the new symbol's proportions.
+   */
+  #setGlyph(id: string, glyph: string | null): void {
+    const pattern = this.#history.present;
+    const next = updateKeyEntry(pattern, id, { glyphOverride: glyph });
+    if (next === pattern) return;
+    const symbols = this.#host.symbols();
+    const was = entryGlyph(pattern, id);
+    const now = entryGlyph(next, id);
+    const items = next.items.map((item) => {
+      if (item.keyEntryId !== id) return item;
+      const before = naturalSize(item.keyEntryId, item.insertion, symbols, was);
+      const after = naturalSize(item.keyEntryId, item.insertion, symbols, now);
+      return {
+        ...item,
+        width: (item.width / before.width) * after.width,
+        height: (item.height / before.height) * after.height,
+      };
+    });
+    this.#commit({ ...next, items });
+  }
+
+  #setLegend(patch: Partial<LegendBlock>): void {
+    const current = this.legend;
+    // The first time it is actually shown it drops below the drawing, not on top of it.
+    const untouched = current.position.x === 0 && current.position.y === 0;
+    const showing = patch.visible === true && !current.visible;
+    const position = showing && untouched ? this.#legendHome() : (patch.position ?? current.position);
+    this.#commit({ ...this.#history.present, legend: { ...current, ...patch, position } });
+  }
+
+  #legendHome(): Point {
+    const box = itemsBox(this.#history.present.items);
+    return box === null ? { x: 0, y: 0 } : { x: box.minX, y: box.maxY + 60 };
+  }
+
+  /**
+   * One symbol standing for two stitches makes the chart ambiguous: "•" is a slip
+   * stitch in one reference chart and a chain in another. KB: 01 §6.1
+   */
+  issues(): string[] {
+    const pattern = this.#history.present;
+    const terms = this.#host.terms();
+    const words = texts().irregular;
+    return sharedGlyphs(pattern, (id) => drawnGlyph(id, entryGlyph(pattern, id))).flatMap((clash) => {
+      const [first, second] = clash.keyEntryIds;
+      if (first === undefined || second === undefined) return [];
+      return [words.sharedGlyph(entryName(pattern, first, terms), entryName(pattern, second, terms))];
+    });
+  }
+
+  #legendEntries(): LegendEntry[] {
+    const pattern = this.#history.present;
+    const terms = this.#host.terms();
+    const showCounts = this.legend.showCounts;
+    return keyUsage(pattern).map((usage) => ({
+      keyEntryId: usage.keyEntryId,
+      glyph: entryGlyph(pattern, usage.keyEntryId),
+      text: showCounts
+        ? `${entryLabel(pattern, usage.keyEntryId, terms)} · ${usage.count}`
+        : entryLabel(pattern, usage.keyEntryId, terms),
+    }));
   }
 
   // -- storage -------------------------------------------------------------
@@ -404,11 +694,18 @@ export class IrregularEditor {
 
   // -- drawing -------------------------------------------------------------
 
-  refresh(): void {
+  /**
+   * The drawing alone. A pointer move redraws dozens of times a second, and
+   * rebuilding the row, layer and key lists that often costs a canvas per key
+   * entry and a forced style read each time.
+   */
+  #refreshScene(): void {
     if (!this.#mounted) return;
     const room = this.#host.insets();
     this.#board.setInsets(room.left, room.right);
     const pattern = this.pattern;
+    const committed = this.#history.present;
+    const orderRow = this.#rowOfSelection() ?? committed.activeRowId;
     this.#board.setScene({
       pattern,
       symbols: this.#host.symbols(),
@@ -416,8 +713,28 @@ export class IrregularEditor {
       marquee: this.#drag?.kind === 'marquee' ? { from: this.#drag.from, to: this.#drag.to } : null,
       ghost: this.#ghost(),
       hover: null,
+      glyphOf: (keyEntryId) => entryGlyph(pattern, keyEntryId),
+      fadeOthers: this.#preferences.fadeOthers,
+      order: this.#preferences.showOrder ? rowOrder(pattern, orderRow) : null,
+      legend: { block: this.legend, entries: this.#legendEntries() },
     });
     this.#panel.update(itemsOf(pattern, this.#selection), this.#preferences.rectPartial, pattern.items.length);
+  }
+
+  refresh(): void {
+    this.#refreshScene();
+    if (!this.#mounted) return;
+    const committed = this.#history.present;
+    const orderRow = this.#rowOfSelection() ?? committed.activeRowId;
+    this.#rowsPanel.update(committed, {
+      fadeOthers: this.#preferences.fadeOthers,
+      showOrder: this.#preferences.showOrder,
+      selectionSize: this.#selection.size,
+      manualOrder: isManualOrder(committed, orderRow),
+      orderPlace: this.#orderPlace(committed, orderRow),
+    });
+    this.#layersPanel.update(committed, this.#selection.size);
+    this.#keyPanel.update(committed, this.#host.terms(), this.#host.symbols(), this.legend);
     this.#host.refreshControls();
   }
 
@@ -425,7 +742,8 @@ export class IrregularEditor {
     const stitch = this.#stitch;
     const at = this.#pointer;
     if (stitch === null || at === null || !this.#hoverCapable || this.#drag !== null) return null;
-    const size = naturalSize(stitch, 'both-loops', this.#host.symbols());
+    const glyph = entryGlyph(this.pattern, stitch);
+    const size = naturalSize(stitch, 'both-loops', this.#host.symbols(), glyph);
     return itemShapes(
       {
         id: 'ghost',
@@ -444,6 +762,7 @@ export class IrregularEditor {
         flipY: false,
       },
       this.#host.symbols(),
+      glyph,
     );
   }
 
@@ -477,7 +796,7 @@ export class IrregularEditor {
     this.#canvas.addEventListener('pointerleave', () => {
       if (!this.#mounted) return;
       this.#pointer = null;
-      this.refresh();
+      this.#refreshScene();
     });
     this.#canvas.addEventListener(
       'wheel',
@@ -545,7 +864,8 @@ export class IrregularEditor {
   #place(point: Point): void {
     const stitch = this.#stitch;
     if (stitch === null) return;
-    const size = naturalSize(stitch, 'both-loops', this.#host.symbols());
+    const glyph = entryGlyph(this.#history.present, stitch);
+    const size = naturalSize(stitch, 'both-loops', this.#host.symbols(), glyph);
     const made = addStitch(this.#history.present, {
       keyEntryId: stitch,
       x: point.x,
@@ -581,7 +901,7 @@ export class IrregularEditor {
     this.#pointer = point;
     const drag = this.#drag;
     if (drag === null) {
-      if (this.#stitch !== null && this.#hoverCapable) this.refresh();
+      if (this.#stitch !== null && this.#hoverCapable) this.#refreshScene();
       return;
     }
     switch (drag.kind) {
@@ -594,16 +914,16 @@ export class IrregularEditor {
         drag.last = point;
         drag.moved = true;
         this.#draft = moved;
-        this.refresh();
+        this.#refreshScene();
         return;
       }
       case 'marquee':
         drag.to = point;
-        this.refresh();
+        this.#refreshScene();
         return;
       case 'scale':
         this.#draft = this.#scaled(drag, point, event.shiftKey);
-        this.refresh();
+        this.#refreshScene();
         return;
       case 'rotate': {
         const turn = angleOf(drag.center, point) - drag.startAngle;
@@ -614,7 +934,7 @@ export class IrregularEditor {
           step,
           drag.base.length === 1 ? null : drag.center,
         );
-        this.refresh();
+        this.#refreshScene();
         return;
       }
     }
