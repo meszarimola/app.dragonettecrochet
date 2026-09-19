@@ -27,7 +27,19 @@ ticket `Released` because it reached `develop`.
 removing a URL, loosening the CSP, changing legal text — go into a ticket, never
 made silently.
 
-## 2. The branch
+## 2. Once per clone
+
+The commit gate lives in `.githooks/`, and git does not pick that up on its own:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+A worktree inherits it, because worktrees share the repository config — so this
+is needed once per clone, not once per branch. Without it the pre-commit checks
+simply never run, silently.
+
+## 3. The branch
 
 ```bash
 git worktree add ../app-app-dc-<short-name> -b feature/PQW-<n>-<short-name> develop
@@ -49,7 +61,7 @@ Work in a worktree when the task touches **more than 5 files** or splits into
 independent parts. Independent parts can run in parallel agents, each with its
 own worktree.
 
-## 3. Commits and the PR
+## 4. Commits and the PR
 
 ```
 feat: <Hungarian message> (PQW-<n>)
@@ -66,7 +78,7 @@ Run `/pre-pr-check` before opening it. Never merge while CI is red. This repo
 is public, so branch protection is available and the CI check is required on
 `develop` and `main`; the local pre-commit hook catches problems earlier.
 
-## 4. On merge into `develop`
+## 5. On merge into `develop`
 
 Comment on the ticket with what shipped and what is still open. Then clean up:
 
@@ -78,7 +90,7 @@ git branch -d feature/PQW-<n>-<short-name>
 A branch session cannot remove its own worktree — the coordinating session does
 it.
 
-## 5. On release (`develop` → `main` + deploy)
+## 6. On release (`develop` → `main` + deploy)
 
 The release is **one command** — do not do the steps by hand:
 
