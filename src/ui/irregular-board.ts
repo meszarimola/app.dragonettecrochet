@@ -120,6 +120,8 @@ export interface FreeScene {
   /** The key entry's chosen symbol, or `null` when it keeps the preset's. */
   readonly glyphOf: (keyEntryId: string) => string | null;
   readonly fadeOthers: boolean;
+  /** While isolating, only these stitches can be reached or edited. */
+  readonly isolated: ReadonlySet<string> | null;
   /** Item ids of the active row in crochet order, when the overlay is on. */
   readonly order: readonly string[] | null;
   /** The selected group's path, so its grips can be grabbed. */
@@ -333,6 +335,7 @@ export class FreeBoard {
     const order = new Map(scene.pattern.layers.map((layer, index) => [layer.id, index]));
     return scene.pattern.items
       .filter((item) => isSelectable(scene.pattern, item))
+      .filter((item) => scene.isolated === null || scene.isolated.has(item.id))
       .map((item, index) => ({ item, index, layer: order.get(item.layerId) ?? 0 }))
       .sort((a, b) => b.layer - a.layer || b.index - a.index)
       .map((entry) => entry.item);
@@ -448,7 +451,9 @@ export class FreeBoard {
       .sort((a, b) => a.layer - b.layer || a.index - b.index);
 
     for (const { item } of drawable) {
-      const dim = scene.fadeOthers && item.rowId !== scene.pattern.activeRowId;
+      const dim =
+        (scene.isolated !== null && !scene.isolated.has(item.id)) ||
+        (scene.fadeOthers && item.rowId !== scene.pattern.activeRowId);
       ctx.globalAlpha = dim ? FADED : 1;
       applyInk(ctx, this.#inkOf(scene.pattern, item, colors.ink), line);
       drawShapes(ctx, itemShapes(item, scene.symbols, scene.glyphOf(item.keyEntryId)));
