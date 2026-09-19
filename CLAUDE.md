@@ -49,7 +49,7 @@ landing page on the main site.
    split the parts across parallel agents.
 3. **Work.** A new validation rule gets a `reference` pointing at the knowledge
    base section it comes from — `tests/core-validate.test.mjs` enforces this.
-4. **Verify** — run `/pre-pr-check`.
+4. **Verify** — run `/review`, then `/pre-pr-check`.
 5. **Update the knowledge base in the same PR** if the change made any section
    stale. This is what stops the docs drifting away from the code.
 6. **PR**, update the Linear ticket, merge into `develop` when green.
@@ -74,6 +74,7 @@ landing page on the main site.
 | Test conventions and their traps | `.claude/rules/tests.md` | with tests and E2E |
 | Decisions, rationale, past incidents | `docs/kb/` | **on demand only** |
 | **Crochet domain knowledge** | `docs/knowledge-base/` | **on demand, by `§` code** |
+| Reviewing the branch before a PR | `/review` | on invocation |
 | Pre-PR verification | `/pre-pr-check` | on invocation |
 | Ticket, branch and worktree workflow | `/ticket-workflow` | on invocation |
 | Releasing and rolling back | `docs/kiadas.md` | read before releasing |
