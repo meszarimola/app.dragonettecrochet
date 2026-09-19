@@ -626,3 +626,142 @@ test('legyező: szétnyíló rajzolás, N átállítása, összefutóra váltás
   expect((await fan()).kind, 'szétbontva már nincs csoport').toBe('');
   expect((await fan()).items, 'de a hét szem és a külön lerakott megmarad').toBe(8);
 });
+
+test('elrendezés: körvonalra, a sor megjegyzi az alakot, Egyenletessé tesz zárja a rést (AS-17, AS-18)', async ({
+  page,
+}) => {
+  await open(page);
+  await chooseIrregular(page);
+  await armDoubleCrochet(page);
+
+  // Eight stitches scattered roughly around a circle.
+  const around = [
+    [500, 300],
+    [570, 330],
+    [600, 400],
+    [575, 470],
+    [500, 500],
+    [430, 465],
+    [400, 400],
+    [428, 332],
+  ];
+  for (const [x, y] of around) await place(page, x, y);
+  await page.locator(board).focus();
+  await page.keyboard.press('Escape');
+
+  const state = async (): Promise<{ items: number; line: string | null; radius: number | null }> =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+      const parsed = JSON.parse(raw);
+      const line = parsed.rows?.[0]?.line ?? null;
+      return {
+        items: (parsed.items ?? []).length,
+        line: line === null ? null : line.shape,
+        radius: line?.radius ?? null,
+      };
+    });
+
+  // Where the chart's origin sits, measured from the first stitch as it was placed.
+  const firstPlaced = await page.evaluate(() => {
+    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+    return (JSON.parse(raw).items ?? [])[0] as { x: number; y: number };
+  });
+  const view = { x: 500 - firstPlaced.x, y: 300 - firstPlaced.y };
+
+  await expect(page.locator('#props-arrange')).toBeVisible();
+  await page.locator('[data-arrange="circle"]').click();
+
+  const arranged = await state();
+  expect(arranged.line, 'a sor megjegyezte a kört sorvonalként').toBe('circle');
+  expect(arranged.items, 'mind a nyolc szem megvan').toBe(8);
+  await expect(page.locator('#rowline-row'), 'megjelent a sorvonal megszüntetése').toBeVisible();
+
+  // Every stitch's base point now sits on the circle.
+  const spread = async (): Promise<number[]> =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+      const parsed = JSON.parse(raw);
+      const line = parsed.rows[0].line;
+      return (parsed.items ?? []).map((item: { x: number; y: number; rotation: number; height: number }) => {
+        const radians = (item.rotation * Math.PI) / 180;
+        const base = {
+          x: item.x - Math.sin(radians) * (item.height / 2),
+          y: item.y + Math.cos(radians) * (item.height / 2),
+        };
+        return Math.hypot(base.x - line.center.x, base.y - line.center.y) - line.radius;
+      });
+    });
+  for (const off of await spread()) {
+    expect(Math.abs(off), 'a szem alappontja a körvonalon ül').toBeLessThan(0.001);
+  }
+
+  // Delete one stitch where it sits now, then Even out closes the gap.
+  const middle = await page.evaluate(() => {
+    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+    return (JSON.parse(raw).items ?? [])[3] as { x: number; y: number };
+  });
+  await page.locator(board).click({ position: { x: middle.x + view.x, y: middle.y + view.y } });
+  await expect(page.locator('#props-count')).toContainText('1');
+  await page.keyboard.press('Delete');
+  expect((await state()).items, 'hét maradt').toBe(7);
+
+  await page.locator('#arrange-even').click();
+  for (const off of await spread()) {
+    expect(Math.abs(off), 'a maradék szemek is a körvonalon ülnek').toBeLessThan(0.001);
+  }
+  expect((await state()).radius, 'ugyanazon a körön').toBe(arranged.radius);
+
+  await page.locator('#rowline-clear').click();
+  expect((await state()).line, 'a sorvonal megszűnt').toBe(null);
+  expect((await state()).items, 'a szemek a helyükön maradtak').toBe(7);
+});
+
+test('a sorvonal fogantyúval átalakítható, a szemek csak az Egyenletessé teszre követik', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+  await armDoubleCrochet(page);
+  for (const x of [420, 480, 540, 600]) await place(page, x, 400);
+  await page.locator(board).focus();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Control+a');
+  await page.locator('[data-arrange="line"]').click();
+
+  const read = async (): Promise<{
+    line: { start: { x: number; y: number }; end: { x: number; y: number } };
+    ys: number[];
+  }> =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+      const parsed = JSON.parse(raw);
+      return {
+        line: parsed.rows[0].line,
+        ys: (parsed.items ?? []).map((item: { y: number }) => item.y),
+      };
+    });
+
+  const before = await read();
+  expect(before.line, 'a sor megjegyezte az egyenest').toBeTruthy();
+
+  // Drag the line's end grip downward. Only the line may move.
+  const first = await page.evaluate(() => {
+    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+    return (JSON.parse(raw).items ?? [])[0] as { x: number; y: number };
+  });
+  const rect = await page.locator(board).boundingBox();
+  if (rect === null) throw new Error('no board');
+  // The first stitch sits on the line's start, so the view offset follows from it.
+  const view = { x: 420 - first.x, y: 400 - first.y };
+  await page.mouse.move(rect.x + before.line.end.x + view.x, rect.y + before.line.end.y + view.y);
+  await page.mouse.down();
+  await page.mouse.move(rect.x + before.line.end.x + view.x, rect.y + before.line.end.y + view.y + 80, { steps: 10 });
+  await page.mouse.up();
+
+  const reshaped = await read();
+  expect(reshaped.line.end.y - before.line.end.y, 'a vonal vége lejjebb került').toBeGreaterThan(70);
+  expect(reshaped.ys, 'a szemek még nem mozdultak').toEqual(before.ys);
+
+  await page.locator('#arrange-even').click();
+  const evened = await read();
+  expect(evened.ys, 'az Egyenletessé tesz viszi rá őket').not.toEqual(before.ys);
+  expect(evened.ys[3], 'az utolsó szem a vonal új végén').toBeGreaterThan(before.ys[3]);
+});
