@@ -1,20 +1,21 @@
 // KB: core-geometry §30
 // KB: 03 §3.1, 03 §3.2, 03 §3.4, 03 §4.1, 03 §10 F27, 05 §4.2, 05 §4.4, 06 §5.3
 
-import { stitchDimensions, type DimensionBasis } from './gauge.ts';
+import { type DimensionBasis, stitchDimensions } from './gauge.ts';
 import { buildPieceGraph } from './graph.ts';
-import { text, type CoreText } from './messages.ts';
+import { type CoreText, text } from './messages.ts';
 import { gaugeContextOf } from './pattern-size.ts';
+import { withGeneratedTitle } from './pattern-title.ts';
 import { weakestSource } from './quantity.ts';
 import { repeatCounts } from './repeat.ts';
 import {
   appendRibbing,
+  type RibbingCode,
+  type RibbingOptions,
   ribbedOpening,
   ribbedTurningChain,
   ribbingColumnMode,
   ribbingProblem,
-  type RibbingCode,
-  type RibbingOptions,
 } from './ribbing.ts';
 import { MOTIF_NAMES } from './round-generator.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
@@ -35,13 +36,18 @@ import type {
   ValueSource,
 } from './types.ts';
 import { validatePattern } from './validate.ts';
-import { withGeneratedTitle } from './pattern-title.ts';
 
 export type FlatShape = 'rectangle' | 'right-triangle' | 'isosceles-triangle' | 'trapezoid' | 'diamond';
 export type ShapeMeasure = 'height' | 'angle';
 export type RepeatRounding = 'nearest' | 'up' | 'down';
 
-export const FLAT_SHAPES: readonly FlatShape[] = ['rectangle', 'right-triangle', 'isosceles-triangle', 'trapezoid', 'diamond'];
+export const FLAT_SHAPES: readonly FlatShape[] = [
+  'rectangle',
+  'right-triangle',
+  'isosceles-triangle',
+  'trapezoid',
+  'diamond',
+];
 
 export const SHAPE_NAMES: Readonly<Record<FlatShape, string>> = {
   rectangle: 'Téglalap',
@@ -93,7 +99,6 @@ export const DEFAULT_SHAPE: ShapeOptions = {
   ribbing: null,
 };
 
-
 export interface ShapeGauge {
   readonly stitchCm: number;
   readonly rowCm: number;
@@ -114,7 +119,6 @@ export function shapeGauge(pattern: Pattern, stitch: StitchDefId): ShapeGauge {
     hookMm: context.hookMm,
   };
 }
-
 
 /** The change at each end of a row against the row below: positive increases, negative decreases. */
 export interface RowShaping {
@@ -169,7 +173,9 @@ export type ShapeCode =
 
 export type ShapeText = CoreText<ShapeCode>;
 
-export type ShapePlanResult = { readonly ok: true; readonly plan: ShapePlan } | { readonly ok: false; readonly reason: ShapeText };
+export type ShapePlanResult =
+  | { readonly ok: true; readonly plan: ShapePlan }
+  | { readonly ok: false; readonly reason: ShapeText };
 export type ShapeResult =
   | { readonly ok: true; readonly pattern: Pattern; readonly plan: ShapePlan }
   | { readonly ok: false; readonly reason: ShapeText };
@@ -191,14 +197,19 @@ export function shapeProblem(options: ShapeOptions): ShapeText | null {
   } else if (!(Number.isFinite(options.angleDeg) && options.angleDeg >= 1 && options.angleDeg <= 89)) {
     return text('shape-angle-range');
   }
-  if (options.shape === 'trapezoid' && !(Number.isFinite(options.topWidthCm) && options.topWidthCm >= 0 && options.topWidthCm <= MAX_SHAPE_CM)) {
+  if (
+    options.shape === 'trapezoid' &&
+    !(Number.isFinite(options.topWidthCm) && options.topWidthCm >= 0 && options.topWidthCm <= MAX_SHAPE_CM)
+  ) {
     return text('shape-top-width-range', { max: MAX_SHAPE_CM });
   }
   if (options.repeat) {
     if (options.shape !== 'rectangle') return text('shape-repeat-rectangle-only');
     const { width, edge } = options.repeat;
-    if (!Number.isInteger(width) || width < 1 || width > MAX_REPEAT) return text('shape-repeat-width-range', { max: MAX_REPEAT });
-    if (!Number.isInteger(edge) || edge < 0 || edge > MAX_REPEAT) return text('shape-repeat-edge-range', { max: MAX_REPEAT });
+    if (!Number.isInteger(width) || width < 1 || width > MAX_REPEAT)
+      return text('shape-repeat-width-range', { max: MAX_REPEAT });
+    if (!Number.isInteger(edge) || edge < 0 || edge > MAX_REPEAT)
+      return text('shape-repeat-edge-range', { max: MAX_REPEAT });
   }
   return null;
 }
@@ -268,11 +279,20 @@ function repeatWidth(
   minCount: number,
 ): { readonly stitches: number; readonly repeats: number } {
   const { width, edge } = options.repeat!;
-  const spec: RepeatSpec = { repeatWidth: width, edgeStitches: edge, turningChainIncluded: pattern.conventions.repeat?.turningChainIncluded ?? false };
+  const spec: RepeatSpec = {
+    repeatWidth: width,
+    edgeStitches: edge,
+    turningChainIncluded: pattern.conventions.repeat?.turningChainIncluded ?? false,
+  };
   const tradition = traditionOf(pattern.conventions);
   const at = (n: number) => repeatCounts(spec, n, def.turningChain, counting, tradition).firstRowPositions;
   const n0 = (exact - at(0)) / width;
-  let n = options.rounding === 'up' ? Math.ceil(n0 - 1e-9) : options.rounding === 'down' ? Math.floor(n0 + 1e-9) : Math.floor(n0 + 0.5);
+  let n =
+    options.rounding === 'up'
+      ? Math.ceil(n0 - 1e-9)
+      : options.rounding === 'down'
+        ? Math.floor(n0 + 1e-9)
+        : Math.floor(n0 + 0.5);
   n = Math.max(1, n);
   while (at(n) < minCount) n += 1;
   return { stitches: at(n), repeats: n };
@@ -283,7 +303,12 @@ export function planShape(pattern: Pattern, options: ShapeOptions): ShapePlanRes
   if (problem) return fail(problem);
   const def = resolveStitch(options.stitch)!;
   const gauge = shapeGauge(pattern, options.stitch);
-  const counting = turningChainCountsFor(pattern.conventions.turningChainCounts, def, traditionOf(pattern.conventions), 'row');
+  const counting = turningChainCountsFor(
+    pattern.conventions.turningChainCounts,
+    def,
+    traditionOf(pattern.conventions),
+    'row',
+  );
   const minCount = counting ? 2 : 1;
   const smallest = (n: number) => ((n - minCount) % 2 === 0 ? minCount : minCount + 1);
   const exact = (cm: number) => cm / gauge.stitchCm;
@@ -346,13 +371,16 @@ export function planShape(pattern: Pattern, options: ShapeOptions): ShapePlanRes
     // The slanted edge is the left one: at the start of even rows, at the end of odd ones.
     const changes = edgeChanges(offsets, 'left');
     if (!changes) return fail(text('shape-too-steep'));
-    shaping = changes.map((change, k) => (startEdge(k + 1) === 'left' ? { start: change, end: 0 } : { start: 0, end: change }));
+    shaping = changes.map((change, k) =>
+      startEdge(k + 1) === 'left' ? { start: change, end: 0 } : { start: 0, end: change },
+    );
   } else shaping = symmetricShaping(offsets);
 
   const counts: number[] = [];
   shaping.forEach((row, k) => counts.push(k === 0 ? first : counts[k - 1]! + row.start + row.end));
   if (counts.some((count) => count < minCount)) return fail(text('shape-too-steep'));
-  if (counts.some((count) => count > MAX_SHAPE_STITCHES)) return fail(text('shape-max-stitches-size', { max: MAX_SHAPE_STITCHES }));
+  if (counts.some((count) => count > MAX_SHAPE_STITCHES))
+    return fail(text('shape-max-stitches-size', { max: MAX_SHAPE_STITCHES }));
 
   const widest = Math.max(...counts);
   const heightCm = rows * gauge.rowCm;
@@ -361,7 +389,9 @@ export function planShape(pattern: Pattern, options: ShapeOptions): ShapePlanRes
     // Run and rise of the slanted edge; for a diamond, only the widening half.
     const edges = options.shape === 'right-triangle' ? 1 : 2;
     const riseRows = options.shape === 'diamond' ? counts.indexOf(widest) + 1 : rows;
-    const run = (Math.abs(options.shape === 'diamond' ? widest - counts[0]! : counts[0]! - counts[rows - 1]!) / edges) * gauge.stitchCm;
+    const run =
+      (Math.abs(options.shape === 'diamond' ? widest - counts[0]! : counts[0]! - counts[rows - 1]!) / edges) *
+      gauge.stitchCm;
     angleDeg = (Math.atan2(run, riseRows * gauge.rowCm) * 180) / Math.PI;
   }
 
@@ -409,8 +439,9 @@ export function rowExtents(plan: ShapePlan): { readonly left: number; readonly r
   });
 }
 
-
-type Unit = { readonly kind: 'inc'; readonly w: number; readonly n: number } | { readonly kind: 'tog'; readonly from: number; readonly n: number };
+type Unit =
+  | { readonly kind: 'inc'; readonly w: number; readonly n: number }
+  | { readonly kind: 'tog'; readonly from: number; readonly n: number };
 
 class RowWriter {
   readonly stitches: StitchNode[] = [];
@@ -495,7 +526,10 @@ class RowWriter {
 
     if (hi - lo + 1 === -1 && head && tail && head.kind === tail.kind) {
       // In a narrow row the two edges meet in one stitch: one increase or one decrease, the tip of the shape.
-      head = head.kind === 'inc' ? { kind: 'inc', w: head.w, n: head.n + tail.n - 1 } : { kind: 'tog', from: head.from, n: head.n + tail.n - 1 };
+      head =
+        head.kind === 'inc'
+          ? { kind: 'inc', w: head.w, n: head.n + tail.n - 1 }
+          : { kind: 'tog', from: head.from, n: head.n + tail.n - 1 };
       tail = null;
       hi = lo - 1;
     }
@@ -505,7 +539,8 @@ class RowWriter {
     const produced: NodeId[] = [];
     if (seated > 0) produced.push(...this.into(def, working[0]!, seated, at(0)));
     if (head) produced.push(...this.unit(def, working, head, at(head.kind === 'inc' ? head.w : head.from)));
-    for (let w = lo; w <= hi; w += 1) produced.push(this.add(def.id, [{ into: 'stitch', id: working[w]!, mode: at(w) }]));
+    for (let w = lo; w <= hi; w += 1)
+      produced.push(this.add(def.id, [{ into: 'stitch', id: working[w]!, mode: at(w) }]));
     if (tail) produced.push(...this.unit(def, working, tail, at(tail.kind === 'inc' ? tail.w : tail.from)));
     this.skipped.push(...working.slice(hi + 1, hi + 1 + leave));
     return produced;
@@ -554,7 +589,9 @@ function buildRows(
       ribbed && ribbing !== null
         ? (w: number) => {
             const target = working[w]!;
-            return writer.chainIds.has(target) ? ('both-loops' as const) : ribbingColumnMode(column.get(target) ?? 0, ribbing.width);
+            return writer.chainIds.has(target)
+              ? ('both-loops' as const)
+              : ribbingColumnMode(column.get(target) ?? 0, ribbing.width);
           }
         : undefined;
     // KB: core-geometry §22
@@ -591,10 +628,15 @@ export function generateShape(pattern: Pattern, options: ShapeOptions): ShapeRes
   const stated = withStatedCounts(base, piece, plan.counts);
   if ('code' in stated) return fail(stated);
   const rowsPattern: Pattern = { ...base, pieces: [stated] };
-  const ribbed = options.ribbing ? appendRibbing(rowsPattern, stated, libraryFor(rowsPattern), options.ribbing) : stated;
+  const ribbed = options.ribbing
+    ? appendRibbing(rowsPattern, stated, libraryFor(rowsPattern), options.ribbing)
+    : stated;
   if ('code' in ribbed) return fail(ribbed);
 
-  const result = withGeneratedTitle({ ...base, pieces: [ribbed] }, pattern, name, [...Object.values(SHAPE_NAMES), ...Object.values(MOTIF_NAMES)]);
+  const result = withGeneratedTitle({ ...base, pieces: [ribbed] }, pattern, name, [
+    ...Object.values(SHAPE_NAMES),
+    ...Object.values(MOTIF_NAMES),
+  ]);
   const errors = validatePattern(result, libraryFor(result)).filter((finding) => finding.severity === 'error');
   if (errors.length > 0) return fail(text('internal-error', { rule: errors[0]!.rule }));
   return { ok: true, pattern: result, plan };
@@ -605,7 +647,9 @@ function withStatedCounts(pattern: Pattern, piece: Piece, counts: readonly numbe
   const whole = { ...pattern, pieces: [piece] };
   const graph = buildPieceGraph(whole, piece, libraryFor(whole));
   const extension = new Set(piece.spaces.flatMap((space) => space.chains));
-  const anchored = new Set(piece.stitches.flatMap((node) => node.anchors.flatMap((anchor) => (anchor.into === 'stitch' ? [anchor.id] : []))));
+  const anchored = new Set(
+    piece.stitches.flatMap((node) => node.anchors.flatMap((anchor) => (anchor.into === 'stitch' ? [anchor.id] : []))),
+  );
   const stated = new Map<NodeId, number>();
   for (const layer of graph.layers.slice(1)) {
     const counted = layer.stitches.filter((id) => extension.has(id) && anchored.has(id)).length;
@@ -639,7 +683,11 @@ export function plannedSections(
   ribbing: RibbingOptions | null = null,
 ): Piece | ShapeText {
   const broken = text('internal-error');
-  if (sections.length === 0 || sections.some((section) => section.counts.length === 0 || section.counts.length !== section.shaping.length)) return broken;
+  if (
+    sections.length === 0 ||
+    sections.some((section) => section.counts.length === 0 || section.counts.length !== section.shaping.length)
+  )
+    return broken;
   const base: Pattern = { ...pattern, pieces: [] };
   const writer = new RowWriter();
   const def = resolveStitch(stitch)!;
@@ -665,7 +713,8 @@ export function plannedSections(
       below = [...positions[over]!];
     }
     for (let k = 0; k < section.counts.length; k += 1) {
-      const ribbed = ribbing !== null && s === 0 && k + 1 >= 2 && k + 1 <= Math.min(section.counts.length, 1 + ribbing.rows);
+      const ribbed =
+        ribbing !== null && s === 0 && k + 1 >= 2 && k + 1 <= Math.min(section.counts.length, 1 + ribbing.rows);
       if (ribbed) {
         const opening = writer.events[writer.events.length - 1];
         if (opening) writer.events[writer.events.length - 1] = ribbedOpening(opening);
@@ -679,14 +728,16 @@ export function plannedSections(
         ribbed && ribbing !== null
           ? (w: number) => {
               const target = working[w]!;
-              return writer.chainIds.has(target) ? ('both-loops' as const) : ribbingColumnMode(ribColumn.get(target) ?? 0, ribbing.width);
+              return writer.chainIds.has(target)
+                ? ('both-loops' as const)
+                : ribbingColumnMode(ribColumn.get(target) ?? 0, ribbing.width);
             }
           : undefined;
       // KB: core-geometry §22
       const made = writer.row(def, working, false, section.shaping[k]!, layer + 1, mode);
       if (!Array.isArray(made)) return made;
       if (ribbed) made.forEach((node, i) => ribColumn.set(node, ribColumn.get(working[i]!) ?? 0));
-    below = [...made];
+      below = [...made];
       layer += 1;
       positions[layer] = below;
       if (k < section.counts.length - 1) {
@@ -696,13 +747,15 @@ export function plannedSections(
       const next = sections[s + 1];
       if (next === undefined) writer.event('fasten-off');
       else if ((next.over ?? 0) === layer) writer.event('turn');
-      else writer.event('fasten-off', { layer: next.over ?? 0, ...(next.name === undefined ? {} : { name: next.name }) });
+      else
+        writer.event('fasten-off', { layer: next.over ?? 0, ...(next.name === undefined ? {} : { name: next.name }) });
     }
   }
 
   // KB: 03 §1.3, 03 §10 B8
   const used = new Set<NodeId>();
-  for (const node of writer.stitches) for (const anchor of node.anchors) if (anchor.into === 'stitch') used.add(anchor.id);
+  for (const node of writer.stitches)
+    for (const anchor of node.anchors) if (anchor.into === 'stitch') used.add(anchor.id);
   const seats = new Set<NodeId>();
   if (counting) {
     for (const section of sections) {
@@ -712,7 +765,9 @@ export function plannedSections(
     }
   }
   const shared = new Set(
-    sections.flatMap((section) => (section.over === undefined ? [] : (positions[section.over] ?? []).filter((node) => !seats.has(node)))),
+    sections.flatMap((section) =>
+      section.over === undefined ? [] : (positions[section.over] ?? []).filter((node) => !seats.has(node)),
+    ),
   );
   const piece: Piece = {
     id,
@@ -724,7 +779,11 @@ export function plannedSections(
     events: writer.events,
     skipped: [...new Set([...writer.skipped, ...[...shared].filter((node) => !used.has(node))])],
   };
-  return withStatedCounts(base, piece, sections.flatMap((section) => section.counts));
+  return withStatedCounts(
+    base,
+    piece,
+    sections.flatMap((section) => section.counts),
+  );
 }
 
 export function plannedRows(

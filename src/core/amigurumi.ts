@@ -1,14 +1,25 @@
 // KB: 04 §0, 04 §4, 04 §5.2, 04 §5.8, 04 §8, 04 §9.0, 04 §9.2, 04 §9.3, 04 §9.6, 04 §9.7
 
 import { stitchDimensions } from './gauge.ts';
-import { buildPieceGraph, rowEdges, type PieceGraph } from './graph.ts';
-import { text, type CoreText } from './messages.ts';
+import { buildPieceGraph, type PieceGraph, rowEdges } from './graph.ts';
+import { type CoreText, text } from './messages.ts';
 import { gaugeContextOf } from './pattern-size.ts';
-import { CUPPING_RATIO, RUFFLING_RATIO, flatIncreases, niceIncreases } from './rounds.ts';
+import { CUPPING_RATIO, flatIncreases, niceIncreases, RUFFLING_RATIO } from './rounds.ts';
 import type { RuleId } from './rules.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
-import type { JoinEdge, NodeId, OvalStitch, Pattern, Piece, PieceEnd, PieceId, ProfilePoint, ShapeSpec, ValueSource } from './types.ts';
+import type {
+  JoinEdge,
+  NodeId,
+  OvalStitch,
+  Pattern,
+  Piece,
+  PieceEnd,
+  PieceId,
+  ProfilePoint,
+  ShapeSpec,
+  ValueSource,
+} from './types.ts';
 
 export interface RoundGauge {
   readonly stitchesPerCm: number;
@@ -104,7 +115,9 @@ export type SizeField = 'diameter' | 'height' | 'length' | 'width';
 /** `null` when the shape can be made. */
 export function shapeProblem(spec: ShapeSpec): CoreText<ShapeCode> | null {
   const size = (value: number, field: SizeField) =>
-    Number.isFinite(value) && value > 0 && value <= MAX_SIZE_CM ? null : text('size-range', { field, max: MAX_SIZE_CM });
+    Number.isFinite(value) && value > 0 && value <= MAX_SIZE_CM
+      ? null
+      : text('size-range', { field, max: MAX_SIZE_CM });
   switch (spec.kind) {
     case 'sphere':
     case 'hemisphere':
@@ -158,7 +171,9 @@ export interface Schedule {
   };
 }
 
-export type ScheduleResult = { readonly ok: true; readonly schedule: Schedule } | { readonly ok: false; readonly reason: CoreText<ShapeCode> };
+export type ScheduleResult =
+  | { readonly ok: true; readonly schedule: Schedule }
+  | { readonly ok: false; readonly reason: CoreText<ShapeCode> };
 
 export function shapeSchedule(spec: ShapeSpec, gauge: RoundGauge): ScheduleResult {
   const problem = shapeProblem(spec);
@@ -174,9 +189,13 @@ function buildSchedule(spec: ShapeSpec, gauge: RoundGauge): Schedule {
   const s = startCount(gauge);
   switch (spec.kind) {
     case 'sphere':
-      return spec.method === '6n' ? sphereSixN(spec.diameterCm, gauge, s) : sphereSine(spec.diameterCm, gauge, s, false, 'closed');
+      return spec.method === '6n'
+        ? sphereSixN(spec.diameterCm, gauge, s)
+        : sphereSine(spec.diameterCm, gauge, s, false, 'closed');
     case 'hemisphere':
-      return spec.method === '6n' ? hemisphereSixN(spec.diameterCm, gauge, s, spec.top) : sphereSine(spec.diameterCm, gauge, s, true, spec.top);
+      return spec.method === '6n'
+        ? hemisphereSixN(spec.diameterCm, gauge, s, spec.top)
+        : sphereSine(spec.diameterCm, gauge, s, true, spec.top);
     case 'egg':
       return revolution(eggProfile(spec.diameterCm, spec.heightCm), 'closed', 'closed', gauge, s, 'sphere');
     case 'cylinder': {
@@ -253,7 +272,9 @@ function hemisphereSixN(diameterCm: number, gauge: RoundGauge, s: number, top: P
 function sphereSine(diameterCm: number, gauge: RoundGauge, s: number, half: boolean, top: PieceEnd): Schedule {
   const n = Math.max(3, Math.round(((Math.PI * diameterCm) / 2) * gauge.roundsPerCm));
   const equator = Math.PI * diameterCm * gauge.stitchesPerCm;
-  const ideal = Array.from({ length: n }, (_, i) => Math.max(1, Math.round(equator * Math.sin((Math.PI * (i + 0.5)) / n))));
+  const ideal = Array.from({ length: n }, (_, i) =>
+    Math.max(1, Math.round(equator * Math.sin((Math.PI * (i + 0.5)) / n))),
+  );
   const rows = half ? Math.ceil(n / 2) : n;
   let lifted = liftStart(ideal, s, 'sphere');
   if (!half) lifted = liftEnd(lifted, s, 'sphere');
@@ -294,7 +315,14 @@ function cone(spec: Extract<ShapeSpec, { kind: 'cone' }>, gauge: RoundGauge, s: 
   const backLoop: number[] = [];
   // From a sloping wall into a flat base the turn is always sharp.
   if (spec.top === 'closed') closeFlat(counts, backLoop, s, true);
-  return { counts: clampGrowth(counts), start: 'ring', end: spec.top, backLoop, widthCm: base / (Math.PI * gauge.stitchesPerCm), heightCm };
+  return {
+    counts: clampGrowth(counts),
+    start: 'ring',
+    end: spec.top,
+    backLoop,
+    widthCm: base / (Math.PI * gauge.stitchesPerCm),
+    heightCm,
+  };
 }
 
 /** KB: 04 §4.6 */
@@ -350,7 +378,9 @@ function revolution(
     const t = span > 0 ? (distance - lengths[j - 1]!) / span : 0;
     return a.radiusCm + t * (b.radiusCm - a.radiusCm);
   };
-  const ideal = Array.from({ length: n }, (_, i) => Math.max(1, Math.round(2 * Math.PI * radiusAt(sample(i)) * gauge.stitchesPerCm)));
+  const ideal = Array.from({ length: n }, (_, i) =>
+    Math.max(1, Math.round(2 * Math.PI * radiusAt(sample(i)) * gauge.stitchesPerCm)),
+  );
 
   const pole = (radius: number) => 2 * Math.PI * radius * gauge.stitchesPerCm < s / 2;
   const first = profile[0]!;
@@ -364,7 +394,12 @@ function revolution(
   const sharp = new Set<number>();
   for (let j = 1; j + 1 < profile.length; j += 1) {
     const [a, b, c] = [profile[j - 1]!, profile[j]!, profile[j + 1]!];
-    const turn = angleDeg(b.radiusCm - a.radiusCm, b.heightCm - a.heightCm, c.radiusCm - b.radiusCm, c.heightCm - b.heightCm);
+    const turn = angleDeg(
+      b.radiusCm - a.radiusCm,
+      b.heightCm - a.heightCm,
+      c.radiusCm - b.radiusCm,
+      c.heightCm - b.heightCm,
+    );
     if (turn < SHARP_TURN_DEG) continue;
     const index = counts.findIndex((_, i) => sample(i) >= lengths[j]!);
     if (index > 0) sharp.add(index);
@@ -373,7 +408,10 @@ function revolution(
   const disc = !startPole && bottom === 'closed' ? flatUp(counts[0]!, s) : [];
   const backLoop = [...sharp].map((i) => i + disc.length);
   const second = profile[1]!;
-  if (disc.length > 0 && angleDeg(second.radiusCm - first.radiusCm, second.heightCm - first.heightCm, 1, 0) >= SHARP_TURN_DEG) {
+  if (
+    disc.length > 0 &&
+    angleDeg(second.radiusCm - first.radiusCm, second.heightCm - first.heightCm, 1, 0) >= SHARP_TURN_DEG
+  ) {
     backLoop.push(disc.length);
   }
   const all = [...disc, ...counts];
@@ -424,7 +462,8 @@ export function liftStart(ideal: readonly number[], s: number, rule: 'sphere' | 
   if (counts.length === 0 || counts[0]! >= s) return counts;
   counts[0] = s;
   if (rule === 'hold') {
-    for (let i = 1; i < counts.length && ideal[i]! < counts[i - 1]! && ideal[i]! >= ideal[i - 1]!; i += 1) counts[i] = counts[i - 1]!;
+    for (let i = 1; i < counts.length && ideal[i]! < counts[i - 1]! && ideal[i]! >= ideal[i - 1]!; i += 1)
+      counts[i] = counts[i - 1]!;
     return counts;
   }
   const lifted = counts.map((_, i) => i === 0);
@@ -453,7 +492,9 @@ export function clampGrowth(counts: readonly number[]): number[] {
   const result: number[] = [];
   for (const count of counts) {
     const previous = result.at(-1);
-    result.push(previous === undefined ? Math.max(1, count) : Math.min(2 * previous, Math.max(Math.ceil(previous / 2), count)));
+    result.push(
+      previous === undefined ? Math.max(1, count) : Math.min(2 * previous, Math.max(Math.ceil(previous / 2), count)),
+    );
   }
   return result;
 }
@@ -473,7 +514,12 @@ export function spread(total: number, parts: number): number[] {
 }
 
 // KB: core-domain §21; 04 §3.1, 04 §3.2, 04 §3.3, 04 §9.1, 04 §9.6
-export function roundOps(previous: number, next: number, staggered: boolean, cost: (position: number) => number = () => 0): RoundOp[] | null {
+export function roundOps(
+  previous: number,
+  next: number,
+  staggered: boolean,
+  cost: (position: number) => number = () => 0,
+): RoundOp[] | null {
   const change = next - previous;
   if (previous < 1 || next < 1) return null;
   if (change === 0) return Array<RoundOp>(previous).fill('sc');
@@ -485,12 +531,14 @@ export function roundOps(previous: number, next: number, staggered: boolean, cos
   const width = increasing ? 1 : 2;
   const lengths = spread(previous, count);
   const starts = lengths.map((_, j) => lengths.slice(0, j).reduce((sum, length) => sum + length, 0));
-  const price = (at: number) => Array.from({ length: width }, (_, k) => cost(at + k)).reduce((sum, value) => sum + value, 0);
+  const price = (at: number) =>
+    Array.from({ length: width }, (_, k) => cost(at + k)).reduce((sum, value) => sum + value, 0);
   const preferred = (length: number) => (staggered ? Math.floor((length - width) / 2) : length - width);
   const cheapest = (from: number, to: number, target: number) => {
     let best = Math.min(to, Math.max(from, target));
     for (let at = from; at <= to; at += 1) {
-      const better = price(at) < price(best) || (price(at) === price(best) && Math.abs(at - target) < Math.abs(best - target));
+      const better =
+        price(at) < price(best) || (price(at) === price(best) && Math.abs(at - target) < Math.abs(best - target));
       if (better) best = at;
     }
     return best;
@@ -518,12 +566,21 @@ export function roundOps(previous: number, next: number, staggered: boolean, cos
     if (option.hits < best.hits) best = option;
   }
   if (best.hits > 0) {
-    const option = build(lengths.map((length, j) => cheapest(starts[j]!, starts[j]! + length - width, starts[j]! + preferred(length))));
+    const option = build(
+      lengths.map((length, j) => cheapest(starts[j]!, starts[j]! + length - width, starts[j]! + preferred(length))),
+    );
     if (option.hits < best.hits) best = option;
   }
   if (best.hits > 0) {
     // In a dense round no segment has a cheap spot: take the lowest total cost over the whole round, drifting a little off the targets.
-    const option = build(placeByCost(previous, lengths.map((length, j) => starts[j]! + preferred(length)), width, price));
+    const option = build(
+      placeByCost(
+        previous,
+        lengths.map((length, j) => starts[j]! + preferred(length)),
+        width,
+        price,
+      ),
+    );
     if (option.hits < best.hits) best = option;
   }
   return best.ops;
@@ -533,7 +590,12 @@ export function roundOps(previous: number, next: number, staggered: boolean, cos
 const DISTANCE_COST = 0.05;
 
 // Dynamic programming: at each operation, the best place found so far for the previous one.
-function placeByCost(previous: number, targets: readonly number[], width: number, price: (at: number) => number): number[] {
+function placeByCost(
+  previous: number,
+  targets: readonly number[],
+  width: number,
+  price: (at: number) => number,
+): number[] {
   const n = targets.length;
   const rows: { readonly value: Float64Array; readonly back: Int32Array }[] = [];
   for (let j = 0; j < n; j += 1) {
@@ -599,7 +661,11 @@ export function evenDistribution(a: number, b: number): number[] {
   return spread(Math.max(a, b), Math.min(a, b));
 }
 
-export function distributionProblem(a: number, b: number, distribution: readonly number[] | undefined): CoreText<ShapeCode> | null {
+export function distributionProblem(
+  a: number,
+  b: number,
+  distribution: readonly number[] | undefined,
+): CoreText<ShapeCode> | null {
   if (distribution === undefined) {
     return a === b ? null : text('join-count-differs', { a, b });
   }
@@ -710,7 +776,14 @@ function edgeInfo(pattern: Pattern, edge: JoinEdge, library: StitchLibrary): Edg
   // A garment seam: a run of one row, or the row ends down one side.
   if (edge.stitches) {
     const { from, count } = edge.stitches;
-    if (layer.shape !== 'row' || !Number.isInteger(from) || from < 0 || count < 1 || from + count > layer.positions.length) return null;
+    if (
+      layer.shape !== 'row' ||
+      !Number.isInteger(from) ||
+      from < 0 ||
+      count < 1 ||
+      from + count > layer.positions.length
+    )
+      return null;
     return { count, stitches: layer.positions.slice(from, from + count), openRim: false };
   }
   if (edge.rows) {

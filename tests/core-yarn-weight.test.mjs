@@ -31,7 +31,9 @@ test('the CYC table lists categories 0–7 in order, with increasing hook size (
 });
 
 test('in the CYC pairing stitches/4" × hook mm stays nearly constant, ≈ 72 in categories 1–5 (02 §3.4)', () => {
-  for (const { weight, stitchesPer4in, hookMm } of CYC_WEIGHTS.filter((entry) => entry.weight >= 1 && entry.weight <= 5)) {
+  for (const { weight, stitchesPer4in, hookMm } of CYC_WEIGHTS.filter(
+    (entry) => entry.weight >= 1 && entry.weight <= 5,
+  )) {
     for (const product of [stitchesPer4in[1] * hookMm[0], stitchesPer4in[0] * hookMm[1]]) {
       assert.ok(Math.abs(product - 72) / 72 <= 0.09, `category ${weight}: ${product}`);
     }

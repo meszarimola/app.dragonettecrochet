@@ -22,8 +22,20 @@ export interface UiTexts {
 }
 
 export const UI_TEXTS: Dictionary<UiTexts> = {
-  hu: { markup: MARKUP_TEXTS.hu, messages: MESSAGE_TEXTS.hu, panels: PANEL_TEXTS.hu, sections: SECTION_TEXTS.hu, rules: RULE_TEXTS.hu },
-  en: { markup: MARKUP_TEXTS.en, messages: MESSAGE_TEXTS.en, panels: PANEL_TEXTS.en, sections: SECTION_TEXTS.en, rules: RULE_TEXTS.en },
+  hu: {
+    markup: MARKUP_TEXTS.hu,
+    messages: MESSAGE_TEXTS.hu,
+    panels: PANEL_TEXTS.hu,
+    sections: SECTION_TEXTS.hu,
+    rules: RULE_TEXTS.hu,
+  },
+  en: {
+    markup: MARKUP_TEXTS.en,
+    messages: MESSAGE_TEXTS.en,
+    panels: PANEL_TEXTS.en,
+    sections: SECTION_TEXTS.en,
+    rules: RULE_TEXTS.en,
+  },
 };
 
 export function languageFromSearch(search: string): UiLanguage | null {

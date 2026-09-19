@@ -155,10 +155,13 @@ describe('mirroring, colours and yarn', () => {
       [0, 0, 1, -1],
       [0, 1, 1, -1],
     ];
-    assert.deepEqual([...cellCounts(rows)], [
-      [0, 3],
-      [1, 3],
-    ]);
+    assert.deepEqual(
+      [...cellCounts(rows)],
+      [
+        [0, 3],
+        [1, 3],
+      ],
+    );
     const graphgan = yarnByColor(rows, 'graphgan', measured(100));
     assert.equal(graphgan.get(0).value, 50);
     assert.equal(graphgan.get(1).value, 50);

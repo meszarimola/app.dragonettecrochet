@@ -3,10 +3,10 @@
 
 import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
 import { effectiveInsertion, modeAsWorked, stitchInsertions } from './insertion.ts';
-import { text, type CoreText } from './messages.ts';
+import { type CoreText, text } from './messages.ts';
 import type { StitchLibrary } from './stitch-library.ts';
-import { increase, shell } from './stitches.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
+import { increase, shell } from './stitches.ts';
 import { firstChainFromHook, traditionOf, turningChainCountsFor, withTradition } from './tradition.ts';
 import type {
   Anchor,
@@ -123,7 +123,6 @@ function withPiece(pattern: Pattern, piece: Piece): Pattern {
   return { ...pattern, pieces: [piece, ...pattern.pieces.slice(1)] };
 }
 
-
 export type Slot =
   | { readonly kind: 'stitch'; readonly id: NodeId }
   | { readonly kind: 'space'; readonly id: SpaceId; readonly chains: readonly NodeId[] }
@@ -209,12 +208,17 @@ export function contextOf(pattern: Pattern, mode: EditorMode = {}): WorkContext 
   }
 
   // KB: 04 §3.4
-  const plainChain = below.closing === null && below.stitches.length > 0 && below.stitches.every((id) => graph.defs.get(id)!.kind === 'chain');
-  const oval = layer === 1 && below.index === 0 && (below.undersides.length > 0 || (mode.roundsOnChain === true && plainChain));
+  const plainChain =
+    below.closing === null &&
+    below.stitches.length > 0 &&
+    below.stitches.every((id) => graph.defs.get(id)!.kind === 'chain');
+  const oval =
+    layer === 1 && below.index === 0 && (below.undersides.length > 0 || (mode.roundsOnChain === true && plainChain));
   const slots = oval ? ovalSlots(graph, below) : layerSlots(graph, layer, below, reversed, shape);
 
   const current = graph.layers[layer];
-  const side = current?.side ?? (below.closing?.kind === 'turn' ? (below.side === 'right' ? 'wrong' : 'right') : below.side);
+  const side =
+    current?.side ?? (below.closing?.kind === 'turn' ? (below.side === 'right' ? 'wrong' : 'right') : below.side);
   const worked = new Set<string>();
   for (const id of current?.stitches ?? []) {
     for (const anchor of graph.nodes.get(id)!.anchors) worked.add(anchorKey(anchor));
@@ -222,7 +226,8 @@ export function contextOf(pattern: Pattern, mode: EditorMode = {}): WorkContext 
   const used = slots.map((slot) => worked.has(slotKey(slot)));
   const turningChain = current?.turningChain.length ?? 0;
   // KB: core-geometry §23
-  if (turningChain > 0 && shape === 'row' && layer > 1 && current?.turningChainCounts && used.length > 0) used[0] = true;
+  if (turningChain > 0 && shape === 'row' && layer > 1 && current?.turningChainCounts && used.length > 0)
+    used[0] = true;
   const frontier = used.lastIndexOf(true);
   const started = (current?.stitches.length ?? 0) > turningChain;
 
@@ -238,7 +243,13 @@ function ovalSlots(graph: PieceGraph, below: LayerInfo): Slot[] {
   return [...front, ...below.positions.slice(1).map((id): Slot => ({ kind: 'underside', id }))];
 }
 
-export function layerSlots(graph: PieceGraph, layer: number, below: LayerInfo, reversed: boolean, shape: LayerInfo['shape']): Slot[] {
+export function layerSlots(
+  graph: PieceGraph,
+  layer: number,
+  below: LayerInfo,
+  reversed: boolean,
+  shape: LayerInfo['shape'],
+): Slot[] {
   // KB: core-geometry §22
   const foundationTail =
     layer === 1 && below.index === 0 && shape === 'row' ? (graph.layers[1]?.turningChain ?? []) : [];
@@ -285,18 +296,20 @@ export function startCursor(
   if (slots.length === 0) return 0;
   const def = tool ? resolveStitch(tool) : undefined;
   // KB: 04 §3.4
-  if (start.oval && start.layer === 1 && start.turningChain === 0) return Math.min(def ? def.turningChain : 1, slots.length - 1);
+  if (start.oval && start.layer === 1 && start.turningChain === 0)
+    return Math.min(def ? def.turningChain : 1, slots.length - 1);
   const tradition = traditionOf(pattern.conventions);
-  const counts = def !== undefined && turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition, start.shape);
+  const counts =
+    def !== undefined && turningChainCountsFor(pattern.conventions.turningChainCounts, def, tradition, start.shape);
   const foundationChain = start.layer === 1 && start.shape === 'row' && start.turningChain === 0;
   // Chains are numbered from the hook starting at 1; targets are numbered from 0.
-  if (foundationChain) return Math.min(def ? firstChainFromHook(def.turningChain, counts, tradition) - 1 : 1, slots.length - 1);
+  if (foundationChain)
+    return Math.min(def ? firstChainFromHook(def.turningChain, counts, tradition) - 1 : 1, slots.length - 1);
 
   // KB: core-geometry §23
   if (start.turningChain > 0 && counts && slots.length > 1) return 1;
   return 0;
 }
-
 
 function nextId(prefix: string, ids: Iterable<string>): string {
   let max = 0;
@@ -311,7 +324,10 @@ function append(piece: Piece, nodes: readonly Omit<StitchNode, 'id' | 'prev'>[])
   const stitches = [...piece.stitches];
   const ids: NodeId[] = [];
   for (const node of nodes) {
-    const id = nextId('n', stitches.map((stitch) => stitch.id));
+    const id = nextId(
+      'n',
+      stitches.map((stitch) => stitch.id),
+    );
     const prev = stitches[stitches.length - 1]?.id ?? null;
     stitches.push({ id, prev, ...node });
     ids.push(id);
@@ -361,7 +377,6 @@ function insertAt(
   return { piece: { ...piece, stitches }, ids };
 }
 
-
 export interface Tool {
   readonly def: StitchDefId;
   readonly count: number;
@@ -377,7 +392,13 @@ function hasEventAfterLast(piece: Piece): boolean {
   return last !== undefined && piece.events.some((event) => event.after === last.id);
 }
 
-export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readonly StitchFlag[] = [], mode: EditorMode = {}): EditResult {
+export function work(
+  pattern: Pattern,
+  tool: Tool,
+  cursor: number,
+  flags: readonly StitchFlag[] = [],
+  mode: EditorMode = {},
+): EditResult {
   const def = resolveStitch(tool.def);
   if (!def) return refuse(text('unknown-stitch', { id: tool.def }));
   const marks = flags.length > 0 ? { flags } : {};
@@ -399,7 +420,13 @@ export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readon
     const { piece: next, ids } = insertAt(piece, covered.at, nodes);
     const withSkips = { ...next, skipped: covered.skipped };
     if (def.kind === 'chain') return done(withPiece(pattern, withSkips));
-    const space = { id: nextId('s', piece.spaces.map((s) => s.id)), chains: ids };
+    const space = {
+      id: nextId(
+        's',
+        piece.spaces.map((s) => s.id),
+      ),
+      chains: ids,
+    };
     return done(withPiece(pattern, { ...withSkips, spaces: [...withSkips.spaces, space] }));
   }
 
@@ -413,7 +440,12 @@ export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readon
   const context = contextOf(pattern, mode);
 
   // KB: core-geometry §23
-  const turnsInto = turningChainCountsFor(pattern.conventions.turningChainCounts, def, traditionOf(pattern.conventions), 'row');
+  const turnsInto = turningChainCountsFor(
+    pattern.conventions.turningChainCounts,
+    def,
+    traditionOf(pattern.conventions),
+    'row',
+  );
   if (startsTurnedRow(context) && def.kind === 'basic' && def.turningChain > 0 && turnsInto) {
     const nodes = Array.from({ length: def.turningChain }, () => ({ def: 'ch' as StitchDefId, anchors: [] }));
     return done(withPiece(pattern, append(piece, nodes).piece));
@@ -433,7 +465,9 @@ export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readon
     const mode = stitchModeFor(def, tool.insertion, context.side);
     if ('code' in mode) return refuse(mode);
     const anchors = slots.map((slot): Anchor => ({ into: 'stitch', id: slot.id, mode: mode.mode }));
-    return done(withPiece(pattern, clearSkips(insertAt(piece, at, [{ def: def.id, anchors, ...marks }]).piece, anchors)));
+    return done(
+      withPiece(pattern, clearSkips(insertAt(piece, at, [{ def: def.id, anchors, ...marks }]).piece, anchors)),
+    );
   }
 
   const anchor = anchorFor(def, first, tool.insertion, context.side);
@@ -445,11 +479,27 @@ export function work(pattern: Pattern, tool: Tool, cursor: number, flags: readon
       anchors: resolveStitch(member)?.kind === 'chain' ? [] : [anchor],
     }));
     const { piece: next, ids } = insertAt(piece, at, members);
-    const group = { id: nextId('g', piece.groups.map((g) => g.id)), def: def.id, members: ids };
+    const group = {
+      id: nextId(
+        'g',
+        piece.groups.map((g) => g.id),
+      ),
+      def: def.id,
+      members: ids,
+    };
     let spaces = next.spaces;
     const chains = ids.filter((_, i) => members[i]!.anchors.length === 0);
     if (def.producesSpaces > 0 && chains.length > 0) {
-      spaces = [...spaces, { id: nextId('s', spaces.map((s) => s.id)), chains }];
+      spaces = [
+        ...spaces,
+        {
+          id: nextId(
+            's',
+            spaces.map((s) => s.id),
+          ),
+          chains,
+        },
+      ];
     }
     return done(withPiece(pattern, clearSkips({ ...next, groups: [...next.groups, group], spaces }, [anchor])));
   }
@@ -504,16 +554,25 @@ function stitchModeFor(
   return { mode: modeAsWorked(mode, side) };
 }
 
-function anchorFor(def: StitchDef, slot: Slot, requested: StitchInsertion | undefined, side: LayerInfo['side']): Anchor | CoreText<EditCode> {
+function anchorFor(
+  def: StitchDef,
+  slot: Slot,
+  requested: StitchInsertion | undefined,
+  side: LayerInfo['side'],
+): Anchor | CoreText<EditCode> {
   switch (slot.kind) {
     case 'stitch': {
       const mode = stitchModeFor(def, requested, side);
       return 'code' in mode ? mode : { into: 'stitch', id: slot.id, mode: mode.mode };
     }
     case 'space':
-      return def.insertionModes.includes('space') ? { into: 'space', id: slot.id } : text('stitch-not-into-space', { stitch: def.id });
+      return def.insertionModes.includes('space')
+        ? { into: 'space', id: slot.id }
+        : text('stitch-not-into-space', { stitch: def.id });
     case 'ring':
-      return def.insertionModes.includes('ring') ? { into: 'ring', id: slot.id } : text('stitch-not-into-ring', { stitch: def.id });
+      return def.insertionModes.includes('ring')
+        ? { into: 'ring', id: slot.id }
+        : text('stitch-not-into-ring', { stitch: def.id });
     case 'underside': {
       // KB: 04 §3.4
       const mode = stitchModeFor(def, requested, side);
@@ -535,7 +594,9 @@ export function workIntoSame(pattern: Pattern, defId: StitchDefId, cursor?: numb
 
   // KB: 03 §10 C14
   const behind = piece.groups.find((candidate) => candidate.members.includes(host.id))?.members.at(-1) ?? host.id;
-  const appended = insertAt(piece, piece.stitches.findIndex((node) => node.id === behind) + 1, [{ def: part.id, anchors: [anchor] }]);
+  const appended = insertAt(piece, piece.stitches.findIndex((node) => node.id === behind) + 1, [
+    { def: part.id, anchors: [anchor] },
+  ]);
   if (anchor.into !== 'stitch' && anchor.into !== 'underside') {
     if (!part.insertionModes.includes(anchor.into)) return refuse(text('same-wrong-target'));
     return done(withPiece(pattern, appended.piece));
@@ -555,7 +616,14 @@ export function workIntoSame(pattern: Pattern, defId: StitchDefId, cursor?: numb
 
   if (host.def !== part.id) return refuse(text('same-other-stitch'));
   const def = increase(part, 2);
-  const created = { id: nextId('g', piece.groups.map((g) => g.id)), def: def.id, members: [host.id, appended.ids[0]!] };
+  const created = {
+    id: nextId(
+      'g',
+      piece.groups.map((g) => g.id),
+    ),
+    def: def.id,
+    members: [host.id, appended.ids[0]!],
+  };
   return done(withPiece(pattern, { ...appended.piece, groups: [...appended.piece.groups, created] }));
 }
 
@@ -565,7 +633,9 @@ function hostAt(pattern: Pattern, piece: Piece, cursor: number, mode: EditorMode
   const layer = context.graph?.layers[context.layer];
   if (!slot || !layer || !context.graph) return undefined;
   const key = slotKey(slot);
-  const into = layer.stitches.filter((id) => context.graph!.nodes.get(id)!.anchors.some((anchor) => anchorKey(anchor) === key));
+  const into = layer.stitches.filter((id) =>
+    context.graph!.nodes.get(id)!.anchors.some((anchor) => anchorKey(anchor) === key),
+  );
   const id = into.at(-1);
   return piece.stitches.find((node) => node.id === id);
 }
@@ -596,12 +666,24 @@ export function fillRow(pattern: Pattern, tool: Tool, mode: EditorMode = {}): Ed
 }
 
 export function onFoundationChain(context: WorkContext): boolean {
-  return context.graph !== null && context.layer === 1 && context.shape === 'row' && !context.started && context.turningChain === 0;
+  return (
+    context.graph !== null &&
+    context.layer === 1 &&
+    context.shape === 'row' &&
+    !context.started &&
+    context.turningChain === 0
+  );
 }
 
 // KB: core-geometry §23
 export function startsTurnedRow(context: WorkContext): boolean {
-  return context.graph !== null && context.shape === 'row' && context.layer > 1 && !context.started && context.turningChain === 0;
+  return (
+    context.graph !== null &&
+    context.shape === 'row' &&
+    context.layer > 1 &&
+    !context.started &&
+    context.turningChain === 0
+  );
 }
 
 export function canEndRow(context: WorkContext): boolean {
@@ -620,7 +702,10 @@ export function endRow(pattern: Pattern): EditResult {
 }
 
 // KB: core-geometry §26
-export function insertChain(pattern: Pattern, between: { readonly left: NodeId | null; readonly right: NodeId | null }): EditResult {
+export function insertChain(
+  pattern: Pattern,
+  between: { readonly left: NodeId | null; readonly right: NodeId | null },
+): EditResult {
   const piece = pieceOf(pattern);
   const context = contextOf(pattern);
   const base = context.graph?.layers[0];
@@ -643,7 +728,13 @@ export function insertChain(pattern: Pattern, between: { readonly left: NodeId |
 }
 
 // KB: core-geometry §26
-export function workIntoGap(pattern: Pattern, layer: number, into: NodeId, tool: Tool, mode: EditorMode = {}): EditResult {
+export function workIntoGap(
+  pattern: Pattern,
+  layer: number,
+  into: NodeId,
+  tool: Tool,
+  mode: EditorMode = {},
+): EditResult {
   const def = resolveStitch(tool.def);
   if (!def) return refuse(text('unknown-stitch', { id: tool.def }));
   if (def.kind !== 'basic') return refuse(text('gap-needs-basic'));
@@ -674,7 +765,9 @@ export function workIntoGap(pattern: Pattern, layer: number, into: NodeId, tool:
     ahead === undefined
       ? piece.stitches.findIndex((node) => node.id === row.stitches[row.stitches.length - 1]) + 1
       : piece.stitches.findIndex((node) => node.id === ahead);
-  return done(withPiece(pattern, clearSkips(insertAt(piece, at, [{ def: def.id, anchors: [anchor] }]).piece, [anchor])));
+  return done(
+    withPiece(pattern, clearSkips(insertAt(piece, at, [{ def: def.id, anchors: [anchor] }]).piece, [anchor])),
+  );
 }
 
 /** KB: 04 §1.1 */
@@ -693,12 +786,17 @@ export function canJoinChainRing(pattern: Pattern): boolean {
 // KB: 04 §1.1
 export function canEndRound(context: WorkContext): boolean {
   const layer = context.graph?.layers[context.layer];
-  if (!context.graph || !context.started || !layer || layer.positions.length === 0 || layer.closing !== null) return false;
+  if (!context.graph || !context.started || !layer || layer.positions.length === 0 || layer.closing !== null)
+    return false;
   if (context.shape === 'round') return true;
   const { graph } = context;
   const base = graph.layers[0]!;
   // KB: core-geometry §21
-  const targets = new Set(layer.stitches.flatMap((id) => graph.nodes.get(id)!.anchors.map((anchor) => (anchor.into === 'stitch' ? anchor.id : ''))));
+  const targets = new Set(
+    layer.stitches.flatMap((id) =>
+      graph.nodes.get(id)!.anchors.map((anchor) => (anchor.into === 'stitch' ? anchor.id : '')),
+    ),
+  );
   return (
     context.layer === 1 &&
     targets.size === 1 &&
@@ -736,7 +834,8 @@ export function closeRound(pattern: Pattern): EditResult {
 function roundOnChainStart(pattern: Pattern, graph: PieceGraph, layer: LayerInfo): NodeId | undefined {
   const def = layer.firstStitch === null ? undefined : graph.defs.get(layer.firstStitch);
   const { conventions } = pattern;
-  const counts = def !== undefined && turningChainCountsFor(conventions.turningChainCounts, def, traditionOf(conventions), 'round');
+  const counts =
+    def !== undefined && turningChainCountsFor(conventions.turningChainCounts, def, traditionOf(conventions), 'round');
   return counts ? layer.turningChain.at(-1) : layer.positions.find((id) => !layer.turningChain.includes(id));
 }
 
@@ -744,9 +843,19 @@ function roundOnChainStart(pattern: Pattern, graph: PieceGraph, layer: LayerInfo
 function joinChainRing(pattern: Pattern): EditResult {
   const piece = pieceOf(pattern);
   const chains = piece.stitches.map((node) => node.id);
-  const { piece: next } = append(piece, [{ def: 'sl-st', anchors: [{ into: 'stitch', id: chains[0]!, mode: 'both-loops' }] }]);
-  const ring = { id: nextId('s', piece.spaces.map((space) => space.id)), chains };
-  return done(withPiece(pattern, { ...next, spaces: [ring], events: [{ after: chains[chains.length - 1]!, kind: 'join-slip' }] }));
+  const { piece: next } = append(piece, [
+    { def: 'sl-st', anchors: [{ into: 'stitch', id: chains[0]!, mode: 'both-loops' }] },
+  ]);
+  const ring = {
+    id: nextId(
+      's',
+      piece.spaces.map((space) => space.id),
+    ),
+    chains,
+  };
+  return done(
+    withPiece(pattern, { ...next, spaces: [ring], events: [{ after: chains[chains.length - 1]!, kind: 'join-slip' }] }),
+  );
 }
 
 // KB: 04 §2
@@ -844,7 +953,11 @@ export function withoutStaleSkips(pattern: Pattern): Pattern {
 }
 
 /** A manual offset from the computed place; `null` resets it. Never changes the topology. */
-export function setPinned(pattern: Pattern, id: NodeId, offset: { readonly x: number; readonly y: number } | null): EditResult {
+export function setPinned(
+  pattern: Pattern,
+  id: NodeId,
+  offset: { readonly x: number; readonly y: number } | null,
+): EditResult {
   const piece = pieceOf(pattern);
   if (!piece.stitches.some((node) => node.id === id)) return refuse(text('no-such-node', { id }));
   const stitches = piece.stitches.map((node) => {
@@ -856,7 +969,6 @@ export function setPinned(pattern: Pattern, id: NodeId, offset: { readonly x: nu
   });
   return done(withPiece(pattern, { ...piece, stitches }));
 }
-
 
 export interface LiveCheck {
   readonly findings: readonly Finding[];

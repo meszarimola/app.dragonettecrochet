@@ -10,9 +10,9 @@ import { describe, test } from 'node:test';
 
 import { emptyPattern } from '../src/core/editor.ts';
 import { buildPieceGraph } from '../src/core/graph.ts';
-import { formatWrittenPattern, writePattern } from '../src/core/pattern-text.ts';
 import { readPattern } from '../src/core/pattern-read.ts';
-import { DEFAULT_RIBBING, MAX_RIBBING_ROWS, appendRibbing, ribbingProblem } from '../src/core/ribbing.ts';
+import { formatWrittenPattern, writePattern } from '../src/core/pattern-text.ts';
+import { appendRibbing, DEFAULT_RIBBING, MAX_RIBBING_ROWS, ribbingProblem } from '../src/core/ribbing.ts';
 import { DEFAULT_MOTIF, generateMotif } from '../src/core/round-generator.ts';
 import { DEFAULT_SHAPE, generateShape } from '../src/core/shapes.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
@@ -37,7 +37,13 @@ function flat(options = DEFAULT_RIBBING) {
 
 /** Piece worked in the round with a ribbed rim; the stitch count is matched to the repeat. */
 function roundPiece(options = DEFAULT_RIBBING) {
-  const motif = generateMotif(emptyPattern(), { ...DEFAULT_MOTIF, shape: 'circle', stitch: 'dc', rounds: 3, closing: 'join-slip' });
+  const motif = generateMotif(emptyPattern(), {
+    ...DEFAULT_MOTIF,
+    shape: 'circle',
+    stitch: 'dc',
+    rounds: 3,
+    closing: 'join-slip',
+  });
   assert.ok(motif.ok, motif.reason);
   const piece = appendRibbing(motif.pattern, motif.pattern.pieces[0], libraryFor(motif.pattern), options);
   return { pattern: motif.pattern, piece };
@@ -144,7 +150,8 @@ describe('post-stitch notation', () => {
 });
 
 describe('the Shape generator with a ribbed edging', () => {
-  const shapeWith = (patch) => generateShape(emptyPattern(), { ...DEFAULT_SHAPE, widthCm: 10, heightCm: 6, stitch: 'dc', ...patch });
+  const shapeWith = (patch) =>
+    generateShape(emptyPattern(), { ...DEFAULT_SHAPE, widthCm: 10, heightCm: 6, stitch: 'dc', ...patch });
 
   test('produces an error-free pattern with the ribbing written as a repeat', () => {
     const result = shapeWith({ ribbing: { rows: 2, width: 1 } });

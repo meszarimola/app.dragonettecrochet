@@ -58,7 +58,9 @@ test('the CSP allows Google Analytics exactly when a measurement id is set', () 
       }
     }
   } else {
-    const googleSources = Object.values(csp).flat().filter((source) => /google/.test(source));
+    const googleSources = Object.values(csp)
+      .flat()
+      .filter((source) => /google/.test(source));
     assert.deepEqual(googleSources, [], 'there is no GA_MEASUREMENT_ID, yet the CSP allows a Google source');
   }
 });

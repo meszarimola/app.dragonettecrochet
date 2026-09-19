@@ -2,7 +2,13 @@ import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
 import { estimate } from '../src/core/quantity.ts';
-import { DEFAULT_BUFFER, ballsNeeded, massPerArea, yarnFromMassPerArea, yarnFromSwatch } from '../src/core/yarn-estimate.ts';
+import {
+  ballsNeeded,
+  DEFAULT_BUFFER,
+  massPerArea,
+  yarnFromMassPerArea,
+  yarnFromSwatch,
+} from '../src/core/yarn-estimate.ts';
 import { exampleProfiles } from './fixtures/calibration.ts';
 
 function near(actual, expected, epsilon = 1e-9) {

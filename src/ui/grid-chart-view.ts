@@ -5,39 +5,39 @@ import { generateColorwork, planColorwork } from '../core/colorwork.ts';
 import { filetRowPositions, generateFilet, planFilet } from '../core/filet.ts';
 import { buildPieceGraph } from '../core/graph.ts';
 import type { ChartLayout } from '../core/layout.ts';
-import { generateMosaic, planMosaic, repairMosaic, type MosaicRows } from '../core/mosaic.ts';
+import type { CoreText } from '../core/messages.ts';
+import { generateMosaic, type MosaicRows, planMosaic, repairMosaic } from '../core/mosaic.ts';
 import { patternSize } from '../core/pattern-size.ts';
 import {
-  FILLED,
-  MAX_COLORS,
-  MAX_GRID_SIDE,
-  NO_CELL,
-  OPEN,
-  TECHNIQUE_STITCH,
+  type CellSize,
   c2cTileRows,
   cellCounts,
   cellSize,
   colorLetter,
+  type DraftCell,
   detectUnit,
   emptyDraft,
   expandDraft,
+  FILLED,
   hasGaps,
+  MAX_COLORS,
+  MAX_GRID_SIDE,
   mirrorWarning,
+  NO_CELL,
+  OPEN,
   overCarriedRows,
   proportionalRows,
+  TECHNIQUE_STITCH,
   unitConflicts,
   unitProblem,
   yarnByColor,
-  type CellSize,
-  type DraftCell,
 } from '../core/pixel-chart.ts';
 import { bounds, type Quantity } from '../core/quantity.ts';
 import { shapeGauge } from '../core/shapes.ts';
 import { libraryFor } from '../core/stitch-variants.ts';
 import type { GridTechnique, GridUnit, Pattern, PatternColor, ValueSource } from '../core/types.ts';
+import { type GridCoreCode, gridCoreText } from './i18n/core/grid.ts';
 import { texts } from './i18n.ts';
-import { gridCoreText, type GridCoreCode } from './i18n/core/grid.ts';
-import type { CoreText } from '../core/messages.ts';
 import type { Choice } from './shapes-view.ts';
 import { formatNumber } from './size-view.ts';
 
@@ -113,15 +113,27 @@ export function defaultDraft(technique: EditorTechnique, width: number, height: 
   return Array.from({ length: height }, (_, y) => Array.from({ length: width }, () => y % 2));
 }
 
-export function defaultState(technique: EditorTechnique = 'filet', width = DEFAULT_WIDTH, height = DEFAULT_HEIGHT): GridEditorState {
-  return { technique, draft: defaultDraft(technique, width, height), colors: DEFAULT_COLORS, manualUnit: null, lettering: false, mosaicRows: 1 };
+export function defaultState(
+  technique: EditorTechnique = 'filet',
+  width = DEFAULT_WIDTH,
+  height = DEFAULT_HEIGHT,
+): GridEditorState {
+  return {
+    technique,
+    draft: defaultDraft(technique, width, height),
+    colors: DEFAULT_COLORS,
+    manualUnit: null,
+    lettering: false,
+    mosaicRows: 1,
+  };
 }
 
 export function withTechnique(state: GridEditorState, technique: EditorTechnique): GridEditorState {
   if (technique === state.technique) return state;
   const width = state.draft[0]?.length ?? DEFAULT_WIDTH;
   const same = usesColors(technique) === usesColors(state.technique) && technique !== 'mosaic';
-  const colors = technique === 'mosaic' ? (state.colors.length >= 2 ? state.colors.slice(0, 2) : DEFAULT_COLORS) : state.colors;
+  const colors =
+    technique === 'mosaic' ? (state.colors.length >= 2 ? state.colors.slice(0, 2) : DEFAULT_COLORS) : state.colors;
   return {
     ...state,
     technique,
@@ -135,7 +147,10 @@ export function resizeDraft(draft: readonly (readonly DraftCell[])[], width: num
   return Array.from({ length: height }, (_, y) => Array.from({ length: width }, (_, x) => draft[y]?.[x] ?? null));
 }
 
-export function nextColor(colors: readonly PatternColor[], technique: EditorTechnique = 'tapestry'): PatternColor | null {
+export function nextColor(
+  colors: readonly PatternColor[],
+  technique: EditorTechnique = 'tapestry',
+): PatternColor | null {
   if (colors.length >= (technique === 'mosaic' ? 2 : MAX_COLORS)) return null;
   return (
     MORE_COLORS.find((candidate) => !colors.some((other) => other.hex === candidate.hex)) ?? {
@@ -175,7 +190,12 @@ export function brushesFor(state: GridEditorState): Brush[] {
     ];
   }
   return [
-    ...state.colors.map((entry, i) => ({ key: `color-${i}`, value: i, label: t.color(colorLetter(i), colorLabel(entry)), swatch: entry.hex })),
+    ...state.colors.map((entry, i) => ({
+      key: `color-${i}`,
+      value: i,
+      label: t.color(colorLetter(i), colorLabel(entry)),
+      swatch: entry.hex,
+    })),
     unset,
   ];
 }
@@ -191,7 +211,10 @@ export function cellLabel(state: GridEditorState, x: number, y: number): string 
   return texts().panels.grid.cellLabel(y + 1, x + 1, valueName(state, state.draft[y]?.[x] ?? null));
 }
 
-export function cellAppearance(state: GridEditorState, value: DraftCell): { readonly className: string; readonly color: string | null } {
+export function cellAppearance(
+  state: GridEditorState,
+  value: DraftCell,
+): { readonly className: string; readonly color: string | null } {
   if (value === null) return { className: 'grid-cell grid-cell--unset', color: null };
   if (!usesColors(state.technique)) {
     const kind = value === FILLED ? 'filled' : value === OPEN ? 'open' : 'none';
@@ -228,9 +251,15 @@ export function imageGridSize(
   return { width: cells, height: clampSide(proportionalRows(cells, cell, imageWidth, imageHeight)) };
 }
 
-const rgb = (hex: string): [number, number, number] => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
+const rgb = (hex: string): [number, number, number] =>
+  [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
 
-export function imageToDraft(pixels: ArrayLike<number>, width: number, height: number, state: GridEditorState): number[][] {
+export function imageToDraft(
+  pixels: ArrayLike<number>,
+  width: number,
+  height: number,
+  state: GridEditorState,
+): number[][] {
   const pixel = (x: number, y: number): [number, number, number] => {
     const i = (y * width + x) * 4;
     const alpha = (pixels[i + 3] ?? 255) / 255;
@@ -257,7 +286,9 @@ export function imageToDraft(pixels: ArrayLike<number>, width: number, height: n
     });
     return best;
   };
-  const cells = Array.from({ length: height }, (_, row) => Array.from({ length: width }, (_, x) => nearest(source(x, row))));
+  const cells = Array.from({ length: height }, (_, row) =>
+    Array.from({ length: width }, (_, x) => nearest(source(x, row))),
+  );
   return state.technique === 'mosaic' ? repairMosaic(cells) : cells;
 }
 
@@ -277,7 +308,11 @@ export function unitState(state: GridEditorState): UnitState {
     const { width, height } = state.manualUnit;
     const conflicts = unitConflicts(state.draft, state.manualUnit);
     const note = conflicts > 0 ? t.unitConflicts(conflicts) : '';
-    return { unit: state.manualUnit, text: t.manualUnit(width, height, cellFrom(state.manualUnit), note), problem: false };
+    return {
+      unit: state.manualUnit,
+      text: t.manualUnit(width, height, cellFrom(state.manualUnit), note),
+      problem: false,
+    };
   }
   if (!hasGaps(state.draft)) {
     return { unit: null, text: t.allCellsSet, problem: false };
@@ -288,14 +323,19 @@ export function unitState(state: GridEditorState): UnitState {
   return { unit: detected.unit, text: t.detectedUnit(width, height), problem: false };
 }
 
-export type ExpandedCells = { readonly ok: true; readonly cells: number[][] } | { readonly ok: false; readonly reason: string };
+export type ExpandedCells =
+  | { readonly ok: true; readonly cells: number[][] }
+  | { readonly ok: false; readonly reason: string };
 
 export function expandedCells(state: GridEditorState, unit: UnitState = unitState(state)): ExpandedCells {
   if (hasGaps(state.draft) && !unit.unit) {
     return { ok: false, reason: unit.problem ? unit.text : texts().panels.grid.missingCells };
   }
   const width = state.draft[0]?.length ?? 0;
-  return { ok: true, cells: expandDraft(state.draft, unit.unit, width, state.draft.length, defaultFill(state.technique)) };
+  return {
+    ok: true,
+    cells: expandDraft(state.draft, unit.unit, width, state.draft.length, defaultFill(state.technique)),
+  };
 }
 
 export interface SummaryView {
@@ -305,7 +345,9 @@ export interface SummaryView {
   readonly source: string;
 }
 
-export type SummaryResult = { readonly ok: true; readonly view: SummaryView } | { readonly ok: false; readonly reason: string };
+export type SummaryResult =
+  | { readonly ok: true; readonly view: SummaryView }
+  | { readonly ok: false; readonly reason: string };
 
 const cm = (value: number) => formatNumber(value, 1);
 
@@ -364,7 +406,13 @@ export function planSummary(pattern: Pattern, state: GridEditorState, mirrored: 
       if (!planned.ok) return { ok: false, reason: gridCoreText(planned.reason) };
       const { plan } = planned;
       source = plan.gauge.source;
-      size = t.c2cSize(source === 'estimated' ? '≈ ' : '', cm(plan.widthCm), cm(plan.heightCm), plan.rows.length, width * height);
+      size = t.c2cSize(
+        source === 'estimated' ? '≈ ' : '',
+        cm(plan.widthCm),
+        cm(plan.heightCm),
+        plan.rows.length,
+        width * height,
+      );
       details.push(t.filetFoundation(plan.foundation.chains, plan.foundation.fromHook));
       const firstDecrease = plan.rows.find((row) => row.start === 'decrease' || row.end === 'decrease')?.row;
       details.push(firstDecrease === undefined ? t.allIncrease : t.increaseUntil(firstDecrease - 1));
@@ -376,7 +424,13 @@ export function planSummary(pattern: Pattern, state: GridEditorState, mirrored: 
       if (!planned.ok) return { ok: false, reason: gridCoreText(planned.reason) };
       const { plan } = planned;
       source = plan.gauge.source;
-      size = t.mosaicSize(source === 'estimated' ? '≈ ' : '', cm(plan.widthCm), cm(plan.heightCm), plan.rows.length, height);
+      size = t.mosaicSize(
+        source === 'estimated' ? '≈ ' : '',
+        cm(plan.widthCm),
+        cm(plan.heightCm),
+        plan.rows.length,
+        height,
+      );
       const long = plan.depth === 2 ? t.mosaicDepthDc : t.mosaicDepthTr;
       details.push(t.mosaic(plan.variant === 1 ? t.mosaicVariantOne : t.mosaicVariantTwo, long, plan.drops));
       details.push(t.mosaicRow(width, plan.foundation.chains, plan.foundation.fromHook));
@@ -428,7 +482,9 @@ export function yarnLines(pattern: Pattern): string[] {
   return lines;
 }
 
-export type GenerateResult = { readonly ok: true; readonly pattern: Pattern; readonly message: string } | { readonly ok: false; readonly reason: string };
+export type GenerateResult =
+  | { readonly ok: true; readonly pattern: Pattern; readonly message: string }
+  | { readonly ok: false; readonly reason: string };
 
 export function generateFromState(pattern: Pattern, state: GridEditorState): GenerateResult {
   const t = texts().panels.grid;
@@ -437,7 +493,9 @@ export function generateFromState(pattern: Pattern, state: GridEditorState): Gen
   if (!expanded.ok) return expanded;
   const common = { cells: expanded.cells, unit: unit.unit, lettering: state.lettering };
   const done = (
-    result: { ok: true; pattern: Pattern; plan: { rows: readonly unknown[] } } | { ok: false; reason: CoreText<GridCoreCode> },
+    result:
+      | { ok: true; pattern: Pattern; plan: { rows: readonly unknown[] } }
+      | { ok: false; reason: CoreText<GridCoreCode> },
   ): GenerateResult =>
     result.ok
       ? {
@@ -478,11 +536,17 @@ export interface Frame {
   readonly y1: number;
 }
 
-let frameCache: { readonly layout: ChartLayout; readonly pattern: Pattern; readonly mirrored: boolean; readonly frames: Frame[] } | null = null;
+let frameCache: {
+  readonly layout: ChartLayout;
+  readonly pattern: Pattern;
+  readonly mirrored: boolean;
+  readonly frames: Frame[];
+} | null = null;
 
 // KB: interface.md §27
 export function unitFrames(pattern: Pattern, layout: ChartLayout, mirrored: boolean): Frame[] {
-  if (frameCache && frameCache.layout === layout && frameCache.pattern === pattern && frameCache.mirrored === mirrored) return frameCache.frames;
+  if (frameCache && frameCache.layout === layout && frameCache.pattern === pattern && frameCache.mirrored === mirrored)
+    return frameCache.frames;
   const frames = computeFrames(pattern, layout, mirrored);
   frameCache = { layout, pattern, mirrored, frames };
   return frames;
@@ -505,7 +569,8 @@ function computeFrames(pattern: Pattern, layout: ChartLayout, mirrored: boolean)
   if (!piece || !grid?.unit) return [];
   const graph = buildPieceGraph(pattern, piece, libraryFor(pattern));
   const { unit, cells } = grid;
-  const inUnit = (x: number, y: number) => x >= unit.x && x < unit.x + unit.width && y >= unit.y && y < unit.y + unit.height;
+  const inUnit = (x: number, y: number) =>
+    x >= unit.x && x < unit.x + unit.width && y >= unit.y && y < unit.y + unit.height;
 
   if (grid.technique === 'c2c') {
     const frames: Frame[] = [];
@@ -565,5 +630,7 @@ function computeFrames(pattern: Pattern, layout: ChartLayout, mirrored: boolean)
 }
 
 export function spikeNodes(pattern: Pattern): ReadonlySet<string> {
-  return new Set((pattern.pieces[0]?.stitches ?? []).filter((node) => node.flags?.includes('spike')).map((node) => node.id));
+  return new Set(
+    (pattern.pieces[0]?.stitches ?? []).filter((node) => node.flags?.includes('spike')).map((node) => node.id),
+  );
 }

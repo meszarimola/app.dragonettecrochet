@@ -103,20 +103,23 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
 
   // KB: 04 §1.1, core-geometry §21
   const roundEvent = (event: LayerEvent | undefined) => event?.kind === 'join-slip' || event?.kind === 'spiral';
-  const chainRing = foundation === 'chain' && eventAfter.get(foundationNodes[foundationNodes.length - 1]!.id)?.kind === 'join-slip';
+  const chainRing =
+    foundation === 'chain' && eventAfter.get(foundationNodes[foundationNodes.length - 1]!.id)?.kind === 'join-slip';
   // KB: 04 §3.4
   const firstRoundOnChain =
     foundation === 'chain' &&
     !chainRing &&
     segments.length > 0 &&
-    (roundEvent(eventAfter.get(segments[0]!.at(-1)!.id)) || segments[0]!.some((node) => node.anchors.some((anchor) => anchor.into === 'underside')));
+    (roundEvent(eventAfter.get(segments[0]!.at(-1)!.id)) ||
+      segments[0]!.some((node) => node.anchors.some((anchor) => anchor.into === 'underside')));
   const roundStart = foundation === 'ring' || chainRing || firstRoundOnChain;
 
   // KB: 03 §1.2
   if (foundation === 'chain' && !chainRing && segments.length > 0) {
     const anchored = new Set<NodeId>();
     const segmentEnd = segments[0]!.at(-1)!;
-    const closingSlip = kindOf(segmentEnd) === 'slip' && eventAfter.get(segmentEnd.id)?.kind === 'join-slip' ? segmentEnd : undefined;
+    const closingSlip =
+      kindOf(segmentEnd) === 'slip' && eventAfter.get(segmentEnd.id)?.kind === 'join-slip' ? segmentEnd : undefined;
     for (const node of segments[0]!) {
       if (node === closingSlip) continue;
       for (const anchor of node.anchors) {
@@ -146,7 +149,12 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
   for (const node of stitches) {
     const layer = segmentOf.get(node.id) ?? 0;
     for (const anchor of node.anchors) {
-      const targets = anchor.into === 'stitch' || anchor.into === 'underside' ? [anchor.id] : anchor.into === 'space' ? (spaces.get(anchor.id)?.chains ?? []) : [];
+      const targets =
+        anchor.into === 'stitch' || anchor.into === 'underside'
+          ? [anchor.id]
+          : anchor.into === 'space'
+            ? (spaces.get(anchor.id)?.chains ?? [])
+            : [];
       for (const target of targets) if ((segmentOf.get(target) ?? 0) < layer) workedInto.add(target);
     }
   }
@@ -155,7 +163,9 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
   const layers: LayerInfo[] = [];
   const layerOf = new Map<NodeId, number>();
 
-  const undersideTargets = new Set(stitches.flatMap((node) => node.anchors.flatMap((anchor) => (anchor.into === 'underside' ? [anchor.id] : []))));
+  const undersideTargets = new Set(
+    stitches.flatMap((node) => node.anchors.flatMap((anchor) => (anchor.into === 'underside' ? [anchor.id] : []))),
+  );
   const foundationIds = foundationNodes.map((node) => node.id);
   const foundationLast = foundationNodes[foundationNodes.length - 1];
   layers.push({
@@ -188,7 +198,8 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     // KB: core-geometry §25
     const resume = opening?.kind === 'fasten-off' ? opening.resume : undefined;
     const below = resume !== undefined && resume.layer >= 0 && resume.layer < index ? resume.layer : index - 1;
-    const alsoBelow = resume?.with !== undefined && resume.with > below && resume.with < index ? resume.with : undefined;
+    const alsoBelow =
+      resume?.with !== undefined && resume.with > below && resume.with < index ? resume.with : undefined;
     const previous = layers[below]!;
     const last = segment[segment.length - 1]!;
     const closing = eventAfter.get(last.id) ?? null;
@@ -197,7 +208,11 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
     const travelSlips: NodeId[] = [];
     if (opening?.kind === 'join-slip' || opening?.kind === 'turn') {
       // KB: core-geometry §21
-      while (head < segment.length && kindOf(segment[head]!) === 'slip' && (segment[head] !== last || closing === null)) {
+      while (
+        head < segment.length &&
+        kindOf(segment[head]!) === 'slip' &&
+        (segment[head] !== last || closing === null)
+      ) {
         travelSlips.push(segment[head]!.id);
         head += 1;
       }
@@ -234,7 +249,11 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
 
     const resumedRound = resume?.with !== undefined;
     const side: Layer['side'] =
-      (opening?.kind === 'turn' || resume !== undefined) && !resumedRound ? (previous.side === 'right' ? 'wrong' : 'right') : previous.side;
+      (opening?.kind === 'turn' || resume !== undefined) && !resumedRound
+        ? previous.side === 'right'
+          ? 'wrong'
+          : 'right'
+        : previous.side;
 
     let direction: 1 | -1;
     if (index === 1) direction = foundation === 'chain' && !roundStart ? -1 : 1;
@@ -276,7 +295,10 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       switch (def.kind) {
         case 'chain':
           if (workedInto.has(node.id)) stitchCount += 1;
-          if (conventions.chainCounts === true || (conventions.chainCounts === 'worked-into' && workedInto.has(node.id))) {
+          if (
+            conventions.chainCounts === true ||
+            (conventions.chainCounts === 'worked-into' && workedInto.has(node.id))
+          ) {
             writtenCount += 1;
           }
           positionCount += 1;
@@ -310,7 +332,10 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
       below,
       ...(alsoBelow === undefined
         ? {}
-        : { alsoBelow, basePositions: baseRing(layers[below]!, layers[alsoBelow]!, segment, defs, new Set(piece.skipped)) }),
+        : {
+            alsoBelow,
+            basePositions: baseRing(layers[below]!, layers[alsoBelow]!, segment, defs, new Set(piece.skipped)),
+          }),
       // KB: core-geometry §25
       row: previous.row + 1,
       shape,
@@ -346,7 +371,9 @@ export function buildPieceGraph(pattern: Pattern, piece: Piece, library: StitchL
 export function spacePositions(below: LayerInfo, space: Space): readonly NodeId[] {
   const { turningChain } = below;
   const whole =
-    below.turningChainCounts && space.chains.length === turningChain.length && space.chains.every((id, i) => id === turningChain[i]);
+    below.turningChainCounts &&
+    space.chains.length === turningChain.length &&
+    space.chains.every((id, i) => id === turningChain[i]);
   return whole ? [turningChain[turningChain.length - 1]!] : space.chains;
 }
 
@@ -440,5 +467,8 @@ function baseRing(
     while (to < positions.length - 1 && member(positions[to + 1]!)) to += 1;
     return positions.slice(from, to + 1);
   };
-  return [...run(below.positions, (id) => skipped.has(id)), ...run(also.positions, (id) => defs.get(id)!.kind === 'chain')];
+  return [
+    ...run(below.positions, (id) => skipped.has(id)),
+    ...run(also.positions, (id) => defs.get(id)!.kind === 'chain'),
+  ];
 }

@@ -10,18 +10,18 @@ import { test } from 'node:test';
 import {
   BABY,
   BODY_TABLES,
+  bodySizeName,
   CHILD,
   FIT_EASE,
+  fitLevelOf,
   HAT_SIZES,
   HEAD_CIRCUMFERENCE,
-  MEN,
-  WOMEN,
-  bodySizeName,
-  fitLevelOf,
   hatEase,
   inchToCm,
+  MEN,
   mid,
   tableFlags,
+  WOMEN,
 } from '../src/core/body-sizes.ts';
 
 const flagKeys = (table) => tableFlags(table).map((flag) => `${flag.size}:${flag.measure}:${flag.kind}`);
@@ -34,16 +34,25 @@ test('the WOMEN table: the 5X upper-arm inch value disagrees with its cm value (
   );
   // The suspicion reaches the UI as a code plus data; the dictionary supplies the measure name and the number format (PQW-904).
   assert.equal(inch[0].note.code, 'flag-inch-mismatch');
-  assert.deepEqual(inch[0].note.data, { measure: 'upperArm', inch: [18.5, 18.5], converted: [47, 47], cm: [49.5, 49.5] });
+  assert.deepEqual(inch[0].note.data, {
+    measure: 'upperArm',
+    inch: [18.5, 18.5],
+    converted: [47, 47],
+    cm: [49.5, 49.5],
+  });
 });
 
 test('the WOMEN table: back waist, cross back and arm length repeat unchanged from 2X to 5X, which looks like a copy-paste error', () => {
   const keys = flagKeys(WOMEN);
   for (const size of ['2X', '3X', '4X', '5X']) {
-    for (const measure of ['backWaist', 'crossBack', 'armLength']) assert.ok(keys.includes(`${size}:${measure}:identical-rows`), `${size} ${measure}`);
+    for (const measure of ['backWaist', 'crossBack', 'armLength'])
+      assert.ok(keys.includes(`${size}:${measure}:identical-rows`), `${size} ${measure}`);
   }
   // Sizes XS–L raise no suspicion.
-  assert.ok(keys.every((key) => !/^(XS|S|M|L):/.test(key)), keys.join(' '));
+  assert.ok(
+    keys.every((key) => !/^(XS|S|M|L):/.test(key)),
+    keys.join(' '),
+  );
 });
 
 test('the MEN table: the 4X arm length is shorter than 3X and disagrees with its inch value; the hip-length label is called out in a note', () => {
@@ -68,7 +77,11 @@ test('every table cites a source, and its sizes are ordered by increasing chest 
   for (const table of Object.values(BODY_TABLES)) {
     assert.match(table.source, /^https:\/\/www\.craftyarncouncil\.com\//);
     const chest = table.sizes.map((size) => mid(size.values.chest));
-    assert.deepEqual([...chest].sort((a, b) => a - b), chest, table.id);
+    assert.deepEqual(
+      [...chest].sort((a, b) => a - b),
+      chest,
+      table.id,
+    );
   }
   assert.equal(mid(WOMEN.sizes[2].values.chest), 94);
 });
@@ -76,7 +89,10 @@ test('every table cites a source, and its sizes are ordered by increasing chest 
 test('head circumference in cm agrees with the inch value and grows with each age group', () => {
   let previous = [0, 0];
   for (const head of HEAD_CIRCUMFERENCE) {
-    assert.ok(Math.abs(head.cm[0] - head.inch[0] * 2.54) <= 1.5 && Math.abs(head.cm[1] - head.inch[1] * 2.54) <= 1.5, head.id);
+    assert.ok(
+      Math.abs(head.cm[0] - head.inch[0] * 2.54) <= 1.5 && Math.abs(head.cm[1] - head.inch[1] * 2.54) <= 1.5,
+      head.id,
+    );
     assert.ok(head.cm[0] >= previous[0] && head.cm[1] >= previous[1], head.id);
     previous = head.cm;
   }

@@ -27,8 +27,25 @@ const generators = {
   Kendő: (pattern) => ok(generateShawl(pattern, { ...DEFAULT_SHAWL, kind: 'semicircle', stitch: 'sc', sizeCm: 5 })),
   Forma: (pattern) => ok(generateShape(pattern, { ...DEFAULT_SHAPE, widthCm: 5, heightCm: 5 })),
   'Kör és motívum': (pattern) => ok(generateMotif(pattern, { ...DEFAULT_MOTIF, rounds: 3 })),
-  Amigurumi: (pattern) => ok(createAmigurumi(pattern, { name: '', shape: { kind: 'sphere', diameterCm: 4, method: '6n' }, stagger: true, eyes: false }, false)),
-  Rácsminta: (pattern) => ok(generateFilet(pattern, { cells: [[1, 0], [0, 1]], unit: null, lettering: false })),
+  Amigurumi: (pattern) =>
+    ok(
+      createAmigurumi(
+        pattern,
+        { name: '', shape: { kind: 'sphere', diameterCm: 4, method: '6n' }, stagger: true, eyes: false },
+        false,
+      ),
+    ),
+  Rácsminta: (pattern) =>
+    ok(
+      generateFilet(pattern, {
+        cells: [
+          [1, 0],
+          [0, 1],
+        ],
+        unit: null,
+        lettering: false,
+      }),
+    ),
 };
 
 /** A hand-edited title, the way the "Minta neve" field saves it (src/ui/main.ts). */

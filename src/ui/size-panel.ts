@@ -2,24 +2,32 @@
 
 import type { PieceGraph } from '../core/graph.js';
 import { GAUGE_STITCHES } from '../core/pattern-json.js';
-import { activeProfile, estimatedGauge, newProfile, patternSize, withActiveProfile, withProfile, withoutProfile } from '../core/pattern-size.js';
+import {
+  activeProfile,
+  estimatedGauge,
+  newProfile,
+  patternSize,
+  withActiveProfile,
+  withoutProfile,
+  withProfile,
+} from '../core/pattern-size.js';
 import type { StitchLibrary } from '../core/stitch-library.js';
 import type { GaugeEntry, GaugeForm, Pattern, PatternGaugeProfile } from '../core/types.js';
 import { CYC_WEIGHTS } from '../core/yarn-weight.js';
-import { texts, uiLanguage, type UiLanguage } from './i18n.js';
+import { texts, type UiLanguage, uiLanguage } from './i18n.js';
 import {
   cycWeightLabel,
-  formLabel,
   formatNumber,
+  formLabel,
   gaugeEntryNote,
   gaugeStitchName,
   hookSizesText,
+  type Origin,
   profileLabel,
   profileOrigins,
+  type SizeView,
   sizeView,
   sourceLabel,
-  type Origin,
-  type SizeView,
   type ValueRow,
 } from './size-view.js';
 
@@ -202,7 +210,10 @@ export class SizePanel {
     );
     this.#cyc.addEventListener('change', () => {
       const cycWeight = this.#cyc.value === '' ? null : Number(this.#cyc.value);
-      this.#edit((profile) => ({ ...profile, yarn: { ...profile.yarn, cycWeight } }), texts().sections.size.profile.cycChanged);
+      this.#edit(
+        (profile) => ({ ...profile, yarn: { ...profile.yarn, cycWeight } }),
+        texts().sections.size.profile.cycChanged,
+      );
     });
     this.#blocked.addEventListener('change', () => {
       const blocked = this.#blocked.checked;
@@ -219,21 +230,29 @@ export class SizePanel {
           host.announce(texts().sections.size.profile.invalid[field.key]);
           return;
         }
-        if (value !== field.get(profile)) this.#edit((current) => field.set(current, value), texts().sections.size.profile.changed[field.key]);
+        if (value !== field.get(profile))
+          this.#edit((current) => field.set(current, value), texts().sections.size.profile.changed[field.key]);
       });
     }
 
-    this.#gauges.addEventListener('change', (event) => this.#changeGauge(event.target as HTMLInputElement | HTMLSelectElement));
+    this.#gauges.addEventListener('change', (event) =>
+      this.#changeGauge(event.target as HTMLInputElement | HTMLSelectElement),
+    );
     this.#gauges.addEventListener('click', (event) => {
       const button = (event.target as Element).closest<HTMLButtonElement>('button[data-remove]');
       if (!button) return;
       const index = Number(button.dataset.remove);
-      this.#edit((profile) => ({ ...profile, gauges: profile.gauges.filter((_, i) => i !== index) }), texts().sections.size.gauge.removed);
+      this.#edit(
+        (profile) => ({ ...profile, gauges: profile.gauges.filter((_, i) => i !== index) }),
+        texts().sections.size.gauge.removed,
+      );
       this.#addGauge.focus();
     });
     this.#addGauge.addEventListener('click', () => this.#addGaugeEntry());
 
-    find<HTMLInputElement>('size-aspect').addEventListener('change', (event) => host.setAspect((event.target as HTMLInputElement).checked));
+    find<HTMLInputElement>('size-aspect').addEventListener('change', (event) =>
+      host.setAspect((event.target as HTMLInputElement).checked),
+    );
     section.addEventListener('toggle', () => {
       if (!section.open) return;
       this.#shown = null;
@@ -272,7 +291,9 @@ export class SizePanel {
     }
     const entry: GaugeEntry = { ...free, stitchesPer10cm: null, rowsPer10cm: null, source: 'measured' };
     this.#edit((current) => ({ ...current, gauges: [...current.gauges, entry] }), texts().sections.size.gauge.added);
-    this.#gauges.querySelector<HTMLInputElement>(`li[data-index="${profile.gauges.length}"] [data-field="stitchesPer10cm"]`)?.focus();
+    this.#gauges
+      .querySelector<HTMLInputElement>(`li[data-index="${profile.gauges.length}"] [data-field="stitchesPer10cm"]`)
+      ?.focus();
   }
 
   #changeGauge(target: HTMLInputElement | HTMLSelectElement): void {
@@ -295,7 +316,9 @@ export class SizePanel {
       next = { ...entry, [field]: value };
     } else if (field === 'stitch' || field === 'form') {
       next = { ...entry, [field]: target.value } as GaugeEntry;
-      const duplicate = profile.gauges.some((other, i) => i !== index && other.stitch === next.stitch && other.form === next.form);
+      const duplicate = profile.gauges.some(
+        (other, i) => i !== index && other.stitch === next.stitch && other.form === next.form,
+      );
       if (duplicate) {
         target.value = entry[field];
         const name = library ? gaugeStitchName(library, next.stitch) : next.stitch;
@@ -355,7 +378,8 @@ export class SizePanel {
     profile.gauges.forEach((entry, i) => {
       const row = this.#gauges.querySelector<HTMLLIElement>(`li[data-index="${i}"]`);
       if (!row) return;
-      const control = <T extends HTMLInputElement | HTMLSelectElement>(field: string) => row.querySelector<T>(`[data-field="${field}"]`)!;
+      const control = <T extends HTMLInputElement | HTMLSelectElement>(field: string) =>
+        row.querySelector<T>(`[data-field="${field}"]`)!;
       setValue(control('stitch'), entry.stitch);
       setValue(control('form'), entry.form);
       setValue(control('stitchesPer10cm'), numberValue(entry.stitchesPer10cm));
@@ -399,7 +423,11 @@ export class SizePanel {
     };
 
     const words = texts().sections.size.gauge;
-    const stitch = field(words.stitch, select(GAUGE_STITCHES.map((value) => [value, gaugeStitchName(library, value)])), 'stitch');
+    const stitch = field(
+      words.stitch,
+      select(GAUGE_STITCHES.map((value) => [value, gaugeStitchName(library, value)])),
+      'stitch',
+    );
     stitch.wrap.classList.add('gauge__stitch');
     const form = field(words.form, select(FORMS.map((value) => [value, formLabel(value)])), 'form');
     const stitches = field(words.stitches, number(), 'stitchesPer10cm');
@@ -416,7 +444,8 @@ export class SizePanel {
     const note = element('p', 'gauge__note');
     note.id = id('note');
     note.hidden = true;
-    for (const control of [stitches, rows]) control.wrap.querySelector('input')!.setAttribute('aria-describedby', note.id);
+    for (const control of [stitches, rows])
+      control.wrap.querySelector('input')!.setAttribute('aria-describedby', note.id);
     const remove = element('button', 'tool gauge__remove', words.remove);
     remove.type = 'button';
     remove.dataset.remove = String(index);
@@ -450,7 +479,10 @@ export class SizePanel {
     table.append(thead, body);
     this.#rows.replaceChildren(table);
 
-    this.#yarn.replaceChildren(...(view.yarn.length > 0 ? [valueList(view.yarn)] : []), element('p', 'panel__note', view.yarnNote));
+    this.#yarn.replaceChildren(
+      ...(view.yarn.length > 0 ? [valueList(view.yarn)] : []),
+      element('p', 'panel__note', view.yarnNote),
+    );
   }
 }
 
@@ -459,8 +491,13 @@ function valueList(rows: readonly ValueRow[]): HTMLDListElement {
   for (const row of rows) {
     const item = element('div');
     const value = element('dd');
-    value.append(element('span', 'size__value', row.text.value), ' ', element('span', `origin origin--${row.text.source}`, sourceLabel(row.text.source)));
-    if (row.text.range) value.append(element('span', 'size__range', texts().sections.size.result.range(row.text.range)));
+    value.append(
+      element('span', 'size__value', row.text.value),
+      ' ',
+      element('span', `origin origin--${row.text.source}`, sourceLabel(row.text.source)),
+    );
+    if (row.text.range)
+      value.append(element('span', 'size__range', texts().sections.size.result.range(row.text.range)));
     item.append(element('dt', '', row.label), value);
     list.append(item);
   }

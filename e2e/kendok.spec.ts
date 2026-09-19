@@ -5,7 +5,7 @@
  * the written pattern is produced.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
@@ -24,12 +24,16 @@ async function writtenText(page: Page): Promise<string> {
   return (await page.locator('#written-text').textContent()) ?? '';
 }
 
-test('triangle starting from the top: blocked and unblocked size, custom ratio with a warning, error-free rows, undone in one step', async ({ page }) => {
+test('triangle starting from the top: blocked and unblocked size, custom ratio with a warning, error-free rows, undone in one step', async ({
+  page,
+}) => {
   await open(page);
   const section = await openShawls(page);
 
   await expect(page.locator('#shawl-stitch')).toHaveValue('dc');
-  await expect(page.locator('#shawl-result')).toHaveText(/^Blokkolás nélkül ≈ \d+ × \d+ cm, blokkolva ≈ \d+ × \d+ cm; \d+ sor\.$/);
+  await expect(page.locator('#shawl-result')).toHaveText(
+    /^Blokkolás nélkül ≈ \d+ × \d+ cm, blokkolva ≈ \d+ × \d+ cm; \d+ sor\.$/,
+  );
   await expect(page.locator('#shawl-details')).toContainText('A nyakél szöge kb. 180°');
   await expect(page.locator('#shawl-preview polygon')).toHaveCount(2);
   await expect(page.locator('#shawl-warnings li')).toHaveCount(0);
@@ -42,7 +46,9 @@ test('triangle starting from the top: blocked and unblocked size, custom ratio w
   await expect(page.locator('#shawl-warnings')).toContainText('Ez figyelmeztetés, nem hiba.');
 
   await section.getByRole('button', { name: 'Minta létrehozása' }).click();
-  await expect(page.locator('#status')).toContainText(/Fentről induló háromszög, \d+ sor elkészült; visszavonással a korábbi minta visszajön\./);
+  await expect(page.locator('#status')).toContainText(
+    /Fentről induló háromszög, \d+ sor elkészült; visszavonással a korábbi minta visszajön\./,
+  );
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
   expect(await writtenText(page)).toMatch(/3\. sor: 3 lsz \(1 erp-nek számít\), .*\(\d+ szem\)\. Fordítás\./);
 
@@ -82,7 +88,9 @@ for (const viewport of [
   { width: 1440, height: 900 },
   { width: 1000, height: 506 },
 ]) {
-  test(`${viewport.width}×${viewport.height}: the semicircle and the triangle shawl on the canvas in their real shape, error-free`, async ({ page }) => {
+  test(`${viewport.width}×${viewport.height}: the semicircle and the triangle shawl on the canvas in their real shape, error-free`, async ({
+    page,
+  }) => {
     await page.setViewportSize(viewport);
     await open(page);
     const section = await openShawls(page);
@@ -90,7 +98,9 @@ for (const viewport of [
     /** The width/height ratio of the bounding rectangle of the stitches, in window coordinates (`window.mintatervezoKijeloles`). */
     const aspect = () =>
       page.evaluate(() => {
-        const api = (window as unknown as { mintatervezoKijeloles: { nodes(): { layer: number; x: number; y: number }[] } }).mintatervezoKijeloles;
+        const api = (
+          window as unknown as { mintatervezoKijeloles: { nodes(): { layer: number; x: number; y: number }[] } }
+        ).mintatervezoKijeloles;
         const nodes = api.nodes().filter((node) => node.layer > 0);
         const xs = nodes.map((node) => node.x);
         const ys = nodes.map((node) => node.y);

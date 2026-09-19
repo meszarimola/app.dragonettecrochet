@@ -29,7 +29,11 @@ const ok = (result) => {
 function build(pattern, kind = 'rows', options = {}) {
   const library = libraryFor(pattern);
   const context = contextOf(pattern);
-  return { grid: chartGrid(pattern, library, kind, context, options), layout: layoutPattern(pattern, library, options), context };
+  return {
+    grid: chartGrid(pattern, library, kind, context, options),
+    layout: layoutPattern(pattern, library, options),
+    context,
+  };
 }
 
 const aim = (grid, point) => aimAt(grid, gridHit(grid, point));
@@ -57,7 +61,9 @@ describe('row grid: cells sit exactly on the computed positions', () => {
         }
         // The cells of one row do not overlap.
         const areas = cells.map((cell) => cell.area).sort((a, b) => a.x0 - b.x0);
-        areas.forEach((area, i) => assert.ok(i === 0 || area.x0 >= areas[i - 1].x1 - 1e-6, `row ${layer.index}: overlap`));
+        areas.forEach((area, i) =>
+          assert.ok(i === 0 || area.x0 >= areas[i - 1].x1 - 1e-6, `row ${layer.index}: overlap`),
+        );
       }
     });
   }
@@ -120,7 +126,10 @@ describe('aiming on the grid', () => {
   test('clicking a cell of an earlier row yields a message, not a target', () => {
     const { grid } = build(hdcRectangle({ rows: 2 }).pattern);
     const old = grid.cells.find((cell) => cell.layer === 1);
-    assert.deepEqual(aim(grid, old.center), { kind: 'refused', message: { code: 'aim-other-layer', data: { layer: 1, current: 3, shape: 'row' } } });
+    assert.deepEqual(aim(grid, old.center), {
+      kind: 'refused',
+      message: { code: 'aim-other-layer', data: { layer: 1, current: 3, shape: 'row' } },
+    });
     // The article, the inflection and the word for a row belong to the UI; the Hungarian sentence is the current one.
     assert.equal(
       hu(aim(grid, old.center).message),
@@ -160,7 +169,9 @@ describe('aiming on the grid', () => {
   test('in a half-finished row, where nothing sits below, there is nothing to crochet into', () => {
     // A non-counting turning chain set explicitly: in rows it counts by default and stands above the skipped stitch (PQW-891).
     const empty = emptyPattern();
-    let pattern = ok(work({ ...empty, conventions: { ...empty.conventions, turningChainCounts: false } }, { def: 'ch', count: 7 }, 0));
+    let pattern = ok(
+      work({ ...empty, conventions: { ...empty.conventions, turningChainCounts: false } }, { def: 'ch', count: 7 }, 0),
+    );
     for (let slot = 1; slot <= 6; slot += 1) pattern = ok(work(pattern, { def: 'sc', count: 1 }, slot));
     pattern = ok(endRow(pattern));
     // Here the turning chain is not a stitch, so it takes no stitch's place: the crocheter places it herself (PQW-944).
@@ -178,7 +189,10 @@ describe('aiming on the grid', () => {
     assert.deepEqual(aim(grid, chain), { kind: 'refused', message: { code: 'aim-no-stitch' } });
     // Even in a half-finished row the target cells point at the targets.
     const cells = grid.cells.filter((cell) => cell.layer === 2);
-    assert.deepEqual(cells.map((cell) => cell.slot).sort((a, b) => a - b), context.slots.map((_, i) => i));
+    assert.deepEqual(
+      cells.map((cell) => cell.slot).sort((a, b) => a - b),
+      context.slots.map((_, i) => i),
+    );
   });
 
   test('no hit outside the grid, and an empty pattern has no grid at all', () => {
@@ -193,8 +207,14 @@ describe('bands and lines', () => {
   test('alternating row tones stacked without gaps, with the 5th and 10th line emphasised', () => {
     const { grid } = build(hdcRectangle({ rows: 11 }).pattern);
     const bands = [...grid.bands].sort((a, b) => a.layer - b.layer);
-    assert.deepEqual(bands.map((band) => band.layer), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-    assert.deepEqual(bands.filter((band) => band.working).map((band) => band.layer), [12]);
+    assert.deepEqual(
+      bands.map((band) => band.layer),
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    );
+    assert.deepEqual(
+      bands.filter((band) => band.working).map((band) => band.layer),
+      [12],
+    );
     bands.forEach((band, i) => {
       assert.equal(band.tone, band.layer % 2);
       assert.ok(band.area.y0 < band.area.y1);
@@ -203,7 +223,10 @@ describe('bands and lines', () => {
     });
     assert.deepEqual(
       bands.filter((band) => band.emphasis !== 'none').map((band) => [band.layer, band.emphasis]),
-      [[5, 'five'], [10, 'ten']],
+      [
+        [5, 'five'],
+        [10, 'ten'],
+      ],
     );
     assert.deepEqual([0, 4, 5, 10, 15, 20].map(emphasisOf), ['none', 'none', 'five', 'ten', 'five', 'ten']);
   });
@@ -214,11 +237,14 @@ describe('bands and lines', () => {
     // 15 half double crochets plus the column of the turning chain (PQW-944).
     assert.equal(row1.length, 16);
     assert.ok(row1.every((cell, i) => i === 0 || cell.center.x < row1[i - 1].center.x));
-    assert.deepEqual(row1.filter((cell) => cell.emphasis !== 'none').map((cell) => [cell.index + 1, cell.emphasis]), [
-      [5, 'five'],
-      [10, 'ten'],
-      [15, 'five'],
-    ]);
+    assert.deepEqual(
+      row1.filter((cell) => cell.emphasis !== 'none').map((cell) => [cell.index + 1, cell.emphasis]),
+      [
+        [5, 'five'],
+        [10, 'ten'],
+        [15, 'five'],
+      ],
+    );
     const row2 = grid.cells.filter((cell) => cell.layer === 2).sort((a, b) => a.index - b.index);
     assert.ok(row2[0].center.x < row2[1].center.x, 'row 2 runs left to right');
   });
@@ -253,7 +279,10 @@ describe('the grid by pattern kind', () => {
     });
     const inner = grid.cells.find((cell) => cell.layer === 1);
     assert.deepEqual(aim(grid, inner.center).message.data, { layer: 1, current: 4, shape: 'round' });
-    assert.match(hu(aim(grid, inner.center).message), /^Ez az 1\. kör egyik helye\. Most a 4\. kör készül: csak a 3\. kör szemeibe/);
+    assert.match(
+      hu(aim(grid, inner.center).message),
+      /^Ez az 1\. kör egyik helye\. Most a 4\. kör készül: csak a 3\. kör szemeibe/,
+    );
   });
 
   test('after a magic ring the target is the ring itself: the working round is one full ring', () => {
@@ -293,7 +322,10 @@ describe('the grid by pattern kind', () => {
 
   test('the chart bounds are the union of the drawing and the enabled grid (PQW-887)', () => {
     const { grid, layout } = build(grannySquare().pattern, 'rounds');
-    assert.ok(grid.bounds.minY < layout.bounds.minY, 'with the band of the working round the grid is larger than the drawing');
+    assert.ok(
+      grid.bounds.minY < layout.bounds.minY,
+      'with the band of the working round the grid is larger than the drawing',
+    );
     assert.deepEqual(chartBounds(layout, grid), {
       minX: Math.min(layout.bounds.minX, grid.bounds.minX),
       minY: Math.min(layout.bounds.minY, grid.bounds.minY),
@@ -301,7 +333,11 @@ describe('the grid by pattern kind', () => {
       maxY: Math.max(layout.bounds.maxY, grid.bounds.maxY),
     });
     assert.deepEqual(chartBounds(layout, null), layout.bounds, 'with the grid off, the drawing bounds stand');
-    assert.deepEqual(chartBounds(layout, { ...grid, bands: [] }), layout.bounds, 'with an empty grid, the drawing bounds stand');
+    assert.deepEqual(
+      chartBounds(layout, { ...grid, bands: [] }),
+      layout.bounds,
+      'with an empty grid, the drawing bounds stand',
+    );
   });
 
   test('cell grid (filet base): cells of equal width; text view (amigurumi): no grid', () => {
@@ -316,7 +352,21 @@ describe('the grid by pattern kind', () => {
 });
 
 test('the definite article before a number written in digits: az 1., a 2., az 5., az 50.', () => {
-  const cases = { 0: 'a', 1: 'az', 2: 'a', 5: 'az', 10: 'a', 15: 'a', 50: 'az', 59: 'az', 100: 'a', 501: 'az', 1000: 'az', 2000: 'a', 5000: 'az' };
+  const cases = {
+    0: 'a',
+    1: 'az',
+    2: 'a',
+    5: 'az',
+    10: 'a',
+    15: 'a',
+    50: 'az',
+    59: 'az',
+    100: 'a',
+    501: 'az',
+    1000: 'az',
+    2000: 'a',
+    5000: 'az',
+  };
   for (const [n, expected] of Object.entries(cases)) assert.equal(article(Number(n)), expected, n);
   assert.throws(() => article(-1), RangeError);
 });
@@ -352,7 +402,10 @@ describe('the vertical turning chain gets one cell (PQW-943)', () => {
     const turning = new Set(context.graph.layers[1].turningChain);
     const onChain = rowCells(grid, 1).filter((cell) => cell.slot !== null && turning.has(context.slots[cell.slot].id));
     assert.equal(onChain.length, 1, 'a single cell stands in the column of the turning chain');
-    assert.ok(onChain[0].area.x1 - onChain[0].area.x0 > 20, `the cell is full width: ${onChain[0].area.x1 - onChain[0].area.x0}`);
+    assert.ok(
+      onChain[0].area.x1 - onChain[0].area.x0 > 20,
+      `the cell is full width: ${onChain[0].area.x1 - onChain[0].area.x0}`,
+    );
   });
 
   test('a four-chain turning chain still gets one cell, and no cell collapses to zero width', () => {
@@ -368,8 +421,12 @@ describe('the vertical turning chain gets one cell (PQW-943)', () => {
     const { grid, layout, context } = started(10, 'sc', 4);
     const band = grid.bands.find((candidate) => candidate.layer === 1);
     const tops = context.graph.layers[1].turningChain.map((id) => layout.nodes.get(id).top.y);
-    assert.ok(band.area.y0 < Math.min(...tops), `the band top (${band.area.y0}) is above the chain (${Math.min(...tops)})`);
-    for (const cell of rowCells(grid, 1)) assert.equal(cell.area.y0, band.area.y0, 'the cells grow taller together with the band');
+    assert.ok(
+      band.area.y0 < Math.min(...tops),
+      `the band top (${band.area.y0}) is above the chain (${Math.min(...tops)})`,
+    );
+    for (const cell of rowCells(grid, 1))
+      assert.equal(cell.area.y0, band.area.y0, 'the cells grow taller together with the band');
   });
 
   test('the turning chain does not pull the band downwards: the foundation band stays put', () => {
@@ -450,7 +507,10 @@ describe('the cells of a chain space (PQW-951)', () => {
     );
     // They divide the span between the two anchored stitches; three stitches sit below it.
     const below = rowCells(grid, 0).slice(1, 4);
-    assert.ok(near(arc[0].area.x1, below[0].area.x1) || arc[0].area.x1 <= below[0].area.x1 + 24, 'the span does not grow');
+    assert.ok(
+      near(arc[0].area.x1, below[0].area.x1) || arc[0].area.x1 <= below[0].area.x1 + 24,
+      'the span does not grow',
+    );
     const widths = arc.map((cell) => cell.area.x1 - cell.area.x0);
     assert.ok(
       widths.every((width) => width < below[0].area.x1 - below[0].area.x0),
@@ -476,7 +536,10 @@ describe('the cells of a chain space (PQW-951)', () => {
     const { grid } = build(arcPattern());
     const base = grid.bands.find((band) => band.layer === 0);
     const row = grid.bands.find((band) => band.layer === 1);
-    assert.ok(row.area.x1 <= base.area.x1 + 1e-6 && row.area.x0 >= base.area.x0 - 1e-6, 'the band stays within the foundation');
+    assert.ok(
+      row.area.x1 <= base.area.x1 + 1e-6 && row.area.x0 >= base.area.x0 - 1e-6,
+      'the band stays within the foundation',
+    );
   });
 
   test('a stitch bridged under the arc gets no empty cell even in a closed row, while an unworked row end does', () => {
@@ -485,9 +548,14 @@ describe('the cells of a chain space (PQW-951)', () => {
     const piece = pattern.pieces[0];
     // The bridged stitches between the two single crochets: the arc runs above them.
     const worked = new Set(piece.stitches.flatMap((stitch) => stitch.anchors.map((anchor) => anchor.id)));
-    const base = piece.stitches.filter((stitch) => stitch.def === 'ch').map((stitch) => stitch.id).slice(0, 24);
+    const base = piece.stitches
+      .filter((stitch) => stitch.def === 'ch')
+      .map((stitch) => stitch.id)
+      .slice(0, 24);
     const marks = base.map((id, index) => (worked.has(id) ? index : -1)).filter((index) => index >= 0);
-    const inside = new Set(base.filter((id, index) => index > marks[0] && index < marks.at(-1) && piece.skipped.includes(id)));
+    const inside = new Set(
+      base.filter((id, index) => index > marks[0] && index < marks.at(-1) && piece.skipped.includes(id)),
+    );
     assert.ok(inside.size === 3, `the arc bridges three stitches: ${inside.size}`);
     const gaps = rowCells(grid, 1).filter((cell) => cell.gap !== null);
     assert.ok(

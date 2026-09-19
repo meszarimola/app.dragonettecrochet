@@ -5,7 +5,7 @@
  */
 
 import { readFile } from 'node:fs/promises';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 interface Cell {
   readonly layer: number;
@@ -44,7 +44,9 @@ async function enter(page: Page, selector: string, value: string): Promise<void>
   await page.locator(selector).press('Tab');
 }
 
-test('the section sits under Stitches, closed by default; without a profile the size is an estimate, with a range', async ({ page }) => {
+test('the section sits under Stitches, closed by default; without a profile the size is an estimate, with a range', async ({
+  page,
+}) => {
   await open(page);
   const size = page.locator('#section-size');
   await expect(size).not.toHaveAttribute('open', '');
@@ -56,14 +58,18 @@ test('the section sits under Stitches, closed by default; without a profile the 
 
   await rectangle(page, 5, 2);
   await size.locator('summary').click();
-  await expect(page.locator('#size-notice')).toContainText('Nincs profil: a méret becslés 4 mm-es tűből, tartománnyal.');
+  await expect(page.locator('#size-notice')).toContainText(
+    'Nincs profil: a méret becslés 4 mm-es tűből, tartománnyal.',
+  );
   await expect(page.locator('#size-total')).toContainText('becsült');
   await expect(page.locator('#size-total')).toContainText('tartomány:');
   await expect(page.locator('#size-rows tbody tr')).toHaveCount(2);
   await expect(page.locator('#size-yarn')).toContainText('A fonalbecsléshez hiányzik');
 });
 
-test('profile in the panel: measured size, yarn per skein; it is saved with the pattern, after a reload and in the JSON too', async ({ page }) => {
+test('profile in the panel: measured size, yarn per skein; it is saved with the pattern, after a reload and in the JSON too', async ({
+  page,
+}) => {
   await open(page);
   await rectangle(page, 5, 2);
   await page.locator('#section-size > summary').click();
@@ -133,7 +139,9 @@ test('profile in the panel: measured size, yarn per skein; it is saved with the 
  * rule. The fix lives on in PQW-927; until then this test guards that switching
  * the view works.
  */
-test('proportional view: switching the view affects the row ratio of the grid, and can be switched off (the values of today, PQW-927)', async ({ page }) => {
+test('proportional view: switching the view affects the row ratio of the grid, and can be switched off (the values of today, PQW-927)', async ({
+  page,
+}) => {
   await open(page);
   await rectangle(page, 5, 3);
 

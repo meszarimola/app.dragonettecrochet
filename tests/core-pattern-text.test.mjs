@@ -12,14 +12,14 @@ import { readFileSync } from 'node:fs';
 import { describe, test } from 'node:test';
 
 import { canonicalPattern } from '../src/core/canonical.ts';
-import { dative, times } from '../src/core/hungarian.ts';
 import { contextOf, defaultCursor, emptyPattern, endRow, work, workIntoSame } from '../src/core/editor.ts';
+import { dative, times } from '../src/core/hungarian.ts';
 import { readPattern } from '../src/core/pattern-read.ts';
-import { libraryFor } from '../src/core/stitch-variants.ts';
-import { WrittenPatternError, foldRepeats, mergeSteps } from '../src/core/pattern-steps.ts';
+import { foldRepeats, mergeSteps, WrittenPatternError } from '../src/core/pattern-steps.ts';
 import { formatWrittenPattern, ordinal, writePattern } from '../src/core/pattern-text.ts';
+import { libraryFor } from '../src/core/stitch-variants.ts';
 import { PieceBuilder, patternOf } from './fixtures/builder.ts';
-import { WORKED_EXAMPLES, dcRectangle, grannySquare, hdcRectangle, vStitchPattern } from './fixtures/examples.ts';
+import { dcRectangle, grannySquare, hdcRectangle, vStitchPattern, WORKED_EXAMPLES } from './fixtures/examples.ts';
 import { testLibrary } from './fixtures/library.ts';
 
 const LOCALES = ['hu', 'en-US', 'en-GB'];
@@ -35,7 +35,8 @@ const FILES = {
 };
 
 const textOf = (pattern, locale) => formatWrittenPattern(writePattern(pattern, testLibrary, locale));
-const readBack = (text, pattern, locale) => readPattern(text, { library: testLibrary, locale, conventions: pattern.conventions });
+const readBack = (text, pattern, locale) =>
+  readPattern(text, { library: testLibrary, locale, conventions: pattern.conventions });
 
 /** The lines of the pieces, without the title, the abbreviations and the stitch key. */
 const instructions = (written) => written.pieces.flatMap((piece) => piece.lines).join('\n');
@@ -48,7 +49,10 @@ for (const locale of ['hu', 'en-US']) {
   describe(`fixed text: ${locale}`, () => {
     for (const [name, make] of Object.entries(WORKED_EXAMPLES)) {
       test(name, () => {
-        const expected = readFileSync(new URL(`./fixtures/written/${locale}/${FILES[name]}.txt`, import.meta.url), 'utf8');
+        const expected = readFileSync(
+          new URL(`./fixtures/written/${locale}/${FILES[name]}.txt`, import.meta.url),
+          'utf8',
+        );
         assert.equal(textOf(make().pattern, locale), expected);
       });
     }
@@ -88,7 +92,10 @@ describe('one terminology within one pattern (01 §8.5 szabály 24–25)', () =>
   });
 
   test('in English both headings name the term system, in Hungarian neither does (PQW-868)', () => {
-    for (const [locale, system, other] of [['en-US', 'US terms', 'UK terms'], ['en-GB', 'UK terms', 'US terms']]) {
+    for (const [locale, system, other] of [
+      ['en-US', 'US terms', 'UK terms'],
+      ['en-GB', 'UK terms', 'US terms'],
+    ]) {
       for (const text of all(locale)) {
         assert.match(text, new RegExp(`^Abbreviations \\(${system}\\)$`, 'm'));
         assert.match(text, new RegExp(`^Stitch key \\(${system}\\)$`, 'm'));
@@ -120,7 +127,10 @@ describe('abbreviation list and stitch key hold only the stitches used (01 §8.5
         }
         for (const def of testLibrary.values()) {
           const abbr = def.terms[locale].abbr;
-          if (abbr && new RegExp(`(^|[\\s(\\[])${abbr.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&')}([\\s,.)\\]]|$)`).test(lines)) {
+          if (
+            abbr &&
+            new RegExp(`(^|[\\s(\\[])${abbr.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&')}([\\s,.)\\]]|$)`).test(lines)
+          ) {
             assert.ok(listed.has(abbr), `${written.title}: "${abbr}" is missing from the abbreviations`);
           }
         }
@@ -164,7 +174,10 @@ describe('merging and the shortest repeating unit (06 §5.3 pont 5)', () => {
 
   test('the parts before and after the repeat are kept', () => {
     const steps = mergeSteps([sc, sc, inc, sc, inc, sc, inc, sc], testLibrary);
-    assert.deepEqual(foldRepeats(steps), [{ ...sc, count: 2 }, { kind: 'repeat', steps: [inc, sc], times: 3 }]);
+    assert.deepEqual(foldRepeats(steps), [
+      { ...sc, count: 2 },
+      { kind: 'repeat', steps: [inc, sc], times: 3 },
+    ]);
   });
 
   test('writing out an increase and a stitch worked into the same stitch', () => {
@@ -202,7 +215,9 @@ describe('the pattern conventions in the text', () => {
     assert.equal(result.pattern.pieces[0].events[0].conventions, undefined, 'no redundant override');
 
     // Per-row override: here the turning chain is not a stitch, and the text carries that across.
-    const events = piece.events.map((event, i) => (i === 0 ? { ...event, conventions: { turningChainCounts: false }, statedCount: 16 } : event));
+    const events = piece.events.map((event, i) =>
+      i === 0 ? { ...event, conventions: { turningChainCounts: false }, statedCount: 16 } : event,
+    );
     const override = { ...example.pattern, pieces: [{ ...piece, events }] };
     const overridden = textOf(override, 'hu');
     assert.match(overridden, /3\. sor: 3 lsz \(fordulólánc\), 16 erp \(16 szem\)\./);
@@ -262,7 +277,10 @@ function backLoopRows() {
   // 6 chains, 2 skipped for single crochet: 4 single crochets per row, 5 stitches counting the turning chain (PQW-940).
   const b = new PieceBuilder('p1', 'Hátsó szálas csík');
   const foundation = b.chain(6);
-  let row = foundation.slice(0, 4).reverse().map((id) => b.stitch('sc', id));
+  let row = foundation
+    .slice(0, 4)
+    .reverse()
+    .map((id) => b.stitch('sc', id));
   b.event('turn', 5);
   for (let r = 2; r <= 3; r += 1) {
     b.chain(1);
@@ -307,10 +325,16 @@ describe('row 2 worked into the foundation chain: „hagyj ki N láncszemet, maj
       firstRow(textOf(shell, 'hu')),
       '2. sor: hagyj ki 1 láncszemet, majd 1 rp, [2 láncszem kihagyása, kagyló, 2 láncszem kihagyása, 1 rp] 3-szor (19 szem). Fordítás.',
     );
-    assert.equal(firstRow(textOf(shell, 'en-US')), 'Row 2: skip 1 ch, sc, [sk 2 ch, sh, sk 2 ch, sc] 3 times (19 sts). Turn.');
+    assert.equal(
+      firstRow(textOf(shell, 'en-US')),
+      'Row 2: skip 1 ch, sc, [sk 2 ch, sh, sk 2 ch, sc] 3 times (19 sts). Turn.',
+    );
     assert.match(firstRow(textOf(shell, 'en-GB')), /^Row 2: miss 1 ch, dc, \[miss 2 ch, /);
     const v = vStitchPattern().pattern;
-    assert.match(firstRow(textOf(v, 'hu')), /^2\. sor: hagyj ki 3 láncszemet, majd 1 erp, 1 láncszem kihagyása, V-szem, /);
+    assert.match(
+      firstRow(textOf(v, 'hu')),
+      /^2\. sor: hagyj ki 3 láncszemet, majd 1 erp, 1 láncszem kihagyása, V-szem, /,
+    );
     for (const pattern of [shell, v]) {
       for (const locale of LOCALES) {
         const result = readBack(textOf(pattern, locale), pattern, locale);
@@ -346,7 +370,11 @@ describe('row 2 worked into the foundation chain: „hagyj ki N láncszemet, maj
         const result = readBack(old, pattern, locale);
         // Text written under the earlier rule is not silently reinterpreted (PQW-924).
         assert.equal(result.ok, false, `${pattern.title} ${locale}`);
-        assert.match(result.error.message, locale === 'hu' ? /korábbi szabály szerint készült/ : /earlier rule/, `${pattern.title} ${locale}`);
+        assert.match(
+          result.error.message,
+          locale === 'hu' ? /korábbi szabály szerint készült/ : /earlier rule/,
+          `${pattern.title} ${locale}`,
+        );
       }
     }
   });
@@ -368,7 +396,9 @@ describe('a new section above the same row after the yarn is cut (PQW-901)', () 
     for (const target of [row1[1], row1[0]]) builder.stitch('sc', target);
     builder.event('fasten-off', 2);
     const piece = builder.build();
-    const events = piece.events.map((event, i) => (i === 1 ? { ...event, resume: { layer: 1, name: 'Jobb váll' } } : event));
+    const events = piece.events.map((event, i) =>
+      i === 1 ? { ...event, resume: { layer: 1, name: 'Jobb váll' } } : event,
+    );
     return patternOf('Két váll', [{ ...piece, events }], { turningChainCounts: false });
   };
 
@@ -399,7 +429,10 @@ describe('read back: a precise error message on a mismatch', () => {
   });
 
   test('wrong stitch count: the line and both numbers', () => {
-    const wrong = text.replace('minden láncszembe 1 fp (16 szem). Fordítás.', 'minden láncszembe 1 fp (17 szem). Fordítás.');
+    const wrong = text.replace(
+      'minden láncszembe 1 fp (16 szem). Fordítás.',
+      'minden láncszembe 1 fp (17 szem). Fordítás.',
+    );
     assert.notEqual(wrong, text);
     const result = readBack(wrong, pattern, 'hu');
     assert.deepEqual(result, {
@@ -409,19 +442,33 @@ describe('read back: a precise error message on a mismatch', () => {
   });
 
   test('more stitches than the previous row can hold', () => {
-    const result = readBack(text.replace('3. sor: 2 lsz (1 fp-nek számít), 15 fp', '3. sor: 2 lsz (1 fp-nek számít), 16 fp'), pattern, 'hu');
+    const result = readBack(
+      text.replace('3. sor: 2 lsz (1 fp-nek számít), 15 fp', '3. sor: 2 lsz (1 fp-nek számít), 16 fp'),
+      pattern,
+      'hu',
+    );
     // The top of the turning chain is a target too (PQW-944), so the 16th stitch still fits; the stitch count does not add up.
-    assert.deepEqual(result.error, { line: lineOf('3. sor:'), message: '3. sor: a szöveg 16 szemet ír, a visszaolvasott gráf szerint 17.' });
+    assert.deepEqual(result.error, {
+      line: lineOf('3. sor:'),
+      message: '3. sor: a szöveg 16 szemet ír, a visszaolvasott gráf szerint 17.',
+    });
   });
 
   test('unknown item', () => {
-    const result = readBack(text.replace('15 fp (16 szem). A fonal', '15 hamispálca (16 szem). A fonal'), pattern, 'hu');
+    const result = readBack(
+      text.replace('15 fp (16 szem). A fonal', '15 hamispálca (16 szem). A fonal'),
+      pattern,
+      'hu',
+    );
     assert.deepEqual(result.error, { line: lineOf('3. sor:'), message: 'Nem értelmezhető tétel: „15 hamispálca”.' });
   });
 
   test('a missing row ending in an intermediate row', () => {
     const result = readBack(text.replace('(16 szem). Fordítás.', '(16 szem).'), pattern, 'hu');
-    assert.deepEqual(result.error, { line: lineOf('2. sor:'), message: 'A sor vége hiányzik: fordítás, a kör zárása vagy a fonal elvágása.' });
+    assert.deepEqual(result.error, {
+      line: lineOf('2. sor:'),
+      message: 'A sor vége hiányzik: fordítás, a kör zárása vagy a fonal elvágása.',
+    });
   });
 
   test('the row numbering does not continue', () => {
@@ -436,7 +483,12 @@ describe('a graph the text cannot express yet', () => {
     const piece = pattern.pieces[0];
     const crossed = {
       ...pattern,
-      pieces: [{ ...piece, stitches: piece.stitches.map((node) => (node.id === rows[2][3] ? { ...node, flags: ['crossed'] } : node)) }],
+      pieces: [
+        {
+          ...piece,
+          stitches: piece.stitches.map((node) => (node.id === rows[2][3] ? { ...node, flags: ['crossed'] } : node)),
+        },
+      ],
     };
     assert.throws(
       () => writePattern(crossed, testLibrary, 'hu'),
@@ -448,14 +500,30 @@ describe('a graph the text cannot express yet', () => {
 /* ---- Hungarian inflection and English ordinals ---- */
 
 test('„-szor, -szer, -ször” follows how the number is pronounced', () => {
-  assert.deepEqual(
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100, 1000].map(times),
-    [
-      '1-szer', '2-szer', '3-szor', '4-szer', '5-ször', '6-szor', '7-szer', '8-szor', '9-szer', '10-szer',
-      '12-szer', '15-ször', '20-szor', '30-szor', '40-szer', '50-szer', '60-szor', '70-szer', '80-szor',
-      '90-szer', '100-szor', '1000-szer',
-    ],
-  );
+  assert.deepEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100, 1000].map(times), [
+    '1-szer',
+    '2-szer',
+    '3-szor',
+    '4-szer',
+    '5-ször',
+    '6-szor',
+    '7-szer',
+    '8-szor',
+    '9-szer',
+    '10-szer',
+    '12-szer',
+    '15-ször',
+    '20-szor',
+    '30-szor',
+    '40-szer',
+    '50-szer',
+    '60-szor',
+    '70-szer',
+    '80-szor',
+    '90-szer',
+    '100-szor',
+    '1000-szer',
+  ]);
 });
 
 test('dative: hyphenated after an abbreviation, by vowel harmony after a full name', () => {
@@ -466,7 +534,17 @@ test('dative: hyphenated after an abbreviation, by vowel harmony after a full na
 });
 
 test('English ordinals: 1st, 2nd, 3rd, 4th, 11th, 21st', () => {
-  assert.deepEqual([1, 2, 3, 4, 11, 12, 13, 21, 22].map(ordinal), ['1st', '2nd', '3rd', '4th', '11th', '12th', '13th', '21st', '22nd']);
+  assert.deepEqual([1, 2, 3, 4, 11, 12, 13, 21, 22].map(ordinal), [
+    '1st',
+    '2nd',
+    '3rd',
+    '4th',
+    '11th',
+    '12th',
+    '13th',
+    '21st',
+    '22nd',
+  ]);
 });
 
 /*
@@ -502,7 +580,9 @@ describe('the written pattern for chain stitches standing mid-row (PQW-937)', ()
 
   test('the chains and the skips are spelled out, even without a chain space', () => {
     const pattern = wavePattern();
-    const row = instructions(writePattern(pattern, libraryFor(pattern), 'hu')).split('\n').find((line) => line.startsWith('2. sor'));
+    const row = instructions(writePattern(pattern, libraryFor(pattern), 'hu'))
+      .split('\n')
+      .find((line) => line.startsWith('2. sor'));
 
     assert.ok(row, 'row 2 does get written out instead of failing as inexpressible');
     assert.match(row, /3 lsz/, 'the chains are spelled out');

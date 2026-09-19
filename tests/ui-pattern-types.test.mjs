@@ -11,14 +11,17 @@ import { test } from 'node:test';
 
 import {
   DEFAULT_PATTERN_TYPE,
-  PATTERN_TYPES,
   gridKind,
   isAvailableType,
+  PATTERN_TYPES,
   writtenShareFor,
 } from '../src/ui/pattern-types.ts';
 
 test('the grid kind switches together with the pattern type (PQW-874)', () => {
-  assert.deepEqual(PATTERN_TYPES.map((type) => gridKind(type.id, 'row')), ['rows', 'cells', 'text', 'rows']);
+  assert.deepEqual(
+    PATTERN_TYPES.map((type) => gridKind(type.id, 'row')),
+    ['rows', 'cells', 'text', 'rows'],
+  );
   // In regular crochet a round and a motif get a concentric grid.
   assert.equal(gridKind('regular', 'round'), 'rounds');
   assert.equal(gridKind('irregular', 'round'), 'rounds');

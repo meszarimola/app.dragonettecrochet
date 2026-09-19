@@ -1,7 +1,7 @@
 // KB: core-domain §4
 
 import { createStitchLibrary, type StitchLibrary } from './stitch-library.ts';
-import { STITCHES, cluster, decrease, increase, shell } from './stitches.ts';
+import { cluster, decrease, increase, STITCHES, shell } from './stitches.ts';
 import type { Pattern, StitchDef, StitchDefId } from './types.ts';
 
 const BY_ID = new Map(STITCHES.map((def) => [def.id, def]));

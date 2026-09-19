@@ -11,8 +11,19 @@ import { STITCHES, stitchById } from '../src/core/stitches.ts';
 import { hatchCount, placedShapes, shapeBounds, stemLength, symbolShapes } from '../src/ui/symbols.ts';
 
 const ROLES = [
-  'stem', 'bar', 'hatch', 'cross', 'chain', 'dot', 'ring', 'closure', 'tilde',
-  'front-loop', 'back-loop', 'front-post', 'back-post',
+  'stem',
+  'bar',
+  'hatch',
+  'cross',
+  'chain',
+  'dot',
+  'ring',
+  'closure',
+  'tilde',
+  'front-loop',
+  'back-loop',
+  'front-post',
+  'back-post',
 ];
 
 function roleCounts(shapes) {
@@ -31,31 +42,31 @@ const stems = (shapes) => shapes.filter((shape) => shape.role === 'stem');
 
 // prettier-ignore
 const SYMBOLS = [
-  ['ch',            { chain: 1 }],
-  ['sl-st',         { dot: 1 }],
-  ['sc',            { stem: 1, cross: 1 }],
-  ['hdc',           { stem: 1, bar: 1 }],
-  ['dc',            { stem: 1, bar: 1, hatch: 1 }],
-  ['tr',            { stem: 1, bar: 1, hatch: 2 }],
-  ['dtr',           { stem: 1, bar: 1, hatch: 3 }],
-  ['inc-2sc',       { stem: 2, cross: 2 }],
-  ['inc-2dc',       { stem: 2, bar: 2, hatch: 2 }],
-  ['sc2tog',        { stem: 2, cross: 2 }],
-  ['sc3tog',        { stem: 3, cross: 3 }],
-  ['dc2tog',        { stem: 2, bar: 1, hatch: 2 }],
-  ['dc3tog',        { stem: 3, bar: 1, hatch: 3 }],
-  ['invdec',        { stem: 2, cross: 2, 'front-loop': 2 }],
-  ['shell-5dc',     { stem: 5, bar: 5, hatch: 5 }],
-  ['v-st-dc',       { stem: 2, bar: 2, hatch: 2, chain: 1 }],
-  ['cl-3dc',        { stem: 3, bar: 1, hatch: 3 }],
+  ['ch', { chain: 1 }],
+  ['sl-st', { dot: 1 }],
+  ['sc', { stem: 1, cross: 1 }],
+  ['hdc', { stem: 1, bar: 1 }],
+  ['dc', { stem: 1, bar: 1, hatch: 1 }],
+  ['tr', { stem: 1, bar: 1, hatch: 2 }],
+  ['dtr', { stem: 1, bar: 1, hatch: 3 }],
+  ['inc-2sc', { stem: 2, cross: 2 }],
+  ['inc-2dc', { stem: 2, bar: 2, hatch: 2 }],
+  ['sc2tog', { stem: 2, cross: 2 }],
+  ['sc3tog', { stem: 3, cross: 3 }],
+  ['dc2tog', { stem: 2, bar: 1, hatch: 2 }],
+  ['dc3tog', { stem: 3, bar: 1, hatch: 3 }],
+  ['invdec', { stem: 2, cross: 2, 'front-loop': 2 }],
+  ['shell-5dc', { stem: 5, bar: 5, hatch: 5 }],
+  ['v-st-dc', { stem: 2, bar: 2, hatch: 2, chain: 1 }],
+  ['cl-3dc', { stem: 3, bar: 1, hatch: 3 }],
   ['cl-3dc-spread', { stem: 3, bar: 1, hatch: 3 }],
-  ['puff-3',        { stem: 3, bar: 1 }],
-  ['bobble-5dc',    { stem: 5, bar: 1, hatch: 5 }],
-  ['popcorn-5dc',   { stem: 5, hatch: 5, closure: 1 }],
-  ['picot',         { chain: 3, dot: 1 }],
-  ['rev-sc',        { stem: 1, cross: 1, tilde: 2 }],
-  ['ch-sp',         { chain: 3 }],
-  ['magic-ring',    { ring: 1 }],
+  ['puff-3', { stem: 3, bar: 1 }],
+  ['bobble-5dc', { stem: 5, bar: 1, hatch: 5 }],
+  ['popcorn-5dc', { stem: 5, hatch: 5, closure: 1 }],
+  ['picot', { chain: 3, dot: 1 }],
+  ['rev-sc', { stem: 1, cross: 1, tilde: 2 }],
+  ['ch-sp', { chain: 3 }],
+  ['magic-ring', { ring: 1 }],
 ];
 
 test('the symbol table covers every stitch in the library', () => {
@@ -82,11 +93,11 @@ test('every stem gets as many hatch lines as the component stitch has yarn overs
 // prettier-ignore
 const HATCHES = [
   // id         yarn overs  hatch lines
-  ['sc',        0,        0],
-  ['hdc',       1,        0],   // half double crochet is a plain T (01 §8.1 szabály 1–2)
-  ['dc',        1,        1],
-  ['tr',        2,        2],
-  ['dtr',       3,        3],
+  ['sc', 0, 0],
+  ['hdc', 1, 0], // half double crochet is a plain T (01 §8.1 szabály 1–2)
+  ['dc', 1, 1],
+  ['tr', 2, 2],
+  ['dtr', 3, 3],
 ];
 
 for (const [id, yarnOvers, hatches] of HATCHES) {
@@ -107,11 +118,11 @@ test('a hatch line really is slanted: neither horizontal nor vertical', () => {
 // prettier-ignore
 const STEMS = [
   // id         chain height  stem length
-  ['sc',        1,                 18],
-  ['hdc',       2,                 26],
-  ['dc',        3,                 34],
-  ['tr',        4,                 42],
-  ['dtr',       5,                 50],
+  ['sc', 1, 18],
+  ['hdc', 2, 26],
+  ['dc', 3, 34],
+  ['tr', 4, 42],
+  ['dtr', 5, 50],
 ];
 
 for (const [id, chainHeight, length] of STEMS) {
@@ -128,7 +139,10 @@ test('increases, shells and V-stitches share one foot for all their stems', () =
   for (const id of ['inc-2sc', 'inc-2dc', 'shell-5dc', 'v-st-dc']) {
     const [first, ...rest] = stems(symbolShapes(stitchById(id)));
     for (const stem of rest) assert.ok(samePoint(stem.from, first.from), id);
-    assert.ok(rest.some((stem) => !samePoint(stem.to, first.to)), `${id}: the tops fan out`);
+    assert.ok(
+      rest.some((stem) => !samePoint(stem.to, first.to)),
+      `${id}: the tops fan out`,
+    );
   }
 });
 
@@ -192,7 +206,12 @@ test('a stitch worked across several stitches marks every one of its feet', () =
 });
 
 test('a forbidden insertion mode throws', () => {
-  const cases = [['ch', 'front-loop'], ['sl-st', 'front-post'], ['rev-sc', 'back-loop'], ['invdec', 'both-loops']];
+  const cases = [
+    ['ch', 'front-loop'],
+    ['sl-st', 'front-post'],
+    ['rev-sc', 'back-loop'],
+    ['invdec', 'both-loops'],
+  ];
   for (const [id, insertion] of cases) {
     assert.throws(() => symbolShapes(stitchById(id), { singleCrochet: 'plus', insertion }), RangeError, id);
   }
@@ -208,7 +227,8 @@ test('single crochet defaults to +, with the cross bar lying on the axis of the 
   assert.ok(Math.abs(cross.to.x - cross.from.x) > 1);
   // With an upright stem this is perpendicular to the stem as well: the earlier assertion still holds.
   const [stem] = stems(shapes);
-  const dot = (stem.to.x - stem.from.x) * (cross.to.x - cross.from.x) + (stem.to.y - stem.from.y) * (cross.to.y - cross.from.y);
+  const dot =
+    (stem.to.x - stem.from.x) * (cross.to.x - cross.from.x) + (stem.to.y - stem.from.y) * (cross.to.y - cross.from.y);
   assert.ok(near(dot, 0));
 });
 
@@ -241,8 +261,9 @@ test('in JIS style single crochet is always an ×, whatever the + setting says, 
 });
 
 test('in JIS style the back loop is a horizontal line below the foot', () => {
-  const [mark] = symbolShapes(stitchById('dc'), { singleCrochet: 'plus', style: 'jis', insertion: 'back-loop' })
-    .filter((shape) => shape.role === 'back-loop');
+  const [mark] = symbolShapes(stitchById('dc'), { singleCrochet: 'plus', style: 'jis', insertion: 'back-loop' }).filter(
+    (shape) => shape.role === 'back-loop',
+  );
   assert.equal(mark.kind, 'line');
   assert.ok(near(mark.from.y, mark.to.y) && mark.from.y > 0);
   assert.ok(mark.from.x < 0 && mark.to.x > 0);

@@ -14,7 +14,7 @@
  * because its base stayed on one chain stitch and its top moved onto another.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 /** The symbol of an upright double crochet is 21 pixels wide; a wider symbol is leaning. */
 const UPRIGHT = 24;
@@ -62,10 +62,14 @@ const workingLayer = (page: Page): Promise<number> =>
   page.evaluate(() => (window as unknown as { mintatervezoRacs: { layer(): number } }).mintatervezoRacs.layer());
 
 const nodes = (page: Page): Promise<Node[]> =>
-  page.evaluate(() => (window as unknown as { mintatervezoKijeloles: { nodes(): Node[] } }).mintatervezoKijeloles.nodes());
+  page.evaluate(() =>
+    (window as unknown as { mintatervezoKijeloles: { nodes(): Node[] } }).mintatervezoKijeloles.nodes(),
+  );
 
 const boxes = (page: Page): Promise<Box[]> =>
-  page.evaluate(() => (window as unknown as { mintatervezoRacs: { stitchBoxes(): Box[] } }).mintatervezoRacs.stitchBoxes());
+  page.evaluate(() =>
+    (window as unknown as { mintatervezoRacs: { stitchBoxes(): Box[] } }).mintatervezoRacs.stitchBoxes(),
+  );
 
 /** The middle of the own cell of the target in the bottom row: that is where the crocheter points. */
 async function targetColumn(page: Page, slot: number): Promise<number> {
@@ -86,11 +90,17 @@ async function clickTarget(page: Page, slot: number): Promise<void> {
 /** 12 chain stitches, a turn, and the selected double crochet. */
 async function foundation(page: Page): Promise<void> {
   const palette = page.locator('#palette');
-  await palette.getByRole('button', { name: /Láncszem \(lsz\)/ }).first().click();
+  await palette
+    .getByRole('button', { name: /Láncszem \(lsz\)/ })
+    .first()
+    .click();
   await page.locator('#chain-count').fill('12');
   await page.locator('#board').click();
   await page.getByRole('button', { name: 'Fordulás' }).click();
-  await palette.getByRole('button', { name: /Egyráhajtásos pálca \(erp\)/ }).first().click();
+  await palette
+    .getByRole('button', { name: /Egyráhajtásos pálca \(erp\)/ })
+    .first()
+    .click();
 }
 
 /** The double crochets of the row in progress, by identifier. */
@@ -98,7 +108,9 @@ async function stitches(page: Page): Promise<Map<string, Stitch>> {
   const layer = await workingLayer(page);
   const box = new Map((await boxes(page)).map((candidate) => [candidate.id, candidate]));
   const found = (await nodes(page)).filter((node) => node.layer === layer && node.def === 'dc');
-  return new Map(found.map((node) => [node.id, { x: node.x, left: box.get(node.id)!.left, right: box.get(node.id)!.right }]));
+  return new Map(
+    found.map((node) => [node.id, { x: node.x, left: box.get(node.id)!.left, right: box.get(node.id)!.right }]),
+  );
 }
 
 test('clicking on the skipped place puts the stitch there, and the rest stay (PQW-933)', async ({ page }) => {
@@ -150,7 +162,9 @@ test('it increases into the stitch that was clicked, not into the last one laid 
   const leaning = [...after].filter(([, { left, right }]) => right - left >= UPRIGHT);
   expect(leaning, 'the two legs of the increase lean, nothing else').toHaveLength(2);
   for (const [id, { left, right }] of leaning) {
-    expect(left - 1 <= column && column <= right + 1, `leg ${id} starts from the chain stitch that was clicked`).toBe(true);
+    expect(left - 1 <= column && column <= right + 1, `leg ${id} starts from the chain stitch that was clicked`).toBe(
+      true,
+    );
   }
 
   await page.locator('#error-toggle').click();

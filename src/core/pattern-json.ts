@@ -14,11 +14,12 @@ import type {
   JoinEdge,
   LayerEvent,
   Locale,
+  OvalStitch,
   Pattern,
   PatternColor,
   PatternConventions,
-  PatternGauge,
   PatternGarment,
+  PatternGauge,
   PatternGaugeProfile,
   PatternNotation,
   Piece,
@@ -31,12 +32,11 @@ import type {
   Ring,
   RoundMark,
   RowConventions,
-  OvalStitch,
   ShapeSpec,
   Space,
+  StitchDefId,
   StitchFlag,
   StitchGroup,
-  StitchDefId,
   StitchInsertion,
   StitchNode,
   Tradition,
@@ -82,7 +82,9 @@ export interface LoadError {
   readonly message: CoreText<JsonCode>;
 }
 
-export type LoadResult = { readonly ok: true; readonly pattern: Pattern } | { readonly ok: false; readonly error: LoadError };
+export type LoadResult =
+  | { readonly ok: true; readonly pattern: Pattern }
+  | { readonly ok: false; readonly error: LoadError };
 
 export function savePattern(pattern: Pattern): string {
   return `${JSON.stringify(readPattern(pattern, '$'), null, 2)}\n`;
@@ -141,7 +143,12 @@ function isObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function object(value: unknown, path: string, required: readonly string[], optional: readonly string[] = []): JsonObject {
+function object(
+  value: unknown,
+  path: string,
+  required: readonly string[],
+  optional: readonly string[] = [],
+): JsonObject {
   if (!isObject(value)) throw new FormatError(path, 'expected-object');
   for (const key of required) {
     if (!(key in value)) throw new FormatError(`${path}.${key}`, 'missing-field');
@@ -201,11 +208,18 @@ export const GAUGE_STITCHES: readonly StitchDefId[] = ['sc', 'hdc', 'dc', 'tr'];
 const GAUGE_FORMS: readonly GaugeForm[] = ['rows', 'rounds'];
 
 function readPattern(value: unknown, path: string): Pattern {
-  const raw = object(value, path, ['formatVersion', 'title', 'conventions', 'pieces'], ['titleGenerated', 'notation', 'gauge', 'joins', 'toy', 'garment']);
+  const raw = object(
+    value,
+    path,
+    ['formatVersion', 'title', 'conventions', 'pieces'],
+    ['titleGenerated', 'notation', 'gauge', 'joins', 'toy', 'garment'],
+  );
   return {
     formatVersion: oneOf(raw['formatVersion'], `${path}.formatVersion`, [FORMAT_VERSION]),
     title: text(raw['title'], `${path}.title`),
-    ...(raw['titleGenerated'] === undefined ? {} : { titleGenerated: boolean(raw['titleGenerated'], `${path}.titleGenerated`) }),
+    ...(raw['titleGenerated'] === undefined
+      ? {}
+      : { titleGenerated: boolean(raw['titleGenerated'], `${path}.titleGenerated`) }),
     ...(raw['notation'] === undefined ? {} : { notation: readNotation(raw['notation'], `${path}.notation`) }),
     ...(raw['gauge'] === undefined ? {} : { gauge: readGauge(raw['gauge'], `${path}.gauge`) }),
     conventions: readPatternConventions(raw['conventions'], `${path}.conventions`),
@@ -377,7 +391,9 @@ const GRID_TECHNIQUES: readonly GridTechnique[] = ['filet', 'c2c', 'tapestry', '
 
 function readGrid(value: unknown, path: string): PieceGrid {
   const raw = object(value, path, ['technique', 'cells', 'colors', 'unit', 'lettering'], ['mosaicRows']);
-  const cells = array(raw['cells'], `${path}.cells`, (row, rowPath) => array(row, rowPath, (cell, cellPath) => integer(cell, cellPath, -1)));
+  const cells = array(raw['cells'], `${path}.cells`, (row, rowPath) =>
+    array(row, rowPath, (cell, cellPath) => integer(cell, cellPath, -1)),
+  );
   const width = cells[0]?.length ?? 0;
   cells.forEach((row, y) => {
     if (row.length !== width) throw new FormatError(`${path}.cells[${y}]`, 'expected-cells-per-row', { width });
@@ -388,7 +404,9 @@ function readGrid(value: unknown, path: string): PieceGrid {
     colors: array(raw['colors'], `${path}.colors`, readColor),
     unit: raw['unit'] === null ? null : readUnit(raw['unit'], `${path}.unit`),
     lettering: boolean(raw['lettering'], `${path}.lettering`),
-    ...(raw['mosaicRows'] === undefined ? {} : { mosaicRows: oneOf(raw['mosaicRows'], `${path}.mosaicRows`, [1, 2] as const) }),
+    ...(raw['mosaicRows'] === undefined
+      ? {}
+      : { mosaicRows: oneOf(raw['mosaicRows'], `${path}.mosaicRows`, [1, 2] as const) }),
   };
 }
 
@@ -472,7 +490,12 @@ function readGroup(value: unknown, path: string): StitchGroup {
 }
 
 function readEvent(value: unknown, path: string): LayerEvent {
-  const raw = object(value, path, ['after', 'kind'], ['statedCount', 'conventions', 'colorChange', 'jogFix', 'marks', 'resume']);
+  const raw = object(
+    value,
+    path,
+    ['after', 'kind'],
+    ['statedCount', 'conventions', 'colorChange', 'jogFix', 'marks', 'resume'],
+  );
   return {
     after: string(raw['after'], `${path}.after`),
     kind: oneOf(raw['kind'], `${path}.kind`, ['turn', 'join-slip', 'spiral', 'fasten-off']),
@@ -481,7 +504,9 @@ function readEvent(value: unknown, path: string): LayerEvent {
       ? {}
       : { conventions: readRowConventions(raw['conventions'], `${path}.conventions`) }),
     ...(raw['colorChange'] === undefined ? {} : { colorChange: boolean(raw['colorChange'], `${path}.colorChange`) }),
-    ...(raw['jogFix'] === undefined ? {} : { jogFix: oneOf(raw['jogFix'], `${path}.jogFix`, ['slip-stitch', 'back-loop']) }),
+    ...(raw['jogFix'] === undefined
+      ? {}
+      : { jogFix: oneOf(raw['jogFix'], `${path}.jogFix`, ['slip-stitch', 'back-loop']) }),
     ...(raw['marks'] === undefined
       ? {}
       : { marks: array(raw['marks'], `${path}.marks`, (mark, markPath) => oneOf(mark, markPath, MARKS)) }),
@@ -534,7 +559,13 @@ function readShape(value: unknown, path: string): ShapeSpec {
     }
     case 'cylinder': {
       const raw = object(value, path, ['kind', 'diameterCm', 'heightCm', 'bottom', 'top']);
-      return { kind, diameterCm: size(raw, 'diameterCm'), heightCm: size(raw, 'heightCm'), bottom: end(raw, 'bottom'), top: end(raw, 'top') };
+      return {
+        kind,
+        diameterCm: size(raw, 'diameterCm'),
+        heightCm: size(raw, 'heightCm'),
+        bottom: end(raw, 'bottom'),
+        top: end(raw, 'top'),
+      };
     }
     case 'cone': {
       const raw = object(value, path, ['kind', 'diameterCm', 'heightCm', 'increases', 'top']);
@@ -548,11 +579,17 @@ function readShape(value: unknown, path: string): ShapeSpec {
     }
     case 'revolution': {
       const raw = object(value, path, ['kind', 'profile', 'bottom', 'top']);
-      return { kind, profile: array(raw['profile'], `${path}.profile`, readProfilePoint), bottom: end(raw, 'bottom'), top: end(raw, 'top') };
+      return {
+        kind,
+        profile: array(raw['profile'], `${path}.profile`, readProfilePoint),
+        bottom: end(raw, 'bottom'),
+        top: end(raw, 'top'),
+      };
     }
     case 'oval': {
       const raw = object(value, path, ['kind', 'lengthCm', 'widthCm'], ['stitch']);
-      const stitch = raw['stitch'] === undefined ? {} : { stitch: oneOf(raw['stitch'], `${path}.stitch`, OVAL_STITCHES) };
+      const stitch =
+        raw['stitch'] === undefined ? {} : { stitch: oneOf(raw['stitch'], `${path}.stitch`, OVAL_STITCHES) };
       return { kind, lengthCm: size(raw, 'lengthCm'), widthCm: size(raw, 'widthCm'), ...stitch };
     }
   }
@@ -585,12 +622,18 @@ function readJoinEdge(value: unknown, path: string): JoinEdge {
   let stitches: JoinEdge['stitches'];
   if (raw['stitches'] !== undefined) {
     const range = object(raw['stitches'], `${path}.stitches`, ['from', 'count']);
-    stitches = { from: integer(range['from'], `${path}.stitches.from`, 0), count: integer(range['count'], `${path}.stitches.count`, 1) };
+    stitches = {
+      from: integer(range['from'], `${path}.stitches.from`, 0),
+      count: integer(range['count'], `${path}.stitches.count`, 1),
+    };
   }
   let rows: JoinEdge['rows'];
   if (raw['rows'] !== undefined) {
     const range = object(raw['rows'], `${path}.rows`, ['to', 'side']);
-    rows = { to: integer(range['to'], `${path}.rows.to`, layer), side: oneOf(range['side'], `${path}.rows.side`, ['left', 'right'] as const) };
+    rows = {
+      to: integer(range['to'], `${path}.rows.to`, layer),
+      side: oneOf(range['side'], `${path}.rows.side`, ['left', 'right'] as const),
+    };
   }
   return {
     piece: string(raw['piece'], `${path}.piece`),
@@ -615,7 +658,8 @@ function readGarment(value: unknown, path: string): PatternGarment {
   for (const key of SERIES_KEYS) {
     if (rawValues[key] === undefined) continue;
     const numbers = array(rawValues[key], `${path}.values.${key}`, finite);
-    if (numbers.length !== sizes.length) throw new FormatError(`${path}.values.${key}`, 'expected-numbers-per-size', { count: sizes.length });
+    if (numbers.length !== sizes.length)
+      throw new FormatError(`${path}.values.${key}`, 'expected-numbers-per-size', { count: sizes.length });
     values[key] = numbers;
   }
   return {

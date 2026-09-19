@@ -38,7 +38,9 @@ test('increase: a single crochet on a slanted stem keeps its + symbol and does n
 });
 
 test('increase in × mode: both diagonals stay at 45° and do not turn into a +', () => {
-  const shapes = placedShapes(stitchById('sc'), stitchAt([{ x: 0, y: 0 }], { x: 24, y: -18 }), { singleCrochet: 'cross' });
+  const shapes = placedShapes(stitchById('sc'), stitchAt([{ x: 0, y: 0 }], { x: 24, y: -18 }), {
+    singleCrochet: 'cross',
+  });
   const crosses = byRole(shapes, 'cross');
   assert.equal(crosses.length, 2);
   assert.equal(byRole(shapes, 'stem').length, 0);
@@ -65,7 +67,11 @@ test('in the round the cross bar and the top bar follow the angle of the row, no
 });
 
 test('decrease: one stem from every foot, all running into the same top', () => {
-  const feet = [{ x: 0, y: 0 }, { x: 24, y: 0 }, { x: 48, y: 0 }];
+  const feet = [
+    { x: 0, y: 0 },
+    { x: 24, y: 0 },
+    { x: 48, y: 0 },
+  ];
   const top = { x: 24, y: -34 };
   const shapes = placedShapes(stitchById('dc3tog'), stitchAt(feet, top));
   const stems = byRole(shapes, 'stem');
@@ -75,7 +81,16 @@ test('decrease: one stem from every foot, all running into the same top', () => 
 });
 
 test('invisible decrease: the front loop mark appears on every foot', () => {
-  const shapes = placedShapes(stitchById('invdec'), stitchAt([{ x: 0, y: 0 }, { x: 24, y: 0 }], { x: 12, y: -18 }));
+  const shapes = placedShapes(
+    stitchById('invdec'),
+    stitchAt(
+      [
+        { x: 0, y: 0 },
+        { x: 24, y: 0 },
+      ],
+      { x: 12, y: -18 },
+    ),
+  );
   assert.equal(byRole(shapes, 'front-loop').length, 2);
 });
 
@@ -90,7 +105,13 @@ test('a compound symbol worked into one base stays the upright library symbol, s
 });
 
 test('chain: an ellipse on the centre point, at the given angle, never longer than its span', () => {
-  const [oval] = placedShapes(stitchById('ch'), { role: 'chain', feet: [], top: { x: 3, y: 4 }, angle: Math.PI / 2, size: 10 });
+  const [oval] = placedShapes(stitchById('ch'), {
+    role: 'chain',
+    feet: [],
+    top: { x: 3, y: 4 },
+    angle: Math.PI / 2,
+    size: 10,
+  });
   assert.equal(oval.kind, 'ellipse');
   assert.deepEqual(oval.center, { x: 3, y: 4 });
   assert.equal(oval.rotation, Math.PI / 2);
@@ -101,8 +122,20 @@ test('reverse single crochet gets a wavy line, and every stitch yields finite sh
   const rev = placedShapes(stitchById('rev-sc'), stitchAt([{ x: 0, y: 0 }], { x: 0, y: -18 }));
   assert.equal(byRole(rev, 'tilde').length, 2);
   for (const def of STITCHES) {
-    const role = def.kind === 'chain' || def.kind === 'space' ? 'chain' : def.kind === 'slip' ? 'slip' : def.kind === 'picot' ? 'picot' : def.kind === 'ring' ? 'ring' : 'stitch';
-    const feet = def.kind === 'joined' && def.base === 'spread' ? Array.from({ length: def.consumes }, (_, i) => ({ x: i * 24, y: 0 })) : [{ x: 0, y: 0 }];
+    const role =
+      def.kind === 'chain' || def.kind === 'space'
+        ? 'chain'
+        : def.kind === 'slip'
+          ? 'slip'
+          : def.kind === 'picot'
+            ? 'picot'
+            : def.kind === 'ring'
+              ? 'ring'
+              : 'stitch';
+    const feet =
+      def.kind === 'joined' && def.base === 'spread'
+        ? Array.from({ length: def.consumes }, (_, i) => ({ x: i * 24, y: 0 }))
+        : [{ x: 0, y: 0 }];
     const shapes = placedShapes(def, { role, feet, top: { x: 10, y: -30 }, angle: 0.3, size: 18 });
     assert.ok(shapes.length > 0, def.id);
     assert.ok(Object.values(shapeBounds(shapes)).every(Number.isFinite), def.id);
@@ -110,13 +143,26 @@ test('reverse single crochet gets a wavy line, and every stitch yields finite sh
 });
 
 test('the canvas draws the stored right-side insertion mode without checking it against the stitch and without throwing (PQW-869)', () => {
-  const crab = placedShapes(stitchById('rev-sc'), stitchAt([{ x: 0, y: 0 }], { x: 0, y: -18 }), { singleCrochet: 'plus', insertion: 'back-loop' });
-  assert.equal(byRole(crab, 'back-loop').length, 1);
-  // On a wrong-side row the invisible decrease reads as back loop from the right side.
-  const invdec = placedShapes(stitchById('invdec'), stitchAt([{ x: 0, y: 0 }, { x: 24, y: 0 }], { x: 12, y: -18 }), {
+  const crab = placedShapes(stitchById('rev-sc'), stitchAt([{ x: 0, y: 0 }], { x: 0, y: -18 }), {
     singleCrochet: 'plus',
     insertion: 'back-loop',
   });
+  assert.equal(byRole(crab, 'back-loop').length, 1);
+  // On a wrong-side row the invisible decrease reads as back loop from the right side.
+  const invdec = placedShapes(
+    stitchById('invdec'),
+    stitchAt(
+      [
+        { x: 0, y: 0 },
+        { x: 24, y: 0 },
+      ],
+      { x: 12, y: -18 },
+    ),
+    {
+      singleCrochet: 'plus',
+      insertion: 'back-loop',
+    },
+  );
   assert.equal(byRole(invdec, 'back-loop').length, 2);
   assert.equal(byRole(invdec, 'front-loop').length, 0);
 });
@@ -125,11 +171,18 @@ test('a compound symbol worked into one base marks the chosen mode on its foot, 
   const foot = { x: 0, y: 0 };
   const top = { x: 0, y: -stemLength(3) };
   for (const style of ['cyc', 'jis']) {
-    const shapes = placedShapes(stitchById('bobble-5dc'), stitchAt([foot], top), { singleCrochet: 'plus', style, insertion: 'back-loop' });
+    const shapes = placedShapes(stitchById('bobble-5dc'), stitchAt([foot], top), {
+      singleCrochet: 'plus',
+      style,
+      insertion: 'back-loop',
+    });
     const marks = byRole(shapes, 'back-loop');
     assert.equal(marks.length, 1, style);
     assert.equal(marks[0].kind, style === 'jis' ? 'line' : 'curve');
-    assert.ok(marks.every((mark) => (mark.kind === 'line' ? mark.from.y : mark.control.y) > -6), `${style}: the mark sits at the foot`);
+    assert.ok(
+      marks.every((mark) => (mark.kind === 'line' ? mark.from.y : mark.control.y) > -6),
+      `${style}: the mark sits at the foot`,
+    );
   }
   // The legend and palette symbols still throw on a forbidden mode; the canvas symbol does not.
   const relief = { singleCrochet: 'plus', insertion: 'front-post' };

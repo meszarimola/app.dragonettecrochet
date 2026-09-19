@@ -1,11 +1,18 @@
 // KB: 03 §5.6, 03 §6, 03 §10 C17, 03 §10 G34, 03 §10 G35
 // KB: core-geometry §42
 
-import { fail, finishGridPattern, gridPiece, GridWriter, intoStitch, type GridPatternCode } from './grid-pattern.ts';
-import { text, type CoreText } from './messages.ts';
-import { TECHNIQUE_NAMES, cellSize, colorChartProblem, type CellSize, type ChartCode, type ChartRows } from './pixel-chart.ts';
+import { fail, finishGridPattern, type GridPatternCode, GridWriter, gridPiece, intoStitch } from './grid-pattern.ts';
+import { type CoreText, text } from './messages.ts';
+import {
+  type CellSize,
+  type ChartCode,
+  type ChartRows,
+  cellSize,
+  colorChartProblem,
+  TECHNIQUE_NAMES,
+} from './pixel-chart.ts';
 import { foundationChainLength } from './repeat.ts';
-import { shapeGauge, type ShapeGauge } from './shapes.ts';
+import { type ShapeGauge, shapeGauge } from './shapes.ts';
 import { resolveStitch } from './stitch-variants.ts';
 import { firstChainFromHook, skippedChains, traditionOf, turningChainCountsFor } from './tradition.ts';
 import type { GridUnit, NodeId, Pattern, PatternColor } from './types.ts';
@@ -43,9 +50,16 @@ export interface MosaicPlan {
   readonly drops: number;
 }
 
-export type MosaicCode = 'mosaic-two-colors' | 'mosaic-min-width' | 'mosaic-base-row' | 'mosaic-edge-colors' | 'mosaic-stacked-skip';
+export type MosaicCode =
+  | 'mosaic-two-colors'
+  | 'mosaic-min-width'
+  | 'mosaic-base-row'
+  | 'mosaic-edge-colors'
+  | 'mosaic-stacked-skip';
 
-export type MosaicPlanResult = { readonly ok: true; readonly plan: MosaicPlan } | { readonly ok: false; readonly reason: CoreText<MosaicCode | ChartCode> };
+export type MosaicPlanResult =
+  | { readonly ok: true; readonly plan: MosaicPlan }
+  | { readonly ok: false; readonly reason: CoreText<MosaicCode | ChartCode> };
 export type MosaicResult =
   | { readonly ok: true; readonly pattern: Pattern; readonly plan: MosaicPlan }
   | { readonly ok: false; readonly reason: CoreText<MosaicCode | ChartCode | GridPatternCode> };
@@ -60,7 +74,10 @@ export interface MosaicOptions {
 
 export const mosaicRowColor = (chartRow: number) => (chartRow - 1) % 2;
 
-export function mosaicProblem(cells: ChartRows, colors: readonly PatternColor[]): CoreText<MosaicCode | ChartCode> | null {
+export function mosaicProblem(
+  cells: ChartRows,
+  colors: readonly PatternColor[],
+): CoreText<MosaicCode | ChartCode> | null {
   const problem = colorChartProblem(cells, colors);
   if (problem) return problem;
   if (colors.length !== 2) return text('mosaic-two-colors');
@@ -81,7 +98,12 @@ export function mosaicProblem(cells: ChartRows, colors: readonly PatternColor[])
   return null;
 }
 
-export function planMosaic(pattern: Pattern, cells: ChartRows, colors: readonly PatternColor[], variant: MosaicRows): MosaicPlanResult {
+export function planMosaic(
+  pattern: Pattern,
+  cells: ChartRows,
+  colors: readonly PatternColor[],
+  variant: MosaicRows,
+): MosaicPlanResult {
   const problem = mosaicProblem(cells, colors);
   if (problem) return fail(problem);
   const def = resolveStitch(MOSAIC_STITCH)!;

@@ -11,10 +11,10 @@ import { describe, test } from 'node:test';
 import { contextOf, emptyPattern } from '../src/core/editor.ts';
 import { ROW_GAP } from '../src/core/layout.ts';
 import {
-  DEFAULT_HOOK_MM,
   activeProfile,
   aspectStem,
   ballLengthM,
+  DEFAULT_HOOK_MM,
   estimatedGauge,
   gaugeContextOf,
   gaugeProfileOf,
@@ -23,8 +23,8 @@ import {
   sizeLayers,
   swatchMassPerArea,
   withActiveProfile,
-  withProfile,
   withoutProfile,
+  withProfile,
 } from '../src/core/pattern-size.ts';
 import { yarnFromMassPerArea } from '../src/core/yarn-estimate.ts';
 import { dcRectangle, grannySquare, hdcRectangle } from './fixtures/examples.ts';
@@ -34,7 +34,13 @@ function near(actual, expected, epsilon = 1e-9) {
   assert.ok(Math.abs(actual - expected) <= epsilon, `${actual} ≠ ${expected} (±${epsilon})`);
 }
 
-const entry = (stitch, form, stitchesPer10cm, rowsPer10cm, source = 'measured') => ({ stitch, form, stitchesPer10cm, rowsPer10cm, source });
+const entry = (stitch, form, stitchesPer10cm, rowsPer10cm, source = 'measured') => ({
+  stitch,
+  form,
+  stitchesPer10cm,
+  rowsPer10cm,
+  source,
+});
 
 function profile(overrides = {}) {
   return {
@@ -73,13 +79,18 @@ describe('a profile entered in the UI, seen as a core profile', () => {
     assert.deepEqual(converted.yarn.metersPer100g, { value: 200, source: 'label' });
     assert.deepEqual(converted.yarn.cycWeight, { value: 4, source: 'estimated' });
     assert.deepEqual(converted.yarn.label, { lengthM: 200, massG: 100 });
-    const labelled = gaugeProfileOf(profile({ yarn: { name: '', cycWeight: 3, metersPer100g: null, ballMassG: null } }));
+    const labelled = gaugeProfileOf(
+      profile({ yarn: { name: '', cycWeight: 3, metersPer100g: null, ballMassG: null } }),
+    );
     assert.deepEqual(labelled.yarn.cycWeight, { value: 3, source: 'label' });
     assert.equal(labelled.yarn.label.lengthM, null);
   });
 
   test('02 §4.2 worked example: on a 4 mm hook, single crochet without a measurement gives ≈ 17,7 sts and 22 rows over 10 cm', () => {
-    assert.deepEqual(estimatedGauge(profile(), testLibrary, 'sc', 'rows'), { stitchesPer10cm: 17.7, rowsPer10cm: 22.2 });
+    assert.deepEqual(estimatedGauge(profile(), testLibrary, 'sc', 'rows'), {
+      stitchesPer10cm: 17.7,
+      rowsPer10cm: 22.2,
+    });
     // Starting from a measured single crochet, half double crochet keeps the width and gets a taller row.
     const measured = profile({ gauges: [entry('sc', 'rows', 20, 25)] });
     const hdc = estimatedGauge(measured, testLibrary, 'hdc', 'rows');
@@ -156,7 +167,10 @@ describe('yarn estimated from the mass of the swatch', () => {
     const swatch = profile({ swatch: { widthCm: 15, heightCm: 15, massG: 14.2 } });
     near(swatchMassPerArea(swatch), 0.0631, 1e-4);
     assert.equal(ballLengthM(swatch), 200);
-    const yarn = yarnFromMassPerArea(swatchMassPerArea(swatch), 100 * 130, { lengthM: ballLengthM(swatch), massG: 100 });
+    const yarn = yarnFromMassPerArea(swatchMassPerArea(swatch), 100 * 130, {
+      lengthM: ballLengthM(swatch),
+      massG: 100,
+    });
     near(yarn.massG.value, 820, 1);
     near(yarn.lengthM.value, 1640, 2);
     near(yarn.lengthWithBufferM.value, 1804, 2);
@@ -166,7 +180,10 @@ describe('yarn estimated from the mass of the swatch', () => {
   test('from the area of the pattern, with buffer, rounded up to whole balls', () => {
     const { pattern } = hdcRectangle();
     const size = sized(
-      withProfile(pattern, profile({ gauges: [entry('hdc', 'rows', 17.7, 15)], swatch: { widthCm: 15, heightCm: 15, massG: 14.2 } })),
+      withProfile(
+        pattern,
+        profile({ gauges: [entry('hdc', 'rows', 17.7, 15)], swatch: { widthCm: 15, heightCm: 15, massG: 14.2 } }),
+      ),
     );
     assert.equal(size.yarn.kind, 'estimate');
     const { estimate, ballLengthM: ball } = size.yarn;
@@ -178,7 +195,10 @@ describe('yarn estimated from the mass of the swatch', () => {
   test('when data is missing it says what is missing', () => {
     const { pattern } = hdcRectangle();
     const bare = profile({ yarn: { name: '', cycWeight: null, metersPer100g: null, ballMassG: null } });
-    assert.deepEqual(sized(withProfile(pattern, bare)).yarn, { kind: 'missing', missing: ['swatch', 'meterage', 'ball'] });
+    assert.deepEqual(sized(withProfile(pattern, bare)).yarn, {
+      kind: 'missing',
+      missing: ['swatch', 'meterage', 'ball'],
+    });
   });
 });
 
@@ -216,7 +236,10 @@ describe('the true-to-proportion view', () => {
   });
 
   test('the measured stitch ratio: 20 sts and 25 rows over 10 cm → 0,8; a measured double crochet uses its own height', () => {
-    const pattern = withProfile(emptyPattern(), profile({ gauges: [entry('sc', 'rows', 20, 25), entry('dc', 'rows', 20, 10)] }));
+    const pattern = withProfile(
+      emptyPattern(),
+      profile({ gauges: [entry('sc', 'rows', 20, 25), entry('dc', 'rows', 20, 10)] }),
+    );
     const stem = stemFor(pattern, 'row');
     near(stem(1) + ROW_GAP, 24 * 0.8);
     near(stem(3) + ROW_GAP, 24 * 2);

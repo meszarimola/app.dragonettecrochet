@@ -4,6 +4,9 @@ import { test } from 'node:test';
 import { computeLayers } from '../src/core/graph.ts';
 import { foundationChainLength, repeatCounts } from '../src/core/repeat.ts';
 import { createStitchLibrary } from '../src/core/stitch-library.ts';
+import { DOUBLE_CROCHET } from '../src/core/stitches.ts';
+import { validatePattern } from '../src/core/validate.ts';
+import { PieceBuilder, patternOf } from './fixtures/builder.ts';
 import {
   chevron,
   dcRectangle,
@@ -13,9 +16,6 @@ import {
   vStitchPattern,
   wave,
 } from './fixtures/examples.ts';
-import { DOUBLE_CROCHET } from '../src/core/stitches.ts';
-import { validatePattern } from '../src/core/validate.ts';
-import { PieceBuilder, patternOf } from './fixtures/builder.ts';
 import { testLibrary } from './fixtures/library.ts';
 
 const layersOf = (example) => computeLayers(example.pattern, testLibrary);
@@ -27,7 +27,10 @@ test('half double crochet rectangle: 22 rows of 15 hdc each, with the turning ch
 
   assert.equal(layers.length, 23);
   // 15 hdc worked in, and the top of the turning chain is the 16th position: the last stitch of the next row can go there.
-  assert.deepEqual(counts(layers.slice(1)), Array.from({ length: 22 }, () => [15, 16]));
+  assert.deepEqual(
+    counts(layers.slice(1)),
+    Array.from({ length: 22 }, () => [15, 16]),
+  );
   assert.deepEqual(layers[0].stitches, example.rows[0]);
   assert.deepEqual(layers[1].stitches, [...example.turningChains[1], ...example.rows[1]]);
   assert.ok(layers.every((layer) => layer.shape === 'row'));
@@ -48,7 +51,10 @@ test('double crochet rectangle: a counting turning chain stands on a foundation 
   const layers = layersOf(dcRectangle());
 
   assert.equal(layers[0].positionCount, 16);
-  assert.deepEqual(counts(layers.slice(1)), Array.from({ length: 16 }, () => [16, 17]));
+  assert.deepEqual(
+    counts(layers.slice(1)),
+    Array.from({ length: 16 }, () => [16, 17]),
+  );
   assert.equal(layers[0].positionCount + 3, 19);
   assert.equal(layers[0].positionCount + 3, foundationChainLength(16, 3, true));
 });
@@ -115,7 +121,13 @@ test('the joining and travelling slip stitches count once the pattern switches t
 function scMesh({ decorative = false } = {}, conventions = {}) {
   const b = new PieceBuilder('p1', 'Háló');
   const foundation = b.chain(6);
-  const row1 = [b.stitch('sc', foundation[4]), b.stitch('ch'), b.stitch('sc', foundation[2]), b.stitch('ch'), b.stitch('sc', foundation[0])];
+  const row1 = [
+    b.stitch('sc', foundation[4]),
+    b.stitch('ch'),
+    b.stitch('sc', foundation[2]),
+    b.stitch('ch'),
+    b.stitch('sc', foundation[0]),
+  ];
   b.event('turn');
   b.chain(1);
   // With a decorative chain, row 2 skips the chains explicitly and works only into the single crochets.
@@ -130,7 +142,10 @@ function scMesh({ decorative = false } = {}, conventions = {}) {
 
 const stitchCounts = (pattern) => computeLayers(pattern, testLibrary).map((layer) => layer.stitchCount);
 const writtenCounts = (pattern) => computeLayers(pattern, testLibrary).map((layer) => layer.writtenCount);
-const withChainCounts = (example, chainCounts) => ({ ...example.pattern, conventions: { ...example.pattern.conventions, chainCounts } });
+const withChainCounts = (example, chainCounts) => ({
+  ...example.pattern,
+  conventions: { ...example.pattern.conventions, chainCounts },
+});
 
 test('chains that are worked into one by one do count (PQW-870)', () => {
   const pattern = scMesh();
@@ -160,7 +175,10 @@ test('chain counting can be overridden per pattern: either all of them count, or
   assert.deepEqual(writtenCounts(scMesh({ decorative: true }, { chainCounts: true })), [6, 5, 3]);
   assert.deepEqual(writtenCounts(scMesh({}, { chainCounts: false })), [6, 3, 5]);
   // The structural stitch count, the position count and the counting of the turning chain do not change.
-  assert.deepEqual(stitchCounts(withChainCounts(vStitchPattern(), true)), stitchCounts(withChainCounts(vStitchPattern(), false)));
+  assert.deepEqual(
+    stitchCounts(withChainCounts(vStitchPattern(), true)),
+    stitchCounts(withChainCounts(vStitchPattern(), false)),
+  );
   assert.deepEqual(counts(layersOf({ pattern: withChainCounts(vStitchPattern(), false) })), [
     [0, 14],
     [14, 14],
@@ -172,7 +190,9 @@ test('chain counting can be overridden per pattern: either all of them count, or
 test('the turning chain convention of a row can be overridden row by row (README §4.3)', () => {
   const example = dcRectangle({ rows: 2 });
   const piece = example.pattern.pieces[0];
-  const events = piece.events.map((event, i) => (i === 0 ? { ...event, conventions: { turningChainCounts: false } } : event));
+  const events = piece.events.map((event, i) =>
+    i === 0 ? { ...event, conventions: { turningChainCounts: false } } : event,
+  );
   const pattern = { ...example.pattern, pieces: [{ ...piece, events }] };
 
   assert.deepEqual(

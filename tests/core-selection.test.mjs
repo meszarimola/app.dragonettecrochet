@@ -53,7 +53,9 @@ const chains = (pattern, count) => ok(work(pattern, { def: 'ch', count }, 0));
 const counts = (pattern) => computeLayers(pattern, libraryFor(pattern)).map((layer) => layer.stitchCount);
 const findings = (pattern) => validatePattern(pattern, libraryFor(pattern));
 const structural = (pattern) =>
-  findings(pattern).filter((finding) => ['unknown-stitch', 'dangling-reference', 'yarn-path', 'group-mismatch'].includes(finding.rule));
+  findings(pattern).filter((finding) =>
+    ['unknown-stitch', 'dangling-reference', 'yarn-path', 'group-mismatch'].includes(finding.rule),
+  );
 const nodes = (pattern) => pattern.pieces[0].stitches;
 const byId = (pattern, id) => nodes(pattern).find((node) => node.id === id);
 
@@ -86,7 +88,9 @@ function shellFoundation() {
 /** The opening event of layer 2: here the dc turning chain does count as a stitch (a per-row override). */
 function turnCounting(pattern) {
   const [piece] = pattern.pieces;
-  const events = piece.events.map((event, i) => (i === piece.events.length - 1 ? { ...event, conventions: { turningChainCounts: true } } : event));
+  const events = piece.events.map((event, i) =>
+    i === piece.events.length - 1 ? { ...event, conventions: { turningChainCounts: true } } : event,
+  );
   return { ...pattern, pieces: [{ ...piece, events }, ...pattern.pieces.slice(1)] };
 }
 
@@ -138,7 +142,10 @@ describe('selection', () => {
     const pattern = hdcRectangle(3, 2);
     const row2 = layerSelection(pattern, 2);
     assert.equal(row2.length, 5, 'the 3-stitch row: a 2-chain turning chain (not a stitch) plus 3 hdc');
-    assert.deepEqual(row2.slice(0, 2).map((id) => byId(pattern, id).def), ['ch', 'ch']);
+    assert.deepEqual(
+      row2.slice(0, 2).map((id) => byId(pattern, id).def),
+      ['ch', 'ch'],
+    );
     assert.equal(selectAll(pattern).length, nodes(pattern).length);
     assert.deepEqual(layerSelection(pattern, 9), []);
   });
@@ -147,7 +154,10 @@ describe('selection', () => {
     const pattern = hdcRectangle(4, 2);
     const layout = layoutPattern(pattern, libraryFor(pattern));
     const { minX, minY, maxX, maxY } = layout.bounds;
-    assert.deepEqual(nodesInRect(pattern, layout, { x: maxX + 50, y: maxY + 50 }, { x: minX - 50, y: minY - 50 }), selectAll(pattern));
+    assert.deepEqual(
+      nodesInRect(pattern, layout, { x: maxX + 50, y: maxY + 50 }, { x: minX - 50, y: minY - 50 }),
+      selectAll(pattern),
+    );
 
     const tops = body(pattern, 2).map((id) => layout.nodes.get(id).top);
     const box = [
@@ -173,7 +183,11 @@ describe('selection', () => {
     assert.equal(layout.nodes.get(stepFocus(pattern, layout, start, 'up')).layer, 2);
     const chain = stepFocus(pattern, layout, start, 'down');
     assert.equal(layout.nodes.get(chain).layer, 0);
-    assert.equal(stepFocus(pattern, layout, chain, 'down'), chain, 'there is no row below the foundation chain, so focus stays put');
+    assert.equal(
+      stepFocus(pattern, layout, chain, 'down'),
+      chain,
+      'there is no row below the foundation chain, so focus stays put',
+    );
 
     const row2 = layerSelection(pattern, 2);
     assert.equal(stepFocus(pattern, layout, last, 'first'), row2[0]);
@@ -200,7 +214,10 @@ describe('deletion', () => {
     assert.deepEqual(counts(deleted), [0, 4, 4, 4]);
     assert.deepEqual(structural(deleted), []);
     // The validator runs again: the gap left behind makes a neighbouring stitch reach across one stitch.
-    assert.deepEqual(findings(deleted).map((finding) => finding.rule), ['reach-single']);
+    assert.deepEqual(
+      findings(deleted).map((finding) => finding.rule),
+      ['reach-single'],
+    );
   });
 
   test('without the with-dependents flag the deletion aborts, the pattern is unchanged, and the error names what would be affected', () => {
@@ -218,7 +235,10 @@ describe('deletion', () => {
     const lastOfRow2 = body(pattern, 2).at(-1);
     assert.deepEqual(deletionPlan(pattern, [lastOfRow2]).dependents, []);
     const deleted = ok(deleteStitches(pattern, [lastOfRow2]));
-    assert.deepEqual(deleted.pieces[0].events.map((event) => event.after), [body(pattern, 1).at(-1), body(pattern, 2).at(-2)]);
+    assert.deepEqual(
+      deleted.pieces[0].events.map((event) => event.after),
+      [body(pattern, 1).at(-1), body(pattern, 2).at(-2)],
+    );
     assert.deepEqual(counts(deleted), [0, 3, 2]);
     assert.deepEqual(structural(deleted), []);
   });
@@ -237,7 +257,12 @@ describe('deletion', () => {
     const plan = deletionPlan(pattern, [shell.members[0]]);
     assert.deepEqual(plan.selected, shell.members);
     const deleted = ok(deleteStitches(pattern, plan.selected, { withDependents: true }));
-    assert.equal(deleted.pieces[0].groups.length, pattern.pieces[0].groups.length - 1 - plan.dependents.filter((id) => pattern.pieces[0].groups.some((g) => g.members[0] === id)).length);
+    assert.equal(
+      deleted.pieces[0].groups.length,
+      pattern.pieces[0].groups.length -
+        1 -
+        plan.dependents.filter((id) => pattern.pieces[0].groups.some((g) => g.members[0] === id)).length,
+    );
     assert.deepEqual(structural(deleted), []);
   });
 
@@ -292,7 +317,18 @@ describe('copying, pasting and duplicating', () => {
     // Row 3 is built like row 1: sc, shell, sc, shell, sc.
     assert.deepEqual(
       pattern.pieces[0].groups.map((group) => group.def),
-      ['shell-5dc', 'shell-5dc', 'inc-3dc', 'shell-5dc', 'inc-3dc', 'shell-5dc', 'shell-5dc', 'inc-3dc', 'shell-5dc', 'inc-3dc'],
+      [
+        'shell-5dc',
+        'shell-5dc',
+        'inc-3dc',
+        'shell-5dc',
+        'inc-3dc',
+        'shell-5dc',
+        'shell-5dc',
+        'inc-3dc',
+        'shell-5dc',
+        'inc-3dc',
+      ],
     );
   });
 
@@ -405,7 +441,10 @@ describe('deletion drops the bridging markers it orphans (PQW-938)', () => {
     const withChains = ok(work(base, { def: 'ch', count: 5 }, cursor));
     assert.equal(withChains.pieces[0].skipped.length, 5, 'five positions bridged');
 
-    const ids = withChains.pieces[0].stitches.filter((node) => node.def === 'ch').slice(-5).map((node) => node.id);
+    const ids = withChains.pieces[0].stitches
+      .filter((node) => node.def === 'ch')
+      .slice(-5)
+      .map((node) => node.id);
     const deleted = ok(deleteStitches(withChains, ids));
     assert.deepEqual(deleted.pieces[0].skipped, [], 'the markers went with the chains');
   });
@@ -415,7 +454,10 @@ describe('deletion drops the bridging markers it orphans (PQW-938)', () => {
     const cursor = defaultCursor(base, contextOf(base), 'ch') + 1;
     const withChains = ok(work(base, { def: 'ch', count: 5 }, cursor));
 
-    const ids = withChains.pieces[0].stitches.filter((node) => node.def === 'ch').slice(-2).map((node) => node.id);
+    const ids = withChains.pieces[0].stitches
+      .filter((node) => node.def === 'ch')
+      .slice(-2)
+      .map((node) => node.id);
     const deleted = ok(deleteStitches(withChains, ids));
     assert.equal(deleted.pieces[0].skipped.length, 3, 'the three remaining chains keep theirs');
   });

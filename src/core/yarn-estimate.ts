@@ -42,7 +42,11 @@ export function yarnFromMassPerArea(
   const massG = multiply(asQuantity(massPerAreaGPerCm2), asQuantity(projectAreaCm2));
   const lengthM = multiply(massG, fromLabel(label.lengthM / label.massG));
   const [bufferMin, bufferMax] = bounds(buffer);
-  const factor: Quantity = { value: 1 + buffer.value, source: buffer.source, range: buffer.range && [1 + bufferMin, 1 + bufferMax] };
+  const factor: Quantity = {
+    value: 1 + buffer.value,
+    source: buffer.source,
+    range: buffer.range && [1 + bufferMin, 1 + bufferMax],
+  };
   const lengthWithBufferM = multiply(lengthM, factor);
   const perBall = scale(lengthWithBufferM, 1 / label.lengthM);
   const [ballsMin, ballsMax] = bounds(perBall);

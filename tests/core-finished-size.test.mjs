@@ -4,7 +4,7 @@ import { describe, test } from 'node:test';
 import { pieceSize, sizeDeviation } from '../src/core/finished-size.ts';
 import { createStitchLibrary } from '../src/core/stitch-library.ts';
 import { STITCHES } from '../src/core/stitches.ts';
-import { WORKED_EXAMPLE, exampleJson, exampleProfiles } from './fixtures/calibration.ts';
+import { exampleJson, exampleProfiles, WORKED_EXAMPLE } from './fixtures/calibration.ts';
 
 const library = createStitchLibrary(STITCHES);
 const { unblocked } = exampleProfiles();
@@ -52,7 +52,11 @@ describe('piece worked in rows', () => {
   });
 
   test('in a mixed row the height comes from the tallest stitch and the width from all the stitches', () => {
-    const [row] = pieceSize([{ shape: 'row', stitches: ['sc', 'dc', 'sc'] }], { library, profile: unblocked, hookMm: 4 }).layers;
+    const [row] = pieceSize([{ shape: 'row', stitches: ['sc', 'dc', 'sc'] }], {
+      library,
+      profile: unblocked,
+      hookMm: 4,
+    }).layers;
     assert.equal(row.source, 'estimated');
     assert.deepEqual(row.basis, ['measured', 'profile-stitch']);
     near(row.heightCm.value, 0.455 * 2.6);
@@ -98,7 +102,11 @@ describe('piece worked in rounds', () => {
   });
 
   test('the magic ring adds no size', () => {
-    const withRing = pieceSize([{ shape: 'round', stitches: ['magic-ring'] }, ...circle], { library, profile: unblocked, hookMm: 4 });
+    const withRing = pieceSize([{ shape: 'round', stitches: ['magic-ring'] }, ...circle], {
+      library,
+      profile: unblocked,
+      hookMm: 4,
+    });
     near(withRing.total.widthCm.value, 8);
   });
 });

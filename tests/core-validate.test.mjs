@@ -8,22 +8,22 @@ import { after, describe, test } from 'node:test';
 
 import { addAmigurumiPart, createAmigurumi } from '../src/core/amigurumi-generator.ts';
 import { generateColorwork } from '../src/core/colorwork.ts';
-import { generateMosaic } from '../src/core/mosaic.ts';
 import { emptyPattern } from '../src/core/editor.ts';
+import { buildPieceGraph } from '../src/core/graph.ts';
+import { generateMosaic } from '../src/core/mosaic.ts';
 import { DEFAULT_MOTIF, generateMotif } from '../src/core/round-generator.ts';
 import { RULES } from '../src/core/rules.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
 import { validatePattern } from '../src/core/validate.ts';
-import { buildPieceGraph } from '../src/core/graph.ts';
-import { PieceBuilder, editNode, patternOf } from './fixtures/builder.ts';
+import { editNode, PieceBuilder, patternOf } from './fixtures/builder.ts';
 import {
-  WORKED_EXAMPLES,
   chevron,
   dcRectangle,
   grannySquare,
   hdcRectangle,
   shellStitch,
   vStitchPattern,
+  WORKED_EXAMPLES,
   wave,
 } from './fixtures/examples.ts';
 import { testLibrary } from './fixtures/library.ts';
@@ -34,7 +34,11 @@ const tested = new Set();
 function assertOnly(pattern, rule, nodes, library = testLibrary) {
   const findings = validatePattern(pattern, library);
   assert.deepEqual([...new Set(findings.map((finding) => finding.rule))], [rule], JSON.stringify(findings, null, 1));
-  if (nodes) assert.deepEqual(findings.map((finding) => finding.nodes), nodes);
+  if (nodes)
+    assert.deepEqual(
+      findings.map((finding) => finding.nodes),
+      nodes,
+    );
   for (const finding of findings) {
     assert.equal(finding.severity, RULES[rule].severity);
     assert.equal(finding.reference, RULES[rule].reference);
@@ -91,7 +95,9 @@ describe('half double crochet rectangle, broken (03 §3.1 A)', () => {
   test('two stitches in row 3 have their targets swapped, with no marking', () => {
     const { pattern, rows, turningChains } = hdcRectangle();
     const below = targetsOf(rows[2]);
-    const swapped = editNode(editNode(pattern, rows[3][5], { anchors: [below[6]] }), rows[3][6], { anchors: [below[5]] });
+    const swapped = editNode(editNode(pattern, rows[3][5], { anchors: [below[6]] }), rows[3][6], {
+      anchors: [below[5]],
+    });
     assertOnly(swapped, 'against-direction', [[rows[3][5], rows[3][6]]]);
   });
 
@@ -246,7 +252,8 @@ function scRounds(...rounds) {
 }
 const increaseEach = (b, below) => below.flatMap((target) => b.inSame('inc-2sc', ['sc', 'sc'], target));
 const plainEach = (b, below) => below.map((target) => b.stitch('sc', target));
-const byThree = (b, below) => Array.from({ length: below.length / 3 }, (_, i) => b.stitch('sc3tog', ...below.slice(3 * i, 3 * i + 3)));
+const byThree = (b, below) =>
+  Array.from({ length: below.length / 3 }, (_, i) => b.stitch('sc3tog', ...below.slice(3 * i, 3 * i + 3)));
 const motif = (patch) => generateMotif(emptyPattern(), { ...DEFAULT_MOTIF, ...patch }).pattern;
 
 describe('rounds, broken (04 §2, §3.2, §8, §9, PQW-861)', () => {
@@ -277,7 +284,10 @@ describe('rounds, broken (04 §2, §3.2, §8, §9, PQW-861)', () => {
 
   test('a color change in a spiral with no jog fix; with the fix nothing is reported', () => {
     assertOnly(motif({ rounds: 4, closing: 'spiral', colorEvery: 2 }), 'spiral-color-jog');
-    assert.deepEqual(validatePattern(motif({ rounds: 4, closing: 'spiral', colorEvery: 2, jogFix: 'back-loop' }), testLibrary), []);
+    assert.deepEqual(
+      validatePattern(motif({ rounds: 4, closing: 'spiral', colorEvery: 2, jogFix: 'back-loop' }), testLibrary),
+      [],
+    );
   });
 
   test('in a polygon the corners stack deliberately: nothing is reported', () => {
@@ -292,8 +302,17 @@ describe('rounds, broken (04 §2, §3.2, §8, §9, PQW-861)', () => {
 
 /** Head (a 6 cm sphere) and body (a 5 cm cylinder with an open top) sewn together with even distribution: 28 stitches onto 30. */
 function headAndBody(under3 = false) {
-  const head = createAmigurumi(emptyPattern(), { name: 'Fej', shape: { kind: 'sphere', diameterCm: 6, method: '6n' }, stagger: true, eyes: true }, under3);
-  const body = { name: 'Test', shape: { kind: 'cylinder', diameterCm: 5, heightCm: 5, bottom: 'closed', top: 'open' }, stagger: true, eyes: false };
+  const head = createAmigurumi(
+    emptyPattern(),
+    { name: 'Fej', shape: { kind: 'sphere', diameterCm: 6, method: '6n' }, stagger: true, eyes: true },
+    under3,
+  );
+  const body = {
+    name: 'Test',
+    shape: { kind: 'cylinder', diameterCm: 5, heightCm: 5, bottom: 'closed', top: 'open' },
+    stagger: true,
+    eyes: false,
+  };
   return addAmigurumiPart(head.pattern, body, { method: 'sewn', distribute: true }, under3).pattern;
 }
 
@@ -320,7 +339,10 @@ describe('amigurumi, broken (04 §5.4, §5.7, PQW-863)', () => {
 });
 
 describe('the stated stitch count follows the chain-counting convention (03 §10 B10, PQW-870)', () => {
-  const withChainCounts = (example, chainCounts) => ({ ...example.pattern, conventions: { ...example.pattern.conventions, chainCounts } });
+  const withChainCounts = (example, chainCounts) => ({
+    ...example.pattern,
+    conventions: { ...example.pattern.conventions, chainCounts },
+  });
 
   test('when no chain counts, the stated count of both rows is wrong', () => {
     const example = vStitchPattern();
@@ -338,7 +360,9 @@ describe('an insertion mode the stitch does not allow (01 §4.3, PQW-869)', () =
     const example = hdcRectangle({ rows: 3, crabRow: 3 });
     const id = example.rows[3][0];
     const node = example.pattern.pieces[0].stitches.find((candidate) => candidate.id === id);
-    const pattern = editNode(example.pattern, id, { anchors: node.anchors.map((anchor) => ({ ...anchor, mode: 'back-loop' })) });
+    const pattern = editNode(example.pattern, id, {
+      anchors: node.anchors.map((anchor) => ({ ...anchor, mode: 'back-loop' })),
+    });
     assertOnly(pattern, 'insertion-mode', [[id]]);
   });
 });
@@ -350,7 +374,13 @@ describe('grid-based techniques (PQW-864)', () => {
       [0, 1, 2, 3],
       [0, 0, 1, 1],
     ];
-    const result = generateColorwork(emptyPattern(), { technique: 'tapestry', cells, colors, unit: null, lettering: false });
+    const result = generateColorwork(emptyPattern(), {
+      technique: 'tapestry',
+      cells,
+      colors,
+      unit: null,
+      lettering: false,
+    });
     assert.ok(result.ok, result.reason);
     assertOnly(result.pattern, 'carried-colors');
   });
@@ -372,7 +402,9 @@ describe('grid-based techniques (PQW-864)', () => {
     const result = generateMosaic(emptyPattern(), { cells, colors, variant: 1, unit: null, lettering: false });
     assert.ok(result.ok, result.reason);
     const graph = buildPieceGraph(result.pattern, result.pattern.pieces[0], testLibrary);
-    const drop = result.pattern.pieces[0].stitches.find((node) => node.flags?.includes('spike') && graph.layerOf.get(node.id) === 5);
+    const drop = result.pattern.pieces[0].stitches.find(
+      (node) => node.flags?.includes('spike') && graph.layerOf.get(node.id) === 5,
+    );
     return { pattern: result.pattern, graph, drop };
   };
 
@@ -387,15 +419,30 @@ describe('grid-based techniques (PQW-864)', () => {
     const { pattern, graph, drop } = mosaic();
     const unflagged = {
       ...pattern,
-      pieces: [{ ...pattern.pieces[0], stitches: pattern.pieces[0].stitches.map((node) => (node.id === drop.id ? { ...node, flags: undefined } : node)) }],
+      pieces: [
+        {
+          ...pattern.pieces[0],
+          stitches: pattern.pieces[0].stitches.map((node) =>
+            node.id === drop.id ? { ...node, flags: undefined } : node,
+          ),
+        },
+      ],
     };
-    assert.ok(validatePattern(unflagged, testLibrary).some((finding) => finding.rule === 'anchor-layer' && finding.nodes.includes(drop.id)));
+    assert.ok(
+      validatePattern(unflagged, testLibrary).some(
+        (finding) => finding.rule === 'anchor-layer' && finding.nodes.includes(drop.id),
+      ),
+    );
     // Row 4 already worked into this stitch of row 3: a spike stitch cannot go there.
     const worked = graph.layers[4].stitches
       .map((id) => graph.nodes.get(id))
       .find((node) => !node.flags && node.anchors.length === 1 && graph.layerOf.get(node.anchors[0].id) === 3);
     const reused = editNode(pattern, drop.id, { anchors: [worked.anchors[0].id] });
-    assert.ok(validatePattern(reused, testLibrary).some((finding) => finding.rule === 'anchor-layer' && finding.nodes.includes(drop.id)));
+    assert.ok(
+      validatePattern(reused, testLibrary).some(
+        (finding) => finding.rule === 'anchor-layer' && finding.nodes.includes(drop.id),
+      ),
+    );
   });
 });
 
@@ -467,7 +514,11 @@ test('every rule has a user-facing message using the word „szem”, with no in
   for (const [rule, def] of Object.entries(RULES)) {
     assert.ok(def.message.trim(), `${rule}: missing user-facing message`);
     // The body text carries no 'réteg', no 'darab' and no knowledge-base code (a § or a 0X marker).
-    assert.doesNotMatch(def.message, /réteg|darab|§|\b0[1-6] /i, `${rule}: the message carries an internal concept or a knowledge-base code`);
+    assert.doesNotMatch(
+      def.message,
+      /réteg|darab|§|\b0[1-6] /i,
+      `${rule}: the message carries an internal concept or a knowledge-base code`,
+    );
   }
 });
 

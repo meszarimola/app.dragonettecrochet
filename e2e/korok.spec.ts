@@ -8,7 +8,7 @@
  * (KB: owner-decisions.md §13), so those tests are skipped.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
@@ -31,7 +31,9 @@ async function writtenText(page: Page): Promise<string> {
   return (await page.locator('#written-text').textContent()) ?? '';
 }
 
-test('flat circle in single crochet: estimated increases, error-free rounds, the sequence of rounds follows the knowledge base', async ({ page }) => {
+test('flat circle in single crochet: estimated increases, error-free rounds, the sequence of rounds follows the knowledge base', async ({
+  page,
+}) => {
   await open(page);
   await generate(page, { rounds: 4 });
 
@@ -45,7 +47,9 @@ test('flat circle in single crochet: estimated increases, error-free rounds, the
   expect(text).toContain('4. kör: 1 lsz (fordulólánc), 1 rp, (szap., 2 rp) ×5, szap., 1 rp (24).');
 
   // The round numbers on the canvas: the labels of the four rounds, and since PQW-916 the label of the magic ring (layer 0) as well.
-  const labels = await page.evaluate(() => (window as unknown as { mintatervezoRacs: { labels(): unknown[] } }).mintatervezoRacs.labels());
+  const labels = await page.evaluate(() =>
+    (window as unknown as { mintatervezoRacs: { labels(): unknown[] } }).mintatervezoRacs.labels(),
+  );
   expect(labels).toHaveLength(5);
 
   // Undo brings back the earlier (empty) pattern.
@@ -88,7 +92,9 @@ interface Placed {
 
 /** The top of the symbols in window coordinates (`window.mintatervezoKijeloles`, src/ui/main.ts). */
 const placedNodes = (page: Page) =>
-  page.evaluate(() => (window as unknown as { mintatervezoKijeloles: { nodes(): Placed[] } }).mintatervezoKijeloles.nodes());
+  page.evaluate(() =>
+    (window as unknown as { mintatervezoKijeloles: { nodes(): Placed[] } }).mintatervezoKijeloles.nodes(),
+  );
 
 const median = (values: readonly number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)]!;
 
@@ -96,7 +102,9 @@ for (const viewport of [
   { width: 1440, height: 900 },
   { width: 1000, height: 506 },
 ]) {
-  test(`${viewport.width}×${viewport.height}: the diagram of the 6-round granny square is a square, and the symbols do not crowd`, async ({ page }) => {
+  test(`${viewport.width}×${viewport.height}: the diagram of the 6-round granny square is a square, and the symbols do not crowd`, async ({
+    page,
+  }) => {
     test.skip(true, 'PQW-925: the granny square is temporarily switched off');
     await page.setViewportSize(viewport);
     await open(page);
@@ -117,7 +125,11 @@ for (const viewport of [
 
     // The symbols of one round: the nearest neighbour is nowhere closer than a third of the usual distance.
     const nearest = nodes.map((node) =>
-      Math.min(...nodes.filter((other) => other !== node && other.layer === node.layer).map((other) => Math.hypot(other.x - node.x, other.y - node.y))),
+      Math.min(
+        ...nodes
+          .filter((other) => other !== node && other.layer === node.layer)
+          .map((other) => Math.hypot(other.x - node.x, other.y - node.y)),
+      ),
     );
     expect(Math.min(...nearest)).toBeGreaterThan(median(nearest) / 3);
   });

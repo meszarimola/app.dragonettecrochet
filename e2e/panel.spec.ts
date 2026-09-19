@@ -4,7 +4,7 @@
  * has a tooltip that appears at once, the inactive ones too.
  */
 
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
@@ -21,7 +21,12 @@ test('on load the stitch list is visible at the top of the panel, the notation c
   const stitches = page.locator('#section-stitches');
   const notation = page.locator('#section-notation');
   await expect(stitches).toHaveAttribute('open', '');
-  await expect(page.locator('#palette').getByRole('button', { name: /Láncszem/ }).first()).toBeInViewport();
+  await expect(
+    page
+      .locator('#palette')
+      .getByRole('button', { name: /Láncszem/ })
+      .first(),
+  ).toBeInViewport();
   await expect(notation).not.toHaveAttribute('open', '');
   await expect(page.locator('#terms')).toBeHidden();
 
@@ -105,7 +110,10 @@ test('in a narrow window even a visible tooltip does not hang off to the right',
     await tool.hover({ force: true });
     await expect.poll(() => tipDisplay(tool)).toBe('block');
     const width = await page.evaluate(() => document.documentElement.scrollWidth);
-    expect(width, `tooltip hanging off: ${(await tool.getAttribute('data-action')) ?? (await tool.getAttribute('id'))}`).toBe(1000);
+    expect(
+      width,
+      `tooltip hanging off: ${(await tool.getAttribute('data-action')) ?? (await tool.getAttribute('id'))}`,
+    ).toBe(1000);
   };
 
   /*

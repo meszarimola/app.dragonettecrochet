@@ -1,26 +1,26 @@
 // KB: interface.md §7
 
-import { addAmigurumiPart, createAmigurumi } from '../core/amigurumi-generator.js';
 import { roundGaugeOf, shapeGaugeOf } from '../core/amigurumi.js';
+import { addAmigurumiPart, createAmigurumi } from '../core/amigurumi-generator.js';
 import type { Pattern } from '../core/types.js';
 import {
-  BOTTOM_CHOICES,
-  JOIN_CHOICES,
-  METHOD_CHOICES,
-  SHAPE_CHOICES,
-  STITCH_CHOICES,
-  TOP_CHOICES,
+  type AmigurumiForm,
   addedMessage,
+  BOTTOM_CHOICES,
   createdMessage,
+  type FieldState,
   fieldState,
   figureNote,
   gaugeNote,
+  JOIN_CHOICES,
+  METHOD_CHOICES,
   partLabel,
   partOf,
   previewNote,
+  SHAPE_CHOICES,
+  STITCH_CHOICES,
   safetyNote,
-  type AmigurumiForm,
-  type FieldState,
+  TOP_CHOICES,
 } from './amigurumi-view.js';
 import { amigurumiCoreText } from './i18n/core/amigurumi.js';
 import type { Choice } from './rounds-view.js';
@@ -136,7 +136,10 @@ export class AmigurumiPanel {
     const gauge = roundGaugeOf(this.#pattern);
     setText(this.#gauge, gaugeNote(gauge));
     const pattern = this.#pattern;
-    setText(this.#summary, previewNote(form, gauge, (shape) => shapeGaugeOf(pattern, shape, gauge)));
+    setText(
+      this.#summary,
+      previewNote(form, gauge, (shape) => shapeGaugeOf(pattern, shape, gauge)),
+    );
     setOptional(this.#safety, safetyNote(form.under3));
     setOptional(this.#figure, figureNote(this.#pattern, gauge));
   }
@@ -156,7 +159,12 @@ export class AmigurumiPanel {
     const form = this.#form();
     const part = partOf(form);
     if (typeof part === 'string') return this.#host.announce(part);
-    const result = addAmigurumiPart(this.#pattern, part, { method: form.join, distribute: form.distribute }, form.under3);
+    const result = addAmigurumiPart(
+      this.#pattern,
+      part,
+      { method: form.join, distribute: form.distribute },
+      form.under3,
+    );
     if (!result.ok) return this.#host.announce(amigurumiCoreText(result.reason));
     this.#host.commit(result.pattern, addedMessage(partLabel(part), form.join));
   }

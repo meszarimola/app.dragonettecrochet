@@ -10,7 +10,7 @@
  * can and must measure.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
@@ -100,7 +100,9 @@ test('turning and a new pattern do not nag, but the live region stays (PQW-929)'
 
   await page.getByRole('button', { name: 'Új minta' }).click();
   await expect(alert, 'a new pattern does not nag').toBeHidden();
-  await expect(page.locator('#status'), 'the live region announces the start of the empty pattern').toContainText('Üres minta');
+  await expect(page.locator('#status'), 'the live region announces the start of the empty pattern').toContainText(
+    'Üres minta',
+  );
 });
 
 /**
@@ -153,7 +155,9 @@ async function withTail(page: Page): Promise<void> {
 
 /** The highlighted stitches on the canvas; an empty array if the chart is clean. */
 const highlight = (page: Page): Promise<string[]> =>
-  page.evaluate(() => (window as unknown as Record<string, Record<string, () => string[]>>).mintatervezoRacs!['highlight']!());
+  page.evaluate(() =>
+    (window as unknown as Record<string, Record<string, () => string[]>>).mintatervezoRacs!['highlight']!(),
+  );
 
 /*
  * The chart is clean by default; a clicked finding is marked in red dashes for
@@ -163,7 +167,9 @@ const highlight = (page: Page): Promise<string[]> =>
  *
  * KB: owner-decisions.md §4
  */
-test('the chart is clean by default, clicking a finding brings a marking, and it disappears after five seconds (PQW-930)', async ({ page }) => {
+test('the chart is clean by default, clicking a finding brings a marking, and it disappears after five seconds (PQW-930)', async ({
+  page,
+}) => {
   await open(page);
   await withWarning(page);
 
@@ -211,7 +217,10 @@ test('the actions do not nag, and filling a gap does not ask (PQW-932)', async (
   // Stepping back onto a target skipped earlier, the stitch goes down without a question.
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('button', { name: 'Keresztezett szem' }), 'no question about filling the gap').toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Keresztezett szem' }),
+    'no question about filling the gap',
+  ).toHaveCount(0);
   await expect(alert, 'and it does not nag either').toBeHidden();
 });
 
@@ -235,7 +244,6 @@ test('there is no knowledge-base reference on the finding card (PQW-930)', async
   await expect(list, 'the disclosure went away too').not.toContainText('Részletek');
   await expect(page.locator('#findings details')).toHaveCount(0);
 });
-
 
 test('mixed stitch height gives no warning (PQW-924)', async ({ page }) => {
   await open(page);

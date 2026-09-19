@@ -18,7 +18,9 @@ const HEAD = /<head>([\s\S]*?)<\/head>/.exec(INDEX)?.[1] ?? '';
 
 /** The value of the active (not commented out) `Header ... set <name> "<value>"` line. */
 function headerValue(htaccess, name) {
-  const line = htaccess.split('\n').find((candidate) => new RegExp(`^\\s*Header\\s+(always\\s+)?set\\s+${name}\\s`).test(candidate));
+  const line = htaccess
+    .split('\n')
+    .find((candidate) => new RegExp(`^\\s*Header\\s+(always\\s+)?set\\s+${name}\\s`).test(candidate));
   return line ? /"([^"]*)"/.exec(line)?.[1] : undefined;
 }
 
@@ -40,7 +42,9 @@ function property(name) {
 
 /** The JSON-LD data blocks of the head, parsed. */
 function jsonLd(html) {
-  return [...html.matchAll(/<script\s+type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map(([, body]) => JSON.parse(body));
+  return [...html.matchAll(/<script\s+type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map(([, body]) =>
+    JSON.parse(body),
+  );
 }
 
 test('the .htaccess sends no noindex: the root stays indexable (PQW-918)', () => {
@@ -59,13 +63,29 @@ test('robots.txt allows everything, and search engines and AI crawlers each get 
   assert.doesNotMatch(robots, /^\s*Disallow:\s*\S/im);
   const groups = new Map();
   let agent;
-  for (const line of robots.split('\n').map((candidate) => candidate.replace(/#.*/, '').trim()).filter(Boolean)) {
+  for (const line of robots
+    .split('\n')
+    .map((candidate) => candidate.replace(/#.*/, '').trim())
+    .filter(Boolean)) {
     const [field, ...rest] = line.split(':');
     const value = rest.join(':').trim();
     if (/^user-agent$/i.test(field)) groups.set((agent = value), []);
     else groups.get(agent)?.push(`${field.trim()}: ${value}`);
   }
-  const bots = ['*', 'GPTBot', 'OAI-SearchBot', 'ChatGPT-User', 'ClaudeBot', 'Claude-SearchBot', 'Claude-User', 'PerplexityBot', 'Perplexity-User', 'Google-Extended', 'Applebot-Extended', 'Bingbot'];
+  const bots = [
+    '*',
+    'GPTBot',
+    'OAI-SearchBot',
+    'ChatGPT-User',
+    'ClaudeBot',
+    'Claude-SearchBot',
+    'Claude-User',
+    'PerplexityBot',
+    'Perplexity-User',
+    'Google-Extended',
+    'Applebot-Extended',
+    'Bingbot',
+  ];
   for (const bot of bots) assert.deepEqual(groups.get(bot), ['Allow: /'], bot);
 });
 
@@ -75,7 +95,10 @@ test('the head carries no meta robots noindex, the description and title use the
   const description = meta('description');
   assert.ok(description && description.length >= 50 && description.length <= 160, description);
   assert.match(description, /horgolásminta-tervező/i);
-  assert.match(/<title[^>]*>([^<]*)<\/title>/.exec(HEAD)?.[1] ?? '', /^Ingyenes horgolásminta-tervező és jeldiagram-készítő/);
+  assert.match(
+    /<title[^>]*>([^<]*)<\/title>/.exec(HEAD)?.[1] ?? '',
+    /^Ingyenes horgolásminta-tervező és jeldiagram-készítő/,
+  );
 });
 
 test('the canonical points to the root, and the Open Graph head is complete with an absolute https image', () => {
@@ -124,7 +147,10 @@ test('there is text without JS: a Hungarian and an English description linking t
 });
 
 test('own favicon and apple-touch-icon with no external reference, and the files live in public/', () => {
-  const links = [...HEAD.matchAll(/<link\s[^>]*rel="(icon|apple-touch-icon)"[^>]*>/g)].map((match) => ({ rel: match[1], href: /href="([^"]*)"/.exec(match[0])?.[1] }));
+  const links = [...HEAD.matchAll(/<link\s[^>]*rel="(icon|apple-touch-icon)"[^>]*>/g)].map((match) => ({
+    rel: match[1],
+    href: /href="([^"]*)"/.exec(match[0])?.[1],
+  }));
   assert.deepEqual(links.map((link) => link.rel).sort(), ['apple-touch-icon', 'icon', 'icon']);
   for (const { href } of links) {
     assert.match(href, /^\/[\w.-]+$/, `${href}: must be a same-origin, relative path`);

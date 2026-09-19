@@ -1,13 +1,13 @@
 // KB: interface.md §14, §15, §16
 
-import { aimAt, chartBounds, gridHit, seamAt, type ChartGrid, type GridSeam } from '../core/grid.js';
+import { aimAt, type ChartGrid, chartBounds, type GridSeam, gridHit, seamAt } from '../core/grid.js';
 import type { ChartLayout, NodePlacement, Point } from '../core/layout.js';
 import type { StitchLibrary } from '../core/stitch-library.js';
 import type { NodeId, StitchInsertion, Tradition } from '../core/types.js';
 import { rowCaptions } from './chart-labels.js';
-import { gridPaths, LINE_WIDTH, type GridPaths } from './grid-paths.js';
+import { type GridPaths, gridPaths, LINE_WIDTH } from './grid-paths.js';
 import { gridCoreText } from './i18n/core/grid.js';
-import { applyInk, drawShapes, placedShapes, shapesBounds, type SymbolOptions } from './symbols.js';
+import { applyInk, drawShapes, placedShapes, type SymbolOptions, shapesBounds } from './symbols.js';
 
 export interface Target {
   readonly point: Point;
@@ -38,7 +38,12 @@ export interface Scene {
   readonly insertions?: ReadonlyMap<NodeId, StitchInsertion>;
   readonly grid: ChartGrid | null;
   readonly tradition?: Tradition;
-  readonly unitFrames?: readonly { readonly x0: number; readonly y0: number; readonly x1: number; readonly y1: number }[];
+  readonly unitFrames?: readonly {
+    readonly x0: number;
+    readonly y0: number;
+    readonly x1: number;
+    readonly y1: number;
+  }[];
   readonly spikes?: ReadonlySet<NodeId>;
 }
 
@@ -139,7 +144,11 @@ export class Board {
 
   targetAt(clientX: number, clientY: number): number | null {
     const targets = this.#scene?.targets ?? [];
-    return this.#nearest(clientX, clientY, targets.map((target) => target.point));
+    return this.#nearest(
+      clientX,
+      clientY,
+      targets.map((target) => target.point),
+    );
   }
 
   // KB: interface.md §28
@@ -188,7 +197,11 @@ export class Board {
 
   labels(): { layer: number; x: number; y: number }[] {
     const rect = this.#canvas.getBoundingClientRect();
-    return this.#labels.map((l) => ({ layer: l.layer, x: rect.left + (l.x0 + l.x1) / 2, y: rect.top + (l.y0 + l.y1) / 2 }));
+    return this.#labels.map((l) => ({
+      layer: l.layer,
+      x: rect.left + (l.x0 + l.x1) / 2,
+      y: rect.top + (l.y0 + l.y1) / 2,
+    }));
   }
 
   #clientRect(b: { minX: number; minY: number; maxX: number; maxY: number }): Rect {
@@ -234,12 +247,21 @@ export class Board {
 
   gridCells(): { layer: number; index: number; slot: number | null; x: number; y: number }[] {
     const cells = this.#scene?.grid?.cells ?? [];
-    return cells.map((cell) => ({ layer: cell.layer, index: cell.index, slot: cell.slot, ...this.toClient(cell.center) }));
+    return cells.map((cell) => ({
+      layer: cell.layer,
+      index: cell.index,
+      slot: cell.slot,
+      ...this.toClient(cell.center),
+    }));
   }
 
   nodeAt(clientX: number, clientY: number): NodeId | null {
     const nodes = [...(this.#scene?.layout.nodes.values() ?? [])];
-    const index = this.#nearest(clientX, clientY, nodes.map((node) => node.top));
+    const index = this.#nearest(
+      clientX,
+      clientY,
+      nodes.map((node) => node.top),
+    );
     return index === null ? null : nodes[index]!.id;
   }
 
@@ -291,7 +313,8 @@ export class Board {
     const { minX, minY, maxX, maxY } = chartBounds(layout, this.#scene?.grid);
     const room = Math.max(width - insetRight - insetLeft, 120);
     // KB: interface.md §15 — subtract the caption room from the band, never add it to the bounds.
-    const labelRoom = this.#labels.length === 0 ? 0 : this.#labels.reduce((max, l) => Math.max(max, l.x1 - l.x0), 0) + LABEL_GAP;
+    const labelRoom =
+      this.#labels.length === 0 ? 0 : this.#labels.reduce((max, l) => Math.max(max, l.x1 - l.x0), 0) + LABEL_GAP;
     const marginY = Math.min(72, roomY / 2);
     const scale = Math.min(
       2,
@@ -331,7 +354,10 @@ export class Board {
     const a = this.#toScreen({ x: minX, y: minY });
     const b = this.#toScreen({ x: maxX, y: maxY });
     return (
-      Math.min(a.x, b.x) >= area.left && Math.max(a.x, b.x) <= area.right && Math.min(a.y, b.y) >= area.top && Math.max(a.y, b.y) <= area.bottom
+      Math.min(a.x, b.x) >= area.left &&
+      Math.max(a.x, b.x) <= area.right &&
+      Math.min(a.y, b.y) >= area.top &&
+      Math.max(a.y, b.y) <= area.bottom
     );
   }
 

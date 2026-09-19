@@ -18,7 +18,8 @@ export function chartLabels(tradition: Tradition): ChartLabels {
     return {
       layer: (index) => String(index),
       count: (stitches) => `${stitches}目`,
-      rowLabel: (layer, round, stitches) => (stitches === null ? chart.layerName(layer, round) : `${chart.layerName(layer, round)} ${stitches}目`),
+      rowLabel: (layer, round, stitches) =>
+        stitches === null ? chart.layerName(layer, round) : `${chart.layerName(layer, round)} ${stitches}目`,
       repeat: (spec) => (spec ? `${spec.repeatWidth}目1模様` : null),
       note: chart.japaneseNote,
     };
@@ -26,7 +27,8 @@ export function chartLabels(tradition: Tradition): ChartLabels {
   return {
     layer: (index) => String(index),
     count: (stitches) => `(${stitches})`,
-    rowLabel: (layer, round, stitches) => (stitches === null ? chart.layerName(layer, round) : `${chart.layerName(layer, round)} (${stitches})`),
+    rowLabel: (layer, round, stitches) =>
+      stitches === null ? chart.layerName(layer, round) : `${chart.layerName(layer, round)} (${stitches})`,
     repeat: () => null,
     note: chart.cycNote,
   };

@@ -4,19 +4,19 @@ import { activeProfile } from '../core/pattern-size.js';
 import { generateShape, planShape, type ShapeOptions } from '../core/shapes.js';
 import type { Pattern } from '../core/types.js';
 import {
+  type Choice,
+  generatedMessage,
   MEASURE_CHOICES,
+  normalizeShape,
   ROUNDING_CHOICES,
   SHAPE_CHOICES,
+  type ShapeOutline,
   STITCH_CHOICES,
-  generatedMessage,
-  normalizeShape,
   shapeFieldState,
   shapeOutline,
   shapeReason,
   shapeView,
   widthLabel,
-  type Choice,
-  type ShapeOutline,
 } from './shapes-view.js';
 
 export interface ShapesPanelHost {
@@ -100,14 +100,7 @@ export class ShapesPanel {
     this.#preview = field('shape-preview');
 
     section.addEventListener('toggle', () => this.#render());
-    for (const input of [
-      this.#kind,
-      this.#stitch,
-      this.#measure,
-      this.#repeat,
-      this.#rounding,
-      this.#ribbing,
-    ]) {
+    for (const input of [this.#kind, this.#stitch, this.#measure, this.#repeat, this.#rounding, this.#ribbing]) {
       input.addEventListener('change', () => this.#render());
     }
     for (const input of [
@@ -132,7 +125,9 @@ export class ShapesPanel {
   }
 
   #options(): ShapeOptions {
-    const ribbing = this.#ribbing.checked ? { rows: decimal(this.#ribbingRows), width: decimal(this.#ribbingWidth) } : null;
+    const ribbing = this.#ribbing.checked
+      ? { rows: decimal(this.#ribbingRows), width: decimal(this.#ribbingWidth) }
+      : null;
     return normalizeShape({
       ribbing,
       shape: this.#kind.value as ShapeOptions['shape'],

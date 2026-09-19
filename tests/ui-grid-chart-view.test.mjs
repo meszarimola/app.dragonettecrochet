@@ -14,29 +14,29 @@ import { layoutPattern } from '../src/core/layout.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
 import { validatePattern } from '../src/core/validate.ts';
 import {
-  DEFAULT_COLORS,
-  TECHNIQUE_CHOICES,
   brushesFor,
   cellAppearance,
   cellLabel,
   cellPixels,
+  colorLabel,
+  DEFAULT_COLORS,
   defaultState,
   editorCellSize,
   expandedCells,
   generateFromState,
+  imageGridSize,
+  imageToDraft,
   nextColor,
   planSummary,
   removeColor,
   resizeDraft,
-  stateFromPattern,
-  imageGridSize,
-  imageToDraft,
   spikeNodes,
+  stateFromPattern,
+  TECHNIQUE_CHOICES,
   unitFrames,
   unitState,
   withTechnique,
   yarnLines,
-  colorLabel,
 } from '../src/ui/grid-chart-view.ts';
 import { GRID_CORE_TEXTS } from '../src/ui/i18n/core/grid.ts';
 import { renderCoreText } from '../src/ui/i18n/core/render.ts';
@@ -66,14 +66,23 @@ function withProfile(stitch) {
 
 describe('brushes, cells, colours', () => {
   test('all five techniques are selectable, mosaic included (PQW-894); filet offers filled, open, no cell and erase; a colour grid offers one brush per colour', () => {
-    assert.deepEqual(TECHNIQUE_CHOICES.map((choice) => choice.value), ['filet', 'c2c', 'tapestry', 'graphgan', 'mosaic']);
-    assert.deepEqual(brushesFor(defaultState('filet')).map((brush) => brush.value), [1, 0, -1, null]);
+    assert.deepEqual(
+      TECHNIQUE_CHOICES.map((choice) => choice.value),
+      ['filet', 'c2c', 'tapestry', 'graphgan', 'mosaic'],
+    );
+    assert.deepEqual(
+      brushesFor(defaultState('filet')).map((brush) => brush.value),
+      [1, 0, -1, null],
+    );
     const c2c = defaultState('c2c');
-    assert.deepEqual(brushesFor(c2c).map((brush) => [brush.value, brush.label, brush.swatch]), [
-      [0, 'A: Natúr', '#f3ecdf'],
-      [1, 'B: Bordó', '#8c2f4a'],
-      [null, 'Törlés: az ismétlésből töltődik', null],
-    ]);
+    assert.deepEqual(
+      brushesFor(c2c).map((brush) => [brush.value, brush.label, brush.swatch]),
+      [
+        [0, 'A: Natúr', '#f3ecdf'],
+        [1, 'B: Bordó', '#8c2f4a'],
+        [null, 'Törlés: az ismétlésből töltődik', null],
+      ],
+    );
   });
 
   test('the accessible name of a cell gives the row, the cell and the value', () => {
@@ -83,7 +92,10 @@ describe('brushes, cells, colours', () => {
     assert.equal(cellLabel(state, 1, 0), '2. sor, 2. cella: nincs cella');
     assert.equal(cellLabel({ ...defaultState('tapestry'), draft: [[1]] }, 0, 0), '2. sor, 1. cella: B szín, Bordó');
     assert.deepEqual(cellAppearance(state, 1), { className: 'grid-cell grid-cell--filled', color: null });
-    assert.deepEqual(cellAppearance(defaultState('graphgan'), 1), { className: 'grid-cell grid-cell--color', color: '#8c2f4a' });
+    assert.deepEqual(cellAppearance(defaultState('graphgan'), 1), {
+      className: 'grid-cell grid-cell--color',
+      color: '#8c2f4a',
+    });
   });
 
   test('resizing keeps the existing cells and leaves the new ones unset; switching technique does not carry filet cells into a colour grid', () => {
@@ -102,11 +114,18 @@ describe('brushes, cells, colours', () => {
     let colors = DEFAULT_COLORS;
     while (nextColor(colors)) colors = [...colors, nextColor(colors)];
     assert.equal(colors.length, 8);
-    const state = { ...defaultState('tapestry'), colors: [...DEFAULT_COLORS, { name: 'Kék', hex: '#2f5f9e' }], draft: [[0, 1, 2, null]] };
+    const state = {
+      ...defaultState('tapestry'),
+      colors: [...DEFAULT_COLORS, { name: 'Kék', hex: '#2f5f9e' }],
+      draft: [[0, 1, 2, null]],
+    };
     const removed = removeColor(state, 1);
     assert.deepEqual(removed.draft, [[0, 0, 1, null]]);
     // A built-in colour carries an id and the display supplies its name (PQW-905).
-    assert.deepEqual(removed.colors.map((color) => colorLabel(color)), ['Natúr', 'Kék']);
+    assert.deepEqual(
+      removed.colors.map((color) => colorLabel(color)),
+      ['Natúr', 'Kék'],
+    );
     assert.equal(removeColor({ ...state, colors: [DEFAULT_COLORS[0]] }, 0).colors.length, 1);
   });
 
@@ -133,14 +152,19 @@ describe('repeat unit and plan', () => {
     assert.match(summary.view.size, /^Tényleges méret: ≈ \d+(,\d)? × \d+(,\d)? cm, 4 sor\.$/);
     assert.ok(summary.view.details.includes('Ismétlő egység: 2 × 2 cella, a teljes 8 × 4 cellás rácsra kiterjesztve.'));
     assert.ok(summary.view.details.includes('A legszélesebb sor 8 cella: 3 × 8 + 1 = 25 pozíció.'));
-    assert.ok(summary.view.details.includes('Láncalap: 28 lsz; az első pálca a horogtól számított 4. láncszembe megy.'));
+    assert.ok(
+      summary.view.details.includes('Láncalap: 28 lsz; az első pálca a horogtól számított 4. láncszembe megy.'),
+    );
     assert.match(summary.view.source, /^A méret becslés a tűből/);
   });
 
   test('a manual unit reports its errors and its differing cells; with unset cells and no unit there is no plan', () => {
     const state = filet(['####', '#.#.', '####']);
     const manual = unitState({ ...state, manualUnit: { x: 0, y: 1, width: 2, height: 1 } });
-    assert.match(manual.text, /^Ismétlő egység, kézzel: 2 × 1 cella, a 2\. sor 1\. cellájától\. 4 megadott cella eltér tőle/);
+    assert.match(
+      manual.text,
+      /^Ismétlő egység, kézzel: 2 × 1 cella, a 2\. sor 1\. cellájától\. 4 megadott cella eltér tőle/,
+    );
     assert.match(unitState({ ...state, manualUnit: { x: 3, y: 0, width: 2, height: 1 } }).text, /rácson belül/);
     assert.match(unitState(state).text, /^Minden cella megadott\./);
     const gaps = planSummary(emptyPattern(), filet(['#?', '.#']), false);
@@ -152,12 +176,18 @@ describe('repeat unit and plan', () => {
     const summary = planSummary(emptyPattern(), filet(['-###', '.###', '-###']), false);
     assert.ok(summary.ok, summary.reason);
     assert.ok(summary.view.details.includes('Nyitott cellával kezdődik a 2. sor: a fordulólánc után 2 lsz jön.'));
-    assert.ok(summary.view.details.includes('Szaporítás a sor elején a 2. sor előtt: az előző sor végén láncos hosszabbítás.'));
+    assert.ok(
+      summary.view.details.includes('Szaporítás a sor elején a 2. sor előtt: az előző sor végén láncos hosszabbítás.'),
+    );
     assert.ok(summary.view.details.includes('Meghagyott cellák a 3. sor végén.'));
     // A new open cell at the end of row 2 and a decrease at the start of row 3, on the same edge.
     const shaped = planSummary(emptyPattern(), filet(['###-', '###.', '###-']), false);
     assert.ok(shaped.ok, shaped.reason);
-    assert.ok(shaped.view.details.includes('Szaporítás a sor végén a 2. sorban: 2 lsz és háromráhajtásos pálca 2 sorral lejjebb.'));
+    assert.ok(
+      shaped.view.details.includes(
+        'Szaporítás a sor végén a 2. sorban: 2 lsz és háromráhajtásos pálca 2 sorral lejjebb.',
+      ),
+    );
     assert.ok(shaped.view.details.includes('Fogyasztás a sor elején a 3. sorban: kúszószemek a cellák fölött.'));
     const refused = planSummary(emptyPattern(), filet(['####', '###-']), false);
     assert.equal(refused.ok, false);
@@ -165,19 +195,37 @@ describe('repeat unit and plan', () => {
   });
 
   test('C2C: diagonal rows, tiles, sections, and tiles per colour', () => {
-    const state = { ...defaultState('c2c'), draft: [[0, 1, 1], [1, 1, 0]] };
+    const state = {
+      ...defaultState('c2c'),
+      draft: [
+        [0, 1, 1],
+        [1, 1, 0],
+      ],
+    };
     const summary = planSummary(emptyPattern(), state, false);
     assert.ok(summary.ok, summary.reason);
     assert.match(summary.view.size, /, 4 átlós sor, 6 csempe\.$/);
     // The three opening chains of a tile form a chain space (03 §5.5): 3 + 3 chains, and the first double crochet goes into the 4th.
     assert.ok(summary.view.details.includes('Láncalap: 6 lsz; az első pálca a horogtól számított 4. láncszembe megy.'));
-    assert.ok(summary.view.details.includes('Szaporítás az 1–2. sorig; utána az az oldal fogy, ahol a méret megvan, a másik még nő.'));
+    assert.ok(
+      summary.view.details.includes(
+        'Szaporítás az 1–2. sorig; utána az az oldal fogy, ahol a méret megvan, a másik még nő.',
+      ),
+    );
     assert.ok(summary.view.details.includes('Csempék színenként: A: 2, B: 4 csempe.'));
   });
 
   test('tapestry: stitches per colour, a warning above three carried colours, and one for lettering in mirrored view', () => {
     const colors = ['Fehér', 'Piros', 'Kék', 'Zöld'].map((name) => ({ name, hex: '#000000' }));
-    const state = { ...defaultState('tapestry'), colors, draft: [[0, 1, 2, 3], [0, 0, 1, 1]], lettering: true };
+    const state = {
+      ...defaultState('tapestry'),
+      colors,
+      draft: [
+        [0, 1, 2, 3],
+        [0, 0, 1, 1],
+      ],
+      lettering: true,
+    };
     const summary = planSummary(emptyPattern(), state, true);
     assert.ok(summary.ok, summary.reason);
     assert.ok(summary.view.details.includes('Szemek színenként: A: 3, B: 3, C: 1, D: 1 szem.'));
@@ -196,11 +244,22 @@ describe('creation, yarn, reload, frame', () => {
       const state =
         technique === 'filet'
           ? filet(['#.#.', '.#.#', '####'])
-          : { ...defaultState(technique), draft: technique === 'c2c' ? [[0, 1]] : [[0, 1, 0], [1, 1, 0]] };
+          : {
+              ...defaultState(technique),
+              draft:
+                technique === 'c2c'
+                  ? [[0, 1]]
+                  : [
+                      [0, 1, 0],
+                      [1, 1, 0],
+                    ],
+            };
       const result = generateFromState(emptyPattern(), state);
       assert.ok(result.ok, `${technique}: ${result.reason}`);
       assert.match(result.message, /^.+: \d+ sor elkészült; visszavonással a korábbi minta visszajön\.$/);
-      const errors = validatePattern(result.pattern, libraryFor(result.pattern)).filter((finding) => finding.severity === 'error');
+      const errors = validatePattern(result.pattern, libraryFor(result.pattern)).filter(
+        (finding) => finding.severity === 'error',
+      );
       assert.deepEqual(errors, [], technique);
       assert.deepEqual(stateFromPattern(result.pattern).draft, state.draft, technique);
     }
@@ -209,7 +268,13 @@ describe('creation, yarn, reload, frame', () => {
   });
 
   test('yarn: without a profile it lists the missing data, with one it gives the amount per colour in proportion to the cells', () => {
-    const plain = generateFromState(emptyPattern(), { ...defaultState('graphgan'), draft: [[0, 1], [1, 1]] });
+    const plain = generateFromState(emptyPattern(), {
+      ...defaultState('graphgan'),
+      draft: [
+        [0, 1],
+        [1, 1],
+      ],
+    });
     assert.match(yarnLines(plain.pattern)[0], /^Fonalbecsléshez add meg/);
     // 20 × 20 cells, the first column B and the rest A: the yarn follows the proportion of the cells.
     const cells = Array.from({ length: 20 }, () => Array.from({ length: 20 }, (_, x) => (x === 0 ? 1 : 0)));
@@ -226,7 +291,15 @@ describe('creation, yarn, reload, frame', () => {
   });
 
   test('the repeat unit frame on the chart spans the rows and columns of the unit, and in C2C there is one per tile (PQW-894)', () => {
-    const state = { ...defaultState('graphgan'), draft: [[0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]], manualUnit: { x: 0, y: 0, width: 2, height: 1 } };
+    const state = {
+      ...defaultState('graphgan'),
+      draft: [
+        [0, 1, 0, 1],
+        [1, 0, 1, 0],
+        [0, 1, 0, 1],
+      ],
+      manualUnit: { x: 0, y: 0, width: 2, height: 1 },
+    };
     const { pattern } = generateFromState(emptyPattern(), state);
     const layout = layoutPattern(pattern, libraryFor(pattern));
     const frames = unitFrames(pattern, layout, false);
@@ -240,7 +313,11 @@ describe('creation, yarn, reload, frame', () => {
     assert.equal(unitFrames(pattern, layout, false), frames);
 
     // In C2C only the 1 × 1 and the 2 × 1 shape build today (PQW-926).
-    const c2c = generateFromState(emptyPattern(), { ...defaultState('c2c'), draft: [[0, 1]], manualUnit: { x: 0, y: 0, width: 2, height: 1 } });
+    const c2c = generateFromState(emptyPattern(), {
+      ...defaultState('c2c'),
+      draft: [[0, 1]],
+      manualUnit: { x: 0, y: 0, width: 2, height: 1 },
+    });
     assert.ok(c2c.ok, c2c.reason);
     const tiles = unitFrames(c2c.pattern, layoutPattern(c2c.pattern, libraryFor(c2c.pattern)), false);
     assert.equal(tiles.length, 2);
@@ -261,7 +338,11 @@ describe('creation, yarn, reload, frame', () => {
     const one = planSummary(emptyPattern(), state, false);
     assert.ok(one.ok, one.reason);
     assert.match(one.view.size, /, 4 sor \(4 rácssor\)\.$/);
-    assert.ok(one.view.details.includes('Egysoros mozaik: a lejjebb horgolt szem egyráhajtásos pálca 2 sorral lejjebb, összesen 1.'));
+    assert.ok(
+      one.view.details.includes(
+        'Egysoros mozaik: a lejjebb horgolt szem egyráhajtásos pálca 2 sorral lejjebb, összesen 1.',
+      ),
+    );
     const two = planSummary(emptyPattern(), { ...state, mosaicRows: 2 }, false);
     assert.ok(two.ok, two.reason);
     assert.match(two.view.size, /, 8 sor \(4 rácssor\)\.$/);
@@ -269,8 +350,14 @@ describe('creation, yarn, reload, frame', () => {
     assert.ok(result.ok, result.reason);
     assert.equal(stateFromPattern(result.pattern).mosaicRows, 2);
     assert.equal(spikeNodes(result.pattern).size, 1);
-    assert.equal(editorCellSize(withProfile('sc'), 'mosaic', 2).heightCm, 2 * editorCellSize(withProfile('sc'), 'mosaic', 1).heightCm);
-    const fromTapestry = withTechnique({ ...defaultState('tapestry'), colors: [...DEFAULT_COLORS, { name: 'Kék', hex: '#2f5f9e' }] }, 'mosaic');
+    assert.equal(
+      editorCellSize(withProfile('sc'), 'mosaic', 2).heightCm,
+      2 * editorCellSize(withProfile('sc'), 'mosaic', 1).heightCm,
+    );
+    const fromTapestry = withTechnique(
+      { ...defaultState('tapestry'), colors: [...DEFAULT_COLORS, { name: 'Kék', hex: '#2f5f9e' }] },
+      'mosaic',
+    );
     assert.deepEqual(fromTapestry.colors, DEFAULT_COLORS);
     assert.equal(nextColor(DEFAULT_COLORS, 'mosaic'), null);
   });
@@ -305,7 +392,19 @@ describe('creation, yarn, reload, frame', () => {
 
 describe('dictionary of the messages coming from the core (PQW-904)', () => {
   /** Every field name that occurs in the codes of this area, so that every text can be rendered. */
-  const SAMPLE = { row: 2, cell: 3, color: 1, layer: 1, current: 3, shape: 'row', start: 'chain', width: 2, height: 3, max: 8, rule: 'nyitott-sor' };
+  const SAMPLE = {
+    row: 2,
+    cell: 3,
+    color: 1,
+    layer: 1,
+    current: 3,
+    shape: 'row',
+    start: 'chain',
+    width: 2,
+    height: 3,
+    max: 8,
+    rule: 'nyitott-sor',
+  };
   const render = (entry) => (typeof entry === 'string' ? entry : entry(SAMPLE));
 
   test('every code has a Hungarian and an English text of the same kind, and the English branch carries no Hungarian accents', () => {
@@ -317,13 +416,22 @@ describe('dictionary of the messages coming from the core (PQW-904)', () => {
       assert.ok(render(entry).length > 0 && render(en[code]).length > 0, code);
     }
     const accented = Object.entries(en).filter(([, entry]) => /[áéíóöőúüűÁÉÍÓÖŐÚÜŰ]/.test(render(entry)));
-    assert.deepEqual(accented.map(([code]) => code), []);
+    assert.deepEqual(
+      accented.map(([code]) => code),
+      [],
+    );
   });
 
   test('the Hungarian sentence is the text as it stands today: the article, the inflection and the word for the colour are added by the dictionary', () => {
     const hu = (message) => renderCoreText(GRID_CORE_TEXTS.hu, message);
-    assert.equal(hu({ code: 'filet-empty-row', data: { row: 1 } }), 'A 2. sorban nincs cella: a filé minden sora legalább egy cella.');
-    assert.equal(hu({ code: 'mosaic-base-row', data: { color: 0 } }), 'Az 1. sor az alapsor: minden cellája az A szín legyen.');
+    assert.equal(
+      hu({ code: 'filet-empty-row', data: { row: 1 } }),
+      'A 2. sorban nincs cella: a filé minden sora legalább egy cella.',
+    );
+    assert.equal(
+      hu({ code: 'mosaic-base-row', data: { color: 0 } }),
+      'Az 1. sor az alapsor: minden cellája az A szín legyen.',
+    );
     assert.equal(
       hu({ code: 'aim-other-layer', data: { layer: 0, current: 4, shape: 'round', start: 'ring' } }),
       'Ez a varázskör egyik helye. Most a 4. kör készül: csak a 3. kör szemeibe horgolhatsz. Nem került le szem.',

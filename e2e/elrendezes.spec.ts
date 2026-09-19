@@ -5,7 +5,7 @@
  * at where the boxes are, not at how things work.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
@@ -30,12 +30,17 @@ for (const viewport of [
   { width: 1440, height: 900 },
   { width: 1000, height: 506 },
 ]) {
-  test(`${viewport.width}×${viewport.height}: sidebars, canvas and written pattern in their places`, async ({ page }) => {
+  test(`${viewport.width}×${viewport.height}: sidebars, canvas and written pattern in their places`, async ({
+    page,
+  }) => {
     await page.setViewportSize(viewport);
     await open(page);
 
     // The page itself does not scroll: everything is inside the visible area.
-    const size = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.scrollHeight]);
+    const size = await page.evaluate(() => [
+      document.documentElement.scrollWidth,
+      document.documentElement.scrollHeight,
+    ]);
     expect(size).toEqual([viewport.width, viewport.height]);
 
     const stage = await box(page, '.stage');
@@ -61,9 +66,11 @@ for (const viewport of [
     expect(written.x + written.width).toBeLessThanOrEqual(panel.x + 1);
 
     // The type names are not truncated.
-    const clipped = await page.locator('.type__name').evaluateAll((names) =>
-      names.filter((name) => name.scrollWidth > name.clientWidth + 1).map((name) => name.textContent),
-    );
+    const clipped = await page
+      .locator('.type__name')
+      .evaluateAll((names) =>
+        names.filter((name) => name.scrollWidth > name.clientWidth + 1).map((name) => name.textContent),
+      );
     expect(clipped).toEqual([]);
   });
 }
@@ -97,8 +104,9 @@ interface Point {
 /** The row labels and the cursor target in window coordinates (`window.mintatervezoRacs`, src/ui/main.ts). */
 const view = (page: Page) =>
   page.evaluate(() => {
-    const api = (window as unknown as { mintatervezoRacs: { labels(): (Point & { layer: number })[]; cursor(): Point | null } })
-      .mintatervezoRacs;
+    const api = (
+      window as unknown as { mintatervezoRacs: { labels(): (Point & { layer: number })[]; cursor(): Point | null } }
+    ).mintatervezoRacs;
     return { labels: api.labels(), cursor: api.cursor() };
   });
 
@@ -108,7 +116,8 @@ const heightOf = async (page: Page) => (await box(page, '#written')).height;
 /** The two values differ by at most `tolerance` pixels. */
 const near = (actual: number, expected: number, tolerance = 2) => Math.abs(actual - expected) <= tolerance;
 /** One frame: by then the ResizeObserver has run. */
-const settle = (page: Page) => page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+const settle = (page: Page) =>
+  page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 
 /*
  * With the written pattern open (PQW-883): „Egész minta” fits above the panel,
@@ -121,7 +130,9 @@ for (const viewport of [
   { width: 1440, height: 900 },
   { width: 1000, height: 506 },
 ]) {
-  test(`${viewport.width}×${viewport.height}: with the written pattern open, the pattern and the cursor stay visible above the panel`, async ({ page }) => {
+  test(`${viewport.width}×${viewport.height}: with the written pattern open, the pattern and the cursor stay visible above the panel`, async ({
+    page,
+  }) => {
     test.slow();
     await page.setViewportSize(viewport);
     await open(page);
@@ -151,7 +162,9 @@ for (const viewport of [
     // At most 22rem and half the work area by default. In a low window 40% of it, but at least the header (that depends on
     // the font size): the middle of the canvas stays free in any case (PQW-891).
     if (low) {
-      const minimum = await written.evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue('--written-min')) || 0);
+      const minimum = await written.evaluate(
+        (el) => parseFloat(getComputedStyle(el).getPropertyValue('--written-min')) || 0,
+      );
       expect(cover.height).toBeLessThanOrEqual(Math.max(minimum, stage.height * 0.4) + 1);
       expect(cover.y).toBeGreaterThan(stage.y + stage.height / 2);
     } else {
@@ -177,7 +190,10 @@ for (const viewport of [
 
     // Since PQW-916 the status text is a hidden live region: it covers neither the chart nor the text of the panel.
     const status = await page.locator('#status').boundingBox();
-    expect((status?.width ?? 0) * (status?.height ?? 0), 'the status text does not float over the canvas').toBeLessThanOrEqual(4);
+    expect(
+      (status?.width ?? 0) * (status?.height ?? 0),
+      'the status text does not float over the canvas',
+    ).toBeLessThanOrEqual(4);
 
     // With the panel closed we push the cursor to where the panel is; opening it brings the view back.
     await written.getByRole('button', { name: 'Lecsukás' }).click();
@@ -221,7 +237,9 @@ for (const viewport of [
   { width: 1440, height: 900 },
   { width: 1000, height: 506 },
 ]) {
-  test(`${viewport.width}×${viewport.height}: the separator adjusts from the header to the whole work area, by keyboard and by mouse`, async ({ page }) => {
+  test(`${viewport.width}×${viewport.height}: the separator adjusts from the header to the whole work area, by keyboard and by mouse`, async ({
+    page,
+  }) => {
     await page.setViewportSize(viewport);
     await open(page);
     const written = page.locator('#written');
@@ -304,8 +322,14 @@ for (const viewport of [
     const expectQuiet = async () => {
       await expect(page.locator('#status')).toContainText('Nincs elég célpont');
       const status = await page.locator('#status').boundingBox();
-      expect((status?.width ?? 0) * (status?.height ?? 0), 'the status text does not float over the canvas').toBeLessThanOrEqual(4);
-      const size = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.scrollHeight]);
+      expect(
+        (status?.width ?? 0) * (status?.height ?? 0),
+        'the status text does not float over the canvas',
+      ).toBeLessThanOrEqual(4);
+      const size = await page.evaluate(() => [
+        document.documentElement.scrollWidth,
+        document.documentElement.scrollHeight,
+      ]);
       expect(size).toEqual([viewport.width, viewport.height]);
     };
 
@@ -337,7 +361,9 @@ for (const [viewport, rounds] of [
   [{ width: 1440, height: 900 }, 6],
   [{ width: 1000, height: 506 }, 6],
 ] as const) {
-  test(`${viewport.width}×${viewport.height}: „Egész minta” fits the grid of a pattern worked in rounds into the visible area too`, async ({ page }) => {
+  test(`${viewport.width}×${viewport.height}: „Egész minta” fits the grid of a pattern worked in rounds into the visible area too`, async ({
+    page,
+  }) => {
     // PQW-925: it uses a granny square, which is temporarily switched off.
     test.skip(true, 'PQW-925: the granny square is temporarily switched off');
     await page.setViewportSize(viewport);
@@ -353,7 +379,9 @@ for (const [viewport, rounds] of [
     await expect(page.locator('#status')).toContainText(`${rounds} kör elkészült`);
     await page.getByRole('button', { name: 'Egész minta' }).click();
 
-    const grid = await page.evaluate(() => (window as unknown as { mintatervezoRacs: { bounds(): Rect | null } }).mintatervezoRacs.bounds());
+    const grid = await page.evaluate(() =>
+      (window as unknown as { mintatervezoRacs: { bounds(): Rect | null } }).mintatervezoRacs.bounds(),
+    );
     expect(grid).not.toBeNull();
     const stage = await box(page, '.stage');
     const types = await box(page, '#types');

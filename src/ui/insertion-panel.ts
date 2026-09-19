@@ -2,7 +2,7 @@
 
 import type { Locale, StitchDef, StitchInsertion } from '../core/types.js';
 import { texts } from './i18n.js';
-import { insertionChoice, type InsertionChoice } from './insertion-view.js';
+import { type InsertionChoice, insertionChoice } from './insertion-view.js';
 import { textLanguage } from './notation.js';
 
 export class InsertionPanel {

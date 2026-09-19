@@ -5,7 +5,7 @@
  * stitch count, and is error-free with even distribution.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 /*
  * PQW-925: the amigurumi pattern type is switched off for the first round of
@@ -32,12 +32,17 @@ async function chooseAmigurumi(page: Page): Promise<void> {
   await expect(page.locator('#written')).toBeVisible();
 }
 
-test('in amigurumi the written pattern opens large with its button; the pattern of the 6 cm ball marks the eyes and the stuffing', async ({ page }) => {
+test('in amigurumi the written pattern opens large with its button; the pattern of the 6 cm ball marks the eyes and the stuffing', async ({
+  page,
+}) => {
   await open(page);
   await chooseAmigurumi(page);
 
   await expect(page.locator('#written')).toBeVisible();
-  const [panel, board] = await Promise.all([page.locator('#written').boundingBox(), page.locator('#board').boundingBox()]);
+  const [panel, board] = await Promise.all([
+    page.locator('#written').boundingBox(),
+    page.locator('#board').boundingBox(),
+  ]);
   expect(panel!.height / board!.height).toBeGreaterThan(0.6);
 
   await expect(page.locator('#amigurumi-gauge')).toContainText('Becslés a tűből');
@@ -48,11 +53,15 @@ test('in amigurumi the written pattern opens large with its button; the pattern 
 
   const text = (await page.locator('#written-text').textContent()) ?? '';
   expect(text).toContain('Spirálban, zárás nélkül');
-  expect(text).toContain('15. kör: 1 rp, (láthatatlan fogyasztás, 3 rp) ×5, láthatatlan fogyasztás, 2 rp (24). Tedd be a biztonsági szemeket.');
+  expect(text).toContain(
+    '15. kör: 1 rp, (láthatatlan fogyasztás, 3 rp) ×5, láthatatlan fogyasztás, 2 rp (24). Tedd be a biztonsági szemeket.',
+  );
   expect(text).toContain('húzd össze a nyílást.');
 });
 
-test('head and body sewn together: a clear message at a differing stitch count, error-free with even distribution', async ({ page }) => {
+test('head and body sewn together: a clear message at a differing stitch count, error-free with even distribution', async ({
+  page,
+}) => {
   await open(page);
   await chooseAmigurumi(page);
   await page.getByRole('button', { name: 'Új minta ebből' }).click();
@@ -73,11 +82,15 @@ test('head and body sewn together: a clear message at a differing stitch count, 
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
 
   const text = (await page.locator('#written-text').textContent()) ?? '';
-  expect(text).toMatch(/Összeállítás\nVarrás: Test, \d+\. kör \(28\) → Fej, 14\. kör \(30\), a szemeket egyenletesen elosztva\./);
+  expect(text).toMatch(
+    /Összeállítás\nVarrás: Test, \d+\. kör \(28\) → Fej, 14\. kör \(30\), a szemeket egyenletesen elosztva\./,
+  );
   await expect(page.locator('#amigurumi-figure')).toContainText('A figura magassága kb.');
 });
 
-test('from an oval foundation chain (PQW-890): error-free on its own, round 1 on both sides of the chains; sewn onto a ball as a sole', async ({ page }) => {
+test('from an oval foundation chain (PQW-890): error-free on its own, round 1 on both sides of the chains; sewn onto a ball as a sole', async ({
+  page,
+}) => {
   await open(page);
   await chooseAmigurumi(page);
 
@@ -93,7 +106,9 @@ test('from an oval foundation chain (PQW-890): error-free on its own, round 1 on
   await expect(page.locator('#status')).not.toContainText('következik');
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
   const text = (await page.locator('#written-text').textContent()) ?? '';
-  expect(text).toMatch(/1\. kör: hagyj ki 1 láncszemet, majd \d+ rp, 4 rp a következő láncszembe, a láncszemek másik oldalán vissza: \d+ rp, 3 rp a következő láncszembe \(\d+\)\./);
+  expect(text).toMatch(
+    /1\. kör: hagyj ki 1 láncszemet, majd \d+ rp, 4 rp a következő láncszembe, a láncszemek másik oldalán vissza: \d+ rp, 3 rp a következő láncszembe \(\d+\)\./,
+  );
 
   // As a part: first the ball, then the oval sole sewn on, with even distribution.
   await page.locator('#amigurumi-name').fill('Fej');
@@ -110,7 +125,9 @@ test('from an oval foundation chain (PQW-890): error-free on its own, round 1 on
   await expect(page.locator('#written-text')).toContainText('a láncszemek másik oldalán vissza:');
 });
 
-test('oval in double crochet from the generator (PQW-899): the stitch can be chosen, 6 increases at each end, error-free', async ({ page }) => {
+test('oval in double crochet from the generator (PQW-899): the stitch can be chosen, 6 increases at each end, error-free', async ({
+  page,
+}) => {
   await open(page);
   await chooseAmigurumi(page);
 
@@ -125,14 +142,18 @@ test('oval in double crochet from the generator (PQW-899): the stitch can be cho
   await expect(page.locator('#status')).toContainText('Talp elkészült;');
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
   const text = (await page.locator('#written-text').textContent()) ?? '';
-  expect(text).toMatch(/1\. kör: hagyj ki 3 láncszemet, majd \d+ erp, 7 erp a következő láncszembe, a láncszemek másik oldalán vissza: \d+ erp, 5 erp a következő láncszembe \(\d+\)\./);
+  expect(text).toMatch(
+    /1\. kör: hagyj ki 3 láncszemet, majd \d+ erp, 7 erp a következő láncszembe, a láncszemek másik oldalán vissza: \d+ erp, 5 erp a következő láncszembe \(\d+\)\./,
+  );
   await expect(page.locator('#amigurumi-figure')).toContainText('lapos)');
 });
 
 /** The cursor target in window coordinates (the hook for the browser tests, main.ts). */
 async function cursorPoint(page: Page): Promise<{ x: number; y: number }> {
-  const point = await page.evaluate(
-    () => (window as unknown as { mintatervezoRacs: { cursor: () => { x: number; y: number } | null } }).mintatervezoRacs.cursor(),
+  const point = await page.evaluate(() =>
+    (
+      window as unknown as { mintatervezoRacs: { cursor: () => { x: number; y: number } | null } }
+    ).mintatervezoRacs.cursor(),
   );
   expect(point).not.toBeNull();
   return point!;
@@ -142,7 +163,9 @@ for (const viewport of [
   { width: 1000, height: 506 },
   { width: 1440, height: 900 },
 ]) {
-  test(`${viewport.width}×${viewport.height}: round 1 of the oval by hand with the guided cursor (PQW-899): back along the other side of the chains after the end, error-free`, async ({ page }) => {
+  test(`${viewport.width}×${viewport.height}: round 1 of the oval by hand with the guided cursor (PQW-899): back along the other side of the chains after the end, error-free`, async ({
+    page,
+  }) => {
     await page.setViewportSize(viewport);
     await open(page);
     await chooseAmigurumi(page);
@@ -165,7 +188,9 @@ for (const viewport of [
 
     // The cursor has jumped to the other side of the chains: the first stitch by click, the rest by keyboard.
     const point = await cursorPoint(page);
-    expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('#board') !== null, point)).toBe(true);
+    expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('#board') !== null, point)).toBe(
+      true,
+    );
     await page.mouse.click(point.x, point.y);
     await expect(page.locator('#status')).toContainText('horgolva. 1. kör: 11 szem, még 5 célpont.');
     for (let k = 0; k < 5; k += 1) await page.keyboard.press('Enter');

@@ -11,7 +11,12 @@ export function hasOwnTitle(pattern: Pattern, generatedNames: Iterable<string> =
   return ![...generatedNames].includes(pattern.title);
 }
 
-export function withGeneratedTitle(result: Pattern, source: Pattern, name: string, generatedNames: Iterable<string> = []): Pattern {
+export function withGeneratedTitle(
+  result: Pattern,
+  source: Pattern,
+  name: string,
+  generatedNames: Iterable<string> = [],
+): Pattern {
   const { titleGenerated: _, ...rest } = result;
   if (!hasOwnTitle(source, generatedNames)) return { ...rest, title: name, titleGenerated: true };
   return { ...rest, title: source.title, ...(source.titleGenerated === false ? { titleGenerated: false } : {}) };

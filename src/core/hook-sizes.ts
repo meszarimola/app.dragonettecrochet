@@ -97,15 +97,41 @@ export const STEEL_HOOK_SERIES: readonly SteelSeries[] = [
   {
     source: '02 §2.2 A sor: magyar táblázat, a CYC első oszlopa',
     mm: {
-      '00': [3.5], '0': [3.25], '1': [2.75], '2': [2.25], '3': [2.1], '4': [2], '5': [1.9], '6': [1.8],
-      '7': [1.65], '8': [1.5], '9': [1.4], '10': [1.3], '11': [1.1], '12': [1], '13': [0.85], '14': [0.75],
+      '00': [3.5],
+      '0': [3.25],
+      '1': [2.75],
+      '2': [2.25],
+      '3': [2.1],
+      '4': [2],
+      '5': [1.9],
+      '6': [1.8],
+      '7': [1.65],
+      '8': [1.5],
+      '9': [1.4],
+      '10': [1.3],
+      '11': [1.1],
+      '12': [1],
+      '13': [0.85],
+      '14': [0.75],
     },
   },
   {
     source: '02 §2.2 a CYC második sora',
     mm: {
-      '00': [2.7], '0': [2.55], '1': [2.35], '2': [2.2], '5': [1.7], '6': [1.6], '7': [1.5], '8': [1.4],
-      '9': [1.25], '10': [1.15], '11': [1.05], '12': [1], '13': [0.85], '14': [0.9, 0.75],
+      '00': [2.7],
+      '0': [2.55],
+      '1': [2.35],
+      '2': [2.2],
+      '5': [1.7],
+      '6': [1.6],
+      '7': [1.5],
+      '8': [1.4],
+      '9': [1.25],
+      '10': [1.15],
+      '11': [1.05],
+      '12': [1],
+      '13': [0.85],
+      '14': [0.9, 0.75],
     },
   },
   {
@@ -118,7 +144,9 @@ export const STEEL_HOOK_SERIES: readonly SteelSeries[] = [
 // KB: 02 §2.2, 02 §9
 export function mmFromUsSteel(label: string): Quantity | null {
   const wanted = label.trim();
-  const values = STEEL_HOOK_SERIES.flatMap((series) => (Object.hasOwn(series.mm, wanted) ? (series.mm[wanted] ?? []) : []));
+  const values = STEEL_HOOK_SERIES.flatMap((series) =>
+    Object.hasOwn(series.mm, wanted) ? (series.mm[wanted] ?? []) : [],
+  );
   if (values.length === 0) return null;
   return estimate(values[0], [Math.min(...values), Math.max(...values)]);
 }

@@ -80,7 +80,10 @@ describe('worked example C: top-down raglan, 96 cm bust, +8 cm ease', () => {
   });
 
   test('every check passes, and a warning names the missing stitches', () => {
-    assert.deepEqual(plan.checks.filter((check) => !check.ok), []);
+    assert.deepEqual(
+      plan.checks.filter((check) => !check.ok),
+      [],
+    );
     const warning = plan.warnings.find((item) => item.code === 'raglan-extra-rounds');
     assert.deepEqual(warning.data, { missing: 32, rounds: 8 });
   });
@@ -258,7 +261,14 @@ describe('the sleeve tube from underarm to cuff (PQW-913)', () => {
       swatch: { widthCm: null, heightCm: null, massG: null },
     };
     const pattern = { ...emptyPattern(), gauge: { active: 'meres', profiles: [profile] } };
-    const result = planGarment(pattern, { ...DEFAULT_GARMENT, kind: 'raglan', table: 'men', size: 'M', from: 'S', to: '2X' });
+    const result = planGarment(pattern, {
+      ...DEFAULT_GARMENT,
+      kind: 'raglan',
+      table: 'men',
+      size: 'M',
+      from: 'S',
+      to: '2X',
+    });
     assert.ok(result.ok, result.ok ? '' : JSON.stringify(result.reason));
     for (const entry of result.plan.sizes) {
       const size = entry.plan;
@@ -307,7 +317,10 @@ describe('ribbed hem and cuff on the raglan (PQW-913)', () => {
     // The body hem and the two sleeve cuffs: at least three ribbed rounds.
     assert.ok(ribbed.length >= 3, ribbed.join('\n'));
     // The turning chain of a ribbed round is a turning chain, and the ribbing stands as a repeat.
-    assert.ok(ribbed.every((line) => line.includes('fordulólánc')), ribbed.join('\n'));
+    assert.ok(
+      ribbed.every((line) => line.includes('fordulólánc')),
+      ribbed.join('\n'),
+    );
     assert.ok(
       ribbed.some((line) => /\(1 (Eerp|Herp), 1 (Eerp|Herp)\) ×\d+/.test(line)),
       ribbed.join('\n'),

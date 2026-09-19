@@ -1,30 +1,38 @@
 // KB: interface.md §1
 
-import { BODY_TABLES_ORDER, GARMENT_EASE, NEGATIVE_EASE_LIMIT, bodySizeName, fitLevelOf, hatSizeName, type BodyTableId } from '../core/body-sizes.ts';
+import {
+  BODY_TABLES_ORDER,
+  type BodyTableId,
+  bodySizeName,
+  fitLevelOf,
+  GARMENT_EASE,
+  hatSizeName,
+  NEGATIVE_EASE_LIMIT,
+} from '../core/body-sizes.ts';
 import { sizingLines } from '../core/garment-text.ts';
 import {
   BELOW_WAIST_CM,
   DEFAULT_GARMENT,
   DEFAULT_HAT,
   DROP_SHOULDER_EASE,
-  GARMENT_KINDS,
-  garmentSizes,
   type DropShoulderPlan,
+  GARMENT_KINDS,
   type GarmentCode,
   type GarmentOptions,
   type GarmentSeriesPlan,
+  garmentSizes,
   type HatPlan,
 } from '../core/garments.ts';
 import type { CoreText } from '../core/messages.ts';
 import type { RaglanPlan } from '../core/raglan.ts';
 import { stitchById } from '../core/stitches.ts';
 import type { GarmentKind, GarmentTable, Locale } from '../core/types.ts';
-import { texts, uiLanguage } from './i18n.ts';
 import { GARMENT_CORE_TEXTS } from './i18n/core/garment.ts';
 import { renderCoreText } from './i18n/core/render.ts';
+import { texts, uiLanguage } from './i18n.ts';
+import { termsLocale } from './notation.ts';
 import type { Choice } from './shapes-view.ts';
 import { formatNumber } from './size-view.ts';
-import { termsLocale } from './notation.ts';
 
 export { STITCH_CHOICES } from './shapes-view.ts';
 
@@ -98,7 +106,8 @@ export function hemLabel(kind: GarmentKind): string {
 
 export function defaultsFor(kind: GarmentKind, table: BodyTableId): GarmentOptions {
   if (kind === 'hat') return { ...DEFAULT_HAT, table };
-  const forKind = (options: GarmentOptions): GarmentOptions => (kind === 'raglan' ? { ...options, kind, easeCm: 8, repeat: null } : options);
+  const forKind = (options: GarmentOptions): GarmentOptions =>
+    kind === 'raglan' ? { ...options, kind, easeCm: 8, repeat: null } : options;
   if (table === 'women') return forKind(DEFAULT_GARMENT);
   const ids = garmentSizes(kind, table);
   const middle = ids.includes('M') ? ids.indexOf('M') : Math.floor((ids.length - 1) / 2);
@@ -152,11 +161,23 @@ export function garmentView(plan: GarmentSeriesPlan, hasProfile: boolean): Garme
   const details: string[] = [];
   let size: string;
   if (base.plan.kind === 'hat') {
-    size = t.hatSize(baseName, approx, cm(base.plan.finishedCm), cm(base.plan.finishedHeightCm), base.plan.counts.length);
+    size = t.hatSize(
+      baseName,
+      approx,
+      cm(base.plan.finishedCm),
+      cm(base.plan.finishedHeightCm),
+      base.plan.counts.length,
+    );
     details.push(...hatDetails(base.plan));
   } else if (base.plan.kind === 'raglan') {
     const { finished } = base.plan;
-    size = t.raglanSize(baseName, approx, cm(finished.chestCm), cm(finished.lengthCm), base.plan.yokeRounds + base.plan.bodyRoundsBelow);
+    size = t.raglanSize(
+      baseName,
+      approx,
+      cm(finished.chestCm),
+      cm(finished.lengthCm),
+      base.plan.yokeRounds + base.plan.bodyRoundsBelow,
+    );
     details.push(...raglanDetails(base.plan));
   } else {
     const { finished } = base.plan;
@@ -194,9 +215,19 @@ export function garmentView(plan: GarmentSeriesPlan, hasProfile: boolean): Garme
     if (entry.estimated.length > 0) warnings.push(t.estimatedSize(name, entry.estimated.map(garmentText)));
     warnings.push(...entry.flags.map((flag) => t.flag(name, garmentText(flag.note))));
   }
-  for (const issue of plan.monotonic) warnings.push(t.monotonic(garmentText(issue.label), sizeName(plan.table, issue.size)));
+  for (const issue of plan.monotonic)
+    warnings.push(t.monotonic(garmentText(issue.label), sizeName(plan.table, issue.size)));
 
-  const series = sizingLines({ kind: plan.kind, table: plan.table, sizes: plan.sizes.map((entry) => entry.id), base: plan.base, values: plan.values }, termsLocale());
+  const series = sizingLines(
+    {
+      kind: plan.kind,
+      table: plan.table,
+      sizes: plan.sizes.map((entry) => entry.id),
+      base: plan.base,
+      values: plan.values,
+    },
+    termsLocale(),
+  );
   return { size, details, checks, failed, warnings, series, source: sourceText(plan, hasProfile) };
 }
 
@@ -204,7 +235,13 @@ function hatDetails(plan: HatPlan): string[] {
   const t = texts().panels.garment;
   const easePct = Math.round((plan.measures.easeCm / plan.measures.headCm) * 100);
   return [
-    t.hatHead(formatNumber(plan.measures.headCm, 1), signed(plan.measures.easeCm), easePct, cm(plan.hatCm), plan.stitches),
+    t.hatHead(
+      formatNumber(plan.measures.headCm, 1),
+      signed(plan.measures.easeCm),
+      easePct,
+      cm(plan.hatCm),
+      plan.stitches,
+    ),
     t.hatCrown(plan.crownRounds, plan.increases, formatNumber(plan.exactIncreases, 2)),
     t.hatSide(plan.sideRounds, plan.brimRounds > 0 ? t.hatBrim(plan.brimRounds) : ''),
   ];
@@ -238,7 +275,13 @@ function sweaterDetails(plan: DropShoulderPlan): string[] {
     ),
     t.shoulder(neck.shoulder, neck.stitches),
     t.neck(neck.front.center, neck.front.first, neck.front.later, neck.back.center),
-    t.sleeve(sleeve.cuff, sleeve.top, sleeve.rows, sleeve.increases, sleeve.first !== null ? t.sleeveFirst(sleeve.first) : ''),
+    t.sleeve(
+      sleeve.cuff,
+      sleeve.top,
+      sleeve.rows,
+      sleeve.increases,
+      sleeve.first !== null ? t.sleeveFirst(sleeve.first) : '',
+    ),
     t.ease(
       signed(finished.easeCm),
       t.fits[fitLevelOf(finished.easeCm)],
@@ -246,7 +289,8 @@ function sweaterDetails(plan: DropShoulderPlan): string[] {
     ),
   ];
   if (finished.upperArmEaseCm !== null) lines.push(t.upperArm(signed(finished.upperArmEaseCm)));
-  if (finished.shoulderDropCm !== null && finished.shoulderDropCm > 0) lines.push(t.shoulderDrop(cm(finished.shoulderDropCm)));
+  if (finished.shoulderDropCm !== null && finished.shoulderDropCm > 0)
+    lines.push(t.shoulderDrop(cm(finished.shoulderDropCm)));
   lines.push(t.body(formatNumber(measures.bustCm, 1)));
   return lines;
 }

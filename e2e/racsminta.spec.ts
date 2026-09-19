@@ -7,7 +7,7 @@
  * warning.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 /*
  * The filet crochet pattern type — and with it every technique of the grid
@@ -43,7 +43,9 @@ async function setSize(page: Page, width: number, height: number): Promise<void>
 
 const cell = (page: Page, x: number, y: number) => page.locator(`#grid-board [data-x="${x}"][data-y="${y}"]`);
 
-test('small filet motif: the first two rows are complete, the rest come from the repeat unit; painted from the keyboard, error-free, written as a repeat', async ({ page }) => {
+test('small filet motif: the first two rows are complete, the rest come from the repeat unit; painted from the keyboard, error-free, written as a repeat', async ({
+  page,
+}) => {
   await open(page);
   await page.locator('.type[data-type="filet"]').click();
   const section = page.locator('#section-grid');
@@ -79,12 +81,16 @@ test('small filet motif: the first two rows are complete, the rest come from the
   }
   await expect(page.locator('#grid-unit')).toHaveText(/^Ismétlő egység, felismerve: 2 × 2 cella\./);
   await expect(page.locator('#grid-board .is-unit')).toHaveCount(4);
-  await expect(page.locator('#grid-details')).toContainText('Ismétlő egység: 2 × 2 cella, a teljes 8 × 4 cellás rácsra kiterjesztve.');
+  await expect(page.locator('#grid-details')).toContainText(
+    'Ismétlő egység: 2 × 2 cella, a teljes 8 × 4 cellás rácsra kiterjesztve.',
+  );
 
   // The keys of the grid did not reach the canvas: Delete did not undo the last step.
   await expect(page.locator('#status')).not.toContainText('törölve');
   await section.getByRole('button', { name: 'Minta létrehozása' }).click();
-  await expect(page.locator('#status')).toContainText('Filé: 4 sor elkészült; visszavonással a korábbi minta visszajön.');
+  await expect(page.locator('#status')).toContainText(
+    'Filé: 4 sor elkészült; visszavonással a korábbi minta visszajön.',
+  );
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
   const text = await writtenText(page);
   expect(text).toMatch(/1. sor – alapsor: \d+ lsz\./);
@@ -92,7 +98,9 @@ test('small filet motif: the first two rows are complete, the rest come from the
   await expect(section.getByRole('button', { name: 'Rács a mostani mintából' })).toBeEnabled();
 });
 
-test('C2C image with two colours: 6 diagonal rows, colours per tile; creation is still refused, understandably (PQW-926)', async ({ page }) => {
+test('C2C image with two colours: 6 diagonal rows, colours per tile; creation is still refused, understandably (PQW-926)', async ({
+  page,
+}) => {
   await open(page);
   const section = page.locator('#section-grid');
   await section.locator('summary').click();

@@ -5,7 +5,7 @@
  * survives generation and a reload.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
@@ -36,7 +36,9 @@ async function rectangle(page: Page): Promise<void> {
   await expect(page.locator('#status')).toContainText('Téglalap,');
 }
 
-test('Kendő → semicircle, then Forma → rectangle: the title belongs to the rectangle, and undo brings the semicircle back with its title', async ({ page }) => {
+test('Kendő → semicircle, then Forma → rectangle: the title belongs to the rectangle, and undo brings the semicircle back with its title', async ({
+  page,
+}) => {
   await open(page);
   await section(page, '#section-pattern');
   const title = page.locator('#title');

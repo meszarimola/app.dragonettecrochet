@@ -6,29 +6,28 @@
 
 import { strict as assert } from 'node:assert';
 import { describe, test } from 'node:test';
-
-import { addAmigurumiPart, createAmigurumi } from '../src/core/amigurumi-generator.ts';
 import { diagnoseRounds, roundGaugeOf } from '../src/core/amigurumi.ts';
+import { addAmigurumiPart, createAmigurumi } from '../src/core/amigurumi-generator.ts';
 import { emptyPattern } from '../src/core/editor.ts';
 import {
-  BOTTOM_CHOICES,
-  JOIN_CHOICES,
-  METHOD_CHOICES,
-  SHAPE_CHOICES,
-  STITCH_CHOICES,
-  TOP_CHOICES,
   addedMessage,
+  BOTTOM_CHOICES,
   createdMessage,
   curvatureRuns,
   fieldState,
   figureNote,
   gaugeNote,
+  JOIN_CHOICES,
+  METHOD_CHOICES,
   parseNumber,
   parseProfile,
   partOf,
   previewNote,
+  SHAPE_CHOICES,
+  STITCH_CHOICES,
   safetyNote,
   shapeOf,
+  TOP_CHOICES,
 } from '../src/ui/amigurumi-view.ts';
 
 const DK = { stitchesPerCm: 1.9, roundsPerCm: 2, source: 'measured', hookMm: 3.5 };
@@ -85,11 +84,66 @@ describe('choices and fields', () => {
 
   test('which fields belong to each shape', () => {
     const none = { stitch: false };
-    assert.deepEqual(fieldState('sphere'), { method: true, diameter: true, height: false, length: false, width: false, ...none, increases: false, profile: false, bottom: false, top: false });
-    assert.deepEqual(fieldState('cone'), { method: false, diameter: true, height: true, length: false, width: false, ...none, increases: true, profile: false, bottom: false, top: true });
-    assert.deepEqual(fieldState('cylinder'), { method: false, diameter: true, height: true, length: false, width: false, ...none, increases: false, profile: false, bottom: true, top: true });
-    assert.deepEqual(fieldState('revolution'), { method: false, diameter: false, height: false, length: false, width: false, ...none, increases: false, profile: true, bottom: true, top: true });
-    assert.deepEqual(fieldState('oval'), { method: false, diameter: false, height: false, length: true, width: true, stitch: true, increases: false, profile: false, bottom: false, top: false });
+    assert.deepEqual(fieldState('sphere'), {
+      method: true,
+      diameter: true,
+      height: false,
+      length: false,
+      width: false,
+      ...none,
+      increases: false,
+      profile: false,
+      bottom: false,
+      top: false,
+    });
+    assert.deepEqual(fieldState('cone'), {
+      method: false,
+      diameter: true,
+      height: true,
+      length: false,
+      width: false,
+      ...none,
+      increases: true,
+      profile: false,
+      bottom: false,
+      top: true,
+    });
+    assert.deepEqual(fieldState('cylinder'), {
+      method: false,
+      diameter: true,
+      height: true,
+      length: false,
+      width: false,
+      ...none,
+      increases: false,
+      profile: false,
+      bottom: true,
+      top: true,
+    });
+    assert.deepEqual(fieldState('revolution'), {
+      method: false,
+      diameter: false,
+      height: false,
+      length: false,
+      width: false,
+      ...none,
+      increases: false,
+      profile: true,
+      bottom: true,
+      top: true,
+    });
+    assert.deepEqual(fieldState('oval'), {
+      method: false,
+      diameter: false,
+      height: false,
+      length: true,
+      width: true,
+      stitch: true,
+      increases: false,
+      profile: false,
+      bottom: false,
+      top: false,
+    });
   });
 });
 
@@ -122,7 +176,12 @@ describe('building the shape from the fields', () => {
   });
 
   test('the part built from the fields: name, shape, stagger and safety eyes', () => {
-    assert.deepEqual(partOf(form({ name: 'Fej' })), { name: 'Fej', shape: { kind: 'sphere', diameterCm: 6, method: '6n' }, stagger: true, eyes: true });
+    assert.deepEqual(partOf(form({ name: 'Fej' })), {
+      name: 'Fej',
+      shape: { kind: 'sphere', diameterCm: 6, method: '6n' },
+      stagger: true,
+      eyes: true,
+    });
     assert.match(partOf(form({ shape: 'revolution', profile: 'a b' })), /két szám kell/);
   });
 });
@@ -136,12 +195,22 @@ describe('preview and notes', () => {
   });
 
   test('a cylinder names its back-loop round, and an open start raises a warning', () => {
-    assert.match(previewNote(form({ shape: 'cylinder', diameter: '5', height: '5', top: 'open' }), DK), /Hátsó szálba \(éles törés\): 6\. kör\./);
-    assert.match(previewNote(form({ shape: 'cylinder', diameter: '5', height: '5', bottom: 'open' }), DK), /Nyitott kezdés: csak folytatólagosan/);
+    assert.match(
+      previewNote(form({ shape: 'cylinder', diameter: '5', height: '5', top: 'open' }), DK),
+      /Hátsó szálba \(éles törés\): 6\. kör\./,
+    );
+    assert.match(
+      previewNote(form({ shape: 'cylinder', diameter: '5', height: '5', bottom: 'open' }), DK),
+      /Nyitott kezdés: csak folytatólagosan/,
+    );
   });
 
   test('oval (PQW-890): length and width come from the fields, and the summary gives the chain count', () => {
-    assert.deepEqual(shapeOf(form({ shape: 'oval', length: '8', width: '5' })), { kind: 'oval', lengthCm: 8, widthCm: 5 });
+    assert.deepEqual(shapeOf(form({ shape: 'oval', length: '8', width: '5' })), {
+      kind: 'oval',
+      lengthCm: 8,
+      widthCm: 5,
+    });
     assert.match(
       previewNote(form({ shape: 'oval', length: '8', width: '5' }), DK),
       /^\d+ kör, legfeljebb \d+ szem; hossz kb\. [\d,]+ cm, szélesség kb\. [\d,]+ cm, \d+ láncszemből\. Görbület: /,
@@ -150,16 +219,28 @@ describe('preview and notes', () => {
   });
 
   test('a double crochet oval (PQW-899): the stitch is part of the shape, the preview uses the gauge of that stitch, and the figure note gives length × width, flat', () => {
-    assert.deepEqual(shapeOf(form({ shape: 'oval', stitch: 'dc' })), { kind: 'oval', lengthCm: 8, widthCm: 5, stitch: 'dc' });
+    assert.deepEqual(shapeOf(form({ shape: 'oval', stitch: 'dc' })), {
+      kind: 'oval',
+      lengthCm: 8,
+      widthCm: 5,
+      stitch: 'dc',
+    });
     const base = emptyPattern();
     const dc = roundGaugeOf(base, 'dc');
     const note = previewNote(form({ shape: 'oval', stitch: 'dc' }), roundGaugeOf(base), () => dc);
     const counts = /^(\d+) kör, legfeljebb (\d+) szem/.exec(note);
     assert.ok(counts, note);
-    const sole = createAmigurumi(base, { name: 'Talp', shape: { kind: 'oval', lengthCm: 8, widthCm: 5, stitch: 'dc' }, stagger: true, eyes: false }, false);
+    const sole = createAmigurumi(
+      base,
+      { name: 'Talp', shape: { kind: 'oval', lengthCm: 8, widthCm: 5, stitch: 'dc' }, stagger: true, eyes: false },
+      false,
+    );
     assert.ok(sole.ok, sole.ok ? '' : sole.reason.code);
     assert.equal(Number(counts[2]), Math.max(...sole.schedule.counts));
-    assert.match(figureNote(sole.pattern, roundGaugeOf(base)), /^A minta részei: Talp \([\d,]+ × [\d,]+ cm, lapos\)\. A figura magassága kb\. 0,\d cm/);
+    assert.match(
+      figureNote(sole.pattern, roundGaugeOf(base)),
+      /^A minta részei: Talp \([\d,]+ × [\d,]+ cm, lapos\)\. A figura magassága kb\. 0,\d cm/,
+    );
   });
 
   test('a bad size surfaces the message from the core', () => {
@@ -184,18 +265,33 @@ describe('preview and notes', () => {
     const base = emptyPattern();
     const gauge = roundGaugeOf(base);
     assert.equal(figureNote(base, gauge), null);
-    const head = createAmigurumi(base, { name: 'Fej', shape: { kind: 'sphere', diameterCm: 6, method: '6n' }, stagger: true, eyes: true }, false);
+    const head = createAmigurumi(
+      base,
+      { name: 'Fej', shape: { kind: 'sphere', diameterCm: 6, method: '6n' }, stagger: true, eyes: true },
+      false,
+    );
     assert.ok(head.ok);
-    const body = { name: 'Test', shape: { kind: 'cylinder', diameterCm: 5, heightCm: 5, bottom: 'closed', top: 'open' }, stagger: true, eyes: false };
+    const body = {
+      name: 'Test',
+      shape: { kind: 'cylinder', diameterCm: 5, heightCm: 5, bottom: 'closed', top: 'open' },
+      stagger: true,
+      eyes: false,
+    };
     const figure = addAmigurumiPart(head.pattern, body, { method: 'sewn', distribute: true }, false);
     assert.ok(figure.ok, figure.ok ? '' : figure.reason.code);
-    assert.match(figureNote(figure.pattern, gauge), /^A minta részei: Fej \(6,5 × 6,5 cm\), Test \(5 × 5,1 cm\)\. A figura magassága kb\. \d+(,\d)? cm/);
+    assert.match(
+      figureNote(figure.pattern, gauge),
+      /^A minta részei: Fej \(6,5 × 6,5 cm\), Test \(5 × 5,1 cm\)\. A figura magassága kb\. \d+(,\d)? cm/,
+    );
   });
 
   test('toy safety and messages', () => {
     assert.equal(safetyNote(false), null);
     assert.match(safetyNote(true), /hímzett szemet ír/);
     assert.equal(createdMessage('Fej'), 'Fej elkészült; visszavonással a korábbi minta visszajön.');
-    assert.equal(addedMessage('Test', 'continuous'), 'Test hozzáadva, folytatólagosan; visszavonással a korábbi minta visszajön.');
+    assert.equal(
+      addedMessage('Test', 'continuous'),
+      'Test hozzáadva, folytatólagosan; visszavonással a korábbi minta visszajön.',
+    );
   });
 });

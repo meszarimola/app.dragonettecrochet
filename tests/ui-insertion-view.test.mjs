@@ -29,7 +29,11 @@ test('only the modes listed in the stitch insertionModes are offered', () => {
     for (const mode of modes(choice)) assert.ok(def.insertionModes.includes(mode), `${id}: ${mode}`);
     assert.ok(!modes(choice).includes('space') && !modes(choice).includes('ring'), id);
   }
-  assert.deepEqual(modes(insertionChoice(stitchById('sl-st'), 'both-loops', 'hu')), ['both-loops', 'front-loop', 'back-loop']);
+  assert.deepEqual(modes(insertionChoice(stitchById('sl-st'), 'both-loops', 'hu')), [
+    'both-loops',
+    'front-loop',
+    'back-loop',
+  ]);
 });
 
 test('no selector for a stitch without a target, nor where only one mode exists', () => {

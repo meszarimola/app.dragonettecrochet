@@ -7,7 +7,7 @@
  * window.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
@@ -23,8 +23,10 @@ async function setChainCount(page: Page, count: number): Promise<void> {
 
 /** The cursor target in window coordinates (the hook for the browser tests, main.ts). */
 async function cursorPoint(page: Page): Promise<{ x: number; y: number }> {
-  const point = await page.evaluate(
-    () => (window as unknown as { mintatervezoRacs: { cursor: () => { x: number; y: number } | null } }).mintatervezoRacs.cursor(),
+  const point = await page.evaluate(() =>
+    (
+      window as unknown as { mintatervezoRacs: { cursor: () => { x: number; y: number } | null } }
+    ).mintatervezoRacs.cursor(),
   );
   expect(point).not.toBeNull();
   return point!;
@@ -49,14 +51,17 @@ async function expectScarfRows(page: Page, rows: number): Promise<void> {
   await expect(text).toContainText('1. sor – alapsor: 40 lsz.');
   await expect(text).toContainText('2. sor: hagyj ki 2 láncszemet, majd minden láncszembe 1 rp (39 szem).');
   // The turning chain sits in the place of the first stitch of the row, so the text writes out the skip (PQW-944).
-  if (rows >= 2) await expect(text).toContainText('3. sor: 1 lsz (1 rp-nek számít), 1 szem kihagyása, 38 rp (39 szem).');
+  if (rows >= 2)
+    await expect(text).toContainText('3. sor: 1 lsz (1 rp-nek számít), 1 szem kihagyása, 38 rp (39 szem).');
 }
 
 for (const viewport of [
   { width: 1000, height: 506 },
   { width: 1440, height: 900 },
 ]) {
-  test(`${viewport.width}×${viewport.height}: scarf by clicking: 40 chain stitches onto the canvas, F, single crochet 1 into chain 3, fill row, row 3`, async ({ page }) => {
+  test(`${viewport.width}×${viewport.height}: scarf by clicking: 40 chain stitches onto the canvas, F, single crochet 1 into chain 3, fill row, row 3`, async ({
+    page,
+  }) => {
     await page.setViewportSize(viewport);
     await open(page);
 
@@ -66,7 +71,10 @@ for (const viewport of [
     expect(await elementIdAt(page, center)).toBe('board');
 
     // First the tool, then the count: choosing the chain stitch resets the field to its default.
-    await page.getByRole('button', { name: /^Láncszem/ }).first().click();
+    await page
+      .getByRole('button', { name: /^Láncszem/ })
+      .first()
+      .click();
     await setChainCount(page, 40);
     await page.mouse.click(center.x, center.y);
     await expect(page.locator('#summary')).toContainText('2. sor következik.');
@@ -79,7 +87,10 @@ for (const viewport of [
     await expect(status).not.toContainText('még nincs szem');
 
     // The first single crochet by clicking on the cursor target: into the 3rd chain stitch counted from the hook.
-    await page.getByRole('button', { name: /^Rövidpálca/ }).first().click();
+    await page
+      .getByRole('button', { name: /^Rövidpálca/ })
+      .first()
+      .click();
     await expect(status).not.toContainText('Előbb válassz');
     const target = await cursorPoint(page);
     expect(await elementIdAt(page, target)).toBe('board');
@@ -94,7 +105,9 @@ for (const viewport of [
     await expectScarfRows(page, 2);
   });
 
-  test(`${viewport.width}×${viewport.height}: scarf from the keyboard only: 40 chain stitches, F, single crochet, Shift+F, row 3`, async ({ page }) => {
+  test(`${viewport.width}×${viewport.height}: scarf from the keyboard only: 40 chain stitches, F, single crochet, Shift+F, row 3`, async ({
+    page,
+  }) => {
     await page.setViewportSize(viewport);
     await open(page);
 

@@ -1,19 +1,19 @@
 // KB: interface.md §7
 
-import { generateMotif, motifIncreases, motifProblem, type MotifOptions } from '../core/round-generator.js';
+import { generateMotif, type MotifOptions, motifIncreases, motifProblem } from '../core/round-generator.js';
 import type { Pattern } from '../core/types.js';
 import { amigurumiCoreText } from './i18n/core/amigurumi.js';
 import {
+  type Choice,
   CLOSING_CHOICES,
-  JOG_CHOICES,
-  SHAPE_CHOICES,
-  START_CHOICES,
-  STITCH_CHOICES,
   fieldState,
   generatedMessage,
   increaseNote,
+  JOG_CHOICES,
   normalizeMotif,
-  type Choice,
+  SHAPE_CHOICES,
+  START_CHOICES,
+  STITCH_CHOICES,
 } from './rounds-view.js';
 
 export interface RoundsPanelHost {

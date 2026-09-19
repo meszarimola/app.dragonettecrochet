@@ -10,7 +10,14 @@ import { describe, test } from 'node:test';
 
 import { emptyPattern } from '../src/core/editor.ts';
 import { buildPieceGraph } from '../src/core/graph.ts';
-import { DROP_STITCH, generateMosaic, mosaicProblem, mosaicRowColor, planMosaic, repairMosaic } from '../src/core/mosaic.ts';
+import {
+  DROP_STITCH,
+  generateMosaic,
+  mosaicProblem,
+  mosaicRowColor,
+  planMosaic,
+  repairMosaic,
+} from '../src/core/mosaic.ts';
 import { loadPattern, savePattern } from '../src/core/pattern-json.ts';
 import { formatWrittenPattern, writePattern } from '../src/core/pattern-text.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
@@ -76,7 +83,10 @@ describe('rows, skips and dropped stitches (03 §5.6, §10 G34)', () => {
   test('single-row: one row per chart row with alternating row colours; above a skip a double crochet reaches 2 rows down', () => {
     const { pattern, plan } = make(cyc(), MOTIF, 1);
     assert.equal(plan.rows.length, 6);
-    assert.deepEqual(plan.rows.map((row) => row.color), [0, 1, 0, 1, 0, 1]);
+    assert.deepEqual(
+      plan.rows.map((row) => row.color),
+      [0, 1, 0, 1, 0, 1],
+    );
     assert.equal(plan.depth, 2);
     assert.equal(plan.drops, 4);
     const graph = graphOf(pattern);
@@ -92,7 +102,10 @@ describe('rows, skips and dropped stitches (03 §5.6, §10 G34)', () => {
   test('two-row: two rows per chart row in the same colour; the dropped stitch is a treble reaching 3 rows down', () => {
     const { pattern, plan } = make(cyc(), MOTIF, 2);
     assert.equal(plan.rows.length, 12);
-    assert.deepEqual(plan.rows.map((row) => row.color), [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1]);
+    assert.deepEqual(
+      plan.rows.map((row) => row.color),
+      [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1],
+    );
     assert.equal(plan.depth, 3);
     const graph = graphOf(pattern);
     const drops = spikes(pattern);
@@ -122,15 +135,24 @@ describe('the errors of a chart', () => {
     // The core hands over a code, a row number, a cell number and a colour index (PQW-904).
     assert.equal(mosaicProblem(chart('aaa'), [COLORS[0]]).code, 'mosaic-two-colors');
     assert.deepEqual(mosaicProblem(chart('aba'), COLORS), { code: 'mosaic-base-row', data: { color: 0 } });
-    assert.deepEqual(mosaicProblem(chart('abb', 'aaa'), COLORS), { code: 'mosaic-edge-colors', data: { row: 2, color: 1 } });
-    assert.deepEqual(mosaicProblem(chart('aabaa', 'bbabb', 'aaaaa'), COLORS), { code: 'mosaic-stacked-skip', data: { row: 3, cell: 3 } });
+    assert.deepEqual(mosaicProblem(chart('abb', 'aaa'), COLORS), {
+      code: 'mosaic-edge-colors',
+      data: { row: 2, color: 1 },
+    });
+    assert.deepEqual(mosaicProblem(chart('aabaa', 'bbabb', 'aaaaa'), COLORS), {
+      code: 'mosaic-stacked-skip',
+      data: { row: 3, cell: 3 },
+    });
     assert.equal(mosaicProblem(chart('aa'), COLORS).code, 'mosaic-min-width');
 
     // The Hungarian sentence is the one we ship today: the article, the word for the colour and the name of the row come from the dictionary.
     assert.match(hu(mosaicProblem(chart('aaa'), [COLORS[0]])), /két színnel/);
     assert.equal(hu(mosaicProblem(chart('aba'), COLORS)), 'Az 1. sor az alapsor: minden cellája az A szín legyen.');
     assert.match(hu(mosaicProblem(chart('abb', 'aaa'), COLORS)), /^A 3\. sor két szélső cellája a B szín legyen/);
-    assert.match(hu(mosaicProblem(chart('aabaa', 'bbabb', 'aaaaa'), COLORS)), /^A 4\. sor 3\. cellája alatt is kihagyás van/);
+    assert.match(
+      hu(mosaicProblem(chart('aabaa', 'bbabb', 'aaaaa'), COLORS)),
+      /^A 4\. sor 3\. cellája alatt is kihagyás van/,
+    );
     assert.match(hu(mosaicProblem(chart('aa'), COLORS)), /legalább 3 cella/);
     assert.equal(mosaicProblem(MOTIF, COLORS), null);
     assert.equal(planMosaic(cyc(), chart('aba'), COLORS, 1).ok, false);
@@ -155,7 +177,8 @@ describe('every mosaic pattern is clean and can be saved', () => {
           const label = `${variant} ${JSON.stringify(cells)}`;
           const { pattern } = make(base(), cells, variant);
           assert.deepEqual(findings(pattern), [], label);
-          for (const locale of ['hu', 'en-US', 'en-GB']) assert.ok(formatWrittenPattern(writePattern(pattern, libraryFor(pattern), locale)), label);
+          for (const locale of ['hu', 'en-US', 'en-GB'])
+            assert.ok(formatWrittenPattern(writePattern(pattern, libraryFor(pattern), locale)), label);
           const loaded = loadPattern(savePattern(pattern));
           assert.ok(loaded.ok, label);
           assert.deepEqual(loaded.pattern, pattern, label);

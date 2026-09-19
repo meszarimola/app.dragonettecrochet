@@ -52,7 +52,8 @@ function radial(area: Sector, r0: number, r1: number, a: number): string {
 
 const isFull = (area: Sector) => area.a1 - area.a0 >= TAU - 1e-9;
 
-const polyline = (points: readonly Point[]) => points.map((p, i) => `${i === 0 ? 'M' : 'L'}${num(p.x)} ${num(p.y)}`).join('');
+const polyline = (points: readonly Point[]) =>
+  points.map((p, i) => `${i === 0 ? 'M' : 'L'}${num(p.x)} ${num(p.y)}`).join('');
 
 export function gridPaths(grid: ChartGrid): GridPaths {
   const bands: BandPath[] = [];

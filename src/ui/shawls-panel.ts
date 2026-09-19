@@ -1,23 +1,23 @@
 // KB: interface.md §7
 
 import { activeProfile } from '../core/pattern-size.js';
-import { generateShawl, planShawl, shawlSizes, type ShawlOptions } from '../core/shawls.js';
+import { generateShawl, planShawl, type ShawlOptions, shawlSizes } from '../core/shawls.js';
 import type { Pattern } from '../core/types.js';
 import type { Choice } from './shapes-view.js';
 import {
-  KIND_CHOICES,
-  RATE_CHOICES,
-  STITCH_CHOICES,
   edgingLabel,
   generatedMessage,
+  KIND_CHOICES,
   normalizeShawl,
+  RATE_CHOICES,
   rateLabel,
+  type ShawlOutline,
+  STITCH_CHOICES,
   shawlFieldState,
   shawlOutline,
   shawlReason,
   shawlView,
   sizeLabel,
-  type ShawlOutline,
 } from './shawls-view.js';
 
 export interface ShawlsPanelHost {
@@ -101,7 +101,15 @@ export class ShawlsPanel {
     for (const input of [this.#kind, this.#stitch, this.#rate, this.#wings, this.#edging]) {
       input.addEventListener('change', () => this.#render());
     }
-    for (const input of [this.#size, this.#length, this.#custom, this.#edgingX, this.#edgingY, this.#blockWidth, this.#blockHeight]) {
+    for (const input of [
+      this.#size,
+      this.#length,
+      this.#custom,
+      this.#edgingX,
+      this.#edgingY,
+      this.#blockWidth,
+      this.#blockHeight,
+    ]) {
       input.addEventListener('input', () => this.#render());
     }
     field<HTMLButtonElement>('shawl-create').addEventListener('click', () => this.#create());
@@ -139,7 +147,8 @@ export class ShawlsPanel {
 
     const planned = planShawl(this.#pattern, options);
     const sizes = planned.ok ? shawlSizes(planned.plan, options.blocking) : null;
-    const view = planned.ok && sizes ? shawlView(planned.plan, options, sizes, activeProfile(this.#pattern) !== null) : null;
+    const view =
+      planned.ok && sizes ? shawlView(planned.plan, options, sizes, activeProfile(this.#pattern) !== null) : null;
     const outline = sizes ? shawlOutline(sizes) : null;
     const reason = planned.ok ? null : shawlReason(planned.reason);
     const key = JSON.stringify([planned.ok ? view : reason, outline]);
@@ -175,7 +184,10 @@ export class ShawlsPanel {
       shape.setAttribute('vector-effect', 'non-scaling-stroke');
       return shape;
     };
-    this.#preview.replaceChildren(polygon(outline.blocked, 'shape__piece'), polygon(outline.unblocked, 'shawl__unblocked'));
+    this.#preview.replaceChildren(
+      polygon(outline.blocked, 'shape__piece'),
+      polygon(outline.unblocked, 'shawl__unblocked'),
+    );
   }
 
   #create(): void {

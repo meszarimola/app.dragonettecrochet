@@ -5,7 +5,7 @@
  * KB: owner-decisions.md §7
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 interface Node {
   readonly id: string;
@@ -18,7 +18,9 @@ interface Cell {
 }
 
 const nodes = (page: Page): Promise<Node[]> =>
-  page.evaluate(() => (window as unknown as { mintatervezoKijeloles: { nodes(): Node[] } }).mintatervezoKijeloles.nodes());
+  page.evaluate(() =>
+    (window as unknown as { mintatervezoKijeloles: { nodes(): Node[] } }).mintatervezoKijeloles.nodes(),
+  );
 
 const cells = (page: Page): Promise<Cell[]> =>
   page.evaluate(() => (window as unknown as { mintatervezoRacs: { cells(): Cell[] } }).mintatervezoRacs.cells());
@@ -58,7 +60,9 @@ test('turning does not lay down a chain stitch, and the grid of the next row app
   await expect.poll(async () => (await cells(page)).filter((cell) => cell.layer === layer).length).toBe(11);
 });
 
-test('the first stitch brings the turning chain: one chain stitch from a single crochet (PQW-944)', async ({ page }) => {
+test('the first stitch brings the turning chain: one chain stitch from a single crochet (PQW-944)', async ({
+  page,
+}) => {
   await twoRowsThenTurn(page);
   const layer = await workingLayer(page);
 

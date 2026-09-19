@@ -1,6 +1,6 @@
 // KB: core-domain §7; 05 §3, 05 §5, 05 §9.1
 
-import { text, type CoreText } from './messages.ts';
+import { type CoreText, text } from './messages.ts';
 import type { Locale } from './types.ts';
 
 export type BodyTableId = 'women' | 'men' | 'child' | 'baby';
@@ -74,13 +74,53 @@ export const WOMEN = table(
   [
     {
       measure: 'chest',
-      cm: [[71, 76], [81, 86], [91.5, 96.5], [101.5, 106.5], [111.5, 117], [122, 127], [132, 137], [142, 147], [152, 158]],
-      inch: [[28, 30], [32, 34], [36, 38], [40, 42], [44, 46], [48, 50], [52, 54], [56, 58], [60, 62]],
+      cm: [
+        [71, 76],
+        [81, 86],
+        [91.5, 96.5],
+        [101.5, 106.5],
+        [111.5, 117],
+        [122, 127],
+        [132, 137],
+        [142, 147],
+        [152, 158],
+      ],
+      inch: [
+        [28, 30],
+        [32, 34],
+        [36, 38],
+        [40, 42],
+        [44, 46],
+        [48, 50],
+        [52, 54],
+        [56, 58],
+        [60, 62],
+      ],
     },
     {
       measure: 'neckToWrist',
-      cm: [[66, 68.5], [68.5, 70], [71, 72.5], [73.5, 75], [73.5, 75], [76.5, 77.5], [77.5, 79], [80, 81.5], [80, 81.5]],
-      inch: [[26, 26.5], [27, 27.5], [28, 28.5], [29, 29.5], [29, 29.5], [30, 30.5], [30.5, 31], [31.5, 32], [31.5, 32]],
+      cm: [
+        [66, 68.5],
+        [68.5, 70],
+        [71, 72.5],
+        [73.5, 75],
+        [73.5, 75],
+        [76.5, 77.5],
+        [77.5, 79],
+        [80, 81.5],
+        [80, 81.5],
+      ],
+      inch: [
+        [26, 26.5],
+        [27, 27.5],
+        [28, 28.5],
+        [29, 29.5],
+        [29, 29.5],
+        [30, 30.5],
+        [30.5, 31],
+        [31.5, 32],
+        [31.5, 32],
+      ],
     },
     {
       measure: 'backWaist',
@@ -104,18 +144,78 @@ export const WOMEN = table(
     },
     {
       measure: 'armholeDepth',
-      cm: [[15.5, 16.5], [16.5, 17.5], [17.5, 19], [19, 20.5], [20.5, 21.5], [21.5, 23], [23, 24], [24, 25.5], [25.5, 26.5]],
-      inch: [[6, 6.5], [6.5, 7], [7, 7.5], [7.5, 8], [8, 8.5], [8.5, 9], [9, 9.5], [9.5, 10], [10, 10.5]],
+      cm: [
+        [15.5, 16.5],
+        [16.5, 17.5],
+        [17.5, 19],
+        [19, 20.5],
+        [20.5, 21.5],
+        [21.5, 23],
+        [23, 24],
+        [24, 25.5],
+        [25.5, 26.5],
+      ],
+      inch: [
+        [6, 6.5],
+        [6.5, 7],
+        [7, 7.5],
+        [7.5, 8],
+        [8, 8.5],
+        [8.5, 9],
+        [9, 9.5],
+        [9.5, 10],
+        [10, 10.5],
+      ],
     },
     {
       measure: 'waist',
-      cm: [[58.5, 61], [63.5, 67.5], [71, 76], [81.5, 86.5], [91.5, 96.5], [101.5, 106.5], [111.5, 114], [116.5, 119], [124, 127]],
-      inch: [[23, 24], [25, 26.5], [28, 30], [32, 34], [36, 38], [40, 42], [44, 45], [46, 47], [49, 50]],
+      cm: [
+        [58.5, 61],
+        [63.5, 67.5],
+        [71, 76],
+        [81.5, 86.5],
+        [91.5, 96.5],
+        [101.5, 106.5],
+        [111.5, 114],
+        [116.5, 119],
+        [124, 127],
+      ],
+      inch: [
+        [23, 24],
+        [25, 26.5],
+        [28, 30],
+        [32, 34],
+        [36, 38],
+        [40, 42],
+        [44, 45],
+        [46, 47],
+        [49, 50],
+      ],
     },
     {
       measure: 'hips',
-      cm: [[83.5, 86], [89, 91.5], [96.5, 101.5], [106.5, 111.5], [116.5, 122], [132, 134.5], [137, 139.5], [142, 144.5], [155, 157]],
-      inch: [[33, 34], [35, 36], [38, 40], [42, 44], [46, 48], [52, 53], [54, 55], [56, 57], [61, 62]],
+      cm: [
+        [83.5, 86],
+        [89, 91.5],
+        [96.5, 101.5],
+        [106.5, 111.5],
+        [116.5, 122],
+        [132, 134.5],
+        [137, 139.5],
+        [142, 144.5],
+        [155, 157],
+      ],
+      inch: [
+        [33, 34],
+        [35, 36],
+        [38, 40],
+        [42, 44],
+        [46, 48],
+        [52, 53],
+        [54, 55],
+        [56, 57],
+        [61, 62],
+      ],
     },
   ],
 );
@@ -129,14 +229,60 @@ export const MEN = table(
   [
     {
       measure: 'chest',
-      cm: [[86, 91.5], [96.5, 101.5], [106.5, 111.5], [116.5, 122], [127, 132], [137, 142], [147.5, 152], [157.5, 162.5]],
-      inch: [[34, 36], [38, 40], [42, 44], [46, 48], [50, 52], [54, 56], [58, 60], [62, 64]],
+      cm: [
+        [86, 91.5],
+        [96.5, 101.5],
+        [106.5, 111.5],
+        [116.5, 122],
+        [127, 132],
+        [137, 142],
+        [147.5, 152],
+        [157.5, 162.5],
+      ],
+      inch: [
+        [34, 36],
+        [38, 40],
+        [42, 44],
+        [46, 48],
+        [50, 52],
+        [54, 56],
+        [58, 60],
+        [62, 64],
+      ],
     },
-    { measure: 'neckToWrist', cm: [[81, 82.5], [83.5, 85], [86.5, 87.5], [89, 90], [91.5, 92.5], [94, 95], [96.5, 97.5], [99, 100.5]] },
+    {
+      measure: 'neckToWrist',
+      cm: [
+        [81, 82.5],
+        [83.5, 85],
+        [86.5, 87.5],
+        [89, 90],
+        [91.5, 92.5],
+        [94, 95],
+        [96.5, 97.5],
+        [99, 100.5],
+      ],
+    },
     { measure: 'backHip', cm: [[58.5, 61], [63.5, 66], [66, 68.5], 71, 73.5, 76, 76, 79] },
-    { measure: 'crossBack', cm: [[39.5, 40.5], [42, 43], [44.5, 45.5], [45.5, 47], [48, 51], [48, 51], [51, 54.5], [56, 57]] },
+    {
+      measure: 'crossBack',
+      cm: [
+        [39.5, 40.5],
+        [42, 43],
+        [44.5, 45.5],
+        [45.5, 47],
+        [48, 51],
+        [48, 51],
+        [51, 54.5],
+        [56, 57],
+      ],
+    },
     // KB: 05 §3.2 — the source prints 49.5 cm beside 21", and 21" is 53.5 cm.
-    { measure: 'armLength', cm: [45.5, 47, 49.5, 50.5, 52, 52, 49.5, [53.5, 54.5]], inch: [null, null, null, null, null, null, 21, null] },
+    {
+      measure: 'armLength',
+      cm: [45.5, 47, 49.5, 50.5, 52, 52, 49.5, [53.5, 54.5]],
+      inch: [null, null, null, null, null, null, 21, null],
+    },
   ],
   [
     'A forrás a csípőig mért háthosszt „háthossz a derékig” néven közli; az értékek a csípőig mért hossznak felelnek meg (05 §3.2).',
@@ -182,7 +328,12 @@ export const BABY = table(
   ],
 );
 
-export const BODY_TABLES: Readonly<Record<BodyTableId, BodyTable>> = { women: WOMEN, men: MEN, child: CHILD, baby: BABY };
+export const BODY_TABLES: Readonly<Record<BodyTableId, BodyTable>> = {
+  women: WOMEN,
+  men: MEN,
+  child: CHILD,
+  baby: BABY,
+};
 
 export function mid(value: BodyValue): number {
   return (value.cm[0] + value.cm[1]) / 2;
@@ -228,7 +379,10 @@ export function tableFlags(bodyTable: BodyTable): DataFlag[] {
       const value = size.values[measure];
       if (!value) return;
       if (value.inch) {
-        const off = Math.max(Math.abs(value.cm[0] - value.inch[0] * 2.54), Math.abs(value.cm[1] - value.inch[1] * 2.54));
+        const off = Math.max(
+          Math.abs(value.cm[0] - value.inch[0] * 2.54),
+          Math.abs(value.cm[1] - value.inch[1] * 2.54),
+        );
         if (off > INCH_TOLERANCE_CM) {
           const converted: Range = [inchToCm(value.inch[0]), inchToCm(value.inch[1])];
           push({
@@ -251,7 +405,8 @@ export function tableFlags(bodyTable: BodyTable): DataFlag[] {
     });
   }
 
-  const same = (a: BodyValue | undefined, b: BodyValue | undefined) => a !== undefined && b !== undefined && a.cm[0] === b.cm[0] && a.cm[1] === b.cm[1];
+  const same = (a: BodyValue | undefined, b: BodyValue | undefined) =>
+    a !== undefined && b !== undefined && a.cm[0] === b.cm[0] && a.cm[1] === b.cm[1];
   for (let p = 0; p < measures.length; p += 1) {
     for (let q = p + 1; q < measures.length; q += 1) {
       const [m1, m2] = [measures[p]!, measures[q]!];
@@ -260,7 +415,10 @@ export function tableFlags(bodyTable: BodyTable): DataFlag[] {
         if (i < sizes.length && same(sizes[i]!.values[m1], sizes[i]!.values[m2])) continue;
         if (i - start >= IDENTICAL_RUN) {
           for (let j = start; j < i; j += 1) {
-            for (const [measure, other] of [[m1, m2], [m2, m1]] as const) {
+            for (const [measure, other] of [
+              [m1, m2],
+              [m2, m1],
+            ] as const) {
               push({
                 size: sizes[j]!.id,
                 measure,
@@ -281,7 +439,9 @@ export function tableFlags(bodyTable: BodyTable): DataFlag[] {
 
 export type FitLevel = 'very-close' | 'close' | 'classic' | 'loose' | 'oversized';
 
-export const FIT_EASE: Readonly<Record<FitLevel, { readonly name: string; readonly min: number; readonly max: number | null }>> = {
+export const FIT_EASE: Readonly<
+  Record<FitLevel, { readonly name: string; readonly min: number; readonly max: number | null }>
+> = {
   'very-close': { name: 'nagyon testhezálló', min: -10, max: -5 },
   close: { name: 'testhezálló', min: 0, max: 0 },
   classic: { name: 'klasszikus', min: 5, max: 10 },
@@ -354,16 +514,97 @@ export interface HatSize {
 
 // KB: 05 §5.2
 export const HAT_SIZES: readonly HatSize[] = [
-  { id: 'preemie', name: 'Koraszülött', nameEn: 'Preemie', headIn: 12, hatIn: 11, crownIn: 3.75, midEarIn: 4, belowEarIn: 4.25 },
-  { id: 'newborn', name: 'Újszülött', nameEn: 'Newborn', headIn: 14, hatIn: 13, crownIn: 4.25, midEarIn: 5, belowEarIn: 5.25 },
-  { id: '3-6m', name: '3–6 hónap', nameEn: '3–6 mo', headIn: 16, hatIn: 15, crownIn: 5, midEarIn: 5.5, belowEarIn: 5.75 },
-  { id: '6-12m', name: '6–12 hónap', nameEn: '6–12 mo', headIn: 17, hatIn: 16, crownIn: 5.25, midEarIn: 6, belowEarIn: 6.5 },
+  {
+    id: 'preemie',
+    name: 'Koraszülött',
+    nameEn: 'Preemie',
+    headIn: 12,
+    hatIn: 11,
+    crownIn: 3.75,
+    midEarIn: 4,
+    belowEarIn: 4.25,
+  },
+  {
+    id: 'newborn',
+    name: 'Újszülött',
+    nameEn: 'Newborn',
+    headIn: 14,
+    hatIn: 13,
+    crownIn: 4.25,
+    midEarIn: 5,
+    belowEarIn: 5.25,
+  },
+  {
+    id: '3-6m',
+    name: '3–6 hónap',
+    nameEn: '3–6 mo',
+    headIn: 16,
+    hatIn: 15,
+    crownIn: 5,
+    midEarIn: 5.5,
+    belowEarIn: 5.75,
+  },
+  {
+    id: '6-12m',
+    name: '6–12 hónap',
+    nameEn: '6–12 mo',
+    headIn: 17,
+    hatIn: 16,
+    crownIn: 5.25,
+    midEarIn: 6,
+    belowEarIn: 6.5,
+  },
   { id: '1-3y', name: '1–3 év', nameEn: '1–3 yrs', headIn: 18, hatIn: 17, crownIn: 5.5, midEarIn: 6, belowEarIn: 6.75 },
-  { id: '3-6y', name: 'Gyerek 3–6 év', nameEn: 'Child 3–6', headIn: 19, hatIn: 17, crownIn: 5.5, midEarIn: 6.5, belowEarIn: 7.25 },
-  { id: '6-10y', name: 'Gyerek 6–10 év', nameEn: 'Child 6–10', headIn: 20, hatIn: 18, crownIn: 5.75, midEarIn: 7, belowEarIn: 8 },
-  { id: 'adult-s', name: 'Felnőtt S', nameEn: 'Adult S', headIn: 21, hatIn: 19, crownIn: 6.25, midEarIn: 7, belowEarIn: 8 },
-  { id: 'adult-m', name: 'Felnőtt M', nameEn: 'Adult M', headIn: 22, hatIn: 20, crownIn: 6.5, midEarIn: 7.5, belowEarIn: 8.5 },
-  { id: 'adult-l', name: 'Felnőtt L', nameEn: 'Adult L', headIn: 23, hatIn: 21, crownIn: 6.75, midEarIn: 8, belowEarIn: 9 },
+  {
+    id: '3-6y',
+    name: 'Gyerek 3–6 év',
+    nameEn: 'Child 3–6',
+    headIn: 19,
+    hatIn: 17,
+    crownIn: 5.5,
+    midEarIn: 6.5,
+    belowEarIn: 7.25,
+  },
+  {
+    id: '6-10y',
+    name: 'Gyerek 6–10 év',
+    nameEn: 'Child 6–10',
+    headIn: 20,
+    hatIn: 18,
+    crownIn: 5.75,
+    midEarIn: 7,
+    belowEarIn: 8,
+  },
+  {
+    id: 'adult-s',
+    name: 'Felnőtt S',
+    nameEn: 'Adult S',
+    headIn: 21,
+    hatIn: 19,
+    crownIn: 6.25,
+    midEarIn: 7,
+    belowEarIn: 8,
+  },
+  {
+    id: 'adult-m',
+    name: 'Felnőtt M',
+    nameEn: 'Adult M',
+    headIn: 22,
+    hatIn: 20,
+    crownIn: 6.5,
+    midEarIn: 7.5,
+    belowEarIn: 8.5,
+  },
+  {
+    id: 'adult-l',
+    name: 'Felnőtt L',
+    nameEn: 'Adult L',
+    headIn: 23,
+    hatIn: 21,
+    crownIn: 6.75,
+    midEarIn: 8,
+    belowEarIn: 9,
+  },
 ];
 
 export const inchToCm = (inch: number): number => Math.round(inch * 2.54 * 10) / 10;

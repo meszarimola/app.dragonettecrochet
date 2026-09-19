@@ -1,7 +1,7 @@
 // KB: interface.md §1, §3
 
-import { hookByMm, isSteelHook, nearestHookSize, type HookSize } from '../core/hook-sizes.ts';
-import { yarnWeightOf, type PatternSize } from '../core/pattern-size.ts';
+import { type HookSize, hookByMm, isSteelHook, nearestHookSize } from '../core/hook-sizes.ts';
+import { type PatternSize, yarnWeightOf } from '../core/pattern-size.ts';
 import type { Quantity } from '../core/quantity.ts';
 import type { StitchLibrary } from '../core/stitch-library.ts';
 import { stitchName } from '../core/stitchText.ts';
@@ -26,7 +26,10 @@ export function formatNumber(value: number, digits = 1): string {
   const key = `${language}:${digits}`;
   let format = formats.get(key);
   if (!format) {
-    format = new Intl.NumberFormat(language === 'en' ? 'en-GB' : 'hu-HU', { maximumFractionDigits: digits, useGrouping: false });
+    format = new Intl.NumberFormat(language === 'en' ? 'en-GB' : 'hu-HU', {
+      maximumFractionDigits: digits,
+      useGrouping: false,
+    });
     formats.set(key, format);
   }
   return format.format(value);
@@ -56,7 +59,9 @@ export function valueLine(text: ValueText): string {
 
 function hookNames(size: HookSize): string {
   const hook = texts().sections.size.hook;
-  return [size.us ? `US ${size.us}` : null, size.oldUk ? hook.oldUk(size.oldUk) : null].filter((part) => part !== null).join(' · ');
+  return [size.us ? `US ${size.us}` : null, size.oldUk ? hook.oldUk(size.oldUk) : null]
+    .filter((part) => part !== null)
+    .join(' · ');
 }
 
 // KB: 02 §2
@@ -116,9 +121,16 @@ export function profileOrigins(profile: PatternGaugeProfile): ProfileOrigins {
   };
 }
 
-export function gaugeEntryNote(entry: GaugeEntry, estimate: { readonly stitchesPer10cm: number; readonly rowsPer10cm: number }): string {
+export function gaugeEntryNote(
+  entry: GaugeEntry,
+  estimate: { readonly stitchesPer10cm: number; readonly rowsPer10cm: number },
+): string {
   if (entry.stitchesPer10cm !== null && entry.rowsPer10cm !== null) return '';
-  return texts().sections.size.gauge.note(formatNumber(estimate.stitchesPer10cm), formatNumber(estimate.rowsPer10cm), entry.form);
+  return texts().sections.size.gauge.note(
+    formatNumber(estimate.stitchesPer10cm),
+    formatNumber(estimate.rowsPer10cm),
+    entry.form,
+  );
 }
 
 export interface ValueRow {
@@ -152,13 +164,18 @@ export function sizeView(result: PatternSize): SizeView {
   if (!profile) {
     notice = words.noProfile(formatNumber(result.hookMm, 2));
   } else if (size?.estimated) {
-    const how = (['profile-stitch', 'profile-other-form', 'hook'] as const).filter((basis) => bases.has(basis)).map((basis) => words.basis[basis]);
+    const how = (['profile-stitch', 'profile-other-form', 'hook'] as const)
+      .filter((basis) => bases.has(basis))
+      .map((basis) => words.basis[basis]);
     notice = words.partial(how.join('; '));
   }
 
   const total: ValueRow[] = [];
   if (size?.total?.form === 'rows') {
-    total.push({ label: words.width, text: cmText(size.total.widthCm) }, { label: words.height, text: cmText(size.total.heightCm) });
+    total.push(
+      { label: words.width, text: cmText(size.total.widthCm) },
+      { label: words.height, text: cmText(size.total.heightCm) },
+    );
   } else if (size?.total?.form === 'circle') {
     total.push({ label: words.diameter, text: cmText(size.total.widthCm) });
   }
@@ -180,7 +197,10 @@ export function sizeView(result: PatternSize): SizeView {
     const { estimate, ballMassG, ballLengthM } = result.yarn;
     yarn = [
       { label: words.yarnInPiece, text: quantityText(estimate.massG, 'g', estimate.massG.value < 10 ? 1 : 0) },
-      { label: words.lengthWithBuffer, text: quantityText(estimate.lengthWithBufferM, 'm', estimate.lengthWithBufferM.value < 10 ? 1 : 0) },
+      {
+        label: words.lengthWithBuffer,
+        text: quantityText(estimate.lengthWithBufferM, 'm', estimate.lengthWithBufferM.value < 10 ? 1 : 0),
+      },
       { label: words.balls, text: quantityText(estimate.balls, words.ballsUnit, 0) },
     ];
     yarnNote = words.yarnNote(formatNumber(ballMassG, 0), formatNumber(ballLengthM, 0));

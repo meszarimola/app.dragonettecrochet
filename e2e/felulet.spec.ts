@@ -5,7 +5,7 @@
  * at the bottom of the canvas.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
@@ -13,7 +13,9 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
-test('pattern type: in the first round of the UAT only the regular one is active, the rest are „hamarosan” and inactive (PQW-925)', async ({ page }) => {
+test('pattern type: in the first round of the UAT only the regular one is active, the rest are „hamarosan” and inactive (PQW-925)', async ({
+  page,
+}) => {
   await open(page);
 
   const regular = page.getByRole('button', { name: /Szabályos horgolás/ });

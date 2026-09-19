@@ -5,7 +5,7 @@
  * in text fields they leave the browser's own editing alone.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
@@ -13,7 +13,9 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
-test('the file actions dropdown from the keyboard: Tab to the button, Enter opens, Esc closes and returns the focus', async ({ page }) => {
+test('the file actions dropdown from the keyboard: Tab to the button, Enter opens, Esc closes and returns the focus', async ({
+  page,
+}) => {
   await open(page);
 
   const fileToggle = page.locator('#file-toggle');
@@ -59,7 +61,11 @@ test('the written pattern panel starts closed, and can be opened with the menu b
 
 /** The row labels in window coordinates (`window.mintatervezoRacs`, src/ui/main.ts). */
 const labels = (page: Page) =>
-  page.evaluate(() => (window as unknown as { mintatervezoRacs: { labels(): { layer: number; x: number; y: number }[] } }).mintatervezoRacs.labels());
+  page.evaluate(() =>
+    (
+      window as unknown as { mintatervezoRacs: { labels(): { layer: number; x: number; y: number }[] } }
+    ).mintatervezoRacs.labels(),
+  );
 
 /** Half double crochet rectangle from the keyboard only (PQW-911): Alt+1 = chain stitch, Alt+4 = half double crochet, Alt+F = turn. */
 async function rectangle(page: Page, width: number, rows: number): Promise<void> {
@@ -79,7 +85,9 @@ async function rectangle(page: Page, width: number, rows: number): Promise<void>
   await page.locator('#board').focus();
 }
 
-test('Ctrl+C and Ctrl+V copy and paste on the canvas, but in a text field the browser default stays', async ({ page }) => {
+test('Ctrl+C and Ctrl+V copy and paste on the canvas, but in a text field the browser default stays', async ({
+  page,
+}) => {
   await open(page);
   await rectangle(page, 5, 2);
   const summary = page.locator('#summary');

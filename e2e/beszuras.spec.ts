@@ -4,7 +4,7 @@
  * the written pattern follow it.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
@@ -20,7 +20,9 @@ async function foundation(page: Page, chains: number): Promise<void> {
   await page.keyboard.press('Enter');
 }
 
-test('back loop single crochet row and post stitch row: the mode is selectable from the keyboard, and the pattern follows', async ({ page }) => {
+test('back loop single crochet row and post stitch row: the mode is selectable from the keyboard, and the pattern follows', async ({
+  page,
+}) => {
   await open(page);
   await foundation(page, 8);
 

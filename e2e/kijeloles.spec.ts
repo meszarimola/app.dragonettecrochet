@@ -7,7 +7,7 @@
  * (`window.mintatervezoKijeloles`, src/ui/main.ts).
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 interface PlacedNode {
   readonly id: string;
@@ -50,12 +50,16 @@ async function rectangle(page: Page, width: number, rows: number): Promise<void>
 }
 
 async function clickLabel(page: Page, layer: number): Promise<void> {
-  const label = (await api<{ layer: number; x: number; y: number }[]>(page, 'labels')).find((candidate) => candidate.layer === layer);
+  const label = (await api<{ layer: number; x: number; y: number }[]>(page, 'labels')).find(
+    (candidate) => candidate.layer === layer,
+  );
   expect(label, `the label of row ${layer}`).toBeTruthy();
   await page.mouse.click(label!.x, label!.y);
 }
 
-test('copying the row selected by its label, pasting it as the next row and undoing it; duplicating from the menu bar', async ({ page }) => {
+test('copying the row selected by its label, pasting it as the next row and undoing it; duplicating from the menu bar', async ({
+  page,
+}) => {
   await open(page);
   await rectangle(page, 5, 2);
   const summary = page.locator('#summary');
@@ -89,13 +93,17 @@ test('copying the row selected by its label, pasting it as the next row and undo
   await expect(summary).toContainText('2 sor. 3. sor: 6 szem.');
 });
 
-test('deleting a middle stitch: the affected stitches are shown, the deletion can be cancelled, or goes together with them', async ({ page }) => {
+test('deleting a middle stitch: the affected stitches are shown, the deletion can be cancelled, or goes together with them', async ({
+  page,
+}) => {
   await open(page);
   await rectangle(page, 5, 2);
   const summary = page.locator('#summary');
   const dialog = page.locator('dialog.ask');
 
-  const row1 = (await api<PlacedNode[]>(page, 'nodes')).filter((node) => node.layer === 1 && node.def === 'hdc').sort((a, b) => a.x - b.x);
+  const row1 = (await api<PlacedNode[]>(page, 'nodes'))
+    .filter((node) => node.layer === 1 && node.def === 'hdc')
+    .sort((a, b) => a.x - b.x);
   await page.mouse.click(row1[2]!.x, row1[2]!.y);
   await expect(page.locator('#status')).toContainText('Kijelölve: 1 szem');
 

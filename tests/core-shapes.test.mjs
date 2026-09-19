@@ -16,12 +16,12 @@ import { formatWrittenPattern, writePattern } from '../src/core/pattern-text.ts'
 import {
   DEFAULT_SHAPE,
   FLAT_SHAPES,
+  generateShape,
   MAX_EDGE_CHANGE,
   MAX_SHAPE_CM,
-  SHAPE_STITCHES,
-  generateShape,
   planShape,
   rowExtents,
+  SHAPE_STITCHES,
   shapeProblem,
 } from '../src/core/shapes.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
@@ -102,7 +102,10 @@ describe('rectangle (03 §3.1 A, B)', () => {
 
   test('the shape name replaces the default title and an earlier generated one, but a user-given title is kept', () => {
     assert.equal(shape(emptyPattern(), {}).pattern.title, 'Téglalap');
-    assert.equal(shape(emptyPattern('Lapos kör'), { shape: 'right-triangle', widthCm: 10, heightCm: 10 }).pattern.title, 'Derékszögű háromszög');
+    assert.equal(
+      shape(emptyPattern('Lapos kör'), { shape: 'right-triangle', widthCm: 10, heightCm: 10 }).pattern.title,
+      'Derékszögű háromszög',
+    );
     assert.equal(shape(emptyPattern('Nyári takaró'), {}).pattern.title, 'Nyári takaró');
   });
 });
@@ -110,7 +113,8 @@ describe('rectangle (03 §3.1 A, B)', () => {
 describe('stitch repeat: "multiple of X + Y" (03 §4.1, 05 §4.2)', () => {
   // Single crochet at 20 stitches / 10 cm: exactly 40 stitches over 20 cm; the multiples of 6 + 2 with the counting turning chain (+1) are 39 and 45.
   const sc = () => withRowGauge('sc', 20, 20);
-  const width = (patch) => plan(sc(), { stitch: 'sc', widthCm: 20, heightCm: 5, repeat: { width: 6, edge: 2 }, ...patch });
+  const width = (patch) =>
+    plan(sc(), { stitch: 'sc', widthCm: 20, heightCm: 5, repeat: { width: 6, edge: 2 }, ...patch });
 
   test('rounding to the nearest, up (wider) and down (narrower)', () => {
     assert.deepEqual([width({}).counts[0], width({}).repeats], [38, 6]);
@@ -132,7 +136,12 @@ describe('stitch repeat: "multiple of X + Y" (03 §4.1, 05 §4.2)', () => {
 
 describe('sloped edge (03 §3.2, §3.4; 05 §4.4)', () => {
   test('C: a 15 × 20 cm right triangle in sc at 16 × 18 runs from 24 stitches to 2 over 36 rows, 22 decreases, at most one per row; the counting turning chain keeps the smallest row at 2 stitches', () => {
-    const { pattern, plan } = shape(withRowGauge('sc', 16, 18), { shape: 'right-triangle', stitch: 'sc', widthCm: 15, heightCm: 20 });
+    const { pattern, plan } = shape(withRowGauge('sc', 16, 18), {
+      shape: 'right-triangle',
+      stitch: 'sc',
+      widthCm: 15,
+      heightCm: 20,
+    });
     assert.equal(plan.counts.length, 36);
     assert.equal(plan.counts[0], 24);
     assert.equal(plan.counts.at(-1), 2);
@@ -145,7 +154,12 @@ describe('sloped edge (03 §3.2, §3.4; 05 §4.4)', () => {
   });
 
   test('D: a 20 × 15 cm isosceles triangle in dc at 16 × 8 runs from 32 stitches to 2 over 12 rows, in even steps, using dc3tog', () => {
-    const { pattern, plan } = shape(withRowGauge('dc', 16, 8), { shape: 'isosceles-triangle', stitch: 'dc', widthCm: 20, heightCm: 15 });
+    const { pattern, plan } = shape(withRowGauge('dc', 16, 8), {
+      shape: 'isosceles-triangle',
+      stitch: 'dc',
+      widthCm: 20,
+      heightCm: 15,
+    });
     assert.equal(plan.counts.length, 12);
     assert.deepEqual([plan.counts[0], plan.counts.at(-1)], [32, 2]);
     assert.ok(changes(plan.counts).every((step) => step === -2 || step === -4));
@@ -156,16 +170,34 @@ describe('sloped edge (03 §3.2, §3.4; 05 §4.4)', () => {
   });
 
   test('from an angle: in sc at 16 × 18 one decrease per row is about 48.4° (03 §3.2 table)', () => {
-    const result = plan(withRowGauge('sc', 16, 18), { shape: 'right-triangle', stitch: 'sc', widthCm: 15, measure: 'angle', angleDeg: 48.4 });
+    const result = plan(withRowGauge('sc', 16, 18), {
+      shape: 'right-triangle',
+      stitch: 'sc',
+      widthCm: 15,
+      measure: 'angle',
+      angleDeg: 48.4,
+    });
     const steps = changes(result.counts);
     assert.ok(steps.filter((step) => step === -1).length >= steps.length - 1, steps.join(','));
     assert.ok(Math.abs(result.angleDeg - 48.4) < 1.5, String(result.angleDeg));
   });
 
   test('trapezoid: the top edge lands near the requested width in even steps, widening as well as narrowing', () => {
-    const narrowing = plan(withRowGauge('sc', 20, 20), { shape: 'trapezoid', stitch: 'sc', widthCm: 20, topWidthCm: 12, heightCm: 10 });
+    const narrowing = plan(withRowGauge('sc', 20, 20), {
+      shape: 'trapezoid',
+      stitch: 'sc',
+      widthCm: 20,
+      topWidthCm: 12,
+      heightCm: 10,
+    });
     assert.deepEqual([narrowing.counts[0], narrowing.counts.at(-1)], [40, 24]);
-    const widening = plan(withRowGauge('sc', 20, 20), { shape: 'trapezoid', stitch: 'sc', widthCm: 12, topWidthCm: 20, heightCm: 10 });
+    const widening = plan(withRowGauge('sc', 20, 20), {
+      shape: 'trapezoid',
+      stitch: 'sc',
+      widthCm: 12,
+      topWidthCm: 20,
+      heightCm: 10,
+    });
     assert.deepEqual([widening.counts[0], widening.counts.at(-1)], [24, 40]);
     for (const result of [narrowing, widening]) assert.ok(changes(result.counts).every((step) => step % 2 === 0));
   });
@@ -183,7 +215,12 @@ describe('sloped edge (03 §3.2, §3.4; 05 §4.4)', () => {
   });
 
   test('row extents: an odd row starts at the right edge and ends at the left, and the width is the stitch count', () => {
-    const result = plan(withRowGauge('sc', 16, 18), { shape: 'right-triangle', stitch: 'sc', widthCm: 15, heightCm: 20 });
+    const result = plan(withRowGauge('sc', 16, 18), {
+      shape: 'right-triangle',
+      stitch: 'sc',
+      widthCm: 15,
+      heightCm: 20,
+    });
     const extents = rowExtents(result);
     extents.forEach((row, k) => assert.equal(row.right - row.left, result.counts[k]));
     // The sloped edge is the left one: the right edge stays straight.
@@ -191,14 +228,22 @@ describe('sloped edge (03 §3.2, §3.4; 05 §4.4)', () => {
   });
 
   test('at most 2 into one stitch per edge per row: a steep decrease leaves stitches unworked at the end of the row, along with the top of the counting turning chain', () => {
-    const { pattern, plan } = shape(emptyPattern(), { shape: 'isosceles-triangle', stitch: 'dc', widthCm: 30, heightCm: 6 });
+    const { pattern, plan } = shape(emptyPattern(), {
+      shape: 'isosceles-triangle',
+      stitch: 'dc',
+      widthCm: 30,
+      heightCm: 6,
+    });
     assert.ok(plan.shaping.every((row) => row.start >= -MAX_EDGE_CHANGE && row.end <= MAX_EDGE_CHANGE));
     assert.ok(plan.unworkedRows.length > 0);
     assert.ok(changes(plan.counts).every((step) => step % 2 === 0));
     const piece = pattern.pieces[0];
     assert.ok(piece.skipped.length > 0);
     assert.deepEqual(findings(pattern), []);
-    assert.match(formatWrittenPattern(writePattern(pattern, libraryFor(pattern), 'hu')), /\d+ szem kihagyása \(\d+ szem\)\. Fordítás\./);
+    assert.match(
+      formatWrittenPattern(writePattern(pattern, libraryFor(pattern), 'hu')),
+      /\d+ szem kihagyása \(\d+ szem\)\. Fordítás\./,
+    );
 
     // Without the unworked stitches marked the validator reports a finding: that marking is what makes the row end sound.
     const unmarked = { ...pattern, pieces: [{ ...piece, skipped: [] }] };
@@ -228,17 +273,29 @@ describe('sloped edge (03 §3.2, §3.4; 05 §4.4)', () => {
     assert.equal(refuse({ widthCm: 0.2 }).code, 'shape-too-narrow');
     // The row count travels in the data: a diamond needs at least 3 rows.
     assert.deepEqual(refuse({ shape: 'diamond', heightCm: 0.5 }), { code: 'shape-min-rows', data: { rows: 3 } });
-    assert.equal(refuse({ shape: 'trapezoid', widthCm: 10, topWidthCm: 10, measure: 'angle' }).code, 'shape-trapezoid-equal-edges');
+    assert.equal(
+      refuse({ shape: 'trapezoid', widthCm: 10, topWidthCm: 10, measure: 'angle' }).code,
+      'shape-trapezoid-equal-edges',
+    );
   });
 });
 
 describe('validating the options', () => {
   test('a stitch repeat is rectangle-only for now, and size and angle must stay in range', () => {
-    assert.equal(shapeProblem({ ...DEFAULT_SHAPE, shape: 'diamond', repeat: { width: 4, edge: 1 } }).code, 'shape-repeat-rectangle-only');
+    assert.equal(
+      shapeProblem({ ...DEFAULT_SHAPE, shape: 'diamond', repeat: { width: 4, edge: 1 } }).code,
+      'shape-repeat-rectangle-only',
+    );
     assert.equal(shapeProblem({ ...DEFAULT_SHAPE, shape: 'trapezoid' }), null);
     // The limit travels in the data, not in a sentence (PQW-904).
-    assert.deepEqual(shapeProblem({ ...DEFAULT_SHAPE, widthCm: Number.NaN }), { code: 'shape-width-range', data: { max: MAX_SHAPE_CM } });
-    assert.equal(shapeProblem({ ...DEFAULT_SHAPE, shape: 'isosceles-triangle', measure: 'angle', angleDeg: 90 }).code, 'shape-angle-range');
+    assert.deepEqual(shapeProblem({ ...DEFAULT_SHAPE, widthCm: Number.NaN }), {
+      code: 'shape-width-range',
+      data: { max: MAX_SHAPE_CM },
+    });
+    assert.equal(
+      shapeProblem({ ...DEFAULT_SHAPE, shape: 'isosceles-triangle', measure: 'angle', angleDeg: 90 }).code,
+      'shape-angle-range',
+    );
     assert.equal(shapeProblem({ ...DEFAULT_SHAPE, repeat: { width: 0, edge: 1 } }).code, 'shape-repeat-width-range');
     assert.equal(shapeProblem({ ...DEFAULT_SHAPE, stitch: 'sc2tog' }).code, 'shape-basic-stitch-only');
     assert.equal(shapeProblem(DEFAULT_SHAPE), null);
@@ -260,7 +317,14 @@ describe('every generated pattern validates cleanly, writes out and reads back',
         for (const stitch of SHAPE_STITCHES) {
           for (const [widthCm, heightCm] of sizes) {
             const name = `${stitch} ${widthCm} × ${heightCm}`;
-            const result = generateShape(base(), { ...DEFAULT_SHAPE, shape: flat, stitch, widthCm, heightCm, topWidthCm: widthCm / 3 });
+            const result = generateShape(base(), {
+              ...DEFAULT_SHAPE,
+              shape: flat,
+              stitch,
+              widthCm,
+              heightCm,
+              topWidthCm: widthCm / 3,
+            });
             if (!result.ok) {
               const expected = ['shape-too-steep', 'shape-min-rows', 'shape-too-narrow', 'shape-row-too-narrow'];
               assert.ok(expected.includes(result.reason.code), `${name}: ${why(result)}`);
@@ -268,10 +332,18 @@ describe('every generated pattern validates cleanly, writes out and reads back',
             }
             const { pattern, plan } = result;
             assert.deepEqual(findings(pattern), [], name);
-            if (flat !== 'right-triangle') assert.ok(changes(plan.counts).every((step) => step % 2 === 0), `${name}: even steps`);
+            if (flat !== 'right-triangle')
+              assert.ok(
+                changes(plan.counts).every((step) => step % 2 === 0),
+                `${name}: even steps`,
+              );
             const library = libraryFor(pattern);
             for (const locale of ['hu', 'en-US', 'en-GB']) {
-              const back = readPattern(formatWrittenPattern(writePattern(pattern, library, locale)), { library, locale, conventions: pattern.conventions });
+              const back = readPattern(formatWrittenPattern(writePattern(pattern, library, locale)), {
+                library,
+                locale,
+                conventions: pattern.conventions,
+              });
               assert.ok(back.ok, `${name} ${locale}: ${JSON.stringify(back.error)}`);
               sameGraph(back.pattern, pattern);
             }

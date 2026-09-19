@@ -1,13 +1,10 @@
 // KB: interface.md §7
 
 import type { BodyTableId } from '../core/body-sizes.js';
-import { generateGarment, planGarment, type GarmentOptions } from '../core/garments.js';
+import { type GarmentOptions, generateGarment, planGarment } from '../core/garments.js';
 import { activeProfile } from '../core/pattern-size.js';
 import type { GarmentKind, Pattern } from '../core/types.js';
 import {
-  KIND_CHOICES,
-  STITCH_CHOICES,
-  TABLE_CHOICES,
   defaultsFor,
   easeLabel,
   easeNote,
@@ -16,8 +13,11 @@ import {
   garmentView,
   generatedMessage,
   hemLabel,
+  KIND_CHOICES,
   normalizeGarment,
+  STITCH_CHOICES,
   sizeChoices,
+  TABLE_CHOICES,
 } from './garment-view.js';
 import type { Choice } from './shapes-view.js';
 
@@ -117,7 +117,9 @@ export class GarmentPanel {
     this.#apply(defaultsFor('drop-shoulder', 'women'));
     section.addEventListener('toggle', () => this.#render());
     for (const select of [this.#kind, this.#table]) {
-      select.addEventListener('change', () => this.#apply(defaultsFor(this.#kind.value as GarmentKind, this.#table.value as BodyTableId)));
+      select.addEventListener('change', () =>
+        this.#apply(defaultsFor(this.#kind.value as GarmentKind, this.#table.value as BodyTableId)),
+      );
     }
     for (const input of [this.#size, this.#from, this.#to, this.#stitch, this.#neckline, this.#repeat, this.#ribbing]) {
       input.addEventListener('change', () => this.#render());

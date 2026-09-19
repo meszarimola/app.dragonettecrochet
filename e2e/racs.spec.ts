@@ -8,7 +8,7 @@
  */
 
 import { readFile } from 'node:fs/promises';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 interface Cell {
   readonly layer: number;
@@ -32,19 +32,25 @@ async function open(page: Page): Promise<void> {
 
 const racs = (page: Page): Promise<Racs> =>
   page.evaluate(() => {
-    const api = (window as unknown as { mintatervezoRacs: { layer(): number; cells(): Cell[]; labels(): Racs['labels'] } }).mintatervezoRacs;
+    const api = (
+      window as unknown as { mintatervezoRacs: { layer(): number; cells(): Cell[]; labels(): Racs['labels'] } }
+    ).mintatervezoRacs;
     return { layer: api.layer(), cells: api.cells(), labels: api.labels() };
   });
 
 /** Click on the cell of the target: in the bottom row (the own cell of the target) or in the row in progress (above it). */
 async function clickSlot(page: Page, slot: number, row: 'alsó' | 'készülő'): Promise<void> {
   const { layer, cells } = await racs(page);
-  const cell = cells.find((candidate) => candidate.slot === slot && candidate.layer === (row === 'készülő' ? layer : layer - 1));
+  const cell = cells.find(
+    (candidate) => candidate.slot === slot && candidate.layer === (row === 'készülő' ? layer : layer - 1),
+  );
   expect(cell, `the cell of target ${slot} (row ${row})`).toBeTruthy();
   await page.mouse.click(cell!.x, cell!.y);
 }
 
-test('the rectangle is made by clicking on cells only; where there is nothing to crochet into, a message comes and no stitch is laid down', async ({ page }) => {
+test('the rectangle is made by clicking on cells only; where there is nothing to crochet into, a message comes and no stitch is laid down', async ({
+  page,
+}) => {
   await open(page);
   // The written pattern panel starts closed (PQW-911): it does not cover the canvas.
   await expect(page.locator('#written')).toBeHidden();
@@ -54,14 +60,20 @@ test('the rectangle is made by clicking on cells only; where there is nothing to
   const fit = page.getByRole('button', { name: 'Egész minta' });
 
   // Foundation chain (row 1 on the chart): the chain stitch goes without a target, one click on the canvas.
-  await palette.getByRole('button', { name: /Láncszem/ }).first().click();
+  await palette
+    .getByRole('button', { name: /Láncszem/ })
+    .first()
+    .click();
   await page.locator('#chain-count').fill('6');
   await page.locator('#board').click();
   await fit.click();
 
   // Row 1: single crochets into the cells of the foundation chain; for single crochet we skip 2 chain stitches (PQW-924), and into the rest
   // one single crochet each goes: 4 stitches out of 6 chain stitches.
-  await palette.getByRole('button', { name: /Rövidpálca \(rp\)/ }).first().click();
+  await palette
+    .getByRole('button', { name: /Rövidpálca \(rp\)/ })
+    .first()
+    .click();
   for (const slot of [2, 3, 4, 5]) await clickSlot(page, slot, 'alsó');
   await expect(summary).toContainText('2. sor: 5 szem');
 
@@ -91,7 +103,9 @@ test('the rectangle is made by clicking on cells only; where there is nothing to
   await expect(summary).toContainText('3. sor: 4 szem, még 1 célpont');
 });
 
-test('the grid can be switched on and off in the view group, it survives, and it goes into the SVG export optionally', async ({ page }) => {
+test('the grid can be switched on and off in the view group, it survives, and it goes into the SVG export optionally', async ({
+  page,
+}) => {
   await open(page);
   const grid = page.locator('.tools [data-action="grid"]');
   await expect(grid).toHaveAttribute('aria-pressed', 'true');

@@ -39,7 +39,9 @@ export function per10cmFromPer4in(count: number): number {
 }
 
 // `null` for a category with an open-ended gauge range (Jumbo).
-export function cycGaugePer10cm(weight: CycWeight): { readonly stitch: 'sc' | 'dc'; readonly perTenCm: Quantity } | null {
+export function cycGaugePer10cm(
+  weight: CycWeight,
+): { readonly stitch: 'sc' | 'dc'; readonly perTenCm: Quantity } | null {
   const { gaugeStitch, stitchesPer4in } = cycWeightClass(weight);
   const [min, max] = stitchesPer4in;
   if (min === null || max === null) return null;
@@ -59,7 +61,11 @@ export interface MeterageClass {
 }
 
 // Lower bounds in m/100 g, in descending order: the first match wins.
-const METERAGE_CLASSES: readonly { readonly min: number; readonly weight: CycWeight; readonly candidates: readonly CycWeight[] }[] = [
+const METERAGE_CLASSES: readonly {
+  readonly min: number;
+  readonly weight: CycWeight;
+  readonly candidates: readonly CycWeight[];
+}[] = [
   { min: 600, weight: 0, candidates: [0] },
   { min: 350, weight: 1, candidates: [1] },
   { min: 280, weight: 2, candidates: [2] },

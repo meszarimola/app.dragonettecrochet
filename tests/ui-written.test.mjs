@@ -15,7 +15,8 @@ import { hdcRectangle } from './fixtures/examples.ts';
 import { testLibrary } from './fixtures/library.ts';
 
 const view = (pattern, terms = 'hu') => writtenView(pattern, contextOf(pattern), liveCheck(pattern), terms);
-const fixture = (locale, name) => readFileSync(new URL(`./fixtures/written/${locale}/${name}.txt`, import.meta.url), 'utf8');
+const fixture = (locale, name) =>
+  readFileSync(new URL(`./fixtures/written/${locale}/${name}.txt`, import.meta.url), 'utf8');
 
 function ok(result) {
   if (!result.ok) throw new Error(result.reason);
@@ -65,7 +66,9 @@ test('a half-finished row still renders the text, with a notice', () => {
   assert.equal(result.kind, 'text');
   // The turning chain sits where the first stitch of the row would be, so the text spells out the skip (PQW-944).
   assert.match(result.text, /3\. sor: 1 lsz \(1 rp-nek számít\), 1 szem kihagyása, 1 rp \(2 szem\)\.$/m);
-  assert.deepEqual(result.notices, ['A 3. sor félkész, még 3 célpont van hátra: a szöveg a mostani állapotot írja le.']);
+  assert.deepEqual(result.notices, [
+    'A 3. sor félkész, még 3 célpont van hátra: a szöveg a mostani állapotot írja le.',
+  ]);
 });
 
 test('an invalid pattern renders the text plus a notice counting the errors', () => {
@@ -74,7 +77,10 @@ test('an invalid pattern renders the text plus a notice counting the errors', ()
   pattern = ok(work(pattern, { def: 'sc', count: 1 }, 4));
   const result = view(pattern);
   assert.equal(result.kind, 'text');
-  assert.ok(result.notices.some((notice) => /^A mintában \d+ hiba van \(lásd Ellenőrzés\)/.test(notice)), result.notices.join(' | '));
+  assert.ok(
+    result.notices.some((notice) => /^A mintában \d+ hiba van \(lásd Ellenőrzés\)/.test(notice)),
+    result.notices.join(' | '),
+  );
 });
 
 test('what the written text cannot express yet gets a readable message, not an exception', () => {
@@ -82,7 +88,12 @@ test('what the written text cannot express yet gets a readable message, not an e
   const piece = pattern.pieces[0];
   const crossed = {
     ...pattern,
-    pieces: [{ ...piece, stitches: piece.stitches.map((node) => (node.id === rows[2][3] ? { ...node, flags: ['crossed'] } : node)) }],
+    pieces: [
+      {
+        ...piece,
+        stitches: piece.stitches.map((node) => (node.id === rows[2][3] ? { ...node, flags: ['crossed'] } : node)),
+      },
+    ],
   };
   const result = view(crossed);
   assert.equal(result.kind, 'message');
@@ -98,7 +109,12 @@ test('the core supplies a code and data, and the interface assembles the sentenc
   const piece = pattern.pieces[0];
   const crossed = {
     ...pattern,
-    pieces: [{ ...piece, stitches: piece.stitches.map((node) => (node.id === rows[2][3] ? { ...node, flags: ['crossed'] } : node)) }],
+    pieces: [
+      {
+        ...piece,
+        stitches: piece.stitches.map((node) => (node.id === rows[2][3] ? { ...node, flags: ['crossed'] } : node)),
+      },
+    ],
   };
   assert.throws(
     () => writtenPieces(crossed, testLibrary),

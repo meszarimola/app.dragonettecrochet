@@ -24,14 +24,23 @@ import { DEFAULT_SHAPE, generateShape } from '../src/core/shapes.ts';
 import { DEFAULT_SHAWL, generateShawl } from '../src/core/shawls.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
 import { gridPaths } from '../src/ui/grid-paths.ts';
-import { chevron, dcRectangle, grannySquare, hdcRectangle, shellStitch, vStitchPattern, wave } from './fixtures/examples.ts';
+import {
+  chevron,
+  dcRectangle,
+  grannySquare,
+  hdcRectangle,
+  shellStitch,
+  vStitchPattern,
+  wave,
+} from './fixtures/examples.ts';
 
 const ok = (result) => {
   assert.ok(result.ok, result.reason);
   return result.pattern;
 };
 const degrees = (radians) => (radians * 180) / Math.PI;
-const near = (actual, expected, tolerance, name) => assert.ok(Math.abs(actual - expected) <= tolerance, `${name}: ${actual} ≉ ${expected}`);
+const near = (actual, expected, tolerance, name) =>
+  assert.ok(Math.abs(actual - expected) <= tolerance, `${name}: ${actual} ≉ ${expected}`);
 
 /** A pattern with a profile whose stitch, measured flat, has the given stitches and rows over 10 cm. */
 function withGauge(stitch, stitchesPer10cm, rowsPer10cm) {
@@ -50,7 +59,9 @@ const shawl = (patch, pattern = emptyPattern()) => ok(generateShawl(pattern, { .
 const nodesOf = (layout, layer) => [...layout.nodes.values()].filter((node) => node.layer === layer);
 const rowsOf = (pattern) => pattern.pieces[0].events.length;
 /** The centre of the mapping, taken from the straight layout, as layout.ts does it. */
-const centerOf = (pattern, options = {}) => rowCurve(layoutPattern(pattern, libraryFor(pattern), { ...options, straight: true }), pattern.pieces[0].rowShape).center;
+const centerOf = (pattern, options = {}) =>
+  rowCurve(layoutPattern(pattern, libraryFor(pattern), { ...options, straight: true }), pattern.pieces[0].rowShape)
+    .center;
 /** The angle of a point seen from the centre of the dome, measured from the vertical. */
 const angleOf = (p, center) => degrees(Math.atan2(p.x - center, -p.y));
 
@@ -67,13 +78,41 @@ describe('every other drawing stays the same (regression)', () => {
     ...Object.fromEntries(
       ['rectangle', 'right-triangle', 'isosceles-triangle', 'trapezoid', 'diamond'].map((shape) => [
         `shape-${shape}`,
-        [ok(generateShape(emptyPattern(), { ...DEFAULT_SHAPE, shape, stitch: 'dc', widthCm: 15, heightCm: 12, topWidthCm: 5 })), 'rows'],
+        [
+          ok(
+            generateShape(emptyPattern(), {
+              ...DEFAULT_SHAPE,
+              shape,
+              stitch: 'dc',
+              widthCm: 15,
+              heightCm: 12,
+              topWidthCm: 5,
+            }),
+          ),
+          'rows',
+        ],
       ]),
     ),
     ...Object.fromEntries(
-      ['circle', 'hexagon', 'granny-square'].map((shape) => [`motif-${shape}`, [ok(generateMotif(emptyPattern(), { ...DEFAULT_MOTIF, shape, rounds: 5 })), 'rounds']]),
+      ['circle', 'hexagon', 'granny-square'].map((shape) => [
+        `motif-${shape}`,
+        [ok(generateMotif(emptyPattern(), { ...DEFAULT_MOTIF, shape, rounds: 5 })), 'rounds'],
+      ]),
     ),
-    filet: [ok(generateFilet(emptyPattern(), { cells: [[1, 0, 1], [0, 1, 0], [1, 1, 1]], unit: null, lettering: false })), 'cells'],
+    filet: [
+      ok(
+        generateFilet(emptyPattern(), {
+          cells: [
+            [1, 0, 1],
+            [0, 1, 0],
+            [1, 1, 1],
+          ],
+          unit: null,
+          lettering: false,
+        }),
+      ),
+      'cells',
+    ],
     ...Object.fromEntries(
       ['stole', 'asymmetric-triangle', 'circle', 'pi'].map((kind) => [
         `shawl-${kind}`,
@@ -81,28 +120,50 @@ describe('every other drawing stays the same (regression)', () => {
       ]),
     ),
   };
-  const views = { plain: {}, mirror: { mirror: true }, aspect: { stemLength: (chainHeight) => 6 + 12 * chainHeight, columnWidth: 30 } };
+  const views = {
+    plain: {},
+    mirror: { mirror: true },
+    aspect: { stemLength: (chainHeight) => 6 + 12 * chainHeight, columnWidth: 30 },
+  };
   const clean = (value) => {
     if (typeof value === 'number') {
       const rounded = Math.round(value * 1e4) / 1e4;
       return Object.is(rounded, -0) ? 0 : rounded;
     }
     if (typeof value === 'function') return undefined;
-    if (value instanceof Map) return [...value.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([key, item]) => [key, clean(item)]);
+    if (value instanceof Map)
+      return [...value.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([key, item]) => [key, clean(item)]);
     if (Array.isArray(value)) return value.map(clean);
-    if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map((key) => [key, clean(value[key])]));
+    if (value && typeof value === 'object')
+      return Object.fromEntries(
+        Object.keys(value)
+          .sort()
+          .map((key) => [key, clean(value[key])]),
+      );
     return value;
   };
-  const digest = (value) => createHash('sha256').update(JSON.stringify(clean(value))).digest('hex').slice(0, 16);
+  const digest = (value) =>
+    createHash('sha256')
+      .update(JSON.stringify(clean(value)))
+      .digest('hex')
+      .slice(0, 16);
 
   for (const [name, [pattern, kind]] of Object.entries(patterns)) {
     test(`${name}: layout and grid match the pre-PQW-893 result in the plain, mirrored and true-to-proportion views`, () => {
       const library = libraryFor(pattern);
       assert.equal(pattern.pieces[0].rowShape, undefined);
       for (const [view, options] of Object.entries(views)) {
-        assert.equal(digest(layoutPattern(pattern, library, options)), expected[`${name}/${view}/layout`], `${view} layout`);
+        assert.equal(
+          digest(layoutPattern(pattern, library, options)),
+          expected[`${name}/${view}/layout`],
+          `${view} layout`,
+        );
         const grid = chartGrid(pattern, library, kind, contextOf(pattern), options);
-        assert.equal(digest({ bands: grid.bands, cells: grid.cells, bounds: grid.bounds, shape: grid.shape }), expected[`${name}/${view}/grid`], `${view} grid`);
+        assert.equal(
+          digest({ bands: grid.bands, cells: grid.cells, bounds: grid.bounds, shape: grid.shape }),
+          expected[`${name}/${view}/grid`],
+          `${view} grid`,
+        );
       }
     });
   }
@@ -115,7 +176,9 @@ describe('semicircle and crescent on an arc (05 §1.2, §1.6)', () => {
     const layout = layoutPattern(pattern, libraryFor(pattern));
     const center = centerOf(pattern);
     const last = nodesOf(layout, rowsOf(pattern));
-    const radii = last.filter((node) => node.role === 'stitch').map((node) => Math.hypot(node.top.x - center, node.top.y));
+    const radii = last
+      .filter((node) => node.role === 'stitch')
+      .map((node) => Math.hypot(node.top.x - center, node.top.y));
     assert.ok(Math.max(...radii) / Math.min(...radii) < 1.03, `${Math.min(...radii)}–${Math.max(...radii)}`);
     // The tops of the stitches; the turning chain stands below the top line of the row, on a smaller radius.
     const angles = last.filter((node) => node.role === 'stitch').map((node) => angleOf(node.top, center));
@@ -142,7 +205,10 @@ describe('semicircle and crescent on an arc (05 §1.2, §1.6)', () => {
   // measure there. Further out the stem at the end of a row leans by at most three quarters of a column (most of all
   // for a stitch worked into the top of the turning chain).
   test('from row 4 on the feet sit on top of their targets: the gap is at most three quarters of a column wider than in the straight drawing', () => {
-    for (const pattern of [shawl({ kind: 'semicircle', stitch: 'dc', sizeCm: 15 }), shawl({ kind: 'triangle', stitch: 'hdc', sizeCm: 12 })]) {
+    for (const pattern of [
+      shawl({ kind: 'semicircle', stitch: 'dc', sizeCm: 15 }),
+      shawl({ kind: 'triangle', stitch: 'hdc', sizeCm: 12 }),
+    ]) {
       const library = libraryFor(pattern);
       const [curved, straight] = [layoutPattern(pattern, library), layoutPattern(pattern, library, { straight: true })];
       const gap = (layout, stitch, anchor, i) => {
@@ -154,7 +220,10 @@ describe('semicircle and crescent on an arc (05 §1.2, §1.6)', () => {
         stitch.anchors.forEach((anchor, i) => {
           if (anchor.into !== 'stitch' || curved.nodes.get(anchor.id).layer === 0) return;
           const [bent, flat] = [gap(curved, stitch, anchor, i), gap(straight, stitch, anchor, i)];
-          assert.ok(bent <= flat + 18, `the foot of ${stitch.id} is ${bent.toFixed(1)} units from its target (straight: ${flat.toFixed(1)})`);
+          assert.ok(
+            bent <= flat + 18,
+            `the foot of ${stitch.id} is ${bent.toFixed(1)} units from its target (straight: ${flat.toFixed(1)})`,
+          );
         });
       }
     }
@@ -166,7 +235,19 @@ describe('semicircle and crescent on an arc (05 §1.2, §1.6)', () => {
     // Without the last row: stitches up to the last turn, events including that turn.
     const turn = piece.events.findLast((event) => event.kind === 'turn');
     const cut = piece.stitches.findIndex((node) => node.id === turn.after) + 1;
-    const shorter = { ...pattern, pieces: [{ ...piece, stitches: piece.stitches.slice(0, cut), groups: piece.groups.filter((group) => group.members.every((id) => piece.stitches.slice(0, cut).some((node) => node.id === id))), events: piece.events.slice(0, piece.events.indexOf(turn) + 1) }] };
+    const shorter = {
+      ...pattern,
+      pieces: [
+        {
+          ...piece,
+          stitches: piece.stitches.slice(0, cut),
+          groups: piece.groups.filter((group) =>
+            group.members.every((id) => piece.stitches.slice(0, cut).some((node) => node.id === id)),
+          ),
+          events: piece.events.slice(0, piece.events.indexOf(turn) + 1),
+        },
+      ],
+    };
     const [full, partial] = [layoutPattern(pattern, libraryFor(pattern)), layoutPattern(shorter, libraryFor(shorter))];
     for (const [id, node] of partial.nodes) {
       const before = full.nodes.get(id);
@@ -200,8 +281,13 @@ describe('a top-down triangle bent at the spine (05 §1.4)', () => {
     const layout = layoutPattern(pattern, libraryFor(pattern));
     const center = centerOf(pattern);
     const last = nodesOf(layout, rowsOf(pattern)).filter((node) => node.role === 'stitch');
-    const spine = last.reduce((best, node) => (Math.abs(node.top.x - center) < Math.abs(best.top.x - center) ? node : best));
-    const [left, right] = [last.reduce((a, b) => (b.top.x < a.top.x ? b : a)), last.reduce((a, b) => (b.top.x > a.top.x ? b : a))];
+    const spine = last.reduce((best, node) =>
+      Math.abs(node.top.x - center) < Math.abs(best.top.x - center) ? node : best,
+    );
+    const [left, right] = [
+      last.reduce((a, b) => (b.top.x < a.top.x ? b : a)),
+      last.reduce((a, b) => (b.top.x > a.top.x ? b : a)),
+    ];
     const toward = (node) => [node.top.x - spine.top.x, node.top.y - spine.top.y];
     const [a, b] = [toward(left), toward(right)];
     const angle = degrees(Math.acos((a[0] * b[0] + a[1] * b[1]) / (Math.hypot(...a) * Math.hypot(...b))));
@@ -233,7 +319,13 @@ describe('the grid over a curved drawing', () => {
       }
       const layout = layoutPattern(pattern, library);
       const bounds = chartBounds(layout, grid);
-      for (const node of layout.nodes.values()) assert.ok(node.top.x >= bounds.minX && node.top.x <= bounds.maxX && node.top.y >= bounds.minY && node.top.y <= bounds.maxY);
+      for (const node of layout.nodes.values())
+        assert.ok(
+          node.top.x >= bounds.minX &&
+            node.top.x <= bounds.maxX &&
+            node.top.y >= bounds.minY &&
+            node.top.y <= bounds.maxY,
+        );
       // The paths of the drawing: closed bands and lines.
       const paths = gridPaths(grid);
       assert.equal(paths.bands.length, grid.bands.length);
@@ -249,7 +341,11 @@ describe('saving', () => {
     const loaded = loadPattern(savePattern(pattern));
     assert.ok(loaded.ok);
     assert.deepEqual(loaded.pattern.pieces[0].rowShape, { kind: 'chevron', neckAngle: 180, tipAngle: 90 });
-    for (const rowShape of [{ kind: 'spiral', neckAngle: 180 }, { kind: 'arc', neckAngle: 400 }, { kind: 'chevron', neckAngle: 180 }]) {
+    for (const rowShape of [
+      { kind: 'spiral', neckAngle: 180 },
+      { kind: 'arc', neckAngle: 400 },
+      { kind: 'chevron', neckAngle: 180 },
+    ]) {
       const wrong = JSON.parse(savePattern(pattern));
       wrong.pieces[0].rowShape = rowShape;
       assert.equal(loadPattern(JSON.stringify(wrong)).ok, false, JSON.stringify(rowShape));

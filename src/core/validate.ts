@@ -1,7 +1,7 @@
 // KB: core-domain §16
 
 import { amigurumiFindings } from './amigurumi.ts';
-import { buildPieceGraph, spacePositions, type LayerInfo, type PieceGraph } from './graph.ts';
+import { buildPieceGraph, type LayerInfo, type PieceGraph, spacePositions } from './graph.ts';
 import { isPostMode, modeAsWorked } from './insertion.ts';
 import { MAX_CARRIED_COLORS } from './pixel-chart.ts';
 import { roundFindings } from './rounds.ts';
@@ -12,7 +12,8 @@ import type { Anchor, Finding, NodeId, Pattern, Piece, PieceId, StitchNode } fro
 
 export function validatePattern(pattern: Pattern, library: StitchLibrary): Finding[] {
   const findings = pattern.pieces.flatMap((piece) => validatePiece(pattern, piece, library));
-  for (const finding of amigurumiFindings(pattern, library)) findings.push(makeFinding(finding.rule, finding.piece, finding.nodes));
+  for (const finding of amigurumiFindings(pattern, library))
+    findings.push(makeFinding(finding.rule, finding.piece, finding.nodes));
   return findings;
 }
 
@@ -46,7 +47,9 @@ function validatePiece(pattern: Pattern, piece: Piece, library: StitchLibrary): 
     const target = resume === undefined ? null : graph.layers[resume.layer];
     const badTarget = resume !== undefined && (resume.layer < 1 || resume.layer >= index || target === undefined);
     const badShape = !badTarget && resume !== undefined && target!.shape !== (twoSource ? 'round' : 'row');
-    const badWith = twoSource && !(resume!.with! > resume!.layer && resume!.with! < index && graph.layers[resume!.with!]!.shape === 'round');
+    const badWith =
+      twoSource &&
+      !(resume!.with! > resume!.layer && resume!.with! < index && graph.layers[resume!.with!]!.shape === 'round');
     if (resume !== undefined && (badTarget || badShape || badWith)) report('resume-layer', [opening!.after]);
   }
   if (findings.length > 0) return findings;
@@ -88,18 +91,32 @@ function checkStructure(piece: Piece, library: StitchLibrary, report: Report): v
     if (!def || def.kind === 'group' || def.kind === 'space') report('unknown-stitch', [node.id]);
     for (const anchor of node.anchors) {
       const exists =
-        anchor.into === 'stitch' || anchor.into === 'underside' ? nodeIds.has(anchor.id) : anchor.into === 'space' ? spaceIds.has(anchor.id) : ringIds.has(anchor.id);
+        anchor.into === 'stitch' || anchor.into === 'underside'
+          ? nodeIds.has(anchor.id)
+          : anchor.into === 'space'
+            ? spaceIds.has(anchor.id)
+            : ringIds.has(anchor.id);
       if (!exists) report('dangling-reference', [node.id]);
     }
   }
   for (const space of piece.spaces) {
     if (space.chains.length === 0) report('dangling-reference', []);
-    for (const chain of space.chains) if (kindOf(chain) !== 'chain') report('dangling-reference', nodeIds.has(chain) ? [chain] : []);
+    for (const chain of space.chains)
+      if (kindOf(chain) !== 'chain') report('dangling-reference', nodeIds.has(chain) ? [chain] : []);
   }
-  for (const ring of piece.rings) if (kindOf(ring.node) !== 'ring') report('dangling-reference', nodeIds.has(ring.node) ? [ring.node] : []);
+  for (const ring of piece.rings)
+    if (kindOf(ring.node) !== 'ring') report('dangling-reference', nodeIds.has(ring.node) ? [ring.node] : []);
   for (const group of piece.groups) {
-    if (library.get(group.def)?.kind !== 'group') report('unknown-stitch', group.members.filter((id) => nodeIds.has(id)));
-    if (group.members.some((id) => !nodeIds.has(id))) report('dangling-reference', group.members.filter((id) => nodeIds.has(id)));
+    if (library.get(group.def)?.kind !== 'group')
+      report(
+        'unknown-stitch',
+        group.members.filter((id) => nodeIds.has(id)),
+      );
+    if (group.members.some((id) => !nodeIds.has(id)))
+      report(
+        'dangling-reference',
+        group.members.filter((id) => nodeIds.has(id)),
+      );
   }
   const eventNodes = new Set<NodeId>();
   for (const event of piece.events) {
@@ -126,7 +143,9 @@ function checkGroups(graph: PieceGraph, library: StitchLibrary, report: Report):
     const members = group.members.map((id) => graph.nodes.get(id)!);
     const expected = def?.kind === 'group' ? def.members : [];
     const sameDefs = members.length === expected.length && members.every((node, i) => node.def === expected[i]);
-    const consecutive = members.every((node, i) => i === 0 || graph.order.get(node.id) === graph.order.get(members[i - 1]!.id)! + 1);
+    const consecutive = members.every(
+      (node, i) => i === 0 || graph.order.get(node.id) === graph.order.get(members[i - 1]!.id)! + 1,
+    );
     const anchored = members.filter((node) => graph.defs.get(node.id)!.kind !== 'chain');
     const keys = new Set(anchored.map((node) => (node.anchors.length === 1 ? anchorKey(node.anchors[0]!) : '')));
     const oneTarget = keys.size === 1 && !keys.has('');
@@ -136,12 +155,16 @@ function checkGroups(graph: PieceGraph, library: StitchLibrary, report: Report):
 
 /** The allowed modes are seen from the crocheter, the graph stores the right-side mode, so a wrong-side row is compared reversed. For a compound stitch the group's list counts too. */
 function checkInsertions(graph: PieceGraph, library: StitchLibrary, report: Report): void {
-  const groupDef = new Map(graph.piece.groups.flatMap((group) => group.members.map((id) => [id, library.get(group.def)] as const)));
+  const groupDef = new Map(
+    graph.piece.groups.flatMap((group) => group.members.map((id) => [id, library.get(group.def)] as const)),
+  );
   for (const node of graph.piece.stitches) {
     const side = graph.layers[graph.layerOf.get(node.id) ?? 0]?.side ?? 'right';
     const defs = [graph.defs.get(node.id), groupDef.get(node.id)];
     const invalid = node.anchors.some(
-      (anchor) => anchor.into === 'stitch' && defs.some((def) => def && !def.insertionModes.includes(modeAsWorked(anchor.mode, side))),
+      (anchor) =>
+        anchor.into === 'stitch' &&
+        defs.some((def) => def && !def.insertionModes.includes(modeAsWorked(anchor.mode, side))),
     );
     if (invalid) report('insertion-mode', [node.id]);
   }
@@ -154,7 +177,8 @@ function checkFutureAnchors(graph: PieceGraph, report: Report): Set<string> {
     node.anchors.forEach((anchor, index) => {
       let target: number;
       if (anchor.into === 'stitch' || anchor.into === 'underside') target = graph.order.get(anchor.id)!;
-      else if (anchor.into === 'space') target = Math.max(...graph.spaces.get(anchor.id)!.chains.map((id) => graph.order.get(id)!));
+      else if (anchor.into === 'space')
+        target = Math.max(...graph.spaces.get(anchor.id)!.chains.map((id) => graph.order.get(id)!));
       else target = graph.order.get(graph.rings.get(anchor.id)!.node)!;
       if (target >= own) {
         report('future-anchor', [node.id]);
@@ -185,7 +209,8 @@ function checkLayer(
   const below = graph.layers[layer.below]!;
   // KB: core-domain §12
   const alsoBelow = layer.alsoBelow === undefined ? null : graph.layers[layer.alsoBelow]!;
-  const basePositions = layer.basePositions ?? (alsoBelow === null ? below.positions : [...below.positions, ...alsoBelow.positions]);
+  const basePositions =
+    layer.basePositions ?? (alsoBelow === null ? below.positions : [...below.positions, ...alsoBelow.positions]);
   const length = basePositions.length;
   const positionIndex = new Map(basePositions.map((id, i) => [id, i]));
   const toWorking = (i: number) => (layer.direction === 1 ? i : length - 1 - i);
@@ -236,7 +261,8 @@ function checkLayer(
       }
       const positions = anchor.into === 'space' ? spacePositions(below, graph.spaces.get(anchor.id)!) : targets;
       const indices = positions.map((target) => positionIndex.get(target));
-      const fromSource = targetLayer === layer.below || (layer.alsoBelow !== undefined && targetLayer === layer.alsoBelow);
+      const fromSource =
+        targetLayer === layer.below || (layer.alsoBelow !== undefined && targetLayer === layer.alsoBelow);
       if (!fromSource || indices.some((i) => i === undefined)) {
         report('anchor-layer', [id]);
         layerInvalid = true;
@@ -260,7 +286,10 @@ function checkLayer(
     if (nodes.size < 2) continue;
     const groups = new Set([...nodes].map((node) => graph.groupOf.get(node.id)));
     if (groups.size !== 1 || groups.has(undefined)) {
-      report('unmarked-increase', [...nodes].sort((a, b) => graph.order.get(a.id)! - graph.order.get(b.id)!).map((node) => node.id));
+      report(
+        'unmarked-increase',
+        [...nodes].sort((a, b) => graph.order.get(a.id)! - graph.order.get(b.id)!).map((node) => node.id),
+      );
     }
   }
 
@@ -294,13 +323,15 @@ function checkLayer(
       }
     }
     // A counting turning chain at the start of the row is part of the fan (half a shell: 3 ch + 2 dc).
-    const withTurningChain = layer.turningChainCounts && firstEntry && firstEntry.min === 0 && run.includes(firstEntry.node.id);
+    const withTurningChain =
+      layer.turningChainCounts && firstEntry && firstEntry.min === 0 && run.includes(firstEntry.node.id);
     return run.length + (withTurningChain ? 1 : 0);
   };
   const chainsBetween = (a: StitchNode, b: StitchNode) => {
     const from = layer.stitches.indexOf(a.id);
     const to = layer.stitches.indexOf(b.id);
-    return layer.stitches.slice(from + 1, to).filter((id) => kind(id) === 'chain' && !layer.turningChain.includes(id)).length;
+    return layer.stitches.slice(from + 1, to).filter((id) => kind(id) === 'chain' && !layer.turningChain.includes(id))
+      .length;
   };
 
   const covered = new Array<boolean>(length).fill(false);
@@ -320,7 +351,8 @@ function checkLayer(
         continue;
       }
       const from = (sameNode ? previous.max : frontier) + 1;
-      if (!exempt && from <= entry.min - 1) gaps.push({ before: previous.node, after: entry.node, from, to: entry.min - 1 });
+      if (!exempt && from <= entry.min - 1)
+        gaps.push({ before: previous.node, after: entry.node, from, to: entry.min - 1 });
     }
     for (let w = entry.min; w <= entry.max; w += 1) covered[w] = true;
     frontier = Math.max(frontier, entry.max);
@@ -401,7 +433,9 @@ function workedBetween(graph: PieceGraph, targets: readonly NodeId[], fromLayer:
     for (const id of graph.layers[index]!.stitches) {
       for (const anchor of graph.nodes.get(id)!.anchors) {
         const hit =
-          anchor.into === 'stitch' ? targetSet.has(anchor.id) : anchor.into === 'space' && graph.spaces.get(anchor.id)!.chains.some((c) => targetSet.has(c));
+          anchor.into === 'stitch'
+            ? targetSet.has(anchor.id)
+            : anchor.into === 'space' && graph.spaces.get(anchor.id)!.chains.some((c) => targetSet.has(c));
         if (hit) return true;
       }
     }
@@ -422,7 +456,10 @@ function checkCountsAndChains(graph: PieceGraph, index: number, report: Report):
     const join = graph.nodes.get(layer.closing.after)!;
     const anchor = join.anchors[0];
     const valid =
-      layer.joinSlip !== null && join.anchors.length === 1 && anchor?.into === 'stitch' && anchor.id === layer.positions[0];
+      layer.joinSlip !== null &&
+      join.anchors.length === 1 &&
+      anchor?.into === 'stitch' &&
+      anchor.id === layer.positions[0];
     if (!valid) report('round-join', [join.id]);
   }
 
@@ -430,7 +467,8 @@ function checkCountsAndChains(graph: PieceGraph, index: number, report: Report):
   if (firstStitch !== null) {
     const expected = graph.defs.get(firstStitch)!.turningChain;
     // Round 1 worked into a chain ring or a chain is a round, not a row on a foundation chain.
-    const onChain = index === 1 && below.shape === 'row' && below.stitches.length > 0 && kind(below.stitches[0]!) === 'chain';
+    const onChain =
+      index === 1 && below.shape === 'row' && below.stitches.length > 0 && kind(below.stitches[0]!) === 'chain';
     if (onChain) {
       // KB: core-domain §5; 03 §1.2, 03 §5.5
       const skipped = skippedChains(expected, layer.turningChainCounts);
@@ -438,7 +476,9 @@ function checkCountsAndChains(graph: PieceGraph, index: number, report: Report):
       if (leading.length !== skipped) report('foundation-chain', [...leading, firstStitch]);
     } else {
       const startsWithChain =
-        layer.opening?.kind === 'turn' || layer.opening?.kind === 'join-slip' || (index === 1 && below.shape === 'round');
+        layer.opening?.kind === 'turn' ||
+        layer.opening?.kind === 'join-slip' ||
+        (index === 1 && below.shape === 'round');
       // A post stitch is shorter than its base, so a ribbed row starts one chain short. KB: 01 §2.2, 01 §4.3
       const post = layer.stitches.some((id) =>
         graph.nodes.get(id)!.anchors.some((anchor) => anchor.into === 'stitch' && isPostMode(anchor.mode)),
@@ -459,13 +499,16 @@ function checkCountsAndChains(graph: PieceGraph, index: number, report: Report):
   }
   // A deliberately skipped chain is bridged by the next row's chain. KB: 03 §5.2
   const skipped = new Set(graph.piece.skipped);
-  if (trailing.length > 0 && !trailing.some((id) => isWorkedInto(graph, id) || skipped.has(id))) report('floating-chain', trailing);
+  if (trailing.length > 0 && !trailing.some((id) => isWorkedInto(graph, id) || skipped.has(id)))
+    report('floating-chain', trailing);
 }
 
 function isWorkedInto(graph: PieceGraph, chain: NodeId): boolean {
   const space = graph.spaceOfChain.get(chain);
   return graph.piece.stitches.some((node) =>
-    node.anchors.some((anchor) => (anchor.into === 'stitch' ? anchor.id === chain : anchor.into === 'space' && anchor.id === space?.id)),
+    node.anchors.some((anchor) =>
+      anchor.into === 'stitch' ? anchor.id === chain : anchor.into === 'space' && anchor.id === space?.id,
+    ),
   );
 }
 

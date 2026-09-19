@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
-import { HISTORY_LIMIT, canRedo, canUndo, createHistory, record, redo, undo } from '../src/core/history.ts';
+import { canRedo, canUndo, createHistory, HISTORY_LIMIT, record, redo, undo } from '../src/core/history.ts';
 
 test('undo and redo walk the same sequence of states', () => {
   let history = record(record(createHistory('a'), 'b'), 'c');

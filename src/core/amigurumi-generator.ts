@@ -1,8 +1,16 @@
 // KB: core-domain §9; 04 §3.2, 04 §3.3, 04 §3.4, 04 §5.4, 04 §5.6, 04 §5.7, 04 §9.1, 04 §9.8
 
-import { SHAPE_NAMES, evenDistribution, roundOps, shapeGaugeOf, shapeSchedule, type Schedule, type ShapeCode } from './amigurumi.ts';
+import {
+  evenDistribution,
+  roundOps,
+  type Schedule,
+  SHAPE_NAMES,
+  type ShapeCode,
+  shapeGaugeOf,
+  shapeSchedule,
+} from './amigurumi.ts';
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
-import { text, type CoreText } from './messages.ts';
+import { type CoreText, text } from './messages.ts';
 import { withGeneratedTitle } from './pattern-title.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import { traditionOf, turningChainCountsFor } from './tradition.ts';
@@ -73,7 +81,14 @@ export function createAmigurumi(pattern: Pattern, part: PartOptions, under3: boo
   const name = partName(part);
   const writer = new PieceWriter();
   const marks = sectionMarks(schedule, part.eyes, under3);
-  const problem = writeSection(writer, { schedule, stagger: part.stagger, below: null, marks, firstLayer: 1, conventions: pattern.conventions });
+  const problem = writeSection(writer, {
+    schedule,
+    stagger: part.stagger,
+    below: null,
+    marks,
+    firstLayer: 1,
+    conventions: pattern.conventions,
+  });
   if (problem) return fail(problem);
 
   const built: Pattern = {
@@ -90,7 +105,12 @@ export function createAmigurumi(pattern: Pattern, part: PartOptions, under3: boo
   return { ok: true, pattern: result, schedule };
 }
 
-export function addAmigurumiPart(pattern: Pattern, part: PartOptions, join: JoinOptions, under3: boolean): AmigurumiResult {
+export function addAmigurumiPart(
+  pattern: Pattern,
+  part: PartOptions,
+  join: JoinOptions,
+  under3: boolean,
+): AmigurumiResult {
   const previous = pattern.pieces.at(-1);
   if (!previous?.sections?.length) {
     return fail(text('no-previous-piece'));
@@ -121,16 +141,37 @@ export function addAmigurumiPart(pattern: Pattern, part: PartOptions, join: Join
     }
     const writer = new PieceWriter(previous);
     writer.continueFromEnd();
-    const problem = writeSection(writer, { schedule, stagger: part.stagger, below: graph.layers[lastLayer]!.positions, marks, firstLayer: lastLayer + 1, conventions });
+    const problem = writeSection(writer, {
+      schedule,
+      stagger: part.stagger,
+      below: graph.layers[lastLayer]!.positions,
+      marks,
+      firstLayer: lastLayer + 1,
+      conventions,
+    });
     if (problem) return fail(problem);
-    const piece = writer.piece(previous.id, previous.name, [...previous.sections, sectionOf(part, name, lastLayer + 1)]);
-    return { ok: true, pattern: { ...pattern, conventions, pieces: [...pattern.pieces.slice(0, -1), piece], toy: { under3 } }, schedule };
+    const piece = writer.piece(previous.id, previous.name, [
+      ...previous.sections,
+      sectionOf(part, name, lastLayer + 1),
+    ]);
+    return {
+      ok: true,
+      pattern: { ...pattern, conventions, pieces: [...pattern.pieces.slice(0, -1), piece], toy: { under3 } },
+      schedule,
+    };
   }
 
   if (schedule.start === 'open') return fail(OPEN_START);
   const id = `p${1 + Math.max(0, ...pattern.pieces.map((piece) => Number(/\d+$/.exec(piece.id)?.[0] ?? 0)))}`;
   const writer = new PieceWriter();
-  const problem = writeSection(writer, { schedule, stagger: part.stagger, below: null, marks, firstLayer: 1, conventions });
+  const problem = writeSection(writer, {
+    schedule,
+    stagger: part.stagger,
+    below: null,
+    marks,
+    firstLayer: 1,
+    conventions,
+  });
   if (problem) return fail(problem);
 
   const ownLayer = (schedule.end === 'open' ? schedule.counts.length - 1 : markRound(schedule)) + 1;
@@ -138,7 +179,14 @@ export function addAmigurumiPart(pattern: Pattern, part: PartOptions, join: Join
   const target = closedEnd ? closestLayer(graph, ownCount) : lastLayer;
   const targetCount = graph.layers[target]!.stitchCount;
   if (ownCount !== targetCount && !join.distribute) {
-    return fail(text('sewn-count-differs', { round: ownLayer, count: ownCount, previousRound: target, previousCount: targetCount }));
+    return fail(
+      text('sewn-count-differs', {
+        round: ownLayer,
+        count: ownCount,
+        previousRound: target,
+        previousCount: targetCount,
+      }),
+    );
   }
   const joined = {
     a: { piece: id, layer: ownLayer },
@@ -166,7 +214,8 @@ function sectionOf(part: PartOptions, name: string, layer: number): PieceSection
 function closestLayer(graph: PieceGraph, count: number): number {
   let best = graph.layers.length - 1;
   for (let index = 1; index < graph.layers.length; index += 1) {
-    if (Math.abs(graph.layers[index]!.stitchCount - count) <= Math.abs(graph.layers[best]!.stitchCount - count)) best = index;
+    if (Math.abs(graph.layers[index]!.stitchCount - count) <= Math.abs(graph.layers[best]!.stitchCount - count))
+      best = index;
   }
   return best;
 }
@@ -264,7 +313,8 @@ function writeSection(writer: PieceWriter, section: SectionWrite): CoreText<Amig
           next.dec.push(0, 0);
           p += 1;
         } else {
-          const [def, mode]: [StitchDefId, StitchInsertion] = loop === 'back-loop' ? ['sc2tog', 'back-loop'] : ['invdec', 'front-loop'];
+          const [def, mode]: [StitchDefId, StitchInsertion] =
+            loop === 'back-loop' ? ['sc2tog', 'back-loop'] : ['invdec', 'front-loop'];
           produced.push(writer.add(def, [into(positions[p]!, mode), into(positions[p + 1]!, mode)]));
           next.inc.push(0);
           next.dec.push(Math.max(depth.dec[p]!, depth.dec[p + 1]!) + 1);
@@ -275,7 +325,10 @@ function writeSection(writer: PieceWriter, section: SectionWrite): CoreText<Amig
     positions = produced;
     depth = next;
     const marks = section.marks.get(i);
-    writer.event(i === counts.length - 1 ? 'fasten-off' : 'spiral', { statedCount: count, ...(marks?.length ? { marks } : {}) });
+    writer.event(i === counts.length - 1 ? 'fasten-off' : 'spiral', {
+      statedCount: count,
+      ...(marks?.length ? { marks } : {}),
+    });
   }
   return null;
 }
@@ -285,7 +338,12 @@ function writeOval(writer: PieceWriter, section: SectionWrite): CoreText<Amiguru
   const { counts, oval } = section.schedule;
   const { chains: L, perEnd, stitch, turningChain: T } = oval!;
   const { conventions } = section;
-  const counted = turningChainCountsFor(conventions.turningChainCounts, resolveStitch(stitch)!, traditionOf(conventions), 'round');
+  const counted = turningChainCountsFor(
+    conventions.turningChainCounts,
+    resolveStitch(stitch)!,
+    traditionOf(conventions),
+    'round',
+  );
   const chains = Array.from({ length: L }, () => writer.add('ch'));
   // The beginning chain is the T chains nearest the hook (the last in yarn order); the rest is the worked foundation.
   const working = chains.slice(0, L - T);
@@ -316,14 +374,19 @@ function writeOval(writer: PieceWriter, section: SectionWrite): CoreText<Amiguru
         return true;
       };
       const endA = Array.from({ length: end }, (_, j) => head + straight + j);
-      const endB = [...Array.from({ length: end - head }, (_, j) => P - (end - head) + j), ...Array.from({ length: head }, (_, j) => j)];
+      const endB = [
+        ...Array.from({ length: end - head }, (_, j) => P - (end - head) + j),
+        ...Array.from({ length: head }, (_, j) => j),
+      ];
       if (!region(endA) || !region(endB)) return text('oval-ends-increase', { round: section.firstLayer + i });
       const produced: NodeId[] = [];
       const next: number[] = [];
       let nextHead = 0;
       positions.forEach((position, p) => {
         const inc = ops.get(p) === 'inc';
-        const ids = inc ? writer.into(into(position, 'both-loops'), 2, stitch) : [writer.add(stitch, [into(position, 'both-loops')])];
+        const ids = inc
+          ? writer.into(into(position, 'both-loops'), 2, stitch)
+          : [writer.add(stitch, [into(position, 'both-loops')])];
         produced.push(...ids);
         for (const _ of ids) next.push(inc ? (depth[p] ?? 0) + 1 : 0);
         if (p < head) nextHead += ids.length;
@@ -334,10 +397,18 @@ function writeOval(writer: PieceWriter, section: SectionWrite): CoreText<Amiguru
       end += perEnd;
     }
     if (positions.length !== counts[i]) {
-      return text('internal-error', { inner: 'oval-round-count', round: section.firstLayer + i, count: positions.length, expected: counts[i]! });
+      return text('internal-error', {
+        inner: 'oval-round-count',
+        round: section.firstLayer + i,
+        count: positions.length,
+        expected: counts[i]!,
+      });
     }
     const marks = section.marks.get(i);
-    writer.event(i === counts.length - 1 ? 'fasten-off' : 'spiral', { statedCount: counts[i]!, ...(marks?.length ? { marks } : {}) });
+    writer.event(i === counts.length - 1 ? 'fasten-off' : 'spiral', {
+      statedCount: counts[i]!,
+      ...(marks?.length ? { marks } : {}),
+    });
   }
   return null;
 }
@@ -356,7 +427,9 @@ class PieceWriter {
     this.#rings = [...(base?.rings ?? [])];
     this.#groups = [...(base?.groups ?? [])];
     this.#events = [...(base?.events ?? [])];
-    const used = [...this.#stitches, ...this.#rings, ...this.#groups, ...(base?.spaces ?? [])].map((item) => Number(/\d+$/.exec(item.id)?.[0] ?? 0));
+    const used = [...this.#stitches, ...this.#rings, ...this.#groups, ...(base?.spaces ?? [])].map((item) =>
+      Number(/\d+$/.exec(item.id)?.[0] ?? 0),
+    );
     this.#next = Math.max(0, ...used) + 1;
   }
 
@@ -376,7 +449,8 @@ class PieceWriter {
   /** `n` stitches into one target; two or more into a stitch make an increase. */
   into(anchor: Anchor, n: number, def: StitchDefId = 'sc'): NodeId[] {
     const ids = Array.from({ length: n }, () => this.add(def, [anchor]));
-    if ((anchor.into === 'stitch' || anchor.into === 'underside') && n >= 2) this.#groups.push({ id: `g${this.#next++}`, def: `inc-${n}${def}`, members: ids });
+    if ((anchor.into === 'stitch' || anchor.into === 'underside') && n >= 2)
+      this.#groups.push({ id: `g${this.#next++}`, def: `inc-${n}${def}`, members: ids });
     return ids;
   }
 
@@ -387,7 +461,8 @@ class PieceWriter {
   /** Spiral instead of fastening off at the end of the piece: the next section continues from here. */
   continueFromEnd(): void {
     const last = this.#events.at(-1);
-    if (last && last.after === this.#stitches.at(-1)?.id) this.#events[this.#events.length - 1] = { ...last, kind: 'spiral' };
+    if (last && last.after === this.#stitches.at(-1)?.id)
+      this.#events[this.#events.length - 1] = { ...last, kind: 'spiral' };
   }
 
   piece(id: string, name: string, sections: readonly PieceSection[]): Piece {

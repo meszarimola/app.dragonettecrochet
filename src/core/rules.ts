@@ -27,7 +27,8 @@ export const RULES = {
   'yarn-path': {
     severity: 'error',
     reference: '06 §5.3 V2',
-    summary: 'The previous stitch is not the one before it on the yarn path, or a yarn run starts without cutting the yarn.',
+    summary:
+      'The previous stitch is not the one before it on the yarn path, or a yarn run starts without cutting the yarn.',
     message: 'A fonal útja megszakad: egy szem nem az előző után folytatódik.',
   },
 
@@ -67,7 +68,8 @@ export const RULES = {
     reference: '01 §4.3',
     summary:
       'The stitch cannot be worked in this insertion mode: the mode as seen from the crocheter is not in the insertionModes list of the stitch (for a compound stitch, of the group) (PQW-869).',
-    message: 'Ez a szem ebben a beszúrási módban nem horgolható (pl. rákhurok hátsó szálba, kagyló reliefben): válassz másik módot.',
+    message:
+      'Ez a szem ebben a beszúrási módban nem horgolható (pl. rákhurok hátsó szálba, kagyló reliefben): válassz másik módot.',
   },
   'anchor-count': {
     severity: 'error',
@@ -90,16 +92,19 @@ export const RULES = {
   'group-mismatch': {
     severity: 'error',
     reference: '03 §10 C14, 01 §8.2 szabály 7',
-    summary: 'The members of the group are not consecutive stitches worked into one target, as the definition of the group requires.',
+    summary:
+      'The members of the group are not consecutive stitches worked into one target, as the definition of the group requires.',
     message: 'A szaporítás vagy a kagyló szemei nem egymás után, ugyanabba a szembe kerültek.',
   },
   'against-direction': {
     severity: 'error',
     reference: '03 §10 C13',
-    summary: 'The target lies against the working direction, and the stitch is not marked as crossed or as a post stitch.',
-    message: 'Ez a szem a haladási iránnyal szemben lévő szembe kapaszkodik. Ha szándékos, jelöld keresztezett szemnek.',
+    summary:
+      'The target lies against the working direction, and the stitch is not marked as crossed or as a post stitch.',
+    message:
+      'Ez a szem a haladási iránnyal szemben lévő szembe kapaszkodik. Ha szándékos, jelöld keresztezett szemnek.',
   },
-  'reach': {
+  reach: {
     severity: 'error',
     reference: '03 §10 C15, 03 §4.2',
     summary: 'Too large a jump: the skipped positions are bridged by neither chains nor a fan.',
@@ -148,7 +153,8 @@ export const RULES = {
   'round-join': {
     severity: 'error',
     reference: '06 §5.3 V4',
-    summary: 'The closing slip stitch of the round does not go into the first stitch of the round or into the top of the beginning chain.',
+    summary:
+      'The closing slip stitch of the round does not go into the first stitch of the round or into the top of the beginning chain.',
     message: 'A kört záró szem nem a kör első szemébe megy.',
   },
   'repeat-balance': {
@@ -162,13 +168,15 @@ export const RULES = {
     severity: 'warning',
     reference: '04 §9.0',
     summary: 'The position count of the round is more than double or less than half of the previous round.',
-    message: 'Ebben a körben a szemszám több mint duplájára nő vagy felére csökken: egy körben legfeljebb duplázás vagy felezés fér bele.',
+    message:
+      'Ebben a körben a szemszám több mint duplájára nő vagy felére csökken: egy körben legfeljebb duplázás vagy felezés fér bele.',
   },
   'round-cupping': {
     severity: 'warning',
     reference: '04 §8, §9.6',
     summary: 'In at least two consecutive rounds the increase stays below ~85% of the flat value: the piece cups.',
-    message: 'Kevés a szaporítás: ha laposnak szánod, ezek a körök kunkorodnak. Szaporíts többet, vagy a külső köröket horgold nagyobb tűvel.',
+    message:
+      'Kevés a szaporítás: ha laposnak szánod, ezek a körök kunkorodnak. Szaporíts többet, vagy a külső köröket horgold nagyobb tűvel.',
   },
   'round-ruffling': {
     severity: 'warning',
@@ -179,8 +187,10 @@ export const RULES = {
   'stacked-increases': {
     severity: 'warning',
     reference: '04 §3.2, §8, §9.6',
-    summary: 'Over three or more rounds the increases stack on top of each other (intentional in a polygon, where it does not flag).',
-    message: 'A szaporítások három körön át egymás fölé kerülnek, ezért a kör sokszögletű lesz. Told el őket körönként (eltolt szaporítás).',
+    summary:
+      'Over three or more rounds the increases stack on top of each other (intentional in a polygon, where it does not flag).',
+    message:
+      'A szaporítások három körön át egymás fölé kerülnek, ezért a kör sokszögletű lesz. Told el őket körönként (eltolt szaporítás).',
   },
   'spiral-color-jog': {
     severity: 'warning',
@@ -199,8 +209,10 @@ export const RULES = {
   'join-count': {
     severity: 'error',
     reference: '04 §5.4, §9.0',
-    summary: 'The stitch counts of the two sewn edges differ, and no distribution is given, or the distribution does not fit the two edges.',
-    message: 'A két összevarrt szél szemszáma eltér. Add meg, hogyan oszlanak el a szemek, vagy igazítsd a részek méretét.',
+    summary:
+      'The stitch counts of the two sewn edges differ, and no distribution is given, or the distribution does not fit the two edges.',
+    message:
+      'A két összevarrt szél szemszáma eltér. Add meg, hogyan oszlanak el a szemek, vagy igazítsd a részek méretét.',
   },
   'toy-safety-eyes': {
     severity: 'warning',

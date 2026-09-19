@@ -1,23 +1,23 @@
 // KB: interface.md §1
 
-import type { JoinMethod, PartOptions } from '../core/amigurumi-generator.ts';
 import {
-  OVAL_STITCHES,
+  type Curvature,
   diagnoseRounds,
   figureSize,
-  shapeSchedule,
-  type Curvature,
+  OVAL_STITCHES,
   type RoundDiagnosis,
   type RoundGauge,
   type Schedule,
+  shapeSchedule,
 } from '../core/amigurumi.ts';
+import type { JoinMethod, PartOptions } from '../core/amigurumi-generator.ts';
 import { resolveStitch } from '../core/stitch-variants.ts';
 import type { OvalStitch, Pattern, PieceEnd, ProfilePoint, ShapeSpec, SphereMethod } from '../core/types.ts';
-import { texts } from './i18n.ts';
 import { amigurumiCoreText } from './i18n/core/amigurumi.ts';
+import { texts } from './i18n.ts';
+import { termsLocale } from './notation.ts';
 import type { Choice } from './rounds-view.ts';
 import { formatNumber } from './size-view.ts';
-import { termsLocale } from './notation.ts';
 
 export type ShapeKind = ShapeSpec['kind'];
 
@@ -174,7 +174,13 @@ export function shapeOf(form: AmigurumiForm): ShapeSpec | string {
     case 'cone': {
       const increases = form.increases.trim() === '' ? null : parseNumber(form.increases);
       if (increases !== null && !Number.isFinite(increases)) return texts().panels.amigurumi.coneIncreases;
-      return { kind: 'cone', diameterCm, heightCm: increases === null ? heightCm : Number.isFinite(heightCm) ? heightCm : 1, increases, top: form.top };
+      return {
+        kind: 'cone',
+        diameterCm,
+        heightCm: increases === null ? heightCm : Number.isFinite(heightCm) ? heightCm : 1,
+        increases,
+        top: form.top,
+      };
     }
     case 'revolution': {
       const profile = parseProfile(form.profile);
@@ -183,7 +189,12 @@ export function shapeOf(form: AmigurumiForm): ShapeSpec | string {
     }
     case 'oval':
       // KB: interface.md §29 — the default stitch stays unwritten, so old and new saves match.
-      return { kind: 'oval', lengthCm: parseNumber(form.length), widthCm: parseNumber(form.width), ...(form.stitch === 'sc' ? {} : { stitch: form.stitch }) };
+      return {
+        kind: 'oval',
+        lengthCm: parseNumber(form.length),
+        widthCm: parseNumber(form.width),
+        ...(form.stitch === 'sc' ? {} : { stitch: form.stitch }),
+      };
   }
 }
 
@@ -197,7 +208,9 @@ export function partLabel(part: PartOptions): string {
   return part.name.trim() || texts().panels.amigurumi.names[part.shape.kind];
 }
 
-export function curvatureRuns(diagnoses: readonly RoundDiagnosis[]): { from: number; to: number; curvature: Curvature }[] {
+export function curvatureRuns(
+  diagnoses: readonly RoundDiagnosis[],
+): { from: number; to: number; curvature: Curvature }[] {
   const runs: { from: number; to: number; curvature: Curvature }[] = [];
   for (const diagnosis of diagnoses) {
     const last = runs.at(-1);
@@ -228,7 +241,11 @@ export function scheduleSummary(schedule: Schedule, gauge: RoundGauge): string {
   return parts.join(' ');
 }
 
-export function previewNote(form: AmigurumiForm, gauge: RoundGauge, gaugeOf: (shape: ShapeSpec) => RoundGauge = () => gauge): string {
+export function previewNote(
+  form: AmigurumiForm,
+  gauge: RoundGauge,
+  gaugeOf: (shape: ShapeSpec) => RoundGauge = () => gauge,
+): string {
   const shape = shapeOf(form);
   if (typeof shape === 'string') return shape;
   const own = gaugeOf(shape);

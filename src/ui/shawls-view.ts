@@ -2,11 +2,10 @@
 
 import {
   DEVIATION_LIMIT,
-  ROUND_SHAWLS,
-  SHAWL_KINDS,
-  SYMMETRIC_SHAWLS,
   piRounds,
   type RateChoice,
+  ROUND_SHAWLS,
+  SHAWL_KINDS,
   type ShawlGeometry,
   type ShawlKind,
   type ShawlOptions,
@@ -14,14 +13,15 @@ import {
   type ShawlSizes,
   type ShawlText,
   type ShawlWarning,
+  SYMMETRIC_SHAWLS,
 } from '../core/shawls.ts';
 import { stitchById } from '../core/stitches.ts';
-import { texts, uiLanguage } from './i18n.ts';
 import { renderCoreText } from './i18n/core/render.ts';
 import { SHAPE_CORE_TEXTS } from './i18n/core/shape.ts';
+import { texts, uiLanguage } from './i18n.ts';
+import { termsLocale } from './notation.ts';
 import type { Choice } from './shapes-view.ts';
 import { formatNumber } from './size-view.ts';
-import { termsLocale } from './notation.ts';
 
 export { STITCH_CHOICES } from './shapes-view.ts';
 
@@ -52,7 +52,12 @@ export interface ShawlFieldState {
 
 export function shawlFieldState(options: ShawlOptions): ShawlFieldState {
   const stole = options.kind === 'stole';
-  return { length: stole, rate: !stole, custom: !stole && options.rate === 'custom', wings: options.kind === 'triangle' };
+  return {
+    length: stole,
+    rate: !stole,
+    custom: !stole && options.rate === 'custom',
+    wings: options.kind === 'triangle',
+  };
 }
 
 export function sizeLabel(kind: ShawlKind): string {
@@ -76,7 +81,11 @@ export function rateLabel(kind: ShawlKind): string {
 
 export function edgingLabel(kind: ShawlKind): string {
   const t = texts().panels.shawl;
-  const what = ROUND_SHAWLS.includes(kind) ? t.edgingWhat.round : kind === 'stole' ? t.edgingWhat.row : t.edgingWhat.lastRow;
+  const what = ROUND_SHAWLS.includes(kind)
+    ? t.edgingWhat.round
+    : kind === 'stole'
+      ? t.edgingWhat.row
+      : t.edgingWhat.lastRow;
   return t.edgingLabel(what, SYMMETRIC_SHAWLS.includes(kind));
 }
 
@@ -110,9 +119,19 @@ export function shawlView(plan: ShawlPlan, options: ShawlOptions, sizes: ShawlSi
   const approx = plan.gauge.source === 'estimated' ? '≈ ' : '';
   const rows = plan.counts.length;
   const noun = plan.worked === 'rounds' ? t.roundNoun : t.rowNoun;
-  const [measured, other] = sizes.measured === 'blocked' ? [sizes.blocked, sizes.unblocked] : [sizes.unblocked, sizes.blocked];
-  const [measuredName, otherName] = sizes.measured === 'blocked' ? [t.blockedName, t.unblockedName] : [t.unblockedName, t.blockedName];
-  const size = t.sizeLine(measuredName, approx, dimensions(measured, plan.kind), otherName, dimensions(other, plan.kind), rows, noun);
+  const [measured, other] =
+    sizes.measured === 'blocked' ? [sizes.blocked, sizes.unblocked] : [sizes.unblocked, sizes.blocked];
+  const [measuredName, otherName] =
+    sizes.measured === 'blocked' ? [t.blockedName, t.unblockedName] : [t.unblockedName, t.blockedName];
+  const size = t.sizeLine(
+    measuredName,
+    approx,
+    dimensions(measured, plan.kind),
+    otherName,
+    dimensions(other, plan.kind),
+    rows,
+    noun,
+  );
 
   const details: string[] = [];
   const first = plan.counts[0]!;
@@ -121,7 +140,9 @@ export function shawlView(plan: ShawlPlan, options: ShawlOptions, sizes: ShawlSi
   const symmetric = SYMMETRIC_SHAWLS.includes(plan.kind);
   switch (plan.kind) {
     case 'triangle':
-      details.push(t.triangleRate(rate(plan.theoryRate), rate(plan.chosenRate), rate(plan.edgeRate), rate(2 * plan.spineRate)));
+      details.push(
+        t.triangleRate(rate(plan.theoryRate), rate(plan.chosenRate), rate(plan.edgeRate), rate(2 * plan.spineRate)),
+      );
       break;
     case 'crescent':
       details.push(t.crescentRate(rate(plan.theoryRate), rate(plan.chosenRate)));
@@ -151,12 +172,16 @@ export function shawlView(plan: ShawlPlan, options: ShawlOptions, sizes: ShawlSi
   }
   if (plan.wingsFromRow !== null) details.push(t.wings(plan.wingsFromRow));
   if (plan.ratio && plan.kind !== 'stole') {
-    details.push(t.ratio(plan.worked === 'rounds' ? t.ratioRounds : t.ratioRows, percent(plan.ratio.min), percent(plan.ratio.max)));
+    details.push(
+      t.ratio(plan.worked === 'rounds' ? t.ratioRounds : t.ratioRows, percent(plan.ratio.min), percent(plan.ratio.max)),
+    );
   }
   if (plan.edging && options.edging) {
     const { width, edge } = options.edging;
     const change =
-      plan.edging.change === 0 ? t.edgingNoChange : t.edgingChange(plan.edging.change > 0 ? '+' : '−', Math.abs(plan.edging.change), symmetric);
+      plan.edging.change === 0
+        ? t.edgingNoChange
+        : t.edgingChange(plan.edging.change > 0 ? '+' : '−', Math.abs(plan.edging.change), symmetric);
     details.push(t.edging(width, edge, symmetric, plan.edging.repeats, change));
   }
 
@@ -217,7 +242,12 @@ export function shawlOutline(sizes: ShawlSizes): ShawlOutline {
   const height = Math.max(sizes.blocked.depthCm, sizes.unblocked.depthCm);
   const points = (geometry: ShawlGeometry) =>
     geometry.outline.map(([x, y]) => `${round(x + (width - geometry.widthCm) / 2)},${round(y)}`).join(' ');
-  return { width: round(width), height: round(height), blocked: points(sizes.blocked), unblocked: points(sizes.unblocked) };
+  return {
+    width: round(width),
+    height: round(height),
+    blocked: points(sizes.blocked),
+    unblocked: points(sizes.unblocked),
+  };
 }
 
 export function generatedMessage(plan: ShawlPlan): string {

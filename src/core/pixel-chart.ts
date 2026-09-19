@@ -2,8 +2,8 @@
 // KB: 03 §5.1, 03 §5.2, 03 §5.4, 03 §10 G31
 // KB: core-geometry §40
 
-import { text, type CoreText } from './messages.ts';
-import { estimate, scale, type Quantity } from './quantity.ts';
+import { type CoreText, text } from './messages.ts';
+import { estimate, type Quantity, scale } from './quantity.ts';
 import type { GridTechnique, GridUnit, PatternColor, StitchDefId } from './types.ts';
 
 export type DraftCell = number | null;
@@ -86,7 +86,10 @@ export function resample<T>(rows: readonly (readonly T[])[], width: number, heig
   const sourceHeight = rows.length;
   return Array.from({ length: height }, (_, y) => {
     const source = rows[Math.min(sourceHeight - 1, Math.floor(((y + 0.5) * sourceHeight) / height))]!;
-    return Array.from({ length: width }, (_, x) => source[Math.min(source.length - 1, Math.floor(((x + 0.5) * source.length) / width))]!);
+    return Array.from(
+      { length: width },
+      (_, x) => source[Math.min(source.length - 1, Math.floor(((x + 0.5) * source.length) / width))]!,
+    );
   });
 }
 
@@ -94,7 +97,9 @@ export function emptyDraft(width: number, height: number, fill: DraftCell = null
   return Array.from({ length: height }, () => Array.from({ length: width }, () => fill));
 }
 
-export type UnitResult = { readonly ok: true; readonly unit: GridUnit } | { readonly ok: false; readonly reason: CoreText<ChartCode> };
+export type UnitResult =
+  | { readonly ok: true; readonly unit: GridUnit }
+  | { readonly ok: false; readonly reason: CoreText<ChartCode> };
 
 const mod = (a: number, n: number) => ((a % n) + n) % n;
 
@@ -110,7 +115,8 @@ function residues(row: readonly DraftCell[], p: number): (DraftCell | undefined)
   return known;
 }
 
-const twoPeriods = (row: readonly DraftCell[], p: number) => row.length >= 2 * p && row.slice(0, 2 * p).every((cell) => cell !== null);
+const twoPeriods = (row: readonly DraftCell[], p: number) =>
+  row.length >= 2 * p && row.slice(0, 2 * p).every((cell) => cell !== null);
 
 // KB: core-geometry §40
 export function detectUnit(draft: DraftRows): UnitResult {
@@ -130,7 +136,9 @@ export function detectUnit(draft: DraftRows): UnitResult {
 
   let q = height;
   for (let candidate = 1; candidate < height; candidate += 1) {
-    const classes: (DraftCell | undefined)[][] = Array.from({ length: candidate }, () => Array.from({ length: p }, () => undefined));
+    const classes: (DraftCell | undefined)[][] = Array.from({ length: candidate }, () =>
+      Array.from({ length: p }, () => undefined),
+    );
     let consistent = true;
     rowsBy.forEach((known, y) => {
       known.forEach((value, r) => {
@@ -141,7 +149,11 @@ export function detectUnit(draft: DraftRows): UnitResult {
       });
     });
     if (!consistent) continue;
-    if (2 * candidate > height || !Array.from({ length: candidate }, (_, y) => complete(y) && complete(y + candidate)).every(Boolean)) continue;
+    if (
+      2 * candidate > height ||
+      !Array.from({ length: candidate }, (_, y) => complete(y) && complete(y + candidate)).every(Boolean)
+    )
+      continue;
     q = candidate;
     break;
   }
@@ -173,7 +185,12 @@ function unitGaps(draft: DraftRows, unit: GridUnit): CoreText<ChartCode> | null 
   for (let j = 0; j < unit.height; j += 1) {
     for (let i = 0; i < unit.width; i += 1) {
       if (cells[j]![i] === null) {
-        return text('unit-incomplete', { width: unit.width, height: unit.height, row: unit.y + j + 1, cell: unit.x + i + 1 });
+        return text('unit-incomplete', {
+          width: unit.width,
+          height: unit.height,
+          row: unit.y + j + 1,
+          cell: unit.x + i + 1,
+        });
       }
     }
   }
@@ -184,8 +201,10 @@ export function unitProblem(draft: DraftRows, unit: GridUnit): CoreText<ChartCod
   const height = draft.length;
   const width = Math.max(0, ...draft.map((row) => row.length));
   const whole = (n: number) => Number.isInteger(n);
-  if (![unit.x, unit.y, unit.width, unit.height].every(whole) || unit.width < 1 || unit.height < 1) return text('unit-size');
-  if (unit.x < 0 || unit.y < 0 || unit.x + unit.width > width || unit.y + unit.height > height) return text('unit-outside');
+  if (![unit.x, unit.y, unit.width, unit.height].every(whole) || unit.width < 1 || unit.height < 1)
+    return text('unit-size');
+  if (unit.x < 0 || unit.y < 0 || unit.x + unit.width > width || unit.y + unit.height > height)
+    return text('unit-outside');
   return unitGaps(draft, unit);
 }
 
@@ -200,7 +219,13 @@ export function unitConflicts(draft: DraftRows, unit: GridUnit): number {
   return count;
 }
 
-export function expandDraft(draft: DraftRows, unit: GridUnit | null, width: number, height: number, fill = 0): number[][] {
+export function expandDraft(
+  draft: DraftRows,
+  unit: GridUnit | null,
+  width: number,
+  height: number,
+  fill = 0,
+): number[][] {
   const cells = unit ? unitCells(draft, unit) : null;
   return Array.from({ length: height }, (_, y) =>
     Array.from({ length: width }, (_, x) => {
@@ -240,12 +265,18 @@ export const colorLetter = (index: number) => String.fromCharCode(65 + index);
 export function colorChartProblem(cells: ChartRows, colors: readonly PatternColor[]): CoreText<ChartCode> | null {
   if (cells.length === 0) return text('chart-no-rows');
   const width = cells[0]!.length;
-  if (cells.length > MAX_GRID_SIDE || width === 0 || width > MAX_GRID_SIDE || cells.some((row) => row.length !== width)) {
+  if (
+    cells.length > MAX_GRID_SIDE ||
+    width === 0 ||
+    width > MAX_GRID_SIDE ||
+    cells.some((row) => row.length !== width)
+  ) {
     return text('chart-size', { max: MAX_GRID_SIDE });
   }
   if (colors.length === 0) return text('chart-no-colors');
   if (colors.length > MAX_COLORS) return text('chart-too-many-colors', { max: MAX_COLORS });
-  if (cells.some((row) => row.some((cell) => !Number.isInteger(cell) || cell < 0 || cell >= colors.length))) return text('chart-color-index');
+  if (cells.some((row) => row.some((cell) => !Number.isInteger(cell) || cell < 0 || cell >= colors.length)))
+    return text('chart-color-index');
   return null;
 }
 
@@ -298,8 +329,10 @@ export function gridColorRows(technique: GridTechnique, cells: ChartRows): Color
     }, []);
   const width = cells[0]?.length ?? 0;
   if (width === 0) return [];
-  if (technique === 'c2c') return c2cTileRows(width, cells.length).map((row) => runs(row.tiles.map(({ x, y }) => cells[y]![x]!)));
-  if (technique === 'tapestry' || technique === 'graphgan') return cells.map((line, y) => runs((y + 1) % 2 === 0 ? line : [...line].reverse()));
+  if (technique === 'c2c')
+    return c2cTileRows(width, cells.length).map((row) => runs(row.tiles.map(({ x, y }) => cells[y]![x]!)));
+  if (technique === 'tapestry' || technique === 'graphgan')
+    return cells.map((line, y) => runs((y + 1) % 2 === 0 ? line : [...line].reverse()));
   return [];
 }
 

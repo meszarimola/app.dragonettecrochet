@@ -60,7 +60,7 @@ export interface SimpleStitchDef extends StitchDefBase {
 
 export interface JoinedStitchDef extends StitchDefBase {
   readonly kind: 'joined';
-   /** Required because "cluster" can mean either. KB: 01 §8.2 rule 8 */
+  /** Required because "cluster" can mean either. KB: 01 §8.2 rule 8 */
   readonly base: 'same' | 'spread';
   readonly part: StitchDefId;
   readonly parts: number;
@@ -331,7 +331,12 @@ export type ShapeSpec =
       readonly increases: number | null;
       readonly top: PieceEnd;
     }
-  | { readonly kind: 'revolution'; readonly profile: readonly ProfilePoint[]; readonly bottom: PieceEnd; readonly top: PieceEnd }
+  | {
+      readonly kind: 'revolution';
+      readonly profile: readonly ProfilePoint[];
+      readonly bottom: PieceEnd;
+      readonly top: PieceEnd;
+    }
   /** KB: 04 §3.4, 04 §9.4 */
   | { readonly kind: 'oval'; readonly lengthCm: number; readonly widthCm: number; readonly stitch?: OvalStitch };
 

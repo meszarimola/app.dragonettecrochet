@@ -104,7 +104,10 @@ test('in JIS symbol style single crochet is an ×, and the export names the styl
   assert.match(jis, /jelek: japán \(JIS\)\./);
   assert.notEqual(jis, render(pattern));
   const crossed = render(pattern, { symbols: { singleCrochet: 'cross' } });
-  assert.equal(jis.replace('data-chart-style="jis"', '').replace('japán (JIS)', ''), crossed.replace('data-chart-style="cyc"', '').replace('CYC', ''));
+  assert.equal(
+    jis.replace('data-chart-style="jis"', '').replace('japán (JIS)', ''),
+    crossed.replace('data-chart-style="cyc"', '').replace('CYC', ''),
+  );
 });
 
 test('the insertion mode shows on the foot and in the legend, in CYC and in JIS symbol style alike (PQW-869)', () => {
@@ -155,7 +158,11 @@ test('grid pattern: a dashed frame around the repeat unit, a dot on the foot of 
   const { pattern } = generateFromState(emptyPattern(), state);
   const library = libraryFor(pattern);
   const layout = layoutPattern(pattern, library);
-  const svg = chartSvg(pattern, layout, library, { colors: COLORS, unitFrames: unitFrames(pattern, layout, false), spikes: spikeNodes(pattern) });
+  const svg = chartSvg(pattern, layout, library, {
+    colors: COLORS,
+    unitFrames: unitFrames(pattern, layout, false),
+    spikes: spikeNodes(pattern),
+  });
   assert.equal(svg.match(/data-unit-frame/g).length, 1);
   assert.equal(svg.match(/data-spike/g).length, 1);
   assert.match(svg, /Szaggatott keret: az ismétlő egység\./);
@@ -164,7 +171,6 @@ test('grid pattern: a dashed frame around the repeat unit, a dot on the foot of 
   const plain = render(hdcRectangle({ rows: 2 }).pattern);
   assert.doesNotMatch(plain, /data-unit-frame|data-spike|Szaggatott keret|Pötty a szár/);
 });
-
 
 /*
  * The grid of the exported image is the same as the one in the designer (PQW-924).
@@ -182,12 +188,15 @@ test('the exported grid has no thick vertical cell line (PQW-924)', () => {
     colors: COLORS,
     grid: { grid, colors: { rowA: '#eee', rowB: '#ddd', cell: '#ccc', row: '#bbb', emphasis: '#999' } },
   });
-  const thickVertical = [...svg.matchAll(/<path d="M([-\d.]+) ([-\d.]+)V([-\d.]+)"[^>]*stroke-width="([\d.]+)"/g)].filter(
-    (match) => Number(match[4]) > 1,
+  const thickVertical = [
+    ...svg.matchAll(/<path d="M([-\d.]+) ([-\d.]+)V([-\d.]+)"[^>]*stroke-width="([\d.]+)"/g),
+  ].filter((match) => Number(match[4]) > 1);
+  assert.deepEqual(
+    thickVertical.map((match) => match[4]),
+    [],
+    'every vertical cell line in the export is thin',
   );
-  assert.deepEqual(thickVertical.map((match) => match[4]), [], 'every vertical cell line in the export is thin');
 });
-
 
 /*
  * Row numbering in the export is the same as in the designer (PQW-923, PQW-924).
@@ -207,7 +216,11 @@ test('in the export the foundation chain is row 1 and no „0” row number appe
     grid: { grid, colors: { rowA: '#eee', rowB: '#ddd', cell: '#ccc', row: '#bbb', emphasis: '#999' } },
   });
   const texts = [...svg.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((match) => match[1].trim());
-  assert.deepEqual(texts.filter((text) => text === '0'), [], 'no standalone „0” label');
+  assert.deepEqual(
+    texts.filter((text) => text === '0'),
+    [],
+    'no standalone „0” label',
+  );
   assert.ok(
     texts.some((text) => text.startsWith('1. sor – alapsor')),
     `the foundation chain is row 1: ${JSON.stringify(texts.slice(0, 3))}`,

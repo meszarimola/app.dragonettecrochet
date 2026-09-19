@@ -10,8 +10,7 @@ import { test } from 'node:test';
 
 const CORE = new URL('../src/core/', import.meta.url);
 
-const IMPORT_SPECIFIER =
-  /\b(?:import|export)\b[^'"`;]*?\bfrom\s*['"]([^'"]+)['"]|\bimport\s*\(?\s*['"]([^'"]+)['"]/g;
+const IMPORT_SPECIFIER = /\b(?:import|export)\b[^'"`;]*?\bfrom\s*['"]([^'"]+)['"]|\bimport\s*\(?\s*['"]([^'"]+)['"]/g;
 
 function coreFiles() {
   return readdirSync(CORE, { recursive: true }).filter((file) => file.endsWith('.ts'));

@@ -6,7 +6,7 @@
  * disappear.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
@@ -29,7 +29,9 @@ for (const viewport of [
   { width: 1440, height: 900 },
   { width: 1000, height: 506 },
 ]) {
-  test(`${viewport.width}×${viewport.height}: rectangle with a ribbed edging, the ribbing written as a repeat`, async ({ page }) => {
+  test(`${viewport.width}×${viewport.height}: rectangle with a ribbed edging, the ribbing written as a repeat`, async ({
+    page,
+  }) => {
     await page.setViewportSize(viewport);
     await open(page);
     const section = await openSection(page, 'section-shape');
@@ -55,7 +57,9 @@ for (const viewport of [
     expect(text).toMatch(/\[1 (Eerp|Herp), 1 (Eerp|Herp)\]/);
   });
 
-  test(`${viewport.width}×${viewport.height}: flat circle with a ribbed brim, not available in a spiral`, async ({ page }) => {
+  test(`${viewport.width}×${viewport.height}: flat circle with a ribbed brim, not available in a spiral`, async ({
+    page,
+  }) => {
     await page.setViewportSize(viewport);
     await open(page);
     const section = await openSection(page, 'section-rounds');

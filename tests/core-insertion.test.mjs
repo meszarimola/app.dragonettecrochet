@@ -13,18 +13,18 @@ import { describe, test } from 'node:test';
 import { canonicalPattern } from '../src/core/canonical.ts';
 import { contextOf, defaultCursor, emptyPattern, endRow, fillRow, work } from '../src/core/editor.ts';
 import {
-  INSERTION_NAMES,
-  STITCH_INSERTIONS,
   effectiveInsertion,
+  INSERTION_NAMES,
   modeAsWorked,
   nodeInsertions,
+  STITCH_INSERTIONS,
   stitchInsertions,
 } from '../src/core/insertion.ts';
 import { readPattern } from '../src/core/pattern-read.ts';
 import { formatWrittenPattern, writePattern } from '../src/core/pattern-text.ts';
 import { duplicateSelection, layerSelection } from '../src/core/selection.ts';
-import { stitchById } from '../src/core/stitches.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
+import { stitchById } from '../src/core/stitches.ts';
 import { validatePattern } from '../src/core/validate.ts';
 import { EDITOR_CORE_TEXTS } from '../src/ui/i18n/core/editor.ts';
 import { renderCoreText } from '../src/ui/i18n/core/render.ts';
@@ -46,13 +46,18 @@ const readBack = (written, pattern, locale) =>
 
 const withoutStatedCounts = (pattern) => ({
   ...pattern,
-  pieces: pattern.pieces.map((piece) => ({ ...piece, events: piece.events.map(({ statedCount: _, ...event }) => event) })),
+  pieces: pattern.pieces.map((piece) => ({
+    ...piece,
+    events: piece.events.map(({ statedCount: _, ...event }) => event),
+  })),
 });
 
 /** The stored right-side mode of the stitches of a layer, leaving the chains out. */
 function storedModes(pattern, layer) {
   const modes = nodeInsertions(pattern.pieces[0]);
-  return layerSelection(pattern, layer).filter((id) => modes.has(id)).map((id) => modes.get(id));
+  return layerSelection(pattern, layer)
+    .filter((id) => modes.has(id))
+    .map((id) => modes.get(id));
 }
 
 /** Two rows in the same mode as seen from the crocheter's side; the turning chain is the first stitch of the row and carries no stored mode (PQW-891). */
@@ -87,7 +92,13 @@ describe('the helper functions of the core', () => {
   });
 
   test('every mode carries its Hungarian name from the vocabulary', () => {
-    assert.deepEqual(Object.values(INSERTION_NAMES), ['mindkét szál', 'első szál', 'hátsó szál', 'első relief', 'hátsó relief']);
+    assert.deepEqual(Object.values(INSERTION_NAMES), [
+      'mindkét szál',
+      'első szál',
+      'hátsó szál',
+      'első relief',
+      'hátsó relief',
+    ]);
   });
 });
 
@@ -111,11 +122,29 @@ describe('placing stitches in the chosen mode', () => {
 
   test('every target of a decrease and every member of an increase uses the chosen mode', () => {
     let pattern = chains(emptyPattern(), 6);
-    pattern = ok(work(pattern, { def: 'sc2tog', count: 1, insertion: 'front-loop' }, defaultCursor(pattern, contextOf(pattern), 'sc2tog')));
-    pattern = ok(work(pattern, { def: 'inc-2sc', count: 1, insertion: 'back-loop' }, defaultCursor(pattern, contextOf(pattern), 'inc-2sc')));
+    pattern = ok(
+      work(
+        pattern,
+        { def: 'sc2tog', count: 1, insertion: 'front-loop' },
+        defaultCursor(pattern, contextOf(pattern), 'sc2tog'),
+      ),
+    );
+    pattern = ok(
+      work(
+        pattern,
+        { def: 'inc-2sc', count: 1, insertion: 'back-loop' },
+        defaultCursor(pattern, contextOf(pattern), 'inc-2sc'),
+      ),
+    );
     const [decrease, ...members] = pattern.pieces[0].stitches.slice(6);
-    assert.deepEqual(decrease.anchors.map((anchor) => anchor.mode), ['front-loop', 'front-loop']);
-    assert.deepEqual(members.map((node) => node.anchors[0].mode), ['back-loop', 'back-loop']);
+    assert.deepEqual(
+      decrease.anchors.map((anchor) => anchor.mode),
+      ['front-loop', 'front-loop'],
+    );
+    assert.deepEqual(
+      members.map((node) => node.anchors[0].mode),
+      ['back-loop', 'back-loop'],
+    );
   });
 
   test('a forbidden mode gives an understandable reason and leaves the pattern unchanged', () => {
@@ -125,8 +154,15 @@ describe('placing stitches in the chosen mode', () => {
     assert.equal(result.ok, false);
     // The core hands over the ids of the stitch and the modes; the sentence is built in the dictionary, with the stitch name in the language of the notation.
     assert.equal(result.reason.code, 'insertion-not-allowed');
-    assert.deepEqual(result.reason.data, { stitch: 'sl-st', requested: 'front-post', allowed: ['both-loops', 'front-loop', 'back-loop'] });
-    assert.equal(huText(result.reason), 'A(z) kúszószem nem horgolható így: első relief. Választható: mindkét szál, első szál, hátsó szál.');
+    assert.deepEqual(result.reason.data, {
+      stitch: 'sl-st',
+      requested: 'front-post',
+      allowed: ['both-loops', 'front-loop', 'back-loop'],
+    });
+    assert.equal(
+      huText(result.reason),
+      'A(z) kúszószem nem horgolható így: első relief. Választható: mindkét szál, első szál, hátsó szál.',
+    );
     const filled = fillRow(pattern, { def: 'rev-sc', count: 1, insertion: 'back-loop' });
     assert.equal(filled.ok, false);
   });
@@ -141,8 +177,14 @@ describe('placing stitches in the chosen mode', () => {
     let pattern = fill(chains(emptyPattern(), 7), 'sc');
     pattern = ok(endRow(pattern));
     pattern = ok(work(pattern, { def: 'invdec', count: 1 }, defaultCursor(pattern, contextOf(pattern), 'invdec')));
-    assert.deepEqual(pattern.pieces[0].stitches.at(-1).anchors.map((anchor) => anchor.mode), ['back-loop', 'back-loop']);
-    assert.deepEqual(findings(pattern).filter((finding) => finding.rule === 'insertion-mode'), []);
+    assert.deepEqual(
+      pattern.pieces[0].stitches.at(-1).anchors.map((anchor) => anchor.mode),
+      ['back-loop', 'back-loop'],
+    );
+    assert.deepEqual(
+      findings(pattern).filter((finding) => finding.rule === 'insertion-mode'),
+      [],
+    );
   });
 });
 
@@ -155,7 +197,12 @@ describe('duplicating: the mode as seen from the crocheter stays put', () => {
     assert.deepEqual(findings(copy), []);
     // Row 3 is followed by a turn and the duplicated row 4 ends the pattern, so we compare them without the closing sentence.
     // The written row number is one more than the layer index (PQW-923): the foundation is row 1.
-    const row = (n) => text(copy, 'hu').split('\n').find((line) => line.startsWith(`${n}. sor:`)).slice(2).replace(/ Fordítás\.$/, '');
+    const row = (n) =>
+      text(copy, 'hu')
+        .split('\n')
+        .find((line) => line.startsWith(`${n}. sor:`))
+        .slice(2)
+        .replace(/ Fordítás\.$/, '');
     assert.equal(row(4), row(3));
   });
 
@@ -170,7 +217,13 @@ describe('duplicating: the mode as seen from the crocheter stays put', () => {
 describe('written pattern and reading it back (szókészlet §3)', () => {
   const cases = [
     // The turning chain sits where the first stitch of the row would be, so the text spells out the skip (PQW-944).
-    ['sc', 'back-loop', 'hu', /3\. sor: 1 lsz \(1 rp-nek számít\), 1 szem kihagyása, 7 rp \(hsz\)/, 'hsz – hátsó szálba'],
+    [
+      'sc',
+      'back-loop',
+      'hu',
+      /3\. sor: 1 lsz \(1 rp-nek számít\), 1 szem kihagyása, 7 rp \(hsz\)/,
+      'hsz – hátsó szálba',
+    ],
     ['sc', 'front-loop', 'hu', /7 rp \(esz\)/, 'esz – első szálba'],
     ['dc', 'front-post', 'hu', /\d Eerp/, 'Eerp – első relief egyráhajtásos pálca (elölről hurkolt)'],
     ['dc', 'back-post', 'hu', /\d Herp/, 'Herp – hátsó relief egyráhajtásos pálca (hátulról hurkolt)'],
@@ -189,7 +242,10 @@ describe('written pattern and reading it back (szókészlet §3)', () => {
       const result = readBack(written, pattern, locale);
       assert.ok(result.ok, JSON.stringify(result.error));
       // Read back, the stitch count in the text becomes a stated count; the editor never writes one, so we compare without it.
-      assert.deepEqual(withoutStatedCounts(canonicalPattern(result.pattern)), withoutStatedCounts(canonicalPattern(pattern)));
+      assert.deepEqual(
+        withoutStatedCounts(canonicalPattern(result.pattern)),
+        withoutStatedCounts(canonicalPattern(pattern)),
+      );
     });
   }
 });

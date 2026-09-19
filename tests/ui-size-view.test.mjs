@@ -23,7 +23,13 @@ import {
 } from '../src/ui/size-view.ts';
 import { hdcRectangle } from './fixtures/examples.ts';
 
-const entry = (stitch, form, stitchesPer10cm, rowsPer10cm, source = 'measured') => ({ stitch, form, stitchesPer10cm, rowsPer10cm, source });
+const entry = (stitch, form, stitchesPer10cm, rowsPer10cm, source = 'measured') => ({
+  stitch,
+  form,
+  stitchesPer10cm,
+  rowsPer10cm,
+  source,
+});
 
 function viewOf(pattern) {
   const context = contextOf(pattern);
@@ -83,7 +89,10 @@ test('without a profile the section says the size is an estimate and shows a ran
 test('a measured profile drops the notice and rounds the yarn up to whole balls', () => {
   const { pattern } = hdcRectangle();
   const view = viewOf(
-    withGauge(pattern, { gauges: [entry('hdc', 'rows', 17.7, 15)], swatch: { widthCm: 15, heightCm: 15, massG: 14.2 } }),
+    withGauge(pattern, {
+      gauges: [entry('hdc', 'rows', 17.7, 15)],
+      swatch: { widthCm: 15, heightCm: 15, massG: 14.2 },
+    }),
   );
   assert.equal(view.notice, null);
   assert.deepEqual(
@@ -107,14 +116,20 @@ test('a partly measured profile spells out which part of the size is estimated',
 });
 
 test('profile fields report their origin: from the label, measured, or a weight estimated from m/100 g', () => {
-  const profile = { ...newProfile(emptyPattern()), yarn: { name: '', cycWeight: null, metersPer100g: 200, ballMassG: null } };
+  const profile = {
+    ...newProfile(emptyPattern()),
+    yarn: { name: '', cycWeight: null, metersPer100g: 200, ballMassG: null },
+  };
   const origins = profileOrigins(profile);
   assert.deepEqual(origins.cycWeight, { text: 'becsült a m/100 g-ből: 4 – Medium', source: 'estimated' });
   assert.deepEqual(origins.metersPer100g, { text: 'címkéről', source: 'label' });
   assert.equal(origins.ballMassG, null);
   assert.deepEqual(origins.hookMm, { text: 'mért', source: 'measured' });
   assert.equal(origins.swatch, null);
-  assert.deepEqual(profileOrigins({ ...profile, yarn: { ...profile.yarn, cycWeight: 3 } }).cycWeight, { text: 'címkéről', source: 'label' });
+  assert.deepEqual(profileOrigins({ ...profile, yarn: { ...profile.yarn, cycWeight: 3 } }).cycWeight, {
+    text: 'címkéről',
+    source: 'label',
+  });
   assert.equal(profileLabel(profile), 'Névtelen fonal · 4 mm · blokkolás nélkül');
 });
 

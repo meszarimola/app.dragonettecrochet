@@ -1,11 +1,11 @@
 // KB: core-domain §24; 01 §8.2 rule 11, 01 §8.4 rule 21, 03 §1.3, 03 §2.1, 06 §5.3
 
-import { buildPieceGraph, spacePositions, type PieceGraph } from './graph.ts';
+import { buildPieceGraph, type PieceGraph, spacePositions } from './graph.ts';
 import { modeAsWorked } from './insertion.ts';
-import { nested, text, type CoreData, type CoreText } from './messages.ts';
+import { type CoreData, type CoreText, nested, text } from './messages.ts';
+import { type ColorRun, gridColorRows } from './pixel-chart.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { skippedChains, traditionOf } from './tradition.ts';
-import { gridColorRows, type ColorRun } from './pixel-chart.ts';
 import type {
   Anchor,
   GridTechnique,
@@ -154,27 +154,40 @@ function writtenPiece(pattern: Pattern, piece: Piece, library: StitchLibrary): W
   const onChain = graph.defs.get(first)!.kind === 'chain';
   // Closing a chain ring is the only event that can sit on the foundation.
   const chainRing = onChain && base.shape === 'round' && base.closing?.kind === 'join-slip';
-  if (base.closing !== null && !chainRing) throw new WrittenPatternError(text('foundation-event'), [base.closing.after]);
+  if (base.closing !== null && !chainRing)
+    throw new WrittenPatternError(text('foundation-event'), [base.closing.after]);
 
   const row1 = graph.layers[1];
   const kind: WrittenPiece['foundation']['kind'] = chainRing ? 'chain-ring' : onChain ? 'chain' : 'ring';
-  const layers = graph.layers.slice(1).map((_, i) => writtenLayer(graph, i + 1, kind, library, traditionOf(pattern.conventions)));
+  const layers = graph.layers
+    .slice(1)
+    .map((_, i) => writtenLayer(graph, i + 1, kind, library, traditionOf(pattern.conventions)));
   const foundation: WrittenPiece['foundation'] = chainRing
     ? { kind: 'chain-ring', count: base.stitches.length }
     : onChain
-      ? { kind: 'chain', count: base.stitches.length + (row1?.turningChain.length ?? 0) + (layers[0]?.fromHook?.chains ?? 0) }
+      ? {
+          kind: 'chain',
+          count: base.stitches.length + (row1?.turningChain.length ?? 0) + (layers[0]?.fromHook?.chains ?? 0),
+        }
       : { kind: 'ring' };
   const sections: WrittenPiece['sections'] = [
     ...(piece.sections ?? []).map(({ name, layer }) => ({ name, layer })),
     ...graph.layers.flatMap((candidate) => {
       const resume = candidate.opening?.kind === 'fasten-off' ? candidate.opening.resume : undefined;
-      return resume?.name === undefined ? [] : [{ name: resume.name, layer: candidate.index, over: graph.layers[candidate.below]!.row }];
+      return resume?.name === undefined
+        ? []
+        : [{ name: resume.name, layer: candidate.index, over: graph.layers[candidate.below]!.row }];
     }),
   ];
   const grid = piece.grid;
   const colorwork: WrittenPiece['colorwork'] =
     grid && grid.colors.length > 1
-      ? { technique: grid.technique, colors: grid.colors, startColor: piece.stitches[0]?.color ?? 0, rows: gridColorRows(grid.technique, grid.cells) }
+      ? {
+          technique: grid.technique,
+          colors: grid.colors,
+          startColor: piece.stitches[0]?.color ?? 0,
+          rows: gridColorRows(grid.technique, grid.cells),
+        }
       : null;
   return { name: piece.name, foundation, layers, sections, colorwork };
 }
@@ -226,7 +239,10 @@ function writtenLayer(
     steps.push({ kind: 'skip', count: to - from, what: allChains ? 'chain' : 'stitch' });
   };
 
-  const classify = (anchor: Anchor, owner: NodeId): { target: StepTarget; mode: StitchInsertion; into: 'stitch' | 'chain' } => {
+  const classify = (
+    anchor: Anchor,
+    owner: NodeId,
+  ): { target: StepTarget; mode: StitchInsertion; into: 'stitch' | 'chain' } => {
     if (anchor.into === 'ring') return { target: 'ring', mode: 'both-loops', into: 'stitch' };
     if (anchor.into === 'underside') {
       const w = undersideIndex.get(anchor.id);
@@ -301,7 +317,12 @@ function writtenLayer(
     const previousNode = graph.nodes.get(id)!.prev;
     if (previousNode !== null && colorOf(previousNode) !== colorOf(id)) markChange(colorOf(id));
     // The chain ring's slip stitch is part of the start and is described by the chain-ring row.
-    if (handled.has(id) || id === layer.joinSlip || (ringSpace !== undefined && index === 1 && layer.travelSlips.includes(id))) continue;
+    if (
+      handled.has(id) ||
+      id === layer.joinSlip ||
+      (ringSpace !== undefined && index === 1 && layer.travelSlips.includes(id))
+    )
+      continue;
     const node = graph.nodes.get(id)!;
     const def = defOf(id);
     if (node.flags?.includes('crossed')) throw unsupported('crossed', id);
@@ -322,7 +343,9 @@ function writtenLayer(
       if (chains.some((chain) => graph.spaceOfChain.get(chain)?.chains.every((c) => chains.includes(c)) !== true)) {
         throw unsupported('group-chains', id);
       }
-      const anchored = group.members.map((member) => graph.nodes.get(member)!).find((member) => member.anchors.length > 0);
+      const anchored = group.members
+        .map((member) => graph.nodes.get(member)!)
+        .find((member) => member.anchors.length > 0);
       if (!anchored || anchored.anchors.length !== 1) throw unsupported('group-target', id);
       steps.push({ kind: 'group', def: group.def, ...classify(anchored.anchors[0]!, id) });
       continue;
@@ -331,12 +354,18 @@ function writtenLayer(
     switch (def.kind) {
       case 'chain': {
         const run = [id];
-        while (i + 1 < stitches.length && defOf(stitches[i + 1]!).kind === 'chain' && !graph.groupOf.has(stitches[i + 1]!)) {
+        while (
+          i + 1 < stitches.length &&
+          defOf(stitches[i + 1]!).kind === 'chain' &&
+          !graph.groupOf.has(stitches[i + 1]!)
+        ) {
           i += 1;
           run.push(stitches[i]!);
         }
         // KB: core-domain §25
-        const spaces = new Set(run.map((chain) => graph.spaceOfChain.get(chain)).filter((space) => space !== undefined));
+        const spaces = new Set(
+          run.map((chain) => graph.spaceOfChain.get(chain)).filter((space) => space !== undefined),
+        );
         if (spaces.size > 1) throw unsupported('chain-run', id);
         const space = [...spaces][0];
         if (space && (space.chains.length !== run.length || !run.every((chain) => space.chains.includes(chain)))) {
@@ -359,7 +388,15 @@ function writtenLayer(
           // In mosaic the spike passes over the skipped chain above it, so the cursor steps over that too. KB: 03 §5.6
           if (cursor < working.length && graph.piece.skipped.includes(working[cursor]!)) cursor += 1;
           last = null;
-          steps.push({ kind: 'stitch', def: def.id, count: 1, target: 'down', depth, mode: modeAsWorked(anchor.mode, layer.side), into: 'stitch' });
+          steps.push({
+            kind: 'stitch',
+            def: def.id,
+            count: 1,
+            target: 'down',
+            depth,
+            mode: modeAsWorked(anchor.mode, layer.side),
+            into: 'stitch',
+          });
           break;
         }
         if (def.kind === 'joined' && def.base === 'spread') {
@@ -406,7 +443,13 @@ function writtenLayer(
   let leadChains = 0;
   let leadSkipped = 0;
   const [firstStep, secondStep] = steps;
-  if (hookRow && countsAs !== null && firstStep?.kind === 'chain' && secondStep?.kind === 'skip' && secondStep.what === 'chain') {
+  if (
+    hookRow &&
+    countsAs !== null &&
+    firstStep?.kind === 'chain' &&
+    secondStep?.kind === 'skip' &&
+    secondStep.what === 'chain'
+  ) {
     leadChains = firstStep.count;
     leadSkipped = secondStep.count;
     steps.splice(0, 2);
@@ -459,7 +502,12 @@ export function mergeSteps(steps: readonly Step[], library: StitchLibrary): Step
       continue;
     }
     // A color change starts a new item: the change sits at the item's last stitch.
-    if (previous?.kind === 'stitch' && step.kind === 'stitch' && previous.changeTo === undefined && sameRun(previous, step, library)) {
+    if (
+      previous?.kind === 'stitch' &&
+      step.kind === 'stitch' &&
+      previous.changeTo === undefined &&
+      sameRun(previous, step, library)
+    ) {
       merged[merged.length - 1] = {
         ...previous,
         count: previous.count + step.count,
