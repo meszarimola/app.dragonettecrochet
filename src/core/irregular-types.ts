@@ -265,8 +265,8 @@ export const POLAR_RANGE = {
 export const DEFAULT_ARC_COUNT = 5;
 export const ARC_COUNT_RANGE = { min: 2, max: 200 } as const;
 /** The preset bulge, as a share of the chord. KB: core-geometry §52 */
-export const DEFAULT_BACKGROUND_OPACITY = 0.4;
 export const DEFAULT_ARC_BULGE = 0.25;
+export const DEFAULT_BACKGROUND_OPACITY = 0.4;
 export const DEFAULT_FAN_COUNT = 5;
 /** Its own range: a fan is not an arc, and one must not silently set the other. */
 export const FAN_COUNT_RANGE = { min: 2, max: 200 } as const;

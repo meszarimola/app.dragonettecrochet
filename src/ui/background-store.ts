@@ -47,6 +47,17 @@ function codeFor(reason: unknown): BackgroundStoreCode {
 
 let opening: Promise<IDBDatabase | null> | null = null;
 
+/** A connection can be closed from outside, and the next call has to reopen it. */
+function forgetConnection(db: IDBDatabase): void {
+  db.addEventListener('close', () => {
+    opening = null;
+  });
+  db.addEventListener('versionchange', () => {
+    db.close();
+    opening = null;
+  });
+}
+
 function openDatabase(): Promise<IDBDatabase | null> {
   const idb = factory();
   if (idb === null) return Promise.resolve(null);
@@ -55,6 +66,7 @@ function openDatabase(): Promise<IDBDatabase | null> {
   opening = new Promise<IDBDatabase | null>((resolve) => {
     const give = (db: IDBDatabase | null) => {
       if (db === null) opening = null;
+      else forgetConnection(db);
       resolve(db);
     };
     try {
@@ -84,8 +96,18 @@ function runOnStore<T>(mode: IDBTransactionMode, work: (store: IDBObjectStore) =
         try {
           const transaction = db.transaction(STORE_NAME, mode);
           const request = work(transaction.objectStore(STORE_NAME));
-          request.onsuccess = () => resolve({ ok: true, value: request.result });
+          /*
+           * A request succeeds before the transaction commits, and a quota
+           * failure on a large picture usually surfaces at the commit. Reporting
+           * success at the request would tell the caller the photo was kept and
+           * leave it to find out on the next reload that it was not.
+           */
+          let held: T | undefined;
+          request.onsuccess = () => {
+            held = request.result;
+          };
           request.onerror = () => resolve(fail(codeFor(request.error)));
+          transaction.oncomplete = () => resolve({ ok: true, value: held as T });
           transaction.onabort = () => resolve(fail(codeFor(transaction.error)));
         } catch (reason) {
           resolve(fail(codeFor(reason)));

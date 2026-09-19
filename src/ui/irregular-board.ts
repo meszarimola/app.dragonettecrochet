@@ -95,6 +95,16 @@ export function rowLinePath(line: RowLine): GroupPath {
 
 const ARC_SAMPLES = 48;
 
+function widen(box: Box | null, extra: Box): Box {
+  if (box === null) return extra;
+  return {
+    minX: Math.min(box.minX, extra.minX),
+    maxX: Math.max(box.maxX, extra.maxX),
+    minY: Math.min(box.minY, extra.minY),
+    maxY: Math.max(box.maxY, extra.maxY),
+  };
+}
+
 export interface Marquee {
   readonly from: Point;
   readonly to: Point;
@@ -246,7 +256,18 @@ export class FreeBoard {
   #contentBox(): Box | null {
     const scene = this.#scene;
     if (scene === null) return null;
-    const box = itemsBox(scene.pattern.items.filter((item) => isVisible(scene.pattern, item)));
+    const drawn = itemsBox(scene.pattern.items.filter((item) => isVisible(scene.pattern, item)));
+    // The tracing photo is part of what is on screen, so fitting must show it.
+    const photo = scene.background?.placement;
+    const box =
+      photo === undefined || !photo.visible
+        ? drawn
+        : widen(drawn, {
+            minX: photo.x - photo.width / 2,
+            maxX: photo.x + photo.width / 2,
+            minY: photo.y - photo.height / 2,
+            maxY: photo.y + photo.height / 2,
+          });
     const polar = scene.pattern.guides.polar;
     if (!polar.visible) return box;
     const reach = polar.rings * polar.spacing;
@@ -256,13 +277,7 @@ export class FreeBoard {
       minY: polar.center.y - reach,
       maxY: polar.center.y + reach,
     };
-    if (box === null) return circle;
-    return {
-      minX: Math.min(box.minX, circle.minX),
-      maxX: Math.max(box.maxX, circle.maxX),
-      minY: Math.min(box.minY, circle.minY),
-      maxY: Math.max(box.maxY, circle.maxY),
-    };
+    return widen(box, circle);
   }
 
   /** The chart point in the middle of the free part of the canvas. */

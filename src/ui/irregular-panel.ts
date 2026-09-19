@@ -132,8 +132,8 @@ export class IrregularPanel {
   readonly #bgRotation: HTMLInputElement;
   readonly #bgVisible: HTMLInputElement;
   readonly #bgLocked: HTMLInputElement;
-  readonly #bgInExport: HTMLInputElement;
   #bgNaturalWidth = 1;
+  #bgRatio = 1;
   #items: readonly IrregularItem[] = [];
 
   constructor(section: HTMLDetailsElement, host: IrregularPanelHost) {
@@ -182,7 +182,6 @@ export class IrregularPanel {
     this.#bgRotation = must<HTMLInputElement>(section, '#bg-rotation');
     this.#bgVisible = must<HTMLInputElement>(section, '#bg-visible');
     this.#bgLocked = must<HTMLInputElement>(section, '#bg-locked');
-    this.#bgInExport = must<HTMLInputElement>(section, '#bg-in-export');
     this.#listen();
   }
 
@@ -284,11 +283,12 @@ export class IrregularPanel {
     this.#bgOpacity.addEventListener('change', () =>
       this.#number(this.#bgOpacity, (value) => this.#host.patchBackground({ opacity: value / 100 })),
     );
-    // The picture scales uniformly, so one number drives both sides.
+    // The picture scales uniformly: both sides follow the one number, or the
+    // photo would stop matching the thing being traced.
     this.#bgScale.addEventListener('change', () =>
       this.#number(this.#bgScale, (value) => {
         const width = (this.#bgNaturalWidth * value) / 100;
-        this.#host.patchBackground({ width });
+        this.#host.patchBackground({ width, height: width / this.#bgRatio });
       }),
     );
     this.#bgRotation.addEventListener('change', () =>
@@ -296,22 +296,23 @@ export class IrregularPanel {
     );
     this.#bgVisible.addEventListener('change', () => this.#host.patchBackground({ visible: this.#bgVisible.checked }));
     this.#bgLocked.addEventListener('change', () => this.#host.patchBackground({ locked: this.#bgLocked.checked }));
-    this.#bgInExport.addEventListener('change', () =>
-      this.#host.patchBackground({ inExport: this.#bgInExport.checked }),
-    );
   }
 
   updateBackground(background: BackgroundImage | null, naturalWidth: number): void {
     this.#bgFields.hidden = background === null;
     must<HTMLButtonElement>(this.#section, '#bg-remove').disabled = background === null;
     if (background === null) return;
-    this.#bgNaturalWidth = naturalWidth > 0 ? naturalWidth : 1;
+    // Without the picture there is no natural size, and a made-up one would
+    // turn the next edit into a collapse the user cannot see happening.
+    const known = naturalWidth > 0;
+    must<HTMLElement>(this.#section, '#bg-scale').closest('p')?.toggleAttribute('hidden', !known);
+    if (known) this.#bgNaturalWidth = naturalWidth;
+    this.#bgRatio = background.height > 0 ? background.width / background.height : 1;
     this.#setNumber(this.#bgOpacity, Math.round(background.opacity * 100));
-    this.#setNumber(this.#bgScale, Math.round((background.width / this.#bgNaturalWidth) * 100));
+    if (known) this.#setNumber(this.#bgScale, Math.round((background.width / this.#bgNaturalWidth) * 100));
     this.#setNumber(this.#bgRotation, Math.round(background.rotation));
     this.#setToggle(this.#bgVisible, background.visible);
     this.#setToggle(this.#bgLocked, background.locked);
-    this.#setToggle(this.#bgInExport, background.inExport);
   }
 
   updateRepeat(shown: boolean): void {

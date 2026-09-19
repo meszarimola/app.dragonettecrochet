@@ -65,11 +65,22 @@ function fakeIndexedDB() {
   const db = {
     objectStoreNames: { contains: () => true },
     createObjectStore: () => store,
+    // A real connection can be closed from outside; the module listens for that.
+    addEventListener: () => {},
+    close: () => {},
     transaction(name, mode) {
       counts.transactions += 1;
       assert.equal(name, 'hatterkepek', 'the store name the module asks for');
       assert.ok(mode === 'readonly' || mode === 'readwrite', mode);
-      return { objectStore: () => store, error: null, onabort: null };
+      const transaction = { objectStore: () => store, error: null, onabort: null, oncomplete: null };
+      // A real transaction commits after its requests settle, which is when a
+      // write actually counts; the module waits for that and so must the fake.
+      queueMicrotask(() => {
+        queueMicrotask(() => {
+          if (refuseNextWrite === null) transaction.oncomplete?.();
+        });
+      });
+      return transaction;
     },
   };
 

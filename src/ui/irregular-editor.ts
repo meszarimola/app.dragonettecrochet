@@ -121,7 +121,7 @@ import {
   type ShapeSide,
 } from '../core/irregular-types.ts';
 import type { Locale, PatternNotation, StitchDefId } from '../core/types.ts';
-import { type BackgroundStoreCode, deleteBackground, getBackground, putBackground } from './background-store.ts';
+import { type BackgroundStoreCode, getBackground, pruneBackgrounds, putBackground } from './background-store.ts';
 import { IRREGULAR_JSON_CORE_TEXTS } from './i18n/core/irregular-json.ts';
 import { renderCoreText } from './i18n/core/render.ts';
 import { texts, uiLanguage } from './i18n.ts';
@@ -1176,15 +1176,36 @@ export class IrregularEditor {
     });
     this.#commit(next, texts().irregular.bgLoaded);
     this.#board.fit(this.#host.insets().bottom);
+    void pruneBackgrounds(this.#keptBackgrounds());
   }
 
+  /**
+   * The picture's bytes are not deleted here: removing is undoable, and a blob
+   * thrown away on the way out could not come back. They go when nothing in the
+   * history points at them any more. KB: interface.md §47
+   */
   removeBackground(): void {
     const current = this.#history.present.background;
     if (current === undefined) return;
-    void deleteBackground(current.id);
     this.#image = null;
     this.#backgroundTrouble = null;
     this.#commit(setBackground(this.#history.present, null), texts().irregular.bgRemoved);
+  }
+
+  /** Every picture the undo history can still reach. */
+  #keptBackgrounds(): string[] {
+    const ids = new Set<string>();
+    for (const state of [...this.#history.past, this.#history.present, ...this.#history.future]) {
+      const id = state.background?.id;
+      if (id !== undefined) ids.add(id);
+    }
+    return [...ids];
+  }
+
+  /** A pattern file dropped on the canvas loads, the same as through the menu. */
+  async #dropPattern(file: Blob): Promise<void> {
+    const source = await file.text();
+    if (isIrregularJson(source)) this.importJson(source);
   }
 
   #decode(blob: Blob): Promise<HTMLImageElement | null> {
@@ -1454,8 +1475,11 @@ export class IrregularEditor {
     const shown = this.#host.notation().terms;
     const note = recorded !== undefined && recorded !== shown ? this.#host.notationNote(recorded, shown) : '';
     this.#setSelection([]);
+    this.#image = null;
+    this.#backgroundTrouble = null;
     this.#commit(loaded.pattern, file.loaded(note));
-    this.#board.fit(this.#host.insets().bottom);
+    // A file may name a tracing photo this browser has; fetch it before fitting.
+    void this.#restoreBackground().then(() => this.#board.fit(this.#host.insets().bottom));
     return true;
   }
 
@@ -1608,9 +1632,11 @@ export class IrregularEditor {
     });
     this.#canvas.addEventListener('drop', (event) => {
       const file = event.dataTransfer?.files[0];
-      if (file === undefined || !file.type.startsWith('image/')) return;
+      if (file === undefined) return;
+      // Whatever was dropped, the browser must not open it over the editor.
       event.preventDefault();
-      void this.loadBackground(file);
+      if (file.type.startsWith('image/')) void this.loadBackground(file);
+      else void this.#dropPattern(file);
     });
     this.#canvas.addEventListener('pointerdown', (event) => {
       if (!this.#mounted) return;
@@ -1709,6 +1735,8 @@ export class IrregularEditor {
       this.#stitch === null &&
       !this.#arcTool &&
       !this.#fanTool &&
+      // The circle guide's knob often sits over the photo; it wins.
+      !this.#board.polarCenterAt(event.clientX, event.clientY) &&
       this.#board.backgroundAt(event.clientX, event.clientY)
     ) {
       const placement = this.#history.present.background;
