@@ -1,6 +1,7 @@
 // The free-form chart file. KB: core-domain §8, core-domain §11
 
 import {
+  DEFAULT_POLAR,
   IRREGULAR_FORMAT_VERSION,
   type IrregularGuides,
   type IrregularItem,
@@ -8,6 +9,8 @@ import {
   type IrregularPattern,
   type IrregularRow,
   type LegendBlock,
+  POLAR_RANGE,
+  type PolarGuide,
   type RowDirection,
   type RowKind,
   type StitchKeyEntry,
@@ -29,6 +32,8 @@ export type IrregularJsonCode =
   | 'expected-array'
   | 'expected-nonempty-array'
   | 'expected-positive'
+  | 'expected-whole-number'
+  | 'expected-in-range'
   | 'expected-hex-color'
   | 'duplicate-row-id'
   | 'duplicate-layer-id'
@@ -159,6 +164,20 @@ function finite(value: unknown, path: string): number {
 function positive(value: unknown, path: string): number {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
     throw new FormatError(path, 'expected-positive');
+  }
+  return value;
+}
+
+/** Whole numbers with a ceiling: a file may not ask for a million rings. */
+function whole(value: unknown, path: string, range: { readonly min: number; readonly max: number }): number {
+  const found = finite(value, path);
+  if (!Number.isInteger(found)) throw new FormatError(path, 'expected-whole-number');
+  return ranged(found, path, range);
+}
+
+function ranged(value: number, path: string, range: { readonly min: number; readonly max: number }): number {
+  if (value < range.min || value > range.max) {
+    throw new FormatError(path, 'expected-in-range', { min: range.min, max: range.max });
   }
   return value;
 }
@@ -362,13 +381,30 @@ function readItem(value: unknown, path: string): IrregularItem {
 }
 
 function readGuides(value: unknown, path: string): IrregularGuides {
-  const raw = object(value, path, ['grid', 'snap']);
+  const raw = object(value, path, ['grid', 'snap'], ['polar']);
   const grid = object(raw['grid'], `${path}.grid`, ['visible', 'size']);
   return {
     grid: {
       visible: boolean(grid['visible'], `${path}.grid.visible`),
       size: positive(grid['size'], `${path}.grid.size`),
     },
+    // Written since PQW-966; a file from before that keeps the preset circle guide.
+    polar: raw['polar'] === undefined ? DEFAULT_POLAR : readPolar(raw['polar'], `${path}.polar`),
     snap: boolean(raw['snap'], `${path}.snap`),
+  };
+}
+
+const ANGLE_RANGE = { min: 0, max: 360 } as const;
+
+function readPolar(value: unknown, path: string): PolarGuide {
+  const raw = object(value, path, ['visible', 'center', 'rings', 'spacing', 'spokes', 'startAngle']);
+  const center = object(raw['center'], `${path}.center`, ['x', 'y']);
+  return {
+    visible: boolean(raw['visible'], `${path}.visible`),
+    center: { x: finite(center['x'], `${path}.center.x`), y: finite(center['y'], `${path}.center.y`) },
+    rings: whole(raw['rings'], `${path}.rings`, POLAR_RANGE.rings),
+    spacing: ranged(positive(raw['spacing'], `${path}.spacing`), `${path}.spacing`, POLAR_RANGE.spacing),
+    spokes: whole(raw['spokes'], `${path}.spokes`, POLAR_RANGE.spokes),
+    startAngle: ranged(finite(raw['startAngle'], `${path}.startAngle`), `${path}.startAngle`, ANGLE_RANGE),
   };
 }

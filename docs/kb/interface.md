@@ -648,3 +648,39 @@ WCAG 2.2 (§36) and a separate touch path for the tablet this type is meant for
 moves. Buttons are one control that works for all three. Raised with the owner
 when the panel shipped; the drag gesture can be added on top later without
 changing anything else.
+
+## §43 Snapping steps aside for ⌘, and only during a drag
+
+Holding ⌘ (Ctrl on Windows) **while dragging** puts snapping aside for that
+drag. It is not a mode and there is no third state to get stuck in: let go and
+the next drag snaps again.
+
+The same key also means "add to or take out of the selection" on a press, and
+that **is** a conflict: a ⌘-press on a stitch that is already selected used to
+take it out at pointer-down, so the ⌘-drag then moved everything except the
+stitch under the hand. The rule is therefore: **taking a stitch out of the
+selection waits for the pointer to come up.** A ⌘-press starts an ordinary
+drag; if the pointer never moved, the stitch leaves the selection on release,
+which is the click gesture unchanged. Adding an unselected stitch still happens
+at pointer-down, because there is nothing to undo about it.
+
+A drag snaps the item the drag **started on**, not the middle of the selection
+box. Dragging a stitch by the one under the pointer is what the hand expects,
+and with several stitches selected the rest follow by the same offset, so the
+block keeps its shape.
+
+The circle guide's middle is dragged by the dot drawn on it. The dot is only
+grabbable while **no stitch is armed** — with a stitch on the pointer a click
+places it, because that is what the click was for — and a stitch drawn over the
+middle wins over the dot, so a magic ring's first stitch never becomes
+unclickable. To get a guide back that has
+been dragged off-screen, use "Illeszd a képernyőre": the fit takes the guide in
+as well as the stitches.
+
+A resize handle's hit box never grows past a third of the selection box. A
+chain is about fourteen units wide, so a fixed fourteen-pixel hit box covered
+the whole stitch and every drag resized it instead of moving it. The middle of
+the selection always belongs to the drag.
+
+Cited from: `src/ui/irregular-editor.ts` (`#snap`, `#onMove`) and
+`src/ui/irregular-board.ts` (`polarCenterAt`, `handleAt`, `#contentBox`).

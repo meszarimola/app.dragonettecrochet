@@ -3,7 +3,7 @@ import { describe, test } from 'node:test';
 
 import { addStitch, emptyIrregularPattern } from '../src/core/irregular-document.ts';
 import { isIrregularJson, loadIrregular, saveIrregular } from '../src/core/irregular-json.ts';
-import { IRREGULAR_FORMAT_VERSION } from '../src/core/irregular-types.ts';
+import { DEFAULT_POLAR, IRREGULAR_FORMAT_VERSION } from '../src/core/irregular-types.ts';
 import { savePattern } from '../src/core/pattern-json.ts';
 import { dcRectangle } from './fixtures/examples.ts';
 
@@ -35,7 +35,11 @@ function sample() {
     activeRowId: 'r2',
     activeLayerId: 'l1',
     items: pattern.items.map((item, index) => (index === 1 ? { ...item, color: '#123456', rotation: 45 } : item)),
-    guides: { grid: { visible: true, size: 25 }, snap: true },
+    guides: {
+      grid: { visible: true, size: 25 },
+      polar: { visible: true, center: { x: -12.5, y: 40 }, rings: 6, spacing: 32.5, spokes: 18, startAngle: 15 },
+      snap: true,
+    },
   };
 }
 
@@ -112,4 +116,41 @@ test('the file menu tells the two file kinds apart', () => {
   assert.equal(isIrregularJson('{ "type": "irregular", '), false);
   assert.equal(isIrregularJson(''), false);
   assert.equal(isIrregularJson('[]'), false);
+});
+
+describe('the circle guide in the file (PQW-966)', () => {
+  test('a file written before the circle guide still loads, with the preset guide', () => {
+    const raw = JSON.parse(saveIrregular(sample()));
+    delete raw.guides.polar;
+    const result = loadIrregular(JSON.stringify(raw));
+    assert.ok(result.ok, 'the older file is accepted');
+    assert.deepEqual(result.pattern.guides.polar, DEFAULT_POLAR, 'the preset circle guide fills the gap');
+  });
+});
+
+describe('the circle guide keeps its limits on the way in (PQW-966)', () => {
+  const broken = (change, path, code) => {
+    const raw = JSON.parse(saveIrregular(sample()));
+    change(raw);
+    const result = loadIrregular(JSON.stringify(raw));
+    assert.equal(result.ok, false, 'refused');
+    assert.equal(result.error.path, path, 'and it says where');
+    assert.equal(result.error.message.code, code, 'and what was wrong');
+  };
+
+  test('a ring count nothing could draw is refused, not clamped', () => {
+    broken((raw) => (raw.guides.polar.rings = 1_000_000), '$.guides.polar.rings', 'expected-in-range');
+  });
+
+  test('a fractional spoke count is called what it is', () => {
+    broken((raw) => (raw.guides.polar.spokes = 2.5), '$.guides.polar.spokes', 'expected-whole-number');
+  });
+
+  test('a ring spacing beyond the range is refused', () => {
+    broken((raw) => (raw.guides.polar.spacing = 5000), '$.guides.polar.spacing', 'expected-in-range');
+  });
+
+  test('a start angle outside a single turn is refused', () => {
+    broken((raw) => (raw.guides.polar.startAngle = 900), '$.guides.polar.startAngle', 'expected-in-range');
+  });
 });

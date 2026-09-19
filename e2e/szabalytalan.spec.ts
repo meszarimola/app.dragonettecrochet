@@ -285,3 +285,147 @@ test('two stitches drawn with one symbol are reported in the issues list (AS-5)'
   await page.locator('#error-toggle').click();
   await expect(page.locator('#findings')).toContainText('Ugyanaz a jel két szemet jelöl');
 });
+
+/** Every stitch in the autosaved pattern, with the guides that were in force. */
+async function stored(page: Page): Promise<{
+  items: { x: number; y: number; rotation: number }[];
+  polar: { center: { x: number; y: number }; visible: boolean };
+  grid: { visible: boolean; size: number };
+  snap: boolean;
+}> {
+  return page.evaluate(() => {
+    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+    const parsed = JSON.parse(raw);
+    return {
+      items: parsed.items ?? [],
+      polar: parsed.guides?.polar ?? { center: { x: 0, y: 0 }, visible: false },
+      grid: parsed.guides?.grid ?? { visible: false, size: 0 },
+      snap: parsed.guides?.snap ?? false,
+    };
+  });
+}
+
+test('snapping puts a new stitch on the grid, whatever the click hits', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+
+  await page.locator('#guide-grid-size').fill('25');
+  await page.locator('#guide-grid-size').blur();
+  await page.locator('[data-action="grid"]').click();
+  await page.locator('#guide-snap').check();
+  await expect(page.locator('#guide-snap')).toBeChecked();
+
+  await armDoubleCrochet(page);
+  for (const [x, y] of [
+    [483, 257],
+    [563, 331],
+    [643, 259],
+  ]) {
+    await place(page, x, y);
+  }
+
+  const { items, grid, snap } = await stored(page);
+  expect(grid.size, 'a rács mérete a beírt érték').toBe(25);
+  expect(snap, 'az illesztés be van kapcsolva').toBe(true);
+  expect(grid.visible, 'a rács látszik').toBe(true);
+  expect(items, 'három szem került le').toHaveLength(3);
+  for (const item of items) {
+    // A negative multiple gives -0, which is not `0` to a strict comparison.
+    expect(Math.abs(item.x % 25), 'a szem a rács vonalára került vízszintesen').toBe(0);
+    expect(Math.abs(item.y % 25), 'a szem a rács vonalára került függőlegesen').toBe(0);
+  }
+});
+
+test('the circle guide turns the new stitches away from its middle (AS-6 előkészítése)', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+
+  await page.locator('#guide-polar').check();
+  await expect(page.locator('#guide-polar-fields')).toBeVisible();
+  await page.locator('#guide-radial').check();
+
+  await armDoubleCrochet(page);
+  for (const [x, y] of [
+    [520, 200],
+    [660, 320],
+    [520, 440],
+    [380, 320],
+  ]) {
+    await place(page, x, y);
+  }
+
+  const { items, polar } = await stored(page);
+  expect(polar.visible, 'a körrács látszik').toBe(true);
+  expect(items, 'négy szem került le').toHaveLength(4);
+
+  const turns = items.map((item) => {
+    const wanted = (Math.atan2(item.x - polar.center.x, polar.center.y - item.y) * 180) / Math.PI;
+    return Math.abs(((item.rotation - wanted + 540) % 360) - 180);
+  });
+  for (const gap of turns) {
+    expect(gap, 'a szem teteje a középponttól kifelé néz').toBeLessThan(0.01);
+  }
+  expect(new Set(items.map((item) => Math.round(item.rotation))).size, 'a négy irány négyféle elfordulás').toBe(4);
+});
+
+test('⌘ a húzáson az illesztést kapcsolja ki, nem a kijelölést bontja meg', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+  await armDoubleCrochet(page);
+
+  // Where the chart's origin sits on the canvas, measured with the first stitch,
+  // so the drag can start exactly on a stitch and not on a resize handle.
+  await place(page, 500, 300);
+  const first = (await stored(page)).items[0];
+  if (first === undefined) throw new Error('no stitch');
+  const view = { x: 500 - first.x, y: 300 - first.y };
+
+  await page.locator('#guide-grid-size').fill('20');
+  await page.locator('#guide-grid-size').blur();
+  await page.locator('[data-action="grid"]').click();
+  await page.locator('#guide-snap').check();
+
+  await page.locator(board).focus();
+  await page.keyboard.press('Escape');
+  await place(page, 500, 300);
+  await expect(page.locator('#props-count')).toContainText('1');
+
+  const rect = await page.locator(board).boundingBox();
+  if (rect === null) throw new Error('no board');
+  const drag = async (from: { x: number; y: number }, dx: number, dy: number, free: boolean): Promise<void> => {
+    if (free) await page.keyboard.down('Meta');
+    await page.mouse.move(rect.x + from.x + view.x, rect.y + from.y + view.y);
+    await page.mouse.down();
+    await page.mouse.move(rect.x + from.x + view.x + dx, rect.y + from.y + view.y + dy, { steps: 10 });
+    await page.mouse.up();
+    if (free) await page.keyboard.up('Meta');
+  };
+
+  await drag(first, 37, 23, true);
+  await expect(page.locator('#props-count'), 'a kijelölés együtt marad').toContainText('1');
+  const free = (await stored(page)).items[0];
+  if (free === undefined) throw new Error('no stitch');
+  expect(free.x - first.x, 'pont annyit mozdult, amennyit húztam').toBeCloseTo(37, 6);
+  expect(free.y - first.y, 'pont annyit mozdult, amennyit húztam').toBeCloseTo(23, 6);
+
+  // The same drag without the key lands on the grid.
+  await drag(free, 11, 7, false);
+  const snapped = (await stored(page)).items[0];
+  if (snapped === undefined) throw new Error('no stitch');
+  expect(Math.abs(snapped.x % 20), 'billentyű nélkül a rácsra ugrik').toBe(0);
+  expect(Math.abs(snapped.y % 20), 'billentyű nélkül a rácsra ugrik').toBe(0);
+});
+
+test('⌘ + kattintás húzás nélkül továbbra is kivesz egy szemet a kijelölésből', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+  await armDoubleCrochet(page);
+  for (const x of [480, 560, 640]) await place(page, x, 300);
+  await page.locator(board).focus();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Control+a');
+  await expect(page.locator('#props-count')).toContainText('3');
+
+  await page.locator(board).click({ position: { x: 560, y: 300 }, modifiers: ['Meta'] });
+  await expect(page.locator('#props-count'), 'a középső kikerült').toContainText('2');
+});
