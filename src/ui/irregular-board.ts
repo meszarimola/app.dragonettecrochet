@@ -1,9 +1,17 @@
 // The free-form drawing surface. KB: interface.md §1, §15
 
 import { type Box, isSelectable, isVisible, itemBox, itemsBox, rowById } from '../core/irregular-document.ts';
-import type { IrregularItem, IrregularPattern } from '../core/irregular-types.ts';
-import { itemShapes } from './irregular-glyph.ts';
-import { applyInk, drawShapes, type Point, type Shape, type SymbolOptions } from './symbols.ts';
+import type { IrregularItem, IrregularPattern, LegendBlock } from '../core/irregular-types.ts';
+import { itemShapes, naturalGlyph } from './irregular-glyph.ts';
+import {
+  applyInk,
+  drawCentered,
+  drawShapes,
+  type Point,
+  type Shape,
+  type SymbolOptions,
+  shapesBounds,
+} from './symbols.ts';
 
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 8;
@@ -12,12 +20,29 @@ const HANDLE = 8;
 const HANDLE_HIT = 14;
 const ROTATE_ARM = 26;
 const GRID_LIMIT = 400;
+const FADED = 0.28;
+const ORDER_FONT = 11;
+const LEGEND_ICON = 22;
+const LEGEND_ROW = 30;
+const LEGEND_GAP = 10;
+const LEGEND_COLUMN = 190;
 
 export type HandleId = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'rotate';
 
 export interface Marquee {
   readonly from: Point;
   readonly to: Point;
+}
+
+export interface LegendEntry {
+  readonly keyEntryId: string;
+  readonly text: string;
+  readonly glyph: string | null;
+}
+
+export interface LegendView {
+  readonly block: LegendBlock;
+  readonly entries: readonly LegendEntry[];
 }
 
 export interface FreeScene {
@@ -27,6 +52,12 @@ export interface FreeScene {
   readonly marquee: Marquee | null;
   readonly ghost: readonly Shape[] | null;
   readonly hover: string | null;
+  /** The key entry's chosen symbol, or `null` when it keeps the preset's. */
+  readonly glyphOf: (keyEntryId: string) => string | null;
+  readonly fadeOthers: boolean;
+  /** Item ids of the active row in crochet order, when the overlay is on. */
+  readonly order: readonly string[] | null;
+  readonly legend: LegendView | null;
 }
 
 interface View {
@@ -253,8 +284,15 @@ export class FreeBoard {
       .sort((a, b) => a.layer - b.layer || a.index - b.index);
 
     for (const { item } of drawable) {
+      const dim = scene.fadeOthers && item.rowId !== scene.pattern.activeRowId;
+      ctx.globalAlpha = dim ? FADED : 1;
       applyInk(ctx, this.#inkOf(scene.pattern, item, colors.ink), line);
-      drawShapes(ctx, itemShapes(item, scene.symbols));
+      drawShapes(ctx, itemShapes(item, scene.symbols, scene.glyphOf(item.keyEntryId)));
+    }
+    ctx.globalAlpha = 1;
+
+    if (scene.legend !== null && scene.legend.block.visible) {
+      this.#drawLegend(scene, scene.legend, colors.ink, line);
     }
 
     if (scene.ghost !== null) {
@@ -265,8 +303,68 @@ export class FreeBoard {
     }
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.#drawOrder(scene, colors.accent);
     this.#drawSelection(colors.accent);
     this.#drawMarquee(scene.marquee, colors.accent);
+  }
+
+  /** The numbers stay the same size however far you zoom out, as the row labels do. */
+  #drawOrder(scene: FreeScene, color: string): void {
+    const order = scene.order;
+    if (order === null || order.length === 0) return;
+    const ctx = this.#ctx;
+    const byId = new Map(scene.pattern.items.map((item) => [item.id, item]));
+    ctx.save();
+    ctx.font = `${ORDER_FONT}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    order.forEach((id, index) => {
+      const item = byId.get(id);
+      if (item === undefined) return;
+      const box = itemBox(item);
+      const at = this.#toScreen({ x: item.x, y: box.minY });
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.9;
+      ctx.beginPath();
+      ctx.arc(at.x, at.y - ORDER_FONT, ORDER_FONT * 0.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#fff';
+      ctx.fillText(String(index + 1), at.x, at.y - ORDER_FONT);
+    });
+    ctx.restore();
+  }
+
+  #drawLegend(scene: FreeScene, legend: LegendView, ink: string, line: number): void {
+    const ctx = this.#ctx;
+    const { block, entries } = legend;
+    if (entries.length === 0) return;
+    const perColumn = Math.ceil(entries.length / block.columns);
+    ctx.save();
+    ctx.font = '13px system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    entries.forEach((entry, index) => {
+      const column = Math.floor(index / perColumn);
+      const row = index % perColumn;
+      const x = block.position.x + column * LEGEND_COLUMN;
+      const y = block.position.y + row * LEGEND_ROW;
+      const glyph = naturalGlyph(entry.keyEntryId, 'both-loops', scene.symbols, entry.glyph);
+      if (glyph !== null) {
+        const bounds = shapesBounds(glyph.shapes);
+        if (bounds !== null) {
+          const fit = Math.min(1, LEGEND_ICON / Math.max(glyph.width, glyph.height));
+          ctx.save();
+          ctx.translate(x + LEGEND_ICON / 2, y);
+          applyInk(ctx, ink, line / fit);
+          drawCentered(ctx, glyph.shapes, fit);
+          ctx.restore();
+        }
+      }
+      ctx.fillStyle = ink;
+      ctx.fillText(entry.text, x + LEGEND_ICON + LEGEND_GAP, y);
+    });
+    ctx.restore();
   }
 
   #inkOf(pattern: IrregularPattern, item: IrregularItem, fallback: string): string {

@@ -2078,16 +2078,22 @@ const gridPanel = panelFor(
     }),
 );
 
-const irregularPanelSection = must<HTMLDetailsElement>('#section-irregular');
+const irregularSections = {
+  properties: must<HTMLDetailsElement>('#section-irregular'),
+  rows: must<HTMLDetailsElement>('#section-irregular-rows'),
+  layers: must<HTMLDetailsElement>('#section-irregular-layers'),
+  key: must<HTMLDetailsElement>('#section-irregular-key'),
+};
 
 function ensureIrregular(): IrregularEditor {
   if (irregular !== null) return irregular;
-  irregular = new IrregularEditor(irregularCanvas, irregularPanelSection, {
+  irregular = new IrregularEditor(irregularCanvas, irregularSections, {
     announce,
     symbols: () => symbols,
     notation: () => notation,
     insets: () => ({ left: insetLeft(), right: insetRight(), bottom: insetBottom() }),
     notationNote: (recorded, shown) => texts().messages.file.notationNote(termsLabel(recorded), termsLabel(shown)),
+    terms: () => notation.terms,
     refreshControls: () => {
       if (irregular !== null) updateIrregularControls(irregular);
     },

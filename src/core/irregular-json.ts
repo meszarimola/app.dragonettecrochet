@@ -7,8 +7,10 @@ import {
   type IrregularLayer,
   type IrregularPattern,
   type IrregularRow,
+  type LegendBlock,
   type RowDirection,
   type RowKind,
+  type StitchKeyEntry,
 } from './irregular-types.ts';
 import type { CoreData, CoreText } from './messages.ts';
 import type { ChartStyle, Locale, PatternNotation, StitchInsertion } from './types.ts';
@@ -32,7 +34,9 @@ export type IrregularJsonCode =
   | 'duplicate-layer-id'
   | 'duplicate-item-id'
   | 'unknown-row'
-  | 'unknown-layer';
+  | 'unknown-layer'
+  | 'duplicate-key-entry-id'
+  | 'key-entry-unnamed';
 
 export interface IrregularLoadError {
   readonly code: 'invalid-json' | 'unsupported-version' | 'invalid-format';
@@ -189,7 +193,7 @@ function readIrregular(value: unknown, path: string): IrregularPattern {
     value,
     path,
     ['formatVersion', 'type', 'title', 'rows', 'layers', 'items', 'activeRowId', 'activeLayerId', 'guides'],
-    ['titleGenerated', 'notation'],
+    ['titleGenerated', 'notation', 'stitchKey', 'legend'],
   );
   const rows = array(raw['rows'], `${path}.rows`, readRow);
   if (rows.length === 0) throw new FormatError(`${path}.rows`, 'expected-nonempty-array');
@@ -224,7 +228,54 @@ function readIrregular(value: unknown, path: string): IrregularPattern {
     activeRowId,
     activeLayerId,
     guides: readGuides(raw['guides'], `${path}.guides`),
+    ...(raw['stitchKey'] === undefined ? {} : { stitchKey: readStitchKey(raw['stitchKey'], `${path}.stitchKey`) }),
+    ...(raw['legend'] === undefined ? {} : { legend: readLegend(raw['legend'], `${path}.legend`) }),
   };
+}
+
+function readStitchKey(value: unknown, path: string): StitchKeyEntry[] {
+  const entries = array(value, path, readKeyEntry);
+  idsOf(entries, path, 'duplicate-key-entry-id');
+  return entries;
+}
+
+function readKeyEntry(value: unknown, path: string): StitchKeyEntry {
+  const raw = object(value, path, [
+    'id',
+    'stitch',
+    'customName',
+    'glyphOverride',
+    'abbreviationOverride',
+    'labelOverride',
+  ]);
+  const stitch = raw['stitch'] === null ? null : string(raw['stitch'], `${path}.stitch`);
+  const customName = raw['customName'] === null ? null : string(raw['customName'], `${path}.customName`);
+  // One of the two has to name the stitch, or the entry stands for nothing.
+  if (stitch === null && customName === null) throw new FormatError(`${path}.stitch`, 'key-entry-unnamed');
+  return {
+    id: string(raw['id'], `${path}.id`),
+    stitch,
+    customName,
+    glyphOverride: raw['glyphOverride'] === null ? null : string(raw['glyphOverride'], `${path}.glyphOverride`),
+    abbreviationOverride:
+      raw['abbreviationOverride'] === null ? null : string(raw['abbreviationOverride'], `${path}.abbreviationOverride`),
+    labelOverride: raw['labelOverride'] === null ? null : string(raw['labelOverride'], `${path}.labelOverride`),
+  };
+}
+
+function readLegend(value: unknown, path: string): LegendBlock {
+  const raw = object(value, path, ['visible', 'position', 'columns', 'showCounts']);
+  return {
+    visible: boolean(raw['visible'], `${path}.visible`),
+    position: readPoint(raw['position'], `${path}.position`),
+    columns: oneOf(raw['columns'], `${path}.columns`, [1, 2, 3] as const),
+    showCounts: boolean(raw['showCounts'], `${path}.showCounts`),
+  };
+}
+
+function readPoint(value: unknown, path: string): { x: number; y: number } {
+  const raw = object(value, path, ['x', 'y']);
+  return { x: finite(raw['x'], `${path}.x`), y: finite(raw['y'], `${path}.y`) };
 }
 
 function idsOf(
@@ -250,7 +301,8 @@ function readNotation(value: unknown, path: string): PatternNotation {
 }
 
 function readRow(value: unknown, path: string): IrregularRow {
-  const raw = object(value, path, ['id', 'kind', 'direction', 'color', 'visible', 'locked']);
+  const raw = object(value, path, ['id', 'kind', 'direction', 'color', 'visible', 'locked'], ['order']);
+  const order = raw['order'];
   return {
     id: string(raw['id'], `${path}.id`),
     kind: oneOf(raw['kind'], `${path}.kind`, ROW_KINDS),
@@ -258,6 +310,9 @@ function readRow(value: unknown, path: string): IrregularRow {
     color: hexOrNull(raw['color'], `${path}.color`),
     visible: boolean(raw['visible'], `${path}.visible`),
     locked: boolean(raw['locked'], `${path}.locked`),
+    ...(order === undefined
+      ? {}
+      : { order: order === 'auto' ? ('auto' as const) : array(order, `${path}.order`, string) }),
   };
 }
 

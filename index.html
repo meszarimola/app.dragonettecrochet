@@ -454,6 +454,85 @@
               <p class="panel__note" id="props-count" role="status" aria-live="polite"></p>
             </div>
           </details>
+          <details class="section" id="section-irregular-rows" hidden>
+            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionRowsTitle">Sorok és körök</h2></summary>
+            <div class="rows" role="group" aria-label="A minta sorai és körei" data-i18n-label="rowsGroupLabel">
+              <p class="props__row">
+                <button type="button" class="button" id="row-new" data-i18n="rowNew">Új sor</button>
+                <button type="button" class="button" id="row-new-round" data-i18n="rowNewRound">Új kör</button>
+                <button type="button" class="button" id="row-insert" data-i18n="rowInsertAfter">Beszúrás az aktív után</button>
+              </p>
+              <ul class="rows__list" id="rows-list"></ul>
+              <p class="panel__field">
+                <label for="row-kind" data-i18n="rowKindLabel">Az aktív fajtája</label>
+                <select id="row-kind"></select>
+              </p>
+              <p class="panel__field">
+                <label for="row-direction" data-i18n="rowDirectionLabel">Irány</label>
+                <select id="row-direction"></select>
+              </p>
+              <p class="panel__field">
+                <label for="row-color" data-i18n="rowColorLabel">A sor színe</label>
+                <input id="row-color" type="color" />
+              </p>
+              <p class="props__row">
+                <button type="button" class="button" id="row-color-clear" data-i18n="rowColorClear">Nincs sorszín</button>
+                <button type="button" class="button" id="row-select" data-i18n="rowSelectAll">A sor kijelölése</button>
+                <button type="button" class="button" id="row-move-items" data-i18n="rowMoveItems">A kijelölt szemek ide</button>
+              </p>
+              <p class="props__row">
+                <button type="button" class="button" id="row-delete" data-i18n="rowDelete">A sor törlése a szemeivel</button>
+                <button type="button" class="button" id="row-delete-keep" data-i18n="rowDeleteKeep">Törlés, szemek az előző sorba</button>
+              </p>
+              <p class="choice">
+                <label><input type="checkbox" id="row-fade" /> <span data-i18n="rowFadeOthers">A többi sor halványítása</span></label>
+              </p>
+              <p class="choice">
+                <label><input type="checkbox" id="row-order-overlay" /> <span data-i18n="rowShowOrder">Szemsorrend mutatása</span></label>
+              </p>
+              <p class="props__row" id="order-controls" hidden>
+                <button type="button" class="button" id="order-earlier" data-i18n="orderEarlier">Előrébb</button>
+                <button type="button" class="button" id="order-later" data-i18n="orderLater">Hátrébb</button>
+                <button type="button" class="button" id="order-reset" data-i18n="orderReset">Automatikus sorrend</button>
+              </p>
+              <p class="panel__note" id="rows-note" role="status" aria-live="polite"></p>
+            </div>
+          </details>
+
+          <details class="section" id="section-irregular-layers" hidden>
+            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionLayersTitle">Rétegek</h2></summary>
+            <div class="layers" role="group" aria-label="A rajz rétegei" data-i18n-label="layersGroupLabel">
+              <p class="panel__note" data-i18n="layersNote">A réteg a rajzot rendezi, a sor a horgolás sorrendjét. Minden elem pontosan egy rétegen van.</p>
+              <ul class="rows__list" id="layers-list"></ul>
+              <p class="props__row">
+                <button type="button" class="button" id="layer-new" data-i18n="layerNew">Új réteg</button>
+                <button type="button" class="button" id="layer-move-items" data-i18n="layerMoveItems">A kijelölt szemek ide</button>
+                <button type="button" class="button" id="layer-delete" data-i18n="layerDelete">A réteg törlése</button>
+              </p>
+            </div>
+          </details>
+
+          <details class="section" id="section-irregular-key" hidden>
+            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionKeyTitle">Jelkulcs</h2></summary>
+            <div class="key" role="group" aria-label="A minta jelkulcsa" data-i18n-label="keyGroupLabel">
+              <p class="panel__note" data-i18n="keyNote">A mintában használt szemek. A jelet, a rövidítést és a jelmagyarázat szövegét szemenként átírhatod; amit nem írsz át, az az előbeállítást követi.</p>
+              <ul class="key__list" id="key-list"></ul>
+              <p class="props__row">
+                <button type="button" class="button" id="key-reset" data-i18n="keyReset">Visszaállítás az előbeállításra</button>
+              </p>
+              <p class="choice">
+                <label><input type="checkbox" id="legend-on-image" /> <span data-i18n="legendOnImage">Jelmagyarázat a képen</span></label>
+              </p>
+              <p class="panel__field">
+                <label for="legend-columns" data-i18n="legendColumnsLabel">Oszlopok</label>
+                <select id="legend-columns"></select>
+              </p>
+              <p class="choice">
+                <label><input type="checkbox" id="legend-counts" /> <span data-i18n="legendCounts">Darabszámmal</span></label>
+              </p>
+            </div>
+          </details>
+
           <details class="section" id="section-size">
             <summary class="section__head"><h2 class="panel__title" data-i18n="sectionSizeTitle">Méret és fonal</h2></summary>
             <div class="size">
