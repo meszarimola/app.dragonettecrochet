@@ -509,6 +509,34 @@
                 </p>
                 <p class="panel__note" data-i18n="arcHint">A két végpont és a középső fogantyú a vásznon húzható. Kijelölt ívnél a számbillentyűk a szemek számát állítják.</p>
               </div>
+              <div id="props-background">
+                <h3 class="panel__title" data-i18n="bgTitle">Háttérkép</h3>
+                <p class="props__row">
+                  <button type="button" class="button" id="bg-load" data-i18n="bgLoad">Kép betöltése</button>
+                  <button type="button" class="button" id="bg-remove" data-i18n="bgRemove">Kép eltávolítása</button>
+                </p>
+                <div id="bg-fields" hidden>
+                  <p class="panel__field">
+                    <label for="bg-opacity" data-i18n="bgOpacityLabel">Láthatóság (%)</label>
+                    <input id="bg-opacity" type="number" min="0" max="100" step="5" inputmode="numeric" />
+                  </p>
+                  <p class="panel__field">
+                    <label for="bg-scale" data-i18n="bgScaleLabel">Méret (%)</label>
+                    <input id="bg-scale" type="number" min="5" max="1000" step="5" inputmode="numeric" />
+                  </p>
+                  <p class="panel__field">
+                    <label for="bg-rotation" data-i18n="bgRotationLabel">Elforgatás (fok)</label>
+                    <input id="bg-rotation" type="number" min="0" max="359" step="1" inputmode="numeric" />
+                  </p>
+                  <p class="choice">
+                    <label><input type="checkbox" id="bg-visible" checked /> <span data-i18n="bgVisible">Látszik</span></label>
+                  </p>
+                  <p class="choice">
+                    <label><input type="checkbox" id="bg-locked" /> <span data-i18n="bgLocked">Zárolva</span></label>
+                  </p>
+                  <p class="panel__note" data-i18n="bgHint">A képet a vásznon húzva mozgathatod, amíg nincs zárolva. Ejtsd rá a fájlt a rajzlapra, az is betölti.</p>
+                </div>
+              </div>
               <div id="props-repeat" hidden>
                 <h3 class="panel__title" data-i18n="repeatTitle">Körkörös ismétlés</h3>
                 <p class="panel__field">
@@ -688,6 +716,22 @@
               <p class="panel__note" data-i18n="keyNote">A mintában használt szemek. A jelet, a rövidítést és a jelmagyarázat szövegét szemenként átírhatod; amit nem írsz át, az az előbeállítást követi.</p>
               <ul class="key__list" id="key-list"></ul>
               <p class="panel__note" id="key-preset" role="status" aria-live="polite"></p>
+              <h3 class="panel__title" data-i18n="keyCustomTitle">Saját szem</h3>
+              <p class="panel__field">
+                <label for="key-custom-name" data-i18n="keyCustomNameLabel">Név</label>
+                <input id="key-custom-name" type="text" maxlength="40" />
+              </p>
+              <p class="panel__field">
+                <label for="key-custom-abbr" data-i18n="keyCustomAbbrLabel">Rövidítés</label>
+                <input id="key-custom-abbr" type="text" maxlength="12" />
+              </p>
+              <p class="panel__field">
+                <label for="key-custom-glyph" data-i18n="keyCustomGlyphLabel">Jel</label>
+                <select id="key-custom-glyph"></select>
+              </p>
+              <p class="props__row">
+                <button type="button" class="button" id="key-custom-add" data-i18n="keyCustomAdd">Hozzáadás</button>
+              </p>
               <p class="props__row">
                 <button type="button" class="button" id="key-reset" data-i18n="keyReset">Visszaállítás az előbeállításra</button>
               </p>

@@ -6,6 +6,7 @@ import { fanAngles } from '../core/irregular-fan.ts';
 import { directionOf, ringRadii, spokeAngles } from '../core/irregular-snap.ts';
 import type {
   ArcShape,
+  BackgroundImage,
   Point as ChartPoint,
   FanMode,
   IrregularItem,
@@ -94,6 +95,16 @@ export function rowLinePath(line: RowLine): GroupPath {
 
 const ARC_SAMPLES = 48;
 
+function widen(box: Box | null, extra: Box): Box {
+  if (box === null) return extra;
+  return {
+    minX: Math.min(box.minX, extra.minX),
+    maxX: Math.max(box.maxX, extra.maxX),
+    minY: Math.min(box.minY, extra.minY),
+    maxY: Math.max(box.maxY, extra.maxY),
+  };
+}
+
 export interface Marquee {
   readonly from: Point;
   readonly to: Point;
@@ -130,6 +141,8 @@ export interface FreeScene {
   readonly arcPreview: GroupPath | null;
   /** The active row's remembered shape, drawn as a thin guide. */
   readonly rowLine: GroupPath | null;
+  /** The tracing photo and the picture itself, drawn under every layer. */
+  readonly background: { readonly placement: BackgroundImage; readonly image: CanvasImageSource } | null;
   readonly legend: LegendView | null;
 }
 
@@ -243,7 +256,18 @@ export class FreeBoard {
   #contentBox(): Box | null {
     const scene = this.#scene;
     if (scene === null) return null;
-    const box = itemsBox(scene.pattern.items.filter((item) => isVisible(scene.pattern, item)));
+    const drawn = itemsBox(scene.pattern.items.filter((item) => isVisible(scene.pattern, item)));
+    // The tracing photo is part of what is on screen, so fitting must show it.
+    const photo = scene.background?.placement;
+    const box =
+      photo === undefined || !photo.visible
+        ? drawn
+        : widen(drawn, {
+            minX: photo.x - photo.width / 2,
+            maxX: photo.x + photo.width / 2,
+            minY: photo.y - photo.height / 2,
+            maxY: photo.y + photo.height / 2,
+          });
     const polar = scene.pattern.guides.polar;
     if (!polar.visible) return box;
     const reach = polar.rings * polar.spacing;
@@ -253,13 +277,7 @@ export class FreeBoard {
       minY: polar.center.y - reach,
       maxY: polar.center.y + reach,
     };
-    if (box === null) return circle;
-    return {
-      minX: Math.min(box.minX, circle.minX),
-      maxX: Math.max(box.maxX, circle.maxX),
-      minY: Math.min(box.minY, circle.minY),
-      maxY: Math.max(box.maxY, circle.maxY),
-    };
+    return widen(box, circle);
   }
 
   /** The chart point in the middle of the free part of the canvas. */
@@ -284,6 +302,22 @@ export class FreeBoard {
     );
   }
 
+  /** Whether the click landed on the tracing photo, which is grabbable only while unlocked. */
+  backgroundAt(clientX: number, clientY: number): boolean {
+    const scene = this.#scene;
+    if (scene === null || scene.background === null) return false;
+    const placement = scene.background.placement;
+    if (placement.locked || !placement.visible) return false;
+    if (this.itemAt(clientX, clientY) !== null) return false;
+    const point = this.toChart(clientX, clientY);
+    const radians = (-placement.rotation * Math.PI) / 180;
+    const [cos, sin] = [Math.cos(radians), Math.sin(radians)];
+    const [dx, dy] = [point.x - placement.x, point.y - placement.y];
+    const localX = dx * cos - dy * sin;
+    const localY = dx * sin + dy * cos;
+    return Math.abs(localX) <= placement.width / 2 && Math.abs(localY) <= placement.height / 2;
+  }
+
   /**
    * Whether the click landed on the circle guide's middle knob. A stitch drawn
    * over the middle — a magic ring's first stitch — wins, because the stitches
@@ -299,6 +333,18 @@ export class FreeBoard {
       Math.abs(screen.x - (clientX - rect.left)) <= HANDLE_HIT &&
       Math.abs(screen.y - (clientY - rect.top)) <= HANDLE_HIT
     );
+  }
+
+  /** Under everything, so the chart is always drawn on top of what it traces. */
+  #drawBackground(placement: BackgroundImage, image: CanvasImageSource): void {
+    if (!placement.visible || placement.opacity <= 0) return;
+    const ctx = this.#ctx;
+    ctx.save();
+    ctx.globalAlpha = placement.opacity;
+    ctx.translate(placement.x, placement.y);
+    ctx.rotate((placement.rotation * Math.PI) / 180);
+    ctx.drawImage(image, -placement.width / 2, -placement.height / 2, placement.width, placement.height);
+    ctx.restore();
   }
 
   #drawPolar(polar: PolarGuide, color: string, accent: string): void {
@@ -443,6 +489,7 @@ export class FreeBoard {
 
     ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * x, dpr * y);
     const line = Math.max(1.2, 2 / scale);
+    if (scene.background !== null) this.#drawBackground(scene.background.placement, scene.background.image);
     if (scene.pattern.guides.polar.visible) this.#drawPolar(scene.pattern.guides.polar, colors.grid, colors.accent);
     const order = new Map(scene.pattern.layers.map((layer, index) => [layer.id, index]));
     const drawable = scene.pattern.items
