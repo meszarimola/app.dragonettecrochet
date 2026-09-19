@@ -531,3 +531,98 @@ test('láncív: rajzolás húzással, majd N átállítása 7-re (AS-3)', async 
   expect(gone.items, 'a hét szem megmarad').toBe(7);
   expect(gone.count, 'de a csoport eltűnt').toBe(0);
 });
+
+test('legyező: szétnyíló rajzolás, N átállítása, összefutóra váltás (AS-6, AS-7)', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+
+  const fanTool = page.locator('[data-action="fan"]');
+  await expect(fanTool).toBeVisible();
+  await fanTool.click();
+  await expect(fanTool).toHaveAttribute('aria-pressed', 'true');
+
+  const rect = await page.locator(board).boundingBox();
+  if (rect === null) throw new Error('no board');
+  // Press the base point, drag upward: the fan opens upward from there.
+  await page.mouse.move(rect.x + 500, rect.y + 500);
+  await page.mouse.down();
+  await page.mouse.move(rect.x + 500, rect.y + 380, { steps: 12 });
+  await page.mouse.up();
+
+  const fan = async (): Promise<{ count: number; mode: string; spread: number; items: number; kind: string }> =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+      const parsed = JSON.parse(raw);
+      const group = (parsed.groups ?? [])[0] ?? { count: 0, mode: '', spreadAngle: 0, kind: '' };
+      return {
+        count: group.count,
+        mode: group.mode,
+        spread: group.spreadAngle,
+        kind: group.kind,
+        items: (parsed.items ?? []).length,
+      };
+    });
+
+  const drawn = await fan();
+  expect(drawn.kind, 'legyező készült').toBe('fan');
+  expect(drawn.count, 'öt szemmel indul').toBe(5);
+  expect(drawn.spread, '120 fokos szétnyílással').toBe(120);
+  expect(drawn.items, 'és öt szem került a rajzlapra').toBe(5);
+  await expect(page.locator('#props-fan')).toBeVisible();
+
+  // Every stitch is worked into the same base point.
+  const bases = await page.evaluate(() => {
+    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+    return (JSON.parse(raw).items ?? []).map((item: { x: number; y: number; rotation: number; height: number }) => {
+      const radians = (item.rotation * Math.PI) / 180;
+      return {
+        x: item.x - Math.sin(radians) * (item.height / 2),
+        y: item.y + Math.cos(radians) * (item.height / 2),
+      };
+    });
+  });
+  const first = bases[0] ?? { x: 0, y: 0 };
+  for (const point of bases) {
+    expect(Math.abs(point.x - first.x), 'minden szem ugyanabba az alappontba megy').toBeLessThan(0.001);
+    expect(Math.abs(point.y - first.y), 'minden szem ugyanabba az alappontba megy').toBeLessThan(0.001);
+  }
+
+  await page.locator(board).focus();
+  await page.keyboard.press('7');
+  expect((await fan()).count, 'hét szemre állt').toBe(7);
+
+  await page.locator('#fan-mode').selectOption('converge');
+  const converged = await fan();
+  expect(converged.mode, 'összefutóvá vált').toBe('converge');
+  expect(converged.items, 'ugyanannyi szemmel').toBe(7);
+
+  // Converging: now the TOP points meet instead of the bases.
+  const tops = await page.evaluate(() => {
+    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+    return (JSON.parse(raw).items ?? []).map((item: { x: number; y: number; rotation: number; height: number }) => {
+      const radians = (item.rotation * Math.PI) / 180;
+      return {
+        x: item.x + Math.sin(radians) * (item.height / 2),
+        y: item.y - Math.cos(radians) * (item.height / 2),
+      };
+    });
+  });
+  const meeting = tops[0] ?? { x: 0, y: 0 };
+  for (const point of tops) {
+    expect(Math.abs(point.x - meeting.x), 'a csúcsok egy pontban találkoznak').toBeLessThan(0.001);
+    expect(Math.abs(point.y - meeting.y), 'a csúcsok egy pontban találkoznak').toBeLessThan(0.001);
+  }
+
+  // Arming the palette must lay the fan tool down, or every click draws a fan.
+  await expect(fanTool, 'az eszköz a rajzolás után is fel van véve').toHaveAttribute('aria-pressed', 'true');
+  await armDoubleCrochet(page);
+  await expect(fanTool, 'a paletta leteszi a legyező eszközt').toHaveAttribute('aria-pressed', 'false');
+  await place(page, 260, 250);
+  expect((await fan()).items, 'a kattintás egy szemet rakott le, nem egy legyezőt').toBe(8);
+  await page.keyboard.press('Escape');
+  await page.locator(board).click({ position: { x: 500, y: 460 } });
+
+  await page.locator('#fan-explode').click();
+  expect((await fan()).kind, 'szétbontva már nincs csoport').toBe('');
+  expect((await fan()).items, 'de a hét szem és a külön lerakott megmarad').toBe(8);
+});

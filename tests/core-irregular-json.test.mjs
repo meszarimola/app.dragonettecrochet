@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert';
 import { describe, test } from 'node:test';
 
 import { addStitch, emptyIrregularPattern } from '../src/core/irregular-document.ts';
-import { addChainArc, updateChainArc } from '../src/core/irregular-groups.ts';
+import { addChainArc, addFan, updateChainArc, updateFan } from '../src/core/irregular-groups.ts';
 import { isIrregularJson, loadIrregular, saveIrregular } from '../src/core/irregular-json.ts';
 import { DEFAULT_POLAR, IRREGULAR_FORMAT_VERSION } from '../src/core/irregular-types.ts';
 import { savePattern } from '../src/core/pattern-json.ts';
@@ -217,5 +217,60 @@ describe('a chain arc survives the file, still editable (PQW-967, FR-FILE-3)', (
     const result = loadIrregular(JSON.stringify(raw));
     assert.equal(result.ok, false, 'refused');
     assert.equal(result.error.message.code, 'shared-group-member', 'the same stitch twice');
+  });
+});
+
+describe('a fan survives the file, still editable (PQW-968)', () => {
+  const glyph = { width: 12, height: 24 };
+  const fanned = () => {
+    const start = emptyIrregularPattern({ title: 'Free-form chart', layerNames: ['Drawing', 'Labels'] });
+    return addFan(
+      start,
+      {
+        rowId: start.activeRowId,
+        layerId: start.activeLayerId,
+        keyEntryId: 'dc',
+        mode: 'converge',
+        origin: { x: 20, y: -10 },
+        direction: 180,
+        spreadAngle: 90,
+        length: 55,
+        count: 4,
+      },
+      glyph,
+    );
+  };
+
+  test('the round trip keeps the recipe, so the fan can still be re-laid out', () => {
+    const { pattern, id } = fanned();
+    const result = loadIrregular(saveIrregular(pattern));
+    assert.ok(result.ok, 'it loads');
+    assert.deepEqual(result.pattern.groups, pattern.groups, 'the fan came back whole');
+    const wider = updateFan(result.pattern, id, { count: 6 }, glyph);
+    assert.equal(wider.items.length, 6, 'and it lays out again from the file');
+  });
+
+  test('an unknown group kind is refused', () => {
+    const raw = JSON.parse(saveIrregular(fanned().pattern));
+    raw.groups[0].kind = 'spiral';
+    const result = loadIrregular(JSON.stringify(raw));
+    assert.equal(result.ok, false, 'refused');
+    assert.equal(result.error.path, '$.groups[0].kind', 'and it says where');
+  });
+
+  test("a fan carrying a chain arc's fields is refused, not half-read", () => {
+    const raw = JSON.parse(saveIrregular(fanned().pattern));
+    raw.groups[0].bulge = 10;
+    const result = loadIrregular(JSON.stringify(raw));
+    assert.equal(result.ok, false, 'refused');
+    assert.equal(result.error.message.code, 'unknown-field', 'a fan has no bulge');
+  });
+
+  test('a spread angle outside the range is refused', () => {
+    const raw = JSON.parse(saveIrregular(fanned().pattern));
+    raw.groups[0].spreadAngle = 5000;
+    const result = loadIrregular(JSON.stringify(raw));
+    assert.equal(result.ok, false, 'refused');
+    assert.equal(result.error.message.code, 'expected-in-range', 'out of range');
   });
 });

@@ -32,9 +32,13 @@ import {
 } from '../core/irregular-document.ts';
 import {
   addChainArc,
+  addFan,
   type ChainArcPatch,
   clampCount,
+  clampFanCount,
+  clampSpread,
   explodeGroups,
+  type FanPatch,
   forgetBrokenGroups,
   type GlyphSize,
   groupById,
@@ -45,6 +49,7 @@ import {
   reseatGroups,
   translateGroups,
   updateChainArc,
+  updateFan,
   withWholeGroups,
 } from '../core/irregular-groups.ts';
 import { isIrregularJson, loadIrregular, saveIrregular } from '../core/irregular-json.ts';
@@ -85,11 +90,16 @@ import {
   setActiveRow,
   updateRow,
 } from '../core/irregular-rows.ts';
-import { radialRotation, snapPoint } from '../core/irregular-snap.ts';
+import { angleFromCenter, radialRotation, snapPoint } from '../core/irregular-snap.ts';
 import {
   type ChainArcGroup,
   DEFAULT_ARC_BULGE,
   DEFAULT_ARC_COUNT,
+  DEFAULT_FAN_COUNT,
+  DEFAULT_FAN_SPREAD,
+  FAN_LENGTH_RANGE,
+  type FanGroup,
+  type IrregularGroup,
   type IrregularItem,
   type IrregularPattern,
   type LegendBlock,
@@ -102,7 +112,7 @@ import type { Locale, PatternNotation, StitchDefId } from '../core/types.ts';
 import { IRREGULAR_JSON_CORE_TEXTS } from './i18n/core/irregular-json.ts';
 import { renderCoreText } from './i18n/core/render.ts';
 import { texts, uiLanguage } from './i18n.ts';
-import { type ArcHandleId, type ArcPath, FreeBoard, type HandleId, type LegendEntry } from './irregular-board.ts';
+import { type ArcHandleId, FreeBoard, type GroupPath, type HandleId, type LegendEntry } from './irregular-board.ts';
 import { drawnGlyph, itemShapes, naturalSize } from './irregular-glyph.ts';
 import { IrregularKeyPanel } from './irregular-key-panel.ts';
 import { IrregularLayersPanel } from './irregular-layers-panel.ts';
@@ -116,6 +126,8 @@ export const IRREGULAR_PREFS_KEY = 'dc-mintatervezo:szabalytalan-beallitasok';
 const ROTATE_SNAP = 15;
 /** The chain arc is made of chains; the key decides what a chain looks like. */
 const ARC_STITCH = 'ch';
+/** A fan is a shell by default, and a shell is made of double crochets. */
+const FAN_STITCH = 'dc';
 /** How long a typed digit waits for the next one before it stands alone. */
 const ARC_TYPING_GAP = 900;
 const MIN_SIZE = 2;
@@ -161,6 +173,7 @@ type Drag =
   | { kind: 'move'; from: Point; anchor: Point; drop: string | null }
   | { kind: 'polar'; from: Point; center: Point }
   | { kind: 'arc-draw'; from: Point; to: Point }
+  | { kind: 'fan-draw'; from: Point; to: Point }
   | { kind: 'arc-grip'; id: string; grip: ArcHandleId }
   | { kind: 'pan'; last: Point }
   | { kind: 'marquee'; from: Point; to: Point; additive: boolean }
@@ -204,6 +217,11 @@ export class IrregularEditor {
   #selection = new Set<string>();
   #stitch: StitchDefId | null = null;
   #arcTool = false;
+  #fanTool = false;
+  #fanCount = DEFAULT_FAN_COUNT;
+  #fanSpread = DEFAULT_FAN_SPREAD;
+  #fanMode: FanGroup['mode'] = 'spread';
+  #fanStitch = FAN_STITCH;
   #arcCount = DEFAULT_ARC_COUNT;
   #arcTyped = 0;
   #arcTypedText = '';
@@ -264,7 +282,11 @@ export class IrregularEditor {
       setArcCount: (count) => this.setArcCount(count),
       setArcShape: (shape) => this.setArcShape(shape),
       setArcBulge: (bulge) => this.setArcBulge(bulge),
-      explodeArc: () => this.explodeSelectedArc(),
+      explodeArc: () => this.explodeSelectedGroup(),
+      setFanCount: (count) => this.setFanCount(count),
+      setFanSpread: (angle) => this.setFanSpread(angle),
+      setFanLength: (length) => this.setFanLength(length),
+      setFanMode: (mode) => this.setFanMode(mode),
     });
     this.#hoverCapable = window.matchMedia('(hover: hover)').matches;
     this.#listen();
@@ -610,8 +632,13 @@ export class IrregularEditor {
   }
 
   setStitch(id: StitchDefId | null): void {
+    // Arming the palette lays every drawing tool down, or the canvas would keep
+    // drawing groups while the palette claimed a stitch was waiting.
+    if (id !== null) {
+      this.#arcTool = false;
+      this.#fanTool = false;
+    }
     this.#stitch = id;
-    if (id !== null) this.#arcTool = false;
     this.refresh();
   }
 
@@ -619,8 +646,18 @@ export class IrregularEditor {
     return this.#arcTool;
   }
 
-  /** The chain arc the selection holds, when it holds exactly one and nothing else. */
   get selectedArc(): ChainArcGroup | null {
+    const group = this.selectedGroup;
+    return group?.kind === 'chainArc' ? group : null;
+  }
+
+  get selectedFan(): FanGroup | null {
+    const group = this.selectedGroup;
+    return group?.kind === 'fan' ? group : null;
+  }
+
+  /** The group the selection holds, when it holds exactly one and nothing else. */
+  get selectedGroup(): IrregularGroup | null {
     const groups = groupsOf(this.pattern).filter((group) =>
       group.memberIds.some((member) => this.#selection.has(member)),
     );
@@ -630,12 +667,91 @@ export class IrregularEditor {
   }
 
   toggleArcTool(): void {
-    this.#arcTool = !this.#arcTool;
-    if (this.#arcTool) {
+    this.#setTool(this.#arcTool ? 'none' : 'arc');
+  }
+
+  toggleFanTool(): void {
+    this.#setTool(this.#fanTool ? 'none' : 'fan');
+  }
+
+  get fanArmed(): boolean {
+    return this.#fanTool;
+  }
+
+  /** One drawing tool at a time, and arming one lays the palette's stitch down. */
+  #setTool(tool: 'none' | 'arc' | 'fan'): void {
+    this.#arcTool = tool === 'arc';
+    this.#fanTool = tool === 'fan';
+    if (tool !== 'none') {
       this.#stitch = null;
       this.#host.armStitch(null);
     }
     this.refresh();
+  }
+
+  setFanCount(count: number): void {
+    this.#fanCount = clampFanCount(count);
+    if (this.selectedFan === null) return;
+    this.#patchFan({ count: this.#fanCount }, texts().irregular.fanCount(this.#fanCount));
+  }
+
+  setFanSpread(angle: number): void {
+    this.#fanSpread = clampSpread(angle);
+    this.#patchFan({ spreadAngle: this.#fanSpread });
+  }
+
+  setFanLength(length: number): void {
+    this.#patchFan({ length });
+  }
+
+  setFanMode(mode: FanGroup['mode']): void {
+    this.#fanMode = mode;
+    this.#patchFan({ mode });
+  }
+
+  #patchFan(patch: FanPatch, message?: string): void {
+    const fan = this.selectedFan;
+    if (fan === null) return;
+    const next = updateFan(this.#history.present, fan.id, patch, this.#fanGlyph(fan.keyEntryId));
+    const group = groupById(next, fan.id);
+    if (group !== undefined) this.#selection = new Set(group.memberIds);
+    this.#commit(next, message);
+  }
+
+  /** A fan stretches its glyph to the length, so it is measured at its natural size. */
+  #fanGlyph(keyEntryId: string): GlyphSize {
+    return naturalSize(keyEntryId, 'both-loops', this.#host.symbols(), entryGlyph(this.#history.present, keyEntryId));
+  }
+
+  #finishFanDraw(drag: Extract<Drag, { kind: 'fan-draw' }>): void {
+    const origin = this.#snap(drag.from);
+    const reach = drag.to;
+    const length = Math.hypot(reach.x - origin.x, reach.y - origin.y);
+    if (length < FAN_LENGTH_RANGE.min) {
+      this.refresh();
+      return;
+    }
+    const pattern = this.#history.present;
+    const keyEntryId = this.#fanStitch;
+    const made = addFan(
+      pattern,
+      {
+        rowId: pattern.activeRowId,
+        layerId: pattern.activeLayerId,
+        keyEntryId,
+        mode: this.#fanMode,
+        origin,
+        direction: angleFromCenter(origin, reach),
+        spreadAngle: this.#fanSpread,
+        length,
+        count: this.#fanCount,
+      },
+      this.#fanGlyph(keyEntryId),
+    );
+    const group = groupById(made.pattern, made.id);
+    this.#setSelection(group === undefined ? [] : group.memberIds);
+    const row = made.pattern.rows.findIndex((candidate) => candidate.id === pattern.activeRowId) + 1;
+    this.#commit(made.pattern, texts().irregular.fanAdded(this.#fanCount, row));
   }
 
   /** The size the arc's chains are drawn at, measured from the key's own symbol. */
@@ -665,7 +781,8 @@ export class IrregularEditor {
     this.#arcTypedText = `${fresh ? '' : this.#arcTypedText}${digit}`;
     const wanted = Number(this.#arcTypedText);
     if (!Number.isFinite(wanted)) return;
-    this.setArcCount(wanted);
+    if (this.selectedFan !== null) this.setFanCount(wanted);
+    else this.setArcCount(wanted);
   }
 
   setArcShape(shape: ChainArcGroup['shape']): void {
@@ -685,10 +802,12 @@ export class IrregularEditor {
     this.#commit(next);
   }
 
-  explodeSelectedArc(): void {
-    const arc = this.selectedArc;
-    if (arc === null) return;
-    this.#commit(explodeGroups(this.#history.present, [arc.id]), texts().irregular.arcExploded(arc.count));
+  explodeSelectedGroup(): void {
+    const group = this.selectedGroup;
+    if (group === null) return;
+    const words = texts().irregular;
+    const said = group.kind === 'fan' ? words.fanExploded(group.count) : words.arcExploded(group.count);
+    this.#commit(explodeGroups(this.#history.present, [group.id]), said);
   }
 
   /**
@@ -911,12 +1030,13 @@ export class IrregularEditor {
       glyphOf: (keyEntryId) => entryGlyph(pattern, keyEntryId),
       fadeOthers: this.#preferences.fadeOthers,
       order: this.#preferences.showOrder ? rowOrder(pattern, orderRow) : null,
-      arc: this.selectedArc,
-      arcPreview: this.#arcPreview(),
+      arc: this.selectedGroup,
+      arcPreview: this.#drawingPreview(),
       legend: { block: this.legend, entries: this.#legendEntries() },
     });
     this.#panel.update(itemsOf(pattern, this.#selection), this.#preferences.rectPartial, pattern.items.length);
     this.#panel.updateArc(this.selectedArc);
+    this.#panel.updateFan(this.selectedFan);
   }
 
   refresh(): void {
@@ -937,9 +1057,22 @@ export class IrregularEditor {
     this.#host.refreshControls();
   }
 
-  /** The dashed path that follows the pointer while an arc is being drawn. */
-  #arcPreview(): ArcPath | null {
+  /** The dashed path that follows the pointer while a group is being drawn. */
+  #drawingPreview(): GroupPath | null {
     const drag = this.#drag;
+    if (drag?.kind === 'fan-draw') {
+      const origin = this.#snap(drag.from);
+      const length = Math.hypot(drag.to.x - origin.x, drag.to.y - origin.y);
+      if (length < FAN_LENGTH_RANGE.min) return null;
+      return {
+        mode: this.#fanMode,
+        origin,
+        direction: angleFromCenter(origin, drag.to),
+        spreadAngle: this.#fanSpread,
+        length,
+        count: this.#fanCount,
+      };
+    }
     if (drag?.kind !== 'arc-draw') return null;
     const [start, end] = [this.#snap(drag.from), this.#snap(drag.to)];
     if (start.x === end.x && start.y === end.y) return null;
@@ -1045,7 +1178,7 @@ export class IrregularEditor {
      * KB: interface.md §44
      */
     const grip = this.#board.arcHandleAt(event.clientX, event.clientY);
-    const armed = this.selectedArc;
+    const armed = this.selectedGroup;
     if (grip !== null && armed !== null) {
       this.#drag = { kind: 'arc-grip', id: armed.id, grip };
       return;
@@ -1059,6 +1192,11 @@ export class IrregularEditor {
 
     if (this.#arcTool) {
       this.#drag = { kind: 'arc-draw', from: point, to: point };
+      return;
+    }
+
+    if (this.#fanTool) {
+      this.#drag = { kind: 'fan-draw', from: point, to: point };
       return;
     }
 
@@ -1170,6 +1308,7 @@ export class IrregularEditor {
         return;
       }
       case 'arc-draw':
+      case 'fan-draw':
         drag.to = point;
         this.#refreshScene();
         return;
@@ -1252,15 +1391,25 @@ export class IrregularEditor {
 
   /** What the arc becomes while one of its three grips is being dragged. */
   #grippedArc(drag: Extract<Drag, { kind: 'arc-grip' }>, point: Point): IrregularPattern {
-    const arc = groupById(this.#history.present, drag.id);
-    if (arc === undefined || arc.kind !== 'chainArc') return this.#history.present;
+    const group = groupById(this.#history.present, drag.id);
+    if (group === undefined) return this.#history.present;
+    if (group.kind === 'fan') {
+      const patch: FanPatch =
+        drag.grip === 'origin'
+          ? { origin: point }
+          : {
+              direction: angleFromCenter(group.origin, point),
+              length: Math.hypot(point.x - group.origin.x, point.y - group.origin.y),
+            };
+      return updateFan(this.#history.present, group.id, patch, this.#fanGlyph(group.keyEntryId));
+    }
     const patch: ChainArcPatch =
       drag.grip === 'bulge'
-        ? { bulge: bulgeThrough(arc.start, arc.end, point) }
+        ? { bulge: bulgeThrough(group.start, group.end, point) }
         : drag.grip === 'start'
           ? { start: point }
           : { end: point };
-    return updateChainArc(this.#history.present, arc.id, patch, this.#arcGlyph(arc.keyEntryId));
+    return updateChainArc(this.#history.present, group.id, patch, this.#arcGlyph(group.keyEntryId));
   }
 
   /** A press and a drag give the two ends; the preset bulge bows it to the left. */
@@ -1305,10 +1454,11 @@ export class IrregularEditor {
       if (ids.length > 0) this.#host.announce(texts().irregular.selected(this.#selection.size));
       return;
     }
-    if (drag.kind === 'arc-draw') {
+    if (drag.kind === 'arc-draw' || drag.kind === 'fan-draw') {
       this.#drag = null;
       this.#draft = null;
-      this.#finishArcDraw(drag);
+      if (drag.kind === 'arc-draw') this.#finishArcDraw(drag);
+      else this.#finishFanDraw(drag);
       return;
     }
     const draft = this.#draft;

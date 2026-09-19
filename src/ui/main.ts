@@ -1279,7 +1279,7 @@ function irregularKey(editor: IrregularEditor, event: KeyboardEvent, key: string
     return true;
   }
   // KB: interface.md §44 — with an arc selected the digits are its stitch count.
-  if (/^[0-9]$/.test(key) && editor.selectedArc !== null && !event.shiftKey) {
+  if (/^[0-9]$/.test(key) && editor.selectedGroup !== null && !event.shiftKey) {
     event.preventDefault();
     editor.typeArcCount(key);
     return true;
@@ -1331,6 +1331,7 @@ const ACTIONS: Record<string, () => void> = {
   'delete-last': () => commit(deleteLast(history.present), texts().messages.work.deleteLast),
   'select-area': () => (irregular?.active === true ? select(null) : setAreaMode(!areaMode)),
   'chain-arc': () => irregular?.toggleArcTool(),
+  fan: () => irregular?.toggleFanTool(),
   'delete-selection': () => (irregular?.active === true ? irregular.deleteSelection() : void deleteSelection()),
   'duplicate-selection': () => (irregular?.active === true ? irregular.duplicateSelection() : duplicateSelected()),
   same: () =>
@@ -2116,9 +2117,10 @@ function updateIrregularControls(editor: IrregularEditor): void {
   setDisabled('duplicate-selection', editor.selectionSize === 0);
   must<HTMLButtonElement>('[data-action="select-area"]').setAttribute(
     'aria-pressed',
-    String(tool === null && !editor.arcArmed),
+    String(tool === null && !editor.arcArmed && !editor.fanArmed),
   );
   must<HTMLButtonElement>('[data-action="chain-arc"]').setAttribute('aria-pressed', String(editor.arcArmed));
+  must<HTMLButtonElement>('[data-action="fan"]').setAttribute('aria-pressed', String(editor.fanArmed));
   must<HTMLButtonElement>('[data-action="grid"]').setAttribute('aria-pressed', String(editor.gridVisible));
   if (document.activeElement !== titleInput) titleInput.value = editor.title;
   const issues = editor.issues();
