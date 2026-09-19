@@ -509,6 +509,36 @@
                 </p>
                 <p class="panel__note" data-i18n="arcHint">A két végpont és a középső fogantyú a vásznon húzható. Kijelölt ívnél a számbillentyűk a szemek számát állítják.</p>
               </div>
+              <div id="props-export">
+                <h3 class="panel__title" data-i18n="exportTitle">Kép és PDF</h3>
+                <p class="panel__field">
+                  <label for="export-scale" data-i18n="exportScaleLabel">PNG nagyítás</label>
+                  <select id="export-scale"></select>
+                </p>
+                <p class="choice">
+                  <label><input type="checkbox" id="export-transparent" /> <span data-i18n="exportTransparent">Átlátszó háttér</span></label>
+                </p>
+                <p class="panel__field">
+                  <label for="export-page-size" data-i18n="exportPageSizeLabel">PDF lapméret</label>
+                  <select id="export-page-size"></select>
+                </p>
+                <p class="panel__field">
+                  <label for="export-orientation" data-i18n="exportOrientationLabel">Tájolás</label>
+                  <select id="export-orientation"></select>
+                </p>
+                <p class="panel__field">
+                  <label for="export-across" data-i18n="exportAcrossLabel">Lapok vízszintesen</label>
+                  <input id="export-across" type="number" min="1" max="6" step="1" inputmode="numeric" value="1" />
+                </p>
+                <p class="panel__field">
+                  <label for="export-down" data-i18n="exportDownLabel">Lapok függőlegesen</label>
+                  <input id="export-down" type="number" min="1" max="6" step="1" inputmode="numeric" value="1" />
+                </p>
+                <p class="props__row">
+                  <button type="button" class="button" id="export-pdf" data-i18n="exportPdf">PDF mentése</button>
+                </p>
+                <p class="panel__note" data-i18n="exportHint">A PNG és az SVG a Fájl menüből megy. Rejtett sor és réteg egyikbe sem kerül bele.</p>
+              </div>
               <div id="props-background">
                 <h3 class="panel__title" data-i18n="bgTitle">Háttérkép</h3>
                 <p class="props__row">
@@ -533,6 +563,9 @@
                   </p>
                   <p class="choice">
                     <label><input type="checkbox" id="bg-locked" /> <span data-i18n="bgLocked">Zárolva</span></label>
+                  </p>
+                  <p class="choice">
+                    <label><input type="checkbox" id="bg-in-export" /> <span data-i18n="bgInExport">Exportáláskor is látszik</span></label>
                   </p>
                   <p class="panel__note" data-i18n="bgHint">A képet a vásznon húzva mozgathatod, amíg nincs zárolva. Ejtsd rá a fájlt a rajzlapra, az is betölti.</p>
                 </div>
