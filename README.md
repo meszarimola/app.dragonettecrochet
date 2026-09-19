@@ -93,7 +93,11 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
   hidal át a lánc, azt a rajz a kelméből olvassa ki — a két szomszédos
   rögzített szem célpontja közötti helyekből —, nem a szerkesztés sorrendjéből
   (PQW-952). Ezért mindegy, hogy a láncszemek a szemek után készülnek-e, vagy
-  utólag kerülnek két kész szem közé: a rajz ugyanaz.
+  utólag kerülnek két kész szem közé: a rajz ugyanaz. Ha az ívre **legyező**
+  épül — több szem ugyanabba a láncszembe —, az ív továbbadja az igényét az
+  általa áthidalt szemeknek, és a rés annyival tágul, amennyivel a legyező
+  szélesebb (PQW-953). Ez ugyanaz a szabály, mint a szaporításnál: a szem
+  cellája annyifelé osztódik, ahányan beléje horgolnak.
 - **Horgolás:** szem kiválasztása (`1`–`9` vagy a jelkészlet), a célpont
   nyilakkal vagy az egérrel, horgolás `Enter`-rel vagy kattintással. A kurzor
   a következő szabad célpontra lép; a fogyasztás annyi célpontot használ, ahány
