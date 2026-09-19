@@ -1,32 +1,33 @@
 /*
- * A magból jövő üzenetek szótárai (PQW-904).
+ * The dictionaries for the messages that come out of the core (PQW-904).
  *
- * A mag kódot és adatot ad (`CoreText`), a mondat a felületen készül. Ez a
- * teszt azt őrzi, hogy minden kódhoz tartozzon szöveg MINDKÉT nyelven, és ne
- * maradjon fordítatlan tétel. A szótárak szerkezetét nem ismerjük előre
- * (területenként külön fájl), ezért bejárjuk őket.
+ * The core hands over a code and data (`CoreText`); the sentence is built in
+ * the UI. This test guards that every code has text in BOTH languages and that
+ * no entry is left untranslated. We do not know the shape of the dictionaries
+ * up front (one file per area), so we walk them.
  *
- * A második rész a mag felől néz: a felhasználónak szánt fájlokban ne maradjon
- * magyar mondat. Amit szándékosan magyarul hagyunk (fejlesztői hibák, a mentett
- * mintába íródó nevek, az írott minta szókészlete), az névvel szerepel a
- * kivételek között — így egy új magyar mondat feltűnik, a régiek viszont nem
- * adnak zajt.
+ * The second part looks the other way, from the core: no Hungarian sentence
+ * should be left in the files meant for the user. Whatever we keep in
+ * Hungarian on purpose (developer errors, names written into the saved
+ * pattern, the vocabulary of the written pattern) is listed by name among the
+ * exceptions — so a new Hungarian sentence stands out while the old ones stay
+ * quiet.
  */
 
 import { strict as assert } from 'node:assert';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 const HUNGARIAN = /[áéíóöőúüűÁÉÍÓÖŐÚÜŰ]/;
 const CORE_DIR = new URL('../src/ui/i18n/core/', import.meta.url);
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
-/** A területi szótármodulok: minden fájl a `render.ts` kivételével. */
+/** The per-area dictionary modules: every file except `render.ts`. */
 const modules = readdirSync(CORE_DIR)
   .filter((name) => name.endsWith('.ts') && name !== 'render.ts')
   .sort();
 
-/** Az exportált szótárak: `{ hu, en }` alakú objektumok, területenként több is lehet. */
+/** The exported dictionaries: `{ hu, en }` shaped objects; one area may hold several. */
 async function dictionaries() {
   const found = [];
   for (const name of modules) {
@@ -40,29 +41,29 @@ async function dictionaries() {
   return found;
 }
 
-test('van legalább egy területi szótár, és mind a két nyelvet tartalmazza', async () => {
+test('there is at least one area dictionary, and it carries both languages', async () => {
   const found = await dictionaries();
-  assert.ok(modules.length >= 1, 'nincs szótármodul a src/ui/i18n/core/ alatt');
-  assert.ok(found.length >= 1, `nincs { hu, en } alakú export: ${modules.join(', ')}`);
+  assert.ok(modules.length >= 1, 'no dictionary module under src/ui/i18n/core/');
+  assert.ok(found.length >= 1, `no { hu, en } shaped export: ${modules.join(', ')}`);
 });
 
-test('minden kódhoz mindkét nyelven tartozik szöveg, azonos fajtával', async () => {
+test('every code has text in both languages, and of the same kind', async () => {
   for (const { name, value } of await dictionaries()) {
     const hu = Object.keys(value.hu).sort();
     const en = Object.keys(value.en).sort();
-    assert.deepEqual(en, hu, `${name}: eltérő kódkészlet`);
+    assert.deepEqual(en, hu, `${name}: the code sets differ`);
     for (const code of hu) {
       const a = value.hu[code];
       const b = value.en[code];
-      assert.equal(typeof b, typeof a, `${name}/${code}: eltérő fajta`);
-      assert.ok(typeof a === 'string' || typeof a === 'function', `${name}/${code}: se nem szöveg, se nem függvény`);
-      if (typeof a === 'function') assert.equal(b.length, a.length, `${name}/${code}: eltérő paraméterszám`);
-      else assert.ok(a.length > 0 && b.length > 0, `${name}/${code}: üres szöveg`);
+      assert.equal(typeof b, typeof a, `${name}/${code}: different kind`);
+      assert.ok(typeof a === 'string' || typeof a === 'function', `${name}/${code}: neither a string nor a function`);
+      if (typeof a === 'function') assert.equal(b.length, a.length, `${name}/${code}: different parameter count`);
+      else assert.ok(a.length > 0 && b.length > 0, `${name}/${code}: empty text`);
     }
   }
 });
 
-test('nincs fordítatlan kód: ahol a magyar ékezetes, ott az angol más', async () => {
+test('no code is left untranslated: where the Hungarian is accented, the English differs', async () => {
   const untranslated = [];
   for (const { name, value } of await dictionaries()) {
     for (const [code, hu] of Object.entries(value.hu)) {
@@ -72,7 +73,7 @@ test('nincs fordítatlan kód: ahol a magyar ékezetes, ott az angol más', asyn
   assert.deepEqual(untranslated, []);
 });
 
-test('az angol ágban nincs magyar ékezetes szöveg', async () => {
+test('the English branch holds no accented Hungarian text', async () => {
   const leftovers = [];
   for (const { name, value } of await dictionaries()) {
     for (const [code, en] of Object.entries(value.en)) {
@@ -83,41 +84,43 @@ test('az angol ágban nincs magyar ékezetes szöveg', async () => {
 });
 
 /*
- * A mag felől: hol maradhat magyar mondat.
+ * From the core: where a Hungarian sentence may remain.
  *
- * - Fejlesztői hibák: a felületre nem jutnak ki (belső invariáns, kalibrációs
- *   fájlok betöltése), ezért magyarul maradnak.
- * - Az írott minta és a szemnevek a JELÖLÉS nyelvét követik (PQW-868), nem a
- *   felületét: a szókészletük nem fordul a felülettel.
- * - A generátorok nevei a minta CÍMÉBE és a darab nevébe kerülnek, tehát a
- *   mentett fájl adatai; a felület a listákhoz a saját szótárát használja.
+ * - Developer errors: they never reach the UI (internal invariants, loading
+ *   calibration files), so they stay in Hungarian.
+ * - The written pattern and the stitch names follow the language of the
+ *   NOTATION (PQW-868), not that of the UI: their vocabulary does not turn
+ *   with the interface.
+ * - Generator names go into the pattern TITLE and into the piece name, so they
+ *   are data of the saved file; for its lists the UI uses its own dictionary.
  */
 const CORE_EXCEPTIONS = new Set([
-  'gauge-profile.ts', // kalibrációs fájlok betöltése, a felület nem importálja
-  'finished-size.ts', // RangeError, csak teszt hívja
-  'pattern-size.ts', // RangeError, belső invariáns
-  'pattern-text.ts', // az írott minta szókészlete: a jelölés nyelve
-  'garment-text.ts', // ugyanaz, ruhadarabra
-  'stitchText.ts', // ugyanaz: a szem leírása az írott mintában, nyelvenként
-  'hungarian.ts', // magyar nyelvtani segédek az írott mintához
-  'stitches.ts', // szemnevek nyelvenként
+  'gauge-profile.ts', // loading calibration files; nothing in the UI pulls it in
+  'finished-size.ts', // RangeError, only tests call it
+  'pattern-size.ts', // RangeError, internal invariant
+  'pattern-text.ts', // the vocabulary of the written pattern: the language of the notation
+  'garment-text.ts', // the same, for garments
+  'stitchText.ts', // the same: the stitch description in the written pattern, per language
+  'hungarian.ts', // Hungarian grammar helpers for the written pattern
+  'stitches.ts', // stitch names, per language
   'stitch-library.ts',
   'tradition.ts',
-  'hook-sizes.ts', // forrásmegjelölés, nem jut a képernyőre
-  'insertion.ts', // a felület saját szótárat használ (PQW-900)
-  'rules.ts', // az ellenőrző szövegei: src/ui/i18n/rules.ts (PQW-900)
-  'body-sizes.ts', // méretnevek: a felület a locale-lal kéri (hatSizeName, bodySizeName)
-  // A visszaolvasó hibái ma nem jutnak a képernyőre: a `src/ui/` egyetlen fájlja
-  // sem importálja a `pattern-read.ts`-t. Ha a visszaolvasás felületet kap, a
-  // `ReadFailure` üzenetei is kóddá és adattá válnak (PQW-904 folytatása).
+  'hook-sizes.ts', // source attribution; it never reaches the screen
+  'insertion.ts', // the UI uses its own dictionary (PQW-900)
+  'rules.ts', // the validator texts live in src/ui/i18n/rules.ts (PQW-900)
+  'body-sizes.ts', // size names: the UI asks for them with the locale (hatSizeName, bodySizeName)
+  // The reader errors do not reach the screen today: no file under `src/ui/`
+  // pulls in `pattern-read.ts`. Once reading back gets a UI, the `ReadFailure`
+  // messages will turn into code and data too (PQW-904 continued).
   'pattern-read.ts',
 ]);
 
 /**
- * A `*_NAMES` táblák sorai kimaradnak: a generátorok nevei a minta CÍMÉBE és a
- * darab nevébe kerülnek, tehát a mentett fájl adatai, nem felületi feliratok (a
- * listákhoz a felület a saját szótárát használja). Egész fájlt nem engedünk el
- * miattuk, hogy ugyanabban a fájlban egy új magyar MONDAT feltűnjön.
+ * The rows of the `*_NAMES` tables are skipped: generator names go into the
+ * pattern TITLE and into the piece name, so they are data of the saved file,
+ * not UI labels (for its lists the UI uses its own dictionary). We do not
+ * exempt a whole file for their sake, so that a new Hungarian SENTENCE in the
+ * same file still stands out.
  */
 function withoutNameTables(source) {
   const rows = [];
@@ -138,19 +141,19 @@ function withoutNameTables(source) {
   return rows;
 }
 
-test('a mag felhasználói fájljaiban nem marad magyar mondat', () => {
+test('no Hungarian sentence is left in the core files that face the user', () => {
   const offenders = [];
   for (const name of readdirSync(new URL('../src/core/', import.meta.url))) {
     if (!name.endsWith('.ts') || CORE_EXCEPTIONS.has(name)) continue;
     const source = read(`src/core/${name}`);
     for (const [number, line] of withoutNameTables(source)) {
-      if (/^\s*(\*|\/\/|\/\*)/.test(line)) continue; // megjegyzés, egysoros és blokk is
+      if (/^\s*(\*|\/\/|\/\*)/.test(line)) continue; // a comment, single-line or block
       const code = line.replace(/\/\/.*$/, '');
-      // A dobott hibák a fejlesztőnek szólnak, nem a felhasználónak.
+      // Thrown errors speak to the developer, not to the user.
       if (/throw new (Error|RangeError|TypeError)/.test(code)) continue;
-      // A minta ADATAI magyarul maradnak: az alapértelmezett cím a mentett
-      // fájlba, a darabok és szakaszok neve az írott mintába kerül, tehát a
-      // jelölés nyelvéhez tartoznak, nem a felülethez.
+      // The pattern DATA stays Hungarian: the default title goes into the
+      // saved file and the names of pieces and sections go into the written
+      // pattern, so they belong to the language of the notation, not the UI.
       if (/DEFAULT_TITLE|title = '|\bname: '/.test(code)) continue;
       const literals = code.match(/'[^']*'|`[^`]*`/g) ?? [];
       if (literals.some((literal) => HUNGARIAN.test(literal))) {
@@ -158,5 +161,5 @@ test('a mag felhasználói fájljaiban nem marad magyar mondat', () => {
       }
     }
   }
-  assert.deepEqual(offenders, [], `magyar mondat maradt a magban:\n${offenders.join('\n')}`);
+  assert.deepEqual(offenders, [], `a Hungarian sentence was left in the core:\n${offenders.join('\n')}`);
 });

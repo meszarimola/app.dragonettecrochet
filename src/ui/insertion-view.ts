@@ -1,41 +1,26 @@
-/*
- * A „Beszúrás” választó tartalma a Szemek szakaszban (PQW-869), DOM nélkül:
- * a kiválasztott szem megengedett módjai, a feliratok, az érvényes mód és az,
- * hogyan kerül a mód az írott mintába.
- *
- * A mód a horgoló felől értendő; a tárolásban visszai soron megfordul
- * (src/core/insertion.ts). A Node is futtatja (tests/ui-insertion-view.test.mjs),
- * ezért a magot `.ts` kiterjesztéssel importálja.
- */
+// KB: interface.md §1, §22, §24 — here the mode is the crocheter's; stored it flips on a wrong-side row.
 
 import { effectiveInsertion, stitchInsertions } from '../core/insertion.ts';
-import { VOCABULARIES, refOf } from '../core/pattern-text.ts';
+import { refOf, VOCABULARIES } from '../core/pattern-text.ts';
 import type { Locale, StitchDef, StitchInsertion } from '../core/types.ts';
 import { texts, uiLanguage } from './i18n.ts';
 
 export interface InsertionOption {
   readonly mode: StitchInsertion;
-  /** A mód neve nagy kezdőbetűvel, pl. „Hátsó szál”. */
   readonly label: string;
 }
 
 export interface InsertionChoice {
   readonly options: readonly InsertionOption[];
-  /** Az érvényes mód: a választott, ha a szem megengedi, különben a szem alapértelmezése. */
   readonly selected: StitchInsertion;
-  /**
-   * Alapszemnél és kúszószemnél így kerül a szem az írott mintába a választott
-   * jelöléssel, pl. „rp (hsz)”, „sc BLO”, „Eerp”; összetett szemnél `null`.
-   */
   readonly written: string | null;
 }
 
-/**
- * A választó tartalma, vagy `null`, ha nincs mit választani: nincs szem, a
- * szem nem szúrható szembe (láncszem, láncív, varázskör, pikó), vagy csak egy
- * módja van (pl. láthatatlan fogyasztás, rákhurok).
- */
-export function insertionChoice(def: StitchDef | undefined, preferred: StitchInsertion, terms: Locale): InsertionChoice | null {
+export function insertionChoice(
+  def: StitchDef | undefined,
+  preferred: StitchInsertion,
+  terms: Locale,
+): InsertionChoice | null {
   if (!def) return null;
   const allowed = stitchInsertions(def);
   const selected = effectiveInsertion(def, preferred);
@@ -49,7 +34,6 @@ export function insertionChoice(def: StitchDef | undefined, preferred: StitchIns
   };
 }
 
-/** Az állapotsor üzenetének kiegészítése lerakáskor: mindkét szálnál üres, máskor pl. „, hátsó szál”. */
 export function insertionSuffix(mode: StitchInsertion | undefined): string {
   return mode && mode !== 'both-loops' ? `, ${texts().sections.insertion.names[mode]}` : '';
 }

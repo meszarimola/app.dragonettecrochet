@@ -1,13 +1,14 @@
 /*
- * A felület második köre (PQW-912): a Fájl lenyíló tartalma tényleg látszik, a
- * panelek kapcsolói a menüsorban vannak, a mintatípus-sáv csukható és az
- * állapota megmarad, és a típusválasztás nem nyitja fel az írott mintát.
+ * The second round of the interface (PQW-912): the content of the File dropdown
+ * really is visible, the panel toggles are in the menu bar, the pattern type bar
+ * can be collapsed and its state survives, and choosing a type does not open the
+ * written pattern.
  *
- * A lenyíló tesztje szándékosan LE IS NYITJA a menüt: a PQW-911-ben pont azért
- * maradt benn egy hiba, mert a tesztek csak a gomb meglétét nézték.
+ * The dropdown test deliberately OPENS the menu too: in PQW-911 a bug stayed in
+ * precisely because the tests only looked at whether the button existed.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
@@ -15,7 +16,7 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
-test('a Fájl lenyíló tartalma látszik és a képernyőn belül van', async ({ page }) => {
+test('the content of the File dropdown is visible and stays on screen', async ({ page }) => {
   await open(page);
   const pop = page.locator('#file-pop');
   await expect(pop).toBeHidden();
@@ -23,13 +24,13 @@ test('a Fájl lenyíló tartalma látszik és a képernyőn belül van', async (
   await page.locator('#file-toggle').click();
   await expect(pop).toBeVisible();
 
-  // A menü a gombjához igazodik, nem lóg ki balra.
+  // The menu aligns to its button, and does not hang off to the left.
   const viewport = page.viewportSize()!;
   const box = (await pop.boundingBox())!;
-  expect(box.x, 'a lenyíló bal széle a képernyőn belül').toBeGreaterThanOrEqual(0);
-  expect(box.x + box.width, 'a lenyíló jobb széle a képernyőn belül').toBeLessThanOrEqual(viewport.width);
+  expect(box.x, 'the left edge of the dropdown is on screen').toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width, 'the right edge of the dropdown is on screen').toBeLessThanOrEqual(viewport.width);
 
-  // Mind a négy művelet látszik, olvasható felirattal, a képernyőn belül.
+  // All four actions are visible, with a readable label, on screen.
   const items = pop.locator('button');
   await expect(items).toHaveCount(4);
   for (const action of ['import-json', 'export-json', 'export-png', 'export-svg']) {
@@ -41,12 +42,12 @@ test('a Fájl lenyíló tartalma látszik és a képernyőn belül van', async (
     expect(rect.x + rect.width, action).toBeLessThanOrEqual(viewport.width);
   }
 
-  // A menüpont kattintható: a menü a választás után csukódik.
+  // The menu item is clickable: the menu closes after the choice.
   await pop.locator('[data-action="export-json"]').click();
   await expect(pop).toBeHidden();
 });
 
-test('a panelek kapcsolói a menüsorban vannak, a fejlécben csak a cím és a Főoldal', async ({ page }) => {
+test('the panel toggles are in the menu bar, the header holds only the title and Home', async ({ page }) => {
   await open(page);
 
   for (const id of ['#panel-toggle', '#written-toggle', '#error-toggle', '#types-toggle']) {
@@ -56,7 +57,7 @@ test('a panelek kapcsolói a menüsorban vannak, a fejlécben csak a cím és a 
   await expect(page.locator('.bar__lead #home-link')).toBeVisible();
 });
 
-test('a mintatípus-sáv csukható, és az állapota megmarad újratöltés után', async ({ page }) => {
+test('the pattern type bar can be collapsed, and its state survives a reload', async ({ page }) => {
   await open(page);
   const types = page.locator('#types');
   const toggle = page.locator('#types-toggle');
@@ -75,14 +76,14 @@ test('a mintatípus-sáv csukható, és az állapota megmarad újratöltés utá
   await expect(page.locator('#types')).toBeVisible();
 });
 
-test('a típusválasztás nem nyitja fel az írott minta panelt', async ({ page }) => {
-  // PQW-925: az amigurumi típusra kattint, ami ideiglenesen kikapcsolva.
-  test.skip(true, 'PQW-925: az amigurumi mintatípus ideiglenesen kikapcsolva');
+test('choosing a pattern type does not open the written pattern panel', async ({ page }) => {
+  // PQW-925: it clicks the amigurumi type, which is temporarily switched off.
+  test.skip(true, 'PQW-925: the amigurumi pattern type is temporarily switched off');
   await open(page);
   const written = page.locator('#written');
   await expect(written).toBeHidden();
 
-  // Az amigurumiban a szöveg az elsődleges nézet, de a panel a felhasználóé.
+  // In amigurumi the text is the primary view, but the panel belongs to the user.
   await page.locator('.type[data-type="amigurumi"]').click();
   await expect(written).toBeHidden();
 

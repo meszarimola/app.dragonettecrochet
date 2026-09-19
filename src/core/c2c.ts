@@ -1,51 +1,44 @@
-/*
- * Sarokból sarokba (C2C, PQW-864): a színes rácsból átlós sorok csempékkel
- * (03 §5.5, §10 G33).
- *
- * - Egy rácscella egy csempe: 3 lsz és 3 erp. A kép jobb alsó sarkából indul,
- *   és a bal felsőben ér véget; W × H rács W + H − 1 átlós sor, összesen
- *   W × H csempe, a d. átlóban `min(d, W, H, W + H − d)`.
- * - Az 1. sor: 7 lsz, 3 erp a horogtól számított 5. láncszemtől, mert a
- *   fordulólánc alapláncszemen áll (PQW-891; a tudásbázis forrása alapláncszem
- *   nélkül 6 lsz-t és a 4. láncszemet írja). A láncalap a hagyomány
- *   függvényeiből jön (tradition.ts, repeat.ts).
- * - A sor kezdő oldala minden sorban vált: a páros sor a jobb élen (a
- *   magasság irányában), a páratlan az alsó élen (a szélesség irányában)
- *   kezd. A kezdő oldalon szaporítás, amíg azon az oldalon a méret nincs meg:
- *   az előző sor végén 3 lsz, fordulás, 3 lsz, 3 erp a láncszemekbe (együtt
- *   „6 lsz, 3 erp a 4. láncszemtől”). Utána fogyasztás: 3 ksz a pálcákon át.
- *   A záró oldalon az utolsó csempe elmarad, ha ott a méret megvan. A két
- *   oldal egymástól függetlenül vált (03 §5.5).
- * - A többi csempe: 1 ksz az előző sor csempéjének láncívébe, 3 lsz, 3 erp
- *   ugyanabba a láncívbe. A csempék pálcáiba nem horgolunk, ezért azok
- *   szándékosan kihagyottak.
- * - A csempe minden szeme a cella színe; az írott minta a színváltást az előző
- *   szem utolsó ráhajtásánál írja (03 §6).
- */
+// KB: 03 §5.5, 03 §6, 03 §10 G33, 03 §10 G35
+// KB: core-geometry §42, §54
 
 import { buildPieceGraph, spacePositions } from './graph.ts';
-import { fail, finishGridPattern, gridPiece, GridWriter, intoSpace, intoStitch, type GridPatternCode } from './grid-pattern.ts';
-import { text, type CoreText } from './messages.ts';
-import { TECHNIQUE_NAMES, c2cTileRows, cellSize, colorChartProblem, type CellSize, type ChartCode, type ChartRows } from './pixel-chart.ts';
+import {
+  fail,
+  finishGridPattern,
+  type GridPatternCode,
+  GridWriter,
+  gridPiece,
+  intoSpace,
+  intoStitch,
+} from './grid-pattern.ts';
+import { type CoreText, text } from './messages.ts';
+import {
+  type CellSize,
+  type ChartCode,
+  type ChartRows,
+  c2cTileRows,
+  cellSize,
+  colorChartProblem,
+  TECHNIQUE_NAMES,
+} from './pixel-chart.ts';
 import { foundationChainLength } from './repeat.ts';
-import { shapeGauge, type ShapeGauge } from './shapes.ts';
+import { type ShapeGauge, shapeGauge } from './shapes.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import { firstChainFromHook, skippedChains, traditionOf, turningChainCountsFor } from './tradition.ts';
 import type { GridUnit, NodeId, Pattern, PatternColor, Piece } from './types.ts';
 
 export const C2C_STITCH = 'dc';
 const SLIP = 'sl-st';
-/** A csempe pálcái. */
 export const TILE_STITCHES = 3;
 
-/** W × H rács átlós sorai (03 §5.5). */
+// KB: 03 §5.5, 03 §10 G33
 export const c2cRowCount = (width: number, height: number) => width + height - 1;
 
-/** A d. átló csempéi (1-től, 03 §5.5). */
-export const tilesInRow = (row: number, width: number, height: number) => Math.min(row, width, height, width + height - row);
+export const tilesInRow = (row: number, width: number, height: number) =>
+  Math.min(row, width, height, width + height - row);
 
 export interface C2CTile {
-  /** A cella: balról és alulról, 0-tól. */
+  // `x` counts from the left, `y` from the bottom, both 0-based.
   readonly x: number;
   readonly y: number;
   readonly color: number;
@@ -55,11 +48,8 @@ export type EdgeKind = 'increase' | 'decrease';
 
 export interface C2CRow {
   readonly row: number;
-  /** A csempék a haladási irányban. */
   readonly tiles: readonly C2CTile[];
-  /** A kezdő oldal: új csempe, vagy kúszószemekkel át. */
   readonly start: EdgeKind;
-  /** A záró oldal: az utolsó csempe megvan, vagy elmarad. */
   readonly end: EdgeKind;
 }
 
@@ -67,7 +57,6 @@ export interface C2CPlan {
   readonly width: number;
   readonly height: number;
   readonly rows: readonly C2CRow[];
-  /** A láncalap a fordulólánccal, és az első pálca a horogtól számított hányadik láncszembe megy. */
   readonly foundation: { readonly chains: number; readonly fromHook: number };
   readonly gauge: ShapeGauge;
   readonly tile: CellSize;
@@ -75,23 +64,22 @@ export interface C2CPlan {
   readonly heightCm: number;
 }
 
-/** A C2C saját üzenete (PQW-904); a mondat a felületé. */
 export type C2CCode = 'c2c-turning-chain' | 'c2c-repeated-increase';
 
-export type C2CPlanResult = { readonly ok: true; readonly plan: C2CPlan } | { readonly ok: false; readonly reason: CoreText<C2CCode | ChartCode> };
+export type C2CPlanResult =
+  | { readonly ok: true; readonly plan: C2CPlan }
+  | { readonly ok: false; readonly reason: CoreText<C2CCode | ChartCode> };
 export type C2CResult =
   | { readonly ok: true; readonly pattern: Pattern; readonly plan: C2CPlan }
   | { readonly ok: false; readonly reason: CoreText<C2CCode | ChartCode | GridPatternCode> };
 
 export interface C2COptions {
-  /** A kiterjesztett rács: sorok alulról, cellák balról; a cella a szín indexe. */
   readonly cells: ChartRows;
   readonly colors: readonly PatternColor[];
   readonly unit: GridUnit | null;
   readonly lettering: boolean;
 }
 
-/** A csempék soronként a rácsból (pixel-chart.ts `c2cTileRows`), a cella színével. */
 export function planC2C(pattern: Pattern, cells: ChartRows, colors: readonly PatternColor[]): C2CPlanResult {
   const problem = colorChartProblem(cells, colors);
   if (problem) return fail(problem);
@@ -119,7 +107,6 @@ export function planC2C(pattern: Pattern, cells: ChartRows, colors: readonly Pat
       height,
       rows,
       foundation: {
-        // Az első csempe három pálca; a fordulólánc nem szem (PQW-924).
         chains: foundationChainLength(TILE_STITCHES, def.turningChain, true, tradition),
         fromHook: firstChainFromHook(def.turningChain, true, tradition),
       },
@@ -132,7 +119,7 @@ export function planC2C(pattern: Pattern, cells: ChartRows, colors: readonly Pat
 }
 
 interface BuiltTile {
-  /** A csempe láncíve: ebbe horgol a következő sor csempéje. */
+  // The tile's chain space; the next diagonal row's tile is worked into it.
   readonly space: string;
   readonly stitches: readonly NodeId[];
 }
@@ -143,11 +130,12 @@ function buildC2C(pattern: Pattern, plan: C2CPlan): GridWriter {
   const turningChain = resolveStitch(C2C_STITCH)!.turningChain;
 
   const first = plan.rows[0]!.tiles[0]!;
-  // A láncalap horgolt része: a kihagyott láncszemek nem tartoznak bele (PQW-924).
-  const worked = foundationChainLength(TILE_STITCHES, turningChain, true, tradition) - skippedChains(turningChain, true);
+  // KB: core-geometry §42
+  const worked =
+    foundationChainLength(TILE_STITCHES, turningChain, true, tradition) - skippedChains(turningChain, true);
   const base = [...writer.chains(worked, first.color)].reverse();
   const firstSpace = writer.spaceOf(writer.chains(turningChain, first.color));
-  // Az első csempe a láncalap horgolt részének végén áll.
+  // The first tile sits at the END of the worked foundation chain.
   const offset = worked - TILE_STITCHES;
   const firstStitches = base.slice(offset).map((id) => writer.add(C2C_STITCH, [intoStitch(id)], first.color));
   let previous: BuiltTile[] = [{ space: firstSpace, stitches: firstStitches }];
@@ -157,12 +145,7 @@ function buildC2C(pattern: Pattern, plan: C2CPlan): GridWriter {
     let tiles = row.tiles;
     writer.event('turn');
     if (row.start === 'increase') {
-      /*
-       * A szaporító sor a saját `ch 6`-jával indul (03 §5.5): az első három
-       * láncszem az új csempe láncíve, a következő háromba dolgozunk bele —
-       * ugyanúgy, ahogy az első csempe épül. Korábban ez a három láncszem az
-       * előző sor végére került, és ott a láncalap végéhez tapadt (PQW-924).
-       */
+      // KB: core-geometry §45
       const tile = tiles[0]!;
       const base = [...writer.chains(TILE_STITCHES, tile.color)].reverse();
       const space = writer.spaceOf(writer.chains(turningChain, tile.color));
@@ -173,13 +156,14 @@ function buildC2C(pattern: Pattern, plan: C2CPlan): GridWriter {
     const under = [...previous].reverse();
     tiles.forEach((tile, i) => {
       const below = under[i]!;
-      // Fogyasztás: kúszószemekkel át az első csempe pálcáin.
       if (i === 0 && row.start === 'decrease') {
         for (const id of [...below.stitches].reverse()) writer.add(SLIP, [intoStitch(id)], tile.color);
       }
       writer.add(SLIP, [intoSpace(below.space)], tile.color);
       const space = writer.space(TILE_STITCHES, tile.color).id;
-      const stitches = Array.from({ length: TILE_STITCHES }, () => writer.add(C2C_STITCH, [intoSpace(below.space)], tile.color));
+      const stitches = Array.from({ length: TILE_STITCHES }, () =>
+        writer.add(C2C_STITCH, [intoSpace(below.space)], tile.color),
+      );
       built.push({ space, stitches });
     });
     previous = built;
@@ -189,7 +173,7 @@ function buildC2C(pattern: Pattern, plan: C2CPlan): GridWriter {
   return writer;
 }
 
-/** A következő sor által fel nem használt pozíciók szándékosan kihagyottak: a csempék pálcái és a fogyasztó oldal láncíve. */
+// KB: 03 §10 B8
 function markUnused(pattern: Pattern, writer: GridWriter): void {
   const piece: Piece = {
     id: 'p1',
@@ -215,7 +199,6 @@ function markUnused(pattern: Pattern, writer: GridWriter): void {
   writer.skipped.push(...graph.layers.slice(1, -1).flatMap((layer) => layer.positions.filter((id) => !used.has(id))));
 }
 
-/** Új C2C-minta a rácsból; a rácsminta a darabbal mentődik. */
 export function generateC2C(pattern: Pattern, options: C2COptions): C2CResult {
   const planned = planC2C(pattern, options.cells, options.colors);
   if (!planned.ok) return planned;
@@ -231,12 +214,7 @@ export function generateC2C(pattern: Pattern, options: C2COptions): C2CResult {
   });
   const finished = finishGridPattern(base, piece);
   if (finished.ok) return { ok: true, pattern: finished.pattern, plan };
-  /*
-   * Két egymást követő szaporító átlós sornál a csempe láncíve és a láncalap
-   * vége összekeveredik, ezért a minta nem megy át az ellenőrzőn (PQW-926).
-   * Ez nem programhiba, hanem egy egyelőre nem támogatott alakzat: mondjuk meg
-   * érthetően, ne nyers szabálynévvel.
-   */
+  // KB: core-geometry §46
   const rule = finished.reason.data?.['rule'];
   if (rule === 'foundation-chain' || rule === 'anchor-layer') return fail(text('c2c-repeated-increase'));
   return finished;

@@ -1,9 +1,4 @@
-/*
- * A fő oldal design tokenjeinek szűk metszete — csak ami ehhez a felülethez
- * kell. A betűket nem a Google Fonts CDN-ről töltjük: az EU-ban hozzájárulás
- * nélkül továbbítaná a látogató IP-címét. Amíg a fájlok nincsenek itt, a
- * rendszerbetűk ugranak be helyettük.
- */
+/* KB: interface.md §35 */
 
 :root {
   --c-bg: #faf7f3;
@@ -15,27 +10,22 @@
   --c-line: #e6ded4;
   --c-panel: #ede6f4;
   --c-selection: #ded2f0;
-  /* A visszai sorok jele (03 §2.1): a háttéren legalább 3:1. */
+  /* KB: 03 §2.1; interface.md §36 */
   --c-ink-wrong: #2f5f9e;
   --c-error: #b3261e;
   --c-warning: #8a5300;
-  /* A rács (PQW-874): váltakozó sorszín, amelyen a jelek, a sorszám és a
-   * szemszám is legalább 4,5:1; a sorhatár és a hangsúlyos 5. és 10. vonal
-   * legalább 3:1. A cellák oldalvonala halvány segédvonal, nem hordoz
-   * önálló információt. (tests/ui-grid-colors.test.mjs) */
+  /* KB: interface.md §36 */
   --c-row-a: #f3eefa;
   --c-row-b: #eaf1f8;
   --c-grid: #b8adc6;
   --c-grid-row: #8d819c;
   --c-grid-strong: #6f6480;
-  /* A D6 szitakötő-jel (PQW-922) színei; csak a márkajel használja őket.
-   * A test a --c-ink, a "CROCHET" szó színe a --c-accent. */
   --c-brand-wing: #c5b2e4;
   --c-brand-wing-inner: #8a6fb8;
   --c-brand-eye: #fdfbf8;
 
-  --font-display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
-  --font-body: 'Karla', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --font-body: "Karla", system-ui, -apple-system, "Segoe UI", sans-serif;
 
   --ls-micro: 0.14em;
 
@@ -68,15 +58,13 @@ body {
   outline-offset: 2px;
 }
 
-/* A célméret-szabály a fő oldalról: minden interaktív elem legalább 44 px. */
+/* KB: interface.md §36 */
 button {
   min-block-size: 44px;
   min-inline-size: 44px;
   font: inherit;
   cursor: pointer;
 }
-
-/* ---- Váz ---- */
 
 [hidden] {
   display: none !important;
@@ -212,10 +200,6 @@ button {
   gap: 0.75rem;
 }
 
-/*
- * A panelek kapcsolói a menüsor jobb széléről indulnak, jobbról balra (PQW-912):
- * a csoport a maradék helyet elé tolja, a fejlécben csak a Főoldal és a cím marad.
- */
 .tools__group--end {
   margin-inline-start: auto;
   flex-direction: row-reverse;
@@ -231,8 +215,6 @@ button {
   color: var(--c-ink);
 }
 
-/* A D6 márkajel a cím előtt (PQW-922): legalább 20 px magas jel, a
- * szoros kivágás a jel körüli szabad teret is tartalmazza. */
 .brand-mark {
   flex-shrink: 0;
   inline-size: 2rem;
@@ -256,8 +238,7 @@ button {
   fill: var(--c-brand-eye);
 }
 
-/* Kivezetés a fő oldalra. Kerettel áll, nem puszta szövegként: ez az
- * egyetlen út vissza, és a fejléc többi eleme is kattintható. */
+/* Framed rather than plain text: this is the only way back out of the app. */
 .home {
   display: inline-flex;
   gap: 0.4rem;
@@ -286,8 +267,6 @@ button {
   stroke-linejoin: round;
 }
 
-/* ---- Ikonok ---- */
-
 .icon {
   inline-size: 1.25rem;
   block-size: 1.25rem;
@@ -308,42 +287,48 @@ button {
   color: var(--c-muted);
 }
 
-/* ---- Vászon ---- */
-
 .stage {
   position: relative;
   min-block-size: 0;
-  /* A nyitott oldalsávok szélessége: ezek között áll az írott minta és az állapotsor. */
+  /* KB: interface.md §38 — the width of the open side bars. */
   --side-start: 0px;
   --side-end: 0px;
 }
 
-#board {
+#board,
+#board-irregular {
   display: block;
   inline-size: 100%;
   block-size: 100%;
 }
 
-/* Kiválasztott szemmel a kattintás horgol, anélkül kijelöl és igazít; terület kijelölésekor téglalapot húz. */
 body.is-armed #board,
-body.is-selecting #board {
+body.is-selecting #board,
+body.is-armed #board-irregular,
+body.is-selecting #board-irregular {
   cursor: crosshair;
 }
 
-#board:focus-visible {
+#board:focus-visible,
+#board-irregular:focus-visible {
   outline-offset: -3px;
 }
 
-/*
- * Az állapotszöveg a képernyőolvasóé (PQW-916). A vászon fölött nem lebeg
- * többé — korábban ott takarta a rajzot (PQW-883, PQW-884 ezt a lebegő dobozt
- * igazgatta) —, de az élő régió megmarad: e nélkül a vak felhasználó nem kapna
- * visszajelzést a szerkesztésről. Ezért nem `display: none`: a rejtett, de
- * megjelenített elem változását olvassa fel a segédtechnika.
- */
+/* The free-form properties panel (PQW-963). */
+.props__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-block: 0.5rem;
+}
+
+.props__row .button {
+  flex: 1 1 auto;
+}
+
+/* KB: interface.md §37 */
 .status {
   position: absolute;
-  /* Sarokba kötve: rögzítés nélkül a statikus helyén lógna ki, és egy képponttal görgetni kezdene az oldal. */
   inset-block-start: 0;
   inset-inline-start: 0;
   inline-size: 1px;
@@ -356,12 +341,7 @@ body.is-selecting #board {
   border: 0;
 }
 
-/*
- * A felbukkanó figyelmeztetés (PQW-923): a vászon tetején, a menüsor alatt, a
- * két nyitott oldalsáv között középen. Három másodperc után magától eltűnik, a
- * tartós jelzés pedig a menüsor jobb szélén marad. A menüsort nem takarja: a
- * munkaterületen belül áll.
- */
+/* KB: interface.md §20 */
 .alert {
   position: absolute;
   z-index: 6;
@@ -383,8 +363,6 @@ body.is-selecting #board {
 .alert[hidden] {
   display: none;
 }
-
-/* ---- Jelkészlet-panel ---- */
 
 .panel {
   position: absolute;
@@ -447,7 +425,7 @@ body.is-selecting #board {
   border-color: var(--c-accent);
 }
 
-.stitch[aria-pressed='true'] {
+.stitch[aria-pressed="true"] {
   border-color: var(--c-accent);
   background: var(--c-selection);
 }
@@ -479,9 +457,6 @@ body.is-selecting #board {
   white-space: nowrap;
 }
 
-/* ---- Eszköztár ---- */
-
-/* Az eszköztár teljes szélességben a fejléc második sorába kerül. */
 .tools {
   order: 2;
   display: flex;
@@ -497,7 +472,6 @@ body.is-selecting #board {
   gap: 0.25rem;
 }
 
-/* A csoportokat halvány elválasztó tagolja. */
 .tools__group + .tools__group {
   padding-inline-start: 0.75rem;
   border-inline-start: 1px solid var(--c-line);
@@ -512,11 +486,7 @@ body.is-selecting #board {
   font-size: 0.8125rem;
 }
 
-/*
- * Az eszköztár gombjain az ikon alatt egy szavas felirat áll (PQW-911). A
- * szélesség a felirathoz igazodik, de a tapintható méret megmarad: legalább
- * 44px széles és magas.
- */
+/* KB: interface.md §36 — the width follows the label, but the target size stays. */
 .tools .tool {
   display: inline-grid;
   justify-items: center;
@@ -534,7 +504,6 @@ body.is-selecting #board {
   white-space: nowrap;
 }
 
-/* A fájlmenü elemei egymás alatt, ikonnal és névvel, teljes szélességben. */
 .menu__list {
   display: grid;
   gap: 0.25rem;
@@ -557,7 +526,6 @@ body.is-selecting #board {
   background: var(--c-selection);
 }
 
-/* A menüben a név teljes értékű felirat, nem az ikon alatti mikroszöveg. */
 .menu__list .tool__label {
   font-size: 0.8125rem;
 }
@@ -572,13 +540,11 @@ body.is-selecting #board {
   opacity: 0.55;
 }
 
-.tool[aria-pressed='true'] {
+.tool[aria-pressed="true"] {
   border-color: var(--c-accent);
   background: var(--c-selection);
   color: var(--c-accent);
 }
-
-/* ---- Legördülő menük (szemválasztó, hibalista) ---- */
 
 .count {
   display: inline-flex;
@@ -619,13 +585,7 @@ body.is-selecting #board {
   box-shadow: 0 10px 30px rgba(36, 31, 43, 0.16);
 }
 
-/*
- * A műveleti lenyíló (Fájl) a GOMBJÁHOZ igazodik, nem a jobb szélhez (PQW-912).
- * A `.menu__pop` jobbra rögzít és fix szélességet ad — az a hibalistának jó, ami
- * a sáv jobb szélén ül, de a bal szélen álló Fájl gombnál a panel kilógott a
- * képernyőről, és csak az üres jobb széle látszott. Két osztállyal írjuk felül,
- * hogy a sorrendtől függetlenül ez nyerjen.
- */
+/* KB: interface.md §38 — two classes, so this wins regardless of rule order. */
 .menu__pop.menu__list {
   inset-inline-start: 0;
   inset-inline-end: auto;
@@ -633,7 +593,6 @@ body.is-selecting #board {
   max-inline-size: min(20rem, calc(100vw - 2rem));
 }
 
-/* Hibaszámláló: színt vált a súlyosság szerint. */
 .tool--errors .icon {
   color: var(--c-muted);
 }
@@ -663,8 +622,6 @@ body.is-selecting #board {
 .errors .check__list {
   max-block-size: none;
 }
-
-/* ---- Panel: mezők, ellenőrzés, billentyűk ---- */
 
 .panel__field {
   display: grid;
@@ -775,14 +732,7 @@ body.is-selecting #board {
   gap: 0.25rem;
 }
 
-/* ---- Írott minta és jelölés (PQW-868) ---- */
-
-/* Az írott minta lenyitható panelként a vászon alján (PQW-873). A magassága
- * a fejléctől a teljes munkaterületig állítható (PQW-885): alapból legfeljebb
- * 22rem, legfeljebb a munkaterület fele; 40rem-nél alacsonyabb ablakban a
- * 40%-a, hogy a vászon közepe szabadon kattintható maradjon (PQW-891). Az
- * elválasztó és a fejléc helyben marad, a szöveg görget. A `--written-size`
- * és a `--written-min` a src/ui/main.ts-ből jön. */
+/* KB: interface.md §13 — `--written-size` and `--written-min` come from the interface. */
 .written {
   --written-default: min(22rem, 50%);
   position: absolute;
@@ -792,7 +742,7 @@ body.is-selecting #board {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   block-size: clamp(var(--written-min, 5rem), var(--written-size, var(--written-default)), 100%);
-  /* Majdnem teljes panelnél a teteje ad helyet az állapotsornak (`--written-lift`). */
+  /* KB: interface.md §13 */
   padding: var(--written-lift, 0px) 1.25rem 1rem;
   border-block-start: 1px solid var(--c-line);
   background: var(--c-bg);
@@ -804,7 +754,7 @@ body.is-selecting #board {
   }
 }
 
-/* Az elválasztó: 24 px magas célterület (WCAG 2.5.8), közepén a fogantyú. */
+/* KB: interface.md §36 */
 .written__grip {
   position: relative;
   block-size: 24px;
@@ -813,9 +763,9 @@ body.is-selecting #board {
   touch-action: none;
 }
 
-/* A fogantyú a háttéren legalább 3:1 (WCAG 1.4.11). */
+/* KB: interface.md §36 */
 .written__grip::before {
-  content: '';
+  content: "";
   position: absolute;
   inset-block-start: calc(50% - 2px);
   inset-inline-start: calc(50% - 1.5rem);
@@ -842,7 +792,7 @@ body.is-selecting #board {
   padding-block-end: 0.75rem;
 }
 
-/* A görgetett rész; a belső margó miatt a szöveg fókuszkerete nem csonkul. */
+/* The inner padding keeps the text's focus ring from being clipped while scrolling. */
 .written__body {
   display: grid;
   align-content: start;
@@ -946,8 +896,6 @@ body.is-selecting #board {
   justify-self: start;
 }
 
-/* ---- Ellenőrzés: szemszám és lenyitható részlet (PQW-879) ---- */
-
 .finding__count {
   color: var(--c-muted);
 }
@@ -963,8 +911,6 @@ body.is-selecting #board {
   color: var(--c-muted);
   cursor: pointer;
 }
-
-/* ---- Megerősítő párbeszéd (PQW-879) ---- */
 
 .ask {
   max-inline-size: min(24rem, calc(100vw - 2rem));
@@ -1021,9 +967,7 @@ body.is-selecting #board {
   opacity: 0.92;
 }
 
-/* ---- Bal oldali mintatípus-menü (PQW-873) ---- */
-
-/* A két oldalsáv a lenyitott írott minta fölött marad. */
+/* KB: interface.md §38 — both side bars stay above the open written panel. */
 .types,
 .panel {
   z-index: 6;
@@ -1033,10 +977,9 @@ body.is-selecting #board {
   position: absolute;
   inset-block: 0;
   inset-inline-start: 0;
-  /* Keskenyebb sáv (PQW-912): az ikon és a rövid név kényelmesen elfér. */
   inline-size: min(13rem, 80vw);
   padding: 1rem 0.85rem;
-  /* Oszlop: a cím és a bevezető fent marad, a lista görget, a verziófelirat a sáv alján ül (PQW-903). */
+  /* KB: interface.md §38 */
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1056,14 +999,7 @@ body.is-selecting #board {
   margin: 0;
   padding: 0;
   list-style: none;
-  /*
-   * A kártyák a saját magasságukon állnak (PQW-912): a rács `gap`-je nem nyúlik,
-   * mert a lista rácsdoboz, nem flex — a korábbi `flex: 1 1 auto` viszont a
-   * SORAIT feszítette szét. A doboz maga a maradék helyet kapja (`1 1 0`), így a
-   * sok típus a sávon belül görget, a verziófelirat pedig valóban a sáv aljára
-   * kerül: `flex: 0 1 auto` mellett a lista felvette a maradékot, és a felirat
-   * `auto` margójának nem maradt mit felvennie — ezért tapadt a lista aljára.
-   */
+  /* KB: interface.md §38 */
   flex: 1 1 0;
   min-block-size: 0;
   align-content: start;
@@ -1087,7 +1023,7 @@ body.is-selecting #board {
   border-color: var(--c-accent);
 }
 
-.type[aria-pressed='true'] {
+.type[aria-pressed="true"] {
   border-color: var(--c-accent);
   background: var(--c-selection);
 }
@@ -1116,7 +1052,7 @@ body.is-selecting #board {
 .type__label {
   display: grid;
   gap: 0.1rem;
-  /* A felirat oszlopa zsugorodhat: a jelvény alatta áll, nem mellette (PQW-912). */
+  /* KB: interface.md §38 — the label column may shrink; the badge sits below the name. */
   min-inline-size: 0;
 }
 
@@ -1138,11 +1074,7 @@ body.is-selecting #board {
   white-space: nowrap;
 }
 
-/* ---- Az írott minta a nyitott oldalsávok között (PQW-881) ---- */
-
-/* Széles nézetben a lenyitott írott minta és az állapotsor nem csúszik az
- * oldalsávok alá, hanem a kettő között áll (PQW-884); keskeny nézetben az
- * oldalsávok a panel és az állapotsor fölé nyílnak. */
+/* KB: interface.md §38 */
 @media (width >= 48rem) {
   .stage:has(> .types:not([hidden])) {
     --side-start: min(16rem, 80vw);
@@ -1159,25 +1091,11 @@ body.is-selecting #board {
   gap: 0.5rem;
 }
 
-/*
- * A „Hamarosan” címke a név MELLETT áll, a harmadik oszlopban (PQW-912): a név
- * alá tördelve a kártya kétszer olyan magas lett, és a keskenyebb sávban emiatt
- * kellett görgetni egy négyelemű listában. A név így is egészben marad, mert a
- * felirat oszlopa zsugorodhat (`min-inline-size: 0` a `.type__label`-en).
- */
-/*
- * A jelvény a feliratdobozban, a név ALATT áll (PQW-912): a keskeny sávban a név
- * mellé nem fért el, és rárajzolódott. Saját sorban a kártya egy sorral nő, de a
- * négy kártya így is elfér görgetés nélkül — a kétsoros elrendezés korábbi baja
- * a lista nyújtása volt, nem a jelvény helye.
- */
+/* KB: interface.md §38 */
 .type__badge {
   justify-self: start;
 }
 
-/* ---- Jobb oldali panel: összecsukható szakaszok (PQW-882) ---- */
-
-/* A szemek a panel tetején, mindig kéznél; a ritkán állított jelölés alapból csukva. */
 .section {
   margin-block-end: 0.75rem;
   padding-block-end: 0.75rem;
@@ -1211,7 +1129,7 @@ body.is-selecting #board {
 }
 
 .section__head::after {
-  content: '';
+  content: "";
   inline-size: 0.5rem;
   block-size: 0.5rem;
   margin-inline-end: 0.25rem;
@@ -1227,8 +1145,6 @@ body.is-selecting #board {
 .section .count {
   margin: 0 0 1rem;
 }
-
-/* ---- Beszúrási mód a Szemek szakaszban (PQW-869) ---- */
 
 .insertion {
   display: grid;
@@ -1252,8 +1168,8 @@ body.is-selecting #board {
   gap: 0 1rem;
 }
 
-/* Párokban: mindkét szál egy sorban, alatta az első és a hátsó szál, majd az első és a hátsó relief. */
-.insertion__options label:has(input[value='both-loops']) {
+/* In pairs: both loops on a row of its own, then front and back loop, then the posts. */
+.insertion__options label:has(input[value="both-loops"]) {
   grid-column: 1 / -1;
 }
 
@@ -1276,8 +1192,6 @@ body.is-selecting #board {
   margin: 0;
 }
 
-/* ---- Kör és motívum (PQW-861) ---- */
-
 .rounds {
   display: grid;
   gap: 0.75rem;
@@ -1297,8 +1211,6 @@ body.is-selecting #board {
 .rounds__create {
   justify-self: start;
 }
-
-/* ---- Forma (PQW-862) ---- */
 
 .shape,
 .shape__group {
@@ -1363,8 +1275,6 @@ body.is-selecting #board {
   justify-self: start;
 }
 
-/* ---- Kendő (PQW-865) ---- */
-
 .shawl__unblocked {
   fill: none;
   stroke: var(--c-text-soft);
@@ -1386,8 +1296,6 @@ body.is-selecting #board {
 .shawl__warnings:empty {
   display: none;
 }
-
-/* ---- Amigurumi (PQW-863) ---- */
 
 .amigurumi,
 .amigurumi__join {
@@ -1427,8 +1335,6 @@ body.is-selecting #board {
   justify-self: start;
 }
 
-/* ---- Méret és fonal (PQW-859) ---- */
-
 .size {
   display: grid;
   gap: 0.75rem;
@@ -1439,7 +1345,7 @@ body.is-selecting #board {
   margin: 0;
 }
 
-/* A lenyílók leghosszabb opciója ne szélesítse a panel oszlopát. */
+/* A dropdown's longest option must not widen the panel's column. */
 .size,
 .size__editor,
 .size__group,
@@ -1494,7 +1400,7 @@ body.is-selecting #board {
   justify-self: start;
 }
 
-/* Az érték eredete: szövegben is, nem csak színben; a becslés szaggatott keretet kap. */
+/* KB: interface.md §36 */
 .origin {
   display: inline-block;
   padding: 0 0.4rem;
@@ -1645,10 +1551,7 @@ body.is-selecting #board {
   color: var(--c-warning);
 }
 
-/* ---- Tooltip a menüsor ikongombjain (PQW-882) ---- */
-
-/* Azonnal, egér alatt és billentyűzetes fókusznál is, inaktív gombon is.
- * Az inaktív gombnál csak az ikon halványul, hogy a tooltip olvasható maradjon. */
+/* KB: interface.md §12, §36 */
 .tools .tool:disabled {
   opacity: 1;
   color: var(--c-muted);
@@ -1683,13 +1586,13 @@ body.is-selecting #board {
   translate: -50% 0;
 }
 
-/* Az ablak szélén a felirat a gomb széléhez igazodik (src/ui/tooltip.ts). */
-.tools .tool[data-tip-align='start']::after {
+/* KB: interface.md §12 */
+.tools .tool[data-tip-align="start"]::after {
   inset-inline-start: 0;
   translate: none;
 }
 
-.tools .tool[data-tip-align='end']::after {
+.tools .tool[data-tip-align="end"]::after {
   inset-inline-start: auto;
   inset-inline-end: 0;
   translate: none;
@@ -1699,8 +1602,6 @@ body.is-selecting #board {
 .tools .tool[data-tip]:focus-visible::after {
   display: block;
 }
-
-/* ---- Rácsminta (PQW-864) ---- */
 
 .grid-chart,
 .grid-chart__group {
@@ -1758,7 +1659,7 @@ body.is-selecting #board {
   font-size: 0.875rem;
 }
 
-.grid-chart__color input[type='color'] {
+.grid-chart__color input[type="color"] {
   inline-size: 44px;
   block-size: 44px;
   padding: 2px;
@@ -1767,7 +1668,7 @@ body.is-selecting #board {
   background: #fff;
 }
 
-.grid-chart__color input[type='text'] {
+.grid-chart__color input[type="text"] {
   min-inline-size: 0;
   min-block-size: 44px;
   padding: 0.4rem 0.6rem;
@@ -1812,7 +1713,6 @@ body.is-selecting #board {
   display: flex;
 }
 
-/* A cella a mintasűrűség arányában (a panel adja a méretet); a vékony vonal csak segédvonal. */
 .grid-cell {
   box-sizing: border-box;
   flex: none;
@@ -1846,7 +1746,7 @@ body.is-selecting #board {
   background: repeating-linear-gradient(-45deg, #fff 0 2px, var(--c-panel) 2px 4px);
 }
 
-/* Az ismétlő egység: fehér belső és sötét külső gyűrű, sötét és világos cellán is látszik. A cella neve is jelzi. */
+/* KB: interface.md §36 */
 .grid-cell.is-unit {
   box-shadow:
     inset 0 0 0 1px #fff,
@@ -1867,14 +1767,7 @@ body.is-selecting #board {
   gap: 0.5rem;
 }
 
-/*
- * A futó verzió a mintatípus-sáv alján, a bal alsó sarokban (PQW-903): apró és
- * halvány. A sáv oszlopának utolsó eleme, és a `margin-block-start: auto` tolja
- * az aljára (PQW-912) — korábban a lista nyúlt meg helyette, ami szétfeszítette
- * a kártyákat. A lista fölötte görget, ezért sosem takar szöveget, és a vászon
- * rajzterületéből sem vesz el semmit. Nem kattintható, és a képernyőolvasónak
- * sem mond fölösleges tokent (`aria-hidden`).
- */
+/* KB: decisions.md §5; interface.md §38 */
 .version {
   flex: 0 0 auto;
   margin: 0.75rem 0 0;

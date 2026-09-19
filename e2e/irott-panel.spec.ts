@@ -1,18 +1,18 @@
 /*
- * Az írott minta panel új mintánál (PQW-915).
+ * The written pattern panel on a new pattern (PQW-915).
  *
- * A hibát háromszor jelentették, és az eddigi tesztek azért nem fogták meg,
- * mert TISZTA tárolóval indultak: a panel alapértelmezése csukott, így a baj
- * nem látszott. Aki egyszer kinyitotta a panelt, annál a tárolt állapot
- * `nyitva`, és onnantól minden új minta nyitva kapta. Ez a teszt ezért
- * szándékosan a `nyitva` állapotból indul.
+ * The bug was reported three times, and the tests so far did not catch it
+ * because they started with a CLEAN storage: the default of the panel is closed,
+ * so the trouble did not show. For anyone who once opened the panel the stored
+ * state is `nyitva`, and from then on every new pattern came up open. This test
+ * therefore deliberately starts from the `nyitva` state.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 const WRITTEN_KEY = 'dc-mintatervezo:irott-minta';
 
-/** Betöltés a megadott tárolt panelállapottal; a süti-sávot elutasítjuk. */
+/** Load with the given stored panel state; we reject the cookie bar. */
 async function open(page: Page, stored: 'nyitva' | 'zarva' | null): Promise<void> {
   await page.addInitScript(
     ([key, value]) => {
@@ -20,7 +20,7 @@ async function open(page: Page, stored: 'nyitva' | 'zarva' | null): Promise<void
         if (value === null) localStorage.removeItem(key);
         else localStorage.setItem(key, value);
       } catch {
-        // Privát ablakban a tárolás dobhat; a teszt ilyenkor az alapértelmezést nézi.
+        // Storage can throw in a private window; the test then looks at the default.
       }
     },
     [WRITTEN_KEY, stored] as const,
@@ -30,36 +30,36 @@ async function open(page: Page, stored: 'nyitva' | 'zarva' | null): Promise<void
   if (await deny.isVisible()) await deny.click();
 }
 
-test('a kézzel kinyitott panelt az „Új minta” becsukja (PQW-915)', async ({ page }) => {
+test('the panel opened by hand is closed by „Új minta” (PQW-915)', async ({ page }) => {
   await open(page, null);
 
   const written = page.locator('#written');
   await expect(written).toBeHidden();
 
-  // A felhasználó kinyitja: innentől a tárolt állapot „nyitva”.
+  // The user opens it: from here on the stored state is „nyitva”.
   await page.locator('#written-toggle').click();
   await expect(written).toBeVisible();
 
   await page.locator('[data-action="new"]').click();
-  await expect(written, 'az új minta üres: a panelnek csukva kell lennie').toBeHidden();
+  await expect(written, 'the new pattern is empty: the panel must be closed').toBeHidden();
   await expect(page.locator('#written-toggle')).toHaveAttribute('aria-expanded', 'false');
 });
 
-test('üres mintán a tárolt „nyitva” állapot sem nyitja ki a panelt (PQW-915)', async ({ page }) => {
-  // Ez a korábbi tesztek vakfoltja: a tároló már „nyitva” értéket hoz magával.
+test('on an empty pattern even a stored „nyitva” state does not open the panel (PQW-915)', async ({ page }) => {
+  // This is the blind spot of the earlier tests: the storage already brings a „nyitva” value with it.
   await open(page, 'nyitva');
 
   await expect(page.locator('#written')).toBeHidden();
   await expect(page.locator('#written-toggle')).toHaveAttribute('aria-expanded', 'false');
 });
 
-test('a láncszemszám mezőjében az Enter lerakja a szemeket (PQW-915)', async ({ page }) => {
+test('in the chain count field Enter lays down the stitches (PQW-915)', async ({ page }) => {
   /*
-   * A jelkészlet súgója azt ígéri: „Enterrel vagy a vászonra kattintva
-   * horgolod, a megadott számú láncszemmel.” A globális billentyűkezelő viszont
-   * minden szövegmezőben kilép (PQW-911), ezért a MEZŐBEN lenyomott Enter
-   * elnyelődött: a felhasználó beírta a 12-t, megnyomta az Entert, és nem
-   * történt semmi. Ez a teszt kattintás nélkül, csak billentyűzettel dolgozik.
+   * The help of the stitch palette promises Enter as well as a click on the
+   * canvas (KB: owner-decisions.md §12). The global key handler, however, bails
+   * out in every text field (PQW-911), so the Enter pressed IN THE FIELD was
+   * swallowed: the user typed 12, pressed Enter, and nothing happened. This
+   * test works without a click, from the keyboard only.
    */
   await open(page, null);
 
@@ -72,16 +72,16 @@ test('a láncszemszám mezőjében az Enter lerakja a szemeket (PQW-915)', async
   await count.press('Enter');
 
   await expect(page.locator('#status')).toContainText('12 láncszem');
-  await expect(page.locator('[data-action="end-row"]'), 'a láncalap után fordulni lehet').toBeEnabled();
+  await expect(page.locator('[data-action="end-row"]'), 'after the foundation chain one can turn').toBeEnabled();
 });
 
-test('amit a felhasználó kinyit, az nyitva marad, amíg van mit mutatni (PQW-915)', async ({ page }) => {
+test('what the user opens stays open as long as there is something to show (PQW-915)', async ({ page }) => {
   await open(page, null);
 
   await page.locator('#written-toggle').click();
   await expect(page.locator('#written')).toBeVisible();
 
-  // Szem kerül a mintába: a panelnek nyitva kell maradnia.
+  // A stitch goes into the pattern: the panel must stay open.
   await page.locator('#board').focus();
   await page.keyboard.press('Alt+1');
   await page.keyboard.press('Enter');

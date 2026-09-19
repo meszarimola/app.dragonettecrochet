@@ -1,9 +1,9 @@
 /*
- * A bal oldali mintatípus-menü tartalma (PQW-873). Az átvételi tesztelés első
- * körében egyedül a „szabályos horgolás” aktív (PQW-925): a filéhorgolás
- * (PQW-864) és az amigurumi (PQW-863) ideiglenesen kikapcsolva, a szabálytalan
- * horgolás pedig a saját jegyére vár — mind a három „hamarosan” jelzéssel,
- * inaktívan látszik.
+ * The contents of the pattern-type menu on the left (PQW-873). In the first
+ * round of acceptance testing only regular crochet was active (PQW-925): filet
+ * crochet (PQW-864) and amigurumi (PQW-863) are switched off for now and stay
+ * visible but inactive, marked as coming soon. Irregular crochet joined them as
+ * an active type with its own free-form editor (PQW-963).
  */
 
 import { strict as assert } from 'node:assert';
@@ -11,62 +11,66 @@ import { test } from 'node:test';
 
 import {
   DEFAULT_PATTERN_TYPE,
-  PATTERN_TYPES,
   gridKind,
   isAvailableType,
+  PATTERN_TYPES,
   writtenShareFor,
 } from '../src/ui/pattern-types.ts';
 
-test('a rács típusa a mintatípussal együtt vált (PQW-874)', () => {
-  assert.deepEqual(PATTERN_TYPES.map((type) => gridKind(type.id, 'row')), ['rows', 'cells', 'text', 'rows']);
-  // Szabályos horgolásban a kör és a motívum koncentrikus rácsot kap.
+test('the grid kind switches together with the pattern type (PQW-874)', () => {
+  assert.deepEqual(
+    PATTERN_TYPES.map((type) => gridKind(type.id, 'row')),
+    ['rows', 'cells', 'text', 'rows'],
+  );
+  // In regular crochet a round and a motif get a concentric grid.
   assert.equal(gridKind('regular', 'round'), 'rounds');
   assert.equal(gridKind('irregular', 'round'), 'rounds');
-  // Filében mindig cellás rács, amigurumiban az írott minta az elsődleges nézet.
+  // Filet always uses a cell grid; in amigurumi the written pattern is the primary view.
   assert.equal(gridKind('filet', 'round'), 'cells');
   assert.equal(gridKind('amigurumi', 'round'), 'text');
 });
 
-test('a négy tulajdonosi mintatípus szerepel, egyedi azonosítóval', () => {
+test('all four owner pattern types are present, with unique ids', () => {
   const ids = PATTERN_TYPES.map((type) => type.id);
   assert.deepEqual(ids, ['regular', 'filet', 'amigurumi', 'irregular']);
   assert.equal(new Set(ids).size, ids.length);
 });
 
-test('minden típusnak van neve és magyarázata', () => {
+test('every type has a name and an explanation', () => {
   for (const type of PATTERN_TYPES) {
     assert.ok(type.name.trim(), type.id);
     assert.ok(type.detail.trim(), type.id);
   }
 });
 
-test('az UAT első körében csak a szabályos horgolás aktív (PQW-925)', () => {
+test('regular and irregular crochet are the active types (PQW-925, PQW-963)', () => {
   const available = PATTERN_TYPES.filter((type) => type.available).map((type) => type.id);
-  assert.deepEqual(available, ['regular']);
+  assert.deepEqual(available, ['regular', 'irregular']);
 });
 
-test('a kikapcsolt típusok a listában maradnak, nem törölve (PQW-925)', () => {
-  // A letiltás ideiglenes: a menüpont látszik, csak nem választható.
+test('the switched-off types stay in the list instead of being removed (PQW-925)', () => {
+  // The block is temporary: the menu item is visible, only not selectable.
   const soon = PATTERN_TYPES.filter((type) => !type.available).map((type) => type.id);
-  assert.deepEqual(soon, ['filet', 'amigurumi', 'irregular']);
+  assert.deepEqual(soon, ['filet', 'amigurumi']);
 });
 
-test('amigurumiban az írott minta nagyban, keskeny ablakban teljes nézetben nyílik; máshol nem változik (PQW-863)', () => {
+test('amigurumi opens the written pattern large, full width in a narrow window, and leaves other types unchanged (PQW-863)', () => {
   assert.equal(writtenShareFor('amigurumi', false), 0.7);
   assert.equal(writtenShareFor('amigurumi', true), 1);
   assert.equal(writtenShareFor('regular', false), null);
   assert.equal(writtenShareFor('filet', true), null);
 });
 
-test('az alapértelmezett típus aktív', () => {
+test('the default pattern type is an active one', () => {
   assert.ok(isAvailableType(DEFAULT_PATTERN_TYPE));
 });
 
-test('isAvailableType csak a bekapcsolt, ismert azonosítóra igaz', () => {
+test('isAvailableType is true only for an enabled, known id', () => {
   assert.ok(isAvailableType('regular'));
-  // PQW-925: kikapcsolva, ezért tárolt értékből sem állhat vissza.
+  // PQW-925: switched off, so not even a stored value may bring it back.
   assert.ok(!isAvailableType('amigurumi'));
   assert.ok(!isAvailableType('filet'));
-  assert.ok(!isAvailableType('irregular'));
+  // PQW-963: the free-form editor makes this one a real choice.
+  assert.ok(isAvailableType('irregular'));
   assert.ok(!isAvailableType('nincs-ilyen'));
 });

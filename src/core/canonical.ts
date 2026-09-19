@@ -1,17 +1,6 @@
-/*
- * A minta azonosítóktól független alakja: két minta akkor ugyanaz a gráf, ha
- * ez a két alak egyezik.
- *
- * Az azonosítókat a szerkesztő vagy a beolvasó szabadon osztja ki, ezért az
- * összevetés előtt sorrend szerint újraszámozzuk őket:
- * - szem: `n1`, `n2`… a fonal útja szerint;
- * - láncív, gyűrű, csoport: az első szemük helye szerint;
- * - a kihagyott szemek és az események a szemek sorrendjében.
- * A kézi igazítás (`pinned`) csak a rajzhoz tartozik, ezért kimarad.
- */
-
 import type { Anchor, NodeId, Pattern, Piece, StitchNode } from './types.ts';
 
+// KB: core-support §7
 export function canonicalPattern(pattern: Pattern): Pattern {
   return { ...pattern, pieces: pattern.pieces.map(canonicalPiece) };
 }
@@ -42,7 +31,7 @@ export function canonicalPiece(piece: Piece): Piece {
     prev: source.prev === null ? null : node(source.prev),
     anchors: source.anchors.map(anchor),
     ...(source.flags && source.flags.length > 0 ? { flags: [...source.flags].sort() } : {}),
-    // Az első szín (0) a hiányzóval egyenértékű (PQW-864).
+    // Colour 0 is the first colour and is equivalent to absent.
     ...(source.color ? { color: source.color } : {}),
   });
 

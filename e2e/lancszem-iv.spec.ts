@@ -1,13 +1,14 @@
 /*
- * A láncszemsor íve (PQW-951).
+ * The arc of a row of chain stitches (PQW-951).
  *
- * A tulajdonos a kagylós mintát rajzolta: egy rövidpálca, 5 láncszem, és a
- * következő rövidpálca az alsó sor 5. szemébe — alul 3 kihagyott szem, felül 5
- * láncszem. „ha beillesztem a következő rövidpálcát, akkor ilyen csúnyán adja
- * ki a mintakészítő… a rövidpálca az ami rögzített, azt nem tudjuk tömöríteni.”
+ * The shell pattern: one single crochet, 5 chain stitches, and the next single
+ * crochet into stitch 5 of the row below — 3 skipped stitches below, 5 chain
+ * stitches above.
+ *
+ * KB: owner-decisions.md §10
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 interface Cell {
   readonly layer: number;
@@ -30,9 +31,11 @@ const cells = (page: Page): Promise<Cell[]> =>
   page.evaluate(() => (window as unknown as { mintatervezoRacs: { cells(): Cell[] } }).mintatervezoRacs.cells());
 
 const boxes = (page: Page): Promise<Box[]> =>
-  page.evaluate(() => (window as unknown as { mintatervezoRacs: { stitchBoxes(): Box[] } }).mintatervezoRacs.stitchBoxes());
+  page.evaluate(() =>
+    (window as unknown as { mintatervezoRacs: { stitchBoxes(): Box[] } }).mintatervezoRacs.stitchBoxes(),
+  );
 
-/** Egy réteg jelei jobbról balra — a 2. sor haladási iránya. */
+/** The symbols of one layer from right to left — the direction of travel of row 2. */
 const rightToLeft = async (page: Page, layer: number): Promise<Box[]> =>
   (await boxes(page)).filter((box) => box.layer === layer).sort((a, b) => b.left - a.left);
 
@@ -41,7 +44,9 @@ const pick = async (page: Page, name: RegExp): Promise<void> => {
   if ((await button.getAttribute('aria-pressed')) !== 'true') await button.click();
 };
 
-test('5 láncszem 3 kihagyott szem fölött ívet ad, és a rövidpálca a helyén marad (PQW-951)', async ({ page }) => {
+test('5 chain stitches over 3 skipped stitches make an arc, and the single crochet stays in place (PQW-951)', async ({
+  page,
+}) => {
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
@@ -53,8 +58,9 @@ test('5 láncszem 3 kihagyott szem fölött ívet ad, és a rövidpálca a hely�
   await page.getByRole('button', { name: 'Fordulás' }).click();
 
   /*
-   * A cellát az alatta lévő szem OSZLOPA alapján keressük: minden lerakás után
-   * eltolódik a rajz, a célpontok sorszáma pedig nem sorfolytonos.
+   * We look the cell up by the COLUMN of the stitch below it: after every
+   * placement the drawing shifts, and the numbering of the targets is not
+   * contiguous.
    */
   const above = async (column: number): Promise<Cell> => {
     const all = await cells(page);
@@ -65,20 +71,20 @@ test('5 láncszem 3 kihagyott szem fölött ívet ad, és a rövidpálca a hely�
       .reduce((best, cell) => (Math.abs(cell.x - at) < Math.abs(best.x - at) ? cell : best));
   };
 
-  // 1. rövidpálca a láncalap utolsó szemébe.
+  // Single crochet 1 into the last stitch of the foundation chain.
   await pick(page, /Rövidpálca \(rp\)/);
   const first = await above(0);
   await page.mouse.click(first.x, first.y);
   await expect.poll(async () => (await rightToLeft(page, 1)).length).toBe(1);
 
-  // 5 láncszem a rövidpálca után: öt szemet hidal át.
+  // 5 chain stitches after the single crochet: they bridge five stitches.
   await pick(page, /Láncszem \(lsz\)/);
   await page.locator('#chain-count').fill('5');
   const next = await above(1);
   await page.mouse.click(next.x, next.y);
   await expect.poll(async () => (await rightToLeft(page, 1)).length).toBe(6);
 
-  // 2. rövidpálca az alsó sor 5. szemébe: alatta már csak 3 kihagyott szem marad.
+  // Single crochet 2 into stitch 5 of the row below: only 3 skipped stitches are left under it.
   await pick(page, /Rövidpálca \(rp\)/);
   const target = await above(4);
   await page.mouse.click(target.x, target.y);
@@ -88,33 +94,35 @@ test('5 láncszem 3 kihagyott szem fölött ívet ad, és a rövidpálca a hely�
   const base = await rightToLeft(page, 0);
   const middle = (box: Box) => (box.left + box.right) / 2;
 
-  // A két rövidpálca a láncalap saját oszlopában: az 1. és az 5. szem fölött.
+  // The two single crochets are in their own columns on the foundation chain: above stitches 1 and 5.
   const columns = base.map(middle);
   expect(Math.abs(middle(row[0]!) - columns[0]!)).toBeLessThan(2);
   expect(Math.abs(middle(row[6]!) - columns[4]!)).toBeLessThan(2);
 
-  // A sor nem lóg túl a láncalapon.
+  // The row does not hang over the foundation chain.
   expect(row[0]!.right).toBeLessThanOrEqual(Math.max(...base.map((box) => box.right)) + 1);
 
-  // Az öt láncszem nem csúszik egymásba.
+  // The five chain stitches do not slide into one another.
   const arc = row.slice(1, 6);
   for (let i = 0; i < arc.length - 1; i += 1) {
-    expect(arc[i + 1]!.right, `a ${i + 1}. és ${i + 2}. láncszem külön áll`).toBeLessThanOrEqual(arc[i]!.left + 1);
+    expect(arc[i + 1]!.right, `chain stitches ${i + 1} and ${i + 2} stand apart`).toBeLessThanOrEqual(arc[i]!.left + 1);
   }
 
-  // Az ív: a közepe magasabban áll a két végénél (a vásznon kisebb y).
+  // The arc: its middle stands higher than its two ends (a smaller y on the canvas).
   const tops = arc.map((box) => box.top);
   expect(tops[2]!).toBeLessThan(tops[0]! - 1);
   expect(tops[2]!).toBeLessThan(tops[4]! - 1);
 
-  // Az ív öt cellát kap, nem hármat.
+  // The arc gets five cells, not three.
   const between = (await cells(page)).filter(
     (cell) => cell.layer === 1 && cell.x < middle(row[0]!) - 1 && cell.x > middle(row[6]!) + 1,
   );
-  expect(between.length, 'lent három szem, fent öt cella').toBe(5);
+  expect(between.length, 'three stitches below, five cells above').toBe(5);
 });
 
-test('a lánc utólag, két kész rövidpálca közé téve is ívet ad (PQW-952)', async ({ page }) => {
+test('the chain gives an arc when placed between two finished single crochets afterwards too (PQW-952)', async ({
+  page,
+}) => {
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
@@ -134,7 +142,7 @@ test('a lánc utólag, két kész rövidpálca közé téve is ívet ad (PQW-952
       .reduce((best, cell) => (Math.abs(cell.x - at) < Math.abs(best.x - at) ? cell : best));
   };
 
-  // Előbb MINDEN rövidpálca, négyesével — a sor még üres közöttük.
+  // First ALL the single crochets, in fours — the row is still empty between them.
   await pick(page, /Rövidpálca \(rp\)/);
   for (const column of [0, 4, 8, 12, 16, 20]) {
     const cell = await above(column);
@@ -142,7 +150,7 @@ test('a lánc utólag, két kész rövidpálca közé téve is ívet ad (PQW-952
   }
   await expect.poll(async () => (await rightToLeft(page, 1)).length).toBe(6);
 
-  // Utólag a láncszemek a rések közepébe.
+  // Afterwards the chain stitches into the middle of the gaps.
   await pick(page, /Láncszem \(lsz\)/);
   await page.locator('#chain-count').fill('5');
   for (const column of [1, 5, 9, 13, 17]) {
@@ -155,25 +163,25 @@ test('a lánc utólag, két kész rövidpálca közé téve is ívet ad (PQW-952
   const base = await rightToLeft(page, 0);
   const middle = (box: Box) => (box.left + box.right) / 2;
 
-  // Mind a hat rövidpálca a saját oszlopában maradt.
+  // All six single crochets stayed in their own columns.
   const stitches = row.filter((_, i) => i % 6 === 0);
   [0, 4, 8, 12, 16, 20].forEach((column, i) => {
-    expect(Math.abs(middle(stitches[i]!) - middle(base[column]!)), `${i + 1}. rövidpálca`).toBeLessThan(2);
+    expect(Math.abs(middle(stitches[i]!) - middle(base[column]!)), `single crochet ${i + 1}`).toBeLessThan(2);
   });
 
-  // A sor egyik vége sem lóg túl a láncalapon.
+  // Neither end of the row hangs over the foundation chain.
   expect(row[0]!.right).toBeLessThanOrEqual(Math.max(...base.map((box) => box.right)) + 1);
   expect(row.at(-1)!.left).toBeGreaterThanOrEqual(Math.min(...base.map((box) => box.left)) - 1);
 
-  // Minden rés íves: a közepe magasabban áll a szélénél.
+  // Every gap is arched: its middle stands higher than its edge.
   for (let gap = 0; gap < 5; gap += 1) {
     const arc = row.slice(gap * 6 + 1, gap * 6 + 6);
-    expect(arc.length, `${gap + 1}. rés öt láncszeme`).toBe(5);
-    expect(arc[2]!.top, `${gap + 1}. rés íve`).toBeLessThan(arc[0]!.top - 1);
+    expect(arc.length, `the five chain stitches of gap ${gap + 1}`).toBe(5);
+    expect(arc[2]!.top, `the arc of gap ${gap + 1}`).toBeLessThan(arc[0]!.top - 1);
   }
 });
 
-test('a láncívbe horgolt legyező elfér, a 3. sor nem csúszik le a kelméről (PQW-953)', async ({ page }) => {
+test('the fan worked into the chain arc fits, and row 3 does not slide off the fabric (PQW-953)', async ({ page }) => {
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
@@ -193,7 +201,7 @@ test('a láncívbe horgolt legyező elfér, a 3. sor nem csúszik le a kelmérő
       .reduce((best, cell) => (Math.abs(cell.x - at) < Math.abs(best.x - at) ? cell : best));
   };
 
-  // 2. sor: rövidpálca, 5 láncszem, … négy rövidpálcával.
+  // Row 2: single crochet, 5 chain stitches, … with four single crochets.
   for (const column of [0, 3, 6, 9]) {
     await pick(page, /Rövidpálca \(rp\)/);
     const cell = await above(1, column);
@@ -206,13 +214,13 @@ test('a láncívbe horgolt legyező elfér, a 3. sor nem csúszik le a kelmérő
   }
   await expect.poll(async () => (await rightToLeft(page, 1)).length).toBe(19);
 
-  // 3. sor: fordulólánc, majd hat pálca ugyanabba a láncszembe.
+  // Row 3: turning chain, then six double crochets into the same chain stitch.
   await page.getByRole('button', { name: 'Fordulás' }).click();
   await pick(page, /Egyráhajtásos pálca \(erp\)/);
   await page.locator('#board').press('Enter');
   for (let i = 0; i < 6; i += 1) {
     const target = (await cells(page)).find((cell) => cell.layer === 2 && cell.slot === 3);
-    expect(target, `${i + 1}. pálca célpontja`).toBeTruthy();
+    expect(target, `the target of double crochet ${i + 1}`).toBeTruthy();
     await page.mouse.click(target!.x, target!.y);
   }
   await expect.poll(async () => (await rightToLeft(page, 2)).length).toBe(9);
@@ -221,11 +229,11 @@ test('a láncívbe horgolt legyező elfér, a 3. sor nem csúszik le a kelmérő
   const third = await rightToLeft(page, 2);
   const middle = (box: Box) => (box.left + box.right) / 2;
 
-  // A 3. sor a 2. soron belül marad.
+  // Row 3 stays within row 2.
   expect(Math.min(...third.map(middle))).toBeGreaterThanOrEqual(Math.min(...second.map(middle)) - 1);
   expect(Math.max(...third.map(middle))).toBeLessThanOrEqual(Math.max(...second.map(middle)) + 1);
 
-  // A fordulólánc a 2. sor utolsó szemén áll.
+  // The turning chain stands on the last stitch of row 2.
   const turning = third.slice(-3);
   expect(Math.abs(middle(turning[0]!) - Math.min(...second.map(middle)))).toBeLessThan(2);
 });

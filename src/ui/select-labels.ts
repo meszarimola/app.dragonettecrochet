@@ -1,24 +1,11 @@
-/*
- * A választólisták feliratainak frissítése (PQW-900).
- *
- * A generátorpanelek a `<select>` elemeket a megnyitáskor töltik fel, a
- * feliratokat pedig a nézetek választó-állandói adják. Ezek a feliratok két
- * dolgot követnek: a felület nyelvét (a szótárból) és a jelölést (a
- * szemneveknél). Ha bármelyik megváltozik a lapon belül, a már feltöltött
- * opciók szövegét újra ki kell írni, különben a legördülők a régi nyelven
- * maradnának újratöltésig.
- *
- * Az érték szerint párosítunk, ezért a kijelölés és a felhasználó által
- * választott érték megmarad, a máshonnan (például a méretsorozatból) feltöltött
- * opciókhoz pedig nem nyúlunk.
- */
+// KB: interface.md §6
 
 import {
+  SHAPE_CHOICES as AMIGURUMI_SHAPE_CHOICES,
+  STITCH_CHOICES as AMIGURUMI_STITCH_CHOICES,
   BOTTOM_CHOICES,
   JOIN_CHOICES,
   METHOD_CHOICES,
-  SHAPE_CHOICES as AMIGURUMI_SHAPE_CHOICES,
-  STITCH_CHOICES as AMIGURUMI_STITCH_CHOICES,
   TOP_CHOICES,
 } from './amigurumi-view.ts';
 import {
@@ -31,18 +18,13 @@ import {
   CLOSING_CHOICES,
   JOG_CHOICES,
   SHAPE_CHOICES as ROUNDS_SHAPE_CHOICES,
-  START_CHOICES,
   STITCH_CHOICES as ROUNDS_STITCH_CHOICES,
+  START_CHOICES,
 } from './rounds-view.ts';
+import { MEASURE_CHOICES, ROUNDING_CHOICES, SHAPE_CHOICES, STITCH_CHOICES } from './shapes-view.ts';
 import {
-  MEASURE_CHOICES,
-  ROUNDING_CHOICES,
-  SHAPE_CHOICES,
-  STITCH_CHOICES,
-} from './shapes-view.ts';
-import {
-  KIND_CHOICES as SHAWL_KIND_CHOICES,
   RATE_CHOICES,
+  KIND_CHOICES as SHAWL_KIND_CHOICES,
   STITCH_CHOICES as SHAWL_STITCH_CHOICES,
 } from './shawls-view.ts';
 
@@ -51,7 +33,6 @@ interface Labelled {
   readonly label: string;
 }
 
-/** A választó azonosítója és a hozzá tartozó feliratok. */
 const CHOICES: Readonly<Record<string, readonly Labelled[]>> = {
   'shape-kind': SHAPE_CHOICES,
   'shape-stitch': STITCH_CHOICES,
@@ -78,7 +59,6 @@ const CHOICES: Readonly<Record<string, readonly Labelled[]>> = {
   'grid-mosaic-rows': MOSAIC_ROW_CHOICES,
 };
 
-/** A már feltöltött választók feliratait a mostani nyelvre és jelölésre írja át. */
 export function relabelSelects(root: ParentNode): void {
   for (const [id, choices] of Object.entries(CHOICES)) {
     const select = root.querySelector<HTMLSelectElement>(`#${id}`);

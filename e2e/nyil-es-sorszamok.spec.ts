@@ -1,18 +1,19 @@
 /*
- * A kurzor nyila, a sorfeliratok és az állapotszöveg a rajzon (PQW-916).
+ * The arrow of the cursor, the row labels and the status text on the chart
+ * (PQW-916).
  *
- * Mindhárom pontot a tulajdonos élőben reprodukálta: 12 láncszem és egy
- * fordulás után a nyíl átfut a szemeken, a sorok mellett nincs számozás, és a
- * vászon fölött lebeg egy állapotszöveg.
+ * All three points were reproduced live by the owner: after 12 chain stitches
+ * and one turn the arrow runs across the stitches, there is no numbering beside
+ * the rows, and a status text floats over the canvas.
  *
- * A tanulság a PQW-912-ből: az átfedést MÉRNI kell, nem szemre nézni — ott
- * pont ez hiányzott, és háromszor csúszott át miatta ugyanaz a hiba. Ezért
- * ezek a tesztek a felület böngészős horgából (`window.mintatervezoRacs`,
- * src/ui/main.ts) kérik el a nyíl, a szemek és a feliratok dobozát, és
- * metszést számolnak.
+ * The lesson from PQW-912: overlap has to be MEASURED, not eyeballed — that was
+ * exactly what was missing there, and the same bug slipped through three times
+ * because of it. So these tests ask the browser hook of the interface
+ * (`window.mintatervezoRacs`, src/ui/main.ts) for the boxes of the arrow, the
+ * stitches and the labels, and compute intersections.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 interface Rect {
   readonly left: number;
@@ -28,18 +29,19 @@ async function open(page: Page): Promise<void> {
   await page.goto('/');
   const deny = page.getByRole('button', { name: 'Elutasítom' });
   if (await deny.isVisible()) await deny.click();
-  // Az írott minta panelje csukva indul (PQW-911, PQW-915): nem takarja a vásznat.
+  // The written pattern panel starts closed (PQW-911, PQW-915): it does not cover the canvas.
   await expect(page.locator('#written')).toBeHidden();
 }
 
 /**
- * A jegy esete: 12 láncszem, fordulás, majd az 1. sor első szemei — csak
- * billentyűvel (PQW-911).
+ * The case from the ticket: 12 chain stitches, a turn, then the first stitches
+ * of row 1 — from the keyboard only (PQW-911).
  *
- * A fordulás önmagában még nem hoz iránynyilat: az 1. sor ilyenkor nincs benne
- * a gráfban, és a `directionArrow()` (src/ui/main.ts) csak akkor rajzol, ha a
- * sornak van szeme. Megmértem: lánc és fordulás után a nyíl doboza `null`, az
- * első félpálca után jelenik meg — ezért rak le a beállítás szemeket is.
+ * A turn on its own does not yet bring a direction arrow: row 1 is not in the
+ * graph at that point, and `directionArrow()` (src/ui/main.ts) only draws when
+ * the row has a stitch. I measured it: after the chain and the turn the box of
+ * the arrow is `null`, and it appears after the first half double crochet — that
+ * is why the setup lays down stitches too.
  */
 async function foundationTurnAndRow(page: Page): Promise<void> {
   await page.locator('#board').focus();
@@ -60,24 +62,31 @@ const api = <T>(page: Page, method: 'arrowBox' | 'stitchBoxes' | 'labelBoxes'): 
     return hook[name]!() as never;
   }, method);
 
-/** Két doboz metszi-e egymást. A fél képpontnyi érintkezés még nem takarás. */
+/** Whether two boxes intersect. A half-pixel touch is not yet covering. */
 function overlaps(a: Rect, b: Rect): boolean {
-  return Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0.5 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5;
+  return (
+    Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0.5 &&
+    Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5
+  );
 }
 
-const describe = (r: Rect) => `[${r.left.toFixed(1)}, ${r.top.toFixed(1)} – ${r.right.toFixed(1)}, ${r.bottom.toFixed(1)}]`;
+const describe = (r: Rect) =>
+  `[${r.left.toFixed(1)}, ${r.top.toFixed(1)} – ${r.right.toFixed(1)}, ${r.bottom.toFixed(1)}]`;
 
 /*
- * A nyíl a rajzról a sorszámok sávjába került (PQW-929). A PQW-916 megoldása a
- * sor jelei fölé emelte, de épp a KÖVETKEZŐ sor rácssávjába és téglalapjára
- * esett; a tulajdonos döntése: „mellé tedd, ne rá. és írd ki, hogy hanyadik
- * sor.” A mérés ezért már nem a rajzon keresi a nyilat, hanem a feliratok
- * között — és azt is ellenőrzi, hogy a felirat nem takar semmit.
+ * The arrow moved from the chart into the band of the row numbers (PQW-929). The
+ * solution of PQW-916 lifted it above the symbols of the row, but it landed
+ * right in the grid band and the rectangle of the NEXT row; the decision of the
+ * owner: „mellé tedd, ne rá. és írd ki, hogy hanyadik sor.” The measurement
+ * therefore no longer looks for the arrow on the chart but among the labels —
+ * and it also checks that the label covers nothing.
  */
-test('a következő sor felirata a rajz mellett áll, nyíllal, és nem takar semmit (PQW-929)', async ({ page }) => {
+test('the label of the next row stands beside the chart, with an arrow, and covers nothing (PQW-929)', async ({
+  page,
+}) => {
   await open(page);
 
-  // 12 láncszem, majd fordulás: a 2. sor nyitva van, de még üres.
+  // 12 chain stitches, then a turn: row 2 is open, but still empty.
   await page.locator('#board').focus();
   await page.keyboard.press('Alt+1');
   await page.locator('#chain-count').focus();
@@ -87,24 +96,28 @@ test('a következő sor felirata a rajz mellett áll, nyíllal, és nem takar se
   await page.keyboard.press('Enter');
   await page.keyboard.press('Alt+f');
 
-  expect(await api<Rect | null>(page, 'arrowBox'), 'a rajzon nincs többé iránynyíl').toBeNull();
+  expect(await api<Rect | null>(page, 'arrowBox'), 'there is no direction arrow on the chart any more').toBeNull();
 
   const labels = await api<LabelBox[]>(page, 'labelBoxes');
   const next = labels.find((label) => /[←→]/.test(label.text));
-  expect(next, `a következő sor felirata nyíllal: ${labels.map((l) => l.text).join(' | ')}`).toBeDefined();
-  expect(next!.text, 'kiírja, hányadik sor következik').toMatch(/2\. sor/);
+  expect(next, `the label of the next row, with an arrow: ${labels.map((l) => l.text).join(' | ')}`).toBeDefined();
+  expect(next!.text, 'it says which row comes next').toMatch(/2\. sor/);
 
   const stitches = await api<StitchBox[]>(page, 'stitchBoxes');
   for (const stitch of stitches) {
-    expect(overlaps(next!, stitch), `a felirat ${describe(next!)} takarja a ${stitch.id} szemet ${describe(stitch)}`).toBe(false);
+    expect(overlaps(next!, stitch), `the label ${describe(next!)} covers stitch ${stitch.id} ${describe(stitch)}`).toBe(
+      false,
+    );
   }
-  // A sorszámok feliratára sem csúszik rá: a láncalap feliratával sem fedi egymást.
+  // It does not slide onto the row labels either: it does not overlap the label of the foundation chain.
   for (const other of labels.filter((label) => label !== next)) {
-    expect(overlaps(next!, other), `a következő sor felirata takarja ezt: „${other.text}”`).toBe(false);
+    expect(overlaps(next!, other), `the label of the next row covers this one: „${other.text}”`).toBe(false);
   }
 });
 
-test('minden sor mellett ott a sorszám és a szemszám, takarás nélkül (PQW-916)', async ({ page }) => {
+test('beside every row there is the row number and the stitch count, without covering anything (PQW-916)', async ({
+  page,
+}) => {
   await open(page);
   await foundationTurnAndRow(page);
 
@@ -113,58 +126,70 @@ test('minden sor mellett ott a sorszám és a szemszám, takarás nélkül (PQW-
   const arrow = await api<Rect | null>(page, 'arrowBox');
 
   /*
-   * A láncalap a PQW-923 óta maga az 1. sor, a szemszámával. A szám a rajzon
-   * lévő láncszem-jeleké: fordulás után kettő közülük az 1. sor fordulóláncába
-   * kerül át (a félpálca a horogtól számított 3. láncszembe megy), ezért a
-   * tizenkettőből tíz marad a 0. rétegen. A felirat így a rajzzal egyezik, és
-   * nem egy másik szemszámot állít.
+   * Since PQW-923 the foundation chain is row 1 itself, with its stitch count.
+   * The number is that of the chain stitch symbols on the chart: after a turn two
+   * of them move into the turning chain of row 1 (the half double crochet goes
+   * into the 3rd chain stitch counted from the hook), so ten of the twelve stay
+   * on layer 0. The label thus agrees with the chart, and does not state some
+   * other stitch count.
    */
   const foundation = labels.find((label) => label.layer === 0);
-  expect(foundation, 'a láncalapnak is van felirata').toBeDefined();
-  expect(foundation!.text, 'a láncalap az 1. sor, a rajzolt láncszemeivel').toMatch(/^1\. sor – alapsor \(\d+\)$/);
+  expect(foundation, 'the foundation chain has a label too').toBeDefined();
+  expect(foundation!.text, 'the foundation chain is row 1, with the chain stitches drawn').toMatch(
+    /^1\. sor – alapsor \(\d+\)$/,
+  );
 
   const row = labels.find((label) => label.layer === 1);
-  expect(row, 'az 1. sornak is van felirata').toBeDefined();
-  expect(row!.text, 'a sorszám és a szemszám egy feliraton').toMatch(/^2\. sor \(\d+\)$/);
+  expect(row, 'row 1 has a label too').toBeDefined();
+  expect(row!.text, 'the row number and the stitch count on one label').toMatch(/^2\. sor \(\d+\)$/);
 
   /*
-   * A felirat a RAJZ mellett áll, nem a rajzon belül. A doboz-átfedés erre
-   * kevés: a félkész sor felirata a rajz közepén, a korábbi sorok szemei fölött
-   * ült, és mégsem metszett egyetlen jelet sem — a képen viszont azonnal
-   * látszott. Ezért itt vízszintesen mérünk: minden feliratnak a jelek sávján
-   * kívül kell lennie.
+   * The label stands BESIDE the chart, not inside it. Box overlap is not enough
+   * for this: the label of the half-finished row sat in the middle of the chart,
+   * above the stitches of the earlier rows, and yet intersected not a single
+   * symbol — while on the screenshot it showed at once. So here we measure
+   * horizontally: every label has to be outside the band of the symbols.
    */
   const right = Math.max(...stitches.map((stitch) => stitch.right));
   const left = Math.min(...stitches.map((stitch) => stitch.left));
   const types = (await page.locator('#types').boundingBox())!;
   const panel = (await page.locator('#panel').boundingBox())!;
   for (const label of labels) {
-    // A rajz mellett áll — vagy a látható sáv széléhez simulva, ha ott már nem férne el.
+    // It stands beside the chart — or hugging the edge of the visible band, if it would no longer fit there.
     const besideChart = label.left >= right - 0.5 || label.right <= left + 0.5;
     const hugsEdge = label.left <= types.x + types.width + 8 || label.right >= panel.x - 8;
-    expect(besideChart || hugsEdge, `a(z) „${label.text}” felirat a jelek közé szorult ${describe(label)}`).toBe(true);
+    expect(
+      besideChart || hugsEdge,
+      `the label „${label.text}” is squeezed in among the symbols ${describe(label)}`,
+    ).toBe(true);
   }
 
   for (const label of labels) {
     for (const stitch of stitches) {
-      expect(overlaps(label, stitch), `a(z) ${label.layer}. felirat ${describe(label)} takarja a ${stitch.id} szemet ${describe(stitch)}`).toBe(false);
+      expect(
+        overlaps(label, stitch),
+        `label ${label.layer} ${describe(label)} covers stitch ${stitch.id} ${describe(stitch)}`,
+      ).toBe(false);
     }
-    if (arrow) expect(overlaps(label, arrow), `a(z) ${label.layer}. felirat takarja a nyilat ${describe(arrow)}`).toBe(false);
+    if (arrow) expect(overlaps(label, arrow), `label ${label.layer} covers the arrow ${describe(arrow)}`).toBe(false);
   }
 });
 
 /*
- * Az „Egész minta” illesztése a feliratokról is tudjon (PQW-916).
+ * The fit of „Egész minta” should know about the labels too (PQW-916).
  *
- * Ezt a doboz-átfedés nem fogta meg: a feliratok a rajz mellett rendben voltak,
- * csak épp a jobb szélső kicsúszott a jelkészlet-panel alá, és olvashatatlan
- * lett. A képen rögtön látszott, mérés viszont nem volt rá — most van.
+ * Box overlap did not catch this: the labels were fine beside the chart, only
+ * the rightmost one slid under the stitch palette panel and became unreadable.
+ * It showed at once on the screenshot, but there was no measurement for it —
+ * now there is.
  */
 for (const viewport of [
   { width: 1440, height: 900 },
   { width: 1000, height: 506 },
 ]) {
-  test(`${viewport.width}×${viewport.height}: az „Egész minta” után a feliratok a két oldalsáv között maradnak (PQW-916)`, async ({ page }) => {
+  test(`${viewport.width}×${viewport.height}: after „Egész minta” the labels stay between the two sidebars (PQW-916)`, async ({
+    page,
+  }) => {
     await page.setViewportSize(viewport);
     await open(page);
     await foundationTurnAndRow(page);
@@ -172,27 +197,36 @@ for (const viewport of [
     await page.waitForTimeout(200);
 
     const labels = await api<LabelBox[]>(page, 'labelBoxes');
-    expect(labels.length, 'van mit elhelyezni').toBeGreaterThan(0);
+    expect(labels.length, 'there is something to place').toBeGreaterThan(0);
     const types = (await page.locator('#types').boundingBox())!;
     const panel = (await page.locator('#panel').boundingBox())!;
 
     for (const label of labels) {
-      expect(label.left, `a(z) „${label.text}” felirat a mintatípus-sáv alá csúszik ${describe(label)}`).toBeGreaterThanOrEqual(types.x + types.width - 0.5);
-      expect(label.right, `a(z) „${label.text}” felirat a jelkészlet-panel alá csúszik ${describe(label)}`).toBeLessThanOrEqual(panel.x + 0.5);
+      expect(
+        label.left,
+        `the label „${label.text}” slides under the pattern type bar ${describe(label)}`,
+      ).toBeGreaterThanOrEqual(types.x + types.width - 0.5);
+      expect(
+        label.right,
+        `the label „${label.text}” slides under the stitch palette panel ${describe(label)}`,
+      ).toBeLessThanOrEqual(panel.x + 0.5);
     }
   });
 }
 
 /*
- * Szűk ablak, hosszabb felirat (PQW-916).
+ * Narrow window, longer label (PQW-916).
  *
- * Az angol „Foundation chain (10)” jóval szélesebb a magyar „Láncalap (10)”-nél,
- * és 1000×506-ban a rajz jobb oldalán már nincs neki hely. A böngészős szemle
- * mérte meg, hogy ilyenkor a felirat visszacsúszik a jelek fölé (n9, n10) — a
- * korábbi esetek ezt nem fogták meg, mert magyarul és az „Egész minta” utáni
- * nézetben mérnek. A felirat inkább lógjon ki, mint hogy takarjon.
+ * The English „Foundation chain (10)” is much wider than the Hungarian
+ * „Láncalap (10)”, and at 1000×506 there is no longer room for it on the right
+ * of the chart. The browser review measured that in that case the label slides
+ * back over the symbols (n9, n10) — the earlier cases did not catch this,
+ * because they measure in Hungarian and in the view after „Egész minta”. The
+ * label should rather hang out than cover something.
  */
-test('1000×506, angol felület: a hosszabb felirat sem csúszik a szemekre (PQW-916)', async ({ page }) => {
+test('1000×506, English interface: even the longer label does not slide onto the stitches (PQW-916)', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1000, height: 506 });
   await page.goto('/?lang=en');
   const deny = page.locator('[data-consent="denied"]');
@@ -206,24 +240,31 @@ test('1000×506, angol felület: a hosszabb felirat sem csúszik a szemekre (PQW
 
   for (const label of labels) {
     for (const stitch of stitches) {
-      expect(overlaps(label, stitch), `a(z) „${label.text}” felirat ${describe(label)} takarja a ${stitch.id} szemet ${describe(stitch)}`).toBe(false);
+      expect(
+        overlaps(label, stitch),
+        `the label „${label.text}” ${describe(label)} covers stitch ${stitch.id} ${describe(stitch)}`,
+      ).toBe(false);
     }
-    if (arrow) expect(overlaps(label, arrow), `a(z) „${label.text}” felirat takarja a nyilat ${describe(arrow)}`).toBe(false);
+    if (arrow)
+      expect(overlaps(label, arrow), `the label „${label.text}” covers the arrow ${describe(arrow)}`).toBe(false);
   }
 });
 
-test('a vászon területén nincs lebegő állapotszöveg, de az élő régió megmarad (PQW-916)', async ({ page }) => {
+test('there is no floating status text over the canvas area, but the live region stays (PQW-916)', async ({ page }) => {
   await open(page);
   await foundationTurnAndRow(page);
 
   const status = page.locator('#status');
-  // A felület jelzést ad: a szöveg a képernyőolvasónak megmarad. (Fordulás után
-  // ez a „Láncalap kész…” üzenet; a szövegét nem kötjük meg, csak azt, hogy van.)
+  // The interface does give a signal: the text stays for the screen reader. (After
+  // a turn this is the „Láncalap kész…” message; we do not pin down its text, only that there is one.)
   await expect(status).toHaveAttribute('aria-live', 'polite');
   await expect(status).not.toBeEmpty();
 
-  // De a látható rajz fölé nem kerül: a doboza legfeljebb a rejtett élő régió mérete.
+  // But it does not get over the visible chart: its box is at most the size of the hidden live region.
   const box = await status.boundingBox();
   const area = box ? box.width * box.height : 0;
-  expect(area, `az állapotszöveg még mindig a vászon fölött lebeg: ${box ? describe({ left: box.x, top: box.y, right: box.x + box.width, bottom: box.y + box.height }) : 'nincs doboza'}`).toBeLessThanOrEqual(4);
+  expect(
+    area,
+    `the status text still floats over the canvas: ${box ? describe({ left: box.x, top: box.y, right: box.x + box.width, bottom: box.y + box.height }) : 'it has no box'}`,
+  ).toBeLessThanOrEqual(4);
 });

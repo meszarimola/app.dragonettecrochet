@@ -1,15 +1,4 @@
-/*
- * A minta mentése és betöltése verziózott JSON-ként.
- *
- * - A `formatVersion` minden nem visszafelé kompatibilis változásnál nő
- *   (types.ts `Pattern`). Újabb verziót nem töltünk be, mert csendben adat
- *   veszne el.
- * - A betöltés szigorú: ismeretlen mező, hiányzó mező vagy rossz típus hibát
- *   ad a mező útvonalával. A gráf tartalmát (pl. létező-e egy hivatkozott
- *   szem) nem itt, hanem a `validatePattern` ellenőrzi.
- * - A mentés a mezőket mindig ugyanabban a sorrendben írja, így két mentés
- *   különbsége olvasható.
- */
+// KB: core-domain §11, core-domain §19
 
 import { SERIES_KEYS } from './garment-text.ts';
 import type { CoreData, CoreText } from './messages.ts';
@@ -25,11 +14,12 @@ import type {
   JoinEdge,
   LayerEvent,
   Locale,
+  OvalStitch,
   Pattern,
   PatternColor,
   PatternConventions,
-  PatternGauge,
   PatternGarment,
+  PatternGauge,
   PatternGaugeProfile,
   PatternNotation,
   Piece,
@@ -42,12 +32,11 @@ import type {
   Ring,
   RoundMark,
   RowConventions,
-  OvalStitch,
   ShapeSpec,
   Space,
+  StitchDefId,
   StitchFlag,
   StitchGroup,
-  StitchDefId,
   StitchInsertion,
   StitchNode,
   Tradition,
@@ -55,17 +44,14 @@ import type {
 
 export const FORMAT_VERSION = 1;
 
-/**
- * Mi a baj a betöltött fájllal (PQW-904): a mag ezt a kódot adja, a mondatot a
- * felület szótára írja (`src/ui/i18n/core/json.ts`).
- */
+// KB: core-domain §2
 export type JsonCode =
   | 'invalid-json'
   | 'unsupported-version'
   | 'expected-object'
   | 'missing-field'
   | 'unknown-field'
-  /** A fájl a kivezetett szegélygenerálás szemeit tartalmazza (PQW-911). */
+  /** KB: core-domain §19 */
   | 'legacy-border'
   | 'expected-nonempty-string'
   | 'expected-string'
@@ -92,15 +78,14 @@ export type JsonCode =
 
 export interface LoadError {
   readonly code: 'invalid-json' | 'unsupported-version' | 'invalid-format';
-  /** A hibás mező útvonala, pl. `$.pieces[0].stitches[3].anchors[0].mode`. */
   readonly path: string;
-  /** Kód és adat, nem kész mondat: a szöveget a felület állítja össze. */
   readonly message: CoreText<JsonCode>;
 }
 
-export type LoadResult = { readonly ok: true; readonly pattern: Pattern } | { readonly ok: false; readonly error: LoadError };
+export type LoadResult =
+  | { readonly ok: true; readonly pattern: Pattern }
+  | { readonly ok: false; readonly error: LoadError };
 
-/** A minta JSON-szövege. Ha a minta nem felel meg a formátumnak, hibát dob. */
 export function savePattern(pattern: Pattern): string {
   return `${JSON.stringify(readPattern(pattern, '$'), null, 2)}\n`;
 }
@@ -110,7 +95,7 @@ export function loadPattern(text: string): LoadResult {
   try {
     raw = JSON.parse(text);
   } catch (error) {
-    // A JS saját hibaszövege adat marad: nem mi fogalmazzuk, ezért nem is fordítjuk.
+    // The JS error text stays as data: we did not write it, so we do not translate it.
     return fail('invalid-json', '$', { code: 'invalid-json', data: { detail: (error as Error).message } });
   }
 
@@ -134,15 +119,11 @@ function fail(code: LoadError['code'], path: string, message: CoreText<JsonCode>
   return { ok: false, error: { code, path, message } };
 }
 
-/** A hiba kódja és adata egy üzenetté; a `data` csak akkor kerül bele, ha van. */
 function messageOf(error: FormatError): CoreText<JsonCode> {
   return error.data === undefined ? { code: error.code } : { code: error.code, data: error.data };
 }
 
-/**
- * A formátumhiba a mag felől: a mező útvonala, a hiba kódja és a behelyettesítendő
- * értékek. Az `Error.message` maga a kód, hogy a fejlesztői napló is olvasható legyen.
- */
+/** `Error.message` is the code itself, so the developer log stays readable. */
 class FormatError extends Error {
   readonly path: string;
   readonly code: JsonCode;
@@ -156,15 +137,18 @@ class FormatError extends Error {
   }
 }
 
-/* ---- Olvasók ---- */
-
 type JsonObject = Record<string, unknown>;
 
 function isObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function object(value: unknown, path: string, required: readonly string[], optional: readonly string[] = []): JsonObject {
+function object(
+  value: unknown,
+  path: string,
+  required: readonly string[],
+  optional: readonly string[] = [],
+): JsonObject {
   if (!isObject(value)) throw new FormatError(path, 'expected-object');
   for (const key of required) {
     if (!(key in value)) throw new FormatError(`${path}.${key}`, 'missing-field');
@@ -219,25 +203,29 @@ const CHART_STYLES: readonly ChartStyle[] = ['cyc', 'jis'];
 const INSERTIONS: readonly StitchInsertion[] = ['both-loops', 'front-loop', 'back-loop', 'front-post', 'back-post'];
 const FLAGS: readonly StitchFlag[] = ['crossed', 'spike'];
 const TRADITIONS: readonly Tradition[] = ['cyc', 'japanese'];
-/** A profilban mérhető alapszemek (docs/calibration/, a láncszem és a kúszószem nélkül). */
+/** Basic stitches a profile can measure; chain and slip stitch are excluded. */
 export const GAUGE_STITCHES: readonly StitchDefId[] = ['sc', 'hdc', 'dc', 'tr'];
 const GAUGE_FORMS: readonly GaugeForm[] = ['rows', 'rounds'];
 
 function readPattern(value: unknown, path: string): Pattern {
-  const raw = object(value, path, ['formatVersion', 'title', 'conventions', 'pieces'], ['titleGenerated', 'notation', 'gauge', 'joins', 'toy', 'garment']);
+  const raw = object(
+    value,
+    path,
+    ['formatVersion', 'title', 'conventions', 'pieces'],
+    ['titleGenerated', 'notation', 'gauge', 'joins', 'toy', 'garment'],
+  );
   return {
     formatVersion: oneOf(raw['formatVersion'], `${path}.formatVersion`, [FORMAT_VERSION]),
     title: text(raw['title'], `${path}.title`),
-    // A PQW-896 előtti mentésben nincs: a pattern-title.ts a címből dönt.
-    ...(raw['titleGenerated'] === undefined ? {} : { titleGenerated: boolean(raw['titleGenerated'], `${path}.titleGenerated`) }),
+    ...(raw['titleGenerated'] === undefined
+      ? {}
+      : { titleGenerated: boolean(raw['titleGenerated'], `${path}.titleGenerated`) }),
     ...(raw['notation'] === undefined ? {} : { notation: readNotation(raw['notation'], `${path}.notation`) }),
     ...(raw['gauge'] === undefined ? {} : { gauge: readGauge(raw['gauge'], `${path}.gauge`) }),
     conventions: readPatternConventions(raw['conventions'], `${path}.conventions`),
     pieces: array(raw['pieces'], `${path}.pieces`, readPiece),
-    // A kapcsolások és a játék adatai a PQW-863 előtti mentésben nincsenek.
     ...(raw['joins'] === undefined ? {} : { joins: array(raw['joins'], `${path}.joins`, readJoin) }),
     ...(raw['toy'] === undefined ? {} : { toy: readToy(raw['toy'], `${path}.toy`) }),
-    // A ruhadarab méretsorozata a PQW-866 előtti mentésben nincs.
     ...(raw['garment'] === undefined ? {} : { garment: readGarment(raw['garment'], `${path}.garment`) }),
   };
 }
@@ -254,7 +242,6 @@ function positiveOrNull(value: unknown, path: string): number | null {
   return value === null ? null : positive(value, path);
 }
 
-/** A profilok nem kötelezők: a PQW-859 előtti mentésekben nincsenek, ezért a `formatVersion` nem nő. */
 function readGauge(value: unknown, path: string): PatternGauge {
   const raw = object(value, path, ['active', 'profiles']);
   const profiles = array(raw['profiles'], `${path}.profiles`, readGaugeProfile);
@@ -310,7 +297,6 @@ function readGaugeEntry(value: unknown, path: string): GaugeEntry {
   };
 }
 
-/** A jelölés nem kötelező: a PQW-868 előtti mentésekben nincs, ezért a `formatVersion` nem nő. */
 function readNotation(value: unknown, path: string): PatternNotation {
   const raw = object(value, path, ['terms', 'chartStyle', 'singleCrochet']);
   return {
@@ -336,12 +322,10 @@ function readPatternConventions(value: unknown, path: string): PatternConvention
     roundEnd: oneOf(raw['roundEnd'], `${path}.roundEnd`, ['stitch-default', 'join-slip', 'spiral']),
     picotCounts: boolean(raw['picotCounts'], `${path}.picotCounts`),
     joinSlipStitchCounts: boolean(raw['joinSlipStitchCounts'], `${path}.joinSlipStitchCounts`),
-    // A PQW-870 előtti mentésben nincs ilyen mező; akkor is a használat szerinti szabály érvényes.
     chainCounts:
       raw['chainCounts'] === undefined
         ? 'worked-into'
         : oneOf(raw['chainCounts'], `${path}.chainCounts`, ['worked-into', true, false]),
-    // A PQW-876 előtti mentésben nincs; akkor a minta a CYC szerint számol.
     ...(raw['tradition'] === undefined ? {} : { tradition: oneOf(raw['tradition'], `${path}.tradition`, TRADITIONS) }),
     ...(raw['repeat'] === undefined ? {} : { repeat: readRepeat(raw['repeat'], `${path}.repeat`) }),
   };
@@ -361,8 +345,7 @@ function readPiece(value: unknown, path: string): Piece {
     value,
     path,
     ['id', 'name', 'stitches', 'spaces', 'rings', 'groups', 'events', 'skipped'],
-    // A `border` a kivezetett szegélyé (PQW-911): a korábbi mentésekben még ott állhat, ezért
-    // elfogadjuk a mezőt, de nem olvassuk be — a darab szegély nélkül töltődik be.
+    // KB: core-domain §19
     ['corners', 'border', 'sections', 'grid', 'rowShape', 'roundShape'],
   );
   return {
@@ -374,27 +357,21 @@ function readPiece(value: unknown, path: string): Piece {
     groups: array(raw['groups'], `${path}.groups`, readGroup),
     events: array(raw['events'], `${path}.events`, readEvent),
     skipped: array(raw['skipped'], `${path}.skipped`, string),
-    // A PQW-861 előtti mentésben nincs: a körökben horgolt darab kör.
     ...(raw['corners'] === undefined ? {} : { corners: integer(raw['corners'], `${path}.corners`, 3) }),
-    // A PQW-863 előtti mentésben nincs: a darab nem részekből készült.
     ...(raw['sections'] === undefined ? {} : { sections: array(raw['sections'], `${path}.sections`, readSection) }),
-    // A PQW-864 előtti mentésben nincs: a darab nem rácsmintából készült.
     ...(raw['grid'] === undefined ? {} : { grid: readGrid(raw['grid'], `${path}.grid`) }),
-    // A PQW-893 előtti mentésben nincs: a sorok egyenesek.
     ...(raw['rowShape'] === undefined ? {} : { rowShape: readRowShape(raw['rowShape'], `${path}.rowShape`) }),
-    // A körben horgolt darab kúpos rajza a PQW-908 előtti mentésben nincs.
     ...(raw['roundShape'] === undefined ? {} : { roundShape: readRoundShape(raw['roundShape'], `${path}.roundShape`) }),
   };
 }
 
-/** A körben horgolt darab rajzának alakja (PQW-908): kúp a megadott körig. */
 function readRoundShape(value: unknown, path: string): NonNullable<Piece['roundShape']> {
   const kind = oneOf(isObject(value) ? value['kind'] : undefined, `${path}.kind`, ['cone'] as const);
   const raw = object(value, path, ['kind', 'throughRound']);
   return { kind, throughRound: integer(raw['throughRound'], `${path}.throughRound`, 2) };
 }
 
-/** A sorban horgolt kendő rajzának alakja; a szögek fokban, 0 és 360 között. */
+/** Angles in degrees, between 0 and 360. */
 function readRowShape(value: unknown, path: string): NonNullable<Piece['rowShape']> {
   const kind = oneOf(isObject(value) ? value['kind'] : undefined, `${path}.kind`, ['arc', 'chevron'] as const);
   const angle = (raw: JsonObject, key: string) => {
@@ -414,7 +391,9 @@ const GRID_TECHNIQUES: readonly GridTechnique[] = ['filet', 'c2c', 'tapestry', '
 
 function readGrid(value: unknown, path: string): PieceGrid {
   const raw = object(value, path, ['technique', 'cells', 'colors', 'unit', 'lettering'], ['mosaicRows']);
-  const cells = array(raw['cells'], `${path}.cells`, (row, rowPath) => array(row, rowPath, (cell, cellPath) => integer(cell, cellPath, -1)));
+  const cells = array(raw['cells'], `${path}.cells`, (row, rowPath) =>
+    array(row, rowPath, (cell, cellPath) => integer(cell, cellPath, -1)),
+  );
   const width = cells[0]?.length ?? 0;
   cells.forEach((row, y) => {
     if (row.length !== width) throw new FormatError(`${path}.cells[${y}]`, 'expected-cells-per-row', { width });
@@ -425,14 +404,14 @@ function readGrid(value: unknown, path: string): PieceGrid {
     colors: array(raw['colors'], `${path}.colors`, readColor),
     unit: raw['unit'] === null ? null : readUnit(raw['unit'], `${path}.unit`),
     lettering: boolean(raw['lettering'], `${path}.lettering`),
-    // A PQW-894 előtti mentésben nincs: a rács nem mozaik.
-    ...(raw['mosaicRows'] === undefined ? {} : { mosaicRows: oneOf(raw['mosaicRows'], `${path}.mosaicRows`, [1, 2] as const) }),
+    ...(raw['mosaicRows'] === undefined
+      ? {}
+      : { mosaicRows: oneOf(raw['mosaicRows'], `${path}.mosaicRows`, [1, 2] as const) }),
   };
 }
 
 function readColor(value: unknown, path: string): PatternColor {
-  // A beépített színek azonosítót visznek (PQW-905); a korábbi mentésekben csak
-  // név van, azok változatlanul betölthetők. Valamelyik kettő közül kell.
+  // A built-in color carries an id, an older save only a name; one of the two must be there.
   const raw = object(value, path, ['hex'], ['id', 'name']);
   const hex = string(raw['hex'], `${path}.hex`);
   if (!/^#[0-9a-f]{6}$/i.test(hex)) throw new FormatError(`${path}.hex`, 'expected-hex-color');
@@ -465,7 +444,6 @@ function readNode(value: unknown, path: string): StitchNode {
       ? {}
       : { flags: array(raw['flags'], `${path}.flags`, (flag, flagPath) => oneOf(flag, flagPath, FLAGS)) }),
     ...(raw['pinned'] === undefined ? {} : { pinned: readPinned(raw['pinned'], `${path}.pinned`) }),
-    // A PQW-864 előtti mentésben nincs: a szem az első színnel készül.
     ...(raw['color'] === undefined ? {} : { color: integer(raw['color'], `${path}.color`, 0) }),
   };
 }
@@ -481,8 +459,7 @@ function readPinned(value: unknown, path: string): NonNullable<StitchNode['pinne
 
 function readAnchor(value: unknown, path: string): Anchor {
   if (!isObject(value)) throw new FormatError(path, 'expected-object');
-  // A kivezetett szegély szemei sorvégbe horgoltak (PQW-911). Az ilyen mentést
-  // nem csonkítjuk és nem értelmezzük át: saját, érthető hibával utasítjuk el.
+  // KB: core-domain §19
   if (isObject(value) && value['into'] === 'row-end') throw new FormatError(`${path}.into`, 'legacy-border');
   const into = oneOf(value['into'], `${path}.into`, ['stitch', 'space', 'ring', 'underside']);
   if (into === 'stitch') {
@@ -513,7 +490,12 @@ function readGroup(value: unknown, path: string): StitchGroup {
 }
 
 function readEvent(value: unknown, path: string): LayerEvent {
-  const raw = object(value, path, ['after', 'kind'], ['statedCount', 'conventions', 'colorChange', 'jogFix', 'marks', 'resume']);
+  const raw = object(
+    value,
+    path,
+    ['after', 'kind'],
+    ['statedCount', 'conventions', 'colorChange', 'jogFix', 'marks', 'resume'],
+  );
   return {
     after: string(raw['after'], `${path}.after`),
     kind: oneOf(raw['kind'], `${path}.kind`, ['turn', 'join-slip', 'spiral', 'fasten-off']),
@@ -521,30 +503,25 @@ function readEvent(value: unknown, path: string): LayerEvent {
     ...(raw['conventions'] === undefined
       ? {}
       : { conventions: readRowConventions(raw['conventions'], `${path}.conventions`) }),
-    // A színváltás és a lépcsőjavítás a PQW-861 előtti mentésben nincs.
     ...(raw['colorChange'] === undefined ? {} : { colorChange: boolean(raw['colorChange'], `${path}.colorChange`) }),
-    ...(raw['jogFix'] === undefined ? {} : { jogFix: oneOf(raw['jogFix'], `${path}.jogFix`, ['slip-stitch', 'back-loop']) }),
-    // A jelölések a PQW-863 előtti mentésben nincsenek.
+    ...(raw['jogFix'] === undefined
+      ? {}
+      : { jogFix: oneOf(raw['jogFix'], `${path}.jogFix`, ['slip-stitch', 'back-loop']) }),
     ...(raw['marks'] === undefined
       ? {}
       : { marks: array(raw['marks'], `${path}.marks`, (mark, markPath) => oneOf(mark, markPath, MARKS)) }),
-    // A fonal elvágása utáni folytatás a PQW-901 előtti mentésben nincs.
     ...(raw['resume'] === undefined ? {} : { resume: readResume(raw['resume'], `${path}.resume`) }),
   };
 }
 
-/** Elvágott fonal után a szakasz a megadott sor fölött folytatódik, a nevével (PQW-901). */
 function readResume(value: unknown, path: string): NonNullable<LayerEvent['resume']> {
   const raw = object(value, path, ['layer'], ['name', 'with']);
   return {
     layer: integer(raw['layer'], `${path}.layer`, 1),
     ...(raw['name'] === undefined ? {} : { name: string(raw['name'], `${path}.name`) }),
-    // Két forrásból horgoló kör (PQW-908); a PQW-908 előtti mentésben nincs.
     ...(raw['with'] === undefined ? {} : { with: integer(raw['with'], `${path}.with`, 1) }),
   };
 }
-
-/* ---- Amigurumi (PQW-863) ---- */
 
 const MARKS: readonly RoundMark[] = ['safety-eyes', 'embroider-eyes', 'stuffing', 'close-opening'];
 const ENDS: readonly PieceEnd[] = ['open', 'closed'];
@@ -582,7 +559,13 @@ function readShape(value: unknown, path: string): ShapeSpec {
     }
     case 'cylinder': {
       const raw = object(value, path, ['kind', 'diameterCm', 'heightCm', 'bottom', 'top']);
-      return { kind, diameterCm: size(raw, 'diameterCm'), heightCm: size(raw, 'heightCm'), bottom: end(raw, 'bottom'), top: end(raw, 'top') };
+      return {
+        kind,
+        diameterCm: size(raw, 'diameterCm'),
+        heightCm: size(raw, 'heightCm'),
+        bottom: end(raw, 'bottom'),
+        top: end(raw, 'top'),
+      };
     }
     case 'cone': {
       const raw = object(value, path, ['kind', 'diameterCm', 'heightCm', 'increases', 'top']);
@@ -596,11 +579,17 @@ function readShape(value: unknown, path: string): ShapeSpec {
     }
     case 'revolution': {
       const raw = object(value, path, ['kind', 'profile', 'bottom', 'top']);
-      return { kind, profile: array(raw['profile'], `${path}.profile`, readProfilePoint), bottom: end(raw, 'bottom'), top: end(raw, 'top') };
+      return {
+        kind,
+        profile: array(raw['profile'], `${path}.profile`, readProfilePoint),
+        bottom: end(raw, 'bottom'),
+        top: end(raw, 'top'),
+      };
     }
     case 'oval': {
       const raw = object(value, path, ['kind', 'lengthCm', 'widthCm'], ['stitch']);
-      const stitch = raw['stitch'] === undefined ? {} : { stitch: oneOf(raw['stitch'], `${path}.stitch`, OVAL_STITCHES) };
+      const stitch =
+        raw['stitch'] === undefined ? {} : { stitch: oneOf(raw['stitch'], `${path}.stitch`, OVAL_STITCHES) };
       return { kind, lengthCm: size(raw, 'lengthCm'), widthCm: size(raw, 'widthCm'), ...stitch };
     }
   }
@@ -633,12 +622,18 @@ function readJoinEdge(value: unknown, path: string): JoinEdge {
   let stitches: JoinEdge['stitches'];
   if (raw['stitches'] !== undefined) {
     const range = object(raw['stitches'], `${path}.stitches`, ['from', 'count']);
-    stitches = { from: integer(range['from'], `${path}.stitches.from`, 0), count: integer(range['count'], `${path}.stitches.count`, 1) };
+    stitches = {
+      from: integer(range['from'], `${path}.stitches.from`, 0),
+      count: integer(range['count'], `${path}.stitches.count`, 1),
+    };
   }
   let rows: JoinEdge['rows'];
   if (raw['rows'] !== undefined) {
     const range = object(raw['rows'], `${path}.rows`, ['to', 'side']);
-    rows = { to: integer(range['to'], `${path}.rows.to`, layer), side: oneOf(range['side'], `${path}.rows.side`, ['left', 'right'] as const) };
+    rows = {
+      to: integer(range['to'], `${path}.rows.to`, layer),
+      side: oneOf(range['side'], `${path}.rows.side`, ['left', 'right'] as const),
+    };
   }
   return {
     piece: string(raw['piece'], `${path}.piece`),
@@ -651,7 +646,7 @@ function readJoinEdge(value: unknown, path: string): JoinEdge {
 const GARMENT_KINDS: readonly GarmentKind[] = ['hat', 'drop-shoulder'];
 const GARMENT_TABLES: readonly GarmentTable[] = ['women', 'men', 'child', 'baby', 'hat'];
 
-/** A ruhadarab méretsorozata (PQW-866): a kulcsok a garment-text.ts szerint, méretenként egy szám. */
+/** One number per size, keyed by `SERIES_KEYS`. */
 function readGarment(value: unknown, path: string): PatternGarment {
   const raw = object(value, path, ['kind', 'table', 'sizes', 'base', 'values']);
   const sizes = array(raw['sizes'], `${path}.sizes`, string);
@@ -663,7 +658,8 @@ function readGarment(value: unknown, path: string): PatternGarment {
   for (const key of SERIES_KEYS) {
     if (rawValues[key] === undefined) continue;
     const numbers = array(rawValues[key], `${path}.values.${key}`, finite);
-    if (numbers.length !== sizes.length) throw new FormatError(`${path}.values.${key}`, 'expected-numbers-per-size', { count: sizes.length });
+    if (numbers.length !== sizes.length)
+      throw new FormatError(`${path}.values.${key}`, 'expected-numbers-per-size', { count: sizes.length });
     values[key] = numbers;
   }
   return {

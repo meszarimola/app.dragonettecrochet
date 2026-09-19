@@ -1,14 +1,14 @@
 /*
- * A rács a vásznon (PQW-874): a téglalap csak cellákra kattintva, érthető
- * üzenet ott, ahol nincs mibe horgolni, kattintható sorszám, a rács ki- és
- * bekapcsolása a nézet csoportban, és választhatóan az exportban.
+ * The grid on the canvas (PQW-874): the rectangle by clicking on cells only, a
+ * clear message where there is nothing to crochet into, a clickable row label,
+ * switching the grid on and off in the view group, and optionally in the export.
  *
- * A cellák helyét a felület automatizált böngészőben adja ki
+ * The interface publishes the positions of the cells in an automated browser
  * (`window.mintatervezoRacs`, src/ui/main.ts).
  */
 
 import { readFile } from 'node:fs/promises';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 interface Cell {
   readonly layer: number;
@@ -32,36 +32,48 @@ async function open(page: Page): Promise<void> {
 
 const racs = (page: Page): Promise<Racs> =>
   page.evaluate(() => {
-    const api = (window as unknown as { mintatervezoRacs: { layer(): number; cells(): Cell[]; labels(): Racs['labels'] } }).mintatervezoRacs;
+    const api = (
+      window as unknown as { mintatervezoRacs: { layer(): number; cells(): Cell[]; labels(): Racs['labels'] } }
+    ).mintatervezoRacs;
     return { layer: api.layer(), cells: api.cells(), labels: api.labels() };
   });
 
-/** Kattintás a célpont cellájára: az alsó sorban (a célpont saját cellája) vagy a készülő sorban (fölötte). */
+/** Click on the cell of the target: in the bottom row (the own cell of the target) or in the row in progress (above it). */
 async function clickSlot(page: Page, slot: number, row: 'alsó' | 'készülő'): Promise<void> {
   const { layer, cells } = await racs(page);
-  const cell = cells.find((candidate) => candidate.slot === slot && candidate.layer === (row === 'készülő' ? layer : layer - 1));
-  expect(cell, `a(z) ${slot}. célpont cellája (${row} sor)`).toBeTruthy();
+  const cell = cells.find(
+    (candidate) => candidate.slot === slot && candidate.layer === (row === 'készülő' ? layer : layer - 1),
+  );
+  expect(cell, `the cell of target ${slot} (row ${row})`).toBeTruthy();
   await page.mouse.click(cell!.x, cell!.y);
 }
 
-test('a téglalap csak cellákra kattintva készül; ahol nincs mibe horgolni, üzenet jön, és nem kerül le szem', async ({ page }) => {
+test('the rectangle is made by clicking on cells only; where there is nothing to crochet into, a message comes and no stitch is laid down', async ({
+  page,
+}) => {
   await open(page);
-  // Az írott minta panelje csukva indul (PQW-911): nem takarja a vásznat.
+  // The written pattern panel starts closed (PQW-911): it does not cover the canvas.
   await expect(page.locator('#written')).toBeHidden();
   const palette = page.locator('#palette');
   const summary = page.locator('#summary');
   const status = page.locator('#status');
   const fit = page.getByRole('button', { name: 'Egész minta' });
 
-  // Láncalap (a rajzon: 1. sor): a láncszem célpont nélkül megy, egy kattintás a vásznon.
-  await palette.getByRole('button', { name: /Láncszem/ }).first().click();
+  // Foundation chain (row 1 on the chart): the chain stitch goes without a target, one click on the canvas.
+  await palette
+    .getByRole('button', { name: /Láncszem/ })
+    .first()
+    .click();
   await page.locator('#chain-count').fill('6');
   await page.locator('#board').click();
   await fit.click();
 
-  // 1. sor: rövidpálcák a láncalap celláiba; rövidpálcánál 2 láncszemet hagyunk ki (PQW-924), a többibe
-  // egy-egy rövidpálca megy: 6 láncszemből 4 szem.
-  await palette.getByRole('button', { name: /Rövidpálca \(rp\)/ }).first().click();
+  // Row 1: single crochets into the cells of the foundation chain; for single crochet we skip 2 chain stitches (PQW-924), and into the rest
+  // one single crochet each goes: 4 stitches out of 6 chain stitches.
+  await palette
+    .getByRole('button', { name: /Rövidpálca \(rp\)/ })
+    .first()
+    .click();
   for (const slot of [2, 3, 4, 5]) await clickSlot(page, slot, 'alsó');
   await expect(summary).toContainText('2. sor: 5 szem');
 
@@ -69,7 +81,7 @@ test('a téglalap csak cellákra kattintva készül; ahol nincs mibe horgolni, �
   await fit.click();
   await expect(summary).toContainText('3. sor következik.');
 
-  // A láncalap már nem célpont: üzenet jön, és nem kerül le szem.
+  // The foundation chain is no longer a target: a message comes, and no stitch is laid down.
   const { layer, cells } = await racs(page);
   const old = cells.find((cell) => cell.layer === layer - 2);
   expect(old).toBeTruthy();
@@ -77,12 +89,12 @@ test('a téglalap csak cellákra kattintva készül; ahol nincs mibe horgolni, �
   await expect(status).toHaveText(/^Ez az 1\. sor egyik helye\. Most a 3\. sor készül: .*Nem került le szem\.$/);
   await expect(summary).toContainText('3. sor következik.');
 
-  // 2. sor: a készülő sor celláiba, a célpontok fölé kattintva; minden szembe kerül egy (PQW-924).
+  // Row 2: into the cells of the row in progress, clicking above the targets; one goes into every stitch (PQW-924).
   for (const slot of [0, 1, 2, 3]) await clickSlot(page, slot, 'készülő');
   await expect(summary).toContainText('3. sor: 4 szem, még 1 célpont');
   await expect(summary).toContainText('Nincs hiba és figyelmeztetés.');
 
-  // A sorszám önálló, kattintható célterület: a teljes sort jelöli ki (PQW-875).
+  // The row label is an independent, clickable target area: it selects the whole row (PQW-875).
   await fit.click();
   const label = (await racs(page)).labels.find((candidate) => candidate.layer === 1);
   expect(label).toBeTruthy();
@@ -91,11 +103,13 @@ test('a téglalap csak cellákra kattintva készül; ahol nincs mibe horgolni, �
   await expect(summary).toContainText('3. sor: 4 szem, még 1 célpont');
 });
 
-test('a rács a nézet csoportban ki- és bekapcsolható, megmarad, és választhatóan kerül az SVG-exportba', async ({ page }) => {
+test('the grid can be switched on and off in the view group, it survives, and it goes into the SVG export optionally', async ({
+  page,
+}) => {
   await open(page);
   const grid = page.locator('.tools [data-action="grid"]');
   await expect(grid).toHaveAttribute('aria-pressed', 'true');
-  // A gyorsbillentyű Alt-os (PQW-911); Mac gépen a felirata ⌥R.
+  // The shortcut uses Alt (PQW-911); on a Mac its label is ⌥R.
   await expect(grid).toHaveAttribute('data-tip', /^Rács ki és be \((Alt\+R|⌥R)\)$/);
 
   await page.locator('#board').focus();
@@ -121,7 +135,7 @@ test('a rács a nézet csoportban ki- és bekapcsolható, megmarad, és választ
 
   const exportSvg = async () => {
     const download = page.waitForEvent('download');
-    // Az export a fájlműveletek lenyílójában van (PQW-911).
+    // The export is in the file actions dropdown (PQW-911).
     await page.locator('#file-toggle').click();
     await page.getByRole('button', { name: 'SVG', exact: true }).click();
     return readFile((await (await download).path())!, 'utf8');
@@ -131,16 +145,16 @@ test('a rács a nézet csoportban ki- és bekapcsolható, megmarad, és választ
   expect(withGrid).toContain('Rács: váltakozó sávok');
 
   /*
-   * A rács a szemeket nem tagolja csoportokra (PQW-924). A tulajdonos az
-   * exportált képen látta a vastag függőleges vonalakat, ezért itt a letöltött
-   * fájlban nézzük meg, nem csak a tervezőben: a tervező és az export ugyanazt
-   * a rácsot rajzolja, közös kódból.
+   * The grid does not divide the stitches into groups (PQW-924). The owner saw
+   * the thick vertical lines on the exported image, so here we look at the
+   * downloaded file, not just at the designer: the designer and the export draw
+   * the same grid, from shared code.
    */
   const thickVertical = [...withGrid.matchAll(/<path d="M[-\d.]+ [-\d.]+V[-\d.]+"[^>]*stroke-width="([\d.]+)"/g)]
     .map((match) => Number(match[1]))
     .filter((width) => width > 1);
-  expect(thickVertical, 'az exportált rácsban nincs vastag függőleges cellavonal').toEqual([]);
-  // A sorszámozás is az új: a láncalap az 1. sor, nincs „0” sorszám.
+  expect(thickVertical, 'there is no thick vertical cell line in the exported grid').toEqual([]);
+  // The numbering is the new one too: the foundation chain is row 1, there is no „0” row number.
   expect(withGrid).toContain('1. sor – alapsor');
   expect(withGrid).not.toMatch(/>0<\/text>/);
 

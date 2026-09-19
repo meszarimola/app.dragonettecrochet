@@ -1,15 +1,4 @@
-/*
- * Belépési pont: a szerkesztő állapota és a felület összekötése.
- *
- * A mintát csak a mag műveletei változtatják (src/core/editor.ts); itt csak a
- * visszavonási verem, a kurzor, a kijelölés és a nézet él. Minden változás
- * után újraszámoljuk a célpontokat, az elrendezést és az ellenőrzést, és a
- * mintát a böngészőbe mentjük.
- *
- * A jelölés és a jelstílus (PQW-868) a felület nyelvétől független beállítás:
- * a paletta, a szemnevek, a vászon jelei, az írott minta és az export is ezt
- * követi, a minta pedig mentéskor rögzíti.
- */
+// KB: interface.md §2
 
 import './styles.css';
 import { GA_MEASUREMENT_ID } from '../config.js';
@@ -22,25 +11,31 @@ import {
   contextOf,
   defaultCursor,
   deleteLast,
+  type EditorMode,
+  type EditResult,
   emptyPattern,
   endRoundSpiral,
   endRow,
   fillRow,
+  insertChain,
+  type LiveCheck,
   liveCheck,
   onFoundationChain,
+  pieceFinished,
   setPinned,
   setTradition,
-  work,
-  workIntoSame,
-  type EditResult,
-  type EditorMode,
-  type LiveCheck,
   type WorkContext,
+  withoutStaleSkips,
+  work,
+  workIntoGap,
+  workIntoSame,
 } from '../core/editor.js';
-import { canRedo, canUndo, createHistory, record, redo, undo, type History } from '../core/history.js';
-import { chartGrid, targetPoint, type ChartGrid, type GridSeam } from '../core/grid.js';
-import { layoutPattern, type ChartLayout, type Point } from '../core/layout.js';
-import { insertChain, pieceFinished, withoutStaleSkips, workIntoGap } from '../core/editor.js';
+import { type ChartGrid, chartGrid, type GridSeam, targetPoint } from '../core/grid.js';
+import { canRedo, canUndo, createHistory, type History, record, redo, undo } from '../core/history.js';
+import { nodeInsertions } from '../core/insertion.js';
+import { isIrregularJson } from '../core/irregular-json.js';
+import { NUDGE_STEP, NUDGE_STEP_LARGE } from '../core/irregular-types.js';
+import { type ChartLayout, layoutPattern, type Point } from '../core/layout.js';
 import { loadPattern, savePattern } from '../core/pattern-json.js';
 import { aspectStem, gaugeContextOf } from '../core/pattern-size.js';
 import { roundEndFor } from '../core/rounds.js';
@@ -51,6 +46,8 @@ import {
   describeByLayer,
   duplicateSelection,
   expandSelection,
+  type FocusMove,
+  type Fragment,
   layerSelection,
   nodesInRect,
   pasteFragment,
@@ -58,55 +55,86 @@ import {
   selectAll,
   stepFocus,
   toggleUnit,
-  type FocusMove,
-  type Fragment,
 } from '../core/selection.js';
 import { libraryFor, resolveStitch } from '../core/stitch-variants.js';
 import { stitchName } from '../core/stitchText.js';
 import { traditionOf } from '../core/tradition.js';
-import type { Finding, Locale, NodeId, Pattern, PatternNotation, StitchDef, StitchDefId, Tradition } from '../core/types.js';
+import type {
+  Finding,
+  Locale,
+  NodeId,
+  Pattern,
+  PatternNotation,
+  StitchDef,
+  StitchDefId,
+  Tradition,
+} from '../core/types.js';
 import { validatePattern } from '../core/validate.js';
-import { Board, type Area, type DirectionArrow, type Target } from './board.js';
+import { AmigurumiPanel } from './amigurumi-panel.js';
+import { type Area, Board, type DirectionArrow, type Target } from './board.js';
 import { chartSvg } from './chart-svg.js';
 import { setupConsentBanner } from './consentBanner.js';
 import { askConfirm } from './dialog.js';
-import { applyStaticTexts, homeUrl, resolveUiLanguage, setUiLanguage, texts, uiLanguage, urlWithLanguage, type UiLanguage } from './i18n.js';
-import { currentPlatform, modifierCombo, modifierName } from './platform.js';
+import { GarmentPanel } from './garment-panel.js';
+import { GridChartPanel } from './grid-chart-panel.js';
+import { spikeNodes, unitFrames } from './grid-chart-view.js';
 import { EDITOR_CORE_TEXTS } from './i18n/core/editor.js';
 import { JSON_CORE_TEXTS } from './i18n/core/json.js';
 import { renderCoreText } from './i18n/core/render.js';
 import { RULE_TEXTS, type RuleText } from './i18n/rules.js';
 import {
+  applyStaticTexts,
+  homeUrl,
+  resolveUiLanguage,
+  setUiLanguage,
+  texts,
+  type UiLanguage,
+  uiLanguage,
+  urlWithLanguage,
+} from './i18n.js';
+import { InsertionPanel } from './insertion-panel.js';
+import { insertionSuffix } from './insertion-view.js';
+import { IrregularEditor } from './irregular-editor.js';
+import {
   chartStyleLabel,
   defaultNotation,
   notationForTradition,
   readNotation,
-  symbolOptionsFor,
   setTermsLocale,
+  symbolOptionsFor,
   termsLabel,
   textLanguage,
   traditionLabel,
   withNotation,
   writeNotation,
 } from './notation.js';
-import { relabelSelects } from './select-labels.js';
 import { buildPalette, type PaletteItem } from './palette.js';
-import { InsertionPanel } from './insertion-panel.js';
-import { insertionSuffix } from './insertion-view.js';
-import { nodeInsertions } from '../core/insertion.js';
-import { AmigurumiPanel } from './amigurumi-panel.js';
-import { GridChartPanel } from './grid-chart-panel.js';
-import { spikeNodes, unitFrames } from './grid-chart-view.js';
+import {
+  DEFAULT_PATTERN_TYPE,
+  gridKind,
+  isAvailableType,
+  PATTERN_TYPES,
+  type PatternTypeId,
+  writtenShareFor,
+} from './pattern-types.js';
+import { currentPlatform, modifierCombo, modifierName } from './platform.js';
 import { RoundsPanel } from './rounds-panel.js';
+import { relabelSelects } from './select-labels.js';
 import { ShapesPanel } from './shapes-panel.js';
 import { ShawlsPanel } from './shawls-panel.js';
-import { GarmentPanel } from './garment-panel.js';
 import { SizePanel } from './size-panel.js';
-import { DEFAULT_PATTERN_TYPE, PATTERN_TYPES, gridKind, isAvailableType, writtenShareFor, type PatternTypeId } from './pattern-types.js';
-import { applyInk, drawCentered, readInk, shapeBounds, stemLength, symbolShapes, type SymbolOptions } from './symbols.js';
+import {
+  applyInk,
+  drawCentered,
+  readInk,
+  type SymbolOptions,
+  shapeBounds,
+  stemLength,
+  symbolShapes,
+} from './symbols.js';
 import { alignTooltips } from './tooltip.js';
 import { writtenView } from './written.js';
-import { dragCollapses, dragSize, isFull, keySize, percentOf, statusPlace, type SizeRange } from './written-size.js';
+import { dragCollapses, dragSize, isFull, keySize, percentOf, type SizeRange, statusPlace } from './written-size.js';
 
 function must<T extends Element>(selector: string): T {
   const el = document.querySelector<T>(selector);
@@ -115,6 +143,7 @@ function must<T extends Element>(selector: string): T {
 }
 
 const canvas = must<HTMLCanvasElement>('#board');
+const irregularCanvas = must<HTMLCanvasElement>('#board-irregular');
 const board = new Board(canvas);
 const palette = must<HTMLDivElement>('#palette');
 const panel = must<HTMLElement>('#panel');
@@ -147,13 +176,10 @@ const typesList = must<HTMLUListElement>('#types-list');
 const errorToggle = must<HTMLButtonElement>('#error-toggle');
 const errorCount = must<HTMLElement>('#error-count');
 const errorsPop = must<HTMLElement>('#errors');
-/** A fájlműveletek lenyíló menüje (PQW-911): mentés, betöltés, képexport. */
 const fileToggle = must<HTMLButtonElement>('#file-toggle');
 const filePop = must<HTMLElement>('#file-pop');
 const exportGrid = must<HTMLInputElement>('#export-grid');
-/** A beszúrási mód a kiválasztott szemhez (PQW-869). */
 const insertionPanel = new InsertionPanel(must<HTMLFieldSetElement>('#insertion'));
-/** A felület nyelvének választója és a főoldal linkje (PQW-900); régebbi jelölésben hiányozhatnak. */
 const languageSelect = document.querySelector<HTMLSelectElement>('#ui-language');
 const homeLink = document.querySelector<HTMLAnchorElement>('#home-link, .home');
 
@@ -162,40 +188,27 @@ const NOTATION_KEY = 'dc-mintatervezo:jeloles';
 const WRITTEN_KEY = 'dc-mintatervezo:irott-minta';
 const TYPE_KEY = 'dc-mintatervezo:tipus';
 const GRID_KEY = 'dc-mintatervezo:racs';
-/** A mintatípus-sáv nyitott-e (PQW-912): a választás a következő megnyitásig él. */
+// KB: interface.md §5
 const TYPES_KEY = 'dc-mintatervezo:mintatipus';
-/** A választott felületi nyelv (PQW-906): működési beállítás, nem követés. */
 const LANG_KEY = 'dc-mintatervezo:nyelv';
-/** Ennél keskenyebb képernyőn a két panel nem fér el egymás mellett. */
+// Below this width the two panels do not fit side by side.
 const NARROW = window.matchMedia('(width < 48rem)');
 const STRUCTURAL_RULES = new Set(['unknown-stitch', 'dangling-reference', 'yarn-path']);
 
-/* ---- A felület nyelve (PQW-900) ---- */
-
-/**
- * Induláskor a `?lang` paraméter dönt, enélkül a dokumentum nyelve. A statikus
- * feliratok, a főoldal linkje és a nyelvválasztó is ezt követik. Ennek a
- * blokknak az állapot előtt kell lefutnia: a mentett minta betöltése és a
- * jelölés alapértelmezése már a felület nyelvét használja.
- */
+// KB: interface.md §4 — this block must run before the state: restoring the pattern and the
+// notation default already use the interface language.
 const startLanguage = resolveUiLanguage(location.search, storedUiLanguage(), document.documentElement.lang);
 setUiLanguage(startLanguage);
 document.documentElement.lang = startLanguage;
 applyStaticTexts(document, texts().markup);
-  showModifierNames();
+showModifierNames();
 if (homeLink) homeLink.href = homeUrl(startLanguage);
 
-/** Az állapotsor üzenete: sima szöveg, vagy elemek, ha szemnevet tartalmaz (PQW-853). */
 type Message = string | readonly (string | Node)[];
 
-/** A helyőrző, amelynek a helyére a szemnév saját `lang` attribútumú eleme kerül. */
 const NAME_SLOT = '\u0001';
 
-/**
- * A mondat a szemnevével: a szemnév saját `lang` attribútumot kap, mert a
- * jelölés nyelve a felület nyelvétől független (PQW-853, PQW-868). Jelöletlen
- * névnél (pl. „szem”, „varázskör”) a mondat egyetlen szövegdarab marad.
- */
+// KB: interface.md §3
 function withStitchName(sentence: (name: string) => string, name: string, marked = true): readonly (string | Node)[] {
   const parts = marked ? sentence(NAME_SLOT).split(NAME_SLOT) : [];
   if (parts.length < 2) return [sentence(name)];
@@ -209,47 +222,27 @@ function withStitchName(sentence: (name: string) => string, name: string, marked
   return nodes;
 }
 
-/* ---- Állapot ---- */
-
 let history: History<Pattern> = createHistory(restore());
 let tool: StitchDefId | null = null;
 let cursor = 0;
-/** A felhasználó mozgatta-e a kurzort; ha nem, a kurzor a következő alapértelmezett célpontra ugrik. */
 let cursorMoved = false;
 let hover: number | null = null;
-/** A láncalap cellahatára a mutató alatt: ide szúr be a kattintás egy láncszemet (PQW-941). */
 let seam: GridSeam | null = null;
-/** A kijelölés fókusza: az utoljára kijelölt szem; ezt igazítja az igazítás panel. */
 let selectedNode: NodeId | null = null;
-/** A kijelölt szemek fonalsorrendben, egész egységekkel (PQW-875). */
 let selection: readonly NodeId[] = [];
-/** A Shift+nyíllal húzott tartomány kezdőszeme. */
 let selectionAnchor: NodeId | null = null;
-/** A vágólap: a legutóbb másolt szemek újraköthető részletként; csak ebben a lapban él. */
 let clipboard: Fragment | null = null;
-/** Terület kijelölése húzással (a menüsor kijelölés-gombja). */
 let areaMode = false;
-/** A húzott kijelölő téglalap, diagram-koordinátában. */
 let marquee: { readonly from: Point; readonly to: Point } | null = null;
-/** Törlés előtt a törlendőkbe horgolt szemek, amelyeket a vászon kiemel. */
 let affected: readonly NodeId[] = [];
-/*
- * A tükrözött nézet kapcsolója kikerült a felületről (PQW-911): nem adott
- * valódi balkezes nézetet, ezért félrevezető volt. A rajzoló és az export
- * `mirror` paramétere megmarad — a mag tudja tükrözve is kirakni a mintát —,
- * a felület viszont mindig egyenesen kéri.
- */
+// KB: interface.md §30
 const mirror = false;
-/** A választott mintatípus; a böngészőben marad. Most csak a „szabályos” aktív. */
 let patternType: PatternTypeId = readType();
-/** Látszik-e a rács (PQW-874); a böngészőben marad. */
 let showGrid = readGrid();
-/** Arányhelyes nézet (PQW-859). Újratöltés után nem marad meg: az új tárolókulcsot igényelne. */
+// KB: interface.md §5 — not persisted; that would need a new key.
 let aspect = false;
-/** A jelölés és a jelstílus; a böngészőben marad. */
 let notation = readStoredNotation();
 let symbols: SymbolOptions = symbolOptionsFor(notation);
-/** Húzás közben a még el nem mentett, igazított minta. */
 let preview: Pattern | null = null;
 
 interface Derived {
@@ -258,10 +251,8 @@ interface Derived {
   readonly layout: ChartLayout;
   readonly check: LiveCheck;
   readonly targets: readonly Target[];
-  /** A rács, ha be van kapcsolva (PQW-874). */
   readonly grid: ChartGrid | null;
 }
-
 
 let derived = derive(history.present);
 
@@ -271,89 +262,49 @@ function derive(pattern: Pattern): Derived {
   const layout = layoutPattern(pattern, context.library, { mirror, stemLength: stem });
   const check = liveCheck(pattern, context);
   const targets = context.slots.map((_, i) => ({ point: targetPoint(layout, context, i) ?? { x: 0, y: 0 } }));
-  const grid = showGrid ? chartGrid(pattern, context.library, gridKindOf(context), context, { mirror, stemLength: stem }) : null;
+  const grid = showGrid
+    ? chartGrid(pattern, context.library, gridKindOf(context), context, { mirror, stemLength: stem })
+    : null;
   return { pattern, context, layout, check, targets, grid };
 }
 
-/** A szár hossza: arányhelyes nézetben a profil (profil nélkül a becslés) szemarányából, különben a jelrajzé. */
 function stemFor(pattern: Pattern, context: WorkContext): (chainHeight: number) => number {
   if (!aspect) return stemLength;
   return aspectStem(gaugeContextOf(pattern, context.library), context.graph?.layers[0]?.shape ?? context.shape);
 }
 
-/** A rács típusa a mintatípusból és a darab alakjából (sor vagy kör). */
 function gridKindOf(context: WorkContext) {
   return gridKind(patternType, context.graph?.layers[0]?.shape ?? context.shape);
 }
 
-/**
- * A most horgolt sor iránynyila: a sor elejéről a haladási irányba (PQW-879).
- * A már megrajzolt sornál a számolt sorelejét és -végét használjuk; a még el
- * nem kezdett 1. sornál a láncalap két vége adja az irányt. Körben nincs nyíl.
- */
+// KB: interface.md §18
 function directionArrow(): DirectionArrow | null {
   const { layout, context } = derived;
   if (context.shape === 'round') return null;
   const active = layout.layers.find((layer) => layer.index === context.layer);
   if (active) return { from: active.start, to: active.end };
-  // Az 1. sor még nincs a gráfban: a láncalap felől jobbról balra indul (03 §1.2).
+  // KB: 03 §1.2 — row 1 is not in the graph yet; it starts from the foundation, right to left.
   const base = layout.layers.find((layer) => layer.index === 0);
   if (context.layer === 1 && base && base.shape === 'row') return { from: base.end, to: base.start };
-  /*
-   * A frissen megnyitott sor sincs még az elrendezésben (PQW-946): a fordulás
-   * után a horgoló csak az üres rácsot látta, a „3. sor →” felirat pedig csak
-   * az első szem lerakásakor jelent meg. Az irány az alatta lévő sorból jön,
-   * megfordítva — fordulás után a munka a másik irányba halad.
-   */
+  // KB: interface.md §18 — a just-opened row is not in the layout either; reverse the row below.
   const below = layout.layers.find((layer) => layer.index === context.layer - 1);
   if (below && below.shape === 'row') return { from: below.end, to: below.start };
   return null;
 }
 
-/**
- * A következő sor jelzése a rajz mellé (PQW-929).
- *
- * A tulajdonos döntése az UAT első köréből: a fordulás ne felbukkanó üzenetben
- * látszódjon — „a felhasználó nem figyel egy pillanatra, és nem látja” —, hanem
- * ott, ahol a sorszámok állnak: „ahova az 1. sort írtad, ott legyen még egy
- * sor, a nyíllal”.
- *
- * Csak nyitott, még üres sornál van értelme: ha már került bele szem, a sor a
- * saját feliratát kapja a `rowCaptions`-től. A lezárt darab után nincs
- * következő sor (PQW-897), ahogy a haladás mondatában sem.
- */
-/*
- * A fordulás ténye a láncalapon NEM látszik a mintán (PQW-931). Mérve: a
- * láncalap után a fordulás előtti és utáni minta bitre azonos, mert ott a
- * fordulás nem hoz létre eseményt. A tulajdonos viszont azt kéri, hogy a
- * következő sor felirata csak a fordulás UTÁN jelenjen meg: „letettem most egy
- * sor láncszemet — és a 2. sor jelzés alapból ott van.”
- *
- * Ezért a felület jegyzi meg, MELYIK mintán fordult a horgoló. A hivatkozás
- * azonossága a kulcs: visszavonásnál vagy új mintánál másik minta lesz a
- * jelenlegi, a hivatkozás nem egyezik, és a felirat magától eltűnik — külön
- * visszaállítás nélkül.
- */
+// KB: interface.md §18, §19 — reference identity is the key; do not replace it with a copy.
 let turnedOn: Pattern | null = null;
 
 function nextRowMarker(): { text: string; layer: number } | null {
   const { context } = derived;
-  // A fordulólánctól a sor már elkezdődött, és a saját feliratát kapja (PQW-946): a nyilas jelzés lelép.
   if (!context.graph || context.started || context.turningChain > 0 || pieceFinished(context.graph)) return null;
   if (onFoundationChain(context) && turnedOn !== history.present) return null;
   return { text: capitalize(layerName(context)), layer: context.layer };
 }
 
-/**
- * A szerkesztő módja: amigurumiban a láncalapon kör indul, ovális is (PQW-899);
- * a szegély gombbal a célpontok a darab kerületén futnak (PQW-902).
- */
 function editorMode(): EditorMode {
   return { roundsOnChain: patternType === 'amigurumi' };
 }
-
-
-/* ---- Tárolás ---- */
 
 function restore(): Pattern {
   let saved: string | null = null;
@@ -364,12 +315,11 @@ function restore(): Pattern {
   }
   if (!saved) return emptyPattern();
   const loaded = loadPattern(saved);
-  // A korábbi verziókból örökölt gazdátlan áthidalás-jelölések itt esnek ki (PQW-939).
   if (loaded.ok && structuralProblem(loaded.pattern) === null) return withoutStaleSkips(loaded.pattern);
   try {
     localStorage.setItem(`${STORAGE_KEY}:hibas`, saved);
   } catch {
-    // Ha a tárhely sem írható, a hibás mentést nem tudjuk megőrizni.
+    // KB: interface.md §5
   }
   queueMicrotask(() => announce(texts().messages.storage.broken));
   return emptyPattern();
@@ -383,7 +333,6 @@ function persist(pattern: Pattern): void {
   }
 }
 
-/** A böngészőben tárolt jelölés nyers értéke; `null`, ha nincs, vagy nem olvasható. */
 function storedNotation(): string | null {
   try {
     return localStorage.getItem(NOTATION_KEY);
@@ -392,7 +341,6 @@ function storedNotation(): string | null {
   }
 }
 
-/** A mentett jelölés; enélkül az alapértelmezés a felület nyelvéből (PQW-868). */
 function readStoredNotation(): PatternNotation {
   return readNotation(storedNotation(), uiLanguage());
 }
@@ -415,11 +363,6 @@ function readGrid(): boolean {
   }
 }
 
-/**
- * Az ellenőrző szabályának szövege a felület nyelvén (PQW-900): a magyar ág a
- * magé (src/core/rules.ts), az angol a szótáré. A `finding.rule` sztring, ezért
- * ismeretlen szabálynál nincs szöveg; ilyenkor a hívó az azonosítót mutatja.
- */
 function ruleText(rule: string): RuleText | undefined {
   return (RULE_TEXTS[uiLanguage()] as Readonly<Record<string, RuleText | undefined>>)[rule];
 }
@@ -429,31 +372,34 @@ function structuralProblem(pattern: Pattern): string | null {
   return finding ? (ruleText(finding.rule)?.message ?? finding.rule) : null;
 }
 
-/* ---- Frissítés ---- */
-
 const insetRight = () => (panel.hidden ? 0 : panel.getBoundingClientRect().width);
 const insetLeft = () => (typesNav.hidden ? 0 : typesNav.getBoundingClientRect().width);
-// Az írott minta a vászon alján: a lenyitott panel magassága alsó takarás (PQW-883).
-const insetBottom = () => (written.hidden ? 0 : Math.max(0, canvas.getBoundingClientRect().bottom - written.getBoundingClientRect().top));
+const insetBottom = () =>
+  written.hidden ? 0 : Math.max(0, canvas.getBoundingClientRect().bottom - written.getBoundingClientRect().top);
 const fitBoard = () => board.fit(insetRight(), insetLeft(), insetBottom());
+// The free-form editor is built when the type is first chosen (PQW-963).
+let irregular: IrregularEditor | null = null;
 const showPoint = (point: Point) => board.ensureVisible(point, insetRight(), insetLeft(), insetBottom());
 
-/** A vászon takarás nélküli része, vászon-koordinátában. */
 function visibleArea(): Area {
   const { width, height } = canvas.getBoundingClientRect();
   return { left: insetLeft(), top: 0, right: width - insetRight(), bottom: height - insetBottom() };
 }
 
-/** A kurzor célpontja, ha a kiválasztott szem célpontba horgol. */
 const cursorPoint = (): Point | undefined => (tool && isTargeted(tool) ? derived.targets[cursor]?.point : undefined);
 
 function refresh(message?: Message): void {
+  // KB: interface.md §9 — the free-form type draws itself; the regular pipeline stays out of it.
+  if (irregular?.active === true) {
+    irregular.refresh();
+    if (message !== undefined) announce(message);
+    return;
+  }
   derived = derive(preview ?? history.present);
   if (!cursorMoved) cursor = defaultCursor(derived.pattern, derived.context, tool);
-  // A sor utolsó célpontja után a kurzor a célpontokon kívül áll: ott nem horgol.
+  // Past the row's last target the cursor sits outside the list, where it does not crochet.
   cursor = Math.max(0, Math.min(cursor, derived.targets.length));
   if (selectedNode && !derived.layout.nodes.has(selectedNode)) selectedNode = null;
-  // Visszavonás után a már nem létező szemek kiesnek a kijelölésből.
   selection = selection.filter((id) => derived.layout.nodes.has(id));
   draw();
   traditionSelect.value = traditionOf(derived.pattern.conventions);
@@ -464,22 +410,13 @@ function refresh(message?: Message): void {
   shapesPanel.update(derived.pattern);
   shawlsPanel.update(derived.pattern);
   garmentPanel.update(derived.pattern);
-  // Kikapcsolt horgolásfajtánál a panel nem is épült meg (PQW-925).
+  // KB: interface.md §9 — a disabled type has no panel at all.
   amigurumiPanel?.update(derived.pattern);
   gridPanel?.update(derived.pattern, mirror);
   if (message !== undefined) announce(message);
 }
 
-/** A vászon a már kiszámolt adatokból; a kijelölő téglalap húzásához ennyi elég. */
-/**
- * A kiválasztott találat kiemelése a mintán (PQW-930).
- *
- * A rajz alapból tiszta: a hibák és figyelmeztetések a menüsor jobb felső
- * jelzőjén élnek. Ha a felhasználó a listából kiválaszt egyet, az érintett
- * szemek piros szaggatott karikát kapnak — és öt másodperc múlva magától
- * eltűnik, hogy ne maradjon ott zavarni. A tulajdonos kérése szó szerint:
- * „pirossal, de piros szaggatottal és 5 mp múlva tűnjön el”.
- */
+// KB: decisions.md §4, interface.md §20
 const HIGHLIGHT_MS = 5000;
 let highlighted: readonly NodeId[] = [];
 let highlightTimer: ReturnType<typeof setTimeout> | undefined;
@@ -495,10 +432,9 @@ function highlightFinding(nodes: readonly NodeId[]): void {
 }
 
 function draw(): void {
-  // Szem nélkül, kijelölés nélkül és teli vágólappal a kurzor a beillesztés helyét mutatja (PQW-875).
   const pasting = tool === null && clipboard !== null && selection.length === 0;
   const aiming = (tool !== null && isTargeted(tool)) || pasting;
-  // A sorfeliratok a nyitott oldalsávok között maradnak (PQW-916); a méretüket innen tudja a vászon.
+  // KB: interface.md §15
   board.setInsets(insetLeft(), insetRight());
   board.setScene({
     layout: derived.layout,
@@ -510,20 +446,14 @@ function draw(): void {
     selection,
     affected,
     marquee,
-    // A találatok nem a rajzon élnek (PQW-930), csak a kiválasztott kiemelése.
     highlight: highlighted,
     grid: derived.grid,
     tradition: traditionOf(derived.pattern.conventions),
-    /*
-     * Az irány már nem a rajzra rajzolódik, hanem a következő sor feliratába
-     * kerül a sorszámok sávjában (PQW-929). Ezért nem a szemválasztáshoz
-     * kötjük: a fordulás után azonnal látszania kell, szem választása nélkül is.
-     */
+    // KB: interface.md §18 — not tied to stitch selection; it must show right after a turn.
     direction: directionArrow(),
     nextRow: nextRowMarker(),
     symbols,
     insertions: nodeInsertions(derived.pattern.pieces[0]),
-    // A rácsminta ismétlő egysége kerettel (PQW-864, C2C-ben csempénként), a lejjebb horgolt szem talpa (PQW-894).
     unitFrames: unitFrames(derived.pattern, derived.layout, mirror),
     spikes: spikeNodes(derived.pattern),
   });
@@ -534,18 +464,12 @@ function isTargeted(id: StitchDefId): boolean {
   return kind !== 'chain' && kind !== 'space' && kind !== 'ring' && kind !== 'picot';
 }
 
-/**
- * Van-e helye a rajzon, ahová a kattintás teszi (PQW-935). A célponthoz kötött
- * szemen kívül a láncszem és a láncív is ilyen: célpontja nincs, de a horgoló
- * megmutatja, melyik oszlopot foglalja el. A varázskör a darab kezdete, a pikó
- * az előző szemen ül: ezeket a kattintás helye nem mozgatja.
- */
+// KB: interface.md §28
 function isPlaced(id: StitchDefId): boolean {
   const kind = resolveStitch(id)?.kind;
   return isTargeted(id) || kind === 'chain' || kind === 'space';
 }
 
-/** Az üzenet a haladás mondatával kiegészítve. Üres üzenetnél csak a haladás. */
 function withProgress(message: Message): Message {
   const tail = progress();
   if (typeof message === 'string') {
@@ -560,7 +484,7 @@ function commit(result: EditResult, message: Message): void {
     announce(renderCoreText(EDITOR_CORE_TEXTS[uiLanguage()], result.reason));
     return;
   }
-  // A minta nem változott (pl. fordulás a láncalap után): nincs visszavonható lépés, csak az üzenet.
+  // KB: interface.md §19 — an unchanged pattern (a turn on the foundation) is not an undo step.
   if (result.pattern === history.present) {
     announce(withProgress(message));
     return;
@@ -568,7 +492,7 @@ function commit(result: EditResult, message: Message): void {
   history = record(history, result.pattern);
   cursorMoved = false;
   persist(history.present);
-  // Előbb újraszámolunk, hogy az állapotsor már az új mintát írja le.
+  // Recompute first, so the status line already describes the new pattern.
   refresh();
   announce(withProgress(message));
   const point = cursorPoint() ?? lastTop();
@@ -580,30 +504,19 @@ function lastTop(): Point | undefined {
   return last ? derived.layout.nodes.get(last.id)?.top : undefined;
 }
 
-/*
- * A visszajelzés MINDIG bekerül a rejtett élő régióba — az a képernyőolvasóé —,
- * a felül felbukkanó doboz viszont nem mindig indokolt (`toast`).
- *
- * A doboz a PQW-923-ban a figyelmeztetésekhez készült, és a PQW-924-ben minden
- * művelet visszajelzését megkapta. A tulajdonos ezt az UAT első körében
- * visszavonta (PQW-929): „ne üzengess. a felhasználó nem figyel egy pillanatra,
- * és nem látja az üzenetet.” A műveletek állapotát a RAJZRÓL kell leolvasni,
- * ezért az új minta és a fordulás nem bukkant fel többé.
- */
+// KB: decisions.md §4, interface.md §20
 function announce(message: Message): void {
   if (typeof message === 'string') status.textContent = message;
   else status.replaceChildren(...message);
 }
 
 function layerName(context: WorkContext): string {
-  // Az ovális 1. köre kör akkor is, amíg a másik oldalon nincs szem, és a gráf még sornak látja (PQW-902).
   return texts().messages.layer.name(context.layer, context.shape === 'round' || context.oval);
 }
 
 function progress(): string {
   const { context, check } = derived;
   if (!context.graph) return '';
-  // A lezárt darab (a fonal elvágása vagy a kész szegély) után nincs következő sor vagy kör (PQW-897).
   if (pieceFinished(context.graph)) return '';
   const progressTexts = texts().messages.progress;
   if (!context.started) return progressTexts.next(capitalize(layerName(context)));
@@ -612,11 +525,6 @@ function progress(): string {
   return `${progressTexts.current(capitalize(layerName(context)), count, rest)}${roundEndHint(context, check)}`;
 }
 
-/**
- * A kör végén a zárás alapértelmezése a mintatípusból (PQW-892): amigurumiban
- * spirál, máshol zárt kör. A varázskörbe horgolt körnél nincs „utolsó
- * célpont”, ott nem javasolunk.
- */
 function roundEndHint(context: WorkContext, check: LiveCheck): string {
   if (check.remaining > 0 || !canEndRound(context) || context.slots.some((slot) => slot.kind === 'ring')) return '';
   return roundEndFor(derived.pattern.conventions.roundEnd, patternType === 'amigurumi') === 'spiral'
@@ -633,7 +541,7 @@ function describeTarget(index: number): Message {
   const slot = derived.context.slots[index];
   if (!slot) return derived.context.slots.length > 0 ? target.rowEnd : target.none;
   let what: string;
-  // Csak a szemnév kap `lang` attribútumot; a láncív és a varázskör a felület nyelvén van.
+  // KB: interface.md §3
   let named = false;
   if (slot.kind === 'space') what = target.space(slot.chains.length);
   else if (slot.kind === 'ring') what = target.ring;
@@ -647,20 +555,11 @@ function describeTarget(index: number): Message {
   return withStitchName((name) => target.at(index + 1, derived.context.slots.length, name, used), what, named);
 }
 
-/* ---- Felbukkanó figyelmeztetés ---- */
-
-/** Ameddig a felbukkanó doboz látszik (PQW-923). */
+// KB: interface.md §20
 const ALERT_MS = 3000;
 let alertTimer: ReturnType<typeof setTimeout> | undefined;
-/** A legutóbb megmutatott figyelmeztetések; csak a változásra villan fel a doboz. */
 let shownWarnings = '';
 
-/**
- * Új figyelmeztetésnél a doboz felbukkan a vászon tetején, és három másodperc
- * után magától eltűnik (PQW-923). A menüsor jobb szélén lévő tartós jelző
- * marad: ott bármikor visszanézhető, mi a baj. Udvarias élő régió, ezért nem
- * szakítja félbe a képernyőolvasót.
- */
 function showNewWarning(findings: readonly Finding[]): void {
   const warnings = findings.filter((finding) => finding.severity === 'warning');
   const key = warnings.map((finding) => `${finding.rule}:${finding.nodes.join(',')}`).join('|');
@@ -672,11 +571,10 @@ function showNewWarning(findings: readonly Finding[]): void {
     alertBox.hidden = true;
     return;
   }
-  // A szótári címke már tartalmazza a kettőspontot („Figyelmeztetés: ”), ezért itt nem teszünk hozzá újat.
+  // The dictionary label already ends in a colon; do not add another.
   showToast(`${texts().messages.findings.warning}${ruleText(first.rule)?.message ?? first.rule}`);
 }
 
-/** A felül felbukkanó doboz: három másodpercre megmutat egy üzenetet (PQW-923, PQW-924). */
 function showToast(text: string): void {
   if (text.trim() === '') return;
   clearTimeout(alertTimer);
@@ -687,14 +585,17 @@ function showToast(text: string): void {
   }, ALERT_MS);
 }
 
-/* ---- Vezérlők állapota ---- */
-
 function updateControls(): void {
+  if (irregular !== null && irregular.active) {
+    updateIrregularControls(irregular);
+    return;
+  }
   const { context, pattern, check } = derived;
   const empty = (pattern.pieces[0]?.stitches.length ?? 0) === 0;
   setDisabled('undo', !canUndo(history));
   setDisabled('redo', !canRedo(history));
-  const canFill = tool !== null && isTargeted(tool) && context.graph !== null && context.slots.some((_, i) => !context.used[i]);
+  const canFill =
+    tool !== null && isTargeted(tool) && context.graph !== null && context.slots.some((_, i) => !context.used[i]);
   setDisabled('fill-row', !canFill);
   setDisabled('end-row', !canEndRow(context));
   setDisabled('close-round', !canCloseRound(pattern, context));
@@ -715,7 +616,9 @@ function updateControls(): void {
   errorCount.textContent =
     check.findings.length === 0
       ? errorBar.none
-      : [errors ? errorBar.errors(errors) : '', warnings ? errorBar.warnings(warnings) : ''].filter(Boolean).join(' · ');
+      : [errors ? errorBar.errors(errors) : '', warnings ? errorBar.warnings(warnings) : '']
+          .filter(Boolean)
+          .join(' · ');
   errorToggle.classList.toggle('has-errors', errors > 0);
   errorToggle.classList.toggle('has-warnings', errors === 0 && warnings > 0);
   const summaryTexts = texts().messages.summary;
@@ -734,33 +637,22 @@ function updateControls(): void {
       const findings = texts().messages.findings;
       const severity = span('finding__severity', finding.severity === 'error' ? findings.error : findings.warning);
       const rule = ruleText(finding.rule);
-      // A főszöveg a felhasználónak szóló üzenet; a tudásbázis-kód csak lenyitva (PQW-879).
-      button.append(severity, rule?.message ?? finding.rule, span('finding__count', findings.nodes(finding.nodes.length)));
+      // KB: decisions.md §3
+      button.append(
+        severity,
+        rule?.message ?? finding.rule,
+        span('finding__count', findings.nodes(finding.nodes.length)),
+      );
       button.addEventListener('click', () => {
         const first = finding.nodes.find((id) => derived.layout.nodes.has(id));
         if (!first) return;
-        /*
-         * Odagörgetünk ÉS megjelöljük a mintán (PQW-930): piros szaggatottal,
-         * öt másodpercre. A PQW-923 ezt még kivette, mert akkor a rajzon
-         * alapból is ott volt minden karika, és attól lett zsúfolt; most a rajz
-         * tiszta, és a jelölés a felhasználó kifejezett kérésére jön.
-         */
+        // KB: interface.md §20
         closePopover(errorsPop, errorToggle);
         showPoint(derived.layout.nodes.get(first)!.top);
         highlightFinding(finding.nodes);
-        // Nem bukkan fel doboz (PQW-929); az élő régió a képernyőolvasóé.
         announce(findings.marked);
       });
       item.append(button);
-      /*
-       * A „Részletek” lenyíló kikerült (PQW-930). Egyedül a tudásbázis-kódot
-       * tartalmazta, arról pedig a tulajdonos ezt mondta: „a végfelhasználónak
-       * fogalma sincs a tudásbázisról és egyébként nem is érdekli”. A szabály
-       * saját magyarázata sem való ide: belső fogalmakkal beszél (pozíció,
-       * áthidalás). A kártyán marad, ami a horgolónak szól: az üzenet és az
-       * érintett szemek száma. A hivatkozás a `RULES`-ban és a tudásbázisban
-       * megmarad, a fejlesztésnek.
-       */
       return item;
     }),
   );
@@ -769,7 +661,7 @@ function updateControls(): void {
   adjust.hidden = !node || tool !== null;
   if (node) {
     const nodeDef = derived.context.library.get(node.def);
-    // A szem neve a jelölés nyelvén, saját lang attribútummal (PQW-853); a magyar utótag kívül marad.
+    // KB: interface.md §3
     const name = document.createElement('span');
     name.lang = textLanguage(notation.terms);
     name.textContent = nodeDef ? capitalize(stitchName(nodeDef, notation.terms)) : node.def;
@@ -788,16 +680,13 @@ function span(className: string, text: string): HTMLSpanElement {
   return el;
 }
 
-/** A jelkészlet súgója; a szemnév saját `lang` attribútummal (PQW-853). */
 function setHint(message: Message): void {
   if (typeof message === 'string') hint.textContent = message;
   else hint.replaceChildren(...message);
 }
 
-/* ---- Írott minta ---- */
-
 function updateWritten(): void {
-  // Húzás közben csak a jel helye változik, a szöveg nem.
+  // While dragging only the symbol's position changes, not the text.
   if (written.hidden || preview) return;
   const view = writtenView(derived.pattern, derived.context, derived.check, notation.terms);
   const notices = view.kind === 'text' ? view.notices : [view.message];
@@ -840,47 +729,31 @@ function setWrittenOpen(open: boolean): void {
   try {
     localStorage.setItem(WRITTEN_KEY, open ? 'nyitva' : 'zarva');
   } catch {
-    // A panel enélkül is működik, csak az állapota nem marad meg.
+    // KB: interface.md §5
   }
   updateWritten();
 }
 
-/**
- * A panel nyitott-e induláskor: a megjegyzett állapot, ennek hiányában CSUKVA
- * (PQW-911). Üres mintán úgyis csak annyit írna ki, hogy nincs mit kiírni, és
- * a vászon közepére sem lehetne kattintani (PQW-891). Az amigurumi a
- * típusválasztáskor maga nyitja ki.
- */
+// KB: interface.md §10 — closed by default, and never opened on an empty pattern, stored state or not.
 function readWrittenOpen(): boolean {
-  // Üres mintán a panel akkor sem nyílik ki, ha a tárolt állapot „nyitva”
-  // (PQW-915): üresen úgyis csak annyit írna ki, hogy nincs mit kiírni. A
-  // PQW-911 csak az alapértelmezést állította csukottra, a tárolt állapotot nem.
   if ((history.present.pieces[0]?.stitches.length ?? 0) === 0) return false;
   try {
     const stored = localStorage.getItem(WRITTEN_KEY);
     if (stored !== null) return stored !== 'zarva';
   } catch {
-    // A tárolás nélkül csukva indulunk.
+    // KB: interface.md §5
   }
   return false;
 }
 
-/* ---- Az írott minta magassága (PQW-885) ---- */
-
-/**
- * A panel magassága a munkaterület hányadában, vagy `null`: az alapértelmezés
- * (styles.css: legfeljebb 22rem, alacsony ablakban a munkaterület fele). Csak
- * a lapon belül él; újratöltés után az alapértelmezés jön.
- */
+// KB: interface.md §5, §13 — `null` means the stylesheet's default; the share lives only in the page.
 let writtenShare: number | null = null;
-/** A „Teljes nézet” előtti hányad; a „Vissza” ide áll. */
 let writtenBefore: number | null = null;
 
 function setStyle(element: HTMLElement, name: string, value: string): void {
   if (element.style.getPropertyValue(name) !== value) element.style.setProperty(name, value);
 }
 
-/** A panel magasságának tartománya: a fejléctől (a szövegtörzs tetejéig) a teljes munkaterületig. */
 function writtenRange(): SizeRange {
   const style = getComputedStyle(written);
   const lift = parseFloat(style.paddingBlockStart) || 0;
@@ -895,14 +768,12 @@ function applyWrittenShare(share: number | null): void {
   syncWrittenSize();
 }
 
-/** Húzás és billentyű után; a „Vissza” ezután az alapértelmezésre áll. */
 function resizeWritten(size: number): void {
   const { max } = writtenRange();
   writtenBefore = null;
   applyWrittenShare(max > 0 ? size / max : null);
 }
 
-/** Az állapotsor helye, a legkisebb magasság, az elválasztó értéke és a gomb felirata a panel mostani méretéhez. */
 function syncWrittenSize(): void {
   const stageSize = canvas.getBoundingClientRect().height;
   if (written.hidden) {
@@ -935,30 +806,27 @@ function toggleWrittenFull(): void {
   }
 }
 
-/* ---- Jelölés és jelstílus ---- */
-
 function applyNotation(next: PatternNotation, message: string): void {
   notation = next;
   symbols = symbolOptionsFor(next);
   try {
     localStorage.setItem(NOTATION_KEY, writeNotation(next));
   } catch {
-    // A választás enélkül is érvényes, csak újratöltés után nem marad meg.
+    // KB: interface.md §5
   }
   syncNotationControls();
   renderPalette();
-  // A kiválasztott szem súgója is az új nevet mutassa.
   select(tool);
+  irregular?.applyNotation();
   announce(message);
 }
 
 function syncNotationControls(): void {
-  // A szemnevek a jelölést követik, a listák feliratai a nyelvet és a jelölést (PQW-900).
+  // KB: interface.md §2, §6
   setTermsLocale(notation.terms);
   relabelSelects(document);
   termsSelect.value = notation.terms;
   styleSelect.value = notation.chartStyle;
-  // A rövidpálca jelét nem választja a felhasználó: a jelstílusból jön (PQW-929).
 }
 
 termsSelect.addEventListener('change', () => {
@@ -971,7 +839,7 @@ styleSelect.addEventListener('change', () => {
   applyNotation({ ...notation, chartStyle }, texts().messages.notation.chartStyle(chartStyleLabel(chartStyle)));
 });
 
-// Az előbeállítás a mintához tartozik: a számolás a mintában, a jelek a jelölésben változnak (PQW-876).
+// The preset belongs to the pattern: counting changes in the pattern, symbols in the notation.
 traditionSelect.addEventListener('change', () => {
   const tradition = traditionSelect.value as Tradition;
   const result = setTradition(history.present, tradition);
@@ -980,14 +848,7 @@ traditionSelect.addEventListener('change', () => {
   commit(result, texts().messages.notation.tradition(traditionLabel(tradition)));
 });
 
-/* ---- A felület nyelve (PQW-900) ---- */
-
-/**
- * Nyelvváltás a lapon belül: a statikus feliratok, a főoldal linkje, a címsor
- * `?lang` paramétere és az egész felület (paletta, mintatípusok, panelek,
- * állapotsor) az új nyelven. Új tárolókulcsot nem vezetünk be; a választást a
- * címsor őrzi, így a link megosztható és újratölthető.
- */
+// KB: interface.md §4, §5
 function changeLanguage(language: UiLanguage): void {
   setUiLanguage(language);
   rememberLanguage(language);
@@ -995,9 +856,9 @@ function changeLanguage(language: UiLanguage): void {
   applyStaticTexts(document, texts().markup);
   showModifierNames();
   if (homeLink) homeLink.href = homeUrl(language);
-  // Itt a `history` a szerkesztő visszavonási verme, ezért a böngészőé kiírva.
+  // `history` here is the editor's undo stack, hence the fully qualified browser one.
   window.history.replaceState(window.history.state, '', urlWithLanguage(location.href, language));
-  // A jelölés alapértelmezése a felület nyelvéből jön, a mentett választás marad (PQW-868).
+  // KB: interface.md §2 — a stored notation wins; only the default follows the language.
   if (storedNotation() === null) {
     notation = defaultNotation(language);
     symbols = symbolOptionsFor(notation);
@@ -1005,10 +866,9 @@ function changeLanguage(language: UiLanguage): void {
   syncNotationControls();
   renderTypes();
   renderPalette();
-  // A `select` a súgót és a beszúrási panelt, a benne lévő `refresh` a vásznat,
-  // a panelek szövegeit, az összefoglalót és a hibalistát rajzolja újra.
   select(tool);
   syncWrittenSize();
+  irregular?.refresh();
   announce(texts().messages.language.changed);
 }
 
@@ -1017,13 +877,10 @@ if (languageSelect) {
   languageSelect.addEventListener('change', () => changeLanguage(languageSelect.value === 'en' ? 'en' : 'hu'));
 }
 
-/* ---- Paletta ---- */
-
 let items: PaletteItem[] = [];
 const ink = readInk(document.documentElement);
 const buttons = new Map<StitchDefId, HTMLButtonElement>();
 
-/** A gomb előnézete ugyanazzal a rajzzal készül, mint a vászon, a gombhoz kicsinyítve. */
 function drawPreview(def: StitchDef, size: number): HTMLCanvasElement {
   const previewCanvas = document.createElement('canvas');
   const dpr = window.devicePixelRatio || 1;
@@ -1040,7 +897,7 @@ function drawPreview(def: StitchDef, size: number): HTMLCanvasElement {
     const fit = Math.min(1, (size - 8) / Math.max(maxX - minX, maxY - minY));
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.translate(size / 2, size / 2);
-    // A vonal a kicsinyítés után is 2 px vastag marad.
+    // Keeps a 2 px line after the scale-down.
     applyInk(ctx, ink, 2 / fit);
     drawCentered(ctx, shapes, fit);
   }
@@ -1060,8 +917,7 @@ function stitchButton(item: PaletteItem): HTMLButtonElement {
   if (item.structure) label.append(span('stitch__detail', item.structure));
   button.append(label);
 
-  // A gyorsbillentyű `Alt`-tal szól, mert egyetlen karakter nem lehet parancs;
-  // a felirata Mac gépen ⌥, máshol Alt (PQW-911).
+  // KB: interface.md §11
   if (item.key) {
     const key = document.createElement('kbd');
     key.className = 'stitch__key';
@@ -1069,7 +925,6 @@ function stitchButton(item: PaletteItem): HTMLButtonElement {
     button.append(key);
   }
 
-  // A kiválasztott jelre újra kattintva megszűnik a kijelölés.
   button.addEventListener('click', () => select(tool === item.def.id ? null : item.def.id));
   return button;
 }
@@ -1077,7 +932,6 @@ function stitchButton(item: PaletteItem): HTMLButtonElement {
 function select(id: StitchDefId | null): void {
   tool = id;
   hover = null;
-  // Szemmel a kattintás horgol: a kijelölés és a terület kijelölése megszűnik (PQW-875).
   if (id) {
     selectedNode = null;
     selection = [];
@@ -1092,11 +946,13 @@ function select(id: StitchDefId | null): void {
   countField.hidden = kind !== 'chain' && kind !== 'space';
   insertionPanel.update(item?.def, notation.terms);
   const hints = texts().messages.hint;
-  if (!item) setHint(hints.none);
+  if (irregular?.active === true && !item) setHint(texts().irregular.hint);
+  else if (!item) setHint(hints.none);
   else if (kind === 'chain' || kind === 'space') setHint(withStitchName(hints.chain, item.name));
   else if (kind === 'ring' || kind === 'picot') setHint(withStitchName(hints.simple, item.name));
   else setHint(withStitchName(hints.targeted, item.name));
   document.body.classList.toggle('is-armed', item !== undefined);
+  irregular?.setStitch(id);
   refresh();
 }
 
@@ -1126,8 +982,6 @@ function paletteSection(section: ReturnType<typeof buildPalette>[number]): HTMLD
   return group;
 }
 
-/* ---- Műveletek ---- */
-
 async function workAtCursor(): Promise<void> {
   const messages = texts().messages;
   if (!tool) {
@@ -1137,10 +991,8 @@ async function workAtCursor(): Promise<void> {
   const def = resolveStitch(tool);
   const count = Number(countInput.value);
   const name = def ? capitalize(stitchName(def, notation.terms)) : tool;
-  // Ismeretlen szemnél az azonosító áll az üzenetben: annak nincs nyelve.
   const named = def !== undefined;
 
-  // Láncszem, láncív, varázskör, pikó: célpont nélkül, kérdés nélkül.
   if (!isTargeted(tool)) {
     const message =
       def?.kind === 'chain' || def?.kind === 'space'
@@ -1154,33 +1006,17 @@ async function workAtCursor(): Promise<void> {
   const idx = cursor;
   const slot = context.slots[idx];
 
-  /*
-   * Foglalt célpont: a szaporítás kérdés nélkül megtörténik (PQW-931). A
-   * horgoló azért vitte ide a kurzort, mert ebbe a szembe még egy szemet akar;
-   * a megerősítő kérdés (PQW-879) csak megismételte a saját szándékát.
-   *
-   * A szaporítás ABBA a szembe megy, amelyikbe kattintott (PQW-933), akkor is,
-   * ha az a sorban hátrébb van — korábban a legutoljára lerakottba ment. Ami
-   * nem szaporítható (nem alapszem, vagy más szem ül a célpontban), az sima
-   * lerakás marad ugyanoda.
-   */
+  // KB: interface.md §28
   if (slot && context.used[idx]) {
     const same = workIntoSame(history.present, tool, idx, editorMode());
-    const increase = same.ok ? same : work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx, [], editorMode());
+    const increase = same.ok
+      ? same
+      : work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx, [], editorMode());
     commit(increase, withStitchName(messages.work.increase, name, named));
     return;
   }
 
-  /*
-   * A már „mögötted hagyott” szabad célpont sem kérdés többé (PQW-932).
-   *
-   * A tulajdonos: „feltételezed, hogy sorban halad az alkotó a minta
-   * alkotásánál… amikor valaki a mintát alkotja, akkor nincs folytonosság. a
-   * sort úgy és olyan formában hozza létre, olyan sorrendben, ahogy csak
-   * akarja.” Egy kihagyott helyre visszatérni PÓTLÁS, nem keresztezett szem —
-   * ezért a szem ugyanúgy kerül le, mint bárhová máshol.
-   */
-
+  // KB: interface.md §28
   const mode = slot?.kind === 'stitch' ? insertionSuffix(insertionPanel.insertion) : '';
   commit(
     work(history.present, { def: tool, count, insertion: insertionPanel.insertion }, idx, [], editorMode()),
@@ -1197,7 +1033,12 @@ function nudge(dx: number, dy: number): void {
 }
 
 function slug(title: string): string {
-  const base = title.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const base = title
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
   return base || texts().messages.file.fallbackName;
 }
 
@@ -1222,7 +1063,13 @@ function exportSvgText(): string {
   const stem = stemFor(pattern, context);
   const grid = {
     grid: chartGrid(pattern, library, gridKindOf(context), context, { mirror, stemLength: stem }),
-    colors: { rowA: token('--c-row-a'), rowB: token('--c-row-b'), cell: token('--c-grid'), row: token('--c-grid-row'), strong: token('--c-grid-strong') },
+    colors: {
+      rowA: token('--c-row-a'),
+      rowB: token('--c-row-b'),
+      cell: token('--c-grid'),
+      row: token('--c-grid-row'),
+      strong: token('--c-grid-strong'),
+    },
   };
   const layout = layoutPattern(pattern, library, { mirror, stemLength: stem });
   return chartSvg(pattern, layout, library, {
@@ -1230,7 +1077,12 @@ function exportSvgText(): string {
     unitFrames: unitFrames(pattern, layout, mirror),
     spikes: spikeNodes(pattern),
     ...(exportGrid.checked ? { grid } : {}),
-    colors: { right: token('--c-ink'), wrong: token('--c-ink-wrong'), text: token('--c-text'), background: token('--c-bg') },
+    colors: {
+      right: token('--c-ink'),
+      wrong: token('--c-ink-wrong'),
+      text: token('--c-text'),
+      background: token('--c-bg'),
+    },
     mirror,
     terms: notation.terms,
     symbols,
@@ -1260,7 +1112,14 @@ async function exportPng(): Promise<void> {
 
 async function importJson(file: File): Promise<void> {
   const file_ = texts().messages.file;
-  const loaded = loadPattern(await file.text());
+  const source = await file.text();
+  // The file decides the type, not the type the file (PQW-963). The switch waits
+  // until the file has actually loaded, so a broken one leaves the view alone.
+  if (isIrregularJson(source)) {
+    if (ensureIrregular().importJson(source) && patternType !== 'irregular') selectType('irregular');
+    return;
+  }
+  const loaded = loadPattern(source);
   if (!loaded.ok) {
     announce(file_.loadFailed(renderCoreText(JSON_CORE_TEXTS[uiLanguage()], loaded.error.message), loaded.error.path));
     return;
@@ -1270,17 +1129,16 @@ async function importJson(file: File): Promise<void> {
     announce(file_.brokenStructure(problem));
     return;
   }
+  if (patternType === 'irregular') selectType(DEFAULT_PATTERN_TYPE);
   selectedNode = null;
   selection = [];
   const recorded = loaded.pattern.notation?.terms;
-  const note = recorded && recorded !== notation.terms ? file_.notationNote(termsLabel(recorded), termsLabel(notation.terms)) : '';
+  const note =
+    recorded && recorded !== notation.terms ? file_.notationNote(termsLabel(recorded), termsLabel(notation.terms)) : '';
   commit({ ok: true, pattern: loaded.pattern }, file_.loaded(note));
   fitBoard();
 }
 
-/* ---- Kijelölés, törlés, másolás, beillesztés (PQW-875) ---- */
-
-/** A kijelölés egész egységekre bővítve; a fókusz csak kijelölt szem lehet. */
 function setSelection(ids: Iterable<NodeId>, focus: NodeId | null, message?: Message): void {
   selection = expandSelection(history.present, ids);
   selectedNode = focus !== null && selection.includes(focus) ? focus : null;
@@ -1293,7 +1151,7 @@ function describeSelection(): Message {
   const def = selectedNode ? derived.context.graph?.defs.get(selectedNode) : undefined;
   const count = selectionTexts.count(selection.length, describeByLayer(history.present, selection));
   if (!def) return count;
-  // A fókuszban lévő szem neve a jelölés nyelvén, saját `lang` attribútummal (PQW-853).
+  // KB: interface.md §3
   return [...withStitchName(selectionTexts.focus, capitalize(stitchName(def, notation.terms))), count];
 }
 
@@ -1304,7 +1162,6 @@ function setAreaMode(on: boolean): void {
   refresh(on ? texts().messages.selection.areaOn : texts().messages.selection.areaOff);
 }
 
-/** Ha más szem is horgol a kijelöltekbe, megmutatja őket, és megkérdezi, törölje-e velük együtt. */
 async function deleteSelection(): Promise<void> {
   const messages = texts().messages;
   if (selection.length === 0) {
@@ -1317,7 +1174,11 @@ async function deleteSelection(): Promise<void> {
     affected = plan.dependents;
     draw();
     const yes = await askConfirm({
-      message: messages.dialog.deleteQuestion(plan.selected.length, plan.dependents.length, describeByLayer(pattern, plan.dependents)),
+      message: messages.dialog.deleteQuestion(
+        plan.selected.length,
+        plan.dependents.length,
+        describeByLayer(pattern, plan.dependents),
+      ),
       confirmLabel: messages.dialog.deleteConfirm,
       cancelLabel: messages.dialog.cancel,
     });
@@ -1342,14 +1203,19 @@ function copySelected(): void {
   const result = copySelection(history.present, selection);
   if (!result.ok) return announce(renderCoreText(EDITOR_CORE_TEXTS[uiLanguage()], result.reason));
   clipboard = result.fragment;
-  const where = result.fragment.startsLayer ? selectionTexts.asLayer(result.fragment.shape === 'round') : selectionTexts.atCursor;
+  const where = result.fragment.startsLayer
+    ? selectionTexts.asLayer(result.fragment.shape === 'round')
+    : selectionTexts.atCursor;
   announce(selectionTexts.copied(result.fragment.stitches.length, where));
 }
 
 function pasteClipboard(): void {
   const selectionTexts = texts().messages.selection;
   if (!clipboard) return announce(selectionTexts.clipboardEmpty);
-  commitInserted(pasteFragment(history.present, clipboard, cursorMoved ? cursor : undefined), selectionTexts.pasted(clipboard.stitches.length));
+  commitInserted(
+    pasteFragment(history.present, clipboard, cursorMoved ? cursor : undefined),
+    selectionTexts.pasted(clipboard.stitches.length),
+  );
 }
 
 function duplicateSelected(): void {
@@ -1358,7 +1224,6 @@ function duplicateSelected(): void {
   commitInserted(duplicateSelection(history.present, selection), selectionTexts.duplicated(selection.length));
 }
 
-/** Szem nélkül a beillesztett szemek lesznek a kijelölés, az újrahasznált fordulólánccal: így a duplikálás ismételhető. */
 function commitInserted(result: EditResult, message: string): void {
   const before = new Set(history.present.pieces[0]?.stitches.map((node) => node.id));
   commit(result, message);
@@ -1376,43 +1241,113 @@ function commitInserted(result: EditResult, message: string): void {
   updateControls();
 }
 
+// KB: interface.md §11 — letters by key, so a Hungarian layout behaves like an English one.
+//
+// Anything this editor does not use must still be swallowed: the regular pattern
+// is only hidden, not gone, and a stray Alt+F or Enter would crochet into it.
+function irregularKey(editor: IrregularEditor, event: KeyboardEvent, key: string, onBoard: boolean): boolean {
+  if ((event.ctrlKey || event.metaKey) && !event.altKey) {
+    const lower = key.toLowerCase();
+    // Undo and redo go through the shared actions, which route themselves.
+    if (lower === 'z' || lower === 'y') return false;
+    const commands: Record<string, () => void> = {
+      a: () => editor.selectAll(),
+      c: () => editor.copySelection(),
+      x: () => editor.cutSelection(),
+      v: () => editor.paste(),
+      d: () => editor.duplicateSelection(),
+    };
+    const command = commands[lower];
+    if (command === undefined) return false;
+    event.preventDefault();
+    command();
+    return true;
+  }
+  if (event.altKey) {
+    // The palette digits and the grid are shared; filling, turning, closing and
+    // spiralling belong to rows, which this type does not have.
+    return !(/^Digit[1-9]$/.test(event.code) || event.code === 'KeyR');
+  }
+  if (key === 'Escape') {
+    editor.clearSelection();
+    if (tool !== null) select(null);
+    return true;
+  }
+  if (key === 'Delete' || key === 'Backspace') {
+    event.preventDefault();
+    editor.deleteSelection();
+    return true;
+  }
+  if (!onBoard) return false;
+  const step = event.shiftKey ? NUDGE_STEP_LARGE : NUDGE_STEP;
+  const nudges: Record<string, readonly [number, number]> = {
+    ArrowLeft: [-step, 0],
+    ArrowRight: [step, 0],
+    ArrowUp: [0, -step],
+    ArrowDown: [0, step],
+  };
+  const move = nudges[key];
+  if (move !== undefined) {
+    event.preventDefault();
+    editor.nudge(move[0], move[1]);
+    return true;
+  }
+  // These move the target cursor and crochet in the regular type. Here they do nothing.
+  return key === 'Home' || key === 'End' || key === 'Enter';
+}
+
+// Holding Space pans, as it does in the regular type.
+document.addEventListener('keydown', (event) => {
+  if (event.code === 'Space' && !(event.target as HTMLElement).closest('input, textarea, select')) {
+    irregular?.setSpaceDown(true);
+  }
+});
+document.addEventListener('keyup', (event) => {
+  if (event.code === 'Space') irregular?.setSpaceDown(false);
+});
+window.addEventListener('blur', () => irregular?.setSpaceDown(false));
+
 const ACTIONS: Record<string, () => void> = {
   undo: () => {
+    if (irregular?.active === true) return irregular.undo();
     history = undo(history);
     cursorMoved = false;
     persist(history.present);
     refresh(texts().messages.work.undo);
   },
   redo: () => {
+    if (irregular?.active === true) return irregular.redo();
     history = redo(history);
     cursorMoved = false;
     persist(history.present);
     refresh(texts().messages.work.redo);
   },
   'delete-last': () => commit(deleteLast(history.present), texts().messages.work.deleteLast),
-  'select-area': () => setAreaMode(!areaMode),
-  'delete-selection': () => void deleteSelection(),
-  'duplicate-selection': () => duplicateSelected(),
+  'select-area': () => (irregular?.active === true ? select(null) : setAreaMode(!areaMode)),
+  'delete-selection': () => (irregular?.active === true ? irregular.deleteSelection() : void deleteSelection()),
+  'duplicate-selection': () => (irregular?.active === true ? irregular.duplicateSelection() : duplicateSelected()),
   same: () =>
-    tool ? commit(workIntoSame(history.present, tool), texts().messages.work.sameAgain) : announce(texts().messages.work.needStitchShort),
+    tool
+      ? commit(workIntoSame(history.present, tool), texts().messages.work.sameAgain)
+      : announce(texts().messages.work.needStitchShort),
   'fill-row': () =>
     tool && isTargeted(tool)
       ? commit(
-          fillRow(history.present, { def: tool, count: Number(countInput.value), insertion: insertionPanel.insertion }, editorMode()),
+          fillRow(
+            history.present,
+            { def: tool, count: Number(countInput.value), insertion: insertionPanel.insertion },
+            editorMode(),
+          ),
           texts().messages.work.fillRow(insertionSuffix(insertionPanel.insertion)),
         )
       : announce(texts().messages.work.needTargetStitch),
-  /*
-   * A fordulás nem üzenget (PQW-929): a következő sor a rajz mellett, a
-   * sorszámok sávjában jelenik meg, nyíllal. Az élő régió megmarad, hogy a
-   * képernyőolvasó továbbra is hallja, mi történt.
-   */
+  // KB: interface.md §18, §20
   'end-row': () => {
     commit(
       endRow(history.present),
       onFoundationChain(derived.context) ? texts().messages.work.foundationDone : texts().messages.work.rowEnd,
     );
-    // A fordulás megtörtént: innentől látszik a következő sor felirata (PQW-931).
+    // KB: interface.md §19
     turnedOn = history.present;
     draw();
   },
@@ -1423,19 +1358,29 @@ const ACTIONS: Record<string, () => void> = {
     ),
   'spiral-round': () => commit(endRoundSpiral(history.present), texts().messages.work.spiral),
   grid: () => {
+    if (irregular?.active === true) return irregular.toggleGrid();
     showGrid = !showGrid;
     try {
       localStorage.setItem(GRID_KEY, showGrid ? 'lathato' : 'rejtett');
     } catch {
-      // A rács enélkül is kapcsolható, csak újratöltés után nem marad meg.
+      // KB: interface.md §5
     }
     refresh(showGrid ? texts().messages.view.gridOn : texts().messages.view.gridOff);
   },
-  'zoom-in': () => board.zoom(1.25),
-  'zoom-out': () => board.zoom(0.8),
-  fit: () => fitBoard(),
+  'zoom-in': () => (irregular?.active === true ? irregular.zoom(1.25) : board.zoom(1.25)),
+  'zoom-out': () => (irregular?.active === true ? irregular.zoom(0.8) : board.zoom(0.8)),
+  fit: () => (irregular?.active === true ? irregular.fit() : fitBoard()),
   'export-json': () => {
-    download(savePattern(withNotation(history.present, notation)), `${slug(history.present.title)}.json`, 'application/json');
+    if (irregular?.active === true) {
+      download(irregular.exportJson(), `${slug(irregular.title)}.json`, 'application/json');
+      announce(texts().messages.file.jsonSaved);
+      return;
+    }
+    download(
+      savePattern(withNotation(history.present, notation)),
+      `${slug(history.present.title)}.json`,
+      'application/json',
+    );
     announce(texts().messages.file.jsonSaved);
   },
   'import-json': () => importFile.click(),
@@ -1451,23 +1396,14 @@ const ACTIONS: Record<string, () => void> = {
     writtenToggle.focus();
   },
   new: () => {
+    if (irregular?.active === true) return irregular.newPattern();
     selectedNode = null;
     selection = [];
-    // A profilok a horgolóhoz tartoznak, nem a mintához: az új mintába is átkerülnek (PQW-859).
+    // KB: interface.md §29 — the profiles follow the crocheter into the new pattern.
     const gauge = history.present.gauge;
-    /*
-     * Nem bukkan fel üzenet (PQW-929): a „visszavonással a korábbi visszajön”
-     * mondatot a tulajdonos felesleges információnak ítélte — az Undo a
-     * menüsorban ott van, nem kell elmondani. A rejtett élő régió viszont nem
-     * maradhat csendben, mert a `#summary` nem élő régió: a képernyőolvasó az
-     * üres minta kezdőmondatát kapja, ugyanazt, amit a hibalista teteje ír.
-     */
+    // KB: interface.md §20 — no toast; the live region still gets the empty pattern's sentence.
     commit({ ok: true, pattern: { ...emptyPattern(), ...(gauge ? { gauge } : {}) } }, texts().messages.summary.empty);
-    /*
-     * Az új minta üres, ezért a panel csukódjon (PQW-915). A tárolt állapotot
-     * szándékosan NEM írjuk át: ha a felhasználó legközelebb kinyitja, a
-     * választása megmarad. A `setOpen` csak a láthatóságot állítja.
-     */
+    // KB: interface.md §10 — visibility only; the stored open state is deliberately left alone.
     setOpen(written, writtenToggle, false);
     fitBoard();
   },
@@ -1493,15 +1429,20 @@ importFile.addEventListener('change', () => {
 
 titleInput.addEventListener('change', () => {
   const title = titleInput.value.trim();
-  // A kézzel írt cím saját cím: a generátor nem írja felül (PQW-896).
+  if (irregular?.active === true) {
+    irregular.setTitle(title);
+    return;
+  }
+  // KB: interface.md §29
   if (title !== history.present.title) {
-    commit({ ok: true, pattern: { ...history.present, title, titleGenerated: false } }, texts().messages.work.titleChanged);
+    commit(
+      { ok: true, pattern: { ...history.present, title, titleGenerated: false } },
+      texts().messages.work.titleChanged,
+    );
   }
 });
 
 countInput.addEventListener('change', () => refresh());
-
-/* ---- Legördülő menü (hibalista) ---- */
 
 function openPopover(pop: HTMLElement, button: HTMLButtonElement): void {
   pop.hidden = false;
@@ -1530,22 +1471,17 @@ fileToggle.addEventListener('click', () => {
   closeAllPopovers();
   if (opening) {
     openPopover(filePop, fileToggle);
-    // Billentyűzettel is járható: a nyitás után az első művelet kapja a fókuszt.
     filePop.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
   }
 });
 
-// A menüből kiválasztott művelet után a menü csukódjon, hogy ne takarja a vásznat.
 filePop.addEventListener('click', (event) => {
   if ((event.target as Element).closest('button')) closePopover(filePop, fileToggle);
 });
 
-// A menün kívülre kattintva a hibalista bezárul.
 document.addEventListener('click', (event) => {
   if (!(event.target as Element).closest('.menu')) closeAllPopovers();
 });
-
-/* ---- Mintatípus (bal oldali menü) ---- */
 
 const TYPE_ICONS: Readonly<Record<PatternTypeId, string>> = {
   regular:
@@ -1577,13 +1513,11 @@ function renderTypes(): void {
       button.disabled = !type.available;
       button.setAttribute('aria-pressed', String(type.available && type.id === patternType));
 
-      // A magyarázat tooltipben áll, hogy a kártyán csak a név maradjon (PQW-911).
       button.dataset.tip = type.detail;
       button.append(typeIcon(type.id));
       const label = span('type__label', '');
       label.append(span('type__name', type.name));
-      // A „hamarosan” jelvény a név ALATT, a feliratdobozon belül (PQW-912): a
-      // keskeny sávban a név mellé nem fért el, és rárajzolódott a névre.
+      // The badge goes BELOW the name, inside the label box: beside it, it overlapped in a narrow bar.
       if (!type.available) label.append(span('type__badge', texts().sections.types.soon));
       else button.addEventListener('click', () => selectType(type.id));
       button.append(label);
@@ -1599,13 +1533,22 @@ function selectType(id: PatternTypeId): void {
   try {
     localStorage.setItem(TYPE_KEY, id);
   } catch {
-    // A választás enélkül is érvényes, csak újratöltés után nem marad meg.
+    // KB: interface.md §5
   }
   for (const button of typesList.querySelectorAll<HTMLButtonElement>('.type')) {
     button.setAttribute('aria-pressed', String(button.dataset.type === id));
   }
   const type = PATTERN_TYPES.find((candidate) => candidate.id === id);
-  // A rács típusa a mintatípussal együtt vált (PQW-874).
+  if (id === 'irregular') {
+    const editor = ensureIrregular();
+    showIrregularView(true);
+    editor.mount();
+    editor.setStitch(tool);
+    if (tool === null) setHint(texts().irregular.hint);
+  } else {
+    irregular?.unmount();
+    showIrregularView(false);
+  }
   refresh();
   showTypeView(id);
   if (type) announce(texts().messages.types.selected(type.name, type.detail));
@@ -1615,7 +1558,7 @@ typesToggle.addEventListener('click', () => {
   const open = typesNav.hasAttribute('hidden');
   setOpen(typesNav, typesToggle, open);
   rememberTypesOpen(open);
-  // A vászon a sáv szélességéhez igazodik, ezért a csukás után újra be kell illeszteni.
+  // The canvas fits around the bar's width, so closing it needs a refit.
   fitBoard();
 });
 
@@ -1628,24 +1571,29 @@ toggle.addEventListener('click', () => {
 writtenToggle.addEventListener('click', () => {
   const open = written.hasAttribute('hidden');
   setWrittenOpen(open);
-  /*
-   * A típushoz tartozó méretarány a nyitás pillanatában érvényesül (PQW-912):
-   * amigurumiban a szöveg az elsődleges nézet, de a panelt a felhasználó nyitja.
-   * Csak akkor szól bele, ha nincs saját magasság — amit a felhasználó az
-   * elválasztóval beállított, azt nem vesszük el tőle.
-   */
+  // KB: interface.md §10
   if (open && writtenShare === null) applyWrittenShare(writtenShareFor(patternType, NARROW.matches));
   if (open && NARROW.matches) setOpen(panel, toggle, false);
 });
 
-/* Az elválasztó egérrel, érintéssel és billentyűzettel (PQW-885). */
-let gripDrag: { readonly pointer: number; readonly y: number; readonly size: number; readonly share: number | null } | null = null;
+// KB: interface.md §13 — pointer, touch and keyboard.
+let gripDrag: {
+  readonly pointer: number;
+  readonly y: number;
+  readonly size: number;
+  readonly share: number | null;
+} | null = null;
 
 writtenGrip.addEventListener('pointerdown', (event) => {
   if (event.button !== 0) return;
   event.preventDefault();
   writtenGrip.setPointerCapture(event.pointerId);
-  gripDrag = { pointer: event.pointerId, y: event.clientY, size: written.getBoundingClientRect().height, share: writtenShare };
+  gripDrag = {
+    pointer: event.pointerId,
+    y: event.clientY,
+    size: written.getBoundingClientRect().height,
+    share: writtenShare,
+  };
 });
 
 writtenGrip.addEventListener('pointermove', (event) => {
@@ -1658,7 +1606,6 @@ function endGripDrag(event: PointerEvent): void {
   const drag = gripDrag;
   gripDrag = null;
   if (event.type !== 'pointerup' || !dragCollapses(drag.size, drag.y - event.clientY, writtenRange())) return;
-  // A fejléc alá húzott panel lecsukódik, és újranyitáskor a húzás előtti magasságot kapja.
   applyWrittenShare(drag.share);
   setWrittenOpen(false);
   writtenToggle.focus();
@@ -1670,13 +1617,11 @@ writtenGrip.addEventListener('keydown', (event) => {
   if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
   const size = keySize(event.key, written.getBoundingClientRect().height, writtenRange());
   if (size === null) return;
-  // Itt a nyilak, a Home és az End a panel magasságát állítják, nem a vászon kurzorát.
+  // On the separator the arrows, Home and End size the panel, not the canvas cursor.
   event.preventDefault();
   event.stopPropagation();
   resizeWritten(size);
 });
-
-/* ---- Egér és érintés ---- */
 
 type Drag =
   | { readonly kind: 'node'; readonly id: NodeId; readonly start: Point; readonly base: Point; moved: boolean }
@@ -1686,7 +1631,7 @@ let drag: Drag | null = null;
 
 canvas.addEventListener('pointerdown', (event) => {
   canvas.focus({ preventScroll: true });
-  // A sorszám önálló célterület: a teljes sort vagy kört jelöli ki, Shift-tel a kijelöléshez adja (PQW-875).
+  // KB: interface.md §16
   const label = board.labelAt(event.clientX, event.clientY);
   if (label !== null) {
     if (tool) select(null);
@@ -1694,27 +1639,21 @@ canvas.addEventListener('pointerdown', (event) => {
     const ids = layerSelection(history.present, label);
     selectionAnchor = ids[0] ?? null;
     const name = texts().messages.layer.name(label, layer?.shape === 'round');
-    setSelection(event.shiftKey ? [...selection, ...ids] : ids, null, texts().messages.selection.layer(name, layer?.writtenCount ?? 0));
+    setSelection(
+      event.shiftKey ? [...selection, ...ids] : ids,
+      null,
+      texts().messages.selection.layer(name, layer?.writtenCount ?? 0),
+    );
     return;
   }
-  /*
-   * A láncalap két szeme közé kattintva oda kerül egy új láncszem (PQW-941).
-   * A tulajdonos kérése: a második sor közben derül ki, hogy kevés az alap, és
-   * ne kelljen visszavonni az egész sort. A fölötte lévő sor nem mozdul: az új
-   * láncszemhez egyszerűen nem tartozik szem, ezért üres cella marad fölötte.
-   */
+  // KB: interface.md §28
   const insert = board.seamUnder(event.clientX, event.clientY);
   if (insert) {
     commit(insertChain(history.present, insert), texts().messages.work.chainInserted);
     seam = null;
     return;
   }
-  /*
-   * Üres cella egy LEZÁRT sorban (PQW-950): a beszúrt láncszem fölött maradt
-   * hely. A tulajdonos: „ha a második sorba szeretnék visszamenni, hogy oda
-   * tegyek szemet az újonnan 1. sorba beszúrt láncszem fölé, azt viszont nem
-   * tudom”. A kiválasztott szem odakerül, a sor többi szeme nem mozdul.
-   */
+  // KB: interface.md §28
   const gap = tool && isTargeted(tool) ? board.gapUnder(event.clientX, event.clientY) : null;
   if (gap && tool) {
     const into = { def: tool, count: Number(countInput.value), insertion: insertionPanel.insertion };
@@ -1726,16 +1665,12 @@ canvas.addEventListener('pointerdown', (event) => {
       void workAtCursor();
       return;
     }
-    // A rácson a cella dönt; ahol nincs mibe horgolni, üzenet jön, és nem kerül le szem (PQW-874).
+    // KB: interface.md §28
     const aim = board.aimUnder(event.clientX, event.clientY);
     if (typeof aim === 'string') announce(aim);
     const index = typeof aim === 'number' ? aim : null;
     if (index === null) {
-      /*
-       * A láncszem cella nélkül is lekerül (PQW-935): a láncalapot üres
-       * vásznon rakja le a horgoló, ott még nincs mire célozni. Célponthoz
-       * kötött szemnél viszont a rácson kívüli kattintás a rajzot húzza.
-       */
+      // KB: interface.md §28
       if (isTargeted(tool)) {
         drag = { kind: 'pan', last: { x: event.clientX, y: event.clientY } };
         canvas.setPointerCapture(event.pointerId);
@@ -1751,7 +1686,6 @@ canvas.addEventListener('pointerdown', (event) => {
   }
   const id = board.nodeAt(event.clientX, event.clientY);
   canvas.setPointerCapture(event.pointerId);
-  // Terület: a menüsor kijelölés-gombjával, vagy Shift-tel üres helyről húzva.
   if (areaMode || (event.shiftKey && !id)) {
     const from = board.toChart(event.clientX, event.clientY);
     drag = { kind: 'area', from, additive: event.shiftKey };
@@ -1773,10 +1707,16 @@ canvas.addEventListener('pointerdown', (event) => {
     return;
   }
   selectionAnchor = id;
-  // A már kijelölt szemre kattintva a kijelölés megmarad, így törölhető vagy duplikálható.
+  // Clicking an already selected stitch keeps the selection, so it stays deletable and duplicable.
   setSelection(selection.includes(id) ? selection : [id], id);
   const pinned = history.present.pieces[0]?.stitches.find((n) => n.id === id)?.pinned;
-  drag = { kind: 'node', id, start: board.toChart(event.clientX, event.clientY), base: { x: pinned?.x ?? 0, y: pinned?.y ?? 0 }, moved: false };
+  drag = {
+    kind: 'node',
+    id,
+    start: board.toChart(event.clientX, event.clientY),
+    base: { x: pinned?.x ?? 0, y: pinned?.y ?? 0 },
+    moved: false,
+  };
 });
 
 canvas.addEventListener('pointermove', (event) => {
@@ -1821,7 +1761,6 @@ function endDrag(event: PointerEvent): void {
     const to = marquee?.to ?? from;
     drag = null;
     marquee = null;
-    // Húzás nélkül kattintás: a szem kijelölése, üres helyen a kijelölés megszüntetése.
     if (Math.hypot(to.x - from.x, to.y - from.y) * board.scale < 4) {
       const id = board.nodeAt(event.clientX, event.clientY);
       if (id) {
@@ -1833,7 +1772,11 @@ function endDrag(event: PointerEvent): void {
       return;
     }
     const inside = nodesInRect(history.present, derived.layout, from, to);
-    setSelection(additive ? [...selection, ...inside] : inside, null, inside.length === 0 ? texts().messages.selection.emptyRect : undefined);
+    setSelection(
+      additive ? [...selection, ...inside] : inside,
+      null,
+      inside.length === 0 ? texts().messages.selection.emptyRect : undefined,
+    );
     return;
   }
   if (drag?.kind === 'node' && drag.moved && preview) {
@@ -1864,8 +1807,6 @@ canvas.addEventListener(
   { passive: false },
 );
 
-/* ---- Billentyűk ---- */
-
 function moveCursor(step: number): void {
   const { targets } = derived;
   if (targets.length === 0) return;
@@ -1875,9 +1816,13 @@ function moveCursor(step: number): void {
   showPoint(targets[cursor]!.point);
 }
 
-/** Billentyűzetes kijelölés: a fókusz a következő szemre, Shift-tel a tartomány a kezdőszemtől (PQW-875). */
 function moveFocus(move: FocusMove, extend: boolean): void {
-  const focus = stepFocus(history.present, derived.layout, selectedNode ?? selection[selection.length - 1] ?? null, move);
+  const focus = stepFocus(
+    history.present,
+    derived.layout,
+    selectedNode ?? selection[selection.length - 1] ?? null,
+    move,
+  );
   if (!focus) {
     announce(texts().messages.selection.emptyPattern);
     return;
@@ -1895,15 +1840,10 @@ function moveFocus(move: FocusMove, extend: boolean): void {
 
 document.addEventListener('keydown', (event) => {
   const target = event.target as HTMLElement;
-  // A nyitott párbeszédablak a saját gombjaival és az Esc-kel dolgozik.
-  /*
-   * A szövegmezőkben a böngésző alapértelmezése az úr (PQW-911) — egyetlen
-   * kivétellel: a láncszemszám mezőjében az Enter horgol (PQW-915). A
-   * jelkészlet súgója ezt ígéri („Enterrel vagy a vászonra kattintva
-   * horgolod”), és enélkül a billentyűzetes használat megszakad: a felhasználó
-   * beírja a számot, megnyomja az Entert, és nem történik semmi.
-   */
-  const chainCountEnter = target === countInput && event.key === 'Enter' && !event.ctrlKey && !event.metaKey && !event.altKey;
+  // In a text field the browser's default wins, with one exception: Enter in the chain-count field
+  // crochets, which is what the palette hint promises.
+  const chainCountEnter =
+    target === countInput && event.key === 'Enter' && !event.ctrlKey && !event.metaKey && !event.altKey;
   if (target.closest('input, textarea, select, dialog') && !chainCountEnter) return;
   if (chainCountEnter) {
     event.preventDefault();
@@ -1912,8 +1852,7 @@ document.addEventListener('keydown', (event) => {
   }
   const key = event.key;
 
-  // A nyitott hibalistát az Escape először bezárja, és a fókuszt visszaviszi a gombra.
-  // A nyitott lenyílót az Escape bezárja, és a fókuszt visszaviszi a gombjára (PQW-911).
+  // Escape closes an open menu first and returns the focus to its button.
   const openMenu = [
     { pop: errorsPop, button: errorToggle },
     { pop: filePop, button: fileToggle },
@@ -1925,10 +1864,11 @@ document.addEventListener('keydown', (event) => {
     return;
   }
 
-  // A nyilak, a Home, az End és az Enter a vásznon vagy az oldal szintjén dolgoznak, gombon nem.
-  const onBoard = target === canvas || target === document.body;
-  // Az írott minta szövegét a böngésző saját másolása kezeli.
+  const onBoard = target === canvas || target === irregularCanvas || target === document.body;
+  // The written pattern's text is left to the browser's own copy handling.
   const inWritten = target.closest('#written') !== null;
+
+  if (irregular !== null && irregular.active && irregularKey(irregular, event, key, onBoard)) return;
 
   if ((event.ctrlKey || event.metaKey) && !event.altKey) {
     const lower = key.toLowerCase();
@@ -1943,9 +1883,8 @@ document.addEventListener('keydown', (event) => {
       if (tool) select(null);
       setSelection(selectAll(history.present), null);
     } else if (lower === 'c' && !inWritten) {
-      // Kijelölés nélkül is ide fut (PQW-911): a `copySelected` megmondja, hogy
-      // nincs mit másolni. Korábban a feltétel némán elnyelte a billentyűt, és
-      // úgy tűnt, mintha a másolás nem működne.
+      // Runs without a selection too, so `copySelected` can say there is nothing to copy;
+      // the condition used to swallow the key silently and copying looked broken.
       event.preventDefault();
       copySelected();
     } else if (lower === 'v' && !inWritten) {
@@ -1959,19 +1898,19 @@ document.addEventListener('keydown', (event) => {
   }
 
   if (event.altKey) {
-    const arrows: Record<string, [number, number]> = { ArrowLeft: [-2, 0], ArrowRight: [2, 0], ArrowUp: [0, -2], ArrowDown: [0, 2] };
+    const arrows: Record<string, [number, number]> = {
+      ArrowLeft: [-2, 0],
+      ArrowRight: [2, 0],
+      ArrowUp: [0, -2],
+      ArrowDown: [0, 2],
+    };
     const delta = arrows[key];
     if (delta && selectedNode) {
       event.preventDefault();
       nudge(...delta);
       return;
     }
-    /*
-     * A parancsok `Alt`-tal szólnak (PQW-911): egyetlen karakter nem lehet
-     * parancs, a `Ctrl`/`Cmd`+szám pedig a böngésző lapváltása. A billentyű
-     * fizikai helyét nézzük (`code`), mert macOS-en az `Alt`+betű más karaktert
-     * ad. Szövegmezőben ez az ág el sem indul: a kezelő fent kilép.
-     */
+    // KB: interface.md §11
     const commands: Record<string, () => void> = {
       KeyF: () => ACTIONS[event.shiftKey ? 'fill-row' : 'end-row']!(),
       KeyK: () => ACTIONS['close-round']!(),
@@ -2008,15 +1947,20 @@ document.addEventListener('keydown', (event) => {
     case 'Backspace':
     case 'Delete':
       event.preventDefault();
-      // Kijelöléssel a kijelölt szemek, anélkül az utolsó lépés (PQW-875).
       if (selection.length > 0) void deleteSelection();
       else ACTIONS['delete-last']!();
       return;
   }
 
   if (onBoard) {
-    // Szem nélkül a nyilak a szemek között jelölnek ki; kijelölés nélkül, teli vágólappal a beillesztés kurzorát viszik (PQW-875).
-    const moves: Record<string, FocusMove> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', Home: 'first', End: 'last' };
+    const moves: Record<string, FocusMove> = {
+      ArrowLeft: 'left',
+      ArrowRight: 'right',
+      ArrowUp: 'up',
+      ArrowDown: 'down',
+      Home: 'first',
+      End: 'last',
+    };
     const move = moves[key];
     if (move && tool === null && (selection.length > 0 || clipboard === null)) {
       event.preventDefault();
@@ -2044,10 +1988,7 @@ document.addEventListener('keydown', (event) => {
       return;
     }
   }
-
 });
-
-/* ---- Méret és fonal (PQW-859) ---- */
 
 const sizePanel = new SizePanel(must<HTMLDetailsElement>('#section-size'), {
   commit: (pattern, message) => commit({ ok: true, pattern }, message),
@@ -2059,8 +2000,6 @@ const sizePanel = new SizePanel(must<HTMLDetailsElement>('#section-size'), {
   },
 });
 
-/* ---- Kör és motívum (PQW-861) ---- */
-
 const roundsPanel = new RoundsPanel(must<HTMLDetailsElement>('#section-rounds'), {
   commit: (pattern, message) => {
     selectedNode = null;
@@ -2070,8 +2009,6 @@ const roundsPanel = new RoundsPanel(must<HTMLDetailsElement>('#section-rounds'),
   },
   announce,
 });
-
-/* ---- Forma (PQW-862) ---- */
 
 const shapesPanel = new ShapesPanel(must<HTMLDetailsElement>('#section-shape'), {
   commit: (pattern, message) => {
@@ -2083,8 +2020,6 @@ const shapesPanel = new ShapesPanel(must<HTMLDetailsElement>('#section-shape'), 
   announce,
 });
 
-/* ---- Kendő (PQW-865) ---- */
-
 const shawlsPanel = new ShawlsPanel(must<HTMLDetailsElement>('#section-shawl'), {
   commit: (pattern, message) => {
     selectedNode = null;
@@ -2094,8 +2029,6 @@ const shawlsPanel = new ShawlsPanel(must<HTMLDetailsElement>('#section-shawl'), 
   },
   announce,
 });
-
-/* ---- Ruhadarab (PQW-866) ---- */
 
 const garmentPanel = new GarmentPanel(must<HTMLDetailsElement>('#section-garment'), {
   commit: (pattern, message) => {
@@ -2107,23 +2040,13 @@ const garmentPanel = new GarmentPanel(must<HTMLDetailsElement>('#section-garment
   announce,
 });
 
-/* ---- Kikapcsolt horgolásfajták (PQW-925) ---- */
-
-/**
- * Egy mintatípushoz tartozó panel csak akkor épül meg, ha a típus be van
- * kapcsolva (PQW-925). Kikapcsolt típusnál a szakasz elrejtve, a panel pedig
- * `null`: így a kikapcsolt horgolásfajta kódútvonala futás közben
- * elérhetetlen, miközben a fájlok a helyükön maradnak. A visszakapcsolás a
- * `pattern-types.ts` listájában egy `true`.
- */
+// KB: interface.md §9
 function panelFor<T>(type: PatternTypeId, selector: string, build: (section: HTMLDetailsElement) => T): T | null {
   const section = must<HTMLDetailsElement>(selector);
   if (isAvailableType(type)) return build(section);
   section.hidden = true;
   return null;
 }
-
-/* ---- Amigurumi (PQW-863) ---- */
 
 const amigurumiPanel = panelFor(
   'amigurumi',
@@ -2140,8 +2063,6 @@ const amigurumiPanel = panelFor(
     }),
 );
 
-/* ---- Rácsminta (PQW-864) ---- */
-
 const gridPanel = panelFor(
   'filet',
   '#section-grid',
@@ -2157,25 +2078,56 @@ const gridPanel = panelFor(
     }),
 );
 
-/**
- * Amigurumiban az írott minta az elsődleges nézet: a panel nagyban nyílik, és az Amigurumi szakasz lenyílik.
- * Filéhorgolásnál a Rácsminta szakasz nyílik le (PQW-864).
- */
+const irregularPanelSection = must<HTMLDetailsElement>('#section-irregular');
+
+function ensureIrregular(): IrregularEditor {
+  if (irregular !== null) return irregular;
+  irregular = new IrregularEditor(irregularCanvas, irregularPanelSection, {
+    announce,
+    symbols: () => symbols,
+    notation: () => notation,
+    insets: () => ({ left: insetLeft(), right: insetRight(), bottom: insetBottom() }),
+    notationNote: (recorded, shown) => texts().messages.file.notationNote(termsLabel(recorded), termsLabel(shown)),
+    refreshControls: () => {
+      if (irregular !== null) updateIrregularControls(irregular);
+    },
+  });
+  return irregular;
+}
+
+function updateIrregularControls(editor: IrregularEditor): void {
+  setDisabled('undo', !editor.canUndo);
+  setDisabled('redo', !editor.canRedo);
+  setDisabled('delete-selection', editor.selectionSize === 0);
+  setDisabled('duplicate-selection', editor.selectionSize === 0);
+  must<HTMLButtonElement>('[data-action="select-area"]').setAttribute('aria-pressed', String(tool === null));
+  must<HTMLButtonElement>('[data-action="grid"]').setAttribute('aria-pressed', String(editor.gridVisible));
+  if (document.activeElement !== titleInput) titleInput.value = editor.title;
+  errorCount.textContent = texts().messages.errorBar.none;
+  errorToggle.classList.remove('has-errors', 'has-warnings');
+}
+
+// KB: interface.md §9 — the free-form type brings its own canvas, so the two never paint over each other.
+function showIrregularView(on: boolean): void {
+  canvas.hidden = on;
+  irregularCanvas.hidden = !on;
+  must<HTMLElement>('#tools-row').hidden = on;
+  writtenToggle.hidden = on;
+  if (on) setOpen(written, writtenToggle, false);
+  // The free-form image and print output arrives with its own ticket; until then it would save the wrong chart.
+  setDisabled('export-png', on);
+  setDisabled('export-svg', on);
+}
+
+// KB: interface.md §10
 function showTypeView(id: PatternTypeId): void {
   if (id === 'filet') gridPanel?.reveal();
   const share = writtenShareFor(id, NARROW.matches);
   if (share === null) return;
-  /*
-   * Az írott minta panel csak a saját gombjára nyílik (PQW-912). A típusváltás
-   * eddig felnyitotta — így ugrott fel új minta kezdésekor is —, most csak a
-   * helyes arányt adja meg, ha a felhasználó már kinyitotta. Amigurumiban a
-   * szöveg továbbra is az elsődleges nézet, de a felhasználó dönt róla.
-   */
+  // KB: interface.md §10 — the panel opens only from its own button; this just sets the proportion.
   if (!written.hidden) applyWrittenShare(share);
   amigurumiPanel?.reveal();
 }
-
-/* ---- Indulás ---- */
 
 syncNotationControls();
 renderTypes();
@@ -2184,19 +2136,18 @@ setOpen(typesNav, typesToggle, readTypesOpen() && !NARROW.matches);
 setOpen(panel, toggle, !NARROW.matches);
 setOpen(written, writtenToggle, readWrittenOpen() && !NARROW.matches);
 showTypeView(patternType);
+if (patternType === 'irregular') {
+  const startupEditor = ensureIrregular();
+  showIrregularView(true);
+  startupEditor.mount();
+}
 
-// A futó verzió a sarokban (PQW-903): a `package.json` verziója, build időben beégetve.
+// KB: decisions.md §5
 must<HTMLElement>('#version').textContent = `v${__APP_VERSION__}`;
 select(null);
 fitBoard();
 
-/*
- * Az írott minta nyitásakor, csukásakor és átméretezéskor a nézet igazodik
- * (PQW-883): a kurzor a takarás fölé kerül; kurzor nélkül újra illesztünk, ha
- * eddig az egész minta látszott, most viszont takarásba kerülne. Az állapotsor
- * a panel fölé kerül (`--written-block`). Ha a panel a teljes munkaterületet
- * elfedi, a vászon nem igazodik (PQW-885).
- */
+// KB: interface.md §13
 let shownArea = visibleArea();
 function realign(): void {
   syncWrittenSize();
@@ -2211,25 +2162,22 @@ function realign(): void {
 const realignObserver = new ResizeObserver(realign);
 realignObserver.observe(canvas);
 realignObserver.observe(written);
-// Az állapotsor új üzenete csak a helyét állítja, a nézetet nem mozdítja.
+// A new status message only repositions the status line; it never moves the view.
 new ResizeObserver(syncWrittenSize).observe(status);
 
 alignTooltips(must<HTMLElement>('.tools'));
 setupConsentBanner(GA_MEASUREMENT_ID);
 
-// Böngészős tesztekhez (PQW-874, PQW-883): a rács cellái, a sorszámok és a kurzor célpontja az ablakban; csak automatizált böngészőben.
+// KB: interface.md §31
 if (navigator.webdriver) {
   Object.assign(window, {
     mintatervezoRacs: {
       layer: () => derived.context.layer,
       cells: () => board.gridCells(),
-      // A rács befoglaló téglalapja (PQW-887).
       bounds: () => board.gridBounds(),
       labels: () => board.labels(),
-      // A sorfelirat, a nyíl és a szemek befoglaló téglalapja: az átfedést mérni kell, nem szemre nézni (PQW-916).
       labelBoxes: () => board.labelBoxes(),
       arrowBox: () => board.arrowBox(),
-      // A kiválasztott találat kiemelt szemei; üres, ha nincs vagy már eltűnt (PQW-930).
       highlight: () => [...highlighted],
       stitchBoxes: () => board.stitchBoxes(),
       cursor: () => {
@@ -2237,19 +2185,20 @@ if (navigator.webdriver) {
         return point ? board.toClient(point) : null;
       },
     },
-    // A szemek helye és a kijelölés (PQW-875).
     mintatervezoKijeloles: {
       selection: () => [...selection],
-      nodes: () => [...derived.layout.nodes.values()].map((node) => ({ id: node.id, def: node.def, layer: node.layer, ...board.toClient(node.top) })),
+      nodes: () =>
+        [...derived.layout.nodes.values()].map((node) => ({
+          id: node.id,
+          def: node.def,
+          layer: node.layer,
+          ...board.toClient(node.top),
+        })),
     },
   });
 }
 
-/*
- * A választott nyelv megőrzése (PQW-906). Működési beállítás: nem azonosítja a
- * látogatót, ezért a süti-sáv elutasítása mellett is él. Privát ablakban vagy
- * letiltott tárolásnál a hívás dobhat, ilyenkor a tervező alapnyelven indul.
- */
+// KB: interface.md §5
 function storedUiLanguage(): string | null {
   try {
     return localStorage.getItem(LANG_KEY);
@@ -2262,16 +2211,11 @@ function rememberLanguage(language: UiLanguage): void {
   try {
     localStorage.setItem(LANG_KEY, language);
   } catch {
-    // A nyelv enélkül is átáll, csak a következő megnyitáskor nem marad meg.
+    // KB: interface.md §5
   }
 }
 
-/*
- * A módosító neve a rendszer szerint (PQW-911): a Macen nincs „Alt” feliratú
- * billentyű, ott ez az Option (⌥). A billentyűkezelés ettől nem változik, csak
- * amit a felhasználó olvas: a tooltipek és a „Billentyűk” lista jelölései.
- * A szótár mindenhol „Alt”-ot ír, itt cseréljük egyszer, a behelyettesítés után.
- */
+// KB: interface.md §11 — the dictionary writes "Alt" everywhere; correct it once, after substitution.
 function showModifierNames(): void {
   const name = modifierName(currentPlatform());
   if (name === 'Alt') return;
@@ -2283,11 +2227,7 @@ function showModifierNames(): void {
   }
 }
 
-/*
- * A mintatípus-sáv nyitott állapota a következő megnyitásig (PQW-912). Ugyanaz a
- * minta, mint a nyelvnél: működési beállítás, `try/catch`-ben, mert privát
- * ablakban a tárolás dobhat — ilyenkor a sáv az ablakszélesség szerint indul.
- */
+// KB: interface.md §5
 function readTypesOpen(): boolean {
   try {
     return localStorage.getItem(TYPES_KEY) !== 'zarva';
@@ -2300,6 +2240,6 @@ function rememberTypesOpen(open: boolean): void {
   try {
     localStorage.setItem(TYPES_KEY, open ? 'nyitva' : 'zarva');
   } catch {
-    // A sáv enélkül is nyitható, csak az állapota nem marad meg.
+    // KB: interface.md §5
   }
 }

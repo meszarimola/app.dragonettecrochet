@@ -1,13 +1,11 @@
 /*
- * Láncszem beszúrása a láncalapba, két szem közé kattintva (PQW-941).
+ * Inserting a chain stitch into the foundation chain by clicking between two
+ * stitches (PQW-941).
  *
- * A tulajdonos kérése: „a második sor végéhez érve jövök rá, hogy az alap az
- * nem elég hosszú, még kéne láncszem – viszont ezt csak úgy tudom módosítani,
- * hogy ha undo-val visszamegyek az alaphoz… használhatóság szempontjából
- * borzasztó rossz.”
+ * KB: owner-decisions.md §1
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 interface Cell {
   readonly layer: number;
@@ -27,11 +25,13 @@ const labels = (page: Page): Promise<string[]> =>
       .map((label) => label.text),
   );
 
-/** A láncalap cellái balról jobbra. */
+/** The foundation chain cells from left to right. */
 const baseCells = async (page: Page): Promise<Cell[]> =>
   (await cells(page)).filter((cell) => cell.layer === 0).sort((a, b) => a.x - b.x);
 
-test('a láncalap két szeme közé kattintva új láncszem kerül, a 2. sor közben is (PQW-941)', async ({ page }) => {
+test('clicking between two stitches of the foundation chain inserts a new chain stitch, even part-way through row 2 (PQW-941)', async ({
+  page,
+}) => {
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
@@ -46,25 +46,31 @@ test('a láncalap két szeme közé kattintva új láncszem kerül, a 2. sor kö
   await page.getByRole('button', { name: 'Fordulás' }).click();
   const sc = palette.getByRole('button', { name: /Rövidpálca \(rp\)/ }).first();
   if ((await sc.getAttribute('aria-pressed')) !== 'true') await sc.click();
-  // Három rövidpálca: a 2. sor félkész, az alapsor még nem fogyott el.
+  // Three single crochets: row 2 is half-finished, the foundation row is not used up yet.
   for (let i = 0; i < 3; i += 1) await page.locator('#board').press('Enter');
 
-  await expect.poll(async () => (await labels(page)).find((text) => text.startsWith('1. sor'))).toBe('1. sor – alapsor (7)');
+  await expect
+    .poll(async () => (await labels(page)).find((text) => text.startsWith('1. sor')))
+    .toBe('1. sor – alapsor (7)');
   const before = await baseCells(page);
 
-  // A második és a harmadik láncszem közötti vonalra kattintunk.
+  // We click on the line between the second and the third chain stitch.
   const boundary = (before[1]!.x + before[2]!.x) / 2;
   await page.mouse.click(boundary, before[1]!.y);
 
-  await expect.poll(async () => (await labels(page)).find((text) => text.startsWith('1. sor'))).toBe('1. sor – alapsor (8)');
+  await expect
+    .poll(async () => (await labels(page)).find((text) => text.startsWith('1. sor')))
+    .toBe('1. sor – alapsor (8)');
   expect((await baseCells(page)).length).toBe(before.length + 1);
 
-  // Egy lépésben visszavonható.
+  // Undone in one step.
   await page.locator('#board').press('ControlOrMeta+z');
-  await expect.poll(async () => (await labels(page)).find((text) => text.startsWith('1. sor'))).toBe('1. sor – alapsor (7)');
+  await expect
+    .poll(async () => (await labels(page)).find((text) => text.startsWith('1. sor')))
+    .toBe('1. sor – alapsor (7)');
 });
 
-test('a beszúrás fölötti üres cellába visszamenve szem tehető (PQW-950)', async ({ page }) => {
+test('a stitch can be placed by going back into the empty cell above the insertion (PQW-950)', async ({ page }) => {
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
@@ -84,24 +90,26 @@ test('a beszúrás fölötti üres cellába visszamenve szem tehető (PQW-950)',
   await page.locator('#board').press('Enter');
   await page.locator('#board').press('Enter');
 
-  const rowCells = async (): Promise<Cell[]> => (await cells(page)).filter((cell) => cell.layer === 1).sort((a, b) => a.x - b.x);
-  const rowLabel = async (): Promise<string | undefined> => (await labels(page)).find((text) => text.startsWith('2. sor'));
+  const rowCells = async (): Promise<Cell[]> =>
+    (await cells(page)).filter((cell) => cell.layer === 1).sort((a, b) => a.x - b.x);
+  const rowLabel = async (): Promise<string | undefined> =>
+    (await labels(page)).find((text) => text.startsWith('2. sor'));
   const beforeRow = await rowCells();
   const beforeLabel = await rowLabel();
 
-  // Beszúrás a láncalap két szeme közé: a 2. sorban ÜRES CELLA marad fölötte.
+  // Insert between two stitches of the foundation chain: an EMPTY CELL is left above it in row 2.
   const base = (await cells(page)).filter((cell) => cell.layer === 0).sort((a, b) => a.x - b.x);
   await page.mouse.click((base[2]!.x + base[3]!.x) / 2, base[2]!.y);
   await expect.poll(async () => (await rowCells()).length).toBe(beforeRow.length + 1);
-  expect(await rowLabel(), 'a beszúrás a 2. sor szemszámát nem változtatja').toBe(beforeLabel);
+  expect(await rowLabel(), 'the insertion does not change the stitch count of row 2').toBe(beforeLabel);
 
   /*
-   * Az üres cellának nincs célpontja: a sor többi cellája a 3. sor
-   * célpontjaira mutat. (A beszúrás után minden cella x-e eltolódik, ezért nem
-   * a helyük alapján keressük.)
+   * The empty cell has no target: the rest of the row points at the targets of
+   * row 3. (After the insertion every cell's x shifts, so we do not look them
+   * up by position.)
    */
   const gapCell = (await rowCells()).find((cell) => cell.slot === null);
-  expect(gapCell, 'van üres cella a beszúrás fölött').toBeTruthy();
+  expect(gapCell, 'there is an empty cell above the insertion').toBeTruthy();
   await page.mouse.click(gapCell!.x, gapCell!.y);
 
   const count = Number(/\((\d+)\)/.exec(beforeLabel!)![1]);

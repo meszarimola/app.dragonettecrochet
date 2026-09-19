@@ -1,24 +1,16 @@
-/*
- * Tapestry és graphgan (PQW-864): a színes rácsból rövidpálcás sorok,
- * cellánként egy szem (03 §5.3, §5.4).
- *
- * - Egy cella egy rövidpálca. A sor a haladási irányban halad: a páratlan
- *   sorok jobbról balra (01 §8.4, 03 §5.4).
- * - A láncalap és a fordulólánc a hagyomány függvényeiből jön (tradition.ts,
- *   repeat.ts). Ha a fordulólánc szemnek számít, ő a sor első cellája.
- * - A szem színe a cella színe. A színváltás az előző szem utolsó
- *   ráhajtásánál történik, a sor első szeménél az előző sor utolsó szeménél
- *   (03 §6, §10 G35): ezt az írott minta írja ki.
- * - Tapestry: a nem használt színt a szemekben viszed; soronként 3-nál több
- *   szín haladó szint, erre az ellenőrző figyelmeztet (03 §5.3, §10 G36).
- *   Graphgan: színenként külön gombolyag, a hátoldalon nem viszed (03 §5.4).
- */
-
-import { fail, finishGridPattern, gridPiece, GridWriter, intoStitch, type GridPatternCode } from './grid-pattern.ts';
-import { text, type CoreText } from './messages.ts';
-import { TECHNIQUE_NAMES, cellSize, colorChartProblem, type CellSize, type ChartCode, type ChartRows } from './pixel-chart.ts';
+// KB: 03 §5.3, §5.4, core-support §10
+import { fail, finishGridPattern, type GridPatternCode, GridWriter, gridPiece, intoStitch } from './grid-pattern.ts';
+import { type CoreText, text } from './messages.ts';
+import {
+  type CellSize,
+  type ChartCode,
+  type ChartRows,
+  cellSize,
+  colorChartProblem,
+  TECHNIQUE_NAMES,
+} from './pixel-chart.ts';
 import { foundationChainLength } from './repeat.ts';
-import { shapeGauge, type ShapeGauge } from './shapes.ts';
+import { type ShapeGauge, shapeGauge } from './shapes.ts';
 import { resolveStitch } from './stitch-variants.ts';
 import { firstChainFromHook, skippedChains, traditionOf, turningChainCountsFor } from './tradition.ts';
 import type { GridUnit, NodeId, Pattern, PatternColor } from './types.ts';
@@ -29,7 +21,7 @@ export const COLORWORK_STITCH = 'sc';
 
 export interface ColorworkRow {
   readonly row: number;
-  /** A cellák színe a haladási irányban. */
+  // Colours in the direction of travel, not left to right: odd rows are reversed.
   readonly cells: readonly number[];
 }
 
@@ -37,7 +29,7 @@ export interface ColorworkPlan {
   readonly technique: ColorworkTechnique;
   readonly width: number;
   readonly rows: readonly ColorworkRow[];
-  /** A láncalap a fordulólánccal, és az első szem a horogtól számított hányadik láncszembe megy. */
+  // `fromHook` counts chains from the hook, starting at 1.
   readonly foundation: { readonly chains: number; readonly fromHook: number };
   readonly turningChain: number;
   readonly turningChainCounts: boolean;
@@ -47,7 +39,7 @@ export interface ColorworkPlan {
   readonly heightCm: number;
 }
 
-/** A tapestry és a graphgan saját üzenete (PQW-904); a mondat a felületé. */
+// KB: core-domain §2
 export type ColorworkCode = 'colorwork-min-width';
 
 export type ColorworkPlanResult =
@@ -59,14 +51,19 @@ export type ColorworkResult =
 
 export interface ColorworkOptions {
   readonly technique: ColorworkTechnique;
-  /** A kiterjesztett rács: sorok alulról, cellák balról; a cella a szín indexe. */
+  // Rows from the bottom, cells from the left; a cell is an index into `colors`.
   readonly cells: ChartRows;
   readonly colors: readonly PatternColor[];
   readonly unit: GridUnit | null;
   readonly lettering: boolean;
 }
 
-export function planColorwork(pattern: Pattern, technique: ColorworkTechnique, cells: ChartRows, colors: readonly PatternColor[]): ColorworkPlanResult {
+export function planColorwork(
+  pattern: Pattern,
+  technique: ColorworkTechnique,
+  cells: ChartRows,
+  colors: readonly PatternColor[],
+): ColorworkPlanResult {
   const problem = colorChartProblem(cells, colors);
   if (problem) return fail(problem);
   const def = resolveStitch(COLORWORK_STITCH)!;
@@ -101,18 +98,16 @@ function buildColorwork(pattern: Pattern, plan: ColorworkPlan): GridWriter {
   const writer = new GridWriter();
   const tradition = traditionOf(pattern.conventions);
   const { turningChain, turningChainCounts: counting, width } = plan;
-  // A láncalap horgolt része: a kihagyott láncszemek nem tartoznak bele (PQW-924).
+  // KB: core-geometry §1, §42
   const skipped = skippedChains(turningChain, counting);
   const worked = foundationChainLength(width, turningChain, counting, tradition) - skipped;
-  // A fordulólánc nem cella: minden cellába valódi szem kerül.
+  // The turning chain is never a cell: every cell gets a real stitch.
   const first = 0;
   let below: NodeId[] = writer.chains(worked, plan.rows[0]!.cells[0]);
 
   plan.rows.forEach((row, k) => {
     const working = [...below].reverse();
-    // Japán hagyományban a számító fordulólánc egy alapláncszemen áll (tradition.ts); a későbbi sorokban az előző sor tetején.
     const start = k === 0 ? worked - (width - first) : first;
-    // Az 1. sor előtt a kihagyott láncszemek, később a fordulólánc; egyik sem cella (PQW-924).
     writer.chains(k === 0 ? skipped : turningChain, row.cells[0]);
     const produced: NodeId[] = [];
     for (let c = first; c < width; c += 1) {
@@ -124,7 +119,7 @@ function buildColorwork(pattern: Pattern, plan: ColorworkPlan): GridWriter {
   return writer;
 }
 
-/** Új tapestry- vagy graphganminta a rácsból; a rácsminta a darabbal mentődik. */
+// KB: core-domain §13
 export function generateColorwork(pattern: Pattern, options: ColorworkOptions): ColorworkResult {
   const planned = planColorwork(pattern, options.technique, options.cells, options.colors);
   if (!planned.ok) return planned;

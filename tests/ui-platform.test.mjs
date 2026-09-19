@@ -1,8 +1,8 @@
 /*
- * A módosítóbillentyű felirata (PQW-911): Mac gépen ⌥, máshol Alt.
+ * The modifier key label (PQW-911): ⌥ on a Mac, Alt everywhere else.
  *
- * A billentyűkezelés mindenhol ugyanaz (`event.altKey`), csak a kiírt név tér
- * el — a Macen nincs „Alt” feliratú billentyű, ott ez az Option.
+ * Key handling is the same everywhere (`event.altKey`), only the printed name
+ * differs — a Mac has no key labelled Alt, there it is the Option key.
  */
 
 import { strict as assert } from 'node:assert';
@@ -10,7 +10,7 @@ import { test } from 'node:test';
 
 import { applePlatform, modifierCombo, modifierName } from '../src/ui/platform.ts';
 
-test('a Mac és az iOS platformok felismerése', () => {
+test('recognises the Mac and iOS platforms', () => {
   for (const platform of ['macOS', 'MacIntel', 'Mac OS X', 'iPhone', 'iPad', 'iPod touch']) {
     assert.equal(applePlatform(platform), true, platform);
   }
@@ -19,13 +19,13 @@ test('a Mac és az iOS platformok felismerése', () => {
   }
 });
 
-test('a módosító neve rendszerenként', () => {
+test('the modifier name per operating system', () => {
   assert.equal(modifierName('MacIntel'), '⌥');
   assert.equal(modifierName('Windows'), 'Alt');
-  assert.equal(modifierName(''), 'Alt', 'ismeretlen rendszeren az Alt a biztos');
+  assert.equal(modifierName(''), 'Alt', 'Alt is the safe fallback on an unknown system');
 });
 
-test('a kombináció felirata: Macen ⌥1, máshol Alt+1', () => {
+test('the combo label: ⌥1 on a Mac, Alt+1 elsewhere', () => {
   assert.equal(modifierCombo('1', 'macOS'), '⌥1');
   assert.equal(modifierCombo('1', 'Win32'), 'Alt+1');
   assert.equal(modifierCombo('F', 'MacIntel'), '⌥F');

@@ -1,14 +1,15 @@
 /*
- * Bordás szegély és mandzsetta a „Ruhadarab” szakaszban (PQW-913): ledobott
- * vállú pulóver és felülről horgolt raglán bordázattal, hibátlanul, az írott
- * mintában ismétlésként. A raglán mért körös mintasűrűséget kíván, ezért a
- * „Méret és fonal” szakaszban profilt adunk meg.
+ * Ribbed edging and cuff in the „Ruhadarab” section (PQW-913): a drop shoulder
+ * sweater and a top-down raglan with ribbing, error-free, as a repeat in the
+ * written pattern. The raglan wants a measured round gauge, so we enter a
+ * profile in the „Méret és fonal” section.
  *
- * A nyak bordázata nincs benne: ahhoz a gráfnak az él mentén kellene szemeket
- * felszednie, és a szegélygenerálás a PQW-911-ben szándékosan kikerült.
+ * The ribbing of the neck is not included: for that the graph would have to pick
+ * up stitches along the edge, and edging generation was deliberately left out in
+ * PQW-911.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
@@ -27,13 +28,13 @@ async function writtenText(page: Page): Promise<string> {
   return (await page.locator('#written-text').textContent()) ?? '';
 }
 
-/** Kitöltés és kilépés a mezőből, hogy a változás érvényesüljön. */
+/** Fill the field and leave it, so that the change takes effect. */
 async function enter(page: Page, selector: string, value: string): Promise<void> {
   await page.locator(selector).fill(value);
   await page.locator(selector).press('Tab');
 }
 
-/** Mért körös mintasűrűség profilban: a raglán ezt kívánja (PQW-901). */
+/** Measured round gauge in a profile: the raglan wants this (PQW-901). */
 async function roundGauge(page: Page): Promise<void> {
   await openSection(page, 'section-size');
   await page.getByRole('button', { name: 'Új profil' }).click();
@@ -50,7 +51,7 @@ async function roundGauge(page: Page): Promise<void> {
   await page.locator('#section-size > summary').click();
 }
 
-/** A bordázat bekapcsolása a Ruhadarab panelen, sorszámmal és bordaszélességgel. */
+/** Switching the ribbing on in the Ruhadarab panel, with the row count and the rib width. */
 async function turnOnRibbing(page: Page, rows: string, width: string): Promise<void> {
   await expect(page.locator('#garment-ribbing-pair')).toBeHidden();
   await page.locator('#garment-ribbing').check();
@@ -63,7 +64,7 @@ for (const viewport of [
   { width: 1440, height: 900 },
   { width: 1000, height: 506 },
 ]) {
-  test(`${viewport.width}×${viewport.height}: ledobott vállú pulóver bordás szegéllyel és mandzsettával`, async ({ page }) => {
+  test(`${viewport.width}×${viewport.height}: drop shoulder sweater with ribbed edging and cuffs`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await open(page);
     const section = await openSection(page, 'section-garment');
@@ -75,15 +76,15 @@ for (const viewport of [
     await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
 
     const text = await writtenText(page);
-    // A bordás sor fordulólánca egy láncszemmel rövidebb, és fordulólánc (01 §2.2 [S25]).
+    // The turning chain of the ribbed row is one chain stitch shorter, and it is a turning chain (01 §2.2 [S25]).
     expect(text).toMatch(/2 lsz \(fordulólánc\)/);
-    // A bordázat ismétlésként áll, nem szemenként felsorolva.
+    // The ribbing stands as a repeat, not listed stitch by stitch.
     expect(text).toMatch(/\[1 (Eerp|Herp), 1 (Eerp|Herp)\]/);
-    // Az 1. sor sima marad: a láncalap köré nem lehet relief szemet horgolni.
+    // Row 1 stays plain: a post stitch cannot be crocheted around the foundation chain.
     expect(text).not.toMatch(/^2\. sor:.*(Eerp|Herp)/m);
   });
 
-  test(`${viewport.width}×${viewport.height}: felülről horgolt raglán bordás szegéllyel és mandzsettával`, async ({ page }) => {
+  test(`${viewport.width}×${viewport.height}: top-down raglan with ribbed edging and cuffs`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await open(page);
     await roundGauge(page);
@@ -97,14 +98,14 @@ for (const viewport of [
     await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
 
     const text = await writtenText(page);
-    // A törzs alsó szegélye és az ujjak mandzsettája relief szemmel, körben ismétlésként.
+    // The lower edging of the body and the cuff of the sleeves with post stitches, as a repeat in the round.
     expect(text).toMatch(/\(1 (Eerp|Herp), 1 (Eerp|Herp)\) ×\d+/);
-    // Az ujj csöve a hónaljtól a mandzsettáig (PQW-913).
+    // The tube of the sleeve from the underarm to the cuff (PQW-913).
     expect(text).toMatch(/Ujj \(2 db\):/);
   });
 }
 
-test('a sapkának nincs bordás szegélye: a választás sem jelenik meg', async ({ page }) => {
+test('a hat has no ribbed edging: the choice does not even appear', async ({ page }) => {
   await open(page);
   await openSection(page, 'section-garment');
   await page.locator('#garment-kind').selectOption({ label: 'Sapka' });

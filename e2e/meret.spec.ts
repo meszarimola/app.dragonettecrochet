@@ -1,11 +1,11 @@
 /*
- * A „Méret és fonal” szakasz (PQW-859): profil nélkül becslés tartománnyal,
- * profil megadása a panelen, mentés a mintával (újratöltés, JSON-export), és
- * az arányhelyes nézet a rácson.
+ * The „Méret és fonal” section (PQW-859): without a profile an estimate with a
+ * range, entering a profile in the panel, saving with the pattern (reload, JSON
+ * export), and the proportional view on the grid.
  */
 
 import { readFile } from 'node:fs/promises';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 interface Cell {
   readonly layer: number;
@@ -20,7 +20,7 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
-/** Láncalap és rövidpálcás sorok csak billentyűvel: 1 = láncszem, 3 = rövidpálca, F = fordulás. */
+/** Foundation chain and single crochet rows from the keyboard only: 1 = chain stitch, 3 = single crochet, F = turn. */
 async function rectangle(page: Page, width: number, rows: number): Promise<void> {
   await page.locator('#chain-count').focus();
   await page.keyboard.press('ControlOrMeta+A');
@@ -32,19 +32,21 @@ async function rectangle(page: Page, width: number, rows: number): Promise<void>
   await page.keyboard.press('Alt+3');
   for (let row = 1; row <= rows; row += 1) {
     if (row > 1) await page.keyboard.press('Alt+f');
-    // PQW-924: a fordulólánc nem szem; a láncalap = szemszám + kihagyás (rövidpálcánál 2),
-    // és minden láncszembe egy szem kerül, ezért soronként pontosan width rövidpálca.
+    // PQW-924: the turning chain is not a stitch; the foundation chain = stitch count + skip (2 for single crochet),
+    // and one stitch goes into every chain stitch, so there are exactly width single crochets per row.
     for (let i = 0; i < width; i += 1) await page.keyboard.press('Enter');
   }
 }
 
-/** Kitöltés és kilépés a mezőből, hogy a változás érvényesüljön. */
+/** Fill the field and leave it, so that the change takes effect. */
 async function enter(page: Page, selector: string, value: string): Promise<void> {
   await page.locator(selector).fill(value);
   await page.locator(selector).press('Tab');
 }
 
-test('a szakasz a Szemek alatt, alapból csukva; profil nélkül a méret becslés, tartománnyal', async ({ page }) => {
+test('the section sits under Stitches, closed by default; without a profile the size is an estimate, with a range', async ({
+  page,
+}) => {
   await open(page);
   const size = page.locator('#section-size');
   await expect(size).not.toHaveAttribute('open', '');
@@ -56,14 +58,18 @@ test('a szakasz a Szemek alatt, alapból csukva; profil nélkül a méret becsl�
 
   await rectangle(page, 5, 2);
   await size.locator('summary').click();
-  await expect(page.locator('#size-notice')).toContainText('Nincs profil: a méret becslés 4 mm-es tűből, tartománnyal.');
+  await expect(page.locator('#size-notice')).toContainText(
+    'Nincs profil: a méret becslés 4 mm-es tűből, tartománnyal.',
+  );
   await expect(page.locator('#size-total')).toContainText('becsült');
   await expect(page.locator('#size-total')).toContainText('tartomány:');
   await expect(page.locator('#size-rows tbody tr')).toHaveCount(2);
   await expect(page.locator('#size-yarn')).toContainText('A fonalbecsléshez hiányzik');
 });
 
-test('profil a panelen: mért méret, fonal gombolyagra; a mintával mentődik, újratöltés után és a JSON-ben is', async ({ page }) => {
+test('profile in the panel: measured size, yarn per skein; it is saved with the pattern, after a reload and in the JSON too', async ({
+  page,
+}) => {
   await open(page);
   await rectangle(page, 5, 2);
   await page.locator('#section-size > summary').click();
@@ -88,7 +94,7 @@ test('profil a panelen: mért méret, fonal gombolyagra; a mintával mentődik, 
   await enter(page, '#size-swatch-height', '10');
   await enter(page, '#size-swatch-mass', '5');
 
-  // 5 rövidpálca × 5 mm, 2 sor × 4 mm.
+  // 5 single crochets × 5 mm, 2 rows × 4 mm.
   await expect(page.locator('#size-notice')).toBeHidden();
   await expect(page.locator('#size-total')).toContainText('2,5 cm');
   await expect(page.locator('#size-total')).toContainText('0,8 cm');
@@ -96,7 +102,7 @@ test('profil a panelen: mért méret, fonal gombolyagra; a mintával mentődik, 
   await expect(page.locator('#size-yarn')).toContainText('≈ 1 db');
 
   const downloadPromise = page.waitForEvent('download');
-  // Az export a fájlműveletek lenyílójában van (PQW-911).
+  // The export is in the file actions dropdown (PQW-911).
   await page.locator('#file-toggle').click();
   await page.locator('[data-action="export-json"]').click();
   const download = await downloadPromise;
@@ -115,23 +121,27 @@ test('profil a panelen: mért méret, fonal gombolyagra; a mintával mentődik, 
   await expect(page.locator('#size-yarn-name')).toHaveValue('Pamut 125');
   await expect(page.locator('#size-total')).toContainText('2,5 cm');
 
-  // Profil nélkül újra becslés; a profil megmarad a választóban.
+  // Without a profile it is an estimate again; the profile stays in the chooser.
   await page.locator('#size-profile').selectOption('');
   await expect(page.locator('#size-notice')).toContainText('Nincs profil');
   await expect(page.locator('#size-profile option')).toHaveCount(2);
 });
 
 /*
- * FIGYELEM: ez a teszt a MAI állapotot rögzíti, nem a helyes elvárást (PQW-927).
+ * ATTENTION: this test records the state of TODAY, not the correct expectation
+ * (PQW-927).
  *
- * A tudásbázis szerint (03 §5.1) sima nézetben a rács négyzetes, arányhelyes
- * nézetben pedig a mért mintasűrűség arányát követi — vagyis 1, illetve 0,8
- * volna a helyes. Ma 1,17 és 1,04 jön ki; mindkét szám mérésből való, nem
- * számításból. Megmértem, hogy ezt nem a PQW-924 okozta: a kihagyás-szabály
- * nélküli korábbi commitban ugyanez a geometria jött ki. A javítás a PQW-927-ben
- * él tovább; addig a nézetváltás működését őrzi ez a teszt.
+ * By the knowledge base (03 §5.1) the grid is square in the plain view, and in
+ * the proportional view it follows the ratio of the measured gauge — that is, 1
+ * and 0.8 would be correct. Today 1.17 and 1.04 come out; both numbers come from
+ * measurement, not from calculation. I measured that this was not caused by
+ * PQW-924: the same geometry came out in an earlier commit without the skip
+ * rule. The fix lives on in PQW-927; until then this test guards that switching
+ * the view works.
  */
-test('arányhelyes nézet: a nézetváltás hat a rács sorarányára, és kikapcsolható (a mai értékek, PQW-927)', async ({ page }) => {
+test('proportional view: switching the view affects the row ratio of the grid, and can be switched off (the values of today, PQW-927)', async ({
+  page,
+}) => {
   await open(page);
   await rectangle(page, 5, 3);
 
@@ -151,7 +161,7 @@ test('arányhelyes nézet: a nézetváltás hat a rács sorarányára, és kikap
   await page.locator('#section-size > summary').click();
   const aspect = page.getByLabel('Arányhelyes nézet');
   await aspect.check();
-  // A nézetváltás a sorarányt csökkenti; a helyes célérték 0,8 volna (PQW-927).
+  // Switching the view lowers the row ratio; the correct target value would be 0.8 (PQW-927).
   await expect.poll(ratio).toBeCloseTo(1.04, 1);
   await aspect.uncheck();
   await expect.poll(ratio).toBeCloseTo(1.17, 1);

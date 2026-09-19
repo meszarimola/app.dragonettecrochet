@@ -1,41 +1,37 @@
-/*
- * A „Méret és fonal” szakasz (PQW-859): profil-szerkesztő, váltás a profilok
- * között, kész méret és fonalbecslés, az arányhelyes nézet kapcsolója.
- *
- * Gépelés közben semmi nem épül újra: a mezők az index.html-ben vannak, és
- * frissítéskor csak az értékük változik (a fókuszban lévőé nem). A szemenkénti
- * gauge sorai csak akkor épülnek újra, ha a profil vagy a sorok száma változik.
- * Minden módosítás a mintát változtatja, ezért visszavonható, és a mintával
- * mentődik (a böngészőben és a JSON-ben is); új tárolókulcs nincs.
- *
- * A szakasz csak nyitva számol, mert a vászon egérmozgásra is frissít.
- */
+// KB: interface.md §7, §8
 
 import type { PieceGraph } from '../core/graph.js';
 import { GAUGE_STITCHES } from '../core/pattern-json.js';
-import { activeProfile, estimatedGauge, newProfile, patternSize, withActiveProfile, withProfile, withoutProfile } from '../core/pattern-size.js';
+import {
+  activeProfile,
+  estimatedGauge,
+  newProfile,
+  patternSize,
+  withActiveProfile,
+  withoutProfile,
+  withProfile,
+} from '../core/pattern-size.js';
 import type { StitchLibrary } from '../core/stitch-library.js';
 import type { GaugeEntry, GaugeForm, Pattern, PatternGaugeProfile } from '../core/types.js';
 import { CYC_WEIGHTS } from '../core/yarn-weight.js';
-import { texts, uiLanguage, type UiLanguage } from './i18n.js';
+import { texts, type UiLanguage, uiLanguage } from './i18n.js';
 import {
   cycWeightLabel,
-  formLabel,
   formatNumber,
+  formLabel,
   gaugeEntryNote,
   gaugeStitchName,
   hookSizesText,
+  type Origin,
   profileLabel,
   profileOrigins,
+  type SizeView,
   sizeView,
   sourceLabel,
-  type Origin,
-  type SizeView,
   type ValueRow,
 } from './size-view.js';
 
 export interface SizePanelHost {
-  /** A módosított minta a visszavonási veremre, az üzenettel. */
   commit(pattern: Pattern, message: string): void;
   announce(message: string): void;
   setAspect(on: boolean): void;
@@ -43,7 +39,6 @@ export interface SizePanelHost {
 
 const FORMS: readonly GaugeForm[] = ['rows', 'rounds'];
 
-/** A mező szövegeinek kulcsa; a felirat a használat pillanatában, a mostani nyelven kerül elő. */
 type FieldKey = 'meterage' | 'ball' | 'hook' | 'swatchWidth' | 'swatchHeight' | 'swatchMass';
 
 interface NumberField {
@@ -68,7 +63,6 @@ function option(value: string, label: string): HTMLOptionElement {
   return el;
 }
 
-/** Üres mezőre `null`, érvénytelenre `undefined`. Tizedesvesszőt és -pontot is elfogad. */
 function readNumber(input: HTMLInputElement, max = Number.POSITIVE_INFINITY): number | null | undefined {
   const text = input.value.trim().replace(',', '.');
   if (text === '') return null;
@@ -78,7 +72,6 @@ function readNumber(input: HTMLInputElement, max = Number.POSITIVE_INFINITY): nu
 
 const numberValue = (value: number | null) => (value === null ? '' : formatNumber(value, 3));
 
-/** A mező értéke, kivéve ha épp abban gépel valaki. */
 function setValue(input: HTMLInputElement | HTMLSelectElement, value: string): void {
   if (document.activeElement !== input && input.value !== value) input.value = value;
 }
@@ -115,9 +108,7 @@ export class SizePanel {
   #pattern: Pattern | null = null;
   #graph: PieceGraph | null = null;
   #library: StitchLibrary | null = null;
-  /** A legutóbb kiírt minta; ugyanarra nem számolunk újra. */
   #shown: Pattern | null = null;
-  /** A legutóbb kiírt nyelv; nyelvváltáskor a szakasz újra kiírja magát. */
   #shownLanguage: UiLanguage | null = null;
   #gaugeKey = '';
 
@@ -219,7 +210,10 @@ export class SizePanel {
     );
     this.#cyc.addEventListener('change', () => {
       const cycWeight = this.#cyc.value === '' ? null : Number(this.#cyc.value);
-      this.#edit((profile) => ({ ...profile, yarn: { ...profile.yarn, cycWeight } }), texts().sections.size.profile.cycChanged);
+      this.#edit(
+        (profile) => ({ ...profile, yarn: { ...profile.yarn, cycWeight } }),
+        texts().sections.size.profile.cycChanged,
+      );
     });
     this.#blocked.addEventListener('change', () => {
       const blocked = this.#blocked.checked;
@@ -236,21 +230,29 @@ export class SizePanel {
           host.announce(texts().sections.size.profile.invalid[field.key]);
           return;
         }
-        if (value !== field.get(profile)) this.#edit((current) => field.set(current, value), texts().sections.size.profile.changed[field.key]);
+        if (value !== field.get(profile))
+          this.#edit((current) => field.set(current, value), texts().sections.size.profile.changed[field.key]);
       });
     }
 
-    this.#gauges.addEventListener('change', (event) => this.#changeGauge(event.target as HTMLInputElement | HTMLSelectElement));
+    this.#gauges.addEventListener('change', (event) =>
+      this.#changeGauge(event.target as HTMLInputElement | HTMLSelectElement),
+    );
     this.#gauges.addEventListener('click', (event) => {
       const button = (event.target as Element).closest<HTMLButtonElement>('button[data-remove]');
       if (!button) return;
       const index = Number(button.dataset.remove);
-      this.#edit((profile) => ({ ...profile, gauges: profile.gauges.filter((_, i) => i !== index) }), texts().sections.size.gauge.removed);
+      this.#edit(
+        (profile) => ({ ...profile, gauges: profile.gauges.filter((_, i) => i !== index) }),
+        texts().sections.size.gauge.removed,
+      );
       this.#addGauge.focus();
     });
     this.#addGauge.addEventListener('click', () => this.#addGaugeEntry());
 
-    find<HTMLInputElement>('size-aspect').addEventListener('change', (event) => host.setAspect((event.target as HTMLInputElement).checked));
+    find<HTMLInputElement>('size-aspect').addEventListener('change', (event) =>
+      host.setAspect((event.target as HTMLInputElement).checked),
+    );
     section.addEventListener('toggle', () => {
       if (!section.open) return;
       this.#shown = null;
@@ -258,7 +260,6 @@ export class SizePanel {
     });
   }
 
-  /** A minta változott (vagy csak a nézet): nyitott szakaszban újraszámol. */
   update(pattern: Pattern, graph: PieceGraph | null, library: StitchLibrary): void {
     this.#pattern = pattern;
     this.#graph = graph;
@@ -290,7 +291,9 @@ export class SizePanel {
     }
     const entry: GaugeEntry = { ...free, stitchesPer10cm: null, rowsPer10cm: null, source: 'measured' };
     this.#edit((current) => ({ ...current, gauges: [...current.gauges, entry] }), texts().sections.size.gauge.added);
-    this.#gauges.querySelector<HTMLInputElement>(`li[data-index="${profile.gauges.length}"] [data-field="stitchesPer10cm"]`)?.focus();
+    this.#gauges
+      .querySelector<HTMLInputElement>(`li[data-index="${profile.gauges.length}"] [data-field="stitchesPer10cm"]`)
+      ?.focus();
   }
 
   #changeGauge(target: HTMLInputElement | HTMLSelectElement): void {
@@ -313,7 +316,9 @@ export class SizePanel {
       next = { ...entry, [field]: value };
     } else if (field === 'stitch' || field === 'form') {
       next = { ...entry, [field]: target.value } as GaugeEntry;
-      const duplicate = profile.gauges.some((other, i) => i !== index && other.stitch === next.stitch && other.form === next.form);
+      const duplicate = profile.gauges.some(
+        (other, i) => i !== index && other.stitch === next.stitch && other.form === next.form,
+      );
       if (duplicate) {
         target.value = entry[field];
         const name = library ? gaugeStitchName(library, next.stitch) : next.stitch;
@@ -365,7 +370,6 @@ export class SizePanel {
     setOrigin(this.#origins.swatch, origins.swatch);
     this.#hookSizes.textContent = hookSizesText(profile.hookMm);
 
-    // A nyelv is a kulcs része: nyelvváltáskor a sorok feliratai újraépülnek.
     const key = `${profile.id}:${profile.gauges.length}:${uiLanguage()}`;
     if (key !== this.#gaugeKey) {
       this.#gaugeKey = key;
@@ -374,7 +378,8 @@ export class SizePanel {
     profile.gauges.forEach((entry, i) => {
       const row = this.#gauges.querySelector<HTMLLIElement>(`li[data-index="${i}"]`);
       if (!row) return;
-      const control = <T extends HTMLInputElement | HTMLSelectElement>(field: string) => row.querySelector<T>(`[data-field="${field}"]`)!;
+      const control = <T extends HTMLInputElement | HTMLSelectElement>(field: string) =>
+        row.querySelector<T>(`[data-field="${field}"]`)!;
       setValue(control('stitch'), entry.stitch);
       setValue(control('form'), entry.form);
       setValue(control('stitchesPer10cm'), numberValue(entry.stitchesPer10cm));
@@ -418,7 +423,11 @@ export class SizePanel {
     };
 
     const words = texts().sections.size.gauge;
-    const stitch = field(words.stitch, select(GAUGE_STITCHES.map((value) => [value, gaugeStitchName(library, value)])), 'stitch');
+    const stitch = field(
+      words.stitch,
+      select(GAUGE_STITCHES.map((value) => [value, gaugeStitchName(library, value)])),
+      'stitch',
+    );
     stitch.wrap.classList.add('gauge__stitch');
     const form = field(words.form, select(FORMS.map((value) => [value, formLabel(value)])), 'form');
     const stitches = field(words.stitches, number(), 'stitchesPer10cm');
@@ -435,7 +444,8 @@ export class SizePanel {
     const note = element('p', 'gauge__note');
     note.id = id('note');
     note.hidden = true;
-    for (const control of [stitches, rows]) control.wrap.querySelector('input')!.setAttribute('aria-describedby', note.id);
+    for (const control of [stitches, rows])
+      control.wrap.querySelector('input')!.setAttribute('aria-describedby', note.id);
     const remove = element('button', 'tool gauge__remove', words.remove);
     remove.type = 'button';
     remove.dataset.remove = String(index);
@@ -459,7 +469,6 @@ export class SizePanel {
     const body = element('tbody');
     for (const layer of view.layers) {
       const tr = element('tr');
-      // Az eredet a sor fejlécében, hogy a keskeny panelben ne kelljen oldalra görgetni.
       const th = Object.assign(element('th', '', layer.label), { scope: 'row' });
       th.append(element('span', `size__origin size__origin--${layer.source}`, sourceLabel(layer.source)));
       tr.append(th, element('td', '', layer.width), element('td', '', layer.height), element('td', '', layer.total));
@@ -470,18 +479,25 @@ export class SizePanel {
     table.append(thead, body);
     this.#rows.replaceChildren(table);
 
-    this.#yarn.replaceChildren(...(view.yarn.length > 0 ? [valueList(view.yarn)] : []), element('p', 'panel__note', view.yarnNote));
+    this.#yarn.replaceChildren(
+      ...(view.yarn.length > 0 ? [valueList(view.yarn)] : []),
+      element('p', 'panel__note', view.yarnNote),
+    );
   }
 }
 
-/** Érték, eredet és tartomány soronként. */
 function valueList(rows: readonly ValueRow[]): HTMLDListElement {
   const list = element('dl', 'size__values');
   for (const row of rows) {
     const item = element('div');
     const value = element('dd');
-    value.append(element('span', 'size__value', row.text.value), ' ', element('span', `origin origin--${row.text.source}`, sourceLabel(row.text.source)));
-    if (row.text.range) value.append(element('span', 'size__range', texts().sections.size.result.range(row.text.range)));
+    value.append(
+      element('span', 'size__value', row.text.value),
+      ' ',
+      element('span', `origin origin--${row.text.source}`, sourceLabel(row.text.source)),
+    );
+    if (row.text.range)
+      value.append(element('span', 'size__range', texts().sections.size.result.range(row.text.range)));
     item.append(element('dt', '', row.label), value);
     list.append(item);
   }

@@ -1,22 +1,6 @@
-/*
- * A diagram SVG-ként, jelmagyarázattal: ebből készül az SVG- és a PNG-export.
- *
- * DOM nélküli, ezért a Node is futtatja (tests/ui-chart-svg.test.mjs), és a
- * magot `.ts` kiterjesztéssel importálja. A diagram a jeleket a színoldali
- * látványban mutatja (01 §6.1), a sorszám a sor kezdő oldalán, a szemszám a
- * végén áll, a színoldali és a visszai sorok színe eltér (03 §2.1, §10 I42).
- *
- * A jelmagyarázat a választott jelöléssel és jelstílussal készül, és megnevezi
- * őket; angol jelölésnél a rendszert is („US terms”, „UK terms”, PQW-868).
- *
- * A rács (PQW-874) választhatóan kerül az exportba, ugyanazzal a rajzzal,
- * mint a vásznon (src/ui/grid-paths.ts).
- *
- * A sorszám és a szemszám felirata a minta hagyományát követi, japánban
- * „18目”, az ismétlés „6目1模様” (src/ui/chart-labels.ts, PQW-876).
- */
+// KB: 01 §6.1, 03 §2.1, 03 §10 I42; interface.md §1, §14
 
-import { chartBounds, type ChartGrid } from '../core/grid.ts';
+import { type ChartGrid, chartBounds } from '../core/grid.ts';
 import { nodeInsertions } from '../core/insertion.ts';
 import type { ChartLayout } from '../core/layout.ts';
 import { VOCABULARIES } from '../core/pattern-text.ts';
@@ -26,8 +10,15 @@ import type { Locale, Pattern, StitchDef, StitchInsertion, Tradition } from '../
 import { chartLabels, rowCaptions } from './chart-labels.ts';
 import { gridPaths, LINE_WIDTH } from './grid-paths.ts';
 import { texts } from './i18n.ts';
-import { chartStyleLabel, textLanguage, termsLabel } from './notation.ts';
-import { DEFAULT_SYMBOL_OPTIONS, placedShapes, shapeBounds, symbolShapes, type Shape, type SymbolOptions } from './symbols.ts';
+import { chartStyleLabel, termsLabel, textLanguage } from './notation.ts';
+import {
+  DEFAULT_SYMBOL_OPTIONS,
+  placedShapes,
+  type Shape,
+  type SymbolOptions,
+  shapeBounds,
+  symbolShapes,
+} from './symbols.ts';
 
 export interface ChartColors {
   readonly right: string;
@@ -36,7 +27,6 @@ export interface ChartColors {
   readonly background: string;
 }
 
-/** A rács színei: a két váltakozó sorszín, a cellavonal, a sorhatár és a hangsúlyos vonal. */
 export interface GridColors {
   readonly rowA: string;
   readonly rowB: string;
@@ -47,19 +37,17 @@ export interface GridColors {
 
 export interface ChartSvgOptions {
   readonly colors: ChartColors;
-  /** Tükrözött nézet; a jelmagyarázat megjegyzi. */
   readonly mirror?: boolean;
-  /** A jelmagyarázat jelölése; hiányában magyar. */
   readonly terms?: Locale;
-  /** A jelek stílusa és a rövidpálca jele; hiányában CYC és +. */
   readonly symbols?: SymbolOptions;
-  /** A rács az exportban (PQW-874); hiányában rács nélkül. */
   readonly grid?: { readonly grid: ChartGrid; readonly colors: GridColors };
-  /** A minta hagyománya a feliratokhoz (PQW-876); hiányában CYC. */
   readonly tradition?: Tradition;
-  /** Az ismétlő egység keretei (PQW-864, PQW-894); hiányában nincs keret. */
-  readonly unitFrames?: readonly { readonly x0: number; readonly y0: number; readonly x1: number; readonly y1: number }[];
-  /** A lejjebb horgolt hosszú szemek (PQW-894): a talpukat pötty jelöli. */
+  readonly unitFrames?: readonly {
+    readonly x0: number;
+    readonly y0: number;
+    readonly x1: number;
+    readonly y1: number;
+  }[];
   readonly spikes?: ReadonlySet<string>;
 }
 
@@ -68,12 +56,15 @@ const TITLE = 36;
 const LEGEND_ROW = 34;
 const LEGEND_ICON = 26;
 const LABEL_HEIGHT = 16;
-const FONT = "font-family=\"Karla, system-ui, -apple-system, 'Segoe UI', sans-serif\"";
+const FONT = 'font-family="Karla, system-ui, -apple-system, \'Segoe UI\', sans-serif"';
 
 const num = (value: number) => String(Math.round(value * 100) / 100);
 
 export function escapeXml(text: string): string {
-  return text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]!);
+  return text.replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]!,
+  );
 }
 
 export function shapeToSvg(shape: Shape): string {
@@ -83,7 +74,9 @@ export function shapeToSvg(shape: Shape): string {
     case 'curve':
       return `<path d="M${num(shape.from.x)} ${num(shape.from.y)}Q${num(shape.control.x)} ${num(shape.control.y)} ${num(shape.to.x)} ${num(shape.to.y)}"/>`;
     case 'ellipse': {
-      const rotate = shape.rotation ? ` transform="rotate(${num((shape.rotation * 180) / Math.PI)} ${num(shape.center.x)} ${num(shape.center.y)})"` : '';
+      const rotate = shape.rotation
+        ? ` transform="rotate(${num((shape.rotation * 180) / Math.PI)} ${num(shape.center.x)} ${num(shape.center.y)})"`
+        : '';
       return `<ellipse cx="${num(shape.center.x)}" cy="${num(shape.center.y)}" rx="${num(shape.rx)}" ry="${num(shape.ry)}"${rotate}/>`;
     }
     case 'dot':
@@ -91,7 +84,6 @@ export function shapeToSvg(shape: Shape): string {
   }
 }
 
-/** A jelmagyarázat szemei az első előfordulás sorrendjében; a csoport tagjai helyett maga a csoport. */
 export function legendStitches(pattern: Pattern, library: StitchLibrary): StitchDef[] {
   const piece = pattern.pieces[0];
   const seen = new Map<string, StitchDef>();
@@ -109,13 +101,10 @@ export function legendStitches(pattern: Pattern, library: StitchLibrary): Stitch
   return [...seen.values()];
 }
 
-/**
- * A jelmagyarázat jelölt beszúrású jelei (PQW-869): szemenként és színoldali
- * módonként egyszer, az első előfordulás sorrendjében. A kúszószem pontjára
- * nem kerül jelölés, ezért kimarad; a szem listáján kívüli mód is, azt az
- * ellenőrző jelzi.
- */
-export function legendInsertions(pattern: Pattern, library: StitchLibrary): { readonly def: StitchDef; readonly mode: StitchInsertion }[] {
+export function legendInsertions(
+  pattern: Pattern,
+  library: StitchLibrary,
+): { readonly def: StitchDef; readonly mode: StitchInsertion }[] {
   const piece = pattern.pieces[0];
   const modes = nodeInsertions(piece);
   const seen = new Map<string, { readonly def: StitchDef; readonly mode: StitchInsertion }>();
@@ -129,7 +118,12 @@ export function legendInsertions(pattern: Pattern, library: StitchLibrary): { re
   return [...seen.values()];
 }
 
-export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchLibrary, options: ChartSvgOptions): string {
+export function chartSvg(
+  pattern: Pattern,
+  layout: ChartLayout,
+  library: StitchLibrary,
+  options: ChartSvgOptions,
+): string {
   const { colors } = options;
   const terms = options.terms ?? 'hu';
   const symbols = options.symbols ?? DEFAULT_SYMBOL_OPTIONS;
@@ -143,7 +137,6 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
   const legend = legendStitches(pattern, library);
   const labels = legend.map((def) => stitchLabel(def, terms));
   const marked = legendInsertions(pattern, library);
-  // A szem neve a jelöléssel, a mód és a jelmagyarázat szövege a felület nyelvén (PQW-869, PQW-900).
   const chart = texts().sections.chart;
   const modeNames = texts().sections.insertion.names;
   const markedLabels = marked.map(({ def, mode }) => [stitchLabel(def, terms), modeNames[mode]] as const);
@@ -163,16 +156,17 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
     ...(options.mirror ? [chart.mirror] : []),
   ];
   const legendRows = legend.length + marked.length + keys.length + notes.length;
-  // A felirat szélessége becslés: 13 px-es betűnél karakterenként legfeljebb kb. 7,4 px.
+  // KB: interface.md §17
   const textWidth =
     LEGEND_ICON +
     12 +
-    7.4 * Math.max(...labels.map((l) => l.length), ...markedLabels.map(([stitch, mode]) => stitch.length + mode.length + 3), ...notes.map((n) => n.length));
-  /*
-   * A sorfeliratok a rajz két szélén kívül állnak (PQW-923), ezért helyet
-   * kell nekik hagyni, különben az export levágja őket. A becslés ugyanaz,
-   * mint a jelmagyarázaté: 12 px-es betűnél karakterenként kb. 7,4 px.
-   */
+    7.4 *
+      Math.max(
+        ...labels.map((l) => l.length),
+        ...markedLabels.map(([stitch, mode]) => stitch.length + mode.length + 3),
+        ...notes.map((n) => n.length),
+      );
+  // KB: interface.md §17
   const rows = rowCaptions(layout, options.tradition ?? 'cyc');
   const labelRoom = rows.length === 0 ? 0 : Math.max(...rows.map((row) => 7.4 * row.text.length + 10)) + 12;
   const drawWidth = chartWidth + 2 * labelRoom;
@@ -201,16 +195,19 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
     const stroke = { cell: c.cell, row: c.row, five: c.strong, ten: c.strong };
     out.push('<g class="grid">');
     for (const band of bands) {
-      out.push(`<path d="${band.d}" fill="${band.tone === 0 ? c.rowA : c.rowB}"${band.evenOdd ? ' fill-rule="evenodd"' : ''}/>`);
+      out.push(
+        `<path d="${band.d}" fill="${band.tone === 0 ? c.rowA : c.rowB}"${band.evenOdd ? ' fill-rule="evenodd"' : ''}/>`,
+      );
     }
     for (const line of lines) {
       const dash = line.dashed ? ' stroke-dasharray="4 3"' : '';
-      out.push(`<path d="${line.d}" fill="none" stroke="${stroke[line.weight]}" stroke-width="${LINE_WIDTH[line.weight]}"${dash}/>`);
+      out.push(
+        `<path d="${line.d}" fill="none" stroke="${stroke[line.weight]}" stroke-width="${LINE_WIDTH[line.weight]}"${dash}/>`,
+      );
     }
     out.push('</g>');
   }
 
-  // Az ismétlő egység: szaggatott keret halvány kitöltéssel, a jelek alatt.
   for (const { x0, y0, x1, y1 } of options.unitFrames ?? []) {
     out.push(
       `<rect data-unit-frame="" x="${num(x0)}" y="${num(y0)}" width="${num(x1 - x0)}" height="${num(y1 - y0)}" fill="${colors.text}" fill-opacity="0.06" stroke="${colors.text}" stroke-width="2" stroke-dasharray="6 4"/>`,
@@ -224,19 +221,15 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
       const def = library.get(node.def);
       if (node.side !== side || !def) continue;
       const insertion = insertions.get(node.id);
-      for (const shape of placedShapes(def, node, insertion ? { ...symbols, insertion } : symbols)) out.push(shapeToSvg(shape));
+      for (const shape of placedShapes(def, node, insertion ? { ...symbols, insertion } : symbols))
+        out.push(shapeToSvg(shape));
       const foot = options.spikes?.has(node.id) ? node.feet[0] : undefined;
       if (foot) out.push(`<circle class="fill" data-spike="" cx="${num(foot.x)}" cy="${num(foot.y)}" r="3.5"/>`);
     }
     out.push('</g>');
   }
 
-  /*
-   * A sorfelirat a rajz mellett, a sor végének oldalán, a sor színével teli
-   * címkén — pontosan úgy, ahogy a tervező vásznán (PQW-923). A szöveget és a
-   * sorrendet a közös `rowCaptions` adja, ezért a kettő nem térhet el. Korábban
-   * itt a szemszám külön szövegként, a minta fölé került.
-   */
+  // KB: interface.md §14
   out.push(`<g ${FONT} font-size="12" fill="${colors.text}" dominant-baseline="middle">`);
   for (const caption of rows) {
     const labelWidth = 7.4 * caption.text.length + 10;
@@ -280,10 +273,13 @@ export function chartSvg(pattern: Pattern, layout: ChartLayout, library: StitchL
     y += LEGEND_ROW;
   });
 
-  // A jelölt beszúrású jelek: a szem neve a jelöléssel, a mód a felület nyelvén (PQW-869).
   marked.forEach(({ def, mode }, i) => {
     const [stitch, modeName] = markedLabels[i]!;
-    legendIcon(symbolShapes(def, { ...symbols, insertion: mode }), `<tspan lang="${textLanguage(terms)}">${escapeXml(stitch)}</tspan> – ${escapeXml(modeName)}`, y);
+    legendIcon(
+      symbolShapes(def, { ...symbols, insertion: mode }),
+      `<tspan lang="${textLanguage(terms)}">${escapeXml(stitch)}</tspan> – ${escapeXml(modeName)}`,
+      y,
+    );
     y += LEGEND_ROW;
   });
 

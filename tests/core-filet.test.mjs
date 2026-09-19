@@ -1,8 +1,9 @@
 /*
- * Filéhorgolás (PQW-864): a sor szélessége 3N + 1, a láncalap és a
- * fordulólánc teli és nyitott kezdésnél (03 §5.2, §10 G32, 01 §4.4), az
- * alakítás egész cellánként (03 §10 F30), az ismétlő egység az írott mintában,
- * és hogy minden filéminta hibátlanul átmegy az ellenőrzőn és menthető.
+ * Filet crochet (PQW-864): a row is 3N + 1 wide, the foundation and the
+ * turning chain for a filled and for an open start (03 §5.2, §10 G32,
+ * 01 §4.4), shaping by whole cells (03 §10 F30), the repeat unit in the
+ * written pattern, and that every filet pattern passes the validator cleanly
+ * and can be saved.
  */
 
 import { strict as assert } from 'node:assert';
@@ -23,7 +24,7 @@ import { validatePattern } from '../src/core/validate.ts';
 import { GRID_CORE_TEXTS } from '../src/ui/i18n/core/grid.ts';
 import { renderCoreText } from '../src/ui/i18n/core/render.ts';
 
-/** Rács szövegből, felülről lefelé írva: `#` teli, `.` nyitott, `-` nincs cella. */
+/** A chart from text, written top row first: `#` filled, `.` open, `-` no cell. */
 const chart = (...lines) =>
   lines
     .slice()
@@ -32,20 +33,23 @@ const chart = (...lines) =>
 
 const cyc = () => emptyPattern();
 const japanese = () => ({ ...emptyPattern(), conventions: withTradition(emptyPattern().conventions, 'japanese') });
-const notCounting = () => ({ ...emptyPattern(), conventions: { ...emptyPattern().conventions, turningChainCounts: false } });
+const notCounting = () => ({
+  ...emptyPattern(),
+  conventions: { ...emptyPattern().conventions, turningChainCounts: false },
+});
 
 const make = (pattern, cells, unit = null) => {
   const result = generateFilet(pattern, { cells, unit, lettering: false });
   assert.ok(result.ok, JSON.stringify(result.reason));
   return result;
 };
-/** A mag kódot és adatot ad; a mondat a felület szótárában készül (PQW-904). */
+/** The core hands over a code and data; the sentence is built in the UI dictionary (PQW-904). */
 const hu = (message) => renderCoreText(GRID_CORE_TEXTS.hu, message);
 const findings = (pattern) => validatePattern(pattern, libraryFor(pattern));
 const lines = (pattern, locale = 'hu') => writePattern(pattern, libraryFor(pattern), locale).pieces[0].lines;
 const graphOf = (pattern) => buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));
 
-/** A darab eleji láncszemek száma, és hogy az első pálca a horogtól számított hányadik láncszembe megy. */
+/** The number of chains at the start of the piece, and which chain from the hook the first double crochet goes into. */
 function foundationOf(pattern) {
   const { stitches } = pattern.pieces[0];
   const chains = stitches.findIndex((node) => node.def !== 'ch');
@@ -53,7 +57,7 @@ function foundationOf(pattern) {
   return { chains, fromHook: chains - stitches.findIndex((node) => node.id === anchor) };
 }
 
-/** Kiszámítható álvéletlen: a teszt mindig ugyanazokat a rácsokat nézi. */
+/** Reproducible pseudo-randomness: the test always looks at the same charts. */
 function random(seed) {
   let state = seed;
   return () => {
@@ -62,13 +66,13 @@ function random(seed) {
   };
 }
 
-describe('sor, láncalap és fordulólánc (03 §5.2, §10 G32)', () => {
-  test('N cellás sor 3N + 1 pozíció: 1 cella 4, 2 cella 7, 3 cella 10; a teli sor minden pozíciója szem', () => {
+describe('the row, the foundation and the turning chain (03 §5.2, §10 G32)', () => {
+  test('a row of N cells has 3N + 1 positions: 1 cell 4, 2 cells 7, 3 cells 10; in a filled row every position is a stitch', () => {
     assert.deepEqual([1, 2, 3].map(filetRowPositions), [4, 7, 10]);
     const { pattern } = make(cyc(), chart('###', '###'));
     const layers = graphOf(pattern).layers.slice(1);
     assert.deepEqual(
-      // A pozíciók közé a fordulólánc teteje is beletartozik (PQW-944).
+      // The top of the turning chain counts among the positions (PQW-944).
       layers.map((layer) => [layer.positionCount, layer.stitchCount]),
       [
         [11, 10],
@@ -77,14 +81,14 @@ describe('sor, láncalap és fordulólánc (03 §5.2, §10 G32)', () => {
     );
   });
 
-  test('teli és nyitott kezdés: 3N + 4 láncszem, és az első pálca a 4. láncszembe megy (PQW-924)', () => {
-    // A sor első oszlopa valódi pálca, a nyitott cella láncszemei a sorhoz tartoznak.
+  test('a filled and an open start: 3N + 4 chains, with the first double crochet going into the 4th chain (PQW-924)', () => {
+    // The first column of the row is a real double crochet, and the chains of an open cell belong to the row.
     const filled = make(cyc(), chart('#####'));
     assert.deepEqual(filled.plan.foundation, { chains: 19, fromHook: 4 });
     assert.deepEqual(foundationOf(filled.pattern), filled.plan.foundation);
 
     const open = make(cyc(), chart('.####'));
-    // Az 1. sor jobbról balra halad: a jobb szélső cella az első.
+    // Row 1 runs right to left: the rightmost cell comes first.
     assert.equal(open.plan.rows[0].start, 'filled');
     const openStart = make(cyc(), chart('####.'));
     assert.equal(openStart.plan.rows[0].start, 'open');
@@ -93,7 +97,7 @@ describe('sor, láncalap és fordulólánc (03 §5.2, §10 G32)', () => {
     assert.deepEqual(findings(openStart.pattern), []);
   });
 
-  test('a láncalap és a fordulólánc a hagyomány függvényeiből: japán és nem számító fordulóláncnál is', () => {
+  test('the foundation and the turning chain come from the tradition helpers, for Japanese and non-counting turning chains too', () => {
     const def = resolveStitch(FILET_STITCH);
     for (const base of [cyc, japanese, notCounting]) {
       const pattern = base();
@@ -108,30 +112,34 @@ describe('sor, láncalap és fordulólánc (03 §5.2, §10 G32)', () => {
     }
   });
 
-  test('későbbi sor: teli kezdésnél 3 lsz, nyitott kezdésnél a fordulólánc után a cella 2 láncszeme', () => {
+  test('a later row: 3 ch for a filled start, and after the turning chain the 2 chains of the cell for an open start', () => {
     const { pattern } = make(cyc(), chart('.##', '###'));
     const [, , row2] = lines(pattern);
-    // A sor első oszlopa valódi pálca, utána a nyitott cella két láncszeme (PQW-924).
+    // The first column of the row is a real double crochet, followed by the two chains of the open cell (PQW-924).
     assert.match(row2, /^3\. sor: 3 lsz \(1 erp-nek számít\), 1 erp, 2 lsz, 2 szem kihagyása, /);
     assert.equal(graphOf(pattern).layers[2].turningChain.length, 3);
     assert.deepEqual(findings(pattern), []);
   });
 
-  test('nyitott kezdésű 2. sor az írott mintában: a láncalap 3N + 4, és a 4. láncszemtől indul (PQW-924)', () => {
+  test('an open-start row 2 in the written pattern: the foundation is 3N + 4 and work starts at the 4th chain (PQW-924)', () => {
     const { pattern } = make(cyc(), chart('###.'));
     const [foundation, row1] = lines(pattern);
     assert.equal(foundation, '1. sor – alapsor: 16 lsz.');
     /*
-     * A kihagyás a pálca szerinti 3 láncszem (PQW-924); a nyitott cella két
-     * láncszeme és két kihagyott láncszeme már a sorhoz tartozik.
+     * The skip covers the 3 chains the double crochet calls for (PQW-924); the
+     * two chains of the open cell and its two skipped chains already belong to
+     * the row.
      */
-    assert.equal(row1, '2. sor: hagyj ki 3 láncszemet, majd 1 erp, 2 lsz, 2 láncszem kihagyása, 10 erp (14 szem). A fonal elvágása.');
+    assert.equal(
+      row1,
+      '2. sor: hagyj ki 3 láncszemet, majd 1 erp, 2 lsz, 2 láncszem kihagyása, 10 erp (14 szem). A fonal elvágása.',
+    );
     assert.match(lines(pattern, 'en-US')[1], /^Row 2: skip 3 ch, /);
   });
 });
 
-describe('minden filéminta hibátlan és menthető', () => {
-  test('véletlen teli és nyitott rácsok CYC, japán és nem számító fordulóláncnál', () => {
+describe('every filet pattern is clean and can be saved', () => {
+  test('random filled and open charts under CYC, Japanese and non-counting turning chains', () => {
     const next = random(864);
     for (const [name, base] of Object.entries({ cyc, japanese, notCounting })) {
       for (let run = 0; run < 12; run += 1) {
@@ -141,7 +149,8 @@ describe('minden filéminta hibátlan és menthető', () => {
         const label = `${name} ${JSON.stringify(cells)}`;
         const { pattern } = make(base(), cells);
         assert.deepEqual(findings(pattern), [], label);
-        for (const locale of ['hu', 'en-US', 'en-GB']) assert.ok(formatWrittenPattern(writePattern(pattern, libraryFor(pattern), locale)), label);
+        for (const locale of ['hu', 'en-US', 'en-GB'])
+          assert.ok(formatWrittenPattern(writePattern(pattern, libraryFor(pattern), locale)), label);
         const loaded = loadPattern(savePattern(pattern));
         assert.ok(loaded.ok, label);
         assert.deepEqual(loaded.pattern, pattern, label);
@@ -150,8 +159,8 @@ describe('minden filéminta hibátlan és menthető', () => {
   });
 });
 
-describe('alakítás egész cellánként (03 §10 F30)', () => {
-  test('a sor elején szaporítás láncos hosszabbítással, a sor végén meghagyott cellák', () => {
+describe('shaping by whole cells (03 §10 F30)', () => {
+  test('an increase at the start of the row extends it with chains, while cells are left off at the end', () => {
     const { pattern, plan } = make(cyc(), chart('-###', '####', '-###'));
     assert.deepEqual(
       plan.rows.map((row) => [row.added, row.left, row.cells.length]),
@@ -167,7 +176,7 @@ describe('alakítás egész cellánként (03 §10 F30)', () => {
     assert.match(row2, /^3\. sor: 3 lsz \(1 erp-nek számít\), 13 erp /);
   });
 
-  test('a sor elején fogyasztás kúszószemekkel a cellák fölött; a fordulólánc az oszlopon áll (PQW-894)', () => {
+  test('a decrease at the start of the row walks over the cells with slip stitches, and the turning chain stands on the column (PQW-894)', () => {
     const { pattern, plan } = make(cyc(), chart('-###', '####'));
     assert.deepEqual(
       plan.rows.map((row) => [row.removed, row.extended]),
@@ -178,26 +187,36 @@ describe('alakítás egész cellánként (03 §10 F30)', () => {
     );
     assert.deepEqual(findings(pattern), []);
     const [, , row2] = lines(pattern);
-    // A fordulólánc nem ül oszlopon, ezért eggyel kevesebb kúszószem és eggyel több pálca (PQW-924).
+    // The turning chain does not sit on a column, so there is one slip stitch fewer and one double crochet more (PQW-924).
     assert.match(row2, /^3\. sor: 3 ksz, 3 lsz \(1 erp-nek számít\), 10 erp \(11 szem\)\. A fonal elvágása\.$/);
   });
 
-  test('a sor végén szélesítés: három láncszem, ahogy a sor elején is (03 §5.2, PQW-924)', () => {
+  test('widening at the end of the row takes three chains, just as at the start of the row (03 §5.2, PQW-924)', () => {
     const { pattern, plan } = make(cyc(), chart('####', '###.', '###-'));
-    assert.deepEqual(plan.rows.map((row) => row.extended), [0, 1, 0]);
+    assert.deepEqual(
+      plan.rows.map((row) => row.extended),
+      [0, 1, 0],
+    );
     assert.deepEqual(findings(pattern), []);
     const [, , row2] = lines(pattern);
     assert.match(row2, /, 3 lsz \(\d+ szem\)\. Fordítás\.$/);
     /*
-     * A korábbi megoldás egy lejjebb horgolt hosszú szemmel kapaszkodott a
-     * fordulólánc alatti szembe; az a szem a PQW-924 óta nincs meg, és a
-     * tudásbázis szerint a szélesítés láncból is épülhet (03 §5.2).
+     * The earlier solution reached into the stitch below the turning chain
+     * with a long dropped stitch; that stitch has been gone since PQW-924, and
+     * the knowledge base allows widening to be built from chains as well
+     * (03 §5.2).
      */
-    assert.deepEqual(pattern.pieces[0].stitches.filter((node) => node.def === 'dtr'), []);
-    assert.deepEqual(pattern.pieces[0].stitches.filter((node) => node.flags?.includes('spike')), []);
+    assert.deepEqual(
+      pattern.pieces[0].stitches.filter((node) => node.def === 'dtr'),
+      [],
+    );
+    assert.deepEqual(
+      pattern.pieces[0].stitches.filter((node) => node.flags?.includes('spike')),
+      [],
+    );
   });
 
-  test('a lejjebb horgolt szem visszaolvasható az írott mintából, mindhárom jelöléssel (PQW-902)', () => {
+  test('the dropped stitch can be read back from the written pattern in all three notations (PQW-902)', () => {
     const { pattern } = make(cyc(), chart('####', '###.', '###-'));
     const library = libraryFor(pattern);
     for (const locale of ['hu', 'en-US', 'en-GB']) {
@@ -209,7 +228,7 @@ describe('alakítás egész cellánként (03 §10 F30)', () => {
     }
   });
 
-  test('rombusz: szaporítás és fogyasztás a sor mindkét végén, hibátlanul, kiírható és menthető', () => {
+  test('a diamond: increases and decreases at both ends of the row, clean, writable and saveable', () => {
     const { pattern, plan } = make(cyc(), chart('--#--', '-###-', '.###.', '-.#.-', '--#--'));
     assert.deepEqual(
       plan.rows.map((row) => [row.added, row.extended, row.removed, row.left]),
@@ -222,17 +241,18 @@ describe('alakítás egész cellánként (03 §10 F30)', () => {
       ],
     );
     assert.deepEqual(findings(pattern), []);
-    for (const locale of ['hu', 'en-US', 'en-GB']) assert.ok(formatWrittenPattern(writePattern(pattern, libraryFor(pattern), locale)));
+    for (const locale of ['hu', 'en-US', 'en-GB'])
+      assert.ok(formatWrittenPattern(writePattern(pattern, libraryFor(pattern), locale)));
     assert.deepEqual(loadPattern(savePattern(pattern)).pattern, pattern);
   });
 
-  test('a nem horgolható alakításnál és a hibás rácsnál érthető ok', () => {
+  test('shaping that cannot be crocheted and a bad chart are both rejected with an understandable reason', () => {
     const reason = (cells, pattern = cyc()) => {
       const result = planFilet(pattern, cells);
       assert.equal(result.ok, false);
       return result.reason;
     };
-    // A mag kódot és sorszámot ad; a sor neve és a ragozás a felületé (PQW-904).
+    // The core hands over a code and a row number; the name of the row and its inflection belong to the UI (PQW-904).
     assert.deepEqual(reason(chart('####', '###-')), { code: 'filet-extend-open', data: { row: 2 } });
     assert.deepEqual(reason(chart('.###', '-###', '####')), { code: 'filet-extend-reach', data: { row: 3 } });
     assert.deepEqual(reason(chart('###.', '###-'), notCounting()), { code: 'filet-extend-counting', data: { row: 2 } });
@@ -241,9 +261,12 @@ describe('alakítás egész cellánként (03 §10 F30)', () => {
     assert.equal(reason([]).code, 'filet-no-rows');
     assert.equal(reason([[1, 2]]).code, 'filet-cell-kind');
 
-    // A magyar mondat a mai: névelő, sorszám és ragozás a szótárból.
+    // The Hungarian sentence is the one we ship today: article, row number and inflection come from the dictionary.
     assert.match(hu(reason(chart('####', '###-'))), /^A 3\. sor végén az új cella csak nyitott lehet/);
-    assert.match(hu(reason(chart('.###', '-###', '####'))), /^A 4\. sor végén a szaporítás nem éri el a két sorral lejjebbi szemet/);
+    assert.match(
+      hu(reason(chart('.###', '-###', '####'))),
+      /^A 4\. sor végén a szaporítás nem éri el a két sorral lejjebbi szemet/,
+    );
     assert.match(hu(reason(chart('###.', '###-'), notCounting())), /fordulóláncnak szemnek kell számítania/);
     assert.match(hu(reason(chart('#-#'))), /^A 2\. sorban a cellák között üres hely van/);
     assert.equal(hu(reason(chart('###', '---'))), 'A 2. sorban nincs cella: a filé minden sora legalább egy cella.');
@@ -252,10 +275,12 @@ describe('alakítás egész cellánként (03 §10 F30)', () => {
   });
 });
 
-describe('ismétlő egység (tulajdonosi pontosítás, 2026-09-15)', () => {
-  test('a kiterjesztett rácsból készül a gráf, a sor ismétlésként íródik, és az egység a darabbal mentődik', () => {
-    // A tervező rácsa: `?` a meg nem adott cella.
-    const drawn = chart('#.------', '.#.#.#.#', '#.#.#.#.').map((row, y) => row.map((cell, x) => (y === 2 && x >= 2 ? null : cell)));
+describe('the repeat unit (owner clarification, 2026-09-15)', () => {
+  test('the graph is built from the expanded chart, the row is written out as a repeat, and the unit is saved with the piece', () => {
+    // The chart as the designer drew it: `?` is a cell that was not given.
+    const drawn = chart('#.------', '.#.#.#.#', '#.#.#.#.').map((row, y) =>
+      row.map((cell, x) => (y === 2 && x >= 2 ? null : cell)),
+    );
     const unit = { x: 0, y: 0, width: 2, height: 2 };
     const cells = expandDraft(drawn, unit, 12, 6);
     const { pattern } = make(cyc(), cells, unit);

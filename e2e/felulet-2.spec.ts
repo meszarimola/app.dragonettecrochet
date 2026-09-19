@@ -1,11 +1,11 @@
 /*
- * A letisztított felület három fogása (PQW-911): a fájlműveletek lenyíló
- * menüje billentyűzettel is járható, az írott minta panelje csukva indul és a
- * gombjával nyílik, a másolás és a beillesztés pedig a vásznon dolgozik, a
- * szövegmezőkben viszont a böngésző saját szerkesztését hagyja működni.
+ * The three handles of the cleaned-up interface (PQW-911): the file actions
+ * dropdown can be walked from the keyboard too, the written pattern panel starts
+ * closed and opens with its button, and copy and paste work on the canvas, while
+ * in text fields they leave the browser's own editing alone.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
@@ -13,7 +13,9 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
-test('a fájlműveletek lenyílója billentyűzettel: Tab a gombra, Enter nyit, Esc csuk és visszaadja a fókuszt', async ({ page }) => {
+test('the file actions dropdown from the keyboard: Tab to the button, Enter opens, Esc closes and returns the focus', async ({
+  page,
+}) => {
   await open(page);
 
   const fileToggle = page.locator('#file-toggle');
@@ -21,25 +23,25 @@ test('a fájlműveletek lenyílója billentyűzettel: Tab a gombra, Enter nyit, 
   await expect(filePop).toBeHidden();
   await expect(fileToggle).toHaveAttribute('aria-expanded', 'false');
 
-  // Az „Új minta” gombról egy Tab a fájlműveletek gombjára visz: a kettő szomszédos (PQW-912).
+  // One Tab from the „Új minta” button reaches the file actions button: the two are neighbours (PQW-912).
   await page.locator('[data-action="new"]').focus();
   await page.keyboard.press('Tab');
   await expect(fileToggle).toBeFocused();
 
-  // Enterre nyílik, és a fókusz az első műveleten áll.
+  // It opens on Enter, and the focus is on the first action.
   await page.keyboard.press('Enter');
   await expect(filePop).toBeVisible();
   await expect(fileToggle).toHaveAttribute('aria-expanded', 'true');
   await expect(filePop.locator('[data-action="import-json"]')).toBeFocused();
 
-  // Esc csukja, és a fókusz visszatér a gombra.
+  // Esc closes it, and the focus returns to the button.
   await page.keyboard.press('Escape');
   await expect(filePop).toBeHidden();
   await expect(fileToggle).toHaveAttribute('aria-expanded', 'false');
   await expect(fileToggle).toBeFocused();
 });
 
-test('az írott minta panelje csukva indul, és a menüsor gombjával nyitható', async ({ page }) => {
+test('the written pattern panel starts closed, and can be opened with the menu bar button', async ({ page }) => {
   await open(page);
 
   const written = page.locator('#written');
@@ -50,18 +52,22 @@ test('az írott minta panelje csukva indul, és a menüsor gombjával nyitható'
   await writtenToggle.click();
   await expect(written).toBeVisible();
   await expect(writtenToggle).toHaveAttribute('aria-expanded', 'true');
-  // Nyitva a panel a mostani mintát írja: üres mintán is van mondanivalója.
+  // Open, the panel describes the current pattern: it has something to say even for an empty pattern.
   await expect(written.locator('#written-notices, #written-text')).not.toHaveCount(0);
 
   await writtenToggle.click();
   await expect(written).toBeHidden();
 });
 
-/** A sorszámok ablak-koordinátában (`window.mintatervezoRacs`, src/ui/main.ts). */
+/** The row labels in window coordinates (`window.mintatervezoRacs`, src/ui/main.ts). */
 const labels = (page: Page) =>
-  page.evaluate(() => (window as unknown as { mintatervezoRacs: { labels(): { layer: number; x: number; y: number }[] } }).mintatervezoRacs.labels());
+  page.evaluate(() =>
+    (
+      window as unknown as { mintatervezoRacs: { labels(): { layer: number; x: number; y: number }[] } }
+    ).mintatervezoRacs.labels(),
+  );
 
-/** Félpálcás téglalap csak billentyűvel (PQW-911): Alt+1 = láncszem, Alt+4 = félpálca, Alt+F = fordulás. */
+/** Half double crochet rectangle from the keyboard only (PQW-911): Alt+1 = chain stitch, Alt+4 = half double crochet, Alt+F = turn. */
 async function rectangle(page: Page, width: number, rows: number): Promise<void> {
   await page.locator('#board').focus();
   await page.keyboard.press('Alt+1');
@@ -71,7 +77,7 @@ async function rectangle(page: Page, width: number, rows: number): Promise<void>
   await page.keyboard.press('Alt+4');
   for (let row = 1; row <= rows; row += 1) {
     if (row > 1) await page.keyboard.press('Alt+f');
-    // A fordult sor első szeme a fordulólánc lesz (PQW-944), ezért ott eggyel többször horgolunk.
+    // The first stitch of a turned row becomes the turning chain (PQW-944), so there we crochet one more time.
     for (let i = 0; i < width + (row > 1 ? 1 : 0); i += 1) await page.keyboard.press('Enter');
   }
   await page.keyboard.press('Escape');
@@ -79,16 +85,18 @@ async function rectangle(page: Page, width: number, rows: number): Promise<void>
   await page.locator('#board').focus();
 }
 
-test('a Ctrl+C és a Ctrl+V a vásznon másol és illeszt, a szövegmezőben viszont a böngészőé marad', async ({ page }) => {
+test('Ctrl+C and Ctrl+V copy and paste on the canvas, but in a text field the browser default stays', async ({
+  page,
+}) => {
   await open(page);
   await rectangle(page, 5, 2);
   const summary = page.locator('#summary');
   const status = page.locator('#status');
   await expect(summary).toContainText('3. sor: 6 szem');
 
-  // A vásznon: a sorszámmal kijelölt sor a vágólapra, majd új sorként vissza.
+  // On the canvas: the row selected by its label goes to the clipboard, then back as a new row.
   const label = (await labels(page)).find((candidate) => candidate.layer === 2);
-  expect(label, 'a 3. sor sorszáma').toBeTruthy();
+  expect(label, 'the label of row 3').toBeTruthy();
   await page.mouse.click(label!.x, label!.y);
   await expect(status).toHaveText('3. sor kijelölve: 6 szem.');
 
@@ -99,17 +107,17 @@ test('a Ctrl+C és a Ctrl+V a vásznon másol és illeszt, a szövegmezőben vis
   await expect(summary).toContainText('Nincs hiba és figyelmeztetés.');
 
   /*
-   * Szövegmezőben a szerkesztő nem nyúl a billentyűkhöz: a böngésző saját
-   * másolása és beillesztése működik. A naplózó a szerkesztő kezelője UTÁN fut
-   * (mindkettő a `document` buborékfázisában), így a `defaultPrevented` elárulja,
-   * elnyelte-e a szerkesztő a billentyűt.
+   * In a text field the editor does not touch the keys: the browser's own copy
+   * and paste work. The logger runs AFTER the handler of the editor (both in the
+   * bubble phase on `document`), so `defaultPrevented` reveals whether the
+   * editor swallowed the key.
    */
-  // A naplózó egyszer épül be; a mérések előtt csak a listát ürítjük.
+  // The logger is installed once; before the measurements we only clear the list.
   await page.evaluate(() => {
     const store = window as unknown as { pqwKeys: boolean[] };
     store.pqwKeys = [];
     document.addEventListener('keydown', (event) => {
-      // A módosító maga is ad egy billentyűeseményt: csak a betűk érdekesek.
+      // The modifier itself also fires a key event: only the letters are interesting.
       if (/^[cv]$/i.test(event.key)) store.pqwKeys.push(event.defaultPrevented);
     });
   });
@@ -126,12 +134,12 @@ test('a Ctrl+C és a Ctrl+V a vásznon másol és illeszt, a szövegmezőben vis
   const title = page.locator('#title');
   await title.fill('Nyári kendő');
   await title.selectText();
-  expect(await log(), 'a szövegmezőben a böngésző alapértelmezése marad').toEqual([false, false]);
+  expect(await log(), 'in a text field the browser default stays').toEqual([false, false]);
   await expect(title).toHaveValue('Nyári kendő');
-  // A mintán semmi nem változott: a mező billentyűi nem jutottak el a vászonhoz.
+  // Nothing changed in the pattern: the keys of the field never reached the canvas.
   await expect(summary).toContainText('3 sor. 4. sor: 6 szem.');
 
-  // A vásznon ugyanez a két billentyű a szerkesztőé.
+  // On the canvas the same two keys belong to the editor.
   await page.locator('#board').focus();
-  expect(await log(), 'a vásznon a szerkesztő kezeli a másolást és a beillesztést').toEqual([true, true]);
+  expect(await log(), 'on the canvas the editor handles copy and paste').toEqual([true, true]);
 });

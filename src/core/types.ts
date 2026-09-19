@@ -1,29 +1,8 @@
-/*
- * A szem és a szemgráf felülete.
- *
- * Erre épül a szemkönyvtár (PQW-867) és a szemgráf az ellenőrzővel
- * (PQW-856). A fájlban csak típus van, futásidejű kód nincs.
- *
- * Alapelvek (tudásbázis: README §1–2, 06 §5.1):
- * - A minta szemgráf: minden szem tudja, melyik után következik, és mibe
- *   horgolták. A sor, a kör, a szemszám, a színe/visszája, a jel helye és az
- *   írott minta ebből számolódik, ezért nincs eltárolva.
- * - A topológia független a gauge-től, ezért itt nincs milliméter. A valós
- *   méret a gauge-profilból jön (PQW-859).
- * - Minden adat sima JSON (nincs Map, Date vagy osztály), így a minta
- *   verziózott JSON-ként menthető és betölthető.
- *
- * A hivatkozások a docs/knowledge-base/ jelentéseire mutatnak, pl. `01 §8.3`;
- * a „szókészlet” a jóváhagyott docs/stitch-vocabulary-proposal.md döntéseire
- * (D1–D8, K1–K3).
- */
+// KB: core-domain §8, core-domain §11; 06 §5.1, 06 §5.2
 
-/* ---- Közös ---- */
-
-/** Kimeneti és értelmezési nyelv. A brit név az amerikaihoz képest egy fokkal eltolt (01 §8.5). */
+/** UK names are shifted by one step from the US ones. KB: 01 §8.5 */
 export type Locale = 'hu' | 'en-US' | 'en-GB';
 
-/** Honnan származik egy mérhető érték (README §2, „Calibration”). */
 export type ValueSource = 'measured' | 'label' | 'estimated';
 
 export interface Sourced<T> {
@@ -31,86 +10,47 @@ export interface Sourced<T> {
   readonly source: ValueSource;
 }
 
-/* ---- Szem: a könyvtár egy eleme (PQW-867) ---- */
-
-/** Nyelvfüggetlen könyvtári azonosító, pl. `sc`, `dc`, `sc2tog`, `shell-5dc`. A mentés ezt tárolja. */
 export type StitchDefId = string;
 
 export interface StitchTerm {
-  /** Kiírt név, pl. „rövidpálca”. */
   readonly name: string;
-  /**
-   * Kiírt rövidítés, pl. `rp`. `null`, ha nincs jóváhagyott rövidítés, és a
-   * név kiírva szerepel (szókészlet D4, D8).
-   */
+  /** `null` = no approved abbreviation, and the name is spelled out. KB: 01 §8.5 */
   readonly abbr: string | null;
-  /**
-   * Értelmezéskor elfogadott további nevek és rövidítések, pl. „kispálca”.
-   * Kimenetben soha nem jelennek meg (01 §8.5 szabály 25).
-   */
+  /** Accepted on input, never printed. KB: 01 §8.5 rule 25 */
   readonly aliases: readonly string[];
 }
 
-/** Beszúrás egy szembe (01 §4.3). */
+/** KB: 01 §4.3 */
 export type StitchInsertion = 'both-loops' | 'front-loop' | 'back-loop' | 'front-post' | 'back-post';
 
-/** Minden beszúrási mód: szembe, láncívbe vagy gyűrűbe (06 §5.2). */
+/** KB: 06 §5.2 */
 export type InsertionMode = StitchInsertion | 'space' | 'ring';
 
-/**
- * A szem fajtája. Ettől függ, hány csomópont lesz belőle a gráfban, és
- * hogyan ellenőrizzük.
- *
- * - `chain`: láncszem. Pozíció; a szemszámba a `PatternConventions.chainCounts` szerint számít.
- * - `slip`: kúszószem.
- * - `basic`: egy beszúrás, egy tető: rövidpálca, félpálca, pálcák, rákhurok.
- * - `joined`: több részszem egy tetővel: fogyasztás, fürt, bogyó, puff, popcorn.
- * - `group`: egy alapba horgolt önálló szemek: szaporítás, kagyló, V-szem.
- * - `picot`: díszítés, alapból nem számít szemnek (README §4.8).
- * - `space`: láncív. Lerakva láncszemeket és egy `Space` célpontot ad.
- * - `ring`: varázskör. Lerakva egy csomópontot és egy `Ring` célpontot ad.
- */
+/** Decides how many graph nodes a stitch becomes and how it is checked. KB: 01 §4.4, 06 §5.2 */
 export type StitchKind = 'chain' | 'slip' | 'basic' | 'joined' | 'group' | 'picot' | 'space' | 'ring';
 
 interface StitchDefBase {
   readonly id: StitchDefId;
   readonly terms: Readonly<Record<Locale, StitchTerm>>;
-  /**
-   * Ráhajtások száma. A jel ferde vonalainak száma is ez, kivéve a félpálcát:
-   * annak egy ráhajtása van, a jele mégis sima T (01 §8.1 szabály 1–2).
-   */
+  /** Also the number of slashes on the symbol, except hdc. KB: 01 §8.1 rules 1-2 */
   readonly yarnOvers: number;
-  /**
-   * Láncszem-magasság: kúszószem 0, rövidpálca 1, félpálca 2, egyráhajtásos
-   * pálca 3, kétráhajtásos 4. Konvenció a fordulólánchoz és a jel szárához,
-   * nem fizikai arány (README §4.1, 01 §8.1 szabály 1).
-   */
+  /** A turning-chain and symbol-stem convention, not a physical ratio. KB: 01 §8.1 rule 1 */
   readonly chainHeight: number;
-  /** Alapértelmezett fordulólánc, ha a sor ezzel a szemmel kezdődik (01 §8.3 szabály 12). */
+  /** KB: 01 §8.3 rule 12 */
   readonly turningChain: number;
-  /**
-   * Számít-e szemnek a kör kezdőlánca, ha a kör ezzel a szemmel kezdődik:
-   * rövidpálca és félpálca nem, egyráhajtásos pálcától igen (szókészlet K1,
-   * 01 §8.3 szabály 13). Sorban a fordulólánc minden szemnél számít (PQW-891,
-   * tradition.ts).
-   */
+  /** Rounds only: in rows every turning chain counts. KB: 01 §8.3 rule 13 */
   readonly turningChainCounts: boolean;
-  /** Körökben a zárás alapértelmezése: zárt kör; amigurumiban a mintatípus ad spirált (szókészlet K2, PQW-892). */
+  /** KB: core-domain §9 */
   readonly roundEnd: 'join-slip' | 'spiral';
-  /**
-   * Valós magasság a rövidpálcához képest. Amíg nincs mérés, becsült érték;
-   * a gauge-profil felülírja (README §4.1).
-   */
   readonly heightFactor: Sourced<number>;
-  /** Az előző sor hány pozícióját használja fel (01 §4.1, §8.2). */
+  /** KB: 01 §4.1, 01 §8.2 */
   readonly consumes: number;
-  /** Hány új szemet ad a következő sornak (01 §4.1, §8.2). */
   readonly produces: number;
-  /** Hány láncívet ad, pl. a V-szem egyet (01 §8.2 szabály 7). */
+  /** KB: 01 §8.2 rule 7 */
   readonly producesSpaces: number;
-  /** Lehet-e a tetejébe horgolni. A rákhurokba nem (01 §8.2 szabály 10). */
+  /** A crab stitch cannot be worked into. KB: 01 §8.2 rule 10 */
   readonly workableTop: boolean;
-  /** Megengedett beszúrási módok; az első az alapértelmezett. */
+  /** The first one is the default. */
   readonly insertionModes: readonly InsertionMode[];
 }
 
@@ -120,36 +60,20 @@ export interface SimpleStitchDef extends StitchDefBase {
 
 export interface JoinedStitchDef extends StitchDefBase {
   readonly kind: 'joined';
-  /**
-   * Egy szembe megy (`same`, pl. bogyó: 1 → 1), vagy `consumes` szemen át
-   * (`spread`, pl. két rövidpálca összehorgolása: 2 → 1). A „fürt” név
-   * mindkettőt jelentheti, ezért kötelező (README §4.8, 01 §8.2 szabály 8).
-   */
+  /** Required because "cluster" can mean either. KB: 01 §8.2 rule 8 */
   readonly base: 'same' | 'spread';
-  /** A részszem, pl. pálcás fürtnél `dc`. */
   readonly part: StitchDefId;
-  /** Hány részszem záródik egy tetőbe. */
   readonly parts: number;
-  /**
-   * Hogyan készülnek a részszemek a zárás előtt (01 §4.4). Ettől függ a jel
-   * és az írott utasítás, mert a bogyó és a popcorn szerkezete egyébként azonos.
-   * - `partial`: az utolsó lépés előtt abbahagyva, pl. fogyasztás, fürt, bogyó;
-   * - `complete`: teljes szemek, utólag összezárva, pl. popcorn;
-   * - `loops`: csak felhúzott hurkok, pl. puff.
-   * Hiányában `partial`.
-   */
+  /** A bobble and a popcorn have the same structure; only this differs. Absent = `partial`. KB: 01 §4.4 */
   readonly closure?: 'partial' | 'complete' | 'loops';
 }
 
 export interface GroupStitchDef extends StitchDefBase {
   readonly kind: 'group';
-  /** Az egy alapba horgolt szemek sorrendben, pl. V-szem: `dc`, `ch`, `dc`. */
   readonly members: readonly StitchDefId[];
 }
 
 export type StitchDef = SimpleStitchDef | JoinedStitchDef | GroupStitchDef;
-
-/* ---- Szemgráf (PQW-856) ---- */
 
 export type NodeId = string;
 export type SpaceId = string;
@@ -157,173 +81,90 @@ export type RingId = string;
 export type GroupId = string;
 export type PieceId = string;
 
-/**
- * Mibe van horgolva egy szem. A célpont dönti el, milyen beszúrás
- * lehetséges: láncívbe például nem lehet hátsó szálra szúrni.
- */
+/** The target decides which insertions are possible: a chain space takes no back loop. */
 export type Anchor =
   | { readonly into: 'stitch'; readonly id: NodeId; readonly mode: StitchInsertion }
   | { readonly into: 'space'; readonly id: SpaceId }
   | { readonly into: 'ring'; readonly id: RingId }
-  /**
-   * A láncszem másik oldala (04 §3.4, PQW-890): az ovális 1. köre a láncalap
-   * egyik oldalán végighalad, a másikon vissza. Az `id` a láncalap láncszeme;
-   * egy oldalba több szem is mehet, szaporításként.
-   */
+  /** The oval's round 1 runs down one side of the foundation chain and back along the other. KB: 04 §3.4 */
   | { readonly into: 'underside'; readonly id: NodeId };
 
-/**
- * Szándékos eltérés, amit az ellenőrző nem jelez hibának.
- * - `crossed`: keresztezett szem, a haladási irány ellen is horgolhat (03 §10 C13);
- * - `spike`: hosszú szem, korábbi sorba horgol (03 §10 C17).
- */
+/** Deliberate exceptions the checker does not report. KB: 03 §10 C13, C17 */
 export type StitchFlag = 'crossed' | 'spike';
 
 export interface StitchNode {
   readonly id: NodeId;
   readonly def: StitchDefId;
-  /** Az előző szem a fonal útján; csak a fonalszakasz első szeménél `null` (06 §5.3 V2). */
+  /** KB: 06 §5.3 V2 */
   readonly prev: NodeId | null;
-  /**
-   * „Ebbe horgolva”, beszúrási sorrendben. Láncszemnél és a darab első
-   * szeménél üres, fogyasztásnál több elemű (06 §4.3).
-   */
+  /** In insertion order. */
   readonly anchors: readonly Anchor[];
   readonly flags?: readonly StitchFlag[];
-  /**
-   * Kézzel igazított hely a diagramon: eltolás a számolt helyhez képest, a
-   * jobbkezes nézet egységében (a `rotation` még nem használt, 0). Csak a
-   * rajzot szépíti, a topológián nem változtat (README §2).
-   */
+  /** Cosmetic only: it never changes the topology. */
   readonly pinned?: { readonly x: number; readonly y: number; readonly rotation: number };
-  /**
-   * A szem színe: index a darab rácsának színlistájában (`PieceGrid.colors`,
-   * PQW-864). Hiányában az első szín; az írott minta a színváltást az előző
-   * szem utolsó ráhajtásánál írja (03 §6, §10 G35).
-   */
+  /** Index into `PieceGrid.colors`. KB: 03 §6, 03 §10 G35 */
   readonly color?: number;
 }
 
-/** Láncív: láncszemek, amelyeket a következő sor egyetlen célpontként kezel (01 §8.2 szabály 11). */
+/** KB: 01 §8.2 rule 11 */
 export interface Space {
   readonly id: SpaceId;
   readonly chains: readonly NodeId[];
 }
 
-/** Varázskör: a `ring` fajtájú szem csomópontja mint célpont. */
 export interface Ring {
   readonly id: RingId;
   readonly node: NodeId;
 }
 
-/**
- * Egy alapba horgolt szemek, amelyek együtt egy `group` fajtájú szemet adnak,
- * pl. szaporítás vagy kagyló. Enélkül több szem egy célpontban hiba (03 §10 C14).
- */
+/** Without a group, several stitches in one target is an error. KB: 03 §10 C14 */
 export interface StitchGroup {
   readonly id: GroupId;
   readonly def: StitchDefId;
   readonly members: readonly NodeId[];
 }
 
-/** Soronként felülírható konvenciók (README §4.3). */
 export interface RowConventions {
-  /**
-   * Számít-e a fordulólánc szemnek. N szemhez a láncalap `N + T`: ha
-   * számít, a fordulólánc egy alapláncszemen áll (PQW-891); ettől függ az is,
-   * hová megy a sor utolsó szeme (01 §8.3 szabály 13–15). `stitch-default`:
-   * sorban mindig számít, körben a kört kezdő szem
-   * `StitchDef.turningChainCounts` értéke dönt (szókészlet K1); japán
-   * hagyományban a félpálcától felfelé számít (tradition.ts).
-   */
+  /** KB: core-domain §5; 01 §8.3 rules 13-15 */
   readonly turningChainCounts: 'stitch-default' | boolean;
 }
 
-/**
- * A minta számolási hagyománya (PQW-876). `cyc`: a Craft Yarn Council szerinti
- * alapértelmezés. `japanese`: a japán diagramoké; a fordulólánc a félpálcától
- * felfelé szemnek számít, és számító fordulóláncnál az 1. sor egy láncszemmel
- * később kezd (01 §2.2, §3.3, §8.3 szabály 13, 15).
- */
+/** KB: 01 §2.2, 01 §3.3, 01 §8.3 rules 13, 15 */
 export type Tradition = 'cyc' | 'japanese';
 
-/** „X többszöröse + Y” (README §4.4, 03 §4.1). */
+/** KB: 03 §4.1 */
 export interface RepeatSpec {
   readonly repeatWidth: number;
   readonly edgeStitches: number;
-  /** Benne van-e a fordulólánc az Y-ban. */
   readonly turningChainIncluded: boolean;
 }
 
 export interface PatternConventions extends RowConventions {
-  /**
-   * A körök zárása. `stitch-default`: a mintatípus dönt, amigurumiban spirál,
-   * minden más körben zárt kör (szókészlet K2, tulajdonosi döntés, PQW-892,
-   * `roundEndFor` a rounds.ts-ben; 06 §5.3 V4).
-   */
+  /** KB: core-domain §9; 06 §5.3 V4 */
   readonly roundEnd: 'stitch-default' | 'join-slip' | 'spiral';
-  /** Számít-e a pikó szemnek (szókészlet D7, README §4.8). */
   readonly picotCounts: boolean;
-  /** Számít-e szemnek az illesztő vagy továbbvezető kúszószem (szókészlet D7). */
   readonly joinSlipStitchCounts: boolean;
-  /**
-   * Számítanak-e a láncszemek a szemszámba; a fordulóláncra a
-   * `turningChainCounts` vonatkozik (03 §4.3, §10 B10).
-   * - `true`: minden láncszem számít. Ez az alapértelmezés (tulajdonosi
-   *   döntés, PQW-940): a tervező a sorában megszámolja a láncszemeket is,
-   *   és a készülő sor fölött még nincs, ami beléjük horgoljon.
-   * - `worked-into`: akkor, ha egy későbbi sor vagy kör beléjük horgol,
-   *   egyenként vagy láncívként, egészben. A díszlánc, amibe semmi nem
-   *   horgol, nem számít (PQW-870); mintánkénti beállításként megmaradt.
-   * - `false`: egyik sem.
-   */
+  /** KB: core-domain §9; 03 §4.3, 03 §10 B10 */
   readonly chainCounts: 'worked-into' | boolean;
-  /** A számolási hagyomány; hiányában `cyc` (a PQW-876 előtti mentés). */
   readonly tradition?: Tradition;
   readonly repeat?: RepeatSpec;
 }
 
-/**
- * Sor- vagy körvégi esemény: mi történik az `after` szem után.
- * - `turn`: fordulás, a következő sor a másik oldalról halad;
- * - `join-slip`: a kör zárása kúszószemmel, amely maga is szem a gráfban;
- * - `spiral`: a következő kör zárás nélkül folytatódik;
- * - `fasten-off`: a fonal elvágása, a fonalszakasz vége.
- */
 export interface LayerEvent {
   readonly after: NodeId;
   readonly kind: 'turn' | 'join-slip' | 'spiral' | 'fasten-off';
-  /** A mintában megadott szemszám a sor végén, pl. „(18)”; az ellenőrző összeveti a számolttal (06 §5.3 V3). */
+  /** KB: 06 §5.3 V3 */
   readonly statedCount?: number;
-  /** A következő sor eltérései a minta konvencióitól. */
   readonly conventions?: Partial<RowConventions>;
-  /** A következő kör új színnel kezdődik (PQW-861). */
   readonly colorChange?: boolean;
-  /**
-   * Spirálban a színváltás lépcsőjének javítása a következő kör elején (04 §2):
-   * `slip-stitch`: az első szem helyett kúszószem; `back-loop`: az új szín az
-   * első szem hátsó szálába kapcsolva. Csak utasítás, a gráfon nem változtat.
-   */
+  /** Instruction only: it does not change the graph. KB: 04 §2 */
   readonly jogFix?: 'slip-stitch' | 'back-loop';
-  /** Jelölések a kör után az írott mintában: szem, tömés, a nyílás összehúzása (PQW-863). */
   readonly marks?: readonly RoundMark[];
-  /**
-   * A fonal elvágása után a következő szakasz nem az utolsó sor fölött
-   * folytatódik, hanem a megadott soréban (PQW-901): így lesz egy darabon
-   * belül két váll a nyakkivágás két oldalán, vagy a raglán ujja a hónalj
-   * szemeiben. A `name` a szakasz neve az írott mintában. Csak `fasten-off`
-   * eseményen van értelme.
-   */
+  /** Only meaningful on a `fasten-off` event. KB: core-domain §12 */
   readonly resume?: {
     readonly layer: number;
     readonly name?: string;
-    /**
-     * A szakasz első köre egy másik, szintén korábbi szakasz pozícióiba is
-     * horgol (PQW-908): a raglán ujja a vállrész kihagyott szemeibe és a
-     * szétosztás hónaljláncába egyszerre. A `layer` adja az első, ez a
-     * második forrást; a kettő pozíciói ebben a sorrendben követik egymást.
-     * Csak körben, és csak a `layer` utáni rétegre mutathat.
-     */
+    /** Rounds only, and only a layer after `layer`. KB: core-domain §12 */
     readonly with?: number;
   };
 }
@@ -331,69 +172,36 @@ export interface LayerEvent {
 export interface Piece {
   readonly id: PieceId;
   readonly name: string;
-  /** A szemek készítési sorrendben (06 §5.3 V1). */
+  /** In working order. KB: 06 §5.3 V1 */
   readonly stitches: readonly StitchNode[];
   readonly spaces: readonly Space[];
   readonly rings: readonly Ring[];
   readonly groups: readonly StitchGroup[];
   readonly events: readonly LayerEvent[];
-  /** Szándékosan kihagyott szemek. Ha egy szem nincs felhasználva és itt sincs, az hiba (03 §10 B8). */
+  /** KB: 03 §10 B8 */
   readonly skipped: readonly NodeId[];
-  /**
-   * Körökben horgolt sokszög sarkainak száma, pl. négyzetnél 4 (PQW-861). A
-   * sarkok szaporításai szándékosan egymás fölé kerülnek, és a lapos érték a
-   * sokszögé (04 §6.1). Hiányában a körökben horgolt darab kör.
-   */
+  /** The corner increases stack deliberately. Absent = the round piece is a circle. KB: 04 §6.1 */
   readonly corners?: number;
-  /**
-   * Sorban horgolt kendő rajza (PQW-893): a félkör és a félhold sorai íven, a
-   * fentről induló háromszög sorai a gerincnél megtörve (row-curve.ts). A
-   * kendőgenerátor adja; hiányában a sorok egyenesek.
-   */
+  /** Drawing only; the shawl generator supplies it. KB: core-domain §13; 05 §1 */
   readonly rowShape?: RowShape;
-  /**
-   * Körben horgolt darab rajza (PQW-908): a raglán vállrésze kúp, nem lapos
-   * kör, ezért a körei kiterítve körcikket adnak. A `throughRound` az utolsó
-   * ilyen kör sorszáma; utána a darab körei a szokásos módon rajzolódnak.
-   * A raglángenerátor adja; hiányában a körök lapos körként állnak.
-   */
+  /** Drawing only; `throughRound` is the last cone round. KB: core-domain §13; 05 §2.3 */
   readonly roundShape?: RoundShape;
-  /**
-   * A darab részei 3D formából (PQW-863), a készítés sorrendjében. Ha van, a
-   * darab térbeli forma: a kunkorodás szándékos, az ellenőrző nem jelzi.
-   */
+  /** A 3D piece: cupping is intentional, so the checker stays quiet. KB: 04 §4 */
   readonly sections?: readonly PieceSection[];
-  /**
-   * A rácsminta, amelyből a darab készült (PQW-864). A gráf ebből generálódik;
-   * a rács a darabbal mentődik, így a technika szabályai (C2C, tapestry) és az
-   * ismétlő egység jelölése a mentés után is megvannak.
-   */
+  /** Saved with the piece, so the technique's rules survive a save. KB: core-domain §13; 03 §5 */
   readonly grid?: PieceGrid;
 }
 
-/* ---- Rácsos technikák (PQW-864) ---- */
-
-/** Filé, sarokból sarokba (C2C), tapestry, graphgan, mozaik (03 §5). */
+/** KB: 03 §5 */
 export type GridTechnique = 'filet' | 'c2c' | 'tapestry' | 'graphgan' | 'mosaic';
 
-/**
- * A darab egy színe; az írott minta betűvel jelöli (A, B, C…).
- *
- * A beépített színek nyelvfüggetlen `id`-t visznek (PQW-905), a nevüket a
- * megjelenítés adja a felület, illetve az írott minta a jelölés nyelvén. Amit a
- * felhasználó maga ír be, az `name`-ként marad, és nem fordul. A PQW-905 előtti
- * mentésekben csak `name` van: azok változatlanul betölthetők.
- */
+/** A built-in color carries a language-independent `id`; a name the user typed is never translated. */
 export interface PatternColor {
-  /** Beépített szín azonosítója, pl. `natural`; saját névnél hiányzik. */
   readonly id?: string;
-  /** A felhasználó által adott név; beépített színnél hiányzik. */
   readonly name?: string;
-  /** `#rrggbb`. */
   readonly hex: string;
 }
 
-/** Az ismétlő egység a rácson: a bal alsó cellája és a mérete, cellában. */
 export interface GridUnit {
   readonly x: number;
   readonly y: number;
@@ -403,162 +211,106 @@ export interface GridUnit {
 
 export interface PieceGrid {
   readonly technique: GridTechnique;
-  /**
-   * A kiterjesztett rács: sorok alulról felfelé, cellák balról jobbra, a
-   * színoldal nézetében. Filében 1 teli, 0 nyitott, −1 nincs cella; színes
-   * rácsban a szín indexe a `colors` listában.
-   */
+  /** Rows bottom-up, cells left-to-right, seen from the right side. Filet: 1 filled, 0 open, -1 no cell; a color grid holds an index into `colors`. */
   readonly cells: readonly (readonly number[])[];
   readonly colors: readonly PatternColor[];
-  /** Az ismétlő egység, ha van; az írott minta ismétlésként írja, a rajz kiemeli. */
   readonly unit: GridUnit | null;
-  /** Feliratos motívum: tükrözött nézetben figyelmeztetés. */
+  /** Lettering warns in the mirrored view. */
   readonly lettering: boolean;
-  /** Mozaikban hány horgolt sor egy rácssor: egysoros vagy kétsoros változat (PQW-894). */
+  /** KB: 03 §5.6 */
   readonly mosaicRows?: 1 | 2;
 }
 
-/**
- * Sorban horgolt kendő rajza (PQW-893), a szögek fokban. Íves sornál az ív a
- * nyakszöget fogja át (félkörnél 180°); megtört sornál a nyakszög és az alsó
- * csúcs szöge adja az alakot (fentről induló háromszögnél 180° és 90°).
- */
+/** Angles in degrees. KB: 05 §1.4, 05 §1.6 */
 export type RowShape =
   | { readonly kind: 'arc'; readonly neckAngle: number }
   | { readonly kind: 'chevron'; readonly neckAngle: number; readonly tipAngle: number };
 
-/** Körben horgolt darab rajzának alakja (PQW-908): kúp a megadott körig. */
 export type RoundShape = { readonly kind: 'cone'; readonly throughRound: number };
 
-/** A jelek stílusa: a Craft Yarn Council vagy a japán (JIS) jelkulcs (01 §6). */
+/** KB: 01 §6 */
 export type ChartStyle = 'cyc' | 'jis';
 
-/**
- * Milyen jelöléssel készült a minta (PQW-868). Csak megjelenítés: a gráf
- * ettől nem változik, a szerkesztő mentéskor és exportkor írja bele.
- */
+/** Display only: the graph does not change with it. */
 export interface PatternNotation {
   readonly terms: Locale;
   readonly chartStyle: ChartStyle;
-  /** A rövidpálca jele (szókészlet K3). */
+  /** KB: 01 §6.1 */
   readonly singleCrochet: 'plus' | 'cross';
 }
 
-/** Síkban (sorokban) vagy körben mérve (PQW-859). */
 export type GaugeForm = 'rows' | 'rounds';
 
-/**
- * Egy szem mintasűrűsége a profilban: szem/10 cm és sor (kör)/10 cm. A még
- * ki nem töltött érték `null`; ilyen sor a méretbe nem számít.
- */
+/** `null` = not filled in yet; such a row does not count towards the size. */
 export interface GaugeEntry {
-  /** Alapszem: `sc`, `hdc`, `dc`, `tr`. */
   readonly stitch: StitchDefId;
   readonly form: GaugeForm;
   readonly stitchesPer10cm: number | null;
   readonly rowsPer10cm: number | null;
-  /** Saját próbadarabon mérve, vagy a fonal címkéjéről. */
   readonly source: Extract<ValueSource, 'measured' | 'label'>;
 }
 
-/**
- * A horgoló egy fonallal és tűvel mért profilja, ahogy a felületen megadja
- * (PQW-859). Ismeretlen érték `null`, sosem becslés: a becslést a mag számolja.
- */
+/** Unknown is `null`, never an estimate: the core does the estimating. */
 export interface PatternGaugeProfile {
   readonly id: string;
   readonly yarn: {
     readonly name: string;
-    /** CYC fonalvastagság 0–7, a címkéről. */
     readonly cycWeight: number | null;
     readonly metersPer100g: number | null;
-    /** Egy gombolyag tömege, g; ebből kerekítünk gombolyagra. */
     readonly ballMassG: number | null;
   };
   readonly hookMm: number;
   readonly blocked: boolean;
   readonly gauges: readonly GaugeEntry[];
-  /** A lemért próbadarab mérete és tömege. */
   readonly swatch: { readonly widthCm: number | null; readonly heightCm: number | null; readonly massG: number | null };
 }
 
-/** A mintával mentett profilok és a kiválasztott (PQW-859). */
 export interface PatternGauge {
-  /** A kiválasztott profil azonosítója; `null`: profil nélkül, becsléssel. */
+  /** `null`: no profile, so every size is an estimate. */
   readonly active: string | null;
   readonly profiles: readonly PatternGaugeProfile[];
 }
 
-/** A mentett minta. A formátum verziója minden nem visszafelé kompatibilis változásnál nő. */
+/** `formatVersion` rises on every backwards-incompatible change. KB: core-domain §11 */
 export interface Pattern {
   readonly formatVersion: 1;
   readonly title: string;
-  /**
-   * A címet generátor adta-e (PQW-896): igaz, ha a „Minta létrehozása” adta;
-   * hamis, ha a felhasználó írta. Hiányában (régi mentés) a pattern-title.ts
-   * dönti el a címből.
-   */
   readonly titleGenerated?: boolean;
-  /** Hiányában a minta jelölése nincs rögzítve (a PQW-868 előtti mentés). */
   readonly notation?: PatternNotation;
-  /** Hiányában a mintához nincs profil (a PQW-859 előtti mentés); a méret becslés. */
   readonly gauge?: PatternGauge;
   readonly conventions: PatternConventions;
   readonly pieces: readonly Piece[];
-  /** Összevarrt darabok (PQW-863); hiányában nincs kapcsolás. */
   readonly joins?: readonly PieceJoin[];
-  /** Játék: 3 év alatti gyereknek készül-e (04 §5.7). Hiányában nincs megadva. */
+  /** KB: 04 §5.7 */
   readonly toy?: { readonly under3: boolean };
-  /** Ruhadarab méretsorozattal (PQW-866); hiányában a minta nem ruhadarab-generátorból jön. */
   readonly garment?: PatternGarment;
 }
 
-/* ---- Ruhadarabok (PQW-866) ---- */
-
 export type GarmentKind = 'hat' | 'drop-shoulder' | 'raglan';
 
-/** A méretek táblázata: a CYC testméretek (body-sizes.ts), sapkánál a sapkaméretek. */
 export type GarmentTable = 'women' | 'men' | 'child' | 'baby' | 'hat';
 
-/**
- * A ruhadarab méretsorozata (05 §3.8, §8.1, §9.6). A gráf a `base` méreté; a
- * sorozat minden méretének számai fázisonként itt állnak, a `sizes`
- * sorrendjében, és az írott minta „S (M, L)” alakban írja ki őket
- * (garment-text.ts). A számok a létrehozáskori mintasűrűségből jönnek, így a
- * szöveg a mentés után sem változik.
- */
+/** The numbers are frozen at creation time, so the written text never drifts. KB: 05 §3.8, 05 §8.1, 05 §9.6 */
 export interface PatternGarment {
   readonly kind: GarmentKind;
   readonly table: GarmentTable;
-  /** A méretek azonosítója a táblázatban, növekvő sorrendben. */
   readonly sizes: readonly string[];
-  /** A gráf méretének indexe a `sizes`-ban. */
   readonly base: number;
-  /** Fázisonként a méretenkénti érték (a kulcsok: garment-text.ts `SERIES_KEYS`). */
   readonly values: Readonly<Record<string, readonly number[]>>;
 }
 
-/* ---- Amigurumi és 3D formák (PQW-863) ---- */
-
-/** A darab vége: nyitott szél (varráshoz, folytatáshoz) vagy zárt (összehúzva, lapos tetővel). */
 export type PieceEnd = 'open' | 'closed';
 
-/** A gömb körterve: 6n (6-tal szaporítva, egyenes körök, 6-tal fogyasztva) vagy szinuszos (04 §4.3). */
+/** KB: 04 §4.3 */
 export type SphereMethod = '6n' | 'sine';
 
-/** A forgástest profiljának pontja: sugár és magasság cm-ben, a kezdéstől a végig (04 §9.3). */
+/** KB: 04 §9.3 */
 export interface ProfilePoint {
   readonly radiusCm: number;
   readonly heightCm: number;
 }
 
-/**
- * Egy 3D forma, ahogy a felhasználó megadta, cm-ben; a körtervet a mag
- * számolja a mintasűrűségből (amigurumi.ts).
- * - `bottom`: a kezdés; `open` csak folytatólagosan kapcsolt résznél lehet.
- * - `top`: a darab vége.
- * A gömb és a tojás mindkét vége zárt; a félgömb a pólusról, a kúp a csúcsról indul.
- */
+/** In cm, as the user gave it; the core derives the round plan. `bottom: open` only on a continuously attached section. KB: 04 §4 */
 export type ShapeSpec =
   | { readonly kind: 'sphere'; readonly diameterCm: number; readonly method: SphereMethod }
   | { readonly kind: 'hemisphere'; readonly diameterCm: number; readonly method: SphereMethod; readonly top: PieceEnd }
@@ -572,134 +324,78 @@ export type ShapeSpec =
     }
   | {
       readonly kind: 'cone';
-      /** Az alap átmérője. */
       readonly diameterCm: number;
-      /** A csúcstól az alapig; ha a szaporítás meg van adva, nem számít. */
+      /** Ignored when `increases` is given. */
       readonly heightCm: number;
-      /** Körönkénti szaporítás, tört is (pl. 2,5); `null`: a magasságból. */
+      /** Per round, fractions allowed; `null` derives it from the height. */
       readonly increases: number | null;
       readonly top: PieceEnd;
     }
-  | { readonly kind: 'revolution'; readonly profile: readonly ProfilePoint[]; readonly bottom: PieceEnd; readonly top: PieceEnd }
-  /**
-   * Ovális láncalapról (04 §3.4, §9.4, PQW-890): lapos, nyitott széllel; a hossz a hosszabbik méret.
-   * A szem hiányában rövidpálca (a PQW-899 előtti mentés).
-   */
+  | {
+      readonly kind: 'revolution';
+      readonly profile: readonly ProfilePoint[];
+      readonly bottom: PieceEnd;
+      readonly top: PieceEnd;
+    }
+  /** KB: 04 §3.4, 04 §9.4 */
   | { readonly kind: 'oval'; readonly lengthCm: number; readonly widthCm: number; readonly stitch?: OvalStitch };
 
-/** Az ovális szeme (PQW-899, PQW-902): rövidpálca, félpálca, egyráhajtásos vagy kétráhajtásos pálca. */
 export type OvalStitch = 'sc' | 'hdc' | 'dc' | 'tr';
 
-/** Egy rész (pl. fej, test) a darabban: a neve, az első köre és a formája (PQW-863). */
 export interface PieceSection {
   readonly name: string;
-  /** A rész első köre a darabban, 1-től; a folytatólagosan kapcsolt rész az előző után kezdődik. */
+  /** 1-based; a continuously attached section starts after the previous one. */
   readonly layer: number;
   readonly shape: ShapeSpec;
-  /** Eltolt szaporítás és fogyasztás. */
   readonly stagger: boolean;
 }
 
-/**
- * Jelölés az írott mintában egy kör után (04 §5.6, §5.7, §9.8): biztonsági
- * szem, hímzett szem (3 év alatti gyereknek), a tömés kezdete, és a zárt
- * darab összehúzása a fonal elvágása után.
- */
+/** KB: 04 §5.6, 04 §5.7, 04 §9.8 */
 export type RoundMark = 'safety-eyes' | 'embroider-eyes' | 'stuffing' | 'close-opening';
 
-/**
- * Egy darab összekapcsolt széle.
- * - Csak `layer`: a kör egésze (PQW-863, amigurumi).
- * - `stitches`: a `layer`. sor egy szakasza a sor pozícióinak sorrendjében, a
- *   `from` 0-tól; pl. a vállvarrás (PQW-866).
- * - `rows`: a sorvégek a `layer`. sortól a `to`. sorig a rajz bal vagy jobb
- *   szélén (a PQW-889 sorvég célpontja); pl. az oldalvarrás. A varrás
- *   szemszáma ilyenkor a sorok száma.
- */
+/** `layer` alone = the whole round; `stitches` = a run of that row; `rows` = row ends down one side, and then the seam's stitch count is the number of rows. KB: 04 §5.4 */
 export interface JoinEdge {
   readonly piece: PieceId;
-  /** A kör vagy sor sorszáma a darabban, 1-től; sorvégeknél az első sor. */
   readonly layer: number;
   readonly stitches?: { readonly from: number; readonly count: number };
   readonly rows?: { readonly to: number; readonly side: 'left' | 'right' };
 }
 
-/**
- * Két darab összevarrása (04 §5.4). Ha a két szél szemszáma eltér, a
- * `distribution` mondja meg, a kisebb szél egyes szemeihez hány szem jut a
- * nagyobbikból; enélkül az eltérés hiba. A folytatólagos kapcsolás nem itt
- * áll: az egy darab több résszel (`Piece.sections`).
- */
+/** Without `distribution`, differing edge counts are an error. A continuous attachment is one piece with several sections instead. KB: 04 §5.4 */
 export interface PieceJoin {
   readonly a: JoinEdge;
   readonly b: JoinEdge;
   readonly distribution?: readonly number[];
 }
 
-/* ---- Számolt adatok ---- */
-
-/** Egy sor vagy kör a gráfból számolva. */
 export interface Layer {
   readonly piece: PieceId;
-  /** A láncalap vagy a varázskör a 0., utána 1-től számozva. */
+  /** The foundation chain or magic ring is 0; the rest are numbered from 1. */
   readonly index: number;
-  /**
-   * Melyik réteg fölött áll: alapból az előző (`index − 1`). Elvágott fonal
-   * után a szakasz máshonnan folytatódhat (`LayerEvent.resume`, PQW-901),
-   * ilyenkor az ott megadott réteg.
-   */
+  /** Normally `index - 1`; after a fasten-off the section may resume elsewhere. KB: core-domain §12 */
   readonly below: number;
-  /**
-   * A második forrásréteg (PQW-908): a réteg ennek a pozícióiba is horgol, a
-   * `below` pozíciói után. A raglán ujjánál a szétosztás hónaljlánca.
-   */
+  /** A second source layer, worked after `below`'s positions. KB: core-domain §12 */
   readonly alsoBelow?: number;
-  /**
-   * A két forrásból összeérő alapgyűrű (PQW-908). A raglán ujja nem a vállrész és a
-   * szétosztás *teljes* körére ül, hanem a saját kihagyott szemeire és a hónaljláncra:
-   * a köztük lévő testszemek nem tartoznak ebbe a csőbe. Csak kétforrású körnél van megadva.
-   */
+  /** Only on a two-source round: the tube sits on its own positions, not on the whole round. KB: core-domain §12 */
   readonly basePositions?: readonly NodeId[];
-  /**
-   * A sor vagy kör kiírt száma. Alapból az `index`; a megadott sor fölött
-   * folytatódó szakaszban újraindul, ezért két szakasz sorszáma egyezhet
-   * (pl. a két váll), és a nevük különbözteti meg őket (PQW-901).
-   */
+  /** Normally `index`; it restarts in a resumed section, so two sections can share a number. KB: core-domain §12 */
   readonly row: number;
   readonly shape: 'row' | 'round';
   readonly stitches: readonly NodeId[];
-  /**
-   * A SZERKEZET szemszáma: hány szem áll a sorban, amibe a következő sor
-   * belehorgolhat. A fordulólánc sorban nem szem (PQW-924), a láncszem pedig
-   * akkor, ha valami beléje horgol. Konvenció nem billenti el: a generátorok
-   * és az ellenőrző erre a számra támaszkodnak.
-   */
+  /** KB: core-domain §10 */
   readonly stitchCount: number;
-  /**
-   * A KIÍRT szemszám: ezt mondja az írott minta és a rajz felirata, és ezt
-   * számolja meg a horgoló a soron (tulajdonosi döntés, PQW-940). A
-   * fordulólánc a sor első szeme, a láncszemek a `chainCounts` szerint
-   * számítanak — alapból mind.
-   */
+  /** KB: core-domain §10 */
   readonly writtenCount: number;
-  /** Pozíciószám, láncszemmel együtt. */
   readonly positionCount: number;
-  /** A színe (`right`) vagy a visszája (`wrong`) néz a horgoló felé (01 §8.4 szabály 19). */
+  /** KB: 01 §8.4 rule 19 */
   readonly side: 'right' | 'wrong';
 }
 
-/** Az ellenőrző egy találata. */
 export interface Finding {
-  /**
-   * `error`: megcsinálhatatlan vagy ellentmondásos; `warning`: megcsinálható,
-   * de valószínűleg nem szándékos (README §5).
-   */
+  /** `warning`: doable, but probably not intended. */
   readonly severity: 'error' | 'warning';
-  /** A szabály azonosítója. */
   readonly rule: string;
-  /** Tudásbázis-hivatkozás, pl. `03 §10 B8`. */
   readonly reference: string;
   readonly piece: PieceId;
-  /** Az érintett szemek; a szerkesztő ezeket jelöli ki. */
   readonly nodes: readonly NodeId[];
 }

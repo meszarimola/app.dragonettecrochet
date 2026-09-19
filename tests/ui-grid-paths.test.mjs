@@ -1,6 +1,6 @@
 /*
- * A rács rajza útvonalakként (PQW-874): a vászon és az SVG-export ugyanezt
- * rajzolja.
+ * The grid drawn as paths (PQW-874): the canvas and the SVG export draw the
+ * very same thing.
  */
 
 import { strict as assert } from 'node:assert';
@@ -15,57 +15,77 @@ import { grannySquare, hdcRectangle } from './fixtures/examples.ts';
 
 const gridOf = (pattern, kind) => chartGrid(pattern, libraryFor(pattern), kind, contextOf(pattern));
 
-test('sorrács: sávonként egy kitöltés, a vonalak gyengébbtől az erősebbig, szám hiba nélkül', () => {
+test('row grid: one fill per band, lines from lightest to heaviest, and no broken number', () => {
   const grid = gridOf(hdcRectangle({ rows: 11 }).pattern, 'rows');
   const paths = gridPaths(grid);
   assert.equal(paths.bands.length, grid.bands.length);
-  assert.deepEqual(paths.bands.slice(0, 3).map((band) => band.tone), [0, 1, 0]);
+  assert.deepEqual(
+    paths.bands.slice(0, 3).map((band) => band.tone),
+    [0, 1, 0],
+  );
   const text = JSON.stringify(paths);
   assert.doesNotMatch(text, /NaN|undefined|Infinity/);
   const order = ['cell', 'row', 'five', 'ten'];
   const weights = paths.lines.map((line) => order.indexOf(line.weight));
-  assert.ok(weights.every((w, i) => i === 0 || w >= weights[i - 1]), 'a hangsúlyos vonal a végén rajzolódik');
-  for (const weight of order) assert.ok(paths.lines.some((line) => line.weight === weight), weight);
-  // A készülő, még üres sor vonalai szaggatottak.
+  assert.ok(
+    weights.every((w, i) => i === 0 || w >= weights[i - 1]),
+    'the emphasised line is drawn last',
+  );
+  for (const weight of order)
+    assert.ok(
+      paths.lines.some((line) => line.weight === weight),
+      weight,
+    );
+  // The lines of the row in progress, still empty, are dashed.
   assert.ok(paths.lines.some((line) => line.dashed));
   assert.ok(LINE_WIDTH.ten > LINE_WIDTH.five && LINE_WIDTH.five > LINE_WIDTH.row);
 });
 
-test('koncentrikus rács: körívek és evenodd kitöltésű körgyűrűk', () => {
+test('concentric grid: arcs and evenodd-filled annuli', () => {
   const paths = gridPaths(gridOf(grannySquare().pattern, 'rounds'));
-  assert.equal(paths.bands[0].evenOdd, false, 'a varázskör teli kör');
+  assert.equal(paths.bands[0].evenOdd, false, 'the magic ring is a solid disc');
   assert.ok(paths.bands.slice(1).every((band) => band.evenOdd && /A/.test(band.d)));
-  assert.ok(paths.lines.some((line) => /L/.test(line.d)), 'sugárirányú cellahatár');
+  assert.ok(
+    paths.lines.some((line) => /L/.test(line.d)),
+    'radial cell boundary',
+  );
   assert.doesNotMatch(JSON.stringify(paths), /NaN|undefined|Infinity/);
 });
 
-test('sokszög-rács (PQW-888): egyenes oldalú gyűrűk, körív nélkül', () => {
+test('polygon grid (PQW-888): straight-sided rings with no arc', () => {
   const { pattern } = generateMotif(emptyPattern(), { ...DEFAULT_MOTIF, shape: 'hexagon', rounds: 3 });
   const paths = gridPaths(gridOf(pattern, 'rounds'));
   const corners = (d) => (d.match(/[ML]/g) ?? []).length;
-  assert.ok(paths.bands.every((band) => !/A/.test(band.d)), 'nincs körív');
-  assert.equal(corners(paths.bands[0].d), 6, 'a középső sáv teli hatszög');
-  assert.ok(paths.bands.slice(1).every((band) => band.evenOdd && corners(band.d) === 12), 'a gyűrű két hatszög');
+  assert.ok(
+    paths.bands.every((band) => !/A/.test(band.d)),
+    'no arc',
+  );
+  assert.equal(corners(paths.bands[0].d), 6, 'the centre band is a solid hexagon');
+  assert.ok(
+    paths.bands.slice(1).every((band) => band.evenOdd && corners(band.d) === 12),
+    'a ring is two hexagons',
+  );
   assert.doesNotMatch(JSON.stringify(paths), /NaN|undefined|Infinity/);
 });
 
 /*
- * A láncalapnak nincsenek cellavonalai (PQW-923).
+ * The foundation chain has no cell lines (PQW-923).
  *
- * A tulajdonos hosszú láncalapon szabálytalan, 3–5 szemes csoportokra tagolt
- * vastag függőleges vonalakat látott. Ezek a rács cellahatárai voltak: a cellák
- * a szemek tényleges helyéből kapják a szélességüket, a láncszemek pedig
- * egyenetlen közűek, és akkor még minden 5. és 10. cellavonal vastagabb is
- * volt. (A cellavonalak kiemelését azóta a PQW-924 teljesen megszüntette.) A
- * cella megmarad — rá kattintva továbbra is lehet horgolni —, csak a vonala nem.
+ * On a long foundation chain the owner saw thick vertical lines chopping the
+ * work into irregular groups of three to five stitches. Those were the cell
+ * boundaries of the grid: cells take their width from the actual position of
+ * the stitches, chain stitches sit at uneven spacing, and back then every 5th
+ * and 10th cell line was thicker as well. (PQW-924 has since removed cell-line
+ * emphasis altogether.) The cell stays — clicking it still crochets — only
+ * its line goes.
  */
-test('a láncalap cellái nem kapnak elválasztó vonalat, a többi sor igen', () => {
+test('the foundation chain cells get no separator line, while the other rows do', () => {
   const grid = gridOf(hdcRectangle({ rows: 4 }).pattern, 'rows');
   const paths = gridPaths(grid);
   const foundationCells = grid.cells.filter((cell) => cell.layer === 0);
-  assert.ok(foundationCells.length > 0, 'a láncalapnak vannak cellái: a kattintás továbbra is működik');
+  assert.ok(foundationCells.length > 0, 'the foundation chain does have cells: clicking still works');
 
-  // A cellavonalak a cella jobb szélén, függőlegesen futnak: „M<x> <y>V<y2>”.
+  // Cell lines run vertically along the right edge of a cell: „M<x> <y>V<y2>”.
   const verticals = paths.lines.filter((line) => /^M[-\d.]+ [-\d.]+V[-\d.]+$/.test(line.d));
   const xOf = (line) => Number(/^M([-\d.]+) /.exec(line.d)[1]);
   const yOf = (line) => Number(/^M[-\d.]+ ([-\d.]+)V/.exec(line.d)[1]);
@@ -76,39 +96,40 @@ test('a láncalap cellái nem kapnak elválasztó vonalat, a többi sor igen', (
     const y = yOf(line);
     return y >= Math.min(band.area.y0, band.area.y1) - 0.01 && y <= Math.max(band.area.y0, band.area.y1) + 0.01;
   });
-  assert.deepEqual(inFoundation.map(xOf), [], 'a láncalap sávjában nincs cellavonal');
+  assert.deepEqual(inFoundation.map(xOf), [], 'no cell line inside the foundation band');
 
-  // A többi sorban viszont megmaradnak: a rács ott továbbra is segít számolni.
-  assert.ok(verticals.length > 0, 'a sorokban maradnak cellavonalak');
+  // In the other rows they stay: there the grid still helps with counting.
+  assert.ok(verticals.length > 0, 'cell lines remain in the rows');
 });
 
-
 /*
- * A cellák közötti vonalak soha nem kapnak számoló kiemelést (PQW-924).
+ * Lines between cells never get counting emphasis (PQW-924).
  *
- * A PQW-923-ban csak a készülő sorból vettem ki a kiemelést, a kész sorokban
- * meghagytam — a tulajdonos viszont az exportált képen továbbra is ötös
- * csoportosítást látott. A tervező és az export ugyanezt a kódot használja,
- * ezért itt egy helyen zárjuk ki mindkettőre.
+ * In PQW-923 the emphasis was removed only from the row in progress and kept
+ * in the finished rows — but the owner still saw groups of five on the
+ * exported image. The designer and the export run the same code, so both are
+ * ruled out here, in one place.
  */
-test('egyetlen függőleges cellavonal sem kiemelt súlyú, sem készülő, sem kész sorban', () => {
+test('no vertical cell line carries an emphasised weight, in a row in progress or a finished one', () => {
   for (const rows of [2, 6, 11]) {
     const grid = gridOf(hdcRectangle({ rows }).pattern, 'rows');
     const vertical = gridPaths(grid).lines.filter((line) => /^M[-\d.]+ [-\d.]+V[-\d.]+$/.test(line.d));
-    assert.ok(vertical.length > 0, `${rows} sor: vannak cellavonalak`);
+    assert.ok(vertical.length > 0, `${rows} rows: cell lines are present`);
     assert.deepEqual(
       [...new Set(vertical.map((line) => line.weight))],
       ['cell'],
-      `${rows} sor: a cellavonalak egységesen vékonyak`,
+      `${rows} rows: the cell lines are uniformly thin`,
     );
     /*
-     * A sorok vízszintes vonalai megtartják a kiemelést: azok a sorokat
-     * számolják, nem a szemeket tagolják. Ez csak ott látszik, ahol van
-     * legalább öt sor.
+     * The horizontal row lines keep their emphasis: those count rows, they do
+     * not chop up stitches. It only shows where there are at least five rows.
      */
     if (rows >= 5) {
       const horizontal = gridPaths(grid).lines.filter((line) => !/^M[-\d.]+ [-\d.]+V[-\d.]+$/.test(line.d));
-      assert.ok(horizontal.some((line) => line.weight === 'five' || line.weight === 'ten'), `${rows} sor: a sorvonalak kiemelése megmarad`);
+      assert.ok(
+        horizontal.some((line) => line.weight === 'five' || line.weight === 'ten'),
+        `${rows} rows: the row lines keep their emphasis`,
+      );
     }
   }
 });

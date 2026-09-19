@@ -1,10 +1,10 @@
 /*
- * Kendőformák (PQW-865): a tudásbázis „A” példája (05 §1.4), a páros
- * szimmetria és a tört arány elosztása, a szárnyak, az utolsó sor igazítása a
- * szegélyhez, a félkör, a kör és a Pi-kendő ütemezése (05 §1.2, §1.3), a
- * saját arány figyelmeztetése (README §4.7), a blokkolt és blokkolatlan méret,
- * és hogy minden generált kendő hibátlanul átmegy az ellenőrzőn, kiírható és
- * visszaolvasható.
+ * Shawl shapes (PQW-865): worked example A of the knowledge base (05 §1.4),
+ * even symmetry and the spreading of a fractional rate, the wings, adjusting
+ * the last row to the edging, the schedules of the semicircle, the circle and
+ * the pi shawl (05 §1.2, §1.3), the warning on a custom rate (README §4.7),
+ * the blocked and unblocked size, and that every generated shawl validates
+ * cleanly, writes out and reads back.
  */
 
 import { strict as assert } from 'node:assert';
@@ -16,13 +16,13 @@ import { readPattern } from '../src/core/pattern-read.ts';
 import { formatWrittenPattern, writePattern } from '../src/core/pattern-text.ts';
 import {
   DEFAULT_SHAWL,
+  generateShawl,
   MAX_INTO_ONE,
   MAX_SHAWL_CM,
-  SHAWL_KINDS,
-  SHAWL_STITCHES,
-  generateShawl,
   piRounds,
   planShawl,
+  SHAWL_KINDS,
+  SHAWL_STITCHES,
   shawlProblem,
   shawlSizes,
 } from '../src/core/shawls.ts';
@@ -30,8 +30,13 @@ import { libraryFor, resolveStitch } from '../src/core/stitch-variants.ts';
 import { firstChainFromHook, traditionOf, turningChainCountsFor, withTradition } from '../src/core/tradition.ts';
 import { validatePattern } from '../src/core/validate.ts';
 
-/** Minta profillal, amelyben a szem adott szem és sor/kör 10 cm-en. */
-function withGauge(stitch, stitchesPer10cm, rowsPer10cm, { blocked = false, form = 'rows', pattern = emptyPattern() } = {}) {
+/** A pattern whose profile puts the stitch at the given stitches and rows/rounds per 10 cm. */
+function withGauge(
+  stitch,
+  stitchesPer10cm,
+  rowsPer10cm,
+  { blocked = false, form = 'rows', pattern = emptyPattern() } = {},
+) {
   const profile = {
     id: 'kendo',
     yarn: { name: 'Merinó', cycWeight: 1, metersPer100g: null, ballMassG: null },
@@ -45,7 +50,7 @@ function withGauge(stitch, stitchesPer10cm, rowsPer10cm, { blocked = false, form
 
 const japanese = () => ({ ...emptyPattern(), conventions: withTradition(emptyPattern().conventions, 'japanese') });
 const options = (patch) => ({ ...DEFAULT_SHAWL, ...patch });
-/** A mag kódot és adatot ad az indokra (PQW-904); a hibaüzenethez ez elég. */
+/** The core gives a code and data as the reason (PQW-904); that is enough for the failure message. */
 const why = (result) => (result.ok ? '' : JSON.stringify(result.reason));
 const shawl = (pattern, patch) => {
   const result = generateShawl(pattern, options(patch));
@@ -60,7 +65,8 @@ const plan = (pattern, patch) => {
 const changes = (counts) => counts.slice(1).map((count, i) => count - counts[i]);
 const findings = (pattern) => validatePattern(pattern, libraryFor(pattern));
 const errors = (pattern) => findings(pattern).filter((finding) => finding.severity === 'error');
-const near = (actual, expected, tolerance, name) => assert.ok(Math.abs(actual - expected) <= tolerance, `${name}: ${actual} ≉ ${expected}`);
+const near = (actual, expected, tolerance, name) =>
+  assert.ok(Math.abs(actual - expected) <= tolerance, `${name}: ${actual} ≉ ${expected}`);
 const sameGraph = (a, b) => {
   const [x, y] = [canonicalPattern(a).pieces[0], canonicalPattern(b).pieces[0]];
   assert.deepEqual(x.stitches, y.stitches);
@@ -68,14 +74,17 @@ const sameGraph = (a, b) => {
   assert.deepEqual(x.events, y.events);
 };
 
-/** Az „A” példa: pálcás háromszög blokkolt 16 × 8 mintasűrűséggel, 160 cm fesztáv, 80 cm mélység. */
+/** Worked example A: a dc triangle at a blocked 16 × 8 gauge, 160 cm wingspan, 80 cm deep. */
 const exampleA = () => withGauge('dc', 16, 8, { blocked: true });
 
-describe('fentről induló háromszög (05 §1.4)', () => {
-  test('„A” példa: 45 sor, soronként 8 szaporítás, az n-edik sor 8n szem, az utolsó 360; hibátlan', () => {
+describe('top-down triangle (05 §1.4)', () => {
+  test('worked example A: 45 rows, 8 increases per row, row n has 8n stitches and the last has 360; it validates cleanly', () => {
     const { pattern, plan } = shawl(exampleA(), { kind: 'triangle', stitch: 'dc', sizeCm: 80 });
     assert.equal(plan.counts.length, 45);
-    assert.deepEqual(plan.counts, Array.from({ length: 45 }, (_, i) => 8 * (i + 1)));
+    assert.deepEqual(
+      plan.counts,
+      Array.from({ length: 45 }, (_, i) => 8 * (i + 1)),
+    );
     assert.equal(plan.counts.at(-1), 360);
     assert.equal(plan.theoryRate, 8);
     assert.deepEqual([plan.edgeRate, plan.spineRate], [2, 2]);
@@ -83,7 +92,7 @@ describe('fentről induló háromszög (05 §1.4)', () => {
     assert.deepEqual(findings(pattern), []);
   });
 
-  test('„A” példa soronként: +2 mindkét élen, +4 a gerincen, a két középső szembe 3-3 pálca', () => {
+  test('worked example A row by row: +2 on each edge, +4 on the spine, 3 dc into each of the two centre stitches', () => {
     const { layout } = plan(exampleA(), { kind: 'triangle', stitch: 'dc', sizeCm: 80 });
     assert.equal(layout.first, 8);
     const row2 = layout.rounds[0];
@@ -95,58 +104,82 @@ describe('fentről induló háromszög (05 §1.4)', () => {
     }
   });
 
-  test('„A” példa mérete: blokkolva kb. 160 × 80 cm, egyenes nyakél (180°), derékszögű alsó csúcs', () => {
+  test('worked example A blocks to about 160 × 80 cm, with a straight neck edge (180°) and a right-angled bottom tip', () => {
     const sizes = shawlSizes(plan(exampleA(), { kind: 'triangle', stitch: 'dc', sizeCm: 80 }), DEFAULT_SHAWL.blocking);
     assert.equal(sizes.measured, 'blocked');
-    near(sizes.blocked.widthCm, 160, 1.5, 'fesztáv');
-    near(sizes.blocked.depthCm, 80, 1, 'mélység');
-    near(sizes.blocked.neckAngleDeg, 180, 0.01, 'nyakél');
-    near(sizes.blocked.tipAngleDeg, 90, 0.01, 'alsó csúcs');
-    // A blokkolatlan méret a nyúlással kisebb.
+    near(sizes.blocked.widthCm, 160, 1.5, 'wingspan');
+    near(sizes.blocked.depthCm, 80, 1, 'depth');
+    near(sizes.blocked.neckAngleDeg, 180, 0.01, 'neck edge');
+    near(sizes.blocked.tipAngleDeg, 90, 0.01, 'bottom tip');
+    // The unblocked size is smaller by the stretch.
     assert.ok(sizes.unblocked.widthCm < sizes.blocked.widthCm && sizes.unblocked.depthCm < sizes.blocked.depthCm);
   });
 
-  test('„A” példa írott mintája: a 2. sor a hagyomány szerinti láncszembe, a 3. sor „3 lsz, 2 erp ugyanabba a szembe”', () => {
+  test('worked example A written out: row 2 starts in the chain the tradition dictates, row 3 reads „3 lsz, 2 erp ugyanabba a szembe”', () => {
     const { pattern } = shawl(exampleA(), { kind: 'triangle', stitch: 'dc', sizeCm: 80 });
     const dc = resolveStitch('dc');
     const tradition = traditionOf(pattern.conventions);
-    const from = firstChainFromHook(dc.turningChain, turningChainCountsFor(pattern.conventions.turningChainCounts, dc, tradition, 'row'), tradition);
+    const from = firstChainFromHook(
+      dc.turningChain,
+      turningChainCountsFor(pattern.conventions.turningChainCounts, dc, tradition, 'row'),
+      tradition,
+    );
     const hu = formatWrittenPattern(writePattern(pattern, libraryFor(pattern), 'hu'));
-    // A kiírt szemszám a fordulólánccal együtt (PQW-940); a sor az előző sor minden szemébe horgol.
+    // The stated stitch count includes the turning chain (PQW-940); the row works into every stitch of the row below.
     assert.match(hu, new RegExp(`2\\. sor: hagyj ki ${from - 1} láncszemet, majd .*\\(9 szem\\)\\. Fordítás\\.`));
     assert.match(hu, /3\. sor: 3 lsz \(1 erp-nek számít\), .* \(17 szem\)\. Fordítás\./);
     assert.match(hu, /46\. sor: .* \(361 szem\)\. A fonal elvágása\./);
   });
 
-  test('rövidpálcával 20 × 22-nél 3,64 szaporítás: 124 sor, csak +4 és +2, a +2 felváltva a széleken és a gerincen', () => {
+  test('in sc at 20 × 22 the rate is 3.64: 124 rows of +4 and +2 only, the +2 alternating between the edges and the spine', () => {
     const result = plan(withGauge('sc', 20, 22), { kind: 'triangle', stitch: 'sc', sizeCm: 80 });
     assert.equal(result.counts.length, 124);
     const steps = changes(result.counts);
-    assert.ok(steps.every((step) => step === 2 || step === 4), steps.join(','));
-    near(steps.reduce((sum, step) => sum + step, 0) / steps.length, (4 * 2) / 2.2, 0.02, 'átlag');
-    // Minden +2-es sorban csak az éleken (1-1) vagy csak a gerincen (a két középső szemben) van szaporítás, felváltva.
+    assert.ok(
+      steps.every((step) => step === 2 || step === 4),
+      steps.join(','),
+    );
+    near(steps.reduce((sum, step) => sum + step, 0) / steps.length, (4 * 2) / 2.2, 0.02, 'mean');
+    // Every +2 row increases either on the edges only (one each) or on the spine only (the two centre stitches), alternating.
     const twos = result.layout.rounds.filter((into) => into.reduce((sum, n) => sum + n, 0) - into.length === 2);
     const where = twos.map((into) => (into[0] === 2 ? 'élek' : 'gerinc'));
     assert.ok(where.length > 10);
-    where.forEach((side, i) => i > 0 && assert.notEqual(side, where[i - 1], `${i}. +2-es sor`));
+    where.forEach((side, i) => i > 0 && assert.notEqual(side, where[i - 1], `+2 row ${i}`));
   });
 
-  test('saját, kisebb arány: mélyebb és keskenyebb, a nyakél lefelé hajlik, figyelmeztetés, de a minta elkészül', () => {
-    const { pattern, plan: custom } = shawl(exampleA(), { kind: 'triangle', stitch: 'dc', sizeCm: 80, rate: 'custom', customRate: 6 });
-    assert.deepEqual(custom.warnings.map((warning) => warning.kind), ['narrow']);
-    near(custom.warnings[0].ratio, 0.75, 0.01, 'arány');
+  test('a smaller custom rate: deeper and narrower, the neck edge curves down, a warning is raised but the pattern is still generated', () => {
+    const { pattern, plan: custom } = shawl(exampleA(), {
+      kind: 'triangle',
+      stitch: 'dc',
+      sizeCm: 80,
+      rate: 'custom',
+      customRate: 6,
+    });
+    assert.deepEqual(
+      custom.warnings.map((warning) => warning.kind),
+      ['narrow'],
+    );
+    near(custom.warnings[0].ratio, 0.75, 0.01, 'ratio');
     assert.ok(changes(custom.counts).every((step) => step === 6));
     const sizes = shawlSizes(custom, DEFAULT_SHAWL.blocking);
     assert.ok(sizes.blocked.neckAngleDeg < 180);
-    near(sizes.blocked.spineCm, 80, 1.5, 'a gerinc a megadott mélység');
+    near(sizes.blocked.spineCm, 80, 1.5, 'the spine is the requested depth');
     assert.deepEqual(errors(pattern), []);
-    // Nagyobb arány: laposabb.
-    assert.deepEqual(plan(exampleA(), { kind: 'triangle', stitch: 'dc', sizeCm: 80, rate: 'custom', customRate: 10 }).warnings.map((w) => w.kind), ['wide']);
-    // 15%-on belül nincs figyelmeztetés.
-    assert.deepEqual(plan(exampleA(), { kind: 'triangle', stitch: 'dc', sizeCm: 80, rate: 'custom', customRate: 7.2 }).warnings, []);
+    // A larger rate: flatter.
+    assert.deepEqual(
+      plan(exampleA(), { kind: 'triangle', stitch: 'dc', sizeCm: 80, rate: 'custom', customRate: 10 }).warnings.map(
+        (w) => w.kind,
+      ),
+      ['wide'],
+    );
+    // Within 15% there is no warning.
+    assert.deepEqual(
+      plan(exampleA(), { kind: 'triangle', stitch: 'dc', sizeCm: 80, rate: 'custom', customRate: 7.2 }).warnings,
+      [],
+    );
   });
 
-  test('szárnyak: a második felében a széleken dupla szaporítás, a gerinc változatlan', () => {
+  test('wings: over the second half the edges increase twice as fast, while the spine is unchanged', () => {
     const winged = plan(exampleA(), { kind: 'triangle', stitch: 'dc', sizeCm: 80, wings: true });
     assert.equal(winged.wingsFromRow, 23);
     const steps = changes(winged.counts);
@@ -156,7 +189,7 @@ describe('fentről induló háromszög (05 §1.4)', () => {
     assert.ok(shawlSizes(winged, DEFAULT_SHAWL.blocking).blocked.widthCm >= plain.blocked.widthCm - 1e-9);
   });
 
-  test('az utolsó sor a szegélyhez: félenként 6 többszöröse + 3, az utolsó két sorban legfeljebb +2 félenként', () => {
+  test('the last row adjusts to the edging: a multiple of 6 + 3 per half, changing by at most +2 per half over the last two rows', () => {
     const adjusted = plan(exampleA(), { kind: 'triangle', stitch: 'dc', sizeCm: 80, edging: { width: 6, edge: 3 } });
     const half = adjusted.counts.at(-1) / 2;
     assert.equal((half - 3) % 6, 0);
@@ -168,19 +201,22 @@ describe('fentről induló háromszög (05 §1.4)', () => {
   });
 });
 
-describe('aszimmetrikus háromszög és félhold (05 §1.5, §1.6)', () => {
-  test('aszimmetrikus: soronként h/w szaporítás mindig ugyanazon az élen, kb. 45°', () => {
+describe('asymmetric triangle and crescent (05 §1.5, §1.6)', () => {
+  test('asymmetric: h/w increases per row, always on the same edge, at about 45°', () => {
     const result = plan(withGauge('sc', 20, 22), { kind: 'asymmetric-triangle', stitch: 'sc', sizeCm: 40 });
     near(result.theoryRate, 2 / 2.2, 1e-9, 'h/w');
     result.layout.rounds.forEach((into, i) => {
       const row = i + 2;
       const middle = row % 2 === 0 ? into.slice(2) : into.slice(0, -2);
-      assert.ok(middle.every((n) => n === 1), `${row}. sor: csak a ferde élen`);
+      assert.ok(
+        middle.every((n) => n === 1),
+        `row ${row}: on the sloped edge only`,
+      );
     });
-    near(shawlSizes(result, DEFAULT_SHAWL.blocking).unblocked.tipAngleDeg, 45, 1.5, 'szög');
+    near(shawlSizes(result, DEFAULT_SHAWL.blocking).unblocked.tipAngleDeg, 45, 1.5, 'angle');
   });
 
-  test('félhold: csak a széleken szaporít, a gerincen nem; a nyakél 180°-nál kisebb szögben hajlik', () => {
+  test('crescent: it increases on the edges only, never on the spine, and the neck edge bends to less than 180°', () => {
     const result = plan(withGauge('dc', 16, 8), { kind: 'crescent', stitch: 'dc', sizeCm: 30 });
     assert.equal(result.spineRate, 0);
     for (const into of result.layout.rounds) {
@@ -192,22 +228,58 @@ describe('aszimmetrikus háromszög és félhold (05 §1.5, §1.6)', () => {
   });
 });
 
-describe('félkör, kör és Pi-kendő (05 §1.2, §1.3)', () => {
-  test('félkör Omdahl szerint: pálcával soronként +9, az n-edik sor 9n szem; Inner Child: rövidpálcával +3', () => {
-    const omdahl = plan(withGauge('dc', 16, 8), { kind: 'semicircle', stitch: 'dc', sizeCm: 20, rate: 'custom', customRate: 9 });
-    assert.deepEqual(omdahl.counts, omdahl.counts.map((_, i) => 9 * (i + 1)));
-    const inner = plan(withGauge('sc', 20, 20), { kind: 'semicircle', stitch: 'sc', sizeCm: 5, rate: 'custom', customRate: 3 });
-    assert.deepEqual(inner.counts, inner.counts.map((_, i) => 3 * (i + 1)));
-    // Rövidpálcánál 20 × 20-nál π · h/w = 3,14: a 3 még 15%-on belül.
+describe('semicircle, circle and pi shawl (05 §1.2, §1.3)', () => {
+  test('semicircle the Omdahl way: +9 per row in dc and row n has 9n stitches; Inner Child: +3 in sc', () => {
+    const omdahl = plan(withGauge('dc', 16, 8), {
+      kind: 'semicircle',
+      stitch: 'dc',
+      sizeCm: 20,
+      rate: 'custom',
+      customRate: 9,
+    });
+    assert.deepEqual(
+      omdahl.counts,
+      omdahl.counts.map((_, i) => 9 * (i + 1)),
+    );
+    const inner = plan(withGauge('sc', 20, 20), {
+      kind: 'semicircle',
+      stitch: 'sc',
+      sizeCm: 5,
+      rate: 'custom',
+      customRate: 3,
+    });
+    assert.deepEqual(
+      inner.counts,
+      inner.counts.map((_, i) => 3 * (i + 1)),
+    );
+    // In sc at 20 × 20, π · h/w = 3.14: a rate of 3 is still within 15%.
     near(inner.theoryRate, Math.PI, 1e-9, 'π · h/w');
     assert.deepEqual(inner.warnings, []);
   });
 
-  test('félkör: a szaporítás soronként egyenletesen elosztva; kevés szaporításnál kunkorodás, sok szaporításnál fodrosodás a figyelmeztetés', () => {
-    const cupped = plan(withGauge('dc', 16, 8), { kind: 'semicircle', stitch: 'dc', sizeCm: 20, rate: 'custom', customRate: 4 });
-    assert.deepEqual(cupped.warnings.map((warning) => warning.kind), ['cupping']);
-    const ruffled = plan(withGauge('dc', 16, 8), { kind: 'semicircle', stitch: 'dc', sizeCm: 20, rate: 'custom', customRate: 9 });
-    assert.deepEqual(ruffled.warnings.map((warning) => warning.kind), ['ruffling']);
+  test('semicircle: the increases are spread evenly along the row; too few warns about cupping, too many about ruffling', () => {
+    const cupped = plan(withGauge('dc', 16, 8), {
+      kind: 'semicircle',
+      stitch: 'dc',
+      sizeCm: 20,
+      rate: 'custom',
+      customRate: 4,
+    });
+    assert.deepEqual(
+      cupped.warnings.map((warning) => warning.kind),
+      ['cupping'],
+    );
+    const ruffled = plan(withGauge('dc', 16, 8), {
+      kind: 'semicircle',
+      stitch: 'dc',
+      sizeCm: 20,
+      rate: 'custom',
+      customRate: 9,
+    });
+    assert.deepEqual(
+      ruffled.warnings.map((warning) => warning.kind),
+      ['ruffling'],
+    );
     for (const into of cupped.layout.rounds.slice(4)) {
       const at = into.flatMap((n, i) => (n === 2 ? [i] : []));
       const gaps = at.slice(1).map((i, j) => i - at[j]);
@@ -215,22 +287,28 @@ describe('félkör, kör és Pi-kendő (05 §1.2, §1.3)', () => {
     }
   });
 
-  test('kör körönként: a körös arányból a kerekített szaporítás, a k-adik kör k-szorosa', () => {
+  test('circle worked in rounds: the round rate rounds to a whole increase, and round k is k times it', () => {
     const result = plan(emptyPattern(), { kind: 'circle', stitch: 'sc', sizeCm: 6 });
     assert.equal(result.worked, 'rounds');
     assert.equal(result.chosenRate, 6);
-    assert.deepEqual(result.counts, result.counts.map((_, i) => 6 * (i + 1)));
+    assert.deepEqual(
+      result.counts,
+      result.counts.map((_, i) => 6 * (i + 1)),
+    );
   });
 
-  test('Pi-kendő: duplázás a 2., 4., 8., 16. körben; a duplázás előtt kb. a fele az ideálisnak (05 §1.3 [DERIVED])', () => {
+  test('pi shawl: doubling on rounds 2, 4, 8 and 16, and just before a doubling it sits at about half the ideal (05 §1.3 [DERIVED])', () => {
     assert.deepEqual([...piRounds(false, 40)], [2, 4, 8, 16, 32]);
     const pi = plan(emptyPattern(), { kind: 'pi', stitch: 'sc', sizeCm: 10 });
     assert.deepEqual(pi.counts.slice(0, 16), [6, 12, 12, 24, 24, 24, 24, 48, 48, 48, 48, 48, 48, 48, 48, 96]);
     assert.ok(pi.ratio.min < 0.55, String(pi.ratio.min));
-    assert.deepEqual(pi.warnings.map((warning) => warning.kind), ['pi-blocking']);
+    assert.deepEqual(
+      pi.warnings.map((warning) => warning.kind),
+      ['pi-blocking'],
+    );
   });
 
-  test('eltolt Pi-kendő: duplázás a round(2^k · 0,75). körben, az eltérés kisebb, mint a tiszta Pi-nél', () => {
+  test('shifted pi shawl: doubling on round round(2^k · 0.75), staying closer to the ideal than the plain pi', () => {
     assert.deepEqual([...piRounds(true, 40)], [2, 3, 6, 12, 24]);
     const pure = plan(emptyPattern(), { kind: 'pi', stitch: 'sc', sizeCm: 10 });
     const shifted = plan(emptyPattern(), { kind: 'shifted-pi', stitch: 'sc', sizeCm: 10 });
@@ -239,7 +317,7 @@ describe('félkör, kör és Pi-kendő (05 §1.2, §1.3)', () => {
     assert.ok(shifted.ratio.min > 0.65 && shifted.ratio.max < 1.35, JSON.stringify(shifted.ratio));
   });
 
-  test('az utolsó kör a szegélyhez igazodik, legfeljebb duplázásig', () => {
+  test('the last round adjusts to the edging, by at most a doubling', () => {
     const result = plan(emptyPattern(), { kind: 'circle', stitch: 'sc', sizeCm: 6, edging: { width: 8, edge: 4 } });
     assert.equal((result.counts.at(-1) - 4) % 8, 0);
     assert.ok(Math.abs(result.edging.change) <= 4);
@@ -249,9 +327,15 @@ describe('félkör, kör és Pi-kendő (05 §1.2, §1.3)', () => {
   });
 });
 
-describe('téglalap stóla és méret (05 §1.7, §1.8)', () => {
-  test('a stóla a sík téglalap: soronként ugyanannyi szem, a szélesség a szegély ismétléséhez kerekítve', () => {
-    const { pattern, plan: stole } = shawl(withGauge('dc', 16, 8), { kind: 'stole', stitch: 'dc', sizeCm: 37.5, lengthCm: 50, edging: { width: 6, edge: 2 } });
+describe('rectangular stole and finished size (05 §1.7, §1.8)', () => {
+  test('a stole is a flat rectangle: the same stitch count every row, with the width rounded to the edging repeat', () => {
+    const { pattern, plan: stole } = shawl(withGauge('dc', 16, 8), {
+      kind: 'stole',
+      stitch: 'dc',
+      sizeCm: 37.5,
+      lengthCm: 50,
+      edging: { width: 6, edge: 2 },
+    });
     assert.equal(stole.counts.length, 40);
     assert.ok(stole.counts.every((count) => count === stole.counts[0]));
     assert.ok(stole.edging.repeats > 0);
@@ -260,17 +344,23 @@ describe('téglalap stóla és méret (05 §1.7, §1.8)', () => {
     assert.deepEqual(findings(pattern), []);
   });
 
-  test('blokkolatlan profilnál a blokkolt méret a nyúlással nagyobb; blokkolt profilnál a blokkolatlan kisebb', () => {
-    const unblocked = shawlSizes(plan(withGauge('dc', 16, 8), { kind: 'stole', stitch: 'dc', sizeCm: 40, lengthCm: 100 }), { widthPct: 10, heightPct: 5 });
+  test('from an unblocked profile the blocked size is larger by the stretch, and from a blocked profile the unblocked size is smaller', () => {
+    const unblocked = shawlSizes(
+      plan(withGauge('dc', 16, 8), { kind: 'stole', stitch: 'dc', sizeCm: 40, lengthCm: 100 }),
+      { widthPct: 10, heightPct: 5 },
+    );
     assert.equal(unblocked.measured, 'unblocked');
-    near(unblocked.blocked.widthCm, unblocked.unblocked.widthCm * 1.1, 1e-9, 'szélesség');
-    near(unblocked.blocked.depthCm, unblocked.unblocked.depthCm * 1.05, 1e-9, 'hossz');
-    const blocked = shawlSizes(plan(withGauge('dc', 16, 8, { blocked: true }), { kind: 'stole', stitch: 'dc', sizeCm: 40, lengthCm: 100 }), { widthPct: 10, heightPct: 5 });
+    near(unblocked.blocked.widthCm, unblocked.unblocked.widthCm * 1.1, 1e-9, 'width');
+    near(unblocked.blocked.depthCm, unblocked.unblocked.depthCm * 1.05, 1e-9, 'length');
+    const blocked = shawlSizes(
+      plan(withGauge('dc', 16, 8, { blocked: true }), { kind: 'stole', stitch: 'dc', sizeCm: 40, lengthCm: 100 }),
+      { widthPct: 10, heightPct: 5 },
+    );
     assert.equal(blocked.measured, 'blocked');
-    near(blocked.unblocked.widthCm, blocked.blocked.widthCm / 1.1, 1e-9, 'szélesség');
+    near(blocked.unblocked.widthCm, blocked.blocked.widthCm / 1.1, 1e-9, 'width');
   });
 
-  test('profil nélkül becslés; a cím az alapértelmezett és a generátor adta helyett a kendő neve, a saját cím marad', () => {
+  test('without a profile the gauge is estimated; the shawl name replaces the default title and an earlier generated one, but a user-given title is kept', () => {
     assert.equal(plan(emptyPattern(), {}).gauge.source, 'estimated');
     assert.equal(shawl(emptyPattern(), { sizeCm: 10 }).pattern.title, 'Fentről induló háromszög');
     assert.equal(shawl(emptyPattern('Téglalap'), { kind: 'semicircle', sizeCm: 10 }).pattern.title, 'Félkör');
@@ -278,31 +368,40 @@ describe('téglalap stóla és méret (05 §1.7, §1.8)', () => {
   });
 });
 
-describe('a választások ellenőrzése', () => {
-  test('méret, arány, ismétlés és nyúlás tartományban; érthető kód és adat (PQW-904)', () => {
+describe('validating the options', () => {
+  test('size, rate, edging repeat and stretch must stay in range, with a readable code and data (PQW-904)', () => {
     assert.equal(shawlProblem(DEFAULT_SHAWL), null);
     assert.equal(shawlProblem(options({ stitch: 'sc2tog' })).code, 'shawl-basic-stitch-only');
-    assert.deepEqual(shawlProblem(options({ sizeCm: Number.NaN })), { code: 'shawl-size-range', data: { max: MAX_SHAWL_CM } });
+    assert.deepEqual(shawlProblem(options({ sizeCm: Number.NaN })), {
+      code: 'shawl-size-range',
+      data: { max: MAX_SHAWL_CM },
+    });
     assert.equal(shawlProblem(options({ kind: 'stole', lengthCm: 0 })).code, 'shawl-length-range');
     assert.equal(shawlProblem(options({ rate: 'custom', customRate: 0 })).code, 'shawl-rate-range');
     assert.equal(shawlProblem(options({ edging: { width: 0, edge: 1 } })).code, 'shawl-edging-width-range');
-    assert.equal(shawlProblem(options({ blocking: { widthPct: Number.NaN, heightPct: 5 } })).code, 'shawl-blocking-range');
+    assert.equal(
+      shawlProblem(options({ blocking: { widthPct: Number.NaN, heightPct: 5 } })).code,
+      'shawl-blocking-range',
+    );
     const refuse = (patch) => {
       const result = planShawl(emptyPattern(), options(patch));
       assert.equal(result.ok, false);
       return result.reason;
     };
     assert.equal(refuse({ sizeCm: 0.5 }).code, 'shawl-min-rows-depth');
-    // A szemszám határa az adatban jön, nem a mondatban.
+    // The stitch-count limit travels in the data, not in a sentence.
     assert.deepEqual(refuse({ kind: 'semicircle', rate: 'custom', customRate: 20 }), {
       code: 'shawl-first-row-into-one',
       data: { max: MAX_INTO_ONE },
     });
-    assert.ok(/^shawl-max-/.test(refuse({ kind: 'pi', stitch: 'sc', sizeCm: 300 }).code), refuse({ kind: 'pi', stitch: 'sc', sizeCm: 300 }).code);
+    assert.ok(
+      /^shawl-max-/.test(refuse({ kind: 'pi', stitch: 'sc', sizeCm: 300 }).code),
+      refuse({ kind: 'pi', stitch: 'sc', sizeCm: 300 }).code,
+    );
   });
 
-  test('a sor és a kör szava nincs a magban: az adatban `shape` áll (PQW-904)', () => {
-    // Ahol a mondat sort vagy kört mond, ott a mag a nyers `shape`-et adja, a szó a szótáré.
+  test('the words for row and round stay out of the core: the data carries `shape` instead (PQW-904)', () => {
+    // Where the sentence says row or round, the core gives the raw `shape` and the dictionary supplies the word.
     const withShape = ['shawl-min-rows', 'shawl-max-rows', 'shawl-max-stitches'];
     for (const patch of [
       { kind: 'circle', stitch: 'sc', sizeCm: 300 },
@@ -314,24 +413,30 @@ describe('a választások ellenőrzése', () => {
       if (withShape.includes(result.reason.code)) {
         assert.ok(['row', 'round'].includes(result.reason.data.shape), why(result));
       }
-      // Magyar mondatdarab nem kerülhet a magból jövő üzenetbe.
+      // No Hungarian sentence fragment may reach a message coming out of the core.
       assert.doesNotMatch(JSON.stringify(result.reason), /sor|kör/, why(result));
     }
   });
 });
 
-describe('minden generált kendő hibátlan, kiírható és visszaolvasható', () => {
-  // A számító fordulólánc minden szemnél, rövidpálcánál is: a láncalapos kezdés javítása (PQW-891) után ez a rövidpálca szabálya.
-  const counting = () => ({ ...emptyPattern(), conventions: { ...emptyPattern().conventions, turningChainCounts: true } });
+describe('every generated shawl validates cleanly, writes out and reads back', () => {
+  // A counting turning chain on every stitch, single crochet included: after the foundation-chain fix (PQW-891) that is the rule for sc.
+  const counting = () => ({
+    ...emptyPattern(),
+    conventions: { ...emptyPattern().conventions, turningChainCounts: true },
+  });
   for (const [tradition, base] of [
     ['CYC', emptyPattern],
-    ['japán', japanese],
-    ['számító fordulóláncú', counting],
+    ['Japanese', japanese],
+    ['counting turning chain', counting],
   ]) {
     for (const kind of SHAWL_KINDS) {
-      test(`${kind}, ${tradition} hagyomány: minden szemmel, elméleti és saját aránnyal, szegélyhez igazítva`, () => {
+      test(`${kind}, ${tradition} tradition: every stitch, theoretical and custom rate, adjusted to the edging`, () => {
         for (const stitch of SHAWL_STITCHES) {
-          for (const patch of [{ sizeCm: 12 }, { sizeCm: 6, rate: 'custom', customRate: 5, wings: true, edging: { width: 4, edge: 1 } }]) {
+          for (const patch of [
+            { sizeCm: 12 },
+            { sizeCm: 6, rate: 'custom', customRate: 5, wings: true, edging: { width: 4, edge: 1 } },
+          ]) {
             const name = `${stitch} ${JSON.stringify(patch)}`;
             const result = generateShawl(base(), options({ kind, stitch, lengthCm: 8, ...patch }));
             if (!result.ok) {
@@ -340,10 +445,18 @@ describe('minden generált kendő hibátlan, kiírható és visszaolvasható', (
             }
             const { pattern, plan } = result;
             assert.deepEqual(errors(pattern), [], name);
-            if (kind === 'triangle' || kind === 'crescent') assert.ok(changes(plan.counts).every((step) => step % 2 === 0), `${name}: páros változás`);
+            if (kind === 'triangle' || kind === 'crescent')
+              assert.ok(
+                changes(plan.counts).every((step) => step % 2 === 0),
+                `${name}: even steps`,
+              );
             const library = libraryFor(pattern);
             for (const locale of ['hu', 'en-US']) {
-              const back = readPattern(formatWrittenPattern(writePattern(pattern, library, locale)), { library, locale, conventions: pattern.conventions });
+              const back = readPattern(formatWrittenPattern(writePattern(pattern, library, locale)), {
+                library,
+                locale,
+                conventions: pattern.conventions,
+              });
               assert.ok(back.ok, `${name} ${locale}: ${JSON.stringify(back.error)}`);
               sameGraph(back.pattern, pattern);
             }

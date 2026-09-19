@@ -1,51 +1,31 @@
 /*
- * Az állapotsor, a párbeszédablakok és a menüsor üzenetei (main.ts), PQW-900.
+ * The status line, the dialogs and the toolbar (main.ts), PQW-900. A Hungarian
+ * sentence holds the place of a stitch name in a single substitution, so
+ * main.ts can give the name its own `lang` attribute.
  *
- * - A magyar értékek betűre azonosak a korábbi, a main.ts-be írt szövegekkel:
- *   a magyar felület egyetlen karakterrel sem változik.
- * - A paraméteres mondatok függvények, a fix mondatok sztringek. A magyar
- *   mondatokban a szemnév helye mindig egyetlen behelyettesítés, hogy a main.ts
- *   a szemnevet saját `lang` attribútummal tudja kitenni (PQW-853).
- * - Angolul horgolós szakszóval: stitch, row, round, chain, turning chain,
- *   increase, target, selection.
- *
- * DOM nélküli, ezért a Node is futtatja, és a testvérmodulokat `.ts`
- * kiterjesztéssel importálja (mint a notation.ts).
+ * KB: dictionaries.md §1, §2, §5, interface.md §3
  */
 
 import type { LayerCount } from '../../core/selection.ts';
 import type { Dictionary } from '../i18n.ts';
 import { enLayerCounts, huLayerCounts } from './core/layer-counts.ts';
 
-/** Angol többes szám a szemekre: „1 stitch”, „12 stitches”. */
 const stitches = (count: number): string => `${count} ${count === 1 ? 'stitch' : 'stitches'}`;
 
-/** Angol többes szám a láncszemekre. */
 const chains = (count: number): string => `${count} ${count === 1 ? 'chain' : 'chains'}`;
 
 const hu = {
-  /* ---- Tárolás, betöltés, mentés ---- */
   storage: {
-    /** A böngészőben mentett minta nem olvasható vissza. */
     broken: 'A böngészőben mentett minta nem tölthető be, ezért új minta indult.',
     saveFailed: 'A mintát nem sikerült a böngészőbe menteni; JSON-ként mentsd le.',
   },
 
-  /* ---- Sor és kör ---- */
   layer: {
-    /**
-     * A sor vagy kör neve: „3. sor”, „Row 3”.
-     *
-     * A láncalap az 1. sor (PQW-923), ezért sorokban a kiírt szám a réteg
-     * indexénél eggyel nagyobb — így az állapotsor, a rajz felirata és az írott
-     * minta ugyanarra a sorra ugyanazt a számot mondja. Körben változatlan.
-     */
+    /** In rows the printed number is one higher than the layer index. KB: interface.md §33 */
     name: (index: number, round: boolean): string => `${index + (round ? 0 : 1)}. ${round ? 'kör' : 'sor'}`,
-    /** Hány sor vagy kör van kész. */
     count: (count: number, round: boolean): string => `${count} ${round ? 'kör' : 'sor'}`,
   },
 
-  /* ---- Haladás az állapotsorban ---- */
   progress: {
     next: (layer: string): string => `${layer} következik.`,
     current: (layer: string, count: number, rest: string): string => `${layer}: ${count} szem${rest}.`,
@@ -54,7 +34,6 @@ const hu = {
     closeHint: ' A kör végén zárd a kört (Alt+K).',
   },
 
-  /* ---- Célpont a kurzor alatt ---- */
   target: {
     rowEnd: 'A sor végén vagy: nincs több célpont.',
     none: 'Nincs célpont.',
@@ -66,39 +45,33 @@ const hu = {
     at: (index: number, total: number, what: string, used: string): string => `Célpont: ${index}/${total}, ${what}${used}.`,
   },
 
-  /* ---- Összefoglaló a hibalista tetején ---- */
   summary: {
     empty: 'Üres minta: kezdd láncalappal (Láncszem) vagy varázskörrel.',
     clean: 'Nincs hiba és figyelmeztetés.',
     counts: (errors: number, warnings: number): string => `${errors} hiba, ${warnings} figyelmeztetés.`,
   },
 
-  /* ---- A menüsor hibaszámlálója ---- */
   errorBar: {
     none: 'Nincs hiba',
     errors: (count: number): string => `${count} hiba`,
     warnings: (count: number): string => `${count} figyelmeztetés`,
   },
 
-  /* ---- A hibalista tételei ---- */
   findings: {
     error: 'Hiba: ',
     warning: 'Figyelmeztetés: ',
     nodes: (count: number): string => ` · ${count} szem`,
     /*
-     * A „Részletek” lenyíló és benne a tudásbázis-hivatkozás kikerült
-     * (PQW-930): „a végfelhasználónak fogalma sincs a tudásbázisról és
-     * egyébként nem is érdekli”. A hivatkozás a `RULES`-ban megmarad.
+     * There is no „Részletek” disclosure and no knowledge-base reference here:
+     * both were removed in PQW-930. KB: decisions.md §3
      */
     marked: 'A találat szemei megjelölve a mintán.',
   },
 
-  /* ---- Az igazítás panel ---- */
   adjust: {
     pinned: ', kézzel igazítva',
   },
 
-  /* ---- A jelkészlet súgója ---- */
   hint: {
     none: 'Válassz szemet. Szem nélkül kattintással szemet jelölsz ki (Shift-tel többet, a sorszámmal a teljes sort), és törölheted, duplikálhatod vagy igazíthatod.',
     chain: (name: string): string => `${name}: Enterrel vagy a vászonra kattintva horgolod, a megadott számú láncszemmel.`,
@@ -106,7 +79,6 @@ const hu = {
     targeted: (name: string): string => `${name}: nyilakkal választod a célpontot, Enterrel vagy kattintással horgolsz bele.`,
   },
 
-  /* ---- Írott minta ---- */
   written: {
     copied: 'Az írott minta a vágólapra került.',
     copyFailed: 'A másolás nem sikerült; a szöveg ki van jelölve, Ctrl+C-vel másolhatod.',
@@ -117,15 +89,13 @@ const hu = {
     fullscreen: 'Az írott minta a teljes munkaterületen.',
   },
 
-  /* ---- Jelölés, jelstílus, előbeállítás ---- */
   notation: {
     terms: (label: string): string => `Jelölés: ${label}.`,
     chartStyle: (label: string): string => `Jelstílus: ${label}.`,
-    /* A rövidpálca jelét nem választja a felhasználó (PQW-929), ezért nincs róla visszajelzés. */
+    /* The user does not choose the single crochet symbol (PQW-929), so nothing reports it. KB: decisions.md §4 */
     tradition: (label: string): string => `Előbeállítás: ${label}. A jelek és a számolás is ezt követik.`,
   },
 
-  /* ---- Horgolás és szerkesztés ---- */
   work: {
     needStitch: 'Előbb válassz szemet a jelkészletből (Alt+1–9).',
     needStitchShort: 'Előbb válassz szemet.',
@@ -148,21 +118,19 @@ const hu = {
     redo: 'Újra.',
     nudged: 'Jel eltolva.',
     unpinned: 'A jel a számolt helyére került.',
-    /* Az új minta nem üzenget (PQW-929): felesleges információ volt. */
+    /* A new pattern announces nothing (PQW-929). KB: decisions.md §4 */
     titleChanged: 'A minta neve módosult.',
   },
 
-  /* ---- Párbeszédablakok ---- */
   dialog: {
-    /* A szaporítás és a pótlás nem kérdez (PQW-931, PQW-932): csak a törlés marad. */
+    /* Only deleting asks; increasing and filling in do not (PQW-931, PQW-932). KB: decisions.md §4 */
     deleteQuestion: (selected: number, dependents: number, where: readonly LayerCount[]): string =>
       `A kijelölt ${selected} szembe még ${dependents} szem horgol: ${huLayerCounts(where, dependents)}. Velük együtt törlöd?`,
     deleteConfirm: 'Törlés velük együtt',
-    /** A törlés párbeszédének elutasító gombja; a többi párbeszédé a dialog.ts alapértelmezése. */
+    /** The cancel button of the delete dialog; every other dialog takes dialog.ts's default. */
     cancel: 'Megszakítás',
   },
 
-  /* ---- Nézet ---- */
   view: {
     gridOn: 'Rács bekapcsolva.',
     gridOff: 'Rács kikapcsolva.',
@@ -170,9 +138,7 @@ const hu = {
     aspectOff: 'Arányhelyes nézet kikapcsolva.',
   },
 
-  /* ---- Export és import ---- */
   file: {
-    /** Cím nélküli minta fájlneve. */
     fallbackName: 'minta',
     jsonSaved: 'JSON mentve.',
     svgSaved: 'SVG mentve.',
@@ -185,10 +151,8 @@ const hu = {
     loaded: (note: string): string => `Minta betöltve; visszavonással a korábbi visszajön.${note}`,
   },
 
-  /* ---- Kijelölés, törlés, vágólap ---- */
   selection: {
     none: 'Nincs kijelölt szem.',
-    /** A fókuszban lévő szem neve a kijelölés leírása előtt. */
     focus: (name: string): string => `${name}. `,
     count: (count: number, where: readonly LayerCount[]): string => `Kijelölve: ${count} szem (${huLayerCounts(where, count)}).`,
     layer: (layer: string, count: number): string => `${layer} kijelölve: ${count} szem.`,
@@ -209,12 +173,10 @@ const hu = {
     emptyPattern: 'A minta üres: nincs mit kijelölni.',
   },
 
-  /* ---- Mintatípus (bal oldali menü); a típusok nevei a sections.ts-ben ---- */
   types: {
     selected: (name: string, detail: string): string => `Mintatípus: ${name}. ${detail}`,
   },
 
-  /* ---- A felület nyelve ---- */
   language: {
     changed: 'A felület nyelve magyar.',
   },

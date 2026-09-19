@@ -1,20 +1,21 @@
 /*
- * Rácsos technikák, második rész (PQW-894): mozaik egy kihagyással hibátlan, az
- * írott minta a lejjebb horgolt szemet jelöli, az SVG-export a talpát; filé a
- * sor eleji fogyasztással és a sor végi szaporítással hibátlan; kép betöltése
- * a rácsba a mintasűrűség arányában.
+ * Grid-based techniques, part two (PQW-894): mosaic with one skip is error-free,
+ * the written pattern marks the stitch worked lower down and the SVG export
+ * marks its base; filet with the decrease at the start of the row and the
+ * increase at the end of the row is error-free; loading an image into the grid
+ * in proportion to the gauge.
  */
 
 import { readFile } from 'node:fs/promises';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 /*
- * PQW-925: a filéhorgolás mintatípus és a Rácsminta szakasz az átvételi
- * tesztelés első körében ki van kapcsolva. NEM töröljük a teszteket: a típus
- * visszakapcsolásakor ez az egy blokk kerül ki.
+ * The filet crochet pattern type is switched off for the first round of
+ * acceptance testing (KB: owner-decisions.md §13). We do NOT delete the tests:
+ * when the type is switched back on, this single block is what goes away.
  */
 test.beforeEach(() => {
-  test.skip(true, 'PQW-925: a filéhorgolás mintatípus ideiglenesen kikapcsolva');
+  test.skip(true, 'PQW-925: the filet crochet pattern type is temporarily switched off');
 });
 
 async function open(page: Page): Promise<void> {
@@ -47,7 +48,9 @@ async function writtenText(page: Page): Promise<string> {
 
 const cell = (page: Page, x: number, y: number) => page.locator(`#grid-board [data-x="${x}"][data-y="${y}"]`);
 
-test('mozaik egy kihagyással: hibátlan, az írott minta a lejjebb horgolt szemet, az SVG a talpát jelöli', async ({ page }) => {
+test('mosaic with one skip: error-free, the written pattern marks the stitch worked lower down, the SVG marks its base', async ({
+  page,
+}) => {
   await open(page);
   const section = await openGrid(page);
   await page.locator('#grid-technique').selectOption({ label: 'Mozaik' });
@@ -55,10 +58,12 @@ test('mozaik egy kihagyással: hibátlan, az írott minta a lejjebb horgolt szem
   await setSize(page, 5, 4);
   await expect(page.locator('#grid-board [role="gridcell"]')).toHaveCount(20);
 
-  // A 2. sor közepén A színű cella: ott kihagyás, a 3. sorban fölötte lejjebb horgolt pálca.
+  // A cell of colour A in the middle of row 2: a skip there, and above it in row 3 a double crochet worked lower down.
   await section.getByRole('radio', { name: 'A: Natúr' }).check();
   await cell(page, 2, 1).click();
-  await expect(page.locator('#grid-details')).toContainText('Egysoros mozaik: a lejjebb horgolt szem egyráhajtásos pálca 2 sorral lejjebb, összesen 1.');
+  await expect(page.locator('#grid-details')).toContainText(
+    'Egysoros mozaik: a lejjebb horgolt szem egyráhajtásos pálca 2 sorral lejjebb, összesen 1.',
+  );
 
   await section.getByRole('button', { name: 'Minta létrehozása' }).click();
   await expect(page.locator('#status')).toContainText('Mozaik: 4 sor elkészült');
@@ -66,7 +71,7 @@ test('mozaik egy kihagyással: hibátlan, az írott minta a lejjebb horgolt szem
   expect(await writtenText(page)).toContain('1 erp 2 sorral lejjebb');
 
   const download = page.waitForEvent('download');
-  // Az export a fájlműveletek lenyílójában van (PQW-911).
+  // The export is in the file actions dropdown (PQW-911).
   await page.locator('#file-toggle').click();
   await page.getByRole('button', { name: 'SVG', exact: true }).click();
   const svg = await readFile((await (await download).path())!, 'utf8');
@@ -74,13 +79,15 @@ test('mozaik egy kihagyással: hibátlan, az írott minta a lejjebb horgolt szem
   expect(svg).toContain('Pötty a szár végén');
 });
 
-test('alakított filé: a sor eleji fogyasztás és a sor végi szaporítás hibátlan, az írott minta kiírja', async ({ page }) => {
+test('shaped filet: the decrease at the start of the row and the increase at the end of the row are error-free, and the written pattern spells them out', async ({
+  page,
+}) => {
   await open(page);
   await page.locator('.type[data-type="filet"]').click();
   const section = await openGrid(page);
   await setSize(page, 4, 3);
 
-  // Az 1. és a 3. sor jobb szélén nincs cella: a 2. sor végén új nyitott cella, a 3. sor elején fogyasztás.
+  // There is no cell at the right edge of rows 1 and 3: a new open cell at the end of row 2, a decrease at the start of row 3.
   await section.getByRole('radio', { name: 'Nincs cella (alakítás)' }).check();
   await cell(page, 3, 0).click();
   await cell(page, 3, 2).click();
@@ -91,18 +98,20 @@ test('alakított filé: a sor eleji fogyasztás és a sor végi szaporítás hib
   await expect(page.locator('#status')).toContainText('Filé: 3 sor elkészült');
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
   const text = await writtenText(page);
-  // A sor végi szélesítés láncból épül (03 §5.2, PQW-924), a fogyasztásnál a fordulólánc nem ül oszlopon.
+  // The widening at the end of the row is built from chain (03 §5.2, PQW-924); at the decrease the turning chain does not sit on a column.
   expect(text).toMatch(/3\. sor: .*, 3 lsz \(\d+ szem\)/);
   expect(text).toMatch(/4\. sor: 3 ksz, 3 lsz/);
 });
 
-test('kép betöltése: a rács a megadott szélességű, a kép sötét fele teli cella', async ({ page }) => {
+test('loading an image: the grid has the given width, and the dark half of the image is filled cells', async ({
+  page,
+}) => {
   await open(page);
   await page.locator('.type[data-type="filet"]').click();
   await openGrid(page);
   await setSize(page, 10, 8);
 
-  // 40 × 20 képpontos kép a böngészőben rajzolva: bal fele fekete, jobb fele fehér.
+  // A 40 × 20 pixel image drawn in the browser: its left half black, its right half white.
   const dataUrl = await page.evaluate(() => {
     const canvas = document.createElement('canvas');
     canvas.width = 40;

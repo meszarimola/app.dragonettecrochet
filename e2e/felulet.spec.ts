@@ -1,10 +1,11 @@
 /*
- * A szerkesztő átszervezett felülete (PQW-873): bal oldali mintatípus-menü,
- * ikonos menüsor, szemválasztó a jobb oldali panelen (PQW-882), a menüsorban hibaszámláló, és az
- * írott minta a vászon alján lenyitható panelben.
+ * The reorganised interface of the editor (PQW-873): pattern type menu on the
+ * left, icon menu bar, stitch chooser on the right-hand panel (PQW-882), an
+ * error counter in the menu bar, and the written pattern in a panel that opens
+ * at the bottom of the canvas.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
@@ -12,7 +13,9 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
-test('mintatípus: az UAT első körében csak a szabályos aktív, a többi „hamarosan” és inaktív (PQW-925)', async ({ page }) => {
+test('pattern type: regular and irregular crochet are selectable, the rest are „hamarosan” and inactive (PQW-925, PQW-963)', async ({
+  page,
+}) => {
   await open(page);
 
   const regular = page.getByRole('button', { name: /Szabályos horgolás/ });
@@ -20,26 +23,30 @@ test('mintatípus: az UAT első körében csak a szabályos aktív, a többi „
   await expect(regular).toHaveAttribute('aria-pressed', 'true');
   await expect(regular).not.toContainText('Hamarosan');
 
-  // A filé és az amigurumi ideiglenesen kikapcsolva; a szabálytalan a saját jegyére vár.
-  for (const name of ['Filéhorgolás', 'Amigurumi', 'Szabálytalan horgolás']) {
+  const irregular = page.getByRole('button', { name: /Szabálytalan horgolás/ });
+  await expect(irregular).toBeEnabled();
+  await expect(irregular).not.toContainText('Hamarosan');
+
+  // Filet and amigurumi are temporarily switched off.
+  for (const name of ['Filéhorgolás', 'Amigurumi']) {
     const item = page.getByRole('button', { name: new RegExp(name) });
     await expect(item).toBeDisabled();
     await expect(item).toContainText('Hamarosan');
   }
 });
 
-test('a kikapcsolt horgolásfajták szakaszai nem látszanak a panelen (PQW-925)', async ({ page }) => {
+test('the sections of the switched-off crochet kinds are not visible in the panel (PQW-925)', async ({ page }) => {
   await open(page);
 
-  // A panelt meg sem építjük kikapcsolt típusnál: a szakasz rejtett.
+  // We do not even build the panel for a switched-off type: the section is hidden.
   await expect(page.locator('#section-grid')).toBeHidden();
   await expect(page.locator('#section-amigurumi')).toBeHidden();
-  // A szabályos horgolás szakaszai a helyükön vannak.
+  // The sections of regular crochet are in their places.
   await expect(page.locator('#section-rounds')).toBeAttached();
   await expect(page.locator('#section-shape')).toBeAttached();
 });
 
-test('a nagymama-négyzet a motívumválasztóban nem választható, jelöléssel (PQW-925)', async ({ page }) => {
+test('the granny square cannot be chosen in the motif chooser, and is marked as such (PQW-925)', async ({ page }) => {
   await open(page);
 
   await page.locator('#section-rounds').click();
@@ -49,40 +56,42 @@ test('a nagymama-négyzet a motívumválasztóban nem választható, jelölésse
 });
 
 /*
- * A tulajdonos döntése (PQW-929): „a rövidpálca jele legyen a + jel. ne az x”.
- * A jel mostantól a jelstílusból következik, ezért a választás kikerült — egy
- * korábbi „×” a böngésző tárolójából sem jöhet vissza. A jel geometriáját az
- * egységtesztek mérik (tests/ui-symbols.test.mjs), itt a felület a tárgy.
+ * The symbol of the single crochet follows from the symbol style, so the choice
+ * was removed — an earlier „×” cannot come back from the browser storage either.
+ * The geometry of the symbol is measured by the unit tests
+ * (tests/ui-symbols.test.mjs); here the interface is the subject.
+ *
+ * KB: owner-decisions.md §2
  */
-test('a rövidpálca jele nem választható külön (PQW-929)', async ({ page }) => {
+test('the single crochet symbol cannot be chosen separately (PQW-929)', async ({ page }) => {
   await open(page);
 
   await page.locator('#section-notation').click();
-  await expect(page.locator('#sc-mark'), 'a + / × választás kikerült').toHaveCount(0);
-  await expect(page.locator('#sc-mark-jis'), 'a hozzá tartozó jegyzet is').toHaveCount(0);
-  // A jelstílus viszont továbbra is választható: abból jön a jel.
+  await expect(page.locator('#sc-mark'), 'the + / × choice was removed').toHaveCount(0);
+  await expect(page.locator('#sc-mark-jis'), 'and its note as well').toHaveCount(0);
+  // The symbol style, however, can still be chosen: the symbol comes from that.
   await expect(page.locator('#chart-style')).toBeVisible();
 });
 
-test('szemválasztás a jobb oldali panelből, majd horgolás', async ({ page }) => {
+test('choosing a stitch from the right-hand panel, then crocheting', async ({ page }) => {
   await open(page);
 
   const palette = page.locator('#palette');
   await expect(palette).toBeVisible();
 
-  // Láncszem kiválasztása a panel listájából.
+  // Choosing a chain stitch from the list of the panel.
   const chain = palette.getByRole('button', { name: /Láncszem/ }).first();
   await chain.click();
   await expect(chain).toHaveAttribute('aria-pressed', 'true');
 
-  // Láncalap a megadott számú láncszemmel.
+  // Foundation chain with the given number of chain stitches.
   await page.locator('#chain-count').focus();
   await page.keyboard.press('ControlOrMeta+A');
   await page.keyboard.type('8');
   await page.locator('#board').focus();
   await page.keyboard.press('Enter');
 
-  // Rövidpálcás sor, szintén a panelből választva.
+  // Single crochet row, also chosen from the panel.
   const sc = palette.getByRole('button', { name: /Rövidpálca \(rp\)/ }).first();
   await sc.click();
   await expect(sc).toHaveAttribute('aria-pressed', 'true');
@@ -93,7 +102,7 @@ test('szemválasztás a jobb oldali panelből, majd horgolás', async ({ page })
   await expect(page.locator('#summary')).toContainText('7 szem.');
 });
 
-test('a hibaszámláló a menüsorban legördíti az ellenőrzés listáját', async ({ page }) => {
+test('the error counter in the menu bar drops down the list of findings', async ({ page }) => {
   await open(page);
 
   const errorToggle = page.locator('#error-toggle');
@@ -107,23 +116,23 @@ test('a hibaszámláló a menüsorban legördíti az ellenőrzés listáját', a
   await expect(errors).toBeVisible();
   await expect(errors.locator('#summary')).toContainText('Üres minta');
 
-  // Escape bezárja a legördülőt.
+  // Escape closes the dropdown.
   await page.locator('#board').focus();
   await page.keyboard.press('Escape');
   await expect(errors).toBeHidden();
 });
 
-test('az írott minta a vászon alján, lenyitható panelben', async ({ page }) => {
+test('the written pattern at the bottom of the canvas, in a panel that opens', async ({ page }) => {
   await open(page);
 
   const written = page.locator('#written');
   const writtenToggle = page.getByRole('button', { name: 'Írott minta' });
 
-  // A panel csukva indul (PQW-911): induláskor a vászon szabad.
+  // The panel starts closed (PQW-911): at startup the canvas is free.
   await expect(written).toBeHidden();
   await expect(writtenToggle).toHaveAttribute('aria-expanded', 'false');
 
-  // Kinyitva a stage alján áll.
+  // Opened, it sits at the bottom of the stage.
   await writtenToggle.click();
   await expect(written).toBeVisible();
   const stageBox = await page.locator('.stage').boundingBox();

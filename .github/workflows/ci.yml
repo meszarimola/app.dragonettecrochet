@@ -5,21 +5,21 @@ on:
     branches: [main, develop]
   pull_request:
 
-# Egy ágon egyszerre egy futás elég; egy új push szakítsa félbe a régit.
+# One run per ref is enough; a new push cancels the one in flight.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
-    name: Build és tesztek
+    name: Build and tests
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      # A tesztek a TypeScriptet a Node beépített típuseltávolításával
-      # futtatják; ez a 22.18-tól alapértelmezett (package.json engines).
+      # The tests run TypeScript through Node's built-in type stripping,
+      # default since 22.18 (see the engines field).
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -27,19 +27,26 @@ jobs:
 
       - run: npm ci
 
-      # Két kör: az egész src/ a DOM-mal, és a src/core/ DOM nélkül.
-      - name: Típusellenőrzés
+      # Before the type check so a formatting or lint failure reports in about a
+      # second instead of after a full tsc pass. Reuses the install above; a
+      # separate job would pay for another npm ci and could extend the wall clock,
+      # which the e2e job already owns.
+      - name: Lint and formatting
+        run: npx biome ci .
+
+      # Two passes: all of src/ with the DOM, then src/core/ without it.
+      - name: Type check
         run: npm run check
 
       - name: Build
         run: npm run build
 
-      # A build után: az analitika-teszt a buildelt dist/index.html-t is nézi.
+      # After the build: the analytics test reads the built dist/index.html.
       - name: Tesztek
         run: npm test
 
   e2e:
-    name: Böngészős tesztek
+    name: Browser tests
     runs-on: ubuntu-latest
 
     steps:
@@ -52,14 +59,14 @@ jobs:
 
       - run: npm ci
 
-      - name: Chromium telepítése
+      - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
       # Buildel, majd a buildelt kimenetet a 5181-es porton teszteli.
-      - name: Böngészős tesztek
+      - name: Browser tests
         run: npm run test:e2e
 
-      - name: Nyomkövetés hibánál
+      - name: Trace on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:

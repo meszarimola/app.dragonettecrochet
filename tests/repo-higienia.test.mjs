@@ -1,22 +1,22 @@
 /*
- * A repó higiéniája: ne kerüljön a verziókezelésbe szimbolikus link (PQW-910).
+ * Repo hygiene: no symbolic link may enter version control (PQW-910).
  *
- * Előzmény: a `node_modules` linkként be volt commitolva, mert a `.gitignore`
- * `node_modules/` sora a záró perjel miatt csak könyvtárra illeszkedett. A
- * követett link miatt a git ág- és worktree-műveleteknél nyúlt ehhez az
- * útvonalhoz: a worktree törlése elvitte a főmásolat függőségeit, és utána
- * minden npm parancs néma hibával hasalt el.
+ * Background: `node_modules` had been committed as a link, because the
+ * `node_modules/` line of `.gitignore` matched only a directory thanks to its
+ * trailing slash. Git branch and worktree operations then reached through the
+ * tracked link: deleting a worktree took the main checkout's dependencies with
+ * it, and every npm command afterwards failed silently.
  *
- * A gitben a szimbolikus link módja `120000`. Ez a teszt a git indexéből
- * dolgozik, nem a lemezről, ezért azt is megfogja, ha a link a fájlrendszeren
- * időközben mássá vált.
+ * A symbolic link has mode `120000` in git. This test works from the git index
+ * rather than from disk, so it also catches a link that has meanwhile turned
+ * into something else on the file system.
  */
 
-import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { test } from 'node:test';
 
-/** A követett fájlok módja és útvonala a git indexéből. */
+/** Mode and path of every tracked file, read from the git index. */
 function trackedFiles() {
   const out = execFileSync('git', ['ls-files', '--stage'], { encoding: 'utf8' });
   return out
@@ -28,20 +28,22 @@ function trackedFiles() {
     });
 }
 
-test('a verziókezelésben nincs szimbolikus link', () => {
+test('version control holds no symbolic link', () => {
   const links = trackedFiles()
     .filter((file) => file.mode === '120000')
     .map((file) => file.path);
-  assert.deepEqual(links, [], `szimbolikus link a repóban: ${links.join(', ')}`);
+  assert.deepEqual(links, [], `symbolic link in the repo: ${links.join(', ')}`);
 });
 
-test('a node_modules nincs követve', () => {
-  const tracked = trackedFiles().filter((file) => file.path === 'node_modules' || file.path.startsWith('node_modules/'));
-  assert.equal(tracked.length, 0, `követett node_modules: ${tracked.map((file) => file.path).join(', ')}`);
+test('node_modules is not tracked', () => {
+  const tracked = trackedFiles().filter(
+    (file) => file.path === 'node_modules' || file.path.startsWith('node_modules/'),
+  );
+  assert.equal(tracked.length, 0, `tracked node_modules: ${tracked.map((file) => file.path).join(', ')}`);
 });
 
-test('a .gitignore a node_modules mindkét alakját kizárja', () => {
-  // Perjel nélkül a minta könyvtárra és linkre is illeszkedik; a perjeles alak csak könyvtárra.
+test('.gitignore excludes node_modules as a directory and as a link', () => {
+  // Without the trailing slash the pattern matches a directory and a link alike; with it, only a directory.
   const ignored = execFileSync('git', ['check-ignore', '-v', 'node_modules'], { encoding: 'utf8' });
   assert.match(ignored, /node_modules/);
 });

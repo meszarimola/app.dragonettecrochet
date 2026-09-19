@@ -1,31 +1,22 @@
-/*
- * A „Kör és motívum” szakasz (PQW-861): forma, szem, kezdés, körszám,
- * körvég, eltolt szaporítás és színváltás, a szaporítás magyarázata, és a
- * minta létrehozása.
- *
- * A mezők az index.html-ben vannak. A létrehozás a mintát cseréli, ezért
- * visszavonható; új tárolókulcs nincs, a választás csak a lapon él. A szakasz
- * csak nyitva számol, mert a vászon egérmozgásra is frissít.
- */
+// KB: interface.md §7
 
-import { generateMotif, motifIncreases, motifProblem, type MotifOptions } from '../core/round-generator.js';
+import { generateMotif, type MotifOptions, motifIncreases, motifProblem } from '../core/round-generator.js';
 import type { Pattern } from '../core/types.js';
 import { amigurumiCoreText } from './i18n/core/amigurumi.js';
 import {
+  type Choice,
   CLOSING_CHOICES,
-  JOG_CHOICES,
-  SHAPE_CHOICES,
-  START_CHOICES,
-  STITCH_CHOICES,
   fieldState,
   generatedMessage,
   increaseNote,
+  JOG_CHOICES,
   normalizeMotif,
-  type Choice,
+  SHAPE_CHOICES,
+  START_CHOICES,
+  STITCH_CHOICES,
 } from './rounds-view.js';
 
 export interface RoundsPanelHost {
-  /** Az új minta a visszavonási veremre, az üzenettel. */
   commit(pattern: Pattern, message: string): void;
   announce(message: string): void;
 }
@@ -109,7 +100,6 @@ export class RoundsPanel {
       stagger: this.#stagger.checked,
       colorEvery: whole(this.#colors),
       jogFix: this.#jog.value === 'none' ? null : (this.#jog.value as MotifOptions['jogFix']),
-      // Bordás perem a kör végén (PQW-909); csak kúszószemes zárásnál.
       ribbing: this.#ribbing.checked ? { rows: whole(this.#ribbingRows), width: whole(this.#ribbingWidth) } : null,
     });
   }
@@ -118,7 +108,6 @@ export class RoundsPanel {
     if (!this.#section.open || !this.#pattern) return;
     const options = this.#options();
     const state = fieldState(options);
-    // A formához nem illő választás a mezőkben is látszik: a nagymama-négyzet pálcás, zárt kör.
     this.#stitch.value = options.stitch;
     this.#start.value = options.start;
     this.#closing.value = options.closing;
@@ -158,7 +147,6 @@ function fill<T extends string>(select: HTMLSelectElement, choices: readonly Cho
       const option = document.createElement('option');
       option.value = choice.value;
       option.textContent = choice.label;
-      // A még el nem érhető választás látszik, de nem választható (PQW-925).
       option.disabled = choice.soon === true;
       return option;
     }),

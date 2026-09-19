@@ -1,6 +1,6 @@
 /*
- * Az SVG-export (PQW-857): olvasható diagram sorszámmal, szemszámmal, a két
- * oldal színével és jelmagyarázattal.
+ * The SVG export (PQW-857): a readable chart with row numbers, stitch counts,
+ * the colour of the two sides, and a legend.
  */
 
 import { strict as assert } from 'node:assert';
@@ -21,26 +21,28 @@ function render(pattern, options = {}) {
   return chartSvg(pattern, layoutPattern(pattern, library, options), library, { colors: COLORS, ...options });
 }
 
-test('a téglalap SVG-je: sorszámok, szemszámok, mindkét oldal színe, jelmagyarázat', () => {
+test('the SVG of a rectangle: row numbers, stitch counts, the colour of both sides, and a legend', () => {
   const svg = render(hdcRectangle({ rows: 3 }).pattern);
   assert.match(svg, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"/);
   assert.equal(svg.match(/<svg/g).length, 1);
   assert.match(svg, /<\/svg>\n$/);
   assert.doesNotMatch(svg, /NaN|undefined|Infinity/);
   /*
-   * A sorszám és a szemszám egy feliraton (PQW-923), ugyanúgy, ahogy a tervező
-   * vásznán; külön „(15)” szöveg már nem kerül a mintára. A láncalap az 1. sor.
+   * Row number and stitch count share one label (PQW-923), just as on the canvas
+   * of the designer; a separate „(15)” text is no longer drawn onto the chart.
+   * The foundation chain counts as row 1.
    */
   assert.match(svg, />1\. sor – alapsor \(\d+\)</);
   for (const row of [2, 3, 4]) assert.match(svg, new RegExp(`>${row}\\. sor \\(16\\)</text>`));
   assert.doesNotMatch(svg, />\(16\)</);
-  // Mindkét oldal csoportjában van szár.
+  // Both side groups contain a stem.
   assert.match(svg, /data-side="right"[^>]*>\n(?:<(?!\/g>)[^\n]*\n)*<line/);
   assert.match(svg, /data-side="wrong"[^>]*>\n(?:<(?!\/g>)[^\n]*\n)*<line/);
   /*
-   * A felirat a sor VÉGÉNEK oldalán áll (PQW-916/923), nem a kezdetén: ezért a
-   * 2. sor felirata a bal, a 3. soré a jobb oldalon van — a korábbi elvárás
-   * fordítva szólt, mert akkor a sorszám a kezdő oldalon állt.
+   * The label stands on the side where the row ENDS (PQW-916/923), not where it
+   * starts: that is why the label of row 2 is on the left and the one of row 3 on
+   * the right — the earlier expectation said the opposite, back when the row
+   * number stood on the starting side.
    */
   const x = (row) => Number(svg.match(new RegExp(`x="(-?[\\d.]+)"[^>]*>${row}\\. sor \\(16\\)</text>`))[1]);
   assert.ok(x(3) > x(2));
@@ -50,37 +52,37 @@ test('a téglalap SVG-je: sorszámok, szemszámok, mindkét oldal színe, jelmag
   assert.match(svg, /Jelölés: magyar; jelek: CYC\./);
   assert.match(svg, /Visszai sor/);
   assert.match(svg, /A sorszám a sor kezdő oldalán áll/);
-  // A kúszószem pontja a csoport színével telik ki, nem tűnik el a `fill:none` miatt.
+  // The slip stitch dot is filled with the colour of its group, so `fill:none` does not make it vanish.
   assert.match(svg, /\.ink \.fill\{stroke:none;fill:currentColor\}/);
   assert.match(svg, /class="ink" stroke="#241f2b" color="#241f2b"/);
-  // A jelmagyarázat leghosszabb felirata is kifér.
+  // Even the longest label of the legend fits.
   const width = Number(svg.match(/width="([\d.]+)"/)[1]);
   assert.ok(width >= 7 * 'A sorszám a sor kezdő oldalán áll, zárójelben a szemszám.'.length);
 });
 
-test('a jelmagyarázat a csoportot mutatja, nem a tagjait', () => {
+test('the legend shows the group, not its members', () => {
   const { pattern } = shellStitch({ repeats: 2 });
   const ids = legendStitches(pattern, libraryFor(pattern)).map((def) => def.id);
   assert.deepEqual(ids, ['ch', 'sc', 'shell-5dc', 'inc-3dc']);
   assert.match(render(pattern), /kagyló: 5 erp egy szembe/);
 });
 
-test('tükrözött nézetben a jelmagyarázat jelzi a tükrözést', () => {
+test('in mirrored view the legend says that the chart is mirrored', () => {
   const { pattern } = hdcRectangle({ rows: 1 });
   assert.doesNotMatch(render(pattern), /Tükrözött/);
   assert.match(render(pattern, { mirror: true }), /Tükrözött nézet balkezeseknek\./);
 });
 
-test('a cím XML-biztos', () => {
+test('the title is XML-safe', () => {
   const { pattern } = hdcRectangle({ rows: 1 });
   const svg = render({ ...pattern, title: 'Kendő <1> & „próba”' });
   assert.match(svg, /Kendő &lt;1&gt; &amp; „próba”/);
   assert.equal(escapeXml(`'"`), '&apos;&quot;');
 });
 
-/* ---- Jelölés és jelstílus (PQW-868) ---- */
+/* ---- Terminology and symbol style (PQW-868) ---- */
 
-test('angol jelöléssel a jelmagyarázat megnevezi a rendszert, és csak az adott jelölés neveit írja', () => {
+test('with English terms the legend names the system and prints only the names of that terminology', () => {
   const { pattern } = hdcRectangle({ rows: 1 });
   const us = render(pattern, { terms: 'en-US' });
   assert.match(us, /data-terms="en-US"/);
@@ -95,17 +97,20 @@ test('angol jelöléssel a jelmagyarázat megnevezi a rendszert, és csak az ado
   assert.doesNotMatch(gb, /\b(sc|hdc|sl st)\b/);
 });
 
-test('JIS jelstílussal a rövidpálca ×, és az export megnevezi a stílust', () => {
+test('in JIS symbol style single crochet is an ×, and the export names the style', () => {
   const { pattern } = shellStitch({ repeats: 1 });
   const jis = render(pattern, { symbols: { singleCrochet: 'plus', style: 'jis' } });
   assert.match(jis, /data-chart-style="jis"/);
   assert.match(jis, /jelek: japán \(JIS\)\./);
   assert.notEqual(jis, render(pattern));
   const crossed = render(pattern, { symbols: { singleCrochet: 'cross' } });
-  assert.equal(jis.replace('data-chart-style="jis"', '').replace('japán (JIS)', ''), crossed.replace('data-chart-style="cyc"', '').replace('CYC', ''));
+  assert.equal(
+    jis.replace('data-chart-style="jis"', '').replace('japán (JIS)', ''),
+    crossed.replace('data-chart-style="cyc"', '').replace('CYC', ''),
+  );
 });
 
-test('a beszúrási mód a talpon és a jelmagyarázatban, CYC és JIS jelstílusban is (PQW-869)', () => {
+test('the insertion mode shows on the foot and in the legend, in CYC and in JIS symbol style alike (PQW-869)', () => {
   const done = (result) => {
     assert.ok(result.ok, result.reason);
     return result.pattern;
@@ -116,7 +121,7 @@ test('a beszúrási mód a talpon és a jelmagyarázatban, CYC és JIS jelstílu
   pattern = done(fillRow(pattern, { def: 'sc', count: 1, insertion: 'back-loop' }));
   const library = libraryFor(pattern);
 
-  // Színoldalról nézve a visszai sor első szálas: két jelmagyarázat-sor.
+  // Seen from the right side the wrong-side row is front loop: two legend rows.
   assert.deepEqual(
     legendInsertions(pattern, library).map(({ def, mode }) => `${def.id}/${mode}`),
     ['sc/back-loop', 'sc/front-loop'],
@@ -125,21 +130,21 @@ test('a beszúrási mód a talpon és a jelmagyarázatban, CYC és JIS jelstílu
   assert.match(svg, /<tspan lang="hu">[^<]+<\/tspan> – hátsó szál<\/text>/);
   assert.match(svg, /<tspan lang="hu">[^<]+<\/tspan> – első szál<\/text>/);
   assert.match(svg, /színoldalról nézve/);
-  // A jelölés íve: sorokban 4 + 4 (a sor első szeme helyett a számító fordulólánc áll, PQW-891), a jelmagyarázatban 2.
+  // Curves of the insertion mark: 4 + 4 in the rows (the counting turning chain stands in for the first stitch of the row, PQW-891) and 2 in the legend.
   const curves = (text) => (text.match(/<path d="M[^"]*Q/g) ?? []).length;
   assert.equal(curves(svg), 10);
-  // JIS-ben a hátsó szál vízszintes vonal, az első szál íve marad.
+  // In JIS the back loop is a horizontal line while the front loop keeps its curve.
   assert.equal(curves(render(pattern, { symbols: { singleCrochet: 'plus', style: 'jis' } })), 5);
   assert.doesNotMatch(svg, /NaN|undefined/);
 });
 
-test('mód nélküli mintában nincs módos jelmagyarázat-sor és megjegyzés', () => {
+test('a pattern with no insertion mode gets neither an insertion legend row nor a note', () => {
   const pattern = hdcRectangle({ rows: 2 }).pattern;
   assert.deepEqual(legendInsertions(pattern, libraryFor(pattern)), []);
   assert.doesNotMatch(render(pattern), /színoldalról nézve/);
 });
 
-test('rácsminta: az ismétlő egység szaggatott kerettel, a lejjebb horgolt szem talpa pöttyel, jelmagyarázattal (PQW-894)', () => {
+test('grid pattern: a dashed frame around the repeat unit, a dot on the foot of the spike stitch, and both explained in the legend (PQW-894)', () => {
   const state = {
     ...defaultState('mosaic', 5, 4),
     draft: [
@@ -153,7 +158,11 @@ test('rácsminta: az ismétlő egység szaggatott kerettel, a lejjebb horgolt sz
   const { pattern } = generateFromState(emptyPattern(), state);
   const library = libraryFor(pattern);
   const layout = layoutPattern(pattern, library);
-  const svg = chartSvg(pattern, layout, library, { colors: COLORS, unitFrames: unitFrames(pattern, layout, false), spikes: spikeNodes(pattern) });
+  const svg = chartSvg(pattern, layout, library, {
+    colors: COLORS,
+    unitFrames: unitFrames(pattern, layout, false),
+    spikes: spikeNodes(pattern),
+  });
   assert.equal(svg.match(/data-unit-frame/g).length, 1);
   assert.equal(svg.match(/data-spike/g).length, 1);
   assert.match(svg, /Szaggatott keret: az ismétlő egység\./);
@@ -163,16 +172,15 @@ test('rácsminta: az ismétlő egység szaggatott kerettel, a lejjebb horgolt sz
   assert.doesNotMatch(plain, /data-unit-frame|data-spike|Szaggatott keret|Pötty a szár/);
 });
 
-
 /*
- * Az exportált kép rácsa ugyanaz, mint a tervezőé (PQW-924).
+ * The grid of the exported image is the same as the one in the designer (PQW-924).
  *
- * A hiba azért maradt benn, mert a teszt hatóköre szűk volt: csak a tervezőt
- * néztük. Az export a közös `gridPaths`-ból és ugyanabból a súlytáblából
- * dolgozik, ezért itt a kimenetén ellenőrizzük, hogy nincs vastag függőleges
- * vonal — vagyis a minta nincs ötösével tagolva.
+ * The bug survived because the scope of the test was too narrow: it only looked
+ * at the designer. The export works from the shared `gridPaths` and from the same
+ * weight table, so here we check on its output that there is no thick vertical
+ * line — that is, the chart is not divided into groups of five.
  */
-test('az exportált rácsban nincs vastag függőleges cellavonal (PQW-924)', () => {
+test('the exported grid has no thick vertical cell line (PQW-924)', () => {
   const { pattern } = hdcRectangle({ rows: 6 });
   const library = libraryFor(pattern);
   const grid = chartGrid(pattern, library, 'rows', contextOf(pattern));
@@ -180,22 +188,26 @@ test('az exportált rácsban nincs vastag függőleges cellavonal (PQW-924)', ()
     colors: COLORS,
     grid: { grid, colors: { rowA: '#eee', rowB: '#ddd', cell: '#ccc', row: '#bbb', emphasis: '#999' } },
   });
-  const thickVertical = [...svg.matchAll(/<path d="M([-\d.]+) ([-\d.]+)V([-\d.]+)"[^>]*stroke-width="([\d.]+)"/g)].filter(
-    (match) => Number(match[4]) > 1,
+  const thickVertical = [
+    ...svg.matchAll(/<path d="M([-\d.]+) ([-\d.]+)V([-\d.]+)"[^>]*stroke-width="([\d.]+)"/g),
+  ].filter((match) => Number(match[4]) > 1);
+  assert.deepEqual(
+    thickVertical.map((match) => match[4]),
+    [],
+    'every vertical cell line in the export is thin',
   );
-  assert.deepEqual(thickVertical.map((match) => match[4]), [], 'az exportban minden függőleges cellavonal vékony');
 });
 
-
 /*
- * Az export sorszámozása ugyanaz, mint a tervezőé (PQW-923, PQW-924).
+ * Row numbering in the export is the same as in the designer (PQW-923, PQW-924).
  *
- * A tulajdonos a kiélesített képen a bal szélen egy kék „0”-t látott: a régi
- * export a réteg indexét írta ki sorszámként, így a láncalap „0” lett. Azóta a
- * láncalap az 1. sor, és a szemszámát a rajz a saját jeleiből számolja. Ez a
- * teszt őrzi, hogy a számozás ne csúszhasson vissza.
+ * On the sharpened image the owner saw a blue „0” at the left edge: the old
+ * export printed the layer index as the row number, so the foundation chain came
+ * out as „0”. Since then the foundation chain is row 1, and the drawing counts
+ * its stitches from its own symbols. This test keeps the numbering from slipping
+ * back.
  */
-test('az exportban a láncalap az 1. sor, és nincs „0” sorszám (PQW-924)', () => {
+test('in the export the foundation chain is row 1 and no „0” row number appears (PQW-924)', () => {
   const { pattern } = hdcRectangle({ rows: 6 });
   const library = libraryFor(pattern);
   const grid = chartGrid(pattern, library, 'rows', contextOf(pattern));
@@ -204,12 +216,16 @@ test('az exportban a láncalap az 1. sor, és nincs „0” sorszám (PQW-924)',
     grid: { grid, colors: { rowA: '#eee', rowB: '#ddd', cell: '#ccc', row: '#bbb', emphasis: '#999' } },
   });
   const texts = [...svg.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((match) => match[1].trim());
-  assert.deepEqual(texts.filter((text) => text === '0'), [], 'nincs önálló „0” felirat');
+  assert.deepEqual(
+    texts.filter((text) => text === '0'),
+    [],
+    'no standalone „0” label',
+  );
   assert.ok(
     texts.some((text) => text.startsWith('1. sor – alapsor')),
-    `a láncalap az 1. sor: ${JSON.stringify(texts.slice(0, 3))}`,
+    `the foundation chain is row 1: ${JSON.stringify(texts.slice(0, 3))}`,
   );
-  // A sorok a láncalaptól folytonosan számozódnak, kihagyás nélkül.
+  // Rows are numbered continuously from the foundation chain, with no gaps.
   const rows = texts.filter((text) => /^\d+\. sor/.test(text)).map((text) => Number.parseInt(text, 10));
-  assert.deepEqual(rows, [1, 2, 3, 4, 5, 6, 7], 'folytonos sorszámozás a láncalaptól');
+  assert.deepEqual(rows, [1, 2, 3, 4, 5, 6, 7], 'continuous row numbering from the foundation chain');
 });

@@ -17,28 +17,30 @@ function near(actual, expected, epsilon = 1e-9) {
   assert.ok(Math.abs(actual - expected) <= epsilon, `${actual} ≠ ${expected} (±${epsilon})`);
 }
 
-test('a CYC-táblázat 0–7 kategóriája sorrendben, növekvő tűmérettel (02 §1.1)', () => {
+test('the CYC table lists categories 0–7 in order, with increasing hook size (02 §1.1)', () => {
   assert.deepEqual(
     CYC_WEIGHTS.map((entry) => entry.weight),
     [0, 1, 2, 3, 4, 5, 6, 7],
   );
   for (let i = 1; i < CYC_WEIGHTS.length; i++) {
-    assert.ok(CYC_WEIGHTS[i].hookMm[0] >= CYC_WEIGHTS[i - 1].hookMm[0], `${i}. kategória`);
+    assert.ok(CYC_WEIGHTS[i].hookMm[0] >= CYC_WEIGHTS[i - 1].hookMm[0], `category ${i}`);
   }
   assert.deepEqual(cycWeightClass(4).stitchesPer4in, [11, 14]);
   assert.deepEqual(cycWeightClass(4).hookMm, [5.5, 6.5]);
   assert.equal(cycWeightClass(0).gaugeStitch, 'dc');
 });
 
-test('a CYC-párosításban szem/4" × tű mm közel állandó, ≈ 72 az 1–5. kategóriában (02 §3.4)', () => {
-  for (const { weight, stitchesPer4in, hookMm } of CYC_WEIGHTS.filter((entry) => entry.weight >= 1 && entry.weight <= 5)) {
+test('in the CYC pairing stitches/4" × hook mm stays nearly constant, ≈ 72 in categories 1–5 (02 §3.4)', () => {
+  for (const { weight, stitchesPer4in, hookMm } of CYC_WEIGHTS.filter(
+    (entry) => entry.weight >= 1 && entry.weight <= 5,
+  )) {
     for (const product of [stitchesPer4in[1] * hookMm[0], stitchesPer4in[0] * hookMm[1]]) {
-      assert.ok(Math.abs(product - 72) / 72 <= 0.09, `${weight}. kategória: ${product}`);
+      assert.ok(Math.abs(product - 72) / 72 <= 0.09, `category ${weight}: ${product}`);
     }
   }
 });
 
-test('a kategória gauge-e 10 cm-re átszámolva, becslésként, tartománnyal', () => {
+test('the gauge of a category converted to 10 cm, as an estimate with a range', () => {
   near(per10cmFromPer4in(14), 13.78, 0.01);
   const medium = cycGaugePer10cm(4);
   assert.equal(medium.stitch, 'sc');
@@ -50,12 +52,12 @@ test('a kategória gauge-e 10 cm-re átszámolva, becslésként, tartománnyal',
   assert.equal(cycGaugePer10cm(7), null);
 });
 
-test('m/100 g a címkéből: 50 g-os gombolyagnál a hossz kétszerese (02 §1.4)', () => {
+test('m/100 g from the label: for a 50 g ball it is twice the stated length (02 §1.4)', () => {
   assert.equal(metersPer100g(125, 50), 250);
   assert.equal(metersPer100g(200, 100), 200);
 });
 
-test('a méterből becsült kategória a javasolt határokkal, a határon több jelölttel (02 §1.4)', () => {
+test('the category estimated from meterage uses the suggested bounds, and a value on a bound yields several candidates (02 §1.4)', () => {
   assert.equal(classifyByMeterage(800).weight, 0);
   assert.equal(classifyByMeterage(400).weight, 1);
   assert.equal(classifyByMeterage(300).weight, 2);
@@ -68,7 +70,7 @@ test('a méterből becsült kategória a javasolt határokkal, a határon több 
   assert.throws(() => classifyByMeterage(0), RangeError);
 });
 
-test('02 §1.5 kidolgozott példa: az „Nm 2/8” kúp 400 m/100 g, 250 tex', () => {
+test('02 §1.5 worked example: the „Nm 2/8” cone is 400 m/100 g and 250 tex', () => {
   const nm = parseMetricCount('Nm 2/8'.replace('Nm', ''));
   assert.equal(nm, 4);
   assert.equal(metersPer100gFromNm(nm), 400);

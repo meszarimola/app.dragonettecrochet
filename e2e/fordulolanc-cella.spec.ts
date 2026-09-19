@@ -1,13 +1,14 @@
 /*
- * A függőleges fordulólánc egyetlen cellát kap a készülő sorban (PQW-943).
+ * The vertical turning chain gets a single cell in the row in progress (PQW-943).
  *
- * A tulajdonos jelentése: „a 2. sorban ott két cella van, és egy kellene
- * legyen.” A fordulólánc láncszemei egymás fölött állnak, célpontként viszont
- * külön-külön szerepelnek, ezért a rajz vízszintesen több cellára vágta
- * ugyanazt az oszlopot — közte nulla széles cellákra is.
+ * The chain stitches of the turning chain stand one above the other, but as
+ * targets they appear separately, so the drawing cut the same column
+ * horizontally into several cells — including zero-width ones in between.
+ *
+ * KB: owner-decisions.md §8
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 interface Cell {
   readonly layer: number;
@@ -23,7 +24,7 @@ const cells = (page: Page): Promise<Cell[]> =>
 const workingLayer = (page: Page): Promise<number> =>
   page.evaluate(() => (window as unknown as { mintatervezoRacs: { layer(): number } }).mintatervezoRacs.layer());
 
-test('10 láncszem és egy egyráhajtásos pálca: a 3 láncszemes fordulólánc egy cella (PQW-943)', async ({ page }) => {
+test('10 chain stitches and one double crochet: the 3-chain turning chain is one cell (PQW-943)', async ({ page }) => {
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
@@ -41,9 +42,10 @@ test('10 láncszem és egy egyráhajtásos pálca: a 3 láncszemes fordulólánc
   await page.locator('#board').press('Enter');
 
   /*
-   * A 10 láncszemből 3 állt függőlegesbe, egyetlen oszlopba: a készülő sor
-   * 10 − 3 + 1 = 8 cellát kap. A javítás előtt 10 volt, mert a fordulólánc
-   * mindhárom láncszeme külön cellát kért ugyanazon az x-en.
+   * Of the 10 chain stitches 3 stood up vertically, into a single column: the
+   * row in progress gets 10 − 3 + 1 = 8 cells. Before the fix it was 10, because
+   * all three chain stitches of the turning chain asked for a separate cell on
+   * the same x.
    */
   const layer = await workingLayer(page);
   await expect.poll(async () => (await cells(page)).filter((cell) => cell.layer === layer).length).toBe(8);

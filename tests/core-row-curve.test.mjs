@@ -1,10 +1,11 @@
 /*
- * Íves és megtört sorok (PQW-893): a félkör és a félhold sorai íven, a
- * nyakszöget átfogva; a fentről induló háromszög két fele a gerincnél a terv
- * szögében; a talpak a célpontjukon; új sor nem mozdítja a korábbiakat;
- * tükrözés, arányhelyes nézet, a rács sávjai és a célzás; a mentés. A többi
- * rajz (sík formák, kézzel horgolt sorok, körök, filé) lenyomata a PQW-893
- * előtti develop (`5fd2292`) lenyomatával egyezik.
+ * Curved and bent rows (PQW-893): the rows of a semicircle and a crescent lie
+ * on an arc and span the neck angle; the two halves of a top-down triangle
+ * meet at the spine at the angle the design calls for; feet land on their
+ * targets; a new row does not move the earlier ones; mirroring, the
+ * true-to-proportion view, the bands of the grid and hit testing; and saving.
+ * Every other drawing (flat shapes, hand-worked rows, rounds, filet) keeps the
+ * digest it had on develop before PQW-893 (`5fd2292`).
  */
 
 import { strict as assert } from 'node:assert';
@@ -23,16 +24,25 @@ import { DEFAULT_SHAPE, generateShape } from '../src/core/shapes.ts';
 import { DEFAULT_SHAWL, generateShawl } from '../src/core/shawls.ts';
 import { libraryFor } from '../src/core/stitch-variants.ts';
 import { gridPaths } from '../src/ui/grid-paths.ts';
-import { chevron, dcRectangle, grannySquare, hdcRectangle, shellStitch, vStitchPattern, wave } from './fixtures/examples.ts';
+import {
+  chevron,
+  dcRectangle,
+  grannySquare,
+  hdcRectangle,
+  shellStitch,
+  vStitchPattern,
+  wave,
+} from './fixtures/examples.ts';
 
 const ok = (result) => {
   assert.ok(result.ok, result.reason);
   return result.pattern;
 };
 const degrees = (radians) => (radians * 180) / Math.PI;
-const near = (actual, expected, tolerance, name) => assert.ok(Math.abs(actual - expected) <= tolerance, `${name}: ${actual} ≉ ${expected}`);
+const near = (actual, expected, tolerance, name) =>
+  assert.ok(Math.abs(actual - expected) <= tolerance, `${name}: ${actual} ≉ ${expected}`);
 
-/** Minta profillal, amelyben a szem síkban mérve adott szem és sor 10 cm-en. */
+/** A pattern with a profile whose stitch, measured flat, has the given stitches and rows over 10 cm. */
 function withGauge(stitch, stitchesPer10cm, rowsPer10cm) {
   const profile = {
     id: 'kendo',
@@ -48,12 +58,14 @@ function withGauge(stitch, stitchesPer10cm, rowsPer10cm) {
 const shawl = (patch, pattern = emptyPattern()) => ok(generateShawl(pattern, { ...DEFAULT_SHAWL, ...patch }));
 const nodesOf = (layout, layer) => [...layout.nodes.values()].filter((node) => node.layer === layer);
 const rowsOf = (pattern) => pattern.pieces[0].events.length;
-/** A leképezés középpontja: az egyenes elrendezésből, mint a layout.ts-ben. */
-const centerOf = (pattern, options = {}) => rowCurve(layoutPattern(pattern, libraryFor(pattern), { ...options, straight: true }), pattern.pieces[0].rowShape).center;
-/** A pont szöge a kupola középpontjától, a függőlegestől mérve. */
+/** The centre of the mapping, taken from the straight layout, as layout.ts does it. */
+const centerOf = (pattern, options = {}) =>
+  rowCurve(layoutPattern(pattern, libraryFor(pattern), { ...options, straight: true }), pattern.pieces[0].rowShape)
+    .center;
+/** The angle of a point seen from the centre of the dome, measured from the vertical. */
 const angleOf = (p, center) => degrees(Math.atan2(p.x - center, -p.y));
 
-describe('a többi rajz nem változik (regresszió)', () => {
+describe('every other drawing stays the same (regression)', () => {
   const expected = JSON.parse(readFileSync(new URL('./fixtures/layout-digests.json', import.meta.url), 'utf8'));
   const patterns = {
     hdcRectangle: [hdcRectangle().pattern, 'rows'],
@@ -66,13 +78,41 @@ describe('a többi rajz nem változik (regresszió)', () => {
     ...Object.fromEntries(
       ['rectangle', 'right-triangle', 'isosceles-triangle', 'trapezoid', 'diamond'].map((shape) => [
         `shape-${shape}`,
-        [ok(generateShape(emptyPattern(), { ...DEFAULT_SHAPE, shape, stitch: 'dc', widthCm: 15, heightCm: 12, topWidthCm: 5 })), 'rows'],
+        [
+          ok(
+            generateShape(emptyPattern(), {
+              ...DEFAULT_SHAPE,
+              shape,
+              stitch: 'dc',
+              widthCm: 15,
+              heightCm: 12,
+              topWidthCm: 5,
+            }),
+          ),
+          'rows',
+        ],
       ]),
     ),
     ...Object.fromEntries(
-      ['circle', 'hexagon', 'granny-square'].map((shape) => [`motif-${shape}`, [ok(generateMotif(emptyPattern(), { ...DEFAULT_MOTIF, shape, rounds: 5 })), 'rounds']]),
+      ['circle', 'hexagon', 'granny-square'].map((shape) => [
+        `motif-${shape}`,
+        [ok(generateMotif(emptyPattern(), { ...DEFAULT_MOTIF, shape, rounds: 5 })), 'rounds'],
+      ]),
     ),
-    filet: [ok(generateFilet(emptyPattern(), { cells: [[1, 0, 1], [0, 1, 0], [1, 1, 1]], unit: null, lettering: false })), 'cells'],
+    filet: [
+      ok(
+        generateFilet(emptyPattern(), {
+          cells: [
+            [1, 0, 1],
+            [0, 1, 0],
+            [1, 1, 1],
+          ],
+          unit: null,
+          lettering: false,
+        }),
+      ),
+      'cells',
+    ],
     ...Object.fromEntries(
       ['stole', 'asymmetric-triangle', 'circle', 'pi'].map((kind) => [
         `shawl-${kind}`,
@@ -80,51 +120,75 @@ describe('a többi rajz nem változik (regresszió)', () => {
       ]),
     ),
   };
-  const views = { plain: {}, mirror: { mirror: true }, aspect: { stemLength: (chainHeight) => 6 + 12 * chainHeight, columnWidth: 30 } };
+  const views = {
+    plain: {},
+    mirror: { mirror: true },
+    aspect: { stemLength: (chainHeight) => 6 + 12 * chainHeight, columnWidth: 30 },
+  };
   const clean = (value) => {
     if (typeof value === 'number') {
       const rounded = Math.round(value * 1e4) / 1e4;
       return Object.is(rounded, -0) ? 0 : rounded;
     }
     if (typeof value === 'function') return undefined;
-    if (value instanceof Map) return [...value.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([key, item]) => [key, clean(item)]);
+    if (value instanceof Map)
+      return [...value.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([key, item]) => [key, clean(item)]);
     if (Array.isArray(value)) return value.map(clean);
-    if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map((key) => [key, clean(value[key])]));
+    if (value && typeof value === 'object')
+      return Object.fromEntries(
+        Object.keys(value)
+          .sort()
+          .map((key) => [key, clean(value[key])]),
+      );
     return value;
   };
-  const digest = (value) => createHash('sha256').update(JSON.stringify(clean(value))).digest('hex').slice(0, 16);
+  const digest = (value) =>
+    createHash('sha256')
+      .update(JSON.stringify(clean(value)))
+      .digest('hex')
+      .slice(0, 16);
 
   for (const [name, [pattern, kind]] of Object.entries(patterns)) {
-    test(`${name}: az elrendezés és a rács a PQW-893 előtti szerint, sima, tükrözött és arányhelyes nézetben`, () => {
+    test(`${name}: layout and grid match the pre-PQW-893 result in the plain, mirrored and true-to-proportion views`, () => {
       const library = libraryFor(pattern);
       assert.equal(pattern.pieces[0].rowShape, undefined);
       for (const [view, options] of Object.entries(views)) {
-        assert.equal(digest(layoutPattern(pattern, library, options)), expected[`${name}/${view}/layout`], `${view} elrendezés`);
+        assert.equal(
+          digest(layoutPattern(pattern, library, options)),
+          expected[`${name}/${view}/layout`],
+          `${view} layout`,
+        );
         const grid = chartGrid(pattern, library, kind, contextOf(pattern), options);
-        assert.equal(digest({ bands: grid.bands, cells: grid.cells, bounds: grid.bounds, shape: grid.shape }), expected[`${name}/${view}/grid`], `${view} rács`);
+        assert.equal(
+          digest({ bands: grid.bands, cells: grid.cells, bounds: grid.bounds, shape: grid.shape }),
+          expected[`${name}/${view}/grid`],
+          `${view} grid`,
+        );
       }
     });
   }
 });
 
-describe('félkör és félhold íven (05 §1.2, §1.6)', () => {
-  test('félkör: az utolsó sor egy sugáron, és 180°-ot fog át', () => {
+describe('semicircle and crescent on an arc (05 §1.2, §1.6)', () => {
+  test('semicircle: the last row sits on a single radius and spans 180°', () => {
     const pattern = shawl({ kind: 'semicircle', stitch: 'dc', sizeCm: 15 });
     assert.deepEqual(pattern.pieces[0].rowShape, { kind: 'arc', neckAngle: 180 });
     const layout = layoutPattern(pattern, libraryFor(pattern));
     const center = centerOf(pattern);
     const last = nodesOf(layout, rowsOf(pattern));
-    const radii = last.filter((node) => node.role === 'stitch').map((node) => Math.hypot(node.top.x - center, node.top.y));
+    const radii = last
+      .filter((node) => node.role === 'stitch')
+      .map((node) => Math.hypot(node.top.x - center, node.top.y));
     assert.ok(Math.max(...radii) / Math.min(...radii) < 1.03, `${Math.min(...radii)}–${Math.max(...radii)}`);
-    // A szemek teteje; a fordulólánc a sor tetővonala alatt, kisebb sugáron áll.
+    // The tops of the stitches; the turning chain stands below the top line of the row, on a smaller radius.
     const angles = last.filter((node) => node.role === 'stitch').map((node) => angleOf(node.top, center));
-    near(Math.max(...angles) - Math.min(...angles), 180, 3, 'átfogott szög');
-    // A kupola a nyak pontja fölött: a szemek a vízszintes fölött; a sor a fordulólánc felé tolódik, ezért a vége néhány fokkal alatta lehet.
+    near(Math.max(...angles) - Math.min(...angles), 180, 3, 'spanned angle');
+    // The dome sits above the neck point, so the stitches are above the horizontal; the row shifts toward the turning chain, so its end may fall a few degrees below.
     const radius = Math.max(...radii);
     assert.ok(last.filter((node) => node.role === 'stitch').every((node) => node.top.y < 0.1 * radius));
   });
 
-  test('félhold: az ív a terv nyakszögét fogja át, kisebbet a félkörénél', () => {
+  test('crescent: the arc spans the neck angle of the design, smaller than the one of a semicircle', () => {
     const pattern = shawl({ kind: 'crescent', stitch: 'sc', sizeCm: 8 });
     const { kind, neckAngle } = pattern.pieces[0].rowShape;
     assert.equal(kind, 'arc');
@@ -134,13 +198,17 @@ describe('félkör és félhold íven (05 §1.2, §1.6)', () => {
     const angles = nodesOf(layout, rowsOf(pattern))
       .filter((node) => node.role === 'stitch')
       .map((node) => angleOf(node.top, center));
-    near(Math.max(...angles) - Math.min(...angles), neckAngle, 4, 'átfogott szög');
+    near(Math.max(...angles) - Math.min(...angles), neckAngle, 4, 'spanned angle');
   });
 
-  // A középpont közelében, az első sorokban a sor végi szár kis sugáron ferdén fut: ott nem mérjük. Beljebb a
-  // sor végén a szár legfeljebb háromnegyed oszlopnyit dől (a fordulólánc tetejébe horgolt szemnél a legtöbbet).
-  test('a talpak a célpontjuk tetején a 4. sortól: a hézag legfeljebb háromnegyed oszlopnyival nagyobb az egyenes rajzénál', () => {
-    for (const pattern of [shawl({ kind: 'semicircle', stitch: 'dc', sizeCm: 15 }), shawl({ kind: 'triangle', stitch: 'hdc', sizeCm: 12 })]) {
+  // Near the centre, in the first rows, the stem at the end of a row runs at a slant on a small radius, so we do not
+  // measure there. Further out the stem at the end of a row leans by at most three quarters of a column (most of all
+  // for a stitch worked into the top of the turning chain).
+  test('from row 4 on the feet sit on top of their targets: the gap is at most three quarters of a column wider than in the straight drawing', () => {
+    for (const pattern of [
+      shawl({ kind: 'semicircle', stitch: 'dc', sizeCm: 15 }),
+      shawl({ kind: 'triangle', stitch: 'hdc', sizeCm: 12 }),
+    ]) {
       const library = libraryFor(pattern);
       const [curved, straight] = [layoutPattern(pattern, library), layoutPattern(pattern, library, { straight: true })];
       const gap = (layout, stitch, anchor, i) => {
@@ -152,19 +220,34 @@ describe('félkör és félhold íven (05 §1.2, §1.6)', () => {
         stitch.anchors.forEach((anchor, i) => {
           if (anchor.into !== 'stitch' || curved.nodes.get(anchor.id).layer === 0) return;
           const [bent, flat] = [gap(curved, stitch, anchor, i), gap(straight, stitch, anchor, i)];
-          assert.ok(bent <= flat + 18, `${stitch.id} talpa ${bent.toFixed(1)} egységre a célpontjától (egyenesen ${flat.toFixed(1)})`);
+          assert.ok(
+            bent <= flat + 18,
+            `the foot of ${stitch.id} is ${bent.toFixed(1)} units from its target (straight: ${flat.toFixed(1)})`,
+          );
         });
       }
     }
   });
 
-  test('új sor nem mozdítja a korábbi sorokat (06 §5.3)', () => {
+  test('a new row does not move the rows that came before it (06 §5.3)', () => {
     const pattern = shawl({ kind: 'semicircle', stitch: 'sc', sizeCm: 6 });
     const piece = pattern.pieces[0];
-    // Az utolsó sor nélkül: a szemek az utolsó fordulásig, az események a fordulással együtt.
+    // Without the last row: stitches up to the last turn, events including that turn.
     const turn = piece.events.findLast((event) => event.kind === 'turn');
     const cut = piece.stitches.findIndex((node) => node.id === turn.after) + 1;
-    const shorter = { ...pattern, pieces: [{ ...piece, stitches: piece.stitches.slice(0, cut), groups: piece.groups.filter((group) => group.members.every((id) => piece.stitches.slice(0, cut).some((node) => node.id === id))), events: piece.events.slice(0, piece.events.indexOf(turn) + 1) }] };
+    const shorter = {
+      ...pattern,
+      pieces: [
+        {
+          ...piece,
+          stitches: piece.stitches.slice(0, cut),
+          groups: piece.groups.filter((group) =>
+            group.members.every((id) => piece.stitches.slice(0, cut).some((node) => node.id === id)),
+          ),
+          events: piece.events.slice(0, piece.events.indexOf(turn) + 1),
+        },
+      ],
+    };
     const [full, partial] = [layoutPattern(pattern, libraryFor(pattern)), layoutPattern(shorter, libraryFor(shorter))];
     for (const [id, node] of partial.nodes) {
       const before = full.nodes.get(id);
@@ -173,7 +256,7 @@ describe('félkör és félhold íven (05 §1.2, §1.6)', () => {
     }
   });
 
-  test('tükrözött nézetben a rajz vízszintesen tükröződik; arányhelyes nézetben is félkör', () => {
+  test('in mirrored view the drawing flips horizontally, and in true-to-proportion view it is still a semicircle', () => {
     const pattern = shawl({ kind: 'semicircle', stitch: 'dc', sizeCm: 12 });
     const library = libraryFor(pattern);
     const [plain, mirrored] = [layoutPattern(pattern, library), layoutPattern(pattern, library, { mirror: true })];
@@ -187,38 +270,43 @@ describe('félkör és félhold íven (05 §1.2, §1.6)', () => {
     const angles = nodesOf(layout, rowsOf(pattern))
       .filter((node) => node.role === 'stitch')
       .map((node) => angleOf(node.top, center));
-    near(Math.max(...angles) - Math.min(...angles), 180, 3, 'átfogott szög arányhelyes nézetben');
+    near(Math.max(...angles) - Math.min(...angles), 180, 3, 'spanned angle in true-to-proportion view');
   });
 });
 
-describe('fentről induló háromszög a gerincnél megtörve (05 §1.4)', () => {
-  test('az „A” példa mintasűrűségével a két fél a gerincnél derékszöget zár be, a nyakél vízszintes', () => {
+describe('a top-down triangle bent at the spine (05 §1.4)', () => {
+  test('at the gauge of worked example „A” the two halves meet at a right angle at the spine, and the neck edge is horizontal', () => {
     const pattern = shawl({ kind: 'triangle', stitch: 'dc', sizeCm: 20 }, withGauge('dc', 16, 8));
     assert.deepEqual(pattern.pieces[0].rowShape, { kind: 'chevron', neckAngle: 180, tipAngle: 90 });
     const layout = layoutPattern(pattern, libraryFor(pattern));
     const center = centerOf(pattern);
     const last = nodesOf(layout, rowsOf(pattern)).filter((node) => node.role === 'stitch');
-    const spine = last.reduce((best, node) => (Math.abs(node.top.x - center) < Math.abs(best.top.x - center) ? node : best));
-    const [left, right] = [last.reduce((a, b) => (b.top.x < a.top.x ? b : a)), last.reduce((a, b) => (b.top.x > a.top.x ? b : a))];
+    const spine = last.reduce((best, node) =>
+      Math.abs(node.top.x - center) < Math.abs(best.top.x - center) ? node : best,
+    );
+    const [left, right] = [
+      last.reduce((a, b) => (b.top.x < a.top.x ? b : a)),
+      last.reduce((a, b) => (b.top.x > a.top.x ? b : a)),
+    ];
     const toward = (node) => [node.top.x - spine.top.x, node.top.y - spine.top.y];
     const [a, b] = [toward(left), toward(right)];
     const angle = degrees(Math.acos((a[0] * b[0] + a[1] * b[1]) / (Math.hypot(...a) * Math.hypot(...b))));
-    near(angle, 90, 3, 'a két fél szöge');
-    // A gerinc felfelé áll, a sor két vége lent, egy magasságban.
+    near(angle, 90, 3, 'angle between the two halves');
+    // The spine points up, and the two ends of the row sit low, at the same height.
     assert.ok(spine.top.y < left.top.y && spine.top.y < right.top.y);
-    near(left.top.y, right.top.y, 0.1 * Math.abs(spine.top.y - left.top.y), 'a két vég magassága');
+    near(left.top.y, right.top.y, 0.1 * Math.abs(spine.top.y - left.top.y), 'height of the two ends');
   });
 
-  test('a stóla, az aszimmetrikus háromszög és a körben horgolt kendők egyenesek, illetve körök maradnak', () => {
+  test('the stole, the asymmetric triangle and the shawls worked in the round stay straight or circular', () => {
     for (const kind of ['stole', 'asymmetric-triangle', 'circle', 'pi']) {
       assert.equal(shawl({ kind, stitch: 'sc', sizeCm: 6, lengthCm: 6 }).pieces[0].rowShape, undefined, kind);
     }
   });
 });
 
-describe('a rács az íves rajzon', () => {
+describe('the grid over a curved drawing', () => {
   for (const kind of ['semicircle', 'crescent', 'triangle']) {
-    test(`${kind}: a sávok és a cellák íves sávok; minden cella közepe a saját cellája; a határ a rajzot és a rácsot is befoglalja`, () => {
+    test(`${kind}: bands and cells are curved strips; the centre of every cell hits its own cell; the bounds enclose both the drawing and the grid`, () => {
       const pattern = shawl({ kind, stitch: 'sc', sizeCm: 8 });
       const library = libraryFor(pattern);
       const context = contextOf(pattern);
@@ -227,12 +315,18 @@ describe('a rács az íves rajzon', () => {
       assert.ok(grid.bands.every((band) => band.area.kind === 'strip'));
       for (const cell of grid.cells) {
         const hit = gridHit(grid, cell.center);
-        assert.ok(hit && hit.kind === 'cell' && hit.cell === cell, `${cell.layer}. sor ${cell.index}. cellája`);
+        assert.ok(hit && hit.kind === 'cell' && hit.cell === cell, `row ${cell.layer}, cell ${cell.index}`);
       }
       const layout = layoutPattern(pattern, library);
       const bounds = chartBounds(layout, grid);
-      for (const node of layout.nodes.values()) assert.ok(node.top.x >= bounds.minX && node.top.x <= bounds.maxX && node.top.y >= bounds.minY && node.top.y <= bounds.maxY);
-      // A rajz útvonalai: zárt sávok és vonalak.
+      for (const node of layout.nodes.values())
+        assert.ok(
+          node.top.x >= bounds.minX &&
+            node.top.x <= bounds.maxX &&
+            node.top.y >= bounds.minY &&
+            node.top.y <= bounds.maxY,
+        );
+      // The paths of the drawing: closed bands and lines.
       const paths = gridPaths(grid);
       assert.equal(paths.bands.length, grid.bands.length);
       assert.ok(paths.bands.every((band) => /^M[-\d.]+ [-\d.]+(L[-\d.]+ [-\d.]+)+Z$/.test(band.d)));
@@ -241,13 +335,17 @@ describe('a rács az íves rajzon', () => {
   }
 });
 
-describe('mentés', () => {
-  test('az alak a JSON-mentéssel megmarad; hibás alak nem töltődik be; a régi mentés alak nélkül egyenes', () => {
+describe('saving', () => {
+  test('the row shape survives a JSON save, an invalid shape does not load, and an old save without a shape stays straight', () => {
     const pattern = shawl({ kind: 'triangle', stitch: 'dc', sizeCm: 10 }, withGauge('dc', 16, 8));
     const loaded = loadPattern(savePattern(pattern));
     assert.ok(loaded.ok);
     assert.deepEqual(loaded.pattern.pieces[0].rowShape, { kind: 'chevron', neckAngle: 180, tipAngle: 90 });
-    for (const rowShape of [{ kind: 'spiral', neckAngle: 180 }, { kind: 'arc', neckAngle: 400 }, { kind: 'chevron', neckAngle: 180 }]) {
+    for (const rowShape of [
+      { kind: 'spiral', neckAngle: 180 },
+      { kind: 'arc', neckAngle: 400 },
+      { kind: 'chevron', neckAngle: 180 },
+    ]) {
       const wrong = JSON.parse(savePattern(pattern));
       wrong.pieces[0].rowShape = rowShape;
       assert.equal(loadPattern(JSON.stringify(wrong)).ok, false, JSON.stringify(rowShape));

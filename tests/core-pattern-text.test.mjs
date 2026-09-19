@@ -1,10 +1,10 @@
 /*
- * Az írott minta: a kidolgozott példák rögzített szövege magyarul és amerikai
- * jelöléssel, a visszaolvasás mindhárom jelöléssel, a terminológia, a
- * rövidítéslista és a jelmagyarázat, és a visszaolvasás hibaüzenetei.
+ * The written pattern: the fixed text of the worked examples in Hungarian and in
+ * US terms, reading back in all three notations, the terminology, the
+ * abbreviation list and the stitch key, and the read-back error messages.
  *
- * Az elvárt szövegek a tests/fixtures/written/ mappában vannak; a magyarokat a
- * tulajdonos hagyja jóvá (PQW-858).
+ * The expected texts live in tests/fixtures/written/; the Hungarian ones are
+ * approved by the owner (PQW-858).
  */
 
 import { strict as assert } from 'node:assert';
@@ -12,14 +12,14 @@ import { readFileSync } from 'node:fs';
 import { describe, test } from 'node:test';
 
 import { canonicalPattern } from '../src/core/canonical.ts';
-import { dative, times } from '../src/core/hungarian.ts';
 import { contextOf, defaultCursor, emptyPattern, endRow, work, workIntoSame } from '../src/core/editor.ts';
+import { dative, times } from '../src/core/hungarian.ts';
 import { readPattern } from '../src/core/pattern-read.ts';
-import { libraryFor } from '../src/core/stitch-variants.ts';
-import { WrittenPatternError, foldRepeats, mergeSteps } from '../src/core/pattern-steps.ts';
+import { foldRepeats, mergeSteps, WrittenPatternError } from '../src/core/pattern-steps.ts';
 import { formatWrittenPattern, ordinal, writePattern } from '../src/core/pattern-text.ts';
+import { libraryFor } from '../src/core/stitch-variants.ts';
 import { PieceBuilder, patternOf } from './fixtures/builder.ts';
-import { WORKED_EXAMPLES, dcRectangle, grannySquare, hdcRectangle, vStitchPattern } from './fixtures/examples.ts';
+import { dcRectangle, grannySquare, hdcRectangle, vStitchPattern, WORKED_EXAMPLES } from './fixtures/examples.ts';
 import { testLibrary } from './fixtures/library.ts';
 
 const LOCALES = ['hu', 'en-US', 'en-GB'];
@@ -35,20 +35,24 @@ const FILES = {
 };
 
 const textOf = (pattern, locale) => formatWrittenPattern(writePattern(pattern, testLibrary, locale));
-const readBack = (text, pattern, locale) => readPattern(text, { library: testLibrary, locale, conventions: pattern.conventions });
+const readBack = (text, pattern, locale) =>
+  readPattern(text, { library: testLibrary, locale, conventions: pattern.conventions });
 
-/** A darabok sorai: a cím, a rövidítések és a jelmagyarázat nélkül. */
+/** The lines of the pieces, without the title, the abbreviations and the stitch key. */
 const instructions = (written) => written.pieces.flatMap((piece) => piece.lines).join('\n');
 
-test('minden kidolgozott példának van rögzített szövege', () => {
+test('every worked example has a fixed text', () => {
   assert.deepEqual(Object.keys(FILES), Object.keys(WORKED_EXAMPLES));
 });
 
 for (const locale of ['hu', 'en-US']) {
-  describe(`rögzített szöveg: ${locale}`, () => {
+  describe(`fixed text: ${locale}`, () => {
     for (const [name, make] of Object.entries(WORKED_EXAMPLES)) {
       test(name, () => {
-        const expected = readFileSync(new URL(`./fixtures/written/${locale}/${FILES[name]}.txt`, import.meta.url), 'utf8');
+        const expected = readFileSync(
+          new URL(`./fixtures/written/${locale}/${FILES[name]}.txt`, import.meta.url),
+          'utf8',
+        );
         assert.equal(textOf(make().pattern, locale), expected);
       });
     }
@@ -56,7 +60,7 @@ for (const locale of ['hu', 'en-US']) {
 }
 
 for (const locale of LOCALES) {
-  describe(`visszaolvasás: a szövegből ugyanaz a gráf (${locale})`, () => {
+  describe(`read back: the text yields the same graph (${locale})`, () => {
     for (const [name, make] of Object.entries(WORKED_EXAMPLES)) {
       test(name, () => {
         const { pattern } = make();
@@ -68,27 +72,30 @@ for (const locale of LOCALES) {
   });
 }
 
-/* ---- Terminológia ---- */
+/* ---- Terminology ---- */
 
-describe('egy mintán belül egy terminológia (01 §8.5 szabály 24–25)', () => {
+describe('one terminology within one pattern (01 §8.5 szabály 24–25)', () => {
   const all = (locale) => Object.values(WORKED_EXAMPLES).map((make) => textOf(make().pattern, locale));
 
-  test('a „hamispálca” és az értelmezési alternatívák soha nem jelennek meg', () => {
+  test('„hamispálca” and the ambiguous alternatives never appear', () => {
     for (const locale of LOCALES) {
       for (const text of all(locale)) assert.doesNotMatch(text, /hamis|kispálca|nagypálca|légszem|crab stitch/i);
     }
   });
 
-  test('a brit szövegben nincs amerikai szemnév (sc, hdc, sl st)', () => {
+  test('British text carries no US stitch names (sc, hdc, sl st)', () => {
     for (const text of all('en-GB')) assert.doesNotMatch(text, /\b(sc|hdc|sl st|sk)\b/);
   });
 
-  test('az amerikai szövegben nincs brit szemnév (htr, ss, miss)', () => {
+  test('US text carries no British stitch names (htr, ss, miss)', () => {
     for (const text of all('en-US')) assert.doesNotMatch(text, /\b(htr|ss|trtr|miss)\b/);
   });
 
-  test('angol szövegben mindkét címsor megnevezi a rendszert, magyarban nincs ilyen (PQW-868)', () => {
-    for (const [locale, system, other] of [['en-US', 'US terms', 'UK terms'], ['en-GB', 'UK terms', 'US terms']]) {
+  test('in English both headings name the term system, in Hungarian neither does (PQW-868)', () => {
+    for (const [locale, system, other] of [
+      ['en-US', 'US terms', 'UK terms'],
+      ['en-GB', 'UK terms', 'US terms'],
+    ]) {
       for (const text of all(locale)) {
         assert.match(text, new RegExp(`^Abbreviations \\(${system}\\)$`, 'm'));
         assert.match(text, new RegExp(`^Stitch key \\(${system}\\)$`, 'm'));
@@ -98,37 +105,40 @@ describe('egy mintán belül egy terminológia (01 §8.5 szabály 24–25)', () 
     for (const text of all('hu')) assert.doesNotMatch(text, /terms/);
   });
 
-  test('a brit név az amerikai egy fokkal eltolva: az amerikai rp a brit dc', () => {
+  test('the British name is the US one shifted by one step: US rp is British dc', () => {
     const lines = instructions(writePattern(WORKED_EXAMPLES['hullám (03 §2.3)']().pattern, testLibrary, 'en-GB'));
     assert.match(lines, /Row 3: ch 1 \(turning chain\), 18 dc \(18 sts\)\. Turn\./);
     assert.match(lines, /Row 4: ch 4 \(turning chain\), 2 dtr, \[tr, htr, 2 dc, htr, tr, 2 dtr\] 2 times/);
   });
 });
 
-/* ---- Rövidítéslista és jelmagyarázat ---- */
+/* ---- Abbreviation list and stitch key ---- */
 
-describe('rövidítéslista és jelmagyarázat csak a használt szemekkel (01 §8.5 szabály 27)', () => {
+describe('abbreviation list and stitch key hold only the stitches used (01 §8.5 szabály 27)', () => {
   for (const locale of LOCALES) {
-    test(`minden felsorolt rövidítés szerepel a sorokban, és minden használt szemrövidítés fel van sorolva (${locale})`, () => {
+    test(`every listed abbreviation appears in the lines, and every used stitch abbreviation is listed (${locale})`, () => {
       for (const make of Object.values(WORKED_EXAMPLES)) {
         const written = writePattern(make().pattern, testLibrary, locale);
         const lines = instructions(written);
         const listed = new Set(written.abbreviations.map(({ abbr }) => abbr));
         for (const { abbr } of written.abbreviations) {
           const word = abbr === 'st(s)' ? 'st' : abbr;
-          assert.ok(lines.includes(word), `${written.title}: „${abbr}” nem szerepel a sorokban`);
+          assert.ok(lines.includes(word), `${written.title}: "${abbr}" does not appear in the lines`);
         }
         for (const def of testLibrary.values()) {
           const abbr = def.terms[locale].abbr;
-          if (abbr && new RegExp(`(^|[\\s(\\[])${abbr.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&')}([\\s,.)\\]]|$)`).test(lines)) {
-            assert.ok(listed.has(abbr), `${written.title}: „${abbr}” hiányzik a rövidítések közül`);
+          if (
+            abbr &&
+            new RegExp(`(^|[\\s(\\[])${abbr.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&')}([\\s,.)\\]]|$)`).test(lines)
+          ) {
+            assert.ok(listed.has(abbr), `${written.title}: "${abbr}" is missing from the abbreviations`);
           }
         }
       }
     });
   }
 
-  test('a jelmagyarázat a könyvtár sorrendjében, a csoportokkal és a láncívvel', () => {
+  test('the stitch key follows library order, with the groups and the chain space', () => {
     const written = writePattern(WORKED_EXAMPLES['V-szem (03 §4.2 F)']().pattern, testLibrary, 'hu');
     assert.deepEqual(
       written.legend.map((entry) => entry.def),
@@ -140,40 +150,43 @@ describe('rövidítéslista és jelmagyarázat csak a használt szemekkel (01 §
     ]);
   });
 
-  test('a fogyasztás a jelmagyarázatban és a sorokban ugyanazzal a kifejezéssel szerepel', () => {
+  test('the decrease is worded the same way in the stitch key and in the lines', () => {
     const written = writePattern(WORKED_EXAMPLES['cikcakk (03 §4.2 G)']().pattern, testLibrary, 'hu');
     assert.ok(written.legend.some((entry) => entry.label === 'fogyasztás: 2 erp összehorgolása'));
     assert.match(instructions(written), /2 erp összehorgolása/);
   });
 });
 
-/* ---- Tömörítés ---- */
+/* ---- Compaction ---- */
 
-describe('összevonás és a legrövidebb ismétlődő egység (06 §5.3 pont 5)', () => {
+describe('merging and the shortest repeating unit (06 §5.3 pont 5)', () => {
   const sc = { kind: 'stitch', def: 'sc', count: 1, target: 'next', mode: 'both-loops', into: 'stitch' };
   const inc = { kind: 'group', def: 'inc-2sc', target: 'next', mode: 'both-loops', into: 'stitch' };
 
-  test('az egymás utáni azonos szemek egy tételbe kerülnek: „5 rp”', () => {
+  test('consecutive identical stitches merge into one item: „5 rp”', () => {
     assert.deepEqual(mergeSteps([sc, sc, sc, sc, sc], testLibrary), [{ ...sc, count: 5 }]);
   });
 
-  test('„(1 rp, szaporítás) ×6”: a hat ismétlés egy egységgé áll össze', () => {
+  test('„(1 rp, szaporítás) ×6”: the six repeats fold into a single unit', () => {
     const steps = Array.from({ length: 6 }, () => [sc, inc]).flat();
     assert.deepEqual(foldRepeats(steps), [{ kind: 'repeat', steps: [sc, inc], times: 6 }]);
   });
 
-  test('az ismétlés előtti és utáni rész megmarad', () => {
+  test('the parts before and after the repeat are kept', () => {
     const steps = mergeSteps([sc, sc, inc, sc, inc, sc, inc, sc], testLibrary);
-    assert.deepEqual(foldRepeats(steps), [{ ...sc, count: 2 }, { kind: 'repeat', steps: [inc, sc], times: 3 }]);
+    assert.deepEqual(foldRepeats(steps), [
+      { ...sc, count: 2 },
+      { kind: 'repeat', steps: [inc, sc], times: 3 },
+    ]);
   });
 
-  test('a szaporítás és az ugyanabba a szembe horgolt szem kiírása', () => {
+  test('writing out an increase and a stitch worked into the same stitch', () => {
     const lines = instructions(writePattern(WORKED_EXAMPLES['kagyló 6+1 (03 §4.2 E)']().pattern, testLibrary, 'hu'));
     assert.match(lines, /3 lsz \(fordulólánc\), 3 erp a következő szembe, 2 szem kihagyása/);
     assert.match(lines, /3 erp a következő szembe \(19 szem\)\. A fonal elvágása\.$/);
   });
 
-  test('az azonos sorok egy sorba kerülnek, a befejező sor külön', () => {
+  test('identical rows collapse into one line, the finishing row stays separate', () => {
     const { pieces } = writePattern(hdcRectangle({ rows: 4 }).pattern, testLibrary, 'hu');
     assert.deepEqual(pieces[0].lines.slice(2), [
       '3–4. sor: 2 lsz (1 fp-nek számít), 15 fp (16 szem). Fordítás.',
@@ -182,26 +195,29 @@ describe('összevonás és a legrövidebb ismétlődő egység (06 §5.3 pont 5)
   });
 });
 
-/* ---- Konvenciók ---- */
+/* ---- Conventions ---- */
 
-describe('a minta konvenciói a szövegben', () => {
+describe('the pattern conventions in the text', () => {
   /*
-   * A fordulólánc sorban is a sor első szeme (PQW-940), ezért a szöveg ki is
-   * mondja: „3 lsz (1 erp-nek számít)”. Ahol a sor beállítása mást mond — a
-   * bordás sor (ribbing.ts) —, ott a szöveg „fordulóláncot” ír, és a
-   * visszaolvasó a sort megnyitó eseményre teszi vissza a felülírást.
+   * In rows too the turning chain is the first stitch of the row (PQW-940), so
+   * the text spells it out: „3 lsz (1 erp-nek számít)”. Where the row's own
+   * setting says otherwise — a ribbing row (ribbing.ts) — the text writes
+   * „fordulólánc”, and the reader puts the override back on the event that
+   * opens the row.
    */
-  test('a fordulólánc a sorban is szem, és a soronkénti felülírás oda-vissza megy a szövegen', () => {
+  test('the turning chain is a stitch in rows too, and a per-row override survives the text round trip', () => {
     const example = dcRectangle({ rows: 2 });
     const piece = example.pattern.pieces[0];
     const text = textOf(example.pattern, 'hu');
     assert.match(text, /3\. sor: 3 lsz \(1 erp-nek számít\), 16 erp \(17 szem\)\. A fonal elvágása\./);
     const result = readBack(text, example.pattern, 'hu');
     assert.ok(result.ok, JSON.stringify(result.error));
-    assert.equal(result.pattern.pieces[0].events[0].conventions, undefined, 'nincs felesleges felülírás');
+    assert.equal(result.pattern.pieces[0].events[0].conventions, undefined, 'no redundant override');
 
-    // Soronkénti felülírás: a fordulólánc itt nem szem, és a szöveg ezt viszi át.
-    const events = piece.events.map((event, i) => (i === 0 ? { ...event, conventions: { turningChainCounts: false }, statedCount: 16 } : event));
+    // Per-row override: here the turning chain is not a stitch, and the text carries that across.
+    const events = piece.events.map((event, i) =>
+      i === 0 ? { ...event, conventions: { turningChainCounts: false }, statedCount: 16 } : event,
+    );
     const override = { ...example.pattern, pieces: [{ ...piece, events }] };
     const overridden = textOf(override, 'hu');
     assert.match(overridden, /3\. sor: 3 lsz \(fordulólánc\), 16 erp \(16 szem\)\./);
@@ -210,7 +226,7 @@ describe('a minta konvenciói a szövegben', () => {
     assert.deepEqual(back.pattern.pieces[0].events[0].conventions, { turningChainCounts: false });
   });
 
-  test('a számító kúszószem a szemszámban (szókészlet D7), és visszaolvasható', () => {
+  test('a counting slip stitch shows up in the stitch count (szókészlet D7) and reads back', () => {
     const example = grannySquare();
     const conventions = { ...example.pattern.conventions, joinSlipStitchCounts: true };
     const counts = [21, 40, 56];
@@ -221,14 +237,14 @@ describe('a minta konvenciói a szövegben', () => {
       pieces: [{ ...piece, events: piece.events.map((event, i) => ({ ...event, statedCount: counts[i] })) }],
     };
     const text = textOf(pattern, 'en-US');
-    // Körben a szemszám egység nélkül áll: „(21)” (04 §5.9, PQW-861).
+    // In rounds the stitch count stands without a unit: „(21)” (04 §5.9, PQW-861).
     assert.match(text, /\(21\)\.[\s\S]*\(40\)\.[\s\S]*\(56\)\./);
     const result = readBack(text, pattern, 'en-US');
     assert.ok(result.ok, JSON.stringify(result.error));
     assert.deepEqual(canonicalPattern(result.pattern), canonicalPattern(pattern));
   });
 
-  test('ha egyik láncszem sem számít, a szöveg szemszáma láncívek nélküli, és visszaolvasható (PQW-870)', () => {
+  test('when no chain counts, the stitch count in the text leaves out the chain spaces and still reads back (PQW-870)', () => {
     const example = vStitchPattern();
     const piece = example.pattern.pieces[0];
     const pattern = {
@@ -242,25 +258,29 @@ describe('a minta konvenciói a szövegben', () => {
     assert.ok(result.ok, JSON.stringify(result.error));
     assert.deepEqual(canonicalPattern(result.pattern), canonicalPattern(pattern));
 
-    // A használat szerinti szabállyal ugyanez a szöveg ellentmond a gráfnak.
+    // Under the pattern's own convention the same text contradicts the graph.
     const strict = readBack(text, example.pattern, 'hu');
     assert.equal(strict.ok, false);
     assert.match(JSON.stringify(strict.error), /a szöveg 10 szemet ír, a visszaolvasott gráf szerint 14/);
   });
 });
 
-/* ---- Beszúrási mód ---- */
+/* ---- Insertion mode ---- */
 
 /**
- * Rövidpálcás csík soronként 5 szemmel: a fordulólánc az első szem (PQW-891), az
- * 1. sor a 3. láncszemtől, a többi sor kihagyja a fordulólánc alatti szemet, és
- * az utolsó szem is hátsó szálba megy az előző fordulólánc tetejébe.
+ * A single crochet strip with 5 stitches per row: the turning chain is the first
+ * stitch (PQW-891), row 1 starts at the 3rd chain, every further row skips the
+ * stitch under the turning chain, and the last stitch also goes into the back
+ * loop of the previous turning chain's top.
  */
 function backLoopRows() {
-  // 6 láncszem, rövidpálcánál 2 kihagyás: soronként 4 rövidpálca, a fordulólánccal együtt 5 szem (PQW-940).
+  // 6 chains, 2 skipped for single crochet: 4 single crochets per row, 5 stitches counting the turning chain (PQW-940).
   const b = new PieceBuilder('p1', 'Hátsó szálas csík');
   const foundation = b.chain(6);
-  let row = foundation.slice(0, 4).reverse().map((id) => b.stitch('sc', id));
+  let row = foundation
+    .slice(0, 4)
+    .reverse()
+    .map((id) => b.stitch('sc', id));
   b.event('turn', 5);
   for (let r = 2; r <= 3; r += 1) {
     b.chain(1);
@@ -271,21 +291,21 @@ function backLoopRows() {
   return patternOf('Hátsó szálas csík', [b.build()]);
 }
 
-describe('beszúrási mód: visszai soron az első és a hátsó szál megfordul (03 §2.1)', () => {
-  test('magyarul: a színoldali hátsó szál a visszai soron első szál', () => {
+describe('insertion mode: front and back loop swap on a wrong-side row (03 §2.1)', () => {
+  test('in Hungarian: a right-side back loop becomes a front loop on the wrong-side row', () => {
     const lines = writePattern(backLoopRows(), testLibrary, 'hu').pieces[0].lines;
     assert.equal(lines[2], '3. sor: 1 lsz (1 rp-nek számít), 4 rp (esz) (5 szem). Fordítás.');
     assert.equal(lines[3], '4. sor: 1 lsz (1 rp-nek számít), 4 rp (hsz) (5 szem). A fonal elvágása.');
   });
 
-  test('angolul: FLO a visszai, BLO a színoldali soron', () => {
+  test('in English: FLO on the wrong-side row, BLO on the right-side row', () => {
     const lines = writePattern(backLoopRows(), testLibrary, 'en-US').pieces[0].lines;
     assert.match(lines[2], /4 sc FLO \(5 sts\)/);
     assert.match(lines[3], /4 sc BLO \(5 sts\)/);
   });
 
   for (const locale of LOCALES) {
-    test(`visszaolvasva a gráf a színoldali módot tárolja (${locale})`, () => {
+    test(`read back, the graph stores the right-side mode (${locale})`, () => {
       const pattern = backLoopRows();
       const result = readBack(textOf(pattern, locale), pattern, locale);
       assert.ok(result.ok, JSON.stringify(result.error));
@@ -294,21 +314,27 @@ describe('beszúrási mód: visszai soron az első és a hátsó szál megfordul
   }
 });
 
-/* ---- A láncalapra horgolt 2. sor (PQW-895) ---- */
+/* ---- Row 2 worked into the foundation chain (PQW-895) ---- */
 
-describe('a láncalapra horgolt 2. sor: „hagyj ki N láncszemet, majd …” (PQW-895)', () => {
+describe('row 2 worked into the foundation chain: „hagyj ki N láncszemet, majd …” (PQW-895)', () => {
   const firstRow = (text) => text.split('\n').find((line) => /^(2\. sor|Row 2):/.test(line));
 
-  test('ha nem minden láncszembe egy szem megy (kagyló, V-szem), a kihagyás után a lépések következnek', () => {
+  test('when not every chain takes exactly one stitch (shell, V-stitch), the steps follow the skip', () => {
     const shell = WORKED_EXAMPLES['kagyló 6+1 (03 §4.2 E)']().pattern;
     assert.equal(
       firstRow(textOf(shell, 'hu')),
       '2. sor: hagyj ki 1 láncszemet, majd 1 rp, [2 láncszem kihagyása, kagyló, 2 láncszem kihagyása, 1 rp] 3-szor (19 szem). Fordítás.',
     );
-    assert.equal(firstRow(textOf(shell, 'en-US')), 'Row 2: skip 1 ch, sc, [sk 2 ch, sh, sk 2 ch, sc] 3 times (19 sts). Turn.');
+    assert.equal(
+      firstRow(textOf(shell, 'en-US')),
+      'Row 2: skip 1 ch, sc, [sk 2 ch, sh, sk 2 ch, sc] 3 times (19 sts). Turn.',
+    );
     assert.match(firstRow(textOf(shell, 'en-GB')), /^Row 2: miss 1 ch, dc, \[miss 2 ch, /);
     const v = vStitchPattern().pattern;
-    assert.match(firstRow(textOf(v, 'hu')), /^2\. sor: hagyj ki 3 láncszemet, majd 1 erp, 1 láncszem kihagyása, V-szem, /);
+    assert.match(
+      firstRow(textOf(v, 'hu')),
+      /^2\. sor: hagyj ki 3 láncszemet, majd 1 erp, 1 láncszem kihagyása, V-szem, /,
+    );
     for (const pattern of [shell, v]) {
       for (const locale of LOCALES) {
         const result = readBack(textOf(pattern, locale), pattern, locale);
@@ -318,7 +344,7 @@ describe('a láncalapra horgolt 2. sor: „hagyj ki N láncszemet, majd …” (
     }
   });
 
-  test('a PQW-895 előtti mondattal mentett szöveget a betöltő elutasítja, megnevezve az okot (PQW-924)', () => {
+  test('text saved with the pre-PQW-895 sentence is rejected by the reader, which names the reason (PQW-924)', () => {
     const cases = [
       [
         hdcRectangle().pattern,
@@ -342,18 +368,22 @@ describe('a láncalapra horgolt 2. sor: „hagyj ki N láncszemet, majd …” (
         const old = text.replace(firstRow(text), oldLine);
         assert.notEqual(old, text);
         const result = readBack(old, pattern, locale);
-        // A korábbi szabály szerinti szöveget nem értelmezzük át csendben (PQW-924).
+        // Text written under the earlier rule is not silently reinterpreted (PQW-924).
         assert.equal(result.ok, false, `${pattern.title} ${locale}`);
-        assert.match(result.error.message, locale === 'hu' ? /korábbi szabály szerint készült/ : /earlier rule/, `${pattern.title} ${locale}`);
+        assert.match(
+          result.error.message,
+          locale === 'hu' ? /korábbi szabály szerint készült/ : /earlier rule/,
+          `${pattern.title} ${locale}`,
+        );
       }
     }
   });
 });
 
-/* ---- Hibák ---- */
+/* ---- Errors ---- */
 
-describe('elvágott fonal után új szakasz ugyanazon sor fölött (PQW-901)', () => {
-  /** Négy szemes 2. sor, fölötte a bal váll, majd új fonallal a jobb váll ugyanazon sor fölött. */
+describe('a new section above the same row after the yarn is cut (PQW-901)', () => {
+  /** A four-stitch row 2, the left shoulder above it, then the right shoulder with new yarn above the same row. */
   const shoulders = () => {
     const builder = new PieceBuilder('p1', 'Elejerész');
     const chains = builder.chain(5);
@@ -366,19 +396,21 @@ describe('elvágott fonal után új szakasz ugyanazon sor fölött (PQW-901)', (
     for (const target of [row1[1], row1[0]]) builder.stitch('sc', target);
     builder.event('fasten-off', 2);
     const piece = builder.build();
-    const events = piece.events.map((event, i) => (i === 1 ? { ...event, resume: { layer: 1, name: 'Jobb váll' } } : event));
+    const events = piece.events.map((event, i) =>
+      i === 1 ? { ...event, resume: { layer: 1, name: 'Jobb váll' } } : event,
+    );
     return patternOf('Két váll', [{ ...piece, events }], { turningChainCounts: false });
   };
 
-  test('a szakasz neve megmondja, melyik sor fölött folytatódik, és a sorszám újraindul', () => {
+  test('the section name says which row it continues above, and the row numbering restarts', () => {
     const lines = instructions(writePattern(shoulders(), testLibrary, 'hu'));
     assert.match(lines, /Jobb váll \(a 2\. sor fölött\):/);
-    // Mindkét váll a 2. sor: a szakasz neve különbözteti meg őket.
+    // Both shoulders sit above row 2: the section name is what tells them apart.
     assert.equal(lines.match(/^3\. sor: /gm).length, 2);
   });
 
   for (const locale of LOCALES) {
-    test(`visszaolvasva ugyanaz a gráf (${locale})`, () => {
+    test(`read back to the very same graph (${locale})`, () => {
       const pattern = shoulders();
       const result = readBack(textOf(pattern, locale), pattern, locale);
       assert.ok(result.ok, result.ok ? '' : `${result.error.line}: ${result.error.message}`);
@@ -387,17 +419,20 @@ describe('elvágott fonal után új szakasz ugyanazon sor fölött (PQW-901)', (
   }
 });
 
-describe('visszaolvasás: eltérés esetén pontos hibaüzenet', () => {
+describe('read back: a precise error message on a mismatch', () => {
   const pattern = hdcRectangle({ rows: 2 }).pattern;
   const text = textOf(pattern, 'hu');
   const lineOf = (needle) => text.split('\n').findIndex((line) => line.includes(needle)) + 1;
 
-  test('a hibátlan szöveg visszaolvasható', () => {
+  test('a correct text reads back', () => {
     assert.ok(readBack(text, pattern, 'hu').ok);
   });
 
-  test('rossz szemszám: a sor és a két szám', () => {
-    const wrong = text.replace('minden láncszembe 1 fp (16 szem). Fordítás.', 'minden láncszembe 1 fp (17 szem). Fordítás.');
+  test('wrong stitch count: the line and both numbers', () => {
+    const wrong = text.replace(
+      'minden láncszembe 1 fp (16 szem). Fordítás.',
+      'minden láncszembe 1 fp (17 szem). Fordítás.',
+    );
     assert.notEqual(wrong, text);
     const result = readBack(wrong, pattern, 'hu');
     assert.deepEqual(result, {
@@ -406,35 +441,54 @@ describe('visszaolvasás: eltérés esetén pontos hibaüzenet', () => {
     });
   });
 
-  test('több szem, mint amennyi az előző sorban van', () => {
-    const result = readBack(text.replace('3. sor: 2 lsz (1 fp-nek számít), 15 fp', '3. sor: 2 lsz (1 fp-nek számít), 16 fp'), pattern, 'hu');
-    // A fordulólánc teteje is célpont (PQW-944), ezért a 16. szem még elfér; a szemszám viszont nem jön ki.
-    assert.deepEqual(result.error, { line: lineOf('3. sor:'), message: '3. sor: a szöveg 16 szemet ír, a visszaolvasott gráf szerint 17.' });
+  test('more stitches than the previous row can hold', () => {
+    const result = readBack(
+      text.replace('3. sor: 2 lsz (1 fp-nek számít), 15 fp', '3. sor: 2 lsz (1 fp-nek számít), 16 fp'),
+      pattern,
+      'hu',
+    );
+    // The top of the turning chain is a target too (PQW-944), so the 16th stitch still fits; the stitch count does not add up.
+    assert.deepEqual(result.error, {
+      line: lineOf('3. sor:'),
+      message: '3. sor: a szöveg 16 szemet ír, a visszaolvasott gráf szerint 17.',
+    });
   });
 
-  test('ismeretlen tétel', () => {
-    const result = readBack(text.replace('15 fp (16 szem). A fonal', '15 hamispálca (16 szem). A fonal'), pattern, 'hu');
+  test('unknown item', () => {
+    const result = readBack(
+      text.replace('15 fp (16 szem). A fonal', '15 hamispálca (16 szem). A fonal'),
+      pattern,
+      'hu',
+    );
     assert.deepEqual(result.error, { line: lineOf('3. sor:'), message: 'Nem értelmezhető tétel: „15 hamispálca”.' });
   });
 
-  test('hiányzó sorvég egy közbülső sorban', () => {
+  test('a missing row ending in an intermediate row', () => {
     const result = readBack(text.replace('(16 szem). Fordítás.', '(16 szem).'), pattern, 'hu');
-    assert.deepEqual(result.error, { line: lineOf('2. sor:'), message: 'A sor vége hiányzik: fordítás, a kör zárása vagy a fonal elvágása.' });
+    assert.deepEqual(result.error, {
+      line: lineOf('2. sor:'),
+      message: 'A sor vége hiányzik: fordítás, a kör zárása vagy a fonal elvágása.',
+    });
   });
 
-  test('a sorszám nem folytatódik', () => {
+  test('the row numbering does not continue', () => {
     const result = readBack(text.replace('3. sor:', '4. sor:'), pattern, 'hu');
     assert.deepEqual(result.error, { line: lineOf('3. sor:'), message: 'A sorszám nem folytatódik: 3 helyett 4.' });
   });
 });
 
-describe('a gráf, amit a szöveg még nem tud kifejezni', () => {
-  test('keresztezett szem: hibát ad az érintett szemmel', () => {
+describe('a graph the text cannot express yet', () => {
+  test('crossed stitch: throws an error naming the stitch involved', () => {
     const { pattern, rows } = hdcRectangle({ rows: 2 });
     const piece = pattern.pieces[0];
     const crossed = {
       ...pattern,
-      pieces: [{ ...piece, stitches: piece.stitches.map((node) => (node.id === rows[2][3] ? { ...node, flags: ['crossed'] } : node)) }],
+      pieces: [
+        {
+          ...piece,
+          stitches: piece.stitches.map((node) => (node.id === rows[2][3] ? { ...node, flags: ['crossed'] } : node)),
+        },
+      ],
     };
     assert.throws(
       () => writePattern(crossed, testLibrary, 'hu'),
@@ -443,39 +497,65 @@ describe('a gráf, amit a szöveg még nem tud kifejezni', () => {
   });
 });
 
-/* ---- Magyar ragozás és angol sorszám ---- */
+/* ---- Hungarian inflection and English ordinals ---- */
 
-test('„-szor, -szer, -ször” a szám kiejtése szerint', () => {
-  assert.deepEqual(
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100, 1000].map(times),
-    [
-      '1-szer', '2-szer', '3-szor', '4-szer', '5-ször', '6-szor', '7-szer', '8-szor', '9-szer', '10-szer',
-      '12-szer', '15-ször', '20-szor', '30-szor', '40-szer', '50-szer', '60-szor', '70-szer', '80-szor',
-      '90-szer', '100-szor', '1000-szer',
-    ],
-  );
+test('„-szor, -szer, -ször” follows how the number is pronounced', () => {
+  assert.deepEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100, 1000].map(times), [
+    '1-szer',
+    '2-szer',
+    '3-szor',
+    '4-szer',
+    '5-ször',
+    '6-szor',
+    '7-szer',
+    '8-szor',
+    '9-szer',
+    '10-szer',
+    '12-szer',
+    '15-ször',
+    '20-szor',
+    '30-szor',
+    '40-szer',
+    '50-szer',
+    '60-szor',
+    '70-szer',
+    '80-szor',
+    '90-szer',
+    '100-szor',
+    '1000-szer',
+  ]);
 });
 
-test('részeshatározó: rövidítésnél kötőjellel, névnél hangrend szerint', () => {
+test('dative: hyphenated after an abbreviation, by vowel harmony after a full name', () => {
   assert.equal(dative('erp', true), 'erp-nek');
   assert.equal(dative('háromráhajtásos pálca', false), 'háromráhajtásos pálcának');
   assert.equal(dative('rákhurok', false), 'rákhuroknak');
   assert.equal(dative('pikó', false), 'pikónak');
 });
 
-test('angol sorszám: 1st, 2nd, 3rd, 4th, 11th, 21st', () => {
-  assert.deepEqual([1, 2, 3, 4, 11, 12, 13, 21, 22].map(ordinal), ['1st', '2nd', '3rd', '4th', '11th', '12th', '13th', '21st', '22nd']);
+test('English ordinals: 1st, 2nd, 3rd, 4th, 11th, 21st', () => {
+  assert.deepEqual([1, 2, 3, 4, 11, 12, 13, 21, 22].map(ordinal), [
+    '1st',
+    '2nd',
+    '3rd',
+    '4th',
+    '11th',
+    '12th',
+    '13th',
+    '21st',
+    '22nd',
+  ]);
 });
 
 /*
- * A sor közepére tett puszta láncszemek (PQW-937).
+ * Bare chain stitches placed in the middle of a row (PQW-937).
  *
- * A tulajdonos így készíti a hullámos mintát: szaporítócsomó, kihagyás,
- * láncszemek, kihagyás. A rajz ezt helyesen mutatta, az írott minta viszont
- * megállt azzal, hogy „még nem tudja kifejezni” — mert a láncszem-futamot
- * csak akkor fogadta el, ha az egyben láncív is volt.
+ * This is how the owner works the wave pattern: increase cluster, skip, chains,
+ * skip. The chart showed it correctly, but the written pattern stopped with a
+ * cannot-express-this-yet error — because it only accepted a run of chains that
+ * was also a chain space.
  */
-describe('a sor közepén álló láncszemek írott mintája (PQW-937)', () => {
+describe('the written pattern for chain stitches standing mid-row (PQW-937)', () => {
   const ok = (result) => {
     assert.ok(result.ok, JSON.stringify(result.reason));
     return result.pattern;
@@ -485,7 +565,7 @@ describe('a sor közepén álló láncszemek írott mintája (PQW-937)', () => {
     return ok(workIntoSame(ok(workIntoSame(first, 'dc', slot)), 'dc', slot));
   };
 
-  /** A tulajdonos ismétlődő mintája: 3 erp egy szembe, kihagyás, 3 láncszem, kihagyás. */
+  /** The owner's repeating motif: 3 erp into one stitch, skip, 3 chains, skip. */
   const wavePattern = () => {
     let pattern = ok(endRow(ok(work(emptyPattern(), { def: 'ch', count: 22 }, 0))));
     for (const def of ['sc', 'sc', 'dc', 'dc']) {
@@ -498,13 +578,15 @@ describe('a sor közepén álló láncszemek írott mintája (PQW-937)', () => {
     return cluster(pattern, 18);
   };
 
-  test('a láncszemek és a kihagyások kimondva, láncív nélkül is', () => {
+  test('the chains and the skips are spelled out, even without a chain space', () => {
     const pattern = wavePattern();
-    const row = instructions(writePattern(pattern, libraryFor(pattern), 'hu')).split('\n').find((line) => line.startsWith('2. sor'));
+    const row = instructions(writePattern(pattern, libraryFor(pattern), 'hu'))
+      .split('\n')
+      .find((line) => line.startsWith('2. sor'));
 
-    assert.ok(row, 'a 2. sor leírása elkészül, nem áll meg kifejezhetetlenül');
-    assert.match(row, /3 lsz/, 'a láncszemek kimondva');
-    assert.match(row, /kihagyás/, 'a kihagyott szemek kimondva');
-    assert.match(row, /3 erp a következő láncszembe/, 'a szaporítócsomó kimondva');
+    assert.ok(row, 'row 2 does get written out instead of failing as inexpressible');
+    assert.match(row, /3 lsz/, 'the chains are spelled out');
+    assert.match(row, /kihagyás/, 'the skipped stitches are spelled out');
+    assert.match(row, /3 erp a következő láncszembe/, 'the increase cluster is spelled out');
   });
 });

@@ -28,7 +28,7 @@ function activeCspDirectives() {
   const cspLine = HTACCESS.split('\n').find((line) =>
     /^\s*Header\s+always\s+set\s+Content-Security-Policy\b/.test(line),
   );
-  assert.ok(cspLine, 'nincs aktív Content-Security-Policy sor a public/.htaccess-ben');
+  assert.ok(cspLine, 'no active Content-Security-Policy line in public/.htaccess');
 
   const policy = cspLine.match(/Content-Security-Policy\s+"([^"]+)"/)[1];
   return Object.fromEntries(
@@ -40,11 +40,11 @@ function activeCspDirectives() {
   );
 }
 
-test('a mérési azonosító üres vagy érvényes GA4 azonosító', () => {
+test('the measurement id is either empty or a valid GA4 id', () => {
   assert.match(GA_MEASUREMENT_ID, /^(G-[A-Z0-9]{4,})?$/);
 });
 
-test('a CSP pontosan akkor engedi a Google Analyticset, ha van mérési azonosító', () => {
+test('the CSP allows Google Analytics exactly when a measurement id is set', () => {
   const csp = activeCspDirectives();
 
   if (GA_MEASUREMENT_ID) {
@@ -52,31 +52,33 @@ test('a CSP pontosan akkor engedi a Google Analyticset, ha van mérési azonosí
       for (const source of sources) {
         assert.ok(
           csp[directive]?.includes(source),
-          `a GA_MEASUREMENT_ID be van állítva, de a public/.htaccess CSP ${directive} nem engedi: ${source} — ` +
-            'élesben a mérés némán nem indulna el',
+          `GA_MEASUREMENT_ID is set, but the public/.htaccess CSP ${directive} does not allow: ${source} — ` +
+            'in production the measurement would silently fail to start',
         );
       }
     }
   } else {
-    const googleSources = Object.values(csp).flat().filter((source) => /google/.test(source));
-    assert.deepEqual(googleSources, [], 'nincs GA_MEASUREMENT_ID, a CSP mégis enged Google forrást');
+    const googleSources = Object.values(csp)
+      .flat()
+      .filter((source) => /google/.test(source));
+    assert.deepEqual(googleSources, [], 'there is no GA_MEASUREMENT_ID, yet the CSP allows a Google source');
   }
 });
 
-test('a buildelt oldal nem tölti be a gtag.js-t hozzájárulás előtt, és nincs benne inline szkript', () => {
-  assert.ok(existsSync(BUILT_INDEX), 'Nincs dist/ — előbb futtasd a `npm run build`-ot.');
+test('the built page loads no gtag.js before consent and carries no inline script', () => {
+  assert.ok(existsSync(BUILT_INDEX), 'No dist/ — run `npm run build` first.');
 
   const html = readFileSync(BUILT_INDEX, 'utf8');
   assert.ok(!html.includes('googletagmanager.com'));
 
-  // A JSON-LD adatblokk nem fut, a CSP nem érinti (PQW-918); minden más beágyazott szkript tilos.
+  // The JSON-LD data block never executes, so the CSP does not touch it (PQW-918); every other inline script is forbidden.
   const inlineScripts = [...html.matchAll(/<script(?![^>]*\ssrc=)([^>]*)>([\s\S]*?)<\/script>/g)].filter(
     ([, attributes, body]) => body.trim() && !/^\s*type="application\/ld\+json"\s*$/.test(attributes),
   );
-  assert.deepEqual(inlineScripts, [], 'a CSP script-src élesben blokkolná a beágyazott szkriptet');
+  assert.deepEqual(inlineScripts, [], 'the CSP script-src would block an inline script in production');
 });
 
-test('a mintatervező ugyanabba a fő domaines sütibe írja a döntést, mint a fő oldal', () => {
+test('the designer writes the decision into the same root-domain cookie as the main site', () => {
   assert.equal(sharedCookieDomain('app.dragonettecrochet.com'), 'dragonettecrochet.com');
 
   const setCookieLine = serializeConsent('granted', {

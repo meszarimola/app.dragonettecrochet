@@ -1,11 +1,11 @@
 /*
- * Kendőformák (PQW-865): a „Kendő” szakaszból fentről induló pálcás
- * háromszög profil nélkül, saját aránnyal figyelmeztetéssel, egy lépésben
- * visszavonva; félkör rövidpálcával. Mindegyik hibátlan, és az írott minta
- * elkészül.
+ * Shawl shapes (PQW-865): from the „Kendő” section a double crochet triangle
+ * starting from the top, without a profile, with a custom ratio and a warning,
+ * undone in one step; a semicircle in single crochet. Each is error-free, and
+ * the written pattern is produced.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
@@ -24,25 +24,31 @@ async function writtenText(page: Page): Promise<string> {
   return (await page.locator('#written-text').textContent()) ?? '';
 }
 
-test('fentről induló háromszög: blokkolt és blokkolatlan méret, saját arány figyelmeztetéssel, hibátlan sorok, egy lépésben visszavonható', async ({ page }) => {
+test('triangle starting from the top: blocked and unblocked size, custom ratio with a warning, error-free rows, undone in one step', async ({
+  page,
+}) => {
   await open(page);
   const section = await openShawls(page);
 
   await expect(page.locator('#shawl-stitch')).toHaveValue('dc');
-  await expect(page.locator('#shawl-result')).toHaveText(/^Blokkolás nélkül ≈ \d+ × \d+ cm, blokkolva ≈ \d+ × \d+ cm; \d+ sor\.$/);
+  await expect(page.locator('#shawl-result')).toHaveText(
+    /^Blokkolás nélkül ≈ \d+ × \d+ cm, blokkolva ≈ \d+ × \d+ cm; \d+ sor\.$/,
+  );
   await expect(page.locator('#shawl-details')).toContainText('A nyakél szöge kb. 180°');
   await expect(page.locator('#shawl-preview polygon')).toHaveCount(2);
   await expect(page.locator('#shawl-warnings li')).toHaveCount(0);
   await expect(page.locator('#shawl-length')).toBeHidden();
 
-  // Saját, kisebb arány: figyelmeztetés, de a minta elkészül.
+  // A custom, smaller ratio: a warning, but the pattern is produced.
   await page.locator('#shawl-rate').selectOption({ label: 'Saját arány' });
   await page.locator('#shawl-custom').fill('5');
   await expect(page.locator('#shawl-warnings li')).toHaveCount(1);
   await expect(page.locator('#shawl-warnings')).toContainText('Ez figyelmeztetés, nem hiba.');
 
   await section.getByRole('button', { name: 'Minta létrehozása' }).click();
-  await expect(page.locator('#status')).toContainText(/Fentről induló háromszög, \d+ sor elkészült; visszavonással a korábbi minta visszajön\./);
+  await expect(page.locator('#status')).toContainText(
+    /Fentről induló háromszög, \d+ sor elkészült; visszavonással a korábbi minta visszajön\./,
+  );
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
   expect(await writtenText(page)).toMatch(/3\. sor: 3 lsz \(1 erp-nek számít\), .*\(\d+ szem\)\. Fordítás\./);
 
@@ -51,7 +57,7 @@ test('fentről induló háromszög: blokkolt és blokkolatlan méret, saját ar�
   await expect(page.locator('#written-text')).not.toContainText('erp');
 });
 
-test('félkör rövidpálcával: sugár, egyenletes szaporítás, hibátlan', async ({ page }) => {
+test('semicircle in single crochet: radius, even increases, error-free', async ({ page }) => {
   await open(page);
   const section = await openShawls(page);
 
@@ -66,31 +72,35 @@ test('félkör rövidpálcával: sugár, egyenletes szaporítás, hibátlan', as
   await section.getByRole('button', { name: 'Minta létrehozása' }).click();
   await expect(page.locator('#status')).toContainText('Félkör,');
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
-  // A rövidpálcás fordulólánc az 1. szem helyett áll, alapláncszemen (PQW-891).
+  // The single crochet turning chain stands in place of stitch 1, on a foundation chain stitch (PQW-891).
   expect(await writtenText(page)).toMatch(
     /2\. sor: hagyj ki 2 láncszemet, majd \d+ rp a következő láncszembe \(\d+ szem\)\. Fordítás\./,
   );
 });
 
 /*
- * Íves és megtört sorok a vásznon (PQW-893): a félkör kupola, a fentről induló
- * háromszög a gerincnél derékszögben megtört sorokkal. Mindkettő kb. kétszer
- * olyan széles, mint magas; az egyenes sorokkal rajzolt lapos „V” ennél jóval
- * szélesebb volt.
+ * Curved and broken rows on the canvas (PQW-893): the semicircle is a dome, the
+ * triangle starting from the top has rows broken at a right angle at the spine.
+ * Both are about twice as wide as they are tall; the flat „V” drawn with
+ * straight rows was much wider than that.
  */
 for (const viewport of [
   { width: 1440, height: 900 },
   { width: 1000, height: 506 },
 ]) {
-  test(`${viewport.width}×${viewport.height}: a félkör és a háromszög-kendő a vásznon a valós alakjában, hibátlanul`, async ({ page }) => {
+  test(`${viewport.width}×${viewport.height}: the semicircle and the triangle shawl on the canvas in their real shape, error-free`, async ({
+    page,
+  }) => {
     await page.setViewportSize(viewport);
     await open(page);
     const section = await openShawls(page);
 
-    /** A szemek befoglaló téglalapjának szélesség/magasság aránya, ablak-koordinátában (`window.mintatervezoKijeloles`). */
+    /** The width/height ratio of the bounding rectangle of the stitches, in window coordinates (`window.mintatervezoKijeloles`). */
     const aspect = () =>
       page.evaluate(() => {
-        const api = (window as unknown as { mintatervezoKijeloles: { nodes(): { layer: number; x: number; y: number }[] } }).mintatervezoKijeloles;
+        const api = (
+          window as unknown as { mintatervezoKijeloles: { nodes(): { layer: number; x: number; y: number }[] } }
+        ).mintatervezoKijeloles;
         const nodes = api.nodes().filter((node) => node.layer > 0);
         const xs = nodes.map((node) => node.x);
         const ys = nodes.map((node) => node.y);
@@ -103,7 +113,7 @@ for (const viewport of [
     await section.getByRole('button', { name: 'Minta létrehozása' }).click();
     await expect(page.locator('#status')).toContainText('Félkör,');
     await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
-    // Kis darabon a középső lyuk és a lelógó fordulóláncok miatt a kupola arányaiban magasabb; egyenes sorokkal kb. 3 volt.
+    // On a small piece the dome is proportionally taller because of the middle hole and the hanging turning chains; with straight rows it was about 3.
     const dome = await aspect();
     expect(dome).toBeGreaterThan(1.2);
     expect(dome).toBeLessThan(2.4);

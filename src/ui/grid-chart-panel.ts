@@ -1,55 +1,37 @@
-/*
- * A „Rácsminta” szakasz (PQW-864, PQW-894): technika, mozaikváltozat, méret,
- * színek és ecset, kép betöltése, a rácsszerkesztő a mintasűrűség szerinti
- * cellaaránnyal, az ismétlő egység (felismerve vagy kézzel), feliratos motívum,
- * a terv és a fonal színenként, és a minta létrehozása.
- *
- * A rács `role="grid"`, bejárható tabindexszel: nyilakkal lépsz, szóközzel vagy
- * Enterrel festesz, Delete-tel törölsz; egérrel húzva több cellát festhetsz. A
- * kezelt billentyűk nem jutnak el a vászon gyorsbillentyűihez.
- *
- * A kép a böngészőben marad: vászonra rajzolva, a rács méretére kicsinyítve
- * olvassuk ki a képpontjait, szerverre semmi nem kerül (a CSP a `blob:` képet
- * engedi).
- *
- * A mezők az index.html-ben vannak. A létrehozás a mintát cseréli, ezért egy
- * lépésben visszavonható. Új tárolókulcs nincs: a rács a lapon él, a
- * létrehozott minta a darabbal menti, és innen visszatölthető.
- */
+// KB: interface.md §7, §24, §26
 
-import { MAX_GRID_SIDE, type DraftCell } from '../core/pixel-chart.js';
+import { type DraftCell, MAX_GRID_SIDE } from '../core/pixel-chart.js';
 import type { Pattern } from '../core/types.js';
-import { texts } from './i18n.js';
 import {
-  MOSAIC_ROW_CHOICES,
-  TECHNIQUE_CHOICES,
   brushesFor,
   cellAppearance,
   cellLabel,
   cellPixels,
   colorLabel,
   defaultState,
+  type EditorTechnique,
   editorCellSize,
   expandedCells,
+  type GridEditorState,
   generateFromState,
   imageGridSize,
   imageToDraft,
+  MOSAIC_ROW_CHOICES,
   nextColor,
   planSummary,
   removeColor,
   resizeDraft,
   stateFromPattern,
+  TECHNIQUE_CHOICES,
   unitState,
   usesColors,
   withTechnique,
   yarnLines,
-  type EditorTechnique,
-  type GridEditorState,
 } from './grid-chart-view.js';
+import { texts } from './i18n.js';
 import { formatNumber } from './size-view.js';
 
 export interface GridChartPanelHost {
-  /** Az új minta a visszavonási veremre, az üzenettel. */
   commit(pattern: Pattern, message: string): void;
   announce(message: string): void;
 }
@@ -59,7 +41,10 @@ interface Cell {
   readonly y: number;
 }
 
-function fill(select: HTMLSelectElement, choices: readonly { readonly value: string; readonly label: string }[]): HTMLSelectElement {
+function fill(
+  select: HTMLSelectElement,
+  choices: readonly { readonly value: string; readonly label: string }[],
+): HTMLSelectElement {
   select.replaceChildren(
     ...choices.map((choice) => {
       const option = document.createElement('option');
@@ -130,7 +115,9 @@ export class GridChartPanel {
     this.#board = field('grid-board');
     this.#manual = field('grid-unit-manual');
     this.#unitFields = field('grid-unit-fields');
-    this.#unitInputs = ['grid-unit-x', 'grid-unit-y', 'grid-unit-width', 'grid-unit-height'].map((id) => field<HTMLInputElement>(id));
+    this.#unitInputs = ['grid-unit-x', 'grid-unit-y', 'grid-unit-width', 'grid-unit-height'].map((id) =>
+      field<HTMLInputElement>(id),
+    );
     this.#unit = field('grid-unit');
     this.#fill = field('grid-fill');
     this.#lettering = field('grid-lettering');
@@ -141,7 +128,7 @@ export class GridChartPanel {
     this.#yarn = field('grid-yarn');
     this.#load = field('grid-load');
 
-    // A rács csak az első nyitáskor épül: a késve érkező `toggle` ne írja felül a közben beírt méretet.
+    // KB: interface.md §8
     section.addEventListener('toggle', () => {
       if (!section.open) return;
       if (this.#cells.length === 0) this.#rebuild();
@@ -172,13 +159,15 @@ export class GridChartPanel {
     });
     this.#manual.addEventListener('change', () => this.#readUnit());
     for (const input of this.#unitInputs) input.addEventListener('input', () => this.#readUnit());
-    this.#lettering.addEventListener('change', () => this.#setState({ ...this.#state, lettering: this.#lettering.checked }));
+    this.#lettering.addEventListener('change', () =>
+      this.#setState({ ...this.#state, lettering: this.#lettering.checked }),
+    );
     this.#fill.addEventListener('click', () => this.#fillFromUnit());
     this.#load.addEventListener('click', () => this.#loadFromPattern());
     field<HTMLButtonElement>('grid-create').addEventListener('click', () => this.#create());
 
     this.#board.addEventListener('keydown', (event) => this.#onKey(event));
-    // A fókusz bármilyen úton kerül egy cellára (Tab, felolvasó, kattintás), a billentyűk arra a cellára vonatkoznak.
+    // KB: interface.md §24
     this.#board.addEventListener('focusin', (event) => {
       const cell = this.#cellOf(event.target);
       if (!cell || (cell.x === this.#focus.x && cell.y === this.#focus.y)) return;
@@ -217,12 +206,9 @@ export class GridChartPanel {
     else this.#schedule();
   }
 
-  /** A Filéhorgolás mintatípusnál a szakasz lenyílik. */
   reveal(): void {
     this.#section.open = true;
   }
-
-  /* ---- Állapot ---- */
 
   #setState(next: GridEditorState, rebuild = false): void {
     this.#state = next;
@@ -236,7 +222,7 @@ export class GridChartPanel {
     this.#technique.value = technique;
     this.#mosaicRows.value = String(this.#state.mosaicRows);
     this.#mosaicField.hidden = technique !== 'mosaic';
-    // A fókuszban lévő mezőbe épp gépelnek: azt nem írjuk felül.
+    // KB: interface.md §8
     const write = (input: HTMLInputElement, value: number) => {
       if (document.activeElement !== input) input.value = String(value);
     };
@@ -271,7 +257,7 @@ export class GridChartPanel {
     this.#setState({ ...this.#state, draft: resizeDraft(draft, width, height) }, true);
   }
 
-  /** A kép a megadott szélességre, a mintasűrűség szerinti magasságra kicsinyítve kerül a rácsba (PQW-894). */
+  // KB: interface.md §26
   async #loadImage(file: File): Promise<void> {
     if (!this.#pattern) return;
     const url = URL.createObjectURL(file);
@@ -279,7 +265,13 @@ export class GridChartPanel {
       const image = new Image();
       image.src = url;
       await image.decode();
-      const size = imageGridSize(image.naturalWidth, image.naturalHeight, this.#state.draft[0]?.length ?? 1, this.#pattern, this.#state);
+      const size = imageGridSize(
+        image.naturalWidth,
+        image.naturalHeight,
+        this.#state.draft[0]?.length ?? 1,
+        this.#pattern,
+        this.#state,
+      );
       const canvas = document.createElement('canvas');
       canvas.width = size.width;
       canvas.height = size.height;
@@ -290,7 +282,10 @@ export class GridChartPanel {
       this.#manual.checked = false;
       this.#unitFields.hidden = true;
       this.#focus = { x: 0, y: 0 };
-      this.#setState({ ...this.#state, draft: imageToDraft(pixels, size.width, size.height, this.#state), manualUnit: null }, true);
+      this.#setState(
+        { ...this.#state, draft: imageToDraft(pixels, size.width, size.height, this.#state), manualUnit: null },
+        true,
+      );
       this.#host.announce(texts().panels.grid.imageLoaded(size.width, size.height));
     } catch {
       this.#host.announce(texts().panels.grid.imageFailed);
@@ -344,8 +339,6 @@ export class GridChartPanel {
     this.#host.commit(result.pattern, result.message);
   }
 
-  /* ---- Színek és ecset ---- */
-
   #renderColors(): void {
     const t = texts().panels.grid;
     const { colors, technique } = this.#state;
@@ -364,14 +357,15 @@ export class GridChartPanel {
         name.value = colorLabel(color);
         name.autocomplete = 'off';
         name.setAttribute('aria-label', t.colorNameLabel(letter));
-        // Amit a felhasználó ír be, az saját név (PQW-905): az azonosító elmarad, és a szöveg nem fordul.
-        name.addEventListener('change', () => this.#editColor(i, { name: name.value.trim() || t.colorFallback(letter) }, true));
+        // KB: interface.md §25
+        name.addEventListener('change', () =>
+          this.#editColor(i, { name: name.value.trim() || t.colorFallback(letter) }, true),
+        );
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'tool';
         remove.textContent = t.remove;
         remove.setAttribute('aria-label', t.colorRemoveLabel(letter));
-        // A mozaik mindig két színnel készül.
         remove.disabled = colors.length <= (technique === 'mosaic' ? 2 : 1);
         remove.addEventListener('click', () => {
           this.#brush = 0;
@@ -391,8 +385,7 @@ export class GridChartPanel {
   #editColor(index: number, patch: { hex?: string; name?: string }, rebuild = false): void {
     const colors = this.#state.colors.map((color, i) => {
       if (i !== index) return color;
-      // Saját név esetén a beépített azonosító elmarad, hogy a mentett minta azt
-      // vigye, amit a felhasználó írt; a szín cseréje az azonosítót nem bántja.
+      // KB: interface.md §25
       return patch.name === undefined ? { ...color, ...patch } : { name: patch.name, hex: patch.hex ?? color.hex };
     });
     this.#setState({ ...this.#state, colors }, rebuild);
@@ -423,8 +416,6 @@ export class GridChartPanel {
     );
   }
 
-  /* ---- A rács ---- */
-
   #buildBoard(): void {
     const { draft, technique, mosaicRows } = this.#state;
     const height = draft.length;
@@ -435,7 +426,10 @@ export class GridChartPanel {
     this.#board.style.setProperty('--cell-height', `${pixels.height}px`);
     this.#board.setAttribute('aria-rowcount', String(height));
     this.#board.setAttribute('aria-colcount', String(width));
-    this.#ratio.textContent = texts().panels.grid.cellRatio(formatNumber(size.widthCm, 1), formatNumber(size.heightCm, 1));
+    this.#ratio.textContent = texts().panels.grid.cellRatio(
+      formatNumber(size.widthCm, 1),
+      formatNumber(size.heightCm, 1),
+    );
 
     this.#cells = Array.from({ length: height }, () => []);
     const rows: HTMLElement[] = [];
@@ -494,7 +488,9 @@ export class GridChartPanel {
   #paint(cell: Cell, value: DraftCell): void {
     const current = this.#state.draft[cell.y]?.[cell.x];
     if (current === undefined || current === value) return;
-    const draft = this.#state.draft.map((row, y) => (y === cell.y ? row.map((old, x) => (x === cell.x ? value : old)) : row));
+    const draft = this.#state.draft.map((row, y) =>
+      y === cell.y ? row.map((old, x) => (x === cell.x ? value : old)) : row,
+    );
     this.#state = { ...this.#state, draft };
     this.#updateCell(cell, unitState(this.#state).unit);
     this.#schedule();
@@ -513,7 +509,7 @@ export class GridChartPanel {
       case 'ArrowRight':
         next = { x: Math.min(width - 1, x + 1), y };
         break;
-      // Fent a magasabb sorszámú sor áll.
+      // KB: interface.md §24 — up is the higher row index.
       case 'ArrowUp':
         next = { x, y: Math.min(height - 1, y + 1) };
         break;
@@ -547,8 +543,6 @@ export class GridChartPanel {
     event.stopPropagation();
     if (next) this.#moveFocus(next);
   }
-
-  /* ---- Összegzés ---- */
 
   #render(): void {
     if (!this.#section.open || !this.#pattern) return;

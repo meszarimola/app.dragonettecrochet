@@ -1,24 +1,6 @@
-/*
- * A felület nyelve (PQW-900): magyar és angol, egy szótárból.
- *
- * - A felület nyelve független a minta jelölésétől (PQW-868): angol felületen
- *   is lehet magyar jelöléssel dolgozni. Az írott minta és a szemnevek nyelvét
- *   továbbra is a jelölés adja (notation.ts `textLanguage`).
- * - A nyelv a `?lang` paraméterből jön (a főoldal így linkel), enélkül a
- *   dokumentum `lang` attribútumából. A kézi választás a lapon belül él, és a
- *   címsorba is beírja a `?lang`-ot, hogy megosztható és újratölthető legyen.
- *   Új `localStorage` kulcsot nem vezetünk be: az a jogi szöveg miatt
- *   tulajdonosi döntés.
- * - A szótár területenként külön fájlban van (`src/ui/i18n/`), hogy a
- *   párhuzamos munkák ne ugyanazt a fájlt írják. Minden terület ugyanazt a
- *   kulcskészletet adja mindkét nyelven; ezt a típus és a
- *   `tests/ui-i18n.test.mjs` is őrzi. Egy új nyelv (japán, PQW-877) egy újabb
- *   `UiLanguage` érték és a szótárak bővítése.
- *
- * DOM-mal dolgozik (a statikus feliratok behelyettesítése), de a szótárak
- * maguk DOM nélküliek, ezért a Node is futtatja őket.
- */
+// KB: interface.md §1, §2, §4, §5
 
+import { IRREGULAR_TEXTS } from './i18n/irregular.ts';
 import { MARKUP_TEXTS } from './i18n/markup.ts';
 import { MESSAGE_TEXTS } from './i18n/messages.ts';
 import { PANEL_TEXTS } from './i18n/panels.ts';
@@ -30,29 +12,36 @@ export type { UiLanguage } from './notation.ts';
 
 export const UI_LANGUAGES: readonly UiLanguage[] = ['hu', 'en'];
 
-/** Egy terület szótára: nyelvenként ugyanaz a kulcskészlet. */
 export type Dictionary<T> = Readonly<Record<UiLanguage, T>>;
 
-/** A felület minden szövege egy nyelven. */
 export interface UiTexts {
-  /** Az index.html feliratai (`data-i18n`, `data-i18n-tip`, `data-i18n-label`). */
   readonly markup: (typeof MARKUP_TEXTS)['hu'];
-  /** Az állapotsor, a párbeszédablakok és a menüsor üzenetei (main.ts). */
   readonly messages: (typeof MESSAGE_TEXTS)['hu'];
-  /** A jobb oldali panel szakaszainak szövegei (generátorok, méret, rácsminta, ruhadarab). */
   readonly panels: (typeof PANEL_TEXTS)['hu'];
-  /** A bal oldali mintatípus-menü és a hozzá tartozó feliratok. */
   readonly sections: (typeof SECTION_TEXTS)['hu'];
-  /** Az ellenőrző üzenetei szabályonként; a mag magyar szövege az alap (rules.ts). */
   readonly rules: (typeof RULE_TEXTS)['hu'];
+  readonly irregular: (typeof IRREGULAR_TEXTS)['hu'];
 }
 
 export const UI_TEXTS: Dictionary<UiTexts> = {
-  hu: { markup: MARKUP_TEXTS.hu, messages: MESSAGE_TEXTS.hu, panels: PANEL_TEXTS.hu, sections: SECTION_TEXTS.hu, rules: RULE_TEXTS.hu },
-  en: { markup: MARKUP_TEXTS.en, messages: MESSAGE_TEXTS.en, panels: PANEL_TEXTS.en, sections: SECTION_TEXTS.en, rules: RULE_TEXTS.en },
+  hu: {
+    markup: MARKUP_TEXTS.hu,
+    messages: MESSAGE_TEXTS.hu,
+    panels: PANEL_TEXTS.hu,
+    sections: SECTION_TEXTS.hu,
+    rules: RULE_TEXTS.hu,
+    irregular: IRREGULAR_TEXTS.hu,
+  },
+  en: {
+    markup: MARKUP_TEXTS.en,
+    messages: MESSAGE_TEXTS.en,
+    panels: PANEL_TEXTS.en,
+    sections: SECTION_TEXTS.en,
+    rules: RULE_TEXTS.en,
+    irregular: IRREGULAR_TEXTS.en,
+  },
 };
 
-/** A `?lang` paraméter értéke, ha értelmezhető nyelv; különben `null`. */
 export function languageFromSearch(search: string): UiLanguage | null {
   const value = new URLSearchParams(search).get('lang');
   if (value === null) return null;
@@ -61,7 +50,6 @@ export function languageFromSearch(search: string): UiLanguage | null {
   return normalized.startsWith('hu') ? 'hu' : null;
 }
 
-/** A tárolt nyelv, ha értelmezhető; sérült vagy ismeretlen értéknél `null` (PQW-906). */
 export function storedLanguage(value: string | null): UiLanguage | null {
   if (value === null) return null;
   const normalized = value.trim().toLowerCase();
@@ -69,22 +57,15 @@ export function storedLanguage(value: string | null): UiLanguage | null {
   return normalized === 'hu' ? 'hu' : null;
 }
 
-/**
- * A felület nyelve induláskor (PQW-906). Sorrend: a `?lang` paraméter erősebb a
- * tárolt értéknél — így a megosztott link mindig azt a nyelvet adja, amire szól
- * —, a tárolt érték pedig a dokumentum `lang` attribútumánál erősebb. A tárolás
- * olvasása a hívóé, hogy ez a függvény tiszta maradjon, és a Node is futtathassa.
- */
+// KB: interface.md §4
 export function resolveUiLanguage(search: string, stored: string | null, documentLanguage: string): UiLanguage {
   return languageFromSearch(search) ?? storedLanguage(stored) ?? (/^en\b/i.test(documentLanguage) ? 'en' : 'hu');
 }
 
-/** A főoldal linkje a felület nyelvén (a leíró oldal magyarul és angolul is él). */
 export function homeUrl(language: UiLanguage): string {
   return language === 'en' ? 'https://dragonettecrochet.com/en/' : 'https://dragonettecrochet.com/hu/';
 }
 
-/** A címsor a választott nyelvvel, hogy a link megosztható és újratölthető legyen. */
 export function urlWithLanguage(href: string, language: UiLanguage): string {
   const url = new URL(href);
   url.searchParams.set('lang', language);
@@ -93,27 +74,19 @@ export function urlWithLanguage(href: string, language: UiLanguage): string {
 
 let current: UiLanguage = 'hu';
 
-/** A felület mostani nyelve. */
 export function uiLanguage(): UiLanguage {
   return current;
 }
 
-/** A felület szövegei a mostani nyelven. */
 export function texts(): UiTexts {
   return UI_TEXTS[current];
 }
 
-/** A nyelv beállítása; a hívó gondoskodik a `<html lang>`-ról és az újrarajzolásról. */
 export function setUiLanguage(language: UiLanguage): void {
   current = language;
 }
 
-/**
- * A statikus feliratok behelyettesítése a jelölésbe: `data-i18n` a szövegre,
- * `data-i18n-tip` a saját tooltipre (`data-tip`), `data-i18n-label` az
- * `aria-label`-re. Ismeretlen kulcsnál hibát dob, így a hiányzó fordítás a
- * böngészős tesztben azonnal kiderül.
- */
+// KB: interface.md §4 — an unknown key throws, so a missing translation fails the browser test.
 export function applyStaticTexts(root: ParentNode, markup: UiTexts['markup']): void {
   const value = (key: string): string => {
     const text = (markup as Record<string, string>)[key];
@@ -129,7 +102,6 @@ export function applyStaticTexts(root: ParentNode, markup: UiTexts['markup']): v
   for (const element of root.querySelectorAll<HTMLElement>('[data-i18n-label]')) {
     element.setAttribute('aria-label', value(element.dataset['i18nLabel']!));
   }
-  // A `content` attribútum a fejben lévő meta elemeké (leírás, PQW-905).
   for (const element of root.querySelectorAll<HTMLElement>('[data-i18n-content]')) {
     element.setAttribute('content', value(element.dataset['i18nContent']!));
   }

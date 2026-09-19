@@ -1,75 +1,35 @@
-/*
- * Amigurumi és 3D formák (PQW-863): a forma körönkénti szemszáma a körben mért
- * mintasűrűségből, a korlátok, a körönkénti görbület, a méretbecslés és a
- * részek összekapcsolásának ellenőrzése. Csak számok; a szemgráfot az
- * amigurumi-generator.ts építi ebből.
- *
- * Az alapmodell (04 §0): a formát a szemszám körönkénti változása adja. A szem
- * szélessége w = 1/g_s, a kör magassága h = 1/g_r (cm), mindkettő a körben
- * mért mintasűrűségből (gauge.ts), profil nélkül a tűből becsülve. A lapos kör
- * szaporítása Δ = 2π·h/w, páros egészre kerekítve s (rövidpálcánál 6): ez a
- * varázskör szemszáma és a zárt vég legkisebb szemszáma.
- *
- * Formák:
- * - Gömb, 6n (04 §4.3, §9.2): k = round(π·D·g_s/s) szaporító kör, E egyenes,
- *   k − 1 fogyasztó kör. A 04 §9.2 képlete E = round(3k·g_r/g_s) − (2k − 1);
- *   a 04 §4.4 kidolgozott példája g_r ≠ g_s mellett is k + 1-et ad, ahol a
- *   képlet 8-at adna. A kettő között a bevett k + 1 felé kerekítünk: a
- *   mintasűrűség csak egész környi eltérésnél változtat rajta.
- * - Gömb, szinuszos (04 §4.3, §9.2): n = round(πD/2·g_r) kör, S_i =
- *   round(πD·g_s·sin(π(i − ½)/n)). A pólus s szemre emelve, a második kör
- *   legfeljebb duplázás a szinusz arányában, az emelés okozta törést a
- *   szomszédok átlaga simítja; így jön ki a 04 §4.4 horgolható sora.
- * - Félgömb (04 §4.5): a gömb első fele; 6n-nél k szaporító és kb. k/2 egyenes kör.
- * - Tojás (04 §4.6): forgástest két negyed ellipszisből; az alsó rész a
- *   magasság 45%-a, a felső 55%, így a felső vége lassabban fogy.
- * - Henger (04 §4.1): S = round(π·D·g_s), round(H·g_r) kör.
- * - Kúp (04 §4.2, §9.3): a csúcstól s szemről egyenletesen az alap
- *   szemszámáig; a tört szaporítás a kerekítéssel váltakozik (2,5: 3, 2, 3…).
- * - Forgástest (04 §9.3): a profil ívhossza mentén körönként mintavétel,
- *   S_i = round(2π·r(s_i)·g_s). Nem nulla sugarú végen lapos alj vagy tető
- *   (lapos kör s-esével), vagy nyitott szél varráshoz, folytatáshoz.
- *
- * Korlátok (04 §9.0, §9.2): egy körben legfeljebb duplázás vagy felezés.
- * Éles törésnél, ahol a profil legalább 60°-ot fordul (pl. a lapos aljból a
- * falba), a törés utáni kör hátsó szálba megy (04 §4.1, §5.2, §9.3). Az
- * eltolt szaporítás és fogyasztás a körök elosztásában van (`roundOps`).
- *
- * Görbület körönként (04 §8, §9.6): a szemszám változása a lapos értékhez
- * képest. Méret (04 §5.8, §9.7): a szélesség S_max·w/π; a magasság a forma
- * saját geometriájából, a körszám kerekítésével arányosítva. A figura
- * magassága az összekapcsolt részek magasságának összege; varrásnál a zárt
- * rész a nyitott szélbe süllyed (gömbsüveg), ez levonódik.
- */
+// KB: 04 §0, 04 §4, 04 §5.2, 04 §5.8, 04 §8, 04 §9.0, 04 §9.2, 04 §9.3, 04 §9.6, 04 §9.7
 
 import { stitchDimensions } from './gauge.ts';
-import { buildPieceGraph, rowEdges, type PieceGraph } from './graph.ts';
-import { text, type CoreText } from './messages.ts';
+import { buildPieceGraph, type PieceGraph, rowEdges } from './graph.ts';
+import { type CoreText, text } from './messages.ts';
 import { gaugeContextOf } from './pattern-size.ts';
-import { CUPPING_RATIO, RUFFLING_RATIO, flatIncreases, niceIncreases } from './rounds.ts';
+import { CUPPING_RATIO, flatIncreases, niceIncreases, RUFFLING_RATIO } from './rounds.ts';
 import type { RuleId } from './rules.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
-import type { JoinEdge, NodeId, OvalStitch, Pattern, Piece, PieceEnd, PieceId, ProfilePoint, ShapeSpec, ValueSource } from './types.ts';
-
-/* ---- Mintasűrűség körben ---- */
+import type {
+  JoinEdge,
+  NodeId,
+  OvalStitch,
+  Pattern,
+  Piece,
+  PieceEnd,
+  PieceId,
+  ProfilePoint,
+  ShapeSpec,
+  ValueSource,
+} from './types.ts';
 
 export interface RoundGauge {
-  /** Szem cm-enként a kör mentén (g_s). */
   readonly stitchesPerCm: number;
-  /** Kör cm-enként (g_r). */
   readonly roundsPerCm: number;
   readonly source: ValueSource;
-  /** A tű átmérője mm-ben: a lapos darab vastagságához (PQW-902). */
+  /** Hook diameter in mm, for the thickness of a flat piece. KB: 02 §1.6 */
   readonly hookMm: number;
 }
 
-/**
- * A szem (alapértelmezésben a rövidpálca) körben mért mintasűrűsége a minta
- * profiljából; profil nélkül a tűből becsülve. A magasabb szem (PQW-899) körének
- * magassága a lapos kör arányából jön, mint a körgenerátorban (rounds.ts
- * `flatIncreases`): így a lapos érték félpálcánál 8, pálcánál 12 (04 §1.2).
- */
+// KB: 04 §1.2
 export function roundGaugeOf(pattern: Pattern, stitch: OvalStitch = 'sc'): RoundGauge {
   const context = gaugeContextOf(pattern, libraryFor(pattern));
   const def = resolveStitch(stitch)!;
@@ -84,38 +44,27 @@ export function roundGaugeOf(pattern: Pattern, stitch: OvalStitch = 'sc'): Round
   };
 }
 
-/** Az ovális szeme; hiányában rövidpálca (PQW-899). */
 export function ovalStitchOf(spec: ShapeSpec): OvalStitch {
   return spec.kind === 'oval' ? (spec.stitch ?? 'sc') : 'sc';
 }
 
-/**
- * A forma körtervéhez való mintasűrűség: az ovális a saját szeméé (PQW-899),
- * a többi forma rövidpálcás. A `sc` a már kiszámolt rövidpálcás érték.
- */
+/** The oval uses its own stitch's gauge; every other shape uses single crochet. */
 export function shapeGaugeOf(pattern: Pattern, spec: ShapeSpec, sc: RoundGauge = roundGaugeOf(pattern)): RoundGauge {
   const stitch = ovalStitchOf(spec);
   return stitch === 'sc' ? sc : roundGaugeOf(pattern, stitch);
 }
 
-/** A lapos kör szaporítása körönként, kerekítés nélkül: 2π·h/w (04 §0). */
+/** KB: 04 §0 */
 export function flatRate(gauge: RoundGauge): number {
   return (2 * Math.PI * gauge.stitchesPerCm) / gauge.roundsPerCm;
 }
 
-/** A varázskör és a zárt vég szemszáma: a lapos érték páros egészre kerekítve (rövidpálcánál 6). */
+/** KB: 04 §0 */
 export function startCount(gauge: RoundGauge): number {
   return niceIncreases(flatRate(gauge));
 }
 
-/* ---- Formák ---- */
-
-/**
- * A formák neve a minta CÍMÉBE és a darab nevébe kerül (`partName`,
- * `withGeneratedTitle`), és a mentett mintába íródik: ezért magyar marad a
- * magban, a felület nyelvétől függetlenül (PQW-904). A panel listája a saját
- * szótárát használja (`texts().panels.amigurumi.names`).
- */
+// KB: core-domain §20
 export const SHAPE_NAMES: Readonly<Record<ShapeSpec['kind'], string>> = {
   sphere: 'Gömb',
   hemisphere: 'Félgömb',
@@ -126,36 +75,28 @@ export const SHAPE_NAMES: Readonly<Record<ShapeSpec['kind'], string>> = {
   oval: 'Ovális',
 };
 
-/** Az ovális szemei (PQW-899, PQW-902). */
 export const OVAL_STITCHES: readonly OvalStitch[] = ['sc', 'hdc', 'dc', 'tr'];
 
-/**
- * A tű és a fonal átmérőjének aránya szoros, amigurumi horgolásban (02 §1.6:
- * `hook_mm ≈ 1,3–1,5 · d_mm`, a középértékkel). A kelme vastagsága két
- * fonalátmérő: a szem alsó és felső hurka.
- */
+// KB: 02 §1.6
 const AMIGURUMI_HOOK_RATIO = 1.4;
 
-/** A lapos darab kelmevastagsága cm-ben a tűből (02 §1.6): két fonalátmérő. */
+/** KB: 02 §1.6 */
 export function fabricThicknessCm(hookMm: number): number {
   return (2 * hookMm) / AMIGURUMI_HOOK_RATIO / 10;
 }
 
 export const MAX_SIZE_CM = 100;
 export const MAX_SHAPE_ROUNDS = 120;
-/** Legfeljebb ennyi a kúp körönkénti szaporítása: a lapos kör kétszerese. */
+/** At most twice the flat value. */
 export const MAX_CONE_INCREASES = 12;
-/** Ennyi fokos fordulás a profilon már éles törés: a következő kör hátsó szálba megy (04 §9.3). */
+/** KB: 04 §9.3 */
 export const SHARP_TURN_DEG = 60;
-/** A lapos érték ennyi hányada alatt a kör hengernek számít (04 §9.6). */
+/** KB: 04 §9.6 */
 export const TUBE_RATIO = 0.15;
-/** A tojás alsó részének aránya a magasságból (04 §4.6: a felső vége lassabban fogy). */
+/** KB: 04 §4.6 */
 export const EGG_LOWER_SHARE = 0.45;
 
-/**
- * A forma és a körterv üzenetei kódként (PQW-904): a mondatot a felület
- * állítja össze (src/ui/i18n/core/amigurumi.ts).
- */
+// KB: core-domain §2
 export type ShapeCode =
   | 'size-range'
   | 'cone-increases-range'
@@ -168,16 +109,15 @@ export type ShapeCode =
   | 'join-count-differs'
   | 'distribution-mismatch';
 
-/**
- * Melyik méret mezőjéről szól az üzenet. A mező neve és a magyar névelő („Az
- * átmérő”, „A hossz”) a felületé; a mag csak az azonosítót adja.
- */
+/** KB: core-domain §2 */
 export type SizeField = 'diameter' | 'height' | 'length' | 'width';
 
-/** Mi nem jó a forma adataiban; `null`, ha elkészíthető. */
+/** `null` when the shape can be made. */
 export function shapeProblem(spec: ShapeSpec): CoreText<ShapeCode> | null {
   const size = (value: number, field: SizeField) =>
-    Number.isFinite(value) && value > 0 && value <= MAX_SIZE_CM ? null : text('size-range', { field, max: MAX_SIZE_CM });
+    Number.isFinite(value) && value > 0 && value <= MAX_SIZE_CM
+      ? null
+      : text('size-range', { field, max: MAX_SIZE_CM });
   switch (spec.kind) {
     case 'sphere':
     case 'hemisphere':
@@ -213,22 +153,15 @@ export function shapeProblem(spec: ShapeSpec): CoreText<ShapeCode> | null {
   }
 }
 
-/** Egy forma körtervének eredménye: körönkénti szemszám, a kezdés és a vég, és a méret. */
 export interface Schedule {
-  /** A szemszám körönként, az 1. körtől. */
   readonly counts: readonly number[];
-  /** Varázskörrel kezdődik, egy előző rész nyitott szélébe horgolva folytatódik, vagy láncalapról (ovális, PQW-890). */
+  /** Magic ring, the open edge of a previous section, or a foundation chain (oval). */
   readonly start: 'ring' | 'open' | 'chain';
-  /** A darab vége: összehúzott vagy lapos tetővel zárt, illetve nyitott szél. */
   readonly end: PieceEnd;
-  /** A hátsó szálba horgolt körök indexe (0-tól): az éles törés utáni kör. */
+  /** Rounds worked into the back loop (0-based): the round after a sharp turn. KB: 04 §9.3 */
   readonly backLoop: readonly number[];
   readonly widthCm: number;
   readonly heightCm: number;
-  /**
-   * Ovális láncalapról (PQW-890, PQW-899): a láncszemek száma a kezdőlánccal,
-   * végenként a körönkénti szaporítás, a szélesség, a szem és a kezdőlánc hossza.
-   */
   readonly oval?: {
     readonly chains: number;
     readonly perEnd: number;
@@ -238,9 +171,10 @@ export interface Schedule {
   };
 }
 
-export type ScheduleResult = { readonly ok: true; readonly schedule: Schedule } | { readonly ok: false; readonly reason: CoreText<ShapeCode> };
+export type ScheduleResult =
+  | { readonly ok: true; readonly schedule: Schedule }
+  | { readonly ok: false; readonly reason: CoreText<ShapeCode> };
 
-/** A forma körterve a mintasűrűségből. */
 export function shapeSchedule(spec: ShapeSpec, gauge: RoundGauge): ScheduleResult {
   const problem = shapeProblem(spec);
   if (problem) return { ok: false, reason: problem };
@@ -255,9 +189,13 @@ function buildSchedule(spec: ShapeSpec, gauge: RoundGauge): Schedule {
   const s = startCount(gauge);
   switch (spec.kind) {
     case 'sphere':
-      return spec.method === '6n' ? sphereSixN(spec.diameterCm, gauge, s) : sphereSine(spec.diameterCm, gauge, s, false, 'closed');
+      return spec.method === '6n'
+        ? sphereSixN(spec.diameterCm, gauge, s)
+        : sphereSine(spec.diameterCm, gauge, s, false, 'closed');
     case 'hemisphere':
-      return spec.method === '6n' ? hemisphereSixN(spec.diameterCm, gauge, s, spec.top) : sphereSine(spec.diameterCm, gauge, s, true, spec.top);
+      return spec.method === '6n'
+        ? hemisphereSixN(spec.diameterCm, gauge, s, spec.top)
+        : sphereSine(spec.diameterCm, gauge, s, true, spec.top);
     case 'egg':
       return revolution(eggProfile(spec.diameterCm, spec.heightCm), 'closed', 'closed', gauge, s, 'sphere');
     case 'cylinder': {
@@ -277,24 +215,7 @@ function buildSchedule(spec: ShapeSpec, gauge: RoundGauge): Schedule {
   }
 }
 
-/**
- * Ovális láncalapról (04 §3.4, §9.4, PQW-890, PQW-899). A `gauge` az ovális
- * szeméé, `s` a lapos értéke (rövidpálcánál 6, félpálcánál 8, pálcánál 12);
- * végenként ennek fele a körönkénti szaporítás. W láncszembe horgol az 1. kör,
- * a horoghoz legközelebbi T láncszem a kezdőlánc (a szem fordulólánca:
- * rövidpálcánál 1, félpálcánál 2, pálcánál 3), így L = W + T.
- *
- * Az 1. kör 2W − 2 + 2·(s/2) szem: elöl W − 1, a legtávolabbi láncszembe
- * további s/2, a másik oldalon vissza W − 2, a horoghoz legközelebbi láncszembe
- * s/2 − 1 további; rövidpálcánál ez 2L + 2. Ha a kezdőlánc szemnek számít, a
- * horoghoz legközelebbi vég egyik szeme a kezdőlánc, a szemszám ugyanannyi.
- * Utána körönként +s, az egyenes oldalak szemszáma nem változik.
- *
- * A körszám a szélesség fele körmagasságban, az egyenes rész a hossz és a
- * szélesség különbsége szemszélességben. A darab szélessége a hosszabbik
- * méret. Lapos darab: a figura magasságához a kelme vastagságával járul hozzá
- * (02 §1.6: két fonalátmérő, a fonal átmérője a tűből), nem a körmagassággal.
- */
+// KB: 04 §3.4, 04 §9.4; 02 §1.6
 function oval(spec: Extract<ShapeSpec, { kind: 'oval' }>, gauge: RoundGauge, s: number): Schedule {
   const stitch = ovalStitchOf(spec);
   const perEnd = s / 2;
@@ -316,7 +237,7 @@ function oval(spec: Extract<ShapeSpec, { kind: 'oval' }>, gauge: RoundGauge, s: 
   };
 }
 
-/** A konszenzus felé kerekít: `exact` csak egész eltérésnél mozdít `consensus`-on. */
+/** Moves off `consensus` only when `exact` differs by a whole round. KB: 04 §9.2 */
 export function towardConsensus(consensus: number, exact: number): number {
   return exact >= consensus ? Math.floor(exact) : Math.ceil(exact);
 }
@@ -335,7 +256,7 @@ function sphereSixN(diameterCm: number, gauge: RoundGauge, s: number): Schedule 
   const { k, aspect, up, widthCm } = sixN(diameterCm, gauge, s);
   const even = Math.max(1, towardConsensus(k + 1, ((s * k) / 2) * aspect - (2 * k - 1)));
   const counts = [...up, ...Array<number>(even).fill(s * k), ...up.slice(0, -1).reverse()];
-  // A kitömött 6n gömb gömb (04 §4.3): a magassága az átmérője.
+  // KB: 04 §4.3
   return { counts, start: 'ring', end: 'closed', backLoop: [], widthCm, heightCm: widthCm };
 }
 
@@ -351,14 +272,16 @@ function hemisphereSixN(diameterCm: number, gauge: RoundGauge, s: number, top: P
 function sphereSine(diameterCm: number, gauge: RoundGauge, s: number, half: boolean, top: PieceEnd): Schedule {
   const n = Math.max(3, Math.round(((Math.PI * diameterCm) / 2) * gauge.roundsPerCm));
   const equator = Math.PI * diameterCm * gauge.stitchesPerCm;
-  const ideal = Array.from({ length: n }, (_, i) => Math.max(1, Math.round(equator * Math.sin((Math.PI * (i + 0.5)) / n))));
+  const ideal = Array.from({ length: n }, (_, i) =>
+    Math.max(1, Math.round(equator * Math.sin((Math.PI * (i + 0.5)) / n))),
+  );
   const rows = half ? Math.ceil(n / 2) : n;
   let lifted = liftStart(ideal, s, 'sphere');
   if (!half) lifted = liftEnd(lifted, s, 'sphere');
   const counts = clampGrowth(lifted.slice(0, rows));
   const backLoop: number[] = [];
   if (half && top === 'closed') closeFlat(counts, backLoop, s, true);
-  // A kerekítés utáni átmérő (04 §4.3: d′ = n · 2/(π·g_r)).
+  // KB: 04 §4.3
   const diameter = (2 * n) / (Math.PI * gauge.roundsPerCm);
   return {
     counts: clampGrowth(counts),
@@ -390,12 +313,19 @@ function cone(spec: Extract<ShapeSpec, { kind: 'cone' }>, gauge: RoundGauge, s: 
   const counts = Array.from({ length: n }, (_, i) => Math.min(base, s + Math.round(step * i)));
   counts[n - 1] = base;
   const backLoop: number[] = [];
-  // A ferde palástból a lapos alapba mindig éles a törés.
+  // From a sloping wall into a flat base the turn is always sharp.
   if (spec.top === 'closed') closeFlat(counts, backLoop, s, true);
-  return { counts: clampGrowth(counts), start: 'ring', end: spec.top, backLoop, widthCm: base / (Math.PI * gauge.stitchesPerCm), heightCm };
+  return {
+    counts: clampGrowth(counts),
+    start: 'ring',
+    end: spec.top,
+    backLoop,
+    widthCm: base / (Math.PI * gauge.stitchesPerCm),
+    heightCm,
+  };
 }
 
-/** A tojás profilja: két negyed ellipszis a pólustól a pólusig (04 §4.6). */
+/** KB: 04 §4.6 */
 export function eggProfile(diameterCm: number, heightCm: number, steps = 24): ProfilePoint[] {
   const a = diameterCm / 2;
   const lower = EGG_LOWER_SHARE * heightCm;
@@ -412,7 +342,6 @@ export function eggProfile(diameterCm: number, heightCm: number, steps = 24): Pr
   return points;
 }
 
-/** A profil pontjainak ívhossza a kezdőponttól. */
 function arcLengths(profile: readonly ProfilePoint[]): number[] {
   const lengths = [0];
   for (let i = 1; i < profile.length; i += 1) {
@@ -428,11 +357,7 @@ function angleDeg(ax: number, ay: number, bx: number, by: number): number {
   return (Math.acos(Math.max(-1, Math.min(1, (ax * bx + ay * by) / length))) * 180) / Math.PI;
 }
 
-/**
- * Forgástest a profilból (04 §9.3). `lift`: a pólus emelése; `sphere` a
- * gömbnél leírt duplázás és simítás, `hold` a pólus szemszámán marad, amíg a
- * profil utol nem éri (hegyes végnél ne nőjön túl gyorsan).
- */
+/** `lift` raises the pole: `sphere` doubles and smooths as for the sphere, `hold` keeps the pole count until the profile catches up, so a pointed end does not grow too fast. KB: 04 §9.3 */
 function revolution(
   profile: readonly ProfilePoint[],
   bottom: PieceEnd,
@@ -453,7 +378,9 @@ function revolution(
     const t = span > 0 ? (distance - lengths[j - 1]!) / span : 0;
     return a.radiusCm + t * (b.radiusCm - a.radiusCm);
   };
-  const ideal = Array.from({ length: n }, (_, i) => Math.max(1, Math.round(2 * Math.PI * radiusAt(sample(i)) * gauge.stitchesPerCm)));
+  const ideal = Array.from({ length: n }, (_, i) =>
+    Math.max(1, Math.round(2 * Math.PI * radiusAt(sample(i)) * gauge.stitchesPerCm)),
+  );
 
   const pole = (radius: number) => 2 * Math.PI * radius * gauge.stitchesPerCm < s / 2;
   const first = profile[0]!;
@@ -467,7 +394,12 @@ function revolution(
   const sharp = new Set<number>();
   for (let j = 1; j + 1 < profile.length; j += 1) {
     const [a, b, c] = [profile[j - 1]!, profile[j]!, profile[j + 1]!];
-    const turn = angleDeg(b.radiusCm - a.radiusCm, b.heightCm - a.heightCm, c.radiusCm - b.radiusCm, c.heightCm - b.heightCm);
+    const turn = angleDeg(
+      b.radiusCm - a.radiusCm,
+      b.heightCm - a.heightCm,
+      c.radiusCm - b.radiusCm,
+      c.heightCm - b.heightCm,
+    );
     if (turn < SHARP_TURN_DEG) continue;
     const index = counts.findIndex((_, i) => sample(i) >= lengths[j]!);
     if (index > 0) sharp.add(index);
@@ -476,7 +408,10 @@ function revolution(
   const disc = !startPole && bottom === 'closed' ? flatUp(counts[0]!, s) : [];
   const backLoop = [...sharp].map((i) => i + disc.length);
   const second = profile[1]!;
-  if (disc.length > 0 && angleDeg(second.radiusCm - first.radiusCm, second.heightCm - first.heightCm, 1, 0) >= SHARP_TURN_DEG) {
+  if (
+    disc.length > 0 &&
+    angleDeg(second.radiusCm - first.radiusCm, second.heightCm - first.heightCm, 1, 0) >= SHARP_TURN_DEG
+  ) {
     backLoop.push(disc.length);
   }
   const all = [...disc, ...counts];
@@ -498,9 +433,6 @@ function revolution(
   };
 }
 
-/* ---- Korlátok ---- */
-
-/** Lapos kör s-esével a varázskörtől a célig, a célt is beleértve. */
 export function flatUp(target: number, s: number): number[] {
   const counts: number[] = [];
   for (let count = s; count < target; count += s) counts.push(count);
@@ -508,7 +440,6 @@ export function flatUp(target: number, s: number): number[] {
   return counts;
 }
 
-/** Lapos tető s-esével fogyasztva, s szemig; ha már nincs mit fogyasztani, üres. */
 export function flatDown(from: number, s: number): number[] {
   if (from <= s) return [];
   const counts: number[] = [];
@@ -517,7 +448,7 @@ export function flatDown(from: number, s: number): number[] {
   return counts;
 }
 
-/** A lapos tető a körterv végére; ha éles a törés, az első fogyasztó kör hátsó szálba megy. */
+/** If the turn is sharp, the first decrease round goes into the back loop. KB: 04 §9.3 */
 function closeFlat(counts: number[], backLoop: number[], s: number, steep: boolean): void {
   const down = flatDown(counts.at(-1)!, s);
   if (down.length === 0) return;
@@ -525,18 +456,14 @@ function closeFlat(counts: number[], backLoop: number[], s: number, steep: boole
   counts.push(...down);
 }
 
-/**
- * A pólus emelése a körterv elején (04 §4.4, §9.2): az első kör legalább `s`
- * szem. `sphere`: a második kör legfeljebb duplázás a mintavett arányban,
- * utána az emelt kör utáni kisebb növekedést a szomszédok átlaga simítja.
- * `hold`: az emelt szemszám marad, amíg a körterv utol nem éri.
- */
+/** KB: 04 §4.4, 04 §9.2 */
 export function liftStart(ideal: readonly number[], s: number, rule: 'sphere' | 'hold'): number[] {
   const counts = [...ideal];
   if (counts.length === 0 || counts[0]! >= s) return counts;
   counts[0] = s;
   if (rule === 'hold') {
-    for (let i = 1; i < counts.length && ideal[i]! < counts[i - 1]! && ideal[i]! >= ideal[i - 1]!; i += 1) counts[i] = counts[i - 1]!;
+    for (let i = 1; i < counts.length && ideal[i]! < counts[i - 1]! && ideal[i]! >= ideal[i - 1]!; i += 1)
+      counts[i] = counts[i - 1]!;
     return counts;
   }
   const lifted = counts.map((_, i) => i === 0);
@@ -556,27 +483,25 @@ export function liftStart(ideal: readonly number[], s: number, rule: 'sphere' | 
   return counts;
 }
 
-/** A pólus emelése a körterv végén: ugyanaz visszafelé. */
 export function liftEnd(counts: readonly number[], s: number, rule: 'sphere' | 'hold'): number[] {
   return liftStart([...counts].reverse(), s, rule).reverse();
 }
 
-/** Egy körben legfeljebb duplázás vagy felezés (04 §9.0). */
+/** KB: 04 §9.0 */
 export function clampGrowth(counts: readonly number[]): number[] {
   const result: number[] = [];
   for (const count of counts) {
     const previous = result.at(-1);
-    result.push(previous === undefined ? Math.max(1, count) : Math.min(2 * previous, Math.max(Math.ceil(previous / 2), count)));
+    result.push(
+      previous === undefined ? Math.max(1, count) : Math.min(2 * previous, Math.max(Math.ceil(previous / 2), count)),
+    );
   }
   return result;
 }
 
-/* ---- Egy kör elosztása ---- */
-
-/** Egy kör műveletei az előző kör pozícióin: rövidpálca, szaporítás (1 → 2), fogyasztás (2 → 1). */
 export type RoundOp = 'sc' | 'inc' | 'dec';
 
-/** `total` egyenletesen `parts` részre (Bresenham), a részek hossza. */
+/** Bresenham. KB: 03 §3.4 */
 export function spread(total: number, parts: number): number[] {
   const lengths: number[] = [];
   let previous = 0;
@@ -588,21 +513,13 @@ export function spread(total: number, parts: number): number[] {
   return lengths;
 }
 
-/**
- * A kör műveletei `previous` szemből `next` szemre, a szaporítások és a
- * fogyasztások egyenletesen elosztva (04 §3.1, §3.3, §9.1). Eltolás nélkül a
- * szakasz végén: „(2 rp, szap.) ×6”, „(4 rp, fogy.) ×6”; eltolva a szakasz
- * közepén: „1 rp, (szap., 2 rp) ×5, szap., 1 rp” (04 §3.2).
- *
- * `cost`: mennyibe kerül az előző kör egy pozíciója, pl. ha már két egymás
- * fölötti szaporítás áll rajta, és a harmadik oda kerülne (04 §3.2, §9.6). Ha
- * a választott hely ütközik, sorban ezek nyernek: a szakaszon belül a vége
- * felől az első olcsó hely, minden szakaszban ugyanaz (így az ismétlés
- * kiírható marad); szakaszonként a legolcsóbb, legközelebbi hely; végül a
- * teljes körön a legolcsóbb, legközelebbi hely. `null`, ha a kör több mint
- * duplázás vagy felezés lenne.
- */
-export function roundOps(previous: number, next: number, staggered: boolean, cost: (position: number) => number = () => 0): RoundOp[] | null {
+// KB: core-domain §21; 04 §3.1, 04 §3.2, 04 §3.3, 04 §9.1, 04 §9.6
+export function roundOps(
+  previous: number,
+  next: number,
+  staggered: boolean,
+  cost: (position: number) => number = () => 0,
+): RoundOp[] | null {
   const change = next - previous;
   if (previous < 1 || next < 1) return null;
   if (change === 0) return Array<RoundOp>(previous).fill('sc');
@@ -614,13 +531,14 @@ export function roundOps(previous: number, next: number, staggered: boolean, cos
   const width = increasing ? 1 : 2;
   const lengths = spread(previous, count);
   const starts = lengths.map((_, j) => lengths.slice(0, j).reduce((sum, length) => sum + length, 0));
-  const price = (at: number) => Array.from({ length: width }, (_, k) => cost(at + k)).reduce((sum, value) => sum + value, 0);
+  const price = (at: number) =>
+    Array.from({ length: width }, (_, k) => cost(at + k)).reduce((sum, value) => sum + value, 0);
   const preferred = (length: number) => (staggered ? Math.floor((length - width) / 2) : length - width);
-  /** A legolcsóbb, a célhoz legközelebbi hely a tartományban. */
   const cheapest = (from: number, to: number, target: number) => {
     let best = Math.min(to, Math.max(from, target));
     for (let at = from; at <= to; at += 1) {
-      const better = price(at) < price(best) || (price(at) === price(best) && Math.abs(at - target) < Math.abs(best - target));
+      const better =
+        price(at) < price(best) || (price(at) === price(best) && Math.abs(at - target) < Math.abs(best - target));
       if (better) best = at;
     }
     return best;
@@ -648,27 +566,36 @@ export function roundOps(previous: number, next: number, staggered: boolean, cos
     if (option.hits < best.hits) best = option;
   }
   if (best.hits > 0) {
-    const option = build(lengths.map((length, j) => cheapest(starts[j]!, starts[j]! + length - width, starts[j]! + preferred(length))));
+    const option = build(
+      lengths.map((length, j) => cheapest(starts[j]!, starts[j]! + length - width, starts[j]! + preferred(length))),
+    );
     if (option.hits < best.hits) best = option;
   }
   if (best.hits > 0) {
-    // Sűrű körben egy szakaszon belül sincs olcsó hely: a teljes körön a legkisebb összköltség, a céloktól kicsit eltávolodva.
-    const option = build(placeByCost(previous, lengths.map((length, j) => starts[j]! + preferred(length)), width, price));
+    // In a dense round no segment has a cheap spot: take the lowest total cost over the whole round, drifting a little off the targets.
+    const option = build(
+      placeByCost(
+        previous,
+        lengths.map((length, j) => starts[j]! + preferred(length)),
+        width,
+        price,
+      ),
+    );
     if (option.hits < best.hits) best = option;
   }
   return best.ops;
 }
 
-/** A céltól való távolság ára pozíciónként: egy olcsóbb hely ennyivel messzebb is megéri. */
+/** What one position of distance from the target costs: a cheaper spot is worth this much extra distance. */
 const DISTANCE_COST = 0.05;
 
-/**
- * A műveletek helye a teljes körön, sorrendben, legalább `width` távolságra
- * egymástól, úgy, hogy a helyek ára és a céloktól való távolság összege a
- * legkisebb legyen (dinamikus programozás: minden műveletnél az előző
- * művelet eddigi legjobb helyével).
- */
-function placeByCost(previous: number, targets: readonly number[], width: number, price: (at: number) => number): number[] {
+// Dynamic programming: at each operation, the best place found so far for the previous one.
+function placeByCost(
+  previous: number,
+  targets: readonly number[],
+  width: number,
+  price: (at: number) => number,
+): number[] {
   const n = targets.length;
   const rows: { readonly value: Float64Array; readonly back: Int32Array }[] = [];
   for (let j = 0; j < n; j += 1) {
@@ -701,17 +628,13 @@ function placeByCost(previous: number, targets: readonly number[], width: number
   return chosen;
 }
 
-/* ---- Görbület körönként ---- */
-
-/** Lapos, kunkorodó (kúp, tál), henger, fodros, vagy fogyó (záródik). */
 export type Curvature = 'flat' | 'cupping' | 'tube' | 'ruffled' | 'closing';
 
 export interface RoundDiagnosis {
   readonly round: number;
   readonly count: number;
-  /** A szemszám változása az előző körhöz képest; az 1. körben a varázskörbe horgolt szemek. */
   readonly change: number;
-  /** A változás a lapos értékhez képest (04 §9.6: ρ = Δ/Δ_lapos). */
+  /** KB: 04 §9.6 */
   readonly ratio: number;
   readonly curvature: Curvature;
 }
@@ -724,7 +647,7 @@ export function curvatureOf(ratio: number): Curvature {
   return 'closing';
 }
 
-/** A körök görbülete (04 §8, §9.6). Nyitott kezdésnél az 1. kör az előző szélhez (`before`) képest számít. */
+/** With an open start, round 1 counts against the previous edge (`before`). KB: 04 §8, 04 §9.6 */
 export function diagnoseRounds(counts: readonly number[], gauge: RoundGauge, before = 0): RoundDiagnosis[] {
   const flat = flatRate(gauge);
   return counts.map((count, i) => {
@@ -734,15 +657,15 @@ export function diagnoseRounds(counts: readonly number[], gauge: RoundGauge, bef
   });
 }
 
-/* ---- Részek, összekapcsolás, méret ---- */
-
-/** A kisebb szél minden szeméhez hány szem jut a nagyobbikból, egyenletesen. */
 export function evenDistribution(a: number, b: number): number[] {
   return spread(Math.max(a, b), Math.min(a, b));
 }
 
-/** Mi a gond két összekapcsolt széllel (a és b szem); `null`, ha rendben van. */
-export function distributionProblem(a: number, b: number, distribution: readonly number[] | undefined): CoreText<ShapeCode> | null {
+export function distributionProblem(
+  a: number,
+  b: number,
+  distribution: readonly number[] | undefined,
+): CoreText<ShapeCode> | null {
   if (distribution === undefined) {
     return a === b ? null : text('join-count-differs', { a, b });
   }
@@ -755,7 +678,6 @@ export function distributionProblem(a: number, b: number, distribution: readonly
   return valid ? null : text('distribution-mismatch', { small, large });
 }
 
-/** Egy darab részeinek körterve és mérete a mostani mintasűrűséggel. */
 export interface PieceShape {
   readonly piece: PieceId;
   readonly name: string;
@@ -764,11 +686,7 @@ export interface PieceShape {
   readonly sections: readonly { readonly name: string; readonly layer: number; readonly schedule: Schedule }[];
 }
 
-/**
- * A minta részekből (`Piece.sections`) készült darabjai, a formájuk
- * körtervével. A darab magassága a részek magassága; a folytatólagos
- * kapcsolásnál az átmeneti kör, ha a szemszám változik, egy körrel több.
- */
+/** With a continuous join the transition round counts as one extra round when the stitch count changes. */
 export function pieceShapes(pattern: Pattern, gauge: RoundGauge = roundGaugeOf(pattern)): PieceShape[] {
   const shapes: PieceShape[] = [];
   for (const piece of pattern.pieces) {
@@ -789,7 +707,7 @@ export function pieceShapes(pattern: Pattern, gauge: RoundGauge = roundGaugeOf(p
   return shapes;
 }
 
-/** A gömbsüveg magassága: ennyit süllyed az `R` sugarú rész egy `a` sugarú szélbe. */
+/** Spherical cap height: how deep an `R`-radius part sinks into an `a`-radius edge. */
 export function capHeight(R: number, a: number): number {
   return a >= R ? R : R - Math.sqrt(R * R - a * a);
 }
@@ -797,15 +715,11 @@ export function capHeight(R: number, a: number): number {
 export interface FigureSize {
   readonly parts: readonly PieceShape[];
   readonly widthCm: number;
-  /** Az egymáshoz kapcsolt részek leghosszabb láncának magassága (04 §9.7). */
+  /** KB: 04 §9.7 */
   readonly heightCm: number;
 }
 
-/**
- * A figura mérete a részekből (04 §5.8, §9.7): a kapcsolt részek láncának
- * magassága, a varrásnál a zárt rész besüllyedő süvegével csökkentve. A
- * nyitott szél (a darab utolsó köre nyitott végnél) nem süllyed.
- */
+// KB: 04 §5.8, 04 §9.7
 export function figureSize(pattern: Pattern, gauge: RoundGauge = roundGaugeOf(pattern)): FigureSize | null {
   const parts = pieceShapes(pattern, gauge);
   if (parts.length === 0) return null;
@@ -843,7 +757,6 @@ export function figureSize(pattern: Pattern, gauge: RoundGauge = roundGaugeOf(pa
 interface EdgeInfo {
   readonly count: number;
   readonly stitches: readonly NodeId[];
-  /** A darab nyitott széle: az utolsó kör, és a darab nincs összehúzva. */
   readonly openRim: boolean;
 }
 
@@ -860,10 +773,17 @@ function edgeInfo(pattern: Pattern, edge: JoinEdge, library: StitchLibrary): Edg
   const graph = piece ? graphOf(pattern, piece, library) : null;
   const layer = graph?.layers[edge.layer];
   if (!piece || !graph || !layer || edge.layer < 1) return null;
-  // A ruhadarab varrásai (PQW-866): a sor egy szakasza, vagy a sorvégek az egyik szélen.
+  // A garment seam: a run of one row, or the row ends down one side.
   if (edge.stitches) {
     const { from, count } = edge.stitches;
-    if (layer.shape !== 'row' || !Number.isInteger(from) || from < 0 || count < 1 || from + count > layer.positions.length) return null;
+    if (
+      layer.shape !== 'row' ||
+      !Number.isInteger(from) ||
+      from < 0 ||
+      count < 1 ||
+      from + count > layer.positions.length
+    )
+      return null;
     return { count, stitches: layer.positions.slice(from, from + count), openRim: false };
   }
   if (edge.rows) {
@@ -873,7 +793,7 @@ function edgeInfo(pattern: Pattern, edge: JoinEdge, library: StitchLibrary): Edg
     for (const row of graph.layers.slice(edge.layer, to + 1)) {
       const edges = row.shape === 'row' ? rowEdges(row) : null;
       if (!edges) return null;
-      // A színoldali sor a rajz jobb szélén kezdődik, a visszai a balon (01 §8.4).
+      // KB: 01 §8.4
       const startSide = row.side === 'right' ? 'right' : 'left';
       ends.push(side === startSide ? edges.start : edges.end);
     }
@@ -884,19 +804,13 @@ function edgeInfo(pattern: Pattern, edge: JoinEdge, library: StitchLibrary): Edg
   return { count: layer.stitchCount, stitches: layer.stitches, openRim: last && !closed };
 }
 
-/* ---- Ellenőrzés a minta szintjén ---- */
-
 export interface PatternFinding {
   readonly rule: RuleId;
   readonly piece: PieceId;
   readonly nodes: readonly NodeId[];
 }
 
-/**
- * A részek kapcsolása és a játékbiztonság (PQW-863): a kapcsolt szél létező
- * kör-e, a két szél szemszáma egyezik-e vagy van-e elosztás, és 3 év alatti
- * gyereknek szánt játékban nincs-e biztonsági szem (04 §5.7, §9.6).
- */
+// KB: 04 §5.4, 04 §5.7, 04 §9.6
 export function amigurumiFindings(pattern: Pattern, library: StitchLibrary): PatternFinding[] {
   const findings: PatternFinding[] = [];
   for (const join of pattern.joins ?? []) {

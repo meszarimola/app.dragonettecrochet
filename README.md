@@ -8,6 +8,7 @@ mert saját aldomainre kerül.
 
 ```bash
 npm install
+git config core.hooksPath .githooks   # a commit előtti ellenőrzések; klónonként egyszer
 npm run dev      # http://localhost:5173
 npm run check    # típusellenőrzés: az egész src/, majd a src/core/ DOM nélkül
 npm run build    # tsc --noEmit + vite build → dist/
@@ -168,8 +169,9 @@ helye, iránya, a legyező és az összefutás ebből számolódik.
 - **Felület** (PQW-873): ikonos menüsor csoportokba rendezve (fájl,
   szerkesztés, sor és kör, kijelölés, nézet), minden ikonon tooltip a
   gyorsbillentyűvel (saját tooltip: azonnal, fókuszra és inaktív gombon is);
-  bal oldalt lenyitható **mintatípus**-menü (az átvételi tesztelés első
-  körében csak a szabályos horgolás aktív, a többi „hamarosan” — PQW-925);
+  bal oldalt lenyitható **mintatípus**-menü (a szabályos és a szabálytalan
+  horgolás aktív, a filéhorgolás és az amigurumi „hamarosan” — PQW-925,
+  PQW-963);
   jobb oldalt összecsukható szakaszok: legfelül a
   **szemek** listája csoportokkal és jel-előnézettel, alatta a ritkán állított
   jelölés és jelek (alapból csukva), majd a minta neve (PQW-882). A kijelölés
@@ -601,8 +603,19 @@ npm test   # a build után: CSP ↔ azonosító, inline szkript, közös süti
   betét, bevarrt ujj; formázott nyakkivágás a gráfban (a két váll egy darabon
   belül külön horgolva); bordás szegély és perem; a növedék kompenzálása a
   felakasztott próbadarabból, súly- és esésfigyelmeztetés; a hamis ellenőrzés
-  automatikus javítása a fázisok hosszával; babacipő és zokni. A „Szabálytalan
-  horgolás” mintatípus a tulajdonos döntéséig „hamarosan” marad.
+  automatikus javítása a fázisok hosszával; babacipő és zokni.
+- **Szabálytalan horgolás, szabadkézi jeldiagram** (PQW-963): a negyedik
+  mintatípus saját szerkesztőt kapott. A szem itt geometria — helye, mérete és
+  szöge van —, nem a szabályos horgolás topológiája, ezért saját
+  dokumentumtípusa, saját fájlformátuma, saját visszavonási sora és saját
+  automatikus mentése van; a két típus mintája nem írja felül egymást. Egy
+  kattintás lerak egy szemet, a paletta és a jelölés közös a szabályos
+  típussal. Elkészült: vászon nagyítással és mozgatással, szemlerakás,
+  kijelölés téglalappal, mozgatás, forgatás, nyújtás, tükrözés, igazítás és
+  egyenletes elosztás, Tulajdonságok panel, visszavonás, JSON mentés és
+  betöltés. Még nincs: sorok és körök panel, rétegek, jelkulcs, láncív,
+  legyező, körkörös ismétlés, feliratok, kép- és PDF-export, érintés.
+
 - **Az átvételi tesztelés első köre** (PQW-925): a tulajdonos döntése szerint
   előbb a szabályos horgolást tesszük rendbe, ezért a **filéhorgolás** (vele a
   Rácsminta szakasz minden technikája: filé, C2C, tapestry, graphgan, mozaik),

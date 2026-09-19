@@ -1,74 +1,44 @@
-/*
- * Filéhorgolás (PQW-864): a teli és nyitott cellás rácsból szemgráf, 3 szemes
- * hálóval (03 §5.2, 01 §4.4).
- *
- * - Teli cella: 3 erp; nyitott cella: 1 erp, 2 lsz, 2 kihagyás. A szomszédos
- *   cellák közös oszlopon osztoznak, ezért N cellás sor 3N + 1 pozíció
- *   (03 §10 G32).
- * - A sor első oszlopa a fordulólánc, ha a minta konvenciója szerint számít
- *   szemnek (tradition.ts); különben egy pálca az alsó sor első pozíciójába. A
- *   láncalap `foundationChainLength(3N + 1, …)`: a számító fordulólánc egy
- *   alapláncszemen áll (PQW-891), ezért teli kezdésnél 3N + 4, és az első
- *   pálca a horogtól számított 5. láncszembe megy. Nyitott kezdésnél az első
- *   cella 2 láncszeme a láncalap folytatása: 3N + 6, és az első pálca a 9.
- *   láncszembe megy. A tudásbázis CYC-forrása (03 §5.2) még alapláncszem
- *   nélkül számol: 3N + 3 és 4., illetve 3N + 5 és 8. A későbbi sorokban
- *   nyitott kezdésnél a fordulólánc után a cella 2 láncszeme jön („3 lsz,
- *   2 lsz”).
- * - A sor a haladási irányban halad: a páratlan sorok jobbról balra (01 §8.4).
- * - Alakítás egész cellánként (03 §10 F30): a sor elején szaporítás az előző
- *   sor végén 3 láncszemes hosszabbítással cellánként, a sor végén fogyasztás
- *   meghagyott cellákkal. A sor eleji fogyasztás (kúszószemekkel át) és a sor
- *   végi szaporítás még nem készül: ilyenkor érthető ok jön.
- */
+// KB: 01 §4.4, 01 §8.4, 03 §5.2, 03 §10 F30, 03 §10 G32
+// KB: core-geometry §42
 
-import { finishGridPattern, fail, gridPiece, GridWriter, intoStitch, type GridPatternCode } from './grid-pattern.ts';
-import { text, type CoreText } from './messages.ts';
-import { FILLED, MAX_GRID_SIDE, NO_CELL, OPEN, TECHNIQUE_NAMES, type ChartRows } from './pixel-chart.ts';
+import { fail, finishGridPattern, type GridPatternCode, GridWriter, gridPiece, intoStitch } from './grid-pattern.ts';
+import { type CoreText, text } from './messages.ts';
+import { type ChartRows, FILLED, MAX_GRID_SIDE, NO_CELL, OPEN, TECHNIQUE_NAMES } from './pixel-chart.ts';
 import { foundationChainLength } from './repeat.ts';
-import { shapeGauge, type ShapeGauge } from './shapes.ts';
+import { type ShapeGauge, shapeGauge } from './shapes.ts';
 import { resolveStitch } from './stitch-variants.ts';
 import { firstChainFromHook, traditionOf, turningChainCountsFor } from './tradition.ts';
 import type { GridUnit, NodeId, Pattern } from './types.ts';
 
-/** A filé oszlopa és teli cellája. */
 export const FILET_STITCH = 'dc';
 
-/** N cellás sor pozíciószáma: a cellák közös oszlopon osztoznak (03 §5.2). */
+// KB: 03 §5.2, 03 §10 G32
 export const filetRowPositions = (cells: number) => 3 * cells + 1;
 
 export interface FiletRow {
-  /** A sor száma, 1-től. */
   readonly row: number;
-  /** A cellák a haladási irányban: 1 teli, 0 nyitott. */
   readonly cells: readonly number[];
   readonly positions: number;
-  /** A sor első cellája. */
   readonly start: 'filled' | 'open';
-  /** A sor elején hozzáadott cellák: az előző sor végén láncos hosszabbítás. */
+  // The four shaping counts are in THIS row's working direction: `added` and `removed` at the
+  // row start, `left` and `extended` at the row end. KB: 03 §10 F30
   readonly added: number;
-  /** A sor végén meghagyott cellák. */
   readonly left: number;
-  /** A sor elején elhagyott cellák: kúszószemekkel át (PQW-894). */
   readonly removed: number;
-  /** A sor végén hozzáadott nyitott cellák: 2 lsz és lejjebb horgolt háromráhajtásos pálca (PQW-894). */
   readonly extended: number;
 }
 
 export interface FiletPlan {
   readonly rows: readonly FiletRow[];
-  /** A láncalap a fordulólánccal, és az 1. sor első pálcája a horogtól számított hányadik láncszembe megy. */
   readonly foundation: { readonly chains: number; readonly fromHook: number };
   readonly turningChain: number;
   readonly turningChainCounts: boolean;
-  /** A legszélesebb sor cellái. */
   readonly width: number;
   readonly gauge: ShapeGauge;
   readonly widthCm: number;
   readonly heightCm: number;
 }
 
-/** A filé üzenetei kódként (PQW-904); a mondat és a sor neve a felületé. */
 export type FiletCode =
   | 'filet-no-rows'
   | 'filet-too-many-rows'
@@ -80,19 +50,19 @@ export type FiletCode =
   | 'filet-extend-open'
   | 'filet-extend-reach';
 
-export type FiletPlanResult = { readonly ok: true; readonly plan: FiletPlan } | { readonly ok: false; readonly reason: CoreText<FiletCode> };
+export type FiletPlanResult =
+  | { readonly ok: true; readonly plan: FiletPlan }
+  | { readonly ok: false; readonly reason: CoreText<FiletCode> };
 export type FiletResult =
   | { readonly ok: true; readonly pattern: Pattern; readonly plan: FiletPlan }
   | { readonly ok: false; readonly reason: CoreText<FiletCode | GridPatternCode> };
 
 export interface FiletOptions {
-  /** A kiterjesztett rács: sorok alulról, cellák balról; 1 teli, 0 nyitott, −1 nincs cella. */
   readonly cells: ChartRows;
   readonly unit: GridUnit | null;
   readonly lettering: boolean;
 }
 
-/** A sor terve a rácsból; a rács hibájánál az ok. */
 export function planFilet(pattern: Pattern, cells: ChartRows): FiletPlanResult {
   if (cells.length === 0) return fail(text('filet-no-rows'));
   if (cells.length > MAX_GRID_SIDE) return fail(text('filet-too-many-rows', { max: MAX_GRID_SIDE }));
@@ -121,7 +91,7 @@ export function planFilet(pattern: Pattern, cells: ChartRows): FiletPlanResult {
   for (let y = 0; y < cells.length; y += 1) {
     const row = y + 1;
     const { from, to } = extents[y]!;
-    // A páratlan sor jobbról balra halad (01 §8.4).
+    // KB: 01 §8.4
     const leftToRight = row % 2 === 0;
     const line = cells[y]!.slice(from, to + 1);
     const working = leftToRight ? line : [...line].reverse();
@@ -137,14 +107,12 @@ export function planFilet(pattern: Pattern, cells: ChartRows): FiletPlanResult {
       removed = Math.max(0, -startDelta);
       left = Math.max(0, -endDelta);
       extended = Math.max(0, endDelta);
+      // KB: core-geometry §43
       if (extended > 0) {
-        // A sor végi új cella a fordulólánc alatti szembe horgolt hosszú pálcán áll (PQW-894).
         if (!counting) return fail(text('filet-extend-counting', { row }));
         if (working.slice(working.length - extended).some((cell) => cell !== OPEN)) {
           return fail(text('filet-extend-open', { row }));
         }
-        // A hosszú pálca a két sorral lejjebbi sor végébe kapaszkodik; ha az előző sor eleji
-        // fogyasztással kezdődött, ott nincs mibe: a sor vége beljebb került (PQW-902).
         if (rows[y - 1]!.removed > 0) {
           return fail(text('filet-extend-reach', { row }));
         }
@@ -163,11 +131,7 @@ export function planFilet(pattern: Pattern, cells: ChartRows): FiletPlanResult {
   }
 
   const first = rows[0]!;
-  /*
-   * A sor első oszlopa valódi szem (PQW-924), ezért a nyitott első cella két
-   * láncszeme a sorhoz tartozik, nem a láncalap folytatása — a korábbi
-   * „összevont” kezdés fogalma megszűnt.
-   */
+  // KB: core-geometry §42
   const gauge = shapeGauge(pattern, FILET_STITCH);
   const widest = Math.max(...rows.map((row) => row.cells.length));
   return {
@@ -188,48 +152,43 @@ export function planFilet(pattern: Pattern, cells: ChartRows): FiletPlanResult {
   };
 }
 
-/** A sorok szemgráfja a terv szerint. */
 function buildFilet(pattern: Pattern, plan: FiletPlan): GridWriter {
   const writer = new GridWriter();
   const tradition = traditionOf(pattern.conventions);
   const { turningChain, turningChainCounts: counting } = plan;
   const first = plan.rows[0]!;
   const worked = foundationChainLength(first.positions, turningChain, counting, tradition) - turningChain;
-  // Soronként a pozíciók a fonal sorrendjében; a 0. a láncalap horgolt része.
+  // `history[k]` holds row k's positions in yarn order; `history[0]` is the worked foundation chain.
   const history: NodeId[][] = [writer.chains(worked)];
   let below: NodeId[] = history[0]!;
 
   plan.rows.forEach((row, k) => {
     const working = [...below].reverse();
-    // Sor eleji fogyasztás: kúszószemek a cellák fölött; számító fordulóláncnál az oszlopba is, arra áll a fordulólánc.
     const seat = 3 * row.removed;
-    // A fordulólánc nem ül oszlopon (PQW-924): csak a cellák fölött megy kúszószem.
+    // KB: core-geometry §42
     for (let w = 0; w < seat; w += 1) writer.add('sl-st', [intoStitch(working[w]!)]);
-    // Az első cella kitöltő pozíciója: az 1. sorban a láncalapon a fordulólánc után.
+    // Row 1's cells sit at the END of the worked foundation chain.
     const start = k === 0 ? worked - 3 * row.cells.length : seat + 1;
     writer.chains(turningChain);
-    // Az első cella kitöltő szeme mindig valódi szem: a fordulólánc nem szem (PQW-924).
     const produced: NodeId[] = [writer.add(FILET_STITCH, [intoStitch(working[seat]!)])];
     const regular = row.cells.length - row.extended;
     row.cells.forEach((cell, c) => {
       const base = start + 3 * c;
-      // A sor végi szélesítés láncát a ciklus után, egyben rakjuk le.
       if (c >= regular) return;
       if (cell === FILLED) {
-        produced.push(writer.add(FILET_STITCH, [intoStitch(working[base]!)]), writer.add(FILET_STITCH, [intoStitch(working[base + 1]!)]));
+        produced.push(
+          writer.add(FILET_STITCH, [intoStitch(working[base]!)]),
+          writer.add(FILET_STITCH, [intoStitch(working[base + 1]!)]),
+        );
       } else {
         produced.push(...writer.space(2).chains);
         writer.skipped.push(working[base]!, working[base + 1]!);
       }
       produced.push(writer.add(FILET_STITCH, [intoStitch(working[base + 2]!)]));
     });
-    // A sor végén meghagyott cellák (03 §10 F30).
+    // KB: 03 §10 F30
     if (row.extended === 0) writer.skipped.push(...working.slice(start + 3 * row.cells.length));
-    /*
-     * A sor végi lánc: a saját szélesítés (03 §5.2, „Filet edge shaping”) és a
-     * következő sor eleji hosszabbítása egyetlen láncívbe kerül — külön
-     * láncívekként a kiírás nem tudná egy futamként olvasni őket.
-     */
+    // KB: core-geometry §44
     const next = plan.rows[k + 1];
     const tail = 3 * (row.extended + (next?.added ?? 0));
     if (tail > 0) produced.push(...writer.space(tail).chains);
@@ -240,7 +199,6 @@ function buildFilet(pattern: Pattern, plan: FiletPlan): GridWriter {
   return writer;
 }
 
-/** Új filéminta a rácsból; a rácsminta a darabbal mentődik. */
 export function generateFilet(pattern: Pattern, options: FiletOptions): FiletResult {
   const planned = planFilet(pattern, options.cells);
   if (!planned.ok) return planned;

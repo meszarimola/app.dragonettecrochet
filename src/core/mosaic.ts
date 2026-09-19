@@ -1,52 +1,37 @@
-/*
- * Mozaik (PQW-894): a kétszínű rácsból rövidpálcás sorok, a kihagyott szemekbe
- * lejjebb horgolt pálcával (03 §5.6, §6, §10 G34).
- *
- * - Soronként egy szín, a két szín rácssoronként váltakozik. Az 1. rácssor az
- *   alapsor: minden cellája az A szín.
- * - Egysoros változat: egy rácssor egy horgolt sor. A sor színével egyező
- *   cella rövidpálca; ha alatta az előző sor kihagyott, egyráhajtásos pálca 2
- *   sorral lejjebb, a kihagyott szembe. A más színű cella 1 lsz és 1 szem
- *   kihagyása: ott az alatta lévő sor látszik.
- * - Kétsoros változat: egy rácssor két horgolt sor ugyanazzal a színnel; a
- *   második sor megismétli a kihagyásokat, a lejjebb horgolt szem kétráhajtásos
- *   pálca 3 sorral lejjebb.
- * - A lejjebb horgolt szem jelölt hosszú szem (`spike`): az ellenőrző csak így,
- *   csak korábban kihagyott szembe és legfeljebb 3 sorral lejjebb engedi
- *   (03 §10 C17).
- * - A sor két szélső cellája mindig a sor színe, ott nincs kihagyás. Két
- *   kihagyás nem kerülhet egymás fölé, mert a kihagyás alatt az előző sor
- *   szemének kell látszania.
- * - A láncalap és a fordulólánc a hagyomány függvényeiből jön (tradition.ts,
- *   repeat.ts, PQW-891).
- */
+// KB: 03 §5.6, 03 §6, 03 §10 C17, 03 §10 G34, 03 §10 G35
+// KB: core-geometry §42
 
-import { fail, finishGridPattern, gridPiece, GridWriter, intoStitch, type GridPatternCode } from './grid-pattern.ts';
-import { text, type CoreText } from './messages.ts';
-import { TECHNIQUE_NAMES, cellSize, colorChartProblem, type CellSize, type ChartCode, type ChartRows } from './pixel-chart.ts';
+import { fail, finishGridPattern, type GridPatternCode, GridWriter, gridPiece, intoStitch } from './grid-pattern.ts';
+import { type CoreText, text } from './messages.ts';
+import {
+  type CellSize,
+  type ChartCode,
+  type ChartRows,
+  cellSize,
+  colorChartProblem,
+  TECHNIQUE_NAMES,
+} from './pixel-chart.ts';
 import { foundationChainLength } from './repeat.ts';
-import { shapeGauge, type ShapeGauge } from './shapes.ts';
+import { type ShapeGauge, shapeGauge } from './shapes.ts';
 import { resolveStitch } from './stitch-variants.ts';
 import { firstChainFromHook, skippedChains, traditionOf, turningChainCountsFor } from './tradition.ts';
 import type { GridUnit, NodeId, Pattern, PatternColor } from './types.ts';
 
-/** Hány horgolt sor egy rácssor: egysoros vagy kétsoros mozaik. */
 export type MosaicRows = 1 | 2;
 
 export const MOSAIC_STITCH = 'sc';
 
-/** A lejjebb horgolt szem a mélység szerint: 2 sorral lejjebb egyráhajtásos, 3 sorral kétráhajtásos pálca (03 §5.6). */
+// KB: 03 §5.6
 export const DROP_STITCH: Readonly<Record<2 | 3, string>> = { 2: 'dc', 3: 'tr' };
 
 export type MosaicCell = 'stitch' | 'drop' | 'skip';
 
 export interface MosaicRow {
-  /** A horgolt sor száma, 1-től. */
+  // `row` is the crochet row (1-based); `chartRow` is the grid row it renders. In the
+  // two-row variant two crochet rows share one grid row.
   readonly row: number;
-  /** A rácssor, amelyhez tartozik. */
   readonly chartRow: number;
   readonly color: number;
-  /** A cellák a haladási irányban. */
   readonly cells: readonly MosaicCell[];
 }
 
@@ -54,9 +39,7 @@ export interface MosaicPlan {
   readonly variant: MosaicRows;
   readonly width: number;
   readonly rows: readonly MosaicRow[];
-  /** A lejjebb horgolt szem mélysége. */
   readonly depth: 2 | 3;
-  /** A láncalap a fordulólánccal, és az első szem a horogtól számított hányadik láncszembe megy. */
   readonly foundation: { readonly chains: number; readonly fromHook: number };
   readonly turningChain: number;
   readonly turningChainCounts: boolean;
@@ -64,20 +47,24 @@ export interface MosaicPlan {
   readonly cell: CellSize;
   readonly widthCm: number;
   readonly heightCm: number;
-  /** A lejjebb horgolt szemek száma. */
   readonly drops: number;
 }
 
-/** A mozaik üzenetei kódként (PQW-904); a szín szava, a névelő és a ragozás a felületé. */
-export type MosaicCode = 'mosaic-two-colors' | 'mosaic-min-width' | 'mosaic-base-row' | 'mosaic-edge-colors' | 'mosaic-stacked-skip';
+export type MosaicCode =
+  | 'mosaic-two-colors'
+  | 'mosaic-min-width'
+  | 'mosaic-base-row'
+  | 'mosaic-edge-colors'
+  | 'mosaic-stacked-skip';
 
-export type MosaicPlanResult = { readonly ok: true; readonly plan: MosaicPlan } | { readonly ok: false; readonly reason: CoreText<MosaicCode | ChartCode> };
+export type MosaicPlanResult =
+  | { readonly ok: true; readonly plan: MosaicPlan }
+  | { readonly ok: false; readonly reason: CoreText<MosaicCode | ChartCode> };
 export type MosaicResult =
   | { readonly ok: true; readonly pattern: Pattern; readonly plan: MosaicPlan }
   | { readonly ok: false; readonly reason: CoreText<MosaicCode | ChartCode | GridPatternCode> };
 
 export interface MosaicOptions {
-  /** A rács: sorok alulról, cellák balról; a cella a szín indexe (0 vagy 1). */
   readonly cells: ChartRows;
   readonly colors: readonly PatternColor[];
   readonly variant: MosaicRows;
@@ -85,11 +72,12 @@ export interface MosaicOptions {
   readonly lettering: boolean;
 }
 
-/** A rácssor színe: a páratlan sor az A, a páros a B szín. */
 export const mosaicRowColor = (chartRow: number) => (chartRow - 1) % 2;
 
-/** Mi nem horgolható mozaikként; `null`, ha a rács jó. A szín az indexével megy, a szó a szótáré. */
-export function mosaicProblem(cells: ChartRows, colors: readonly PatternColor[]): CoreText<MosaicCode | ChartCode> | null {
+export function mosaicProblem(
+  cells: ChartRows,
+  colors: readonly PatternColor[],
+): CoreText<MosaicCode | ChartCode> | null {
   const problem = colorChartProblem(cells, colors);
   if (problem) return problem;
   if (colors.length !== 2) return text('mosaic-two-colors');
@@ -110,7 +98,12 @@ export function mosaicProblem(cells: ChartRows, colors: readonly PatternColor[])
   return null;
 }
 
-export function planMosaic(pattern: Pattern, cells: ChartRows, colors: readonly PatternColor[], variant: MosaicRows): MosaicPlanResult {
+export function planMosaic(
+  pattern: Pattern,
+  cells: ChartRows,
+  colors: readonly PatternColor[],
+  variant: MosaicRows,
+): MosaicPlanResult {
   const problem = mosaicProblem(cells, colors);
   if (problem) return fail(problem);
   const def = resolveStitch(MOSAIC_STITCH)!;
@@ -128,11 +121,11 @@ export function planMosaic(pattern: Pattern, cells: ChartRows, colors: readonly 
       cell !== own ? 'skip' : chartRow > 1 && cells[y - 1]![x] !== mosaicRowColor(chartRow - 1) ? 'drop' : 'stitch',
     );
     for (let pass = 0; pass < variant; pass += 1) {
-      // A kétsoros változat második sora a lejjebb horgolt szembe már sima rövidpálcát horgol.
+      // KB: 03 §5.6, 03 §10 G34
       const chart = pass === 0 ? kinds : kinds.map((kind) => (kind === 'drop' ? 'stitch' : kind));
       drops += chart.filter((kind) => kind === 'drop').length;
       const row = rows.length + 1;
-      // A páratlan sor jobbról balra halad (01 §8.4).
+      // KB: 01 §8.4
       rows.push({ row, chartRow, color: own, cells: row % 2 === 0 ? chart : [...chart].reverse() });
     }
   });
@@ -165,28 +158,24 @@ function buildMosaic(pattern: Pattern, plan: MosaicPlan): GridWriter {
   const writer = new GridWriter();
   const tradition = traditionOf(pattern.conventions);
   const { turningChain, turningChainCounts: counting, width, depth } = plan;
-  // A láncalap horgolt része: a kihagyott láncszemek nem tartoznak bele (PQW-924).
+  // KB: core-geometry §42
   const skipped = skippedChains(turningChain, counting);
   const worked = foundationChainLength(width, turningChain, counting, tradition) - skipped;
-  // A fordulólánc nem cella: minden cellába valódi szem kerül.
   const first = 0;
-  // Soronként a pozíciók a fonal sorrendjében; a 0. a láncalap horgolt része.
+  // `history[k]` holds row k's positions in yarn order; `history[0]` is the worked foundation chain.
   const history: NodeId[][] = [writer.chains(worked, plan.rows[0]!.color)];
 
   plan.rows.forEach((row, k) => {
     const working = [...history[k]!].reverse();
     const start = k === 0 ? worked - (width - first) : first;
     const under = (c: number) => working[start + c - first]!;
-    /*
-     * Az 1. sor előtt a láncalap végén a kihagyott láncszemek állnak (PQW-924),
-     * a későbbi sorok előtt a fordulólánc. Egyik sem cella.
-     */
+    // Neither the skipped foundation chains (row 1) nor the turning chain (later rows) is a cell.
     writer.chains(k === 0 ? skipped : turningChain, row.color);
     const produced: NodeId[] = [];
     for (let c = first; c < width; c += 1) {
       const kind = row.cells[c]!;
       if (kind === 'skip') {
-        // Az egymás melletti kihagyások egy láncívet adnak: „2 lsz, 2 szem kihagyása”.
+        // KB: 03 §10 C15
         let end = c;
         while (end + 1 < width && row.cells[end + 1] === 'skip') end += 1;
         produced.push(...writer.space(end - c + 1, row.color).chains);
@@ -195,7 +184,7 @@ function buildMosaic(pattern: Pattern, plan: MosaicPlan): GridWriter {
         continue;
       }
       if (kind === 'drop') {
-        // A célpont ugyanabban az oszlopban, `depth` sorral lejjebb; páratlan mélységnél a sor iránya fordított.
+        // Same column, `depth` rows down; at an odd depth that row ran in the opposite direction.
         const source = history[k + 1 - depth]!;
         const target = depth % 2 === 0 ? source[c]! : source[width - 1 - c]!;
         writer.skipped.push(under(c));
@@ -210,7 +199,6 @@ function buildMosaic(pattern: Pattern, plan: MosaicPlan): GridWriter {
   return writer;
 }
 
-/** Új mozaikminta a rácsból; a rácsminta a darabbal mentődik. */
 export function generateMosaic(pattern: Pattern, options: MosaicOptions): MosaicResult {
   const planned = planMosaic(pattern, options.cells, options.colors, options.variant);
   if (!planned.ok) return planned;
@@ -229,11 +217,6 @@ export function generateMosaic(pattern: Pattern, options: MosaicOptions): Mosaic
   return finished.ok ? { ok: true, pattern: finished.pattern, plan } : finished;
 }
 
-/**
- * Horgolható mozaikrács egy tetszőleges kétszínű rácsból (pl. betöltött kép):
- * az 1. sor és a sorok széle a sor színe, és ahol két kihagyás kerülne egymás
- * fölé, a felső a sor színét kapja.
- */
 export function repairMosaic(cells: ChartRows): number[][] {
   const rows: number[][] = [];
   cells.forEach((line, y) => {

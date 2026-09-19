@@ -1,55 +1,46 @@
-/*
- * A minta mérete és fonala a mintával mentett profilból (PQW-859).
- *
- * A felületen megadott profil (types.ts `PatternGaugeProfile`) szem/10 cm és
- * sor/10 cm értékeket tárol, ahogy a horgoló a próbadarabon leolvassa. Ebből
- * itt `GaugeProfile` lesz, hogy a méretet ugyanaz a számítás adja, mint a
- * kalibrációs mérésekből (gauge.ts, finished-size.ts). Ami a profilból
- * hiányzik, azt a mag becsüli, és becslésként, tartománnyal jelöli; profil
- * nélkül minden érték becslés egy alapértelmezett tűből.
- *
- * Az arányhelyes nézet (`aspectStem`) ugyanebből a szemméretből számolja a
- * jelek szárhosszát: az oszlop szélessége a rövidpálca szélessége, a sor
- * osztása a sor valós magassága ugyanabban a léptékben.
- */
+// KB: 02 §4.2, 02 §6.5, 02 §8
 
-import { pieceSize, type LayerInput, type PieceSize } from './finished-size.ts';
+import { type LayerInput, type PieceSize, pieceSize } from './finished-size.ts';
+import { type GaugeContext, type LayerShape, stitchDimensions } from './gauge.ts';
 import type { GaugeProfile, StitchGauge, WorkedIn } from './gauge-profile.ts';
-import { stitchDimensions, type GaugeContext, type LayerShape } from './gauge.ts';
 import type { PieceGraph } from './graph.ts';
 import { DEFAULT_COLUMN, ROW_GAP } from './layout.ts';
 import { measured } from './quantity.ts';
 import type { StitchLibrary } from './stitch-library.ts';
-import type { GaugeForm, Pattern, PatternGauge, PatternGaugeProfile, Sourced, StitchDef, StitchDefId } from './types.ts';
-import { yarnFromMassPerArea, type YarnEstimate } from './yarn-estimate.ts';
+import type {
+  GaugeForm,
+  Pattern,
+  PatternGauge,
+  PatternGaugeProfile,
+  Sourced,
+  StitchDef,
+  StitchDefId,
+} from './types.ts';
+import { type YarnEstimate, yarnFromMassPerArea } from './yarn-estimate.ts';
 import { classifyByMeterage } from './yarn-weight.ts';
 
-/** Profil nélkül ebből a tűből becsülünk; a felület ki is írja. */
 export const DEFAULT_HOOK_MM = 4;
 
-/** A körben megadott gauge a cső mérésének felel meg, az az elsődleges körös gauge (docs/calibration/README.md). */
-const WORKED_IN: Readonly<Record<GaugeForm, WorkedIn>> = { rows: 'rows', 'rounds': 'rounds-tube' };
+// The round gauge is entered as a tube measurement, the primary round gauge. KB: 02 §4.3
+const WORKED_IN: Readonly<Record<GaugeForm, WorkedIn>> = { rows: 'rows', rounds: 'rounds-tube' };
 
-/** A kiválasztott profil, vagy `null`, ha nincs. */
 export function activeProfile(pattern: Pattern): PatternGaugeProfile | null {
   const gauge = pattern.gauge;
   if (!gauge || gauge.active === null) return null;
   return gauge.profiles.find((profile) => profile.id === gauge.active) ?? null;
 }
 
-/** g/cm² a próbadarabból; hiányzó adatnál `null`. */
 export function swatchMassPerArea(profile: PatternGaugeProfile): number | null {
   const { widthCm, heightCm, massG } = profile.swatch;
   return widthCm !== null && heightCm !== null && massG !== null ? massG / (widthCm * heightCm) : null;
 }
 
-/** Egy gombolyag hossza, m, a m/100 g-ből és a gombolyag tömegéből. */
 export function ballLengthM(profile: PatternGaugeProfile): number | null {
   const { metersPer100g, ballMassG } = profile.yarn;
   return metersPer100g !== null && ballMassG !== null ? (metersPer100g * ballMassG) / 100 : null;
 }
 
-/** A fonalvastagság: a címkéről, vagy ha ott nincs, a m/100 g-ből becsülve (02 §1.4). */
+// KB: 02 §1.4
 export function yarnWeightOf(profile: PatternGaugeProfile): Sourced<number> | null {
   const { cycWeight, metersPer100g } = profile.yarn;
   if (cycWeight !== null) return { value: cycWeight, source: 'label' };
@@ -59,12 +50,10 @@ export function yarnWeightOf(profile: PatternGaugeProfile): Sourced<number> | nu
 
 const single = (mean: number) => ({ mean, sd: 0, n: 1 });
 
-/** A felületen megadott profil a mag profiljaként. */
 export function gaugeProfileOf(profile: PatternGaugeProfile): GaugeProfile {
   const massPerArea = swatchMassPerArea(profile);
   const perStitch: Record<string, Partial<Record<WorkedIn, StitchGauge>>> = {};
   for (const entry of profile.gauges) {
-    // A hiányos sor nem mérés: ami hiányzik, azt a gauge.ts becsüli.
     if (entry.stitchesPer10cm === null || entry.rowsPer10cm === null) continue;
     perStitch[entry.stitch] = {
       ...perStitch[entry.stitch],
@@ -100,25 +89,24 @@ export function gaugeProfileOf(profile: PatternGaugeProfile): GaugeProfile {
   };
 }
 
-/** A méret számításának környezete a mintából: a kiválasztott profil, vagy becslés az alapértelmezett tűből. */
 export function gaugeContextOf(pattern: Pattern, library: StitchLibrary): GaugeContext {
   const profile = activeProfile(pattern);
   return { library, profile: profile ? gaugeProfileOf(profile) : null, hookMm: profile?.hookMm ?? DEFAULT_HOOK_MM };
 }
 
-/**
- * A sorok és körök szemei a méretszámításhoz, a 0. réteg (láncalap, varázskör)
- * nélkül. Ami nem ad szélességet, kimarad: a nem számító fordulólánc, a kör
- * továbbvezető és záró kúszószeme. Sorban a fordulólánc nem szem (PQW-924);
- * körben a kezdőlánc egy szem, a kör első szemének méretével.
- */
+// Layer 0 (foundation chain, magic ring) and anything that adds no width are left out. KB: 03 §1.2, 04 §9.7
 export function sizeLayers(graph: PieceGraph): SizeLayer[] {
   const layers: SizeLayer[] = [];
   for (const layer of graph.layers.slice(1)) {
-    const skipped = new Set<string>([...layer.turningChain, ...layer.travelSlips, ...(layer.joinSlip ? [layer.joinSlip] : [])]);
+    const skipped = new Set<string>([
+      ...layer.turningChain,
+      ...layer.travelSlips,
+      ...(layer.joinSlip ? [layer.joinSlip] : []),
+    ]);
     const stitches: StitchDefId[] = [];
     const first = layer.firstStitch ? graph.defs.get(layer.firstStitch) : undefined;
-    if (layer.shape === 'round' && layer.turningChainCounts && layer.turningChain.length > 0 && first) stitches.push(first.id);
+    if (layer.shape === 'round' && layer.turningChainCounts && layer.turningChain.length > 0 && first)
+      stitches.push(first.id);
     for (const id of layer.stitches) {
       const def = graph.defs.get(id);
       if (def && !skipped.has(id)) stitches.push(def.id);
@@ -128,33 +116,30 @@ export function sizeLayers(graph: PieceGraph): SizeLayer[] {
   return layers;
 }
 
-/** Egy sor vagy kör a méretszámításhoz, a sorszámával. */
 export interface SizeLayer extends LayerInput {
   readonly index: number;
 }
 
-/** Miért nincs fonalbecslés: ami hiányzik hozzá. */
 export type YarnMissing = 'profile' | 'swatch' | 'meterage' | 'ball' | 'size';
 
 export type YarnResult =
-  | { readonly kind: 'estimate'; readonly estimate: YarnEstimate; readonly ballMassG: number; readonly ballLengthM: number }
+  | {
+      readonly kind: 'estimate';
+      readonly estimate: YarnEstimate;
+      readonly ballMassG: number;
+      readonly ballLengthM: number;
+    }
   | { readonly kind: 'missing'; readonly missing: readonly YarnMissing[] };
 
 export interface PatternSize {
   readonly profile: PatternGaugeProfile | null;
-  /** A tű, amelyből a hiányzó értékek becslése jön. */
   readonly hookMm: number;
-  /** A sorok és körök száma a méret soraihoz, a `size.layers` sorrendjében. */
   readonly layerIndexes: readonly number[];
-  /** `null`, ha még nincs sor vagy kör. */
   readonly size: PieceSize | null;
   readonly yarn: YarnResult;
 }
 
-/**
- * A minta mérete és fonala. A fonal a próbadarab tömegéből jön (02 §6.5): a
- * darab területe × g/cm² × m/g, tartalékkal, gombolyagra kerekítve.
- */
+// KB: 02 §6.5
 export function patternSize(pattern: Pattern, graph: PieceGraph | null, library: StitchLibrary): PatternSize {
   const context = gaugeContextOf(pattern, library);
   const profile = activeProfile(pattern);
@@ -174,7 +159,12 @@ export function patternSize(pattern: Pattern, graph: PieceGraph | null, library:
   if (!size?.total) missing.push('size');
 
   const yarn: YarnResult =
-    missing.length === 0 && profile && massPerArea !== null && ballLength !== null && profile.yarn.ballMassG !== null && size?.total
+    missing.length === 0 &&
+    profile &&
+    massPerArea !== null &&
+    ballLength !== null &&
+    profile.yarn.ballMassG !== null &&
+    size?.total
       ? {
           kind: 'estimate',
           estimate: yarnFromMassPerArea(measured(massPerArea), size.total.areaCm2, {
@@ -188,13 +178,10 @@ export function patternSize(pattern: Pattern, graph: PieceGraph | null, library:
   return { profile, hookMm: context.hookMm, layerIndexes: layers.map((layer) => layer.index), size, yarn };
 }
 
-/* ---- Profilok a mintában ---- */
-
 function gaugeOf(pattern: Pattern): PatternGauge {
   return pattern.gauge ?? { active: null, profiles: [] };
 }
 
-/** Új, üres profil a következő szabad azonosítóval; a tű a kiválasztott profilé, vagy az alapértelmezett. */
 export function newProfile(pattern: Pattern): PatternGaugeProfile {
   const ids = new Set(gaugeOf(pattern).profiles.map((profile) => profile.id));
   let n = 1;
@@ -209,22 +196,22 @@ export function newProfile(pattern: Pattern): PatternGaugeProfile {
   };
 }
 
-/** A profil a mintában: azonos azonosítónál csere, különben új; és ez lesz a kiválasztott. */
 export function withProfile(pattern: Pattern, profile: PatternGaugeProfile): Pattern {
   const { profiles } = gaugeOf(pattern);
   const exists = profiles.some((candidate) => candidate.id === profile.id);
-  const next = exists ? profiles.map((candidate) => (candidate.id === profile.id ? profile : candidate)) : [...profiles, profile];
+  const next = exists
+    ? profiles.map((candidate) => (candidate.id === profile.id ? profile : candidate))
+    : [...profiles, profile];
   return { ...pattern, gauge: { active: profile.id, profiles: next } };
 }
 
-/** A kiválasztott profil váltása; `null`: profil nélkül, becsléssel. */
 export function withActiveProfile(pattern: Pattern, id: string | null): Pattern {
   const gauge = gaugeOf(pattern);
-  if (id !== null && !gauge.profiles.some((profile) => profile.id === id)) throw new RangeError(`Nincs ilyen profil: ${id}.`);
+  if (id !== null && !gauge.profiles.some((profile) => profile.id === id))
+    throw new RangeError(`Nincs ilyen profil: ${id}.`);
   return { ...pattern, gauge: { ...gauge, active: id } };
 }
 
-/** A profil törlése. Az utolsó profil után a minta profil nélküli, a mentésben sincs `gauge`. */
 export function withoutProfile(pattern: Pattern, id: string): Pattern {
   const gauge = gaugeOf(pattern);
   const profiles = gauge.profiles.filter((profile) => profile.id !== id);
@@ -235,10 +222,6 @@ export function withoutProfile(pattern: Pattern, id: string): Pattern {
 
 const oneDecimal = (value: number) => Math.round(value * 10) / 10;
 
-/**
- * A profil szerinti becsült gauge egy szemre: ezzel töltjük ki az új sort a
- * szerkesztőben, hogy a horgoló csak a mért értéket írja át.
- */
 export function estimatedGauge(
   profile: PatternGaugeProfile,
   library: StitchLibrary,
@@ -249,22 +232,21 @@ export function estimatedGauge(
   const context: GaugeContext = { library, profile: gaugeProfileOf(profile), hookMm: profile.hookMm };
   const dimensions = def ? stitchDimensions(def, form === 'rows' ? 'row' : 'round', context) : null;
   if (!dimensions) throw new RangeError(`Nem mérhető szem: ${stitch}.`);
-  return { stitchesPer10cm: oneDecimal(100 / dimensions.widthMm.value), rowsPer10cm: oneDecimal(100 / dimensions.heightMm.value) };
+  return {
+    stitchesPer10cm: oneDecimal(100 / dimensions.widthMm.value),
+    rowsPer10cm: oneDecimal(100 / dimensions.heightMm.value),
+  };
 }
 
-/* ---- Arányhelyes nézet ---- */
-
-/** A legrövidebb szár az arányhelyes nézetben, hogy a jel olvasható maradjon. */
+// Floor so the symbol stays readable.
 const MIN_STEM = 4;
 
-/**
- * Arányhelyes nézet: a szár hossza láncszem-magasság szerint (layout.ts
- * `stemLength`). Az oszlop szélessége a rövidpálca valós szélessége, így a
- * sor osztása (szár + sorköz) a sor valós magassága ugyanabban a léptékben.
- * A magasságot a láncszem-magasságú alapszem adja; ahol ilyen nincs, a
- * rövidpálca magassága szorozva a láncszem-magassággal.
- */
-export function aspectStem(context: GaugeContext, shape: LayerShape, columnWidth = DEFAULT_COLUMN): (chainHeight: number) => number {
+// KB: core-domain §6
+export function aspectStem(
+  context: GaugeContext,
+  shape: LayerShape,
+  columnWidth = DEFAULT_COLUMN,
+): (chainHeight: number) => number {
   const sc = context.library.get('sc');
   const base = sc ? stitchDimensions(sc, shape, context) : null;
   if (!base) throw new RangeError('A könyvtárban nincs rövidpálca.');

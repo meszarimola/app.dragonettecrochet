@@ -1,6 +1,7 @@
 /*
- * A „Beszúrás” választó tartalma (PQW-869): csak a szem által megengedett
- * módok, az érvényes mód, és hogyan kerül a mód az írott mintába.
+ * The contents of the insertion selector (PQW-869): only the modes the stitch
+ * allows, which mode ends up in effect, and how the mode reaches the written
+ * pattern.
  */
 
 import { strict as assert } from 'node:assert';
@@ -11,7 +12,7 @@ import { insertionChoice, insertionSuffix } from '../src/ui/insertion-view.ts';
 
 const modes = (choice) => choice.options.map((option) => option.mode);
 
-test('alapszemnél mind az öt mód választható, a könyvtár sorrendjében, nagy kezdőbetűs névvel', () => {
+test('a basic stitch offers all five modes, in library order, with capitalised names', () => {
   const choice = insertionChoice(stitchById('dc'), 'both-loops', 'hu');
   assert.deepEqual(modes(choice), ['both-loops', 'front-loop', 'back-loop', 'front-post', 'back-post']);
   assert.deepEqual(
@@ -20,7 +21,7 @@ test('alapszemnél mind az öt mód választható, a könyvtár sorrendjében, n
   );
 });
 
-test('csak a szem insertionModes listájában szereplő mód jelenik meg', () => {
+test('only the modes listed in the stitch insertionModes are offered', () => {
   for (const id of ['sl-st', 'sc2tog', 'shell-5dc', 'v-st-dc', 'bobble-5dc']) {
     const def = stitchById(id);
     const choice = insertionChoice(def, 'both-loops', 'hu');
@@ -28,22 +29,26 @@ test('csak a szem insertionModes listájában szereplő mód jelenik meg', () =>
     for (const mode of modes(choice)) assert.ok(def.insertionModes.includes(mode), `${id}: ${mode}`);
     assert.ok(!modes(choice).includes('space') && !modes(choice).includes('ring'), id);
   }
-  assert.deepEqual(modes(insertionChoice(stitchById('sl-st'), 'both-loops', 'hu')), ['both-loops', 'front-loop', 'back-loop']);
+  assert.deepEqual(modes(insertionChoice(stitchById('sl-st'), 'both-loops', 'hu')), [
+    'both-loops',
+    'front-loop',
+    'back-loop',
+  ]);
 });
 
-test('nincs választó célpont nélküli szemnél, és ahol csak egy mód van', () => {
+test('no selector for a stitch without a target, nor where only one mode exists', () => {
   for (const id of ['ch', 'ch-sp', 'magic-ring', 'picot', 'rev-sc', 'invdec']) {
     assert.equal(insertionChoice(stitchById(id), 'back-loop', 'hu'), null, id);
   }
   assert.equal(insertionChoice(undefined, 'back-loop', 'hu'), null);
 });
 
-test('a választott mód megmarad, ha a szem megengedi; különben a szem alapértelmezése érvényes', () => {
+test('the chosen mode survives when the stitch allows it, otherwise the stitch default applies', () => {
   assert.equal(insertionChoice(stitchById('sc'), 'front-post', 'hu').selected, 'front-post');
   assert.equal(insertionChoice(stitchById('sl-st'), 'front-post', 'hu').selected, 'both-loops');
 });
 
-test('az írott alak a választott jelöléssel, a szókészlet rövidítéseivel', () => {
+test('the written form uses the abbreviations of the chosen notation', () => {
   const written = (id, mode, terms) => insertionChoice(stitchById(id), mode, terms).written;
   assert.equal(written('sc', 'back-loop', 'hu'), 'rp (hsz)');
   assert.equal(written('sc', 'front-loop', 'hu'), 'rp (esz)');
@@ -57,7 +62,7 @@ test('az írott alak a választott jelöléssel, a szókészlet rövidítéseive
   assert.equal(written('shell-5dc', 'back-loop', 'hu'), null);
 });
 
-test('az állapotsor kiegészítése: mindkét szálnál üres', () => {
+test('the status bar suffix stays empty for both loops', () => {
   assert.equal(insertionSuffix('both-loops'), '');
   assert.equal(insertionSuffix(undefined), '');
   assert.equal(insertionSuffix('back-post'), ', hátsó relief');
