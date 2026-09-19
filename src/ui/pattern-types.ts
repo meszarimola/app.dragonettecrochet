@@ -29,7 +29,7 @@ export const PATTERN_TYPES: readonly PatternType[] = [
   // KB: interface.md §9 — disabled, not withdrawn.
   patternType('filet', false),
   patternType('amigurumi', false),
-  patternType('irregular', false),
+  patternType('irregular', true),
 ];
 
 export const DEFAULT_PATTERN_TYPE: PatternTypeId = 'regular';

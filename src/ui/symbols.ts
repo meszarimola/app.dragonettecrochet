@@ -439,6 +439,47 @@ export interface Placement {
   readonly size: number;
 }
 
+/**
+ * Maps a glyph from its own box onto a placed one: scale about `center`, then
+ * turn, then land on `offset`. `scale.x` and `scale.y` may differ, so the whole
+ * glyph stretches with the symbol. KB: 01 §8.1
+ *
+ * An ellipse is scaled along its own axes, which is exact while it sits square
+ * to the glyph and a close approximation once it does not.
+ */
+export function stretchShapes(
+  shapes: readonly Shape[],
+  center: Point,
+  scale: Point,
+  rotation: number,
+  offset: Point,
+): Shape[] {
+  const [cos, sin] = [Math.cos(rotation), Math.sin(rotation)];
+  const map = (p: Point): Point => {
+    const [dx, dy] = [(p.x - center.x) * scale.x, (p.y - center.y) * scale.y];
+    return { x: offset.x + dx * cos - dy * sin, y: offset.y + dx * sin + dy * cos };
+  };
+  const [kx, ky] = [Math.abs(scale.x), Math.abs(scale.y)];
+  return shapes.map((shape): Shape => {
+    switch (shape.kind) {
+      case 'line':
+        return { ...shape, from: map(shape.from), to: map(shape.to) };
+      case 'curve':
+        return { ...shape, from: map(shape.from), control: map(shape.control), to: map(shape.to) };
+      case 'ellipse':
+        return {
+          ...shape,
+          center: map(shape.center),
+          rx: shape.rx * kx,
+          ry: shape.ry * ky,
+          rotation: shape.rotation + rotation,
+        };
+      case 'dot':
+        return { ...shape, center: map(shape.center), r: shape.r * Math.min(kx, ky) };
+    }
+  });
+}
+
 export function transformShapes(shapes: readonly Shape[], rotation: number, k: number, offset: Point): Shape[] {
   const [cos, sin] = [Math.cos(rotation), Math.sin(rotation)];
   const map = (p: Point): Point => ({

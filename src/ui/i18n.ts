@@ -1,5 +1,6 @@
 // KB: interface.md §1, §2, §4, §5
 
+import { IRREGULAR_TEXTS } from './i18n/irregular.ts';
 import { MARKUP_TEXTS } from './i18n/markup.ts';
 import { MESSAGE_TEXTS } from './i18n/messages.ts';
 import { PANEL_TEXTS } from './i18n/panels.ts';
@@ -19,6 +20,7 @@ export interface UiTexts {
   readonly panels: (typeof PANEL_TEXTS)['hu'];
   readonly sections: (typeof SECTION_TEXTS)['hu'];
   readonly rules: (typeof RULE_TEXTS)['hu'];
+  readonly irregular: (typeof IRREGULAR_TEXTS)['hu'];
 }
 
 export const UI_TEXTS: Dictionary<UiTexts> = {
@@ -28,6 +30,7 @@ export const UI_TEXTS: Dictionary<UiTexts> = {
     panels: PANEL_TEXTS.hu,
     sections: SECTION_TEXTS.hu,
     rules: RULE_TEXTS.hu,
+    irregular: IRREGULAR_TEXTS.hu,
   },
   en: {
     markup: MARKUP_TEXTS.en,
@@ -35,6 +38,7 @@ export const UI_TEXTS: Dictionary<UiTexts> = {
     panels: PANEL_TEXTS.en,
     sections: SECTION_TEXTS.en,
     rules: RULE_TEXTS.en,
+    irregular: IRREGULAR_TEXTS.en,
   },
 };
 

@@ -189,7 +189,7 @@
             </button>
           </div>
 
-          <div class="tools__group" role="group" aria-label="Sor és kör" data-i18n-label="toolGroupRow">
+          <div class="tools__group" id="tools-row" role="group" aria-label="Sor és kör" data-i18n-label="toolGroupRow">
             <button type="button" class="tool" data-action="fill-row" aria-label="Sor kitöltése" data-tip="Sor kitöltése a kiválasztott szemmel (Shift+Alt+F)" data-i18n-label="toolFillRowLabel" data-i18n-tip="toolFillRowTip" aria-keyshortcuts="Shift+Alt+F">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <rect x="3.75" y="4.5" width="12.5" height="11" rx="1" />
@@ -329,6 +329,17 @@
           data-i18n-label="boardLabel"
           aria-describedby="status"
         ></canvas>
+
+        <canvas
+          id="board-irregular"
+          tabindex="0"
+          role="application"
+          aria-roledescription="szabadkézi jeldiagram"
+          aria-label="Szabadkézi diagram: válassz szemet, és kattints a rajzlapra"
+          data-i18n-label="boardIrregularLabel"
+          aria-describedby="status"
+          hidden
+        ></canvas>
         <p class="status" id="status" role="status" aria-live="polite"></p>
 
         <!-- KB: interface.md §20 -->
@@ -379,6 +390,70 @@
             <div class="palette" id="palette" role="group" aria-label="Szemek" data-i18n-label="stitchesPaletteLabel"></div>
           </details>
 
+          <details class="section" id="section-irregular" hidden>
+            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionIrregularTitle">Tulajdonságok</h2></summary>
+            <div class="props" role="group" aria-label="A kijelölt szemek tulajdonságai" data-i18n-label="propsGroupLabel">
+              <p class="panel__note" id="props-empty" data-i18n="propsEmpty">Jelölj ki egy szemet a vásznon, vagy válassz szemet a palettáról és kattints a rajzlapra.</p>
+              <div id="props-fields" hidden>
+                <p class="panel__field">
+                  <label for="prop-x" data-i18n="propXLabel">Vízszintes hely</label>
+                  <input id="prop-x" type="number" step="1" inputmode="numeric" />
+                </p>
+                <p class="panel__field">
+                  <label for="prop-y" data-i18n="propYLabel">Függőleges hely</label>
+                  <input id="prop-y" type="number" step="1" inputmode="numeric" />
+                </p>
+                <p class="panel__field">
+                  <label for="prop-width" data-i18n="propWidthLabel">Szélesség</label>
+                  <input id="prop-width" type="number" min="1" step="1" inputmode="numeric" />
+                </p>
+                <p class="panel__field">
+                  <label for="prop-height" data-i18n="propHeightLabel">Magasság</label>
+                  <input id="prop-height" type="number" min="1" step="1" inputmode="numeric" />
+                </p>
+                <p class="choice">
+                  <label><input type="checkbox" id="prop-ratio" checked /> <span data-i18n="propRatioLabel">Arányok megtartása</span></label>
+                </p>
+                <p class="panel__field">
+                  <label for="prop-rotation" data-i18n="propRotationLabel">Elforgatás (fok)</label>
+                  <input id="prop-rotation" type="number" min="0" max="359" step="1" inputmode="numeric" />
+                </p>
+                <p class="panel__field">
+                  <label for="prop-insertion" data-i18n="propInsertionLabel">Beszúrás</label>
+                  <select id="prop-insertion"></select>
+                </p>
+                <p class="panel__field">
+                  <label for="prop-color" data-i18n="propColorLabel">Szín</label>
+                  <input id="prop-color" type="color" />
+                </p>
+                <p class="props__row">
+                  <button type="button" class="button" id="prop-color-clear" data-i18n="propColorClear">Alapszín</button>
+                  <button type="button" class="button" id="prop-flip-h" data-i18n="propFlipH">Tükrözés vízszintesen</button>
+                  <button type="button" class="button" id="prop-flip-v" data-i18n="propFlipV">Tükrözés függőlegesen</button>
+                </p>
+                <h3 class="panel__title" data-i18n="propAlignTitle">Igazítás</h3>
+                <p class="props__row">
+                  <button type="button" class="button" data-align="left" data-i18n="propAlignLeft">Balra</button>
+                  <button type="button" class="button" data-align="center" data-i18n="propAlignCenter">Középre</button>
+                  <button type="button" class="button" data-align="right" data-i18n="propAlignRight">Jobbra</button>
+                </p>
+                <p class="props__row">
+                  <button type="button" class="button" data-align="top" data-i18n="propAlignTop">Felülre</button>
+                  <button type="button" class="button" data-align="middle" data-i18n="propAlignMiddle">Középvonalra</button>
+                  <button type="button" class="button" data-align="bottom" data-i18n="propAlignBottom">Alulra</button>
+                </p>
+                <p class="props__row">
+                  <button type="button" class="button" data-distribute="horizontal" data-i18n="propSpreadH">Egyenletesen vízszintesen</button>
+                  <button type="button" class="button" data-distribute="vertical" data-i18n="propSpreadV">Egyenletesen függőlegesen</button>
+                </p>
+              </div>
+              <p class="panel__field">
+                <label for="prop-rect-mode" data-i18n="propRectModeLabel">Kijelölés téglalappal</label>
+                <select id="prop-rect-mode"></select>
+              </p>
+              <p class="panel__note" id="props-count" role="status" aria-live="polite"></p>
+            </div>
+          </details>
           <details class="section" id="section-size">
             <summary class="section__head"><h2 class="panel__title" data-i18n="sectionSizeTitle">Méret és fonal</h2></summary>
             <div class="size">

@@ -90,6 +90,9 @@ import {
   uiLanguage,
   urlWithLanguage,
 } from './i18n.js';
+import { isIrregularJson } from '../core/irregular-json.js';
+import { NUDGE_STEP, NUDGE_STEP_LARGE } from '../core/irregular-types.js';
+import { IrregularEditor } from './irregular-editor.js';
 import { InsertionPanel } from './insertion-panel.js';
 import { insertionSuffix } from './insertion-view.js';
 import {
@@ -140,6 +143,7 @@ function must<T extends Element>(selector: string): T {
 }
 
 const canvas = must<HTMLCanvasElement>('#board');
+const irregularCanvas = must<HTMLCanvasElement>('#board-irregular');
 const board = new Board(canvas);
 const palette = must<HTMLDivElement>('#palette');
 const panel = must<HTMLElement>('#panel');
@@ -373,6 +377,8 @@ const insetLeft = () => (typesNav.hidden ? 0 : typesNav.getBoundingClientRect().
 const insetBottom = () =>
   written.hidden ? 0 : Math.max(0, canvas.getBoundingClientRect().bottom - written.getBoundingClientRect().top);
 const fitBoard = () => board.fit(insetRight(), insetLeft(), insetBottom());
+// The free-form editor is built when the type is first chosen (PQW-963).
+let irregular: IrregularEditor | null = null;
 const showPoint = (point: Point) => board.ensureVisible(point, insetRight(), insetLeft(), insetBottom());
 
 function visibleArea(): Area {
@@ -383,6 +389,12 @@ function visibleArea(): Area {
 const cursorPoint = (): Point | undefined => (tool && isTargeted(tool) ? derived.targets[cursor]?.point : undefined);
 
 function refresh(message?: Message): void {
+  // KB: interface.md §9 — the free-form type draws itself; the regular pipeline stays out of it.
+  if (irregular?.active === true) {
+    irregular.refresh();
+    if (message !== undefined) announce(message);
+    return;
+  }
   derived = derive(preview ?? history.present);
   if (!cursorMoved) cursor = defaultCursor(derived.pattern, derived.context, tool);
   // Past the row's last target the cursor sits outside the list, where it does not crochet.
@@ -574,6 +586,10 @@ function showToast(text: string): void {
 }
 
 function updateControls(): void {
+  if (irregular !== null && irregular.active) {
+    updateIrregularControls(irregular);
+    return;
+  }
   const { context, pattern, check } = derived;
   const empty = (pattern.pieces[0]?.stitches.length ?? 0) === 0;
   setDisabled('undo', !canUndo(history));
@@ -851,6 +867,7 @@ function changeLanguage(language: UiLanguage): void {
   renderPalette();
   select(tool);
   syncWrittenSize();
+  irregular?.refresh();
   announce(texts().messages.language.changed);
 }
 
@@ -928,11 +945,13 @@ function select(id: StitchDefId | null): void {
   countField.hidden = kind !== 'chain' && kind !== 'space';
   insertionPanel.update(item?.def, notation.terms);
   const hints = texts().messages.hint;
-  if (!item) setHint(hints.none);
+  if (irregular?.active === true && !item) setHint(texts().irregular.hint);
+  else if (!item) setHint(hints.none);
   else if (kind === 'chain' || kind === 'space') setHint(withStitchName(hints.chain, item.name));
   else if (kind === 'ring' || kind === 'picot') setHint(withStitchName(hints.simple, item.name));
   else setHint(withStitchName(hints.targeted, item.name));
   document.body.classList.toggle('is-armed', item !== undefined);
+  irregular?.setStitch(id);
   refresh();
 }
 
@@ -1092,7 +1111,15 @@ async function exportPng(): Promise<void> {
 
 async function importJson(file: File): Promise<void> {
   const file_ = texts().messages.file;
-  const loaded = loadPattern(await file.text());
+  const source = await file.text();
+  // The file decides the type, not the type the file (PQW-963).
+  if (isIrregularJson(source)) {
+    if (patternType !== 'irregular') selectType('irregular');
+    ensureIrregular().importJson(source);
+    return;
+  }
+  if (patternType === 'irregular') selectType(DEFAULT_PATTERN_TYPE);
+  const loaded = loadPattern(source);
   if (!loaded.ok) {
     announce(file_.loadFailed(renderCoreText(JSON_CORE_TEXTS[uiLanguage()], loaded.error.message), loaded.error.path));
     return;
@@ -1213,23 +1240,81 @@ function commitInserted(result: EditResult, message: string): void {
   updateControls();
 }
 
+// KB: interface.md §11 — letters by key, so a Hungarian layout behaves like an English one.
+function irregularKey(editor: IrregularEditor, event: KeyboardEvent, key: string, onBoard: boolean): boolean {
+  if ((event.ctrlKey || event.metaKey) && !event.altKey) {
+    const lower = key.toLowerCase();
+    const commands: Record<string, () => void> = {
+      a: () => editor.selectAll(),
+      c: () => editor.copySelection(),
+      x: () => editor.cutSelection(),
+      v: () => editor.paste(),
+      d: () => editor.duplicateSelection(),
+    };
+    const command = commands[lower];
+    if (command === undefined) return false;
+    event.preventDefault();
+    command();
+    return true;
+  }
+  if (event.altKey) return false;
+  if (key === 'Escape') {
+    editor.clearSelection();
+    if (tool !== null) select(null);
+    return true;
+  }
+  if (!onBoard) return false;
+  if (key === 'Delete' || key === 'Backspace') {
+    event.preventDefault();
+    editor.deleteSelection();
+    return true;
+  }
+  const step = event.shiftKey ? NUDGE_STEP_LARGE : NUDGE_STEP;
+  const nudges: Record<string, readonly [number, number]> = {
+    ArrowLeft: [-step, 0],
+    ArrowRight: [step, 0],
+    ArrowUp: [0, -step],
+    ArrowDown: [0, step],
+  };
+  const move = nudges[key];
+  if (move === undefined) return false;
+  event.preventDefault();
+  editor.nudge(move[0], move[1]);
+  return true;
+}
+
+// Holding Space pans, as it does in the regular type.
+document.addEventListener('keydown', (event) => {
+  if (event.code === 'Space' && !(event.target as HTMLElement).closest('input, textarea, select')) {
+    irregular?.setSpaceDown(true);
+  }
+});
+document.addEventListener('keyup', (event) => {
+  if (event.code === 'Space') irregular?.setSpaceDown(false);
+});
+window.addEventListener('blur', () => irregular?.setSpaceDown(false));
+
 const ACTIONS: Record<string, () => void> = {
   undo: () => {
+    if (irregular?.active === true) return irregular.undo();
     history = undo(history);
     cursorMoved = false;
     persist(history.present);
     refresh(texts().messages.work.undo);
   },
   redo: () => {
+    if (irregular?.active === true) return irregular.redo();
     history = redo(history);
     cursorMoved = false;
     persist(history.present);
     refresh(texts().messages.work.redo);
   },
   'delete-last': () => commit(deleteLast(history.present), texts().messages.work.deleteLast),
-  'select-area': () => setAreaMode(!areaMode),
-  'delete-selection': () => void deleteSelection(),
-  'duplicate-selection': () => duplicateSelected(),
+  'select-area': () => (irregular?.active === true ? select(null) : setAreaMode(!areaMode)),
+  'delete-selection': () =>
+    irregular?.active === true ? irregular.deleteSelection() : void deleteSelection(),
+  'duplicate-selection': () =>
+    irregular?.active === true ? irregular.duplicateSelection() : duplicateSelected(),
   same: () =>
     tool
       ? commit(workIntoSame(history.present, tool), texts().messages.work.sameAgain)
@@ -1262,6 +1347,7 @@ const ACTIONS: Record<string, () => void> = {
     ),
   'spiral-round': () => commit(endRoundSpiral(history.present), texts().messages.work.spiral),
   grid: () => {
+    if (irregular?.active === true) return irregular.toggleGrid();
     showGrid = !showGrid;
     try {
       localStorage.setItem(GRID_KEY, showGrid ? 'lathato' : 'rejtett');
@@ -1270,10 +1356,15 @@ const ACTIONS: Record<string, () => void> = {
     }
     refresh(showGrid ? texts().messages.view.gridOn : texts().messages.view.gridOff);
   },
-  'zoom-in': () => board.zoom(1.25),
-  'zoom-out': () => board.zoom(0.8),
-  fit: () => fitBoard(),
+  'zoom-in': () => (irregular?.active === true ? irregular.zoom(1.25) : board.zoom(1.25)),
+  'zoom-out': () => (irregular?.active === true ? irregular.zoom(0.8) : board.zoom(0.8)),
+  fit: () => (irregular?.active === true ? irregular.fit() : fitBoard()),
   'export-json': () => {
+    if (irregular?.active === true) {
+      download(irregular.exportJson(), `${slug(irregular.title)}.json`, 'application/json');
+      announce(texts().messages.file.jsonSaved);
+      return;
+    }
     download(
       savePattern(withNotation(history.present, notation)),
       `${slug(history.present.title)}.json`,
@@ -1294,6 +1385,7 @@ const ACTIONS: Record<string, () => void> = {
     writtenToggle.focus();
   },
   new: () => {
+    if (irregular?.active === true) return irregular.newPattern();
     selectedNode = null;
     selection = [];
     // KB: interface.md §29 — the profiles follow the crocheter into the new pattern.
@@ -1326,6 +1418,10 @@ importFile.addEventListener('change', () => {
 
 titleInput.addEventListener('change', () => {
   const title = titleInput.value.trim();
+  if (irregular?.active === true) {
+    irregular.setTitle(title);
+    return;
+  }
   // KB: interface.md §29
   if (title !== history.present.title) {
     commit(
@@ -1432,6 +1528,16 @@ function selectType(id: PatternTypeId): void {
     button.setAttribute('aria-pressed', String(button.dataset.type === id));
   }
   const type = PATTERN_TYPES.find((candidate) => candidate.id === id);
+  if (id === 'irregular') {
+    const editor = ensureIrregular();
+    showIrregularView(true);
+    editor.mount();
+    editor.setStitch(tool);
+    if (tool === null) setHint(texts().irregular.hint);
+  } else {
+    irregular?.unmount();
+    showIrregularView(false);
+  }
   refresh();
   showTypeView(id);
   if (type) announce(texts().messages.types.selected(type.name, type.detail));
@@ -1747,9 +1853,11 @@ document.addEventListener('keydown', (event) => {
     return;
   }
 
-  const onBoard = target === canvas || target === document.body;
+  const onBoard = target === canvas || target === irregularCanvas || target === document.body;
   // The written pattern's text is left to the browser's own copy handling.
   const inWritten = target.closest('#written') !== null;
+
+  if (irregular !== null && irregular.active && irregularKey(irregular, event, key, onBoard)) return;
 
   if ((event.ctrlKey || event.metaKey) && !event.altKey) {
     const lower = key.toLowerCase();
@@ -1959,6 +2067,46 @@ const gridPanel = panelFor(
     }),
 );
 
+const irregularPanelSection = must<HTMLDetailsElement>('#section-irregular');
+
+function ensureIrregular(): IrregularEditor {
+  if (irregular !== null) return irregular;
+  irregular = new IrregularEditor(irregularCanvas, irregularPanelSection, {
+    announce,
+    symbols: () => symbols,
+    notation: () => notation,
+    insets: () => ({ left: insetLeft(), right: insetRight(), bottom: insetBottom() }),
+    refreshControls: () => {
+      if (irregular !== null) updateIrregularControls(irregular);
+    },
+  });
+  return irregular;
+}
+
+function updateIrregularControls(editor: IrregularEditor): void {
+  setDisabled('undo', !editor.canUndo);
+  setDisabled('redo', !editor.canRedo);
+  setDisabled('delete-selection', editor.selectionSize === 0);
+  setDisabled('duplicate-selection', editor.selectionSize === 0);
+  must<HTMLButtonElement>('[data-action="select-area"]').setAttribute('aria-pressed', String(tool === null));
+  must<HTMLButtonElement>('[data-action="grid"]').setAttribute('aria-pressed', String(editor.gridVisible));
+  if (document.activeElement !== titleInput) titleInput.value = editor.title;
+  errorCount.textContent = texts().messages.errorBar.none;
+  errorToggle.classList.remove('has-errors', 'has-warnings');
+}
+
+// KB: interface.md §9 — the free-form type brings its own canvas, so the two never paint over each other.
+function showIrregularView(on: boolean): void {
+  canvas.hidden = on;
+  irregularCanvas.hidden = !on;
+  must<HTMLElement>('#tools-row').hidden = on;
+  writtenToggle.hidden = on;
+  if (on) setOpen(written, writtenToggle, false);
+  // The free-form image and print output arrives with its own ticket; until then it would save the wrong chart.
+  setDisabled('export-png', on);
+  setDisabled('export-svg', on);
+}
+
 // KB: interface.md §10
 function showTypeView(id: PatternTypeId): void {
   if (id === 'filet') gridPanel?.reveal();
@@ -1976,6 +2124,11 @@ setOpen(typesNav, typesToggle, readTypesOpen() && !NARROW.matches);
 setOpen(panel, toggle, !NARROW.matches);
 setOpen(written, writtenToggle, readWrittenOpen() && !NARROW.matches);
 showTypeView(patternType);
+if (patternType === 'irregular') {
+  const startupEditor = ensureIrregular();
+  showIrregularView(true);
+  startupEditor.mount();
+}
 
 // KB: decisions.md §5
 must<HTMLElement>('#version').textContent = `v${__APP_VERSION__}`;

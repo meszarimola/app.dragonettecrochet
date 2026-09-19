@@ -295,19 +295,35 @@ button {
   --side-end: 0px;
 }
 
-#board {
+#board,
+#board-irregular {
   display: block;
   inline-size: 100%;
   block-size: 100%;
 }
 
 body.is-armed #board,
-body.is-selecting #board {
+body.is-selecting #board,
+body.is-armed #board-irregular,
+body.is-selecting #board-irregular {
   cursor: crosshair;
 }
 
-#board:focus-visible {
+#board:focus-visible,
+#board-irregular:focus-visible {
   outline-offset: -3px;
+}
+
+/* The free-form properties panel (PQW-963). */
+.props__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-block: 0.5rem;
+}
+
+.props__row .button {
+  flex: 1 1 auto;
 }
 
 /* KB: interface.md §37 */

@@ -1,0 +1,378 @@
+// Edit operations on the free-form chart document. KB: core-geometry §29
+
+import {
+  DEFAULT_GRID_SIZE,
+  IRREGULAR_FORMAT_VERSION,
+  type IrregularItem,
+  type IrregularLayer,
+  type IrregularPattern,
+  type IrregularRow,
+  type Point,
+  type StitchItem,
+  type Transform,
+} from './irregular-types.ts';
+import type { PatternNotation, StitchInsertion } from './types.ts';
+
+const SINGLE_DUPLICATE_GAP = 10;
+
+export function nextId(prefix: string, ids: Iterable<string>): string {
+  const pattern = new RegExp(`^${prefix}(\\d+)$`);
+  let max = 0;
+  for (const id of ids) {
+    const match = pattern.exec(id);
+    if (match) max = Math.max(max, Number(match[1]));
+  }
+  return `${prefix}${max + 1}`;
+}
+
+export interface EmptyOptions {
+  readonly title: string;
+  /** The two starting layers, bottom first. The names come from the interface. */
+  readonly layerNames: readonly [string, string];
+}
+
+export function emptyIrregularPattern(options: EmptyOptions): IrregularPattern {
+  const [drawing, labels] = options.layerNames;
+  return {
+    formatVersion: IRREGULAR_FORMAT_VERSION,
+    type: 'irregular',
+    title: options.title,
+    rows: [{ id: 'r1', kind: 'row', direction: 'ltr', color: null, visible: true, locked: false }],
+    layers: [
+      { id: 'l1', name: drawing, visible: true, locked: false },
+      { id: 'l2', name: labels, visible: true, locked: false },
+    ],
+    items: [],
+    activeRowId: 'r1',
+    activeLayerId: 'l1',
+    guides: { grid: { visible: false, size: DEFAULT_GRID_SIZE }, snap: false },
+  };
+}
+
+export interface StitchSpec {
+  readonly keyEntryId: string;
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+  readonly insertion: StitchInsertion;
+}
+
+export function addStitch(pattern: IrregularPattern, spec: StitchSpec): { pattern: IrregularPattern; id: string } {
+  const id = nextId(
+    'i',
+    pattern.items.map((item) => item.id),
+  );
+  const item: StitchItem = {
+    id,
+    kind: 'stitch',
+    keyEntryId: spec.keyEntryId,
+    insertion: spec.insertion,
+    rowId: pattern.activeRowId,
+    layerId: pattern.activeLayerId,
+    color: null,
+    x: spec.x,
+    y: spec.y,
+    width: spec.width,
+    height: spec.height,
+    rotation: 0,
+    flipX: false,
+    flipY: false,
+  };
+  return { pattern: { ...pattern, items: [...pattern.items, item] }, id };
+}
+
+export type ItemPatch = Partial<Transform> & {
+  readonly color?: string | null;
+  readonly insertion?: StitchInsertion;
+  readonly rowId?: string;
+  readonly layerId?: string;
+};
+
+export function updateItems(pattern: IrregularPattern, ids: Iterable<string>, patch: ItemPatch): IrregularPattern {
+  const chosen = new Set(ids);
+  if (chosen.size === 0) return pattern;
+  return {
+    ...pattern,
+    items: pattern.items.map((item) => (chosen.has(item.id) ? { ...item, ...patch } : item)),
+  };
+}
+
+export function moveItems(pattern: IrregularPattern, ids: Iterable<string>, dx: number, dy: number): IrregularPattern {
+  const chosen = new Set(ids);
+  if (chosen.size === 0 || (dx === 0 && dy === 0)) return pattern;
+  return {
+    ...pattern,
+    items: pattern.items.map((item) => (chosen.has(item.id) ? { ...item, x: item.x + dx, y: item.y + dy } : item)),
+  };
+}
+
+/** A single item turns about its own centre; several turn about `pivot`. */
+export function rotateItems(
+  pattern: IrregularPattern,
+  ids: Iterable<string>,
+  degrees: number,
+  pivot: Point | null,
+): IrregularPattern {
+  const chosen = new Set(ids);
+  if (chosen.size === 0 || degrees === 0) return pattern;
+  const radians = (degrees * Math.PI) / 180;
+  const [cos, sin] = [Math.cos(radians), Math.sin(radians)];
+  return {
+    ...pattern,
+    items: pattern.items.map((item) => {
+      if (!chosen.has(item.id)) return item;
+      const rotation = normalizeAngle(item.rotation + degrees);
+      if (pivot === null) return { ...item, rotation };
+      const [dx, dy] = [item.x - pivot.x, item.y - pivot.y];
+      return {
+        ...item,
+        rotation,
+        x: pivot.x + dx * cos - dy * sin,
+        y: pivot.y + dx * sin + dy * cos,
+      };
+    }),
+  };
+}
+
+export function normalizeAngle(degrees: number): number {
+  const turned = degrees % 360;
+  // The `+ 0` folds a negative zero back to zero, so a turn of nothing compares equal to none.
+  return turned < 0 ? turned + 360 : turned + 0;
+}
+
+export function deleteItems(pattern: IrregularPattern, ids: Iterable<string>): IrregularPattern {
+  const chosen = new Set(ids);
+  if (chosen.size === 0) return pattern;
+  const items = pattern.items.filter((item) => !chosen.has(item.id));
+  return items.length === pattern.items.length ? pattern : { ...pattern, items };
+}
+
+export interface Box {
+  readonly minX: number;
+  readonly minY: number;
+  readonly maxX: number;
+  readonly maxY: number;
+}
+
+/** The upright box around a turned glyph box. */
+export function itemBox(item: IrregularItem): Box {
+  const radians = (item.rotation * Math.PI) / 180;
+  const [cos, sin] = [Math.abs(Math.cos(radians)), Math.abs(Math.sin(radians))];
+  const halfWidth = (item.width * cos + item.height * sin) / 2;
+  const halfHeight = (item.width * sin + item.height * cos) / 2;
+  return {
+    minX: item.x - halfWidth,
+    minY: item.y - halfHeight,
+    maxX: item.x + halfWidth,
+    maxY: item.y + halfHeight,
+  };
+}
+
+export function unionBox(boxes: readonly Box[]): Box | null {
+  if (boxes.length === 0) return null;
+  return boxes.reduce((total, box) => ({
+    minX: Math.min(total.minX, box.minX),
+    minY: Math.min(total.minY, box.minY),
+    maxX: Math.max(total.maxX, box.maxX),
+    maxY: Math.max(total.maxY, box.maxY),
+  }));
+}
+
+export function itemsBox(items: readonly IrregularItem[]): Box | null {
+  return unionBox(items.map(itemBox));
+}
+
+export function itemsOf(pattern: IrregularPattern, ids: Iterable<string>): IrregularItem[] {
+  const chosen = new Set(ids);
+  return pattern.items.filter((item) => chosen.has(item.id));
+}
+
+/**
+ * The copy lands to the right of the selection, a gap away. The gap is the mean
+ * spacing of the selected stitches, so a repeated row keeps its rhythm.
+ */
+export function duplicateOffset(items: readonly IrregularItem[]): Point {
+  const box = itemsBox(items);
+  if (box === null) return { x: 0, y: 0 };
+  const width = box.maxX - box.minX;
+  const gap = items.length > 1 ? width / (items.length - 1) : SINGLE_DUPLICATE_GAP;
+  return { x: width + gap, y: 0 };
+}
+
+export function duplicateItems(
+  pattern: IrregularPattern,
+  ids: Iterable<string>,
+  offset: Point,
+): { pattern: IrregularPattern; ids: string[] } {
+  const chosen = itemsOf(pattern, ids);
+  if (chosen.length === 0) return { pattern, ids: [] };
+  const taken = pattern.items.map((item) => item.id);
+  const copies: IrregularItem[] = [];
+  const made: string[] = [];
+  for (const item of chosen) {
+    const id = nextId('i', [...taken, ...made]);
+    made.push(id);
+    copies.push({ ...item, id, x: item.x + offset.x, y: item.y + offset.y });
+  }
+  return { pattern: { ...pattern, items: [...pattern.items, ...copies] }, ids: made };
+}
+
+/** Pasted stitches join the active row and layer, keeping their arrangement. */
+export function pasteItems(
+  pattern: IrregularPattern,
+  items: readonly IrregularItem[],
+  offset: Point,
+): { pattern: IrregularPattern; ids: string[] } {
+  if (items.length === 0) return { pattern, ids: [] };
+  const taken = pattern.items.map((item) => item.id);
+  const made: string[] = [];
+  const copies = items.map((item) => {
+    const id = nextId('i', [...taken, ...made]);
+    made.push(id);
+    return {
+      ...item,
+      id,
+      rowId: pattern.activeRowId,
+      layerId: pattern.activeLayerId,
+      x: item.x + offset.x,
+      y: item.y + offset.y,
+    };
+  });
+  return { pattern: { ...pattern, items: [...pattern.items, ...copies] }, ids: made };
+}
+
+export type FlipAxis = 'horizontal' | 'vertical';
+
+/** Mirroring turns the arrangement over too, not only each glyph. */
+export function flipItems(pattern: IrregularPattern, ids: Iterable<string>, axis: FlipAxis): IrregularPattern {
+  const chosen = new Set(ids);
+  const box = itemsBox(itemsOf(pattern, chosen));
+  if (box === null) return pattern;
+  const centerX = (box.minX + box.maxX) / 2;
+  const centerY = (box.minY + box.maxY) / 2;
+  return {
+    ...pattern,
+    items: pattern.items.map((item) => {
+      if (!chosen.has(item.id)) return item;
+      if (axis === 'horizontal') {
+        return { ...item, x: 2 * centerX - item.x, flipX: !item.flipX, rotation: normalizeAngle(-item.rotation) };
+      }
+      return { ...item, y: 2 * centerY - item.y, flipY: !item.flipY, rotation: normalizeAngle(-item.rotation) };
+    }),
+  };
+}
+
+export type AlignMode = 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom';
+
+export function alignItems(pattern: IrregularPattern, ids: Iterable<string>, mode: AlignMode): IrregularPattern {
+  const chosen = itemsOf(pattern, ids);
+  const box = itemsBox(chosen);
+  if (box === null || chosen.length < 2) return pattern;
+  const moves = new Map<string, Point>();
+  for (const item of chosen) {
+    const own = itemBox(item);
+    const shift = alignShift(mode, own, box);
+    moves.set(item.id, shift);
+  }
+  return {
+    ...pattern,
+    items: pattern.items.map((item) => {
+      const shift = moves.get(item.id);
+      return shift === undefined ? item : { ...item, x: item.x + shift.x, y: item.y + shift.y };
+    }),
+  };
+}
+
+function alignShift(mode: AlignMode, own: Box, box: Box): Point {
+  switch (mode) {
+    case 'left':
+      return { x: box.minX - own.minX, y: 0 };
+    case 'right':
+      return { x: box.maxX - own.maxX, y: 0 };
+    case 'center':
+      return { x: (box.minX + box.maxX) / 2 - (own.minX + own.maxX) / 2, y: 0 };
+    case 'top':
+      return { x: 0, y: box.minY - own.minY };
+    case 'bottom':
+      return { x: 0, y: box.maxY - own.maxY };
+    case 'middle':
+      return { x: 0, y: (box.minY + box.maxY) / 2 - (own.minY + own.maxY) / 2 };
+  }
+}
+
+export type DistributeAxis = 'horizontal' | 'vertical';
+
+/** The outermost two stay put and the rest spread evenly between them. */
+export function distributeItems(
+  pattern: IrregularPattern,
+  ids: Iterable<string>,
+  axis: DistributeAxis,
+): IrregularPattern {
+  const chosen = itemsOf(pattern, ids);
+  if (chosen.length < 3) return pattern;
+  const horizontal = axis === 'horizontal';
+  const sorted = [...chosen].sort((a, b) => (horizontal ? a.x - b.x : a.y - b.y));
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  if (first === undefined || last === undefined) return pattern;
+  const from = horizontal ? first.x : first.y;
+  const to = horizontal ? last.x : last.y;
+  const step = (to - from) / (sorted.length - 1);
+  const places = new Map<string, number>();
+  sorted.forEach((item, index) => places.set(item.id, from + step * index));
+  return {
+    ...pattern,
+    items: pattern.items.map((item) => {
+      const place = places.get(item.id);
+      if (place === undefined) return item;
+      return horizontal ? { ...item, x: place } : { ...item, y: place };
+    }),
+  };
+}
+
+export function setTitle(pattern: IrregularPattern, title: string): IrregularPattern {
+  if (title === pattern.title) return pattern;
+  const { titleGenerated: _generated, ...rest } = pattern;
+  return { ...rest, title };
+}
+
+export function withIrregularNotation(pattern: IrregularPattern, notation: PatternNotation): IrregularPattern {
+  return { ...pattern, notation };
+}
+
+export function setGrid(pattern: IrregularPattern, visible: boolean): IrregularPattern {
+  if (pattern.guides.grid.visible === visible) return pattern;
+  return { ...pattern, guides: { ...pattern.guides, grid: { ...pattern.guides.grid, visible } } };
+}
+
+export function rowById(pattern: IrregularPattern, id: string): IrregularRow | undefined {
+  return pattern.rows.find((row) => row.id === id);
+}
+
+export function layerById(pattern: IrregularPattern, id: string): IrregularLayer | undefined {
+  return pattern.layers.find((layer) => layer.id === id);
+}
+
+/** KB: 03 §10 — every placed symbol is one stitch, compound glyphs included. */
+export function rowCount(pattern: IrregularPattern, rowId: string): number {
+  return pattern.items.reduce((total, item) => (item.rowId === rowId ? total + 1 : total), 0);
+}
+
+export function stitchCount(pattern: IrregularPattern): number {
+  return pattern.items.length;
+}
+
+/** Hidden or locked rows and layers keep their stitches out of reach. */
+export function isSelectable(pattern: IrregularPattern, item: IrregularItem): boolean {
+  const row = rowById(pattern, item.rowId);
+  const layer = layerById(pattern, item.layerId);
+  if (row !== undefined && (!row.visible || row.locked)) return false;
+  return !(layer !== undefined && (!layer.visible || layer.locked));
+}
+
+export function isVisible(pattern: IrregularPattern, item: IrregularItem): boolean {
+  const row = rowById(pattern, item.rowId);
+  const layer = layerById(pattern, item.layerId);
+  return (row === undefined || row.visible) && (layer === undefined || layer.visible);
+}
