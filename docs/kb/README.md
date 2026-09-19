@@ -14,6 +14,7 @@ to load the whole knowledge base into context.
 | [core-support.md](core-support.md) | Quantities, yarn estimates, polygons, colourwork, history |
 | [interface.md](interface.md) | Working on `src/ui/`, the canvas, the panels or the stylesheet |
 | [incidents.md](incidents.md) | Before any worktree, release or bulk change |
+| [owner-decisions.md](owner-decisions.md) | A test asserts a behaviour and you want to know who asked for it |
 | [testing.md](testing.md) | A test fails in a way you did not expect |
 
 ## Conventions

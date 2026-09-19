@@ -1,8 +1,8 @@
 /*
- * A minta címe generáláskor (PQW-896): Kendő → félkör, majd Forma → téglalap
- * után a cím „Téglalap”, és a visszavonás a korábbi címet is visszahozza; a
- * „Minta neve” mezőben kézzel írt cím generálás után és újratöltés után is
- * megmarad.
+ * The title of the pattern on generation (PQW-896): after „Kendő” → semicircle
+ * and then „Forma” → rectangle the title is „Téglalap”, and undo brings back the
+ * earlier title as well; a title typed by hand into the „Minta neve” field
+ * survives generation and a reload.
  */
 
 import { expect, test, type Page } from '@playwright/test';
@@ -19,7 +19,7 @@ async function section(page: Page, id: string) {
   return details;
 }
 
-/** Kis rövidpálcás félkör a Kendő szakaszból. */
+/** A small single crochet semicircle from the „Kendő” section. */
 async function semicircle(page: Page): Promise<void> {
   const shawl = await section(page, '#section-shawl');
   await page.locator('#shawl-kind').selectOption({ label: 'Félkör' });
@@ -29,14 +29,14 @@ async function semicircle(page: Page): Promise<void> {
   await expect(page.locator('#status')).toContainText('Félkör,');
 }
 
-/** Téglalap a Forma szakaszból, alapbeállítással. */
+/** A rectangle from the „Forma” section, with the default settings. */
 async function rectangle(page: Page): Promise<void> {
   const shape = await section(page, '#section-shape');
   await shape.getByRole('button', { name: 'Minta létrehozása' }).click();
   await expect(page.locator('#status')).toContainText('Téglalap,');
 }
 
-test('Kendő → félkör, majd Forma → téglalap: a cím a téglalapé, és a visszavonás a félkört a címével hozza vissza', async ({ page }) => {
+test('Kendő → semicircle, then Forma → rectangle: the title belongs to the rectangle, and undo brings the semicircle back with its title', async ({ page }) => {
   await open(page);
   await section(page, '#section-pattern');
   const title = page.locator('#title');
@@ -51,7 +51,7 @@ test('Kendő → félkör, majd Forma → téglalap: a cím a téglalapé, és a
   await expect(title).toHaveValue('Félkör');
 });
 
-test('a kézzel írt cím generálás után és újratöltés után is megmarad', async ({ page }) => {
+test('a hand-written title survives generation and a reload', async ({ page }) => {
   await open(page);
   await section(page, '#section-pattern');
   const title = page.locator('#title');
@@ -66,7 +66,7 @@ test('a kézzel írt cím generálás után és újratöltés után is megmarad'
   await semicircle(page);
   await expect(title).toHaveValue('Nyári kendő');
 
-  // A jelölés a mentett mintával együtt megmarad.
+  // The notation survives together with the saved pattern.
   await page.reload();
   const deny = page.getByRole('button', { name: 'Elutasítom' });
   if (await deny.isVisible()) await deny.click();

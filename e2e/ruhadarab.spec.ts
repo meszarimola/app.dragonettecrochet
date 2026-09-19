@@ -1,8 +1,8 @@
 /*
- * Ruhadarabok (PQW-866): a „Ruhadarab” szakaszból felnőtt sapka és ledobott
- * vállú pulóver M méretben, méretsorozattal. Mindkettő hibátlan, az írott
- * mintában a „Méretek” blokk „S (M, L)” alakban áll, és a létrehozás egy
- * lépésben visszavonható.
+ * Garments (PQW-866): from the „Ruhadarab” section an adult hat and a drop
+ * shoulder sweater in size M, with a size series. Both are error-free, in the
+ * written pattern the „Méretek” block stands in the form „S (M, L)”, and the
+ * creation can be undone in one step.
  */
 
 import { expect, test, type Page } from '@playwright/test';
@@ -24,7 +24,7 @@ async function writtenText(page: Page): Promise<string> {
   return (await page.locator('#written-text').textContent()) ?? '';
 }
 
-test('felnőtt sapka M méretben, S–L sorozattal: hibátlan, a Méretek blokkal', async ({ page }) => {
+test('adult hat in size M, with an S–L series: error-free, with the „Méretek” block', async ({ page }) => {
   await open(page);
   const section = await openGarment(page);
 
@@ -44,7 +44,7 @@ test('felnőtt sapka M méretben, S–L sorozattal: hibátlan, a Méretek blokka
   expect(text).toMatch(/Korona: \d+ \(\d+, \d+\) kör/);
 });
 
-test('ledobott vállú pulóver M méretben, S–L sorozattal: négy darab varrásokkal, hibátlan, visszavonható', async ({ page }) => {
+test('drop shoulder sweater in size M, with an S–L series: four pieces with seams, error-free, undoable', async ({ page }) => {
   await open(page);
   const section = await openGarment(page);
 

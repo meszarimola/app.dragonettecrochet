@@ -1,18 +1,17 @@
 /*
- * A sor kiírt szemszáma (PQW-940).
+ * The stitch count printed for a row (PQW-940).
  *
- * A tulajdonos jelentése a v0.31.0-ról: a 2. sor felirata (13), pedig 22 szem
- * van benne. Szó szerint: „úgy gondolom, hogy nem számolja a kezdő szemet, ami
- * az 1. sorból jött, és nem számolja a láncszemeket sem, pedig azt is kellene.”
+ * In v0.31.0 the label of row 2 said (13), although there are 22 stitches in it.
+ * KB: owner-decisions.md §11
  *
- * A sora jobbról balra: 1 fordulólánc, 2 rövidpálca, 2 egyráhajtásos pálca,
- * 3 erp egy szembe, 3 láncszem, 3 erp egy szembe, 3 láncszem, 3 erp egy szembe,
- * 2 láncszem — összesen 22.
+ * The row from right to left: 1 turning chain, 2 single crochets, 2 double
+ * crochets, 3 dc into one stitch, 3 chain stitches, 3 dc into one stitch,
+ * 3 chain stitches, 3 dc into one stitch, 2 chain stitches — 22 in total.
  */
 
 import { expect, test, type Page } from '@playwright/test';
 
-/** Új minta tiszta lappal; a süti-sávot elutasítjuk. */
+/** New pattern with a clean sheet; we reject the cookie bar. */
 async function start(page: Page): Promise<void> {
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
@@ -20,13 +19,13 @@ async function start(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Új minta' }).click();
 }
 
-/** A jelkészlet gombja; csak akkor kattint, ha még nincs kiválasztva (a gomb kapcsol). */
+/** The button of the stitch palette; it only clicks when nothing is selected yet (the button toggles). */
 async function pick(page: Page, name: RegExp): Promise<void> {
   const button = page.locator('#palette').getByRole('button', { name }).first();
   if ((await button.getAttribute('aria-pressed')) !== 'true') await button.click();
 }
 
-test('a tulajdonos 2. sora 22 szemet mutat, nem 13-at (PQW-940)', async ({ page }) => {
+test('row 2 of the owner shows 22 stitches, not 13 (PQW-940)', async ({ page }) => {
   await start(page);
 
   await pick(page, /Láncszem \(lsz\)/);
@@ -41,7 +40,7 @@ test('a tulajdonos 2. sora 22 szemet mutat, nem 13-at (PQW-940)', async ({ page 
   await pick(page, /Egyráhajtásos pálca \(erp\)/);
   for (const group of [0, 1, 2]) {
     if (group === 0) {
-      // Két önálló pálca, majd az első hármas csokor.
+      // Two standalone double crochets, then the first cluster of three.
       await page.locator('#board').press('Enter');
       await page.locator('#board').press('Enter');
     }
@@ -59,7 +58,7 @@ test('a tulajdonos 2. sora 22 szemet mutat, nem 13-at (PQW-940)', async ({ page 
   await page.locator('#chain-count').fill('2');
   await page.locator('#board').press('Enter');
 
-  // Az írott minta ugyanazt a számot mondja, mint a rajz felirata.
+  // The written pattern says the same number as the label on the chart.
   await page.locator('#written-toggle').click();
   const written = page.locator('#written');
   await expect(written).toBeVisible();
@@ -68,9 +67,10 @@ test('a tulajdonos 2. sora 22 szemet mutat, nem 13-at (PQW-940)', async ({ page 
 });
 
 /*
- * A láncalap szemszáma (PQW-942). A tulajdonos esete: 10 láncszem, új sor,
- * egyráhajtásos pálca a javasolt célpontba. Ekkor 3 láncszem függőlegessé
- * válik, és a láncalap 10 − 3 + 1 = 8 szem.
+ * The stitch count of the foundation chain (PQW-942). The case of the owner: 10
+ * chain stitches, a new row, a double crochet into the suggested target. At that
+ * point 3 chain stitches become vertical, and the foundation chain is
+ * 10 − 3 + 1 = 8 stitches.
  */
 interface LabelBox {
   readonly text: string;
@@ -79,7 +79,7 @@ interface LabelBox {
 const labels = (page: Page): Promise<LabelBox[]> =>
   page.evaluate(() => (window as unknown as { mintatervezoRacs: { labelBoxes(): LabelBox[] } }).mintatervezoRacs.labelBoxes());
 
-test('a láncalap a függőleges fordulólánc oszlopát is számolja (PQW-942)', async ({ page }) => {
+test('the foundation chain counts the column of the vertical turning chain too (PQW-942)', async ({ page }) => {
   await start(page);
 
   await pick(page, /Láncszem \(lsz\)/);
@@ -91,6 +91,6 @@ test('a láncalap a függőleges fordulólánc oszlopát is számolja (PQW-942)'
   await pick(page, /Egyráhajtásos pálca \(erp\)/);
   await page.locator('#board').press('Enter');
 
-  // Három láncszem állt függőlegesbe: 10 − 3 + 1 = 8.
+  // Three chain stitches stood up vertically: 10 − 3 + 1 = 8.
   await expect.poll(async () => (await labels(page)).map((label) => label.text)).toContain('1. sor – alapsor (8)');
 });

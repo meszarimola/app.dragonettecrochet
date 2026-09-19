@@ -1,10 +1,9 @@
 /*
- * Kijelölés, törlés, másolás, beillesztés és duplikálás a szerkesztőben
- * (PQW-875): a sorszámmal kijelölt sor másolása és beillesztése, visszavonás;
- * törlés az érintett szemek megmutatásával; kijelölés billentyűzettel és
- * területtel.
+ * Selection, deletion, copy, paste and duplication in the editor (PQW-875):
+ * copying and pasting the row selected by its label, undo; deletion showing the
+ * affected stitches; selection by keyboard and by area.
  *
- * A szemek helyét a felület automatizált böngészőben adja ki
+ * The interface publishes the positions of the stitches in an automated browser
  * (`window.mintatervezoKijeloles`, src/ui/main.ts).
  */
 
@@ -22,7 +21,7 @@ async function open(page: Page): Promise<void> {
   await page.goto('/');
   const deny = page.getByRole('button', { name: 'Elutasítom' });
   if (await deny.isVisible()) await deny.click();
-  // Az írott minta panelje csukva indul (PQW-911): nem takarja a vásznat.
+  // The written pattern panel starts closed (PQW-911): it does not cover the canvas.
   await expect(page.locator('#written')).toBeHidden();
 }
 
@@ -32,7 +31,7 @@ const api = <T>(page: Page, name: 'nodes' | 'selection' | 'labels'): Promise<T> 
     return (method === 'labels' ? w.mintatervezoRacs!.labels!() : w.mintatervezoKijeloles![method]!()) as never;
   }, name);
 
-/** Félpálcás téglalap csak billentyűvel, a végén szem nélkül (Esc). */
+/** Half double crochet rectangle from the keyboard only, ending without a stitch (Esc). */
 async function rectangle(page: Page, width: number, rows: number): Promise<void> {
   await page.locator('#board').focus();
   await page.keyboard.press('Alt+1');
@@ -42,7 +41,7 @@ async function rectangle(page: Page, width: number, rows: number): Promise<void>
   await page.keyboard.press('Alt+4');
   for (let row = 1; row <= rows; row += 1) {
     if (row > 1) await page.keyboard.press('Alt+f');
-    // A fordult sor első szeme a fordulólánc lesz (PQW-944), ezért ott eggyel többször horgolunk.
+    // The first stitch of a turned row becomes the turning chain (PQW-944), so there we crochet one more time.
     for (let i = 0; i < width + (row > 1 ? 1 : 0); i += 1) await page.keyboard.press('Enter');
   }
   await page.keyboard.press('Escape');
@@ -52,11 +51,11 @@ async function rectangle(page: Page, width: number, rows: number): Promise<void>
 
 async function clickLabel(page: Page, layer: number): Promise<void> {
   const label = (await api<{ layer: number; x: number; y: number }[]>(page, 'labels')).find((candidate) => candidate.layer === layer);
-  expect(label, `a(z) ${layer}. sor sorszáma`).toBeTruthy();
+  expect(label, `the label of row ${layer}`).toBeTruthy();
   await page.mouse.click(label!.x, label!.y);
 }
 
-test('a sorszámmal kijelölt sor másolása, beillesztése a következő sorként és visszavonása; duplikálás a menüsorból', async ({ page }) => {
+test('copying the row selected by its label, pasting it as the next row and undoing it; duplicating from the menu bar', async ({ page }) => {
   await open(page);
   await rectangle(page, 5, 2);
   const summary = page.locator('#summary');
@@ -78,7 +77,7 @@ test('a sorszámmal kijelölt sor másolása, beillesztése a következő sorké
   await expect(summary).toContainText('3 sor. 4. sor: 6 szem.');
   await expect(summary).toContainText('Nincs hiba és figyelmeztetés.');
 
-  // Egy visszavonás az egész beillesztést visszaveszi.
+  // One undo takes back the whole paste.
   await page.keyboard.press('ControlOrMeta+z');
   await expect(summary).toContainText('2 sor. 3. sor: 6 szem.');
 
@@ -90,7 +89,7 @@ test('a sorszámmal kijelölt sor másolása, beillesztése a következő sorké
   await expect(summary).toContainText('2 sor. 3. sor: 6 szem.');
 });
 
-test('középső szem törlése: az érintett szemek megjelennek, a törlés megszakítható, vagy velük együtt megy', async ({ page }) => {
+test('deleting a middle stitch: the affected stitches are shown, the deletion can be cancelled, or goes together with them', async ({ page }) => {
   await open(page);
   await rectangle(page, 5, 2);
   const summary = page.locator('#summary');
@@ -115,23 +114,23 @@ test('középső szem törlése: az érintett szemek megjelennek, a törlés meg
   await expect(summary).toContainText('3. sor: 6 szem');
 });
 
-test('kijelölés billentyűzettel és területtel; kevés célpontnál figyelmeztet, és nem illeszt be', async ({ page }) => {
+test('selection by keyboard and by area; with too few targets it warns, and pastes nothing', async ({ page }) => {
   await open(page);
   await rectangle(page, 5, 2);
   const summary = page.locator('#summary');
   const status = page.locator('#status');
 
-  // Billentyűzettel: az utolsó szem, majd Shift+Home-mal a sor elejéig, Ctrl+D a következő sorba.
+  // From the keyboard: the last stitch, then Shift+Home to the start of the row, Ctrl+D into the next row.
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('Shift+Home');
-  // A sor a fordulólánc 2 láncszemével és 4 félpálcával: a fordulólánc az 1. szem helyett áll (PQW-891).
+  // The row with the 2 chain stitches of the turning chain and 4 half double crochets: the turning chain stands in place of stitch 1 (PQW-891).
   await expect(status).toContainText('Kijelölve: 7 szem (3. sor: 7 szem)');
   await page.keyboard.press('ControlOrMeta+d');
   await expect(summary).toContainText('3 sor. 4. sor: 6 szem.');
   await page.keyboard.press('ControlOrMeta+z');
   await page.keyboard.press('Escape');
 
-  // Terület: a menüsor gombjával, az 1. sor jelei köré húzott téglalap.
+  // Area: with the menu bar button, a rectangle dragged around the symbols of row 1.
   const area = page.locator('.tools [data-action="select-area"]');
   await area.click();
   await expect(area).toHaveAttribute('aria-pressed', 'true');
@@ -145,7 +144,7 @@ test('kijelölés billentyűzettel és területtel; kevés célpontnál figyelme
   const selected = await api<string[]>(page, 'selection');
   expect([...selected].sort()).toEqual(row1.map((node) => node.id).sort());
 
-  // A sor közepéről másolt 5 szemnek a kész 2. sor végén nincs célpontja: nem kerül be félig sem.
+  // The 5 stitches copied from the middle of the row have no target at the end of the finished row 2: they do not go in even partly.
   await page.keyboard.press('ControlOrMeta+d');
   await expect(status).toContainText('Nincs elég célpont');
   await expect(status).toContainText('A minta nem változott.');

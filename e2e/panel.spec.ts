@@ -1,7 +1,7 @@
 /*
- * A jobb oldali panel és a menüsor tooltipjei (PQW-882): a szemlista
- * betöltéskor látszik, a szakaszok összecsukhatók, és minden ikongombnak
- * azonnal megjelenő tooltipje van, az inaktívaknak is.
+ * The right-hand panel and the tooltips of the menu bar (PQW-882): the stitch
+ * list is visible on load, the sections can be collapsed, and every icon button
+ * has a tooltip that appears at once, the inactive ones too.
  */
 
 import { expect, test, type Locator, type Page } from '@playwright/test';
@@ -15,7 +15,7 @@ async function open(page: Page): Promise<void> {
 const tipDisplay = (tool: Locator) => tool.evaluate((el) => getComputedStyle(el, '::after').display);
 const tipText = (tool: Locator) => tool.evaluate((el) => getComputedStyle(el, '::after').content);
 
-test('betöltéskor a szemlista a panel tetején látszik, a jelölés alapból csukva', async ({ page }) => {
+test('on load the stitch list is visible at the top of the panel, the notation closed by default', async ({ page }) => {
   await open(page);
 
   const stitches = page.locator('#section-stitches');
@@ -30,7 +30,7 @@ test('betöltéskor a szemlista a panel tetején látszik, a jelölés alapból 
   expect(stitchesBox!.y).toBeLessThan(notationBox!.y);
 });
 
-test('a panel szakaszai egérrel és billentyűzettel le- és felcsukhatók', async ({ page }) => {
+test('the panel sections can be collapsed and expanded by mouse and by keyboard', async ({ page }) => {
   await open(page);
 
   const notationHead = page.locator('#section-notation > summary');
@@ -51,10 +51,10 @@ test('a panel szakaszai egérrel és billentyűzettel le- és felcsukhatók', as
   await expect(page.locator('#title')).toBeHidden();
 });
 
-test('minden menüsor-ikongomb egér alatt tooltipet mutat, az inaktív is', async ({ page }) => {
+test('every menu bar icon button shows a tooltip under the mouse, the inactive ones too', async ({ page }) => {
   await open(page);
 
-  // A fájlműveletek lenyílóba kerültek (PQW-911): a gombjaik a menü kinyitásával látszanak.
+  // The file actions moved into a dropdown (PQW-911): their buttons become visible by opening the menu.
   await page.locator('#file-toggle').click();
   const tools = page.locator('.tools .tool');
   const count = await tools.count();
@@ -64,31 +64,31 @@ test('minden menüsor-ikongomb egér alatt tooltipet mutat, az inaktív is', asy
   for (let i = 0; i < count; i += 1) {
     const tool = tools.nth(i);
     const tip = await tool.getAttribute('data-tip');
-    expect(tip, `tooltip nélküli gomb: ${await tool.getAttribute('data-action')}`).toBeTruthy();
+    expect(tip, `button without a tooltip: ${await tool.getAttribute('data-action')}`).toBeTruthy();
     await tool.hover({ force: true });
     await expect.poll(() => tipDisplay(tool)).toBe('block');
     expect(await tipText(tool)).toBe(JSON.stringify(tip));
   }
 
-  // Egér nélkül egyik tooltip sem látszik.
+  // Without a mouse no tooltip is visible.
   await page.mouse.move(0, 0);
   await expect.poll(() => tipDisplay(tools.last())).toBe('none');
 
-  // Az üres mintán a visszavonás inaktív, a tooltipje mégis megjelenik.
+  // On an empty pattern undo is inactive, yet its tooltip still appears.
   const undo = page.locator('.tools .tool[data-action="undo"]');
   await expect(undo).toBeDisabled();
   await undo.hover({ force: true });
   await expect.poll(() => tipDisplay(undo)).toBe('block');
 });
 
-test('billentyűzetes fókuszra is megjelenik a tooltip', async ({ page }) => {
+test('the tooltip appears on keyboard focus too', async ({ page }) => {
   await open(page);
 
   /*
-   * A tooltip `:focus-visible`-re jelenik meg, azt pedig csak a valódi
-   * billentyűzetes navigáció váltja ki — a programból hívott `focus()` nem.
-   * Ezért a fejléc Főoldal linkjéről lépünk egy Tabbal a menüsor első gombjára
-   * (az a mintatípus-sáv kapcsolója, PQW-912).
+   * The tooltip appears on `:focus-visible`, and that is triggered only by real
+   * keyboard navigation — a `focus()` called from code is not. So we step with
+   * one Tab from the Home link in the header onto the first button of the menu
+   * bar (that is the toggle of the pattern type bar, PQW-912).
    */
   await page.locator('#home-link').focus();
   await page.keyboard.press('Tab');
@@ -97,7 +97,7 @@ test('billentyűzetes fókuszra is megjelenik a tooltip', async ({ page }) => {
   await expect.poll(() => tipDisplay(first)).toBe('block');
 });
 
-test('keskeny ablakban a látható tooltip sem lóg ki jobbra', async ({ page }) => {
+test('in a narrow window even a visible tooltip does not hang off to the right', async ({ page }) => {
   await page.setViewportSize({ width: 1000, height: 506 });
   await open(page);
 
@@ -105,20 +105,20 @@ test('keskeny ablakban a látható tooltip sem lóg ki jobbra', async ({ page })
     await tool.hover({ force: true });
     await expect.poll(() => tipDisplay(tool)).toBe('block');
     const width = await page.evaluate(() => document.documentElement.scrollWidth);
-    expect(width, `kilógó tooltip: ${(await tool.getAttribute('data-action')) ?? (await tool.getAttribute('id'))}`).toBe(1000);
+    expect(width, `tooltip hanging off: ${(await tool.getAttribute('data-action')) ?? (await tool.getAttribute('id'))}`).toBe(1000);
   };
 
   /*
-   * Előbb a menüsor gombjai, CSUKOTT lenyílóval: a nyitott menü rátakar a
-   * mögötte lévő gombokra, így azok nem kapnának valódi egérrámutatást, és a
-   * tooltipjük sem jelenne meg (PQW-912).
+   * First the buttons of the menu bar, with the dropdown CLOSED: an open menu
+   * covers the buttons behind it, so those would not get a real mouse hover, and
+   * their tooltip would not appear either (PQW-912).
    */
   const tools = page.locator('.tools__group > .tool, .tools .menu > .tool');
   const count = await tools.count();
   expect(count).toBeGreaterThan(10);
   for (let i = 0; i < count; i += 1) await check(tools.nth(i));
 
-  // Azután a fájlműveletek menüpontjai, kinyitott menüvel (PQW-911).
+  // Then the items of the file actions, with the menu opened (PQW-911).
   await page.locator('#file-toggle').click();
   const items = page.locator('#file-pop .tool');
   const itemCount = await items.count();

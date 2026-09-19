@@ -1,12 +1,13 @@
 /*
- * A figyelmeztetések megjelenése (PQW-923, 3. és 4. pont).
+ * How warnings appear (PQW-923, points 3 and 4).
  *
- * A tulajdonos kérése: a figyelmeztetés bukkanjon fel fent egy kis dobozban, és
- * három másodperc után tűnjön el magától; a menüsor jobb szélén lévő tartós
- * jelző maradjon; a figyelmeztetésre kattintva pedig ne jelenjen meg kiemelő
- * négyzet a szemen, mert attól zsúfolt a felület.
+ * The request of the owner: a warning should pop up at the top in a small box,
+ * and disappear on its own after three seconds; the persistent indicator at the
+ * right end of the menu bar should stay; and clicking a warning should not put a
+ * highlight square on the stitch, because that makes the interface crowded.
  *
- * Ezek a felület részei (nem a vászon rajza), ezért itt mérni lehet és kell.
+ * These are parts of the interface (not the drawing on the canvas), so here we
+ * can and must measure.
  */
 
 import { expect, test, type Page } from '@playwright/test';
@@ -19,11 +20,11 @@ async function open(page: Page): Promise<void> {
 }
 
 /**
- * Vegyes magasságú sor: rövidpálca és egyráhajtásos pálca egymás mellett.
+ * Row of mixed height: single crochet and double crochet side by side.
  *
- * A PQW-924 óta ez NEM ad figyelmeztetést — a tulajdonos szerint így készül a
- * hullámos minta —, ezért a felbukkanó doboz tesztje a fordulás üzenetére épül,
- * ez a beállítás pedig azt rögzíti, hogy figyelmeztetés nem keletkezik.
+ * Since PQW-924 this does NOT give a warning — according to the owner this is
+ * how a wavy pattern is made — so the test of the pop-up box is built on the
+ * message of turning, and this setup records that no warning arises.
  */
 async function mixedHeights(page: Page): Promise<void> {
   await page.locator('#board').focus();
@@ -40,7 +41,7 @@ async function mixedHeights(page: Page): Promise<void> {
   for (let i = 0; i < 3; i += 1) await page.keyboard.press('Enter');
 }
 
-/** 12 láncszem lerakása billentyűvel; a doboz ekkor még üzen. */
+/** Laying down 12 chain stitches from the keyboard; at this point the box still speaks. */
 async function chains(page: Page): Promise<void> {
   await page.locator('#board').focus();
   await page.keyboard.press('Alt+1');
@@ -52,59 +53,61 @@ async function chains(page: Page): Promise<void> {
 }
 
 /*
- * A doboz MÁR CSAK figyelmeztetést mutat (PQW-932). A műveletek visszajelzése
- * megszűnt — a tulajdonos: „csak akkor írj ki tooltipet ha explicit kérem…
- * senkit nem érdekel”. A figyelmeztetést viszont ő maga kérte ide a
- * PQW-923-ban, ezért az marad, és a mechanizmust azon mérjük.
+ * The box now shows ONLY warnings (PQW-932); feedback on actions is gone.
+ * The warning, however, was asked for here in PQW-923, so that stays, and we
+ * measure the mechanism on it.
+ *
+ * KB: owner-decisions.md §3
  */
-test('a figyelmeztetés doboza fent bukkan fel, és három másodperc után eltűnik (PQW-923)', async ({ page }) => {
+test('the warning box pops up at the top, and disappears after three seconds (PQW-923)', async ({ page }) => {
   await open(page);
   const alert = page.locator('#alert');
-  await expect(alert, 'művelet nélkül nincs doboz').toBeHidden();
+  await expect(alert, 'without an action there is no box').toBeHidden();
 
   await withWarning(page);
 
-  await expect(alert, 'a figyelmeztetésről van látható visszajelzés').toBeVisible();
+  await expect(alert, 'there is visible feedback about the warning').toBeVisible();
   await expect(alert).toHaveAttribute('aria-live', 'polite');
-  await expect(alert, 'figyelmeztetésként jelöli').toContainText('Figyelmeztetés:');
+  await expect(alert, 'it marks it as a warning').toContainText('Figyelmeztetés:');
 
-  // A menüsort nem takarja: alatta kezdődik.
+  // It does not cover the menu bar: it starts below it.
   const bar = (await page.locator('header.bar').boundingBox())!;
   const box = (await alert.boundingBox())!;
-  expect(box.y, 'a doboz a menüsor alatt van').toBeGreaterThanOrEqual(bar.y + bar.height - 1);
+  expect(box.y, 'the box is below the menu bar').toBeGreaterThanOrEqual(bar.y + bar.height - 1);
 
-  // Három másodperc után magától eltűnik; a tartós jelző marad.
+  // After three seconds it disappears on its own; the persistent indicator stays.
   await expect(alert).toBeHidden({ timeout: 5000 });
-  await expect(page.locator('#error-count'), 'a sarki jelző megmarad').toBeVisible();
+  await expect(page.locator('#error-count'), 'the corner indicator stays').toBeVisible();
 });
 
 /*
- * A tulajdonos döntése az UAT első köréből (PQW-929): „ne üzengess. a
- * felhasználó nem figyel egy pillanatra, és nem látja az üzenetet.” A fordulás
- * és az új minta ezért nem bukkan fel — az állapotot a rajzról kell leolvasni.
- * A rejtett élő régió viszont megmarad a képernyőolvasónak.
+ * Turning and a new pattern do not pop up (PQW-929) — the state has to be read
+ * off the chart. The hidden live region, however, stays for the screen reader.
+ *
+ * KB: owner-decisions.md §3
  */
-test('a fordulás és az új minta nem üzenget, de az élő régió megmarad (PQW-929)', async ({ page }) => {
+test('turning and a new pattern do not nag, but the live region stays (PQW-929)', async ({ page }) => {
   await open(page);
   const alert = page.locator('#alert');
 
   await chains(page);
-  // Megvárjuk, míg a láncszemek doboza magától eltűnik, különben az övét mérnénk.
+  // We wait until the box of the chain stitches disappears on its own, otherwise we would be measuring that one.
   await expect(alert).toBeHidden({ timeout: 5000 });
 
   await page.keyboard.press('Alt+f');
-  await expect(alert, 'a fordulás nem üzenget').toBeHidden();
-  await expect(page.locator('#status'), 'az élő régió viszont elmondja').toContainText('a munka megfordítva');
+  await expect(alert, 'turning does not nag').toBeHidden();
+  await expect(page.locator('#status'), 'but the live region does say it').toContainText('a munka megfordítva');
 
   await page.getByRole('button', { name: 'Új minta' }).click();
-  await expect(alert, 'az új minta nem üzenget').toBeHidden();
-  await expect(page.locator('#status'), 'az élő régió az üres minta kezdését mondja').toContainText('Üres minta');
+  await expect(alert, 'a new pattern does not nag').toBeHidden();
+  await expect(page.locator('#status'), 'the live region announces the start of the empty pattern').toContainText('Üres minta');
 });
 
 /**
- * Egy megmaradt figyelmeztetés: rövidpálcás sor után pálcás sor, ahol a sort
- * kezdő láncszemek magassága nem illik a sort kezdő szemhez. (A vegyes
- * magasság PQW-924 óta nem ad bejegyzést, ezért nem az szolgál kiváltóként.)
+ * One remaining warning: a double crochet row after a single crochet row, where
+ * the height of the chain stitches that start the row does not suit the stitch
+ * that starts the row. (Mixed height has given no finding since PQW-924, so that
+ * is not what serves as the trigger.)
  */
 async function withWarning(page: Page): Promise<void> {
   await page.locator('#board').focus();
@@ -119,9 +122,10 @@ async function withWarning(page: Page): Promise<void> {
   for (let i = 0; i < 12; i += 1) await page.keyboard.press('Enter');
   await page.keyboard.press('Alt+f');
   /*
-   * A fordulóláncot a sor első szeme hozza (PQW-944), ezért a magasság magától
-   * stimmelne. A figyelmeztetéshez a horgoló maga tesz le EGY láncszemet, és
-   * utána pálcával folytatja: a lánc alacsonyabb, mint a sort kezdő szem.
+   * The turning chain is brought by the first stitch of the row (PQW-944), so
+   * the height would work out by itself. For the warning the crocheter lays down
+   * ONE chain stitch, and then continues with double crochet: the chain is lower
+   * than the stitch that starts the row.
    */
   await page.keyboard.press('Alt+1');
   await page.locator('#chain-count').focus();
@@ -133,7 +137,7 @@ async function withWarning(page: Page): Promise<void> {
   for (let i = 0; i < 12; i += 1) await page.keyboard.press('Enter');
 }
 
-/** 22 láncszem, de csak öt rövidpálca: hosszú, be nem horgolt „farok” marad. */
+/** 22 chain stitches, but only five single crochets: a long, unworked "tail" is left. */
 async function withTail(page: Page): Promise<void> {
   await page.locator('#board').focus();
   await page.keyboard.press('Alt+1');
@@ -147,98 +151,97 @@ async function withTail(page: Page): Promise<void> {
   await page.keyboard.press('Alt+f');
 }
 
-/** A kiemelt szemek a vásznon; üres tömb, ha a rajz tiszta. */
+/** The highlighted stitches on the canvas; an empty array if the chart is clean. */
 const highlight = (page: Page): Promise<string[]> =>
   page.evaluate(() => (window as unknown as Record<string, Record<string, () => string[]>>).mintatervezoRacs!['highlight']!());
 
 /*
- * A tulajdonos döntése az UAT első köréből (PQW-930): „a rajzon ne is legyen
- * megjelölve a hiba, vagy figyelmeztetés, csak a jobb felső sarokban… ha
- * rákattint a felhasználó és kiválasztja a hibát, akkor a mintán jelölje meg
- * pirossal, de piros szaggatottal és 5 mp múlva tűnjön el”.
+ * The chart is clean by default; a clicked finding is marked in red dashes for
+ * five seconds (PQW-930). This partly reverses PQW-923: there the click did not
+ * highlight, because every circle was on the chart by default anyway, and that
+ * is what made it crowded.
  *
- * Ez részben visszavonja a PQW-923-at: ott a kattintás azért nem emelt ki, mert
- * a rajzon alapból is ott volt minden karika, és attól lett zsúfolt.
+ * KB: owner-decisions.md §4
  */
-test('a rajz alapból tiszta, a találatra kattintva jelölés jön, és öt másodperc után eltűnik (PQW-930)', async ({ page }) => {
+test('the chart is clean by default, clicking a finding brings a marking, and it disappears after five seconds (PQW-930)', async ({ page }) => {
   await open(page);
   await withWarning(page);
 
-  expect(await highlight(page), 'alapból semmi nincs megjelölve a rajzon').toEqual([]);
+  expect(await highlight(page), 'nothing is marked on the chart by default').toEqual([]);
 
   await page.locator('#error-toggle').click();
   const finding = page.locator('#findings button.finding').first();
   await expect(finding).toBeVisible();
   await finding.click();
 
-  expect((await highlight(page)).length, 'a kiválasztott találat szemei megjelölve').toBeGreaterThan(0);
+  expect((await highlight(page)).length, 'the stitches of the selected finding are marked').toBeGreaterThan(0);
 
-  // Jelöl, de nem JELÖL KI: a kijelöléshez kötött gombok tétlenek maradnak.
-  await expect(page.locator('[data-action="delete-selection"]'), 'a kattintás nem jelöl ki').toBeDisabled();
+  // It marks, but does not SELECT: the buttons tied to a selection stay inactive.
+  await expect(page.locator('[data-action="delete-selection"]'), 'the click does not select').toBeDisabled();
   await expect(page.locator('[data-action="duplicate-selection"]')).toBeDisabled();
 
-  // Öt másodperc után magától eltűnik, hogy ne maradjon ott zavarni.
+  // After five seconds it disappears on its own, so that it does not stay there in the way.
   await expect.poll(() => highlight(page), { timeout: 9000 }).toEqual([]);
 });
 
 /*
- * A tulajdonos szava (PQW-932): „csak akkor írj ki tooltipet ha explicit
- * kérem”, és a műveletek visszajelzéséről: „senkit nem érdekel”. Külön pont,
- * hogy a minta alkotása nem folytonos: „a sort úgy és olyan formában hozza
- * létre, olyan sorrendben, ahogy csak akarja” — egy kihagyott helyre
- * visszatérni pótlás, nem keresztezett szem, ezért nincs kérdés.
+ * The actions give no feedback (PQW-932), and making a pattern is not
+ * continuous: going back to a skipped place is filling a gap, not a crossed
+ * stitch, so there is no question.
+ *
+ * KB: owner-decisions.md §3, §5
  */
-test('a műveletek nem üzengetnek, és a pótlás nem kérdez (PQW-932)', async ({ page }) => {
+test('the actions do not nag, and filling a gap does not ask (PQW-932)', async ({ page }) => {
   await open(page);
   const alert = page.locator('#alert');
 
   await chains(page);
-  await expect(alert, 'a láncszemek lerakása nem üzenget').toBeHidden();
+  await expect(alert, 'laying down the chain stitches does not nag').toBeHidden();
 
   await page.keyboard.press('Alt+f');
-  await expect(alert, 'a fordulás nem üzenget').toBeHidden();
+  await expect(alert, 'turning does not nag').toBeHidden();
 
   await page.keyboard.press('Alt+5');
   for (let i = 0; i < 3; i += 1) await page.keyboard.press('Enter');
-  await expect(alert, 'a szem lerakása nem üzenget').toBeHidden();
+  await expect(alert, 'laying down the stitch does not nag').toBeHidden();
 
   await page.keyboard.press('ControlOrMeta+z');
-  await expect(alert, 'a visszavonás nem üzenget').toBeHidden();
+  await expect(alert, 'undoing does not nag').toBeHidden();
 
-  // Visszalépve egy korábban kihagyott célpontra a szem kérdés nélkül kerül le.
+  // Stepping back onto a target skipped earlier, the stitch goes down without a question.
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('button', { name: 'Keresztezett szem' }), 'nincs kérdés a pótlásról').toHaveCount(0);
-  await expect(alert, 'és nem is üzenget').toBeHidden();
+  await expect(page.getByRole('button', { name: 'Keresztezett szem' }), 'no question about filling the gap').toHaveCount(0);
+  await expect(alert, 'and it does not nag either').toBeHidden();
 });
 
-test('a láncalap be nem horgolt farka figyelmeztetés, nem hiba (PQW-930)', async ({ page }) => {
+test('an unworked tail on the foundation chain is a warning, not an error (PQW-930)', async ({ page }) => {
   await open(page);
   await withTail(page);
 
   await page.locator('#error-toggle').click();
   const list = page.locator('#findings');
-  await expect(list, 'a farok nem hibaként jelenik meg').not.toContainText('Hiba:');
-  await expect(list, 'hanem figyelmeztetésként').toContainText('Figyelmeztetés:');
+  await expect(list, 'the tail does not appear as an error').not.toContainText('Hiba:');
+  await expect(list, 'but as a warning').toContainText('Figyelmeztetés:');
 });
 
-test('a találat kártyáján nincs tudásbázis-hivatkozás (PQW-930)', async ({ page }) => {
+test('there is no knowledge-base reference on the finding card (PQW-930)', async ({ page }) => {
   await open(page);
   await withWarning(page);
 
   await page.locator('#error-toggle').click();
   const list = page.locator('#findings');
-  await expect(list, 'a végfelhasználót nem érdekli a tudásbázis').not.toContainText('Tudásbázis');
-  await expect(list, 'a lenyíló is kikerült').not.toContainText('Részletek');
+  await expect(list, 'the end user is not interested in the knowledge base').not.toContainText('Tudásbázis');
+  await expect(list, 'the disclosure went away too').not.toContainText('Részletek');
   await expect(page.locator('#findings details')).toHaveCount(0);
 });
 
 
-test('a vegyes szemmagasság nem ad figyelmeztetést (PQW-924)', async ({ page }) => {
+test('mixed stitch height gives no warning (PQW-924)', async ({ page }) => {
   await open(page);
   await mixedHeights(page);
 
-  // A tulajdonos szerint így készül a hullámos minta: ez szándékos, nem hiba.
-  await expect(page.locator('#error-count'), 'nincs figyelmeztetés a jelzőn').toHaveText('Nincs hiba');
+  // According to the owner this is how a wavy pattern is made: it is deliberate, not an error.
+  await expect(page.locator('#error-count'), 'no warning on the indicator').toHaveText('Nincs hiba');
   await expect(page.locator('#alert')).not.toContainText('Figyelmeztetés:');
 });

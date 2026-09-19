@@ -1,7 +1,7 @@
 /*
- * Beszúrási mód a Szemek szakaszban (PQW-869): csak a szem által megengedett
- * módok, billentyűzettel választható, és a sor kitöltése, az állapotsor és az
- * írott minta követi.
+ * Insertion mode in the Stitches section (PQW-869): only the modes the stitch
+ * allows, selectable from the keyboard, and the row fill, the status bar and
+ * the written pattern follow it.
  */
 
 import { expect, test, type Page } from '@playwright/test';
@@ -20,20 +20,20 @@ async function foundation(page: Page, chains: number): Promise<void> {
   await page.keyboard.press('Enter');
 }
 
-test('hátsó szálas rövidpálcás sor és reliefes sor: a mód billentyűzettel választható, a minta követi', async ({ page }) => {
+test('back loop single crochet row and post stitch row: the mode is selectable from the keyboard, and the pattern follows', async ({ page }) => {
   await open(page);
   await foundation(page, 8);
 
   const insertion = page.getByRole('group', { name: 'Beszúrás' });
-  // Láncszemnél nincs mit választani.
+  // There is nothing to choose for a chain stitch.
   await expect(insertion).toBeHidden();
 
-  await page.keyboard.press('Alt+3'); // rövidpálca
+  await page.keyboard.press('Alt+3'); // single crochet
   await expect(insertion).toBeVisible();
   await expect(insertion.getByRole('radio')).toHaveCount(5);
   await expect(insertion.getByRole('radio', { name: 'Mindkét szál' })).toBeChecked();
 
-  // Billentyűzettel: fókusz a csoportra, nyíllal a hátsó szálig.
+  // From the keyboard: focus the group, then arrow down to the back loop.
   await insertion.getByRole('radio', { name: 'Mindkét szál' }).focus();
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
@@ -43,24 +43,24 @@ test('hátsó szálas rövidpálcás sor és reliefes sor: a mód billentyűzett
   await page.getByRole('button', { name: 'Sor kitöltése' }).click();
   await expect(page.locator('#status')).toContainText('Sor kitöltve, hátsó szál.');
   await expect(page.locator('#summary')).toContainText('Nincs hiba és figyelmeztetés.');
-  // Az írott minta panelje csukva indul (PQW-911), és csukva nem frissül.
+  // The written pattern panel starts closed (PQW-911), and does not refresh while closed.
   await page.locator('#written-toggle').click();
-  // A fordulólánc az 1. rövidpálca helyett áll (PQW-891): 8 láncszemből 6 rp a 3. láncszemtől.
+  // The turning chain stands in place of single crochet 1 (PQW-891): 6 sc out of 8 chains, from chain 3.
   await expect(page.locator('#written-text')).toContainText(
     '2. sor: hagyj ki 2 láncszemet, majd minden láncszembe 1 rp (hsz)',
   );
   await expect(page.locator('#written-text')).toContainText('hsz – hátsó szálba');
 
-  // A kúszószem reliefet nem enged: csak három mód; a hátsó szálat engedi, ezért az marad kiválasztva.
+  // A slip stitch allows no post stitch: only three modes; it does allow the back loop, so that stays selected.
   await page.keyboard.press('Alt+2');
   await expect(insertion.getByRole('radio')).toHaveCount(3);
   await expect(insertion.getByRole('radio', { name: 'Első relief' })).toHaveCount(0);
   await expect(insertion.getByRole('radio', { name: 'Hátsó szál' })).toBeChecked();
 
-  // Reliefes sor egyráhajtásos pálcával; a választás a szemváltás után is megmarad.
+  // Post stitch row in double crochet; the choice survives a change of stitch.
   await page.keyboard.press('Alt+5');
   await insertion.getByText('Első relief').click();
-  // A rádiógombon a gyorsbillentyűk nem élnek, mint a többi mezőben: vissza a vászonra.
+  // Shortcuts do not fire on a radio button, as in the other fields: back to the canvas.
   await page.locator('#board').focus();
   await page.keyboard.press('Alt+f');
   await page.keyboard.press('Alt+3');

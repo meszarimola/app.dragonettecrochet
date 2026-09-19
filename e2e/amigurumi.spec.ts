@@ -1,19 +1,20 @@
 /*
- * Amigurumi (PQW-863): az Amigurumi mintatípus az írott mintát nagyban nyitja;
- * a 6 cm-es gömb írott mintája jelöli a szemet és a tömést; a fej-test figura
- * varrva eltérő szemszámnál érthető üzenetet ad, egyenletes elosztással hibátlan.
+ * Amigurumi (PQW-863): the Amigurumi pattern type opens the written pattern
+ * large; the written pattern of the 6 cm ball marks the eyes and the stuffing;
+ * the head-and-body figure sewn together gives a clear message at a differing
+ * stitch count, and is error-free with even distribution.
  */
 
 import { expect, test, type Page } from '@playwright/test';
 
 /*
- * PQW-925: az amigurumi mintatípus az átvételi tesztelés első körében ki van
- * kapcsolva, ezért ezek a tesztek nem futnak. NEM töröljük őket: a típus
- * visszakapcsolásakor ez az egy blokk kerül ki, és a fedettség egyben
- * visszajön.
+ * PQW-925: the amigurumi pattern type is switched off for the first round of
+ * acceptance testing, so these tests do not run. Do NOT delete them: when the
+ * type is switched back on, this single block is what goes away, and the
+ * coverage returns in one piece.
  */
 test.beforeEach(() => {
-  test.skip(true, 'PQW-925: az amigurumi mintatípus ideiglenesen kikapcsolva');
+  test.skip(true, 'PQW-925: the amigurumi pattern type is temporarily switched off');
 });
 
 async function open(page: Page): Promise<void> {
@@ -25,13 +26,13 @@ async function open(page: Page): Promise<void> {
 async function chooseAmigurumi(page: Page): Promise<void> {
   await page.locator('.type[data-type="amigurumi"]').click();
   await expect(page.locator('#section-amigurumi')).toHaveAttribute('open', '');
-  // A típusválasztás már nem nyitja fel az írott mintát (PQW-912): a panel a
-  // felhasználóé, ezért a tesztek a gombjával nyitják ki.
+  // Choosing the type no longer opens the written pattern (PQW-912): the panel
+  // belongs to the user, so the tests open it with its button.
   if (await page.locator('#written').isHidden()) await page.locator('#written-toggle').click();
   await expect(page.locator('#written')).toBeVisible();
 }
 
-test('amigurumiban az írott minta a gombjával nagyban nyílik; a 6 cm-es gömb mintája jelöli a szemet és a tömést', async ({ page }) => {
+test('in amigurumi the written pattern opens large with its button; the pattern of the 6 cm ball marks the eyes and the stuffing', async ({ page }) => {
   await open(page);
   await chooseAmigurumi(page);
 
@@ -51,7 +52,7 @@ test('amigurumiban az írott minta a gombjával nagyban nyílik; a 6 cm-es gömb
   expect(text).toContain('húzd össze a nyílást.');
 });
 
-test('fej-test figura varrva: eltérő szemszámnál érthető üzenet, egyenletes elosztással hibátlan', async ({ page }) => {
+test('head and body sewn together: a clear message at a differing stitch count, error-free with even distribution', async ({ page }) => {
   await open(page);
   await chooseAmigurumi(page);
   await page.getByRole('button', { name: 'Új minta ebből' }).click();
@@ -76,7 +77,7 @@ test('fej-test figura varrva: eltérő szemszámnál érthető üzenet, egyenlet
   await expect(page.locator('#amigurumi-figure')).toContainText('A figura magassága kb.');
 });
 
-test('ovális láncalapról (PQW-890): önállóan hibátlan, az 1. kör a láncszemek két oldalán; talpként egy gömbhöz varrva', async ({ page }) => {
+test('from an oval foundation chain (PQW-890): error-free on its own, round 1 on both sides of the chains; sewn onto a ball as a sole', async ({ page }) => {
   await open(page);
   await chooseAmigurumi(page);
 
@@ -88,13 +89,13 @@ test('ovális láncalapról (PQW-890): önállóan hibátlan, az 1. kör a lánc
   await expect(page.locator('#amigurumi-summary')).toContainText('láncszemből');
   await page.getByRole('button', { name: 'Új minta ebből' }).click();
   await expect(page.locator('#status')).toContainText('Talp elkészült;');
-  // A lezárt ovális után nincs következő kör (PQW-897).
+  // There is no next round after a closed oval (PQW-897).
   await expect(page.locator('#status')).not.toContainText('következik');
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
   const text = (await page.locator('#written-text').textContent()) ?? '';
   expect(text).toMatch(/1\. kör: hagyj ki 1 láncszemet, majd \d+ rp, 4 rp a következő láncszembe, a láncszemek másik oldalán vissza: \d+ rp, 3 rp a következő láncszembe \(\d+\)\./);
 
-  // Részként: előbb a gömb, utána az ovális talp varrva, egyenletes elosztással.
+  // As a part: first the ball, then the oval sole sewn on, with even distribution.
   await page.locator('#amigurumi-name').fill('Fej');
   await page.locator('#amigurumi-shape').selectOption({ label: 'Gömb' });
   await page.getByRole('button', { name: 'Új minta ebből' }).click();
@@ -109,7 +110,7 @@ test('ovális láncalapról (PQW-890): önállóan hibátlan, az 1. kör a lánc
   await expect(page.locator('#written-text')).toContainText('a láncszemek másik oldalán vissza:');
 });
 
-test('pálcás ovális a generátorból (PQW-899): a szem választható, végenként 6 szaporítás, hibátlan', async ({ page }) => {
+test('oval in double crochet from the generator (PQW-899): the stitch can be chosen, 6 increases at each end, error-free', async ({ page }) => {
   await open(page);
   await chooseAmigurumi(page);
 
@@ -128,7 +129,7 @@ test('pálcás ovális a generátorból (PQW-899): a szem választható, végenk
   await expect(page.locator('#amigurumi-figure')).toContainText('lapos)');
 });
 
-/** A kurzor célpontja az ablakban (a böngészős tesztek horga, main.ts). */
+/** The cursor target in window coordinates (the hook for the browser tests, main.ts). */
 async function cursorPoint(page: Page): Promise<{ x: number; y: number }> {
   const point = await page.evaluate(
     () => (window as unknown as { mintatervezoRacs: { cursor: () => { x: number; y: number } | null } }).mintatervezoRacs.cursor(),
@@ -141,28 +142,28 @@ for (const viewport of [
   { width: 1000, height: 506 },
   { width: 1440, height: 900 },
 ]) {
-  test(`${viewport.width}×${viewport.height}: ovális 1. köre kézzel, vezetett kurzorral (PQW-899): a vég után a láncszemek másik oldalán vissza, hibátlan`, async ({ page }) => {
+  test(`${viewport.width}×${viewport.height}: round 1 of the oval by hand with the guided cursor (PQW-899): back along the other side of the chains after the end, error-free`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await open(page);
     await chooseAmigurumi(page);
-    // A rajz kell a célzáshoz: az írott minta panel lecsukva.
+    // The chart is needed for aiming: the written pattern panel is closed.
     await page.getByRole('button', { name: 'Lecsukás' }).click();
 
     const board = page.locator('#board');
     await board.focus();
-    await page.keyboard.press('Alt+1'); // láncszem
+    await page.keyboard.press('Alt+1'); // chain stitch
     await page.locator('#chain-count').focus();
     await page.keyboard.press('ControlOrMeta+A');
     await page.keyboard.type('8');
     await board.focus();
     await page.keyboard.press('Enter');
-    await page.keyboard.press('Alt+3'); // rövidpálca
+    await page.keyboard.press('Alt+3'); // single crochet
 
-    // Elöl: a kezdőlánc utáni láncszemtől a legtávolabbiig 7 rövidpálca, a végén még 3 ugyanabba.
+    // Front: 7 single crochets from the chain after the starting chain to the farthest one, then 3 more into the same one at the end.
     for (let k = 0; k < 7; k += 1) await page.keyboard.press('Enter');
     for (let k = 0; k < 3; k += 1) await page.keyboard.press('Shift+Enter');
 
-    // A kurzor a láncszemek másik oldalára ugrott: az első szem kattintással, a többi billentyűvel.
+    // The cursor has jumped to the other side of the chains: the first stitch by click, the rest by keyboard.
     const point = await cursorPoint(page);
     expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('#board') !== null, point)).toBe(true);
     await page.mouse.click(point.x, point.y);
@@ -172,7 +173,7 @@ for (const viewport of [
     await page.keyboard.press('Alt+s');
 
     await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
-    // A lecsukott írott minta nem frissül: újra kinyitva olvassuk.
+    // A closed written pattern does not refresh: we reopen it to read it.
     if (await page.locator('#written').isHidden()) await page.locator('#written-toggle').click();
     await expect(page.locator('#written-text')).toContainText(
       '1. kör: hagyj ki 1 láncszemet, majd 6 rp, 4 rp a következő láncszembe, a láncszemek másik oldalán vissza: 5 rp, 3 rp a következő láncszembe (18).',

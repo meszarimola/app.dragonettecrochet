@@ -1,13 +1,11 @@
 /*
- * A láncszem oda kerül, ahová a horgoló mutat (PQW-935).
+ * The chain stitch goes where the crocheter points (PQW-935).
  *
- * A tulajdonos jelentése: az egyráhajtásos pálcánál a kihagyás jól működött, a
- * láncszemnél viszont nem. Szó szerint: „azt vártam volna, hogy ha a másodikba
- * klikkelek, amit a köröcske jelöl, hogy ott az egér, akkor abba a cellába
- * tegye a láncszemet.”
+ * The measurement before the fix: the chain stitch always went to the end of the
+ * row regardless of the cursor — bit for bit the same place with the cursor set
+ * to target 9 and to target 6.
  *
- * A javítás előtti mérés: a láncszem a kurzortól függetlenül mindig a sor
- * végére került — a 9. és a 6. célpontra állított kurzorral bitre ugyanoda.
+ * KB: owner-decisions.md §9
  */
 
 import { expect, test, type Page } from '@playwright/test';
@@ -36,15 +34,15 @@ const workingLayer = (page: Page): Promise<number> =>
 const nodes = (page: Page): Promise<Node[]> =>
   page.evaluate(() => (window as unknown as { mintatervezoKijeloles: { nodes(): Node[] } }).mintatervezoKijeloles.nodes());
 
-/** A célpont saját cellája az alsó sorban: oda mutat a horgoló. */
+/** The own cell of the target in the bottom row: that is where the crocheter points. */
 async function targetCell(page: Page, slot: number): Promise<Cell> {
   const layer = await workingLayer(page);
   const cell = (await cells(page)).find((candidate) => candidate.layer === layer - 1 && candidate.slot === slot);
-  expect(cell, `a(z) ${slot}. célpont cellája`).toBeTruthy();
+  expect(cell, `the cell of target ${slot}`).toBeTruthy();
   return cell!;
 }
 
-/** 22 láncszem, fordulás, két rövidpálca, majd három egyráhajtásos pálca egy célpontba. */
+/** 22 chain stitches, a turn, two single crochets, then three double crochets into one target. */
 async function cluster(page: Page): Promise<void> {
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
@@ -64,31 +62,31 @@ async function cluster(page: Page): Promise<void> {
   await page.locator('#board').press('Shift+Enter');
 }
 
-/** A sor láncszemei a rajzon (a sort kezdő fordulóláncot nem számítva). */
+/** The chain stitches of the row on the chart (not counting the turning chain that starts the row). */
 async function rowChains(page: Page): Promise<Node[]> {
   const layer = await workingLayer(page);
   const row = (await nodes(page)).filter((node) => node.layer === layer && node.def === 'ch');
-  // A fordulólánc a sor legelején áll, a haladási iránnyal szemközti szélen.
+  // The turning chain stands at the very start of the row, on the edge opposite the direction of travel.
   const edge = Math.max(...row.map((node) => node.x));
   return row.filter((node) => Math.abs(node.x - edge) > 1);
 }
 
-test('a láncszem a megkattintott cellába kerül, nem a sor végére (PQW-935)', async ({ page }) => {
+test('the chain stitch goes into the cell that was clicked, not to the end of the row (PQW-935)', async ({ page }) => {
   await cluster(page);
-  expect(await rowChains(page), 'a csokor után még nincs láncszem a sorban').toHaveLength(0);
+  expect(await rowChains(page), 'after the cluster there is still no chain stitch in the row').toHaveLength(0);
 
-  // A csokor az 5. célpontban ül. A láncszem a 8.-ba megy: kettőt átugorva.
+  // The cluster sits in target 5. The chain stitch goes into the 8th: skipping two.
   const wanted = await targetCell(page, 8);
   await page.locator('#palette').getByRole('button', { name: /Láncszem \(lsz\)/ }).first().click();
   await page.locator('#chain-count').fill('1');
   await page.mouse.click(wanted.x, wanted.y);
 
   const chains = await rowChains(page);
-  expect(chains, 'egy láncszem került a sorba').toHaveLength(1);
-  expect(Math.abs(chains[0]!.x - wanted.x), 'a megkattintott oszlopban áll').toBeLessThan(3);
+  expect(chains, 'one chain stitch went into the row').toHaveLength(1);
+  expect(Math.abs(chains[0]!.x - wanted.x), 'it stands in the column that was clicked').toBeLessThan(3);
 });
 
-test('két különböző cellába kattintva két külön helyre kerül a láncszem (PQW-935)', async ({ page }) => {
+test('clicking into two different cells puts the chain stitch in two separate places (PQW-935)', async ({ page }) => {
   await cluster(page);
   const palette = page.locator('#palette');
   await palette.getByRole('button', { name: /Láncszem \(lsz\)/ }).first().click();
@@ -100,9 +98,9 @@ test('két különböző cellába kattintva két külön helyre kerül a láncsz
   await page.mouse.click(second.x, second.y);
 
   const chains = (await rowChains(page)).map((node) => node.x).sort((a, b) => a - b);
-  expect(chains, 'két láncszem a sorban').toHaveLength(2);
+  expect(chains, 'two chain stitches in the row').toHaveLength(2);
   const wanted = [first.x, second.x].sort((a, b) => a - b);
   for (const [i, x] of chains.entries()) {
-    expect(Math.abs(x - wanted[i]!), 'mindkettő a saját oszlopában').toBeLessThan(3);
+    expect(Math.abs(x - wanted[i]!), 'each one in its own column').toBeLessThan(3);
   }
 });
