@@ -91,16 +91,71 @@ function argumentLiterals(source, start) {
   throw new Error(`unbalanced argument list at ${start}`);
 }
 
+/**
+ * The same source with every comment blanked out, its length kept. Without this the reading is not comment-aware, the
+ * trap `.claude/rules/tests.md` names: a `//` after an argument would read as the start of a regular expression, and
+ * a call name written in prose would send the scan off the end of the file.
+ */
+function withoutComments(source) {
+  let out = '';
+  let previous = '';
+  let i = 0;
+  while (i < source.length) {
+    const character = source[i];
+    if (character === "'" || character === '"' || character === '`') {
+      const end = endOfString(source, i, character);
+      out += source.slice(i, end + 1);
+      i = end + 1;
+      previous = character;
+    } else if (character === '/' && source[i + 1] === '/') {
+      const end = source.indexOf('\n', i);
+      const stop = end === -1 ? source.length : end;
+      out += ' '.repeat(stop - i);
+      i = stop;
+    } else if (character === '/' && source[i + 1] === '*') {
+      const end = source.indexOf('*/', i);
+      const stop = end === -1 ? source.length : end + 2;
+      out += source.slice(i, stop).replace(/[^\n]/g, ' ');
+      i = stop;
+    } else if (character === '/' && BEFORE_A_REGEX.has(previous)) {
+      const end = endOfRegex(source, i);
+      out += source.slice(i, end);
+      i = end;
+      previous = '/';
+    } else {
+      out += character;
+      if (!/\s/.test(character)) previous = character;
+      i += 1;
+    }
+  }
+  return out;
+}
+
+/** The literal standing at `index`, if one does. */
+function literalAt(source, index) {
+  const character = source[index];
+  if (character === "'" || character === '"' || character === '`') {
+    return source.slice(index + 1, endOfString(source, index, character));
+  }
+  return character === '/' ? source.slice(index, endOfRegex(source, index)) : undefined;
+}
+
 /** The literals of one source, counted per call: `{ getByRole: { button: 168, Fordulás: 15 } }`. */
-function callLiterals(source, into = {}) {
+function callLiterals(raw, into = {}) {
+  const source = withoutComments(raw);
+  const count = (name, literal) => {
+    if (into[name] === undefined) into[name] = {};
+    into[name][literal] = (into[name][literal] ?? 0) + 1;
+  };
   const calls = new RegExp(`\\b(${DRIVING_CALLS.join('|')})\\(`, 'g');
   for (const match of source.matchAll(calls)) {
-    const name = match[1];
-    if (into[name] === undefined) into[name] = {};
-    const counts = into[name];
-    for (const literal of argumentLiterals(source, match.index + match[0].length)) {
-      counts[literal] = (counts[literal] ?? 0) + 1;
-    }
+    for (const literal of argumentLiterals(source, match.index + match[0].length)) count(match[1], literal);
+  }
+  // `filter({ hasText: 'láncszem' })` picks a row by its product text, but `filter` also takes a lambda whose own
+  // literals are not interface text, so the option is read on its own rather than the call.
+  for (const match of source.matchAll(/\bhasText:\s*/g)) {
+    const literal = literalAt(source, match.index + match[0].length);
+    if (literal !== undefined) count('hasText', literal);
   }
   return into;
 }
@@ -128,7 +183,6 @@ test('the browser suite drives and asserts the frozen product strings', () => {
   const files = specFiles();
   assert.ok(files.length > 30, `too few spec files: ${files.length}`);
   const actual = inventory();
-  assert.deepEqual(Object.keys(actual).sort(), [...DRIVING_CALLS].sort(), 'a call is missing from the suite');
   assert.ok(Object.keys(actual.locator).length > 150, `too few selectors: ${Object.keys(actual.locator).length}`);
   // One line per literal first: on a failure that prints the few lines that moved, where two nested objects print whole.
   const lines = (bag) =>
@@ -145,12 +199,30 @@ test('the reading covers the plain, the options-object and the regular-expressio
     "await page.getByRole('button', { name: 'Fordulás' }).click();",
     "await expect(page.locator('#count')).toHaveText(/Láncszem \\(lsz\\)/);",
     "await expect(page.locator('#row', { has: page.locator('li') })).toContainText('3 szem');",
+    "await page.locator('#key-list li').filter({ hasText: 'láncszem' }).click();",
+    "const late = rows.filter((row) => row.kind === 'annotation');",
   ].join('\n');
   assert.deepEqual(callLiterals(sample), {
-    locator: { '#chain-count': 1, '#count': 1, '#row': 1, li: 1 },
+    locator: { '#chain-count': 1, '#count': 1, '#row': 1, li: 1, '#key-list li': 1 },
     fill: { 12: 1 },
     getByRole: { button: 1, Fordulás: 1 },
     toHaveText: { '/Láncszem \\(lsz\\)/': 1 },
     toContainText: { '3 szem': 1 },
+    hasText: { láncszem: 1 },
+  });
+});
+
+test('a comment neither adds a literal nor swallows the file', () => {
+  const sample = [
+    '// A prose line that names locator( and never closes it.',
+    "await expect(page.locator('#status')).toContainText(",
+    "  'Kész', // the wording is frozen",
+    ');',
+    '/* A block that mentions getByRole( too. */',
+    "await page.locator('https://example.test//path');",
+  ].join('\n');
+  assert.deepEqual(callLiterals(sample), {
+    locator: { '#status': 1, 'https://example.test//path': 1 },
+    toContainText: { Kész: 1 },
   });
 });

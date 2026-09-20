@@ -84,6 +84,10 @@
     "Első relief": 1,
     "v${VART_VERZIO}": 1
   },
+  "hasText": {
+    "Bogyó": 1,
+    "láncszem": 2
+  },
   "locator": {
     "#${id}": 2,
     "#alert": 4,
