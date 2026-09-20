@@ -2178,15 +2178,13 @@ function panelFor<T>(type: PatternTypeId, selector: string, build: (section: HTM
 const amigurumiPanel = panelFor(
   'amigurumi',
   '#section-amigurumi',
-  (section) =>
-    new AmigurumiPanel(section, { commit: generated, announce }),
+  (section) => new AmigurumiPanel(section, { commit: generated, announce }),
 );
 
 const gridPanel = panelFor(
   'filet',
   '#section-grid',
-  (section) =>
-    new GridChartPanel(section, { commit: generated, announce }),
+  (section) => new GridChartPanel(section, { commit: generated, announce }),
 );
 
 // KB: interface.md §39 — collected after panelFor, so a section it hid for a disabled type stays out.
