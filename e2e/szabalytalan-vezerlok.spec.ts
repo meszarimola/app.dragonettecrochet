@@ -92,13 +92,39 @@ test('the adjust box leaves with the regular editor, and its buttons stop writin
   await chooseIrregular(page);
   await expect(page.locator('#adjust')).toBeHidden();
   // Hiding puts the buttons out of a pointer's reach; the handlers behind them
-  // are the other half, so each is clicked on the element itself.
-  await page.evaluate(() => document.querySelector<HTMLButtonElement>('#adjust [data-nudge="0,-2"]')?.click());
-  expect(await saved(page)).toBe(before);
-  await page.evaluate(() => document.querySelector<HTMLButtonElement>('#adjust [data-action="unpin"]')?.click());
-  expect(await saved(page)).toBe(before);
+  // are the other half, so each is clicked on the element itself. Both are
+  // located first, so a renamed attribute fails here instead of passing
+  // because nothing was clicked.
+  for (const selector of ['#adjust [data-nudge="0,-2"]', '#adjust [data-action="unpin"]']) {
+    await expect(page.locator(selector)).toHaveCount(1);
+    await page.evaluate((one) => (document.querySelector(one) as HTMLButtonElement).click(), selector);
+    expect(await saved(page)).toBe(before);
+  }
 
   await chooseRegular(page);
   await expect(page.locator('#adjust')).toBeVisible();
   await expect(page.locator('#adjust-name')).toContainText('kézzel igazítva');
+});
+
+test('the shared palette does not crochet into the hidden pattern from the chain count', async ({ page }) => {
+  await open(page);
+  await circle(page);
+  const before = await saved(page);
+
+  await chooseIrregular(page);
+  // `#section-stitches` is shared, so the palette and the count field are still
+  // here, and Enter in the count field is handled before `irregularKey` gets to
+  // swallow it — the one keystroke the free-form editor never saw.
+  await page
+    .locator('#palette')
+    .getByRole('button', { name: /Láncszem \(lsz\)/ })
+    .first()
+    .click();
+  await expect(page.locator('#count-field')).toBeVisible();
+  await page.locator('#chain-count').fill('5');
+  await page.locator('#chain-count').press('Enter');
+  expect(await saved(page)).toBe(before);
+
+  await chooseRegular(page);
+  expect(await saved(page)).toBe(before);
 });

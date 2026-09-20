@@ -841,17 +841,13 @@ styleSelect.addEventListener('change', () => {
 
 // The preset belongs to the pattern: counting changes in the pattern, symbols in the notation.
 traditionSelect.addEventListener('change', () => {
+  // KB: interface.md §39 — the preset belongs to the regular document, which is not the one showing.
+  if (irregular?.active === true) return;
   const tradition = traditionSelect.value as Tradition;
-  const spoken = texts().messages.notation.tradition(traditionLabel(tradition));
-  // KB: interface.md §39 — the notation is shared, the counting is the regular document's own.
-  if (irregular?.active === true) {
-    applyNotation(notationForTradition(notation, tradition), spoken);
-    return;
-  }
   const result = setTradition(history.present, tradition);
   if (!result.ok) return;
   applyNotation(notationForTradition(notation, tradition), '');
-  commit(result, spoken);
+  commit(result, texts().messages.notation.tradition(traditionLabel(tradition)));
 });
 
 // KB: interface.md §4, §5
@@ -989,6 +985,8 @@ function paletteSection(section: ReturnType<typeof buildPalette>[number]): HTMLD
 }
 
 async function workAtCursor(): Promise<void> {
+  // KB: interface.md §39 — Enter in the shared count field is handled above `irregularKey`.
+  if (irregular?.active === true) return;
   const messages = texts().messages;
   if (!tool) {
     announce(messages.work.needStitch);
