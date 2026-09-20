@@ -1202,3 +1202,50 @@ test('csippentés nagyít, és nem rajzol: amit az első ujj csinált, visszaker
   await first.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   expect(await items(), 'egy ujj viszont lerak').toBe(1);
 });
+
+test('a láncív azt rögzíti, amit az előkép mutatott, akkor is, ha a ⌘-t előbb engeded el (PQW-975)', async ({
+  page,
+}) => {
+  await open(page);
+  await chooseIrregular(page);
+
+  const where = async (): Promise<{ x: number; y: number }[]> =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+      const group = (JSON.parse(raw).groups ?? [])[0];
+      return group === undefined ? [] : [group.start, group.end];
+    });
+
+  // Measure the chart origin before any snapping can move a stitch.
+  await armDoubleCrochet(page);
+  await place(page, 500, 300);
+  const origin = await page.evaluate(() => {
+    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+    return (JSON.parse(raw).items ?? [])[0] as { x: number; y: number };
+  });
+  const view = { x: 500 - origin.x, y: 300 - origin.y };
+
+  await page.locator('#guide-grid-size').fill('20');
+  await page.locator('#guide-grid-size').blur();
+  await page.locator('[data-action="grid"]').click();
+  await page.locator('#guide-snap').check();
+
+  const rect = await page.locator(board).boundingBox();
+  if (rect === null) throw new Error('no board');
+  await page.locator('[data-action="chain-arc"]').click();
+
+  // Draw with the key held, then let go of the key BEFORE the mouse button —
+  // the natural order for one hand. What was previewed is what must land.
+  await page.keyboard.down('Meta');
+  await page.mouse.move(rect.x + 417, rect.y + 383);
+  await page.mouse.down();
+  await page.mouse.move(rect.x + 663, rect.y + 383, { steps: 12 });
+  await page.keyboard.up('Meta');
+  await page.mouse.up();
+
+  const [start, end] = await where();
+  if (start === undefined || end === undefined) throw new Error('no arc');
+  expect(start.x + view.x, 'a kezdőpont ott maradt, ahol lenyomtad').toBeCloseTo(417, 6);
+  expect(end.x + view.x, 'a végpont ott, ahol elengedted').toBeCloseTo(663, 6);
+  expect(Math.abs(start.x % 20) > 0.001, 'vagyis nem ugrott a rácsra').toBe(true);
+});

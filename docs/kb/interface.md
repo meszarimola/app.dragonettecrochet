@@ -667,7 +667,16 @@ each call site, so no future gesture can forget it.
 Because the key can go down before or after the pointer, **both report it** —
 every pointer event carries `metaKey`/`ctrlKey`, and the window's key handlers
 set it too, with a reset on blur so a key released outside the page cannot
-leave it stuck on.
+leave it stuck on. Two rules keep that honest:
+
+- **A pointer may only raise the flag, never lower it.** Touch and pen always
+  report no modifier at all, so on a tablet with a keyboard the finger would
+  otherwise undo what the held key just said.
+- **A gesture that finishes on pointer-up remembers what the key said while it
+  was drawn.** Letting go of the key just before the mouse button is the natural
+  order for one hand, and the arc that lands must be the arc that was previewed.
+  Every other gesture is safe already, because it commits a draft built while
+  moving.
 
 The same key also means "add to or take out of the selection" on a press, and
 that **is** a conflict: a ⌘-press on a stitch that is already selected used to
