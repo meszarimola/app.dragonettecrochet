@@ -191,6 +191,14 @@
             </div>
 
             <div class="tools__group tools__group--end" role="group" aria-label="Panelek" data-i18n-label="toolGroupViews">
+              <button type="button" class="tool" id="setup-toggle" aria-expanded="false" aria-controls="setup" aria-label="Minta készítése" data-tip="A minta készítése lap nyitása és csukása" data-i18n-label="setupToggle" data-i18n-tip="toolSetupTip">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M4 16V8.5L10 4l6 4.5V16z" />
+                  <path d="M8 16v-4h4v4" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelSetup">Készítés</span>
+              </button>
+
               <button type="button" class="tool" id="panel-toggle" aria-expanded="true" aria-controls="panel" aria-label="Szemek és beállítások" data-tip="A jobb oldali panel nyitása és csukása" data-i18n-label="panelToggle" data-i18n-tip="toolPanelTip">
                 <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                   <path d="M3.75 4.5h12.5v11H3.75z" />
@@ -1510,6 +1518,11 @@
 
           <button type="button" class="panel__consent" data-consent-open data-i18n="consentOpen" hidden>Süti-beállítások</button>
         </aside>
+
+        <section class="sheet" id="setup" aria-labelledby="setup-title" hidden>
+          <h2 class="sheet__title" id="setup-title" data-i18n="setupTitle">Minta készítése</h2>
+          <p class="sheet__intro" data-i18n="setupIntro">Add meg a méreteket, és a tervező elkészíti belőlük a mintát. A létrehozás lecseréli a mostani mintát.</p>
+        </section>
       </main>
     </div>
 

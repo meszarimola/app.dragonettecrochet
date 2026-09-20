@@ -56,6 +56,7 @@
   /* KB: interface.md §15, §38 — one place for each side bar's width. */
   --types-width: min(13rem, 80vw);
   --panel-width: min(19rem, 80vw);
+  --setup-width: min(34rem, 92vw);
 
   color-scheme: light;
 }
@@ -1301,6 +1302,34 @@ summary.palette__title::after {
   background: var(--c-ink);
 }
 
+/* KB: interface.md §54 — the sheet stands where the panel stands, and wider. */
+.sheet {
+  position: absolute;
+  z-index: 7;
+  inset-block: 0;
+  inset-inline-end: 0;
+  inline-size: var(--setup-width);
+  padding: var(--sp-4);
+  overflow-y: auto;
+  border-inline-start: 1px solid var(--c-line);
+  background: var(--c-bg);
+}
+
+.sheet__title {
+  margin: 0 0 var(--sp-1);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: var(--c-ink);
+}
+
+.sheet__intro {
+  margin: 0 0 var(--sp-4);
+  max-inline-size: 60ch;
+  font-size: 0.8125rem;
+  color: var(--c-text-soft);
+}
+
 /* KB: interface.md §38 — both side bars stay above the open written panel. */
 .types,
 .panel {
@@ -1420,6 +1449,11 @@ summary.palette__title::after {
 
   .stage:has(> .panel:not([hidden])) {
     --side-end: var(--panel-width);
+  }
+
+  /* KB: interface.md §54 — the sheet is wider than the panel, and wins while it is open. */
+  .stage:has(> .sheet:not([hidden])) {
+    --side-end: var(--setup-width);
   }
 }
 

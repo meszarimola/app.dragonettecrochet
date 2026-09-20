@@ -148,6 +148,8 @@ const board = new Board(canvas);
 const palette = must<HTMLDivElement>('#palette');
 const panel = must<HTMLElement>('#panel');
 const toggle = must<HTMLButtonElement>('#panel-toggle');
+const setupSheet = must<HTMLElement>('#setup');
+const setupToggle = must<HTMLButtonElement>('#setup-toggle');
 const hint = must<HTMLParagraphElement>('#hint');
 const status = must<HTMLParagraphElement>('#status');
 const alertBox = must<HTMLParagraphElement>('#alert');
@@ -372,7 +374,8 @@ function structuralProblem(pattern: Pattern): string | null {
   return finding ? (ruleText(finding.rule)?.message ?? finding.rule) : null;
 }
 
-const insetRight = () => (panel.hidden ? 0 : panel.getBoundingClientRect().width);
+const measure = (element: HTMLElement) => (element.hidden ? 0 : element.getBoundingClientRect().width);
+const insetRight = () => Math.max(measure(panel), measure(setupSheet));
 const insetLeft = () => (typesNav.hidden ? 0 : typesNav.getBoundingClientRect().width);
 const insetBottom = () =>
   written.hidden ? 0 : Math.max(0, canvas.getBoundingClientRect().bottom - written.getBoundingClientRect().top);
@@ -1682,6 +1685,12 @@ toggle.addEventListener('click', () => {
   const open = panel.hasAttribute('hidden');
   setOpen(panel, toggle, open);
   if (open && NARROW.matches && !written.hidden) setWrittenOpen(false);
+});
+
+setupToggle.addEventListener('click', () => {
+  const open = setupSheet.hasAttribute('hidden');
+  setOpen(setupSheet, setupToggle, open);
+  fitBoard();
 });
 
 writtenToggle.addEventListener('click', () => {
