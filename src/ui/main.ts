@@ -2125,6 +2125,19 @@ const gridPanel = panelFor(
     }),
 );
 
+// KB: interface.md §39 — collected after panelFor, so a section it hid for a disabled type stays out.
+const regularTypeSections = [
+  '#section-size',
+  '#section-shape',
+  '#section-shawl',
+  '#section-garment',
+  '#section-rounds',
+  '#section-grid',
+  '#section-amigurumi',
+]
+  .map((selector) => must<HTMLDetailsElement>(selector))
+  .filter((section) => !section.hidden);
+
 const irregularSections = {
   properties: must<HTMLDetailsElement>('#section-irregular'),
   rows: must<HTMLDetailsElement>('#section-irregular-rows'),
@@ -2210,6 +2223,7 @@ function showIrregularView(on: boolean): void {
   irregularCanvas.hidden = !on;
   must<HTMLElement>('#tools-row').hidden = on;
   must<HTMLElement>('#tools-irregular').hidden = !on;
+  for (const section of regularTypeSections) section.hidden = on;
   writtenToggle.hidden = on;
   if (on) setOpen(written, writtenToggle, false);
   setDisabled('export-png', false);
