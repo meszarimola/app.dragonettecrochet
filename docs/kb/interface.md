@@ -611,6 +611,30 @@ regular handler would act on. `e2e/szabalytalan.spec.ts` guards it. The file men
 the file *is*, not on the type that is showing: a free-form JSON switches to
 this type, a regular one switches back.
 
+The right panel was the same trap in a slower form (PQW-976). `showIrregularView`
+swapped the canvas and the toolbar groups but left the regular type's generator
+sections — „Méret és fonal”, „Forma”, „Kendő”, „Ruhadarab”, „Kör és motívum” —
+standing in the panel. A „Minta létrehozása” there ran the regular `commit()`,
+which replaced the hidden regular document and `persist()`-ed the replacement
+over the user's earlier work in the same breath; the status line then promised
+that undo would bring the old pattern back, while undo was routed to the
+free-form stack. **Anything that edits the regular document leaves with the
+regular editor**, so `showIrregularView` toggles those sections' `hidden`
+together with the tool groups. The list is collected *after* `panelFor` (§9) has
+run and drops whatever it already hid, because a switched-off type's section must
+never reappear on the way back. `e2e/szabalytalan-generatorok.spec.ts` guards
+both halves: the sections are gone in free-form mode, and the regular pattern
+returns untouched.
+
+Two controls are still on the wrong side of that line, found while reviewing
+PQW-976 and left outside its scope: the „Előbeállítás” select of
+`#section-notation`, and the „Kijelölt jel igazítása” box, whose arrows and
+„Számolt helyre” run `nudge`/`unpin`. Both `commit()` into the hidden regular
+document from free-form mode, because `#adjust` is only ever hidden from
+`updateControls()`, which `refresh()` no longer reaches in this type. The
+neighbouring actions (`new`, `grid`, the zooms, the exports) and `titleInput`
+already branch on `irregular.active`; these two do not.
+
 ## §40 The free-form type does not confirm and does not chat
 
 The specification asked for a dialog before deleting a row that still holds
