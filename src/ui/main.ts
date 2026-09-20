@@ -195,6 +195,8 @@ const TYPES_KEY = 'dc-mintatervezo:mintatipus';
 const LANG_KEY = 'dc-mintatervezo:nyelv';
 // Below this width the two panels do not fit side by side.
 const NARROW = window.matchMedia('(width < 48rem)');
+// KB: interface.md §54 — below this the sheet and the written panel cannot share the stage.
+const SETUP_TIGHT = matchMedia('(width < 67rem)');
 const STRUCTURAL_RULES = new Set(['unknown-stitch', 'dangling-reference', 'yarn-path']);
 
 // KB: interface.md §4 — this block must run before the state: restoring the pattern and the
@@ -1510,7 +1512,6 @@ const ACTIONS: Record<string, () => void> = {
     setOpen(setupSheet, setupToggle, false);
     // The close button goes with the sheet, so the focus returns to the menu that opened it.
     must<HTMLButtonElement>('#file-toggle').focus();
-    fitBoard();
   },
   'close-written': () => {
     setWrittenOpen(false);
@@ -1699,7 +1700,7 @@ setupToggle.addEventListener('click', () => {
   // The opener sits in the file menu, which closes on this click, so the focus would
   // otherwise land on the body. KB: interface.md §54.
   if (open) setupSheet.focus();
-  fitBoard();
+  if (open && SETUP_TIGHT.matches && !written.hidden) setWrittenOpen(false);
 });
 
 writtenToggle.addEventListener('click', () => {
@@ -1708,6 +1709,7 @@ writtenToggle.addEventListener('click', () => {
   // KB: interface.md §10
   if (open && writtenShare === null) applyWrittenShare(writtenShareFor(patternType, NARROW.matches));
   if (open && NARROW.matches) setOpen(panel, toggle, false);
+  if (open && SETUP_TIGHT.matches && !setupSheet.hidden) setOpen(setupSheet, setupToggle, false);
 });
 
 // KB: interface.md §13 — pointer, touch and keyboard.
@@ -2071,6 +2073,13 @@ document.addEventListener('keydown', (event) => {
 
   switch (key) {
     case 'Escape':
+      // KB: interface.md §54 — an open sheet takes the Escape before the selection does.
+      if (!setupSheet.hidden) {
+        setOpen(setupSheet, setupToggle, false);
+        must<HTMLButtonElement>('#file-toggle').focus();
+        event.preventDefault();
+        return;
+      }
       select(null);
       selectedNode = null;
       selection = [];
@@ -2290,6 +2299,10 @@ function showIrregularView(on: boolean): void {
   if (on) adjust.hidden = true;
   writtenToggle.hidden = on;
   if (on) setOpen(written, writtenToggle, false);
+  // KB: interface.md §54 — every section of the sheet belongs to the regular type, so in
+  // free-form mode the sheet would open empty. Its opener goes with them.
+  setupToggle.hidden = on;
+  if (on && !setupSheet.hidden) setOpen(setupSheet, setupToggle, false);
   setDisabled('export-png', false);
   setDisabled('export-svg', false);
 }

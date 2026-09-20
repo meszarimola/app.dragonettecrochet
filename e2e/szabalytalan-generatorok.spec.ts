@@ -55,8 +55,8 @@ test('the free-form type takes the regular generators out of the sheet, and brin
   for (const selector of REGULAR_SECTIONS) await expect(page.locator(selector)).toBeVisible();
 
   await chooseIrregular(page);
-  await openSheet(page);
   for (const selector of REGULAR_SECTIONS) await expect(page.locator(selector)).toBeHidden();
+  await expect(page.locator('#setup-toggle')).toBeHidden();
   await expect(page.locator('#section-irregular')).toBeVisible();
 
   await chooseRegular(page);
@@ -69,8 +69,10 @@ test('a switched-off pattern type stays hidden in both modes', async ({ page }) 
   await openSheet(page);
   for (const selector of DISABLED_SECTIONS) await expect(page.locator(selector)).toBeHidden();
 
+  // In free-form mode the sheet holds nothing, so its opener goes too (PQW-987) — a
+  // stronger statement than „the sections are hidden", which would be true either way.
   await chooseIrregular(page);
-  await openSheet(page);
+  await expect(page.locator('#setup-toggle')).toBeHidden();
   for (const selector of DISABLED_SECTIONS) await expect(page.locator(selector)).toBeHidden();
 
   await chooseRegular(page);

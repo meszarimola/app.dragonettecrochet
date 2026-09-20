@@ -180,7 +180,8 @@ for (const viewport of [
     await open(page);
     await chooseAmigurumi(page);
     // The chart is needed for aiming: the written pattern panel is closed.
-    await page.getByRole('button', { name: 'Lecsukás' }).click();
+    // The sheet carries a „Lecsukás” of its own since PQW-987, so this one is scoped.
+    await page.locator('#written').getByRole('button', { name: 'Lecsukás' }).click();
 
     const board = page.locator('#board');
     await board.focus();

@@ -1239,6 +1239,29 @@ while it is open, so the row captions, the written panel and the alert clear it
 **While it is open it covers the panel.** They stand in the same place and the
 sheet is above. A spec that needs the panel afterwards closes the sheet first.
 
+**It reserves its width only above 67 rem, and takes turns with the written panel
+below that.** At 34 rem the sheet plus the type bar leave a 768 px window 16 px
+of stage: the written panel came out 40 px wide, its own close button landed
+outside its box and under the sheet, and it could not be closed at all. So
+`--side-end` follows the sheet only from 67 rem — that rule has to sit *after*
+the 48 rem block, or the panel's own `--side-end` wins on order — and below it
+opening the sheet closes the written panel, exactly as opening the right panel
+already does in a narrow window. The alert sits above the sheet (`z-index: 8`),
+because a warning behind it would be a warning nobody sees.
+
+**Opening it does not refit the board.** `fitBoard` recomputes scale and offset
+from scratch and would throw away the pan and zoom. `#panel-toggle` covers the
+canvas too and does not refit; the sheet follows it.
+
+**Escape closes it.** The sheet is focused, and `#setup` is not an input or an
+open menu, so without this the key fell through to the handler that clears the
+stitch selection: opening the sheet and pressing Escape to dismiss it wiped the
+selection and left the sheet open.
+
+**In the free-form type the opener is hidden.** Every section of the sheet
+belongs to the regular type and `showIrregularView` hides them (PQW-976), so the
+sheet would open showing its title and a promise with nothing under it.
+
 **Making a pattern does not close it.** A shape is found by trying numbers, and
 the opener is two clicks away through the file menu, so closing after every
 attempt would tax the loop the sheet exists for. The four generator callbacks

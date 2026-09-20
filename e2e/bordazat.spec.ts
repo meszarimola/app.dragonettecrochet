@@ -84,6 +84,9 @@ for (const viewport of [
     await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
     expect(await writtenText(page)).toMatch(/\(1 (Eerp|Herp), 1 (Eerp|Herp)\) ×\d+/);
 
+    // Reading the written pattern closes the sheet below 67 rem, where the two cannot
+    // share the stage (PQW-987), so the generator is opened again.
+    await openSheet(page);
     // The ribbed brim starts after the round is closed: in a spiral there is nowhere for it to start.
     await page.locator('#rounds-closing').selectOption('spiral');
     await expect(page.locator('#rounds-ribbing-fields')).toBeHidden();
