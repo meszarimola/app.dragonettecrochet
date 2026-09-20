@@ -515,6 +515,8 @@ body.is-selecting #board-irregular {
   inset-block: 0;
   inset-inline-end: 0;
   inline-size: var(--panel-width);
+  /* KB: interface.md §55 — a box scrolled into view lands clear of the edge, not on it. */
+  scroll-padding-block: var(--sp-3);
   padding: var(--sp-4);
   overflow-y: auto;
   border-inline-start: 1px solid var(--c-line);

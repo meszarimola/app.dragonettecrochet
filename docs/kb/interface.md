@@ -1267,3 +1267,32 @@ the opener is two clicks away through the file menu, so closing after every
 attempt would tax the loop the sheet exists for. The four generator callbacks
 became one `generated` function to say so in one place. If the sheet ever gets a
 toolbar button, this is worth revisiting.
+
+## §55 What the panel shows first, and what it scrolls to
+
+Two orderings inside the right panel, both measured at 1000 × 506 after the
+generators left for the sheet (§54).
+
+**The palette leads „Szemek”.** `#insertion` is 205 px tall and stood above it, so
+arming a stitch that takes insertion modes pushed the grid from y 169 to y 390
+and three of the seven basic cells left the window. It now follows the palette,
+with `#count-field`. That is also the order of the task: you pick the stitch
+first and say where it goes second.
+
+**`#adjust` follows „Szemek”, and scrolls itself into view.** It used to stand
+after every setting, so in a 506 px window it appeared 436 px below the fold —
+the answer to a click the user had just made, out of sight, with nothing saying
+so. It is moved up, and revealing it calls `scrollIntoView({ block: 'nearest' })`.
+
+The scroll runs **after** the box's name is written into it. Called before, the
+box is still one line tall, and it is scrolled to a height it no longer has: the
+measurement came out 21 px past the panel's edge. `.panel` also carries
+`scroll-padding-block`, so a box scrolled into view lands clear of the edge
+rather than flush against it.
+
+**The pattern name is still below the fold, and that is left alone.** At 506 px
+the palette alone fills the panel, so nothing after „Szemek” is visible without
+scrolling. Lifting `#title` above the palette would cost the most-used control
+50 px to save a field that is typed once. The full head-and-body split the
+redesign considered does not change this either: the body is still below the
+fold. If it ever matters, the measurement to beat is `#title` at y 681.

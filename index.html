@@ -449,6 +449,7 @@
         <aside class="panel" id="panel" aria-label="Szemek és beállítások" data-i18n-label="panelLabel">
           <details class="section" id="section-stitches" open>
             <summary class="section__head"><h2 class="panel__title" data-i18n="sectionStitchesTitle">Szemek</h2></summary>
+            <div class="palette" id="palette" role="group" aria-label="Szemek" data-i18n-label="stitchesPaletteLabel"></div>
             <p class="count" id="count-field" hidden>
               <label for="chain-count" data-i18n="stitchesChainCountLabel">Láncszemek száma</label>
               <input id="chain-count" type="number" min="1" max="500" step="1" value="12" inputmode="numeric" />
@@ -459,9 +460,20 @@
               <p class="panel__note insertion__written" hidden></p>
               <p class="panel__note" id="insertion-note" data-i18n="stitchesInsertionNote">A horgoló felől értendő; visszai soron a diagram a színoldalt mutatja.</p>
             </fieldset>
-            <div class="palette" id="palette" role="group" aria-label="Szemek" data-i18n-label="stitchesPaletteLabel"></div>
             <p class="panel__hint" id="hint"></p>
           </details>
+
+          <section class="check" id="adjust" aria-labelledby="adjust-title" hidden>
+            <h2 class="panel__title" id="adjust-title" data-i18n="adjustTitle">Kijelölt jel igazítása</h2>
+            <p class="panel__hint" id="adjust-name"></p>
+            <div class="adjust" role="group" aria-label="Eltolás" data-i18n-label="adjustGroupLabel">
+              <button type="button" class="tool" data-nudge="0,-2" aria-label="Fel" data-i18n-label="adjustUp">↑</button>
+              <button type="button" class="tool" data-nudge="-2,0" aria-label="Balra" data-i18n-label="adjustLeft">←</button>
+              <button type="button" class="tool" data-nudge="2,0" aria-label="Jobbra" data-i18n-label="adjustRight">→</button>
+              <button type="button" class="tool" data-nudge="0,2" aria-label="Le" data-i18n-label="adjustDown">↓</button>
+              <button type="button" class="tool" data-action="unpin" data-i18n="adjustUnpin">Számolt helyre</button>
+            </div>
+          </section>
 
           <details class="section" id="section-irregular" hidden>
             <summary class="section__head"><h2 class="panel__title" data-i18n="sectionIrregularTitle">Tulajdonságok</h2></summary>
@@ -1032,17 +1044,6 @@
             </details>
           </details>
 
-          <section class="check" id="adjust" aria-labelledby="adjust-title" hidden>
-            <h2 class="panel__title" id="adjust-title" data-i18n="adjustTitle">Kijelölt jel igazítása</h2>
-            <p class="panel__hint" id="adjust-name"></p>
-            <div class="adjust" role="group" aria-label="Eltolás" data-i18n-label="adjustGroupLabel">
-              <button type="button" class="tool" data-nudge="0,-2" aria-label="Fel" data-i18n-label="adjustUp">↑</button>
-              <button type="button" class="tool" data-nudge="-2,0" aria-label="Balra" data-i18n-label="adjustLeft">←</button>
-              <button type="button" class="tool" data-nudge="2,0" aria-label="Jobbra" data-i18n-label="adjustRight">→</button>
-              <button type="button" class="tool" data-nudge="0,2" aria-label="Le" data-i18n-label="adjustDown">↓</button>
-              <button type="button" class="tool" data-action="unpin" data-i18n="adjustUnpin">Számolt helyre</button>
-            </div>
-          </section>
 
           <button type="button" class="panel__consent" data-consent-open data-i18n="consentOpen" hidden>Süti-beállítások</button>
         </aside>
