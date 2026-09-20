@@ -626,14 +626,53 @@ never reappear on the way back. `e2e/szabalytalan-generatorok.spec.ts` guards
 both halves: the sections are gone in free-form mode, and the regular pattern
 returns untouched.
 
-Two controls are still on the wrong side of that line, found while reviewing
-PQW-976 and left outside its scope: the „Előbeállítás” select of
-`#section-notation`, and the „Kijelölt jel igazítása” box, whose arrows and
-„Számolt helyre” run `nudge`/`unpin`. Both `commit()` into the hidden regular
-document from free-form mode, because `#adjust` is only ever hidden from
-`updateControls()`, which `refresh()` no longer reaches in this type. The
-neighbouring actions (`new`, `grid`, the zooms, the exports) and `titleInput`
-already branch on `irregular.active`; these two do not.
+PQW-980 closed three such paths, and the shape of each says where a guard has to
+sit. `e2e/szabalytalan-vezerlok.spec.ts` guards all three by watching the
+autosave slot, since `commit()` `persist()`s in the same breath and that slot is
+what silently replaced the user's earlier work.
+
+The „Előbeállítás” select of `#section-notation` is the one whose section must
+stay: the notation is genuinely shared, and its „Jelkészlet” and „Jelstílus”
+selects go on working in both types. The preset does not, because it is the
+pattern's `conventions` — its own note says so. It therefore takes the
+`titleInput` guard exactly: return, change nothing. Running only the symbol half
+was tried and rejected, because it lands the panel in a state the preset cannot
+undo — the pattern keeps `cyc` while `chartStyle` is left at `jis`, `refresh()`
+resets the select to „Nemzetközi” on the way back, and re-choosing it fires no
+`change` event.
+
+The „Kijelölt jel igazítása” box was the simpler kind: `#adjust` was hidden only
+from `updateControls()`, which `refresh()` does not reach in this type, so a box
+left open in regular mode came straight through. `showIrregularView` now hides it
+with the rest, and `updateControls()` recomputes it on the way back. `nudge` and
+`unpin` took the `irregular.active` branch as well. The keyboard behind them was
+never exposed: `irregularKey` swallows Alt+arrow by default, above.
+
+The third was found in review and is the reason the other two are not the end of
+it. `#section-stitches` is shared like the notation, so the palette and the
+`#chain-count` field stay in free-form mode — and the keydown handler answers
+Enter there **before** `irregularKey` can swallow it, to keep the promise the
+palette hint makes. `workAtCursor` crocheted that into the hidden document.
+
+**What is left is held by visibility, not by a guard.** `delete-last`, `same`,
+`fill-row`, `end-row`, `close-round` and `spiral-round` all reach `commit()`
+unguarded; they are out of reach today only because their buttons live in the
+hidden `#tools-row` and `irregularKey` swallows Alt+F, Alt+K and Alt+S. Moving
+any of them into a shared section, or answering their key above `irregularKey`,
+reopens this bug — which is exactly how the third path came about.
+
+**The guard still stays at the caller, not at the top of `commit()`** (PQW-980),
+though the margin is narrower than it looks. A central gate would have to drop
+silently, and §4 of `decisions.md` forbids the alternative of telling the user;
+it would also govern two dozen callers, including the import path, which commits
+a regular file from free-form mode and is correct only because `selectType`
+unmounts first — an ordering nothing tests. The deciding reason is that dropping
+is not what these callers want: `titleInput` **redirects** to
+`irregular.setTitle`, and `select()` already branches on `irregular.active` to
+change its hint. A gate in `commit()` cannot express either, so those branches
+would stay and the central one would be a second, duplicated policy. The price
+of the decision is the paragraph above: each new `commit()` caller has to
+remember, and only the reachable ones are tested.
 
 ## §40 The free-form type does not confirm and does not chat
 
