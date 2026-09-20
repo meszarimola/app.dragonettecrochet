@@ -274,7 +274,7 @@ button {
   min-block-size: 44px;
   padding: var(--sp-1) var(--sp-3);
   border: 1px solid var(--c-line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--c-text);
   font-size: 0.875rem;
   text-decoration: none;
@@ -283,6 +283,10 @@ button {
 .home:hover {
   border-color: var(--c-accent);
   color: var(--c-accent);
+}
+
+.home:active {
+  background: var(--c-selection);
 }
 
 .home__icon {
@@ -376,7 +380,7 @@ body.is-selecting #board-irregular {
   min-inline-size: 0;
   padding: var(--sp-1);
   border: 1px solid var(--c-line, currentColor);
-  border-radius: 0.4rem;
+  border-radius: var(--radius-md);
   background: none;
   color: inherit;
   font: inherit;
@@ -413,7 +417,7 @@ body.is-selecting #board-irregular {
   inline-size: 1.9rem;
   block-size: 1.9rem;
   border: 1px solid var(--c-line, currentColor);
-  border-radius: 0.4rem;
+  border-radius: var(--radius-md);
   background: none;
   color: inherit;
   font: inherit;
@@ -493,12 +497,12 @@ body.is-selecting #board-irregular {
   margin: 0 auto;
   padding: 0.5rem 0.9rem;
   border: 1px solid var(--c-warning);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--c-bg);
   color: var(--c-text);
   font-size: 0.875rem;
   overflow-wrap: anywhere;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+  box-shadow: var(--shadow-1);
 }
 
 .alert[hidden] {
@@ -557,13 +561,17 @@ body.is-selecting #board-irregular {
   gap: 0.75rem;
   padding: 0.5rem;
   border: 1px solid var(--c-line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: transparent;
   text-align: start;
 }
 
 .stitch:hover {
   border-color: var(--c-accent);
+}
+
+.stitch:active:not(:disabled) {
+  background: var(--c-selection);
 }
 
 .stitch[aria-pressed="true"] {
@@ -590,7 +598,7 @@ body.is-selecting #board-irregular {
 .stitch__key {
   padding: 0.1rem 0.4rem;
   border: 1px solid var(--c-line);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--c-panel);
   color: var(--c-muted);
   font-family: var(--font-body);
@@ -622,7 +630,7 @@ body.is-selecting #board-irregular {
 .tool {
   padding: var(--sp-0) var(--sp-2);
   border: 1px solid var(--c-line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--c-text);
   font-size: 0.8125rem;
@@ -678,6 +686,10 @@ body.is-selecting #board-irregular {
   color: var(--c-accent);
 }
 
+.tool:active:not(:disabled) {
+  background: var(--c-selection);
+}
+
 .tool:disabled {
   cursor: not-allowed;
   opacity: 0.55;
@@ -703,8 +715,8 @@ body.is-selecting #board-irregular {
   min-block-size: 40px;
   padding: var(--sp-0) var(--sp-1);
   border: 1px solid var(--c-muted);
-  border-radius: 8px;
-  background: #fff;
+  border-radius: var(--radius-md);
+  background: var(--c-surface);
   color: var(--c-ink);
   font: inherit;
 }
@@ -723,9 +735,9 @@ body.is-selecting #board-irregular {
   overflow-y: auto;
   padding: var(--sp-3);
   border: 1px solid var(--c-line);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--c-bg);
-  box-shadow: 0 10px 30px rgba(36, 31, 43, 0.16);
+  box-shadow: var(--shadow-1);
 }
 
 /* KB: interface.md §38 — two classes, so this wins regardless of rule order. */
@@ -779,8 +791,8 @@ body.is-selecting #board-irregular {
   min-block-size: 44px;
   padding: var(--sp-1) var(--sp-2);
   border: 1px solid var(--c-muted);
-  border-radius: 8px;
-  background: #fff;
+  border-radius: var(--radius-md);
+  background: var(--c-surface);
   color: var(--c-ink);
   font: inherit;
 }
@@ -819,7 +831,7 @@ body.is-selecting #board-irregular {
   padding: var(--sp-1) var(--sp-2);
   border: 1px solid var(--c-line);
   border-inline-start: 4px solid var(--c-error);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--c-text);
   font-size: 0.8125rem;
@@ -864,7 +876,7 @@ body.is-selecting #board-irregular {
 .keys kbd {
   padding: 0 0.3rem;
   border: 1px solid var(--c-line);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--c-panel);
   font-family: var(--font-body);
 }
@@ -914,7 +926,7 @@ body.is-selecting #board-irregular {
   inset-inline-start: calc(50% - 1.5rem);
   inline-size: 3rem;
   block-size: 4px;
-  border-radius: 2px;
+  border-radius: var(--radius-pill);
   background: var(--c-grid-strong);
 }
 
@@ -1012,7 +1024,7 @@ body.is-selecting #board-irregular {
   padding: var(--sp-1) var(--sp-2);
   border: 1px solid var(--c-line);
   border-inline-start: 4px solid var(--c-warning);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 0.8125rem;
   line-height: 1.4;
 }
@@ -1025,7 +1037,7 @@ body.is-selecting #board-irregular {
   margin: 0;
   padding: 0.75rem;
   border: 1px solid var(--c-line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--c-panel);
   color: var(--c-ink);
   font-family: var(--font-body);
@@ -1059,7 +1071,7 @@ body.is-selecting #board-irregular {
   max-inline-size: min(24rem, calc(100vw - 2rem));
   padding: 1.1rem 1.2rem 1rem;
   border: 1px solid var(--c-line);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--c-bg);
   color: var(--c-text);
 }
@@ -1110,6 +1122,13 @@ body.is-selecting #board-irregular {
   opacity: 0.92;
 }
 
+/* Its own pressed state: the pale background of `.tool:active` would swallow the
+   label, and fading the whole button drops it under 4.5:1 (KB: interface.md §36). */
+.tool--primary:active:not(:disabled) {
+  border-color: var(--c-ink);
+  background: var(--c-ink);
+}
+
 /* KB: interface.md §38 — both side bars stay above the open written panel. */
 .types,
 .panel {
@@ -1157,13 +1176,17 @@ body.is-selecting #board-irregular {
   inline-size: 100%;
   padding: 0.6rem 0.75rem;
   border: 1px solid var(--c-line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: transparent;
   text-align: start;
 }
 
 .type:hover:not(:disabled) {
   border-color: var(--c-accent);
+}
+
+.type:active:not(:disabled) {
+  background: var(--c-selection);
 }
 
 .type[aria-pressed="true"] {
@@ -1207,7 +1230,7 @@ body.is-selecting #board-irregular {
 .type__badge {
   align-self: start;
   padding: 0.1rem 0.4rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--c-panel);
   color: var(--c-muted);
   font-size: 0.6875rem;
@@ -1333,6 +1356,12 @@ body.is-selecting #board-irregular {
 
 .insertion .panel__note {
   margin: 0;
+}
+
+/* The control itself is painted by `accent-color`; this is the label beside it. */
+.choice label:has(input:checked),
+.insertion label:has(input:checked) {
+  color: var(--c-ink);
 }
 
 .rounds {
@@ -1465,7 +1494,7 @@ body.is-selecting #board-irregular {
   margin: 0;
   padding: 0.75rem;
   border: 1px solid var(--c-line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .amigurumi__join > legend {
@@ -1501,7 +1530,7 @@ body.is-selecting #board-irregular {
   padding: var(--sp-1) var(--sp-2);
   border: 1px solid var(--c-line);
   border-inline-start: 4px solid var(--c-warning);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 0.8125rem;
   line-height: 1.4;
 }
@@ -1548,7 +1577,7 @@ body.is-selecting #board-irregular {
   display: inline-block;
   padding: 0 0.4rem;
   border: 1px solid var(--c-muted);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--c-bg);
   color: var(--c-text-soft);
   font-size: 0.75rem;
@@ -1585,7 +1614,7 @@ body.is-selecting #board-irregular {
   gap: 0.5rem;
   padding: 0.5rem;
   border: 1px solid var(--c-line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .gauge input,
@@ -1652,7 +1681,7 @@ body.is-selecting #board-irregular {
   max-block-size: 14rem;
   overflow: auto;
   border: 1px solid var(--c-line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .size__table {
@@ -1719,7 +1748,7 @@ body.is-selecting #board-irregular {
   inline-size: max-content;
   max-inline-size: 22rem;
   padding: var(--sp-0) var(--sp-2);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--c-ink);
   color: var(--c-bg);
   font-size: 0.75rem;
@@ -1778,7 +1807,7 @@ body.is-selecting #board-irregular {
   margin: 0;
   padding: 0.75rem;
   border: 1px solid var(--c-line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .grid-chart__colors > legend {
@@ -1808,8 +1837,8 @@ body.is-selecting #board-irregular {
   block-size: 44px;
   padding: 2px;
   border: 1px solid var(--c-muted);
-  border-radius: 8px;
-  background: #fff;
+  border-radius: var(--radius-md);
+  background: var(--c-surface);
 }
 
 .grid-chart__color input[type="text"] {
@@ -1817,8 +1846,8 @@ body.is-selecting #board-irregular {
   min-block-size: 44px;
   padding: 0.4rem 0.6rem;
   border: 1px solid var(--c-muted);
-  border-radius: 8px;
-  background: #fff;
+  border-radius: var(--radius-md);
+  background: var(--c-surface);
   color: var(--c-ink);
   font: inherit;
 }
@@ -1839,9 +1868,10 @@ body.is-selecting #board-irregular {
   inline-size: 1.25rem;
   block-size: 1.25rem;
   border: 1px solid var(--c-ink);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
+/* KB: interface.md §52 — the chart's white is an empty cell, not a surface. */
 .grid-chart__board {
   display: grid;
   justify-content: start;
@@ -1849,7 +1879,7 @@ body.is-selecting #board-irregular {
   overflow: auto;
   padding: 3px;
   border: 1px solid var(--c-muted);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: #fff;
 }
 
