@@ -42,6 +42,8 @@ before merging — once at a wide window and once at a short one.
 ## Before you open the PR
 
 - Run `/review` if you have not already — it covers what this codebase needs beyond the build.
+  From a worktree it needs the range: `/code-review high develop...HEAD`. Check that
+  the report names your files; see `docs/kb/incidents.md` §6.
 
 - Did the change make any `docs/kb/` or `docs/knowledge-base/` section stale?
   Update it **in this PR**.

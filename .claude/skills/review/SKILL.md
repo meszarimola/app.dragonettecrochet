@@ -8,10 +8,15 @@ description: Review the branch's changes before opening a pull request on the pa
 Run the built-in review on everything this branch adds:
 
 ```
-/code-review high
+/code-review high                      # from the main checkout
+/code-review high develop...HEAD       # from a worktree — always name the range
 ```
 
 It reads the commits ahead of the upstream plus the uncommitted working tree. `high` is the right level here: the domain logic is dense, and a wrong stitch count reaches someone holding a hook.
+
+**From a worktree, name the range.** The review forks into the session's own working directory, which is usually the main checkout sitting on `develop` — where nothing is ahead of `origin/develop`, because everything is merged. The bare form then either reviews **the last merged pull request** instead of your branch, or reports that there is nothing to review. Both have happened (`docs/kb/incidents.md` §6).
+
+**Then check what it actually read.** The report names the files it looked at. If they are not your diff, re-run with the explicit range. A review of somebody else's merged work reads perfectly plausible, which is what makes this worth checking rather than assuming.
 
 Other forms: `/code-review high src/core/layout.ts` for one file, `/code-review high develop...HEAD` for a range, `/code-review high --fix` to apply the findings, `/code-review --comment <PR>` to post them on a pull request.
 

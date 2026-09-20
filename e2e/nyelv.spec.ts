@@ -18,6 +18,15 @@ async function open(page: Page, search = ''): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
+/** The make-a-pattern sheet (PQW-987) is closed on load, and its opener is in the file menu. */
+async function openSheet(page: Page): Promise<void> {
+  const sheet = page.locator('#setup-toggle');
+  if ((await sheet.getAttribute('aria-expanded')) !== 'true') {
+    await page.locator('#file-toggle').click();
+    await sheet.click();
+  }
+}
+
 /** The notation section is closed by default (PQW-882). */
 async function openNotation(page: Page): Promise<void> {
   await page.locator('#section-notation').evaluate((el) => {
@@ -68,7 +77,9 @@ test('the manual chooser switches within the page, and writes the language into 
 
 test('on a language change the labels of the dropdowns switch to the new language too', async ({ page }) => {
   await open(page);
-  // The generator section: the panel fills the dropdowns when it is opened.
+  // The generator section: the panel fills the dropdowns when it is opened. It sits in
+  // the make-a-pattern sheet now (PQW-987).
+  await openSheet(page);
   await page.locator('#section-shape').evaluate((el) => {
     (el as HTMLDetailsElement).open = true;
   });
@@ -134,4 +145,35 @@ test('the stored language works even when the cookie bar is rejected (PQW-906)',
 
   await page.goto('/');
   await expect(sizeTitle(page)).toHaveText('Size and yarn');
+});
+
+/*
+ * The dense basic-stitch grid (PQW-984) prints the abbreviation of the
+ * notation. All seven basic stitches have one in English — including the
+ * `dtr` that Hungarian spells out — and the abbreviations differ between US
+ * and UK terms. The four columns have to hold both sets at the owner's window
+ * size without the panel widening the page. (The longest label the grid ever
+ * prints is the Hungarian fallback, which `panel.spec.ts` covers.)
+ */
+test('the dense grid holds the longer English abbreviations too (PQW-984)', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 506 });
+  await open(page, '?lang=en');
+
+  const cells = page.locator('#palette .palette__grid').getByRole('button');
+  await expect(cells).toHaveCount(7);
+  await expect(page.locator('#palette').getByRole('button', { name: /Chain \(ch\)/ })).toHaveCount(1);
+  await expect(page.locator('#palette').getByRole('button', { name: /Double treble \(dtr\)/ })).toHaveCount(1);
+
+  await openNotation(page);
+  await page.locator('#terms').selectOption('en-GB');
+  await expect(page.locator('#palette')).toContainText('Triple treble (trtr)');
+
+  // KB: interface.md §36 — the target size holds at the longest abbreviations.
+  for (const cell of await cells.all()) {
+    const box = (await cell.boundingBox())!;
+    expect(Math.round(box.width)).toBeGreaterThanOrEqual(44);
+    expect(Math.round(box.height)).toBeGreaterThanOrEqual(44);
+    await expect(cell).toBeInViewport({ ratio: 1 });
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1000);
 });

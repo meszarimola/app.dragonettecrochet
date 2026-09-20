@@ -13,6 +13,15 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
+/** The make-a-pattern sheet (PQW-987) is closed on load, and its opener is in the file menu. */
+async function openSheet(page: Page): Promise<void> {
+  const sheet = page.locator('#setup-toggle');
+  if ((await sheet.getAttribute('aria-expanded')) !== 'true') {
+    await page.locator('#file-toggle').click();
+    await sheet.click();
+  }
+}
+
 async function box(page: Page, selector: string) {
   const found = await page.locator(selector).boundingBox();
   expect(found, selector).not.toBeNull();
@@ -59,11 +68,22 @@ for (const viewport of [
     expect(board.y).toBe(stage.y);
     expect(board.y + board.height).toBeLessThanOrEqual(viewport.height);
 
-    // The opened written pattern sits between the two sidebars, not below them.
+    // The opened written pattern sits between the two sidebars, not below them —
+    // and it reaches both of them. A gap means --side-start or --side-end has
+    // drifted from the bar it stands for, which is what happened in PQW-979.
     await openWritten(page);
     const written = await box(page, '#written');
-    expect(written.x).toBeGreaterThanOrEqual(types.x + types.width - 1);
-    expect(written.x + written.width).toBeLessThanOrEqual(panel.x + 1);
+    expect(written.x).toBeCloseTo(types.x + types.width, 0);
+    expect(written.x + written.width).toBeCloseTo(panel.x, 0);
+
+    // The version label is chrome under the list, not the tail of a clipped card:
+    // its text starts clear of the list's bottom edge, which the list runs right
+    // up to whenever it scrolls (PQW-979).
+    const list = await box(page, '#types-list');
+    const versionTextTop = await page
+      .locator('#version')
+      .evaluate((el) => el.getBoundingClientRect().top + parseFloat(getComputedStyle(el).paddingBlockStart));
+    expect(versionTextTop).toBeGreaterThan(list.y + list.height + 8);
 
     // The type names are not truncated.
     const clipped = await page
@@ -72,6 +92,127 @@ for (const viewport of [
         names.filter((name) => name.scrollWidth > name.clientWidth + 1).map((name) => name.textContent),
       );
     expect(clipped).toEqual([]);
+  });
+}
+
+/**
+ * What the menu bar looks like, read from the document in one go: the distinct button
+ * rows of each half and of the whole, the boxes, and whether the page scrolls sideways.
+ * No locators, so the frozen locator inventory (PQW-978) stays put.
+ */
+const barShape = (page: Page) =>
+  page.evaluate(() => {
+    const rows = (selector: string) =>
+      [
+        ...new Set(
+          [...document.querySelectorAll(`${selector} .tool`)]
+            .filter((tool) => tool.checkVisibility())
+            .map((tool) => Math.round(tool.getBoundingClientRect().top)),
+        ),
+      ].length;
+    const rect = (selector: string) => document.querySelector(selector)?.getBoundingClientRect() ?? null;
+    const bar = rect('.bar');
+    const lead = rect('.bar__lead');
+    const chrome = rect('.tools__chrome');
+    const endRow = rect('[data-action="end-row"]');
+    return {
+      rows: { chrome: rows('.tools__chrome'), context: rows('.tools__context'), tools: rows('.tools') },
+      barHeight: bar?.height ?? null,
+      leadBottom: lead?.bottom ?? null,
+      chromeTop: chrome?.top ?? null,
+      endRow: endRow && { width: endRow.width, height: endRow.height, right: endRow.right, bottom: endRow.bottom },
+      page: [document.documentElement.scrollWidth, document.documentElement.scrollHeight],
+    };
+  });
+
+/*
+ * The menu bar is chrome and context (PQW-983). The tools used to stand on a line
+ * of their own under the title, so in the owner's 1000 × 506 window the bar was
+ * 157 px — 31 % of the window — with the tools already wrapped into two rows. The
+ * chrome (the buttons that are there in every pattern type) now shares the
+ * title's line and the context has the line below it, which gives the canvas back
+ * the height of a whole row. The chrome itself never wraps.
+ */
+for (const { rows, ...viewport } of [
+  { width: 1440, height: 900, rows: 1 },
+  { width: 1000, height: 506, rows: 2 },
+  // The tightest window the split allows: the chrome may not wrap here, and its labels stay.
+  { width: 960, height: 506, rows: 2 },
+]) {
+  test(`${viewport.width}×${viewport.height}: the tools stand beside the title in ${rows} row(s), and the chrome does not wrap`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await open(page);
+    const shape = await barShape(page);
+
+    // Each half is one line of its own; together they are as many rows as the window allows.
+    expect(shape.rows).toEqual({ chrome: 1, context: 1, tools: rows });
+
+    // The title and the chrome are on the same line, so the bar is not a row taller than its tools.
+    expect(shape.chromeTop).toBeLessThan(shape.leadBottom!);
+    expect(shape.barHeight, 'the bar is at most a quarter of the window').toBeLessThan(viewport.height / 4);
+
+    // A chrome that does not wrap must not push the page sideways either.
+    expect(shape.page).toEqual([viewport.width, viewport.height]);
+
+    // The context drops its labels in a narrow window, never the button itself: the „Fordulás”
+    // button stays a whole target inside the window (e2e-prod/fust.spec.ts). Read by its action
+    // rather than by its text, because the locator inventory is frozen.
+    expect(shape.endRow!.width).toBeGreaterThanOrEqual(44);
+    expect(shape.endRow!.height).toBeGreaterThanOrEqual(44);
+    expect(shape.endRow!.right).toBeLessThanOrEqual(viewport.width);
+    expect(shape.endRow!.bottom).toBeLessThanOrEqual(viewport.height);
+  });
+}
+
+/**
+ * The pattern-type list read in one go: whether the box scrolls, and for each card its
+ * height and whether it hangs out of the box. No locators, so the frozen locator
+ * inventory (PQW-978) stays put.
+ */
+const typeCards = (page: Page) =>
+  page.evaluate(() => {
+    const list = document.querySelector('#types-list');
+    if (!list) return null;
+    const box = list.getBoundingClientRect();
+    return {
+      scrolls: list.scrollHeight > list.clientHeight,
+      cards: [...list.querySelectorAll('li')].map((item) => {
+        const rect = (item.querySelector('button') ?? item).getBoundingClientRect();
+        return { height: rect.height, out: rect.top < box.top - 0.5 || rect.bottom > box.bottom + 0.5 };
+      }),
+    };
+  });
+
+/*
+ * All four pattern-type cards fit in a 506 px-high window (PQW-985). The card carried
+ * 0.6rem of block padding and stood 57 px tall, so four of them and the three 8 px gaps
+ * wanted 252 px while the list had 221 px: it scrolled and cut the fourth name in half.
+ * PQW-983 gave the list 271 px at 1000 px wide and hid the problem at that one width;
+ * below 60rem, where the tools take a line of their own again, the list is back to
+ * 221 px and the card itself is what has to give. The badge keeps its own row under the
+ * name (§38) and the intro sentence stays: only the air gives way, and not past the
+ * 44 px target size (§36).
+ */
+for (const viewport of [
+  { width: 1000, height: 506 },
+  { width: 900, height: 506 },
+]) {
+  test(`${viewport.width}×${viewport.height}: all four pattern-type cards fit without scrolling`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await open(page);
+
+    const list = await typeCards(page);
+    expect(list).not.toBeNull();
+    expect(list!.cards).toHaveLength(4);
+    expect(list!.scrolls, 'the pattern type list scrolls').toBe(false);
+    expect(
+      list!.cards.map((card) => card.out),
+      'a card hangs out of the list',
+    ).toEqual([false, false, false, false]);
+    // A card is a target, not only a label: no amount of compressing may take it under 44 px.
+    for (const card of list!.cards) expect(card.height).toBeGreaterThanOrEqual(44);
   });
 }
 
@@ -370,6 +511,9 @@ for (const [viewport, rounds] of [
     await open(page);
     await openWritten(page);
 
+    // The round generator moved into the make-a-pattern sheet (PQW-987), which stands
+    // where the panel stands — so it closes again before anything is measured.
+    await openSheet(page);
     const section = page.locator('#section-rounds');
     if ((await section.getAttribute('open')) === null) await section.locator('summary').click();
     await page.locator('#rounds-shape').selectOption({ label: 'Nagymama-négyzet' });
@@ -377,6 +521,7 @@ for (const [viewport, rounds] of [
     await page.locator('#rounds-count').press('Tab');
     await page.getByRole('button', { name: 'Minta létrehozása' }).click();
     await expect(page.locator('#status')).toContainText(`${rounds} kör elkészült`);
+    await page.locator('#setup').getByRole('button', { name: 'Lecsukás' }).click();
     await page.getByRole('button', { name: 'Egész minta' }).click();
 
     const grid = await page.evaluate(() =>

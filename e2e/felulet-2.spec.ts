@@ -32,7 +32,8 @@ test('the file actions dropdown from the keyboard: Tab to the button, Enter open
   await page.keyboard.press('Enter');
   await expect(filePop).toBeVisible();
   await expect(fileToggle).toHaveAttribute('aria-expanded', 'true');
-  await expect(filePop.locator('[data-action="import-json"]')).toBeFocused();
+  // „Minta készítése" is the first item since PQW-987.
+  await expect(filePop.locator('#setup-toggle')).toBeFocused();
 
   // Esc closes it, and the focus returns to the button.
   await page.keyboard.press('Escape');

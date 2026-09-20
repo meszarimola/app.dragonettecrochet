@@ -2,7 +2,7 @@
 
 ## §1 Shape of the suite
 
-`node:test` for units (88 files, ~955 cases), Playwright for E2E (34 specs).
+`node:test` for units (90 files, ~955 cases), Playwright for E2E (36 specs).
 `npm test` needs `dist/` — the analytics test reads the built `index.html`, so
 **build first**.
 

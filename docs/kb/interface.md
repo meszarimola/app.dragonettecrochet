@@ -217,8 +217,10 @@ rules had to hold at once:
   with the drawing grew them to about 130 px when zoomed in and pushed them under
   the side panels. Box-overlap measurement did not notice; a screenshot did.
 - They must stay between the panels that open over the canvas. The interface
-  passes their widths in (`setInsets`), because the `--side-start` CSS variable
-  comes back as `min(16rem, 80vw)`, from which no pixel value can be read.
+  passes their widths in (`setInsets`), because `--side-start` comes back as the
+  unresolved `min(…, 80vw)` expression it is declared as, from which no pixel
+  value can be read. Since PQW-979 that declaration is `var(--types-width)`; §38
+  says why the bars' widths must not be written out twice.
 - Hugging the edge of the visible band must not push a caption over the symbols:
   in a narrow window the longer (English) caption slid onto the foundation
   chain's stitches. Covering is forbidden, overflowing is allowed — "fit whole
@@ -518,6 +520,12 @@ the files are not present the system fonts stand in for them.
   the cell's accessible name says so too.
 - A disabled toolbar button keeps its text colour and only fades its icon, so
   its tooltip stays readable (§12).
+- Where a box is only as tall as its content happens to be, the 44 px is written
+  out rather than left to chance. The pattern-type card carries its own
+  `min-block-size: 44px` (PQW-985): before it, the card cleared 44 px only
+  because the icon is 1.4rem and the padding was `0.6rem`, and compressing the
+  padding would have taken the shortest card to 33 px without a single rule
+  saying so.
 
 ## §37 The status line is a screen-reader live region, not a visible box
 
@@ -532,6 +540,36 @@ overflowed and the page began to scroll by one pixel.
 
 ## §38 Layout incidents in the stylesheet
 
+- The menu bar is a chrome half and a context half (PQW-983). `.tools__chrome`
+  holds what every pattern type has — the type-bar toggle, the file group, the
+  edit group and the panel toggles — and `.tools__context` what the type brings:
+  the row group, the drawing tools, the selection and the view. The tools used to
+  be one wrapping row of eight groups on a line of their own under the title, and
+  in the owner's 1000 × 506 window that made the bar 157 px, 31 % of the window,
+  with the groups already wrapped into two rows. From 60rem the chrome stands
+  beside the title instead and the context takes the line under it, which gives
+  the canvas a whole row back: the bar is 107 px at 1000 × 506 and 57 px at
+  1440 × 900, where everything fits on the one line. Below 60rem the tools go
+  back to a line of their own, the way they were, so a phone-sized window is
+  unchanged.
+
+  `.tools__group--end` keeps its `margin-inline-start: auto`, but it now resolves
+  inside the chrome rather than inside `.tools`. Where the context has a line of
+  its own the chrome fills the title's line and the panel toggles still sit at
+  the bar's right edge; on the single line of a 1440 px window they sit at the
+  end of the chrome, before the context, because flexbox cannot order a box
+  across two parents. That is the visible cost of the split, and it is the price
+  of the chrome being one box that never wraps.
+
+  The two constraints that decide the shape are tests, not taste. One Tab from
+  `[data-action="new"]` has to reach `#file-toggle`, so the two stay DOM
+  neighbours inside the file group; and „Fordulás" has to be visible on load in
+  both windows, so under 68.75rem the context drops its labels and keeps the
+  icon, the 44 px target and the `data-tip` bubble. An overflow menu would have
+  broken the second one, which is why there is none. The split is nesting only —
+  `.tools__group > .tool` and `.tools .tool` still address the same buttons, so
+  no browser test moved, and `tests/fixtures/control-inventory.json` and
+  `tests/fixtures/e2e-locators.json` stayed byte-identical.
 - The file menu's popover is positioned against its own button, not the right
   edge (PQW-912). `.menu__pop` pins right with a fixed width, which suits the
   findings list at the right of the bar, but the file button sits at the left
@@ -545,16 +583,46 @@ overflowed and the page began to scroll by one pixel.
   `auto` margin had nothing left to take, which is why it stuck to the list.
 - The "soon" badge sits inside the label box, *below* the name (PQW-912). Beside
   the name it did not fit in the narrow bar and drew over it. A row of its own
-  makes the card one line taller and all four cards still fit without scrolling
-  — the earlier two-line trouble was the list stretching, not the badge's place.
+  makes the card one line taller. With `0.6rem` of block padding the card stood
+  57 px and the four of them plus the three 8 px gaps wanted 252 px, which was
+  more than the list had in a 506 px-high window — 215 px before PQW-982, 221 px
+  after it — so the list scrolled and clipped the fourth card (PQW-979).
+
+  PQW-983 gave the list 271 px at 1000 × 506 by taking a row out of the bar, and
+  that alone made all four fit at that width. It did not fix the card: below
+  60rem the tools take a line of their own again and the list is back to 221 px.
+  So PQW-985 compressed the card as the owner asked — block padding down to
+  `--sp-0` and the intro sentence's margins to `--sp-2`, the sentence itself
+  untouched because it is frozen product text. The card is now 44–46 px and the
+  four of them 204–208 px, which fits at every width in a 506 px-high window, in
+  Hungarian and in English. The floor is `min-block-size: 44px` on `.type`,
+  written out rather than left to the icon's height to produce by accident (§36):
+  the shortest card, the one-line English name with no badge, would otherwise
+  have come out at 33 px. The earlier two-line trouble was the list stretching,
+  not the badge's place.
   (An earlier comment claiming the badge belongs beside the name is withdrawn.)
 - The version label is the last item in the bar's column and `margin-block-start:
   auto` pushes it to the bottom (PQW-903, PQW-912); the list above it scrolls, so
   it never covers text and takes nothing from the canvas. It is not clickable and
   is `aria-hidden`, so the screen reader is not read a pointless token.
+
+  It also carries a hairline above it (PQW-979). The two boxes never overlapped,
+  but in a 506 px-high window the list ran out of room and clipped its last card
+  mid-word, and the label sitting flush under that cut read as part of the card
+  rather than as chrome. The rule separates the two; it did not make the fourth
+  card fit. PQW-983 did at 1000 × 506, by taking a row out of the menu bar, and
+  PQW-985 did at every width, by compressing the card.
 - In a wide view the open written panel and the status line stand between the
   side bars rather than sliding under them (PQW-884); in a narrow view the side
   bars open over the panel and the status line.
+- Each side bar's width is written once, as `--types-width` and `--panel-width`
+  on `:root` (PQW-979). `.types`, `.panel` and the `--side-start` / `--side-end`
+  pair all read those. They used to be four separate literals, and they had
+  already drifted: `--side-start` said `16rem` while `.types` was `13rem`, so the
+  written panel and the alert started 48 px to the right of where the bar ended.
+  The canvas insets that `board.setInsets` passes in come from
+  `getBoundingClientRect` and were always right, which is why the row captions
+  never showed the bug — only the written panel did.
 
 ## §39 The free-form type is a second editor, not a second mode
 
@@ -590,6 +658,69 @@ grid and the shared undo and redo, and returns `true` for everything else the
 regular handler would act on. `e2e/szabalytalan.spec.ts` guards it. The file menu routes on what
 the file *is*, not on the type that is showing: a free-form JSON switches to
 this type, a regular one switches back.
+
+The right panel was the same trap in a slower form (PQW-976). `showIrregularView`
+swapped the canvas and the toolbar groups but left the regular type's generator
+sections — „Méret és fonal”, „Forma”, „Kendő”, „Ruhadarab”, „Kör és motívum” —
+standing in the panel. A „Minta létrehozása” there ran the regular `commit()`,
+which replaced the hidden regular document and `persist()`-ed the replacement
+over the user's earlier work in the same breath; the status line then promised
+that undo would bring the old pattern back, while undo was routed to the
+free-form stack. **Anything that edits the regular document leaves with the
+regular editor**, so `showIrregularView` toggles those sections' `hidden`
+together with the tool groups. The list is collected *after* `panelFor` (§9) has
+run and drops whatever it already hid, because a switched-off type's section must
+never reappear on the way back. `e2e/szabalytalan-generatorok.spec.ts` guards
+both halves: the sections are gone in free-form mode, and the regular pattern
+returns untouched.
+
+PQW-980 closed three such paths, and the shape of each says where a guard has to
+sit. `e2e/szabalytalan-vezerlok.spec.ts` guards all three by watching the
+autosave slot, since `commit()` `persist()`s in the same breath and that slot is
+what silently replaced the user's earlier work.
+
+The „Előbeállítás” select of `#section-notation` is the one whose section must
+stay: the notation is genuinely shared, and its „Jelkészlet” and „Jelstílus”
+selects go on working in both types. The preset does not, because it is the
+pattern's `conventions` — its own note says so. It therefore takes the
+`titleInput` guard exactly: return, change nothing. Running only the symbol half
+was tried and rejected, because it lands the panel in a state the preset cannot
+undo — the pattern keeps `cyc` while `chartStyle` is left at `jis`, `refresh()`
+resets the select to „Nemzetközi” on the way back, and re-choosing it fires no
+`change` event.
+
+The „Kijelölt jel igazítása” box was the simpler kind: `#adjust` was hidden only
+from `updateControls()`, which `refresh()` does not reach in this type, so a box
+left open in regular mode came straight through. `showIrregularView` now hides it
+with the rest, and `updateControls()` recomputes it on the way back. `nudge` and
+`unpin` took the `irregular.active` branch as well. The keyboard behind them was
+never exposed: `irregularKey` swallows Alt+arrow by default, above.
+
+The third was found in review and is the reason the other two are not the end of
+it. `#section-stitches` is shared like the notation, so the palette and the
+`#chain-count` field stay in free-form mode — and the keydown handler answers
+Enter there **before** `irregularKey` can swallow it, to keep the promise the
+palette hint makes. `workAtCursor` crocheted that into the hidden document.
+
+**What is left is held by visibility, not by a guard.** `delete-last`, `same`,
+`fill-row`, `end-row`, `close-round` and `spiral-round` all reach `commit()`
+unguarded; they are out of reach today only because their buttons live in the
+hidden `#tools-row` and `irregularKey` swallows Alt+F, Alt+K and Alt+S. Moving
+any of them into a shared section, or answering their key above `irregularKey`,
+reopens this bug — which is exactly how the third path came about.
+
+**The guard still stays at the caller, not at the top of `commit()`** (PQW-980),
+though the margin is narrower than it looks. A central gate would have to drop
+silently, and §4 of `decisions.md` forbids the alternative of telling the user;
+it would also govern two dozen callers, including the import path, which commits
+a regular file from free-form mode and is correct only because `selectType`
+unmounts first — an ordering nothing tests. The deciding reason is that dropping
+is not what these callers want: `titleInput` **redirects** to
+`irregular.setTitle`, and `select()` already branches on `irregular.active` to
+change its hint. A gate in `commit()` cannot express either, so those branches
+would stay and the central one would be a second, duplicated policy. The price
+of the decision is the paragraph above: each new `commit()` caller has to
+remember, and only the reachable ones are tested.
 
 ## §40 The free-form type does not confirm and does not chat
 
@@ -933,3 +1064,235 @@ forever reads another's number is worse than one with no number at all.
 
 Cited from: `src/core/irregular-order.ts`, `src/core/irregular-layers.ts`,
 `src/core/irregular-rowline.ts` and `src/core/irregular-document.ts` (`unlinked`).
+
+## §52 The stylesheet's spacing, radius and shadow scale
+
+PQW-982. Before it the stylesheet had colour and font tokens and nothing else:
+ten ad-hoc spacing values between `0.1rem` and `0.75rem`, nine border radii, two
+box shadows written in two different colour languages, and seven hardcoded
+`#fff` on a warm cream page.
+
+**The spacing scale is the main site's, copied value for value** so the two
+products are one system; only `--sp-0: 0.25rem` is this app's own, because the
+editor is denser than a marketing page. The scale therefore starts at
+`0.375rem`, and there is nothing between `--sp-0` and `--sp-1`.
+
+**Mapping rule.** Each old value went to the nearest step, and **an exact tie
+goes down**: `0.5rem` → `--sp-1`, `0.75rem` → `--sp-2`, `1rem` → `--sp-3`. This
+is a rule about this app, not about arithmetic: the editor is a dense tool, and
+the 1000 × 506 window is already short of room (§38).
+
+The rule bounds the damage but does not remove it. Every tie went down, and the
+only values that grew are the three that sit a rounding hair under a step —
+`0.35rem` → `0.375rem`, `0.6rem` → `0.625rem`, `0.85rem` → `0.875rem` — each
+0.4 px. Nothing grew by more than that, which is why the conversion could not
+push a box into a new row on its own; where it did move something, the boxes
+were measured rather than argued about.
+
+**The toolbar is a deliberate exception.** `.tools` sits below the scale on
+purpose (`.tools__group` gap, `.tools .tool` gap and padding), and rounding it
+up to `--sp-1` would push it into a third row at 1000 px — the opposite of what
+PQW-983 is for. Those values take `--sp-0`, and the two that fall under even
+that (`0.1rem` between a toolbar icon and its label, `0.2rem` of block padding
+inside a 44 px target) stay literals. The exception is the toolbar's own
+density, not a licence to shrink whatever hangs off it: the tooltips take the
+ordinary steps, and `e2e/panel.spec.ts` is what settles whether a bubble still
+fits — it hovers every visible button in a 1000 px window and fails if
+`document.documentElement.scrollWidth` moves. PQW-983 took the same step for the
+context half: under 68.75rem its group gap and the hairline's lead-in drop to
+`--sp-0` as well, because a label-less group needs less air around it than a
+labelled one. Nothing else moved onto that step.
+
+**`min-inline-size: 44px` and `min-block-size: 44px` are not spacing.** They are
+the WCAG 2.5.8 target size (§36) and are never tokenised — a target that follows
+a spacing scale stops being a guarantee.
+
+**Radius.** Nine values became four: `--radius-sm` for chips and keys,
+`--radius-md` for controls and notices, `--radius-lg` for cards, popovers and
+dialogs, `--radius-pill` for fully rounded ends. `50%` stays where a circle is
+meant, because a circle is not a step on a scale.
+
+**One shadow.** `--shadow-1` is the ink-tinted one; the pure-black variant is
+gone. Both places that had a shadow are the same thing — a surface floating over
+the canvas — so they get the same elevation.
+
+**`--c-surface`** is the main site's cream, the value this file already carried
+as the logo's eye. It replaces `#fff` on the form controls, which read cold
+against `--c-bg`. The grid chart keeps real white: there `#fff` is an empty
+cell, chart ink rather than a surface, and it has to stay distinguishable from
+the cream page behind it.
+
+## §53 The stitch palette is split by how it is used, not by what it contains
+
+PQW-984. Measured at 1000 × 506 on v0.56.0, the palette put every one of the
+twenty-five stitches in its own full-width row — icon, full name, structure line,
+key cap — so `#palette` was **1870 px** tall inside a 343 px panel, the first
+stitch started at y = 324 because 68 px of `#hint` prose stood above it, and
+**two** stitches were reachable without scrolling. It is the most-used control
+in the editor.
+
+**The obvious fix does not work, and the stitch data is why.** A grid of icon
+plus abbreviation was the first design. `src/core/stitches.ts` rules it out:
+
+- **Nineteen of the twenty-five have no Hungarian abbreviation.** That is
+  deliberate — `types.ts` writes `null` for "no approved abbreviation, the name
+  is spelled out" (`docs/knowledge-base/01 §8.5`), and the longest spelled name
+  is 22 characters.
+- **Six names are not unique.** "szaporítás" twice, "fogyasztás" four times,
+  "fürt" twice. Only `stitchStructure()` tells them apart — "2 rp egy szembe"
+  against "3 erp 3 szemen át". An icon-or-name grid would show four identical
+  "fogyasztás" buttons. English does not rescue it either: US terms abbreviate
+  the same six as `inc` ×2, `dec` ×4 and `CL` ×2.
+
+**So the palette is split where the data already splits it.** The seven `basic`
+stitches — exactly the ones that carry `Alt`+1–7 (§11), and six of the seven the
+only ones with a Hungarian abbreviation — are a four-column grid that is always
+open. The other eighteen keep **today's row layout unchanged**, structure line
+included, inside three `<details>` groups that start closed. The result is about
+280 px against 1870, and the three group headers are still in the window at
+1000 × 506.
+
+**The structure line is not decoration.** Whatever else the non-basic groups
+get, they keep it: it is the only thing distinguishing six of the stitches. The
+row itself is the old one to within the §52 conversion the palette block had
+been missed by — `0.5rem` of padding and `0.75rem` of gap became `--sp-1` and
+`--sp-2`, so a row is 2 px tighter than it was.
+
+**A group that is open stays open, and an armed stitch is always on screen.**
+`renderPalette()` rebuilds the whole palette on a notation or interface-language
+change (§6), which would otherwise snap every group shut; it carries the open
+flags across by the sections' ids. `select()` opens the group of the stitch it
+arms, because `Alt`+8 and `Alt`+9 reach into a collapsed group (§11) and an
+`aria-pressed` button nobody can see is not feedback.
+
+**What still pushes the grid down.** `#insertion` stands above `#palette` and is
+205 px tall at 1000 × 506, so arming a stitch that takes insertion modes moves
+the grid from y = 219 to y = 440 and the seven cells leave the window again.
+That is the old markup order, not something the split introduced, and moving
+that panel was not part of this ticket — it is the next thing to measure.
+
+**The abbreviation is printed, the full name is announced.** The visible label
+in a grid cell is `def.terms[notation].abbr` — so it follows the *notation*, not
+the interface language (§2, §6) — but the accessible name stays the full name,
+carried by a visually hidden span, and the tooltip repeats it. Eighteen e2e
+locators search by `getByRole('button', { name: /Láncszem \(lsz\)/ })` and
+`#palette` is asserted to contain `Half double crochet (hdc)`; both still hold.
+
+**The one basic stitch with no abbreviation gets a shortened name, not an
+invented one.** `dtr` is "háromráhajtásos pálca" in Hungarian and
+`docs/stitch-vocabulary-proposal.md` marks "hrp" unverified, so the cell prints
+"háromráhajtásos". The label lives in `src/ui/i18n/palette.ts`, keyed by
+notation locale rather than by interface language, which is why it is not part
+of `UI_TEXTS` — `tests/ui-i18n.test.mjs` requires the English branch of that
+dictionary to hold no accented Hungarian.
+
+**The bubble is positioned against the grid, not the cell.** `.palette__grid` is
+the positioned ancestor, so a long name spans the grid's width and cannot hang
+off the right edge of the panel the way a cell-centred bubble would (§12). The
+toolbar's own tooltip rules are untouched.
+
+**`#hint` moved below the palette**, and its empty-state string was split into
+three sentences with the instruction first. The help text is still a promise
+(`owner-decisions.md §12`): the three *chosen-stitch* hints, the ones that say a
+stitch is worked with Enter or by clicking the canvas, are unchanged.
+
+**The order must not change.** `buildPalette()` hands out `Alt`+1–9 by the
+stitches' global position, so reordering the sections would move the shortcuts.
+
+## §54 The make-a-pattern sheet, and why its opener is in the file menu
+
+The generators — shape, shawl, garment, round and motif, and the two switched-off
+ones — replace the whole pattern when their button is pressed. That is a way to
+*start*, not a control used while drawing, and in the panel they were 58 of the
+104 controls a regular pattern showed. They live in `#setup` now: a sheet that
+stands where the panel stands, `min(34rem, 92vw)` wide, so the previews they
+already draw finally have room.
+
+**The opener is a file-menu item, not a toolbar button, because the bar has no
+space.** Measured on the built output at 1440 × 900 after PQW-983: the chrome row
+is 491 px and the context row 631 px against 1132 px. One more button — even
+with a label as short as „Készítés" — wraps the bar into a second row and costs
+50 px of canvas at *every* width. The file menu is where „Új minta" already
+starts a pattern, so the two ways to begin one sit together.
+
+**The notation stayed in the panel.** It was moved into the sheet first and moved
+back: `#ui-language` is the only interface-language control there is, and behind
+a menu and a sheet it sat two levels deep. Four controls do not crowd a panel;
+burying the language switcher is a worse trade than the one it buys.
+
+**The sheet takes focus when it opens.** Its opener is inside the file menu,
+which closes on the click, so the focus would otherwise fall to the body. Closing
+it from its own „Lecsukás" hands the focus back to `#file-toggle` — the same
+shape as the file menu's own Esc (PQW-911).
+
+**It holds no state and is always closed on load.** A settings sheet that reopens
+itself is the program talking when nobody asked (`owner-decisions.md` §3). It
+also keeps the layout specs valid without a precondition, and `#panel` visible on
+load for the production smoke test. No new `localStorage` key (§5).
+
+**It participates in the insets.** `insetRight` measures whichever of the panel
+and the sheet is open, and the `--side-end` variable follows `--setup-width`
+while it is open, so the row captions, the written panel and the alert clear it
+(§15). Its width is written once, beside `--panel-width` and `--types-width`
+(PQW-979).
+
+**While it is open it covers the panel.** They stand in the same place and the
+sheet is above. A spec that needs the panel afterwards closes the sheet first.
+
+**It reserves its width only above 67 rem, and takes turns with the written panel
+below that.** At 34 rem the sheet plus the type bar leave a 768 px window 16 px
+of stage: the written panel came out 40 px wide, its own close button landed
+outside its box and under the sheet, and it could not be closed at all. So
+`--side-end` follows the sheet only from 67 rem — that rule has to sit *after*
+the 48 rem block, or the panel's own `--side-end` wins on order — and below it
+opening the sheet closes the written panel, exactly as opening the right panel
+already does in a narrow window. The alert sits above the sheet (`z-index: 8`),
+because a warning behind it would be a warning nobody sees.
+
+**Opening it does not refit the board.** `fitBoard` recomputes scale and offset
+from scratch and would throw away the pan and zoom. `#panel-toggle` covers the
+canvas too and does not refit; the sheet follows it.
+
+**Escape closes it.** The sheet is focused, and `#setup` is not an input or an
+open menu, so without this the key fell through to the handler that clears the
+stitch selection: opening the sheet and pressing Escape to dismiss it wiped the
+selection and left the sheet open.
+
+**In the free-form type the opener is hidden.** Every section of the sheet
+belongs to the regular type and `showIrregularView` hides them (PQW-976), so the
+sheet would open showing its title and a promise with nothing under it.
+
+**Making a pattern does not close it.** A shape is found by trying numbers, and
+the opener is two clicks away through the file menu, so closing after every
+attempt would tax the loop the sheet exists for. The four generator callbacks
+became one `generated` function to say so in one place. If the sheet ever gets a
+toolbar button, this is worth revisiting.
+
+## §55 What the panel shows first, and what it scrolls to
+
+Two orderings inside the right panel, both measured at 1000 × 506 after the
+generators left for the sheet (§54).
+
+**The palette leads „Szemek”.** `#insertion` is 205 px tall and stood above it, so
+arming a stitch that takes insertion modes pushed the grid from y 169 to y 390
+and three of the seven basic cells left the window. It now follows the palette,
+with `#count-field`. That is also the order of the task: you pick the stitch
+first and say where it goes second.
+
+**`#adjust` follows „Szemek”, and scrolls itself into view.** It used to stand
+after every setting, so in a 506 px window it appeared 436 px below the fold —
+the answer to a click the user had just made, out of sight, with nothing saying
+so. It is moved up, and revealing it calls `scrollIntoView({ block: 'nearest' })`.
+
+The scroll runs **after** the box's name is written into it. Called before, the
+box is still one line tall, and it is scrolled to a height it no longer has: the
+measurement came out 21 px past the panel's edge. `.panel` also carries
+`scroll-padding-block`, so a box scrolled into view lands clear of the edge
+rather than flush against it.
+
+**The pattern name is still below the fold, and that is left alone.** At 506 px
+the palette alone fills the panel, so nothing after „Szemek” is visible without
+scrolling. Lifting `#title` above the palette would cost the most-used control
+50 px to save a field that is typed once. The full head-and-body split the
+redesign considered does not change this either: the body is still below the
+fold. If it ever matters, the measurement to beat is `#title` at y 681.

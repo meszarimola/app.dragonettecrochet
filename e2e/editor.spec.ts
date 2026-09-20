@@ -13,6 +13,13 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
+/** The notation section is closed by default (PQW-882). */
+async function openNotation(page: Page): Promise<void> {
+  await page.locator('#section-notation').evaluate((el) => {
+    (el as HTMLDetailsElement).open = true;
+  });
+}
+
 /** Foundation chain and rows from the keyboard only (PQW-911): Alt+1 = chain stitch, Alt+3 = single crochet, Alt+4 = half double crochet, Alt+F = turn. */
 async function rectangle(page: Page, stitchKey: string, width: number, rows: number, chains: number): Promise<void> {
   await page.locator('#chain-count').focus();
@@ -78,10 +85,8 @@ test('written pattern: the recorded text of the rectangle in the panel, and the 
     '3–22. sor: 2 lsz (1 fp-nek számít), 1 szem kihagyása, 15 fp (16 szem). Fordítás.',
   );
 
-  // The notation section starts closed (PQW-882).
-  await page.locator('#section-notation').evaluate((el) => {
-    (el as HTMLDetailsElement).open = true;
-  });
+  // The notation starts closed (PQW-882) and sits in the sheet (PQW-987).
+  await openNotation(page);
   await page.locator('#terms').selectOption('en-US');
   await expect(text).toContainText('Row 23:');
   const english = comparable((await text.textContent())!).split('\n');
@@ -94,10 +99,8 @@ test('written pattern: the recorded text of the rectangle in the panel, and the 
   );
   await expect(page.locator('#palette')).toContainText('Half double crochet (hdc)');
 
-  // The notation section starts closed (PQW-882).
-  await page.locator('#section-notation').evaluate((el) => {
-    (el as HTMLDetailsElement).open = true;
-  });
+  // The notation starts closed (PQW-882) and sits in the sheet (PQW-987).
+  await openNotation(page);
   await page.locator('#terms').selectOption('en-GB');
   await expect(text).toContainText('Abbreviations (UK terms)');
   // The turning chain stands in place of stitch 1 (PQW-891): 14 half double crochets and the turning chain.
@@ -184,10 +187,8 @@ test('with the Japanese preset the half double crochet rectangle is error-free b
   page,
 }) => {
   await open(page);
-  // The notation section starts closed (PQW-882).
-  await page.locator('#section-notation').evaluate((el) => {
-    (el as HTMLDetailsElement).open = true;
-  });
+  // The notation starts closed (PQW-882) and sits in the sheet (PQW-987).
+  await openNotation(page);
   await page.locator('#tradition').selectOption('japanese');
   await expect(page.locator('#chart-style')).toHaveValue('jis');
   await expect(page.locator('#status')).toContainText('Előbeállítás: japán');

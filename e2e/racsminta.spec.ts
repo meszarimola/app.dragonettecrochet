@@ -25,6 +25,15 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
+/** The make-a-pattern sheet (PQW-987) is closed on load, and its opener is in the file menu. */
+async function openSheet(page: Page): Promise<void> {
+  const sheet = page.locator('#setup-toggle');
+  if ((await sheet.getAttribute('aria-expanded')) !== 'true') {
+    await page.locator('#file-toggle').click();
+    await sheet.click();
+  }
+}
+
 async function writtenText(page: Page): Promise<string> {
   if ((await page.locator('#written').getAttribute('hidden')) !== null) await page.locator('#written-toggle').click();
   return (await page.locator('#written-text').textContent()) ?? '';
@@ -48,6 +57,7 @@ test('small filet motif: the first two rows are complete, the rest come from the
 }) => {
   await open(page);
   await page.locator('.type[data-type="filet"]').click();
+  await openSheet(page);
   const section = page.locator('#section-grid');
   await expect(section).toHaveAttribute('open', '');
 
@@ -102,6 +112,7 @@ test('C2C image with two colours: 6 diagonal rows, colours per tile; creation is
   page,
 }) => {
   await open(page);
+  await openSheet(page);
   const section = page.locator('#section-grid');
   await section.locator('summary').click();
   await page.locator('#grid-technique').selectOption({ label: 'Sarokból sarokba (C2C)' });

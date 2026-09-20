@@ -14,8 +14,18 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
+/** The make-a-pattern sheet (PQW-987) is closed on load, and its opener is in the file menu. */
+async function openSheet(page: Page): Promise<void> {
+  const sheet = page.locator('#setup-toggle');
+  if ((await sheet.getAttribute('aria-expanded')) !== 'true') {
+    await page.locator('#file-toggle').click();
+    await sheet.click();
+  }
+}
+
 async function openSection(page: Page, id: string) {
   const section = page.locator(`#${id}`);
+  if (await section.evaluate((el) => el.closest('#setup') !== null)) await openSheet(page);
   if ((await section.getAttribute('open')) === null) await section.locator('summary').click();
   return section;
 }
@@ -74,6 +84,9 @@ for (const viewport of [
     await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
     expect(await writtenText(page)).toMatch(/\(1 (Eerp|Herp), 1 (Eerp|Herp)\) ×\d+/);
 
+    // Reading the written pattern closes the sheet below 67 rem, where the two cannot
+    // share the stage (PQW-987), so the generator is opened again.
+    await openSheet(page);
     // The ribbed brim starts after the round is closed: in a spiral there is nowhere for it to start.
     await page.locator('#rounds-closing').selectOption('spiral');
     await expect(page.locator('#rounds-ribbing-fields')).toBeHidden();

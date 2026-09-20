@@ -23,8 +23,18 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
+/** The make-a-pattern sheet (PQW-987) is closed on load, and its opener is in the file menu. */
+async function openSheet(page: Page): Promise<void> {
+  const sheet = page.locator('#setup-toggle');
+  if ((await sheet.getAttribute('aria-expanded')) !== 'true') {
+    await page.locator('#file-toggle').click();
+    await sheet.click();
+  }
+}
+
 async function chooseAmigurumi(page: Page): Promise<void> {
   await page.locator('.type[data-type="amigurumi"]').click();
+  await openSheet(page);
   await expect(page.locator('#section-amigurumi')).toHaveAttribute('open', '');
   // Choosing the type no longer opens the written pattern (PQW-912): the panel
   // belongs to the user, so the tests open it with its button.
@@ -170,7 +180,8 @@ for (const viewport of [
     await open(page);
     await chooseAmigurumi(page);
     // The chart is needed for aiming: the written pattern panel is closed.
-    await page.getByRole('button', { name: 'Lecsukás' }).click();
+    // The sheet carries a „Lecsukás” of its own since PQW-987, so this one is scoped.
+    await page.locator('#written').getByRole('button', { name: 'Lecsukás' }).click();
 
     const board = page.locator('#board');
     await board.focus();

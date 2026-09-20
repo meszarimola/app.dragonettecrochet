@@ -148,6 +148,8 @@ const board = new Board(canvas);
 const palette = must<HTMLDivElement>('#palette');
 const panel = must<HTMLElement>('#panel');
 const toggle = must<HTMLButtonElement>('#panel-toggle');
+const setupSheet = must<HTMLElement>('#setup');
+const setupToggle = must<HTMLButtonElement>('#setup-toggle');
 const hint = must<HTMLParagraphElement>('#hint');
 const status = must<HTMLParagraphElement>('#status');
 const alertBox = must<HTMLParagraphElement>('#alert');
@@ -193,6 +195,8 @@ const TYPES_KEY = 'dc-mintatervezo:mintatipus';
 const LANG_KEY = 'dc-mintatervezo:nyelv';
 // Below this width the two panels do not fit side by side.
 const NARROW = window.matchMedia('(width < 48rem)');
+// KB: interface.md §54 — below this the sheet and the written panel cannot share the stage.
+const SETUP_TIGHT = matchMedia('(width < 67rem)');
 const STRUCTURAL_RULES = new Set(['unknown-stitch', 'dangling-reference', 'yarn-path']);
 
 // KB: interface.md §4 — this block must run before the state: restoring the pattern and the
@@ -372,7 +376,8 @@ function structuralProblem(pattern: Pattern): string | null {
   return finding ? (ruleText(finding.rule)?.message ?? finding.rule) : null;
 }
 
-const insetRight = () => (panel.hidden ? 0 : panel.getBoundingClientRect().width);
+const measure = (element: HTMLElement) => (element.hidden ? 0 : element.getBoundingClientRect().width);
+const insetRight = () => Math.max(measure(panel), measure(setupSheet));
 const insetLeft = () => (typesNav.hidden ? 0 : typesNav.getBoundingClientRect().width);
 const insetBottom = () =>
   written.hidden ? 0 : Math.max(0, canvas.getBoundingClientRect().bottom - written.getBoundingClientRect().top);
@@ -658,6 +663,7 @@ function updateControls(): void {
   );
 
   const node = selectedNode ? derived.pattern.pieces[0]?.stitches.find((n) => n.id === selectedNode) : undefined;
+  const adjustWas = adjust.hidden;
   adjust.hidden = !node || tool !== null;
   if (node) {
     const nodeDef = derived.context.library.get(node.def);
@@ -667,6 +673,12 @@ function updateControls(): void {
     name.textContent = nodeDef ? capitalize(stitchName(nodeDef, notation.terms)) : node.def;
     adjustName.replaceChildren(name, ...(node.pinned ? [texts().messages.adjust.pinned] : []));
   }
+  /*
+   * The box is the answer to the click that selected the symbol, and in a short window it
+   * sits below the fold of the panel. Scrolled after its name is in, or the box is still
+   * one line tall and ends up cut. KB: interface.md §55.
+   */
+  if (adjustWas && !adjust.hidden) adjust.scrollIntoView({ block: 'nearest' });
 }
 
 function setDisabled(action: string, disabled: boolean): void {
@@ -841,6 +853,8 @@ styleSelect.addEventListener('change', () => {
 
 // The preset belongs to the pattern: counting changes in the pattern, symbols in the notation.
 traditionSelect.addEventListener('change', () => {
+  // KB: interface.md §39 — the preset belongs to the regular document, which is not the one showing.
+  if (irregular?.active === true) return;
   const tradition = traditionSelect.value as Tradition;
   const result = setTradition(history.present, tradition);
   if (!result.ok) return;
@@ -905,10 +919,7 @@ function drawPreview(def: StitchDef, size: number): HTMLCanvasElement {
 }
 
 function stitchButton(item: PaletteItem): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'stitch';
-  button.setAttribute('aria-pressed', 'false');
+  const button = newStitchButton(item);
   button.append(drawPreview(item.def, 44));
 
   const label = span('stitch__label', '');
@@ -917,16 +928,46 @@ function stitchButton(item: PaletteItem): HTMLButtonElement {
   if (item.structure) label.append(span('stitch__detail', item.structure));
   button.append(label);
 
-  // KB: interface.md §11
-  if (item.key) {
-    const key = document.createElement('kbd');
-    key.className = 'stitch__key';
-    key.textContent = modifierCombo(item.key, currentPlatform());
-    button.append(key);
-  }
+  appendStitchKey(button, item);
+  return button;
+}
 
+/*
+ * The dense grid cell of a basic stitch: the abbreviation is what is printed,
+ * the full name is the accessible name and the tooltip. KB: interface.md §53
+ */
+function compactStitchButton(item: PaletteItem): HTMLButtonElement {
+  const button = newStitchButton(item);
+  button.classList.add('stitch--compact');
+  button.lang = textLanguage(notation.terms);
+  button.dataset.tip = item.name;
+  button.append(drawPreview(item.def, 32));
+
+  const short = span('stitch__abbr', item.short);
+  short.setAttribute('aria-hidden', 'true');
+  button.append(short);
+  button.append(span('stitch__full', item.name));
+
+  appendStitchKey(button, item);
+  return button;
+}
+
+function newStitchButton(item: PaletteItem): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'stitch';
+  button.setAttribute('aria-pressed', 'false');
   button.addEventListener('click', () => select(tool === item.def.id ? null : item.def.id));
   return button;
+}
+
+// KB: interface.md §11
+function appendStitchKey(button: HTMLButtonElement, item: PaletteItem): void {
+  if (!item.key) return;
+  const key = document.createElement('kbd');
+  key.className = 'stitch__key';
+  key.textContent = modifierCombo(item.key, currentPlatform());
+  button.append(key);
 }
 
 function select(id: StitchDefId | null): void {
@@ -940,6 +981,7 @@ function select(id: StitchDefId | null): void {
     document.body.classList.remove('is-selecting');
   }
   for (const [stitchId, button] of buttons) button.setAttribute('aria-pressed', String(stitchId === id));
+  if (id) revealStitch(id);
 
   const item = items.find((candidate) => candidate.def.id === id);
   const kind = item?.def.kind;
@@ -958,31 +1000,64 @@ function select(id: StitchDefId | null): void {
 
 function renderPalette(): void {
   const sections = buildPalette(notation.terms);
+  const opened = new Set(
+    [...palette.querySelectorAll<HTMLDetailsElement>('.palette__section--group')]
+      .filter((group) => group.open)
+      .map((group) => group.id),
+  );
   items = sections.flatMap((section) => section.items);
   buttons.clear();
   palette.replaceChildren();
-  for (const section of sections) palette.append(paletteSection(section));
+  for (const section of sections) palette.append(paletteSection(section, opened));
+  if (tool) revealStitch(tool);
 }
 
-function paletteSection(section: ReturnType<typeof buildPalette>[number]): HTMLDivElement {
-  const group = document.createElement('div');
-  group.className = 'palette__section';
-  group.setAttribute('role', 'group');
-  const title = document.createElement('h3');
-  title.className = 'palette__title';
-  title.id = `palette-${section.id}`;
-  title.textContent = section.title;
-  group.setAttribute('aria-labelledby', title.id);
-  group.append(title);
-  for (const item of section.items) {
-    const button = stitchButton(item);
-    buttons.set(item.def.id, button);
-    group.append(button);
+/*
+ * A shortcut arms a stitch whatever its group is doing, and a notation change
+ * rebuilds the palette closed — either way the armed button has to be on
+ * screen. KB: interface.md §11, §53
+ */
+function revealStitch(id: StitchDefId): void {
+  const group = buttons.get(id)?.closest<HTMLDetailsElement>('.palette__section--group');
+  if (group) group.open = true;
+}
+
+/*
+ * The basic stitches are a dense grid, always open; the other three sections
+ * keep the row layout — their structure line is what tells the four
+ * „fogyasztás” apart — behind a collapsed summary. KB: interface.md §53
+ */
+function paletteSection(section: ReturnType<typeof buildPalette>[number], opened: ReadonlySet<string>): HTMLElement {
+  const compact = section.id === 'basic';
+  const group = document.createElement(compact ? 'div' : 'details');
+  group.className = compact ? 'palette__section' : 'palette__section palette__section--group';
+  group.id = `palette-${section.id}`;
+
+  const list = document.createElement('div');
+  list.className = compact ? 'palette__grid' : 'palette__rows';
+  list.setAttribute('role', 'group');
+  list.setAttribute('aria-label', section.title);
+
+  if (!compact) {
+    const summary = document.createElement('summary');
+    summary.className = 'palette__title';
+    summary.textContent = section.title;
+    group.append(summary);
+    (group as HTMLDetailsElement).open = opened.has(group.id);
   }
+
+  for (const item of section.items) {
+    const button = compact ? compactStitchButton(item) : stitchButton(item);
+    buttons.set(item.def.id, button);
+    list.append(button);
+  }
+  group.append(list);
   return group;
 }
 
 async function workAtCursor(): Promise<void> {
+  // KB: interface.md §39 — Enter in the shared count field is handled above `irregularKey`.
+  if (irregular?.active === true) return;
   const messages = texts().messages;
   if (!tool) {
     announce(messages.work.needStitch);
@@ -1025,6 +1100,8 @@ async function workAtCursor(): Promise<void> {
 }
 
 function nudge(dx: number, dy: number): void {
+  // KB: interface.md §39
+  if (irregular?.active === true) return;
   const node = history.present.pieces[0]?.stitches.find((n) => n.id === selectedNode);
   if (!node) return;
   const x = (node.pinned?.x ?? 0) + (mirror ? -dx : dx);
@@ -1438,6 +1515,11 @@ const ACTIONS: Record<string, () => void> = {
   },
   'copy-written': () => void copyWritten(),
   'written-full': () => toggleWrittenFull(),
+  'close-setup': () => {
+    setOpen(setupSheet, setupToggle, false);
+    // The close button goes with the sheet, so the focus returns to the menu that opened it.
+    must<HTMLButtonElement>('#file-toggle').focus();
+  },
   'close-written': () => {
     setWrittenOpen(false);
     writtenToggle.focus();
@@ -1454,7 +1536,11 @@ const ACTIONS: Record<string, () => void> = {
     setOpen(written, writtenToggle, false);
     fitBoard();
   },
-  unpin: () => selectedNode && commit(setPinned(history.present, selectedNode, null), texts().messages.work.unpinned),
+  unpin: () => {
+    // KB: interface.md §39
+    if (irregular?.active === true) return;
+    if (selectedNode) commit(setPinned(history.present, selectedNode, null), texts().messages.work.unpinned);
+  },
 };
 
 document.addEventListener('click', (event) => {
@@ -1615,12 +1701,22 @@ toggle.addEventListener('click', () => {
   if (open && NARROW.matches && !written.hidden) setWrittenOpen(false);
 });
 
+setupToggle.addEventListener('click', () => {
+  const open = setupSheet.hasAttribute('hidden');
+  setOpen(setupSheet, setupToggle, open);
+  // The opener sits in the file menu, which closes on this click, so the focus would
+  // otherwise land on the body. KB: interface.md §54.
+  if (open) setupSheet.focus();
+  if (open && SETUP_TIGHT.matches && !written.hidden) setWrittenOpen(false);
+});
+
 writtenToggle.addEventListener('click', () => {
   const open = written.hasAttribute('hidden');
   setWrittenOpen(open);
   // KB: interface.md §10
   if (open && writtenShare === null) applyWrittenShare(writtenShareFor(patternType, NARROW.matches));
   if (open && NARROW.matches) setOpen(panel, toggle, false);
+  if (open && SETUP_TIGHT.matches && !setupSheet.hidden) setOpen(setupSheet, setupToggle, false);
 });
 
 // KB: interface.md §13 — pointer, touch and keyboard.
@@ -1984,6 +2080,13 @@ document.addEventListener('keydown', (event) => {
 
   switch (key) {
     case 'Escape':
+      // KB: interface.md §54 — an open sheet takes the Escape before the selection does.
+      if (!setupSheet.hidden) {
+        setOpen(setupSheet, setupToggle, false);
+        must<HTMLButtonElement>('#file-toggle').focus();
+        event.preventDefault();
+        return;
+      }
       select(null);
       selectedNode = null;
       selection = [];
@@ -2047,43 +2150,36 @@ const sizePanel = new SizePanel(must<HTMLDetailsElement>('#section-size'), {
   },
 });
 
+/*
+ * Every generator commits the same way. The sheet is deliberately NOT closed here:
+ * a shape is found by trying numbers, and reopening it costs two clicks through the
+ * file menu. Closing it is the user's, with the sheet's own button.
+ * KB: interface.md §54.
+ */
+function generated(pattern: Pattern, message: Message): void {
+  selectedNode = null;
+  selection = [];
+  commit({ ok: true, pattern }, message);
+  fitBoard();
+}
+
 const roundsPanel = new RoundsPanel(must<HTMLDetailsElement>('#section-rounds'), {
-  commit: (pattern, message) => {
-    selectedNode = null;
-    selection = [];
-    commit({ ok: true, pattern }, message);
-    fitBoard();
-  },
+  commit: generated,
   announce,
 });
 
 const shapesPanel = new ShapesPanel(must<HTMLDetailsElement>('#section-shape'), {
-  commit: (pattern, message) => {
-    selectedNode = null;
-    selection = [];
-    commit({ ok: true, pattern }, message);
-    fitBoard();
-  },
+  commit: generated,
   announce,
 });
 
 const shawlsPanel = new ShawlsPanel(must<HTMLDetailsElement>('#section-shawl'), {
-  commit: (pattern, message) => {
-    selectedNode = null;
-    selection = [];
-    commit({ ok: true, pattern }, message);
-    fitBoard();
-  },
+  commit: generated,
   announce,
 });
 
 const garmentPanel = new GarmentPanel(must<HTMLDetailsElement>('#section-garment'), {
-  commit: (pattern, message) => {
-    selectedNode = null;
-    selection = [];
-    commit({ ok: true, pattern }, message);
-    fitBoard();
-  },
+  commit: generated,
   announce,
 });
 
@@ -2098,32 +2194,27 @@ function panelFor<T>(type: PatternTypeId, selector: string, build: (section: HTM
 const amigurumiPanel = panelFor(
   'amigurumi',
   '#section-amigurumi',
-  (section) =>
-    new AmigurumiPanel(section, {
-      commit: (pattern, message) => {
-        selectedNode = null;
-        selection = [];
-        commit({ ok: true, pattern }, message);
-        fitBoard();
-      },
-      announce,
-    }),
+  (section) => new AmigurumiPanel(section, { commit: generated, announce }),
 );
 
 const gridPanel = panelFor(
   'filet',
   '#section-grid',
-  (section) =>
-    new GridChartPanel(section, {
-      commit: (pattern, message) => {
-        selectedNode = null;
-        selection = [];
-        commit({ ok: true, pattern }, message);
-        fitBoard();
-      },
-      announce,
-    }),
+  (section) => new GridChartPanel(section, { commit: generated, announce }),
 );
+
+// KB: interface.md §39 — collected after panelFor, so a section it hid for a disabled type stays out.
+const regularTypeSections = [
+  '#section-size',
+  '#section-shape',
+  '#section-shawl',
+  '#section-garment',
+  '#section-rounds',
+  '#section-grid',
+  '#section-amigurumi',
+]
+  .map((selector) => must<HTMLDetailsElement>(selector))
+  .filter((section) => !section.hidden);
 
 const irregularSections = {
   properties: must<HTMLDetailsElement>('#section-irregular'),
@@ -2210,8 +2301,15 @@ function showIrregularView(on: boolean): void {
   irregularCanvas.hidden = !on;
   must<HTMLElement>('#tools-row').hidden = on;
   must<HTMLElement>('#tools-irregular').hidden = !on;
+  for (const section of regularTypeSections) section.hidden = on;
+  // KB: interface.md §39 — `updateControls()` owns this box, and does not run in free-form mode.
+  if (on) adjust.hidden = true;
   writtenToggle.hidden = on;
   if (on) setOpen(written, writtenToggle, false);
+  // KB: interface.md §54 — every section of the sheet belongs to the regular type, so in
+  // free-form mode the sheet would open empty. Its opener goes with them.
+  setupToggle.hidden = on;
+  if (on && !setupSheet.hidden) setOpen(setupSheet, setupToggle, false);
   setDisabled('export-png', false);
   setDisabled('export-svg', false);
 }
