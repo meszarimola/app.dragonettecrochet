@@ -1307,16 +1307,32 @@ function irregularKey(editor: IrregularEditor, event: KeyboardEvent, key: string
   return key === 'Home' || key === 'End' || key === 'Enter';
 }
 
+/**
+ * Holding Cmd or Ctrl means "not this one": nothing snaps while it is down.
+ * Only while the free-form editor is showing and the keystroke is not going into
+ * a field, so an ordinary shortcut does not make the ghost jump about.
+ */
+function reportFree(event: KeyboardEvent): void {
+  if (irregular?.active !== true) return;
+  if ((event.target as HTMLElement | null)?.closest('input, textarea, select') !== null) return;
+  irregular.setFreeDown(event.metaKey || event.ctrlKey);
+}
+
 // Holding Space pans, as it does in the regular type.
 document.addEventListener('keydown', (event) => {
   if (event.code === 'Space' && !(event.target as HTMLElement).closest('input, textarea, select')) {
     irregular?.setSpaceDown(true);
   }
+  reportFree(event);
 });
 document.addEventListener('keyup', (event) => {
   if (event.code === 'Space') irregular?.setSpaceDown(false);
+  reportFree(event);
 });
-window.addEventListener('blur', () => irregular?.setSpaceDown(false));
+window.addEventListener('blur', () => {
+  irregular?.setSpaceDown(false);
+  irregular?.setFreeDown(false);
+});
 
 const ACTIONS: Record<string, () => void> = {
   undo: () => {

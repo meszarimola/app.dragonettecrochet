@@ -416,6 +416,45 @@ test('⌘ a húzáson az illesztést kapcsolja ki, nem a kijelölést bontja meg
   expect(Math.abs(snapped.y % 20), 'billentyű nélkül a rácsra ugrik').toBe(0);
 });
 
+test('⌘ a lerakásnál is kikapcsolja az illesztést, nem csak húzásnál (PQW-975)', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+
+  const where = async (): Promise<{ x: number; y: number }[]> =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+      return (JSON.parse(raw).items ?? []).map((item: { x: number; y: number }) => ({ x: item.x, y: item.y }));
+    });
+
+  // Where the chart's origin sits, measured before any snapping can move a stitch.
+  await armDoubleCrochet(page);
+  await place(page, 500, 300);
+  const origin = (await where())[0];
+  if (origin === undefined) throw new Error('no stitch');
+  const view = { x: 500 - origin.x, y: 300 - origin.y };
+
+  await page.locator('#guide-grid-size').fill('25');
+  await page.locator('#guide-grid-size').blur();
+  await page.locator('[data-action="grid"]').click();
+  await page.locator('#guide-snap').check();
+
+  // Without the key, a placed stitch lands on the grid.
+  await armDoubleCrochet(page);
+  await place(page, 483, 257);
+  const snapped = (await where())[1];
+  if (snapped === undefined) throw new Error('no second stitch');
+  expect(Math.abs(snapped.x % 25), 'illesztéssel a rácsra ül').toBe(0);
+  expect(Math.abs(snapped.y % 25), 'illesztéssel a rácsra ül').toBe(0);
+
+  // With the key held it lands exactly where the pointer was — the owner's case.
+  await page.locator(board).click({ position: { x: 483 + 63, y: 257 + 41 }, modifiers: ['Meta'] });
+  const free = (await where())[2];
+  if (free === undefined) throw new Error('no third stitch');
+  expect(free.x + view.x, 'pont oda került, ahol a mutató volt').toBeCloseTo(483 + 63, 6);
+  expect(free.y + view.y, 'pont oda került, ahol a mutató volt').toBeCloseTo(257 + 41, 6);
+  expect(Math.abs(free.x % 25) > 0.001 || Math.abs(free.y % 25) > 0.001, 'és nem a rácson ül').toBe(true);
+});
+
 test('⌘ + kattintás húzás nélkül továbbra is kivesz egy szemet a kijelölésből', async ({ page }) => {
   await open(page);
   await chooseIrregular(page);
@@ -1162,4 +1201,51 @@ test('csippentés nagyít, és nem rajzol: amit az első ujj csinált, visszaker
   });
   await first.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   expect(await items(), 'egy ujj viszont lerak').toBe(1);
+});
+
+test('a láncív azt rögzíti, amit az előkép mutatott, akkor is, ha a ⌘-t előbb engeded el (PQW-975)', async ({
+  page,
+}) => {
+  await open(page);
+  await chooseIrregular(page);
+
+  const where = async (): Promise<{ x: number; y: number }[]> =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+      const group = (JSON.parse(raw).groups ?? [])[0];
+      return group === undefined ? [] : [group.start, group.end];
+    });
+
+  // Measure the chart origin before any snapping can move a stitch.
+  await armDoubleCrochet(page);
+  await place(page, 500, 300);
+  const origin = await page.evaluate(() => {
+    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+    return (JSON.parse(raw).items ?? [])[0] as { x: number; y: number };
+  });
+  const view = { x: 500 - origin.x, y: 300 - origin.y };
+
+  await page.locator('#guide-grid-size').fill('20');
+  await page.locator('#guide-grid-size').blur();
+  await page.locator('[data-action="grid"]').click();
+  await page.locator('#guide-snap').check();
+
+  const rect = await page.locator(board).boundingBox();
+  if (rect === null) throw new Error('no board');
+  await page.locator('[data-action="chain-arc"]').click();
+
+  // Draw with the key held, then let go of the key BEFORE the mouse button —
+  // the natural order for one hand. What was previewed is what must land.
+  await page.keyboard.down('Meta');
+  await page.mouse.move(rect.x + 417, rect.y + 383);
+  await page.mouse.down();
+  await page.mouse.move(rect.x + 663, rect.y + 383, { steps: 12 });
+  await page.keyboard.up('Meta');
+  await page.mouse.up();
+
+  const [start, end] = await where();
+  if (start === undefined || end === undefined) throw new Error('no arc');
+  expect(start.x + view.x, 'a kezdőpont ott maradt, ahol lenyomtad').toBeCloseTo(417, 6);
+  expect(end.x + view.x, 'a végpont ott, ahol elengedted').toBeCloseTo(663, 6);
+  expect(Math.abs(start.x % 20) > 0.001, 'vagyis nem ugrott a rácsra').toBe(true);
 });

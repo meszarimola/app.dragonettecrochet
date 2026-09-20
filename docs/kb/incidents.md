@@ -38,3 +38,36 @@ compared the two repos.
 
 **Rule:** when this app ships a release, the main site's landing page and its
 feature list are updated in the same cycle.
+
+## §5 Four ways the free-form build fooled itself (2026-09-19/20, PQW-966…975)
+
+Nine tickets in one night, each reviewed before release. The same four mistakes
+came back often enough to be worth naming.
+
+**A test that cannot fail.** Three of them shipped: an export test asserting on
+`data-row`, an attribute the exporter has never written; a render-timing test
+dispatching a `resize` event nothing listens for; and a save test asserting that
+storage had not changed, when no code path could have changed it. Each was
+written to prove the feature beside it and proved nothing. **When a test is
+meant to guard a rule, break the rule and watch it go red** — that is the only
+thing that makes it a guard.
+
+**Dead machinery that looks like care.** A debounced autosave was written for
+"drags write on every frame". Drags do not write at all: they build a draft and
+redraw. The debounce could never run, and its test could never fail. It was
+deleted rather than polished. A performance fix that cannot fire is worse than
+none, because it stops anyone looking again.
+
+**A rule that only fits the gesture nobody uses.** ⌘ bypassed snapping "during a
+drag", exactly as the spec words it. The owner places stitches; she found it
+useless the first day. Read a requirement's wording against how the person
+actually works, and when they disagree, say so before building it.
+
+**The word that quietly changed meaning.** Making annotations items of the
+`items` list broke every place that said *item* and meant *stitch* — counts in
+two panels, the crochet order, a round's centre, arranging, a row's box, "this
+row is empty". The type checker caught only the few that touched a stitch's own
+fields. **When a union gains a member, grep every use of the union's name**, not
+only the ones the compiler complains about.
+
+Related: `interface.md §43, §51` and `core-geometry.md §52`.

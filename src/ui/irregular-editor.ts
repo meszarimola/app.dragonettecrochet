@@ -259,8 +259,9 @@ type Drag =
   | { kind: 'polar'; from: Point; center: Point }
   | { kind: 'background'; from: Point; at: Point }
   | { kind: 'note-draw'; note: NoteKind; from: Point; to: Point }
-  | { kind: 'arc-draw'; from: Point; to: Point }
-  | { kind: 'fan-draw'; from: Point; to: Point }
+  /** `free` is what the key said while drawing, so the commit matches the preview. */
+  | { kind: 'arc-draw'; from: Point; to: Point; free: boolean }
+  | { kind: 'fan-draw'; from: Point; to: Point; free: boolean }
   | { kind: 'arc-grip'; id: string; grip: ArcHandleId }
   | { kind: 'rowline-grip'; rowId: string; grip: ArcHandleId }
   | { kind: 'pan'; last: Point }
@@ -911,7 +912,7 @@ export class IrregularEditor {
   }
 
   #finishFanDraw(drag: Extract<Drag, { kind: 'fan-draw' }>): void {
-    const origin = this.#snap(drag.from);
+    const origin = this.#snap(drag.from, undefined, drag.free);
     const reach = drag.to;
     const length = Math.hypot(reach.x - origin.x, reach.y - origin.y);
     if (length < FAN_LENGTH_RANGE.min) {
@@ -1035,8 +1036,33 @@ export class IrregularEditor {
     this.#commit(setPolar(this.#history.present, home === undefined ? patch : { ...patch, center: home }));
   }
 
+  /**
+   * Holding the key means "not this one": nothing snaps while it is down, in
+   * every gesture, not only while dragging something that already exists.
+   * KB: interface.md §43
+   */
+  #free = false;
+
+  /**
+   * Touch and pen always report no modifier, so a pointer may only raise the
+   * flag, never lower it: on a tablet with a keyboard the finger would otherwise
+   * undo what the held key just said.
+   */
+  #readFree(event: PointerEvent): void {
+    if (event.pointerType !== 'mouse') return;
+    this.#setFree(event.metaKey || event.ctrlKey);
+  }
+
+  #setFree(down: boolean): void {
+    if (this.#free === down) return;
+    this.#free = down;
+    // Only the ghost shows the difference, and only when a stitch is armed.
+    if (this.#stitch !== null) this.#refreshScene();
+  }
+
   /** The nearest guide or neighbouring stitch, measured in chart units. */
-  #snap(point: Point, skip?: ReadonlySet<string>): Point {
+  #snap(point: Point, skip?: ReadonlySet<string>, free = this.#free): Point {
+    if (free) return point;
     return snapPoint(this.#history.present, point, {
       tolerance: SNAP_REACH / this.#board.scale,
       ...(skip === undefined ? {} : { skip }),
@@ -1622,8 +1648,9 @@ export class IrregularEditor {
     return changed ? { ...pattern, items } : pattern;
   }
 
-  #placeNote(note: NoteKind, from: Point, to: Point): void {
+  #placeNote(note: NoteKind, rawFrom: Point, rawTo: Point): void {
     const pattern = this.#history.present;
+    const [from, to] = [this.#snap(rawFrom), this.#snap(rawTo)];
     const spread = Math.hypot(to.x - from.x, to.y - from.y);
     // KB: interface.md §40 — no dialog asks for the words. The annotation lands
     // and the panel's text field takes the focus, so typing goes straight in.
@@ -1984,6 +2011,11 @@ export class IrregularEditor {
     );
   }
 
+  /** The key can go down before or after the pointer, so both report it. */
+  setFreeDown(down: boolean): void {
+    this.#setFree(down);
+  }
+
   setSpaceDown(down: boolean): void {
     this.#spaceDown = down;
   }
@@ -1999,6 +2031,7 @@ export class IrregularEditor {
   #beforeTouch: { steps: number; selection: Set<string> } | null = null;
 
   #onDown(event: PointerEvent): void {
+    this.#readFree(event);
     this.#canvas.focus({ preventScroll: true });
     this.#canvas.setPointerCapture(event.pointerId);
     if (event.pointerType === 'touch') {
@@ -2060,12 +2093,12 @@ export class IrregularEditor {
     }
 
     if (this.#arcTool) {
-      this.#drag = { kind: 'arc-draw', from: point, to: point };
+      this.#drag = { kind: 'arc-draw', from: point, to: point, free: this.#free };
       return;
     }
 
     if (this.#fanTool) {
-      this.#drag = { kind: 'fan-draw', from: point, to: point };
+      this.#drag = { kind: 'fan-draw', from: point, to: point, free: this.#free };
       return;
     }
 
@@ -2194,6 +2227,7 @@ export class IrregularEditor {
   }
 
   #onMove(event: PointerEvent): void {
+    this.#readFree(event);
     if (event.pointerType === 'touch' && this.#touches.has(event.pointerId)) {
       this.#touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
       const was = this.#pinch;
@@ -2219,20 +2253,19 @@ export class IrregularEditor {
         return;
       case 'move': {
         const [rawX, rawY] = [point.x - drag.from.x, point.y - drag.from.y];
-        // KB: interface.md §43 — holding ⌘ or Ctrl while dragging puts snapping aside.
-        const free = event.metaKey || event.ctrlKey;
-        const landing = free ? null : this.#snap({ x: drag.anchor.x + rawX, y: drag.anchor.y + rawY }, this.#selection);
-        const [dx, dy] = [
-          landing === null ? rawX : landing.x - drag.anchor.x,
-          landing === null ? rawY : landing.y - drag.anchor.y,
-        ];
+        const landing = this.#snap({ x: drag.anchor.x + rawX, y: drag.anchor.y + rawY }, this.#selection);
+        const [dx, dy] = [landing.x - drag.anchor.x, landing.y - drag.anchor.y];
         this.#draft = this.#shifted(moveItems(this.#history.present, this.#selection, dx, dy), dx, dy);
         this.#refreshScene();
         return;
       }
-      case 'note-draw':
       case 'arc-draw':
       case 'fan-draw':
+        drag.free = this.#free;
+        drag.to = point;
+        this.#refreshScene();
+        return;
+      case 'note-draw':
         drag.to = point;
         this.#refreshScene();
         return;
@@ -2374,8 +2407,8 @@ export class IrregularEditor {
 
   /** A press and a drag give the two ends; the preset bulge bows it to the left. */
   #finishArcDraw(drag: Extract<Drag, { kind: 'arc-draw' }>): void {
-    const start = this.#snap(drag.from);
-    const end = this.#snap(drag.to);
+    const start = this.#snap(drag.from, undefined, drag.free);
+    const end = this.#snap(drag.to, undefined, drag.free);
     if (start.x === end.x && start.y === end.y) {
       this.refresh();
       return;
