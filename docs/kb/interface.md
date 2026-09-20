@@ -217,8 +217,10 @@ rules had to hold at once:
   with the drawing grew them to about 130 px when zoomed in and pushed them under
   the side panels. Box-overlap measurement did not notice; a screenshot did.
 - They must stay between the panels that open over the canvas. The interface
-  passes their widths in (`setInsets`), because the `--side-start` CSS variable
-  comes back as `min(16rem, 80vw)`, from which no pixel value can be read.
+  passes their widths in (`setInsets`), because `--side-start` comes back as the
+  unresolved `min(…, 80vw)` expression it is declared as, from which no pixel
+  value can be read. Since PQW-979 that declaration is `var(--types-width)`; §38
+  says why the bars' widths must not be written out twice.
 - Hugging the edge of the visible band must not push a caption over the symbols:
   in a narrow window the longer (English) caption slid onto the foundation
   chain's stitches. Covering is forbidden, overflowing is allowed — "fit whole
@@ -545,16 +547,34 @@ overflowed and the page began to scroll by one pixel.
   `auto` margin had nothing left to take, which is why it stuck to the list.
 - The "soon" badge sits inside the label box, *below* the name (PQW-912). Beside
   the name it did not fit in the narrow bar and drew over it. A row of its own
-  makes the card one line taller and all four cards still fit without scrolling
-  — the earlier two-line trouble was the list stretching, not the badge's place.
+  makes the card one line taller. All four cards fit without scrolling in a tall
+  window; in a 506 px-high one they do not — measured at 1000 × 506 the list
+  needs 252 px and has 215 px, so it scrolls and clips the fourth card
+  (PQW-979). The earlier two-line trouble was the list stretching, not the
+  badge's place.
   (An earlier comment claiming the badge belongs beside the name is withdrawn.)
 - The version label is the last item in the bar's column and `margin-block-start:
   auto` pushes it to the bottom (PQW-903, PQW-912); the list above it scrolls, so
   it never covers text and takes nothing from the canvas. It is not clickable and
   is `aria-hidden`, so the screen reader is not read a pointless token.
+
+  It also carries a hairline above it (PQW-979). The two boxes never overlapped,
+  but in a 506 px-high window the list runs out of room and clips its last card
+  mid-word, and the label sitting flush under that cut read as part of the card
+  rather than as chrome. The rule separates the two; it does not make the fourth
+  card fit. Whether all four should fit without scrolling at that height — §38
+  once claimed they do — is an open layout question.
 - In a wide view the open written panel and the status line stand between the
   side bars rather than sliding under them (PQW-884); in a narrow view the side
   bars open over the panel and the status line.
+- Each side bar's width is written once, as `--types-width` and `--panel-width`
+  on `:root` (PQW-979). `.types`, `.panel` and the `--side-start` / `--side-end`
+  pair all read those. They used to be four separate literals, and they had
+  already drifted: `--side-start` said `16rem` while `.types` was `13rem`, so the
+  written panel and the alert started 48 px to the right of where the bar ended.
+  The canvas insets that `board.setInsets` passes in come from
+  `getBoundingClientRect` and were always right, which is why the row captions
+  never showed the bug — only the written panel did.
 
 ## §39 The free-form type is a second editor, not a second mode
 

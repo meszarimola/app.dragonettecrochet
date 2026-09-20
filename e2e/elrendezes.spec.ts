@@ -59,11 +59,22 @@ for (const viewport of [
     expect(board.y).toBe(stage.y);
     expect(board.y + board.height).toBeLessThanOrEqual(viewport.height);
 
-    // The opened written pattern sits between the two sidebars, not below them.
+    // The opened written pattern sits between the two sidebars, not below them —
+    // and it reaches both of them. A gap means --side-start or --side-end has
+    // drifted from the bar it stands for, which is what happened in PQW-979.
     await openWritten(page);
     const written = await box(page, '#written');
-    expect(written.x).toBeGreaterThanOrEqual(types.x + types.width - 1);
-    expect(written.x + written.width).toBeLessThanOrEqual(panel.x + 1);
+    expect(written.x).toBeCloseTo(types.x + types.width, 0);
+    expect(written.x + written.width).toBeCloseTo(panel.x, 0);
+
+    // The version label is chrome under the list, not the tail of a clipped card:
+    // its text starts clear of the list's bottom edge, which the list runs right
+    // up to whenever it scrolls (PQW-979).
+    const list = await box(page, '#types-list');
+    const versionTextTop = await page
+      .locator('#version')
+      .evaluate((el) => el.getBoundingClientRect().top + parseFloat(getComputedStyle(el).paddingBlockStart));
+    expect(versionTextTop).toBeGreaterThan(list.y + list.height + 8);
 
     // The type names are not truncated.
     const clipped = await page
