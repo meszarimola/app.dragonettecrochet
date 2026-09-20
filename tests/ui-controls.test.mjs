@@ -8,7 +8,9 @@
  *
  * The inventory therefore records every control of index.html as a stable
  * triple and compares it sorted, so neither document order nor nesting is
- * asserted: moving a node passes, deleting or renaming one fails.
+ * asserted: moving a node passes, deleting one or renaming its identifier
+ * fails. The toolbar buttons carry no identifier — the interface addresses them
+ * by `data-action` — so for those the inventory guards the count, not the name.
  *
  * index.html is read as raw text, the way `markupUses()` of ui-i18n.test.mjs
  * reads it.
@@ -73,9 +75,14 @@ function interfaceSources() {
     .join('\n');
 }
 
-/** A `must('#id')`, a `field('id')` or any other quoted mention of the identifier. */
+/**
+ * The two ways src/ui/ addresses an element: a `#id` selector handed to `must()` or `querySelector()`, and the bare
+ * identifier handed to a `field()` or `find()` lookup. A plain quoted occurrence is not enough — `'summary'` and
+ * `'insertion'` stand in the sources for other reasons, and would vouch for an element nothing reaches any more.
+ */
 const referenced = (sources, id) =>
-  [`'${id}'`, `"${id}"`, `\`${id}\``, `'#${id}'`, `"#${id}"`, `\`#${id}\``].some((form) => sources.includes(form));
+  [`'#${id}'`, `"#${id}"`, `\`#${id}\``].some((form) => sources.includes(form)) ||
+  new RegExp(`\\b(?:field|find)(?:<[^<>()]*>)?\\(['"\`]${id}['"\`]\\)`).test(sources);
 
 test('index.html holds the frozen set of controls, whatever their order and their nesting', () => {
   const actual = controls();
