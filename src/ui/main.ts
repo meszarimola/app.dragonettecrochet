@@ -663,6 +663,7 @@ function updateControls(): void {
   );
 
   const node = selectedNode ? derived.pattern.pieces[0]?.stitches.find((n) => n.id === selectedNode) : undefined;
+  const adjustWas = adjust.hidden;
   adjust.hidden = !node || tool !== null;
   if (node) {
     const nodeDef = derived.context.library.get(node.def);
@@ -672,6 +673,12 @@ function updateControls(): void {
     name.textContent = nodeDef ? capitalize(stitchName(nodeDef, notation.terms)) : node.def;
     adjustName.replaceChildren(name, ...(node.pinned ? [texts().messages.adjust.pinned] : []));
   }
+  /*
+   * The box is the answer to the click that selected the symbol, and in a short window it
+   * sits below the fold of the panel. Scrolled after its name is in, or the box is still
+   * one line tall and ends up cut. KB: interface.md §55.
+   */
+  if (adjustWas && !adjust.hidden) adjust.scrollIntoView({ block: 'nearest' });
 }
 
 function setDisabled(action: string, disabled: boolean): void {

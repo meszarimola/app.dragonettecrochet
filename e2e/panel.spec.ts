@@ -215,3 +215,68 @@ test('in a narrow window the seven basic stitches and the three group headers ar
       .first(),
   ).toHaveAttribute('aria-pressed', 'true');
 });
+
+/*
+ * The order inside „Szemek” (PQW-986). „Beszúrás” is 205 px tall and used to stand
+ * above the palette: arming a stitch that takes insertion modes pushed the grid from
+ * y 169 to y 390 and three of the seven cells left the window. You pick the stitch
+ * first and say where it goes second, so the palette leads.
+ */
+test('arming a stitch with insertion modes does not push the palette out of the window (PQW-986)', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 506 });
+  await open(page);
+
+  const cells = page.locator('#palette .palette__grid').getByRole('button');
+  await expect(cells).toHaveCount(7);
+  const before = (await page.locator('#palette').boundingBox())!.y;
+
+  await page
+    .locator('#palette')
+    .getByRole('button', { name: /Egyráhajtásos pálca \(erp\)/ })
+    .click();
+  await expect(page.locator('#insertion')).toBeVisible();
+
+  const after = (await page.locator('#palette').boundingBox())!.y;
+  expect(after, 'the palette does not move when the insertion fieldset appears').toBe(before);
+  for (let i = 0; i < 7; i += 1) await expect(cells.nth(i)).toBeInViewport({ ratio: 1 });
+});
+
+/*
+ * „Kijelölt jel igazítása” (PQW-986). It used to stand after every setting, so in a
+ * 506 px window it appeared 436 px below the fold: the answer to a click the user had
+ * just made, out of sight and with nothing saying so.
+ */
+test('the adjust box is on screen when a symbol is selected (PQW-986)', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 506 });
+  await open(page);
+
+  await openSheet(page);
+  const rounds = page.locator('#section-rounds');
+  if ((await rounds.getAttribute('open')) === null) await rounds.locator('summary').click();
+  await page.locator('#rounds-count').fill('3');
+  await page.locator('#rounds-count').press('Tab');
+  await rounds.getByRole('button', { name: 'Minta létrehozása' }).click();
+  await expect(page.locator('#status')).toContainText('3 kör elkészült');
+  await page.locator('#setup').getByRole('button', { name: 'Lecsukás' }).click();
+
+  const nodes = await page.evaluate(() =>
+    (
+      window as unknown as { mintatervezoKijeloles: { nodes: () => { x: number; y: number }[] } }
+    ).mintatervezoKijeloles.nodes(),
+  );
+  const node = nodes.at(-1)!;
+  await page.mouse.click(node.x, node.y);
+
+  const adjust = page.locator('#adjust');
+  await expect(adjust).toBeVisible();
+  await expect(adjust).toBeInViewport({ ratio: 1 });
+});
+
+/** The make-a-pattern sheet (PQW-987) is closed on load, and its opener is in the file menu. */
+async function openSheet(page: Page): Promise<void> {
+  const sheet = page.locator('#setup-toggle');
+  if ((await sheet.getAttribute('aria-expanded')) !== 'true') {
+    await page.locator('#file-toggle').click();
+    await sheet.click();
+  }
+}
