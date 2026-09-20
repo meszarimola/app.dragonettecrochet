@@ -626,14 +626,36 @@ never reappear on the way back. `e2e/szabalytalan-generatorok.spec.ts` guards
 both halves: the sections are gone in free-form mode, and the regular pattern
 returns untouched.
 
-Two controls are still on the wrong side of that line, found while reviewing
-PQW-976 and left outside its scope: the „Előbeállítás” select of
-`#section-notation`, and the „Kijelölt jel igazítása” box, whose arrows and
-„Számolt helyre” run `nudge`/`unpin`. Both `commit()` into the hidden regular
-document from free-form mode, because `#adjust` is only ever hidden from
-`updateControls()`, which `refresh()` no longer reaches in this type. The
-neighbouring actions (`new`, `grid`, the zooms, the exports) and `titleInput`
-already branch on `irregular.active`; these two do not.
+Two controls reached the hidden document without passing a section, and PQW-980
+closed both. The „Előbeállítás” select of `#section-notation` is the harder of
+the two, because that section is genuinely shared and must stay: the preset has
+**two halves**, and only one of them belongs to the regular document. The symbols
+(`applyNotation`) are the notation and the free-form editor draws with them, so
+that half runs in both types; the counting (`setTradition`) is the regular
+pattern's own conventions, so the free-form branch returns before the `commit()`.
+The select keeps the chosen value while free-form is showing and `refresh()`
+resets it from the pattern on the way back, which is what "the regular document
+was not touched" looks like from the panel.
+
+The „Kijelölt jel igazítása” box was the simpler kind: `#adjust` was hidden only
+from `updateControls()`, which `refresh()` does not reach in this type, so a box
+left open in regular mode came straight through. `showIrregularView` now hides it
+with the rest, and `updateControls()` recomputes it on the way back. `nudge` and
+`unpin` took the `irregular.active` branch as well — they were the only
+`commit()`-capable `ACTIONS` entries without one, next to `new`, `grid`, the
+zooms and the exports. The keyboard behind them was never exposed: `irregularKey`
+swallows Alt+arrow by default, above.
+
+**The guard stays at the caller, not at the top of `commit()`** (PQW-980). A
+central one would have to drop silently, and §4 of `decisions.md` forbids the
+alternative of telling the user. Worse, dropping is not what either control
+wanted: `titleInput` **redirects** to `irregular.setTitle`, the preset runs half
+of itself, and only `nudge`/`unpin` do nothing at all. A single gate in `commit()`
+can express only the last of the three, and it would silently govern two dozen
+callers — including the import path, which commits a regular file from free-form
+mode and is correct only because `selectType` unmounts first.
+`e2e/szabalytalan-vezerlok.spec.ts` watches the autosave slot, since `commit()`
+`persist()`s in the same breath.
 
 ## §40 The free-form type does not confirm and does not chat
 
