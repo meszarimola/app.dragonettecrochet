@@ -27,6 +27,11 @@
  *   text did — the one place the promise above does not hold exactly.
  * - Only a bare parameter resolves. `choices.shape` is one level further in and
  *   is left alone, rather than attributed to every call the object reaches.
+ * - A helper is a `function` or an arrow with a `{ … }` body. An arrow whose
+ *   body is one expression is not read.
+ * - Two helpers of one name in a file are named under `(repeated name)` and
+ *   neither is resolved. Which one a call meant is scope, and scope is more
+ *   than a reading of raw text can tell.
  * - A driving call's name written inside a string literal would send the scan
  *   into that string, because the scan runs over comment-stripped source that
  *   still holds string contents. No spec does this today.
@@ -194,8 +199,9 @@ function literalAt(source, index) {
  * from three places counts three times, while one written inside the helper's body still counts once.
  */
 
-/** The name a second hop is filed under, so a new one shows up as a fixture diff rather than an unexplained failure. */
+/** The names a hop that is not followed is filed under, so it shows up as a fixture diff rather than as silence. */
 const SECOND_HOP = '(second hop)';
+const REPEATED_NAME = '(repeated name)';
 
 /** The same text with every string and regular expression blanked out, so a selector's spelling is not read as a name. */
 function withoutLiterals(text) {
@@ -305,6 +311,9 @@ function localFunctions(source) {
     }
     const body = bodyAfter(source, after);
     if (parameters.length === 0 || body === undefined) continue;
+    // `const x = (a, b)` is an expression, not a function. Without the arrow it would stand here as a helper that
+    // happens to share a name with a real one, which is a repeated name nobody wrote.
+    if (match[2] !== undefined && !source.slice(after, body[0]).includes('=>')) continue;
     found.push({ name: match[1] ?? match[2], parameters, body, from: match.index, signature: after });
   }
   return found;
@@ -398,9 +407,17 @@ function callLiterals(raw, into = {}) {
   }
   const local = localFunctions(source);
   const forwards = new Map(local.map((fn) => [fn, forwardedParameters(source, fn)]));
+  // Two definitions of one name would each claim the other's call sites, counting every literal there twice. Which
+  // one a call meant is scope, which this reading cannot tell, so a repeated name is named and left alone.
+  const defined = new Map();
+  for (const fn of local) defined.set(fn.name, (defined.get(fn.name) ?? 0) + 1);
   for (const fn of local) {
     const reaches = forwards.get(fn);
     for (const hop of secondHops(source, fn, local, forwards)) count(SECOND_HOP, hop);
+    if (defined.get(fn.name) > 1) {
+      if (reaches.size > 0) count(REPEATED_NAME, fn.name);
+      continue;
+    }
     for (const slots of callSites(source, fn)) {
       fn.parameters.forEach((parameter, at) => {
         for (const call of reaches.get(parameter) ?? []) for (const literal of slots[at] ?? []) count(call, literal);
@@ -552,4 +569,22 @@ test('a helper call site is read by position, wherever it stands and whatever th
     ),
     { locator: { '#early-selector': 1, '#late-selector': 1 } },
   );
+});
+
+test('two helpers of one name are named rather than resolved, and an expression is not a helper', () => {
+  const twice = [
+    'async function pick(page: Page, selector: string) { await page.locator(selector).click(); }',
+    "await pick(page, '#one');",
+    'async function pick(page: Page, selector: string) { await page.locator(selector).click(); }',
+  ].join('\n');
+  // Both definitions used to claim the one call site, so `#one` was frozen twice over.
+  assert.deepEqual(callLiterals(twice), { '(repeated name)': { pick: 2 } });
+
+  // `const items = (…)` is an expression. Reading it as a helper is how a repeated name arises unwritten.
+  const expression = [
+    "const group = (parsed.groups ?? [])[0] ?? { count: 0, rowId: '' };",
+    'async function group(page: Page, selector: string) { await page.locator(selector).click(); }',
+    "await group(page, '#real-selector');",
+  ].join('\n');
+  assert.deepEqual(callLiterals(expression), { locator: { '#real-selector': 1 } });
 });
