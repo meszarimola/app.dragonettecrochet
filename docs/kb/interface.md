@@ -649,11 +649,34 @@ moves. Buttons are one control that works for all three. Raised with the owner
 when the panel shipped; the drag gesture can be added on top later without
 changing anything else.
 
-## §43 Snapping steps aside for ⌘, and only during a drag
+## §43 Snapping steps aside for ⌘, everywhere
 
-Holding ⌘ (Ctrl on Windows) **while dragging** puts snapping aside for that
-drag. It is not a mode and there is no third state to get stuck in: let go and
-the next drag snaps again.
+Holding ⌘ (Ctrl on Windows) means **"not this one"**: while it is down nothing
+snaps — placing a stitch, the ghost that shows where it would land, drawing a
+chain arc, a fan or an annotation, and dragging something that already exists.
+It is not a mode and there is no third state to get stuck in: let go and the
+next gesture snaps again.
+
+It was built the way the spec words it — "during a drag" — and the owner found
+it useless within a day, because she places stitches rather than dragging
+existing ones. The rule it left behind: **a modifier that only works in the
+gesture nobody uses is the same as no modifier at all.** One rule, every
+gesture, is also less code: the check lives in `#snap` itself rather than at
+each call site, so no future gesture can forget it.
+
+Because the key can go down before or after the pointer, **both report it** —
+every pointer event carries `metaKey`/`ctrlKey`, and the window's key handlers
+set it too, with a reset on blur so a key released outside the page cannot
+leave it stuck on. Two rules keep that honest:
+
+- **A pointer may only raise the flag, never lower it.** Touch and pen always
+  report no modifier at all, so on a tablet with a keyboard the finger would
+  otherwise undo what the held key just said.
+- **A gesture that finishes on pointer-up remembers what the key said while it
+  was drawn.** Letting go of the key just before the mouse button is the natural
+  order for one hand, and the arc that lands must be the arc that was previewed.
+  Every other gesture is safe already, because it commits a draft built while
+  moving.
 
 The same key also means "add to or take out of the selection" on a press, and
 that **is** a conflict: a ⌘-press on a stitch that is already selected used to
