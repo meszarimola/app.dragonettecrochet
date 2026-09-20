@@ -28,7 +28,9 @@
  * - Only a bare parameter resolves. `choices.shape` is one level further in and
  *   is left alone, rather than attributed to every call the object reaches.
  * - A helper is a `function` or an arrow with a `{ … }` body. An arrow whose
- *   body is one expression is not read.
+ *   body is one expression is not read — or, when that expression carries a
+ *   brace of its own, is read with that brace taken for the body, which comes
+ *   to the same thing: its parameters resolve to nothing either way.
  * - Two helpers of one name in a file are named under `(repeated name)` and
  *   neither is resolved. Which one a call meant is scope, and scope is more
  *   than a reading of raw text can tell.
@@ -391,9 +393,9 @@ function splitArguments(text) {
 /** The literals of one source, counted per call: `{ getByRole: { button: 168, Fordulás: 15 } }`. */
 function callLiterals(raw, into = {}) {
   const source = withoutComments(raw);
-  const count = (name, literal) => {
+  const count = (name, literal, times = 1) => {
     if (into[name] === undefined) into[name] = {};
-    into[name][literal] = (into[name][literal] ?? 0) + 1;
+    into[name][literal] = (into[name][literal] ?? 0) + times;
   };
   const calls = new RegExp(`\\b(${DRIVING_CALLS.join('|')})\\(`, 'g');
   for (const match of source.matchAll(calls)) {
@@ -411,11 +413,16 @@ function callLiterals(raw, into = {}) {
   // one a call meant is scope, which this reading cannot tell, so a repeated name is named and left alone.
   const defined = new Map();
   for (const fn of local) defined.set(fn.name, (defined.get(fn.name) ?? 0) + 1);
+  const named = new Set();
   for (const fn of local) {
     const reaches = forwards.get(fn);
     for (const hop of secondHops(source, fn, local, forwards)) count(SECOND_HOP, hop);
     if (defined.get(fn.name) > 1) {
-      if (reaches.size > 0) count(REPEATED_NAME, fn.name);
+      // Filed once for the name, counting the definitions — which is what the entry is about.
+      if (reaches.size > 0 && !named.has(fn.name)) {
+        named.add(fn.name);
+        count(REPEATED_NAME, fn.name, defined.get(fn.name));
+      }
       continue;
     }
     for (const slots of callSites(source, fn)) {
