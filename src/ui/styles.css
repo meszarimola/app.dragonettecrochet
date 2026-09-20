@@ -29,6 +29,10 @@
 
   --ls-micro: 0.14em;
 
+  /* KB: interface.md §15, §38 — one place for each side bar's width. */
+  --types-width: min(13rem, 80vw);
+  --panel-width: min(19rem, 80vw);
+
   color-scheme: light;
 }
 
@@ -481,7 +485,7 @@ body.is-selecting #board-irregular {
   position: absolute;
   inset-block: 0;
   inset-inline-end: 0;
-  inline-size: min(19rem, 80vw);
+  inline-size: var(--panel-width);
   padding: 1.25rem;
   overflow-y: auto;
   border-inline-start: 1px solid var(--c-line);
@@ -1090,7 +1094,7 @@ body.is-selecting #board-irregular {
   position: absolute;
   inset-block: 0;
   inset-inline-start: 0;
-  inline-size: min(13rem, 80vw);
+  inline-size: var(--types-width);
   padding: 1rem 0.85rem;
   /* KB: interface.md §38 */
   display: flex;
@@ -1190,11 +1194,11 @@ body.is-selecting #board-irregular {
 /* KB: interface.md §38 */
 @media (width >= 48rem) {
   .stage:has(> .types:not([hidden])) {
-    --side-start: min(16rem, 80vw);
+    --side-start: var(--types-width);
   }
 
   .stage:has(> .panel:not([hidden])) {
-    --side-end: min(19rem, 80vw);
+    --side-end: var(--panel-width);
   }
 }
 
@@ -1885,6 +1889,8 @@ body.is-selecting #board-irregular {
   flex: 0 0 auto;
   margin: 0.75rem 0 0;
   margin-block-start: auto;
+  padding-block-start: 0.75rem;
+  border-block-start: 1px solid var(--c-line);
   color: var(--c-muted);
   font-size: 0.6875rem;
   line-height: 1;
