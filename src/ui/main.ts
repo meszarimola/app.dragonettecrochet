@@ -1506,6 +1506,10 @@ const ACTIONS: Record<string, () => void> = {
   },
   'copy-written': () => void copyWritten(),
   'written-full': () => toggleWrittenFull(),
+  'close-setup': () => {
+    setOpen(setupSheet, setupToggle, false);
+    fitBoard();
+  },
   'close-written': () => {
     setWrittenOpen(false);
     writtenToggle.focus();

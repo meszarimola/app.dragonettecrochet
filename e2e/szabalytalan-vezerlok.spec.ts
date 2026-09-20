@@ -34,6 +34,15 @@ async function chooseRegular(page: Page): Promise<void> {
 }
 
 async function openSection(page: Page, selector: string): Promise<void> {
+  const inSheet = await page.locator(selector).evaluate((el) => el.closest('#setup') !== null);
+  if (inSheet) {
+  const sheet = page.locator('#setup-toggle');
+  if ((await sheet.getAttribute('aria-expanded')) !== 'true') {
+    // The opener lives in the file menu (PQW-987), which has to be open to click it.
+    await page.locator('#file-toggle').click();
+    await sheet.click();
+  }
+  }
   const section = page.locator(selector);
   if ((await section.getAttribute('open')) === null) await section.locator('summary').click();
 }

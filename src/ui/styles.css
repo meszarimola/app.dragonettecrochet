@@ -1315,6 +1315,14 @@ summary.palette__title::after {
   background: var(--c-bg);
 }
 
+.sheet__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
 .sheet__title {
   margin: 0 0 var(--sp-1);
   font-family: var(--font-display);

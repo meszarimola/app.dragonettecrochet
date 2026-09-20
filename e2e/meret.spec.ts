@@ -50,11 +50,12 @@ test('the section sits under Stitches, closed by default; without a profile the 
   await open(page);
   const size = page.locator('#section-size');
   await expect(size).not.toHaveAttribute('open', '');
-  const [stitches, sizeBox, notation] = await Promise.all(
-    ['#section-stitches', '#section-size', '#section-notation'].map((selector) => page.locator(selector).boundingBox()),
+  // The notation left the panel for the make-a-pattern sheet (PQW-987), so only the two
+  // that stayed can be ordered against each other.
+  const [stitches, sizeBox] = await Promise.all(
+    ['#section-stitches', '#section-size'].map((selector) => page.locator(selector).boundingBox()),
   );
   expect(stitches!.y).toBeLessThan(sizeBox!.y);
-  expect(sizeBox!.y).toBeLessThan(notation!.y);
 
   await rectangle(page, 5, 2);
   await size.locator('summary').click();
