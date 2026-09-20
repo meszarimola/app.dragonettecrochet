@@ -977,3 +977,57 @@ forever reads another's number is worse than one with no number at all.
 
 Cited from: `src/core/irregular-order.ts`, `src/core/irregular-layers.ts`,
 `src/core/irregular-rowline.ts` and `src/core/irregular-document.ts` (`unlinked`).
+
+## §52 The stylesheet's spacing, radius and shadow scale
+
+PQW-982. Before it the stylesheet had colour and font tokens and nothing else:
+ten ad-hoc spacing values between `0.1rem` and `0.75rem`, nine border radii, two
+box shadows written in two different colour languages, and seven hardcoded
+`#fff` on a warm cream page.
+
+**The spacing scale is the main site's, copied value for value** so the two
+products are one system; only `--sp-0: 0.25rem` is this app's own, because the
+editor is denser than a marketing page. The scale therefore starts at
+`0.375rem`, and there is nothing between `--sp-0` and `--sp-1`.
+
+**Mapping rule.** Each old value went to the nearest step, and **an exact tie
+goes down**: `0.5rem` → `--sp-1`, `0.75rem` → `--sp-2`, `1rem` → `--sp-3`. This
+is a rule about this app, not about arithmetic: the editor is a dense tool, and
+the 1000 × 506 window is already short of room (§38).
+
+The rule bounds the damage but does not remove it. Every tie went down, and the
+only values that grew are the three that sit a rounding hair under a step —
+`0.35rem` → `0.375rem`, `0.6rem` → `0.625rem`, `0.85rem` → `0.875rem` — each
+0.4 px. Nothing grew by more than that, which is why the conversion could not
+push a box into a new row on its own; where it did move something, the boxes
+were measured rather than argued about.
+
+**The toolbar is a deliberate exception.** `.tools` sits below the scale on
+purpose (`.tools__group` gap, `.tools .tool` gap and padding), and rounding it
+up to `--sp-1` would push it into a third row at 1000 px — the opposite of what
+PQW-983 is for. Those values take `--sp-0`, and the two that fall under even
+that (`0.1rem` between a toolbar icon and its label, `0.2rem` of block padding
+inside a 44 px target) stay literals. The exception is the toolbar's own
+density, not a licence to shrink whatever hangs off it: the tooltips take the
+ordinary steps, and `e2e/panel.spec.ts` is what settles whether a bubble still
+fits — it hovers every visible button in a 1000 px window and fails if
+`document.documentElement.scrollWidth` moves.
+
+**`min-inline-size: 44px` and `min-block-size: 44px` are not spacing.** They are
+the WCAG 2.5.8 target size (§36) and are never tokenised — a target that follows
+a spacing scale stops being a guarantee.
+
+**Radius.** Nine values became four: `--radius-sm` for chips and keys,
+`--radius-md` for controls and notices, `--radius-lg` for cards, popovers and
+dialogs, `--radius-pill` for fully rounded ends. `50%` stays where a circle is
+meant, because a circle is not a step on a scale.
+
+**One shadow.** `--shadow-1` is the ink-tinted one; the pure-black variant is
+gone. Both places that had a shadow are the same thing — a surface floating over
+the canvas — so they get the same elevation.
+
+**`--c-surface`** is the main site's cream, the value this file already carried
+as the logo's eye. It replaces `#fff` on the form controls, which read cold
+against `--c-bg`. The grid chart keeps real white: there `#fff` is an empty
+cell, chart ink rather than a surface, and it has to stay distinguishable from
+the cream page behind it.
