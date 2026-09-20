@@ -215,8 +215,8 @@ button {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem 1rem;
-  padding: 0.5rem 1rem;
+  gap: var(--sp-1) var(--sp-3);
+  padding: var(--sp-1) var(--sp-3);
   border-block-end: 1px solid var(--c-line);
   background: var(--c-bg);
 }
@@ -225,7 +225,7 @@ button {
   order: 0;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--sp-2);
 }
 
 .tools__group--end {
@@ -269,10 +269,10 @@ button {
 /* Framed rather than plain text: this is the only way back out of the app. */
 .home {
   display: inline-flex;
-  gap: 0.4rem;
+  gap: var(--sp-1);
   align-items: center;
   min-block-size: 44px;
-  padding: 0.4rem 0.9rem;
+  padding: var(--sp-1) var(--sp-3);
   border: 1px solid var(--c-line);
   border-radius: 999px;
   color: var(--c-text);
@@ -603,23 +603,24 @@ body.is-selecting #board-irregular {
   display: flex;
   flex: 1 1 100%;
   flex-wrap: wrap;
-  gap: 0.35rem 0.75rem;
+  gap: var(--sp-1) var(--sp-2);
   justify-content: flex-start;
 }
 
+/* KB: interface.md §52 — the toolbar is denser than the scale on purpose. */
 .tools__group {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
+  gap: var(--sp-0);
 }
 
 .tools__group + .tools__group {
-  padding-inline-start: 0.75rem;
+  padding-inline-start: var(--sp-2);
   border-inline-start: 1px solid var(--c-line);
 }
 
 .tool {
-  padding: 0.3rem 0.7rem;
+  padding: var(--sp-0) var(--sp-2);
   border: 1px solid var(--c-line);
   border-radius: 8px;
   background: transparent;
@@ -627,7 +628,8 @@ body.is-selecting #board-irregular {
   font-size: 0.8125rem;
 }
 
-/* KB: interface.md §36 — the width follows the label, but the target size stays. */
+/* KB: interface.md §36, §52 — the width follows the label, but the target size
+   stays; the gap and the block padding are under --sp-0 on purpose. */
 .tools .tool {
   display: inline-grid;
   justify-items: center;
@@ -635,7 +637,7 @@ body.is-selecting #board-irregular {
   gap: 0.1rem;
   min-inline-size: 44px;
   min-block-size: 44px;
-  padding: 0.2rem 0.35rem;
+  padding: 0.2rem var(--sp-0);
   color: var(--c-text-soft);
 }
 
@@ -647,16 +649,16 @@ body.is-selecting #board-irregular {
 
 .menu__list {
   display: grid;
-  gap: 0.25rem;
+  gap: var(--sp-0);
   inline-size: max-content;
   min-inline-size: 12rem;
-  padding: 0.35rem;
+  padding: var(--sp-1);
 }
 
 .menu__list .tool {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 0.5rem;
+  gap: var(--sp-1);
   justify-items: start;
   align-items: center;
   inline-size: 100%;
@@ -714,12 +716,12 @@ body.is-selecting #board-irregular {
 .menu__pop {
   position: absolute;
   z-index: 20;
-  inset-block-start: calc(100% + 0.35rem);
+  inset-block-start: calc(100% + var(--sp-1));
   inset-inline-end: 0;
   inline-size: min(23rem, 92vw);
   max-block-size: min(70vh, 34rem);
   overflow-y: auto;
-  padding: 0.85rem;
+  padding: var(--sp-3);
   border: 1px solid var(--c-line);
   border-radius: 12px;
   background: var(--c-bg);
@@ -1711,12 +1713,12 @@ body.is-selecting #board-irregular {
   content: attr(data-tip);
   position: absolute;
   z-index: 30;
-  inset-block-start: calc(100% + 0.4rem);
+  inset-block-start: calc(100% + var(--sp-1));
   inset-inline-start: 50%;
   display: none;
   inline-size: max-content;
   max-inline-size: 22rem;
-  padding: 0.3rem 0.55rem;
+  padding: var(--sp-0) var(--sp-2);
   border-radius: 6px;
   background: var(--c-ink);
   color: var(--c-bg);
