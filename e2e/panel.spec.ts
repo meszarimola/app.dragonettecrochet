@@ -147,7 +147,7 @@ test('in a narrow window even a visible tooltip does not hang off to the right',
   await page.locator('#file-toggle').click();
   const items = page.locator('#file-pop .tool');
   const itemCount = await items.count();
-  expect(itemCount).toBe(4);
+  expect(itemCount).toBe(5);
   for (let i = 0; i < itemCount; i += 1) await check(items.nth(i));
 });
 

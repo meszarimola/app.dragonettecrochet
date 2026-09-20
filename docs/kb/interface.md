@@ -1198,3 +1198,72 @@ stitch is worked with Enter or by clicking the canvas, are unchanged.
 
 **The order must not change.** `buildPalette()` hands out `Alt`+1–9 by the
 stitches' global position, so reordering the sections would move the shortcuts.
+
+## §54 The make-a-pattern sheet, and why its opener is in the file menu
+
+The generators — shape, shawl, garment, round and motif, and the two switched-off
+ones — replace the whole pattern when their button is pressed. That is a way to
+*start*, not a control used while drawing, and in the panel they were 58 of the
+104 controls a regular pattern showed. They live in `#setup` now: a sheet that
+stands where the panel stands, `min(34rem, 92vw)` wide, so the previews they
+already draw finally have room.
+
+**The opener is a file-menu item, not a toolbar button, because the bar has no
+space.** Measured on the built output at 1440 × 900 after PQW-983: the chrome row
+is 491 px and the context row 631 px against 1132 px. One more button — even
+with a label as short as „Készítés" — wraps the bar into a second row and costs
+50 px of canvas at *every* width. The file menu is where „Új minta" already
+starts a pattern, so the two ways to begin one sit together.
+
+**The notation stayed in the panel.** It was moved into the sheet first and moved
+back: `#ui-language` is the only interface-language control there is, and behind
+a menu and a sheet it sat two levels deep. Four controls do not crowd a panel;
+burying the language switcher is a worse trade than the one it buys.
+
+**The sheet takes focus when it opens.** Its opener is inside the file menu,
+which closes on the click, so the focus would otherwise fall to the body. Closing
+it from its own „Lecsukás" hands the focus back to `#file-toggle` — the same
+shape as the file menu's own Esc (PQW-911).
+
+**It holds no state and is always closed on load.** A settings sheet that reopens
+itself is the program talking when nobody asked (`owner-decisions.md` §3). It
+also keeps the layout specs valid without a precondition, and `#panel` visible on
+load for the production smoke test. No new `localStorage` key (§5).
+
+**It participates in the insets.** `insetRight` measures whichever of the panel
+and the sheet is open, and the `--side-end` variable follows `--setup-width`
+while it is open, so the row captions, the written panel and the alert clear it
+(§15). Its width is written once, beside `--panel-width` and `--types-width`
+(PQW-979).
+
+**While it is open it covers the panel.** They stand in the same place and the
+sheet is above. A spec that needs the panel afterwards closes the sheet first.
+
+**It reserves its width only above 67 rem, and takes turns with the written panel
+below that.** At 34 rem the sheet plus the type bar leave a 768 px window 16 px
+of stage: the written panel came out 40 px wide, its own close button landed
+outside its box and under the sheet, and it could not be closed at all. So
+`--side-end` follows the sheet only from 67 rem — that rule has to sit *after*
+the 48 rem block, or the panel's own `--side-end` wins on order — and below it
+opening the sheet closes the written panel, exactly as opening the right panel
+already does in a narrow window. The alert sits above the sheet (`z-index: 8`),
+because a warning behind it would be a warning nobody sees.
+
+**Opening it does not refit the board.** `fitBoard` recomputes scale and offset
+from scratch and would throw away the pan and zoom. `#panel-toggle` covers the
+canvas too and does not refit; the sheet follows it.
+
+**Escape closes it.** The sheet is focused, and `#setup` is not an input or an
+open menu, so without this the key fell through to the handler that clears the
+stitch selection: opening the sheet and pressing Escape to dismiss it wiped the
+selection and left the sheet open.
+
+**In the free-form type the opener is hidden.** Every section of the sheet
+belongs to the regular type and `showIrregularView` hides them (PQW-976), so the
+sheet would open showing its title and a promise with nothing under it.
+
+**Making a pattern does not close it.** A shape is found by trying numbers, and
+the opener is two clicks away through the file menu, so closing after every
+attempt would tax the loop the sheet exists for. The four generator callbacks
+became one `generated` function to say so in one place. If the sheet ever gets a
+toolbar button, this is worth revisiting.

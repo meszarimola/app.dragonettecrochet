@@ -30,9 +30,17 @@ test('the content of the File dropdown is visible and stays on screen', async ({
   expect(box.x, 'the left edge of the dropdown is on screen').toBeGreaterThanOrEqual(0);
   expect(box.x + box.width, 'the right edge of the dropdown is on screen').toBeLessThanOrEqual(viewport.width);
 
-  // All four actions are visible, with a readable label, on screen.
+  // The sheet opener joined the menu in PQW-987: it starts a pattern, as the „Új minta"
+  // button beside the menu does. It is checked the same way, then the four file actions.
   const items = pop.locator('button');
-  await expect(items).toHaveCount(4);
+  await expect(items).toHaveCount(5);
+  const opener = pop.locator('#setup-toggle');
+  await expect(opener).toBeVisible();
+  await expect(opener).toHaveText(/\S/);
+  const openerBox = (await opener.boundingBox())!;
+  expect(openerBox.x).toBeGreaterThanOrEqual(0);
+  expect(openerBox.x + openerBox.width).toBeLessThanOrEqual(viewport.width);
+
   for (const action of ['import-json', 'export-json', 'export-png', 'export-svg']) {
     const item = pop.locator(`[data-action="${action}"]`);
     await expect(item, action).toBeVisible();

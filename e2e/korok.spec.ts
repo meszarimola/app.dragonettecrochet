@@ -16,8 +16,18 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
+/** The make-a-pattern sheet (PQW-987) is closed on load, and its opener is in the file menu. */
+async function openSheet(page: Page): Promise<void> {
+  const sheet = page.locator('#setup-toggle');
+  if ((await sheet.getAttribute('aria-expanded')) !== 'true') {
+    await page.locator('#file-toggle').click();
+    await sheet.click();
+  }
+}
+
 async function generate(page: Page, choices: { shape?: string; start?: string; rounds: number }): Promise<void> {
   const section = page.locator('#section-rounds');
+  if (await section.evaluate((el) => el.closest('#setup') !== null)) await openSheet(page);
   if ((await section.getAttribute('open')) === null) await section.locator('summary').click();
   if (choices.shape) await page.locator('#rounds-shape').selectOption({ label: choices.shape });
   if (choices.start) await page.locator('#rounds-start').selectOption({ label: choices.start });

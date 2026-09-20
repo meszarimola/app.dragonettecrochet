@@ -148,6 +148,8 @@ const board = new Board(canvas);
 const palette = must<HTMLDivElement>('#palette');
 const panel = must<HTMLElement>('#panel');
 const toggle = must<HTMLButtonElement>('#panel-toggle');
+const setupSheet = must<HTMLElement>('#setup');
+const setupToggle = must<HTMLButtonElement>('#setup-toggle');
 const hint = must<HTMLParagraphElement>('#hint');
 const status = must<HTMLParagraphElement>('#status');
 const alertBox = must<HTMLParagraphElement>('#alert');
@@ -193,6 +195,8 @@ const TYPES_KEY = 'dc-mintatervezo:mintatipus';
 const LANG_KEY = 'dc-mintatervezo:nyelv';
 // Below this width the two panels do not fit side by side.
 const NARROW = window.matchMedia('(width < 48rem)');
+// KB: interface.md §54 — below this the sheet and the written panel cannot share the stage.
+const SETUP_TIGHT = matchMedia('(width < 67rem)');
 const STRUCTURAL_RULES = new Set(['unknown-stitch', 'dangling-reference', 'yarn-path']);
 
 // KB: interface.md §4 — this block must run before the state: restoring the pattern and the
@@ -372,7 +376,8 @@ function structuralProblem(pattern: Pattern): string | null {
   return finding ? (ruleText(finding.rule)?.message ?? finding.rule) : null;
 }
 
-const insetRight = () => (panel.hidden ? 0 : panel.getBoundingClientRect().width);
+const measure = (element: HTMLElement) => (element.hidden ? 0 : element.getBoundingClientRect().width);
+const insetRight = () => Math.max(measure(panel), measure(setupSheet));
 const insetLeft = () => (typesNav.hidden ? 0 : typesNav.getBoundingClientRect().width);
 const insetBottom = () =>
   written.hidden ? 0 : Math.max(0, canvas.getBoundingClientRect().bottom - written.getBoundingClientRect().top);
@@ -1503,6 +1508,11 @@ const ACTIONS: Record<string, () => void> = {
   },
   'copy-written': () => void copyWritten(),
   'written-full': () => toggleWrittenFull(),
+  'close-setup': () => {
+    setOpen(setupSheet, setupToggle, false);
+    // The close button goes with the sheet, so the focus returns to the menu that opened it.
+    must<HTMLButtonElement>('#file-toggle').focus();
+  },
   'close-written': () => {
     setWrittenOpen(false);
     writtenToggle.focus();
@@ -1684,12 +1694,22 @@ toggle.addEventListener('click', () => {
   if (open && NARROW.matches && !written.hidden) setWrittenOpen(false);
 });
 
+setupToggle.addEventListener('click', () => {
+  const open = setupSheet.hasAttribute('hidden');
+  setOpen(setupSheet, setupToggle, open);
+  // The opener sits in the file menu, which closes on this click, so the focus would
+  // otherwise land on the body. KB: interface.md §54.
+  if (open) setupSheet.focus();
+  if (open && SETUP_TIGHT.matches && !written.hidden) setWrittenOpen(false);
+});
+
 writtenToggle.addEventListener('click', () => {
   const open = written.hasAttribute('hidden');
   setWrittenOpen(open);
   // KB: interface.md §10
   if (open && writtenShare === null) applyWrittenShare(writtenShareFor(patternType, NARROW.matches));
   if (open && NARROW.matches) setOpen(panel, toggle, false);
+  if (open && SETUP_TIGHT.matches && !setupSheet.hidden) setOpen(setupSheet, setupToggle, false);
 });
 
 // KB: interface.md §13 — pointer, touch and keyboard.
@@ -2053,6 +2073,13 @@ document.addEventListener('keydown', (event) => {
 
   switch (key) {
     case 'Escape':
+      // KB: interface.md §54 — an open sheet takes the Escape before the selection does.
+      if (!setupSheet.hidden) {
+        setOpen(setupSheet, setupToggle, false);
+        must<HTMLButtonElement>('#file-toggle').focus();
+        event.preventDefault();
+        return;
+      }
       select(null);
       selectedNode = null;
       selection = [];
@@ -2116,43 +2143,36 @@ const sizePanel = new SizePanel(must<HTMLDetailsElement>('#section-size'), {
   },
 });
 
+/*
+ * Every generator commits the same way. The sheet is deliberately NOT closed here:
+ * a shape is found by trying numbers, and reopening it costs two clicks through the
+ * file menu. Closing it is the user's, with the sheet's own button.
+ * KB: interface.md §54.
+ */
+function generated(pattern: Pattern, message: Message): void {
+  selectedNode = null;
+  selection = [];
+  commit({ ok: true, pattern }, message);
+  fitBoard();
+}
+
 const roundsPanel = new RoundsPanel(must<HTMLDetailsElement>('#section-rounds'), {
-  commit: (pattern, message) => {
-    selectedNode = null;
-    selection = [];
-    commit({ ok: true, pattern }, message);
-    fitBoard();
-  },
+  commit: generated,
   announce,
 });
 
 const shapesPanel = new ShapesPanel(must<HTMLDetailsElement>('#section-shape'), {
-  commit: (pattern, message) => {
-    selectedNode = null;
-    selection = [];
-    commit({ ok: true, pattern }, message);
-    fitBoard();
-  },
+  commit: generated,
   announce,
 });
 
 const shawlsPanel = new ShawlsPanel(must<HTMLDetailsElement>('#section-shawl'), {
-  commit: (pattern, message) => {
-    selectedNode = null;
-    selection = [];
-    commit({ ok: true, pattern }, message);
-    fitBoard();
-  },
+  commit: generated,
   announce,
 });
 
 const garmentPanel = new GarmentPanel(must<HTMLDetailsElement>('#section-garment'), {
-  commit: (pattern, message) => {
-    selectedNode = null;
-    selection = [];
-    commit({ ok: true, pattern }, message);
-    fitBoard();
-  },
+  commit: generated,
   announce,
 });
 
@@ -2167,31 +2187,13 @@ function panelFor<T>(type: PatternTypeId, selector: string, build: (section: HTM
 const amigurumiPanel = panelFor(
   'amigurumi',
   '#section-amigurumi',
-  (section) =>
-    new AmigurumiPanel(section, {
-      commit: (pattern, message) => {
-        selectedNode = null;
-        selection = [];
-        commit({ ok: true, pattern }, message);
-        fitBoard();
-      },
-      announce,
-    }),
+  (section) => new AmigurumiPanel(section, { commit: generated, announce }),
 );
 
 const gridPanel = panelFor(
   'filet',
   '#section-grid',
-  (section) =>
-    new GridChartPanel(section, {
-      commit: (pattern, message) => {
-        selectedNode = null;
-        selection = [];
-        commit({ ok: true, pattern }, message);
-        fitBoard();
-      },
-      announce,
-    }),
+  (section) => new GridChartPanel(section, { commit: generated, announce }),
 );
 
 // KB: interface.md §39 — collected after panelFor, so a section it hid for a disabled type stays out.
@@ -2297,6 +2299,10 @@ function showIrregularView(on: boolean): void {
   if (on) adjust.hidden = true;
   writtenToggle.hidden = on;
   if (on) setOpen(written, writtenToggle, false);
+  // KB: interface.md §54 — every section of the sheet belongs to the regular type, so in
+  // free-form mode the sheet would open empty. Its opener goes with them.
+  setupToggle.hidden = on;
+  if (on && !setupSheet.hidden) setOpen(setupSheet, setupToggle, false);
   setDisabled('export-png', false);
   setDisabled('export-svg', false);
 }

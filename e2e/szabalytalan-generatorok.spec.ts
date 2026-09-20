@@ -17,6 +17,15 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
+/** The make-a-pattern sheet (PQW-987) is closed on load, and its opener is in the file menu. */
+async function openSheet(page: Page): Promise<void> {
+  const sheet = page.locator('#setup-toggle');
+  if ((await sheet.getAttribute('aria-expanded')) !== 'true') {
+    await page.locator('#file-toggle').click();
+    await sheet.click();
+  }
+}
+
 async function chooseIrregular(page: Page): Promise<void> {
   await page.getByRole('button', { name: /Szabálytalan horgolás/ }).click();
   await expect(page.locator('#board-irregular')).toBeVisible();
@@ -29,6 +38,7 @@ async function chooseRegular(page: Page): Promise<void> {
 
 async function openSection(page: Page, selector: string): Promise<void> {
   const section = page.locator(selector);
+  if (await section.evaluate((el) => el.closest('#setup') !== null)) await openSheet(page);
   if ((await section.getAttribute('open')) === null) await section.locator('summary').click();
 }
 
@@ -37,26 +47,36 @@ async function writtenText(page: Page): Promise<string> {
   return (await page.locator('#written-text').textContent()) ?? '';
 }
 
-test('the free-form type takes the regular generators out of the panel, and brings them back', async ({ page }) => {
+test('the free-form type takes the regular generators out of the sheet, and brings them back', async ({ page }) => {
+  // The generators live in the make-a-pattern sheet since PQW-987, so the sheet is open
+  // throughout: otherwise every one of them would read as hidden merely because it is.
   await open(page);
+  await openSheet(page);
   for (const selector of REGULAR_SECTIONS) await expect(page.locator(selector)).toBeVisible();
 
   await chooseIrregular(page);
   for (const selector of REGULAR_SECTIONS) await expect(page.locator(selector)).toBeHidden();
+  await expect(page.locator('#setup-toggle')).toBeHidden();
   await expect(page.locator('#section-irregular')).toBeVisible();
 
   await chooseRegular(page);
+  await openSheet(page);
   for (const selector of REGULAR_SECTIONS) await expect(page.locator(selector)).toBeVisible();
 });
 
 test('a switched-off pattern type stays hidden in both modes', async ({ page }) => {
   await open(page);
+  await openSheet(page);
   for (const selector of DISABLED_SECTIONS) await expect(page.locator(selector)).toBeHidden();
 
+  // In free-form mode the sheet holds nothing, so its opener goes too (PQW-987) — a
+  // stronger statement than „the sections are hidden", which would be true either way.
   await chooseIrregular(page);
+  await expect(page.locator('#setup-toggle')).toBeHidden();
   for (const selector of DISABLED_SECTIONS) await expect(page.locator(selector)).toBeHidden();
 
   await chooseRegular(page);
+  await openSheet(page);
   for (const selector of DISABLED_SECTIONS) await expect(page.locator(selector)).toBeHidden();
 });
 

@@ -30,6 +30,10 @@ export const MARKUP_TEXTS = {
     errorsRegionLabel: 'Hibák és figyelmeztetések',
     writtenToggle: 'Írott minta',
     panelToggle: 'Szemek és beállítások',
+    setupToggle: 'Minta készítése',
+    setupTitle: 'Minta készítése',
+    setupIntro: 'Add meg a méreteket, és a tervező elkészíti belőlük a mintát. A létrehozás lecseréli a mostani mintát.',
+    toolSetupTip: 'Minta készítése megadott méretekből',
 
     toolGroupFile: 'Fájl',
     toolGroupEdit: 'Szerkesztés',
@@ -562,6 +566,10 @@ export const MARKUP_TEXTS = {
     errorsRegionLabel: 'Errors and warnings',
     writtenToggle: 'Written pattern',
     panelToggle: 'Stitches and settings',
+    setupToggle: 'Make a pattern',
+    setupTitle: 'Make a pattern',
+    setupIntro: 'Give the measurements and the designer builds the pattern from them. Creating one replaces the pattern you have.',
+    toolSetupTip: 'Make a pattern from measurements you give',
 
     toolGroupFile: 'File',
     toolGroupEdit: 'Edit',
