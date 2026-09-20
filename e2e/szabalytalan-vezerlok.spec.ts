@@ -1,12 +1,12 @@
 /*
- * The two controls PQW-976 left outside its scope (PQW-980). Neither goes
- * through a generator section, so hiding the sections did not protect them:
- * the „Előbeállítás” select of the shared `#section-notation` ran
- * `setTradition` on the hidden regular document, and the „Kijelölt jel
- * igazítása” box stayed standing in free-form mode because only
- * `updateControls()` ever hid it — and `refresh()` does not reach that in this
- * type. Its arrows and „Számolt helyre” then wrote into the pattern nobody
- * could see.
+ * The three controls that reached the hidden regular document without passing a
+ * generator section, so PQW-976 hiding the sections did not protect them
+ * (PQW-980): the „Előbeállítás” select of the shared `#section-notation`, which
+ * ran `setTradition`; the „Kijelölt jel igazítása” box, which only
+ * `updateControls()` ever hid and `refresh()` does not reach in this type, so it
+ * came through with its arrows and „Számolt helyre” live; and the `#chain-count`
+ * field of the shared `#section-stitches`, whose Enter is answered above
+ * `irregularKey`.
  *
  * What each test watches is the autosave slot: `commit()` persists in the same
  * breath, so a byte-identical slot is the proof that the hidden document was
@@ -40,6 +40,10 @@ async function openSection(page: Page, selector: string): Promise<void> {
 
 const saved = (page: Page): Promise<string | null> => page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY);
 
+/** Clicks a button a pointer can no longer reach, because the box around it is hidden. */
+const press = (page: Page, selector: string): Promise<void> =>
+  page.evaluate((one) => (document.querySelector(one) as HTMLButtonElement).click(), selector);
+
 /** A flat circle of four rounds, so the regular document has something to lose. */
 async function circle(page: Page): Promise<void> {
   await openSection(page, '#section-rounds');
@@ -70,8 +74,8 @@ test('the notation preset leaves the regular pattern alone in free-form mode', a
 
   await chooseIrregular(page);
   // `#section-notation` is shared between the two editors, so it is correctly
-  // still here. Only the counting half of the preset belongs to the regular
-  // document, and that half must not run.
+  // still here; its „Jelkészlet” and „Jelstílus” selects go on working. The
+  // preset does not, because it is the regular pattern's own conventions.
   await openSection(page, '#section-notation');
   await page.locator('#tradition').selectOption('japanese');
   expect(await saved(page)).toBe(before);
@@ -92,14 +96,16 @@ test('the adjust box leaves with the regular editor, and its buttons stop writin
   await chooseIrregular(page);
   await expect(page.locator('#adjust')).toBeHidden();
   // Hiding puts the buttons out of a pointer's reach; the handlers behind them
-  // are the other half, so each is clicked on the element itself. Both are
-  // located first, so a renamed attribute fails here instead of passing
-  // because nothing was clicked.
-  for (const selector of ['#adjust [data-nudge="0,-2"]', '#adjust [data-action="unpin"]']) {
-    await expect(page.locator(selector)).toHaveCount(1);
-    await page.evaluate((one) => (document.querySelector(one) as HTMLButtonElement).click(), selector);
-    expect(await saved(page)).toBe(before);
-  }
+  // are the other half, so each is clicked on the element itself. Each is
+  // located first and written out rather than looped, so a renamed attribute
+  // fails here instead of passing because nothing was clicked, and both
+  // selectors stand as literals in the PQW-978 inventory.
+  await expect(page.locator('#adjust [data-nudge="0,-2"]')).toHaveCount(1);
+  await press(page, '#adjust [data-nudge="0,-2"]');
+  expect(await saved(page)).toBe(before);
+  await expect(page.locator('#adjust [data-action="unpin"]')).toHaveCount(1);
+  await press(page, '#adjust [data-action="unpin"]');
+  expect(await saved(page)).toBe(before);
 
   await chooseRegular(page);
   await expect(page.locator('#adjust')).toBeVisible();

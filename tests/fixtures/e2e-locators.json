@@ -92,6 +92,8 @@
   "locator": {
     "#${id}": 2,
     "#adjust": 4,
+    "#adjust [data-action=\"unpin\"]": 1,
+    "#adjust [data-nudge=\"0,-2\"]": 1,
     "#adjust-name": 2,
     "#alert": 4,
     "#amigurumi-diameter": 2,
