@@ -6,11 +6,13 @@
  * a missing element, and the production smoke suite demands zero console errors,
  * so an orphaned identifier would surface on the live page first.
  *
- * The inventory therefore records every control of index.html as a stable
- * triple and compares it sorted, so neither document order nor nesting is
- * asserted: moving a node passes, deleting one or renaming its identifier
- * fails. The toolbar buttons carry no identifier — the interface addresses them
- * by `data-action` — so for those the inventory guards the count, not the name.
+ * The inventory therefore records every control of index.html as a stable key
+ * and compares it sorted, so neither document order nor nesting is asserted:
+ * moving a node passes, deleting or renaming one fails. The key is the
+ * identifier, and for the toolbar and the alignment rows — which carry none —
+ * the attribute the interface addresses them by, `[data-action="fan"]` and its
+ * kind. Six controls carry neither: four layout `fieldset`s, the `amigurumi`
+ * one and the keyboard-shortcut `details`. Those the inventory counts.
  *
  * index.html is read as raw text, the way `markupUses()` of ui-i18n.test.mjs
  * reads it.
@@ -32,23 +34,52 @@ const INVENTORY = JSON.parse(read('tests/fixtures/control-inventory.json'));
  */
 const UNREFERENCED = ['section-notation', 'section-pattern', 'section-stitches'];
 
-const order = (control) => `${control.id} ${control.tag} ${control.type}`;
+/** The attributes src/ui/ addresses a control by when it has no identifier. Their selectors are asserted below. */
+const ADDRESSING_ATTRIBUTES = [
+  'data-action',
+  'data-align',
+  'data-arrange',
+  'data-consent',
+  'data-consent-open',
+  'data-distribute',
+  'data-nudge',
+  'data-row-align',
+];
+
+/**
+ * Of those, the one whose values the interface names one by one — as a key of its action record, or in a
+ * `[data-action="…"]` selector. The others it reads through `dataset` and forwards: the nudge value is a pair of
+ * coordinates split on the comma, the alignment and arrangement modes go to the core as they stand. For those the
+ * value is data, not a name, so only the attribute itself is asserted to be addressed.
+ */
+const NAMED_VALUES = ['data-action'];
+
+const order = (control) => `${control.id} ${control.attr ?? ''} ${control.value ?? ''} ${control.tag} ${control.type}`;
 const sorted = (controls) =>
   [...controls].sort((a, b) => {
     const [left, right] = [order(a), order(b)];
     return left < right ? -1 : left > right ? 1 : 0;
   });
 
-/** Every control of index.html as `{ id, tag, type }`, in a canonical order. */
+/** Every control of index.html as `{ id, tag, type }`, widened with `{ attr, value }` where one addresses it. */
 function controls() {
   const found = [];
   for (const match of INDEX.matchAll(/<(input|select|button|textarea|fieldset|details)\b([^>]*)>/g)) {
     const [, tag, attributes] = match;
-    found.push({
+    const control = {
       id: /\sid="([^"]*)"/.exec(attributes)?.[1] ?? '',
       tag,
       type: /\stype="([^"]*)"/.exec(attributes)?.[1] ?? '',
-    });
+    };
+    for (const attribute of ADDRESSING_ATTRIBUTES) {
+      const written = new RegExp(`\\s${attribute}(?:="([^"]*)")?(?=[\\s/>])`).exec(attributes);
+      if (written) {
+        control.attr = attribute;
+        control.value = written[1] ?? '';
+        break;
+      }
+    }
+    found.push(control);
   }
   return sorted(found);
 }
@@ -84,6 +115,11 @@ const referenced = (sources, id) =>
   [`'#${id}'`, `"#${id}"`, `\`#${id}\``].some((form) => sources.includes(form)) ||
   new RegExp(`\\b(?:field|find)(?:<[^<>()]*>)?\\(['"\`]${id}['"\`]\\)`).test(sources);
 
+/** A `[data-action="fan"]` selector, or the value standing as a key of the record the click dispatch looks it up in. */
+const named = (sources, control) =>
+  sources.includes(`[${control.attr}="${control.value}"]`) ||
+  new RegExp(`(^|[\\s{,])(${control.value}|'${control.value}')\\s*:`, 'm').test(sources);
+
 test('index.html holds the frozen set of controls, whatever their order and their nesting', () => {
   const actual = controls();
   assert.ok(actual.length > 200, `too few controls: ${actual.length}`);
@@ -100,6 +136,18 @@ test('every inventoried identifier is reachable from the interface code or from 
     .filter((id) => id.length > 0 && !UNREFERENCED.includes(id))
     .filter((id) => !referenced(sources, id) && !targets.has(id));
   assert.deepEqual(orphans, [], 'identifier nothing reaches any more');
+});
+
+test('every control addressed by an attribute rather than by an identifier is reachable too', () => {
+  const sources = interfaceSources();
+  const keyed = controls().filter((control) => control.attr !== undefined);
+  assert.ok(keyed.length > 40, `too few attribute-keyed controls: ${keyed.length}`);
+  const unaddressed = ADDRESSING_ATTRIBUTES.filter((attribute) => !sources.includes(`[${attribute}`));
+  assert.deepEqual(unaddressed, [], 'attribute no selector of src/ui/ uses any more');
+  const orphans = keyed
+    .filter((control) => NAMED_VALUES.includes(control.attr) && !named(sources, control))
+    .map((control) => `[${control.attr}="${control.value}"]`);
+  assert.deepEqual(orphans, [], 'value nothing names any more');
 });
 
 test('the exception list stays honest: each entry is still an unreferenced control of index.html', () => {
