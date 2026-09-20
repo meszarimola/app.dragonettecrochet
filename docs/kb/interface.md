@@ -534,6 +534,36 @@ overflowed and the page began to scroll by one pixel.
 
 ## §38 Layout incidents in the stylesheet
 
+- The menu bar is a chrome half and a context half (PQW-983). `.tools__chrome`
+  holds what every pattern type has — the type-bar toggle, the file group, the
+  edit group and the panel toggles — and `.tools__context` what the type brings:
+  the row group, the drawing tools, the selection and the view. The tools used to
+  be one wrapping row of eight groups on a line of their own under the title, and
+  in the owner's 1000 × 506 window that made the bar 157 px, 31 % of the window,
+  with the groups already wrapped into two rows. From 60rem the chrome stands
+  beside the title instead and the context takes the line under it, which gives
+  the canvas a whole row back: the bar is 107 px at 1000 × 506 and 57 px at
+  1440 × 900, where everything fits on the one line. Below 60rem the tools go
+  back to a line of their own, the way they were, so a phone-sized window is
+  unchanged.
+
+  `.tools__group--end` keeps its `margin-inline-start: auto`, but it now resolves
+  inside the chrome rather than inside `.tools`. Where the context has a line of
+  its own the chrome fills the title's line and the panel toggles still sit at
+  the bar's right edge; on the single line of a 1440 px window they sit at the
+  end of the chrome, before the context, because flexbox cannot order a box
+  across two parents. That is the visible cost of the split, and it is the price
+  of the chrome being one box that never wraps.
+
+  The two constraints that decide the shape are tests, not taste. One Tab from
+  `[data-action="new"]` has to reach `#file-toggle`, so the two stay DOM
+  neighbours inside the file group; and „Fordulás" has to be visible on load in
+  both windows, so under 68.75rem the context drops its labels and keeps the
+  icon, the 44 px target and the `data-tip` bubble. An overflow menu would have
+  broken the second one, which is why there is none. The split is nesting only —
+  `.tools__group > .tool` and `.tools .tool` still address the same buttons, so
+  no browser test moved, and `tests/fixtures/control-inventory.json` and
+  `tests/fixtures/e2e-locators.json` stayed byte-identical.
 - The file menu's popover is positioned against its own button, not the right
   edge (PQW-912). `.menu__pop` pins right with a fixed width, which suits the
   findings list at the right of the bar, but the file button sits at the left
@@ -547,11 +577,13 @@ overflowed and the page began to scroll by one pixel.
   `auto` margin had nothing left to take, which is why it stuck to the list.
 - The "soon" badge sits inside the label box, *below* the name (PQW-912). Beside
   the name it did not fit in the narrow bar and drew over it. A row of its own
-  makes the card one line taller. All four cards fit without scrolling in a tall
-  window; in a 506 px-high one they do not — measured at 1000 × 506 the list
-  needs 252 px and has 215 px, so it scrolls and clips the fourth card
-  (PQW-979). The earlier two-line trouble was the list stretching, not the
-  badge's place.
+  makes the card one line taller. The four cards need 252 px, which was more than
+  the list had in a 506 px-high window — 215 px before PQW-982, 221 px after it —
+  so the list scrolled and clipped the fourth card (PQW-979). Since PQW-983 the
+  bar gives the stage a row back and the list has 271 px at 1000 × 506, so all
+  four fit there without scrolling, in Hungarian and in English alike. Below
+  60rem the tools return to a line of their own and the list is short again. The
+  earlier two-line trouble was the list stretching, not the badge's place.
   (An earlier comment claiming the badge belongs beside the name is withdrawn.)
 - The version label is the last item in the bar's column and `margin-block-start:
   auto` pushes it to the bottom (PQW-903, PQW-912); the list above it scrolls, so
@@ -559,11 +591,10 @@ overflowed and the page began to scroll by one pixel.
   is `aria-hidden`, so the screen reader is not read a pointless token.
 
   It also carries a hairline above it (PQW-979). The two boxes never overlapped,
-  but in a 506 px-high window the list runs out of room and clips its last card
+  but in a 506 px-high window the list ran out of room and clipped its last card
   mid-word, and the label sitting flush under that cut read as part of the card
-  rather than as chrome. The rule separates the two; it does not make the fourth
-  card fit. Whether all four should fit without scrolling at that height — §38
-  once claimed they do — is an open layout question.
+  rather than as chrome. The rule separates the two; it did not make the fourth
+  card fit. PQW-983 did, at 1000 × 506, by taking a row out of the menu bar.
 - In a wide view the open written panel and the status line stand between the
   side bars rather than sliding under them (PQW-884); in a narrow view the side
   bars open over the panel and the status line.
@@ -1050,7 +1081,10 @@ inside a 44 px target) stay literals. The exception is the toolbar's own
 density, not a licence to shrink whatever hangs off it: the tooltips take the
 ordinary steps, and `e2e/panel.spec.ts` is what settles whether a bubble still
 fits — it hovers every visible button in a 1000 px window and fails if
-`document.documentElement.scrollWidth` moves.
+`document.documentElement.scrollWidth` moves. PQW-983 took the same step for the
+context half: under 68.75rem its group gap and the hairline's lead-in drop to
+`--sp-0` as well, because a label-less group needs less air around it than a
+labelled one. Nothing else moved onto that step.
 
 **`min-inline-size: 44px` and `min-block-size: 44px` are not spacing.** They are
 the WCAG 2.5.8 target size (§36) and are never tokenised — a target that follows
