@@ -437,7 +437,6 @@
         <aside class="panel" id="panel" aria-label="Szemek és beállítások" data-i18n-label="panelLabel">
           <details class="section" id="section-stitches" open>
             <summary class="section__head"><h2 class="panel__title" data-i18n="sectionStitchesTitle">Szemek</h2></summary>
-            <p class="panel__hint" id="hint"></p>
             <p class="count" id="count-field" hidden>
               <label for="chain-count" data-i18n="stitchesChainCountLabel">Láncszemek száma</label>
               <input id="chain-count" type="number" min="1" max="500" step="1" value="12" inputmode="numeric" />
@@ -449,6 +448,7 @@
               <p class="panel__note" id="insertion-note" data-i18n="stitchesInsertionNote">A horgoló felől értendő; visszai soron a diagram a színoldalt mutatja.</p>
             </fieldset>
             <div class="palette" id="palette" role="group" aria-label="Szemek" data-i18n-label="stitchesPaletteLabel"></div>
+            <p class="panel__hint" id="hint"></p>
           </details>
 
           <details class="section" id="section-irregular" hidden>

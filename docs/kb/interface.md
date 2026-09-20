@@ -1070,3 +1070,80 @@ as the logo's eye. It replaces `#fff` on the form controls, which read cold
 against `--c-bg`. The grid chart keeps real white: there `#fff` is an empty
 cell, chart ink rather than a surface, and it has to stay distinguishable from
 the cream page behind it.
+
+## §53 The stitch palette is split by how it is used, not by what it contains
+
+PQW-984. Measured at 1000 × 506 on v0.56.0, the palette put every one of the
+twenty-five stitches in its own full-width row — icon, full name, structure line,
+key cap — so `#palette` was **1870 px** tall inside a 343 px panel, the first
+stitch started at y = 324 because 68 px of `#hint` prose stood above it, and
+**two** stitches were reachable without scrolling. It is the most-used control
+in the editor.
+
+**The obvious fix does not work, and the stitch data is why.** A grid of icon
+plus abbreviation was the first design. `src/core/stitches.ts` rules it out:
+
+- **Nineteen of the twenty-five have no Hungarian abbreviation.** That is
+  deliberate — `types.ts` writes `null` for "no approved abbreviation, the name
+  is spelled out" (`docs/knowledge-base/01 §8.5`), and the longest spelled name
+  is 22 characters.
+- **Six names are not unique.** "szaporítás" twice, "fogyasztás" four times,
+  "fürt" twice. Only `stitchStructure()` tells them apart — "2 rp egy szembe"
+  against "3 erp 3 szemen át". An icon-or-name grid would show four identical
+  "fogyasztás" buttons. English does not rescue it either: US terms abbreviate
+  the same six as `inc` ×2, `dec` ×4 and `CL` ×2.
+
+**So the palette is split where the data already splits it.** The seven `basic`
+stitches — exactly the ones that carry `Alt`+1–7 (§11), and six of the seven the
+only ones with a Hungarian abbreviation — are a four-column grid that is always
+open. The other eighteen keep **today's row layout unchanged**, structure line
+included, inside three `<details>` groups that start closed. The result is about
+280 px against 1870, and the three group headers are still in the window at
+1000 × 506.
+
+**The structure line is not decoration.** Whatever else the non-basic groups
+get, they keep it: it is the only thing distinguishing six of the stitches. The
+row itself is the old one to within the §52 conversion the palette block had
+been missed by — `0.5rem` of padding and `0.75rem` of gap became `--sp-1` and
+`--sp-2`, so a row is 2 px tighter than it was.
+
+**A group that is open stays open, and an armed stitch is always on screen.**
+`renderPalette()` rebuilds the whole palette on a notation or interface-language
+change (§6), which would otherwise snap every group shut; it carries the open
+flags across by the sections' ids. `select()` opens the group of the stitch it
+arms, because `Alt`+8 and `Alt`+9 reach into a collapsed group (§11) and an
+`aria-pressed` button nobody can see is not feedback.
+
+**What still pushes the grid down.** `#insertion` stands above `#palette` and is
+205 px tall at 1000 × 506, so arming a stitch that takes insertion modes moves
+the grid from y = 219 to y = 440 and the seven cells leave the window again.
+That is the old markup order, not something the split introduced, and moving
+that panel was not part of this ticket — it is the next thing to measure.
+
+**The abbreviation is printed, the full name is announced.** The visible label
+in a grid cell is `def.terms[notation].abbr` — so it follows the *notation*, not
+the interface language (§2, §6) — but the accessible name stays the full name,
+carried by a visually hidden span, and the tooltip repeats it. Eighteen e2e
+locators search by `getByRole('button', { name: /Láncszem \(lsz\)/ })` and
+`#palette` is asserted to contain `Half double crochet (hdc)`; both still hold.
+
+**The one basic stitch with no abbreviation gets a shortened name, not an
+invented one.** `dtr` is "háromráhajtásos pálca" in Hungarian and
+`docs/stitch-vocabulary-proposal.md` marks "hrp" unverified, so the cell prints
+"háromráhajtásos". The label lives in `src/ui/i18n/palette.ts`, keyed by
+notation locale rather than by interface language, which is why it is not part
+of `UI_TEXTS` — `tests/ui-i18n.test.mjs` requires the English branch of that
+dictionary to hold no accented Hungarian.
+
+**The bubble is positioned against the grid, not the cell.** `.palette__grid` is
+the positioned ancestor, so a long name spans the grid's width and cannot hang
+off the right edge of the panel the way a cell-centred bubble would (§12). The
+toolbar's own tooltip rules are untouched.
+
+**`#hint` moved below the palette**, and its empty-state string was split into
+three sentences with the instruction first. The help text is still a promise
+(`owner-decisions.md §12`): the three *chosen-stitch* hints, the ones that say a
+stitch is worked with Enter or by clicking the canvas, are unchanged.
+
+**The order must not change.** `buildPalette()` hands out `Alt`+1–9 by the
+stitches' global position, so reordering the sections would move the shortcuts.

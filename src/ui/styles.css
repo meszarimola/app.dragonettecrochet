@@ -535,14 +535,28 @@ body.is-selecting #board-irregular {
   color: var(--c-text-soft);
 }
 
-.palette {
-  display: grid;
-  gap: 1.25rem;
+/* KB: interface.md §53 — the hint now reads after the palette it explains. */
+#section-stitches > .panel__hint {
+  margin: var(--sp-2) 0 0;
 }
 
-.palette__section {
+/* KB: interface.md §53 */
+.palette {
   display: grid;
-  gap: 0.5rem;
+  gap: var(--sp-0);
+}
+
+.palette__grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(44px, 1fr));
+  gap: var(--sp-0);
+}
+
+.palette__rows {
+  display: grid;
+  gap: var(--sp-0);
+  padding-block-start: var(--sp-0);
 }
 
 .palette__title {
@@ -554,12 +568,45 @@ body.is-selecting #board-irregular {
   color: var(--c-muted);
 }
 
+/* KB: interface.md §36 — the collapsed group headers are targets of their own. */
+summary.palette__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-1);
+  min-block-size: 44px;
+  cursor: pointer;
+  list-style: none;
+}
+
+summary.palette__title::-webkit-details-marker {
+  display: none;
+}
+
+summary.palette__title:hover {
+  color: var(--c-accent);
+}
+
+summary.palette__title::after {
+  content: "";
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  margin-inline-end: var(--sp-0);
+  border-inline-end: 1.5px solid var(--c-muted);
+  border-block-end: 1.5px solid var(--c-muted);
+  transform: translateY(-0.15rem) rotate(45deg);
+}
+
+.palette__section--group[open] > summary.palette__title::after {
+  transform: translateY(0.1rem) rotate(-135deg);
+}
+
 .stitch {
   display: grid;
   grid-template-columns: 44px 1fr auto;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem;
+  gap: var(--sp-2);
+  padding: var(--sp-1);
   border: 1px solid var(--c-line);
   border-radius: var(--radius-lg);
   background: transparent;
@@ -604,6 +651,83 @@ body.is-selecting #board-irregular {
   font-family: var(--font-body);
   font-size: 0.75rem;
   white-space: nowrap;
+}
+
+/* KB: interface.md §36, §53 — the dense cell of a basic stitch. */
+.stitch--compact {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: var(--sp-0);
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  padding: var(--sp-0);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.stitch--compact > canvas,
+.stitch--compact > .stitch__key {
+  grid-area: 1 / 1;
+}
+
+.stitch--compact > .stitch__key {
+  justify-self: end;
+  align-self: start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 0.625rem;
+  line-height: 1;
+}
+
+.stitch__abbr {
+  color: var(--c-ink);
+  font-size: 0.6875rem;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+/* KB: interface.md §53 — the cell prints the abbreviation, the name is announced. */
+.stitch__full {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/*
+ * KB: interface.md §12, §53 — the bubble is placed against the grid, not the
+ * cell, so a long name cannot hang off the edge of the panel.
+ */
+.stitch--compact[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  z-index: 30;
+  inset-block-start: calc(100% + var(--sp-0));
+  inset-inline-start: 0;
+  display: none;
+  inline-size: max-content;
+  max-inline-size: 100%;
+  padding: var(--sp-0) var(--sp-2);
+  border-radius: var(--radius-md);
+  background: var(--c-ink);
+  color: var(--c-bg);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  text-align: start;
+  white-space: normal;
+  pointer-events: none;
+}
+
+.stitch--compact[data-tip]:hover::after,
+.stitch--compact[data-tip]:focus-visible::after {
+  display: block;
 }
 
 .tools {
