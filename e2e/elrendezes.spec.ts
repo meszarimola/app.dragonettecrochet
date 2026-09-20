@@ -157,6 +157,56 @@ for (const { rows, ...viewport } of [
   });
 }
 
+/**
+ * The pattern-type list read in one go: whether the box scrolls, and for each card its
+ * height and whether it hangs out of the box. No locators, so the frozen locator
+ * inventory (PQW-978) stays put.
+ */
+const typeCards = (page: Page) =>
+  page.evaluate(() => {
+    const list = document.querySelector('#types-list');
+    if (!list) return null;
+    const box = list.getBoundingClientRect();
+    return {
+      scrolls: list.scrollHeight > list.clientHeight,
+      cards: [...list.querySelectorAll('li')].map((item) => {
+        const rect = (item.querySelector('button') ?? item).getBoundingClientRect();
+        return { height: rect.height, out: rect.top < box.top - 0.5 || rect.bottom > box.bottom + 0.5 };
+      }),
+    };
+  });
+
+/*
+ * All four pattern-type cards fit in a 506 px-high window (PQW-985). The card carried
+ * 0.6rem of block padding and stood 57 px tall, so four of them and the three 8 px gaps
+ * wanted 252 px while the list had 221 px: it scrolled and cut the fourth name in half.
+ * PQW-983 gave the list 271 px at 1000 px wide and hid the problem at that one width;
+ * below 60rem, where the tools take a line of their own again, the list is back to
+ * 221 px and the card itself is what has to give. The badge keeps its own row under the
+ * name (§38) and the intro sentence stays: only the air gives way, and not past the
+ * 44 px target size (§36).
+ */
+for (const viewport of [
+  { width: 1000, height: 506 },
+  { width: 900, height: 506 },
+]) {
+  test(`${viewport.width}×${viewport.height}: all four pattern-type cards fit without scrolling`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await open(page);
+
+    const list = await typeCards(page);
+    expect(list).not.toBeNull();
+    expect(list!.cards).toHaveLength(4);
+    expect(list!.scrolls, 'the pattern type list scrolls').toBe(false);
+    expect(
+      list!.cards.map((card) => card.out),
+      'a card hangs out of the list',
+    ).toEqual([false, false, false, false]);
+    // A card is a target, not only a label: no amount of compressing may take it under 44 px.
+    for (const card of list!.cards) expect(card.height).toBeGreaterThanOrEqual(44);
+  });
+}
+
 test('the written pattern can be closed with its own button and from the menu bar', async ({ page }) => {
   await open(page);
 
