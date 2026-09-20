@@ -71,3 +71,24 @@ fields. **When a union gains a member, grep every use of the union's name**, not
 only the ones the compiler complains about.
 
 Related: `interface.md §43, §51` and `core-geometry.md §52`.
+
+## §6 `/review` from a worktree reviewed the wrong branch (2026-09-20, PQW-988)
+
+Twice in one evening, during the UI redesign's three parallel worktrees.
+
+`/code-review` reads the commits ahead of the current branch's upstream. Called
+from a worktree it forks into the session's own working directory — the main
+checkout, sitting on `develop`, where nothing is ahead of `origin/develop`
+because everything is merged.
+
+Once it reviewed **the previously merged pull request** and handed those findings
+back to the author of a different branch. Once it stopped with "the current
+branch has no commits yet" and asked which branch to look at. The first is the
+dangerous one: a competent review of somebody else's merged work reads exactly
+like a review of yours.
+
+**Rule:** from a worktree, name the range — `/code-review high develop...HEAD` —
+and check that the report names your files before believing it.
+
+With one worktree this never shows. `CLAUDE.md` asks for a worktree on anything
+over five files, so it will keep coming back whenever work runs in parallel.
