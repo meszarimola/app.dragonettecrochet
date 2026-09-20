@@ -22,7 +22,9 @@
  * - An unknown call form — `getByTestId`, say — is invisible, and invisible
  *   without saying so. Only the names in `DRIVING_CALLS` are read.
  * - Only **one** hop through a local helper is resolved (PQW-981). A second hop
- *   is named under `(second hop)` rather than followed.
+ *   is named under `(second hop)` rather than followed. Those names are the
+ *   helpers', so renaming a helper does move the fixture although no product
+ *   text did — the one place the promise above does not hold exactly.
  * - Only a bare parameter resolves. `choices.shape` is one level further in and
  *   is left alone, rather than attributed to every call the object reaches.
  * - A driving call's name written inside a string literal would send the scan
@@ -84,12 +86,17 @@ const endOfRegex = (source, start) => {
 function argumentSlots(source, start) {
   const slots = [[]];
   let depth = 0;
+  // Brackets and braces are counted only to place the commas. They stay invisible to the literals themselves, which
+  // is what keeps an options object transparent — and a comma inside one must not shift every later argument along.
+  let inside = 0;
   let previous = '(';
   for (let i = start; i < source.length; i += 1) {
     const character = source[i];
     if (/\s/.test(character)) continue;
     if (character === ')' && depth === 0) return slots;
-    if (character === ',' && depth === 0) slots.push([]);
+    if (character === ',' && depth === 0 && inside === 0) slots.push([]);
+    else if (character === '[' || character === '{') inside += 1;
+    else if (character === ']' || character === '}') inside -= 1;
     else if (character === '(') depth += 1;
     else if (character === ')') depth -= 1;
     else if (character === "'" || character === '"' || character === '`') {
@@ -229,15 +236,22 @@ function parameterNames(source, start) {
   for (let i = start; i < source.length; i += 1) {
     const character = source[i];
     if (character === ')' && depth === 0) return names;
-    if ('(['.includes(character) || character === '{') depth += 1;
-    else if (')]'.includes(character) || character === '}') depth -= 1;
+    if ('([{'.includes(character)) depth += 1;
+    else if (')]}'.includes(character)) depth -= 1;
     else if (character === ',' && depth === 0) expecting = true;
     else if (expecting && depth === 0 && /[A-Za-z_$]/.test(character)) {
       let end = i;
       while (/[\w$]/.test(source[end] ?? '')) end += 1;
-      names.push(source.slice(i, end));
+      let next = end;
+      while (/\s/.test(source[next] ?? '')) next += 1;
+      // A parameter is followed by its type, its default or the end of its slot. A name in any other position is
+      // inside something this reading does not parse — the `number` of `Record<string, number>`, say — and taking it
+      // would shift every later parameter, so the search for this one simply goes on.
+      if (':,=?)'.includes(source[next] ?? ')')) {
+        names.push(source.slice(i, end));
+        expecting = false;
+      }
       i = end - 1;
-      expecting = false;
     }
   }
   throw new Error(`unbalanced parameter list at ${start}`);
@@ -316,8 +330,10 @@ function forwardedParameters(source, fn) {
 function callSites(source, fn) {
   const sites = [];
   for (const match of source.matchAll(new RegExp(`\\b${fn.name}\\s*\\(`, 'g'))) {
-    // The definition names itself, and a recursive call inside the body says nothing about a caller's literals.
-    if (match.index < fn.signature || (match.index >= fn.body[0] && match.index <= fn.body[1])) continue;
+    // The definition names itself, and a recursive call inside the body says nothing about a caller's literals. A
+    // call standing above the definition is neither: a declaration hoists, so that call is real and counts.
+    if (match.index >= fn.from && match.index < fn.signature) continue;
+    if (match.index >= fn.body[0] && match.index <= fn.body[1]) continue;
     if (/[\w$.]/.test(source[match.index - 1] ?? '')) continue;
     sites.push(argumentSlots(source, match.index + match[0].length));
   }
@@ -384,9 +400,7 @@ function callLiterals(raw, into = {}) {
   const forwards = new Map(local.map((fn) => [fn, forwardedParameters(source, fn)]));
   for (const fn of local) {
     const reaches = forwards.get(fn);
-    // A helper forwarding nothing still hands its own arguments on, which is where a second hop shows up.
     for (const hop of secondHops(source, fn, local, forwards)) count(SECOND_HOP, hop);
-    if (reaches.size === 0) continue;
     for (const slots of callSites(source, fn)) {
       fn.parameters.forEach((parameter, at) => {
         for (const call of reaches.get(parameter) ?? []) for (const literal of slots[at] ?? []) count(call, literal);
@@ -500,4 +514,42 @@ test('a second hop is named rather than followed, and a parameter property is le
     locator: { '#garment-ribbing-rows': 1, '#rounds-shape': 1 },
     '(second hop)': { 'ribbing(rows) -> enter': 1 },
   });
+});
+
+test('a helper call site is read by position, wherever it stands and whatever the other arguments look like', () => {
+  // Each of these three shapes silently misread the call site before PQW-981's review: a comma inside an object or an
+  // array opened a new argument, a call above a hoisted declaration was taken for the declaration itself, and a comma
+  // inside a generic type added a parameter. All three moved the selector out from under the reading.
+  const withSecond = (second) =>
+    [
+      'async function go(page: Page, first: Second, selector: string) {',
+      '  await page.locator(selector).click();',
+      '}',
+      `await go(page, ${second}, '#real-selector');`,
+    ].join('\n');
+  assert.deepEqual(callLiterals(withSecond("{ a: 'AAA', b: 'BBB' }")), { locator: { '#real-selector': 1 } });
+  assert.deepEqual(callLiterals(withSecond("['X', 'Y']")), { locator: { '#real-selector': 1 } });
+  assert.deepEqual(
+    callLiterals(
+      [
+        'async function go(page: Page, sizes: Record<string, number>, selector: string) {',
+        '  await page.locator(selector).click();',
+        '}',
+        "await go(page, sizes, '#real-selector');",
+      ].join('\n'),
+    ),
+    { locator: { '#real-selector': 1 } },
+  );
+  assert.deepEqual(
+    callLiterals(
+      [
+        "await go(page, '#early-selector');",
+        'async function go(page: Page, selector: string) {',
+        '  await page.locator(selector).click();',
+        '}',
+        "await go(page, '#late-selector');",
+      ].join('\n'),
+    ),
+    { locator: { '#early-selector': 1, '#late-selector': 1 } },
+  );
 });
