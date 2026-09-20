@@ -610,9 +610,57 @@ body.is-selecting #board-irregular {
   order: 2;
   display: flex;
   flex: 1 1 100%;
+  min-inline-size: 0;
   flex-wrap: wrap;
   gap: var(--sp-1) var(--sp-2);
   justify-content: flex-start;
+}
+
+/* KB: interface.md §38 — the two halves of the bar: the chrome is always there,
+   the context belongs to the pattern type. */
+.tools__chrome,
+.tools__context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-2);
+}
+
+/* KB: interface.md §38 — it takes the rest of its line, so where the context is
+   on a line of its own the panel toggles keep the bar's right edge. */
+.tools__chrome {
+  flex: 1 1 auto;
+}
+
+.tools__context {
+  flex: 0 1 auto;
+}
+
+/* KB: interface.md §38 — from here the chrome stands beside the title instead of
+   under it, and it stays on one line. */
+@media (width >= 60rem) {
+  .tools {
+    flex: 1 1 0;
+  }
+
+  .tools__chrome {
+    flex-wrap: nowrap;
+  }
+}
+
+/* KB: interface.md §38 — in a narrow window the context keeps the icon and its
+   tooltip, and drops the label. */
+@media (width < 68.75rem) {
+  .tools__context {
+    column-gap: var(--sp-0);
+  }
+
+  .tools__context .tools__group + .tools__group {
+    padding-inline-start: var(--sp-0);
+  }
+
+  .tools__context .tool__label {
+    display: none;
+  }
 }
 
 /* KB: interface.md §52 — the toolbar is denser than the scale on purpose. */

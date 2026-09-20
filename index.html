@@ -111,262 +111,267 @@
         </div>
 
         <div class="tools">
-          <div class="tools__group" role="group" aria-label="Nézet és panelek" data-i18n-label="toolGroupPanels">
-            <!-- In the toolbar, so the side bar can be reopened once it is closed. -->
-            <button type="button" class="tool" id="types-toggle" aria-expanded="true" aria-controls="types" aria-label="Mintatípus sáv" data-tip="A mintatípus sáv nyitása és csukása" data-i18n-label="toolTypesLabel" data-i18n-tip="toolTypesTip">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M7.5 5 12.5 10l-5 5" />
-              </svg>
-              <span class="tool__label" data-i18n="toolLabelTypes">Típusok</span>
-            </button>
-          </div>
-
-          <div class="tools__group" role="group" aria-label="Fájl" data-i18n-label="toolGroupFile">
-            <button type="button" class="tool" data-action="new" aria-label="Új minta" data-tip="Új minta" data-i18n-label="toolNewLabel" data-i18n-tip="toolNewTip">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M5 2.75h6l4 4V17a.5.5 0 0 1-.5.5h-9A.5.5 0 0 1 5 17z" />
-                <path d="M11 2.75V7h4" />
-                <path d="M10 10v4M8 12h4" />
-              </svg>
-              <span class="tool__label" data-i18n="toolLabelNew">Új</span>
-            </button>
-            <div class="menu">
-              <button type="button" class="tool" id="file-toggle" aria-expanded="false" aria-controls="file-pop" aria-label="Fájlműveletek" data-tip="Mentés, betöltés és képexport" data-i18n-label="toolFileMenuLabel" data-i18n-tip="toolFileMenuTip">
-                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3 5.5h5l1.5 2H17v7.5H3z" /></svg>
-                <span class="tool__label" data-i18n="toolLabelFile">Fájl</span>
-              </button>
-              <div class="menu__pop menu__list" id="file-pop" hidden>
-            <button type="button" class="tool" data-action="import-json" aria-label="JSON betöltése" data-tip="JSON betöltése" data-i18n-label="toolImportLabel" data-i18n-tip="toolImportTip">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M10 3v7" />
-                <path d="M7 8l3 3 3-3" />
-                <path d="M4.5 13v2.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V13" />
-              </svg>
-              <span class="tool__label" data-i18n="toolImportLabel">JSON betöltése</span>
-            </button>
-            <button type="button" class="tool" data-action="export-json" aria-label="JSON mentése" data-tip="JSON mentése" data-i18n-label="toolExportJsonLabel" data-i18n-tip="toolExportJsonTip">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M4.5 4h8l3 3v9h-11z" />
-                <path d="M7 4v3.5h5V4" />
-                <path d="M6.5 16v-4.5h7V16" />
-              </svg>
-              <span class="tool__label" data-i18n="toolExportJsonLabel">JSON mentése</span>
-            </button>
-            <button type="button" class="tool" data-action="export-png" aria-label="PNG" data-tip="PNG-kép mentése" data-i18n-label="toolExportPngLabel" data-i18n-tip="toolExportPngTip">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M3.75 4.5h12.5v11H3.75z" />
-                <circle cx="7.5" cy="8" r="1.25" />
-                <path d="M4 15l4-4 3 3 2.5-2.5L16 14" />
-              </svg>
-              <span class="tool__label" data-i18n="toolExportPngLabel">PNG</span>
-            </button>
-            <button type="button" class="tool" data-action="export-svg" aria-label="SVG" data-tip="SVG-kép mentése (vektor)" data-i18n-label="toolExportSvgLabel" data-i18n-tip="toolExportSvgTip">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M4 14c3-8 9-8 12 0" />
-                <path d="M3 12.5h2.5V15H3zM14.5 12.5H17V15h-2.5z" />
-              </svg>
-              <span class="tool__label" data-i18n="toolExportSvgLabel">SVG</span>
-            </button>
-            </div>
-            </div>
-            <input type="file" id="import-file" accept="application/json,.json" hidden />
-          </div>
-
-          <div class="tools__group" role="group" aria-label="Szerkesztés" data-i18n-label="toolGroupEdit">
-            <button type="button" class="tool" data-action="undo" aria-label="Visszavonás" data-tip="Visszavonás (Ctrl+Z)" data-i18n-label="toolUndoLabel" data-i18n-tip="toolUndoTip" aria-keyshortcuts="Control+Z Meta+Z">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M7.5 5.5 4 9l3.5 3.5" />
-                <path d="M4 9h7a4.5 4.5 0 0 1 0 9h-1" />
-              </svg>
-              <span class="tool__label" data-i18n="toolLabelUndo">Vissza</span>
-            </button>
-            <button type="button" class="tool" data-action="redo" aria-label="Újra" data-tip="Újra (Ctrl+Shift+Z)" data-i18n-label="toolRedoLabel" data-i18n-tip="toolRedoTip" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z Control+Y">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M12.5 5.5 16 9l-3.5 3.5" />
-                <path d="M16 9H9a4.5 4.5 0 0 0 0 9h1" />
-              </svg>
-              <span class="tool__label" data-i18n="toolLabelRedo">Újra</span>
-            </button>
-          </div>
-
-          <div class="tools__group" id="tools-row" role="group" aria-label="Sor és kör" data-i18n-label="toolGroupRow">
-            <button type="button" class="tool" data-action="fill-row" aria-label="Sor kitöltése" data-tip="Sor kitöltése a kiválasztott szemmel (Shift+Alt+F)" data-i18n-label="toolFillRowLabel" data-i18n-tip="toolFillRowTip" aria-keyshortcuts="Shift+Alt+F">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <rect x="3.75" y="4.5" width="12.5" height="11" rx="1" />
-                <path d="M6 8h8M6 11h8M6 14h5" />
-              </svg>
-              <span class="tool__label" data-i18n="toolLabelFillRow">Kitöltés</span>
-            </button>
-            <button type="button" class="tool" data-action="end-row" aria-label="Sor vége, fordulás" data-tip="Sor vége, fordulás (Alt+F)" data-i18n-label="toolEndRowLabel" data-i18n-tip="toolEndRowTip" aria-keyshortcuts="Alt+F">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M5 6h6a3 3 0 0 1 0 6H5" />
-                <path d="M7.75 9.75 5 12l2.75 2.25" />
-              </svg>
-              <span class="tool__label" data-i18n="toolLabelEndRow">Fordulás</span>
-            </button>
-            <button type="button" class="tool" data-action="close-round" aria-label="Kör zárása" data-tip="Kör zárása kúszószemmel; láncszemekből láncgyűrű (Alt+K)" data-i18n-label="toolCloseRoundLabel" data-i18n-tip="toolCloseRoundTip" aria-keyshortcuts="Alt+K">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M13.7 6.6A5.5 5.5 0 1 0 15.5 10" />
-                <path d="M11.4 4.7 14 6.4l-1 2.6" />
-              </svg>
-              <span class="tool__label" data-i18n="toolLabelCloseRound">Zárás</span>
-            </button>
-            <button type="button" class="tool" data-action="spiral-round" aria-label="Kör vége spirálban" data-tip="Kör vége spirálban, zárás nélkül (Alt+S)" data-i18n-label="toolSpiralLabel" data-i18n-tip="toolSpiralTip" aria-keyshortcuts="Alt+S">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M10 10.25a.9.9 0 1 1 .9-1.1 2.4 2.4 0 1 1-3.3-1.9A4.2 4.2 0 1 1 5.5 13.6" />
-                <path d="M4.2 11.9 5.5 13.6l2-.7" />
-              </svg>
-              <span class="tool__label" data-i18n="toolLabelSpiral">Spirál</span>
-            </button>
-          </div>
-
-          <div class="tools__group" role="group" aria-label="Kijelölés" data-i18n-label="toolGroupSelect">
-            <button type="button" class="tool" data-action="select-area" aria-pressed="false" aria-label="Terület kijelölése" data-tip="Terület kijelölése húzással. Szem nélkül kattintás: egy szem, Shift: több, sorszám: teljes sor" data-i18n-label="toolSelectAreaLabel" data-i18n-tip="toolSelectAreaTip">
-              <svg class="icon icon--dashed" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <rect x="4" y="5" width="12" height="10" rx="1" />
-              </svg>
-              <span class="tool__label" data-i18n="toolLabelSelectArea">Terület</span>
-            </button>
-            <button type="button" class="tool" data-action="delete-selection" aria-label="Kijelölés törlése" data-tip="Kijelölt szemek törlése (Delete)" data-i18n-label="toolDeleteSelectionLabel" data-i18n-tip="toolDeleteSelectionTip" aria-keyshortcuts="Delete" disabled>
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M5 6h10" />
-                <path d="M8 6V4.25h4V6" />
-                <path d="M6.5 6l.6 10h5.8l.6-10" />
-                <path d="M9 9v4.5M11 9v4.5" />
-              </svg>
-              <span class="tool__label" data-i18n="toolLabelDeleteSelection">Törlés</span>
-            </button>
-            <button type="button" class="tool" data-action="duplicate-selection" aria-label="Kijelölés duplikálása" data-tip="Kijelölés duplikálása, pl. a következő sorba (Ctrl+D)" data-i18n-label="toolDuplicateLabel" data-i18n-tip="toolDuplicateTip" aria-keyshortcuts="Control+D Meta+D" disabled>
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M5 5h7v7H5z" />
-                <path d="M8 8h7v7H8z" />
-              </svg>
-              <span class="tool__label" data-i18n="toolLabelDuplicate">Duplikálás</span>
-            </button>
-          </div>
-
-          <div class="tools__group" role="group" aria-label="Rajzeszközök" data-i18n-label="toolGroupDraw" id="tools-irregular" hidden>
-            <button type="button" class="tool" data-action="chain-arc" aria-pressed="false" aria-label="Láncív" data-tip="Láncív: nyomd le a kezdőpontnál és húzd a végpontig. A kijelölt ív számbillentyűvel állítható." data-i18n-label="toolChainArcLabel" data-i18n-tip="toolChainArcTip">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M3 13.5c3.5-7 10.5-7 14 0" />
-                <ellipse cx="5.2" cy="10.6" rx="1.5" ry="0.85" transform="rotate(-38 5.2 10.6)" />
-                <ellipse cx="10" cy="8.3" rx="1.5" ry="0.85" />
-                <ellipse cx="14.8" cy="10.6" rx="1.5" ry="0.85" transform="rotate(38 14.8 10.6)" />
-              </svg>
-              <span class="tool__label" data-i18n="toolLabelChainArc">Láncív</span>
-            </button>
-            <button type="button" class="tool" data-action="fan" aria-pressed="false" aria-label="Legyező" data-tip="Legyező: kattints az alappontra és húzd az irányba. A kijelölt legyező számbillentyűvel állítható." data-i18n-label="toolFanLabel" data-i18n-tip="toolFanTip">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M10 17V7" />
-                <path d="M10 17 4.5 9" />
-                <path d="M10 17 15.5 9" />
-                <path d="M10 17 6.8 7.6" />
-                <path d="M10 17 13.2 7.6" />
-              </svg>
-              <span class="tool__label" data-i18n="toolLabelFan">Legyező</span>
-            </button>
-            <button type="button" class="tool" data-action="isolate" aria-pressed="false" aria-label="Kiemelés" data-tip="Csak a kijelölt szemek szerkeszthetők, a többi halvány és zárolt. Esc kilép." data-i18n-label="toolIsolateLabel" data-i18n-tip="toolIsolateTip">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <circle cx="10" cy="10" r="3.4" />
-                <path d="M3 4.5V3h1.5M17 4.5V3h-1.5M3 15.5V17h1.5M17 15.5V17h-1.5" />
-              </svg>
-              <span class="tool__label" data-i18n="toolLabelIsolate">Kiemelés</span>
-            </button>
-            <button type="button" class="tool" data-action="repeat" aria-label="Körkörös ismétlés" data-tip="A kijelölés körbemásolása egy középpont körül" data-i18n-label="toolRepeatLabel" data-i18n-tip="toolRepeatTip" disabled>
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M10 3.5a6.5 6.5 0 1 1-6.1 4.3" />
-                <path d="M3.2 4.3 3.9 7.8 7.4 7.1" />
-                <circle cx="10" cy="3.5" r="1.3" />
-                <circle cx="16.5" cy="10" r="1.3" />
-                <circle cx="10" cy="16.5" r="1.3" />
-              </svg>
-              <span class="tool__label" data-i18n="toolLabelRepeat">Ismétlés</span>
-            </button>
-            <button type="button" class="tool" data-action="note-text" aria-pressed="false" aria-label="Felirat" data-tip="Felirat: kattints a rajzlapra, és írd be a szöveget" data-i18n-label="toolTextLabel" data-i18n-tip="toolTextTip">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M4 5.5h12" />
-                <path d="M10 5.5v10" />
-                <path d="M7.5 15.5h5" />
-              </svg>
-              <span class="tool__label" data-i18n="toolLabelText">Felirat</span>
-            </button>
-            <button type="button" class="tool" data-action="note-arrow" aria-pressed="false" aria-label="Nyíl" data-tip="Nyíl: húzd az egyik végétől a másikig" data-i18n-label="toolArrowLabel" data-i18n-tip="toolArrowTip">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M3.5 15 16 5" />
-                <path d="M11 4.6h5.2v5" />
-              </svg>
-              <span class="tool__label" data-i18n="toolLabelArrow">Nyíl</span>
-            </button>
-            <button type="button" class="tool" data-action="note-bracket" aria-pressed="false" aria-label="Ismétlési zárójel" data-tip="Ismétlési zárójel: húzd végig azon, ami ismétlődik" data-i18n-label="toolBracketLabel" data-i18n-tip="toolBracketTip">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M4 6c0 2.2.6 3 2.6 3S9 9.8 9 12c0-2.2.6-3 2.4-3S14 8.2 14 6" />
-                <path d="M9 12v3" />
-              </svg>
-              <span class="tool__label" data-i18n="toolLabelBracket">Zárójel</span>
-            </button>
-          </div>
-
-          <div class="tools__group" role="group" aria-label="Nézet" data-i18n-label="toolGroupView">
-            <button type="button" class="tool" data-action="grid" aria-pressed="true" aria-label="Rács" data-tip="Rács ki és be (Alt+R)" data-i18n-label="toolGridLabel" data-i18n-tip="toolGridTip" aria-keyshortcuts="Alt+R">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M3.75 3.75h12.5v12.5H3.75z" />
-                <path d="M3.75 8h12.5M3.75 12h12.5M8 3.75v12.5M12 3.75v12.5" />
-              </svg>
-              <span class="tool__label" data-i18n="toolLabelGrid">Rács</span>
-            </button>
-            <button type="button" class="tool" data-action="zoom-out" aria-label="Kicsinyítés" data-tip="Kicsinyítés" data-i18n-label="toolZoomOutLabel" data-i18n-tip="toolZoomOutTip">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <circle cx="9" cy="9" r="5" />
-                <path d="M12.6 12.6 16.5 16.5" />
-                <path d="M7 9h4" />
-              </svg>
-              <span class="tool__label" data-i18n="toolLabelZoomOut">Kicsinyítés</span>
-            </button>
-            <button type="button" class="tool" data-action="zoom-in" aria-label="Nagyítás" data-tip="Nagyítás" data-i18n-label="toolZoomInLabel" data-i18n-tip="toolZoomInTip">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <circle cx="9" cy="9" r="5" />
-                <path d="M12.6 12.6 16.5 16.5" />
-                <path d="M7 9h4M9 7v4" />
-              </svg>
-              <span class="tool__label" data-i18n="toolLabelZoomIn">Nagyítás</span>
-            </button>
-            <button type="button" class="tool" data-action="fit" aria-label="Egész minta" data-tip="Egész minta a képernyőre" data-i18n-label="toolFitLabel" data-i18n-tip="toolFitTip">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M4 7V5h2M14 5h2v2M16 13v2h-2M6 15H4v-2" />
-              </svg>
-              <span class="tool__label" data-i18n="toolLabelFit">Teljes</span>
-            </button>
-          </div>
-          <div class="tools__group tools__group--end" role="group" aria-label="Panelek" data-i18n-label="toolGroupViews">
-            <button type="button" class="tool" id="panel-toggle" aria-expanded="true" aria-controls="panel" aria-label="Szemek és beállítások" data-tip="A jobb oldali panel nyitása és csukása" data-i18n-label="panelToggle" data-i18n-tip="toolPanelTip">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M3.75 4.5h12.5v11H3.75z" />
-                <path d="M12 4.5v11" />
-              </svg>
-              <span class="tool__label" data-i18n="toolLabelPanel">Szemek</span>
-            </button>
-
-            <button type="button" class="tool" id="written-toggle" aria-expanded="false" aria-controls="written" aria-label="Írott minta" data-tip="Az írott minta panel nyitása és csukása" data-i18n-label="writtenToggle" data-i18n-tip="toolWrittenTip">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M4.5 4.5h11v11h-11z" />
-                <path d="M7 8h6M7 11h6" />
-              </svg>
-              <span class="tool__label" data-i18n="toolLabelWritten">Szöveg</span>
-            </button>
-
-            <div class="menu">
-              <button type="button" class="tool tool--errors" id="error-toggle" aria-expanded="false" aria-controls="errors" aria-label="Hibák és figyelmeztetések" data-tip="A hibák és figyelmeztetések listája" data-i18n-label="errorsRegionLabel" data-i18n-tip="toolErrorsTip">
+          <div class="tools__chrome">
+            <div class="tools__group" role="group" aria-label="Nézet és panelek" data-i18n-label="toolGroupPanels">
+              <!-- In the toolbar, so the side bar can be reopened once it is closed. -->
+              <button type="button" class="tool" id="types-toggle" aria-expanded="true" aria-controls="types" aria-label="Mintatípus sáv" data-tip="A mintatípus sáv nyitása és csukása" data-i18n-label="toolTypesLabel" data-i18n-tip="toolTypesTip">
                 <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                  <path d="M10 3.75 16.5 15.5H3.5z" />
-                  <path d="M10 8v3.5M10 13.25v.25" />
+                  <path d="M7.5 5 12.5 10l-5 5" />
                 </svg>
-                <span class="tool__label" id="error-count">Nincs hiba</span>
+                <span class="tool__label" data-i18n="toolLabelTypes">Típusok</span>
+              </button>
+            </div>
+
+            <div class="tools__group" role="group" aria-label="Fájl" data-i18n-label="toolGroupFile">
+              <button type="button" class="tool" data-action="new" aria-label="Új minta" data-tip="Új minta" data-i18n-label="toolNewLabel" data-i18n-tip="toolNewTip">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M5 2.75h6l4 4V17a.5.5 0 0 1-.5.5h-9A.5.5 0 0 1 5 17z" />
+                  <path d="M11 2.75V7h4" />
+                  <path d="M10 10v4M8 12h4" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelNew">Új</span>
+              </button>
+              <div class="menu">
+                <button type="button" class="tool" id="file-toggle" aria-expanded="false" aria-controls="file-pop" aria-label="Fájlműveletek" data-tip="Mentés, betöltés és képexport" data-i18n-label="toolFileMenuLabel" data-i18n-tip="toolFileMenuTip">
+                  <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3 5.5h5l1.5 2H17v7.5H3z" /></svg>
+                  <span class="tool__label" data-i18n="toolLabelFile">Fájl</span>
+                </button>
+                <div class="menu__pop menu__list" id="file-pop" hidden>
+              <button type="button" class="tool" data-action="import-json" aria-label="JSON betöltése" data-tip="JSON betöltése" data-i18n-label="toolImportLabel" data-i18n-tip="toolImportTip">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M10 3v7" />
+                  <path d="M7 8l3 3 3-3" />
+                  <path d="M4.5 13v2.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V13" />
+                </svg>
+                <span class="tool__label" data-i18n="toolImportLabel">JSON betöltése</span>
+              </button>
+              <button type="button" class="tool" data-action="export-json" aria-label="JSON mentése" data-tip="JSON mentése" data-i18n-label="toolExportJsonLabel" data-i18n-tip="toolExportJsonTip">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M4.5 4h8l3 3v9h-11z" />
+                  <path d="M7 4v3.5h5V4" />
+                  <path d="M6.5 16v-4.5h7V16" />
+                </svg>
+                <span class="tool__label" data-i18n="toolExportJsonLabel">JSON mentése</span>
+              </button>
+              <button type="button" class="tool" data-action="export-png" aria-label="PNG" data-tip="PNG-kép mentése" data-i18n-label="toolExportPngLabel" data-i18n-tip="toolExportPngTip">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M3.75 4.5h12.5v11H3.75z" />
+                  <circle cx="7.5" cy="8" r="1.25" />
+                  <path d="M4 15l4-4 3 3 2.5-2.5L16 14" />
+                </svg>
+                <span class="tool__label" data-i18n="toolExportPngLabel">PNG</span>
+              </button>
+              <button type="button" class="tool" data-action="export-svg" aria-label="SVG" data-tip="SVG-kép mentése (vektor)" data-i18n-label="toolExportSvgLabel" data-i18n-tip="toolExportSvgTip">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M4 14c3-8 9-8 12 0" />
+                  <path d="M3 12.5h2.5V15H3zM14.5 12.5H17V15h-2.5z" />
+                </svg>
+                <span class="tool__label" data-i18n="toolExportSvgLabel">SVG</span>
+              </button>
+              </div>
+              </div>
+              <input type="file" id="import-file" accept="application/json,.json" hidden />
+            </div>
+
+            <div class="tools__group" role="group" aria-label="Szerkesztés" data-i18n-label="toolGroupEdit">
+              <button type="button" class="tool" data-action="undo" aria-label="Visszavonás" data-tip="Visszavonás (Ctrl+Z)" data-i18n-label="toolUndoLabel" data-i18n-tip="toolUndoTip" aria-keyshortcuts="Control+Z Meta+Z">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M7.5 5.5 4 9l3.5 3.5" />
+                  <path d="M4 9h7a4.5 4.5 0 0 1 0 9h-1" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelUndo">Vissza</span>
+              </button>
+              <button type="button" class="tool" data-action="redo" aria-label="Újra" data-tip="Újra (Ctrl+Shift+Z)" data-i18n-label="toolRedoLabel" data-i18n-tip="toolRedoTip" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z Control+Y">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M12.5 5.5 16 9l-3.5 3.5" />
+                  <path d="M16 9H9a4.5 4.5 0 0 0 0 9h1" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelRedo">Újra</span>
+              </button>
+            </div>
+
+            <div class="tools__group tools__group--end" role="group" aria-label="Panelek" data-i18n-label="toolGroupViews">
+              <button type="button" class="tool" id="panel-toggle" aria-expanded="true" aria-controls="panel" aria-label="Szemek és beállítások" data-tip="A jobb oldali panel nyitása és csukása" data-i18n-label="panelToggle" data-i18n-tip="toolPanelTip">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M3.75 4.5h12.5v11H3.75z" />
+                  <path d="M12 4.5v11" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelPanel">Szemek</span>
               </button>
 
-              <div class="menu__pop errors" id="errors" role="region" aria-label="Hibák és figyelmeztetések" data-i18n-label="errorsRegionLabel" hidden>
-                <p class="check__summary" id="summary"></p>
-                <ul class="check__list" id="findings"></ul>
+              <button type="button" class="tool" id="written-toggle" aria-expanded="false" aria-controls="written" aria-label="Írott minta" data-tip="Az írott minta panel nyitása és csukása" data-i18n-label="writtenToggle" data-i18n-tip="toolWrittenTip">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M4.5 4.5h11v11h-11z" />
+                  <path d="M7 8h6M7 11h6" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelWritten">Szöveg</span>
+              </button>
+
+              <div class="menu">
+                <button type="button" class="tool tool--errors" id="error-toggle" aria-expanded="false" aria-controls="errors" aria-label="Hibák és figyelmeztetések" data-tip="A hibák és figyelmeztetések listája" data-i18n-label="errorsRegionLabel" data-i18n-tip="toolErrorsTip">
+                  <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                    <path d="M10 3.75 16.5 15.5H3.5z" />
+                    <path d="M10 8v3.5M10 13.25v.25" />
+                  </svg>
+                  <span class="tool__label" id="error-count">Nincs hiba</span>
+                </button>
+
+                <div class="menu__pop errors" id="errors" role="region" aria-label="Hibák és figyelmeztetések" data-i18n-label="errorsRegionLabel" hidden>
+                  <p class="check__summary" id="summary"></p>
+                  <ul class="check__list" id="findings"></ul>
+                </div>
               </div>
+            </div>
+          </div>
+
+          <div class="tools__context">
+            <div class="tools__group" id="tools-row" role="group" aria-label="Sor és kör" data-i18n-label="toolGroupRow">
+              <button type="button" class="tool" data-action="fill-row" aria-label="Sor kitöltése" data-tip="Sor kitöltése a kiválasztott szemmel (Shift+Alt+F)" data-i18n-label="toolFillRowLabel" data-i18n-tip="toolFillRowTip" aria-keyshortcuts="Shift+Alt+F">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <rect x="3.75" y="4.5" width="12.5" height="11" rx="1" />
+                  <path d="M6 8h8M6 11h8M6 14h5" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelFillRow">Kitöltés</span>
+              </button>
+              <button type="button" class="tool" data-action="end-row" aria-label="Sor vége, fordulás" data-tip="Sor vége, fordulás (Alt+F)" data-i18n-label="toolEndRowLabel" data-i18n-tip="toolEndRowTip" aria-keyshortcuts="Alt+F">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M5 6h6a3 3 0 0 1 0 6H5" />
+                  <path d="M7.75 9.75 5 12l2.75 2.25" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelEndRow">Fordulás</span>
+              </button>
+              <button type="button" class="tool" data-action="close-round" aria-label="Kör zárása" data-tip="Kör zárása kúszószemmel; láncszemekből láncgyűrű (Alt+K)" data-i18n-label="toolCloseRoundLabel" data-i18n-tip="toolCloseRoundTip" aria-keyshortcuts="Alt+K">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M13.7 6.6A5.5 5.5 0 1 0 15.5 10" />
+                  <path d="M11.4 4.7 14 6.4l-1 2.6" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelCloseRound">Zárás</span>
+              </button>
+              <button type="button" class="tool" data-action="spiral-round" aria-label="Kör vége spirálban" data-tip="Kör vége spirálban, zárás nélkül (Alt+S)" data-i18n-label="toolSpiralLabel" data-i18n-tip="toolSpiralTip" aria-keyshortcuts="Alt+S">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M10 10.25a.9.9 0 1 1 .9-1.1 2.4 2.4 0 1 1-3.3-1.9A4.2 4.2 0 1 1 5.5 13.6" />
+                  <path d="M4.2 11.9 5.5 13.6l2-.7" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelSpiral">Spirál</span>
+              </button>
+            </div>
+
+            <div class="tools__group" role="group" aria-label="Kijelölés" data-i18n-label="toolGroupSelect">
+              <button type="button" class="tool" data-action="select-area" aria-pressed="false" aria-label="Terület kijelölése" data-tip="Terület kijelölése húzással. Szem nélkül kattintás: egy szem, Shift: több, sorszám: teljes sor" data-i18n-label="toolSelectAreaLabel" data-i18n-tip="toolSelectAreaTip">
+                <svg class="icon icon--dashed" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <rect x="4" y="5" width="12" height="10" rx="1" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelSelectArea">Terület</span>
+              </button>
+              <button type="button" class="tool" data-action="delete-selection" aria-label="Kijelölés törlése" data-tip="Kijelölt szemek törlése (Delete)" data-i18n-label="toolDeleteSelectionLabel" data-i18n-tip="toolDeleteSelectionTip" aria-keyshortcuts="Delete" disabled>
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M5 6h10" />
+                  <path d="M8 6V4.25h4V6" />
+                  <path d="M6.5 6l.6 10h5.8l.6-10" />
+                  <path d="M9 9v4.5M11 9v4.5" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelDeleteSelection">Törlés</span>
+              </button>
+              <button type="button" class="tool" data-action="duplicate-selection" aria-label="Kijelölés duplikálása" data-tip="Kijelölés duplikálása, pl. a következő sorba (Ctrl+D)" data-i18n-label="toolDuplicateLabel" data-i18n-tip="toolDuplicateTip" aria-keyshortcuts="Control+D Meta+D" disabled>
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M5 5h7v7H5z" />
+                  <path d="M8 8h7v7H8z" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelDuplicate">Duplikálás</span>
+              </button>
+            </div>
+
+            <div class="tools__group" role="group" aria-label="Rajzeszközök" data-i18n-label="toolGroupDraw" id="tools-irregular" hidden>
+              <button type="button" class="tool" data-action="chain-arc" aria-pressed="false" aria-label="Láncív" data-tip="Láncív: nyomd le a kezdőpontnál és húzd a végpontig. A kijelölt ív számbillentyűvel állítható." data-i18n-label="toolChainArcLabel" data-i18n-tip="toolChainArcTip">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M3 13.5c3.5-7 10.5-7 14 0" />
+                  <ellipse cx="5.2" cy="10.6" rx="1.5" ry="0.85" transform="rotate(-38 5.2 10.6)" />
+                  <ellipse cx="10" cy="8.3" rx="1.5" ry="0.85" />
+                  <ellipse cx="14.8" cy="10.6" rx="1.5" ry="0.85" transform="rotate(38 14.8 10.6)" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelChainArc">Láncív</span>
+              </button>
+              <button type="button" class="tool" data-action="fan" aria-pressed="false" aria-label="Legyező" data-tip="Legyező: kattints az alappontra és húzd az irányba. A kijelölt legyező számbillentyűvel állítható." data-i18n-label="toolFanLabel" data-i18n-tip="toolFanTip">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M10 17V7" />
+                  <path d="M10 17 4.5 9" />
+                  <path d="M10 17 15.5 9" />
+                  <path d="M10 17 6.8 7.6" />
+                  <path d="M10 17 13.2 7.6" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelFan">Legyező</span>
+              </button>
+              <button type="button" class="tool" data-action="isolate" aria-pressed="false" aria-label="Kiemelés" data-tip="Csak a kijelölt szemek szerkeszthetők, a többi halvány és zárolt. Esc kilép." data-i18n-label="toolIsolateLabel" data-i18n-tip="toolIsolateTip">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <circle cx="10" cy="10" r="3.4" />
+                  <path d="M3 4.5V3h1.5M17 4.5V3h-1.5M3 15.5V17h1.5M17 15.5V17h-1.5" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelIsolate">Kiemelés</span>
+              </button>
+              <button type="button" class="tool" data-action="repeat" aria-label="Körkörös ismétlés" data-tip="A kijelölés körbemásolása egy középpont körül" data-i18n-label="toolRepeatLabel" data-i18n-tip="toolRepeatTip" disabled>
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M10 3.5a6.5 6.5 0 1 1-6.1 4.3" />
+                  <path d="M3.2 4.3 3.9 7.8 7.4 7.1" />
+                  <circle cx="10" cy="3.5" r="1.3" />
+                  <circle cx="16.5" cy="10" r="1.3" />
+                  <circle cx="10" cy="16.5" r="1.3" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelRepeat">Ismétlés</span>
+              </button>
+              <button type="button" class="tool" data-action="note-text" aria-pressed="false" aria-label="Felirat" data-tip="Felirat: kattints a rajzlapra, és írd be a szöveget" data-i18n-label="toolTextLabel" data-i18n-tip="toolTextTip">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M4 5.5h12" />
+                  <path d="M10 5.5v10" />
+                  <path d="M7.5 15.5h5" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelText">Felirat</span>
+              </button>
+              <button type="button" class="tool" data-action="note-arrow" aria-pressed="false" aria-label="Nyíl" data-tip="Nyíl: húzd az egyik végétől a másikig" data-i18n-label="toolArrowLabel" data-i18n-tip="toolArrowTip">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M3.5 15 16 5" />
+                  <path d="M11 4.6h5.2v5" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelArrow">Nyíl</span>
+              </button>
+              <button type="button" class="tool" data-action="note-bracket" aria-pressed="false" aria-label="Ismétlési zárójel" data-tip="Ismétlési zárójel: húzd végig azon, ami ismétlődik" data-i18n-label="toolBracketLabel" data-i18n-tip="toolBracketTip">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M4 6c0 2.2.6 3 2.6 3S9 9.8 9 12c0-2.2.6-3 2.4-3S14 8.2 14 6" />
+                  <path d="M9 12v3" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelBracket">Zárójel</span>
+              </button>
+            </div>
+
+            <div class="tools__group" role="group" aria-label="Nézet" data-i18n-label="toolGroupView">
+              <button type="button" class="tool" data-action="grid" aria-pressed="true" aria-label="Rács" data-tip="Rács ki és be (Alt+R)" data-i18n-label="toolGridLabel" data-i18n-tip="toolGridTip" aria-keyshortcuts="Alt+R">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M3.75 3.75h12.5v12.5H3.75z" />
+                  <path d="M3.75 8h12.5M3.75 12h12.5M8 3.75v12.5M12 3.75v12.5" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelGrid">Rács</span>
+              </button>
+              <button type="button" class="tool" data-action="zoom-out" aria-label="Kicsinyítés" data-tip="Kicsinyítés" data-i18n-label="toolZoomOutLabel" data-i18n-tip="toolZoomOutTip">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <circle cx="9" cy="9" r="5" />
+                  <path d="M12.6 12.6 16.5 16.5" />
+                  <path d="M7 9h4" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelZoomOut">Kicsinyítés</span>
+              </button>
+              <button type="button" class="tool" data-action="zoom-in" aria-label="Nagyítás" data-tip="Nagyítás" data-i18n-label="toolZoomInLabel" data-i18n-tip="toolZoomInTip">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <circle cx="9" cy="9" r="5" />
+                  <path d="M12.6 12.6 16.5 16.5" />
+                  <path d="M7 9h4M9 7v4" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelZoomIn">Nagyítás</span>
+              </button>
+              <button type="button" class="tool" data-action="fit" aria-label="Egész minta" data-tip="Egész minta a képernyőre" data-i18n-label="toolFitLabel" data-i18n-tip="toolFitTip">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M4 7V5h2M14 5h2v2M16 13v2h-2M6 15H4v-2" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelFit">Teljes</span>
+              </button>
             </div>
           </div>
         </div>

@@ -86,6 +86,77 @@ for (const viewport of [
   });
 }
 
+/**
+ * What the menu bar looks like, read from the document in one go: the distinct button
+ * rows of each half and of the whole, the boxes, and whether the page scrolls sideways.
+ * No locators, so the frozen locator inventory (PQW-978) stays put.
+ */
+const barShape = (page: Page) =>
+  page.evaluate(() => {
+    const rows = (selector: string) =>
+      [
+        ...new Set(
+          [...document.querySelectorAll(`${selector} .tool`)]
+            .filter((tool) => tool.checkVisibility())
+            .map((tool) => Math.round(tool.getBoundingClientRect().top)),
+        ),
+      ].length;
+    const rect = (selector: string) => document.querySelector(selector)?.getBoundingClientRect() ?? null;
+    const bar = rect('.bar');
+    const lead = rect('.bar__lead');
+    const chrome = rect('.tools__chrome');
+    const endRow = rect('[data-action="end-row"]');
+    return {
+      rows: { chrome: rows('.tools__chrome'), context: rows('.tools__context'), tools: rows('.tools') },
+      barHeight: bar?.height ?? null,
+      leadBottom: lead?.bottom ?? null,
+      chromeTop: chrome?.top ?? null,
+      endRow: endRow && { width: endRow.width, height: endRow.height, right: endRow.right, bottom: endRow.bottom },
+      page: [document.documentElement.scrollWidth, document.documentElement.scrollHeight],
+    };
+  });
+
+/*
+ * The menu bar is chrome and context (PQW-983). The tools used to stand on a line
+ * of their own under the title, so in the owner's 1000 × 506 window the bar was
+ * 157 px — 31 % of the window — with the tools already wrapped into two rows. The
+ * chrome (the buttons that are there in every pattern type) now shares the
+ * title's line and the context has the line below it, which gives the canvas back
+ * the height of a whole row. The chrome itself never wraps.
+ */
+for (const { rows, ...viewport } of [
+  { width: 1440, height: 900, rows: 1 },
+  { width: 1000, height: 506, rows: 2 },
+  // The tightest window the split allows: the chrome may not wrap here, and its labels stay.
+  { width: 960, height: 506, rows: 2 },
+]) {
+  test(`${viewport.width}×${viewport.height}: the tools stand beside the title in ${rows} row(s), and the chrome does not wrap`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await open(page);
+    const shape = await barShape(page);
+
+    // Each half is one line of its own; together they are as many rows as the window allows.
+    expect(shape.rows).toEqual({ chrome: 1, context: 1, tools: rows });
+
+    // The title and the chrome are on the same line, so the bar is not a row taller than its tools.
+    expect(shape.chromeTop).toBeLessThan(shape.leadBottom!);
+    expect(shape.barHeight, 'the bar is at most a quarter of the window').toBeLessThan(viewport.height / 4);
+
+    // A chrome that does not wrap must not push the page sideways either.
+    expect(shape.page).toEqual([viewport.width, viewport.height]);
+
+    // The context drops its labels in a narrow window, never the button itself: the „Fordulás”
+    // button stays a whole target inside the window (e2e-prod/fust.spec.ts). Read by its action
+    // rather than by its text, because the locator inventory is frozen.
+    expect(shape.endRow!.width).toBeGreaterThanOrEqual(44);
+    expect(shape.endRow!.height).toBeGreaterThanOrEqual(44);
+    expect(shape.endRow!.right).toBeLessThanOrEqual(viewport.width);
+    expect(shape.endRow!.bottom).toBeLessThanOrEqual(viewport.height);
+  });
+}
+
 test('the written pattern can be closed with its own button and from the menu bar', async ({ page }) => {
   await open(page);
 
