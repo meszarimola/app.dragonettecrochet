@@ -1315,6 +1315,10 @@ summary.palette__title::after {
   background: var(--c-bg);
 }
 
+.sheet:focus {
+  outline: none;
+}
+
 .sheet__head {
   display: flex;
   flex-wrap: wrap;

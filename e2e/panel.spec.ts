@@ -12,24 +12,6 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
-/** The make-a-pattern sheet (PQW-987) is closed on load, and its opener is in the file menu. */
-async function openSheet(page: Page): Promise<void> {
-  const sheet = page.locator('#setup-toggle');
-  if ((await sheet.getAttribute('aria-expanded')) !== 'true') {
-    await page.locator('#file-toggle').click();
-    await sheet.click();
-  }
-}
-
-/** A section of that sheet, opened with it. */
-async function openSetupSection(page: Page, selector: string): Promise<void> {
-  const section = page.locator(selector);
-  if (await section.evaluate((el) => el.closest('#setup') !== null)) {
-    await openSheet(page);
-  }
-  if ((await section.getAttribute('open')) === null) await section.locator('summary').click();
-}
-
 const tipDisplay = (tool: Locator) => tool.evaluate((el) => getComputedStyle(el, '::after').display);
 const tipText = (tool: Locator) => tool.evaluate((el) => getComputedStyle(el, '::after').content);
 
@@ -48,19 +30,14 @@ test('on load the stitch list is visible at the top of the panel, the notation c
   await expect(notation).not.toHaveAttribute('open', '');
   await expect(page.locator('#terms')).toBeHidden();
 
-  // The notation left the panel for the make-a-pattern sheet (PQW-987). The promise is
-  // the same — it is not in the way on load — but the sheet is what keeps it out of the
-  // way now, so that is what the test states.
-  await expect(page.locator('#setup')).toBeHidden();
-  expect(await notation.evaluate((el) => el.closest('#setup') !== null)).toBe(true);
+  const stitchesBox = await stitches.boundingBox();
+  const notationBox = await notation.boundingBox();
+  expect(stitchesBox!.y).toBeLessThan(notationBox!.y);
 });
 
 test('the panel sections can be collapsed and expanded by mouse and by keyboard', async ({ page }) => {
   await open(page);
 
-  // The notation lives in the make-a-pattern sheet now (PQW-987); the section itself
-  // is still closed inside it, so the open-and-close it is tested for is unchanged.
-  await openSheet(page);
   const notationHead = page.locator('#section-notation > summary');
   await notationHead.click();
   await expect(page.locator('#terms')).toBeVisible();
@@ -73,9 +50,6 @@ test('the panel sections can be collapsed and expanded by mouse and by keyboard'
   await expect(page.locator('#palette')).toBeHidden();
   await page.keyboard.press('Enter');
   await expect(page.locator('#palette')).toBeVisible();
-
-  // The sheet stands over the panel while it is open, so it closes before the panel is used again.
-  await page.locator('#setup').getByRole('button', { name: 'Lecsukás' }).click();
 
   const patternHead = page.locator('#section-pattern > summary');
   await patternHead.click();

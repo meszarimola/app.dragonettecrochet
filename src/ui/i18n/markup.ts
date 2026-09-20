@@ -33,7 +33,7 @@ export const MARKUP_TEXTS = {
     setupToggle: 'Minta készítése',
     setupTitle: 'Minta készítése',
     setupIntro: 'Add meg a méreteket, és a tervező elkészíti belőlük a mintát. A létrehozás lecseréli a mostani mintát.',
-    toolSetupTip: 'A minta készítése lap nyitása és csukása',
+    toolSetupTip: 'Minta készítése megadott méretekből',
 
     toolGroupFile: 'Fájl',
     toolGroupEdit: 'Szerkesztés',
@@ -569,7 +569,7 @@ export const MARKUP_TEXTS = {
     setupToggle: 'Make a pattern',
     setupTitle: 'Make a pattern',
     setupIntro: 'Give the measurements and the designer builds the pattern from them. Creating one replaces the pattern you have.',
-    toolSetupTip: 'Open and close the make-a-pattern sheet',
+    toolSetupTip: 'Make a pattern from measurements you give',
 
     toolGroupFile: 'File',
     toolGroupEdit: 'Edit',

@@ -13,14 +13,8 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
-/** The notation is closed by default (PQW-882) and sits in the sheet (PQW-987). */
+/** The notation section is closed by default (PQW-882). */
 async function openNotation(page: Page): Promise<void> {
-  const sheet = page.locator('#setup-toggle');
-  if ((await sheet.getAttribute('aria-expanded')) !== 'true') {
-    // The opener lives in the file menu (PQW-987), which has to be open to click it.
-    await page.locator('#file-toggle').click();
-    await sheet.click();
-  }
   await page.locator('#section-notation').evaluate((el) => {
     (el as HTMLDetailsElement).open = true;
   });

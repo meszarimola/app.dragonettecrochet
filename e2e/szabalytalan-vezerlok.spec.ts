@@ -36,12 +36,12 @@ async function chooseRegular(page: Page): Promise<void> {
 async function openSection(page: Page, selector: string): Promise<void> {
   const inSheet = await page.locator(selector).evaluate((el) => el.closest('#setup') !== null);
   if (inSheet) {
-  const sheet = page.locator('#setup-toggle');
-  if ((await sheet.getAttribute('aria-expanded')) !== 'true') {
-    // The opener lives in the file menu (PQW-987), which has to be open to click it.
-    await page.locator('#file-toggle').click();
-    await sheet.click();
-  }
+    const sheet = page.locator('#setup-toggle');
+    if ((await sheet.getAttribute('aria-expanded')) !== 'true') {
+      // The opener lives in the file menu (PQW-987), which has to be open to click it.
+      await page.locator('#file-toggle').click();
+      await sheet.click();
+    }
   }
   const section = page.locator(selector);
   if ((await section.getAttribute('open')) === null) await section.locator('summary').click();
@@ -60,6 +60,9 @@ async function circle(page: Page): Promise<void> {
   await page.locator('#rounds-count').press('Tab');
   await page.locator('#section-rounds').getByRole('button', { name: 'Minta létrehozása' }).click();
   await expect(page.locator('#status')).toContainText('Lapos kör, 4 kör elkészült;');
+  // The sheet stays open after generating (PQW-987) and stands over the panel, so the
+  // tests that go on to use the panel close it.
+  await page.locator('#setup').getByRole('button', { name: 'Lecsukás' }).click();
 }
 
 /** Selects the last symbol, which is what reveals the adjust box. */

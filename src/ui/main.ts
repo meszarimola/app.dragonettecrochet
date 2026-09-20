@@ -1508,6 +1508,8 @@ const ACTIONS: Record<string, () => void> = {
   'written-full': () => toggleWrittenFull(),
   'close-setup': () => {
     setOpen(setupSheet, setupToggle, false);
+    // The close button goes with the sheet, so the focus returns to the menu that opened it.
+    must<HTMLButtonElement>('#file-toggle').focus();
     fitBoard();
   },
   'close-written': () => {
@@ -1694,6 +1696,9 @@ toggle.addEventListener('click', () => {
 setupToggle.addEventListener('click', () => {
   const open = setupSheet.hasAttribute('hidden');
   setOpen(setupSheet, setupToggle, open);
+  // The opener sits in the file menu, which closes on this click, so the focus would
+  // otherwise land on the body. KB: interface.md §54.
+  if (open) setupSheet.focus();
   fitBoard();
 });
 
@@ -2129,43 +2134,36 @@ const sizePanel = new SizePanel(must<HTMLDetailsElement>('#section-size'), {
   },
 });
 
+/*
+ * Every generator commits the same way. The sheet is deliberately NOT closed here:
+ * a shape is found by trying numbers, and reopening it costs two clicks through the
+ * file menu. Closing it is the user's, with the sheet's own button.
+ * KB: interface.md §54.
+ */
+function generated(pattern: Pattern, message: Message): void {
+  selectedNode = null;
+  selection = [];
+  commit({ ok: true, pattern }, message);
+  fitBoard();
+}
+
 const roundsPanel = new RoundsPanel(must<HTMLDetailsElement>('#section-rounds'), {
-  commit: (pattern, message) => {
-    selectedNode = null;
-    selection = [];
-    commit({ ok: true, pattern }, message);
-    fitBoard();
-  },
+  commit: generated,
   announce,
 });
 
 const shapesPanel = new ShapesPanel(must<HTMLDetailsElement>('#section-shape'), {
-  commit: (pattern, message) => {
-    selectedNode = null;
-    selection = [];
-    commit({ ok: true, pattern }, message);
-    fitBoard();
-  },
+  commit: generated,
   announce,
 });
 
 const shawlsPanel = new ShawlsPanel(must<HTMLDetailsElement>('#section-shawl'), {
-  commit: (pattern, message) => {
-    selectedNode = null;
-    selection = [];
-    commit({ ok: true, pattern }, message);
-    fitBoard();
-  },
+  commit: generated,
   announce,
 });
 
 const garmentPanel = new GarmentPanel(must<HTMLDetailsElement>('#section-garment'), {
-  commit: (pattern, message) => {
-    selectedNode = null;
-    selection = [];
-    commit({ ok: true, pattern }, message);
-    fitBoard();
-  },
+  commit: generated,
   announce,
 });
 
@@ -2181,30 +2179,14 @@ const amigurumiPanel = panelFor(
   'amigurumi',
   '#section-amigurumi',
   (section) =>
-    new AmigurumiPanel(section, {
-      commit: (pattern, message) => {
-        selectedNode = null;
-        selection = [];
-        commit({ ok: true, pattern }, message);
-        fitBoard();
-      },
-      announce,
-    }),
+    new AmigurumiPanel(section, { commit: generated, announce }),
 );
 
 const gridPanel = panelFor(
   'filet',
   '#section-grid',
   (section) =>
-    new GridChartPanel(section, {
-      commit: (pattern, message) => {
-        selectedNode = null;
-        selection = [];
-        commit({ ok: true, pattern }, message);
-        fitBoard();
-      },
-      announce,
-    }),
+    new GridChartPanel(section, { commit: generated, announce }),
 );
 
 // KB: interface.md §39 — collected after panelFor, so a section it hid for a disabled type stays out.

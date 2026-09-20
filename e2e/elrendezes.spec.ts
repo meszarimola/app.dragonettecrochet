@@ -13,6 +13,15 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
+/** The make-a-pattern sheet (PQW-987) is closed on load, and its opener is in the file menu. */
+async function openSheet(page: Page): Promise<void> {
+  const sheet = page.locator('#setup-toggle');
+  if ((await sheet.getAttribute('aria-expanded')) !== 'true') {
+    await page.locator('#file-toggle').click();
+    await sheet.click();
+  }
+}
+
 async function box(page: Page, selector: string) {
   const found = await page.locator(selector).boundingBox();
   expect(found, selector).not.toBeNull();
@@ -502,6 +511,9 @@ for (const [viewport, rounds] of [
     await open(page);
     await openWritten(page);
 
+    // The round generator moved into the make-a-pattern sheet (PQW-987), which stands
+    // where the panel stands — so it closes again before anything is measured.
+    await openSheet(page);
     const section = page.locator('#section-rounds');
     if ((await section.getAttribute('open')) === null) await section.locator('summary').click();
     await page.locator('#rounds-shape').selectOption({ label: 'Nagymama-négyzet' });
@@ -509,6 +521,7 @@ for (const [viewport, rounds] of [
     await page.locator('#rounds-count').press('Tab');
     await page.getByRole('button', { name: 'Minta létrehozása' }).click();
     await expect(page.locator('#status')).toContainText(`${rounds} kör elkészült`);
+    await page.locator('#setup').getByRole('button', { name: 'Lecsukás' }).click();
     await page.getByRole('button', { name: 'Egész minta' }).click();
 
     const grid = await page.evaluate(() =>

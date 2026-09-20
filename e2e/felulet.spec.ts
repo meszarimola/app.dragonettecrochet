@@ -13,18 +13,13 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
-/** A section of the make-a-pattern sheet (PQW-987), which is closed on load. */
-async function openSetupSection(page: Page, selector: string): Promise<void> {
-  const section = page.locator(selector);
-  if (await section.evaluate((el) => el.closest('#setup') !== null)) {
+/** The make-a-pattern sheet (PQW-987) is closed on load, and its opener is in the file menu. */
+async function openSheet(page: Page): Promise<void> {
   const sheet = page.locator('#setup-toggle');
   if ((await sheet.getAttribute('aria-expanded')) !== 'true') {
-    // The opener lives in the file menu (PQW-987), which has to be open to click it.
     await page.locator('#file-toggle').click();
     await sheet.click();
   }
-  }
-  if ((await section.getAttribute('open')) === null) await section.locator('summary').click();
 }
 
 test('pattern type: regular and irregular crochet are selectable, the rest are „hamarosan” and inactive (PQW-925, PQW-963)', async ({
@@ -53,16 +48,20 @@ test('the sections of the switched-off crochet kinds are not visible in the pane
   await open(page);
 
   // We do not even build the panel for a switched-off type: the section is hidden.
+  // They live in the make-a-pattern sheet now (PQW-987), so the sheet is opened first —
+  // otherwise they would read as hidden merely because the sheet is.
+  await openSheet(page);
   await expect(page.locator('#section-grid')).toBeHidden();
   await expect(page.locator('#section-amigurumi')).toBeHidden();
   // The sections of regular crochet are in their places.
-  await expect(page.locator('#section-rounds')).toBeAttached();
-  await expect(page.locator('#section-shape')).toBeAttached();
+  await expect(page.locator('#section-rounds')).toBeVisible();
+  await expect(page.locator('#section-shape')).toBeVisible();
 });
 
 test('the granny square cannot be chosen in the motif chooser, and is marked as such (PQW-925)', async ({ page }) => {
   await open(page);
 
+  await openSheet(page);
   await page.locator('#section-rounds').click();
   const granny = page.locator('#rounds-shape option[value="granny-square"]');
   await expect(granny).toBeDisabled();
@@ -80,7 +79,7 @@ test('the granny square cannot be chosen in the motif chooser, and is marked as 
 test('the single crochet symbol cannot be chosen separately (PQW-929)', async ({ page }) => {
   await open(page);
 
-  await openSetupSection(page, '#section-notation');
+  await page.locator('#section-notation').click();
   await expect(page.locator('#sc-mark'), 'the + / × choice was removed').toHaveCount(0);
   await expect(page.locator('#sc-mark-jis'), 'and its note as well').toHaveCount(0);
   // The symbol style, however, can still be chosen: the symbol comes from that.

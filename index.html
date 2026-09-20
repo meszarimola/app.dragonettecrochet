@@ -942,6 +942,117 @@
             </div>
           </details>
 
+
+
+
+
+
+
+
+          <details class="section" id="section-notation">
+            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionNotationTitle">Jelölés és jelek</h2></summary>
+            <div class="settings" role="group" aria-label="Jelölés és jelek" data-i18n-label="notationGroupLabel">
+            <p class="panel__field">
+              <label for="ui-language" data-i18n="uiLanguageLabel">A felület nyelve</label>
+              <select id="ui-language">
+                <option value="hu">Magyar</option>
+                <option value="en">English</option>
+              </select>
+            </p>
+            <p class="panel__note" id="ui-language-note" data-i18n="uiLanguageNote">A felület nyelve független a jelöléstől: angol felületen is dolgozhatsz magyar jelöléssel. A választás a címsorba is bekerül (?lang), így a link megosztható és újratölthető.</p>
+            <p class="panel__field">
+              <label for="tradition" data-i18n="traditionLabel">Előbeállítás</label>
+              <select id="tradition" aria-describedby="tradition-note">
+                <option value="cyc" data-i18n="traditionCyc">Nemzetközi (CYC)</option>
+                <option value="japanese" data-i18n="traditionJapanese">Japán</option>
+              </select>
+            </p>
+            <p class="panel__note" id="tradition-note" data-i18n="traditionNote">A mintához tartozik. A japán: JIS jelek, × rövidpálca, és a rövidpálcás sor a horogtól számított 2. láncszembe indul (a nemzetközinél a 3.-ba); a félpálca a 3., a pálca a 4. láncszemtől indul.</p>
+            <p class="panel__field">
+              <label for="terms" data-i18n="termsLabel">Jelölés</label>
+              <select id="terms">
+                <option value="hu" data-i18n="termsHu">Magyar</option>
+                <option value="en-US" data-i18n="termsEnUs">Amerikai angol (US terms)</option>
+                <option value="en-GB" data-i18n="termsEnGb">Brit angol (UK terms)</option>
+              </select>
+            </p>
+            <p class="panel__field">
+              <label for="chart-style" data-i18n="chartStyleLabel">Jelstílus</label>
+              <select id="chart-style">
+                <option value="cyc" data-i18n="chartStyleCyc">CYC (Craft Yarn Council)</option>
+                <option value="jis" data-i18n="chartStyleJis">Japán (JIS)</option>
+              </select>
+            </p>
+            <!-- KB: interface.md §21 -->
+            <p class="panel__note" data-i18n="notationNote">A jelölés és a jelstílus a felület nyelvétől független, és a minta adatán nem változtat: a paletta, a vászon, az írott minta és az export is ezt követi.</p>
+            </div>
+          </details>
+          <details class="section" id="section-pattern" open>
+            <summary class="section__head"><h2 class="panel__title" id="pattern-title" data-i18n="sectionPatternTitle">Minta</h2></summary>
+            <p class="panel__field">
+              <label for="title" data-i18n="patternNameLabel">Minta neve</label>
+              <input id="title" type="text" maxlength="120" />
+            </p>
+            <p class="panel__note" data-i18n="patternAutosaveNote">A minta automatikusan mentődik ebbe a böngészőbe.</p>
+            <p class="choice">
+              <label><input type="checkbox" id="export-grid" checked /> <span data-i18n="patternExportGridLabel">Rács a PNG- és SVG-exportban</span></label>
+            </p>
+            <details class="keys">
+              <summary data-i18n="keysSummary">Billentyűk</summary>
+              <dl>
+                <dt><kbd>Alt</kbd>+<kbd>1</kbd>–<kbd>9</kbd></dt><dd data-i18n="keysPick">szem kiválasztása</dd>
+                <dt><kbd>←</kbd> <kbd>→</kbd> <kbd>Home</kbd> <kbd>End</kbd></dt><dd data-i18n="keysTarget">célpont a vásznon</dd>
+                <dt><kbd>Enter</kbd></dt><dd data-i18n="keysEnter">horgolás a célpontba, láncszemnél a megadott számú láncszem</dd>
+                <dt><kbd>Shift</kbd>+<kbd>Enter</kbd></dt><dd data-i18n="keysSame">még egy ugyanabba (szaporítás)</dd>
+                <dt><kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd></dt><dd data-i18n="keysFillRow">a sor kitöltése a kiválasztott szemmel</dd>
+                <dt><kbd>Alt</kbd>+<kbd>F</kbd> / <kbd>Alt</kbd>+<kbd>K</kbd> / <kbd>Alt</kbd>+<kbd>S</kbd></dt><dd data-i18n="keysRowRound">sor vége és fordulás / kör zárása, láncszemekből láncgyűrű / kör vége spirálban</dd>
+                <dt><kbd>Backspace</kbd> / <kbd>Delete</kbd></dt><dd data-i18n="keysDelete">a kijelölt szemek törlése, kijelölés nélkül az utolsó lépésé</dd>
+                <dt><span data-i18n="keysClickPrefix">Kattintás, </span><kbd>Shift</kbd><span data-i18n="keysClickSuffix">+kattintás, sorszám</span></dt><dd data-i18n="keysClickHint">szem nélkül: egy szem, több szem, a teljes sor kijelölése</dd>
+                <dt><span data-i18n="keysArrowsPrefix">Nyilak, </span><kbd>Home</kbd> <kbd>End</kbd></dt><dd><span data-i18n="keysArrowsHintPrefix">szem nélkül: kijelölés a szemek között, </span><kbd>Shift</kbd><span data-i18n="keysArrowsHintSuffix">-tel tartomány</span></dd>
+                <dt><kbd>Ctrl</kbd>+<kbd>A</kbd></dt><dd data-i18n="keysSelectAll">minden szem kijelölése</dd>
+                <dt><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>Ctrl</kbd>+<kbd>V</kbd></dt><dd data-i18n="keysCopyPaste">másolás / beillesztés a kurzortól; a teljes sor új sorként kerül be</dd>
+                <dt><kbd>Ctrl</kbd>+<kbd>D</kbd></dt><dd data-i18n="keysDuplicate">a kijelölés duplikálása, pl. a következő sorba</dd>
+                <dt><kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></dt><dd data-i18n="keysUndoRedo">visszavonás, újra</dd>
+                <dt><kbd>Alt</kbd>+<kbd>R</kbd></dt><dd data-i18n="keysGrid">rács ki és be</dd>
+                <dt><kbd>Esc</kbd></dt><dd data-i18n="keysEsc">nincs kiválasztott szem: kattintással a jel kijelölése és igazítása</dd>
+                <dt><kbd>Alt</kbd><span data-i18n="keysNudgeSuffix">+nyilak</span></dt><dd data-i18n="keysNudge">a kijelölt jel eltolása</dd>
+              </dl>
+              <h3 class="panel__title" data-i18n="keysFreeTitle">Szabálytalan horgolásnál</h3>
+              <dl id="keys-irregular">
+                <dt><kbd>Alt</kbd>+<kbd>1</kbd>–<kbd>9</kbd></dt><dd data-i18n="keysFreePick">szem kiválasztása, aztán kattintás a rajzlapra</dd>
+                <dt><kbd>Esc</kbd></dt><dd data-i18n="keysFreeEsc">a felvett szem letétele, a kijelölés törlése, kilépés a kiemelésből</dd>
+                <dt><kbd>0</kbd>–<kbd>9</kbd></dt><dd data-i18n="keysFreeDigits">kijelölt láncívnél vagy legyezőnél a szemek száma; egymás után ütve egy szám</dd>
+                <dt><kbd>Ctrl</kbd>+<kbd>A</kbd></dt><dd data-i18n="keysFreeAll">minden elérhető szem kijelölése; kiemelésben csak a kiemeltek</dd>
+                <dt><kbd>Nyilak</kbd>, <kbd>Shift</kbd>+<kbd>nyilak</kbd></dt><dd data-i18n="keysFreeNudge">a kijelölés mozgatása, Shifttel tízesével</dd>
+                <dt><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>Ctrl</kbd>+<kbd>V</kbd> / <kbd>Ctrl</kbd>+<kbd>D</kbd></dt><dd data-i18n="keysFreeCopy">másolás, beillesztés az egérhez, duplikálás</dd>
+                <dt><kbd>Space</kbd><span data-i18n="keysFreeDragSuffix">+húzás</span></dt><dd data-i18n="keysFreePan">a rajzlap mozgatása</dd>
+                <dt><kbd>Cmd</kbd>/<kbd>Ctrl</kbd></dt><dd data-i18n="keysFreeFree">amíg nyomva tartod, semmi nem illeszkedik</dd>
+                <dt><span data-i18n="keysFreeTouch">Két ujjal</span></dt><dd data-i18n="keysFreeTouchHint">nagyítás és a rajzlap mozgatása; egy ujj a felvett eszközt használja</dd>
+              </dl>
+            </details>
+          </details>
+
+          <section class="check" id="adjust" aria-labelledby="adjust-title" hidden>
+            <h2 class="panel__title" id="adjust-title" data-i18n="adjustTitle">Kijelölt jel igazítása</h2>
+            <p class="panel__hint" id="adjust-name"></p>
+            <div class="adjust" role="group" aria-label="Eltolás" data-i18n-label="adjustGroupLabel">
+              <button type="button" class="tool" data-nudge="0,-2" aria-label="Fel" data-i18n-label="adjustUp">↑</button>
+              <button type="button" class="tool" data-nudge="-2,0" aria-label="Balra" data-i18n-label="adjustLeft">←</button>
+              <button type="button" class="tool" data-nudge="2,0" aria-label="Jobbra" data-i18n-label="adjustRight">→</button>
+              <button type="button" class="tool" data-nudge="0,2" aria-label="Le" data-i18n-label="adjustDown">↓</button>
+              <button type="button" class="tool" data-action="unpin" data-i18n="adjustUnpin">Számolt helyre</button>
+            </div>
+          </section>
+
+          <button type="button" class="panel__consent" data-consent-open data-i18n="consentOpen" hidden>Süti-beállítások</button>
+        </aside>
+
+        <section class="sheet" id="setup" tabindex="-1" aria-labelledby="setup-title" hidden>
+          <div class="sheet__head">
+            <h2 class="sheet__title" id="setup-title" data-i18n="setupTitle">Minta készítése</h2>
+            <button type="button" class="tool" data-action="close-setup" aria-controls="setup" data-i18n="writtenClose">Lecsukás</button>
+          </div>
+          <p class="sheet__intro" data-i18n="setupIntro">Add meg a méreteket, és a tervező elkészíti belőlük a mintát. A létrehozás lecseréli a mostani mintát.</p>
           <details class="section" id="section-shape">
             <summary class="section__head"><h2 class="panel__title" data-i18n="sectionShapeTitle">Forma</h2></summary>
             <div class="shape" role="group" aria-label="Sík forma létrehozása cm-ből" data-i18n-label="shapeGroupLabel">
@@ -1023,7 +1134,6 @@
               <button type="button" class="tool shape__create" id="shape-create" data-i18n="shapeCreate">Minta létrehozása</button>
             </div>
           </details>
-
           <details class="section" id="section-shawl">
             <summary class="section__head"><h2 class="panel__title" data-i18n="sectionShawlTitle">Kendő</h2></summary>
             <div class="shape" role="group" aria-label="Kendő létrehozása méretből" data-i18n-label="shawlGroupLabel">
@@ -1097,7 +1207,6 @@
               <button type="button" class="tool shape__create" id="shawl-create" data-i18n="shawlCreate">Minta létrehozása</button>
             </div>
           </details>
-
           <details class="section" id="section-garment">
             <summary class="section__head"><h2 class="panel__title" data-i18n="sectionGarmentTitle">Ruhadarab</h2></summary>
             <div class="shape" role="group" aria-label="Ruhadarab létrehozása testméretből" data-i18n-label="garmentGroupLabel">
@@ -1197,7 +1306,62 @@
               <button type="button" class="tool shape__create" id="garment-create" data-i18n="garmentCreate">Minta létrehozása</button>
             </div>
           </details>
-
+          <details class="section" id="section-rounds">
+            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionRoundsTitle">Kör és motívum</h2></summary>
+            <div class="rounds" role="group" aria-label="Kör és motívum létrehozása" data-i18n-label="roundsGroupLabel">
+              <p class="panel__note" data-i18n="roundsNote">Lapos kört, sokszöget vagy nagymama-négyzetet készít körönként. Az új minta a mostani helyére kerül; visszavonással a korábbi visszajön.</p>
+              <p class="panel__field">
+                <label for="rounds-shape" data-i18n="roundsShapeLabel">Forma</label>
+                <select id="rounds-shape"></select>
+              </p>
+              <p class="panel__field">
+                <label for="rounds-stitch" data-i18n="roundsStitchLabel">Szem</label>
+                <select id="rounds-stitch"></select>
+              </p>
+              <p class="panel__field">
+                <label for="rounds-start" data-i18n="roundsStartLabel">Kezdés</label>
+                <select id="rounds-start"></select>
+              </p>
+              <p class="panel__field">
+                <label for="rounds-count" data-i18n="roundsCountLabel">Körök száma</label>
+                <input id="rounds-count" type="number" min="1" max="30" step="1" value="6" inputmode="numeric" />
+              </p>
+              <p class="panel__field">
+                <label for="rounds-closing" data-i18n="roundsClosingLabel">Kör vége</label>
+                <select id="rounds-closing" aria-describedby="rounds-closing-note"></select>
+              </p>
+              <p class="panel__note" id="rounds-closing-note" data-i18n="roundsClosingNote">Amigurumiban spirál, minden más körben haladó munkában zárt kör.</p>
+              <p class="choice">
+                <label><input type="checkbox" id="rounds-stagger" checked /> <span data-i18n="roundsStaggerLabel">Eltolt szaporítás (kerekebb kör)</span></label>
+              </p>
+              <p class="panel__field">
+                <label for="rounds-colors" data-i18n="roundsColorsLabel">Színváltás minden hányadik kör után (0: nincs)</label>
+                <input id="rounds-colors" type="number" min="0" max="30" step="1" value="0" inputmode="numeric" />
+              </p>
+              <p class="panel__field">
+                <label for="rounds-jog" data-i18n="roundsJogLabel">Lépcsőjavítás spirálban</label>
+                <select id="rounds-jog"></select>
+              </p>
+              <div class="shape__group" id="rounds-ribbing-fields">
+                <p class="choice">
+                  <label><input type="checkbox" id="rounds-ribbing" aria-describedby="rounds-ribbing-note" /> <span data-i18n="roundsRibbingLabel">Bordás perem a kör végén</span></label>
+                </p>
+                <p class="panel__note" id="rounds-ribbing-note" data-i18n="roundsRibbingNote">Váltakozó első és hátsó relief pálca (Eerp, Herp) az utolsó kör szemeinek pálcája köré: a szemszám nem változik. Csak kúszószemes zárásnál, és ha a szemszám a borda kétszeresével osztható.</p>
+                <div class="shape__pair" id="rounds-ribbing-pair" hidden>
+                  <p class="panel__field">
+                    <label for="rounds-ribbing-rows" data-i18n="roundsRibbingRowsLabel">A bordázat körei</label>
+                    <input id="rounds-ribbing-rows" type="number" min="1" max="20" step="1" value="2" inputmode="numeric" disabled />
+                  </p>
+                  <p class="panel__field">
+                    <label for="rounds-ribbing-width" data-i18n="roundsRibbingWidthLabel">A borda szélessége (1×1, 2×2)</label>
+                    <input id="rounds-ribbing-width" type="number" min="1" max="6" step="1" value="1" inputmode="numeric" disabled />
+                  </p>
+                </div>
+              </div>
+              <p class="panel__note" id="rounds-note" aria-live="polite"></p>
+              <button type="button" class="tool rounds__create" id="rounds-create" data-i18n="roundsCreate">Minta létrehozása</button>
+            </div>
+          </details>
           <details class="section" id="section-grid">
             <summary class="section__head"><h2 class="panel__title" data-i18n="sectionGridTitle">Rácsminta</h2></summary>
             <div class="grid-chart" role="group" aria-label="Rácsminta: filé, C2C, tapestry, graphgan, mozaik" data-i18n-label="gridGroupLabel">
@@ -1275,64 +1439,6 @@
               </div>
             </div>
           </details>
-
-          <details class="section" id="section-rounds">
-            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionRoundsTitle">Kör és motívum</h2></summary>
-            <div class="rounds" role="group" aria-label="Kör és motívum létrehozása" data-i18n-label="roundsGroupLabel">
-              <p class="panel__note" data-i18n="roundsNote">Lapos kört, sokszöget vagy nagymama-négyzetet készít körönként. Az új minta a mostani helyére kerül; visszavonással a korábbi visszajön.</p>
-              <p class="panel__field">
-                <label for="rounds-shape" data-i18n="roundsShapeLabel">Forma</label>
-                <select id="rounds-shape"></select>
-              </p>
-              <p class="panel__field">
-                <label for="rounds-stitch" data-i18n="roundsStitchLabel">Szem</label>
-                <select id="rounds-stitch"></select>
-              </p>
-              <p class="panel__field">
-                <label for="rounds-start" data-i18n="roundsStartLabel">Kezdés</label>
-                <select id="rounds-start"></select>
-              </p>
-              <p class="panel__field">
-                <label for="rounds-count" data-i18n="roundsCountLabel">Körök száma</label>
-                <input id="rounds-count" type="number" min="1" max="30" step="1" value="6" inputmode="numeric" />
-              </p>
-              <p class="panel__field">
-                <label for="rounds-closing" data-i18n="roundsClosingLabel">Kör vége</label>
-                <select id="rounds-closing" aria-describedby="rounds-closing-note"></select>
-              </p>
-              <p class="panel__note" id="rounds-closing-note" data-i18n="roundsClosingNote">Amigurumiban spirál, minden más körben haladó munkában zárt kör.</p>
-              <p class="choice">
-                <label><input type="checkbox" id="rounds-stagger" checked /> <span data-i18n="roundsStaggerLabel">Eltolt szaporítás (kerekebb kör)</span></label>
-              </p>
-              <p class="panel__field">
-                <label for="rounds-colors" data-i18n="roundsColorsLabel">Színváltás minden hányadik kör után (0: nincs)</label>
-                <input id="rounds-colors" type="number" min="0" max="30" step="1" value="0" inputmode="numeric" />
-              </p>
-              <p class="panel__field">
-                <label for="rounds-jog" data-i18n="roundsJogLabel">Lépcsőjavítás spirálban</label>
-                <select id="rounds-jog"></select>
-              </p>
-              <div class="shape__group" id="rounds-ribbing-fields">
-                <p class="choice">
-                  <label><input type="checkbox" id="rounds-ribbing" aria-describedby="rounds-ribbing-note" /> <span data-i18n="roundsRibbingLabel">Bordás perem a kör végén</span></label>
-                </p>
-                <p class="panel__note" id="rounds-ribbing-note" data-i18n="roundsRibbingNote">Váltakozó első és hátsó relief pálca (Eerp, Herp) az utolsó kör szemeinek pálcája köré: a szemszám nem változik. Csak kúszószemes zárásnál, és ha a szemszám a borda kétszeresével osztható.</p>
-                <div class="shape__pair" id="rounds-ribbing-pair" hidden>
-                  <p class="panel__field">
-                    <label for="rounds-ribbing-rows" data-i18n="roundsRibbingRowsLabel">A bordázat körei</label>
-                    <input id="rounds-ribbing-rows" type="number" min="1" max="20" step="1" value="2" inputmode="numeric" disabled />
-                  </p>
-                  <p class="panel__field">
-                    <label for="rounds-ribbing-width" data-i18n="roundsRibbingWidthLabel">A borda szélessége (1×1, 2×2)</label>
-                    <input id="rounds-ribbing-width" type="number" min="1" max="6" step="1" value="1" inputmode="numeric" disabled />
-                  </p>
-                </div>
-              </div>
-              <p class="panel__note" id="rounds-note" aria-live="polite"></p>
-              <button type="button" class="tool rounds__create" id="rounds-create" data-i18n="roundsCreate">Minta létrehozása</button>
-            </div>
-          </details>
-
           <details class="section" id="section-amigurumi">
             <summary class="section__head"><h2 class="panel__title" data-i18n="sectionAmigurumiTitle">Amigurumi</h2></summary>
             <div class="amigurumi" role="group" aria-label="Amigurumi rész létrehozása" data-i18n-label="amigurumiGroupLabel">
@@ -1416,112 +1522,6 @@
                 <button type="button" class="tool amigurumi__action" id="amigurumi-add" data-i18n="amigurumiAdd">Hozzáadás részként</button>
               </fieldset>
               <p class="panel__note" id="amigurumi-figure" hidden></p>
-            </div>
-          </details>
-
-
-          <details class="section" id="section-pattern" open>
-            <summary class="section__head"><h2 class="panel__title" id="pattern-title" data-i18n="sectionPatternTitle">Minta</h2></summary>
-            <p class="panel__field">
-              <label for="title" data-i18n="patternNameLabel">Minta neve</label>
-              <input id="title" type="text" maxlength="120" />
-            </p>
-            <p class="panel__note" data-i18n="patternAutosaveNote">A minta automatikusan mentődik ebbe a böngészőbe.</p>
-            <p class="choice">
-              <label><input type="checkbox" id="export-grid" checked /> <span data-i18n="patternExportGridLabel">Rács a PNG- és SVG-exportban</span></label>
-            </p>
-            <details class="keys">
-              <summary data-i18n="keysSummary">Billentyűk</summary>
-              <dl>
-                <dt><kbd>Alt</kbd>+<kbd>1</kbd>–<kbd>9</kbd></dt><dd data-i18n="keysPick">szem kiválasztása</dd>
-                <dt><kbd>←</kbd> <kbd>→</kbd> <kbd>Home</kbd> <kbd>End</kbd></dt><dd data-i18n="keysTarget">célpont a vásznon</dd>
-                <dt><kbd>Enter</kbd></dt><dd data-i18n="keysEnter">horgolás a célpontba, láncszemnél a megadott számú láncszem</dd>
-                <dt><kbd>Shift</kbd>+<kbd>Enter</kbd></dt><dd data-i18n="keysSame">még egy ugyanabba (szaporítás)</dd>
-                <dt><kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd></dt><dd data-i18n="keysFillRow">a sor kitöltése a kiválasztott szemmel</dd>
-                <dt><kbd>Alt</kbd>+<kbd>F</kbd> / <kbd>Alt</kbd>+<kbd>K</kbd> / <kbd>Alt</kbd>+<kbd>S</kbd></dt><dd data-i18n="keysRowRound">sor vége és fordulás / kör zárása, láncszemekből láncgyűrű / kör vége spirálban</dd>
-                <dt><kbd>Backspace</kbd> / <kbd>Delete</kbd></dt><dd data-i18n="keysDelete">a kijelölt szemek törlése, kijelölés nélkül az utolsó lépésé</dd>
-                <dt><span data-i18n="keysClickPrefix">Kattintás, </span><kbd>Shift</kbd><span data-i18n="keysClickSuffix">+kattintás, sorszám</span></dt><dd data-i18n="keysClickHint">szem nélkül: egy szem, több szem, a teljes sor kijelölése</dd>
-                <dt><span data-i18n="keysArrowsPrefix">Nyilak, </span><kbd>Home</kbd> <kbd>End</kbd></dt><dd><span data-i18n="keysArrowsHintPrefix">szem nélkül: kijelölés a szemek között, </span><kbd>Shift</kbd><span data-i18n="keysArrowsHintSuffix">-tel tartomány</span></dd>
-                <dt><kbd>Ctrl</kbd>+<kbd>A</kbd></dt><dd data-i18n="keysSelectAll">minden szem kijelölése</dd>
-                <dt><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>Ctrl</kbd>+<kbd>V</kbd></dt><dd data-i18n="keysCopyPaste">másolás / beillesztés a kurzortól; a teljes sor új sorként kerül be</dd>
-                <dt><kbd>Ctrl</kbd>+<kbd>D</kbd></dt><dd data-i18n="keysDuplicate">a kijelölés duplikálása, pl. a következő sorba</dd>
-                <dt><kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></dt><dd data-i18n="keysUndoRedo">visszavonás, újra</dd>
-                <dt><kbd>Alt</kbd>+<kbd>R</kbd></dt><dd data-i18n="keysGrid">rács ki és be</dd>
-                <dt><kbd>Esc</kbd></dt><dd data-i18n="keysEsc">nincs kiválasztott szem: kattintással a jel kijelölése és igazítása</dd>
-                <dt><kbd>Alt</kbd><span data-i18n="keysNudgeSuffix">+nyilak</span></dt><dd data-i18n="keysNudge">a kijelölt jel eltolása</dd>
-              </dl>
-              <h3 class="panel__title" data-i18n="keysFreeTitle">Szabálytalan horgolásnál</h3>
-              <dl id="keys-irregular">
-                <dt><kbd>Alt</kbd>+<kbd>1</kbd>–<kbd>9</kbd></dt><dd data-i18n="keysFreePick">szem kiválasztása, aztán kattintás a rajzlapra</dd>
-                <dt><kbd>Esc</kbd></dt><dd data-i18n="keysFreeEsc">a felvett szem letétele, a kijelölés törlése, kilépés a kiemelésből</dd>
-                <dt><kbd>0</kbd>–<kbd>9</kbd></dt><dd data-i18n="keysFreeDigits">kijelölt láncívnél vagy legyezőnél a szemek száma; egymás után ütve egy szám</dd>
-                <dt><kbd>Ctrl</kbd>+<kbd>A</kbd></dt><dd data-i18n="keysFreeAll">minden elérhető szem kijelölése; kiemelésben csak a kiemeltek</dd>
-                <dt><kbd>Nyilak</kbd>, <kbd>Shift</kbd>+<kbd>nyilak</kbd></dt><dd data-i18n="keysFreeNudge">a kijelölés mozgatása, Shifttel tízesével</dd>
-                <dt><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>Ctrl</kbd>+<kbd>V</kbd> / <kbd>Ctrl</kbd>+<kbd>D</kbd></dt><dd data-i18n="keysFreeCopy">másolás, beillesztés az egérhez, duplikálás</dd>
-                <dt><kbd>Space</kbd><span data-i18n="keysFreeDragSuffix">+húzás</span></dt><dd data-i18n="keysFreePan">a rajzlap mozgatása</dd>
-                <dt><kbd>Cmd</kbd>/<kbd>Ctrl</kbd></dt><dd data-i18n="keysFreeFree">amíg nyomva tartod, semmi nem illeszkedik</dd>
-                <dt><span data-i18n="keysFreeTouch">Két ujjal</span></dt><dd data-i18n="keysFreeTouchHint">nagyítás és a rajzlap mozgatása; egy ujj a felvett eszközt használja</dd>
-              </dl>
-            </details>
-          </details>
-
-          <section class="check" id="adjust" aria-labelledby="adjust-title" hidden>
-            <h2 class="panel__title" id="adjust-title" data-i18n="adjustTitle">Kijelölt jel igazítása</h2>
-            <p class="panel__hint" id="adjust-name"></p>
-            <div class="adjust" role="group" aria-label="Eltolás" data-i18n-label="adjustGroupLabel">
-              <button type="button" class="tool" data-nudge="0,-2" aria-label="Fel" data-i18n-label="adjustUp">↑</button>
-              <button type="button" class="tool" data-nudge="-2,0" aria-label="Balra" data-i18n-label="adjustLeft">←</button>
-              <button type="button" class="tool" data-nudge="2,0" aria-label="Jobbra" data-i18n-label="adjustRight">→</button>
-              <button type="button" class="tool" data-nudge="0,2" aria-label="Le" data-i18n-label="adjustDown">↓</button>
-              <button type="button" class="tool" data-action="unpin" data-i18n="adjustUnpin">Számolt helyre</button>
-            </div>
-          </section>
-
-          <button type="button" class="panel__consent" data-consent-open data-i18n="consentOpen" hidden>Süti-beállítások</button>
-        </aside>
-
-        <section class="sheet" id="setup" aria-labelledby="setup-title" hidden>
-          <div class="sheet__head">
-            <h2 class="sheet__title" id="setup-title" data-i18n="setupTitle">Minta készítése</h2>
-            <button type="button" class="tool" data-action="close-setup" aria-controls="setup" data-i18n="writtenClose">Lecsukás</button>
-          </div>
-          <p class="sheet__intro" data-i18n="setupIntro">Add meg a méreteket, és a tervező elkészíti belőlük a mintát. A létrehozás lecseréli a mostani mintát.</p>
-          <details class="section" id="section-notation">
-            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionNotationTitle">Jelölés és jelek</h2></summary>
-            <div class="settings" role="group" aria-label="Jelölés és jelek" data-i18n-label="notationGroupLabel">
-            <p class="panel__field">
-              <label for="ui-language" data-i18n="uiLanguageLabel">A felület nyelve</label>
-              <select id="ui-language">
-                <option value="hu">Magyar</option>
-                <option value="en">English</option>
-              </select>
-            </p>
-            <p class="panel__note" id="ui-language-note" data-i18n="uiLanguageNote">A felület nyelve független a jelöléstől: angol felületen is dolgozhatsz magyar jelöléssel. A választás a címsorba is bekerül (?lang), így a link megosztható és újratölthető.</p>
-            <p class="panel__field">
-              <label for="tradition" data-i18n="traditionLabel">Előbeállítás</label>
-              <select id="tradition" aria-describedby="tradition-note">
-                <option value="cyc" data-i18n="traditionCyc">Nemzetközi (CYC)</option>
-                <option value="japanese" data-i18n="traditionJapanese">Japán</option>
-              </select>
-            </p>
-            <p class="panel__note" id="tradition-note" data-i18n="traditionNote">A mintához tartozik. A japán: JIS jelek, × rövidpálca, és a rövidpálcás sor a horogtól számított 2. láncszembe indul (a nemzetközinél a 3.-ba); a félpálca a 3., a pálca a 4. láncszemtől indul.</p>
-            <p class="panel__field">
-              <label for="terms" data-i18n="termsLabel">Jelölés</label>
-              <select id="terms">
-                <option value="hu" data-i18n="termsHu">Magyar</option>
-                <option value="en-US" data-i18n="termsEnUs">Amerikai angol (US terms)</option>
-                <option value="en-GB" data-i18n="termsEnGb">Brit angol (UK terms)</option>
-              </select>
-            </p>
-            <p class="panel__field">
-              <label for="chart-style" data-i18n="chartStyleLabel">Jelstílus</label>
-              <select id="chart-style">
-                <option value="cyc" data-i18n="chartStyleCyc">CYC (Craft Yarn Council)</option>
-                <option value="jis" data-i18n="chartStyleJis">Japán (JIS)</option>
-              </select>
-            </p>
-            <!-- KB: interface.md §21 -->
-            <p class="panel__note" data-i18n="notationNote">A jelölés és a jelstílus a felület nyelvétől független, és a minta adatán nem változtat: a paletta, a vászon, az írott minta és az export is ezt követi.</p>
             </div>
           </details>
         </section>
