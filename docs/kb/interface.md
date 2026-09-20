@@ -520,6 +520,12 @@ the files are not present the system fonts stand in for them.
   the cell's accessible name says so too.
 - A disabled toolbar button keeps its text colour and only fades its icon, so
   its tooltip stays readable (§12).
+- Where a box is only as tall as its content happens to be, the 44 px is written
+  out rather than left to chance. The pattern-type card carries its own
+  `min-block-size: 44px` (PQW-985): before it, the card cleared 44 px only
+  because the icon is 1.4rem and the padding was `0.6rem`, and compressing the
+  padding would have taken the shortest card to 33 px without a single rule
+  saying so.
 
 ## §37 The status line is a screen-reader live region, not a visible box
 
@@ -577,13 +583,23 @@ overflowed and the page began to scroll by one pixel.
   `auto` margin had nothing left to take, which is why it stuck to the list.
 - The "soon" badge sits inside the label box, *below* the name (PQW-912). Beside
   the name it did not fit in the narrow bar and drew over it. A row of its own
-  makes the card one line taller. The four cards need 252 px, which was more than
-  the list had in a 506 px-high window — 215 px before PQW-982, 221 px after it —
-  so the list scrolled and clipped the fourth card (PQW-979). Since PQW-983 the
-  bar gives the stage a row back and the list has 271 px at 1000 × 506, so all
-  four fit there without scrolling, in Hungarian and in English alike. Below
-  60rem the tools return to a line of their own and the list is short again. The
-  earlier two-line trouble was the list stretching, not the badge's place.
+  makes the card one line taller. With `0.6rem` of block padding the card stood
+  57 px and the four of them plus the three 8 px gaps wanted 252 px, which was
+  more than the list had in a 506 px-high window — 215 px before PQW-982, 221 px
+  after it — so the list scrolled and clipped the fourth card (PQW-979).
+
+  PQW-983 gave the list 271 px at 1000 × 506 by taking a row out of the bar, and
+  that alone made all four fit at that width. It did not fix the card: below
+  60rem the tools take a line of their own again and the list is back to 221 px.
+  So PQW-985 compressed the card as the owner asked — block padding down to
+  `--sp-0` and the intro sentence's margins to `--sp-2`, the sentence itself
+  untouched because it is frozen product text. The card is now 44–46 px and the
+  four of them 204–208 px, which fits at every width in a 506 px-high window, in
+  Hungarian and in English. The floor is `min-block-size: 44px` on `.type`,
+  written out rather than left to the icon's height to produce by accident (§36):
+  the shortest card, the one-line English name with no badge, would otherwise
+  have come out at 33 px. The earlier two-line trouble was the list stretching,
+  not the badge's place.
   (An earlier comment claiming the badge belongs beside the name is withdrawn.)
 - The version label is the last item in the bar's column and `margin-block-start:
   auto` pushes it to the bottom (PQW-903, PQW-912); the list above it scrolls, so
@@ -594,7 +610,8 @@ overflowed and the page began to scroll by one pixel.
   but in a 506 px-high window the list ran out of room and clipped its last card
   mid-word, and the label sitting flush under that cut read as part of the card
   rather than as chrome. The rule separates the two; it did not make the fourth
-  card fit. PQW-983 did, at 1000 × 506, by taking a row out of the menu bar.
+  card fit. PQW-983 did at 1000 × 506, by taking a row out of the menu bar, and
+  PQW-985 did at every width, by compressing the card.
 - In a wide view the open written panel and the status line stand between the
   side bars rather than sliding under them (PQW-884); in a narrow view the side
   bars open over the panel and the status line.
