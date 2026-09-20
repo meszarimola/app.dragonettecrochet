@@ -1035,8 +1035,23 @@ export class IrregularEditor {
     this.#commit(setPolar(this.#history.present, home === undefined ? patch : { ...patch, center: home }));
   }
 
+  /**
+   * Holding the key means "not this one": nothing snaps while it is down, in
+   * every gesture, not only while dragging something that already exists.
+   * KB: interface.md §43
+   */
+  #free = false;
+
+  #setFree(down: boolean): void {
+    if (this.#free === down) return;
+    this.#free = down;
+    // The ghost shows where the stitch would land, so it has to follow at once.
+    this.#refreshScene();
+  }
+
   /** The nearest guide or neighbouring stitch, measured in chart units. */
   #snap(point: Point, skip?: ReadonlySet<string>): Point {
+    if (this.#free) return point;
     return snapPoint(this.#history.present, point, {
       tolerance: SNAP_REACH / this.#board.scale,
       ...(skip === undefined ? {} : { skip }),
@@ -1984,6 +1999,11 @@ export class IrregularEditor {
     );
   }
 
+  /** The key can go down before or after the pointer, so both report it. */
+  setFreeDown(down: boolean): void {
+    this.#setFree(down);
+  }
+
   setSpaceDown(down: boolean): void {
     this.#spaceDown = down;
   }
@@ -1999,6 +2019,7 @@ export class IrregularEditor {
   #beforeTouch: { steps: number; selection: Set<string> } | null = null;
 
   #onDown(event: PointerEvent): void {
+    this.#free = event.metaKey || event.ctrlKey;
     this.#canvas.focus({ preventScroll: true });
     this.#canvas.setPointerCapture(event.pointerId);
     if (event.pointerType === 'touch') {
@@ -2194,6 +2215,7 @@ export class IrregularEditor {
   }
 
   #onMove(event: PointerEvent): void {
+    this.#free = event.metaKey || event.ctrlKey;
     if (event.pointerType === 'touch' && this.#touches.has(event.pointerId)) {
       this.#touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
       const was = this.#pinch;
@@ -2219,13 +2241,8 @@ export class IrregularEditor {
         return;
       case 'move': {
         const [rawX, rawY] = [point.x - drag.from.x, point.y - drag.from.y];
-        // KB: interface.md §43 — holding ⌘ or Ctrl while dragging puts snapping aside.
-        const free = event.metaKey || event.ctrlKey;
-        const landing = free ? null : this.#snap({ x: drag.anchor.x + rawX, y: drag.anchor.y + rawY }, this.#selection);
-        const [dx, dy] = [
-          landing === null ? rawX : landing.x - drag.anchor.x,
-          landing === null ? rawY : landing.y - drag.anchor.y,
-        ];
+        const landing = this.#snap({ x: drag.anchor.x + rawX, y: drag.anchor.y + rawY }, this.#selection);
+        const [dx, dy] = [landing.x - drag.anchor.x, landing.y - drag.anchor.y];
         this.#draft = this.#shifted(moveItems(this.#history.present, this.#selection, dx, dy), dx, dy);
         this.#refreshScene();
         return;

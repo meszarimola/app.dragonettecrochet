@@ -1312,11 +1312,17 @@ document.addEventListener('keydown', (event) => {
   if (event.code === 'Space' && !(event.target as HTMLElement).closest('input, textarea, select')) {
     irregular?.setSpaceDown(true);
   }
+  // Holding Cmd or Ctrl means "not this one": nothing snaps while it is down.
+  irregular?.setFreeDown(event.metaKey || event.ctrlKey);
 });
 document.addEventListener('keyup', (event) => {
   if (event.code === 'Space') irregular?.setSpaceDown(false);
+  irregular?.setFreeDown(event.metaKey || event.ctrlKey);
 });
-window.addEventListener('blur', () => irregular?.setSpaceDown(false));
+window.addEventListener('blur', () => {
+  irregular?.setSpaceDown(false);
+  irregular?.setFreeDown(false);
+});
 
 const ACTIONS: Record<string, () => void> = {
   undo: () => {
