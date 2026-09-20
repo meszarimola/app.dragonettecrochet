@@ -606,6 +606,15 @@ never reappear on the way back. `e2e/szabalytalan-generatorok.spec.ts` guards
 both halves: the sections are gone in free-form mode, and the regular pattern
 returns untouched.
 
+Two controls are still on the wrong side of that line, found while reviewing
+PQW-976 and left outside its scope: the „Előbeállítás” select of
+`#section-notation`, and the „Kijelölt jel igazítása” box, whose arrows and
+„Számolt helyre” run `nudge`/`unpin`. Both `commit()` into the hidden regular
+document from free-form mode, because `#adjust` is only ever hidden from
+`updateControls()`, which `refresh()` no longer reaches in this type. The
+neighbouring actions (`new`, `grid`, the zooms, the exports) and `titleInput`
+already branch on `irregular.active`; these two do not.
+
 ## §40 The free-form type does not confirm and does not chat
 
 The specification asked for a dialog before deleting a row that still holds
