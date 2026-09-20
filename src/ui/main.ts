@@ -907,10 +907,7 @@ function drawPreview(def: StitchDef, size: number): HTMLCanvasElement {
 }
 
 function stitchButton(item: PaletteItem): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'stitch';
-  button.setAttribute('aria-pressed', 'false');
+  const button = newStitchButton(item);
   button.append(drawPreview(item.def, 44));
 
   const label = span('stitch__label', '');
@@ -919,16 +916,46 @@ function stitchButton(item: PaletteItem): HTMLButtonElement {
   if (item.structure) label.append(span('stitch__detail', item.structure));
   button.append(label);
 
-  // KB: interface.md §11
-  if (item.key) {
-    const key = document.createElement('kbd');
-    key.className = 'stitch__key';
-    key.textContent = modifierCombo(item.key, currentPlatform());
-    button.append(key);
-  }
+  appendStitchKey(button, item);
+  return button;
+}
 
+/*
+ * The dense grid cell of a basic stitch: the abbreviation is what is printed,
+ * the full name is the accessible name and the tooltip. KB: interface.md §53
+ */
+function compactStitchButton(item: PaletteItem): HTMLButtonElement {
+  const button = newStitchButton(item);
+  button.classList.add('stitch--compact');
+  button.lang = textLanguage(notation.terms);
+  button.dataset.tip = item.name;
+  button.append(drawPreview(item.def, 32));
+
+  const short = span('stitch__abbr', item.short);
+  short.setAttribute('aria-hidden', 'true');
+  button.append(short);
+  button.append(span('stitch__full', item.name));
+
+  appendStitchKey(button, item);
+  return button;
+}
+
+function newStitchButton(item: PaletteItem): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'stitch';
+  button.setAttribute('aria-pressed', 'false');
   button.addEventListener('click', () => select(tool === item.def.id ? null : item.def.id));
   return button;
+}
+
+// KB: interface.md §11
+function appendStitchKey(button: HTMLButtonElement, item: PaletteItem): void {
+  if (!item.key) return;
+  const key = document.createElement('kbd');
+  key.className = 'stitch__key';
+  key.textContent = modifierCombo(item.key, currentPlatform());
+  button.append(key);
 }
 
 function select(id: StitchDefId | null): void {
@@ -942,6 +969,7 @@ function select(id: StitchDefId | null): void {
     document.body.classList.remove('is-selecting');
   }
   for (const [stitchId, button] of buttons) button.setAttribute('aria-pressed', String(stitchId === id));
+  if (id) revealStitch(id);
 
   const item = items.find((candidate) => candidate.def.id === id);
   const kind = item?.def.kind;
@@ -960,27 +988,58 @@ function select(id: StitchDefId | null): void {
 
 function renderPalette(): void {
   const sections = buildPalette(notation.terms);
+  const opened = new Set(
+    [...palette.querySelectorAll<HTMLDetailsElement>('.palette__section--group')]
+      .filter((group) => group.open)
+      .map((group) => group.id),
+  );
   items = sections.flatMap((section) => section.items);
   buttons.clear();
   palette.replaceChildren();
-  for (const section of sections) palette.append(paletteSection(section));
+  for (const section of sections) palette.append(paletteSection(section, opened));
+  if (tool) revealStitch(tool);
 }
 
-function paletteSection(section: ReturnType<typeof buildPalette>[number]): HTMLDivElement {
-  const group = document.createElement('div');
-  group.className = 'palette__section';
-  group.setAttribute('role', 'group');
-  const title = document.createElement('h3');
-  title.className = 'palette__title';
-  title.id = `palette-${section.id}`;
-  title.textContent = section.title;
-  group.setAttribute('aria-labelledby', title.id);
-  group.append(title);
-  for (const item of section.items) {
-    const button = stitchButton(item);
-    buttons.set(item.def.id, button);
-    group.append(button);
+/*
+ * A shortcut arms a stitch whatever its group is doing, and a notation change
+ * rebuilds the palette closed — either way the armed button has to be on
+ * screen. KB: interface.md §11, §53
+ */
+function revealStitch(id: StitchDefId): void {
+  const group = buttons.get(id)?.closest<HTMLDetailsElement>('.palette__section--group');
+  if (group) group.open = true;
+}
+
+/*
+ * The basic stitches are a dense grid, always open; the other three sections
+ * keep the row layout — their structure line is what tells the four
+ * „fogyasztás” apart — behind a collapsed summary. KB: interface.md §53
+ */
+function paletteSection(section: ReturnType<typeof buildPalette>[number], opened: ReadonlySet<string>): HTMLElement {
+  const compact = section.id === 'basic';
+  const group = document.createElement(compact ? 'div' : 'details');
+  group.className = compact ? 'palette__section' : 'palette__section palette__section--group';
+  group.id = `palette-${section.id}`;
+
+  const list = document.createElement('div');
+  list.className = compact ? 'palette__grid' : 'palette__rows';
+  list.setAttribute('role', 'group');
+  list.setAttribute('aria-label', section.title);
+
+  if (!compact) {
+    const summary = document.createElement('summary');
+    summary.className = 'palette__title';
+    summary.textContent = section.title;
+    group.append(summary);
+    (group as HTMLDetailsElement).open = opened.has(group.id);
   }
+
+  for (const item of section.items) {
+    const button = compact ? compactStitchButton(item) : stitchButton(item);
+    buttons.set(item.def.id, button);
+    list.append(button);
+  }
+  group.append(list);
   return group;
 }
 

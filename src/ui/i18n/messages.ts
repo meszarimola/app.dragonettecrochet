@@ -73,7 +73,7 @@ const hu = {
   },
 
   hint: {
-    none: 'Válassz szemet. Szem nélkül kattintással szemet jelölsz ki (Shift-tel többet, a sorszámmal a teljes sort), és törölheted, duplikálhatod vagy igazíthatod.',
+    none: 'Válassz szemet. Szem nélkül a kattintás kijelöl: Shift-tel többet, a sorszámmal a teljes sort. A kijelöltet törölheted, duplikálhatod vagy igazíthatod.',
     chain: (name: string): string => `${name}: Enterrel vagy a vászonra kattintva horgolod, a megadott számú láncszemmel.`,
     simple: (name: string): string => `${name}: Enterrel vagy a vászonra kattintva horgolod.`,
     targeted: (name: string): string => `${name}: nyilakkal választod a célpontot, Enterrel vagy kattintással horgolsz bele.`,
@@ -237,7 +237,7 @@ const en: typeof hu = {
   },
 
   hint: {
-    none: 'Choose a stitch. With no stitch chosen, clicking selects a stitch (Shift for more, the row number for the whole row), which you can then delete, duplicate or move.',
+    none: 'Choose a stitch. With none chosen, a click selects: Shift for more, the row number for a whole row. What you selected can be deleted, duplicated or moved.',
     chain: (name) => `${name}: work it with Enter or by clicking the canvas, with the number of chains you set.`,
     simple: (name) => `${name}: work it with Enter or by clicking the canvas.`,
     targeted: (name) => `${name}: pick the target with the arrow keys, then work into it with Enter or a click.`,
