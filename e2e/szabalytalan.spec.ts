@@ -1381,6 +1381,10 @@ test('a new row opens only after a row with stitches, and the footer deletes the
   await page.locator('#row-new').click();
   await expect(page.locator('#rows-list li')).toHaveCount(2);
   await expect(page.locator('#row-new'), 'the new row is empty, so no third one yet').toBeDisabled();
+  // Picking the filled first row does not help: a new row still goes after the empty last one.
+  await page.locator('#rows-list li').first().locator('.rows__pick').click();
+  await expect(page.locator('#row-new')).toBeDisabled();
+  await expect(page.locator('#row-insert'), 'but inserting after the filled one is fine').toBeEnabled();
 
   // The trash is in the footer, not behind „⋯”, and one undo brings the row back.
   await expect(page.locator('#row-delete')).toBeVisible();

@@ -233,10 +233,12 @@ export class IrregularRowsPanel {
     must<HTMLButtonElement>(this.#section, '#row-move-items').disabled = view.selectionSize === 0;
     must<HTMLButtonElement>(this.#section, '#row-delete').disabled = pattern.rows.length < 2;
     // KB: interface.md §61 — a row with no stitches is not a row yet, so no new one opens after it.
-    const empty = active === undefined || rowCount(pattern, active.id) === 0;
-    for (const id of ['#row-new', '#row-new-round', '#row-insert']) {
-      must<HTMLButtonElement>(this.#section, id).disabled = empty;
-    }
+    // A new row goes to the end, an inserted one after the active row.
+    const empty = (row: IrregularRow | undefined): boolean => row === undefined || rowCount(pattern, row.id) === 0;
+    const lastEmpty = empty(pattern.rows.at(-1));
+    must<HTMLButtonElement>(this.#section, '#row-new').disabled = lastEmpty;
+    must<HTMLButtonElement>(this.#section, '#row-new-round').disabled = lastEmpty;
+    must<HTMLButtonElement>(this.#section, '#row-insert').disabled = empty(active);
     must<HTMLButtonElement>(this.#section, '#row-delete-keep').disabled = pattern.rows.length < 2;
     this.#note.textContent = view.manualOrder ? words.orderManual : '';
   }
