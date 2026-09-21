@@ -95,6 +95,7 @@ import {
 import { InsertionPanel } from './insertion-panel.js';
 import { insertionSuffix } from './insertion-view.js';
 import { IrregularEditor } from './irregular-editor.js';
+import { wireTabs } from './irregular-tabs.js';
 import {
   chartStyleLabel,
   defaultNotation,
@@ -185,7 +186,14 @@ const viewToggle = must<HTMLButtonElement>('#view-toggle');
 const viewMenu = must<HTMLElement>('#view-menu');
 const notesToggle = must<HTMLButtonElement>('#notes-toggle');
 const notesPop = must<HTMLElement>('#notes-pop');
+const selectModeToggle = must<HTMLButtonElement>('#select-mode-toggle');
+const selectModePop = must<HTMLElement>('#select-mode-pop');
 const exportDialog = must<HTMLDialogElement>('#export-dialog');
+const settingsDialog = must<HTMLDialogElement>('#settings-dialog');
+const settingsBody = must<HTMLElement>('#settings-body');
+const notationSection = must<HTMLDetailsElement>('#section-notation');
+const patternSection = must<HTMLDetailsElement>('#section-pattern');
+const consentButton = must<HTMLElement>('[data-consent-open]');
 const exportGrid = must<HTMLInputElement>('#export-grid');
 const insertionPanel = new InsertionPanel(must<HTMLFieldSetElement>('#insertion'));
 const languageSelect = document.querySelector<HTMLSelectElement>('#ui-language');
@@ -1563,6 +1571,7 @@ function closeAllPopovers(): void {
   closePopover(filePop, fileToggle);
   closePopover(typesNav, typesToggle);
   closePopover(notesPop, notesToggle);
+  closePopover(selectModePop, selectModeToggle);
   setViewMenuOpen(false);
 }
 
@@ -1590,6 +1599,14 @@ notesToggle.addEventListener('click', () => {
   }
 });
 
+selectModeToggle.addEventListener('click', () => {
+  const opening = selectModePop.hidden;
+  closeAllPopovers();
+  if (opening) {
+    openPopover(selectModePop, selectModeToggle);
+  }
+});
+
 notesPop.addEventListener('click', (event) => {
   if ((event.target as Element).closest('button')) closePopover(notesPop, notesToggle);
 });
@@ -1602,6 +1619,29 @@ must<HTMLButtonElement>('#export-open').addEventListener('click', () => {
 must<HTMLButtonElement>('#export-close').addEventListener('click', () => exportDialog.close());
 // The item that opened the dialog sits in a closed menu, so the focus goes back to the menu's button.
 exportDialog.addEventListener('close', () => fileToggle.focus());
+
+// KB: interface.md §60 — the free-form panel keeps only its own work; these two wait behind the file menu.
+must<HTMLButtonElement>('#settings-open').addEventListener('click', () => {
+  closeAllPopovers();
+  settingsDialog.showModal();
+});
+must<HTMLButtonElement>('#settings-close').addEventListener('click', () => settingsDialog.close());
+settingsDialog.addEventListener('close', () => fileToggle.focus());
+
+/** The notation and the pattern sections are shared nodes: in the dialog for the free-form type, in the panel otherwise. */
+let panelFolds: readonly [boolean, boolean] | null = null;
+function placeSharedSections(freeForm: boolean): void {
+  if (freeForm && panelFolds === null) {
+    panelFolds = [notationSection.open, patternSection.open];
+    notationSection.open = true;
+    patternSection.open = true;
+    settingsBody.append(notationSection, patternSection);
+  } else if (!freeForm && panelFolds !== null) {
+    [notationSection.open, patternSection.open] = panelFolds;
+    panelFolds = null;
+    consentButton.before(notationSection, patternSection);
+  }
+}
 exportDialog.addEventListener('click', (event) => {
   if ((event.target as Element).closest('[data-action^="export-"], #export-pdf')) exportDialog.close();
 });
@@ -2014,7 +2054,7 @@ document.addEventListener('keydown', (event) => {
   const key = event.key;
 
   // Escape closes an open menu first and returns the focus to its button.
-  const openMenu = [errorToggle, fileToggle, typesToggle, viewToggle, notesToggle].find(
+  const openMenu = [errorToggle, fileToggle, typesToggle, viewToggle, notesToggle, selectModeToggle].find(
     (button) => button.getAttribute('aria-expanded') === 'true',
   );
   if (key === 'Escape' && openMenu) {
@@ -2329,9 +2369,20 @@ function showIrregularView(on: boolean): void {
   if (on && !setupSheet.hidden) setOpen(setupSheet, setupToggle, false);
   setDisabled('export-png', false);
   setDisabled('export-svg', false);
-  for (const id of ['#view-guides', '#bg-load', '#bg-remove', '#export-picture-fields', '#export-pdf-part']) {
+  for (const id of [
+    '#view-guides',
+    '#bg-load',
+    '#bg-remove',
+    '#export-picture-fields',
+    '#export-pdf-part',
+    '#select-mode-toggle',
+    '#irregular-tabs',
+    '#view-work',
+    '#settings-open',
+  ]) {
     must<HTMLElement>(id).hidden = !on;
   }
+  placeSharedSections(on);
   fitBar();
 }
 
@@ -2399,6 +2450,10 @@ realignObserver.observe(written);
 new ResizeObserver(syncWrittenSize).observe(status);
 
 alignTooltips(must<HTMLElement>('.tools'));
+alignTooltips(must<HTMLElement>('#section-irregular'));
+alignTooltips(must<HTMLElement>('#section-irregular-rows'));
+alignTooltips(must<HTMLElement>('#section-irregular-layers'));
+wireTabs(must<HTMLElement>('#irregular-tabs'));
 setupConsentBanner(GA_MEASUREMENT_ID);
 
 // KB: interface.md §31

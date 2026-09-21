@@ -142,8 +142,6 @@ export class IrregularPanel {
   readonly #bgOpacity: HTMLInputElement;
   readonly #bgScale: HTMLInputElement;
   readonly #bgRotation: HTMLInputElement;
-  readonly #bgVisible: HTMLInputElement;
-  readonly #bgLocked: HTMLInputElement;
   readonly #bgInExport: HTMLInputElement;
   readonly #exportScale: HTMLSelectElement;
   readonly #exportTransparent: HTMLInputElement;
@@ -178,7 +176,7 @@ export class IrregularPanel {
     this.#insertion = must<HTMLSelectElement>(section, '#prop-insertion');
     this.#insertionField = must<HTMLElement>(section, '#prop-insertion').closest('p') ?? this.#fields;
     this.#color = must<HTMLInputElement>(section, '#prop-color');
-    this.#rectMode = must<HTMLSelectElement>(section, '#prop-rect-mode');
+    this.#rectMode = must<HTMLSelectElement>(page, '#prop-rect-mode');
     this.#gridSize = must<HTMLInputElement>(page, '#guide-grid-size');
     this.#snap = must<HTMLInputElement>(page, '#guide-snap');
     this.#polar = must<HTMLInputElement>(page, '#guide-polar');
@@ -200,13 +198,11 @@ export class IrregularPanel {
     this.#arrange = must<HTMLElement>(section, '#props-arrange');
     this.#rowLineRow = must<HTMLElement>(section, '#rowline-row');
     this.#perpendicular = must<HTMLInputElement>(section, '#arrange-perpendicular');
-    this.#bgFields = must<HTMLElement>(section, '#bg-fields');
-    this.#bgOpacity = must<HTMLInputElement>(section, '#bg-opacity');
-    this.#bgScale = must<HTMLInputElement>(section, '#bg-scale');
-    this.#bgRotation = must<HTMLInputElement>(section, '#bg-rotation');
-    this.#bgVisible = must<HTMLInputElement>(section, '#bg-visible');
-    this.#bgLocked = must<HTMLInputElement>(section, '#bg-locked');
-    this.#bgInExport = must<HTMLInputElement>(section, '#bg-in-export');
+    this.#bgFields = must<HTMLElement>(page, '#bg-fields');
+    this.#bgOpacity = must<HTMLInputElement>(page, '#bg-opacity');
+    this.#bgScale = must<HTMLInputElement>(page, '#bg-scale');
+    this.#bgRotation = must<HTMLInputElement>(page, '#bg-rotation');
+    this.#bgInExport = must<HTMLInputElement>(page, '#bg-in-export');
     this.#exportScale = must<HTMLSelectElement>(page, '#export-scale');
     this.#exportTransparent = must<HTMLInputElement>(page, '#export-transparent');
     this.#exportSize = must<HTMLSelectElement>(page, '#export-page-size');
@@ -309,6 +305,8 @@ export class IrregularPanel {
     this.#perpendicular.addEventListener('change', () => this.#host.setPerpendicular(this.#perpendicular.checked));
     must<HTMLButtonElement>(page, '#bg-load').addEventListener('click', () => this.#host.loadBackground());
     must<HTMLButtonElement>(page, '#bg-remove').addEventListener('click', () => this.#host.removeBackground());
+    must<HTMLButtonElement>(page, '#layer-bg-load').addEventListener('click', () => this.#host.loadBackground());
+    must<HTMLButtonElement>(page, '#layer-bg-remove').addEventListener('click', () => this.#host.removeBackground());
     this.#bgOpacity.addEventListener('change', () =>
       this.#number(this.#bgOpacity, (value) => this.#host.patchBackground({ opacity: value / 100 })),
     );
@@ -323,8 +321,6 @@ export class IrregularPanel {
     this.#bgRotation.addEventListener('change', () =>
       this.#number(this.#bgRotation, (value) => this.#host.patchBackground({ rotation: value })),
     );
-    this.#bgVisible.addEventListener('change', () => this.#host.patchBackground({ visible: this.#bgVisible.checked }));
-    this.#bgLocked.addEventListener('change', () => this.#host.patchBackground({ locked: this.#bgLocked.checked }));
     this.#bgInExport.addEventListener('change', () =>
       this.#host.patchBackground({ inExport: this.#bgInExport.checked }),
     );
@@ -410,21 +406,20 @@ export class IrregularPanel {
   }
 
   updateBackground(background: BackgroundImage | null, naturalWidth: number): void {
-    must<HTMLElement>(this.#section, '#props-background').hidden = background === null;
+    const page = this.#section.ownerDocument;
     this.#bgFields.hidden = background === null;
-    must<HTMLButtonElement>(this.#section.ownerDocument, '#bg-remove').disabled = background === null;
+    must<HTMLElement>(page, '#bg-empty').hidden = background !== null;
+    must<HTMLButtonElement>(page, '#bg-remove').disabled = background === null;
     if (background === null) return;
     // Without the picture there is no natural size, and a made-up one would
     // turn the next edit into a collapse the user cannot see happening.
     const known = naturalWidth > 0;
-    must<HTMLElement>(this.#section, '#bg-scale').closest('p')?.toggleAttribute('hidden', !known);
+    this.#bgScale.closest('p')?.toggleAttribute('hidden', !known);
     if (known) this.#bgNaturalWidth = naturalWidth;
     this.#bgRatio = background.height > 0 ? background.width / background.height : 1;
     this.#setNumber(this.#bgOpacity, Math.round(background.opacity * 100));
     if (known) this.#setNumber(this.#bgScale, Math.round((background.width / this.#bgNaturalWidth) * 100));
     this.#setNumber(this.#bgRotation, Math.round(background.rotation));
-    this.#setToggle(this.#bgVisible, background.visible);
-    this.#setToggle(this.#bgLocked, background.locked);
     this.#setToggle(this.#bgInExport, background.inExport);
   }
 

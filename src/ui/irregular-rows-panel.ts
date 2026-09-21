@@ -101,8 +101,9 @@ export class IrregularRowsPanel {
     this.#kind = must<HTMLSelectElement>(section, '#row-kind');
     this.#direction = must<HTMLSelectElement>(section, '#row-direction');
     this.#color = must<HTMLInputElement>(section, '#row-color');
-    this.#fade = must<HTMLInputElement>(section, '#row-fade');
-    this.#showOrder = must<HTMLInputElement>(section, '#row-order-overlay');
+    // KB: interface.md §59 — the two view switches live in the „Nézet” menu.
+    this.#fade = must<HTMLInputElement>(section.ownerDocument, '#row-fade');
+    this.#showOrder = must<HTMLInputElement>(section.ownerDocument, '#row-order-overlay');
     this.#orderControls = must<HTMLElement>(section, '#order-controls');
     this.#orderPlaceField = must<HTMLElement>(section, '#order-place-field');
     this.#orderPlace = must<HTMLInputElement>(section, '#order-place');
@@ -164,6 +165,22 @@ export class IrregularRowsPanel {
       if (Number.isFinite(place)) this.#host.setOrderPlace(place);
     });
     this.#list.addEventListener('click', (event) => this.#onList(event));
+    must<HTMLButtonElement>(this.#section, '#row-up').addEventListener('click', () => this.#step(-1));
+    must<HTMLButtonElement>(this.#section, '#row-down').addEventListener('click', () => this.#step(1));
+    const more = must<HTMLButtonElement>(this.#section, '#rows-more-toggle');
+    const moreBox = must<HTMLElement>(this.#section, '#rows-more');
+    more.addEventListener('click', () => {
+      moreBox.hidden = !moreBox.hidden;
+      more.setAttribute('aria-expanded', String(!moreBox.hidden));
+    });
+  }
+
+  #rowIds: readonly string[] = [];
+
+  #step(delta: number): void {
+    const index = this.#rowIds.indexOf(this.#active);
+    if (index < 0) return;
+    this.#host.reorder(this.#active, index + delta);
   }
 
   #onList(event: MouseEvent): void {
@@ -175,10 +192,6 @@ export class IrregularRowsPanel {
     if (action === 'pick') this.#host.activate(row);
     if (action === 'visible') this.#host.update(row, { visible: target?.getAttribute('aria-pressed') !== 'true' });
     if (action === 'locked') this.#host.update(row, { locked: target?.getAttribute('aria-pressed') !== 'true' });
-    if (action === 'up' || action === 'down') {
-      const index = Number(target?.dataset['index'] ?? '0');
-      this.#host.reorder(row, action === 'up' ? index - 1 : index + 1);
-    }
   }
 
   #opened = false;
@@ -197,6 +210,10 @@ export class IrregularRowsPanel {
 
   update(pattern: IrregularPattern, view: RowsView): void {
     this.#active = pattern.activeRowId;
+    this.#rowIds = pattern.rows.map((row) => row.id);
+    const index = this.#rowIds.indexOf(this.#active);
+    must<HTMLButtonElement>(this.#section, '#row-up').disabled = index <= 0;
+    must<HTMLButtonElement>(this.#section, '#row-down').disabled = index < 0 || index === this.#rowIds.length - 1;
     const words = texts().irregular;
     this.#list.replaceChildren(...pattern.rows.map((row, index) => this.#entry(pattern, row, index)));
     const active = pattern.rows.find((row) => row.id === pattern.activeRowId);
@@ -235,34 +252,33 @@ export class IrregularRowsPanel {
       element('span', 'rows__arrow', ARROWS[row.direction]),
       element('span', 'rows__count', words.rowCount(rowCount(pattern, row.id))),
     );
+    item.classList.toggle('is-active', row.id === pattern.activeRowId);
     item.append(
+      toggleButton('visible', row.visible, words.toggleVisible, 'rowAct'),
+      toggleButton('locked', row.locked, words.toggleLocked, 'rowAct'),
       pick,
-      this.#toggle('visible', row.visible, words.toggleVisible),
-      this.#toggle('locked', row.locked, words.toggleLocked),
-    );
-    item.append(
-      this.#step('up', index, words.moveUp, index === 0),
-      this.#step('down', index, words.moveDown, index === pattern.rows.length - 1),
     );
     return item;
   }
+}
 
-  #toggle(action: string, on: boolean, label: string): HTMLButtonElement {
-    const button = element('button', 'rows__toggle', on ? '●' : '○');
-    button.type = 'button';
-    button.dataset['rowAct'] = action;
-    button.setAttribute('aria-pressed', String(on));
-    button.setAttribute('aria-label', label);
-    return button;
-  }
+const EYE = 'M2 10s3-5.5 8-5.5 8 5.5 8 5.5-3 5.5-8 5.5S2 10 2 10zM10 7.7a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z';
+const LOCK = 'M5 9h10v8H5zM7 9V6.5a3 3 0 0 1 6 0V9';
 
-  #step(action: 'up' | 'down', index: number, label: string, disabled: boolean): HTMLButtonElement {
-    const button = element('button', 'rows__toggle', action === 'up' ? '↑' : '↓');
-    button.type = 'button';
-    button.dataset['rowAct'] = action;
-    button.dataset['index'] = String(index);
-    button.setAttribute('aria-label', label);
-    button.disabled = disabled;
-    return button;
-  }
+/** The eye and the lock of a list entry; pressed means shown or locked. KB: interface.md §59 */
+export function toggleButton(action: 'visible' | 'locked', on: boolean, label: string, key: string): HTMLButtonElement {
+  const button = element('button', 'rows__toggle');
+  button.type = 'button';
+  button.dataset[key] = action;
+  button.setAttribute('aria-pressed', String(on));
+  button.setAttribute('aria-label', label);
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'icon');
+  svg.setAttribute('viewBox', '0 0 20 20');
+  svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', action === 'visible' ? EYE : LOCK);
+  svg.append(path);
+  button.append(svg);
+  return button;
 }

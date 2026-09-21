@@ -191,11 +191,15 @@ test('rows and rounds: a second row, its own colour, and the stitch order overla
   await expect(page.locator('#rows-list')).toContainText('2 szem');
 
   // The order runs right to left in this row, so the leftmost stitch is the second.
+  // The overlay switch is in the view menu (interface.md §59).
+  await page.locator('#view-toggle').click();
   await page.locator('#row-order-overlay').check();
   await expect(page.locator('#row-order-overlay')).toBeChecked();
 
   await page.locator('#row-color').fill('#b07cc6');
   await page.locator('#row-color').dispatchEvent('change');
+  // The rarer row actions are behind the list's „⋯” button (interface.md §59).
+  await page.locator('#rows-more-toggle').click();
   await page.locator('#row-select').click();
   await expect(page.locator('#status')).toContainText('2 szem kijelölve');
 });
@@ -207,7 +211,7 @@ test('the stitch key changes the symbol everywhere, and the legend can go on the
   await page.keyboard.press('Alt+1');
   for (const x of [500, 560, 620]) await place(page, x, 400);
 
-  await page.locator('#section-irregular-key > summary').click();
+  await page.locator('#tab-key').click();
   const chain = page.locator('#key-list li').filter({ hasText: 'láncszem' });
   await expect(chain).toHaveCount(1);
   await expect(chain).toContainText('3');
@@ -250,7 +254,7 @@ test('layers: a second layer takes the selected stitches, and hiding it hides th
   await armDoubleCrochet(page);
   for (const x of [500, 560]) await place(page, x, 400);
 
-  await page.locator('#section-irregular-layers > summary').click();
+  await page.locator('#tab-layers').click();
   await expect(page.locator('#layers-list li')).toHaveCount(2);
 
   await page.locator(board).focus();
@@ -282,7 +286,7 @@ test('two stitches drawn with one symbol are reported in the issues list (AS-5)'
   await page.keyboard.press('Alt+2');
   await place(page, 560, 400);
 
-  await page.locator('#section-irregular-key > summary').click();
+  await page.locator('#tab-key').click();
   await page.locator('#key-list li').filter({ hasText: 'láncszem' }).locator('select').selectOption('dot');
   await expect(page.locator('#key-preset')).toContainText('Saját');
 
@@ -882,7 +886,7 @@ test('a sorvonal fogantyúval átalakítható, a szemek csak az Egyenletessé te
 test('saját szem: hozzáadás a jelkulcshoz, majd lerakás (FR-KEY-4)', async ({ page }) => {
   await open(page);
   await chooseIrregular(page);
-  await page.locator('#section-irregular-key > summary').click();
+  await page.locator('#tab-key').click();
 
   await page.locator('#key-custom-name').fill('Bogyó');
   await page.locator('#key-custom-abbr').fill('bgy');
@@ -1233,4 +1237,116 @@ test('a láncív azt rögzíti, amit az előkép mutatott, akkor is, ha a ⌘-t 
   expect(start.x + view.x, 'a kezdőpont ott maradt, ahol lenyomtad').toBeCloseTo(417, 6);
   expect(end.x + view.x, 'a végpont ott, ahol elengedted').toBeCloseTo(663, 6);
   expect(Math.abs(start.x % 20) > 0.001, 'vagyis nem ugrott a rácsra').toBe(true);
+});
+
+test('the selection block says what it is for, and the rectangle mode hangs off the area tool (PQW-1009)', async ({
+  page,
+}) => {
+  await open(page);
+  await chooseIrregular(page);
+
+  await expect(page.locator('#props-empty')).toContainText('Jelölj ki szemet a rajzon');
+  await expect(page.locator('#props-fields')).toBeHidden();
+
+  // „Terület” is not inside a menu, so pressing it closes whatever menu is open.
+  await page.locator('#notes-toggle').click();
+  await page.locator('[data-action="select-area"]').click();
+  await expect(page.locator('#notes-pop')).toBeHidden();
+
+  const toggle = page.locator('#select-mode-toggle');
+  await expect(toggle).toBeVisible();
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await page.locator('#prop-rect-mode').selectOption('full');
+  // The choice is a preference of the editor, so it survives a reload.
+  await page.reload();
+  await expect(page.locator('#prop-rect-mode')).toHaveValue('full');
+
+  // The regular type has no rectangle mode of its own.
+  await page.locator('#types-toggle').click();
+  await page.getByRole('button', { name: /Szabályos horgolás/ }).click();
+  await expect(toggle).toBeHidden();
+});
+
+test('rows, layers and key share one place behind tabs; the background is the bottom layer (PQW-1010)', async ({
+  page,
+}) => {
+  await open(page);
+  await chooseIrregular(page);
+
+  // One list at a time: rows first.
+  await expect(page.locator('#tab-rows')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#rows-list')).toBeVisible();
+  await expect(page.locator('#layers-list')).toBeHidden();
+
+  // Moving a row is the footer's job, and it moves the active one.
+  await page.locator('#row-new').click();
+  await expect(page.locator('#rows-list li')).toHaveCount(2);
+  await expect(page.locator('#row-down')).toBeDisabled();
+  await page.locator('#row-up').click();
+  await expect(page.locator('#rows-list li').first()).toHaveClass(/is-active/);
+  await expect(page.locator('#row-up')).toBeDisabled();
+
+  // The rarer actions wait behind „⋯”.
+  await expect(page.locator('#row-select')).toBeHidden();
+  await page.locator('#rows-more-toggle').click();
+  await expect(page.locator('#rows-more-toggle')).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('#row-select')).toBeVisible();
+
+  // Layers: the background row sits under the list and opens the picture's settings.
+  await page.locator('#tab-layers').click();
+  await expect(page.locator('#rows-list')).toBeHidden();
+  await expect(page.locator('#layer-name')).toBeVisible();
+  await expect(page.locator('#layer-bg-visible')).toBeDisabled();
+  await page.locator('#layer-bg-pick').click();
+  await expect(page.locator('#layer-name')).toBeHidden();
+  // The footer acts on the active layer, which is out of sight now: nothing to delete or move.
+  await expect(page.locator('#layer-delete')).toBeDisabled();
+  await expect(page.locator('#layer-up')).toBeDisabled();
+  await expect(page.locator('#layer-bg-load')).toBeVisible();
+
+  // Renaming the active layer happens in its own field.
+  await page.locator('#layers-list li').first().locator('.rows__pick').click();
+  await page.locator('#layer-name').fill('Szegély');
+  await page.locator('#layer-name').blur();
+  await expect(page.locator('#layers-list li').first()).toContainText('Szegély');
+
+  // The two view switches moved to the view menu, and only this type has them.
+  await page.locator('#view-toggle').click();
+  await expect(page.locator('#row-fade')).toBeVisible();
+  await page.locator('#view-toggle').click();
+  await page.locator('#types-toggle').click();
+  await page.getByRole('button', { name: /Szabályos horgolás/ }).click();
+  await page.locator('#view-toggle').click();
+  await expect(page.locator('#row-fade')).toBeHidden();
+});
+
+test('the notation and the pattern settings wait in a dialog here, and go back to the panel for rows (PQW-1011)', async ({
+  page,
+}) => {
+  await open(page);
+  const notation = page.locator('#section-notation');
+  await expect(notation).toBeVisible();
+  const foldedBefore = await notation.getAttribute('open');
+
+  await chooseIrregular(page);
+  await expect(notation).toBeHidden();
+  await expect(page.locator('#title')).toBeHidden();
+
+  await page.locator('#file-toggle').click();
+  await page.locator('#settings-open').click();
+  await expect(page.locator('#settings-dialog')).toBeVisible();
+  await expect(page.locator('#ui-language')).toBeVisible();
+  await page.locator('#title').fill('Csipkés terítő');
+  await page.locator('#title').blur();
+  await page.locator('#settings-close').click();
+  await expect(page.locator('#settings-dialog')).toBeHidden();
+  await expect(page.locator('#file-toggle')).toBeFocused();
+
+  // Back in the regular type the sections are in the panel again, folded as they were.
+  await page.locator('#types-toggle').click();
+  await page.getByRole('button', { name: /Szabályos horgolás/ }).click();
+  await expect(page.locator('#settings-open')).toBeHidden();
+  await expect(notation).toBeVisible();
+  expect(await notation.getAttribute('open')).toBe(foldedBefore);
 });

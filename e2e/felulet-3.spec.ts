@@ -33,9 +33,9 @@ test('the content of the File dropdown is visible and stays on screen', async ({
   // The sheet opener joined the menu in PQW-987: it starts a pattern, as the „Új minta"
   // button beside the menu does. It is checked the same way, then the file actions. The
   // picture exports moved behind one item (interface.md §57), and the two background
-  // picture items are there, hidden, for the free-form type.
+  // picture items and the pattern settings are there, hidden, for the free-form type.
   const items = pop.locator('button');
-  await expect(items).toHaveCount(6);
+  await expect(items).toHaveCount(7);
   const opener = pop.locator('#setup-toggle');
   await expect(opener).toBeVisible();
   await expect(opener).toHaveText(/\S/);

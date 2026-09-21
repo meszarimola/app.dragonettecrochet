@@ -45,6 +45,12 @@ async function openSection(page: Page, selector: string): Promise<void> {
       await sheet.click();
     }
   }
+  // In free-form mode the notation waits in the pattern settings dialog (interface.md §60).
+  const inDialog = await page.locator(selector).evaluate((el) => el.closest('#settings-dialog') !== null);
+  if (inDialog) {
+    await page.locator('#file-toggle').click();
+    await page.locator('#settings-open').click();
+  }
   const section = page.locator(selector);
   if ((await section.getAttribute('open')) === null) await section.locator('summary').click();
 }
@@ -93,6 +99,7 @@ test('the notation preset leaves the regular pattern alone in free-form mode', a
   await openSection(page, '#section-notation');
   await page.locator('#tradition').selectOption('japanese');
   expect(await saved(page)).toBe(before);
+  await page.keyboard.press('Escape');
 
   await chooseRegular(page);
   await expect(page.locator('#tradition')).toHaveValue('cyc');

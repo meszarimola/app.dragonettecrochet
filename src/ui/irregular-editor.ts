@@ -352,6 +352,7 @@ export class IrregularEditor {
       update: (layerId, patch) => this.#updateLayer(layerId, patch),
       reorder: (layerId, toIndex) => this.#commit(reorderLayers(this.#history.present, layerId, toIndex)),
       moveSelection: (layerId) => this.#moveSelectionToLayer(layerId),
+      patchBackground: (patch) => this.#commit(patchBackground(this.#history.present, patch)),
     });
     this.#keyPanel = new IrregularKeyPanel(sections.key, {
       setGlyph: (id, glyph) => this.#setGlyph(id, glyph),
@@ -1845,7 +1846,7 @@ export class IrregularEditor {
       orderPlace: this.#orderPlace(committed, orderRow),
     });
     this.#panel.updateGuides(committed.guides, this.#preferences.radial);
-    this.#layersPanel.update(committed, this.#selection.size);
+    this.#layersPanel.update(committed, this.#selection.size, committed.background ?? null);
     this.#keyPanel.update(committed, this.#host.terms(), this.#host.symbols(), this.legend);
     this.#host.refreshControls();
   }

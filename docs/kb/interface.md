@@ -1460,3 +1460,101 @@ menus and of the dialog in the other types.
 **What the tests pin.** The specs open `#view-toggle`, `#notes-toggle` or
 `#export-open` before the control they drive; `e2e/egysoros-sav.spec.ts` pins
 the menu at 1920 px and `data-fit` 2 at the owner's size.
+
+## §58 The selection block says what it is for
+
+PQW-1009, the second step of the free-form redesign. The owner could not tell
+what „Tulajdonságok” did or why it was there.
+
+- **It is called „Kijelölés”**, and with nothing selected it shows one line
+  saying so: select stitches and set their place, size and colour here.
+- **Place and size are a two-by-two grid; rotation and colour share a row.**
+  „Alapszín” sits next to the colour it resets.
+- **Flip, align and spread are icon buttons** (`.ib`, 44 px, §36) with the bar's
+  tooltip bubble; the panel runs `alignTooltips` too, so a bubble near the right
+  edge does not hang off it. Their names are the old button labels, now the
+  accessible name and the tip.
+- **The rectangle mode left the panel** for a caret button beside „Terület”
+  (`#select-mode-toggle`, free-form only). It is how the marquee behaves, so it
+  belongs to the marquee tool; in the panel it was the only thing visible with
+  nothing selected, which made the empty block look like a settings page.
+  `IrregularPanel` finds `#prop-rect-mode` in the page, like the moved controls
+  of §57.
+- **The caret is 28 px wide, not 44.** It is the one exception to §36: at 44 px the
+  free-form bar no longer fits 1440 px with labels. It stays above WCAG 2.5.8's
+  24 px and has its own gap. „Terület” sits outside the caret's `.menu`, because
+  a click inside a `.menu` does not close the other menus.
+
+What the tests pin: `e2e/szabalytalan.spec.ts` (PQW-1009) — the empty line, the
+caret menu, the mode surviving a reload, and the caret hidden in the regular type.
+
+## §59 Rows, layers and key behind tabs, as compact lists
+
+PQW-1010, the third step of the free-form redesign. The owner asked for layers
+and rows „hasonló felépítésben, mint a photoshop esetén … csak persze
+kompaktabb formában”.
+
+**Three tabs, one place.** `#irregular-tabs` (`#tab-rows`, `#tab-layers`,
+`#tab-key`, pressed buttons rather than an ARIA tab widget, so no arrow-key
+contract) sits under the selection block. The three sections keep their
+`<details>` and ids; in the tab row their `summary` is hidden and the section not
+picked gets `.is-off`. `wireTabs` (`irregular-tabs.ts`) owns that, and nothing is
+stored: the tab starts on „Sorok” every time.
+
+**A list entry is one 44 px line:** eye (shown), lock (locked), then the pick
+button with the colour, the name, the direction arrow and the count. Pressed
+means shown or locked; the off state is faded, not a different glyph. The active
+entry has the selection background. The per-entry ↑/↓ buttons went to the
+footer, where they move the active row or layer: at three 44 px buttons per
+entry the name had no room.
+
+**The footer** holds what is used all the time — new row, new round (new layer
+and „kijelöltek ide” on the layers tab), up, down — and „⋯” (`#rows-more-toggle`)
+opens `#rows-more` in place with the rest: insert after, select the row, move
+the selection here, both deletes, spacing and alignment. It opens in place, not
+as a popover, because the panel scrolls and a popover would be cut by it.
+
+**The active row's settings** (kind, direction, colour) and the active layer's
+name (`#layer-name`) sit under the footer, always visible. The layer name used
+to be a text field in every entry.
+
+**The background picture is the bottom row of the layers tab** (`#layer-bg`,
+outside `#layers-list`, so the list still counts only real layers). It is not a
+pattern layer: picking it is panel state (`#backgroundPicked`), and it swaps the
+layer-name editor for the picture's own block (`#props-background`, moved here
+from the selection block): load, or opacity, size, rotation, export and remove.
+Its eye and lock patch the picture; they are disabled while there is none. The
+old „Látszik” and „Zárolva” checkboxes went, the eye and lock replace them.
+
+**„A többi sor halványítása” and „Szemsorrend mutatása”** are view switches, so
+they moved to the „Nézet” menu (`#view-work`, free-form only). The order buttons
+for one selected stitch stay under the rows list, next to the row they reorder.
+
+What the tests pin: `e2e/szabalytalan.spec.ts` (PQW-1010) — one list at a time,
+the footer moving the active row, the „⋯” box, the background row swapping the
+editor, renaming, and the view switches present only in this type.
+
+## §60 The pattern settings leave the free-form panel
+
+PQW-1011, the last step of the free-form redesign. With „Kijelölés” and the
+three tabs in place, the panel still ended in „Jelölés és jelek” and „Minta” —
+language, notation, the pattern name and the key list — which the owner filed
+under „a többi rész is érthetetlen”: settings made once, sitting among the
+tools used all the time.
+
+**In the free-form type they live in a dialog**, „Fájl → Minta beállításai…”
+(`#settings-open`, `#settings-dialog`). **The regular type is unchanged**: the
+two sections are shared nodes, so `placeSharedSections` moves them into the
+dialog when the free-form view opens and back before `[data-consent-open]` when
+it closes, remembering how they were folded. Moving the nodes keeps every
+listener, which is why this is a move and not a copy. The sections stay
+foldable in the dialog, open when they arrive.
+
+The class is `settings-dialog`, not `settings`: `.settings` is the notation
+block's own grid, and on the dialog it displayed the closed dialog and grew the
+page past the window — `e2e/elrendezes.spec.ts` caught it.
+
+What the tests pin: `e2e/szabalytalan.spec.ts` (PQW-1011) — hidden from the
+free-form panel, editable in the dialog, focus back on „Fájl”, and back in the
+regular panel folded as before. `e2e/szabalytalan-vezerlok.spec.ts` opens the
+dialog before it reaches the notation in free-form mode.
