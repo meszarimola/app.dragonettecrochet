@@ -66,6 +66,8 @@ test('the rectangle is made by clicking on cells only; where there is nothing to
     .click();
   await page.locator('#chain-count').fill('6');
   await page.locator('#board').click();
+  // The view group is always a menu (interface.md §57).
+  await page.locator('#view-toggle').click();
   await fit.click();
 
   // Row 1: single crochets into the cells of the foundation chain; for single crochet we skip 2 chain stitches (PQW-924), and into the rest
@@ -78,6 +80,7 @@ test('the rectangle is made by clicking on cells only; where there is nothing to
   await expect(summary).toContainText('2. sor: 5 szem');
 
   await page.getByRole('button', { name: 'Sor vége, fordulás' }).click();
+  await page.locator('#view-toggle').click();
   await fit.click();
   await expect(summary).toContainText('3. sor következik.');
 
@@ -95,6 +98,7 @@ test('the rectangle is made by clicking on cells only; where there is nothing to
   await expect(summary).toContainText('Nincs hiba és figyelmeztetés.');
 
   // The row label is an independent, clickable target area: it selects the whole row (PQW-875).
+  await page.locator('#view-toggle').click();
   await fit.click();
   const label = (await racs(page)).labels.find((candidate) => candidate.layer === 1);
   expect(label).toBeTruthy();
@@ -122,6 +126,7 @@ test('the grid can be switched on and off in the view group, it survives, and it
   await expect(page.locator('#summary')).toContainText('2. sor: 5 szem');
   expect((await racs(page)).cells.length).toBeGreaterThan(0);
 
+  await page.locator('#view-toggle').click();
   await grid.click();
   await expect(grid).toHaveAttribute('aria-pressed', 'false');
   expect((await racs(page)).cells).toEqual([]);
@@ -137,6 +142,7 @@ test('the grid can be switched on and off in the view group, it survives, and it
     const download = page.waitForEvent('download');
     // The export is in the file actions dropdown (PQW-911).
     await page.locator('#file-toggle').click();
+    await page.locator('#export-open').click();
     await page.getByRole('button', { name: 'SVG', exact: true }).click();
     return readFile((await (await download).path())!, 'utf8');
   };
@@ -158,7 +164,11 @@ test('the grid can be switched on and off in the view group, it survives, and it
   expect(withGrid).toContain('1. sor – alapsor');
   expect(withGrid).not.toMatch(/>0<\/text>/);
 
+  // The grid option is in the export dialog (interface.md §57); Escape closes it again.
+  await page.locator('#file-toggle').click();
+  await page.locator('#export-open').click();
   await page.locator('#export-grid').uncheck();
+  await page.keyboard.press('Escape');
   const withoutGrid = await exportSvg();
   expect(withoutGrid).not.toContain('data-grid');
   expect(withoutGrid).toContain('Jelmagyarázat');

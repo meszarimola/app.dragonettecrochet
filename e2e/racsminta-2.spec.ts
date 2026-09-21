@@ -83,6 +83,7 @@ test('mosaic with one skip: error-free, the written pattern marks the stitch wor
   const download = page.waitForEvent('download');
   // The export is in the file actions dropdown (PQW-911).
   await page.locator('#file-toggle').click();
+  await page.locator('#export-open').click();
   await page.getByRole('button', { name: 'SVG', exact: true }).click();
   const svg = await readFile((await (await download).path())!, 'utf8');
   expect(svg).toContain('data-spike');

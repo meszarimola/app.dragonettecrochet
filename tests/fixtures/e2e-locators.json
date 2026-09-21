@@ -10,7 +10,7 @@
     "4": 4,
     "5": 11,
     "6": 5,
-    "8": 7,
+    "8": 6,
     "10": 6,
     "12": 5,
     "15": 1,
@@ -53,7 +53,6 @@
     "Az írott minta magassága": 1,
     "B: Bordó": 1,
     "Beszúrás": 1,
-    "Duplikálás": 2,
     "Egész minta": 6,
     "Első relief": 2,
     "Elutasítom": 30,
@@ -88,7 +87,8 @@
     "Írott minta": 1,
     "Új minta": 12,
     "Új minta ebből": 5,
-    "Új profil": 2
+    "Új profil": 2,
+    "Másolás": 2
   },
   "getByText": {
     "22 láncszem": 1,
@@ -145,7 +145,7 @@
     "#fan-mode": 1,
     "#file-pop": 2,
     "#file-pop .tool": 1,
-    "#file-toggle": 32,
+    "#file-toggle": 35,
     "#findings": 5,
     "#findings button.finding": 1,
     "#findings details": 1,
@@ -176,7 +176,7 @@
     "#grid-unit": 1,
     "#grid-warnings li": 1,
     "#guide-grid-size": 8,
-    "#guide-polar": 2,
+    "#guide-polar": 1,
     "#guide-polar-fields": 1,
     "#guide-radial": 1,
     "#guide-snap": 5,
@@ -206,12 +206,9 @@
     "#panel-toggle": 3,
     "#props-arc": 1,
     "#props-arrange": 1,
-    "#props-count": 16,
+    "#props-count": 15,
     "#props-fan": 1,
     "#props-note": 1,
-    "#props-repeat": 1,
-    "#repeat-count": 2,
-    "#repeat-run": 1,
     "#rounds-closing": 1,
     "#rounds-count": 12,
     "#rounds-note": 2,
@@ -312,7 +309,7 @@
     "#types-toggle": 22,
     "#ui-language": 9,
     "#version": 3,
-    "#view-toggle": 9,
+    "#view-toggle": 18,
     "#written": 38,
     "#written-body": 1,
     "#written-grip": 2,
@@ -339,7 +336,6 @@
     ".type[data-type=\"amigurumi\"]": 2,
     ".type[data-type=\"filet\"]": 3,
     ".type__name": 1,
-    "[data-action=\"${action}\"]": 1,
     "[data-action=\"chain-arc\"]": 2,
     "[data-action=\"close-round\"]": 1,
     "[data-action=\"delete-selection\"]": 1,
@@ -371,7 +367,11 @@
     "header.bar": 1,
     "html": 7,
     "select": 3,
-    "summary": 14
+    "summary": 14,
+    "#export-open": 10,
+    "#view-toggle .tool__label": 1,
+    ".view-menu__more > summary": 5,
+    "#notes-toggle": 4
   },
   "selectOption": {
     "": 1,
@@ -407,7 +407,7 @@
   },
   "toContainText": {
     "0": 1,
-    "1": 6,
+    "1": 5,
     "2": 4,
     "3": 2,
     "4": 1,
@@ -558,14 +558,12 @@
     "≈ 1 db": 1
   },
   "toHaveAttribute": {
-    "3": 1,
     "100": 1,
     "": 4,
     "#faf7f3": 1,
     "/: nyitott$/": 1,
     "/: teli$/": 1,
     "/Crochet Pattern Designer/": 1,
-    "/Láncív/": 1,
     "/\\/en\\//": 2,
     "/\\/hu\\//": 1,
     "/^Rács ki és be \\((Alt\\+R|⌥R)\\)$/": 1,
@@ -590,7 +588,9 @@
     "lang": 7,
     "open": 4,
     "polite": 2,
-    "true": 17
+    "true": 17,
+    "2": 1,
+    "/Ív húzása/": 1
   },
   "toHaveText": {
     "": 4,
