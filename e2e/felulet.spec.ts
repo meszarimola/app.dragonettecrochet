@@ -26,13 +26,14 @@ test('pattern type: regular and irregular crochet are selectable, the rest are �
   page,
 }) => {
   await open(page);
+  await page.locator('#types-toggle').click();
 
   const regular = page.getByRole('button', { name: /Szabályos horgolás/ });
   await expect(regular).toBeEnabled();
   await expect(regular).toHaveAttribute('aria-pressed', 'true');
   await expect(regular).not.toContainText('Hamarosan');
 
-  const irregular = page.getByRole('button', { name: /Szabálytalan horgolás/ });
+  const irregular = page.getByRole('button', { name: /Szabad tervező/ });
   await expect(irregular).toBeEnabled();
   await expect(irregular).not.toContainText('Hamarosan');
 

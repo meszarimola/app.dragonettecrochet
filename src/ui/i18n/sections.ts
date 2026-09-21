@@ -157,7 +157,7 @@ const hu: SectionTexts = {
       filet: { name: 'Filéhorgolás', detail: 'Rács teli és nyitott cellákkal; C2C, tapestry és graphgan is.' },
       // The words „írott minta” may not appear here: the panel toggle's accessible name has to stay unique.
       amigurumi: { name: 'Amigurumi', detail: 'Térbeli forma spirálban, részekből: gömb, henger, kúp. A mintát szövegként írja, a rajz kiegészítés.' },
-      irregular: { name: 'Szabálytalan horgolás', detail: 'Formázott, amorf darab (pl. ruhadarab, babacipő).' },
+      irregular: { name: 'Szabad tervező', detail: 'Formázott, amorf darab (pl. ruhadarab, babacipő).' },
     },
     soon: 'Hamarosan',
   },
@@ -316,7 +316,7 @@ const en: SectionTexts = {
       regular: { name: 'Regular crochet', detail: 'Flat rows, rounds and motifs (e.g. granny square).' },
       filet: { name: 'Filet crochet', detail: 'A grid of filled and open cells; C2C, tapestry and graphgan too.' },
       amigurumi: { name: 'Amigurumi', detail: 'A 3D shape in a spiral, from parts: sphere, cylinder, cone. The pattern comes as text, the chart supports it.' },
-      irregular: { name: 'Irregular crochet', detail: 'Shaped, free-form piece (e.g. a garment, baby booties).' },
+      irregular: { name: 'Free-form designer', detail: 'Shaped, free-form piece (e.g. a garment, baby booties).' },
     },
     soon: 'Coming soon',
   },
