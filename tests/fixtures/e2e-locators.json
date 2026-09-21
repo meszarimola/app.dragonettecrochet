@@ -46,7 +46,7 @@
     "/Láncszem/": 3,
     "/Rövidpálca \\(rp\\)/": 10,
     "/Szabad tervező/": 6,
-    "/Szabályos horgolás/": 7,
+    "/Szabályos horgolás/": 8,
     "/^Láncszem/": 1,
     "/^Rövidpálca/": 1,
     "A: Natúr": 1,
@@ -80,7 +80,7 @@
     "Törlés velük együtt": 1,
     "Vissza": 2,
     "Visszavonás": 3,
-    "button": 187,
+    "button": 188,
     "group": 1,
     "radio": 12,
     "separator": 1,
@@ -306,7 +306,7 @@
     "#tools-row": 2,
     "#tradition": 5,
     "#types": 1,
-    "#types-toggle": 22,
+    "#types-toggle": 23,
     "#ui-language": 9,
     "#version": 3,
     "#view-toggle": 18,
@@ -371,7 +371,13 @@
     "#export-open": 10,
     "#view-toggle .tool__label": 1,
     ".view-menu__more > summary": 5,
-    "#notes-toggle": 4
+    "#notes-toggle": 5,
+    "#props-empty": 1,
+    "#props-fields": 1,
+    "#select-mode-toggle": 1,
+    "#prop-rect-mode": 2,
+    "[data-action=\"select-area\"]": 1,
+    "#notes-pop": 1
   },
   "selectOption": {
     "": 1,
@@ -403,7 +409,8 @@
     "rounds": 1,
     "rtl": 1,
     "spiral": 1,
-    "zero": 1
+    "zero": 1,
+    "full": 1
   },
   "toContainText": {
     "0": 1,
@@ -555,7 +562,8 @@
     "törölve": 1,
     "Írott mintában: rp (hsz)": 1,
     "Üres minta": 3,
-    "≈ 1 db": 1
+    "≈ 1 db": 1,
+    "Jelölj ki szemet a rajzon": 1
   },
   "toHaveAttribute": {
     "100": 1,
@@ -570,7 +578,7 @@
     "/crochet pattern designer/i": 1,
     "/horgolásminta-tervező/i": 3,
     "3. sor, 2. cella: teli": 1,
-    "aria-expanded": 17,
+    "aria-expanded": 18,
     "aria-hidden": 2,
     "aria-label": 3,
     "aria-live": 2,
@@ -588,7 +596,7 @@
     "lang": 7,
     "open": 4,
     "polite": 2,
-    "true": 17,
+    "true": 18,
     "2": 1,
     "/Ív húzása/": 1
   },
@@ -641,6 +649,7 @@
     "jis": 1,
     "p1": 1,
     "rtl": 1,
-    "zero": 1
+    "zero": 1,
+    "full": 1
   }
 }

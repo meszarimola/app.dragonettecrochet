@@ -1234,3 +1234,32 @@ test('a láncív azt rögzíti, amit az előkép mutatott, akkor is, ha a ⌘-t 
   expect(end.x + view.x, 'a végpont ott, ahol elengedted').toBeCloseTo(663, 6);
   expect(Math.abs(start.x % 20) > 0.001, 'vagyis nem ugrott a rácsra').toBe(true);
 });
+
+test('the selection block says what it is for, and the rectangle mode hangs off the area tool (PQW-1009)', async ({
+  page,
+}) => {
+  await open(page);
+  await chooseIrregular(page);
+
+  await expect(page.locator('#props-empty')).toContainText('Jelölj ki szemet a rajzon');
+  await expect(page.locator('#props-fields')).toBeHidden();
+
+  // „Terület” is not inside a menu, so pressing it closes whatever menu is open.
+  await page.locator('#notes-toggle').click();
+  await page.locator('[data-action="select-area"]').click();
+  await expect(page.locator('#notes-pop')).toBeHidden();
+
+  const toggle = page.locator('#select-mode-toggle');
+  await expect(toggle).toBeVisible();
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await page.locator('#prop-rect-mode').selectOption('full');
+  // The choice is a preference of the editor, so it survives a reload.
+  await page.reload();
+  await expect(page.locator('#prop-rect-mode')).toHaveValue('full');
+
+  // The regular type has no rectangle mode of its own.
+  await page.locator('#types-toggle').click();
+  await page.getByRole('button', { name: /Szabályos horgolás/ }).click();
+  await expect(toggle).toBeHidden();
+});

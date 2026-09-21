@@ -2065,11 +2065,13 @@ body.is-selecting #board-irregular {
   opacity: 0.5;
 }
 
-.tools .tool[data-tip] {
+.tools .tool[data-tip],
+.ib[data-tip] {
   position: relative;
 }
 
-.tools .tool[data-tip]::after {
+.tools .tool[data-tip]::after,
+.ib[data-tip]::after {
   content: attr(data-tip);
   position: absolute;
   z-index: 30;
@@ -2091,19 +2093,23 @@ body.is-selecting #board-irregular {
 }
 
 /* KB: interface.md §12 */
-.tools .tool[data-tip-align="start"]::after {
+.tools .tool[data-tip-align="start"]::after,
+.ib[data-tip-align="start"]::after {
   inset-inline-start: 0;
   translate: none;
 }
 
-.tools .tool[data-tip-align="end"]::after {
+.tools .tool[data-tip-align="end"]::after,
+.ib[data-tip-align="end"]::after {
   inset-inline-start: auto;
   inset-inline-end: 0;
   translate: none;
 }
 
 .tools .tool[data-tip]:hover::after,
-.tools .tool[data-tip]:focus-visible::after {
+.tools .tool[data-tip]:focus-visible::after,
+.ib[data-tip]:hover::after,
+.ib[data-tip]:focus-visible::after {
   display: block;
 }
 
@@ -2286,4 +2292,94 @@ body.is-selecting #board-irregular {
   line-height: 1;
   pointer-events: none;
   user-select: none;
+}
+
+/* KB: interface.md §58 — the selection block: two columns of numbers, one row of icons. */
+.props__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 var(--sp-2);
+}
+
+.props__grid input {
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+
+.props__color {
+  display: flex;
+  gap: var(--sp-1);
+  align-items: center;
+}
+
+.props__grid .props__color input {
+  flex: 1 1 0;
+  inline-size: auto;
+}
+
+.props__color .button {
+  flex: none;
+  padding-inline: var(--sp-1);
+}
+
+.props__icons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  align-items: center;
+  margin-block: var(--sp-1);
+}
+
+.props__sep {
+  inline-size: 1px;
+  block-size: 24px;
+  margin-inline: var(--sp-0);
+  background: var(--c-line);
+}
+
+.ib {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--c-text-soft);
+  cursor: pointer;
+}
+
+.ib:hover:not(:disabled) {
+  border-color: var(--c-accent);
+  color: var(--c-accent);
+}
+
+.ib:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* The rectangle mode hangs off the „Terület” tool as a narrow caret button. */
+.tools__split {
+  display: flex;
+  gap: 2px;
+}
+
+.tools .tool.tool--caret {
+  min-inline-size: 28px;
+  padding-inline: 0;
+}
+
+.tools .tool--caret .tool__caret {
+  position: static;
+}
+
+.select-mode {
+  padding: var(--sp-2);
+}
+
+.select-mode .panel__field {
+  margin: 0;
 }

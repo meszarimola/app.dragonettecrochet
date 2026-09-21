@@ -185,6 +185,8 @@ const viewToggle = must<HTMLButtonElement>('#view-toggle');
 const viewMenu = must<HTMLElement>('#view-menu');
 const notesToggle = must<HTMLButtonElement>('#notes-toggle');
 const notesPop = must<HTMLElement>('#notes-pop');
+const selectModeToggle = must<HTMLButtonElement>('#select-mode-toggle');
+const selectModePop = must<HTMLElement>('#select-mode-pop');
 const exportDialog = must<HTMLDialogElement>('#export-dialog');
 const exportGrid = must<HTMLInputElement>('#export-grid');
 const insertionPanel = new InsertionPanel(must<HTMLFieldSetElement>('#insertion'));
@@ -1563,6 +1565,7 @@ function closeAllPopovers(): void {
   closePopover(filePop, fileToggle);
   closePopover(typesNav, typesToggle);
   closePopover(notesPop, notesToggle);
+  closePopover(selectModePop, selectModeToggle);
   setViewMenuOpen(false);
 }
 
@@ -1587,6 +1590,14 @@ notesToggle.addEventListener('click', () => {
   if (opening) {
     openPopover(notesPop, notesToggle);
     notesPop.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
+  }
+});
+
+selectModeToggle.addEventListener('click', () => {
+  const opening = selectModePop.hidden;
+  closeAllPopovers();
+  if (opening) {
+    openPopover(selectModePop, selectModeToggle);
   }
 });
 
@@ -2014,7 +2025,7 @@ document.addEventListener('keydown', (event) => {
   const key = event.key;
 
   // Escape closes an open menu first and returns the focus to its button.
-  const openMenu = [errorToggle, fileToggle, typesToggle, viewToggle, notesToggle].find(
+  const openMenu = [errorToggle, fileToggle, typesToggle, viewToggle, notesToggle, selectModeToggle].find(
     (button) => button.getAttribute('aria-expanded') === 'true',
   );
   if (key === 'Escape' && openMenu) {
@@ -2329,7 +2340,14 @@ function showIrregularView(on: boolean): void {
   if (on && !setupSheet.hidden) setOpen(setupSheet, setupToggle, false);
   setDisabled('export-png', false);
   setDisabled('export-svg', false);
-  for (const id of ['#view-guides', '#bg-load', '#bg-remove', '#export-picture-fields', '#export-pdf-part']) {
+  for (const id of [
+    '#view-guides',
+    '#bg-load',
+    '#bg-remove',
+    '#export-picture-fields',
+    '#export-pdf-part',
+    '#select-mode-toggle',
+  ]) {
     must<HTMLElement>(id).hidden = !on;
   }
   fitBar();
@@ -2399,6 +2417,7 @@ realignObserver.observe(written);
 new ResizeObserver(syncWrittenSize).observe(status);
 
 alignTooltips(must<HTMLElement>('.tools'));
+alignTooltips(must<HTMLElement>('#section-irregular'));
 setupConsentBanner(GA_MEASUREMENT_ID);
 
 // KB: interface.md §31
