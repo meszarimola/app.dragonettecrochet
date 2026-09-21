@@ -692,7 +692,9 @@ body.is-selecting #board-irregular {
 
 /* KB: interface.md §56 — `data-fit` is how many steps the bar has given way to stay
    one line: 1 folds the view group, 2 drops the labels, 3 the title and some air. */
-.bar:is([data-fit="2"], [data-fit="3"]) .tools .tool__label {
+/* KB: interface.md §56 — the findings count is data, not a caption. */
+.bar:is([data-fit="2"], [data-fit="3"]) .tools .tool:not(.tool--errors) .tool__label,
+.bar:is([data-fit="2"], [data-fit="3"]) .tool--errors:not(.has-errors, .has-warnings) .tool__label {
   display: none;
 }
 
@@ -1329,6 +1331,15 @@ body.is-selecting #board-irregular {
 .stitches,
 .panel {
   z-index: 6;
+}
+
+/* KB: interface.md §56 — one toggle opens both columns, so in a phone-sized window
+   they share the width instead of the panel covering the stitches. */
+@media (width < 48rem) {
+  :root {
+    --stitches-width: 50vw;
+    --panel-width: 50vw;
+  }
 }
 
 /* KB: interface.md §56 — the stitches stand where the type bar stood. */

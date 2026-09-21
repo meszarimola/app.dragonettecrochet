@@ -107,3 +107,36 @@ test('the panel toggle opens and closes both side columns', async ({ page }) => 
   await expect(page.locator('#section-stitches')).toBeVisible();
   await expect(page.locator('#panel')).toBeVisible();
 });
+
+test('a type chosen from the keyboard gives the focus back to the menu button', async ({ page }) => {
+  await open(page);
+  await page.locator('#types-toggle').click();
+  await expect(page.locator('.type[data-type="regular"]')).toBeFocused();
+  await page.locator('.type[data-type="irregular"]').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#board-irregular')).toBeVisible();
+  await expect(page.locator('#types-toggle')).toBeFocused();
+});
+
+test('where the labels give way, a findings count still shows; „no findings” does not', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 506 });
+  await open(page);
+  await expect(page.locator('.bar')).toHaveAttribute('data-fit', '3');
+  const count = page.locator('#error-count');
+  await expect(count).toBeHidden();
+  // The class is what the findings list sets; a real warning needs a pattern this test is not about.
+  await page.locator('#error-toggle').evaluate((el) => el.classList.add('has-warnings'));
+  await expect(count).toBeVisible();
+});
+
+test('in a phone-sized window the two columns open side by side, not over each other', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 700 });
+  await open(page);
+  await page.locator('#panel-toggle').click();
+  const stitches = (await page.locator('#section-stitches').boundingBox())!;
+  const panel = (await page.locator('#panel').boundingBox())!;
+  expect(stitches.x + stitches.width, 'the panel starts where the stitches end').toBeLessThanOrEqual(panel.x + 1);
+  for (const tile of await page.locator('#palette-basic .stitch').all()) {
+    expect((await tile.boundingBox())!.width, 'a tile stays a 44 px target').toBeGreaterThanOrEqual(44);
+  }
+});

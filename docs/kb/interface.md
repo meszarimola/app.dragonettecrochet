@@ -1389,6 +1389,23 @@ it, `closeAllPopovers` and Escape close it like the other menus (the Escape
 lookup reads `aria-expanded` for that reason), and a click on a zoom step leaves
 it open, because zooming is several clicks. A change of step closes it.
 
+**What the review found (PQW-989).** Three things a change like this breaks
+without a single test going red, worth checking the next time a control moves
+into a menu or two panels start opening together:
+
+- *A menu that closes on a choice drops the focus.* The card the user pressed
+  Enter on is inside the popover that `selectType` hides, so the focus fell to
+  `<body>` and the next Tab started at the top of the page. `selectType` hands it
+  back to `#types-toggle` when it was inside the menu, the way Escape does.
+- *A rule that hides captions hides data too.* `#error-count` is a label by
+  markup and a findings count by meaning, and the step-2 rule took it away with
+  the captions. It now goes only while it says „Nincs hiba”; while there are
+  findings it stays, even if that tips the bar into `data-wrap`.
+- *Two overlays opened by one button share the width.* Below 48 rem the columns
+  are overlays, and at `80vw` each the panel covered three quarters of the
+  palette on a phone. There both are `50vw`, side by side; the tiles stay above
+  44 px.
+
 **What the tests pin.** `e2e/egysoros-sav.spec.ts`: one line and every visible
 tool on screen at 1440 × 900 and 1000 × 506 in both types, the menu at the
 owner's size, the labelled group at 1920, the shared toggle. The specs that

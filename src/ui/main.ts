@@ -1650,7 +1650,10 @@ function renderTypes(): void {
 }
 
 function selectType(id: PatternTypeId): void {
+  // KB: interface.md §56 — the chosen card is inside the menu that closes here.
+  const focused = typesNav.contains(document.activeElement);
   closePopover(typesNav, typesToggle);
+  if (focused) typesToggle.focus();
   patternType = id;
   try {
     localStorage.setItem(TYPE_KEY, id);
