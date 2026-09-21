@@ -246,12 +246,23 @@
             </div>
 
             <div class="tools__group" role="group" aria-label="Kijelölés" data-i18n-label="toolGroupSelect">
-              <button type="button" class="tool" data-action="select-area" aria-pressed="false" aria-label="Terület kijelölése" data-tip="Terület kijelölése húzással. Szem nélkül kattintás: egy szem, Shift: több, sorszám: teljes sor" data-i18n-label="toolSelectAreaLabel" data-i18n-tip="toolSelectAreaTip">
-                <svg class="icon icon--dashed" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                  <rect x="4" y="5" width="12" height="10" rx="1" />
-                </svg>
-                <span class="tool__label" data-i18n="toolLabelSelectArea">Terület</span>
-              </button>
+              <div class="menu tools__split">
+                <button type="button" class="tool" data-action="select-area" aria-pressed="false" aria-label="Terület kijelölése" data-tip="Terület kijelölése húzással. Szem nélkül kattintás: egy szem, Shift: több, sorszám: teljes sor" data-i18n-label="toolSelectAreaLabel" data-i18n-tip="toolSelectAreaTip">
+                  <svg class="icon icon--dashed" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                    <rect x="4" y="5" width="12" height="10" rx="1" />
+                  </svg>
+                  <span class="tool__label" data-i18n="toolLabelSelectArea">Terület</span>
+                </button>
+                <button type="button" class="tool tool--caret" id="select-mode-toggle" aria-expanded="false" aria-controls="select-mode-pop" aria-label="Kijelölés téglalappal" data-tip="Mit fogjon meg a húzott téglalap" data-i18n-label="propRectModeLabel" data-i18n-tip="selectModeTip" hidden>
+                  <span class="tool__caret" aria-hidden="true"></span>
+                </button>
+                <div class="menu__pop menu__list select-mode" id="select-mode-pop" hidden>
+                  <p class="panel__field">
+                    <label for="prop-rect-mode" data-i18n="propRectModeLabel">Kijelölés téglalappal</label>
+                    <select id="prop-rect-mode"></select>
+                  </p>
+                </div>
+              </div>
               <button type="button" class="tool" data-action="delete-selection" aria-label="Kijelölés törlése" data-tip="Kijelölt szemek törlése (Delete)" data-i18n-label="toolDeleteSelectionLabel" data-i18n-tip="toolDeleteSelectionTip" aria-keyshortcuts="Delete" disabled>
                 <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                   <path d="M5 6h10" />
@@ -546,66 +557,63 @@
           </section>
 
           <details class="section" id="section-irregular" hidden>
-            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionIrregularTitle">Tulajdonságok</h2></summary>
+            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionIrregularTitle">Kijelölés</h2></summary>
             <div class="props" role="group" aria-label="A kijelölt szemek tulajdonságai" data-i18n-label="propsGroupLabel">
-              <p class="panel__note" id="props-empty" data-i18n="propsEmpty">Jelölj ki egy szemet a vásznon, vagy válassz szemet a palettáról és kattints a rajzlapra.</p>
+              <p class="panel__note" id="props-empty" data-i18n="propsEmpty">Jelölj ki szemet a rajzon, és itt állíthatod a helyét, a méretét és a színét.</p>
               <div id="props-fields" hidden>
-                <p class="panel__field">
-                  <label for="prop-x" data-i18n="propXLabel">Vízszintes hely</label>
-                  <input id="prop-x" type="number" step="1" inputmode="numeric" />
-                </p>
-                <p class="panel__field">
-                  <label for="prop-y" data-i18n="propYLabel">Függőleges hely</label>
-                  <input id="prop-y" type="number" step="1" inputmode="numeric" />
-                </p>
-                <p class="panel__field">
-                  <label for="prop-width" data-i18n="propWidthLabel">Szélesség</label>
-                  <input id="prop-width" type="number" min="1" step="1" inputmode="numeric" />
-                </p>
-                <p class="panel__field">
-                  <label for="prop-height" data-i18n="propHeightLabel">Magasság</label>
-                  <input id="prop-height" type="number" min="1" step="1" inputmode="numeric" />
-                </p>
+                <div class="props__grid">
+                  <p class="panel__field">
+                    <label for="prop-x" data-i18n="propXLabel">Vízszintes hely</label>
+                    <input id="prop-x" type="number" step="1" inputmode="numeric" />
+                  </p>
+                  <p class="panel__field">
+                    <label for="prop-y" data-i18n="propYLabel">Függőleges hely</label>
+                    <input id="prop-y" type="number" step="1" inputmode="numeric" />
+                  </p>
+                  <p class="panel__field">
+                    <label for="prop-width" data-i18n="propWidthLabel">Szélesség</label>
+                    <input id="prop-width" type="number" min="1" step="1" inputmode="numeric" />
+                  </p>
+                  <p class="panel__field">
+                    <label for="prop-height" data-i18n="propHeightLabel">Magasság</label>
+                    <input id="prop-height" type="number" min="1" step="1" inputmode="numeric" />
+                  </p>
+                </div>
                 <p class="choice">
                   <label><input type="checkbox" id="prop-ratio" checked /> <span data-i18n="propRatioLabel">Arányok megtartása</span></label>
                 </p>
-                <p class="panel__field">
-                  <label for="prop-rotation" data-i18n="propRotationLabel">Elforgatás (fok)</label>
-                  <input id="prop-rotation" type="number" min="0" max="359" step="1" inputmode="numeric" />
-                </p>
+                <div class="props__grid">
+                  <p class="panel__field">
+                    <label for="prop-rotation" data-i18n="propRotationLabel">Elforgatás (fok)</label>
+                    <input id="prop-rotation" type="number" min="0" max="359" step="1" inputmode="numeric" />
+                  </p>
+                  <p class="panel__field">
+                    <label for="prop-color" data-i18n="propColorLabel">Szín</label>
+                    <span class="props__color">
+                      <input id="prop-color" type="color" />
+                      <button type="button" class="button" id="prop-color-clear" data-i18n="propColorClear">Alapszín</button>
+                    </span>
+                  </p>
+                </div>
                 <p class="panel__field">
                   <label for="prop-insertion" data-i18n="propInsertionLabel">Beszúrás</label>
                   <select id="prop-insertion"></select>
                 </p>
-                <p class="panel__field">
-                  <label for="prop-color" data-i18n="propColorLabel">Szín</label>
-                  <input id="prop-color" type="color" />
-                </p>
-                <p class="props__row">
-                  <button type="button" class="button" id="prop-color-clear" data-i18n="propColorClear">Alapszín</button>
-                  <button type="button" class="button" id="prop-flip-h" data-i18n="propFlipH">Tükrözés vízszintesen</button>
-                  <button type="button" class="button" id="prop-flip-v" data-i18n="propFlipV">Tükrözés függőlegesen</button>
-                </p>
-                <h3 class="panel__title" data-i18n="propAlignTitle">Igazítás</h3>
-                <p class="props__row">
-                  <button type="button" class="button" data-align="left" data-i18n="propAlignLeft">Balra</button>
-                  <button type="button" class="button" data-align="center" data-i18n="propAlignCenter">Középre</button>
-                  <button type="button" class="button" data-align="right" data-i18n="propAlignRight">Jobbra</button>
-                </p>
-                <p class="props__row">
-                  <button type="button" class="button" data-align="top" data-i18n="propAlignTop">Felülre</button>
-                  <button type="button" class="button" data-align="middle" data-i18n="propAlignMiddle">Középvonalra</button>
-                  <button type="button" class="button" data-align="bottom" data-i18n="propAlignBottom">Alulra</button>
-                </p>
-                <p class="props__row">
-                  <button type="button" class="button" data-distribute="horizontal" data-i18n="propSpreadH">Egyenletesen vízszintesen</button>
-                  <button type="button" class="button" data-distribute="vertical" data-i18n="propSpreadV">Egyenletesen függőlegesen</button>
-                </p>
+                <div class="props__icons" role="group" aria-label="Igazítás" data-i18n-label="propAlignTitle">
+                  <button type="button" class="ib" id="prop-flip-h" aria-label="Tükrözés vízszintesen" data-tip="Tükrözés vízszintesen" data-i18n-label="propFlipH" data-i18n-tip="propFlipH"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 3v14M8 6 3 15h5zM12 6l5 9h-5z" /></svg></button>
+                  <button type="button" class="ib" id="prop-flip-v" aria-label="Tükrözés függőlegesen" data-tip="Tükrözés függőlegesen" data-i18n-label="propFlipV" data-i18n-tip="propFlipV"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3 10h14M6 8l9-5v5zM6 12l9 5v-5z" /></svg></button>
+                  <span class="props__sep" aria-hidden="true"></span>
+                  <button type="button" class="ib" data-align="left" aria-label="Balra" data-tip="Balra" data-i18n-label="propAlignLeft" data-i18n-tip="propAlignLeft"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3.5 3v14M6.5 6h9M6.5 10h5M6.5 14h11" /></svg></button>
+                  <button type="button" class="ib" data-align="center" aria-label="Középre" data-tip="Középre" data-i18n-label="propAlignCenter" data-i18n-tip="propAlignCenter"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 3v14M5 6h10M7 10h6M4 14h12" /></svg></button>
+                  <button type="button" class="ib" data-align="right" aria-label="Jobbra" data-tip="Jobbra" data-i18n-label="propAlignRight" data-i18n-tip="propAlignRight"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M16.5 3v14M4.5 6h9M8.5 10h5M2.5 14h11" /></svg></button>
+                  <button type="button" class="ib" data-align="top" aria-label="Felülre" data-tip="Felülre" data-i18n-label="propAlignTop" data-i18n-tip="propAlignTop"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3 3.5h14M6 6.5v9M10 6.5v5M14 6.5v11" /></svg></button>
+                  <button type="button" class="ib" data-align="middle" aria-label="Középvonalra" data-tip="Középvonalra" data-i18n-label="propAlignMiddle" data-i18n-tip="propAlignMiddle"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3 10h14M6 5v10M10 7v6M14 4v12" /></svg></button>
+                  <button type="button" class="ib" data-align="bottom" aria-label="Alulra" data-tip="Alulra" data-i18n-label="propAlignBottom" data-i18n-tip="propAlignBottom"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3 16.5h14M6 4.5v9M10 8.5v5M14 2.5v11" /></svg></button>
+                  <span class="props__sep" aria-hidden="true"></span>
+                  <button type="button" class="ib" data-distribute="horizontal" aria-label="Egyenletesen vízszintesen" data-tip="Egyenletesen vízszintesen" data-i18n-label="propSpreadH" data-i18n-tip="propSpreadH"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3 4v12M17 4v12M8 7v6M12 7v6" /></svg></button>
+                  <button type="button" class="ib" data-distribute="vertical" aria-label="Egyenletesen függőlegesen" data-tip="Egyenletesen függőlegesen" data-i18n-label="propSpreadV" data-i18n-tip="propSpreadV"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M4 3h12M4 17h12M7 8h6M7 12h6" /></svg></button>
+                </div>
               </div>
-              <p class="panel__field">
-                <label for="prop-rect-mode" data-i18n="propRectModeLabel">Kijelölés téglalappal</label>
-                <select id="prop-rect-mode"></select>
-              </p>
               <div id="props-arc" hidden>
                 <h3 class="panel__title" data-i18n="arcTitle">Láncív</h3>
                 <p class="panel__field">

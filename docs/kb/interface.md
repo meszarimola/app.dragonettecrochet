@@ -1460,3 +1460,26 @@ menus and of the dialog in the other types.
 **What the tests pin.** The specs open `#view-toggle`, `#notes-toggle` or
 `#export-open` before the control they drive; `e2e/egysoros-sav.spec.ts` pins
 the menu at 1920 px and `data-fit` 2 at the owner's size.
+
+## §58 The selection block says what it is for
+
+PQW-1009, the second step of the free-form redesign. The owner could not tell
+what „Tulajdonságok” did or why it was there.
+
+- **It is called „Kijelölés”**, and with nothing selected it shows one line
+  saying so: select stitches and set their place, size and colour here.
+- **Place and size are a two-by-two grid; rotation and colour share a row.**
+  „Alapszín” sits next to the colour it resets.
+- **Flip, align and spread are icon buttons** (`.ib`, 44 px, §36) with the bar's
+  tooltip bubble; the panel runs `alignTooltips` too, so a bubble near the right
+  edge does not hang off it. Their names are the old button labels, now the
+  accessible name and the tip.
+- **The rectangle mode left the panel** for a caret button beside „Terület”
+  (`#select-mode-toggle`, free-form only). It is how the marquee behaves, so it
+  belongs to the marquee tool; in the panel it was the only thing visible with
+  nothing selected, which made the empty block look like a settings page.
+  `IrregularPanel` finds `#prop-rect-mode` in the page, like the moved controls
+  of §57.
+
+What the tests pin: `e2e/szabalytalan.spec.ts` (PQW-1009) — the empty line, the
+caret menu, the mode surviving a reload, and the caret hidden in the regular type.

@@ -178,7 +178,7 @@ export class IrregularPanel {
     this.#insertion = must<HTMLSelectElement>(section, '#prop-insertion');
     this.#insertionField = must<HTMLElement>(section, '#prop-insertion').closest('p') ?? this.#fields;
     this.#color = must<HTMLInputElement>(section, '#prop-color');
-    this.#rectMode = must<HTMLSelectElement>(section, '#prop-rect-mode');
+    this.#rectMode = must<HTMLSelectElement>(page, '#prop-rect-mode');
     this.#gridSize = must<HTMLInputElement>(page, '#guide-grid-size');
     this.#snap = must<HTMLInputElement>(page, '#guide-snap');
     this.#polar = must<HTMLInputElement>(page, '#guide-polar');
