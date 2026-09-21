@@ -224,13 +224,13 @@
     "#rounds-stitch": 1,
     "#row-color": 2,
     "#row-direction": 2,
-    "#row-new": 5,
+    "#row-new": 9,
     "#row-order-overlay": 2,
     "#row-select": 3,
     "#rowline-clear": 1,
     "#rowline-row": 1,
     "#rows-list": 4,
-    "#rows-list li": 12,
+    "#rows-list li": 15,
     "#sc-mark": 1,
     "#sc-mark-jis": 1,
     "#section-amigurumi": 2,
@@ -394,7 +394,9 @@
     "#layer-up": 1,
     "#settings-open": 3,
     "#settings-dialog": 2,
-    "#settings-close": 1
+    "#settings-close": 1,
+    "#row-new-round": 1,
+    "#row-delete": 2
   },
   "selectOption": {
     "": 1,
