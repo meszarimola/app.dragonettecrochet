@@ -739,6 +739,10 @@ for PQW-963 and left for her to overrule if she wants the dialog.
 
 ## §41 In the free-form type the stitch key decides the symbol, not the stitch
 
+*Since PQW-1013 (§62) the key has no interface: nothing can add an override or
+an entry of her own any more. The data, and what follows below for files that
+already carry one, stands.*
+
 A regular chart draws a stitch from its definition and the notation. A free-form
 pattern carries its own key (PQW-965): an entry may override the symbol, the
 abbreviation and the legend text, and an entry of the crocheter's own has no
@@ -751,8 +755,7 @@ Two consequences worth knowing:
 
 - **An entry exists only when it says something the library does not.** Clearing
   the last override deletes the entry, so a pattern that accepts the preset
-  carries no key at all and its file stays short. This is also why the preset
-  reads "Saját" from `hasOverrides` rather than from the key's mere presence.
+  carries no key at all and its file stays short.
 - **`stitchById` throws on an unknown id**, and a key entry may legitimately name
   a stitch this build does not have — a file from a newer version, or one of the
   crocheter's own. `findStitch` in `irregular-key.ts` is the lookup that returns
@@ -976,9 +979,8 @@ sharing an ink is written once with that ink.
 **Every tile is clipped.** Without it each page draws the whole chart, so a
 neighbour's stitches land in this page's margins and straight through its title.
 
-**The legend is on the SVG and the PNG, not yet on the PDF** — and the PDF no
-longer keeps room for it, which used to push the chart off-centre to make space
-for a blank region.
+**There is no legend on the image any more** (PQW-1013, §62); the PDF never had
+one and keeps no room for it.
 
 **The PDF is written by hand**, because the repo has no runtime dependencies and
 is not taking one for this. Base-14 Helvetica, no embedded font: the four
@@ -1490,6 +1492,8 @@ caret menu, the mode surviving a reload, and the caret hidden in the regular typ
 
 ## §59 Rows, layers and key behind tabs, as compact lists
 
+*The key tab went in PQW-1013 (§62); two tabs remain.*
+
 PQW-1010, the third step of the free-form redesign. The owner asked for layers
 and rows „hasonló felépítésben, mint a photoshop esetén … csak persze
 kompaktabb formában”.
@@ -1558,3 +1562,38 @@ What the tests pin: `e2e/szabalytalan.spec.ts` (PQW-1011) — hidden from the
 free-form panel, editable in the dialog, focus back on „Fájl”, and back in the
 regular panel folded as before. `e2e/szabalytalan-vezerlok.spec.ts` opens the
 dialog before it reaches the notation in free-form mode.
+
+## §61 No new row after an empty one; the row trash is in the footer
+
+PQW-1012. The owner: „tudok úgy új sort létrehozni, hogy az előzőben 0 szem van
+… de törölni nem tudok sort.”
+
+- **No new row opens after an empty one.** „Új sor” and „Új kör” add at the end,
+  so they are disabled while the **last** row has no stitches; „Beszúrás az aktív
+  után” adds after the active row, so it looks at **that** one. A row without
+  stitches is not a row yet; letting another open after it only piles up empty
+  rows. The empty row's kind and direction can still be changed. (The first
+  version looked at the active row for all three; /code-review caught that
+  picking a filled row still let empty rows pile up at the end.)
+- **Deleting was there, but behind „⋯”.** The trash (`#row-delete`, the row with
+  its stitches, one undo step) now sits in the footer beside up and down, as it
+  does on the layers tab. The gentler „Törlés, szemek az előző sorba” stays
+  behind „⋯”.
+
+## §62 The stitch key has no interface
+
+PQW-1013. The owner: „a jelkulcsnak semmi értelme, töröld az egészet”.
+
+Gone: the „Jelkulcs” tab and its panel (`irregular-key-panel.ts`) — per-stitch
+symbol, abbreviation and legend-text overrides, „Saját szem”, „Visszaállítás az
+előbeállításra” — and the legend on the image, from the canvas, the PNG and the
+SVG, with the core functions only they used (`updateKeyEntry`,
+`addCustomEntry`, `removeCustomEntry`, `resetToPreset`, `hasOverrides`,
+`entryLabel`, `entryAbbreviation`).
+
+**What stays, because it is the pattern's data, not a feature:** every stitch
+points at its key entry (`keyEntryId`), which is how the program knows what the
+stitch is. The file format keeps `stitchKey` and `legend`, so an older file
+still loads, a stitch of her own in it still draws with its symbol, and an
+override still applies. The ambiguity check of §41 stays for the same reason:
+such a file can still draw two stitches with one symbol.

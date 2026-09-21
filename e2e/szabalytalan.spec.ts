@@ -204,50 +204,6 @@ test('rows and rounds: a second row, its own colour, and the stitch order overla
   await expect(page.locator('#status')).toContainText('2 szem kijelölve');
 });
 
-test('the stitch key changes the symbol everywhere, and the legend can go on the image (AS-4)', async ({ page }) => {
-  await open(page);
-  await chooseIrregular(page);
-  await page.locator(board).focus();
-  await page.keyboard.press('Alt+1');
-  for (const x of [500, 560, 620]) await place(page, x, 400);
-
-  await page.locator('#tab-key').click();
-  const chain = page.locator('#key-list li').filter({ hasText: 'láncszem' });
-  await expect(chain).toHaveCount(1);
-  await expect(chain).toContainText('3');
-
-  // The pattern may draw a chain with any symbol it likes; the reference charts use „0”.
-  // The chain's oval lies flat and the „0” stands upright, so the drawn stitches
-  // have to turn with it — the symbol must not be squeezed into the old one's box.
-  const widthOf = async (): Promise<number[]> =>
-    page.evaluate(() => {
-      const saved = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
-      const items = (JSON.parse(saved).items ?? []) as { width: number; height: number }[];
-      return items.map((item) => item.width / item.height);
-    });
-  const flat = await widthOf();
-  expect(flat.every((ratio) => ratio > 1)).toBe(true);
-
-  await chain.locator('select').selectOption('zero');
-  await expect(chain.locator('select')).toHaveValue('zero');
-  const upright = await widthOf();
-  expect(upright).toHaveLength(flat.length);
-  expect(upright.every((ratio) => ratio < 1)).toBe(true);
-
-  await page.locator('#legend-on-image').check();
-  await expect(page.locator('#legend-on-image')).toBeChecked();
-
-  // The key survives a save and a reload.
-  const downloadPromise = page.waitForEvent('download');
-  await page.locator('#file-toggle').click();
-  await page.getByRole('button', { name: 'JSON mentése' }).click();
-  const saved = await readFile((await (await downloadPromise).path()) ?? '', 'utf8');
-  const parsed = JSON.parse(saved);
-  expect(parsed.stitchKey).toHaveLength(1);
-  expect(parsed.stitchKey[0].glyphOverride).toBe('zero');
-  expect(parsed.legend.visible).toBe(true);
-});
-
 test('layers: a second layer takes the selected stitches, and hiding it hides them', async ({ page }) => {
   await open(page);
   await chooseIrregular(page);
@@ -272,26 +228,6 @@ test('layers: a second layer takes the selected stitches, and hiding it hides th
   await page.locator(board).focus();
   await page.keyboard.press('ControlOrMeta+A');
   await expect(page.locator('#props-count')).toContainText('Nincs kijelölt szem');
-});
-
-test('two stitches drawn with one symbol are reported in the issues list (AS-5)', async ({ page }) => {
-  await open(page);
-  await chooseIrregular(page);
-  await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
-
-  // A chain and a slip stitch, then the chain redrawn as a dot — the slip stitch's own symbol.
-  await page.locator(board).focus();
-  await page.keyboard.press('Alt+1');
-  await place(page, 500, 400);
-  await page.keyboard.press('Alt+2');
-  await place(page, 560, 400);
-
-  await page.locator('#tab-key').click();
-  await page.locator('#key-list li').filter({ hasText: 'láncszem' }).locator('select').selectOption('dot');
-  await expect(page.locator('#key-preset')).toContainText('Saját');
-
-  await page.locator('#error-toggle').click();
-  await expect(page.locator('#findings')).toContainText('Ugyanaz a jel két szemet jelöl');
 });
 
 /** Every stitch in the autosaved pattern, with the guides that were in force. */
@@ -495,9 +431,16 @@ test('láncív: rajzolás húzással, majd N átállítása 7-re (AS-3)', async 
   await open(page);
   await chooseIrregular(page);
 
-  // Row 2 is the active one, so the arc has to land there.
+  // Row 2 is the active one, so the arc has to land there. A new row opens only
+  // after a row with stitches (PQW-1012), so row 1 gets one, gone again once row 2 is open.
+  await armDoubleCrochet(page);
+  await place(page, 300, 450);
+  await page.locator(board).focus();
+  await page.keyboard.press('Escape');
   await page.locator('#row-new').click();
   await expect(page.locator('#rows-list li')).toHaveCount(2);
+  await page.locator(board).click({ position: { x: 300, y: 450 } });
+  await page.keyboard.press('Delete');
 
   // The free-form tool group is hidden in the other types, so its tooltip is checked here.
   const arcTool = page.locator('[data-action="chain-arc"]');
@@ -883,44 +826,6 @@ test('a sorvonal fogantyúval átalakítható, a szemek csak az Egyenletessé te
   expect(evened.ys[3], 'az utolsó szem a vonal új végén').toBeGreaterThan(before.ys[3]);
 });
 
-test('saját szem: hozzáadás a jelkulcshoz, majd lerakás (FR-KEY-4)', async ({ page }) => {
-  await open(page);
-  await chooseIrregular(page);
-  await page.locator('#tab-key').click();
-
-  await page.locator('#key-custom-name').fill('Bogyó');
-  await page.locator('#key-custom-abbr').fill('bgy');
-  await page.locator('#key-custom-glyph').selectOption('asterisk');
-  await page.locator('#key-custom-add').click();
-  await expect(page.locator('#status')).toContainText('Bogyó');
-
-  // The new stitch is armed, so a click on the canvas places it.
-  await page.locator(board).click({ position: { x: 520, y: 380 } });
-  const placed = await page.evaluate(() => {
-    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
-    const parsed = JSON.parse(raw);
-    return {
-      items: (parsed.items ?? []).length,
-      keyEntryId: (parsed.items ?? [])[0]?.keyEntryId ?? '',
-      key: (parsed.stitchKey ?? []).map((entry: { customName: string; glyphOverride: string }) => ({
-        name: entry.customName,
-        glyph: entry.glyphOverride,
-      })),
-    };
-  });
-  expect(placed.items, 'egy szem lekerült').toBe(1);
-  expect(placed.key, 'a jelkulcsban ott a saját szem').toContainEqual({ name: 'Bogyó', glyph: 'asterisk' });
-  expect(placed.keyEntryId, 'és a lerakott szem arra hivatkozik').toBe(
-    (await page.evaluate(() => {
-      const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
-      return (JSON.parse(raw).stitchKey ?? [])[0]?.id ?? '';
-    })) as string,
-  );
-
-  // It shows up in the legend list with its own name.
-  await expect(page.locator('#key-list li').filter({ hasText: 'Bogyó' })).toHaveCount(1);
-});
-
 test('export: SVG, PNG és PDF a szabálytalan típusból (AS-13)', async ({ page }) => {
   await open(page);
   await chooseIrregular(page);
@@ -1280,6 +1185,11 @@ test('rows, layers and key share one place behind tabs; the background is the bo
   await expect(page.locator('#layers-list')).toBeHidden();
 
   // Moving a row is the footer's job, and it moves the active one.
+  // A new row opens only after a row with stitches (PQW-1012).
+  await armDoubleCrochet(page);
+  await place(page, 300, 450);
+  await page.locator(board).focus();
+  await page.keyboard.press('Escape');
   await page.locator('#row-new').click();
   await expect(page.locator('#rows-list li')).toHaveCount(2);
   await expect(page.locator('#row-down')).toBeDisabled();
@@ -1349,4 +1259,44 @@ test('the notation and the pattern settings wait in a dialog here, and go back t
   await expect(page.locator('#settings-open')).toBeHidden();
   await expect(notation).toBeVisible();
   expect(await notation.getAttribute('open')).toBe(foldedBefore);
+});
+
+test('a new row opens only after a row with stitches, and the footer deletes the active row (PQW-1012)', async ({
+  page,
+}) => {
+  await open(page);
+  await chooseIrregular(page);
+
+  await expect(page.locator('#row-new')).toBeDisabled();
+  await expect(page.locator('#row-new-round')).toBeDisabled();
+
+  await armDoubleCrochet(page);
+  await place(page, 500, 300);
+  await page.locator(board).focus();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#row-new')).toBeEnabled();
+
+  await page.locator('#row-new').click();
+  await expect(page.locator('#rows-list li')).toHaveCount(2);
+  await expect(page.locator('#row-new'), 'the new row is empty, so no third one yet').toBeDisabled();
+  // Picking the filled first row does not help: a new row still goes after the empty last one.
+  await page.locator('#rows-list li').first().locator('.rows__pick').click();
+  await expect(page.locator('#row-new')).toBeDisabled();
+  await expect(page.locator('#row-insert'), 'but inserting after the filled one is fine').toBeEnabled();
+
+  // The trash is in the footer, not behind „⋯”, and one undo brings the row back.
+  await expect(page.locator('#row-delete')).toBeVisible();
+  await page.locator('#row-delete').click();
+  await expect(page.locator('#rows-list li')).toHaveCount(1);
+  await page.locator(board).focus();
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(page.locator('#rows-list li')).toHaveCount(2);
+});
+
+test('there is no stitch key tab any more, only rows and layers (PQW-1013)', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+
+  await expect(page.locator('#irregular-tabs button')).toHaveCount(2);
+  await expect(page.locator('#section-irregular-key')).toHaveCount(0);
 });

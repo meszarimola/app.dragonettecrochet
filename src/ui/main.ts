@@ -2277,7 +2277,6 @@ const irregularSections = {
   properties: must<HTMLDetailsElement>('#section-irregular'),
   rows: must<HTMLDetailsElement>('#section-irregular-rows'),
   layers: must<HTMLDetailsElement>('#section-irregular-layers'),
-  key: must<HTMLDetailsElement>('#section-irregular-key'),
 };
 
 function ensureIrregular(): IrregularEditor {

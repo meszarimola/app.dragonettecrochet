@@ -1,7 +1,7 @@
-// The free-form panel's rows, layers and key behind one row of tabs. KB: interface.md §59
+// The free-form panel's rows and layers behind one row of tabs. KB: interface.md §59
 
 export function wireTabs(strip: HTMLElement): void {
-  const tabs = ['#tab-rows', '#tab-layers', '#tab-key']
+  const tabs = ['#tab-rows', '#tab-layers']
     .map((selector) => strip.querySelector<HTMLButtonElement>(selector))
     .filter((tab): tab is HTMLButtonElement => tab !== null);
   const show = (picked: HTMLButtonElement): void => {

@@ -19,7 +19,6 @@ import {
   isSelectable,
   isVisible,
   itemBox,
-  itemsBox,
   itemsOf,
   moveItems,
   type NotePatch,
@@ -53,7 +52,6 @@ import {
   groupOfItem,
   groupsOf,
   holdsWholeGroups,
-  relayoutGroup,
   reseatGroups,
   translateGroups,
   updateChainArc,
@@ -61,16 +59,7 @@ import {
   withWholeGroups,
 } from '../core/irregular-groups.ts';
 import { isIrregularJson, loadIrregular, saveIrregular } from '../core/irregular-json.ts';
-import {
-  addCustomEntry,
-  entryGlyph,
-  entryLabel,
-  entryName,
-  keyUsage,
-  resetToPreset,
-  sharedGlyphs,
-  updateKeyEntry,
-} from '../core/irregular-key.ts';
+import { entryGlyph, entryName, sharedGlyphs } from '../core/irregular-key.ts';
 import {
   addLayer,
   deleteLayer,
@@ -120,7 +109,6 @@ import {
   type IrregularItem,
   type IrregularPattern,
   isStitch,
-  type LegendBlock,
   type NoteKind,
   type Point,
   type RowDirection,
@@ -134,21 +122,13 @@ import { type BackgroundStoreCode, getBackground, pruneBackgrounds, putBackgroun
 import { IRREGULAR_JSON_CORE_TEXTS } from './i18n/core/irregular-json.ts';
 import { renderCoreText } from './i18n/core/render.ts';
 import { texts, uiLanguage } from './i18n.ts';
-import {
-  type ArcHandleId,
-  FreeBoard,
-  type GroupPath,
-  type HandleId,
-  type LegendEntry,
-  rowLinePath,
-} from './irregular-board.ts';
-import { drawnGlyph, itemShapes, naturalGlyph, naturalSize } from './irregular-glyph.ts';
-import { IrregularKeyPanel } from './irregular-key-panel.ts';
+import { type ArcHandleId, FreeBoard, type GroupPath, type HandleId, rowLinePath } from './irregular-board.ts';
+import { drawnGlyph, itemShapes, naturalSize } from './irregular-glyph.ts';
 import { IrregularLayersPanel } from './irregular-layers-panel.ts';
 import { noteDrawing, noteSize } from './irregular-note.ts';
 import { IrregularPanel } from './irregular-panel.ts';
 import { IrregularRowsPanel, rowName } from './irregular-rows-panel.ts';
-import { type IrregularSvgOptions, irregularBox, irregularSvg, type LegendLine } from './irregular-svg.ts';
+import { type IrregularSvgOptions, irregularBox, irregularSvg } from './irregular-svg.ts';
 import {
   type PageOrientation,
   type PageSize,
@@ -219,18 +199,10 @@ function topPoint(item: IrregularItem): Point {
 /** How near, in screen pixels, a snap target has to be to take the point. */
 const SNAP_REACH = 10;
 
-const DEFAULT_LEGEND: LegendBlock = {
-  visible: false,
-  position: { x: 0, y: 0 },
-  columns: 1,
-  showCounts: false,
-};
-
 export interface IrregularSections {
   readonly properties: HTMLDetailsElement;
   readonly rows: HTMLDetailsElement;
   readonly layers: HTMLDetailsElement;
-  readonly key: HTMLDetailsElement;
 }
 
 export interface IrregularHost {
@@ -297,7 +269,6 @@ export class IrregularEditor {
   readonly #panel: IrregularPanel;
   readonly #rowsPanel: IrregularRowsPanel;
   readonly #layersPanel: IrregularLayersPanel;
-  readonly #keyPanel: IrregularKeyPanel;
   readonly #host: IrregularHost;
   #history: History<IrregularPattern>;
   #draft: IrregularPattern | null = null;
@@ -353,14 +324,6 @@ export class IrregularEditor {
       reorder: (layerId, toIndex) => this.#commit(reorderLayers(this.#history.present, layerId, toIndex)),
       moveSelection: (layerId) => this.#moveSelectionToLayer(layerId),
       patchBackground: (patch) => this.#commit(patchBackground(this.#history.present, patch)),
-    });
-    this.#keyPanel = new IrregularKeyPanel(sections.key, {
-      setGlyph: (id, glyph) => this.#setGlyph(id, glyph),
-      setAbbreviation: (id, value) => this.#commitKey(id, { abbreviationOverride: value }),
-      setLabel: (id, value) => this.#commitKey(id, { labelOverride: value }),
-      resetKey: () => this.#commit(resetToPreset(this.#history.present), texts().irregular.keyReset),
-      setLegend: (patch) => this.#setLegend(patch),
-      addCustom: (name, abbreviation, glyph) => this.#addCustom(name, abbreviation, glyph),
     });
     this.#panel = new IrregularPanel(sections.properties, {
       patch: (patch) => this.#patch(patch),
@@ -436,7 +399,6 @@ export class IrregularEditor {
     this.#panel.reveal();
     this.#rowsPanel.reveal();
     this.#layersPanel.reveal();
-    this.#keyPanel.reveal();
     this.refresh();
     this.#board.fit(this.#host.insets().bottom);
   }
@@ -452,7 +414,6 @@ export class IrregularEditor {
     this.#panel.hide();
     this.#rowsPanel.hide();
     this.#layersPanel.hide();
-    this.#keyPanel.hide();
   }
 
   #setPreference(patch: Partial<Preferences>): void {
@@ -462,10 +423,6 @@ export class IrregularEditor {
   }
 
   // -- structure -----------------------------------------------------------
-
-  get legend(): LegendBlock {
-    return this.#history.present.legend ?? DEFAULT_LEGEND;
-  }
 
   #addRow(kind: RowKind): void {
     const made = addRow(this.#history.present, kind);
@@ -577,75 +534,6 @@ export class IrregularEditor {
     return this.#history.present.items.find((candidate) => candidate.id === id)?.rowId ?? null;
   }
 
-  #commitKey(id: string, patch: { abbreviationOverride?: string | null; labelOverride?: string | null }): void {
-    this.#commit(updateKeyEntry(this.#history.present, id, patch));
-  }
-
-  /**
-   * A stitch stores the size it is drawn at, measured from its symbol. Give it a
-   * different symbol and the stored size still belongs to the old one, so the new
-   * symbol would be squeezed into the old one's box. Each stitch keeps the stretch
-   * the crocheter gave it and takes the new symbol's proportions.
-   */
-  #setGlyph(id: string, glyph: string | null): void {
-    const pattern = this.#history.present;
-    const next = updateKeyEntry(pattern, id, { glyphOverride: glyph });
-    if (next === pattern) return;
-    const symbols = this.#host.symbols();
-    const was = entryGlyph(pattern, id);
-    const now = entryGlyph(next, id);
-    const items = next.items.map((item) => {
-      if (!isStitch(item) || item.keyEntryId !== id) return item;
-      const before = naturalSize(item.keyEntryId, item.insertion, symbols, was);
-      const after = naturalSize(item.keyEntryId, item.insertion, symbols, now);
-      return {
-        ...item,
-        width: (item.width / before.width) * after.width,
-        height: (item.height / before.height) * after.height,
-      };
-    });
-    // KB: interface.md §41 — an arc is drawn from the key too, so it is laid out again.
-    let redrawn: IrregularPattern = { ...next, items };
-    for (const group of groupsOf(redrawn)) {
-      if (group.keyEntryId !== id) continue;
-      redrawn = relayoutGroup(redrawn, group.id, naturalSize(id, 'both-loops', symbols, now));
-    }
-    this.#commit(redrawn);
-  }
-
-  /**
-   * A stitch of the crocheter's own: it has no definition in the library, only
-   * a name and a symbol, which is all the drawing and the legend need.
-   * KB: interface.md §41
-   */
-  #addCustom(name: string, abbreviation: string, glyph: string): void {
-    const made = addCustomEntry(this.#history.present, name, glyph);
-    const named =
-      abbreviation === ''
-        ? made.pattern
-        : updateKeyEntry(made.pattern, made.id, { abbreviationOverride: abbreviation });
-    // Laying the palette down clears the armed stitch, so arm the new one after.
-    this.#host.armStitch(null);
-    this.#arcTool = false;
-    this.#fanTool = false;
-    this.#stitch = made.id;
-    this.#commit(named, texts().irregular.customAdded(name));
-  }
-
-  #setLegend(patch: Partial<LegendBlock>): void {
-    const current = this.legend;
-    // The first time it is actually shown it drops below the drawing, not on top of it.
-    const untouched = current.position.x === 0 && current.position.y === 0;
-    const showing = patch.visible === true && !current.visible;
-    const position = showing && untouched ? this.#legendHome() : (patch.position ?? current.position);
-    this.#commit({ ...this.#history.present, legend: { ...current, ...patch, position } });
-  }
-
-  #legendHome(): Point {
-    const box = itemsBox(this.#history.present.items);
-    return box === null ? { x: 0, y: 0 } : { x: box.minX, y: box.maxY + 60 };
-  }
-
   /**
    * One symbol standing for two stitches makes the chart ambiguous: "•" is a slip
    * stitch in one reference chart and a chain in another. KB: 01 §6.1
@@ -669,19 +557,6 @@ export class IrregularEditor {
             .map((row) => words.rowEmpty(rowName(pattern, row.id)));
     const hidden = pattern.items.some((item) => !isVisible(pattern, item)) ? [words.hiddenNotExported] : [];
     return [...clashes, ...empty, ...hidden, ...(trouble === null ? [] : [trouble])];
-  }
-
-  #legendEntries(): LegendEntry[] {
-    const pattern = this.#history.present;
-    const terms = this.#host.terms();
-    const showCounts = this.legend.showCounts;
-    return keyUsage(pattern).map((usage) => ({
-      keyEntryId: usage.keyEntryId,
-      glyph: entryGlyph(pattern, usage.keyEntryId),
-      text: showCounts
-        ? `${entryLabel(pattern, usage.keyEntryId, terms)} · ${usage.count}`
-        : entryLabel(pattern, usage.keyEntryId, terms),
-    }));
   }
 
   // -- storage -------------------------------------------------------------
@@ -1684,20 +1559,11 @@ export class IrregularEditor {
     return {
       symbols: this.#host.symbols(),
       glyphOf: (keyEntryId) => entryGlyph(pattern, keyEntryId),
-      legend: this.legend.visible ? { block: this.legend, lines: this.#legendLines() } : null,
       guides: this.#host.gridInExport(),
       background: photo,
       paper: this.#export.transparent ? null : '#ffffff',
       ink: this.#host.ink(),
     };
-  }
-
-  #legendLines(): LegendLine[] {
-    const symbols = this.#host.symbols();
-    return this.#legendEntries().map((entry) => ({
-      text: entry.text,
-      shapes: naturalGlyph(entry.keyEntryId, 'both-loops', symbols, entry.glyph)?.shapes ?? [],
-    }));
   }
 
   exportSvg(): string {
@@ -1728,8 +1594,7 @@ export class IrregularEditor {
       if (last !== undefined && last.color === color) last.shapes.push(...shapes);
       else runs.push({ shapes, color });
     }
-    // The legend is not drawn on the PDF yet, so no room is kept for it.
-    const box = irregularBox(pattern, { legend: null, background: null, guides: false });
+    const box = irregularBox(pattern, { background: null, guides: false });
     return writePdf({ shapes: [], runs, texts: words, lineWidth: 1.6 }, box, {
       title: pattern.title,
       size: this.#export.size,
@@ -1818,7 +1683,6 @@ export class IrregularEditor {
       arcPreview: this.#drawingPreview(),
       rowLine: this.#activeRowLine(),
       background: this.#backgroundView(),
-      legend: { block: this.legend, entries: this.#legendEntries() },
     });
     this.#panel.update(itemsOf(pattern, this.#selection), this.#preferences.rectPartial, pattern.items.length);
     this.#panel.updateArc(this.selectedArc);
@@ -1847,7 +1711,6 @@ export class IrregularEditor {
     });
     this.#panel.updateGuides(committed.guides, this.#preferences.radial);
     this.#layersPanel.update(committed, this.#selection.size, committed.background ?? null);
-    this.#keyPanel.update(committed, this.#host.terms(), this.#host.symbols(), this.legend);
     this.#host.refreshControls();
   }
 
