@@ -724,11 +724,12 @@
             <div class="rows" role="group" aria-label="A minta sorai és körei" data-i18n-label="rowsGroupLabel">
               <ul class="rows__list" id="rows-list"></ul>
               <div class="rows__bar">
-                <button type="button" class="button rows__add" id="row-new" data-i18n="rowNew">Új sor</button>
-                <button type="button" class="button rows__add" id="row-new-round" data-i18n="rowNewRound">Új kör</button>
+                <button type="button" class="ib" id="row-new" aria-label="Új sor" data-tip="Új sor" data-i18n-label="rowNew" data-i18n-tip="rowNew"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3 13h9M14.5 10v6M11.5 13h6M3 8h14" /></svg></button>
+                <button type="button" class="ib" id="row-new-round" aria-label="Új kör" data-tip="Új kör" data-i18n-label="rowNewRound" data-i18n-tip="rowNewRound"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M9 13.5a4.5 4.5 0 1 1 4.3-6M15 10v6M12 13h6" /></svg></button>
                 <span class="rows__spacer"></span>
                 <button type="button" class="ib" id="row-up" aria-label="Feljebb" data-tip="Feljebb" data-i18n-label="panelMoveUp" data-i18n-tip="panelMoveUp"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 16V4M5 9l5-5 5 5" /></svg></button>
                 <button type="button" class="ib" id="row-down" aria-label="Lejjebb" data-tip="Lejjebb" data-i18n-label="panelMoveDown" data-i18n-tip="panelMoveDown"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 4v12M5 11l5 5 5-5" /></svg></button>
+                <button type="button" class="ib" id="row-delete" aria-label="A sor törlése a szemeivel" data-tip="A sor törlése a szemeivel" data-i18n-label="rowDelete" data-i18n-tip="rowDelete"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M5 6h10M8 6V4.25h4V6M6.5 6l.6 10h5.8l.6-10" /></svg></button>
                 <button type="button" class="ib" id="rows-more-toggle" aria-label="További műveletek" data-tip="További műveletek" data-i18n-label="rowsMore" data-i18n-tip="rowsMore" aria-expanded="false" aria-controls="rows-more"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M4.5 10h.01M10 10h.01M15.5 10h.01" /></svg></button>
               </div>
               <div class="rows__more" id="rows-more" hidden>
@@ -739,7 +740,6 @@
                 </p>
                 <p class="props__row">
                   <button type="button" class="button" id="row-delete-keep" data-i18n="rowDeleteKeep">Törlés, szemek az előző sorba</button>
-                  <button type="button" class="button" id="row-delete" data-i18n="rowDelete">A sor törlése a szemeivel</button>
                 </p>
                 <h3 class="panel__title" data-i18n="rowsTogetherTitle">Sorok egymáshoz</h3>
                 <p class="panel__field">

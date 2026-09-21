@@ -495,9 +495,16 @@ test('láncív: rajzolás húzással, majd N átállítása 7-re (AS-3)', async 
   await open(page);
   await chooseIrregular(page);
 
-  // Row 2 is the active one, so the arc has to land there.
+  // Row 2 is the active one, so the arc has to land there. A new row opens only
+  // after a row with stitches (PQW-1012), so row 1 gets one, gone again once row 2 is open.
+  await armDoubleCrochet(page);
+  await place(page, 300, 450);
+  await page.locator(board).focus();
+  await page.keyboard.press('Escape');
   await page.locator('#row-new').click();
   await expect(page.locator('#rows-list li')).toHaveCount(2);
+  await page.locator(board).click({ position: { x: 300, y: 450 } });
+  await page.keyboard.press('Delete');
 
   // The free-form tool group is hidden in the other types, so its tooltip is checked here.
   const arcTool = page.locator('[data-action="chain-arc"]');
@@ -1280,6 +1287,11 @@ test('rows, layers and key share one place behind tabs; the background is the bo
   await expect(page.locator('#layers-list')).toBeHidden();
 
   // Moving a row is the footer's job, and it moves the active one.
+  // A new row opens only after a row with stitches (PQW-1012).
+  await armDoubleCrochet(page);
+  await place(page, 300, 450);
+  await page.locator(board).focus();
+  await page.keyboard.press('Escape');
   await page.locator('#row-new').click();
   await expect(page.locator('#rows-list li')).toHaveCount(2);
   await expect(page.locator('#row-down')).toBeDisabled();
@@ -1349,4 +1361,36 @@ test('the notation and the pattern settings wait in a dialog here, and go back t
   await expect(page.locator('#settings-open')).toBeHidden();
   await expect(notation).toBeVisible();
   expect(await notation.getAttribute('open')).toBe(foldedBefore);
+});
+
+test('a new row opens only after a row with stitches, and the footer deletes the active row (PQW-1012)', async ({
+  page,
+}) => {
+  await open(page);
+  await chooseIrregular(page);
+
+  await expect(page.locator('#row-new')).toBeDisabled();
+  await expect(page.locator('#row-new-round')).toBeDisabled();
+
+  await armDoubleCrochet(page);
+  await place(page, 500, 300);
+  await page.locator(board).focus();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#row-new')).toBeEnabled();
+
+  await page.locator('#row-new').click();
+  await expect(page.locator('#rows-list li')).toHaveCount(2);
+  await expect(page.locator('#row-new'), 'the new row is empty, so no third one yet').toBeDisabled();
+  // Picking the filled first row does not help: a new row still goes after the empty last one.
+  await page.locator('#rows-list li').first().locator('.rows__pick').click();
+  await expect(page.locator('#row-new')).toBeDisabled();
+  await expect(page.locator('#row-insert'), 'but inserting after the filled one is fine').toBeEnabled();
+
+  // The trash is in the footer, not behind „⋯”, and one undo brings the row back.
+  await expect(page.locator('#row-delete')).toBeVisible();
+  await page.locator('#row-delete').click();
+  await expect(page.locator('#rows-list li')).toHaveCount(1);
+  await page.locator(board).focus();
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(page.locator('#rows-list li')).toHaveCount(2);
 });

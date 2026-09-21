@@ -1558,3 +1558,20 @@ What the tests pin: `e2e/szabalytalan.spec.ts` (PQW-1011) — hidden from the
 free-form panel, editable in the dialog, focus back on „Fájl”, and back in the
 regular panel folded as before. `e2e/szabalytalan-vezerlok.spec.ts` opens the
 dialog before it reaches the notation in free-form mode.
+
+## §61 No new row after an empty one; the row trash is in the footer
+
+PQW-1012. The owner: „tudok úgy új sort létrehozni, hogy az előzőben 0 szem van
+… de törölni nem tudok sort.”
+
+- **No new row opens after an empty one.** „Új sor” and „Új kör” add at the end,
+  so they are disabled while the **last** row has no stitches; „Beszúrás az aktív
+  után” adds after the active row, so it looks at **that** one. A row without
+  stitches is not a row yet; letting another open after it only piles up empty
+  rows. The empty row's kind and direction can still be changed. (The first
+  version looked at the active row for all three; /code-review caught that
+  picking a filled row still let empty rows pile up at the end.)
+- **Deleting was there, but behind „⋯”.** The trash (`#row-delete`, the row with
+  its stitches, one undo step) now sits in the footer beside up and down, as it
+  does on the layers tab. The gentler „Törlés, szemek az előző sorba” stays
+  behind „⋯”.
