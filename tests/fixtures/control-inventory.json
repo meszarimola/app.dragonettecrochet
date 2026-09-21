@@ -231,7 +231,6 @@
   {"id":"section-shape","tag":"details","type":""},
   {"id":"section-shawl","tag":"details","type":""},
   {"id":"section-size","tag":"details","type":""},
-  {"id":"section-stitches","tag":"details","type":""},
   {"id":"setup-toggle","tag":"button","type":"button"},
   {"id":"shape-angle","tag":"input","type":"text"},
   {"id":"shape-create","tag":"button","type":"button"},
@@ -280,6 +279,7 @@
   {"id":"tradition","tag":"select","type":""},
   {"id":"types-toggle","tag":"button","type":"button"},
   {"id":"ui-language","tag":"select","type":""},
+  {"id":"view-toggle","tag":"button","type":"button"},
   {"id":"written-full","tag":"button","type":"button","attr":"data-action","value":"written-full"},
   {"id":"written-toggle","tag":"button","type":"button"}
 ]

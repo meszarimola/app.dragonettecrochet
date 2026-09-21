@@ -66,7 +66,8 @@ blank.
 ## §5 No new `localStorage` key without an owner decision
 
 Keys are added deliberately, not per feature. The language key (PQW-906) and the
-pattern-type bar's open state (PQW-912) were approved as *operational* settings:
+pattern-type bar's open state (PQW-912; retired by PQW-989, §56 — the bar is a
+menu now and the key is no longer read) were approved as *operational* settings:
 they do not identify the visitor, so they survive a refusal of the cookie
 banner. The generator panels' choices, the proportional view and the grid editor
 deliberately live only in the page — persisting them would mean a new key.
@@ -219,7 +220,8 @@ rules had to hold at once:
 - They must stay between the panels that open over the canvas. The interface
   passes their widths in (`setInsets`), because `--side-start` comes back as the
   unresolved `min(…, 80vw)` expression it is declared as, from which no pixel
-  value can be read. Since PQW-979 that declaration is `var(--types-width)`; §38
+  value can be read. Since PQW-979 that declaration is `var(--types-width)`, and
+  since PQW-989 `var(--stitches-width)`, the column that replaced the bar (§56); §38
   says why the bars' widths must not be written out twice.
 - Hugging the edge of the visible band must not push a caption over the symbols:
   in a narrow window the longer (English) caption slid onto the foundation
@@ -539,6 +541,11 @@ It is pinned to the corner: left in its static position the clipped element
 overflowed and the page began to scroll by one pixel.
 
 ## §38 Layout incidents in the stylesheet
+
+PQW-989 changed the ground under several of these: the bar is one line with the
+panel toggles at its end, the type bar is a menu and its cards are menu items,
+and the stitches hold the left column (§56). The entries below are kept for
+their reasons; where they describe the old shape, §56 is the current one.
 
 - The menu bar is a chrome half and a context half (PQW-983). `.tools__chrome`
   holds what every pattern type has — the type-bar toggle, the file group, the
@@ -1124,6 +1131,10 @@ the cream page behind it.
 
 ## §53 The stitch palette is split by how it is used, not by what it contains
 
+*Partly superseded by §56 (PQW-989): the palette is in the left column, every
+section is a tile grid, and the tile prints the full name. What still holds from
+here is why the structure line stays and why the order must not change.*
+
 PQW-984. Measured at 1000 × 506 on v0.56.0, the palette put every one of the
 twenty-five stitches in its own full-width row — icon, full name, structure line,
 key cap — so `#palette` was **1870 px** tall inside a 343 px panel, the first
@@ -1233,7 +1244,7 @@ load for the production smoke test. No new `localStorage` key (§5).
 **It participates in the insets.** `insetRight` measures whichever of the panel
 and the sheet is open, and the `--side-end` variable follows `--setup-width`
 while it is open, so the row captions, the written panel and the alert clear it
-(§15). Its width is written once, beside `--panel-width` and `--types-width`
+(§15). Its width is written once, beside `--panel-width` and `--types-width` (now `--stitches-width`, §56)
 (PQW-979).
 
 **While it is open it covers the panel.** They stand in the same place and the
@@ -1270,6 +1281,10 @@ toolbar button, this is worth revisiting.
 
 ## §55 What the panel shows first, and what it scrolls to
 
+*Since PQW-989 „Szemek” is the left column rather than the panel's first section
+(§56); the order inside it — palette, then the count and the insertion — is this
+section's.*
+
 Two orderings inside the right panel, both measured at 1000 × 506 after the
 generators left for the sheet (§54).
 
@@ -1296,3 +1311,86 @@ scrolling. Lifting `#title` above the palette would cost the most-used control
 50 px to save a field that is typed once. The full head-and-body split the
 redesign considered does not change this either: the body is still below the
 fold. If it ever matters, the measurement to beat is `#title` at y 681.
+
+## §56 One line of tools, the stitches on the left
+
+PQW-989. The owner's verdict on v0.57.0: the right panel still took a lot of
+scrolling to find anything, and the stitches still sat behind collapsed groups.
+Measured in the free-form type at 1440 × 900 before the change: the bar was two
+lines (107 px), the panel's content 3242 px in a 793 px panel, and eighteen of
+the twenty-five stitches were one click away inside `<details>`.
+
+**The type bar became the „Típusok” menu.** Four cards, three of them switched
+off, do not earn a 13 rem column for the whole session. `#types` is a
+`.menu__pop` now, opened from `#types-toggle` like the file menu; a choice closes
+it, and opening it puts the focus on the current type. The open-state key of the
+old bar (`dc-mintatervezo:mintatipus`, §5) is no longer read or written. The
+irregular type is called „Szabad tervező” in the interface — the type name, and
+the heading of its shortcut list; the pattern it makes is still an irregular one,
+so „Új szabálytalan minta” stays.
+
+**The stitches took the left column.** `#section-stitches` is an `<aside>` where
+the type bar stood, `--stitches-width` wide (17 rem: 18 and 19 rem measured only
+25 px less palette height, not worth the canvas). Nothing in it folds: every
+section is a three-column grid of tiles with its title above, and the tile
+prints the full name and, where there is one, the structure line — the only
+thing that tells the four „fogyasztás” apart (§53). The tooltip repeats both.
+The palette is 935 px tall, so in a 506 px window the column scrolls; an armed
+stitch is scrolled into it (`revealStitch`), because `Alt`+8 and 9 reach below
+the fold. The abbreviation-only label and its shortened-name dictionary
+(`i18n/palette.ts`) went with the compact cell.
+
+**One button for both columns.** `#panel-toggle` („Szemek és beállítások”)
+opens and closes the stitch column and the panel together — its name already
+said both. `insetLeft` measures the stitch column.
+
+**The version label moved into that column's corner** (`decisions.md` §5: it is
+read at a glance after a deploy). It is `position: sticky` at the bottom, so the
+stitches scroll under it and it never leaves the corner.
+
+**The bar is one line, and gives way in steps rather than wrapping.** The chrome,
+the context and the panel toggles are siblings in `.tools`, the toggles last with
+`margin-inline-start: auto`, so they sit at the right edge again (§38's cost is
+gone). Everything is 44 px (§36), and 21 buttons do not fit a 1000 px line with
+labels, so `fitBar()` tries the steps in order and keeps the first that does not
+overflow `.tools`, writing it to `.bar[data-fit]`:
+
+| step | what gives way |
+|---|---|
+| 0 | nothing |
+| 1 | the view group folds into the „Nézet” menu |
+| 2 | the labels go; the icon, the target and the `data-tip` bubble stay |
+| 3 | the title and the home link's text go (the mark stays), and the gaps shrink |
+
+The steps are measured, not set by media query, because the width that needs
+them depends on the type and the language: the free-form bar with labels wants
+1531 px in Hungarian, the regular one 1409 px, and the English labels differ
+again. Measured on this branch, the step taken:
+
+| width | regular hu | free-form hu | regular en | free-form en |
+|---|---|---|---|---|
+| 1920–1536 | 0 | 0 | 0 | 0 |
+| 1440 | 0 | 1 | 0 | 1 |
+| 1280 | 1 | 2 | 1 | 2 |
+| 1200 | 2 | 3 | 2 | 3 |
+| 1100–1000 | 3 | 3 | 3 | 3 |
+
+Where even step 3 overflows — the free-form bar below about 1000 px, the
+regular one below about 900 — `data-wrap` lets it wrap the way it did before PQW-983. The
+owner chose the order (the view group before the labels, with the zoom still on
+the wheel) when told the line could not hold every labelled button. `fitBar`
+runs from a `ResizeObserver` on the bar and on `#error-toggle`, whose label
+changes with the findings, and after a type or a language change.
+
+**The „Nézet” menu is a class, not `hidden`.** In a wide window the same four
+buttons are the bar's own, and the global `[hidden] { display: none !important }`
+cannot be overridden for one state and not the other. `#view-menu.is-open` opens
+it, `closeAllPopovers` and Escape close it like the other menus (the Escape
+lookup reads `aria-expanded` for that reason), and a click on a zoom step leaves
+it open, because zooming is several clicks. A change of step closes it.
+
+**What the tests pin.** `e2e/egysoros-sav.spec.ts`: one line and every visible
+tool on screen at 1440 × 900 and 1000 × 506 in both types, the menu at the
+owner's size, the labelled group at 1920, the shared toggle. The specs that
+click a pattern type now open `#types-toggle` first, and the free-form specs that
+click „Rács” at 1440 open `#view-toggle` first, because that bar is at step 1.

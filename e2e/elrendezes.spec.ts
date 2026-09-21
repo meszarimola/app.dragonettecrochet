@@ -28,6 +28,13 @@ async function box(page: Page, selector: string) {
   return found!;
 }
 
+/** „Egész minta”; in a narrow bar it is an item of the view menu, which stays open between steps (interface.md §56). */
+async function fitWhole(page: Page): Promise<void> {
+  const menu = page.locator('#view-toggle');
+  if ((await menu.isVisible()) && (await menu.getAttribute('aria-expanded')) !== 'true') await menu.click();
+  await page.getByRole('button', { name: 'Egész minta' }).click();
+}
+
 /** The written pattern opened: in a low window it starts closed (PQW-891), there we open it with its button. */
 async function openWritten(page: Page): Promise<void> {
   const written = page.locator('#written');
@@ -53,11 +60,11 @@ for (const viewport of [
     expect(size).toEqual([viewport.width, viewport.height]);
 
     const stage = await box(page, '.stage');
-    const types = await box(page, '#types');
+    const types = await box(page, '#section-stitches');
     const panel = await box(page, '#panel');
     const board = await box(page, '#board');
 
-    // The pattern type menu is a narrow left sidebar, the settings a right sidebar.
+    // The stitches are a narrow left sidebar, the settings a right sidebar (PQW-989).
     expect(types.x).toBe(stage.x);
     expect(types.width).toBeLessThan(viewport.width / 3);
     expect(types.y).toBe(stage.y);
@@ -76,16 +83,8 @@ for (const viewport of [
     expect(written.x).toBeCloseTo(types.x + types.width, 0);
     expect(written.x + written.width).toBeCloseTo(panel.x, 0);
 
-    // The version label is chrome under the list, not the tail of a clipped card:
-    // its text starts clear of the list's bottom edge, which the list runs right
-    // up to whenever it scrolls (PQW-979).
-    const list = await box(page, '#types-list');
-    const versionTextTop = await page
-      .locator('#version')
-      .evaluate((el) => el.getBoundingClientRect().top + parseFloat(getComputedStyle(el).paddingBlockStart));
-    expect(versionTextTop).toBeGreaterThan(list.y + list.height + 8);
-
-    // The type names are not truncated.
+    // The type names are not truncated in their menu.
+    await page.locator('#types-toggle').click();
     const clipped = await page
       .locator('.type__name')
       .evaluateAll((names) =>
@@ -126,18 +125,17 @@ const barShape = (page: Page) =>
   });
 
 /*
- * The menu bar is chrome and context (PQW-983). The tools used to stand on a line
- * of their own under the title, so in the owner's 1000 × 506 window the bar was
- * 157 px — 31 % of the window — with the tools already wrapped into two rows. The
- * chrome (the buttons that are there in every pattern type) now shares the
- * title's line and the context has the line below it, which gives the canvas back
- * the height of a whole row. The chrome itself never wraps.
+ * The menu bar is chrome and context (PQW-983), and one line (PQW-989). The tools
+ * used to stand on a line of their own under the title, so in the owner's
+ * 1000 × 506 window the bar was 157 px — 31 % of the window; PQW-983 took it to
+ * two rows and 107 px. Now the chrome, the context and the panel toggles share the
+ * title's line, and the bar gives way a step at a time rather than wrapping
+ * (interface.md §56).
  */
 for (const { rows, ...viewport } of [
   { width: 1440, height: 900, rows: 1 },
-  { width: 1000, height: 506, rows: 2 },
-  // The tightest window the split allows: the chrome may not wrap here, and its labels stay.
-  { width: 960, height: 506, rows: 2 },
+  { width: 1000, height: 506, rows: 1 },
+  { width: 960, height: 506, rows: 1 },
 ]) {
   test(`${viewport.width}×${viewport.height}: the tools stand beside the title in ${rows} row(s), and the chrome does not wrap`, async ({
     page,
@@ -186,7 +184,8 @@ const typeCards = (page: Page) =>
   });
 
 /*
- * All four pattern-type cards fit in a 506 px-high window (PQW-985). The card carried
+ * All four pattern-type cards fit in a 506 px-high window (PQW-985); since PQW-989
+ * they are the items of the type menu, so the menu is opened first. The card carried
  * 0.6rem of block padding and stood 57 px tall, so four of them and the three 8 px gaps
  * wanted 252 px while the list had 221 px: it scrolled and cut the fourth name in half.
  * PQW-983 gave the list 271 px at 1000 px wide and hid the problem at that one width;
@@ -202,6 +201,7 @@ for (const viewport of [
   test(`${viewport.width}×${viewport.height}: all four pattern-type cards fit without scrolling`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await open(page);
+    await page.locator('#types-toggle').click();
 
     const list = await typeCards(page);
     expect(list).not.toBeNull();
@@ -297,7 +297,7 @@ for (const viewport of [
     await expect(page.locator('#summary')).toContainText('12. sor következik.');
 
     const stage = await box(page, '.stage');
-    const types = await box(page, '#types');
+    const types = await box(page, '#section-stitches');
     const panel = await box(page, '#panel');
     const cover = await box(page, '#written');
     // At most 22rem and half the work area by default. In a low window 40% of it, but at least the header (that depends on
@@ -321,7 +321,7 @@ for (const viewport of [
       expect(point!.y, name).toBeLessThan(bottom);
     };
 
-    await page.getByRole('button', { name: 'Egész minta' }).click();
+    await fitWhole(page);
     const fitted = await view(page);
     // Since PQW-916 the label of the foundation chain (layer 0) is beside the chart as well; here we look at the rows.
     const rows = fitted.labels.filter((label) => label.layer >= 1 && label.layer <= 10);
@@ -356,7 +356,7 @@ for (const viewport of [
       await page.keyboard.press(key);
       await settle(page);
       const top = (await box(page, '#written')).y;
-      await page.getByRole('button', { name: 'Egész minta' }).click();
+      await fitWhole(page);
       const shown = await view(page);
       const shownRows = shown.labels.filter((label) => label.layer >= 1 && label.layer <= 10);
       expect(shownRows).toHaveLength(10);
@@ -522,14 +522,14 @@ for (const [viewport, rounds] of [
     await page.getByRole('button', { name: 'Minta létrehozása' }).click();
     await expect(page.locator('#status')).toContainText(`${rounds} kör elkészült`);
     await page.locator('#setup').getByRole('button', { name: 'Lecsukás' }).click();
-    await page.getByRole('button', { name: 'Egész minta' }).click();
+    await fitWhole(page);
 
     const grid = await page.evaluate(() =>
       (window as unknown as { mintatervezoRacs: { bounds(): Rect | null } }).mintatervezoRacs.bounds(),
     );
     expect(grid).not.toBeNull();
     const stage = await box(page, '.stage');
-    const types = await box(page, '#types');
+    const types = await box(page, '#section-stitches');
     const panel = await box(page, '#panel');
     const cover = await box(page, '#written');
     expect(grid!.left).toBeGreaterThanOrEqual(types.x + types.width);

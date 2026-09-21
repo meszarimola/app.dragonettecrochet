@@ -148,6 +148,7 @@ const board = new Board(canvas);
 const palette = must<HTMLDivElement>('#palette');
 const panel = must<HTMLElement>('#panel');
 const toggle = must<HTMLButtonElement>('#panel-toggle');
+const stitchesAside = must<HTMLElement>('#section-stitches');
 const setupSheet = must<HTMLElement>('#setup');
 const setupToggle = must<HTMLButtonElement>('#setup-toggle');
 const hint = must<HTMLParagraphElement>('#hint');
@@ -180,6 +181,8 @@ const errorCount = must<HTMLElement>('#error-count');
 const errorsPop = must<HTMLElement>('#errors');
 const fileToggle = must<HTMLButtonElement>('#file-toggle');
 const filePop = must<HTMLElement>('#file-pop');
+const viewToggle = must<HTMLButtonElement>('#view-toggle');
+const viewMenu = must<HTMLElement>('#view-menu');
 const exportGrid = must<HTMLInputElement>('#export-grid');
 const insertionPanel = new InsertionPanel(must<HTMLFieldSetElement>('#insertion'));
 const languageSelect = document.querySelector<HTMLSelectElement>('#ui-language');
@@ -190,8 +193,6 @@ const NOTATION_KEY = 'dc-mintatervezo:jeloles';
 const WRITTEN_KEY = 'dc-mintatervezo:irott-minta';
 const TYPE_KEY = 'dc-mintatervezo:tipus';
 const GRID_KEY = 'dc-mintatervezo:racs';
-// KB: interface.md §5
-const TYPES_KEY = 'dc-mintatervezo:mintatipus';
 const LANG_KEY = 'dc-mintatervezo:nyelv';
 // Below this width the two panels do not fit side by side.
 const NARROW = window.matchMedia('(width < 48rem)');
@@ -378,7 +379,7 @@ function structuralProblem(pattern: Pattern): string | null {
 
 const measure = (element: HTMLElement) => (element.hidden ? 0 : element.getBoundingClientRect().width);
 const insetRight = () => Math.max(measure(panel), measure(setupSheet));
-const insetLeft = () => (typesNav.hidden ? 0 : typesNav.getBoundingClientRect().width);
+const insetLeft = () => measure(stitchesAside);
 const insetBottom = () =>
   written.hidden ? 0 : Math.max(0, canvas.getBoundingClientRect().bottom - written.getBoundingClientRect().top);
 const fitBoard = () => board.fit(insetRight(), insetLeft(), insetBottom());
@@ -881,6 +882,7 @@ function changeLanguage(language: UiLanguage): void {
   renderTypes();
   renderPalette();
   select(tool);
+  fitBar();
   syncWrittenSize();
   irregular?.refresh();
   announce(texts().messages.language.changed);
@@ -918,36 +920,17 @@ function drawPreview(def: StitchDef, size: number): HTMLCanvasElement {
   return previewCanvas;
 }
 
+/*
+ * A tile: the full name is printed, the structure line under it is what tells
+ * the four „fogyasztás” apart, and the tooltip repeats both. KB: interface.md §53, §56
+ */
 function stitchButton(item: PaletteItem): HTMLButtonElement {
   const button = newStitchButton(item);
-  button.append(drawPreview(item.def, 44));
-
-  const label = span('stitch__label', '');
-  label.lang = textLanguage(notation.terms);
-  label.append(span('stitch__name', item.name));
-  if (item.structure) label.append(span('stitch__detail', item.structure));
-  button.append(label);
-
-  appendStitchKey(button, item);
-  return button;
-}
-
-/*
- * The dense grid cell of a basic stitch: the abbreviation is what is printed,
- * the full name is the accessible name and the tooltip. KB: interface.md §53
- */
-function compactStitchButton(item: PaletteItem): HTMLButtonElement {
-  const button = newStitchButton(item);
-  button.classList.add('stitch--compact');
   button.lang = textLanguage(notation.terms);
-  button.dataset.tip = item.name;
+  button.dataset.tip = item.structure ? `${item.name}: ${item.structure}` : item.name;
   button.append(drawPreview(item.def, 32));
-
-  const short = span('stitch__abbr', item.short);
-  short.setAttribute('aria-hidden', 'true');
-  button.append(short);
-  button.append(span('stitch__full', item.name));
-
+  button.append(span('stitch__name', item.name));
+  if (item.structure) button.append(span('stitch__detail', item.structure));
   appendStitchKey(button, item);
   return button;
 }
@@ -1000,58 +983,39 @@ function select(id: StitchDefId | null): void {
 
 function renderPalette(): void {
   const sections = buildPalette(notation.terms);
-  const opened = new Set(
-    [...palette.querySelectorAll<HTMLDetailsElement>('.palette__section--group')]
-      .filter((group) => group.open)
-      .map((group) => group.id),
-  );
   items = sections.flatMap((section) => section.items);
   buttons.clear();
   palette.replaceChildren();
-  for (const section of sections) palette.append(paletteSection(section, opened));
+  for (const section of sections) palette.append(paletteSection(section));
   if (tool) revealStitch(tool);
 }
 
-/*
- * A shortcut arms a stitch whatever its group is doing, and a notation change
- * rebuilds the palette closed — either way the armed button has to be on
- * screen. KB: interface.md §11, §53
- */
+// KB: interface.md §11, §53 — a shortcut can arm a stitch that is scrolled out of the column.
 function revealStitch(id: StitchDefId): void {
-  const group = buttons.get(id)?.closest<HTMLDetailsElement>('.palette__section--group');
-  if (group) group.open = true;
+  buttons.get(id)?.scrollIntoView({ block: 'nearest' });
 }
 
-/*
- * The basic stitches are a dense grid, always open; the other three sections
- * keep the row layout — their structure line is what tells the four
- * „fogyasztás” apart — behind a collapsed summary. KB: interface.md §53
- */
-function paletteSection(section: ReturnType<typeof buildPalette>[number], opened: ReadonlySet<string>): HTMLElement {
-  const compact = section.id === 'basic';
-  const group = document.createElement(compact ? 'div' : 'details');
-  group.className = compact ? 'palette__section' : 'palette__section palette__section--group';
+function paletteSection(section: ReturnType<typeof buildPalette>[number]): HTMLElement {
+  const group = document.createElement('section');
+  group.className = 'palette__section';
   group.id = `palette-${section.id}`;
 
-  const list = document.createElement('div');
-  list.className = compact ? 'palette__grid' : 'palette__rows';
-  list.setAttribute('role', 'group');
-  list.setAttribute('aria-label', section.title);
+  const title = document.createElement('h3');
+  title.className = 'palette__title';
+  title.id = `palette-${section.id}-title`;
+  title.textContent = section.title;
 
-  if (!compact) {
-    const summary = document.createElement('summary');
-    summary.className = 'palette__title';
-    summary.textContent = section.title;
-    group.append(summary);
-    (group as HTMLDetailsElement).open = opened.has(group.id);
-  }
+  const list = document.createElement('div');
+  list.className = 'palette__grid';
+  list.setAttribute('role', 'group');
+  list.setAttribute('aria-labelledby', title.id);
 
   for (const item of section.items) {
-    const button = compact ? compactStitchButton(item) : stitchButton(item);
+    const button = stitchButton(item);
     buttons.set(item.def.id, button);
     list.append(button);
   }
-  group.append(list);
+  group.append(title, list);
   return group;
 }
 
@@ -1595,6 +1559,8 @@ function togglePopover(pop: HTMLElement, button: HTMLButtonElement): void {
 function closeAllPopovers(): void {
   closePopover(errorsPop, errorToggle);
   closePopover(filePop, fileToggle);
+  closePopover(typesNav, typesToggle);
+  setViewMenuOpen(false);
 }
 
 errorToggle.addEventListener('click', () => togglePopover(errorsPop, errorToggle));
@@ -1610,6 +1576,28 @@ fileToggle.addEventListener('click', () => {
 
 filePop.addEventListener('click', (event) => {
   if ((event.target as Element).closest('button')) closePopover(filePop, fileToggle);
+});
+
+typesToggle.addEventListener('click', () => {
+  const opening = typesNav.hidden;
+  closeAllPopovers();
+  if (opening) {
+    openPopover(typesNav, typesToggle);
+    typesNav.querySelector<HTMLButtonElement>('.type[aria-pressed="true"]')?.focus();
+  }
+});
+
+// KB: interface.md §56 — a class, not `hidden`: in a wide window the same buttons are the bar's own.
+function setViewMenuOpen(open: boolean): void {
+  viewMenu.classList.toggle('is-open', open);
+  viewToggle.setAttribute('aria-expanded', String(open));
+}
+
+// KB: interface.md §56 — it stays open, so zooming in is more than one click.
+viewToggle.addEventListener('click', () => {
+  const opening = !viewMenu.classList.contains('is-open');
+  closeAllPopovers();
+  if (opening) setViewMenuOpen(true);
 });
 
 document.addEventListener('click', (event) => {
@@ -1662,6 +1650,7 @@ function renderTypes(): void {
 }
 
 function selectType(id: PatternTypeId): void {
+  closePopover(typesNav, typesToggle);
   patternType = id;
   try {
     localStorage.setItem(TYPE_KEY, id);
@@ -1687,17 +1676,15 @@ function selectType(id: PatternTypeId): void {
   if (type) announce(texts().messages.types.selected(type.name, type.detail));
 }
 
-typesToggle.addEventListener('click', () => {
-  const open = typesNav.hasAttribute('hidden');
-  setOpen(typesNav, typesToggle, open);
-  rememberTypesOpen(open);
-  // The canvas fits around the bar's width, so closing it needs a refit.
-  fitBoard();
-});
+// KB: interface.md §56 — one button for both side columns.
+function setPanelsOpen(open: boolean): void {
+  setOpen(panel, toggle, open);
+  stitchesAside.hidden = !open;
+}
 
 toggle.addEventListener('click', () => {
   const open = panel.hasAttribute('hidden');
-  setOpen(panel, toggle, open);
+  setPanelsOpen(open);
   if (open && NARROW.matches && !written.hidden) setWrittenOpen(false);
 });
 
@@ -1715,7 +1702,7 @@ writtenToggle.addEventListener('click', () => {
   setWrittenOpen(open);
   // KB: interface.md §10
   if (open && writtenShare === null) applyWrittenShare(writtenShareFor(patternType, NARROW.matches));
-  if (open && NARROW.matches) setOpen(panel, toggle, false);
+  if (open && NARROW.matches) setPanelsOpen(false);
   if (open && SETUP_TIGHT.matches && !setupSheet.hidden) setOpen(setupSheet, setupToggle, false);
 });
 
@@ -1996,14 +1983,13 @@ document.addEventListener('keydown', (event) => {
   const key = event.key;
 
   // Escape closes an open menu first and returns the focus to its button.
-  const openMenu = [
-    { pop: errorsPop, button: errorToggle },
-    { pop: filePop, button: fileToggle },
-  ].find((menu) => !menu.pop.hidden);
+  const openMenu = [errorToggle, fileToggle, typesToggle, viewToggle].find(
+    (button) => button.getAttribute('aria-expanded') === 'true',
+  );
   if (key === 'Escape' && openMenu) {
     event.preventDefault();
     closeAllPopovers();
-    openMenu.button.focus();
+    openMenu.focus();
     return;
   }
 
@@ -2312,6 +2298,7 @@ function showIrregularView(on: boolean): void {
   if (on && !setupSheet.hidden) setOpen(setupSheet, setupToggle, false);
   setDisabled('export-png', false);
   setDisabled('export-svg', false);
+  fitBar();
 }
 
 // KB: interface.md §10
@@ -2324,11 +2311,28 @@ function showTypeView(id: PatternTypeId): void {
   amigurumiPanel?.reveal();
 }
 
+// KB: interface.md §56 — the bar stays one line by giving way a step at a time.
+const bar = must<HTMLElement>('.bar');
+const barTools = must<HTMLElement>('.tools');
+const BAR_STEPS = 3;
+function fitBar(): void {
+  const before = bar.dataset.fit;
+  const overflows = () => barTools.scrollWidth > barTools.clientWidth;
+  bar.removeAttribute('data-wrap');
+  let step = 0;
+  bar.dataset.fit = '0';
+  while (step < BAR_STEPS && overflows()) bar.dataset.fit = String(++step);
+  bar.toggleAttribute('data-wrap', overflows());
+  if (bar.dataset.fit !== before) setViewMenuOpen(false);
+}
+const barObserver = new ResizeObserver(fitBar);
+barObserver.observe(bar);
+barObserver.observe(errorToggle);
+
 syncNotationControls();
 renderTypes();
 renderPalette();
-setOpen(typesNav, typesToggle, readTypesOpen() && !NARROW.matches);
-setOpen(panel, toggle, !NARROW.matches);
+setPanelsOpen(!NARROW.matches);
 setOpen(written, writtenToggle, readWrittenOpen() && !NARROW.matches);
 showTypeView(patternType);
 if (patternType === 'irregular') {
@@ -2419,22 +2423,5 @@ function showModifierNames(): void {
   }
   for (const key of document.querySelectorAll('kbd')) {
     if (key.textContent === 'Alt') key.textContent = name;
-  }
-}
-
-// KB: interface.md §5
-function readTypesOpen(): boolean {
-  try {
-    return localStorage.getItem(TYPES_KEY) !== 'zarva';
-  } catch {
-    return true;
-  }
-}
-
-function rememberTypesOpen(open: boolean): void {
-  try {
-    localStorage.setItem(TYPES_KEY, open ? 'nyitva' : 'zarva');
-  } catch {
-    // KB: interface.md §5
   }
 }

@@ -56,7 +56,7 @@ for (const viewport of [
     await page.goto('/');
     // The canvas fills the whole work area, with the two sidebars above it. The label stays
     // within the band of the left sidebar, so it hides nothing of the free drawing area.
-    const types = (await page.locator('#types').boundingBox())!;
+    const types = (await page.locator('#section-stitches').boundingBox())!;
     expect(label.x, 'the label starts within the band of the left sidebar').toBeGreaterThanOrEqual(types.x);
     expect(label.x + label.width, 'the label does not reach out into the drawing area').toBeLessThanOrEqual(
       types.x + types.width,

@@ -152,12 +152,12 @@ test('beside every row there is the row number and the stitch count, without cov
    */
   const right = Math.max(...stitches.map((stitch) => stitch.right));
   const left = Math.min(...stitches.map((stitch) => stitch.left));
-  const types = (await page.locator('#types').boundingBox())!;
+  const stitchesBar = (await page.locator('#section-stitches').boundingBox())!;
   const panel = (await page.locator('#panel').boundingBox())!;
   for (const label of labels) {
     // It stands beside the chart — or hugging the edge of the visible band, if it would no longer fit there.
     const besideChart = label.left >= right - 0.5 || label.right <= left + 0.5;
-    const hugsEdge = label.left <= types.x + types.width + 8 || label.right >= panel.x - 8;
+    const hugsEdge = label.left <= stitchesBar.x + stitchesBar.width + 8 || label.right >= panel.x - 8;
     expect(
       besideChart || hugsEdge,
       `the label „${label.text}” is squeezed in among the symbols ${describe(label)}`,
@@ -193,19 +193,21 @@ for (const viewport of [
     await page.setViewportSize(viewport);
     await open(page);
     await foundationTurnAndRow(page);
+    // A narrow bar folds its view group into a menu (interface.md §56).
+    if (await page.locator('#view-toggle').isVisible()) await page.locator('#view-toggle').click();
     await page.getByRole('button', { name: 'Egész minta' }).click();
     await page.waitForTimeout(200);
 
     const labels = await api<LabelBox[]>(page, 'labelBoxes');
     expect(labels.length, 'there is something to place').toBeGreaterThan(0);
-    const types = (await page.locator('#types').boundingBox())!;
+    const stitchesBar = (await page.locator('#section-stitches').boundingBox())!;
     const panel = (await page.locator('#panel').boundingBox())!;
 
     for (const label of labels) {
       expect(
         label.left,
-        `the label „${label.text}” slides under the pattern type bar ${describe(label)}`,
-      ).toBeGreaterThanOrEqual(types.x + types.width - 0.5);
+        `the label „${label.text}” slides under the stitch column ${describe(label)}`,
+      ).toBeGreaterThanOrEqual(stitchesBar.x + stitchesBar.width - 0.5);
       expect(
         label.right,
         `the label „${label.text}” slides under the stitch palette panel ${describe(label)}`,

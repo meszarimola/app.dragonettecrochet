@@ -1,7 +1,8 @@
 /*
- * The right-hand panel and the tooltips of the menu bar (PQW-882): the stitch
- * list is visible on load, the sections can be collapsed, and every icon button
- * has a tooltip that appears at once, the inactive ones too.
+ * The side columns and the tooltips of the menu bar (PQW-882, PQW-989): the
+ * stitch list is visible on load in the left column, the right panel's sections
+ * can be collapsed, and every icon button has a tooltip that appears at once,
+ * the inactive ones too.
  */
 
 import { expect, type Locator, type Page, test } from '@playwright/test';
@@ -15,12 +16,14 @@ async function open(page: Page): Promise<void> {
 const tipDisplay = (tool: Locator) => tool.evaluate((el) => getComputedStyle(el, '::after').display);
 const tipText = (tool: Locator) => tool.evaluate((el) => getComputedStyle(el, '::after').content);
 
-test('on load the stitch list is visible at the top of the panel, the notation closed by default', async ({ page }) => {
+test('on load the stitch list is visible in the left column, the notation closed by default (PQW-989)', async ({
+  page,
+}) => {
   await open(page);
 
   const stitches = page.locator('#section-stitches');
   const notation = page.locator('#section-notation');
-  await expect(stitches).toHaveAttribute('open', '');
+  await expect(stitches).toBeVisible();
   await expect(
     page
       .locator('#palette')
@@ -32,7 +35,7 @@ test('on load the stitch list is visible at the top of the panel, the notation c
 
   const stitchesBox = await stitches.boundingBox();
   const notationBox = await notation.boundingBox();
-  expect(stitchesBox!.y).toBeLessThan(notationBox!.y);
+  expect(stitchesBox!.x + stitchesBox!.width, 'the stitches stand left of the settings').toBeLessThan(notationBox!.x);
 });
 
 test('the panel sections can be collapsed and expanded by mouse and by keyboard', async ({ page }) => {
@@ -43,13 +46,6 @@ test('the panel sections can be collapsed and expanded by mouse and by keyboard'
   await expect(page.locator('#terms')).toBeVisible();
   await notationHead.click();
   await expect(page.locator('#terms')).toBeHidden();
-
-  const stitchesHead = page.locator('#section-stitches > summary');
-  await stitchesHead.focus();
-  await page.keyboard.press('Enter');
-  await expect(page.locator('#palette')).toBeHidden();
-  await page.keyboard.press('Enter');
-  await expect(page.locator('#palette')).toBeVisible();
 
   const patternHead = page.locator('#section-pattern > summary');
   await patternHead.click();
@@ -152,26 +148,23 @@ test('in a narrow window even a visible tooltip does not hang off to the right',
 });
 
 /*
- * The palette at the owner's window size (PQW-984). The seven basic stitches
- * are a dense grid that is always open; the other eighteen keep the row layout
- * — their structure line is the only thing telling the four „fogyasztás” apart
- * — behind three collapsed groups. Before the split the palette was 1870 px
- * tall and two stitches of the twenty-five were reachable without scrolling.
+ * The palette at the owner's window size (PQW-984, PQW-989). Every stitch is a
+ * tile in the left column, nothing folds, and the tile prints the full name —
+ * with the structure line that is the only thing telling the four „fogyasztás”
+ * apart. Before PQW-984 the palette was 1870 px tall and two stitches of the
+ * twenty-five were reachable without scrolling; before PQW-989 eighteen of them
+ * sat behind three collapsed groups.
  */
-test('in a narrow window the seven basic stitches and the three group headers are all visible (PQW-984)', async ({
+test('in a narrow window the seven basic tiles are visible, and every stitch is a tile with its full name (PQW-989)', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1000, height: 506 });
   await open(page);
 
-  // The whole control, against 1870 px before the split.
-  const height = await page.locator('#palette').evaluate((el) => el.getBoundingClientRect().height);
-  expect(height, 'the height of the palette').toBeLessThan(300);
-
-  const cells = page.locator('#palette .palette__grid').getByRole('button');
-  await expect(cells).toHaveCount(7);
+  const basic = page.locator('#palette-basic .palette__grid').getByRole('button');
+  await expect(basic).toHaveCount(7);
   for (let i = 0; i < 7; i += 1) {
-    const cell = cells.nth(i);
+    const cell = basic.nth(i);
     await expect(cell).toBeInViewport({ ratio: 1 });
     // KB: interface.md §36
     const box = (await cell.boundingBox())!;
@@ -179,41 +172,31 @@ test('in a narrow window the seven basic stitches and the three group headers ar
     expect(Math.round(box.height), `${await cell.getAttribute('data-tip')} height`).toBeGreaterThanOrEqual(44);
   }
 
-  const groups = page.locator('#palette .palette__section--group');
-  await expect(groups).toHaveCount(3);
-  for (let i = 0; i < 3; i += 1) {
-    await expect(groups.nth(i)).not.toHaveAttribute('open', '');
-    await expect(groups.nth(i).locator('summary')).toBeInViewport({ ratio: 1 });
-  }
+  const tiles = page.locator('#palette .palette__grid').getByRole('button');
+  await expect(tiles).toHaveCount(25);
+  await expect(page.locator('#palette details')).toHaveCount(0);
 
-  // The cell prints the abbreviation, but the accessible name is still the full name.
-  await expect(page.locator('#palette').getByRole('button', { name: /Láncszem \(lsz\)/ })).toHaveCount(1);
-
-  // `#section-stitches` is shared, so the free-form editor gets the same palette.
-  await page.getByRole('button', { name: /Szabálytalan horgolás/ }).click();
-  await expect(page.locator('#board-irregular')).toBeVisible();
-  await expect(cells).toHaveCount(7);
-  for (let i = 0; i < 7; i += 1) await expect(cells.nth(i)).toBeInViewport({ ratio: 1 });
-  for (let i = 0; i < 3; i += 1) await expect(groups.nth(i).locator('summary')).toBeInViewport({ ratio: 1 });
-  await page.getByRole('button', { name: /Szabályos horgolás/ }).click();
-  await expect(page.locator('#board')).toBeVisible();
-
-  // The other eighteen are one click away, with the structure line that tells them apart.
-  await groups.first().locator('summary').click();
+  // The tile prints the name, not only the abbreviation.
+  await expect(page.locator('#palette')).toContainText('Láncszem (lsz)');
+  await expect(page.locator('#palette')).toContainText('Háromráhajtásos pálca');
   await expect(page.locator('#palette')).toContainText('2 rp egy szembe');
   await expect(page.locator('#palette')).toContainText('3 rp 3 szemen át');
 
-  // A shortcut still reaches a stitch in a closed group, and opens it so the armed button shows.
-  await groups.first().locator('summary').click();
-  await expect(groups.first()).not.toHaveAttribute('open', '');
-  await page.keyboard.press('Alt+Digit8');
-  await expect(groups.first()).toHaveAttribute('open', '');
-  await expect(
-    groups
-      .first()
-      .getByRole('button', { name: /Szaporítás/ })
-      .first(),
-  ).toHaveAttribute('aria-pressed', 'true');
+  // `#section-stitches` is shared, so the free-form editor gets the same palette.
+  await page.locator('#types-toggle').click();
+  await page.getByRole('button', { name: /Szabad tervező/ }).click();
+  await expect(page.locator('#board-irregular')).toBeVisible();
+  await expect(tiles).toHaveCount(25);
+  for (let i = 0; i < 7; i += 1) await expect(basic.nth(i)).toBeInViewport({ ratio: 1 });
+  await page.locator('#types-toggle').click();
+  await page.getByRole('button', { name: /Szabályos horgolás/ }).click();
+  await expect(page.locator('#board')).toBeVisible();
+
+  // A shortcut arms a stitch below the fold, and scrolls it into the column.
+  await page.keyboard.press('Alt+Digit9');
+  const ninth = page.locator('#palette .stitch[aria-pressed="true"]');
+  await expect(ninth).toHaveCount(1);
+  await expect(ninth).toBeInViewport({ ratio: 1 });
 });
 
 /*
@@ -226,7 +209,7 @@ test('arming a stitch with insertion modes does not push the palette out of the 
   await page.setViewportSize({ width: 1000, height: 506 });
   await open(page);
 
-  const cells = page.locator('#palette .palette__grid').getByRole('button');
+  const cells = page.locator('#palette-basic .palette__grid').getByRole('button');
   await expect(cells).toHaveCount(7);
   const before = (await page.locator('#palette').boundingBox())!.y;
 

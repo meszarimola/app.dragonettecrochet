@@ -80,7 +80,7 @@
         </div>
       </section>
 
-      <header class="bar">
+      <header class="bar" data-fit="0">
         <div class="bar__lead">
           <a
             class="home"
@@ -113,13 +113,18 @@
         <div class="tools">
           <div class="tools__chrome">
             <div class="tools__group" role="group" aria-label="Nézet és panelek" data-i18n-label="toolGroupPanels">
-              <!-- In the toolbar, so the side bar can be reopened once it is closed. -->
-              <button type="button" class="tool" id="types-toggle" aria-expanded="true" aria-controls="types" aria-label="Mintatípus sáv" data-tip="A mintatípus sáv nyitása és csukása" data-i18n-label="toolTypesLabel" data-i18n-tip="toolTypesTip">
-                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                  <path d="M7.5 5 12.5 10l-5 5" />
-                </svg>
-                <span class="tool__label" data-i18n="toolLabelTypes">Típusok</span>
-              </button>
+              <div class="menu">
+                <button type="button" class="tool" id="types-toggle" aria-expanded="false" aria-controls="types" aria-label="Mintatípus" data-tip="Mintatípus választása" data-i18n-label="toolTypesLabel" data-i18n-tip="toolTypesTip">
+                  <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                    <path d="M5 7.5 10 12.5l5-5" />
+                  </svg>
+                  <span class="tool__label" data-i18n="toolLabelTypes">Típusok</span>
+                </button>
+                <nav class="menu__pop types" id="types" aria-label="Mintatípus" data-i18n-label="typesNavLabel" hidden>
+                  <p class="types__intro" data-i18n="typesIntro">A típus adja a kezdést és a körzárás alapértelmezését.</p>
+                  <ul class="types__list" id="types-list"></ul>
+                </nav>
+              </div>
             </div>
 
             <div class="tools__group" role="group" aria-label="Fájl" data-i18n-label="toolGroupFile">
@@ -195,39 +200,6 @@
                 </svg>
                 <span class="tool__label" data-i18n="toolLabelRedo">Újra</span>
               </button>
-            </div>
-
-            <div class="tools__group tools__group--end" role="group" aria-label="Panelek" data-i18n-label="toolGroupViews">
-              <button type="button" class="tool" id="panel-toggle" aria-expanded="true" aria-controls="panel" aria-label="Szemek és beállítások" data-tip="A jobb oldali panel nyitása és csukása" data-i18n-label="panelToggle" data-i18n-tip="toolPanelTip">
-                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                  <path d="M3.75 4.5h12.5v11H3.75z" />
-                  <path d="M12 4.5v11" />
-                </svg>
-                <span class="tool__label" data-i18n="toolLabelPanel">Szemek</span>
-              </button>
-
-              <button type="button" class="tool" id="written-toggle" aria-expanded="false" aria-controls="written" aria-label="Írott minta" data-tip="Az írott minta panel nyitása és csukása" data-i18n-label="writtenToggle" data-i18n-tip="toolWrittenTip">
-                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                  <path d="M4.5 4.5h11v11h-11z" />
-                  <path d="M7 8h6M7 11h6" />
-                </svg>
-                <span class="tool__label" data-i18n="toolLabelWritten">Szöveg</span>
-              </button>
-
-              <div class="menu">
-                <button type="button" class="tool tool--errors" id="error-toggle" aria-expanded="false" aria-controls="errors" aria-label="Hibák és figyelmeztetések" data-tip="A hibák és figyelmeztetések listája" data-i18n-label="errorsRegionLabel" data-i18n-tip="toolErrorsTip">
-                  <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                    <path d="M10 3.75 16.5 15.5H3.5z" />
-                    <path d="M10 8v3.5M10 13.25v.25" />
-                  </svg>
-                  <span class="tool__label" id="error-count">Nincs hiba</span>
-                </button>
-
-                <div class="menu__pop errors" id="errors" role="region" aria-label="Hibák és figyelmeztetések" data-i18n-label="errorsRegionLabel" hidden>
-                  <p class="check__summary" id="summary"></p>
-                  <ul class="check__list" id="findings"></ul>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -349,49 +321,102 @@
               </button>
             </div>
 
-            <div class="tools__group" role="group" aria-label="Nézet" data-i18n-label="toolGroupView">
-              <button type="button" class="tool" data-action="grid" aria-pressed="true" aria-label="Rács" data-tip="Rács ki és be (Alt+R)" data-i18n-label="toolGridLabel" data-i18n-tip="toolGridTip" aria-keyshortcuts="Alt+R">
-                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                  <path d="M3.75 3.75h12.5v12.5H3.75z" />
-                  <path d="M3.75 8h12.5M3.75 12h12.5M8 3.75v12.5M12 3.75v12.5" />
-                </svg>
-                <span class="tool__label" data-i18n="toolLabelGrid">Rács</span>
-              </button>
-              <button type="button" class="tool" data-action="zoom-out" aria-label="Kicsinyítés" data-tip="Kicsinyítés" data-i18n-label="toolZoomOutLabel" data-i18n-tip="toolZoomOutTip">
+            <div class="tools__group menu view-menu" id="view-menu" role="group" aria-label="Nézet" data-i18n-label="toolGroupView">
+              <!-- KB: interface.md §56 -->
+              <button type="button" class="tool view-menu__toggle" id="view-toggle" aria-expanded="false" aria-controls="view-pop" aria-label="Nézet" data-tip="Rács és nagyítás" data-i18n-label="toolViewMenuLabel" data-i18n-tip="toolViewMenuTip">
                 <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                   <circle cx="9" cy="9" r="5" />
                   <path d="M12.6 12.6 16.5 16.5" />
-                  <path d="M7 9h4" />
                 </svg>
-                <span class="tool__label" data-i18n="toolLabelZoomOut">Kicsinyítés</span>
+                <span class="tool__label" data-i18n="toolLabelView">Nézet</span>
               </button>
-              <button type="button" class="tool" data-action="zoom-in" aria-label="Nagyítás" data-tip="Nagyítás" data-i18n-label="toolZoomInLabel" data-i18n-tip="toolZoomInTip">
+              <div class="view-menu__pop" id="view-pop">
+                <button type="button" class="tool" data-action="grid" aria-pressed="true" aria-label="Rács" data-tip="Rács ki és be (Alt+R)" data-i18n-label="toolGridLabel" data-i18n-tip="toolGridTip" aria-keyshortcuts="Alt+R">
+                  <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                    <path d="M3.75 3.75h12.5v12.5H3.75z" />
+                    <path d="M3.75 8h12.5M3.75 12h12.5M8 3.75v12.5M12 3.75v12.5" />
+                  </svg>
+                  <span class="tool__label" data-i18n="toolLabelGrid">Rács</span>
+                </button>
+                <button type="button" class="tool" data-action="zoom-out" aria-label="Kicsinyítés" data-tip="Kicsinyítés" data-i18n-label="toolZoomOutLabel" data-i18n-tip="toolZoomOutTip">
+                  <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                    <circle cx="9" cy="9" r="5" />
+                    <path d="M12.6 12.6 16.5 16.5" />
+                    <path d="M7 9h4" />
+                  </svg>
+                  <span class="tool__label" data-i18n="toolLabelZoomOut">Kicsinyítés</span>
+                </button>
+                <button type="button" class="tool" data-action="zoom-in" aria-label="Nagyítás" data-tip="Nagyítás" data-i18n-label="toolZoomInLabel" data-i18n-tip="toolZoomInTip">
+                  <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                    <circle cx="9" cy="9" r="5" />
+                    <path d="M12.6 12.6 16.5 16.5" />
+                    <path d="M7 9h4M9 7v4" />
+                  </svg>
+                  <span class="tool__label" data-i18n="toolLabelZoomIn">Nagyítás</span>
+                </button>
+                <button type="button" class="tool" data-action="fit" aria-label="Egész minta" data-tip="Egész minta a képernyőre" data-i18n-label="toolFitLabel" data-i18n-tip="toolFitTip">
+                  <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                    <path d="M4 7V5h2M14 5h2v2M16 13v2h-2M6 15H4v-2" />
+                  </svg>
+                  <span class="tool__label" data-i18n="toolLabelFit">Teljes</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="tools__group tools__group--end" role="group" aria-label="Panelek" data-i18n-label="toolGroupViews">
+            <button type="button" class="tool" id="panel-toggle" aria-expanded="true" aria-controls="section-stitches panel" aria-label="Szemek és beállítások" data-tip="A szemek és a beállítások paneljének nyitása és csukása" data-i18n-label="panelToggle" data-i18n-tip="toolPanelTip">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M3.75 4.5h12.5v11H3.75z" />
+                <path d="M12 4.5v11" />
+              </svg>
+              <span class="tool__label" data-i18n="toolLabelPanel">Szemek</span>
+            </button>
+
+            <button type="button" class="tool" id="written-toggle" aria-expanded="false" aria-controls="written" aria-label="Írott minta" data-tip="Az írott minta panel nyitása és csukása" data-i18n-label="writtenToggle" data-i18n-tip="toolWrittenTip">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M4.5 4.5h11v11h-11z" />
+                <path d="M7 8h6M7 11h6" />
+              </svg>
+              <span class="tool__label" data-i18n="toolLabelWritten">Szöveg</span>
+            </button>
+
+            <div class="menu">
+              <button type="button" class="tool tool--errors" id="error-toggle" aria-expanded="false" aria-controls="errors" aria-label="Hibák és figyelmeztetések" data-tip="A hibák és figyelmeztetések listája" data-i18n-label="errorsRegionLabel" data-i18n-tip="toolErrorsTip">
                 <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                  <circle cx="9" cy="9" r="5" />
-                  <path d="M12.6 12.6 16.5 16.5" />
-                  <path d="M7 9h4M9 7v4" />
+                  <path d="M10 3.75 16.5 15.5H3.5z" />
+                  <path d="M10 8v3.5M10 13.25v.25" />
                 </svg>
-                <span class="tool__label" data-i18n="toolLabelZoomIn">Nagyítás</span>
+                <span class="tool__label" id="error-count">Nincs hiba</span>
               </button>
-              <button type="button" class="tool" data-action="fit" aria-label="Egész minta" data-tip="Egész minta a képernyőre" data-i18n-label="toolFitLabel" data-i18n-tip="toolFitTip">
-                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                  <path d="M4 7V5h2M14 5h2v2M16 13v2h-2M6 15H4v-2" />
-                </svg>
-                <span class="tool__label" data-i18n="toolLabelFit">Teljes</span>
-              </button>
+
+              <div class="menu__pop errors" id="errors" role="region" aria-label="Hibák és figyelmeztetések" data-i18n-label="errorsRegionLabel" hidden>
+                <p class="check__summary" id="summary"></p>
+                <ul class="check__list" id="findings"></ul>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
       <main class="stage">
-        <nav class="types" id="types" aria-label="Mintatípus" data-i18n-label="typesNavLabel">
-          <h2 class="panel__title" data-i18n="typesTitle">Mintatípus</h2>
-          <p class="types__intro" data-i18n="typesIntro">A típus adja a kezdést és a körzárás alapértelmezését.</p>
-          <ul class="types__list" id="types-list"></ul>
+        <aside class="stitches" id="section-stitches" aria-labelledby="stitches-title">
+          <h2 class="panel__title" id="stitches-title" data-i18n="sectionStitchesTitle">Szemek</h2>
+          <div class="palette" id="palette" role="group" aria-label="Szemek" data-i18n-label="stitchesPaletteLabel"></div>
+          <p class="count" id="count-field" hidden>
+            <label for="chain-count" data-i18n="stitchesChainCountLabel">Láncszemek száma</label>
+            <input id="chain-count" type="number" min="1" max="500" step="1" value="12" inputmode="numeric" />
+          </p>
+          <fieldset class="insertion" id="insertion" aria-describedby="insertion-note" hidden>
+            <legend data-i18n="stitchesInsertionLegend">Beszúrás</legend>
+            <div class="insertion__options"></div>
+            <p class="panel__note insertion__written" hidden></p>
+            <p class="panel__note" id="insertion-note" data-i18n="stitchesInsertionNote">A horgoló felől értendő; visszai soron a diagram a színoldalt mutatja.</p>
+          </fieldset>
+          <p class="panel__hint" id="hint"></p>
           <!-- KB: decisions.md §5 -->
           <p class="version" id="version" aria-hidden="true"></p>
-        </nav>
+        </aside>
 
         <canvas
           id="board"
@@ -447,22 +472,6 @@
         </aside>
 
         <aside class="panel" id="panel" aria-label="Szemek és beállítások" data-i18n-label="panelLabel">
-          <details class="section" id="section-stitches" open>
-            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionStitchesTitle">Szemek</h2></summary>
-            <div class="palette" id="palette" role="group" aria-label="Szemek" data-i18n-label="stitchesPaletteLabel"></div>
-            <p class="count" id="count-field" hidden>
-              <label for="chain-count" data-i18n="stitchesChainCountLabel">Láncszemek száma</label>
-              <input id="chain-count" type="number" min="1" max="500" step="1" value="12" inputmode="numeric" />
-            </p>
-            <fieldset class="insertion" id="insertion" aria-describedby="insertion-note" hidden>
-              <legend data-i18n="stitchesInsertionLegend">Beszúrás</legend>
-              <div class="insertion__options"></div>
-              <p class="panel__note insertion__written" hidden></p>
-              <p class="panel__note" id="insertion-note" data-i18n="stitchesInsertionNote">A horgoló felől értendő; visszai soron a diagram a színoldalt mutatja.</p>
-            </fieldset>
-            <p class="panel__hint" id="hint"></p>
-          </details>
-
           <section class="check" id="adjust" aria-labelledby="adjust-title" hidden>
             <h2 class="panel__title" id="adjust-title" data-i18n="adjustTitle">Kijelölt jel igazítása</h2>
             <p class="panel__hint" id="adjust-name"></p>
@@ -1029,7 +1038,7 @@
                 <dt><kbd>Esc</kbd></dt><dd data-i18n="keysEsc">nincs kiválasztott szem: kattintással a jel kijelölése és igazítása</dd>
                 <dt><kbd>Alt</kbd><span data-i18n="keysNudgeSuffix">+nyilak</span></dt><dd data-i18n="keysNudge">a kijelölt jel eltolása</dd>
               </dl>
-              <h3 class="panel__title" data-i18n="keysFreeTitle">Szabálytalan horgolásnál</h3>
+              <h3 class="panel__title" data-i18n="keysFreeTitle">A szabad tervezőben</h3>
               <dl id="keys-irregular">
                 <dt><kbd>Alt</kbd>+<kbd>1</kbd>–<kbd>9</kbd></dt><dd data-i18n="keysFreePick">szem kiválasztása, aztán kattintás a rajzlapra</dd>
                 <dt><kbd>Esc</kbd></dt><dd data-i18n="keysFreeEsc">a felvett szem letétele, a kijelölés törlése, kilépés a kiemelésből</dd>

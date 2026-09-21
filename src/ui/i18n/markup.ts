@@ -77,13 +77,16 @@ export const MARKUP_TEXTS = {
     toolLabelZoomOut: 'Kicsinyítés',
     toolLabelZoomIn: 'Nagyítás',
     toolLabelFit: 'Teljes',
+    toolLabelView: 'Nézet',
+    toolViewMenuLabel: 'Nézet',
+    toolViewMenuTip: 'Rács és nagyítás',
 
     toolGroupPanels: 'Nézet és panelek',
     toolGroupViews: 'Panelek',
-    toolTypesLabel: 'Mintatípus sáv',
-    toolTypesTip: 'A mintatípus sáv nyitása és csukása',
+    toolTypesLabel: 'Mintatípus',
+    toolTypesTip: 'Mintatípus választása',
     toolLabelTypes: 'Típusok',
-    toolPanelTip: 'A jobb oldali panel nyitása és csukása',
+    toolPanelTip: 'A szemek és a beállítások paneljének nyitása és csukása',
     toolLabelPanel: 'Szemek',
     toolWrittenTip: 'Az írott minta panel nyitása és csukása',
     toolLabelWritten: 'Szöveg',
@@ -113,7 +116,6 @@ export const MARKUP_TEXTS = {
     toolFitTip: 'Egész minta a képernyőre',
 
     typesNavLabel: 'Mintatípus',
-    typesTitle: 'Mintatípus',
     typesIntro: 'A típus adja a kezdést és a körzárás alapértelmezését.',
     boardLabel: 'Diagram: nyilakkal a célpontok között, Enterrel horgolsz',
 
@@ -503,7 +505,7 @@ export const MARKUP_TEXTS = {
     patternExportGridLabel: 'Rács a PNG- és SVG-exportban',
 
     keysSummary: 'Billentyűk',
-    keysFreeTitle: 'Szabálytalan horgolásnál',
+    keysFreeTitle: 'A szabad tervezőben',
     keysFreePick: 'szem kiválasztása, aztán kattintás a rajzlapra',
     keysFreeEsc: 'a felvett szem letétele, a kijelölés törlése, kilépés a kiemelésből',
     keysFreeDigits: 'kijelölt láncívnél vagy legyezőnél a szemek száma; egymás után ütve egy szám',
@@ -613,13 +615,16 @@ export const MARKUP_TEXTS = {
     toolLabelZoomOut: 'Smaller',
     toolLabelZoomIn: 'Larger',
     toolLabelFit: 'Fit',
+    toolLabelView: 'View',
+    toolViewMenuLabel: 'View',
+    toolViewMenuTip: 'Grid and zoom',
 
     toolGroupPanels: 'View and panels',
     toolGroupViews: 'Panels',
-    toolTypesLabel: 'Pattern type sidebar',
-    toolTypesTip: 'Open and close the pattern type sidebar',
+    toolTypesLabel: 'Pattern type',
+    toolTypesTip: 'Choose the pattern type',
     toolLabelTypes: 'Types',
-    toolPanelTip: 'Open and close the right-hand panel',
+    toolPanelTip: 'Open and close the stitch and settings panels',
     toolLabelPanel: 'Stitches',
     toolWrittenTip: 'Open and close the written pattern panel',
     toolLabelWritten: 'Text',
@@ -649,7 +654,6 @@ export const MARKUP_TEXTS = {
     toolFitTip: 'Fit the whole pattern to the screen',
 
     typesNavLabel: 'Pattern type',
-    typesTitle: 'Pattern type',
     typesIntro: 'The type sets the start and the default for closing rounds.',
     boardLabel: 'Chart: move between targets with the arrow keys, crochet with Enter',
 
@@ -1040,7 +1044,7 @@ export const MARKUP_TEXTS = {
     patternExportGridLabel: 'Grid in the PNG and SVG export',
 
     keysSummary: 'Keys',
-    keysFreeTitle: 'In irregular crochet',
+    keysFreeTitle: 'In the free-form designer',
     keysFreePick: 'pick a stitch, then click the drawing area',
     keysFreeEsc: 'lay the armed stitch down, clear the selection, leave isolating',
     keysFreeDigits: 'with a chain arc or a fan selected, the number of stitches; digits in a row make one number',

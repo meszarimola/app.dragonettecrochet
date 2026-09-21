@@ -93,6 +93,7 @@ test('shaped filet: the decrease at the start of the row and the increase at the
   page,
 }) => {
   await open(page);
+  await page.locator('#types-toggle').click();
   await page.locator('.type[data-type="filet"]').click();
   const section = await openGrid(page);
   await setSize(page, 4, 3);
@@ -117,6 +118,7 @@ test('loading an image: the grid has the given width, and the dark half of the i
   page,
 }) => {
   await open(page);
+  await page.locator('#types-toggle').click();
   await page.locator('.type[data-type="filet"]').click();
   await openGrid(page);
   await setSize(page, 10, 8);
