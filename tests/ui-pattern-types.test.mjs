@@ -1,5 +1,5 @@
 /*
- * The contents of the pattern-type menu on the left (PQW-873). In the first
+ * The contents of the pattern-type menu (PQW-873, PQW-989). In the first
  * round of acceptance testing only regular crochet was active (PQW-925): filet
  * crochet (PQW-864) and amigurumi (PQW-863) are switched off for now and stay
  * visible but inactive, marked as coming soon. Irregular crochet joined them as
@@ -20,7 +20,7 @@ import {
 test('the grid kind switches together with the pattern type (PQW-874)', () => {
   assert.deepEqual(
     PATTERN_TYPES.map((type) => gridKind(type.id, 'row')),
-    ['rows', 'cells', 'text', 'rows'],
+    ['rows', 'rows', 'cells', 'text'],
   );
   // In regular crochet a round and a motif get a concentric grid.
   assert.equal(gridKind('regular', 'round'), 'rounds');
@@ -30,9 +30,9 @@ test('the grid kind switches together with the pattern type (PQW-874)', () => {
   assert.equal(gridKind('amigurumi', 'round'), 'text');
 });
 
-test('all four owner pattern types are present, with unique ids', () => {
+test('all four owner pattern types are present, with unique ids, the free-form designer first (PQW-990)', () => {
   const ids = PATTERN_TYPES.map((type) => type.id);
-  assert.deepEqual(ids, ['regular', 'filet', 'amigurumi', 'irregular']);
+  assert.deepEqual(ids, ['irregular', 'regular', 'filet', 'amigurumi']);
   assert.equal(new Set(ids).size, ids.length);
 });
 
@@ -45,7 +45,7 @@ test('every type has a name and an explanation', () => {
 
 test('regular and irregular crochet are the active types (PQW-925, PQW-963)', () => {
   const available = PATTERN_TYPES.filter((type) => type.available).map((type) => type.id);
-  assert.deepEqual(available, ['regular', 'irregular']);
+  assert.deepEqual(available, ['irregular', 'regular']);
 });
 
 test('the switched-off types stay in the list instead of being removed (PQW-925)', () => {
@@ -61,8 +61,9 @@ test('amigurumi opens the written pattern large, full width in a narrow window, 
   assert.equal(writtenShareFor('filet', true), null);
 });
 
-test('the default pattern type is an active one', () => {
+test('the default pattern type is an active one, and leading the menu did not make it the default (PQW-990)', () => {
   assert.ok(isAvailableType(DEFAULT_PATTERN_TYPE));
+  assert.equal(DEFAULT_PATTERN_TYPE, 'regular');
 });
 
 test('isAvailableType is true only for an enabled, known id', () => {
