@@ -24,12 +24,13 @@ const patternType = (id: PatternTypeId, available: boolean): PatternType => ({
   },
 });
 
+// KB: interface.md §56 — the free-form designer leads the menu (PQW-990).
 export const PATTERN_TYPES: readonly PatternType[] = [
+  patternType('irregular', true),
   patternType('regular', true),
   // KB: interface.md §9 — disabled, not withdrawn.
   patternType('filet', false),
   patternType('amigurumi', false),
-  patternType('irregular', true),
 ];
 
 export const DEFAULT_PATTERN_TYPE: PatternTypeId = 'regular';

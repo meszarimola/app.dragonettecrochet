@@ -880,7 +880,7 @@ the tool down and arming it again.
 Cited from: `src/ui/irregular-editor.ts` (`#loose`, `#shifted`, `typeArcCount`,
 `#onDown`) and `src/ui/main.ts` (`irregularKey`).
 
-## §45 Isolating is a view; repeating is an edit
+## §45 Isolating is a view
 
 **Kiemelés** puts the rest of the pattern out of reach so one part of a busy
 chart can be worked on. It is a view and nothing else: it records no undo step,
@@ -902,17 +902,13 @@ Escape. A new pattern clears it for the same reason.
 A cage that a keyboard shortcut steps over is not a cage: isolating three
 stitches and pressing Ctrl+A then Delete would have emptied the chart.
 
-**Whatever is made while isolating joins the isolation** — a placed, pasted,
-duplicated or repeated stitch. Otherwise it would be selected and faded at once:
+**Whatever is made while isolating joins the isolation** — a placed, pasted
+or copied stitch. Otherwise it would be selected and faded at once:
 movable from the panel, unclickable on the canvas.
 
-**Körkörös ismétlés** is the opposite — an ordinary edit, one undo step. Its
-centre is the circle guide's middle when the guide is showing, because that is
-the wheel being worked around; otherwise the middle of what is selected. The
-count includes the original, so eight means a doily of eight sectors, and the
-label says so.
+The circular repeat that stood beside it was removed in PQW-1006; see §57.
 
-Cited from: `src/ui/irregular-editor.ts` (`toggleIsolate`, `repeatAround`) and
+Cited from: `src/ui/irregular-editor.ts` (`toggleIsolate`) and
 `src/ui/irregular-board.ts` (`#reachable`).
 
 ## §46 A row line is reshaped on its own; the stitches follow on a button
@@ -1327,7 +1323,9 @@ it, and opening it puts the focus on the current type. The open-state key of the
 old bar (`dc-mintatervezo:mintatipus`, §5) is no longer read or written. The
 irregular type is called „Szabad tervező” in the interface — the type name, and
 the heading of its shortcut list; the pattern it makes is still an irregular one,
-so „Új szabálytalan minta” stays.
+so „Új szabálytalan minta” stays. The owner asked for it to lead the menu
+(PQW-990); the default for a first visit is still „Szabályos horgolás”, which
+`DEFAULT_PATTERN_TYPE` holds apart from the list order.
 
 **The stitches took the left column.** `#section-stitches` is an `<aside>` where
 the type bar stood, `--stitches-width` wide (17 rem: 18 and 19 rem measured only
@@ -1358,9 +1356,12 @@ overflow `.tools`, writing it to `.bar[data-fit]`:
 | step | what gives way |
 |---|---|
 | 0 | nothing |
-| 1 | the view group folds into the „Nézet” menu |
-| 2 | the labels go; the icon, the target and the `data-tip` bubble stay |
-| 3 | the title and the home link's text go (the mark stays), and the gaps shrink |
+| 1 | the labels go; the icon, the target and the `data-tip` bubble stay |
+| 2 | the title and the home link's text go (the mark stays), and the gaps shrink |
+
+(Until PQW-1006 there was a step before the labels that folded the view group
+into the „Nézet” menu. The view group is a menu in every width now — §57 — so
+that step is gone and the numbers above moved down by one.)
 
 The steps are measured, not set by media query, because the width that needs
 them depends on the type and the language: the free-form bar with labels wants
@@ -1411,3 +1412,51 @@ tool on screen at 1440 × 900 and 1000 × 506 in both types, the menu at the
 owner's size, the labelled group at 1920, the shared toggle. The specs that
 click a pattern type now open `#types-toggle` first, and the free-form specs that
 click „Rács” at 1440 open `#view-toggle` first, because that bar is at step 1.
+
+## §57 The free-form bar: tools in the bar, settings in menus
+
+PQW-1006, the first step of the free-form redesign. The owner's reading of
+v0.58.0: the arc and fan tools looked highlighted, „láncív” was on the palette
+and on the bar meaning two things, „Duplikálás” and „Ismétlés” could not be told
+apart, „Nézet” did not look like a menu, and the panel mixed the selection with
+export, background picture, guides and row numbers.
+
+**What moved where.**
+
+| was | is |
+|---|---|
+| „Láncív”, „Legyező” in the bar | „Ív húzása”, „Legyező húzása” — the palette keeps its „láncív” symbol |
+| „Felirat”, „Nyíl”, „Zárójel” in the bar | the „Jelölések” menu (`#notes-toggle`), with „Sorszámok minden sorhoz” and „Kezdőpont az aktív körre” from the panel |
+| „Duplikálás” | „Másolás” — the same action, `duplicate-selection`, Ctrl+D |
+| „Ismétlés” and the panel's „Körkörös ismétlés” | removed, with `src/core/irregular-repeat.ts` |
+| the panel's „Segédvonalak” | the „Nézet” menu: Körrács and Illesztés on top, the numbers behind „Segédvonalak beállításai” |
+| PNG and SVG in the file menu, „Kép és PDF” in the panel | „Exportálás…” in the file menu opens `#export-dialog`: picture options, PNG, SVG; print options, PDF; and the grid option from „Minta” |
+| „Kép betöltése / eltávolítása” in the panel | „Háttérkép betöltése… / eltávolítása” in the file menu; the picture's own fields stay in the panel, shown only while there is a picture |
+
+**Why the circular repeat went.** The owner: „gyakorlati értelme nincs. ha
+valaki másolni szeretne körben - ott már a szemek száma nem fog stimmelni.” A
+round has more stitches than the one before it, so a motif copied around the
+centre never has the right count. See `owner-decisions.md`.
+
+**Why the icons looked highlighted.** Nothing highlighted them. The arc's three
+tiny chain ovals and the fan's five rays met in a few pixels and printed as a
+dark blob next to the outline icons. The new ones have fewer, longer strokes.
+The only real emphasis is `aria-pressed`; a menu of tools shows it with
+`.is-armed` while one of its tools is armed, and „Terület” is no longer pressed
+at the same time as an armed annotation tool.
+
+**„Nézet” is a menu in every width** and carries a caret, as „Fájl” and
+„Jelölések” do. The caret sits in the button's corner, not in the label, so it
+survives the step that drops the labels; that step also leaves the labels of
+menu items alone. The regular type shares the menu, so its zoom buttons are one
+click further than before — the wheel still zooms.
+
+**The moved controls are found in the page, not the section.**
+`IrregularPanel` reads the guides, the export options and the annotation
+commands from `section.ownerDocument`, because they no longer live inside
+`#section-irregular`. `showIrregularView` hides the free-form-only parts of the
+menus and of the dialog in the other types.
+
+**What the tests pin.** The specs open `#view-toggle`, `#notes-toggle` or
+`#export-open` before the control they drive; `e2e/egysoros-sav.spec.ts` pins
+the menu at 1920 px and `data-fit` 2 at the owner's size.

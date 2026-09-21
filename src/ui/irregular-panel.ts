@@ -46,8 +46,6 @@ export interface IrregularPanelHost {
   flipArrangeSide(): void;
   setPerpendicular(on: boolean): void;
   clearRowLine(): void;
-  setRepeat(count: number, range: number): void;
-  repeat(): void;
   loadBackground(): void;
   removeBackground(): void;
   patchBackground(patch: BackgroundPatch): void;
@@ -140,9 +138,6 @@ export class IrregularPanel {
   readonly #arrange: HTMLElement;
   readonly #rowLineRow: HTMLElement;
   readonly #perpendicular: HTMLInputElement;
-  readonly #repeat: HTMLElement;
-  readonly #repeatCount: HTMLInputElement;
-  readonly #repeatRange: HTMLInputElement;
   readonly #bgFields: HTMLElement;
   readonly #bgOpacity: HTMLInputElement;
   readonly #bgScale: HTMLInputElement;
@@ -168,6 +163,9 @@ export class IrregularPanel {
   constructor(section: HTMLDetailsElement, host: IrregularPanelHost) {
     this.#section = section;
     this.#host = host;
+    // KB: interface.md §57 — the guides, the export options and the annotation
+    // commands live in the bar's menus and the export dialog, not in the section.
+    const page = section.ownerDocument;
     this.#empty = must<HTMLElement>(section, '#props-empty');
     this.#fields = must<HTMLElement>(section, '#props-fields');
     this.#count = must<HTMLElement>(section, '#props-count');
@@ -181,15 +179,15 @@ export class IrregularPanel {
     this.#insertionField = must<HTMLElement>(section, '#prop-insertion').closest('p') ?? this.#fields;
     this.#color = must<HTMLInputElement>(section, '#prop-color');
     this.#rectMode = must<HTMLSelectElement>(section, '#prop-rect-mode');
-    this.#gridSize = must<HTMLInputElement>(section, '#guide-grid-size');
-    this.#snap = must<HTMLInputElement>(section, '#guide-snap');
-    this.#polar = must<HTMLInputElement>(section, '#guide-polar');
-    this.#polarFields = must<HTMLElement>(section, '#guide-polar-fields');
-    this.#rings = must<HTMLInputElement>(section, '#guide-rings');
-    this.#spacing = must<HTMLInputElement>(section, '#guide-spacing');
-    this.#spokes = must<HTMLInputElement>(section, '#guide-spokes');
-    this.#startAngle = must<HTMLInputElement>(section, '#guide-start-angle');
-    this.#radial = must<HTMLInputElement>(section, '#guide-radial');
+    this.#gridSize = must<HTMLInputElement>(page, '#guide-grid-size');
+    this.#snap = must<HTMLInputElement>(page, '#guide-snap');
+    this.#polar = must<HTMLInputElement>(page, '#guide-polar');
+    this.#polarFields = must<HTMLElement>(page, '#guide-polar-fields');
+    this.#rings = must<HTMLInputElement>(page, '#guide-rings');
+    this.#spacing = must<HTMLInputElement>(page, '#guide-spacing');
+    this.#spokes = must<HTMLInputElement>(page, '#guide-spokes');
+    this.#startAngle = must<HTMLInputElement>(page, '#guide-start-angle');
+    this.#radial = must<HTMLInputElement>(page, '#guide-radial');
     this.#arc = must<HTMLElement>(section, '#props-arc');
     this.#arcCount = must<HTMLInputElement>(section, '#arc-count');
     this.#arcShape = must<HTMLSelectElement>(section, '#arc-shape');
@@ -202,9 +200,6 @@ export class IrregularPanel {
     this.#arrange = must<HTMLElement>(section, '#props-arrange');
     this.#rowLineRow = must<HTMLElement>(section, '#rowline-row');
     this.#perpendicular = must<HTMLInputElement>(section, '#arrange-perpendicular');
-    this.#repeat = must<HTMLElement>(section, '#props-repeat');
-    this.#repeatCount = must<HTMLInputElement>(section, '#repeat-count');
-    this.#repeatRange = must<HTMLInputElement>(section, '#repeat-range');
     this.#bgFields = must<HTMLElement>(section, '#bg-fields');
     this.#bgOpacity = must<HTMLInputElement>(section, '#bg-opacity');
     this.#bgScale = must<HTMLInputElement>(section, '#bg-scale');
@@ -212,12 +207,12 @@ export class IrregularPanel {
     this.#bgVisible = must<HTMLInputElement>(section, '#bg-visible');
     this.#bgLocked = must<HTMLInputElement>(section, '#bg-locked');
     this.#bgInExport = must<HTMLInputElement>(section, '#bg-in-export');
-    this.#exportScale = must<HTMLSelectElement>(section, '#export-scale');
-    this.#exportTransparent = must<HTMLInputElement>(section, '#export-transparent');
-    this.#exportSize = must<HTMLSelectElement>(section, '#export-page-size');
-    this.#exportOrientation = must<HTMLSelectElement>(section, '#export-orientation');
-    this.#exportAcross = must<HTMLInputElement>(section, '#export-across');
-    this.#exportDown = must<HTMLInputElement>(section, '#export-down');
+    this.#exportScale = must<HTMLSelectElement>(page, '#export-scale');
+    this.#exportTransparent = must<HTMLInputElement>(page, '#export-transparent');
+    this.#exportSize = must<HTMLSelectElement>(page, '#export-page-size');
+    this.#exportOrientation = must<HTMLSelectElement>(page, '#export-orientation');
+    this.#exportAcross = must<HTMLInputElement>(page, '#export-across');
+    this.#exportDown = must<HTMLInputElement>(page, '#export-down');
     this.#note = must<HTMLElement>(section, '#props-note');
     this.#noteText = must<HTMLInputElement>(section, '#note-text');
     this.#noteSize = must<HTMLInputElement>(section, '#note-size');
@@ -227,6 +222,7 @@ export class IrregularPanel {
   }
 
   #listen(): void {
+    const page = this.#section.ownerDocument;
     this.#x.addEventListener('change', () => this.#number(this.#x, (value) => this.#host.patch({ x: value })));
     this.#y.addEventListener('change', () => this.#number(this.#y, (value) => this.#host.patch({ y: value })));
     this.#width.addEventListener('change', () => this.#number(this.#width, (value) => this.#resize('width', value)));
@@ -311,16 +307,8 @@ export class IrregularPanel {
     );
     must<HTMLButtonElement>(this.#section, '#rowline-clear').addEventListener('click', () => this.#host.clearRowLine());
     this.#perpendicular.addEventListener('change', () => this.#host.setPerpendicular(this.#perpendicular.checked));
-    const sendRepeat = (): void => {
-      const count = Number(this.#repeatCount.value);
-      const range = Number(this.#repeatRange.value);
-      if (Number.isFinite(count) && Number.isFinite(range)) this.#host.setRepeat(count, range);
-    };
-    this.#repeatCount.addEventListener('change', sendRepeat);
-    this.#repeatRange.addEventListener('change', sendRepeat);
-    must<HTMLButtonElement>(this.#section, '#repeat-run').addEventListener('click', () => this.#host.repeat());
-    must<HTMLButtonElement>(this.#section, '#bg-load').addEventListener('click', () => this.#host.loadBackground());
-    must<HTMLButtonElement>(this.#section, '#bg-remove').addEventListener('click', () => this.#host.removeBackground());
+    must<HTMLButtonElement>(page, '#bg-load').addEventListener('click', () => this.#host.loadBackground());
+    must<HTMLButtonElement>(page, '#bg-remove').addEventListener('click', () => this.#host.removeBackground());
     this.#bgOpacity.addEventListener('change', () =>
       this.#number(this.#bgOpacity, (value) => this.#host.patchBackground({ opacity: value / 100 })),
     );
@@ -363,15 +351,15 @@ export class IrregularPanel {
     this.#exportDown.addEventListener('change', () =>
       this.#number(this.#exportDown, (value) => this.#host.setExport({ down: value })),
     );
-    must<HTMLButtonElement>(this.#section, '#export-pdf').addEventListener('click', () => this.#host.savePdf());
+    must<HTMLButtonElement>(page, '#export-pdf').addEventListener('click', () => this.#host.savePdf());
     this.#noteText.addEventListener('change', () => this.#host.patchNotes({ text: this.#noteText.value }));
     this.#noteSize.addEventListener('change', () =>
       this.#number(this.#noteSize, (value) => this.#host.patchNotes({ fontSize: value })),
     );
     this.#noteArrow.addEventListener('change', () => this.#host.patchNotes({ withArrow: this.#noteArrow.checked }));
     this.#noteDotted.addEventListener('change', () => this.#host.patchNotes({ dotted: this.#noteDotted.checked }));
-    must<HTMLButtonElement>(this.#section, '#notes-numbers').addEventListener('click', () => this.#host.numberRows());
-    must<HTMLButtonElement>(this.#section, '#notes-start').addEventListener('click', () => this.#host.addStartMarker());
+    must<HTMLButtonElement>(page, '#notes-numbers').addEventListener('click', () => this.#host.numberRows());
+    must<HTMLButtonElement>(page, '#notes-start').addEventListener('click', () => this.#host.addStartMarker());
   }
 
   /** A fresh annotation has no words yet, so the field is ready for them. */
@@ -422,8 +410,9 @@ export class IrregularPanel {
   }
 
   updateBackground(background: BackgroundImage | null, naturalWidth: number): void {
+    must<HTMLElement>(this.#section, '#props-background').hidden = background === null;
     this.#bgFields.hidden = background === null;
-    must<HTMLButtonElement>(this.#section, '#bg-remove').disabled = background === null;
+    must<HTMLButtonElement>(this.#section.ownerDocument, '#bg-remove').disabled = background === null;
     if (background === null) return;
     // Without the picture there is no natural size, and a made-up one would
     // turn the next edit into a collapse the user cannot see happening.
@@ -437,10 +426,6 @@ export class IrregularPanel {
     this.#setToggle(this.#bgVisible, background.visible);
     this.#setToggle(this.#bgLocked, background.locked);
     this.#setToggle(this.#bgInExport, background.inExport);
-  }
-
-  updateRepeat(shown: boolean): void {
-    this.#repeat.hidden = !shown;
   }
 
   updateArrange(view: ArrangeView): void {

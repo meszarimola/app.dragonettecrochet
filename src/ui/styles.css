@@ -690,34 +690,37 @@ body.is-selecting #board-irregular {
   flex: 1 1 0;
 }
 
-/* KB: interface.md §56 — `data-fit` is how many steps the bar has given way to stay
-   one line: 1 folds the view group, 2 drops the labels, 3 the title and some air. */
+/* KB: interface.md §56, §57 — `data-fit` is how many steps the bar has given way to stay
+   one line: 1 drops the labels, 2 the title and some air. A menu keeps its words. */
 /* KB: interface.md §56 — the findings count is data, not a caption. */
-.bar:is([data-fit="2"], [data-fit="3"]) .tools .tool:not(.tool--errors) .tool__label,
-.bar:is([data-fit="2"], [data-fit="3"]) .tool--errors:not(.has-errors, .has-warnings) .tool__label {
+.bar:is([data-fit="1"], [data-fit="2"])
+  .tools
+  .tool:not(.tool--errors, :is(.menu__pop, .view-menu__pop) .tool)
+  .tool__label,
+.bar:is([data-fit="1"], [data-fit="2"]) .tool--errors:not(.has-errors, .has-warnings) .tool__label {
   display: none;
 }
 
-.bar[data-fit="3"] {
+.bar[data-fit="2"] {
   padding-inline: var(--sp-2);
 }
 
-.bar[data-fit="3"] .tools,
-.bar[data-fit="3"] .tools__chrome,
-.bar[data-fit="3"] .tools__context {
+.bar[data-fit="2"] .tools,
+.bar[data-fit="2"] .tools__chrome,
+.bar[data-fit="2"] .tools__context {
   column-gap: var(--sp-0);
 }
 
-.bar[data-fit="3"] .tools__group + .tools__group {
+.bar[data-fit="2"] .tools__group + .tools__group {
   padding-inline-start: var(--sp-0);
 }
 
-.bar[data-fit="3"] .home {
+.bar[data-fit="2"] .home {
   padding-inline: var(--sp-2);
 }
 
-.bar[data-fit="3"] .home > span,
-.bar[data-fit="3"] .bar__title {
+.bar[data-fit="2"] .home > span,
+.bar[data-fit="2"] .bar__title {
   position: absolute;
   inline-size: 1px;
   block-size: 1px;
@@ -726,27 +729,17 @@ body.is-selecting #board-irregular {
   white-space: nowrap;
 }
 
-/* KB: interface.md §56 — the view group is part of the line until the window is narrow. */
-.tools .tool.view-menu__toggle {
-  display: none;
-}
-
+/* KB: interface.md §57 — the view group is always a menu, with its caret showing it. */
 .view-menu__pop {
-  display: flex;
-  gap: var(--sp-0);
-}
-
-.bar:not([data-fit="0"]) .tools .tool.view-menu__toggle {
-  display: inline-grid;
-}
-
-.bar:not([data-fit="0"]) .view-menu__pop {
   position: absolute;
   z-index: 20;
   inset-block-start: calc(100% + var(--sp-1));
   inset-inline-end: 0;
   display: grid;
-  min-inline-size: 12rem;
+  gap: var(--sp-0);
+  min-inline-size: 15rem;
+  max-block-size: min(80vh, 40rem);
+  overflow-y: auto;
   padding: var(--sp-1);
   border: 1px solid var(--c-line);
   border-radius: var(--radius-lg);
@@ -754,11 +747,11 @@ body.is-selecting #board-irregular {
   box-shadow: var(--shadow-1);
 }
 
-.bar:not([data-fit="0"]) .view-menu:not(.is-open) > .view-menu__pop {
+.view-menu:not(.is-open) > .view-menu__pop {
   display: none;
 }
 
-.bar:not([data-fit="0"]) .view-menu__pop .tool {
+.tools .view-menu__pop .tool {
   grid-template-columns: auto 1fr;
   gap: var(--sp-1);
   justify-items: start;
@@ -768,9 +761,59 @@ body.is-selecting #board-irregular {
   border-color: transparent;
 }
 
-.bar:not([data-fit="0"]) .view-menu__pop .tool__label {
-  display: inline;
+.tools .view-menu__pop .tool__label {
   font-size: 0.8125rem;
+}
+
+.view-menu__guides {
+  display: grid;
+  gap: var(--sp-0);
+  margin-block-start: var(--sp-0);
+  padding: var(--sp-1) var(--sp-1) 0;
+  border-block-start: 1px solid var(--c-line);
+  font-size: 0.8125rem;
+}
+
+.view-menu__guides .choice {
+  margin: 0;
+}
+
+.view-menu__more > summary {
+  padding-block: var(--sp-1);
+  color: var(--c-accent);
+  cursor: pointer;
+}
+
+.view-menu__more .panel__field,
+.view-menu__more .choice,
+.view-menu__more .panel__note {
+  max-inline-size: 15rem;
+}
+
+.tools .tool:has(> .tool__caret) {
+  position: relative;
+}
+
+.tool__caret {
+  position: absolute;
+  inset-block-start: 5px;
+  inset-inline-end: 4px;
+  inline-size: 0;
+  block-size: 0;
+  border-inline: 3px solid transparent;
+  border-block-start: 4px solid currentColor;
+}
+
+.menu__pop .tool__caret,
+.view-menu__pop .tool__caret {
+  display: none;
+}
+
+/* KB: interface.md §57 — a menu of tools shows when one of its tools is armed. */
+.tool.is-armed {
+  border-color: var(--c-accent);
+  background: var(--c-selection);
+  color: var(--c-accent);
 }
 
 /* KB: interface.md §52 — the toolbar is denser than the scale on purpose. */
@@ -1223,6 +1266,65 @@ body.is-selecting #board-irregular {
   padding-block: 0.35rem;
   color: var(--c-muted);
   cursor: pointer;
+}
+
+/* KB: interface.md §57 */
+.export {
+  inline-size: min(44rem, calc(100vw - 2rem));
+  padding: var(--sp-4) var(--sp-4) var(--sp-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-lg);
+  background: var(--c-bg);
+  color: var(--c-text);
+}
+
+.export::backdrop {
+  background: rgba(36, 31, 43, 0.35);
+}
+
+.export__title {
+  margin: 0 0 var(--sp-2);
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 400;
+  color: var(--c-ink);
+}
+
+.export__parts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  column-gap: var(--sp-5);
+  border-block-start: 1px solid var(--c-line);
+}
+
+.export__part {
+  align-content: start;
+  display: grid;
+  gap: var(--sp-1);
+  padding-block: var(--sp-2);
+}
+
+.export__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-1) var(--sp-2);
+  align-items: end;
+}
+
+.export__fields > p,
+.export__part > p {
+  margin: 0;
+}
+
+.export__actions {
+  display: flex;
+  gap: var(--sp-1);
+}
+
+.export__close {
+  display: flex;
+  justify-content: flex-end;
+  margin: var(--sp-1) 0 0;
 }
 
 .ask {

@@ -284,3 +284,17 @@ single block each, so they stay ready to run. In the interface only the regular
 pattern type is active, the rest are inactive and marked; the sections of the
 switched-off crochet kinds are not built into the panel at all; and the granny
 square cannot be chosen in the motif chooser.
+
+## §14 No circular repeat in the free-form designer
+
+**Decided:** the free-form designer copies with „Másolás” only. The circular
+repeat („Ismétlés”, „Körkörös ismétlés”) is removed.
+
+> „értem, a körmásolást, de gyakorlati értelme nincs. ha valaki másolni szeretne
+> körben - ott már a szemek száma nem fog stimmelni”
+
+Every round has more stitches than the one before it, so a motif copied around
+the centre can never have the right count. Two buttons for copying only
+confused the user.
+
+**Ticket:** PQW-1006. See `interface.md` §57.

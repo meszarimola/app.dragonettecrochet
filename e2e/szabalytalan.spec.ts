@@ -73,7 +73,7 @@ test('selecting, duplicating and undo (AS-15, AS-19)', async ({ page }) => {
   await page.keyboard.press('ControlOrMeta+A');
   await expect(page.locator('#status')).toContainText('3 szem kijelölve');
 
-  await page.getByRole('button', { name: 'Duplikálás' }).click();
+  await page.getByRole('button', { name: 'Másolás' }).click();
   await expect(page.locator('#status')).toContainText('3 szem másolva');
 
   // Undo takes the copies back, so nothing that was selected is left.
@@ -164,7 +164,7 @@ test('keys that belong to rows never reach the regular pattern hiding behind thi
     await page.keyboard.press(key);
   }
   // Delete with a toolbar button focused used to delete the regular pattern's last stitch.
-  await page.getByRole('button', { name: 'Duplikálás' }).focus();
+  await page.getByRole('button', { name: 'Másolás' }).focus();
   await page.keyboard.press('Delete');
   await page.keyboard.press('Backspace');
 
@@ -313,10 +313,11 @@ test('snapping puts a new stitch on the grid, whatever the click hits', async ({
   await open(page);
   await chooseIrregular(page);
 
+  // The guides live in the view menu, their settings behind its disclosure (interface.md §57).
+  await page.locator('#view-toggle').click();
+  await page.locator('.view-menu__more > summary').click();
   await page.locator('#guide-grid-size').fill('25');
   await page.locator('#guide-grid-size').blur();
-  // The free-form bar folds its view group at 1440 px (interface.md §56).
-  await page.locator('#view-toggle').click();
   await page.locator('[data-action="grid"]').click();
   await page.locator('#guide-snap').check();
   await expect(page.locator('#guide-snap')).toBeChecked();
@@ -346,6 +347,9 @@ test('the circle guide turns the new stitches away from its middle (AS-6 előké
   await open(page);
   await chooseIrregular(page);
 
+  // The guides live in the view menu, their settings behind its disclosure (interface.md §57).
+  await page.locator('#view-toggle').click();
+  await page.locator('.view-menu__more > summary').click();
   await page.locator('#guide-polar').check();
   await expect(page.locator('#guide-polar-fields')).toBeVisible();
   await page.locator('#guide-radial').check();
@@ -386,12 +390,15 @@ test('⌘ a húzáson az illesztést kapcsolja ki, nem a kijelölést bontja meg
   if (first === undefined) throw new Error('no stitch');
   const view = { x: 500 - first.x, y: 300 - first.y };
 
+  // The guides live in the view menu, their settings behind its disclosure (interface.md §57).
+  await page.locator('#view-toggle').click();
+  await page.locator('.view-menu__more > summary').click();
   await page.locator('#guide-grid-size').fill('20');
   await page.locator('#guide-grid-size').blur();
-  // The free-form bar folds its view group at 1440 px (interface.md §56).
-  await page.locator('#view-toggle').click();
   await page.locator('[data-action="grid"]').click();
   await page.locator('#guide-snap').check();
+  // The menu stays open for the next setting, so it is closed before the canvas gets the keys.
+  await page.locator('#view-toggle').click();
 
   await page.locator(board).focus();
   await page.keyboard.press('Escape');
@@ -441,10 +448,11 @@ test('⌘ a lerakásnál is kikapcsolja az illesztést, nem csak húzásnál (PQ
   if (origin === undefined) throw new Error('no stitch');
   const view = { x: 500 - origin.x, y: 300 - origin.y };
 
+  // The guides live in the view menu, their settings behind its disclosure (interface.md §57).
+  await page.locator('#view-toggle').click();
+  await page.locator('.view-menu__more > summary').click();
   await page.locator('#guide-grid-size').fill('25');
   await page.locator('#guide-grid-size').blur();
-  // The free-form bar folds its view group at 1440 px (interface.md §56).
-  await page.locator('#view-toggle').click();
   await page.locator('[data-action="grid"]').click();
   await page.locator('#guide-snap').check();
 
@@ -490,7 +498,7 @@ test('láncív: rajzolás húzással, majd N átállítása 7-re (AS-3)', async 
   // The free-form tool group is hidden in the other types, so its tooltip is checked here.
   const arcTool = page.locator('[data-action="chain-arc"]');
   await expect(arcTool).toBeVisible();
-  await expect(arcTool).toHaveAttribute('data-tip', /Láncív/);
+  await expect(arcTool).toHaveAttribute('data-tip', /Ív húzása/);
   await arcTool.click();
   await expect(arcTool).toHaveAttribute('aria-pressed', 'true');
 
@@ -871,55 +879,6 @@ test('a sorvonal fogantyúval átalakítható, a szemek csak az Egyenletessé te
   expect(evened.ys[3], 'az utolsó szem a vonal új végén').toBeGreaterThan(before.ys[3]);
 });
 
-test('körkörös ismétlés: nyolc szektor a körrács közepe körül (AS-8)', async ({ page }) => {
-  await open(page);
-  await chooseIrregular(page);
-  await page.locator('#guide-polar').check();
-  await armDoubleCrochet(page);
-  await place(page, 560, 260);
-  await page.locator(board).focus();
-  await page.keyboard.press('Escape');
-  await page.locator(board).click({ position: { x: 560, y: 260 } });
-  await expect(page.locator('#props-count')).toContainText('1');
-  await expect(page.locator('#props-repeat')).toBeVisible();
-
-  await page.locator('#repeat-count').fill('8');
-  await page.locator('#repeat-count').blur();
-  await page.locator('#repeat-run').click();
-
-  const state = async (): Promise<{ count: number; radii: number[]; angles: number[] }> =>
-    page.evaluate(() => {
-      const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
-      const parsed = JSON.parse(raw);
-      const middle = parsed.guides.polar.center;
-      const items = parsed.items ?? [];
-      return {
-        count: items.length,
-        radii: items.map((item: { x: number; y: number }) => Math.hypot(item.x - middle.x, item.y - middle.y)),
-        angles: items
-          .map((item: { x: number; y: number }) => {
-            const raw = (Math.atan2(item.x - middle.x, middle.y - item.y) * 180) / Math.PI;
-            return (raw + 360) % 360;
-          })
-          .sort((a: number, b: number) => a - b),
-      };
-    });
-
-  const made = await state();
-  expect(made.count, 'nyolc darab, az eredetivel együtt').toBe(8);
-  for (const radius of made.radii) {
-    expect(Math.abs(radius - made.radii[0]), 'mind ugyanolyan messze a középponttól').toBeLessThan(0.001);
-  }
-  for (let i = 1; i < made.angles.length; i += 1) {
-    expect(made.angles[i] - made.angles[i - 1], 'negyvenöt fokonként').toBeCloseTo(45, 3);
-  }
-
-  // One undo step takes the whole ring back.
-  await page.locator(board).focus();
-  await page.keyboard.press('Control+z');
-  expect((await state()).count, 'egyetlen visszavonás viszi vissza az egészet').toBe(1);
-});
-
 test('saját szem: hozzáadás a jelkulcshoz, majd lerakás (FR-KEY-4)', async ({ page }) => {
   await open(page);
   await chooseIrregular(page);
@@ -976,6 +935,7 @@ test('export: SVG, PNG és PDF a szabálytalan típusból (AS-13)', async ({ pag
 
   const svgDownload = page.waitForEvent('download');
   await page.locator('#file-toggle').click();
+  await page.locator('#export-open').click();
   await page.locator('[data-action="export-svg"]').click();
   const svg = await readFile((await (await svgDownload).path()) ?? '', 'utf8');
   expect(svg.startsWith('<svg'), 'vektoros SVG készült').toBe(true);
@@ -990,6 +950,7 @@ test('export: SVG, PNG és PDF a szabálytalan típusból (AS-13)', async ({ pag
   await page.locator('#rows-list li').nth(1).getByRole('button', { name: 'Látható' }).click();
   const shownAgain = page.waitForEvent('download');
   await page.locator('#file-toggle').click();
+  await page.locator('#export-open').click();
   await page.locator('[data-action="export-svg"]').click();
   const all = await readFile((await (await shownAgain).path()) ?? '', 'utf8');
   const drawnAll = (all.match(/<(path|ellipse|circle|line)\b/g) ?? []).length;
@@ -998,11 +959,16 @@ test('export: SVG, PNG és PDF a szabálytalan típusból (AS-13)', async ({ pag
 
   const pngDownload = page.waitForEvent('download');
   await page.locator('#file-toggle').click();
+  await page.locator('#export-open').click();
   await page.locator('[data-action="export-png"]').click();
   const png = await (await pngDownload).path();
   expect(png, 'PNG is készült').toBeTruthy();
+  // The dialog's opener is in a closed menu, so the focus returns to the menu's button.
+  await expect(page.locator('#file-toggle')).toBeFocused();
 
-  // PDF over four pages, from the panel.
+  // PDF over four pages, from the export dialog.
+  await page.locator('#file-toggle').click();
+  await page.locator('#export-open').click();
   await page.locator('#export-across').fill('2');
   await page.locator('#export-across').blur();
   await page.locator('#export-down').fill('2');
@@ -1038,6 +1004,7 @@ test('feliratok: sorszámok követik a sort, és nem számítanak szemnek (AS-9)
     counts: await page.locator('#rows-list li').allInnerTexts(),
   });
 
+  await page.locator('#notes-toggle').click();
   await page.locator('#notes-numbers').click();
   const made = await read();
   expect(made.labels, 'soronként egy sorszám').toHaveLength(2);
@@ -1056,11 +1023,14 @@ test('feliratok: sorszámok követik a sort, és nem számítanak szemnek (AS-9)
   expect(first?.text, 'a nyíl megfordult').toContain('←');
 
   // A second press adds nothing: every row already has one.
+  await page.locator('#notes-toggle').click();
   await page.locator('#notes-numbers').click();
   expect((await read()).labels, 'nem duplázódik').toHaveLength(2);
 
   // The numbers go into the print too, not only into the picture.
   const pdfDownload = page.waitForEvent('download');
+  await page.locator('#file-toggle').click();
+  await page.locator('#export-open').click();
   await page.locator('#export-pdf').click();
   const pdf = await readFile((await (await pdfDownload).path()) ?? '');
   const inside = pdf.toString('latin1');
@@ -1071,6 +1041,7 @@ test('felirat és nyíl: lerakás, szöveg és betűméret (FR-ANN-5, FR-ANN-6)'
   await open(page);
   await chooseIrregular(page);
 
+  await page.locator('#notes-toggle').click();
   await page.locator('[data-action="note-text"]').click();
   await page.locator(board).click({ position: { x: 520, y: 320 } });
   await expect(page.locator('#props-note'), 'megjelenik a felirat blokkja').toBeVisible();
@@ -1093,6 +1064,7 @@ test('felirat és nyíl: lerakás, szöveg és betűméret (FR-ANN-5, FR-ANN-6)'
   expect((await notes())[0].fontSize, 'a betűméret állítható').toBe(28);
 
   // An arrow is drawn by dragging, and carries no text.
+  await page.locator('#notes-toggle').click();
   await page.locator('[data-action="note-arrow"]').click();
   const rect = await page.locator(board).boundingBox();
   if (rect === null) throw new Error('no board');
@@ -1235,10 +1207,11 @@ test('a láncív azt rögzíti, amit az előkép mutatott, akkor is, ha a ⌘-t 
   });
   const view = { x: 500 - origin.x, y: 300 - origin.y };
 
+  // The guides live in the view menu, their settings behind its disclosure (interface.md §57).
+  await page.locator('#view-toggle').click();
+  await page.locator('.view-menu__more > summary').click();
   await page.locator('#guide-grid-size').fill('20');
   await page.locator('#guide-grid-size').blur();
-  // The free-form bar folds its view group at 1440 px (interface.md §56).
-  await page.locator('#view-toggle').click();
   await page.locator('[data-action="grid"]').click();
   await page.locator('#guide-snap').check();
 

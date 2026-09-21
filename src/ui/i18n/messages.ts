@@ -73,7 +73,7 @@ const hu = {
   },
 
   hint: {
-    none: 'Válassz szemet. Szem nélkül a kattintás kijelöl: Shift-tel többet, a sorszámmal a teljes sort. A kijelöltet törölheted, duplikálhatod vagy igazíthatod.',
+    none: 'Válassz szemet. Szem nélkül a kattintás kijelöl: Shift-tel többet, a sorszámmal a teljes sort. A kijelöltet törölheted, másolhatod vagy igazíthatod.',
     chain: (name: string): string => `${name}: Enterrel vagy a vászonra kattintva horgolod, a megadott számú láncszemmel.`,
     simple: (name: string): string => `${name}: Enterrel vagy a vászonra kattintva horgolod.`,
     targeted: (name: string): string => `${name}: nyilakkal választod a célpontot, Enterrel vagy kattintással horgolsz bele.`,
@@ -163,13 +163,13 @@ const hu = {
     deleteCancelled: 'A törlés megszakítva; a minta nem változott.',
     deleted: (count: number): string => `${count} szem törölve.`,
     nothingToCopy: 'Nincs kijelölt szem a másoláshoz.',
-    nothingToDuplicate: 'Nincs kijelölt szem a duplikáláshoz.',
+    nothingToDuplicate: 'Nincs kijelölt szem a másoláshoz.',
     copied: (count: number, where: string): string => `${count} szem a vágólapon; Ctrl+V: beillesztés ${where}.`,
     asLayer: (round: boolean): string => `új ${round ? 'körként' : 'sorként'}`,
     atCursor: 'a kurzortól',
     clipboardEmpty: 'A vágólap üres: jelölj ki szemeket, és másold ki őket (Ctrl+C).',
     pasted: (count: number): string => `${count} szem beillesztve.`,
-    duplicated: (count: number): string => `A kijelölés duplikálva (${count} szem).`,
+    duplicated: (count: number): string => `A kijelölés másolva (${count} szem).`,
     emptyPattern: 'A minta üres: nincs mit kijelölni.',
   },
 
