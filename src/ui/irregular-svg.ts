@@ -9,25 +9,17 @@ import {
   type IrregularItem,
   type IrregularPattern,
   isStitch,
-  type LegendBlock,
   type PolarGuide,
 } from '../core/irregular-types.ts';
 import { escapeXml, shapeToSvg } from './chart-svg.ts';
 import { itemShapes } from './irregular-glyph.ts';
 import { noteDrawing } from './irregular-note.ts';
-import { type Shape, type SymbolOptions, shapesBounds } from './symbols.ts';
-
-export interface LegendLine {
-  readonly shapes: readonly Shape[];
-  readonly text: string;
-}
+import type { Shape, SymbolOptions } from './symbols.ts';
 
 export interface IrregularSvgOptions {
   readonly symbols: SymbolOptions;
   /** The entry's chosen symbol, or null when it keeps the preset's. */
   readonly glyphOf: (keyEntryId: string) => string | null;
-  /** Drawn at the legend block's place when the legend is on the image. */
-  readonly legend: { readonly block: LegendBlock; readonly lines: readonly LegendLine[] } | null;
   /** Whether the square and circle guides go into the file. */
   readonly guides: boolean;
   /** The tracing photo, already turned into a data URL, when it is to be included. */
@@ -38,17 +30,8 @@ export interface IrregularSvgOptions {
   readonly ink: string;
 }
 
-type BoxOptions = Pick<IrregularSvgOptions, 'legend' | 'background' | 'guides'>;
+type BoxOptions = Pick<IrregularSvgOptions, 'background' | 'guides'>;
 
-const LEGEND_ICON = 22;
-const LEGEND_ROW = 30;
-const LEGEND_GAP = 10;
-const LEGEND_COLUMN = 190;
-const LEGEND_FONT = 13;
-// Capitals, digits and the separator run wider than an average letter, and a
-// clipped legend line is worse than a little slack.
-const CHAR_WIDTH = 8.4;
-const STROKE = 2;
 const GUIDE_OPACITY = 0.25;
 const GRID_LINES = 400;
 const FONT = 'font-family="system-ui, sans-serif"';
@@ -135,36 +118,6 @@ function polarBox(polar: PolarGuide): Box {
   };
 }
 
-interface LegendSlot {
-  readonly line: LegendLine;
-  readonly x: number;
-  readonly y: number;
-}
-
-function legendSlots(block: LegendBlock, lines: readonly LegendLine[]): LegendSlot[] {
-  if (lines.length === 0) return [];
-  const columns = block.columns >= 1 && block.columns <= 3 ? block.columns : 1;
-  const perColumn = Math.ceil(lines.length / columns);
-  const x = Number.isFinite(block.position.x) ? block.position.x : 0;
-  const y = Number.isFinite(block.position.y) ? block.position.y : 0;
-  return lines.map((line, index) => ({
-    line,
-    x: x + Math.floor(index / perColumn) * LEGEND_COLUMN,
-    y: y + (index % perColumn) * LEGEND_ROW,
-  }));
-}
-
-function legendBox(slots: readonly LegendSlot[]): Box | null {
-  return unionBox(
-    slots.map((slot) => ({
-      minX: slot.x,
-      minY: slot.y - LEGEND_ROW / 2,
-      maxX: slot.x + LEGEND_ICON + LEGEND_GAP + CHAR_WIDTH * [...slot.line.text].length,
-      maxY: slot.y + LEGEND_ROW / 2,
-    })),
-  );
-}
-
 /** What the picture covers, in chart units, margin included. */
 export function irregularBox(pattern: IrregularPattern, options: BoxOptions): Box {
   const parts: Box[] = [];
@@ -174,10 +127,6 @@ export function irregularBox(pattern: IrregularPattern, options: BoxOptions): Bo
     parts.push(backgroundBox(options.background.placement));
   }
   if (options.guides && drawsPolar(pattern.guides.polar)) parts.push(polarBox(pattern.guides.polar));
-  if (options.legend !== null) {
-    const legend = legendBox(legendSlots(options.legend.block, options.legend.lines));
-    if (legend !== null) parts.push(legend);
-  }
   const box = unionBox(parts.filter(isFiniteBox));
   if (box === null) {
     return { minX: -EXPORT_MARGIN, minY: -EXPORT_MARGIN, maxX: EXPORT_MARGIN, maxY: EXPORT_MARGIN };
@@ -281,32 +230,6 @@ function drawNote(item: AnnotationItem, ink: string, out: string[]): void {
   }
 }
 
-function drawLegend(block: LegendBlock, lines: readonly LegendLine[], ink: string, out: string[]): void {
-  const slots = legendSlots(block, lines);
-  if (slots.length === 0) return;
-  out.push(`<g data-legend="" ${FONT} font-size="${LEGEND_FONT}" fill="${escapeXml(ink)}">`);
-  for (const slot of slots) {
-    const shapes = slot.line.shapes.filter(isFiniteShape);
-    const bounds = shapesBounds(shapes);
-    if (bounds !== null) {
-      const width = Math.max(1, bounds.maxX - bounds.minX);
-      const height = Math.max(1, bounds.maxY - bounds.minY);
-      const fit = Math.min(1, LEGEND_ICON / Math.max(width, height));
-      const [midX, midY] = [(bounds.minX + bounds.maxX) / 2, (bounds.minY + bounds.maxY) / 2];
-      const place = `translate(${num(slot.x + LEGEND_ICON / 2)} ${num(slot.y)}) scale(${num(fit)}) translate(${num(-midX)} ${num(-midY)})`;
-      out.push(
-        // The document's own stylesheet beats a presentation attribute, so the
-        // width that undoes the icon's scale has to be inline.
-        `<g class="ink" stroke="${escapeXml(ink)}" color="${escapeXml(ink)}" style="stroke-width:${num(STROKE / fit)}" transform="${place}">${shapes.map(shapeToSvg).join('')}</g>`,
-      );
-    }
-    out.push(
-      `<text x="${num(slot.x + LEGEND_ICON + LEGEND_GAP)}" y="${num(slot.y)}" dominant-baseline="middle">${escapeXml(slot.line.text)}</text>`,
-    );
-  }
-  out.push('</g>');
-}
-
 /** The whole chart as one SVG document. */
 export function irregularSvg(pattern: IrregularPattern, options: IrregularSvgOptions): string {
   const box = irregularBox(pattern, options);
@@ -368,8 +291,6 @@ export function irregularSvg(pattern: IrregularPattern, options: IrregularSvgOpt
     drawItems(pattern, bucket, options, out);
     out.push('</g>');
   }
-
-  if (options.legend !== null) drawLegend(options.legend.block, options.legend.lines, options.ink, out);
 
   out.push('</svg>');
   return `${out.join('\n')}\n`;
