@@ -2491,3 +2491,16 @@ body.is-selecting #board-irregular {
 .select-mode .panel__field {
   margin: 0;
 }
+
+/* KB: interface.md §60 */
+.settings-dialog .section {
+  margin: 0;
+  padding-block: var(--sp-2);
+  border-block: 0;
+  border-block-start: 1px solid var(--c-line);
+}
+
+.settings__body {
+  max-block-size: min(70vh, 40rem);
+  overflow-y: auto;
+}

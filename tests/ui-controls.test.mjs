@@ -28,11 +28,10 @@ const INVENTORY = JSON.parse(read('tests/fixtures/control-inventory.json'));
 
 /**
  * Identifiers of index.html that neither the interface code nor a markup
- * reference addresses. They are the two always-visible `details` sections,
- * reached only by e2e selectors. PQW-960 owns dead interface; this list records
- * what is already unreferenced, it does not license new cases.
+ * reference addresses. Empty since PQW-1011 gave the last two a place in the
+ * code. PQW-960 owns dead interface; this list does not license new cases.
  */
-const UNREFERENCED = ['section-notation', 'section-pattern'];
+const UNREFERENCED = [];
 
 /** The attributes src/ui/ addresses a control by when it has no identifier. Their selectors are asserted below. */
 const ADDRESSING_ATTRIBUTES = [

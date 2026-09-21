@@ -189,6 +189,11 @@ const notesPop = must<HTMLElement>('#notes-pop');
 const selectModeToggle = must<HTMLButtonElement>('#select-mode-toggle');
 const selectModePop = must<HTMLElement>('#select-mode-pop');
 const exportDialog = must<HTMLDialogElement>('#export-dialog');
+const settingsDialog = must<HTMLDialogElement>('#settings-dialog');
+const settingsBody = must<HTMLElement>('#settings-body');
+const notationSection = must<HTMLDetailsElement>('#section-notation');
+const patternSection = must<HTMLDetailsElement>('#section-pattern');
+const consentButton = must<HTMLElement>('[data-consent-open]');
 const exportGrid = must<HTMLInputElement>('#export-grid');
 const insertionPanel = new InsertionPanel(must<HTMLFieldSetElement>('#insertion'));
 const languageSelect = document.querySelector<HTMLSelectElement>('#ui-language');
@@ -1614,6 +1619,29 @@ must<HTMLButtonElement>('#export-open').addEventListener('click', () => {
 must<HTMLButtonElement>('#export-close').addEventListener('click', () => exportDialog.close());
 // The item that opened the dialog sits in a closed menu, so the focus goes back to the menu's button.
 exportDialog.addEventListener('close', () => fileToggle.focus());
+
+// KB: interface.md §60 — the free-form panel keeps only its own work; these two wait behind the file menu.
+must<HTMLButtonElement>('#settings-open').addEventListener('click', () => {
+  closeAllPopovers();
+  settingsDialog.showModal();
+});
+must<HTMLButtonElement>('#settings-close').addEventListener('click', () => settingsDialog.close());
+settingsDialog.addEventListener('close', () => fileToggle.focus());
+
+/** The notation and the pattern sections are shared nodes: in the dialog for the free-form type, in the panel otherwise. */
+let panelFolds: readonly [boolean, boolean] | null = null;
+function placeSharedSections(freeForm: boolean): void {
+  if (freeForm && panelFolds === null) {
+    panelFolds = [notationSection.open, patternSection.open];
+    notationSection.open = true;
+    patternSection.open = true;
+    settingsBody.append(notationSection, patternSection);
+  } else if (!freeForm && panelFolds !== null) {
+    [notationSection.open, patternSection.open] = panelFolds;
+    panelFolds = null;
+    consentButton.before(notationSection, patternSection);
+  }
+}
 exportDialog.addEventListener('click', (event) => {
   if ((event.target as Element).closest('[data-action^="export-"], #export-pdf')) exportDialog.close();
 });
@@ -2350,9 +2378,11 @@ function showIrregularView(on: boolean): void {
     '#select-mode-toggle',
     '#irregular-tabs',
     '#view-work',
+    '#settings-open',
   ]) {
     must<HTMLElement>(id).hidden = !on;
   }
+  placeSharedSections(on);
   fitBar();
 }
 

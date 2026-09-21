@@ -1320,3 +1320,33 @@ test('rows, layers and key share one place behind tabs; the background is the bo
   await page.locator('#view-toggle').click();
   await expect(page.locator('#row-fade')).toBeHidden();
 });
+
+test('the notation and the pattern settings wait in a dialog here, and go back to the panel for rows (PQW-1011)', async ({
+  page,
+}) => {
+  await open(page);
+  const notation = page.locator('#section-notation');
+  await expect(notation).toBeVisible();
+  const foldedBefore = await notation.getAttribute('open');
+
+  await chooseIrregular(page);
+  await expect(notation).toBeHidden();
+  await expect(page.locator('#title')).toBeHidden();
+
+  await page.locator('#file-toggle').click();
+  await page.locator('#settings-open').click();
+  await expect(page.locator('#settings-dialog')).toBeVisible();
+  await expect(page.locator('#ui-language')).toBeVisible();
+  await page.locator('#title').fill('Csipkés terítő');
+  await page.locator('#title').blur();
+  await page.locator('#settings-close').click();
+  await expect(page.locator('#settings-dialog')).toBeHidden();
+  await expect(page.locator('#file-toggle')).toBeFocused();
+
+  // Back in the regular type the sections are in the panel again, folded as they were.
+  await page.locator('#types-toggle').click();
+  await page.getByRole('button', { name: /Szabályos horgolás/ }).click();
+  await expect(page.locator('#settings-open')).toBeHidden();
+  await expect(notation).toBeVisible();
+  expect(await notation.getAttribute('open')).toBe(foldedBefore);
+});
