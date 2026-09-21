@@ -353,8 +353,7 @@ body.is-selecting #board-irregular {
   outline-offset: -3px;
 }
 
-/* The free-form rows, layers and stitch key panels (PQW-965). */
-.rows__list,
+/* The free-form rows, layers and stitch key panels (PQW-965). KB: interface.md §59 */
 .key__list {
   list-style: none;
   margin: var(--sp-1) 0;
@@ -364,38 +363,48 @@ body.is-selecting #board-irregular {
   gap: var(--sp-1);
 }
 
-.rows__row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--sp-0);
+.rows__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-block-start: 1px solid var(--c-line);
 }
 
-/* The panel is narrow: the row itself takes a line, its switches the next. */
+.rows__row {
+  display: flex;
+  align-items: center;
+  border-block-end: 1px solid var(--c-line);
+}
+
+.rows__row.is-active {
+  background: var(--c-selection);
+}
+
 .rows__pick {
-  flex: 1 0 100%;
+  flex: 1 1 auto;
   display: flex;
   align-items: center;
   gap: var(--sp-1);
   min-inline-size: 0;
-  padding: var(--sp-1);
-  border: 1px solid var(--c-line, currentColor);
-  border-radius: var(--radius-md);
+  min-block-size: 44px;
+  padding: 0 var(--sp-1);
+  border: 0;
   background: none;
   color: inherit;
   font: inherit;
+  font-size: 0.875rem;
   text-align: start;
   cursor: pointer;
 }
 
-.rows__pick[aria-pressed="true"] {
-  border-color: var(--c-accent);
-  background: var(--c-accent-soft, transparent);
+.rows__pick[aria-pressed="true"] .rows__number {
+  color: var(--c-ink);
 }
 
 .rows__number {
+  overflow: hidden;
   font-weight: 600;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -405,35 +414,134 @@ body.is-selecting #board-irregular {
   white-space: nowrap;
 }
 
-.rows__swatch {
+.rows__count {
+  margin-inline-start: auto;
+  font-size: 0.8125rem;
+}
+
+.rows__swatch,
+.rows__thumb {
+  flex: 0 0 auto;
   inline-size: 0.9rem;
   block-size: 0.9rem;
   border: 1px solid var(--c-line, currentColor);
-  border-radius: 50%;
-  flex: 0 0 auto;
+  border-radius: var(--radius-sm);
+}
+
+.rows__thumb {
+  inline-size: 1.4rem;
+  background: var(--c-surface);
+}
+
+.rows__thumb.has-picture {
+  background: linear-gradient(135deg, var(--c-brand-wing), var(--c-row-b));
+}
+
+.layers__bg .rows__number {
+  font-style: italic;
+  font-weight: 400;
 }
 
 .rows__toggle {
   flex: 0 0 auto;
-  inline-size: 1.9rem;
-  block-size: 1.9rem;
-  border: 1px solid var(--c-line, currentColor);
-  border-radius: var(--radius-md);
+  display: inline-grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  padding: 0;
+  border: 0;
   background: none;
-  color: inherit;
-  font: inherit;
-  line-height: 1;
+  color: var(--c-text-soft);
   cursor: pointer;
 }
 
+.rows__toggle[data-row-act="visible"][aria-pressed="false"],
+.rows__toggle[data-layer-act="visible"][aria-pressed="false"],
+#layer-bg-visible[aria-pressed="false"],
+.rows__toggle[data-row-act="locked"][aria-pressed="false"],
+.rows__toggle[data-layer-act="locked"][aria-pressed="false"],
+#layer-bg-locked[aria-pressed="false"] {
+  opacity: 0.3;
+}
+
+.rows__toggle[aria-pressed="true"]:is([data-row-act="locked"], [data-layer-act="locked"], #layer-bg-locked) {
+  color: var(--c-accent);
+}
+
+.rows__toggle:hover:not(:disabled) {
+  color: var(--c-accent);
+}
+
 .rows__toggle:disabled {
-  opacity: 0.35;
+  opacity: 0.2;
   cursor: default;
 }
 
-.layers__name {
-  flex: 1 0 100%;
-  min-inline-size: 0;
+.rows__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-0);
+  padding-block: var(--sp-1);
+}
+
+.rows__spacer {
+  flex: 1 1 auto;
+}
+
+.rows__add {
+  min-block-size: 36px;
+  white-space: nowrap;
+  padding-inline: var(--sp-1);
+  font-size: 0.8125rem;
+}
+
+.rows__more,
+.rows__editor {
+  display: grid;
+  gap: var(--sp-1);
+  margin-block-end: var(--sp-2);
+  padding: var(--sp-2);
+  border-radius: var(--radius-md);
+  background: var(--c-row-a);
+}
+
+.rows__more > *,
+.rows__editor > * {
+  margin: 0;
+}
+
+/* KB: interface.md §59 — the three lists share one place, picked by a tab. */
+.panel-tabs {
+  display: flex;
+  margin-block-end: var(--sp-2);
+  border-block-end: 1px solid var(--c-line);
+}
+
+.panel-tabs__tab {
+  flex: 1 1 0;
+  min-block-size: 44px;
+  border: 0;
+  border-block-end: 2px solid transparent;
+  background: none;
+  color: var(--c-muted);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.panel-tabs__tab[aria-pressed="true"] {
+  border-block-end-color: var(--c-accent);
+  color: var(--c-ink);
+}
+
+.section--tab > .section__head {
+  display: none;
+}
+
+.section--tab.is-off {
+  display: none;
 }
 
 .key__row {
@@ -2301,7 +2409,7 @@ body.is-selecting #board-irregular {
   gap: 0 var(--sp-2);
 }
 
-.props__grid input {
+.props__grid :is(input, select) {
   inline-size: 100%;
   min-inline-size: 0;
 }

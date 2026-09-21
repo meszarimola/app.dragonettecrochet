@@ -1,8 +1,10 @@
-// The free-form editor's layers panel. KB: interface.md §7, §39
+// The free-form editor's layers panel. KB: interface.md §7, §39, §59
 
+import type { BackgroundPatch } from '../core/irregular-document.ts';
 import { itemsOfLayer, type LayerPatch } from '../core/irregular-layers.ts';
-import type { IrregularLayer, IrregularPattern } from '../core/irregular-types.ts';
+import type { BackgroundImage, IrregularLayer, IrregularPattern } from '../core/irregular-types.ts';
 import { texts } from './i18n.ts';
+import { toggleButton } from './irregular-rows-panel.ts';
 
 export interface LayersPanelHost {
   addLayer(): void;
@@ -11,6 +13,7 @@ export interface LayersPanelHost {
   update(layerId: string, patch: LayerPatch): void;
   reorder(layerId: string, toIndex: number): void;
   moveSelection(layerId: string): void;
+  patchBackground(patch: BackgroundPatch): void;
 }
 
 function must<T extends Element>(root: ParentNode, selector: string): T {
@@ -30,12 +33,18 @@ export class IrregularLayersPanel {
   readonly #section: HTMLDetailsElement;
   readonly #host: LayersPanelHost;
   readonly #list: HTMLUListElement;
+  readonly #name: HTMLInputElement;
   #active = '';
+  #layerIds: readonly string[] = [];
+  /** The background picture is picked like a layer, but it is not one of the pattern's layers. */
+  #backgroundPicked = false;
+  #background: BackgroundImage | null = null;
 
   constructor(section: HTMLDetailsElement, host: LayersPanelHost) {
     this.#section = section;
     this.#host = host;
     this.#list = must<HTMLUListElement>(section, '#layers-list');
+    this.#name = must<HTMLInputElement>(section, '#layer-name');
     must<HTMLButtonElement>(section, '#layer-new').addEventListener('click', () => this.#host.addLayer());
     must<HTMLButtonElement>(section, '#layer-delete').addEventListener('click', () =>
       this.#host.deleteLayer(this.#active),
@@ -43,14 +52,26 @@ export class IrregularLayersPanel {
     must<HTMLButtonElement>(section, '#layer-move-items').addEventListener('click', () =>
       this.#host.moveSelection(this.#active),
     );
+    // The list reads top down while the array runs bottom up, so up is a higher index.
+    must<HTMLButtonElement>(section, '#layer-up').addEventListener('click', () => this.#step(1));
+    must<HTMLButtonElement>(section, '#layer-down').addEventListener('click', () => this.#step(-1));
+    this.#name.addEventListener('change', () => this.#host.update(this.#active, { name: this.#name.value.trim() }));
     this.#list.addEventListener('click', (event) => this.#onList(event));
-    this.#list.addEventListener('change', (event) => {
-      const input = event.target as HTMLInputElement;
-      const layer = input.closest<HTMLElement>('[data-layer]')?.dataset['layer'];
-      if (layer !== undefined && input.classList.contains('layers__name')) {
-        this.#host.update(layer, { name: input.value.trim() });
-      }
+    must<HTMLButtonElement>(section, '#layer-bg-pick').addEventListener('click', () => {
+      this.#backgroundPicked = true;
+      this.#show();
     });
+    must<HTMLButtonElement>(section, '#layer-bg-visible').addEventListener('click', () => {
+      if (this.#background !== null) this.#host.patchBackground({ visible: !this.#background.visible });
+    });
+    must<HTMLButtonElement>(section, '#layer-bg-locked').addEventListener('click', () => {
+      if (this.#background !== null) this.#host.patchBackground({ locked: !this.#background.locked });
+    });
+  }
+
+  #step(delta: number): void {
+    const index = this.#layerIds.indexOf(this.#active);
+    if (index >= 0) this.#host.reorder(this.#active, index + delta);
   }
 
   #onList(event: MouseEvent): void {
@@ -58,14 +79,13 @@ export class IrregularLayersPanel {
     const layer = (event.target as Element).closest<HTMLElement>('[data-layer]')?.dataset['layer'];
     if (layer === undefined || target === null) return;
     const action = target.dataset['layerAct'];
-    if (action === 'pick') this.#host.activate(layer);
+    if (action === 'pick') {
+      this.#backgroundPicked = false;
+      this.#host.activate(layer);
+      this.#show();
+    }
     if (action === 'visible') this.#host.update(layer, { visible: target.getAttribute('aria-pressed') !== 'true' });
     if (action === 'locked') this.#host.update(layer, { locked: target.getAttribute('aria-pressed') !== 'true' });
-    if (action === 'up' || action === 'down') {
-      // The list is drawn top down while the array runs bottom up, so up means a higher index.
-      const index = Number(target.dataset['index'] ?? '0');
-      this.#host.reorder(layer, action === 'up' ? index + 1 : index - 1);
-    }
   }
 
   reveal(): void {
@@ -76,59 +96,65 @@ export class IrregularLayersPanel {
     this.#section.hidden = true;
   }
 
-  update(pattern: IrregularPattern, selectionSize: number): void {
+  update(pattern: IrregularPattern, selectionSize: number, background: BackgroundImage | null): void {
     this.#active = pattern.activeLayerId;
-    // Rebuilding would throw away the name field under the cursor, and the focus with it.
-    if (!this.#list.contains(document.activeElement)) {
-      // The list reads top down, so the topmost layer comes first.
-      const shown = [...pattern.layers].reverse();
-      this.#list.replaceChildren(...shown.map((layer) => this.#entry(pattern, layer)));
-    }
-    must<HTMLButtonElement>(this.#section, '#layer-delete').disabled = pattern.layers.length < 2;
+    this.#layerIds = pattern.layers.map((layer) => layer.id);
+    this.#background = background;
+    // The list reads top down, so the topmost layer comes first.
+    const shown = [...pattern.layers].reverse();
+    this.#list.replaceChildren(...shown.map((layer) => this.#entry(pattern, layer)));
+    const index = this.#layerIds.indexOf(this.#active);
+    must<HTMLButtonElement>(this.#section, '#layer-up').disabled =
+      this.#backgroundPicked || index === this.#layerIds.length - 1;
+    must<HTMLButtonElement>(this.#section, '#layer-down').disabled = this.#backgroundPicked || index <= 0;
+    must<HTMLButtonElement>(this.#section, '#layer-delete').disabled =
+      this.#backgroundPicked || pattern.layers.length < 2;
     must<HTMLButtonElement>(this.#section, '#layer-move-items').disabled = selectionSize === 0;
+    const active = pattern.layers.find((layer) => layer.id === this.#active);
+    if (document.activeElement !== this.#name) this.#name.value = active?.name ?? '';
+    const words = texts().irregular;
+    const visible = must<HTMLButtonElement>(this.#section, '#layer-bg-visible');
+    const locked = must<HTMLButtonElement>(this.#section, '#layer-bg-locked');
+    visible.setAttribute('aria-pressed', String(background?.visible ?? true));
+    locked.setAttribute('aria-pressed', String(background?.locked ?? false));
+    visible.disabled = background === null;
+    locked.disabled = background === null;
+    must<HTMLElement>(this.#section, '#layer-bg-state').textContent =
+      background === null ? words.bgNone : words.bgPicture;
+    must<HTMLElement>(this.#section, '#layer-bg-thumb').classList.toggle('has-picture', background !== null);
+    this.#show();
+  }
+
+  #show(): void {
+    for (const pick of this.#list.querySelectorAll<HTMLElement>('[data-layer-act="pick"]')) {
+      const on =
+        !this.#backgroundPicked && pick.closest<HTMLElement>('[data-layer]')?.dataset['layer'] === this.#active;
+      pick.setAttribute('aria-pressed', String(on));
+      pick.closest('li')?.classList.toggle('is-active', on);
+    }
+    const bgPick = must<HTMLButtonElement>(this.#section, '#layer-bg-pick');
+    bgPick.setAttribute('aria-pressed', String(this.#backgroundPicked));
+    must<HTMLElement>(this.#section, '#layer-bg').classList.toggle('is-active', this.#backgroundPicked);
+    must<HTMLElement>(this.#section, '#layer-active').hidden = this.#backgroundPicked;
+    must<HTMLElement>(this.#section, '#props-background').hidden = !this.#backgroundPicked;
   }
 
   #entry(pattern: IrregularPattern, layer: IrregularLayer): HTMLLIElement {
     const words = texts().irregular;
-    const index = pattern.layers.findIndex((candidate) => candidate.id === layer.id);
     const item = element('li', 'rows__row');
     item.dataset['layer'] = layer.id;
     const pick = element('button', 'rows__pick');
     pick.type = 'button';
     pick.dataset['layerAct'] = 'pick';
-    pick.setAttribute('aria-pressed', String(layer.id === pattern.activeLayerId));
-    pick.append(element('span', 'rows__count', words.rowCount(itemsOfLayer(pattern, layer.id))));
-    const name = document.createElement('input');
-    name.className = 'layers__name';
-    name.type = 'text';
-    name.value = layer.name;
-    name.setAttribute('aria-label', words.layerName);
-    item.append(name, pick);
+    pick.append(
+      element('span', 'rows__number', layer.name),
+      element('span', 'rows__count', words.rowCount(itemsOfLayer(pattern, layer.id))),
+    );
     item.append(
-      this.#toggle('visible', layer.visible, words.toggleVisible),
-      this.#toggle('locked', layer.locked, words.toggleLocked),
-      this.#step('up', index, words.moveUp, index === pattern.layers.length - 1),
-      this.#step('down', index, words.moveDown, index === 0),
+      toggleButton('visible', layer.visible, words.toggleVisible, 'layerAct'),
+      toggleButton('locked', layer.locked, words.toggleLocked, 'layerAct'),
+      pick,
     );
     return item;
-  }
-
-  #toggle(action: string, on: boolean, label: string): HTMLButtonElement {
-    const button = element('button', 'rows__toggle', on ? '●' : '○');
-    button.type = 'button';
-    button.dataset['layerAct'] = action;
-    button.setAttribute('aria-pressed', String(on));
-    button.setAttribute('aria-label', label);
-    return button;
-  }
-
-  #step(action: 'up' | 'down', index: number, label: string, disabled: boolean): HTMLButtonElement {
-    const button = element('button', 'rows__toggle', action === 'up' ? '↑' : '↓');
-    button.type = 'button';
-    button.dataset['layerAct'] = action;
-    button.dataset['index'] = String(index);
-    button.setAttribute('aria-label', label);
-    button.disabled = disabled;
-    return button;
   }
 }
