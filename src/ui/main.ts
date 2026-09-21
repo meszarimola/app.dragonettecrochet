@@ -1600,6 +1600,8 @@ must<HTMLButtonElement>('#export-open').addEventListener('click', () => {
   exportDialog.showModal();
 });
 must<HTMLButtonElement>('#export-close').addEventListener('click', () => exportDialog.close());
+// The item that opened the dialog sits in a closed menu, so the focus goes back to the menu's button.
+exportDialog.addEventListener('close', () => fileToggle.focus());
 exportDialog.addEventListener('click', (event) => {
   if ((event.target as Element).closest('[data-action^="export-"], #export-pdf')) exportDialog.close();
 });

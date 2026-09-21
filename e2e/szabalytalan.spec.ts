@@ -963,6 +963,8 @@ test('export: SVG, PNG és PDF a szabálytalan típusból (AS-13)', async ({ pag
   await page.locator('[data-action="export-png"]').click();
   const png = await (await pngDownload).path();
   expect(png, 'PNG is készült').toBeTruthy();
+  // The dialog's opener is in a closed menu, so the focus returns to the menu's button.
+  await expect(page.locator('#file-toggle')).toBeFocused();
 
   // PDF over four pages, from the export dialog.
   await page.locator('#file-toggle').click();

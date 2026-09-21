@@ -145,7 +145,7 @@
     "#fan-mode": 1,
     "#file-pop": 2,
     "#file-pop .tool": 1,
-    "#file-toggle": 35,
+    "#file-toggle": 36,
     "#findings": 5,
     "#findings button.finding": 1,
     "#findings details": 1,
