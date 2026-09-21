@@ -54,13 +54,16 @@ for (const viewport of [
   }
 }
 
-test('a wide window shows the view group in the bar, with labels', async ({ page }) => {
+test('even in a wide window the view group is a menu, and the bar keeps its labels', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 900 });
   await open(page);
   await chooseIrregular(page);
 
-  await expect(page.locator('#view-toggle')).toBeHidden();
-  await expect(page.locator('.tools [data-action="zoom-in"]')).toBeVisible();
+  // KB: interface.md §57 — the owner could not tell „Nézet” was a menu, so it always is one.
+  await expect(page.locator('#view-toggle')).toBeVisible();
+  await expect(page.locator('.tools [data-action="zoom-in"]')).toBeHidden();
+  await expect(page.locator('#view-toggle .tool__label')).toBeVisible();
+  await page.locator('#view-toggle').click();
   await expect(page.locator('.tools [data-action="zoom-in"] .tool__label')).toBeVisible();
 });
 
@@ -121,7 +124,7 @@ test('a type chosen from the keyboard gives the focus back to the menu button', 
 test('where the labels give way, a findings count still shows; „no findings” does not', async ({ page }) => {
   await page.setViewportSize({ width: 1000, height: 506 });
   await open(page);
-  await expect(page.locator('.bar')).toHaveAttribute('data-fit', '3');
+  await expect(page.locator('.bar')).toHaveAttribute('data-fit', '2');
   const count = page.locator('#error-count');
   await expect(count).toBeHidden();
   // The class is what the findings list sets; a real warning needs a pattern this test is not about.

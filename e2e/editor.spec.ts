@@ -165,6 +165,7 @@ test('PNG and SVG export with a stitch key', async ({ page }) => {
   // The exports are in the file actions dropdown (PQW-911).
   const svgPromise = page.waitForEvent('download');
   await page.locator('#file-toggle').click();
+  await page.locator('#export-open').click();
   await page.getByRole('button', { name: 'SVG', exact: true }).click();
   const svg = await readFile((await (await svgPromise).path())!, 'utf8');
   expect(svg).toContain('<svg');
@@ -173,6 +174,7 @@ test('PNG and SVG export with a stitch key', async ({ page }) => {
 
   const pngPromise = page.waitForEvent('download');
   await page.locator('#file-toggle').click();
+  await page.locator('#export-open').click();
   await page.getByRole('button', { name: 'PNG', exact: true }).click();
   const pngDownload = await pngPromise;
   expect(pngDownload.suggestedFilename()).toMatch(/\.png$/);

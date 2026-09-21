@@ -183,6 +183,9 @@ const fileToggle = must<HTMLButtonElement>('#file-toggle');
 const filePop = must<HTMLElement>('#file-pop');
 const viewToggle = must<HTMLButtonElement>('#view-toggle');
 const viewMenu = must<HTMLElement>('#view-menu');
+const notesToggle = must<HTMLButtonElement>('#notes-toggle');
+const notesPop = must<HTMLElement>('#notes-pop');
+const exportDialog = must<HTMLDialogElement>('#export-dialog');
 const exportGrid = must<HTMLInputElement>('#export-grid');
 const insertionPanel = new InsertionPanel(must<HTMLFieldSetElement>('#insertion'));
 const languageSelect = document.querySelector<HTMLSelectElement>('#ui-language');
@@ -1398,7 +1401,6 @@ const ACTIONS: Record<string, () => void> = {
   'note-bracket': () => irregular?.toggleNoteTool('bracket'),
   fan: () => irregular?.toggleFanTool(),
   isolate: () => irregular?.toggleIsolate(),
-  repeat: () => irregular?.repeatAround(),
   'delete-selection': () => (irregular?.active === true ? irregular.deleteSelection() : void deleteSelection()),
   'duplicate-selection': () => (irregular?.active === true ? irregular.duplicateSelection() : duplicateSelected()),
   same: () =>
@@ -1560,6 +1562,7 @@ function closeAllPopovers(): void {
   closePopover(errorsPop, errorToggle);
   closePopover(filePop, fileToggle);
   closePopover(typesNav, typesToggle);
+  closePopover(notesPop, notesToggle);
   setViewMenuOpen(false);
 }
 
@@ -1576,6 +1579,31 @@ fileToggle.addEventListener('click', () => {
 
 filePop.addEventListener('click', (event) => {
   if ((event.target as Element).closest('button')) closePopover(filePop, fileToggle);
+});
+
+notesToggle.addEventListener('click', () => {
+  const opening = notesPop.hidden;
+  closeAllPopovers();
+  if (opening) {
+    openPopover(notesPop, notesToggle);
+    notesPop.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
+  }
+});
+
+notesPop.addEventListener('click', (event) => {
+  if ((event.target as Element).closest('button')) closePopover(notesPop, notesToggle);
+});
+
+// KB: interface.md §57 — every picture and print export in one place, opened from the file menu.
+must<HTMLButtonElement>('#export-open').addEventListener('click', () => {
+  closeAllPopovers();
+  exportDialog.showModal();
+});
+must<HTMLButtonElement>('#export-close').addEventListener('click', () => exportDialog.close());
+// The item that opened the dialog sits in a closed menu, so the focus goes back to the menu's button.
+exportDialog.addEventListener('close', () => fileToggle.focus());
+exportDialog.addEventListener('click', (event) => {
+  if ((event.target as Element).closest('[data-action^="export-"], #export-pdf')) exportDialog.close();
 });
 
 typesToggle.addEventListener('click', () => {
@@ -1986,7 +2014,7 @@ document.addEventListener('keydown', (event) => {
   const key = event.key;
 
   // Escape closes an open menu first and returns the focus to its button.
-  const openMenu = [errorToggle, fileToggle, typesToggle, viewToggle].find(
+  const openMenu = [errorToggle, fileToggle, typesToggle, viewToggle, notesToggle].find(
     (button) => button.getAttribute('aria-expanded') === 'true',
   );
   if (key === 'Escape' && openMenu) {
@@ -2240,8 +2268,9 @@ function updateIrregularControls(editor: IrregularEditor): void {
   setDisabled('duplicate-selection', editor.selectionSize === 0);
   must<HTMLButtonElement>('[data-action="select-area"]').setAttribute(
     'aria-pressed',
-    String(tool === null && !editor.arcArmed && !editor.fanArmed),
+    String(tool === null && !editor.arcArmed && !editor.fanArmed && editor.noteArmed === null),
   );
+  notesToggle.classList.toggle('is-armed', editor.noteArmed !== null);
   must<HTMLButtonElement>('[data-action="chain-arc"]').setAttribute('aria-pressed', String(editor.arcArmed));
   must<HTMLButtonElement>('[data-action="fan"]').setAttribute('aria-pressed', String(editor.fanArmed));
   must<HTMLButtonElement>('[data-action="isolate"]').setAttribute('aria-pressed', String(editor.isolating));
@@ -2251,7 +2280,6 @@ function updateIrregularControls(editor: IrregularEditor): void {
       String(editor.noteArmed === note),
     );
   }
-  setDisabled('repeat', editor.selectionSize === 0);
   must<HTMLButtonElement>('[data-action="grid"]').setAttribute('aria-pressed', String(editor.gridVisible));
   if (document.activeElement !== titleInput) titleInput.value = editor.title;
   const issues = editor.issues();
@@ -2301,6 +2329,9 @@ function showIrregularView(on: boolean): void {
   if (on && !setupSheet.hidden) setOpen(setupSheet, setupToggle, false);
   setDisabled('export-png', false);
   setDisabled('export-svg', false);
+  for (const id of ['#view-guides', '#bg-load', '#bg-remove', '#export-picture-fields', '#export-pdf-part']) {
+    must<HTMLElement>(id).hidden = !on;
+  }
   fitBar();
 }
 
@@ -2317,7 +2348,7 @@ function showTypeView(id: PatternTypeId): void {
 // KB: interface.md §56 — the bar stays one line by giving way a step at a time.
 const bar = must<HTMLElement>('.bar');
 const barTools = must<HTMLElement>('.tools');
-const BAR_STEPS = 3;
+const BAR_STEPS = 2;
 function fitBar(): void {
   const before = bar.dataset.fit;
   const overflows = () => barTools.scrollWidth > barTools.clientWidth;

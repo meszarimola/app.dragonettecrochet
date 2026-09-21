@@ -88,7 +88,6 @@ import {
   rowOrder,
   setOrderPosition,
 } from '../core/irregular-order.ts';
-import { circularRepeat } from '../core/irregular-repeat.ts';
 import { alignRows, type RowAlign, rowLine, setRowLine, spaceRows } from '../core/irregular-rowline.ts';
 import {
   addRow,
@@ -166,8 +165,6 @@ export const IRREGULAR_PREFS_KEY = 'dc-mintatervezo:szabalytalan-beallitasok';
 const ROTATE_SNAP = 15;
 /** The chain arc is made of chains; the key decides what a chain looks like. */
 const ARC_STITCH = 'ch';
-/** Eight sectors is the doily default the spec names. */
-const DEFAULT_REPEAT_COUNT = 8;
 
 /** The PDF writer takes at most ten pages on a side; the panel agrees with it. */
 function clampSide(value: number): number {
@@ -308,7 +305,6 @@ export class IrregularEditor {
   /** A key entry id: a library stitch, or one the crocheter made up. */
   #stitch: string | null = null;
   #isolated: ReadonlySet<string> | null = null;
-  #repeat = { count: DEFAULT_REPEAT_COUNT, range: 360 };
   #arcTool = false;
   #fanTool = false;
   #fanCount = DEFAULT_FAN_COUNT;
@@ -388,8 +384,6 @@ export class IrregularEditor {
       flipArrangeSide: () => this.flipArrangeSide(),
       setPerpendicular: (on) => this.setPerpendicular(on),
       clearRowLine: () => this.clearRowLine(),
-      setRepeat: (count, range) => this.setRepeat(count, range),
-      repeat: () => this.repeatAround(),
       loadBackground: () => this.pickBackground(),
       removeBackground: () => this.removeBackground(),
       patchBackground: (patch) => this.#commit(patchBackground(this.#history.present, patch)),
@@ -1316,39 +1310,6 @@ export class IrregularEditor {
     this.refresh();
   }
 
-  // -- circular repeat -------------------------------------------------------
-
-  setRepeat(count: number, range: number): void {
-    this.#repeat = { count, range };
-  }
-
-  /**
-   * The centre is the circle guide's middle when it is showing, because that is
-   * the wheel the crocheter is working around; otherwise the middle of what is
-   * selected. KB: interface.md §45
-   */
-  #repeatCenter(): Point {
-    const polar = this.#history.present.guides.polar;
-    if (polar.visible) return polar.center;
-    const box = this.#board.selectionBox();
-    return box === null ? { x: 0, y: 0 } : { x: (box.minX + box.maxX) / 2, y: (box.minY + box.maxY) / 2 };
-  }
-
-  repeatAround(): void {
-    if (this.#selection.size === 0) return;
-    const made = circularRepeat(this.#history.present, this.#selection, {
-      center: this.#repeatCenter(),
-      count: this.#repeat.count,
-      range: this.#repeat.range,
-    });
-    if (made.pattern === this.#history.present) return;
-    this.#joinIsolation(made.ids);
-    this.#setSelection([...this.#selection, ...made.ids]);
-    // The count the panel asks for is sectors, so that is what the status line says.
-    const turns = Math.max(0, Math.round(this.#repeat.count) - 1);
-    this.#commit(made.pattern, texts().irregular.repeated(turns));
-  }
-
   // -- arranging -----------------------------------------------------------
 
   /**
@@ -1861,7 +1822,6 @@ export class IrregularEditor {
     this.#panel.update(itemsOf(pattern, this.#selection), this.#preferences.rectPartial, pattern.items.length);
     this.#panel.updateArc(this.selectedArc);
     this.#panel.updateFan(this.selectedFan);
-    this.#panel.updateRepeat(this.#selection.size > 0);
     this.#panel.updateBackground(this.#history.present.background ?? null, this.#image?.picture.naturalWidth ?? 0);
     this.#panel.updateExport(this.#export);
     this.#panel.updateNotes(this.selectedNotes);

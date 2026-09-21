@@ -45,6 +45,8 @@ async function rectangle(page: Page, width: number, rows: number): Promise<void>
     for (let i = 0; i < width + (row > 1 ? 1 : 0); i += 1) await page.keyboard.press('Enter');
   }
   await page.keyboard.press('Escape');
+  // The view group is always a menu (interface.md §57).
+  await page.locator('#view-toggle').click();
   await page.getByRole('button', { name: 'Egész minta' }).click();
   await page.locator('#board').focus();
 }
