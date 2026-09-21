@@ -1327,7 +1327,9 @@ it, and opening it puts the focus on the current type. The open-state key of the
 old bar (`dc-mintatervezo:mintatipus`, §5) is no longer read or written. The
 irregular type is called „Szabad tervező” in the interface — the type name, and
 the heading of its shortcut list; the pattern it makes is still an irregular one,
-so „Új szabálytalan minta” stays.
+so „Új szabálytalan minta” stays. The owner asked for it to lead the menu
+(PQW-990); the default for a first visit is still „Szabályos horgolás”, which
+`DEFAULT_PATTERN_TYPE` holds apart from the list order.
 
 **The stitches took the left column.** `#section-stitches` is an `<aside>` where
 the type bar stood, `--stitches-width` wide (17 rem: 18 and 19 rem measured only
