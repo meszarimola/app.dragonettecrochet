@@ -2364,10 +2364,11 @@ body.is-selecting #board-irregular {
 /* The rectangle mode hangs off the „Terület” tool as a narrow caret button. */
 .tools__split {
   display: flex;
+  gap: 2px;
 }
 
 .tools .tool.tool--caret {
-  min-inline-size: 22px;
+  min-inline-size: 28px;
   padding-inline: 0;
 }
 

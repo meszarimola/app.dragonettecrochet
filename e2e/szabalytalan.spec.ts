@@ -1244,6 +1244,11 @@ test('the selection block says what it is for, and the rectangle mode hangs off 
   await expect(page.locator('#props-empty')).toContainText('Jelölj ki szemet a rajzon');
   await expect(page.locator('#props-fields')).toBeHidden();
 
+  // „Terület” is not inside a menu, so pressing it closes whatever menu is open.
+  await page.locator('#notes-toggle').click();
+  await page.locator('[data-action="select-area"]').click();
+  await expect(page.locator('#notes-pop')).toBeHidden();
+
   const toggle = page.locator('#select-mode-toggle');
   await expect(toggle).toBeVisible();
   await toggle.click();

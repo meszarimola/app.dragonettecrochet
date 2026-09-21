@@ -1480,6 +1480,10 @@ what „Tulajdonságok” did or why it was there.
   nothing selected, which made the empty block look like a settings page.
   `IrregularPanel` finds `#prop-rect-mode` in the page, like the moved controls
   of §57.
+- **The caret is 28 px wide, not 44.** It is the one exception to §36: at 44 px the
+  free-form bar no longer fits 1440 px with labels. It stays above WCAG 2.5.8's
+  24 px and has its own gap. „Terület” sits outside the caret's `.menu`, because
+  a click inside a `.menu` does not close the other menus.
 
 What the tests pin: `e2e/szabalytalan.spec.ts` (PQW-1009) — the empty line, the
 caret menu, the mode surviving a reload, and the caret hidden in the regular type.

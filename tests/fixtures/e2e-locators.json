@@ -371,11 +371,13 @@
     "#export-open": 10,
     "#view-toggle .tool__label": 1,
     ".view-menu__more > summary": 5,
-    "#notes-toggle": 4,
+    "#notes-toggle": 5,
     "#props-empty": 1,
     "#props-fields": 1,
     "#select-mode-toggle": 1,
-    "#prop-rect-mode": 2
+    "#prop-rect-mode": 2,
+    "[data-action=\"select-area\"]": 1,
+    "#notes-pop": 1
   },
   "selectOption": {
     "": 1,

@@ -246,21 +246,23 @@
             </div>
 
             <div class="tools__group" role="group" aria-label="Kijelölés" data-i18n-label="toolGroupSelect">
-              <div class="menu tools__split">
+              <div class="tools__split">
                 <button type="button" class="tool" data-action="select-area" aria-pressed="false" aria-label="Terület kijelölése" data-tip="Terület kijelölése húzással. Szem nélkül kattintás: egy szem, Shift: több, sorszám: teljes sor" data-i18n-label="toolSelectAreaLabel" data-i18n-tip="toolSelectAreaTip">
                   <svg class="icon icon--dashed" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                     <rect x="4" y="5" width="12" height="10" rx="1" />
                   </svg>
                   <span class="tool__label" data-i18n="toolLabelSelectArea">Terület</span>
                 </button>
-                <button type="button" class="tool tool--caret" id="select-mode-toggle" aria-expanded="false" aria-controls="select-mode-pop" aria-label="Kijelölés téglalappal" data-tip="Mit fogjon meg a húzott téglalap" data-i18n-label="propRectModeLabel" data-i18n-tip="selectModeTip" hidden>
-                  <span class="tool__caret" aria-hidden="true"></span>
-                </button>
-                <div class="menu__pop menu__list select-mode" id="select-mode-pop" hidden>
-                  <p class="panel__field">
-                    <label for="prop-rect-mode" data-i18n="propRectModeLabel">Kijelölés téglalappal</label>
-                    <select id="prop-rect-mode"></select>
-                  </p>
+                <div class="menu">
+                  <button type="button" class="tool tool--caret" id="select-mode-toggle" aria-expanded="false" aria-controls="select-mode-pop" aria-label="Kijelölés téglalappal" data-tip="Mit fogjon meg a húzott téglalap" data-i18n-label="propRectModeLabel" data-i18n-tip="selectModeTip" hidden>
+                    <span class="tool__caret" aria-hidden="true"></span>
+                  </button>
+                  <div class="menu__pop menu__list select-mode" id="select-mode-pop" hidden>
+                    <p class="panel__field">
+                      <label for="prop-rect-mode" data-i18n="propRectModeLabel">Kijelölés téglalappal</label>
+                      <select id="prop-rect-mode"></select>
+                    </p>
+                  </div>
                 </div>
               </div>
               <button type="button" class="tool" data-action="delete-selection" aria-label="Kijelölés törlése" data-tip="Kijelölt szemek törlése (Delete)" data-i18n-label="toolDeleteSelectionLabel" data-i18n-tip="toolDeleteSelectionTip" aria-keyshortcuts="Delete" disabled>
