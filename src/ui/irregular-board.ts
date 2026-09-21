@@ -13,21 +13,12 @@ import {
   type IrregularItem,
   type IrregularPattern,
   isStitch,
-  type LegendBlock,
   type PolarGuide,
   type RowLine,
 } from '../core/irregular-types.ts';
-import { itemShapes, naturalGlyph } from './irregular-glyph.ts';
+import { itemShapes } from './irregular-glyph.ts';
 import { noteDrawing } from './irregular-note.ts';
-import {
-  applyInk,
-  drawCentered,
-  drawShapes,
-  type Point,
-  type Shape,
-  type SymbolOptions,
-  shapesBounds,
-} from './symbols.ts';
+import { applyInk, drawShapes, type Point, type Shape, type SymbolOptions } from './symbols.ts';
 
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 8;
@@ -41,10 +32,6 @@ const POLAR_KNOB = 5;
 const POLAR_FADE = 0.55;
 const FADED = 0.28;
 const ORDER_FONT = 11;
-const LEGEND_ICON = 22;
-const LEGEND_ROW = 30;
-const LEGEND_GAP = 10;
-const LEGEND_COLUMN = 190;
 
 export type HandleId = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'rotate';
 
@@ -119,17 +106,6 @@ export interface Marquee {
   readonly to: Point;
 }
 
-export interface LegendEntry {
-  readonly keyEntryId: string;
-  readonly text: string;
-  readonly glyph: string | null;
-}
-
-export interface LegendView {
-  readonly block: LegendBlock;
-  readonly entries: readonly LegendEntry[];
-}
-
 export interface FreeScene {
   readonly pattern: IrregularPattern;
   readonly symbols: SymbolOptions;
@@ -152,7 +128,6 @@ export interface FreeScene {
   readonly rowLine: GroupPath | null;
   /** The tracing photo and the picture itself, drawn under every layer. */
   readonly background: { readonly placement: BackgroundImage; readonly image: CanvasImageSource } | null;
-  readonly legend: LegendView | null;
 }
 
 interface View {
@@ -547,10 +522,6 @@ export class FreeBoard {
     }
     ctx.globalAlpha = 1;
 
-    if (scene.legend !== null && scene.legend.block.visible) {
-      this.#drawLegend(scene, scene.legend, colors.ink, line);
-    }
-
     if (scene.ghost !== null) {
       ctx.globalAlpha = 0.45;
       applyInk(ctx, colors.accent, line);
@@ -590,38 +561,6 @@ export class FreeBoard {
       ctx.globalAlpha = 1;
       ctx.fillStyle = '#fff';
       ctx.fillText(String(index + 1), at.x, at.y - ORDER_FONT);
-    });
-    ctx.restore();
-  }
-
-  #drawLegend(scene: FreeScene, legend: LegendView, ink: string, line: number): void {
-    const ctx = this.#ctx;
-    const { block, entries } = legend;
-    if (entries.length === 0) return;
-    const perColumn = Math.ceil(entries.length / block.columns);
-    ctx.save();
-    ctx.font = '13px system-ui, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    entries.forEach((entry, index) => {
-      const column = Math.floor(index / perColumn);
-      const row = index % perColumn;
-      const x = block.position.x + column * LEGEND_COLUMN;
-      const y = block.position.y + row * LEGEND_ROW;
-      const glyph = naturalGlyph(entry.keyEntryId, 'both-loops', scene.symbols, entry.glyph);
-      if (glyph !== null) {
-        const bounds = shapesBounds(glyph.shapes);
-        if (bounds !== null) {
-          const fit = Math.min(1, LEGEND_ICON / Math.max(glyph.width, glyph.height));
-          ctx.save();
-          ctx.translate(x + LEGEND_ICON / 2, y);
-          applyInk(ctx, ink, line / fit);
-          drawCentered(ctx, glyph.shapes, fit);
-          ctx.restore();
-        }
-      }
-      ctx.fillStyle = ink;
-      ctx.fillText(entry.text, x + LEGEND_ICON + LEGEND_GAP, y);
     });
     ctx.restore();
   }

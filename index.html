@@ -714,10 +714,9 @@
               <p class="panel__note" id="props-count" role="status" aria-live="polite"></p>
             </div>
           </details>
-          <div class="panel-tabs" id="irregular-tabs" role="group" aria-label="Sorok, rétegek és jelkulcs" data-i18n-label="tabsLabel" hidden>
+          <div class="panel-tabs" id="irregular-tabs" role="group" aria-label="Sorok és rétegek" data-i18n-label="tabsLabel" hidden>
             <button type="button" class="panel-tabs__tab" id="tab-rows" data-tab="rows" aria-pressed="true" aria-controls="section-irregular-rows" data-i18n="tabRows">Sorok</button>
             <button type="button" class="panel-tabs__tab" id="tab-layers" data-tab="layers" aria-pressed="false" aria-controls="section-irregular-layers" data-i18n="tabLayers">Rétegek</button>
-            <button type="button" class="panel-tabs__tab" id="tab-key" data-tab="key" aria-pressed="false" aria-controls="section-irregular-key" data-i18n="tabKey">Jelkulcs</button>
           </div>
           <details class="section section--tab" id="section-irregular-rows" hidden>
             <summary class="section__head"><h2 class="panel__title" data-i18n="sectionRowsTitle">Sorok és körök</h2></summary>
@@ -849,43 +848,6 @@
             </div>
           </details>
 
-          <details class="section section--tab" id="section-irregular-key" hidden>
-            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionKeyTitle">Jelkulcs</h2></summary>
-            <div class="key" role="group" aria-label="A minta jelkulcsa" data-i18n-label="keyGroupLabel">
-              <p class="panel__note" data-i18n="keyNote">A mintában használt szemek. A jelet, a rövidítést és a jelmagyarázat szövegét szemenként átírhatod; amit nem írsz át, az az előbeállítást követi.</p>
-              <ul class="key__list" id="key-list"></ul>
-              <p class="panel__note" id="key-preset" role="status" aria-live="polite"></p>
-              <h3 class="panel__title" data-i18n="keyCustomTitle">Saját szem</h3>
-              <p class="panel__field">
-                <label for="key-custom-name" data-i18n="keyCustomNameLabel">Név</label>
-                <input id="key-custom-name" type="text" maxlength="40" />
-              </p>
-              <p class="panel__field">
-                <label for="key-custom-abbr" data-i18n="keyCustomAbbrLabel">Rövidítés</label>
-                <input id="key-custom-abbr" type="text" maxlength="12" />
-              </p>
-              <p class="panel__field">
-                <label for="key-custom-glyph" data-i18n="keyCustomGlyphLabel">Jel</label>
-                <select id="key-custom-glyph"></select>
-              </p>
-              <p class="props__row">
-                <button type="button" class="button" id="key-custom-add" data-i18n="keyCustomAdd">Hozzáadás</button>
-              </p>
-              <p class="props__row">
-                <button type="button" class="button" id="key-reset" data-i18n="keyReset">Visszaállítás az előbeállításra</button>
-              </p>
-              <p class="choice">
-                <label><input type="checkbox" id="legend-on-image" /> <span data-i18n="legendOnImage">Jelmagyarázat a képen</span></label>
-              </p>
-              <p class="panel__field">
-                <label for="legend-columns" data-i18n="legendColumnsLabel">Oszlopok</label>
-                <select id="legend-columns"></select>
-              </p>
-              <p class="choice">
-                <label><input type="checkbox" id="legend-counts" /> <span data-i18n="legendCounts">Darabszámmal</span></label>
-              </p>
-            </div>
-          </details>
 
           <details class="section" id="section-size">
             <summary class="section__head"><h2 class="panel__title" data-i18n="sectionSizeTitle">Méret és fonal</h2></summary>

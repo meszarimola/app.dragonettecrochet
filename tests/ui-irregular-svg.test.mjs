@@ -149,7 +149,6 @@ const INK = '#241f2b';
 const options = (over = {}) => ({
   symbols: DEFAULT_SYMBOL_OPTIONS,
   glyphOf: () => null,
-  legend: null,
   guides: false,
   background: null,
   paper: null,
@@ -158,11 +157,6 @@ const options = (over = {}) => ({
 });
 
 const SC_SHAPES = symbolShapes(findStitch('sc'), DEFAULT_SYMBOL_OPTIONS);
-
-const legendOf = (lines, over = {}) => ({
-  block: { visible: true, position: { x: 0, y: 200 }, columns: 1, showCounts: false, ...over },
-  lines,
-});
 
 const photo = (over = {}) => ({
   placement: {
@@ -249,17 +243,15 @@ test('the layers stand in z-order, bottom first, each group carrying its name', 
   assert.deepEqual(layerNames(parseXml(irregularSvg(pattern, options()))), ['Alul', 'Középen', 'Fölül']);
 });
 
-test('a layer name and a legend line of XML characters come out escaped and still parse', () => {
+test('a layer name and a title of XML characters come out escaped and still parse', () => {
   const pattern = chart({ layers: [layer({ name: 'A & B' })], title: '<zárójel>' });
-  const text = 'rp <"x"> & \'y\' — kör';
 
-  const svg = irregularSvg(pattern, options({ legend: legendOf([{ shapes: SC_SHAPES, text }]) }));
+  const svg = irregularSvg(pattern, options());
 
   assert.ok(!/<g data-layer="A & B"/.test(svg), 'the ampersand went in raw');
   const doc = parseXml(svg);
   assert.deepEqual(layerNames(doc), ['A & B']);
   assert.equal(named(doc, 'title')[0].text, '<zárójel>');
-  assert.equal(named(doc, 'text')[0].text, text);
 });
 
 test('a stitch takes its own colour, then its row colour, then the fallback ink', () => {
@@ -278,34 +270,6 @@ test('a stitch takes its own colour, then its row colour, then the fallback ink'
     .filter((g) => g.attributes.class === 'ink')
     .map((g) => g.attributes.stroke);
   assert.deepEqual(inks, ['#ff0000', '#00ff00', INK]);
-});
-
-describe('the legend', () => {
-  test('every line is a text with its symbol beside it', () => {
-    const lines = [
-      { shapes: SC_SHAPES, text: 'rp — rövidpálca' },
-      { shapes: SC_SHAPES, text: 'lsz — láncszem' },
-    ];
-
-    const doc = parseXml(irregularSvg(chart(), options({ legend: legendOf(lines) })));
-
-    const block = doc.children.find((child) => 'data-legend' in child.attributes);
-    assert.ok(block !== undefined, 'the legend has no group');
-    assert.deepEqual(
-      named(block, 'text').map((node) => node.text),
-      ['rp — rövidpálca', 'lsz — láncszem'],
-    );
-    assert.equal(named(block, 'g').filter((g) => g.attributes.class === 'ink').length, 2, 'both symbols are drawn');
-    const rows = named(block, 'text').map((node) => Number(node.attributes.y));
-    assert.ok(rows[1] > rows[0], 'one column stacks the lines downwards');
-  });
-
-  test('no legend means no legend group and no text at all', () => {
-    const svg = irregularSvg(chart(), options());
-
-    assert.ok(!svg.includes('data-legend'));
-    assert.equal(named(parseXml(svg), 'text').length, 0);
-  });
 });
 
 describe('the guides', () => {
@@ -427,7 +391,6 @@ test('the same pattern always gives the very same string', () => {
     guides: true,
     paper: '#ffffff',
     background: photo(),
-    legend: legendOf([{ shapes: SC_SHAPES, text: 'rp' }]),
   });
 
   assert.equal(irregularSvg(pattern, chosen), irregularSvg(pattern, chosen));
@@ -451,7 +414,7 @@ describe('irregularBox', () => {
     assert.deepEqual(box(pattern), { minX: -30, minY: -30, maxX: 30, maxY: 30 });
   });
 
-  test('the legend, the photo and the circle guide each stretch it', () => {
+  test('the photo and the circle guide each stretch it', () => {
     const pattern = chart({
       guides: {
         ...noGuides,
@@ -459,7 +422,6 @@ describe('irregularBox', () => {
       },
     });
 
-    assert.ok(box(pattern, { legend: legendOf([{ shapes: SC_SHAPES, text: 'rp' }]) }).maxY > 200);
     assert.ok(box(pattern, { background: photo({ width: 400, height: 400, rotation: 0 }) }).maxX >= 200);
     assert.equal(box(pattern, { guides: true }).maxX, 200 + EXPORT_MARGIN);
     assert.equal(box(pattern, { guides: false }).maxX, 30, 'the circle guide is left out when it is not exported');
