@@ -1533,3 +1533,28 @@ for one selected stitch stay under the rows list, next to the row they reorder.
 What the tests pin: `e2e/szabalytalan.spec.ts` (PQW-1010) — one list at a time,
 the footer moving the active row, the „⋯” box, the background row swapping the
 editor, renaming, and the view switches present only in this type.
+
+## §60 The pattern settings leave the free-form panel
+
+PQW-1011, the last step of the free-form redesign. With „Kijelölés” and the
+three tabs in place, the panel still ended in „Jelölés és jelek” and „Minta” —
+language, notation, the pattern name and the key list — which the owner filed
+under „a többi rész is érthetetlen”: settings made once, sitting among the
+tools used all the time.
+
+**In the free-form type they live in a dialog**, „Fájl → Minta beállításai…”
+(`#settings-open`, `#settings-dialog`). **The regular type is unchanged**: the
+two sections are shared nodes, so `placeSharedSections` moves them into the
+dialog when the free-form view opens and back before `[data-consent-open]` when
+it closes, remembering how they were folded. Moving the nodes keeps every
+listener, which is why this is a move and not a copy. The sections stay
+foldable in the dialog, open when they arrive.
+
+The class is `settings-dialog`, not `settings`: `.settings` is the notation
+block's own grid, and on the dialog it displayed the closed dialog and grew the
+page past the window — `e2e/elrendezes.spec.ts` caught it.
+
+What the tests pin: `e2e/szabalytalan.spec.ts` (PQW-1011) — hidden from the
+free-form panel, editable in the dialog, focus back on „Fájl”, and back in the
+regular panel folded as before. `e2e/szabalytalan-vezerlok.spec.ts` opens the
+dialog before it reaches the notation in free-form mode.

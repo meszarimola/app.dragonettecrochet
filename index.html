@@ -190,6 +190,14 @@
                 </svg>
                 <span class="tool__label" data-i18n="bgRemove">Háttérkép eltávolítása</span>
               </button>
+              <button type="button" class="tool" id="settings-open" aria-haspopup="dialog" aria-controls="settings-dialog" data-i18n-label="toolSettingsLabel" data-tip="A minta neve, a jelölés és a billentyűk" data-i18n-tip="toolSettingsTip" hidden>
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M4 6h8M15 6h1M4 14h1M8 14h8" />
+                  <circle cx="13.5" cy="6" r="1.6" />
+                  <circle cx="6.5" cy="14" r="1.6" />
+                </svg>
+                <span class="tool__label" data-i18n="toolSettingsLabel">Minta beállításai…</span>
+              </button>
               </div>
               </div>
               <input type="file" id="import-file" accept="application/json,.json" hidden />
@@ -1071,6 +1079,14 @@
 
           <button type="button" class="panel__consent" data-consent-open data-i18n="consentOpen" hidden>Süti-beállítások</button>
         </aside>
+
+        <dialog class="export settings-dialog" id="settings-dialog" aria-labelledby="settings-title">
+          <h2 class="export__title" id="settings-title" data-i18n="settingsTitle">Minta beállításai</h2>
+          <div class="settings__body" id="settings-body"></div>
+          <p class="export__close">
+            <button type="button" class="button" id="settings-close" data-i18n="exportClose">Bezárás</button>
+          </p>
+        </dialog>
 
         <dialog class="export" id="export-dialog" aria-labelledby="export-title">
           <h2 class="export__title" id="export-title" data-i18n="exportTitle">Exportálás</h2>
