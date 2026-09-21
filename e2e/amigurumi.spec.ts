@@ -33,6 +33,7 @@ async function openSheet(page: Page): Promise<void> {
 }
 
 async function chooseAmigurumi(page: Page): Promise<void> {
+  await page.locator('#types-toggle').click();
   await page.locator('.type[data-type="amigurumi"]').click();
   await openSheet(page);
   await expect(page.locator('#section-amigurumi')).toHaveAttribute('open', '');

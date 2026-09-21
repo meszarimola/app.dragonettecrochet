@@ -3,7 +3,6 @@
 import { STITCH_SECTIONS, type StitchSectionId } from '../core/stitches.ts';
 import { stitchName, stitchStructure } from '../core/stitchText.ts';
 import type { Locale, StitchDef } from '../core/types.ts';
-import { PALETTE_SHORT_LABELS } from './i18n/palette.ts';
 import { texts } from './i18n.ts';
 
 // KB: interface.md §11
@@ -13,8 +12,6 @@ export interface PaletteItem {
   readonly def: StitchDef;
   readonly key: string | null;
   readonly name: string;
-  /** What the dense grid prints: the abbreviation of the notation, or a shortened name. KB: interface.md §53 */
-  readonly short: string;
   readonly structure: string | null;
 }
 
@@ -34,14 +31,9 @@ export function buildPalette(terms: Locale = 'hu'): PaletteSection[] {
       def,
       key: KEYS[index++] ?? null,
       name: capitalize(stitchName(def, terms), terms),
-      short: shortLabel(def, terms),
       structure: stitchStructure(def, terms),
     })),
   }));
-}
-
-function shortLabel(def: StitchDef, terms: Locale): string {
-  return def.terms[terms].abbr ?? PALETTE_SHORT_LABELS[terms][def.id] ?? def.terms[terms].name;
 }
 
 function capitalize(text: string, terms: Locale): string {

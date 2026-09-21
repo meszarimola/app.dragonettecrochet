@@ -65,23 +65,28 @@ test('the panel toggles are in the menu bar, the header holds only the title and
   await expect(page.locator('.bar__lead #home-link')).toBeVisible();
 });
 
-test('the pattern type bar can be collapsed, and its state survives a reload', async ({ page }) => {
+test('the pattern types are a menu of the bar: it opens closed, and a choice or Escape closes it (PQW-989)', async ({
+  page,
+}) => {
   await open(page);
   const types = page.locator('#types');
   const toggle = page.locator('#types-toggle');
-  await expect(types).toBeVisible();
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-
-  await toggle.click();
   await expect(types).toBeHidden();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
 
-  await page.goto('/');
-  await expect(page.locator('#types')).toBeHidden();
-  await expect(page.locator('#types-toggle')).toHaveAttribute('aria-expanded', 'false');
+  await toggle.click();
+  await expect(types).toBeVisible();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('.type[aria-pressed="true"]'), 'the focus lands on the current type').toBeFocused();
 
-  await page.locator('#types-toggle').click();
-  await expect(page.locator('#types')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(types).toBeHidden();
+  await expect(toggle).toBeFocused();
+
+  await toggle.click();
+  await page.locator('.type[data-type="irregular"]').click();
+  await expect(types).toBeHidden();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
 });
 
 test('choosing a pattern type does not open the written pattern panel', async ({ page }) => {
@@ -92,6 +97,7 @@ test('choosing a pattern type does not open the written pattern panel', async ({
   await expect(written).toBeHidden();
 
   // In amigurumi the text is the primary view, but the panel belongs to the user.
+  await page.locator('#types-toggle').click();
   await page.locator('.type[data-type="amigurumi"]').click();
   await expect(written).toBeHidden();
 

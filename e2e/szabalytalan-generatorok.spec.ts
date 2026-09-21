@@ -27,11 +27,13 @@ async function openSheet(page: Page): Promise<void> {
 }
 
 async function chooseIrregular(page: Page): Promise<void> {
-  await page.getByRole('button', { name: /Szabálytalan horgolás/ }).click();
+  await page.locator('#types-toggle').click();
+  await page.getByRole('button', { name: /Szabad tervező/ }).click();
   await expect(page.locator('#board-irregular')).toBeVisible();
 }
 
 async function chooseRegular(page: Page): Promise<void> {
+  await page.locator('#types-toggle').click();
   await page.getByRole('button', { name: /Szabályos horgolás/ }).click();
   await expect(page.locator('#board')).toBeVisible();
 }

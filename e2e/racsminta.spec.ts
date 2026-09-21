@@ -56,6 +56,7 @@ test('small filet motif: the first two rows are complete, the rest come from the
   page,
 }) => {
   await open(page);
+  await page.locator('#types-toggle').click();
   await page.locator('.type[data-type="filet"]').click();
   await openSheet(page);
   const section = page.locator('#section-grid');

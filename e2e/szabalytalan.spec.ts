@@ -14,7 +14,8 @@ async function open(page: Page): Promise<void> {
 }
 
 async function chooseIrregular(page: Page): Promise<void> {
-  await page.getByRole('button', { name: /Szabálytalan horgolás/ }).click();
+  await page.locator('#types-toggle').click();
+  await page.getByRole('button', { name: /Szabad tervező/ }).click();
   await expect(page.locator('#board-irregular')).toBeVisible();
 }
 
@@ -39,6 +40,7 @@ test('the free-form type opens its own canvas and hides what belongs to rows', a
   // Filling a row, turning, closing and spiralling belong to regular crochet only.
   await expect(page.locator('#tools-row')).toBeHidden();
 
+  await page.locator('#types-toggle').click();
   await page.getByRole('button', { name: /Szabályos horgolás/ }).click();
   await expect(page.locator('#board')).toBeVisible();
   await expect(page.locator(board)).toBeHidden();
@@ -97,6 +99,7 @@ test('the drawing survives a reload, and switching types keeps both patterns (AS
   for (const x of [500, 560]) await place(page, x, 300);
   await expect(page.locator('#status')).toContainText('2 szem');
 
+  await page.locator('#types-toggle').click();
   await page.getByRole('button', { name: /Szabályos horgolás/ }).click();
   await expect(page.locator('#summary')).toHaveText(regularBefore ?? '');
 
@@ -165,6 +168,7 @@ test('keys that belong to rows never reach the regular pattern hiding behind thi
   await page.keyboard.press('Delete');
   await page.keyboard.press('Backspace');
 
+  await page.locator('#types-toggle').click();
   await page.getByRole('button', { name: /Szabályos horgolás/ }).click();
   await expect(page.locator('#summary')).toHaveText(before ?? '');
 });
@@ -311,6 +315,8 @@ test('snapping puts a new stitch on the grid, whatever the click hits', async ({
 
   await page.locator('#guide-grid-size').fill('25');
   await page.locator('#guide-grid-size').blur();
+  // The free-form bar folds its view group at 1440 px (interface.md §56).
+  await page.locator('#view-toggle').click();
   await page.locator('[data-action="grid"]').click();
   await page.locator('#guide-snap').check();
   await expect(page.locator('#guide-snap')).toBeChecked();
@@ -382,6 +388,8 @@ test('⌘ a húzáson az illesztést kapcsolja ki, nem a kijelölést bontja meg
 
   await page.locator('#guide-grid-size').fill('20');
   await page.locator('#guide-grid-size').blur();
+  // The free-form bar folds its view group at 1440 px (interface.md §56).
+  await page.locator('#view-toggle').click();
   await page.locator('[data-action="grid"]').click();
   await page.locator('#guide-snap').check();
 
@@ -435,6 +443,8 @@ test('⌘ a lerakásnál is kikapcsolja az illesztést, nem csak húzásnál (PQ
 
   await page.locator('#guide-grid-size').fill('25');
   await page.locator('#guide-grid-size').blur();
+  // The free-form bar folds its view group at 1440 px (interface.md §56).
+  await page.locator('#view-toggle').click();
   await page.locator('[data-action="grid"]').click();
   await page.locator('#guide-snap').check();
 
@@ -656,7 +666,7 @@ test('legyező: szétnyíló rajzolás, N átállítása, összefutóra váltás
   await expect(fanTool, 'az eszköz a rajzolás után is fel van véve').toHaveAttribute('aria-pressed', 'true');
   await armDoubleCrochet(page);
   await expect(fanTool, 'a paletta leteszi a legyező eszközt').toHaveAttribute('aria-pressed', 'false');
-  await place(page, 260, 250);
+  await place(page, 300, 250);
   expect((await fan()).items, 'a kattintás egy szemet rakott le, nem egy legyezőt').toBe(8);
   await page.keyboard.press('Escape');
   await page.locator(board).click({ position: { x: 500, y: 460 } });
@@ -1227,6 +1237,8 @@ test('a láncív azt rögzíti, amit az előkép mutatott, akkor is, ha a ⌘-t 
 
   await page.locator('#guide-grid-size').fill('20');
   await page.locator('#guide-grid-size').blur();
+  // The free-form bar folds its view group at 1440 px (interface.md §56).
+  await page.locator('#view-toggle').click();
   await page.locator('[data-action="grid"]').click();
   await page.locator('#guide-snap').check();
 
