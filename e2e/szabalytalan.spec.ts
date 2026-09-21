@@ -1300,6 +1300,9 @@ test('rows, layers and key share one place behind tabs; the background is the bo
   await expect(page.locator('#layer-bg-visible')).toBeDisabled();
   await page.locator('#layer-bg-pick').click();
   await expect(page.locator('#layer-name')).toBeHidden();
+  // The footer acts on the active layer, which is out of sight now: nothing to delete or move.
+  await expect(page.locator('#layer-delete')).toBeDisabled();
+  await expect(page.locator('#layer-up')).toBeDisabled();
   await expect(page.locator('#layer-bg-load')).toBeVisible();
 
   // Renaming the active layer happens in its own field.

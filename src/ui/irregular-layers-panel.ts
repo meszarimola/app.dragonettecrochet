@@ -39,6 +39,7 @@ export class IrregularLayersPanel {
   /** The background picture is picked like a layer, but it is not one of the pattern's layers. */
   #backgroundPicked = false;
   #background: BackgroundImage | null = null;
+  #selectionSize = 0;
 
   constructor(section: HTMLDetailsElement, host: LayersPanelHost) {
     this.#section = section;
@@ -103,13 +104,7 @@ export class IrregularLayersPanel {
     // The list reads top down, so the topmost layer comes first.
     const shown = [...pattern.layers].reverse();
     this.#list.replaceChildren(...shown.map((layer) => this.#entry(pattern, layer)));
-    const index = this.#layerIds.indexOf(this.#active);
-    must<HTMLButtonElement>(this.#section, '#layer-up').disabled =
-      this.#backgroundPicked || index === this.#layerIds.length - 1;
-    must<HTMLButtonElement>(this.#section, '#layer-down').disabled = this.#backgroundPicked || index <= 0;
-    must<HTMLButtonElement>(this.#section, '#layer-delete').disabled =
-      this.#backgroundPicked || pattern.layers.length < 2;
-    must<HTMLButtonElement>(this.#section, '#layer-move-items').disabled = selectionSize === 0;
+    this.#selectionSize = selectionSize;
     const active = pattern.layers.find((layer) => layer.id === this.#active);
     if (document.activeElement !== this.#name) this.#name.value = active?.name ?? '';
     const words = texts().irregular;
@@ -125,7 +120,14 @@ export class IrregularLayersPanel {
     this.#show();
   }
 
+  /** The footer acts on the active layer, so while the background is picked it has nothing to act on. */
   #show(): void {
+    const index = this.#layerIds.indexOf(this.#active);
+    const off = this.#backgroundPicked;
+    must<HTMLButtonElement>(this.#section, '#layer-up').disabled = off || index === this.#layerIds.length - 1;
+    must<HTMLButtonElement>(this.#section, '#layer-down').disabled = off || index <= 0;
+    must<HTMLButtonElement>(this.#section, '#layer-delete').disabled = off || this.#layerIds.length < 2;
+    must<HTMLButtonElement>(this.#section, '#layer-move-items').disabled = off || this.#selectionSize === 0;
     for (const pick of this.#list.querySelectorAll<HTMLElement>('[data-layer-act="pick"]')) {
       const on =
         !this.#backgroundPicked && pick.closest<HTMLElement>('[data-layer]')?.dataset['layer'] === this.#active;

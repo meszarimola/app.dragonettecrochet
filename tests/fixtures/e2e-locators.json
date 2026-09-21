@@ -388,7 +388,9 @@
     "#layer-bg-visible": 1,
     "#layer-bg-pick": 1,
     "#layer-bg-load": 1,
-    "#row-fade": 2
+    "#row-fade": 2,
+    "#layer-delete": 1,
+    "#layer-up": 1
   },
   "selectOption": {
     "": 1,
