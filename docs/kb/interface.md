@@ -1487,3 +1487,49 @@ what „Tulajdonságok” did or why it was there.
 
 What the tests pin: `e2e/szabalytalan.spec.ts` (PQW-1009) — the empty line, the
 caret menu, the mode surviving a reload, and the caret hidden in the regular type.
+
+## §59 Rows, layers and key behind tabs, as compact lists
+
+PQW-1010, the third step of the free-form redesign. The owner asked for layers
+and rows „hasonló felépítésben, mint a photoshop esetén … csak persze
+kompaktabb formában”.
+
+**Three tabs, one place.** `#irregular-tabs` (`#tab-rows`, `#tab-layers`,
+`#tab-key`, pressed buttons rather than an ARIA tab widget, so no arrow-key
+contract) sits under the selection block. The three sections keep their
+`<details>` and ids; in the tab row their `summary` is hidden and the section not
+picked gets `.is-off`. `wireTabs` (`irregular-tabs.ts`) owns that, and nothing is
+stored: the tab starts on „Sorok” every time.
+
+**A list entry is one 44 px line:** eye (shown), lock (locked), then the pick
+button with the colour, the name, the direction arrow and the count. Pressed
+means shown or locked; the off state is faded, not a different glyph. The active
+entry has the selection background. The per-entry ↑/↓ buttons went to the
+footer, where they move the active row or layer: at three 44 px buttons per
+entry the name had no room.
+
+**The footer** holds what is used all the time — new row, new round (new layer
+and „kijelöltek ide” on the layers tab), up, down — and „⋯” (`#rows-more-toggle`)
+opens `#rows-more` in place with the rest: insert after, select the row, move
+the selection here, both deletes, spacing and alignment. It opens in place, not
+as a popover, because the panel scrolls and a popover would be cut by it.
+
+**The active row's settings** (kind, direction, colour) and the active layer's
+name (`#layer-name`) sit under the footer, always visible. The layer name used
+to be a text field in every entry.
+
+**The background picture is the bottom row of the layers tab** (`#layer-bg`,
+outside `#layers-list`, so the list still counts only real layers). It is not a
+pattern layer: picking it is panel state (`#backgroundPicked`), and it swaps the
+layer-name editor for the picture's own block (`#props-background`, moved here
+from the selection block): load, or opacity, size, rotation, export and remove.
+Its eye and lock patch the picture; they are disabled while there is none. The
+old „Látszik” and „Zárolva” checkboxes went, the eye and lock replace them.
+
+**„A többi sor halványítása” and „Szemsorrend mutatása”** are view switches, so
+they moved to the „Nézet” menu (`#view-work`, free-form only). The order buttons
+for one selected stitch stay under the rows list, next to the row they reorder.
+
+What the tests pin: `e2e/szabalytalan.spec.ts` (PQW-1010) — one list at a time,
+the footer moving the active row, the „⋯” box, the background row swapping the
+editor, renaming, and the view switches present only in this type.

@@ -95,6 +95,7 @@ import {
 import { InsertionPanel } from './insertion-panel.js';
 import { insertionSuffix } from './insertion-view.js';
 import { IrregularEditor } from './irregular-editor.js';
+import { wireTabs } from './irregular-tabs.js';
 import {
   chartStyleLabel,
   defaultNotation,
@@ -2347,6 +2348,8 @@ function showIrregularView(on: boolean): void {
     '#export-picture-fields',
     '#export-pdf-part',
     '#select-mode-toggle',
+    '#irregular-tabs',
+    '#view-work',
   ]) {
     must<HTMLElement>(id).hidden = !on;
   }
@@ -2418,6 +2421,9 @@ new ResizeObserver(syncWrittenSize).observe(status);
 
 alignTooltips(must<HTMLElement>('.tools'));
 alignTooltips(must<HTMLElement>('#section-irregular'));
+alignTooltips(must<HTMLElement>('#section-irregular-rows'));
+alignTooltips(must<HTMLElement>('#section-irregular-layers'));
+wireTabs(must<HTMLElement>('#irregular-tabs'));
 setupConsentBanner(GA_MEASUREMENT_ID);
 
 // KB: interface.md §31
