@@ -1647,13 +1647,15 @@ együtt”, and a pointer next to „Terület” for Ctrl/⌘-click selection.
   names now; the editor passes one. A pattern that still has exactly the two
   old starting layers („Mintarajz” and „Feliratok”, or „Chart” and „Labels”),
   both shown and unlocked, becomes one layer on load or import
-  (`oneStartingLayer`); layers she named or changed are left alone.
+  (`oneStartingLayer`), groups included, or a saved file would name a layer that
+  is gone; layers she named or changed are left alone.
 - **„Kijelölt módosítása”** is the old selection block (§58), renamed, moved
   under the rows and layers tabs, and hidden (`.is-off`) while nothing is
   selected. Arranging a whole row therefore starts from selecting it; with the
   whole row selected it still remembers the shape (§46).
 - **The frame is the handle.** A press inside the selection frame that hits no
-  item moves the whole selection. A still click on one of several selected
+  item moves the whole selection — checked before the tracing photo and the
+  circle guide's knob, which lie behind it (/code-review). A still click on one of several selected
   items narrows the selection to it (with its group); a drag moves them all.
 - **The frame turns with the drawing.** While the rotate knob is dragged the
   board draws the frame it started from, turned by the same angle

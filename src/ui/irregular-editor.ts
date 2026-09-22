@@ -283,6 +283,13 @@ function oneStartingLayer(pattern: IrregularPattern): IrregularPattern {
     ...pattern,
     layers: [{ ...first, name: texts().irregular.layerName }],
     items: pattern.items.map((item) => (item.layerId === second.id ? { ...item, layerId: first.id } : item)),
+    ...(pattern.groups === undefined
+      ? {}
+      : {
+          groups: pattern.groups.map((group) =>
+            group.layerId === second.id ? { ...group, layerId: first.id } : group,
+          ),
+        }),
     activeLayerId: first.id,
   };
 }
@@ -1881,6 +1888,30 @@ export class IrregularEditor {
       return;
     }
 
+    // KB: interface.md §64 — the whole frame is the handle: a press inside it that hits no
+    // stitch moves the selection, before the photo or the circle guide behind it.
+    const frame = this.#board.selectionBox();
+    if (
+      this.#stitch === null &&
+      frame !== null &&
+      !(event.shiftKey || event.metaKey || event.ctrlKey) &&
+      point.x >= frame.minX &&
+      point.x <= frame.maxX &&
+      point.y >= frame.minY &&
+      point.y <= frame.maxY &&
+      this.#board.itemAt(event.clientX, event.clientY) === null
+    ) {
+      const first = itemsOf(this.#history.present, this.#selection)[0];
+      this.#drag = {
+        kind: 'move',
+        from: point,
+        anchor: first === undefined ? point : { x: first.x, y: first.y },
+        drop: null,
+        solo: null,
+      };
+      return;
+    }
+
     // The photo is behind everything, so it is grabbed only when nothing else was.
     if (
       this.#stitch === null &&
@@ -1932,27 +1963,6 @@ export class IrregularEditor {
         solo,
       };
       this.refresh();
-      return;
-    }
-
-    // KB: interface.md §64 — the whole frame is the handle: a click beside the line still moves it.
-    const frame = this.#board.selectionBox();
-    if (
-      !additive &&
-      frame !== null &&
-      point.x >= frame.minX &&
-      point.x <= frame.maxX &&
-      point.y >= frame.minY &&
-      point.y <= frame.maxY
-    ) {
-      const first = itemsOf(this.#history.present, this.#selection)[0];
-      this.#drag = {
-        kind: 'move',
-        from: point,
-        anchor: first === undefined ? point : { x: first.x, y: first.y },
-        drop: null,
-        solo: null,
-      };
       return;
     }
 
@@ -2295,6 +2305,7 @@ export class IrregularEditor {
     }
     const draft = this.#draft;
     this.#drag = null;
+    this.#board.setSelectionTurn(null);
     if (draft === null) {
       if (drag.kind === 'move' && drag.drop !== null) this.#selection.delete(drag.drop);
       if (drag.kind === 'move' && drag.solo !== null) {
