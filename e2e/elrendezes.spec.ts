@@ -28,9 +28,9 @@ async function box(page: Page, selector: string) {
   return found!;
 }
 
-/** „Egész minta”; in a narrow bar it is an item of the view menu, which stays open between steps (interface.md §56). */
+/** „Egész minta” is an item of the zoom menu, which stays open between steps (interface.md §63). */
 async function fitWhole(page: Page): Promise<void> {
-  const menu = page.locator('#view-toggle');
+  const menu = page.locator('#zoom-toggle');
   if ((await menu.isVisible()) && (await menu.getAttribute('aria-expanded')) !== 'true') await menu.click();
   await page.getByRole('button', { name: 'Egész minta' }).click();
 }

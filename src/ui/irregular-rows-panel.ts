@@ -16,22 +16,12 @@ export interface RowsPanelHost {
   reorder(rowId: string, toIndex: number): void;
   selectRow(rowId: string): void;
   moveSelection(rowId: string): void;
-  setFadeOthers(on: boolean): void;
-  setShowOrder(on: boolean): void;
-  moveInOrder(delta: number): void;
-  setOrderPlace(position: number): void;
-  resetOrder(): void;
   spaceRows(spacing: number): void;
   alignRows(mode: RowAlign): void;
 }
 
 export interface RowsView {
-  readonly fadeOthers: boolean;
-  readonly showOrder: boolean;
   readonly selectionSize: number;
-  readonly manualOrder: boolean;
-  /** Where the one selected stitch sits in its row, or `null` when that is not one stitch. */
-  readonly orderPlace: number | null;
 }
 
 const KINDS: readonly RowKind[] = ['row', 'round'];
@@ -87,12 +77,6 @@ export class IrregularRowsPanel {
   readonly #kind: HTMLSelectElement;
   readonly #direction: HTMLSelectElement;
   readonly #color: HTMLInputElement;
-  readonly #fade: HTMLInputElement;
-  readonly #showOrder: HTMLInputElement;
-  readonly #orderControls: HTMLElement;
-  readonly #orderPlaceField: HTMLElement;
-  readonly #orderPlace: HTMLInputElement;
-  readonly #note: HTMLElement;
 
   constructor(section: HTMLDetailsElement, host: RowsPanelHost) {
     this.#section = section;
@@ -101,13 +85,6 @@ export class IrregularRowsPanel {
     this.#kind = must<HTMLSelectElement>(section, '#row-kind');
     this.#direction = must<HTMLSelectElement>(section, '#row-direction');
     this.#color = must<HTMLInputElement>(section, '#row-color');
-    // KB: interface.md §59 — the two view switches live in the „Nézet” menu.
-    this.#fade = must<HTMLInputElement>(section.ownerDocument, '#row-fade');
-    this.#showOrder = must<HTMLInputElement>(section.ownerDocument, '#row-order-overlay');
-    this.#orderControls = must<HTMLElement>(section, '#order-controls');
-    this.#orderPlaceField = must<HTMLElement>(section, '#order-place-field');
-    this.#orderPlace = must<HTMLInputElement>(section, '#order-place');
-    this.#note = must<HTMLElement>(section, '#rows-note');
     this.#listen();
   }
 
@@ -152,17 +129,6 @@ export class IrregularRowsPanel {
       const all: readonly RowDirection[] = [...ROW_DIRECTIONS, ...ROUND_DIRECTIONS];
       const direction = all.find((candidate) => candidate === this.#direction.value);
       if (direction !== undefined) this.#host.update(this.#active, { direction });
-    });
-    this.#fade.addEventListener('change', () => this.#host.setFadeOthers(this.#fade.checked));
-    this.#showOrder.addEventListener('change', () => this.#host.setShowOrder(this.#showOrder.checked));
-    must<HTMLButtonElement>(this.#section, '#order-earlier').addEventListener('click', () =>
-      this.#host.moveInOrder(-1),
-    );
-    must<HTMLButtonElement>(this.#section, '#order-later').addEventListener('click', () => this.#host.moveInOrder(1));
-    must<HTMLButtonElement>(this.#section, '#order-reset').addEventListener('click', () => this.#host.resetOrder());
-    this.#orderPlace.addEventListener('change', () => {
-      const place = Number(this.#orderPlace.value);
-      if (Number.isFinite(place)) this.#host.setOrderPlace(place);
     });
     this.#list.addEventListener('click', (event) => this.#onList(event));
     must<HTMLButtonElement>(this.#section, '#row-up').addEventListener('click', () => this.#step(-1));
@@ -209,6 +175,10 @@ export class IrregularRowsPanel {
   }
 
   update(pattern: IrregularPattern, view: RowsView): void {
+    // KB: interface.md §63 — before the first stitch there is no row to show yet.
+    const blank = pattern.items.length === 0 && pattern.rows.length === 1;
+    must<HTMLElement>(this.#section, '#rows-empty').hidden = !blank;
+    must<HTMLElement>(this.#section, '#rows-body').hidden = blank;
     this.#active = pattern.activeRowId;
     this.#rowIds = pattern.rows.map((row) => row.id);
     const index = this.#rowIds.indexOf(this.#active);
@@ -223,13 +193,6 @@ export class IrregularRowsPanel {
     this.#direction.replaceChildren(...directions.map((one) => option(one, directionLabel(one))));
     if (active !== undefined) this.#direction.value = active.direction;
     if (document.activeElement !== this.#color) this.#color.value = active?.color ?? DEFAULT_COLOR;
-    this.#fade.checked = view.fadeOthers;
-    this.#showOrder.checked = view.showOrder;
-    this.#orderControls.hidden = view.selectionSize !== 1;
-    this.#orderPlaceField.hidden = view.orderPlace === null;
-    if (view.orderPlace !== null && document.activeElement !== this.#orderPlace) {
-      this.#orderPlace.value = String(view.orderPlace);
-    }
     must<HTMLButtonElement>(this.#section, '#row-move-items').disabled = view.selectionSize === 0;
     must<HTMLButtonElement>(this.#section, '#row-delete').disabled = pattern.rows.length < 2;
     // KB: interface.md §61 — a row with no stitches is not a row yet, so no new one opens after it.
@@ -240,7 +203,6 @@ export class IrregularRowsPanel {
     must<HTMLButtonElement>(this.#section, '#row-new-round').disabled = lastEmpty;
     must<HTMLButtonElement>(this.#section, '#row-insert').disabled = empty(active);
     must<HTMLButtonElement>(this.#section, '#row-delete-keep').disabled = pattern.rows.length < 2;
-    this.#note.textContent = view.manualOrder ? words.orderManual : '';
   }
 
   #entry(pattern: IrregularPattern, row: IrregularRow, index: number): HTMLLIElement {
