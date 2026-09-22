@@ -59,7 +59,7 @@ test('the free-form type takes the regular generators out of the sheet, and brin
   await chooseIrregular(page);
   for (const selector of REGULAR_SECTIONS) await expect(page.locator(selector)).toBeHidden();
   await expect(page.locator('#setup-toggle')).toBeHidden();
-  await expect(page.locator('#section-irregular')).toBeVisible();
+  await expect(page.locator('#irregular-tabs')).toBeVisible();
 
   await chooseRegular(page);
   await openSheet(page);

@@ -254,6 +254,12 @@
             </div>
 
             <div class="tools__group" role="group" aria-label="Kijelölés" data-i18n-label="toolGroupSelect">
+              <button type="button" class="tool" id="select-pointer" data-action="select-pointer" aria-pressed="false" aria-label="Kijelölés" data-tip="Kattints egy elemre; Ctrl/⌘ vagy Shift + kattintás: több elem. A keret sarkainál átméretezhető, belül bárhol megfogva mozgatható." data-i18n-label="toolPointerLabel" data-i18n-tip="toolPointerTip" hidden>
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M5 3.5 15 11l-4.6.9 2.6 4.6-1.8 1-2.6-4.6L5 16z" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelPointer">Kijelölés</span>
+              </button>
               <div class="tools__split">
                 <button type="button" class="tool" data-action="select-area" aria-pressed="false" aria-label="Terület kijelölése" data-tip="Terület kijelölése húzással. Szem nélkül kattintás: egy szem, Shift: több, sorszám: teljes sor" data-i18n-label="toolSelectAreaLabel" data-i18n-tip="toolSelectAreaTip">
                   <svg class="icon icon--dashed" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
@@ -565,10 +571,136 @@
             </div>
           </section>
 
+          <div class="panel-tabs" id="irregular-tabs" role="group" aria-label="Sorok és rétegek" data-i18n-label="tabsLabel" hidden>
+            <button type="button" class="panel-tabs__tab" id="tab-rows" data-tab="rows" aria-pressed="true" aria-controls="section-irregular-rows" data-i18n="tabRows">Sorok</button>
+            <button type="button" class="panel-tabs__tab" id="tab-layers" data-tab="layers" aria-pressed="false" aria-controls="section-irregular-layers" data-i18n="tabLayers">Rétegek</button>
+          </div>
+          <details class="section section--tab" id="section-irregular-rows" hidden>
+            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionRowsTitle">Sorok és körök</h2></summary>
+            <div class="rows" role="group" aria-label="A minta sorai és körei" data-i18n-label="rowsGroupLabel">
+              <p class="panel__note" id="rows-empty" data-i18n="rowsEmpty" hidden>Tegyél le egy szemet a rajzlapra, és megjelenik az első sor.</p>
+              <div class="rows__body" id="rows-body">
+              <ul class="rows__list" id="rows-list"></ul>
+              <div class="rows__bar">
+                <button type="button" class="ib" id="row-new" aria-label="Új sor" data-tip="Új sor" data-i18n-label="rowNew" data-i18n-tip="rowNew"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3 13h9M14.5 10v6M11.5 13h6M3 8h14" /></svg></button>
+                <button type="button" class="ib" id="row-new-round" aria-label="Új kör" data-tip="Új kör" data-i18n-label="rowNewRound" data-i18n-tip="rowNewRound"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M9 13.5a4.5 4.5 0 1 1 4.3-6M15 10v6M12 13h6" /></svg></button>
+                <span class="rows__spacer"></span>
+                <button type="button" class="ib" id="row-up" aria-label="Feljebb" data-tip="Feljebb" data-i18n-label="panelMoveUp" data-i18n-tip="panelMoveUp"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 16V4M5 9l5-5 5 5" /></svg></button>
+                <button type="button" class="ib" id="row-down" aria-label="Lejjebb" data-tip="Lejjebb" data-i18n-label="panelMoveDown" data-i18n-tip="panelMoveDown"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 4v12M5 11l5 5 5-5" /></svg></button>
+                <button type="button" class="ib" id="row-delete" aria-label="A sor törlése a szemeivel" data-tip="A sor törlése a szemeivel" data-i18n-label="rowDelete" data-i18n-tip="rowDelete"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M5 6h10M8 6V4.25h4V6M6.5 6l.6 10h5.8l.6-10" /></svg></button>
+                <button type="button" class="ib" id="rows-more-toggle" aria-label="További műveletek" data-tip="További műveletek" data-i18n-label="rowsMore" data-i18n-tip="rowsMore" aria-expanded="false" aria-controls="rows-more"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M4.5 10h.01M10 10h.01M15.5 10h.01" /></svg></button>
+              </div>
+              <div class="rows__more" id="rows-more" hidden>
+                <p class="props__row">
+                  <button type="button" class="button" id="row-insert" data-i18n="rowInsertAfter">Beszúrás az aktív után</button>
+                  <button type="button" class="button" id="row-select" data-i18n="rowSelectAll">A sor kijelölése</button>
+                  <button type="button" class="button" id="row-move-items" data-i18n="rowMoveItems">A kijelölt szemek ide</button>
+                </p>
+                <p class="props__row">
+                  <button type="button" class="button" id="row-delete-keep" data-i18n="rowDeleteKeep">Törlés, szemek az előző sorba</button>
+                </p>
+                <h3 class="panel__title" data-i18n="rowsTogetherTitle">Sorok egymáshoz</h3>
+                <p class="panel__field">
+                  <label for="row-spacing" data-i18n="rowSpacingLabel">Sortávolság</label>
+                  <input id="row-spacing" type="number" min="1" max="2000" step="1" inputmode="numeric" value="40" />
+                </p>
+                <p class="props__row">
+                  <button type="button" class="button" id="rows-space" data-i18n="rowsSpace">Egyenletes sortávolság</button>
+                </p>
+                <p class="props__row">
+                  <button type="button" class="button" data-row-align="start" data-i18n="rowsAlignStart">Kezdetre</button>
+                  <button type="button" class="button" data-row-align="center" data-i18n="rowsAlignCenter">Középre</button>
+                  <button type="button" class="button" data-row-align="end" data-i18n="rowsAlignEnd">Végére</button>
+                  <button type="button" class="button" data-row-align="concentric" data-i18n="rowsAlignConcentric">Koncentrikusra</button>
+                </p>
+              </div>
+              <div class="rows__editor">
+                <div class="props__grid">
+                  <p class="panel__field">
+                    <label for="row-kind" data-i18n="rowKindLabel">Az aktív fajtája</label>
+                    <select id="row-kind"></select>
+                  </p>
+                  <p class="panel__field">
+                    <label for="row-direction" data-i18n="rowDirectionLabel">Irány</label>
+                    <select id="row-direction"></select>
+                  </p>
+                </div>
+                <p class="panel__field">
+                  <label for="row-color" data-i18n="rowColorLabel">A sor színe</label>
+                  <span class="props__color">
+                    <input id="row-color" type="color" />
+                    <button type="button" class="button" id="row-color-clear" data-i18n="rowColorClear">Nincs sorszín</button>
+                  </span>
+                </p>
+              </div>
+              </div>
+            </div>
+          </details>
+
+          <details class="section section--tab" id="section-irregular-layers" hidden>
+            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionLayersTitle">Rétegek</h2></summary>
+            <div class="layers" role="group" aria-label="A rajz rétegei" data-i18n-label="layersGroupLabel">
+              <ul class="rows__list" id="layers-list"></ul>
+              <div class="rows__row layers__bg" id="layer-bg">
+                <button type="button" class="rows__toggle" id="layer-bg-visible" aria-pressed="true" aria-label="Látható" data-i18n-label="bgToggleVisible"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M2 10s3-5.5 8-5.5 8 5.5 8 5.5-3 5.5-8 5.5S2 10 2 10z" /><circle cx="10" cy="10" r="2.3" /></svg></button>
+                <button type="button" class="rows__toggle" id="layer-bg-locked" aria-pressed="false" aria-label="Zárolva" data-i18n-label="bgToggleLocked"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M5 9h10v8H5zM7 9V6.5a3 3 0 0 1 6 0V9" /></svg></button>
+                <button type="button" class="rows__pick" id="layer-bg-pick" aria-pressed="false">
+                  <span class="rows__thumb" id="layer-bg-thumb"></span>
+                  <span class="rows__number" data-i18n="bgLayerName">Háttér</span>
+                  <span class="rows__count" id="layer-bg-state"></span>
+                </button>
+              </div>
+              <div class="rows__bar">
+                <button type="button" class="button rows__add" id="layer-new" data-i18n="layerNew">Új réteg</button>
+                <button type="button" class="ib" id="layer-move-items" aria-label="A kijelölt szemek erre a rétegre" data-tip="A kijelölt szemek erre a rétegre" data-i18n-label="layerMoveItemsShort" data-i18n-tip="layerMoveItemsShort"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 3v8M6.5 7.5 10 11l3.5-3.5M3.5 12.5v3.5h13v-3.5" /></svg></button>
+                <span class="rows__spacer"></span>
+                <button type="button" class="ib" id="layer-up" aria-label="Feljebb" data-tip="Feljebb" data-i18n-label="panelMoveUp" data-i18n-tip="panelMoveUp"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 16V4M5 9l5-5 5 5" /></svg></button>
+                <button type="button" class="ib" id="layer-down" aria-label="Lejjebb" data-tip="Lejjebb" data-i18n-label="panelMoveDown" data-i18n-tip="panelMoveDown"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 4v12M5 11l5 5 5-5" /></svg></button>
+                <button type="button" class="ib" id="layer-delete" aria-label="A réteg törlése" data-tip="A réteg törlése" data-i18n-label="layerDelete" data-i18n-tip="layerDelete"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M5 6h10M8 6V4.25h4V6M6.5 6l.6 10h5.8l.6-10" /></svg></button>
+              </div>
+              <div class="rows__editor" id="layer-active">
+                <p class="panel__field">
+                  <label for="layer-name" data-i18n="layerNameLabel">A réteg neve</label>
+                  <input id="layer-name" type="text" maxlength="40" />
+                </p>
+              </div>
+              <div class="rows__editor" id="props-background" hidden>
+                <h3 class="panel__title" data-i18n="bgTitle">Háttérkép</h3>
+                <div id="bg-empty">
+                  <p class="panel__note" data-i18n="bgEmptyNote">Tegyél ide egy fotót vagy vázlatot, és rajzold át szemekkel. A kész mintán nem látszik, hacsak nem kéred.</p>
+                  <p class="props__row">
+                    <button type="button" class="button" id="layer-bg-load" data-i18n="bgLoad">Háttérkép betöltése…</button>
+                  </p>
+                </div>
+                <div id="bg-fields" hidden>
+                  <p class="panel__field">
+                    <label for="bg-opacity" data-i18n="bgOpacityLabel">Láthatóság (%)</label>
+                    <input id="bg-opacity" type="number" min="0" max="100" step="5" inputmode="numeric" />
+                  </p>
+                  <p class="panel__field">
+                    <label for="bg-scale" data-i18n="bgScaleLabel">Méret (%)</label>
+                    <input id="bg-scale" type="number" min="5" max="1000" step="5" inputmode="numeric" />
+                  </p>
+                  <p class="panel__field">
+                    <label for="bg-rotation" data-i18n="bgRotationLabel">Elforgatás (fok)</label>
+                    <input id="bg-rotation" type="number" min="0" max="359" step="1" inputmode="numeric" />
+                  </p>
+                  <p class="choice">
+                    <label><input type="checkbox" id="bg-in-export" /> <span data-i18n="bgInExport">Exportáláskor is látszik</span></label>
+                  </p>
+                  <p class="props__row">
+                    <button type="button" class="button" id="layer-bg-remove" data-i18n="bgRemove">Háttérkép eltávolítása</button>
+                  </p>
+                  <p class="panel__note" data-i18n="bgHint">A képet a vásznon húzva mozgathatod, amíg nincs zárolva. Ejtsd rá a fájlt a rajzlapra, az is betölti.</p>
+                </div>
+                </div>
+              <p class="panel__note" data-i18n="layersNote">A réteg a rajzot rendezi, a sor a horgolás sorrendjét. Minden elem pontosan egy rétegen van.</p>
+            </div>
+          </details>
+
           <details class="section" id="section-irregular" hidden>
-            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionIrregularTitle">Kijelölés</h2></summary>
+            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionIrregularTitle">Kijelölt módosítása</h2></summary>
             <div class="props" role="group" aria-label="A kijelölt szemek tulajdonságai" data-i18n-label="propsGroupLabel">
-              <p class="panel__note" id="props-empty" data-i18n="propsEmpty">Jelölj ki szemet a rajzon, és itt állíthatod a helyét, a méretét és a színét.</p>
               <div id="props-fields" hidden>
                 <div class="props__grid">
                   <p class="panel__field">
@@ -703,132 +835,6 @@
                 <p class="panel__note" data-i18n="fanHint">Az alappont és a középső sugár vége a vásznon húzható. Kijelölt legyezőnél a számbillentyűk a szemek számát állítják.</p>
               </div>
               <p class="panel__note" id="props-count" role="status" aria-live="polite"></p>
-            </div>
-          </details>
-          <div class="panel-tabs" id="irregular-tabs" role="group" aria-label="Sorok és rétegek" data-i18n-label="tabsLabel" hidden>
-            <button type="button" class="panel-tabs__tab" id="tab-rows" data-tab="rows" aria-pressed="true" aria-controls="section-irregular-rows" data-i18n="tabRows">Sorok</button>
-            <button type="button" class="panel-tabs__tab" id="tab-layers" data-tab="layers" aria-pressed="false" aria-controls="section-irregular-layers" data-i18n="tabLayers">Rétegek</button>
-          </div>
-          <details class="section section--tab" id="section-irregular-rows" hidden>
-            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionRowsTitle">Sorok és körök</h2></summary>
-            <div class="rows" role="group" aria-label="A minta sorai és körei" data-i18n-label="rowsGroupLabel">
-              <p class="panel__note" id="rows-empty" data-i18n="rowsEmpty" hidden>Tegyél le egy szemet a rajzlapra, és megjelenik az első sor.</p>
-              <div class="rows__body" id="rows-body">
-              <ul class="rows__list" id="rows-list"></ul>
-              <div class="rows__bar">
-                <button type="button" class="ib" id="row-new" aria-label="Új sor" data-tip="Új sor" data-i18n-label="rowNew" data-i18n-tip="rowNew"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3 13h9M14.5 10v6M11.5 13h6M3 8h14" /></svg></button>
-                <button type="button" class="ib" id="row-new-round" aria-label="Új kör" data-tip="Új kör" data-i18n-label="rowNewRound" data-i18n-tip="rowNewRound"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M9 13.5a4.5 4.5 0 1 1 4.3-6M15 10v6M12 13h6" /></svg></button>
-                <span class="rows__spacer"></span>
-                <button type="button" class="ib" id="row-up" aria-label="Feljebb" data-tip="Feljebb" data-i18n-label="panelMoveUp" data-i18n-tip="panelMoveUp"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 16V4M5 9l5-5 5 5" /></svg></button>
-                <button type="button" class="ib" id="row-down" aria-label="Lejjebb" data-tip="Lejjebb" data-i18n-label="panelMoveDown" data-i18n-tip="panelMoveDown"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 4v12M5 11l5 5 5-5" /></svg></button>
-                <button type="button" class="ib" id="row-delete" aria-label="A sor törlése a szemeivel" data-tip="A sor törlése a szemeivel" data-i18n-label="rowDelete" data-i18n-tip="rowDelete"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M5 6h10M8 6V4.25h4V6M6.5 6l.6 10h5.8l.6-10" /></svg></button>
-                <button type="button" class="ib" id="rows-more-toggle" aria-label="További műveletek" data-tip="További műveletek" data-i18n-label="rowsMore" data-i18n-tip="rowsMore" aria-expanded="false" aria-controls="rows-more"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M4.5 10h.01M10 10h.01M15.5 10h.01" /></svg></button>
-              </div>
-              <div class="rows__more" id="rows-more" hidden>
-                <p class="props__row">
-                  <button type="button" class="button" id="row-insert" data-i18n="rowInsertAfter">Beszúrás az aktív után</button>
-                  <button type="button" class="button" id="row-select" data-i18n="rowSelectAll">A sor kijelölése</button>
-                  <button type="button" class="button" id="row-move-items" data-i18n="rowMoveItems">A kijelölt szemek ide</button>
-                </p>
-                <p class="props__row">
-                  <button type="button" class="button" id="row-delete-keep" data-i18n="rowDeleteKeep">Törlés, szemek az előző sorba</button>
-                </p>
-                <h3 class="panel__title" data-i18n="rowsTogetherTitle">Sorok egymáshoz</h3>
-                <p class="panel__field">
-                  <label for="row-spacing" data-i18n="rowSpacingLabel">Sortávolság</label>
-                  <input id="row-spacing" type="number" min="1" max="2000" step="1" inputmode="numeric" value="40" />
-                </p>
-                <p class="props__row">
-                  <button type="button" class="button" id="rows-space" data-i18n="rowsSpace">Egyenletes sortávolság</button>
-                </p>
-                <p class="props__row">
-                  <button type="button" class="button" data-row-align="start" data-i18n="rowsAlignStart">Kezdetre</button>
-                  <button type="button" class="button" data-row-align="center" data-i18n="rowsAlignCenter">Középre</button>
-                  <button type="button" class="button" data-row-align="end" data-i18n="rowsAlignEnd">Végére</button>
-                  <button type="button" class="button" data-row-align="concentric" data-i18n="rowsAlignConcentric">Koncentrikusra</button>
-                </p>
-              </div>
-              <div class="rows__editor">
-                <div class="props__grid">
-                  <p class="panel__field">
-                    <label for="row-kind" data-i18n="rowKindLabel">Az aktív fajtája</label>
-                    <select id="row-kind"></select>
-                  </p>
-                  <p class="panel__field">
-                    <label for="row-direction" data-i18n="rowDirectionLabel">Irány</label>
-                    <select id="row-direction"></select>
-                  </p>
-                </div>
-                <p class="panel__field">
-                  <label for="row-color" data-i18n="rowColorLabel">A sor színe</label>
-                  <span class="props__color">
-                    <input id="row-color" type="color" />
-                    <button type="button" class="button" id="row-color-clear" data-i18n="rowColorClear">Nincs sorszín</button>
-                  </span>
-                </p>
-              </div>
-              </div>
-            </div>
-          </details>
-
-          <details class="section section--tab" id="section-irregular-layers" hidden>
-            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionLayersTitle">Rétegek</h2></summary>
-            <div class="layers" role="group" aria-label="A rajz rétegei" data-i18n-label="layersGroupLabel">
-              <ul class="rows__list" id="layers-list"></ul>
-              <div class="rows__row layers__bg" id="layer-bg">
-                <button type="button" class="rows__toggle" id="layer-bg-visible" aria-pressed="true" aria-label="Látható" data-i18n-label="bgToggleVisible"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M2 10s3-5.5 8-5.5 8 5.5 8 5.5-3 5.5-8 5.5S2 10 2 10z" /><circle cx="10" cy="10" r="2.3" /></svg></button>
-                <button type="button" class="rows__toggle" id="layer-bg-locked" aria-pressed="false" aria-label="Zárolva" data-i18n-label="bgToggleLocked"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M5 9h10v8H5zM7 9V6.5a3 3 0 0 1 6 0V9" /></svg></button>
-                <button type="button" class="rows__pick" id="layer-bg-pick" aria-pressed="false">
-                  <span class="rows__thumb" id="layer-bg-thumb"></span>
-                  <span class="rows__number" data-i18n="bgLayerName">Háttér</span>
-                  <span class="rows__count" id="layer-bg-state"></span>
-                </button>
-              </div>
-              <div class="rows__bar">
-                <button type="button" class="button rows__add" id="layer-new" data-i18n="layerNew">Új réteg</button>
-                <button type="button" class="ib" id="layer-move-items" aria-label="A kijelölt szemek erre a rétegre" data-tip="A kijelölt szemek erre a rétegre" data-i18n-label="layerMoveItemsShort" data-i18n-tip="layerMoveItemsShort"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 3v8M6.5 7.5 10 11l3.5-3.5M3.5 12.5v3.5h13v-3.5" /></svg></button>
-                <span class="rows__spacer"></span>
-                <button type="button" class="ib" id="layer-up" aria-label="Feljebb" data-tip="Feljebb" data-i18n-label="panelMoveUp" data-i18n-tip="panelMoveUp"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 16V4M5 9l5-5 5 5" /></svg></button>
-                <button type="button" class="ib" id="layer-down" aria-label="Lejjebb" data-tip="Lejjebb" data-i18n-label="panelMoveDown" data-i18n-tip="panelMoveDown"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 4v12M5 11l5 5 5-5" /></svg></button>
-                <button type="button" class="ib" id="layer-delete" aria-label="A réteg törlése" data-tip="A réteg törlése" data-i18n-label="layerDelete" data-i18n-tip="layerDelete"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M5 6h10M8 6V4.25h4V6M6.5 6l.6 10h5.8l.6-10" /></svg></button>
-              </div>
-              <div class="rows__editor" id="layer-active">
-                <p class="panel__field">
-                  <label for="layer-name" data-i18n="layerNameLabel">A réteg neve</label>
-                  <input id="layer-name" type="text" maxlength="40" />
-                </p>
-              </div>
-              <div class="rows__editor" id="props-background" hidden>
-                <h3 class="panel__title" data-i18n="bgTitle">Háttérkép</h3>
-                <div id="bg-empty">
-                  <p class="panel__note" data-i18n="bgEmptyNote">Tegyél ide egy fotót vagy vázlatot, és rajzold át szemekkel. A kész mintán nem látszik, hacsak nem kéred.</p>
-                  <p class="props__row">
-                    <button type="button" class="button" id="layer-bg-load" data-i18n="bgLoad">Háttérkép betöltése…</button>
-                  </p>
-                </div>
-                <div id="bg-fields" hidden>
-                  <p class="panel__field">
-                    <label for="bg-opacity" data-i18n="bgOpacityLabel">Láthatóság (%)</label>
-                    <input id="bg-opacity" type="number" min="0" max="100" step="5" inputmode="numeric" />
-                  </p>
-                  <p class="panel__field">
-                    <label for="bg-scale" data-i18n="bgScaleLabel">Méret (%)</label>
-                    <input id="bg-scale" type="number" min="5" max="1000" step="5" inputmode="numeric" />
-                  </p>
-                  <p class="panel__field">
-                    <label for="bg-rotation" data-i18n="bgRotationLabel">Elforgatás (fok)</label>
-                    <input id="bg-rotation" type="number" min="0" max="359" step="1" inputmode="numeric" />
-                  </p>
-                  <p class="choice">
-                    <label><input type="checkbox" id="bg-in-export" /> <span data-i18n="bgInExport">Exportáláskor is látszik</span></label>
-                  </p>
-                  <p class="props__row">
-                    <button type="button" class="button" id="layer-bg-remove" data-i18n="bgRemove">Háttérkép eltávolítása</button>
-                  </p>
-                  <p class="panel__note" data-i18n="bgHint">A képet a vásznon húzva mozgathatod, amíg nincs zárolva. Ejtsd rá a fájlt a rajzlapra, az is betölti.</p>
-                </div>
-                </div>
-              <p class="panel__note" data-i18n="layersNote">A réteg a rajzot rendezi, a sor a horgolás sorrendjét. Minden elem pontosan egy rétegen van.</p>
             </div>
           </details>
 
