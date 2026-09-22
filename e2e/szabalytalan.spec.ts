@@ -141,6 +141,8 @@ test('the JSON round trip keeps the free-form chart (AS-12)', async ({ page }) =
     mimeType: 'application/json',
     buffer: Buffer.from(saved, 'utf8'),
   });
+  // The file is read asynchronously; selecting before it is in would select the empty pattern.
+  await expect(page.locator('#status')).toContainText('Minta betöltve');
   await page.locator(board).focus();
   await page.keyboard.press('ControlOrMeta+A');
   await expect(page.locator('#status')).toContainText('3 szem kijelölve');
@@ -173,7 +175,7 @@ test('keys that belong to rows never reach the regular pattern hiding behind thi
   await expect(page.locator('#summary')).toHaveText(before ?? '');
 });
 
-test('rows and rounds: a second row, its own colour, and the stitch order overlay (AS-16)', async ({ page }) => {
+test('rows and rounds: a second row and its own colour (AS-16)', async ({ page }) => {
   await open(page);
   await chooseIrregular(page);
   await armDoubleCrochet(page);
@@ -189,12 +191,6 @@ test('rows and rounds: a second row, its own colour, and the stitch order overla
   await page.keyboard.press('Alt+1');
   for (const x of [510, 570]) await place(page, x, 340);
   await expect(page.locator('#rows-list')).toContainText('2 szem');
-
-  // The order runs right to left in this row, so the leftmost stitch is the second.
-  // The overlay switch is in the view menu (interface.md §59).
-  await page.locator('#view-toggle').click();
-  await page.locator('#row-order-overlay').check();
-  await expect(page.locator('#row-order-overlay')).toBeChecked();
 
   await page.locator('#row-color').fill('#b07cc6');
   await page.locator('#row-color').dispatchEvent('change');
@@ -720,62 +716,6 @@ test('elrendezés: körvonalra, a sor megjegyzi az alakot, Egyenletessé tesz z�
   expect((await state()).items, 'a szemek a helyükön maradtak').toBe(7);
 });
 
-test('kiemelés: csak a kijelölt szemek érhetők el, Esc kilép (AS-20)', async ({ page }) => {
-  await open(page);
-  await chooseIrregular(page);
-  await armDoubleCrochet(page);
-  for (const x of [420, 500, 580, 660]) await place(page, x, 380);
-  await page.locator(board).focus();
-  await page.keyboard.press('Escape');
-
-  // Isolate the middle two.
-  await page.locator(board).click({ position: { x: 500, y: 380 } });
-  await page.locator(board).click({ position: { x: 580, y: 380 }, modifiers: ['Shift'] });
-  await expect(page.locator('#props-count')).toContainText('2');
-
-  const isolate = page.locator('[data-action="isolate"]');
-  await isolate.click();
-  await expect(isolate).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('#status')).toContainText('kiemelve');
-
-  // A stitch outside the isolation cannot be selected any more.
-  await page.locator(board).click({ position: { x: 420, y: 380 } });
-  await expect(page.locator('#props-count'), 'a kiemelésen kívüli szem nem jelölhető ki').toContainText(
-    'Nincs kijelölt szem',
-  );
-
-  // Nor can a marquee reach it: the rectangle sweeps across all four stitches.
-  const rect = await page.locator(board).boundingBox();
-  if (rect === null) throw new Error('no board');
-  await page.mouse.move(rect.x + 380, rect.y + 320);
-  await page.mouse.down();
-  await page.mouse.move(rect.x + 700, rect.y + 440, { steps: 10 });
-  await page.mouse.up();
-  await expect(page.locator('#props-count'), 'a téglalap is csak a kiemeltekre hat').toContainText('2');
-
-  // Select all must not reach outside the cage either, or Delete would empty the chart.
-  await page.locator(board).focus();
-  await page.keyboard.press('Control+a');
-  await expect(page.locator('#props-count'), 'a mindent kijelölés is csak a kiemeltekre hat').toContainText('2');
-  await page.keyboard.press('Delete');
-  const left = await page.evaluate(() => {
-    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
-    return (JSON.parse(raw).items ?? []).length;
-  });
-  expect(left, 'a kiemelésen kívüli két szem megmaradt').toBe(2);
-  await expect(isolate, 'a kiemelés véget ért, mert nem maradt benne semmi').toHaveAttribute('aria-pressed', 'false');
-
-  await page.locator(board).click({ position: { x: 420, y: 380 } });
-  await expect(page.locator('#props-count'), 'és a maradék újra elérhető').toContainText('1');
-  await page.keyboard.press('Control+z');
-
-  await page.locator(board).focus();
-  await page.keyboard.press('Escape');
-  await expect(isolate, 'az Esc kilép a kiemelésből').toHaveAttribute('aria-pressed', 'false');
-  await page.locator(board).click({ position: { x: 420, y: 380 } });
-  await expect(page.locator('#props-count'), 'utána újra elérhető az egész minta').toContainText('1');
-});
-
 test('a sorvonal fogantyúval átalakítható, a szemek csak az Egyenletessé teszre követik', async ({ page }) => {
   await open(page);
   await chooseIrregular(page);
@@ -1179,9 +1119,10 @@ test('rows, layers and key share one place behind tabs; the background is the bo
   await open(page);
   await chooseIrregular(page);
 
-  // One list at a time: rows first.
+  // One list at a time: rows first. Before the first stitch the rows tab only says how to begin (PQW-1015).
   await expect(page.locator('#tab-rows')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('#rows-list')).toBeVisible();
+  await expect(page.locator('#rows-empty')).toBeVisible();
+  await expect(page.locator('#rows-list')).toBeHidden();
   await expect(page.locator('#layers-list')).toBeHidden();
 
   // Moving a row is the footer's job, and it moves the active one.
@@ -1220,15 +1161,6 @@ test('rows, layers and key share one place behind tabs; the background is the bo
   await page.locator('#layer-name').fill('Szegély');
   await page.locator('#layer-name').blur();
   await expect(page.locator('#layers-list li').first()).toContainText('Szegély');
-
-  // The two view switches moved to the view menu, and only this type has them.
-  await page.locator('#view-toggle').click();
-  await expect(page.locator('#row-fade')).toBeVisible();
-  await page.locator('#view-toggle').click();
-  await page.locator('#types-toggle').click();
-  await page.getByRole('button', { name: /Szabályos horgolás/ }).click();
-  await page.locator('#view-toggle').click();
-  await expect(page.locator('#row-fade')).toBeHidden();
 });
 
 test('the notation and the pattern settings wait in a dialog here, and go back to the panel for rows (PQW-1011)', async ({
@@ -1299,4 +1231,42 @@ test('there is no stitch key tab any more, only rows and layers (PQW-1013)', asy
 
   await expect(page.locator('#irregular-tabs button')).toHaveCount(2);
   await expect(page.locator('#section-irregular-key')).toHaveCount(0);
+});
+
+test('zoom and guides are two menus, both guides share one size, and there is no row before the first stitch (PQW-1015)', async ({
+  page,
+}) => {
+  await open(page);
+  await chooseIrregular(page);
+
+  await expect(page.locator('#view-toggle')).toContainText('Segédrács');
+  await expect(page.locator('#zoom-toggle')).toContainText('Méretezés');
+  await expect(page.locator('[data-action="isolate"]')).toHaveCount(0);
+  await expect(page.locator('#row-fade')).toHaveCount(0);
+  await expect(page.locator('#guide-start-angle')).toHaveCount(0);
+
+  // Nothing drawn yet: no „1. sor, 0 szem”, only how to begin.
+  await expect(page.locator('#rows-empty')).toBeVisible();
+  await expect(page.locator('#rows-list')).toBeHidden();
+
+  // The square grid and the circle guide may show together, and one size sets both.
+  await page.locator('#view-toggle').click();
+  await page.locator('.view-menu__more > summary').click();
+  await expect(page.locator('#guide-grid-size')).toHaveValue('40');
+  await page.locator('[data-action="grid"]').click();
+  await page.locator('#guide-polar').check();
+  await page.locator('#guide-grid-size').fill('30');
+  await page.locator('#guide-grid-size').blur();
+  const guides = await page.evaluate(() => {
+    const raw = localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}';
+    return JSON.parse(raw).guides;
+  });
+  expect(guides.grid, 'the square grid is on').toMatchObject({ visible: true, size: 30 });
+  expect(guides.polar, 'and so is the circle guide, with the same step').toMatchObject({ visible: true, spacing: 30 });
+
+  await page.locator('#view-toggle').click();
+  await armDoubleCrochet(page);
+  await place(page, 500, 300);
+  await expect(page.locator('#rows-empty')).toBeHidden();
+  await expect(page.locator('#rows-list li')).toHaveCount(1);
 });

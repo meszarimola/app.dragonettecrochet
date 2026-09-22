@@ -355,26 +355,19 @@
                   </button>
                 </div>
               </div>
-              <button type="button" class="tool" data-action="isolate" aria-pressed="false" aria-label="Kiemelés" data-tip="Csak a kijelölt szemek szerkeszthetők, a többi halvány és zárolt. Esc kilép." data-i18n-label="toolIsolateLabel" data-i18n-tip="toolIsolateTip">
-                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                  <circle cx="10" cy="10" r="3.4" />
-                  <path d="M3 4.5V3h1.5M17 4.5V3h-1.5M3 15.5V17h1.5M17 15.5V17h-1.5" />
-                </svg>
-                <span class="tool__label" data-i18n="toolLabelIsolate">Kiemelés</span>
-              </button>
             </div>
 
-            <div class="tools__group menu view-menu" id="view-menu" role="group" aria-label="Nézet" data-i18n-label="toolGroupView">
-              <!-- KB: interface.md §56 -->
-              <button type="button" class="tool view-menu__toggle" id="view-toggle" aria-expanded="false" aria-controls="view-pop" aria-label="Nézet" data-tip="Nagyítás, rács és segédvonalak" data-i18n-label="toolViewMenuLabel" data-i18n-tip="toolViewMenuTip">
+            <div class="tools__group menu" id="zoom-menu" role="group" aria-label="Méretezés" data-i18n-label="toolGroupZoom">
+              <button type="button" class="tool" id="zoom-toggle" aria-expanded="false" aria-controls="zoom-pop" aria-label="Méretezés" data-tip="Nagyítás, kicsinyítés és az egész minta" data-i18n-label="toolZoomMenuLabel" data-i18n-tip="toolZoomMenuTip">
                 <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                   <circle cx="9" cy="9" r="5" />
                   <path d="M12.6 12.6 16.5 16.5" />
+                  <path d="M7 9h4M9 7v4" />
                 </svg>
-                <span class="tool__label" data-i18n="toolLabelView">Nézet</span>
-                  <span class="tool__caret" aria-hidden="true"></span>
+                <span class="tool__label" data-i18n="toolLabelZoomMenu">Méretezés</span>
+                <span class="tool__caret" aria-hidden="true"></span>
               </button>
-              <div class="view-menu__pop" id="view-pop">
+              <div class="menu__pop menu__list" id="zoom-pop" hidden>
                 <button type="button" class="tool" data-action="zoom-in" aria-label="Nagyítás" data-tip="Nagyítás" data-i18n-label="toolZoomInLabel" data-i18n-tip="toolZoomInTip">
                   <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                     <circle cx="9" cy="9" r="5" />
@@ -397,6 +390,20 @@
                   </svg>
                   <span class="tool__label" data-i18n="toolLabelFit">Teljes</span>
                 </button>
+              </div>
+            </div>
+
+            <div class="tools__group menu view-menu" id="view-menu" role="group" aria-label="Segédrács" data-i18n-label="toolGroupView">
+              <!-- KB: interface.md §56 -->
+              <button type="button" class="tool view-menu__toggle" id="view-toggle" aria-expanded="false" aria-controls="view-pop" aria-label="Segédrács" data-tip="Rács, körrács és illesztés" data-i18n-label="toolViewMenuLabel" data-i18n-tip="toolViewMenuTip">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M3.75 3.75h12.5v12.5H3.75z" />
+                  <path d="M3.75 10h12.5M10 3.75v12.5" />
+                </svg>
+                <span class="tool__label" data-i18n="toolLabelView">Segédrács</span>
+                  <span class="tool__caret" aria-hidden="true"></span>
+              </button>
+              <div class="view-menu__pop" id="view-pop">
                 <button type="button" class="tool" data-action="grid" aria-pressed="true" aria-label="Rács" data-tip="Rács ki és be (Alt+R)" data-i18n-label="toolGridLabel" data-i18n-tip="toolGridTip" aria-keyshortcuts="Alt+R">
                   <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                     <path d="M3.75 3.75h12.5v12.5H3.75z" />
@@ -414,7 +421,7 @@
                   <details class="view-menu__more">
                     <summary data-i18n="guidesSettings">Segédvonalak beállításai</summary>
                     <p class="panel__field">
-                      <label for="guide-grid-size" data-i18n="guideGridSizeLabel">Rács mérete</label>
+                      <label for="guide-grid-size" data-i18n="guideGridSizeLabel">Rácsméret (a négyzet oldala és a körök távolsága)</label>
                       <input id="guide-grid-size" type="number" min="2" max="200" step="1" inputmode="numeric" />
                     </p>
                     <div id="guide-polar-fields" hidden>
@@ -423,16 +430,8 @@
                         <input id="guide-rings" type="number" min="1" max="60" step="1" inputmode="numeric" />
                       </p>
                       <p class="panel__field">
-                        <label for="guide-spacing" data-i18n="guideSpacingLabel">Gyűrűk távolsága</label>
-                        <input id="guide-spacing" type="number" min="4" max="400" step="1" inputmode="numeric" />
-                      </p>
-                      <p class="panel__field">
                         <label for="guide-spokes" data-i18n="guideSpokesLabel">Küllők száma</label>
                         <input id="guide-spokes" type="number" min="1" max="180" step="1" inputmode="numeric" />
-                      </p>
-                      <p class="panel__field">
-                        <label for="guide-start-angle" data-i18n="guideStartAngleLabel">Kezdőszög (fok)</label>
-                        <input id="guide-start-angle" type="number" min="0" max="359" step="1" inputmode="numeric" />
                       </p>
                       <p class="choice">
                         <label><input type="checkbox" id="guide-radial" /> <span data-i18n="guideRadialLabel">Sugárirányú forgatás</span></label>
@@ -441,14 +440,6 @@
                     </div>
                     <p class="panel__note" data-i18n="guideSnapHint">Az új szem a rácsra, a körrácsra vagy a szomszédos szemre ugrik. Amíg a ⌘-t (Windowson a Ctrl-t) nyomva tartod, semmi nem ugrik: sem a lerakás, sem a húzás.</p>
                   </details>
-                </div>
-                <div class="view-menu__guides" id="view-work" role="group" aria-label="Munka közben" data-i18n-label="viewWorkLabel" hidden>
-                  <p class="choice">
-                    <label><input type="checkbox" id="row-fade" /> <span data-i18n="rowFadeOthers">A többi sor halványítása</span></label>
-                  </p>
-                  <p class="choice">
-                    <label><input type="checkbox" id="row-order-overlay" /> <span data-i18n="rowShowOrder">Szemsorrend mutatása</span></label>
-                  </p>
                 </div>
               </div>
             </div>
@@ -721,6 +712,8 @@
           <details class="section section--tab" id="section-irregular-rows" hidden>
             <summary class="section__head"><h2 class="panel__title" data-i18n="sectionRowsTitle">Sorok és körök</h2></summary>
             <div class="rows" role="group" aria-label="A minta sorai és körei" data-i18n-label="rowsGroupLabel">
+              <p class="panel__note" id="rows-empty" data-i18n="rowsEmpty" hidden>Tegyél le egy szemet a rajzlapra, és megjelenik az első sor.</p>
+              <div class="rows__body" id="rows-body">
               <ul class="rows__list" id="rows-list"></ul>
               <div class="rows__bar">
                 <button type="button" class="ib" id="row-new" aria-label="Új sor" data-tip="Új sor" data-i18n-label="rowNew" data-i18n-tip="rowNew"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3 13h9M14.5 10v6M11.5 13h6M3 8h14" /></svg></button>
@@ -774,16 +767,7 @@
                   </span>
                 </p>
               </div>
-              <p class="props__row" id="order-controls" hidden>
-                <button type="button" class="button" id="order-earlier" data-i18n="orderEarlier">Előrébb</button>
-                <button type="button" class="button" id="order-later" data-i18n="orderLater">Hátrébb</button>
-                <button type="button" class="button" id="order-reset" data-i18n="orderReset">Automatikus sorrend</button>
-              </p>
-              <p class="panel__field" id="order-place-field" hidden>
-                <label for="order-place" data-i18n="orderPlaceLabel">Helye a sorban</label>
-                <input id="order-place" type="number" min="1" step="1" inputmode="numeric" />
-              </p>
-              <p class="panel__note" id="rows-note" role="status" aria-live="polite"></p>
+              </div>
             </div>
           </details>
 

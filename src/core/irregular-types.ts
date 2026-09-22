@@ -284,7 +284,8 @@ export interface IrregularPattern {
 }
 
 /** Abstract canvas units: at 100% zoom one unit is one CSS pixel. */
-export const DEFAULT_GRID_SIZE = 20;
+// KB: interface.md §63 — the square grid and the circle guide share one size, the row spacing.
+export const DEFAULT_GRID_SIZE = 40;
 export const GRID_SIZE_RANGE = { min: 2, max: 200 } as const;
 export const DEFAULT_POLAR: PolarGuide = {
   visible: false,

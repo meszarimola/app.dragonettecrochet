@@ -122,9 +122,7 @@ export class IrregularPanel {
   readonly #polar: HTMLInputElement;
   readonly #polarFields: HTMLElement;
   readonly #rings: HTMLInputElement;
-  readonly #spacing: HTMLInputElement;
   readonly #spokes: HTMLInputElement;
-  readonly #startAngle: HTMLInputElement;
   readonly #radial: HTMLInputElement;
   readonly #arc: HTMLElement;
   readonly #arcCount: HTMLInputElement;
@@ -182,9 +180,7 @@ export class IrregularPanel {
     this.#polar = must<HTMLInputElement>(page, '#guide-polar');
     this.#polarFields = must<HTMLElement>(page, '#guide-polar-fields');
     this.#rings = must<HTMLInputElement>(page, '#guide-rings');
-    this.#spacing = must<HTMLInputElement>(page, '#guide-spacing');
     this.#spokes = must<HTMLInputElement>(page, '#guide-spokes');
-    this.#startAngle = must<HTMLInputElement>(page, '#guide-start-angle');
     this.#radial = must<HTMLInputElement>(page, '#guide-radial');
     this.#arc = must<HTMLElement>(section, '#props-arc');
     this.#arcCount = must<HTMLInputElement>(section, '#arc-count');
@@ -255,14 +251,8 @@ export class IrregularPanel {
     this.#rings.addEventListener('change', () =>
       this.#number(this.#rings, (value) => this.#host.setPolar({ rings: value })),
     );
-    this.#spacing.addEventListener('change', () =>
-      this.#number(this.#spacing, (value) => this.#host.setPolar({ spacing: value })),
-    );
     this.#spokes.addEventListener('change', () =>
       this.#number(this.#spokes, (value) => this.#host.setPolar({ spokes: value })),
-    );
-    this.#startAngle.addEventListener('change', () =>
-      this.#number(this.#startAngle, (value) => this.#host.setPolar({ startAngle: value })),
     );
     this.#radial.addEventListener('change', () => this.#host.setRadial(this.#radial.checked));
     this.#arcCount.addEventListener('change', () =>
@@ -461,9 +451,7 @@ export class IrregularPanel {
     this.#setToggle(this.#polar, guides.polar.visible);
     this.#polarFields.hidden = !guides.polar.visible;
     this.#setNumber(this.#rings, guides.polar.rings);
-    this.#setNumber(this.#spacing, Math.round(guides.polar.spacing));
     this.#setNumber(this.#spokes, guides.polar.spokes);
-    this.#setNumber(this.#startAngle, Math.round(guides.polar.startAngle));
     this.#setToggle(this.#radial, radial);
   }
 

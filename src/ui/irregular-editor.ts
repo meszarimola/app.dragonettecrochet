@@ -69,14 +69,7 @@ import {
   setActiveLayer,
   updateLayer,
 } from '../core/irregular-layers.ts';
-import {
-  isManualOrder,
-  moveInOrder,
-  orderPosition,
-  resetOrder,
-  rowOrder,
-  setOrderPosition,
-} from '../core/irregular-order.ts';
+import { rowOrder } from '../core/irregular-order.ts';
 import { alignRows, type RowAlign, rowLine, setRowLine, spaceRows } from '../core/irregular-rowline.ts';
 import {
   addRow,
@@ -167,16 +160,12 @@ interface Preferences {
   readonly rectPartial: boolean;
   readonly radial: boolean;
   readonly perpendicular: boolean;
-  readonly fadeOthers: boolean;
-  readonly showOrder: boolean;
 }
 
 const DEFAULT_PREFERENCES: Preferences = {
   rectPartial: true,
   radial: false,
   perpendicular: true,
-  fadeOthers: false,
-  showOrder: false,
 };
 /** Turning the stitches to the other side of a shape. */
 const OTHER_SIDE: Record<ShapeSide, ShapeSide> = {
@@ -251,12 +240,19 @@ function readPreferences(): Preferences {
       rectPartial: flag('rectPartial'),
       radial: flag('radial'),
       perpendicular: flag('perpendicular'),
-      fadeOthers: flag('fadeOthers'),
-      showOrder: flag('showOrder'),
     };
   } catch {
     return DEFAULT_PREFERENCES;
   }
+}
+
+/**
+ * A file from before PQW-1015 keeps two sizes, a small square and a wide ring
+ * step; the two guides share one now, the ring step. KB: interface.md §63
+ */
+function oneGuideSize(pattern: IrregularPattern): IrregularPattern {
+  const { grid, polar } = pattern.guides;
+  return grid.size === polar.spacing ? pattern : setGridSize(pattern, polar.spacing);
 }
 
 function angleOf(center: Point, point: Point): number {
@@ -275,7 +271,6 @@ export class IrregularEditor {
   #selection = new Set<string>();
   /** A key entry id: a library stitch, or one the crocheter made up. */
   #stitch: string | null = null;
-  #isolated: ReadonlySet<string> | null = null;
   #arcTool = false;
   #fanTool = false;
   #fanCount = DEFAULT_FAN_COUNT;
@@ -308,13 +303,8 @@ export class IrregularEditor {
       reorder: (rowId, toIndex) => this.#commit(reorderRows(this.#history.present, rowId, toIndex)),
       selectRow: (rowId) => this.selectRow(rowId),
       moveSelection: (rowId) => this.#moveSelectionToRow(rowId),
-      setFadeOthers: (on) => this.#setPreference({ fadeOthers: on }),
-      setShowOrder: (on) => this.#setPreference({ showOrder: on }),
-      moveInOrder: (delta) => this.#moveInOrder(delta),
-      setOrderPlace: (place) => this.#setOrderPlace(place),
       spaceRows: (spacing) => this.spaceRows(spacing),
       alignRows: (mode) => this.alignRows(mode),
-      resetOrder: () => this.#resetOrder(),
     });
     this.#layersPanel = new IrregularLayersPanel(sections.layers, {
       addLayer: () => this.#addLayer(),
@@ -331,7 +321,7 @@ export class IrregularEditor {
       distribute: (axis) => this.#distribute(axis),
       flip: (axis) => this.#flip(axis),
       setRectPartial: (partial) => this.#setPreference({ rectPartial: partial }),
-      setGridSize: (size) => this.#commit(setGridSize(this.#history.present, size)),
+      setGridSize: (size) => this.#setGuideSize(size),
       setSnap: (on) => this.#commit(setSnap(this.#history.present, on)),
       setPolar: (patch) => this.#setPolar(patch),
       setRadial: (on) => this.#setPreference({ radial: on }),
@@ -503,31 +493,6 @@ export class IrregularEditor {
     return id ?? null;
   }
 
-  #moveInOrder(delta: number): void {
-    const id = this.#onlySelected();
-    if (id === null) return;
-    const item = this.#history.present.items.find((candidate) => candidate.id === id);
-    if (item === undefined) return;
-    this.#commit(moveInOrder(this.#history.present, item.rowId, id, delta));
-  }
-
-  #setOrderPlace(place: number): void {
-    const id = this.#onlySelected();
-    const rowId = this.#rowOfSelection();
-    if (id === null || rowId === null) return;
-    this.#commit(setOrderPosition(this.#history.present, rowId, id, place));
-  }
-
-  #resetOrder(): void {
-    const rowId = this.#rowOfSelection() ?? this.#history.present.activeRowId;
-    this.#commit(resetOrder(this.#history.present, rowId), texts().irregular.orderReset);
-  }
-
-  #orderPlace(pattern: IrregularPattern, rowId: string): number | null {
-    const id = this.#onlySelected();
-    return id === null ? null : orderPosition(pattern, rowId, id);
-  }
-
   #rowOfSelection(): string | null {
     const id = this.#onlySelected();
     if (id === null) return null;
@@ -567,7 +532,7 @@ export class IrregularEditor {
       const saved = localStorage.getItem(IRREGULAR_STORAGE_KEY);
       if (saved === null) return fresh;
       const loaded = loadIrregular(saved);
-      return loaded.ok ? loaded.pattern : fresh;
+      return loaded.ok ? oneGuideSize(loaded.pattern) : fresh;
     } catch {
       return fresh;
     }
@@ -631,30 +596,15 @@ export class IrregularEditor {
     this.#lastDuplicate = null;
   }
 
-  /**
-   * A stitch made while isolating joins the isolation. Otherwise it would be
-   * selected and faded at once — visible, movable by the panel, and unclickable.
-   * KB: interface.md §45
-   */
-  #joinIsolation(ids: Iterable<string>): void {
-    if (this.#isolated === null) return;
-    this.#isolated = new Set([...this.#isolated, ...ids]);
-  }
-
   #pruneSelection(): void {
     const live = new Set(this.#history.present.items.map((item) => item.id));
     for (const id of [...this.#selection]) if (!live.has(id)) this.#selection.delete(id);
-    if (this.#isolated === null) return;
-    const kept = [...this.#isolated].filter((id) => live.has(id));
-    // Isolating the last stitch and deleting it must not leave an empty cage.
-    this.#isolated = kept.length === 0 ? null : new Set(kept);
   }
 
   // -- actions -------------------------------------------------------------
 
   newPattern(): void {
     this.#selection.clear();
-    this.#isolated = null;
     this.#history = createHistory(this.#empty());
     this.#persist();
     this.refresh();
@@ -672,31 +622,6 @@ export class IrregularEditor {
     }
     this.#stitch = id;
     this.refresh();
-  }
-
-  get isolating(): boolean {
-    return this.#isolated !== null;
-  }
-
-  /**
-   * Isolating puts the rest of the pattern out of reach so a busy chart can be
-   * worked on in one place. It is a view, not an edit: nothing is recorded.
-   * KB: interface.md §45
-   */
-  toggleIsolate(): void {
-    if (this.#isolated !== null) {
-      this.#isolated = null;
-      this.refresh();
-      this.#host.announce(texts().irregular.isolateOff);
-      return;
-    }
-    if (this.#selection.size === 0) {
-      this.#host.announce(texts().irregular.isolateNeedsSelection);
-      return;
-    }
-    this.#isolated = new Set(this.#selection);
-    this.refresh();
-    this.#host.announce(texts().irregular.isolateOn(this.#selection.size));
   }
 
   get arcArmed(): boolean {
@@ -898,12 +823,20 @@ export class IrregularEditor {
    * Switching the circle guide on brings it where you are looking, unless its
    * middle is already on screen — otherwise the guide would be drawn off-canvas.
    */
+  /** KB: interface.md §63 — one size for both guides, so a square and a ring step match. */
+  #setGuideSize(size: number): void {
+    const sized = setGridSize(this.#history.present, size);
+    this.#commit(setPolar(sized, { spacing: sized.guides.grid.size }));
+  }
+
   #setPolar(patch: PolarPatch): void {
     const current = this.#history.present.guides.polar;
     const arriving = patch.visible === true && !current.visible;
     const room = this.#host.insets().bottom;
     const home = arriving && !this.#board.onScreen(current.center, room) ? this.#board.viewCenter(room) : undefined;
-    this.#commit(setPolar(this.#history.present, home === undefined ? patch : { ...patch, center: home }));
+    // A circle guide switched on takes the grid's size, so the two stay in proportion.
+    const sized = arriving ? { ...patch, spacing: this.#history.present.guides.grid.size } : patch;
+    this.#commit(setPolar(this.#history.present, home === undefined ? sized : { ...sized, center: home }));
   }
 
   /**
@@ -971,10 +904,6 @@ export class IrregularEditor {
   }
 
   clearSelection(): void {
-    if (this.#isolated !== null) {
-      this.toggleIsolate();
-      return;
-    }
     if (this.#selection.size === 0 && this.#stitch === null) return;
     this.#setSelection([]);
     this.refresh();
@@ -995,7 +924,6 @@ export class IrregularEditor {
     const offset = this.#lastDuplicate ?? duplicateOffset(chosen);
     const made = duplicateItems(this.#history.present, this.#selection, offset);
     this.#lastDuplicate = offset;
-    this.#joinIsolation(made.ids);
     this.#selection = new Set(made.ids);
     this.#commit(made.pattern, texts().irregular.duplicated(made.ids.length));
   }
@@ -1018,7 +946,6 @@ export class IrregularEditor {
     const first = this.#clipboard[0];
     const offset = at !== null && first !== undefined ? { x: at.x - first.x, y: at.y - first.y } : { x: 10, y: 10 };
     const made = pasteItems(this.#history.present, this.#clipboard, offset);
-    this.#joinIsolation(made.ids);
     this.#setSelection(made.ids);
     this.#commit(made.pattern, texts().irregular.pasted(made.ids.length));
   }
@@ -1639,7 +1566,7 @@ export class IrregularEditor {
     this.#setSelection([]);
     this.#image = null;
     this.#backgroundTrouble = null;
-    this.#commit(loaded.pattern, file.loaded(note));
+    this.#commit(oneGuideSize(loaded.pattern), file.loaded(note));
     // A file may name a tracing photo this browser has; fetch it before fitting.
     void this.#restoreBackground().then(() => this.#board.fit(this.#host.insets().bottom));
     return true;
@@ -1666,8 +1593,6 @@ export class IrregularEditor {
     const room = this.#host.insets();
     this.#board.setInsets(room.left, room.right);
     const pattern = this.pattern;
-    const committed = this.#history.present;
-    const orderRow = this.#rowOfSelection() ?? committed.activeRowId;
     this.#board.setScene({
       pattern,
       symbols: this.#host.symbols(),
@@ -1676,9 +1601,6 @@ export class IrregularEditor {
       ghost: this.#ghost(),
       hover: null,
       glyphOf: (keyEntryId) => entryGlyph(pattern, keyEntryId),
-      fadeOthers: this.#preferences.fadeOthers,
-      isolated: this.#isolated,
-      order: this.#preferences.showOrder ? rowOrder(pattern, orderRow) : null,
       arc: this.selectedGroup,
       arcPreview: this.#drawingPreview(),
       rowLine: this.#activeRowLine(),
@@ -1701,14 +1623,7 @@ export class IrregularEditor {
     this.#refreshScene();
     if (!this.#mounted) return;
     const committed = this.#history.present;
-    const orderRow = this.#rowOfSelection() ?? committed.activeRowId;
-    this.#rowsPanel.update(committed, {
-      fadeOthers: this.#preferences.fadeOthers,
-      showOrder: this.#preferences.showOrder,
-      selectionSize: this.#selection.size,
-      manualOrder: isManualOrder(committed, orderRow),
-      orderPlace: this.#orderPlace(committed, orderRow),
-    });
+    this.#rowsPanel.update(committed, { selectionSize: this.#selection.size });
     this.#panel.updateGuides(committed.guides, this.#preferences.radial);
     this.#layersPanel.update(committed, this.#selection.size, committed.background ?? null);
     this.#host.refreshControls();
@@ -1775,7 +1690,6 @@ export class IrregularEditor {
   }
 
   #reachable(item: IrregularItem): boolean {
-    if (this.#isolated !== null && !this.#isolated.has(item.id)) return false;
     const pattern = this.#history.present;
     const row = rowById(pattern, item.rowId);
     const layer = pattern.layers.find((candidate) => candidate.id === item.layerId);
@@ -2001,7 +1915,6 @@ export class IrregularEditor {
       rotation: this.#placedRotation(point),
       insertion: 'both-loops',
     });
-    this.#joinIsolation([made.id]);
     const row = made.pattern.rows.findIndex((candidate) => candidate.id === made.pattern.activeRowId) + 1;
     // A stitch of the crocheter's own has no library entry, so the key names it.
     const name = entryName(made.pattern, stitch, this.#host.terms());

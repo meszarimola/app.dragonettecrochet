@@ -194,7 +194,7 @@ for (const viewport of [
     await open(page);
     await foundationTurnAndRow(page);
     // A narrow bar folds its view group into a menu (interface.md §56).
-    if (await page.locator('#view-toggle').isVisible()) await page.locator('#view-toggle').click();
+    await page.locator('#zoom-toggle').click();
     await page.getByRole('button', { name: 'Egész minta' }).click();
     await page.waitForTimeout(200);
 

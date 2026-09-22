@@ -54,25 +54,25 @@ for (const viewport of [
   }
 }
 
-test('even in a wide window the view group is a menu, and the bar keeps its labels', async ({ page }) => {
+test('even in a wide window zoom and guides are two menus, and the bar keeps its labels', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 900 });
   await open(page);
   await chooseIrregular(page);
 
-  // KB: interface.md §57 — the owner could not tell „Nézet” was a menu, so it always is one.
+  // KB: interface.md §63 — „Méretezés” holds the zoom, „Segédrács” the guides.
   await expect(page.locator('#view-toggle')).toBeVisible();
   await expect(page.locator('.tools [data-action="zoom-in"]')).toBeHidden();
   await expect(page.locator('#view-toggle .tool__label')).toBeVisible();
-  await page.locator('#view-toggle').click();
+  await page.locator('#zoom-toggle').click();
   await expect(page.locator('.tools [data-action="zoom-in"] .tool__label')).toBeVisible();
 });
 
-test('in the owner’s window the view group is a menu that stays open while zooming', async ({ page }) => {
+test('in the owner’s window the zoom menu stays open while zooming', async ({ page }) => {
   await page.setViewportSize({ width: 1000, height: 506 });
   await open(page);
   await chooseIrregular(page);
 
-  const toggle = page.locator('#view-toggle');
+  const toggle = page.locator('#zoom-toggle');
   const zoomIn = page.locator('.tools [data-action="zoom-in"]');
   await expect(toggle).toBeVisible();
   await expect(zoomIn).toBeHidden();
