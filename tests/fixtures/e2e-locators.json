@@ -5,7 +5,7 @@
   },
   "fill": {
     "1": 4,
-    "2": 5,
+    "2": 6,
     "3": 2,
     "4": 4,
     "5": 11,
@@ -172,7 +172,7 @@
     "#grid-technique": 2,
     "#grid-unit": 1,
     "#grid-warnings li": 1,
-    "#guide-grid-size": 11,
+    "#guide-grid-size": 13,
     "#guide-polar": 2,
     "#guide-polar-fields": 1,
     "#guide-radial": 1,

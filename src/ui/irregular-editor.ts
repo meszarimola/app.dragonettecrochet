@@ -96,13 +96,16 @@ import {
   DEFAULT_FAN_COUNT,
   DEFAULT_FAN_SPREAD,
   DEFAULT_FONT_SIZE,
+  DEFAULT_GRID_SIZE,
   FAN_LENGTH_RANGE,
   type FanGroup,
+  GRID_SIZE_RANGE,
   type IrregularGroup,
   type IrregularItem,
   type IrregularPattern,
   isStitch,
   type NoteKind,
+  POLAR_RANGE,
   type Point,
   type RowDirection,
   type RowKind,
@@ -246,13 +249,24 @@ function readPreferences(): Preferences {
   }
 }
 
+/** One whole number both guides accept, the square's side and the ring step alike. KB: interface.md §63 */
+function guideSize(size: number): number {
+  const low = Math.max(GRID_SIZE_RANGE.min, POLAR_RANGE.spacing.min);
+  const high = Math.min(GRID_SIZE_RANGE.max, POLAR_RANGE.spacing.max);
+  return Math.min(high, Math.max(low, Math.round(Number.isFinite(size) ? size : DEFAULT_GRID_SIZE)));
+}
+
 /**
  * A file from before PQW-1015 keeps two sizes, a small square and a wide ring
- * step; the two guides share one now, the ring step. KB: interface.md §63
+ * step, and may turn the circle guide by an angle nothing can set any more. The
+ * two guides share the ring step now, and the guide starts at the top.
+ * KB: interface.md §63
  */
 function oneGuideSize(pattern: IrregularPattern): IrregularPattern {
   const { grid, polar } = pattern.guides;
-  return grid.size === polar.spacing ? pattern : setGridSize(pattern, polar.spacing);
+  const shared = guideSize(polar.spacing);
+  if (grid.size === shared && polar.spacing === shared && polar.startAngle === 0) return pattern;
+  return setPolar(setGridSize(pattern, shared), { spacing: shared, startAngle: 0 });
 }
 
 function angleOf(center: Point, point: Point): number {
@@ -825,8 +839,8 @@ export class IrregularEditor {
    */
   /** KB: interface.md §63 — one size for both guides, so a square and a ring step match. */
   #setGuideSize(size: number): void {
-    const sized = setGridSize(this.#history.present, size);
-    this.#commit(setPolar(sized, { spacing: sized.guides.grid.size }));
+    const shared = guideSize(size);
+    this.#commit(setPolar(setGridSize(this.#history.present, shared), { spacing: shared }));
   }
 
   #setPolar(patch: PolarPatch): void {
@@ -835,7 +849,7 @@ export class IrregularEditor {
     const room = this.#host.insets().bottom;
     const home = arriving && !this.#board.onScreen(current.center, room) ? this.#board.viewCenter(room) : undefined;
     // A circle guide switched on takes the grid's size, so the two stay in proportion.
-    const sized = arriving ? { ...patch, spacing: this.#history.present.guides.grid.size } : patch;
+    const sized = arriving ? { ...patch, spacing: guideSize(this.#history.present.guides.grid.size) } : patch;
     this.#commit(setPolar(this.#history.present, home === undefined ? sized : { ...sized, center: home }));
   }
 

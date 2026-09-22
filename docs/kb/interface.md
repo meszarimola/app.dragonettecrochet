@@ -1624,8 +1624,11 @@ körrácsé”, „a kiemelés funkció nem működik … töröljük”, „tob
   the grid's size, and the default is 40, the row spacing (it was 20 against a
   40 ring step, which is what looked disproportionate). A file from before
   keeps two sizes; `oneGuideSize` makes the grid take the ring step when it
-  loads. The separate ring-spacing field and the start angle left the settings;
-  the data keeps `startAngle`, at 0 for a new pattern.
+  loads. The two ranges differ (grid 2–200, ring step 4–400), so `guideSize`
+  rounds the one number and keeps it in 4–200, which both accept — otherwise a
+  2 would be stored as 2 and 4 and part again on the next load (/code-review).
+  The separate ring-spacing field and the start angle left the settings; an
+  older file's start angle goes back to 0 on load, since nothing could reset it.
 - **Removed:** isolating (§45), fading the other rows, the stitch-order overlay
   and its buttons (earlier, later, automatic, place in the row). The order data
   stays in the file; nothing edits it by hand any more.

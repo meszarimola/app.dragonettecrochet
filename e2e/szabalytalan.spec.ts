@@ -1263,6 +1263,13 @@ test('zoom and guides are two menus, both guides share one size, and there is no
   });
   expect(guides.grid, 'the square grid is on').toMatchObject({ visible: true, size: 30 });
   expect(guides.polar, 'and so is the circle guide, with the same step').toMatchObject({ visible: true, spacing: 30 });
+  // A size only one guide could take is brought into what both accept, so they never part.
+  await page.locator('#guide-grid-size').fill('2');
+  await page.locator('#guide-grid-size').blur();
+  const tiny = await page.evaluate(
+    () => JSON.parse(localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}').guides,
+  );
+  expect([tiny.grid.size, tiny.polar.spacing]).toEqual([4, 4]);
 
   await page.locator('#view-toggle').click();
   await armDoubleCrochet(page);
