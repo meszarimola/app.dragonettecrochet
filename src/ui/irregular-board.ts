@@ -582,13 +582,26 @@ export class FreeBoard {
     ctx.lineWidth = line;
   }
 
+  #turn: { readonly frame: Box; readonly degrees: number } | null = null;
+
+  /** While a rotation is being dragged, the frame it started from, turned by that much. */
+  setSelectionTurn(turn: { readonly frame: Box; readonly degrees: number } | null): void {
+    this.#turn = turn;
+  }
+
   #drawSelection(color: string): void {
-    const box = this.selectionBox();
+    const box = this.#turn?.frame ?? this.selectionBox();
     if (box === null) return;
     const ctx = this.#ctx;
     const a = this.#toScreen({ x: box.minX, y: box.minY });
     const b = this.#toScreen({ x: box.maxX, y: box.maxY });
     ctx.save();
+    if (this.#turn !== null) {
+      const middle = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      ctx.translate(middle.x, middle.y);
+      ctx.rotate((this.#turn.degrees * Math.PI) / 180);
+      ctx.translate(-middle.x, -middle.y);
+    }
     ctx.strokeStyle = color;
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 3]);

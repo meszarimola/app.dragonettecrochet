@@ -7,6 +7,7 @@ import {
   addNote,
   addStitch,
   alignItems,
+  type Box,
   type DistributeAxis,
   deleteItems,
   distributeItems,
@@ -102,6 +103,7 @@ import {
   GRID_SIZE_RANGE,
   type IrregularGroup,
   type IrregularItem,
+  type IrregularLayer,
   type IrregularPattern,
   isStitch,
   type NoteKind,
@@ -117,6 +119,7 @@ import type { Locale, PatternNotation, StitchDefId } from '../core/types.ts';
 import { type BackgroundStoreCode, getBackground, pruneBackgrounds, putBackground } from './background-store.ts';
 import { IRREGULAR_JSON_CORE_TEXTS } from './i18n/core/irregular-json.ts';
 import { renderCoreText } from './i18n/core/render.ts';
+import { IRREGULAR_TEXTS } from './i18n/irregular.ts';
 import { texts, uiLanguage } from './i18n.ts';
 import { type ArcHandleId, FreeBoard, type GroupPath, type HandleId, rowLinePath } from './irregular-board.ts';
 import { drawnGlyph, itemShapes, naturalSize } from './irregular-glyph.ts';
@@ -216,7 +219,7 @@ export interface IrregularHost {
 }
 
 type Drag =
-  | { kind: 'move'; from: Point; anchor: Point; drop: string | null }
+  | { kind: 'move'; from: Point; anchor: Point; drop: string | null; solo: string | null }
   | { kind: 'polar'; from: Point; center: Point }
   | { kind: 'background'; from: Point; at: Point }
   | { kind: 'note-draw'; note: NoteKind; from: Point; to: Point }
@@ -228,7 +231,7 @@ type Drag =
   | { kind: 'pan'; last: Point }
   | { kind: 'marquee'; from: Point; to: Point; additive: boolean }
   | { kind: 'scale'; handle: HandleId; start: Point; base: readonly IrregularItem[]; anchor: Point }
-  | { kind: 'rotate'; center: Point; startAngle: number; base: readonly IrregularItem[] };
+  | { kind: 'rotate'; center: Point; startAngle: number; base: readonly IrregularItem[]; frame: Box };
 
 function readPreferences(): Preferences {
   try {
@@ -262,6 +265,35 @@ function guideSize(size: number): number {
  * two guides share the ring step now, and the guide starts at the top.
  * KB: interface.md §63
  */
+/**
+ * Patterns from before PQW-1022 started with two layers, a chart and a labels
+ * one. Untouched, they are one layer now: everything goes onto the first.
+ * KB: interface.md §64
+ */
+function oneStartingLayer(pattern: IrregularPattern): IrregularPattern {
+  const [first, second, ...rest] = pattern.layers;
+  if (first === undefined || second === undefined || rest.length > 0) return pattern;
+  const starting = (['hu', 'en'] as const).some(
+    (language) =>
+      first.name === IRREGULAR_TEXTS[language].layerDrawing && second.name === IRREGULAR_TEXTS[language].layerLabels,
+  );
+  const plain = (layer: IrregularLayer): boolean => layer.visible && !layer.locked;
+  if (!starting || !plain(first) || !plain(second)) return pattern;
+  return {
+    ...pattern,
+    layers: [{ ...first, name: texts().irregular.layerName }],
+    items: pattern.items.map((item) => (item.layerId === second.id ? { ...item, layerId: first.id } : item)),
+    ...(pattern.groups === undefined
+      ? {}
+      : {
+          groups: pattern.groups.map((group) =>
+            group.layerId === second.id ? { ...group, layerId: first.id } : group,
+          ),
+        }),
+    activeLayerId: first.id,
+  };
+}
+
 function oneGuideSize(pattern: IrregularPattern): IrregularPattern {
   const { grid, polar } = pattern.guides;
   const shared = guideSize(polar.spacing);
@@ -286,6 +318,7 @@ export class IrregularEditor {
   /** A key entry id: a library stitch, or one the crocheter made up. */
   #stitch: string | null = null;
   #arcTool = false;
+  #selectTool: 'pointer' | 'area' = 'pointer';
   #fanTool = false;
   #fanCount = DEFAULT_FAN_COUNT;
   #fanSpread = DEFAULT_FAN_SPREAD;
@@ -546,7 +579,7 @@ export class IrregularEditor {
       const saved = localStorage.getItem(IRREGULAR_STORAGE_KEY);
       if (saved === null) return fresh;
       const loaded = loadIrregular(saved);
-      return loaded.ok ? oneGuideSize(loaded.pattern) : fresh;
+      return loaded.ok ? oneStartingLayer(oneGuideSize(loaded.pattern)) : fresh;
     } catch {
       return fresh;
     }
@@ -556,7 +589,8 @@ export class IrregularEditor {
     const words = texts().irregular;
     return emptyIrregularPattern({
       title: words.newTitle,
-      layerNames: [words.layerDrawing, words.layerLabels],
+      // KB: interface.md §64 — one layer to start with; more only when she adds them.
+      layerNames: [words.layerName],
     });
   }
 
@@ -1580,7 +1614,7 @@ export class IrregularEditor {
     this.#setSelection([]);
     this.#image = null;
     this.#backgroundTrouble = null;
-    this.#commit(oneGuideSize(loaded.pattern), file.loaded(note));
+    this.#commit(oneStartingLayer(oneGuideSize(loaded.pattern)), file.loaded(note));
     // A file may name a tracing photo this browser has; fetch it before fitting.
     void this.#restoreBackground().then(() => this.#board.fit(this.#host.insets().bottom));
     return true;
@@ -1854,6 +1888,30 @@ export class IrregularEditor {
       return;
     }
 
+    // KB: interface.md §64 — the whole frame is the handle: a press inside it that hits no
+    // stitch moves the selection, before the photo or the circle guide behind it.
+    const frame = this.#board.selectionBox();
+    if (
+      this.#stitch === null &&
+      frame !== null &&
+      !(event.shiftKey || event.metaKey || event.ctrlKey) &&
+      point.x >= frame.minX &&
+      point.x <= frame.maxX &&
+      point.y >= frame.minY &&
+      point.y <= frame.maxY &&
+      this.#board.itemAt(event.clientX, event.clientY) === null
+    ) {
+      const first = itemsOf(this.#history.present, this.#selection)[0];
+      this.#drag = {
+        kind: 'move',
+        from: point,
+        anchor: first === undefined ? point : { x: first.x, y: first.y },
+        drop: null,
+        solo: null,
+      };
+      return;
+    }
+
     // The photo is behind everything, so it is grabbed only when nothing else was.
     if (
       this.#stitch === null &&
@@ -1887,6 +1945,8 @@ export class IrregularEditor {
       // KB: interface.md §43 — taking a stitch back out of the selection waits
       // for the pointer to come up, so ⌘ can also mean "drag without snapping".
       let drop: string | null = null;
+      // A still click on one of several selected narrows the selection to it; a drag moves them all.
+      const solo = !additive && this.#selection.has(hit) && this.#selection.size > 1 ? hit : null;
       if (additive) {
         if (this.#selection.has(hit)) drop = hit;
         else this.#selection.add(hit);
@@ -1900,13 +1960,32 @@ export class IrregularEditor {
         from: point,
         anchor: anchor === undefined ? point : { x: anchor.x, y: anchor.y },
         drop,
+        solo,
       };
       this.refresh();
       return;
     }
 
     if (!additive) this.#setSelection([]);
+    if (this.#selectTool === 'pointer') {
+      this.refresh();
+      return;
+    }
     this.#drag = { kind: 'marquee', from: point, to: point, additive };
+    this.refresh();
+  }
+
+  /** The pointer picks what it clicks; the area tool also draws a rectangle on empty ground. */
+  get selectTool(): 'pointer' | 'area' {
+    return this.#selectTool;
+  }
+
+  setSelectTool(tool: 'pointer' | 'area'): void {
+    // Picking a selection tool lays every drawing tool down, as arming a stitch does.
+    this.#arcTool = false;
+    this.#fanTool = false;
+    this.#note = null;
+    this.#selectTool = tool;
     this.refresh();
   }
 
@@ -1941,7 +2020,7 @@ export class IrregularEditor {
     if (box === null) return;
     if (handle === 'rotate') {
       const center = { x: (box.minX + box.maxX) / 2, y: (box.minY + box.maxY) / 2 };
-      this.#drag = { kind: 'rotate', center, startAngle: angleOf(center, point), base };
+      this.#drag = { kind: 'rotate', center, startAngle: angleOf(center, point), base, frame: box };
       return;
     }
     const anchor = {
@@ -2057,6 +2136,8 @@ export class IrregularEditor {
         this.#draft = this.#loose(
           rotateItems(this.#history.present, this.#selection, step, drag.base.length === 1 ? null : drag.center),
         );
+        // KB: interface.md §64 — the frame and its knob turn with the drawing while the hand is down.
+        this.#board.setSelectionTurn({ frame: drag.frame, degrees: step });
         this.#refreshScene();
         return;
       }
@@ -2224,8 +2305,12 @@ export class IrregularEditor {
     }
     const draft = this.#draft;
     this.#drag = null;
+    this.#board.setSelectionTurn(null);
     if (draft === null) {
       if (drag.kind === 'move' && drag.drop !== null) this.#selection.delete(drag.drop);
+      if (drag.kind === 'move' && drag.solo !== null) {
+        this.#setSelection(withWholeGroups(this.#history.present, [drag.solo]));
+      }
       this.refresh();
       return;
     }
@@ -2239,6 +2324,7 @@ export class IrregularEditor {
 
   #endDrag(): void {
     this.#drag = null;
+    this.#board.setSelectionTurn(null);
     this.#draft = null;
     this.refresh();
   }

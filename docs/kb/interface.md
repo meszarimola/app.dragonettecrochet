@@ -1635,3 +1635,32 @@ körrácsé”, „a kiemelés funkció nem működik … töröljük”, „tob
 - **No row before the first stitch.** While the pattern is one row with no items
   the rows tab shows `#rows-empty` in place of `#rows-body`; the row is still in
   the model, since every item needs one to go into.
+
+## §64 One layer, an edit block only for a selection, and a selection you can hold anywhere
+
+PQW-1022. The owner: „legyen egy [réteg], és az "réteg" néven fusson”, „a
+kijelölésnek semmi értelme úgy, hogy nincs semmi kijelölve”, a fan „nem tudom
+odébbvinni … ha nem pont a vonalra kattintok”, „az a pont nem fordul vele
+együtt”, and a pointer next to „Terület” for Ctrl/⌘-click selection.
+
+- **One starting layer, „Réteg”.** `emptyIrregularPattern` takes any number of
+  names now; the editor passes one. A pattern that still has exactly the two
+  old starting layers („Mintarajz” and „Feliratok”, or „Chart” and „Labels”),
+  both shown and unlocked, becomes one layer on load or import
+  (`oneStartingLayer`), groups included, or a saved file would name a layer that
+  is gone; layers she named or changed are left alone.
+- **„Kijelölt módosítása”** is the old selection block (§58), renamed, moved
+  under the rows and layers tabs, and hidden (`.is-off`) while nothing is
+  selected. Arranging a whole row therefore starts from selecting it; with the
+  whole row selected it still remembers the shape (§46).
+- **The frame is the handle.** A press inside the selection frame that hits no
+  item moves the whole selection — checked before the tracing photo and the
+  circle guide's knob, which lie behind it (/code-review). A still click on one of several selected
+  items narrows the selection to it (with its group); a drag moves them all.
+- **The frame turns with the drawing.** While the rotate knob is dragged the
+  board draws the frame it started from, turned by the same angle
+  (`setSelectionTurn`); on release it is the upright box of the result again.
+- **„Kijelölés” (pointer) beside „Terület”.** Click takes one item, Ctrl/⌘ or
+  Shift + click adds or removes one, and a drag on empty ground draws no
+  rectangle. „Terület” keeps the rectangle. Both lay a drawing tool down. The
+  pointer is the default; either one's frame resizes at its corners.

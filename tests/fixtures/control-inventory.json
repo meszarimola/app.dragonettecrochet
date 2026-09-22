@@ -223,6 +223,7 @@
   {"id":"section-shawl","tag":"details","type":""},
   {"id":"section-size","tag":"details","type":""},
   {"id":"select-mode-toggle","tag":"button","type":"button"},
+  {"id":"select-pointer","tag":"button","type":"button","attr":"data-action","value":"select-pointer"},
   {"id":"settings-close","tag":"button","type":"button"},
   {"id":"settings-open","tag":"button","type":"button"},
   {"id":"setup-toggle","tag":"button","type":"button"},

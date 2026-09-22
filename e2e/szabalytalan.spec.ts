@@ -36,7 +36,8 @@ test('the free-form type opens its own canvas and hides what belongs to rows', a
   await chooseIrregular(page);
 
   await expect(page.locator('#board')).toBeHidden();
-  await expect(page.locator('#section-irregular')).toBeVisible();
+  // The selection block waits for a selection (PQW-1022); the rows and layers tabs are there at once.
+  await expect(page.locator('#irregular-tabs')).toBeVisible();
   // Filling a row, turning, closing and spiralling belong to regular crochet only.
   await expect(page.locator('#tools-row')).toBeHidden();
 
@@ -207,7 +208,8 @@ test('layers: a second layer takes the selected stitches, and hiding it hides th
   for (const x of [500, 560]) await place(page, x, 400);
 
   await page.locator('#tab-layers').click();
-  await expect(page.locator('#layers-list li')).toHaveCount(2);
+  // A pattern starts with one layer (PQW-1022).
+  await expect(page.locator('#layers-list li')).toHaveCount(1);
 
   await page.locator(board).focus();
   await page.keyboard.press('Escape');
@@ -215,7 +217,7 @@ test('layers: a second layer takes the selected stitches, and hiding it hides th
   await expect(page.locator('#status')).toContainText('2 szem kijelölve');
 
   await page.locator('#layer-new').click();
-  await expect(page.locator('#layers-list li')).toHaveCount(3);
+  await expect(page.locator('#layers-list li')).toHaveCount(2);
   await page.locator('#layer-move-items').click();
   await expect(page.locator('#status')).toContainText('2 szem áthelyezve');
 
@@ -668,6 +670,10 @@ test('elrendezés: körvonalra, a sor megjegyzi az alakot, Egyenletessé tesz z�
   });
   const view = { x: 500 - firstPlaced.x, y: 300 - firstPlaced.y };
 
+  // The edit block shows with a selection only (PQW-1022); the whole row selected is still the whole row.
+  await page.locator(board).focus();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('ControlOrMeta+A');
   await expect(page.locator('#props-arrange')).toBeVisible();
   await page.locator('[data-arrange="circle"]').click();
 
@@ -705,6 +711,7 @@ test('elrendezés: körvonalra, a sor megjegyzi az alakot, Egyenletessé tesz z�
   await page.keyboard.press('Delete');
   expect((await state()).items, 'hét maradt').toBe(7);
 
+  await page.keyboard.press('ControlOrMeta+A');
   await page.locator('#arrange-even').click();
   for (const off of await spread()) {
     expect(Math.abs(off), 'a maradék szemek is a körvonalon ülnek').toBeLessThan(0.001);
@@ -1090,7 +1097,8 @@ test('the selection block says what it is for, and the rectangle mode hangs off 
   await open(page);
   await chooseIrregular(page);
 
-  await expect(page.locator('#props-empty')).toContainText('Jelölj ki szemet a rajzon');
+  // Since PQW-1022 the block is not there at all until something is selected.
+  await expect(page.locator('#section-irregular')).toBeHidden();
   await expect(page.locator('#props-fields')).toBeHidden();
 
   // „Terület” is not inside a menu, so pressing it closes whatever menu is open.
@@ -1276,4 +1284,104 @@ test('zoom and guides are two menus, both guides share one size, and there is no
   await place(page, 500, 300);
   await expect(page.locator('#rows-empty')).toBeHidden();
   await expect(page.locator('#rows-list li')).toHaveCount(1);
+});
+
+test('one layer, an edit block only with a selection, a frame that moves from anywhere inside, and a pointer tool (PQW-1022)', async ({
+  page,
+}) => {
+  await open(page);
+  await chooseIrregular(page);
+
+  await page.locator('#tab-layers').click();
+  await expect(page.locator('#layers-list li')).toHaveCount(1);
+  await expect(page.locator('#layers-list li')).toContainText('Réteg');
+
+  await expect(page.locator('#section-irregular')).toBeHidden();
+  await expect(page.locator('#select-pointer')).toHaveAttribute('aria-pressed', 'true');
+
+  await armDoubleCrochet(page);
+  await place(page, 400, 300);
+  await place(page, 600, 300);
+  await page.locator(board).focus();
+  await page.keyboard.press('Escape');
+
+  // The pointer draws no rectangle on empty ground.
+  const rect = await page.locator(board).boundingBox();
+  if (rect === null) throw new Error('no board');
+  await page.mouse.move(rect.x + 300, rect.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(rect.x + 700, rect.y + 400, { steps: 5 });
+  await page.mouse.up();
+  await expect(page.locator('#section-irregular')).toBeHidden();
+
+  // Ctrl/⌘ + click takes a second one.
+  await page.locator(board).click({ position: { x: 400, y: 300 } });
+  await page.locator(board).click({ position: { x: 600, y: 300 }, modifiers: ['ControlOrMeta'] });
+  await expect(page.locator('#section-irregular')).toBeVisible();
+  await expect(page.locator('#section-irregular')).toContainText('Kijelölt módosítása');
+  await expect(page.locator('#props-count')).toContainText('2');
+
+  // Grabbing the empty middle of the frame moves both.
+  const before = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}').items.map(
+      (item: { x: number }) => item.x,
+    ),
+  );
+  await page.mouse.move(rect.x + 500, rect.y + 300);
+  await page.mouse.down();
+  await page.mouse.move(rect.x + 550, rect.y + 300, { steps: 5 });
+  await page.mouse.up();
+  const after = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}').items.map(
+      (item: { x: number }) => item.x,
+    ),
+  );
+  expect(
+    after.map((x: number, i: number) => Math.round(x - before[i])),
+    'both moved by the drag',
+  ).toEqual([50, 50]);
+
+  // The area tool is the one that draws a rectangle.
+  await page.locator('[data-action="select-area"]').click();
+  await expect(page.locator('#select-pointer')).toHaveAttribute('aria-pressed', 'false');
+
+  // Either selection tool lays a drawing tool down.
+  await page.locator('[data-action="fan"]').click();
+  await expect(page.locator('[data-action="fan"]')).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('#select-pointer').click();
+  await expect(page.locator('[data-action="fan"]')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('#select-pointer')).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('an older pattern with the two starting layers loads as one layer (PQW-1022)', async ({ page }) => {
+  await open(page);
+  await chooseIrregular(page);
+  const old = {
+    formatVersion: 1,
+    type: 'irregular',
+    title: 'Régi minta',
+    rows: [{ id: 'r1', kind: 'row', direction: 'ltr', color: null, visible: true, locked: false }],
+    layers: [
+      { id: 'l1', name: 'Mintarajz', visible: true, locked: false },
+      { id: 'l2', name: 'Feliratok', visible: true, locked: false },
+    ],
+    items: [],
+    activeRowId: 'r1',
+    activeLayerId: 'l2',
+    guides: {
+      grid: { visible: false, size: 20 },
+      polar: { visible: false, center: { x: 0, y: 0 }, rings: 8, spacing: 40, spokes: 12, startAngle: 0 },
+      snap: false,
+    },
+  };
+  await page.locator('#file-toggle').click();
+  await page.locator('#import-file').setInputFiles({
+    name: 'regi.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(old), 'utf8'),
+  });
+  await expect(page.locator('#status')).toContainText('Minta betöltve');
+  await page.locator('#tab-layers').click();
+  await expect(page.locator('#layers-list li')).toHaveCount(1);
+  await expect(page.locator('#layers-list li')).toContainText('Réteg');
 });
