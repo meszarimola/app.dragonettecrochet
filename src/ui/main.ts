@@ -1404,7 +1404,15 @@ const ACTIONS: Record<string, () => void> = {
     refresh(texts().messages.work.redo);
   },
   'delete-last': () => commit(deleteLast(history.present), texts().messages.work.deleteLast),
-  'select-area': () => (irregular?.active === true ? select(null) : setAreaMode(!areaMode)),
+  'select-area': () => {
+    if (irregular?.active !== true) return setAreaMode(!areaMode);
+    select(null);
+    irregular.setSelectTool('area');
+  },
+  'select-pointer': () => {
+    select(null);
+    irregular?.setSelectTool('pointer');
+  },
   'chain-arc': () => irregular?.toggleArcTool(),
   'note-text': () => irregular?.toggleNoteTool('text'),
   'note-arrow': () => irregular?.toggleNoteTool('arrow'),
@@ -2314,9 +2322,14 @@ function updateIrregularControls(editor: IrregularEditor): void {
   setDisabled('redo', !editor.canRedo);
   setDisabled('delete-selection', editor.selectionSize === 0);
   setDisabled('duplicate-selection', editor.selectionSize === 0);
+  const idle = tool === null && !editor.arcArmed && !editor.fanArmed && editor.noteArmed === null;
   must<HTMLButtonElement>('[data-action="select-area"]').setAttribute(
     'aria-pressed',
-    String(tool === null && !editor.arcArmed && !editor.fanArmed && editor.noteArmed === null),
+    String(idle && editor.selectTool === 'area'),
+  );
+  must<HTMLButtonElement>('[data-action="select-pointer"]').setAttribute(
+    'aria-pressed',
+    String(idle && editor.selectTool === 'pointer'),
   );
   notesToggle.classList.toggle('is-armed', editor.noteArmed !== null);
   must<HTMLButtonElement>('[data-action="chain-arc"]').setAttribute('aria-pressed', String(editor.arcArmed));
@@ -2383,6 +2396,7 @@ function showIrregularView(on: boolean): void {
     '#export-picture-fields',
     '#export-pdf-part',
     '#select-mode-toggle',
+    '#select-pointer',
     '#irregular-tabs',
     '#settings-open',
   ]) {

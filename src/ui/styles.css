@@ -2504,3 +2504,8 @@ body.is-selecting #board-irregular {
   max-block-size: min(70vh, 40rem);
   overflow-y: auto;
 }
+
+/* KB: interface.md §64 — nothing selected, nothing to edit. */
+#section-irregular.is-off {
+  display: none;
+}

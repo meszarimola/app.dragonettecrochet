@@ -37,21 +37,17 @@ export function nextId(prefix: string, ids: Iterable<string>): string {
 
 export interface EmptyOptions {
   readonly title: string;
-  /** The two starting layers, bottom first. The names come from the interface. */
-  readonly layerNames: readonly [string, string];
+  /** The starting layers, bottom first, at least one. The names come from the interface. */
+  readonly layerNames: readonly [string, ...string[]];
 }
 
 export function emptyIrregularPattern(options: EmptyOptions): IrregularPattern {
-  const [drawing, labels] = options.layerNames;
   return {
     formatVersion: IRREGULAR_FORMAT_VERSION,
     type: 'irregular',
     title: options.title,
     rows: [{ id: 'r1', kind: 'row', direction: 'ltr', color: null, visible: true, locked: false }],
-    layers: [
-      { id: 'l1', name: drawing, visible: true, locked: false },
-      { id: 'l2', name: labels, visible: true, locked: false },
-    ],
+    layers: options.layerNames.map((name, index) => ({ id: `l${index + 1}`, name, visible: true, locked: false })),
     items: [],
     activeRowId: 'r1',
     activeLayerId: 'l1',

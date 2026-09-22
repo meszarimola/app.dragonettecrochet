@@ -104,7 +104,6 @@ function allowedInsertions(items: readonly IrregularItem[]): StitchInsertion[] {
 export class IrregularPanel {
   readonly #section: HTMLDetailsElement;
   readonly #host: IrregularPanelHost;
-  readonly #empty: HTMLElement;
   readonly #fields: HTMLElement;
   readonly #count: HTMLElement;
   readonly #x: HTMLInputElement;
@@ -162,7 +161,6 @@ export class IrregularPanel {
     // KB: interface.md §57 — the guides, the export options and the annotation
     // commands live in the bar's menus and the export dialog, not in the section.
     const page = section.ownerDocument;
-    this.#empty = must<HTMLElement>(section, '#props-empty');
     this.#fields = must<HTMLElement>(section, '#props-fields');
     this.#count = must<HTMLElement>(section, '#props-count');
     this.#x = must<HTMLInputElement>(section, '#prop-x');
@@ -498,8 +496,9 @@ export class IrregularPanel {
       this.#rectMode.value = rectPartial ? 'partial' : 'full';
     }
     this.#count.textContent = items.length === 0 ? words.selectedNone : words.selected(items.length);
-    this.#empty.hidden = items.length > 0;
     this.#fields.hidden = items.length === 0;
+    // KB: interface.md §64 — with nothing selected there is nothing to edit, so the block goes.
+    this.#section.classList.toggle('is-off', items.length === 0);
     if (items.length === 0) {
       this.#count.textContent = total === 0 ? '' : words.selectedNone;
       return;
