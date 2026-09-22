@@ -885,6 +885,8 @@ Cited from: `src/ui/irregular-editor.ts` (`#loose`, `#shifted`, `typeArcCount`,
 
 ## §45 Isolating is a view
 
+*Removed in PQW-1015 (§63): the owner found it did not work and had no use for it.*
+
 **Kiemelés** puts the rest of the pattern out of reach so one part of a busy
 chart can be worked on. It is a view and nothing else: it records no undo step,
 it is not saved with the pattern, and leaving it changes nothing. Escape leaves
@@ -1492,6 +1494,8 @@ caret menu, the mode surviving a reload, and the caret hidden in the regular typ
 
 ## §59 Rows, layers and key behind tabs, as compact lists
 
+*The fade and order switches, and the order buttons, went in PQW-1015 (§63).*
+
 *The key tab went in PQW-1013 (§62); two tabs remain.*
 
 PQW-1010, the third step of the free-form redesign. The owner asked for layers
@@ -1597,3 +1601,37 @@ stitch is. The file format keeps `stitchKey` and `legend`, so an older file
 still loads, a stitch of her own in it still draws with its symbol, and an
 override still applies. The ambiguity check of §41 stays for the same reason:
 such a file can still draw two stitches with one symbol.
+
+## §63 „Méretezés” and „Segédrács”; one guide size; less to switch
+
+PQW-1015. The owner, on v0.61.0: „a nézetet nevezzük át segédrácsnak”, „a
+kiemelésből vegyük külön a nagyítás/kicsinyítés/teljes méret részeket -
+méretezés menüpont alá”, „a rács négyzetei aránytalanul kisebbek, mint a
+körrácsé”, „a kiemelés funkció nem működik … töröljük”, „tobbi sor halványítása
+és szemsorrend kijelölése teljesen felesleges”, „körrácsnál a kezdőszögnek semmi
+értelme”, and that an empty first row showed before a single stitch.
+
+- **Two menus instead of „Nézet”.** „Méretezés” (`#zoom-toggle`, `#zoom-pop`)
+  holds zoom in, zoom out and the whole pattern, and stays open between steps
+  like §57's menu did. „Segédrács” (still `#view-toggle`) holds the grid, and in
+  the free-form type the circle guide, snapping and the guide settings. Both
+  types share them.
+- **The square grid and the circle guide can show together.** The first reading
+  of the report made them alternatives; the owner took that back the same day
+  („van annak értelme hogy a körrács és a rács is egyformán legyen aktív”).
+- **One size for both** — „Rácsméret”, the square's side and the ring step.
+  `#setGuideSize` writes both in one undo step, a circle guide switched on takes
+  the grid's size, and the default is 40, the row spacing (it was 20 against a
+  40 ring step, which is what looked disproportionate). A file from before
+  keeps two sizes; `oneGuideSize` makes the grid take the ring step when it
+  loads. The two ranges differ (grid 2–200, ring step 4–400), so `guideSize`
+  rounds the one number and keeps it in 4–200, which both accept — otherwise a
+  2 would be stored as 2 and 4 and part again on the next load (/code-review).
+  The separate ring-spacing field and the start angle left the settings; an
+  older file's start angle goes back to 0 on load, since nothing could reset it.
+- **Removed:** isolating (§45), fading the other rows, the stitch-order overlay
+  and its buttons (earlier, later, automatic, place in the row). The order data
+  stays in the file; nothing edits it by hand any more.
+- **No row before the first stitch.** While the pattern is one row with no items
+  the rows tab shows `#rows-empty` in place of `#rows-body`; the row is still in
+  the model, since every item needs one to go into.

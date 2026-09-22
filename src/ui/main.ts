@@ -185,6 +185,8 @@ const filePop = must<HTMLElement>('#file-pop');
 const viewToggle = must<HTMLButtonElement>('#view-toggle');
 const viewMenu = must<HTMLElement>('#view-menu');
 const notesToggle = must<HTMLButtonElement>('#notes-toggle');
+const zoomToggle = must<HTMLButtonElement>('#zoom-toggle');
+const zoomPop = must<HTMLElement>('#zoom-pop');
 const notesPop = must<HTMLElement>('#notes-pop');
 const selectModeToggle = must<HTMLButtonElement>('#select-mode-toggle');
 const selectModePop = must<HTMLElement>('#select-mode-pop');
@@ -1408,7 +1410,6 @@ const ACTIONS: Record<string, () => void> = {
   'note-arrow': () => irregular?.toggleNoteTool('arrow'),
   'note-bracket': () => irregular?.toggleNoteTool('bracket'),
   fan: () => irregular?.toggleFanTool(),
-  isolate: () => irregular?.toggleIsolate(),
   'delete-selection': () => (irregular?.active === true ? irregular.deleteSelection() : void deleteSelection()),
   'duplicate-selection': () => (irregular?.active === true ? irregular.duplicateSelection() : duplicateSelected()),
   same: () =>
@@ -1571,6 +1572,7 @@ function closeAllPopovers(): void {
   closePopover(filePop, fileToggle);
   closePopover(typesNav, typesToggle);
   closePopover(notesPop, notesToggle);
+  closePopover(zoomPop, zoomToggle);
   closePopover(selectModePop, selectModeToggle);
   setViewMenuOpen(false);
 }
@@ -1597,6 +1599,13 @@ notesToggle.addEventListener('click', () => {
     openPopover(notesPop, notesToggle);
     notesPop.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
   }
+});
+
+// KB: interface.md §63 — like the guides menu it stays open, so zooming is more than one click.
+zoomToggle.addEventListener('click', () => {
+  const opening = zoomPop.hidden;
+  closeAllPopovers();
+  if (opening) openPopover(zoomPop, zoomToggle);
 });
 
 selectModeToggle.addEventListener('click', () => {
@@ -2054,7 +2063,7 @@ document.addEventListener('keydown', (event) => {
   const key = event.key;
 
   // Escape closes an open menu first and returns the focus to its button.
-  const openMenu = [errorToggle, fileToggle, typesToggle, viewToggle, notesToggle, selectModeToggle].find(
+  const openMenu = [errorToggle, fileToggle, typesToggle, viewToggle, notesToggle, selectModeToggle, zoomToggle].find(
     (button) => button.getAttribute('aria-expanded') === 'true',
   );
   if (key === 'Escape' && openMenu) {
@@ -2312,7 +2321,6 @@ function updateIrregularControls(editor: IrregularEditor): void {
   notesToggle.classList.toggle('is-armed', editor.noteArmed !== null);
   must<HTMLButtonElement>('[data-action="chain-arc"]').setAttribute('aria-pressed', String(editor.arcArmed));
   must<HTMLButtonElement>('[data-action="fan"]').setAttribute('aria-pressed', String(editor.fanArmed));
-  must<HTMLButtonElement>('[data-action="isolate"]').setAttribute('aria-pressed', String(editor.isolating));
   for (const note of ['text', 'arrow', 'bracket'] as const) {
     must<HTMLButtonElement>(`[data-action="note-${note}"]`).setAttribute(
       'aria-pressed',
@@ -2376,7 +2384,6 @@ function showIrregularView(on: boolean): void {
     '#export-pdf-part',
     '#select-mode-toggle',
     '#irregular-tabs',
-    '#view-work',
     '#settings-open',
   ]) {
     must<HTMLElement>(id).hidden = !on;

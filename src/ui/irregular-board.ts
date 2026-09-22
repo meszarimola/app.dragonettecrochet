@@ -30,8 +30,6 @@ const ROTATE_ARM = 26;
 const GRID_LIMIT = 400;
 const POLAR_KNOB = 5;
 const POLAR_FADE = 0.55;
-const FADED = 0.28;
-const ORDER_FONT = 11;
 
 export type HandleId = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'rotate';
 
@@ -115,11 +113,6 @@ export interface FreeScene {
   readonly hover: string | null;
   /** The key entry's chosen symbol, or `null` when it keeps the preset's. */
   readonly glyphOf: (keyEntryId: string) => string | null;
-  readonly fadeOthers: boolean;
-  /** While isolating, only these stitches can be reached or edited. */
-  readonly isolated: ReadonlySet<string> | null;
-  /** Item ids of the active row in crochet order, when the overlay is on. */
-  readonly order: readonly string[] | null;
   /** The selected group's path, so its grips can be grabbed. */
   readonly arc: GroupPath | null;
   /** The group being drawn right now, drawn but not yet grabbable. */
@@ -389,7 +382,6 @@ export class FreeBoard {
     const order = new Map(scene.pattern.layers.map((layer, index) => [layer.id, index]));
     return scene.pattern.items
       .filter((item) => isSelectable(scene.pattern, item))
-      .filter((item) => scene.isolated === null || scene.isolated.has(item.id))
       .map((item, index) => ({ item, index, layer: order.get(item.layerId) ?? 0 }))
       .sort((a, b) => b.layer - a.layer || b.index - a.index)
       .map((entry) => entry.item);
@@ -509,10 +501,6 @@ export class FreeBoard {
       .sort((a, b) => a.layer - b.layer || a.index - b.index);
 
     for (const { item } of drawable) {
-      const dim =
-        (scene.isolated !== null && !scene.isolated.has(item.id)) ||
-        (scene.fadeOthers && item.rowId !== scene.pattern.activeRowId);
-      ctx.globalAlpha = dim ? FADED : 1;
       applyInk(ctx, this.#inkOf(scene.pattern, item, colors.ink), line);
       if (isStitch(item)) {
         drawShapes(ctx, itemShapes(item, scene.symbols, scene.glyphOf(item.keyEntryId)));
@@ -530,39 +518,11 @@ export class FreeBoard {
     }
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    this.#drawOrder(scene, colors.accent);
     if (scene.rowLine !== null) this.#drawArcPath(scene.rowLine, colors.grid, true);
     if (scene.arcPreview !== null) this.#drawArcPath(scene.arcPreview, colors.accent, false);
     if (scene.arc !== null) this.#drawArcPath(scene.arc, colors.accent, true);
     this.#drawSelection(colors.accent);
     this.#drawMarquee(scene.marquee, colors.accent);
-  }
-
-  /** The numbers stay the same size however far you zoom out, as the row labels do. */
-  #drawOrder(scene: FreeScene, color: string): void {
-    const order = scene.order;
-    if (order === null || order.length === 0) return;
-    const ctx = this.#ctx;
-    const byId = new Map(scene.pattern.items.map((item) => [item.id, item]));
-    ctx.save();
-    ctx.font = `${ORDER_FONT}px system-ui, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    order.forEach((id, index) => {
-      const item = byId.get(id);
-      if (item === undefined || !isVisible(scene.pattern, item)) return;
-      const box = itemBox(item);
-      const at = this.#toScreen({ x: item.x, y: box.minY });
-      ctx.fillStyle = color;
-      ctx.globalAlpha = 0.9;
-      ctx.beginPath();
-      ctx.arc(at.x, at.y - ORDER_FONT, ORDER_FONT * 0.8, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = '#fff';
-      ctx.fillText(String(index + 1), at.x, at.y - ORDER_FONT);
-    });
-    ctx.restore();
   }
 
   #inkOf(pattern: IrregularPattern, item: IrregularItem, fallback: string): string {
