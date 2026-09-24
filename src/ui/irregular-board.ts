@@ -3,6 +3,7 @@
 import { arcAt } from '../core/irregular-arc.ts';
 import { type Box, isSelectable, isVisible, itemBox, itemsBox, rowById } from '../core/irregular-document.ts';
 import { fanAngles } from '../core/irregular-fan.ts';
+import type { GrannyBand } from '../core/irregular-granny.ts';
 import { directionOf, ringRadii, spokeAngles } from '../core/irregular-snap.ts';
 import {
   type AnnotationItem,
@@ -121,6 +122,8 @@ export interface FreeScene {
   readonly rowLine: GroupPath | null;
   /** The tracing photo and the picture itself, drawn under every layer. */
   readonly background: { readonly placement: BackgroundImage; readonly image: CanvasImageSource } | null;
+  /** A granny square's round bands, drawn under the stitches. KB: interface.md §69 */
+  readonly granny: readonly GrannyBand[];
 }
 
 interface View {
@@ -490,6 +493,7 @@ export class FreeBoard {
     ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * x, dpr * y);
     const line = Math.max(1.2, 2 / scale);
     if (scene.background !== null) this.#drawBackground(scene.background.placement, scene.background.image);
+    if (scene.granny.length > 0) this.#drawGranny(scene.granny, scale);
     if (scene.pattern.guides.polar.visible) this.#drawPolar(scene.pattern.guides.polar, colors.grid, colors.accent);
     const order = new Map(scene.pattern.layers.map((layer, index) => [layer.id, index]));
     // KB: interface.md §50 — a chart of thousands only draws what is on screen.
@@ -523,6 +527,30 @@ export class FreeBoard {
     if (scene.arc !== null) this.#drawArcPath(scene.arc, colors.accent, true);
     this.#drawSelection(colors.accent);
     this.#drawMarquee(scene.marquee, colors.accent);
+  }
+
+  #drawGranny(bands: readonly GrannyBand[], scale: number): void {
+    const ctx = this.#ctx;
+    const canvas = this.#canvas;
+    const tones = { 0: token(canvas, '--c-row-a'), 1: token(canvas, '--c-row-b') } as const;
+    const loop = (points: readonly ChartPoint[]): string =>
+      `${points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x} ${p.y}`).join('')}Z`;
+    for (const band of bands) {
+      ctx.fillStyle = tones[band.tone];
+      ctx.fill(new Path2D(`${loop(band.outer)}${band.inner === null ? '' : loop(band.inner)}`), 'evenodd');
+    }
+    ctx.lineWidth = 1 / scale;
+    ctx.strokeStyle = token(canvas, '--c-grid');
+    for (const band of bands) {
+      const cells = new Path2D();
+      for (const [from, to] of band.dividers) {
+        cells.moveTo(from.x, from.y);
+        cells.lineTo(to.x, to.y);
+      }
+      ctx.stroke(cells);
+    }
+    ctx.strokeStyle = token(canvas, '--c-grid-row');
+    for (const band of bands) ctx.stroke(new Path2D(loop(band.outer)));
   }
 
   #inkOf(pattern: IrregularPattern, item: IrregularItem, fallback: string): string {

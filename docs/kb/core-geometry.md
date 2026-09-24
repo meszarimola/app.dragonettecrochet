@@ -1122,3 +1122,17 @@ rounds of different stitches stack without gaps. Changing a count never moves
 another round, because heights do not depend on the count. The group survives the
 file (`motif` on the pattern and `grannyRound` among the groups), and moving its
 stitches carries `center` along (`translateGroups`).
+
+## §56 The granny square's background bands
+
+PQW-1041. Under a granny square the free-form board draws the round generator's
+background, not the square grid. The owner: „az előző háttérképe jó volt … erre
+beraktál egy kibaszott négyzetrácsot”, with „változó számú négyzetszám
+körönként!”.
+
+`grannyBand` gives each round a square band from its base (`inner`) to its top
+(`grannyOuter`). The first round's band reaches the centre (`inner: null`). The
+band is cut into one cell per stitch. A divider joins the base square and the top
+square at the same share of the perimeter, halfway between two stitches, so the
+cell count follows each round's own count. The tones alternate round by round, as
+`--c-row-a` and `--c-row-b` do on the regular chart.
