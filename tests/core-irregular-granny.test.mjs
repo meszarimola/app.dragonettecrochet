@@ -15,6 +15,7 @@ import {
   clampGrannyCount,
   grannyRounds,
   setGrannyCount,
+  setGrannyRadial,
   translateGroups,
 } from '../src/core/irregular-groups.ts';
 import { loadIrregular, saveIrregular } from '../src/core/irregular-json.ts';
@@ -46,7 +47,7 @@ describe('squareStop', () => {
 
 describe('grannyShapes', () => {
   test('8 stitches: one on each corner and one in the middle of each side', () => {
-    const shapes = grannyShapes({ center: { x: 0, y: 0 }, inner: 0, count: 8 }, DC);
+    const shapes = grannyShapes({ center: { x: 0, y: 0 }, inner: 0, count: 8, radial: true }, DC);
     assert.equal(shapes.length, 8);
     assert.deepEqual(
       shapes.map((shape) => shape.rotation),
@@ -57,7 +58,7 @@ describe('grannyShapes', () => {
 
   test('no stitch is ever stretched: every member keeps the natural glyph size', () => {
     for (const count of [1, 4, 8, 13, 40]) {
-      for (const shape of grannyShapes({ center: { x: 5, y: 7 }, inner: 40, count }, DC)) {
+      for (const shape of grannyShapes({ center: { x: 5, y: 7 }, inner: 40, count, radial: true }, DC)) {
         assert.equal(shape.width, DC.width);
         assert.equal(shape.height, DC.height);
       }
@@ -65,13 +66,13 @@ describe('grannyShapes', () => {
   });
 
   test('the base of a stitch stands on the inner square, its top one stitch height out', () => {
-    const [, middle] = grannyShapes({ center: { x: 0, y: 0 }, inner: 40, count: 8 }, DC);
+    const [, middle] = grannyShapes({ center: { x: 0, y: 0 }, inner: 40, count: 8, radial: true }, DC);
     near(middle.at.y, -(40 + DC.height / 2), 'centre of the top middle stitch');
     assert.equal(grannyOuter({ inner: 40 }, DC), 80);
   });
 
   test('the round follows its centre', () => {
-    const shapes = grannyShapes({ center: { x: 100, y: -50 }, inner: 0, count: 4 }, DC);
+    const shapes = grannyShapes({ center: { x: 100, y: -50 }, inner: 0, count: 4, radial: true }, DC);
     assert.deepEqual(shapes[0].at, { x: 80, y: -70 });
   });
 });
@@ -81,7 +82,7 @@ describe('granny rounds in a pattern', () => {
     const start = granny();
     const made = addGrannyRound(
       start,
-      { rowId: 'r1', layerId: 'l1', keyEntryId: 'dc', center: { x: 0, y: 0 }, inner: 0, count: 8 },
+      { rowId: 'r1', layerId: 'l1', keyEntryId: 'dc', center: { x: 0, y: 0 }, inner: 0, count: 8, radial: true },
       DC,
     );
     const [round] = grannyRounds(made.pattern);
@@ -103,7 +104,7 @@ describe('granny rounds in a pattern', () => {
   test('moving the stitches carries the round centre along', () => {
     const made = addGrannyRound(
       granny(),
-      { rowId: 'r1', layerId: 'l1', keyEntryId: 'dc', center: { x: 0, y: 0 }, inner: 0, count: 4 },
+      { rowId: 'r1', layerId: 'l1', keyEntryId: 'dc', center: { x: 0, y: 0 }, inner: 0, count: 4, radial: true },
       DC,
     );
     const ids = new Set(made.pattern.items.map((item) => item.id));
@@ -114,7 +115,7 @@ describe('granny rounds in a pattern', () => {
   test('a granny square and its rounds survive the file', () => {
     const made = addGrannyRound(
       granny(),
-      { rowId: 'r1', layerId: 'l1', keyEntryId: 'dc', center: { x: 0, y: 0 }, inner: 0, count: 8 },
+      { rowId: 'r1', layerId: 'l1', keyEntryId: 'dc', center: { x: 0, y: 0 }, inner: 0, count: 8, radial: true },
       DC,
     );
     const loaded = loadIrregular(saveIrregular(made.pattern));
@@ -126,7 +127,7 @@ describe('granny rounds in a pattern', () => {
   test('a file with a negative inner square is refused', () => {
     const made = addGrannyRound(
       granny(),
-      { rowId: 'r1', layerId: 'l1', keyEntryId: 'dc', center: { x: 0, y: 0 }, inner: 0, count: 4 },
+      { rowId: 'r1', layerId: 'l1', keyEntryId: 'dc', center: { x: 0, y: 0 }, inner: 0, count: 4, radial: true },
       DC,
     );
     const raw = JSON.parse(saveIrregular(made.pattern));
@@ -162,5 +163,57 @@ describe('grannyBand', () => {
     near(from.y, -40, 'inner end on the base square');
     near(to.x, -40, 'outer end');
     near(to.y, -80, 'outer end on the top square');
+  });
+});
+
+describe('facing outwards or upright (PQW-1042)', () => {
+  test('with the turn off every stitch stays upright, and the places do not move', () => {
+    const turned = grannyShapes({ center: { x: 0, y: 0 }, inner: 40, count: 8, radial: true }, DC);
+    const upright = grannyShapes({ center: { x: 0, y: 0 }, inner: 40, count: 8, radial: false }, DC);
+    assert.deepEqual(
+      upright.map((shape) => shape.rotation),
+      new Array(8).fill(0),
+    );
+    assert.deepEqual(
+      upright.map((shape) => shape.at),
+      turned.map((shape) => shape.at),
+    );
+  });
+
+  test('the switch turns every round of the square at once, and keeps the stitch ids', () => {
+    let pattern = granny();
+    for (const [rowId, inner, count] of [
+      ['r1', 0, 8],
+      ['r1', 40, 16],
+    ]) {
+      pattern = addGrannyRound(
+        pattern,
+        { rowId, layerId: 'l1', keyEntryId: 'dc', center: { x: 0, y: 0 }, inner, count, radial: true },
+        DC,
+      ).pattern;
+    }
+    const before = pattern.items.map((item) => item.id);
+    const upright = setGrannyRadial(pattern, false, () => DC);
+    assert.ok(grannyRounds(upright).every((round) => !round.radial));
+    assert.ok(upright.items.every((item) => item.rotation === 0));
+    assert.deepEqual(
+      upright.items.map((item) => item.id),
+      before,
+    );
+    const back = setGrannyRadial(upright, true, () => DC);
+    assert.ok(back.items.some((item) => item.rotation !== 0));
+  });
+
+  test('a round from before the switch existed faces outwards', () => {
+    const made = addGrannyRound(
+      granny(),
+      { rowId: 'r1', layerId: 'l1', keyEntryId: 'dc', center: { x: 0, y: 0 }, inner: 0, count: 4, radial: true },
+      DC,
+    );
+    const raw = JSON.parse(saveIrregular(made.pattern));
+    delete raw.groups[0].radial;
+    const loaded = loadIrregular(JSON.stringify(raw));
+    assert.ok(loaded.ok);
+    assert.equal(grannyRounds(loaded.pattern)[0].radial, true);
   });
 });

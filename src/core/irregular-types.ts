@@ -234,6 +234,8 @@ export interface GrannyRoundGroup {
   readonly center: Point;
   readonly inner: number;
   readonly count: number;
+  /** Whether each stitch turns to face away from the middle. KB: interface.md §70 */
+  readonly radial: boolean;
   readonly memberIds: readonly string[];
 }
 

@@ -1749,8 +1749,9 @@ második körbe”.
   One line per round: its name, its count as a field you can change, and its
   stitch abbreviation. Below: the count for the next round (Enter works),
   „Új kör” and „Utolsó kör törlése”. A hint shows until the first round.
-- **The stitch** of a new round is the one armed on the palette, double crochet by
-  default. Chains in the corners are placed by hand with the free-form tools.
+- **The stitch** of a new round is the one armed on the palette. There is no
+  default: see §70. Chains in the corners are placed by hand with the free-form
+  tools.
 - **Defaults taken without the owner's answer:** the first round is a square too,
   the stitches spread evenly with no marked corner spaces, and a round is one
   kind of stitch. The owner said „jó lesz, próbáld meg megcsinálni” to the plan
@@ -1767,3 +1768,28 @@ background, and PQW-1040 read it as the layout and switched the square grid on.
 photo and below the stitches, strokes the cell dividers in `--c-grid` and each
 band's outline in `--c-grid-row`. The bands are canvas-only. They are not in the
 PNG, SVG or PDF export yet. Geometry: `core-geometry.md` §56.
+
+## §70 The palette decides the round's stitch, and the turn can be switched off
+
+PQW-1042. The owner, on v0.68.0: „alapértelmezetten erp-t tesz a »körbe«. miért?
+és ha én mást akarok? a felhasználó kell eldöntse, hogy mit tesz”, and „a
+sugárirányú fordítást tudja kikapcsolni ha kell”.
+
+**No default stitch.** `GRANNY_STITCH` is gone. `addGrannyRound` returns without
+doing anything while nothing is armed, „Új kör” is disabled, and `#granny-stitch`
+says either which stitch the round will be made of or to pick one. Arming a
+stitch already refreshes the editor, so the panel follows the palette by itself.
+The owner chose the palette over a chooser of its own in the panel: one place to
+pick a stitch, not two.
+
+**The turn is a switch.** „Sugárirányú fordítás” (`#granny-radial`), on to begin
+with, as the owner asked. Off leaves every stitch upright, and only the rotation
+changes: the places, the ids and the selection stay. It turns the whole square,
+not one round, because a granny square is read as one. Unlike the circle guide's
+`radial`, which only steers stitches as they are dropped (§63), this one re-lays
+out what is already there.
+
+**Where it is kept.** On each round in the file (`radial`), so another browser
+draws the square the same way; a round from before PQW-1042 reads as facing out.
+The editor also keeps the last choice in its preferences, which is what a new
+round takes.
