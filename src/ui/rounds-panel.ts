@@ -38,6 +38,7 @@ export class RoundsPanel {
   readonly #ribbingFields: HTMLElement;
   readonly #ribbingPair: HTMLElement;
   readonly #note: HTMLElement;
+  readonly #closingNote: HTMLElement;
   #pattern: Pattern | null = null;
   #shown: string | null = null;
 
@@ -63,6 +64,7 @@ export class RoundsPanel {
     this.#ribbingFields = field('rounds-ribbing-fields');
     this.#ribbingPair = field('rounds-ribbing-pair');
     this.#note = field('rounds-note');
+    this.#closingNote = field('rounds-closing-note');
 
     section.addEventListener('toggle', () => this.#render());
     for (const input of [
@@ -115,6 +117,14 @@ export class RoundsPanel {
     this.#closing.disabled = !state.closing;
     this.#stagger.disabled = !state.stagger;
     this.#jog.disabled = !state.jogFix;
+    const granny = options.shape === 'granny-square';
+    for (const control of [this.#stitch, this.#closing, this.#jog]) {
+      const wrap = control.closest<HTMLElement>('.panel__field');
+      if (wrap) wrap.hidden = granny;
+    }
+    const staggerWrap = this.#stagger.closest<HTMLElement>('.choice');
+    if (staggerWrap) staggerWrap.hidden = granny;
+    this.#closingNote.hidden = granny;
     const chainStart = this.#start.querySelector<HTMLOptionElement>('option[value="chain"]');
     if (chainStart) chainStart.disabled = !state.chainStart;
     this.#ribbingFields.hidden = !state.ribbing;
