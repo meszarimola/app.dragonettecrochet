@@ -1,16 +1,11 @@
-// The geometry of a granny square round. KB: core-geometry §55
+// The grid of a granny square: its rounds, their cells and their bands. KB: core-geometry §55
 
-import { normalizeAngle } from './irregular-document.ts';
-import type { GlyphSize, GrannyRoundGroup, MemberShape, Point } from './irregular-types.ts';
+import { GRANNY_COUNT_RANGE, type IrregularPattern, type Point } from './irregular-types.ts';
 
 const CORNER_TOLERANCE = 1e-6;
 
 function finite(value: number, fallback: number): number {
   return Number.isFinite(value) ? value : fallback;
-}
-
-function memberCount(count: number): number {
-  return Number.isFinite(count) ? Math.max(0, Math.round(count)) : 0;
 }
 
 /**
@@ -24,7 +19,8 @@ export function squareStop(half: number, distance: number): { at: Point; angle: 
   const along = perimeter > 0 ? ((distance % perimeter) + perimeter) % perimeter : 0;
   const index = side > 0 ? Math.min(3, Math.floor(along / side)) : 0;
   const offset = along - index * side;
-  const corner = offset < CORNER_TOLERANCE * Math.max(1, side) || side - offset < CORNER_TOLERANCE * Math.max(1, side);
+  const slack = CORNER_TOLERANCE * Math.max(1, side);
+  const corner = offset < slack || side - offset < slack;
   const at: Point = [
     { x: -half + offset, y: -half },
     { x: half, y: -half + offset },
@@ -32,96 +28,139 @@ export function squareStop(half: number, distance: number): { at: Point; angle: 
     { x: -half, y: half - offset },
   ][index] ?? { x: 0, y: 0 };
   if (!corner) return { at, angle: index * 90 };
-  const atCorner = side - offset < CORNER_TOLERANCE * Math.max(1, side) ? index + 1 : index;
+  const atCorner = (side - offset < slack ? index + 1 : index) % 4;
   const cornerPoint: Point =
     [
       { x: -half, y: -half },
       { x: half, y: -half },
       { x: half, y: half },
       { x: -half, y: half },
-    ][atCorner % 4] ?? at;
-  return { at: cornerPoint, angle: normalizeAngle(atCorner * 90 - 45) };
+    ][atCorner] ?? at;
+  return { at: cornerPoint, angle: (atCorner * 90 + 315) % 360 };
+}
+
+/** One whole number the grid count field accepts. */
+export function clampGrannyCount(count: number): number {
+  if (!Number.isFinite(count)) return GRANNY_COUNT_RANGE.min;
+  return Math.min(GRANNY_COUNT_RANGE.max, Math.max(GRANNY_COUNT_RANGE.min, Math.round(count)));
+}
+
+/** One round of the grid: the band between two squares, cut into `cells` cells. */
+export interface GrannyRing {
+  readonly rowId: string;
+  /** Counted from the middle outwards, starting at 1. */
+  readonly round: number;
+  readonly cells: number;
+  readonly inner: number;
+  readonly outer: number;
+}
+
+/** A place a stitch can go: the middle of one cell, with the way it faces. */
+export interface GrannyCell {
+  readonly rowId: string;
+  readonly index: number;
+  readonly at: Point;
+  readonly angle: number;
 }
 
 /**
- * Where the stitches of a granny round sit. Each keeps its glyph's natural size,
- * so no stitch is ever stretched to fill the square; only the gaps between them
- * change with the count.
+ * The rounds of a granny square, middle outwards. Every round is one `step`
+ * deep, so a round's depth never depends on what was put in it.
  */
-export function grannyShapes(
-  group: Pick<GrannyRoundGroup, 'center' | 'inner' | 'count' | 'radial'>,
-  glyph: GlyphSize,
-): MemberShape[] {
-  const count = memberCount(group.count);
-  if (count === 0) return [];
-  const width = finite(glyph.width, 0);
-  const height = finite(glyph.height, 0);
-  const center = { x: finite(group.center.x, 0), y: finite(group.center.y, 0) };
-  const half = Math.max(0, finite(group.inner, 0)) + height / 2;
-  const step = (8 * half) / count;
-  return Array.from({ length: count }, (_, index) => {
+export function grannyRings(pattern: IrregularPattern, step: number): GrannyRing[] {
+  if (pattern.motif !== 'granny-square') return [];
+  const depth = Math.max(1, finite(step, 1));
+  const rings: GrannyRing[] = [];
+  for (const row of pattern.rows) {
+    if (row.cells === undefined) continue;
+    const round = rings.length + 1;
+    rings.push({
+      rowId: row.id,
+      round,
+      cells: Math.max(1, Math.round(row.cells)),
+      inner: (round - 1) * depth,
+      outer: round * depth,
+    });
+  }
+  return rings;
+}
+
+export function grannyRing(pattern: IrregularPattern, step: number, rowId: string): GrannyRing | undefined {
+  return grannyRings(pattern, step).find((ring) => ring.rowId === rowId);
+}
+
+/**
+ * Where each cell of a round sits: on the middle square of its band, the first
+ * on the top-left corner and the rest clockwise. A count divisible by four puts
+ * one cell on each corner.
+ */
+export function grannyCells(ring: GrannyRing): GrannyCell[] {
+  const half = (ring.inner + ring.outer) / 2;
+  const step = (8 * half) / ring.cells;
+  return Array.from({ length: ring.cells }, (_, index) => {
     const stop = squareStop(half, index * step);
-    return {
-      at: { x: center.x + stop.at.x, y: center.y + stop.at.y },
-      rotation: group.radial ? stop.angle : 0,
-      width,
-      height,
-    };
+    return { rowId: ring.rowId, index, at: stop.at, angle: stop.angle };
   });
 }
 
-/** Where the next round starts: one natural stitch height outside this one. */
-export function grannyOuter(group: Pick<GrannyRoundGroup, 'inner'>, glyph: GlyphSize): number {
-  return Math.max(0, finite(group.inner, 0)) + Math.max(0, finite(glyph.height, 0));
+/** Every cell of the square, middle outwards. */
+export function grannyCellsOf(pattern: IrregularPattern, step: number): GrannyCell[] {
+  return grannyRings(pattern, step).flatMap((ring) => grannyCells(ring));
+}
+
+/** The cell nearest a point, or nothing while the square has no rounds. */
+export function nearestGrannyCell(pattern: IrregularPattern, step: number, point: Point): GrannyCell | undefined {
+  let best: GrannyCell | undefined;
+  let distance = Number.POSITIVE_INFINITY;
+  for (const ring of grannyRings(pattern, step)) {
+    for (const cell of grannyCells(ring)) {
+      const span = Math.hypot(cell.at.x - point.x, cell.at.y - point.y);
+      if (span >= distance) continue;
+      distance = span;
+      best = cell;
+    }
+  }
+  return best;
 }
 
 /**
  * The background of one round, as the round generator's chart drew it: a square
- * band between the round's base and its top, and one cell per stitch, split by
- * a line halfway between two stitches. KB: core-geometry §56
+ * band between the round's two squares, split by a line between two cells.
+ * KB: core-geometry §56
  */
 export interface GrannyBand {
   readonly tone: 0 | 1;
   readonly outer: readonly Point[];
-  /** Absent for the first round, whose band reaches the centre. */
+  /** Absent for the first round, whose band reaches the middle. */
   readonly inner: readonly Point[] | null;
   readonly dividers: readonly (readonly [Point, Point])[];
 }
 
-function squareCorners(center: Point, half: number): Point[] {
+function squareCorners(half: number): Point[] {
   return [
-    { x: center.x - half, y: center.y - half },
-    { x: center.x + half, y: center.y - half },
-    { x: center.x + half, y: center.y + half },
-    { x: center.x - half, y: center.y + half },
+    { x: -half, y: -half },
+    { x: half, y: -half },
+    { x: half, y: half },
+    { x: -half, y: half },
   ];
 }
 
-export function grannyBand(
-  group: Pick<GrannyRoundGroup, 'center' | 'inner' | 'count'>,
-  glyph: GlyphSize,
-  tone: 0 | 1,
-): GrannyBand {
-  const center = { x: finite(group.center.x, 0), y: finite(group.center.y, 0) };
-  const inner = Math.max(0, finite(group.inner, 0));
-  const outer = grannyOuter(group, glyph);
-  const count = memberCount(group.count);
-  const on = (half: number, share: number): Point => {
-    if (half <= 0) return center;
-    const stop = squareStop(half, share * 8 * half);
-    return { x: center.x + stop.at.x, y: center.y + stop.at.y };
-  };
-  const dividers: (readonly [Point, Point])[] =
-    count < 2
-      ? []
-      : Array.from({ length: count }, (_, index) => {
-          const share = (index + 0.5) / count;
-          return [on(inner, share), on(outer, share)] as const;
-        });
-  return {
-    tone,
-    outer: squareCorners(center, outer),
-    inner: inner > 0 ? squareCorners(center, inner) : null,
-    dividers,
-  };
+export function grannyBands(pattern: IrregularPattern, step: number): GrannyBand[] {
+  return grannyRings(pattern, step).map((ring, index) => {
+    const on = (half: number, share: number): Point =>
+      half <= 0 ? { x: 0, y: 0 } : squareStop(half, share * 8 * half).at;
+    const dividers =
+      ring.cells < 2
+        ? []
+        : Array.from({ length: ring.cells }, (_, cell) => {
+            const share = (cell + 0.5) / ring.cells;
+            return [on(ring.inner, share), on(ring.outer, share)] as const;
+          });
+    return {
+      tone: (index % 2 === 0 ? 0 : 1) as 0 | 1,
+      outer: squareCorners(ring.outer),
+      inner: ring.inner > 0 ? squareCorners(ring.inner) : null,
+      dividers,
+    };
+  });
 }

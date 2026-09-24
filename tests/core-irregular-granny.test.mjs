@@ -1,35 +1,46 @@
 /*
- * The granny square rounds (PQW-1040). Every stitch keeps its glyph's natural
- * size; a round spreads its stitches evenly round a square, from the top-left
- * corner clockwise, facing outwards. The next round starts one stitch height
- * further out.
+ * The granny square's grid (PQW-1040, PQW-1043). The designer gives the grid and
+ * the crocheter fills it: every round is a band one step deep, cut into as many
+ * cells as the round's grid count, and a stitch goes into the cell nearest where
+ * it was dropped.
  */
 
 import { strict as assert } from 'node:assert';
 import { describe, test } from 'node:test';
 
 import { emptyIrregularPattern } from '../src/core/irregular-document.ts';
-import { grannyBand, grannyOuter, grannyShapes, squareStop } from '../src/core/irregular-granny.ts';
 import {
-  addGrannyRound,
   clampGrannyCount,
-  grannyRounds,
-  setGrannyCount,
-  setGrannyRadial,
-  translateGroups,
-} from '../src/core/irregular-groups.ts';
+  grannyBands,
+  grannyCells,
+  grannyRings,
+  nearestGrannyCell,
+  squareStop,
+} from '../src/core/irregular-granny.ts';
 import { loadIrregular, saveIrregular } from '../src/core/irregular-json.ts';
 import { GRANNY_COUNT_RANGE } from '../src/core/irregular-types.ts';
 
 const near = (actual, expected, message, slack = 1e-9) =>
   assert.ok(Math.abs(actual - expected) <= slack, `${message}: ${actual} vs ${expected}`);
 
-const DC = { width: 12, height: 40 };
+const STEP = 40;
 
-function granny() {
+/** A granny square whose rounds hold the given grid counts. */
+function granny(...cells) {
+  const base = emptyIrregularPattern({ title: 'Nagymama-négyzet', layerNames: ['Réteg'] });
   return {
-    ...emptyIrregularPattern({ title: 'Nagymama-négyzet', layerNames: ['Réteg'] }),
+    ...base,
     motif: 'granny-square',
+    rows: cells.map((count, index) => ({
+      id: `r${index + 1}`,
+      kind: 'round',
+      direction: 'cw',
+      color: null,
+      visible: true,
+      locked: false,
+      cells: count,
+    })),
+    activeRowId: 'r1',
   };
 }
 
@@ -45,175 +56,103 @@ describe('squareStop', () => {
   });
 });
 
-describe('grannyShapes', () => {
-  test('8 stitches: one on each corner and one in the middle of each side', () => {
-    const shapes = grannyShapes({ center: { x: 0, y: 0 }, inner: 0, count: 8, radial: true }, DC);
-    assert.equal(shapes.length, 8);
-    assert.deepEqual(
-      shapes.map((shape) => shape.rotation),
-      [315, 0, 45, 90, 135, 180, 225, 270],
-    );
-    near(shapes[1].at.y, -20, 'the middle of the top side sits half a stitch out');
+describe('the rounds of the grid', () => {
+  test('every round is one step deep, whatever is in it', () => {
+    assert.deepEqual(grannyRings(granny(8, 16, 24), STEP), [
+      { rowId: 'r1', round: 1, cells: 8, inner: 0, outer: 40 },
+      { rowId: 'r2', round: 2, cells: 16, inner: 40, outer: 80 },
+      { rowId: 'r3', round: 3, cells: 24, inner: 80, outer: 120 },
+    ]);
   });
 
-  test('no stitch is ever stretched: every member keeps the natural glyph size', () => {
-    for (const count of [1, 4, 8, 13, 40]) {
-      for (const shape of grannyShapes({ center: { x: 5, y: 7 }, inner: 40, count, radial: true }, DC)) {
-        assert.equal(shape.width, DC.width);
-        assert.equal(shape.height, DC.height);
-      }
-    }
+  test('a row without a grid count is not a round of the square', () => {
+    const pattern = granny(8);
+    const withPlainRow = {
+      ...pattern,
+      rows: [...pattern.rows, { id: 'r9', kind: 'row', direction: 'ltr', color: null, visible: true, locked: false }],
+    };
+    assert.equal(grannyRings(withPlainRow, STEP).length, 1);
   });
 
-  test('the base of a stitch stands on the inner square, its top one stitch height out', () => {
-    const [, middle] = grannyShapes({ center: { x: 0, y: 0 }, inner: 40, count: 8, radial: true }, DC);
-    near(middle.at.y, -(40 + DC.height / 2), 'centre of the top middle stitch');
-    assert.equal(grannyOuter({ inner: 40 }, DC), 80);
+  test('a pattern that is not a granny square has no rounds', () => {
+    const { motif: _gone, ...plain } = granny(8);
+    assert.deepEqual(grannyRings(plain, STEP), []);
   });
 
-  test('the round follows its centre', () => {
-    const shapes = grannyShapes({ center: { x: 100, y: -50 }, inner: 0, count: 4, radial: true }, DC);
-    assert.deepEqual(shapes[0].at, { x: 80, y: -70 });
-  });
-});
-
-describe('granny rounds in a pattern', () => {
-  test('a round is a group; its count lays the members out again and keeps their ids', () => {
-    const start = granny();
-    const made = addGrannyRound(
-      start,
-      { rowId: 'r1', layerId: 'l1', keyEntryId: 'dc', center: { x: 0, y: 0 }, inner: 0, count: 8, radial: true },
-      DC,
-    );
-    const [round] = grannyRounds(made.pattern);
-    assert.equal(round.count, 8);
-    assert.equal(made.pattern.items.length, 8);
-    const more = setGrannyCount(made.pattern, round.id, 12, DC);
-    const [grown] = grannyRounds(more);
-    assert.equal(grown.count, 12);
-    assert.deepEqual(grown.memberIds.slice(0, 8), round.memberIds);
-    assert.equal(more.items.length, 12);
-  });
-
-  test('the count stays within its range', () => {
+  test('the grid count stays within its range', () => {
     assert.equal(clampGrannyCount(0), GRANNY_COUNT_RANGE.min);
     assert.equal(clampGrannyCount(10_000), GRANNY_COUNT_RANGE.max);
     assert.equal(clampGrannyCount(Number.NaN), GRANNY_COUNT_RANGE.min);
   });
+});
 
-  test('moving the stitches carries the round centre along', () => {
-    const made = addGrannyRound(
-      granny(),
-      { rowId: 'r1', layerId: 'l1', keyEntryId: 'dc', center: { x: 0, y: 0 }, inner: 0, count: 4, radial: true },
-      DC,
+describe('the cells of a round', () => {
+  test('as many cells as the count asks for, the first on the top-left corner', () => {
+    const [ring] = grannyRings(granny(8), STEP);
+    const cells = grannyCells(ring);
+    assert.equal(cells.length, 8);
+    assert.deepEqual(cells[0].at, { x: -20, y: -20 });
+    assert.deepEqual(
+      cells.map((cell) => cell.angle),
+      [315, 0, 45, 90, 135, 180, 225, 270],
     );
-    const ids = new Set(made.pattern.items.map((item) => item.id));
-    const moved = translateGroups(made.pattern, ids, 10, 5);
-    assert.deepEqual(grannyRounds(moved)[0].center, { x: 10, y: 5 });
+    assert.ok(cells.every((cell) => cell.rowId === 'r1'));
   });
 
-  test('a granny square and its rounds survive the file', () => {
-    const made = addGrannyRound(
-      granny(),
-      { rowId: 'r1', layerId: 'l1', keyEntryId: 'dc', center: { x: 0, y: 0 }, inner: 0, count: 8, radial: true },
-      DC,
-    );
-    const loaded = loadIrregular(saveIrregular(made.pattern));
+  test('the cells sit on the middle square of the band', () => {
+    const [, ring] = grannyRings(granny(8, 16), STEP);
+    const cells = grannyCells(ring);
+    near(cells[0].at.x, -60, 'the second round runs between 40 and 80');
+    assert.equal(cells.length, 16);
+  });
+
+  test('a stitch goes into the cell nearest where it was dropped, round and all', () => {
+    const pattern = granny(8, 16);
+    const middleOfTop = nearestGrannyCell(pattern, STEP, { x: 2, y: -19 });
+    assert.equal(middleOfTop.rowId, 'r1');
+    assert.equal(middleOfTop.angle, 0);
+    const outer = nearestGrannyCell(pattern, STEP, { x: 0, y: -62 });
+    assert.equal(outer.rowId, 'r2');
+    assert.equal(nearestGrannyCell(granny(), STEP, { x: 0, y: 0 }), undefined);
+  });
+});
+
+describe('the background bands', () => {
+  test('one cell per round, and the first band reaches the middle', () => {
+    const [first, second] = grannyBands(granny(8, 16), STEP);
+    assert.equal(first.inner, null);
+    assert.equal(first.tone, 0);
+    assert.equal(first.dividers.length, 8);
+    assert.deepEqual(first.outer[0], { x: -40, y: -40 });
+    assert.equal(second.tone, 1);
+    assert.deepEqual(second.inner[0], { x: -40, y: -40 });
+    assert.deepEqual(second.outer[0], { x: -80, y: -80 });
+    assert.equal(second.dividers.length, 16);
+  });
+
+  test('a divider stands between two cells', () => {
+    const [, band] = grannyBands(granny(8, 8), STEP);
+    const [from, to] = band.dividers[0];
+    near(from.x, -20, 'inner end, half a cell along the top side');
+    near(from.y, -40, 'inner end on the inner square');
+    near(to.x, -40, 'outer end');
+    near(to.y, -80, 'outer end on the outer square');
+  });
+});
+
+describe('the file', () => {
+  test('a granny square keeps its rounds and the way its stitches face', () => {
+    const pattern = { ...granny(8, 16), grannyRadial: false };
+    const loaded = loadIrregular(saveIrregular(pattern));
     assert.ok(loaded.ok);
     assert.equal(loaded.pattern.motif, 'granny-square');
-    assert.deepEqual(grannyRounds(loaded.pattern), grannyRounds(made.pattern));
+    assert.equal(loaded.pattern.grannyRadial, false);
+    assert.deepEqual(grannyRings(loaded.pattern, STEP), grannyRings(pattern, STEP));
   });
 
-  test('a file with a negative inner square is refused', () => {
-    const made = addGrannyRound(
-      granny(),
-      { rowId: 'r1', layerId: 'l1', keyEntryId: 'dc', center: { x: 0, y: 0 }, inner: 0, count: 4, radial: true },
-      DC,
-    );
-    const raw = JSON.parse(saveIrregular(made.pattern));
-    raw.groups[0].inner = -1;
-    const loaded = loadIrregular(JSON.stringify(raw));
-    assert.equal(loaded.ok, false);
-  });
-});
-
-describe('grannyBand', () => {
-  test('one cell per stitch: the dividers follow the round count, round by round', () => {
-    for (const count of [8, 16, 24]) {
-      assert.equal(grannyBand({ center: { x: 0, y: 0 }, inner: 40, count }, DC, 0).dividers.length, count);
-    }
-    assert.equal(grannyBand({ center: { x: 0, y: 0 }, inner: 0, count: 1 }, DC, 0).dividers.length, 0);
-  });
-
-  test('the band runs from the round base to its top, and the first reaches the centre', () => {
-    const first = grannyBand({ center: { x: 0, y: 0 }, inner: 0, count: 8 }, DC, 0);
-    assert.equal(first.inner, null);
-    assert.deepEqual(first.outer[0], { x: -40, y: -40 });
-    assert.deepEqual(first.dividers[0][0], { x: 0, y: 0 });
-    const second = grannyBand({ center: { x: 0, y: 0 }, inner: 40, count: 16 }, DC, 1);
-    assert.equal(second.tone, 1);
-    assert.deepEqual(second.inner?.[0], { x: -40, y: -40 });
-    assert.deepEqual(second.outer[0], { x: -80, y: -80 });
-  });
-
-  test('a divider stands halfway between two stitches', () => {
-    const band = grannyBand({ center: { x: 0, y: 0 }, inner: 40, count: 8 }, DC, 0);
-    const [from, to] = band.dividers[0];
-    near(from.x, -20, 'inner end, half a stitch step along the top side');
-    near(from.y, -40, 'inner end on the base square');
-    near(to.x, -40, 'outer end');
-    near(to.y, -80, 'outer end on the top square');
-  });
-});
-
-describe('facing outwards or upright (PQW-1042)', () => {
-  test('with the turn off every stitch stays upright, and the places do not move', () => {
-    const turned = grannyShapes({ center: { x: 0, y: 0 }, inner: 40, count: 8, radial: true }, DC);
-    const upright = grannyShapes({ center: { x: 0, y: 0 }, inner: 40, count: 8, radial: false }, DC);
-    assert.deepEqual(
-      upright.map((shape) => shape.rotation),
-      new Array(8).fill(0),
-    );
-    assert.deepEqual(
-      upright.map((shape) => shape.at),
-      turned.map((shape) => shape.at),
-    );
-  });
-
-  test('the switch turns every round of the square at once, and keeps the stitch ids', () => {
-    let pattern = granny();
-    for (const [rowId, inner, count] of [
-      ['r1', 0, 8],
-      ['r1', 40, 16],
-    ]) {
-      pattern = addGrannyRound(
-        pattern,
-        { rowId, layerId: 'l1', keyEntryId: 'dc', center: { x: 0, y: 0 }, inner, count, radial: true },
-        DC,
-      ).pattern;
-    }
-    const before = pattern.items.map((item) => item.id);
-    const upright = setGrannyRadial(pattern, false, () => DC);
-    assert.ok(grannyRounds(upright).every((round) => !round.radial));
-    assert.ok(upright.items.every((item) => item.rotation === 0));
-    assert.deepEqual(
-      upright.items.map((item) => item.id),
-      before,
-    );
-    const back = setGrannyRadial(upright, true, () => DC);
-    assert.ok(back.items.some((item) => item.rotation !== 0));
-  });
-
-  test('a round from before the switch existed faces outwards', () => {
-    const made = addGrannyRound(
-      granny(),
-      { rowId: 'r1', layerId: 'l1', keyEntryId: 'dc', center: { x: 0, y: 0 }, inner: 0, count: 4, radial: true },
-      DC,
-    );
-    const raw = JSON.parse(saveIrregular(made.pattern));
-    delete raw.groups[0].radial;
-    const loaded = loadIrregular(JSON.stringify(raw));
-    assert.ok(loaded.ok);
-    assert.equal(grannyRounds(loaded.pattern)[0].radial, true);
+  test('a grid count outside the range is refused', () => {
+    const raw = JSON.parse(saveIrregular(granny(8)));
+    raw.rows[0].cells = 0;
+    assert.equal(loadIrregular(JSON.stringify(raw)).ok, false);
   });
 });

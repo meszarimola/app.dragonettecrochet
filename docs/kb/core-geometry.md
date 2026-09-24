@@ -1102,26 +1102,22 @@ The circular repeat was removed in PQW-1006, with `src/core/irregular-repeat.ts`
 copied around a centre, a motif never has the right stitch count for the next
 round. See `interface.md` §57 and `owner-decisions.md`.
 
-## §55 A granny round is a group laid out on a square
+## §55 The granny square's grid (rewritten in PQW-1043)
 
-PQW-1040. `GrannyRoundGroup` joins the chain arc and the fan (§52) as a
-parametric group. It is `count` stitches spread evenly along a square about
-`center`: the stitch bases sit on the square of half-side `inner`, and the centres
-half a stitch height further out. The run starts on the top-left corner and goes
-clockwise, so any count divisible by four puts one stitch on each corner. A corner
-stitch faces diagonally out, and every other stitch straight out of its side
-(`squareStop`).
+PQW-1040 made a granny round a parametric group that generated its stitches.
+PQW-1043 took that away: the designer gives the grid, the crocheter fills it in
+(`interface.md` §71). A round is no longer a group at all.
 
-**Natural size, always.** Every member keeps its glyph's natural width and
-height. Only the gaps change with the count. The generator's chart
-(`round-generator.ts`) stretched the symbols to fill the round, and the owner
-called that ugly: „ne ilyen elnyúlt faszom ronda szemeket”.
+A round is a row carrying `cells`, its grid count. `grannyRings` walks the rows
+in order and gives each one a band: round *n* runs from `(n-1)·step` to `n·step`,
+where `step` is the guide size. A round's depth never depends on what was put in
+it, so changing a count never moves another round.
 
-**The next round** starts at `grannyOuter`, one natural stitch height out, so
-rounds of different stitches stack without gaps. Changing a count never moves
-another round, because heights do not depend on the count. The group survives the
-file (`motif` on the pattern and `grannyRound` among the groups), and moving its
-stitches carries `center` along (`translateGroups`).
+`grannyCells` puts the cells on the middle square of the band, the first on the
+top-left corner and the rest clockwise, each facing out of its side — a corner
+cell diagonally (`squareStop`). A count divisible by four therefore lands one
+cell on each corner. `nearestGrannyCell` is what a dropped stitch looks for: it
+gives the cell and the round it belongs to, so the stitch joins that round's row.
 
 ## §56 The granny square's background bands
 
@@ -1130,9 +1126,8 @@ background, not the square grid. The owner: „az előző háttérképe jó volt
 beraktál egy kibaszott négyzetrácsot”, with „változó számú négyzetszám
 körönként!”.
 
-`grannyBand` gives each round a square band from its base (`inner`) to its top
-(`grannyOuter`). The first round's band reaches the centre (`inner: null`). The
-band is cut into one cell per stitch. A divider joins the base square and the top
-square at the same share of the perimeter, halfway between two stitches, so the
-cell count follows each round's own count. The tones alternate round by round, as
+`grannyBands` gives each round a square band between its two squares. The first
+round's band reaches the middle (`inner: null`). The band is cut into one cell per
+grid count: a divider joins the two squares halfway between two cells, so the
+cell count follows each round's own. The tones alternate round by round, as
 `--c-row-a` and `--c-row-b` do on the regular chart.

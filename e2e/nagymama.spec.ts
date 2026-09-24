@@ -1,9 +1,10 @@
 /*
- * The granny square designer (PQW-1040): a blank canvas, and the crocheter gives
- * each round's stitch count. The stitches spread round a square at their natural
- * size, and the right-hand panel lists the rounds instead of rows and layers.
+ * The granny square designer (PQW-1040, PQW-1043): the app gives the grid and the
+ * crocheter fills it. Every round is a ring of cells whose count she sets, a
+ * stitch goes into the cell nearest where she dropped it, and the panel is the
+ * rows panel without the kind and the direction.
  *
- * KB: interface.md §68
+ * KB: interface.md §71
  */
 
 import { expect, type Page, test } from '@playwright/test';
@@ -20,169 +21,204 @@ async function openGranny(page: Page): Promise<void> {
   await page.getByRole('menuitem', { name: /Nagymama-négyzet/ }).click();
 }
 
-/** PQW-1042: a round is made of the palette's stitch, so one has to be armed first. */
 async function armDoubleCrochet(page: Page): Promise<void> {
   await page.locator('#board-irregular').focus();
   await page.keyboard.press('Alt+5');
 }
 
+interface Cell {
+  readonly rowId: string;
+  readonly index: number;
+  readonly angle: number;
+  readonly x: number;
+  readonly y: number;
+}
+
+/** Where the cells of the grid sit on screen (`mintatervezoSzabad`, main.ts). */
+const cells = (page: Page) =>
+  page.evaluate(() => (window as unknown as { mintatervezoSzabad: { cells(): Cell[] } }).mintatervezoSzabad.cells());
+
+/** Clicks the middle of one cell, so the stitch can only land in that one. */
+async function placeInCell(page: Page, rowId: string, index: number): Promise<void> {
+  const cell = (await cells(page)).find((candidate) => candidate.rowId === rowId && candidate.index === index);
+  if (cell === undefined) throw new Error(`no cell ${rowId}/${index}`);
+  await page.mouse.click(cell.x, cell.y);
+}
+
 interface Stored {
   readonly motif?: string;
-  readonly items: readonly { rowId: string; width: number; height: number; rotation: number }[];
-  readonly rows: readonly { id: string; kind: string }[];
+  readonly grannyRadial?: boolean;
+  readonly items: readonly { rowId: string; rotation: number }[];
+  readonly rows: readonly { id: string; kind: string; cells?: number }[];
 }
 
 const stored = (page: Page) =>
   page.evaluate(() => JSON.parse(localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}') as Stored);
 
-test('a new granny square is a blank canvas with the rounds panel, not rows and layers', async ({ page }) => {
+test('a new granny square is a grid of one round, and nothing is drawn into it', async ({ page }) => {
   await open(page);
   await openGranny(page);
 
   await expect(page.locator('#board-irregular')).toBeVisible();
-  await expect(page.locator('#section-granny')).toBeVisible();
-  await expect(page.locator('#granny-empty')).toBeVisible();
-  await expect(page.locator('#granny-count')).toBeFocused();
-  await expect(page.locator('#irregular-tabs')).toBeHidden();
-  await expect(page.locator('#section-irregular-rows')).toBeHidden();
-  await expect(page.locator('#section-irregular-layers')).toBeHidden();
-  await expect(page.locator('#section-size')).toBeHidden();
-  await expect(page.locator('#section-notation')).toBeHidden();
-  await expect(page.locator('#section-pattern')).toBeHidden();
-  // PQW-1041: the round bands are the background, not the square grid.
+  await expect(page.locator('#row-cells')).toBeFocused();
+  await expect(page.locator('#row-cells')).toHaveValue('8');
+  // The square grid is not the background: the round bands are (PQW-1041).
   await expect(page.locator('[data-action="grid"]')).toHaveAttribute('aria-pressed', 'false');
 
   const pattern = await stored(page);
   expect(pattern.motif).toBe('granny-square');
-  expect(pattern.items).toHaveLength(0);
+  expect(pattern.items, 'the designer draws no stitches').toHaveLength(0);
+  expect(pattern.rows.map((row) => row.cells)).toEqual([8]);
 });
 
-test('a round waits for a stitch from the palette; nothing is assumed (PQW-1042)', async ({ page }) => {
+test('the rounds panel is the rows panel without the kind and the direction (PQW-1043)', async ({ page }) => {
   await open(page);
   await openGranny(page);
 
-  const add = page.locator('#granny-add');
-  await expect(add).toBeDisabled();
-  await expect(page.locator('#granny-stitch')).toHaveText('Válassz szemet a bal oldalon, abból készül az új kör.');
+  await expect(page.locator('#section-irregular-rows')).toBeVisible();
+  await expect(page.locator('#irregular-tabs')).toBeHidden();
+  await expect(page.locator('#section-irregular-layers')).toBeHidden();
+  await expect(page.locator('#section-irregular-rows .panel__title').first()).toHaveText('Körök');
 
-  await page.locator('#board-irregular').focus();
-  await page.keyboard.press('Alt+3');
-  await expect(add).toBeEnabled();
-  await expect(page.locator('#granny-stitch')).toHaveText('Az új kör szeme: rp.');
+  // What a granny round has no use for.
+  await expect(page.locator('#row-kind-fields')).toBeHidden();
+  await expect(page.locator('#row-new')).toBeHidden();
+  // What it does have: the grid count, the turn, the colour and the whole toolbar.
+  await expect(page.locator('#row-cells')).toBeVisible();
+  await expect(page.locator('#row-radial')).toBeChecked();
+  await expect(page.locator('#row-color')).toBeVisible();
+  for (const id of ['#row-new-round', '#row-up', '#row-down', '#row-delete', '#rows-more-toggle']) {
+    await expect(page.locator(id)).toBeVisible();
+  }
+});
 
-  await page.locator('#granny-count').fill('6');
-  await add.click();
-  await expect(page.locator('#granny-rounds li').nth(0)).toContainText('rp');
+test('each round takes the grid count set for it, and a new round follows the last', async ({ page }) => {
+  await open(page);
+  await openGranny(page);
+
+  await page.locator('#row-cells').fill('12');
+  await page.locator('#row-cells').press('Tab');
+  await expect.poll(async () => (await stored(page)).rows[0]?.cells).toBe(12);
+
+  await page.locator('#row-new-round').click();
+  await expect(page.locator('#rows-list li')).toHaveCount(2);
+  // A new round starts from the one before it, and can be changed.
+  await expect(page.locator('#row-cells')).toHaveValue('12');
+  await page.locator('#row-cells').fill('20');
+  await page.locator('#row-cells').press('Tab');
+  await expect.poll(async () => (await stored(page)).rows.map((row) => row.cells)).toEqual([12, 20]);
+  expect((await stored(page)).items, 'still nothing drawn').toHaveLength(0);
+});
+
+test('a stitch goes into the cell it was dropped on, in that cell\u2019s own round', async ({ page }) => {
+  await open(page);
+  await openGranny(page);
+  await page.locator('#row-new-round').click();
+  await armDoubleCrochet(page);
+
+  // Cell 1 of eight is the middle of the top side; cell 0 is the top-left corner.
+  await placeInCell(page, 'r1', 1);
+  await placeInCell(page, 'r2', 1);
+
+  const pattern = await stored(page);
+  expect(pattern.items).toHaveLength(2);
+  expect(pattern.items.map((item) => item.rowId)).toEqual(['r1', 'r2']);
+  // Both face straight up, out of the top side.
+  expect(pattern.items.map((item) => item.rotation)).toEqual([0, 0]);
+  await expect(page.locator('#rows-list li').nth(0)).toContainText('1/8 szem');
+  await expect(page.locator('#rows-list li').nth(1)).toContainText('1/8 szem');
+  // Every cell of the grid is a place to work into: two rounds of eight.
+  expect(await cells(page)).toHaveLength(16);
 });
 
 test('the stitches can be left upright instead of facing outwards (PQW-1042)', async ({ page }) => {
   await open(page);
   await openGranny(page);
   await armDoubleCrochet(page);
-  await page.locator('#granny-count').fill('8');
-  await page.locator('#granny-add').click();
 
-  const radial = page.locator('#granny-radial');
-  await expect(radial).toBeChecked();
-  await expect.poll(async () => (await stored(page)).items.every((item) => item.rotation === 0)).toBe(false);
+  // The first cell is the top-left corner: with the switch on it turns diagonally.
+  await placeInCell(page, 'r1', 0);
+  await expect.poll(async () => (await stored(page)).items[0]?.rotation).toBe(315);
 
-  await radial.uncheck();
-  await expect.poll(async () => (await stored(page)).items.every((item) => item.rotation === 0)).toBe(true);
-
-  // A round added while it is off stays upright too.
-  await page.locator('#granny-count').fill('16');
-  await page.locator('#granny-add').click();
-  await expect.poll(async () => (await stored(page)).items.length).toBe(24);
-  await expect.poll(async () => (await stored(page)).items.every((item) => item.rotation === 0)).toBe(true);
-
-  await radial.check();
-  await expect.poll(async () => (await stored(page)).items.every((item) => item.rotation === 0)).toBe(false);
-});
-
-test('each round takes the count typed for it; the stitches keep one natural size', async ({ page }) => {
-  await open(page);
-  await openGranny(page);
-  await armDoubleCrochet(page);
-
-  await page.locator('#granny-count').fill('8');
-  await page.locator('#granny-add').click();
-  await page.locator('#granny-count').fill('16');
-  await page.locator('#granny-count').press('Enter');
-
-  const rounds = page.locator('#granny-rounds li');
-  await expect(rounds).toHaveCount(2);
-  await expect(rounds.nth(0)).toContainText('1. kör');
-  await expect(rounds.nth(0).locator('input')).toHaveValue('8');
-  await expect(rounds.nth(1).locator('input')).toHaveValue('16');
-  await expect(rounds.nth(0)).toContainText('erp');
-  await expect(page.locator('#granny-empty')).toBeHidden();
-
+  await page.locator('#row-radial').uncheck();
+  await expect.poll(async () => (await stored(page)).grannyRadial).toBe(false);
+  await placeInCell(page, 'r1', 4);
   const pattern = await stored(page);
-  expect(pattern.rows.map((row) => row.kind)).toEqual(['round', 'round']);
-  expect(pattern.items).toHaveLength(24);
-  const sizes = new Set(pattern.items.map((item) => `${item.width}×${item.height}`));
-  expect(sizes.size, 'every stitch is drawn at the same natural size').toBe(1);
+  expect(pattern.items).toHaveLength(2);
+  expect(pattern.items[1]?.rotation, 'placed with the turn off').toBe(0);
+  expect(pattern.items[0]?.rotation, 'the one placed before is left alone').toBe(315);
 });
 
-test('a round count can be changed afterwards, and the last round removed', async ({ page }) => {
-  await open(page);
-  await openGranny(page);
-  await armDoubleCrochet(page);
-
-  await page.locator('#granny-count').fill('8');
-  await page.locator('#granny-add').click();
-  await page.locator('#granny-count').fill('16');
-  await page.locator('#granny-add').click();
-
-  const first = page.locator('#granny-rounds li').nth(0).locator('input');
-  await first.fill('12');
-  await first.press('Tab');
-  await expect.poll(async () => (await stored(page)).items.length).toBe(28);
-
-  await page.locator('#granny-remove').click();
-  await expect(page.locator('#granny-rounds li')).toHaveCount(1);
-  await expect.poll(async () => (await stored(page)).items.length).toBe(12);
-});
-
-test('the work it replaced comes back with undo', async ({ page }) => {
+test('a round can be removed, and the work the square replaced comes back with undo', async ({ page }) => {
   await open(page);
   await page.locator('#types-toggle').click();
   await page.locator('.type[data-type="irregular"]').click();
-  await page.locator('#board-irregular').focus();
-  await page.keyboard.press('Alt+5');
+  await armDoubleCrochet(page);
   await page.locator('#board-irregular').click({ position: { x: 500, y: 300 } });
-  await page.locator('#board-irregular').click({ position: { x: 560, y: 300 } });
   const before = (await stored(page)).items.length;
   expect(before).toBeGreaterThan(0);
 
   await openGranny(page);
-  await expect.poll(async () => (await stored(page)).motif).toBe('granny-square');
+  await page.locator('#row-new-round').click();
+  await expect(page.locator('#rows-list li')).toHaveCount(2);
+  await page.locator('#row-delete').click();
+  await expect(page.locator('#rows-list li')).toHaveCount(1);
+
+  // Three steps back: the round removed, the round added, and the square itself.
   await page.locator('#board-irregular').focus();
-  await page.keyboard.press('ControlOrMeta+Z');
+  for (let i = 0; i < 3; i += 1) await page.keyboard.press('ControlOrMeta+Z');
   await expect.poll(async () => (await stored(page)).items.length).toBe(before);
-  await expect(page.locator('#section-granny')).toBeHidden();
   await expect(page.locator('#irregular-tabs')).toBeVisible();
 });
 
-test('a granny square saved with the grid on loses it, because the bands are its background (PQW-1041)', async ({
+test('a granny square from v0.67-v0.69 keeps its stitches and takes its counts as the grid (PQW-1043)', async ({
   page,
 }) => {
   await open(page);
   await openGranny(page);
   await armDoubleCrochet(page);
-  await page.locator('#granny-count').fill('8');
-  await page.locator('#granny-add').click();
+  await placeInCell(page, 'r1', 1);
 
-  // What v0.67.0 stored: the same pattern with the square grid switched on.
+  // What those versions stored: a generated round, with the count on the group.
   await page.evaluate(() => {
     const key = 'dc-mintatervezo:minta-szabalytalan';
-    const raw = JSON.parse(localStorage.getItem(key) ?? '{}') as { guides: { grid: { visible: boolean } } };
-    raw.guides.grid.visible = true;
+    const raw = JSON.parse(localStorage.getItem(key) ?? '{}') as {
+      rows: { id: string; cells?: number }[];
+      items: { id: string; rowId: string; layerId: string }[];
+      groups?: unknown[];
+    };
+    const first = raw.rows[0];
+    const item = raw.items[0];
+    if (first === undefined || item === undefined) throw new Error('nothing to convert');
+    delete first.cells;
+    raw.groups = [
+      {
+        id: 'g1',
+        kind: 'grannyRound',
+        rowId: first.id,
+        layerId: item.layerId,
+        keyEntryId: 'dc',
+        center: { x: 0, y: 0 },
+        inner: 0,
+        count: 1,
+        radial: false,
+        memberIds: [item.id],
+      },
+    ];
     localStorage.setItem(key, JSON.stringify(raw));
   });
   await page.reload();
   await page.locator('#types-toggle').click();
   await page.locator('.type[data-type="irregular"]').click();
-  await expect(page.locator('[data-action="grid"]')).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.locator('#granny-rounds li')).toHaveCount(1);
+
+  // The migration happens as the pattern is read, so the panel is what shows it;
+  // the store keeps the old shape until the next edit.
+  await expect(page.locator('#row-cells'), 'the round takes its old count as the grid count').toHaveValue('1');
+  await expect(page.locator('#row-radial'), 'and the way its stitches faced').not.toBeChecked();
+  await expect(page.locator('#rows-list li').nth(0), 'the stitch is kept').toContainText('1/1 szem');
+  // Once something is edited the file is written in the new shape, with no group left.
+  await page.locator('#row-cells').fill('4');
+  await page.locator('#row-cells').press('Tab');
+  await expect.poll(async () => (await stored(page)).rows[0]?.cells).toBe(4);
+  await expect.poll(async () => (await stored(page)).items.length).toBe(1);
 });

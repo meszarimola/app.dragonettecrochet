@@ -18,10 +18,15 @@ export interface RowsPanelHost {
   moveSelection(rowId: string): void;
   spaceRows(spacing: number): void;
   alignRows(mode: RowAlign): void;
+  setCells(rowId: string, cells: number): void;
+  setGrannyRadial(on: boolean): void;
 }
 
 export interface RowsView {
   readonly selectionSize: number;
+  /** A granny square is rounds of cells: no kind, no direction, a grid count instead. KB: interface.md §71 */
+  readonly granny: boolean;
+  readonly grannyRadial: boolean;
 }
 
 const KINDS: readonly RowKind[] = ['row', 'round'];
@@ -77,6 +82,8 @@ export class IrregularRowsPanel {
   readonly #kind: HTMLSelectElement;
   readonly #direction: HTMLSelectElement;
   readonly #color: HTMLInputElement;
+  readonly #cells: HTMLInputElement;
+  readonly #radial: HTMLInputElement;
 
   constructor(section: HTMLDetailsElement, host: RowsPanelHost) {
     this.#section = section;
@@ -85,6 +92,8 @@ export class IrregularRowsPanel {
     this.#kind = must<HTMLSelectElement>(section, '#row-kind');
     this.#direction = must<HTMLSelectElement>(section, '#row-direction');
     this.#color = must<HTMLInputElement>(section, '#row-color');
+    this.#cells = must<HTMLInputElement>(section, '#row-cells');
+    this.#radial = must<HTMLInputElement>(section, '#row-radial');
     this.#listen();
   }
 
@@ -121,6 +130,11 @@ export class IrregularRowsPanel {
       this.#host.update(this.#active, { color: null }),
     );
     this.#color.addEventListener('change', () => this.#host.update(this.#active, { color: this.#color.value }));
+    this.#cells.addEventListener('change', () => {
+      if (this.#cells.value.trim() === '') return;
+      this.#host.setCells(this.#active, Number(this.#cells.value));
+    });
+    this.#radial.addEventListener('change', () => this.#host.setGrannyRadial(this.#radial.checked));
     this.#kind.addEventListener('change', () => {
       const kind = KINDS.find((candidate) => candidate === this.#kind.value);
       if (kind !== undefined) this.#host.update(this.#active, { kind });
@@ -176,7 +190,9 @@ export class IrregularRowsPanel {
 
   update(pattern: IrregularPattern, view: RowsView): void {
     // KB: interface.md §63 — before the first stitch there is no row to show yet.
-    const blank = pattern.items.length === 0 && pattern.rows.length === 1;
+    // A granny square's rounds are the grid, so they stand before any stitch (§71).
+    const blank = !view.granny && pattern.items.length === 0 && pattern.rows.length === 1;
+    this.#grannyFields(pattern, view);
     must<HTMLElement>(this.#section, '#rows-empty').hidden = !blank;
     must<HTMLElement>(this.#section, '#rows-body').hidden = blank;
     this.#active = pattern.activeRowId;
@@ -200,9 +216,28 @@ export class IrregularRowsPanel {
     const empty = (row: IrregularRow | undefined): boolean => row === undefined || rowCount(pattern, row.id) === 0;
     const lastEmpty = empty(pattern.rows.at(-1));
     must<HTMLButtonElement>(this.#section, '#row-new').disabled = lastEmpty;
-    must<HTMLButtonElement>(this.#section, '#row-new-round').disabled = lastEmpty;
+    // A granny round is empty by design until the crocheter puts stitches in it.
+    must<HTMLButtonElement>(this.#section, '#row-new-round').disabled = lastEmpty && !view.granny;
     must<HTMLButtonElement>(this.#section, '#row-insert').disabled = empty(active);
     must<HTMLButtonElement>(this.#section, '#row-delete-keep').disabled = pattern.rows.length < 2;
+  }
+
+  /** In a granny square the kind and the direction say nothing; the grid count does. */
+  #grannyFields(pattern: IrregularPattern, view: RowsView): void {
+    const words = texts().irregular;
+    must<HTMLElement>(this.#section, '#row-kind-fields').hidden = view.granny;
+    must<HTMLElement>(this.#section, '#row-cells-field').hidden = !view.granny;
+    must<HTMLElement>(this.#section, '#row-radial-field').hidden = !view.granny;
+    must<HTMLElement>(this.#section, '#rows-together').hidden = view.granny;
+    must<HTMLButtonElement>(this.#section, '#row-new').hidden = view.granny;
+    must<HTMLElement>(this.#section, '.panel__title').textContent = view.granny
+      ? words.grannyRoundsTitle
+      : texts().markup.sectionRowsTitle;
+    if (!view.granny) return;
+    const active = pattern.rows.find((row) => row.id === pattern.activeRowId);
+    if (document.activeElement !== this.#cells) this.#cells.value = String(active?.cells ?? '');
+    this.#cells.disabled = active?.cells === undefined;
+    if (document.activeElement !== this.#radial) this.#radial.checked = view.grannyRadial;
   }
 
   #entry(pattern: IrregularPattern, row: IrregularRow, index: number): HTMLLIElement {
@@ -218,8 +253,15 @@ export class IrregularRowsPanel {
     pick.append(
       element('span', 'rows__number', words.rowName(index + 1, row.kind === 'round')),
       swatch,
-      element('span', 'rows__arrow', ARROWS[row.direction]),
-      element('span', 'rows__count', words.rowCount(rowCount(pattern, row.id))),
+      // A granny round has no working direction to show: its cells are a grid (§71).
+      element('span', 'rows__arrow', row.cells === undefined ? ARROWS[row.direction] : ''),
+      element(
+        'span',
+        'rows__count',
+        row.cells === undefined
+          ? words.rowCount(rowCount(pattern, row.id))
+          : words.grannyRoundCount(rowCount(pattern, row.id), row.cells),
+      ),
     );
     item.classList.toggle('is-active', row.id === pattern.activeRowId);
     item.append(

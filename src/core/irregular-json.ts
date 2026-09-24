@@ -232,7 +232,7 @@ function readIrregular(value: unknown, path: string): IrregularPattern {
     value,
     path,
     ['formatVersion', 'type', 'title', 'rows', 'layers', 'items', 'activeRowId', 'activeLayerId', 'guides'],
-    ['titleGenerated', 'notation', 'stitchKey', 'legend', 'groups', 'background', 'motif'],
+    ['titleGenerated', 'notation', 'stitchKey', 'legend', 'groups', 'background', 'motif', 'grannyRadial'],
   );
   const rows = array(raw['rows'], `${path}.rows`, readRow);
   if (rows.length === 0) throw new FormatError(`${path}.rows`, 'expected-nonempty-array');
@@ -290,6 +290,9 @@ function readIrregular(value: unknown, path: string): IrregularPattern {
     ...(raw['legend'] === undefined ? {} : { legend: readLegend(raw['legend'], `${path}.legend`) }),
     ...(raw['background'] === undefined ? {} : { background: readBackground(raw['background'], `${path}.background`) }),
     ...(raw['motif'] === undefined ? {} : { motif: oneOf(raw['motif'], `${path}.motif`, ['granny-square'] as const) }),
+    ...(raw['grannyRadial'] === undefined
+      ? {}
+      : { grannyRadial: boolean(raw['grannyRadial'], `${path}.grannyRadial`) }),
   };
 }
 
@@ -390,7 +393,12 @@ function readNotation(value: unknown, path: string): PatternNotation {
 }
 
 function readRow(value: unknown, path: string): IrregularRow {
-  const raw = object(value, path, ['id', 'kind', 'direction', 'color', 'visible', 'locked'], ['order', 'line']);
+  const raw = object(
+    value,
+    path,
+    ['id', 'kind', 'direction', 'color', 'visible', 'locked'],
+    ['order', 'line', 'cells'],
+  );
   const order = raw['order'];
   return {
     id: string(raw['id'], `${path}.id`),
@@ -402,6 +410,8 @@ function readRow(value: unknown, path: string): IrregularRow {
     ...(order === undefined
       ? {}
       : { order: order === 'auto' ? ('auto' as const) : array(order, `${path}.order`, string) }),
+    // Written since PQW-1043; only a granny square's rounds carry a grid count.
+    ...(raw['cells'] === undefined ? {} : { cells: whole(raw['cells'], `${path}.cells`, GRANNY_COUNT_RANGE) }),
     // Written since PQW-969; a row saved before it simply has no shape.
     ...(raw['line'] === undefined ? {} : { line: readRowLine(raw['line'], `${path}.line`) }),
   };

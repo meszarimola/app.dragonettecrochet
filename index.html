@@ -575,23 +575,6 @@
             <button type="button" class="panel-tabs__tab" id="tab-rows" data-tab="rows" aria-pressed="true" aria-controls="section-irregular-rows" data-i18n="tabRows">Sorok</button>
             <button type="button" class="panel-tabs__tab" id="tab-layers" data-tab="layers" aria-pressed="false" aria-controls="section-irregular-layers" data-i18n="tabLayers">Rétegek</button>
           </div>
-          <section class="section granny" id="section-granny" aria-labelledby="granny-title" hidden>
-            <h2 class="panel__title" id="granny-title" data-i18n="grannyPanelTitle">Körök</h2>
-            <p class="panel__note" id="granny-empty" data-i18n="grannyEmpty">Add meg, hány szemből áll az első kör, és nyomd meg az „Új kör” gombot.</p>
-            <ol class="granny__rounds" id="granny-rounds"></ol>
-            <p class="panel__hint" id="granny-stitch"></p>
-            <p class="panel__field">
-              <label for="granny-count" data-i18n="grannyCountLabel">Szemek száma az új körben</label>
-              <input id="granny-count" type="number" min="1" max="400" step="1" value="8" inputmode="numeric" />
-            </p>
-            <p class="choice">
-              <label><input type="checkbox" id="granny-radial" checked /> <span data-i18n="grannyRadialLabel">Sugárirányú fordítás</span></label>
-            </p>
-            <p class="granny__actions">
-              <button type="button" class="tool" id="granny-add" data-i18n="grannyAdd">Új kör</button>
-              <button type="button" class="tool" id="granny-remove" data-i18n="grannyRemove">Utolsó kör törlése</button>
-            </p>
-          </section>
           <details class="section section--tab" id="section-irregular-rows" hidden>
             <summary class="section__head"><h2 class="panel__title" data-i18n="sectionRowsTitle">Sorok és körök</h2></summary>
             <div class="rows" role="group" aria-label="A minta sorai és körei" data-i18n-label="rowsGroupLabel">
@@ -616,7 +599,7 @@
                 <p class="props__row">
                   <button type="button" class="button" id="row-delete-keep" data-i18n="rowDeleteKeep">Törlés, szemek az előző sorba</button>
                 </p>
-                <h3 class="panel__title" data-i18n="rowsTogetherTitle">Sorok egymáshoz</h3>
+                <h3 class="panel__title" id="rows-together" data-i18n="rowsTogetherTitle">Sorok egymáshoz</h3>
                 <p class="panel__field">
                   <label for="row-spacing" data-i18n="rowSpacingLabel">Sortávolság</label>
                   <input id="row-spacing" type="number" min="1" max="2000" step="1" inputmode="numeric" value="40" />
@@ -632,7 +615,14 @@
                 </p>
               </div>
               <div class="rows__editor">
-                <div class="props__grid">
+                <p class="panel__field" id="row-cells-field" hidden>
+                  <label for="row-cells" data-i18n="rowCellsLabel">Rács szám</label>
+                  <input id="row-cells" type="number" min="1" max="400" step="1" inputmode="numeric" />
+                </p>
+                <p class="choice" id="row-radial-field" hidden>
+                  <label><input type="checkbox" id="row-radial" checked /> <span data-i18n="grannyRadialLabel">Sugárirányú fordítás</span></label>
+                </p>
+                <div class="props__grid" id="row-kind-fields">
                   <p class="panel__field">
                     <label for="row-kind" data-i18n="rowKindLabel">Az aktív fajtája</label>
                     <select id="row-kind"></select>
