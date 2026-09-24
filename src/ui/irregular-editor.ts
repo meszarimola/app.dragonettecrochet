@@ -38,13 +38,7 @@ import {
   updateNotes,
   withIrregularNotation,
 } from '../core/irregular-document.ts';
-import {
-  clampGrannyCount,
-  type GrannyBand,
-  grannyBands,
-  grannyRings,
-  nearestGrannyCell,
-} from '../core/irregular-granny.ts';
+import { clampGrannyCount, type GrannyBand, grannyBands, grannyRingAt, grannyRings } from '../core/irregular-granny.ts';
 import {
   addChainArc,
   addFan,
@@ -169,6 +163,8 @@ const FAN_STITCH = 'dc';
 /** How long a typed digit waits for the next one before it stands alone. */
 const ARC_TYPING_GAP = 900;
 const MIN_SIZE = 2;
+/** A granny square is worked out from the origin, so that is what its stitches face away from. */
+const GRANNY_CENTER: Point = { x: 0, y: 0 };
 
 interface Preferences {
   readonly rectPartial: boolean;
@@ -1048,9 +1044,6 @@ export class IrregularEditor {
   /** The nearest guide or neighbouring stitch, measured in chart units. */
   #snap(point: Point, skip?: ReadonlySet<string>, free = this.#free): Point {
     if (free) return point;
-    // KB: interface.md §71 — on a granny square a stitch goes into a cell of the grid.
-    const cell = this.grannyMode ? nearestGrannyCell(this.#history.present, this.grannyStep, point) : undefined;
-    if (cell !== undefined) return cell.at;
     return snapPoint(this.#history.present, point, {
       tolerance: SNAP_REACH / this.#board.scale,
       ...(skip === undefined ? {} : { skip }),
@@ -1061,9 +1054,9 @@ export class IrregularEditor {
   /** What a stitch dropped here is turned to: away from the middle of the guide it lands on. */
   #placedRotation(point: Point): number {
     const pattern = this.#history.present;
+    // KB: interface.md §72 — the same turn as the circle guide's: away from the middle.
     if (this.grannyMode) {
-      if (pattern.grannyRadial === false) return 0;
-      return nearestGrannyCell(pattern, this.grannyStep, point)?.angle ?? 0;
+      return pattern.grannyRadial === false ? 0 : angleFromCenter(GRANNY_CENTER, point);
     }
     const polar = pattern.guides.polar;
     if (!this.#preferences.radial || !polar.visible) return 0;
@@ -2146,12 +2139,12 @@ export class IrregularEditor {
     const point = this.#snap(raw);
     const glyph = entryGlyph(this.#history.present, stitch);
     const size = naturalSize(stitch, 'both-loops', this.#host.symbols(), glyph);
-    // KB: interface.md §71 — a stitch belongs to the round whose cell it landed in.
-    const cell = this.grannyMode ? nearestGrannyCell(this.#history.present, this.grannyStep, point) : undefined;
+    // KB: interface.md §72 — a stitch belongs to the round whose band it landed in.
+    const ring = this.grannyMode ? grannyRingAt(this.#history.present, this.grannyStep, point) : undefined;
     const base =
-      cell === undefined || cell.rowId === this.#history.present.activeRowId
+      ring === undefined || ring.rowId === this.#history.present.activeRowId
         ? this.#history.present
-        : setActiveRow(this.#history.present, cell.rowId);
+        : setActiveRow(this.#history.present, ring.rowId);
     const made = addStitch(base, {
       keyEntryId: stitch,
       x: point.x,

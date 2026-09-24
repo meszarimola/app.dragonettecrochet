@@ -1878,7 +1878,8 @@ function setRegularMenuOpen(open: boolean): void {
 function openGranny(): void {
   selectType('irregular');
   ensureIrregular().newGranny();
-  must<HTMLInputElement>('#row-cells').focus();
+  // KB: interface.md §72 — the grid count of the first round is the first thing to set.
+  document.querySelector<HTMLInputElement>('#rows-list .rows__cells')?.focus();
 }
 
 function openRegularEntry(entry: RegularMenuEntry): void {

@@ -1114,10 +1114,11 @@ where `step` is the guide size. A round's depth never depends on what was put in
 it, so changing a count never moves another round.
 
 `grannyCells` puts the cells on the middle square of the band, the first on the
-top-left corner and the rest clockwise, each facing out of its side — a corner
-cell diagonally (`squareStop`). A count divisible by four therefore lands one
-cell on each corner. `nearestGrannyCell` is what a dropped stitch looks for: it
-gives the cell and the round it belongs to, so the stitch joins that round's row.
+top-left corner and the rest clockwise (`squareStop`). A count divisible by four
+therefore lands one cell on each corner. The cells are where the dividers are
+drawn, and what the browser tests click; nothing snaps to them (`interface.md`
+§72). `grannyRingAt` gives the round a point falls in, which is how a placed
+stitch finds its row.
 
 ## §56 The granny square's background bands
 
