@@ -113,3 +113,25 @@ test('the work it replaced comes back with undo', async ({ page }) => {
   await expect(page.locator('#section-granny')).toBeHidden();
   await expect(page.locator('#irregular-tabs')).toBeVisible();
 });
+
+test('a granny square saved with the grid on loses it, because the bands are its background (PQW-1041)', async ({
+  page,
+}) => {
+  await open(page);
+  await openGranny(page);
+  await page.locator('#granny-count').fill('8');
+  await page.locator('#granny-add').click();
+
+  // What v0.67.0 stored: the same pattern with the square grid switched on.
+  await page.evaluate(() => {
+    const key = 'dc-mintatervezo:minta-szabalytalan';
+    const raw = JSON.parse(localStorage.getItem(key) ?? '{}') as { guides: { grid: { visible: boolean } } };
+    raw.guides.grid.visible = true;
+    localStorage.setItem(key, JSON.stringify(raw));
+  });
+  await page.reload();
+  await page.locator('#types-toggle').click();
+  await page.locator('.type[data-type="irregular"]').click();
+  await expect(page.locator('[data-action="grid"]')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('#granny-rounds li')).toHaveCount(1);
+});

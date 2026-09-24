@@ -302,6 +302,16 @@ function oneStartingLayer(pattern: IrregularPattern): IrregularPattern {
   };
 }
 
+/**
+ * A granny square started in v0.67.0 was saved with the square grid on, because
+ * `newGranny()` switched it on. The bands are its background now, so the grid
+ * goes off once; turning it back on from the toolbar sticks. KB: interface.md §69
+ */
+function grannyWithoutGrid(pattern: IrregularPattern): IrregularPattern {
+  if (pattern.motif !== 'granny-square' || !pattern.guides.grid.visible) return pattern;
+  return setGrid(pattern, false);
+}
+
 function oneGuideSize(pattern: IrregularPattern): IrregularPattern {
   const { grid, polar } = pattern.guides;
   const shared = guideSize(polar.spacing);
@@ -594,7 +604,7 @@ export class IrregularEditor {
       const saved = localStorage.getItem(IRREGULAR_STORAGE_KEY);
       if (saved === null) return fresh;
       const loaded = loadIrregular(saved);
-      return loaded.ok ? oneStartingLayer(oneGuideSize(loaded.pattern)) : fresh;
+      return loaded.ok ? grannyWithoutGrid(oneStartingLayer(oneGuideSize(loaded.pattern))) : fresh;
     } catch {
       return fresh;
     }
