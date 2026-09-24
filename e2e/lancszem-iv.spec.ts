@@ -50,7 +50,9 @@ test('5 chain stitches over 3 skipped stitches make an arc, and the single croch
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
+  // „Új minta” is the type menu since PQW-1045; the type starts the pattern anew.
   await page.getByRole('button', { name: 'Új minta' }).click();
+  await page.locator('.type[data-type="regular"]').click();
 
   await pick(page, /Láncszem \(lsz\)/);
   await page.locator('#chain-count').fill('24');
@@ -126,7 +128,9 @@ test('the chain gives an arc when placed between two finished single crochets af
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
+  // „Új minta” is the type menu since PQW-1045; the type starts the pattern anew.
   await page.getByRole('button', { name: 'Új minta' }).click();
+  await page.locator('.type[data-type="regular"]').click();
 
   await pick(page, /Láncszem \(lsz\)/);
   await page.locator('#chain-count').fill('25');
@@ -185,7 +189,9 @@ test('the fan worked into the chain arc fits, and row 3 does not slide off the f
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
+  // „Új minta” is the type menu since PQW-1045; the type starts the pattern anew.
   await page.getByRole('button', { name: 'Új minta' }).click();
+  await page.locator('.type[data-type="regular"]').click();
 
   await pick(page, /Láncszem \(lsz\)/);
   await page.locator('#chain-count').fill('12');

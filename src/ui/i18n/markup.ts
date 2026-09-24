@@ -43,7 +43,7 @@ export const MARKUP_TEXTS = {
     toolGroupZoom: 'Méretezés',
 
     toolNewLabel: 'Új minta',
-    toolNewTip: 'Új minta',
+    toolNewTip: 'Új minta: válassz típust',
     toolImportLabel: 'JSON betöltése',
     toolImportTip: 'JSON betöltése',
     toolExportJsonLabel: 'JSON mentése',
@@ -88,11 +88,7 @@ export const MARKUP_TEXTS = {
     toolZoomMenuLabel: 'Méretezés',
     toolZoomMenuTip: 'Nagyítás, kicsinyítés és az egész minta',
 
-    toolGroupPanels: 'Nézet és panelek',
     toolGroupViews: 'Panelek',
-    toolTypesLabel: 'Mintatípus',
-    toolTypesTip: 'Mintatípus választása',
-    toolLabelTypes: 'Típusok',
     toolPanelTip: 'A szemek és a beállítások paneljének nyitása és csukása',
     toolLabelPanel: 'Szemek',
     toolWrittenTip: 'Az írott minta panel nyitása és csukása',
@@ -122,8 +118,8 @@ export const MARKUP_TEXTS = {
     toolFitLabel: 'Egész minta',
     toolFitTip: 'Egész minta a képernyőre',
 
-    typesNavLabel: 'Mintatípus',
-    typesIntro: 'A típus adja a kezdést és a körzárás alapértelmezését.',
+    typesNavLabel: 'Új minta',
+    typesIntro: 'Válassz típust: üres mintát kezd. A mostani munka visszavonással visszajön.',
     boardLabel: 'Diagram: nyilakkal a célpontok között, Enterrel horgolsz',
 
     writtenGripLabel: 'Az írott minta magassága',
@@ -577,7 +573,7 @@ export const MARKUP_TEXTS = {
     toolGroupZoom: 'Zoom',
 
     toolNewLabel: 'New pattern',
-    toolNewTip: 'New pattern',
+    toolNewTip: 'New pattern: pick a type',
     toolImportLabel: 'Open JSON',
     toolImportTip: 'Open JSON',
     toolExportJsonLabel: 'Save JSON',
@@ -622,11 +618,7 @@ export const MARKUP_TEXTS = {
     toolZoomMenuLabel: 'Zoom',
     toolZoomMenuTip: 'Zoom in, zoom out and the whole pattern',
 
-    toolGroupPanels: 'View and panels',
     toolGroupViews: 'Panels',
-    toolTypesLabel: 'Pattern type',
-    toolTypesTip: 'Choose the pattern type',
-    toolLabelTypes: 'Types',
     toolPanelTip: 'Open and close the stitch and settings panels',
     toolLabelPanel: 'Stitches',
     toolWrittenTip: 'Open and close the written pattern panel',
@@ -656,8 +648,8 @@ export const MARKUP_TEXTS = {
     toolFitLabel: 'Whole pattern',
     toolFitTip: 'Fit the whole pattern to the screen',
 
-    typesNavLabel: 'Pattern type',
-    typesIntro: 'The type sets the start and the default for closing rounds.',
+    typesNavLabel: 'New pattern',
+    typesIntro: 'Pick a type to start an empty pattern. Undo brings the current work back.',
     boardLabel: 'Chart: move between targets with the arrow keys, crochet with Enter',
 
     writtenGripLabel: 'Height of the written pattern',

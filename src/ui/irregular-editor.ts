@@ -706,13 +706,11 @@ export class IrregularEditor {
 
   // -- actions -------------------------------------------------------------
 
+  // KB: interface.md §73 — emptying is a step like any other, so undo brings the work back.
   newPattern(): void {
     this.#selection.clear();
-    this.#history = createHistory(this.#empty());
-    this.#persist();
-    this.refresh();
+    this.#commit(this.#empty(), texts().irregular.emptied);
     this.#board.fit(this.#host.insets().bottom);
-    this.#host.announce(texts().irregular.emptied);
   }
 
   get grannyMode(): boolean {

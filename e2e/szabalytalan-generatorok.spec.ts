@@ -102,7 +102,11 @@ test('the regular pattern comes back untouched from free-form mode', async ({ pa
   const create = page.locator('#section-shape').getByRole('button', { name: 'Minta létrehozása' });
   if (await create.isVisible()) await create.click();
 
+  // Picking a type starts it anew since PQW-1045, so the circle comes back with
+  // one undo — and it has to come back exactly as it was left.
   await chooseRegular(page);
+  await page.locator('#board').focus();
+  await page.keyboard.press('ControlOrMeta+Z');
   await expect(page.locator('#summary')).toHaveText(summaryBefore ?? '');
   expect(await writtenText(page)).toBe(before);
 });
