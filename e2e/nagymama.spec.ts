@@ -38,7 +38,7 @@ interface Cell {
 const cells = (page: Page) =>
   page.evaluate(() => (window as unknown as { mintatervezoSzabad: { cells(): Cell[] } }).mintatervezoSzabad.cells());
 
-/** Clicks the middle of one cell, so the stitch can only land in that one. */
+/** Clicks the middle of one cell; without snapping the stitch lands exactly there. */
 async function placeInCell(page: Page, rowId: string, index: number): Promise<void> {
   const cell = (await cells(page)).find((candidate) => candidate.rowId === rowId && candidate.index === index);
   if (cell === undefined) throw new Error(`no cell ${rowId}/${index}`);
@@ -60,8 +60,8 @@ test('a new granny square is a grid of one round, and nothing is drawn into it',
   await openGranny(page);
 
   await expect(page.locator('#board-irregular')).toBeVisible();
-  await expect(page.locator('#row-cells')).toBeFocused();
-  await expect(page.locator('#row-cells')).toHaveValue('8');
+  await expect(page.locator('#rows-list .rows__cells').first()).toBeFocused();
+  await expect(page.locator('#rows-list .rows__cells').first()).toHaveValue('8');
   // The square grid is not the background: the round bands are (PQW-1041).
   await expect(page.locator('[data-action="grid"]')).toHaveAttribute('aria-pressed', 'false');
 
@@ -83,8 +83,9 @@ test('the rounds panel is the rows panel without the kind and the direction (PQW
   // What a granny round has no use for.
   await expect(page.locator('#row-kind-fields')).toBeHidden();
   await expect(page.locator('#row-new')).toBeHidden();
-  // What it does have: the grid count, the turn, the colour and the whole toolbar.
-  await expect(page.locator('#row-cells')).toBeVisible();
+  // The grid count is a counter in the round's own line (PQW-1044), and „Új kör” says so.
+  await expect(page.locator('#rows-list .rows__cells')).toHaveCount(1);
+  await expect(page.locator('#row-new-round')).toContainText('Új kör');
   await expect(page.locator('#row-radial')).toBeChecked();
   await expect(page.locator('#row-color')).toBeVisible();
   for (const id of ['#row-new-round', '#row-up', '#row-down', '#row-delete', '#rows-more-toggle']) {
@@ -96,16 +97,17 @@ test('each round takes the grid count set for it, and a new round follows the la
   await open(page);
   await openGranny(page);
 
-  await page.locator('#row-cells').fill('12');
-  await page.locator('#row-cells').press('Tab');
+  const counter = (round: number) => page.locator('#rows-list .rows__cells').nth(round - 1);
+  await counter(1).fill('12');
+  await counter(1).press('Tab');
   await expect.poll(async () => (await stored(page)).rows[0]?.cells).toBe(12);
 
   await page.locator('#row-new-round').click();
   await expect(page.locator('#rows-list li')).toHaveCount(2);
   // A new round starts from the one before it, and can be changed.
-  await expect(page.locator('#row-cells')).toHaveValue('12');
-  await page.locator('#row-cells').fill('20');
-  await page.locator('#row-cells').press('Tab');
+  await expect(counter(2)).toHaveValue('12');
+  await counter(2).fill('20');
+  await counter(2).press('Tab');
   await expect.poll(async () => (await stored(page)).rows.map((row) => row.cells)).toEqual([12, 20]);
   expect((await stored(page)).items, 'still nothing drawn').toHaveLength(0);
 });
@@ -123,12 +125,30 @@ test('a stitch goes into the cell it was dropped on, in that cell\u2019s own rou
   const pattern = await stored(page);
   expect(pattern.items).toHaveLength(2);
   expect(pattern.items.map((item) => item.rowId)).toEqual(['r1', 'r2']);
-  // Both face straight up, out of the top side.
+  // Both face straight up, away from the middle.
   expect(pattern.items.map((item) => item.rotation)).toEqual([0, 0]);
-  await expect(page.locator('#rows-list li').nth(0)).toContainText('1/8 szem');
-  await expect(page.locator('#rows-list li').nth(1)).toContainText('1/8 szem');
-  // Every cell of the grid is a place to work into: two rounds of eight.
-  expect(await cells(page)).toHaveLength(16);
+  await expect(page.locator('#rows-list li').nth(0)).toContainText('1 szem');
+  await expect(page.locator('#rows-list li').nth(1)).toContainText('1 szem');
+});
+
+test('a stitch goes exactly where it was dropped, still facing outwards (PQW-1044)', async ({ page }) => {
+  await open(page);
+  await openGranny(page);
+  await armDoubleCrochet(page);
+
+  // Between two cells, where nothing is pre-drawn: the stitch stays put.
+  const [first, second] = await cells(page);
+  if (first === undefined || second === undefined) throw new Error('no cells');
+  await page.mouse.click((first.x + second.x) / 2, (first.y + second.y) / 2);
+  const placed = (await stored(page)).items[0];
+  expect(placed, 'one stitch, between two cells').toBeDefined();
+  const onACell = (await cells(page)).some(
+    (cell) => Math.abs(cell.x - (first.x + second.x) / 2) < 1 && Math.abs(cell.y - (first.y + second.y) / 2) < 1,
+  );
+  expect(onACell, 'the spot clicked is not a cell middle').toBe(false);
+  // The turn is the circle guide's: away from the middle, whatever the side.
+  expect(placed?.rotation).toBeGreaterThan(315);
+  expect(placed?.rotation).toBeLessThan(360);
 });
 
 test('the stitches can be left upright instead of facing outwards (PQW-1042)', async ({ page }) => {
@@ -213,12 +233,13 @@ test('a granny square from v0.67-v0.69 keeps its stitches and takes its counts a
 
   // The migration happens as the pattern is read, so the panel is what shows it;
   // the store keeps the old shape until the next edit.
-  await expect(page.locator('#row-cells'), 'the round takes its old count as the grid count').toHaveValue('1');
+  const counter = page.locator('#rows-list .rows__cells').first();
+  await expect(counter, 'the round takes its old count as the grid count').toHaveValue('1');
   await expect(page.locator('#row-radial'), 'and the way its stitches faced').not.toBeChecked();
-  await expect(page.locator('#rows-list li').nth(0), 'the stitch is kept').toContainText('1/1 szem');
+  await expect(page.locator('#rows-list li').nth(0), 'the stitch is kept').toContainText('1 szem');
   // Once something is edited the file is written in the new shape, with no group left.
-  await page.locator('#row-cells').fill('4');
-  await page.locator('#row-cells').press('Tab');
+  await counter.fill('4');
+  await counter.press('Tab');
   await expect.poll(async () => (await stored(page)).rows[0]?.cells).toBe(4);
   await expect.poll(async () => (await stored(page)).items.length).toBe(1);
 });

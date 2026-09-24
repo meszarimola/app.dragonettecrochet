@@ -2620,3 +2620,54 @@ body.is-selecting #board-irregular {
   gap: var(--sp-1);
   margin: 0;
 }
+
+/* KB: interface.md §72 — in a granny square the round's own count sits in its line. */
+.rows__cells {
+  inline-size: 3.25rem;
+  min-block-size: 32px;
+  padding: 0.15rem 0.35rem;
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-sm);
+  background: var(--c-bg);
+  color: var(--c-ink);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: end;
+}
+
+/* The one button that says what it does; the rest of the bar stays icons. */
+.ib__label {
+  display: none;
+}
+
+.ib.is-wide {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  inline-size: auto;
+  padding-inline: var(--sp-1);
+}
+
+.ib.is-wide .ib__label {
+  display: inline;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+/* The round's name keeps its room; the counter and the stitch count share the rest. */
+.rows__row:has(.rows__cells) .rows__number {
+  flex: 0 0 auto;
+}
+
+.rows__row:has(.rows__cells) .rows__pick {
+  gap: 0.35rem;
+  padding-inline: 0.35rem;
+}
+
+.rows__row:has(.rows__cells) .rows__count {
+  overflow: hidden;
+  min-inline-size: 0;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+}

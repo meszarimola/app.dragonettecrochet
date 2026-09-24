@@ -193,7 +193,6 @@
   {"id":"rounds-stagger","tag":"input","type":"checkbox"},
   {"id":"rounds-start","tag":"select","type":""},
   {"id":"rounds-stitch","tag":"select","type":""},
-  {"id":"row-cells","tag":"input","type":"number"},
   {"id":"row-color","tag":"input","type":"color"},
   {"id":"row-color-clear","tag":"button","type":"button"},
   {"id":"row-delete","tag":"button","type":"button"},

@@ -13,8 +13,8 @@ import {
   clampGrannyCount,
   grannyBands,
   grannyCells,
+  grannyRingAt,
   grannyRings,
-  nearestGrannyCell,
   squareStop,
 } from '../src/core/irregular-granny.ts';
 import { loadIrregular, saveIrregular } from '../src/core/irregular-json.ts';
@@ -106,14 +106,16 @@ describe('the cells of a round', () => {
     assert.equal(cells.length, 16);
   });
 
-  test('a stitch goes into the cell nearest where it was dropped, round and all', () => {
+  test('a stitch belongs to the round whose band it landed in, wherever in it', () => {
     const pattern = granny(8, 16);
-    const middleOfTop = nearestGrannyCell(pattern, STEP, { x: 2, y: -19 });
-    assert.equal(middleOfTop.rowId, 'r1');
-    assert.equal(middleOfTop.angle, 0);
-    const outer = nearestGrannyCell(pattern, STEP, { x: 0, y: -62 });
-    assert.equal(outer.rowId, 'r2');
-    assert.equal(nearestGrannyCell(granny(), STEP, { x: 0, y: 0 }), undefined);
+    // How far out a point is, is its larger coordinate: the bands are squares.
+    assert.equal(grannyRingAt(pattern, STEP, { x: 2, y: -19 })?.rowId, 'r1');
+    assert.equal(grannyRingAt(pattern, STEP, { x: 37, y: 11 })?.rowId, 'r1');
+    assert.equal(grannyRingAt(pattern, STEP, { x: 0, y: -62 })?.rowId, 'r2');
+    assert.equal(grannyRingAt(pattern, STEP, { x: -71, y: 5 })?.rowId, 'r2');
+    // Beyond the last round, and on a square with no rounds at all.
+    assert.equal(grannyRingAt(pattern, STEP, { x: 0, y: -200 }), undefined);
+    assert.equal(grannyRingAt(granny(), STEP, { x: 0, y: 0 }), undefined);
   });
 });
 

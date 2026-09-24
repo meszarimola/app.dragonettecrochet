@@ -318,7 +318,6 @@ export const MARKUP_TEXTS = {
 
     boardIrregularLabel: 'Szabadkézi diagram: válassz szemet, és kattints a rajzlapra',
     sectionRowsTitle: 'Sorok és körök',
-    rowCellsLabel: 'Rács szám',
     grannyRadialLabel: 'Sugárirányú fordítás',
     rowsGroupLabel: 'A minta sorai és körei',
     rowNew: 'Új sor',
@@ -856,7 +855,6 @@ export const MARKUP_TEXTS = {
 
     boardIrregularLabel: 'Free-form chart: pick a stitch and click the drawing area',
     sectionRowsTitle: 'Rows and rounds',
-    rowCellsLabel: 'Grid count',
     grannyRadialLabel: 'Turn stitches outwards',
     rowsGroupLabel: 'The pattern’s rows and rounds',
     rowNew: 'New row',
