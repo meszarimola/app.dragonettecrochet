@@ -1576,6 +1576,7 @@ function togglePopover(pop: HTMLElement, button: HTMLButtonElement): void {
 }
 
 function closeAllPopovers(): void {
+  setRegularMenuOpen(false);
   closePopover(errorsPop, errorToggle);
   closePopover(filePop, fileToggle);
   closePopover(typesNav, typesToggle);
@@ -1732,71 +1733,159 @@ function renderTypes(): void {
         item.append(button);
         return item;
       }
-      const row = document.createElement('div');
-      row.className = 'type__row';
-      row.append(button, subcategoryToggle());
-      item.append(row, subcategoryList());
+      item.className = 'type__item';
+      item.append(button, regularMenuToggle(), regularMenu());
+      item.addEventListener('mouseenter', () => {
+        clearTimeout(regularMenuClose);
+        setRegularMenuOpen(true);
+      });
+      item.addEventListener('mouseleave', () => {
+        regularMenuClose = setTimeout(() => setRegularMenuOpen(false), REGULAR_MENU_GRACE);
+      });
+      button.addEventListener('keydown', (event) => {
+        if (event.key !== 'ArrowRight') return;
+        event.preventDefault();
+        event.stopPropagation();
+        setRegularMenuOpen(true);
+        regularMenuItems()[0]?.focus();
+      });
       return item;
     }),
   );
 }
 
-// KB: interface.md §65
-const REGULAR_SUBCATEGORIES = [
-  { section: '#section-shape', title: 'sectionShapeTitle' },
-  { section: '#section-shawl', title: 'sectionShawlTitle' },
-  { section: '#section-garment', title: 'sectionGarmentTitle' },
-  { section: '#section-rounds', title: 'sectionRoundsTitle' },
-] as const;
-const SUBCATEGORY_LIST_ID = 'types-regular-sub';
-let subcategoriesOpen = false;
+// KB: interface.md §66
+interface RegularMenuEntry {
+  readonly name: () => string;
+  readonly detail: () => string;
+  readonly section: string;
+  readonly field: string;
+  readonly value: string;
+}
 
-function subcategoryToggle(): HTMLButtonElement {
+const REGULAR_MENU: readonly RegularMenuEntry[] = [
+  {
+    name: () => texts().sections.types.regularMenu.rectangle,
+    detail: () => `${texts().markup.sectionShapeTitle}: ${texts().panels.shape.names.rectangle}`,
+    section: '#section-shape',
+    field: '#shape-kind',
+    value: 'rectangle',
+  },
+  {
+    name: () => texts().sections.types.regularMenu.triangle,
+    detail: () => `${texts().markup.sectionShapeTitle}: ${texts().panels.shape.names['isosceles-triangle']}`,
+    section: '#section-shape',
+    field: '#shape-kind',
+    value: 'isosceles-triangle',
+  },
+  {
+    name: () => texts().sections.types.regularMenu.semicircle,
+    detail: () => `${texts().markup.sectionShawlTitle}: ${texts().panels.shawl.names.semicircle}`,
+    section: '#section-shawl',
+    field: '#shawl-kind',
+    value: 'semicircle',
+  },
+  {
+    name: () => texts().panels.round.names['granny-square'],
+    detail: () => texts().markup.sectionRoundsTitle,
+    section: '#section-rounds',
+    field: '#rounds-shape',
+    value: 'granny-square',
+  },
+];
+const REGULAR_MENU_ID = 'types-regular-menu';
+const REGULAR_MENU_GRACE = 300;
+let regularMenuClose: ReturnType<typeof setTimeout> | undefined;
+
+function regularMenuToggle(): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'type__more';
-  button.setAttribute('aria-expanded', String(subcategoriesOpen));
-  button.setAttribute('aria-controls', SUBCATEGORY_LIST_ID);
+  button.tabIndex = -1;
+  button.setAttribute('aria-haspopup', 'menu');
+  button.setAttribute('aria-expanded', 'false');
+  button.setAttribute('aria-controls', REGULAR_MENU_ID);
   button.setAttribute('aria-label', texts().sections.types.subcategories);
-  button.dataset.tip = texts().sections.types.subcategories;
   button.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M8 5l5 5-5 5"/></svg>';
-  button.addEventListener('click', () => {
-    subcategoriesOpen = !subcategoriesOpen;
-    button.setAttribute('aria-expanded', String(subcategoriesOpen));
-    must<HTMLUListElement>(`#${SUBCATEGORY_LIST_ID}`).hidden = !subcategoriesOpen;
-  });
+  button.addEventListener('click', () => setRegularMenuOpen(button.getAttribute('aria-expanded') !== 'true'));
   return button;
 }
 
-function subcategoryList(): HTMLUListElement {
-  const list = document.createElement('ul');
-  list.className = 'types__sub';
-  list.id = SUBCATEGORY_LIST_ID;
-  list.hidden = !subcategoriesOpen;
-  for (const { section, title } of REGULAR_SUBCATEGORIES) {
+function regularMenu(): HTMLUListElement {
+  const menu = document.createElement('ul');
+  menu.className = 'flyout';
+  menu.id = REGULAR_MENU_ID;
+  menu.setAttribute('role', 'menu');
+  menu.setAttribute('aria-label', texts().sections.types.menu.regular.name);
+  menu.hidden = true;
+  for (const entry of REGULAR_MENU) {
     const item = document.createElement('li');
+    item.setAttribute('role', 'none');
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'subtype';
-    button.dataset.section = section.slice(1);
-    button.textContent = texts().markup[title];
-    button.addEventListener('click', () => openRegularSection(section));
+    button.className = 'flyout__item';
+    button.setAttribute('role', 'menuitem');
+    button.dataset.value = entry.value;
+    button.append(span('flyout__name', entry.name()), span('flyout__detail', entry.detail()));
+    button.addEventListener('click', () => openRegularEntry(entry));
     item.append(button);
-    list.append(item);
+    menu.append(item);
   }
-  return list;
+  menu.addEventListener('keydown', (event) => {
+    const items = regularMenuItems();
+    const at = items.indexOf(document.activeElement as HTMLButtonElement);
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      event.stopPropagation();
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      items[(at + step + items.length) % items.length]?.focus();
+    } else if (event.key === 'ArrowLeft' || event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      setRegularMenuOpen(false);
+      typesList.querySelector<HTMLButtonElement>('.type[data-type="regular"]')?.focus();
+    }
+  });
+  return menu;
 }
 
-function openRegularSection(selector: string): void {
+function regularMenuItems(): HTMLButtonElement[] {
+  return [...typesList.querySelectorAll<HTMLButtonElement>('.flyout__item')];
+}
+
+function setRegularMenuOpen(open: boolean): void {
+  const menu = typesList.querySelector<HTMLUListElement>(`#${REGULAR_MENU_ID}`);
+  const toggle = typesList.querySelector<HTMLButtonElement>('.type__more');
+  const card = typesList.querySelector<HTMLButtonElement>('.type[data-type="regular"]');
+  if (!menu || !toggle || !card) return;
+  toggle.setAttribute('aria-expanded', String(open));
+  menu.hidden = !open;
+  if (!open) return;
+  const row = card.getBoundingClientRect();
+  const pop = typesNav.getBoundingClientRect();
+  const width = menu.offsetWidth;
+  const height = menu.offsetHeight;
+  const gap = 4;
+  const fitsBeside = pop.right + gap + width <= window.innerWidth - gap;
+  const left = fitsBeside ? pop.right + gap : Math.max(gap, window.innerWidth - width - gap);
+  const top = fitsBeside ? row.top : row.bottom + gap;
+  menu.style.left = `${left}px`;
+  menu.style.top = `${Math.max(gap, Math.min(top, window.innerHeight - height - gap))}px`;
+}
+
+function openRegularEntry(entry: RegularMenuEntry): void {
   selectType('regular');
-  const target = must<HTMLDetailsElement>(selector);
+  const target = must<HTMLDetailsElement>(entry.section);
   for (const section of regularTypeSections) {
     if (setupSheet.contains(section)) section.open = section === target;
   }
   setOpen(setupSheet, setupToggle, true);
   if (SETUP_TIGHT.matches && !written.hidden) setWrittenOpen(false);
+  const field = must<HTMLSelectElement>(entry.field);
+  field.value = entry.value;
+  field.dispatchEvent(new Event('change', { bubbles: true }));
   target.scrollIntoView({ block: 'start' });
-  target.querySelector<HTMLElement>('summary')?.focus();
+  field.focus();
 }
 
 function selectType(id: PatternTypeId): void {

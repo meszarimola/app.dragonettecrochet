@@ -298,3 +298,24 @@ the centre can never have the right count. Two buttons for copying only
 confused the user.
 
 **Ticket:** PQW-1006. See `interface.md` §57.
+
+## §15 The granny square is back on, and the regular type has a side menu
+
+**Decided:** the granny square is selectable again (it was switched off in §13).
+The „Szabályos horgolás” card carries a „›” with a side menu of exactly four
+entries — Négyszögletes, Háromszög, Félkör, Nagymama-négyzet — and each entry
+says in a second line which generator it opens.
+
+> „négyszögletes, háromszög alakú, félkör alakú és granny”
+> „legyen egyértelmű a menüből melyik mit tud. négyszögletes, háromszög és félkör
+> legyen az elnevezés”
+
+The v0.64.0 attempt (PQW-1037) folded a list of the sheet's section titles open
+below the card, as cards. The owner rejected it on both counts: it did not look
+like a menu, and the granny square — the reason for the request — was not in it.
+
+**Ticket:** PQW-1038. See `interface.md` §66.
+
+**What the tests check** (`e2e/felulet.spec.ts`, `e2e/korok.spec.ts`): the four
+entries and their second lines, a choice opening the right section with the shape
+set, the keyboard path, and the granny square generator itself.

@@ -24,6 +24,11 @@ export interface SectionTexts {
     readonly menu: Readonly<Record<PatternTypeId, TypeEntry>>;
     readonly soon: string;
     readonly subcategories: string;
+    readonly regularMenu: {
+      readonly rectangle: string;
+      readonly triangle: string;
+      readonly semicircle: string;
+    };
   };
   readonly size: {
     readonly sources: Readonly<Record<ValueSource, string>>;
@@ -162,6 +167,7 @@ const hu: SectionTexts = {
     },
     soon: 'Hamarosan',
     subcategories: 'Alkategóriák',
+    regularMenu: { rectangle: 'Négyszögletes', triangle: 'Háromszög', semicircle: 'Félkör' },
   },
   size: {
     sources: { measured: 'mért', label: 'címkéről', estimated: 'becsült' },
@@ -322,6 +328,7 @@ const en: SectionTexts = {
     },
     soon: 'Coming soon',
     subcategories: 'Subcategories',
+    regularMenu: { rectangle: 'Rectangular', triangle: 'Triangle', semicircle: 'Semicircle' },
   },
   size: {
     sources: { measured: 'measured', label: 'from the label', estimated: 'estimated' },

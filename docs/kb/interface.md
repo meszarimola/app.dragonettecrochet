@@ -129,7 +129,7 @@ arriving late cannot overwrite a size typed in the meantime.
 The owner's decision for the first round of acceptance testing (PQW-925): get
 regular crochet right first, and do not let the rest draw attention. Filet
 (PQW-864) and amigurumi (PQW-863) are switched off, and so is the granny square
-motif.
+motif. The granny square came back on in PQW-1038 (`owner-decisions.md` §15).
 
 The code stays where it is. Re-enabling a pattern type is a `true` in the list in
 `pattern-types.ts`; re-enabling a motif is an empty `DISABLED_MOTIFS` list.
@@ -1665,7 +1665,9 @@ együtt”, and a pointer next to „Terület” for Ctrl/⌘-click selection.
   rectangle. „Terület” keeps the rectangle. Both lay a drawing tool down. The
   pointer is the default; either one's frame resizes at its corners.
 
-## §65 The regular type lists its subcategories in the type menu
+## §65 The regular type lists its subcategories in the type menu (withdrawn)
+
+Withdrawn in PQW-1038: replaced by the side menu of §66.
 
 PQW-1037. The owner could not find the granny square: the motifs sit in the
 „Kör és motívum” section of the make-a-pattern sheet, which opens from the file
@@ -1683,3 +1685,24 @@ with `getByRole('button', { name: /Szabályos horgolás/ })`, and a second match
 would fail them in strict mode. The fold state lives only for the page's life;
 it is not worth a storage key. The owner first asked for a separate top-bar menu
 that appears only in the regular type, then withdrew it for this submenu.
+
+## §66 The regular type's side menu
+
+PQW-1038, replacing §65. A standard cascading menu: the „›” sits inside the
+„Szabályos horgolás” card, and `#types-regular-menu` (`role="menu"`) opens beside
+the type menu on hover, on a click on the „›”, or with the right arrow on the
+card. Up and down move, left and Escape close it and give the focus back to the
+card. Clicking the card itself still selects the type, which every spec relies on.
+
+The menu is `position: fixed`, placed from the card's rectangle, because
+`.menu__pop` scrolls (`overflow-y: auto`) and would clip anything absolute inside
+it. Where there is no room beside the type menu — a phone — it opens below the
+card instead. Leaving the card closes it after 300 ms, so the pointer can cross
+the gap to it.
+
+The entries are the owner's four, in the owner's words (`owner-decisions.md` §15).
+The second line of each names the generator it opens, from the existing
+dictionary — „Forma: Téglalap”, „Forma: Egyenlő szárú háromszög”, „Kendő:
+Félkör”, „Kör és motívum” — so nothing is invented. A choice opens the sheet on
+that section, sets its shape select and fires `change` so the panel redraws, and
+focuses the select.

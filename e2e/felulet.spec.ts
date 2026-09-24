@@ -45,7 +45,7 @@ test('pattern type: regular and irregular crochet are selectable, the rest are �
   }
 });
 
-test('the regular type opens its subcategories from the type menu, and one opens its section in the sheet (PQW-1037)', async ({
+test('the regular type opens a side menu of shapes, and a choice opens its generator with the shape set (PQW-1038)', async ({
   page,
 }) => {
   await open(page);
@@ -54,26 +54,53 @@ test('the regular type opens its subcategories from the type menu, and one opens
   await expect(page.locator('#board-irregular')).toBeVisible();
 
   await page.locator('#types-toggle').click();
-  const more = page.getByRole('button', { name: 'Alkategóriák' });
-  await expect(more).toHaveAttribute('aria-expanded', 'false');
-  await expect(page.locator('#types-regular-sub')).toBeHidden();
-  await more.click();
-  await expect(more).toHaveAttribute('aria-expanded', 'true');
-  const sub = page.locator('#types-regular-sub');
-  await expect(sub.getByRole('button')).toHaveText(['Forma', 'Kendő', 'Ruhadarab', 'Kör és motívum']);
+  const menu = page.locator('#types-regular-menu');
+  await expect(menu).toBeHidden();
+  await page.locator('.type[data-type="regular"]').hover();
+  await expect(menu).toBeVisible();
+  await expect(menu.locator('.flyout__name')).toHaveText(['Négyszögletes', 'Háromszög', 'Félkör', 'Nagymama-négyzet']);
+  await expect(menu.locator('.flyout__detail')).toHaveText([
+    'Forma: Téglalap',
+    'Forma: Egyenlő szárú háromszög',
+    'Kendő: Félkör',
+    'Kör és motívum',
+  ]);
 
-  await sub.getByRole('button', { name: 'Kör és motívum' }).click();
+  await page.getByRole('menuitem', { name: /Nagymama-négyzet/ }).click();
   await expect(page.locator('#types')).toBeHidden();
   await expect(page.locator('#board-irregular')).toBeHidden();
   await expect(page.locator('#setup')).toBeVisible();
   await expect(page.locator('#section-rounds')).toHaveAttribute('open', '');
   await expect(page.locator('#section-shape')).not.toHaveAttribute('open', '');
-  await expect(page.locator('#section-rounds summary')).toBeFocused();
+  await expect(page.locator('#rounds-shape')).toHaveValue('granny-square');
+  await expect(page.locator('#rounds-shape')).toBeFocused();
 
   await page.locator('#types-toggle').click();
-  await page.locator('#types-regular-sub').getByRole('button', { name: 'Forma' }).click();
-  await expect(page.locator('#section-shape')).toHaveAttribute('open', '');
+  await page.locator('.type[data-type="regular"]').hover();
+  await page.getByRole('menuitem', { name: /Félkör/ }).click();
+  await expect(page.locator('#section-shawl')).toHaveAttribute('open', '');
   await expect(page.locator('#section-rounds')).not.toHaveAttribute('open', '');
+  await expect(page.locator('#shawl-kind')).toHaveValue('semicircle');
+});
+
+test('the side menu works from the keyboard: right arrow opens it, arrows move, left arrow closes it (PQW-1038)', async ({
+  page,
+}) => {
+  await open(page);
+  await page.locator('#types-toggle').click();
+  await expect(page.locator('.type[data-type="regular"]')).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('#types-regular-menu')).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: /Négyszögletes/ })).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByRole('menuitem', { name: /Háromszög/ })).toBeFocused();
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.locator('#types-regular-menu')).toBeHidden();
+  await expect(page.locator('.type[data-type="regular"]')).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#shape-kind')).toHaveValue('rectangle');
+  await expect(page.locator('#section-shape')).toHaveAttribute('open', '');
 });
 
 test('the sections of the switched-off crochet kinds are not visible in the panel (PQW-925)', async ({ page }) => {
@@ -90,14 +117,14 @@ test('the sections of the switched-off crochet kinds are not visible in the pane
   await expect(page.locator('#section-shape')).toBeVisible();
 });
 
-test('the granny square cannot be chosen in the motif chooser, and is marked as such (PQW-925)', async ({ page }) => {
+test('the granny square can be chosen in the motif chooser (PQW-1038)', async ({ page }) => {
   await open(page);
 
   await openSheet(page);
   await page.locator('#section-rounds').click();
   const granny = page.locator('#rounds-shape option[value="granny-square"]');
-  await expect(granny).toBeDisabled();
-  await expect(granny).toHaveText(/Nagymama-négyzet — Hamarosan/);
+  await expect(granny).toBeEnabled();
+  await expect(granny).toHaveText('Nagymama-négyzet');
 });
 
 /*

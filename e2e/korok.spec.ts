@@ -4,8 +4,8 @@
  * closes a chain ring from the chain stitches. The diagram of the granny square
  * is a square, and its symbols do not crowd (PQW-888).
  *
- * The granny square is switched off for the first round of the UAT
- * (KB: owner-decisions.md §13), so those tests are skipped.
+ * The granny square was switched off for the first round of the UAT
+ * (KB: owner-decisions.md §13) and back on in PQW-1038 (§15).
  */
 
 import { expect, type Page, test } from '@playwright/test';
@@ -68,7 +68,6 @@ test('flat circle in single crochet: estimated increases, error-free rounds, the
 });
 
 test('granny square with a chain ring, and the K key closes a chain ring from the chain stitches', async ({ page }) => {
-  test.skip(true, 'PQW-925: the granny square is temporarily switched off');
   await open(page);
   await generate(page, { shape: 'Nagymama-négyzet', start: 'Láncgyűrű', rounds: 3 });
 
@@ -77,7 +76,8 @@ test('granny square with a chain ring, and the K key closes a chain ring from th
   const text = await writtenText(page);
   expect(text).toContain('Láncgyűrű: 4 lsz, 1 ksz-szel gyűrűvé zárva.');
   expect(text).toContain('1. kör: 3 lsz (1 erp-nek számít), 2 erp a gyűrűbe, 2 lsz, (3 erp a gyűrűbe, 2 lsz) ×3 (20).');
-  expect(text).toMatch(/3\. kör: .*\(36\)\. Kör zárása: 1 ksz a kezdőlánc tetejébe\./);
+  expect(text).toMatch(/2\. kör: .*\(36\)\. Kör zárása: 1 ksz a kezdőlánc tetejébe\./);
+  expect(text).toMatch(/3\. kör: .*\(52\)\. Kör zárása: 1 ksz a kezdőlánc tetejébe\./);
 
   // New pattern, 6 chain stitches, K: chain ring. The number of chain stitches is visible once the chain stitch is selected.
   await page.locator('[data-action="new"]').click();
@@ -115,11 +115,11 @@ for (const viewport of [
   test(`${viewport.width}×${viewport.height}: the diagram of the 6-round granny square is a square, and the symbols do not crowd`, async ({
     page,
   }) => {
-    test.skip(true, 'PQW-925: the granny square is temporarily switched off');
     await page.setViewportSize(viewport);
     await open(page);
     await generate(page, { shape: 'Nagymama-négyzet', rounds: 6 });
     await expect(page.locator('#status')).toContainText('Nagymama-négyzet, 6 kör elkészült;');
+    await page.locator('#zoom-toggle').click();
     await page.getByRole('button', { name: 'Egész minta' }).click();
 
     // The slip stitch sits on its base, not on the line of the round: it does not count.
