@@ -324,9 +324,40 @@ function insertionMark(mode: InsertionMark, foot: Point, style: ChartStyle = 'cy
   }
 }
 
+/**
+ * The magic ring: the loop the yarn is wound into, drawn as the ring itself with
+ * the working loop inside it and the tail leaving at the top. A plain circle
+ * said nothing the chain's own oval does not. KB: interface.md §74
+ */
+function magicRingShapes(center: Point): Shape[] {
+  const inner = RING_R * 0.66;
+  const at = (x: number, y: number): Point => add(center, scale({ x, y }, RING_R / 10));
+  const curve = (from: Point, control: Point, to: Point): Shape => ({ kind: 'curve', role: 'ring', from, control, to });
+  // The inner loop is open at the top right, where the tail comes out of it.
+  const gap = Math.PI / 4;
+  const on = (angle: number): Point => add(center, { x: Math.cos(angle) * inner, y: Math.sin(angle) * inner });
+  const arcs: Shape[] = [];
+  const from = -Math.PI / 2 + gap;
+  const steps = 6;
+  const sweep = 2 * Math.PI - 2 * gap;
+  for (let step = 0; step < steps; step += 1) {
+    const a0 = from + (sweep * step) / steps;
+    const a1 = from + (sweep * (step + 1)) / steps;
+    const mid = (a0 + a1) / 2;
+    // The control point of a quadratic that meets the circle at its middle.
+    const reach = inner / Math.cos((a1 - a0) / 2);
+    arcs.push(curve(on(a0), add(center, { x: Math.cos(mid) * reach, y: Math.sin(mid) * reach }), on(a1)));
+  }
+  return [
+    { kind: 'ellipse', role: 'ring', center, rx: RING_R, ry: RING_R, rotation: 0 },
+    ...arcs,
+    curve(on(from), at(7, -11), at(1, -13)),
+  ];
+}
+
 // KB: 01 §6.2 — the JIS glyph is drawn from lines, with no font dependency.
 function ringShapes(center: Point, style: ChartStyle = 'cyc'): Shape[] {
-  if (style !== 'jis') return [{ kind: 'ellipse', role: 'ring', center, rx: RING_R, ry: RING_R, rotation: 0 }];
+  if (style !== 'jis') return magicRingShapes(center);
   const at = (x: number, y: number): Point => add(center, scale({ x, y }, RING_R / 10));
   const curve = (from: Point, control: Point, to: Point): Shape => ({ kind: 'curve', role: 'ring', from, control, to });
   return [

@@ -2548,9 +2548,26 @@ body.is-selecting #board-irregular {
 }
 
 /* The rectangle mode hangs off the „Terület” tool as a narrow caret button. */
+/* KB: interface.md §74 — the caret reads as part of the button it belongs to. */
 .tools__split {
   display: flex;
-  gap: 2px;
+  gap: 0;
+}
+
+.tools__split > .tool:first-child {
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+  border-inline-end: 0;
+}
+
+.tools__split .tool--caret {
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+}
+
+.tools__split:hover > .tool,
+.tools__split:focus-within > .tool {
+  border-color: var(--c-accent);
 }
 
 .tools .tool.tool--caret {
@@ -2693,4 +2710,28 @@ body.is-selecting #board-irregular {
   min-inline-size: 0;
   font-size: 0.75rem;
   text-overflow: ellipsis;
+}
+
+/* KB: interface.md §74 — a drawing tool sits among the stitches it makes. */
+.stitch__preview {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 32px;
+  block-size: 32px;
+}
+
+.stitch__preview .icon {
+  inline-size: 26px;
+  block-size: 26px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.stitch--tool[aria-pressed="true"] {
+  border-color: var(--c-accent);
+  background: var(--c-selection);
+  color: var(--c-accent);
 }

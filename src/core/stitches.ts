@@ -364,6 +364,12 @@ export type StitchSectionId = 'basic' | 'increase-decrease' | 'compound' | 'stru
 export interface StitchSection {
   readonly id: StitchSectionId;
   readonly stitches: readonly StitchDef[];
+  /**
+   * A section the palette does not show as a section of its own. Its stitches
+   * stay in the library, so a chart that holds one is drawn and named, and the
+   * written pattern's key keeps its order. KB: interface.md §74
+   */
+  readonly offPalette?: boolean;
 }
 
 /** In palette order. */
@@ -398,9 +404,12 @@ export const STITCH_SECTIONS: readonly StitchSection[] = [
       REVERSE_SINGLE_CROCHET,
     ],
   },
+  // KB: interface.md §74 — the palette shows these two its own way; the library
+  // order stays as it is, because the written pattern's key follows it.
   {
     id: 'structure',
     stitches: [CHAIN_SPACE, MAGIC_RING],
+    offPalette: true,
   },
 ];
 

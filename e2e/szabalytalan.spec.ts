@@ -1119,10 +1119,15 @@ test('the selection block says what it is for, and the rectangle mode hangs off 
   await expect(toggle).toBeVisible();
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  await page.locator('#prop-rect-mode').selectOption('full');
+  // PQW-1046: two menu items, not a chooser inside the menu.
+  const full = page.locator('[data-rect-mode="full"]');
+  await expect(page.locator('[data-rect-mode="partial"]')).toHaveAttribute('aria-checked', 'true');
+  await full.click();
+  await expect(full).toHaveAttribute('aria-checked', 'true');
   // The choice is a preference of the editor, so it survives a reload.
   await page.reload();
-  await expect(page.locator('#prop-rect-mode')).toHaveValue('full');
+  await page.locator('#select-mode-toggle').click();
+  await expect(page.locator('[data-rect-mode="full"]')).toHaveAttribute('aria-checked', 'true');
 
   // The regular type has no rectangle mode of its own.
   await page.locator('#types-toggle').click();
