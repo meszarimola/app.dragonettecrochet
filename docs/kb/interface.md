@@ -1707,7 +1707,10 @@ Félkör”, „Kör és motívum” — so nothing is invented. A choice opens 
 that section, sets its shape select and fires `change` so the panel redraws, and
 focuses the select.
 
-## §67 The granny square is drawn on choice, and shows only its own fields
+## §67 The granny square is drawn on choice, and shows only its own fields (partly withdrawn)
+
+The drawing on choice is withdrawn in PQW-1040: see §68. Hiding the fields that do
+not apply stays.
 
 PQW-1039. The owner chose the granny square from the §66 menu and got a form:
 „fogalmam nincs, hogy mi ez, és mit kellene vele csinálni”. Nothing was on the
@@ -1725,3 +1728,32 @@ back the earlier pattern, as with any generator.
 spirálban” instead of disabling them. Left: „Kezdés”, „Körök száma”,
 „Színváltás” and „Bordás perem”. The other shapes keep the §9-era behaviour, a
 disabled field where it does not apply.
+
+## §68 The granny square designer
+
+PQW-1040, replacing the drawing on choice of §67. The owner, on v0.66.0: „SENKI
+NEM KÉRT TÖLED EGY MÁR KÉSZ TERVET … EGY KIBASZOTT GRANNY SUQARE-T AKAROK
+TERVEZNI”. What was wanted is a blank canvas where the crocheter gives each
+round's stitch count: „a felhasználó beírja, hogy 8 szem. ezek körbe
+elrendeződnek. Megnyomja az új kört … tudja megadni, hogy hány szem megy a
+második körbe”.
+
+- **Where.** On the free-form canvas, so saving, undo, export and editing single
+  stitches all come from code that exists. „Szabályos horgolás › Nagymama-négyzet”
+  switches to the free-form type and calls `newGranny()`. That is a commit, not a
+  new history, so undo brings back the work it replaced. The pattern carries
+  `motif: 'granny-square'`, its first row is a clockwise round, and the square grid
+  is on.
+- **The panel.** `#section-granny` replaces the rows and layers tabs while
+  `grannyMode` holds (`syncGrannyView` in `main.ts`, run from `refreshControls`).
+  One line per round: its name, its count as a field you can change, and its
+  stitch abbreviation. Below: the count for the next round (Enter works),
+  „Új kör” and „Utolsó kör törlése”. A hint shows until the first round.
+- **The stitch** of a new round is the one armed on the palette, double crochet by
+  default. Chains in the corners are placed by hand with the free-form tools.
+- **Defaults taken without the owner's answer:** the first round is a square too,
+  the stitches spread evenly with no marked corner spaces, and a round is one
+  kind of stitch. The owner said „jó lesz, próbáld meg megcsinálni” to the plan
+  that listed these as open questions.
+
+The geometry is `core-geometry.md` §55.

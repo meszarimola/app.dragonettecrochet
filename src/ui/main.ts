@@ -1755,14 +1755,15 @@ function renderTypes(): void {
 }
 
 // KB: interface.md §66
-interface RegularMenuEntry {
-  readonly name: () => string;
-  readonly detail: () => string;
-  readonly section: string;
-  readonly field: string;
-  readonly value: string;
-  readonly create?: string;
-}
+type RegularMenuEntry =
+  | {
+      readonly name: () => string;
+      readonly detail: () => string;
+      readonly section: string;
+      readonly field: string;
+      readonly value: string;
+    }
+  | { readonly name: () => string; readonly detail: () => string; readonly granny: true };
 
 const REGULAR_MENU: readonly RegularMenuEntry[] = [
   {
@@ -1788,11 +1789,8 @@ const REGULAR_MENU: readonly RegularMenuEntry[] = [
   },
   {
     name: () => texts().panels.round.names['granny-square'],
-    detail: () => texts().markup.sectionRoundsTitle,
-    section: '#section-rounds',
-    field: '#rounds-shape',
-    value: 'granny-square',
-    create: '#rounds-create',
+    detail: () => texts().sections.types.regularMenu.grannyDetail,
+    granny: true,
   },
 ];
 const REGULAR_MENU_ID = 'types-regular-menu';
@@ -1827,7 +1825,7 @@ function regularMenu(): HTMLUListElement {
     button.type = 'button';
     button.className = 'flyout__item';
     button.setAttribute('role', 'menuitem');
-    button.dataset.value = entry.value;
+    button.dataset.value = 'granny' in entry ? 'granny-square' : entry.value;
     button.append(span('flyout__name', entry.name()), span('flyout__detail', entry.detail()));
     button.addEventListener('click', () => openRegularEntry(entry));
     item.append(button);
@@ -1875,7 +1873,18 @@ function setRegularMenuOpen(open: boolean): void {
   menu.style.top = `${Math.max(gap, Math.min(top, window.innerHeight - height - gap))}px`;
 }
 
+// KB: interface.md §68 — the granny square is drawn by hand, round by round, on the free-form canvas.
+function openGranny(): void {
+  selectType('irregular');
+  ensureIrregular().newGranny();
+  must<HTMLInputElement>('#granny-count').focus();
+}
+
 function openRegularEntry(entry: RegularMenuEntry): void {
+  if ('granny' in entry) {
+    openGranny();
+    return;
+  }
   selectType('regular');
   const target = must<HTMLDetailsElement>(entry.section);
   for (const section of regularTypeSections) {
@@ -1888,7 +1897,6 @@ function openRegularEntry(entry: RegularMenuEntry): void {
   field.dispatchEvent(new Event('change', { bubbles: true }));
   target.scrollIntoView({ block: 'start' });
   field.focus();
-  if (entry.create) must<HTMLButtonElement>(entry.create).click();
 }
 
 function selectType(id: PatternTypeId): void {
@@ -2451,7 +2459,17 @@ const irregularSections = {
   properties: must<HTMLDetailsElement>('#section-irregular'),
   rows: must<HTMLDetailsElement>('#section-irregular-rows'),
   layers: must<HTMLDetailsElement>('#section-irregular-layers'),
+  granny: must<HTMLElement>('#section-granny'),
 };
+
+// KB: interface.md §68 — a granny square has rounds, not rows and layers.
+function syncGrannyView(editor: IrregularEditor): void {
+  if (!editor.active) return;
+  const granny = editor.grannyMode;
+  must<HTMLElement>('#irregular-tabs').hidden = granny;
+  irregularSections.rows.hidden = granny;
+  irregularSections.layers.hidden = granny;
+}
 
 function ensureIrregular(): IrregularEditor {
   if (irregular !== null) return irregular;
@@ -2468,7 +2486,9 @@ function ensureIrregular(): IrregularEditor {
     savePdf: () => ACTIONS['export-pdf']?.(),
     terms: () => notation.terms,
     refreshControls: () => {
-      if (irregular !== null) updateIrregularControls(irregular);
+      if (irregular === null) return;
+      updateIrregularControls(irregular);
+      syncGrannyView(irregular);
     },
   });
   return irregular;

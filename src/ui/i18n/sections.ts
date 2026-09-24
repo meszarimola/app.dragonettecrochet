@@ -28,6 +28,7 @@ export interface SectionTexts {
       readonly rectangle: string;
       readonly triangle: string;
       readonly semicircle: string;
+      readonly grannyDetail: string;
     };
   };
   readonly size: {
@@ -167,7 +168,12 @@ const hu: SectionTexts = {
     },
     soon: 'Hamarosan',
     subcategories: 'Alkategóriák',
-    regularMenu: { rectangle: 'Négyszögletes', triangle: 'Háromszög', semicircle: 'Félkör' },
+    regularMenu: {
+      rectangle: 'Négyszögletes',
+      triangle: 'Háromszög',
+      semicircle: 'Félkör',
+      grannyDetail: 'Üres vászon, körönként',
+    },
   },
   size: {
     sources: { measured: 'mért', label: 'címkéről', estimated: 'becsült' },
@@ -328,7 +334,12 @@ const en: SectionTexts = {
     },
     soon: 'Coming soon',
     subcategories: 'Subcategories',
-    regularMenu: { rectangle: 'Rectangular', triangle: 'Triangle', semicircle: 'Semicircle' },
+    regularMenu: {
+      rectangle: 'Rectangular',
+      triangle: 'Triangle',
+      semicircle: 'Semicircle',
+      grannyDetail: 'Blank canvas, round by round',
+    },
   },
   size: {
     sources: { measured: 'measured', label: 'from the label', estimated: 'estimated' },

@@ -318,6 +318,11 @@ export const MARKUP_TEXTS = {
 
     boardIrregularLabel: 'Szabadkézi diagram: válassz szemet, és kattints a rajzlapra',
     sectionRowsTitle: 'Sorok és körök',
+    grannyPanelTitle: 'Körök',
+    grannyEmpty: 'Írd be, hány szemből áll az első kör, és nyomd meg az „Új kör” gombot. Minden új kör a bal oldalon kiválasztott szemből készül.',
+    grannyCountLabel: 'Szemek száma az új körben',
+    grannyAdd: 'Új kör',
+    grannyRemove: 'Utolsó kör törlése',
     rowsGroupLabel: 'A minta sorai és körei',
     rowNew: 'Új sor',
     rowNewRound: 'Új kör',
@@ -854,6 +859,11 @@ export const MARKUP_TEXTS = {
 
     boardIrregularLabel: 'Free-form chart: pick a stitch and click the drawing area',
     sectionRowsTitle: 'Rows and rounds',
+    grannyPanelTitle: 'Rounds',
+    grannyEmpty: 'Type how many stitches the first round has, then press „New round”. Each new round is made of the stitch chosen on the left.',
+    grannyCountLabel: 'Stitches in the new round',
+    grannyAdd: 'New round',
+    grannyRemove: 'Remove the last round',
     rowsGroupLabel: 'The pattern’s rows and rounds',
     rowNew: 'New row',
     rowNewRound: 'New round',
