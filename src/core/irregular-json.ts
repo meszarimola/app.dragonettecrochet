@@ -565,7 +565,7 @@ function readGroup(
   if (!isObject(value)) throw new FormatError(path, 'expected-object');
   const kind = oneOf(value['kind'], `${path}.kind`, GROUP_KINDS);
   const shared = kind === 'fan' ? FAN_FIELDS : kind === 'grannyRound' ? GRANNY_FIELDS : ARC_FIELDS;
-  const raw = object(value, path, shared);
+  const raw = object(value, path, shared, kind === 'grannyRound' ? GRANNY_OPTIONAL : []);
   const rowId = string(raw['rowId'], `${path}.rowId`);
   if (!rowIds.has(rowId)) throw new FormatError(`${path}.rowId`, 'unknown-row');
   const layerId = string(raw['layerId'], `${path}.layerId`);
@@ -599,7 +599,14 @@ function readGroup(
   }
   if (kind === 'grannyRound') {
     const inner = ranged(finite(raw['inner'], `${path}.inner`), `${path}.inner`, GRANNY_INNER_RANGE);
-    return { ...common, kind, center: readPoint(raw['center'], `${path}.center`), inner };
+    return {
+      ...common,
+      kind,
+      center: readPoint(raw['center'], `${path}.center`),
+      inner,
+      // Written since PQW-1042; a round from before that faced outwards.
+      radial: raw['radial'] === undefined ? true : boolean(raw['radial'], `${path}.radial`),
+    };
   }
   return {
     ...common,
@@ -613,6 +620,7 @@ function readGroup(
 
 const GROUP_KINDS: readonly IrregularGroup['kind'][] = ['chainArc', 'fan', 'grannyRound'];
 const GRANNY_FIELDS = ['id', 'kind', 'rowId', 'layerId', 'keyEntryId', 'center', 'inner', 'count', 'memberIds'];
+const GRANNY_OPTIONAL = ['radial'];
 const FAN_MODES: readonly FanMode[] = ['spread', 'converge'];
 const ARC_FIELDS = [
   'id',

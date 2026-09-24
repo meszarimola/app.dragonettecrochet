@@ -20,9 +20,15 @@ async function openGranny(page: Page): Promise<void> {
   await page.getByRole('menuitem', { name: /Nagymama-négyzet/ }).click();
 }
 
+/** PQW-1042: a round is made of the palette's stitch, so one has to be armed first. */
+async function armDoubleCrochet(page: Page): Promise<void> {
+  await page.locator('#board-irregular').focus();
+  await page.keyboard.press('Alt+5');
+}
+
 interface Stored {
   readonly motif?: string;
-  readonly items: readonly { rowId: string; width: number; height: number }[];
+  readonly items: readonly { rowId: string; width: number; height: number; rotation: number }[];
   readonly rows: readonly { id: string; kind: string }[];
 }
 
@@ -51,9 +57,52 @@ test('a new granny square is a blank canvas with the rounds panel, not rows and 
   expect(pattern.items).toHaveLength(0);
 });
 
+test('a round waits for a stitch from the palette; nothing is assumed (PQW-1042)', async ({ page }) => {
+  await open(page);
+  await openGranny(page);
+
+  const add = page.locator('#granny-add');
+  await expect(add).toBeDisabled();
+  await expect(page.locator('#granny-stitch')).toHaveText('Válassz szemet a bal oldalon, abból készül az új kör.');
+
+  await page.locator('#board-irregular').focus();
+  await page.keyboard.press('Alt+3');
+  await expect(add).toBeEnabled();
+  await expect(page.locator('#granny-stitch')).toHaveText('Az új kör szeme: rp.');
+
+  await page.locator('#granny-count').fill('6');
+  await add.click();
+  await expect(page.locator('#granny-rounds li').nth(0)).toContainText('rp');
+});
+
+test('the stitches can be left upright instead of facing outwards (PQW-1042)', async ({ page }) => {
+  await open(page);
+  await openGranny(page);
+  await armDoubleCrochet(page);
+  await page.locator('#granny-count').fill('8');
+  await page.locator('#granny-add').click();
+
+  const radial = page.locator('#granny-radial');
+  await expect(radial).toBeChecked();
+  await expect.poll(async () => (await stored(page)).items.every((item) => item.rotation === 0)).toBe(false);
+
+  await radial.uncheck();
+  await expect.poll(async () => (await stored(page)).items.every((item) => item.rotation === 0)).toBe(true);
+
+  // A round added while it is off stays upright too.
+  await page.locator('#granny-count').fill('16');
+  await page.locator('#granny-add').click();
+  await expect.poll(async () => (await stored(page)).items.length).toBe(24);
+  await expect.poll(async () => (await stored(page)).items.every((item) => item.rotation === 0)).toBe(true);
+
+  await radial.check();
+  await expect.poll(async () => (await stored(page)).items.every((item) => item.rotation === 0)).toBe(false);
+});
+
 test('each round takes the count typed for it; the stitches keep one natural size', async ({ page }) => {
   await open(page);
   await openGranny(page);
+  await armDoubleCrochet(page);
 
   await page.locator('#granny-count').fill('8');
   await page.locator('#granny-add').click();
@@ -78,6 +127,7 @@ test('each round takes the count typed for it; the stitches keep one natural siz
 test('a round count can be changed afterwards, and the last round removed', async ({ page }) => {
   await open(page);
   await openGranny(page);
+  await armDoubleCrochet(page);
 
   await page.locator('#granny-count').fill('8');
   await page.locator('#granny-add').click();
@@ -119,6 +169,7 @@ test('a granny square saved with the grid on loses it, because the bands are its
 }) => {
   await open(page);
   await openGranny(page);
+  await armDoubleCrochet(page);
   await page.locator('#granny-count').fill('8');
   await page.locator('#granny-add').click();
 
