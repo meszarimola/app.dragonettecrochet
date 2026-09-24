@@ -23,8 +23,8 @@ test('the file actions dropdown from the keyboard: Tab to the button, Enter open
   await expect(filePop).toBeHidden();
   await expect(fileToggle).toHaveAttribute('aria-expanded', 'false');
 
-  // One Tab from the „Új minta” button reaches the file actions button: the two are neighbours (PQW-912).
-  await page.locator('[data-action="new"]').focus();
+  // One Tab from the „Új minta” menu button reaches the file actions button: the two are neighbours (PQW-912).
+  await page.locator('#types-toggle').focus();
   await page.keyboard.press('Tab');
   await expect(fileToggle).toBeFocused();
 

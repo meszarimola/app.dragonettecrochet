@@ -98,7 +98,9 @@ test('turning and a new pattern do not nag, but the live region stays (PQW-929)'
   await expect(alert, 'turning does not nag').toBeHidden();
   await expect(page.locator('#status'), 'but the live region does say it').toContainText('a munka megfordítva');
 
+  // „Új minta” is the type menu since PQW-1045; a type starts the pattern anew.
   await page.getByRole('button', { name: 'Új minta' }).click();
+  await page.locator('.type[data-type="regular"]').click();
   await expect(alert, 'a new pattern does not nag').toBeHidden();
   await expect(page.locator('#status'), 'the live region announces the start of the empty pattern').toContainText(
     'Üres minta',

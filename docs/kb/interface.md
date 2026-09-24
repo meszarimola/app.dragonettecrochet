@@ -1851,3 +1851,37 @@ menjen mint számláló”. The name keeps its room and the stitch count gives w
 instead, because the list is 285 px wide at its narrowest. „Új kör” is the one
 button of the bar that carries its name („legyen kicsit nagyobb és legyen kiírva,
 hogy mit csinál”); `.ib__label` shows only on `.ib.is-wide`.
+
+## §73 „Új” is the type menu, and a granny round's line is rebalanced
+
+PQW-1045.
+
+**One move to a new pattern.** „ha a felhasználó új file-t akar nyitni, akkor 2
+mozdulatot kell tegyen: új file és típusválasztás. ez hülyeség. az új legyen a
+dropdown és a típusokat nyissa le.” So the separate „Típusok” button is gone:
+`#types-toggle` is the „Új” button now, with the new-pattern icon, and picking a
+type runs `startType` — the type is switched, then that type's own „new” empties
+it. The owner chose this over keeping a second button for switching without
+emptying.
+
+Because the menu's intro says the work comes back, it has to: the free-form
+`newPattern()` commits the empty pattern instead of starting a fresh history, so
+undo restores what was there. The regular type's „new” already committed.
+`data-action="new"` no longer exists; the browser tests start a pattern the way
+the interface does.
+
+**The round's line.** The owner: „a számok kilógnak és a felfele-lefele gomb csak
+akkor látható ha fölé viszem az egeret”, and „egy kicsit több helyet kellene
+hagyni a jobb oldaltól … a bal oldalon sok a hely, jobbra meg összezsúfolódik”.
+The line is 267 px wide at the panel's own width, and it was 17 px short. Where
+the room came from, without taking a target under 44 px (§36):
+
+- the empty direction arrow is not built at all for a granny round (it has no
+  direction, §71), which frees its gap as well;
+- the eye and the lock keep their 44 px but overlap their neighbours by 3 px each
+  (`margin-inline: -3px`), so only their boxes give way, not their targets;
+- the counter is 3.25 rem, centred, and its stepper is always shown
+  (`::-webkit-inner-spin-button { opacity: 1 }`) rather than appearing on hover.
+
+Measured afterwards at the worst case — „24 szem” beside a grid count of 400 —
+nothing clips, and the counter keeps 22 px from the panel edge.

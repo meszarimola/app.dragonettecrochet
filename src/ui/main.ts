@@ -1727,7 +1727,7 @@ function renderTypes(): void {
       label.append(span('type__name', type.name));
       // The badge goes BELOW the name, inside the label box: beside it, it overlapped in a narrow bar.
       if (!type.available) label.append(span('type__badge', texts().sections.types.soon));
-      else button.addEventListener('click', () => selectType(type.id));
+      else button.addEventListener('click', () => startType(type.id));
       button.append(label);
 
       if (type.id !== 'regular') {
@@ -1877,6 +1877,7 @@ function setRegularMenuOpen(open: boolean): void {
 // KB: interface.md §68 — the granny square is drawn by hand, round by round, on the free-form canvas.
 function openGranny(): void {
   selectType('irregular');
+  // `newGranny` empties the pattern itself, so the plain „new” would only double it.
   ensureIrregular().newGranny();
   // KB: interface.md §72 — the grid count of the first round is the first thing to set.
   document.querySelector<HTMLInputElement>('#rows-list .rows__cells')?.focus();
@@ -1887,7 +1888,7 @@ function openRegularEntry(entry: RegularMenuEntry): void {
     openGranny();
     return;
   }
-  selectType('regular');
+  startType('regular');
   const target = must<HTMLDetailsElement>(entry.section);
   for (const section of regularTypeSections) {
     if (setupSheet.contains(section)) section.open = section === target;
@@ -1899,6 +1900,15 @@ function openRegularEntry(entry: RegularMenuEntry): void {
   field.dispatchEvent(new Event('change', { bubbles: true }));
   target.scrollIntoView({ block: 'start' });
   field.focus();
+}
+
+/**
+ * Choosing a type is how a new pattern is started (KB: interface.md §73): the
+ * type is switched first, then that type's own „new” empties it.
+ */
+function startType(id: PatternTypeId): void {
+  selectType(id);
+  ACTIONS['new']?.();
 }
 
 function selectType(id: PatternTypeId): void {

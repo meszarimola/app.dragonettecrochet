@@ -250,8 +250,9 @@ export class IrregularRowsPanel {
     pick.append(
       element('span', 'rows__number', words.rowName(index + 1, row.kind === 'round')),
       swatch,
-      // A granny round has no working direction to show: its cells are a grid (§71).
-      element('span', 'rows__arrow', row.cells === undefined ? ARROWS[row.direction] : ''),
+      // A granny round has no working direction to show: its cells are a grid (§71),
+      // and the line needs the room its arrow would take (§73).
+      ...(row.cells === undefined ? [element('span', 'rows__arrow', ARROWS[row.direction])] : []),
       element('span', 'rows__count', words.rowCount(rowCount(pattern, row.id))),
     );
     item.classList.toggle('is-active', row.id === pattern.activeRowId);

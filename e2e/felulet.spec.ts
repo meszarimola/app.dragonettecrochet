@@ -22,6 +22,35 @@ async function openSheet(page: Page): Promise<void> {
   }
 }
 
+test('the „Új” button is the type menu: one move to start a new pattern (PQW-1045)', async ({ page }) => {
+  await open(page);
+  // There is no second type button any more; „Új” opens the list.
+  await expect(page.locator('[data-action="new"]')).toHaveCount(0);
+  const newButton = page.locator('#types-toggle');
+  await expect(newButton).toContainText('Új');
+  await expect(page.locator('#types')).toBeHidden();
+  await newButton.click();
+  await expect(page.locator('#types')).toBeVisible();
+
+  // Lay a stitch down, then pick a type: the pattern starts empty, and undo brings the work back.
+  await page.locator('.type[data-type="irregular"]').click();
+  await page.locator('#board-irregular').focus();
+  await page.keyboard.press('Alt+5');
+  await page.locator('#board-irregular').click({ position: { x: 500, y: 300 } });
+  const firstRow = page.locator('#rows-list li').first();
+  await expect(firstRow).toContainText('1 szem');
+
+  await newButton.click();
+  await page.locator('.type[data-type="irregular"]').click();
+  await expect(page.locator('#status')).toContainText('Új szabálytalan minta indult.');
+  await expect(page.locator('#rows-empty'), 'the new pattern is empty').toBeVisible();
+
+  // The intro of the menu promises it, so it has to hold (PQW-1045).
+  await page.locator('#board-irregular').focus();
+  await page.keyboard.press('ControlOrMeta+Z');
+  await expect(firstRow).toContainText('1 szem');
+});
+
 test('pattern type: regular and irregular crochet are selectable, the rest are „hamarosan” and inactive (PQW-925, PQW-963)', async ({
   page,
 }) => {

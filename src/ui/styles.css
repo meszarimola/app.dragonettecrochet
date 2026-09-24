@@ -2623,16 +2623,22 @@ body.is-selecting #board-irregular {
 
 /* KB: interface.md §72 — in a granny square the round's own count sits in its line. */
 .rows__cells {
+  flex: 0 0 auto;
   inline-size: 3.25rem;
   min-block-size: 32px;
-  padding: 0.15rem 0.35rem;
+  padding: 0.15rem 0.2rem;
   border: 1px solid var(--c-line);
   border-radius: var(--radius-sm);
   background: var(--c-bg);
   color: var(--c-ink);
   font: inherit;
   font-size: 0.875rem;
-  text-align: end;
+  text-align: center;
+}
+
+/* KB: interface.md §73 — the stepper is part of the field, not a hover surprise. */
+.rows__cells::-webkit-inner-spin-button {
+  opacity: 1;
 }
 
 /* The one button that says what it does; the rest of the bar stays icons. */
@@ -2655,14 +2661,31 @@ body.is-selecting #board-irregular {
   white-space: nowrap;
 }
 
-/* The round's name keeps its room; the counter and the stitch count share the rest. */
+/*
+ * KB: interface.md §73 — a granny round's line is read left to right: what it is,
+ * then how full it is, then its grid count, which keeps its distance from the
+ * panel edge. The eye and the lock stay 44 px wide (§36).
+ */
+.rows__row:has(.rows__cells) {
+  gap: 0.25rem;
+  padding-inline-end: var(--sp-0);
+}
+
+/*
+ * The eye and the lock stay 44 px targets (§36); only their boxes overlap their
+ * neighbours, so the line wins back the room the counter needs.
+ */
+.rows__row:has(.rows__cells) .rows__toggle {
+  margin-inline: -3px;
+}
+
 .rows__row:has(.rows__cells) .rows__number {
   flex: 0 0 auto;
 }
 
 .rows__row:has(.rows__cells) .rows__pick {
-  gap: 0.35rem;
-  padding-inline: 0.35rem;
+  gap: 0.4rem;
+  padding-inline: 0.25rem;
 }
 
 .rows__row:has(.rows__cells) .rows__count {

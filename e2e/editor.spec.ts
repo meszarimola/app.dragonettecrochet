@@ -147,7 +147,9 @@ test('the pattern survives a reload, and can be loaded back as JSON', async ({ p
   const json = await readFile((await download.path())!, 'utf8');
   expect(JSON.parse(json).formatVersion).toBe(1);
 
+  // „Új minta” is the type menu since PQW-1045; the type starts the pattern anew.
   await page.getByRole('button', { name: 'Új minta' }).click();
+  await page.locator('.type[data-type="regular"]').click();
   await expect(page.locator('#summary')).toContainText('Üres minta');
 
   await page

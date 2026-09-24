@@ -41,6 +41,12 @@ async function writtenText(page: Page): Promise<string> {
   return (await page.locator('#written-text').textContent()) ?? '';
 }
 
+/** PQW-1045: a new pattern is started from the „Új” menu, by picking a type. */
+async function newRegular(page: Page): Promise<void> {
+  await page.locator('#types-toggle').click();
+  await page.locator('.type[data-type="regular"]').click();
+}
+
 test('flat circle in single crochet: estimated increases, error-free rounds, the sequence of rounds follows the knowledge base', async ({
   page,
 }) => {
@@ -81,7 +87,7 @@ test('granny square with a chain ring, and the K key closes a chain ring from th
   expect(text).toMatch(/3\. kör: .*\(52\)\. Kör zárása: 1 ksz a kezdőlánc tetejébe\./);
 
   // New pattern, 6 chain stitches, K: chain ring. The number of chain stitches is visible once the chain stitch is selected.
-  await page.locator('[data-action="new"]').click();
+  await newRegular(page);
   await page.locator('#board').focus();
   await page.keyboard.press('Alt+1');
   await page.locator('#chain-count').fill('6');

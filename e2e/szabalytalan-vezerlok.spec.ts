@@ -128,7 +128,12 @@ test('the adjust box leaves with the regular editor, and its buttons stop writin
   await press(page, '#adjust [data-action="unpin"]');
   expect(await saved(page)).toBe(before);
 
+  // Back in the regular type the box is there again. Picking a type starts it anew
+  // since PQW-1045, so the nudged circle comes back with one undo.
   await chooseRegular(page);
+  await page.locator('#board').focus();
+  await page.keyboard.press('ControlOrMeta+Z');
+  await selectLastSymbol(page);
   await expect(page.locator('#adjust')).toBeVisible();
   await expect(page.locator('#adjust-name')).toContainText('kézzel igazítva');
 });
@@ -150,8 +155,7 @@ test('the shared palette does not crochet into the hidden pattern from the chain
   await expect(page.locator('#count-field')).toBeVisible();
   await page.locator('#chain-count').fill('5');
   await page.locator('#chain-count').press('Enter');
-  expect(await saved(page)).toBe(before);
-
-  await chooseRegular(page);
+  // Its own store is the proof: switching back would start the regular type anew
+  // since PQW-1045, so it could say nothing about what the keystroke did.
   expect(await saved(page)).toBe(before);
 });

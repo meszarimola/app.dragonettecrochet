@@ -22,7 +22,6 @@
   {"id":"","tag":"button","type":"button","attr":"data-action","value":"fit"},
   {"id":"","tag":"button","type":"button","attr":"data-action","value":"grid"},
   {"id":"","tag":"button","type":"button","attr":"data-action","value":"import-json"},
-  {"id":"","tag":"button","type":"button","attr":"data-action","value":"new"},
   {"id":"","tag":"button","type":"button","attr":"data-action","value":"note-arrow"},
   {"id":"","tag":"button","type":"button","attr":"data-action","value":"note-bracket"},
   {"id":"","tag":"button","type":"button","attr":"data-action","value":"note-text"},
