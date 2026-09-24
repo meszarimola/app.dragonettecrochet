@@ -16,7 +16,9 @@ async function start(page: Page): Promise<void> {
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
+  // „Új minta” is the type menu since PQW-1045; the type starts the pattern anew.
   await page.getByRole('button', { name: 'Új minta' }).click();
+  await page.locator('.type[data-type="regular"]').click();
 }
 
 /** The button of the stitch palette; it only clicks when nothing is selected yet (the button toggles). */

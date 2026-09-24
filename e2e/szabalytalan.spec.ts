@@ -84,7 +84,7 @@ test('selecting, duplicating and undo (AS-15, AS-19)', async ({ page }) => {
   await expect(page.locator('#status')).toContainText('3 szem kijelölve');
 });
 
-test('the drawing survives a reload, and switching types keeps both patterns (AS-1)', async ({ page }) => {
+test('the drawing survives a reload; picking a type starts that type anew (AS-1, PQW-1045)', async ({ page }) => {
   await open(page);
 
   // A regular pattern first: a foundation chain of three.
@@ -100,14 +100,22 @@ test('the drawing survives a reload, and switching types keeps both patterns (AS
   for (const x of [500, 560]) await place(page, x, 300);
   await expect(page.locator('#status')).toContainText('2 szem');
 
+  // „Új” is the type menu since PQW-1045: a choice empties that type, and undo brings it back.
   await page.locator('#types-toggle').click();
   await page.getByRole('button', { name: /Szabályos horgolás/ }).click();
+  await expect(page.locator('#summary')).not.toHaveText(regularBefore ?? '');
+  await page.locator('#board').focus();
+  await page.keyboard.press('ControlOrMeta+Z');
   await expect(page.locator('#summary')).toHaveText(regularBefore ?? '');
 
   await page.reload();
   const denyAgain = page.getByRole('button', { name: 'Elutasítom' });
   if (await denyAgain.isVisible()) await denyAgain.click();
+  // The drawing is still in the store after the reload: picking the type empties it,
+  // and one undo brings it back, as the „Új” menu promises (PQW-1045).
   await chooseIrregular(page);
+  await page.locator(board).focus();
+  await page.keyboard.press('ControlOrMeta+Z');
   await expect(page.locator('#props-count')).toContainText('Nincs kijelölt szem');
   await page.locator(board).focus();
   await page.keyboard.press('ControlOrMeta+A');
@@ -131,7 +139,7 @@ test('the JSON round trip keeps the free-form chart (AS-12)', async ({ page }) =
   expect(parsed.items).toHaveLength(3);
 
   // An empty pattern says nothing about a selection, so the note is blank.
-  await page.getByRole('button', { name: 'Új minta' }).click();
+  await chooseIrregular(page);
   await page.locator(board).focus();
   await page.keyboard.press('ControlOrMeta+A');
   await expect(page.locator('#props-count')).toHaveText('');
@@ -158,7 +166,8 @@ test('keys that belong to rows never reach the regular pattern hiding behind thi
   await page.locator('#board').focus();
   await page.keyboard.press('Enter');
   await page.keyboard.press('Enter');
-  const before = await page.locator('#summary').textContent();
+  const stored = () => page.evaluate(() => localStorage.getItem('dc-mintatervezo:minta'));
+  const before = await stored();
 
   await chooseIrregular(page);
   await page.locator(board).focus();
@@ -171,9 +180,9 @@ test('keys that belong to rows never reach the regular pattern hiding behind thi
   await page.keyboard.press('Delete');
   await page.keyboard.press('Backspace');
 
-  await page.locator('#types-toggle').click();
-  await page.getByRole('button', { name: /Szabályos horgolás/ }).click();
-  await expect(page.locator('#summary')).toHaveText(before ?? '');
+  // Picking a type starts a new pattern now (PQW-1045), so what the regular type kept
+  // is read from its own store instead of by switching back to it.
+  expect(await stored(), 'the regular pattern is untouched').toBe(before);
 });
 
 test('rows and rounds: a second row and its own colour (AS-16)', async ({ page }) => {

@@ -228,8 +228,11 @@ test('a granny square from v0.67-v0.69 keeps its stitches and takes its counts a
     localStorage.setItem(key, JSON.stringify(raw));
   });
   await page.reload();
+  // Picking a type starts it anew since PQW-1045; one undo brings the converted square back.
   await page.locator('#types-toggle').click();
   await page.locator('.type[data-type="irregular"]').click();
+  await page.locator('#board-irregular').focus();
+  await page.keyboard.press('ControlOrMeta+Z');
 
   // The migration happens as the pattern is read, so the panel is what shows it;
   // the store keeps the old shape until the next edit.

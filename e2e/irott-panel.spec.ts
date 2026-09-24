@@ -30,6 +30,12 @@ async function open(page: Page, stored: 'nyitva' | 'zarva' | null): Promise<void
   if (await deny.isVisible()) await deny.click();
 }
 
+/** PQW-1045: a new pattern is started from the „Új” menu, by picking a type. */
+async function newRegular(page: Page): Promise<void> {
+  await page.locator('#types-toggle').click();
+  await page.locator('.type[data-type="regular"]').click();
+}
+
 test('the panel opened by hand is closed by „Új minta” (PQW-915)', async ({ page }) => {
   await open(page, null);
 
@@ -40,7 +46,7 @@ test('the panel opened by hand is closed by „Új minta” (PQW-915)', async ({
   await page.locator('#written-toggle').click();
   await expect(written).toBeVisible();
 
-  await page.locator('[data-action="new"]').click();
+  await newRegular(page);
   await expect(written, 'the new pattern is empty: the panel must be closed').toBeHidden();
   await expect(page.locator('#written-toggle')).toHaveAttribute('aria-expanded', 'false');
 });

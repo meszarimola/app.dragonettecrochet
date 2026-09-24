@@ -112,30 +112,21 @@
 
         <div class="tools">
           <div class="tools__chrome">
-            <div class="tools__group" role="group" aria-label="Nézet és panelek" data-i18n-label="toolGroupPanels">
+            <div class="tools__group" role="group" aria-label="Fájl" data-i18n-label="toolGroupFile">
               <div class="menu">
-                <button type="button" class="tool" id="types-toggle" aria-expanded="false" aria-controls="types" aria-label="Mintatípus" data-tip="Mintatípus választása" data-i18n-label="toolTypesLabel" data-i18n-tip="toolTypesTip">
+                <button type="button" class="tool" id="types-toggle" aria-expanded="false" aria-controls="types" aria-label="Új minta" data-tip="Új minta: válassz típust" data-i18n-label="toolNewLabel" data-i18n-tip="toolNewTip">
                   <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                    <path d="M5 7.5 10 12.5l5-5" />
+                    <path d="M5 2.75h6l4 4V17a.5.5 0 0 1-.5.5h-9A.5.5 0 0 1 5 17z" />
+                    <path d="M11 2.75V7h4" />
+                    <path d="M10 10v4M8 12h4" />
                   </svg>
-                  <span class="tool__label" data-i18n="toolLabelTypes">Típusok</span>
+                  <span class="tool__label" data-i18n="toolLabelNew">Új</span>
                 </button>
-                <nav class="menu__pop types" id="types" aria-label="Mintatípus" data-i18n-label="typesNavLabel" hidden>
-                  <p class="types__intro" data-i18n="typesIntro">A típus adja a kezdést és a körzárás alapértelmezését.</p>
+                <nav class="menu__pop types" id="types" aria-label="Új minta" data-i18n-label="typesNavLabel" hidden>
+                  <p class="types__intro" data-i18n="typesIntro">Válassz típust: üres mintát kezd. A mostani munka visszavonással visszajön.</p>
                   <ul class="types__list" id="types-list"></ul>
                 </nav>
               </div>
-            </div>
-
-            <div class="tools__group" role="group" aria-label="Fájl" data-i18n-label="toolGroupFile">
-              <button type="button" class="tool" data-action="new" aria-label="Új minta" data-tip="Új minta" data-i18n-label="toolNewLabel" data-i18n-tip="toolNewTip">
-                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                  <path d="M5 2.75h6l4 4V17a.5.5 0 0 1-.5.5h-9A.5.5 0 0 1 5 17z" />
-                  <path d="M11 2.75V7h4" />
-                  <path d="M10 10v4M8 12h4" />
-                </svg>
-                <span class="tool__label" data-i18n="toolLabelNew">Új</span>
-              </button>
               <div class="menu">
                 <button type="button" class="tool" id="file-toggle" aria-expanded="false" aria-controls="file-pop" aria-label="Fájlműveletek" data-tip="Mentés, betöltés, exportálás és háttérkép" data-i18n-label="toolFileMenuLabel" data-i18n-tip="toolFileMenuTip">
                   <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3 5.5h5l1.5 2H17v7.5H3z" /></svg>
