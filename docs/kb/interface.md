@@ -1706,3 +1706,22 @@ dictionary — „Forma: Téglalap”, „Forma: Egyenlő szárú háromszög”
 Félkör”, „Kör és motívum” — so nothing is invented. A choice opens the sheet on
 that section, sets its shape select and fires `change` so the panel redraws, and
 focuses the select.
+
+## §67 The granny square is drawn on choice, and shows only its own fields
+
+PQW-1039. The owner chose the granny square from the §66 menu and got a form:
+„fogalmam nincs, hogy mi ez, és mit kellene vele csinálni”. Nothing was on the
+canvas, „Minta létrehozása” sat below the fold, and half the fields were greyed
+out because they do not apply to a granny square.
+
+**Drawn at once.** The „Nagymama-négyzet” entry of the side menu clicks
+`#rounds-create` after setting the shape, so the square (6 rounds, magic ring by
+default) is on the canvas straight away and the form is there to change it. Only
+this entry does so; the owner asked for it on the granny square alone. Undo brings
+back the earlier pattern, as with any generator.
+
+**Its own fields only.** With the granny square selected, `RoundsPanel` hides
+„Szem”, „Kör vége” with its note, „Eltolt szaporítás” and „Lépcsőjavítás
+spirálban” instead of disabling them. Left: „Kezdés”, „Körök száma”,
+„Színváltás” and „Bordás perem”. The other shapes keep the §9-era behaviour, a
+disabled field where it does not apply.
