@@ -45,6 +45,37 @@ test('pattern type: regular and irregular crochet are selectable, the rest are �
   }
 });
 
+test('the regular type opens its subcategories from the type menu, and one opens its section in the sheet (PQW-1037)', async ({
+  page,
+}) => {
+  await open(page);
+  await page.locator('#types-toggle').click();
+  await page.locator('.type[data-type="irregular"]').click();
+  await expect(page.locator('#board-irregular')).toBeVisible();
+
+  await page.locator('#types-toggle').click();
+  const more = page.getByRole('button', { name: 'Alkategóriák' });
+  await expect(more).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#types-regular-sub')).toBeHidden();
+  await more.click();
+  await expect(more).toHaveAttribute('aria-expanded', 'true');
+  const sub = page.locator('#types-regular-sub');
+  await expect(sub.getByRole('button')).toHaveText(['Forma', 'Kendő', 'Ruhadarab', 'Kör és motívum']);
+
+  await sub.getByRole('button', { name: 'Kör és motívum' }).click();
+  await expect(page.locator('#types')).toBeHidden();
+  await expect(page.locator('#board-irregular')).toBeHidden();
+  await expect(page.locator('#setup')).toBeVisible();
+  await expect(page.locator('#section-rounds')).toHaveAttribute('open', '');
+  await expect(page.locator('#section-shape')).not.toHaveAttribute('open', '');
+  await expect(page.locator('#section-rounds summary')).toBeFocused();
+
+  await page.locator('#types-toggle').click();
+  await page.locator('#types-regular-sub').getByRole('button', { name: 'Forma' }).click();
+  await expect(page.locator('#section-shape')).toHaveAttribute('open', '');
+  await expect(page.locator('#section-rounds')).not.toHaveAttribute('open', '');
+});
+
 test('the sections of the switched-off crochet kinds are not visible in the panel (PQW-925)', async ({ page }) => {
   await open(page);
 

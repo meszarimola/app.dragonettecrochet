@@ -176,8 +176,8 @@ const typeCards = (page: Page) =>
     const box = list.getBoundingClientRect();
     return {
       scrolls: list.scrollHeight > list.clientHeight,
-      cards: [...list.querySelectorAll('li')].map((item) => {
-        const rect = (item.querySelector('button') ?? item).getBoundingClientRect();
+      cards: [...list.querySelectorAll(':scope > li')].map((item) => {
+        const rect = (item.querySelector('.type') ?? item).getBoundingClientRect();
         return { height: rect.height, out: rect.top < box.top - 0.5 || rect.bottom > box.bottom + 0.5 };
       }),
     };

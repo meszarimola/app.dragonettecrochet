@@ -1664,3 +1664,22 @@ együtt”, and a pointer next to „Terület” for Ctrl/⌘-click selection.
   Shift + click adds or removes one, and a drag on empty ground draws no
   rectangle. „Terület” keeps the rectangle. Both lay a drawing tool down. The
   pointer is the default; either one's frame resizes at its corners.
+
+## §65 The regular type lists its subcategories in the type menu
+
+PQW-1037. The owner could not find the granny square: the motifs sit in the
+„Kör és motívum” section of the make-a-pattern sheet, which opens from the file
+menu, and only in the regular type. Three hops, none of them labelled with what
+the user was looking for. The owner's verdict: „egy cseppet sem intuitív”.
+
+A „>” button (`.type__more`, „Alkategóriák”) sits beside the „Szabályos
+horgolás” card and folds a list open below it: Forma, Kendő, Ruhadarab, Kör és
+motívum — the sheet's sections, under their own titles, so no new names. A
+choice switches to the regular type, opens the sheet, opens that section and
+closes the other sheet sections, then scrolls to it and focuses its summary.
+
+The toggle's name must not contain „Szabályos horgolás”: the specs find the card
+with `getByRole('button', { name: /Szabályos horgolás/ })`, and a second match
+would fail them in strict mode. The fold state lives only for the page's life;
+it is not worth a storage key. The owner first asked for a separate top-bar menu
+that appears only in the regular type, then withdrew it for this submenu.
