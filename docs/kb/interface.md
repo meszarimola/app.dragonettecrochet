@@ -1742,8 +1742,8 @@ második körbe”.
   stitches all come from code that exists. „Szabályos horgolás › Nagymama-négyzet”
   switches to the free-form type and calls `newGranny()`. That is a commit, not a
   new history, so undo brings back the work it replaced. The pattern carries
-  `motif: 'granny-square'`, its first row is a clockwise round, and the square grid
-  is on.
+  `motif: 'granny-square'`, and its first row is a clockwise round. The square grid
+  stays off: the background is the round bands of §69.
 - **The panel.** `#section-granny` replaces the rows and layers tabs while
   `grannyMode` holds (`syncGrannyView` in `main.ts`, run from `refreshControls`).
   One line per round: its name, its count as a field you can change, and its
@@ -1757,3 +1757,13 @@ második körbe”.
   that listed these as open questions.
 
 The geometry is `core-geometry.md` §55.
+
+## §69 The granny square draws the round bands, not the square grid
+
+PQW-1041, correcting §68. „Az alaprajz nem rossz” meant the round generator's
+background, and PQW-1040 read it as the layout and switched the square grid on.
+`newGranny()` leaves the grid off. The editor passes `granny` bands to the board
+(`#grannyBands`), which fills them in alternating tones right above the tracing
+photo and below the stitches, strokes the cell dividers in `--c-grid` and each
+band's outline in `--c-grid-row`. The bands are canvas-only. They are not in the
+PNG, SVG or PDF export yet. Geometry: `core-geometry.md` §56.

@@ -38,7 +38,7 @@ import {
   updateNotes,
   withIrregularNotation,
 } from '../core/irregular-document.ts';
-import { grannyOuter } from '../core/irregular-granny.ts';
+import { type GrannyBand, grannyBand, grannyOuter } from '../core/irregular-granny.ts';
 import {
   addChainArc,
   addFan,
@@ -689,7 +689,6 @@ export class IrregularEditor {
         title: texts().irregular.grannyTitle,
         motif: 'granny-square',
         rows: empty.rows.map((row) => ({ ...row, kind: 'round', direction: 'cw' })),
-        guides: { ...empty.guides, grid: { ...empty.guides.grid, visible: true } },
       },
       texts().irregular.grannyStarted,
     );
@@ -757,6 +756,14 @@ export class IrregularEditor {
     const custom = keyEntry(pattern, keyEntryId)?.customName ?? null;
     const abbr = custom === null ? findStitch(keyEntryId)?.terms[terms].abbr : null;
     return abbr ?? entryName(pattern, keyEntryId, terms);
+  }
+
+  /** The round generator's background under a granny square, one cell per stitch. KB: interface.md §69 */
+  #grannyBands(pattern: IrregularPattern): GrannyBand[] {
+    if (pattern.motif !== 'granny-square') return [];
+    return grannyRounds(pattern).map((round, index) =>
+      grannyBand(round, this.#grannyGlyph(round.keyEntryId), index % 2 === 0 ? 0 : 1),
+    );
   }
 
   /** A granny round keeps each stitch at its natural size. */
@@ -1762,6 +1769,7 @@ export class IrregularEditor {
       arc: this.#grippedGroup(),
       arcPreview: this.#drawingPreview(),
       rowLine: this.#activeRowLine(),
+      granny: this.#grannyBands(pattern),
       background: this.#backgroundView(),
     });
     this.#panel.update(itemsOf(pattern, this.#selection), this.#preferences.rectPartial, pattern.items.length);

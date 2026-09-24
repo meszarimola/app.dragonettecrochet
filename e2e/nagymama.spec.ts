@@ -43,7 +43,8 @@ test('a new granny square is a blank canvas with the rounds panel, not rows and 
   await expect(page.locator('#section-size')).toBeHidden();
   await expect(page.locator('#section-notation')).toBeHidden();
   await expect(page.locator('#section-pattern')).toBeHidden();
-  await expect(page.locator('[data-action="grid"]')).toHaveAttribute('aria-pressed', 'true');
+  // PQW-1041: the round bands are the background, not the square grid.
+  await expect(page.locator('[data-action="grid"]')).toHaveAttribute('aria-pressed', 'false');
 
   const pattern = await stored(page);
   expect(pattern.motif).toBe('granny-square');

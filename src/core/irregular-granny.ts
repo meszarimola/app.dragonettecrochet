@@ -69,3 +69,54 @@ export function grannyShapes(
 export function grannyOuter(group: Pick<GrannyRoundGroup, 'inner'>, glyph: GlyphSize): number {
   return Math.max(0, finite(group.inner, 0)) + Math.max(0, finite(glyph.height, 0));
 }
+
+/**
+ * The background of one round, as the round generator's chart drew it: a square
+ * band between the round's base and its top, and one cell per stitch, split by
+ * a line halfway between two stitches. KB: core-geometry §56
+ */
+export interface GrannyBand {
+  readonly tone: 0 | 1;
+  readonly outer: readonly Point[];
+  /** Absent for the first round, whose band reaches the centre. */
+  readonly inner: readonly Point[] | null;
+  readonly dividers: readonly (readonly [Point, Point])[];
+}
+
+function squareCorners(center: Point, half: number): Point[] {
+  return [
+    { x: center.x - half, y: center.y - half },
+    { x: center.x + half, y: center.y - half },
+    { x: center.x + half, y: center.y + half },
+    { x: center.x - half, y: center.y + half },
+  ];
+}
+
+export function grannyBand(
+  group: Pick<GrannyRoundGroup, 'center' | 'inner' | 'count'>,
+  glyph: GlyphSize,
+  tone: 0 | 1,
+): GrannyBand {
+  const center = { x: finite(group.center.x, 0), y: finite(group.center.y, 0) };
+  const inner = Math.max(0, finite(group.inner, 0));
+  const outer = grannyOuter(group, glyph);
+  const count = memberCount(group.count);
+  const on = (half: number, share: number): Point => {
+    if (half <= 0) return center;
+    const stop = squareStop(half, share * 8 * half);
+    return { x: center.x + stop.at.x, y: center.y + stop.at.y };
+  };
+  const dividers: (readonly [Point, Point])[] =
+    count < 2
+      ? []
+      : Array.from({ length: count }, (_, index) => {
+          const share = (index + 0.5) / count;
+          return [on(inner, share), on(outer, share)] as const;
+        });
+  return {
+    tone,
+    outer: squareCorners(center, outer),
+    inner: inner > 0 ? squareCorners(center, inner) : null,
+    dividers,
+  };
+}
