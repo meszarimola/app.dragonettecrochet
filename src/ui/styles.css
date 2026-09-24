@@ -1627,27 +1627,26 @@ body.is-selecting #board-irregular {
   opacity: 0.6;
 }
 
-/* KB: interface.md §65 — the regular card and its „>” share a row; the list opens below them. */
-.type__row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.35rem;
+/* KB: interface.md §66 — the „›” sits inside the regular card; its menu opens beside the type menu. */
+.type__item {
+  position: relative;
+}
+
+.type__item > .type {
+  padding-inline-end: 44px;
 }
 
 .type__more {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
   display: inline-grid;
   place-items: center;
-  min-inline-size: 44px;
-  min-block-size: 44px;
+  inline-size: 44px;
   padding: 0;
-  border: 1px solid var(--c-line);
-  border-radius: var(--radius-lg);
+  border: 0;
   background: transparent;
   color: var(--c-accent);
-}
-
-.type__more:hover {
-  border-color: var(--c-accent);
 }
 
 .type__more svg {
@@ -1660,40 +1659,50 @@ body.is-selecting #board-irregular {
   stroke-linejoin: round;
 }
 
-.type__more[aria-expanded="true"] svg {
-  transform: rotate(90deg);
-}
-
-.types__sub {
+.flyout {
+  position: fixed;
+  z-index: 21;
   display: grid;
-  gap: 0.35rem;
-  margin: 0.35rem 0 0;
-  padding: 0 0 0 2.4rem;
+  min-inline-size: 15rem;
+  max-inline-size: calc(100vw - 1rem);
+  margin: 0;
+  padding: var(--sp-0);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-lg);
+  background: var(--c-bg);
+  box-shadow: var(--shadow-1);
   list-style: none;
 }
 
-.types__sub[hidden] {
+.flyout[hidden] {
   display: none;
 }
 
-.subtype {
+.flyout__item {
+  display: grid;
+  gap: 0.1rem;
   inline-size: 100%;
   min-block-size: 44px;
   padding: var(--sp-0) var(--sp-2);
-  border: 1px solid var(--c-line);
-  border-radius: var(--radius-lg);
+  border: 0;
+  border-radius: var(--radius-md);
   background: transparent;
-  color: var(--c-ink);
-  font-size: 0.875rem;
   text-align: start;
 }
 
-.subtype:hover {
-  border-color: var(--c-accent);
+.flyout__item:hover,
+.flyout__item:focus-visible {
+  background: var(--c-selection);
 }
 
-.subtype:active {
-  background: var(--c-selection);
+.flyout__name {
+  color: var(--c-ink);
+  font-size: 0.9375rem;
+}
+
+.flyout__detail {
+  color: var(--c-text-soft);
+  font-size: 0.75rem;
 }
 
 .type__icon {

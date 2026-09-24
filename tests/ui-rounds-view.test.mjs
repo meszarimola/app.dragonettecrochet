@@ -40,12 +40,12 @@ describe('choices', () => {
   test('shape, stitch, start, round closing and jog fix all offer Hungarian labels', () => {
     assert.deepEqual(
       SHAPE_CHOICES.map((choice) => choice.label),
-      ['Lapos kör', 'Négyzet', 'Hatszög', 'Nyolcszög', 'Nagymama-négyzet — Hamarosan'],
+      ['Lapos kör', 'Négyzet', 'Hatszög', 'Nyolcszög', 'Nagymama-négyzet'],
     );
-    // PQW-925: the granny square stays visible but unselectable until the first UAT round.
+    // PQW-1038: the granny square is selectable again.
     assert.deepEqual(
       SHAPE_CHOICES.filter((choice) => choice.soon).map((choice) => choice.value),
-      ['granny-square'],
+      [],
     );
     assert.deepEqual(
       STITCH_CHOICES.map((choice) => choice.label),
