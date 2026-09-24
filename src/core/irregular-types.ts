@@ -219,7 +219,25 @@ export interface FanGroup {
 
 export type FanMode = 'spread' | 'converge';
 
-export type IrregularGroup = ChainArcGroup | FanGroup;
+/**
+ * One round of a granny square: `count` stitches spread evenly round a square
+ * about `center`, their bases on the square of half-side `inner` and their tops
+ * one natural stitch height further out. The first stitch sits on the top-left
+ * corner and the run goes clockwise. KB: core-geometry §55
+ */
+export interface GrannyRoundGroup {
+  readonly id: string;
+  readonly kind: 'grannyRound';
+  readonly rowId: string;
+  readonly layerId: string;
+  readonly keyEntryId: string;
+  readonly center: Point;
+  readonly inner: number;
+  readonly count: number;
+  readonly memberIds: readonly string[];
+}
+
+export type IrregularGroup = ChainArcGroup | FanGroup | GrannyRoundGroup;
 
 /** Where one member of a group sits and how big it is drawn. */
 export interface MemberShape {
@@ -281,6 +299,8 @@ export interface IrregularPattern {
   readonly stitchKey?: readonly StitchKeyEntry[];
   readonly legend?: LegendBlock;
   readonly background?: BackgroundImage;
+  /** Set when the pattern is built round by round as a granny square. KB: interface.md §68 */
+  readonly motif?: 'granny-square';
 }
 
 /** Abstract canvas units: at 100% zoom one unit is one CSS pixel. */
@@ -311,6 +331,9 @@ export const FAN_COUNT_RANGE = { min: 2, max: 200 } as const;
 export const DEFAULT_FAN_SPREAD = 120;
 export const FAN_SPREAD_RANGE = { min: 5, max: 350 } as const;
 export const FAN_LENGTH_RANGE = { min: 4, max: 2000 } as const;
+export const DEFAULT_GRANNY_COUNT = 8;
+export const GRANNY_COUNT_RANGE = { min: 1, max: 400 } as const;
+export const GRANNY_INNER_RANGE = { min: 0, max: 100_000 } as const;
 /** How far a point may stand off a shape and still count as lying on it. */
 export const FIT_TOLERANCE = 6;
 export const NUDGE_STEP = 1;

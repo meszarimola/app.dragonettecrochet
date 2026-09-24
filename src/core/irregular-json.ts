@@ -11,6 +11,8 @@ import {
   FAN_SPREAD_RANGE,
   type FanMode,
   FONT_SIZE_RANGE,
+  GRANNY_COUNT_RANGE,
+  GRANNY_INNER_RANGE,
   IRREGULAR_FORMAT_VERSION,
   type IrregularGroup,
   type IrregularGuides,
@@ -230,7 +232,7 @@ function readIrregular(value: unknown, path: string): IrregularPattern {
     value,
     path,
     ['formatVersion', 'type', 'title', 'rows', 'layers', 'items', 'activeRowId', 'activeLayerId', 'guides'],
-    ['titleGenerated', 'notation', 'stitchKey', 'legend', 'groups', 'background'],
+    ['titleGenerated', 'notation', 'stitchKey', 'legend', 'groups', 'background', 'motif'],
   );
   const rows = array(raw['rows'], `${path}.rows`, readRow);
   if (rows.length === 0) throw new FormatError(`${path}.rows`, 'expected-nonempty-array');
@@ -287,6 +289,7 @@ function readIrregular(value: unknown, path: string): IrregularPattern {
     ...(raw['stitchKey'] === undefined ? {} : { stitchKey: readStitchKey(raw['stitchKey'], `${path}.stitchKey`) }),
     ...(raw['legend'] === undefined ? {} : { legend: readLegend(raw['legend'], `${path}.legend`) }),
     ...(raw['background'] === undefined ? {} : { background: readBackground(raw['background'], `${path}.background`) }),
+    ...(raw['motif'] === undefined ? {} : { motif: oneOf(raw['motif'], `${path}.motif`, ['granny-square'] as const) }),
   };
 }
 
@@ -561,7 +564,7 @@ function readGroup(
 ): IrregularGroup {
   if (!isObject(value)) throw new FormatError(path, 'expected-object');
   const kind = oneOf(value['kind'], `${path}.kind`, GROUP_KINDS);
-  const shared = kind === 'fan' ? FAN_FIELDS : ARC_FIELDS;
+  const shared = kind === 'fan' ? FAN_FIELDS : kind === 'grannyRound' ? GRANNY_FIELDS : ARC_FIELDS;
   const raw = object(value, path, shared);
   const rowId = string(raw['rowId'], `${path}.rowId`);
   if (!rowIds.has(rowId)) throw new FormatError(`${path}.rowId`, 'unknown-row');
@@ -572,7 +575,8 @@ function readGroup(
     if (!itemIds.has(id)) throw new FormatError(where, 'unknown-item');
     return id;
   });
-  const count = whole(raw['count'], `${path}.count`, kind === 'fan' ? FAN_COUNT_RANGE : ARC_COUNT_RANGE);
+  const range = kind === 'fan' ? FAN_COUNT_RANGE : kind === 'grannyRound' ? GRANNY_COUNT_RANGE : ARC_COUNT_RANGE;
+  const count = whole(raw['count'], `${path}.count`, range);
   if (count !== memberIds.length) throw new FormatError(`${path}.count`, 'group-count-mismatch');
   const common = {
     id: string(raw['id'], `${path}.id`),
@@ -593,6 +597,10 @@ function readGroup(
       length: ranged(positive(raw['length'], `${path}.length`), `${path}.length`, FAN_LENGTH_RANGE),
     };
   }
+  if (kind === 'grannyRound') {
+    const inner = ranged(finite(raw['inner'], `${path}.inner`), `${path}.inner`, GRANNY_INNER_RANGE);
+    return { ...common, kind, center: readPoint(raw['center'], `${path}.center`), inner };
+  }
   return {
     ...common,
     kind,
@@ -603,7 +611,8 @@ function readGroup(
   };
 }
 
-const GROUP_KINDS: readonly IrregularGroup['kind'][] = ['chainArc', 'fan'];
+const GROUP_KINDS: readonly IrregularGroup['kind'][] = ['chainArc', 'fan', 'grannyRound'];
+const GRANNY_FIELDS = ['id', 'kind', 'rowId', 'layerId', 'keyEntryId', 'center', 'inner', 'count', 'memberIds'];
 const FAN_MODES: readonly FanMode[] = ['spread', 'converge'];
 const ARC_FIELDS = [
   'id',

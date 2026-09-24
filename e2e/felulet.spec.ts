@@ -63,31 +63,16 @@ test('the regular type opens a side menu of shapes, and a choice opens its gener
     'Forma: Téglalap',
     'Forma: Egyenlő szárú háromszög',
     'Kendő: Félkör',
-    'Kör és motívum',
+    'Üres vászon, körönként',
   ]);
 
-  await page.getByRole('menuitem', { name: /Nagymama-négyzet/ }).click();
+  await page.getByRole('menuitem', { name: /Félkör/ }).click();
   await expect(page.locator('#types')).toBeHidden();
   await expect(page.locator('#board-irregular')).toBeHidden();
   await expect(page.locator('#setup')).toBeVisible();
-  await expect(page.locator('#section-rounds')).toHaveAttribute('open', '');
-  await expect(page.locator('#section-shape')).not.toHaveAttribute('open', '');
-  await expect(page.locator('#rounds-shape')).toHaveValue('granny-square');
-  await expect(page.locator('#rounds-shape')).toBeFocused();
-  // PQW-1039: the granny square is drawn at once, and only its own fields show.
-  await expect(page.locator('#status')).toContainText('Nagymama-négyzet, 6 kör elkészült;');
-  for (const id of ['#rounds-stitch', '#rounds-closing', '#rounds-stagger', '#rounds-jog', '#rounds-closing-note']) {
-    await expect(page.locator(id)).toBeHidden();
-  }
-  for (const id of ['#rounds-start', '#rounds-count', '#rounds-colors', '#rounds-ribbing']) {
-    await expect(page.locator(id)).toBeVisible();
-  }
-
-  await page.locator('#types-toggle').click();
-  await page.locator('.type[data-type="regular"]').hover();
-  await page.getByRole('menuitem', { name: /Félkör/ }).click();
   await expect(page.locator('#section-shawl')).toHaveAttribute('open', '');
   await expect(page.locator('#section-rounds')).not.toHaveAttribute('open', '');
+  await expect(page.locator('#shawl-kind')).toBeFocused();
   await expect(page.locator('#shawl-kind')).toHaveValue('semicircle');
   await expect(page.locator('#status')).not.toContainText('Félkör, ');
 });
@@ -134,6 +119,15 @@ test('the granny square can be chosen in the motif chooser (PQW-1038)', async ({
   const granny = page.locator('#rounds-shape option[value="granny-square"]');
   await expect(granny).toBeEnabled();
   await expect(granny).toHaveText('Nagymama-négyzet');
+
+  // PQW-1039: with the granny square chosen, only its own fields show.
+  await page.locator('#rounds-shape').selectOption('granny-square');
+  for (const id of ['#rounds-stitch', '#rounds-closing', '#rounds-stagger', '#rounds-jog', '#rounds-closing-note']) {
+    await expect(page.locator(id)).toBeHidden();
+  }
+  for (const id of ['#rounds-start', '#rounds-count', '#rounds-colors', '#rounds-ribbing']) {
+    await expect(page.locator(id)).toBeVisible();
+  }
 });
 
 /*

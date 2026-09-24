@@ -1101,3 +1101,24 @@ Cited from: `src/core/irregular-shape.ts` and `src/core/irregular-rowline.ts`.
 The circular repeat was removed in PQW-1006, with `src/core/irregular-repeat.ts`:
 copied around a centre, a motif never has the right stitch count for the next
 round. See `interface.md` §57 and `owner-decisions.md`.
+
+## §55 A granny round is a group laid out on a square
+
+PQW-1040. `GrannyRoundGroup` joins the chain arc and the fan (§52) as a
+parametric group. It is `count` stitches spread evenly along a square about
+`center`: the stitch bases sit on the square of half-side `inner`, and the centres
+half a stitch height further out. The run starts on the top-left corner and goes
+clockwise, so any count divisible by four puts one stitch on each corner. A corner
+stitch faces diagonally out, and every other stitch straight out of its side
+(`squareStop`).
+
+**Natural size, always.** Every member keeps its glyph's natural width and
+height. Only the gaps change with the count. The generator's chart
+(`round-generator.ts`) stretched the symbols to fill the round, and the owner
+called that ugly: „ne ilyen elnyúlt faszom ronda szemeket”.
+
+**The next round** starts at `grannyOuter`, one natural stitch height out, so
+rounds of different stitches stack without gaps. Changing a count never moves
+another round, because heights do not depend on the count. The group survives the
+file (`motif` on the pattern and `grannyRound` among the groups), and moving its
+stitches carries `center` along (`translateGroups`).

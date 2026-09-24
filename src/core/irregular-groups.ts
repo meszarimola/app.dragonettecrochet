@@ -3,6 +3,7 @@
 import { arcStops } from './irregular-arc.ts';
 import { nextId, normalizeAngle } from './irregular-document.ts';
 import { fanShapes } from './irregular-fan.ts';
+import { grannyShapes } from './irregular-granny.ts';
 import {
   ARC_COUNT_RANGE,
   type ChainArcGroup,
@@ -11,6 +12,8 @@ import {
   FAN_SPREAD_RANGE,
   type FanGroup,
   type GlyphSize,
+  GRANNY_COUNT_RANGE,
+  type GrannyRoundGroup,
   type IrregularGroup,
   type IrregularItem,
   type IrregularPattern,
@@ -47,6 +50,15 @@ export interface FanSpec {
 }
 
 export type FanPatch = Partial<Pick<FanGroup, 'mode' | 'origin' | 'direction' | 'spreadAngle' | 'length' | 'count'>>;
+
+export interface GrannyRoundSpec {
+  readonly rowId: string;
+  readonly layerId: string;
+  readonly keyEntryId: string;
+  readonly center: Point;
+  readonly inner: number;
+  readonly count: number;
+}
 
 export function groupsOf(pattern: IrregularPattern): readonly IrregularGroup[] {
   return pattern.groups ?? [];
@@ -97,6 +109,7 @@ export function arcRotation(angle: number, glyph: GlyphSize): number {
 /** Where each member of a group sits, whatever kind of group it is. */
 export function memberShapes(group: IrregularGroup, glyph: GlyphSize): MemberShape[] {
   if (group.kind === 'fan') return fanShapes(group, glyph);
+  if (group.kind === 'grannyRound') return grannyShapes(group, glyph);
   return arcStops(group).map((stop) => ({
     at: stop.at,
     rotation: arcRotation(stop.angle, glyph),
@@ -137,6 +150,48 @@ export function updateFan(pattern: IrregularPattern, id: string, patch: FanPatch
   };
   if (sameFan(group, next)) return pattern;
   return laidOut(pattern, next, glyph);
+}
+
+export function clampGrannyCount(count: number): number {
+  if (!Number.isFinite(count)) return GRANNY_COUNT_RANGE.min;
+  return Math.min(GRANNY_COUNT_RANGE.max, Math.max(GRANNY_COUNT_RANGE.min, Math.round(count)));
+}
+
+export function addGrannyRound(
+  pattern: IrregularPattern,
+  spec: GrannyRoundSpec,
+  glyph: GlyphSize,
+): { pattern: IrregularPattern; id: string } {
+  const group: GrannyRoundGroup = {
+    ...spec,
+    id: nextGroupId(pattern),
+    kind: 'grannyRound',
+    inner: Math.max(0, finiteOr(spec.inner, 0)),
+    count: clampGrannyCount(spec.count),
+    memberIds: [],
+  };
+  return { pattern: laidOut(pattern, group, glyph), id: group.id };
+}
+
+export function setGrannyCount(
+  pattern: IrregularPattern,
+  id: string,
+  count: number,
+  glyph: GlyphSize,
+): IrregularPattern {
+  const group = groupById(pattern, id);
+  if (group === undefined || group.kind !== 'grannyRound') return pattern;
+  const wanted = clampGrannyCount(count);
+  if (wanted === group.count) return pattern;
+  return laidOut(pattern, { ...group, count: wanted }, glyph);
+}
+
+/** The granny rounds from the middle outwards, in the order their rows stand. */
+export function grannyRounds(pattern: IrregularPattern): GrannyRoundGroup[] {
+  const order = new Map(pattern.rows.map((row, index) => [row.id, index]));
+  return groupsOf(pattern)
+    .filter((group): group is GrannyRoundGroup => group.kind === 'grannyRound')
+    .sort((a, b) => (order.get(a.rowId) ?? 0) - (order.get(b.rowId) ?? 0) || a.inner - b.inner);
 }
 
 function sameFan(a: FanGroup, b: FanGroup): boolean {
@@ -234,7 +289,9 @@ export function translateGroups(
       group.id,
       group.kind === 'fan'
         ? { ...group, origin: shift(group.origin) }
-        : { ...group, start: shift(group.start), end: shift(group.end) },
+        : group.kind === 'grannyRound'
+          ? { ...group, center: shift(group.center) }
+          : { ...group, start: shift(group.start), end: shift(group.end) },
     ]),
   );
   return { ...pattern, groups: groups.map((group) => moved.get(group.id) ?? group) };
