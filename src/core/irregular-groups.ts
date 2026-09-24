@@ -58,6 +58,7 @@ export interface GrannyRoundSpec {
   readonly center: Point;
   readonly inner: number;
   readonly count: number;
+  readonly radial: boolean;
 }
 
 export function groupsOf(pattern: IrregularPattern): readonly IrregularGroup[] {
@@ -171,6 +172,23 @@ export function addGrannyRound(
     memberIds: [],
   };
   return { pattern: laidOut(pattern, group, glyph), id: group.id };
+}
+
+/**
+ * Turns every round's stitches outwards, or leaves them all upright. One switch
+ * for the whole square, because a granny square is read as one. KB: interface.md §70
+ */
+export function setGrannyRadial(
+  pattern: IrregularPattern,
+  radial: boolean,
+  glyphOf: (group: GrannyRoundGroup) => GlyphSize,
+): IrregularPattern {
+  let next = pattern;
+  for (const round of grannyRounds(pattern)) {
+    if (round.radial === radial) continue;
+    next = laidOut(next, { ...round, radial }, glyphOf(round));
+  }
+  return next;
 }
 
 export function setGrannyCount(

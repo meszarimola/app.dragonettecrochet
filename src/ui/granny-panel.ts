@@ -8,6 +8,13 @@ export interface GrannyPanelHost {
   addRound(count: number): void;
   setCount(roundId: string, count: number): void;
   removeLast(): void;
+  setRadial(on: boolean): void;
+}
+
+export interface GrannyView {
+  /** The stitch armed on the palette, or `null` while none is. KB: interface.md §70 */
+  readonly stitch: string | null;
+  readonly radial: boolean;
 }
 
 export interface GrannyRoundView {
@@ -29,6 +36,9 @@ export class GrannyPanel {
   readonly #count: HTMLInputElement;
   readonly #remove: HTMLButtonElement;
   readonly #empty: HTMLElement;
+  readonly #add: HTMLButtonElement;
+  readonly #radial: HTMLInputElement;
+  readonly #hint: HTMLElement;
 
   constructor(section: HTMLElement, host: GrannyPanelHost) {
     this.#section = section;
@@ -37,12 +47,16 @@ export class GrannyPanel {
     this.#count = must(section, '#granny-count');
     this.#remove = must(section, '#granny-remove');
     this.#empty = must(section, '#granny-empty');
+    this.#add = must(section, '#granny-add');
+    this.#radial = must(section, '#granny-radial');
+    this.#hint = must(section, '#granny-stitch');
     this.#count.value = String(DEFAULT_GRANNY_COUNT);
-    must<HTMLButtonElement>(section, '#granny-add').addEventListener('click', () => this.#add());
+    this.#add.addEventListener('click', () => this.#addRound());
+    this.#radial.addEventListener('change', () => this.#host.setRadial(this.#radial.checked));
     this.#count.addEventListener('keydown', (event) => {
       if (event.key !== 'Enter') return;
       event.preventDefault();
-      this.#add();
+      this.#addRound();
     });
     this.#remove.addEventListener('click', () => this.#host.removeLast());
     this.#list.addEventListener('change', (event) => {
@@ -57,10 +71,14 @@ export class GrannyPanel {
     this.#section.hidden = !on;
   }
 
-  update(rounds: readonly GrannyRoundView[]): void {
+  update(rounds: readonly GrannyRoundView[], view: GrannyView): void {
     const words = texts().irregular;
     this.#empty.hidden = rounds.length > 0;
     this.#remove.disabled = rounds.length === 0;
+    // KB: interface.md §70 — without a stitch from the palette there is nothing to put in a round.
+    this.#add.disabled = view.stitch === null;
+    this.#hint.textContent = view.stitch === null ? words.grannyPickStitch : words.grannyStitchArmed(view.stitch);
+    if (document.activeElement !== this.#radial) this.#radial.checked = view.radial;
     const focused =
       document.activeElement instanceof HTMLInputElement ? document.activeElement.dataset['round'] : undefined;
     this.#list.replaceChildren(
@@ -91,8 +109,8 @@ export class GrannyPanel {
     if (focused !== undefined) this.#list.querySelector<HTMLInputElement>(`[data-round="${focused}"]`)?.focus();
   }
 
-  #add(): void {
-    if (this.#count.value.trim() === '') return;
+  #addRound(): void {
+    if (this.#add.disabled || this.#count.value.trim() === '') return;
     this.#host.addRound(clampGrannyCount(Number(this.#count.value)));
   }
 }

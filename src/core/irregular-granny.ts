@@ -49,7 +49,7 @@ export function squareStop(half: number, distance: number): { at: Point; angle: 
  * change with the count.
  */
 export function grannyShapes(
-  group: Pick<GrannyRoundGroup, 'center' | 'inner' | 'count'>,
+  group: Pick<GrannyRoundGroup, 'center' | 'inner' | 'count' | 'radial'>,
   glyph: GlyphSize,
 ): MemberShape[] {
   const count = memberCount(group.count);
@@ -61,7 +61,12 @@ export function grannyShapes(
   const step = (8 * half) / count;
   return Array.from({ length: count }, (_, index) => {
     const stop = squareStop(half, index * step);
-    return { at: { x: center.x + stop.at.x, y: center.y + stop.at.y }, rotation: stop.angle, width, height };
+    return {
+      at: { x: center.x + stop.at.x, y: center.y + stop.at.y },
+      rotation: group.radial ? stop.angle : 0,
+      width,
+      height,
+    };
   });
 }
 
