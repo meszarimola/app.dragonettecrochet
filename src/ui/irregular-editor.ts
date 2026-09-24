@@ -38,11 +38,16 @@ import {
   updateNotes,
   withIrregularNotation,
 } from '../core/irregular-document.ts';
-import { type GrannyBand, grannyBand, grannyOuter } from '../core/irregular-granny.ts';
+import {
+  clampGrannyCount,
+  type GrannyBand,
+  grannyBands,
+  grannyRings,
+  nearestGrannyCell,
+} from '../core/irregular-granny.ts';
 import {
   addChainArc,
   addFan,
-  addGrannyRound,
   type ChainArcPatch,
   clampCount,
   clampFanCount,
@@ -51,21 +56,18 @@ import {
   type FanPatch,
   forgetBrokenGroups,
   type GlyphSize,
-  grannyRounds,
   groupById,
   groupOfItem,
   groupsOf,
   holdsWholeGroups,
   reseatGroups,
-  setGrannyCount,
-  setGrannyRadial,
   translateGroups,
   updateChainArc,
   updateFan,
   withWholeGroups,
 } from '../core/irregular-groups.ts';
 import { isIrregularJson, loadIrregular, saveIrregular } from '../core/irregular-json.ts';
-import { entryGlyph, entryName, findStitch, keyEntry, sharedGlyphs } from '../core/irregular-key.ts';
+import { entryGlyph, entryName, sharedGlyphs } from '../core/irregular-key.ts';
 import {
   addLayer,
   deleteLayer,
@@ -102,6 +104,7 @@ import {
   DEFAULT_FAN_COUNT,
   DEFAULT_FAN_SPREAD,
   DEFAULT_FONT_SIZE,
+  DEFAULT_GRANNY_COUNT,
   DEFAULT_GRID_SIZE,
   FAN_LENGTH_RANGE,
   type FanGroup,
@@ -122,7 +125,6 @@ import {
 } from '../core/irregular-types.ts';
 import type { Locale, PatternNotation, StitchDefId } from '../core/types.ts';
 import { type BackgroundStoreCode, getBackground, pruneBackgrounds, putBackground } from './background-store.ts';
-import { GrannyPanel, type GrannyRoundView } from './granny-panel.ts';
 import { IRREGULAR_JSON_CORE_TEXTS } from './i18n/core/irregular-json.ts';
 import { renderCoreText } from './i18n/core/render.ts';
 import { IRREGULAR_TEXTS } from './i18n/irregular.ts';
@@ -207,7 +209,6 @@ export interface IrregularSections {
   readonly properties: HTMLDetailsElement;
   readonly rows: HTMLDetailsElement;
   readonly layers: HTMLDetailsElement;
-  readonly granny: HTMLElement;
 }
 
 export interface IrregularHost {
@@ -315,6 +316,30 @@ function grannyWithoutGrid(pattern: IrregularPattern): IrregularPattern {
   return setGrid(pattern, false);
 }
 
+/**
+ * A granny square from v0.67–v0.69 was a generator: its rounds held made-up
+ * stitches. The rounds are a grid the crocheter fills in now, so the rounds take
+ * their old counts as grid counts and the stitches are let go to stand on their
+ * own. KB: interface.md §71
+ */
+function grannyGridRounds(pattern: IrregularPattern): IrregularPattern {
+  if (pattern.motif !== 'granny-square') return pattern;
+  const rounds = groupsOf(pattern).filter((group) => group.kind === 'grannyRound');
+  if (rounds.length === 0) return pattern;
+  const cellsOf = new Map(rounds.map((round) => [round.rowId, round.count]));
+  return {
+    ...explodeGroups(
+      pattern,
+      rounds.map((round) => round.id),
+    ),
+    grannyRadial: rounds[0]?.radial ?? true,
+    rows: pattern.rows.map((row) => {
+      const cells = cellsOf.get(row.id);
+      return cells === undefined ? row : { ...row, cells };
+    }),
+  };
+}
+
 function oneGuideSize(pattern: IrregularPattern): IrregularPattern {
   const { grid, polar } = pattern.guides;
   const shared = guideSize(polar.spacing);
@@ -332,7 +357,6 @@ export class IrregularEditor {
   readonly #panel: IrregularPanel;
   readonly #rowsPanel: IrregularRowsPanel;
   readonly #layersPanel: IrregularLayersPanel;
-  readonly #grannyPanel: GrannyPanel;
   readonly #host: IrregularHost;
   #history: History<IrregularPattern>;
   #draft: IrregularPattern | null = null;
@@ -374,6 +398,8 @@ export class IrregularEditor {
       moveSelection: (rowId) => this.#moveSelectionToRow(rowId),
       spaceRows: (spacing) => this.spaceRows(spacing),
       alignRows: (mode) => this.alignRows(mode),
+      setCells: (rowId, cells) => this.setGrannyCells(rowId, cells),
+      setGrannyRadial: (on) => this.setGrannyRadial(on),
     });
     this.#layersPanel = new IrregularLayersPanel(sections.layers, {
       addLayer: () => this.#addLayer(),
@@ -383,12 +409,6 @@ export class IrregularEditor {
       reorder: (layerId, toIndex) => this.#commit(reorderLayers(this.#history.present, layerId, toIndex)),
       moveSelection: (layerId) => this.#moveSelectionToLayer(layerId),
       patchBackground: (patch) => this.#commit(patchBackground(this.#history.present, patch)),
-    });
-    this.#grannyPanel = new GrannyPanel(sections.granny, {
-      addRound: (count) => this.addGrannyRound(count),
-      setCount: (roundId, count) => this.setGrannyRoundCount(roundId, count),
-      removeLast: () => this.removeLastGrannyRound(),
-      setRadial: (on) => this.setGrannyRadial(on),
     });
     this.#panel = new IrregularPanel(sections.properties, {
       patch: (patch) => this.#patch(patch),
@@ -438,6 +458,11 @@ export class IrregularEditor {
     return this.#history.present.title;
   }
 
+  /** Where a point of the chart sits on screen. KB: interface.md §31 — for the browser tests. */
+  toClient(point: Point): Point {
+    return this.#board.toClient(point);
+  }
+
   get gridVisible(): boolean {
     return this.#history.present.guides.grid.visible;
   }
@@ -479,7 +504,6 @@ export class IrregularEditor {
     this.#panel.hide();
     this.#rowsPanel.hide();
     this.#layersPanel.hide();
-    this.#grannyPanel.show(false);
   }
 
   #setPreference(patch: Partial<Preferences>): void {
@@ -491,6 +515,11 @@ export class IrregularEditor {
   // -- structure -----------------------------------------------------------
 
   #addRow(kind: RowKind): void {
+    // KB: interface.md §71 — in a granny square a new round is a ring of the grid.
+    if (this.grannyMode) {
+      this.addGrannyRound();
+      return;
+    }
     const made = addRow(this.#history.present, kind);
     this.#commit(setActiveRow(made.pattern, made.id), texts().irregular.rowAdded(rowName(made.pattern, made.id)));
   }
@@ -590,8 +619,9 @@ export class IrregularEditor {
     });
     const trouble = this.backgroundTrouble;
     // A fresh pattern is one empty row by design; only a later one is a mistake.
+    // KB: interface.md §71 — a granny round is grid first; it is empty until it is filled in.
     const empty =
-      pattern.rows.length < 2
+      pattern.rows.length < 2 || pattern.motif === 'granny-square'
         ? []
         : pattern.rows
             .filter((row) => pattern.items.every((item) => item.rowId !== row.id))
@@ -608,7 +638,7 @@ export class IrregularEditor {
       const saved = localStorage.getItem(IRREGULAR_STORAGE_KEY);
       if (saved === null) return fresh;
       const loaded = loadIrregular(saved);
-      return loaded.ok ? grannyWithoutGrid(oneStartingLayer(oneGuideSize(loaded.pattern))) : fresh;
+      return loaded.ok ? grannyGridRounds(grannyWithoutGrid(oneStartingLayer(oneGuideSize(loaded.pattern)))) : fresh;
     } catch {
       return fresh;
     }
@@ -702,99 +732,60 @@ export class IrregularEditor {
         ...empty,
         title: texts().irregular.grannyTitle,
         motif: 'granny-square',
-        rows: empty.rows.map((row) => ({ ...row, kind: 'round', direction: 'cw' })),
+        grannyRadial: true,
+        // KB: interface.md §71 — the first round is grid from the start; nothing is drawn into it.
+        rows: empty.rows.map((row) => ({
+          ...row,
+          kind: 'round' as const,
+          direction: 'cw' as const,
+          cells: DEFAULT_GRANNY_COUNT,
+        })),
       },
       texts().irregular.grannyStarted,
     );
     this.#board.fit(this.#host.insets().bottom);
   }
 
-  addGrannyRound(count: number): void {
+  /** KB: interface.md §71 — a new round is an empty ring of cells; the crocheter fills it. */
+  addGrannyRound(): void {
     const present = this.#history.present;
-    const rounds = grannyRounds(present);
-    const last = rounds.at(-1);
-    let pattern = present;
-    let rowId = present.activeRowId;
-    if (last !== undefined || present.items.some((item) => item.rowId === rowId)) {
-      const made = addRow(present, 'round');
-      pattern = setActiveRow(made.pattern, made.id);
-      rowId = made.id;
-    }
-    // KB: interface.md §70 — the palette decides what goes into the round; nothing is assumed.
-    const keyEntryId = this.#stitch;
-    if (keyEntryId === null) return;
-    const made = addGrannyRound(
-      pattern,
-      {
-        rowId,
-        layerId: pattern.activeLayerId,
-        keyEntryId,
-        center: last?.center ?? { x: 0, y: 0 },
-        inner: last === undefined ? 0 : grannyOuter(last, this.#grannyGlyph(last.keyEntryId)),
-        count,
-        radial: this.#preferences.grannyRadial,
-      },
-      this.#grannyGlyph(keyEntryId),
+    const rings = grannyRings(present, this.grannyStep);
+    const made = addRow(present, 'round');
+    const cells = rings.at(-1)?.cells ?? DEFAULT_GRANNY_COUNT;
+    const pattern = setActiveRow(
+      { ...made.pattern, rows: made.pattern.rows.map((row) => (row.id === made.id ? { ...row, cells } : row)) },
+      made.id,
     );
-    const added = groupById(made.pattern, made.id);
-    this.#commit(made.pattern, texts().irregular.grannyRoundAdded(rounds.length + 1, added?.count ?? count));
+    this.#commit(pattern, texts().irregular.grannyRoundAdded(rings.length + 1, cells));
     this.#board.fit(this.#host.insets().bottom);
   }
 
   setGrannyRadial(on: boolean): void {
-    this.#preferences = { ...this.#preferences, grannyRadial: on };
-    this.#persistPreferences();
     this.#commit(
-      setGrannyRadial(this.#history.present, on, (round) => this.#grannyGlyph(round.keyEntryId)),
+      { ...this.#history.present, grannyRadial: on },
       on ? texts().irregular.grannyRadialOn : texts().irregular.grannyRadialOff,
     );
   }
 
-  setGrannyRoundCount(roundId: string, count: number): void {
-    const round = groupById(this.#history.present, roundId);
-    if (round === undefined || round.kind !== 'grannyRound') return;
-    this.#commit(setGrannyCount(this.#history.present, roundId, count, this.#grannyGlyph(round.keyEntryId)));
-  }
-
-  removeLastGrannyRound(): void {
+  setGrannyCells(rowId: string, cells: number): void {
     const present = this.#history.present;
-    const last = grannyRounds(present).at(-1);
-    if (last === undefined) return;
-    const next =
-      present.rows.length > 1
-        ? deleteRow(present, last.rowId, 'delete')
-        : forgetBrokenGroups(deleteItems(present, last.memberIds));
-    this.#commit(next, texts().irregular.grannyRoundRemoved);
+    const wanted = clampGrannyCount(cells);
+    const row = rowById(present, rowId);
+    if (row?.cells === undefined || row.cells === wanted) return;
+    this.#commit({
+      ...present,
+      rows: present.rows.map((candidate) => (candidate.id === rowId ? { ...candidate, cells: wanted } : candidate)),
+    });
   }
 
-  get grannyRoundViews(): GrannyRoundView[] {
-    const pattern = this.#history.present;
-    return grannyRounds(pattern).map((round) => ({
-      id: round.id,
-      count: round.count,
-      stitch: this.#shortName(pattern, round.keyEntryId),
-    }));
+  /** How deep one round is: the guide size, so the rounds and the grid agree. */
+  get grannyStep(): number {
+    return this.#history.present.guides.grid.size;
   }
 
-  /** The abbreviation where the stitch has one, so a round fits on one line. */
-  #shortName(pattern: IrregularPattern, keyEntryId: string): string {
-    const terms = this.#host.terms();
-    const custom = keyEntry(pattern, keyEntryId)?.customName ?? null;
-    const abbr = custom === null ? findStitch(keyEntryId)?.terms[terms].abbr : null;
-    return abbr ?? entryName(pattern, keyEntryId, terms);
-  }
-
-  /** The round generator's background under a granny square, one cell per stitch. KB: interface.md §69 */
+  /** The round generator's background under a granny square. KB: interface.md §69 */
   #grannyBands(pattern: IrregularPattern): GrannyBand[] {
-    if (pattern.motif !== 'granny-square') return [];
-    return grannyRounds(pattern).map((round, index) =>
-      grannyBand(round, this.#grannyGlyph(round.keyEntryId), index % 2 === 0 ? 0 : 1),
-    );
-  }
-
-  /** A granny round keeps each stitch at its natural size. */
-  #grannyGlyph(keyEntryId: string): GlyphSize {
-    return naturalSize(keyEntryId, 'both-loops', this.#host.symbols(), entryGlyph(this.#history.present, keyEntryId));
+    return grannyBands(pattern, pattern.guides.grid.size);
   }
 
   setStitch(id: StitchDefId | null): void {
@@ -1057,6 +1048,9 @@ export class IrregularEditor {
   /** The nearest guide or neighbouring stitch, measured in chart units. */
   #snap(point: Point, skip?: ReadonlySet<string>, free = this.#free): Point {
     if (free) return point;
+    // KB: interface.md §71 — on a granny square a stitch goes into a cell of the grid.
+    const cell = this.grannyMode ? nearestGrannyCell(this.#history.present, this.grannyStep, point) : undefined;
+    if (cell !== undefined) return cell.at;
     return snapPoint(this.#history.present, point, {
       tolerance: SNAP_REACH / this.#board.scale,
       ...(skip === undefined ? {} : { skip }),
@@ -1064,9 +1058,14 @@ export class IrregularEditor {
     });
   }
 
-  /** What a stitch dropped here is turned to: away from the middle of the circle guide. */
+  /** What a stitch dropped here is turned to: away from the middle of the guide it lands on. */
   #placedRotation(point: Point): number {
-    const polar = this.#history.present.guides.polar;
+    const pattern = this.#history.present;
+    if (this.grannyMode) {
+      if (pattern.grannyRadial === false) return 0;
+      return nearestGrannyCell(pattern, this.grannyStep, point)?.angle ?? 0;
+    }
+    const polar = pattern.guides.polar;
     if (!this.#preferences.radial || !polar.visible) return 0;
     return radialRotation(polar, point);
   }
@@ -1815,16 +1814,13 @@ export class IrregularEditor {
     this.#refreshScene();
     if (!this.#mounted) return;
     const committed = this.#history.present;
-    this.#rowsPanel.update(committed, { selectionSize: this.#selection.size });
+    this.#rowsPanel.update(committed, {
+      selectionSize: this.#selection.size,
+      granny: this.grannyMode,
+      grannyRadial: committed.grannyRadial ?? true,
+    });
     this.#panel.updateGuides(committed.guides, this.#preferences.radial);
     this.#layersPanel.update(committed, this.#selection.size, committed.background ?? null);
-    this.#grannyPanel.show(this.grannyMode);
-    if (this.grannyMode) {
-      this.#grannyPanel.update(this.grannyRoundViews, {
-        stitch: this.#stitch === null ? null : this.#shortName(committed, this.#stitch),
-        radial: this.#preferences.grannyRadial,
-      });
-    }
     this.#host.refreshControls();
   }
 
@@ -2150,7 +2146,13 @@ export class IrregularEditor {
     const point = this.#snap(raw);
     const glyph = entryGlyph(this.#history.present, stitch);
     const size = naturalSize(stitch, 'both-loops', this.#host.symbols(), glyph);
-    const made = addStitch(this.#history.present, {
+    // KB: interface.md §71 — a stitch belongs to the round whose cell it landed in.
+    const cell = this.grannyMode ? nearestGrannyCell(this.#history.present, this.grannyStep, point) : undefined;
+    const base =
+      cell === undefined || cell.rowId === this.#history.present.activeRowId
+        ? this.#history.present
+        : setActiveRow(this.#history.present, cell.rowId);
+    const made = addStitch(base, {
       keyEntryId: stitch,
       x: point.x,
       y: point.y,

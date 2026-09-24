@@ -1729,7 +1729,7 @@ spirálban” instead of disabling them. Left: „Kezdés”, „Körök száma�
 „Színváltás” and „Bordás perem”. The other shapes keep the §9-era behaviour, a
 disabled field where it does not apply.
 
-## §68 The granny square designer
+## §68 The granny square designer (superseded in part by §71)
 
 PQW-1040, replacing the drawing on choice of §67. The owner, on v0.66.0: „SENKI
 NEM KÉRT TÖLED EGY MÁR KÉSZ TERVET … EGY KIBASZOTT GRANNY SUQARE-T AKAROK
@@ -1793,3 +1793,38 @@ out what is already there.
 draws the square the same way; a round from before PQW-1042 reads as facing out.
 The editor also keeps the last choice in its preferences, which is what a new
 round takes.
+
+## §71 The designer gives the grid; the crocheter fills it in
+
+PQW-1043. v0.69.0 still drew the stitches. The owner: „a sablon már jó, de NEM TE
+TÖLTÖD KI ELŐRE, hanem a felhasználó. te csak a rácsot adod. az jó. de a
+felhasználó mondja meg a szemek számát … a felhasználó ez alapján teszi oda a
+szemeket.”
+
+**A round is a ring of cells, not a run of stitches.** The generator is gone. A
+round is a row carrying `cells`, its grid count; the band behind it is cut into
+that many cells (`core-geometry.md` §55). „Új kör” adds an empty ring that starts
+from the count of the one before it. A granny round is empty by design, so it
+does not raise the empty-row finding and does not block „Új kör”.
+
+**A stitch goes into a cell.** `#snap` sends a dropped stitch to the nearest cell
+and `#place` puts it in that cell's own round, not merely the active one, so
+working into an inner round later still files the stitch correctly. The turn of
+§70 now decides how a dropped stitch faces, and it no longer moves stitches that
+are already down.
+
+**The panel is the rows panel.** The owner: „legyen olyan, mint a sortervező …
+ugyanaz legyen a felhasználói felület, csak az aktív fajtája dropdownnak és az
+iránynak semmi értelme. helyette maradjon a szemek száma az adott sorban és
+lehessen módosítani. ne szemek számának nevezzük, hanem rács szám.” So
+`#section-irregular-rows` itself serves the granny square, without the tabs and
+the layers: the same list, the same toolbar, the same more-menu. Hidden in granny
+mode: „Az aktív fajtája”, „Irány”, the direction arrow in the list, „Új sor” and
+„Sorok egymáshoz”. In their place: „Rács szám” for the active round, and the turn.
+A round's line reads `stitches/cells`, so how full it is shows at a glance. The
+title of the section becomes „Körök”. The separate rounds panel of §68 is gone.
+
+**A file from v0.67–v0.69** is converted as it is read (`grannyGridRounds`): each
+round takes its group's count as its grid count, the pattern takes the turn, and
+the generated stitches are let go to stand on their own. Nothing is lost, and
+nothing writes a `grannyRound` group again.

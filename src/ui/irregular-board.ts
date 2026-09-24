@@ -272,8 +272,19 @@ export class FreeBoard {
             minY: photo.y - photo.height / 2,
             maxY: photo.y + photo.height / 2,
           });
+    // KB: interface.md §71 — the granny grid is what is on screen before a stitch goes in.
+    const corners = scene.granny.at(-1)?.outer ?? [];
+    const rings =
+      corners.length === 0
+        ? box
+        : widen(box, {
+            minX: Math.min(...corners.map((corner) => corner.x)),
+            maxX: Math.max(...corners.map((corner) => corner.x)),
+            minY: Math.min(...corners.map((corner) => corner.y)),
+            maxY: Math.max(...corners.map((corner) => corner.y)),
+          });
     const polar = scene.pattern.guides.polar;
-    if (!polar.visible) return box;
+    if (!polar.visible) return rings;
     const reach = polar.rings * polar.spacing;
     const circle: Box = {
       minX: polar.center.x - reach,
@@ -281,7 +292,7 @@ export class FreeBoard {
       minY: polar.center.y - reach,
       maxY: polar.center.y + reach,
     };
-    return widen(box, circle);
+    return widen(rings, circle);
   }
 
   /** The chart point in the middle of the free part of the canvas. */
