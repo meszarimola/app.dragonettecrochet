@@ -1885,3 +1885,40 @@ the room came from, without taking a target under 44 px (§36):
 
 Measured afterwards at the worst case — „24 szem” beside a grid count of 400 —
 nothing clips, and the counter keeps 22 px from the panel edge.
+
+## §74 The drawing tools join the palette, and the magic ring gets a symbol
+
+PQW-1046.
+
+**The chain arc and the fan left the toolbar.** The owner: „innen a felső menüből
+az ív húzását és a legyező nyitását át tudnánk tenni a bal oldali menübe? … a
+láncív és varázskör részlegnek nincs semmi értelme. tegyük át 4 elemet az
+összetett szemekhez, és 3 legyen belőle: láncív (ez a régi ív húzása elem),
+varázskör és legyező.” So „Összetett szemek” ends with Láncív, Varázskör and
+Legyező. The two tools are tiles like any stitch — armed, pressed, and laid down
+when a stitch is armed — but they draw instead of placing, and they are hidden
+outside the free-form type, since that is where they work.
+
+**The palette is no longer the library.** `offPalette` marks a section the
+palette does not show as its own; `buildPalette` skips it and appends the magic
+ring to the compound section. The library order itself is untouched on purpose:
+the written pattern's stitch key follows it, and moving the ring there would have
+reordered the key of every granny square (`core-pattern-text` fixtures). The
+chain space has no tile at all any more, because the chain arc tool draws it.
+
+**The magic ring is drawn, not merely circled.** „ez legyen a varázskör jele, ne
+csak karika.” `magicRingShapes` draws the ring, the working loop inside it as an
+arc open at the top right, and the tail leaving through that gap. The JIS „わ”
+is untouched.
+
+**The rectangle mode is one menu, not a chooser inside one.** „a terület mellett
+nem látszik, hogy a lefele mutató nyíl az ahhoz a gombhoz tartozik, illetve
+dropdownból van dropdown … egy dropdown legyen csak.” The caret now joins the
+„Terület” button into one control (`.tools__split` shares their border and
+highlights together), and the popover holds two `menuitemradio` buttons instead
+of a `<select>`. Their labels and tooltips are static markup, so they read
+correctly in the regular type too, where the free-form panel never runs.
+
+Still open: a tooltip inside a menu popover is clipped by the popover's own
+scrolling box, so it is cut off — the owner reported it and it wants a shared
+tooltip element on the body, which is a change of its own.

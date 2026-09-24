@@ -173,8 +173,9 @@ test('in a narrow window the seven basic tiles are visible, and every stitch is 
     expect(Math.round(box.height), `${await cell.getAttribute('data-tip')} height`).toBeGreaterThanOrEqual(44);
   }
 
+  // PQW-1046: the chain space has no tile of its own; the chain arc tool draws it.
   const tiles = page.locator('#palette .palette__grid').getByRole('button');
-  await expect(tiles).toHaveCount(25);
+  await expect(tiles).toHaveCount(24);
   await expect(page.locator('#palette details')).toHaveCount(0);
 
   // The tile prints the name, not only the abbreviation.
@@ -187,7 +188,10 @@ test('in a narrow window the seven basic tiles are visible, and every stitch is 
   await page.locator('#types-toggle').click();
   await page.getByRole('button', { name: /Szabad tervező/ }).click();
   await expect(page.locator('#board-irregular')).toBeVisible();
-  await expect(tiles).toHaveCount(25);
+  // The free-form type adds the two drawing tools to the same palette (PQW-1046).
+  await expect(tiles).toHaveCount(26);
+  await expect(page.locator('#palette')).toContainText('Láncív');
+  await expect(page.locator('#palette')).toContainText('Legyező');
   for (let i = 0; i < 7; i += 1) await expect(basic.nth(i)).toBeInViewport({ ratio: 1 });
   await page.locator('#types-toggle').click();
   await page.getByRole('button', { name: /Szabályos horgolás/ }).click();

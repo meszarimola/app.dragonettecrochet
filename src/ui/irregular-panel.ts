@@ -115,7 +115,7 @@ export class IrregularPanel {
   readonly #insertion: HTMLSelectElement;
   readonly #insertionField: HTMLElement;
   readonly #color: HTMLInputElement;
-  readonly #rectMode: HTMLSelectElement;
+  readonly #rectMode: HTMLElement;
   readonly #gridSize: HTMLInputElement;
   readonly #snap: HTMLInputElement;
   readonly #polar: HTMLInputElement;
@@ -172,7 +172,7 @@ export class IrregularPanel {
     this.#insertion = must<HTMLSelectElement>(section, '#prop-insertion');
     this.#insertionField = must<HTMLElement>(section, '#prop-insertion').closest('p') ?? this.#fields;
     this.#color = must<HTMLInputElement>(section, '#prop-color');
-    this.#rectMode = must<HTMLSelectElement>(page, '#prop-rect-mode');
+    this.#rectMode = must<HTMLElement>(page, '#select-mode-pop');
     this.#gridSize = must<HTMLInputElement>(page, '#guide-grid-size');
     this.#snap = must<HTMLInputElement>(page, '#guide-snap');
     this.#polar = must<HTMLInputElement>(page, '#guide-polar');
@@ -240,7 +240,10 @@ export class IrregularPanel {
       const spread = target.dataset['distribute'];
       if (spread !== undefined) this.#host.distribute(spread as DistributeAxis);
     });
-    this.#rectMode.addEventListener('change', () => this.#host.setRectPartial(this.#rectMode.value === 'partial'));
+    this.#rectMode.addEventListener('click', (event) => {
+      const mode = (event.target as Element).closest<HTMLElement>('[data-rect-mode]')?.dataset['rectMode'];
+      if (mode !== undefined) this.#host.setRectPartial(mode === 'partial');
+    });
     this.#gridSize.addEventListener('change', () =>
       this.#number(this.#gridSize, (value) => this.#host.setGridSize(value)),
     );
@@ -491,9 +494,10 @@ export class IrregularPanel {
   update(items: readonly IrregularItem[], rectPartial: boolean, total: number): void {
     this.#items = items;
     const words = texts().irregular;
-    if (document.activeElement !== this.#rectMode) {
-      this.#rectMode.replaceChildren(option('partial', words.rectPartial), option('full', words.rectFull));
-      this.#rectMode.value = rectPartial ? 'partial' : 'full';
+    // KB: interface.md §74 — two menu items, not a chooser inside a menu.
+    for (const item of this.#rectMode.querySelectorAll<HTMLElement>('[data-rect-mode]')) {
+      const partial = item.dataset['rectMode'] === 'partial';
+      item.setAttribute('aria-checked', String(partial === rectPartial));
     }
     this.#count.textContent = items.length === 0 ? words.selectedNone : words.selected(items.length);
     this.#fields.hidden = items.length === 0;

@@ -125,6 +125,10 @@ export interface SectionTexts {
   };
   readonly palette: {
     readonly titles: Readonly<Record<StitchSectionId, string>>;
+    readonly chainArc: string;
+    readonly chainArcTip: string;
+    readonly fan: string;
+    readonly fanTip: string;
   };
   readonly notation: {
     readonly terms: Readonly<Record<Locale, string>>;
@@ -293,6 +297,10 @@ const hu: SectionTexts = {
       compound: 'Összetett szemek',
       structure: 'Láncív és varázskör',
     },
+    chainArc: 'Láncív',
+    chainArcTip: 'Ív húzása láncszemekből: nyomd le a kezdőpontnál és húzd a végpontig. A kijelölt ív számbillentyűvel állítható.',
+    fan: 'Legyező',
+    fanTip: 'Legyező húzása: kattints az alappontra és húzd az irányba. A kijelölt legyező számbillentyűvel állítható.',
   },
   notation: {
     terms: { hu: 'magyar', 'en-US': 'amerikai angol', 'en-GB': 'brit angol' },
@@ -459,6 +467,10 @@ const en: SectionTexts = {
       compound: 'Compound stitches',
       structure: 'Chain space and magic ring',
     },
+    chainArc: 'Chain space',
+    chainArcTip: 'Draw a chain arc: press at the start and drag to the end. With an arc selected, digits set the count.',
+    fan: 'Fan',
+    fanTip: 'Draw a fan: click the base point and drag in the direction. With a fan selected, digits set the count.',
   },
   notation: {
     terms: { hu: 'Hungarian', 'en-US': 'US English', 'en-GB': 'UK English' },

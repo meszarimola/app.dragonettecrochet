@@ -1027,10 +1027,58 @@ function paletteSection(section: ReturnType<typeof buildPalette>[number]): HTMLE
   for (const item of section.items) {
     const button = stitchButton(item);
     buttons.set(item.def.id, button);
+    // KB: interface.md §74 — the chain arc and the fan are drawn, not placed, but
+    // they belong with the stitches they make: láncív, varázskör, legyező.
+    for (const tool of PALETTE_TOOLS) if (tool.before === item.def.id) list.append(toolTile(tool));
     list.append(button);
   }
+  if (section.id === 'compound') for (const tool of PALETTE_TOOLS) if (!tool.before) list.append(toolTile(tool));
   group.append(title, list);
   return group;
+}
+
+interface PaletteTool {
+  readonly action: 'chain-arc' | 'fan';
+  readonly icon: string;
+  readonly name: () => string;
+  readonly tip: () => string;
+  readonly armed: (editor: IrregularEditor) => boolean;
+  /** The stitch this tile stands before, or the end of the section. */
+  readonly before?: StitchDefId;
+}
+
+const PALETTE_TOOLS: readonly PaletteTool[] = [
+  {
+    action: 'chain-arc',
+    icon: '<path d="M3.5 14.5c3-7.5 10-7.5 13 0" /><path d="M3.5 14.5h.01M16.5 14.5h.01" />',
+    name: () => texts().sections.palette.chainArc,
+    tip: () => texts().sections.palette.chainArcTip,
+    armed: (editor) => editor.arcArmed,
+    before: 'magic-ring',
+  },
+  {
+    action: 'fan',
+    icon: '<path d="M10 17.5v-14M10 17.5 4.1 4.8M10 17.5l5.9-12.7" /><path d="M4.1 4.8A14 14 0 0 1 15.9 4.8" />',
+    name: () => texts().sections.palette.fan,
+    tip: () => texts().sections.palette.fanTip,
+    armed: (editor) => editor.fanArmed,
+  },
+];
+
+function toolTile(tool: PaletteTool): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'stitch stitch--tool';
+  button.dataset.action = tool.action;
+  button.dataset.tip = tool.tip();
+  button.setAttribute('aria-pressed', 'false');
+  // The palette is shared, so a rebuild has to keep the tiles out of the regular type.
+  button.hidden = patternType !== 'irregular';
+  const icon = document.createElement('span');
+  icon.className = 'stitch__preview';
+  icon.innerHTML = `<svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">${tool.icon}</svg>`;
+  button.append(icon, span('stitch__name', tool.name()));
+  return button;
 }
 
 async function workAtCursor(): Promise<void> {
@@ -2521,8 +2569,10 @@ function updateIrregularControls(editor: IrregularEditor): void {
     String(idle && editor.selectTool === 'pointer'),
   );
   notesToggle.classList.toggle('is-armed', editor.noteArmed !== null);
-  must<HTMLButtonElement>('[data-action="chain-arc"]').setAttribute('aria-pressed', String(editor.arcArmed));
-  must<HTMLButtonElement>('[data-action="fan"]').setAttribute('aria-pressed', String(editor.fanArmed));
+  for (const tool of PALETTE_TOOLS) {
+    const tile = palette.querySelector<HTMLButtonElement>(`[data-action="${tool.action}"]`);
+    tile?.setAttribute('aria-pressed', String(tool.armed(editor)));
+  }
   for (const note of ['text', 'arrow', 'bracket'] as const) {
     must<HTMLButtonElement>(`[data-action="note-${note}"]`).setAttribute(
       'aria-pressed',
@@ -2590,6 +2640,11 @@ function showIrregularView(on: boolean): void {
     '#settings-open',
   ]) {
     must<HTMLElement>(id).hidden = !on;
+  }
+  // KB: interface.md §74 — the drawing tools belong to the free-form type alone.
+  for (const tool of PALETTE_TOOLS) {
+    const tile = palette.querySelector<HTMLElement>(`[data-action="${tool.action}"]`);
+    if (tile) tile.hidden = !on;
   }
   placeSharedSections(on);
   fitBar();

@@ -1,6 +1,6 @@
 // KB: interface.md §1, §2, §53
 
-import { STITCH_SECTIONS, type StitchSectionId } from '../core/stitches.ts';
+import { MAGIC_RING, STITCH_SECTIONS, type StitchSectionId } from '../core/stitches.ts';
 import { stitchName, stitchStructure } from '../core/stitchText.ts';
 import type { Locale, StitchDef } from '../core/types.ts';
 import { texts } from './i18n.ts';
@@ -24,10 +24,14 @@ export interface PaletteSection {
 export function buildPalette(terms: Locale = 'hu'): PaletteSection[] {
   const titles = texts().sections.palette.titles;
   let index = 0;
-  return STITCH_SECTIONS.map((section) => ({
+  // KB: interface.md §74 — the magic ring is shown among the compound stitches,
+  // and the chain space not at all: the chain arc tool draws it.
+  const shown = (section: (typeof STITCH_SECTIONS)[number]): readonly StitchDef[] =>
+    section.id === 'compound' ? [...section.stitches, MAGIC_RING] : section.stitches;
+  return STITCH_SECTIONS.filter((section) => section.offPalette !== true).map((section) => ({
     id: section.id,
     title: titles[section.id],
-    items: section.stitches.map((def) => ({
+    items: shown(section).map((def) => ({
       def,
       key: KEYS[index++] ?? null,
       name: capitalize(stitchName(def, terms), terms),

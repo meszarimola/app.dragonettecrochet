@@ -191,7 +191,7 @@
     "#note-size": 2,
     "#note-text": 3,
     "#notes-numbers": 2,
-    "#palette": 26,
+    "#palette": 28,
     "#palette .palette__grid": 1,
     "#palette .stitch[aria-pressed=\"true\"]": 1,
     "#palette details": 1,
@@ -364,8 +364,7 @@
     ".view-menu__more > summary": 6,
     "#notes-toggle": 5,
     "#props-fields": 1,
-    "#select-mode-toggle": 1,
-    "#prop-rect-mode": 2,
+    "#select-mode-toggle": 2,
     "[data-action=\"select-area\"]": 2,
     "#notes-pop": 1,
     "#rows-more-toggle": 3,
@@ -402,7 +401,9 @@
     "#section-irregular-rows .panel__title": 1,
     "#row-kind-fields": 1,
     "#row-radial": 3,
-    "#rows-list .rows__cells": 5
+    "#rows-list .rows__cells": 5,
+    "[data-rect-mode=\"full\"]": 2,
+    "[data-rect-mode=\"partial\"]": 1
   },
   "selectOption": {
     "": 1,
@@ -432,7 +433,6 @@
     "rounds": 1,
     "rtl": 1,
     "spiral": 1,
-    "full": 1,
     "granny-square": 1
   },
   "toContainText": {
@@ -591,7 +591,9 @@
     "Félkör, ": 1,
     "Új kör": 1,
     "Új": 1,
-    "Új szabálytalan minta indult.": 1
+    "Új szabálytalan minta indult.": 1,
+    "Láncív": 1,
+    "Legyező": 1
   },
   "toHaveAttribute": {
     "2": 1,
@@ -625,8 +627,9 @@
     "lang": 7,
     "open": 7,
     "polite": 2,
-    "true": 22,
-    "/Ív húzása/": 1
+    "true": 25,
+    "/Ív húzása/": 1,
+    "aria-checked": 3
   },
   "toHaveText": {
     "": 4,
@@ -688,7 +691,6 @@
     "jis": 1,
     "p1": 1,
     "rtl": 1,
-    "full": 1,
     "semicircle": 1,
     "rectangle": 1
   }
