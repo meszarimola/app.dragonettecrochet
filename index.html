@@ -262,11 +262,9 @@
                   <button type="button" class="tool tool--caret" id="select-mode-toggle" aria-expanded="false" aria-controls="select-mode-pop" aria-label="Kijelölés téglalappal" data-tip="Mit fogjon meg a húzott téglalap" data-i18n-label="propRectModeLabel" data-i18n-tip="selectModeTip" hidden>
                     <span class="tool__caret" aria-hidden="true"></span>
                   </button>
-                  <div class="menu__pop menu__list select-mode" id="select-mode-pop" hidden>
-                    <p class="panel__field">
-                      <label for="prop-rect-mode" data-i18n="propRectModeLabel">Kijelölés téglalappal</label>
-                      <select id="prop-rect-mode"></select>
-                    </p>
+                  <div class="menu__pop menu__list select-mode" id="select-mode-pop" role="menu" aria-label="Kijelölés téglalappal" data-i18n-label="propRectModeLabel" hidden>
+                    <button type="button" class="tool" role="menuitemradio" aria-checked="true" data-rect-mode="partial" data-i18n="rectPartial" data-tip="A húzott téglalap a részben lefedett elemeket is megfogja." data-i18n-tip="rectPartialTip">A részben lefedett elemek is</button>
+                    <button type="button" class="tool" role="menuitemradio" aria-checked="false" data-rect-mode="full" data-i18n="rectFull" data-tip="A húzott téglalap csak a teljesen bekerített elemeket fogja meg." data-i18n-tip="rectFullTip">Csak a teljesen bekerített elemek</button>
                   </div>
                 </div>
               </div>
@@ -289,20 +287,6 @@
             </div>
 
             <div class="tools__group" role="group" aria-label="Rajzeszközök" data-i18n-label="toolGroupDraw" id="tools-irregular" hidden>
-              <button type="button" class="tool" data-action="chain-arc" aria-pressed="false" aria-label="Ív húzása" data-tip="Ív húzása láncszemekből: nyomd le a kezdőpontnál és húzd a végpontig. A kijelölt ív számbillentyűvel állítható." data-i18n-label="toolChainArcLabel" data-i18n-tip="toolChainArcTip">
-                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                  <path d="M3.5 14.5c3-7.5 10-7.5 13 0" />
-                  <path d="M3.5 14.5h.01M16.5 14.5h.01" />
-                </svg>
-                <span class="tool__label" data-i18n="toolLabelChainArc">Ív húzása</span>
-              </button>
-              <button type="button" class="tool" data-action="fan" aria-pressed="false" aria-label="Legyező húzása" data-tip="Legyező húzása: kattints az alappontra és húzd az irányba. A kijelölt legyező számbillentyűvel állítható." data-i18n-label="toolFanLabel" data-i18n-tip="toolFanTip">
-                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                  <path d="M10 17.5v-14M10 17.5 4.1 4.8M10 17.5l5.9-12.7" />
-                  <path d="M4.1 4.8A14 14 0 0 1 15.9 4.8" />
-                </svg>
-                <span class="tool__label" data-i18n="toolLabelFan">Legyező húzása</span>
-              </button>
               <div class="menu">
                 <button type="button" class="tool" id="notes-toggle" aria-expanded="false" aria-controls="notes-pop" aria-label="Jelölések" data-tip="Felirat, nyíl, zárójel, sorszámok és kezdőpont" data-i18n-label="toolNotesLabel" data-i18n-tip="toolNotesTip">
                   <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">

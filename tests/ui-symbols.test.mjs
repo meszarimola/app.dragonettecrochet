@@ -66,7 +66,8 @@ const SYMBOLS = [
   ['picot', { chain: 3, dot: 1 }],
   ['rev-sc', { stem: 1, cross: 1, tilde: 2 }],
   ['ch-sp', { chain: 3 }],
-  ['magic-ring', { ring: 1 }],
+  // KB: interface.md §74 — the ring, the working loop inside it and the tail.
+  ['magic-ring', { ring: 8 }],
 ];
 
 test('the symbol table covers every stitch in the library', () => {
@@ -285,7 +286,7 @@ test('in JIS style every stitch uses the CYC symbol with × single crochet; only
 
 /* ---- Filling out the JIS symbol set (PQW-876) ---- */
 
-test('in JIS style the magic ring is the „わ” symbol: drawn from its own lines, with no circle, in the place and size of the circle', () => {
+test('in JIS style the magic ring is the „わ” symbol: drawn from its own lines, with no circle, in the place and size of the ring', () => {
   const ring = stitchById('magic-ring');
   const jis = symbolShapes(ring, { singleCrochet: 'plus', style: 'jis' });
   assert.ok(jis.length >= 4);
@@ -295,10 +296,14 @@ test('in JIS style the magic ring is the „わ” symbol: drawn from its own li
   assert.ok(wa.maxX - wa.minX > 10 && wa.maxY - wa.minY > 10, 'big enough to read');
 });
 
-test('the same on the chart: in JIS style the magic ring is „わ”, in CYC a circle', () => {
+test('the same on the chart: in JIS style the magic ring is „わ”, in CYC the ring with its tail', () => {
   const ring = stitchById('magic-ring');
   const placement = { role: 'ring', feet: [], top: { x: 50, y: 40 }, angle: 0, size: 20 };
-  assert.deepEqual(roleCounts(placedShapes(ring, placement)), only({ ring: 1 }));
+  const cyc = placedShapes(ring, placement);
+  assert.deepEqual(roleCounts(cyc), only({ ring: 8 }));
+  // KB: interface.md §74 — one outer circle, the loop inside it, and the tail.
+  assert.equal(cyc.filter((shape) => shape.kind === 'ellipse').length, 1);
+  assert.equal(cyc.filter((shape) => shape.kind === 'curve').length, 7);
   const jis = placedShapes(ring, placement, { singleCrochet: 'plus', style: 'jis' });
   assert.ok(jis.length >= 4 && jis.every((shape) => shape.kind !== 'ellipse'));
   const { minX, maxX, minY, maxY } = shapeBounds(jis);

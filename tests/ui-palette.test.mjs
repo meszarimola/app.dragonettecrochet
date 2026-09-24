@@ -14,17 +14,31 @@ import { buildPalette } from '../src/ui/palette.ts';
 const palette = buildPalette();
 const items = palette.flatMap((section) => section.items);
 
-test('the palette shows every stitch exactly once, in library order', () => {
+/*
+ * KB: interface.md §74 — the palette is not the library any more. The chain space
+ * is drawn by the chain arc tool, so it has no tile; the magic ring is shown among
+ * the compound stitches. The library order itself is untouched, because the written
+ * pattern's key follows it.
+ */
+test('the palette shows every stitch once, save the chain space, and the magic ring with the compound ones', () => {
+  const shown = items.map((item) => item.def.id);
+  assert.equal(new Set(shown).size, shown.length, 'no stitch twice');
   assert.deepEqual(
-    items.map((item) => item.def.id),
-    STITCHES.map((stitch) => stitch.id),
+    new Set(shown),
+    new Set(STITCHES.filter((stitch) => stitch.id !== 'ch-sp').map((stitch) => stitch.id)),
+    'every stitch but the chain space',
+  );
+  assert.equal(
+    palette.find((section) => section.id === 'compound')?.items.at(-1)?.def.id,
+    'magic-ring',
+    'the magic ring closes the compound section',
   );
 });
 
-test('the palette sections are the library sections, each with a title', () => {
+test('the palette sections are the library sections that have tiles, each with a title', () => {
   assert.deepEqual(
     palette.map((section) => section.id),
-    STITCH_SECTIONS.map((section) => section.id),
+    STITCH_SECTIONS.filter((section) => section.offPalette !== true).map((section) => section.id),
   );
   const titles = palette.map((section) => section.title);
   assert.ok(titles.every((title) => title.trim()));
