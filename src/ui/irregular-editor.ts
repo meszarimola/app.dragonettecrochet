@@ -38,7 +38,7 @@ import {
   updateNotes,
   withIrregularNotation,
 } from '../core/irregular-document.ts';
-import { grannyOuter } from '../core/irregular-granny.ts';
+import { type GrannyBand, grannyBand, grannyOuter } from '../core/irregular-granny.ts';
 import {
   addChainArc,
   addFan,
@@ -300,6 +300,16 @@ function oneStartingLayer(pattern: IrregularPattern): IrregularPattern {
         }),
     activeLayerId: first.id,
   };
+}
+
+/**
+ * A granny square started in v0.67.0 was saved with the square grid on, because
+ * `newGranny()` switched it on. The bands are its background now, so the grid
+ * goes off once; turning it back on from the toolbar sticks. KB: interface.md §69
+ */
+function grannyWithoutGrid(pattern: IrregularPattern): IrregularPattern {
+  if (pattern.motif !== 'granny-square' || !pattern.guides.grid.visible) return pattern;
+  return setGrid(pattern, false);
 }
 
 function oneGuideSize(pattern: IrregularPattern): IrregularPattern {
@@ -594,7 +604,7 @@ export class IrregularEditor {
       const saved = localStorage.getItem(IRREGULAR_STORAGE_KEY);
       if (saved === null) return fresh;
       const loaded = loadIrregular(saved);
-      return loaded.ok ? oneStartingLayer(oneGuideSize(loaded.pattern)) : fresh;
+      return loaded.ok ? grannyWithoutGrid(oneStartingLayer(oneGuideSize(loaded.pattern))) : fresh;
     } catch {
       return fresh;
     }
@@ -689,7 +699,6 @@ export class IrregularEditor {
         title: texts().irregular.grannyTitle,
         motif: 'granny-square',
         rows: empty.rows.map((row) => ({ ...row, kind: 'round', direction: 'cw' })),
-        guides: { ...empty.guides, grid: { ...empty.guides.grid, visible: true } },
       },
       texts().irregular.grannyStarted,
     );
@@ -757,6 +766,14 @@ export class IrregularEditor {
     const custom = keyEntry(pattern, keyEntryId)?.customName ?? null;
     const abbr = custom === null ? findStitch(keyEntryId)?.terms[terms].abbr : null;
     return abbr ?? entryName(pattern, keyEntryId, terms);
+  }
+
+  /** The round generator's background under a granny square, one cell per stitch. KB: interface.md §69 */
+  #grannyBands(pattern: IrregularPattern): GrannyBand[] {
+    if (pattern.motif !== 'granny-square') return [];
+    return grannyRounds(pattern).map((round, index) =>
+      grannyBand(round, this.#grannyGlyph(round.keyEntryId), index % 2 === 0 ? 0 : 1),
+    );
   }
 
   /** A granny round keeps each stitch at its natural size. */
@@ -1762,6 +1779,7 @@ export class IrregularEditor {
       arc: this.#grippedGroup(),
       arcPreview: this.#drawingPreview(),
       rowLine: this.#activeRowLine(),
+      granny: this.#grannyBands(pattern),
       background: this.#backgroundView(),
     });
     this.#panel.update(itemsOf(pattern, this.#selection), this.#preferences.rectPartial, pattern.items.length);

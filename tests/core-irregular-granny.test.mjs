@@ -9,7 +9,7 @@ import { strict as assert } from 'node:assert';
 import { describe, test } from 'node:test';
 
 import { emptyIrregularPattern } from '../src/core/irregular-document.ts';
-import { grannyOuter, grannyShapes, squareStop } from '../src/core/irregular-granny.ts';
+import { grannyBand, grannyOuter, grannyShapes, squareStop } from '../src/core/irregular-granny.ts';
 import {
   addGrannyRound,
   clampGrannyCount,
@@ -133,5 +133,34 @@ describe('granny rounds in a pattern', () => {
     raw.groups[0].inner = -1;
     const loaded = loadIrregular(JSON.stringify(raw));
     assert.equal(loaded.ok, false);
+  });
+});
+
+describe('grannyBand', () => {
+  test('one cell per stitch: the dividers follow the round count, round by round', () => {
+    for (const count of [8, 16, 24]) {
+      assert.equal(grannyBand({ center: { x: 0, y: 0 }, inner: 40, count }, DC, 0).dividers.length, count);
+    }
+    assert.equal(grannyBand({ center: { x: 0, y: 0 }, inner: 0, count: 1 }, DC, 0).dividers.length, 0);
+  });
+
+  test('the band runs from the round base to its top, and the first reaches the centre', () => {
+    const first = grannyBand({ center: { x: 0, y: 0 }, inner: 0, count: 8 }, DC, 0);
+    assert.equal(first.inner, null);
+    assert.deepEqual(first.outer[0], { x: -40, y: -40 });
+    assert.deepEqual(first.dividers[0][0], { x: 0, y: 0 });
+    const second = grannyBand({ center: { x: 0, y: 0 }, inner: 40, count: 16 }, DC, 1);
+    assert.equal(second.tone, 1);
+    assert.deepEqual(second.inner?.[0], { x: -40, y: -40 });
+    assert.deepEqual(second.outer[0], { x: -80, y: -80 });
+  });
+
+  test('a divider stands halfway between two stitches', () => {
+    const band = grannyBand({ center: { x: 0, y: 0 }, inner: 40, count: 8 }, DC, 0);
+    const [from, to] = band.dividers[0];
+    near(from.x, -20, 'inner end, half a stitch step along the top side');
+    near(from.y, -40, 'inner end on the base square');
+    near(to.x, -40, 'outer end');
+    near(to.y, -80, 'outer end on the top square');
   });
 });
