@@ -38,9 +38,11 @@ import {
   updateNotes,
   withIrregularNotation,
 } from '../core/irregular-document.ts';
+import { grannyOuter } from '../core/irregular-granny.ts';
 import {
   addChainArc,
   addFan,
+  addGrannyRound,
   type ChainArcPatch,
   clampCount,
   clampFanCount,
@@ -49,18 +51,20 @@ import {
   type FanPatch,
   forgetBrokenGroups,
   type GlyphSize,
+  grannyRounds,
   groupById,
   groupOfItem,
   groupsOf,
   holdsWholeGroups,
   reseatGroups,
+  setGrannyCount,
   translateGroups,
   updateChainArc,
   updateFan,
   withWholeGroups,
 } from '../core/irregular-groups.ts';
 import { isIrregularJson, loadIrregular, saveIrregular } from '../core/irregular-json.ts';
-import { entryGlyph, entryName, sharedGlyphs } from '../core/irregular-key.ts';
+import { entryGlyph, entryName, findStitch, keyEntry, sharedGlyphs } from '../core/irregular-key.ts';
 import {
   addLayer,
   deleteLayer,
@@ -117,6 +121,7 @@ import {
 } from '../core/irregular-types.ts';
 import type { Locale, PatternNotation, StitchDefId } from '../core/types.ts';
 import { type BackgroundStoreCode, getBackground, pruneBackgrounds, putBackground } from './background-store.ts';
+import { GrannyPanel, type GrannyRoundView } from './granny-panel.ts';
 import { IRREGULAR_JSON_CORE_TEXTS } from './i18n/core/irregular-json.ts';
 import { renderCoreText } from './i18n/core/render.ts';
 import { IRREGULAR_TEXTS } from './i18n/irregular.ts';
@@ -158,6 +163,8 @@ const MIN_NOTE_SPAN = 8;
 const ROW_ARROW: Record<RowDirection, string> = { ltr: '→', rtl: '←', cw: '↻', ccw: '↺' };
 /** A fan is a shell by default, and a shell is made of double crochets. */
 const FAN_STITCH = 'dc';
+/** A granny square is worked in double crochets unless the palette says otherwise. */
+const GRANNY_STITCH = 'dc';
 /** How long a typed digit waits for the next one before it stands alone. */
 const ARC_TYPING_GAP = 900;
 const MIN_SIZE = 2;
@@ -198,6 +205,7 @@ export interface IrregularSections {
   readonly properties: HTMLDetailsElement;
   readonly rows: HTMLDetailsElement;
   readonly layers: HTMLDetailsElement;
+  readonly granny: HTMLElement;
 }
 
 export interface IrregularHost {
@@ -311,6 +319,7 @@ export class IrregularEditor {
   readonly #panel: IrregularPanel;
   readonly #rowsPanel: IrregularRowsPanel;
   readonly #layersPanel: IrregularLayersPanel;
+  readonly #grannyPanel: GrannyPanel;
   readonly #host: IrregularHost;
   #history: History<IrregularPattern>;
   #draft: IrregularPattern | null = null;
@@ -361,6 +370,11 @@ export class IrregularEditor {
       reorder: (layerId, toIndex) => this.#commit(reorderLayers(this.#history.present, layerId, toIndex)),
       moveSelection: (layerId) => this.#moveSelectionToLayer(layerId),
       patchBackground: (patch) => this.#commit(patchBackground(this.#history.present, patch)),
+    });
+    this.#grannyPanel = new GrannyPanel(sections.granny, {
+      addRound: (count) => this.addGrannyRound(count),
+      setCount: (roundId, count) => this.setGrannyRoundCount(roundId, count),
+      removeLast: () => this.removeLastGrannyRound(),
     });
     this.#panel = new IrregularPanel(sections.properties, {
       patch: (patch) => this.#patch(patch),
@@ -451,6 +465,7 @@ export class IrregularEditor {
     this.#panel.hide();
     this.#rowsPanel.hide();
     this.#layersPanel.hide();
+    this.#grannyPanel.show(false);
   }
 
   #setPreference(patch: Partial<Preferences>): void {
@@ -660,6 +675,95 @@ export class IrregularEditor {
     this.#host.announce(texts().irregular.emptied);
   }
 
+  get grannyMode(): boolean {
+    return this.#history.present.motif === 'granny-square';
+  }
+
+  /** A fresh granny square; the work it replaces comes back with undo. KB: interface.md §68 */
+  newGranny(): void {
+    this.#selection.clear();
+    const empty = this.#empty();
+    this.#commit(
+      {
+        ...empty,
+        title: texts().irregular.grannyTitle,
+        motif: 'granny-square',
+        rows: empty.rows.map((row) => ({ ...row, kind: 'round', direction: 'cw' })),
+        guides: { ...empty.guides, grid: { ...empty.guides.grid, visible: true } },
+      },
+      texts().irregular.grannyStarted,
+    );
+    this.#board.fit(this.#host.insets().bottom);
+  }
+
+  addGrannyRound(count: number): void {
+    const present = this.#history.present;
+    const rounds = grannyRounds(present);
+    const last = rounds.at(-1);
+    let pattern = present;
+    let rowId = present.activeRowId;
+    if (last !== undefined || present.items.some((item) => item.rowId === rowId)) {
+      const made = addRow(present, 'round');
+      pattern = setActiveRow(made.pattern, made.id);
+      rowId = made.id;
+    }
+    const keyEntryId = this.#stitch ?? GRANNY_STITCH;
+    const made = addGrannyRound(
+      pattern,
+      {
+        rowId,
+        layerId: pattern.activeLayerId,
+        keyEntryId,
+        center: last?.center ?? { x: 0, y: 0 },
+        inner: last === undefined ? 0 : grannyOuter(last, this.#grannyGlyph(last.keyEntryId)),
+        count,
+      },
+      this.#grannyGlyph(keyEntryId),
+    );
+    const added = groupById(made.pattern, made.id);
+    this.#commit(made.pattern, texts().irregular.grannyRoundAdded(rounds.length + 1, added?.count ?? count));
+    this.#board.fit(this.#host.insets().bottom);
+  }
+
+  setGrannyRoundCount(roundId: string, count: number): void {
+    const round = groupById(this.#history.present, roundId);
+    if (round === undefined || round.kind !== 'grannyRound') return;
+    this.#commit(setGrannyCount(this.#history.present, roundId, count, this.#grannyGlyph(round.keyEntryId)));
+  }
+
+  removeLastGrannyRound(): void {
+    const present = this.#history.present;
+    const last = grannyRounds(present).at(-1);
+    if (last === undefined) return;
+    const next =
+      present.rows.length > 1
+        ? deleteRow(present, last.rowId, 'delete')
+        : forgetBrokenGroups(deleteItems(present, last.memberIds));
+    this.#commit(next, texts().irregular.grannyRoundRemoved);
+  }
+
+  get grannyRoundViews(): GrannyRoundView[] {
+    const pattern = this.#history.present;
+    return grannyRounds(pattern).map((round) => ({
+      id: round.id,
+      count: round.count,
+      stitch: this.#shortName(pattern, round.keyEntryId),
+    }));
+  }
+
+  /** The abbreviation where the stitch has one, so a round fits on one line. */
+  #shortName(pattern: IrregularPattern, keyEntryId: string): string {
+    const terms = this.#host.terms();
+    const custom = keyEntry(pattern, keyEntryId)?.customName ?? null;
+    const abbr = custom === null ? findStitch(keyEntryId)?.terms[terms].abbr : null;
+    return abbr ?? entryName(pattern, keyEntryId, terms);
+  }
+
+  /** A granny round keeps each stitch at its natural size. */
+  #grannyGlyph(keyEntryId: string): GlyphSize {
+    return naturalSize(keyEntryId, 'both-loops', this.#host.symbols(), entryGlyph(this.#history.present, keyEntryId));
+  }
+
   setStitch(id: StitchDefId | null): void {
     // Arming the palette lays every drawing tool down, or the canvas would keep
     // drawing groups while the palette claimed a stitch was waiting.
@@ -684,6 +788,12 @@ export class IrregularEditor {
   get selectedFan(): FanGroup | null {
     const group = this.selectedGroup;
     return group?.kind === 'fan' ? group : null;
+  }
+
+  /** A granny round has no grips of its own: its count is set in the rounds panel. */
+  #grippedGroup(): ChainArcGroup | FanGroup | null {
+    const group = this.selectedGroup;
+    return group?.kind === 'grannyRound' ? null : group;
   }
 
   /** The group the selection holds, when it holds exactly one and nothing else. */
@@ -1649,7 +1759,7 @@ export class IrregularEditor {
       ghost: this.#ghost(),
       hover: null,
       glyphOf: (keyEntryId) => entryGlyph(pattern, keyEntryId),
-      arc: this.selectedGroup,
+      arc: this.#grippedGroup(),
       arcPreview: this.#drawingPreview(),
       rowLine: this.#activeRowLine(),
       background: this.#backgroundView(),
@@ -1674,6 +1784,8 @@ export class IrregularEditor {
     this.#rowsPanel.update(committed, { selectionSize: this.#selection.size });
     this.#panel.updateGuides(committed.guides, this.#preferences.radial);
     this.#layersPanel.update(committed, this.#selection.size, committed.background ?? null);
+    this.#grannyPanel.show(this.grannyMode);
+    if (this.grannyMode) this.#grannyPanel.update(this.grannyRoundViews);
     this.#host.refreshControls();
   }
 
@@ -2217,7 +2329,7 @@ export class IrregularEditor {
   /** What the arc becomes while one of its three grips is being dragged. */
   #grippedArc(drag: Extract<Drag, { kind: 'arc-grip' }>, point: Point): IrregularPattern {
     const group = groupById(this.#history.present, drag.id);
-    if (group === undefined) return this.#history.present;
+    if (group === undefined || group.kind === 'grannyRound') return this.#history.present;
     if (group.kind === 'fan') {
       const patch: FanPatch =
         drag.grip === 'origin'

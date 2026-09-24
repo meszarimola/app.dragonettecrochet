@@ -2587,3 +2587,36 @@ body.is-selecting #board-irregular {
 #section-irregular.is-off {
   display: none;
 }
+
+/* KB: interface.md §68 — one line per round: its name, its count, its stitch. */
+.granny__rounds {
+  display: grid;
+  gap: var(--sp-1);
+  margin: 0 0 var(--sp-3);
+  padding: 0;
+  list-style: none;
+}
+
+.granny__round {
+  display: grid;
+  grid-template-columns: 4.5rem 5rem 1fr;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.granny__name {
+  color: var(--c-ink);
+  font-weight: 600;
+}
+
+.granny__stitch {
+  color: var(--c-text-soft);
+  font-size: 0.875rem;
+}
+
+.granny__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+  margin: 0;
+}

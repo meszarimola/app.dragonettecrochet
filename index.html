@@ -575,6 +575,19 @@
             <button type="button" class="panel-tabs__tab" id="tab-rows" data-tab="rows" aria-pressed="true" aria-controls="section-irregular-rows" data-i18n="tabRows">Sorok</button>
             <button type="button" class="panel-tabs__tab" id="tab-layers" data-tab="layers" aria-pressed="false" aria-controls="section-irregular-layers" data-i18n="tabLayers">Rétegek</button>
           </div>
+          <section class="section granny" id="section-granny" aria-labelledby="granny-title" hidden>
+            <h2 class="panel__title" id="granny-title" data-i18n="grannyPanelTitle">Körök</h2>
+            <p class="panel__note" id="granny-empty" data-i18n="grannyEmpty">Írd be, hány szemből áll az első kör, és nyomd meg az „Új kör” gombot. Minden új kör a bal oldalon kiválasztott szemből készül.</p>
+            <ol class="granny__rounds" id="granny-rounds"></ol>
+            <p class="panel__field">
+              <label for="granny-count" data-i18n="grannyCountLabel">Szemek száma az új körben</label>
+              <input id="granny-count" type="number" min="1" max="400" step="1" value="8" inputmode="numeric" />
+            </p>
+            <p class="granny__actions">
+              <button type="button" class="tool" id="granny-add" data-i18n="grannyAdd">Új kör</button>
+              <button type="button" class="tool" id="granny-remove" data-i18n="grannyRemove">Utolsó kör törlése</button>
+            </p>
+          </section>
           <details class="section section--tab" id="section-irregular-rows" hidden>
             <summary class="section__head"><h2 class="panel__title" data-i18n="sectionRowsTitle">Sorok és körök</h2></summary>
             <div class="rows" role="group" aria-label="A minta sorai és körei" data-i18n-label="rowsGroupLabel">
