@@ -61,6 +61,8 @@ export interface IrregularRow {
   readonly order?: 'auto' | readonly string[];
   /** Absent until the row has been arranged on a shape. */
   readonly line?: RowLine;
+  /** A granny square round's grid count: how many cells its band is cut into. KB: interface.md §71 */
+  readonly cells?: number;
 }
 
 export interface IrregularLayer {
@@ -220,10 +222,10 @@ export interface FanGroup {
 export type FanMode = 'spread' | 'converge';
 
 /**
- * One round of a granny square: `count` stitches spread evenly round a square
- * about `center`, their bases on the square of half-side `inner` and their tops
- * one natural stitch height further out. The first stitch sits on the top-left
- * corner and the run goes clockwise. KB: core-geometry §55
+ * A granny round as v0.67–v0.69 wrote it: a generated run of stitches. Nothing
+ * makes one any more — the rounds are a grid the crocheter fills in (§71) — but
+ * a file from those versions still holds them, and loading one turns its
+ * stitches into ordinary ones. KB: interface.md §71
  */
 export interface GrannyRoundGroup {
   readonly id: string;
@@ -234,7 +236,6 @@ export interface GrannyRoundGroup {
   readonly center: Point;
   readonly inner: number;
   readonly count: number;
-  /** Whether each stitch turns to face away from the middle. KB: interface.md §70 */
   readonly radial: boolean;
   readonly memberIds: readonly string[];
 }
@@ -303,6 +304,8 @@ export interface IrregularPattern {
   readonly background?: BackgroundImage;
   /** Set when the pattern is built round by round as a granny square. KB: interface.md §68 */
   readonly motif?: 'granny-square';
+  /** Whether a stitch placed on a granny round turns to face outwards. KB: interface.md §70 */
+  readonly grannyRadial?: boolean;
 }
 
 /** Abstract canvas units: at 100% zoom one unit is one CSS pixel. */

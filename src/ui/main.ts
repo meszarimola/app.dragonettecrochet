@@ -33,6 +33,7 @@ import {
 import { type ChartGrid, chartGrid, type GridSeam, targetPoint } from '../core/grid.js';
 import { canRedo, canUndo, createHistory, type History, record, redo, undo } from '../core/history.js';
 import { nodeInsertions } from '../core/insertion.js';
+import { grannyCellsOf } from '../core/irregular-granny.js';
 import { isIrregularJson } from '../core/irregular-json.js';
 import { NUDGE_STEP, NUDGE_STEP_LARGE } from '../core/irregular-types.js';
 import { type ChartLayout, layoutPattern, type Point } from '../core/layout.js';
@@ -1877,7 +1878,7 @@ function setRegularMenuOpen(open: boolean): void {
 function openGranny(): void {
   selectType('irregular');
   ensureIrregular().newGranny();
-  must<HTMLInputElement>('#granny-count').focus();
+  must<HTMLInputElement>('#row-cells').focus();
 }
 
 function openRegularEntry(entry: RegularMenuEntry): void {
@@ -2459,16 +2460,16 @@ const irregularSections = {
   properties: must<HTMLDetailsElement>('#section-irregular'),
   rows: must<HTMLDetailsElement>('#section-irregular-rows'),
   layers: must<HTMLDetailsElement>('#section-irregular-layers'),
-  granny: must<HTMLElement>('#section-granny'),
 };
 
-// KB: interface.md §68 — a granny square has rounds, not rows and layers.
+// KB: interface.md §71 — a granny square has rounds: the rows panel alone, without the tabs.
 function syncGrannyView(editor: IrregularEditor): void {
   if (!editor.active) return;
   const granny = editor.grannyMode;
   must<HTMLElement>('#irregular-tabs').hidden = granny;
-  irregularSections.rows.hidden = granny;
   irregularSections.layers.hidden = granny;
+  irregularSections.rows.classList.toggle('is-off', false);
+  irregularSections.rows.open = true;
 }
 
 function ensureIrregular(): IrregularEditor {
@@ -2668,6 +2669,18 @@ if (navigator.webdriver) {
       cursor: () => {
         const point = cursorPoint();
         return point ? board.toClient(point) : null;
+      },
+    },
+    mintatervezoSzabad: {
+      cells: () => {
+        const editor = irregular;
+        if (editor === null) return [];
+        return grannyCellsOf(editor.pattern, editor.grannyStep).map((cell) => ({
+          rowId: cell.rowId,
+          index: cell.index,
+          angle: cell.angle,
+          ...editor.toClient(cell.at),
+        }));
       },
     },
     mintatervezoKijeloles: {
