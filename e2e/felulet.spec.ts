@@ -74,6 +74,14 @@ test('the regular type opens a side menu of shapes, and a choice opens its gener
   await expect(page.locator('#section-shape')).not.toHaveAttribute('open', '');
   await expect(page.locator('#rounds-shape')).toHaveValue('granny-square');
   await expect(page.locator('#rounds-shape')).toBeFocused();
+  // PQW-1039: the granny square is drawn at once, and only its own fields show.
+  await expect(page.locator('#status')).toContainText('Nagymama-négyzet, 6 kör elkészült;');
+  for (const id of ['#rounds-stitch', '#rounds-closing', '#rounds-stagger', '#rounds-jog', '#rounds-closing-note']) {
+    await expect(page.locator(id)).toBeHidden();
+  }
+  for (const id of ['#rounds-start', '#rounds-count', '#rounds-colors', '#rounds-ribbing']) {
+    await expect(page.locator(id)).toBeVisible();
+  }
 
   await page.locator('#types-toggle').click();
   await page.locator('.type[data-type="regular"]').hover();
@@ -81,6 +89,7 @@ test('the regular type opens a side menu of shapes, and a choice opens its gener
   await expect(page.locator('#section-shawl')).toHaveAttribute('open', '');
   await expect(page.locator('#section-rounds')).not.toHaveAttribute('open', '');
   await expect(page.locator('#shawl-kind')).toHaveValue('semicircle');
+  await expect(page.locator('#status')).not.toContainText('Félkör, ');
 });
 
 test('the side menu works from the keyboard: right arrow opens it, arrows move, left arrow closes it (PQW-1038)', async ({

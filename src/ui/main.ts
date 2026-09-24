@@ -1761,6 +1761,7 @@ interface RegularMenuEntry {
   readonly section: string;
   readonly field: string;
   readonly value: string;
+  readonly create?: string;
 }
 
 const REGULAR_MENU: readonly RegularMenuEntry[] = [
@@ -1791,6 +1792,7 @@ const REGULAR_MENU: readonly RegularMenuEntry[] = [
     section: '#section-rounds',
     field: '#rounds-shape',
     value: 'granny-square',
+    create: '#rounds-create',
   },
 ];
 const REGULAR_MENU_ID = 'types-regular-menu';
@@ -1886,6 +1888,7 @@ function openRegularEntry(entry: RegularMenuEntry): void {
   field.dispatchEvent(new Event('change', { bubbles: true }));
   target.scrollIntoView({ block: 'start' });
   field.focus();
+  if (entry.create) must<HTMLButtonElement>(entry.create).click();
 }
 
 function selectType(id: PatternTypeId): void {

@@ -71,7 +71,8 @@ test('granny square with a chain ring, and the K key closes a chain ring from th
   await open(page);
   await generate(page, { shape: 'Nagymama-négyzet', start: 'Láncgyűrű', rounds: 3 });
 
-  await expect(page.locator('#rounds-stitch')).toBeDisabled();
+  await expect(page.locator('#rounds-stitch')).toBeHidden();
+  await expect(page.locator('#rounds-closing')).toBeHidden();
   await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
   const text = await writtenText(page);
   expect(text).toContain('Láncgyűrű: 4 lsz, 1 ksz-szel gyűrűvé zárva.');

@@ -204,7 +204,7 @@
     "#props-count": 10,
     "#props-fan": 1,
     "#props-note": 1,
-    "#rounds-closing": 1,
+    "#rounds-closing": 2,
     "#rounds-count": 12,
     "#rounds-note": 2,
     "#rounds-ribbing": 1,
@@ -291,7 +291,7 @@
     "#size-total": 6,
     "#size-yarn": 2,
     "#size-yarn-name": 4,
-    "#status": 77,
+    "#status": 79,
     "#summary": 40,
     "#terms": 10,
     "#title": 7,
@@ -530,7 +530,7 @@
     "Láncszem": 1,
     "Mozaik: 4 sor elkészült": 1,
     "Méretek": 1,
-    "Nagymama-négyzet, 6 kör elkészült;": 1,
+    "Nagymama-négyzet, 6 kör elkészült;": 2,
     "Nincs elég célpont": 2,
     "Nincs hiba és figyelmeztetés.": 11,
     "Nincs kijelölt szem": 2,
@@ -580,7 +580,8 @@
     "Segédrács": 1,
     "Méretezés": 1,
     "Réteg": 2,
-    "Kijelölt módosítása": 1
+    "Kijelölt módosítása": 1,
+    "Félkör, ": 1
   },
   "toHaveAttribute": {
     "2": 1,
