@@ -1807,11 +1807,11 @@ that many cells (`core-geometry.md` §55). „Új kör” adds an empty ring tha
 from the count of the one before it. A granny round is empty by design, so it
 does not raise the empty-row finding and does not block „Új kör”.
 
-**A stitch goes into a cell.** `#snap` sends a dropped stitch to the nearest cell
-and `#place` puts it in that cell's own round, not merely the active one, so
-working into an inner round later still files the stitch correctly. The turn of
-§70 now decides how a dropped stitch faces, and it no longer moves stitches that
-are already down.
+**A stitch belongs to the round it lands in.** `#place` files it under that
+round, not merely the active one, so working into an inner round later still
+files the stitch correctly. The turn of §70 decides how a dropped stitch faces,
+and it no longer moves stitches that are already down. Where exactly a stitch
+goes, and how the turn is worked out, is §72.
 
 **The panel is the rows panel.** The owner: „legyen olyan, mint a sortervező …
 ugyanaz legyen a felhasználói felület, csak az aktív fajtája dropdownnak és az
@@ -1828,3 +1828,26 @@ title of the section becomes „Körök”. The separate rounds panel of §68 is
 round takes its group's count as its grid count, the pattern takes the turn, and
 the generated stitches are let go to stand on their own. Nothing is lost, and
 nothing writes a `grannyRound` group again.
+
+## §72 The crocheter places freely, and the turn is the circle guide's
+
+PQW-1044, correcting §71 on three counts.
+
+**No snapping to a cell.** The grid says where the cells are; it does not decide
+where a stitch goes. „a felhasználó a soron belül oda teszi le ahova akarja - a
+sugárfordítást meg kell tartani.” `#snap` has no granny branch any more, so a
+stitch lands exactly where it was dropped. Which round it joins comes from
+`grannyRingAt`, the band the point falls in — the bands are squares, so how far
+out a point is, is its larger coordinate.
+
+**The turn is `angleFromCenter`**, the circle guide's own (§63): away from the
+middle of the square. §71 turned a stitch by the normal of the side its cell sat
+on, which is right only where a cell happens to sit on a corner or the middle of
+a side. „használd a körnél implementált sugárfordítást. az nagyon jól működött.”
+
+**The grid count sits in the round's line**, as a counter beside „1. kör”, and
+the properties block loses its „Rács szám” field: „a rács száma inkább a körökhöz
+menjen mint számláló”. The name keeps its room and the stitch count gives way
+instead, because the list is 285 px wide at its narrowest. „Új kör” is the one
+button of the bar that carries its name („legyen kicsit nagyobb és legyen kiírva,
+hogy mit csinál”); `.ib__label` shows only on `.ib.is-wide`.

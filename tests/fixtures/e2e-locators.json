@@ -384,7 +384,7 @@
     "#settings-open": 3,
     "#settings-dialog": 2,
     "#settings-close": 1,
-    "#row-new-round": 4,
+    "#row-new-round": 5,
     "#row-delete": 3,
     "#row-insert": 1,
     "#irregular-tabs button": 1,
@@ -399,10 +399,10 @@
     ".flyout__detail": 1,
     "#section-irregular-rows": 1,
     "#section-irregular-layers": 1,
-    "#row-cells": 11,
     "#section-irregular-rows .panel__title": 1,
     "#row-kind-fields": 1,
-    "#row-radial": 3
+    "#row-radial": 3,
+    "#rows-list .rows__cells": 5
   },
   "selectOption": {
     "": 1,
@@ -452,7 +452,7 @@
     "/Fentről induló háromszög, \\d+ sor elkészült; visszavonással a korábbi minta visszajön\\./": 1,
     "/Téglalap, \\d+ sor elkészült; visszavonással a korábbi minta visszajön\\./": 1,
     "0,8 cm": 1,
-    "1 szem": 1,
+    "1 szem": 4,
     "1 × 1 és a 2 × 1 méret működik": 1,
     "1. kör: hagyj ki 1 láncszemet, majd 6 rp, 4 rp a következő láncszembe, a láncszemek másik oldalán vissza: 5 rp, 3 rp a következő láncszembe (18).": 1,
     "1. sor": 1,
@@ -589,8 +589,7 @@
     "Réteg": 2,
     "Kijelölt módosítása": 1,
     "Félkör, ": 1,
-    "1/8 szem": 2,
-    "1/1 szem": 1
+    "Új kör": 1
   },
   "toHaveAttribute": {
     "2": 1,

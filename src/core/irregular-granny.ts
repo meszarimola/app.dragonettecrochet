@@ -108,19 +108,14 @@ export function grannyCellsOf(pattern: IrregularPattern, step: number): GrannyCe
   return grannyRings(pattern, step).flatMap((ring) => grannyCells(ring));
 }
 
-/** The cell nearest a point, or nothing while the square has no rounds. */
-export function nearestGrannyCell(pattern: IrregularPattern, step: number, point: Point): GrannyCell | undefined {
-  let best: GrannyCell | undefined;
-  let distance = Number.POSITIVE_INFINITY;
-  for (const ring of grannyRings(pattern, step)) {
-    for (const cell of grannyCells(ring)) {
-      const span = Math.hypot(cell.at.x - point.x, cell.at.y - point.y);
-      if (span >= distance) continue;
-      distance = span;
-      best = cell;
-    }
-  }
-  return best;
+/**
+ * The round a point falls in. A round's band is the ring between two squares
+ * about the middle, so how far out a point is, is its larger coordinate. A point
+ * beyond the last round belongs to no round. KB: interface.md §72
+ */
+export function grannyRingAt(pattern: IrregularPattern, step: number, point: Point): GrannyRing | undefined {
+  const reach = Math.max(Math.abs(point.x), Math.abs(point.y));
+  return grannyRings(pattern, step).find((ring) => reach >= ring.inner && reach <= ring.outer);
 }
 
 /**
