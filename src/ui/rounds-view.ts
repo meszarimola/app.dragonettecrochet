@@ -26,7 +26,7 @@ export interface Choice<T extends string> {
 const capitalize = (text: string) => text.charAt(0).toLocaleUpperCase('hu') + text.slice(1);
 
 // KB: interface.md §9
-export const DISABLED_MOTIFS: readonly MotifShape[] = ['granny-square'];
+export const DISABLED_MOTIFS: readonly MotifShape[] = [];
 
 export const SHAPE_CHOICES: readonly Choice<MotifShape>[] = MOTIF_SHAPES.map((value) => ({
   value,
