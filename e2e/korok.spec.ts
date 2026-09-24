@@ -115,7 +115,7 @@ for (const viewport of [
   test(`${viewport.width}×${viewport.height}: the diagram of the 6-round granny square is a square, and the symbols do not crowd`, async ({
     page,
   }) => {
-      await page.setViewportSize(viewport);
+    await page.setViewportSize(viewport);
     await open(page);
     await generate(page, { shape: 'Nagymama-négyzet', rounds: 6 });
     await expect(page.locator('#status')).toContainText('Nagymama-négyzet, 6 kör elkészült;');
