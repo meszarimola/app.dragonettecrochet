@@ -23,6 +23,7 @@ export interface SectionTexts {
   readonly types: {
     readonly menu: Readonly<Record<PatternTypeId, TypeEntry>>;
     readonly soon: string;
+    readonly subcategories: string;
   };
   readonly size: {
     readonly sources: Readonly<Record<ValueSource, string>>;
@@ -160,6 +161,7 @@ const hu: SectionTexts = {
       irregular: { name: 'Szabad tervező', detail: 'Formázott, amorf darab (pl. ruhadarab, babacipő).' },
     },
     soon: 'Hamarosan',
+    subcategories: 'Alkategóriák',
   },
   size: {
     sources: { measured: 'mért', label: 'címkéről', estimated: 'becsült' },
@@ -319,6 +321,7 @@ const en: SectionTexts = {
       irregular: { name: 'Free-form designer', detail: 'Shaped, free-form piece (e.g. a garment, baby booties).' },
     },
     soon: 'Coming soon',
+    subcategories: 'Subcategories',
   },
   size: {
     sources: { measured: 'measured', label: 'from the label', estimated: 'estimated' },

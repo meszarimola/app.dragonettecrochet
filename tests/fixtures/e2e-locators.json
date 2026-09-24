@@ -19,6 +19,7 @@
     "24": 1,
     "25": 4,
     "28": 1,
+    "30": 1,
     "40": 1,
     "50": 1,
     "250": 1,
@@ -31,8 +32,7 @@
     "Talp": 3,
     "Test": 1,
     "Szegély": 1,
-    "Csipkés terítő": 1,
-    "30": 1
+    "Csipkés terítő": 1
   },
   "getByLabel": {
     "/Feliratos motívum/": 1,
@@ -81,7 +81,7 @@
     "Törlés velük együtt": 1,
     "Vissza": 2,
     "Visszavonás": 3,
-    "button": 188,
+    "button": 192,
     "group": 1,
     "radio": 12,
     "separator": 1,
@@ -89,7 +89,10 @@
     "Új minta": 12,
     "Új minta ebből": 5,
     "Új profil": 2,
-    "Másolás": 2
+    "Másolás": 2,
+    "Alkategóriák": 1,
+    "Kör és motívum": 1,
+    "Forma": 1
   },
   "getByText": {
     "22 láncszem": 1,
@@ -102,7 +105,7 @@
     ".tools [data-action=\"zoom-in\"]": 2,
     ".tools [data-action=\"zoom-in\"] .tool__label": 1,
     ".type[aria-pressed=\"true\"]": 1,
-    ".type[data-type=\"irregular\"]": 2,
+    ".type[data-type=\"irregular\"]": 3,
     ".type[data-type=\"regular\"]": 1,
     "#${id}": 2,
     "#adjust": 5,
@@ -127,7 +130,7 @@
     "#arc-explode": 1,
     "#arrange-even": 2,
     "#board": 99,
-    "#board-irregular": 6,
+    "#board-irregular": 8,
     "#chain-count": 43,
     "#chart-style": 2,
     "#count-field": 2,
@@ -228,13 +231,13 @@
     "#section-notation > summary": 1,
     "#section-pattern": 3,
     "#section-pattern > summary": 1,
-    "#section-rounds": 9,
-    "#section-shape": 6,
+    "#section-rounds": 11,
+    "#section-shape": 8,
     "#section-shawl": 2,
     "#section-size": 1,
     "#section-size > summary": 5,
     "#section-stitches": 12,
-    "#setup": 3,
+    "#setup": 4,
     "#setup-toggle": 20,
     "#shape-angle": 2,
     "#shape-details": 1,
@@ -292,8 +295,8 @@
     "#title": 7,
     "#tools-row": 2,
     "#tradition": 5,
-    "#types": 1,
-    "#types-toggle": 24,
+    "#types": 2,
+    "#types-toggle": 27,
     "#ui-language": 10,
     "#version": 3,
     "#view-toggle": 11,
@@ -388,7 +391,9 @@
     "#rows-empty": 3,
     "#guide-start-angle": 1,
     "#irregular-tabs": 2,
-    "#select-pointer": 4
+    "#select-pointer": 4,
+    "#types-regular-sub": 3,
+    "#section-rounds summary": 1
   },
   "selectOption": {
     "": 1,
@@ -575,8 +580,9 @@
     "Kijelölt módosítása": 1
   },
   "toHaveAttribute": {
+    "2": 1,
     "100": 1,
-    "": 4,
+    "": 8,
     "#faf7f3": 1,
     "/: nyitott$/": 1,
     "/: teli$/": 1,
@@ -587,7 +593,7 @@
     "/crochet pattern designer/i": 1,
     "/horgolásminta-tervező/i": 3,
     "3. sor, 2. cella: teli": 1,
-    "aria-expanded": 19,
+    "aria-expanded": 21,
     "aria-hidden": 2,
     "aria-label": 3,
     "aria-live": 2,
@@ -598,15 +604,14 @@
     "data-fit": 1,
     "data-tip": 2,
     "en": 4,
-    "false": 18,
+    "false": 19,
     "href": 4,
     "https://app.dragonettecrochet.com/": 1,
     "hu": 3,
     "lang": 7,
-    "open": 4,
+    "open": 8,
     "polite": 2,
-    "true": 22,
-    "2": 1,
+    "true": 23,
     "/Ív húzása/": 1
   },
   "toHaveText": {
@@ -636,11 +641,16 @@
     "Size and yarn": 6,
     "Sugár, cm": 1,
     "US G-6 · régi UK 8": 1,
-    "címkéről": 1
+    "címkéről": 1,
+    "Forma": 1,
+    "Kendő": 1,
+    "Ruhadarab": 1,
+    "Kör és motívum": 1
   },
   "toHaveValue": {
     "7": 2,
     "12": 1,
+    "40": 1,
     "Félkör": 2,
     "M": 2,
     "Nyári kendő": 5,
@@ -658,7 +668,6 @@
     "jis": 1,
     "p1": 1,
     "rtl": 1,
-    "full": 1,
-    "40": 1
+    "full": 1
   }
 }

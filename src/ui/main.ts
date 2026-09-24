@@ -1728,10 +1728,75 @@ function renderTypes(): void {
       else button.addEventListener('click', () => selectType(type.id));
       button.append(label);
 
-      item.append(button);
+      if (type.id !== 'regular') {
+        item.append(button);
+        return item;
+      }
+      const row = document.createElement('div');
+      row.className = 'type__row';
+      row.append(button, subcategoryToggle());
+      item.append(row, subcategoryList());
       return item;
     }),
   );
+}
+
+// KB: interface.md §65
+const REGULAR_SUBCATEGORIES = [
+  { section: '#section-shape', title: 'sectionShapeTitle' },
+  { section: '#section-shawl', title: 'sectionShawlTitle' },
+  { section: '#section-garment', title: 'sectionGarmentTitle' },
+  { section: '#section-rounds', title: 'sectionRoundsTitle' },
+] as const;
+const SUBCATEGORY_LIST_ID = 'types-regular-sub';
+let subcategoriesOpen = false;
+
+function subcategoryToggle(): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'type__more';
+  button.setAttribute('aria-expanded', String(subcategoriesOpen));
+  button.setAttribute('aria-controls', SUBCATEGORY_LIST_ID);
+  button.setAttribute('aria-label', texts().sections.types.subcategories);
+  button.dataset.tip = texts().sections.types.subcategories;
+  button.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M8 5l5 5-5 5"/></svg>';
+  button.addEventListener('click', () => {
+    subcategoriesOpen = !subcategoriesOpen;
+    button.setAttribute('aria-expanded', String(subcategoriesOpen));
+    must<HTMLUListElement>(`#${SUBCATEGORY_LIST_ID}`).hidden = !subcategoriesOpen;
+  });
+  return button;
+}
+
+function subcategoryList(): HTMLUListElement {
+  const list = document.createElement('ul');
+  list.className = 'types__sub';
+  list.id = SUBCATEGORY_LIST_ID;
+  list.hidden = !subcategoriesOpen;
+  for (const { section, title } of REGULAR_SUBCATEGORIES) {
+    const item = document.createElement('li');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'subtype';
+    button.dataset.section = section.slice(1);
+    button.textContent = texts().markup[title];
+    button.addEventListener('click', () => openRegularSection(section));
+    item.append(button);
+    list.append(item);
+  }
+  return list;
+}
+
+function openRegularSection(selector: string): void {
+  selectType('regular');
+  const target = must<HTMLDetailsElement>(selector);
+  for (const section of regularTypeSections) {
+    if (setupSheet.contains(section)) section.open = section === target;
+  }
+  setOpen(setupSheet, setupToggle, true);
+  if (SETUP_TIGHT.matches && !written.hidden) setWrittenOpen(false);
+  target.scrollIntoView({ block: 'start' });
+  target.querySelector<HTMLElement>('summary')?.focus();
 }
 
 function selectType(id: PatternTypeId): void {
