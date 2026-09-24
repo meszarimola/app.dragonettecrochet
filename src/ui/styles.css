@@ -1627,6 +1627,75 @@ body.is-selecting #board-irregular {
   opacity: 0.6;
 }
 
+/* KB: interface.md §65 — the regular card and its „>” share a row; the list opens below them. */
+.type__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem;
+}
+
+.type__more {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  padding: 0;
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--c-accent);
+}
+
+.type__more:hover {
+  border-color: var(--c-accent);
+}
+
+.type__more svg {
+  inline-size: 1.1rem;
+  block-size: 1.1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.type__more[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+
+.types__sub {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.35rem 0 0;
+  padding: 0 0 0 2.4rem;
+  list-style: none;
+}
+
+.types__sub[hidden] {
+  display: none;
+}
+
+.subtype {
+  inline-size: 100%;
+  min-block-size: 44px;
+  padding: var(--sp-0) var(--sp-2);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--c-ink);
+  font-size: 0.875rem;
+  text-align: start;
+}
+
+.subtype:hover {
+  border-color: var(--c-accent);
+}
+
+.subtype:active {
+  background: var(--c-selection);
+}
+
 .type__icon {
   display: inline-grid;
   place-items: center;
