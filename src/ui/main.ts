@@ -183,6 +183,8 @@ const errorCount = must<HTMLElement>('#error-count');
 const errorsPop = must<HTMLElement>('#errors');
 const fileToggle = must<HTMLButtonElement>('#file-toggle');
 const filePop = must<HTMLElement>('#file-pop');
+const jsonToggle = must<HTMLButtonElement>('#json-toggle');
+const jsonPop = must<HTMLElement>('#json-pop');
 const viewToggle = must<HTMLButtonElement>('#view-toggle');
 const viewMenu = must<HTMLElement>('#view-menu');
 const notesToggle = must<HTMLButtonElement>('#notes-toggle');
@@ -620,8 +622,8 @@ function updateControls(): void {
   setDisabled('end-row', !canEndRow(context));
   setDisabled('close-round', !canCloseRound(pattern, context));
   setDisabled('spiral-round', !canEndRound(context));
-  setDisabled('export-png', empty);
-  setDisabled('export-svg', empty);
+  // KB: interface.md §75 — one button exports, so one button greys out.
+  must<HTMLButtonElement>('#export-run').disabled = empty;
   setDisabled('delete-selection', selection.length === 0);
   setDisabled('duplicate-selection', selection.length === 0);
   must<HTMLButtonElement>('[data-action="select-area"]').setAttribute('aria-pressed', String(areaMode));
@@ -1537,14 +1539,6 @@ const ACTIONS: Record<string, () => void> = {
     announce(texts().messages.file.svgSaved);
   },
   'export-png': () => void exportPng(),
-  'export-pdf': () => {
-    if (irregular?.active !== true) return;
-    if (irregular.exportEmpty) return announce(texts().irregular.exportEmpty);
-    const bytes = irregular.exportPdf();
-    const pdf = new Blob([bytes.slice().buffer], { type: 'application/pdf' });
-    download(pdf, `${slug(irregular.title)}.pdf`, 'application/pdf');
-    announce(texts().irregular.pdfSaved(irregular.pdfPages));
-  },
   'copy-written': () => void copyWritten(),
   'written-full': () => toggleWrittenFull(),
   'close-setup': () => {
@@ -1627,6 +1621,7 @@ function togglePopover(pop: HTMLElement, button: HTMLButtonElement): void {
 function closeAllPopovers(): void {
   setRegularMenuOpen(false);
   closePopover(errorsPop, errorToggle);
+  closePopover(jsonPop, jsonToggle);
   closePopover(filePop, fileToggle);
   closePopover(typesNav, typesToggle);
   closePopover(notesPop, notesToggle);
@@ -1634,6 +1629,13 @@ function closeAllPopovers(): void {
   closePopover(selectModePop, selectModeToggle);
   setViewMenuOpen(false);
 }
+
+// KB: interface.md §75 — the JSON actions hang off the file menu, as the regular
+// type's shapes hang off its card: one flyout, opened from the item itself.
+jsonToggle.addEventListener('click', (event) => {
+  event.stopPropagation();
+  togglePopover(jsonPop, jsonToggle);
+});
 
 errorToggle.addEventListener('click', () => togglePopover(errorsPop, errorToggle));
 
@@ -1709,9 +1711,25 @@ function placeSharedSections(freeForm: boolean): void {
     consentButton.before(notationSection, patternSection);
   }
 }
-exportDialog.addEventListener('click', (event) => {
-  if ((event.target as Element).closest('[data-action^="export-"], #export-pdf')) exportDialog.close();
+// KB: interface.md §75 — „Exportálás” does the export and closes; the × only closes.
+const exportFormat = must<HTMLSelectElement>('#export-format');
+must<HTMLButtonElement>('#export-run').addEventListener('click', () => {
+  ACTIONS[exportFormat.value === 'svg' ? 'export-svg' : 'export-png']?.();
+  exportDialog.close();
 });
+must<HTMLButtonElement>('#export-close').addEventListener('click', () => exportDialog.close());
+exportFormat.addEventListener('change', () => syncExportFormat());
+
+/**
+ * The PNG-only fields follow the chosen format, and only the free-form type fills
+ * them: the regular type's PNG has never had a scale of its own. KB: interface.md §75
+ */
+function syncExportFormat(): void {
+  // The editor mounts after the view switches, so the type is what decides, not `active`.
+  const png = exportFormat.value === 'png';
+  must<HTMLElement>('#export-picture-fields').hidden = !png || patternType !== 'irregular';
+}
+syncExportFormat();
 
 typesToggle.addEventListener('click', () => {
   const opening = typesNav.hidden;
@@ -2543,7 +2561,6 @@ function ensureIrregular(): IrregularEditor {
     gridInExport: () => exportGrid.checked,
     ink: () => getComputedStyle(document.documentElement).getPropertyValue('--c-ink').trim(),
     imageHref: (picture) => pictureHref(picture),
-    savePdf: () => ACTIONS['export-pdf']?.(),
     terms: () => notation.terms,
     refreshControls: () => {
       if (irregular === null) return;
@@ -2626,14 +2643,11 @@ function showIrregularView(on: boolean): void {
   // free-form mode the sheet would open empty. Its opener goes with them.
   setupToggle.hidden = on;
   if (on && !setupSheet.hidden) setOpen(setupSheet, setupToggle, false);
-  setDisabled('export-png', false);
-  setDisabled('export-svg', false);
+  must<HTMLButtonElement>('#export-run').disabled = false;
   for (const id of [
     '#view-guides',
     '#bg-load',
     '#bg-remove',
-    '#export-picture-fields',
-    '#export-pdf-part',
     '#select-mode-toggle',
     '#select-pointer',
     '#irregular-tabs',
@@ -2646,6 +2660,7 @@ function showIrregularView(on: boolean): void {
     const tile = palette.querySelector<HTMLElement>(`[data-action="${tool.action}"]`);
     if (tile) tile.hidden = !on;
   }
+  syncExportFormat();
   placeSharedSections(on);
   fitBar();
 }
