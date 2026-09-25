@@ -1922,3 +1922,15 @@ correctly in the regular type too, where the free-form panel never runs.
 Still open: a tooltip inside a menu popover is clipped by the popover's own
 scrolling box, so it is cut off — the owner reported it and it wants a shared
 tooltip element on the body, which is a change of its own.
+
+## §76 The work-in-progress line
+
+PQW-1051. The owner: „tegyél ki az oldalra, az app.dragonettre felülre egy
+bannert, hogy work in progress - és hogy nézz vissza később, mert az oldal
+folyamatos fejlesztés alatt van”.
+
+One line above the menu bar, inside `.app` so it takes its height from the
+layout and the canvas keeps the rest. It is a `<p>`, not a live region or an
+alert: it says the same thing on every visit and must not interrupt a screen
+reader at work. It is not dismissible, because the crocheter would lose it on
+the next reload anyway and the note is meant to greet every visit.

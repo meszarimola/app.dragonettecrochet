@@ -2735,3 +2735,15 @@ body.is-selecting #board-irregular {
   background: var(--c-selection);
   color: var(--c-accent);
 }
+
+/* KB: interface.md §76 — one line above the bar, out of the canvas's way. */
+.wip {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.35rem var(--sp-3);
+  border-block-end: 1px solid var(--c-line);
+  background: var(--c-row-a);
+  color: var(--c-ink);
+  font-size: 0.8125rem;
+  text-align: center;
+}

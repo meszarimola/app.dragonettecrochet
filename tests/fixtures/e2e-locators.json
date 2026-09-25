@@ -102,7 +102,7 @@
     "v${VART_VERZIO}": 1
   },
   "locator": {
-    ".bar": 2,
+    ".bar": 3,
     ".tools [data-action=\"undo\"]": 1,
     ".tools [data-action=\"zoom-in\"]": 2,
     ".tools [data-action=\"zoom-in\"] .tool__label": 1,
@@ -131,7 +131,7 @@
     "#arc-count": 3,
     "#arc-explode": 1,
     "#arrange-even": 2,
-    "#board": 102,
+    "#board": 103,
     "#board-irregular": 16,
     "#chain-count": 43,
     "#chart-style": 2,
@@ -403,7 +403,8 @@
     "#row-radial": 3,
     "#rows-list .rows__cells": 5,
     "[data-rect-mode=\"full\"]": 2,
-    "[data-rect-mode=\"partial\"]": 1
+    "[data-rect-mode=\"partial\"]": 1,
+    ".wip": 1
   },
   "selectOption": {
     "": 1,
@@ -666,7 +667,8 @@
     "Forma: Egyenlő szárú háromszög": 1,
     "Kendő: Félkör": 1,
     "Üres vászon, körönként": 1,
-    "Körök": 1
+    "Körök": 1,
+    "Fejlesztés alatt: a tervező folyamatosan bővül, nézz vissza később.": 1
   },
   "toHaveValue": {
     "1": 1,
