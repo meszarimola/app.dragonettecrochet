@@ -22,6 +22,23 @@ async function openSheet(page: Page): Promise<void> {
   }
 }
 
+test('a line above the bar says the designer is a work in progress (PQW-1051)', async ({ page }) => {
+  await open(page);
+
+  const wip = page.locator('.wip');
+  await expect(wip).toBeVisible();
+  await expect(wip).toHaveText('Fejlesztés alatt: a tervező folyamatosan bővül, nézz vissza később.');
+  // It sits above the menu bar and leaves the canvas alone.
+  const [line, bar, board] = await Promise.all([
+    wip.boundingBox(),
+    page.locator('.bar').boundingBox(),
+    page.locator('#board').boundingBox(),
+  ]);
+  expect(line!.y + line!.height).toBeLessThanOrEqual(bar!.y + 1);
+  expect(line!.height, 'one line, not a block').toBeLessThan(48);
+  expect(board!.y).toBeGreaterThanOrEqual(bar!.y + bar!.height - 1);
+});
+
 test('the „Új” button is the type menu: one move to start a new pattern (PQW-1045)', async ({ page }) => {
   await open(page);
   // There is no second type button any more; „Új” opens the list.

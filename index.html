@@ -80,6 +80,7 @@
         </div>
       </section>
 
+      <p class="wip" data-i18n="wipBanner">Fejlesztés alatt: a tervező folyamatosan bővül, nézz vissza később.</p>
       <header class="bar" data-fit="0">
         <div class="bar__lead">
           <a
@@ -134,30 +135,7 @@
                   <span class="tool__caret" aria-hidden="true"></span>
                 </button>
                 <div class="menu__pop menu__list" id="file-pop" hidden>
-              <button type="button" class="tool" id="setup-toggle" aria-expanded="false" aria-controls="setup" aria-label="Minta készítése" data-tip="Minta készítése megadott méretekből" data-i18n-label="setupToggle" data-i18n-tip="toolSetupTip">
-                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                  <path d="M4 16V8.5L10 4l6 4.5V16z" />
-                  <path d="M8 16v-4h4v4" />
-                </svg>
-                <span class="tool__label" data-i18n="setupToggle">Minta készítése</span>
-              </button>
-              <button type="button" class="tool" data-action="import-json" aria-label="JSON betöltése" data-tip="JSON betöltése" data-i18n-label="toolImportLabel" data-i18n-tip="toolImportTip">
-                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                  <path d="M10 3v7" />
-                  <path d="M7 8l3 3 3-3" />
-                  <path d="M4.5 13v2.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V13" />
-                </svg>
-                <span class="tool__label" data-i18n="toolImportLabel">JSON betöltése</span>
-              </button>
-              <button type="button" class="tool" data-action="export-json" aria-label="JSON mentése" data-tip="JSON mentése" data-i18n-label="toolExportJsonLabel" data-i18n-tip="toolExportJsonTip">
-                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                  <path d="M4.5 4h8l3 3v9h-11z" />
-                  <path d="M7 4v3.5h5V4" />
-                  <path d="M6.5 16v-4.5h7V16" />
-                </svg>
-                <span class="tool__label" data-i18n="toolExportJsonLabel">JSON mentése</span>
-              </button>
-              <button type="button" class="tool" id="export-open" aria-haspopup="dialog" aria-controls="export-dialog" data-i18n-label="toolExportLabel" data-tip="Kép, SVG vagy nyomtatható PDF mentése" data-i18n-tip="toolExportTip">
+              <button type="button" class="tool" id="export-open" aria-haspopup="dialog" aria-controls="export-dialog" data-i18n-label="toolExportLabel" data-tip="PNG- vagy SVG-kép mentése" data-i18n-tip="toolExportTip">
                 <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                   <path d="M10 12V3.5" />
                   <path d="M7 6.5l3-3 3 3" />
@@ -165,6 +143,34 @@
                 </svg>
                 <span class="tool__label" data-i18n="toolExportLabel">Exportálás…</span>
               </button>
+              <div class="menu menu--sub">
+                <button type="button" class="tool" id="json-toggle" aria-expanded="false" aria-controls="json-pop" aria-label="JSON" data-tip="A minta mentése és betöltése JSON-ként" data-i18n-label="toolJsonLabel" data-i18n-tip="toolJsonTip">
+                  <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                    <path d="M4.5 4h8l3 3v9h-11z" />
+                    <path d="M7 4v3.5h5V4" />
+                  </svg>
+                  <span class="tool__label" data-i18n="toolJsonLabel">JSON</span>
+                  <span class="tool__caret tool__caret--side" aria-hidden="true"></span>
+                </button>
+                <div class="menu__pop menu__list menu__sub" id="json-pop" hidden>
+                  <button type="button" class="tool" data-action="export-json" aria-label="JSON mentése" data-tip="JSON mentése" data-i18n-label="toolExportJsonLabel" data-i18n-tip="toolExportJsonTip">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M4.5 4h8l3 3v9h-11z" />
+                  <path d="M7 4v3.5h5V4" />
+                  <path d="M6.5 16v-4.5h7V16" />
+                </svg>
+                <span class="tool__label" data-i18n="toolExportJsonLabel">JSON mentése</span>
+              </button>
+                  <button type="button" class="tool" data-action="import-json" aria-label="JSON betöltése" data-tip="JSON betöltése" data-i18n-label="toolImportLabel" data-i18n-tip="toolImportTip">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M10 3v7" />
+                  <path d="M7 8l3 3 3-3" />
+                  <path d="M4.5 13v2.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V13" />
+                </svg>
+                <span class="tool__label" data-i18n="toolImportLabel">JSON betöltése</span>
+              </button>
+                </div>
+              </div>
               <button type="button" class="tool" id="bg-load" data-i18n-label="bgLoad" data-tip="Fénykép vagy vázlat a rajz alá, hogy átrajzolhasd" data-i18n-tip="bgLoadTip" hidden>
                 <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                   <path d="M3.75 4.5h12.5v11H3.75z" />
@@ -180,6 +186,13 @@
                   <path d="M6.5 6l.6 10h5.8l.6-10" />
                 </svg>
                 <span class="tool__label" data-i18n="bgRemove">Háttérkép eltávolítása</span>
+              </button>
+              <button type="button" class="tool" id="setup-toggle" aria-expanded="false" aria-controls="setup" aria-label="Minta készítése" data-tip="Minta készítése megadott méretekből" data-i18n-label="setupToggle" data-i18n-tip="toolSetupTip">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M4 16V8.5L10 4l6 4.5V16z" />
+                  <path d="M8 16v-4h4v4" />
+                </svg>
+                <span class="tool__label" data-i18n="setupToggle">Minta készítése</span>
               </button>
               <button type="button" class="tool" id="settings-open" aria-haspopup="dialog" aria-controls="settings-dialog" data-i18n-label="toolSettingsLabel" data-tip="A minta neve, a jelölés és a billentyűk" data-i18n-tip="toolSettingsTip" hidden>
                 <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
@@ -1019,11 +1032,21 @@
         </dialog>
 
         <dialog class="export" id="export-dialog" aria-labelledby="export-title">
-          <h2 class="export__title" id="export-title" data-i18n="exportTitle">Exportálás</h2>
-          <div class="export__parts">
-          <section class="export__part" aria-labelledby="export-picture-title">
-            <h3 class="panel__title" id="export-picture-title" data-i18n="exportPictureTitle">Kép</h3>
-            <div class="export__fields" id="export-picture-fields" hidden>
+          <div class="export__head">
+            <h2 class="export__title" id="export-title" data-i18n="exportTitle">Exportálás</h2>
+            <button type="button" class="ib export__x" id="export-close" aria-label="Bezárás" data-tip="Bezárás" data-i18n-label="exportClose" data-i18n-tip="exportClose">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9" /></svg>
+            </button>
+          </div>
+          <div class="export__fields">
+            <p class="panel__field">
+              <label for="export-format" data-i18n="exportFormatLabel">Formátum</label>
+              <select id="export-format">
+                <option value="png">PNG</option>
+                <option value="svg">SVG</option>
+              </select>
+            </p>
+            <div id="export-picture-fields" hidden>
               <p class="panel__field">
                 <label for="export-scale" data-i18n="exportScaleLabel">PNG nagyítás</label>
                 <select id="export-scale"></select>
@@ -1035,39 +1058,10 @@
             <p class="choice">
               <label><input type="checkbox" id="export-grid" checked /> <span data-i18n="patternExportGridLabel">Rács a PNG- és SVG-exportban</span></label>
             </p>
-            <p class="export__actions">
-              <button type="button" class="button" data-action="export-png" aria-label="PNG" data-tip="PNG-kép mentése" data-i18n-label="toolExportPngLabel" data-i18n-tip="toolExportPngTip" data-i18n="toolExportPngLabel">PNG</button>
-              <button type="button" class="button" data-action="export-svg" aria-label="SVG" data-tip="SVG-kép mentése (vektor)" data-i18n-label="toolExportSvgLabel" data-i18n-tip="toolExportSvgTip" data-i18n="toolExportSvgLabel">SVG</button>
-            </p>
-          </section>
-          <section class="export__part" id="export-pdf-part" aria-labelledby="export-pdf-title" hidden>
-            <h3 class="panel__title" id="export-pdf-title" data-i18n="exportPdfTitle">Nyomtatás (PDF)</h3>
-            <div class="export__fields">
-              <p class="panel__field">
-                <label for="export-page-size" data-i18n="exportPageSizeLabel">PDF lapméret</label>
-                <select id="export-page-size"></select>
-              </p>
-              <p class="panel__field">
-                <label for="export-orientation" data-i18n="exportOrientationLabel">Tájolás</label>
-                <select id="export-orientation"></select>
-              </p>
-              <p class="panel__field">
-                <label for="export-across" data-i18n="exportAcrossLabel">Lapok vízszintesen</label>
-                <input id="export-across" type="number" min="1" max="6" step="1" inputmode="numeric" value="1" />
-              </p>
-              <p class="panel__field">
-                <label for="export-down" data-i18n="exportDownLabel">Lapok függőlegesen</label>
-                <input id="export-down" type="number" min="1" max="6" step="1" inputmode="numeric" value="1" />
-              </p>
-            </div>
-            <p class="export__actions">
-              <button type="button" class="button" id="export-pdf" data-i18n="exportPdf">PDF</button>
-            </p>
-          </section>
           </div>
           <p class="panel__note" data-i18n="exportHint">Rejtett sor és réteg egyikbe sem kerül bele.</p>
           <p class="export__close">
-            <button type="button" class="button" id="export-close" data-i18n="exportClose">Bezárás</button>
+            <button type="button" class="button button--strong" id="export-run" data-i18n="exportRun">Exportálás</button>
           </p>
         </dialog>
 
