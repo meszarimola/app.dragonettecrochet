@@ -13,11 +13,21 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
-/** The notation section is closed by default (PQW-882). */
-async function openNotation(page: Page): Promise<void> {
-  await page.locator('#section-notation').evaluate((el) => {
-    (el as HTMLDetailsElement).open = true;
-  });
+/**
+ * PQW-1048 took the terminology chooser off the interface. The notation is still
+ * what the written pattern and the palette follow, so the tests set it where the
+ * app keeps it and load the page again; the pattern itself is stored, so it stays.
+ */
+async function useTerms(page: Page, terms: string): Promise<void> {
+  await page.evaluate((value) => {
+    localStorage.setItem(
+      'dc-mintatervezo:jeloles',
+      JSON.stringify({ terms: value, chartStyle: 'cyc', singleCrochet: 'plus' }),
+    );
+  }, terms);
+  await page.reload();
+  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  if (await deny.isVisible()) await deny.click();
 }
 
 /** Foundation chain and rows from the keyboard only (PQW-911): Alt+1 = chain stitch, Alt+3 = single crochet, Alt+4 = half double crochet, Alt+F = turn. */
@@ -85,9 +95,7 @@ test('written pattern: the recorded text of the rectangle in the panel, and the 
     '3–22. sor: 2 lsz (1 fp-nek számít), 1 szem kihagyása, 15 fp (16 szem). Fordítás.',
   );
 
-  // The notation starts closed (PQW-882) and sits in the sheet (PQW-987).
-  await openNotation(page);
-  await page.locator('#terms').selectOption('en-US');
+  await useTerms(page, 'en-US');
   await expect(text).toContainText('Row 23:');
   const english = comparable((await text.textContent())!).split('\n');
   const englishReference = comparable(await fixture('en-US', 'felpalcas-teglalap')).split('\n');
@@ -99,9 +107,7 @@ test('written pattern: the recorded text of the rectangle in the panel, and the 
   );
   await expect(page.locator('#palette')).toContainText('Half double crochet (hdc)');
 
-  // The notation starts closed (PQW-882) and sits in the sheet (PQW-987).
-  await openNotation(page);
-  await page.locator('#terms').selectOption('en-GB');
+  await useTerms(page, 'en-GB');
   await expect(text).toContainText('Abbreviations (UK terms)');
   // The turning chain stands in place of stitch 1 (PQW-891): 14 half double crochets and the turning chain.
   await expect(text).toContainText('15 htr (16 sts)');
@@ -109,7 +115,6 @@ test('written pattern: the recorded text of the rectangle in the panel, and the 
 
   // The choice survives a reload, while the interface language stays Hungarian.
   await page.reload();
-  await expect(page.locator('#terms')).toHaveValue('en-GB');
   await expect(text).toContainText('Stitch key (UK terms)');
   await expect(page.locator('html')).toHaveAttribute('lang', 'hu');
 });
@@ -193,12 +198,16 @@ test('PNG and SVG export with a stitch key', async ({ page }) => {
 test('with the Japanese preset the half double crochet rectangle is error-free by the Japanese rule, and the pattern remembers it', async ({
   page,
 }) => {
+  // PQW-1048 took the preset chooser off the interface; the Japanese symbol set is
+  // chosen in the bar, and the counting rule comes with it.
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'dc-mintatervezo:jeloles',
+      JSON.stringify({ terms: 'hu', chartStyle: 'jis', singleCrochet: 'cross' }),
+    );
+  });
   await open(page);
-  // The notation starts closed (PQW-882) and sits in the sheet (PQW-987).
-  await openNotation(page);
-  await page.locator('#tradition').selectOption('japanese');
   await expect(page.locator('#chart-style')).toHaveValue('jis');
-  await expect(page.locator('#status')).toContainText('Előbeállítás: japán');
 
   // 12 chain stitches: for half double crochet the skip is 2, the first stitch goes into chain 3, and there will be 10 half double crochets (PQW-924).
   await page.locator('#board').focus();
@@ -214,7 +223,7 @@ test('with the Japanese preset the half double crochet rectangle is error-free b
   await expect(text).toContainText('2 lsz (1 fp-nek számít)');
 
   await page.reload();
-  await expect(page.locator('#tradition')).toHaveValue('japanese');
+  await expect(page.locator('#chart-style')).toHaveValue('jis');
   await expect(page.locator('#summary')).toContainText('Nincs hiba és figyelmeztetés.');
 });
 

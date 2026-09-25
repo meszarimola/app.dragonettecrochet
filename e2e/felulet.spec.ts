@@ -187,10 +187,9 @@ test('the granny square can be chosen in the motif chooser (PQW-1038)', async ({
 test('the single crochet symbol cannot be chosen separately (PQW-929)', async ({ page }) => {
   await open(page);
 
-  await page.locator('#section-notation').click();
   await expect(page.locator('#sc-mark'), 'the + / × choice was removed').toHaveCount(0);
   await expect(page.locator('#sc-mark-jis'), 'and its note as well').toHaveCount(0);
-  // The symbol style, however, can still be chosen: the symbol comes from that.
+  // The symbol style, however, can still be chosen — from the bar since PQW-1048.
   await expect(page.locator('#chart-style')).toBeVisible();
 });
 

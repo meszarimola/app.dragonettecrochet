@@ -46,44 +46,29 @@ async function rectangle(page: Page): Promise<void> {
   await expect(page.locator('#status')).toContainText('Téglalap,');
 }
 
+/** The pattern's title, from the store the app writes it to (PQW-1048). */
+const storedTitle = (page: Page) => async () =>
+  page.evaluate(() => (JSON.parse(localStorage.getItem('dc-mintatervezo:minta') ?? '{}') as { title?: string }).title);
+
 test('Kendő → semicircle, then Forma → rectangle: the title belongs to the rectangle, and undo brings the semicircle back with its title', async ({
   page,
 }) => {
   await open(page);
-  await section(page, '#section-pattern');
-  const title = page.locator('#title');
+  // PQW-1048: the name field is gone, so the title is read where the app keeps it.
+  const title = storedTitle(page);
 
   await semicircle(page);
-  await expect(title).toHaveValue('Félkör');
+  await expect.poll(title).toBe('Félkör');
   await rectangle(page);
-  await expect(title).toHaveValue('Téglalap');
+  await expect.poll(title).toBe('Téglalap');
 
   await page.keyboard.press('ControlOrMeta+Z');
   await expect(page.locator('#status')).toContainText('Visszavonva.');
-  await expect(title).toHaveValue('Félkör');
+  await expect.poll(title).toBe('Félkör');
 });
 
-test('a hand-written title survives generation and a reload', async ({ page }) => {
-  await open(page);
-  await section(page, '#section-pattern');
-  const title = page.locator('#title');
-
-  await semicircle(page);
-  await title.fill('Nyári kendő');
-  await title.press('Tab');
-  await expect(page.locator('#status')).toContainText('A minta neve módosult.');
-
-  await rectangle(page);
-  await expect(title).toHaveValue('Nyári kendő');
-  await semicircle(page);
-  await expect(title).toHaveValue('Nyári kendő');
-
-  // The notation survives together with the saved pattern.
-  await page.reload();
-  const deny = page.getByRole('button', { name: 'Elutasítom' });
-  if (await deny.isVisible()) await deny.click();
-  await section(page, '#section-pattern');
-  await expect(title).toHaveValue('Nyári kendő');
-  await rectangle(page);
-  await expect(title).toHaveValue('Nyári kendő');
-});
+/*
+ * PQW-1048 removed the name field, so a title cannot be written by hand any more
+ * and the test that covered it is gone with the control. The generated title is
+ * still covered above, and `core-pattern-title` keeps the naming rules under test.
+ */

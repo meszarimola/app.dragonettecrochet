@@ -194,14 +194,6 @@
                 </svg>
                 <span class="tool__label" data-i18n="setupToggle">Minta készítése</span>
               </button>
-              <button type="button" class="tool" id="settings-open" aria-haspopup="dialog" aria-controls="settings-dialog" data-i18n-label="toolSettingsLabel" data-tip="A minta neve, a jelölés és a billentyűk" data-i18n-tip="toolSettingsTip" hidden>
-                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                  <path d="M4 6h8M15 6h1M4 14h1M8 14h8" />
-                  <circle cx="13.5" cy="6" r="1.6" />
-                  <circle cx="6.5" cy="14" r="1.6" />
-                </svg>
-                <span class="tool__label" data-i18n="toolSettingsLabel">Minta beállításai…</span>
-              </button>
               </div>
               </div>
               <input type="file" id="import-file" accept="application/json,.json" hidden />
@@ -440,6 +432,16 @@
           </div>
 
           <div class="tools__group tools__group--end" role="group" aria-label="Panelek" data-i18n-label="toolGroupViews">
+            <span class="pickers" id="pickers">
+              <select class="picker" id="chart-style" aria-label="Jelstílus" data-i18n-label="chartStyleLabel" data-tip="Jelstílus" data-i18n-tip="chartStyleLabel">
+                <option value="cyc">CYC</option>
+                <option value="jis">JIS</option>
+              </select>
+              <select class="picker" id="ui-language" aria-label="A felület nyelve" data-i18n-label="uiLanguageLabel" data-tip="A felület nyelve" data-i18n-tip="uiLanguageLabel">
+                <option value="hu">&#127469;&#127482; HU</option>
+                <option value="en">&#127468;&#127463; EN</option>
+              </select>
+            </span>
             <button type="button" class="tool" id="panel-toggle" aria-expanded="true" aria-controls="section-stitches panel" aria-label="Szemek és beállítások" data-tip="A szemek és a beállítások paneljének nyitása és csukása" data-i18n-label="panelToggle" data-i18n-tip="toolPanelTip">
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path d="M3.75 4.5h12.5v11H3.75z" />
@@ -939,97 +941,9 @@
 
 
 
-          <details class="section" id="section-notation">
-            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionNotationTitle">Jelölés és jelek</h2></summary>
-            <div class="settings" role="group" aria-label="Jelölés és jelek" data-i18n-label="notationGroupLabel">
-            <p class="panel__field">
-              <label for="ui-language" data-i18n="uiLanguageLabel">A felület nyelve</label>
-              <select id="ui-language">
-                <option value="hu">Magyar</option>
-                <option value="en">English</option>
-              </select>
-            </p>
-            <p class="panel__note" id="ui-language-note" data-i18n="uiLanguageNote">A felület nyelve független a jelöléstől: angol felületen is dolgozhatsz magyar jelöléssel. A választás a címsorba is bekerül (?lang), így a link megosztható és újratölthető.</p>
-            <p class="panel__field">
-              <label for="tradition" data-i18n="traditionLabel">Előbeállítás</label>
-              <select id="tradition" aria-describedby="tradition-note">
-                <option value="cyc" data-i18n="traditionCyc">Nemzetközi (CYC)</option>
-                <option value="japanese" data-i18n="traditionJapanese">Japán</option>
-              </select>
-            </p>
-            <p class="panel__note" id="tradition-note" data-i18n="traditionNote">A mintához tartozik. A japán: JIS jelek, × rövidpálca, és a rövidpálcás sor a horogtól számított 2. láncszembe indul (a nemzetközinél a 3.-ba); a félpálca a 3., a pálca a 4. láncszemtől indul.</p>
-            <p class="panel__field">
-              <label for="terms" data-i18n="termsLabel">Jelölés</label>
-              <select id="terms">
-                <option value="hu" data-i18n="termsHu">Magyar</option>
-                <option value="en-US" data-i18n="termsEnUs">Amerikai angol (US terms)</option>
-                <option value="en-GB" data-i18n="termsEnGb">Brit angol (UK terms)</option>
-              </select>
-            </p>
-            <p class="panel__field">
-              <label for="chart-style" data-i18n="chartStyleLabel">Jelstílus</label>
-              <select id="chart-style">
-                <option value="cyc" data-i18n="chartStyleCyc">CYC (Craft Yarn Council)</option>
-                <option value="jis" data-i18n="chartStyleJis">Japán (JIS)</option>
-              </select>
-            </p>
-            <!-- KB: interface.md §21 -->
-            <p class="panel__note" data-i18n="notationNote">A jelölés és a jelstílus a felület nyelvétől független, és a minta adatán nem változtat: a paletta, a vászon, az írott minta és az export is ezt követi.</p>
-            </div>
-          </details>
-          <details class="section" id="section-pattern" open>
-            <summary class="section__head"><h2 class="panel__title" id="pattern-title" data-i18n="sectionPatternTitle">Minta</h2></summary>
-            <p class="panel__field">
-              <label for="title" data-i18n="patternNameLabel">Minta neve</label>
-              <input id="title" type="text" maxlength="120" />
-            </p>
-            <p class="panel__note" data-i18n="patternAutosaveNote">A minta automatikusan mentődik ebbe a böngészőbe.</p>
-            <details class="keys">
-              <summary data-i18n="keysSummary">Billentyűk</summary>
-              <dl>
-                <dt><kbd>Alt</kbd>+<kbd>1</kbd>–<kbd>9</kbd></dt><dd data-i18n="keysPick">szem kiválasztása</dd>
-                <dt><kbd>←</kbd> <kbd>→</kbd> <kbd>Home</kbd> <kbd>End</kbd></dt><dd data-i18n="keysTarget">célpont a vásznon</dd>
-                <dt><kbd>Enter</kbd></dt><dd data-i18n="keysEnter">horgolás a célpontba, láncszemnél a megadott számú láncszem</dd>
-                <dt><kbd>Shift</kbd>+<kbd>Enter</kbd></dt><dd data-i18n="keysSame">még egy ugyanabba (szaporítás)</dd>
-                <dt><kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd></dt><dd data-i18n="keysFillRow">a sor kitöltése a kiválasztott szemmel</dd>
-                <dt><kbd>Alt</kbd>+<kbd>F</kbd> / <kbd>Alt</kbd>+<kbd>K</kbd> / <kbd>Alt</kbd>+<kbd>S</kbd></dt><dd data-i18n="keysRowRound">sor vége és fordulás / kör zárása, láncszemekből láncgyűrű / kör vége spirálban</dd>
-                <dt><kbd>Backspace</kbd> / <kbd>Delete</kbd></dt><dd data-i18n="keysDelete">a kijelölt szemek törlése, kijelölés nélkül az utolsó lépésé</dd>
-                <dt><span data-i18n="keysClickPrefix">Kattintás, </span><kbd>Shift</kbd><span data-i18n="keysClickSuffix">+kattintás, sorszám</span></dt><dd data-i18n="keysClickHint">szem nélkül: egy szem, több szem, a teljes sor kijelölése</dd>
-                <dt><span data-i18n="keysArrowsPrefix">Nyilak, </span><kbd>Home</kbd> <kbd>End</kbd></dt><dd><span data-i18n="keysArrowsHintPrefix">szem nélkül: kijelölés a szemek között, </span><kbd>Shift</kbd><span data-i18n="keysArrowsHintSuffix">-tel tartomány</span></dd>
-                <dt><kbd>Ctrl</kbd>+<kbd>A</kbd></dt><dd data-i18n="keysSelectAll">minden szem kijelölése</dd>
-                <dt><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>Ctrl</kbd>+<kbd>V</kbd></dt><dd data-i18n="keysCopyPaste">másolás / beillesztés a kurzortól; a teljes sor új sorként kerül be</dd>
-                <dt><kbd>Ctrl</kbd>+<kbd>D</kbd></dt><dd data-i18n="keysDuplicate">a kijelölés másolása, pl. a következő sorba</dd>
-                <dt><kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></dt><dd data-i18n="keysUndoRedo">visszavonás, újra</dd>
-                <dt><kbd>Alt</kbd>+<kbd>R</kbd></dt><dd data-i18n="keysGrid">rács ki és be</dd>
-                <dt><kbd>Esc</kbd></dt><dd data-i18n="keysEsc">nincs kiválasztott szem: kattintással a jel kijelölése és igazítása</dd>
-                <dt><kbd>Alt</kbd><span data-i18n="keysNudgeSuffix">+nyilak</span></dt><dd data-i18n="keysNudge">a kijelölt jel eltolása</dd>
-              </dl>
-              <h3 class="panel__title" data-i18n="keysFreeTitle">A szabad tervezőben</h3>
-              <dl id="keys-irregular">
-                <dt><kbd>Alt</kbd>+<kbd>1</kbd>–<kbd>9</kbd></dt><dd data-i18n="keysFreePick">szem kiválasztása, aztán kattintás a rajzlapra</dd>
-                <dt><kbd>Esc</kbd></dt><dd data-i18n="keysFreeEsc">a felvett szem letétele, a kijelölés törlése</dd>
-                <dt><kbd>0</kbd>–<kbd>9</kbd></dt><dd data-i18n="keysFreeDigits">kijelölt láncívnél vagy legyezőnél a szemek száma; egymás után ütve egy szám</dd>
-                <dt><kbd>Ctrl</kbd>+<kbd>A</kbd></dt><dd data-i18n="keysFreeAll">minden elérhető szem kijelölése</dd>
-                <dt><kbd>Nyilak</kbd>, <kbd>Shift</kbd>+<kbd>nyilak</kbd></dt><dd data-i18n="keysFreeNudge">a kijelölés mozgatása, Shifttel tízesével</dd>
-                <dt><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>Ctrl</kbd>+<kbd>V</kbd> / <kbd>Ctrl</kbd>+<kbd>D</kbd></dt><dd data-i18n="keysFreeCopy">másolás a vágólapra, beillesztés az egérhez, másolat a kijelölés mellé</dd>
-                <dt><kbd>Space</kbd><span data-i18n="keysFreeDragSuffix">+húzás</span></dt><dd data-i18n="keysFreePan">a rajzlap mozgatása</dd>
-                <dt><kbd>Cmd</kbd>/<kbd>Ctrl</kbd></dt><dd data-i18n="keysFreeFree">amíg nyomva tartod, semmi nem illeszkedik</dd>
-                <dt><span data-i18n="keysFreeTouch">Két ujjal</span></dt><dd data-i18n="keysFreeTouchHint">nagyítás és a rajzlap mozgatása; egy ujj a felvett eszközt használja</dd>
-              </dl>
-            </details>
-          </details>
-
-
           <button type="button" class="panel__consent" data-consent-open data-i18n="consentOpen" hidden>Süti-beállítások</button>
         </aside>
 
-        <dialog class="export settings-dialog" id="settings-dialog" aria-labelledby="settings-title">
-          <h2 class="export__title" id="settings-title" data-i18n="settingsTitle">Minta beállításai</h2>
-          <div class="settings__body" id="settings-body"></div>
-          <p class="export__close">
-            <button type="button" class="button" id="settings-close" data-i18n="exportClose">Bezárás</button>
-          </p>
-        </dialog>
 
         <dialog class="export" id="export-dialog" aria-labelledby="export-title">
           <div class="export__head">

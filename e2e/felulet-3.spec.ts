@@ -36,7 +36,8 @@ test('the content of the File dropdown is visible and stays on screen', async ({
   // picture items and the pattern settings are there, hidden, for the free-form type.
   const items = pop.locator('button');
   // PQW-1047: the JSON flyout's own button joins the list.
-  await expect(items).toHaveCount(8);
+  // PQW-1048: the settings entry is gone with its window.
+  await expect(items).toHaveCount(7);
   const opener = pop.locator('#setup-toggle');
   await expect(opener).toBeVisible();
   await expect(opener).toHaveText(/\S/);
