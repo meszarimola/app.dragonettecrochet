@@ -50,7 +50,6 @@ export interface IrregularPanelHost {
   removeBackground(): void;
   patchBackground(patch: BackgroundPatch): void;
   setExport(patch: ExportView): void;
-  savePdf(): void;
   patchNotes(patch: NotePatch): void;
   numberRows(): void;
   addStartMarker(): void;
@@ -59,10 +58,6 @@ export interface IrregularPanelHost {
 export interface ExportView {
   readonly scale?: number;
   readonly transparent?: boolean;
-  readonly size?: 'a4' | 'letter';
-  readonly orientation?: 'auto' | 'portrait' | 'landscape';
-  readonly across?: number;
-  readonly down?: number;
 }
 
 export interface ArrangeView {
@@ -142,10 +137,6 @@ export class IrregularPanel {
   readonly #bgInExport: HTMLInputElement;
   readonly #exportScale: HTMLSelectElement;
   readonly #exportTransparent: HTMLInputElement;
-  readonly #exportSize: HTMLSelectElement;
-  readonly #exportOrientation: HTMLSelectElement;
-  readonly #exportAcross: HTMLInputElement;
-  readonly #exportDown: HTMLInputElement;
   readonly #note: HTMLElement;
   readonly #noteText: HTMLInputElement;
   readonly #noteSize: HTMLInputElement;
@@ -199,10 +190,6 @@ export class IrregularPanel {
     this.#bgInExport = must<HTMLInputElement>(page, '#bg-in-export');
     this.#exportScale = must<HTMLSelectElement>(page, '#export-scale');
     this.#exportTransparent = must<HTMLInputElement>(page, '#export-transparent');
-    this.#exportSize = must<HTMLSelectElement>(page, '#export-page-size');
-    this.#exportOrientation = must<HTMLSelectElement>(page, '#export-orientation');
-    this.#exportAcross = must<HTMLInputElement>(page, '#export-across');
-    this.#exportDown = must<HTMLInputElement>(page, '#export-down');
     this.#note = must<HTMLElement>(section, '#props-note');
     this.#noteText = must<HTMLInputElement>(section, '#note-text');
     this.#noteSize = must<HTMLInputElement>(section, '#note-size');
@@ -321,24 +308,6 @@ export class IrregularPanel {
     this.#exportTransparent.addEventListener('change', () =>
       this.#host.setExport({ transparent: this.#exportTransparent.checked }),
     );
-    this.#exportSize.addEventListener('change', () => {
-      if (this.#exportSize.value === 'a4' || this.#exportSize.value === 'letter') {
-        this.#host.setExport({ size: this.#exportSize.value });
-      }
-    });
-    this.#exportOrientation.addEventListener('change', () => {
-      const wanted = this.#exportOrientation.value;
-      if (wanted === 'auto' || wanted === 'portrait' || wanted === 'landscape') {
-        this.#host.setExport({ orientation: wanted });
-      }
-    });
-    this.#exportAcross.addEventListener('change', () =>
-      this.#number(this.#exportAcross, (value) => this.#host.setExport({ across: value })),
-    );
-    this.#exportDown.addEventListener('change', () =>
-      this.#number(this.#exportDown, (value) => this.#host.setExport({ down: value })),
-    );
-    must<HTMLButtonElement>(page, '#export-pdf').addEventListener('click', () => this.#host.savePdf());
     this.#noteText.addEventListener('change', () => this.#host.patchNotes({ text: this.#noteText.value }));
     this.#noteSize.addEventListener('change', () =>
       this.#number(this.#noteSize, (value) => this.#host.patchNotes({ fontSize: value })),
@@ -379,21 +348,7 @@ export class IrregularPanel {
       this.#exportScale.replaceChildren(...[1, 2, 4].map((times) => option(String(times), words.scaleName(times))));
       this.#exportScale.value = String(view.scale);
     }
-    if (document.activeElement !== this.#exportSize) {
-      this.#exportSize.replaceChildren(option('a4', words.pageA4), option('letter', words.pageLetter));
-      this.#exportSize.value = view.size;
-    }
-    if (document.activeElement !== this.#exportOrientation) {
-      this.#exportOrientation.replaceChildren(
-        option('auto', words.orientAuto),
-        option('portrait', words.orientPortrait),
-        option('landscape', words.orientLandscape),
-      );
-      this.#exportOrientation.value = view.orientation;
-    }
     this.#setToggle(this.#exportTransparent, view.transparent);
-    this.#setNumber(this.#exportAcross, view.across);
-    this.#setNumber(this.#exportDown, view.down);
   }
 
   updateBackground(background: BackgroundImage | null, naturalWidth: number): void {

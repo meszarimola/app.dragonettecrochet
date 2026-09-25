@@ -143,7 +143,8 @@ test('the grid can be switched on and off in the view group, it survives, and it
     // The export is in the file actions dropdown (PQW-911).
     await page.locator('#file-toggle').click();
     await page.locator('#export-open').click();
-    await page.getByRole('button', { name: 'SVG', exact: true }).click();
+    await page.locator('#export-format').selectOption('svg');
+    await page.locator('#export-run').click();
     return readFile((await (await download).path())!, 'utf8');
   };
   const withGrid = await exportSvg();

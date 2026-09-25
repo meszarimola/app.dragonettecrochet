@@ -104,6 +104,7 @@ test('profile in the panel: measured size, yarn per skein; it is saved with the 
   const downloadPromise = page.waitForEvent('download');
   // The export is in the file actions dropdown (PQW-911).
   await page.locator('#file-toggle').click();
+  await page.locator('#json-toggle').click();
   await page.locator('[data-action="export-json"]').click();
   const download = await downloadPromise;
   const saved = JSON.parse(await readFile((await download.path())!, 'utf8'));

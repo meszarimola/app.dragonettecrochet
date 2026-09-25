@@ -1922,3 +1922,29 @@ correctly in the regular type too, where the free-form panel never runs.
 Still open: a tooltip inside a menu popover is clipped by the popover's own
 scrolling box, so it is cut off — the owner reported it and it wants a shared
 tooltip element on the body, which is a change of its own.
+
+## §75 The file menu leads with export, and the export window acts
+
+PQW-1047. The owner: „a fájl menü: exportálás legyen az első … a következő
+menüpont a json legyen, alkategóriával, ahogy a szabályos horgolásnál is
+lenyílnak az elemek … a pdf-et vedd ki, a png vagy svg pedig választható legyen
+egy dropdownból, png a default. x-el lehessen bezárni az ablakot, és a bezárás
+gomb helyett exportálás legyen - ami a valós exportot megcsinálja.”
+
+**The menu** reads: Exportálás, JSON ›, Háttérkép betöltése (and its removal),
+Minta készítése. The JSON flyout (`#json-toggle`, `#json-pop`) opens beside its
+item, the way the regular type's shapes do (§66); its click stops short of the
+file menu, which would otherwise close underneath it.
+
+**The window** holds one format chooser — PNG first, as asked — and shows the
+PNG-only fields for that format. They stay out of the regular type, which has
+never had a scale of its own: the switch reads `patternType`, not the editor's
+`active`, because the editor mounts after the view changes. „Exportálás” runs the
+export and closes; the × only closes. One button exports, so one button greys out
+on an empty pattern.
+
+**The PDF is gone**, from the interface and from the code, as the owner chose:
+`pdf.ts`, its tests, the page size, orientation and page-grid fields, `savePdf`
+on both hosts, and the strings. Two acceptance specs kept their subject and moved
+it to SVG: AS-13 exports SVG and PNG, and AS-9 reads the row numbers out of the
+SVG rather than the PDF.

@@ -1412,11 +1412,10 @@ body.is-selecting #board-irregular {
   padding-block: var(--sp-2);
 }
 
+/* KB: interface.md §75 — the export window is one column of choices now. */
 .export__fields {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--sp-1) var(--sp-2);
-  align-items: end;
+  gap: var(--sp-2);
 }
 
 .export__fields > p,
@@ -2734,4 +2733,42 @@ body.is-selecting #board-irregular {
   border-color: var(--c-accent);
   background: var(--c-selection);
   color: var(--c-accent);
+}
+
+/* KB: interface.md §75 — the export window closes from its corner and acts from its foot. */
+.export__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.export__x {
+  flex: 0 0 auto;
+}
+
+.button--strong {
+  border-color: var(--c-accent);
+  background: var(--c-accent);
+  color: var(--c-bg);
+}
+
+.button--strong:hover {
+  filter: brightness(1.08);
+}
+
+/* A flyout of the file menu, beside it rather than under its item. */
+.menu--sub {
+  position: relative;
+}
+
+.menu__sub {
+  inset-block-start: 0;
+  inset-inline-start: 100%;
+  inset-inline-end: auto;
+  min-inline-size: 14rem;
+}
+
+.tool__caret--side {
+  transform: rotate(-90deg);
 }

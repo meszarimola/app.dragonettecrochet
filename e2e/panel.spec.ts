@@ -143,7 +143,7 @@ test('in a narrow window even a visible tooltip does not hang off to the right',
   await page.locator('#file-toggle').click();
   const items = page.locator('#file-pop .tool');
   const itemCount = await items.count();
-  expect(itemCount).toBe(7);
+  expect(itemCount).toBe(8);
   // The background picture and pattern settings items belong to the free-form type (interface.md §57, §60).
   for (let i = 0; i < itemCount; i += 1) if (await items.nth(i).isVisible()) await check(items.nth(i));
 });
