@@ -35,7 +35,8 @@ test('the content of the File dropdown is visible and stays on screen', async ({
   // picture exports moved behind one item (interface.md §57), and the two background
   // picture items and the pattern settings are there, hidden, for the free-form type.
   const items = pop.locator('button');
-  await expect(items).toHaveCount(7);
+  // PQW-1047: the JSON flyout's own button joins the list.
+  await expect(items).toHaveCount(8);
   const opener = pop.locator('#setup-toggle');
   await expect(opener).toBeVisible();
   await expect(opener).toHaveText(/\S/);
@@ -43,7 +44,8 @@ test('the content of the File dropdown is visible and stays on screen', async ({
   expect(openerBox.x).toBeGreaterThanOrEqual(0);
   expect(openerBox.x + openerBox.width).toBeLessThanOrEqual(viewport.width);
 
-  for (const action of ['[data-action="import-json"]', '[data-action="export-json"]', '#export-open']) {
+  // PQW-1047: the JSON actions moved into a flyout of their own; export leads the menu.
+  for (const action of ['#export-open', '#json-toggle', '#setup-toggle']) {
     const item = pop.locator(action);
     await expect(item, action).toBeVisible();
     await expect(item, action).toHaveText(/\S/);
@@ -53,6 +55,7 @@ test('the content of the File dropdown is visible and stays on screen', async ({
   }
 
   // The menu item is clickable: the menu closes after the choice.
+  await pop.locator('#json-toggle').click();
   await pop.locator('[data-action="export-json"]').click();
   await expect(pop).toBeHidden();
 });

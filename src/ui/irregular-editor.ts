@@ -126,18 +126,10 @@ import { texts, uiLanguage } from './i18n.ts';
 import { type ArcHandleId, FreeBoard, type GroupPath, type HandleId, rowLinePath } from './irregular-board.ts';
 import { drawnGlyph, itemShapes, naturalSize } from './irregular-glyph.ts';
 import { IrregularLayersPanel } from './irregular-layers-panel.ts';
-import { noteDrawing, noteSize } from './irregular-note.ts';
+import { noteSize } from './irregular-note.ts';
 import { IrregularPanel } from './irregular-panel.ts';
 import { IrregularRowsPanel, rowName } from './irregular-rows-panel.ts';
-import { type IrregularSvgOptions, irregularBox, irregularSvg } from './irregular-svg.ts';
-import {
-  type PageOrientation,
-  type PageSize,
-  MAX_SIDE as PDF_MAX_SIDE,
-  type PdfText,
-  pageCount,
-  writePdf,
-} from './pdf.ts';
+import { type IrregularSvgOptions, irregularSvg } from './irregular-svg.ts';
 import type { Shape, SymbolOptions } from './symbols.ts';
 
 export const IRREGULAR_STORAGE_KEY = 'dc-mintatervezo:minta-szabalytalan';
@@ -146,12 +138,6 @@ export const IRREGULAR_PREFS_KEY = 'dc-mintatervezo:szabalytalan-beallitasok';
 const ROTATE_SNAP = 15;
 /** The chain arc is made of chains; the key decides what a chain looks like. */
 const ARC_STITCH = 'ch';
-
-/** The PDF writer takes at most ten pages on a side; the panel agrees with it. */
-function clampSide(value: number): number {
-  if (!Number.isFinite(value)) return 1;
-  return Math.min(PDF_MAX_SIDE, Math.max(1, Math.round(value)));
-}
 
 /** How far a row's number stands from its first stitch. */
 const LABEL_GAP = 18;
@@ -220,7 +206,6 @@ export interface IrregularHost {
   ink(): string;
   /** A picture the SVG can carry inside itself. */
   imageHref(picture: HTMLImageElement): string;
-  savePdf(): void;
   /** Lets the editor lay the palette's stitch down when another tool takes over. */
   armStitch(id: StitchDefId | null): void;
 }
@@ -433,7 +418,6 @@ export class IrregularEditor {
       removeBackground: () => this.removeBackground(),
       patchBackground: (patch) => this.#commit(patchBackground(this.#history.present, patch)),
       setExport: (patch) => this.setExport(patch),
-      savePdf: () => this.#host.savePdf(),
       patchNotes: (patch) => this.patchNotes(patch),
       numberRows: () => this.numberRows(),
       addStartMarker: () => this.addStartMarker(),
@@ -1621,32 +1605,15 @@ export class IrregularEditor {
   #export = {
     scale: 2,
     transparent: false,
-    size: 'a4' as PageSize,
-    orientation: 'auto' as PageOrientation,
-    across: 1,
-    down: 1,
   };
 
   setExport(patch: Partial<typeof this.export>): void {
     const next = { ...this.#export, ...patch };
-    // The writer clamps the page grid; the panel must show what the file will get.
-    this.#export = {
-      ...next,
-      across: clampSide(next.across),
-      down: clampSide(next.down),
-      scale: [1, 2, 4].includes(next.scale) ? next.scale : 2,
-    };
+    this.#export = { ...next, scale: [1, 2, 4].includes(next.scale) ? next.scale : 2 };
     this.refresh();
   }
 
-  get export(): {
-    scale: number;
-    transparent: boolean;
-    size: PageSize;
-    orientation: PageOrientation;
-    across: number;
-    down: number;
-  } {
+  get export(): { scale: number; transparent: boolean } {
     return this.#export;
   }
 
@@ -1676,50 +1643,6 @@ export class IrregularEditor {
 
   exportSvg(): string {
     return irregularSvg(this.#history.present, this.#svgOptions());
-  }
-
-  /** The chart as one flat run of shapes, which is all the PDF writer needs. */
-  exportPdf(): Uint8Array {
-    const pattern = this.#history.present;
-    const symbols = this.#host.symbols();
-    // The colours come with the stitches: a chart that tells rounds apart by
-    // colour must not print black.
-    const runs: { shapes: Shape[]; color: string | null }[] = [];
-    const words: PdfText[] = [];
-    for (const item of pattern.items) {
-      if (!isVisible(pattern, item)) continue;
-      const color = item.color ?? rowById(pattern, item.rowId)?.color ?? null;
-      const last = runs[runs.length - 1];
-      let shapes: Shape[];
-      if (isStitch(item)) {
-        shapes = [...itemShapes(item, symbols, entryGlyph(pattern, item.keyEntryId))];
-      } else {
-        const drawing = noteDrawing(item);
-        shapes = [...drawing.shapes];
-        // A row's number is words, not strokes; the print needs them too.
-        for (const piece of drawing.texts) words.push({ ...piece, color });
-      }
-      if (last !== undefined && last.color === color) last.shapes.push(...shapes);
-      else runs.push({ shapes, color });
-    }
-    const box = irregularBox(pattern, { background: null, guides: false });
-    return writePdf({ shapes: [], runs, texts: words, lineWidth: 1.6 }, box, {
-      title: pattern.title,
-      size: this.#export.size,
-      orientation: this.#export.orientation,
-      across: this.#export.across,
-      down: this.#export.down,
-    });
-  }
-
-  get pdfPages(): number {
-    return pageCount({
-      title: '',
-      size: this.#export.size,
-      orientation: this.#export.orientation,
-      across: this.#export.across,
-      down: this.#export.down,
-    });
   }
 
   // -- file ----------------------------------------------------------------

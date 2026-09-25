@@ -130,6 +130,7 @@ test('the JSON round trip keeps the free-form chart (AS-12)', async ({ page }) =
 
   const downloadPromise = page.waitForEvent('download');
   await page.locator('#file-toggle').click();
+  await page.locator('#json-toggle').click();
   await page.getByRole('button', { name: 'JSON mentése' }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/\.json$/);
@@ -782,7 +783,7 @@ test('a sorvonal fogantyúval átalakítható, a szemek csak az Egyenletessé te
   expect(evened.ys[3], 'az utolsó szem a vonal új végén').toBeGreaterThan(before.ys[3]);
 });
 
-test('export: SVG, PNG és PDF a szabálytalan típusból (AS-13)', async ({ page }) => {
+test('export: SVG és PNG a szabálytalan típusból (AS-13, PQW-1047)', async ({ page }) => {
   await open(page);
   await chooseIrregular(page);
   await armDoubleCrochet(page);
@@ -801,7 +802,8 @@ test('export: SVG, PNG és PDF a szabálytalan típusból (AS-13)', async ({ pag
   const svgDownload = page.waitForEvent('download');
   await page.locator('#file-toggle').click();
   await page.locator('#export-open').click();
-  await page.locator('[data-action="export-svg"]').click();
+  await page.locator('#export-format').selectOption('svg');
+  await page.locator('#export-run').click();
   const svg = await readFile((await (await svgDownload).path()) ?? '', 'utf8');
   expect(svg.startsWith('<svg'), 'vektoros SVG készült').toBe(true);
   // The hidden row's stitch must leave no geometry behind, not merely be invisible.
@@ -816,7 +818,8 @@ test('export: SVG, PNG és PDF a szabálytalan típusból (AS-13)', async ({ pag
   const shownAgain = page.waitForEvent('download');
   await page.locator('#file-toggle').click();
   await page.locator('#export-open').click();
-  await page.locator('[data-action="export-svg"]').click();
+  await page.locator('#export-format').selectOption('svg');
+  await page.locator('#export-run').click();
   const all = await readFile((await (await shownAgain).path()) ?? '', 'utf8');
   const drawnAll = (all.match(/<(path|ellipse|circle|line)\b/g) ?? []).length;
   expect(drawnAll, 'a sor visszakapcsolva több alakzat kerül a fájlba').toBeGreaterThan(drawn);
@@ -825,27 +828,14 @@ test('export: SVG, PNG és PDF a szabálytalan típusból (AS-13)', async ({ pag
   const pngDownload = page.waitForEvent('download');
   await page.locator('#file-toggle').click();
   await page.locator('#export-open').click();
-  await page.locator('[data-action="export-png"]').click();
+  await page.locator('#export-format').selectOption('png');
+  await page.locator('#export-run').click();
   const png = await (await pngDownload).path();
   expect(png, 'PNG is készült').toBeTruthy();
   // The dialog's opener is in a closed menu, so the focus returns to the menu's button.
   await expect(page.locator('#file-toggle')).toBeFocused();
 
-  // PDF over four pages, from the export dialog.
-  await page.locator('#file-toggle').click();
-  await page.locator('#export-open').click();
-  await page.locator('#export-across').fill('2');
-  await page.locator('#export-across').blur();
-  await page.locator('#export-down').fill('2');
-  await page.locator('#export-down').blur();
-  const pdfDownload = page.waitForEvent('download');
-  await page.locator('#export-pdf').click();
-  const pdfPath = (await (await pdfDownload).path()) ?? '';
-  const pdf = await readFile(pdfPath);
-  expect(pdf.subarray(0, 8).toString('latin1'), 'valódi PDF fejléc').toBe('%PDF-1.4');
-  expect(pdf.subarray(-6).toString('latin1').trim(), 'és rendes vége').toBe('%%EOF');
-  expect((pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) ?? []).length, 'négy lapon').toBe(4);
-  await expect(page.locator('#status')).toContainText('4');
+  // PQW-1047: the PDF export is gone; the owner asked for the picture formats only.
 });
 
 test('feliratok: sorszámok követik a sort, és nem számítanak szemnek (AS-9)', async ({ page }) => {
@@ -892,14 +882,15 @@ test('feliratok: sorszámok követik a sort, és nem számítanak szemnek (AS-9)
   await page.locator('#notes-numbers').click();
   expect((await read()).labels, 'nem duplázódik').toHaveLength(2);
 
-  // The numbers go into the print too, not only into the picture.
-  const pdfDownload = page.waitForEvent('download');
+  // The numbers go into the export too, not only onto the canvas — into the SVG,
+  // now that the PDF is gone (PQW-1047).
+  const svgDownload = page.waitForEvent('download');
   await page.locator('#file-toggle').click();
   await page.locator('#export-open').click();
-  await page.locator('#export-pdf').click();
-  const pdf = await readFile((await (await pdfDownload).path()) ?? '');
-  const inside = pdf.toString('latin1');
-  expect((inside.match(/Tj/g) ?? []).length, 'a sorszámok szövegként a PDF-ben vannak').toBeGreaterThan(2);
+  await page.locator('#export-format').selectOption('svg');
+  await page.locator('#export-run').click();
+  const svg = await readFile((await (await svgDownload).path()) ?? '', 'utf8');
+  expect((svg.match(/<text/g) ?? []).length, 'a sorszámok szövegként az SVG-ben vannak').toBeGreaterThan(1);
 });
 
 test('felirat és nyíl: lerakás, szöveg és betűméret (FR-ANN-5, FR-ANN-6)', async ({ page }) => {

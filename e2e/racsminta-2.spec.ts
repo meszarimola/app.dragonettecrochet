@@ -84,7 +84,8 @@ test('mosaic with one skip: error-free, the written pattern marks the stitch wor
   // The export is in the file actions dropdown (PQW-911).
   await page.locator('#file-toggle').click();
   await page.locator('#export-open').click();
-  await page.getByRole('button', { name: 'SVG', exact: true }).click();
+  await page.locator('#export-format').selectOption('svg');
+  await page.locator('#export-run').click();
   const svg = await readFile((await (await download).path())!, 'utf8');
   expect(svg).toContain('data-spike');
   expect(svg).toContain('Pötty a szár végén');

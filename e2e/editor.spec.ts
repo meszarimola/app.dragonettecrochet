@@ -141,6 +141,7 @@ test('the pattern survives a reload, and can be loaded back as JSON', async ({ p
   const downloadPromise = page.waitForEvent('download');
   // Saving is in the file actions dropdown (PQW-911).
   await page.locator('#file-toggle').click();
+  await page.locator('#json-toggle').click();
   await page.getByRole('button', { name: 'JSON mentése' }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/\.json$/);
@@ -168,7 +169,8 @@ test('PNG and SVG export with a stitch key', async ({ page }) => {
   const svgPromise = page.waitForEvent('download');
   await page.locator('#file-toggle').click();
   await page.locator('#export-open').click();
-  await page.getByRole('button', { name: 'SVG', exact: true }).click();
+  await page.locator('#export-format').selectOption('svg');
+  await page.locator('#export-run').click();
   const svg = await readFile((await (await svgPromise).path())!, 'utf8');
   expect(svg).toContain('<svg');
   expect(svg).toContain('Jelmagyarázat');
@@ -177,7 +179,8 @@ test('PNG and SVG export with a stitch key', async ({ page }) => {
   const pngPromise = page.waitForEvent('download');
   await page.locator('#file-toggle').click();
   await page.locator('#export-open').click();
-  await page.getByRole('button', { name: 'PNG', exact: true }).click();
+  await page.locator('#export-format').selectOption('png');
+  await page.locator('#export-run').click();
   const pngDownload = await pngPromise;
   expect(pngDownload.suggestedFilename()).toMatch(/\.png$/);
   const png = await readFile((await pngDownload.path())!);
