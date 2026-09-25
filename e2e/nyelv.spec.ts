@@ -27,11 +27,17 @@ async function openSheet(page: Page): Promise<void> {
   }
 }
 
-/** The notation section is closed by default (PQW-882). */
-async function openNotation(page: Page): Promise<void> {
-  await page.locator('#section-notation').evaluate((el) => {
-    (el as HTMLDetailsElement).open = true;
-  });
+/**
+ * PQW-1048 took the terminology chooser off the interface, but the notation is
+ * still what names a stitch. The tests set it where the app keeps it.
+ */
+async function withTerms(page: Page, terms: string): Promise<void> {
+  await page.addInitScript((value) => {
+    localStorage.setItem(
+      'dc-mintatervezo:jeloles',
+      JSON.stringify({ terms: value, chartStyle: 'cyc', singleCrochet: 'plus' }),
+    );
+  }, terms);
 }
 
 const sizeTitle = (page: Page) => page.locator('#section-size > summary');
@@ -43,7 +49,6 @@ test('?lang=en gives an English interface, and the page language is English too'
   await expect(sizeTitle(page)).toHaveText('Size and yarn');
   await expect(page.locator('#home-link')).toHaveAttribute('href', /\/en\//);
 
-  await openNotation(page);
   await expect(page.locator('#ui-language')).toHaveValue('en');
 });
 
@@ -54,7 +59,6 @@ test('without the parameter it stays Hungarian, and the home link is Hungarian t
   await expect(sizeTitle(page)).toHaveText('Méret és fonal');
   await expect(page.locator('#home-link')).toHaveAttribute('href', /\/hu\//);
 
-  await openNotation(page);
   await expect(page.locator('#ui-language')).toHaveValue('hu');
 });
 
@@ -62,7 +66,6 @@ test('the manual chooser switches within the page, and writes the language into 
   page,
 }) => {
   await open(page);
-  await openNotation(page);
 
   await page.locator('#ui-language').selectOption('en');
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
@@ -85,25 +88,23 @@ test('on a language change the labels of the dropdowns switch to the new languag
   });
   await expect(page.locator('#shape-kind')).toContainText('Téglalap');
 
-  await openNotation(page);
   await page.locator('#ui-language').selectOption('en');
   await expect(page.locator('#shape-kind')).toContainText('Rectangle');
 });
 
 test('the language of the interface and the notation of the pattern are independent', async ({ page }) => {
-  await open(page, '?lang=en');
-  await openNotation(page);
-
   // On an English interface one can work with Hungarian notation too: the stitch
   // names follow the notation, the interface language stays English.
-  await page.locator('#terms').selectOption('hu');
-  await expect(page.locator('#terms')).toHaveValue('hu');
+  await withTerms(page, 'hu');
+  await open(page, '?lang=en');
+
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(sizeTitle(page)).toHaveText('Size and yarn');
   await expect(page.locator('#palette')).toContainText('Láncszem');
 
+  // Switching the interface back does not touch the notation either.
   await page.locator('#ui-language').selectOption('hu');
-  await expect(page.locator('#terms')).toHaveValue('hu');
+  await expect(page.locator('#palette')).toContainText('Láncszem');
 });
 
 test('the browser tab title and the description follow the interface language (PQW-905)', async ({ page }) => {
@@ -112,7 +113,6 @@ test('the browser tab title and the description follow the interface language (P
   await expect(page.locator('head meta[name="description"]')).toHaveAttribute('content', /horgolásminta-tervező/i);
   await expect(page.locator('head meta[property="og:title"]')).toHaveAttribute('content', /horgolásminta-tervező/i);
 
-  await openNotation(page);
   await page.locator('#ui-language').selectOption('en');
   await expect(page).toHaveTitle(/Crochet Pattern Designer/);
   await expect(page.locator('head meta[name="description"]')).toHaveAttribute('content', /crochet pattern designer/i);
@@ -121,7 +121,6 @@ test('the browser tab title and the description follow the interface language (P
 
 test('the chosen language survives until the next opening (PQW-906)', async ({ page }) => {
   await open(page);
-  await openNotation(page);
   await page.locator('#ui-language').selectOption('en');
   await expect(sizeTitle(page)).toHaveText('Size and yarn');
 
@@ -140,7 +139,6 @@ test('the stored language works even when the cookie bar is rejected (PQW-906)',
   // Language is an operational setting, not tracking: it does not depend on the analytics consent.
   await page.goto('/');
   await page.locator('[data-consent="denied"]').click();
-  await openNotation(page);
   await page.locator('#ui-language').selectOption('en');
 
   await page.goto('/');
@@ -162,9 +160,7 @@ test('the basic tiles hold the longer English names too (PQW-989)', async ({ pag
   await expect(page.locator('#palette').getByRole('button', { name: /Chain \(ch\)/ })).toHaveCount(1);
   await expect(page.locator('#palette').getByRole('button', { name: /Double treble \(dtr\)/ })).toHaveCount(1);
 
-  await openNotation(page);
-  await page.locator('#terms').selectOption('en-GB');
-  await expect(page.locator('#palette')).toContainText('Triple treble (trtr)');
+  await expect(page.locator('#palette')).toContainText('Double treble (dtr)');
 
   // KB: interface.md §36 — the target size holds at the longest names.
   for (const cell of await cells.all()) {

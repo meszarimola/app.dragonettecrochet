@@ -23,7 +23,6 @@ import {
   onFoundationChain,
   pieceFinished,
   setPinned,
-  setTradition,
   type WorkContext,
   withoutStaleSkips,
   work,
@@ -60,16 +59,7 @@ import {
 import { libraryFor, resolveStitch } from '../core/stitch-variants.js';
 import { stitchName } from '../core/stitchText.js';
 import { traditionOf } from '../core/tradition.js';
-import type {
-  Finding,
-  Locale,
-  NodeId,
-  Pattern,
-  PatternNotation,
-  StitchDef,
-  StitchDefId,
-  Tradition,
-} from '../core/types.js';
+import type { Finding, NodeId, Pattern, PatternNotation, StitchDef, StitchDefId } from '../core/types.js';
 import { validatePattern } from '../core/validate.js';
 import { AmigurumiPanel } from './amigurumi-panel.js';
 import { type Area, Board, type DirectionArrow, type Target } from './board.js';
@@ -100,13 +90,11 @@ import { wireTabs } from './irregular-tabs.js';
 import {
   chartStyleLabel,
   defaultNotation,
-  notationForTradition,
   readNotation,
   setTermsLocale,
   symbolOptionsFor,
   termsLabel,
   textLanguage,
-  traditionLabel,
   withNotation,
   writeNotation,
 } from './notation.js';
@@ -160,7 +148,6 @@ const countField = must<HTMLElement>('#count-field');
 const countInput = must<HTMLInputElement>('#chain-count');
 const summary = must<HTMLParagraphElement>('#summary');
 const findingList = must<HTMLUListElement>('#findings');
-const titleInput = must<HTMLInputElement>('#title');
 const importFile = must<HTMLInputElement>('#import-file');
 const adjust = must<HTMLElement>('#adjust');
 const adjustName = must<HTMLParagraphElement>('#adjust-name');
@@ -172,9 +159,7 @@ const writtenNotices = must<HTMLDivElement>('#written-notices');
 const writtenBody = must<HTMLDivElement>('#written-body');
 const writtenGrip = must<HTMLDivElement>('#written-grip');
 const writtenFull = must<HTMLButtonElement>('#written-full');
-const termsSelect = must<HTMLSelectElement>('#terms');
 const styleSelect = must<HTMLSelectElement>('#chart-style');
-const traditionSelect = must<HTMLSelectElement>('#tradition');
 const typesNav = must<HTMLElement>('#types');
 const typesToggle = must<HTMLButtonElement>('#types-toggle');
 const typesList = must<HTMLUListElement>('#types-list');
@@ -194,11 +179,6 @@ const notesPop = must<HTMLElement>('#notes-pop');
 const selectModeToggle = must<HTMLButtonElement>('#select-mode-toggle');
 const selectModePop = must<HTMLElement>('#select-mode-pop');
 const exportDialog = must<HTMLDialogElement>('#export-dialog');
-const settingsDialog = must<HTMLDialogElement>('#settings-dialog');
-const settingsBody = must<HTMLElement>('#settings-body');
-const notationSection = must<HTMLDetailsElement>('#section-notation');
-const patternSection = must<HTMLDetailsElement>('#section-pattern');
-const consentButton = must<HTMLElement>('[data-consent-open]');
 const exportGrid = must<HTMLInputElement>('#export-grid');
 const insertionPanel = new InsertionPanel(must<HTMLFieldSetElement>('#insertion'));
 const languageSelect = document.querySelector<HTMLSelectElement>('#ui-language');
@@ -424,7 +404,6 @@ function refresh(message?: Message): void {
   if (selectedNode && !derived.layout.nodes.has(selectedNode)) selectedNode = null;
   selection = selection.filter((id) => derived.layout.nodes.has(id));
   draw();
-  traditionSelect.value = traditionOf(derived.pattern.conventions);
   updateControls();
   updateWritten();
   sizePanel.update(derived.pattern, derived.context.graph, derived.context.library);
@@ -628,7 +607,6 @@ function updateControls(): void {
   setDisabled('duplicate-selection', selection.length === 0);
   must<HTMLButtonElement>('[data-action="select-area"]').setAttribute('aria-pressed', String(areaMode));
   must<HTMLButtonElement>('[data-action="grid"]').setAttribute('aria-pressed', String(showGrid));
-  if (document.activeElement !== titleInput) titleInput.value = pattern.title;
 
   const layers = context.graph ? context.graph.layers.length - 1 : 0;
   const errors = check.findings.filter((f) => f.severity === 'error').length;
@@ -854,29 +832,12 @@ function syncNotationControls(): void {
   // KB: interface.md §2, §6
   setTermsLocale(notation.terms);
   relabelSelects(document);
-  termsSelect.value = notation.terms;
   styleSelect.value = notation.chartStyle;
 }
-
-termsSelect.addEventListener('change', () => {
-  const terms = termsSelect.value as Locale;
-  applyNotation({ ...notation, terms }, texts().messages.notation.terms(termsLabel(terms)));
-});
 
 styleSelect.addEventListener('change', () => {
   const chartStyle = styleSelect.value as PatternNotation['chartStyle'];
   applyNotation({ ...notation, chartStyle }, texts().messages.notation.chartStyle(chartStyleLabel(chartStyle)));
-});
-
-// The preset belongs to the pattern: counting changes in the pattern, symbols in the notation.
-traditionSelect.addEventListener('change', () => {
-  // KB: interface.md §39 — the preset belongs to the regular document, which is not the one showing.
-  if (irregular?.active === true) return;
-  const tradition = traditionSelect.value as Tradition;
-  const result = setTradition(history.present, tradition);
-  if (!result.ok) return;
-  applyNotation(notationForTradition(notation, tradition), '');
-  commit(result, texts().messages.notation.tradition(traditionLabel(tradition)));
 });
 
 // KB: interface.md §4, §5
@@ -1586,21 +1547,6 @@ importFile.addEventListener('change', () => {
   if (file) void importJson(file);
 });
 
-titleInput.addEventListener('change', () => {
-  const title = titleInput.value.trim();
-  if (irregular?.active === true) {
-    irregular.setTitle(title);
-    return;
-  }
-  // KB: interface.md §29
-  if (title !== history.present.title) {
-    commit(
-      { ok: true, pattern: { ...history.present, title, titleGenerated: false } },
-      texts().messages.work.titleChanged,
-    );
-  }
-});
-
 countInput.addEventListener('change', () => refresh());
 
 function openPopover(pop: HTMLElement, button: HTMLButtonElement): void {
@@ -1689,28 +1635,6 @@ must<HTMLButtonElement>('#export-close').addEventListener('click', () => exportD
 // The item that opened the dialog sits in a closed menu, so the focus goes back to the menu's button.
 exportDialog.addEventListener('close', () => fileToggle.focus());
 
-// KB: interface.md §60 — the free-form panel keeps only its own work; these two wait behind the file menu.
-must<HTMLButtonElement>('#settings-open').addEventListener('click', () => {
-  closeAllPopovers();
-  settingsDialog.showModal();
-});
-must<HTMLButtonElement>('#settings-close').addEventListener('click', () => settingsDialog.close());
-settingsDialog.addEventListener('close', () => fileToggle.focus());
-
-/** The notation and the pattern sections are shared nodes: in the dialog for the free-form type, in the panel otherwise. */
-let panelFolds: readonly [boolean, boolean] | null = null;
-function placeSharedSections(freeForm: boolean): void {
-  if (freeForm && panelFolds === null) {
-    panelFolds = [notationSection.open, patternSection.open];
-    notationSection.open = true;
-    patternSection.open = true;
-    settingsBody.append(notationSection, patternSection);
-  } else if (!freeForm && panelFolds !== null) {
-    [notationSection.open, patternSection.open] = panelFolds;
-    panelFolds = null;
-    consentButton.before(notationSection, patternSection);
-  }
-}
 // KB: interface.md §75 — „Exportálás” does the export and closes; the × only closes.
 const exportFormat = must<HTMLSelectElement>('#export-format');
 must<HTMLButtonElement>('#export-run').addEventListener('click', () => {
@@ -2597,7 +2521,6 @@ function updateIrregularControls(editor: IrregularEditor): void {
     );
   }
   must<HTMLButtonElement>('[data-action="grid"]').setAttribute('aria-pressed', String(editor.gridVisible));
-  if (document.activeElement !== titleInput) titleInput.value = editor.title;
   const issues = editor.issues();
   const errorBar = texts().messages.errorBar;
   errorCount.textContent = issues.length === 0 ? errorBar.none : errorBar.warnings(issues.length);
@@ -2651,7 +2574,6 @@ function showIrregularView(on: boolean): void {
     '#select-mode-toggle',
     '#select-pointer',
     '#irregular-tabs',
-    '#settings-open',
   ]) {
     must<HTMLElement>(id).hidden = !on;
   }
@@ -2661,7 +2583,6 @@ function showIrregularView(on: boolean): void {
     if (tile) tile.hidden = !on;
   }
   syncExportFormat();
-  placeSharedSections(on);
   fitBar();
 }
 
@@ -2682,13 +2603,33 @@ const BAR_STEPS = 2;
 function fitBar(): void {
   const before = bar.dataset.fit;
   const overflows = () => barTools.scrollWidth > barTools.clientWidth;
+  // The pickers go back to the bar first, so their room is measured, not guessed.
+  placePickers(false);
   bar.removeAttribute('data-wrap');
   let step = 0;
   bar.dataset.fit = '0';
   while (step < BAR_STEPS && overflows()) bar.dataset.fit = String(++step);
+  const lead = must<HTMLElement>('.bar__lead').getBoundingClientRect();
+  const room = bar.getBoundingClientRect().width - lead.width - barTools.scrollWidth;
+  if (overflows() || room < 0) placePickers(true);
   bar.toggleAttribute('data-wrap', overflows());
   if (bar.dataset.fit !== before) setViewMenuOpen(false);
 }
+/**
+ * KB: interface.md §77 — the two pickers live in the bar's corner where there is
+ * room, and in the file menu where there is not. One node, moved, so no control
+ * is ever duplicated.
+ */
+const pickers = must<HTMLElement>('#pickers');
+const pickersHome = must<HTMLElement>('.tools__group--end');
+function placePickers(compact: boolean): void {
+  const inMenu = pickers.parentElement === filePop;
+  if (compact === inMenu) return;
+  if (compact) filePop.append(pickers);
+  else pickersHome.append(pickers);
+  pickers.classList.toggle('pickers--menu', compact);
+}
+
 const barObserver = new ResizeObserver(fitBar);
 barObserver.observe(bar);
 barObserver.observe(errorToggle);

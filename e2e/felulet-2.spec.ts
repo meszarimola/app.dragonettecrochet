@@ -135,11 +135,14 @@ test('Ctrl+C and Ctrl+V copy and paste on the canvas, but in a text field the br
     return page.evaluate(() => (window as unknown as { pqwKeys: boolean[] }).pqwKeys);
   };
 
-  const title = page.locator('#title');
-  await title.fill('Nyári kendő');
-  await title.selectText();
+  // PQW-1048: the pattern name field is gone; the yarn's name is the text field now.
+  await page.locator('#section-size > summary').click();
+  await page.locator('#size-add').click();
+  const text = page.locator('#size-yarn-name');
+  await text.fill('Nyári pamut');
+  await text.selectText();
   expect(await log(), 'in a text field the browser default stays').toEqual([false, false]);
-  await expect(title).toHaveValue('Nyári kendő');
+  await expect(text).toHaveValue('Nyári pamut');
   // Nothing changed in the pattern: the keys of the field never reached the canvas.
   await expect(summary).toContainText('3 sor. 4. sor: 6 szem.');
 

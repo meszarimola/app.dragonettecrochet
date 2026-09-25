@@ -21,8 +21,9 @@ test('on load the stitch list is visible in the left column, the notation closed
 }) => {
   await open(page);
 
+  // PQW-1048: the notation section is gone; the size section leads the right panel.
   const stitches = page.locator('#section-stitches');
-  const notation = page.locator('#section-notation');
+  const size = page.locator('#section-size');
   await expect(stitches).toBeVisible();
   await expect(
     page
@@ -30,26 +31,25 @@ test('on load the stitch list is visible in the left column, the notation closed
       .getByRole('button', { name: /Láncszem/ })
       .first(),
   ).toBeInViewport();
-  await expect(notation).not.toHaveAttribute('open', '');
-  await expect(page.locator('#terms')).toBeHidden();
+  await expect(size).not.toHaveAttribute('open', '');
 
   const stitchesBox = await stitches.boundingBox();
-  const notationBox = await notation.boundingBox();
-  expect(stitchesBox!.x + stitchesBox!.width, 'the stitches stand left of the settings').toBeLessThan(notationBox!.x);
+  const sizeBox = await size.boundingBox();
+  expect(stitchesBox!.x + stitchesBox!.width, 'the stitches stand left of the settings').toBeLessThan(sizeBox!.x);
 });
 
 test('the panel sections can be collapsed and expanded by mouse and by keyboard', async ({ page }) => {
   await open(page);
 
-  const notationHead = page.locator('#section-notation > summary');
-  await notationHead.click();
-  await expect(page.locator('#terms')).toBeVisible();
-  await notationHead.click();
-  await expect(page.locator('#terms')).toBeHidden();
+  const sizeHead = page.locator('#section-size > summary');
+  await sizeHead.click();
+  await expect(page.locator('#size-profile')).toBeVisible();
+  await sizeHead.click();
+  await expect(page.locator('#size-profile')).toBeHidden();
 
-  const patternHead = page.locator('#section-pattern > summary');
-  await patternHead.click();
-  await expect(page.locator('#title')).toBeHidden();
+  await sizeHead.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#size-profile')).toBeVisible();
 });
 
 test('every menu bar icon button shows a tooltip under the mouse, the inactive ones too', async ({ page }) => {
@@ -143,7 +143,8 @@ test('in a narrow window even a visible tooltip does not hang off to the right',
   await page.locator('#file-toggle').click();
   const items = page.locator('#file-pop .tool');
   const itemCount = await items.count();
-  expect(itemCount).toBe(8);
+  // PQW-1048: the settings entry is gone with its window.
+  expect(itemCount).toBe(7);
   // The background picture and pattern settings items belong to the free-form type (interface.md §57, §60).
   for (let i = 0; i < itemCount; i += 1) if (await items.nth(i).isVisible()) await check(items.nth(i));
 });

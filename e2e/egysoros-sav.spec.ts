@@ -45,11 +45,18 @@ for (const viewport of [
       expect(shown, 'the visible buttons of the bar').toBeGreaterThan(10);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(viewport.width);
 
-      // The panel toggles close the line.
-      const panelToggle = (await page.locator('#panel-toggle').boundingBox())!;
-      expect(panelToggle.x + panelToggle.width, 'the panel toggle sits at the right edge').toBeGreaterThan(
-        viewport.width - 80,
-      );
+      // PQW-1048: what closes the line depends on the type and on whether the
+      // pickers fit, so the test asks for the rightmost of them rather than naming one.
+      const edge = await page
+        .locator('.tools__group--end')
+        .evaluate((group) =>
+          Math.max(
+            ...[...group.querySelectorAll('button, select')]
+              .filter((el) => (el as HTMLElement).offsetParent !== null)
+              .map((el) => el.getBoundingClientRect().right),
+          ),
+        );
+      expect(edge, 'the last control sits at the right edge').toBeGreaterThan(viewport.width - 80);
     });
   }
 }
