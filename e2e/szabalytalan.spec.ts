@@ -1176,34 +1176,25 @@ test('rows, layers and key share one place behind tabs; the background is the bo
   await expect(page.locator('#layers-list li').first()).toContainText('Szegély');
 });
 
-test('the notation and the pattern settings wait in a dialog here, and go back to the panel for rows (PQW-1011)', async ({
-  page,
-}) => {
+/*
+ * PQW-1011's dialog is gone with PQW-1048: the language and the symbol set sit in
+ * the bar for both types, and the preset, the terminology, the pattern name and the
+ * key list were removed at the owner's request. What replaced it is covered by
+ * „the language and the symbol set are in the bar in both types” below.
+ */
+test('the language and the symbol set are in the bar in both types (PQW-1048)', async ({ page }) => {
   await open(page);
-  const notation = page.locator('#section-notation');
-  await expect(notation).toBeVisible();
-  const foldedBefore = await notation.getAttribute('open');
-
-  await chooseIrregular(page);
-  await expect(notation).toBeHidden();
-  await expect(page.locator('#title')).toBeHidden();
-
-  await page.locator('#file-toggle').click();
-  await page.locator('#settings-open').click();
-  await expect(page.locator('#settings-dialog')).toBeVisible();
   await expect(page.locator('#ui-language')).toBeVisible();
-  await page.locator('#title').fill('Csipkés terítő');
-  await page.locator('#title').blur();
-  await page.locator('#settings-close').click();
-  await expect(page.locator('#settings-dialog')).toBeHidden();
-  await expect(page.locator('#file-toggle')).toBeFocused();
-
-  // Back in the regular type the sections are in the panel again, folded as they were.
-  await page.locator('#types-toggle').click();
-  await page.getByRole('button', { name: /Szabályos horgolás/ }).click();
-  await expect(page.locator('#settings-open')).toBeHidden();
-  await expect(notation).toBeVisible();
-  expect(await notation.getAttribute('open')).toBe(foldedBefore);
+  await expect(page.locator('#chart-style')).toBeVisible();
+  // They are the bar's own, so they stay through a type change.
+  await chooseIrregular(page);
+  await expect(page.locator('#ui-language')).toBeVisible();
+  await expect(page.locator('#chart-style')).toBeVisible();
+  // And they still work: the symbol set reaches the free-form canvas too.
+  await page.locator('#chart-style').selectOption('jis');
+  await expect(page.locator('#status')).toContainText('Jelstílus');
+  await expect(page.locator('#settings-dialog')).toHaveCount(0);
+  await expect(page.locator('#title')).toHaveCount(0);
 });
 
 test('a new row opens only after a row with stitches, and the footer deletes the active row (PQW-1012)', async ({

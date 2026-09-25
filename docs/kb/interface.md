@@ -1959,3 +1959,32 @@ layout and the canvas keeps the rest. It is a `<p>`, not a live region or an
 alert: it says the same thing on every visit and must not interrupt a screen
 reader at work. It is not dismissible, because the crocheter would lose it on
 the next reload anyway and the note is meant to greet every visit.
+
+## §77 The language and the symbol set move to the bar; the settings window goes
+
+PQW-1048. The owner: „legyen egy nyelvválasztó a jobb felső sarokban - dropdown,
+zászlókkal és rövidítésekkel, pl HU vagy EN, valamint mellette egy jelkészletről
+egy dropdown, hogy CYC és JIS”, and „a minta beállításait töröld”.
+
+**Two pickers in the bar's corner.** `#ui-language` (🇭🇺 HU / 🇬🇧 EN) closes the
+line, with `#chart-style` (CYC / JIS) beside it. They carry no visible label: the
+name is on `aria-label`, and the tooltip repeats it.
+
+**Where they go when the bar is full.** At 1000 px the two pickers cost 110 px and
+the bar cannot hold them beside the title, so `placePickers` moves the pair into
+the file menu, and the bar stays one line (§56). One node is moved, never
+duplicated, the way the notation sections used to move into the settings dialog.
+`fitBar` puts them back first, so their room is measured rather than guessed.
+
+**What was deleted with the settings window**, at the owner's choice: the preset
+(CYC / Japanese), the terminology (hu / en-US / en-GB), the pattern name and the
+key list, together with `#settings-dialog`, `#section-notation` and
+`#section-pattern`. The cookie settings button stays.
+
+**What that cost in tests.** The data behind the deleted controls is untouched, so
+the browser tests set it where the app keeps it (`dc-mintatervezo:jeloles`) and
+load the page again: the written pattern in three terminologies and the Japanese
+counting rule are still covered end to end. Two tests were lost with their
+subject: writing a pattern title by hand (no field any more) and changing the
+preset from the free-form type (no chooser any more). `core-pattern-title` and
+`tradition.ts` keep both rules under test in the core.

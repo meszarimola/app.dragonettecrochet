@@ -86,24 +86,11 @@ async function selectLastSymbol(page: Page): Promise<void> {
   await expect(page.locator('#adjust')).toBeVisible();
 }
 
-test('the notation preset leaves the regular pattern alone in free-form mode', async ({ page }) => {
-  await open(page);
-  await circle(page);
-  await expect(page.locator('#tradition')).toHaveValue('cyc');
-  const before = await saved(page);
-
-  await chooseIrregular(page);
-  // `#section-notation` is shared between the two editors, so it is correctly
-  // still here; its „Jelkészlet” and „Jelstílus” selects go on working. The
-  // preset does not, because it is the regular pattern's own conventions.
-  await openSection(page, '#section-notation');
-  await page.locator('#tradition').selectOption('japanese');
-  expect(await saved(page)).toBe(before);
-  await page.keyboard.press('Escape');
-
-  await chooseRegular(page);
-  await expect(page.locator('#tradition')).toHaveValue('cyc');
-});
+/*
+ * The preset chooser was removed in PQW-1048, so a preset can no longer be changed
+ * from the free-form type — or from anywhere. The rule it drove is still covered by
+ * the core tests of `tradition.ts`.
+ */
 
 test('the adjust box leaves with the regular editor, and its buttons stop writing', async ({ page }) => {
   await open(page);
