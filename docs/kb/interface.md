@@ -1948,3 +1948,14 @@ on an empty pattern.
 on both hosts, and the strings. Two acceptance specs kept their subject and moved
 it to SVG: AS-13 exports SVG and PNG, and AS-9 reads the row numbers out of the
 SVG rather than the PDF.
+## §76 The work-in-progress line
+
+PQW-1051. The owner: „tegyél ki az oldalra, az app.dragonettre felülre egy
+bannert, hogy work in progress - és hogy nézz vissza később, mert az oldal
+folyamatos fejlesztés alatt van”.
+
+One line above the menu bar, inside `.app` so it takes its height from the
+layout and the canvas keeps the rest. It is a `<p>`, not a live region or an
+alert: it says the same thing on every visit and must not interrupt a screen
+reader at work. It is not dismissible, because the crocheter would lose it on
+the next reload anyway and the note is meant to greet every visit.
