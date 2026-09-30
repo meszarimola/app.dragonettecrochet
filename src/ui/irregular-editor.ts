@@ -118,6 +118,7 @@ import {
   type ShapeSide,
 } from '../core/irregular-types.ts';
 import type { Locale, PatternNotation, StitchDefId } from '../core/types.ts';
+import { trackPatternStart } from './analytics.ts';
 import { type BackgroundStoreCode, getBackground, pruneBackgrounds, putBackground } from './background-store.ts';
 import { IRREGULAR_JSON_CORE_TEXTS } from './i18n/core/irregular-json.ts';
 import { renderCoreText } from './i18n/core/render.ts';
@@ -656,6 +657,7 @@ export class IrregularEditor {
     const next = this.#refreshLabels(reseatGroups(candidate));
     if (next !== this.#history.present) {
       this.#history = record(this.#history, next);
+      trackPatternStart('irregular');
       this.#pruneSelection();
       this.#persist();
     }

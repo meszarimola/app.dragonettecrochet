@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import { GA_MEASUREMENT_ID } from '../src/config.ts';
+import { chartExportFormat, isMeasuredHost } from '../src/ui/measurement.ts';
 import {
   CONSENT_COOKIE,
   CONSENT_VERSION,
@@ -13,6 +14,15 @@ import {
 
 const HTACCESS = readFileSync(new URL('../public/.htaccess', import.meta.url), 'utf8');
 const BUILT_INDEX = new URL('../dist/index.html', import.meta.url);
+const MAIN = readFileSync(new URL('../src/ui/main.ts', import.meta.url), 'utf8');
+
+function exportedMimeTypes() {
+  const calls = [...MAIN.matchAll(/(?<!function )\bdownload\(([\s\S]*?)\);/g)];
+  return calls.map(([, args]) => {
+    const mime = [...args.matchAll(/'([a-z]+\/[a-z0-9+.-]+)'/g)].at(-1);
+    return mime?.[1] ?? args.trim().slice(0, 60);
+  });
+}
 
 const GOOGLE_ANALYTICS_CSP_SOURCES_WITHOUT_SIGNALS = {
   'script-src': ['https://www.googletagmanager.com'],
@@ -88,4 +98,24 @@ test('the designer writes the decision into the same root-domain cookie as the m
   assert.match(setCookieLine, new RegExp(`^${CONSENT_COOKIE}=${CONSENT_VERSION}:granted:\\d+;`));
   assert.match(setCookieLine, /; Domain=dragonettecrochet\.com/);
   assert.equal(parseConsent(setCookieLine.split(';')[0])?.choice, 'granted');
+});
+
+test('the measurement only starts on the production host', () => {
+  assert.equal(isMeasuredHost('app.dragonettecrochet.com'), true);
+  assert.equal(isMeasuredHost('localhost'), false);
+  assert.equal(isMeasuredHost('127.0.0.1'), false);
+  assert.equal(isMeasuredHost('dragonettecrochet.com'), false);
+  assert.equal(isMeasuredHost('app.dragonettecrochet.com.example.org'), false);
+});
+
+test('every export reports a chart_export format', () => {
+  const mimeTypes = exportedMimeTypes();
+  assert.ok(mimeTypes.length >= 4, `only ${mimeTypes.length} download() calls found — has the export moved?`);
+
+  const unreported = mimeTypes.filter((mime) => chartExportFormat(mime) === null);
+  assert.deepEqual(
+    unreported,
+    [],
+    'an export whose media type chartExportFormat() does not know: it would download without a chart_export event',
+  );
 });

@@ -62,6 +62,7 @@ import { traditionOf } from '../core/tradition.js';
 import type { Finding, NodeId, Pattern, PatternNotation, StitchDef, StitchDefId } from '../core/types.js';
 import { validatePattern } from '../core/validate.js';
 import { AmigurumiPanel } from './amigurumi-panel.js';
+import { setContentLanguage, trackEvent, trackPatternStart } from './analytics.js';
 import { type Area, Board, type DirectionArrow, type Target } from './board.js';
 import { chartSvg } from './chart-svg.js';
 import { setupConsentBanner } from './consentBanner.js';
@@ -87,6 +88,7 @@ import { InsertionPanel } from './insertion-panel.js';
 import { insertionSuffix } from './insertion-view.js';
 import { IrregularEditor } from './irregular-editor.js';
 import { wireTabs } from './irregular-tabs.js';
+import { chartExportFormat } from './measurement.js';
 import {
   chartStyleLabel,
   defaultNotation,
@@ -491,6 +493,7 @@ function commit(result: EditResult, message: Message): void {
     return;
   }
   history = record(history, result.pattern);
+  trackPatternStart(patternType);
   cursorMoved = false;
   persist(history.present);
   // Recompute first, so the status line already describes the new pattern.
@@ -842,6 +845,7 @@ styleSelect.addEventListener('change', () => {
 
 // KB: interface.md §4, §5
 function changeLanguage(language: UiLanguage): void {
+  const from = uiLanguage();
   setUiLanguage(language);
   rememberLanguage(language);
   document.documentElement.lang = language;
@@ -862,6 +866,8 @@ function changeLanguage(language: UiLanguage): void {
   fitBar();
   syncWrittenSize();
   irregular?.refresh();
+  setContentLanguage(language);
+  trackEvent('language_change', { from, to: language });
   announce(texts().messages.language.changed);
 }
 
@@ -1109,6 +1115,8 @@ function slug(title: string): string {
 }
 
 function download(content: Blob | string, filename: string, type: string): void {
+  const format = chartExportFormat(type);
+  if (format) trackEvent('chart_export', { format, pattern_type: patternType });
   const blob = typeof content === 'string' ? new Blob([content], { type }) : content;
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
