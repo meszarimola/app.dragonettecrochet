@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import { GA_MEASUREMENT_ID } from '../src/config.ts';
@@ -10,9 +10,25 @@ import {
   serializeConsent,
   sharedCookieDomain,
 } from '../src/ui/consent.ts';
+import { chartExportFormat, isMeasuredHost } from '../src/ui/measurement.ts';
 
 const HTACCESS = readFileSync(new URL('../public/.htaccess', import.meta.url), 'utf8');
 const BUILT_INDEX = new URL('../dist/index.html', import.meta.url);
+const UI = new URL('../src/ui/', import.meta.url);
+const EXPORT_CALLS = 5;
+
+function exportedMimeTypes() {
+  const modules = readdirSync(UI)
+    .filter((name) => name.endsWith('.ts'))
+    .map((name) => readFileSync(new URL(name, UI), 'utf8'));
+
+  return modules.flatMap((source) =>
+    [...source.matchAll(/(?<!function )\bdownload\(([\s\S]*?)\);/g)].map(([, args]) => {
+      const mime = [...args.matchAll(/'([a-z]+\/[a-z0-9+.-]+)'/g)].at(-1);
+      return mime?.[1] ?? args.trim().slice(0, 60);
+    }),
+  );
+}
 
 const GOOGLE_ANALYTICS_CSP_SOURCES_WITHOUT_SIGNALS = {
   'script-src': ['https://www.googletagmanager.com'],
@@ -88,4 +104,28 @@ test('the designer writes the decision into the same root-domain cookie as the m
   assert.match(setCookieLine, new RegExp(`^${CONSENT_COOKIE}=${CONSENT_VERSION}:granted:\\d+;`));
   assert.match(setCookieLine, /; Domain=dragonettecrochet\.com/);
   assert.equal(parseConsent(setCookieLine.split(';')[0])?.choice, 'granted');
+});
+
+test('the measurement only starts on the production host', () => {
+  assert.equal(isMeasuredHost('app.dragonettecrochet.com'), true);
+  assert.equal(isMeasuredHost('localhost'), false);
+  assert.equal(isMeasuredHost('127.0.0.1'), false);
+  assert.equal(isMeasuredHost('dragonettecrochet.com'), false);
+  assert.equal(isMeasuredHost('app.dragonettecrochet.com.example.org'), false);
+});
+
+test('every export reports a chart_export format', () => {
+  const mimeTypes = exportedMimeTypes();
+  assert.equal(
+    mimeTypes.length,
+    EXPORT_CALLS,
+    'the number of export calls changed — check that the new or removed one reports chart_export, then update EXPORT_CALLS',
+  );
+
+  const unreported = mimeTypes.filter((mime) => chartExportFormat(mime) === null);
+  assert.deepEqual(
+    unreported,
+    [],
+    'an export whose media type chartExportFormat() does not know: it would download without a chart_export event',
+  );
 });
