@@ -100,3 +100,67 @@ tell `a!.b` from `a !== b`, and undercounted by four.
 The test also fails if the count drops by more than 40 without the ceiling being
 lowered, so a real improvement gets locked in rather than quietly leaving room to
 regress.
+
+## §9 The measurement runs on the production host only, and reports three events
+
+`localhost:5190` traffic arrived in the live GA4 property: `enableAnalytics()`
+loaded gtag.js wherever the consent said yes, and the development server says yes
+as readily as production. `src/ui/measurement.ts` now answers that question in one
+place, and it is DOM-free so `tests/analytics.test.mjs` can assert it — the guard
+lives outside `analytics.ts` because that module imports `consent.js` and node
+cannot load it.
+
+A GA data filter on the owner's IP address was the alternative. It stays as a
+second line of defence, but the address is dynamic, so the code-side guard is the
+one that holds. The cost: nothing is measured on a development machine, and
+DebugView needs a deployed build. That is the right trade — a filter that lapses
+pollutes the live property silently, while a missing dev event is visible at once.
+
+Three events, and no more. Each has exactly one funnel in the code, so it cannot
+drift as features move:
+
+| Event | Funnel | Parameters |
+|---|---|---|
+| `pattern_start` | the first `commit()` or `#commit()` that adds a stitch or an item | `pattern_type` |
+| `chart_export` | `download()` — all of PNG, SVG and JSON pass through it | `format`, `pattern_type` |
+| `language_change` | `changeLanguage()` | `from`, `to` |
+
+`pattern_start` counts growth, not commits. Both history funnels carry far more
+than authoring: `#commit()` records the grid toggle, the guide size, layer
+reordering and a background image, and `commit()` records clearing the board and
+loading a file. A one-shot event hooked to the funnel itself was spent by the
+first of those — pressing the grid button in the free-form tab reported
+`pattern_start {pattern_type: 'irregular'}` for a session that then drew its whole
+chart in the grid editor. The condition is now that the committed pattern holds
+more stitches (or more free-form items) than the one before it, which leaves
+every one of those paths out and needs no extra argument threaded through
+twenty-one call sites. Loading a file does clear the bar, and deliberately: a
+crocheter who opens a saved chart has started a working session.
+
+`pattern_start` fires once per session, so the flag that guards it is module
+state — and `main.ts` imports the module as `./analytics.js` while the free-form
+editor imports it as `./analytics.ts`. Vite resolves both to one instance (the
+bundle holds a single `pattern_start`, and `tests/analytics.test.mjs` would not
+catch a second copy), so the two spellings stay as the surrounding files write
+them. The flag only flips while a measurement is actually running — accepting the cookies after the first edit
+would otherwise lose the event for good. `symbol_place` was asked for and left
+out: every placement is noise, and the question it would answer ("does anyone
+draw at all?") is already answered by `pattern_start`.
+
+`content_language` rides on every event as a global parameter, re-set on every
+language change, so the reports do not have to infer the language from the page
+title.
+
+**Every event re-reads the decision.** `trackEvent()` returns early unless the
+consent cookie says `granted`. Refusing mid-session sets `ga-disable-<id>`, and
+gtag.js does honour it, but that is Google's promise; the rule in
+`.claude/rules/analytics.md` is that no request reaches Google without a yes, and
+a check of our own is what keeps it true.
+
+**What the GA diagnostics ask for and this decision refuses.** Tag diagnostics
+reports a "0% consent rate": it counts advertising consent, and `ad_storage`,
+`ad_user_data` and `ad_personalization` are denied in code with Google Signals
+off. It also asks for `https://www.google.com` in the CSP `connect-src`; that
+endpoint serves the ads conversion ping that is switched off, so allowing it
+would widen the header for a feature the site does not use. Both stay as they
+are (PQW-1091).

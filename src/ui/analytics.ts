@@ -1,4 +1,5 @@
-import { cookieNamesStartingWith, expireCookie } from './consent.js';
+import { cookieNamesStartingWith, expireCookie, readConsent } from './consent.js';
+import { isMeasuredHost } from './measurement.js';
 
 declare global {
   interface Window {
@@ -11,6 +12,7 @@ const GTAG_SCRIPT_URL = 'https://www.googletagmanager.com/gtag/js';
 const GA_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 395;
 
 type MeasurementDisableFlags = Record<`ga-disable-${string}`, boolean>;
+type EventParameters = Record<string, string | number>;
 
 function setMeasurementDisabled(measurementId: string, disabled: boolean): void {
   (window as unknown as MeasurementDisableFlags)[`ga-disable-${measurementId}`] = disabled;
@@ -22,6 +24,8 @@ export function isMeasurementId(id: string): boolean {
 
 export function enableAnalytics(measurementId: string): void {
   if (!isMeasurementId(measurementId)) return;
+  // KB: decisions.md §9
+  if (!isMeasuredHost(location.hostname)) return;
 
   setMeasurementDisabled(measurementId, false);
 
@@ -43,6 +47,7 @@ export function enableAnalytics(measurementId: string): void {
     ad_personalization: 'denied',
   });
   window.gtag('js', new Date());
+  setContentLanguage(document.documentElement.lang);
   window.gtag('config', measurementId, {
     allow_google_signals: false,
     allow_ad_personalization_signals: false,
@@ -62,4 +67,30 @@ export function disableAnalytics(measurementId: string): void {
   for (const name of ['_ga', '_gid', ...cookieNamesStartingWith('_ga_')]) {
     expireCookie(name);
   }
+}
+
+// KB: decisions.md §9 — every call is a no-op until the measurement runs.
+export function setContentLanguage(language: string): void {
+  window.gtag?.('set', { content_language: language });
+}
+
+// KB: decisions.md §9 — a refusal within the session must not leave the events
+// to `ga-disable`, which is Google's promise rather than ours.
+function measurementRunning(): boolean {
+  return window.gtag !== undefined && readConsent()?.choice === 'granted';
+}
+
+export function trackEvent(name: string, parameters: EventParameters = {}): void {
+  if (!measurementRunning()) return;
+  window.gtag?.('event', name, parameters);
+}
+
+let patternStartReported = false;
+
+// KB: decisions.md §9 — the flag only flips once a measurement is actually running,
+// so a decision taken mid-session does not lose the event.
+export function trackPatternStart(patternType: string): void {
+  if (patternStartReported || !measurementRunning()) return;
+  patternStartReported = true;
+  trackEvent('pattern_start', { pattern_type: patternType });
 }
