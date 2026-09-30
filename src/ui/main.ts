@@ -482,6 +482,11 @@ function withProgress(message: Message): Message {
   return tail === '' ? message : [...message, ` ${tail}`];
 }
 
+// KB: decisions.md §9
+function stitchCount(pattern: Pattern): number {
+  return pattern.pieces.reduce((total, piece) => total + piece.stitches.length, 0);
+}
+
 function commit(result: EditResult, message: Message): void {
   if (!result.ok) {
     announce(renderCoreText(EDITOR_CORE_TEXTS[uiLanguage()], result.reason));
@@ -492,8 +497,9 @@ function commit(result: EditResult, message: Message): void {
     announce(withProgress(message));
     return;
   }
+  const gained = stitchCount(result.pattern) > stitchCount(history.present);
   history = record(history, result.pattern);
-  trackPatternStart(patternType);
+  if (gained) trackPatternStart(patternType);
   cursorMoved = false;
   persist(history.present);
   // Recompute first, so the status line already describes the new pattern.

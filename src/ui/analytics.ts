@@ -1,4 +1,4 @@
-import { cookieNamesStartingWith, expireCookie } from './consent.js';
+import { cookieNamesStartingWith, expireCookie, readConsent } from './consent.js';
 import { isMeasuredHost } from './measurement.js';
 
 declare global {
@@ -74,16 +74,23 @@ export function setContentLanguage(language: string): void {
   window.gtag?.('set', { content_language: language });
 }
 
+// KB: decisions.md §9 — a refusal within the session must not leave the events
+// to `ga-disable`, which is Google's promise rather than ours.
+function measurementRunning(): boolean {
+  return window.gtag !== undefined && readConsent()?.choice === 'granted';
+}
+
 export function trackEvent(name: string, parameters: EventParameters = {}): void {
+  if (!measurementRunning()) return;
   window.gtag?.('event', name, parameters);
 }
 
 let patternStartReported = false;
 
 // KB: decisions.md §9 — the flag only flips once a measurement is actually running,
-// so accepting the cookies mid-session does not lose the event.
+// so a decision taken mid-session does not lose the event.
 export function trackPatternStart(patternType: string): void {
-  if (patternStartReported || !window.gtag) return;
+  if (patternStartReported || !measurementRunning()) return;
   patternStartReported = true;
   trackEvent('pattern_start', { pattern_type: patternType });
 }

@@ -1,9 +1,8 @@
 import { strict as assert } from 'node:assert';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import { GA_MEASUREMENT_ID } from '../src/config.ts';
-import { chartExportFormat, isMeasuredHost } from '../src/ui/measurement.ts';
 import {
   CONSENT_COOKIE,
   CONSENT_VERSION,
@@ -11,17 +10,24 @@ import {
   serializeConsent,
   sharedCookieDomain,
 } from '../src/ui/consent.ts';
+import { chartExportFormat, isMeasuredHost } from '../src/ui/measurement.ts';
 
 const HTACCESS = readFileSync(new URL('../public/.htaccess', import.meta.url), 'utf8');
 const BUILT_INDEX = new URL('../dist/index.html', import.meta.url);
-const MAIN = readFileSync(new URL('../src/ui/main.ts', import.meta.url), 'utf8');
+const UI = new URL('../src/ui/', import.meta.url);
+const EXPORT_CALLS = 5;
 
 function exportedMimeTypes() {
-  const calls = [...MAIN.matchAll(/(?<!function )\bdownload\(([\s\S]*?)\);/g)];
-  return calls.map(([, args]) => {
-    const mime = [...args.matchAll(/'([a-z]+\/[a-z0-9+.-]+)'/g)].at(-1);
-    return mime?.[1] ?? args.trim().slice(0, 60);
-  });
+  const modules = readdirSync(UI)
+    .filter((name) => name.endsWith('.ts'))
+    .map((name) => readFileSync(new URL(name, UI), 'utf8'));
+
+  return modules.flatMap((source) =>
+    [...source.matchAll(/(?<!function )\bdownload\(([\s\S]*?)\);/g)].map(([, args]) => {
+      const mime = [...args.matchAll(/'([a-z]+\/[a-z0-9+.-]+)'/g)].at(-1);
+      return mime?.[1] ?? args.trim().slice(0, 60);
+    }),
+  );
 }
 
 const GOOGLE_ANALYTICS_CSP_SOURCES_WITHOUT_SIGNALS = {
@@ -110,7 +116,11 @@ test('the measurement only starts on the production host', () => {
 
 test('every export reports a chart_export format', () => {
   const mimeTypes = exportedMimeTypes();
-  assert.ok(mimeTypes.length >= 4, `only ${mimeTypes.length} download() calls found — has the export moved?`);
+  assert.equal(
+    mimeTypes.length,
+    EXPORT_CALLS,
+    'the number of export calls changed — check that the new or removed one reports chart_export, then update EXPORT_CALLS',
+  );
 
   const unreported = mimeTypes.filter((mime) => chartExportFormat(mime) === null);
   assert.deepEqual(

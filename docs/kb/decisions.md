@@ -121,9 +121,21 @@ drift as features move:
 
 | Event | Funnel | Parameters |
 |---|---|---|
-| `pattern_start` | `commit()`, and `#commit()` in the free-form editor | `pattern_type` |
+| `pattern_start` | the first `commit()` or `#commit()` that adds a stitch or an item | `pattern_type` |
 | `chart_export` | `download()` — all of PNG, SVG and JSON pass through it | `format`, `pattern_type` |
 | `language_change` | `changeLanguage()` | `from`, `to` |
+
+`pattern_start` counts growth, not commits. Both history funnels carry far more
+than authoring: `#commit()` records the grid toggle, the guide size, layer
+reordering and a background image, and `commit()` records clearing the board and
+loading a file. A one-shot event hooked to the funnel itself was spent by the
+first of those — pressing the grid button in the free-form tab reported
+`pattern_start {pattern_type: 'irregular'}` for a session that then drew its whole
+chart in the grid editor. The condition is now that the committed pattern holds
+more stitches (or more free-form items) than the one before it, which leaves
+every one of those paths out and needs no extra argument threaded through
+twenty-one call sites. Loading a file does clear the bar, and deliberately: a
+crocheter who opens a saved chart has started a working session.
 
 `pattern_start` fires once per session, so the flag that guards it is module
 state — and `main.ts` imports the module as `./analytics.js` while the free-form
@@ -138,6 +150,12 @@ draw at all?") is already answered by `pattern_start`.
 `content_language` rides on every event as a global parameter, re-set on every
 language change, so the reports do not have to infer the language from the page
 title.
+
+**Every event re-reads the decision.** `trackEvent()` returns early unless the
+consent cookie says `granted`. Refusing mid-session sets `ga-disable-<id>`, and
+gtag.js does honour it, but that is Google's promise; the rule in
+`.claude/rules/analytics.md` is that no request reaches Google without a yes, and
+a check of our own is what keeps it true.
 
 **What the GA diagnostics ask for and this decision refuses.** Tag diagnostics
 reports a "0% consent rate": it counts advertising consent, and `ad_storage`,

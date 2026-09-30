@@ -656,8 +656,9 @@ export class IrregularEditor {
     this.#draft = null;
     const next = this.#refreshLabels(reseatGroups(candidate));
     if (next !== this.#history.present) {
+      // KB: decisions.md §9
+      if (next.items.length > this.#history.present.items.length) trackPatternStart('irregular');
       this.#history = record(this.#history, next);
-      trackPatternStart('irregular');
       this.#pruneSelection();
       this.#persist();
     }
