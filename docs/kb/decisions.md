@@ -125,6 +125,8 @@ drift as features move:
 | `chart_export` | `download()` — all of PNG, SVG and JSON pass through it | `format`, `pattern_type` |
 | `language_change` | `changeLanguage()` | `from`, `to` |
 
+`trackEvent()` adds `content_language` to all three (§10).
+
 `pattern_start` counts growth, not commits. Both history funnels carry far more
 than authoring: `#commit()` records the grid toggle, the guide size, layer
 reordering and a background image, and `commit()` records clearing the board and
@@ -147,15 +149,23 @@ would otherwise lose the event for good. `symbol_place` was asked for and left
 out: every placement is noise, and the question it would answer ("does anyone
 draw at all?") is already answered by `pattern_start`.
 
-`content_language` rides on every event as a global parameter, re-set on every
-language change, so the reports do not have to infer the language from the page
-title.
+`content_language` rides on every event, so the reports do not have to infer the
+language from the page title. §10 holds how, and corrects the first attempt.
 
 **Every event re-reads the decision.** `trackEvent()` returns early unless the
 consent cookie says `granted`. Refusing mid-session sets `ga-disable-<id>`, and
 gtag.js does honour it, but that is Google's promise; the rule in
 `.claude/rules/analytics.md` is that no request reaches Google without a yes, and
 a check of our own is what keeps it true.
+
+**What the GA diagnostics ask for and this decision refuses.** Tag diagnostics
+reports a "0% consent rate": it counts advertising consent, and `ad_storage`,
+`ad_user_data` and `ad_personalization` are denied in code with Google Signals
+off. It also asks for `https://www.google.com` in the CSP `connect-src`; that
+endpoint serves the ads conversion ping that is switched off, so allowing it
+would widen the header for a feature the site does not use. Both stay as they
+are (PQW-1091).
+
 
 ## §10 `content_language` rides on the config and on each event, never on `gtag('set')`
 
@@ -164,12 +174,19 @@ recording of the live app on 2026-10-01 showed the `page_view` leaving without
 the parameter: `set` is documented as defining values for every later event, but
 it does not forward an arbitrary parameter to a GA4 hit.
 
-Two places carry it instead, and between them nothing is missed:
+Two places carry it instead:
 
 - `gtag('config', …)` takes `content_language`, which is what puts it on the
   automatic `page_view`;
 - `trackEvent()` reads `document.documentElement.lang` at call time and merges it
   into every event it sends.
+
+What that leaves out: the config value is set once, so gtag.js's own later events
+— `session_start`, `user_engagement`, `scroll` — keep reporting the language the
+page loaded in, even after a switch. Re-issuing `config` mid-session would need
+`send_page_view: false` and a repeat of every other config parameter to avoid a
+duplicate `page_view` and a quietly reset setting. Not worth it: a language
+breakdown is read off `page_view` and off the three events, and those are right.
 
 Reading it per call also retires `setContentLanguage()`: `changeLanguage()` sets
 `document.documentElement.lang` before anything else, so a `language_change`
@@ -180,11 +197,3 @@ place to keep in step.
 code read correctly; only the network told the truth. A change to what gtag is
 handed is verified by recording the live traffic (`recordHar` in Playwright, then
 read the `g/collect` query), never by grepping the bundle (PQW-1094).
-
-**What the GA diagnostics ask for and this decision refuses.** Tag diagnostics
-reports a "0% consent rate": it counts advertising consent, and `ad_storage`,
-`ad_user_data` and `ad_personalization` are denied in code with Google Signals
-off. It also asks for `https://www.google.com` in the CSP `connect-src`; that
-endpoint serves the ads conversion ping that is switched off, so allowing it
-would widen the header for a feature the site does not use. Both stay as they
-are (PQW-1091).
