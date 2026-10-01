@@ -129,3 +129,32 @@ test('every export reports a chart_export format', () => {
     'an export whose media type chartExportFormat() does not know: it would download without a chart_export event',
   );
 });
+
+// A unit test cannot see what reaches the network (KB decisions.md §10). It can see
+// that the parameter is still handed to the two calls that carry it, and that the
+// `set` call the bug came from has not come back.
+test('content_language is handed to the config call and to every event', () => {
+  const source = readFileSync(new URL('../src/ui/analytics.ts', import.meta.url), 'utf8');
+
+  const configCall = source.match(/gtag\('config',[\s\S]*?\}\);/);
+  assert.ok(configCall, "no gtag('config', …) call in src/ui/analytics.ts");
+  assert.match(
+    configCall[0],
+    /content_language/,
+    'the config call no longer carries content_language — the automatic page_view would lose it',
+  );
+
+  const eventCall = source.match(/gtag\?\.\('event',[\s\S]*?\);/);
+  assert.ok(eventCall, "no gtag('event', …) call in src/ui/analytics.ts");
+  assert.match(
+    eventCall[0],
+    /content_language/,
+    'trackEvent no longer merges content_language — every custom event would lose it',
+  );
+
+  assert.doesNotMatch(
+    source,
+    /gtag\??\.?\('set'/,
+    "gtag('set') is back: it does not forward a parameter to a GA4 hit (PQW-1094)",
+  );
+});

@@ -62,7 +62,7 @@ import { traditionOf } from '../core/tradition.js';
 import type { Finding, NodeId, Pattern, PatternNotation, StitchDef, StitchDefId } from '../core/types.js';
 import { validatePattern } from '../core/validate.js';
 import { AmigurumiPanel } from './amigurumi-panel.js';
-import { setContentLanguage, trackEvent, trackPatternStart } from './analytics.js';
+import { trackEvent, trackPatternStart } from './analytics.js';
 import { type Area, Board, type DirectionArrow, type Target } from './board.js';
 import { chartSvg } from './chart-svg.js';
 import { setupConsentBanner } from './consentBanner.js';
@@ -872,7 +872,6 @@ function changeLanguage(language: UiLanguage): void {
   fitBar();
   syncWrittenSize();
   irregular?.refresh();
-  setContentLanguage(language);
   trackEvent('language_change', { from, to: language });
   announce(texts().messages.language.changed);
 }
