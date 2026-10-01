@@ -157,6 +157,30 @@ gtag.js does honour it, but that is Google's promise; the rule in
 `.claude/rules/analytics.md` is that no request reaches Google without a yes, and
 a check of our own is what keeps it true.
 
+## §10 `content_language` rides on the config and on each event, never on `gtag('set')`
+
+`gtag('set', { content_language })` shipped in §9 and attached nothing. A HAR
+recording of the live app on 2026-10-01 showed the `page_view` leaving without
+the parameter: `set` is documented as defining values for every later event, but
+it does not forward an arbitrary parameter to a GA4 hit.
+
+Two places carry it instead, and between them nothing is missed:
+
+- `gtag('config', …)` takes `content_language`, which is what puts it on the
+  automatic `page_view`;
+- `trackEvent()` reads `document.documentElement.lang` at call time and merges it
+  into every event it sends.
+
+Reading it per call also retires `setContentLanguage()`: `changeLanguage()` sets
+`document.documentElement.lang` before anything else, so a `language_change`
+event already carries the language the crocheter switched to, with no second
+place to keep in step.
+
+**What a unit test cannot see.** The strings were in the shipped bundle and the
+code read correctly; only the network told the truth. A change to what gtag is
+handed is verified by recording the live traffic (`recordHar` in Playwright, then
+read the `g/collect` query), never by grepping the bundle (PQW-1094).
+
 **What the GA diagnostics ask for and this decision refuses.** Tag diagnostics
 reports a "0% consent rate": it counts advertising consent, and `ad_storage`,
 `ad_user_data` and `ad_personalization` are denied in code with Google Signals
