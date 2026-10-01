@@ -47,8 +47,8 @@ export function enableAnalytics(measurementId: string): void {
     ad_personalization: 'denied',
   });
   window.gtag('js', new Date());
-  setContentLanguage(document.documentElement.lang);
   window.gtag('config', measurementId, {
+    content_language: contentLanguage(),
     allow_google_signals: false,
     allow_ad_personalization_signals: false,
     cookie_expires: GA_COOKIE_MAX_AGE_SECONDS,
@@ -69,20 +69,20 @@ export function disableAnalytics(measurementId: string): void {
   }
 }
 
-// KB: decisions.md §9 — every call is a no-op until the measurement runs.
-export function setContentLanguage(language: string): void {
-  window.gtag?.('set', { content_language: language });
-}
-
 // KB: decisions.md §9 — a refusal within the session must not leave the events
 // to `ga-disable`, which is Google's promise rather than ours.
 function measurementRunning(): boolean {
   return window.gtag !== undefined && readConsent()?.choice === 'granted';
 }
 
+// KB: decisions.md §10
+function contentLanguage(): string {
+  return document.documentElement.lang;
+}
+
 export function trackEvent(name: string, parameters: EventParameters = {}): void {
   if (!measurementRunning()) return;
-  window.gtag?.('event', name, parameters);
+  window.gtag?.('event', name, { ...parameters, content_language: contentLanguage() });
 }
 
 let patternStartReported = false;
