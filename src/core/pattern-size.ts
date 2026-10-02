@@ -231,7 +231,7 @@ export function estimatedGauge(
   const def = library.get(stitch);
   const context: GaugeContext = { library, profile: gaugeProfileOf(profile), hookMm: profile.hookMm };
   const dimensions = def ? stitchDimensions(def, form === 'rows' ? 'row' : 'round', context) : null;
-  if (!dimensions) throw new RangeError(`Nem mérhető szem: ${stitch}.`);
+  if (!dimensions) throw new RangeError(`Stitch cannot be measured: ${stitch}.`);
   return {
     stitchesPer10cm: oneDecimal(100 / dimensions.widthMm.value),
     rowsPer10cm: oneDecimal(100 / dimensions.heightMm.value),
@@ -249,7 +249,7 @@ export function aspectStem(
 ): (chainHeight: number) => number {
   const sc = context.library.get('sc');
   const base = sc ? stitchDimensions(sc, shape, context) : null;
-  if (!base) throw new RangeError('A könyvtárban nincs rövidpálca.');
+  if (!base) throw new RangeError('The library has no single crochet.');
   const perMm = columnWidth / base.widthMm.value;
 
   const byHeight = new Map<number, StitchDef>();

@@ -28,7 +28,7 @@ export function fromLabel(value: number): Quantity {
 
 export function estimate(value: number, range: Range): Quantity {
   if (!(range[0] <= value && value <= range[1])) {
-    throw new RangeError(`A becslés (${value}) a tartományán kívül esik: ${range[0]}–${range[1]}.`);
+    throw new RangeError(`The estimate (${value}) falls outside its range: ${range[0]}–${range[1]}.`);
   }
   return { value, source: 'estimated', range };
 }

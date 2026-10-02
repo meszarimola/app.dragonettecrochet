@@ -261,7 +261,7 @@ describe('the pattern conventions in the text', () => {
     // Under the pattern's own convention the same text contradicts the graph.
     const strict = readBack(text, example.pattern, 'hu');
     assert.equal(strict.ok, false);
-    assert.match(JSON.stringify(strict.error), /a szöveg 10 szemet ír, a visszaolvasott gráf szerint 14/);
+    assert.match(JSON.stringify(strict.error), /the text states 10 stitches, the graph read back has 14/);
   });
 });
 
@@ -437,7 +437,7 @@ describe('read back: a precise error message on a mismatch', () => {
     const result = readBack(wrong, pattern, 'hu');
     assert.deepEqual(result, {
       ok: false,
-      error: { line: lineOf('2. sor:'), message: '2. sor: a szöveg 17 szemet ír, a visszaolvasott gráf szerint 16.' },
+      error: { line: lineOf('2. sor:'), message: 'Row 2: the text states 17 stitches, the graph read back has 16.' },
     });
   });
 
@@ -450,7 +450,7 @@ describe('read back: a precise error message on a mismatch', () => {
     // The top of the turning chain is a target too (PQW-944), so the 16th stitch still fits; the stitch count does not add up.
     assert.deepEqual(result.error, {
       line: lineOf('3. sor:'),
-      message: '3. sor: a szöveg 16 szemet ír, a visszaolvasott gráf szerint 17.',
+      message: 'Row 3: the text states 16 stitches, the graph read back has 17.',
     });
   });
 
@@ -460,20 +460,23 @@ describe('read back: a precise error message on a mismatch', () => {
       pattern,
       'hu',
     );
-    assert.deepEqual(result.error, { line: lineOf('3. sor:'), message: 'Nem értelmezhető tétel: „15 hamispálca”.' });
+    assert.deepEqual(result.error, { line: lineOf('3. sor:'), message: 'Unreadable item: "15 hamispálca".' });
   });
 
   test('a missing row ending in an intermediate row', () => {
     const result = readBack(text.replace('(16 szem). Fordítás.', '(16 szem).'), pattern, 'hu');
     assert.deepEqual(result.error, {
       line: lineOf('2. sor:'),
-      message: 'A sor vége hiányzik: fordítás, a kör zárása vagy a fonal elvágása.',
+      message: 'The end of the row is missing: a turn, the closing of the round or fastening off.',
     });
   });
 
   test('the row numbering does not continue', () => {
     const result = readBack(text.replace('3. sor:', '4. sor:'), pattern, 'hu');
-    assert.deepEqual(result.error, { line: lineOf('3. sor:'), message: 'A sorszám nem folytatódik: 3 helyett 4.' });
+    assert.deepEqual(result.error, {
+      line: lineOf('3. sor:'),
+      message: 'The row numbering does not continue: 4 instead of 3.',
+    });
   });
 });
 

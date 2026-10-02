@@ -182,13 +182,13 @@ export const REVERSE_SINGLE_CROCHET: SimpleStitchDef = {
 
 function assertCount(n: number, min: number, what: string): void {
   if (!Number.isInteger(n) || n < min) {
-    throw new RangeError(`${what}: a részszemek száma legalább ${min} egész szám, nem ${n}`);
+    throw new RangeError(`${what}: the number of parts is a whole number of at least ${min}, not ${n}`);
   }
 }
 
 function assertPart(part: StitchDef, what: string): void {
   if (part.kind !== 'basic' || !part.workableTop) {
-    throw new TypeError(`${what}: a részszem csak továbbhorgolható alapszem lehet, nem ${part.id}`);
+    throw new TypeError(`${what}: a part can only be a basic stitch that can be worked on, not ${part.id}`);
   }
 }
 

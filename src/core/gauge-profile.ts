@@ -125,14 +125,14 @@ export function loadGaugeSample(text: string): SampleLoadResult {
   try {
     value = JSON.parse(text);
   } catch {
-    return fail('invalid-json', '$', 'Érvénytelen JSON.');
+    return fail('invalid-json', '$', 'Invalid JSON.');
   }
   if (
     isObject(value) &&
     typeof value['schemaVersion'] === 'number' &&
     value['schemaVersion'] !== GAUGE_SAMPLE_SCHEMA_VERSION
   ) {
-    return fail('unsupported-version', '$.schemaVersion', `Ismeretlen sémaverzió: ${value['schemaVersion']}.`);
+    return fail('unsupported-version', '$.schemaVersion', `Unknown schema version: ${value['schemaVersion']}.`);
   }
   try {
     return { ok: true, samples: readSampleFile(value) };
@@ -168,12 +168,12 @@ function object(
   required: readonly string[],
   optional: readonly string[] = [],
 ): JsonObject {
-  if (!isObject(value)) throw new FormatError(path, 'Objektumot vártunk.');
+  if (!isObject(value)) throw new FormatError(path, 'Expected an object.');
   for (const key of required) {
-    if (!(key in value)) throw new FormatError(`${path}.${key}`, 'Hiányzó mező.');
+    if (!(key in value)) throw new FormatError(`${path}.${key}`, 'Missing field.');
   }
   for (const key of Object.keys(value)) {
-    if (!required.includes(key) && !optional.includes(key)) throw new FormatError(`${path}.${key}`, 'Ismeretlen mező.');
+    if (!required.includes(key) && !optional.includes(key)) throw new FormatError(`${path}.${key}`, 'Unknown field.');
   }
   return value;
 }
@@ -183,12 +183,12 @@ function optional<T>(raw: JsonObject, key: string, path: string, read: (value: u
 }
 
 function text(value: unknown, path: string): string {
-  if (typeof value !== 'string' || value === '') throw new FormatError(path, 'Nem üres szöveget vártunk.');
+  if (typeof value !== 'string' || value === '') throw new FormatError(path, 'Expected a non-empty string.');
   return value;
 }
 
 function nullableText(value: unknown, path: string): string | null {
-  if (value !== null && typeof value !== 'string') throw new FormatError(path, 'Szöveget vagy null-t vártunk.');
+  if (value !== null && typeof value !== 'string') throw new FormatError(path, 'Expected a string or null.');
   return value;
 }
 
@@ -198,17 +198,17 @@ function matching(value: unknown, path: string, pattern: RegExp, message: string
 }
 
 function slug(value: unknown, path: string): string {
-  return matching(value, path, /^[a-z0-9]+(-[a-z0-9]+)*$/, 'Kisbetűs, kötőjeles ASCII azonosítót vártunk.');
+  return matching(value, path, /^[a-z0-9]+(-[a-z0-9]+)*$/, 'Expected a lower-case, hyphenated ASCII identifier.');
 }
 
 function boolean(value: unknown, path: string): boolean {
-  if (typeof value !== 'boolean') throw new FormatError(path, 'Logikai értéket vártunk.');
+  if (typeof value !== 'boolean') throw new FormatError(path, 'Expected a boolean.');
   return value;
 }
 
 function positive(value: unknown, path: string): number {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0)
-    throw new FormatError(path, 'Pozitív számot vártunk.');
+    throw new FormatError(path, 'Expected a positive number.');
   return value;
 }
 
@@ -221,8 +221,8 @@ function integer(value: unknown, path: string, min: number, max = Number.POSITIV
     throw new FormatError(
       path,
       max === Number.POSITIVE_INFINITY
-        ? `Legalább ${min} értékű egészet vártunk.`
-        : `${min} és ${max} közötti egészet vártunk.`,
+        ? `Expected an integer of at least ${min}.`
+        : `Expected an integer between ${min} and ${max}.`,
     );
   }
   return value;
@@ -234,20 +234,20 @@ function oneOf<const T extends string | number | boolean | null>(
   allowed: readonly T[],
 ): T {
   if (!allowed.includes(value as T)) {
-    throw new FormatError(path, `Megengedett értékek: ${allowed.map((item) => JSON.stringify(item)).join(', ')}.`);
+    throw new FormatError(path, `Allowed values: ${allowed.map((item) => JSON.stringify(item)).join(', ')}.`);
   }
   return value as T;
 }
 
 function array<T>(value: unknown, path: string, read: (item: unknown, path: string) => T): T[] {
-  if (!Array.isArray(value)) throw new FormatError(path, 'Tömböt vártunk.');
+  if (!Array.isArray(value)) throw new FormatError(path, 'Expected an array.');
   return value.map((item, index) => read(item, `${path}[${index}]`));
 }
 
 /** KB: 02 §9 — individual readings, at least three, never pre-averaged. */
 function readings(value: unknown, path: string): number[] {
   const values = array(value, path, positive);
-  if (values.length < 3) throw new FormatError(path, 'Legalább három leolvasást vártunk.');
+  if (values.length < 3) throw new FormatError(path, 'Expected at least three readings.');
   return values;
 }
 
@@ -305,8 +305,13 @@ function readSampleFile(value: unknown): GaugeSample[] {
     ['$schema', 'context', 'notes'],
   );
   oneOf(raw['schemaVersion'], '$.schemaVersion', [GAUGE_SAMPLE_SCHEMA_VERSION]);
-  const sampleId = matching(raw['id'], '$.id', /^GS-\d{8}-\d{2}$/, '`GS-ÉÉÉÉHHNN-SS` alakú azonosítót vártunk.');
-  const date = matching(raw['date'], '$.date', /^\d{4}-\d{2}-\d{2}$/, '`ÉÉÉÉ-HH-NN` dátumot vártunk.');
+  const sampleId = matching(
+    raw['id'],
+    '$.id',
+    /^GS-\d{8}-\d{2}$/,
+    'Expected an identifier of the form `GS-YYYYMMDD-NN`.',
+  );
+  const date = matching(raw['date'], '$.date', /^\d{4}-\d{2}-\d{2}$/, 'Expected a `YYYY-MM-DD` date.');
 
   const crocheter = object(raw['crocheter'], '$.crocheter', ['id'], ['handedness']);
   const crocheterId = slug(crocheter['id'], '$.crocheter.id');
@@ -316,7 +321,7 @@ function readSampleFile(value: unknown): GaugeSample[] {
 
   const hook = object(raw['hook'], '$.hook', ['mm'], ['brand', 'material']);
   const hookMm = positive(hook['mm'], '$.hook.mm');
-  if (hookMm > 30) throw new FormatError('$.hook.mm', 'Legfeljebb 30 mm-es tűt vártunk.');
+  if (hookMm > 30) throw new FormatError('$.hook.mm', 'Expected a hook of at most 30 mm.');
   optional(hook, 'brand', '$.hook', nullableText);
   optional(hook, 'material', '$.hook', (item, path) =>
     oneOf(item, path, ['aluminium', 'steel', 'bamboo', 'wood', 'plastic', 'other', null]),
@@ -328,17 +333,17 @@ function readSampleFile(value: unknown): GaugeSample[] {
 
   const construction = readConstruction(raw['construction'], '$.construction');
   if ((construction.workedIn === 'chain') !== (calibrationStitch === 'ch')) {
-    throw new FormatError('$.stitch.id', 'A `ch` szem és a `chain` forma csak együtt szerepelhet.');
+    throw new FormatError('$.stitch.id', 'The `ch` stitch and the `chain` form may only appear together.');
   }
 
   const measurements = array(raw['measurements'], '$.measurements', (item, path) =>
     readMeasurement(item, path, construction.workedIn),
   );
   if (measurements.length < 1 || measurements.length > 2) {
-    throw new FormatError('$.measurements', 'Egy vagy két mérést vártunk.');
+    throw new FormatError('$.measurements', 'Expected one or two measurements.');
   }
   if (measurements.length === 2 && (measurements[0].state !== 'unblocked' || measurements[1].state !== 'blocked')) {
-    throw new FormatError('$.measurements', 'Két mérésnél az első blokkolás előtti, a második utáni.');
+    throw new FormatError('$.measurements', 'With two measurements the first one is unblocked and the second blocked.');
   }
 
   if ('context' in raw) {
@@ -398,7 +403,7 @@ function readYarn(value: unknown, path: string): SampleYarn {
 function readFibre(value: unknown, path: string): Fibre {
   const raw = object(value, path, ['material', 'percent']);
   const percent = raw['percent'] === null ? null : positive(raw['percent'], `${path}.percent`);
-  if (percent !== null && percent > 100) throw new FormatError(`${path}.percent`, 'Legfeljebb 100 %-ot vártunk.');
+  if (percent !== null && percent > 100) throw new FormatError(`${path}.percent`, 'Expected at most 100 %.');
   return { material: text(raw['material'], `${path}.material`), percent };
 }
 
@@ -421,7 +426,7 @@ function readConstruction(value: unknown, path: string): Construction {
   );
   const workedIn = oneOf(raw['workedIn'], `${path}.workedIn`, ['rows', 'rounds-tube', 'rounds-flat', 'chain']);
   for (const key of CONSTRUCTION_REQUIRED[workedIn]) {
-    if (!(key in raw)) throw new FormatError(`${path}.${key}`, 'Ehhez a formához kötelező mező.');
+    if (!(key in raw)) throw new FormatError(`${path}.${key}`, 'A required field for this form.');
   }
   const count = (key: string) => optional(raw, key, path, (item, itemPath) => integer(item, itemPath, 1));
   count('foundationChains');
@@ -446,7 +451,7 @@ function readMeasurement(value: unknown, path: string, form: SampleForm): Measur
   );
   const state = oneOf(raw['state'], `${path}.state`, ['unblocked', 'blocked']);
   if (state === 'unblocked') {
-    if (raw['blocking'] !== null) throw new FormatError(`${path}.blocking`, 'Blokkolás előtti mérésnél null.');
+    if (raw['blocking'] !== null) throw new FormatError(`${path}.blocking`, 'Null on an unblocked measurement.');
   } else {
     const blocking = object(raw['blocking'], `${path}.blocking`, ['method'], ['dryHours', 'pinned']);
     oneOf(blocking['method'], `${path}.blocking.method`, ['wet', 'steam', 'spray']);
@@ -456,9 +461,9 @@ function readMeasurement(value: unknown, path: string, form: SampleForm): Measur
   const block = MEASUREMENT_BLOCK[form];
   for (const other of ['grid', 'circle', 'chain']) {
     if (other !== block && other in raw)
-      throw new FormatError(`${path}.${other}`, `Ehhez a formához (${form}) a \`${block}\` mérés tartozik.`);
+      throw new FormatError(`${path}.${other}`, `This form (${form}) takes the \`${block}\` measurement.`);
   }
-  if (!(block in raw)) throw new FormatError(`${path}.${block}`, 'Hiányzó mező.');
+  if (!(block in raw)) throw new FormatError(`${path}.${block}`, 'Missing field.');
 
   return {
     state,
@@ -514,7 +519,7 @@ function readSwatch(measurement: JsonObject, path: string): Measurement['swatch'
 function readPhoto(value: unknown, path: string): string {
   const raw = object(value, path, ['file', 'side']);
   oneOf(raw['side'], `${path}.side`, ['rs', 'ws']);
-  return matching(raw['file'], `${path}.file`, /^[A-Za-z0-9._-]+\.(jpe?g|png|heic)$/, 'Fényképfájl nevét vártunk.');
+  return matching(raw['file'], `${path}.file`, /^[A-Za-z0-9._-]+\.(jpe?g|png|heic)$/, 'Expected a photo file name.');
 }
 
 function mean(values: readonly number[]): number {
@@ -689,7 +694,7 @@ function buildProfile(id: string, group: readonly GaugeSample[]): GaugeProfile {
 function poolStitch(samples: readonly GaugeSample[], yarn: SampleYarn): StitchGauge {
   const widthMm = stat(samples.flatMap((sample) => sample.widthReadingsMm));
   const heightMm = stat(samples.flatMap((sample) => sample.heightReadingsMm));
-  if (!widthMm || !heightMm) throw new Error('Rács- vagy körmérés leolvasások nélkül.');
+  if (!widthMm || !heightMm) throw new Error('A grid or circle measurement without readings.');
 
   const weighed = samples.filter((sample) => sample.swatchMassG !== null && sample.swatchAreaCm2 !== null);
   const massPerArea =

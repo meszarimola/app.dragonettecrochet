@@ -57,7 +57,7 @@ test('the WOMEN table: back waist, cross back and arm length repeat unchanged fr
 
 test('the MEN table: the 4X arm length is shorter than 3X and disagrees with its inch value; the hip-length label is called out in a note', () => {
   assert.deepEqual(flagKeys(MEN).sort(), ['4X:armLength:inch-mismatch', '4X:armLength:not-monotonic']);
-  assert.ok(MEN.notes.some((note) => /csípőig mért háthosszt/.test(note)));
+  assert.ok(MEN.notes.some((note) => /back length measured to the hip/.test(note)));
   assert.equal(MEN.sizes[0].values.upperArm, undefined);
 });
 
@@ -112,7 +112,7 @@ test('hat ease: −2,5 cm on a head under 46 cm, −5 cm above that, but never m
 
 test('the fit levels follow the CYC table', () => {
   assert.deepEqual([-6, 0, 8, 12, 20].map(fitLevelOf), ['very-close', 'close', 'classic', 'loose', 'oversized']);
-  assert.deepEqual(FIT_EASE.classic, { name: 'klasszikus', min: 5, max: 10 });
+  assert.deepEqual(FIT_EASE.classic, { name: 'classic', min: 5, max: 10 });
 });
 
 test('size names: years for a child, months for a baby, in English too', () => {

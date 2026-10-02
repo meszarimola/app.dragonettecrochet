@@ -240,5 +240,5 @@ test('“multiple of X plus Y”: whether the turning chain is part of the Y (03
 });
 
 test('the stitch library refuses an id that appears twice', () => {
-  assert.throws(() => createStitchLibrary([DOUBLE_CROCHET, DOUBLE_CROCHET]), /Kétszer szereplő szemazonosító: dc/);
+  assert.throws(() => createStitchLibrary([DOUBLE_CROCHET, DOUBLE_CROCHET]), /Duplicate stitch id: dc/);
 });

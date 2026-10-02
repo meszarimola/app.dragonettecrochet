@@ -115,7 +115,7 @@ export function setTradition(pattern: Pattern, tradition: Tradition): EditResult
 
 function pieceOf(pattern: Pattern): Piece {
   const piece = pattern.pieces[0];
-  if (!piece) throw new Error('A mintában nincs darab.');
+  if (!piece) throw new Error('The pattern has no piece.');
   return piece;
 }
 

@@ -86,16 +86,20 @@ test('the English branch holds no accented Hungarian text', async () => {
 /*
  * From the core: where a Hungarian sentence may remain.
  *
- * - Developer errors: they never reach the UI (internal invariants, loading
- *   calibration files), so they stay in Hungarian.
  * - The written pattern and the stitch names follow the language of the
  *   NOTATION (PQW-868), not that of the UI: their vocabulary does not turn
  *   with the interface.
+ * - A name the UI asks for with a locale, and the wording the UI already owns
+ *   a dictionary for.
  * - Generator names go into the pattern TITLE and into the piece name, so they
  *   are data of the saved file; for its lists the UI uses its own dictionary.
+ * - A handful of internal invariants whose Hungarian sits inside a `throw`.
+ *
+ * Developer-facing text is English (PQW-1100): a message that only a developer
+ * ever reads is translated, not exempted. That is why the calibration reader
+ * and the pattern reader are no longer listed here.
  */
 const CORE_EXCEPTIONS = new Set([
-  'gauge-profile.ts', // loading calibration files; nothing in the UI pulls it in
   'finished-size.ts', // RangeError, only tests call it
   'pattern-size.ts', // RangeError, internal invariant
   'pattern-text.ts', // the vocabulary of the written pattern: the language of the notation
@@ -109,10 +113,6 @@ const CORE_EXCEPTIONS = new Set([
   'insertion.ts', // the UI uses its own dictionary (PQW-900)
   'rules.ts', // the validator texts live in src/ui/i18n/rules.ts (PQW-900)
   'body-sizes.ts', // size names: the UI asks for them with the locale (hatSizeName, bodySizeName)
-  // The reader errors do not reach the screen today: no file under `src/ui/`
-  // pulls in `pattern-read.ts`. Once reading back gets a UI, the `ReadFailure`
-  // messages will turn into code and data too (PQW-904 continued).
-  'pattern-read.ts',
 ]);
 
 /**

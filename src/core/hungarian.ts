@@ -5,7 +5,7 @@ const DIGIT_SUFFIX = ['', 'szer', 'szer', 'szor', 'szer', 'ször', 'szor', 'szer
 const TENS_SUFFIX = ['', 'szer', 'szor', 'szor', 'szer', 'szer', 'szor', 'szer', 'szor', 'szer'] as const;
 
 export function times(n: number): string {
-  if (!Number.isInteger(n) || n < 1) throw new RangeError(`Pozitív egész számot vártunk, nem ${n}`);
+  if (!Number.isInteger(n) || n < 1) throw new RangeError(`Expected a positive whole number, not ${n}`);
   return `${n}-${timesSuffix(n)}`;
 }
 
@@ -18,7 +18,7 @@ function timesSuffix(n: number): string {
 }
 
 export function article(n: number): 'a' | 'az' {
-  if (!Number.isInteger(n) || n < 0) throw new RangeError(`Nemnegatív egész számot vártunk, nem ${n}`);
+  if (!Number.isInteger(n) || n < 0) throw new RangeError(`Expected a non-negative whole number, not ${n}`);
   if (n >= 1000) {
     const thousands = Math.floor(n / 1000);
     return thousands === 1 ? 'az' : article(thousands);

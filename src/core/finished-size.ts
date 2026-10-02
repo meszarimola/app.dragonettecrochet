@@ -102,7 +102,7 @@ export function sizeDeviation(
   readingsMm: readonly number[],
   tolerance = GAUGE_TOLERANCE,
 ): SizeDeviation {
-  if (readingsMm.length === 0) throw new RangeError('Legalább egy leolvasást vártunk.');
+  if (readingsMm.length === 0) throw new RangeError('Expected at least one reading.');
   const meanMm = readingsMm.reduce((total, value) => total + value, 0) / readingsMm.length;
   const deviation = (meanMm - predictedMm) / predictedMm;
   return { meanMm, deviation, withinTolerance: Math.abs(deviation) <= tolerance };

@@ -810,7 +810,7 @@ class Renderer {
 
   private byKind(kind: StitchDef['kind']): StitchDef {
     const def = [...this.library.values()].find((candidate) => candidate.kind === kind);
-    if (!def) throw new Error(`A könyvtárban nincs ilyen fajtájú szem: ${kind}`);
+    if (!def) throw new Error(`The library has no stitch of this kind: ${kind}`);
     return def;
   }
 

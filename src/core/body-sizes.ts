@@ -68,7 +68,7 @@ function table(
 // KB: 05 §3.1
 export const WOMEN = table(
   'women',
-  'Női',
+  'Women',
   'https://www.craftyarncouncil.com/standards/woman-size',
   ['XS', 'S', 'M', 'L', 'XL', '2X', '3X', '4X', '5X'],
   [
@@ -223,7 +223,7 @@ export const WOMEN = table(
 // KB: 05 §3.2
 export const MEN = table(
   'men',
-  'Férfi',
+  'Men',
   'https://www.craftyarncouncil.com/standards/man-size',
   ['S', 'M', 'L', 'XL', '2X', '3X', '4X', '5X'],
   [
@@ -285,15 +285,15 @@ export const MEN = table(
     },
   ],
   [
-    'A forrás a csípőig mért háthosszt „háthossz a derékig” néven közli; az értékek a csípőig mért hossznak felelnek meg (05 §3.2).',
-    'A felkarbőség és a karöltőmélység hiányzik: a karöltő a mellbőségből becsült (mellbőség/6 + 5 cm, 05 §4.6).',
+    'The source publishes the back length measured to the hip under the name "back waist length"; the values match the length measured to the hip (05 §3.2).',
+    'The upper arm and the armhole depth are missing: the armhole is estimated from the chest measurement (chest/6 + 5 cm, 05 §4.6).',
   ],
 );
 
 // KB: 05 §3.3
 export const CHILD = table(
   'child',
-  'Gyerek',
+  'Child',
   'https://www.craftyarncouncil.com/standards/child-youth-sizes',
   ['2', '4', '6', '8', '10', '12', '14', '16'],
   [
@@ -312,7 +312,7 @@ export const CHILD = table(
 // KB: 05 §3.4
 export const BABY = table(
   'baby',
-  'Baba',
+  'Baby',
   'https://www.craftyarncouncil.com/standards/baby-size-chart',
   ['3', '6', '12', '18', '24'],
   [
@@ -442,11 +442,11 @@ export type FitLevel = 'very-close' | 'close' | 'classic' | 'loose' | 'oversized
 export const FIT_EASE: Readonly<
   Record<FitLevel, { readonly name: string; readonly min: number; readonly max: number | null }>
 > = {
-  'very-close': { name: 'nagyon testhezálló', min: -10, max: -5 },
-  close: { name: 'testhezálló', min: 0, max: 0 },
-  classic: { name: 'klasszikus', min: 5, max: 10 },
-  loose: { name: 'bő', min: 10, max: 15 },
-  oversized: { name: 'túlméretes', min: 15, max: null },
+  'very-close': { name: 'very close-fitting', min: -10, max: -5 },
+  close: { name: 'close-fitting', min: 0, max: 0 },
+  classic: { name: 'classic', min: 5, max: 10 },
+  loose: { name: 'loose', min: 10, max: 15 },
+  oversized: { name: 'oversized', min: 15, max: null },
 };
 
 // KB: 05 §2.1, 05 §3.5, 05 §5.2, 05 §7.2
@@ -489,13 +489,13 @@ export interface HeadRange {
 
 // KB: 05 §5.1
 export const HEAD_CIRCUMFERENCE: readonly HeadRange[] = [
-  { id: 'preemie', name: 'Koraszülött', cm: [23, 30.5], inch: [9, 12] },
-  { id: 'baby', name: 'Baba', cm: [35.5, 40.5], inch: [14, 16] },
-  { id: 'toddler', name: 'Kisgyerek', cm: [40.5, 46], inch: [16, 18] },
-  { id: 'child', name: 'Gyerek', cm: [45.5, 51], inch: [18, 20] },
-  { id: 'tween', name: 'Kiskamasz', cm: [51, 56], inch: [20, 22] },
-  { id: 'woman', name: 'Felnőtt nő', cm: [53, 58.5], inch: [21, 23] },
-  { id: 'man', name: 'Felnőtt férfi', cm: [56, 61], inch: [22, 24] },
+  { id: 'preemie', name: 'Preemie', cm: [23, 30.5], inch: [9, 12] },
+  { id: 'baby', name: 'Baby', cm: [35.5, 40.5], inch: [14, 16] },
+  { id: 'toddler', name: 'Toddler', cm: [40.5, 46], inch: [16, 18] },
+  { id: 'child', name: 'Child', cm: [45.5, 51], inch: [18, 20] },
+  { id: 'tween', name: 'Tween', cm: [51, 56], inch: [20, 22] },
+  { id: 'woman', name: 'Adult woman', cm: [53, 58.5], inch: [21, 23] },
+  { id: 'man', name: 'Adult man', cm: [56, 61], inch: [22, 24] },
 ];
 
 export const HEAD_SOURCE = 'https://www.craftyarncouncil.com/standards/head-circumference-chart';
