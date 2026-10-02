@@ -12,6 +12,7 @@ import {
   branchName,
   closePlan,
   HibasBemenet,
+  mergeBase,
   PORT_FIRST,
   PORT_LAST,
   parseWorktrees,
@@ -102,6 +103,13 @@ test('a close finds the one worktree of its ticket', () => {
     path: '/Users/x/app-dc-english-default',
     branch: 'feature/PQW-1100-english-default',
   });
+});
+
+test('the merge check measures against the remote, falling back to the local ref', () => {
+  // The merge happens on origin, so the local develop is behind it right after
+  // one. Measuring locally refused a close that was safe (PQW-1121).
+  assert.equal(mergeBase({ hasRemoteDevelop: true }), 'origin/develop');
+  assert.equal(mergeBase({ hasRemoteDevelop: false }), 'develop');
 });
 
 test('a close refuses when there is no worktree, or more than one', () => {

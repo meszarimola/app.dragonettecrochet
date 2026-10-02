@@ -133,3 +133,22 @@ two hours rather than fifteen minutes, and the fix waiting behind it.
 **Rule:** the fix and the clean-up are two tickets, and the fix goes out first. Over
 15 files or more than one commit, split before starting. When the owner is offered
 a choice, each option carries what it costs and what it delays.
+
+## §9 The worktree close measured the local `develop` (2026-10-02, PQW-1121)
+
+`npm run munkafa -- --zar <n>` refuses to delete a branch that is not in `develop`,
+which is right. It measured the **local** `develop` ref, which right after a merge
+is behind: the merge happens on the remote, and the local ref only follows a
+`git pull`.
+
+So the first real close after a merge failed — *"még nincs benne a develop-ban"* —
+on a branch that had in fact been merged minutes earlier. The guard let nothing
+dangerous through; it refused something safe, and the manual `git fetch && git pull`
+it forced back is exactly what the command exists to remove.
+
+**Rule:** a check about "has this been merged" measures the **remote** ref, with the
+local one only as the offline fallback. `mergeBase()` decides that, and
+`tests/munkafa.test.mjs` pins both branches of it.
+
+The wider lesson is the one §5 already names from the other side: a guard that
+refuses safe work gets worked around, and a worked-around guard protects nothing.
