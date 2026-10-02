@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Local commit gate.
 #
-# This repository is private on a free GitHub plan, so branch protection is
-# unavailable and a red CI cannot stop a merge. This hook is the real gate.
-# It must stay under about two seconds or it will be bypassed.
+# The first and cheapest gate. The repository is public now and `develop` and
+# `main` are protected with both CI checks required, so CI does stop a merge —
+# but admins are exempt and CI answers three minutes later, so this hook is still
+# what catches a frozen path or a Hungarian comment before it is written down.
+# It must stay under about two seconds or it will be bypassed. KB: testing.md §5
 #
 # Install: git config core.hooksPath .githooks
 set -euo pipefail

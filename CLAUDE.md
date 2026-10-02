@@ -45,11 +45,19 @@ landing page on the main site.
    `npm run kb -- --horgolas` and `npm run kb -- 04 4.4`; it is ~5000 lines, so
    **never load it whole**. Put the sections you used in the ticket comment, so
    what was read — and what was not — is on the record.
-2. **Size it.** More than 5 files, or independent parts → work in a worktree and
-   split the parts across parallel agents.
-3. **Work.** A new validation rule gets a `reference` pointing at the knowledge
-   base section it comes from — `tests/core-validate.test.mjs` enforces this.
-4. **Verify** — run `/review`, then `/pre-pr-check`.
+2. **Size it, and split before starting.** More than 5 files → a worktree
+   (`npm run munkafa`). **More than ~15 files, or more than one commit → two
+   tickets:** a `fix` for the reported problem and a `chore`/`refactor` for the
+   clean-up it reveals, and **the fix ships first**. Work found mid-ticket is a new
+   ticket, never an extra commit on this branch. KB: incidents.md §8
+   Independent parts may run in parallel agents — `.claude/rules/agents.md` says
+   under what conditions, and a mechanical rewrite is a script, not an agent.
+3. **Work.** Read files with `Read` and change them with `Edit` or `Write` — not
+   `cat`, `sed -i` or a `python3` heredoc. Half as many steps, an undo history,
+   and the frozen-path guard actually runs. A new validation rule gets a
+   `reference` pointing at the knowledge base section it comes from —
+   `tests/core-validate.test.mjs` enforces this.
+4. **Verify** — `npm run kapu` (about 45 s), then `/review` and `/pre-pr-check`.
 5. **Update the knowledge base in the same PR** if the change made any section
    stale. This is what stops the docs drifting away from the code.
 6. **PR**, update the Linear ticket, merge into `develop` when green.
@@ -74,11 +82,13 @@ landing page on the main site.
 |---|---|---|
 | Frozen paths — never edit these | `.claude/rules/frozen-paths.md` | always |
 | Comment policy | `.claude/rules/comments.md` | always |
+| When a parallel agent helps, and when it costs | `.claude/rules/agents.md` | always |
 | The core/UI boundary, domain logic | `.claude/rules/core.md` | with `src/core/**` |
 | Interface, canvas, i18n | `.claude/rules/ui.md` | with `src/ui/**` |
 | Test conventions and their traps | `.claude/rules/tests.md` | with tests and E2E |
-| Decisions, rationale, past incidents | `docs/kb/` | **on demand only** |
-| **Crochet domain knowledge** | `docs/knowledge-base/` | **on demand, by `§` code** |
+| Decisions, rationale, past incidents | `docs/kb/` | `npm run kb`, by section |
+| **Crochet domain knowledge** | `docs/knowledge-base/` | `npm run kb -- --horgolas` |
+| The gate: every check CI runs | `npm run kapu` | before every commit |
 | Reviewing the branch before a PR | `/review` | on invocation |
 | Pre-PR verification | `/pre-pr-check` | on invocation |
 | Ticket, branch and worktree workflow | `/ticket-workflow` | on invocation |
