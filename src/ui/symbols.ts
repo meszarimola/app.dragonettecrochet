@@ -466,6 +466,10 @@ export function readInk(element: Element): string {
   return getComputedStyle(element).getPropertyValue('--c-ink').trim();
 }
 
+export function readAccent(element: Element): string {
+  return getComputedStyle(element).getPropertyValue('--c-accent').trim();
+}
+
 export function applyInk(ctx: CanvasRenderingContext2D, ink: string, lineWidth: number): void {
   if (ink) {
     ctx.strokeStyle = ink;

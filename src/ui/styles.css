@@ -205,13 +205,24 @@ button {
   font-size: 0.8125rem;
 }
 
-.tool:hover {
+.tool:hover:not(:disabled) {
   border-color: var(--c-accent);
   color: var(--c-accent);
 }
 
-.tool:active {
+.tool:active:not(:disabled) {
   background: var(--c-selection);
+}
+
+.tool:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.tool[aria-pressed="true"] {
+  border-color: var(--c-accent);
+  background: var(--c-selection);
+  color: var(--c-accent);
 }
 
 .tool__label {
@@ -297,6 +308,8 @@ button {
   display: block;
   inline-size: calc(100% - var(--stitches-width));
   block-size: 100%;
+  /* The board handles its own drags; a browser pan would cancel them mid-way. */
+  touch-action: none;
 }
 
 body.is-armed #board {

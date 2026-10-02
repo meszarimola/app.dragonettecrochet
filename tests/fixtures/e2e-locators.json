@@ -1,19 +1,21 @@
 {
   "getByRole": {
-    "/^Chain \\(ch\\)/": 1,
-    "/^Single crochet \\(sc\\)/": 5,
+    "/^Chain \\(ch\\)/": 2,
+    "/^Double crochet \\(dc\\)/": 2,
+    "/^Single crochet \\(sc\\)/": 11,
     "A felület nyelve": 1,
     "Alapszemek": 1,
     "Back to the dragonettecrochet.com home page": 1,
     "Interface language": 2,
     "Mintatervező": 1,
-    "New": 10,
+    "New": 11,
     "Pattern designer": 1,
+    "Select": 4,
     "Stitches": 2,
     "Symbol style": 3,
     "Szemek": 1,
     "Vissza a dragonettecrochet.com főoldalára": 1,
-    "button": 19,
+    "button": 26,
     "combobox": 7,
     "heading": 6,
     "link": 2,
@@ -24,9 +26,10 @@
     "v${VART_VERZIO}": 1
   },
   "locator": {
-    "#board": 7,
+    "#board": 20,
     "#version": 1,
     ".brand-mark": 1,
+    ".tool__label": 1,
     "canvas": 1,
     "header.bar": 1,
     "html": 1
@@ -36,14 +39,14 @@
     "jis": 1
   },
   "toHaveAttribute": {
-    "aria-pressed": 4,
-    "false": 1,
+    "aria-pressed": 6,
+    "false": 2,
     "href": 2,
     "https://dragonettecrochet.com/en/": 1,
     "https://dragonettecrochet.com/hu/": 1,
     "hu": 1,
     "lang": 1,
-    "true": 3
+    "true": 4
   },
   "toHaveText": {
     "/^v\\d+\\.\\d+\\.\\d+$/": 1
