@@ -1662,7 +1662,7 @@ export class IrregularEditor {
     }
     const loaded = loadIrregular(source);
     if (!loaded.ok) {
-      const message = renderCoreText(IRREGULAR_JSON_CORE_TEXTS[uiLanguage()], loaded.error.message);
+      const message = renderCoreText(IRREGULAR_JSON_CORE_TEXTS, uiLanguage(), loaded.error.message);
       this.#host.announce(texts().messages.file.loadFailed(message, loaded.error.path));
       return false;
     }

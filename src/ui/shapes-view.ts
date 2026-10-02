@@ -64,7 +64,7 @@ export const ROUNDING_CHOICES: readonly Choice<RepeatRounding>[] = (['nearest', 
 );
 
 export function shapeReason(reason: ShapeText): string {
-  return renderCoreText(SHAPE_CORE_TEXTS[uiLanguage()], reason);
+  return renderCoreText(SHAPE_CORE_TEXTS, uiLanguage(), reason);
 }
 
 export interface ShapeFieldState {

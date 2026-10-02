@@ -489,7 +489,7 @@ function stitchCount(pattern: Pattern): number {
 
 function commit(result: EditResult, message: Message): void {
   if (!result.ok) {
-    announce(renderCoreText(EDITOR_CORE_TEXTS[uiLanguage()], result.reason));
+    announce(renderCoreText(EDITOR_CORE_TEXTS, uiLanguage(), result.reason));
     return;
   }
   // KB: interface.md §19 — an unchanged pattern (a turn on the foundation) is not an undo step.
@@ -1205,7 +1205,7 @@ async function importJson(file: File): Promise<void> {
   }
   const loaded = loadPattern(source);
   if (!loaded.ok) {
-    announce(file_.loadFailed(renderCoreText(JSON_CORE_TEXTS[uiLanguage()], loaded.error.message), loaded.error.path));
+    announce(file_.loadFailed(renderCoreText(JSON_CORE_TEXTS, uiLanguage(), loaded.error.message), loaded.error.path));
     return;
   }
   const problem = structuralProblem(loaded.pattern);
@@ -1285,7 +1285,7 @@ function copySelected(): void {
   const selectionTexts = texts().messages.selection;
   if (selection.length === 0) return announce(selectionTexts.nothingToCopy);
   const result = copySelection(history.present, selection);
-  if (!result.ok) return announce(renderCoreText(EDITOR_CORE_TEXTS[uiLanguage()], result.reason));
+  if (!result.ok) return announce(renderCoreText(EDITOR_CORE_TEXTS, uiLanguage(), result.reason));
   clipboard = result.fragment;
   const where = result.fragment.startsLayer
     ? selectionTexts.asLayer(result.fragment.shape === 'round')

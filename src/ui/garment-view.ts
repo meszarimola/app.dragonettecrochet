@@ -51,7 +51,7 @@ export const TABLE_CHOICES: readonly Choice<BodyTableId>[] = BODY_TABLES_ORDER.m
 }));
 
 export function garmentText(message: CoreText<GarmentCode>): string {
-  return renderCoreText(GARMENT_CORE_TEXTS[uiLanguage()], message);
+  return renderCoreText(GARMENT_CORE_TEXTS, uiLanguage(), message);
 }
 
 export function sizeName(table: GarmentTable, id: string): string {

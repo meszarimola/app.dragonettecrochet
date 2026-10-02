@@ -40,7 +40,7 @@ export const RATE_CHOICES: readonly Choice<RateChoice>[] = (['theory', 'custom']
 }));
 
 export function shawlReason(reason: ShawlText): string {
-  return renderCoreText(SHAPE_CORE_TEXTS[uiLanguage()], reason);
+  return renderCoreText(SHAPE_CORE_TEXTS, uiLanguage(), reason);
 }
 
 export interface ShawlFieldState {

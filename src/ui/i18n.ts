@@ -59,7 +59,7 @@ export function storedLanguage(value: string | null): UiLanguage | null {
 
 // KB: interface.md §4
 export function resolveUiLanguage(search: string, stored: string | null, documentLanguage: string): UiLanguage {
-  return languageFromSearch(search) ?? storedLanguage(stored) ?? (/^en\b/i.test(documentLanguage) ? 'en' : 'hu');
+  return languageFromSearch(search) ?? storedLanguage(stored) ?? (/^hu\b/i.test(documentLanguage) ? 'hu' : 'en');
 }
 
 export function homeUrl(language: UiLanguage): string {
@@ -72,7 +72,9 @@ export function urlWithLanguage(href: string, language: UiLanguage): string {
   return url.toString();
 }
 
-let current: UiLanguage = 'hu';
+export const DEFAULT_UI_LANGUAGE: UiLanguage = 'en';
+
+let current: UiLanguage = DEFAULT_UI_LANGUAGE;
 
 export function uiLanguage(): UiLanguage {
   return current;
@@ -86,11 +88,11 @@ export function setUiLanguage(language: UiLanguage): void {
   current = language;
 }
 
-// KB: interface.md §4 — an unknown key throws, so a missing translation fails the browser test.
+// KB: interface.md §4, dictionaries.md §9
 export function applyStaticTexts(root: ParentNode, markup: UiTexts['markup']): void {
   const value = (key: string): string => {
-    const text = (markup as Record<string, string>)[key];
-    if (text === undefined) throw new Error(`Hiányzó felirat a szótárból: ${key}`);
+    const text = (markup as Record<string, string>)[key] ?? (MARKUP_TEXTS.en as Record<string, string>)[key];
+    if (text === undefined) throw new Error(`Missing label in the dictionary: ${key}`);
     return text;
   };
   for (const element of root.querySelectorAll<HTMLElement>('[data-i18n]')) {
@@ -104,5 +106,8 @@ export function applyStaticTexts(root: ParentNode, markup: UiTexts['markup']): v
   }
   for (const element of root.querySelectorAll<HTMLElement>('[data-i18n-content]')) {
     element.setAttribute('content', value(element.dataset['i18nContent']!));
+  }
+  for (const element of root.querySelectorAll<HTMLElement>('[data-i18n-roledescription]')) {
+    element.setAttribute('aria-roledescription', value(element.dataset['i18nRoledescription']!));
   }
 }

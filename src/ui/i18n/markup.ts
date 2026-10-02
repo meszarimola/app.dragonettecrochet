@@ -118,6 +118,7 @@ export const MARKUP_TEXTS = {
     typesNavLabel: 'Új minta',
     typesIntro: 'Válassz típust: üres mintát kezd. A mostani munka visszavonással visszajön.',
     boardLabel: 'Diagram: nyilakkal a célpontok között, Enterrel horgolsz',
+    boardRoleDescription: 'horgolásminta-diagram',
 
     writtenGripLabel: 'Az írott minta magassága',
     writtenTitle: 'Írott minta',
@@ -310,6 +311,7 @@ export const MARKUP_TEXTS = {
     amigurumiAdd: 'Hozzáadás részként',
 
     boardIrregularLabel: 'Szabadkézi diagram: válassz szemet, és kattints a rajzlapra',
+    boardIrregularRoleDescription: 'szabadkézi jeldiagram',
     sectionRowsTitle: 'Sorok és körök',
     grannyRadialLabel: 'Sugárirányú fordítás',
     rowsGroupLabel: 'A minta sorai és körei',
@@ -583,6 +585,7 @@ export const MARKUP_TEXTS = {
     typesNavLabel: 'New pattern',
     typesIntro: 'Pick a type to start an empty pattern. Undo brings the current work back.',
     boardLabel: 'Chart: move between targets with the arrow keys, crochet with Enter',
+    boardRoleDescription: 'crochet chart',
 
     writtenGripLabel: 'Height of the written pattern',
     writtenTitle: 'Written pattern',
@@ -778,6 +781,7 @@ export const MARKUP_TEXTS = {
     amigurumiAdd: 'Add as a piece',
 
     boardIrregularLabel: 'Free-form chart: pick a stitch and click the drawing area',
+    boardIrregularRoleDescription: 'free-form crochet chart',
     sectionRowsTitle: 'Rows and rounds',
     grannyRadialLabel: 'Turn stitches outwards',
     rowsGroupLabel: 'The pattern’s rows and rounds',

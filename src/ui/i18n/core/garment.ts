@@ -62,7 +62,7 @@ function sizeName(data: CoreData, locale: Locale): string {
 }
 
 function inner(data: CoreData, language: 'hu' | 'en'): string {
-  return renderCoreText(GARMENT_CORE_TEXTS[language], { code: str(data, 'inner') as GarmentCode, data });
+  return renderCoreText(GARMENT_CORE_TEXTS, language, { code: str(data, 'inner') as GarmentCode, data });
 }
 
 /**
@@ -73,7 +73,7 @@ function inner(data: CoreData, language: 'hu' | 'en'): string {
 function pieceProblem(data: CoreData, language: 'hu' | 'en'): string {
   const message = str(data, 'message');
   if (message !== '') return message;
-  return renderCoreText(SHAPE_CORE_TEXTS[language], { code: str(data, 'inner') as ShapeCode, data });
+  return renderCoreText(SHAPE_CORE_TEXTS, language, { code: str(data, 'inner') as ShapeCode, data });
 }
 
 const hu: Readonly<Record<GarmentCode, CoreEntry>> = {

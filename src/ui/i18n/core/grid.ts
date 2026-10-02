@@ -171,5 +171,5 @@ export const GRID_CORE_TEXTS: CoreDictionary<GridCoreCode> = {
 };
 
 export function gridCoreText(message: CoreText<GridCoreCode>): string {
-  return renderCoreText(GRID_CORE_TEXTS[uiLanguage()], message);
+  return renderCoreText(GRID_CORE_TEXTS, uiLanguage(), message);
 }

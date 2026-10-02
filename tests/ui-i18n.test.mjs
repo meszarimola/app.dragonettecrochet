@@ -7,9 +7,9 @@
  * (text or function) and, for functions, the same parameter count. This is the
  * test that catches untranslated and missing interface text.
  *
- * The Hungarian interface must not change: the Hungarian labels standing in
- * index.html today are compared with the Hungarian branch of the dictionary, so
- * the substitution prints exactly what the markup says today.
+ * The markup ships in the default language (PQW-1100), so the labels standing
+ * in index.html are compared with the ENGLISH branch of the dictionary: what a
+ * visitor sees before the script runs is what the substitution then prints.
  */
 
 import { strict as assert } from 'node:assert';
@@ -91,7 +91,7 @@ function markupUses() {
     // A self-closing element (the meta in the head) has no body; there we read the `content` attribute.
     const end = rest.indexOf(`</${tag}>`);
     const body = end === -1 ? '' : rest.slice(0, end);
-    for (const kind of ['i18n', 'i18n-tip', 'i18n-label', 'i18n-content']) {
+    for (const kind of ['i18n', 'i18n-tip', 'i18n-label', 'i18n-content', 'i18n-roledescription']) {
       const key = new RegExp(`data-${kind}="([^"]+)"`).exec(attributes)?.[1];
       if (key) uses.push({ key, kind, tag, attributes, body });
     }
@@ -118,10 +118,10 @@ test('every label in the dictionary is in use, in the markup or in the interface
   assert.deepEqual(dead, []);
 });
 
-test('the Hungarian interface does not change: the Hungarian branch matches the text in the markup today', () => {
+test('the markup ships in the default language: the English branch matches the text in the markup', () => {
   const differences = [];
   for (const { key, kind, attributes, body } of markupUses()) {
-    const expected = MARKUP_TEXTS.hu[key];
+    const expected = MARKUP_TEXTS.en[key];
     if (expected === undefined) continue;
     if (kind === 'i18n') {
       if (/[<&]/.test(body)) continue; // rich content: cannot be compared as plain text
@@ -131,7 +131,14 @@ test('the Hungarian interface does not change: the Hungarian branch matches the 
       if (text && text !== expected.replace(/\s+/g, ' ').trim()) differences.push(`${key}: „${text}” ≠ „${expected}”`);
       continue;
     }
-    const attribute = kind === 'i18n-tip' ? 'data-tip' : kind === 'i18n-content' ? 'content' : 'aria-label';
+    const attribute =
+      kind === 'i18n-tip'
+        ? 'data-tip'
+        : kind === 'i18n-content'
+          ? 'content'
+          : kind === 'i18n-roledescription'
+            ? 'aria-roledescription'
+            : 'aria-label';
     // As a standalone attribute: the names `data-i18n-tip` and `data-i18n-content` also
     // contain the attribute name we are looking for, so we anchor on whitespace.
     const value = new RegExp(`(?:^|\\s)${attribute}="([^"]*)"`).exec(attributes)?.[1];
@@ -151,11 +158,13 @@ test('the `?lang` parameter switches to Hungarian or English and accepts nothing
   assert.equal(languageFromSearch('?other=en'), null);
 });
 
-test('with no parameter and no stored value the document language decides, defaulting to Hungarian', () => {
+test('with no parameter and no stored value the document language decides, defaulting to English (PQW-1100)', () => {
   assert.equal(resolveUiLanguage('', null, 'hu'), 'hu');
+  assert.equal(resolveUiLanguage('', null, 'hu-HU'), 'hu');
   assert.equal(resolveUiLanguage('', null, 'en'), 'en');
   assert.equal(resolveUiLanguage('', null, 'en-GB'), 'en');
-  assert.equal(resolveUiLanguage('', null, ''), 'hu');
+  assert.equal(resolveUiLanguage('', null, ''), 'en', 'no document language at all means the default');
+  assert.equal(resolveUiLanguage('', null, 'ja'), 'en', 'a language the app does not speak means the default');
 });
 
 test('resolution order: `?lang` outranks the stored value, and the stored value outranks the document language (PQW-906)', () => {
@@ -170,7 +179,8 @@ test('a corrupt or unknown stored value does not break startup (PQW-906)', () =>
     const resolved = resolveUiLanguage('', stored, 'hu');
     assert.ok(resolved === 'hu' || resolved === 'en', `${stored}: ${resolved}`);
   }
-  assert.equal(resolveUiLanguage('', 'ja', 'hu'), 'hu', 'an unknown value falls back to the default language');
+  assert.equal(resolveUiLanguage('', 'ja', 'hu'), 'hu', 'an unknown value leaves the document language to decide');
+  assert.equal(resolveUiLanguage('', 'ja', ''), 'en', 'with nothing else to go on, the default language');
   assert.equal(resolveUiLanguage('', 'HU', 'en'), 'hu', 'case and surrounding whitespace do not matter');
   assert.equal(resolveUiLanguage('', ' en ', 'hu'), 'en');
 });
@@ -186,4 +196,27 @@ test('the home link and the shareable URL use the chosen language', () => {
     urlWithLanguage('https://app.dragonettecrochet.com/?lang=en', 'hu'),
     'https://app.dragonettecrochet.com/?lang=hu',
   );
+});
+
+test('index.html ships English: the document language and the social metadata agree (PQW-1100)', () => {
+  assert.match(INDEX, /<html lang="en">/);
+  assert.match(INDEX, /<meta property="og:locale" content="en_US" \/>/);
+  assert.match(INDEX, /<meta property="og:locale:alternate" content="hu_HU" \/>/);
+  assert.doesNotMatch(INDEX, /og-hu\.png/, 'the social image follows the document language');
+});
+
+test('no Hungarian is left in the markup outside the bilingual noscript block (PQW-1100)', () => {
+  const withoutNoscript = INDEX.replace(/<noscript>[\s\S]*?<\/noscript>/, '');
+  const hungarian = withoutNoscript
+    .split('\n')
+    .map((line, index) => [index + 1, line])
+    .filter(([, line]) => HUNGARIAN.test(line) && !/alternateName/.test(line));
+  assert.deepEqual(hungarian, [], `Hungarian left in index.html:\n${hungarian.map(([n, l]) => `${n}: ${l.trim()}`).join('\n')}`);
+});
+
+test('the noscript fallback leads with the default language and carries the only h1 (PQW-1100)', () => {
+  const noscript = /<noscript>([\s\S]*?)<\/noscript>/.exec(INDEX)?.[1] ?? '';
+  assert.match(noscript, /lang="en"[\s\S]*lang="hu"/, 'English comes first');
+  assert.equal(noscript.match(/<h1>/g)?.length, 1, 'exactly one h1');
+  assert.match(noscript, /lang="en">\s*<h1>/, 'the h1 belongs to the default language');
 });
