@@ -11,8 +11,11 @@
 
 import { expect, type Page, test } from '@playwright/test';
 
+import { asReturningVisitor } from './kezdet.ts';
+
 /** New pattern with a clean sheet; we reject the cookie bar. */
 async function start(page: Page): Promise<void> {
+  await asReturningVisitor(page);
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();

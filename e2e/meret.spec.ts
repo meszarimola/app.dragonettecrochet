@@ -7,6 +7,8 @@
 import { readFile } from 'node:fs/promises';
 import { expect, type Page, test } from '@playwright/test';
 
+import { asReturningVisitor } from './kezdet.ts';
+
 interface Cell {
   readonly layer: number;
   readonly index: number;
@@ -15,6 +17,7 @@ interface Cell {
 }
 
 async function open(page: Page): Promise<void> {
+  await asReturningVisitor(page);
   await page.goto('/');
   const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();

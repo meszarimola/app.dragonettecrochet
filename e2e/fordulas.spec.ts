@@ -7,6 +7,8 @@
 
 import { expect, type Page, test } from '@playwright/test';
 
+import { asReturningVisitor } from './kezdet.ts';
+
 interface Node {
   readonly id: string;
   readonly def: string;
@@ -30,6 +32,7 @@ const workingLayer = (page: Page): Promise<number> =>
 
 /** Clean sheet, 12 chain stitches, turn, row 2 filled with single crochet, then another turn. */
 async function twoRowsThenTurn(page: Page): Promise<void> {
+  await asReturningVisitor(page);
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();

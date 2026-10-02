@@ -16,6 +16,8 @@
 
 import { expect, type Page, test } from '@playwright/test';
 
+import { asReturningVisitor } from './kezdet.ts';
+
 /** The symbol of an upright double crochet is 21 pixels wide; a wider symbol is leaning. */
 const UPRIGHT = 24;
 
@@ -50,6 +52,7 @@ interface Stitch {
 }
 
 async function open(page: Page): Promise<void> {
+  await asReturningVisitor(page);
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();

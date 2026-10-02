@@ -2114,3 +2114,82 @@ round, layout, grid, ribbing, validation and row-curve fixtures with, and it is 
 only generator that produces a closed round for them. It has no caller in `src/ui/`
 any more; `Choice`, which `rounds-view.ts` exported, has a second definition in
 `shapes-view.ts` that the amigurumi views now use.
+
+## §80 The editor is closed until there is a pattern
+
+PQW-1133, the owner's decision of 2026-10-02: *„addig amíg nem választom ki a
+minta típusát, addig ne tudjak szemeket letenni… a mintatervezőhöz érkezve az
+első dolog az új minta létrehozása.”*
+
+§73 made „Új” the type menu so that starting a pattern is one move. It did not
+make it a *required* move: the app opened on an empty regular pattern that was
+fully editable, so the type menu was something a visitor could simply never
+find. The first stitch then landed in a pattern whose type nobody had chosen.
+
+**The gate is „is there a pattern”, not „is this a new tab”.** A visitor who has
+work to come back to is not sent through „Új” again, so `readStarted` answers yes
+when any of three marks is there: a stored type (what choosing one leaves
+behind), a stored free-form pattern, or a restored regular pattern with a stitch
+in it. The third mark exists because a pattern can arrive from a JSON file that
+never wrote a type — which is also why opening a JSON is the second way in,
+beside choosing a type.
+
+**It opens once and does not close again.** `markStarted` is one-way. Emptying a
+pattern with „Új” is not a return to the closed state: the visitor has chosen,
+and asking again would be the program talking (`owner-decisions.md` §3).
+
+**Nothing is persisted for it.** The three marks are keys that already exist, so
+§5 is not touched.
+
+**Where the gate bites.** The buttons are disabled, and behind them three guards
+catch the paths a disabled button does not cover:
+
+- `commit` refuses while closed. Every edit of the regular pattern goes through
+  it, including the ones the keyboard reaches directly — `Alt+F`, `Alt+K`,
+  `Delete`, `Enter` — so one `return` closes them all.
+- `select` refuses a stitch, so `Alt+1`…`Alt+9` arms nothing. Clearing one
+  (`select(null)`) stays allowed: the startup path calls it.
+- the canvas `pointerdown` and the document `keydown` return early. The keyboard
+  guard sits *after* the Escape-closes-a-menu block, because the type menu is the
+  one menu that is open while the editor is closed. `Alt+R` passes it: the guide
+  grid is a view control whose button stays enabled, so the shortcut has to match
+  the button. It is the only exception, and the only view control with a shortcut.
+
+The free-form editor needs no guard of its own: it is mounted by `selectType`,
+which has opened the gate before it runs.
+
+**The view controls stay live** — zoom, the guide grid, the panels, the language
+and the symbol set. They decide what is shown, and showing nothing is not an
+edit.
+
+**„Méret és fonal” does not, and that follows from the guard rather than from the
+decision.** Gauge, yarn and hook are the *pattern's* settings and `SizePanel`
+writes every one of them through `commit`, which now refuses — so leaving the
+section live would have made it a panel that accepts input and drops it, with
+„Valódi arányok” still working because that one goes through `setAspect`. A half-live
+panel is worse than a closed one, so `#section-size` is `inert` until the gate
+opens. The written-pattern panel is closed for the plainer reason that an empty
+written pattern is a panel with nothing in it.
+
+**The stage says so.** `#start-note` is a centred line and one button over the
+empty canvas; the button clicks `#types-toggle`, so there is still exactly one
+way to start a pattern. It clears the open side bars the way the alert above it
+does (§15), and it is `hidden` the moment the gate opens.
+
+**Only its button takes the pointer.** The box is `pointer-events: none` and the
+button `auto`. `--side-start` and `--side-end` are only given the column widths
+above 48 rem, so below that the note spans the whole stage: without this, opening
+the side columns with `#panel-toggle` — which the gate leaves enabled — would
+show two columns that no tap could reach.
+
+**The chosen card is marked in one place.** `markChosenType` writes `aria-pressed`
+for both ways in, because opening a JSON starts a pattern without going through
+`selectType`, and the cards would otherwise say no type was chosen. Before the
+first pattern none is pressed, so the type menu focuses the first card that can
+be chosen rather than nothing.
+
+**The browser suite opens as a returning visitor.** A spec that measures the
+editor seeds the stored type in an init script (`e2e/kezdet.ts`) rather than
+clicking its way through the type menu first: the specs are about the editor, and
+the arrival itself has its own spec. `kezdet.ts` is not a `*.spec.ts`, so
+Playwright's default `testMatch` leaves it alone.

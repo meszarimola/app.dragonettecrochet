@@ -15,6 +15,8 @@
 
 import { expect, type Page, test } from '@playwright/test';
 
+import { asReturningVisitor } from './kezdet.ts';
+
 interface Rect {
   readonly left: number;
   readonly top: number;
@@ -26,6 +28,7 @@ type LabelBox = Rect & { readonly layer: number; readonly text: string };
 type StitchBox = Rect & { readonly id: string; readonly layer: number };
 
 async function open(page: Page): Promise<void> {
+  await asReturningVisitor(page);
   await page.goto('/');
   const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
@@ -233,6 +236,7 @@ test('1000×506, English interface: even the longer label does not slide onto th
   page,
 }) => {
   await page.setViewportSize({ width: 1000, height: 506 });
+  await asReturningVisitor(page);
   await page.goto('/?lang=en');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();

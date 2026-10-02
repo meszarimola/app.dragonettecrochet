@@ -7,6 +7,8 @@
 
 import { expect, type Page, test } from '@playwright/test';
 
+import { asReturningVisitor } from './kezdet.ts';
+
 interface Cell {
   readonly layer: number;
   readonly index: number;
@@ -32,6 +34,7 @@ const baseCells = async (page: Page): Promise<Cell[]> =>
 test('clicking between two stitches of the foundation chain inserts a new chain stitch, even part-way through row 2 (PQW-941)', async ({
   page,
 }) => {
+  await asReturningVisitor(page);
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
@@ -75,6 +78,7 @@ test('clicking between two stitches of the foundation chain inserts a new chain 
 });
 
 test('a stitch can be placed by going back into the empty cell above the insertion (PQW-950)', async ({ page }) => {
+  await asReturningVisitor(page);
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();

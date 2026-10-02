@@ -18,6 +18,7 @@ import {
   endRow,
   fillRow,
   insertChain,
+  isEmptyPattern,
   type LiveCheck,
   liveCheck,
   onFoundationChain,
@@ -87,7 +88,7 @@ import {
 } from './i18n.js';
 import { InsertionPanel } from './insertion-panel.js';
 import { insertionSuffix } from './insertion-view.js';
-import { IrregularEditor } from './irregular-editor.js';
+import { IRREGULAR_STORAGE_KEY, IrregularEditor } from './irregular-editor.js';
 import { wireTabs } from './irregular-tabs.js';
 import { chartExportFormat } from './measurement.js';
 import {
@@ -153,6 +154,9 @@ const importFile = must<HTMLInputElement>('#import-file');
 const adjust = must<HTMLElement>('#adjust');
 const adjustName = must<HTMLParagraphElement>('#adjust-name');
 const stage = must<HTMLElement>('.stage');
+const startNote = must<HTMLElement>('#start-note');
+const startNew = must<HTMLButtonElement>('#start-new');
+const sizeSection = must<HTMLDetailsElement>('#section-size');
 const written = must<HTMLElement>('#written');
 const writtenToggle = must<HTMLButtonElement>('#written-toggle');
 const writtenText = must<HTMLPreElement>('#written-text');
@@ -243,6 +247,8 @@ let affected: readonly NodeId[] = [];
 // KB: interface.md §30
 const mirror = false;
 let patternType: PatternTypeId = readType();
+// KB: interface.md §80 — until this is true the editor is closed and „Új” is the only way on.
+let started = readStarted();
 let showGrid = readGrid();
 // KB: interface.md §5 — not persisted; that would need a new key.
 let aspect = false;
@@ -357,6 +363,22 @@ function readType(): PatternTypeId {
     return DEFAULT_PATTERN_TYPE;
   }
   return saved && isAvailableType(saved) ? saved : DEFAULT_PATTERN_TYPE;
+}
+
+/**
+ * KB: interface.md §80 — a visitor who has something to come back to is not sent
+ * through „Új” again. The stored type is what a chosen type leaves behind; the
+ * two patterns are read as well, because a pattern can arrive from a JSON file
+ * that never wrote one.
+ */
+function readStarted(): boolean {
+  try {
+    if (localStorage.getItem(TYPE_KEY) !== null) return true;
+    if (localStorage.getItem(IRREGULAR_STORAGE_KEY) !== null) return true;
+  } catch {
+    return false;
+  }
+  return !isEmptyPattern(history.present);
 }
 
 function readGrid(): boolean {
@@ -487,6 +509,8 @@ function stitchCount(pattern: Pattern): number {
 }
 
 function commit(result: EditResult, message: Message): void {
+  // KB: interface.md §80 — one funnel for every edit, so one place closes them all.
+  if (!started) return;
   if (!result.ok) {
     announce(renderCoreText(EDITOR_CORE_TEXTS, uiLanguage(), result.reason));
     return;
@@ -595,12 +619,70 @@ function showToast(text: string): void {
 }
 
 function updateControls(): void {
+  updateEditorControls();
+  // KB: interface.md §80 — the gate has the last word, after every condition above it.
+  applyStartGate();
+}
+
+/**
+ * KB: interface.md §80 — editing tools whose `disabled` nothing else sets, so the
+ * gate both closes and reopens them.
+ */
+const GATED_TOOLS = ['select-pointer', 'select-area', 'note-text', 'note-arrow', 'note-bracket'] as const;
+
+/**
+ * KB: interface.md §80 — editing tools `updateControls` recomputes from the
+ * pattern. The gate only closes these; the recompute that follows reopens them.
+ */
+const COMPUTED_TOOLS = [
+  'undo',
+  'redo',
+  'fill-row',
+  'end-row',
+  'close-round',
+  'spiral-round',
+  'delete-selection',
+  'duplicate-selection',
+] as const;
+
+/*
+ * The view controls — zoom, the guide grid, the panels, the language and the
+ * symbol set — are in neither list: they decide what is shown, and showing
+ * nothing is not an edit.
+ */
+function applyStartGate(): void {
+  startNote.hidden = started;
+  writtenToggle.disabled = !started;
+  // Gauge and yarn are a pattern's settings, and every one of them is written through `commit`.
+  sizeSection.inert = !started;
+  for (const button of palette.querySelectorAll<HTMLButtonElement>('button')) button.disabled = !started;
+  for (const action of GATED_TOOLS) setDisabled(action, !started);
+  if (started) return;
+  for (const action of COMPUTED_TOOLS) setDisabled(action, true);
+}
+
+// KB: interface.md §80 — the editor opens on the first pattern and does not close again.
+function markStarted(): void {
+  if (started) return;
+  started = true;
+  applyStartGate();
+  // A file opens the gate without choosing a type, so the cards learn their state here too.
+  markChosenType();
+}
+
+function markChosenType(): void {
+  for (const button of typesList.querySelectorAll<HTMLButtonElement>('.type')) {
+    button.setAttribute('aria-pressed', String(started && !button.disabled && button.dataset.type === patternType));
+  }
+}
+
+function updateEditorControls(): void {
   if (irregular !== null && irregular.active) {
     updateIrregularControls(irregular);
     return;
   }
   const { context, pattern, check } = derived;
-  const empty = (pattern.pieces[0]?.stitches.length ?? 0) === 0;
+  const empty = isEmptyPattern(pattern);
   setDisabled('undo', !canUndo(history));
   setDisabled('redo', !canRedo(history));
   const canFill =
@@ -952,6 +1034,8 @@ function appendStitchKey(button: HTMLButtonElement, item: PaletteItem): void {
 }
 
 function select(id: StitchDefId | null): void {
+  // KB: interface.md §80 — nothing to arm a stitch for yet; clearing one stays allowed.
+  if (!started && id !== null) return;
   tool = id;
   hover = null;
   if (id) {
@@ -986,6 +1070,8 @@ function renderPalette(): void {
   palette.replaceChildren();
   for (const section of sections) palette.append(paletteSection(section));
   if (tool) revealStitch(tool);
+  // KB: interface.md §80 — the tiles are new elements, so the gate has to reach them again.
+  applyStartGate();
 }
 
 // KB: interface.md §11, §53 — a shortcut can arm a stitch that is scrolled out of the column.
@@ -1224,6 +1310,8 @@ async function importJson(file: File): Promise<void> {
     return;
   }
   if (patternType === 'irregular') selectType(DEFAULT_PATTERN_TYPE);
+  // KB: interface.md §80 — a file is a pattern too, so opening one is a second way in.
+  markStarted();
   selectedNode = null;
   selection = [];
   const recorded = loaded.pattern.notation?.terms;
@@ -1683,8 +1771,21 @@ typesToggle.addEventListener('click', () => {
   closeAllPopovers();
   if (opening) {
     openPopover(typesNav, typesToggle);
-    typesNav.querySelector<HTMLButtonElement>('.type[aria-pressed="true"]')?.focus();
+    // KB: interface.md §80 — before the first pattern no card is pressed, so the first
+    // one that can be chosen takes the focus instead of nothing taking it.
+    const card =
+      typesNav.querySelector<HTMLButtonElement>('.type[aria-pressed="true"]') ??
+      typesNav.querySelector<HTMLButtonElement>('.type:not([disabled])');
+    card?.focus();
   }
+});
+
+// KB: interface.md §80 — the stage says what to do, and does it through the one button that can.
+// The click is stopped here: outside `.menu` it would reach the handler that closes every popover,
+// and close the menu it has just opened.
+startNew.addEventListener('click', (event) => {
+  event.stopPropagation();
+  typesToggle.click();
 });
 
 // KB: interface.md §56 — a class, not `hidden`: in a wide window the same buttons are the bar's own.
@@ -1732,7 +1833,8 @@ function renderTypes(): void {
       button.className = 'type';
       button.dataset.type = type.id;
       button.disabled = !type.available;
-      button.setAttribute('aria-pressed', String(type.available && type.id === patternType));
+      // KB: interface.md §80 — before the first pattern no card is the chosen one.
+      button.setAttribute('aria-pressed', String(started && type.available && type.id === patternType));
 
       button.dataset.tip = type.detail;
       button.append(typeIcon(type.id));
@@ -1926,15 +2028,14 @@ function selectType(id: PatternTypeId): void {
   const focused = typesNav.contains(document.activeElement);
   closePopover(typesNav, typesToggle);
   if (focused) typesToggle.focus();
+  markStarted();
   patternType = id;
   try {
     localStorage.setItem(TYPE_KEY, id);
   } catch {
     // KB: interface.md §5
   }
-  for (const button of typesList.querySelectorAll<HTMLButtonElement>('.type')) {
-    button.setAttribute('aria-pressed', String(button.dataset.type === id));
-  }
+  markChosenType();
   const type = PATTERN_TYPES.find((candidate) => candidate.id === id);
   if (id === 'irregular') {
     const editor = ensureIrregular();
@@ -2026,6 +2127,8 @@ type Drag =
 let drag: Drag | null = null;
 
 canvas.addEventListener('pointerdown', (event) => {
+  // KB: interface.md §80 — with no pattern the canvas neither crochets nor selects.
+  if (!started) return;
   canvas.focus({ preventScroll: true });
   // KB: interface.md §16
   const label = board.labelAt(event.clientX, event.clientY);
@@ -2258,6 +2361,10 @@ document.addEventListener('keydown', (event) => {
     openMenu.focus();
     return;
   }
+
+  // KB: interface.md §80 — the type menu keeps its Escape above; below this there is nothing
+  // to edit. Alt+R is the one view control with a shortcut, and it passes with its button.
+  if (!started && !(event.altKey && event.code === 'KeyR')) return;
 
   const onBoard = target === canvas || target === irregularCanvas || target === document.body;
   // The written pattern's text is left to the browser's own copy handling.

@@ -618,6 +618,57 @@ body.is-selecting #board-irregular {
   display: none;
 }
 
+/*
+ * KB: interface.md §80 — it clears the open side bars, like the alert above it.
+ * Below 48 rem the two inset variables stay 0, so the box covers the side columns:
+ * only the button takes the pointer, or the panel toggle the gate leaves enabled
+ * would open columns nothing could reach.
+ */
+.start {
+  position: absolute;
+  z-index: 7;
+  inset-block: 0;
+  inset-inline: var(--side-start) var(--side-end);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-5);
+  text-align: center;
+}
+
+.start[hidden] {
+  display: none;
+}
+
+.start__text {
+  max-inline-size: 26rem;
+  margin: 0;
+  color: var(--c-text-soft);
+  font-size: 1rem;
+  text-wrap: balance;
+}
+
+.start__button {
+  pointer-events: auto;
+  min-block-size: 44px;
+  padding: var(--sp-2) var(--sp-5);
+  border: 1px solid var(--c-accent);
+  border-radius: var(--radius-lg);
+  background: var(--c-accent);
+  color: var(--c-surface);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.start__button:hover {
+  background: var(--c-ink);
+  border-color: var(--c-ink);
+}
+
 .panel {
   position: absolute;
   inset-block: 0;
@@ -700,6 +751,16 @@ body.is-selecting #board-irregular {
 
 .stitch:active:not(:disabled) {
   background: var(--c-selection);
+}
+
+/* KB: interface.md §80 — a tile that cannot be armed must not answer the pointer either. */
+.stitch:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.stitch:disabled:hover {
+  border-color: var(--c-line);
 }
 
 .stitch[aria-pressed="true"] {

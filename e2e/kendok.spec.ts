@@ -7,7 +7,10 @@
 
 import { expect, type Page, test } from '@playwright/test';
 
+import { asReturningVisitor } from './kezdet.ts';
+
 async function open(page: Page): Promise<void> {
+  await asReturningVisitor(page);
   await page.goto('/');
   const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();

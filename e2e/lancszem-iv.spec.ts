@@ -10,6 +10,8 @@
 
 import { expect, type Page, test } from '@playwright/test';
 
+import { asReturningVisitor } from './kezdet.ts';
+
 interface Cell {
   readonly layer: number;
   readonly index: number;
@@ -47,6 +49,7 @@ const pick = async (page: Page, name: RegExp): Promise<void> => {
 test('5 chain stitches over 3 skipped stitches make an arc, and the single crochet stays in place (PQW-951)', async ({
   page,
 }) => {
+  await asReturningVisitor(page);
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
@@ -127,6 +130,7 @@ test('5 chain stitches over 3 skipped stitches make an arc, and the single croch
 test('the chain gives an arc when placed between two finished single crochets afterwards too (PQW-952)', async ({
   page,
 }) => {
+  await asReturningVisitor(page);
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
@@ -190,6 +194,7 @@ test('the chain gives an arc when placed between two finished single crochets af
 });
 
 test('the fan worked into the chain arc fits, and row 3 does not slide off the fabric (PQW-953)', async ({ page }) => {
+  await asReturningVisitor(page);
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
