@@ -249,9 +249,12 @@ const mirror = false;
 let patternType: PatternTypeId = readType();
 // KB: interface.md §80 — until this is true the editor is closed and „Új” is the only way on.
 let started = readStarted();
-// KB: interface.md §80 — what the gate was before the make-a-pattern sheet opened, so
-// closing the sheet without creating anything gives back the pattern that was there.
+// KB: interface.md §80 — the type and the gate as the make-a-pattern sheet found them, so
+// closing it without creating anything gives back the pattern that was there, whichever
+// type it was in. The free-form pattern lives in the editor's own state, not in `history`,
+// so there is nothing else to read it from afterwards.
 let startedBeforeSetup = started;
+let typeBeforeSetup = patternType;
 let showGrid = readGrid();
 // KB: interface.md §5 — not persisted; that would need a new key.
 let aspect = false;
@@ -664,8 +667,10 @@ function applyStartGate(): void {
   for (const action of GATED_TOOLS) setDisabled(action, !started);
   if (started) return;
   for (const action of COMPUTED_TOOLS) setDisabled(action, true);
-  // A panel of the pattern, behind a disabled button, is the half-live panel „Méret és fonal” is `inert` to avoid.
-  if (!written.hidden) setWrittenOpen(false);
+  // A panel of the pattern, behind a disabled button, is the half-live panel „Méret és fonal”
+  // is `inert` to avoid. KB: interface.md §10 — visibility only: what the visitor chose to
+  // have open is theirs, and the gate is not a reason to forget it.
+  if (!written.hidden) setOpen(written, writtenToggle, false);
 }
 
 /**
@@ -856,13 +861,32 @@ function setSetupOpen(open: boolean): void {
 }
 
 /**
- * KB: interface.md §80 — every way out of the sheet that is not „Minta létrehozása”
- * comes through here, so leaving it never costs the pattern that was already there.
+ * KB: interface.md §80 — „Lecsukás” and Escape: the sheet is left without making anything,
+ * so what it found comes back whole. Only this way out restores; the ways that *supersede*
+ * the sheet — another type, a file, an armed stitch — close it with `setSetupOpen` and
+ * carry their own state.
  */
-function closeSetup(): void {
+function dismissSetup(): void {
   if (setupSheet.hidden) return;
-  setStarted(startedBeforeSetup);
+  // The sheet closes first, because switching back to the free-form type closes it too
+  // (`showIrregularView`) and would otherwise come straight back in here.
   setSetupOpen(false);
+  // The type goes back with the gate: the visitor may have come from the free-form canvas,
+  // whose pattern is in the editor's own state and would otherwise be left off screen with
+  // no way back that does not empty it.
+  if (patternType !== typeBeforeSetup) selectType(typeBeforeSetup);
+  setStarted(startedBeforeSetup);
+}
+
+/**
+ * KB: interface.md §80 — from the moment there is a pattern, that pattern is what the sheet
+ * would give back. A file can arrive while the sheet stands open, and a generated one leaves
+ * it open on purpose (§54), so both say so here.
+ */
+function patternMade(): void {
+  startedBeforeSetup = true;
+  typeBeforeSetup = patternType;
+  setStarted(true);
 }
 
 function setWrittenOpen(open: boolean): void {
@@ -1078,7 +1102,7 @@ function select(id: StitchDefId | null): void {
   // KB: interface.md §81 — the sheet covers the panel, and the chain count leads it.
   // Only a change arms: interface.md §6 re-applies the armed stitch on a notation or
   // language change, and that must not close a sheet opened after the arming.
-  if (id !== null && id !== tool) closeSetup();
+  if (id !== null && id !== tool) setSetupOpen(false);
   tool = id;
   hover = null;
   if (id) {
@@ -1342,7 +1366,7 @@ async function importJson(file: File): Promise<void> {
     if (!ensureIrregular().importJson(source)) return;
     if (patternType !== 'irregular') selectType('irregular');
     // KB: interface.md §80 — a free-form file is a pattern as much as a regular one is.
-    setStarted(true);
+    patternMade();
     return;
   }
   const loaded = loadPattern(source);
@@ -1357,7 +1381,7 @@ async function importJson(file: File): Promise<void> {
   }
   if (patternType === 'irregular') selectType(DEFAULT_PATTERN_TYPE);
   // KB: interface.md §80 — a file is a pattern too, so opening one is a second way in.
-  setStarted(true);
+  patternMade();
   selectedNode = null;
   selection = [];
   const recorded = loaded.pattern.notation?.terms;
@@ -1660,7 +1684,7 @@ const ACTIONS: Record<string, () => void> = {
   'copy-written': () => void copyWritten(),
   'written-full': () => toggleWrittenFull(),
   'close-setup': () => {
-    closeSetup();
+    dismissSetup();
     // The close button goes with the sheet, so the focus returns to the menu that opened it.
     typesToggle.focus();
   },
@@ -2038,7 +2062,7 @@ function setRegularMenuOpen(open: boolean): void {
 function openGranny(): void {
   selectType('irregular');
   // KB: interface.md §80 — the round guide is the pattern, so this entry makes one on the spot.
-  setStarted(true);
+  patternMade();
   // `newGranny` empties the pattern itself, so the plain „new” would only double it.
   ensureIrregular().newGranny();
   // KB: interface.md §72 — the grid count of the first round is the first thing to set.
@@ -2054,14 +2078,16 @@ function openRegularEntry(entry: RegularMenuEntry): void {
     openGranny();
     return;
   }
-  // KB: interface.md §80 — the family is not the pattern. The type is switched so the
-  // sheet works on the right one, the pattern stands until „Minta létrehozása” replaces
-  // it, and the editor is closed meanwhile because there is nothing chosen to edit yet.
-  selectType('regular');
-  // What „Lecsukás” gives back is the regular pattern, which is why this asks the pattern
-  // rather than the gate: the visitor may be arriving from the free-form canvas.
-  startedBeforeSetup = !isEmptyPattern(history.present);
+  // KB: interface.md §80 — the family is not the pattern. What the sheet found is kept
+  // whole, type and gate together, and the gate closes *before* the type is switched:
+  // `persistType` writes the stored type only while the gate is open, so a family merely
+  // chosen must not reach it.
+  startedBeforeSetup = started;
+  typeBeforeSetup = patternType;
   setStarted(false);
+  // The type is switched so the sheet works on the right pattern; it stands until
+  // „Minta létrehozása” replaces it, and the editor is closed meanwhile.
+  selectType('regular');
   const target = must<HTMLDetailsElement>(entry.section);
   for (const section of regularTypeSections) {
     if (!setupSheet.contains(section)) continue;
@@ -2084,7 +2110,7 @@ function openRegularEntry(entry: RegularMenuEntry): void {
  */
 function startType(id: PatternTypeId): void {
   selectType(id);
-  setStarted(true);
+  patternMade();
   ACTIONS['new']?.();
 }
 
@@ -2130,7 +2156,7 @@ writtenToggle.addEventListener('click', () => {
   // KB: interface.md §10
   if (open && writtenShare === null) applyWrittenShare(writtenShareFor(patternType, NARROW.matches));
   if (open && NARROW.matches) setPanelsOpen(false);
-  if (open && SETUP_TIGHT.matches) closeSetup();
+  if (open && SETUP_TIGHT.matches) setSetupOpen(false);
 });
 
 // KB: interface.md §13 — pointer, touch and keyboard.
@@ -2581,8 +2607,7 @@ function generated(pattern: Pattern, message: Message): void {
   selection = [];
   // KB: interface.md §80 — this is the moment there is a pattern, and `commit` refuses
   // while the gate is closed, so the gate opens first and „Lecsukás” has nothing to undo.
-  startedBeforeSetup = true;
-  setStarted(true);
+  patternMade();
   commit({ ok: true, pattern }, message);
   fitBoard();
 }
@@ -2729,7 +2754,7 @@ function showIrregularView(on: boolean): void {
   if (on) setOpen(written, writtenToggle, false);
   // KB: interface.md §54 — every section of the sheet belongs to the regular type, so in
   // free-form mode it has nothing to show.
-  if (on) closeSetup();
+  if (on) setSetupOpen(false);
   must<HTMLButtonElement>('#export-run').disabled = false;
   for (const id of [
     '#view-guides',
