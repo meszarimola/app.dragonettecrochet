@@ -188,13 +188,6 @@
                 </svg>
                 <span class="tool__label" data-i18n="bgRemove">Remove the background picture</span>
               </button>
-              <button type="button" class="tool" id="setup-toggle" aria-expanded="false" aria-controls="setup" aria-label="Make a pattern" data-tip="Make a pattern from measurements you give" data-i18n-label="setupToggle" data-i18n-tip="toolSetupTip">
-                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                  <path d="M4 16V8.5L10 4l6 4.5V16z" />
-                  <path d="M8 16v-4h4v4" />
-                </svg>
-                <span class="tool__label" data-i18n="setupToggle">Make a pattern</span>
-              </button>
               </div>
               </div>
               <input type="file" id="import-file" accept="application/json,.json" hidden />
@@ -1139,62 +1132,6 @@
               </div>
               <p class="panel__note" id="shawl-source"></p>
               <button type="button" class="tool shape__create" id="shawl-create" data-i18n="shawlCreate">Create pattern</button>
-            </div>
-          </details>
-          <details class="section" id="section-rounds">
-            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionRoundsTitle">Round and motif</h2></summary>
-            <div class="rounds" role="group" aria-label="Create a round or motif" data-i18n-label="roundsGroupLabel">
-              <p class="panel__note" data-i18n="roundsNote">Makes a granny square round by round. The new pattern replaces the current one; undo brings the previous one back.</p>
-              <p class="panel__field">
-                <label for="rounds-shape" data-i18n="roundsShapeLabel">Shape</label>
-                <select id="rounds-shape"></select>
-              </p>
-              <p class="panel__field">
-                <label for="rounds-stitch" data-i18n="roundsStitchLabel">Stitch</label>
-                <select id="rounds-stitch"></select>
-              </p>
-              <p class="panel__field">
-                <label for="rounds-start" data-i18n="roundsStartLabel">Start</label>
-                <select id="rounds-start"></select>
-              </p>
-              <p class="panel__field">
-                <label for="rounds-count" data-i18n="roundsCountLabel">Number of rounds</label>
-                <input id="rounds-count" type="number" min="1" max="30" step="1" value="6" inputmode="numeric" />
-              </p>
-              <p class="panel__field">
-                <label for="rounds-closing" data-i18n="roundsClosingLabel">End of round</label>
-                <select id="rounds-closing" aria-describedby="rounds-closing-note"></select>
-              </p>
-              <p class="panel__note" id="rounds-closing-note" data-i18n="roundsClosingNote">A spiral in amigurumi, a joined round in all other work in the round.</p>
-              <p class="choice">
-                <label><input type="checkbox" id="rounds-stagger" checked /> <span data-i18n="roundsStaggerLabel">Staggered increases (rounder circle)</span></label>
-              </p>
-              <p class="panel__field">
-                <label for="rounds-colors" data-i18n="roundsColorsLabel">Change colour after every nth round (0: never)</label>
-                <input id="rounds-colors" type="number" min="0" max="30" step="1" value="0" inputmode="numeric" />
-              </p>
-              <p class="panel__field">
-                <label for="rounds-jog" data-i18n="roundsJogLabel">Jogless join in a spiral</label>
-                <select id="rounds-jog"></select>
-              </p>
-              <div class="shape__group" id="rounds-ribbing-fields">
-                <p class="choice">
-                  <label><input type="checkbox" id="rounds-ribbing" aria-describedby="rounds-ribbing-note" /> <span data-i18n="roundsRibbingLabel">Ribbed brim after the last round</span></label>
-                </p>
-                <p class="panel__note" id="rounds-ribbing-note" data-i18n="roundsRibbingNote">Alternating front and back post stitches (FPdc, BPdc) around the posts of the last round: the stitch count stays the same. Only with a slip-stitch join, and only if the stitch count is divisible by twice the rib width.</p>
-                <div class="shape__pair" id="rounds-ribbing-pair" hidden>
-                  <p class="panel__field">
-                    <label for="rounds-ribbing-rows" data-i18n="roundsRibbingRowsLabel">Ribbing rounds</label>
-                    <input id="rounds-ribbing-rows" type="number" min="1" max="20" step="1" value="2" inputmode="numeric" disabled />
-                  </p>
-                  <p class="panel__field">
-                    <label for="rounds-ribbing-width" data-i18n="roundsRibbingWidthLabel">Rib width (1×1, 2×2)</label>
-                    <input id="rounds-ribbing-width" type="number" min="1" max="6" step="1" value="1" inputmode="numeric" disabled />
-                  </p>
-                </div>
-              </div>
-              <p class="panel__note" id="rounds-note" aria-live="polite"></p>
-              <button type="button" class="tool rounds__create" id="rounds-create" data-i18n="roundsCreate">Create pattern</button>
             </div>
           </details>
           <details class="section" id="section-grid">

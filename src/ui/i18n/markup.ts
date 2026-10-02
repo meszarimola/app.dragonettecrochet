@@ -32,10 +32,8 @@ export const MARKUP_TEXTS = {
     errorsRegionLabel: 'Hibák és figyelmeztetések',
     writtenToggle: 'Írott minta',
     panelToggle: 'Szemek és beállítások',
-    setupToggle: 'Minta készítése',
     setupTitle: 'Minta készítése',
     setupIntro: 'Add meg a méreteket, és a tervező elkészíti belőlük a mintát. A létrehozás lecseréli a mostani mintát.',
-    toolSetupTip: 'Minta készítése megadott méretekből',
 
     toolGroupFile: 'Fájl',
     toolGroupEdit: 'Szerkesztés',
@@ -238,25 +236,6 @@ export const MARKUP_TEXTS = {
     gridCreate: 'Minta létrehozása',
     gridLoad: 'Rács a mostani mintából',
 
-    sectionRoundsTitle: 'Kör és motívum',
-    roundsGroupLabel: 'Kör és motívum létrehozása',
-    roundsNote:
-      'Nagymama-négyzetet készít körönként. Az új minta a mostani helyére kerül; visszavonással a korábbi visszajön.',
-    roundsShapeLabel: 'Forma',
-    roundsStitchLabel: 'Szem',
-    roundsStartLabel: 'Kezdés',
-    roundsCountLabel: 'Körök száma',
-    roundsClosingLabel: 'Kör vége',
-    roundsClosingNote: 'Amigurumiban spirál, minden más körben haladó munkában zárt kör.',
-    roundsStaggerLabel: 'Eltolt szaporítás (kerekebb kör)',
-    roundsColorsLabel: 'Színváltás minden hányadik kör után (0: nincs)',
-    roundsJogLabel: 'Lépcsőjavítás spirálban',
-    roundsRibbingLabel: 'Bordás perem a kör végén',
-    roundsRibbingNote:
-      'Váltakozó első és hátsó relief pálca (Eerp, Herp) az utolsó kör szemeinek pálcája köré: a szemszám nem változik. Csak kúszószemes zárásnál, és ha a szemszám a borda kétszeresével osztható.',
-    roundsRibbingRowsLabel: 'A bordázat körei',
-    roundsRibbingWidthLabel: 'A borda szélessége (1×1, 2×2)',
-    roundsCreate: 'Minta létrehozása',
 
     sectionAmigurumiTitle: 'Amigurumi',
     amigurumiGroupLabel: 'Amigurumi rész létrehozása',
@@ -473,10 +452,8 @@ export const MARKUP_TEXTS = {
     errorsRegionLabel: 'Errors and warnings',
     writtenToggle: 'Written pattern',
     panelToggle: 'Stitches and settings',
-    setupToggle: 'Make a pattern',
     setupTitle: 'Make a pattern',
     setupIntro: 'Give the measurements and the designer builds the pattern from them. Creating one replaces the pattern you have.',
-    toolSetupTip: 'Make a pattern from measurements you give',
 
     toolGroupFile: 'File',
     toolGroupEdit: 'Edit',
@@ -681,25 +658,6 @@ export const MARKUP_TEXTS = {
     gridCreate: 'Create pattern',
     gridLoad: 'Grid from the current pattern',
 
-    sectionRoundsTitle: 'Round and motif',
-    roundsGroupLabel: 'Create a round or motif',
-    roundsNote:
-      'Makes a granny square round by round. The new pattern replaces the current one; undo brings the previous one back.',
-    roundsShapeLabel: 'Shape',
-    roundsStitchLabel: 'Stitch',
-    roundsStartLabel: 'Start',
-    roundsCountLabel: 'Number of rounds',
-    roundsClosingLabel: 'End of round',
-    roundsClosingNote: 'A spiral in amigurumi, a joined round in all other work in the round.',
-    roundsStaggerLabel: 'Staggered increases (rounder circle)',
-    roundsColorsLabel: 'Change colour after every nth round (0: never)',
-    roundsJogLabel: 'Jogless join in a spiral',
-    roundsRibbingLabel: 'Ribbed brim after the last round',
-    roundsRibbingNote:
-      'Alternating front and back post stitches (FPdc, BPdc) around the posts of the last round: the stitch count stays the same. Only with a slip-stitch join, and only if the stitch count is divisible by twice the rib width.',
-    roundsRibbingRowsLabel: 'Ribbing rounds',
-    roundsRibbingWidthLabel: 'Rib width (1×1, 2×2)',
-    roundsCreate: 'Create pattern',
 
     sectionAmigurumiTitle: 'Amigurumi',
     amigurumiGroupLabel: 'Create an amigurumi piece',

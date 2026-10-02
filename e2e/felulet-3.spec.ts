@@ -30,23 +30,17 @@ test('the content of the File dropdown is visible and stays on screen', async ({
   expect(box.x, 'the left edge of the dropdown is on screen').toBeGreaterThanOrEqual(0);
   expect(box.x + box.width, 'the right edge of the dropdown is on screen').toBeLessThanOrEqual(viewport.width);
 
-  // The sheet opener joined the menu in PQW-987: it starts a pattern, as the “New pattern”
-  // button beside the menu does. It is checked the same way, then the file actions. The
-  // picture exports moved behind one item (interface.md §57), and the two background
-  // picture items and the pattern settings are there, hidden, for the free-form type.
+  // The file actions. The picture exports moved behind one item (interface.md §57), and the
+  // two background picture items and the pattern settings are there, hidden, for the
+  // free-form type.
   const items = pop.locator('button');
   // PQW-1047: the JSON flyout's own button joins the list.
   // PQW-1048: the settings entry is gone with its window.
-  await expect(items).toHaveCount(7);
-  const opener = pop.locator('#setup-toggle');
-  await expect(opener).toBeVisible();
-  await expect(opener).toHaveText(/\S/);
-  const openerBox = (await opener.boundingBox())!;
-  expect(openerBox.x).toBeGreaterThanOrEqual(0);
-  expect(openerBox.x + openerBox.width).toBeLessThanOrEqual(viewport.width);
+  // PQW-1129: the make-a-pattern opener is gone; the „New” menu is the only way in.
+  await expect(items).toHaveCount(6);
 
   // PQW-1047: the JSON actions moved into a flyout of their own; export leads the menu.
-  for (const action of ['#export-open', '#json-toggle', '#setup-toggle']) {
+  for (const action of ['#export-open', '#json-toggle']) {
     const item = pop.locator(action);
     await expect(item, action).toBeVisible();
     await expect(item, action).toHaveText(/\S/);

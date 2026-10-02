@@ -17,12 +17,12 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
-/** The make-a-pattern sheet (PQW-987) is closed on load, and its opener is in the file menu. */
-async function openSheet(page: Page): Promise<void> {
-  const sheet = page.locator('#setup-toggle');
-  if ((await sheet.getAttribute('aria-expanded')) !== 'true') {
-    await page.locator('#file-toggle').click();
-    await sheet.click();
+/** KB: interface.md §79 — the sheet opens from the „New” menu, on one family, and shows only it. */
+async function openSheet(page: Page, family: RegExp = /Flat shape/): Promise<void> {
+  if (await page.locator('#setup').isHidden()) {
+    await page.locator('#types-toggle').click();
+    await page.locator('.type[data-type="regular"]').click();
+    await page.getByRole('menuitem', { name: family }).click();
   }
 }
 
@@ -58,7 +58,7 @@ test('the free-form type takes the regular generators out of the sheet, and brin
 
   await chooseIrregular(page);
   for (const selector of REGULAR_SECTIONS) await expect(page.locator(selector)).toBeHidden();
-  await expect(page.locator('#setup-toggle')).toBeHidden();
+  await expect(page.locator('#setup')).toBeHidden();
   await expect(page.locator('#irregular-tabs')).toBeVisible();
 
   await chooseRegular(page);
@@ -74,7 +74,7 @@ test('a switched-off pattern type stays hidden in both modes', async ({ page }) 
   // In free-form mode the sheet holds nothing, so its opener goes too (PQW-987) — a
   // stronger statement than "the sections are hidden", which would be true either way.
   await chooseIrregular(page);
-  await expect(page.locator('#setup-toggle')).toBeHidden();
+  await expect(page.locator('#setup')).toBeHidden();
   for (const selector of DISABLED_SECTIONS) await expect(page.locator(selector)).toBeHidden();
 
   await chooseRegular(page);

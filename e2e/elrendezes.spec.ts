@@ -13,12 +13,12 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
-/** The make-a-pattern sheet (PQW-987) is closed on load, and its opener is in the file menu. */
-async function openSheet(page: Page): Promise<void> {
-  const sheet = page.locator('#setup-toggle');
-  if ((await sheet.getAttribute('aria-expanded')) !== 'true') {
-    await page.locator('#file-toggle').click();
-    await sheet.click();
+/** KB: interface.md §79 — the sheet opens from the „New” menu, on one family, and shows only it. */
+async function openSheet(page: Page, family: RegExp = /Flat shape/): Promise<void> {
+  if (await page.locator('#setup').isHidden()) {
+    await page.locator('#types-toggle').click();
+    await page.locator('.type[data-type="regular"]').click();
+    await page.getByRole('menuitem', { name: family }).click();
   }
 }
 

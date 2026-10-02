@@ -53,7 +53,7 @@ test('5 chain stitches over 3 skipped stitches make an arc, and the single croch
   // "New pattern" is the type menu since PQW-1045; since PQW-1126 the shape starts the pattern.
   await page.getByRole('button', { name: 'New pattern' }).click();
   await page.locator('.type[data-type="regular"]').click();
-  await page.getByRole('menuitem', { name: /Rectangular/ }).click();
+  await page.getByRole('menuitem', { name: /Flat shape/ }).click();
   await page.locator('[data-action="close-setup"]').click();
 
   await pick(page, /Chain \(ch\)/);
@@ -133,7 +133,7 @@ test('the chain gives an arc when placed between two finished single crochets af
   // "New pattern" is the type menu since PQW-1045; since PQW-1126 the shape starts the pattern.
   await page.getByRole('button', { name: 'New pattern' }).click();
   await page.locator('.type[data-type="regular"]').click();
-  await page.getByRole('menuitem', { name: /Rectangular/ }).click();
+  await page.getByRole('menuitem', { name: /Flat shape/ }).click();
   await page.locator('[data-action="close-setup"]').click();
 
   await pick(page, /Chain \(ch\)/);
@@ -196,7 +196,7 @@ test('the fan worked into the chain arc fits, and row 3 does not slide off the f
   // "New pattern" is the type menu since PQW-1045; since PQW-1126 the shape starts the pattern.
   await page.getByRole('button', { name: 'New pattern' }).click();
   await page.locator('.type[data-type="regular"]').click();
-  await page.getByRole('menuitem', { name: /Rectangular/ }).click();
+  await page.getByRole('menuitem', { name: /Flat shape/ }).click();
   await page.locator('[data-action="close-setup"]').click();
 
   await pick(page, /Chain \(ch\)/);

@@ -38,11 +38,12 @@ async function chooseRegular(page: Page): Promise<void> {
 async function openSection(page: Page, selector: string): Promise<void> {
   const inSheet = await page.locator(selector).evaluate((el) => el.closest('#setup') !== null);
   if (inSheet) {
-    const sheet = page.locator('#setup-toggle');
-    if ((await sheet.getAttribute('aria-expanded')) !== 'true') {
-      // The opener lives in the file menu (PQW-987), which has to be open to click it.
-      await page.locator('#file-toggle').click();
-      await sheet.click();
+    // KB: interface.md §79 — the sheet opens from the „New” menu, on one family.
+    if (await page.locator('#setup').isHidden()) {
+      await page.locator('#types-toggle').click();
+      await page.locator('.type[data-type="regular"]').click();
+      const family = selector === '#section-shawl' ? /Shawl/ : /Flat shape/;
+      await page.getByRole('menuitem', { name: family }).click();
     }
   }
   // In free-form mode the notation waits in the pattern settings dialog (interface.md §60).
