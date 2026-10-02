@@ -42,17 +42,23 @@ simply never run, silently.
 ## 3. The branch
 
 ```bash
-git worktree add ../app-app-dc-<short-name> -b feature/PQW-<n>-<short-name> develop
-cd ../app-app-dc-<short-name>
-npm ci
+npm run munkafa -- <n> <short-name>          # feature/PQW-<n>-<short-name>
+npm run munkafa -- <n> <short-name> --fix    # fix/PQW-<n>-<short-name>
+cd "../app-dc-<short-name>"
 ```
 
-Branch names: ASCII, lowercase, Hungarian without accents. Do **not** use the
-`imolameszar/pqw-…` name Linear suggests.
+One command does the whole setup: the branch off `develop`, an independent
+`node_modules` in about a second, and a port of its own in `.env.local` that
+`npm run kapu` picks up. It refuses a bad ticket number or short name before it
+touches git.
+
+Branch names: ASCII, lowercase, Hungarian without accents — the command enforces
+exactly that. Do **not** use the `imolameszar/pqw-…` name Linear suggests.
 
 **Never symlink `node_modules`.** Removing such a worktree destroyed the main
-checkout's install on 2026-09-16 — see `docs/kb/incidents.md` §1. Each worktree
-runs its own `npm ci`.
+checkout's install on 2026-09-16 — see `docs/kb/incidents.md` §1. A copy-on-write
+clone is a real directory rather than a link, which is why the command may use
+one, and why `npm ci` is only its fallback.
 
 **The git stash is shared** across worktrees. Use a temporary WIP commit instead
 of a bare `git stash` / `git stash pop`.
@@ -83,9 +89,11 @@ is public, so branch protection is available and the CI check is required on
 Comment on the ticket with what shipped and what is still open. Then clean up:
 
 ```bash
-git worktree remove ../app-app-dc-<short-name>
-git branch -d feature/PQW-<n>-<short-name>
+npm run munkafa -- --zar <n>
 ```
+
+It removes the worktree and deletes the branch, and refuses while the tree is
+dirty or the branch is not yet in `develop` — so a close cannot lose work.
 
 A branch session cannot remove its own worktree — the coordinating session does
 it.

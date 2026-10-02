@@ -56,12 +56,17 @@ landing page on the main site.
 
 ## Worktrees
 
-- One worktree per branch:
-  `git worktree add ../app-dc-<short-name> -b fix/PQW-<n>-<short-name> develop`
-- **Each worktree gets its own `npm ci`. Never symlink `node_modules`** — that
-  destroyed the shared install in the sibling repo on 2026-09-16.
+- **One command, not six steps:** `npm run munkafa -- <n> <short-name>`, with
+  `--fix` for a bug fix. It branches from `develop`, gives the worktree its own
+  `node_modules` in about a second, and writes it a port of its own that
+  `npm run kapu` reads. `npm run munkafa -- --zar <n>` closes it, and refuses
+  while the tree is dirty or the branch is not yet in `develop`.
+- **Each worktree gets its own `node_modules`. Never symlink it** — that destroyed
+  the shared install in the sibling repo on 2026-09-16. A copy-on-write clone is
+  not a link, which is why the command is allowed to use one.
 - **The git stash is shared** across worktrees: use a temporary WIP commit.
-- Two worktrees running E2E **collide on port 5181**. Pass a different `PORT`.
+- Two worktrees running E2E **collide on port 5181** — that is what the port in
+  `.env.local` exists to prevent. Never hard-code a port into a run.
 
 ## Where to find more
 
