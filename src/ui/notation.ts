@@ -33,8 +33,12 @@ export function readNotation(stored: string | null, ui: UiLanguage): PatternNota
   if (typeof raw !== 'object' || raw === null) return defaults;
   const value = raw as Record<string, unknown>;
   const chartStyle = pick(value['chartStyle'], CHART_STYLES, defaults.chartStyle);
+  const stored_ = pick(value['terms'], TERMS, defaults.terms);
   return {
-    terms: pick(value['terms'], TERMS, defaults.terms),
+    // KB: owner-decisions.md §17 — terms of another language cannot stand on this
+    // interface, or a session from before PQW-1100 strands the user (PQW-1122).
+    // Within the language the stored choice holds, which is what keeps UK terms.
+    terms: textLanguage(stored_) === ui ? stored_ : defaults.terms,
     chartStyle,
     // KB: interface.md §21 — never read back from storage.
     singleCrochet: singleCrochetFor(chartStyle),

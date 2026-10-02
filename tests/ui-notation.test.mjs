@@ -52,14 +52,22 @@ test('the interface language comes from the <html lang> value, defaulting to Eng
   ]);
 });
 
-test('the interface language and the notation can be set independently', () => {
+test('the terms follow the interface language, whatever is stored (PQW-1122)', () => {
+  // Terms of the other language cannot stand on this interface, or a session from
+  // before PQW-1100 strands the user where nothing can change them. Within the
+  // language the stored choice holds — that is what keeps UK terms reachable.
+  // KB: owner-decisions.md §17
+  const expected = {
+    hu: { hu: 'hu', 'en-US': 'hu', 'en-GB': 'hu' },
+    en: { hu: 'en-US', 'en-US': 'en-US', 'en-GB': 'en-GB' },
+  };
   for (const ui of ['hu', 'en']) {
     for (const terms of TERMS) {
       const stored = writeNotation({ terms, chartStyle: 'jis', singleCrochet: 'cross' });
       assert.deepEqual(
         readNotation(stored, ui),
-        { terms, chartStyle: 'jis', singleCrochet: 'cross' },
-        `${ui}, ${terms}`,
+        { terms: expected[ui][terms], chartStyle: 'jis', singleCrochet: 'cross' },
+        `${ui} interface, ${terms} stored`,
       );
     }
   }

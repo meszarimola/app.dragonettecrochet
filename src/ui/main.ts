@@ -862,10 +862,16 @@ function changeLanguage(language: UiLanguage): void {
   if (homeLink) homeLink.href = homeUrl(language);
   // `history` here is the editor's undo stack, hence the fully qualified browser one.
   window.history.replaceState(window.history.state, '', urlWithLanguage(location.href, language));
-  // KB: interface.md §2 — a stored notation wins; only the default follows the language.
-  if (storedNotation() === null) {
-    notation = defaultNotation(language);
-    symbols = symbolOptionsFor(notation);
+  // KB: owner-decisions.md §17 — terms belonging to the language just left cannot
+  // stay behind; within the new language the choice holds (PQW-1122).
+  if (textLanguage(notation.terms) !== language) {
+    notation = { ...notation, terms: defaultNotation(language).terms };
+  }
+  symbols = symbolOptionsFor(notation);
+  try {
+    localStorage.setItem(NOTATION_KEY, writeNotation(notation));
+  } catch {
+    // KB: interface.md §5
   }
   syncNotationControls();
   renderTypes();

@@ -19,11 +19,17 @@ built `.js` extension.
 Rewriting one form into the other "for consistency" breaks either the test
 runner or the bundle, so the extension in these files is load-bearing.
 
-## §2 The interface language and the pattern's notation are independent
+## §2 The notation's terms follow the interface language; its chart style does not
 
-Two separate settings (PQW-868, PQW-900). An English interface can work in
-Hungarian notation. The notation's default is derived from the interface
-language, but a stored choice wins over it.
+Two settings, no longer free of each other (PQW-868, PQW-900, **PQW-1122**).
+The **terms** belong to the interface language: English gives US terms unless
+`en-GB` is stored, Hungarian gives Hungarian ones, and terms stored for the
+other language are dropped on load and on a language switch. The **chart style**
+is a display choice of its own and survives both.
+
+`owner-decisions.md` §17 says why the independence went: PQW-1048 took the
+terminology chooser off the interface, so a stored `terms: hu` under an English
+interface was a state the user could neither have chosen nor leave.
 
 The choice is presentation only: the graph does not change, and the pattern
 records the notation it was made with when it is saved or exported. The palette,

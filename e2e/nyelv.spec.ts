@@ -148,30 +148,38 @@ test('on a language change the labels of the dropdowns switch to the new languag
   await expect(page.locator('#shape-kind')).toContainText('Téglalap');
 });
 
-test('the language of the interface and the notation of the pattern are independent', async ({ page }) => {
-  // On an English interface one can work with Hungarian notation too: the stitch
-  // names follow the notation, the interface language stays English.
+test('a notation stored in the other language does not survive the interface (PQW-1122)', async ({ page }) => {
+  // The owner hit this on release day: a browser that had used the app in
+  // Hungarian kept `terms: hu`, the interface resolved to English because no
+  // language was stored, and the palette read "Láncszem (lsz)" under an English
+  // bar — with no control on the page to change it. KB: owner-decisions.md §17
   await withTerms(page, 'hu');
-  await open(page, '?lang=en');
+  await open(page, '');
 
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(sizeTitle(page)).toHaveText('Size and yarn');
-  await expect(page.locator('#palette')).toContainText('Láncszem');
-
-  // Switching the interface back does not touch the notation either.
-  await page.locator('#ui-language').selectOption('hu');
-  await expect(page.locator('#palette')).toContainText('Láncszem');
-});
-
-test('a Hungarian interface with US notation keeps the English stitch names (PQW-1100)', async ({ page }) => {
-  // The other half of the same independence, and the one PQW-920 changed: the
-  // names follow the notation, so they stay English under a Hungarian interface.
-  await withTerms(page, 'en-US');
-  await open(page, '?lang=hu');
-
-  await expect(sizeTitle(page)).toHaveText('Méret és fonal');
   await expect(page.locator('#palette')).toContainText('Chain (ch)');
   await expect(page.locator('#palette')).not.toContainText('Láncszem');
+});
+
+test('a notation stored in the other language does not survive a switch either (PQW-1122)', async ({ page }) => {
+  await withTerms(page, 'en-US');
+  await open(page, '?lang=hu');
+  await expect(page.locator('#palette')).toContainText('Láncszem (lsz)');
+
+  await page.locator('#ui-language').selectOption('en');
+  await expect(page.locator('#palette')).toContainText('Chain (ch)');
+});
+
+test('within the language the stored terms hold, so UK terms stay reachable (PQW-1122)', async ({ page }) => {
+  // The terms follow the language, not the other way round: giving that up
+  // entirely would make UK terms unreachable, and the main site advertises them.
+  await withTerms(page, 'en-GB');
+  await open(page, '');
+
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page.locator('#palette')).toContainText('Double crochet (dc)');
+  await expect(page.locator('#palette')).not.toContainText('Single crochet (sc)');
 });
 
 test('the browser tab title and the description follow the interface language (PQW-905)', async ({ page }) => {
