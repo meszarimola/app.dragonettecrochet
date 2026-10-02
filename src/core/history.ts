@@ -17,12 +17,6 @@ export function record<T>(history: History<T>, next: T): History<T> {
   return { past: past.slice(Math.max(0, past.length - HISTORY_LIMIT)), present: next, future: [] };
 }
 
-/** A display-only change: it replaces the present without an undo step. KB: interface.md §2 */
-export function replace<T>(history: History<T>, next: T): History<T> {
-  if (Object.is(next, history.present)) return history;
-  return { ...history, present: next };
-}
-
 export function undo<T>(history: History<T>): History<T> {
   const previous = history.past[history.past.length - 1];
   if (previous === undefined) return history;

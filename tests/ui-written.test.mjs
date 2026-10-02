@@ -87,7 +87,7 @@ test('an invalid pattern renders the text plus a notice counting the errors', ()
   const result = view(pattern);
   assert.equal(result.kind, 'text');
   assert.ok(
-    result.notices.some((notice) => /^The pattern has \d+ errors \(see Check\)/.test(notice)),
+    result.notices.some((notice) => /^The pattern has \d+ errors? \(see Check\)/.test(notice)),
     result.notices.join(' | '),
   );
 });

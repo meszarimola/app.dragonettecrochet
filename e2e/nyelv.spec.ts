@@ -266,6 +266,10 @@ test('the basic tiles hold the longer English names too (PQW-989)', async ({ pag
  * and the written pattern. If a string here moves, the Hungarian branch of the
  * dictionary moved with it.
  */
+/** The pattern's title, from the store the app writes it to (PQW-1048). */
+const storedTitle = (page: Page): Promise<string | undefined> =>
+  page.evaluate(() => (JSON.parse(localStorage.getItem('dc-mintatervezo:minta') ?? '{}') as { title?: string }).title);
+
 test.describe('the Hungarian interface', () => {
   test('the bar and the panel are Hungarian', async ({ page }) => {
     await open(page, '?lang=hu');
@@ -319,6 +323,11 @@ test.describe('the Hungarian interface', () => {
     await expect(page.locator('#status')).toContainText('Lapos kör, 4 kör elkészült;');
     await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
 
+    // The title is what PQW-920 changed, and the status line above would not
+    // have caught it: that comes from the interface dictionary, the title from
+    // the notation the pattern records. KB: owner-decisions.md §16
+    await expect.poll(() => storedTitle(page)).toBe('Lapos kör');
+
     // The written pattern follows the notation (PQW-920), which a Hungarian
     // interface defaults to Hungarian: the same four rounds korok.spec.ts reads
     // in English.
@@ -329,4 +338,36 @@ test.describe('the Hungarian interface', () => {
     await page.keyboard.press('ControlOrMeta+Z');
     await expect(page.locator('#status')).toContainText('Visszavonva.');
   });
+
+  test('the first generated pattern of a session is Hungarian too (PQW-920)', async ({ page }) => {
+    // The regression this guards: a fresh pattern records no notation, so the
+    // title fell back to the default language and a Hungarian session opened
+    // with an English title over a Hungarian pattern.
+    await open(page, '?lang=hu');
+    await openSheet(page);
+    const section = page.locator('#section-shape');
+    if ((await section.getAttribute('open')) === null) await section.locator('summary').click();
+    await section.getByRole('button', { name: 'Minta létrehozása' }).click();
+
+    await expect.poll(() => storedTitle(page)).toBe('Téglalap');
+    expect(await writtenText(page)).toContain('Téglalap');
+  });
+
+  test('an editable decimal default follows the interface, not the source (PQW-1100)', async ({ page }) => {
+    // The panel rewrites its own fields after applyStaticTexts, so the markup
+    // default alone proves nothing — this reads what is on the screen.
+    await open(page, '?lang=hu');
+    await openSheet(page);
+    const section = page.locator('#section-garment');
+    if ((await section.getAttribute('open')) === null) await section.locator('summary').click();
+    await expect(page.locator('#garment-below')).toHaveValue('14,5');
+  });
+});
+
+test('an editable decimal default is a point on the English interface (PQW-1100)', async ({ page }) => {
+  await open(page, '');
+  await openSheet(page);
+  const section = page.locator('#section-garment');
+  if ((await section.getAttribute('open')) === null) await section.locator('summary').click();
+  await expect(page.locator('#garment-below')).toHaveValue('14.5');
 });

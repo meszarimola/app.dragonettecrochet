@@ -979,7 +979,7 @@ const en: PanelTexts = {
       `${name}: finished bust ${approx}${chest} cm, length ${approx}${length} cm, sleeve length ${approx}${sleeve} cm.`,
     yarnMissing:
       'For a yarn estimate, give the size and weight of the swatch, the length of the yarn and the weight of the ball in the Size and yarn section.',
-    yarn: (meters, balls) => `Yarn with a reserve: about ${meters} m, ${balls} balls.`,
+    yarn: (meters, balls) => `Yarn with a reserve: about ${meters} m, ${balls} ${balls === 1 ? 'ball' : 'balls'}.`,
     prefix: (name) => `${name}: `,
     failedCheck: (prefix, label, suggestion) => `${prefix}${label}: false.${suggestion}`,
     allChecks: (passed, total, sizes) => `Every check is true: ${passed}/${total}${sizes}.`,

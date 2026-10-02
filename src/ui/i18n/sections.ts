@@ -104,7 +104,7 @@ export interface SectionTexts {
       readonly yarnInPiece: string;
       readonly lengthWithBuffer: string;
       readonly balls: string;
-      /** Hungarian puts no plural after a numeral, so only the English branch reads the count. KB: dictionaries.md §5 */
+      /** Only the English branch reads the count: Hungarian puts no plural after a numeral. */
       readonly ballsUnit: (count: number) => string;
       readonly yarnNote: (ballMassG: string, ballLengthM: string) => string;
       readonly missingNote: (list: string) => string;
@@ -447,8 +447,10 @@ const en: SectionTexts = {
     empty: 'Nothing to write out yet: start with a foundation chain or a magic ring.',
     notWritable: (reason) => `This pattern cannot be written out yet. ${reason}`,
     broken: 'The structure of the pattern is faulty, so it cannot be written out; the Check section lists the errors.',
-    partial: (layer, remaining) => `${layer} is unfinished, ${remaining} targets are left: the text describes the current state.`,
-    errors: (count) => `The pattern has ${count} errors (see Check), so the text cannot be followed as it is.`,
+    partial: (layer, remaining) =>
+      `${layer} is unfinished, ${remaining} ${remaining === 1 ? 'target is' : 'targets are'} left: the text describes the current state.`,
+    errors: (count) =>
+      `The pattern has ${count} ${count === 1 ? 'error' : 'errors'} (see Check), so the text cannot be followed as it is.`,
     untitled: 'Untitled pattern',
   },
   insertion: {

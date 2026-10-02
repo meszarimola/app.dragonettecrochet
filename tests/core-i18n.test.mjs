@@ -18,6 +18,8 @@ import { strict as assert } from 'node:assert';
 import { readdirSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
+import { renderCoreText } from '../src/ui/i18n/core/render.ts';
+
 const HUNGARIAN = /[áéíóöőúüűÁÉÍÓÖŐÚÜŰ]/;
 const CORE_DIR = new URL('../src/ui/i18n/core/', import.meta.url);
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -165,4 +167,23 @@ test('no Hungarian sentence is left in the core files that face the user', () =>
     }
   }
   assert.deepEqual(offenders, [], `a Hungarian sentence was left in the core:\n${offenders.join('\n')}`);
+});
+
+test('a core code missing from the chosen language falls back to English, then to the code (PQW-1100)', () => {
+  const dictionary = { hu: {}, en: { known: 'An English sentence.' } };
+  assert.equal(
+    renderCoreText(dictionary, 'hu', { code: 'known' }),
+    'An English sentence.',
+    'the English branch answers for a code the chosen language has not got',
+  );
+  assert.equal(
+    renderCoreText(dictionary, 'hu', { code: 'absent' }),
+    'absent',
+    'KB: dictionaries.md §1 — a core ahead of every dictionary degrades to the code, it does not break the interface',
+  );
+  assert.equal(
+    renderCoreText({ hu: { known: 'Magyar mondat.' }, en: { known: 'English.' } }, 'hu', { code: 'known' }),
+    'Magyar mondat.',
+    'the chosen language still wins where it has the code',
+  );
 });

@@ -178,7 +178,7 @@ export const EDITOR_CORE_TEXTS: CoreDictionary<EditCode | CopyCode> = {
 
     'no-selection': 'No stitch is selected.',
     'has-dependents': (data) =>
-      `${enStitches(num(data, 'count'))} are still worked into the selected stitches (${enByLayer(data)}); they can only be deleted together.${enUnchanged(data)}`,
+      `${enStitches(num(data, 'count'))} ${num(data, 'count') === 1 ? 'is' : 'are'} still worked into the selected stitches (${enByLayer(data)}); they can only be deleted together.${enUnchanged(data)}`,
     'no-piece': 'The pattern has no piece.',
     'clipboard-empty': 'The clipboard is empty: copy some stitches first.',
     'foundation-needs-empty': (data) =>

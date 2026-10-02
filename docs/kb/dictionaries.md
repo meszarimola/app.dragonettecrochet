@@ -12,9 +12,9 @@ area of the core has a dictionary file in `src/ui/i18n/core/`, typed on that
 area's code union, so a new code in the core is a **type error** until both
 languages have a sentence for it.
 
-`renderCoreText` prints the code itself when a dictionary has no entry for it.
-That is deliberate: a core that is ahead of its dictionary degrades to an
-unhelpful message rather than breaking the interface.
+`renderCoreText` tries the chosen language, then English, then prints the code
+itself (§9). That last step is deliberate: a core that is ahead of **every**
+dictionary degrades to an unhelpful message rather than breaking the interface.
 
 These files are DOM-free, so Node runs them directly, which is why they import
 the core with a `.ts` extension (`interface.md` §1).

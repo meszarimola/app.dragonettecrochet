@@ -30,7 +30,7 @@ import {
   workIntoSame,
 } from '../core/editor.js';
 import { type ChartGrid, chartGrid, type GridSeam, targetPoint } from '../core/grid.js';
-import { canRedo, canUndo, createHistory, type History, record, redo, replace, undo } from '../core/history.js';
+import { canRedo, canUndo, createHistory, type History, record, redo, undo } from '../core/history.js';
 import { nodeInsertions } from '../core/insertion.js';
 import { grannyCellsOf } from '../core/irregular-granny.js';
 import { isIrregularJson } from '../core/irregular-json.js';
@@ -225,7 +225,10 @@ function withStitchName(sentence: (name: string) => string, name: string, marked
   return nodes;
 }
 
-let history: History<Pattern> = createHistory(restore());
+// KB: owner-decisions.md §16 — a generator names the pattern in the notation the
+// pattern records, so the live one has to carry it before the first generator run.
+let notation = readStoredNotation();
+let history: History<Pattern> = createHistory(withNotation(restore(), notation));
 let tool: StitchDefId | null = null;
 let cursor = 0;
 let cursorMoved = false;
@@ -244,7 +247,6 @@ let patternType: PatternTypeId = readType();
 let showGrid = readGrid();
 // KB: interface.md §5 — not persisted; that would need a new key.
 let aspect = false;
-let notation = readStoredNotation();
 let symbols: SymbolOptions = symbolOptionsFor(notation);
 let preview: Pattern | null = null;
 
@@ -825,9 +827,6 @@ function toggleWrittenFull(): void {
 function applyNotation(next: PatternNotation, message: string): void {
   notation = next;
   symbols = symbolOptionsFor(next);
-  // KB: owner-decisions.md §16 — a generator names the pattern in the notation the
-  // pattern records, so the live one carries the change without an undo step.
-  history = replace(history, withNotation(history.present, next));
   try {
     localStorage.setItem(NOTATION_KEY, writeNotation(next));
   } catch {
@@ -837,7 +836,6 @@ function applyNotation(next: PatternNotation, message: string): void {
   renderPalette();
   select(tool);
   irregular?.applyNotation();
-  refresh();
   announce(message);
 }
 

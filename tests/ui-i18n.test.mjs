@@ -287,3 +287,29 @@ test('a translated input default is swapped only while the user has not touched 
   applyStaticTexts(root(typed), MARKUP_TEXTS.en);
   assert.equal(typed.value, 'Bal fül', 'KB: interface.md §8 — what the user typed is never overwritten');
 });
+
+test('a label missing from the chosen language falls back to English, and only then throws (PQW-1100)', () => {
+  const element = { dataset: { i18n: 'docTitle' }, textContent: '' };
+  const root = { querySelectorAll: (selector) => (selector === '[data-i18n]' ? [element] : []) };
+
+  // A branch with the key missing entirely: the English one answers for it.
+  applyStaticTexts(root, {});
+  assert.equal(element.textContent, MARKUP_TEXTS.en.docTitle);
+
+  const unknown = { dataset: { i18n: 'noSuchKey' }, textContent: '' };
+  assert.throws(
+    () => applyStaticTexts({ querySelectorAll: (s_) => (s_ === '[data-i18n]' ? [unknown] : []) }, {}),
+    /Missing label in the dictionary: noSuchKey/,
+    'a key English does not have either is an error, not a silent blank',
+  );
+});
+
+test('aria-roledescription comes from the dictionary like any other label (PQW-1100)', () => {
+  const element = { dataset: { i18nRoledescription: 'boardRoleDescription' }, attributes: {} };
+  element.setAttribute = (name, text) => {
+    element.attributes[name] = text;
+  };
+  const root = { querySelectorAll: (s_) => (s_ === '[data-i18n-roledescription]' ? [element] : []) };
+  applyStaticTexts(root, MARKUP_TEXTS.hu);
+  assert.equal(element.attributes['aria-roledescription'], MARKUP_TEXTS.hu.boardRoleDescription);
+});
