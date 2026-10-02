@@ -4,6 +4,7 @@
 import { buildPieceGraph, type LayerInfo, type PieceGraph } from './graph.ts';
 import { effectiveInsertion, modeAsWorked, stitchInsertions } from './insertion.ts';
 import { type CoreText, text } from './messages.ts';
+import { DEFAULT_TITLE } from './pattern-title.ts';
 import type { StitchLibrary } from './stitch-library.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import { increase, shell } from './stitches.ts';
@@ -35,12 +36,12 @@ export const DEFAULT_CONVENTIONS: PatternConventions = {
   chainCounts: true,
 };
 
-export function emptyPattern(title = 'Új minta'): Pattern {
+export function emptyPattern(title = DEFAULT_TITLE['en-US']): Pattern {
   return {
     formatVersion: 1,
     title,
     conventions: DEFAULT_CONVENTIONS,
-    pieces: [{ id: 'p1', name: 'Darab', stitches: [], spaces: [], rings: [], groups: [], events: [], skipped: [] }],
+    pieces: [{ id: 'p1', name: 'Piece', stitches: [], spaces: [], rings: [], groups: [], events: [], skipped: [] }],
   };
 }
 

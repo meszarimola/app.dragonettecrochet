@@ -67,8 +67,11 @@ side and are never called from the English one.
   not the interface language (`interface.md` §2, §3).
 - **The Japanese tradition's chart labels** ("18目", "縁編み"). They belong to the
   notation (`01 §6.2`); only the note explaining them is bilingual.
-- **Shape and motif names** (`SHAPE_NAMES`, `MOTIF_NAMES` in the core). They end
-  up in the pattern's title and in the piece's name, so they stay in the core.
+- **Shape and motif names** (`SHAPE_NAMES`, `MOTIF_NAMES` in the core, and the
+  rest of the `*_NAMES` tables beside them). They end up in the pattern's title
+  and in the piece's name, so they stay in the core. Each one carries every
+  locale, in the shape `VOCABULARIES` uses, and the generator picks the
+  pattern's own notation (owner-decisions.md §16).
 - **Units** (cm, g, m, mm, °) — the same text in both languages.
 
 Where a sentence has to name an interface element, it takes the label from the

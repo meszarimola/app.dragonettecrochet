@@ -5,7 +5,7 @@ import { type DimensionBasis, stitchDimensions } from './gauge.ts';
 import { buildPieceGraph } from './graph.ts';
 import { type CoreText, text } from './messages.ts';
 import { gaugeContextOf } from './pattern-size.ts';
-import { withGeneratedTitle } from './pattern-title.ts';
+import { allLocaleNames, titleLocale, withGeneratedTitle } from './pattern-title.ts';
 import { weakestSource } from './quantity.ts';
 import { repeatCounts } from './repeat.ts';
 import {
@@ -23,6 +23,7 @@ import { skippedChains, traditionOf, turningChainCountsFor } from './tradition.t
 import type {
   Anchor,
   LayerEvent,
+  Locale,
   NodeId,
   Pattern,
   Piece,
@@ -49,12 +50,25 @@ export const FLAT_SHAPES: readonly FlatShape[] = [
   'diamond',
 ];
 
-export const SHAPE_NAMES: Readonly<Record<FlatShape, string>> = {
-  rectangle: 'Téglalap',
-  'right-triangle': 'Derékszögű háromszög',
-  'isosceles-triangle': 'Egyenlő szárú háromszög',
-  trapezoid: 'Trapéz',
-  diamond: 'Rombusz',
+const SHAPE_NAMES_EN: Readonly<Record<FlatShape, string>> = {
+  rectangle: 'Rectangle',
+  'right-triangle': 'Right triangle',
+  'isosceles-triangle': 'Isosceles triangle',
+  trapezoid: 'Trapezoid',
+  diamond: 'Diamond',
+};
+
+// KB: owner-decisions.md §16
+export const SHAPE_NAMES: Readonly<Record<Locale, Readonly<Record<FlatShape, string>>>> = {
+  hu: {
+    rectangle: 'Téglalap',
+    'right-triangle': 'Derékszögű háromszög',
+    'isosceles-triangle': 'Egyenlő szárú háromszög',
+    trapezoid: 'Trapéz',
+    diamond: 'Rombusz',
+  },
+  'en-US': SHAPE_NAMES_EN,
+  'en-GB': SHAPE_NAMES_EN,
 };
 
 export const SHAPE_STITCHES: readonly StitchDefId[] = ['sc', 'hdc', 'dc', 'tr'];
@@ -614,7 +628,7 @@ export function generateShape(pattern: Pattern, options: ShapeOptions): ShapeRes
   const built = buildRows(base, plan.stitch, plan.counts, plan.shaping);
   if (!(built instanceof RowWriter)) return fail(built);
 
-  const name = SHAPE_NAMES[options.shape];
+  const name = SHAPE_NAMES[titleLocale(pattern)][options.shape];
   const piece: Piece = {
     id: 'p1',
     name,
@@ -633,10 +647,12 @@ export function generateShape(pattern: Pattern, options: ShapeOptions): ShapeRes
     : stated;
   if ('code' in ribbed) return fail(ribbed);
 
-  const result = withGeneratedTitle({ ...base, pieces: [ribbed] }, pattern, name, [
-    ...Object.values(SHAPE_NAMES),
-    ...Object.values(MOTIF_NAMES),
-  ]);
+  const result = withGeneratedTitle(
+    { ...base, pieces: [ribbed] },
+    pattern,
+    name,
+    allLocaleNames(SHAPE_NAMES, MOTIF_NAMES),
+  );
   const errors = validatePattern(result, libraryFor(result)).filter((finding) => finding.severity === 'error');
   if (errors.length > 0) return fail(text('internal-error', { rule: errors[0]!.rule }));
   return { ok: true, pattern: result, plan };

@@ -30,7 +30,7 @@ import {
   workIntoSame,
 } from '../core/editor.js';
 import { type ChartGrid, chartGrid, type GridSeam, targetPoint } from '../core/grid.js';
-import { canRedo, canUndo, createHistory, type History, record, redo, undo } from '../core/history.js';
+import { canRedo, canUndo, createHistory, type History, record, redo, replace, undo } from '../core/history.js';
 import { nodeInsertions } from '../core/insertion.js';
 import { grannyCellsOf } from '../core/irregular-granny.js';
 import { isIrregularJson } from '../core/irregular-json.js';
@@ -825,6 +825,9 @@ function toggleWrittenFull(): void {
 function applyNotation(next: PatternNotation, message: string): void {
   notation = next;
   symbols = symbolOptionsFor(next);
+  // KB: owner-decisions.md §16 — a generator names the pattern in the notation the
+  // pattern records, so the live one carries the change without an undo step.
+  history = replace(history, withNotation(history.present, next));
   try {
     localStorage.setItem(NOTATION_KEY, writeNotation(next));
   } catch {
@@ -834,6 +837,7 @@ function applyNotation(next: PatternNotation, message: string): void {
   renderPalette();
   select(tool);
   irregular?.applyNotation();
+  refresh();
   announce(message);
 }
 

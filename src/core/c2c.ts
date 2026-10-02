@@ -12,6 +12,7 @@ import {
   intoStitch,
 } from './grid-pattern.ts';
 import { type CoreText, text } from './messages.ts';
+import { titleLocale } from './pattern-title.ts';
 import {
   type CellSize,
   type ChartCode,
@@ -205,7 +206,7 @@ export function generateC2C(pattern: Pattern, options: C2COptions): C2CResult {
   const { plan } = planned;
   const base: Pattern = { ...pattern, pieces: [] };
   const writer = buildC2C(base, plan);
-  const piece = gridPiece(base, TECHNIQUE_NAMES.c2c, writer, {
+  const piece = gridPiece(base, TECHNIQUE_NAMES[titleLocale(pattern)].c2c, writer, {
     technique: 'c2c',
     cells: options.cells.map((row) => [...row]),
     colors: [...options.colors],

@@ -21,6 +21,15 @@ equals a piece name (generators name the piece after the shape), or when it is
 one of the generator names the caller passes in. This is why `hasOwnTitle`
 takes a `generatedNames` argument that looks redundant.
 
+The name it **writes** is in the pattern's own notation (`titleLocale`,
+owner-decisions.md §16), but the names it **compares** against span every
+locale: `allLocaleNames` flattens the whole table, and the default title is
+checked in all three. A sweater made under Hungarian notation and reopened in
+US terms is the case that needs this — its title is not one of its piece names,
+so only the name list can tell it from a title the user typed. A pattern that
+records no notation falls back to English, as the interface does
+(interface.md §4).
+
 ## §2 The core returns codes and data, never sentences
 
 The core hands back an identifier plus the values to substitute (`CoreText` in

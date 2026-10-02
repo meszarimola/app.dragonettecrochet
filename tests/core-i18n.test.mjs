@@ -116,18 +116,21 @@ const CORE_EXCEPTIONS = new Set([
 ]);
 
 /**
- * The rows of the `*_NAMES` tables are skipped: generator names go into the
- * pattern TITLE and into the piece name, so they are data of the saved file,
- * not UI labels (for its lists the UI uses its own dictionary). We do not
- * exempt a whole file for their sake, so that a new Hungarian SENTENCE in the
- * same file still stands out.
+ * The rows of the `*_NAMES` tables and of `DEFAULT_TITLE` are skipped:
+ * generator names and the default title go into the pattern TITLE and into the
+ * piece name, so they are data of the saved file, not UI labels (for its lists
+ * the UI uses its own dictionary). Each table carries every locale since
+ * PQW-920, so the Hungarian row sits one level deeper; the brace counting
+ * follows it to the end of the whole table. We do not exempt a whole file for
+ * their sake, so that a new Hungarian SENTENCE in the same file still stands
+ * out.
  */
 function withoutNameTables(source) {
   const rows = [];
   let inNames = false;
   let depth = 0;
   for (const [index, line] of source.split('\n').entries()) {
-    if (!inNames && /(const|readonly)\s+[A-Z][A-Z0-9_]*NAMES?\b[^=]*=/.test(line)) {
+    if (!inNames && /(const|readonly)\s+([A-Z][A-Z0-9_]*NAMES?|DEFAULT_TITLE)\b[^=]*=/.test(line)) {
       inNames = true;
       depth = 0;
     }

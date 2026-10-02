@@ -29,8 +29,16 @@ test('the default notation is Hungarian on a Hungarian interface and US on an En
   assert.equal(readNotation(null, 'en').terms, 'en-US');
 });
 
-test('the interface language comes from the <html lang> value', () => {
-  assert.deepEqual(['hu', 'en', 'en-GB', 'EN-us', '', 'de'].map(uiLanguageOf), ['hu', 'en', 'en', 'en', 'hu', 'hu']);
+test('the interface language comes from the <html lang> value, defaulting to English (PQW-1100)', () => {
+  assert.deepEqual(['hu', 'hu-HU', 'en', 'en-GB', 'EN-us', '', 'de'].map(uiLanguageOf), [
+    'hu',
+    'hu',
+    'en',
+    'en',
+    'en',
+    'en',
+    'en',
+  ]);
 });
 
 test('the interface language and the notation can be set independently', () => {

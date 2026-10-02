@@ -1,6 +1,7 @@
 // KB: 03 §5.3, §5.4, core-support §10
 import { fail, finishGridPattern, type GridPatternCode, GridWriter, gridPiece, intoStitch } from './grid-pattern.ts';
 import { type CoreText, text } from './messages.ts';
+import { titleLocale } from './pattern-title.ts';
 import {
   type CellSize,
   type ChartCode,
@@ -126,7 +127,7 @@ export function generateColorwork(pattern: Pattern, options: ColorworkOptions): 
   const { plan } = planned;
   const base: Pattern = { ...pattern, pieces: [] };
   const writer = buildColorwork(base, plan);
-  const piece = gridPiece(base, TECHNIQUE_NAMES[options.technique], writer, {
+  const piece = gridPiece(base, TECHNIQUE_NAMES[titleLocale(pattern)][options.technique], writer, {
     technique: options.technique,
     cells: options.cells.map((row) => [...row]),
     colors: [...options.colors],

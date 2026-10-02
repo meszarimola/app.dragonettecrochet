@@ -52,6 +52,8 @@ const japanese = () => ({ ...emptyPattern(), conventions: withTradition(emptyPat
 const options = (patch) => ({ ...DEFAULT_SHAWL, ...patch });
 /** The core gives a code and data as the reason (PQW-904); that is enough for the failure message. */
 const why = (result) => (result.ok ? '' : JSON.stringify(result.reason));
+/** The generated names follow the pattern's notation. KB: owner-decisions.md §16 */
+const inNotation = (pattern, terms) => ({ ...pattern, notation: { terms, chartStyle: 'cyc', singleCrochet: 'plus' } });
 const shawl = (pattern, patch) => {
   const result = generateShawl(pattern, options(patch));
   assert.ok(result.ok, why(result));
@@ -329,7 +331,7 @@ describe('semicircle, circle and pi shawl (05 §1.2, §1.3)', () => {
 
 describe('rectangular stole and finished size (05 §1.7, §1.8)', () => {
   test('a stole is a flat rectangle: the same stitch count every row, with the width rounded to the edging repeat', () => {
-    const { pattern, plan: stole } = shawl(withGauge('dc', 16, 8), {
+    const { pattern, plan: stole } = shawl(inNotation(withGauge('dc', 16, 8), 'hu'), {
       kind: 'stole',
       stitch: 'dc',
       sizeCm: 37.5,
@@ -362,8 +364,12 @@ describe('rectangular stole and finished size (05 §1.7, §1.8)', () => {
 
   test('without a profile the gauge is estimated; the shawl name replaces the default title and an earlier generated one, but a user-given title is kept', () => {
     assert.equal(plan(emptyPattern(), {}).gauge.source, 'estimated');
-    assert.equal(shawl(emptyPattern(), { sizeCm: 10 }).pattern.title, 'Fentről induló háromszög');
-    assert.equal(shawl(emptyPattern('Téglalap'), { kind: 'semicircle', sizeCm: 10 }).pattern.title, 'Félkör');
+    assert.equal(shawl(inNotation(emptyPattern(), 'hu'), { sizeCm: 10 }).pattern.title, 'Fentről induló háromszög');
+    assert.equal(shawl(inNotation(emptyPattern(), 'en-GB'), { sizeCm: 10 }).pattern.title, 'Top-down triangle');
+    assert.equal(
+      shawl(inNotation(emptyPattern('Téglalap'), 'hu'), { kind: 'semicircle', sizeCm: 10 }).pattern.title,
+      'Félkör',
+    );
     assert.equal(shawl(emptyPattern('Nyári kendő'), { sizeCm: 10 }).pattern.title, 'Nyári kendő');
   });
 });

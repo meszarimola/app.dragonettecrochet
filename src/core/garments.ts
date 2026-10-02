@@ -32,7 +32,7 @@ import {
 import { stitchDimensions } from './gauge.ts';
 import { type CoreText, text } from './messages.ts';
 import { activeProfile, ballLengthM, gaugeContextOf, swatchMassPerArea, type YarnMissing } from './pattern-size.ts';
-import { withGeneratedTitle } from './pattern-title.ts';
+import { allLocaleNames, titleLocale, withGeneratedTitle } from './pattern-title.ts';
 import { measured, weakestSource } from './quantity.ts';
 import { type RaglanMeasures, type RaglanPlan, raglanPiece, raglanPlan } from './raglan.ts';
 import { foundationChainLength } from './repeat.ts';
@@ -53,6 +53,7 @@ import { traditionOf, turningChainCountsFor } from './tradition.ts';
 import type {
   GarmentKind,
   GarmentTable,
+  Locale,
   Pattern,
   PatternGarment,
   Piece,
@@ -65,18 +66,43 @@ import { yarnFromMassPerArea } from './yarn-estimate.ts';
 
 export const GARMENT_KINDS: readonly GarmentKind[] = ['hat', 'drop-shoulder', 'raglan'];
 
-export const GARMENT_NAMES: Readonly<Record<GarmentKind, string>> = {
-  hat: 'Sapka',
-  'drop-shoulder': 'Ledobott vállú pulóver',
-  raglan: 'Felülről horgolt raglán',
+const GARMENT_NAMES_EN: Readonly<Record<GarmentKind, string>> = {
+  hat: 'Hat',
+  'drop-shoulder': 'Drop-shoulder sweater',
+  raglan: 'Top-down raglan',
 };
 
-export const PIECE_NAMES = {
-  back: 'Hátrész',
-  front: 'Elejerész',
-  leftSleeve: 'Bal ujj',
-  rightSleeve: 'Jobb ujj',
-} as const;
+// KB: owner-decisions.md §16
+export const GARMENT_NAMES: Readonly<Record<Locale, Readonly<Record<GarmentKind, string>>>> = {
+  hu: {
+    hat: 'Sapka',
+    'drop-shoulder': 'Ledobott vállú pulóver',
+    raglan: 'Felülről horgolt raglán',
+  },
+  'en-US': GARMENT_NAMES_EN,
+  'en-GB': GARMENT_NAMES_EN,
+};
+
+export type GarmentPiecePart = 'back' | 'front' | 'leftSleeve' | 'rightSleeve';
+
+const PIECE_NAMES_EN: Readonly<Record<GarmentPiecePart, string>> = {
+  back: 'Back',
+  front: 'Front',
+  leftSleeve: 'Left sleeve',
+  rightSleeve: 'Right sleeve',
+};
+
+// KB: owner-decisions.md §16
+export const PIECE_NAMES: Readonly<Record<Locale, Readonly<Record<GarmentPiecePart, string>>>> = {
+  hu: {
+    back: 'Hátrész',
+    front: 'Elejerész',
+    leftSleeve: 'Bal ujj',
+    rightSleeve: 'Jobb ujj',
+  },
+  'en-US': PIECE_NAMES_EN,
+  'en-GB': PIECE_NAMES_EN,
+};
 
 export const GARMENT_STITCHES: readonly StitchDefId[] = SHAPE_STITCHES;
 export const MAX_GARMENT_CM = 200;
@@ -1193,7 +1219,7 @@ export function sleeveRowsOf(plan: DropShoulderPlan): { readonly counts: number[
   return { counts, shaping };
 }
 
-const GENERATED_NAMES = [...Object.values(GARMENT_NAMES)];
+const GENERATED_NAMES = allLocaleNames(GARMENT_NAMES);
 
 // KB: core-domain §1
 export function generateGarment(pattern: Pattern, options: GarmentOptions): GarmentResult {
@@ -1201,7 +1227,9 @@ export function generateGarment(pattern: Pattern, options: GarmentOptions): Garm
   if (!planned.ok) return planned;
   const { plan } = planned;
   const size = plan.sizes[plan.base]!;
-  const name = GARMENT_NAMES[options.kind];
+  const locale = titleLocale(pattern);
+  const name = GARMENT_NAMES[locale][options.kind];
+  const pieceNames = PIECE_NAMES[locale];
   const { joins: _joins, garment: _garment, toy: _toy, ...rest } = pattern;
   let base: Pattern = { ...rest, pieces: [] };
   const garment: PatternGarment = {
@@ -1259,15 +1287,15 @@ export function generateGarment(pattern: Pattern, options: GarmentOptions): Garm
           )
         : plannedRows(base, options.stitch, panelCounts, flat, pieceName, id, options.ribbing ?? null);
     const pieces = [
-      panel('back', PIECE_NAMES.back, 'p1'),
-      panel('front', PIECE_NAMES.front, 'p2'),
+      panel('back', pieceNames.back, 'p1'),
+      panel('front', pieceNames.front, 'p2'),
       // The cuff is at the bottom of the sleeve, so the ribbing goes on the first rows just the same.
       plannedRows(
         base,
         options.stitch,
         sleeve.counts,
         sleeve.shaping,
-        PIECE_NAMES.leftSleeve,
+        pieceNames.leftSleeve,
         'p3',
         options.ribbing ?? null,
       ),
@@ -1277,7 +1305,7 @@ export function generateGarment(pattern: Pattern, options: GarmentOptions): Garm
         options.stitch,
         sleeve.counts,
         mirrorShaping(sleeve.shaping),
-        PIECE_NAMES.rightSleeve,
+        pieceNames.rightSleeve,
         'p4',
         options.ribbing ?? null,
       ),
