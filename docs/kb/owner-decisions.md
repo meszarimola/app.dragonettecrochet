@@ -319,3 +319,21 @@ like a menu, and the granny square — the reason for the request — was not in
 **What the tests check** (`e2e/felulet.spec.ts`, `e2e/korok.spec.ts`): the four
 entries and their second lines, a choice opening the right section with the shape
 set, the keyboard path, and the granny square generator itself.
+
+## §16 The generated pattern title follows the notation, not the interface
+
+PQW-920 reported a Hungarian title („Nagymama-négyzet") over an otherwise
+English written pattern, and left the choice open: the title could follow the
+interface language or the notation language. On 2026-10-02, while making
+English the default (PQW-1100), the owner chose the **notation**.
+
+The reason is that the title heads the written pattern it belongs to. The body
+of that pattern already follows the notation (PQW-868, `interface.md` §2), so a
+title taken from the interface language could put an English heading over a
+Hungarian pattern. The title is also data of the saved file, not a label of the
+interface — `dictionaries.md` §6 says as much about the generator names it is
+built from.
+
+The practical consequence: with US or UK terms the title is English, with
+Hungarian notation it is Hungarian, and switching the interface alone does not
+rewrite it.

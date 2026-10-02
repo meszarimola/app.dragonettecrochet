@@ -59,9 +59,17 @@ rather than failing to start.
 so the function stays pure and Node can run it.
 
 Changing the language in the page rewrites the address bar's `?lang` so the link
-stays shareable and reloadable. Substituting a missing dictionary key throws, so
-an untranslated label fails the browser test immediately instead of rendering
-blank.
+stays shareable and reloadable.
+
+**English is the default** (PQW-1100). Hungarian is chosen only when something
+asks for it: `?lang=hu`, a stored choice, or a document whose `lang` starts with
+`hu`. Anything else — no document language, a language the app does not speak —
+resolves to English. `index.html` therefore ships English, which is also what a
+visitor sees before the script runs and what a crawler indexes.
+
+A missing key no longer throws first: it falls back to English, and only a key
+missing from English too is an error. `dictionaries.md` §9 says why the fallback
+sits at those two boundaries and nowhere else.
 
 ## §5 No new `localStorage` key without an owner decision
 

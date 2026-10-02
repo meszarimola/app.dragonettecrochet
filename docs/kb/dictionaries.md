@@ -77,10 +77,15 @@ dictionary that owns it instead of repeating the words.
 ## §7 `markup.ts` mirrors `index.html` exactly
 
 `applyStaticTexts` (`i18n.ts`) substitutes by key from the `data-i18n` (text),
-`data-i18n-tip` (own tooltip) and `data-i18n-label` (`aria-label`) attributes,
-and **throws on an unknown key**. A key in the HTML and a key here therefore
+`data-i18n-tip` (own tooltip), `data-i18n-label` (`aria-label`),
+`data-i18n-content` (`content`) and `data-i18n-roledescription`
+(`aria-roledescription`) attributes. A key in the HTML and a key here therefore
 have to match exactly, and a label corrected in the HTML has to be corrected
 here too.
+
+Since PQW-1100 the markup carries the **English** branch, because English is the
+default language: `ui-i18n.test.mjs` compares `index.html` with `MARKUP_TEXTS.en`.
+What stands in the file is what a visitor sees before the script runs.
 
 A label built from several elements — the text beside a checkbox, the sentence
 before a link, the key table — sits in its own `<span>`, because `data-i18n`
@@ -93,3 +98,24 @@ replaces the whole `textContent` and would delete the child `input`, `kbd` or
 to be a function in both or a string in both, and the functions to take the same
 number of parameters. A parameter that one language does not use is therefore
 kept and named with a leading underscore.
+
+## §9 The English fallback sits at the two boundaries where a key can be missing
+
+English is the default language and the fallback (PQW-1100), but a dictionary
+lookup cannot go missing in most of the code: `satisfies Dictionary<typeof hu>`
+and the per-area `CoreDictionary` types make a gap a **compile error**, and §8's
+test checks keys, kind and arity on top of that. Adding a runtime fallback to
+`texts()` would therefore guard nothing and would hide the type error that is
+the real protection.
+
+Two boundaries escape the type system, because the key arrives as a string:
+
+- **`applyStaticTexts`** — the key comes from a `data-i18n*` attribute in
+  `index.html`, which TypeScript never sees. It falls back to `MARKUP_TEXTS.en`
+  and throws only when English has no entry either.
+- **`renderCoreText`** — the code comes from the core at runtime and may be
+  ahead of its dictionary (§1). It tries the chosen language, then English, then
+  prints the code itself.
+
+That is why `renderCoreText` takes the dictionary **pair** and the language
+rather than an already-resolved branch: a resolved branch cannot fall back.

@@ -28,8 +28,10 @@ landing page on the main site.
 5. **The core returns codes and data, never sentences.** User-facing text lives
    in `src/ui/i18n/`, so a new language touches only the dictionary.
 6. **Developer text is English**: code, comments, test names, commit messages, PR
-   descriptions, docs, skills and rules. **Hungarian stays** in user-facing
-   strings (`src/ui/i18n/**`, rule `message` fields) and Linear tickets.
+   descriptions, docs, skills and rules. User-facing strings live in
+   `src/ui/i18n/**` (and the rule `message` fields) in **both** languages;
+   **English is the default and the fallback** (PQW-1100). Linear tickets stay
+   Hungarian.
 7. **Comments are a last resort.** Write one only where the code alone would
    mislead, and prefer a `KB: <section>` pointer over prose. See
    `.claude/rules/comments.md`.
