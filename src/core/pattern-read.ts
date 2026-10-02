@@ -91,7 +91,10 @@ function read(text: string, options: ReadOptions): Pattern {
 
   const [titleBlock, ...rest] = blocks;
   if (!titleBlock || titleBlock.length !== 1)
-    throw new ReadFailure(titleBlock?.[1]?.number ?? 1, 'A szöveg első bekezdése a minta címe, egyetlen sorban.');
+    throw new ReadFailure(
+      titleBlock?.[1]?.number ?? 1,
+      'The first paragraph of the text is the pattern title, on a single line.',
+    );
   // The sizes block is descriptive and the assembly seams are not read back. KB: core-domain §27
   const headings = new Set([
     vocabulary.headings.sizes,
@@ -100,7 +103,7 @@ function read(text: string, options: ReadOptions): Pattern {
     vocabulary.headings.assembly,
   ]);
   const pieceBlocks = rest.filter((block) => !headings.has(block[0]!.text));
-  if (pieceBlocks.length === 0) throw new ReadFailure(titleBlock[0]!.number, 'A szövegben nincs darab.');
+  if (pieceBlocks.length === 0) throw new ReadFailure(titleBlock[0]!.number, 'The text holds no piece.');
   const abbreviations = rest.find((block) => block[0]!.text === vocabulary.headings.abbreviations);
   const shortIncrease = abbreviations ? shortIncreaseFrom(abbreviations, options, vocabulary) : null;
 
@@ -121,7 +124,7 @@ function shortIncreaseFrom(block: readonly Line[], options: ReadOptions, vocabul
     const part = options.library.get(def.members[0]!);
     if (part && vocabulary.increase.meaning(refOf(part, options.locale)) === meaning) return def.id;
   }
-  throw new ReadFailure(line.number, `Ismeretlen szaporítás a rövidítések között: „${line.text}”.`);
+  throw new ReadFailure(line.number, `Unknown increase among the abbreviations: "${line.text}".`);
 }
 
 /** A comma inside brackets does not separate. */
@@ -185,7 +188,7 @@ function parseItem(
     const steps = splitItems(inner).map((item) => parseItem(item, line, options, vocabulary, context));
     const step: Step = { kind: 'repeat', steps, times: Number(roundRepeat[3]) };
     if (matches(step)) return step;
-    throw new ReadFailure(line, `Nem értelmezhető ismétlés: „${text}”.`);
+    throw new ReadFailure(line, `Unreadable repeat: "${text}".`);
   }
 
   if (text.startsWith('[')) {
@@ -196,7 +199,7 @@ function parseItem(
       const step: Step = { kind: 'repeat', steps, times };
       if (matches(step)) return step;
     }
-    throw new ReadFailure(line, `Nem értelmezhető ismétlés: „${text}”.`);
+    throw new ReadFailure(line, `Unreadable repeat: "${text}".`);
   }
 
   if (context.round && context.shortIncrease) {
@@ -257,7 +260,7 @@ function parseItem(
       }
     }
   }
-  throw new ReadFailure(line, `Nem értelmezhető tétel: „${text}”.`);
+  throw new ReadFailure(line, `Unreadable item: "${text}".`);
 }
 
 function probe(def: StitchDef, library: StitchLibrary, locale: Locale): string {
@@ -317,7 +320,7 @@ class PieceReader {
   read(): Piece {
     const [nameLine, foundationLine, ...rest] = this.lines;
     if (!foundationLine)
-      throw new ReadFailure(nameLine!.number, 'A darab neve után a láncalap vagy a varázskör következik.');
+      throw new ReadFailure(nameLine!.number, 'The foundation chain or the magic ring follows the name of the piece.');
     this.readFoundation(foundationLine);
     this.spiral = rest[0]?.text === this.vocabulary.spiral;
     const body = this.spiral ? rest.slice(1) : rest;
@@ -339,10 +342,10 @@ class PieceReader {
       const resume = this.resumeHeading(line);
       if (resume !== null) {
         const target = layerOfRow.get(resume.row);
-        if (target === undefined) throw new ReadFailure(line.number, `Nincs ilyen sor: ${resume.row}.`);
+        if (target === undefined) throw new ReadFailure(line.number, `There is no such row: ${resume.row}.`);
         const last = this.events[this.events.length - 1];
         if (last?.kind !== 'fasten-off')
-          throw new ReadFailure(line.number, 'Az új szakasz előtt a fonalat el kell vágni.');
+          throw new ReadFailure(line.number, 'The yarn has to be fastened off before a new section.');
         this.events[this.events.length - 1] = { ...last, resume: { layer: target, name: resume.name } };
         this.pendingResume = target;
         // KB: core-domain §12, core-domain §22
@@ -353,7 +356,10 @@ class PieceReader {
       if (expectedRow === null) expectedRow = firstHeader ? (header.shape === 'row' ? 2 : 1) : header.from;
       firstHeader = false;
       if (header.from !== expectedRow)
-        throw new ReadFailure(line.number, `A sorszám nem folytatódik: ${expectedRow} helyett ${header.from}.`);
+        throw new ReadFailure(
+          line.number,
+          `The row numbering does not continue: ${header.from} instead of ${expectedRow}.`,
+        );
       for (let row = header.from; row <= header.to; row += 1) {
         const isLast = i === layerLines.length - 1 && row === header.to;
         // Two sections can share a row number; the row points at the earliest layer numbered that way. KB: core-domain §12
@@ -389,7 +395,7 @@ class PieceReader {
 
   private byKind(kind: StitchDef['kind']): StitchDef {
     const def = [...this.options.library.values()].find((candidate) => candidate.kind === kind);
-    if (!def) throw new Error(`A könyvtárban nincs ilyen fajtájú szem: ${kind}`);
+    if (!def) throw new Error(`The library holds no stitch of this kind: ${kind}`);
     return def;
   }
 
@@ -434,7 +440,7 @@ class PieceReader {
     }
     const count = countFor((value) => v.foundation(value));
     if (count === undefined) {
-      throw new ReadFailure(line.number, `Láncalapot vagy varázskört vártunk: „${line.text}”.`);
+      throw new ReadFailure(line.number, `Expected a foundation chain or a magic ring: "${line.text}".`);
     }
     this.chains(count);
   }
@@ -461,7 +467,7 @@ class PieceReader {
     const v = this.vocabulary.layer;
     // KB: core-domain §22
     const shape = label === v.row(from - 1, to - 1) ? 'row' : label === v.round(from, to) ? 'round' : null;
-    if (shape === null || to < from) throw new ReadFailure(line.number, `Nem értelmezhető sorkezdet: „${line.text}”.`);
+    if (shape === null || to < from) throw new ReadFailure(line.number, `Unreadable row heading: "${line.text}".`);
     return { line: line.number, shape, from, to, body: line.text.slice(colon + 2) };
   }
 
@@ -514,13 +520,16 @@ class PieceReader {
     // KB: 04 §2
     const spiralEnd = !ending && round && this.spiral && !isLast;
     if (ending) body = body.slice(0, -(ending[0].length + 1));
-    else if (!spiralEnd && !isLast) fail('A sor vége hiányzik: fordítás, a kör zárása vagy a fonal elvágása.');
+    else if (!spiralEnd && !isLast)
+      fail('The end of the row is missing: a turn, the closing of the round or fastening off.');
 
     const countMatch = /^(.*) (\(\d+(?: [^()]+)?\))\.$/.exec(body);
     const stated = Number(/\d+/.exec(countMatch?.[2] ?? '')?.[0]);
     if (!countMatch || countMatch[2] !== (round ? v.roundCount(stated) : v.count(stated))) {
       fail(
-        round ? 'Hiányzik a szemszám a kör végén, pl. „(18).”' : 'Hiányzik a szemszám a sor végén, pl. „(15 szem).”',
+        round
+          ? 'The stitch count is missing at the end of the round, for example "(18)."'
+          : 'The stitch count is missing at the end of the row, for example "(15 sts)."',
       );
     }
     body = countMatch![1]!;
@@ -565,7 +574,7 @@ class PieceReader {
         fail(v.legacyTurningChain);
       } else countsFromSettings = true;
       if (chain < 1 || chain > working.length) {
-        fail(`Az 1. sor elején azt vártuk, hány láncszemet hagyunk ki: „${v.skipChains(2).trim()}”.`);
+        fail(`At the start of row 1 we expected how many chains are skipped: "${v.skipChains(2).trim()}".`);
       }
       working = working.slice(chain - 1);
       const [before, after] = v.eachChain('\u0000').split('\u0000') as [string, string];
@@ -586,7 +595,7 @@ class PieceReader {
       // One stitch into each remaining chain, as a single item.
       const [only] = steps;
       if (steps.length !== 1 || only?.kind !== 'stitch' || only.count !== 1 || only.target !== 'next') {
-        fail(`Nem értelmezhető tétel: „${v.eachChain(body)}”.`);
+        fail(`Unreadable item: "${v.eachChain(body)}".`);
       }
       steps[0] = { ...(only as Step & { kind: 'stitch' }), count: working.length };
     }
@@ -605,14 +614,14 @@ class PieceReader {
     const skips: { positions: NodeId[]; anchoredBefore: number }[] = [];
 
     const resolve = (target: StepTarget, mode: StitchInsertion, item: string, consumes = 1, depth = 2): Anchor[] => {
-      const missing = (what: string) => fail(`${what} ehhez: „${item}”.`);
+      const missing = (what: string) => fail(`${what} for "${item}".`);
       switch (target) {
         case 'none':
           return [];
         case 'down': {
           // An odd-depth row runs the other way, and at a row-end increase the cursor is already at the end of the row. KB: 03 §5.6
           const deeper = graph.layers[index - depth];
-          if (!deeper || deeper.positions.length === 0) return missing(`Nincs ${depth} sorral lejjebbi sor`);
+          if (!deeper || deeper.positions.length === 0) return missing(`There is no row ${depth} rows below`);
           // Every row runs against the previous one, so a row `depth` lower is in yarn order when `depth` is even and reversed when it is odd.
           const line =
             (direction === -1) === (depth % 2 === 1) ? [...deeper.positions].reverse() : [...deeper.positions];
@@ -627,13 +636,13 @@ class PieceReader {
           // In English both the magic ring and the chain ring read "in ring": the start decides.
           if (this.ringSpace !== null) return [{ into: 'space', id: this.ringSpace }];
           const ring = this.rings[0];
-          return ring ? [{ into: 'ring', id: ring.id }] : missing('Nincs varázskör');
+          return ring ? [{ into: 'ring', id: ring.id }] : missing('There is no magic ring');
         }
         case 'same':
-          if (state.last?.kind !== 'stitch') return missing('Nincs előző szem');
+          if (state.last?.kind !== 'stitch') return missing('There is no previous stitch');
           return [anchorOf(working[state.last.w]!, mode)];
         case 'same-space':
-          if (state.last?.kind !== 'space') return missing('Nincs előző láncív');
+          if (state.last?.kind !== 'space') return missing('There is no previous chain space');
           return [{ into: 'space', id: state.last.id }];
         case 'next-space': {
           for (let w = state.cursor; w < working.length; w += 1) {
@@ -643,10 +652,11 @@ class PieceReader {
             state.last = { kind: 'space', id: space.id };
             return [{ into: 'space', id: space.id }];
           }
-          return missing('Nincs következő láncív');
+          return missing('There is no next chain space');
         }
         case 'next': {
-          if (state.cursor + consumes > working.length) return missing('Nincs több szem az előző sorban');
+          if (state.cursor + consumes > working.length)
+            return missing('There are no more stitches in the previous row');
           const anchors = working.slice(state.cursor, state.cursor + consumes).map((id) => anchorOf(id, mode));
           state.cursor += consumes;
           state.last = { kind: 'stitch', w: state.cursor - 1 };
@@ -659,8 +669,7 @@ class PieceReader {
       switch (step.kind) {
         case 'other-side':
           // KB: 04 §3.4
-          if (index !== 1 || this.foundation !== 'chain' || state.otherSide)
-            return fail(`Nem értelmezhető tétel: „${item}”.`);
+          if (index !== 1 || this.foundation !== 'chain' || state.otherSide) return fail(`Unreadable item: "${item}".`);
           state.otherSide = true;
           working = [...working].reverse().slice(1);
           state.cursor = 0;
@@ -680,14 +689,14 @@ class PieceReader {
             // Skipping a chain space: the cursor steps past the next chain space with no target.
             for (let k = 0; k < step.count; k += 1) {
               const w = working.findIndex((id, i) => i >= state.cursor && graph.spaceOfChain.has(id));
-              if (w < 0) fail(`Nincs kihagyható láncív: „${item}”.`);
+              if (w < 0) fail(`There is no chain space to skip: "${item}".`);
               const space = graph.spaceOfChain.get(working[w]!)!;
               state.cursor = Math.max(...space.chains.map((chain) => working.indexOf(chain))) + 1;
             }
             return;
           }
           if (state.cursor + step.count > working.length)
-            fail(`Nincs ennyi kihagyható szem az előző sorban: „${item}”.`);
+            fail(`There are not that many stitches to skip in the previous row: "${item}".`);
           skips.push({
             positions: working.slice(state.cursor, state.cursor + step.count),
             anchoredBefore: this.anchoredCount,
@@ -697,7 +706,7 @@ class PieceReader {
         }
         case 'group': {
           const def = library.get(step.def);
-          if (def?.kind !== 'group') return fail(`Ismeretlen összetett szem: „${item}”.`);
+          if (def?.kind !== 'group') return fail(`Unknown compound stitch: "${item}".`);
           const anchor = resolve(step.target, step.mode, item);
           const members = def.members.map((memberId) => {
             const member = library.get(memberId)!;
@@ -755,7 +764,7 @@ class PieceReader {
         round ? 'round' : 'row',
       );
       if (expected !== textCounts && !countsFromSettings) {
-        if (opening === null) fail('Az 1. sor fordulóláncának számolása eltér a minta beállításától.');
+        if (opening === null) fail('The turning-chain counting of row 1 differs from the pattern setting.');
         this.events[this.events.length - 1] = {
           ...opening!,
           conventions: { ...opening!.conventions, turningChainCounts: textCounts },
@@ -770,12 +779,12 @@ class PieceReader {
         ending[2] === 'turning-chain'
           ? (turningNodes[turningNodes.length - 1] ?? hookChain)
           : afterTurning.find((id) => !turningNodes.includes(id));
-      if (target === undefined) fail('A kör zárásának nincs célpontja.');
+      if (target === undefined) fail('The closing of the round has no target.');
       this.add(slip, [{ into: 'stitch', id: target!, mode: 'both-loops' }]);
     }
     if (ending || spiralEnd) {
       this.events.push({
-        after: this.previous ?? fail('Üres sor.'),
+        after: this.previous ?? fail('Empty row.'),
         kind: ending ? ending[1] : 'spiral',
         statedCount: stated,
         ...marks,
@@ -808,7 +817,7 @@ class PieceReader {
         throw new ReadFailure(
           this.layerLines.get(layer.index) ?? 0,
           // KB: core-domain §22
-          `${layer.shape === 'row' ? `${layer.index + 1}. sor` : `${layer.index}. kör`}: a szöveg ${stated} szemet ír, a visszaolvasott gráf szerint ${layer.writtenCount}.`,
+          `${layer.shape === 'row' ? `Row ${layer.index + 1}` : `Round ${layer.index}`}: the text states ${stated} stitches, the graph read back has ${layer.writtenCount}.`,
         );
       }
     }

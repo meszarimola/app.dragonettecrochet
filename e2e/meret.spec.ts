@@ -1,5 +1,5 @@
 /*
- * The „Méret és fonal” section (PQW-859): without a profile an estimate with a
+ * The "Size and yarn" section (PQW-859): without a profile an estimate with a
  * range, entering a profile in the panel, saving with the pattern (reload, JSON
  * export), and the proportional view on the grid.
  */
@@ -16,7 +16,7 @@ interface Cell {
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
-  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
 }
 
@@ -59,12 +59,12 @@ test('the section sits under Stitches, closed by default; without a profile the 
   await rectangle(page, 5, 2);
   await size.locator('summary').click();
   await expect(page.locator('#size-notice')).toContainText(
-    'Nincs profil: a méret becslés 4 mm-es tűből, tartománnyal.',
+    'No profile: the size is estimated from a 4 mm hook, with a range.',
   );
-  await expect(page.locator('#size-total')).toContainText('becsült');
-  await expect(page.locator('#size-total')).toContainText('tartomány:');
+  await expect(page.locator('#size-total')).toContainText('estimated');
+  await expect(page.locator('#size-total')).toContainText('range:');
   await expect(page.locator('#size-rows tbody tr')).toHaveCount(2);
-  await expect(page.locator('#size-yarn')).toContainText('A fonalbecsléshez hiányzik');
+  await expect(page.locator('#size-yarn')).toContainText('The yarn estimate is missing');
 });
 
 test('profile in the panel: measured size, yarn per skein; it is saved with the pattern, after a reload and in the JSON too', async ({
@@ -74,20 +74,20 @@ test('profile in the panel: measured size, yarn per skein; it is saved with the 
   await rectangle(page, 5, 2);
   await page.locator('#section-size > summary').click();
 
-  await page.getByRole('button', { name: 'Új profil' }).click();
+  await page.getByRole('button', { name: 'New profile' }).click();
   await expect(page.locator('#size-yarn-name')).toBeFocused();
   await enter(page, '#size-yarn-name', 'Pamut 125');
   await enter(page, '#size-meterage', '250');
   await enter(page, '#size-ball', '50');
   await enter(page, '#size-hook', '4');
-  await expect(page.locator('#size-hook-sizes')).toHaveText('US G-6 · régi UK 8');
-  await expect(page.locator('#size-origin-meterage')).toHaveText('címkéről');
-  await expect(page.locator('#size-origin-cyc')).toContainText('becsült');
+  await expect(page.locator('#size-hook-sizes')).toHaveText('US G-6 · old UK 8');
+  await expect(page.locator('#size-origin-meterage')).toHaveText('from the label');
+  await expect(page.locator('#size-origin-cyc')).toContainText('estimated');
 
-  await page.getByRole('button', { name: 'Szem hozzáadása' }).click();
+  await page.getByRole('button', { name: 'Add stitch' }).click();
   const gauge = page.locator('#size-gauges li').first();
-  await expect(gauge.getByLabel('Szem 10 cm-en')).toBeFocused();
-  await expect(gauge).toContainText('Hiányos');
+  await expect(gauge.getByLabel('Stitches per 10 cm')).toBeFocused();
+  await expect(gauge).toContainText('Incomplete');
   await enter(page, '#size-gauge-0-stitchesPer10cm', '20');
   await enter(page, '#size-gauge-0-rowsPer10cm', '25');
   await enter(page, '#size-swatch-width', '10');
@@ -96,10 +96,10 @@ test('profile in the panel: measured size, yarn per skein; it is saved with the 
 
   // 5 single crochets × 5 mm, 2 rows × 4 mm.
   await expect(page.locator('#size-notice')).toBeHidden();
-  await expect(page.locator('#size-total')).toContainText('2,5 cm');
-  await expect(page.locator('#size-total')).toContainText('0,8 cm');
-  await expect(page.locator('#size-total')).toContainText('mért');
-  await expect(page.locator('#size-yarn')).toContainText('≈ 1 db');
+  await expect(page.locator('#size-total')).toContainText('2.5 cm');
+  await expect(page.locator('#size-total')).toContainText('0.8 cm');
+  await expect(page.locator('#size-total')).toContainText('measured');
+  await expect(page.locator('#size-yarn')).toContainText('≈ 1 ball');
 
   const downloadPromise = page.waitForEvent('download');
   // The export is in the file actions dropdown (PQW-911).
@@ -120,11 +120,11 @@ test('profile in the panel: measured size, yarn per skein; it is saved with the 
   await page.locator('#section-size > summary').click();
   await expect(page.locator('#size-profile')).toHaveValue('p1');
   await expect(page.locator('#size-yarn-name')).toHaveValue('Pamut 125');
-  await expect(page.locator('#size-total')).toContainText('2,5 cm');
+  await expect(page.locator('#size-total')).toContainText('2.5 cm');
 
   // Without a profile it is an estimate again; the profile stays in the chooser.
   await page.locator('#size-profile').selectOption('');
-  await expect(page.locator('#size-notice')).toContainText('Nincs profil');
+  await expect(page.locator('#size-notice')).toContainText('No profile');
   await expect(page.locator('#size-profile option')).toHaveCount(2);
 });
 
@@ -157,10 +157,10 @@ test('proportional view: switching the view affects the row ratio of the grid, a
     return Math.abs(average(first) - average(second)) / column;
   };
 
-  const sima = await ratio();
-  expect(sima).toBeCloseTo(1.17, 1);
+  const plain = await ratio();
+  expect(plain).toBeCloseTo(1.17, 1);
   await page.locator('#section-size > summary').click();
-  const aspect = page.getByLabel('Arányhelyes nézet');
+  const aspect = page.getByLabel('True proportions');
   await aspect.check();
   // Switching the view lowers the row ratio; the correct target value would be 0.8 (PQW-927).
   await expect.poll(ratio).toBeCloseTo(1.04, 1);

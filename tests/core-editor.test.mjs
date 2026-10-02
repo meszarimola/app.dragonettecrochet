@@ -33,7 +33,7 @@ import { EDITOR_CORE_TEXTS } from '../src/ui/i18n/core/editor.ts';
 import { renderCoreText } from '../src/ui/i18n/core/render.ts';
 
 /** The core returns a code and data (PQW-904); the Hungarian sentence comes from the interface dictionary. */
-const huText = (reason) => renderCoreText(EDITOR_CORE_TEXTS.hu, reason);
+const huText = (reason) => renderCoreText(EDITOR_CORE_TEXTS, 'hu', reason);
 
 function ok(result) {
   assert.ok(result.ok, result.ok ? '' : huText(result.reason));
@@ -896,7 +896,7 @@ describe('the turning chain stands in its place as soon as it is laid down (PQW-
   test('the row caption shows from the turning chain onwards', () => {
     const first = place(afterTurn());
     const captions = rowCaptions(layoutPattern(first, libraryFor(first)), 'cyc').map((caption) => caption.text);
-    assert.ok(captions.includes('3. sor (1)'), captions.join(' | '));
+    assert.ok(captions.includes('Row 3 (1)'), captions.join(' | '));
   });
 });
 

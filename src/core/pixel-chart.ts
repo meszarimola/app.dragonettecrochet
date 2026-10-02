@@ -4,7 +4,7 @@
 
 import { type CoreText, text } from './messages.ts';
 import { estimate, type Quantity, scale } from './quantity.ts';
-import type { GridTechnique, GridUnit, PatternColor, StitchDefId } from './types.ts';
+import type { GridTechnique, GridUnit, Locale, PatternColor, StitchDefId } from './types.ts';
 
 export type DraftCell = number | null;
 export type DraftRows = readonly (readonly DraftCell[])[];
@@ -16,12 +16,25 @@ export const NO_CELL = -1;
 
 export const GRID_TECHNIQUES: readonly GridTechnique[] = ['filet', 'c2c', 'tapestry', 'graphgan', 'mosaic'];
 
-export const TECHNIQUE_NAMES: Readonly<Record<GridTechnique, string>> = {
-  filet: 'Filé',
-  c2c: 'Sarokból sarokba (C2C)',
+const TECHNIQUE_NAMES_EN: Readonly<Record<GridTechnique, string>> = {
+  filet: 'Filet',
+  c2c: 'Corner to corner (C2C)',
   tapestry: 'Tapestry',
   graphgan: 'Graphgan',
-  mosaic: 'Mozaik',
+  mosaic: 'Mosaic',
+};
+
+// KB: owner-decisions.md §16
+export const TECHNIQUE_NAMES: Readonly<Record<Locale, Readonly<Record<GridTechnique, string>>>> = {
+  hu: {
+    filet: 'Filé',
+    c2c: 'Sarokból sarokba (C2C)',
+    tapestry: 'Tapestry',
+    graphgan: 'Graphgan',
+    mosaic: 'Mozaik',
+  },
+  'en-US': TECHNIQUE_NAMES_EN,
+  'en-GB': TECHNIQUE_NAMES_EN,
 };
 
 // KB: 03 §5.2, 03 §5.3, 03 §5.4, 03 §5.5, 03 §5.6

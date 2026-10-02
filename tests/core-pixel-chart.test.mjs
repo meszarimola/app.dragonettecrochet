@@ -31,7 +31,7 @@ import { GRID_CORE_TEXTS } from '../src/ui/i18n/core/grid.ts';
 import { renderCoreText } from '../src/ui/i18n/core/render.ts';
 
 /** The core hands over a code and data; the sentence is built in the UI dictionary (PQW-904). */
-const hu = (message) => renderCoreText(GRID_CORE_TEXTS.hu, message);
+const hu = (message) => renderCoreText(GRID_CORE_TEXTS, 'hu', message);
 
 /** A chart from text: rows run bottom to top, `#` filled (1), `.` open (0), `?` not given. */
 const draft = (...lines) =>

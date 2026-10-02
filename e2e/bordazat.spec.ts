@@ -1,7 +1,7 @@
 /*
  * Ribbed edging and brim with post stitches (PQW-909): a rectangle with a
- * ribbed edging from the „Forma” section, a flat circle with a ribbed brim from
- * the „Kör és motívum” section. Both are error-free, the written pattern writes
+ * ribbed edging from the “Shape” section, a flat circle with a ribbed brim from
+ * the “Round and motif” section. Both are error-free, the written pattern writes
  * the ribbing as a repeat, and the fields of combinations that cannot be chosen
  * disappear.
  */
@@ -10,7 +10,7 @@ import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
-  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
 }
 
@@ -57,14 +57,14 @@ for (const viewport of [
     await page.locator('#shape-ribbing-rows').fill('2');
     await page.locator('#shape-ribbing-width').fill('1');
 
-    await section.getByRole('button', { name: 'Minta létrehozása' }).click();
-    await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
+    await section.getByRole('button', { name: 'Create pattern' }).click();
+    await expect(page.locator('#error-count')).toHaveText('No errors');
 
     const text = await writtenText(page);
     // The ribbed row starts with 2 chain stitches, because a chain stitch cannot stand in place of a post stitch (01 §2.2 [S25]).
-    expect(text).toMatch(/2 lsz \(fordulólánc\)/);
+    expect(text).toMatch(/ch 2 \(turning chain\)/);
     // The ribbing stands as a repeat, not listed stitch by stitch.
-    expect(text).toMatch(/\[1 (Eerp|Herp), 1 (Eerp|Herp)\]/);
+    expect(text).toMatch(/\[(FPdc|BPdc), (FPdc|BPdc)\]/);
   });
 
   test(`${viewport.width}×${viewport.height}: flat circle with a ribbed brim, not available in a spiral`, async ({
@@ -80,9 +80,9 @@ for (const viewport of [
     await page.locator('#rounds-ribbing-rows').fill('2');
     await page.locator('#rounds-ribbing-width').fill('1');
 
-    await section.getByRole('button', { name: 'Minta létrehozása' }).click();
-    await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
-    expect(await writtenText(page)).toMatch(/\(1 (Eerp|Herp), 1 (Eerp|Herp)\) ×\d+/);
+    await section.getByRole('button', { name: 'Create pattern' }).click();
+    await expect(page.locator('#error-count')).toHaveText('No errors');
+    expect(await writtenText(page)).toMatch(/\((FPdc|BPdc), (FPdc|BPdc)\) x\d+/);
 
     // Reading the written pattern closes the sheet below 67 rem, where the two cannot
     // share the stage (PQW-987), so the generator is opened again.

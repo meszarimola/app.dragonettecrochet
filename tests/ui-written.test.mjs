@@ -10,6 +10,7 @@ import { test } from 'node:test';
 
 import { contextOf, defaultCursor, emptyPattern, endRow, liveCheck, work } from '../src/core/editor.ts';
 import { writtenPieces } from '../src/core/pattern-steps.ts';
+import { setUiLanguage } from '../src/ui/i18n.ts';
 import { writtenView } from '../src/ui/written.ts';
 import { hdcRectangle } from './fixtures/examples.ts';
 import { testLibrary } from './fixtures/library.ts';
@@ -17,6 +18,16 @@ import { testLibrary } from './fixtures/library.ts';
 const view = (pattern, terms = 'hu') => writtenView(pattern, contextOf(pattern), liveCheck(pattern), terms);
 const fixture = (locale, name) =>
   readFileSync(new URL(`./fixtures/written/${locale}/${name}.txt`, import.meta.url), 'utf8');
+
+/** Runs `run` with the interface in `language`, then restores the default. KB: interface.md §4 */
+function inLanguage(language, run) {
+  try {
+    setUiLanguage(language);
+    return run();
+  } finally {
+    setUiLanguage('en');
+  }
+}
 
 function ok(result) {
   if (!result.ok) throw new Error(result.reason);
@@ -38,7 +49,7 @@ function halfRow(done) {
 test('an empty pattern gets a message, not an error', () => {
   assert.deepEqual(view(emptyPattern()), {
     kind: 'message',
-    message: 'Még nincs mit kiírni: kezdd láncalappal vagy varázskörrel.',
+    message: 'Nothing to write out yet: start with a foundation chain or a magic ring.',
   });
 });
 
@@ -66,9 +77,7 @@ test('a half-finished row still renders the text, with a notice', () => {
   assert.equal(result.kind, 'text');
   // The turning chain sits where the first stitch of the row would be, so the text spells out the skip (PQW-944).
   assert.match(result.text, /3\. sor: 1 lsz \(1 rp-nek számít\), 1 szem kihagyása, 1 rp \(2 szem\)\.$/m);
-  assert.deepEqual(result.notices, [
-    'A 3. sor félkész, még 3 célpont van hátra: a szöveg a mostani állapotot írja le.',
-  ]);
+  assert.deepEqual(result.notices, ['Row 3 is unfinished, 3 targets are left: the text describes the current state.']);
 });
 
 test('an invalid pattern renders the text plus a notice counting the errors', () => {
@@ -78,7 +87,7 @@ test('an invalid pattern renders the text plus a notice counting the errors', ()
   const result = view(pattern);
   assert.equal(result.kind, 'text');
   assert.ok(
-    result.notices.some((notice) => /^A mintában \d+ hiba van \(lásd Ellenőrzés\)/.test(notice)),
+    result.notices.some((notice) => /^The pattern has \d+ errors? \(see Check\)/.test(notice)),
     result.notices.join(' | '),
   );
 });
@@ -97,11 +106,19 @@ test('what the written text cannot express yet gets a readable message, not an e
   };
   const result = view(crossed);
   assert.equal(result.kind, 'message');
+  assert.equal(result.message, 'This pattern cannot be written out yet. Row 3 contains a crossed stitch.');
   // The Hungarian sentence is the same to the letter as before PQW-904: the article,
   // the word for the row and the closing clause are assembled by the UI dictionary from the core codes.
-  assert.equal(result.message, 'Ez a minta még nem írható ki. A(z) 3. sor keresztezett szemet tartalmaz.');
+  assert.equal(
+    inLanguage('hu', () => view(crossed).message),
+    'Ez a minta még nem írható ki. A(z) 3. sor keresztezett szemet tartalmaz.',
+  );
   // No internal concept leaks into the user-facing message (PQW-879).
-  assert.doesNotMatch(result.message, /réteg|darab/i);
+  assert.doesNotMatch(result.message, /layer|piece/i);
+  assert.doesNotMatch(
+    inLanguage('hu', () => view(crossed).message),
+    /réteg|darab/i,
+  );
 });
 
 test('the core supplies a code and data, and the interface assembles the sentence (PQW-904)', () => {

@@ -4,7 +4,7 @@ import { type DimensionBasis, stitchDimensions } from './gauge.ts';
 import { buildPieceGraph } from './graph.ts';
 import { type CoreText, text } from './messages.ts';
 import { activeProfile, gaugeContextOf } from './pattern-size.ts';
-import { withGeneratedTitle } from './pattern-title.ts';
+import { allLocaleNames, titleLocale, withGeneratedTitle } from './pattern-title.ts';
 import { weakestSource } from './quantity.ts';
 import { circlePlan, DEFAULT_MOTIF, MOTIF_NAMES, plannedRounds, type RoundPlan } from './round-generator.ts';
 import { flatIncreases } from './rounds.ts';
@@ -23,6 +23,7 @@ import { skippedChains, traditionOf, turningChainCountsFor } from './tradition.t
 import type {
   Anchor,
   LayerEvent,
+  Locale,
   NodeId,
   Pattern,
   Piece,
@@ -56,15 +57,31 @@ export const SHAWL_KINDS: readonly ShawlKind[] = [
   'stole',
 ];
 
-export const SHAWL_NAMES: Readonly<Record<ShawlKind, string>> = {
-  triangle: 'Fentről induló háromszög',
-  'asymmetric-triangle': 'Aszimmetrikus háromszög',
-  crescent: 'Félhold',
-  semicircle: 'Félkör',
-  circle: 'Kör',
-  pi: 'Pi-kendő',
-  'shifted-pi': 'Eltolt Pi-kendő',
-  stole: 'Téglalap stóla',
+const SHAWL_NAMES_EN: Readonly<Record<ShawlKind, string>> = {
+  triangle: 'Top-down triangle',
+  'asymmetric-triangle': 'Asymmetric triangle',
+  crescent: 'Crescent',
+  semicircle: 'Semicircle',
+  circle: 'Circle',
+  pi: 'Pi shawl',
+  'shifted-pi': 'Shifted pi shawl',
+  stole: 'Rectangular stole',
+};
+
+// KB: owner-decisions.md §16
+export const SHAWL_NAMES: Readonly<Record<Locale, Readonly<Record<ShawlKind, string>>>> = {
+  hu: {
+    triangle: 'Fentről induló háromszög',
+    'asymmetric-triangle': 'Aszimmetrikus háromszög',
+    crescent: 'Félhold',
+    semicircle: 'Félkör',
+    circle: 'Kör',
+    pi: 'Pi-kendő',
+    'shifted-pi': 'Eltolt Pi-kendő',
+    stole: 'Téglalap stóla',
+  },
+  'en-US': SHAWL_NAMES_EN,
+  'en-GB': SHAWL_NAMES_EN,
 };
 
 export const ROUND_SHAWLS: readonly ShawlKind[] = ['circle', 'pi', 'shifted-pi'];
@@ -872,7 +889,7 @@ export function generateShawl(pattern: Pattern, options: ShawlOptions): ShawlRes
   const planned = planShawl(pattern, options);
   if (!planned.ok) return planned;
   const { plan } = planned;
-  const name = SHAWL_NAMES[options.kind];
+  const name = SHAWL_NAMES[titleLocale(pattern)][options.kind];
   const def = resolveStitch(options.stitch)!;
 
   let result: Pattern;
@@ -903,11 +920,7 @@ export function generateShawl(pattern: Pattern, options: ShawlOptions): ShawlRes
     result = { ...base, conventions, pieces: [withRowShape(stated, plan)] };
   }
 
-  result = withGeneratedTitle(result, pattern, name, [
-    ...Object.values(SHAWL_NAMES),
-    ...Object.values(SHAPE_NAMES),
-    ...Object.values(MOTIF_NAMES),
-  ]);
+  result = withGeneratedTitle(result, pattern, name, allLocaleNames(SHAWL_NAMES, SHAPE_NAMES, MOTIF_NAMES));
   const errors = validatePattern(result, libraryFor(result)).filter((finding) => finding.severity === 'error');
   if (errors.length > 0) return fail(text('internal-error', { rule: errors[0]!.rule }));
   return { ok: true, pattern: result, plan };

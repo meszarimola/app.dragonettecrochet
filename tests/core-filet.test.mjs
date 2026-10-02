@@ -44,7 +44,7 @@ const make = (pattern, cells, unit = null) => {
   return result;
 };
 /** The core hands over a code and data; the sentence is built in the UI dictionary (PQW-904). */
-const hu = (message) => renderCoreText(GRID_CORE_TEXTS.hu, message);
+const hu = (message) => renderCoreText(GRID_CORE_TEXTS, 'hu', message);
 const findings = (pattern) => validatePattern(pattern, libraryFor(pattern));
 const lines = (pattern, locale = 'hu') => writePattern(pattern, libraryFor(pattern), locale).pieces[0].lines;
 const graphOf = (pattern) => buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));

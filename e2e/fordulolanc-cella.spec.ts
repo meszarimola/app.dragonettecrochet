@@ -28,18 +28,18 @@ test('10 chain stitches and one double crochet: the 3-chain turning chain is one
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
-  // „Új minta” is the type menu since PQW-1045; the type starts the pattern anew.
-  await page.getByRole('button', { name: 'Új minta' }).click();
+  // “New pattern” is the type menu since PQW-1045; the type starts the pattern anew.
+  await page.getByRole('button', { name: 'New pattern' }).click();
   await page.locator('.type[data-type="regular"]').click();
 
   const palette = page.locator('#palette');
-  const chain = palette.getByRole('button', { name: /Láncszem \(lsz\)/ }).first();
+  const chain = palette.getByRole('button', { name: /Chain \(ch\)/ }).first();
   if ((await chain.getAttribute('aria-pressed')) !== 'true') await chain.click();
   await page.locator('#chain-count').fill('10');
   await page.locator('#board').click();
 
-  await page.getByRole('button', { name: 'Fordulás' }).click();
-  const dc = palette.getByRole('button', { name: /Egyráhajtásos pálca \(erp\)/ }).first();
+  await page.getByRole('button', { name: 'Turn' }).click();
+  const dc = palette.getByRole('button', { name: /Double crochet \(dc\)/ }).first();
   if ((await dc.getAttribute('aria-pressed')) !== 'true') await dc.click();
   await page.locator('#board').press('Enter');
 

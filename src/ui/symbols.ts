@@ -375,7 +375,7 @@ export function symbolShapes(def: StitchDef, options: SymbolOptions = DEFAULT_SY
   const insertion = options.insertion ?? def.insertionModes[0];
   if (insertion !== undefined) {
     if (!def.insertionModes.includes(insertion)) {
-      throw new RangeError(`${def.id}: nem megengedett beszúrási mód: ${insertion}`);
+      throw new RangeError(`${def.id}: insertion mode not allowed: ${insertion}`);
     }
     if (isMark(insertion)) for (const foot of feet) shapes.push(insertionMark(insertion, foot, options.style));
   }

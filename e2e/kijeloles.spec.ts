@@ -19,7 +19,7 @@ interface PlacedNode {
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
-  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
   // The written pattern panel starts closed (PQW-911): it does not cover the canvas.
   await expect(page.locator('#written')).toBeHidden();
@@ -47,7 +47,7 @@ async function rectangle(page: Page, width: number, rows: number): Promise<void>
   await page.keyboard.press('Escape');
   // Zooming lives in its own menu (interface.md §63).
   await page.locator('#zoom-toggle').click();
-  await page.getByRole('button', { name: 'Egész minta' }).click();
+  await page.getByRole('button', { name: 'Whole pattern' }).click();
   await page.locator('#board').focus();
 }
 
@@ -68,31 +68,31 @@ test('copying the row selected by its label, pasting it as the next row and undo
   const status = page.locator('#status');
   const duplicate = page.locator('.tools [data-action="duplicate-selection"]');
   const remove = page.locator('.tools [data-action="delete-selection"]');
-  await expect(summary).toContainText('3. sor: 6 szem');
+  await expect(summary).toContainText('Row 3: 6 stitches');
   await expect(duplicate).toBeDisabled();
   await expect(remove).toBeDisabled();
 
   await clickLabel(page, 2);
-  await expect(status).toHaveText('3. sor kijelölve: 6 szem.');
+  await expect(status).toHaveText('Row 3 selected: 6 stitches.');
   await expect(duplicate).toBeEnabled();
   await expect(remove).toBeEnabled();
 
   await page.keyboard.press('ControlOrMeta+c');
-  await expect(status).toContainText('a vágólapon');
+  await expect(status).toContainText('on the clipboard');
   await page.keyboard.press('ControlOrMeta+v');
-  await expect(summary).toContainText('3 sor. 4. sor: 6 szem.');
-  await expect(summary).toContainText('Nincs hiba és figyelmeztetés.');
+  await expect(summary).toContainText('3 rows. Row 4: 6 stitches.');
+  await expect(summary).toContainText('No errors or warnings.');
 
   // One undo takes back the whole paste.
   await page.keyboard.press('ControlOrMeta+z');
-  await expect(summary).toContainText('2 sor. 3. sor: 6 szem.');
+  await expect(summary).toContainText('2 rows. Row 3: 6 stitches.');
 
   await clickLabel(page, 2);
   await duplicate.click();
-  await expect(summary).toContainText('3 sor. 4. sor: 6 szem.');
-  await expect(summary).toContainText('Nincs hiba és figyelmeztetés.');
-  await page.getByRole('button', { name: 'Visszavonás' }).click();
-  await expect(summary).toContainText('2 sor. 3. sor: 6 szem.');
+  await expect(summary).toContainText('3 rows. Row 4: 6 stitches.');
+  await expect(summary).toContainText('No errors or warnings.');
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(summary).toContainText('2 rows. Row 3: 6 stitches.');
 });
 
 test('deleting a middle stitch: the affected stitches are shown, the deletion can be cancelled, or goes together with them', async ({
@@ -107,21 +107,21 @@ test('deleting a middle stitch: the affected stitches are shown, the deletion ca
     .filter((node) => node.layer === 1 && node.def === 'hdc')
     .sort((a, b) => a.x - b.x);
   await page.mouse.click(row1[2]!.x, row1[2]!.y);
-  await expect(page.locator('#status')).toContainText('Kijelölve: 1 szem');
+  await expect(page.locator('#status')).toContainText('Selected: 1 stitch');
 
   await page.keyboard.press('Delete');
   await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText('még 1 szem horgol: 3. sor: 1 szem');
-  await dialog.getByRole('button', { name: 'Megszakítás' }).click();
+  await expect(dialog).toContainText('1 stitch is still worked into the 1 stitch you selected: row 3: 1 stitch');
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.locator('#status')).toHaveText('A törlés megszakítva; a minta nem változott.');
-  await expect(summary).toContainText('3. sor: 6 szem');
+  await expect(page.locator('#status')).toHaveText('Deleting cancelled; the pattern has not changed.');
+  await expect(summary).toContainText('Row 3: 6 stitches');
 
-  await page.getByRole('button', { name: 'Kijelölés törlése' }).click();
-  await dialog.getByRole('button', { name: 'Törlés velük együtt' }).click();
-  await expect(summary).toContainText('3. sor: 5 szem');
+  await page.getByRole('button', { name: 'Delete selection' }).click();
+  await dialog.getByRole('button', { name: 'Delete together' }).click();
+  await expect(summary).toContainText('Row 3: 5 stitches');
   await page.keyboard.press('ControlOrMeta+z');
-  await expect(summary).toContainText('3. sor: 6 szem');
+  await expect(summary).toContainText('Row 3: 6 stitches');
 });
 
 test('selection by keyboard and by area; with too few targets it warns, and pastes nothing', async ({ page }) => {
@@ -134,9 +134,9 @@ test('selection by keyboard and by area; with too few targets it warns, and past
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('Shift+Home');
   // The row with the 2 chain stitches of the turning chain and 4 half double crochets: the turning chain stands in place of stitch 1 (PQW-891).
-  await expect(status).toContainText('Kijelölve: 7 szem (3. sor: 7 szem)');
+  await expect(status).toContainText('Selected: 7 stitches (row 3: 7 stitches)');
   await page.keyboard.press('ControlOrMeta+d');
-  await expect(summary).toContainText('3 sor. 4. sor: 6 szem.');
+  await expect(summary).toContainText('3 rows. Row 4: 6 stitches.');
   await page.keyboard.press('ControlOrMeta+z');
   await page.keyboard.press('Escape');
 
@@ -156,7 +156,7 @@ test('selection by keyboard and by area; with too few targets it warns, and past
 
   // The 5 stitches copied from the middle of the row have no target at the end of the finished row 2: they do not go in even partly.
   await page.keyboard.press('ControlOrMeta+d');
-  await expect(status).toContainText('Nincs elég célpont');
-  await expect(status).toContainText('A minta nem változott.');
-  await expect(summary).toContainText('2 sor. 3. sor: 6 szem.');
+  await expect(status).toContainText('Not enough targets');
+  await expect(status).toContainText('The pattern is unchanged.');
+  await expect(summary).toContainText('2 rows. Row 3: 6 stitches.');
 });

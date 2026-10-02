@@ -130,7 +130,7 @@ import { dragCollapses, dragSize, isFull, keySize, percentOf, type SizeRange, st
 
 function must<T extends Element>(selector: string): T {
   const el = document.querySelector<T>(selector);
-  if (!el) throw new Error(`Hiányzó elem a dokumentumban: ${selector}`);
+  if (!el) throw new Error(`Missing element in the document: ${selector}`);
   return el;
 }
 
@@ -225,7 +225,10 @@ function withStitchName(sentence: (name: string) => string, name: string, marked
   return nodes;
 }
 
-let history: History<Pattern> = createHistory(restore());
+// KB: owner-decisions.md §16 — a generator names the pattern in the notation the
+// pattern records, so the live one has to carry it before the first generator run.
+let notation = readStoredNotation();
+let history: History<Pattern> = createHistory(withNotation(restore(), notation));
 let tool: StitchDefId | null = null;
 let cursor = 0;
 let cursorMoved = false;
@@ -244,7 +247,6 @@ let patternType: PatternTypeId = readType();
 let showGrid = readGrid();
 // KB: interface.md §5 — not persisted; that would need a new key.
 let aspect = false;
-let notation = readStoredNotation();
 let symbols: SymbolOptions = symbolOptionsFor(notation);
 let preview: Pattern | null = null;
 
@@ -489,7 +491,7 @@ function stitchCount(pattern: Pattern): number {
 
 function commit(result: EditResult, message: Message): void {
   if (!result.ok) {
-    announce(renderCoreText(EDITOR_CORE_TEXTS[uiLanguage()], result.reason));
+    announce(renderCoreText(EDITOR_CORE_TEXTS, uiLanguage(), result.reason));
     return;
   }
   // KB: interface.md §19 — an unchanged pattern (a turn on the foundation) is not an undo step.
@@ -910,7 +912,7 @@ function drawPreview(def: StitchDef, size: number): HTMLCanvasElement {
 
 /*
  * A tile: the full name is printed, the structure line under it is what tells
- * the four „fogyasztás” apart, and the tooltip repeats both. KB: interface.md §53, §56
+ * the four "decrease" stitches apart, and the tooltip repeats both. KB: interface.md §53, §56
  */
 function stitchButton(item: PaletteItem): HTMLButtonElement {
   const button = newStitchButton(item);
@@ -1002,7 +1004,7 @@ function paletteSection(section: ReturnType<typeof buildPalette>[number]): HTMLE
     const button = stitchButton(item);
     buttons.set(item.def.id, button);
     // KB: interface.md §74 — the chain arc and the fan are drawn, not placed, but
-    // they belong with the stitches they make: láncív, varázskör, legyező.
+    // they belong with the stitches they make: chain space, magic ring, fan.
     for (const tool of PALETTE_TOOLS) if (tool.before === item.def.id) list.append(toolTile(tool));
     list.append(button);
   }
@@ -1184,7 +1186,7 @@ async function exportPng(): Promise<void> {
     out.height = image.height * scale;
     out.getContext('2d')?.drawImage(image, 0, 0, out.width, out.height);
     const blob = await new Promise<Blob | null>((resolve) => out.toBlob(resolve, 'image/png'));
-    if (!blob) throw new Error('üres kép');
+    if (!blob) throw new Error('empty image');
     download(blob, `${slug(name)}.png`, 'image/png');
     announce(texts().messages.file.pngSaved);
   } catch {
@@ -1205,7 +1207,7 @@ async function importJson(file: File): Promise<void> {
   }
   const loaded = loadPattern(source);
   if (!loaded.ok) {
-    announce(file_.loadFailed(renderCoreText(JSON_CORE_TEXTS[uiLanguage()], loaded.error.message), loaded.error.path));
+    announce(file_.loadFailed(renderCoreText(JSON_CORE_TEXTS, uiLanguage(), loaded.error.message), loaded.error.path));
     return;
   }
   const problem = structuralProblem(loaded.pattern);
@@ -1285,7 +1287,7 @@ function copySelected(): void {
   const selectionTexts = texts().messages.selection;
   if (selection.length === 0) return announce(selectionTexts.nothingToCopy);
   const result = copySelection(history.present, selection);
-  if (!result.ok) return announce(renderCoreText(EDITOR_CORE_TEXTS[uiLanguage()], result.reason));
+  if (!result.ok) return announce(renderCoreText(EDITOR_CORE_TEXTS, uiLanguage(), result.reason));
   clipboard = result.fragment;
   const where = result.fragment.startsLayer
     ? selectionTexts.asLayer(result.fragment.shape === 'round')
@@ -1648,7 +1650,7 @@ must<HTMLButtonElement>('#export-close').addEventListener('click', () => exportD
 // The item that opened the dialog sits in a closed menu, so the focus goes back to the menu's button.
 exportDialog.addEventListener('close', () => fileToggle.focus());
 
-// KB: interface.md §75 — „Exportálás” does the export and closes; the × only closes.
+// KB: interface.md §75 — "Export" does the export and closes; the × only closes.
 const exportFormat = must<HTMLSelectElement>('#export-format');
 must<HTMLButtonElement>('#export-run').addEventListener('click', () => {
   ACTIONS[exportFormat.value === 'svg' ? 'export-svg' : 'export-png']?.();

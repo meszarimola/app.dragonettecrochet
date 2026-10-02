@@ -61,7 +61,7 @@ export class AmigurumiPanel {
     this.#host = host;
     const field = <T extends HTMLElement>(id: string): T => {
       const el = section.querySelector<T>(`#${id}`);
-      if (!el) throw new Error(`Hiányzó mező: #${id}`);
+      if (!el) throw new Error(`Missing field: #${id}`);
       return el;
     };
     this.#name = field('amigurumi-name');

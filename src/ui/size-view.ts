@@ -41,12 +41,20 @@ export interface ValueText {
   readonly range: string | null;
 }
 
-export function quantityText(quantity: Quantity, unit: string, digits: number): ValueText {
-  const suffix = unit ? ` ${unit}` : '';
-  const value = `${quantity.source === 'estimated' ? '≈ ' : ''}${formatNumber(quantity.value, digits)}${suffix}`;
+export function quantityText(
+  quantity: Quantity,
+  unit: string | ((count: number) => string),
+  digits: number,
+): ValueText {
+  // A unit that reads the number agrees with it; a range takes its upper bound, as English writes it.
+  const suffix = (count: number): string => {
+    const word = typeof unit === 'function' ? unit(count) : unit;
+    return word ? ` ${word}` : '';
+  };
+  const value = `${quantity.source === 'estimated' ? '≈ ' : ''}${formatNumber(quantity.value, digits)}${suffix(quantity.value)}`;
   if (!quantity.range) return { value, source: quantity.source, range: null };
   const [min, max] = quantity.range.map((bound) => formatNumber(bound, digits));
-  return { value, source: quantity.source, range: min === max ? null : `${min}–${max}${suffix}` };
+  return { value, source: quantity.source, range: min === max ? null : `${min}–${max}${suffix(quantity.range[1])}` };
 }
 
 export function cmText(quantity: Quantity, unit = 'cm'): ValueText {

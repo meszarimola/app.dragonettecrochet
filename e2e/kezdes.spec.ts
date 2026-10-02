@@ -11,7 +11,7 @@ import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
-  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
 }
 
@@ -41,18 +41,17 @@ async function expectScarfRows(page: Page, rows: number): Promise<void> {
   // The summary shows the row in progress; the earlier rows are in the written pattern.
   const summary = page.locator('#summary');
   // The foundation chain is row 1 (PQW-923): the number of crocheted rows is one less than the row number shown.
-  await expect(summary).toContainText(`${rows + 1}. sor: 39 szem`);
-  await expect(summary).toContainText('Nincs hiba és figyelmeztetés.');
+  await expect(summary).toContainText(`Row ${rows + 1}: 39 stitches`);
+  await expect(summary).toContainText('No errors or warnings.');
   await expect(page.locator('#findings li')).toHaveCount(0);
 
   const written = page.locator('#written');
   if (await written.isHidden()) await page.locator('#written-toggle').click();
   const text = page.locator('#written-text');
-  await expect(text).toContainText('1. sor – alapsor: 40 lsz.');
-  await expect(text).toContainText('2. sor: hagyj ki 2 láncszemet, majd minden láncszembe 1 rp (39 szem).');
+  await expect(text).toContainText('Row 1 – foundation: ch 40.');
+  await expect(text).toContainText('Row 2: skip 2 ch, sc in each ch across (39 sts).');
   // The turning chain sits in the place of the first stitch of the row, so the text writes out the skip (PQW-944).
-  if (rows >= 2)
-    await expect(text).toContainText('3. sor: 1 lsz (1 rp-nek számít), 1 szem kihagyása, 38 rp (39 szem).');
+  if (rows >= 2) await expect(text).toContainText('Row 3: ch 1 (counts as 1 sc), sk 1 st, 38 sc (39 sts).');
 }
 
 for (const viewport of [
@@ -72,36 +71,36 @@ for (const viewport of [
 
     // First the tool, then the count: choosing the chain stitch resets the field to its default.
     await page
-      .getByRole('button', { name: /^Láncszem/ })
+      .getByRole('button', { name: /^Chain/ })
       .first()
       .click();
     await setChainCount(page, 40);
     await page.mouse.click(center.x, center.y);
-    await expect(page.locator('#summary')).toContainText('2. sor következik.');
+    await expect(page.locator('#summary')).toContainText('Row 2 is next.');
 
     // Turning after the foundation chain is an accepted step, without a message that looks like an error.
     await page.locator('[data-action="end-row"]').click();
     const status = page.locator('#status');
-    await expect(status).toContainText('Az 1. sor kész, a munka megfordítva.');
-    await expect(status).toContainText('2. sor következik.');
-    await expect(status).not.toContainText('még nincs szem');
+    await expect(status).toContainText('Row 1 is finished, the work is turned.');
+    await expect(status).toContainText('Row 2 is next.');
+    await expect(status).not.toContainText('no stitch in this row yet');
 
     // The first single crochet by clicking on the cursor target: into the 3rd chain stitch counted from the hook.
     await page
-      .getByRole('button', { name: /^Rövidpálca/ })
+      .getByRole('button', { name: /^Single crochet/ })
       .first()
       .click();
-    await expect(status).not.toContainText('Előbb válassz');
+    await expect(status).not.toContainText('First choose');
     const target = await cursorPoint(page);
     expect(await elementIdAt(page, target)).toBe('board');
     await page.mouse.click(target.x, target.y);
-    await expect(page.locator('#summary')).toContainText('2. sor: 2 szem');
+    await expect(page.locator('#summary')).toContainText('Row 2: 2 stitches');
 
-    await page.getByRole('button', { name: 'Sor kitöltése' }).click();
-    await expect(page.locator('#summary')).toContainText('2. sor: 39 szem');
+    await page.getByRole('button', { name: 'Fill row' }).click();
+    await expect(page.locator('#summary')).toContainText('Row 2: 39 stitches');
 
     await page.locator('[data-action="end-row"]').click();
-    await page.getByRole('button', { name: 'Sor kitöltése' }).click();
+    await page.getByRole('button', { name: 'Fill row' }).click();
     await expectScarfRows(page, 2);
   });
 
@@ -118,10 +117,10 @@ for (const viewport of [
     await board.focus();
     await page.keyboard.press('Enter');
     await page.keyboard.press('Alt+f');
-    await expect(page.locator('#status')).toContainText('Az 1. sor kész, a munka megfordítva.');
+    await expect(page.locator('#status')).toContainText('Row 1 is finished, the work is turned.');
     await page.keyboard.press('Alt+3'); // single crochet
     await page.keyboard.press('Shift+Alt+f'); // fill row
-    await expect(page.locator('#summary')).toContainText('2. sor: 39 szem');
+    await expect(page.locator('#summary')).toContainText('Row 2: 39 stitches');
     await page.keyboard.press('Alt+f');
     await page.keyboard.press('Shift+Alt+f');
     await expectScarfRows(page, 2);

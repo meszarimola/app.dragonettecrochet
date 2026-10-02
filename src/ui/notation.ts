@@ -15,7 +15,7 @@ export function singleCrochetFor(chartStyle: ChartStyle): PatternNotation['singl
 }
 
 export function uiLanguageOf(lang: string): UiLanguage {
-  return /^en\b/i.test(lang) ? 'en' : 'hu';
+  return /^hu\b/i.test(lang) ? 'hu' : 'en';
 }
 
 export function defaultNotation(ui: UiLanguage): PatternNotation {
@@ -64,7 +64,7 @@ export function textLanguage(terms: Locale): 'hu' | 'en' {
 }
 
 // KB: interface.md §2 — module state, set from `syncNotationControls`.
-let currentTerms: Locale = 'hu';
+let currentTerms: Locale = 'en-US';
 
 export function termsLocale(): Locale {
   return currentTerms;

@@ -1,7 +1,7 @@
 /*
  * The regular generator sections leave with the regular editor (PQW-976). In
- * free-form mode the panel used to keep „Méret és fonal”, „Forma”, „Kendő”,
- * „Ruhadarab” and „Kör és motívum”, and pressing a „Minta létrehozása” there
+ * free-form mode the panel used to keep "Size and yarn", "Shape", "Shawl",
+ * "Garment" and "Round and motif", and pressing a "Create pattern" there
  * replaced the hidden regular pattern and autosaved over it. The sections of
  * the switched-off types stay hidden in both modes.
  */
@@ -13,7 +13,7 @@ const DISABLED_SECTIONS = ['#section-grid', '#section-amigurumi'];
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
-  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
 }
 
@@ -28,13 +28,13 @@ async function openSheet(page: Page): Promise<void> {
 
 async function chooseIrregular(page: Page): Promise<void> {
   await page.locator('#types-toggle').click();
-  await page.getByRole('button', { name: /Szabad tervező/ }).click();
+  await page.getByRole('button', { name: /Free-form designer/ }).click();
   await expect(page.locator('#board-irregular')).toBeVisible();
 }
 
 async function chooseRegular(page: Page): Promise<void> {
   await page.locator('#types-toggle').click();
-  await page.getByRole('button', { name: /Szabályos horgolás/ }).click();
+  await page.getByRole('button', { name: /Regular crochet/ }).click();
   await expect(page.locator('#board')).toBeVisible();
 }
 
@@ -72,7 +72,7 @@ test('a switched-off pattern type stays hidden in both modes', async ({ page }) 
   for (const selector of DISABLED_SECTIONS) await expect(page.locator(selector)).toBeHidden();
 
   // In free-form mode the sheet holds nothing, so its opener goes too (PQW-987) — a
-  // stronger statement than „the sections are hidden", which would be true either way.
+  // stronger statement than "the sections are hidden", which would be true either way.
   await chooseIrregular(page);
   await expect(page.locator('#setup-toggle')).toBeHidden();
   for (const selector of DISABLED_SECTIONS) await expect(page.locator(selector)).toBeHidden();
@@ -89,17 +89,17 @@ test('the regular pattern comes back untouched from free-form mode', async ({ pa
   await openSection(page, '#section-rounds');
   await page.locator('#rounds-count').fill('4');
   await page.locator('#rounds-count').press('Tab');
-  await page.locator('#section-rounds').getByRole('button', { name: 'Minta létrehozása' }).click();
-  await expect(page.locator('#status')).toContainText('Lapos kör, 4 kör elkészült;');
+  await page.locator('#section-rounds').getByRole('button', { name: 'Create pattern' }).click();
+  await expect(page.locator('#status')).toContainText('Flat circle: 4 rounds done;');
   await openSection(page, '#section-shape');
   const before = await writtenText(page);
   const summaryBefore = await page.locator('#summary').textContent();
-  expect(before).toContain('4. kör:');
+  expect(before).toContain('Rnd 4:');
 
   await chooseIrregular(page);
   // With the bug the shape generator is still at hand here, and one press
   // crochets a rectangle over the circle nobody can see.
-  const create = page.locator('#section-shape').getByRole('button', { name: 'Minta létrehozása' });
+  const create = page.locator('#section-shape').getByRole('button', { name: 'Create pattern' });
   if (await create.isVisible()) await create.click();
 
   // Picking a type starts it anew since PQW-1045, so the circle comes back with

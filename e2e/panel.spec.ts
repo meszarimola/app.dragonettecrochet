@@ -9,7 +9,7 @@ import { expect, type Locator, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
-  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
 }
 
@@ -28,7 +28,7 @@ test('on load the stitch list is visible in the left column, the notation closed
   await expect(
     page
       .locator('#palette')
-      .getByRole('button', { name: /Láncszem/ })
+      .getByRole('button', { name: /Chain \(ch\)/ })
       .first(),
   ).toBeInViewport();
   await expect(size).not.toHaveAttribute('open', '');
@@ -78,7 +78,7 @@ test('every menu bar icon button shows a tooltip under the mouse, the inactive o
     await expect.poll(() => tipDisplay(tool)).toBe('block');
     expect(await tipText(tool)).toBe(JSON.stringify(tip));
   }
-  expect(shown, 'a menüsor látható gombjai').toBeGreaterThan(10);
+  expect(shown, 'the visible buttons of the menu bar').toBeGreaterThan(10);
 
   // Without a mouse no tooltip is visible.
   await page.mouse.move(0, 0);
@@ -137,7 +137,7 @@ test('in a narrow window even a visible tooltip does not hang off to the right',
     shown += 1;
     await check(tool);
   }
-  expect(shown, 'a menüsor látható gombjai').toBeGreaterThan(10);
+  expect(shown, 'the visible buttons of the menu bar').toBeGreaterThan(10);
 
   // Then the items of the file actions, with the menu opened (PQW-911).
   await page.locator('#file-toggle').click();
@@ -152,7 +152,7 @@ test('in a narrow window even a visible tooltip does not hang off to the right',
 /*
  * The palette at the owner's window size (PQW-984, PQW-989). Every stitch is a
  * tile in the left column, nothing folds, and the tile prints the full name —
- * with the structure line that is the only thing telling the four „fogyasztás”
+ * with the structure line that is the only thing telling the four decreases
  * apart. Before PQW-984 the palette was 1870 px tall and two stitches of the
  * twenty-five were reachable without scrolling; before PQW-989 eighteen of them
  * sat behind three collapsed groups.
@@ -180,22 +180,22 @@ test('in a narrow window the seven basic tiles are visible, and every stitch is 
   await expect(page.locator('#palette details')).toHaveCount(0);
 
   // The tile prints the name, not only the abbreviation.
-  await expect(page.locator('#palette')).toContainText('Láncszem (lsz)');
-  await expect(page.locator('#palette')).toContainText('Háromráhajtásos pálca');
-  await expect(page.locator('#palette')).toContainText('2 rp egy szembe');
-  await expect(page.locator('#palette')).toContainText('3 rp 3 szemen át');
+  await expect(page.locator('#palette')).toContainText('Chain (ch)');
+  await expect(page.locator('#palette')).toContainText('Double treble');
+  await expect(page.locator('#palette')).toContainText('2 sc in same st');
+  await expect(page.locator('#palette')).toContainText('sc3tog');
 
   // `#section-stitches` is shared, so the free-form editor gets the same palette.
   await page.locator('#types-toggle').click();
-  await page.getByRole('button', { name: /Szabad tervező/ }).click();
+  await page.getByRole('button', { name: /Free-form designer/ }).click();
   await expect(page.locator('#board-irregular')).toBeVisible();
   // The free-form type adds the two drawing tools to the same palette (PQW-1046).
   await expect(tiles).toHaveCount(26);
-  await expect(page.locator('#palette')).toContainText('Láncív');
-  await expect(page.locator('#palette')).toContainText('Legyező');
+  await expect(page.locator('#palette')).toContainText('Chain space');
+  await expect(page.locator('#palette')).toContainText('Fan');
   for (let i = 0; i < 7; i += 1) await expect(basic.nth(i)).toBeInViewport({ ratio: 1 });
   await page.locator('#types-toggle').click();
-  await page.getByRole('button', { name: /Szabályos horgolás/ }).click();
+  await page.getByRole('button', { name: /Regular crochet/ }).click();
   await expect(page.locator('#board')).toBeVisible();
 
   // A shortcut arms a stitch below the fold, and scrolls it into the column.
@@ -206,7 +206,7 @@ test('in a narrow window the seven basic tiles are visible, and every stitch is 
 });
 
 /*
- * The order inside „Szemek” (PQW-986). „Beszúrás” is 205 px tall and used to stand
+ * The order inside "Stitches" (PQW-986). "Insertion" is 205 px tall and used to stand
  * above the palette: arming a stitch that takes insertion modes pushed the grid from
  * y 169 to y 390 and three of the seven cells left the window. You pick the stitch
  * first and say where it goes second, so the palette leads.
@@ -221,7 +221,7 @@ test('arming a stitch with insertion modes does not push the palette out of the 
 
   await page
     .locator('#palette')
-    .getByRole('button', { name: /Egyráhajtásos pálca \(erp\)/ })
+    .getByRole('button', { name: /Double crochet \(dc\)/ })
     .click();
   await expect(page.locator('#insertion')).toBeVisible();
 
@@ -231,7 +231,7 @@ test('arming a stitch with insertion modes does not push the palette out of the 
 });
 
 /*
- * „Kijelölt jel igazítása” (PQW-986). It used to stand after every setting, so in a
+ * "Nudge the selected symbol" (PQW-986). It used to stand after every setting, so in a
  * 506 px window it appeared 436 px below the fold: the answer to a click the user had
  * just made, out of sight and with nothing saying so.
  */
@@ -244,9 +244,9 @@ test('the adjust box is on screen when a symbol is selected (PQW-986)', async ({
   if ((await rounds.getAttribute('open')) === null) await rounds.locator('summary').click();
   await page.locator('#rounds-count').fill('3');
   await page.locator('#rounds-count').press('Tab');
-  await rounds.getByRole('button', { name: 'Minta létrehozása' }).click();
-  await expect(page.locator('#status')).toContainText('3 kör elkészült');
-  await page.locator('#setup').getByRole('button', { name: 'Lecsukás' }).click();
+  await rounds.getByRole('button', { name: 'Create pattern' }).click();
+  await expect(page.locator('#status')).toContainText('3 rounds done');
+  await page.locator('#setup').getByRole('button', { name: 'Collapse' }).click();
 
   const nodes = await page.evaluate(() =>
     (

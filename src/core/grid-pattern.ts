@@ -1,7 +1,7 @@
 // KB: core-support §6
 import { buildPieceGraph } from './graph.ts';
 import { type CoreText, text } from './messages.ts';
-import { withGeneratedTitle } from './pattern-title.ts';
+import { allLocaleNames, withGeneratedTitle } from './pattern-title.ts';
 import { TECHNIQUE_NAMES } from './pixel-chart.ts';
 import { MOTIF_NAMES } from './round-generator.ts';
 import { SHAPE_NAMES } from './shapes.ts';
@@ -101,7 +101,7 @@ export function gridPiece(pattern: Pattern, name: string, writer: GridWriter, gr
 
 // KB: core-support §6, core-domain §1
 export function finishGridPattern(pattern: Pattern, piece: Piece): GridResult {
-  const generated = [...Object.values(SHAPE_NAMES), ...Object.values(MOTIF_NAMES), ...Object.values(TECHNIQUE_NAMES)];
+  const generated = allLocaleNames(SHAPE_NAMES, MOTIF_NAMES, TECHNIQUE_NAMES);
   const result = withGeneratedTitle({ ...pattern, pieces: [piece] }, pattern, piece.name, generated);
   const errors = validatePattern(result, libraryFor(result)).filter((finding) => finding.severity === 'error');
   if (errors.length > 0) return fail(text('pattern-invalid', { rule: errors[0]!.rule }));

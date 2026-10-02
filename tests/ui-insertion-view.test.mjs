@@ -8,15 +8,30 @@ import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
 import { stitchById } from '../src/core/stitches.ts';
+import { setUiLanguage } from '../src/ui/i18n.ts';
 import { insertionChoice, insertionSuffix } from '../src/ui/insertion-view.ts';
 
 const modes = (choice) => choice.options.map((option) => option.mode);
+
+/** Runs `run` with the interface in `language`, then restores the default. KB: interface.md §4 */
+function inLanguage(language, run) {
+  try {
+    setUiLanguage(language);
+    return run();
+  } finally {
+    setUiLanguage('en');
+  }
+}
 
 test('a basic stitch offers all five modes, in library order, with capitalised names', () => {
   const choice = insertionChoice(stitchById('dc'), 'both-loops', 'hu');
   assert.deepEqual(modes(choice), ['both-loops', 'front-loop', 'back-loop', 'front-post', 'back-post']);
   assert.deepEqual(
     choice.options.map((option) => option.label),
+    ['Both loops', 'Front loop', 'Back loop', 'Front post', 'Back post'],
+  );
+  assert.deepEqual(
+    inLanguage('hu', () => insertionChoice(stitchById('dc'), 'both-loops', 'hu').options.map((o) => o.label)),
     ['Mindkét szál', 'Első szál', 'Hátsó szál', 'Első relief', 'Hátsó relief'],
   );
 });
@@ -65,5 +80,9 @@ test('the written form uses the abbreviations of the chosen notation', () => {
 test('the status bar suffix stays empty for both loops', () => {
   assert.equal(insertionSuffix('both-loops'), '');
   assert.equal(insertionSuffix(undefined), '');
-  assert.equal(insertionSuffix('back-post'), ', hátsó relief');
+  assert.equal(insertionSuffix('back-post'), ', back post');
+  assert.equal(
+    inLanguage('hu', () => insertionSuffix('back-post')),
+    ', hátsó relief',
+  );
 });

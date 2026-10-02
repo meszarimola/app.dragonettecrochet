@@ -45,7 +45,9 @@ const dc = { turningChain: 3, counting: true, tradition: 'cyc' };
 const options = (patch) => ({ ...DEFAULT_GARMENT, ...patch });
 const hat = (patch) => ({ ...DEFAULT_HAT, ...patch });
 const findings = (pattern) => validatePattern(pattern, libraryFor(pattern));
-const generated = (opts, pattern = emptyPattern()) => {
+/** The generated names follow the pattern's notation. KB: owner-decisions.md §16 */
+const inNotation = (pattern, terms) => ({ ...pattern, notation: { terms, chartStyle: 'cyc', singleCrochet: 'plus' } });
+const generated = (opts, pattern = inNotation(emptyPattern(), 'hu')) => {
   const result = generateGarment(pattern, opts);
   assert.ok(result.ok, result.ok ? '' : result.reason.code);
   return result;

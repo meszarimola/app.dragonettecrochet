@@ -30,19 +30,19 @@ async function open(page: Page, stored: 'nyitva' | 'zarva' | null): Promise<void
   if (await deny.isVisible()) await deny.click();
 }
 
-/** PQW-1045: a new pattern is started from the „Új” menu, by picking a type. */
+/** PQW-1045: a new pattern is started from the “New” menu, by picking a type. */
 async function newRegular(page: Page): Promise<void> {
   await page.locator('#types-toggle').click();
   await page.locator('.type[data-type="regular"]').click();
 }
 
-test('the panel opened by hand is closed by „Új minta” (PQW-915)', async ({ page }) => {
+test('the panel opened by hand is closed by “New pattern” (PQW-915)', async ({ page }) => {
   await open(page, null);
 
   const written = page.locator('#written');
   await expect(written).toBeHidden();
 
-  // The user opens it: from here on the stored state is „nyitva”.
+  // The user opens it: from here on the stored state is “nyitva”.
   await page.locator('#written-toggle').click();
   await expect(written).toBeVisible();
 
@@ -51,8 +51,8 @@ test('the panel opened by hand is closed by „Új minta” (PQW-915)', async ({
   await expect(page.locator('#written-toggle')).toHaveAttribute('aria-expanded', 'false');
 });
 
-test('on an empty pattern even a stored „nyitva” state does not open the panel (PQW-915)', async ({ page }) => {
-  // This is the blind spot of the earlier tests: the storage already brings a „nyitva” value with it.
+test('on an empty pattern even a stored “nyitva” state does not open the panel (PQW-915)', async ({ page }) => {
+  // This is the blind spot of the earlier tests: the storage already brings a “nyitva” value with it.
   await open(page, 'nyitva');
 
   await expect(page.locator('#written')).toBeHidden();
@@ -77,7 +77,7 @@ test('in the chain count field Enter lays down the stitches (PQW-915)', async ({
   await count.fill('12');
   await count.press('Enter');
 
-  await expect(page.locator('#status')).toContainText('12 láncszem');
+  await expect(page.locator('#status')).toContainText('12 chains');
   await expect(page.locator('[data-action="end-row"]'), 'after the foundation chain one can turn').toBeEnabled();
 });
 

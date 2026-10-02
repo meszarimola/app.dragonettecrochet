@@ -20,6 +20,7 @@ import {
   TABLE_CHOICES,
 } from './garment-view.js';
 import type { Choice } from './shapes-view.js';
+import { formatNumber } from './size-view.ts';
 
 export interface GarmentPanelHost {
   commit(pattern: Pattern, message: string): void;
@@ -31,7 +32,8 @@ function decimal(input: HTMLInputElement): number {
   return text === '' ? Number.NaN : Number(text);
 }
 
-const decimalText = (value: number) => String(value).replace('.', ',');
+// KB: interface.md §3 — the separator follows the interface language, not the source literal.
+const decimalText = (value: number) => formatNumber(value, 1);
 
 export class GarmentPanel {
   readonly #section: HTMLDetailsElement;
@@ -74,7 +76,7 @@ export class GarmentPanel {
     this.#host = host;
     const field = <T extends Element>(id: string): T => {
       const el = section.querySelector<T>(`#${id}`);
-      if (!el) throw new Error(`Hiányzó mező: #${id}`);
+      if (!el) throw new Error(`Missing field: #${id}`);
       return el;
     };
     this.#kind = fill(field('garment-kind'), KIND_CHOICES);

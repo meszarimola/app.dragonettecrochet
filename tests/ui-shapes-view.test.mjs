@@ -10,6 +10,8 @@ import { describe, test } from 'node:test';
 import { emptyPattern } from '../src/core/editor.ts';
 import { DEFAULT_SHAPE, planShape, shapeProblem } from '../src/core/shapes.ts';
 import { SHAPE_CORE_TEXTS } from '../src/ui/i18n/core/shape.ts';
+import { setUiLanguage } from '../src/ui/i18n.ts';
+import { setTermsLocale } from '../src/ui/notation.ts';
 import {
   generatedMessage,
   MEASURE_CHOICES,
@@ -24,6 +26,16 @@ import {
   widthLabel,
 } from '../src/ui/shapes-view.ts';
 import { formatNumber } from '../src/ui/size-view.ts';
+
+/** Runs `run` with the interface in `language`, then restores the default. KB: interface.md §4 */
+function inLanguage(language, run) {
+  try {
+    setUiLanguage(language);
+    return run();
+  } finally {
+    setUiLanguage('en');
+  }
+}
 
 const options = (patch = {}) => ({ ...DEFAULT_SHAPE, ...patch });
 const planOf = (pattern, patch = {}) => {
@@ -46,14 +58,14 @@ function withRowGauge(stitch, stitchesPer10cm, rowsPer10cm) {
 }
 
 describe('choices', () => {
-  test('shapes and stitches carry Hungarian labels, with height or angle and a rounding choice', () => {
+  test('shapes carry labels in both interface languages, with height or angle and a rounding choice', () => {
     assert.deepEqual(
-      SHAPE_CHOICES.map((choice) => choice.label),
-      ['Téglalap', 'Derékszögű háromszög', 'Egyenlő szárú háromszög', 'Trapéz', 'Rombusz'],
+      inLanguage('en', () => SHAPE_CHOICES.map((choice) => choice.label)),
+      ['Rectangle', 'Right triangle', 'Isosceles triangle', 'Trapezoid', 'Rhombus'],
     );
     assert.deepEqual(
-      STITCH_CHOICES.map((choice) => choice.label),
-      ['Rövidpálca', 'Félpálca', 'Egyráhajtásos pálca', 'Kétráhajtásos pálca'],
+      inLanguage('hu', () => SHAPE_CHOICES.map((choice) => choice.label)),
+      ['Téglalap', 'Derékszögű háromszög', 'Egyenlő szárú háromszög', 'Trapéz', 'Rombusz'],
     );
     assert.deepEqual(
       MEASURE_CHOICES.map((choice) => choice.value),
@@ -63,6 +75,19 @@ describe('choices', () => {
       ROUNDING_CHOICES.map((choice) => choice.value),
       ['nearest', 'up', 'down'],
     );
+  });
+
+  test('the stitch names follow the notation, not the interface language (PQW-920)', () => {
+    const inTerms = (terms) => {
+      try {
+        setTermsLocale(terms);
+        return inLanguage('en', () => STITCH_CHOICES.map((choice) => choice.label));
+      } finally {
+        setTermsLocale('en-US');
+      }
+    };
+    assert.deepEqual(inTerms('hu'), ['Rövidpálca', 'Félpálca', 'Egyráhajtásos pálca', 'Kétráhajtásos pálca']);
+    assert.deepEqual(inTerms('en-US'), ['Single crochet', 'Half double crochet', 'Double crochet', 'Treble']);
   });
 });
 
@@ -95,9 +120,9 @@ describe('fields per shape', () => {
     const triangle = normalizeShape({ ...chosen, shape: 'isosceles-triangle' });
     assert.equal(triangle.repeat, null);
     assert.deepEqual(['rectangle', 'trapezoid', 'diamond'].map(widthLabel), [
-      'Szélesség, cm',
-      'Alsó él, cm',
-      'Legszélesebb sor, cm',
+      'Width, cm',
+      'Bottom edge, cm',
+      'Widest row, cm',
     ]);
   });
 });
@@ -106,16 +131,19 @@ describe('the plan printout', () => {
   test('a 20 × 30 cm half double crochet rectangle without a profile: the „≈” prefix and the estimate notice', () => {
     const plan = planOf(emptyPattern());
     const view = shapeView(plan, options(), false);
-    assert.match(view.size, /^Tényleges méret: ≈ \d+,\d × \d+,\d cm, \d+ sor\.$/);
-    assert.equal(view.details[0], `Soronként ${plan.counts[0]} szem.`);
-    assert.match(view.source, /^Nincs profil: a méret becslés 4 mm-es tűből\. Pontosabb, ha próbadarabot mérsz/);
+    assert.match(view.size, /^Finished size: ≈ \d+\.\d × \d+\.\d cm, \d+ rows\.$/);
+    assert.equal(view.details[0], `${plan.counts[0]} stitches per row.`);
+    assert.match(
+      view.source,
+      /^No profile: the size is an estimate from a 4 mm hook\. It is more accurate if you measure a swatch/,
+    );
   });
 
   test('with a measured profile: the exact size and the origin of the gauge', () => {
     const plan = planOf(withRowGauge('hdc', 15, 11));
     const view = shapeView(plan, options(), true);
-    assert.equal(view.size, `Tényleges méret: ${formatNumber(20, 1)} × ${formatNumber(30, 1)} cm, 33 sor.`);
-    assert.equal(view.source, 'A félpálca síkban mért mintasűrűségéből.');
+    assert.equal(view.size, `Finished size: ${formatNumber(20, 1)} × ${formatNumber(30, 1)} cm, 33 rows.`);
+    assert.equal(view.source, 'From the gauge measured in rows gauge of half double crochet.');
   });
 
   test('isosceles triangle (03 §3.2 D): bottom and top row, the edge angle and the apex angle, evenly spread shaping', () => {
@@ -123,16 +151,14 @@ describe('the plan printout', () => {
     const view = shapeView(planOf(withRowGauge('dc', 16, 8), patch), options(patch), true);
     assert.equal(
       view.details[0],
-      `Az alsó sor 32 szem (${formatNumber(20, 1)} cm), a felső 2 szem (${formatNumber(1.25, 1)} cm).`,
+      `The bottom row is 32 stitches (${formatNumber(20, 1)} cm), the top 2 stitches (${formatNumber(1.25, 1)} cm).`,
     );
     assert.ok(
-      view.details.includes('Az él szöge a függőlegestől kb. 32°, a csúcsszög kb. 64°.'),
+      view.details.includes('The edge is about 32° from the vertical, the apex angle about 64°.'),
       view.details.join('\n'),
     );
     assert.ok(
-      view.details.includes(
-        'A szaporítás és a fogyasztás egyenletesen elosztva, élenként soronként legfeljebb 2 egy szembe.',
-      ),
+      view.details.includes('Increases and decreases spread evenly, at most 2 into one stitch per edge and row.'),
     );
   });
 
@@ -140,56 +166,76 @@ describe('the plan printout', () => {
     const patch = { shape: 'diamond', stitch: 'sc', widthCm: 30, heightCm: 5 };
     const view = shapeView(planOf(emptyPattern(), patch), options(patch), false);
     assert.ok(
-      view.details.some((line) => /^Láncos hosszabbítás az? \d+\.(, \d+\.)*( és \d+\.)? sor végén\.$/.test(line)),
+      view.details.some((line) => /^Chain extension at the end of rows \d+(, \d+)*( and \d+)?\.$/.test(line)),
       view.details.join('\n'),
     );
     assert.ok(
-      view.details.some((line) => /^Meghagyott szemek az? .* sor végén: lépcsős él\.$/.test(line)),
+      view.details.some((line) => /^Stitches left unworked at the end of rows .*: a stepped edge\.$/.test(line)),
       view.details.join('\n'),
     );
   });
 
   test('the creation message mentions that undo brings the previous pattern back', () => {
     const plan = planOf(withRowGauge('hdc', 15, 11));
-    assert.equal(
-      generatedMessage(options(), plan),
-      'Téglalap, 33 sor elkészült; visszavonással a korábbi minta visszajön.',
-    );
+    assert.equal(generatedMessage(options(), plan), 'Rectangle: 33 rows done; undo brings the previous one back.');
   });
 });
 
 describe('turning a core reason into a sentence (PQW-904)', () => {
   test('the Hungarian sentence stays word for word what it is today, with the limit and the ordinal filled in from the data', () => {
+    inLanguage('hu', () => {
+      assert.equal(
+        shapeReason(shapeProblem(options({ widthCm: Number.NaN }))),
+        'A szélesség 0 és 300 cm közötti szám legyen.',
+      );
+      assert.equal(
+        shapeReason({ code: 'shape-too-steep' }),
+        'Ilyen meredek élt ennyi sorban nem lehet horgolni: adj meg nagyobb magasságot.',
+      );
+      assert.equal(
+        shapeReason({ code: 'shape-row-too-narrow', data: { row: 7 } }),
+        'A(z) 7. sor túl keskeny ehhez az alakításhoz: adj meg nagyobb méretet vagy laposabb élt.',
+      );
+    });
+  });
+
+  test('the English sentence is what the default interface shows, with the limit filled in from the data (PQW-1100)', () => {
     assert.equal(
       shapeReason(shapeProblem(options({ widthCm: Number.NaN }))),
-      'A szélesség 0 és 300 cm közötti szám legyen.',
+      'The width should be a number between 0 and 300 cm.',
     );
     assert.equal(
       shapeReason({ code: 'shape-too-steep' }),
-      'Ilyen meredek élt ennyi sorban nem lehet horgolni: adj meg nagyobb magasságot.',
+      'Such a steep edge cannot be crocheted in this many rows: give a larger height.',
     );
     assert.equal(
       shapeReason({ code: 'shape-row-too-narrow', data: { row: 7 } }),
-      'A(z) 7. sor túl keskeny ehhez az alakításhoz: adj meg nagyobb méretet vagy laposabb élt.',
+      'Row 7 is too narrow for this shaping: give a larger size or a flatter edge.',
     );
   });
 
-  test('the „ez a program hibája” cases share one code, and the data decides which sentence comes out', () => {
+  test('the „this is a bug” cases share one code, and the data decides which sentence comes out', () => {
+    inLanguage('hu', () => {
+      assert.equal(
+        shapeReason({ code: 'internal-error', data: { rule: 'unused-position' } }),
+        'A generált minta nem ment át az ellenőrzőn (unused-position): ez a program hibája, kérlek, jelezd.',
+      );
+      assert.equal(
+        shapeReason({ code: 'internal-error', data: { row: 4 } }),
+        'A(z) 4. sor szemszáma nem a terv szerinti: ez a program hibája, kérlek, jelezd.',
+      );
+      assert.equal(
+        shapeReason({ code: 'internal-error', data: { row: 4, shape: 'round' } }),
+        'A(z) 4. kör szemszáma nem a terv szerinti: ez a program hibája, kérlek, jelezd.',
+      );
+      assert.equal(
+        shapeReason({ code: 'internal-error' }),
+        'A sorok terve hiányos: ez a program hibája, kérlek, jelezd.',
+      );
+    });
     assert.equal(
       shapeReason({ code: 'internal-error', data: { rule: 'unused-position' } }),
-      'A generált minta nem ment át az ellenőrzőn (unused-position): ez a program hibája, kérlek, jelezd.',
-    );
-    assert.equal(
-      shapeReason({ code: 'internal-error', data: { row: 4 } }),
-      'A(z) 4. sor szemszáma nem a terv szerinti: ez a program hibája, kérlek, jelezd.',
-    );
-    assert.equal(
-      shapeReason({ code: 'internal-error', data: { row: 4, shape: 'round' } }),
-      'A(z) 4. kör szemszáma nem a terv szerinti: ez a program hibája, kérlek, jelezd.',
-    );
-    assert.equal(
-      shapeReason({ code: 'internal-error' }),
-      'A sorok terve hiányos: ez a program hibája, kérlek, jelezd.',
+      'The generated pattern did not pass the checker (unused-position): this is a bug, please report it.',
     );
   });
 

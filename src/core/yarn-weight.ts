@@ -79,7 +79,7 @@ const METERAGE_CLASSES: readonly {
 
 // KB: 02 §1.4, core-support §3
 export function classifyByMeterage(m100: number): MeterageClass {
-  if (!(m100 > 0)) throw new RangeError(`Pozitív m/100 g értéket vártunk: ${m100}.`);
+  if (!(m100 > 0)) throw new RangeError(`Expected a positive m/100 g value: ${m100}.`);
   const match = METERAGE_CLASSES.find((entry) => m100 >= entry.min) ?? METERAGE_CLASSES[METERAGE_CLASSES.length - 1];
   return { weight: match.weight, candidates: match.candidates, source: 'estimated' };
 }

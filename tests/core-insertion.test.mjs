@@ -28,9 +28,20 @@ import { stitchById } from '../src/core/stitches.ts';
 import { validatePattern } from '../src/core/validate.ts';
 import { EDITOR_CORE_TEXTS } from '../src/ui/i18n/core/editor.ts';
 import { renderCoreText } from '../src/ui/i18n/core/render.ts';
+import { setTermsLocale } from '../src/ui/notation.ts';
 
 /** The core hands over a code and data (PQW-904); the Hungarian sentence comes from the UI dictionary. */
-const huText = (reason) => renderCoreText(EDITOR_CORE_TEXTS.hu, reason);
+const huText = (reason) => renderCoreText(EDITOR_CORE_TEXTS, 'hu', reason);
+
+/** Runs `run` with the notation in `terms`, then restores the default. KB: interface.md §2 */
+function inTerms(terms, run) {
+  try {
+    setTermsLocale(terms);
+    return run();
+  } finally {
+    setTermsLocale('en-US');
+  }
+}
 
 function ok(result) {
   assert.ok(result.ok, result.ok ? '' : huText(result.reason));
@@ -160,7 +171,7 @@ describe('placing stitches in the chosen mode', () => {
       allowed: ['both-loops', 'front-loop', 'back-loop'],
     });
     assert.equal(
-      huText(result.reason),
+      inTerms('hu', () => huText(result.reason)),
       'A(z) kúszószem nem horgolható így: első relief. Választható: mindkét szál, első szál, hátsó szál.',
     );
     const filled = fillRow(pattern, { def: 'rev-sc', count: 1, insertion: 'back-loop' });

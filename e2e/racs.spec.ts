@@ -26,7 +26,7 @@ interface Racs {
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
-  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
 }
 
@@ -39,10 +39,10 @@ const racs = (page: Page): Promise<Racs> =>
   });
 
 /** Click on the cell of the target: in the bottom row (the own cell of the target) or in the row in progress (above it). */
-async function clickSlot(page: Page, slot: number, row: 'alsó' | 'készülő'): Promise<void> {
+async function clickSlot(page: Page, slot: number, row: 'bottom' | 'current'): Promise<void> {
   const { layer, cells } = await racs(page);
   const cell = cells.find(
-    (candidate) => candidate.slot === slot && candidate.layer === (row === 'készülő' ? layer : layer - 1),
+    (candidate) => candidate.slot === slot && candidate.layer === (row === 'current' ? layer : layer - 1),
   );
   expect(cell, `the cell of target ${slot} (row ${row})`).toBeTruthy();
   await page.mouse.click(cell!.x, cell!.y);
@@ -57,11 +57,11 @@ test('the rectangle is made by clicking on cells only; where there is nothing to
   const palette = page.locator('#palette');
   const summary = page.locator('#summary');
   const status = page.locator('#status');
-  const fit = page.getByRole('button', { name: 'Egész minta' });
+  const fit = page.getByRole('button', { name: 'Whole pattern' });
 
   // Foundation chain (row 1 on the chart): the chain stitch goes without a target, one click on the canvas.
   await palette
-    .getByRole('button', { name: /Láncszem/ })
+    .getByRole('button', { name: /Chain \(ch\)/ })
     .first()
     .click();
   await page.locator('#chain-count').fill('6');
@@ -73,29 +73,29 @@ test('the rectangle is made by clicking on cells only; where there is nothing to
   // Row 1: single crochets into the cells of the foundation chain; for single crochet we skip 2 chain stitches (PQW-924), and into the rest
   // one single crochet each goes: 4 stitches out of 6 chain stitches.
   await palette
-    .getByRole('button', { name: /Rövidpálca \(rp\)/ })
+    .getByRole('button', { name: /Single crochet \(sc\)/ })
     .first()
     .click();
-  for (const slot of [2, 3, 4, 5]) await clickSlot(page, slot, 'alsó');
-  await expect(summary).toContainText('2. sor: 5 szem');
+  for (const slot of [2, 3, 4, 5]) await clickSlot(page, slot, 'bottom');
+  await expect(summary).toContainText('Row 2: 5 stitches');
 
-  await page.getByRole('button', { name: 'Sor vége, fordulás' }).click();
+  await page.getByRole('button', { name: 'End of row, turn' }).click();
   await page.locator('#zoom-toggle').click();
   await fit.click();
-  await expect(summary).toContainText('3. sor következik.');
+  await expect(summary).toContainText('Row 3 is next.');
 
   // The foundation chain is no longer a target: a message comes, and no stitch is laid down.
   const { layer, cells } = await racs(page);
   const old = cells.find((cell) => cell.layer === layer - 2);
   expect(old).toBeTruthy();
   await page.mouse.click(old!.x, old!.y);
-  await expect(status).toHaveText(/^Ez az 1\. sor egyik helye\. Most a 3\. sor készül: .*Nem került le szem\.$/);
-  await expect(summary).toContainText('3. sor következik.');
+  await expect(status).toHaveText(/^This is a spot in row 1\. Row 3 is being worked: .*No stitch was worked\.$/);
+  await expect(summary).toContainText('Row 3 is next.');
 
   // Row 2: into the cells of the row in progress, clicking above the targets; one goes into every stitch (PQW-924).
-  for (const slot of [0, 1, 2, 3]) await clickSlot(page, slot, 'készülő');
-  await expect(summary).toContainText('3. sor: 4 szem, még 1 célpont');
-  await expect(summary).toContainText('Nincs hiba és figyelmeztetés.');
+  for (const slot of [0, 1, 2, 3]) await clickSlot(page, slot, 'current');
+  await expect(summary).toContainText('Row 3: 4 stitches, 1 more target');
+  await expect(summary).toContainText('No errors or warnings.');
 
   // The row label is an independent, clickable target area: it selects the whole row (PQW-875).
   await page.locator('#zoom-toggle').click();
@@ -103,8 +103,8 @@ test('the rectangle is made by clicking on cells only; where there is nothing to
   const label = (await racs(page)).labels.find((candidate) => candidate.layer === 1);
   expect(label).toBeTruthy();
   await page.mouse.click(label!.x, label!.y);
-  await expect(status).toHaveText('2. sor kijelölve: 5 szem.');
-  await expect(summary).toContainText('3. sor: 4 szem, még 1 célpont');
+  await expect(status).toHaveText('Row 2 selected: 5 stitches.');
+  await expect(summary).toContainText('Row 3: 4 stitches, 1 more target');
 });
 
 test('the grid can be switched on and off in the view group, it survives, and it goes into the SVG export optionally', async ({
@@ -114,7 +114,7 @@ test('the grid can be switched on and off in the view group, it survives, and it
   const grid = page.locator('.tools [data-action="grid"]');
   await expect(grid).toHaveAttribute('aria-pressed', 'true');
   // The shortcut uses Alt (PQW-911); on a Mac its label is ⌥R.
-  await expect(grid).toHaveAttribute('data-tip', /^Rács ki és be \((Alt\+R|⌥R)\)$/);
+  await expect(grid).toHaveAttribute('data-tip', /^Grid on and off \((Alt\+R|⌥R)\)$/);
 
   await page.locator('#board').focus();
   await page.keyboard.press('Alt+1');
@@ -123,7 +123,7 @@ test('the grid can be switched on and off in the view group, it survives, and it
   await page.keyboard.press('Enter');
   await page.keyboard.press('Alt+3');
   for (let i = 0; i < 5; i += 1) await page.keyboard.press('Enter');
-  await expect(page.locator('#summary')).toContainText('2. sor: 5 szem');
+  await expect(page.locator('#summary')).toContainText('Row 2: 5 stitches');
   expect((await racs(page)).cells.length).toBeGreaterThan(0);
 
   await page.locator('#view-toggle').click();
@@ -149,7 +149,7 @@ test('the grid can be switched on and off in the view group, it survives, and it
   };
   const withGrid = await exportSvg();
   expect(withGrid).toContain('data-grid="rows"');
-  expect(withGrid).toContain('Rács: váltakozó sávok');
+  expect(withGrid).toContain('Grid: alternating bands');
 
   /*
    * The grid does not divide the stitches into groups (PQW-924). The owner saw
@@ -161,8 +161,8 @@ test('the grid can be switched on and off in the view group, it survives, and it
     .map((match) => Number(match[1]))
     .filter((width) => width > 1);
   expect(thickVertical, 'there is no thick vertical cell line in the exported grid').toEqual([]);
-  // The numbering is the new one too: the foundation chain is row 1, there is no „0” row number.
-  expect(withGrid).toContain('1. sor – alapsor');
+  // The numbering is the new one too: the foundation chain is row 1, there is no "0" row number.
+  expect(withGrid).toContain('Row 1 – foundation');
   expect(withGrid).not.toMatch(/>0<\/text>/);
 
   // The grid option is in the export dialog (interface.md §57); Escape closes it again.
@@ -172,5 +172,5 @@ test('the grid can be switched on and off in the view group, it survives, and it
   await page.keyboard.press('Escape');
   const withoutGrid = await exportSvg();
   expect(withoutGrid).not.toContain('data-grid');
-  expect(withoutGrid).toContain('Jelmagyarázat');
+  expect(withoutGrid).toContain('Legend');
 });

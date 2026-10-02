@@ -1,8 +1,8 @@
 /*
- * Ribbed edging and cuff in the „Ruhadarab” section (PQW-913): a drop shoulder
+ * Ribbed edging and cuff in the "Garment" section (PQW-913): a drop shoulder
  * sweater and a top-down raglan with ribbing, error-free, as a repeat in the
  * written pattern. The raglan wants a measured round gauge, so we enter a
- * profile in the „Méret és fonal” section.
+ * profile in the "Size and yarn" section.
  *
  * The ribbing of the neck is not included: for that the graph would have to pick
  * up stitches along the edge, and edging generation was deliberately left out in
@@ -13,7 +13,7 @@ import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
-  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
 }
 
@@ -47,7 +47,7 @@ async function enter(page: Page, selector: string, value: string): Promise<void>
 /** Measured round gauge in a profile: the raglan wants this (PQW-901). */
 async function roundGauge(page: Page): Promise<void> {
   await openSection(page, 'section-size');
-  await page.getByRole('button', { name: 'Új profil' }).click();
+  await page.getByRole('button', { name: 'New profile' }).click();
   await enter(page, '#size-yarn-name', 'Pamut');
   await enter(page, '#size-hook', '5');
   await page.locator('#size-gauge-add').click();
@@ -61,7 +61,7 @@ async function roundGauge(page: Page): Promise<void> {
   await page.locator('#section-size > summary').click();
 }
 
-/** Switching the ribbing on in the Ruhadarab panel, with the row count and the rib width. */
+/** Switching the ribbing on in the Garment panel, with the row count and the rib width. */
 async function turnOnRibbing(page: Page, rows: string, width: string): Promise<void> {
   await expect(page.locator('#garment-ribbing-pair')).toBeHidden();
   await page.locator('#garment-ribbing').check();
@@ -82,16 +82,16 @@ for (const viewport of [
     await expect(page.locator('#garment-kind')).toHaveValue('drop-shoulder');
     await turnOnRibbing(page, '2', '1');
 
-    await section.getByRole('button', { name: 'Minta létrehozása' }).click();
-    await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
+    await section.getByRole('button', { name: 'Create pattern' }).click();
+    await expect(page.locator('#error-count')).toHaveText('No errors');
 
     const text = await writtenText(page);
     // The turning chain of the ribbed row is one chain stitch shorter, and it is a turning chain (01 §2.2 [S25]).
-    expect(text).toMatch(/2 lsz \(fordulólánc\)/);
+    expect(text).toMatch(/ch 2 \(turning chain\)/);
     // The ribbing stands as a repeat, not listed stitch by stitch.
-    expect(text).toMatch(/\[1 (Eerp|Herp), 1 (Eerp|Herp)\]/);
+    expect(text).toMatch(/\[(FPdc|BPdc), (FPdc|BPdc)\] \d+ times/);
     // Row 1 stays plain: a post stitch cannot be crocheted around the foundation chain.
-    expect(text).not.toMatch(/^2\. sor:.*(Eerp|Herp)/m);
+    expect(text).not.toMatch(/^Row 2:.*(FPdc|BPdc)/m);
   });
 
   test(`${viewport.width}×${viewport.height}: top-down raglan with ribbed edging and cuffs`, async ({ page }) => {
@@ -100,24 +100,24 @@ for (const viewport of [
     await roundGauge(page);
     const section = await openSection(page, 'section-garment');
 
-    await page.locator('#garment-kind').selectOption({ label: 'Felülről horgolt raglán' });
+    await page.locator('#garment-kind').selectOption({ label: 'Top-down raglan' });
     await expect(page.locator('#garment-size')).toHaveValue('M');
     await turnOnRibbing(page, '2', '1');
 
-    await section.getByRole('button', { name: 'Minta létrehozása' }).click();
-    await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
+    await section.getByRole('button', { name: 'Create pattern' }).click();
+    await expect(page.locator('#error-count')).toHaveText('No errors');
 
     const text = await writtenText(page);
     // The lower edging of the body and the cuff of the sleeves with post stitches, as a repeat in the round.
-    expect(text).toMatch(/\(1 (Eerp|Herp), 1 (Eerp|Herp)\) ×\d+/);
+    expect(text).toMatch(/\((FPdc|BPdc), (FPdc|BPdc)\) x\d+/);
     // The tube of the sleeve from the underarm to the cuff (PQW-913).
-    expect(text).toMatch(/Ujj \(2 db\):/);
+    expect(text).toMatch(/Sleeve \(make 2\):/);
   });
 }
 
 test('a hat has no ribbed edging: the choice does not even appear', async ({ page }) => {
   await open(page);
   await openSection(page, 'section-garment');
-  await page.locator('#garment-kind').selectOption({ label: 'Sapka' });
+  await page.locator('#garment-kind').selectOption({ label: 'Hat' });
   await expect(page.locator('#garment-ribbing-fields')).toBeHidden();
 });

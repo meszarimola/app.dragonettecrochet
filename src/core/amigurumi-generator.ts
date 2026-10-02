@@ -11,12 +11,13 @@ import {
 } from './amigurumi.ts';
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
 import { type CoreText, text } from './messages.ts';
-import { withGeneratedTitle } from './pattern-title.ts';
+import { allLocaleNames, titleLocale, withGeneratedTitle } from './pattern-title.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import { traditionOf, turningChainCountsFor } from './tradition.ts';
 import type {
   Anchor,
   LayerEvent,
+  Locale,
   NodeId,
   Pattern,
   PatternConventions,
@@ -68,8 +69,8 @@ const fail = (reason: CoreText<AmigurumiCode>): AmigurumiResult => ({ ok: false,
 
 const OPEN_START: CoreText<AmigurumiCode> = text('open-start-piece');
 
-export function partName(part: PartOptions): string {
-  return part.name.trim() || SHAPE_NAMES[part.shape.kind];
+export function partName(part: PartOptions, locale: Locale): string {
+  return part.name.trim() || SHAPE_NAMES[locale][part.shape.kind];
 }
 
 export function createAmigurumi(pattern: Pattern, part: PartOptions, under3: boolean): AmigurumiResult {
@@ -78,7 +79,7 @@ export function createAmigurumi(pattern: Pattern, part: PartOptions, under3: boo
   const { schedule } = planned;
   if (schedule.start === 'open') return fail(OPEN_START);
 
-  const name = partName(part);
+  const name = partName(part, titleLocale(pattern));
   const writer = new PieceWriter();
   const marks = sectionMarks(schedule, part.eyes, under3);
   const problem = writeSection(writer, {
@@ -101,7 +102,7 @@ export function createAmigurumi(pattern: Pattern, part: PartOptions, under3: boo
     toy: { under3 },
   };
   // KB: core-domain §1
-  const result = withGeneratedTitle(built, pattern, name, Object.values(SHAPE_NAMES));
+  const result = withGeneratedTitle(built, pattern, name, allLocaleNames(SHAPE_NAMES));
   return { ok: true, pattern: result, schedule };
 }
 
@@ -128,7 +129,7 @@ export function addAmigurumiPart(
   const lastLayer = graph.layers.length - 1;
   const lastCount = graph.layers[lastLayer]!.stitchCount;
   const closedEnd = previous.events.at(-1)?.marks?.includes('close-opening') === true;
-  const name = partName(part);
+  const name = partName(part, titleLocale(pattern));
   const marks = sectionMarks(schedule, part.eyes, under3);
   const conventions = { ...pattern.conventions, roundEnd: 'spiral' as const };
 
