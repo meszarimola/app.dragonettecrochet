@@ -1,10 +1,6 @@
 // KB: interface.md §1, §2, §4, §5
 
-import { IRREGULAR_TEXTS } from './i18n/irregular.ts';
 import { MARKUP_TEXTS } from './i18n/markup.ts';
-import { MESSAGE_TEXTS } from './i18n/messages.ts';
-import { PANEL_TEXTS } from './i18n/panels.ts';
-import { RULE_TEXTS } from './i18n/rules.ts';
 import { SECTION_TEXTS } from './i18n/sections.ts';
 import type { UiLanguage } from './notation.ts';
 
@@ -16,30 +12,12 @@ export type Dictionary<T> = Readonly<Record<UiLanguage, T>>;
 
 export interface UiTexts {
   readonly markup: (typeof MARKUP_TEXTS)['hu'];
-  readonly messages: (typeof MESSAGE_TEXTS)['hu'];
-  readonly panels: (typeof PANEL_TEXTS)['hu'];
   readonly sections: (typeof SECTION_TEXTS)['hu'];
-  readonly rules: (typeof RULE_TEXTS)['hu'];
-  readonly irregular: (typeof IRREGULAR_TEXTS)['hu'];
 }
 
 export const UI_TEXTS: Dictionary<UiTexts> = {
-  hu: {
-    markup: MARKUP_TEXTS.hu,
-    messages: MESSAGE_TEXTS.hu,
-    panels: PANEL_TEXTS.hu,
-    sections: SECTION_TEXTS.hu,
-    rules: RULE_TEXTS.hu,
-    irregular: IRREGULAR_TEXTS.hu,
-  },
-  en: {
-    markup: MARKUP_TEXTS.en,
-    messages: MESSAGE_TEXTS.en,
-    panels: PANEL_TEXTS.en,
-    sections: SECTION_TEXTS.en,
-    rules: RULE_TEXTS.en,
-    irregular: IRREGULAR_TEXTS.en,
-  },
+  hu: { markup: MARKUP_TEXTS.hu, sections: SECTION_TEXTS.hu },
+  en: { markup: MARKUP_TEXTS.en, sections: SECTION_TEXTS.en },
 };
 
 export function languageFromSearch(search: string): UiLanguage | null {
@@ -110,15 +88,5 @@ export function applyStaticTexts(root: ParentNode, markup: UiTexts['markup']): v
   for (const element of root.querySelectorAll<HTMLElement>('[data-i18n-roledescription]')) {
     const key = element.dataset['i18nRoledescription'];
     if (key !== undefined) element.setAttribute('aria-roledescription', value(key));
-  }
-  // KB: interface.md §8 — a default the user has not touched is swapped; anything
-  // they typed is left alone, so a language change never eats an entry.
-  for (const element of root.querySelectorAll<HTMLInputElement>('[data-i18n-value]')) {
-    const key = element.dataset['i18nValue'];
-    if (key === undefined) continue;
-    const defaults = UI_LANGUAGES.map((language) => (UI_TEXTS[language].markup as Record<string, string>)[key]);
-    if (element.value !== '' && !defaults.includes(element.value)) continue;
-    element.value = value(key);
-    element.setAttribute('value', element.value);
   }
 }

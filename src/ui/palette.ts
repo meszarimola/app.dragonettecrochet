@@ -25,7 +25,7 @@ export function buildPalette(terms: Locale = 'hu'): PaletteSection[] {
   const titles = texts().sections.palette.titles;
   let index = 0;
   // KB: interface.md §74 — the magic ring is shown among the compound stitches,
-  // and the chain space not at all: the chain arc tool draws it.
+  // and the chain space not at all.
   const shown = (section: (typeof STITCH_SECTIONS)[number]): readonly StitchDef[] =>
     section.id === 'compound' ? [...section.stitches, MAGIC_RING] : section.stitches;
   return STITCH_SECTIONS.filter((section) => section.offPalette !== true).map((section) => ({

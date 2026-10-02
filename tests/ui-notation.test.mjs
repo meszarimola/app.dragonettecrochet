@@ -1,134 +1,37 @@
 /*
- * The notation and chart style settings (PQW-868): the default follows the
- * interface language, a stored choice is independent of it, the JIS symbol
- * drawing, and a pattern records the notation it was made with.
+ * The chart style setting (PQW-868): CYC or JIS, stored apart from the
+ * interface language, and the terms follow the interface language.
  */
 
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
-import { loadPattern, savePattern } from '../src/core/pattern-json.ts';
-import { setUiLanguage } from '../src/ui/i18n.ts';
-import {
-  defaultNotation,
-  notationForTradition,
-  readNotation,
-  symbolOptionsFor,
-  TERMS,
-  termsLabel,
-  textLanguage,
-  traditionLabel,
-  uiLanguageOf,
-  withNotation,
-  writeNotation,
-} from '../src/ui/notation.ts';
-import { hdcRectangle } from './fixtures/examples.ts';
+import { readChartStyle, symbolOptionsFor, termsFor, writeChartStyle } from '../src/ui/notation.ts';
 
-/** Runs `run` with the interface in `language`, then restores the default. KB: interface.md §4 */
-function inLanguage(language, run) {
-  try {
-    setUiLanguage(language);
-    return run();
-  } finally {
-    setUiLanguage('en');
-  }
-}
-
-test('the default notation is Hungarian on a Hungarian interface and US on an English one', () => {
-  assert.deepEqual(defaultNotation('hu'), { terms: 'hu', chartStyle: 'cyc', singleCrochet: 'plus' });
-  assert.deepEqual(defaultNotation('en'), { terms: 'en-US', chartStyle: 'cyc', singleCrochet: 'plus' });
-  assert.equal(readNotation(null, 'en').terms, 'en-US');
+test('the terms follow the interface language: Hungarian or US', () => {
+  assert.equal(termsFor('hu'), 'hu');
+  assert.equal(termsFor('en'), 'en-US');
 });
 
-test('the interface language comes from the <html lang> value, defaulting to English (PQW-1100)', () => {
-  assert.deepEqual(['hu', 'hu-HU', 'en', 'en-GB', 'EN-us', '', 'de'].map(uiLanguageOf), [
-    'hu',
-    'hu',
-    'en',
-    'en',
-    'en',
-    'en',
-    'en',
-  ]);
-});
-
-test('the terms follow the interface language, whatever is stored (PQW-1122)', () => {
-  // Terms of the other language cannot stand on this interface, or a session from
-  // before PQW-1100 strands the user where nothing can change them. Within the
-  // language the stored choice holds — that is what keeps UK terms reachable.
-  // KB: owner-decisions.md §17
-  const expected = {
-    hu: { hu: 'hu', 'en-US': 'hu', 'en-GB': 'hu' },
-    en: { hu: 'en-US', 'en-US': 'en-US', 'en-GB': 'en-GB' },
-  };
-  for (const ui of ['hu', 'en']) {
-    for (const terms of TERMS) {
-      const stored = writeNotation({ terms, chartStyle: 'jis', singleCrochet: 'cross' });
-      assert.deepEqual(
-        readNotation(stored, ui),
-        { terms: expected[ui][terms], chartStyle: 'jis', singleCrochet: 'cross' },
-        `${ui} interface, ${terms} stored`,
-      );
-    }
+test('a stored chart style is read back, and anything else falls back to CYC', () => {
+  assert.equal(readChartStyle(writeChartStyle(null, 'jis')), 'jis');
+  assert.equal(readChartStyle(writeChartStyle(null, 'cyc')), 'cyc');
+  for (const stored of [null, '', '{', 'null', '"jis"', '{"chartStyle":"abc"}', '[]']) {
+    assert.equal(readChartStyle(stored), 'cyc', String(stored));
   }
 });
 
-test('a missing or invalid setting falls back to the default field by field', () => {
-  for (const stored of [null, '', 'nem json', '[]', 'null', '42']) {
-    assert.deepEqual(readNotation(stored, 'hu'), defaultNotation('hu'), String(stored));
-  }
-  // The single crochet symbol is not a stored setting, it follows the chart style (PQW-929): JIS → ×.
-  assert.deepEqual(readNotation('{"terms":"jp","chartStyle":"jis","singleCrochet":"x"}', 'en'), {
-    terms: 'en-US',
-    chartStyle: 'jis',
-    singleCrochet: 'cross',
-  });
-  // A previously stored „×” does not come back in CYC style either: the owner asked for the + symbol.
-  assert.deepEqual(readNotation('{"terms":"hu","chartStyle":"cyc","singleCrochet":"cross"}', 'hu'), {
-    terms: 'hu',
-    chartStyle: 'cyc',
-    singleCrochet: 'plus',
-  });
+test('a notation stored before the rewrite keeps its chart style', () => {
+  assert.equal(readChartStyle('{"terms":"en-GB","chartStyle":"jis","singleCrochet":"cross"}'), 'jis');
 });
 
-test('the symbol drawing options come from the chart style and the single crochet symbol', () => {
-  assert.deepEqual(symbolOptionsFor(defaultNotation('hu')), { singleCrochet: 'plus', style: 'cyc' });
-  assert.deepEqual(symbolOptionsFor({ terms: 'hu', chartStyle: 'jis', singleCrochet: 'plus' }), {
-    singleCrochet: 'plus',
-    style: 'jis',
-  });
+test('writing the chart style keeps the stored terms, and the × follows JIS', () => {
+  const written = JSON.parse(writeChartStyle('{"terms":"en-GB","chartStyle":"cyc","singleCrochet":"plus"}', 'jis'));
+  assert.deepEqual(written, { terms: 'en-GB', chartStyle: 'jis', singleCrochet: 'cross' });
+  assert.deepEqual(JSON.parse(writeChartStyle('not json', 'cyc')), { chartStyle: 'cyc', singleCrochet: 'plus' });
 });
 
-test('a saved pattern records the notation it was made with, and the graph is left alone', () => {
-  const { pattern } = hdcRectangle({ rows: 2 });
-  const notation = { terms: 'en-GB', chartStyle: 'cyc', singleCrochet: 'cross' };
-  const stamped = withNotation(pattern, notation);
-  assert.deepEqual(stamped.notation, notation);
-  assert.deepEqual({ ...stamped, notation: undefined }, { ...pattern, notation: undefined });
-
-  const loaded = loadPattern(savePattern(stamped));
-  assert.equal(loaded.ok, true);
-  assert.deepEqual(loaded.pattern.notation, notation);
-});
-
-test('the Japanese preset turns on JIS symbols and the × single crochet while the written terms stay (PQW-876)', () => {
-  const start = { terms: 'en-GB', chartStyle: 'cyc', singleCrochet: 'plus' };
-  const japanese = notationForTradition(start, 'japanese');
-  assert.deepEqual(japanese, { terms: 'en-GB', chartStyle: 'jis', singleCrochet: 'cross' });
-  assert.deepEqual(symbolOptionsFor(japanese), { singleCrochet: 'cross', style: 'jis' });
-  assert.deepEqual(notationForTradition(japanese, 'cyc'), start);
-  assert.deepEqual(['cyc', 'japanese'].map(traditionLabel), ['international (CYC)', 'Japanese']);
-  assert.deepEqual(
-    inLanguage('hu', () => ['cyc', 'japanese'].map(traditionLabel)),
-    ['nemzetközi (CYC)', 'japán'],
-  );
-});
-
-test('the notation labels name the term system', () => {
-  assert.deepEqual(TERMS.map(termsLabel), ['Hungarian', 'US English (US terms)', 'UK English (UK terms)']);
-  assert.deepEqual(
-    inLanguage('hu', () => TERMS.map(termsLabel)),
-    ['magyar', 'amerikai angol (US terms)', 'brit angol (UK terms)'],
-  );
-  assert.deepEqual(TERMS.map(textLanguage), ['hu', 'en', 'en']);
+test('JIS draws single crochet as ×, CYC as +', () => {
+  assert.deepEqual(symbolOptionsFor('jis'), { singleCrochet: 'cross', style: 'jis' });
+  assert.deepEqual(symbolOptionsFor('cyc'), { singleCrochet: 'plus', style: 'cyc' });
 });

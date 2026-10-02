@@ -8,7 +8,7 @@ import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
 import { STITCHES, stitchById } from '../src/core/stitches.ts';
-import { hatchCount, placedShapes, shapeBounds, stemLength, symbolShapes } from '../src/ui/symbols.ts';
+import { hatchCount, shapeBounds, stemLength, symbolShapes } from '../src/ui/symbols.ts';
 
 const ROLES = [
   'stem',
@@ -296,18 +296,15 @@ test('in JIS style the magic ring is the „わ” symbol: drawn from its own li
   assert.ok(wa.maxX - wa.minX > 10 && wa.maxY - wa.minY > 10, 'big enough to read');
 });
 
-test('the same on the chart: in JIS style the magic ring is „わ”, in CYC the ring with its tail', () => {
+test('in CYC style the magic ring is the ring with its tail, and in JIS it has no circle', () => {
   const ring = stitchById('magic-ring');
-  const placement = { role: 'ring', feet: [], top: { x: 50, y: 40 }, angle: 0, size: 20 };
-  const cyc = placedShapes(ring, placement);
+  const cyc = symbolShapes(ring);
   assert.deepEqual(roleCounts(cyc), only({ ring: 8 }));
   // KB: interface.md §74 — one outer circle, the loop inside it, and the tail.
   assert.equal(cyc.filter((shape) => shape.kind === 'ellipse').length, 1);
   assert.equal(cyc.filter((shape) => shape.kind === 'curve').length, 7);
-  const jis = placedShapes(ring, placement, { singleCrochet: 'plus', style: 'jis' });
+  const jis = symbolShapes(ring, { singleCrochet: 'plus', style: 'jis' });
   assert.ok(jis.length >= 4 && jis.every((shape) => shape.kind !== 'ellipse'));
-  const { minX, maxX, minY, maxY } = shapeBounds(jis);
-  assert.ok(minX >= 40 && maxX <= 60 && minY >= 30 && maxY <= 50);
 });
 
 test('in JIS style reverse single crochet is the × single crochet with a wavy line above it', () => {

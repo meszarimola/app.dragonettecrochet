@@ -101,7 +101,7 @@ test('a UK-notation palette shows no sc, hdc or sl st', () => {
 /* ---- Design tokens ---- */
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
-const DRAWING = ['src/ui/symbols.ts', 'src/ui/board.ts', 'src/ui/main.ts', 'src/ui/palette.ts', 'src/ui/chart-svg.ts'];
+const DRAWING = ['src/ui/symbols.ts', 'src/ui/freeform-board.ts', 'src/ui/main.ts', 'src/ui/palette.ts'];
 
 test('the drawing code holds no literal colour', () => {
   for (const path of DRAWING) {

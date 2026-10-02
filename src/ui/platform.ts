@@ -4,10 +4,6 @@ export function applePlatform(platform: string): boolean {
   return /mac|iphone|ipad|ipod/i.test(platform);
 }
 
-export function modifierName(platform: string): string {
-  return applePlatform(platform) ? '⌥' : 'Alt';
-}
-
 export function modifierCombo(key: string, platform: string): string {
   return applePlatform(platform) ? `⌥${key}` : `Alt+${key}`;
 }
