@@ -105,7 +105,6 @@ const CORE_EXCEPTIONS = new Set([
   'finished-size.ts', // RangeError, only tests call it
   'pattern-size.ts', // RangeError, internal invariant
   'pattern-text.ts', // the vocabulary of the written pattern: the language of the notation
-  'garment-text.ts', // the same, for garments
   'stitchText.ts', // the same: the stitch description in the written pattern, per language
   'hungarian.ts', // Hungarian grammar helpers for the written pattern
   'stitches.ts', // stitch names, per language

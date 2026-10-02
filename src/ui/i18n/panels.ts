@@ -1,19 +1,18 @@
 /*
  * The right-hand generator panels (PQW-900): list labels, field labels, the
  * printed plan, the warnings and the status line after generating. Grouped by
- * area: `shape`, `shawl`, `round`, `amigurumi`, `grid`, `garment`.
+ * area: `shape`, `shawl`, `round`, `amigurumi`, `grid`.
  *
  * KB: dictionaries.md §1, §5, §8
  */
 
 import { article } from '../../core/hungarian.ts';
-import type { BodyTableId, FitLevel } from '../../core/body-sizes.ts';
 import type { JoinMethod } from '../../core/amigurumi-generator.ts';
 import type { Curvature } from '../../core/amigurumi.ts';
 import type { JogFix, MotifShape, RoundClosing, RoundStart } from '../../core/round-generator.ts';
 import type { FlatShape, RepeatRounding, ShapeMeasure } from '../../core/shapes.ts';
 import type { ShawlKind } from '../../core/shawls.ts';
-import type { GarmentKind, GridTechnique, PieceEnd, ShapeSpec, SphereMethod } from '../../core/types.ts';
+import type { GridTechnique, PieceEnd, ShapeSpec, SphereMethod } from '../../core/types.ts';
 import type { Dictionary } from '../i18n.ts';
 
 type ShapeKind = ShapeSpec['kind'];
@@ -234,62 +233,6 @@ export interface PanelTexts {
     readonly colorFallback: (letter: string) => string;
     readonly remove: string;
     readonly cellRatio: (width: string, height: string) => string;
-  };
-  readonly garment: {
-    readonly names: Readonly<Record<GarmentKind, string>>;
-    readonly tables: Readonly<Record<BodyTableId, string>>;
-    readonly fits: Readonly<Record<FitLevel, string>>;
-    readonly easeLabels: { readonly hat: string; readonly sweater: string };
-    readonly hemLabels: { readonly hat: string; readonly sweater: string };
-    readonly easeHat: (small: string, large: string, limitCm: number, limit: number) => string;
-    readonly easeSweater: (from: number, to: number, limit: number) => string;
-    readonly hatSize: (name: string, approx: string, circumference: string, height: string, rounds: number) => string;
-    readonly sweaterSize: (name: string, approx: string, chest: string, length: string, sleeve: string) => string;
-    readonly yarnMissing: string;
-    readonly yarn: (meters: number, balls: number) => string;
-    readonly prefix: (name: string) => string;
-    readonly failedCheck: (prefix: string, label: string, suggestion: string) => string;
-    readonly allChecks: (passed: number, total: number, sizes: string) => string;
-    readonly checkSizes: (count: number) => string;
-    readonly someChecks: (passed: number, total: number) => string;
-    readonly warning: (prefix: string, warning: string) => string;
-    readonly estimatedSize: (name: string, missing: readonly string[]) => string;
-    readonly flag: (name: string, note: string) => string;
-    readonly monotonic: (label: string, size: string) => string;
-    readonly hatHead: (head: string, ease: string, percent: number, hat: string, stitches: number) => string;
-    readonly hatCrown: (rounds: number, increases: number, exact: string) => string;
-    readonly hatSide: (rounds: number, brim: string) => string;
-    readonly hatBrim: (rounds: number) => string;
-    readonly panel: (stitches: number, repeats: string, rows: number, hemRows: number, foundation: number, armholeRows: number) => string;
-    readonly panelRepeats: (repeats: number) => string;
-    readonly shoulder: (shoulder: number, stitches: number) => string;
-    readonly neck: (center: number, first: number, later: number, back: number) => string;
-    readonly sleeve: (cuff: number, top: number, rows: number, increases: number, first: string) => string;
-    readonly sleeveFirst: (row: number) => string;
-    readonly ease: (ease: string, fit: string, note: string) => string;
-    readonly easeNote: (from: number, to: number) => string;
-    readonly upperArm: (ease: string) => string;
-    readonly shoulderDrop: (drop: string) => string;
-    readonly body: (bust: string) => string;
-    readonly raglanSize: (name: string, approx: string, chest: string, length: string, rounds: number) => string;
-    readonly raglanNeck: (stitches: number, front: number, sleeve: number) => string;
-    readonly raglanYoke: (rounds: number, extra: string) => string;
-    readonly raglanExtra: (rounds: number) => string;
-    readonly raglanDivide: (front: number, sleeve: number, underarm: number, body: number) => string;
-    readonly raglanBody: (rounds: number, hemRounds: number) => string;
-    readonly raglanSleeve: (rounds: number, decreases: number, cuff: number, cuffRounds: number) => string;
-    readonly formRounds: string;
-    readonly formRows: string;
-    readonly gaugeMeasured: (stitch: string, basis: string) => string;
-    readonly gaugeFromLabel: string;
-    readonly gaugeMeasuredIn: (form: string) => string;
-    readonly gaugeProfileStitch: (form: string) => string;
-    readonly gaugeOtherForm: (form: string) => string;
-    readonly gaugeHookProfile: (hookMm: string) => string;
-    readonly gaugeHookNoProfile: (hookMm: string) => string;
-    readonly lengthNote: string;
-    readonly generated: (name: string, size: string, series: string) => string;
-    readonly generatedSeries: (count: number) => string;
   };
 }
 
@@ -597,79 +540,6 @@ const hu: PanelTexts = {
     cellRatio: (width, height) =>
       `Egy cella ${width} × ${height} cm: a rács a mintasűrűség arányában látszik. Fent a legfelső sor, alul az 1. sor.`,
   },
-  garment: {
-    names: { hat: 'Sapka', 'drop-shoulder': 'Ledobott vállú pulóver', raglan: 'Felülről horgolt raglán' },
-    tables: { women: 'Női', men: 'Férfi', child: 'Gyerek', baby: 'Baba' },
-    fits: {
-      'very-close': 'nagyon testhezálló',
-      close: 'testhezálló',
-      classic: 'klasszikus',
-      loose: 'bő',
-      oversized: 'túlméretes',
-    },
-    easeLabels: { hat: 'Bőség a fejkörfogathoz, cm', sweater: 'Bőség a mellbőséghez, cm' },
-    hemLabels: { hat: 'Perem, cm', sweater: 'Szegély és mandzsetta, cm' },
-    easeHat: (small, large, limitCm, limit) =>
-      `Üresen a fejmérettől függ: ${limitCm} cm alatt ${small} cm, fölötte ${large} cm. Horgolt anyagnál a negatív bőség legfeljebb kb. ${limit}%.`,
-    easeSweater: (from, to, limit) => `Ledobott vállnál ${from}–${to} cm bőség a szokásos. Horgolt anyagnál a negatív bőség legfeljebb kb. ${limit}%.`,
-    hatSize: (name, approx, circumference, height, rounds) =>
-      `${name}: kész körméret ${approx}${circumference} cm, magasság ${approx}${height} cm; ${rounds} kör.`,
-    sweaterSize: (name, approx, chest, length, sleeve) =>
-      `${name}: kész mellbőség ${approx}${chest} cm, hossz ${approx}${length} cm, ujjhossz ${approx}${sleeve} cm.`,
-    yarnMissing: 'Fonalbecsléshez add meg a Méret és fonal szakaszban a próbadarab méretét és tömegét, a fonal hosszát és a gombolyag tömegét.',
-    yarn: (meters, balls) => `Fonal tartalékkal: kb. ${meters} m, ${balls} gombolyag.`,
-    prefix: (name) => `${name}: `,
-    failedCheck: (prefix, label, suggestion) => `${prefix}${label}: hamis.${suggestion}`,
-    allChecks: (passed, total, sizes) => `Minden ellenőrzés igaz: ${passed}/${total}${sizes}.`,
-    checkSizes: (count) => `, ${count} méret`,
-    someChecks: (passed, total) => `${passed}/${total} ellenőrzés igaz; a hamisak lent.`,
-    warning: (prefix, warning) => `${prefix}${warning}`,
-    estimatedSize: (name, missing) => `${name}: a táblázatban nincs ${missing.join(' és ')}, ezért becsült.`,
-    flag: (name, note) => `A táblázat gyanús adata (${name}): ${note}`,
-    monotonic: (label, size) => `${huCapitalize(label)} ${huArticle(size)} méretnél kisebb, mint az előzőben.`,
-    hatHead: (head, ease, percent, hat, stitches) =>
-      `Fejkörfogat ${head} cm, bőség ${ease} cm (${percent}%): a sapka ${hat} cm, ${stitches} szem.`,
-    hatCrown: (rounds, increases, exact) =>
-      `Korona: ${rounds} kör, körönként ${increases} szaporítás (elméletileg ${exact}), az utolsó körben igazítva.`,
-    hatSide: (rounds, brim) => `Oldal: ${rounds} kör egyenesen${brim}.`,
-    hatBrim: (rounds) => `, ebből az utolsó ${rounds} kör a perem`,
-    panel: (stitches, repeats, rows, hemRows, foundation, armholeRows) =>
-      `Hátrész és elejerész: ${stitches} szem${repeats}, ${rows} sor, ebből ${hemRows} sor szegély; láncalap ${foundation} lsz. A karöltő az utolsó ${armholeRows} sor.`,
-    panelRepeats: (repeats) => ` (${repeats} ismétlés)`,
-    shoulder: (shoulder, stitches) => `Váll: szélenként ${shoulder} szem; a nyak ${stitches} szem.`,
-    neck: (center, first, later, back) =>
-      `Formázott nyak: elöl középen ${center} szem marad, oldalanként ${first} szem fogy az első sorban, utána ${later} sorban 1-1; hátul középen ${back} szem. Csónaknyaknál a vállvarrás hagyja nyitva a nyakat.`,
-    sleeve: (cuff, top, rows, increases, first) =>
-      `Ujj: ${cuff} szemről ${top} szemre, ${rows} sor; ${increases} szaporítás mindkét szélen${first}.`,
-    sleeveFirst: (row) => `, az elsővel ${huArticle(`${row}.`)} sorban`,
-    ease: (ease, fit, note) => `Bőség: ${ease} cm (${fit})${note}.`,
-    easeNote: (from, to) => `; ledobott vállnál ${from}–${to} cm a szokásos, ennyivel testhezállóbb`,
-    upperArm: (ease) => `A felkaron ${ease} cm a bőség.`,
-    shoulderDrop: (drop) => `A vállvarrás kb. ${drop} cm-rel lóg le a karra.`,
-    body: (bust) => `Testméret: mellbőség ${bust} cm, a táblázat tartományának közepe.`,
-    raglanSize: (name, approx, chest, length, rounds) =>
-      `${name}: kész mellbőség ${approx}${chest} cm, hossz ${approx}${length} cm; ${rounds} kör.`,
-    raglanNeck: (stitches, front, sleeve) => `Nyak: ${stitches} szem körbe zárva; elöl és hátul ${front} szem, ujjanként ${sleeve} szem.`,
-    raglanYoke: (rounds, extra) => `Raglán: ${rounds} kör, körönként a négy raglánvonal mellett 2-2 szaporítás${extra}.`,
-    raglanExtra: (rounds) => `, és ${rounds} körben az elején és a hátán külön szaporítás is`,
-    raglanDivide: (front, sleeve, underarm, body) =>
-      `Szétosztás: elöl és hátul ${front} szem, ujjanként ${sleeve} szem, a hónaljlánc ${underarm} szem; a törzs ${body} szem.`,
-    raglanBody: (rounds, hemRounds) => `Törzs: ${rounds} kör a szétosztástól, ebből az utolsó ${hemRounds} kör a szegély.`,
-    raglanSleeve: (rounds, decreases, cuff, cuffRounds) =>
-      `Ujj (2 db): ${rounds} kör a hónaljlánc és a kihagyott szemek mentén; ${decreases} körben a hónalj két oldalán 1-1 összehorgolás, a mandzsetta ${cuff} szem, ${cuffRounds} kör.`,
-    formRounds: 'körben',
-    formRows: 'síkban',
-    gaugeMeasured: (stitch, basis) => `${huCapitalize(huArticle(stitch))} ${basis} mintasűrűségéből.`,
-    gaugeFromLabel: 'címkén megadott',
-    gaugeMeasuredIn: (form) => `${form} mért`,
-    gaugeProfileStitch: (form) => `Becslés: a profil más szemének ${form} mért mintasűrűségéből átszámolva.`,
-    gaugeOtherForm: (form) => `Becslés: a ${form} mért mintasűrűségből átszámolva.`,
-    gaugeHookProfile: (hookMm) => `Becslés a profil ${hookMm} mm-es tűjéből, mert nincs mért mintasűrűség.`,
-    gaugeHookNoProfile: (hookMm) => `Nincs profil: a méret becslés ${hookMm} mm-es tűből. Pontosabb, ha a Méret és fonal szakaszban profilt adsz meg.`,
-    lengthNote: 'A hosszt mosott, blokkolt és felakasztott próbadarabból érdemes mérni, mert a horgolt anyag hosszában nő.',
-    generated: (name, size, series) => `${name}, ${size} méret${series} elkészült; visszavonással a korábbi minta visszajön.`,
-    generatedSeries: (count) => ` (${count} méretes sorozattal)`,
-  },
 };
 
 const en: PanelTexts = {
@@ -956,83 +826,6 @@ const en: PanelTexts = {
     remove: 'Delete',
     cellRatio: (width, height) =>
       `One cell is ${width} × ${height} cm: the grid is shown in the ratio of the gauge. The top row is at the top, row 1 at the bottom.`,
-  },
-  garment: {
-    names: { hat: 'Hat', 'drop-shoulder': 'Drop-shoulder sweater', raglan: 'Top-down raglan' },
-    tables: { women: 'Women', men: 'Men', child: 'Child', baby: 'Baby' },
-    fits: {
-      'very-close': 'very close-fitting',
-      close: 'close-fitting',
-      classic: 'classic',
-      loose: 'loose',
-      oversized: 'oversized',
-    },
-    easeLabels: { hat: 'Ease at the head circumference, cm', sweater: 'Ease at the bust, cm' },
-    hemLabels: { hat: 'Brim, cm', sweater: 'Hem and cuff, cm' },
-    easeHat: (small, large, limitCm, limit) =>
-      `Left empty it follows the head size: ${small} cm below ${limitCm} cm, ${large} cm above. In crochet fabric the negative ease is at most about ${limit}%.`,
-    easeSweater: (from, to, limit) =>
-      `A drop shoulder usually has ${from}–${to} cm of ease. In crochet fabric the negative ease is at most about ${limit}%.`,
-    hatSize: (name, approx, circumference, height, rounds) =>
-      `${name}: finished circumference ${approx}${circumference} cm, height ${approx}${height} cm; ${rounds} rounds.`,
-    sweaterSize: (name, approx, chest, length, sleeve) =>
-      `${name}: finished bust ${approx}${chest} cm, length ${approx}${length} cm, sleeve length ${approx}${sleeve} cm.`,
-    yarnMissing:
-      'For a yarn estimate, give the size and weight of the swatch, the length of the yarn and the weight of the ball in the Size and yarn section.',
-    yarn: (meters, balls) => `Yarn with a reserve: about ${meters} m, ${balls} ${balls === 1 ? 'ball' : 'balls'}.`,
-    prefix: (name) => `${name}: `,
-    failedCheck: (prefix, label, suggestion) => `${prefix}${label}: false.${suggestion}`,
-    allChecks: (passed, total, sizes) => `Every check is true: ${passed}/${total}${sizes}.`,
-    checkSizes: (count) => `, ${count} sizes`,
-    someChecks: (passed, total) => `${passed}/${total} checks are true; the false ones are below.`,
-    warning: (prefix, warning) => `${prefix}${warning}`,
-    estimatedSize: (name, missing) => `${name}: the table has no ${missing.join(' and ')}, so it is estimated.`,
-    flag: (name, note) => `Suspicious data in the table (${name}): ${note}`,
-    monotonic: (label, size) => `${enCapitalize(label)} is smaller at size ${size} than in the previous one.`,
-    hatHead: (head, ease, percent, hat, stitches) =>
-      `Head circumference ${head} cm, ease ${ease} cm (${percent}%): the hat is ${hat} cm, ${stitches} stitches.`,
-    hatCrown: (rounds, increases, exact) =>
-      `Crown: ${rounds} rounds, ${increases} increases per round (${exact} in theory), adjusted in the last round.`,
-    hatSide: (rounds, brim) => `Side: ${rounds} rounds straight${brim}.`,
-    hatBrim: (rounds) => `, of which the last ${rounds} rounds are the brim`,
-    panel: (stitches, repeats, rows, hemRows, foundation, armholeRows) =>
-      `Back and front: ${stitches} stitches${repeats}, ${rows} rows, of which ${hemRows} rows are the hem; foundation chain ${foundation} ch. The armhole is the last ${armholeRows} rows.`,
-    panelRepeats: (repeats) => ` (${repeats} repeats)`,
-    shoulder: (shoulder, stitches) => `Shoulder: ${shoulder} stitches at each edge; the neck is ${stitches} stitches.`,
-    neck: (center, first, later, back) =>
-      `Shaped neck: ${center} stitches stay at the centre front, ${first} stitches decrease on each side in the first row, then 1 in each of ${later} rows; ${back} stitches at the centre back. With a boat neck the shoulder seam leaves the neck open.`,
-    sleeve: (cuff, top, rows, increases, first) =>
-      `Sleeve: from ${cuff} stitches to ${top} stitches, ${rows} rows; ${increases} increases at both edges${first}.`,
-    sleeveFirst: (row) => `, the first in row ${row}`,
-    ease: (ease, fit, note) => `Ease: ${ease} cm (${fit})${note}.`,
-    easeNote: (from, to) => `; a drop shoulder usually has ${from}–${to} cm, so this is that much closer-fitting`,
-    upperArm: (ease) => `The ease at the upper arm is ${ease} cm.`,
-    shoulderDrop: (drop) => `The shoulder seam drops about ${drop} cm onto the arm.`,
-    body: (bust) => `Body measurement: bust ${bust} cm, the middle of the range in the table.`,
-    raglanSize: (name, approx, chest, length, rounds) =>
-      `${name}: finished bust ${approx}${chest} cm, length ${approx}${length} cm; ${rounds} rounds.`,
-    raglanNeck: (stitches, front, sleeve) =>
-      `Neck: ${stitches} stitches joined in a ring; ${front} stitches front and back, ${sleeve} stitches per sleeve.`,
-    raglanYoke: (rounds, extra) => `Raglan: ${rounds} rounds, 2 increases beside each of the four raglan lines${extra}.`,
-    raglanExtra: (rounds) => `, and in ${rounds} rounds the front and back also get their own increases`,
-    raglanDivide: (front, sleeve, underarm, body) =>
-      `Divide: ${front} stitches front and back, ${sleeve} stitches per sleeve, underarm chain ${underarm} stitches; the body is ${body} stitches.`,
-    raglanBody: (rounds, hemRounds) => `Body: ${rounds} rounds from the divide, the last ${hemRounds} rounds are the hem.`,
-    raglanSleeve: (rounds, decreases, cuff, cuffRounds) =>
-      `Sleeve (make 2): ${rounds} rounds along the underarm chain and the skipped stitches; in ${decreases} rounds decrease once on each side of the underarm, the cuff is ${cuff} stitches over ${cuffRounds} rounds.`,
-    formRounds: 'in the round',
-    formRows: 'flat',
-    gaugeMeasured: (stitch, basis) => `From the ${basis} gauge of ${stitch}.`,
-    gaugeFromLabel: 'label',
-    gaugeMeasuredIn: (form) => `measured ${form}`,
-    gaugeProfileStitch: (form) => `Estimate: converted from the gauge of another stitch in the profile, measured ${form}.`,
-    gaugeOtherForm: (form) => `Estimate: converted from the gauge measured ${form}.`,
-    gaugeHookProfile: (hookMm) => `Estimate from the ${hookMm} mm hook of the profile, because there is no measured gauge.`,
-    gaugeHookNoProfile: (hookMm) =>
-      `No profile: the size is an estimate from a ${hookMm} mm hook. It is more accurate if you add a profile in the Size and yarn section.`,
-    lengthNote: 'It is worth measuring the length from a washed, blocked and hung swatch, because crochet fabric grows lengthways.',
-    generated: (name, size, series) => `${name}, size ${size}${series} done; undo brings the previous one back.`,
-    generatedSeries: (count) => ` (with a ${count} size range)`,
   },
 };
 

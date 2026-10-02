@@ -362,22 +362,4 @@ test.describe('the Hungarian interface', () => {
     await expect.poll(() => storedTitle(page)).toBe('Téglalap');
     expect(await writtenText(page)).toContain('Téglalap');
   });
-
-  test('an editable decimal default follows the interface, not the source (PQW-1100)', async ({ page }) => {
-    // The panel rewrites its own fields after applyStaticTexts, so the markup
-    // default alone proves nothing — this reads what is on the screen.
-    await open(page, '?lang=hu');
-    await openSheet(page);
-    const section = page.locator('#section-garment');
-    if ((await section.getAttribute('open')) === null) await section.locator('summary').click();
-    await expect(page.locator('#garment-below')).toHaveValue('14,5');
-  });
-});
-
-test('an editable decimal default is a point on the English interface (PQW-1100)', async ({ page }) => {
-  await open(page, '');
-  await openSheet(page);
-  const section = page.locator('#section-garment');
-  if ((await section.getAttribute('open')) === null) await section.locator('summary').click();
-  await expect(page.locator('#garment-below')).toHaveValue('14.5');
 });

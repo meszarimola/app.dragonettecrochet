@@ -55,7 +55,8 @@ followed it.
 
 ## §3 Hungarian inflection lives in one place
 
-`hungarian.ts`, plus `sizeArticle` in `garment-text.ts`. The numbers are written
+`hungarian.ts`. (`sizeArticle` lived beside it in `garment-text.ts` until PQW-1127
+removed the garment generator.) The numbers are written
 as digits, so the suffix attaches with a hyphen (`3-szor`), and its vowel
 harmony is decided by the **last word of the number's spoken form**. Hence:
 
@@ -107,6 +108,8 @@ scale. The height comes from the basic stitch of that chain height; where there
 is none, it is the single crochet's height multiplied by the chain height.
 
 ## §7 Body-size tables are flagged, never corrected
+
+*Withdrawn in PQW-1127: the garment generator and its code were removed from the designer. Kept for the history of the decision.*
 
 `body-sizes.ts`. Some rows of the published CYC tables look wrong (see
 `05 §3.1`–`3.2`, "Do not trust them blindly"). The tables are stored with their
@@ -431,7 +434,9 @@ the two can never drift apart.
 
 What is deliberately not read back: the sizes block (`S (M, L)`), which is
 descriptive, and the assembly seams. The sizes block still has to be recognised
-and skipped — without that, garment patterns failed on their own heading.
+and skipped — without that, a pattern with a size range failed on its own heading.
+No generator writes one since PQW-1127, but the reader still has to skip it in an
+older pattern's text.
 
 Where a number sits in a sentence is not enough to identify it. A chain count is
 found by asking whether the writer would print *this row* with it, because the

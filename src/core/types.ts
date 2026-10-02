@@ -283,20 +283,6 @@ export interface Pattern {
   readonly joins?: readonly PieceJoin[];
   /** KB: 04 §5.7 */
   readonly toy?: { readonly under3: boolean };
-  readonly garment?: PatternGarment;
-}
-
-export type GarmentKind = 'hat' | 'drop-shoulder' | 'raglan';
-
-export type GarmentTable = 'women' | 'men' | 'child' | 'baby' | 'hat';
-
-/** The numbers are frozen at creation time, so the written text never drifts. KB: 05 §3.8, 05 §8.1, 05 §9.6 */
-export interface PatternGarment {
-  readonly kind: GarmentKind;
-  readonly table: GarmentTable;
-  readonly sizes: readonly string[];
-  readonly base: number;
-  readonly values: Readonly<Record<string, readonly number[]>>;
 }
 
 export type PieceEnd = 'open' | 'closed';

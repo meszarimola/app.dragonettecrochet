@@ -72,7 +72,7 @@ request waiting forever — that is also why `paths-ignore` is not an option her
 ### The release set
 
 Twenty tests, one per spec, chosen for breadth rather than depth: language,
-interface, rounds, amigurumi, garments, shawls, grid, grid pattern, written panel,
+interface, rounds, amigurumi, shawls, grid, grid pattern, written panel,
 generated title, free-form, editor, panels, warnings, stitch counts, backwards,
 insertion, shapes, size, granny square. Two of them skip on this platform, so
 eighteen actually run.

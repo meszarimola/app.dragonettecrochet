@@ -43,11 +43,11 @@ dictionary, because that reaches `notation.ts` and from there back to `i18n.ts`,
 which is a cycle. The shared sentence therefore lives in a module with no
 runtime import of its own.
 
-## §4 Ribbing sentences exist once, for three dictionaries
+## §4 Ribbing sentences exist once, for two dictionaries
 
-A ribbed edge is offered by three generators — Shape, Round-and-motif and the
-garments (PQW-909, PQW-913) — so `RibbingCode` is part of three code unions and
-all three dictionaries have to be complete. `core/ribbing.ts` holds the single
+A ribbed edge is offered by two generators — Shape and Round-and-motif
+(PQW-909, PQW-913; the garments left in PQW-1127) — so `RibbingCode` is part of two
+code unions and both dictionaries have to be complete. `core/ribbing.ts` holds the single
 copy they all spread in. Two copies would drift apart.
 
 ## §5 What the dictionary adds that the core cannot
@@ -92,9 +92,10 @@ corrected in the HTML has to be corrected here too.
 `data-i18n-value` is the one that does not simply overwrite. An input may hold
 something the user typed, and `interface.md` §8 says such a field is never
 overwritten, so the swap happens only while the field is empty or still holds
-one of the languages' defaults for that key. That is also why the Hungarian
-decimal of `garmentBelowValue` is a dictionary value rather than a number
-formatted at runtime: it is a default the user then edits.
+one of the languages' defaults for that key. That is also why a localized decimal default is a dictionary value rather than a
+number formatted at runtime: it is a default the user then edits. `garmentBelowValue`
+was the only one, and it left with the garment generator in PQW-1127, so no
+`data-i18n-value` default carries a decimal today.
 
 Since PQW-1100 the markup carries the **English** branch, because English is the
 default language: `ui-i18n.test.mjs` compares `index.html` with `MARKUP_TEXTS.en`.

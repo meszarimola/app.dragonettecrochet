@@ -21,7 +21,7 @@ The whole developer index is about 4k tokens and an average section about 350;
 |---|---|
 | [decisions.md](decisions.md) | Wondering why something is built the way it is |
 | [core-geometry.md](core-geometry.md) | Layout, grid, graph, editing, the technique generators |
-| [core-domain.md](core-domain.md) | Stitches, garments, gauge, validation, the written pattern |
+| [core-domain.md](core-domain.md) | Stitches, gauge, validation, the written pattern |
 | [core-support.md](core-support.md) | Quantities, yarn estimates, polygons, colourwork, history |
 | [interface.md](interface.md) | Working on `src/ui/`, the canvas, the panels or the stylesheet |
 | [dictionaries.md](dictionaries.md) | Working on `src/ui/i18n/` — how a core code becomes a sentence |

@@ -13,7 +13,7 @@ export const MARKUP_TEXTS = {
   hu: {
     docTitle: 'Ingyenes horgolásminta-tervező és jeldiagram-készítő — Dragonette',
     docDescription:
-      'Ingyenes horgolásminta-tervező a böngészőben: jeldiagram sorokhoz és körökhöz, élő ellenőrzés, írott minta, kendő, ruhadarab, amigurumi és filé, PNG/SVG export.',
+      'Ingyenes horgolásminta-tervező a böngészőben: jeldiagram sorokhoz és körökhöz, élő ellenőrzés, írott minta, kendő, amigurumi és filé, PNG/SVG export.',
 
     consentTitle: 'Mérhetem a látogatást?',
     consentBody:
@@ -210,35 +210,7 @@ export const MARKUP_TEXTS = {
     shawlPreviewNote: 'Teli vonal: blokkolva; szaggatott: blokkolás nélkül.',
     shawlCreate: 'Minta létrehozása',
 
-    sectionGarmentTitle: 'Ruhadarab',
-    garmentGroupLabel: 'Ruhadarab létrehozása testméretből',
-    garmentNote:
-      'Sapkát vagy ledobott vállú pulóvert készít testméretből, méretsorozattal. A rajz és a sorok a választott méreté, a többi méret számai az írott minta „Méretek” részében állnak. Az új minta a mostani helyére kerül; visszavonással a korábbi visszajön.',
-    garmentKindLabel: 'Ruhadarab',
-    garmentTableLabel: 'Testméret-táblázat',
-    garmentSizeLabel: 'Méret a rajzhoz',
-    garmentFromLabel: 'Sorozat első mérete',
-    garmentToLabel: 'Sorozat utolsó mérete',
-    garmentStitchLabel: 'Szem',
-    garmentEaseLabel: 'Bőség a mellbőséghez, cm',
-    garmentHemLabel: 'Szegély és mandzsetta, cm',
-    garmentBelowLabel: 'Hossz a derék alatt, cm',
-    garmentBelowValue: '14,5',
     errorCountNone: MESSAGE_TEXTS.hu.errorBar.none,
-    garmentGrowthLabel: 'Növedék a felakasztott próbadarabból, %',
-    garmentGrowthNote:
-      'A horgolt anyag a súlyától és a mosástól hosszában nő. Mérd meg a mosott, blokkolt és felakasztott próbadarabot: a megadott százalékkal a generátor ennyivel rövidebbre tervezi a hosszakat.',
-    garmentNecklineLabel: 'Formázott nyakkivágás: a két váll a nyak két oldalán külön készül',
-    garmentRepeatLabel: 'A hátrész és az elejerész szemszáma mintaismétlésre',
-    garmentRepeatXLabel: 'X: egy ismétlés szemei',
-    garmentRepeatYLabel: 'Y: szélső szemek',
-    garmentSeriesNote: 'A méretsorozat, ahogy az írott mintába kerül:',
-    garmentRibbingLabel: 'Bordás szegély és mandzsetta',
-    garmentRibbingNote:
-      'Váltakozó első és hátsó relief pálca (Eerp, Herp) a szegély és a mandzsetta sorain, a szemek pálcája köré: a szemszám nem változik. Az első sor sima marad, mert láncszem köré nem lehet relief szemet horgolni. A nyak bordázata még nincs meg.',
-    garmentRibbingRowsLabel: 'A bordázat sorai a szegélyből',
-    garmentRibbingWidthLabel: 'A borda szélessége (1×1, 2×2)',
-    garmentCreate: 'Minta létrehozása',
 
     sectionGridTitle: 'Rácsminta',
     gridGroupLabel: 'Rácsminta: filé, C2C, tapestry, graphgan, mozaik',
@@ -483,7 +455,7 @@ export const MARKUP_TEXTS = {
   en: {
     docTitle: 'Free Crochet Pattern Designer & Chart Maker — Dragonette',
     docDescription:
-      'Free crochet pattern designer and chart maker in your browser: symbol charts for rows and rounds, live checking, written patterns, shawls, garments, amigurumi.',
+      'Free crochet pattern designer and chart maker in your browser: symbol charts for rows and rounds, live checking, written patterns, shawls, amigurumi.',
 
     consentTitle: 'May I measure visits?',
     consentBody:
@@ -682,35 +654,7 @@ export const MARKUP_TEXTS = {
     shawlPreviewNote: 'Solid line: blocked; dashed: unblocked.',
     shawlCreate: 'Create pattern',
 
-    sectionGarmentTitle: 'Garment',
-    garmentGroupLabel: 'Create a garment from body measurements',
-    garmentNote:
-      'Makes a hat or a drop-shoulder sweater from body measurements, with a size range. The schematic and the rows follow the chosen size; the numbers for the other sizes are in the “Sizes” part of the written pattern. The new pattern replaces the current one; undo brings the previous one back.',
-    garmentKindLabel: 'Garment',
-    garmentTableLabel: 'Body measurement table',
-    garmentSizeLabel: 'Size for the schematic',
-    garmentFromLabel: 'First size in the range',
-    garmentToLabel: 'Last size in the range',
-    garmentStitchLabel: 'Stitch',
-    garmentEaseLabel: 'Ease at the bust, cm',
-    garmentHemLabel: 'Hem and cuff, cm',
-    garmentBelowLabel: 'Length below the waist, cm',
-    garmentBelowValue: '14.5',
     errorCountNone: MESSAGE_TEXTS.en.errorBar.none,
-    garmentGrowthLabel: 'Growth from the hung swatch, %',
-    garmentGrowthNote:
-      'Crochet fabric grows lengthways from its own weight and from washing. Measure a washed, blocked and hung swatch: with the given percentage the generator plans the lengths that much shorter.',
-    garmentNecklineLabel: 'Shaped neckline: the two shoulders are worked separately on each side of the neck',
-    garmentRepeatLabel: 'Stitch count of the back and front on a pattern repeat',
-    garmentRepeatXLabel: 'X: stitches in one repeat',
-    garmentRepeatYLabel: 'Y: edge stitches',
-    garmentSeriesNote: 'The size range as it goes into the written pattern:',
-    garmentRibbingLabel: 'Ribbed hem and cuff',
-    garmentRibbingNote:
-      'Alternating front and back post stitches (FPdc, BPdc) on the rows of the hem and the cuff, around the posts of the stitches: the stitch count stays the same. The first row stays plain, because a post stitch cannot wrap a chain. A ribbed neckband is not available yet.',
-    garmentRibbingRowsLabel: 'Ribbing rows from the hem',
-    garmentRibbingWidthLabel: 'Rib width (1×1, 2×2)',
-    garmentCreate: 'Create pattern',
 
     sectionGridTitle: 'Grid chart',
     gridGroupLabel: 'Grid chart: filet, C2C, tapestry, graphgan, mosaic',

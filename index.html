@@ -7,7 +7,7 @@
     <meta
       name="description"
       data-i18n-content="docDescription"
-      content="Free crochet pattern designer and chart maker in your browser: symbol charts for rows and rounds, live checking, written patterns, shawls, garments, amigurumi."
+      content="Free crochet pattern designer and chart maker in your browser: symbol charts for rows and rounds, live checking, written patterns, shawls, amigurumi."
     />
     <!-- KB: interface.md §34 -->
     <link rel="canonical" href="https://app.dragonettecrochet.com/" />
@@ -15,7 +15,7 @@
     <meta property="og:site_name" content="Dragonette Crochet" />
     <meta property="og:url" content="https://app.dragonettecrochet.com/" />
     <meta property="og:title" data-i18n-content="docTitle" content="Free Crochet Pattern Designer & Chart Maker — Dragonette" />
-    <meta property="og:description" data-i18n-content="docDescription" content="Free crochet pattern designer and chart maker in your browser: symbol charts for rows and rounds, live checking, written patterns, shawls, garments, amigurumi." />
+    <meta property="og:description" data-i18n-content="docDescription" content="Free crochet pattern designer and chart maker in your browser: symbol charts for rows and rounds, live checking, written patterns, shawls, amigurumi." />
     <meta property="og:image" content="https://dragonettecrochet.com/img/og-en.png" />
     <meta property="og:locale" content="en_US" />
     <meta property="og:locale:alternate" content="hu_HU" />
@@ -29,7 +29,7 @@
         "@id": "https://dragonettecrochet.com/#designer",
         "name": "Dragonette Crochet Pattern Designer",
         "alternateName": ["Dragonette Crochet Chart Maker", "Dragonette horgolásminta-tervező"],
-        "description": "Free in-browser crochet pattern designer and chart maker: symbol charts for rows and rounds, live checking, written patterns, shawls, garments, amigurumi and filet, with PNG and SVG export.",
+        "description": "Free in-browser crochet pattern designer and chart maker: symbol charts for rows and rounds, live checking, written patterns, shawls, amigurumi and filet, with PNG and SVG export.",
         "applicationCategory": "DesignApplication",
         "operatingSystem": "Web browser",
         "url": "https://app.dragonettecrochet.com/",
@@ -54,12 +54,12 @@
     <noscript>
       <div class="noscript" lang="en">
         <h1>Free crochet pattern designer and chart maker</h1>
-        <p>The Dragonette Crochet pattern designer runs in your browser: crochet symbol charts for rows and rounds with live checking, written patterns, shawl, garment and amigurumi shapes, filet and other grid techniques, and PNG and SVG export. It needs JavaScript.</p>
+        <p>The Dragonette Crochet pattern designer runs in your browser: crochet symbol charts for rows and rounds with live checking, written patterns, shawl and amigurumi shapes, filet and other grid techniques, and PNG and SVG export. It needs JavaScript.</p>
         <p><a href="https://dragonettecrochet.com/en/crochet-pattern-designer/">More about the crochet pattern designer</a></p>
       </div>
       <div class="noscript" lang="hu">
         <h2>Ingyenes horgolásminta-tervező és jeldiagram-készítő</h2>
-        <p>A Dragonette Crochet mintatervezője a böngészőben fut: horgolásminták jeldiagramja sorokhoz és körökhöz, élő ellenőrzéssel, írott mintával, kendő-, ruhadarab- és amigurumi-formákkal, filé- és más rácsos technikákkal, PNG és SVG exporttal. A használatához JavaScript kell.</p>
+        <p>A Dragonette Crochet mintatervezője a böngészőben fut: horgolásminták jeldiagramja sorokhoz és körökhöz, élő ellenőrzéssel, írott mintával, kendő- és amigurumi-formákkal, filé- és más rácsos technikákkal, PNG és SVG exporttal. A használatához JavaScript kell.</p>
         <p><a href="https://dragonettecrochet.com/hu/horgolasminta-tervezo/">Bővebben a horgolásminta-tervezőről</a></p>
       </div>
     </noscript>
@@ -1140,105 +1140,6 @@
               </div>
               <p class="panel__note" id="shawl-source"></p>
               <button type="button" class="tool shape__create" id="shawl-create" data-i18n="shawlCreate">Create pattern</button>
-            </div>
-          </details>
-          <details class="section" id="section-garment">
-            <summary class="section__head"><h2 class="panel__title" data-i18n="sectionGarmentTitle">Garment</h2></summary>
-            <div class="shape" role="group" aria-label="Create a garment from body measurements" data-i18n-label="garmentGroupLabel">
-              <p class="panel__note" data-i18n="garmentNote">Makes a hat or a drop-shoulder sweater from body measurements, with a size range. The schematic and the rows follow the chosen size; the numbers for the other sizes are in the “Sizes” part of the written pattern. The new pattern replaces the current one; undo brings the previous one back.</p>
-              <p class="panel__field">
-                <label for="garment-kind" data-i18n="garmentKindLabel">Garment</label>
-                <select id="garment-kind"></select>
-              </p>
-              <p class="panel__field" id="garment-table-field">
-                <label for="garment-table" data-i18n="garmentTableLabel">Body measurement table</label>
-                <select id="garment-table"></select>
-              </p>
-              <p class="panel__field">
-                <label for="garment-size" data-i18n="garmentSizeLabel">Size for the schematic</label>
-                <select id="garment-size"></select>
-              </p>
-              <div class="shape__pair">
-                <p class="panel__field">
-                  <label for="garment-from" data-i18n="garmentFromLabel">First size in the range</label>
-                  <select id="garment-from"></select>
-                </p>
-                <p class="panel__field">
-                  <label for="garment-to" data-i18n="garmentToLabel">Last size in the range</label>
-                  <select id="garment-to"></select>
-                </p>
-              </div>
-              <p class="panel__field">
-                <label for="garment-stitch" data-i18n="garmentStitchLabel">Stitch</label>
-                <select id="garment-stitch"></select>
-              </p>
-              <p class="panel__field">
-                <label for="garment-ease" id="garment-ease-label" data-i18n="garmentEaseLabel">Ease at the bust, cm</label>
-                <input id="garment-ease" type="text" inputmode="decimal" autocomplete="off" value="10" aria-describedby="garment-ease-note" />
-              </p>
-              <p class="panel__note" id="garment-ease-note"></p>
-              <div class="shape__pair">
-                <p class="panel__field">
-                  <label for="garment-hem" id="garment-hem-label" data-i18n="garmentHemLabel">Hem and cuff, cm</label>
-                  <input id="garment-hem" type="text" inputmode="decimal" autocomplete="off" value="5" />
-                </p>
-                <p class="panel__field" id="garment-below-field">
-                  <label for="garment-below" data-i18n="garmentBelowLabel">Length below the waist, cm</label>
-                  <input id="garment-below" type="text" inputmode="decimal" autocomplete="off" value="14.5" data-i18n-value="garmentBelowValue" />
-                </p>
-              </div>
-              <p class="panel__field">
-                <label for="garment-growth" data-i18n="garmentGrowthLabel">Growth from the hung swatch, %</label>
-                <input id="garment-growth" type="text" inputmode="decimal" autocomplete="off" value="0" aria-describedby="garment-growth-note" />
-              </p>
-              <p class="panel__note" id="garment-growth-note" data-i18n="garmentGrowthNote">Crochet fabric grows lengthways from its own weight and from washing. Measure a washed, blocked and hung swatch: with the given percentage the generator plans the lengths that much shorter.</p>
-              <p class="choice" id="garment-neckline-field">
-                <label><input type="checkbox" id="garment-neckline" checked /> <span data-i18n="garmentNecklineLabel">Shaped neckline: the two shoulders are worked separately on each side of the neck</span></label>
-              </p>
-              <div class="shape__group" id="garment-ribbing-fields">
-                <p class="choice">
-                  <label><input type="checkbox" id="garment-ribbing" aria-describedby="garment-ribbing-note" /> <span data-i18n="garmentRibbingLabel">Ribbed hem and cuff</span></label>
-                </p>
-                <p class="panel__note" id="garment-ribbing-note" data-i18n="garmentRibbingNote">Alternating front and back post stitches (FPdc, BPdc) on the rows of the hem and the cuff, around the posts of the stitches: the stitch count stays the same. The first row stays plain, because a post stitch cannot wrap a chain. A ribbed neckband is not available yet.</p>
-                <div class="shape__pair" id="garment-ribbing-pair" hidden>
-                  <p class="panel__field">
-                    <label for="garment-ribbing-rows" data-i18n="garmentRibbingRowsLabel">Ribbing rows from the hem</label>
-                    <input id="garment-ribbing-rows" type="number" min="1" max="20" step="1" value="2" inputmode="numeric" disabled />
-                  </p>
-                  <p class="panel__field">
-                    <label for="garment-ribbing-width" data-i18n="garmentRibbingWidthLabel">Rib width (1×1, 2×2)</label>
-                    <input id="garment-ribbing-width" type="number" min="1" max="6" step="1" value="1" inputmode="numeric" disabled />
-                  </p>
-                </div>
-              </div>
-              <div class="shape__group" id="garment-repeat-field">
-                <p class="choice">
-                  <label><input type="checkbox" id="garment-repeat" /> <span data-i18n="garmentRepeatLabel">Stitch count of the back and front on a pattern repeat</span></label>
-                </p>
-                <div class="shape__pair">
-                  <p class="panel__field">
-                    <label for="garment-repeat-x" data-i18n="garmentRepeatXLabel">X: stitches in one repeat</label>
-                    <input id="garment-repeat-x" type="number" min="1" max="50" step="1" value="4" inputmode="numeric" disabled />
-                  </p>
-                  <p class="panel__field">
-                    <label for="garment-repeat-y" data-i18n="garmentRepeatYLabel">Y: edge stitches</label>
-                    <input id="garment-repeat-y" type="number" min="0" max="50" step="1" value="2" inputmode="numeric" disabled />
-                  </p>
-                </div>
-              </div>
-              <div class="shape__result" aria-live="polite">
-                <p class="shape__size" id="garment-result"></p>
-                <ul class="shape__details" id="garment-details"></ul>
-                <p class="panel__note" id="garment-checks"></p>
-                <ul class="shawl__warnings" id="garment-failed"></ul>
-                <ul class="shawl__warnings" id="garment-warnings"></ul>
-              </div>
-              <div id="garment-series-box" hidden>
-                <p class="panel__note" data-i18n="garmentSeriesNote">The size range as it goes into the written pattern:</p>
-                <ul class="shape__details" id="garment-series"></ul>
-              </div>
-              <p class="panel__note" id="garment-source"></p>
-              <button type="button" class="tool shape__create" id="garment-create" data-i18n="garmentCreate">Create pattern</button>
             </div>
           </details>
           <details class="section" id="section-rounds">

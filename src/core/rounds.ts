@@ -117,8 +117,7 @@ export function roundFindings(pattern: Pattern, graph: PieceGraph, library: Stit
   }
 
   // KB: core-geometry §35
-  const solid =
-    (graph.piece.sections?.length ?? 0) > 0 || pattern.garment?.kind === 'hat' || pattern.garment?.kind === 'raglan';
+  const solid = (graph.piece.sections?.length ?? 0) > 0;
   for (const run of solid ? [] : runs(ratios, (ratio) => ratio < CUPPING_RATIO, 2)) {
     findings.push({ rule: 'round-cupping', nodes: run.flatMap((index) => worked(graph, layers[index]!)) });
   }

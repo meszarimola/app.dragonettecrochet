@@ -1,5 +1,5 @@
 /*
- * Ribbing messages, spread into the Shape, the Round-and-motif and the garment
+ * Ribbing messages, spread into the Shape and the Round-and-motif
  * dictionaries.
  *
  * KB: dictionaries.md §4

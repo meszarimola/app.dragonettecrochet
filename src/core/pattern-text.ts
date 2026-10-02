@@ -1,6 +1,5 @@
 // KB: 01 §8.5, 04 §5.9, 04 §9.8, 06 §5.3
 
-import { sizingLines } from './garment-text.ts';
 import { article, dative, times } from './hungarian.ts';
 import { type Step, type StepTarget, type WrittenLayer, type WrittenPiece, writtenPieces } from './pattern-steps.ts';
 import { colorLetter } from './pixel-chart.ts';
@@ -515,7 +514,7 @@ export function writePattern(pattern: Pattern, library: StitchLibrary, locale: L
     legend: legendOf(pattern, library, locale),
     pieces,
     assembly,
-    sizes: pattern.garment ? sizingLines(pattern.garment, locale) : [],
+    sizes: [],
   };
 }
 
