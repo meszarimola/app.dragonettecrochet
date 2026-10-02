@@ -33,7 +33,6 @@ export interface PanelTexts {
     readonly bottomTop: (first: number, bottomCm: string, last: number, topCm: string, approx: string) => string;
     readonly repeat: (width: number, edge: number, repeats: number) => string;
     readonly edgeAngle: (angle: string, apex: string) => string;
-    readonly apexAngle: (angle: string) => string;
     readonly evenShaping: string;
     readonly chainExtension: (rows: readonly number[]) => string;
     readonly unworkedRows: (rows: readonly number[]) => string;
@@ -72,7 +71,6 @@ export interface PanelTexts {
     readonly semicircleRate: (theory: string, chosen: string) => string;
     readonly circleRate: (theory: string, chosen: string) => string;
     readonly piDoubling: (rounds: readonly number[]) => string;
-    readonly stoleNote: string;
     readonly neckAngle: (neck: string, tip: string) => string;
     readonly edgeAngle: (angle: string) => string;
     readonly wings: (row: number) => string;
@@ -259,8 +257,6 @@ const hu: PanelTexts = {
   shape: {
     names: {
       rectangle: 'Téglalap',
-      'right-triangle': 'Derékszögű háromszög',
-      'isosceles-triangle': 'Egyenlő szárú háromszög',
       trapezoid: 'Trapéz',
       diamond: 'Rombusz',
     },
@@ -274,7 +270,6 @@ const hu: PanelTexts = {
       `Az alsó sor ${first} szem (${approx}${bottomCm} cm), a felső ${last} szem (${approx}${topCm} cm).`,
     repeat: (width, edge, repeats) => `Mintaismétlés: ${width} többszöröse + ${edge}, ${repeats} ismétlés.`,
     edgeAngle: (angle, apex) => `Az él szöge a függőlegestől kb. ${angle}°${apex}.`,
-    apexAngle: (angle) => `, a csúcsszög kb. ${angle}°`,
     evenShaping: 'A szaporítás és a fogyasztás egyenletesen elosztva, élenként soronként legfeljebb 2 egy szembe.',
     chainExtension: (rows) => `Láncos hosszabbítás ${huRowList(rows)} végén.`,
     unworkedRows: (rows) => `Meghagyott szemek ${huRowList(rows)} végén: lépcsős él.`,
@@ -297,8 +292,6 @@ const hu: PanelTexts = {
       semicircle: 'Félkör',
       circle: 'Kör',
       pi: 'Pi-kendő',
-      'shifted-pi': 'Eltolt Pi-kendő',
-      stole: 'Téglalap stóla',
     },
     rates: { theory: 'Elméleti, a mintasűrűségből', custom: 'Saját arány' },
     sizeLabels: { spine: 'Mélység a gerincen, cm', straightEdge: 'Az egyenes él, cm', width: 'Szélesség, cm', radius: 'Sugár, cm' },
@@ -309,8 +302,6 @@ const hu: PanelTexts = {
       semicircle: 'Szaporítás soronként',
       circle: 'Szaporítás körönként',
       pi: 'Szem az 1. körben',
-      'shifted-pi': 'Szem az 1. körben',
-      stole: 'Szem az 1. körben',
     },
     edgingWhat: { round: 'Az utolsó kör', row: 'A sor', lastRow: 'Az utolsó sor' },
     edgingLabel: (what, symmetric) => `${what} a szegély ismétléséhez: „X többszöröse + Y”${symmetric ? ', félenként' : ''}`,
@@ -333,7 +324,6 @@ const hu: PanelTexts = {
       const list = rounds.map((round) => `${round}.`);
       return `Duplázás ${article(rounds[0]!)} ${list.join(', ')} körben, közte sima körök.`;
     },
-    stoleNote: 'Alakítás nélkül, soronként ugyanannyi szem.',
     neckAngle: (neck, tip) => `A nyakél szöge kb. ${neck}° (egyenes nyakélnél 180°), az alsó csúcsé kb. ${tip}°.`,
     edgeAngle: (angle) => `A ferde él szöge a sorhoz kb. ${angle}°.`,
     wings: (row) => `Szárnyak: ${article(row)} ${row}. sortól a széleken dupla szaporítás.`,
@@ -546,8 +536,6 @@ const en: PanelTexts = {
   shape: {
     names: {
       rectangle: 'Rectangle',
-      'right-triangle': 'Right triangle',
-      'isosceles-triangle': 'Isosceles triangle',
       trapezoid: 'Trapezoid',
       diamond: 'Rhombus',
     },
@@ -561,7 +549,6 @@ const en: PanelTexts = {
       `The bottom row is ${first} stitches (${approx}${bottomCm} cm), the top ${last} stitches (${approx}${topCm} cm).`,
     repeat: (width, edge, repeats) => `Stitch repeat: a multiple of ${width} plus ${edge}, ${repeats} repeats.`,
     edgeAngle: (angle, apex) => `The edge is about ${angle}° from the vertical${apex}.`,
-    apexAngle: (angle) => `, the apex angle about ${angle}°`,
     evenShaping: 'Increases and decreases spread evenly, at most 2 into one stitch per edge and row.',
     chainExtension: (rows) => `Chain extension at the end of ${enRowList(rows)}.`,
     unworkedRows: (rows) => `Stitches left unworked at the end of ${enRowList(rows)}: a stepped edge.`,
@@ -586,8 +573,6 @@ const en: PanelTexts = {
       semicircle: 'Semicircle',
       circle: 'Circle',
       pi: 'Pi shawl',
-      'shifted-pi': 'Shifted Pi shawl',
-      stole: 'Rectangular stole',
     },
     rates: { theory: 'Theoretical, from the gauge', custom: 'Own rate' },
     sizeLabels: { spine: 'Depth at the spine, cm', straightEdge: 'The straight edge, cm', width: 'Width, cm', radius: 'Radius, cm' },
@@ -598,8 +583,6 @@ const en: PanelTexts = {
       semicircle: 'Increases per row',
       circle: 'Increases per round',
       pi: 'Stitches in round 1',
-      'shifted-pi': 'Stitches in round 1',
-      stole: 'Stitches in round 1',
     },
     edgingWhat: { round: 'The last round', row: 'The row', lastRow: 'The last row' },
     edgingLabel: (what, symmetric) => `${what} to fit the edging repeat: “a multiple of X plus Y”${symmetric ? ', per half' : ''}`,
@@ -619,7 +602,6 @@ const en: PanelTexts = {
     semicircleRate: (theory, chosen) => `Increases per row, spread evenly: ${theory} in theory (π · h/w), ${chosen} chosen.`,
     circleRate: (theory, chosen) => `Increases per round, staggered: ${theory} in theory (2π · h/w), ${chosen} chosen.`,
     piDoubling: (rounds) => `Doubling in rounds ${rounds.join(', ')}, with plain rounds between.`,
-    stoleNote: 'No shaping, the same stitch count in every row.',
     neckAngle: (neck, tip) => `The neck edge is about ${neck}° (180° for a straight neck edge), the bottom tip about ${tip}°.`,
     edgeAngle: (angle) => `The sloped edge is about ${angle}° to the row.`,
     wings: (row) => `Wings: double increases at the edges from row ${row}.`,

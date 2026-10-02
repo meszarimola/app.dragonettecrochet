@@ -76,7 +76,7 @@ describe('every other drawing stays the same (regression)', () => {
     wave: [wave().pattern, 'rows'],
     granny: [grannySquare().pattern, 'rounds'],
     ...Object.fromEntries(
-      ['rectangle', 'right-triangle', 'isosceles-triangle', 'trapezoid', 'diamond'].map((shape) => [
+      ['rectangle', 'trapezoid', 'diamond'].map((shape) => [
         `shape-${shape}`,
         [
           ok(
@@ -114,7 +114,7 @@ describe('every other drawing stays the same (regression)', () => {
       'cells',
     ],
     ...Object.fromEntries(
-      ['stole', 'asymmetric-triangle', 'circle', 'pi'].map((kind) => [
+      ['asymmetric-triangle', 'circle', 'pi'].map((kind) => [
         `shawl-${kind}`,
         [shawl({ kind, stitch: 'sc', sizeCm: 6, lengthCm: 6 }), kind === 'circle' || kind === 'pi' ? 'rounds' : 'rows'],
       ]),
@@ -297,8 +297,8 @@ describe('a top-down triangle bent at the spine (05 §1.4)', () => {
     near(left.top.y, right.top.y, 0.1 * Math.abs(spine.top.y - left.top.y), 'height of the two ends');
   });
 
-  test('the stole, the asymmetric triangle and the shawls worked in the round stay straight or circular', () => {
-    for (const kind of ['stole', 'asymmetric-triangle', 'circle', 'pi']) {
+  test('the asymmetric triangle and the shawls worked in the round stay straight or circular', () => {
+    for (const kind of ['asymmetric-triangle', 'circle', 'pi']) {
       assert.equal(shawl({ kind, stitch: 'sc', sizeCm: 6, lengthCm: 6 }).pieces[0].rowShape, undefined, kind);
     }
   });

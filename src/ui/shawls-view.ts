@@ -51,11 +51,10 @@ export interface ShawlFieldState {
 }
 
 export function shawlFieldState(options: ShawlOptions): ShawlFieldState {
-  const stole = options.kind === 'stole';
   return {
-    length: stole,
-    rate: !stole,
-    custom: !stole && options.rate === 'custom',
+    length: false,
+    rate: true,
+    custom: options.rate === 'custom',
     wings: options.kind === 'triangle',
   };
 }
@@ -68,8 +67,6 @@ export function sizeLabel(kind: ShawlKind): string {
       return labels.spine;
     case 'asymmetric-triangle':
       return labels.straightEdge;
-    case 'stole':
-      return labels.width;
     default:
       return labels.radius;
   }
@@ -81,11 +78,7 @@ export function rateLabel(kind: ShawlKind): string {
 
 export function edgingLabel(kind: ShawlKind): string {
   const t = texts().panels.shawl;
-  const what = ROUND_SHAWLS.includes(kind)
-    ? t.edgingWhat.round
-    : kind === 'stole'
-      ? t.edgingWhat.row
-      : t.edgingWhat.lastRow;
+  const what = ROUND_SHAWLS.includes(kind) ? t.edgingWhat.round : t.edgingWhat.lastRow;
   return t.edgingLabel(what, SYMMETRIC_SHAWLS.includes(kind));
 }
 
@@ -93,7 +86,7 @@ export function normalizeShawl(options: ShawlOptions): ShawlOptions {
   return {
     ...options,
     wings: options.kind === 'triangle' && options.wings,
-    rate: options.kind === 'stole' ? 'theory' : options.rate,
+    rate: options.rate,
   };
 }
 
@@ -156,14 +149,10 @@ export function shawlView(plan: ShawlPlan, options: ShawlOptions, sizes: ShawlSi
     case 'circle':
       details.push(t.circleRate(rate(plan.theoryRate), rate(plan.chosenRate)));
       break;
-    case 'pi':
-    case 'shifted-pi': {
-      details.push(t.piDoubling([...piRounds(plan.kind === 'shifted-pi', rows)].sort((a, b) => a - b)));
+    case 'pi': {
+      details.push(t.piDoubling([...piRounds(rows)].sort((a, b) => a - b)));
       break;
     }
-    case 'stole':
-      details.push(t.stoleNote);
-      break;
   }
   if (measured.neckAngleDeg !== null && measured.tipAngleDeg !== null) {
     details.push(t.neckAngle(angle(measured.neckAngleDeg), angle(measured.tipAngleDeg)));
@@ -171,7 +160,7 @@ export function shawlView(plan: ShawlPlan, options: ShawlOptions, sizes: ShawlSi
     details.push(t.edgeAngle(angle(measured.tipAngleDeg)));
   }
   if (plan.wingsFromRow !== null) details.push(t.wings(plan.wingsFromRow));
-  if (plan.ratio && plan.kind !== 'stole') {
+  if (plan.ratio) {
     details.push(
       t.ratio(plan.worked === 'rounds' ? t.ratioRounds : t.ratioRows, percent(plan.ratio.min), percent(plan.ratio.max)),
     );

@@ -127,7 +127,7 @@ export function shapeView(plan: ShapePlan, options: ShapeOptions, hasProfile: bo
     details.push(t.repeat(options.repeat.width, options.repeat.edge, plan.repeats));
   }
   if (plan.angleDeg !== null) {
-    const apex = plan.shape === 'isosceles-triangle' ? t.apexAngle(formatNumber(2 * plan.angleDeg, 0)) : '';
+    const apex = '';
     details.push(t.edgeAngle(formatNumber(plan.angleDeg, 0), apex));
     details.push(t.evenShaping);
   }

@@ -167,7 +167,7 @@ export const MARKUP_TEXTS = {
     sectionShapeTitle: 'Forma',
     shapeGroupLabel: 'Sík forma létrehozása cm-ből',
     shapeNote:
-      'Téglalapot, háromszöget, trapézt vagy rombuszt készít sorokban, a megadott méretből. Az új minta a mostani helyére kerül; visszavonással a korábbi visszajön.',
+      'Téglalapot, trapézt vagy rombuszt készít sorokban, a megadott méretből. Az új minta a mostani helyére kerül; visszavonással a korábbi visszajön.',
     shapeKindLabel: 'Forma',
     shapeStitchLabel: 'Szem',
     shapeWidthLabel: 'Szélesség, cm',
@@ -175,7 +175,6 @@ export const MARKUP_TEXTS = {
     shapeMeasureLabel: 'Magasság vagy az él szöge',
     shapeHeightLabel: 'Magasság, cm',
     shapeAngleLabel: 'Az él szöge a függőlegestől, fok',
-    shapeAngleNote: 'Egyenlő szárú háromszögnél a csúcsszög ennek kétszerese.',
     shapeRepeatLabel: 'Mintaismétlés: „X többszöröse + Y”',
     shapeRepeatXLabel: 'X: egy ismétlés szemei',
     shapeRepeatYLabel: 'Y: szélső szemek',
@@ -242,7 +241,7 @@ export const MARKUP_TEXTS = {
     sectionRoundsTitle: 'Kör és motívum',
     roundsGroupLabel: 'Kör és motívum létrehozása',
     roundsNote:
-      'Lapos kört, sokszöget vagy nagymama-négyzetet készít körönként. Az új minta a mostani helyére kerül; visszavonással a korábbi visszajön.',
+      'Nagymama-négyzetet készít körönként. Az új minta a mostani helyére kerül; visszavonással a korábbi visszajön.',
     roundsShapeLabel: 'Forma',
     roundsStitchLabel: 'Szem',
     roundsStartLabel: 'Kezdés',
@@ -611,7 +610,7 @@ export const MARKUP_TEXTS = {
     sectionShapeTitle: 'Shape',
     shapeGroupLabel: 'Create a flat shape from cm',
     shapeNote:
-      'Makes a rectangle, triangle, trapezoid or rhombus in rows, from the size you give. The new pattern replaces the current one; undo brings the previous one back.',
+      'Makes a rectangle, trapezoid or rhombus in rows, from the size you give. The new pattern replaces the current one; undo brings the previous one back.',
     shapeKindLabel: 'Shape',
     shapeStitchLabel: 'Stitch',
     shapeWidthLabel: 'Width, cm',
@@ -619,7 +618,6 @@ export const MARKUP_TEXTS = {
     shapeMeasureLabel: 'Height or the angle of the edge',
     shapeHeightLabel: 'Height, cm',
     shapeAngleLabel: 'Angle of the edge from the vertical, degrees',
-    shapeAngleNote: 'On an isosceles triangle the apex angle is twice this.',
     shapeRepeatLabel: 'Stitch repeat: “a multiple of X plus Y”',
     shapeRepeatXLabel: 'X: stitches in one repeat',
     shapeRepeatYLabel: 'Y: edge stitches',
@@ -634,7 +632,7 @@ export const MARKUP_TEXTS = {
     sectionShawlTitle: 'Shawl',
     shawlGroupLabel: 'Create a shawl from measurements',
     shawlNote:
-      'Makes a triangle, crescent, semicircle, circle or Pi shawl, or a stole, from the size you give, with increases to match the gauge. The new pattern replaces the current one; undo brings the previous one back.',
+      'Makes a triangle, crescent, semicircle, circle or Pi shawl from the size you give, with increases to match the gauge. The new pattern replaces the current one; undo brings the previous one back.',
     shawlKindLabel: 'Shawl',
     shawlStitchLabel: 'Stitch',
     shawlSizeLabel: 'Depth at the spine, cm',
@@ -686,7 +684,7 @@ export const MARKUP_TEXTS = {
     sectionRoundsTitle: 'Round and motif',
     roundsGroupLabel: 'Create a round or motif',
     roundsNote:
-      'Makes a flat circle, a polygon or a granny square round by round. The new pattern replaces the current one; undo brings the previous one back.',
+      'Makes a granny square round by round. The new pattern replaces the current one; undo brings the previous one back.',
     roundsShapeLabel: 'Shape',
     roundsStitchLabel: 'Stitch',
     roundsStartLabel: 'Start',

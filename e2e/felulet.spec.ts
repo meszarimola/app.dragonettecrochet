@@ -106,10 +106,9 @@ test('the regular type opens a side menu of shapes, and a choice opens its gener
   await expect(menu).toBeHidden();
   await page.locator('.type[data-type="regular"]').hover();
   await expect(menu).toBeVisible();
-  await expect(menu.locator('.flyout__name')).toHaveText(['Rectangular', 'Triangle', 'Semicircle', 'Granny square']);
+  await expect(menu.locator('.flyout__name')).toHaveText(['Rectangular', 'Semicircle', 'Granny square']);
   await expect(menu.locator('.flyout__detail')).toHaveText([
     'Shape: Rectangle',
-    'Shape: Isosceles triangle',
     'Shawl: Semicircle',
     'Blank canvas, round by round',
   ]);

@@ -106,9 +106,9 @@ describe('rectangle (03 §3.1 A, B)', () => {
     assert.equal(shape(inNotation(emptyPattern(), 'hu'), {}).pattern.title, 'Téglalap');
     assert.equal(shape(inNotation(emptyPattern(), 'en-US'), {}).pattern.title, 'Rectangle');
     assert.equal(
-      shape(inNotation(emptyPattern('Lapos kör'), 'hu'), { shape: 'right-triangle', widthCm: 10, heightCm: 10 }).pattern
+      shape(inNotation(emptyPattern('Lapos kör'), 'hu'), { shape: 'trapezoid', widthCm: 10, heightCm: 10 }).pattern
         .title,
-      'Derékszögű háromszög',
+      'Trapéz',
     );
     assert.equal(shape(emptyPattern('Nyári takaró'), {}).pattern.title, 'Nyári takaró');
   });
@@ -139,53 +139,6 @@ describe('stitch repeat: "multiple of X + Y" (03 §4.1, 05 §4.2)', () => {
 });
 
 describe('sloped edge (03 §3.2, §3.4; 05 §4.4)', () => {
-  test('C: a 15 × 20 cm right triangle in sc at 16 × 18 runs from 24 stitches to 2 over 36 rows, 22 decreases, at most one per row; the counting turning chain keeps the smallest row at 2 stitches', () => {
-    const { pattern, plan } = shape(withRowGauge('sc', 16, 18), {
-      shape: 'right-triangle',
-      stitch: 'sc',
-      widthCm: 15,
-      heightCm: 20,
-    });
-    assert.equal(plan.counts.length, 36);
-    assert.equal(plan.counts[0], 24);
-    assert.equal(plan.counts.at(-1), 2);
-    const steps = changes(plan.counts);
-    assert.ok(steps.every((step) => step === 0 || step === -1));
-    assert.equal(steps.filter((step) => step === -1).length, 22);
-    // One edge stays straight: each row changes at one end only.
-    assert.ok(plan.shaping.every((row) => row.start === 0 || row.end === 0));
-    assert.deepEqual(findings(pattern), []);
-  });
-
-  test('D: a 20 × 15 cm isosceles triangle in dc at 16 × 8 runs from 32 stitches to 2 over 12 rows, in even steps, using dc3tog', () => {
-    const { pattern, plan } = shape(withRowGauge('dc', 16, 8), {
-      shape: 'isosceles-triangle',
-      stitch: 'dc',
-      widthCm: 20,
-      heightCm: 15,
-    });
-    assert.equal(plan.counts.length, 12);
-    assert.deepEqual([plan.counts[0], plan.counts.at(-1)], [32, 2]);
-    assert.ok(changes(plan.counts).every((step) => step === -2 || step === -4));
-    // Every row stays within one stitch per edge of the linear target (32 → 2).
-    plan.counts.forEach((count, k) => assert.ok(Math.abs(count - (32 - (30 * k) / 11)) <= 2, `row ${k + 1}: ${count}`));
-    assert.ok(pattern.pieces[0].stitches.some((node) => node.def === 'dc3tog'));
-    assert.deepEqual(findings(pattern), []);
-  });
-
-  test('from an angle: in sc at 16 × 18 one decrease per row is about 48.4° (03 §3.2 table)', () => {
-    const result = plan(withRowGauge('sc', 16, 18), {
-      shape: 'right-triangle',
-      stitch: 'sc',
-      widthCm: 15,
-      measure: 'angle',
-      angleDeg: 48.4,
-    });
-    const steps = changes(result.counts);
-    assert.ok(steps.filter((step) => step === -1).length >= steps.length - 1, steps.join(','));
-    assert.ok(Math.abs(result.angleDeg - 48.4) < 1.5, String(result.angleDeg));
-  });
-
   test('trapezoid: the top edge lands near the requested width in even steps, widening as well as narrowing', () => {
     const narrowing = plan(withRowGauge('sc', 20, 20), {
       shape: 'trapezoid',
@@ -218,24 +171,12 @@ describe('sloped edge (03 §3.2, §3.4; 05 §4.4)', () => {
     assert.deepEqual([even.counts[0], Math.max(...even.counts), even.counts.at(-1)], [2, 20, 2]);
   });
 
-  test('row extents: an odd row starts at the right edge and ends at the left, and the width is the stitch count', () => {
-    const result = plan(withRowGauge('sc', 16, 18), {
-      shape: 'right-triangle',
-      stitch: 'sc',
-      widthCm: 15,
-      heightCm: 20,
-    });
-    const extents = rowExtents(result);
-    extents.forEach((row, k) => assert.equal(row.right - row.left, result.counts[k]));
-    // The sloped edge is the left one: the right edge stays straight.
-    assert.ok(extents.every((row) => row.right === 24));
-  });
-
   test('at most 2 into one stitch per edge per row: a steep decrease leaves stitches unworked at the end of the row, along with the top of the counting turning chain', () => {
     const { pattern, plan } = shape(emptyPattern(), {
-      shape: 'isosceles-triangle',
+      shape: 'trapezoid',
       stitch: 'dc',
       widthCm: 30,
+      topWidthCm: 1,
       heightCm: 6,
     });
     assert.ok(plan.shaping.every((row) => row.start >= -MAX_EDGE_CHANGE && row.end <= MAX_EDGE_CHANGE));
@@ -273,7 +214,9 @@ describe('sloped edge (03 §3.2, §3.4; 05 §4.4)', () => {
       assert.equal(result.ok, false);
       return result.reason;
     };
-    assert.equal(refuse({ shape: 'right-triangle', stitch: 'tr', widthCm: 30, heightCm: 4 }).code, 'shape-too-steep');
+    // `shape-too-steep` had the right triangle as its only reachable case and left with it
+    // (PQW-1128). The guard stays in `generateShape`; nothing the user can ask for trips it.
+    assert.equal(refuse({ shape: 'diamond', widthCm: 1, heightCm: 2 }).code, 'shape-diamond-too-narrow');
     assert.equal(refuse({ widthCm: 0.2 }).code, 'shape-too-narrow');
     // The row count travels in the data: a diamond needs at least 3 rows.
     assert.deepEqual(refuse({ shape: 'diamond', heightCm: 0.5 }), { code: 'shape-min-rows', data: { rows: 3 } });
@@ -297,7 +240,7 @@ describe('validating the options', () => {
       data: { max: MAX_SHAPE_CM },
     });
     assert.equal(
-      shapeProblem({ ...DEFAULT_SHAPE, shape: 'isosceles-triangle', measure: 'angle', angleDeg: 90 }).code,
+      shapeProblem({ ...DEFAULT_SHAPE, shape: 'trapezoid', measure: 'angle', angleDeg: 90 }).code,
       'shape-angle-range',
     );
     assert.equal(shapeProblem({ ...DEFAULT_SHAPE, repeat: { width: 0, edge: 1 } }).code, 'shape-repeat-width-range');
@@ -336,11 +279,10 @@ describe('every generated pattern validates cleanly, writes out and reads back',
             }
             const { pattern, plan } = result;
             assert.deepEqual(findings(pattern), [], name);
-            if (flat !== 'right-triangle')
-              assert.ok(
-                changes(plan.counts).every((step) => step % 2 === 0),
-                `${name}: even steps`,
-              );
+            assert.ok(
+              changes(plan.counts).every((step) => step % 2 === 0),
+              `${name}: even steps`,
+            );
             const library = libraryFor(pattern);
             for (const locale of ['hu', 'en-US', 'en-GB']) {
               const back = readPattern(formatWrittenPattern(writePattern(pattern, library, locale)), {

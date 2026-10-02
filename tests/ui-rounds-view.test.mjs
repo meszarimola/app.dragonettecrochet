@@ -51,11 +51,11 @@ describe('choices', () => {
   test('shape, stitch, start, round closing and jog fix all offer labels', () => {
     assert.deepEqual(
       SHAPE_CHOICES.map((choice) => choice.label),
-      ['Flat circle', 'Square', 'Hexagon', 'Octagon', 'Granny square'],
+      ['Granny square'],
     );
     assert.deepEqual(
       inLanguage('hu', () => SHAPE_CHOICES.map((choice) => choice.label)),
-      ['Lapos kör', 'Négyzet', 'Hatszög', 'Nyolcszög', 'Nagymama-négyzet'],
+      ['Nagymama-négyzet'],
     );
     // PQW-1038: the granny square is selectable again.
     assert.deepEqual(

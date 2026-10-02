@@ -30,7 +30,13 @@ export type RoundStart = 'magic-ring' | 'chain-ring' | 'chain';
 export type RoundClosing = 'join-slip' | 'spiral';
 export type JogFix = NonNullable<LayerEvent['jogFix']>;
 
-export const MOTIF_SHAPES: readonly MotifShape[] = ['circle', 'square', 'hexagon', 'octagon', 'granny-square'];
+/*
+ * Only the granny square is offered (PQW-1128). The other four stay in `MotifShape`
+ * and in `MOTIF_NAMES` on purpose: the shawl generator is built on `circlePlan`, and
+ * `allLocaleNames(MOTIF_NAMES)` is how a pattern saved before this prune is still
+ * recognised as having a generated title rather than one the user typed.
+ */
+export const MOTIF_SHAPES: readonly MotifShape[] = ['granny-square'];
 export const ROUND_STARTS: readonly RoundStart[] = ['magic-ring', 'chain-ring', 'chain'];
 
 export const MOTIF_CORNERS: Readonly<Record<MotifShape, number | undefined>> = {

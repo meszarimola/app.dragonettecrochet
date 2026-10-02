@@ -8,16 +8,7 @@ import { allLocaleNames, titleLocale, withGeneratedTitle } from './pattern-title
 import { weakestSource } from './quantity.ts';
 import { circlePlan, DEFAULT_MOTIF, MOTIF_NAMES, plannedRounds, type RoundPlan } from './round-generator.ts';
 import { flatIncreases } from './rounds.ts';
-import {
-  DEFAULT_SHAPE,
-  generateShape,
-  planShape,
-  SHAPE_NAMES,
-  SHAPE_STITCHES,
-  type ShapeCode,
-  type ShapeRepeat,
-  shapeGauge,
-} from './shapes.ts';
+import { SHAPE_NAMES, SHAPE_STITCHES, type ShapeCode, type ShapeRepeat, shapeGauge } from './shapes.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import { skippedChains, traditionOf, turningChainCountsFor } from './tradition.ts';
 import type {
@@ -35,15 +26,7 @@ import type {
 } from './types.ts';
 import { validatePattern } from './validate.ts';
 
-export type ShawlKind =
-  | 'triangle'
-  | 'asymmetric-triangle'
-  | 'crescent'
-  | 'semicircle'
-  | 'circle'
-  | 'pi'
-  | 'shifted-pi'
-  | 'stole';
+export type ShawlKind = 'triangle' | 'asymmetric-triangle' | 'crescent' | 'semicircle' | 'circle' | 'pi';
 export type RateChoice = 'theory' | 'custom';
 
 export const SHAWL_KINDS: readonly ShawlKind[] = [
@@ -53,8 +36,6 @@ export const SHAWL_KINDS: readonly ShawlKind[] = [
   'semicircle',
   'circle',
   'pi',
-  'shifted-pi',
-  'stole',
 ];
 
 const SHAWL_NAMES_EN: Readonly<Record<ShawlKind, string>> = {
@@ -64,8 +45,6 @@ const SHAWL_NAMES_EN: Readonly<Record<ShawlKind, string>> = {
   semicircle: 'Semicircle',
   circle: 'Circle',
   pi: 'Pi shawl',
-  'shifted-pi': 'Shifted pi shawl',
-  stole: 'Rectangular stole',
 };
 
 // KB: owner-decisions.md §16
@@ -77,14 +56,12 @@ export const SHAWL_NAMES: Readonly<Record<Locale, Readonly<Record<ShawlKind, str
     semicircle: 'Félkör',
     circle: 'Kör',
     pi: 'Pi-kendő',
-    'shifted-pi': 'Eltolt Pi-kendő',
-    stole: 'Téglalap stóla',
   },
   'en-US': SHAWL_NAMES_EN,
   'en-GB': SHAWL_NAMES_EN,
 };
 
-export const ROUND_SHAWLS: readonly ShawlKind[] = ['circle', 'pi', 'shifted-pi'];
+export const ROUND_SHAWLS: readonly ShawlKind[] = ['circle', 'pi'];
 /** Increases come in pairs, and the edging repeat counts per half. */
 export const SYMMETRIC_SHAWLS: readonly ShawlKind[] = ['triangle', 'crescent'];
 
@@ -113,7 +90,7 @@ export const DEFAULT_BLOCKING: ShawlBlocking = { widthPct: 10, heightPct: 5 };
 export interface ShawlOptions {
   readonly kind: ShawlKind;
   readonly stitch: StitchDefId;
-  /** Spine for a triangle and a crescent, the straight edge for an asymmetric triangle, the radius for a semicircle, circle and Pi shawl, the width for a stole. */
+  /** Spine for a triangle and a crescent, the straight edge for an asymmetric triangle, the radius for a semicircle, circle and Pi shawl. */
   readonly sizeCm: number;
   readonly lengthCm: number;
   readonly rate: RateChoice;
@@ -236,8 +213,7 @@ export function shawlProblem(options: ShawlOptions): ShawlText | null {
     return text('shawl-basic-stitch-only');
   }
   if (!cm(options.sizeCm)) return text('shawl-size-range', { max: MAX_SHAWL_CM });
-  if (options.kind === 'stole' && !cm(options.lengthCm)) return text('shawl-length-range', { max: MAX_SHAWL_CM });
-  if (options.kind !== 'stole' && options.rate === 'custom') {
+  if (options.rate === 'custom') {
     const rate = options.customRate;
     if (!(Number.isFinite(rate) && rate > 0 && rate <= MAX_SHAWL_RATE))
       return text('shawl-rate-range', { max: MAX_SHAWL_RATE });
@@ -343,11 +319,7 @@ export function planShawl(pattern: Pattern, options: ShawlOptions): ShawlPlanRes
       break;
     case 'circle':
     case 'pi':
-    case 'shifted-pi':
       planned = roundPlan(pattern, options, gauge, def, custom);
-      break;
-    case 'stole':
-      planned = stolePlan(pattern, options);
       break;
   }
   if ('code' in planned) return fail(planned);
@@ -365,7 +337,7 @@ export function planShawl(pattern: Pattern, options: ShawlOptions): ShawlPlanRes
     return fail(text('shawl-max-total'));
   }
   // Row 1 goes into a single chain; with a counting turning chain one of the stitches is that chain. KB: core-domain §5
-  if (planned.worked === 'rows' && options.kind !== 'stole' && counts[0]! - (counting ? 1 : 0) > MAX_INTO_ONE) {
+  if (planned.worked === 'rows' && counts[0]! - (counting ? 1 : 0) > MAX_INTO_ONE) {
     return fail(text('shawl-first-row-into-one', { max: MAX_INTO_ONE }));
   }
 
@@ -599,7 +571,7 @@ function roundPlan(
   let layout: RoundPlan;
   if (options.kind === 'circle') layout = circlePlan(chosenRate, rounds, true);
   else {
-    const doubling = piRounds(options.kind === 'shifted-pi', rounds);
+    const doubling = piRounds(rounds);
     const plan: number[][] = [];
     let p = chosenRate;
     for (let k = 2; k <= rounds; k += 1) {
@@ -635,46 +607,17 @@ function roundPlan(
 }
 
 /** KB: 05 §1.3 */
-export function piRounds(shifted: boolean, rounds: number): Set<number> {
+export function piRounds(rounds: number): Set<number> {
   const result = new Set<number>();
-  for (let k = 1; 2 ** k * (shifted ? 0.75 : 1) <= rounds; k += 1)
-    result.add(Math.round(2 ** k * (shifted ? 0.75 : 1)));
+  for (let k = 1; 2 ** k <= rounds; k += 1) result.add(2 ** k);
   return result;
 }
-
-/** KB: 05 §1.7 */
-function stolePlan(pattern: Pattern, options: ShawlOptions): PlanBody | ShawlText {
-  const planned = planShape(pattern, stoleShape(options));
-  if (!planned.ok) return planned.reason;
-  const { counts, repeats } = planned.plan;
-  return {
-    worked: 'rows',
-    layout: { first: counts[0]!, rounds: counts.slice(1).map((count) => Array<number>(count).fill(1)) },
-    theoryRate: 0,
-    chosenRate: 0,
-    edgeRate: 0,
-    spineRate: 0,
-    wingsFromRow: null,
-    edging: options.edging && repeats !== null ? { repeats, change: 0 } : null,
-    ratio: null,
-  };
-}
-
-const stoleShape = (options: ShawlOptions) => ({
-  ...DEFAULT_SHAPE,
-  shape: 'rectangle' as const,
-  stitch: options.stitch,
-  widthCm: options.sizeCm,
-  heightCm: options.lengthCm,
-  repeat: options.edging,
-  rounding: 'nearest' as const,
-});
 
 /** KB: 05 §9.4 */
 function warningsOf(kind: ShawlKind, plan: PlanBody): ShawlWarning[] {
   const warnings: ShawlWarning[] = [];
   if (plan.ratio) {
-    if (kind === 'pi' || kind === 'shifted-pi') {
+    if (kind === 'pi') {
       if (plan.ratio.min < 1 - DEVIATION_LIMIT || plan.ratio.max > 1 + DEVIATION_LIMIT)
         warnings.push({ kind: 'pi-blocking', ratio: plan.ratio.min });
     } else if (plan.ratio.min < 1 - DEVIATION_LIMIT) warnings.push({ kind: 'cupping', ratio: plan.ratio.min });
@@ -772,8 +715,7 @@ export function shawlGeometry(plan: ShawlPlan, stitchCm: number, rowCm: number):
       );
     case 'semicircle':
     case 'circle':
-    case 'pi':
-    case 'shifted-pi': {
+    case 'pi': {
       const radius = rows * rowCm;
       const half = plan.kind === 'semicircle';
       const steps = half ? 24 : 48;
@@ -783,16 +725,6 @@ export function shawlGeometry(plan: ShawlPlan, stitchCm: number, rowCm: number):
       });
       return framed(half ? points : points.slice(0, -1), { neckAngleDeg: null, tipAngleDeg: null, spineCm: radius });
     }
-    case 'stole':
-      return framed(
-        [
-          [0, 0],
-          [plan.counts[0]! * stitchCm, 0],
-          [plan.counts[0]! * stitchCm, rows * rowCm],
-          [0, rows * rowCm],
-        ],
-        { neckAngleDeg: null, tipAngleDeg: null, spineCm: rows * rowCm },
-      );
   }
 }
 
@@ -893,11 +825,7 @@ export function generateShawl(pattern: Pattern, options: ShawlOptions): ShawlRes
   const def = resolveStitch(options.stitch)!;
 
   let result: Pattern;
-  if (options.kind === 'stole') {
-    const shape = generateShape(pattern, stoleShape(options));
-    if (!shape.ok) return fail(shape.reason);
-    result = { ...shape.pattern, pieces: shape.pattern.pieces.map((piece) => ({ ...piece, name })) };
-  } else {
+  {
     const base: Pattern = { ...pattern, pieces: [] };
     // The round generator still returns a finished Hungarian sentence on some branches; a shawl never reaches them, so they are taken as an internal error. KB: core-domain §2
     let piece: Piece | string | ShawlText;

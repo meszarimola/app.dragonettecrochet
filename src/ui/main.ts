@@ -1791,13 +1791,6 @@ const REGULAR_MENU: readonly RegularMenuEntry[] = [
     value: 'rectangle',
   },
   {
-    name: () => texts().sections.types.regularMenu.triangle,
-    detail: () => `${texts().markup.sectionShapeTitle}: ${texts().panels.shape.names['isosceles-triangle']}`,
-    section: '#section-shape',
-    field: '#shape-kind',
-    value: 'isosceles-triangle',
-  },
-  {
     name: () => texts().sections.types.regularMenu.semicircle,
     detail: () => `${texts().markup.sectionShawlTitle}: ${texts().panels.shawl.names.semicircle}`,
     section: '#section-shawl',
