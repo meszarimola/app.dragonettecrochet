@@ -98,6 +98,16 @@ export function closePlan({ ticket, worktrees }) {
   return matches[0];
 }
 
+/**
+ * Which ref decides whether a branch may be deleted. The merge happens on the
+ * remote, so right after one the local `develop` is behind it and a close that is
+ * in fact safe gets refused — which brings back the manual `git pull` this command
+ * exists to remove. The local ref is the offline fallback. KB: incidents.md §9
+ */
+export function mergeBase({ hasRemoteDevelop }) {
+  return hasRemoteDevelop ? 'origin/develop' : 'develop';
+}
+
 /** `git worktree list --porcelain` as objects, the main checkout included. */
 export function parseWorktrees(porcelain) {
   const worktrees = [];
@@ -124,6 +134,16 @@ const felkover = (text) => `\u001b[1m${text}\u001b[0m`;
 
 /** With `stdio: 'inherit'` there is nothing to capture, so the output may be null. */
 const git = (args, options = {}) => (execFileSync('git', args, { encoding: 'utf8', ...options }) ?? '').trim();
+
+/** Whether a ref resolves, without letting git's non-zero exit become a throw. */
+function refExists(ref) {
+  try {
+    git(['rev-parse', '--verify', '--quiet', ref], { stdio: 'pipe' });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * An independent node_modules for the worktree. The copy-on-write clone is tried
@@ -194,10 +214,17 @@ function closeWorktree(args) {
     );
   }
 
-  const merged = git(['branch', '--merged', 'develop', '--format=%(refname:short)']).split('\n').includes(branch);
+  try {
+    git(['fetch', '--quiet']);
+  } catch {
+    // Offline: the local ref is all there is, and mergeBase falls back to it.
+  }
+
+  const against = mergeBase({ hasRemoteDevelop: refExists('refs/remotes/origin/develop') });
+  const merged = git(['branch', '--merged', against, '--format=%(refname:short)']).split('\n').includes(branch);
   if (!merged) {
     throw new HibasBemenet(
-      `${branch} még nincs benne a develop-ban. Előbb merge, aztán zárás — különben a munka elveszik.`,
+      `${branch} még nincs benne a(z) ${against}-ban. Előbb merge, aztán zárás — különben a munka elveszik.`,
     );
   }
 
