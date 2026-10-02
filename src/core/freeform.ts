@@ -137,10 +137,18 @@ export function boundedMove(
   dy: number,
   size: Size,
 ): [number, number] {
-  const chosen = chart.stitches.filter(({ id }) => ids.has(id));
-  if (chosen.length === 0) return [0, 0];
-  const xs = chosen.map(({ x }) => x);
-  const ys = chosen.map(({ y }) => y);
+  return boundedShift(
+    chart.stitches.filter(({ id }) => ids.has(id)),
+    dx,
+    dy,
+    size,
+  );
+}
+
+function boundedShift(stitches: readonly PlacedStitch[], dx: number, dy: number, size: Size): [number, number] {
+  if (stitches.length === 0) return [0, 0];
+  const xs = stitches.map(({ x }) => x);
+  const ys = stitches.map(({ y }) => y);
   return [
     clamp(dx, -Math.min(...xs), size.width - Math.max(...xs)),
     clamp(dy, -Math.min(...ys), size.height - Math.max(...ys)),
@@ -203,5 +211,45 @@ export function scaleStitches(
           }
         : placed,
     ),
+  };
+}
+
+export function deleteStitches(chart: FreeformChart, ids: ReadonlySet<number>): FreeformChart {
+  return { ...chart, stitches: chart.stitches.filter(({ id }) => !ids.has(id)) };
+}
+
+/** The selected stitches as they stand, for a later paste. */
+export function copyStitches(chart: FreeformChart, ids: ReadonlySet<number>): PlacedStitch[] {
+  return chart.stitches.filter(({ id }) => ids.has(id));
+}
+
+export interface Pasted {
+  readonly chart: FreeformChart;
+  /** The new stitches' ids: what a paste selects. */
+  readonly ids: ReadonlySet<number>;
+  /** The copies as placed, so the next paste lands one more step away. */
+  readonly copied: readonly PlacedStitch[];
+}
+
+/**
+ * Places copies of `copied` one step down and to the right, with new ids, turns
+ * and sizes kept. Where the board's edge leaves no room for the step, the copy
+ * goes the other way on that axis, so it never lands on what it copies.
+ */
+export function pasteStitches(chart: FreeformChart, copied: readonly PlacedStitch[], step: number, size: Size): Pasted {
+  const [forwardX, forwardY] = boundedShift(copied, step, step, size);
+  const [backX, backY] = boundedShift(copied, -step, -step, size);
+  const sx = Math.abs(forwardX) >= Math.abs(backX) ? forwardX : backX;
+  const sy = Math.abs(forwardY) >= Math.abs(backY) ? forwardY : backY;
+  const pasted = copied.map((placed, index) => ({
+    ...placed,
+    id: chart.nextId + index,
+    x: placed.x + sx,
+    y: placed.y + sy,
+  }));
+  return {
+    chart: { stitches: [...chart.stitches, ...pasted], nextId: chart.nextId + pasted.length },
+    ids: new Set(pasted.map(({ id }) => id)),
+    copied: pasted,
   };
 }

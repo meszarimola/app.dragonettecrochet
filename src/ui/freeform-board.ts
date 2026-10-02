@@ -43,6 +43,7 @@ export interface BoardHost {
   place(point: Point): void;
   /** Called live on every pointer move of a drag. */
   change(chart: FreeformChart): void;
+  selectionChanged(count: number): void;
 }
 
 type Drag =
@@ -89,6 +90,7 @@ export class FreeformBoard {
   private symbols: SymbolOptions = { singleCrochet: 'plus' };
   private mode: BoardMode = 'place';
   private selection = new Set<number>();
+  private notified = -1;
   private drag: Drag | null = null;
   private readonly shapes = new Map<string, { shapes: Shape[]; reach: number }>();
   private readonly canvas: HTMLCanvasElement;
@@ -116,7 +118,9 @@ export class FreeformBoard {
     new ResizeObserver(() => this.draw()).observe(canvas);
   }
 
-  show(chart: FreeformChart | null, symbols: SymbolOptions): void {
+  /** With `selection`, the board selects exactly those stitches, in the same redraw. */
+  show(chart: FreeformChart | null, symbols: SymbolOptions, selection?: ReadonlySet<number>): void {
+    if (selection !== undefined && this.drag === null) this.selection = new Set(selection);
     if (chart !== this.chart && chart !== null) {
       const ids = new Set(chart.stitches.map(({ id }) => id));
       for (const id of this.selection) if (!ids.has(id)) this.selection.delete(id);
@@ -157,7 +161,7 @@ export class FreeformBoard {
     return { x: event.clientX - box.left, y: event.clientY - box.top };
   }
 
-  private size(): { width: number; height: number } {
+  size(): { width: number; height: number } {
     return { width: this.canvas.clientWidth, height: this.canvas.clientHeight };
   }
 
@@ -337,7 +341,12 @@ export class FreeformBoard {
   }
 
   private draw(): void {
+    if (this.notified !== this.selection.size) {
+      this.notified = this.selection.size;
+      this.host.selectionChanged(this.notified);
+    }
     this.canvas.dataset['selected'] = String(this.selection.size);
+    this.canvas.dataset['stitches'] = String(this.chart?.stitches.length ?? 0);
     const ctx = this.canvas.getContext('2d');
     if (!ctx || this.chart === null) return;
     const dpr = window.devicePixelRatio || 1;
