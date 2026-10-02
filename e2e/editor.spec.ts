@@ -166,12 +166,13 @@ test('the pattern survives a reload, and can be loaded back as JSON', async ({ p
   const json = await readFile((await download.path())!, 'utf8');
   expect(JSON.parse(json).formatVersion).toBe(1);
 
-  // “New pattern” is the type menu since PQW-1045; since PQW-1126 the shape starts the pattern.
+  // KB: interface.md §80 — only a creation replaces the pattern, so another pattern is
+  // generated over this one, and the file has to bring the saved one back over that.
   await page.getByRole('button', { name: 'New pattern' }).click();
   await page.locator('.type[data-type="regular"]').click();
   await page.getByRole('menuitem', { name: /Flat shape/ }).click();
-  await page.locator('[data-action="close-setup"]').click();
-  await expect(page.locator('#summary')).toContainText('Empty pattern');
+  await page.locator('#section-shape').getByRole('button', { name: 'Create pattern' }).click();
+  await expect(page.locator('#summary')).not.toHaveText(before!);
 
   await page
     .locator('#import-file')

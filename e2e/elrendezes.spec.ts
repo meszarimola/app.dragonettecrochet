@@ -598,11 +598,15 @@ test('arming a stitch closes the make-a-pattern sheet, so the chain count is not
   const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
 
-  // A first visit arrives through „New pattern”, which leaves the sheet open over the panel.
+  // A first visit arrives through „New pattern”, and the sheet stays open over the panel after
+  // the creation, so a shape can be found by trying numbers (§54). KB: interface.md §80 — the
+  // palette only comes alive with that creation, which is why this clicks it.
   await page.getByRole('button', { name: 'New pattern' }).click();
   await page.locator('.type[data-type="regular"]').click();
   await page.getByRole('menuitem', { name: /Flat shape/ }).click();
   const sheet = page.locator('#setup');
+  await expect(sheet).toBeVisible();
+  await page.locator('#section-shape').getByRole('button', { name: 'Create pattern' }).click();
   await expect(sheet).toBeVisible();
 
   await page

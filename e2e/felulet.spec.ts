@@ -81,7 +81,9 @@ test('pattern type: regular and irregular crochet are selectable, the rest are �
 
   const regular = page.getByRole('button', { name: /Regular crochet/ });
   await expect(regular).toBeEnabled();
-  await expect(regular).toHaveAttribute('aria-pressed', 'true');
+  // KB: interface.md §80 — it opens a menu instead of being a choice, so it is never pressed.
+  await expect(regular).toHaveAttribute('aria-haspopup', 'menu');
+  expect(await regular.getAttribute('aria-pressed'), 'a menu opener is not a toggle').toBeNull();
   await expect(regular).not.toContainText('Coming soon');
 
   const irregular = page.getByRole('button', { name: /Free-form designer/ });

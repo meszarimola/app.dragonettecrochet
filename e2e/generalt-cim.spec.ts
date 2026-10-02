@@ -70,11 +70,10 @@ test('Shawl → semicircle, then Shape → rectangle: the title belongs to the r
   await rectangle(page);
   await expect.poll(title).toBe('Rectangle');
 
-  // Two steps back, not one: choosing a family starts a new pattern (PQW-1126), so the
-  // rectangle sits on top of the empty pattern that choosing „Flat shape” made.
+  // One step back since PQW-1137: choosing a family empties nothing, so the rectangle sits
+  // straight on the semicircle with no empty pattern between them.
   await page.keyboard.press('ControlOrMeta+Z');
   await expect(page.locator('#status')).toContainText('Undone.');
-  await page.keyboard.press('ControlOrMeta+Z');
   await expect.poll(title).toBe('Semicircle');
 });
 

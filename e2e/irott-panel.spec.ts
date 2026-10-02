@@ -33,12 +33,11 @@ async function open(page: Page, stored: 'nyitva' | 'zarva' | null): Promise<void
   if (await deny.isVisible()) await deny.click();
 }
 
-/** PQW-1045, PQW-1126: a new pattern comes from the “New” menu, by picking a type and a shape. */
+/** PQW-1045, PQW-1126, PQW-1137: a new pattern starts in the „Új” menu, with a type and a family. */
 async function newRegular(page: Page): Promise<void> {
   await page.locator('#types-toggle').click();
   await page.locator('.type[data-type="regular"]').click();
   await page.getByRole('menuitem', { name: /Flat shape/ }).click();
-  await page.locator('[data-action="close-setup"]').click();
 }
 
 test('the panel opened by hand is closed by “New pattern” (PQW-915)', { tag: '@kiadas' }, async ({ page }) => {
@@ -52,7 +51,7 @@ test('the panel opened by hand is closed by “New pattern” (PQW-915)', { tag:
   await expect(written).toBeVisible();
 
   await newRegular(page);
-  await expect(written, 'the new pattern is empty: the panel must be closed').toBeHidden();
+  await expect(written, 'there is no pattern until the new one is made: the panel must be closed').toBeHidden();
   await expect(page.locator('#written-toggle')).toHaveAttribute('aria-expanded', 'false');
 });
 

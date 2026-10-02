@@ -4,8 +4,13 @@
  *
  * It arrives as a returning visitor rather than by clicking through the type
  * menu: the menu's own entries open the make-a-pattern sheet, which covers the
- * panel (§54), and a spec about row endings should not have to close a sheet
- * first. The arrival itself is covered by `kezdes-zar.spec.ts`.
+ * panel (§54), and since PQW-1137 they also close the editor until a pattern is
+ * made — so a spec about row endings would have to generate a shape it is not
+ * about. The arrival itself is covered by `kezdes-zar.spec.ts`.
+ *
+ * The seeded state is that of a visitor whose previous pattern is empty: the
+ * stored type says one was made in it (PQW-1137), the stored pattern is the empty
+ * one the app itself saves, and the editor therefore opens on a clean sheet.
  *
  * Playwright's default `testMatch` collects `*.spec.ts` only, so this file is
  * not picked up as a test.
@@ -13,7 +18,7 @@
 
 import type { Page } from '@playwright/test';
 
-/** The key the interface writes when a type is chosen; its presence is what opens the gate. */
+/** The key the interface writes when a pattern is made; its presence is what opens the gate. */
 const TYPE_KEY = 'dc-mintatervezo:tipus';
 
 /**
