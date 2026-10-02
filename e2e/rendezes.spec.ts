@@ -99,3 +99,50 @@ test('a fan leans its stitches from one point, and a new angle opens it wider', 
   await page.getByRole('group', { name: 'In a fan' }).getByRole('spinbutton', { name: 'Angle (°)' }).fill('120');
   expect(await outer(), 'opened to 120°').toBeCloseTo((Math.PI * 2) / 3, 6);
 });
+
+test('Backspace and Delete typed in a value edit the value, not the chart', async ({ page }) => {
+  await selectedChartWith(page, POINTS);
+  const radius = page.getByRole('group', { name: 'In a circle' }).getByRole('spinbutton', { name: 'Radius' });
+  await radius.click();
+  await radius.press('End');
+  await radius.press('Backspace');
+  await radius.press('Delete');
+  await radius.press('Escape');
+  await expect(board(page), 'no stitch deleted').toHaveAttribute('data-stitches', String(POINTS.length));
+  await expect(board(page), 'still selected').toHaveAttribute('data-selected', String(POINTS.length));
+  await expect(radius).toHaveValue('4');
+});
+
+test('a changed value does not bring back a chart from before New, though the ids are the same', async ({ page }) => {
+  await selectedChartWith(page, POINTS);
+  await page.getByRole('button', { name: 'In a circle' }).click();
+
+  await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('button', { name: /^Double crochet \(dc\)/ }).click();
+  const fresh: [number, number][] = [
+    [150, 150],
+    [200, 150],
+    [150, 200],
+    [200, 200],
+  ];
+  for (const [x, y] of fresh) await board(page).click({ position: { x, y } });
+  await page.getByRole('button', { name: 'Select' }).click();
+  const box = (await board(page).boundingBox())!;
+  await page.mouse.move(box.x + 20, box.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 300, box.y + 300, { steps: 4 });
+  await page.mouse.up();
+  await expect(board(page)).toHaveAttribute('data-selected', String(fresh.length));
+
+  const before = await stitches(page);
+  await page.getByRole('group', { name: 'In a circle' }).getByRole('spinbutton', { name: 'Radius' }).fill('60');
+  expect(await stitches(page), 'the new stitches stay where they were placed').toEqual(before);
+});
+
+test('an arrangement larger than the board is not taken', async ({ page }) => {
+  await selectedChartWith(page, POINTS);
+  const before = await stitches(page);
+  await page.getByRole('group', { name: 'In a circle' }).getByRole('spinbutton', { name: 'Radius' }).fill('1000');
+  await page.getByRole('button', { name: 'In a circle' }).click();
+  expect(await stitches(page), 'nothing moved').toEqual(before);
+});

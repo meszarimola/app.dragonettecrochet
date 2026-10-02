@@ -2417,10 +2417,19 @@ offers the three arrangements of `arrangeStitches` (`core/freeform.ts`):
   the spread from the first stitch to the last.
 
 The values are minimal on purpose (the owner: radius and angle, no more). The
-units are board pixels. A changed value re-arranges at once, but only while the
-same stitches are still selected and nothing else moved them, and it starts from
-the chart **before** the arrangement — re-arranging the arranged fan from its own
-centroid drifted it downward with every keystroke. The fan's default radius is
+units are board pixels. A changed value re-arranges at once, from the chart
+**before** the arrangement — re-arranging the arranged fan from its own centroid
+drifted it downward with every keystroke. That earlier chart is used only while
+the chart is still, by identity, the one the arrangement produced and the same
+stitches are selected: matching the ids alone brought an old chart back after
+New, a paste or a placed stitch reused them. The fan's default radius is
 24: at 12, five half-doubles at 90° touched at the tops, which a zoomed
 screenshot showed and no measurement did. An arrangement that would leave the
-board is shifted back on, not refused.
+board is shifted back on; one larger than the board is not taken, as a turn or a
+resize is not (a stitch left off the board can no longer be dragged, turned or
+resized). Below 40rem the column takes no width and appears over the board only
+while it has something to show.
+
+The number fields keep their own keys: Delete, Backspace, Escape and the
+Ctrl/⌘ commands typed in a field are not the chart's. Before that, Backspace in
+the radius deleted the selection.

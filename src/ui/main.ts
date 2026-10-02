@@ -3,6 +3,7 @@
 import './styles.css';
 import {
   type Arrangement,
+  allInside,
   arrangeStitches,
   boundedMove,
   copyStitches,
@@ -60,11 +61,12 @@ let chart: FreeformChart | null = null;
 let tool: StitchDefId | null = null;
 let selecting = false;
 let clipboard: readonly PlacedStitch[] = [];
-/** The last arrangement and the chart before it, so a changed value re-arranges from there instead of drifting. */
+// KB: interface.md §83
 let arranged: {
   readonly arrangement: Arrangement;
   readonly ids: ReadonlySet<number>;
   readonly base: FreeformChart;
+  readonly result: FreeformChart;
 } | null = null;
 let items: PaletteItem[] = [];
 const buttons = new Map<StitchDefId, HTMLButtonElement>();
@@ -78,7 +80,6 @@ const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAcce
   },
   change: (next) => {
     chart = next;
-    arranged = null;
     board.show(chart, symbolOptionsFor(chartStyle));
   },
   selectionChanged: (count) => {
@@ -101,21 +102,26 @@ fanAngle.addEventListener('input', () => rearrange('fan'));
 function arrange(arrangement: Arrangement): void {
   if (chart === null || board.selected.size === 0 || board.dragging) return;
   const ids = new Set(board.selected);
-  const base = arranged !== null && sameSet(arranged.ids, ids) ? arranged.base : chart;
+  const base = arranged !== null && untouchedSince(arranged) ? arranged.base : chart;
   const options =
     arrangement === 'circle'
       ? { radius: numberIn(circleRadius), angle: 0 }
       : { radius: numberIn(fanRadius), angle: (numberIn(fanAngle) * Math.PI) / 180 };
   const next = arrangeStitches(base, ids, arrangement, (placed) => board.extentOf(placed), options);
   const [dx, dy] = boundedMove(next, ids, 0, 0, board.size());
-  chart = moveStitches(next, ids, dx, dy);
-  arranged = { arrangement, ids, base };
+  const result = moveStitches(next, ids, dx, dy);
+  if (!allInside(result, ids, board.size())) return;
+  chart = result;
+  arranged = { arrangement, ids, base, result };
   board.show(chart, symbolOptionsFor(chartStyle));
 }
 
-/** A changed value re-arranges only what that arrangement made, and only while it is still selected. */
 function rearrange(arrangement: Arrangement): void {
-  if (arranged?.arrangement === arrangement && sameSet(arranged.ids, board.selected)) arrange(arrangement);
+  if (arranged?.arrangement === arrangement && untouchedSince(arranged)) arrange(arrangement);
+}
+
+function untouchedSince({ ids, result }: NonNullable<typeof arranged>): boolean {
+  return chart === result && sameSet(ids, board.selected);
 }
 
 /** An empty or out-of-range field counts as the nearest value it allows. */
@@ -171,7 +177,7 @@ languageSelect.value = uiLanguage();
 styleSelect.value = chartStyle;
 must<HTMLElement>('#version').textContent = `v${__APP_VERSION__}`;
 alignTooltips(must<HTMLElement>('.tools'));
-// What the browser suite measures the arrangements by; the canvas itself shows the DOM nothing.
+// KB: interface.md §83
 if (navigator.webdriver) Object.assign(window, { dcFreeformChart: () => chart });
 
 newButton.addEventListener('click', () => {
@@ -201,13 +207,13 @@ languageSelect.addEventListener('change', () => {
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
     // A select box closes on its own Escape; that one is not meant for the chart.
-    if (board.dragging || event.target instanceof HTMLSelectElement) return;
+    if (board.dragging || inField(event.target)) return;
     if (tool !== null) select(null);
     else if (board.selected.size > 0) board.clearSelection();
     return;
   }
   if (chart === null) return;
-  const inSelect = event.target instanceof HTMLSelectElement;
+  const inSelect = inField(event.target);
   if (!inSelect && (event.key === 'Delete' || event.key === 'Backspace')) {
     if (deleteSelection()) event.preventDefault();
     return;
@@ -229,6 +235,11 @@ document.addEventListener('keydown', (event) => {
   event.preventDefault();
   select(item.def.id);
 });
+
+/** A select box or a typed field keeps its own keys. */
+function inField(target: EventTarget | null): boolean {
+  return target instanceof HTMLSelectElement || target instanceof HTMLInputElement;
+}
 
 function applyLanguage(language: UiLanguage): void {
   setUiLanguage(language);

@@ -556,6 +556,19 @@ body.is-armed #board {
 
 /* KB: interface.md §56 — in a phone-sized window the title gives way first. */
 @media (width < 40rem) {
+  :root {
+    --inspector-width: 0px;
+  }
+
+  .inspector {
+    inline-size: min(12rem, 60vw);
+    z-index: 20;
+  }
+
+  .inspector:not(:has(> :not([hidden]))) {
+    display: none;
+  }
+
   .bar__title,
   .home > span {
     position: absolute;

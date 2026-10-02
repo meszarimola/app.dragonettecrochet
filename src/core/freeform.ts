@@ -354,6 +354,6 @@ function circle(items: readonly Sized[], center: Point, radius: number): PlacedS
 function fan(items: readonly Sized[], middle: Point, { radius, angle }: ArrangeOptions): PlacedStitch[] {
   const point = { x: middle.x, y: middle.y + radius + tallest(items) };
   const spread = items.length > 1 ? angle : 0;
-  const step = items.length > 1 ? spread / (items.length - 1) : 0;
+  const step = spread / Math.max(1, items.length - 1);
   return items.map((item, i) => standOut(item, point, radius, -Math.PI / 2 - spread / 2 + step * i));
 }
