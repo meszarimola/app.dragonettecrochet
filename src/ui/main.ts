@@ -1036,6 +1036,10 @@ function appendStitchKey(button: HTMLButtonElement, item: PaletteItem): void {
 function select(id: StitchDefId | null): void {
   // KB: interface.md §80 — nothing to arm a stitch for yet; clearing one stays allowed.
   if (!started && id !== null) return;
+  // KB: interface.md §81 — the sheet covers the panel, and the chain count leads it.
+  // Only a change arms: interface.md §6 re-applies the armed stitch on a notation or
+  // language change, and that must not close a sheet opened after the arming.
+  if (id !== null && id !== tool) setSetupOpen(false);
   tool = id;
   hover = null;
   if (id) {

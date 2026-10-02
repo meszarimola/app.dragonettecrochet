@@ -288,8 +288,11 @@ for (const viewport of [
     await expect(written).toBeVisible();
 
     // A 10-row half double crochet rectangle from the keyboard: 1 = chain stitch, 4 = half double crochet, F = turn.
+    // Ten wide plus the skip of two; the count is no longer twelve by default (KB: interface.md §81).
     await page.locator('#board').focus();
     await page.keyboard.press('Alt+1');
+    await page.locator('#chain-count').fill('12');
+    await page.locator('#board').focus();
     await page.keyboard.press('Enter');
     await page.keyboard.press('Alt+4');
     for (let row = 1; row <= 10; row += 1) {
@@ -541,3 +544,80 @@ for (const [viewport, rounds] of [
     expect(grid!.bottom).toBeLessThanOrEqual(cover.y);
   });
 }
+
+/*
+ * KB: interface.md §81. The chain count used to close the left column, under a
+ * 904 px palette: at 1440 × 900 it sat at y 1179 in a column whose visible band
+ * ended at y 900, so choosing the chain stitch was followed by a scroll to the
+ * bottom of the palette to say how many.
+ */
+for (const viewport of [
+  { width: 1440, height: 900 },
+  { width: 1000, height: 506 },
+]) {
+  test(`${viewport.width}×${viewport.height}: the chain count leads the right panel, and only a chain brings it`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await open(page);
+
+    const field = page.locator('#count-field');
+    const stitch = (name: RegExp) => page.locator('#palette').getByRole('button', { name }).first();
+    await expect(field).toBeHidden();
+
+    await stitch(/Chain \(ch\)/).click();
+    await expect(field).toBeVisible();
+    await expect(page.locator('#chain-count'), 'one chain, not an arbitrary twelve').toHaveValue('1');
+
+    // Whole, inside the panel, with the panel still unscrolled: that is the move.
+    const panel = await box(page, '#panel');
+    const count = await box(page, '#count-field');
+    expect(count.x).toBeGreaterThanOrEqual(panel.x);
+    expect(count.y).toBeGreaterThanOrEqual(panel.y);
+    expect(count.y + count.height).toBeLessThanOrEqual(panel.y + panel.height);
+    expect(await page.locator('#panel').evaluate((el) => el.scrollTop)).toBe(0);
+
+    // Nothing of the panel's own sections stands above it.
+    expect(count.y).toBeLessThan((await box(page, '#section-size')).y);
+
+    await stitch(/Single crochet \(sc\)/).click();
+    await expect(field).toBeHidden();
+
+    // With the field gone the panel closes up again: the size section takes the head.
+    expect((await box(page, '#section-size')).y).toBe(count.y);
+  });
+}
+
+/*
+ * KB: interface.md §81. The make-a-pattern sheet is wider than the panel and
+ * stands over it (§54), so a count field at the head of the panel would arrive
+ * behind the sheet — visible to the DOM, unreachable to the hand.
+ */
+test('arming a stitch closes the make-a-pattern sheet, so the chain count is not left behind it', async ({ page }) => {
+  await page.goto('/');
+  const deny = page.getByRole('button', { name: 'Decline' });
+  if (await deny.isVisible()) await deny.click();
+
+  // A first visit arrives through „New pattern”, which leaves the sheet open over the panel.
+  await page.getByRole('button', { name: 'New pattern' }).click();
+  await page.locator('.type[data-type="regular"]').click();
+  await page.getByRole('menuitem', { name: /Flat shape/ }).click();
+  const sheet = page.locator('#setup');
+  await expect(sheet).toBeVisible();
+
+  await page
+    .locator('#palette')
+    .getByRole('button', { name: /Chain \(ch\)/ })
+    .first()
+    .click();
+  await expect(sheet).toBeHidden();
+
+  const field = page.locator('#count-field');
+  await expect(field).toBeVisible();
+  const spot = await box(page, '#count-field');
+  const hit = await page.evaluate((at) => document.elementFromPoint(at.x, at.y)?.closest('#count-field')?.id ?? '', {
+    x: spot.x + spot.width - 20,
+    y: spot.y + spot.height / 2,
+  });
+  expect(hit, 'the field takes its own clicks').toBe('count-field');
+});

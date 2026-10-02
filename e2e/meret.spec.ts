@@ -23,13 +23,19 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
-/** Foundation chain and single crochet rows from the keyboard only: 1 = chain stitch, 3 = single crochet, F = turn. */
+/*
+ * Foundation chain and single crochet rows from the keyboard only: 1 = chain
+ * stitch, 3 = single crochet, F = turn.
+ *
+ * The chain stitch is armed first, because the count field only exists while a
+ * chain-like stitch is chosen (KB: interface.md §81). Until PQW-1135 this
+ * helper typed into the still-hidden field, so the width was dropped and every
+ * rectangle here was 12 chains wide whatever the caller asked for.
+ */
 async function rectangle(page: Page, width: number, rows: number): Promise<void> {
-  await page.locator('#chain-count').focus();
-  await page.keyboard.press('ControlOrMeta+A');
-  await page.keyboard.type(String(width + 2));
   await page.locator('#board').focus();
   await page.keyboard.press('Alt+1');
+  await page.locator('#chain-count').fill(String(width + 2));
   await page.locator('#board').focus();
   await page.keyboard.press('Enter');
   await page.keyboard.press('Alt+3');
