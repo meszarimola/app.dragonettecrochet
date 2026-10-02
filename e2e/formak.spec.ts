@@ -34,9 +34,9 @@ async function writtenText(page: Page): Promise<string> {
   return (await page.locator('#written-text').textContent()) ?? '';
 }
 
-test('20 × 30 cm half double crochet rectangle without a profile: estimated actual size, error-free rows, undone in one step', async ({
-  page,
-}) => {
+test('20 × 30 cm half double crochet rectangle without a profile: estimated actual size, error-free rows, undone in one step', {
+  tag: '@kiadas',
+}, async ({ page }) => {
   await open(page);
   const section = await openShapes(page);
 

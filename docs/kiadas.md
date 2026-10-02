@@ -44,8 +44,12 @@ Bármelyik bukása leállítja az egészet — félbehagyott élesítés nem mar
 `origin`-nal · a kiszolgáló ssh-n válaszol · a verzió `X.Y.Z` alakú, szigorúan
 nagyobb a jelenleginél, és még nincs ilyen címke.
 
-**Kiadás előtt.** `npm run check` · egységtesztek · (`--bongeszo` esetén a
-teljes böngészős készlet is).
+**Kiadás előtt.** `npm run check` · egységtesztek · **a 20 tesztes böngészős
+kiadási készlet** (`@kiadas`; mérve 8 s, felső korlát 5 perc). Ez **nem
+kihagyható**: a napi kapuból a böngészős tesztek kikerültek, a teljes készlet csak
+nightly fut, tehát ez az utolsó pont, ahol egy böngészős regresszió még nem ért
+élesbe. A `--bongeszo` a teljes készletre cseréli — szűkíteni nem lehet.
+KB: testing.md §4
 
 **Build után.** A kiadott verziónak bele kell égnie a csomagba · a
 `dist/index.html` megvan · a `dist` nem gyanúsan üres.

@@ -64,9 +64,9 @@ function comparable(text: string): string {
 const fixture = (locale: string, name: string) =>
   readFile(new URL(`../tests/fixtures/written/${locale}/${name}.txt`, import.meta.url), 'utf8');
 
-test('written pattern: the recorded text of the rectangle in the panel, and the text changes when the notation changes', async ({
-  page,
-}) => {
+test('written pattern: the recorded text of the rectangle in the panel, and the text changes when the notation changes', {
+  tag: '@kiadas',
+}, async ({ page }) => {
   test.slow();
   await open(page);
   await page.locator('#board').focus();

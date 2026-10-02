@@ -133,10 +133,13 @@ test('a ticket number is not matched by a prefix of another', () => {
   assert.throws(() => closePlan({ ticket: 1100, worktrees }), HibasBemenet);
 });
 
-test('npm run munkafa is wired to the script, and the gate reads the port it writes', () => {
+test('npm run munkafa is wired, and the browser config reads the port it writes', () => {
   const pkg = JSON.parse(read('package.json'));
   assert.equal(pkg.scripts.munkafa, 'node scripts/munkafa.mjs');
-  assert.match(read('scripts/kapu.sh'), /\.env\.local/);
+
+  // Since PQW-1123 the gate runs no browser tests, so the port is read by the
+  // Playwright config instead — the one place every browser entry point shares.
+  assert.match(read('playwright.config.ts'), /\.env\.local/);
 });
 
 test('the symlink that broke the main checkout is nowhere in the command', () => {

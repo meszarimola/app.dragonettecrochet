@@ -113,7 +113,9 @@ async function stitches(page: Page): Promise<Map<string, Stitch>> {
   );
 }
 
-test('clicking on the skipped place puts the stitch there, and the rest stay (PQW-933)', async ({ page }) => {
+test('clicking on the skipped place puts the stitch there, and the rest stay (PQW-933)', { tag: '@kiadas' }, async ({
+  page,
+}) => {
   await open(page);
   await foundation(page);
 

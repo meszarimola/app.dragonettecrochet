@@ -10,9 +10,24 @@
  * three seconds, a chart marking after five. KB: testing.md §4
  */
 
+import { existsSync, readFileSync } from 'node:fs';
+
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = Number(process.env.PORT ?? 5181);
+/**
+ * The worktree's own port, which `npm run munkafa` wrote into its .env.local.
+ * The config reads it rather than the caller, because since PQW-1123 there are
+ * several entry points — the release set, the nightly full suite, a single spec
+ * by hand — and a port read in only one of them is a port collision in the
+ * others. PORT in the environment still wins. KB: incidents.md §3
+ */
+function portFromEnvFile() {
+  if (!existsSync('.env.local')) return undefined;
+  const found = /^PORT=(\d+)/m.exec(readFileSync('.env.local', 'utf8'));
+  return found ? Number(found[1]) : undefined;
+}
+
+const PORT = Number(process.env.PORT) || portFromEnvFile() || 5181;
 const CI = Boolean(process.env.CI);
 
 export default defineConfig({

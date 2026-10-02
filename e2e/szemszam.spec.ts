@@ -27,7 +27,7 @@ async function pick(page: Page, name: RegExp): Promise<void> {
   if ((await button.getAttribute('aria-pressed')) !== 'true') await button.click();
 }
 
-test('row 2 of the owner shows 22 stitches, not 13 (PQW-940)', async ({ page }) => {
+test('row 2 of the owner shows 22 stitches, not 13 (PQW-940)', { tag: '@kiadas' }, async ({ page }) => {
   await start(page);
 
   await pick(page, /Chain \(ch\)/);

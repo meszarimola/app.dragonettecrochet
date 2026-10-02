@@ -16,9 +16,9 @@ async function open(page: Page): Promise<void> {
 const tipDisplay = (tool: Locator) => tool.evaluate((el) => getComputedStyle(el, '::after').display);
 const tipText = (tool: Locator) => tool.evaluate((el) => getComputedStyle(el, '::after').content);
 
-test('on load the stitch list is visible in the left column, the notation closed by default (PQW-989)', async ({
-  page,
-}) => {
+test('on load the stitch list is visible in the left column, the notation closed by default (PQW-989)', {
+  tag: '@kiadas',
+}, async ({ page }) => {
   await open(page);
 
   // PQW-1048: the notation section is gone; the size section leads the right panel.

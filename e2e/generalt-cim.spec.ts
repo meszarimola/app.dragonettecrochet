@@ -52,9 +52,9 @@ async function rectangle(page: Page): Promise<void> {
 const storedTitle = (page: Page) => async () =>
   page.evaluate(() => (JSON.parse(localStorage.getItem('dc-mintatervezo:minta') ?? '{}') as { title?: string }).title);
 
-test('Shawl → semicircle, then Shape → rectangle: the title belongs to the rectangle, and undo brings the semicircle back with its title', async ({
-  page,
-}) => {
+test('Shawl → semicircle, then Shape → rectangle: the title belongs to the rectangle, and undo brings the semicircle back with its title', {
+  tag: '@kiadas',
+}, async ({ page }) => {
   await open(page);
   // PQW-1048: the name field is gone, so the title is read where the app keeps it.
   const title = storedTitle(page);

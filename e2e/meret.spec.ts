@@ -44,9 +44,9 @@ async function enter(page: Page, selector: string, value: string): Promise<void>
   await page.locator(selector).press('Tab');
 }
 
-test('the section sits under Stitches, closed by default; without a profile the size is an estimate, with a range', async ({
-  page,
-}) => {
+test('the section sits under Stitches, closed by default; without a profile the size is an estimate, with a range', {
+  tag: '@kiadas',
+}, async ({ page }) => {
   await open(page);
   const size = page.locator('#section-size');
   await expect(size).not.toHaveAttribute('open', '');

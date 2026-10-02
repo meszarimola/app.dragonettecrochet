@@ -31,7 +31,7 @@ async function armDoubleCrochet(page: Page): Promise<void> {
   await page.keyboard.press('Alt+5');
 }
 
-test('the free-form type opens its own canvas and hides what belongs to rows', async ({ page }) => {
+test('the free-form type opens its own canvas and hides what belongs to rows', { tag: '@kiadas' }, async ({ page }) => {
   await open(page);
   await chooseIrregular(page);
 

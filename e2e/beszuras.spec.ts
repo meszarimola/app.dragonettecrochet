@@ -20,9 +20,9 @@ async function foundation(page: Page, chains: number): Promise<void> {
   await page.keyboard.press('Enter');
 }
 
-test('back loop single crochet row and post stitch row: the mode is selectable from the keyboard, and the pattern follows', async ({
-  page,
-}) => {
+test('back loop single crochet row and post stitch row: the mode is selectable from the keyboard, and the pattern follows', {
+  tag: '@kiadas',
+}, async ({ page }) => {
   await open(page);
   await foundation(page, 8);
 

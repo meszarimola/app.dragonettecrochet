@@ -22,7 +22,9 @@ async function openSheet(page: Page): Promise<void> {
   }
 }
 
-test('a line above the bar says the designer is a work in progress (PQW-1051)', async ({ page }) => {
+test('a line above the bar says the designer is a work in progress (PQW-1051)', { tag: '@kiadas' }, async ({
+  page,
+}) => {
   await open(page);
 
   const wip = page.locator('.wip');

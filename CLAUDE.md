@@ -59,7 +59,10 @@ landing page on the main site.
    and the frozen-path guard actually runs. A new validation rule gets a
    `reference` pointing at the knowledge base section it comes from —
    `tests/core-validate.test.mjs` enforces this.
-4. **Verify** — `npm run kapu` (about 45 s), then `/review` and `/pre-pr-check`.
+4. **Verify** — `npm run kapu` (about 8 s; it opens no browser). Then `/review` and
+   `/pre-pr-check`. Touched the interface? `npm run fustteszt` is the 20-test
+   release set, about 8 s. The full browser suite runs nightly and at every
+   release. KB: testing.md §4
 5. **Update the knowledge base in the same PR** if the change made any section
    stale. This is what stops the docs drifting away from the code.
 6. **PR**, update the Linear ticket, merge into `develop` when green.

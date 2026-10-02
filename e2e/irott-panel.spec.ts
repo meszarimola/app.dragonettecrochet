@@ -36,7 +36,7 @@ async function newRegular(page: Page): Promise<void> {
   await page.locator('.type[data-type="regular"]').click();
 }
 
-test('the panel opened by hand is closed by “New pattern” (PQW-915)', async ({ page }) => {
+test('the panel opened by hand is closed by “New pattern” (PQW-915)', { tag: '@kiadas' }, async ({ page }) => {
   await open(page, null);
 
   const written = page.locator('#written');
