@@ -59,6 +59,15 @@ jobs:
 
       - run: npm ci
 
+      # Only the browser binary is cached. The install step still runs on a hit,
+      # so the system packages of --with-deps are there either way; what the
+      # cache saves is the download. KB: testing.md §4
+      - name: Cache the browser binary
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
