@@ -153,18 +153,6 @@ ellenorizd_elesben() {
 }
 
 # ── 9. Címke, idempotensen ──────────────────────────────────────────────────
-cimkezd() {
-  LEPES="9. zárás"
-  cim "9. Zárás"
-  if git rev-parse "v$VERZIO" >/dev/null 2>&1; then
-    echo "  a v$VERZIO címke már megvan"
-  else
-    git tag -a "v$VERZIO" -m "v$VERZIO"
-    git push origin "v$VERZIO" --quiet
-    echo "  v$VERZIO címke létrehozva"
-  fi
-}
-
 # ── A teljes menet ──────────────────────────────────────────────────────────
 main() {
   local gyoker
@@ -189,8 +177,6 @@ main() {
   (( PROBA )) && VERZIO="${VERZIO:-$MOSTANI}"
   [[ -n "$VERZIO" ]] || megall "add meg a verziót: npm run kiadas -- 0.20.0"
   [[ "$VERZIO" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || megall "a verzió X.Y.Z alakú legyen, ez jött: $VERZIO"
-
-  local kiag="release/v$VERZIO"
 
   # Helyzetfelmérés
   LEPES="helyzetfelmérés"
@@ -269,55 +255,40 @@ main() {
     zold "✓ a kiadási böngészős készlet (20 teszt) zöld"
   fi
 
-  # 3. Kiadási ág, verzióemelés, összevonás
+  # 3. Verzióemelés és címke a developon
+  #
+  # Release train (PQW-1125): a develop a trunk, és ami rajta van, az megy ki.
+  # Nincs kiadási ág, nincs main, nincs összevonás — a kiadás egy commit és egy
+  # címke a developon. Ez hat CI futásból egyet csinál.
+  #
+  # A címke a build ELŐTT készül, mert a --ujra abból építi újra a csomagot: ha a
+  # telepítés bukik el, címke nélkül nem lenne mit újratelepíteni.
   if (( PROBA )); then
-    sarga "  FŐPRÓBA: nincs ágkészítés, commit, push és merge."
+    sarga "  FŐPRÓBA: nincs verzióemelés, commit, címke és push."
   else
-    LEPES="3. kiadási ág"
-    cim "3. Kiadási ág és verzióemelés"
-    git checkout -b "$kiag" >/dev/null 2>&1 \
-      || megall "a $kiag ág már létezik helyben — töröld: git branch -D $kiag"
+    LEPES="3. verzióemelés és címke"
+    cim "3. Verzióemelés és címke a developon"
     npm version "$VERZIO" --no-git-tag-version >/dev/null
     git add package.json package-lock.json
     git commit -q -m "Verzió emelése a v$VERZIO kiadáshoz (PQW-903)"
-    git push -u origin "$kiag" --quiet
+    git tag -a "v$VERZIO" -m "v$VERZIO"
 
-    LEPES="3. összevonás"
-    local pr1 pr2
-    pr1="$(gh pr create --base develop --head "$kiag" \
-      --title "Verzió emelése a v$VERZIO kiadáshoz" \
-      --body "A v$VERZIO kiadás verzióemelése." | tail -1)"
-    echo "  kiadási PR: $pr1"
-    gh pr merge "$pr1" --merge
-
-    pr2="$(gh pr create --base main --head develop \
-      --title "v$VERZIO kiadás élesítése" \
-      --body "A v$VERZIO élesítése a developról." | tail -1)"
-    echo "  élesítő PR: $pr2"
-    gh pr merge "$pr2" --merge
-
-    git fetch origin --quiet
-    zold "✓ a v$VERZIO fent van a main ágon"
-    git checkout --detach origin/main >/dev/null 2>&1
+    # Egy atomi push: ha az ág vagy a címke elutasításra kerül, egyik sem megy ki.
+    git push --atomic origin develop "v$VERZIO" --quiet \
+      || megall "a develop vagy a v$VERZIO címke pusholása elbukott — semmi nem ment ki"
+    zold "✓ a verzióemelés és a v$VERZIO címke fent van a developon"
   fi
 
   epits_es_ellenorizd
   szinkronizald
 
-  # Vissza az ágra, mielőtt ellenőrzünk: a füstpróba a kiindulási ág eszközeivel fut.
-  if (( ! PROBA )); then
-    vissza_az_agra
-    git pull --quiet
-  fi
+  # A kiadott állapot maga a develop feje, tehát nincs mit visszaváltani — csak a
+  # címkéből építő --ujra ágon kell, és azt a rövid út maga rendezi.
 
   ellenorizd_elesben
-  cimkezd
-
-  git branch -D "$kiag" >/dev/null 2>&1 || true
-  git push origin --delete "$kiag" --quiet 2>/dev/null || true
 
   zold ""
-  zold "KÉSZ: a v$VERZIO él a $URL címen."
+  zold "KÉSZ: a v$VERZIO él a $URL címen, és a develop v$VERZIO címkével van ellátva."
   echo ""
   echo "Ha baj van:   npm run visszaallitas -- $MOSTANI"
   echo "Ha újra kell: npm run kiadas -- $VERZIO --ujra"

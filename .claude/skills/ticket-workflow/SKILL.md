@@ -80,9 +80,15 @@ history is not rewritten.
 Open the PR into `develop` with `PQW-<n>` in the description so Linear links it,
 and attach the PR URL to the ticket as a link titled `PR #<n>`.
 
-Run `/pre-pr-check` before opening it. Never merge while CI is red. This repo
-is public, so branch protection is available and the CI check is required on
-`develop` and `main`; the local pre-commit hook catches problems earlier.
+Run `/pre-pr-check` before opening it. Never merge while CI is red. This repo is
+public, so branch protection is available: `develop` is protected and `Build and
+tests` is required on it. `Browser tests` is **not** — the browser suite left the
+pull-request CI (`testing.md` §4), and a required check for a job that no longer
+reports would leave every pull request waiting forever. The local pre-commit hook
+catches problems earlier than any of this.
+
+**When it is green, merge it** — on the remote, with `gh pr merge <n> --merge`. The
+owner asked not to be handed merges to run by hand.
 
 ## 5. On merge into `develop`
 
@@ -98,19 +104,27 @@ dirty or the branch is not yet in `develop` — so a close cannot lose work.
 A branch session cannot remove its own worktree — the coordinating session does
 it.
 
-## 6. On release (`develop` → `main` + deploy)
+## 6. On release (a tag on `develop` + deploy)
+
+**`develop` is the trunk and what is on it goes out.** There is no `main` and no
+release branch: a release is a version commit plus a `v<version>` tag on `develop`,
+then build, deploy, verify. KB: `decisions.md` §11
 
 The release is **one command** — do not do the steps by hand:
 
 ```bash
 git checkout develop && git pull
 npm run kiadas -- --proba      # full rehearsal: every check and the build, changes nothing
-npm run kiadas -- <version>    # version bump, both merges, build, deploy, verify
+npm run kiadas -- <version>    # bump, tag, build, deploy, verify
 ```
 
+Its gate includes the 20-test `@kiadas` browser set, which **cannot be skipped** —
+the daily gate runs no browser tests, so this is the last point before production
+(`testing.md` §4). `--bongeszo` widens it to the full suite.
+
 If something goes wrong: `npm run visszaallitas -- <previous>` restores the last
-release, `npm run kiadas -- <version> --ujra` reinstalls the same one. Full
-runbook: `docs/kiadas.md`.
+release, `npm run kiadas -- <version> --ujra` reinstalls the same one from its tag.
+Full runbook: `docs/kiadas.md`.
 
 Version numbering: 0.x releases go in order; **the owner alone decides when 1.0
 happens.** Never declare GA.
@@ -119,6 +133,8 @@ happens.** Never declare GA.
 cycle** — its version and feature list describe this app, and they have already
 drifted by 30 minor versions once (`docs/kb/incidents.md` §4).
 
+**Merge when green, and release without asking.** The owner gave standing
+authorization on 2026-10-02: a green pull request gets merged on the remote and the
+release follows. Do not hand the commands back for them to run.
+
 Move every ticket that went out to `Released`, with the deploy date in a comment.
-Releases go through the coordinating session with the owner's go-ahead — never
-from a branch session.

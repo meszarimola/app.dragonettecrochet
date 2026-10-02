@@ -19,8 +19,11 @@ landing page on the main site.
 
 1. **A Linear ticket before any work.** `PQW-<n>` goes in the branch name, the
    commit message and the PR description.
-2. **Gitflow:** `feature/PQW-<n>-<short-name>` or `fix/PQW-<n>-<short-name>` →
-   PR into `develop` → release branch → `main`. Never commit directly to either.
+2. **Release train:** `develop` is the trunk and the default branch; the only other
+   branches are `feature/PQW-<n>-…` and `fix/PQW-<n>-…`, one per ticket. PR into
+   `develop`, and a release is a version commit plus a `v<version>` tag on `develop`
+   — `npm run kiadas -- <version>`. **There is no `main` and no release branch.**
+   Never commit straight to `develop`. KB: decisions.md §11
 3. **Every feature ships with tests**, in the same PR. All tests pass before merge.
 4. **`src/core/` is DOM-free.** No `document`, `window` or canvas — it is pure
    domain logic, and `tsconfig.core.json` type-checks it without the DOM lib to
