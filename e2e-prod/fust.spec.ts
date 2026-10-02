@@ -39,19 +39,21 @@ async function open(page: Page): Promise<string[]> {
 
 /**
  * The editor is closed until there is a pattern (KB: interface.md §80), so the
- * smoke test starts one the way a visitor does: „Új” → a family → the sheet it
- * opens, closed by its own „Lecsukás” so the panel is back where the next step
- * expects it. Escape would not do it: the sheet focuses `#shape-kind`, and the
- * key handler leaves a `<select>` to the browser. The strings are the ones
- * `e2e/kezdes-zar.spec.ts` drives (docs/kiadas.md).
+ * smoke test starts one the way a visitor does: „Új” → a family → the window it
+ * opens (§82) → „Minta létrehozása”, which is what opens the editor and closes
+ * the window. The rectangle is then undone, because the step that follows lays a
+ * foundation chain of its own and wants the clean sheet the undo gives back; the
+ * gate stays open, since it follows the editor and not the undo stack.
+ * The strings are the ones `e2e/kezdes-zar.spec.ts` drives (docs/kiadas.md).
  */
 async function startPattern(page: Page): Promise<void> {
   await page.locator('#types-toggle').click();
   await page.getByRole('button', { name: 'Regular crochet' }).click();
   await page.getByRole('menuitem', { name: 'Flat shape' }).click();
-  await page.locator('[data-action="close-setup"]').click();
+  await page.locator('#section-shape').getByRole('button', { name: 'Create pattern' }).click();
   await expect(page.locator('#setup')).toBeHidden();
   await expect(page.locator('#start-note')).toBeHidden();
+  await page.getByRole('button', { name: 'Undo' }).click();
 }
 
 test('the served interface shows the expected version', async ({ page }) => {

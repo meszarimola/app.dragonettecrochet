@@ -129,6 +129,8 @@ for (const viewport of [
     expect(dome).toBeGreaterThan(1.2);
     expect(dome).toBeLessThan(2.4);
 
+    // KB: interface.md §82 — the window closes on the creation, so a second shape reopens it.
+    await openShawls(page);
     await page.locator('#shawl-kind').selectOption({ label: 'Top-down triangle' });
     await page.locator('#shawl-size').fill('8');
     await section.getByRole('button', { name: 'Create pattern' }).click();

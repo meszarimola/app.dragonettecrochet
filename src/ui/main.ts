@@ -142,7 +142,7 @@ const palette = must<HTMLDivElement>('#palette');
 const panel = must<HTMLElement>('#panel');
 const toggle = must<HTMLButtonElement>('#panel-toggle');
 const stitchesAside = must<HTMLElement>('#section-stitches');
-const setupSheet = must<HTMLElement>('#setup');
+const setupSheet = must<HTMLDialogElement>('#setup');
 const hint = must<HTMLParagraphElement>('#hint');
 const status = must<HTMLParagraphElement>('#status');
 const alertBox = must<HTMLParagraphElement>('#alert');
@@ -197,8 +197,6 @@ const GRID_KEY = 'dc-mintatervezo:racs';
 const LANG_KEY = 'dc-mintatervezo:nyelv';
 // Below this width the two panels do not fit side by side.
 const NARROW = window.matchMedia('(width < 48rem)');
-// KB: interface.md §54 — below this the sheet and the written panel cannot share the stage.
-const SETUP_TIGHT = matchMedia('(width < 67rem)');
 const STRUCTURAL_RULES = new Set(['unknown-stitch', 'dangling-reference', 'yarn-path']);
 
 // KB: interface.md §4 — this block must run before the state: restoring the pattern and the
@@ -406,7 +404,8 @@ function structuralProblem(pattern: Pattern): string | null {
 }
 
 const measure = (element: HTMLElement) => (element.hidden ? 0 : element.getBoundingClientRect().width);
-const insetRight = () => Math.max(measure(panel), measure(setupSheet));
+// KB: interface.md §82 — the chooser is a modal window above the stage, so it takes no width from it.
+const insetRight = () => measure(panel);
 const insetLeft = () => measure(stitchesAside);
 const insetBottom = () =>
   written.hidden ? 0 : Math.max(0, canvas.getBoundingClientRect().bottom - written.getBoundingClientRect().top);
@@ -658,8 +657,8 @@ const COMPUTED_TOOLS = [
  * nothing is not an edit.
  */
 function applyStartGate(): void {
-  // The sheet is the way on that the note points at, so while it is open the note has nothing to say.
-  startNote.hidden = started || !setupSheet.hidden;
+  // The chooser is the way on that the note points at, so while it is open the note has nothing to say.
+  startNote.hidden = started || setupSheet.open;
   writtenToggle.disabled = !started;
   // Gauge and yarn are a pattern's settings, and every one of them is written through `commit`.
   sizeSection.inert = !started;
@@ -853,22 +852,27 @@ function setOpen(target: HTMLElement, button: HTMLButtonElement, open: boolean):
   button.setAttribute('aria-expanded', String(open));
 }
 
-/** KB: interface.md §79 — the sheet has no toggle of its own; the type menu opens it. */
+/**
+ * KB: interface.md §79, §82 — the chooser has no toggle of its own; the type menu opens
+ * it, and `showModal` is what makes the choice one the visitor has to make.
+ */
 function setSetupOpen(open: boolean): void {
-  setupSheet.toggleAttribute('hidden', !open);
-  // KB: interface.md §80 — the start note and the sheet are two answers to the same question.
+  if (open) {
+    if (!setupSheet.open) setupSheet.showModal();
+  } else if (setupSheet.open) setupSheet.close();
+  // KB: interface.md §80 — the start note and the chooser are two answers to the same question.
   applyStartGate();
 }
 
 /**
- * KB: interface.md §80 — „Lecsukás” and Escape: the sheet is left without making anything,
- * so what it found comes back whole. Only this way out restores; the ways that *supersede*
- * the sheet — another type, a file, an armed stitch — close it with `setSetupOpen` and
- * carry their own state.
+ * KB: interface.md §80, §82 — „Vissza” and Escape: the window is left without making
+ * anything, so what it found comes back whole. Only this way out restores; the ways that
+ * *supersede* the window — another type, a file — close it with `setSetupOpen` and carry
+ * their own state.
  */
 function dismissSetup(): void {
-  if (setupSheet.hidden) return;
-  // The sheet closes first, because switching back to the free-form type closes it too
+  if (!setupSheet.open) return;
+  // The window closes first, because switching back to the free-form type closes it too
   // (`showIrregularView`) and would otherwise come straight back in here.
   setSetupOpen(false);
   // The type goes back with the gate: the visitor may have come from the free-form canvas,
@@ -879,14 +883,19 @@ function dismissSetup(): void {
 }
 
 /**
- * KB: interface.md §80 — from the moment there is a pattern, that pattern is what the sheet
- * would give back. A file can arrive while the sheet stands open, and a generated one leaves
- * it open on purpose (§54), so both say so here.
+ * KB: interface.md §80 — from the moment there is a pattern, that pattern is what the window
+ * would give back: the free-form canvas, a granny round, a generated shape or a file.
  */
 function patternMade(): void {
   startedBeforeSetup = true;
   typeBeforeSetup = patternType;
   setStarted(true);
+}
+
+/** KB: interface.md §82 — the one way out that is not a creation leads back to the type menu. */
+function setupBack(): void {
+  dismissSetup();
+  typesToggle.click();
 }
 
 function setWrittenOpen(open: boolean): void {
@@ -1099,10 +1108,6 @@ function appendStitchKey(button: HTMLButtonElement, item: PaletteItem): void {
 function select(id: StitchDefId | null): void {
   // KB: interface.md §80 — nothing to arm a stitch for yet; clearing one stays allowed.
   if (!started && id !== null) return;
-  // KB: interface.md §81 — the sheet covers the panel, and the chain count leads it.
-  // Only a change arms: interface.md §6 re-applies the armed stitch on a notation or
-  // language change, and that must not close a sheet opened after the arming.
-  if (id !== null && id !== tool) setSetupOpen(false);
   tool = id;
   hover = null;
   if (id) {
@@ -1683,11 +1688,9 @@ const ACTIONS: Record<string, () => void> = {
   'export-png': () => void exportPng(),
   'copy-written': () => void copyWritten(),
   'written-full': () => toggleWrittenFull(),
-  'close-setup': () => {
-    dismissSetup();
-    // The close button goes with the sheet, so the focus returns to the menu that opened it.
-    typesToggle.focus();
-  },
+  // KB: interface.md §82 — the label is „Vissza” now; the action keeps its name, which still
+  // says what it does, and the control inventory is a frozen fixture (frozen-paths.md).
+  'close-setup': () => setupBack(),
   'close-written': () => {
     setWrittenOpen(false);
     writtenToggle.focus();
@@ -1836,6 +1839,17 @@ function syncExportFormat(): void {
 }
 syncExportFormat();
 
+/*
+ * KB: interface.md §82 — Escape is the browser's own way out of a modal dialog, and it
+ * takes the same way the button does: back to the type menu, with the pattern untouched.
+ * It is handled here rather than in the document's key handler, which a focused `<select>`
+ * — what the window opens on — leaves to the browser (PQW-1133).
+ */
+setupSheet.addEventListener('cancel', (event) => {
+  event.preventDefault();
+  setupBack();
+});
+
 typesToggle.addEventListener('click', () => {
   const opening = typesNav.hidden;
   closeAllPopovers();
@@ -1874,7 +1888,10 @@ viewToggle.addEventListener('click', () => {
 });
 
 document.addEventListener('click', (event) => {
-  if (!(event.target as Element).closest('.menu')) closeAllPopovers();
+  const from = event.target as Element;
+  // KB: interface.md §82 — „Vissza” opens the type menu from inside the window, and this
+  // handler runs after it, so a click in the window must not count as an outside one.
+  if (!from.closest('.menu') && !from.closest('#setup')) closeAllPopovers();
 });
 
 const TYPE_ICONS: Readonly<Record<PatternTypeId, string>> = {
@@ -2078,14 +2095,14 @@ function openRegularEntry(entry: RegularMenuEntry): void {
     openGranny();
     return;
   }
-  // KB: interface.md §80 — the family is not the pattern. What the sheet found is kept
+  // KB: interface.md §80 — the family is not the pattern. What the window found is kept
   // whole, type and gate together, and the gate closes *before* the type is switched:
   // `persistType` writes the stored type only while the gate is open, so a family merely
   // chosen must not reach it.
   startedBeforeSetup = started;
   typeBeforeSetup = patternType;
   setStarted(false);
-  // The type is switched so the sheet works on the right pattern; it stands until
+  // The type is switched so the window works on the right pattern; it stands until
   // „Minta létrehozása” replaces it, and the editor is closed meanwhile.
   selectType('regular');
   const target = must<HTMLDetailsElement>(entry.section);
@@ -2095,9 +2112,11 @@ function openRegularEntry(entry: RegularMenuEntry): void {
     section.open = section === target;
   }
   setSetupOpen(true);
-  if (SETUP_TIGHT.matches && !written.hidden) setWrittenOpen(false);
-  target.scrollIntoView({ block: 'start' });
-  target.querySelector<HTMLSelectElement>('select')?.focus();
+  // KB: interface.md §82 — the window shows the chosen family and nothing else (§79), so
+  // there is nothing to scroll to; scrolling to the section pushed the title and „Vissza”
+  // out of the window, measured at 1440 × 900. Focusing the select must not scroll either.
+  setupSheet.scrollTop = 0;
+  target.querySelector<HTMLSelectElement>('select')?.focus({ preventScroll: true });
 }
 
 /**
@@ -2156,7 +2175,6 @@ writtenToggle.addEventListener('click', () => {
   // KB: interface.md §10
   if (open && writtenShare === null) applyWrittenShare(writtenShareFor(patternType, NARROW.matches));
   if (open && NARROW.matches) setPanelsOpen(false);
-  if (open && SETUP_TIGHT.matches) setSetupOpen(false);
 });
 
 // KB: interface.md §13 — pointer, touch and keyboard.
@@ -2448,14 +2466,6 @@ document.addEventListener('keydown', (event) => {
     return;
   }
 
-  // KB: interface.md §54, §80 — the sheet is open while the gate is closed, so its Escape
-  // has to sit above the guard, beside the type menu's.
-  if (key === 'Escape' && !setupSheet.hidden) {
-    event.preventDefault();
-    ACTIONS['close-setup']!();
-    return;
-  }
-
   // KB: interface.md §80 — the type menu keeps its Escape above; below this there is nothing
   // to edit. Alt+R is the one view control with a shortcut, and it passes with its button.
   if (!started && !(event.altKey && event.code === 'KeyR')) return;
@@ -2597,17 +2607,21 @@ const sizePanel = new SizePanel(must<HTMLDetailsElement>('#section-size'), {
 });
 
 /*
- * Every generator commits the same way. The sheet is deliberately NOT closed here:
- * a shape is found by trying numbers, and reopening it costs two clicks through the
- * file menu. Closing it is the user's, with the sheet's own button.
- * KB: interface.md §54.
+ * Every generator commits the same way, and the window closes on it.
+ * KB: interface.md §82 — the numbers are tried against the preview inside the window,
+ * because behind a modal one there is nothing of the pattern to see.
  */
 function generated(pattern: Pattern, message: Message): void {
   selectedNode = null;
   selection = [];
   // KB: interface.md §80 — this is the moment there is a pattern, and `commit` refuses
-  // while the gate is closed, so the gate opens first and „Lecsukás” has nothing to undo.
+  // while the gate is closed, so the gate opens first.
   patternMade();
+  // KB: interface.md §82 — the creation is the window's errand, and a modal window cannot
+  // be left standing over the pattern it just made. The focus goes where the work is: a
+  // closing dialog gives it back to what opened it, and that is a menu item that is gone.
+  setSetupOpen(false);
+  canvas.focus({ preventScroll: true });
   commit({ ok: true, pattern }, message);
   fitBoard();
 }

@@ -34,6 +34,7 @@ export const MARKUP_TEXTS = {
     panelToggle: 'Szemek és beállítások',
     setupTitle: 'Minta készítése',
     setupIntro: 'Add meg a méreteket, és a tervező elkészíti belőlük a mintát. A létrehozás lecseréli a mostani mintát.',
+    setupBack: 'Vissza',
 
     toolGroupFile: 'Fájl',
     toolGroupEdit: 'Szerkesztés',
@@ -457,6 +458,7 @@ export const MARKUP_TEXTS = {
     panelToggle: 'Stitches and settings',
     setupTitle: 'Make a pattern',
     setupIntro: 'Give the measurements and the designer builds the pattern from them. Creating one replaces the pattern you have.',
+    setupBack: 'Back',
 
     toolGroupFile: 'File',
     toolGroupEdit: 'Edit',

@@ -249,7 +249,7 @@ test('the adjust box is on screen when a symbol is selected (PQW-986)', async ({
   await page.locator('#rounds-count').press('Tab');
   await rounds.getByRole('button', { name: 'Create pattern' }).click();
   await expect(page.locator('#status')).toContainText('3 rounds done');
-  await page.locator('#setup').getByRole('button', { name: 'Collapse' }).click();
+  // KB: interface.md §82 — the window closes on the creation.
 
   const nodes = await page.evaluate(() =>
     (
