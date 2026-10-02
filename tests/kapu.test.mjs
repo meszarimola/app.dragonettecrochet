@@ -1,17 +1,20 @@
 /*
- * The gate (PQW-1104). Two things are guarded here.
+ * The gate and the browser-test tiers (PQW-1104, scope set in PQW-1123).
  *
- * One: `npm run kapu` must stay a superset of CI. If CI grows a check and the
- * gate does not, a branch goes green on the machine and red on the server, and
- * the author finds out three minutes later instead of now.
+ * The owner's decision: `npm run kapu` runs no browser tests at all. The full
+ * suite runs nightly, and a 20-test release set runs before every release. That
+ * only holds while three things stay true, and each has a test here:
  *
- * Two: the browser config must keep its own limits. Without them Playwright's
- * defaults apply, and a run whose locators no longer match takes ten minutes
- * instead of forty seconds. KB: testing.md §4
+ *   1. the gate still runs everything the pull-request CI runs;
+ *   2. the release set is at most 20 tests, and the release cannot skip it;
+ *   3. the nightly workflow actually runs the full suite.
+ *
+ * Without 2 and 3, moving the browser tests out of the gate would mean nothing
+ * checks them before production. KB: testing.md §4
  */
 
 import { strict as assert } from 'node:assert';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import playwrightConfig from '../playwright.config.ts';
@@ -20,64 +23,120 @@ const ROOT = new URL('../', import.meta.url);
 const read = (path) => readFileSync(new URL(path, ROOT), 'utf8');
 
 const gate = read('scripts/kapu.sh');
+const release = read('scripts/kiadas.sh');
 const workflow = read('.github/workflows/ci.yml');
+const nightly = read('.github/workflows/nightly.yml');
 const pkg = JSON.parse(read('package.json'));
+
+/** The tag that marks a test as part of the release set. */
+const TAG = '@kiadas';
 
 /** Steps CI runs that prepare the runner rather than check anything. */
 const SETUP = [/^npm ci$/, /^npx playwright install\b/];
 
-/**
- * The gate builds once and then calls Playwright directly, where CI uses the
- * script that builds again first. The same check behind a different wrapper.
- */
-const EQUIVALENT = new Map([['npm run test:e2e', 'npx playwright test']]);
-
 /** Every command the workflow actually runs, setup steps dropped. */
 function ciChecks(yaml) {
-  const commands = yaml
+  return yaml
     .split('\n')
     .map((line) => /^\s*(?:-\s+)?run:\s*(\S.*?)\s*$/.exec(line))
     .filter(Boolean)
-    .map(([, command]) => command);
-  return commands.filter((command) => !SETUP.some((pattern) => pattern.test(command)));
+    .map(([, command]) => command)
+    .filter((command) => !SETUP.some((pattern) => pattern.test(command)));
 }
 
-test('the workflow is still parsed into the checks we expect', () => {
-  assert.deepEqual(ciChecks(workflow), [
-    'npx biome ci .',
-    'npm run check',
-    'npm run build',
-    'npm test',
-    'npm run test:e2e',
-  ]);
+test('the pull-request CI is still parsed into the checks we expect', () => {
+  assert.deepEqual(ciChecks(workflow), ['npx biome ci .', 'npm run check', 'npm run build', 'npm test']);
 });
 
-test('the gate runs every check CI runs', () => {
+test('the gate runs every check the pull-request CI runs', () => {
   for (const command of ciChecks(workflow)) {
-    const expected = EQUIVALENT.get(command) ?? command;
-    assert.ok(gate.includes(expected), `npm run kapu does not run "${expected}", which CI runs as "${command}"`);
+    assert.ok(gate.includes(command), `npm run kapu does not run "${command}", which CI runs`);
   }
 });
 
-test('npm run kapu is wired to the script', () => {
-  assert.equal(pkg.scripts.kapu, 'bash scripts/kapu.sh');
+test('neither the gate nor the pull-request CI opens a browser', () => {
+  // An invocation, not a mention: the gate's help text names the commands that do
+  // run the browser, and that line must not trip this.
+  const invokesPlaywright = gate
+    .split('\n')
+    .filter((line) => !line.trimStart().startsWith('#'))
+    .some((line) => /^\s*(?:\w+=\S+\s+)*npx playwright\b/.test(line));
+
+  assert.ok(!invokesPlaywright, 'the browser suite left the gate in PQW-1123');
+  assert.ok(!ciChecks(workflow).some((command) => /playwright|test:e2e/.test(command)));
 });
 
-test('the fast tier drops the browser tests and nothing else', () => {
-  const guard = gate.indexOf('if (( GYORS ))');
-  assert.ok(guard > 0, 'the fast tier guard is gone from the gate');
-
-  for (const command of ['npx biome ci .', 'npm run check', 'npm run build', 'npm test']) {
-    const at = gate.indexOf(command);
-    assert.ok(at > 0 && at < guard, `npm run kapu -- --gyors would skip "${command}"`);
-  }
-
-  const browsers = gate.indexOf('PORT="$PORT" npx playwright test');
-  assert.ok(browsers > guard, 'the browser tests must run after the fast tier has exited');
-});
-
-test('an unknown flag is refused instead of silently running the full gate', () => {
+test('the gate takes no flags, so there is no second way to run it', () => {
   assert.match(gate, /Ismeretlen kapcsoló/);
+  for (const flag of ['--gyors', '--bongeszo']) {
+    assert.ok(!gate.includes(`${flag})`), `${flag} is gone from the gate; a leftover branch would confuse`);
+  }
+});
+
+test('npm run kapu and npm run fustteszt are wired', () => {
+  assert.equal(pkg.scripts.kapu, 'bash scripts/kapu.sh');
+  assert.equal(pkg.scripts.fustteszt, `npm run build && playwright test --grep ${TAG}`);
+});
+
+/**
+ * Every tagged test, with the spec it lives in and the `test(` line that owns it.
+ * The formatter may put the tag on a continuation line, so the declaration is
+ * found by walking back to the nearest `test(`.
+ */
+function taggedTests() {
+  const found = [];
+  for (const file of readdirSync(new URL('e2e/', ROOT)).filter((name) => name.endsWith('.spec.ts'))) {
+    const lines = read(`e2e/${file}`).split('\n');
+    lines.forEach((line, index) => {
+      if (!line.includes(`tag: '${TAG}'`)) return;
+      const declaration = lines
+        .slice(0, index + 1)
+        .reverse()
+        .find((earlier) => /^\s*test\(/.test(earlier));
+      found.push({ file, declaration });
+    });
+  }
+  return found;
+}
+
+test('the release set is at most 20 tests, spread over as many areas', () => {
+  const tagged = taggedTests();
+  assert.ok(tagged.length > 0, 'nothing carries the release tag any more');
+  assert.ok(tagged.length <= 20, `the release set grew to ${tagged.length} tests; the owner's limit is 20`);
+
+  const areas = new Set(tagged.map(({ file }) => file));
+  assert.equal(areas.size, tagged.length, 'one tagged test per spec keeps the set a breadth check');
+});
+
+test('every tagged test is top-level, so the static count is the real count', () => {
+  // A tagged test inside a `for (const viewport of …)` loop runs once per
+  // iteration, and then counting the source would understate the set. A top-level
+  // declaration starts at column zero; one inside a loop is indented.
+  for (const { file, declaration } of taggedTests()) {
+    assert.ok(declaration, `${file}: a tag with no test( declaration above it`);
+    assert.ok(
+      declaration.startsWith('test('),
+      `${file}: a tagged test must be top-level, not nested in a loop — found "${declaration.trim().slice(0, 40)}…"`,
+    );
+  }
+});
+
+test('the release cannot ship without the release set, and caps it at five minutes', () => {
+  assert.match(release, new RegExp(`playwright test --grep ${TAG}`));
+  assert.match(release, /--global-timeout 300000/, "the owner's limit is five minutes");
+
+  // The run must sit on the failure path of the release, not behind a flag.
+  const at = release.indexOf(`--grep ${TAG}`);
+  const guard = release.indexOf('if (( BONGESZO ))');
+  assert.ok(at > guard, 'the release set belongs in the else branch: --bongeszo widens it, never skips it');
+  assert.match(release.slice(at, at + 400), /megall/, 'a failing release set must stop the release');
+});
+
+test('the nightly workflow runs the full suite on a schedule', () => {
+  assert.match(nightly, /schedule:/);
+  assert.match(nightly, /cron:/);
+  assert.match(nightly, /npm run test:e2e/, 'the nightly run is the one place the full suite still runs');
+  assert.ok(!nightly.includes(`--grep ${TAG}`), 'the nightly run is the full suite, not the release set');
 });
 
 test('the browser config keeps its own limits, tighter than the defaults', () => {

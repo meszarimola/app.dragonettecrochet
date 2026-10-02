@@ -59,7 +59,9 @@ async function chains(page: Page): Promise<void> {
  *
  * KB: owner-decisions.md §3
  */
-test('the warning box pops up at the top, and disappears after three seconds (PQW-923)', async ({ page }) => {
+test('the warning box pops up at the top, and disappears after three seconds (PQW-923)', { tag: '@kiadas' }, async ({
+  page,
+}) => {
   await open(page);
   const alert = page.locator('#alert');
   await expect(alert, 'without an action there is no box').toBeHidden();

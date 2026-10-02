@@ -48,9 +48,9 @@ async function clickSlot(page: Page, slot: number, row: 'bottom' | 'current'): P
   await page.mouse.click(cell!.x, cell!.y);
 }
 
-test('the rectangle is made by clicking on cells only; where there is nothing to crochet into, a message comes and no stitch is laid down', async ({
-  page,
-}) => {
+test('the rectangle is made by clicking on cells only; where there is nothing to crochet into, a message comes and no stitch is laid down', {
+  tag: '@kiadas',
+}, async ({ page }) => {
   await open(page);
   // The written pattern panel starts closed (PQW-911): it does not cover the canvas.
   await expect(page.locator('#written')).toBeHidden();

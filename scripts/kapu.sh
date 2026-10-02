@@ -1,23 +1,22 @@
 #!/usr/bin/env bash
 #
-# The gate: every check CI runs, in one command (PQW-1104).
+# The gate (PQW-1104, scope set by the owner in PQW-1123).
 #
-#   npm run kapu            full gate: format, types, build, unit tests, browser tests
-#   npm run kapu -- --gyors fast gate: format, types, build, unit tests only
+#   npm run kapu    format, types, build, unit tests — about 7 s
 #
-# WHY ONE COMMAND
-#   The suite is not slow. Measured on 2026-10-02: types 1.7 s, build 2 s, 89
-#   unit files with 1756 cases 4.7 s, 39 browser specs with 195 tests 33 s — the
-#   full gate is about 45 s. There is nothing to win by running a subset, so the
-#   full gate is the default and --gyors exists only for the editing loop.
+# WHAT IS NOT IN IT, AND WHERE IT RUNS INSTEAD
+#   No browser tests. Measured on 2026-10-02: types 1.7 s, build 2 s, 89 unit files
+#   with 1756 cases 4.7 s — and the 39 browser specs 33 s on their own, five times
+#   everything else together. They are what the editing loop does not need on every
+#   pass, so they moved:
 #
-#   The step order mirrors .github/workflows/ci.yml, and tests/kapu.test.mjs
-#   asserts that it still does. A gate that drifts from CI is worse than none.
+#     nightly        the full browser suite, .github/workflows/nightly.yml
+#     before release the 20-test `@kiadas` set, run by scripts/kiadas.sh
+#     by hand        npm run fustteszt (the release set), or npx playwright test
 #
-# THE PORT
-#   The browser tests need a port nobody else is serving on. The worktree's own
-#   .env.local carries it (npm run munkafa writes it); PORT in the environment
-#   wins over that, and 5181 is the fallback. KB: incidents.md §3
+#   So a browser regression is caught by the nightly run at the latest, and never
+#   reaches production: the release gate refuses to ship without the release set.
+#   KB: testing.md §4
 
 set -euo pipefail
 
@@ -25,18 +24,12 @@ piros() { printf '\033[31m%s\033[0m\n' "$*"; }
 zold()  { printf '\033[32m%s\033[0m\n' "$*"; }
 cim()   { printf '\n\033[1m── %s\033[0m\n' "$*"; }
 
-GYORS=0
 for arg in "$@"; do
-  case "$arg" in
-    --gyors) GYORS=1 ;;
-    *) piros "Ismeretlen kapcsoló: $arg"; echo "Használat: npm run kapu [-- --gyors]"; exit 2 ;;
-  esac
+  piros "Ismeretlen kapcsoló: $arg"
+  echo "Használat: npm run kapu"
+  echo "Böngészős tesztek: npm run fustteszt (kiadási készlet) · npx playwright test (teljes)"
+  exit 2
 done
-
-if [[ -z "${PORT:-}" && -f .env.local ]]; then
-  PORT="$(sed -n 's/^PORT=\([0-9][0-9]*\).*/\1/p' .env.local | head -1)"
-fi
-PORT="${PORT:-5181}"
 
 LEPES="indulás"
 
@@ -51,11 +44,6 @@ bukott() {
     "egységtesztek")
       echo "Egy fájl külön: node --test tests/<nev>.test.mjs"
       echo "Szövegen vagy kommenten változtattál? A metatesztek nyers forrást olvasnak — KB: testing.md §2"
-      ;;
-    "böngészős tesztek")
-      echo "A futás az ötödik bukás után megáll, nem méri végig a készletet."
-      echo "Egy spec külön:  PORT=$PORT npx playwright test e2e/<nev>.spec.ts"
-      echo "Nyomkövetés:     PORT=$PORT npx playwright test --ui"
       ;;
   esac
   exit 1
@@ -73,15 +61,6 @@ futtat "típusok" npm run check
 futtat "build" npm run build
 futtat "egységtesztek" npm test
 
-if (( GYORS )); then
-  zold ""
-  zold "A gyors kapu rendben (${SECONDS}s). A böngészős tesztek nem futottak — commit előtt: npm run kapu"
-  exit 0
-fi
-
-LEPES="böngészős tesztek"
-cim "$LEPES (port $PORT)"
-PORT="$PORT" npx playwright test
-
 zold ""
 zold "A kapu rendben (${SECONDS}s)."
+echo "Böngészős teszt nem futott. Nightly fut a teljes készlet; a kiadás a 20 teszteset kéri."

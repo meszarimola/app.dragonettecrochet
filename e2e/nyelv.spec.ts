@@ -70,7 +70,9 @@ async function writtenText(page: Page): Promise<string> {
   return (await page.locator('#written-text').textContent()) ?? '';
 }
 
-test('with no parameter and nothing stored the app opens in English (PQW-1100)', async ({ page }) => {
+test('with no parameter and nothing stored the app opens in English (PQW-1100)', { tag: '@kiadas' }, async ({
+  page,
+}) => {
   await open(page);
 
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');

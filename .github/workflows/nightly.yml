@@ -1,0 +1,67 @@
+name: Nightly
+
+# The full browser suite, once a day (PQW-1123).
+#
+# It left the pull-request checks on purpose: 33 s locally and ~3 min here, five
+# times everything else together, on every push. What stands in its place:
+#
+#   this workflow     the full suite, nightly — a regression surfaces within a day
+#   scripts/kiadas.sh the 20-test @kiadas set, which a release cannot skip
+#
+# So nothing reaches production unchecked; what changed is that a broken locator
+# is found the next morning instead of three minutes after a push.
+# KB: testing.md §4
+#
+# A failure mails the repository owner, which is the whole reporting mechanism —
+# there is nobody else to notify.
+
+on:
+  schedule:
+    # 03:10 UTC. Not on the hour: GitHub's scheduler is busiest then and delays runs.
+    - cron: '10 3 * * *'
+  workflow_dispatch:
+
+# A manual run while the nightly one is in flight replaces it.
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Browser tests (full)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Only the browser binary is cached. The install step still runs on a hit,
+      # so the system packages of --with-deps are there either way; what the
+      # cache saves is the download.
+      - name: Cache the browser binary
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser tests
+        run: npm run test:e2e
+
+      - name: Trace on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-trace
+          path: test-results/
+          retention-days: 7

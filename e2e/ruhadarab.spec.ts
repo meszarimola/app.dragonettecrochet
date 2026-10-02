@@ -34,7 +34,9 @@ async function writtenText(page: Page): Promise<string> {
   return (await page.locator('#written-text').textContent()) ?? '';
 }
 
-test('adult hat in size M, with an S–L series: error-free, with the "Sizes" block', async ({ page }) => {
+test('adult hat in size M, with an S–L series: error-free, with the "Sizes" block', { tag: '@kiadas' }, async ({
+  page,
+}) => {
   await open(page);
   const section = await openGarment(page);
 

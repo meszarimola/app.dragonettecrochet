@@ -43,9 +43,9 @@ async function chooseAmigurumi(page: Page): Promise<void> {
   await expect(page.locator('#written')).toBeVisible();
 }
 
-test('in amigurumi the written pattern opens large with its button; the pattern of the 6 cm ball marks the eyes and the stuffing', async ({
-  page,
-}) => {
+test('in amigurumi the written pattern opens large with its button; the pattern of the 6 cm ball marks the eyes and the stuffing', {
+  tag: '@kiadas',
+}, async ({ page }) => {
   await open(page);
   await chooseAmigurumi(page);
 

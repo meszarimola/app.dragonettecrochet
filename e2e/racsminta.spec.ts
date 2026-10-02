@@ -52,9 +52,9 @@ async function setSize(page: Page, width: number, height: number): Promise<void>
 
 const cell = (page: Page, x: number, y: number) => page.locator(`#grid-board [data-x="${x}"][data-y="${y}"]`);
 
-test('small filet motif: the first two rows are complete, the rest come from the repeat unit; painted from the keyboard, error-free, written as a repeat', async ({
-  page,
-}) => {
+test('small filet motif: the first two rows are complete, the rest come from the repeat unit; painted from the keyboard, error-free, written as a repeat', {
+  tag: '@kiadas',
+}, async ({ page }) => {
   await open(page);
   await page.locator('#types-toggle').click();
   await page.locator('.type[data-type="filet"]').click();

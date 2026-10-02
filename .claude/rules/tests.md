@@ -8,9 +8,16 @@ paths:
 
 # Tests
 
-`node:test` for units (`npm test`), Playwright for E2E (`npm run test:e2e`, which
-builds first and serves on port 5181). **Build before `npm test`** — the
-analytics test reads `dist/index.html`.
+`node:test` for units (`npm test`), Playwright for E2E. **Build before `npm test`**
+— the analytics test reads `dist/index.html`; `npm run kapu` does it in order.
+
+**The gate opens no browser.** The full E2E suite runs nightly; a 20-test `@kiadas`
+set runs at every release and from `npm run fustteszt`. A new critical journey that
+must be checked before a release gets the tag — and the set is capped at twenty,
+one per spec, enforced by `tests/kapu.test.mjs`. KB: testing.md §4
+
+The port comes from the worktree's `.env.local` through `playwright.config.ts`, so
+no run needs a `PORT=` prefix.
 
 ## Rules
 

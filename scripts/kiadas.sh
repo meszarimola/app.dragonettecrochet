@@ -252,11 +252,21 @@ main() {
   npm run build >/dev/null
   npm test
   zold "✓ típusellenőrzés, build és egységtesztek rendben"
+
+  # A kiadási készlet NEM kihagyható (PQW-1123). A napi munka kapujából a
+  # böngészős tesztek kikerültek, és a teljes készlet csak nightly fut — tehát ez
+  # az utolsó pont, ahol egy böngészős regresszió még nem ért élesbe. Húsz teszt,
+  # húsz területről; mérve 6 s helyben, a felső korlát 5 perc.
+  LEPES="2. minőségi kapuk — kiadási böngészős készlet"
   if (( BONGESZO )); then
     npx playwright test
-    zold "✓ a böngészős készlet is zöld"
+    zold "✓ a TELJES böngészős készlet zöld"
   else
-    echo "  (böngészős készlet kihagyva — a --bongeszo kapcsolóval fut)"
+    # --global-timeout a Playwright sajátja: nincs szükség GNU timeout-ra, ami
+    # macOS-en nincs is telepítve.
+    npx playwright test --grep @kiadas --global-timeout 300000 \
+      || megall "a kiadási böngészős készlet elbukott vagy túllépte az 5 percet"
+    zold "✓ a kiadási böngészős készlet (20 teszt) zöld"
   fi
 
   # 3. Kiadási ág, verzióemelés, összevonás

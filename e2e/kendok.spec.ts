@@ -34,9 +34,9 @@ async function writtenText(page: Page): Promise<string> {
   return (await page.locator('#written-text').textContent()) ?? '';
 }
 
-test('triangle starting from the top: blocked and unblocked size, custom ratio with a warning, error-free rows, undone in one step', async ({
-  page,
-}) => {
+test('triangle starting from the top: blocked and unblocked size, custom ratio with a warning, error-free rows, undone in one step', {
+  tag: '@kiadas',
+}, async ({ page }) => {
   await open(page);
   const section = await openShawls(page);
 

@@ -47,9 +47,9 @@ async function newRegular(page: Page): Promise<void> {
   await page.locator('.type[data-type="regular"]').click();
 }
 
-test('flat circle in single crochet: estimated increases, error-free rounds, the sequence of rounds follows the knowledge base', async ({
-  page,
-}) => {
+test('flat circle in single crochet: estimated increases, error-free rounds, the sequence of rounds follows the knowledge base', {
+  tag: '@kiadas',
+}, async ({ page }) => {
   await open(page);
   await generate(page, { rounds: 4 });
 

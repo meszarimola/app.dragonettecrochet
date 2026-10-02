@@ -5,11 +5,11 @@
 `node:test` for units (89 files, 1756 cases), Playwright for E2E (39 specs, 195
 tests).
 `npm test` needs `dist/` — the analytics test reads the built `index.html`, so
-**build first**. `npm run kapu` runs everything in the right order; §4 is why
-there is no "run a subset" mode.
+**build first**. `npm run kapu` runs everything in the right order, and §4 says
+which tests it deliberately leaves out and where those run instead.
 
-CI runs two jobs in parallel: `build` (check, build, test) and `e2e` (browser
-install, build, Playwright). The `e2e` job is the critical path.
+The pull-request CI is one job: format, check, build, unit tests, about 50 s. The
+browser suite runs nightly and before every release, not on a pull request (§4).
 
 ## §2 Meta-tests read the source as raw text
 
@@ -33,27 +33,62 @@ which loads whenever you open a test file. The short version:
 of rules exercised by the tests equals the set defined in `src/core/rules.ts`. A
 new rule without a test fails the suite — this is deliberate.
 
-## §4 The suite is cheap; a failing browser run is what costs
+## §4 Where each kind of test runs, and why
 
 Measured on 2026-10-02, on the owner's machine (10 cores):
 
-| Step | Time |
-|---|---|
-| `npm run check` (two `tsc` passes) | 1.7 s |
-| `npm run build` | 2 s |
-| `npm test` — 89 files, 1756 cases | **4.7 s** |
-| `npx playwright test` — 39 specs, 195 tests | **33 s** |
-| the whole gate, `npm run kapu` | **~45 s** |
+| Step | Time | Runs |
+|---|---|---|
+| `npx biome ci .` | 2 s | gate, CI |
+| `npm run check` (two `tsc` passes) | 1.7 s | gate, CI |
+| `npm run build` | 2 s | gate, CI |
+| `npm test` — 89 files, 1756 cases | 4.7 s | gate, CI |
+| **`npm run kapu`** | **~8 s** | before every commit |
+| `npm run fustteszt` — the 20-test `@kiadas` set | **~8 s** | every release, and by hand |
+| `npx playwright test` — 39 specs, 195 tests | 33 s | nightly only |
 
-So **do not split the suite to make it cheaper** — there is nothing to win.
-Running the unit files one at a time is in fact slower (21.8 s), because Node
-starts 89 times. `--gyors` exists for the editing loop, not for saving a gate.
+**The gate opens no browser.** That is the owner's decision (PQW-1123), and the
+numbers are why it is a sound one: the browser suite is 33 s of what would be a
+41-second gate — five times everything else together — and it is the part the
+editing loop does not need on every pass.
 
-What does cost is a run where the locators no longer match. Before this section
-was written the config set no limits, so Playwright's defaults applied: 30 s per
-test and 5 s per assertion, with no action timeout. During the PQW-1100 language
-migration that turned a 33-second suite into a run still going after **ten
-minutes**, which was then killed — the work it would have reported was lost.
+What replaces it, so that nothing reaches production unchecked:
+
+- **Nightly**, `.github/workflows/nightly.yml`: the full suite against `develop`,
+  once a day. A regression surfaces within a day, and the failure mails the owner.
+- **Every release**, in `scripts/kiadas.sh`: the `@kiadas` set, which the release
+  **cannot skip** — a failure stops the release. `--bongeszo` widens it to the full
+  suite; nothing narrows it. The cap is five minutes (`--global-timeout 300000`);
+  it runs in about eight seconds, so the cap is a tripwire, not a budget.
+- **By hand**, `npm run fustteszt` when you touched the interface and want to know
+  now rather than tomorrow morning.
+
+The pull-request CI no longer has a browser job either, and the `Browser tests`
+required check was removed from `develop` and `main` in the same change. Leaving a
+required check in place for a job that no longer reports would have left every pull
+request waiting forever — that is also why `paths-ignore` is not an option here
+(§5).
+
+### The release set
+
+Twenty tests, one per spec, chosen for breadth rather than depth: language,
+interface, rounds, amigurumi, garments, shawls, grid, grid pattern, written panel,
+generated title, free-form, editor, panels, warnings, stitch counts, backwards,
+insertion, shapes, size, granny square. Two of them skip on this platform, so
+eighteen actually run.
+
+They carry Playwright's `{ tag: '@kiadas' }`, and `tests/kapu.test.mjs` asserts the
+set stays at or under twenty, that each tagged test is top-level (one inside a
+viewport loop would run more than once and make the count a lie), and that the
+release still cannot ship without it.
+
+### A failing browser run, and why the limits exist
+
+Before this section was written the config set no limits, so Playwright's defaults
+applied: 30 s per test and 5 s per assertion, with no action timeout. During the
+PQW-1100 language migration that turned a 33-second suite into a run still going
+after **ten minutes**, which was then killed — the work it would have reported was
+lost.
 
 The config therefore sets its limits explicitly:
 
@@ -70,15 +105,21 @@ The config therefore sets its limits explicitly:
 
 Measured with eight deliberately broken locators: 12 s with these limits against
 22 s with the defaults. The gap grows with the number of broken tests, because
-`maxFailures` caps the run at five failures however large the suite is — which is
-why a fully broken migration now reports in seconds rather than the ten minutes
-it took in PQW-1100.
+`maxFailures` caps the run at five failures however large the suite is.
 
 **No limit may go below the interface's own timers.** The warning box hides itself
-after three seconds and a chart marking after five, and the tests that assert
-that have to wait them out. A first attempt at a 2-second `expect` timeout failed
-`figyelmeztetes.spec.ts` for exactly this reason; `tests/kapu.test.mjs` now
-asserts the floor so the mistake cannot come back.
+after three seconds and a chart marking after five, and the tests that assert that
+have to wait them out. A first attempt at a 2-second `expect` timeout failed
+`figyelmeztetes.spec.ts` for exactly this reason; `tests/kapu.test.mjs` now asserts
+the floor so the mistake cannot come back.
+
+### The port
+
+Every browser entry point shares one port, read by `playwright.config.ts` from the
+worktree's own `.env.local` (written by `npm run munkafa`), with `PORT` in the
+environment winning. The config reads it rather than the caller because there are
+now several entry points, and a port read in only one of them is a collision in the
+others.
 
 ## §5 One ticket pays for six CI runs
 

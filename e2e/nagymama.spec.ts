@@ -55,7 +55,9 @@ interface Stored {
 const stored = (page: Page) =>
   page.evaluate(() => JSON.parse(localStorage.getItem('dc-mintatervezo:minta-szabalytalan') ?? '{}') as Stored);
 
-test('a new granny square is a grid of one round, and nothing is drawn into it', async ({ page }) => {
+test('a new granny square is a grid of one round, and nothing is drawn into it', { tag: '@kiadas' }, async ({
+  page,
+}) => {
   await open(page);
   await openGranny(page);
 
