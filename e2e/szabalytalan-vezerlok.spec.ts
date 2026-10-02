@@ -72,9 +72,7 @@ async function circle(page: Page): Promise<void> {
   await page.locator('#rounds-count').press('Tab');
   await page.locator('#section-rounds').getByRole('button', { name: 'Create pattern' }).click();
   await expect(page.locator('#status')).toContainText('Flat circle: 4 rounds done;');
-  // The sheet stays open after generating (PQW-987) and stands over the panel, so the
-  // tests that go on to use the panel close it.
-  await page.locator('#setup').getByRole('button', { name: 'Collapse' }).click();
+  // KB: interface.md §82 — the window closes on the creation, so the panel is free again.
 }
 
 /** Selects the last symbol, which is what reveals the adjust box. */

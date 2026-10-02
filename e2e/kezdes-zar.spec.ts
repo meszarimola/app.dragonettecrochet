@@ -228,19 +228,13 @@ test('a family chosen from a free-form pattern does not become the stored type (
   await expect(page.locator('#board-irregular'), 'the reload comes back to the free-form type').toBeVisible();
 });
 
-test('a file opened while the chooser stands is the pattern „Lecsukás” keeps (PQW-1139)', async ({ page }) => {
-  await open(page);
-  await chooseFlatShape(page);
-
-  // The file menu is not behind the gate, so a file can arrive while the chooser is open.
-  await openScarfJson(page);
-  await expect(chain(page)).toBeEnabled();
-  const loaded = await page.locator('#summary').textContent();
-
-  await page.locator('[data-action="close-setup"]').click();
-  await expect(chain(page), 'the editor does not close on the pattern the file brought').toBeEnabled();
-  await expect(page.locator('#summary')).toHaveText(loaded!);
-});
+/*
+ * PQW-1139 also covered a file opened while the chooser stood over the editor,
+ * which could leave the gate able to close on the pattern it had just loaded.
+ * KB: interface.md §82 — the chooser is a modal window since PQW-1138, so the file
+ * menu cannot be reached while it is open; `valaszto-ablak.spec.ts` pins that, and
+ * `patternMade` still carries the guarantee in the code.
+ */
 
 test('the written panel opened by hand survives a trip through the chooser (PQW-1139)', async ({ page }) => {
   await open(page);

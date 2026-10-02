@@ -527,7 +527,7 @@ for (const [viewport, rounds] of [
     await page.locator('#rounds-count').press('Tab');
     await page.getByRole('button', { name: 'Create pattern' }).click();
     await expect(page.locator('#status')).toContainText(`${rounds} rounds done`);
-    await page.locator('#setup').getByRole('button', { name: 'Collapse' }).click();
+    // KB: interface.md §82 — the window closes on the creation.
     await fitWhole(page);
 
     const grid = await page.evaluate(() =>
@@ -593,35 +593,9 @@ for (const viewport of [
  * stands over it (§54), so a count field at the head of the panel would arrive
  * behind the sheet — visible to the DOM, unreachable to the hand.
  */
-test('arming a stitch closes the make-a-pattern sheet, so the chain count is not left behind it', async ({ page }) => {
-  await page.goto('/');
-  const deny = page.getByRole('button', { name: 'Decline' });
-  if (await deny.isVisible()) await deny.click();
-
-  // A first visit arrives through „New pattern”, and the sheet stays open over the panel after
-  // the creation, so a shape can be found by trying numbers (§54). KB: interface.md §80 — the
-  // palette only comes alive with that creation, which is why this clicks it.
-  await page.getByRole('button', { name: 'New pattern' }).click();
-  await page.locator('.type[data-type="regular"]').click();
-  await page.getByRole('menuitem', { name: /Flat shape/ }).click();
-  const sheet = page.locator('#setup');
-  await expect(sheet).toBeVisible();
-  await page.locator('#section-shape').getByRole('button', { name: 'Create pattern' }).click();
-  await expect(sheet).toBeVisible();
-
-  await page
-    .locator('#palette')
-    .getByRole('button', { name: /Chain \(ch\)/ })
-    .first()
-    .click();
-  await expect(sheet).toBeHidden();
-
-  const field = page.locator('#count-field');
-  await expect(field).toBeVisible();
-  const spot = await box(page, '#count-field');
-  const hit = await page.evaluate((at) => document.elementFromPoint(at.x, at.y)?.closest('#count-field')?.id ?? '', {
-    x: spot.x + spot.width - 20,
-    y: spot.y + spot.height / 2,
-  });
-  expect(hit, 'the field takes its own clicks').toBe('count-field');
-});
+/*
+ * The chain count used to need a test of its own for standing behind the open
+ * make-a-pattern sheet. KB: interface.md §81, §82 — the sheet is a modal window
+ * now and closes on the creation, so there is no state in which the panel is
+ * reachable and the window is over it. The case went with the behaviour.
+ */

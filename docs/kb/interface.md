@@ -2296,21 +2296,20 @@ not any more, and `[hidden]` does not change that — `:first-child` is structur
 `.panel > .count:first-child + .check` carries the same margin, so with the count
 hidden „Méret és fonal” starts at the same y 103 the count would have had.
 
-**Arming a stitch closes the make-a-pattern sheet.** The sheet is `min(34rem,
-92vw)` at `z-index: 7` against the panel's `min(19rem, 80vw)` at 6, so it covers
-the panel whole (§54). „Új” → „Lapos forma” leaves it open with the palette
-live, and a count field at the head of the panel would un-hide behind it:
-`elementFromPoint` over the input answered with the sheet's own `summary`, and
-Enter would then lay the new default of one chain with no way to say otherwise.
-Found in review, not by a test. `select` closes the sheet, which is also what
-the two surfaces mean — the sheet's own note says the pattern it makes replaces
-the current one, so hand-crocheting under it is work about to be thrown away,
-and the written panel and the free-form type already close it (§54, §39).
+**Arming a stitch used to close the make-a-pattern sheet; PQW-1138 removed the
+problem instead.** The sheet was `min(34rem, 92vw)` at `z-index: 7` against the
+panel's `min(19rem, 80vw)` at 6, so it covered the panel whole (§54): „Új” →
+„Lapos forma” left it open with the palette live, a count field at the head of
+the panel un-hid behind it, `elementFromPoint` over the input answered with the
+sheet's own `summary`, and Enter would have laid the new default of one chain
+with no way to say otherwise. Found in review, not by a test. `select` therefore
+closed the sheet, guarded by `id !== tool` so that the re-arming after a notation
+or interface-language change (§6) did not take away a sheet opened after the
+arming.
 
-**Only a change arms.** `select(tool)` re-applies the armed stitch after a
-notation or an interface-language change (§6). Closing the sheet on every
-`select` with a non-null id would take away a sheet the user opened *after*
-arming, on a language change they made meanwhile; the guard is `id !== tool`.
+Both are gone with §82: the chooser is a modal window now, so while it is open
+the palette is neither reachable nor live, and there is no stitch to arm behind
+it. The spec that measured the field from under the open sheet went with them.
 
 **The default is 1, not 12.** The owner asked for it in the same report:
 *„alapértelmezetten 1 legyen, ne 12”*. Twelve was an arbitrary row width that
@@ -2336,6 +2335,55 @@ decision.
 **What the tests pin.** `e2e/elrendezes.spec.ts`: at both window sizes the field
 is hidden until the chain stitch is armed, then stands whole inside an unscrolled
 `#panel` above `#section-size`, its value is `1`, and arming a single crochet
-takes it away again and gives the head back to „Méret és fonal”. A spec of its
-own arrives through „Új” with the sheet open, arms the chain stitch, and asks
-`elementFromPoint` whether the field takes its own clicks.
+takes it away again and gives the head back to „Méret és fonal”.
+
+## §82 The chooser is a modal window, and the choice has to be made
+
+PQW-1138, the owner's decision of 2026-10-02: *„ez a jobb oldali mintaválasztó
+egy popup kellene legyen, amit muszáj kiválasszon a felhasználó… amikor rányom
+arra, hogy új, akkor a jobb oldali shape meg egyéb választo popupként jelenjen
+meg, nem jobb oldali menüként.”*
+
+§54 put the generators in a sheet that stands where the panel stands. It was the
+right move away from a 104-control panel, but it kept the shape of a side panel:
+something beside the work, which the eye may pass over and the hand may close
+without answering it. §80 and PQW-1137 then closed the editor behind it, and a
+side panel in front of a dead editor says nothing about why the editor is dead.
+
+**It is a `<dialog>` opened with `showModal`.** The browser gives what the
+decision asks for: a backdrop over the whole page, the focus held inside, the
+rest of the document inert, and Escape as a real way out rather than a key the
+app has to catch. `#setup` keeps its class and its sections; what changes is the
+element, `position: absolute` for `margin: auto`, and `::backdrop`.
+
+**Two ways out, and both answer the question.** „Minta létrehozása” makes the
+pattern and closes the window (§80 opens the editor on it); „Vissza” closes it
+and reopens the type menu, where the visitor came from. Escape is „Vissza”: the
+`cancel` event is taken and `setupBack` runs. The window cannot be left standing
+over an editor nobody chose, and nothing leads from it sideways into the editor.
+
+**The creation closes it, which reverses §54.** That section kept the sheet open
+after a generation, because a shape is found by trying numbers and reopening the
+sheet cost two clicks through the file menu. A modal window changes both halves:
+numbers are tried against the preview and the size line *inside* the window,
+since behind the backdrop there is nothing of the pattern to see, and it reopens
+from „Új” in two clicks that are now the only way in anyway (§79). Leaving a
+modal window standing over the pattern it has just made is the worse trade.
+
+**The focus after a creation goes to the canvas.** A closing dialog gives the
+focus back to what opened it, and that is a menu item inside a menu that has
+closed — so it would fall to the body, and the keyboard would start the new
+pattern with nothing selected.
+
+**It takes no width from the stage.** `insetRight` measured whichever of the
+panel and the sheet was open (§54); a modal window is above the stage, not beside
+it, so it measures the panel alone. With it go `--side-end: var(--setup-width)`,
+the 67 rem rule that let the sheet and the written panel take turns, and
+`SETUP_TIGHT` — a window that covers everything has nothing to share.
+
+**The button is „Vissza”, not „Lecsukás”.** It was `writtenClose` borrowed from
+the written panel; a window with one way back deserves its own word, and
+`setupBack` is that key in both languages. The `data-action` stays `close-setup`:
+it still says what the action does, and renaming it would have moved a value in
+`tests/fixtures/control-inventory.json`, which is frozen for content the owner
+owns, not for a rename of mine (`frozen-paths.md`).
