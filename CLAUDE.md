@@ -39,29 +39,42 @@ landing page on the main site.
 
 ## Every ticket
 
-1. **Read the knowledge bases, addressed.**
-   - Developer decisions: the `docs/kb/README.md` index → only the section your
-     task touches.
-   - **Crochet domain:** if the change touches stitch, row, round, garment or
-     validation logic, read the relevant `§` of `docs/knowledge-base/`. It is
-     ~5000 lines — **never load it whole**, follow the section code.
-2. **Size it.** More than 5 files, or independent parts → work in a worktree and
-   split the parts across parallel agents.
-3. **Work.** A new validation rule gets a `reference` pointing at the knowledge
-   base section it comes from — `tests/core-validate.test.mjs` enforces this.
-4. **Verify** — run `/review`, then `/pre-pr-check`.
+1. **Read the knowledge bases, addressed — with `npm run kb`, not by opening a
+   file.** `npm run kb` lists every developer section in about 4k tokens;
+   `npm run kb -- interface 4 51` prints just those two. For the crochet domain,
+   `npm run kb -- --horgolas` and `npm run kb -- 04 4.4`; it is ~5000 lines, so
+   **never load it whole**. Put the sections you used in the ticket comment, so
+   what was read — and what was not — is on the record.
+2. **Size it, and split before starting.** More than 5 files → a worktree
+   (`npm run munkafa`). **More than ~15 files, or more than one commit → two
+   tickets:** a `fix` for the reported problem and a `chore`/`refactor` for the
+   clean-up it reveals, and **the fix ships first**. Work found mid-ticket is a new
+   ticket, never an extra commit on this branch. KB: incidents.md §8
+   Independent parts may run in parallel agents — `.claude/rules/agents.md` says
+   under what conditions, and a mechanical rewrite is a script, not an agent.
+3. **Work.** Read files with `Read` and change them with `Edit` or `Write` — not
+   `cat`, `sed -i` or a `python3` heredoc. Half as many steps, an undo history,
+   and the frozen-path guard actually runs. A new validation rule gets a
+   `reference` pointing at the knowledge base section it comes from —
+   `tests/core-validate.test.mjs` enforces this.
+4. **Verify** — `npm run kapu` (about 45 s), then `/review` and `/pre-pr-check`.
 5. **Update the knowledge base in the same PR** if the change made any section
    stale. This is what stops the docs drifting away from the code.
 6. **PR**, update the Linear ticket, merge into `develop` when green.
 
 ## Worktrees
 
-- One worktree per branch:
-  `git worktree add ../app-dc-<short-name> -b fix/PQW-<n>-<short-name> develop`
-- **Each worktree gets its own `npm ci`. Never symlink `node_modules`** — that
-  destroyed the shared install in the sibling repo on 2026-09-16.
+- **One command, not six steps:** `npm run munkafa -- <n> <short-name>`, with
+  `--fix` for a bug fix. It branches from `develop`, gives the worktree its own
+  `node_modules` in about a second, and writes it a port of its own that
+  `npm run kapu` reads. `npm run munkafa -- --zar <n>` closes it, and refuses
+  while the tree is dirty or the branch is not yet in `develop`.
+- **Each worktree gets its own `node_modules`. Never symlink it** — that destroyed
+  the shared install in the sibling repo on 2026-09-16. A copy-on-write clone is
+  not a link, which is why the command is allowed to use one.
 - **The git stash is shared** across worktrees: use a temporary WIP commit.
-- Two worktrees running E2E **collide on port 5181**. Pass a different `PORT`.
+- Two worktrees running E2E **collide on port 5181** — that is what the port in
+  `.env.local` exists to prevent. Never hard-code a port into a run.
 
 ## Where to find more
 
@@ -69,11 +82,13 @@ landing page on the main site.
 |---|---|---|
 | Frozen paths — never edit these | `.claude/rules/frozen-paths.md` | always |
 | Comment policy | `.claude/rules/comments.md` | always |
+| When a parallel agent helps, and when it costs | `.claude/rules/agents.md` | always |
 | The core/UI boundary, domain logic | `.claude/rules/core.md` | with `src/core/**` |
 | Interface, canvas, i18n | `.claude/rules/ui.md` | with `src/ui/**` |
 | Test conventions and their traps | `.claude/rules/tests.md` | with tests and E2E |
-| Decisions, rationale, past incidents | `docs/kb/` | **on demand only** |
-| **Crochet domain knowledge** | `docs/knowledge-base/` | **on demand, by `§` code** |
+| Decisions, rationale, past incidents | `docs/kb/` | `npm run kb`, by section |
+| **Crochet domain knowledge** | `docs/knowledge-base/` | `npm run kb -- --horgolas` |
+| The gate: every check CI runs | `npm run kapu` | before every commit |
 | Reviewing the branch before a PR | `/review` | on invocation |
 | Pre-PR verification | `/pre-pr-check` | on invocation |
 | Ticket, branch and worktree workflow | `/ticket-workflow` | on invocation |

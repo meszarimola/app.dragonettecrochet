@@ -61,9 +61,16 @@ biztonsági fejléc megléte (CSP, HSTS, `X-Content-Type-Options`,
 
 ## Amit tudni érdemes
 
-**Ágvédelem nincs**, ezért a `gh pr merge --merge` mindig átmegy, és `--admin`
-soha nem kell. A CI a push után külön fut; ha pirosra vált, az látszik, de a
-kiadást nem állítja meg. Ha meg akarod várni, futtasd `--bongeszo`-val.
+**Ágvédelem van, de nem téged köt.** A `develop` és a `main` is védett, és
+mindkét CI ellenőrzés (`Build and tests`, `Browser tests`) kötelező rajtuk — az
+adminokra viszont nem érvényes (`enforce_admins` kikapcsolva), és a tulajdonos
+admin. Ezért megy át a szkript helyi összevonása és push-a, és ezért nem kell
+`--admin`. Ha az admin-kivétel bármikor bekapcsol, a kiadás már a push-nál
+elbukik, nem a végén: akkor a szkript gitflow része szorul átírásra, nem a
+telepítés.
+
+A CI a push után külön fut; ha pirosra vált, az látszik, de a kiadást nem
+állítja meg. Ha meg akarod várni, futtasd `--bongeszo`-val.
 
 **A teljes kiadás abból a munkapéldányból indul, ahol a `develop` ki van
 fejtve** — worktree-ből a `--proba` és a `--ujra` megy, a teljes kiadás nem.
