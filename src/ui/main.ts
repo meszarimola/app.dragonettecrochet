@@ -1738,7 +1738,8 @@ function renderTypes(): void {
       label.append(span('type__name', type.name));
       // The badge goes BELOW the name, inside the label box: beside it, it overlapped in a narrow bar.
       if (!type.available) label.append(span('type__badge', texts().sections.types.soon));
-      else button.addEventListener('click', () => startType(type.id));
+      // KB: interface.md §66 — the regular card opens its shapes instead of starting a pattern.
+      else if (type.id !== 'regular') button.addEventListener('click', () => startType(type.id));
       button.append(label);
 
       if (type.id !== 'regular') {
@@ -1747,6 +1748,12 @@ function renderTypes(): void {
       }
       item.className = 'type__item';
       item.append(button, regularMenuToggle(), regularMenu());
+      button.setAttribute('aria-haspopup', 'menu');
+      button.setAttribute('aria-expanded', 'false');
+      button.setAttribute('aria-controls', REGULAR_MENU_ID);
+      // It opens rather than toggles: hovering the card has already opened it, so a
+      // toggle would close the menu the click was aiming at.
+      button.addEventListener('click', () => setRegularMenuOpen(true));
       item.addEventListener('mouseenter', () => {
         clearTimeout(regularMenuClose);
         setRegularMenuOpen(true);
@@ -1871,6 +1878,7 @@ function setRegularMenuOpen(open: boolean): void {
   const card = typesList.querySelector<HTMLButtonElement>('.type[data-type="regular"]');
   if (!menu || !toggle || !card) return;
   toggle.setAttribute('aria-expanded', String(open));
+  card.setAttribute('aria-expanded', String(open));
   menu.hidden = !open;
   if (!open) return;
   const row = card.getBoundingClientRect();

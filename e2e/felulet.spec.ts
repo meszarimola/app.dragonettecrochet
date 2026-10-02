@@ -125,6 +125,24 @@ test('the regular type opens a side menu of shapes, and a choice opens its gener
   await expect(page.locator('#status')).not.toContainText('Semicircle:');
 });
 
+test('the regular card opens its shapes instead of starting a pattern of its own (PQW-1126)', async ({ page }) => {
+  await open(page);
+  await page.locator('#types-toggle').click();
+  const card = page.locator('.type[data-type="regular"]');
+  await expect(card).toHaveAttribute('aria-expanded', 'false');
+
+  await card.click();
+  await expect(page.locator('#types-regular-menu')).toBeVisible();
+  await expect(card).toHaveAttribute('aria-expanded', 'true');
+  // The type menu is still open and nothing was emptied: no shape has been chosen yet.
+  await expect(page.locator('#types')).toBeVisible();
+  await expect(page.locator('#setup')).toBeHidden();
+
+  await page.getByRole('menuitem', { name: /Rectangular/ }).click();
+  await expect(page.locator('#types')).toBeHidden();
+  await expect(page.locator('#shape-kind')).toHaveValue('rectangle');
+});
+
 test('the side menu works from the keyboard: right arrow opens it, arrows move, left arrow closes it (PQW-1038)', async ({
   page,
 }) => {

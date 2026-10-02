@@ -163,9 +163,11 @@ test('the pattern survives a reload, and can be loaded back as JSON', async ({ p
   const json = await readFile((await download.path())!, 'utf8');
   expect(JSON.parse(json).formatVersion).toBe(1);
 
-  // “New pattern” is the type menu since PQW-1045; the type starts the pattern anew.
+  // “New pattern” is the type menu since PQW-1045; since PQW-1126 the shape starts the pattern.
   await page.getByRole('button', { name: 'New pattern' }).click();
   await page.locator('.type[data-type="regular"]').click();
+  await page.getByRole('menuitem', { name: /Rectangular/ }).click();
+  await page.locator('[data-action="close-setup"]').click();
   await expect(page.locator('#summary')).toContainText('Empty pattern');
 
   await page

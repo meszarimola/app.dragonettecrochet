@@ -30,10 +30,12 @@ async function open(page: Page, stored: 'nyitva' | 'zarva' | null): Promise<void
   if (await deny.isVisible()) await deny.click();
 }
 
-/** PQW-1045: a new pattern is started from the “New” menu, by picking a type. */
+/** PQW-1045, PQW-1126: a new pattern comes from the “New” menu, by picking a type and a shape. */
 async function newRegular(page: Page): Promise<void> {
   await page.locator('#types-toggle').click();
   await page.locator('.type[data-type="regular"]').click();
+  await page.getByRole('menuitem', { name: /Rectangular/ }).click();
+  await page.locator('[data-action="close-setup"]').click();
 }
 
 test('the panel opened by hand is closed by “New pattern” (PQW-915)', { tag: '@kiadas' }, async ({ page }) => {
