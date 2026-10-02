@@ -1,4 +1,10 @@
 [
+  {"id":"arrange-circle","tag":"button","type":"button"},
+  {"id":"arrange-circle-radius","tag":"input","type":"number"},
+  {"id":"arrange-fan","tag":"button","type":"button"},
+  {"id":"arrange-fan-angle","tag":"input","type":"number"},
+  {"id":"arrange-fan-radius","tag":"input","type":"number"},
+  {"id":"arrange-row","tag":"button","type":"button"},
   {"id":"chart-style","tag":"select","type":""},
   {"id":"delete-selection","tag":"button","type":"button"},
   {"id":"duplicate-selection","tag":"button","type":"button"},

@@ -2,6 +2,7 @@ import {
   allInside,
   boundedFactor,
   boundedMove,
+  type Extent,
   type Frame,
   type FreeformChart,
   moveStitches,
@@ -92,7 +93,7 @@ export class FreeformBoard {
   private selection = new Set<number>();
   private notified = -1;
   private drag: Drag | null = null;
-  private readonly shapes = new Map<string, { shapes: Shape[]; reach: number }>();
+  private readonly shapes = new Map<string, { shapes: Shape[]; reach: number; extent: Extent }>();
   private readonly canvas: HTMLCanvasElement;
   private readonly ink: string;
   private readonly accent: string;
@@ -294,16 +295,23 @@ export class FreeformBoard {
     this.canvas.style.cursor = hit === null ? '' : 'move';
   }
 
-  private symbolOf(placed: PlacedStitch): { shapes: Shape[]; reach: number } {
+  private symbolOf(placed: PlacedStitch): { shapes: Shape[]; reach: number; extent: Extent } {
     let found = this.shapes.get(placed.stitch);
     if (found === undefined) {
       const shapes = symbolShapes(stitchById(placed.stitch), this.symbols);
       const { minX, minY, maxX, maxY } = shapeBounds(shapes);
       const reach = Math.max(MIN_REACH, (Math.max(maxX - minX, maxY - minY) / 2) * STITCH_SCALE);
-      found = { shapes, reach };
+      const extent = { halfWidth: ((maxX - minX) / 2) * STITCH_SCALE, halfHeight: ((maxY - minY) / 2) * STITCH_SCALE };
+      found = { shapes, reach, extent };
       this.shapes.set(placed.stitch, found);
     }
     return found;
+  }
+
+  /** The stitch's half size as drawn, upright. */
+  extentOf(placed: PlacedStitch): Extent {
+    const { halfWidth, halfHeight } = this.symbolOf(placed).extent;
+    return { halfWidth: halfWidth * placed.scale, halfHeight: halfHeight * placed.scale };
   }
 
   private reachOf(placed: PlacedStitch): number {
