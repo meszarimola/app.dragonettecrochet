@@ -17,7 +17,7 @@ import {
 import { CHART_STYLES, readChartStyle, symbolOptionsFor, termsFor, writeChartStyle } from './notation.ts';
 import { buildPalette, type PaletteItem, type PaletteSection } from './palette.ts';
 import { currentPlatform, modifierCombo } from './platform.ts';
-import { applyInk, drawCentered, readInk, shapeBounds, symbolShapes } from './symbols.ts';
+import { applyInk, drawCentered, readAccent, readInk, shapeBounds, symbolShapes } from './symbols.ts';
 import { alignTooltips } from './tooltip.ts';
 
 const NOTATION_KEY = 'dc-mintatervezo:jeloles';
@@ -34,19 +34,29 @@ const styleSelect = must<HTMLSelectElement>('#chart-style');
 const languageSelect = must<HTMLSelectElement>('#ui-language');
 const homeLink = must<HTMLAnchorElement>('#home-link');
 const newButton = must<HTMLButtonElement>('#new-chart');
+const selectButton = must<HTMLButtonElement>('#select-tool');
 
 let chartStyle: ChartStyle = readChartStyle(read(NOTATION_KEY));
 let chart: FreeformChart | null = null;
 let tool: StitchDefId | null = null;
+let selecting = false;
 let items: PaletteItem[] = [];
 const buttons = new Map<StitchDefId, HTMLButtonElement>();
 const ink = readInk(document.documentElement);
 
-const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, (x, y) => {
-  if (chart === null || tool === null) return;
-  chart = placeStitch(chart, tool, x, y);
-  board.show(chart, symbolOptionsFor(chartStyle));
+const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAccent(document.documentElement), {
+  place: ({ x, y }) => {
+    if (chart === null || tool === null) return;
+    chart = placeStitch(chart, tool, x, y);
+    board.show(chart, symbolOptionsFor(chartStyle));
+  },
+  change: (next) => {
+    chart = next;
+    board.show(chart, symbolOptionsFor(chartStyle));
+  },
 });
+
+selectButton.addEventListener('click', () => setSelecting(!selecting));
 
 // KB: interface.md §4 — the language is settled before anything is rendered.
 applyLanguage(resolveUiLanguage(location.search, read(LANG_KEY), document.documentElement.lang));
@@ -58,6 +68,7 @@ alignTooltips(must<HTMLElement>('.tools'));
 newButton.addEventListener('click', () => {
   chart = emptyChart();
   board.show(chart, symbolOptionsFor(chartStyle));
+  selectButton.disabled = false;
   renderPalette();
 });
 
@@ -79,8 +90,11 @@ languageSelect.addEventListener('change', () => {
 
 // KB: interface.md §11 — by key code, so a Hungarian layout behaves like an English one.
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && tool !== null) {
-    select(null);
+  if (event.key === 'Escape') {
+    // A select box closes on its own Escape; that one is not meant for the chart.
+    if (board.dragging || event.target instanceof HTMLSelectElement) return;
+    if (tool !== null) select(null);
+    else if (board.selected.size > 0) board.clearSelection();
     return;
   }
   if (chart === null || !event.altKey || event.ctrlKey || event.metaKey) return;
@@ -104,7 +118,19 @@ function select(id: StitchDefId | null): void {
   tool = id;
   for (const [stitchId, button] of buttons) button.setAttribute('aria-pressed', String(stitchId === id));
   document.body.classList.toggle('is-armed', id !== null);
-  if (id !== null) buttons.get(id)?.scrollIntoView({ block: 'nearest' });
+  if (id !== null) {
+    buttons.get(id)?.scrollIntoView({ block: 'nearest' });
+    setSelecting(false);
+  }
+}
+
+/** Selecting and placing exclude each other: arming one puts the other down. */
+function setSelecting(on: boolean): void {
+  if (chart === null) return;
+  selecting = on;
+  selectButton.setAttribute('aria-pressed', String(on));
+  board.setMode(on ? 'select' : 'place');
+  if (on && tool !== null) select(null);
 }
 
 function renderPalette(): void {

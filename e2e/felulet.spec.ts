@@ -1,12 +1,12 @@
 /*
  * The whole interface (PQW-1141): the work-in-progress line, a bar with Home, the
- * brand, the title, New, the symbol style and the language — and the stitch
- * palette with the version under it. Nothing else.
+ * brand, the title, New, the selection tool (PQW-1143), the symbol style and the
+ * language — and the stitch palette with the version under it. Nothing else.
  */
 
 import { expect, test } from '@playwright/test';
 
-test('the bar holds Home, the title, New, the symbol style and the language, and nothing else', {
+test('the bar holds Home, the title, New, Select, the symbol style and the language, and nothing else', {
   tag: '@kiadas',
 }, async ({ page }) => {
   const errors: string[] = [];
@@ -21,8 +21,12 @@ test('the bar holds Home, the title, New, the symbol style and the language, and
   );
   await expect(bar.getByRole('heading', { name: 'Pattern designer' })).toBeVisible();
   await expect(bar.locator('.brand-mark')).toBeVisible();
-  await expect(bar.getByRole('button')).toHaveCount(1);
+  await expect(bar.getByRole('button')).toHaveCount(2);
   await expect(bar.getByRole('button', { name: 'New' })).toBeVisible();
+  // PQW-1143: the selection tool is an icon alone, and wakes with the chart.
+  const select = bar.getByRole('button', { name: 'Select' });
+  await expect(select).toBeDisabled();
+  await expect(select.locator('.tool__label')).toHaveCount(0);
   await expect(bar.getByRole('combobox')).toHaveCount(2);
   await expect(bar.getByRole('combobox', { name: 'Symbol style' })).toHaveValue('cyc');
   await expect(bar.getByRole('combobox', { name: 'Interface language' })).toHaveValue('en');

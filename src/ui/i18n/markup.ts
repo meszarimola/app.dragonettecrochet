@@ -19,6 +19,9 @@ export const MARKUP_TEXTS = {
     wipBanner: 'Fejlesztés alatt: a tervező folyamatosan bővül, nézz vissza később.',
     toolLabelNew: 'Új',
     irregularNewTitle: 'Új szabálytalan minta',
+    toolPointerLabel: 'Kijelölés',
+    selectToolTip:
+      'Kijelölés: kattints egy szemre, vagy húzz területet; Shift + kattintás: több szem. A kijelölést húzva mozgathatod, a kerek fogóval forgathatod.',
     sectionStitchesTitle: 'Szemek',
     stitchesPaletteLabel: 'Szemek',
     boardIrregularLabel: 'Szabadkézi diagram: válassz szemet, és kattints a rajzlapra',
@@ -36,6 +39,9 @@ export const MARKUP_TEXTS = {
     wipBanner: 'Work in progress: the designer keeps growing, so do check back later.',
     toolLabelNew: 'New',
     irregularNewTitle: 'New free-form pattern',
+    toolPointerLabel: 'Select',
+    selectToolTip:
+      'Select: click a stitch or drag an area; Shift + click: several. Drag the selection to move it, the round handle to rotate it.',
     sectionStitchesTitle: 'Stitches',
     stitchesPaletteLabel: 'Stitches',
     boardIrregularLabel: 'Free-form chart: pick a stitch and click the drawing area',
