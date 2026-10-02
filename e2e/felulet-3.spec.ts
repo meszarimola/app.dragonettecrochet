@@ -80,7 +80,9 @@ test('the pattern types are a menu of the bar: it opens closed, and a choice or 
   await toggle.click();
   await expect(types).toBeVisible();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  await expect(page.locator('.type[aria-pressed="true"]'), 'the focus lands on the current type').toBeFocused();
+  // KB: interface.md §80 — the regular card carries no pressed state, so the current type is
+  // read from `data-type` here rather than from the attribute.
+  await expect(page.locator('.type[data-type="regular"]'), 'the focus lands on the current type').toBeFocused();
 
   await page.keyboard.press('Escape');
   await expect(types).toBeHidden();

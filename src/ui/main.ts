@@ -249,6 +249,9 @@ const mirror = false;
 let patternType: PatternTypeId = readType();
 // KB: interface.md §80 — until this is true the editor is closed and „Új” is the only way on.
 let started = readStarted();
+// KB: interface.md §80 — what the gate was before the make-a-pattern sheet opened, so
+// closing the sheet without creating anything gives back the pattern that was there.
+let startedBeforeSetup = started;
 let showGrid = readGrid();
 // KB: interface.md §5 — not persisted; that would need a new key.
 let aspect = false;
@@ -367,9 +370,10 @@ function readType(): PatternTypeId {
 
 /**
  * KB: interface.md §80 — a visitor who has something to come back to is not sent
- * through „Új” again. The stored type is what a chosen type leaves behind; the
- * two patterns are read as well, because a pattern can arrive from a JSON file
- * that never wrote one.
+ * through „Új” again. The stored type is the type of the pattern they left behind,
+ * because it is written when one is made, not when a type is chosen; the two
+ * patterns are read as well, because a pattern can arrive from a JSON file that
+ * never wrote one.
  */
 function readStarted(): boolean {
   try {
@@ -651,7 +655,8 @@ const COMPUTED_TOOLS = [
  * nothing is not an edit.
  */
 function applyStartGate(): void {
-  startNote.hidden = started;
+  // The sheet is the way on that the note points at, so while it is open the note has nothing to say.
+  startNote.hidden = started || !setupSheet.hidden;
   writtenToggle.disabled = !started;
   // Gauge and yarn are a pattern's settings, and every one of them is written through `commit`.
   sizeSection.inert = !started;
@@ -659,19 +664,41 @@ function applyStartGate(): void {
   for (const action of GATED_TOOLS) setDisabled(action, !started);
   if (started) return;
   for (const action of COMPUTED_TOOLS) setDisabled(action, true);
+  // A panel of the pattern, behind a disabled button, is the half-live panel „Méret és fonal” is `inert` to avoid.
+  if (!written.hidden) setWrittenOpen(false);
 }
 
-// KB: interface.md §80 — the editor opens on the first pattern and does not close again.
-function markStarted(): void {
-  if (started) return;
-  started = true;
+/**
+ * KB: interface.md §80 — the stored type says which type the visitor's pattern is
+ * in, so it is written when there is one. Choosing a family in the menu is not that
+ * moment: nothing has been made yet, and a reload then has nothing to come back to.
+ */
+function persistType(): void {
+  if (!started) return;
+  try {
+    localStorage.setItem(TYPE_KEY, patternType);
+  } catch {
+    // KB: interface.md §5
+  }
+}
+
+/**
+ * KB: interface.md §80 — the editor follows the pattern: making one opens it, and
+ * starting to make another closes it until that one is there.
+ */
+function setStarted(open: boolean): void {
+  if (started === open) return;
+  started = open;
+  if (open) persistType();
   applyStartGate();
   // A file opens the gate without choosing a type, so the cards learn their state here too.
   markChosenType();
 }
 
+/** KB: interface.md §80 — the regular card is a menu opener, so it is never the choice itself. */
 function markChosenType(): void {
   for (const button of typesList.querySelectorAll<HTMLButtonElement>('.type')) {
+    if (button.dataset.type === 'regular') continue;
     button.setAttribute('aria-pressed', String(started && !button.disabled && button.dataset.type === patternType));
   }
 }
@@ -824,6 +851,18 @@ function setOpen(target: HTMLElement, button: HTMLButtonElement, open: boolean):
 /** KB: interface.md §79 — the sheet has no toggle of its own; the type menu opens it. */
 function setSetupOpen(open: boolean): void {
   setupSheet.toggleAttribute('hidden', !open);
+  // KB: interface.md §80 — the start note and the sheet are two answers to the same question.
+  applyStartGate();
+}
+
+/**
+ * KB: interface.md §80 — every way out of the sheet that is not „Minta létrehozása”
+ * comes through here, so leaving it never costs the pattern that was already there.
+ */
+function closeSetup(): void {
+  if (setupSheet.hidden) return;
+  setStarted(startedBeforeSetup);
+  setSetupOpen(false);
 }
 
 function setWrittenOpen(open: boolean): void {
@@ -1039,7 +1078,7 @@ function select(id: StitchDefId | null): void {
   // KB: interface.md §81 — the sheet covers the panel, and the chain count leads it.
   // Only a change arms: interface.md §6 re-applies the armed stitch on a notation or
   // language change, and that must not close a sheet opened after the arming.
-  if (id !== null && id !== tool) setSetupOpen(false);
+  if (id !== null && id !== tool) closeSetup();
   tool = id;
   hover = null;
   if (id) {
@@ -1300,7 +1339,10 @@ async function importJson(file: File): Promise<void> {
   // The file decides the type, not the type the file (PQW-963). The switch waits
   // until the file has actually loaded, so a broken one leaves the view alone.
   if (isIrregularJson(source)) {
-    if (ensureIrregular().importJson(source) && patternType !== 'irregular') selectType('irregular');
+    if (!ensureIrregular().importJson(source)) return;
+    if (patternType !== 'irregular') selectType('irregular');
+    // KB: interface.md §80 — a free-form file is a pattern as much as a regular one is.
+    setStarted(true);
     return;
   }
   const loaded = loadPattern(source);
@@ -1315,7 +1357,7 @@ async function importJson(file: File): Promise<void> {
   }
   if (patternType === 'irregular') selectType(DEFAULT_PATTERN_TYPE);
   // KB: interface.md §80 — a file is a pattern too, so opening one is a second way in.
-  markStarted();
+  setStarted(true);
   selectedNode = null;
   selection = [];
   const recorded = loaded.pattern.notation?.terms;
@@ -1618,7 +1660,7 @@ const ACTIONS: Record<string, () => void> = {
   'copy-written': () => void copyWritten(),
   'written-full': () => toggleWrittenFull(),
   'close-setup': () => {
-    setSetupOpen(false);
+    closeSetup();
     // The close button goes with the sheet, so the focus returns to the menu that opened it.
     typesToggle.focus();
   },
@@ -1775,11 +1817,13 @@ typesToggle.addEventListener('click', () => {
   closeAllPopovers();
   if (opening) {
     openPopover(typesNav, typesToggle);
-    // KB: interface.md §80 — before the first pattern no card is pressed, so the first
-    // one that can be chosen takes the focus instead of nothing taking it.
-    const card =
-      typesNav.querySelector<HTMLButtonElement>('.type[aria-pressed="true"]') ??
-      typesNav.querySelector<HTMLButtonElement>('.type:not([disabled])');
+    // KB: interface.md §80 — the focus goes to the card of the pattern there is, which is
+    // asked of the type rather than of `aria-pressed`, because the regular card carries
+    // none. Before the first pattern the first card that can be chosen takes it instead.
+    const current = started
+      ? typesNav.querySelector<HTMLButtonElement>(`.type[data-type="${patternType}"]:not([disabled])`)
+      : null;
+    const card = current ?? typesNav.querySelector<HTMLButtonElement>('.type:not([disabled])');
     card?.focus();
   }
 });
@@ -1837,8 +1881,11 @@ function renderTypes(): void {
       button.className = 'type';
       button.dataset.type = type.id;
       button.disabled = !type.available;
-      // KB: interface.md §80 — before the first pattern no card is the chosen one.
-      button.setAttribute('aria-pressed', String(started && type.available && type.id === patternType));
+      // KB: interface.md §80 — before the first pattern no card is the chosen one, and
+      // the regular card never is: it opens a menu, and the entry is where the choice is made.
+      if (type.id !== 'regular') {
+        button.setAttribute('aria-pressed', String(started && type.available && type.id === patternType));
+      }
 
       button.dataset.tip = type.detail;
       button.append(typeIcon(type.id));
@@ -1990,6 +2037,8 @@ function setRegularMenuOpen(open: boolean): void {
 // KB: interface.md §68 — the granny square is drawn by hand, round by round, on the free-form canvas.
 function openGranny(): void {
   selectType('irregular');
+  // KB: interface.md §80 — the round guide is the pattern, so this entry makes one on the spot.
+  setStarted(true);
   // `newGranny` empties the pattern itself, so the plain „new” would only double it.
   ensureIrregular().newGranny();
   // KB: interface.md §72 — the grid count of the first round is the first thing to set.
@@ -2005,7 +2054,14 @@ function openRegularEntry(entry: RegularMenuEntry): void {
     openGranny();
     return;
   }
-  startType('regular');
+  // KB: interface.md §80 — the family is not the pattern. The type is switched so the
+  // sheet works on the right one, the pattern stands until „Minta létrehozása” replaces
+  // it, and the editor is closed meanwhile because there is nothing chosen to edit yet.
+  selectType('regular');
+  // What „Lecsukás” gives back is the regular pattern, which is why this asks the pattern
+  // rather than the gate: the visitor may be arriving from the free-form canvas.
+  startedBeforeSetup = !isEmptyPattern(history.present);
+  setStarted(false);
   const target = must<HTMLDetailsElement>(entry.section);
   for (const section of regularTypeSections) {
     if (!setupSheet.contains(section)) continue;
@@ -2021,9 +2077,14 @@ function openRegularEntry(entry: RegularMenuEntry): void {
 /**
  * Choosing a type is how a new pattern is started (KB: interface.md §73): the
  * type is switched first, then that type's own „new” empties it.
+ *
+ * KB: interface.md §80 — only the types that make a pattern by being chosen come
+ * through here. The free-form canvas is one: drawing on it is the making, so there
+ * is nothing left to wait for and the gate opens before „new”, which commits.
  */
 function startType(id: PatternTypeId): void {
   selectType(id);
+  setStarted(true);
   ACTIONS['new']?.();
 }
 
@@ -2032,13 +2093,8 @@ function selectType(id: PatternTypeId): void {
   const focused = typesNav.contains(document.activeElement);
   closePopover(typesNav, typesToggle);
   if (focused) typesToggle.focus();
-  markStarted();
   patternType = id;
-  try {
-    localStorage.setItem(TYPE_KEY, id);
-  } catch {
-    // KB: interface.md §5
-  }
+  persistType();
   markChosenType();
   const type = PATTERN_TYPES.find((candidate) => candidate.id === id);
   if (id === 'irregular') {
@@ -2074,7 +2130,7 @@ writtenToggle.addEventListener('click', () => {
   // KB: interface.md §10
   if (open && writtenShare === null) applyWrittenShare(writtenShareFor(patternType, NARROW.matches));
   if (open && NARROW.matches) setPanelsOpen(false);
-  if (open && SETUP_TIGHT.matches && !setupSheet.hidden) setSetupOpen(false);
+  if (open && SETUP_TIGHT.matches) closeSetup();
 });
 
 // KB: interface.md §13 — pointer, touch and keyboard.
@@ -2366,6 +2422,14 @@ document.addEventListener('keydown', (event) => {
     return;
   }
 
+  // KB: interface.md §54, §80 — the sheet is open while the gate is closed, so its Escape
+  // has to sit above the guard, beside the type menu's.
+  if (key === 'Escape' && !setupSheet.hidden) {
+    event.preventDefault();
+    ACTIONS['close-setup']!();
+    return;
+  }
+
   // KB: interface.md §80 — the type menu keeps its Escape above; below this there is nothing
   // to edit. Alt+R is the one view control with a shortcut, and it passes with its button.
   if (!started && !(event.altKey && event.code === 'KeyR')) return;
@@ -2443,13 +2507,6 @@ document.addEventListener('keydown', (event) => {
 
   switch (key) {
     case 'Escape':
-      // KB: interface.md §54 — an open sheet takes the Escape before the selection does.
-      if (!setupSheet.hidden) {
-        setSetupOpen(false);
-        typesToggle.focus();
-        event.preventDefault();
-        return;
-      }
       select(null);
       selectedNode = null;
       selection = [];
@@ -2522,6 +2579,10 @@ const sizePanel = new SizePanel(must<HTMLDetailsElement>('#section-size'), {
 function generated(pattern: Pattern, message: Message): void {
   selectedNode = null;
   selection = [];
+  // KB: interface.md §80 — this is the moment there is a pattern, and `commit` refuses
+  // while the gate is closed, so the gate opens first and „Lecsukás” has nothing to undo.
+  startedBeforeSetup = true;
+  setStarted(true);
   commit({ ok: true, pattern }, message);
   fitBoard();
 }
@@ -2668,7 +2729,7 @@ function showIrregularView(on: boolean): void {
   if (on) setOpen(written, writtenToggle, false);
   // KB: interface.md §54 — every section of the sheet belongs to the regular type, so in
   // free-form mode it has nothing to show.
-  if (on && !setupSheet.hidden) setSetupOpen(false);
+  if (on) closeSetup();
   must<HTMLButtonElement>('#export-run').disabled = false;
   for (const id of [
     '#view-guides',

@@ -26,6 +26,16 @@ const chain = (page: Page) =>
     .getByRole('button', { name: /Chain \(ch\)/ })
     .first();
 
+/** „Új” → „Szabályos horgolás” → „Forma”: as far as the chooser, with nothing made yet. */
+async function chooseFlatShape(page: Page): Promise<void> {
+  await page.locator('#types-toggle').click();
+  await page.getByRole('button', { name: 'Regular crochet' }).click();
+  await page.getByRole('menuitem', { name: 'Flat shape' }).click();
+  await expect(page.locator('#setup')).toBeVisible();
+}
+
+const create = (page: Page) => page.locator('#section-shape').getByRole('button', { name: 'Create pattern' }).click();
+
 test('a first visit opens closed: the stage says so and the stitches are out of reach', async ({ page }) => {
   await open(page);
 
@@ -134,18 +144,52 @@ test('opening a JSON is the second way in, and the cards say which type it opene
   await expect(page.locator('#start-note')).toBeHidden();
   await expect(chain(page)).toBeEnabled();
   await page.locator('#types-toggle').click();
-  await expect(page.getByRole('button', { name: 'Regular crochet' })).toHaveAttribute('aria-pressed', 'true');
+  // KB: interface.md §80 — the regular card opens a menu, so it carries no pressed state at
+  // all; what the cards say is that no other type claims the pattern the file brought.
+  const regular = page.getByRole('button', { name: 'Regular crochet' });
+  expect(await regular.getAttribute('aria-pressed'), 'a menu opener is not a toggle').toBeNull();
+  await expect(page.getByRole('button', { name: 'Free-form designer' })).toHaveAttribute('aria-pressed', 'false');
 });
 
-test('a flat shape opens the editor too, and the gate stays open after a reload', async ({ page }) => {
+test('a flat shape opens the editor when it is made, and the gate stays open after a reload', async ({ page }) => {
   await open(page);
 
-  await page.locator('#types-toggle').click();
-  await page.getByRole('button', { name: 'Regular crochet' }).click();
-  await page.getByRole('menuitem', { name: 'Flat shape' }).click();
+  await chooseFlatShape(page);
+  // KB: interface.md §80 — choosing the family is not having a pattern.
+  await expect(chain(page)).toBeDisabled();
+
+  await create(page);
   await expect(page.locator('#start-note')).toBeHidden();
+  await expect(chain(page)).toBeEnabled();
 
   await page.reload();
   await expect(page.locator('#start-note')).toBeHidden();
   await expect(chain(page)).toBeEnabled();
+});
+
+test('„Új” closes the editor again, and „Lecsukás” gives back the pattern that was there', async ({ page }) => {
+  await open(page);
+  await chooseFlatShape(page);
+  await create(page);
+  const made = await page.locator('#summary').textContent();
+
+  // The owner's case: with a pattern already designed, the next „Új” must not leave the editor live.
+  await chooseFlatShape(page);
+  await expect(chain(page)).toBeDisabled();
+  await expect(page.locator('#section-size')).toHaveAttribute('inert', '');
+  await expect(page.locator('#summary'), 'only a creation replaces the pattern').toHaveText(made!);
+
+  await page.locator('[data-action="close-setup"]').click();
+  await expect(chain(page)).toBeEnabled();
+  await expect(page.locator('#summary')).toHaveText(made!);
+});
+
+test('a family chosen but never made is not a pattern to come back to', async ({ page }) => {
+  await open(page);
+  await chooseFlatShape(page);
+
+  // KB: interface.md §80 — the stored type is written when a pattern is made, not when one is chosen.
+  await page.reload();
+  await expect(page.locator('#start-note')).toBeVisible();
+  await expect(chain(page)).toBeDisabled();
 });

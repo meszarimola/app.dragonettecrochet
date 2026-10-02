@@ -2134,18 +2134,42 @@ find. The first stitch then landed in a pattern whose type nobody had chosen.
 
 **The gate is „is there a pattern”, not „is this a new tab”.** A visitor who has
 work to come back to is not sent through „Új” again, so `readStarted` answers yes
-when any of three marks is there: a stored type (what choosing one leaves
-behind), a stored free-form pattern, or a restored regular pattern with a stitch
-in it. The third mark exists because a pattern can arrive from a JSON file that
-never wrote a type — which is also why opening a JSON is the second way in,
-beside choosing a type.
+when any of three marks is there: a stored type, a stored free-form pattern, or a
+restored regular pattern with a stitch in it. The third mark exists because a
+pattern can arrive from a JSON file that never wrote a type — which is also why
+opening a JSON is the second way in, beside choosing a type.
 
-**It opens once and does not close again.** `markStarted` is one-way. Emptying a
-pattern with „Új” is not a return to the closed state: the visitor has chosen,
-and asking again would be the program talking (`owner-decisions.md` §3).
+**The stored type is the type of the pattern, so it is written when one is made**
+(PQW-1137). It used to be written by the choice itself, and that is what made the
+first mark a lie: after „Új → Forma” the key was there with nothing behind it, so
+a reload opened the editor on an empty canvas — the very state §80 exists to
+prevent. `persistType` therefore writes it only while the gate is open, and
+`setStarted(true)` writes it as it opens. No new key, so §5 is untouched.
 
-**Nothing is persisted for it.** The three marks are keys that already exist, so
-§5 is not touched.
+**It closes again, because making the next pattern is not having one** (PQW-1137).
+The owner, with the editor live behind the open chooser: „a bal oldali panel él
+akkor, ha már előtte volt egy minta tervezve. ez így nem jó.” So `markStarted`
+became `setStarted`, and choosing a family in the type menu closes the gate until
+„Minta létrehozása” opens it. This is not the program asking twice
+(`owner-decisions.md` §3): it asks nothing, it only waits for the pattern the
+visitor has already started making.
+
+**Choosing a family no longer empties the pattern; creating one replaces it**
+(PQW-1137, the owner's decision). `openRegularEntry` used to run `startType`,
+which emptied the pattern before the sheet was even read, so stepping back out of
+the sheet cost the work and „Lecsukás” had to be paid for with an undo. Every way
+out of the sheet that is not a creation now goes through `closeSetup`, which puts
+the gate back to `startedBeforeSetup` — and that flag is read from the *pattern*
+(`!isEmptyPattern`), not from the gate, because a visitor can arrive at the sheet
+from the free-form canvas, where the gate says nothing about the regular pattern
+that „Lecsukás” returns to.
+
+**The regular type is always generated; the free-form type is the hand-drawn one.**
+That follows from the paragraph above, and the owner confirmed it: „új —
+free form designer — és szabadot nyit meg, nincs popup. új — regular crochet és
+kiválasztja a megfelelőt — popup.” An empty regular canvas is no longer a place
+the interface can take you, so `ACTIONS['new']` has only the free-form caller left
+(`startType`), and that one opens the gate before it runs, because `new` commits.
 
 **Where the gate bites.** The buttons are disabled, and behind them three guards
 catch the paths a disabled button does not cover:
@@ -2157,9 +2181,12 @@ catch the paths a disabled button does not cover:
   (`select(null)`) stays allowed: the startup path calls it.
 - the canvas `pointerdown` and the document `keydown` return early. The keyboard
   guard sits *after* the Escape-closes-a-menu block, because the type menu is the
-  one menu that is open while the editor is closed. `Alt+R` passes it: the guide
-  grid is a view control whose button stays enabled, so the shortcut has to match
-  the button. It is the only exception, and the only view control with a shortcut.
+  one menu that is open while the editor is closed. The sheet's own Escape had to
+  move up there with it (PQW-1137): the sheet is now open *while* the gate is
+  closed, and from below the guard its Escape never ran. `Alt+R` passes it: the
+  guide grid is a view control whose button stays enabled, so the shortcut has to
+  match the button. It is the only exception, and the only view control with a
+  shortcut.
 
 The free-form editor needs no guard of its own: it is mounted by `selectType`,
 which has opened the gate before it runs.
@@ -2193,6 +2220,21 @@ for both ways in, because opening a JSON starts a pattern without going through
 `selectType`, and the cards would otherwise say no type was chosen. Before the
 first pattern none is pressed, so the type menu focuses the first card that can
 be chosen rather than nothing.
+
+**The regular card is never marked** (PQW-1137). The owner on the menu opening
+with „Szabályos horgolás” already filled in: it „looks selected, though I have not
+chosen anything on it”. Since §66 the card is a menu opener — `aria-haspopup`,
+its own `aria-expanded` — and the choice is an entry inside the menu, so
+`aria-pressed` on it marked something the visitor had not done. A button cannot
+honestly be both a menu opener and a toggle, and `.type[aria-pressed="true"]`
+gives it the selection background that caused the complaint. The other cards keep
+the mark: there the card *is* the choice.
+
+**The start note and the sheet are two answers to the same question**, so the note
+is hidden while the sheet is open (PQW-1137). Without it, closing the gate on a
+family choice put „Pick a type to start an empty pattern” over the canvas beside
+the sheet that had just been opened to do exactly that. `setSetupOpen` therefore
+runs `applyStartGate`, which is the one place that decides what the stage shows.
 
 **The browser suite opens as a returning visitor.** A spec that measures the
 editor seeds the stored type in an init script (`e2e/kezdet.ts`) rather than

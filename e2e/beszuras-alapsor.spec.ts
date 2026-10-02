@@ -38,11 +38,6 @@ test('clicking between two stitches of the foundation chain inserts a new chain 
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
-  // “New pattern” is the type menu since PQW-1045; since PQW-1126 the shape starts the pattern.
-  await page.getByRole('button', { name: 'New pattern' }).click();
-  await page.locator('.type[data-type="regular"]').click();
-  await page.getByRole('menuitem', { name: /Flat shape/ }).click();
-  await page.locator('[data-action="close-setup"]').click();
 
   const palette = page.locator('#palette');
   const chain = palette.getByRole('button', { name: /Chain \(ch\)/ }).first();
@@ -82,11 +77,6 @@ test('a stitch can be placed by going back into the empty cell above the inserti
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
-  // “New pattern” is the type menu since PQW-1045; since PQW-1126 the shape starts the pattern.
-  await page.getByRole('button', { name: 'New pattern' }).click();
-  await page.locator('.type[data-type="regular"]').click();
-  await page.getByRole('menuitem', { name: /Flat shape/ }).click();
-  await page.locator('[data-action="close-setup"]').click();
 
   const palette = page.locator('#palette');
   const chain = palette.getByRole('button', { name: /Chain \(ch\)/ }).first();

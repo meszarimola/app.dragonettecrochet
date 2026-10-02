@@ -103,14 +103,14 @@ test('turning and a new pattern do not nag, but the live region stays (PQW-929)'
   await expect(alert, 'turning does not nag').toBeHidden();
   await expect(page.locator('#status'), 'but the live region does say it').toContainText('the work is turned');
 
-  // “New pattern” is the type menu since PQW-1045; since PQW-1126 the shape starts the pattern.
+  // KB: interface.md §80 — a new pattern is a made one, so this goes as far as the creation.
   await page.getByRole('button', { name: 'New pattern' }).click();
   await page.locator('.type[data-type="regular"]').click();
   await page.getByRole('menuitem', { name: /Flat shape/ }).click();
-  await page.locator('[data-action="close-setup"]').click();
+  await page.locator('#section-shape').getByRole('button', { name: 'Create pattern' }).click();
   await expect(alert, 'a new pattern does not nag').toBeHidden();
-  await expect(page.locator('#status'), 'the live region announces the start of the empty pattern').toContainText(
-    'Empty pattern',
+  await expect(page.locator('#status'), 'the live region announces the pattern that was made').toContainText(
+    'Rectangle',
   );
 });
 
