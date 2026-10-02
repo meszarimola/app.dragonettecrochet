@@ -17,16 +17,19 @@ async function open(page: Page): Promise<void> {
 
 /** KB: interface.md §79 — the sheet opens from the „New” menu, on one family, and shows only it. */
 async function openSheet(page: Page, family: RegExp = /Flat shape/): Promise<void> {
-  if (await page.locator('#setup').isHidden()) {
-    await page.locator('#types-toggle').click();
-    await page.locator('.type[data-type="regular"]').click();
-    await page.getByRole('menuitem', { name: family }).click();
-  }
+  await page.locator('#types-toggle').click();
+  await page.locator('.type[data-type="regular"]').click();
+  await page.getByRole('menuitem', { name: family }).click();
 }
+
+/** KB: interface.md §79 — a section of the sheet is reachable only through its own family. */
+const FAMILY: Readonly<Record<string, RegExp>> = { '#section-shape': /Flat shape/, '#section-shawl': /Shawl/ };
 
 async function section(page: Page, id: string) {
   const details = page.locator(id);
-  if (await details.evaluate((el) => el.closest('#setup') !== null)) await openSheet(page);
+  if (await details.evaluate((el) => el.closest('#setup') !== null)) {
+    if (await details.isHidden()) await openSheet(page, FAMILY[id]);
+  }
   if ((await details.getAttribute('open')) === null) await details.locator('summary').click();
   return details;
 }
@@ -64,8 +67,11 @@ test('Shawl → semicircle, then Shape → rectangle: the title belongs to the r
   await rectangle(page);
   await expect.poll(title).toBe('Rectangle');
 
+  // Two steps back, not one: choosing a family starts a new pattern (PQW-1126), so the
+  // rectangle sits on top of the empty pattern that choosing „Flat shape” made.
   await page.keyboard.press('ControlOrMeta+Z');
   await expect(page.locator('#status')).toContainText('Undone.');
+  await page.keyboard.press('ControlOrMeta+Z');
   await expect.poll(title).toBe('Semicircle');
 });
 

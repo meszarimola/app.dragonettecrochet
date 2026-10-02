@@ -42,7 +42,9 @@ test('the free-form type opens its own canvas and hides what belongs to rows', {
   await expect(page.locator('#tools-row')).toBeHidden();
 
   await page.locator('#types-toggle').click();
+  // The card only opens its families (PQW-1126); one of them starts the pattern (PQW-1129).
   await page.getByRole('button', { name: /Regular crochet/ }).click();
+  await page.getByRole('menuitem', { name: /Flat shape/ }).click();
   await expect(page.locator('#board')).toBeVisible();
   await expect(page.locator(board)).toBeHidden();
   await expect(page.locator('#tools-row')).toBeVisible();
