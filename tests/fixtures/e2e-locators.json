@@ -2,7 +2,7 @@
   "getByRole": {
     "/^Chain \\(ch\\)/": 2,
     "/^Double crochet \\(dc\\)/": 2,
-    "/^Single crochet \\(sc\\)/": 11,
+    "/^Single crochet \\(sc\\)/": 14,
     "A felület nyelve": 1,
     "Alapszemek": 1,
     "Back to the dragonettecrochet.com home page": 1,
@@ -26,7 +26,7 @@
     "v${VART_VERZIO}": 1
   },
   "locator": {
-    "#board": 20,
+    "#board": 24,
     "#version": 1,
     ".brand-mark": 1,
     ".tool__label": 1,
@@ -49,7 +49,8 @@
     "true": 4
   },
   "toHaveText": {
-    "/^v\\d+\\.\\d+\\.\\d+$/": 1
+    "/^v\\d+\\.\\d+\\.\\d+$/": 1,
+    "Select": 1
   },
   "toHaveValue": {
     "cyc": 1,

@@ -23,10 +23,10 @@ test('the bar holds Home, the title, New, Select, the symbol style and the langu
   await expect(bar.locator('.brand-mark')).toBeVisible();
   await expect(bar.getByRole('button')).toHaveCount(2);
   await expect(bar.getByRole('button', { name: 'New' })).toBeVisible();
-  // PQW-1143: the selection tool is an icon alone, and wakes with the chart.
+  // PQW-1143, PQW-1144: the selection tool is the pointer with its label, and wakes with the chart.
   const select = bar.getByRole('button', { name: 'Select' });
   await expect(select).toBeDisabled();
-  await expect(select.locator('.tool__label')).toHaveCount(0);
+  await expect(select.locator('.tool__label')).toHaveText('Select');
   await expect(bar.getByRole('combobox')).toHaveCount(2);
   await expect(bar.getByRole('combobox', { name: 'Symbol style' })).toHaveValue('cyc');
   await expect(bar.getByRole('combobox', { name: 'Interface language' })).toHaveValue('en');

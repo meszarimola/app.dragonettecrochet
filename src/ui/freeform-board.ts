@@ -1,16 +1,19 @@
 import {
   allInside,
+  boundedFactor,
   boundedMove,
+  type Frame,
   type FreeformChart,
   moveStitches,
   type PlacedStitch,
   type Point,
-  type Rect,
   rectOf,
   rotateStitches,
-  selectionCenter,
+  scaleStitches,
+  selectionFrame,
   stitchAt,
   stitchesIn,
+  turn,
 } from '../core/freeform.ts';
 import { stitchById } from '../core/stitches.ts';
 import { applyInk, drawCentered, type Shape, type SymbolOptions, shapeBounds, symbolShapes } from './symbols.ts';
@@ -22,9 +25,17 @@ const MIN_REACH = 8;
 const FRAME_PAD = 6;
 const HANDLE_GAP = 22;
 const HANDLE_R = 6;
+const CORNER = 8;
 const HANDLE_HIT = HANDLE_R + 4;
 /** Below this many pixels a press is a click, not a drag: mouse jitter must not move a stitch. */
 const DRAG_SLOP = 3;
+/** The corners in frame space, clockwise from the top left. */
+const CORNERS: readonly Point[] = [
+  { x: -1, y: -1 },
+  { x: 1, y: -1 },
+  { x: 1, y: 1 },
+  { x: -1, y: 1 },
+];
 
 export type BoardMode = 'place' | 'select';
 
@@ -43,14 +54,34 @@ type Drag =
       readonly narrowTo: number | null;
       moved: boolean;
     }
-  | { readonly kind: 'rotate'; readonly center: Point; readonly startAngle: number; readonly base: FreeformChart }
+  | {
+      readonly kind: 'rotate';
+      /** The frame at the press: while the drag lasts it is this frame turned, whatever the stitches' own turns. */
+      readonly frame: Frame;
+      readonly side: -1 | 1;
+      readonly startAngle: number;
+      readonly base: FreeformChart;
+      angle: number;
+    }
+  | {
+      readonly kind: 'scale';
+      readonly center: Point;
+      /** The unit vector from the centre to the grabbed corner. */
+      readonly axis: Point;
+      readonly length: number;
+      /** The part of `length` that is frame padding, which does not grow with the stitches. */
+      readonly pad: number;
+      readonly base: FreeformChart;
+    }
   | { readonly kind: 'area'; readonly start: Point; current: Point; readonly base: ReadonlySet<number> };
 
-interface Frame {
-  readonly rect: Rect;
-  readonly handle: Point;
-  /** Where the line to the handle leaves the frame. */
-  readonly stem: number;
+/** The selection frame as it is drawn, with its handles in board coordinates. */
+interface Handles {
+  readonly frame: Frame;
+  readonly rotate: Point;
+  /** -1: the rotation handle stands above the frame (in frame space), 1: below it. */
+  readonly side: -1 | 1;
+  readonly corners: readonly Point[];
 }
 
 export class FreeformBoard {
@@ -78,6 +109,10 @@ export class FreeformBoard {
     canvas.addEventListener('pointermove', (event) => this.moveTo(event));
     canvas.addEventListener('pointerup', () => this.up(false));
     canvas.addEventListener('pointercancel', () => this.up(true));
+    // Ctrl + click on a Mac is the context menu; here it adds to the selection.
+    canvas.addEventListener('contextmenu', (event) => {
+      if (this.mode === 'select') event.preventDefault();
+    });
     new ResizeObserver(() => this.draw()).observe(canvas);
   }
 
@@ -127,33 +162,50 @@ export class FreeformBoard {
   }
 
   private down(event: PointerEvent): void {
-    if (this.mode !== 'select' || this.chart === null || event.button !== 0 || !event.isPrimary) return;
+    // A Mac may report Ctrl + click as the secondary button.
+    const primary = event.button === 0 || (event.button === 2 && event.ctrlKey);
+    if (this.mode !== 'select' || this.chart === null || !primary || !event.isPrimary) return;
     const point = this.point(event);
     this.canvas.setPointerCapture?.(event.pointerId);
     const chart = this.chart;
-    const frame = this.frame();
-    if (frame !== null && distance(point, frame.handle) <= HANDLE_HIT) {
-      const center = selectionCenter(chart, this.selection);
-      if (center !== null) {
-        this.drag = { kind: 'rotate', center, startAngle: angleOf(center, point), base: chart };
+    const reach = (placed: PlacedStitch): number => this.reachOf(placed);
+    const hit = stitchAt(chart, point, reach);
+    const handles = this.handles();
+    if (handles !== null) {
+      const { frame } = handles;
+      if (distance(point, handles.rotate) <= HANDLE_HIT) {
+        const startAngle = angleOf(frame.center, point);
+        this.drag = { kind: 'rotate', frame, side: handles.side, startAngle, base: chart, angle: 0 };
+        return;
+      }
+      const corner = handles.corners.find((at) => distance(point, at) <= HANDLE_HIT);
+      // On a small frame a corner's reach covers the stitch itself; the press then means the stitch.
+      const onSelected = hit !== null && this.selection.has(hit);
+      if (corner !== undefined && !(onSelected && distance(point, frame.center) < distance(point, corner))) {
+        const offset = { x: corner.x - frame.center.x, y: corner.y - frame.center.y };
+        const length = Math.max(1, Math.hypot(offset.x, offset.y));
+        const local = turn(offset, -frame.angle);
+        const pad = (FRAME_PAD * (Math.abs(local.x) + Math.abs(local.y))) / length;
+        const axis = { x: offset.x / length, y: offset.y / length };
+        this.drag = { kind: 'scale', center: frame.center, axis, length, pad, base: chart };
         return;
       }
     }
-    const hit = stitchAt(chart, point, (placed) => this.reachOf(placed));
+    const adding = event.shiftKey || event.ctrlKey || event.metaKey;
     if (hit !== null) {
-      if (event.shiftKey && this.selection.has(hit)) {
+      if (adding && this.selection.has(hit)) {
         this.selection.delete(hit);
         this.draw();
         return;
       }
-      const narrowTo = !event.shiftKey && this.selection.has(hit) && this.selection.size > 1 ? hit : null;
-      if (event.shiftKey) this.selection.add(hit);
+      const narrowTo = !adding && this.selection.has(hit) && this.selection.size > 1 ? hit : null;
+      if (adding) this.selection.add(hit);
       else if (!this.selection.has(hit)) this.selection = new Set([hit]);
       this.drag = { kind: 'move', start: point, base: chart, narrowTo, moved: false };
       this.draw();
       return;
     }
-    if (!event.shiftKey) this.selection.clear();
+    if (!adding) this.selection.clear();
     this.drag = { kind: 'area', start: point, current: point, base: new Set(this.selection) };
     this.draw();
   }
@@ -177,10 +229,23 @@ export class FreeformBoard {
       );
       this.host.change(moveStitches(drag.base, this.selection, dx, dy));
     } else if (drag.kind === 'rotate') {
-      const angle = angleOf(drag.center, point) - drag.startAngle;
-      const turned = rotateStitches(drag.base, this.selection, drag.center, angle);
-      // A turn that would carry a stitch off the board is not taken; the last one that fits stays.
-      if (allInside(turned, this.selection, this.size())) this.host.change(turned);
+      const angle = angleOf(drag.frame.center, point) - drag.startAngle;
+      const turned = rotateStitches(drag.base, this.selection, drag.frame.center, angle);
+      if (this.fits(turned)) {
+        drag.angle = angle;
+        this.host.change(turned);
+      }
+    } else if (drag.kind === 'scale') {
+      // Along the corner's diagonal, so the corner stays under the pointer and crossing the centre does not flip it.
+      const along = (point.x - drag.center.x) * drag.axis.x + (point.y - drag.center.y) * drag.axis.y;
+      const wanted = (along - drag.pad) / Math.max(1, drag.length - drag.pad);
+      const scaled = scaleStitches(
+        drag.base,
+        this.selection,
+        drag.center,
+        boundedFactor(drag.base, this.selection, wanted),
+      );
+      if (this.fits(scaled)) this.host.change(scaled);
     } else if (this.chart !== null) {
       drag.current = point;
       const inside = distance(point, drag.start) < DRAG_SLOP ? [] : stitchesIn(this.chart, drag.start, point);
@@ -189,10 +254,17 @@ export class FreeformBoard {
     }
   }
 
+  /** A turn or a resize that would carry a stitch off the board is not taken; the last one that fits stays. */
+  private fits(next: FreeformChart): boolean {
+    return allInside(next, this.selection, this.size());
+  }
+
   private up(cancelled: boolean): void {
     const drag = this.drag;
     if (drag === null) return;
     this.drag = null;
+    // A gesture the browser took over is undone, not left half-way.
+    if (cancelled && drag.kind !== 'area') this.host.change(drag.base);
     if (drag.kind === 'move' && !cancelled && !drag.moved && drag.narrowTo !== null) {
       this.selection = new Set([drag.narrowTo]);
     }
@@ -201,9 +273,17 @@ export class FreeformBoard {
 
   private hover(point: Point): void {
     if (this.mode !== 'select' || this.chart === null) return;
-    const frame = this.frame();
-    if (frame !== null && distance(point, frame.handle) <= HANDLE_HIT) {
+    const handles = this.handles();
+    if (handles !== null && distance(point, handles.rotate) <= HANDLE_HIT) {
       this.canvas.style.cursor = 'grab';
+      return;
+    }
+    const corner = handles?.corners.find((at) => distance(point, at) <= HANDLE_HIT);
+    if (handles !== null && corner !== undefined) {
+      // On screen, whatever the frame's turn: down-right and up-left share one diagonal.
+      const { center } = handles.frame;
+      const sameSign = (corner.x - center.x) * (corner.y - center.y) > 0;
+      this.canvas.style.cursor = sameSign ? 'nwse-resize' : 'nesw-resize';
       return;
     }
     const hit = stitchAt(this.chart, point, (placed) => this.reachOf(placed));
@@ -223,27 +303,37 @@ export class FreeformBoard {
   }
 
   private reachOf(placed: PlacedStitch): number {
-    return this.symbolOf(placed).reach;
+    return Math.max(MIN_REACH, this.symbolOf(placed).reach * placed.scale);
   }
 
-  /** The frame around the selected stitches with its rotation handle, which drops below when the top is too near. */
-  private frame(): Frame | null {
-    if (this.chart === null || this.selection.size === 0) return null;
-    let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
-    for (const placed of this.chart.stitches) {
-      if (!this.selection.has(placed.id)) continue;
-      const reach = this.reachOf(placed) + FRAME_PAD;
-      minX = Math.min(minX, placed.x - reach);
-      minY = Math.min(minY, placed.y - reach);
-      maxX = Math.max(maxX, placed.x + reach);
-      maxY = Math.max(maxY, placed.y + reach);
-    }
-    if (minX === Infinity) return null;
-    const x = (minX + maxX) / 2;
-    const above = minY - HANDLE_GAP;
-    return above >= HANDLE_HIT
-      ? { rect: { minX, minY, maxX, maxY }, handle: { x, y: above }, stem: minY }
-      : { rect: { minX, minY, maxX, maxY }, handle: { x, y: maxY + HANDLE_GAP }, stem: maxY };
+  /**
+   * The rotation handle stands above the frame, and drops below it where above
+   * would leave the board. While a turn is dragged, the frame is the one at the
+   * press turned by the drag, and the handle keeps its side.
+   */
+  private handles(): Handles | null {
+    if (this.chart === null) return null;
+    const drag = this.drag;
+    const frame =
+      drag?.kind === 'rotate'
+        ? { ...drag.frame, angle: drag.frame.angle + drag.angle }
+        : selectionFrame(this.chart, this.selection, (placed) => this.reachOf(placed) + FRAME_PAD);
+    if (frame === null) return null;
+    const at = (local: Point): Point => {
+      const offset = turn(local, frame.angle);
+      return { x: frame.center.x + offset.x, y: frame.center.y + offset.y };
+    };
+    const { width, height } = this.size();
+    const onBoard = (p: Point): boolean =>
+      p.x >= HANDLE_HIT && p.y >= HANDLE_HIT && p.x <= width - HANDLE_HIT && p.y <= height - HANDLE_HIT;
+    const above = at({ x: 0, y: -(frame.halfHeight + HANDLE_GAP) });
+    const side = drag?.kind === 'rotate' ? drag.side : onBoard(above) ? -1 : 1;
+    return {
+      frame,
+      rotate: side === -1 ? above : at({ x: 0, y: frame.halfHeight + HANDLE_GAP }),
+      side,
+      corners: CORNERS.map(({ x, y }) => at({ x: x * frame.halfWidth, y: y * frame.halfHeight })),
+    };
   }
 
   private draw(): void {
@@ -258,11 +348,12 @@ export class FreeformBoard {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, cssWidth, cssHeight);
     for (const placed of this.chart.stitches) {
+      const scale = STITCH_SCALE * placed.scale;
       ctx.save();
       ctx.translate(placed.x, placed.y);
       ctx.rotate(placed.rotation);
-      applyInk(ctx, this.selection.has(placed.id) ? this.accent : this.ink, 2 / STITCH_SCALE);
-      drawCentered(ctx, this.symbolOf(placed).shapes, STITCH_SCALE);
+      applyInk(ctx, this.selection.has(placed.id) ? this.accent : this.ink, 2 / scale);
+      drawCentered(ctx, this.symbolOf(placed).shapes, scale);
       ctx.restore();
     }
     this.drawFrame(ctx);
@@ -276,22 +367,28 @@ export class FreeformBoard {
     }
   }
 
+  /** Drawn in frame space, so the frame, its corners and the handle all turn with the stitches. */
   private drawFrame(ctx: CanvasRenderingContext2D): void {
-    const frame = this.frame();
-    if (frame === null) return;
-    const { rect, handle, stem } = frame;
+    const handles = this.handles();
+    if (handles === null) return;
+    const { center, angle, halfWidth: hw, halfHeight: hh } = handles.frame;
     ctx.save();
+    ctx.translate(center.x, center.y);
+    ctx.rotate(angle);
     applyInk(ctx, this.accent, 1);
     ctx.setLineDash([4, 3]);
-    ctx.strokeRect(rect.minX, rect.minY, rect.maxX - rect.minX, rect.maxY - rect.minY);
+    ctx.strokeRect(-hw, -hh, hw * 2, hh * 2);
     ctx.setLineDash([]);
+    const edge = handles.side * hh;
+    const knob = handles.side * (hh + HANDLE_GAP);
     ctx.beginPath();
-    ctx.moveTo(handle.x, stem);
-    ctx.lineTo(handle.x, handle.y);
+    ctx.moveTo(0, edge);
+    ctx.lineTo(0, knob);
     ctx.stroke();
     ctx.beginPath();
-    ctx.arc(handle.x, handle.y, HANDLE_R, 0, Math.PI * 2);
+    ctx.arc(0, knob, HANDLE_R, 0, Math.PI * 2);
     ctx.fill();
+    for (const { x, y } of CORNERS) ctx.fillRect(x * hw - CORNER / 2, y * hh - CORNER / 2, CORNER, CORNER);
     ctx.restore();
   }
 }

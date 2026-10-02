@@ -108,20 +108,71 @@ test('Shift + click adds a stitch to the selection and takes it out again', asyn
   expect(await selected(page)).toBe('1');
 });
 
-test('the round handle turns the selection', async ({ page }) => {
+test('Ctrl or ⌘ + click adds a stitch to the selection too, and takes it out again', async ({ page }) => {
+  await chartWith(page, /^Single crochet \(sc\)/, [
+    [150, 150],
+    [350, 150],
+    [550, 150],
+  ]);
+  const board = page.locator('#board');
+  await board.click({ position: { x: 150, y: 150 } });
+  await board.click({ position: { x: 350, y: 150 }, modifiers: ['ControlOrMeta'] });
+  await board.click({ position: { x: 550, y: 150 }, modifiers: ['ControlOrMeta'] });
+  expect(await selected(page)).toBe('3');
+  await board.click({ position: { x: 350, y: 150 }, modifiers: ['ControlOrMeta'] });
+  expect(await selected(page)).toBe('2');
+});
+
+test('the round handle turns the selection, and the handle turns with it', async ({ page }) => {
   await chartWith(page, /^Double crochet \(dc\)/, [[300, 300]]);
   await page.locator('#board').click({ position: { x: 300, y: 300 } });
-  const upright = (await inkBox(page, around(300, 300, 24)))!;
-  expect(upright.maxY - upright.minY, 'a double crochet stands tall').toBeGreaterThan(upright.maxX - upright.minX);
 
   // The handle is the topmost ink straight above the stitch.
   const column = (await inkBox(page, { minX: 299, minY: 150, maxX: 301, maxY: 300 }))!;
   const handle: [number, number] = [300, column.minY + 6];
+  const reach = 300 - handle[1];
   // A quarter turn clockwise: from straight above the centre to straight right of it.
-  await drag(page, handle, [300 + (300 - handle[1]), 300]);
+  await drag(page, handle, [300 + reach, 300]);
 
-  const turned = (await inkBox(page, around(300, 300, 24)))!;
+  // The handle followed: it now stands to the right of the stitch, and nothing is left above it.
+  expect(await inkBox(page, around(300 + reach, 300, 5)), 'the handle is to the right').not.toBeNull();
+  expect(await inkBox(page, around(300, handle[1], 5)), 'and gone from above').toBeNull();
+
+  await page.keyboard.press('Escape');
+  const turned = (await inkBox(page, around(300, 300, 30)))!;
   expect(turned.maxX - turned.minX, 'turned a quarter, it lies flat').toBeGreaterThan(turned.maxY - turned.minY);
+});
+
+test('a corner handle makes the selection larger and smaller, gaps included', async ({ page }) => {
+  await chartWith(page, /^Single crochet \(sc\)/, [
+    [300, 300],
+    [360, 300],
+  ]);
+  await drag(page, [270, 270], [390, 330]);
+  expect(await selected(page)).toBe('2');
+  // The frame's lower right corner: the lowest, rightmost ink below the handle.
+  const frame = (await inkBox(page, { minX: 250, minY: 270, maxX: 420, maxY: 360 }))!;
+  const corner: [number, number] = [frame.maxX - 4, frame.maxY - 4];
+  const center: [number, number] = [330, 300];
+  // Twice as far from the centre: twice the size.
+  await drag(page, corner, [center[0] + (corner[0] - center[0]) * 2, center[1] + (corner[1] - center[1]) * 2]);
+  await page.keyboard.press('Escape');
+
+  expect(await inkBox(page, around(270, 300, 6)), 'the left stitch moved out to x = 270').not.toBeNull();
+  expect(await inkBox(page, around(390, 300, 6)), 'the right one to x = 390').not.toBeNull();
+  const big = (await inkBox(page, around(390, 300, 40)))!;
+  expect(big.maxX - big.minX, 'a single crochet is drawn twice as wide').toBeGreaterThan(36);
+
+  await page.locator('#board').click({ position: { x: 390, y: 300 } });
+  const small = (await inkBox(page, { minX: 340, minY: 250, maxX: 460, maxY: 360 }))!;
+  await drag(
+    page,
+    [small.maxX - 4, small.maxY - 4],
+    [390 + (small.maxX - 4 - 390) / 4, 300 + (small.maxY - 4 - 300) / 4],
+  );
+  await page.keyboard.press('Escape');
+  const shrunk = (await inkBox(page, around(390, 300, 40)))!;
+  expect(shrunk.maxX - shrunk.minX, 'and a quarter of that after shrinking').toBeLessThan(16);
 });
 
 test('a plain click on one stitch of a selection narrows it to that one, and does not move it', async ({ page }) => {
@@ -177,4 +228,22 @@ test('a click on empty paper or Escape clears the selection, and a stitch tile p
   await expect(page.getByRole('button', { name: 'Select' })).toHaveAttribute('aria-pressed', 'false');
   await board.click({ position: { x: 200, y: 200 } });
   expect(await selected(page), 'a click with a stitch armed places, it does not select').toBe('0');
+});
+
+test('a stitch shrunk to the smallest size is still taken by a press on it, and moves', async ({ page }) => {
+  await chartWith(page, /^Single crochet \(sc\)/, [[300, 300]]);
+  await page.locator('#board').click({ position: { x: 300, y: 300 } });
+  const frame = (await inkBox(page, around(300, 300, 30)))!;
+  // Far past the centre: the resize stops at the smallest size.
+  await drag(page, [frame.maxX - 4, frame.maxY - 4], [250, 250]);
+  await page.keyboard.press('Escape');
+  const tiny = (await inkBox(page, around(300, 300, 30)))!;
+  expect(tiny.maxX - tiny.minX, 'it is a quarter of its size').toBeLessThan(10);
+
+  await page.locator('#board').click({ position: { x: 301, y: 301 } });
+  expect(await selected(page)).toBe('1');
+  await drag(page, [301, 301], [450, 380]);
+  await page.keyboard.press('Escape');
+  expect(await inkBox(page, around(449, 379, 10)), 'it moved, it did not grow').not.toBeNull();
+  expect(await inkBox(page, around(300, 300, 10))).toBeNull();
 });

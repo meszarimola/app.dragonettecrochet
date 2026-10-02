@@ -21,7 +21,7 @@ export const MARKUP_TEXTS = {
     irregularNewTitle: 'Új szabálytalan minta',
     toolPointerLabel: 'Kijelölés',
     selectToolTip:
-      'Kijelölés: kattints egy szemre, vagy húzz területet; Shift + kattintás: több szem. A kijelölést húzva mozgathatod, a kerek fogóval forgathatod.',
+      'Kijelölés: kattints egy szemre, vagy húzz területet; Ctrl/⌘ vagy Shift + kattintás: több szem. A kijelölést húzva mozgathatod, a kerek fogóval forgathatod, a sarkoknál nagyíthatod és kicsinyítheted.',
     sectionStitchesTitle: 'Szemek',
     stitchesPaletteLabel: 'Szemek',
     boardIrregularLabel: 'Szabadkézi diagram: válassz szemet, és kattints a rajzlapra',
@@ -41,7 +41,7 @@ export const MARKUP_TEXTS = {
     irregularNewTitle: 'New free-form pattern',
     toolPointerLabel: 'Select',
     selectToolTip:
-      'Select: click a stitch or drag an area; Shift + click: several. Drag the selection to move it, the round handle to rotate it.',
+      'Select: click a stitch or drag an area; Ctrl/⌘ or Shift + click: several. Drag the selection to move it, the round handle to rotate it, a corner to make it larger or smaller.',
     sectionStitchesTitle: 'Stitches',
     stitchesPaletteLabel: 'Stitches',
     boardIrregularLabel: 'Free-form chart: pick a stitch and click the drawing area',
