@@ -1075,7 +1075,7 @@ body.is-selecting #board-irregular {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-1);
-  margin: 0;
+  margin: 0 0 1.5rem;
   font-size: 0.8125rem;
   color: var(--c-text-soft);
 }
@@ -1180,11 +1180,10 @@ body.is-selecting #board-irregular {
   color: var(--c-text-soft);
 }
 
+/* KB: interface.md §81 — the nudge box keeps a flush top whatever precedes it in
+   the panel, because what precedes it is hidden most of the time and a
+   positional selector cannot see that. Its neighbours carry the air. */
 .check {
-  margin-block-start: 1.5rem;
-}
-
-.check:first-child {
   margin-block: 0 1.5rem;
 }
 
@@ -1890,10 +1889,6 @@ body.is-selecting #board-irregular {
 
 .section[open] > .section__head::after {
   transform: translateY(0.1rem) rotate(-135deg);
-}
-
-.section .count {
-  margin: 0 0 var(--sp-3);
 }
 
 .insertion {

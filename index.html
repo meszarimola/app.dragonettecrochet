@@ -474,10 +474,6 @@
         <aside class="stitches" id="section-stitches" aria-labelledby="stitches-title">
           <h2 class="panel__title" id="stitches-title" data-i18n="sectionStitchesTitle">Stitches</h2>
           <div class="palette" id="palette" role="group" aria-label="Stitches" data-i18n-label="stitchesPaletteLabel"></div>
-          <p class="count" id="count-field" hidden>
-            <label for="chain-count" data-i18n="stitchesChainCountLabel">Number of chains</label>
-            <input id="chain-count" type="number" min="1" max="500" step="1" value="12" inputmode="numeric" />
-          </p>
           <fieldset class="insertion" id="insertion" aria-describedby="insertion-note" hidden>
             <legend data-i18n="stitchesInsertionLegend">Insertion</legend>
             <div class="insertion__options"></div>
@@ -551,6 +547,11 @@
         </aside>
 
         <aside class="panel" id="panel" aria-label="Stitches and settings" data-i18n-label="panelLabel">
+          <!-- KB: interface.md §81 -->
+          <p class="count" id="count-field" hidden>
+            <label for="chain-count" data-i18n="stitchesChainCountLabel">Number of chains</label>
+            <input id="chain-count" type="number" min="1" max="500" step="1" value="1" inputmode="numeric" />
+          </p>
           <section class="check" id="adjust" aria-labelledby="adjust-title" hidden>
             <h2 class="panel__title" id="adjust-title" data-i18n="adjustTitle">Nudge the selected symbol</h2>
             <p class="panel__hint" id="adjust-name"></p>

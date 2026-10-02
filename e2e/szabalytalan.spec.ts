@@ -92,7 +92,7 @@ test('selecting, duplicating and undo (AS-15, AS-19)', async ({ page }) => {
 test('the drawing survives a reload; picking a type starts that type anew (AS-1, PQW-1045)', async ({ page }) => {
   await open(page);
 
-  // A regular pattern first: a foundation chain of three.
+  // A regular pattern first: a foundation chain of two, one chain per Enter (KB: interface.md §81).
   await page.locator('#board').focus();
   await page.keyboard.press('Alt+1');
   await page.locator('#board').focus();

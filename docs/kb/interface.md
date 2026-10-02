@@ -718,10 +718,14 @@ with the rest, and `updateControls()` recomputes it on the way back. `nudge` and
 never exposed: `irregularKey` swallows Alt+arrow by default, above.
 
 The third was found in review and is the reason the other two are not the end of
-it. `#section-stitches` is shared like the notation, so the palette and the
-`#chain-count` field stay in free-form mode — and the keydown handler answers
-Enter there **before** `irregularKey` can swallow it, to keep the promise the
-palette hint makes. `workAtCursor` crocheted that into the hidden document.
+it. `#section-stitches` is shared like the notation, so the palette stays in
+free-form mode — and the keydown handler answers Enter in `#chain-count`
+**before** `irregularKey` can swallow it, to keep the promise the palette hint
+makes. `workAtCursor` crocheted that into the hidden document. Since PQW-1135
+the count field is in `#panel` rather than in that shared column (§81), which
+changes nothing here: `showIrregularView` hides the regular type's sections one
+by one and the count field is not among them, so it is still shared — by
+omission now rather than by its parent.
 
 **What is left is held by visibility, not by a guard.** `delete-last`, `same`,
 `fill-row`, `end-row`, `close-round` and `spiral-round` all reach `commit()`
@@ -1299,17 +1303,19 @@ toolbar button, this is worth revisiting.
 ## §55 What the panel shows first, and what it scrolls to
 
 *Since PQW-989 „Szemek” is the left column rather than the panel's first section
-(§56); the order inside it — palette, then the count and the insertion — is this
-section's.*
+(§56); the order inside it — palette, then the insertion — is this section's.
+`#count-field` left that column for the head of the right panel in PQW-1135
+(§81), because below a 904 px palette it was out of sight.*
 
 Two orderings inside the right panel, both measured at 1000 × 506 after the
 generators left for the sheet (§54).
 
 **The palette leads „Szemek”.** `#insertion` is 205 px tall and stood above it, so
 arming a stitch that takes insertion modes pushed the grid from y 169 to y 390
-and three of the seven basic cells left the window. It now follows the palette,
-with `#count-field`. That is also the order of the task: you pick the stitch
-first and say where it goes second.
+and three of the seven basic cells left the window. It follows the palette now —
+as `#count-field` did until PQW-1135 took it to the right panel (§81). That is
+also the order of the task: you pick the stitch first and say where it goes
+second.
 
 **`#adjust` follows „Szemek”, and scrolls itself into view.** It used to stand
 after every setting, so in a 506 px window it appeared 436 px below the fold —
@@ -2193,3 +2199,79 @@ editor seeds the stored type in an init script (`e2e/kezdet.ts`) rather than
 clicking its way through the type menu first: the specs are about the editor, and
 the arrival itself has its own spec. `kezdet.ts` is not a `*.spec.ts`, so
 Playwright's default `testMatch` leaves it alone.
+
+## §81 The chain count stands at the head of the right panel, and starts at one
+
+PQW-1135, the owner's report: *„amikor kiválasztok egy láncszemet, akkor van
+arra lehetőség, hogy láncszemsort tegyek le, pl 12 szemet. viszont a szemhez
+tartozó szám az lenn van a szemkiválasztó panel alján.”*
+
+§55 put `#count-field` under the palette, in the order of the task: pick the
+stitch first, say where it goes second. §56 then moved the palette into a left
+column of its own, and the order survived the move while the reason for it did
+not. Measured at 1440 × 900 with the chain stitch armed:
+
+| | |
+|---|---|
+| visible band of `#section-stitches` | y 236 – 900 |
+| height of `#palette` | 904 px |
+| `#count-field` | **y 1179** |
+
+So the field stood 279 px below the fold of its own column. Arming the chain
+stitch is the one action that needs it, and it answered by being out of sight.
+
+**It leads `#panel` instead.** The right column is the one that is empty at the
+top — „Méret és fonal” is a closed `<details>` — so the field lands at y 103 in
+a panel that starts at y 85, whole and without a scroll at 1440 × 900 and at
+1000 × 506 alike. It is still `hidden` unless the armed stitch is `chain` or
+`space`, which is the rule it already had; `ch-sp` has no palette tile today, so
+in practice the chain stitch is what brings it.
+
+**The nudge box keeps its flush top.** `#adjust` was `.check:first-child` and is
+not any more, and `[hidden]` does not change that — `:first-child` is structural.
+`.panel > .count:first-child + .check` carries the same margin, so with the count
+hidden „Méret és fonal” starts at the same y 103 the count would have had.
+
+**Arming a stitch closes the make-a-pattern sheet.** The sheet is `min(34rem,
+92vw)` at `z-index: 7` against the panel's `min(19rem, 80vw)` at 6, so it covers
+the panel whole (§54). „Új” → „Lapos forma” leaves it open with the palette
+live, and a count field at the head of the panel would un-hide behind it:
+`elementFromPoint` over the input answered with the sheet's own `summary`, and
+Enter would then lay the new default of one chain with no way to say otherwise.
+Found in review, not by a test. `select` closes the sheet, which is also what
+the two surfaces mean — the sheet's own note says the pattern it makes replaces
+the current one, so hand-crocheting under it is work about to be thrown away,
+and the written panel and the free-form type already close it (§54, §39).
+
+**Only a change arms.** `select(tool)` re-applies the armed stitch after a
+notation or an interface-language change (§6). Closing the sheet on every
+`select` with a non-null id would take away a sheet the user opened *after*
+arming, on a language change they made meanwhile; the guard is `id !== tool`.
+
+**The default is 1, not 12.** The owner asked for it in the same report:
+*„alapértelmezetten 1 legyen, ne 12”*. Twelve was an arbitrary row width that
+every one-chain user had to overwrite, and the field is in sight now, so there
+is nothing to be saved by guessing one. `owner-decisions.md` §18 holds the
+decision.
+
+**That default was load-bearing in the browser suite, in two ways.**
+
+- `elrendezes.spec.ts` armed the chain stitch and pressed Enter without setting
+  a count, and got its twelve-chain foundation by accident, at both window
+  sizes. It says 12 now, where it means ten stitches plus the skip of two. Three
+  other specs lay a foundation the same way and do not care how long it is;
+  `szabalytalan.spec.ts` was commenting on a chain of three while getting
+  twenty-four, and gets two now.
+- `rectangle()` in `meret.spec.ts` focused `#chain-count` *before* arming the
+  chain stitch, so it typed into a `display: none` field: the keystrokes went
+  nowhere and every rectangle it built was twelve chains wide whatever the
+  caller asked for. Playwright's `focus()` does not demand a visible element the
+  way `fill()` does, which is why nothing failed. The helper arms first and
+  fills now, and a hidden field would fail the spec rather than be ignored.
+
+**What the tests pin.** `e2e/elrendezes.spec.ts`: at both window sizes the field
+is hidden until the chain stitch is armed, then stands whole inside an unscrolled
+`#panel` above `#section-size`, its value is `1`, and arming a single crochet
+takes it away again and gives the head back to „Méret és fonal”. A spec of its
+own arrives through „Új” with the sheet open, arms the chain stitch, and asks
+`elementFromPoint` whether the field takes its own clicks.

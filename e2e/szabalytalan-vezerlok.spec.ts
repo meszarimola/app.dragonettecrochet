@@ -135,9 +135,10 @@ test('the shared palette does not crochet into the hidden pattern from the chain
   const before = await saved(page);
 
   await chooseIrregular(page);
-  // `#section-stitches` is shared, so the palette and the count field are still
-  // here, and Enter in the count field is handled before `irregularKey` gets to
-  // swallow it — the one keystroke the free-form editor never saw.
+  // The palette and the count field are shared across the types — the palette in
+  // `#section-stitches`, the count field at the head of `#panel` since PQW-1135 —
+  // and Enter in the count field is handled before `irregularKey` gets to swallow
+  // it: the one keystroke the free-form editor never saw.
   await page
     .locator('#palette')
     .getByRole('button', { name: /Chain \(ch\)/ })

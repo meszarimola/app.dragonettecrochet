@@ -363,3 +363,30 @@ names". Nobody could reach that combination deliberately anyway — the chooser
 is gone — so what was lost is a state only an old `localStorage` entry could
 produce. If the combination is ever wanted again, the chooser has to come back
 with it; `interface.md` §2 now says so rather than promising independence.
+
+## §18 The chain count is one by default, and stands where the stitch is chosen
+
+**Decided:** the „Láncszemek száma” field moves to the head of the right panel,
+shows only while a chain-like stitch is armed, and starts at **1**.
+
+**Ticket:** PQW-1135, 2026-10-02.
+
+> „amikor kiválasztok egy láncszemet, akkor van arra lehetőség, hogy
+> láncszemsort tegyek le, pl 12 szemet. viszont a szemhez tartozó szám az lenn
+> van a szemkiválasztó panel alján. ez így nem jó, migráljuk fel a jobb
+> oldalra. csak akkor legyen látható a láncszemek száma, ha ki van válaszva a
+> láncszem. alapértelmezetten 1 legyen, ne 12”
+
+The measurement behind the first half is in `interface.md` §81: under a 904 px
+palette the field sat 279 px below the fold of its own column, so the one
+action that needs it answered out of sight.
+
+**The twelve is the part worth recording here**, because it is a product choice
+and not a layout one. Twelve was a guess at a row width, kept from a time when
+the field was reached once per pattern. It cost every one-chain user an edit,
+and it made „one chain” the harder of the two cases. One is the smallest true
+answer, and the field is now where the choice is made, so nothing is saved by
+guessing.
+
+What this gives up is the convenience of a ready-made foundation chain for the
+rectangle a tutorial starts with. The owner weighed that and chose one.
