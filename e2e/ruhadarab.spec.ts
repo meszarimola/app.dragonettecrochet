@@ -1,7 +1,7 @@
 /*
- * Garments (PQW-866): from the „Ruhadarab” section an adult hat and a drop
+ * Garments (PQW-866): from the "Garment" section an adult hat and a drop
  * shoulder sweater in size M, with a size series. Both are error-free, in the
- * written pattern the „Méretek” block stands in the form „S (M, L)”, and the
+ * written pattern the "Sizes" block stands in the form "S (M, L)", and the
  * creation can be undone in one step.
  */
 
@@ -9,7 +9,7 @@ import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
-  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
 }
 
@@ -34,26 +34,26 @@ async function writtenText(page: Page): Promise<string> {
   return (await page.locator('#written-text').textContent()) ?? '';
 }
 
-test('adult hat in size M, with an S–L series: error-free, with the „Méretek” block', async ({ page }) => {
+test('adult hat in size M, with an S–L series: error-free, with the "Sizes" block', async ({ page }) => {
   await open(page);
   const section = await openGarment(page);
 
-  await page.locator('#garment-kind').selectOption({ label: 'Sapka' });
+  await page.locator('#garment-kind').selectOption({ label: 'Hat' });
   await expect(page.locator('#garment-table-field')).toBeHidden();
   await expect(page.locator('#garment-size')).toHaveValue('adult-m');
-  await expect(page.locator('#garment-hem-label')).toHaveText('Perem, cm');
+  await expect(page.locator('#garment-hem-label')).toHaveText('Brim, cm');
   await expect(page.locator('#garment-result')).toHaveText(
-    /^Felnőtt M: kész körméret ≈ \d+ cm, magasság ≈ \d+ cm; \d+ kör\.$/,
+    /^Adult M: finished circumference ≈ \d+ cm, height ≈ \d+ cm; \d+ rounds\.$/,
   );
-  await expect(page.locator('#garment-checks')).toHaveText(/^Minden ellenőrzés igaz: (\d+)\/\1, 3 méret\.$/);
-  await expect(page.locator('#garment-series li').first()).toHaveText('Felnőtt S (Felnőtt M, Felnőtt L)');
+  await expect(page.locator('#garment-checks')).toHaveText(/^Every check is true: (\d+)\/\1, 3 sizes\.$/);
+  await expect(page.locator('#garment-series li').first()).toHaveText('Adult S (Adult M, Adult L)');
 
-  await section.getByRole('button', { name: 'Minta létrehozása' }).click();
-  await expect(page.locator('#status')).toContainText('Sapka, Felnőtt M méret (3 méretes sorozattal) elkészült');
-  await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
+  await section.getByRole('button', { name: 'Create pattern' }).click();
+  await expect(page.locator('#status')).toContainText('Hat, size Adult M (with a 3 size range) done');
+  await expect(page.locator('#error-count')).toHaveText('No errors');
   const text = await writtenText(page);
-  expect(text).toContain('Méretek\nFelnőtt S (Felnőtt M, Felnőtt L)');
-  expect(text).toMatch(/Korona: \d+ \(\d+, \d+\) kör/);
+  expect(text).toContain('Sizes\nAdult S (Adult M, Adult L)');
+  expect(text).toMatch(/Crown: \d+ \(\d+, \d+\) rnds/);
 });
 
 test('drop shoulder sweater in size M, with an S–L series: four pieces with seams, error-free, undoable', async ({
@@ -65,22 +65,20 @@ test('drop shoulder sweater in size M, with an S–L series: four pieces with se
   await expect(page.locator('#garment-kind')).toHaveValue('drop-shoulder');
   await expect(page.locator('#garment-size')).toHaveValue('M');
   await expect(page.locator('#garment-result')).toHaveText(
-    /^M: kész mellbőség ≈ \d+ cm, hossz ≈ \d+ cm, ujjhossz ≈ \d+ cm\.$/,
+    /^M: finished bust ≈ \d+ cm, length ≈ \d+ cm, sleeve length ≈ \d+ cm\.$/,
   );
-  await expect(page.locator('#garment-checks')).toHaveText(/^Minden ellenőrzés igaz/);
+  await expect(page.locator('#garment-checks')).toHaveText(/^Every check is true/);
   await expect(page.locator('#garment-failed li')).toHaveCount(0);
 
-  await section.getByRole('button', { name: 'Minta létrehozása' }).click();
-  await expect(page.locator('#status')).toContainText(
-    'Ledobott vállú pulóver, M méret (3 méretes sorozattal) elkészült',
-  );
-  await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
+  await section.getByRole('button', { name: 'Create pattern' }).click();
+  await expect(page.locator('#status')).toContainText('Drop-shoulder sweater, size M (with a 3 size range) done');
+  await expect(page.locator('#error-count')).toHaveText('No errors');
   const text = await writtenText(page);
-  expect(text).toContain('Méretek\nS (M, L)');
-  expect(text).toMatch(/Bal ujj\n1. sor – alapsor: \d+ lsz\./);
-  expect(text).toMatch(/Varrás: Hátrész, 1–\d+\. sor bal széle \(\d+ sorvég\) → Elejerész/);
+  expect(text).toContain('Sizes\nS (M, L)');
+  expect(text).toMatch(/Left sleeve\nRow 1 – foundation: ch \d+\./);
+  expect(text).toMatch(/Sew: Back, Rows 1–\d+, left edge \(\d+ row ends\) to Front/);
 
   await page.keyboard.press('ControlOrMeta+Z');
-  await expect(page.locator('#status')).toContainText('Visszavonva.');
-  await expect(page.locator('#written-text')).not.toContainText('Méretek');
+  await expect(page.locator('#status')).toContainText('Undone.');
+  await expect(page.locator('#written-text')).not.toContainText('Sizes');
 });

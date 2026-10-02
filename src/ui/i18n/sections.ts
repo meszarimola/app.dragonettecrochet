@@ -104,7 +104,8 @@ export interface SectionTexts {
       readonly yarnInPiece: string;
       readonly lengthWithBuffer: string;
       readonly balls: string;
-      readonly ballsUnit: string;
+      /** Hungarian puts no plural after a numeral, so only the English branch reads the count. KB: dictionaries.md §5 */
+      readonly ballsUnit: (count: number) => string;
       readonly yarnNote: (ballMassG: string, ballLengthM: string) => string;
       readonly missingNote: (list: string) => string;
       readonly range: (range: string) => string;
@@ -265,7 +266,7 @@ const hu: SectionTexts = {
       yarnInPiece: 'Fonal a darabban',
       lengthWithBuffer: 'Hossz tartalékkal',
       balls: 'Gombolyag',
-      ballsUnit: 'db',
+      ballsUnit: (_count: number) => 'db',
       yarnNote: (ballMassG, ballLengthM) =>
         `Egy gombolyag ${ballMassG} g, ${ballLengthM} m. A próbadarab tömegéből, 10–15 % tartalékkal, egész gombolyagra felfelé kerekítve.`,
       missingNote: (list) => `A fonalbecsléshez hiányzik: ${list}.`,
@@ -435,7 +436,7 @@ const en: SectionTexts = {
       yarnInPiece: 'Yarn in the piece',
       lengthWithBuffer: 'Length with extra',
       balls: 'Balls',
-      ballsUnit: 'balls',
+      ballsUnit: (count: number) => (count === 1 ? 'ball' : 'balls'),
       yarnNote: (ballMassG, ballLengthM) =>
         `One ball is ${ballMassG} g, ${ballLengthM} m. From the mass of the swatch, with 10–15 % extra, rounded up to whole balls.`,
       missingNote: (list) => `The yarn estimate is missing: ${list}.`,

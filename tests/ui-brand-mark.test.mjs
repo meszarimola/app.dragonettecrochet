@@ -71,7 +71,7 @@ test('the menu-bar brand mark uses the same drawing and crop as the favicon', ()
 test('the brand mark is decorative and the name stays as text beside it', () => {
   assert.match(MARK, /aria-hidden="true"/);
   assert.match(MARK, /focusable="false"/);
-  assert.match(INDEX, /<\/svg>\s*<h1 class="bar__title" data-i18n="barTitle">Mintatervező<\/h1>/);
+  assert.match(INDEX, /<\/svg>\s*<h1 class="bar__title" data-i18n="barTitle">Pattern designer<\/h1>/);
 });
 
 test('the brand mark colours come from the design tokens and match the palette', () => {

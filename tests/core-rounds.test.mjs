@@ -37,7 +37,7 @@ import { renderCoreText } from '../src/ui/i18n/core/render.ts';
 import { grannySquare } from './fixtures/examples.ts';
 
 /** The core returns a code and data (PQW-904); the Hungarian sentence comes from the UI dictionary. */
-const hu = (message) => renderCoreText(AMIGURUMI_CORE_TEXTS.hu, message);
+const hu = (message) => renderCoreText(AMIGURUMI_CORE_TEXTS, 'hu', message);
 const why = (result) => (result.ok ? '' : typeof result.reason === 'string' ? result.reason : hu(result.reason));
 
 const ok = (result) => {

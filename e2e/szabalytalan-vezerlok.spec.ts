@@ -1,10 +1,10 @@
 /*
  * The three controls that reached the hidden regular document without passing a
  * generator section, so PQW-976 hiding the sections did not protect them
- * (PQW-980): the „Előbeállítás” select of the shared `#section-notation`, which
- * ran `setTradition`; the „Kijelölt jel igazítása” box, which only
+ * (PQW-980): the "Preset" select of the shared `#section-notation`, which
+ * ran `setTradition`; the "Nudge the selected symbol" box, which only
  * `updateControls()` ever hid and `refresh()` does not reach in this type, so it
- * came through with its arrows and „Számolt helyre” live; and the `#chain-count`
+ * came through with its arrows and "Back to the computed place" live; and the `#chain-count`
  * field of the shared `#section-stitches`, whose Enter is answered above
  * `irregularKey`.
  *
@@ -19,19 +19,19 @@ const STORAGE_KEY = 'dc-mintatervezo:minta';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
-  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
 }
 
 async function chooseIrregular(page: Page): Promise<void> {
   await page.locator('#types-toggle').click();
-  await page.getByRole('button', { name: /Szabad tervező/ }).click();
+  await page.getByRole('button', { name: /Free-form designer/ }).click();
   await expect(page.locator('#board-irregular')).toBeVisible();
 }
 
 async function chooseRegular(page: Page): Promise<void> {
   await page.locator('#types-toggle').click();
-  await page.getByRole('button', { name: /Szabályos horgolás/ }).click();
+  await page.getByRole('button', { name: /Regular crochet/ }).click();
   await expect(page.locator('#board')).toBeVisible();
 }
 
@@ -66,11 +66,11 @@ async function circle(page: Page): Promise<void> {
   await openSection(page, '#section-rounds');
   await page.locator('#rounds-count').fill('4');
   await page.locator('#rounds-count').press('Tab');
-  await page.locator('#section-rounds').getByRole('button', { name: 'Minta létrehozása' }).click();
-  await expect(page.locator('#status')).toContainText('Lapos kör, 4 kör elkészült;');
+  await page.locator('#section-rounds').getByRole('button', { name: 'Create pattern' }).click();
+  await expect(page.locator('#status')).toContainText('Flat circle: 4 rounds done;');
   // The sheet stays open after generating (PQW-987) and stands over the panel, so the
   // tests that go on to use the panel close it.
-  await page.locator('#setup').getByRole('button', { name: 'Lecsukás' }).click();
+  await page.locator('#setup').getByRole('button', { name: 'Collapse' }).click();
 }
 
 /** Selects the last symbol, which is what reveals the adjust box. */
@@ -96,9 +96,9 @@ test('the adjust box leaves with the regular editor, and its buttons stop writin
   await open(page);
   await circle(page);
   await selectLastSymbol(page);
-  // Nudged once here, so „Számolt helyre” has a pin to clear in free-form mode.
-  await page.locator('#adjust').getByRole('button', { name: 'Fel' }).click();
-  await expect(page.locator('#adjust-name')).toContainText('kézzel igazítva');
+  // Nudged once here, so "Back to the computed place" has a pin to clear in free-form mode.
+  await page.locator('#adjust').getByRole('button', { name: 'Up' }).click();
+  await expect(page.locator('#adjust-name')).toContainText('moved by hand');
   const before = await saved(page);
 
   await chooseIrregular(page);
@@ -122,7 +122,7 @@ test('the adjust box leaves with the regular editor, and its buttons stop writin
   await page.keyboard.press('ControlOrMeta+Z');
   await selectLastSymbol(page);
   await expect(page.locator('#adjust')).toBeVisible();
-  await expect(page.locator('#adjust-name')).toContainText('kézzel igazítva');
+  await expect(page.locator('#adjust-name')).toContainText('moved by hand');
 });
 
 test('the shared palette does not crochet into the hidden pattern from the chain count', async ({ page }) => {
@@ -136,7 +136,7 @@ test('the shared palette does not crochet into the hidden pattern from the chain
   // swallow it — the one keystroke the free-form editor never saw.
   await page
     .locator('#palette')
-    .getByRole('button', { name: /Láncszem \(lsz\)/ })
+    .getByRole('button', { name: /Chain \(ch\)/ })
     .first()
     .click();
   await expect(page.locator('#count-field')).toBeVisible();

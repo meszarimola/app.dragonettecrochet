@@ -81,10 +81,17 @@ dictionary that owns it instead of repeating the words.
 
 `applyStaticTexts` (`i18n.ts`) substitutes by key from the `data-i18n` (text),
 `data-i18n-tip` (own tooltip), `data-i18n-label` (`aria-label`),
-`data-i18n-content` (`content`) and `data-i18n-roledescription`
-(`aria-roledescription`) attributes. A key in the HTML and a key here therefore
-have to match exactly, and a label corrected in the HTML has to be corrected
-here too.
+`data-i18n-content` (`content`), `data-i18n-roledescription`
+(`aria-roledescription`) and `data-i18n-value` (an input's default) attributes.
+A key in the HTML and a key here therefore have to match exactly, and a label
+corrected in the HTML has to be corrected here too.
+
+`data-i18n-value` is the one that does not simply overwrite. An input may hold
+something the user typed, and `interface.md` §8 says such a field is never
+overwritten, so the swap happens only while the field is empty or still holds
+one of the languages' defaults for that key. That is also why the Hungarian
+decimal of `garmentBelowValue` is a dictionary value rather than a number
+formatted at runtime: it is a default the user then edits.
 
 Since PQW-1100 the markup carries the **English** branch, because English is the
 default language: `ui-i18n.test.mjs` compares `index.html` with `MARKUP_TEXTS.en`.
@@ -122,3 +129,17 @@ Two boundaries escape the type system, because the key arrives as a string:
 
 That is why `renderCoreText` takes the dictionary **pair** and the language
 rather than an already-resolved branch: a resolved branch cannot fall back.
+
+## §10 Two Hungarian literals shipped in the English markup, and the scan could not see them
+
+PQW-1100 translated `index.html` from the dictionary and then checked the result
+by scanning for accented letters. `Fej` (the default amigurumi piece name) and
+`Nincs hiba` (the first paint of the error bar) both survived that scan, because
+neither word carries an accent. Both reached the built English page.
+
+An accent scan answers "is this Hungarian text", which is not the question. The
+question is "does this text come from the dictionary", and `ui-i18n.test.mjs`
+now asks it two ways: no Hungarian dictionary **value** may stand in the markup
+(matched on word boundaries, or `Profil` reads out of the English `Profile`),
+and no `<input>` may carry a non-numeric `value` without a `data-i18n-value`
+key. The accent scan stays as the cheap first net.

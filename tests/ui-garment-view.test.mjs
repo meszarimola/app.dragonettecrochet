@@ -32,17 +32,17 @@ const plan = (options) => {
 test('the selectable garments, size tables and sizes', () => {
   assert.deepEqual(
     KIND_CHOICES.map((choice) => choice.label),
-    ['Sapka', 'Ledobott vállú pulóver', 'Felülről horgolt raglán'],
+    ['Hat', 'Drop-shoulder sweater', 'Top-down raglan'],
   );
   assert.deepEqual(
     TABLE_CHOICES.map((choice) => choice.label),
-    ['Női', 'Férfi', 'Gyerek', 'Baba'],
+    ['Women', 'Men', 'Child', 'Baby'],
   );
   assert.deepEqual(
     sizeChoices('drop-shoulder', 'baby').map((choice) => choice.label),
-    ['3 hó', '6 hó', '12 hó', '18 hó', '24 hó'],
+    ['3 mo', '6 mo', '12 mo', '18 mo', '24 mo'],
   );
-  assert.equal(sizeChoices('hat', 'women')[8].label, 'Felnőtt M');
+  assert.equal(sizeChoices('hat', 'women')[8].label, 'Adult M');
 });
 
 test('fields: table, below-waist length and repeat appear only for a sweater, and the labels follow the garment', () => {
@@ -62,10 +62,10 @@ test('fields: table, below-waist length and repeat appear only for a sweater, an
     ribbing: true,
   });
   assert.equal(garmentFieldState('raglan').ribbing, true);
-  assert.equal(easeLabel('hat'), 'Bőség a fejkörfogathoz, cm');
-  assert.equal(hemLabel('hat'), 'Perem, cm');
-  assert.match(easeNote('hat'), /46 cm alatt −2,5 cm, fölötte −5 cm/);
-  assert.match(easeNote('drop-shoulder'), /15–30 cm bőség a szokásos/);
+  assert.equal(easeLabel('hat'), 'Ease at the head circumference, cm');
+  assert.equal(hemLabel('hat'), 'Brim, cm');
+  assert.match(easeNote('hat'), /−2\.5 cm below 46 cm, −5 cm above/);
+  assert.match(easeNote('drop-shoulder'), /usually has 15–30 cm of ease/);
 });
 
 test('defaults: the middle of the table with its neighbouring sizes, and a per-table below-waist length', () => {
@@ -85,22 +85,22 @@ test('the size series always contains the charted size', () => {
 
 test('sweater report: estimated finished size, shaped neckline, all checks true, and the series text', () => {
   const view = garmentView(plan(DEFAULT_GARMENT), false);
-  assert.match(view.size, /^M: kész mellbőség ≈ \d+ cm, hossz ≈ \d+ cm, ujjhossz ≈ \d+ cm\.$/);
-  assert.ok(view.details.some((line) => /^Váll: szélenként \d+ szem; a nyak \d+ szem\.$/.test(line)));
-  assert.ok(view.details.some((line) => /^Formázott nyak: elöl középen \d+ szem marad/.test(line)));
-  assert.match(view.checks, /^Minden ellenőrzés igaz: (\d+)\/\1, 3 méret\.$/);
+  assert.match(view.size, /^M: finished bust ≈ \d+ cm, length ≈ \d+ cm, sleeve length ≈ \d+ cm\.$/);
+  assert.ok(
+    view.details.some((line) => /^Shoulder: \d+ stitches at each edge; the neck is \d+ stitches\.$/.test(line)),
+  );
+  assert.ok(view.details.some((line) => /^Shaped neck: \d+ stitches stay at the centre front/.test(line)));
+  assert.match(view.checks, /^Every check is true: (\d+)\/\1, 3 sizes\.$/);
   assert.deepEqual(view.failed, []);
   assert.equal(view.series[0], 'S (M, L)');
-  assert.match(view.source, /^Nincs profil: a méret becslés/);
-  assert.ok(view.details.some((line) => /Fonalbecsléshez add meg/.test(line)));
+  assert.match(view.source, /^No profile: the size is an estimate/);
+  assert.ok(view.details.some((line) => /For a yarn estimate, give/.test(line)));
 });
 
 test('a suspicious table entry raises a warning on that size', () => {
   const view = garmentView(plan({ ...DEFAULT_GARMENT, size: '2X', from: '2X', to: '3X' }), false);
   assert.ok(
-    view.warnings.some((line) =>
-      /^A táblázat gyanús adata \(2X\): háthossz a derékig és keresztháti szélesség/.test(line),
-    ),
+    view.warnings.some((line) => /^Suspicious data in the table \(2X\): back waist length and cross back/.test(line)),
     view.warnings.join('\n'),
   );
 });
@@ -108,10 +108,10 @@ test('a suspicious table entry raises a warning on that size', () => {
 test('hat report and the message shown after generating', () => {
   const series = plan(DEFAULT_HAT);
   const view = garmentView(series, false);
-  assert.match(view.size, /^Felnőtt M: kész körméret ≈ \d+ cm, magasság ≈ \d+ cm; \d+ kör\.$/);
-  assert.ok(view.details.some((line) => /^Korona: \d+ kör, körönként \d+ szaporítás/.test(line)));
+  assert.match(view.size, /^Adult M: finished circumference ≈ \d+ cm, height ≈ \d+ cm; \d+ rounds\.$/);
+  assert.ok(view.details.some((line) => /^Crown: \d+ rounds, \d+ increases per round/.test(line)));
   assert.equal(
     generatedMessage(series),
-    'Sapka, Felnőtt M méret (3 méretes sorozattal) elkészült; visszavonással a korábbi minta visszajön.',
+    'Hat, size Adult M (with a 3 size range) done; undo brings the previous one back.',
   );
 });

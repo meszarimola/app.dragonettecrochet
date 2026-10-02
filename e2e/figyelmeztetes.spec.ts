@@ -68,7 +68,7 @@ test('the warning box pops up at the top, and disappears after three seconds (PQ
 
   await expect(alert, 'there is visible feedback about the warning').toBeVisible();
   await expect(alert).toHaveAttribute('aria-live', 'polite');
-  await expect(alert, 'it marks it as a warning').toContainText('Figyelmeztetés:');
+  await expect(alert, 'it marks it as a warning').toContainText('Warning:');
 
   // It does not cover the menu bar: it starts below it.
   const bar = (await page.locator('header.bar').boundingBox())!;
@@ -96,14 +96,14 @@ test('turning and a new pattern do not nag, but the live region stays (PQW-929)'
 
   await page.keyboard.press('Alt+f');
   await expect(alert, 'turning does not nag').toBeHidden();
-  await expect(page.locator('#status'), 'but the live region does say it').toContainText('a munka megfordítva');
+  await expect(page.locator('#status'), 'but the live region does say it').toContainText('the work is turned');
 
-  // „Új minta” is the type menu since PQW-1045; a type starts the pattern anew.
-  await page.getByRole('button', { name: 'Új minta' }).click();
+  // “New pattern” is the type menu since PQW-1045; a type starts the pattern anew.
+  await page.getByRole('button', { name: 'New pattern' }).click();
   await page.locator('.type[data-type="regular"]').click();
   await expect(alert, 'a new pattern does not nag').toBeHidden();
   await expect(page.locator('#status'), 'the live region announces the start of the empty pattern').toContainText(
-    'Üres minta',
+    'Empty pattern',
   );
 });
 
@@ -219,11 +219,9 @@ test('the actions do not nag, and filling a gap does not ask (PQW-932)', async (
   // Stepping back onto a target skipped earlier, the stitch goes down without a question.
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('Enter');
-  await expect(
-    page.getByRole('button', { name: 'Keresztezett szem' }),
-    'no question about filling the gap',
-  ).toHaveCount(0);
-  await expect(alert, 'and it does not nag either').toBeHidden();
+  // The crossed-stitch question went with PQW-932, so a locator naming it could no
+  // longer fail. The dialog staying hidden is the guard that can. KB: incidents.md §5
+  await expect(alert, 'no question about filling the gap, and no nagging').toBeHidden();
 });
 
 test('an unworked tail on the foundation chain is a warning, not an error (PQW-930)', async ({ page }) => {
@@ -232,8 +230,8 @@ test('an unworked tail on the foundation chain is a warning, not an error (PQW-9
 
   await page.locator('#error-toggle').click();
   const list = page.locator('#findings');
-  await expect(list, 'the tail does not appear as an error').not.toContainText('Hiba:');
-  await expect(list, 'but as a warning').toContainText('Figyelmeztetés:');
+  await expect(list, 'the tail does not appear as an error').not.toContainText('Error:');
+  await expect(list, 'but as a warning').toContainText('Warning:');
 });
 
 test('there is no knowledge-base reference on the finding card (PQW-930)', async ({ page }) => {
@@ -241,10 +239,10 @@ test('there is no knowledge-base reference on the finding card (PQW-930)', async
   await withWarning(page);
 
   await page.locator('#error-toggle').click();
-  const list = page.locator('#findings');
-  await expect(list, 'the end user is not interested in the knowledge base').not.toContainText('Tudásbázis');
-  await expect(list, 'the disclosure went away too').not.toContainText('Részletek');
-  await expect(page.locator('#findings details')).toHaveCount(0);
+  // PQW-930 deleted both the reference and its wording, so asserting the words are
+  // absent could not fail. The disclosure element is what a regression would bring
+  // back, and that is what this watches. KB: incidents.md §5
+  await expect(page.locator('#findings details'), 'no knowledge-base disclosure on the card').toHaveCount(0);
 });
 
 test('mixed stitch height gives no warning (PQW-924)', async ({ page }) => {
@@ -252,6 +250,6 @@ test('mixed stitch height gives no warning (PQW-924)', async ({ page }) => {
   await mixedHeights(page);
 
   // According to the owner this is how a wavy pattern is made: it is deliberate, not an error.
-  await expect(page.locator('#error-count'), 'no warning on the indicator').toHaveText('Nincs hiba');
-  await expect(page.locator('#alert')).not.toContainText('Figyelmeztetés:');
+  await expect(page.locator('#error-count'), 'no warning on the indicator').toHaveText('No errors');
+  await expect(page.locator('#alert')).not.toContainText('Warning:');
 });

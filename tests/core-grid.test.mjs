@@ -38,7 +38,7 @@ function build(pattern, kind = 'rows', options = {}) {
 
 const aim = (grid, point) => aimAt(grid, gridHit(grid, point));
 /** The core returns a code and data; the sentence is built in the UI dictionary (PQW-904). */
-const hu = (message) => renderCoreText(GRID_CORE_TEXTS.hu, message);
+const hu = (message) => renderCoreText(GRID_CORE_TEXTS, 'hu', message);
 
 describe('row grid: cells sit exactly on the computed positions', () => {
   const cases = [

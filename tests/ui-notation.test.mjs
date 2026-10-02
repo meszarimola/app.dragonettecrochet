@@ -8,6 +8,7 @@ import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
 import { loadPattern, savePattern } from '../src/core/pattern-json.ts';
+import { setUiLanguage } from '../src/ui/i18n.ts';
 import {
   defaultNotation,
   notationForTradition,
@@ -22,6 +23,16 @@ import {
   writeNotation,
 } from '../src/ui/notation.ts';
 import { hdcRectangle } from './fixtures/examples.ts';
+
+/** Runs `run` with the interface in `language`, then restores the default. KB: interface.md §4 */
+function inLanguage(language, run) {
+  try {
+    setUiLanguage(language);
+    return run();
+  } finally {
+    setUiLanguage('en');
+  }
+}
 
 test('the default notation is Hungarian on a Hungarian interface and US on an English one', () => {
   assert.deepEqual(defaultNotation('hu'), { terms: 'hu', chartStyle: 'cyc', singleCrochet: 'plus' });
@@ -98,10 +109,18 @@ test('the Japanese preset turns on JIS symbols and the × single crochet while t
   assert.deepEqual(japanese, { terms: 'en-GB', chartStyle: 'jis', singleCrochet: 'cross' });
   assert.deepEqual(symbolOptionsFor(japanese), { singleCrochet: 'cross', style: 'jis' });
   assert.deepEqual(notationForTradition(japanese, 'cyc'), start);
-  assert.deepEqual(['cyc', 'japanese'].map(traditionLabel), ['nemzetközi (CYC)', 'japán']);
+  assert.deepEqual(['cyc', 'japanese'].map(traditionLabel), ['international (CYC)', 'Japanese']);
+  assert.deepEqual(
+    inLanguage('hu', () => ['cyc', 'japanese'].map(traditionLabel)),
+    ['nemzetközi (CYC)', 'japán'],
+  );
 });
 
 test('the notation labels name the term system', () => {
-  assert.deepEqual(TERMS.map(termsLabel), ['magyar', 'amerikai angol (US terms)', 'brit angol (UK terms)']);
+  assert.deepEqual(TERMS.map(termsLabel), ['Hungarian', 'US English (US terms)', 'UK English (UK terms)']);
+  assert.deepEqual(
+    inLanguage('hu', () => TERMS.map(termsLabel)),
+    ['magyar', 'amerikai angol (US terms)', 'brit angol (UK terms)'],
+  );
   assert.deepEqual(TERMS.map(textLanguage), ['hu', 'en', 'en']);
 });

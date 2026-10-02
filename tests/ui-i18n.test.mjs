@@ -18,6 +18,7 @@ import { test } from 'node:test';
 
 import { MARKUP_TEXTS } from '../src/ui/i18n/markup.ts';
 import {
+  applyStaticTexts,
   homeUrl,
   languageFromSearch,
   resolveUiLanguage,
@@ -91,7 +92,7 @@ function markupUses() {
     // A self-closing element (the meta in the head) has no body; there we read the `content` attribute.
     const end = rest.indexOf(`</${tag}>`);
     const body = end === -1 ? '' : rest.slice(0, end);
-    for (const kind of ['i18n', 'i18n-tip', 'i18n-label', 'i18n-content', 'i18n-roledescription']) {
+    for (const kind of ['i18n', 'i18n-tip', 'i18n-label', 'i18n-content', 'i18n-roledescription', 'i18n-value']) {
       const key = new RegExp(`data-${kind}="([^"]+)"`).exec(attributes)?.[1];
       if (key) uses.push({ key, kind, tag, attributes, body });
     }
@@ -138,7 +139,9 @@ test('the markup ships in the default language: the English branch matches the t
           ? 'content'
           : kind === 'i18n-roledescription'
             ? 'aria-roledescription'
-            : 'aria-label';
+            : kind === 'i18n-value'
+              ? 'value'
+              : 'aria-label';
     // As a standalone attribute: the names `data-i18n-tip` and `data-i18n-content` also
     // contain the attribute name we are looking for, so we anchor on whitespace.
     const value = new RegExp(`(?:^|\\s)${attribute}="([^"]*)"`).exec(attributes)?.[1];
@@ -205,13 +208,52 @@ test('index.html ships English: the document language and the social metadata ag
   assert.doesNotMatch(INDEX, /og-hu\.png/, 'the social image follows the document language');
 });
 
+/*
+ * Two Hungarian literals shipped in the English markup — `Fej` and `Nincs hiba` —
+ * and the accent scan below could not see either, because neither word carries an
+ * accent. These two tests look for what that one cannot: a Hungarian dictionary
+ * value standing in the markup, and an input whose default nothing translates.
+ */
+
+const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+test('no Hungarian dictionary value stands in the markup (PQW-1100)', () => {
+  const hu = leaves(UI_TEXTS.hu);
+  const en = leaves(UI_TEXTS.en);
+  const withoutNoscript = INDEX.replace(/<noscript>[\s\S]*?<\/noscript>/, '');
+  const leaked = [...hu]
+    // A value the two languages share is not Hungarian text: `cm`, `PNG`, `C2C`.
+    .filter(([path, value]) => typeof value === 'string' && value.length > 2 && value !== en.get(path))
+    // On a word boundary, or `Profil` reads out of the English `Profile`.
+    .filter(([, value]) =>
+      new RegExp(`(?<![\\p{L}\\d])${escapeRegex(value)}(?![\\p{L}\\d])`, 'u').test(withoutNoscript),
+    )
+    .map(([path, value]) => `${path}: ${value}`);
+  assert.deepEqual(leaked, [], `Hungarian dictionary text in index.html:\n${leaked.join('\n')}`);
+});
+
+test('an input default is translated, not written into the markup (PQW-1100)', () => {
+  const untranslated = [...INDEX.matchAll(/<input\s([^>]*)>/g)]
+    .map(([, attributes]) => attributes)
+    .filter((attributes) => {
+      const value = /(?:^|\s)value="([^"]*)"/.exec(attributes)?.[1];
+      // A number is the same in both languages; its separator is not, so a decimal needs a key too.
+      return value !== undefined && !/^\d+$/.test(value) && !attributes.includes('data-i18n-value');
+    });
+  assert.deepEqual(untranslated, [], `an input ships an untranslated default:\n${untranslated.join('\n')}`);
+});
+
 test('no Hungarian is left in the markup outside the bilingual noscript block (PQW-1100)', () => {
   const withoutNoscript = INDEX.replace(/<noscript>[\s\S]*?<\/noscript>/, '');
   const hungarian = withoutNoscript
     .split('\n')
     .map((line, index) => [index + 1, line])
     .filter(([, line]) => HUNGARIAN.test(line) && !/alternateName/.test(line));
-  assert.deepEqual(hungarian, [], `Hungarian left in index.html:\n${hungarian.map(([n, l]) => `${n}: ${l.trim()}`).join('\n')}`);
+  assert.deepEqual(
+    hungarian,
+    [],
+    `Hungarian left in index.html:\n${hungarian.map(([n, l]) => `${n}: ${l.trim()}`).join('\n')}`,
+  );
 });
 
 test('the noscript fallback leads with the default language and carries the only h1 (PQW-1100)', () => {
@@ -219,4 +261,29 @@ test('the noscript fallback leads with the default language and carries the only
   assert.match(noscript, /lang="en"[\s\S]*lang="hu"/, 'English comes first');
   assert.equal(noscript.match(/<h1>/g)?.length, 1, 'exactly one h1');
   assert.match(noscript, /lang="en">\s*<h1>/, 'the h1 belongs to the default language');
+});
+
+test('a translated input default is swapped only while the user has not touched it (PQW-1100)', () => {
+  const field = (value) => {
+    const element = { value, dataset: { i18nValue: 'amigurumiNameValue' }, attributes: {} };
+    element.setAttribute = (name, text) => {
+      element.attributes[name] = text;
+    };
+    return element;
+  };
+  const root = (element) => ({
+    querySelectorAll: (selector) => (selector === '[data-i18n-value]' ? [element] : []),
+  });
+
+  const untouched = field(MARKUP_TEXTS.hu.amigurumiNameValue);
+  applyStaticTexts(root(untouched), MARKUP_TEXTS.en);
+  assert.equal(untouched.value, MARKUP_TEXTS.en.amigurumiNameValue, 'the other language default is swapped');
+
+  const empty = field('');
+  applyStaticTexts(root(empty), MARKUP_TEXTS.en);
+  assert.equal(empty.value, MARKUP_TEXTS.en.amigurumiNameValue, 'an empty field is filled');
+
+  const typed = field('Bal fül');
+  applyStaticTexts(root(typed), MARKUP_TEXTS.en);
+  assert.equal(typed.value, 'Bal fül', 'KB: interface.md §8 — what the user typed is never overwritten');
 });

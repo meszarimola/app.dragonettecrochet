@@ -13,13 +13,13 @@ import { test } from 'node:test';
 import { setUiLanguage } from '../src/ui/i18n.ts';
 import { formatNumber } from '../src/ui/size-view.ts';
 
-/** Restores the Hungarian interface afterwards so no other test depends on order. */
+/** Restores the default interface afterwards so no other test depends on order. */
 function withLanguage(language, run) {
   try {
     setUiLanguage(language);
     return run();
   } finally {
-    setUiLanguage('hu');
+    setUiLanguage('en');
   }
 }
 

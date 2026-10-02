@@ -13,6 +13,16 @@ import { chartSvg } from '../src/ui/chart-svg.ts';
 import { setUiLanguage } from '../src/ui/i18n.ts';
 import { hdcRectangle } from './fixtures/examples.ts';
 
+/** Runs `run` with the interface in `language`, then restores the default. KB: interface.md §4 */
+function inLanguage(language, run) {
+  try {
+    setUiLanguage(language);
+    return run();
+  } finally {
+    setUiLanguage('en');
+  }
+}
+
 const SHELL = { repeatWidth: 6, edgeStitches: 1, turningChainIncluded: false };
 
 test('CYC: row number, bracketed stitch count, and no repeat on the chart', () => {
@@ -28,7 +38,11 @@ test('Japanese: stitch count and repeat as numbers with the „目” unit (01 �
   assert.equal(labels.count(18), '18目');
   assert.equal(labels.repeat({ repeatWidth: 11, edgeStitches: 0, turningChainIncluded: false }), '11目1模様');
   assert.equal(labels.repeat(undefined), null);
-  assert.match(labels.note, /18目 = 18 szem/);
+  assert.match(labels.note, /18目 = 18 stitches/);
+  assert.match(
+    inLanguage('hu', () => chartLabels('japanese').note),
+    /18目 = 18 szem/,
+  );
   assert.match(labels.note, /11目1模様/);
 });
 
@@ -41,11 +55,11 @@ test('export labels in the Japanese tradition: a „目” stitch count, the Jap
     tradition: 'japanese',
   });
   // The stitch count belongs to the row label, not to a separate text on the chart (PQW-923); the turning chain is the first stitch of the row (PQW-940).
-  assert.ok(svg.includes('>3. sor 16目</text>'));
+  assert.ok(svg.includes('>Row 3 16目</text>'));
   assert.ok(!svg.includes('>16目</text>'));
   assert.ok(!svg.includes('>(16)</text>'));
   assert.ok(svg.includes(chartLabels('japanese').note));
-  assert.ok(svg.includes('Ismétlés: 6目1模様.'));
+  assert.ok(svg.includes('Repeat: 6目1模様.'));
 });
 
 test('the CYC labels match those of the earlier chart', () => {
@@ -56,7 +70,7 @@ test('the CYC labels match those of the earlier chart', () => {
   });
   const labels = chartLabels('cyc');
   // Row number and stitch count on a single label, just like on the designer canvas (PQW-923).
-  assert.ok(svg.includes('>3. sor (16)</text>'));
+  assert.ok(svg.includes('>Row 3 (16)</text>'));
   assert.ok(!svg.includes(`>${labels.count(16)}</text>`));
   assert.ok(svg.includes(labels.note));
 });
@@ -72,35 +86,34 @@ test('the CYC labels match those of the earlier chart', () => {
  * shift.
  */
 test('the row label carries the layer name and the stitch count, in Hungarian and in English', () => {
-  const labels = chartLabels('cyc');
-  assert.equal(labels.rowLabel(1, false, 12), '2. sor (12)');
-  assert.equal(labels.rowLabel(0, false, 12), '1. sor – alapsor (12)');
-  assert.equal(labels.rowLabel(3, true, 18), '3. kör (18)');
+  const en = chartLabels('cyc');
+  assert.equal(en.rowLabel(1, false, 12), 'Row 2 (12)');
+  assert.equal(en.rowLabel(0, false, 12), 'Row 1 – foundation (12)');
+  assert.equal(en.rowLabel(3, true, 18), 'Round 3 (18)');
+  assert.equal(en.rowLabel(0, true, 6), 'Magic ring (6)');
 
-  setUiLanguage('en');
-  try {
-    const en = chartLabels('cyc');
-    assert.equal(en.rowLabel(1, false, 12), 'Row 2 (12)');
-    assert.equal(en.rowLabel(0, false, 12), 'Row 1 – foundation (12)');
-    assert.equal(en.rowLabel(0, true, 6), 'Magic ring (6)');
-  } finally {
-    setUiLanguage('hu');
-  }
+  inLanguage('hu', () => {
+    const hu = chartLabels('cyc');
+    assert.equal(hu.rowLabel(1, false, 12), '2. sor (12)');
+    assert.equal(hu.rowLabel(0, false, 12), '1. sor – alapsor (12)');
+    assert.equal(hu.rowLabel(3, true, 18), '3. kör (18)');
+  });
 });
 
 test('in the Japanese tradition the row label stitch count also uses the „目” unit', () => {
-  assert.equal(chartLabels('japanese').rowLabel(2, false, 15), '3. sor 15目');
+  assert.equal(chartLabels('japanese').rowLabel(2, false, 15), 'Row 3 15目');
+  assert.equal(
+    inLanguage('hu', () => chartLabels('japanese').rowLabel(2, false, 15)),
+    '3. sor 15目',
+  );
 });
 
 test('the magic ring label stands without a stitch count, having no meaningful one (PQW-916)', () => {
-  const labels = chartLabels('cyc');
-  assert.equal(labels.rowLabel(0, true, null), 'Varázskör');
-  assert.equal(chartLabels('japanese').rowLabel(0, true, null), 'Varázskör');
+  assert.equal(chartLabels('cyc').rowLabel(0, true, null), 'Magic ring');
+  assert.equal(chartLabels('japanese').rowLabel(0, true, null), 'Magic ring');
 
-  setUiLanguage('en');
-  try {
-    assert.equal(chartLabels('cyc').rowLabel(0, true, null), 'Magic ring');
-  } finally {
-    setUiLanguage('hu');
-  }
+  inLanguage('hu', () => {
+    assert.equal(chartLabels('cyc').rowLabel(0, true, null), 'Varázskör');
+    assert.equal(chartLabels('japanese').rowLabel(0, true, null), 'Varázskör');
+  });
 });

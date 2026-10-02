@@ -9,6 +9,7 @@ import { describe, test } from 'node:test';
 import { emptyPattern } from '../src/core/editor.ts';
 import { DEFAULT_MOTIF, motifIncreases, motifProblem } from '../src/core/round-generator.ts';
 import { amigurumiCoreText } from '../src/ui/i18n/core/amigurumi.ts';
+import { setUiLanguage } from '../src/ui/i18n.ts';
 import {
   CLOSING_CHOICES,
   fieldState,
@@ -20,6 +21,16 @@ import {
   START_CHOICES,
   STITCH_CHOICES,
 } from '../src/ui/rounds-view.ts';
+
+/** Runs `run` with the interface in `language`, then restores the default. KB: interface.md §4 */
+function inLanguage(language, run) {
+  try {
+    setUiLanguage(language);
+    return run();
+  } finally {
+    setUiLanguage('en');
+  }
+}
 
 const options = (patch = {}) => ({ ...DEFAULT_MOTIF, ...patch });
 
@@ -37,9 +48,13 @@ function measuredSc() {
 }
 
 describe('choices', () => {
-  test('shape, stitch, start, round closing and jog fix all offer Hungarian labels', () => {
+  test('shape, stitch, start, round closing and jog fix all offer labels', () => {
     assert.deepEqual(
       SHAPE_CHOICES.map((choice) => choice.label),
+      ['Flat circle', 'Square', 'Hexagon', 'Octagon', 'Granny square'],
+    );
+    assert.deepEqual(
+      inLanguage('hu', () => SHAPE_CHOICES.map((choice) => choice.label)),
       ['Lapos kör', 'Négyzet', 'Hatszög', 'Nyolcszög', 'Nagymama-négyzet'],
     );
     // PQW-1038: the granny square is selectable again.
@@ -49,7 +64,7 @@ describe('choices', () => {
     );
     assert.deepEqual(
       STITCH_CHOICES.map((choice) => choice.label),
-      ['Rövidpálca', 'Félpálca', 'Egyráhajtásos pálca', 'Kétráhajtásos pálca'],
+      ['Single crochet', 'Half double crochet', 'Double crochet', 'Treble'],
     );
     assert.deepEqual(
       START_CHOICES.map((choice) => choice.value),
@@ -102,24 +117,27 @@ describe('the increase note', () => {
   test('without a profile the note is a flagged estimate from the usual in-the-round ratio of the stitch', () => {
     const sc = options();
     const note = increaseNote(motifIncreases(emptyPattern(), sc), sc);
-    assert.match(note, /^Körönként 6 szaporítás: 2π × 1 ≈ 6,3, páros számra kerekítve\./);
-    assert.match(note, /Becslés a rövidpálca szokásos körös magasság\/szélesség arányából/);
+    assert.match(note, /^6 increases per round: 2π × 1 ≈ 6\.3, rounded to an even number\./);
+    assert.match(note, /Estimate from the usual height\/width ratio of single crochet in the round/);
 
     const dc = options({ stitch: 'dc' });
     assert.match(
       increaseNote(motifIncreases(emptyPattern(), dc), dc),
-      /^Körönként 12 szaporítás[\s\S]*Becslés az egyráhajtásos pálca/,
+      /^12 increases per round[\s\S]*Estimate from the usual height\/width ratio of double crochet/,
     );
   });
 
   test('from the gauge measured in the round, converted when another stitch is chosen', () => {
     const pattern = measuredSc();
     const sc = options();
-    assert.match(increaseNote(motifIncreases(pattern, sc), sc), /A rövidpálca körben mért mintasűrűségéből\.$/);
+    assert.match(
+      increaseNote(motifIncreases(pattern, sc), sc),
+      /From the gauge measured in the round of single crochet\.$/,
+    );
     const dc = options({ stitch: 'dc' });
     assert.match(
       increaseNote(motifIncreases(pattern, dc), dc),
-      /A rövidpálca körben mért mintasűrűségéből, az egyráhajtásos pálca arányára átszámolva\.$/,
+      /From the gauge measured in the round of single crochet, converted to the ratio of double crochet\.$/,
     );
   });
 
@@ -127,30 +145,34 @@ describe('the increase note', () => {
     const square = options({ shape: 'square' });
     assert.match(
       increaseNote(motifIncreases(emptyPattern(), square), square),
-      /^Körönként kb\. 8 szaporítás a 4 sarokban, egymás fölé kerülve/,
+      /^About 8 increases per round in the 4 corners, stacked above each other/,
     );
     const granny = normalizeMotif(options({ shape: 'granny-square' }));
     assert.match(
       increaseNote(motifIncreases(emptyPattern(), granny), granny),
-      /^Sarkonként 3 erp, 2 lsz, 3 erp, oldalanként 3 erp, 1 lsz/,
+      /^3 dc, 2 ch, 3 dc into each corner, 3 dc and 1 ch along the sides/,
     );
   });
 
   test('the status message names the shape and the number of rounds', () => {
     assert.equal(
       generatedMessage(options({ rounds: 4 })),
-      'Lapos kör, 4 kör elkészült; visszavonással a korábbi minta visszajön.',
+      'Flat circle: 4 rounds done; undo brings the previous one back.',
     );
   });
 
   test('the core returns a code and the dictionary assembles the sentence (PQW-904)', () => {
     const problem = motifProblem(options({ rounds: 0 }));
     assert.deepEqual(problem, { code: 'rounds-range', data: { max: 30 } });
-    assert.equal(amigurumiCoreText(problem), 'A körök száma 1 és 30 között lehet.');
+    assert.equal(amigurumiCoreText(problem), 'The number of rounds can be between 1 and 30.');
     // The Hungarian article belongs to the UI as well: the core carries only the round number.
     assert.equal(
-      amigurumiCoreText({ code: 'round-plan-mismatch', data: { round: 3 } }),
+      inLanguage('hu', () => amigurumiCoreText({ code: 'round-plan-mismatch', data: { round: 3 } })),
       'A(z) 3. kör terve nem illik az előző körhöz.',
+    );
+    assert.equal(
+      amigurumiCoreText({ code: 'round-plan-mismatch', data: { round: 3 } }),
+      'The plan of round 3 does not fit the previous round.',
     );
   });
 });

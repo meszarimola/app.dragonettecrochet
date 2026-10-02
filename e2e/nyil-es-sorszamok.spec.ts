@@ -27,7 +27,7 @@ type StitchBox = Rect & { readonly id: string; readonly layer: number };
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
-  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
   // The written pattern panel starts closed (PQW-911, PQW-915): it does not cover the canvas.
   await expect(page.locator('#written')).toBeHidden();
@@ -77,7 +77,7 @@ const describe = (r: Rect) =>
  * The arrow moved from the chart into the band of the row numbers (PQW-929). The
  * solution of PQW-916 lifted it above the symbols of the row, but it landed
  * right in the grid band and the rectangle of the NEXT row; the decision of the
- * owner: „mellé tedd, ne rá. és írd ki, hogy hanyadik sor.” The measurement
+ * owner: "put it beside, not on top of it. and write out which row it is." The measurement
  * therefore no longer looks for the arrow on the chart but among the labels —
  * and it also checks that the label covers nothing.
  */
@@ -101,7 +101,7 @@ test('the label of the next row stands beside the chart, with an arrow, and cove
   const labels = await api<LabelBox[]>(page, 'labelBoxes');
   const next = labels.find((label) => /[←→]/.test(label.text));
   expect(next, `the label of the next row, with an arrow: ${labels.map((l) => l.text).join(' | ')}`).toBeDefined();
-  expect(next!.text, 'it says which row comes next').toMatch(/2\. sor/);
+  expect(next!.text, 'it says which row comes next').toMatch(/Row 2/);
 
   const stitches = await api<StitchBox[]>(page, 'stitchBoxes');
   for (const stitch of stitches) {
@@ -136,12 +136,12 @@ test('beside every row there is the row number and the stitch count, without cov
   const foundation = labels.find((label) => label.layer === 0);
   expect(foundation, 'the foundation chain has a label too').toBeDefined();
   expect(foundation!.text, 'the foundation chain is row 1, with the chain stitches drawn').toMatch(
-    /^1\. sor – alapsor \(\d+\)$/,
+    /^Row 1 – foundation \(\d+\)$/,
   );
 
   const row = labels.find((label) => label.layer === 1);
   expect(row, 'row 1 has a label too').toBeDefined();
-  expect(row!.text, 'the row number and the stitch count on one label').toMatch(/^2\. sor \(\d+\)$/);
+  expect(row!.text, 'the row number and the stitch count on one label').toMatch(/^Row 2 \(\d+\)$/);
 
   /*
    * The label stands BESIDE the chart, not inside it. Box overlap is not enough
@@ -176,7 +176,7 @@ test('beside every row there is the row number and the stitch count, without cov
 });
 
 /*
- * The fit of „Egész minta” should know about the labels too (PQW-916).
+ * The fit of "Whole pattern" should know about the labels too (PQW-916).
  *
  * Box overlap did not catch this: the labels were fine beside the chart, only
  * the rightmost one slid under the stitch palette panel and became unreadable.
@@ -187,7 +187,7 @@ for (const viewport of [
   { width: 1440, height: 900 },
   { width: 1000, height: 506 },
 ]) {
-  test(`${viewport.width}×${viewport.height}: after „Egész minta” the labels stay between the two sidebars (PQW-916)`, async ({
+  test(`${viewport.width}×${viewport.height}: after "Whole pattern" the labels stay between the two sidebars (PQW-916)`, async ({
     page,
   }) => {
     await page.setViewportSize(viewport);
@@ -195,7 +195,7 @@ for (const viewport of [
     await foundationTurnAndRow(page);
     // A narrow bar folds its view group into a menu (interface.md §56).
     await page.locator('#zoom-toggle').click();
-    await page.getByRole('button', { name: 'Egész minta' }).click();
+    await page.getByRole('button', { name: 'Whole pattern' }).click();
     await page.waitForTimeout(200);
 
     const labels = await api<LabelBox[]>(page, 'labelBoxes');
@@ -219,12 +219,15 @@ for (const viewport of [
 /*
  * Narrow window, longer label (PQW-916).
  *
- * The English „Foundation chain (10)” is much wider than the Hungarian
- * „Láncalap (10)”, and at 1000×506 there is no longer room for it on the right
- * of the chart. The browser review measured that in that case the label slides
- * back over the symbols (n9, n10) — the earlier cases did not catch this,
- * because they measure in Hungarian and in the view after „Egész minta”. The
- * label should rather hang out than cover something.
+ * The English "Row 1 – foundation (11)" is much wider than the Hungarian
+ * "Láncalap (10)" the label used to be, and at 1000×506 there is no longer room
+ * for it on the right of the chart. The browser review measured that in that
+ * case the label slides back over the symbols (n9, n10). The cases above do not
+ * catch this, because they measure in the view after "Whole pattern". The label
+ * should rather hang out than cover something.
+ *
+ * `?lang=en` is spelled out although English is the default since PQW-1100: the
+ * point of this case is the longer label, so it says which language it measures.
  */
 test('1000×506, English interface: even the longer label does not slide onto the stitches (PQW-916)', async ({
   page,
@@ -258,7 +261,7 @@ test('there is no floating status text over the canvas area, but the live region
 
   const status = page.locator('#status');
   // The interface does give a signal: the text stays for the screen reader. (After
-  // a turn this is the „Láncalap kész…” message; we do not pin down its text, only that there is one.)
+  // a turn this is the message about the finished foundation chain; we do not pin down its text, only that there is one.)
   await expect(status).toHaveAttribute('aria-live', 'polite');
   await expect(status).not.toBeEmpty();
 

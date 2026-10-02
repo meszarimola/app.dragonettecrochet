@@ -16,7 +16,7 @@ test('favicon, apple-touch-icon, description and theme-color on the built page; 
   });
   await page.goto('/');
 
-  await expect(page.locator('head meta[name="description"]')).toHaveAttribute('content', /horgolásminta-tervező/i);
+  await expect(page.locator('head meta[name="description"]')).toHaveAttribute('content', /crochet pattern designer/i);
   await expect(page.locator('head meta[name="theme-color"]')).toHaveAttribute('content', '#faf7f3');
   // The root is indexable (PQW-918).
   await expect(page.locator('head meta[name="robots"]')).toHaveCount(0);
@@ -48,5 +48,5 @@ test('in the menu bar the D6 dragonfly mark stands before the title, as a decora
   await expect(mark).toHaveAttribute('aria-hidden', 'true');
   const box = await mark.boundingBox();
   expect(box?.height ?? 0).toBeGreaterThanOrEqual(20);
-  await expect(page.locator('.bar__lead h1.bar__title')).toHaveText('Mintatervező');
+  await expect(page.locator('.bar__lead h1.bar__title')).toHaveText('Pattern designer');
 });

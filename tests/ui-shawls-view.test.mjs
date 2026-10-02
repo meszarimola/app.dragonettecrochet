@@ -9,6 +9,7 @@ import { describe, test } from 'node:test';
 
 import { emptyPattern } from '../src/core/editor.ts';
 import { DEFAULT_SHAWL, planShawl, shawlSizes } from '../src/core/shawls.ts';
+import { setUiLanguage } from '../src/ui/i18n.ts';
 import {
   edgingLabel,
   generatedMessage,
@@ -22,6 +23,16 @@ import {
   shawlView,
   sizeLabel,
 } from '../src/ui/shawls-view.ts';
+
+/** Runs `run` with the interface in `language`, then restores the default. KB: interface.md §4 */
+function inLanguage(language, run) {
+  try {
+    setUiLanguage(language);
+    return run();
+  } finally {
+    setUiLanguage('en');
+  }
+}
 
 const options = (patch = {}) => ({ ...DEFAULT_SHAWL, ...patch });
 
@@ -46,18 +57,18 @@ const viewOf = (pattern, patch, hasProfile = true) => {
 };
 
 describe('choices and fields', () => {
-  test('shawl kinds appear with Hungarian names in knowledge-base order, with a theoretical or a custom rate', () => {
+  test('shawl kinds appear with their names in knowledge-base order, with a theoretical or a custom rate', () => {
     assert.deepEqual(
       KIND_CHOICES.map((choice) => choice.label),
       [
-        'Fentről induló háromszög',
-        'Aszimmetrikus háromszög',
-        'Félhold',
-        'Félkör',
-        'Kör',
-        'Pi-kendő',
-        'Eltolt Pi-kendő',
-        'Téglalap stóla',
+        'Top-down triangle',
+        'Asymmetric triangle',
+        'Crescent',
+        'Semicircle',
+        'Circle',
+        'Pi shawl',
+        'Shifted Pi shawl',
+        'Rectangular stole',
       ],
     );
     assert.deepEqual(
@@ -85,34 +96,37 @@ describe('choices and fields', () => {
 
   test('labels per shawl: depth, edge, radius; what the rate applies to; edging counted per half on a symmetric shawl', () => {
     assert.deepEqual(['triangle', 'asymmetric-triangle', 'semicircle', 'pi', 'stole'].map(sizeLabel), [
-      'Mélység a gerincen, cm',
-      'Az egyenes él, cm',
-      'Sugár, cm',
-      'Sugár, cm',
-      'Szélesség, cm',
+      'Depth at the spine, cm',
+      'The straight edge, cm',
+      'Radius, cm',
+      'Radius, cm',
+      'Width, cm',
     ]);
-    assert.equal(rateLabel('triangle'), 'Szaporítás soronként, az egész sorra');
-    assert.equal(rateLabel('pi'), 'Szem az 1. körben');
-    assert.equal(edgingLabel('triangle'), 'Az utolsó sor a szegély ismétléséhez: „X többszöröse + Y”, félenként');
-    assert.equal(edgingLabel('circle'), 'Az utolsó kör a szegély ismétléséhez: „X többszöröse + Y”');
+    assert.equal(rateLabel('triangle'), 'Increases per row, across the whole row');
+    assert.equal(rateLabel('pi'), 'Stitches in round 1');
+    assert.equal(edgingLabel('triangle'), 'The last row to fit the edging repeat: “a multiple of X plus Y”, per half');
+    assert.equal(edgingLabel('circle'), 'The last round to fit the edging repeat: “a multiple of X plus Y”');
   });
 });
 
 describe('the plan printout', () => {
   test('example „A”: the blocked size is measured and the unblocked one estimated, with the rate, the angle and the rows', () => {
     const { view } = viewOf(withGauge('dc', 16, 8, true), { kind: 'triangle', stitch: 'dc', sizeCm: 80 });
-    assert.match(view.size, /^Blokkolva 159 × 80 cm, blokkolás nélkül ≈ \d+ × \d+ cm; 45 sor\.$/);
-    assert.ok(view.details.includes('Az 1. sor 8 szem, az utolsó 360 szem.'), view.details.join('\n'));
+    assert.match(view.size, /^Blocked 159 × 80 cm, unblocked ≈ \d+ × \d+ cm; 45 rows\.$/);
+    assert.ok(view.details.includes('The first row has 8 stitches, the last 360.'), view.details.join('\n'));
     assert.ok(
       view.details.some((line) =>
-        line.startsWith(
-          'Szaporítás soronként: elméletileg 8 (4 · h/w), választva 8; élenként átlagosan 2, a gerincen 4',
-        ),
+        line.startsWith('Increases per row: 8 in theory (4 · h/w), 8 chosen; 2 per edge on average, 4 at the spine'),
       ),
     );
-    assert.ok(view.details.includes('A nyakél szöge kb. 180° (egyenes nyakélnél 180°), az alsó csúcsé kb. 90°.'));
+    assert.ok(
+      view.details.includes('The neck edge is about 180° (180° for a straight neck edge), the bottom tip about 90°.'),
+    );
     assert.deepEqual(view.warnings, []);
-    assert.match(view.source, /^Az egyráhajtásos pálca síkban mért mintasűrűségéből\. A profil blokkolva mért/);
+    assert.match(
+      view.source,
+      /^From the gauge measured flat gauge of double crochet\. The profile was measured blocked/,
+    );
   });
 
   test('a custom rate gives a warning with the percentage, not an error', () => {
@@ -126,20 +140,23 @@ describe('the plan printout', () => {
     assert.equal(view.warnings.length, 1);
     assert.match(
       view.warnings[0],
-      /^A választott szaporítás az elméletinek kb\. 75%-a: a kendő mélyebb és keskenyebb lesz.*Ez figyelmeztetés, nem hiba\./,
+      /^The chosen increase rate is about 75% of the theoretical: the shawl will be deeper and narrower.*This is a warning, not an error\./,
     );
   });
 
   test('Pi shawl: the doubling rounds, the range against the ideal, and the blocking warning; estimated without a profile', () => {
     const { view } = viewOf(emptyPattern(), { kind: 'pi', stitch: 'sc', sizeCm: 10 }, false);
-    assert.ok(view.details.includes('Duplázás a 2., 4., 8., 16. körben, közte sima körök.'), view.details.join('\n'));
-    assert.ok(view.details.some((line) => /^A körök szemszáma az ideálishoz képest \d+–\d+%\.$/.test(line)));
+    assert.ok(
+      view.details.includes('Doubling in rounds 2, 4, 8, 16, with plain rounds between.'),
+      view.details.join('\n'),
+    );
+    assert.ok(view.details.some((line) => /^The round stitch counts are \d+–\d+% of the ideal\.$/.test(line)));
     assert.match(
       view.warnings[0],
-      /^A duplázás előtti körben a szemszám az ideálisnak csak kb\. \d+%-a: tömör szemmel kunkorodik/,
+      /^In the round before a doubling the stitch count is only about \d+% of the ideal: it cups in a solid stitch/,
     );
-    assert.match(view.size, /^Blokkolás nélkül ≈ \d+ cm átmérő, blokkolva ≈ \d+ cm átmérő; \d+ kör\.$/);
-    assert.match(view.source, /^Nincs profil: a méret becslés 4 mm-es tűből\./);
+    assert.match(view.size, /^Unblocked ≈ \d+ cm across, blocked ≈ \d+ cm across; \d+ rounds\.$/);
+    assert.match(view.source, /^No profile: the size is an estimate from a 4 mm hook\./);
   });
 
   test('fitting to the edging: the adjustment is counted per half', () => {
@@ -150,7 +167,7 @@ describe('the plan printout', () => {
       edging: { width: 6, edge: 3 },
     });
     assert.ok(
-      view.details.includes('Szegélyhez: 6 többszöröse + 3 félenként, 30 ismétlés (+3 szem félenként).'),
+      view.details.includes('For the edging: a multiple of 6 plus 3 per half, 30 repeats (+3 stitches per half).'),
       view.details.join('\n'),
     );
   });
@@ -158,39 +175,44 @@ describe('the plan printout', () => {
 
 describe('turning a core reason into a sentence (PQW-904)', () => {
   test('the words for row and round come from the dictionary: the core only supplies `shape`', () => {
-    assert.equal(
-      shawlReason({ code: 'shawl-min-rows', data: { rows: 2, shape: 'row' } }),
+    const sentences = (language) =>
+      inLanguage(language, () => [
+        shawlReason({ code: 'shawl-min-rows', data: { rows: 2, shape: 'row' } }),
+        shawlReason({ code: 'shawl-min-rows', data: { rows: 2, shape: 'round' } }),
+        shawlReason({ code: 'shawl-max-stitches', data: { max: 1200, shape: 'round' } }),
+        shawlReason({ code: 'shawl-max-stitches', data: { max: 1200, shape: 'row' } }),
+      ]);
+    assert.deepEqual(sentences('en'), [
+      'This shawl needs at least 2 rows: give a larger size.',
+      'This shawl needs at least 2 rounds: give a larger size.',
+      'A round can have at most 1200 stitches: give a smaller size.',
+      'A row can have at most 1200 stitches: give a smaller size.',
+    ]);
+    assert.deepEqual(sentences('hu'), [
       'Ehhez a kendőhöz legalább 2 sor kell: adj meg nagyobb méretet.',
-    );
-    assert.equal(
-      shawlReason({ code: 'shawl-min-rows', data: { rows: 2, shape: 'round' } }),
       'Ehhez a kendőhöz legalább 2 kör kell: adj meg nagyobb méretet.',
-    );
-    assert.equal(
-      shawlReason({ code: 'shawl-max-stitches', data: { max: 1200, shape: 'round' } }),
       'Egy körben legfeljebb 1200 szem lehet: adj meg kisebb méretet.',
-    );
-    assert.equal(
-      shawlReason({ code: 'shawl-max-stitches', data: { max: 1200, shape: 'row' } }),
       'Egy sorban legfeljebb 1200 szem lehet: adj meg kisebb méretet.',
-    );
+    ]);
   });
 
-  test('the article and the ordinal are put into the sentence by the UI, and the stole reuses the shape codes too', () => {
-    assert.equal(
-      shawlReason({ code: 'shawl-too-many-into-one', data: { row: 3, count: 14 } }),
-      'A(z) 3. sorban egy szembe 14 szem kerülne: válassz kisebb szaporítást, vagy nagyobb méretet.',
-    );
-    assert.equal(
-      shawlReason({ code: 'shape-too-steep' }),
-      'Ilyen meredek élt ennyi sorban nem lehet horgolni: adj meg nagyobb magasságot.',
-    );
+  test('the Hungarian article and ordinal are put into the sentence by the UI, and the stole reuses the shape codes too', () => {
+    inLanguage('hu', () => {
+      assert.equal(
+        shawlReason({ code: 'shawl-too-many-into-one', data: { row: 3, count: 14 } }),
+        'A(z) 3. sorban egy szembe 14 szem kerülne: válassz kisebb szaporítást, vagy nagyobb méretet.',
+      );
+      assert.equal(
+        shawlReason({ code: 'shape-too-steep' }),
+        'Ilyen meredek élt ennyi sorban nem lehet horgolni: adj meg nagyobb magasságot.',
+      );
+    });
   });
 
   test('a rejection from the planner renders as the sentence used today', () => {
     const planned = planShawl(emptyPattern(), options({ sizeCm: 0.5 }));
     assert.equal(planned.ok, false);
-    assert.equal(shawlReason(planned.reason), 'Ehhez a kendőhöz legalább 2 sor kell: adj meg nagyobb mélységet.');
+    assert.equal(shawlReason(planned.reason), 'This shawl needs at least 2 rows: give a larger depth.');
   });
 });
 
@@ -205,9 +227,6 @@ describe('preview and message', () => {
     const neck = (points) => Number(points.split(' ')[0].split(',')[0]);
     assert.ok(Math.abs(neck(outline.blocked) - outline.width / 2) < 0.01);
     assert.ok(Math.abs(neck(outline.unblocked) - outline.width / 2) < 0.01);
-    assert.equal(
-      generatedMessage(plan),
-      'Fentről induló háromszög, 45 sor elkészült; visszavonással a korábbi minta visszajön.',
-    );
+    assert.equal(generatedMessage(plan), 'Top-down triangle: 45 rows done; undo brings the previous one back.');
   });
 });

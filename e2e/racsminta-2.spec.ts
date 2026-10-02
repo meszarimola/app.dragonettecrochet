@@ -20,7 +20,7 @@ test.beforeEach(() => {
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
-  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
 }
 
@@ -63,22 +63,22 @@ test('mosaic with one skip: error-free, the written pattern marks the stitch wor
 }) => {
   await open(page);
   const section = await openGrid(page);
-  await page.locator('#grid-technique').selectOption({ label: 'Mozaik' });
+  await page.locator('#grid-technique').selectOption({ label: 'Mosaic' });
   await expect(page.locator('#grid-mosaic-field')).toBeVisible();
   await setSize(page, 5, 4);
   await expect(page.locator('#grid-board [role="gridcell"]')).toHaveCount(20);
 
   // A cell of colour A in the middle of row 2: a skip there, and above it in row 3 a double crochet worked lower down.
-  await section.getByRole('radio', { name: 'A: Natúr' }).check();
+  await section.getByRole('radio', { name: 'A: Natural' }).check();
   await cell(page, 2, 1).click();
   await expect(page.locator('#grid-details')).toContainText(
-    'Egysoros mozaik: a lejjebb horgolt szem egyráhajtásos pálca 2 sorral lejjebb, összesen 1.',
+    'Single row mosaic: the dropped stitch is a double crochet 2 rows below, 1 in total.',
   );
 
-  await section.getByRole('button', { name: 'Minta létrehozása' }).click();
-  await expect(page.locator('#status')).toContainText('Mozaik: 4 sor elkészült');
-  await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
-  expect(await writtenText(page)).toContain('1 erp 2 sorral lejjebb');
+  await section.getByRole('button', { name: 'Create pattern' }).click();
+  await expect(page.locator('#status')).toContainText('Mosaic: 4 rows done');
+  await expect(page.locator('#error-count')).toHaveText('No errors');
+  expect(await writtenText(page)).toContain('dc in st 2 rows below');
 
   const download = page.waitForEvent('download');
   // The export is in the file actions dropdown (PQW-911).
@@ -88,7 +88,7 @@ test('mosaic with one skip: error-free, the written pattern marks the stitch wor
   await page.locator('#export-run').click();
   const svg = await readFile((await (await download).path())!, 'utf8');
   expect(svg).toContain('data-spike');
-  expect(svg).toContain('Pötty a szár végén');
+  expect(svg).toContain('Dot at the foot of the stem');
 });
 
 test('shaped filet: the decrease at the start of the row and the increase at the end of the row are error-free, and the written pattern spells them out', async ({
@@ -101,19 +101,19 @@ test('shaped filet: the decrease at the start of the row and the increase at the
   await setSize(page, 4, 3);
 
   // There is no cell at the right edge of rows 1 and 3: a new open cell at the end of row 2, a decrease at the start of row 3.
-  await section.getByRole('radio', { name: 'Nincs cella (alakítás)' }).check();
+  await section.getByRole('radio', { name: 'No cell (shaping)' }).check();
   await cell(page, 3, 0).click();
   await cell(page, 3, 2).click();
-  await expect(page.locator('#grid-details')).toContainText('Szaporítás a sor végén a 2. sorban');
-  await expect(page.locator('#grid-details')).toContainText('Fogyasztás a sor elején a 3. sorban');
+  await expect(page.locator('#grid-details')).toContainText('Increase at the end of row 2');
+  await expect(page.locator('#grid-details')).toContainText('Decrease at the start of row 3');
 
-  await section.getByRole('button', { name: 'Minta létrehozása' }).click();
-  await expect(page.locator('#status')).toContainText('Filé: 3 sor elkészült');
-  await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
+  await section.getByRole('button', { name: 'Create pattern' }).click();
+  await expect(page.locator('#status')).toContainText('Filet: 3 rows done');
+  await expect(page.locator('#error-count')).toHaveText('No errors');
   const text = await writtenText(page);
   // The widening at the end of the row is built from chain (03 §5.2, PQW-924); at the decrease the turning chain does not sit on a column.
-  expect(text).toMatch(/3\. sor: .*, 3 lsz \(\d+ szem\)/);
-  expect(text).toMatch(/4\. sor: 3 ksz, 3 lsz/);
+  expect(text).toMatch(/Row 3: .*, ch 3 \(\d+ sts\)/);
+  expect(text).toMatch(/Row 4: 3 sl st, ch 3/);
 });
 
 test('loading an image: the grid has the given width, and the dark half of the image is filled cells', async ({
@@ -138,11 +138,11 @@ test('loading an image: the grid has the given width, and the dark half of the i
     return canvas.toDataURL('image/png');
   });
   await page.locator('#grid-image').setInputFiles({
-    name: 'motivum.png',
+    name: 'motif.png',
     mimeType: 'image/png',
     buffer: Buffer.from(dataUrl.split(',')[1]!, 'base64'),
   });
-  await expect(page.locator('#status')).toContainText(/A kép betöltve: 10 × \d+ cella, a mintasűrűség arányában\./);
-  await expect(cell(page, 0, 0)).toHaveAttribute('aria-label', /: teli$/);
-  await expect(cell(page, 9, 0)).toHaveAttribute('aria-label', /: nyitott$/);
+  await expect(page.locator('#status')).toContainText(/Image loaded: 10 × \d+ cells, in the ratio of the gauge\./);
+  await expect(cell(page, 0, 0)).toHaveAttribute('aria-label', /: filled$/);
+  await expect(cell(page, 9, 0)).toHaveAttribute('aria-label', /: open$/);
 });

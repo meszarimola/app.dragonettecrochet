@@ -7,6 +7,7 @@
  */
 
 import type { Dictionary } from '../i18n.ts';
+import { MESSAGE_TEXTS } from './messages.ts';
 
 export const MARKUP_TEXTS = {
   hu: {
@@ -222,6 +223,8 @@ export const MARKUP_TEXTS = {
     garmentEaseLabel: 'Bőség a mellbőséghez, cm',
     garmentHemLabel: 'Szegély és mandzsetta, cm',
     garmentBelowLabel: 'Hossz a derék alatt, cm',
+    garmentBelowValue: '14,5',
+    errorCountNone: MESSAGE_TEXTS.hu.errorBar.none,
     garmentGrowthLabel: 'Növedék a felakasztott próbadarabból, %',
     garmentGrowthNote:
       'A horgolt anyag a súlyától és a mosástól hosszában nő. Mérd meg a mosott, blokkolt és felakasztott próbadarabot: a megadott százalékkal a generátor ennyivel rövidebbre tervezi a hosszakat.',
@@ -289,6 +292,7 @@ export const MARKUP_TEXTS = {
     amigurumiNote:
       'Gömböt, hengert, kúpot és más térbeli formát készít spirálban, a körben mért mintasűrűségből. Több rész egy mintába kerülhet, varrva vagy folytatólagosan; az írott minta jelöli a szemet és a tömést.',
     amigurumiNameLabel: 'A rész neve',
+    amigurumiNameValue: 'Fej',
     amigurumiShapeLabel: 'Forma',
     amigurumiMethodLabel: 'A gömb körterve',
     amigurumiDiameterLabel: 'Átmérő (cm)',
@@ -691,6 +695,8 @@ export const MARKUP_TEXTS = {
     garmentEaseLabel: 'Ease at the bust, cm',
     garmentHemLabel: 'Hem and cuff, cm',
     garmentBelowLabel: 'Length below the waist, cm',
+    garmentBelowValue: '14.5',
+    errorCountNone: MESSAGE_TEXTS.en.errorBar.none,
     garmentGrowthLabel: 'Growth from the hung swatch, %',
     garmentGrowthNote:
       'Crochet fabric grows lengthways from its own weight and from washing. Measure a washed, blocked and hung swatch: with the given percentage the generator plans the lengths that much shorter.',
@@ -758,6 +764,7 @@ export const MARKUP_TEXTS = {
     amigurumiNote:
       'Makes a sphere, cylinder, cone and other three-dimensional shapes in a spiral, from the gauge measured in the round. Several pieces can go into one pattern, sewn or worked on; the written pattern notes the stitch and the stuffing.',
     amigurumiNameLabel: 'Name of the piece',
+    amigurumiNameValue: 'Head',
     amigurumiShapeLabel: 'Shape',
     amigurumiMethodLabel: 'Round plan of the sphere',
     amigurumiDiameterLabel: 'Diameter (cm)',

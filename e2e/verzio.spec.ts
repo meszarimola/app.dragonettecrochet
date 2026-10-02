@@ -15,7 +15,7 @@ for (const viewport of [
   }) => {
     await page.setViewportSize(viewport);
     await page.goto('/');
-    const deny = page.getByRole('button', { name: 'Elutasítom' });
+    const deny = page.getByRole('button', { name: 'Decline' });
     if (await deny.isVisible()) await deny.click();
 
     const version = page.locator('#version');
@@ -47,10 +47,11 @@ for (const viewport of [
     await version.evaluate((element) => element.style.removeProperty('visibility'));
     expect(painted.equals(blank), 'the version label is not visible: something is covering it').toBe(false);
 
-    // The number is not a label: the bilingual dictionary (PQW-900) does not translate it, it is the same in English.
-    const hungarian = (await version.textContent()) ?? '';
-    await page.goto('/?lang=en');
-    await expect(page.locator('#version')).toHaveText(hungarian);
+    // The number is not a label: the bilingual dictionary (PQW-900) does not translate it. The page opens in
+    // English (PQW-1100), so the other language to compare it against is the Hungarian one.
+    const english = (await version.textContent()) ?? '';
+    await page.goto('/?lang=hu');
+    await expect(page.locator('#version')).toHaveText(english);
     await expect(page.locator('#version')).toHaveText(/^v\d+\.\d+\.\d+$/);
 
     await page.goto('/');

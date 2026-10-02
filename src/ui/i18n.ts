@@ -110,4 +110,13 @@ export function applyStaticTexts(root: ParentNode, markup: UiTexts['markup']): v
   for (const element of root.querySelectorAll<HTMLElement>('[data-i18n-roledescription]')) {
     element.setAttribute('aria-roledescription', value(element.dataset['i18nRoledescription']!));
   }
+  // KB: interface.md §8 — a default the user has not touched is swapped; anything
+  // they typed is left alone, so a language change never eats an entry.
+  for (const element of root.querySelectorAll<HTMLInputElement>('[data-i18n-value]')) {
+    const key = element.dataset['i18nValue']!;
+    const defaults = UI_LANGUAGES.map((language) => (UI_TEXTS[language].markup as Record<string, string>)[key]);
+    if (element.value !== '' && !defaults.includes(element.value)) continue;
+    element.value = value(key);
+    element.setAttribute('value', element.value);
+  }
 }

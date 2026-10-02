@@ -89,16 +89,13 @@ test('robots.txt allows everything, and search engines and AI crawlers each get 
   for (const bot of bots) assert.deepEqual(groups.get(bot), ['Allow: /'], bot);
 });
 
-test('the head carries no meta robots noindex, the description and title use the target search terms, and the language is Hungarian', () => {
-  assert.match(INDEX, /<html lang="hu">/);
+test('the head carries no meta robots noindex, the description and title use the target search terms, and the language is English (PQW-1100)', () => {
+  assert.match(INDEX, /<html lang="en">/);
   assert.doesNotMatch(INDEX, /noindex/);
   const description = meta('description');
   assert.ok(description && description.length >= 50 && description.length <= 160, description);
-  assert.match(description, /horgolásminta-tervező/i);
-  assert.match(
-    /<title[^>]*>([^<]*)<\/title>/.exec(HEAD)?.[1] ?? '',
-    /^Ingyenes horgolásminta-tervező és jeldiagram-készítő/,
-  );
+  assert.match(description, /crochet pattern designer/i);
+  assert.match(/<title[^>]*>([^<]*)<\/title>/.exec(HEAD)?.[1] ?? '', /^Free Crochet Pattern Designer & Chart Maker/);
 });
 
 test('the canonical points to the root, and the Open Graph head is complete with an absolute https image', () => {
