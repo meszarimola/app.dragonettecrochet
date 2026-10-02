@@ -102,7 +102,7 @@ export class Board {
 
   constructor(canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('A 2D vászon-kontextus nem érhető el.');
+    if (!ctx) throw new Error('The 2D canvas context is not available.');
     this.#canvas = canvas;
     this.#ctx = ctx;
     new ResizeObserver(() => this.#resize()).observe(canvas);

@@ -2262,7 +2262,7 @@ export class IrregularEditor {
 
   /**
    * Reshaping a row line changes the line alone; the stitches follow only when
-   * "Egyenletessé tesz" is pressed. KB: interface.md §46
+   * "Even out" is pressed. KB: interface.md §46
    */
   #grippedRowLine(drag: Extract<Drag, { kind: 'rowline-grip' }>, point: Point): IrregularPattern {
     const pattern = this.#history.present;

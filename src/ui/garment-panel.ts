@@ -74,7 +74,7 @@ export class GarmentPanel {
     this.#host = host;
     const field = <T extends Element>(id: string): T => {
       const el = section.querySelector<T>(`#${id}`);
-      if (!el) throw new Error(`Hiányzó mező: #${id}`);
+      if (!el) throw new Error(`Missing field: #${id}`);
       return el;
     };
     this.#kind = fill(field('garment-kind'), KIND_CHOICES);

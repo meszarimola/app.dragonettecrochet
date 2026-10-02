@@ -98,7 +98,7 @@ export class GridChartPanel {
     this.#host = host;
     const field = <T extends Element>(id: string): T => {
       const el = section.querySelector<T>(`#${id}`);
-      if (!el) throw new Error(`Hiányzó mező: #${id}`);
+      if (!el) throw new Error(`Missing field: #${id}`);
       return el;
     };
     this.#technique = fill(field('grid-technique'), TECHNIQUE_CHOICES);
@@ -276,7 +276,7 @@ export class GridChartPanel {
       canvas.width = size.width;
       canvas.height = size.height;
       const context = canvas.getContext('2d', { willReadFrequently: true });
-      if (!context) throw new Error('nincs vászon');
+      if (!context) throw new Error('no canvas');
       context.drawImage(image, 0, 0, size.width, size.height);
       const pixels = context.getImageData(0, 0, size.width, size.height).data;
       this.#manual.checked = false;
