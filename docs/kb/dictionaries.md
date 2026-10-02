@@ -64,7 +64,10 @@ side and are never called from the English one.
 ## §6 What never comes from the dictionary
 
 - **Stitch names and the written pattern.** They follow the pattern's notation,
-  not the interface language (`interface.md` §2, §3).
+  not the interface dictionary (`interface.md` §2, §3). Since PQW-1122 the
+  notation's terms follow the interface language, so in practice the two agree —
+  but the words still come from `pattern-text.ts` and `stitches.ts`, which is
+  what keeps US and UK terms apart.
 - **The Japanese tradition's chart labels** ("18目", "縁編み"). They belong to the
   notation (`01 §6.2`); only the note explaining them is bilingual.
 - **Shape and motif names** (`SHAPE_NAMES`, `MOTIF_NAMES` in the core, and the

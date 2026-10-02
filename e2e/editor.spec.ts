@@ -17,6 +17,9 @@ async function open(page: Page): Promise<void> {
  * PQW-1048 took the terminology chooser off the interface. The notation is still
  * what the written pattern and the palette follow, so the tests set it where the
  * app keeps it and load the page again; the pattern itself is stored, so it stays.
+ *
+ * The interface language goes with it: since PQW-1122 terms belonging to the other
+ * language do not survive a load. KB: owner-decisions.md §17
  */
 async function useTerms(page: Page, terms: string): Promise<void> {
   await page.evaluate((value) => {
@@ -24,6 +27,7 @@ async function useTerms(page: Page, terms: string): Promise<void> {
       'dc-mintatervezo:jeloles',
       JSON.stringify({ terms: value, chartStyle: 'cyc', singleCrochet: 'plus' }),
     );
+    localStorage.setItem('dc-mintatervezo:nyelv', value === 'hu' ? 'hu' : 'en');
   }, terms);
   await page.reload();
   const deny = page.getByRole('button', { name: 'Decline' });
@@ -206,10 +210,12 @@ test('with the Japanese preset the half double crochet rectangle is error-free b
 }) => {
   // PQW-1048 took the preset chooser off the interface; the Japanese symbol set is
   // chosen in the bar, and the counting rule comes with it.
+  // The terms follow the interface language since PQW-1122; what this test is
+  // about is the chart style, which does not. KB: owner-decisions.md §17
   await page.addInitScript(() => {
     localStorage.setItem(
       'dc-mintatervezo:jeloles',
-      JSON.stringify({ terms: 'hu', chartStyle: 'jis', singleCrochet: 'cross' }),
+      JSON.stringify({ terms: 'en-US', chartStyle: 'jis', singleCrochet: 'cross' }),
     );
   });
   await open(page);
@@ -225,8 +231,8 @@ test('with the Japanese preset the half double crochet rectangle is error-free b
   // The written pattern panel starts closed (PQW-911), and does not refresh while closed.
   await page.locator('#written-toggle').click();
   const text = page.locator('#written-text');
-  await expect(text).toContainText('2. sor: hagyj ki 2 láncszemet, majd minden láncszembe 1 fp (11 szem).');
-  await expect(text).toContainText('2 lsz (1 fp-nek számít)');
+  await expect(text).toContainText('Row 2: skip 2 ch, hdc in each ch across (11 sts).');
+  await expect(text).toContainText('ch 2 (counts as 1 hdc)');
 
   await page.reload();
   await expect(page.locator('#chart-style')).toHaveValue('jis');
