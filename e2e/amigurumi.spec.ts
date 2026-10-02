@@ -7,6 +7,8 @@
 
 import { expect, type Page, test } from '@playwright/test';
 
+import { asReturningVisitor } from './kezdet.ts';
+
 /*
  * PQW-925: the amigurumi pattern type is switched off for the first round of
  * acceptance testing, so these tests do not run. Do NOT delete them: when the
@@ -18,6 +20,7 @@ test.beforeEach(() => {
 });
 
 async function open(page: Page): Promise<void> {
+  await asReturningVisitor(page);
   await page.goto('/');
   const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();

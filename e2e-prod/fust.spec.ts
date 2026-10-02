@@ -37,6 +37,23 @@ async function open(page: Page): Promise<string[]> {
   return errors;
 }
 
+/**
+ * The editor is closed until there is a pattern (KB: interface.md §80), so the
+ * smoke test starts one the way a visitor does: „Új” → a family → the sheet it
+ * opens, closed by its own „Lecsukás” so the panel is back where the next step
+ * expects it. Escape would not do it: the sheet focuses `#shape-kind`, and the
+ * key handler leaves a `<select>` to the browser. The strings are the ones
+ * `e2e/kezdes-zar.spec.ts` drives (docs/kiadas.md).
+ */
+async function startPattern(page: Page): Promise<void> {
+  await page.locator('#types-toggle').click();
+  await page.getByRole('button', { name: 'Regular crochet' }).click();
+  await page.getByRole('menuitem', { name: 'Flat shape' }).click();
+  await page.locator('[data-action="close-setup"]').click();
+  await expect(page.locator('#setup')).toBeHidden();
+  await expect(page.locator('#start-note')).toBeHidden();
+}
+
 test('the served interface shows the expected version', async ({ page }) => {
   test.skip(VART_VERZIO === '', 'VART_VERZIO is not set');
   await open(page);
@@ -53,6 +70,7 @@ test('the page builds up: canvas, panel and tool bar in place', async ({ page })
 
 test('a foundation chain can be laid down with the stitch count given', async ({ page }) => {
   const errors = await open(page);
+  await startPattern(page);
 
   // The stitch first, the number after it — otherwise the field is still hidden (see the header).
   await page.locator('#board').focus();

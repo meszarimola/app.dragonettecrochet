@@ -8,10 +8,13 @@
 
 import { expect, type Page, test } from '@playwright/test';
 
+import { asReturningVisitor } from './kezdet.ts';
+
 const REGULAR_SECTIONS = ['#section-size', '#section-shape', '#section-shawl', '#section-rounds'];
 const DISABLED_SECTIONS = ['#section-grid', '#section-amigurumi'];
 
 async function open(page: Page): Promise<void> {
+  await asReturningVisitor(page);
   await page.goto('/');
   const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();

@@ -119,6 +119,9 @@ export const MARKUP_TEXTS = {
     boardLabel: 'Diagram: nyilakkal a célpontok között, Enterrel horgolsz',
     boardRoleDescription: 'horgolásminta-diagram',
 
+    startNoteText: 'Minden minta típussal kezdődik. Válassz egyet, és vele együtt megjönnek a szemek, a sorok és az eszközök.',
+    startNoteButton: 'Minta kezdése',
+
     writtenGripLabel: 'Az írott minta magassága',
     writtenTitle: 'Írott minta',
     writtenFullView: 'Teljes nézet',
@@ -538,6 +541,9 @@ export const MARKUP_TEXTS = {
     typesIntro: 'Pick a type to start an empty pattern. Undo brings the current work back.',
     boardLabel: 'Chart: move between targets with the arrow keys, crochet with Enter',
     boardRoleDescription: 'crochet chart',
+
+    startNoteText: 'Every pattern begins with a type. Pick one, and the stitches, the rows and the tools come with it.',
+    startNoteButton: 'Start a pattern',
 
     writtenGripLabel: 'Height of the written pattern',
     writtenTitle: 'Written pattern',

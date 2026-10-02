@@ -10,6 +10,8 @@
 
 import { expect, type Page, test } from '@playwright/test';
 
+import { asReturningVisitor } from './kezdet.ts';
+
 interface Cell {
   readonly layer: number;
   readonly slot: number | null;
@@ -46,6 +48,7 @@ async function targetCell(page: Page, slot: number): Promise<Cell> {
 
 /** 22 chain stitches, a turn, two single crochets, then three double crochets into one target. */
 async function cluster(page: Page): Promise<void> {
+  await asReturningVisitor(page);
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();

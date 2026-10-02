@@ -18,8 +18,11 @@
 
 import { expect, type Page, test } from '@playwright/test';
 
+import { asReturningVisitor } from './kezdet.ts';
+
 /** Load and reject the cookie bar; the button by an attribute that is independent of language. */
 async function open(page: Page, search = ''): Promise<void> {
+  await asReturningVisitor(page);
   await page.goto(`/${search}`);
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
@@ -204,16 +207,19 @@ test('the chosen language survives until the next opening (PQW-906)', async ({ p
   await expect(sizeTitle(page)).toHaveText('Méret és fonal');
 
   // We reopen without the parameter: the stored choice decides, not the default.
+  await asReturningVisitor(page);
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('lang', 'hu');
   await expect(sizeTitle(page)).toHaveText('Méret és fonal');
 
   // `?lang` beats the stored value: a shared link always gives its own language.
+  await asReturningVisitor(page);
   await page.goto('/?lang=en');
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(sizeTitle(page)).toHaveText('Size and yarn');
 
   // And the parameter left the stored choice alone.
+  await asReturningVisitor(page);
   await page.goto('/');
   await expect(sizeTitle(page)).toHaveText('Méret és fonal');
 });
@@ -231,10 +237,12 @@ test('a stored Hungarian choice beats the language of the document (PQW-1100)', 
 
 test('the stored language works even when the cookie bar is rejected (PQW-906)', async ({ page }) => {
   // Language is an operational setting, not tracking: it does not depend on the analytics consent.
+  await asReturningVisitor(page);
   await page.goto('/');
   await page.locator('[data-consent="denied"]').click();
   await page.locator('#ui-language').selectOption('hu');
 
+  await asReturningVisitor(page);
   await page.goto('/');
   await expect(sizeTitle(page)).toHaveText('Méret és fonal');
 });
@@ -293,6 +301,7 @@ test.describe('the Hungarian interface', () => {
   });
 
   test('the cookie bar asks in Hungarian', async ({ page }) => {
+    await asReturningVisitor(page);
     await page.goto('/?lang=hu');
 
     const bar = page.locator('#consent');

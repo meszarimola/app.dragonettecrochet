@@ -16,6 +16,7 @@ import {
   endRow,
   fillRow,
   insertChain,
+  isEmptyPattern,
   liveCheck,
   setPinned,
   work,
@@ -47,6 +48,17 @@ function stitch(pattern, def, cursor) {
 }
 
 const chains = (pattern, count) => ok(work(pattern, { def: 'ch', count }, 0));
+
+// KB: interface.md §80 — the start gate asks this question of a restored pattern.
+test('a pattern is empty while no piece holds a stitch', () => {
+  assert.equal(isEmptyPattern(emptyPattern()), true);
+  assert.equal(isEmptyPattern(chains(emptyPattern(), 1)), false);
+  const twoPieces = emptyPattern();
+  const second = { ...twoPieces.pieces[0], id: 'p2' };
+  assert.equal(isEmptyPattern({ ...twoPieces, pieces: [...twoPieces.pieces, second] }), true);
+  const filled = chains(emptyPattern(), 3);
+  assert.equal(isEmptyPattern({ ...filled, pieces: [second, ...filled.pieces] }), false);
+});
 
 test('a bare foundation chain can be turned (PQW-915)', () => {
   // The bug: the graph counted the unworked end of the foundation chain as

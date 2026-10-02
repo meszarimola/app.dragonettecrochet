@@ -226,6 +226,7 @@
   {"id":"size-swatch-mass","tag":"input","type":"text"},
   {"id":"size-swatch-width","tag":"input","type":"text"},
   {"id":"size-yarn-name","tag":"input","type":"text"},
+  {"id":"start-new","tag":"button","type":"button"},
   {"id":"tab-layers","tag":"button","type":"button"},
   {"id":"tab-rows","tag":"button","type":"button"},
   {"id":"types-toggle","tag":"button","type":"button"},

@@ -10,6 +10,8 @@
 
 import { expect, type Page, test } from '@playwright/test';
 
+import { asReturningVisitor } from './kezdet.ts';
+
 interface Cell {
   readonly layer: number;
   readonly index: number;
@@ -25,6 +27,7 @@ const workingLayer = (page: Page): Promise<number> =>
   page.evaluate(() => (window as unknown as { mintatervezoRacs: { layer(): number } }).mintatervezoRacs.layer());
 
 test('10 chain stitches and one double crochet: the 3-chain turning chain is one cell (PQW-943)', async ({ page }) => {
+  await asReturningVisitor(page);
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();

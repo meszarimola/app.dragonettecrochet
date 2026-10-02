@@ -9,6 +9,8 @@
 import { readFile } from 'node:fs/promises';
 import { expect, type Page, test } from '@playwright/test';
 
+import { asReturningVisitor } from './kezdet.ts';
+
 /*
  * The filet crochet pattern type is switched off for the first round of
  * acceptance testing (KB: owner-decisions.md §13). We do NOT delete the tests:
@@ -19,6 +21,7 @@ test.beforeEach(() => {
 });
 
 async function open(page: Page): Promise<void> {
+  await asReturningVisitor(page);
   await page.goto('/');
   const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();

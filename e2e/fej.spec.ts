@@ -6,6 +6,8 @@
 
 import { expect, test } from '@playwright/test';
 
+import { asReturningVisitor } from './kezdet.ts';
+
 test('favicon, apple-touch-icon, description and theme-color on the built page; without a console error', async ({
   page,
   request,
@@ -14,6 +16,7 @@ test('favicon, apple-touch-icon, description and theme-color on the built page; 
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text());
   });
+  await asReturningVisitor(page);
   await page.goto('/');
 
   await expect(page.locator('head meta[name="description"]')).toHaveAttribute('content', /crochet pattern designer/i);
@@ -42,6 +45,7 @@ test('favicon, apple-touch-icon, description and theme-color on the built page; 
 test('in the menu bar the D6 dragonfly mark stands before the title, as a decorative element, at least 20 px tall (PQW-922)', async ({
   page,
 }) => {
+  await asReturningVisitor(page);
   await page.goto('/');
   const mark = page.locator('.bar__lead svg.brand-mark');
   await expect(mark).toBeVisible();

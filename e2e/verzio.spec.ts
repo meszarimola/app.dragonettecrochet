@@ -6,6 +6,8 @@
 
 import { expect, test } from '@playwright/test';
 
+import { asReturningVisitor } from './kezdet.ts';
+
 for (const viewport of [
   { width: 1440, height: 900 },
   { width: 1000, height: 506 },
@@ -14,6 +16,7 @@ for (const viewport of [
     page,
   }) => {
     await page.setViewportSize(viewport);
+    await asReturningVisitor(page);
     await page.goto('/');
     const deny = page.getByRole('button', { name: 'Decline' });
     if (await deny.isVisible()) await deny.click();
@@ -50,10 +53,12 @@ for (const viewport of [
     // The number is not a label: the bilingual dictionary (PQW-900) does not translate it. The page opens in
     // English (PQW-1100), so the other language to compare it against is the Hungarian one.
     const english = (await version.textContent()) ?? '';
+    await asReturningVisitor(page);
     await page.goto('/?lang=hu');
     await expect(page.locator('#version')).toHaveText(english);
     await expect(page.locator('#version')).toHaveText(/^v\d+\.\d+\.\d+$/);
 
+    await asReturningVisitor(page);
     await page.goto('/');
     // The canvas fills the whole work area, with the two sidebars above it. The label stays
     // within the band of the left sidebar, so it hides nothing of the free drawing area.

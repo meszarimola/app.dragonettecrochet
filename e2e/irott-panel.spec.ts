@@ -10,6 +10,8 @@
 
 import { expect, type Page, test } from '@playwright/test';
 
+import { asReturningVisitor } from './kezdet.ts';
+
 const WRITTEN_KEY = 'dc-mintatervezo:irott-minta';
 
 /** Load with the given stored panel state; we reject the cookie bar. */
@@ -25,6 +27,7 @@ async function open(page: Page, stored: 'nyitva' | 'zarva' | null): Promise<void
     },
     [WRITTEN_KEY, stored] as const,
   );
+  await asReturningVisitor(page);
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();

@@ -45,6 +45,10 @@ export function emptyPattern(title = DEFAULT_TITLE['en-US']): Pattern {
   };
 }
 
+export function isEmptyPattern(pattern: Pattern): boolean {
+  return pattern.pieces.every((piece) => piece.stitches.length === 0);
+}
+
 export type EditCode =
   | 'tradition-unchanged'
   | 'unknown-stitch'
