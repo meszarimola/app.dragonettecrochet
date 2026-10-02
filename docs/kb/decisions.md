@@ -197,3 +197,47 @@ place to keep in step.
 code read correctly; only the network told the truth. A change to what gtag is
 handed is verified by recording the live traffic (`recordHar` in Playwright, then
 read the `g/collect` query), never by grepping the bundle (PQW-1094).
+
+## §11 The release train: `develop` is the trunk, and a release is a tag
+
+The owner's decision, 2026-10-02 (PQW-1125): **what we build goes out.** There is no
+holding branch and no release candidate, so there is nothing for `main` to mean.
+
+- **`develop` is the default branch and the trunk.** Everything is cut from it and
+  merged back into it.
+- **The only other branches are `feature/PQW-<n>-…` and `fix/PQW-<n>-…`**, one per
+  ticket, opened by `npm run munkafa`. No release branches.
+- **A release is a version commit plus a `v<version>` tag on `develop`**, then build,
+  deploy, verify. `npm run kiadas -- 0.78.0` does all of it. The tag is pushed with
+  the branch in one atomic push, and it is created **before** the build so that
+  `--ujra` has something to rebuild from if the upload fails.
+- **`main` is abandoned**, not merged into. It holds no commit that `develop` lacks —
+  checked at the switch: zero non-merge commits, only the merge bubbles of past
+  releases — and every past release is recoverable from its tag.
+
+### What this bought
+
+Gitflow charged **six CI runs per ticket**, about 18 minutes of wall clock whatever
+the change was: the feature PR, the merge into `develop`, the release branch's version
+bump, the release merge, the `develop` release commit, and the `develop` → `main` PR.
+The release train charges **one**: the feature PR. The version commit lands straight
+on `develop`.
+
+### What it costs, and what covers it
+
+`develop` is deployable at all times, so a broken `develop` is a broken release. What
+stands between the two:
+
+- the gate, `npm run kapu`, before every commit — 8 s, no browser;
+- the pull-request CI, one job — about 50 s;
+- the 20-test browser set in the release gate, which a release **cannot** skip;
+- the nightly full browser suite against `develop`.
+
+The accessibility audit is deliberately **not** a release gate (the owner's decision);
+on the main site it runs nightly and by hand. KB: testing.md §4
+
+### The one thing to watch
+
+GitHub only fires a `schedule:` trigger for workflows on the **default branch**. That
+is why the nightly runs did nothing until `develop` became the default, and it is the
+reason to think twice before changing the default again.

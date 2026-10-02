@@ -132,6 +132,30 @@ test('the release cannot ship without the release set, and caps it at five minut
   assert.match(release.slice(at, at + 400), /megall/, 'a failing release set must stop the release');
 });
 
+test('the release is a tag on develop, with no main and no release branch', () => {
+  // The release train (PQW-1125): develop is the trunk, and what is on it goes out.
+  // KB: decisions.md §11
+  assert.match(release, /git tag -a "v\$VERZIO"/, 'a release must tag what it ships');
+  assert.match(release, /git push --atomic origin develop "v\$VERZIO"/, 'branch and tag go out together');
+  assert.ok(!release.includes('release/v'), 'the release branch is gone with the flow that used it');
+
+  for (const text of ['--base main', 'origin/main', 'a main ágon']) {
+    assert.ok(!release.includes(text), `the release still mentions main: "${text}"`);
+  }
+
+  // The tag has to exist before the upload, or --ujra has nothing to rebuild from.
+  // The indented occurrence is the call; the first one is the function definition.
+  assert.ok(
+    release.indexOf('git tag -a') < release.indexOf('\n  epits_es_ellenorizd\n'),
+    'the tag must be created before the build',
+  );
+});
+
+test('the pull-request CI no longer watches main either', () => {
+  assert.match(workflow, /branches: \[develop\]/);
+  assert.ok(!workflow.includes('main'), 'a push trigger on a branch nothing updates is noise');
+});
+
 test('the nightly workflow runs the full suite on a schedule', () => {
   assert.match(nightly, /schedule:/);
   assert.match(nightly, /cron:/);

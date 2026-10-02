@@ -9,8 +9,12 @@ git checkout develop && git pull
 npm run kiadas -- 0.20.0
 ```
 
-Ennyi. A szkript elvégzi a verzióemelést, a két összevonást, a buildet, a
+Ennyi. A szkript elvégzi a verzióemelést, a `v<verzió>` címkét, a buildet, a
 telepítést és az ellenőrzést, majd kiírja, mi a teendő, ha baj van.
+
+**Nincs kiadási ág és nincs `main`** (PQW-1125): a `develop` a trunk, és ami rajta
+van, az megy ki. A kiadás egy commit meg egy címke a `developon`, egy atomi
+pusholásban. KB: decisions.md §11
 
 ## Mielőtt élesbe mennél: főpróba
 
@@ -65,19 +69,22 @@ biztonsági fejléc megléte (CSP, HSTS, `X-Content-Type-Options`,
 
 ## Amit tudni érdemes
 
-**Ágvédelem van, de nem téged köt.** A `develop` és a `main` is védett, és
-mindkét CI ellenőrzés (`Build and tests`, `Browser tests`) kötelező rajtuk — az
-adminokra viszont nem érvényes (`enforce_admins` kikapcsolva), és a tulajdonos
-admin. Ezért megy át a szkript helyi összevonása és push-a, és ezért nem kell
-`--admin`. Ha az admin-kivétel bármikor bekapcsol, a kiadás már a push-nál
-elbukik, nem a végén: akkor a szkript gitflow része szorul átírásra, nem a
-telepítés.
+**Ágvédelem van, de nem téged köt.** A `develop` védett, és a `Build and tests`
+ellenőrzés kötelező rajta — az adminokra viszont nem érvényes (`enforce_admins`
+kikapcsolva), és a tulajdonos admin. Ezért megy át a szkript push-a, és ezért nem
+kell `--admin`. Ha az admin-kivétel bármikor bekapcsol, a kiadás már a push-nál
+elbukik, nem a végén.
+
+A `Browser tests` már nem kötelező check: a böngészős tesztek kikerültek a PR-ek
+CI-jéből (nightly és kiadás előtt futnak, KB: testing.md §4), és egy nem jelentő
+job kötelező checkje örökre „pending"-ben hagyná a PR-eket.
 
 A CI a push után külön fut; ha pirosra vált, az látszik, de a kiadást nem
 állítja meg. Ha meg akarod várni, futtasd `--bongeszo`-val.
 
 **A teljes kiadás abból a munkapéldányból indul, ahol a `develop` ki van
-fejtve** — worktree-ből a `--proba` és a `--ujra` megy, a teljes kiadás nem.
+fejtve** — worktree-ből a `--proba` és a `--ujra` megy, a teljes kiadás nem. A
+szkript ellenőrzi, hogy a `develop`-on állsz és szinkronban vagy az `origin`-nal.
 
 **A füstpróba az `e2e-prod/` mappában van**, külön beállítással
 (`playwright.prod.config.ts`), hogy egyetlen rendes böngészős teszt se
