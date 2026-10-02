@@ -337,3 +337,29 @@ built from.
 The practical consequence: with US or UK terms the title is English, with
 Hungarian notation it is Hungarian, and switching the interface alone does not
 rewrite it.
+
+## §17 The terms follow the interface language (PQW-868 §2 withdrawn in practice)
+
+PQW-868 made the notation independent of the interface language, and that was
+right while the interface had a chooser for it. PQW-1048 took the chooser away,
+and PQW-1100 flipped the default interface language to English. Between them
+they built a trap, and the owner walked into it on the day of the release:
+
+> angol felületen magyar szemnevek — „Láncszem (lsz)", „Kúszószem (ksz)"
+
+The browser held `terms: "hu"` from an earlier session. The interface resolved
+to English, because there was no stored *language*. `readNotation` preferred
+the stored terms over the default, `changeLanguage` only moved the terms when
+nothing was stored, and no control on the page could change them. There was no
+way out except clearing `localStorage` by hand.
+
+On 2026-10-02 the owner decided: **the terms follow the interface language.**
+English gives US terms, Hungarian gives Hungarian ones, and a stored value does
+not override it. The chart style stays a stored choice of its own, because
+nothing about it is language.
+
+What this gives up is the combination "English interface, Hungarian stitch
+names". Nobody could reach that combination deliberately anyway — the chooser
+is gone — so what was lost is a state only an old `localStorage` entry could
+produce. If the combination is ever wanted again, the chooser has to come back
+with it; `interface.md` §2 now says so rather than promising independence.
