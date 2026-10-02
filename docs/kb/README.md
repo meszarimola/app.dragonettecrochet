@@ -3,8 +3,19 @@
 Engineering decisions and incidents. **Crochet domain knowledge lives elsewhere**:
 `docs/knowledge-base/`, cited by section code (`06 §5.2`).
 
-Read **only the section your task touches**. This index exists so you never have
-to load the whole knowledge base into context.
+Read **only the section your task touches**, and address it with the command
+rather than opening a file:
+
+```bash
+npm run kb                     # every developer section, one line each
+npm run kb -- interface        # the sections of one file
+npm run kb -- interface 4 51   # those two sections, in full
+npm run kb -- --horgolas       # the crochet index
+npm run kb -- 04 4.4           # one crochet section
+```
+
+The whole developer index is about 4k tokens and an average section about 350;
+`interface.md` read whole is 25k. That is the entire reason this index exists.
 
 | File | Read it when |
 |---|---|
@@ -23,3 +34,9 @@ to load the whole knowledge base into context.
 - One heading per decision, numbered `§N`, so code can cite it stably.
 - Never renumber a section. Mark it `(withdrawn)` and add a new one.
 - Write down the **why** and the evidence, not the what. The code is the what.
+- A citation may address a **numbered item inside** a section: `03 §9.8` is the
+  eighth item of §9 where the crochet knowledge base has no §9.8 heading. The
+  command resolves both forms, and prints which item was meant.
+- `tests/kb-references.test.mjs` checks every citation in the repository — source,
+  docs, rules, skills — so a renumbered section fails the suite rather than
+  rotting quietly.

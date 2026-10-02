@@ -39,12 +39,12 @@ landing page on the main site.
 
 ## Every ticket
 
-1. **Read the knowledge bases, addressed.**
-   - Developer decisions: the `docs/kb/README.md` index → only the section your
-     task touches.
-   - **Crochet domain:** if the change touches stitch, row, round, garment or
-     validation logic, read the relevant `§` of `docs/knowledge-base/`. It is
-     ~5000 lines — **never load it whole**, follow the section code.
+1. **Read the knowledge bases, addressed — with `npm run kb`, not by opening a
+   file.** `npm run kb` lists every developer section in about 4k tokens;
+   `npm run kb -- interface 4 51` prints just those two. For the crochet domain,
+   `npm run kb -- --horgolas` and `npm run kb -- 04 4.4`; it is ~5000 lines, so
+   **never load it whole**. Put the sections you used in the ticket comment, so
+   what was read — and what was not — is on the record.
 2. **Size it.** More than 5 files, or independent parts → work in a worktree and
    split the parts across parallel agents.
 3. **Work.** A new validation rule gets a `reference` pointing at the knowledge

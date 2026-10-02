@@ -16,6 +16,7 @@
     "test:e2e": "npm run build && playwright test",
     "kapu": "bash scripts/kapu.sh",
     "munkafa": "node scripts/munkafa.mjs",
+    "kb": "node scripts/kb.mjs",
     "kiadas": "bash scripts/kiadas.sh",
     "visszaallitas": "bash scripts/visszaallitas.sh",
     "fust": "playwright test --config playwright.prod.config.ts"
