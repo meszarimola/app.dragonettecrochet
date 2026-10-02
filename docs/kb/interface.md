@@ -1704,9 +1704,21 @@ that appears only in the regular type, then withdrew it for this submenu.
 
 PQW-1038, replacing §65. A standard cascading menu: the „›” sits inside the
 „Szabályos horgolás” card, and `#types-regular-menu` (`role="menu"`) opens beside
-the type menu on hover, on a click on the „›”, or with the right arrow on the
-card. Up and down move, left and Escape close it and give the focus back to the
-card. Clicking the card itself still selects the type, which every spec relies on.
+the type menu on hover, on a click on the card or the „›”, or with the right arrow
+on the card. Up and down move, left and Escape close it and give the focus back to
+the card.
+
+**The card does not start a pattern (PQW-1126).** It used to: a click on it ran
+`startType('regular')`, so the owner got the default shape without having chosen
+one — „I can click on the regular crochet without choosing the type. that's not
+good.” The card is the menu's opener now (`aria-haspopup="menu"`,
+its own `aria-expanded`), and only an entry of the menu starts anything. It opens
+rather than toggles: hovering the card has already opened the menu, so a toggle
+would close what the click was aiming at.
+
+Every spec that starts a regular pattern therefore goes through the menu — the
+card, then „Rectangular”, then `[data-action="close-setup"]` to put back the sheet
+the choice opens.
 
 The menu is `position: fixed`, placed from the card's rectangle, because
 `.menu__pop` scrolls (`overflow-y: auto`) and would clip anything absolute inside

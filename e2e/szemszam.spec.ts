@@ -16,9 +16,11 @@ async function start(page: Page): Promise<void> {
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
-  // "New pattern" is the type menu since PQW-1045; the type starts the pattern anew.
+  // "New pattern" is the type menu since PQW-1045; since PQW-1126 the shape starts the pattern.
   await page.getByRole('button', { name: 'New pattern' }).click();
   await page.locator('.type[data-type="regular"]').click();
+  await page.getByRole('menuitem', { name: /Rectangular/ }).click();
+  await page.locator('[data-action="close-setup"]').click();
 }
 
 /** The button of the stitch palette; it only clicks when nothing is selected yet (the button toggles). */

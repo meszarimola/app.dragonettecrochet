@@ -41,10 +41,12 @@ async function writtenText(page: Page): Promise<string> {
   return (await page.locator('#written-text').textContent()) ?? '';
 }
 
-/** PQW-1045: a new pattern is started from the "New" menu, by picking a type. */
+/** PQW-1045, PQW-1126: a new pattern comes from the "New" menu, by picking a type and a shape. */
 async function newRegular(page: Page): Promise<void> {
   await page.locator('#types-toggle').click();
   await page.locator('.type[data-type="regular"]').click();
+  await page.getByRole('menuitem', { name: /Rectangular/ }).click();
+  await page.locator('[data-action="close-setup"]').click();
 }
 
 test('flat circle in single crochet: estimated increases, error-free rounds, the sequence of rounds follows the knowledge base', {
