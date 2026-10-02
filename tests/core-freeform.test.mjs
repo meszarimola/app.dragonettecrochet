@@ -2,7 +2,7 @@
  * The free-form chart (PQW-1141, PQW-1143, PQW-1144): a new chart is empty, every
  * placed stitch keeps its stitch, its position, its turn, its size and an id of
  * its own, and a selection is found by a point or an area, framed, moved, turned
- * and resized.
+ * and resized; PQW-1146 arranges a selection in a row, on a circle or in a fan.
  */
 
 import { strict as assert } from 'node:assert';
@@ -10,6 +10,7 @@ import { test } from 'node:test';
 
 import {
   allInside,
+  arrangeStitches,
   boundedFactor,
   boundedMove,
   copyStitches,
@@ -20,6 +21,7 @@ import {
   moveStitches,
   pasteStitches,
   placeStitch,
+  ROW_GAP,
   rotateStitches,
   scaleStitches,
   selectionFrame,
@@ -241,4 +243,109 @@ test('repeated pastes walk on from the last copy, and turn back at the edge', ()
     xs.push(copied[0].x);
   }
   assert.deepEqual(xs, [360, 380, 400, 380]);
+});
+
+/** Every stitch 10 wide and 20 tall, so its foot is 10 under its centre. */
+const EXTENT = () => ({ halfWidth: 5, halfHeight: 10 });
+const ALL = new Set([1, 2, 3]);
+
+/** Where the stitch's foot is, and which way its top points (0 = right, clockwise). */
+function footOf(placed) {
+  const up = { x: Math.sin(placed.rotation), y: -Math.cos(placed.rotation) };
+  return { x: placed.x - up.x * 10, y: placed.y - up.y * 10, up };
+}
+
+test('a row stands the stitches upright, foot to foot, left to right, around where they stood', () => {
+  const chart = chartOf([300, 50], [100, 90], [200, 10]);
+  const turned = rotateStitches(chart, ALL, { x: 200, y: 50 }, 1);
+  const arranged = arrangeStitches(turned, ALL, 'row', EXTENT, { radius: 0, angle: 0 });
+  const [first, second, third] = [2, 3, 1].map((id) => arranged.stitches.find((placed) => placed.id === id));
+  for (const placed of [first, second, third]) close(placed.rotation, 0, 'upright');
+  close(second.x - first.x, 10 + ROW_GAP, 'one stitch and one gap apart');
+  close(third.x - second.x, 10 + ROW_GAP, 'one stitch and one gap apart');
+  close(second.x, 200, 'centred where the selection was');
+  assert.ok(
+    [first, second, third].every((placed) => placed.y === first.y),
+    'on one line',
+  );
+});
+
+test('a row of stitches of different heights shares one foot line', () => {
+  const chart = chartOf([0, 0], [50, 0]);
+  const extent = (placed) => ({ halfWidth: 5, halfHeight: placed.id === 1 ? 10 : 30 });
+  const [short, tall] = arrangeStitches(chart, new Set([1, 2]), 'row', extent, { radius: 0, angle: 0 }).stitches;
+  close(short.y + 10, tall.y + 30, 'the feet');
+});
+
+test('a circle stands every stitch on it, feet in, tops out, evenly around the middle', () => {
+  const chart = chartOf([0, 0], [100, 0], [50, 90]);
+  const middle = { x: 50, y: 30 };
+  const arranged = arrangeStitches(chart, ALL, 'circle', EXTENT, { radius: 40, angle: 0 });
+  const angles = [];
+  for (const placed of arranged.stitches) {
+    const foot = footOf(placed);
+    close(Math.hypot(foot.x - middle.x, foot.y - middle.y), 40, 'the foot on the circle');
+    const out = { x: (foot.x - middle.x) / 40, y: (foot.y - middle.y) / 40 };
+    close(out.x, foot.up.x, 'the top points away from the middle');
+    close(out.y, foot.up.y, 'the top points away from the middle');
+    angles.push(Math.atan2(out.y, out.x));
+  }
+  const sorted = angles.sort((a, b) => a - b);
+  close(sorted[1] - sorted[0], (Math.PI * 2) / 3, 'evenly spaced');
+  close(sorted[2] - sorted[1], (Math.PI * 2) / 3, 'evenly spaced');
+});
+
+test('a circle arranged again does not move', () => {
+  const chart = chartOf([0, 0], [100, 0], [50, 90]);
+  const once = arrangeStitches(chart, ALL, 'circle', EXTENT, { radius: 40, angle: 0 });
+  const twice = arrangeStitches(once, ALL, 'circle', EXTENT, { radius: 40, angle: 0 });
+  once.stitches.forEach((placed, i) => {
+    close(twice.stitches[i].x, placed.x, 'x');
+    close(twice.stitches[i].y, placed.y, 'y');
+  });
+});
+
+test('a fan points every foot at one shared point, keeps them the radius away and spreads the angle', () => {
+  const chart = chartOf([0, 0], [50, 0], [100, 0]);
+  const angle = Math.PI / 2;
+  const arranged = arrangeStitches(chart, ALL, 'fan', EXTENT, { radius: 12, angle });
+  const [left, middle, right] = arranged.stitches;
+  const point = { x: 50, y: 0 + 12 + 10 };
+  for (const placed of arranged.stitches) {
+    const foot = footOf(placed);
+    close(Math.hypot(foot.x - point.x, foot.y - point.y), 12, 'the gap between the foot and the shared point');
+    close((foot.x - point.x) / 12, foot.up.x, 'the stitch points away from the shared point');
+  }
+  close(middle.rotation, 0, 'the middle one stands upright');
+  close(left.rotation, -angle / 2, 'the first leans left by half the angle');
+  close(right.rotation, angle / 2, 'the last leans right by half the angle');
+  close(middle.y, 0, 'the middle one stays where the selection was');
+});
+
+test('the feet of a fan do not meet, however small the stitches', () => {
+  const chart = chartOf([0, 0], [10, 0]);
+  const [a, b] = arrangeStitches(chart, new Set([1, 2]), 'fan', EXTENT, { radius: 12, angle: 1 }).stitches;
+  const [footA, footB] = [footOf(a), footOf(b)];
+  assert.ok(Math.hypot(footA.x - footB.x, footA.y - footB.y) > 1, 'the feet are apart');
+});
+
+test('a single stitch in a fan stands upright, and an arrangement leaves the rest of the chart alone', () => {
+  const chart = chartOf([0, 0], [70, 70]);
+  const arranged = arrangeStitches(chart, new Set([1]), 'fan', EXTENT, { radius: 12, angle: 1 });
+  close(arranged.stitches[0].rotation, 0, 'upright');
+  assert.deepEqual(arranged.stitches[1], chart.stitches[1]);
+  assert.equal(arrangeStitches(chart, new Set(), 'row', EXTENT, { radius: 0, angle: 0 }), chart);
+});
+
+test('an arrangement keeps every stitch, its stitch, its size and its id', () => {
+  const chart = scaleStitches(chartOf([0, 0], [40, 0], [80, 0]), ALL, { x: 40, y: 0 }, 2);
+  for (const arrangement of ['row', 'circle', 'fan']) {
+    const arranged = arrangeStitches(chart, ALL, arrangement, EXTENT, { radius: 30, angle: 1 });
+    assert.deepEqual(
+      arranged.stitches.map(({ id, stitch, scale }) => [id, stitch, scale]),
+      chart.stitches.map(({ id, stitch, scale }) => [id, stitch, scale]),
+      arrangement,
+    );
+    assert.equal(arranged.nextId, chart.nextId);
+  }
 });

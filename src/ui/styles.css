@@ -31,6 +31,7 @@
 
   /* KB: interface.md §15, §38 */
   --stitches-width: min(17rem, 80vw);
+  --inspector-width: min(12rem, 40vw);
 
   color-scheme: light;
 }
@@ -311,9 +312,9 @@ button {
 #board {
   position: absolute;
   inset-block: 0;
-  inset-inline: var(--stitches-width) 0;
+  inset-inline: var(--stitches-width) var(--inspector-width);
   display: block;
-  inline-size: calc(100% - var(--stitches-width));
+  inline-size: calc(100% - var(--stitches-width) - var(--inspector-width));
   block-size: 100%;
   /* The board handles its own drags; a browser pan would cancel them mid-way. */
   touch-action: none;
@@ -334,6 +335,76 @@ body.is-armed #board {
   overflow-y: auto;
   border-inline-end: 1px solid var(--c-line);
   background: var(--c-bg);
+}
+
+.inspector {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  inline-size: var(--inspector-width);
+  padding: var(--sp-3);
+  overflow-y: auto;
+  border-inline-start: 1px solid var(--c-line);
+  background: var(--c-bg);
+}
+
+.arrange {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.arrange__group {
+  display: grid;
+  gap: var(--sp-0);
+}
+
+.arrange__button {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  inline-size: 100%;
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--c-ink);
+  font-size: 0.875rem;
+  text-align: start;
+}
+
+.arrange__button:hover {
+  border-color: var(--c-accent);
+  color: var(--c-accent);
+}
+
+.arrange__button:active {
+  background: var(--c-selection);
+}
+
+.arrange__field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-1);
+  padding-inline-start: var(--sp-2);
+  color: var(--c-text-soft);
+  font-size: 0.8125rem;
+}
+
+.arrange__input {
+  inline-size: 4.5rem;
+  min-block-size: 44px;
+  padding: 0 var(--sp-1);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-md);
+  background: var(--c-bg);
+  color: var(--c-ink);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.arrange__input:hover {
+  border-color: var(--c-accent);
 }
 
 .panel__title {
@@ -485,6 +556,19 @@ body.is-armed #board {
 
 /* KB: interface.md §56 — in a phone-sized window the title gives way first. */
 @media (width < 40rem) {
+  :root {
+    --inspector-width: 0px;
+  }
+
+  .inspector {
+    inline-size: min(12rem, 60vw);
+    z-index: 20;
+  }
+
+  .inspector:not(:has(> :not([hidden]))) {
+    display: none;
+  }
+
   .bar__title,
   .home > span {
     position: absolute;

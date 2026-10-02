@@ -2,10 +2,15 @@
 
 import './styles.css';
 import {
+  type Arrangement,
+  allInside,
+  arrangeStitches,
+  boundedMove,
   copyStitches,
   deleteStitches,
   emptyChart,
   type FreeformChart,
+  moveStitches,
   type PlacedStitch,
   pasteStitches,
   placeStitch,
@@ -45,6 +50,10 @@ const newButton = must<HTMLButtonElement>('#new-chart');
 const selectButton = must<HTMLButtonElement>('#select-tool');
 const duplicateButton = must<HTMLButtonElement>('#duplicate-selection');
 const deleteButton = must<HTMLButtonElement>('#delete-selection');
+const arrangePanel = must<HTMLElement>('#arrange');
+const circleRadius = must<HTMLInputElement>('#arrange-circle-radius');
+const fanRadius = must<HTMLInputElement>('#arrange-fan-radius');
+const fanAngle = must<HTMLInputElement>('#arrange-fan-angle');
 const PASTE_STEP = 20;
 
 let chartStyle: ChartStyle = readChartStyle(read(NOTATION_KEY));
@@ -52,6 +61,13 @@ let chart: FreeformChart | null = null;
 let tool: StitchDefId | null = null;
 let selecting = false;
 let clipboard: readonly PlacedStitch[] = [];
+// KB: interface.md §83
+let arranged: {
+  readonly arrangement: Arrangement;
+  readonly ids: ReadonlySet<number>;
+  readonly base: FreeformChart;
+  readonly result: FreeformChart;
+} | null = null;
 let items: PaletteItem[] = [];
 const buttons = new Map<StitchDefId, HTMLButtonElement>();
 const ink = readInk(document.documentElement);
@@ -69,12 +85,55 @@ const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAcce
   selectionChanged: (count) => {
     duplicateButton.disabled = count === 0;
     deleteButton.disabled = count === 0;
+    arrangePanel.hidden = count === 0;
   },
 });
 
 selectButton.addEventListener('click', () => setSelecting(!selecting));
 duplicateButton.addEventListener('click', () => duplicateSelection());
 deleteButton.addEventListener('click', () => deleteSelection());
+must<HTMLButtonElement>('#arrange-row').addEventListener('click', () => arrange('row'));
+must<HTMLButtonElement>('#arrange-circle').addEventListener('click', () => arrange('circle'));
+must<HTMLButtonElement>('#arrange-fan').addEventListener('click', () => arrange('fan'));
+circleRadius.addEventListener('input', () => rearrange('circle'));
+fanRadius.addEventListener('input', () => rearrange('fan'));
+fanAngle.addEventListener('input', () => rearrange('fan'));
+
+function arrange(arrangement: Arrangement): void {
+  if (chart === null || board.selected.size === 0 || board.dragging) return;
+  const ids = new Set(board.selected);
+  const base = arranged !== null && untouchedSince(arranged) ? arranged.base : chart;
+  const options =
+    arrangement === 'circle'
+      ? { radius: numberIn(circleRadius), angle: 0 }
+      : { radius: numberIn(fanRadius), angle: (numberIn(fanAngle) * Math.PI) / 180 };
+  const next = arrangeStitches(base, ids, arrangement, (placed) => board.extentOf(placed), options);
+  const [dx, dy] = boundedMove(next, ids, 0, 0, board.size());
+  const result = moveStitches(next, ids, dx, dy);
+  if (!allInside(result, ids, board.size())) return;
+  chart = result;
+  arranged = { arrangement, ids, base, result };
+  board.show(chart, symbolOptionsFor(chartStyle));
+}
+
+function rearrange(arrangement: Arrangement): void {
+  if (arranged?.arrangement === arrangement && untouchedSince(arranged)) arrange(arrangement);
+}
+
+function untouchedSince({ ids, result }: NonNullable<typeof arranged>): boolean {
+  return chart === result && sameSet(ids, board.selected);
+}
+
+/** An empty or out-of-range field counts as the nearest value it allows. */
+function numberIn(input: HTMLInputElement): number {
+  const value = Number.parseFloat(input.value);
+  const [min, max] = [Number(input.min), Number(input.max)];
+  return Number.isFinite(value) ? Math.min(Math.max(value, min), max) : min;
+}
+
+function sameSet(a: ReadonlySet<number>, b: ReadonlySet<number>): boolean {
+  return a.size === b.size && [...a].every((id) => b.has(id));
+}
 
 /** Each returns whether it acted, so a shortcut that did nothing leaves the browser its own. KB: interface.md §11 */
 function deleteSelection(): boolean {
@@ -118,6 +177,8 @@ languageSelect.value = uiLanguage();
 styleSelect.value = chartStyle;
 must<HTMLElement>('#version').textContent = `v${__APP_VERSION__}`;
 alignTooltips(must<HTMLElement>('.tools'));
+// KB: interface.md §83
+if (navigator.webdriver) Object.assign(window, { dcFreeformChart: () => chart });
 
 newButton.addEventListener('click', () => {
   chart = emptyChart();
@@ -146,13 +207,13 @@ languageSelect.addEventListener('change', () => {
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
     // A select box closes on its own Escape; that one is not meant for the chart.
-    if (board.dragging || event.target instanceof HTMLSelectElement) return;
+    if (board.dragging || inField(event.target)) return;
     if (tool !== null) select(null);
     else if (board.selected.size > 0) board.clearSelection();
     return;
   }
   if (chart === null) return;
-  const inSelect = event.target instanceof HTMLSelectElement;
+  const inSelect = inField(event.target);
   if (!inSelect && (event.key === 'Delete' || event.key === 'Backspace')) {
     if (deleteSelection()) event.preventDefault();
     return;
@@ -174,6 +235,11 @@ document.addEventListener('keydown', (event) => {
   event.preventDefault();
   select(item.def.id);
 });
+
+/** A select box or a typed field keeps its own keys. */
+function inField(target: EventTarget | null): boolean {
+  return target instanceof HTMLSelectElement || target instanceof HTMLInputElement;
+}
 
 function applyLanguage(language: UiLanguage): void {
   setUiLanguage(language);

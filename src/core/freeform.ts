@@ -253,3 +253,107 @@ export function pasteStitches(chart: FreeformChart, copied: readonly PlacedStitc
     copied: pasted,
   };
 }
+
+export type Arrangement = 'row' | 'circle' | 'fan';
+
+/** A stitch's half size on the board, upright: the centre is `halfHeight` above its foot. */
+export interface Extent {
+  readonly halfWidth: number;
+  readonly halfHeight: number;
+}
+
+export interface ArrangeOptions {
+  /** Circle: from the centre to the feet. Fan: from the shared point to the feet. */
+  readonly radius: number;
+  /** Fan only: the spread from the first stitch to the last, in radians. */
+  readonly angle: number;
+}
+
+/** The space between two neighbouring stitches of a row. */
+export const ROW_GAP = 4;
+
+interface Sized {
+  readonly stitch: PlacedStitch;
+  readonly size: Extent;
+}
+
+/**
+ * Lays the selected stitches out around the middle of where they stand, keeping
+ * their stitch and size. A row stands them upright, foot to foot, left to right;
+ * a circle stands them on a whole circle, feet in and tops out, clockwise from
+ * the top; a fan points their feet at one shared point under them and keeps them
+ * `radius` away from it, so the feet do not cover each other.
+ */
+export function arrangeStitches(
+  chart: FreeformChart,
+  ids: ReadonlySet<number>,
+  arrangement: Arrangement,
+  extent: (placed: PlacedStitch) => Extent,
+  options: ArrangeOptions,
+): FreeformChart {
+  const chosen = chart.stitches.filter(({ id }) => ids.has(id));
+  if (chosen.length === 0) return chart;
+  const middle = {
+    x: chosen.reduce((sum, { x }) => sum + x, 0) / chosen.length,
+    y: chosen.reduce((sum, { y }) => sum + y, 0) / chosen.length,
+  };
+  const ordered = arrangement === 'circle' ? byAngle(chosen, middle) : byX(chosen);
+  const items = ordered.map((stitch) => ({ stitch, size: extent(stitch) }));
+  const placed =
+    arrangement === 'row'
+      ? row(items, middle)
+      : arrangement === 'circle'
+        ? circle(items, middle, options.radius)
+        : fan(items, middle, options);
+  const next = new Map(placed.map((stitch) => [stitch.id, stitch]));
+  return { ...chart, stitches: chart.stitches.map((stitch) => next.get(stitch.id) ?? stitch) };
+}
+
+function byX(stitches: readonly PlacedStitch[]): PlacedStitch[] {
+  return [...stitches].sort((a, b) => a.x - b.x || a.y - b.y);
+}
+
+/** Clockwise from the top, so a circle arranged again keeps its order. */
+function byAngle(stitches: readonly PlacedStitch[], center: Point): PlacedStitch[] {
+  const from = ({ x, y }: PlacedStitch): number =>
+    (Math.atan2(y - center.y, x - center.x) + Math.PI * 2.5) % (Math.PI * 2);
+  return [...stitches].sort((a, b) => from(a) - from(b) || a.x - b.x);
+}
+
+function tallest(items: readonly Sized[]): number {
+  return Math.max(...items.map(({ size }) => size.halfHeight));
+}
+
+function row(items: readonly Sized[], middle: Point): PlacedStitch[] {
+  const width = items.reduce((sum, { size }) => sum + size.halfWidth * 2, 0) + ROW_GAP * (items.length - 1);
+  const foot = middle.y + tallest(items);
+  let left = middle.x - width / 2;
+  return items.map(({ stitch, size }) => {
+    const x = left + size.halfWidth;
+    left += size.halfWidth * 2 + ROW_GAP;
+    return { ...stitch, x, y: foot - size.halfHeight, rotation: 0 };
+  });
+}
+
+/** Stands the stitch with its foot `radius` from `center` and its top along `direction` (0 = right, clockwise). */
+function standOut({ stitch, size }: Sized, center: Point, radius: number, direction: number): PlacedStitch {
+  const reach = radius + size.halfHeight;
+  return {
+    ...stitch,
+    x: center.x + Math.cos(direction) * reach,
+    y: center.y + Math.sin(direction) * reach,
+    rotation: direction + Math.PI / 2,
+  };
+}
+
+function circle(items: readonly Sized[], center: Point, radius: number): PlacedStitch[] {
+  const step = (Math.PI * 2) / items.length;
+  return items.map((item, i) => standOut(item, center, radius, -Math.PI / 2 + step * i));
+}
+
+function fan(items: readonly Sized[], middle: Point, { radius, angle }: ArrangeOptions): PlacedStitch[] {
+  const point = { x: middle.x, y: middle.y + radius + tallest(items) };
+  const spread = items.length > 1 ? angle : 0;
+  const step = spread / Math.max(1, items.length - 1);
+  return items.map((item, i) => standOut(item, point, radius, -Math.PI / 2 - spread / 2 + step * i));
+}

@@ -2399,3 +2399,37 @@ the written panel; a window with one way back deserves its own word, and
 it still says what the action does, and renaming it would have moved a value in
 `tests/fixtures/control-inventory.json`, which is frozen for content the owner
 owns, not for a rename of mine (`frozen-paths.md`).
+
+## §83 The right panel follows the selection, and arranges it
+
+PQW-1146. `#inspector` is the free-form board's right column, and what it shows
+depends on what is in focus. With nothing selected it is empty — the owner's
+choice over a hint or a hidden column. With one or more stitches selected it
+offers the three arrangements of `arrangeStitches` (`core/freeform.ts`):
+
+- **In a row**: upright, foot to foot on one line, left to right in the order
+  they stood, `ROW_GAP` apart, centred where the selection was.
+- **In a circle**: a whole circle, never an arc; feet inward, tops outward,
+  clockwise from the top. Its one value is the radius to the feet.
+- **In a fan**: the feet point at one shared point under the stitches, and each
+  stands `radius` away from it, so the feet do not cover each other — the owner
+  asked for that gap explicitly, against a fan whose feet all meet. The angle is
+  the spread from the first stitch to the last.
+
+The values are minimal on purpose (the owner: radius and angle, no more). The
+units are board pixels. A changed value re-arranges at once, from the chart
+**before** the arrangement — re-arranging the arranged fan from its own centroid
+drifted it downward with every keystroke. That earlier chart is used only while
+the chart is still, by identity, the one the arrangement produced and the same
+stitches are selected: matching the ids alone brought an old chart back after
+New, a paste or a placed stitch reused them. The fan's default radius is
+24: at 12, five half-doubles at 90° touched at the tops, which a zoomed
+screenshot showed and no measurement did. An arrangement that would leave the
+board is shifted back on; one larger than the board is not taken, as a turn or a
+resize is not (a stitch left off the board can no longer be dragged, turned or
+resized). Below 40rem the column takes no width and appears over the board only
+while it has something to show.
+
+The number fields keep their own keys: Delete, Backspace, Escape and the
+Ctrl/⌘ commands typed in a field are not the chart's. Before that, Backspace in
+the radius deleted the selection.
