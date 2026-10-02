@@ -17,9 +17,7 @@
 
 # ---------------------------------------------------------------- Fejlécek
 <IfModule mod_headers.c>
-  # A blob: azért kerül be, mert egy későbbi kép-export `URL.createObjectURL`-lel
-  # készül majd.
-  Header always set Content-Security-Policy "default-src 'self'; img-src 'self' data: blob: https://*.google-analytics.com https://www.googletagmanager.com; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' https://www.googletagmanager.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests"
+  Header always set Content-Security-Policy "default-src 'self'; img-src 'self' data:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests"
 
   Header always set X-Content-Type-Options "nosniff"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"

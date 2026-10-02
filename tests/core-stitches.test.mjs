@@ -8,7 +8,6 @@
 
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
-import { roundEndFor } from '../src/core/rounds.ts';
 import { cluster, decrease, increase, STITCH_SECTIONS, STITCHES, shell, stitchById } from '../src/core/stitches.ts';
 import { stitchLabel, stitchName, stitchStructure } from '../src/core/stitchText.ts';
 
@@ -253,17 +252,6 @@ for (const [id, counts, roundEnd] of CONVENTIONS) {
     assert.deepEqual([def.turningChainCounts, def.roundEnd], [counts, roundEnd]);
   });
 }
-
-test('the round end default comes from the pattern kind: spiral in amigurumi, joined elsewhere; an explicit round end is kept (PQW-892)', () => {
-  assert.equal(roundEndFor('stitch-default', false), 'join-slip');
-  assert.equal(roundEndFor('stitch-default', true), 'spiral');
-  for (const amigurumi of [false, true]) {
-    assert.equal(roundEndFor('join-slip', amigurumi), 'join-slip');
-    assert.equal(roundEndFor('spiral', amigurumi), 'spiral');
-  }
-  // Stitch height does not decide it: by the library a single crochet round is a joined round too.
-  assert.equal(stitchById('sc').roundEnd, stitchById('dc').roundEnd);
-});
 
 test('a compound stitch inherits the height, turning chain and round end of its part', () => {
   for (const def of STITCHES) {

@@ -366,8 +366,8 @@ export interface StitchSection {
   readonly stitches: readonly StitchDef[];
   /**
    * A section the palette does not show as a section of its own. Its stitches
-   * stay in the library, so a chart that holds one is drawn and named, and the
-   * written pattern's key keeps its order. KB: interface.md §74
+   * stay in the library, so a chart that holds one is drawn and named.
+   * KB: interface.md §74
    */
   readonly offPalette?: boolean;
 }

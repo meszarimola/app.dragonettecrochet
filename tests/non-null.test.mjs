@@ -14,7 +14,7 @@ import ts from 'typescript';
 // `a!.b` from `a !== b` reliably, and undercounted this by four.
 //
 // Lower CEILING in the same PR that removes assertions. Do not raise it.
-const CEILING = 698;
+const CEILING = 5;
 
 const SRC = fileURLToPath(new URL('../src/', import.meta.url));
 

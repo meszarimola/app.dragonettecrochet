@@ -59,12 +59,10 @@ landing page on the main site.
    under what conditions, and a mechanical rewrite is a script, not an agent.
 3. **Work.** Read files with `Read` and change them with `Edit` or `Write` — not
    `cat`, `sed -i` or a `python3` heredoc. Half as many steps, an undo history,
-   and the frozen-path guard actually runs. A new validation rule gets a
-   `reference` pointing at the knowledge base section it comes from —
-   `tests/core-validate.test.mjs` enforces this.
+   and the frozen-path guard actually runs.
 4. **Verify** — `npm run kapu` (about 8 s; it opens no browser). Then `/review` and
-   `/pre-pr-check`. Touched the interface? `npm run fustteszt` is the 20-test
-   release set, about 8 s. The full browser suite runs nightly and at every
+   `/pre-pr-check`. Touched the interface? `npm run fustteszt` is the `@kiadas`
+   release set, a few seconds. The full browser suite runs nightly and at every
    release. KB: testing.md §4
 5. **Update the knowledge base in the same PR** if the change made any section
    stale. This is what stops the docs drifting away from the code.
@@ -102,6 +100,6 @@ landing page on the main site.
 | Ticket, branch and worktree workflow | `/ticket-workflow` | on invocation |
 | Releasing and rolling back | `docs/kiadas.md` | read before releasing |
 
-Single sources of truth: `package.json` (version), `src/core/rules.ts` (validation
-rules and their knowledge-base references), `src/ui/i18n/` (every user-facing
-string), `docs/knowledge-base/` (crochet domain).
+Single sources of truth: `package.json` (version), `src/core/stitches.ts` (the
+stitch library), `src/ui/i18n/` (every user-facing string), `docs/knowledge-base/`
+(crochet domain).

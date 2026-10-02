@@ -9,7 +9,7 @@ paths:
 # Tests
 
 `node:test` for units (`npm test`), Playwright for E2E. **Build before `npm test`**
-— the analytics test reads `dist/index.html`; `npm run kapu` does it in order.
+— the version and head tests read `dist/`; `npm run kapu` does it in order.
 
 **The gate opens no browser.** The full E2E suite runs nightly; a 20-test `@kiadas`
 set runs at every release and from `npm run fustteszt`. A new critical journey that
