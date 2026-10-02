@@ -13,12 +13,12 @@ async function open(page: Page): Promise<void> {
   if (await deny.isVisible()) await deny.click();
 }
 
-/** The make-a-pattern sheet (PQW-987) is closed on load, and its opener is in the file menu. */
-async function openSheet(page: Page): Promise<void> {
-  const sheet = page.locator('#setup-toggle');
-  if ((await sheet.getAttribute('aria-expanded')) !== 'true') {
-    await page.locator('#file-toggle').click();
-    await sheet.click();
+/** KB: interface.md §79 — the sheet opens from the „New” menu, on one family, and shows only it. */
+async function openSheet(page: Page, family: RegExp = /Flat shape/): Promise<void> {
+  if (await page.locator('#setup').isHidden()) {
+    await page.locator('#types-toggle').click();
+    await page.locator('.type[data-type="regular"]').click();
+    await page.getByRole('menuitem', { name: family }).click();
   }
 }
 
@@ -106,21 +106,21 @@ test('the regular type opens a side menu of shapes, and a choice opens its gener
   await expect(menu).toBeHidden();
   await page.locator('.type[data-type="regular"]').hover();
   await expect(menu).toBeVisible();
-  await expect(menu.locator('.flyout__name')).toHaveText(['Rectangular', 'Semicircle', 'Granny square']);
+  await expect(menu.locator('.flyout__name')).toHaveText(['Flat shape', 'Shawl', 'Granny square']);
   await expect(menu.locator('.flyout__detail')).toHaveText([
-    'Shape: Rectangle',
-    'Shawl: Semicircle',
+    'Rectangle · Trapezoid · Rhombus',
+    'Top-down triangle · Asymmetric triangle · Crescent · Semicircle · Circle · Pi shawl',
     'Blank canvas, round by round',
   ]);
 
-  await page.getByRole('menuitem', { name: /Semicircle/ }).click();
+  await page.getByRole('menuitem', { name: /Shawl/ }).click();
   await expect(page.locator('#types')).toBeHidden();
   await expect(page.locator('#board-irregular')).toBeHidden();
   await expect(page.locator('#setup')).toBeVisible();
   await expect(page.locator('#section-shawl')).toHaveAttribute('open', '');
-  await expect(page.locator('#section-rounds')).not.toHaveAttribute('open', '');
+  // The sheet shows the chosen family and nothing else (PQW-1129).
+  await expect(page.locator('#section-shape')).toBeHidden();
   await expect(page.locator('#shawl-kind')).toBeFocused();
-  await expect(page.locator('#shawl-kind')).toHaveValue('semicircle');
   await expect(page.locator('#status')).not.toContainText('Semicircle:');
 });
 
@@ -137,7 +137,7 @@ test('the regular card opens its shapes instead of starting a pattern of its own
   await expect(page.locator('#types')).toBeVisible();
   await expect(page.locator('#setup')).toBeHidden();
 
-  await page.getByRole('menuitem', { name: /Rectangular/ }).click();
+  await page.getByRole('menuitem', { name: /Flat shape/ }).click();
   await expect(page.locator('#types')).toBeHidden();
   await expect(page.locator('#shape-kind')).toHaveValue('rectangle');
 });
@@ -150,9 +150,9 @@ test('the side menu works from the keyboard: right arrow opens it, arrows move, 
   await expect(page.locator('.type[data-type="regular"]')).toBeFocused();
   await page.keyboard.press('ArrowRight');
   await expect(page.locator('#types-regular-menu')).toBeVisible();
-  await expect(page.getByRole('menuitem', { name: /Rectangular/ })).toBeFocused();
+  await expect(page.getByRole('menuitem', { name: /Flat shape/ })).toBeFocused();
   await page.keyboard.press('ArrowDown');
-  await expect(page.getByRole('menuitem', { name: /Triangle/ })).toBeFocused();
+  await expect(page.getByRole('menuitem', { name: /Shawl/ })).toBeFocused();
   await page.keyboard.press('ArrowLeft');
   await expect(page.locator('#types-regular-menu')).toBeHidden();
   await expect(page.locator('.type[data-type="regular"]')).toBeFocused();

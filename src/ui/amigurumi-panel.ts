@@ -23,7 +23,7 @@ import {
   TOP_CHOICES,
 } from './amigurumi-view.js';
 import { amigurumiCoreText } from './i18n/core/amigurumi.js';
-import type { Choice } from './rounds-view.js';
+import type { Choice } from './shapes-view.js';
 
 export interface AmigurumiPanelHost {
   commit(pattern: Pattern, message: string): void;

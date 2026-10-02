@@ -34,7 +34,7 @@ async function open(page: Page, stored: 'nyitva' | 'zarva' | null): Promise<void
 async function newRegular(page: Page): Promise<void> {
   await page.locator('#types-toggle').click();
   await page.locator('.type[data-type="regular"]').click();
-  await page.getByRole('menuitem', { name: /Rectangular/ }).click();
+  await page.getByRole('menuitem', { name: /Flat shape/ }).click();
   await page.locator('[data-action="close-setup"]').click();
 }
 

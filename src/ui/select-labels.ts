@@ -9,13 +9,6 @@ import {
   TOP_CHOICES,
 } from './amigurumi-view.ts';
 import { MOSAIC_ROW_CHOICES, TECHNIQUE_CHOICES } from './grid-chart-view.ts';
-import {
-  CLOSING_CHOICES,
-  JOG_CHOICES,
-  SHAPE_CHOICES as ROUNDS_SHAPE_CHOICES,
-  STITCH_CHOICES as ROUNDS_STITCH_CHOICES,
-  START_CHOICES,
-} from './rounds-view.ts';
 import { MEASURE_CHOICES, ROUNDING_CHOICES, SHAPE_CHOICES, STITCH_CHOICES } from './shapes-view.ts';
 import {
   RATE_CHOICES,
@@ -36,11 +29,6 @@ const CHOICES: Readonly<Record<string, readonly Labelled[]>> = {
   'shawl-kind': SHAWL_KIND_CHOICES,
   'shawl-stitch': SHAWL_STITCH_CHOICES,
   'shawl-rate': RATE_CHOICES,
-  'rounds-shape': ROUNDS_SHAPE_CHOICES,
-  'rounds-stitch': ROUNDS_STITCH_CHOICES,
-  'rounds-start': START_CHOICES,
-  'rounds-closing': CLOSING_CHOICES,
-  'rounds-jog': JOG_CHOICES,
   'amigurumi-shape': AMIGURUMI_SHAPE_CHOICES,
   'amigurumi-method': METHOD_CHOICES,
   'amigurumi-stitch': AMIGURUMI_STITCH_CHOICES,

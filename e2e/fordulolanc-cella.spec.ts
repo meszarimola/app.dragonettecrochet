@@ -31,7 +31,7 @@ test('10 chain stitches and one double crochet: the 3-chain turning chain is one
   // “New pattern” is the type menu since PQW-1045; since PQW-1126 the shape starts the pattern.
   await page.getByRole('button', { name: 'New pattern' }).click();
   await page.locator('.type[data-type="regular"]').click();
-  await page.getByRole('menuitem', { name: /Rectangular/ }).click();
+  await page.getByRole('menuitem', { name: /Flat shape/ }).click();
   await page.locator('[data-action="close-setup"]').click();
 
   const palette = page.locator('#palette');

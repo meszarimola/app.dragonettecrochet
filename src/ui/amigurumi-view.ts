@@ -16,7 +16,7 @@ import type { OvalStitch, Pattern, PieceEnd, ProfilePoint, ShapeSpec, SphereMeth
 import { amigurumiCoreText } from './i18n/core/amigurumi.ts';
 import { texts } from './i18n.ts';
 import { termsLocale } from './notation.ts';
-import type { Choice } from './rounds-view.ts';
+import type { Choice } from './shapes-view.ts';
 import { formatNumber } from './size-view.ts';
 
 export type ShapeKind = ShapeSpec['kind'];

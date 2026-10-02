@@ -108,7 +108,7 @@ options filled from elsewhere (a size series, for instance) are left alone.
 
 ## §7 Generator panels share one shape
 
-Every generator section (round, shape, shawl, amigurumi, grid, size)
+Every generator section (shape, shawl, amigurumi, grid, size)
 follows the same rules:
 
 - The fields live in `index.html`; the panel only reads and writes them.
@@ -1226,6 +1226,9 @@ stitches' global position, so reordering the sections would move the shortcuts.
 
 ## §54 The make-a-pattern sheet, and why its opener is in the file menu
 
+*Its toolbar opener was removed in PQW-1129; §79 has the reasoning that replaces the
+paragraph below on where the opener belongs.*
+
 The generators — shape, shawl, round and motif, and the two switched-off
 ones — replace the whole pattern when their button is pressed. That is a way to
 *start*, not a control used while drawing, and in the panel they were 58 of the
@@ -2055,3 +2058,59 @@ the union would have taken the shawl with it.
 
 Old saves made with any of these no longer load. The owner accepted that: the
 designer is pre-release and says so in its own banner.
+
+## §79 One way into the generators: a family from „Új”, and the sheet shows only it
+
+PQW-1129, the owner's decision of 2026-10-02. Two complaints, one cause.
+
+**The choice did not mean anything.** The side menu's „Négyszögletes” only preset
+`#shape-kind`; the select still offered every flat shape, so after choosing a
+rectangle the sheet invited the user to choose a triangle. „after selecting the
+regular crochet type, at the make pattern the user can choose again. and this is
+redundant.”
+
+**The sheet on its own said nothing.** Opened from its toolbar button it showed
+four collapsed section titles and a promise, with no indication of what it did:
+„this make a pattern does not make sense at all.”
+
+**The entries are families now, not shapes.** „Forma”, „Kendő” and
+„Nagymama-négyzet”. The second line lists that family's kinds, built from
+`FLAT_SHAPES` and `SHAWL_KINDS` rather than written out, so a kind added or
+dropped in the core shows up in the menu without a dictionary change. No entry
+presets a kind any more: the family is the choice, and the kind is made inside
+the section.
+
+**The sheet shows the chosen family and nothing else.** `openRegularEntry` sets
+`hidden` on every other section of the sheet, not just `open = false`. A collapsed
+„Kendő” under an open „Forma” is still an invitation to contradict the choice that
+opened it.
+
+**The toolbar button is gone**, and with it `#setup-toggle`, `setupToggle` and
+`toolSetupTip`. It was the only way to reach the sheet without choosing a family,
+so it was the only way to reach the state the owner called senseless. The sheet is
+reachable from „Új” alone, always scoped. §54 argued the opener belonged in a menu
+rather than the bar for want of space; this goes further and gives it no button at
+all.
+
+`setOpen` needed a button to carry `aria-expanded`, so the sheet gets
+`setSetupOpen` instead. Closing it — its own „Lecsukás” or Escape — now returns
+the focus to `#types-toggle`, the menu that opened it, rather than to
+`#file-toggle`, which has not opened it since §73.
+
+**The granny square is still the odd one out, deliberately.** It does not generate:
+it switches to the free-form editor with the round guide (§68, §71). The owner
+confirmed that stays.
+
+**„Kör és motívum” left the sheet, and that follows from the two decisions above.**
+PQW-1128 reduced `MOTIF_SHAPES` to the granny square alone, and the granny square is
+made on the free-form canvas, not by that generator. So the section had one kind, and
+its one kind had another home: with three families in the menu and the sheet scoped to
+whichever is chosen, nothing could open it. Dead interface is what §9 and PQW-960 exist
+to prevent, so `#section-rounds`, `rounds-panel.ts`, `rounds-view.ts` and the 17 markup
+keys are gone.
+
+`generateMotif` itself **stays in the core.** It is what six test files build their
+round, layout, grid, ribbing, validation and row-curve fixtures with, and it is the
+only generator that produces a closed round for them. It has no caller in `src/ui/`
+any more; `Choice`, which `rounds-view.ts` exported, has a second definition in
+`shapes-view.ts` that the amigurumi views now use.

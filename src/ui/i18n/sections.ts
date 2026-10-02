@@ -25,9 +25,8 @@ export interface SectionTexts {
     readonly soon: string;
     readonly subcategories: string;
     readonly regularMenu: {
-      readonly rectangle: string;
-      readonly triangle: string;
-      readonly semicircle: string;
+      readonly flatShape: string;
+      readonly shawl: string;
       readonly grannyDetail: string;
     };
   };
@@ -174,9 +173,8 @@ const hu: SectionTexts = {
     soon: 'Hamarosan',
     subcategories: 'Alkategóriák',
     regularMenu: {
-      rectangle: 'Négyszögletes',
-      triangle: 'Háromszög',
-      semicircle: 'Félkör',
+      flatShape: 'Forma',
+      shawl: 'Kendő',
       grannyDetail: 'Üres vászon, körönként',
     },
   },
@@ -344,9 +342,8 @@ const en: SectionTexts = {
     soon: 'Coming soon',
     subcategories: 'Subcategories',
     regularMenu: {
-      rectangle: 'Rectangular',
-      triangle: 'Triangle',
-      semicircle: 'Semicircle',
+      flatShape: 'Flat shape',
+      shawl: 'Shawl',
       grannyDetail: 'Blank canvas, round by round',
     },
   },

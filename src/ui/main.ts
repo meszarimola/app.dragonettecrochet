@@ -56,6 +56,8 @@ import {
   stepFocus,
   toggleUnit,
 } from '../core/selection.js';
+import { FLAT_SHAPES } from '../core/shapes.js';
+import { SHAWL_KINDS } from '../core/shawls.js';
 import { libraryFor, resolveStitch } from '../core/stitch-variants.js';
 import { stitchName } from '../core/stitchText.js';
 import { traditionOf } from '../core/tradition.js';
@@ -109,7 +111,6 @@ import {
   writtenShareFor,
 } from './pattern-types.js';
 import { currentPlatform, modifierCombo, modifierName } from './platform.js';
-import { RoundsPanel } from './rounds-panel.js';
 import { relabelSelects } from './select-labels.js';
 import { ShapesPanel } from './shapes-panel.js';
 import { ShawlsPanel } from './shawls-panel.js';
@@ -141,7 +142,6 @@ const panel = must<HTMLElement>('#panel');
 const toggle = must<HTMLButtonElement>('#panel-toggle');
 const stitchesAside = must<HTMLElement>('#section-stitches');
 const setupSheet = must<HTMLElement>('#setup');
-const setupToggle = must<HTMLButtonElement>('#setup-toggle');
 const hint = must<HTMLParagraphElement>('#hint');
 const status = must<HTMLParagraphElement>('#status');
 const alertBox = must<HTMLParagraphElement>('#alert');
@@ -410,7 +410,6 @@ function refresh(message?: Message): void {
   updateControls();
   updateWritten();
   sizePanel.update(derived.pattern, derived.context.graph, derived.context.library);
-  roundsPanel.update(derived.pattern);
   shapesPanel.update(derived.pattern);
   shawlsPanel.update(derived.pattern);
   // KB: interface.md §9 — a disabled type has no panel at all.
@@ -738,6 +737,11 @@ async function copyWritten(): Promise<void> {
 function setOpen(target: HTMLElement, button: HTMLButtonElement, open: boolean): void {
   target.toggleAttribute('hidden', !open);
   button.setAttribute('aria-expanded', String(open));
+}
+
+/** KB: interface.md §79 — the sheet has no toggle of its own; the type menu opens it. */
+function setSetupOpen(open: boolean): void {
+  setupSheet.toggleAttribute('hidden', !open);
 }
 
 function setWrittenOpen(open: boolean): void {
@@ -1522,9 +1526,9 @@ const ACTIONS: Record<string, () => void> = {
   'copy-written': () => void copyWritten(),
   'written-full': () => toggleWrittenFull(),
   'close-setup': () => {
-    setOpen(setupSheet, setupToggle, false);
+    setSetupOpen(false);
     // The close button goes with the sheet, so the focus returns to the menu that opened it.
-    must<HTMLButtonElement>('#file-toggle').focus();
+    typesToggle.focus();
   },
   'close-written': () => {
     setWrittenOpen(false);
@@ -1773,29 +1777,22 @@ function renderTypes(): void {
 
 // KB: interface.md §66
 type RegularMenuEntry =
-  | {
-      readonly name: () => string;
-      readonly detail: () => string;
-      readonly section: string;
-      readonly field: string;
-      readonly value: string;
-    }
+  | { readonly name: () => string; readonly detail: () => string; readonly section: string; readonly id: string }
   | { readonly name: () => string; readonly detail: () => string; readonly granny: true };
 
+// KB: interface.md §79 — one family per entry, and its own kinds are all the sheet then offers.
 const REGULAR_MENU: readonly RegularMenuEntry[] = [
   {
-    name: () => texts().sections.types.regularMenu.rectangle,
-    detail: () => `${texts().markup.sectionShapeTitle}: ${texts().panels.shape.names.rectangle}`,
+    name: () => texts().sections.types.regularMenu.flatShape,
+    detail: () => FLAT_SHAPES.map((shape) => texts().panels.shape.names[shape]).join(' · '),
     section: '#section-shape',
-    field: '#shape-kind',
-    value: 'rectangle',
+    id: 'shape',
   },
   {
-    name: () => texts().sections.types.regularMenu.semicircle,
-    detail: () => `${texts().markup.sectionShawlTitle}: ${texts().panels.shawl.names.semicircle}`,
+    name: () => texts().sections.types.regularMenu.shawl,
+    detail: () => SHAWL_KINDS.map((kind) => texts().panels.shawl.names[kind]).join(' · '),
     section: '#section-shawl',
-    field: '#shawl-kind',
-    value: 'semicircle',
+    id: 'shawl',
   },
   {
     name: () => texts().panels.round.names['granny-square'],
@@ -1835,7 +1832,7 @@ function regularMenu(): HTMLUListElement {
     button.type = 'button';
     button.className = 'flyout__item';
     button.setAttribute('role', 'menuitem');
-    button.dataset.value = 'granny' in entry ? 'granny-square' : entry.value;
+    button.dataset.value = 'granny' in entry ? 'granny-square' : entry.id;
     button.append(span('flyout__name', entry.name()), span('flyout__detail', entry.detail()));
     button.addEventListener('click', () => openRegularEntry(entry));
     item.append(button);
@@ -1893,6 +1890,10 @@ function openGranny(): void {
   document.querySelector<HTMLInputElement>('#rows-list .rows__cells')?.focus();
 }
 
+/**
+ * KB: interface.md §79 — the sheet shows the chosen family and nothing else, so the
+ * kinds of another family can never contradict the choice that opened it.
+ */
 function openRegularEntry(entry: RegularMenuEntry): void {
   if ('granny' in entry) {
     openGranny();
@@ -1901,15 +1902,14 @@ function openRegularEntry(entry: RegularMenuEntry): void {
   startType('regular');
   const target = must<HTMLDetailsElement>(entry.section);
   for (const section of regularTypeSections) {
-    if (setupSheet.contains(section)) section.open = section === target;
+    if (!setupSheet.contains(section)) continue;
+    section.hidden = section !== target;
+    section.open = section === target;
   }
-  setOpen(setupSheet, setupToggle, true);
+  setSetupOpen(true);
   if (SETUP_TIGHT.matches && !written.hidden) setWrittenOpen(false);
-  const field = must<HTMLSelectElement>(entry.field);
-  field.value = entry.value;
-  field.dispatchEvent(new Event('change', { bubbles: true }));
   target.scrollIntoView({ block: 'start' });
-  field.focus();
+  target.querySelector<HTMLSelectElement>('select')?.focus();
 }
 
 /**
@@ -1963,22 +1963,13 @@ toggle.addEventListener('click', () => {
   if (open && NARROW.matches && !written.hidden) setWrittenOpen(false);
 });
 
-setupToggle.addEventListener('click', () => {
-  const open = setupSheet.hasAttribute('hidden');
-  setOpen(setupSheet, setupToggle, open);
-  // The opener sits in the file menu, which closes on this click, so the focus would
-  // otherwise land on the body. KB: interface.md §54.
-  if (open) setupSheet.focus();
-  if (open && SETUP_TIGHT.matches && !written.hidden) setWrittenOpen(false);
-});
-
 writtenToggle.addEventListener('click', () => {
   const open = written.hasAttribute('hidden');
   setWrittenOpen(open);
   // KB: interface.md §10
   if (open && writtenShare === null) applyWrittenShare(writtenShareFor(patternType, NARROW.matches));
   if (open && NARROW.matches) setPanelsOpen(false);
-  if (open && SETUP_TIGHT.matches && !setupSheet.hidden) setOpen(setupSheet, setupToggle, false);
+  if (open && SETUP_TIGHT.matches && !setupSheet.hidden) setSetupOpen(false);
 });
 
 // KB: interface.md §13 — pointer, touch and keyboard.
@@ -2343,8 +2334,8 @@ document.addEventListener('keydown', (event) => {
     case 'Escape':
       // KB: interface.md §54 — an open sheet takes the Escape before the selection does.
       if (!setupSheet.hidden) {
-        setOpen(setupSheet, setupToggle, false);
-        must<HTMLButtonElement>('#file-toggle').focus();
+        setSetupOpen(false);
+        typesToggle.focus();
         event.preventDefault();
         return;
       }
@@ -2424,11 +2415,6 @@ function generated(pattern: Pattern, message: Message): void {
   fitBoard();
 }
 
-const roundsPanel = new RoundsPanel(must<HTMLDetailsElement>('#section-rounds'), {
-  commit: generated,
-  announce,
-});
-
 const shapesPanel = new ShapesPanel(must<HTMLDetailsElement>('#section-shape'), {
   commit: generated,
   announce,
@@ -2460,14 +2446,7 @@ const gridPanel = panelFor(
 );
 
 // KB: interface.md §39 — collected after panelFor, so a section it hid for a disabled type stays out.
-const regularTypeSections = [
-  '#section-size',
-  '#section-shape',
-  '#section-shawl',
-  '#section-rounds',
-  '#section-grid',
-  '#section-amigurumi',
-]
+const regularTypeSections = ['#section-size', '#section-shape', '#section-shawl', '#section-grid', '#section-amigurumi']
   .map((selector) => must<HTMLDetailsElement>(selector))
   .filter((section) => !section.hidden);
 
@@ -2577,9 +2556,8 @@ function showIrregularView(on: boolean): void {
   writtenToggle.hidden = on;
   if (on) setOpen(written, writtenToggle, false);
   // KB: interface.md §54 — every section of the sheet belongs to the regular type, so in
-  // free-form mode the sheet would open empty. Its opener goes with them.
-  setupToggle.hidden = on;
-  if (on && !setupSheet.hidden) setOpen(setupSheet, setupToggle, false);
+  // free-form mode it has nothing to show.
+  if (on && !setupSheet.hidden) setSetupOpen(false);
   must<HTMLButtonElement>('#export-run').disabled = false;
   for (const id of [
     '#view-guides',
