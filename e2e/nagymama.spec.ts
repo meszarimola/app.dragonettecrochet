@@ -11,14 +11,14 @@ import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
-  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
 }
 
 async function openGranny(page: Page): Promise<void> {
   await page.locator('#types-toggle').click();
   await page.locator('.type[data-type="regular"]').hover();
-  await page.getByRole('menuitem', { name: /Nagymama-négyzet/ }).click();
+  await page.getByRole('menuitem', { name: /Granny square/ }).click();
 }
 
 async function armDoubleCrochet(page: Page): Promise<void> {
@@ -78,14 +78,14 @@ test('the rounds panel is the rows panel without the kind and the direction (PQW
   await expect(page.locator('#section-irregular-rows')).toBeVisible();
   await expect(page.locator('#irregular-tabs')).toBeHidden();
   await expect(page.locator('#section-irregular-layers')).toBeHidden();
-  await expect(page.locator('#section-irregular-rows .panel__title').first()).toHaveText('Körök');
+  await expect(page.locator('#section-irregular-rows .panel__title').first()).toHaveText('Rounds');
 
   // What a granny round has no use for.
   await expect(page.locator('#row-kind-fields')).toBeHidden();
   await expect(page.locator('#row-new')).toBeHidden();
-  // The grid count is a counter in the round's own line (PQW-1044), and „Új kör” says so.
+  // The grid count is a counter in the round's own line (PQW-1044), and "New round" says so.
   await expect(page.locator('#rows-list .rows__cells')).toHaveCount(1);
-  await expect(page.locator('#row-new-round')).toContainText('Új kör');
+  await expect(page.locator('#row-new-round')).toContainText('New round');
   await expect(page.locator('#row-radial')).toBeChecked();
   await expect(page.locator('#row-color')).toBeVisible();
   for (const id of ['#row-new-round', '#row-up', '#row-down', '#row-delete', '#rows-more-toggle']) {
@@ -127,8 +127,8 @@ test('a stitch goes into the cell it was dropped on, in that cell\u2019s own rou
   expect(pattern.items.map((item) => item.rowId)).toEqual(['r1', 'r2']);
   // Both face straight up, away from the middle.
   expect(pattern.items.map((item) => item.rotation)).toEqual([0, 0]);
-  await expect(page.locator('#rows-list li').nth(0)).toContainText('1 szem');
-  await expect(page.locator('#rows-list li').nth(1)).toContainText('1 szem');
+  await expect(page.locator('#rows-list li').nth(0)).toContainText('1 stitch');
+  await expect(page.locator('#rows-list li').nth(1)).toContainText('1 stitch');
 });
 
 test('a stitch goes exactly where it was dropped, still facing outwards (PQW-1044)', async ({ page }) => {
@@ -239,7 +239,7 @@ test('a granny square from v0.67-v0.69 keeps its stitches and takes its counts a
   const counter = page.locator('#rows-list .rows__cells').first();
   await expect(counter, 'the round takes its old count as the grid count').toHaveValue('1');
   await expect(page.locator('#row-radial'), 'and the way its stitches faced').not.toBeChecked();
-  await expect(page.locator('#rows-list li').nth(0), 'the stitch is kept').toContainText('1 szem');
+  await expect(page.locator('#rows-list li').nth(0), 'the stitch is kept').toContainText('1 stitch');
   // Once something is edited the file is written in the new shape, with no group left.
   await counter.fill('4');
   await counter.press('Tab');

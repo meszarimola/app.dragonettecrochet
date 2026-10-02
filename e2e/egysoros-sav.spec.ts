@@ -9,13 +9,13 @@ import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
-  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
 }
 
 async function chooseIrregular(page: Page): Promise<void> {
   await page.locator('#types-toggle').click();
-  await page.getByRole('button', { name: /Szabad tervező/ }).click();
+  await page.getByRole('button', { name: /Free-form designer/ }).click();
   await expect(page.locator('#board-irregular')).toBeVisible();
 }
 
@@ -66,7 +66,7 @@ test('even in a wide window zoom and guides are two menus, and the bar keeps its
   await open(page);
   await chooseIrregular(page);
 
-  // KB: interface.md §63 — „Méretezés” holds the zoom, „Segédrács” the guides.
+  // KB: interface.md §63 — “Zoom” holds the zoom, “Guides” the guides.
   await expect(page.locator('#view-toggle')).toBeVisible();
   await expect(page.locator('.tools [data-action="zoom-in"]')).toBeHidden();
   await expect(page.locator('#view-toggle .tool__label')).toBeVisible();
@@ -128,7 +128,7 @@ test('a type chosen from the keyboard gives the focus back to the menu button', 
   await expect(page.locator('#types-toggle')).toBeFocused();
 });
 
-test('where the labels give way, a findings count still shows; „no findings” does not', async ({ page }) => {
+test('where the labels give way, a findings count still shows; “no findings” does not', async ({ page }) => {
   await page.setViewportSize({ width: 1000, height: 506 });
   await open(page);
   await expect(page.locator('.bar')).toHaveAttribute('data-fit', '2');

@@ -77,7 +77,7 @@ test('a save holding a drawn border is rejected with a readable error (PQW-911)'
     ['hu', /szegély.*nem tölthető be/i],
     ['en', /border.*cannot be loaded/i],
   ]) {
-    const sentence = renderCoreText(JSON_CORE_TEXTS[language], loaded.error.message);
+    const sentence = renderCoreText(JSON_CORE_TEXTS, language, loaded.error.message);
     assert.match(sentence, expected, `${language}: ${sentence}`);
   }
 });
@@ -219,7 +219,7 @@ test('invalid JSON returns an error', () => {
 });
 
 /** The error sentence comes from the interface dictionary; the core gives only a code and data (PQW-904). */
-const sentence = (error, language = 'hu') => renderCoreText(JSON_CORE_TEXTS[language], error.message);
+const sentence = (error, language = 'hu') => renderCoreText(JSON_CORE_TEXTS, language, error.message);
 
 test('a load error carries a code and data, and the dictionary writes the sentence (PQW-904)', () => {
   const raw = JSON.parse(savePattern(dcRectangle({ rows: 2 }).pattern));

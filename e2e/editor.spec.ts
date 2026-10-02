@@ -9,7 +9,7 @@ import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
-  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
 }
 
@@ -26,7 +26,7 @@ async function useTerms(page: Page, terms: string): Promise<void> {
     );
   }, terms);
   await page.reload();
-  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
 }
 
@@ -54,7 +54,7 @@ async function rectangle(page: Page, stitchKey: string, width: number, rows: num
  */
 function comparable(text: string): string {
   const lines = text.trimEnd().split('\n').slice(1);
-  // Since PQW-923 the foundation chain row reads „1. sor – alapsor:”, in English „Row 1 – foundation:”.
+  // Since PQW-923 the foundation chain row reads “1. sor – alapsor:”, in English “Row 1 – foundation:”.
   const start = lines.findIndex((line) => /^(1\. sor – alapsor|Row 1 – foundation):/.test(line));
   lines.splice(start - 1, 1);
   lines[lines.length - 1] = lines.at(-1)!.replace(/ (A fonal elvágása|Fasten off)\.$/, '');
@@ -76,7 +76,8 @@ test('written pattern: the recorded text of the rectangle in the panel, and the 
   // The written pattern panel starts closed (PQW-911), and does not refresh while closed.
   await page.locator('#written-toggle').click();
   const text = page.locator('#written-text');
-  await expect(text).toContainText('23. sor:');
+  // The notation starts at US terms, because English is the default interface language (PQW-1100).
+  await expect(text).toContainText('Row 23:');
   /*
    * A rectangle drawn in the designer is built by the rule of today (PQW-944):
    * the turning chain stands in the place of the first stitch of the row, so the
@@ -84,6 +85,23 @@ test('written pattern: the recorded text of the rectangle in the panel, and the 
    * keeps the earlier structure (moving the examples and the generators over is
    * PQW-945), so here we compare the rows one by one.
    */
+  const english = comparable((await text.textContent())!).split('\n');
+  const englishReference = comparable(await fixture('en-US', 'felpalcas-teglalap')).split('\n');
+  expect(english.filter((line) => !/^Rows? /.test(line) && line !== 'sk – skip')).toEqual(
+    englishReference.filter((line) => !/^Rows? /.test(line)),
+  );
+  expect(english.find((line) => line.startsWith('Rows 3–22'))).toBe(
+    'Rows 3–22: ch 2 (counts as 1 hdc), sk 1 st, 15 hdc (16 sts). Turn.',
+  );
+  await expect(page.locator('#palette')).toContainText('Half double crochet (hdc)');
+
+  /*
+   * The written pattern follows the notation, not the interface (PQW-868), so
+   * Hungarian terms still give a Hungarian text while the interface is English.
+   * These are the product strings of the Hungarian notation.
+   */
+  await useTerms(page, 'hu');
+  await expect(text).toContainText('23. sor:');
   const lines = comparable((await text.textContent())!).split('\n');
   const reference = comparable(await fixture('hu', 'felpalcas-teglalap')).split('\n');
   expect(lines.filter((line) => !/^\d/.test(line))).toEqual(reference.filter((line) => !/^\d/.test(line)));
@@ -95,28 +113,16 @@ test('written pattern: the recorded text of the rectangle in the panel, and the 
     '3–22. sor: 2 lsz (1 fp-nek számít), 1 szem kihagyása, 15 fp (16 szem). Fordítás.',
   );
 
-  await useTerms(page, 'en-US');
-  await expect(text).toContainText('Row 23:');
-  const english = comparable((await text.textContent())!).split('\n');
-  const englishReference = comparable(await fixture('en-US', 'felpalcas-teglalap')).split('\n');
-  expect(english.filter((line) => !/^Rows? /.test(line) && line !== 'sk – skip')).toEqual(
-    englishReference.filter((line) => !/^Rows? /.test(line)),
-  );
-  expect(english.find((line) => line.startsWith('Rows 3–22'))).toBe(
-    'Rows 3–22: ch 2 (counts as 1 hdc), sk 1 st, 15 hdc (16 sts). Turn.',
-  );
-  await expect(page.locator('#palette')).toContainText('Half double crochet (hdc)');
-
   await useTerms(page, 'en-GB');
   await expect(text).toContainText('Abbreviations (UK terms)');
   // The turning chain stands in place of stitch 1 (PQW-891): 14 half double crochets and the turning chain.
   await expect(text).toContainText('15 htr (16 sts)');
   expect(await text.textContent()).not.toMatch(/\b(sc|hdc|sl st)\b/);
 
-  // The choice survives a reload, while the interface language stays Hungarian.
+  // The choice survives a reload, while the interface language stays English.
   await page.reload();
   await expect(text).toContainText('Stitch key (UK terms)');
-  await expect(page.locator('html')).toHaveAttribute('lang', 'hu');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
 });
 
 test('10 × 10 half double crochet rectangle from the keyboard only, error-free', async ({ page }) => {
@@ -126,9 +132,9 @@ test('10 × 10 half double crochet rectangle from the keyboard only, error-free'
   await page.keyboard.press('Alt+1');
   await rectangle(page, 'Alt+4', 10, 10, 12);
 
-  await expect(page.locator('#summary')).toContainText('10 sor.');
-  await expect(page.locator('#summary')).toContainText('11. sor: 11 szem.');
-  await expect(page.locator('#summary')).toContainText('Nincs hiba és figyelmeztetés.');
+  await expect(page.locator('#summary')).toContainText('10 rows.');
+  await expect(page.locator('#summary')).toContainText('Row 11: 11 stitches.');
+  await expect(page.locator('#summary')).toContainText('No errors or warnings.');
   await expect(page.locator('#findings li')).toHaveCount(0);
 });
 
@@ -138,7 +144,7 @@ test('the pattern survives a reload, and can be loaded back as JSON', async ({ p
   await page.keyboard.press('Alt+1');
   await rectangle(page, 'Alt+3', 4, 2, 6);
   const before = await page.locator('#summary').textContent();
-  expect(before).toContain('3. sor: 5 szem.');
+  expect(before).toContain('Row 3: 5 stitches.');
 
   await page.reload();
   await expect(page.locator('#summary')).toHaveText(before!);
@@ -147,16 +153,16 @@ test('the pattern survives a reload, and can be loaded back as JSON', async ({ p
   // Saving is in the file actions dropdown (PQW-911).
   await page.locator('#file-toggle').click();
   await page.locator('#json-toggle').click();
-  await page.getByRole('button', { name: 'JSON mentése' }).click();
+  await page.getByRole('button', { name: 'Save JSON' }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/\.json$/);
   const json = await readFile((await download.path())!, 'utf8');
   expect(JSON.parse(json).formatVersion).toBe(1);
 
-  // „Új minta” is the type menu since PQW-1045; the type starts the pattern anew.
-  await page.getByRole('button', { name: 'Új minta' }).click();
+  // “New pattern” is the type menu since PQW-1045; the type starts the pattern anew.
+  await page.getByRole('button', { name: 'New pattern' }).click();
   await page.locator('.type[data-type="regular"]').click();
-  await expect(page.locator('#summary')).toContainText('Üres minta');
+  await expect(page.locator('#summary')).toContainText('Empty pattern');
 
   await page
     .locator('#import-file')
@@ -178,8 +184,8 @@ test('PNG and SVG export with a stitch key', async ({ page }) => {
   await page.locator('#export-run').click();
   const svg = await readFile((await (await svgPromise).path())!, 'utf8');
   expect(svg).toContain('<svg');
-  expect(svg).toContain('Jelmagyarázat');
-  expect(svg).toContain('egyráhajtásos pálca (erp)');
+  expect(svg).toContain('Legend');
+  expect(svg).toContain('double crochet (dc)');
 
   const pngPromise = page.waitForEvent('download');
   await page.locator('#file-toggle').click();
@@ -214,8 +220,8 @@ test('with the Japanese preset the half double crochet rectangle is error-free b
   await page.keyboard.press('Alt+1');
   await rectangle(page, 'Alt+4', 10, 3, 12);
 
-  await expect(page.locator('#summary')).toContainText('4. sor: 11 szem.');
-  await expect(page.locator('#summary')).toContainText('Nincs hiba és figyelmeztetés.');
+  await expect(page.locator('#summary')).toContainText('Row 4: 11 stitches.');
+  await expect(page.locator('#summary')).toContainText('No errors or warnings.');
   // The written pattern panel starts closed (PQW-911), and does not refresh while closed.
   await page.locator('#written-toggle').click();
   const text = page.locator('#written-text');
@@ -224,7 +230,7 @@ test('with the Japanese preset the half double crochet rectangle is error-free b
 
   await page.reload();
   await expect(page.locator('#chart-style')).toHaveValue('jis');
-  await expect(page.locator('#summary')).toContainText('Nincs hiba és figyelmeztetés.');
+  await expect(page.locator('#summary')).toContainText('No errors or warnings.');
 });
 
 /* ---- Guided crochet (PQW-879) ---- */
@@ -247,8 +253,8 @@ test('a guided cursor makes an error-free single crochet row on the foundation c
   // Enter all the way: the cursor always jumps to the next free target in the direction of travel.
   for (let i = 0; i < 11; i += 1) await page.keyboard.press('Enter');
 
-  await expect(page.locator('#summary')).toContainText('2. sor: 11 szem');
-  await expect(page.locator('#summary')).toContainText('Nincs hiba és figyelmeztetés.');
+  await expect(page.locator('#summary')).toContainText('Row 2: 11 stitches');
+  await expect(page.locator('#summary')).toContainText('No errors or warnings.');
   await expect(page.locator('#findings li')).toHaveCount(0);
 });
 
@@ -258,14 +264,14 @@ test('an increase goes onto an occupied target without a question', async ({ pag
   await page.keyboard.press('Alt+4'); // half double crochet
   await page.keyboard.press('Enter'); // one stitch
   // One half double crochet and the turning chain that counts (PQW-891).
-  await expect(page.locator('#summary')).toContainText('2. sor: 2 szem');
+  await expect(page.locator('#summary')).toContainText('Row 2: 2 stitches');
 
   // We move the cursor onto the target we have just crocheted into (an occupied one).
   await page.locator('#board').focus();
   let onUsed = false;
   for (const key of ['ArrowRight', 'ArrowLeft', 'ArrowLeft', 'Home', 'End', 'ArrowRight']) {
     await page.keyboard.press(key);
-    if (/már horgoltál bele/.test((await page.locator('#status').textContent()) ?? '')) {
+    if (/already worked into/.test((await page.locator('#status').textContent()) ?? '')) {
       onUsed = true;
       break;
     }
@@ -278,26 +284,26 @@ test('an increase goes onto an occupied target without a question', async ({ pag
    * target.
    */
   await page.keyboard.press('Enter');
-  await expect(page.locator('#summary')).toContainText('2. sor: 3 szem');
-  await expect(page.locator('#status')).toContainText('szaporítás');
+  await expect(page.locator('#summary')).toContainText('Row 2: 3 stitches');
+  await expect(page.locator('#status')).toContainText('increase');
   await expect(page.locator('dialog.ask')).toBeHidden();
 
   // It does not ask the third time either: an increase can be repeated any number of times.
   await page.keyboard.press('Enter');
-  await expect(page.locator('#summary')).toContainText('2. sor: 4 szem');
+  await expect(page.locator('#summary')).toContainText('Row 2: 4 stitches');
   await expect(page.locator('dialog.ask')).toBeHidden();
 });
 
-test('„Sor kitöltése” fills the row in one step, and can be undone in one step', async ({ page }) => {
+test('“Fill row” fills the row in one step, and can be undone in one step', async ({ page }) => {
   await open(page);
   await foundation(page, 12);
   await page.keyboard.press('Alt+4'); // half double crochet
-  await page.getByRole('button', { name: 'Sor kitöltése' }).click();
-  await expect(page.locator('#summary')).toContainText('2. sor: 11 szem');
-  await expect(page.locator('#summary')).toContainText('Nincs hiba és figyelmeztetés.');
+  await page.getByRole('button', { name: 'Fill row' }).click();
+  await expect(page.locator('#summary')).toContainText('Row 2: 11 stitches');
+  await expect(page.locator('#summary')).toContainText('No errors or warnings.');
 
   // One undo takes back the whole fill.
-  await page.getByRole('button', { name: 'Visszavonás' }).click();
-  await expect(page.locator('#summary')).not.toContainText('2. sor: 11 szem');
-  await expect(page.locator('#summary')).toContainText('2. sor következik.');
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(page.locator('#summary')).not.toContainText('Row 2: 11 stitches');
+  await expect(page.locator('#summary')).toContainText('Row 2 is next.');
 });

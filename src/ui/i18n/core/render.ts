@@ -5,18 +5,23 @@
  */
 
 import type { CoreData, CoreText, CoreValue } from '../../../core/messages.ts';
-import type { Dictionary } from '../../i18n.ts';
+import type { Dictionary, UiLanguage } from '../../i18n.ts';
 
 export type CoreEntry = string | ((data: CoreData) => string);
 
 export type CoreDictionary<Code extends string> = Dictionary<Readonly<Record<Code, CoreEntry>>>;
 
-/** An unknown code renders as the code itself, so the interface survives a core that is ahead of its dictionary. */
+/**
+ * A code missing from the chosen language falls back to English; a code missing
+ * from English too renders as the code itself, so the interface survives a core
+ * that is ahead of its dictionary. KB: dictionaries.md §9
+ */
 export function renderCoreText<Code extends string>(
-  dictionary: Readonly<Record<Code, CoreEntry>>,
+  dictionary: CoreDictionary<Code>,
+  language: UiLanguage,
   message: CoreText<Code>,
 ): string {
-  const entry = dictionary[message.code];
+  const entry = dictionary[language][message.code] ?? dictionary.en[message.code];
   if (entry === undefined) return message.code;
   return typeof entry === 'string' ? entry : entry(message.data ?? {});
 }

@@ -104,7 +104,8 @@ export interface SectionTexts {
       readonly yarnInPiece: string;
       readonly lengthWithBuffer: string;
       readonly balls: string;
-      readonly ballsUnit: string;
+      /** Only the English branch reads the count: Hungarian puts no plural after a numeral. */
+      readonly ballsUnit: (count: number) => string;
       readonly yarnNote: (ballMassG: string, ballLengthM: string) => string;
       readonly missingNote: (list: string) => string;
       readonly range: (range: string) => string;
@@ -265,7 +266,7 @@ const hu: SectionTexts = {
       yarnInPiece: 'Fonal a darabban',
       lengthWithBuffer: 'Hossz tartalékkal',
       balls: 'Gombolyag',
-      ballsUnit: 'db',
+      ballsUnit: (_count: number) => 'db',
       yarnNote: (ballMassG, ballLengthM) =>
         `Egy gombolyag ${ballMassG} g, ${ballLengthM} m. A próbadarab tömegéből, 10–15 % tartalékkal, egész gombolyagra felfelé kerekítve.`,
       missingNote: (list) => `A fonalbecsléshez hiányzik: ${list}.`,
@@ -435,7 +436,7 @@ const en: SectionTexts = {
       yarnInPiece: 'Yarn in the piece',
       lengthWithBuffer: 'Length with extra',
       balls: 'Balls',
-      ballsUnit: 'balls',
+      ballsUnit: (count: number) => (count === 1 ? 'ball' : 'balls'),
       yarnNote: (ballMassG, ballLengthM) =>
         `One ball is ${ballMassG} g, ${ballLengthM} m. From the mass of the swatch, with 10–15 % extra, rounded up to whole balls.`,
       missingNote: (list) => `The yarn estimate is missing: ${list}.`,
@@ -446,8 +447,10 @@ const en: SectionTexts = {
     empty: 'Nothing to write out yet: start with a foundation chain or a magic ring.',
     notWritable: (reason) => `This pattern cannot be written out yet. ${reason}`,
     broken: 'The structure of the pattern is faulty, so it cannot be written out; the Check section lists the errors.',
-    partial: (layer, remaining) => `${layer} is unfinished, ${remaining} targets are left: the text describes the current state.`,
-    errors: (count) => `The pattern has ${count} errors (see Check), so the text cannot be followed as it is.`,
+    partial: (layer, remaining) =>
+      `${layer} is unfinished, ${remaining} ${remaining === 1 ? 'target is' : 'targets are'} left: the text describes the current state.`,
+    errors: (count) =>
+      `The pattern has ${count} ${count === 1 ? 'error' : 'errors'} (see Check), so the text cannot be followed as it is.`,
     untitled: 'Untitled pattern',
   },
   insertion: {

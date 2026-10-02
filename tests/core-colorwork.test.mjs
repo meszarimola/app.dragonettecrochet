@@ -40,7 +40,7 @@ const make = (pattern, cells, technique = 'tapestry') => {
   return result;
 };
 /** The core hands over a code and data; the sentence is built in the UI dictionary (PQW-904). */
-const hu = (message) => renderCoreText(GRID_CORE_TEXTS.hu, message);
+const hu = (message) => renderCoreText(GRID_CORE_TEXTS, 'hu', message);
 const findings = (pattern) => validatePattern(pattern, libraryFor(pattern));
 const graphOf = (pattern) => buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));
 

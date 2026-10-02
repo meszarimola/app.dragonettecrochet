@@ -19,7 +19,7 @@ test.beforeEach(() => {
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
-  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
 }
 
@@ -56,18 +56,16 @@ test('in amigurumi the written pattern opens large with its button; the pattern 
   ]);
   expect(panel!.height / board!.height).toBeGreaterThan(0.6);
 
-  await expect(page.locator('#amigurumi-gauge')).toContainText('Becslés a tűből');
-  await expect(page.locator('#amigurumi-summary')).toContainText('18 kör, legfeljebb 36 szem');
-  await page.getByRole('button', { name: 'Új minta ebből' }).click();
-  await expect(page.locator('#status')).toContainText('Fej elkészült;');
-  await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
+  await expect(page.locator('#amigurumi-gauge')).toContainText('Estimate from the hook');
+  await expect(page.locator('#amigurumi-summary')).toContainText('18 rounds, at most 36 stitches');
+  await page.getByRole('button', { name: 'New pattern from this' }).click();
+  await expect(page.locator('#status')).toContainText('Fej done;');
+  await expect(page.locator('#error-count')).toHaveText('No errors');
 
   const text = (await page.locator('#written-text').textContent()) ?? '';
-  expect(text).toContain('Spirálban, zárás nélkül');
-  expect(text).toContain(
-    '15. kör: 1 rp, (láthatatlan fogyasztás, 3 rp) ×5, láthatatlan fogyasztás, 2 rp (24). Tedd be a biztonsági szemeket.',
-  );
-  expect(text).toContain('húzd össze a nyílást.');
+  expect(text).toContain('Work in a continuous spiral; do not join.');
+  expect(text).toContain('Rnd 15: sc, (invdec, 3 sc) x5, invdec, 2 sc (24). Insert safety eyes.');
+  expect(text).toContain('pull tight.');
 });
 
 test('head and body sewn together: a clear message at a differing stitch count, error-free with even distribution', async ({
@@ -75,28 +73,26 @@ test('head and body sewn together: a clear message at a differing stitch count, 
 }) => {
   await open(page);
   await chooseAmigurumi(page);
-  await page.getByRole('button', { name: 'Új minta ebből' }).click();
-  await expect(page.locator('#status')).toContainText('Fej elkészült;');
+  await page.getByRole('button', { name: 'New pattern from this' }).click();
+  await expect(page.locator('#status')).toContainText('Fej done;');
 
   await page.locator('#amigurumi-name').fill('Test');
-  await page.locator('#amigurumi-shape').selectOption({ label: 'Henger' });
+  await page.locator('#amigurumi-shape').selectOption({ label: 'Cylinder' });
   await page.locator('#amigurumi-diameter').fill('5');
   await page.locator('#amigurumi-height').fill('5');
   await page.locator('#amigurumi-top').selectOption('open');
   await page.locator('#amigurumi-eyes').uncheck();
-  await page.getByRole('button', { name: 'Hozzáadás részként' }).click();
-  await expect(page.locator('#status')).toContainText('Kapcsold be az egyenletes elosztást');
+  await page.getByRole('button', { name: 'Add as a piece' }).click();
+  await expect(page.locator('#status')).toContainText('Turn on the even distribution');
 
   await page.locator('#amigurumi-distribute').check();
-  await page.getByRole('button', { name: 'Hozzáadás részként' }).click();
-  await expect(page.locator('#status')).toContainText('Test hozzáadva, varrva;');
-  await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
+  await page.getByRole('button', { name: 'Add as a piece' }).click();
+  await expect(page.locator('#status')).toContainText('Test added, sewn;');
+  await expect(page.locator('#error-count')).toHaveText('No errors');
 
   const text = (await page.locator('#written-text').textContent()) ?? '';
-  expect(text).toMatch(
-    /Összeállítás\nVarrás: Test, \d+\. kör \(28\) → Fej, 14\. kör \(30\), a szemeket egyenletesen elosztva\./,
-  );
-  await expect(page.locator('#amigurumi-figure')).toContainText('A figura magassága kb.');
+  expect(text).toMatch(/Assembly\nSew: Test, Rnd \d+ \(28\) to Fej, Rnd 14 \(30\), easing sts evenly\./);
+  await expect(page.locator('#amigurumi-figure')).toContainText('The figure is about');
 });
 
 test('from an oval foundation chain (PQW-890): error-free on its own, round 1 on both sides of the chains; sewn onto a ball as a sole', async ({
@@ -106,34 +102,34 @@ test('from an oval foundation chain (PQW-890): error-free on its own, round 1 on
   await chooseAmigurumi(page);
 
   await page.locator('#amigurumi-name').fill('Talp');
-  await page.locator('#amigurumi-shape').selectOption({ label: 'Ovális' });
+  await page.locator('#amigurumi-shape').selectOption({ label: 'Oval' });
   await expect(page.locator('#amigurumi-diameter')).toBeHidden();
   await page.locator('#amigurumi-length').fill('8');
   await page.locator('#amigurumi-width').fill('5');
-  await expect(page.locator('#amigurumi-summary')).toContainText('láncszemből');
-  await page.getByRole('button', { name: 'Új minta ebből' }).click();
-  await expect(page.locator('#status')).toContainText('Talp elkészült;');
+  await expect(page.locator('#amigurumi-summary')).toContainText('chains');
+  await page.getByRole('button', { name: 'New pattern from this' }).click();
+  await expect(page.locator('#status')).toContainText('Talp done;');
   // There is no next round after a closed oval (PQW-897).
-  await expect(page.locator('#status')).not.toContainText('következik');
-  await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
+  await expect(page.locator('#status')).not.toContainText('is next');
+  await expect(page.locator('#error-count')).toHaveText('No errors');
   const text = (await page.locator('#written-text').textContent()) ?? '';
   expect(text).toMatch(
-    /1\. kör: hagyj ki 1 láncszemet, majd \d+ rp, 4 rp a következő láncszembe, a láncszemek másik oldalán vissza: \d+ rp, 3 rp a következő láncszembe \(\d+\)\./,
+    /Rnd 1: skip 1 ch, \d+ sc, 4 sc in next ch, working back along the other side of the chain: \d+ sc, 3 sc in next ch \(\d+\)\./,
   );
 
   // As a part: first the ball, then the oval sole sewn on, with even distribution.
   await page.locator('#amigurumi-name').fill('Fej');
-  await page.locator('#amigurumi-shape').selectOption({ label: 'Gömb' });
-  await page.getByRole('button', { name: 'Új minta ebből' }).click();
-  await expect(page.locator('#status')).toContainText('Fej elkészült;');
+  await page.locator('#amigurumi-shape').selectOption({ label: 'Sphere' });
+  await page.getByRole('button', { name: 'New pattern from this' }).click();
+  await expect(page.locator('#status')).toContainText('Fej done;');
   await page.locator('#amigurumi-name').fill('Talp');
-  await page.locator('#amigurumi-shape').selectOption({ label: 'Ovális' });
+  await page.locator('#amigurumi-shape').selectOption({ label: 'Oval' });
   await page.locator('#amigurumi-eyes').uncheck();
   await page.locator('#amigurumi-distribute').check();
-  await page.getByRole('button', { name: 'Hozzáadás részként' }).click();
-  await expect(page.locator('#status')).toContainText('Talp hozzáadva, varrva;');
-  await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
-  await expect(page.locator('#written-text')).toContainText('a láncszemek másik oldalán vissza:');
+  await page.getByRole('button', { name: 'Add as a piece' }).click();
+  await expect(page.locator('#status')).toContainText('Talp added, sewn;');
+  await expect(page.locator('#error-count')).toHaveText('No errors');
+  await expect(page.locator('#written-text')).toContainText('working back along the other side of the chain:');
 });
 
 test('oval in double crochet from the generator (PQW-899): the stitch can be chosen, 6 increases at each end, error-free', async ({
@@ -144,19 +140,19 @@ test('oval in double crochet from the generator (PQW-899): the stitch can be cho
 
   await page.locator('#amigurumi-name').fill('Talp');
   await expect(page.locator('#amigurumi-stitch')).toBeHidden();
-  await page.locator('#amigurumi-shape').selectOption({ label: 'Ovális' });
-  await page.locator('#amigurumi-stitch').selectOption({ label: 'Egyráhajtásos pálca' });
+  await page.locator('#amigurumi-shape').selectOption({ label: 'Oval' });
+  await page.locator('#amigurumi-stitch').selectOption({ label: 'Double crochet' });
   await page.locator('#amigurumi-length').fill('8');
   await page.locator('#amigurumi-width').fill('5');
-  await expect(page.locator('#amigurumi-summary')).toContainText('láncszemből');
-  await page.getByRole('button', { name: 'Új minta ebből' }).click();
-  await expect(page.locator('#status')).toContainText('Talp elkészült;');
-  await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
+  await expect(page.locator('#amigurumi-summary')).toContainText('chains');
+  await page.getByRole('button', { name: 'New pattern from this' }).click();
+  await expect(page.locator('#status')).toContainText('Talp done;');
+  await expect(page.locator('#error-count')).toHaveText('No errors');
   const text = (await page.locator('#written-text').textContent()) ?? '';
   expect(text).toMatch(
-    /1\. kör: hagyj ki 3 láncszemet, majd \d+ erp, 7 erp a következő láncszembe, a láncszemek másik oldalán vissza: \d+ erp, 5 erp a következő láncszembe \(\d+\)\./,
+    /Rnd 1: skip 3 ch, \d+ dc, 7 dc in next ch, working back along the other side of the chain: \d+ dc, 5 dc in next ch \(\d+\)\./,
   );
-  await expect(page.locator('#amigurumi-figure')).toContainText('lapos)');
+  await expect(page.locator('#amigurumi-figure')).toContainText('flat)');
 });
 
 /** The cursor target in window coordinates (the hook for the browser tests, main.ts). */
@@ -181,8 +177,8 @@ for (const viewport of [
     await open(page);
     await chooseAmigurumi(page);
     // The chart is needed for aiming: the written pattern panel is closed.
-    // The sheet carries a „Lecsukás” of its own since PQW-987, so this one is scoped.
-    await page.locator('#written').getByRole('button', { name: 'Lecsukás' }).click();
+    // The sheet carries a “Collapse” of its own since PQW-987, so this one is scoped.
+    await page.locator('#written').getByRole('button', { name: 'Collapse' }).click();
 
     const board = page.locator('#board');
     await board.focus();
@@ -204,16 +200,16 @@ for (const viewport of [
       true,
     );
     await page.mouse.click(point.x, point.y);
-    await expect(page.locator('#status')).toContainText('horgolva. 1. kör: 11 szem, még 5 célpont.');
+    await expect(page.locator('#status')).toContainText('worked. Round 1: 11 stitches, 5 more targets.');
     for (let k = 0; k < 5; k += 1) await page.keyboard.press('Enter');
     for (let k = 0; k < 2; k += 1) await page.keyboard.press('Shift+Enter');
     await page.keyboard.press('Alt+s');
 
-    await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
+    await expect(page.locator('#error-count')).toHaveText('No errors');
     // A closed written pattern does not refresh: we reopen it to read it.
     if (await page.locator('#written').isHidden()) await page.locator('#written-toggle').click();
     await expect(page.locator('#written-text')).toContainText(
-      '1. kör: hagyj ki 1 láncszemet, majd 6 rp, 4 rp a következő láncszembe, a láncszemek másik oldalán vissza: 5 rp, 3 rp a következő láncszembe (18).',
+      'Rnd 1: skip 1 ch, 6 sc, 4 sc in next ch, working back along the other side of the chain: 5 sc, 3 sc in next ch (18).',
     );
   });
 }

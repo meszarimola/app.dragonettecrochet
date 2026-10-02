@@ -4,7 +4,7 @@
 import { buildPieceGraph, type PieceGraph } from './graph.ts';
 import { type CoreText, text } from './messages.ts';
 import { gaugeContextOf } from './pattern-size.ts';
-import { withGeneratedTitle } from './pattern-title.ts';
+import { allLocaleNames, titleLocale, withGeneratedTitle } from './pattern-title.ts';
 import { appendRibbing, type RibbingCode, type RibbingOptions, ribbingProblem } from './ribbing.ts';
 import { type FlatIncreases, flatIncreases } from './rounds.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
@@ -12,6 +12,7 @@ import { traditionOf, turningChainCountsFor } from './tradition.ts';
 import type {
   Anchor,
   LayerEvent,
+  Locale,
   NodeId,
   Pattern,
   Piece,
@@ -40,13 +41,25 @@ export const MOTIF_CORNERS: Readonly<Record<MotifShape, number | undefined>> = {
   'granny-square': 4,
 };
 
-// KB: core-geometry §37
-export const MOTIF_NAMES: Readonly<Record<MotifShape, string>> = {
-  circle: 'Lapos kör',
-  square: 'Négyzet',
-  hexagon: 'Hatszög',
-  octagon: 'Nyolcszög',
-  'granny-square': 'Nagymama-négyzet',
+const MOTIF_NAMES_EN: Readonly<Record<MotifShape, string>> = {
+  circle: 'Flat circle',
+  square: 'Square',
+  hexagon: 'Hexagon',
+  octagon: 'Octagon',
+  'granny-square': 'Granny square',
+};
+
+// KB: core-geometry §37, owner-decisions.md §16
+export const MOTIF_NAMES: Readonly<Record<Locale, Readonly<Record<MotifShape, string>>>> = {
+  hu: {
+    circle: 'Lapos kör',
+    square: 'Négyzet',
+    hexagon: 'Hatszög',
+    octagon: 'Nyolcszög',
+    'granny-square': 'Nagymama-négyzet',
+  },
+  'en-US': MOTIF_NAMES_EN,
+  'en-GB': MOTIF_NAMES_EN,
 };
 
 export const ROUND_STITCHES: readonly StitchDefId[] = ['sc', 'hdc', 'dc', 'tr'];
@@ -143,13 +156,13 @@ export function generateMotif(pattern: Pattern, options: MotifOptions): MotifRes
           );
   if (built !== null) return { ok: false, reason: built };
 
-  const name = MOTIF_NAMES[options.shape];
+  const name = MOTIF_NAMES[titleLocale(pattern)][options.shape];
   const piece = writer.piece('p1', name, MOTIF_CORNERS[options.shape]);
   const stated = withStatedCounts(base, piece);
   const whole: Pattern = { ...base, pieces: [stated] };
   const ribbed = options.ribbing ? appendRibbing(whole, stated, libraryFor(whole), options.ribbing) : stated;
   if ('code' in ribbed) return { ok: false, reason: ribbed };
-  const result = withGeneratedTitle({ ...base, pieces: [ribbed] }, pattern, name, Object.values(MOTIF_NAMES));
+  const result = withGeneratedTitle({ ...base, pieces: [ribbed] }, pattern, name, allLocaleNames(MOTIF_NAMES));
   return { ok: true, pattern: result, increases };
 }
 

@@ -37,13 +37,15 @@ import { renderCoreText } from '../src/ui/i18n/core/render.ts';
 import { grannySquare } from './fixtures/examples.ts';
 
 /** The core returns a code and data (PQW-904); the Hungarian sentence comes from the UI dictionary. */
-const hu = (message) => renderCoreText(AMIGURUMI_CORE_TEXTS.hu, message);
+const hu = (message) => renderCoreText(AMIGURUMI_CORE_TEXTS, 'hu', message);
 const why = (result) => (result.ok ? '' : typeof result.reason === 'string' ? result.reason : hu(result.reason));
 
 const ok = (result) => {
   assert.ok(result.ok, why(result));
   return result.pattern;
 };
+/** The generated names follow the pattern's notation. KB: owner-decisions.md §16 */
+const inNotation = (pattern, terms) => ({ ...pattern, notation: { terms, chartStyle: 'cyc', singleCrochet: 'plus' } });
 const motif = (patch = {}, base = emptyPattern()) => ok(generateMotif(base, { ...DEFAULT_MOTIF, ...patch }));
 const graphOf = (pattern) => buildPieceGraph(pattern, pattern.pieces[0], libraryFor(pattern));
 const lines = (pattern, locale) => writePattern(pattern, libraryFor(pattern), locale).pieces[0].lines;
@@ -247,7 +249,7 @@ describe('polygons and the granny square (04 §6, §9.5, 03 §8)', () => {
 
   test('granny square: three rounds reproduce the worked example of 03 §8 exactly', () => {
     assert.deepEqual(
-      canonicalPiece(motif({ shape: 'granny-square', rounds: 3 }).pieces[0]),
+      canonicalPiece(motif({ shape: 'granny-square', rounds: 3 }, inNotation(emptyPattern(), 'hu')).pieces[0]),
       canonicalPiece(grannySquare().pattern.pieces[0]),
     );
   });

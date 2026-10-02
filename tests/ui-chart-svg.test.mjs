@@ -32,8 +32,8 @@ test('the SVG of a rectangle: row numbers, stitch counts, the colour of both sid
    * of the designer; a separate „(15)” text is no longer drawn onto the chart.
    * The foundation chain counts as row 1.
    */
-  assert.match(svg, />1\. sor – alapsor \(\d+\)</);
-  for (const row of [2, 3, 4]) assert.match(svg, new RegExp(`>${row}\\. sor \\(16\\)</text>`));
+  assert.match(svg, />Row 1 – foundation \(\d+\)</);
+  for (const row of [2, 3, 4]) assert.match(svg, new RegExp(`>Row ${row} \\(16\\)</text>`));
   assert.doesNotMatch(svg, />\(16\)</);
   // Both side groups contain a stem.
   assert.match(svg, /data-side="right"[^>]*>\n(?:<(?!\/g>)[^\n]*\n)*<line/);
@@ -44,20 +44,20 @@ test('the SVG of a rectangle: row numbers, stitch counts, the colour of both sid
    * the right — the earlier expectation said the opposite, back when the row
    * number stood on the starting side.
    */
-  const x = (row) => Number(svg.match(new RegExp(`x="(-?[\\d.]+)"[^>]*>${row}\\. sor \\(16\\)</text>`))[1]);
+  const x = (row) => Number(svg.match(new RegExp(`x="(-?[\\d.]+)"[^>]*>Row ${row} \\(16\\)</text>`))[1]);
   assert.ok(x(3) > x(2));
-  assert.match(svg, /Jelmagyarázat/);
+  assert.match(svg, /Legend/);
   assert.match(svg, />félpálca \(fp\)</);
   assert.match(svg, />láncszem \(lsz\)</);
-  assert.match(svg, /Jelölés: magyar; jelek: CYC\./);
-  assert.match(svg, /Visszai sor/);
-  assert.match(svg, /A sorszám a sor kezdő oldalán áll/);
+  assert.match(svg, /Terms: Hungarian; symbols: CYC\./);
+  assert.match(svg, /Wrong-side row/);
+  assert.match(svg, /The row number is at the starting side of the row/);
   // The slip stitch dot is filled with the colour of its group, so `fill:none` does not make it vanish.
   assert.match(svg, /\.ink \.fill\{stroke:none;fill:currentColor\}/);
   assert.match(svg, /class="ink" stroke="#241f2b" color="#241f2b"/);
   // Even the longest label of the legend fits.
   const width = Number(svg.match(/width="([\d.]+)"/)[1]);
-  assert.ok(width >= 7 * 'A sorszám a sor kezdő oldalán áll, zárójelben a szemszám.'.length);
+  assert.ok(width >= 7 * 'The row number is at the starting side of the row, the stitch count in brackets.'.length);
 });
 
 test('the legend shows the group, not its members', () => {
@@ -69,8 +69,8 @@ test('the legend shows the group, not its members', () => {
 
 test('in mirrored view the legend says that the chart is mirrored', () => {
   const { pattern } = hdcRectangle({ rows: 1 });
-  assert.doesNotMatch(render(pattern), /Tükrözött/);
-  assert.match(render(pattern, { mirror: true }), /Tükrözött nézet balkezeseknek\./);
+  assert.doesNotMatch(render(pattern), /Mirrored/);
+  assert.match(render(pattern, { mirror: true }), /Mirrored view for left-handed crocheters\./);
 });
 
 test('the title is XML-safe', () => {
@@ -86,13 +86,13 @@ test('with English terms the legend names the system and prints only the names o
   const { pattern } = hdcRectangle({ rows: 1 });
   const us = render(pattern, { terms: 'en-US' });
   assert.match(us, /data-terms="en-US"/);
-  assert.match(us, />Jelmagyarázat \(US terms\)</);
+  assert.match(us, />Legend \(US terms\)</);
   assert.match(us, /lang="en">half double crochet \(hdc\)</);
-  assert.match(us, /Jelölés: amerikai angol \(US terms\); jelek: CYC\./);
+  assert.match(us, /Terms: US English \(US terms\); symbols: CYC\./);
   assert.doesNotMatch(us, /félpálca/);
 
   const gb = render(pattern, { terms: 'en-GB' });
-  assert.match(gb, />Jelmagyarázat \(UK terms\)</);
+  assert.match(gb, />Legend \(UK terms\)</);
   assert.match(gb, />half treble \(htr\)</);
   assert.doesNotMatch(gb, /\b(sc|hdc|sl st)\b/);
 });
@@ -101,11 +101,11 @@ test('in JIS symbol style single crochet is an ×, and the export names the styl
   const { pattern } = shellStitch({ repeats: 1 });
   const jis = render(pattern, { symbols: { singleCrochet: 'plus', style: 'jis' } });
   assert.match(jis, /data-chart-style="jis"/);
-  assert.match(jis, /jelek: japán \(JIS\)\./);
+  assert.match(jis, /symbols: Japanese \(JIS\)\./);
   assert.notEqual(jis, render(pattern));
   const crossed = render(pattern, { symbols: { singleCrochet: 'cross' } });
   assert.equal(
-    jis.replace('data-chart-style="jis"', '').replace('japán (JIS)', ''),
+    jis.replace('data-chart-style="jis"', '').replace('Japanese (JIS)', ''),
     crossed.replace('data-chart-style="cyc"', '').replace('CYC', ''),
   );
 });
@@ -127,9 +127,9 @@ test('the insertion mode shows on the foot and in the legend, in CYC and in JIS 
     ['sc/back-loop', 'sc/front-loop'],
   );
   const svg = render(pattern);
-  assert.match(svg, /<tspan lang="hu">[^<]+<\/tspan> – hátsó szál<\/text>/);
-  assert.match(svg, /<tspan lang="hu">[^<]+<\/tspan> – első szál<\/text>/);
-  assert.match(svg, /színoldalról nézve/);
+  assert.match(svg, /<tspan lang="hu">[^<]+<\/tspan> – back loop<\/text>/);
+  assert.match(svg, /<tspan lang="hu">[^<]+<\/tspan> – front loop<\/text>/);
+  assert.match(svg, /as seen from the right side/);
   // Curves of the insertion mark: 4 + 4 in the rows (the counting turning chain stands in for the first stitch of the row, PQW-891) and 2 in the legend.
   const curves = (text) => (text.match(/<path d="M[^"]*Q/g) ?? []).length;
   assert.equal(curves(svg), 10);
@@ -141,7 +141,7 @@ test('the insertion mode shows on the foot and in the legend, in CYC and in JIS 
 test('a pattern with no insertion mode gets neither an insertion legend row nor a note', () => {
   const pattern = hdcRectangle({ rows: 2 }).pattern;
   assert.deepEqual(legendInsertions(pattern, libraryFor(pattern)), []);
-  assert.doesNotMatch(render(pattern), /színoldalról nézve/);
+  assert.doesNotMatch(render(pattern), /as seen from the right side/);
 });
 
 test('grid pattern: a dashed frame around the repeat unit, a dot on the foot of the spike stitch, and both explained in the legend (PQW-894)', () => {
@@ -165,11 +165,11 @@ test('grid pattern: a dashed frame around the repeat unit, a dot on the foot of 
   });
   assert.equal(svg.match(/data-unit-frame/g).length, 1);
   assert.equal(svg.match(/data-spike/g).length, 1);
-  assert.match(svg, /Szaggatott keret: az ismétlő egység\./);
-  assert.match(svg, /Pötty a szár végén: a lejjebb, a kihagyott szembe horgolt szem\./);
+  assert.match(svg, /Dashed frame: the repeat unit\./);
+  assert.match(svg, /Dot at the foot of the stem: a spike stitch worked lower, into the skipped stitch\./);
   assert.doesNotMatch(svg, /NaN|undefined|Infinity/);
   const plain = render(hdcRectangle({ rows: 2 }).pattern);
-  assert.doesNotMatch(plain, /data-unit-frame|data-spike|Szaggatott keret|Pötty a szár/);
+  assert.doesNotMatch(plain, /data-unit-frame|data-spike|Dashed frame|Dot at the foot/);
 });
 
 /*
@@ -222,10 +222,10 @@ test('in the export the foundation chain is row 1 and no „0” row number appe
     'no standalone „0” label',
   );
   assert.ok(
-    texts.some((text) => text.startsWith('1. sor – alapsor')),
+    texts.some((text) => text.startsWith('Row 1 – foundation')),
     `the foundation chain is row 1: ${JSON.stringify(texts.slice(0, 3))}`,
   );
   // Rows are numbered continuously from the foundation chain, with no gaps.
-  const rows = texts.filter((text) => /^\d+\. sor/.test(text)).map((text) => Number.parseInt(text, 10));
+  const rows = texts.filter((text) => /^Row \d+/.test(text)).map((text) => Number.parseInt(text.slice(4), 10));
   assert.deepEqual(rows, [1, 2, 3, 4, 5, 6, 7], 'continuous row numbering from the foundation chain');
 });

@@ -91,14 +91,14 @@ async function clickTarget(page: Page, slot: number): Promise<void> {
 async function foundation(page: Page): Promise<void> {
   const palette = page.locator('#palette');
   await palette
-    .getByRole('button', { name: /Láncszem \(lsz\)/ })
+    .getByRole('button', { name: /Chain \(ch\)/ })
     .first()
     .click();
   await page.locator('#chain-count').fill('12');
   await page.locator('#board').click();
-  await page.getByRole('button', { name: 'Fordulás' }).click();
+  await page.getByRole('button', { name: 'Turn' }).click();
   await palette
-    .getByRole('button', { name: /Egyráhajtásos pálca \(erp\)/ })
+    .getByRole('button', { name: /Double crochet \(dc\)/ })
     .first()
     .click();
 }
@@ -139,7 +139,7 @@ test('clicking on the skipped place puts the stitch there, and the rest stay (PQ
 
   // Filling the gap is not an error: the crocheter clicked there because that is where it was meant to go.
   await page.locator('#error-toggle').click();
-  await expect(page.locator('#findings'), 'filling the gap is not an error').not.toContainText('Hiba:');
+  await expect(page.locator('#findings'), 'filling the gap is not an error').not.toContainText('Error:');
 });
 
 test('it increases into the stitch that was clicked, not into the last one laid down (PQW-933)', async ({ page }) => {
@@ -168,5 +168,5 @@ test('it increases into the stitch that was clicked, not into the last one laid 
   }
 
   await page.locator('#error-toggle').click();
-  await expect(page.locator('#findings'), 'increasing backwards is not an error either').not.toContainText('Hiba:');
+  await expect(page.locator('#findings'), 'increasing backwards is not an error either').not.toContainText('Error:');
 });

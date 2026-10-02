@@ -16,8 +16,8 @@ async function start(page: Page): Promise<void> {
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
-  // „Új minta” is the type menu since PQW-1045; the type starts the pattern anew.
-  await page.getByRole('button', { name: 'Új minta' }).click();
+  // "New pattern" is the type menu since PQW-1045; the type starts the pattern anew.
+  await page.getByRole('button', { name: 'New pattern' }).click();
   await page.locator('.type[data-type="regular"]').click();
 }
 
@@ -30,16 +30,16 @@ async function pick(page: Page, name: RegExp): Promise<void> {
 test('row 2 of the owner shows 22 stitches, not 13 (PQW-940)', async ({ page }) => {
   await start(page);
 
-  await pick(page, /Láncszem \(lsz\)/);
+  await pick(page, /Chain \(ch\)/);
   await page.locator('#chain-count').fill('22');
   await page.locator('#board').click();
-  await page.getByRole('button', { name: 'Fordulás' }).click();
+  await page.getByRole('button', { name: 'Turn' }).click();
 
-  await pick(page, /Rövidpálca \(rp\)/);
+  await pick(page, /Single crochet \(sc\)/);
   await page.locator('#board').press('Enter');
   await page.locator('#board').press('Enter');
 
-  await pick(page, /Egyráhajtásos pálca \(erp\)/);
+  await pick(page, /Double crochet \(dc\)/);
   for (const group of [0, 1, 2]) {
     if (group === 0) {
       // Two standalone double crochets, then the first cluster of three.
@@ -50,13 +50,13 @@ test('row 2 of the owner shows 22 stitches, not 13 (PQW-940)', async ({ page }) 
     await page.locator('#board').press('Shift+Enter');
     await page.locator('#board').press('Shift+Enter');
     if (group < 2) {
-      await pick(page, /Láncszem \(lsz\)/);
+      await pick(page, /Chain \(ch\)/);
       await page.locator('#chain-count').fill('3');
       await page.locator('#board').press('Enter');
-      await pick(page, /Egyráhajtásos pálca \(erp\)/);
+      await pick(page, /Double crochet \(dc\)/);
     }
   }
-  await pick(page, /Láncszem \(lsz\)/);
+  await pick(page, /Chain \(ch\)/);
   await page.locator('#chain-count').fill('2');
   await page.locator('#board').press('Enter');
 
@@ -64,8 +64,8 @@ test('row 2 of the owner shows 22 stitches, not 13 (PQW-940)', async ({ page }) 
   await page.locator('#written-toggle').click();
   const written = page.locator('#written');
   await expect(written).toBeVisible();
-  await expect(written).toContainText('(22 szem)');
-  await expect(written).not.toContainText('(13 szem)');
+  await expect(written).toContainText('(22 sts)');
+  await expect(written).not.toContainText('(13 sts)');
 });
 
 /*
@@ -86,15 +86,15 @@ const labels = (page: Page): Promise<LabelBox[]> =>
 test('the foundation chain counts the column of the vertical turning chain too (PQW-942)', async ({ page }) => {
   await start(page);
 
-  await pick(page, /Láncszem \(lsz\)/);
+  await pick(page, /Chain \(ch\)/);
   await page.locator('#chain-count').fill('10');
   await page.locator('#board').click();
-  await expect.poll(async () => (await labels(page)).map((label) => label.text)).toContain('1. sor – alapsor (10)');
+  await expect.poll(async () => (await labels(page)).map((label) => label.text)).toContain('Row 1 – foundation (10)');
 
-  await page.getByRole('button', { name: 'Fordulás' }).click();
-  await pick(page, /Egyráhajtásos pálca \(erp\)/);
+  await page.getByRole('button', { name: 'Turn' }).click();
+  await pick(page, /Double crochet \(dc\)/);
   await page.locator('#board').press('Enter');
 
   // Three chain stitches stood up vertically: 10 − 3 + 1 = 8.
-  await expect.poll(async () => (await labels(page)).map((label) => label.text)).toContain('1. sor – alapsor (8)');
+  await expect.poll(async () => (await labels(page)).map((label) => label.text)).toContain('Row 1 – foundation (8)');
 });

@@ -35,25 +35,25 @@ test('clicking between two stitches of the foundation chain inserts a new chain 
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
-  // „Új minta” is the type menu since PQW-1045; the type starts the pattern anew.
-  await page.getByRole('button', { name: 'Új minta' }).click();
+  // “New pattern” is the type menu since PQW-1045; the type starts the pattern anew.
+  await page.getByRole('button', { name: 'New pattern' }).click();
   await page.locator('.type[data-type="regular"]').click();
 
   const palette = page.locator('#palette');
-  const chain = palette.getByRole('button', { name: /Láncszem \(lsz\)/ }).first();
+  const chain = palette.getByRole('button', { name: /Chain \(ch\)/ }).first();
   if ((await chain.getAttribute('aria-pressed')) !== 'true') await chain.click();
   await page.locator('#chain-count').fill('8');
   await page.locator('#board').click();
 
-  await page.getByRole('button', { name: 'Fordulás' }).click();
-  const sc = palette.getByRole('button', { name: /Rövidpálca \(rp\)/ }).first();
+  await page.getByRole('button', { name: 'Turn' }).click();
+  const sc = palette.getByRole('button', { name: /Single crochet \(sc\)/ }).first();
   if ((await sc.getAttribute('aria-pressed')) !== 'true') await sc.click();
   // Three single crochets: row 2 is half-finished, the foundation row is not used up yet.
   for (let i = 0; i < 3; i += 1) await page.locator('#board').press('Enter');
 
   await expect
-    .poll(async () => (await labels(page)).find((text) => text.startsWith('1. sor')))
-    .toBe('1. sor – alapsor (7)');
+    .poll(async () => (await labels(page)).find((text) => text.startsWith('Row 1')))
+    .toBe('Row 1 – foundation (7)');
   const before = await baseCells(page);
 
   // We click on the line between the second and the third chain stitch.
@@ -61,43 +61,43 @@ test('clicking between two stitches of the foundation chain inserts a new chain 
   await page.mouse.click(boundary, before[1]!.y);
 
   await expect
-    .poll(async () => (await labels(page)).find((text) => text.startsWith('1. sor')))
-    .toBe('1. sor – alapsor (8)');
+    .poll(async () => (await labels(page)).find((text) => text.startsWith('Row 1')))
+    .toBe('Row 1 – foundation (8)');
   expect((await baseCells(page)).length).toBe(before.length + 1);
 
   // Undone in one step.
   await page.locator('#board').press('ControlOrMeta+z');
   await expect
-    .poll(async () => (await labels(page)).find((text) => text.startsWith('1. sor')))
-    .toBe('1. sor – alapsor (7)');
+    .poll(async () => (await labels(page)).find((text) => text.startsWith('Row 1')))
+    .toBe('Row 1 – foundation (7)');
 });
 
 test('a stitch can be placed by going back into the empty cell above the insertion (PQW-950)', async ({ page }) => {
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
-  // „Új minta” is the type menu since PQW-1045; the type starts the pattern anew.
-  await page.getByRole('button', { name: 'Új minta' }).click();
+  // “New pattern” is the type menu since PQW-1045; the type starts the pattern anew.
+  await page.getByRole('button', { name: 'New pattern' }).click();
   await page.locator('.type[data-type="regular"]').click();
 
   const palette = page.locator('#palette');
-  const chain = palette.getByRole('button', { name: /Láncszem \(lsz\)/ }).first();
+  const chain = palette.getByRole('button', { name: /Chain \(ch\)/ }).first();
   if ((await chain.getAttribute('aria-pressed')) !== 'true') await chain.click();
   await page.locator('#chain-count').fill('10');
   await page.locator('#board').click();
 
-  await page.getByRole('button', { name: 'Fordulás' }).click();
-  const dc = palette.getByRole('button', { name: /Egyráhajtásos pálca \(erp\)/ }).first();
+  await page.getByRole('button', { name: 'Turn' }).click();
+  const dc = palette.getByRole('button', { name: /Double crochet \(dc\)/ }).first();
   if ((await dc.getAttribute('aria-pressed')) !== 'true') await dc.click();
-  await page.getByRole('button', { name: 'Sor kitöltése' }).click();
-  await page.getByRole('button', { name: 'Fordulás' }).click();
+  await page.getByRole('button', { name: 'Fill row' }).click();
+  await page.getByRole('button', { name: 'Turn' }).click();
   await page.locator('#board').press('Enter');
   await page.locator('#board').press('Enter');
 
   const rowCells = async (): Promise<Cell[]> =>
     (await cells(page)).filter((cell) => cell.layer === 1).sort((a, b) => a.x - b.x);
   const rowLabel = async (): Promise<string | undefined> =>
-    (await labels(page)).find((text) => text.startsWith('2. sor'));
+    (await labels(page)).find((text) => text.startsWith('Row 2'));
   const beforeRow = await rowCells();
   const beforeLabel = await rowLabel();
 
@@ -117,5 +117,5 @@ test('a stitch can be placed by going back into the empty cell above the inserti
   await page.mouse.click(gapCell!.x, gapCell!.y);
 
   const count = Number(/\((\d+)\)/.exec(beforeLabel!)![1]);
-  await expect.poll(rowLabel).toBe(`2. sor (${count + 1})`);
+  await expect.poll(rowLabel).toBe(`Row 2 (${count + 1})`);
 });

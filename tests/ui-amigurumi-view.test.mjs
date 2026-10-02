@@ -29,6 +29,18 @@ import {
   shapeOf,
   TOP_CHOICES,
 } from '../src/ui/amigurumi-view.ts';
+import { setUiLanguage } from '../src/ui/i18n.ts';
+import { setTermsLocale } from '../src/ui/notation.ts';
+
+/** Runs `run` with the interface in `language`, then restores the default. KB: interface.md §4 */
+function inLanguage(language, run) {
+  try {
+    setUiLanguage(language);
+    return run();
+  } finally {
+    setUiLanguage('en');
+  }
+}
 
 const DK = { stitchesPerCm: 1.9, roundsPerCm: 2, source: 'measured', hookMm: 3.5 };
 
@@ -54,9 +66,13 @@ const form = (patch = {}) => ({
 });
 
 describe('choices and fields', () => {
-  test('shapes, the round plan of the sphere, the ends and the joining method all carry Hungarian labels', () => {
+  test('shapes, the round plan of the sphere, the ends and the joining method carry labels in both interface languages', () => {
     assert.deepEqual(
-      SHAPE_CHOICES.map((choice) => choice.label),
+      inLanguage('en', () => SHAPE_CHOICES.map((choice) => choice.label)),
+      ['Sphere', 'Hemisphere', 'Egg', 'Cylinder', 'Cone', 'Solid of revolution (from a profile)', 'Oval'],
+    );
+    assert.deepEqual(
+      inLanguage('hu', () => SHAPE_CHOICES.map((choice) => choice.label)),
       ['Gömb', 'Félgömb', 'Tojás', 'Henger', 'Kúp', 'Forgástest (profilból)', 'Ovális'],
     );
     assert.deepEqual(
@@ -68,18 +84,42 @@ describe('choices and fields', () => {
       ['closed', 'open', 'closed', 'open'],
     );
     assert.deepEqual(
-      JOIN_CHOICES.map((choice) => choice.label),
-      ['Varrva', 'Folytatólagosan'],
+      inLanguage('en', () => JOIN_CHOICES.map((choice) => choice.label)),
+      ['Sewn', 'Worked on'],
     );
     assert.deepEqual(
-      STITCH_CHOICES.map((choice) => [choice.value, choice.label]),
-      [
-        ['sc', 'Rövidpálca'],
-        ['hdc', 'Félpálca'],
-        ['dc', 'Egyráhajtásos pálca'],
-        ['tr', 'Kétráhajtásos pálca'],
-      ],
+      inLanguage('hu', () => JOIN_CHOICES.map((choice) => choice.label)),
+      ['Varrva', 'Folytatólagosan'],
     );
+  });
+
+  test('the stitch choices follow the notation, not the interface language (PQW-920)', () => {
+    const inTerms = (terms) => {
+      try {
+        setTermsLocale(terms);
+        return inLanguage('en', () => STITCH_CHOICES.map((choice) => [choice.value, choice.label]));
+      } finally {
+        setTermsLocale('en-US');
+      }
+    };
+    assert.deepEqual(inTerms('hu'), [
+      ['sc', 'Rövidpálca'],
+      ['hdc', 'Félpálca'],
+      ['dc', 'Egyráhajtásos pálca'],
+      ['tr', 'Kétráhajtásos pálca'],
+    ]);
+    assert.deepEqual(inTerms('en-US'), [
+      ['sc', 'Single crochet'],
+      ['hdc', 'Half double crochet'],
+      ['dc', 'Double crochet'],
+      ['tr', 'Treble'],
+    ]);
+    assert.deepEqual(inTerms('en-GB'), [
+      ['sc', 'Double crochet'],
+      ['hdc', 'Half treble'],
+      ['dc', 'Treble'],
+      ['tr', 'Double treble'],
+    ]);
   });
 
   test('which fields belong to each shape', () => {
@@ -160,7 +200,7 @@ describe('building the shape from the fields', () => {
       { radiusCm: 2.5, heightCm: 1 },
       { radiusCm: 1, heightCm: 2 },
     ]);
-    assert.match(parseProfile('0 0\n2,5'), /A profil 2\. sorában két szám kell/);
+    assert.match(parseProfile('0 0\n2,5'), /^Line 2 of the profile needs two numbers separated by a space/);
   });
 
   test('an empty increase on a cone is derived from the height, and a bad number comes back as a message', () => {
@@ -172,7 +212,7 @@ describe('building the shape from the fields', () => {
       top: 'open',
     });
     assert.equal(shapeOf(form({ shape: 'cone', increases: '2,5' })).increases, 2.5);
-    assert.match(shapeOf(form({ shape: 'cone', increases: 'sok' })), /szám legyen/);
+    assert.match(shapeOf(form({ shape: 'cone', increases: 'sok' })), /must be a number/);
   });
 
   test('the part built from the fields: name, shape, stagger and safety eyes', () => {
@@ -182,7 +222,7 @@ describe('building the shape from the fields', () => {
       stagger: true,
       eyes: true,
     });
-    assert.match(partOf(form({ shape: 'revolution', profile: 'a b' })), /két szám kell/);
+    assert.match(partOf(form({ shape: 'revolution', profile: 'a b' })), /needs two numbers/);
   });
 });
 
@@ -190,18 +230,18 @@ describe('preview and notes', () => {
   test('a 6 cm sphere: the number of rounds, the size, and the curvature round by round', () => {
     assert.equal(
       previewNote(form(), DK),
-      '18 kör, legfeljebb 36 szem; szélesség kb. 6 cm, magasság kb. 6 cm. Görbület: 1–6. kör lapos, 7–13. kör henger, 14–18. kör fogyó (záródik).',
+      '18 rounds, at most 36 stitches; width about 6 cm, height about 6 cm. Curvature: rounds 1–6 flat, rounds 7–13 tube, rounds 14–18 decreasing (closing).',
     );
   });
 
   test('a cylinder names its back-loop round, and an open start raises a warning', () => {
     assert.match(
       previewNote(form({ shape: 'cylinder', diameter: '5', height: '5', top: 'open' }), DK),
-      /Hátsó szálba \(éles törés\): 6\. kör\./,
+      /Into the back loop \(sharp fold\): round 6\./,
     );
     assert.match(
       previewNote(form({ shape: 'cylinder', diameter: '5', height: '5', bottom: 'open' }), DK),
-      /Nyitott kezdés: csak folytatólagosan/,
+      /Open start: only as a continuation/,
     );
   });
 
@@ -213,9 +253,12 @@ describe('preview and notes', () => {
     });
     assert.match(
       previewNote(form({ shape: 'oval', length: '8', width: '5' }), DK),
-      /^\d+ kör, legfeljebb \d+ szem; hossz kb\. [\d,]+ cm, szélesség kb\. [\d,]+ cm, \d+ láncszemből\. Görbület: /,
+      /^\d+ rounds, at most \d+ stitches; length about [\d.]+ cm, width about [\d.]+ cm, from \d+ chains\. Curvature: /,
     );
-    assert.match(previewNote(form({ shape: 'oval', length: '3', width: '5' }), DK), /hossza legalább akkora/);
+    assert.match(
+      previewNote(form({ shape: 'oval', length: '3', width: '5' }), DK),
+      /must be at least as large as its width/,
+    );
   });
 
   test('a double crochet oval (PQW-899): the stitch is part of the shape, the preview uses the gauge of that stitch, and the figure note gives length × width, flat', () => {
@@ -228,7 +271,7 @@ describe('preview and notes', () => {
     const base = emptyPattern();
     const dc = roundGaugeOf(base, 'dc');
     const note = previewNote(form({ shape: 'oval', stitch: 'dc' }), roundGaugeOf(base), () => dc);
-    const counts = /^(\d+) kör, legfeljebb (\d+) szem/.exec(note);
+    const counts = /^(\d+) rounds, at most (\d+) stitches/.exec(note);
     assert.ok(counts, note);
     const sole = createAmigurumi(
       base,
@@ -239,12 +282,12 @@ describe('preview and notes', () => {
     assert.equal(Number(counts[2]), Math.max(...sole.schedule.counts));
     assert.match(
       figureNote(sole.pattern, roundGaugeOf(base)),
-      /^A minta részei: Talp \([\d,]+ × [\d,]+ cm, lapos\)\. A figura magassága kb\. 0,\d cm/,
+      /^Pieces of the pattern: Talp \([\d.]+ × [\d.]+ cm, flat\)\. The figure is about 0\.\d cm tall/,
     );
   });
 
   test('a bad size surfaces the message from the core', () => {
-    assert.equal(previewNote(form({ diameter: '0' }), DK), 'Az átmérő 0 és 100 cm közötti szám lehet.');
+    assert.equal(previewNote(form({ diameter: '0' }), DK), 'The diameter must be a number between 0 and 100 cm.');
   });
 
   test('consecutive rounds of the same curvature collapse into a single run', () => {
@@ -256,9 +299,12 @@ describe('preview and notes', () => {
   });
 
   test('the origin of the gauge: estimated from the hook, or measured in the round', () => {
-    assert.match(gaugeNote(roundGaugeOf(emptyPattern())), /^Becslés a tűből: .* kb\. két tűmérettel kisebb tűvel\./);
-    assert.equal(gaugeNote(DK), 'A körben mért mintasűrűségből: 19 szem és 20 kör 10 cm-en.');
-    assert.match(gaugeNote({ ...DK, source: 'label' }), /^A címkén megadott mintasűrűségből/);
+    assert.match(
+      gaugeNote(roundGaugeOf(emptyPattern())),
+      /^Estimate from the hook: .* with a hook about two sizes smaller\./,
+    );
+    assert.equal(gaugeNote(DK), 'From the in the round gauge: 19 stitches and 20 rounds over 10 cm.');
+    assert.match(gaugeNote({ ...DK, source: 'label' }), /^From the label gauge/);
   });
 
   test('the parts and the height of the figure, and no note at all without a part', () => {
@@ -281,17 +327,14 @@ describe('preview and notes', () => {
     assert.ok(figure.ok, figure.ok ? '' : figure.reason.code);
     assert.match(
       figureNote(figure.pattern, gauge),
-      /^A minta részei: Fej \(6,5 × 6,5 cm\), Test \(5 × 5,1 cm\)\. A figura magassága kb\. \d+(,\d)? cm/,
+      /^Pieces of the pattern: Fej \(6\.5 × 6\.5 cm\), Test \(5 × 5\.1 cm\)\. The figure is about \d+(\.\d)? cm tall/,
     );
   });
 
   test('toy safety and messages', () => {
     assert.equal(safetyNote(false), null);
-    assert.match(safetyNote(true), /hímzett szemet ír/);
-    assert.equal(createdMessage('Fej'), 'Fej elkészült; visszavonással a korábbi minta visszajön.');
-    assert.equal(
-      addedMessage('Test', 'continuous'),
-      'Test hozzáadva, folytatólagosan; visszavonással a korábbi minta visszajön.',
-    );
+    assert.match(safetyNote(true), /the pattern writes embroidered eyes/);
+    assert.equal(createdMessage('Fej'), 'Fej done; undo brings the previous one back.');
+    assert.equal(addedMessage('Test', 'continuous'), 'Test added, worked on; undo brings the previous one back.');
   });
 });

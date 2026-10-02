@@ -15,7 +15,7 @@ export type WrittenView =
   | { readonly kind: 'message'; readonly message: string };
 
 function coreMessage(error: WrittenPatternError): string {
-  return renderCoreText(WRITTEN_CORE_TEXTS[uiLanguage()], error.coreText);
+  return renderCoreText(WRITTEN_CORE_TEXTS, uiLanguage(), error.coreText);
 }
 
 export function writtenView(pattern: Pattern, context: WorkContext, check: LiveCheck, terms: Locale): WrittenView {

@@ -3,6 +3,7 @@
 
 import { fail, finishGridPattern, type GridPatternCode, GridWriter, gridPiece, intoStitch } from './grid-pattern.ts';
 import { type CoreText, text } from './messages.ts';
+import { titleLocale } from './pattern-title.ts';
 import { type ChartRows, FILLED, MAX_GRID_SIDE, NO_CELL, OPEN, TECHNIQUE_NAMES } from './pixel-chart.ts';
 import { foundationChainLength } from './repeat.ts';
 import { type ShapeGauge, shapeGauge } from './shapes.ts';
@@ -205,7 +206,7 @@ export function generateFilet(pattern: Pattern, options: FiletOptions): FiletRes
   const { plan } = planned;
   const base: Pattern = { ...pattern, pieces: [] };
   const writer = buildFilet(base, plan);
-  const piece = gridPiece(base, TECHNIQUE_NAMES.filet, writer, {
+  const piece = gridPiece(base, TECHNIQUE_NAMES[titleLocale(pattern)].filet, writer, {
     technique: 'filet',
     cells: options.cells.map((row) => [...row]),
     colors: [],

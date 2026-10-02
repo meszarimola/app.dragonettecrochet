@@ -1,6 +1,6 @@
 /*
  * Circles and motifs (PQW-861): a flat circle and a granny square from the
- * „Kör és motívum” section, with the round-by-round written pattern; the K key
+ * "Round and motif" section, with the round-by-round written pattern; the K key
  * closes a chain ring from the chain stitches. The diagram of the granny square
  * is a square, and its symbols do not crowd (PQW-888).
  *
@@ -12,7 +12,7 @@ import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
-  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
 }
 
@@ -33,7 +33,7 @@ async function generate(page: Page, choices: { shape?: string; start?: string; r
   if (choices.start) await page.locator('#rounds-start').selectOption({ label: choices.start });
   await page.locator('#rounds-count').fill(String(choices.rounds));
   await page.locator('#rounds-count').press('Tab');
-  await page.getByRole('button', { name: 'Minta létrehozása' }).click();
+  await page.getByRole('button', { name: 'Create pattern' }).click();
 }
 
 async function writtenText(page: Page): Promise<string> {
@@ -41,7 +41,7 @@ async function writtenText(page: Page): Promise<string> {
   return (await page.locator('#written-text').textContent()) ?? '';
 }
 
-/** PQW-1045: a new pattern is started from the „Új” menu, by picking a type. */
+/** PQW-1045: a new pattern is started from the "New" menu, by picking a type. */
 async function newRegular(page: Page): Promise<void> {
   await page.locator('#types-toggle').click();
   await page.locator('.type[data-type="regular"]').click();
@@ -53,14 +53,14 @@ test('flat circle in single crochet: estimated increases, error-free rounds, the
   await open(page);
   await generate(page, { rounds: 4 });
 
-  await expect(page.locator('#rounds-note')).toContainText('Körönként 6 szaporítás');
-  await expect(page.locator('#rounds-note')).toContainText('Becslés');
-  await expect(page.locator('#status')).toContainText('Lapos kör, 4 kör elkészült;');
-  await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
+  await expect(page.locator('#rounds-note')).toContainText('6 increases per round');
+  await expect(page.locator('#rounds-note')).toContainText('Estimate');
+  await expect(page.locator('#status')).toContainText('Flat circle: 4 rounds done;');
+  await expect(page.locator('#error-count')).toHaveText('No errors');
 
   const text = await writtenText(page);
-  expect(text).toContain('3. kör: 1 lsz (fordulólánc), (szap., 1 rp) ×6 (18). Kör zárása: 1 ksz az első szembe.');
-  expect(text).toContain('4. kör: 1 lsz (fordulólánc), 1 rp, (szap., 2 rp) ×5, szap., 1 rp (24).');
+  expect(text).toContain('Rnd 3: ch 1 (turning chain), (inc, sc) x6 (18). Join with sl st to first st.');
+  expect(text).toContain('Rnd 4: ch 1 (turning chain), sc, (inc, 2 sc) x5, inc, sc (24).');
 
   // The round numbers on the canvas: the labels of the four rounds, and since PQW-916 the label of the magic ring (layer 0) as well.
   const labels = await page.evaluate(() =>
@@ -70,21 +70,21 @@ test('flat circle in single crochet: estimated increases, error-free rounds, the
 
   // Undo brings back the earlier (empty) pattern.
   await page.keyboard.press('ControlOrMeta+Z');
-  await expect(page.locator('#status')).toContainText('Visszavonva.');
+  await expect(page.locator('#status')).toContainText('Undone.');
 });
 
 test('granny square with a chain ring, and the K key closes a chain ring from the chain stitches', async ({ page }) => {
   await open(page);
-  await generate(page, { shape: 'Nagymama-négyzet', start: 'Láncgyűrű', rounds: 3 });
+  await generate(page, { shape: 'Granny square', start: 'Chain ring', rounds: 3 });
 
   await expect(page.locator('#rounds-stitch')).toBeHidden();
   await expect(page.locator('#rounds-closing')).toBeHidden();
-  await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
+  await expect(page.locator('#error-count')).toHaveText('No errors');
   const text = await writtenText(page);
-  expect(text).toContain('Láncgyűrű: 4 lsz, 1 ksz-szel gyűrűvé zárva.');
-  expect(text).toContain('1. kör: 3 lsz (1 erp-nek számít), 2 erp a gyűrűbe, 2 lsz, (3 erp a gyűrűbe, 2 lsz) ×3 (20).');
-  expect(text).toMatch(/2\. kör: .*\(36\)\. Kör zárása: 1 ksz a kezdőlánc tetejébe\./);
-  expect(text).toMatch(/3\. kör: .*\(52\)\. Kör zárása: 1 ksz a kezdőlánc tetejébe\./);
+  expect(text).toContain('Chain ring: ch 4, join with sl st to form a ring.');
+  expect(text).toContain('Rnd 1: ch 3 (counts as 1 dc), 2 dc in ring, ch 2, (3 dc in ring, ch 2) x3 (20).');
+  expect(text).toMatch(/Rnd 2: .*\(36\)\. Join with sl st to top of beg ch\./);
+  expect(text).toMatch(/Rnd 3: .*\(52\)\. Join with sl st to top of beg ch\./);
 
   // New pattern, 6 chain stitches, K: chain ring. The number of chain stitches is visible once the chain stitch is selected.
   await newRegular(page);
@@ -96,7 +96,7 @@ test('granny square with a chain ring, and the K key closes a chain ring from th
   await page.keyboard.press('Enter');
   await expect(page.locator('[data-action="close-round"]')).toBeEnabled();
   await page.keyboard.press('Alt+k');
-  await expect(page.locator('#status')).toContainText('Láncgyűrű: a láncszemek gyűrűvé zárva.');
+  await expect(page.locator('#status')).toContainText('Chain ring: the chains are joined into a ring.');
 });
 
 interface Placed {
@@ -124,10 +124,10 @@ for (const viewport of [
   }) => {
     await page.setViewportSize(viewport);
     await open(page);
-    await generate(page, { shape: 'Nagymama-négyzet', rounds: 6 });
-    await expect(page.locator('#status')).toContainText('Nagymama-négyzet, 6 kör elkészült;');
+    await generate(page, { shape: 'Granny square', rounds: 6 });
+    await expect(page.locator('#status')).toContainText('Granny square: 6 rounds done;');
     await page.locator('#zoom-toggle').click();
-    await page.getByRole('button', { name: 'Egész minta' }).click();
+    await page.getByRole('button', { name: 'Whole pattern' }).click();
 
     // The slip stitch sits on its base, not on the line of the round: it does not count.
     const nodes = (await placedNodes(page)).filter((node) => node.layer > 0 && node.def !== 'sl-st');

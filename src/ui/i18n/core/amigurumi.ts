@@ -132,5 +132,5 @@ const en: Readonly<Record<AmigurumiCoreCode, CoreEntry>> = {
 export const AMIGURUMI_CORE_TEXTS: CoreDictionary<AmigurumiCoreCode> = { hu, en };
 
 export function amigurumiCoreText(message: CoreText<AmigurumiCoreCode>): string {
-  return renderCoreText(AMIGURUMI_CORE_TEXTS[uiLanguage()], message);
+  return renderCoreText(AMIGURUMI_CORE_TEXTS, uiLanguage(), message);
 }

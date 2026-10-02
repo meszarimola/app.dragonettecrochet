@@ -46,6 +46,8 @@ const japanese = () => ({ ...emptyPattern(), conventions: withTradition(emptyPat
 
 /** The core gives a code and data as the reason (PQW-904); that is enough for the failure message. */
 const why = (result) => (result.ok ? '' : JSON.stringify(result.reason));
+/** The generated names follow the pattern's notation. KB: owner-decisions.md §16 */
+const inNotation = (pattern, terms) => ({ ...pattern, notation: { terms, chartStyle: 'cyc', singleCrochet: 'plus' } });
 const shape = (pattern, patch) => {
   const result = generateShape(pattern, { ...DEFAULT_SHAPE, ...patch });
   assert.ok(result.ok, why(result));
@@ -101,9 +103,11 @@ describe('rectangle (03 §3.1 A, B)', () => {
   });
 
   test('the shape name replaces the default title and an earlier generated one, but a user-given title is kept', () => {
-    assert.equal(shape(emptyPattern(), {}).pattern.title, 'Téglalap');
+    assert.equal(shape(inNotation(emptyPattern(), 'hu'), {}).pattern.title, 'Téglalap');
+    assert.equal(shape(inNotation(emptyPattern(), 'en-US'), {}).pattern.title, 'Rectangle');
     assert.equal(
-      shape(emptyPattern('Lapos kör'), { shape: 'right-triangle', widthCm: 10, heightCm: 10 }).pattern.title,
+      shape(inNotation(emptyPattern('Lapos kör'), 'hu'), { shape: 'right-triangle', widthCm: 10, heightCm: 10 }).pattern
+        .title,
       'Derékszögű háromszög',
     );
     assert.equal(shape(emptyPattern('Nyári takaró'), {}).pattern.title, 'Nyári takaró');

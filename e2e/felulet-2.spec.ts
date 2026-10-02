@@ -9,7 +9,7 @@ import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
-  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
 }
 
@@ -23,7 +23,7 @@ test('the file actions dropdown from the keyboard: Tab to the button, Enter open
   await expect(filePop).toBeHidden();
   await expect(fileToggle).toHaveAttribute('aria-expanded', 'false');
 
-  // One Tab from the „Új minta” menu button reaches the file actions button: the two are neighbours (PQW-912).
+  // One Tab from the “New pattern” menu button reaches the file actions button: the two are neighbours (PQW-912).
   await page.locator('#types-toggle').focus();
   await page.keyboard.press('Tab');
   await expect(fileToggle).toBeFocused();
@@ -32,8 +32,8 @@ test('the file actions dropdown from the keyboard: Tab to the button, Enter open
   await page.keyboard.press('Enter');
   await expect(filePop).toBeVisible();
   await expect(fileToggle).toHaveAttribute('aria-expanded', 'true');
-  // „Minta készítése" is the first item since PQW-987.
-  // PQW-1047: „Exportálás” leads the menu now.
+  // “Make a pattern” is the first item since PQW-987.
+  // PQW-1047: “Export” leads the menu now.
   await expect(filePop.locator('#export-open')).toBeFocused();
 
   // Esc closes it, and the focus returns to the button.
@@ -85,7 +85,7 @@ async function rectangle(page: Page, width: number, rows: number): Promise<void>
   await page.keyboard.press('Escape');
   // Zooming lives in its own menu (interface.md §63).
   await page.locator('#zoom-toggle').click();
-  await page.getByRole('button', { name: 'Egész minta' }).click();
+  await page.getByRole('button', { name: 'Whole pattern' }).click();
   await page.locator('#board').focus();
 }
 
@@ -96,19 +96,19 @@ test('Ctrl+C and Ctrl+V copy and paste on the canvas, but in a text field the br
   await rectangle(page, 5, 2);
   const summary = page.locator('#summary');
   const status = page.locator('#status');
-  await expect(summary).toContainText('3. sor: 6 szem');
+  await expect(summary).toContainText('Row 3: 6 stitches');
 
   // On the canvas: the row selected by its label goes to the clipboard, then back as a new row.
   const label = (await labels(page)).find((candidate) => candidate.layer === 2);
   expect(label, 'the label of row 3').toBeTruthy();
   await page.mouse.click(label!.x, label!.y);
-  await expect(status).toHaveText('3. sor kijelölve: 6 szem.');
+  await expect(status).toHaveText('Row 3 selected: 6 stitches.');
 
   await page.keyboard.press('ControlOrMeta+c');
-  await expect(status).toContainText('a vágólapon');
+  await expect(status).toContainText('on the clipboard');
   await page.keyboard.press('ControlOrMeta+v');
-  await expect(summary).toContainText('3 sor. 4. sor: 6 szem.');
-  await expect(summary).toContainText('Nincs hiba és figyelmeztetés.');
+  await expect(summary).toContainText('3 rows. Row 4: 6 stitches.');
+  await expect(summary).toContainText('No errors or warnings.');
 
   /*
    * In a text field the editor does not touch the keys: the browser's own copy
@@ -144,7 +144,7 @@ test('Ctrl+C and Ctrl+V copy and paste on the canvas, but in a text field the br
   expect(await log(), 'in a text field the browser default stays').toEqual([false, false]);
   await expect(text).toHaveValue('Nyári pamut');
   // Nothing changed in the pattern: the keys of the field never reached the canvas.
-  await expect(summary).toContainText('3 sor. 4. sor: 6 szem.');
+  await expect(summary).toContainText('3 rows. Row 4: 6 stitches.');
 
   // On the canvas the same two keys belong to the editor.
   await page.locator('#board').focus();

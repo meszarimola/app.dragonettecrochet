@@ -50,14 +50,14 @@ test('5 chain stitches over 3 skipped stitches make an arc, and the single croch
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
-  // „Új minta” is the type menu since PQW-1045; the type starts the pattern anew.
-  await page.getByRole('button', { name: 'Új minta' }).click();
+  // "New pattern" is the type menu since PQW-1045; the type starts the pattern anew.
+  await page.getByRole('button', { name: 'New pattern' }).click();
   await page.locator('.type[data-type="regular"]').click();
 
-  await pick(page, /Láncszem \(lsz\)/);
+  await pick(page, /Chain \(ch\)/);
   await page.locator('#chain-count').fill('24');
   await page.locator('#board').click();
-  await page.getByRole('button', { name: 'Fordulás' }).click();
+  await page.getByRole('button', { name: 'Turn' }).click();
 
   /*
    * We look the cell up by the COLUMN of the stitch below it: after every
@@ -74,20 +74,20 @@ test('5 chain stitches over 3 skipped stitches make an arc, and the single croch
   };
 
   // Single crochet 1 into the last stitch of the foundation chain.
-  await pick(page, /Rövidpálca \(rp\)/);
+  await pick(page, /Single crochet \(sc\)/);
   const first = await above(0);
   await page.mouse.click(first.x, first.y);
   await expect.poll(async () => (await rightToLeft(page, 1)).length).toBe(1);
 
   // 5 chain stitches after the single crochet: they bridge five stitches.
-  await pick(page, /Láncszem \(lsz\)/);
+  await pick(page, /Chain \(ch\)/);
   await page.locator('#chain-count').fill('5');
   const next = await above(1);
   await page.mouse.click(next.x, next.y);
   await expect.poll(async () => (await rightToLeft(page, 1)).length).toBe(6);
 
   // Single crochet 2 into stitch 5 of the row below: only 3 skipped stitches are left under it.
-  await pick(page, /Rövidpálca \(rp\)/);
+  await pick(page, /Single crochet \(sc\)/);
   const target = await above(4);
   await page.mouse.click(target.x, target.y);
   await expect.poll(async () => (await rightToLeft(page, 1)).length).toBe(7);
@@ -128,14 +128,14 @@ test('the chain gives an arc when placed between two finished single crochets af
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
-  // „Új minta” is the type menu since PQW-1045; the type starts the pattern anew.
-  await page.getByRole('button', { name: 'Új minta' }).click();
+  // "New pattern" is the type menu since PQW-1045; the type starts the pattern anew.
+  await page.getByRole('button', { name: 'New pattern' }).click();
   await page.locator('.type[data-type="regular"]').click();
 
-  await pick(page, /Láncszem \(lsz\)/);
+  await pick(page, /Chain \(ch\)/);
   await page.locator('#chain-count').fill('25');
   await page.locator('#board').click();
-  await page.getByRole('button', { name: 'Fordulás' }).click();
+  await page.getByRole('button', { name: 'Turn' }).click();
 
   const above = async (column: number): Promise<Cell> => {
     const all = await cells(page);
@@ -147,7 +147,7 @@ test('the chain gives an arc when placed between two finished single crochets af
   };
 
   // First ALL the single crochets, in fours — the row is still empty between them.
-  await pick(page, /Rövidpálca \(rp\)/);
+  await pick(page, /Single crochet \(sc\)/);
   for (const column of [0, 4, 8, 12, 16, 20]) {
     const cell = await above(column);
     await page.mouse.click(cell.x, cell.y);
@@ -155,7 +155,7 @@ test('the chain gives an arc when placed between two finished single crochets af
   await expect.poll(async () => (await rightToLeft(page, 1)).length).toBe(6);
 
   // Afterwards the chain stitches into the middle of the gaps.
-  await pick(page, /Láncszem \(lsz\)/);
+  await pick(page, /Chain \(ch\)/);
   await page.locator('#chain-count').fill('5');
   for (const column of [1, 5, 9, 13, 17]) {
     const cell = await above(column);
@@ -189,14 +189,14 @@ test('the fan worked into the chain arc fits, and row 3 does not slide off the f
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
-  // „Új minta” is the type menu since PQW-1045; the type starts the pattern anew.
-  await page.getByRole('button', { name: 'Új minta' }).click();
+  // "New pattern" is the type menu since PQW-1045; the type starts the pattern anew.
+  await page.getByRole('button', { name: 'New pattern' }).click();
   await page.locator('.type[data-type="regular"]').click();
 
-  await pick(page, /Láncszem \(lsz\)/);
+  await pick(page, /Chain \(ch\)/);
   await page.locator('#chain-count').fill('12');
   await page.locator('#board').click();
-  await page.getByRole('button', { name: 'Fordulás' }).click();
+  await page.getByRole('button', { name: 'Turn' }).click();
 
   const above = async (layer: number, column: number): Promise<Cell> => {
     const all = await cells(page);
@@ -209,11 +209,11 @@ test('the fan worked into the chain arc fits, and row 3 does not slide off the f
 
   // Row 2: single crochet, 5 chain stitches, … with four single crochets.
   for (const column of [0, 3, 6, 9]) {
-    await pick(page, /Rövidpálca \(rp\)/);
+    await pick(page, /Single crochet \(sc\)/);
     const cell = await above(1, column);
     await page.mouse.click(cell.x, cell.y);
     if (column === 9) break;
-    await pick(page, /Láncszem \(lsz\)/);
+    await pick(page, /Chain \(ch\)/);
     await page.locator('#chain-count').fill('5');
     const gap = await above(1, column + 1);
     await page.mouse.click(gap.x, gap.y);
@@ -221,8 +221,8 @@ test('the fan worked into the chain arc fits, and row 3 does not slide off the f
   await expect.poll(async () => (await rightToLeft(page, 1)).length).toBe(19);
 
   // Row 3: turning chain, then six double crochets into the same chain stitch.
-  await page.getByRole('button', { name: 'Fordulás' }).click();
-  await pick(page, /Egyráhajtásos pálca \(erp\)/);
+  await page.getByRole('button', { name: 'Turn' }).click();
+  await pick(page, /Double crochet \(dc\)/);
   await page.locator('#board').press('Enter');
   for (let i = 0; i < 6; i += 1) {
     const target = (await cells(page)).find((cell) => cell.layer === 2 && cell.slot === 3);

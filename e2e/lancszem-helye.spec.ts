@@ -49,25 +49,25 @@ async function cluster(page: Page): Promise<void> {
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
-  // „Új minta” is the type menu since PQW-1045; the type starts the pattern anew.
-  await page.getByRole('button', { name: 'Új minta' }).click();
+  // "New pattern" is the type menu since PQW-1045; the type starts the pattern anew.
+  await page.getByRole('button', { name: 'New pattern' }).click();
   await page.locator('.type[data-type="regular"]').click();
   const palette = page.locator('#palette');
   await palette
-    .getByRole('button', { name: /Láncszem \(lsz\)/ })
+    .getByRole('button', { name: /Chain \(ch\)/ })
     .first()
     .click();
   await page.locator('#chain-count').fill('22');
   await page.locator('#board').click();
-  await page.getByRole('button', { name: 'Fordulás' }).click();
+  await page.getByRole('button', { name: 'Turn' }).click();
   await palette
-    .getByRole('button', { name: /Rövidpálca \(rp\)/ })
+    .getByRole('button', { name: /Single crochet \(sc\)/ })
     .first()
     .click();
   await page.locator('#board').press('Enter');
   await page.locator('#board').press('Enter');
   await palette
-    .getByRole('button', { name: /Egyráhajtásos pálca \(erp\)/ })
+    .getByRole('button', { name: /Double crochet \(dc\)/ })
     .first()
     .click();
   await page.locator('#board').press('Enter');
@@ -92,7 +92,7 @@ test('the chain stitch goes into the cell that was clicked, not to the end of th
   const wanted = await targetCell(page, 8);
   await page
     .locator('#palette')
-    .getByRole('button', { name: /Láncszem \(lsz\)/ })
+    .getByRole('button', { name: /Chain \(ch\)/ })
     .first()
     .click();
   await page.locator('#chain-count').fill('1');
@@ -107,7 +107,7 @@ test('clicking into two different cells puts the chain stitch in two separate pl
   await cluster(page);
   const palette = page.locator('#palette');
   await palette
-    .getByRole('button', { name: /Láncszem \(lsz\)/ })
+    .getByRole('button', { name: /Chain \(ch\)/ })
     .first()
     .click();
   await page.locator('#chain-count').fill('1');

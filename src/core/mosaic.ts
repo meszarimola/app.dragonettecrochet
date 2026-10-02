@@ -3,6 +3,7 @@
 
 import { fail, finishGridPattern, type GridPatternCode, GridWriter, gridPiece, intoStitch } from './grid-pattern.ts';
 import { type CoreText, text } from './messages.ts';
+import { titleLocale } from './pattern-title.ts';
 import {
   type CellSize,
   type ChartCode,
@@ -205,7 +206,7 @@ export function generateMosaic(pattern: Pattern, options: MosaicOptions): Mosaic
   const { plan } = planned;
   const base: Pattern = { ...pattern, pieces: [] };
   const writer = buildMosaic(base, plan);
-  const piece = gridPiece(base, TECHNIQUE_NAMES.mosaic, writer, {
+  const piece = gridPiece(base, TECHNIQUE_NAMES[titleLocale(pattern)].mosaic, writer, {
     technique: 'mosaic',
     cells: options.cells.map((row) => [...row]),
     colors: [...options.colors],

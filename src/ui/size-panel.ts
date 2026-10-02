@@ -115,7 +115,7 @@ export class SizePanel {
   constructor(section: HTMLDetailsElement, host: SizePanelHost) {
     const find = <T extends Element>(id: string): T => {
       const found = section.querySelector<T>(`#${id}`);
-      if (!found) throw new Error(`Hiányzó elem a méret szakaszban: #${id}`);
+      if (!found) throw new Error(`Missing element in the size section: #${id}`);
       return found;
     };
     this.#host = host;
@@ -268,7 +268,7 @@ export class SizePanel {
   }
 
   #current(): Pattern {
-    if (!this.#pattern) throw new Error('A méret szakasz még nem kapott mintát.');
+    if (!this.#pattern) throw new Error('The size section has not been given a pattern yet.');
     return this.#pattern;
   }
 

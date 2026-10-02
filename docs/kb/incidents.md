@@ -92,3 +92,44 @@ and check that the report names your files before believing it.
 
 With one worktree this never shows. `CLAUDE.md` asks for a worktree on anything
 over five files, so it will keep coming back whenever work runs in parallel.
+
+## §7 Six agents in one worktree took each other's stash (2026-10-02, PQW-1100)
+
+Six agents were dispatched into the **same** worktree. They shared one git index,
+one stash, one `node_modules` and one port, which is contention rather than
+parallelism.
+
+Two of them collided on the stash: one ran `git stash push --keep-index` while
+another ran `git stash pop`. The stash belongs to the repository, not to the
+worktree, so each saw the other's entry. Recovering took 9.5 minutes. A browser
+run was killed for its port after ten minutes, and what it would have reported went
+with it.
+
+The main session spent **34 of its 78 minutes waiting** on agents. The work they
+were sharing — rewriting 28 browser specs with the same substitution — was
+mechanical, and the locator inventory needed to script it had been built an hour
+earlier.
+
+**Rule:** one agent, one worktree, or the agents only read and the main session
+writes. Never `git stash`, `git commit` or the test suite inside an agent. A
+mechanical rewrite is a script. See `.claude/rules/agents.md`.
+
+## §8 A fix that was ready in sixteen minutes shipped in none (2026-10-02, PQW-1100)
+
+The report was that the app shows Hungarian after a switch to English. The fix — an
+English default and an English fallback, 14 files — was committed at minute 16 and
+worked.
+
+It did not ship. The ticket had meanwhile taken on the migration of ~110 test files
+to English, the locator-inventory infrastructure that needed, PQW-920 (the
+generated title) and PQW-1102 (the main site's landing page). After 78 minutes it
+stood at 137 files and 2650 changed lines, with nothing released and the browser
+suite half migrated.
+
+Migrating the tests was the owner's decision, offered against the cheaper option of
+pinning the specs to `?lang=hu`. What the offer left out was its **price**: roughly
+two hours rather than fifteen minutes, and the fix waiting behind it.
+
+**Rule:** the fix and the clean-up are two tickets, and the fix goes out first. Over
+15 files or more than one commit, split before starting. When the owner is offered
+a choice, each option carries what it costs and what it delays.

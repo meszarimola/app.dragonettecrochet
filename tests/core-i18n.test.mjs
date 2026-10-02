@@ -18,6 +18,8 @@ import { strict as assert } from 'node:assert';
 import { readdirSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
+import { renderCoreText } from '../src/ui/i18n/core/render.ts';
+
 const HUNGARIAN = /[áéíóöőúüűÁÉÍÓÖŐÚÜŰ]/;
 const CORE_DIR = new URL('../src/ui/i18n/core/', import.meta.url);
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -86,16 +88,20 @@ test('the English branch holds no accented Hungarian text', async () => {
 /*
  * From the core: where a Hungarian sentence may remain.
  *
- * - Developer errors: they never reach the UI (internal invariants, loading
- *   calibration files), so they stay in Hungarian.
  * - The written pattern and the stitch names follow the language of the
  *   NOTATION (PQW-868), not that of the UI: their vocabulary does not turn
  *   with the interface.
+ * - A name the UI asks for with a locale, and the wording the UI already owns
+ *   a dictionary for.
  * - Generator names go into the pattern TITLE and into the piece name, so they
  *   are data of the saved file; for its lists the UI uses its own dictionary.
+ * - A handful of internal invariants whose Hungarian sits inside a `throw`.
+ *
+ * Developer-facing text is English (PQW-1100): a message that only a developer
+ * ever reads is translated, not exempted. That is why the calibration reader
+ * and the pattern reader are no longer listed here.
  */
 const CORE_EXCEPTIONS = new Set([
-  'gauge-profile.ts', // loading calibration files; nothing in the UI pulls it in
   'finished-size.ts', // RangeError, only tests call it
   'pattern-size.ts', // RangeError, internal invariant
   'pattern-text.ts', // the vocabulary of the written pattern: the language of the notation
@@ -109,25 +115,24 @@ const CORE_EXCEPTIONS = new Set([
   'insertion.ts', // the UI uses its own dictionary (PQW-900)
   'rules.ts', // the validator texts live in src/ui/i18n/rules.ts (PQW-900)
   'body-sizes.ts', // size names: the UI asks for them with the locale (hatSizeName, bodySizeName)
-  // The reader errors do not reach the screen today: no file under `src/ui/`
-  // pulls in `pattern-read.ts`. Once reading back gets a UI, the `ReadFailure`
-  // messages will turn into code and data too (PQW-904 continued).
-  'pattern-read.ts',
 ]);
 
 /**
- * The rows of the `*_NAMES` tables are skipped: generator names go into the
- * pattern TITLE and into the piece name, so they are data of the saved file,
- * not UI labels (for its lists the UI uses its own dictionary). We do not
- * exempt a whole file for their sake, so that a new Hungarian SENTENCE in the
- * same file still stands out.
+ * The rows of the `*_NAMES` tables and of `DEFAULT_TITLE` are skipped:
+ * generator names and the default title go into the pattern TITLE and into the
+ * piece name, so they are data of the saved file, not UI labels (for its lists
+ * the UI uses its own dictionary). Each table carries every locale since
+ * PQW-920, so the Hungarian row sits one level deeper; the brace counting
+ * follows it to the end of the whole table. We do not exempt a whole file for
+ * their sake, so that a new Hungarian SENTENCE in the same file still stands
+ * out.
  */
 function withoutNameTables(source) {
   const rows = [];
   let inNames = false;
   let depth = 0;
   for (const [index, line] of source.split('\n').entries()) {
-    if (!inNames && /(const|readonly)\s+[A-Z][A-Z0-9_]*NAMES?\b[^=]*=/.test(line)) {
+    if (!inNames && /(const|readonly)\s+([A-Z][A-Z0-9_]*NAMES?|DEFAULT_TITLE)\b[^=]*=/.test(line)) {
       inNames = true;
       depth = 0;
     }
@@ -162,4 +167,23 @@ test('no Hungarian sentence is left in the core files that face the user', () =>
     }
   }
   assert.deepEqual(offenders, [], `a Hungarian sentence was left in the core:\n${offenders.join('\n')}`);
+});
+
+test('a core code missing from the chosen language falls back to English, then to the code (PQW-1100)', () => {
+  const dictionary = { hu: {}, en: { known: 'An English sentence.' } };
+  assert.equal(
+    renderCoreText(dictionary, 'hu', { code: 'known' }),
+    'An English sentence.',
+    'the English branch answers for a code the chosen language has not got',
+  );
+  assert.equal(
+    renderCoreText(dictionary, 'hu', { code: 'absent' }),
+    'absent',
+    'KB: dictionaries.md §1 — a core ahead of every dictionary degrades to the code, it does not break the interface',
+  );
+  assert.equal(
+    renderCoreText({ hu: { known: 'Magyar mondat.' }, en: { known: 'English.' } }, 'hu', { code: 'known' }),
+    'Magyar mondat.',
+    'the chosen language still wins where it has the code',
+  );
 });

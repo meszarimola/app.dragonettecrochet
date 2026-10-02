@@ -5,16 +5,34 @@ import { evenPositions, eventRows, intentOf, roundEven, roundStitches, slopeSche
 import type { GarmentCheck, GarmentCode } from './garments.ts';
 import { buildPieceGraph } from './graph.ts';
 import { type CoreText, text } from './messages.ts';
+import { titleLocale } from './pattern-title.ts';
 import { type RibbingOptions, ribbedOpening, ribbedTurningChain, ribbingColumnMode } from './ribbing.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import { traditionOf, turningChainCountsFor } from './tradition.ts';
-import type { Anchor, LayerEvent, NodeId, Pattern, Piece, Space, SpaceId, StitchGroup, StitchNode } from './types.ts';
+import type {
+  Anchor,
+  LayerEvent,
+  Locale,
+  NodeId,
+  Pattern,
+  Piece,
+  Space,
+  SpaceId,
+  StitchGroup,
+  StitchNode,
+} from './types.ts';
 
 // KB: 05 §2.3
 export const RAGLAN_PER_ROUND = 8;
 
-// KB: core-geometry §37
-export const SLEEVE_NAMES = ['Első ujj', 'Második ujj'] as const;
+const SLEEVE_NAMES_EN = ['First sleeve', 'Second sleeve'] as const;
+
+// KB: core-geometry §37, owner-decisions.md §16
+export const SLEEVE_NAMES: Readonly<Record<Locale, readonly [string, string]>> = {
+  hu: ['Első ujj', 'Második ujj'],
+  'en-US': SLEEVE_NAMES_EN,
+  'en-GB': SLEEVE_NAMES_EN,
+};
 // KB: 05 §4.4
 export const MAX_SECTION_GROWTH = 4;
 // KB: 05 §2.3
@@ -303,9 +321,10 @@ export function raglanPiece(
   // KB: core-geometry §32
   const yokeLayer = plan.yokeRounds + 1;
   const splitLayer = plan.yokeRounds + 2;
+  const sleeveNames = SLEEVE_NAMES[titleLocale(pattern)];
   const sleeves = [
-    { name: SLEEVE_NAMES[0], stitches: sleeveStitches.a, chains: underarmChains[0] ?? [] },
-    { name: SLEEVE_NAMES[1], stitches: sleeveStitches.b, chains: underarmChains[1] ?? [] },
+    { name: sleeveNames[0], stitches: sleeveStitches.a, chains: underarmChains[0] ?? [] },
+    { name: sleeveNames[1], stitches: sleeveStitches.b, chains: underarmChains[1] ?? [] },
   ];
   if (sleeves.some((sleeve) => sleeve.stitches.length === 0 || sleeve.chains.length === 0)) {
     return text('internal-error', { rule: 'raglan-sleeve-split' });

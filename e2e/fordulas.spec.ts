@@ -33,21 +33,21 @@ async function twoRowsThenTurn(page: Page): Promise<void> {
   await page.goto('/');
   const deny = page.locator('[data-consent="denied"]');
   if (await deny.isVisible()) await deny.click();
-  // „Új minta” is the type menu since PQW-1045; the type starts the pattern anew.
-  await page.getByRole('button', { name: 'Új minta' }).click();
+  // “New pattern” is the type menu since PQW-1045; the type starts the pattern anew.
+  await page.getByRole('button', { name: 'New pattern' }).click();
   await page.locator('.type[data-type="regular"]').click();
 
   const palette = page.locator('#palette');
-  const chain = palette.getByRole('button', { name: /Láncszem \(lsz\)/ }).first();
+  const chain = palette.getByRole('button', { name: /Chain \(ch\)/ }).first();
   if ((await chain.getAttribute('aria-pressed')) !== 'true') await chain.click();
   await page.locator('#chain-count').fill('12');
   await page.locator('#board').click();
 
-  await page.getByRole('button', { name: 'Fordulás' }).click();
-  const sc = palette.getByRole('button', { name: /Rövidpálca \(rp\)/ }).first();
+  await page.getByRole('button', { name: 'Turn' }).click();
+  const sc = palette.getByRole('button', { name: /Single crochet \(sc\)/ }).first();
   if ((await sc.getAttribute('aria-pressed')) !== 'true') await sc.click();
-  await page.getByRole('button', { name: 'Sor kitöltése' }).click();
-  await page.getByRole('button', { name: 'Fordulás' }).click();
+  await page.getByRole('button', { name: 'Fill row' }).click();
+  await page.getByRole('button', { name: 'Turn' }).click();
 }
 
 test('turning does not lay down a chain stitch, and the grid of the next row appears (PQW-944)', async ({ page }) => {
@@ -88,8 +88,8 @@ test('right after turning it is visible that row 3 is next (PQW-946)', async ({ 
     );
 
   // After turning the arrow marker, and after the first stitch (the turning chain) the own label of the row.
-  await expect.poll(labels).toContain('3. sor →');
+  await expect.poll(labels).toContain('Row 3 →');
   await page.locator('#board').press('Enter');
-  await expect.poll(labels).toContain('3. sor (1)');
-  expect(await labels()).not.toContain('3. sor →');
+  await expect.poll(labels).toContain('Row 3 (1)');
+  expect(await labels()).not.toContain('Row 3 →');
 });

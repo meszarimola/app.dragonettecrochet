@@ -55,7 +55,7 @@ function withRoundGauge(stitchesPer10cm, rowsPer10cm, pattern = emptyPattern()) 
 const dkPattern = () => withRoundGauge(19, 20);
 
 /** The core returns a code and data (PQW-904); the Hungarian sentence comes from the UI dictionary. */
-const hu = (message) => renderCoreText(AMIGURUMI_CORE_TEXTS.hu, message);
+const hu = (message) => renderCoreText(AMIGURUMI_CORE_TEXTS, 'hu', message);
 const why = (result) => (result.ok ? '' : typeof result.reason === 'string' ? result.reason : hu(result.reason));
 
 const plan = (shape, gauge = DK) => {

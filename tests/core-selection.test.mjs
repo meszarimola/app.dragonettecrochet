@@ -32,7 +32,7 @@ import { EDITOR_CORE_TEXTS } from '../src/ui/i18n/core/editor.ts';
 import { renderCoreText } from '../src/ui/i18n/core/render.ts';
 
 /** The core returns a code and data (PQW-904); the Hungarian sentence comes from the UI dictionary. */
-const huText = (reason) => renderCoreText(EDITOR_CORE_TEXTS.hu, reason);
+const huText = (reason) => renderCoreText(EDITOR_CORE_TEXTS, 'hu', reason);
 
 function ok(result) {
   assert.ok(result.ok, result.ok ? '' : huText(result.reason));

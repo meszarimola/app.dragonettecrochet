@@ -286,7 +286,7 @@ const en: typeof hu = {
 
   dialog: {
     deleteQuestion: (selected, dependents, where) =>
-      `${stitches(dependents)} are still worked into the ${stitches(selected)} you selected: ${enLayerCounts(where, dependents)}. Delete them together?`,
+      `${stitches(dependents)} ${dependents === 1 ? 'is' : 'are'} still worked into the ${stitches(selected)} you selected: ${enLayerCounts(where, dependents)}. Delete them together?`,
     deleteConfirm: 'Delete together',
     cancel: 'Cancel',
   },

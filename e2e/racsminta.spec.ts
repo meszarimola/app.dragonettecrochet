@@ -1,6 +1,6 @@
 /*
- * Grid-based techniques (PQW-864): the „Filéhorgolás” type opens the
- * „Rácsminta” section; a small filet motif whose first rows alone are complete
+ * Grid-based techniques (PQW-864): the "Filet crochet" type opens the
+ * "Grid chart" section; a small filet motif whose first rows alone are complete
  * gives an error-free pattern with the recognised repeat unit; a C2C image with
  * two colours is error-free, and the written pattern writes the colours per tile.
  * The mirrored view is gone (PQW-911), so the motif with lettering gives no
@@ -21,7 +21,7 @@ test.beforeEach(() => {
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
-  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
 }
 
@@ -64,10 +64,10 @@ test('small filet motif: the first two rows are complete, the rest come from the
 
   await setSize(page, 8, 4);
   await expect(page.locator('#grid-board [role="gridcell"]')).toHaveCount(32);
-  await expect(page.locator('#grid-ratio')).toContainText('a rács a mintasűrűség arányában látszik');
+  await expect(page.locator('#grid-ratio')).toContainText('the grid is shown in the ratio of the gauge');
 
   // Row 1: every even cell filled; row 2: every odd one filled (open is the default).
-  await section.getByRole('radio', { name: 'Teli cella' }).check();
+  await section.getByRole('radio', { name: 'Filled cell' }).check();
   await cell(page, 0, 0).focus();
   for (let x = 0; x < 8; x += 1) {
     if (x % 2 === 0) await page.keyboard.press('Space');
@@ -79,7 +79,7 @@ test('small filet motif: the first two rows are complete, the rest come from the
     if (x % 2 === 1) await page.keyboard.press('Space');
     await page.keyboard.press('ArrowRight');
   }
-  await expect(cell(page, 1, 1)).toHaveAttribute('aria-label', '3. sor, 2. cella: teli');
+  await expect(cell(page, 1, 1)).toHaveAttribute('aria-label', 'row 3, cell 2: filled');
 
   // In rows 3 and 4 only the first two cells (the repeat) are given, the rest deleted: they fill in from the repeat.
   for (const y of [2, 3]) {
@@ -90,23 +90,21 @@ test('small filet motif: the first two rows are complete, the rest come from the
       await page.keyboard.press('ArrowRight');
     }
   }
-  await expect(page.locator('#grid-unit')).toHaveText(/^Ismétlő egység, felismerve: 2 × 2 cella\./);
+  await expect(page.locator('#grid-unit')).toHaveText(/^Repeating unit, recognised: 2 × 2 cells\./);
   await expect(page.locator('#grid-board .is-unit')).toHaveCount(4);
   await expect(page.locator('#grid-details')).toContainText(
-    'Ismétlő egység: 2 × 2 cella, a teljes 8 × 4 cellás rácsra kiterjesztve.',
+    'Repeating unit: 2 × 2 cells, extended over the whole 8 × 4 cell grid.',
   );
 
   // The keys of the grid did not reach the canvas: Delete did not undo the last step.
-  await expect(page.locator('#status')).not.toContainText('törölve');
-  await section.getByRole('button', { name: 'Minta létrehozása' }).click();
-  await expect(page.locator('#status')).toContainText(
-    'Filé: 4 sor elkészült; visszavonással a korábbi minta visszajön.',
-  );
-  await expect(page.locator('#error-count')).toHaveText('Nincs hiba');
+  await expect(page.locator('#status')).not.toContainText('deleted');
+  await section.getByRole('button', { name: 'Create pattern' }).click();
+  await expect(page.locator('#status')).toContainText('Filet: 4 rows done; undo brings the previous one back.');
+  await expect(page.locator('#error-count')).toHaveText('No errors');
   const text = await writtenText(page);
-  expect(text).toMatch(/1. sor – alapsor: \d+ lsz\./);
-  expect(text).toMatch(/\[[^\]]+\] \d+-(szor|szer|ször)/);
-  await expect(section.getByRole('button', { name: 'Rács a mostani mintából' })).toBeEnabled();
+  expect(text).toMatch(/Row 1 – foundation: ch \d+\./);
+  expect(text).toMatch(/\[[^\]]+\] \d+ times/);
+  await expect(section.getByRole('button', { name: 'Grid from the current pattern' })).toBeEnabled();
 });
 
 test('C2C image with two colours: 6 diagonal rows, colours per tile; creation is still refused, understandably (PQW-926)', async ({
@@ -116,11 +114,11 @@ test('C2C image with two colours: 6 diagonal rows, colours per tile; creation is
   await openSheet(page);
   const section = page.locator('#section-grid');
   await section.locator('summary').click();
-  await page.locator('#grid-technique').selectOption({ label: 'Sarokból sarokba (C2C)' });
+  await page.locator('#grid-technique').selectOption({ label: 'Corner-to-corner (C2C)' });
   await setSize(page, 4, 3);
   await expect(page.locator('#grid-colors li')).toHaveCount(2);
 
-  await section.getByRole('radio', { name: 'B: Bordó' }).check();
+  await section.getByRole('radio', { name: 'B: Burgundy' }).check();
   for (const [x, y] of [
     [0, 0],
     [1, 1],
@@ -128,11 +126,11 @@ test('C2C image with two colours: 6 diagonal rows, colours per tile; creation is
   ] as const) {
     await cell(page, x, y).click();
   }
-  await expect(page.locator('#grid-size')).toHaveText(/, 6 átlós sor, 12 csempe\.$/);
-  await expect(page.locator('#grid-details')).toContainText('Csempék színenként: A: 9, B: 3 csempe.');
+  await expect(page.locator('#grid-size')).toHaveText(/, 6 diagonal rows, 12 tiles\.$/);
+  await expect(page.locator('#grid-details')).toContainText('Tiles per colour: A: 9, B: 3 tiles.');
 
   // The button of the mirrored view is gone (PQW-911): the motif with lettering gives no warning either.
-  await section.getByLabel(/Feliratos motívum/).check();
+  await section.getByLabel(/Lettered motif/).check();
   await expect(page.locator('.tools [data-action="mirror"]')).toHaveCount(0);
   await expect(page.locator('#grid-warnings li')).toHaveCount(0);
 
@@ -142,7 +140,7 @@ test('C2C image with two colours: 6 diagonal rows, colours per tile; creation is
    * grid, the tile counts and the warnings are correct regardless, so we go on
    * checking the above.
    */
-  await section.getByRole('button', { name: 'Minta létrehozása' }).click();
-  await expect(page.locator('#status')).toContainText('Ez a C2C-alakzat egyelőre nem készíthető el');
-  await expect(page.locator('#status')).toContainText('1 × 1 és a 2 × 1 méret működik');
+  await section.getByRole('button', { name: 'Create pattern' }).click();
+  await expect(page.locator('#status')).toContainText('This C2C shape cannot be made yet');
+  await expect(page.locator('#status')).toContainText('1 × 1 and 2 × 1 work');
 });

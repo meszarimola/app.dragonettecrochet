@@ -8,7 +8,7 @@ import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
-  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
 }
 
@@ -26,49 +26,47 @@ test('back loop single crochet row and post stitch row: the mode is selectable f
   await open(page);
   await foundation(page, 8);
 
-  const insertion = page.getByRole('group', { name: 'Beszúrás' });
+  const insertion = page.getByRole('group', { name: 'Insertion' });
   // There is nothing to choose for a chain stitch.
   await expect(insertion).toBeHidden();
 
   await page.keyboard.press('Alt+3'); // single crochet
   await expect(insertion).toBeVisible();
   await expect(insertion.getByRole('radio')).toHaveCount(5);
-  await expect(insertion.getByRole('radio', { name: 'Mindkét szál' })).toBeChecked();
+  await expect(insertion.getByRole('radio', { name: 'both loops' })).toBeChecked();
 
   // From the keyboard: focus the group, then arrow down to the back loop.
-  await insertion.getByRole('radio', { name: 'Mindkét szál' }).focus();
+  await insertion.getByRole('radio', { name: 'both loops' }).focus();
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
-  await expect(insertion.getByRole('radio', { name: 'Hátsó szál' })).toBeChecked();
-  await expect(insertion).toContainText('Írott mintában: rp (hsz)');
+  await expect(insertion.getByRole('radio', { name: 'back loop' })).toBeChecked();
+  await expect(insertion).toContainText('In the written pattern: sc BLO');
 
-  await page.getByRole('button', { name: 'Sor kitöltése' }).click();
-  await expect(page.locator('#status')).toContainText('Sor kitöltve, hátsó szál.');
-  await expect(page.locator('#summary')).toContainText('Nincs hiba és figyelmeztetés.');
+  await page.getByRole('button', { name: 'Fill row' }).click();
+  await expect(page.locator('#status')).toContainText('Row filled, back loop.');
+  await expect(page.locator('#summary')).toContainText('No errors or warnings.');
   // The written pattern panel starts closed (PQW-911), and does not refresh while closed.
   await page.locator('#written-toggle').click();
   // The turning chain stands in place of single crochet 1 (PQW-891): 6 sc out of 8 chains, from chain 3.
-  await expect(page.locator('#written-text')).toContainText(
-    '2. sor: hagyj ki 2 láncszemet, majd minden láncszembe 1 rp (hsz)',
-  );
-  await expect(page.locator('#written-text')).toContainText('hsz – hátsó szálba');
+  await expect(page.locator('#written-text')).toContainText('Row 2: skip 2 ch, sc BLO in each ch across');
+  await expect(page.locator('#written-text')).toContainText('BLO – back loop only');
 
   // A slip stitch allows no post stitch: only three modes; it does allow the back loop, so that stays selected.
   await page.keyboard.press('Alt+2');
   await expect(insertion.getByRole('radio')).toHaveCount(3);
-  await expect(insertion.getByRole('radio', { name: 'Első relief' })).toHaveCount(0);
-  await expect(insertion.getByRole('radio', { name: 'Hátsó szál' })).toBeChecked();
+  await expect(insertion.getByRole('radio', { name: 'front post' })).toHaveCount(0);
+  await expect(insertion.getByRole('radio', { name: 'back loop' })).toBeChecked();
 
   // Post stitch row in double crochet; the choice survives a change of stitch.
   await page.keyboard.press('Alt+5');
-  await insertion.getByText('Első relief').click();
+  await insertion.getByText('Front post').click();
   // Shortcuts do not fire on a radio button, as in the other fields: back to the canvas.
   await page.locator('#board').focus();
   await page.keyboard.press('Alt+f');
   await page.keyboard.press('Alt+3');
   await page.keyboard.press('Alt+5');
-  await expect(insertion.getByRole('radio', { name: 'Első relief' })).toBeChecked();
-  await page.getByRole('button', { name: 'Sor kitöltése' }).click();
-  await expect(page.locator('#status')).toContainText('Sor kitöltve, első relief.');
-  await expect(page.locator('#written-text')).toContainText('Eerp');
+  await expect(insertion.getByRole('radio', { name: 'front post' })).toBeChecked();
+  await page.getByRole('button', { name: 'Fill row' }).click();
+  await expect(page.locator('#status')).toContainText('Row filled, front post.');
+  await expect(page.locator('#written-text')).toContainText('FPdc');
 });

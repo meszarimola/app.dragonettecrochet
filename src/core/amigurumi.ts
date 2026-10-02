@@ -10,6 +10,7 @@ import type { StitchLibrary } from './stitch-library.ts';
 import { libraryFor, resolveStitch } from './stitch-variants.ts';
 import type {
   JoinEdge,
+  Locale,
   NodeId,
   OvalStitch,
   Pattern,
@@ -64,15 +65,29 @@ export function startCount(gauge: RoundGauge): number {
   return niceIncreases(flatRate(gauge));
 }
 
-// KB: core-domain §20
-export const SHAPE_NAMES: Readonly<Record<ShapeSpec['kind'], string>> = {
-  sphere: 'Gömb',
-  hemisphere: 'Félgömb',
-  egg: 'Tojás',
-  cylinder: 'Henger',
-  cone: 'Kúp',
-  revolution: 'Forgástest',
-  oval: 'Ovális',
+const SHAPE_NAMES_EN: Readonly<Record<ShapeSpec['kind'], string>> = {
+  sphere: 'Sphere',
+  hemisphere: 'Hemisphere',
+  egg: 'Egg',
+  cylinder: 'Cylinder',
+  cone: 'Cone',
+  revolution: 'Solid of revolution',
+  oval: 'Oval',
+};
+
+// KB: core-domain §20, owner-decisions.md §16
+export const SHAPE_NAMES: Readonly<Record<Locale, Readonly<Record<ShapeSpec['kind'], string>>>> = {
+  hu: {
+    sphere: 'Gömb',
+    hemisphere: 'Félgömb',
+    egg: 'Tojás',
+    cylinder: 'Henger',
+    cone: 'Kúp',
+    revolution: 'Forgástest',
+    oval: 'Ovális',
+  },
+  'en-US': SHAPE_NAMES_EN,
+  'en-GB': SHAPE_NAMES_EN,
 };
 
 export const OVAL_STITCHES: readonly OvalStitch[] = ['sc', 'hdc', 'dc', 'tr'];

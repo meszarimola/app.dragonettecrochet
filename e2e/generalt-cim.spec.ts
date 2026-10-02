@@ -1,15 +1,17 @@
 /*
- * The title of the pattern on generation (PQW-896): after „Kendő” → semicircle
- * and then „Forma” → rectangle the title is „Téglalap”, and undo brings back the
- * earlier title as well; a title typed by hand into the „Minta neve” field
- * survives generation and a reload.
+ * The title of the pattern on generation (PQW-896): after “Shawl” → semicircle
+ * and then “Shape” → rectangle the title is “Rectangle”, and undo brings back the
+ * earlier title as well. Since PQW-920 the generated title follows the notation,
+ * not the interface, so with the default US terms it is English.
+ *
+ * KB: owner-decisions.md §16
  */
 
 import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
-  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
 }
 
@@ -29,28 +31,28 @@ async function section(page: Page, id: string) {
   return details;
 }
 
-/** A small single crochet semicircle from the „Kendő” section. */
+/** A small single crochet semicircle from the “Shawl” section. */
 async function semicircle(page: Page): Promise<void> {
   const shawl = await section(page, '#section-shawl');
-  await page.locator('#shawl-kind').selectOption({ label: 'Félkör' });
-  await page.locator('#shawl-stitch').selectOption({ label: 'Rövidpálca' });
+  await page.locator('#shawl-kind').selectOption({ label: 'Semicircle' });
+  await page.locator('#shawl-stitch').selectOption({ label: 'Single crochet' });
   await page.locator('#shawl-size').fill('6');
-  await shawl.getByRole('button', { name: 'Minta létrehozása' }).click();
-  await expect(page.locator('#status')).toContainText('Félkör,');
+  await shawl.getByRole('button', { name: 'Create pattern' }).click();
+  await expect(page.locator('#status')).toContainText('Semicircle:');
 }
 
-/** A rectangle from the „Forma” section, with the default settings. */
+/** A rectangle from the “Shape” section, with the default settings. */
 async function rectangle(page: Page): Promise<void> {
   const shape = await section(page, '#section-shape');
-  await shape.getByRole('button', { name: 'Minta létrehozása' }).click();
-  await expect(page.locator('#status')).toContainText('Téglalap,');
+  await shape.getByRole('button', { name: 'Create pattern' }).click();
+  await expect(page.locator('#status')).toContainText('Rectangle:');
 }
 
 /** The pattern's title, from the store the app writes it to (PQW-1048). */
 const storedTitle = (page: Page) => async () =>
   page.evaluate(() => (JSON.parse(localStorage.getItem('dc-mintatervezo:minta') ?? '{}') as { title?: string }).title);
 
-test('Kendő → semicircle, then Forma → rectangle: the title belongs to the rectangle, and undo brings the semicircle back with its title', async ({
+test('Shawl → semicircle, then Shape → rectangle: the title belongs to the rectangle, and undo brings the semicircle back with its title', async ({
   page,
 }) => {
   await open(page);
@@ -58,13 +60,13 @@ test('Kendő → semicircle, then Forma → rectangle: the title belongs to the 
   const title = storedTitle(page);
 
   await semicircle(page);
-  await expect.poll(title).toBe('Félkör');
+  await expect.poll(title).toBe('Semicircle');
   await rectangle(page);
-  await expect.poll(title).toBe('Téglalap');
+  await expect.poll(title).toBe('Rectangle');
 
   await page.keyboard.press('ControlOrMeta+Z');
-  await expect(page.locator('#status')).toContainText('Visszavonva.');
-  await expect.poll(title).toBe('Félkör');
+  await expect(page.locator('#status')).toContainText('Undone.');
+  await expect.poll(title).toBe('Semicircle');
 });
 
 /*

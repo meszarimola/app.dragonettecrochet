@@ -9,7 +9,7 @@ import { expect, type Page, test } from '@playwright/test';
 
 async function open(page: Page): Promise<void> {
   await page.goto('/');
-  const deny = page.getByRole('button', { name: 'Elutasítom' });
+  const deny = page.getByRole('button', { name: 'Decline' });
   if (await deny.isVisible()) await deny.click();
 }
 
@@ -28,11 +28,11 @@ async function box(page: Page, selector: string) {
   return found!;
 }
 
-/** „Egész minta” is an item of the zoom menu, which stays open between steps (interface.md §63). */
+/** “Whole pattern” is an item of the zoom menu, which stays open between steps (interface.md §63). */
 async function fitWhole(page: Page): Promise<void> {
   const menu = page.locator('#zoom-toggle');
   if ((await menu.isVisible()) && (await menu.getAttribute('aria-expanded')) !== 'true') await menu.click();
-  await page.getByRole('button', { name: 'Egész minta' }).click();
+  await page.getByRole('button', { name: 'Whole pattern' }).click();
 }
 
 /** The written pattern opened: in a low window it starts closed (PQW-891), there we open it with its button. */
@@ -154,7 +154,7 @@ for (const { rows, ...viewport } of [
     // A chrome that does not wrap must not push the page sideways either.
     expect(shape.page).toEqual([viewport.width, viewport.height]);
 
-    // The context drops its labels in a narrow window, never the button itself: the „Fordulás”
+    // The context drops its labels in a narrow window, never the button itself: the “Turn”
     // button stays a whole target inside the window (e2e-prod/fust.spec.ts). Read by its action
     // rather than by its text, because the locator inventory is frozen.
     expect(shape.endRow!.width).toBeGreaterThanOrEqual(44);
@@ -226,7 +226,7 @@ test('the written pattern can be closed with its own button and from the menu ba
   await writtenToggle.click();
   await expect(written).toBeVisible();
 
-  await written.getByRole('button', { name: 'Lecsukás' }).click();
+  await written.getByRole('button', { name: 'Collapse' }).click();
   await expect(written).toBeHidden();
   await expect(writtenToggle).toHaveAttribute('aria-expanded', 'false');
   await expect(writtenToggle).toBeFocused();
@@ -252,7 +252,7 @@ const view = (page: Page) =>
   });
 
 /** The separator of the written pattern (PQW-885). */
-const separatorOf = (page: Page) => page.getByRole('separator', { name: 'Az írott minta magassága' });
+const separatorOf = (page: Page) => page.getByRole('separator', { name: 'Height of the written pattern' });
 const heightOf = async (page: Page) => (await box(page, '#written')).height;
 /** The two values differ by at most `tolerance` pixels. */
 const near = (actual: number, expected: number, tolerance = 2) => Math.abs(actual - expected) <= tolerance;
@@ -261,7 +261,7 @@ const settle = (page: Page) =>
   page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 
 /*
- * With the written pattern open (PQW-883): „Egész minta” fits above the panel,
+ * With the written pattern open (PQW-883): “Whole pattern” fits above the panel,
  * the cursor target does not end up under the panel, and the status bar does not
  * cover the text of the panel. The panel is at most 22rem by default, half of
  * the work area in a low window, and it fits into the visible area at other
@@ -294,7 +294,7 @@ for (const viewport of [
       for (let i = 0; i < 10; i += 1) await page.keyboard.press('Enter');
     }
     await page.keyboard.press('Alt+f');
-    await expect(page.locator('#summary')).toContainText('12. sor következik.');
+    await expect(page.locator('#summary')).toContainText('Row 12 is next.');
 
     const stage = await box(page, '.stage');
     const types = await box(page, '#section-stitches');
@@ -327,7 +327,7 @@ for (const viewport of [
     const rows = fitted.labels.filter((label) => label.layer >= 1 && label.layer <= 10);
     expect(rows.map((label) => label.layer).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     for (const label of rows) expectUncovered(label, `row ${label.layer}`);
-    expectUncovered(fitted.cursor, 'the cursor target after „Egész minta”');
+    expectUncovered(fitted.cursor, 'the cursor target after “Whole pattern”');
 
     // Since PQW-916 the status text is a hidden live region: it covers neither the chart nor the text of the panel.
     const status = await page.locator('#status').boundingBox();
@@ -337,7 +337,7 @@ for (const viewport of [
     ).toBeLessThanOrEqual(4);
 
     // With the panel closed we push the cursor to where the panel is; opening it brings the view back.
-    await written.getByRole('button', { name: 'Lecsukás' }).click();
+    await written.getByRole('button', { name: 'Collapse' }).click();
     await expect(written).toBeHidden();
     const before = (await view(page)).cursor!;
     await page.mouse.move(panel.x - 40, stage.y + 40);
@@ -393,13 +393,13 @@ for (const viewport of [
     await page.keyboard.press('End');
     await expect.poll(() => heightOf(page)).toBeGreaterThan(stage.height - 1);
     await expect(separator).toHaveAttribute('aria-valuenow', '100');
-    await expect(written.getByRole('button', { name: 'Vissza', exact: true })).toBeVisible();
+    await expect(written.getByRole('button', { name: 'Back', exact: true })).toBeVisible();
 
     // After Home only the header remains: the body of the text collapses. The header height depends on the font, and on a narrow panel it may wrap to two lines.
     await page.keyboard.press('Home');
     await expect.poll(async () => (await box(page, '#written-body')).height).toBeLessThanOrEqual(10);
     expect(await heightOf(page)).toBeLessThan(stage.height / 2);
-    await expect(written.getByRole('button', { name: 'Lecsukás' })).toBeInViewport();
+    await expect(written.getByRole('button', { name: 'Collapse' })).toBeInViewport();
     const low = Number(await separator.getAttribute('aria-valuenow'));
     await expect(separator).toHaveAttribute('aria-valuemin', String(low));
     await page.keyboard.press('ArrowUp');
@@ -415,13 +415,13 @@ for (const viewport of [
     await page.mouse.up();
     await expect.poll(async () => near(await heightOf(page), (stage.height * 3) / 4, 3)).toBe(true);
 
-    // „Teljes nézet” opens to the whole work area, „Vissza” returns to the earlier height.
+    // “Full view” opens to the whole work area, “Back” returns to the earlier height.
     const before = await heightOf(page);
-    await written.getByRole('button', { name: 'Teljes nézet' }).click();
+    await written.getByRole('button', { name: 'Full view' }).click();
     await expect.poll(() => heightOf(page)).toBeGreaterThan(stage.height - 1);
-    await written.getByRole('button', { name: 'Vissza', exact: true }).click();
+    await written.getByRole('button', { name: 'Back', exact: true }).click();
     await expect.poll(async () => near(await heightOf(page), before)).toBe(true);
-    await expect(written.getByRole('button', { name: 'Teljes nézet' })).toBeVisible();
+    await expect(written.getByRole('button', { name: 'Full view' })).toBeVisible();
 
     // Dragged below the header it closes; reopened it gets the height it had before the drag.
     const start = await box(page, '#written-grip');
@@ -452,7 +452,7 @@ for (const viewport of [
      * pattern open, nor in full view.
      */
     const long =
-      'Nincs elég célpont: a beillesztett sor tizenkét szemet vár, de az előző sorban csak kilenc szabad célpont van, ezért a minta nem változott. Tedd a kurzort egy korábbi szemre, és próbáld újra.';
+      'Not enough targets: the pasted row needs twelve targets, but the previous row has only nine free targets, so the pattern is unchanged. Move the cursor to an earlier stitch and try again.';
     const say = async () => {
       await page.locator('#status').evaluate((element, text) => {
         element.textContent = text;
@@ -461,7 +461,7 @@ for (const viewport of [
     };
     /** The text of the message is there, but it has no visible box, and the page does not scroll. */
     const expectQuiet = async () => {
-      await expect(page.locator('#status')).toContainText('Nincs elég célpont');
+      await expect(page.locator('#status')).toContainText('Not enough targets');
       const status = await page.locator('#status').boundingBox();
       expect(
         (status?.width ?? 0) * (status?.height ?? 0),
@@ -478,7 +478,7 @@ for (const viewport of [
     await expectQuiet();
 
     // It does not become a box in full view either.
-    await written.getByRole('button', { name: 'Teljes nézet' }).click();
+    await written.getByRole('button', { name: 'Full view' }).click();
     await expect.poll(() => heightOf(page)).toBeGreaterThan(stage.height - 1);
     await say();
     await expectQuiet();
@@ -494,7 +494,7 @@ interface Rect {
 
 /*
  * For a pattern worked in rounds the grid is larger than the chart all around,
- * by the band of the round in progress (PQW-887): „Egész minta” fits the edge of
+ * by the band of the round in progress (PQW-887): “Whole pattern” fits the edge of
  * the grid into the visible area too, with the written pattern open. In a low
  * window it zooms out below the smallest zoom step to do so.
  */
@@ -502,7 +502,7 @@ for (const [viewport, rounds] of [
   [{ width: 1440, height: 900 }, 6],
   [{ width: 1000, height: 506 }, 6],
 ] as const) {
-  test(`${viewport.width}×${viewport.height}: „Egész minta” fits the grid of a pattern worked in rounds into the visible area too`, async ({
+  test(`${viewport.width}×${viewport.height}: “Whole pattern” fits the grid of a pattern worked in rounds into the visible area too`, async ({
     page,
   }) => {
     // PQW-925: it uses a granny square, which is temporarily switched off.
@@ -516,12 +516,12 @@ for (const [viewport, rounds] of [
     await openSheet(page);
     const section = page.locator('#section-rounds');
     if ((await section.getAttribute('open')) === null) await section.locator('summary').click();
-    await page.locator('#rounds-shape').selectOption({ label: 'Nagymama-négyzet' });
+    await page.locator('#rounds-shape').selectOption({ label: 'Granny square' });
     await page.locator('#rounds-count').fill(String(rounds));
     await page.locator('#rounds-count').press('Tab');
-    await page.getByRole('button', { name: 'Minta létrehozása' }).click();
-    await expect(page.locator('#status')).toContainText(`${rounds} kör elkészült`);
-    await page.locator('#setup').getByRole('button', { name: 'Lecsukás' }).click();
+    await page.getByRole('button', { name: 'Create pattern' }).click();
+    await expect(page.locator('#status')).toContainText(`${rounds} rounds done`);
+    await page.locator('#setup').getByRole('button', { name: 'Collapse' }).click();
     await fitWhole(page);
 
     const grid = await page.evaluate(() =>
