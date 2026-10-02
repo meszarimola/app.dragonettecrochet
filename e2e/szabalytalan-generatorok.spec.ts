@@ -1,14 +1,14 @@
 /*
  * The regular generator sections leave with the regular editor (PQW-976). In
  * free-form mode the panel used to keep "Size and yarn", "Shape", "Shawl",
- * "Garment" and "Round and motif", and pressing a "Create pattern" there
+ * "Round and motif", and pressing a "Create pattern" there
  * replaced the hidden regular pattern and autosaved over it. The sections of
  * the switched-off types stay hidden in both modes.
  */
 
 import { expect, type Page, test } from '@playwright/test';
 
-const REGULAR_SECTIONS = ['#section-size', '#section-shape', '#section-shawl', '#section-garment', '#section-rounds'];
+const REGULAR_SECTIONS = ['#section-size', '#section-shape', '#section-shawl', '#section-rounds'];
 const DISABLED_SECTIONS = ['#section-grid', '#section-amigurumi'];
 
 async function open(page: Page): Promise<void> {

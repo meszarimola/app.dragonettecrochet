@@ -108,7 +108,7 @@ options filled from elsewhere (a size series, for instance) are left alone.
 
 ## §7 Generator panels share one shape
 
-Every generator section (round, shape, shawl, garment, amigurumi, grid, size)
+Every generator section (round, shape, shawl, amigurumi, grid, size)
 follows the same rules:
 
 - The fields live in `index.html`; the panel only reads and writes them.
@@ -1226,7 +1226,7 @@ stitches' global position, so reordering the sections would move the shortcuts.
 
 ## §54 The make-a-pattern sheet, and why its opener is in the file menu
 
-The generators — shape, shawl, garment, round and motif, and the two switched-off
+The generators — shape, shawl, round and motif, and the two switched-off
 ones — replace the whole pattern when their button is pressed. That is a way to
 *start*, not a control used while drawing, and in the panel they were 58 of the
 104 controls a regular pattern showed. They live in `#setup` now: a sheet that

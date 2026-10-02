@@ -2,7 +2,13 @@
 
 Why the geometry and editing half of `src/core/` is built the way it is: the
 layout, the grid, the graph, the editor, selection, shapes, and the technique
-generators (rounds, raglan, ribbing, filet, C2C, mosaic, pixel charts).
+generators (rounds, ribbing, filet, C2C, mosaic, pixel charts).
+
+**The raglan is gone.** PQW-1127 removed the garment generator and `raglan.ts` with it.
+Sections below still use a raglan yoke or sleeve as their worked example, and a
+`Cited from: src/core/raglan.ts` line points at a deleted file. The graph model they
+describe — sections, two-source rounds, `roundShape` — is unchanged and still carries
+those cases; only the generator that produced them has left.
 
 This file holds **engineering** decisions only. Crochet domain knowledge stays
 in `docs/knowledge-base/`, cited by section code (`03 §5.5`); the source cites
@@ -691,6 +697,8 @@ Crochet sources: 03 §3.1, 03 §3.2, 03 §3.4, 03 §4.1, 03 §10 F27, 03 §10 F2
 
 ## §31 One layer event per stitch
 
+*The citation below is to `raglan.ts`, deleted in PQW-1127. The rule stands; the example does not.*
+
 A `LayerEvent` is keyed by the stitch it follows (`after`), so a stitch can carry
 exactly one event. When a round that already closes with a join-slip also has to
 fasten off and name where the work resumes, the builder must **rewrite** that
@@ -707,6 +715,8 @@ Cited from: `src/core/raglan.ts` — `closeAndCut`, and the sleeve loop's
 
 ## §32 A resumed sleeve round anchors into two earlier layers
 
+*Withdrawn in PQW-1127: the garment generator and its code were removed from the designer. Kept for the history of the decision.*
+
 PQW-908. A top-down raglan sleeve starts after the yarn is cut: its first round
 works into the yoke's skipped stitches **and** into the underarm chain made at the
 split — two different earlier layers in one round. The resume event therefore
@@ -721,6 +731,8 @@ double-counted or lost.
 Cited from: `src/core/raglan.ts` — the sleeve-building loop.
 
 ## §33 Sleeve decreases never fall inside the ribbed cuff
+
+*Withdrawn in PQW-1127: the garment generator and its code were removed from the designer. Kept for the history of the decision.*
 
 PQW-913. In `raglanPiece` a ribbed cuff round takes an early `continue` and never
 reaches the decrease branch, so any decrease scheduled on a cuff round would be
@@ -794,7 +806,7 @@ Cited from: `src/core/round-generator.ts` (`MOTIF_NAMES`), `src/core/raglan.ts`
 ## §38 `plannedRounds` still returns a raw code string
 
 PQW-904 debt. Every other core generator returns a `CoreText` code plus data.
-`plannedRounds` returns a bare `string` because its callers (the shawl and garment
+`plannedRounds` returns a bare `string` because its callers (the shawl
 generators) still expect one; their own message migration is a separate ticket. Both
 callers treat the value as an internal error, so no sentence is ever built from it.
 
@@ -928,10 +940,12 @@ Cited from: `src/core/c2c.ts` — `generateC2C`.
 
 ## §47 The ribbing rules live in one module
 
-PQW-909, PQW-913. Ribbing is built along two different paths: the garment generators
-write it inline while they build a piece, and `appendRibbing` bolts it onto a finished
-piece. `ribbingColumnMode`, `ribbedTurningChain` and `ribbedOpening` exist so both
-paths compute the same thing and cannot drift apart.
+PQW-909, PQW-913. Ribbing was built along two paths: a generator could write it inline
+while it built a piece, and `appendRibbing` bolts it onto a finished piece. Since
+PQW-1127 removed the garment generator only the second path has a caller, but
+`ribbingColumnMode`, `ribbedTurningChain` and `ribbedOpening` stay shared: the Shape and
+the Round-and-motif generators still reach for them, and a second inline path would drift
+apart again.
 
 `ribbedOpening` in particular is why the convention override rides on the **event that
 opens the row** rather than on the pattern: the pattern's own

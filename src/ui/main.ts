@@ -67,7 +67,6 @@ import { type Area, Board, type DirectionArrow, type Target } from './board.js';
 import { chartSvg } from './chart-svg.js';
 import { setupConsentBanner } from './consentBanner.js';
 import { askConfirm } from './dialog.js';
-import { GarmentPanel } from './garment-panel.js';
 import { GridChartPanel } from './grid-chart-panel.js';
 import { spikeNodes, unitFrames } from './grid-chart-view.js';
 import { EDITOR_CORE_TEXTS } from './i18n/core/editor.js';
@@ -414,7 +413,6 @@ function refresh(message?: Message): void {
   roundsPanel.update(derived.pattern);
   shapesPanel.update(derived.pattern);
   shawlsPanel.update(derived.pattern);
-  garmentPanel.update(derived.pattern);
   // KB: interface.md §9 — a disabled type has no panel at all.
   amigurumiPanel?.update(derived.pattern);
   gridPanel?.update(derived.pattern, mirror);
@@ -2448,11 +2446,6 @@ const shawlsPanel = new ShawlsPanel(must<HTMLDetailsElement>('#section-shawl'), 
   announce,
 });
 
-const garmentPanel = new GarmentPanel(must<HTMLDetailsElement>('#section-garment'), {
-  commit: generated,
-  announce,
-});
-
 // KB: interface.md §9
 function panelFor<T>(type: PatternTypeId, selector: string, build: (section: HTMLDetailsElement) => T): T | null {
   const section = must<HTMLDetailsElement>(selector);
@@ -2478,7 +2471,6 @@ const regularTypeSections = [
   '#section-size',
   '#section-shape',
   '#section-shawl',
-  '#section-garment',
   '#section-rounds',
   '#section-grid',
   '#section-amigurumi',

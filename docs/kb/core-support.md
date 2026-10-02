@@ -4,8 +4,7 @@ Why the supporting half of `src/core/` is built the way it is: the measurement
 calculus (`quantity.ts`), yarn estimation (`yarn-estimate.ts`, `yarn-weight.ts`),
 the round frame (`polygon.ts`), the shawl row curve (`row-curve.ts`), the shared
 grid-technique writer (`grid-pattern.ts`, `colorwork.ts`), the canonical pattern
-form (`canonical.ts`), garment shaping arithmetic (`garment-math.ts`) and undo
-(`history.ts`).
+form (`canonical.ts`) and undo (`history.ts`).
 
 This file holds **engineering** decisions only. Crochet domain knowledge stays in
 `docs/knowledge-base/`, cited by section code (`02 §6.5`); the source cites it the
@@ -205,6 +204,8 @@ The piece's own `id` and `name` are kept: they are content, not generated
 identifiers. Crochet source for the graph model: core-domain §8.
 
 ## §8 Shaping arithmetic: rounding intent, epsilon, and impossible schedules
+
+*Withdrawn in PQW-1127: the garment generator and its code were removed from the designer. Kept for the history of the decision.*
 
 `garment-math.ts` (PQW-866). The crochet rules here are sourced — the rounding
 direction and the even row count are 05 §4.2, the repeat multiple is 05 §4.7, the

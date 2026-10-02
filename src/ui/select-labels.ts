@@ -8,11 +8,6 @@ import {
   METHOD_CHOICES,
   TOP_CHOICES,
 } from './amigurumi-view.ts';
-import {
-  KIND_CHOICES as GARMENT_KIND_CHOICES,
-  STITCH_CHOICES as GARMENT_STITCH_CHOICES,
-  TABLE_CHOICES,
-} from './garment-view.ts';
 import { MOSAIC_ROW_CHOICES, TECHNIQUE_CHOICES } from './grid-chart-view.ts';
 import {
   CLOSING_CHOICES,
@@ -52,9 +47,6 @@ const CHOICES: Readonly<Record<string, readonly Labelled[]>> = {
   'amigurumi-bottom': BOTTOM_CHOICES,
   'amigurumi-top': TOP_CHOICES,
   'amigurumi-join': JOIN_CHOICES,
-  'garment-kind': GARMENT_KIND_CHOICES,
-  'garment-table': TABLE_CHOICES,
-  'garment-stitch': GARMENT_STITCH_CHOICES,
   'grid-technique': TECHNIQUE_CHOICES,
   'grid-mosaic-rows': MOSAIC_ROW_CHOICES,
 };

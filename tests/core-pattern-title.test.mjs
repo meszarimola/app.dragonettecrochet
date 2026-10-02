@@ -16,11 +16,10 @@ import { describe, test } from 'node:test';
 import { createAmigurumi } from '../src/core/amigurumi-generator.ts';
 import { emptyPattern } from '../src/core/editor.ts';
 import { generateFilet } from '../src/core/filet.ts';
-import { DEFAULT_GARMENT, GARMENT_NAMES, generateGarment } from '../src/core/garments.ts';
 import { loadPattern, savePattern } from '../src/core/pattern-json.ts';
 import { allLocaleNames, hasOwnTitle, withGeneratedTitle } from '../src/core/pattern-title.ts';
 import { DEFAULT_MOTIF, generateMotif } from '../src/core/round-generator.ts';
-import { DEFAULT_SHAPE, generateShape } from '../src/core/shapes.ts';
+import { DEFAULT_SHAPE, generateShape, SHAPE_NAMES } from '../src/core/shapes.ts';
 import { DEFAULT_SHAWL, generateShawl } from '../src/core/shawls.ts';
 
 const ok = (result) => {
@@ -65,9 +64,6 @@ const legacySave = (pattern) => {
   const { titleGenerated: _, ...rest } = pattern;
   return rest;
 };
-
-/** The sweater names its pieces, not itself, so its title is never one of its piece names. */
-const sweater = (pattern) => ok(generateGarment(pattern, DEFAULT_GARMENT));
 
 const GENERATED_NAMES = {
   hu: ['Félkör', 'Téglalap', 'Lapos kör', 'Gömb', 'Filé'],
@@ -135,29 +131,24 @@ describe('legacy save without the flag', () => {
   });
 
   test('a title generated in one notation is still a generated title in another (PQW-920)', () => {
-    const hungarian = legacySave(sweater(inNotation(emptyPattern(), 'hu')));
-    assert.equal(hungarian.title, 'Ledobott vállú pulóver');
-    assert.equal(
-      hungarian.pieces.some((piece) => piece.name === hungarian.title),
-      false,
-      'the sweater title is not one of its piece names, so only the name list can place it',
-    );
+    const hungarian = legacySave(generators.Forma(inNotation(emptyPattern(), 'hu')));
+    assert.equal(hungarian.title, 'Téglalap');
     for (const terms of ['en-US', 'en-GB']) {
       const reopened = inNotation(hungarian, terms);
-      assert.equal(hasOwnTitle(reopened, allLocaleNames(GARMENT_NAMES)), false, terms);
-      assert.equal(sweater(reopened).title, 'Drop-shoulder sweater', terms);
+      assert.equal(hasOwnTitle(reopened, allLocaleNames(SHAPE_NAMES)), false, terms);
+      assert.equal(generators.Forma(reopened).title, 'Rectangle', terms);
     }
-    // The names of the notation in force would read the Hungarian title as the user's own.
-    assert.equal(hasOwnTitle(inNotation(hungarian, 'en-US'), Object.values(GARMENT_NAMES['en-US'])), true);
+    // The case where the title is NOT one of the pattern's piece names went with the
+    // garment generator (PQW-1127): every generator left names its piece after the title.
 
-    const english = legacySave(sweater(inNotation(emptyPattern(), 'en-US')));
-    assert.equal(english.title, 'Drop-shoulder sweater');
-    assert.equal(hasOwnTitle(inNotation(english, 'hu'), allLocaleNames(GARMENT_NAMES)), false);
-    assert.equal(sweater(inNotation(english, 'hu')).title, 'Ledobott vállú pulóver');
+    const english = legacySave(generators.Forma(inNotation(emptyPattern(), 'en-US')));
+    assert.equal(english.title, 'Rectangle');
+    assert.equal(hasOwnTitle(inNotation(english, 'hu'), allLocaleNames(SHAPE_NAMES)), false);
+    assert.equal(generators.Forma(inNotation(english, 'hu')).title, 'Téglalap');
 
     const typed = inNotation(emptyPattern('Nyári pulóver'), 'en-US');
-    assert.equal(hasOwnTitle(typed, allLocaleNames(GARMENT_NAMES)), true);
-    assert.equal(sweater(typed).title, 'Nyári pulóver');
+    assert.equal(hasOwnTitle(typed, allLocaleNames(SHAPE_NAMES)), true);
+    assert.equal(generators.Forma(typed).title, 'Nyári pulóver');
   });
 
   test('the own-title flag carries over onto the generated pattern; an unflagged own title stays unflagged', () => {

@@ -1,12 +1,9 @@
 // KB: core-domain §11, core-domain §19
 
-import { SERIES_KEYS } from './garment-text.ts';
 import type { CoreData, CoreText } from './messages.ts';
 import type {
   Anchor,
   ChartStyle,
-  GarmentKind,
-  GarmentTable,
   GaugeEntry,
   GaugeForm,
   GridTechnique,
@@ -18,7 +15,6 @@ import type {
   Pattern,
   PatternColor,
   PatternConventions,
-  PatternGarment,
   PatternGauge,
   PatternGaugeProfile,
   PatternNotation,
@@ -212,7 +208,7 @@ function readPattern(value: unknown, path: string): Pattern {
     value,
     path,
     ['formatVersion', 'title', 'conventions', 'pieces'],
-    ['titleGenerated', 'notation', 'gauge', 'joins', 'toy', 'garment'],
+    ['titleGenerated', 'notation', 'gauge', 'joins', 'toy'],
   );
   return {
     formatVersion: oneOf(raw['formatVersion'], `${path}.formatVersion`, [FORMAT_VERSION]),
@@ -226,7 +222,6 @@ function readPattern(value: unknown, path: string): Pattern {
     pieces: array(raw['pieces'], `${path}.pieces`, readPiece),
     ...(raw['joins'] === undefined ? {} : { joins: array(raw['joins'], `${path}.joins`, readJoin) }),
     ...(raw['toy'] === undefined ? {} : { toy: readToy(raw['toy'], `${path}.toy`) }),
-    ...(raw['garment'] === undefined ? {} : { garment: readGarment(raw['garment'], `${path}.garment`) }),
   };
 }
 
@@ -640,34 +635,6 @@ function readJoinEdge(value: unknown, path: string): JoinEdge {
     layer,
     ...(stitches ? { stitches } : {}),
     ...(rows ? { rows } : {}),
-  };
-}
-
-const GARMENT_KINDS: readonly GarmentKind[] = ['hat', 'drop-shoulder'];
-const GARMENT_TABLES: readonly GarmentTable[] = ['women', 'men', 'child', 'baby', 'hat'];
-
-/** One number per size, keyed by `SERIES_KEYS`. */
-function readGarment(value: unknown, path: string): PatternGarment {
-  const raw = object(value, path, ['kind', 'table', 'sizes', 'base', 'values']);
-  const sizes = array(raw['sizes'], `${path}.sizes`, string);
-  if (sizes.length === 0) throw new FormatError(`${path}.sizes`, 'expected-size');
-  const base = integer(raw['base'], `${path}.base`, 0);
-  if (base >= sizes.length) throw new FormatError(`${path}.base`, 'expected-integer-max', { max: sizes.length - 1 });
-  const rawValues = object(raw['values'], `${path}.values`, [], SERIES_KEYS);
-  const values: Record<string, readonly number[]> = {};
-  for (const key of SERIES_KEYS) {
-    if (rawValues[key] === undefined) continue;
-    const numbers = array(rawValues[key], `${path}.values.${key}`, finite);
-    if (numbers.length !== sizes.length)
-      throw new FormatError(`${path}.values.${key}`, 'expected-numbers-per-size', { count: sizes.length });
-    values[key] = numbers;
-  }
-  return {
-    kind: oneOf(raw['kind'], `${path}.kind`, GARMENT_KINDS),
-    table: oneOf(raw['table'], `${path}.table`, GARMENT_TABLES),
-    sizes,
-    base,
-    values,
   };
 }
 

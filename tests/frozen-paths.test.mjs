@@ -31,7 +31,7 @@ const edit = (file_path) => ask({ file_path });
 
 test('an Edit of a frozen path is refused, of an ordinary one allowed', () => {
   assert.ok(edit('src/ui/i18n/messages.ts').refused);
-  assert.ok(edit(`${CWD}/src/ui/i18n/core/garment.ts`).refused);
+  assert.ok(edit(`${CWD}/src/ui/i18n/core/shape.ts`).refused);
   assert.ok(edit('tests/fixtures/e2e-locators.json').refused);
 
   assert.ok(!edit('src/ui/main.ts').refused);
@@ -69,7 +69,7 @@ test('writing to a frozen path from the shell is refused', () => {
     'cat new.ts > "src/ui/i18n/messages.ts"',
     'cp /tmp/new.json tests/fixtures/e2e-locators.json',
     'mv tests/fixtures/a.json tests/fixtures/b.json',
-    'rm src/ui/i18n/core/garment.ts',
+    'rm src/ui/i18n/core/shape.ts',
     'tee src/ui/i18n/messages.ts < /tmp/new',
   ]) {
     assert.ok(bash(command).refused, `a write was allowed: ${command}`);
