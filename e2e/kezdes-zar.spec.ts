@@ -103,43 +103,46 @@ test('the stage button leads to the one menu that starts a pattern, and a type o
   await expect(page.locator('#section-size')).not.toHaveAttribute('inert', '');
 });
 
+/** A two-chain regular pattern, the smallest file that is a pattern. */
+const SCARF_JSON = JSON.stringify({
+  formatVersion: 1,
+  title: 'Scarf',
+  conventions: {
+    turningChainCounts: 'stitch-default',
+    roundEnd: 'stitch-default',
+    picotCounts: false,
+    joinSlipStitchCounts: false,
+    chainCounts: true,
+  },
+  pieces: [
+    {
+      id: 'p1',
+      name: 'Piece',
+      stitches: [
+        { id: 's1', def: 'ch', prev: null, anchors: [] },
+        { id: 's2', def: 'ch', prev: 's1', anchors: [] },
+      ],
+      spaces: [],
+      rings: [],
+      groups: [],
+      events: [],
+      skipped: [],
+    },
+  ],
+});
+
+async function openScarfJson(page: Page): Promise<void> {
+  await page.locator('#file-toggle').click();
+  await page.locator('#json-toggle').click();
+  await page
+    .locator('#import-file')
+    .setInputFiles({ name: 'minta.json', mimeType: 'application/json', buffer: Buffer.from(SCARF_JSON) });
+}
+
 test('opening a JSON is the second way in, and the cards say which type it opened', async ({ page }) => {
   await open(page);
 
-  await page.locator('#file-toggle').click();
-  await page.locator('#json-toggle').click();
-  await page.locator('#import-file').setInputFiles({
-    name: 'minta.json',
-    mimeType: 'application/json',
-    buffer: Buffer.from(
-      JSON.stringify({
-        formatVersion: 1,
-        title: 'Scarf',
-        conventions: {
-          turningChainCounts: 'stitch-default',
-          roundEnd: 'stitch-default',
-          picotCounts: false,
-          joinSlipStitchCounts: false,
-          chainCounts: true,
-        },
-        pieces: [
-          {
-            id: 'p1',
-            name: 'Piece',
-            stitches: [
-              { id: 's1', def: 'ch', prev: null, anchors: [] },
-              { id: 's2', def: 'ch', prev: 's1', anchors: [] },
-            ],
-            spaces: [],
-            rings: [],
-            groups: [],
-            events: [],
-            skipped: [],
-          },
-        ],
-      }),
-    ),
-  });
+  await openScarfJson(page);
 
   await expect(page.locator('#start-note')).toBeHidden();
   await expect(chain(page)).toBeEnabled();
@@ -192,4 +195,67 @@ test('a family chosen but never made is not a pattern to come back to', async ({
   await page.reload();
   await expect(page.locator('#start-note')).toBeVisible();
   await expect(chain(page)).toBeDisabled();
+});
+
+test('the free-form work comes back from „Lecsukás”, type and all (PQW-1139)', async ({ page }) => {
+  await open(page);
+
+  // A granny square is a free-form pattern, and it lives in the free-form editor's own state.
+  await page.locator('#types-toggle').click();
+  await page.getByRole('button', { name: 'Regular crochet' }).click();
+  await page.getByRole('menuitem', { name: /Granny square/ }).click();
+  await expect(page.locator('#board-irregular')).toBeVisible();
+
+  // „Új” → „Forma” switches the view to the regular type, and „Lecsukás” has to switch it back.
+  await chooseFlatShape(page);
+  await page.locator('[data-action="close-setup"]').click();
+  await expect(page.locator('#board-irregular'), 'the free-form canvas is back').toBeVisible();
+  await expect(chain(page), 'and so is the editor it belongs to').toBeEnabled();
+});
+
+test('a family chosen from a free-form pattern does not become the stored type (PQW-1139)', async ({ page }) => {
+  await open(page);
+  await page.locator('#types-toggle').click();
+  await page.getByRole('button', { name: 'Free-form designer' }).click();
+  await expect(page.locator('#board-irregular')).toBeVisible();
+
+  await chooseFlatShape(page);
+  await page.locator('[data-action="close-setup"]').click();
+
+  // KB: interface.md §80 — the gate closes before the type switches, so `persistType` cannot
+  // write a type that was only looked at.
+  await page.reload();
+  await expect(page.locator('#board-irregular'), 'the reload comes back to the free-form type').toBeVisible();
+});
+
+test('a file opened while the chooser stands is the pattern „Lecsukás” keeps (PQW-1139)', async ({ page }) => {
+  await open(page);
+  await chooseFlatShape(page);
+
+  // The file menu is not behind the gate, so a file can arrive while the chooser is open.
+  await openScarfJson(page);
+  await expect(chain(page)).toBeEnabled();
+  const loaded = await page.locator('#summary').textContent();
+
+  await page.locator('[data-action="close-setup"]').click();
+  await expect(chain(page), 'the editor does not close on the pattern the file brought').toBeEnabled();
+  await expect(page.locator('#summary')).toHaveText(loaded!);
+});
+
+test('the written panel opened by hand survives a trip through the chooser (PQW-1139)', async ({ page }) => {
+  await open(page);
+  await chooseFlatShape(page);
+  await create(page);
+
+  const written = page.locator('#written');
+  await page.locator('#written-toggle').click();
+  await expect(written).toBeVisible();
+
+  await chooseFlatShape(page);
+  await expect(written, 'a pattern panel does not stand behind a disabled button').toBeHidden();
+  await page.locator('[data-action="close-setup"]').click();
+
+  // KB: interface.md §10 — the gate hides it, it does not forget it: the stored state is still „nyitva”.
+  await page.reload();
+  await expect(written).toBeVisible();
 });

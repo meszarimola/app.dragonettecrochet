@@ -2157,12 +2157,34 @@ visitor has already started making.
 **Choosing a family no longer empties the pattern; creating one replaces it**
 (PQW-1137, the owner's decision). `openRegularEntry` used to run `startType`,
 which emptied the pattern before the sheet was even read, so stepping back out of
-the sheet cost the work and „Lecsukás” had to be paid for with an undo. Every way
-out of the sheet that is not a creation now goes through `closeSetup`, which puts
-the gate back to `startedBeforeSetup` — and that flag is read from the *pattern*
-(`!isEmptyPattern`), not from the gate, because a visitor can arrive at the sheet
-from the free-form canvas, where the gate says nothing about the regular pattern
-that „Lecsukás” returns to.
+the sheet cost the work and „Lecsukás” had to be paid for with an undo.
+
+**What the sheet gives back is the type *and* the gate, and only „Lecsukás” gives
+anything back** (PQW-1139, from the review of PQW-1137). `openRegularEntry`
+records both — `typeBeforeSetup`, `startedBeforeSetup` — before it switches
+anything, and `dismissSetup` restores both. Three things forced that shape:
+
+- **The free-form pattern is not in `history`.** It lives in the editor's own
+  state and its own key, so a flag computed from `isEmptyPattern(history.present)`
+  reads a visitor arriving from the granny-square canvas as having nothing. They
+  then got the gate closed over a pattern that was off screen, and the only route
+  offered — „Új” → „Szabadkézi tervező” — empties it.
+- **The gate has to close before the type switches.** `persistType` writes the
+  stored type while the gate is open, so switching first wrote `regular` for a
+  family that was only looked at, and the next load opened the editor on an empty
+  regular canvas — the state this section exists to prevent.
+- **Restoring is for the way out, not for every close.** Switching back to the
+  free-form type closes the sheet itself (`showIrregularView`), so a restoring
+  close called from there came straight back into itself. The ways that
+  *supersede* the sheet — another type, a file, an armed stitch — close it with
+  `setSetupOpen(false)` and carry their own state; `patternMade` is where a new
+  pattern, however it arrived, says that it is what the sheet would give back.
+
+**The gate hides the written panel; it does not forget it** (PQW-1139). Closing
+it with `setWrittenOpen` persisted `zarva`, so one trip through „Új” threw away a
+visitor's stored „nyitva” for good. `setOpen(written, writtenToggle, false)` is
+the form every other programmatic close in the file uses, for exactly this reason
+(§10).
 
 **The regular type is always generated; the free-form type is the hand-drawn one.**
 That follows from the paragraph above, and the owner confirmed it: „új —
