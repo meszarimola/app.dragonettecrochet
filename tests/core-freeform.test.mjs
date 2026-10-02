@@ -1,7 +1,8 @@
 /*
- * The free-form chart (PQW-1141, PQW-1143): a new chart is empty, every placed
- * stitch keeps its stitch, its position, its turn and an id of its own, and a
- * selection is found by a point or an area, moved and turned.
+ * The free-form chart (PQW-1141, PQW-1143, PQW-1144): a new chart is empty, every
+ * placed stitch keeps its stitch, its position, its turn, its size and an id of
+ * its own, and a selection is found by a point or an area, framed, moved, turned
+ * and resized.
  */
 
 import { strict as assert } from 'node:assert';
@@ -9,12 +10,16 @@ import { test } from 'node:test';
 
 import {
   allInside,
+  boundedFactor,
   boundedMove,
   emptyChart,
+  MAX_SCALE,
+  MIN_SCALE,
   moveStitches,
   placeStitch,
   rotateStitches,
-  selectionCenter,
+  scaleStitches,
+  selectionFrame,
   stitchAt,
   stitchesIn,
 } from '../src/core/freeform.ts';
@@ -30,9 +35,9 @@ test('a new chart holds no stitch', () => {
   assert.deepEqual(emptyChart().stitches, []);
 });
 
-test('a placed stitch keeps its stitch and its position, unturned', () => {
+test('a placed stitch keeps its stitch and its position, unturned and at its own size', () => {
   const chart = placeStitch(emptyChart(), 'sc', 120, 80);
-  assert.deepEqual(chart.stitches, [{ id: 1, stitch: 'sc', x: 120, y: 80, rotation: 0 }]);
+  assert.deepEqual(chart.stitches, [{ id: 1, stitch: 'sc', x: 120, y: 80, rotation: 0, scale: 1 }]);
 });
 
 test('stitches keep their order, and every one gets a new id', () => {
@@ -87,10 +92,34 @@ test('moving shifts only the selected stitches', () => {
   );
 });
 
-test('the centre of a selection is the middle of its bounding box', () => {
+const reachOf = (placed) => 10 * placed.scale;
+
+test('an upright frame holds every selected stitch with its reach, centred on them', () => {
   const chart = chartOf([0, 0], [100, 40], [20, 10]);
-  assert.deepEqual(selectionCenter(chart, new Set([1, 2, 3])), { x: 50, y: 20 });
-  assert.equal(selectionCenter(chart, new Set()), null);
+  const frame = selectionFrame(chart, new Set([1, 2, 3]), reachOf);
+  assert.deepEqual(frame, { center: { x: 50, y: 20 }, angle: 0, halfWidth: 60, halfHeight: 30 });
+  assert.equal(selectionFrame(chart, new Set(), reachOf), null);
+});
+
+test('the frame turns with stitches turned together, and stays upright for mixed turns', () => {
+  const chart = chartOf([0, 0], [100, 0]);
+  const both = new Set([1, 2]);
+  const turned = rotateStitches(chart, both, { x: 50, y: 0 }, Math.PI / 2);
+  const frame = selectionFrame(turned, both, reachOf);
+  close(frame.angle, Math.PI / 2, 'angle');
+  close(frame.center.x, 50, 'center.x');
+  close(frame.center.y, 0, 'center.y');
+  close(frame.halfWidth, 60, 'the frame is as long as before, along the turned row');
+  close(frame.halfHeight, 10, 'and as thin');
+
+  const mixed = rotateStitches(chart, new Set([1]), { x: 0, y: 0 }, 0.3);
+  assert.equal(selectionFrame(mixed, both, reachOf).angle, 0);
+});
+
+test('a full turn counts as the same turn', () => {
+  let chart = chartOf([0, 0], [50, 0]);
+  chart = rotateStitches(chart, new Set([1]), { x: 0, y: 0 }, Math.PI * 2);
+  assert.equal(selectionFrame(chart, new Set([1, 2]), reachOf).angle, chart.stitches[0].rotation);
 });
 
 test('one stitch turned about its own centre stays in place and gains the angle', () => {
@@ -102,7 +131,7 @@ test('one stitch turned about its own centre stays in place and gains the angle'
 
 test('several stitches turn together around their centre, each by the same angle', () => {
   const chart = chartOf([0, 0], [100, 0], [500, 500]);
-  const center = selectionCenter(chart, new Set([1, 2]));
+  const { center } = selectionFrame(chart, new Set([1, 2]), reachOf);
   const [a, b, c] = rotateStitches(chart, new Set([1, 2]), center, Math.PI / 2).stitches;
   close(a.x, 50, 'a.x');
   close(a.y, -50, 'a.y');
@@ -134,4 +163,27 @@ test('only the selected stitches have to stay on the board', () => {
   const chart = chartOf([50, 50], [-10, 50]);
   assert.equal(allInside(chart, new Set([1]), BOARD), true);
   assert.equal(allInside(chart, new Set([1, 2]), BOARD), false);
+});
+
+test('resizing grows the stitches and the gaps between them by the same factor', () => {
+  const chart = chartOf([0, 0], [100, 0], [500, 500]);
+  const [a, b, c] = scaleStitches(chart, new Set([1, 2]), { x: 50, y: 0 }, 2).stitches;
+  assert.deepEqual([a.x, a.y, a.scale], [-50, 0, 2]);
+  assert.deepEqual([b.x, b.y, b.scale], [150, 0, 2]);
+  assert.deepEqual([c.x, c.y, c.scale], [500, 500, 1], 'an unselected stitch stays');
+});
+
+test('one stitch resized about its own centre stays in place', () => {
+  const [only] = scaleStitches(chartOf([40, 40]), new Set([1]), { x: 40, y: 40 }, 0.5).stitches;
+  assert.deepEqual([only.x, only.y, only.scale], [40, 40, 0.5]);
+});
+
+test('a resize stops at the smallest and the largest size, for the most extreme selected stitch', () => {
+  let chart = chartOf([0, 0], [10, 0]);
+  chart = scaleStitches(chart, new Set([2]), { x: 10, y: 0 }, 2);
+  const both = new Set([1, 2]);
+  assert.equal(boundedFactor(chart, both, 10), MAX_SCALE / 2, 'the larger one reaches the top');
+  assert.equal(boundedFactor(chart, both, 0.01), MIN_SCALE, 'the smaller one reaches the bottom');
+  assert.equal(boundedFactor(chart, both, 1.5), 1.5);
+  assert.equal(boundedFactor(chart, new Set(), 3), 1);
 });
