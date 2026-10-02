@@ -105,12 +105,30 @@
             <span class="tool__label" data-i18n="toolLabelNew">New</span>
           </button>
 
-          <button type="button" class="tool" id="select-tool" aria-pressed="false" data-tip="Select: click a stitch or drag an area; Ctrl/⌘ or Shift + click: several. Drag the selection to move it, the round handle to rotate it, a corner to make it larger or smaller." data-i18n-tip="selectToolTip" disabled>
-            <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-              <path d="M5 3.5 15 11l-4.6.9 2.6 4.6-1.8 1-2.6-4.6L5 16z" />
-            </svg>
-            <span class="tool__label" data-i18n="toolPointerLabel">Select</span>
-          </button>
+          <div class="tools__group">
+            <button type="button" class="tool" id="select-tool" aria-pressed="false" data-tip="Select: click a stitch or drag an area; Ctrl/⌘ or Shift + click: several. Drag the selection to move it, the round handle to rotate it, a corner to make it larger or smaller." data-i18n-tip="selectToolTip" disabled>
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M5 3.5 15 11l-4.6.9 2.6 4.6-1.8 1-2.6-4.6L5 16z" />
+              </svg>
+              <span class="tool__label" data-i18n="toolPointerLabel">Select</span>
+            </button>
+            <button type="button" class="tool" id="duplicate-selection" data-tip="Duplicate the selection (Ctrl/⌘ + D). Ctrl/⌘ + C copies it, Ctrl/⌘ + V pastes it." data-i18n-tip="duplicateTip" aria-keyshortcuts="Control+D Meta+D" disabled>
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M5 5h7v7H5z" />
+                <path d="M8 8h7v7H8z" />
+              </svg>
+              <span class="tool__label" data-i18n="toolLabelDuplicate">Duplicate</span>
+            </button>
+            <button type="button" class="tool" id="delete-selection" data-tip="Delete the selected stitches (Delete)" data-i18n-tip="toolDeleteSelectionTip" aria-keyshortcuts="Delete" disabled>
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M5 6h10" />
+                <path d="M8 6V4.25h4V6" />
+                <path d="M6.5 6l.6 10h5.8l.6-10" />
+                <path d="M9 9v4.5M11 9v4.5" />
+              </svg>
+              <span class="tool__label" data-i18n="toolLabelDeleteSelection">Delete</span>
+            </button>
+          </div>
 
           <span class="pickers">
             <select class="picker" id="chart-style" aria-label="Symbol style" data-i18n-label="chartStyleLabel" data-tip="Symbol style" data-i18n-tip="chartStyleLabel">

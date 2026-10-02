@@ -22,6 +22,10 @@ export const MARKUP_TEXTS = {
     toolPointerLabel: 'Kijelölés',
     selectToolTip:
       'Kijelölés: kattints egy szemre, vagy húzz területet; Ctrl/⌘ vagy Shift + kattintás: több szem. A kijelölést húzva mozgathatod, a kerek fogóval forgathatod, a sarkoknál nagyíthatod és kicsinyítheted.',
+    toolLabelDuplicate: 'Másolás',
+    duplicateTip: 'A kijelölés megkettőzése (Ctrl/⌘ + D). Ctrl/⌘ + C: másolás, Ctrl/⌘ + V: beillesztés.',
+    toolLabelDeleteSelection: 'Törlés',
+    toolDeleteSelectionTip: 'Kijelölt szemek törlése (Delete)',
     sectionStitchesTitle: 'Szemek',
     stitchesPaletteLabel: 'Szemek',
     boardIrregularLabel: 'Szabadkézi diagram: válassz szemet, és kattints a rajzlapra',
@@ -42,6 +46,10 @@ export const MARKUP_TEXTS = {
     toolPointerLabel: 'Select',
     selectToolTip:
       'Select: click a stitch or drag an area; Ctrl/⌘ or Shift + click: several. Drag the selection to move it, the round handle to rotate it, a corner to make it larger or smaller.',
+    toolLabelDuplicate: 'Duplicate',
+    duplicateTip: 'Duplicate the selection (Ctrl/⌘ + D). Ctrl/⌘ + C copies it, Ctrl/⌘ + V pastes it.',
+    toolLabelDeleteSelection: 'Delete',
+    toolDeleteSelectionTip: 'Delete the selected stitches (Delete)',
     sectionStitchesTitle: 'Stitches',
     stitchesPaletteLabel: 'Stitches',
     boardIrregularLabel: 'Free-form chart: pick a stitch and click the drawing area',

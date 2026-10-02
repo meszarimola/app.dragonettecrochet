@@ -184,6 +184,18 @@ the static labels are applied.
 Detection happens in one place, and takes the platform string as a parameter so
 Node can run it.
 
+**The selection's commands are the two exceptions** (PQW-1145). They act only on
+a selection, so a key that finds nothing selected is left to the browser:
+
+- `Delete` and `Backspace` (by `event.key`, the meaning rather than the place)
+  delete the selection — the one single-key command, because it is the
+  universal one for it;
+- `Ctrl`/`⌘` + `C`, `V`, `D` (by `event.code`) copy, paste and duplicate. A
+  command that did nothing does not `preventDefault`, so `Ctrl`/`⌘` + `C` with
+  nothing selected still copies text and `Ctrl`/`⌘` + `D` still bookmarks.
+
+Neither fires while a `<select>` has focus; the `Alt`+digit stitches still do.
+
 ## §12 Tooltips are drawn by CSS
 
 `:hover` and `:focus-visible` in the stylesheet show them (PQW-882), which means

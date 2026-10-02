@@ -12,10 +12,13 @@ import {
   allInside,
   boundedFactor,
   boundedMove,
+  copyStitches,
+  deleteStitches,
   emptyChart,
   MAX_SCALE,
   MIN_SCALE,
   moveStitches,
+  pasteStitches,
   placeStitch,
   rotateStitches,
   scaleStitches,
@@ -186,4 +189,56 @@ test('a resize stops at the smallest and the largest size, for the most extreme 
   assert.equal(boundedFactor(chart, both, 0.01), MIN_SCALE, 'the smaller one reaches the bottom');
   assert.equal(boundedFactor(chart, both, 1.5), 1.5);
   assert.equal(boundedFactor(chart, new Set(), 3), 1);
+});
+
+test('deleting takes out only the selected stitches', () => {
+  const chart = deleteStitches(chartOf([10, 10], [20, 20], [30, 30]), new Set([1, 3]));
+  assert.deepEqual(
+    chart.stitches.map(({ id }) => id),
+    [2],
+  );
+});
+
+test('a paste places copies with new ids, shifted, turns and sizes kept', () => {
+  let chart = chartOf([10, 10], [50, 10]);
+  chart = scaleStitches(rotateStitches(chart, new Set([2]), { x: 50, y: 10 }, 0.5), new Set([2]), { x: 50, y: 10 }, 2);
+  const copied = copyStitches(chart, new Set([2]));
+  const { chart: after, ids, copied: next } = pasteStitches(chart, copied, 20, BOARD);
+  assert.deepEqual([...ids], [3]);
+  const pasted = after.stitches.at(-1);
+  assert.deepEqual([pasted.id, pasted.stitch, pasted.x, pasted.y, pasted.scale], [3, 'sc', 70, 30, 2]);
+  close(pasted.rotation, 0.5, 'rotation');
+  assert.equal(after.nextId, 4);
+  assert.equal(after.stitches.length, 3, 'the original stays');
+  assert.deepEqual(next, [pasted], 'the next paste starts from the copy');
+});
+
+test('where the edge leaves no room, the copy goes the other way on that axis, never onto its source', () => {
+  const chart = chartOf([380, 100], [390, 120]);
+  const { chart: after } = pasteStitches(chart, copyStitches(chart, new Set([1, 2])), 20, BOARD);
+  assert.deepEqual(
+    after.stitches.slice(2).map(({ x, y }) => [x, y]),
+    [
+      [360, 120],
+      [370, 140],
+    ],
+    'left instead of right, still down',
+  );
+
+  const corner = chartOf([400, 300]);
+  const { chart: cornered } = pasteStitches(corner, copyStitches(corner, new Set([1])), 20, BOARD);
+  assert.deepEqual([cornered.stitches[1].x, cornered.stitches[1].y], [380, 280], 'up and left from the corner');
+});
+
+test('repeated pastes walk on from the last copy, and turn back at the edge', () => {
+  let chart = chartOf([340, 100]);
+  let copied = copyStitches(chart, new Set([1]));
+  const xs = [];
+  for (let i = 0; i < 4; i += 1) {
+    const pasted = pasteStitches(chart, copied, 20, BOARD);
+    chart = pasted.chart;
+    copied = pasted.copied;
+    xs.push(copied[0].x);
+  }
+  assert.deepEqual(xs, [360, 380, 400, 380]);
 });

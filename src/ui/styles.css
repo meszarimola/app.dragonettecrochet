@@ -225,6 +225,13 @@ button {
   color: var(--c-accent);
 }
 
+.tools__group {
+  display: flex;
+  gap: var(--sp-0);
+  padding-inline-start: var(--sp-2);
+  border-inline-start: 1px solid var(--c-line);
+}
+
 .tool__label {
   font-size: 0.6875rem;
   line-height: 1.1;

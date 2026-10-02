@@ -1,7 +1,15 @@
 // KB: interface.md §2
 
 import './styles.css';
-import { emptyChart, type FreeformChart, placeStitch } from '../core/freeform.ts';
+import {
+  copyStitches,
+  deleteStitches,
+  emptyChart,
+  type FreeformChart,
+  type PlacedStitch,
+  pasteStitches,
+  placeStitch,
+} from '../core/freeform.ts';
 import type { ChartStyle, StitchDef, StitchDefId } from '../core/types.ts';
 import { FreeformBoard } from './freeform-board.ts';
 import {
@@ -35,11 +43,15 @@ const languageSelect = must<HTMLSelectElement>('#ui-language');
 const homeLink = must<HTMLAnchorElement>('#home-link');
 const newButton = must<HTMLButtonElement>('#new-chart');
 const selectButton = must<HTMLButtonElement>('#select-tool');
+const duplicateButton = must<HTMLButtonElement>('#duplicate-selection');
+const deleteButton = must<HTMLButtonElement>('#delete-selection');
+const PASTE_STEP = 20;
 
 let chartStyle: ChartStyle = readChartStyle(read(NOTATION_KEY));
 let chart: FreeformChart | null = null;
 let tool: StitchDefId | null = null;
 let selecting = false;
+let clipboard: readonly PlacedStitch[] = [];
 let items: PaletteItem[] = [];
 const buttons = new Map<StitchDefId, HTMLButtonElement>();
 const ink = readInk(document.documentElement);
@@ -54,9 +66,51 @@ const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAcce
     chart = next;
     board.show(chart, symbolOptionsFor(chartStyle));
   },
+  selectionChanged: (count) => {
+    duplicateButton.disabled = count === 0;
+    deleteButton.disabled = count === 0;
+  },
 });
 
 selectButton.addEventListener('click', () => setSelecting(!selecting));
+duplicateButton.addEventListener('click', () => duplicateSelection());
+deleteButton.addEventListener('click', () => deleteSelection());
+
+/** Each returns whether it acted, so a shortcut that did nothing leaves the browser its own. KB: interface.md §11 */
+function deleteSelection(): boolean {
+  if (chart === null || board.selected.size === 0 || board.dragging) return false;
+  chart = deleteStitches(chart, board.selected);
+  board.show(chart, symbolOptionsFor(chartStyle));
+  return true;
+}
+
+function copySelection(): boolean {
+  if (chart === null || board.selected.size === 0 || board.dragging) return false;
+  clipboard = copyStitches(chart, board.selected);
+  return true;
+}
+
+/** The copies are what the next paste starts from, so repeated pastes walk on instead of piling up. */
+function paste(copied: readonly PlacedStitch[]): readonly PlacedStitch[] | null {
+  if (chart === null || copied.length === 0 || board.dragging) return null;
+  const pasted = pasteStitches(chart, copied, PASTE_STEP, board.size());
+  chart = pasted.chart;
+  setSelecting(true);
+  board.show(chart, symbolOptionsFor(chartStyle), pasted.ids);
+  return pasted.copied;
+}
+
+function pasteClipboard(): boolean {
+  const copied = paste(clipboard);
+  if (copied === null) return false;
+  clipboard = copied;
+  return true;
+}
+
+function duplicateSelection(): boolean {
+  if (chart === null || board.selected.size === 0) return false;
+  return paste(copyStitches(chart, board.selected)) !== null;
+}
 
 // KB: interface.md §4 — the language is settled before anything is rendered.
 applyLanguage(resolveUiLanguage(location.search, read(LANG_KEY), document.documentElement.lang));
@@ -97,7 +151,23 @@ document.addEventListener('keydown', (event) => {
     else if (board.selected.size > 0) board.clearSelection();
     return;
   }
-  if (chart === null || !event.altKey || event.ctrlKey || event.metaKey) return;
+  if (chart === null) return;
+  const inSelect = event.target instanceof HTMLSelectElement;
+  if (!inSelect && (event.key === 'Delete' || event.key === 'Backspace')) {
+    if (deleteSelection()) event.preventDefault();
+    return;
+  }
+  if (event.ctrlKey || event.metaKey) {
+    if (inSelect || event.altKey || event.shiftKey) return;
+    const command: Record<string, () => boolean> = {
+      KeyC: copySelection,
+      KeyV: pasteClipboard,
+      KeyD: duplicateSelection,
+    };
+    if (command[event.code]?.() === true) event.preventDefault();
+    return;
+  }
+  if (!event.altKey) return;
   const digit = /^Digit([1-9])$/.exec(event.code)?.[1];
   const item = digit === undefined ? undefined : items.find((candidate) => candidate.key === digit);
   if (item === undefined) return;

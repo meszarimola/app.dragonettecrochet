@@ -6,7 +6,7 @@
 
 import { expect, test } from '@playwright/test';
 
-test('the bar holds Home, the title, New, Select, the symbol style and the language, and nothing else', {
+test('the bar holds Home, the title, New, Select, Duplicate, Delete, the symbol style and the language, and nothing else', {
   tag: '@kiadas',
 }, async ({ page }) => {
   const errors: string[] = [];
@@ -21,12 +21,13 @@ test('the bar holds Home, the title, New, Select, the symbol style and the langu
   );
   await expect(bar.getByRole('heading', { name: 'Pattern designer' })).toBeVisible();
   await expect(bar.locator('.brand-mark')).toBeVisible();
-  await expect(bar.getByRole('button')).toHaveCount(2);
+  await expect(bar.getByRole('button')).toHaveCount(4);
   await expect(bar.getByRole('button', { name: 'New' })).toBeVisible();
-  // PQW-1143, PQW-1144: the selection tool is the pointer with its label, and wakes with the chart.
-  const select = bar.getByRole('button', { name: 'Select' });
-  await expect(select).toBeDisabled();
-  await expect(select.locator('.tool__label')).toHaveText('Select');
+  // PQW-1143–1145: Select, Duplicate and Delete stand together, labelled, and wake with the chart.
+  const group = bar.locator('.tools__group');
+  await expect(group.locator('.tool__label')).toHaveText(['Select', 'Duplicate', 'Delete']);
+  for (const name of ['Select', 'Duplicate', 'Delete'])
+    await expect(group.getByRole('button', { name })).toBeDisabled();
   await expect(bar.getByRole('combobox')).toHaveCount(2);
   await expect(bar.getByRole('combobox', { name: 'Symbol style' })).toHaveValue('cyc');
   await expect(bar.getByRole('combobox', { name: 'Interface language' })).toHaveValue('en');
