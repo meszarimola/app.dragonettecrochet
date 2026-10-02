@@ -300,7 +300,7 @@ describe('semicircle, circle and pi shawl (05 §1.2, §1.3)', () => {
   });
 
   test('pi shawl: doubling on rounds 2, 4, 8 and 16, and just before a doubling it sits at about half the ideal (05 §1.3 [DERIVED])', () => {
-    assert.deepEqual([...piRounds(false, 40)], [2, 4, 8, 16, 32]);
+    assert.deepEqual([...piRounds(40)], [2, 4, 8, 16, 32]);
     const pi = plan(emptyPattern(), { kind: 'pi', stitch: 'sc', sizeCm: 10 });
     assert.deepEqual(pi.counts.slice(0, 16), [6, 12, 12, 24, 24, 24, 24, 48, 48, 48, 48, 48, 48, 48, 48, 96]);
     assert.ok(pi.ratio.min < 0.55, String(pi.ratio.min));
@@ -308,15 +308,6 @@ describe('semicircle, circle and pi shawl (05 §1.2, §1.3)', () => {
       pi.warnings.map((warning) => warning.kind),
       ['pi-blocking'],
     );
-  });
-
-  test('shifted pi shawl: doubling on round round(2^k · 0.75), staying closer to the ideal than the plain pi', () => {
-    assert.deepEqual([...piRounds(true, 40)], [2, 3, 6, 12, 24]);
-    const pure = plan(emptyPattern(), { kind: 'pi', stitch: 'sc', sizeCm: 10 });
-    const shifted = plan(emptyPattern(), { kind: 'shifted-pi', stitch: 'sc', sizeCm: 10 });
-    assert.deepEqual(shifted.counts.slice(0, 6), [6, 12, 24, 24, 24, 48]);
-    assert.ok(shifted.ratio.min > pure.ratio.min + 0.1);
-    assert.ok(shifted.ratio.min > 0.65 && shifted.ratio.max < 1.35, JSON.stringify(shifted.ratio));
   });
 
   test('the last round adjusts to the edging, by at most a doubling', () => {
@@ -329,33 +320,17 @@ describe('semicircle, circle and pi shawl (05 §1.2, §1.3)', () => {
   });
 });
 
-describe('rectangular stole and finished size (05 §1.7, §1.8)', () => {
-  test('a stole is a flat rectangle: the same stitch count every row, with the width rounded to the edging repeat', () => {
-    const { pattern, plan: stole } = shawl(inNotation(withGauge('dc', 16, 8), 'hu'), {
-      kind: 'stole',
-      stitch: 'dc',
-      sizeCm: 37.5,
-      lengthCm: 50,
-      edging: { width: 6, edge: 2 },
-    });
-    assert.equal(stole.counts.length, 40);
-    assert.ok(stole.counts.every((count) => count === stole.counts[0]));
-    assert.ok(stole.edging.repeats > 0);
-    assert.deepEqual(pattern.conventions.repeat, { repeatWidth: 6, edgeStitches: 2, turningChainIncluded: false });
-    assert.equal(pattern.pieces[0].name, 'Téglalap stóla');
-    assert.deepEqual(findings(pattern), []);
-  });
-
+describe('finished size (05 §1.8)', () => {
   test('from an unblocked profile the blocked size is larger by the stretch, and from a blocked profile the unblocked size is smaller', () => {
-    const unblocked = shawlSizes(
-      plan(withGauge('dc', 16, 8), { kind: 'stole', stitch: 'dc', sizeCm: 40, lengthCm: 100 }),
-      { widthPct: 10, heightPct: 5 },
-    );
+    const unblocked = shawlSizes(plan(withGauge('dc', 16, 8), { kind: 'crescent', stitch: 'dc', sizeCm: 40 }), {
+      widthPct: 10,
+      heightPct: 5,
+    });
     assert.equal(unblocked.measured, 'unblocked');
     near(unblocked.blocked.widthCm, unblocked.unblocked.widthCm * 1.1, 1e-9, 'width');
     near(unblocked.blocked.depthCm, unblocked.unblocked.depthCm * 1.05, 1e-9, 'length');
     const blocked = shawlSizes(
-      plan(withGauge('dc', 16, 8, { blocked: true }), { kind: 'stole', stitch: 'dc', sizeCm: 40, lengthCm: 100 }),
+      plan(withGauge('dc', 16, 8, { blocked: true }), { kind: 'crescent', stitch: 'dc', sizeCm: 40 }),
       { widthPct: 10, heightPct: 5 },
     );
     assert.equal(blocked.measured, 'blocked');
@@ -382,7 +357,6 @@ describe('validating the options', () => {
       code: 'shawl-size-range',
       data: { max: MAX_SHAWL_CM },
     });
-    assert.equal(shawlProblem(options({ kind: 'stole', lengthCm: 0 })).code, 'shawl-length-range');
     assert.equal(shawlProblem(options({ rate: 'custom', customRate: 0 })).code, 'shawl-rate-range');
     assert.equal(shawlProblem(options({ edging: { width: 0, edge: 1 } })).code, 'shawl-edging-width-range');
     assert.equal(

@@ -61,11 +61,11 @@ describe('choices', () => {
   test('shapes carry labels in both interface languages, with height or angle and a rounding choice', () => {
     assert.deepEqual(
       inLanguage('en', () => SHAPE_CHOICES.map((choice) => choice.label)),
-      ['Rectangle', 'Right triangle', 'Isosceles triangle', 'Trapezoid', 'Rhombus'],
+      ['Rectangle', 'Trapezoid', 'Rhombus'],
     );
     assert.deepEqual(
       inLanguage('hu', () => SHAPE_CHOICES.map((choice) => choice.label)),
-      ['Téglalap', 'Derékszögű háromszög', 'Egyenlő szárú háromszög', 'Trapéz', 'Rombusz'],
+      ['Téglalap', 'Trapéz', 'Rombusz'],
     );
     assert.deepEqual(
       MEASURE_CHOICES.map((choice) => choice.value),
@@ -117,8 +117,8 @@ describe('fields per shape', () => {
   test('anything but a rectangle drops the pattern repeat, and the width label follows the shape', () => {
     const chosen = options({ repeat: { width: 6, edge: 2 } });
     assert.equal(normalizeShape(chosen), chosen);
-    const triangle = normalizeShape({ ...chosen, shape: 'isosceles-triangle' });
-    assert.equal(triangle.repeat, null);
+    const diamond = normalizeShape({ ...chosen, shape: 'diamond' });
+    assert.equal(diamond.repeat, null);
     assert.deepEqual(['rectangle', 'trapezoid', 'diamond'].map(widthLabel), [
       'Width, cm',
       'Bottom edge, cm',
@@ -144,22 +144,6 @@ describe('the plan printout', () => {
     const view = shapeView(plan, options(), true);
     assert.equal(view.size, `Finished size: ${formatNumber(20, 1)} × ${formatNumber(30, 1)} cm, 33 rows.`);
     assert.equal(view.source, 'From the gauge measured in rows gauge of half double crochet.');
-  });
-
-  test('isosceles triangle (03 §3.2 D): bottom and top row, the edge angle and the apex angle, evenly spread shaping', () => {
-    const patch = { shape: 'isosceles-triangle', stitch: 'dc', widthCm: 20, heightCm: 15 };
-    const view = shapeView(planOf(withRowGauge('dc', 16, 8), patch), options(patch), true);
-    assert.equal(
-      view.details[0],
-      `The bottom row is 32 stitches (${formatNumber(20, 1)} cm), the top 2 stitches (${formatNumber(1.25, 1)} cm).`,
-    );
-    assert.ok(
-      view.details.includes('The edge is about 32° from the vertical, the apex angle about 64°.'),
-      view.details.join('\n'),
-    );
-    assert.ok(
-      view.details.includes('Increases and decreases spread evenly, at most 2 into one stitch per edge and row.'),
-    );
   });
 
   test('a steep diamond: the rows with a chain extension and the rows with stitches left unworked', () => {
@@ -263,15 +247,5 @@ describe('preview', () => {
     assert.deepEqual([outline.width, outline.height], [20, 30]);
     const xs = new Set(outline.points.split(' ').map((point) => point.split(',')[0]));
     assert.deepEqual([...xs].sort(), ['0', '20']);
-  });
-
-  test('right triangle: the right edge is straight and the left one is stepped', () => {
-    const outline = shapeOutline(
-      planOf(withRowGauge('sc', 16, 18), { shape: 'right-triangle', stitch: 'sc', widthCm: 15, heightCm: 20 }),
-    );
-    const points = outline.points.split(' ').map((point) => point.split(',').map(Number));
-    assert.equal(Math.max(...points.map(([x]) => x)), outline.width);
-    assert.ok(new Set(points.map(([x]) => x)).size > 10);
-    assert.equal(points.filter(([x]) => x === outline.width).length, 72);
   });
 });

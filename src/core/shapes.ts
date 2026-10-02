@@ -38,22 +38,14 @@ import type {
 } from './types.ts';
 import { validatePattern } from './validate.ts';
 
-export type FlatShape = 'rectangle' | 'right-triangle' | 'isosceles-triangle' | 'trapezoid' | 'diamond';
+export type FlatShape = 'rectangle' | 'trapezoid' | 'diamond';
 export type ShapeMeasure = 'height' | 'angle';
 export type RepeatRounding = 'nearest' | 'up' | 'down';
 
-export const FLAT_SHAPES: readonly FlatShape[] = [
-  'rectangle',
-  'right-triangle',
-  'isosceles-triangle',
-  'trapezoid',
-  'diamond',
-];
+export const FLAT_SHAPES: readonly FlatShape[] = ['rectangle', 'trapezoid', 'diamond'];
 
 const SHAPE_NAMES_EN: Readonly<Record<FlatShape, string>> = {
   rectangle: 'Rectangle',
-  'right-triangle': 'Right triangle',
-  'isosceles-triangle': 'Isosceles triangle',
   trapezoid: 'Trapezoid',
   diamond: 'Diamond',
 };
@@ -62,8 +54,6 @@ const SHAPE_NAMES_EN: Readonly<Record<FlatShape, string>> = {
 export const SHAPE_NAMES: Readonly<Record<Locale, Readonly<Record<FlatShape, string>>>> = {
   hu: {
     rectangle: 'Téglalap',
-    'right-triangle': 'Derékszögű háromszög',
-    'isosceles-triangle': 'Egyenlő szárú háromszög',
     trapezoid: 'Trapéz',
     diamond: 'Rombusz',
   },
@@ -239,26 +229,6 @@ type Edge = 'right' | 'left';
 /** KB: 01 §8.4 */
 const startEdge = (row: number): Edge => (row % 2 === 1 ? 'right' : 'left');
 
-// KB: core-geometry §30
-function edgeChanges(offsets: readonly number[], edge: Edge): number[] | null {
-  const rows = offsets.length;
-  const delta = offsets.map((value, k) => (k === 0 ? 0 : value - offsets[k - 1]!));
-  const role = (k: number) => (startEdge(k + 1) === edge ? 'start' : 'end');
-  const tooMany = (k: number) =>
-    (delta[k]! > MAX_EDGE_CHANGE && role(k) === 'end') || (delta[k]! < -MAX_EDGE_CHANGE && role(k) === 'start');
-  for (let guard = 0; guard <= 4 * rows; guard += 1) {
-    const k = delta.findIndex((_, i) => i > 0 && tooMany(i));
-    if (k < 0) return delta;
-    const sign = Math.sign(delta[k]!);
-    const excess = delta[k]! - sign * MAX_EDGE_CHANGE;
-    delta[k] = sign * MAX_EDGE_CHANGE;
-    const to = (sign > 0 ? [k + 1, k - 1] : [k - 1, k + 1]).find((i) => i >= 1 && i < rows);
-    if (to === undefined) return null;
-    delta[to] += excess;
-  }
-  return null;
-}
-
 // KB: 03 §10 F28, 05 §4.2, core-geometry §30
 function symmetricShaping(offsets: readonly number[]): RowShaping[] {
   const shaping: RowShaping[] = [{ start: 0, end: 0 }];
@@ -346,14 +316,6 @@ export function planShape(pattern: Pattern, options: ShapeOptions): ShapePlanRes
     case 'rectangle':
       rows = rowsFor(options.heightCm);
       break;
-    case 'right-triangle': {
-      const d = minCount - base;
-      rows = rowsFor(byAngle ? heightFromRun(-d * gauge.stitchCm) : options.heightCm);
-      edge = (k) => line(d, rows - 1, k);
-      minRows = 2;
-      break;
-    }
-    case 'isosceles-triangle':
     case 'trapezoid': {
       let d = (smallest(base) - base) / 2;
       if (options.shape === 'trapezoid') {
@@ -380,15 +342,7 @@ export function planShape(pattern: Pattern, options: ShapeOptions): ShapePlanRes
   if (rows > MAX_SHAPE_ROWS) return fail(text('shape-max-rows', { max: MAX_SHAPE_ROWS }));
 
   const offsets = Array.from({ length: rows }, (_, k) => edge(k));
-  let shaping: RowShaping[];
-  if (options.shape === 'right-triangle') {
-    // The slanted edge is the left one: at the start of even rows, at the end of odd ones.
-    const changes = edgeChanges(offsets, 'left');
-    if (!changes) return fail(text('shape-too-steep'));
-    shaping = changes.map((change, k) =>
-      startEdge(k + 1) === 'left' ? { start: change, end: 0 } : { start: 0, end: change },
-    );
-  } else shaping = symmetricShaping(offsets);
+  const shaping: RowShaping[] = symmetricShaping(offsets);
 
   const counts: number[] = [];
   shaping.forEach((row, k) => counts.push(k === 0 ? first : counts[k - 1]! + row.start + row.end));
@@ -401,7 +355,7 @@ export function planShape(pattern: Pattern, options: ShapeOptions): ShapePlanRes
   let angleDeg: number | null = null;
   if (options.shape !== 'rectangle') {
     // Run and rise of the slanted edge; for a diamond, only the widening half.
-    const edges = options.shape === 'right-triangle' ? 1 : 2;
+    const edges = 2;
     const riseRows = options.shape === 'diamond' ? counts.indexOf(widest) + 1 : rows;
     const run =
       (Math.abs(options.shape === 'diamond' ? widest - counts[0]! : counts[0]! - counts[rows - 1]!) / edges) *

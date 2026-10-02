@@ -1726,10 +1726,11 @@ it. Where there is no room beside the type menu — a phone — it opens below t
 card instead. Leaving the card closes it after 300 ms, so the pointer can cross
 the gap to it.
 
-The entries are the owner's four, in the owner's words (`owner-decisions.md` §15).
-The second line of each names the generator it opens, from the existing
-dictionary — „Forma: Téglalap”, „Forma: Egyenlő szárú háromszög”, „Kendő:
-Félkör”, „Kör és motívum” — so nothing is invented. A choice opens the sheet on
+The entries were the owner's four, in the owner's words (`owner-decisions.md` §15).
+PQW-1128 dropped the flat triangles from the Shape generator, so „Triangle” went
+with them and three are left. The second line of each names the generator it
+opens, from the existing dictionary — „Forma: Téglalap”, „Kendő: Félkör”,
+„Kör és motívum” — so nothing is invented. A choice opens the sheet on
 that section, sets its shape select and fires `change` so the panel redraws, and
 focuses the select.
 
@@ -2014,3 +2015,43 @@ counting rule are still covered end to end. Two tests were lost with their
 subject: writing a pattern title by hand (no field any more) and changing the
 preset from the free-form type (no chooser any more). `core-pattern-title` and
 `tradition.ts` keep both rules under test in the core.
+
+## §78 The generators offer only the shapes the owner named
+
+PQW-1128, the owner's decision of 2026-10-02. The designer offered 21 generator
+kinds; the owner named the ones worth keeping and asked for the rest to go, code
+included:
+
+| Generator | What is left |
+|---|---|
+| Forma (`FLAT_SHAPES`) | rectangle, trapezoid, rhombus |
+| Kendő (`SHAWL_KINDS`) | triangle, asymmetric triangle, crescent, semicircle, circle, pi |
+| Kör és motívum (`MOTIF_SHAPES`) | granny square |
+
+Gone: the right and the isosceles triangle, the stole, the shifted pi, and the
+circle, square, hexagon and octagon motifs. The triangles were **not** moved to the
+Kendő — the shawl has triangles of its own, and the owner chose not to carry two
+kinds of triangle.
+
+**`round-generator.ts` and `ribbing.ts` stay, and so do their type unions.** Only
+`MOTIF_SHAPES` — the list the interface offers — shrank. The shawl generator is
+built on `circlePlan`, the Shape and the grid generators import `MOTIF_NAMES`, and
+`allLocaleNames(MOTIF_NAMES)` is how a pattern saved before this prune is still
+recognised as having a *generated* title rather than one the user typed. Shrinking
+the union would have taken the shawl with it.
+
+**What the removal took with it:**
+
+- The right triangle was the only shape with an asymmetric edge, so `edgeChanges`
+  and the one-edge branch of `generateShape` are gone. `shape-too-steep` was the
+  code they returned; the guard in `generateShape` stays, but no size the user can
+  ask for reaches it any more.
+- The isosceles triangle owned the apex angle, so `shapeAngleNote` and
+  `panels.shape.apexAngle` are gone. The angle measure itself stays — the trapezoid
+  and the rhombus still use it.
+- The stole was the only shawl worked as a flat rectangle, so `stolePlan`,
+  `stoleShape` and the `length` field state are gone, and `piRounds` lost its
+  `shifted` parameter with the shifted pi.
+
+Old saves made with any of these no longer load. The owner accepted that: the
+designer is pre-release and says so in its own banner.

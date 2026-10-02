@@ -60,16 +60,7 @@ describe('choices and fields', () => {
   test('shawl kinds appear with their names in knowledge-base order, with a theoretical or a custom rate', () => {
     assert.deepEqual(
       KIND_CHOICES.map((choice) => choice.label),
-      [
-        'Top-down triangle',
-        'Asymmetric triangle',
-        'Crescent',
-        'Semicircle',
-        'Circle',
-        'Pi shawl',
-        'Shifted Pi shawl',
-        'Rectangular stole',
-      ],
+      ['Top-down triangle', 'Asymmetric triangle', 'Crescent', 'Semicircle', 'Circle', 'Pi shawl'],
     );
     assert.deepEqual(
       RATE_CHOICES.map((choice) => choice.value),
@@ -77,14 +68,8 @@ describe('choices and fields', () => {
     );
   });
 
-  test('fields per shawl: wings only on a triangle, length only on a stole, the custom rate only once it is selected', () => {
+  test('fields per shawl: wings only on a triangle, the custom rate only once it is selected', () => {
     assert.deepEqual(shawlFieldState(options()), { length: false, rate: true, custom: false, wings: true });
-    assert.deepEqual(shawlFieldState(options({ kind: 'stole', rate: 'custom' })), {
-      length: true,
-      rate: false,
-      custom: false,
-      wings: false,
-    });
     assert.deepEqual(shawlFieldState(options({ kind: 'semicircle', rate: 'custom' })), {
       length: false,
       rate: true,
@@ -95,12 +80,11 @@ describe('choices and fields', () => {
   });
 
   test('labels per shawl: depth, edge, radius; what the rate applies to; edging counted per half on a symmetric shawl', () => {
-    assert.deepEqual(['triangle', 'asymmetric-triangle', 'semicircle', 'pi', 'stole'].map(sizeLabel), [
+    assert.deepEqual(['triangle', 'asymmetric-triangle', 'semicircle', 'pi'].map(sizeLabel), [
       'Depth at the spine, cm',
       'The straight edge, cm',
       'Radius, cm',
       'Radius, cm',
-      'Width, cm',
     ]);
     assert.equal(rateLabel('triangle'), 'Increases per row, across the whole row');
     assert.equal(rateLabel('pi'), 'Stitches in round 1');
@@ -196,7 +180,7 @@ describe('turning a core reason into a sentence (PQW-904)', () => {
     ]);
   });
 
-  test('the Hungarian article and ordinal are put into the sentence by the UI, and the stole reuses the shape codes too', () => {
+  test('the Hungarian article and ordinal are put into the sentence by the UI, and the shape codes are reused too', () => {
     inLanguage('hu', () => {
       assert.equal(
         shawlReason({ code: 'shawl-too-many-into-one', data: { row: 3, count: 14 } }),

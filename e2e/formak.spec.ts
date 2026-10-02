@@ -1,8 +1,8 @@
 /*
  * Flat shapes (PQW-862): from the “Shape” section a 20 × 30 cm half double
  * crochet rectangle without a profile, with an estimate marker, undone in one
- * step; an isosceles triangle from the angle of the edge. Each is error-free,
- * and the written pattern is produced.
+ * step; a trapezoid from the angle of the edge. Each is error-free, and the
+ * written pattern is produced.
  */
 
 import { expect, type Page, test } from '@playwright/test';
@@ -60,11 +60,11 @@ test('20 × 30 cm half double crochet rectangle without a profile: estimated act
   await expect(page.locator('#written-text')).not.toContainText('hdc');
 });
 
-test('isosceles triangle from the angle of the edge: error-free, the written pattern is produced', async ({ page }) => {
+test('trapezoid from the angle of the edge: error-free, the written pattern is produced', async ({ page }) => {
   await open(page);
   const section = await openShapes(page);
 
-  await page.locator('#shape-kind').selectOption({ label: 'Isosceles triangle' });
+  await page.locator('#shape-kind').selectOption({ label: 'Trapezoid' });
   await expect(page.locator('#shape-width-label')).toHaveText('Bottom edge, cm');
   await page.locator('#shape-measure').selectOption({ label: 'Angle of the edge' });
   await expect(page.locator('#shape-height')).toBeHidden();
@@ -72,7 +72,7 @@ test('isosceles triangle from the angle of the edge: error-free, the written pat
   await page.locator('#shape-angle').fill('40');
   await expect(page.locator('#shape-details')).toContainText('The edge is about');
   await section.getByRole('button', { name: 'Create pattern' }).click();
-  await expect(page.locator('#status')).toContainText('Isosceles triangle:');
+  await expect(page.locator('#status')).toContainText('Trapezoid:');
   await expect(page.locator('#error-count')).toHaveText('No errors');
   // The base stitch is the half double crochet: the edges decrease by crocheting half double crochets together.
   expect(await writtenText(page)).toMatch(
