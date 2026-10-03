@@ -43,6 +43,9 @@ export const MARKUP_TEXTS = {
     arrangeGapLabel: 'Távolság',
     arrangeRadiusLabel: 'Sugár',
     arrangeAngleLabel: 'Szög (°)',
+    arrangeFacingLabel: 'A pont felé',
+    arrangeFacingFeet: 'Talp',
+    arrangeFacingTops: 'Csúcs',
   },
   en: {
     docTitle: 'Free Crochet Pattern Designer & Chart Maker — Dragonette',
@@ -78,5 +81,8 @@ export const MARKUP_TEXTS = {
     arrangeGapLabel: 'Spacing',
     arrangeRadiusLabel: 'Radius',
     arrangeAngleLabel: 'Angle (°)',
+    arrangeFacingLabel: 'Facing the point',
+    arrangeFacingFeet: 'Feet',
+    arrangeFacingTops: 'Tops',
   },
 } satisfies Dictionary<Record<string, string>>;

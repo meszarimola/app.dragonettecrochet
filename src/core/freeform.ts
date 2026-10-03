@@ -290,11 +290,15 @@ export interface Extent {
 export interface ArrangeOptions {
   /** Row: the space between two neighbouring stitches. */
   readonly gap: number;
-  /** Around: from the shared point to the feet. */
+  /** Around: from the shared point to the end of each stitch that faces it. */
   readonly radius: number;
   /** Around: the spread from the first stitch to the last, in radians. */
   readonly angle: number;
+  /** Around: which end of the stitches faces the shared point. */
+  readonly facing: Facing;
 }
+
+export type Facing = 'feet' | 'tops';
 
 interface Sized {
   readonly stitch: PlacedStitch;
@@ -304,10 +308,10 @@ interface Sized {
 /**
  * Lays the selected stitches out around the middle of where they stand, keeping
  * their stitch and size and taking them left to right. A row stands them upright,
- * foot to foot, `gap` apart. Around points their feet at one shared point and
- * keeps each `radius` away from it, so the feet do not cover each other, spread
- * over `angle` — but never wider than evenly all the way round, so the first and
- * the last never meet. KB: interface.md §83
+ * foot to foot, `gap` apart. Around points their feet — or their tops — at one
+ * shared point and keeps that end `radius` away from it, so the ends do not cover
+ * each other, spread over `angle` — but never wider than evenly all the way
+ * round, so the first and the last never meet. KB: interface.md §83
  */
 export function arrangeStitches(
   chart: FreeformChart,
@@ -339,19 +343,23 @@ function row(items: readonly Sized[], middle: Point, gap: number): PlacedStitch[
   });
 }
 
-/** The stitches' centres are centred on `middle`, whatever the spread. */
-function around(items: readonly Sized[], middle: Point, { radius, angle }: ArrangeOptions): PlacedStitch[] {
+/**
+ * The stitches' centres are centred on `middle`, whatever the spread. With the
+ * tops facing the point the layout is the feet one mirrored top to bottom.
+ */
+function around(items: readonly Sized[], middle: Point, { radius, angle, facing }: ArrangeOptions): PlacedStitch[] {
   const n = items.length;
   const step = n > 1 ? Math.min(angle / (n - 1), (Math.PI * 2) / n) : 0;
   const first = -Math.PI / 2 - (step * (n - 1)) / 2;
+  const mirror = facing === 'tops' ? -1 : 1;
   const stood = items.map(({ stitch, size }, i) => {
     const direction = first + step * i;
     const reach = radius + size.halfHeight;
     return {
       ...stitch,
       x: Math.cos(direction) * reach,
-      y: Math.sin(direction) * reach,
-      rotation: direction + Math.PI / 2,
+      y: mirror * Math.sin(direction) * reach,
+      rotation: mirror * (direction + Math.PI / 2),
     };
   });
   const xs = stood.map(({ x }) => x);

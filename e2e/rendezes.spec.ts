@@ -234,3 +234,36 @@ test('after a click on an arrange button the chart shortcuts still work', async 
   await page.keyboard.press('Delete');
   await expect(board(page)).toHaveAttribute('data-stitches', '0');
 });
+
+test('Feet and Tops turn the stitches round, and a press on the side already chosen changes nothing', async ({
+  page,
+}) => {
+  await selectedChartWith(page, POINTS);
+  await page.getByRole('button', { name: 'Around' }).click();
+  const group = page.getByRole('group', { name: 'Facing the point' });
+  const feetButton = group.getByRole('button', { name: 'Feet' });
+  const topsButton = group.getByRole('button', { name: 'Tops' });
+  await expect(feetButton, 'the feet face the point by default').toHaveAttribute('aria-pressed', 'true');
+  await expect(topsButton).toHaveAttribute('aria-pressed', 'false');
+  const feet = await stitches(page);
+  const leftmost = (placed: Placed[]) => placed.reduce((a, b) => (a.x < b.x ? a : b));
+  expect(leftmost(feet).rotation, 'feet in: the left one leans left').toBeLessThan(0);
+
+  await feetButton.click();
+  expect(await stitches(page), 'Feet again: nothing turns').toEqual(feet);
+  await expect(feetButton).toHaveAttribute('aria-pressed', 'true');
+
+  await topsButton.click();
+  await expect(topsButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(feetButton).toHaveAttribute('aria-pressed', 'false');
+  const tops = await stitches(page);
+  expect(leftmost(tops).rotation, 'tops in: the left one leans right').toBeGreaterThan(0);
+  expect(await spread(page), 'the angle is kept').toBeCloseTo(Math.PI / 2, 6);
+
+  await topsButton.click();
+  expect(await stitches(page), 'Tops again: nothing turns').toEqual(tops);
+
+  await feetButton.click();
+  await expect(feetButton).toHaveAttribute('aria-pressed', 'true');
+  expect(await stitches(page), 'back as it was').toEqual(feet);
+});

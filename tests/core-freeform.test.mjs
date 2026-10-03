@@ -2,7 +2,8 @@
  * The free-form chart (PQW-1141, PQW-1143, PQW-1144): a new chart is empty, every
  * placed stitch keeps its stitch, its position, its turn, its size and an id of
  * its own, and a selection is found by a point or an area, framed, moved, turned
- * and resized; PQW-1146 and PQW-1147 arrange a selection in a row or around one point.
+ * and resized; PQW-1146, PQW-1147 and PQW-1152 arrange a selection in a row or
+ * around one point, feet or tops towards it.
  */
 
 import { strict as assert } from 'node:assert';
@@ -261,7 +262,7 @@ test('repeated pastes walk on from the last copy, and turn back at the edge', ()
 /** Every stitch 10 wide and 20 tall, so its foot is 10 under its centre. */
 const EXTENT = () => ({ halfWidth: 5, halfHeight: 10 });
 const ALL = new Set([1, 2, 3]);
-const OPTIONS = { gap: 4, radius: 12, angle: Math.PI / 2 };
+const OPTIONS = { gap: 4, radius: 12, angle: Math.PI / 2, facing: 'feet' };
 
 /** Where the stitch's foot is, and which way its top points. */
 function footOf(placed) {
@@ -374,4 +375,70 @@ test('a chart moved and moved back is the same chart; a stitch moved, turned or 
   assert.equal(sameChart(chart, moveStitches(chart, ids, 1, 0)), false);
   assert.equal(sameChart(chart, rotateStitches(chart, ids, { x: 100, y: 100 }, 0.1)), false);
   assert.equal(sameChart(chart, placeStitch(chart, 'sc', 0, 0)), false);
+});
+
+/** Where the stitch's top is, and which way it points. */
+function topOf(placed) {
+  const up = { x: Math.sin(placed.rotation), y: -Math.cos(placed.rotation) };
+  return { x: placed.x + up.x * 10, y: placed.y + up.y * 10, up };
+}
+
+test('with the tops facing it, every top points at one shared point the radius away, and the feet spread', () => {
+  const tops = { ...OPTIONS, facing: 'tops' };
+  const arranged = arrangeStitches(chartOf([0, 0], [50, 0], [100, 0]), ALL, 'around', EXTENT, tops);
+  const [left, middle, right] = arranged.stitches;
+  const point = (placed) => {
+    const top = topOf(placed);
+    return { x: top.x + top.up.x * 12, y: top.y + top.up.y * 12 };
+  };
+  for (const placed of arranged.stitches) {
+    close(point(placed).x, point(middle).x, 'one shared point');
+    close(point(placed).y, point(middle).y, 'one shared point');
+  }
+  close(middle.rotation, 0, 'the middle one stands upright, under the point');
+  assert.ok(point(middle).y < middle.y, 'the point is above the stitches');
+  close(left.rotation, Math.PI / 4, 'the first leans right, its top in towards the point');
+  close(right.rotation, -Math.PI / 4, 'the last leans left');
+  assert.ok(footOf(left).x < footOf(middle).x && footOf(middle).x < footOf(right).x, 'the feet spread left to right');
+});
+
+test('with the tops facing it, mixed heights still meet: each top, not each foot, is the radius away', () => {
+  const extent = (placed) => ({ halfWidth: 5, halfHeight: placed.id === 2 ? 30 : 10 });
+  const arranged = arrangeStitches(chartOf([0, 0], [50, 0], [100, 0]), ALL, 'around', extent, {
+    ...OPTIONS,
+    facing: 'tops',
+  });
+  const tips = arranged.stitches.map((placed) => {
+    const h = extent(placed).halfHeight;
+    const up = { x: Math.sin(placed.rotation), y: -Math.cos(placed.rotation) };
+    return { x: placed.x + up.x * (h + 12), y: placed.y + up.y * (h + 12) };
+  });
+  for (const tip of tips) {
+    close(tip.x, tips[0].x, 'one shared point');
+    close(tip.y, tips[0].y, 'one shared point');
+  }
+});
+
+test('the facing changes nothing for a row', () => {
+  const chart = chartOf([0, 0], [50, 0], [100, 0]);
+  assert.deepEqual(
+    arrangeStitches(chart, ALL, 'row', EXTENT, { ...OPTIONS, facing: 'tops' }),
+    arrangeStitches(chart, ALL, 'row', EXTENT, OPTIONS),
+  );
+});
+
+test('with the tops facing it, a full circle is the feet one mirrored: evenly round, the first and the last apart', () => {
+  const four = new Set([1, 2, 3, 4]);
+  const chart = chartOf([0, 0], [50, 0], [100, 0], [150, 0]);
+  const whole = { ...OPTIONS, angle: (359 * Math.PI) / 180 };
+  const feet = arrangeStitches(chart, four, 'around', EXTENT, whole).stitches;
+  const tops = arrangeStitches(chart, four, 'around', EXTENT, { ...whole, facing: 'tops' }).stitches;
+  const middleY = (stitches) => (Math.min(...stitches.map(({ y }) => y)) + Math.max(...stitches.map(({ y }) => y))) / 2;
+  tops.forEach((placed, i) => {
+    close(placed.x, feet[i].x, 'the same across');
+    close(placed.y - middleY(tops), -(feet[i].y - middleY(feet)), 'mirrored up and down');
+    close(placed.rotation, -feet[i].rotation, 'turned the other way');
+  });
+  const turns = tops.map(({ rotation }) => rotation);
+  for (let i = 1; i < turns.length; i += 1) close(turns[i - 1] - turns[i], Math.PI / 2, 'a quarter turn apart');
 });
