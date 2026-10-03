@@ -157,13 +157,17 @@ test('the tiles follow the chosen part and count, and say so on the structure li
   );
 });
 
-test('the menu offers sc, hdc, dc, tr and dtr by the notation, and the whole name where there is no abbreviation', () => {
+test('the menu offers sc to dtr by their whole names in the notation, never an abbreviation', () => {
   assert.deepEqual(
     SHAPING_PARTS.map((part) => partLabel(part, 'en-US')),
-    ['sc', 'hdc', 'dc', 'tr', 'dtr'],
+    ['Single crochet', 'Half double crochet', 'Double crochet', 'Treble', 'Double treble'],
+  );
+  assert.deepEqual(
+    SHAPING_PARTS.map((part) => partLabel(part, 'en-GB')),
+    ['Double crochet', 'Half treble', 'Treble', 'Double treble', 'Triple treble'],
   );
   assert.deepEqual(
     SHAPING_PARTS.map((part) => partLabel(part, 'hu')),
-    ['rp', 'fp', 'erp', 'krp', 'háromráhajtásos pálca'],
+    ['Rövidpálca', 'Félpálca', 'Egyráhajtásos pálca', 'Kétráhajtásos pálca', 'Háromráhajtásos pálca'],
   );
 });

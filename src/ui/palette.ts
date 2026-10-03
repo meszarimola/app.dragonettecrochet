@@ -74,10 +74,9 @@ export function buildPalette(terms: Locale = 'hu', shaping: ShapingChoices = DEF
   }));
 }
 
-/** What a part is called in the menu: its abbreviation, or its whole name where it has none. KB: 01 §8.5 */
+/** What a part is called in the menu: its whole name. KB: interface.md §86 */
 export function partLabel(part: StitchDef, terms: Locale): string {
-  const { name, abbr } = part.terms[terms];
-  return abbr ?? name;
+  return capitalize(part.terms[terms].name, terms);
 }
 
 function capitalize(text: string, terms: Locale): string {
