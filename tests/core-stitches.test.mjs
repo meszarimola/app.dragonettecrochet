@@ -8,7 +8,19 @@
 
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
-import { cluster, decrease, increase, STITCH_SECTIONS, STITCHES, shell, stitchById } from '../src/core/stitches.ts';
+import {
+  cluster,
+  decrease,
+  increase,
+  MAX_SHAPING,
+  MIN_SHAPING,
+  SHAPING_PARTS,
+  STITCH_SECTIONS,
+  STITCHES,
+  shapingStitch,
+  shell,
+  stitchById,
+} from '../src/core/stitches.ts';
 import { stitchLabel, stitchName, stitchStructure } from '../src/core/stitchText.ts';
 
 const LOCALES = ['hu', 'en-US', 'en-GB'];
@@ -345,4 +357,58 @@ test('a builder function throws on an invalid count or part stitch', () => {
   assert.throws(() => decrease(sc, 2.5), RangeError);
   assert.throws(() => shell(stitchById('ch'), 3), TypeError);
   assert.throws(() => cluster(stitchById('rev-sc'), 3, 'same'), TypeError);
+});
+
+/* ---- Increases and decreases built on demand (PQW-1155) ---- */
+
+test('an increase or a decrease is taken within 2–5 parts', () => {
+  const dc = stitchById('dc');
+  assert.deepEqual([MIN_SHAPING, MAX_SHAPING], [2, 5]);
+  assert.equal(shapingStitch('decrease', dc, 3).id, 'dc3tog');
+  assert.equal(shapingStitch('increase', dc, 4).id, 'inc-4dc');
+  for (const [n, id] of [
+    [1, 'inc-2dc'],
+    [0, 'inc-2dc'],
+    [Number.NaN, 'inc-2dc'],
+    [6, 'inc-5dc'],
+    [10, 'inc-5dc'],
+  ]) {
+    assert.equal(shapingStitch('increase', dc, n).id, id, String(n));
+  }
+});
+
+test('the menu parts are the five stitches from sc to dtr', () => {
+  assert.deepEqual(
+    SHAPING_PARTS.map(({ id }) => id),
+    ['sc', 'hdc', 'dc', 'tr', 'dtr'],
+  );
+});
+
+test('an increase or a decrease the library does not list is built from its id', () => {
+  for (const shaping of ['increase', 'decrease']) {
+    for (const part of SHAPING_PARTS) {
+      for (let n = MIN_SHAPING; n <= MAX_SHAPING; n += 1) {
+        const built = shapingStitch(shaping, part, n);
+        assert.deepEqual(stitchById(built.id), built, built.id);
+      }
+    }
+  }
+  assert.equal(stitchById('dtr4tog').consumes, 4);
+  assert.deepEqual(stitchById('inc-3hdc').members, ['hdc', 'hdc', 'hdc']);
+});
+
+test('an id that is not an increase or a decrease of a menu part stays unknown', () => {
+  for (const id of [
+    'inc-1sc',
+    'inc-13sc',
+    'inc-02sc',
+    'sc1tog',
+    'sl-st2tog',
+    'ch3tog',
+    'inc-2rev-sc',
+    'xyz2tog',
+    'inc-2',
+  ]) {
+    assert.throws(() => stitchById(id), Error, id);
+  }
 });

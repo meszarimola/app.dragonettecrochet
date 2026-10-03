@@ -1,6 +1,15 @@
-// KB: interface.md §1, §2, §53
+// KB: interface.md §1, §2, §53, §86
 
-import { MAGIC_RING, STITCH_SECTIONS, type StitchSectionId } from '../core/stitches.ts';
+import {
+  INVISIBLE_DECREASE,
+  MAGIC_RING,
+  MIN_SHAPING,
+  type Shaping,
+  SINGLE_CROCHET,
+  STITCH_SECTIONS,
+  type StitchSectionId,
+  shapingStitch,
+} from '../core/stitches.ts';
 import { stitchName, stitchStructure } from '../core/stitchText.ts';
 import type { Locale, StitchDef } from '../core/types.ts';
 import { texts } from './i18n.ts';
@@ -13,6 +22,7 @@ export interface PaletteItem {
   readonly key: string | null;
   readonly name: string;
   readonly structure: string | null;
+  readonly shaping: Shaping | null;
 }
 
 export interface PaletteSection {
@@ -21,23 +31,53 @@ export interface PaletteSection {
   readonly items: readonly PaletteItem[];
 }
 
-export function buildPalette(terms: Locale = 'hu'): PaletteSection[] {
+/** Each tile has its own part; the one count serves both. KB: interface.md §86 */
+export interface ShapingChoices {
+  readonly parts: Readonly<Record<Shaping, StitchDef>>;
+  readonly n: number;
+}
+
+export const DEFAULT_SHAPING: ShapingChoices = {
+  parts: { decrease: SINGLE_CROCHET, increase: SINGLE_CROCHET },
+  n: MIN_SHAPING,
+};
+
+/** Decrease first, as the owner listed them. KB: interface.md §86 */
+export const SHAPINGS: readonly Shaping[] = ['decrease', 'increase'];
+
+export function buildPalette(terms: Locale = 'hu', shaping: ShapingChoices = DEFAULT_SHAPING): PaletteSection[] {
   const titles = texts().sections.palette.titles;
   let index = 0;
+  const item = (def: StitchDef, kind: Shaping | null = null): PaletteItem => ({
+    def,
+    key: KEYS[index++] ?? null,
+    name: capitalize(stitchName(def, terms), terms),
+    structure: stitchStructure(def, terms),
+    shaping: kind,
+  });
   // KB: interface.md §74 — the magic ring is shown among the compound stitches,
   // and the chain space not at all.
-  const shown = (section: (typeof STITCH_SECTIONS)[number]): readonly StitchDef[] =>
-    section.id === 'compound' ? [...section.stitches, MAGIC_RING] : section.stitches;
+  const shown = (section: (typeof STITCH_SECTIONS)[number]): PaletteItem[] => {
+    if (section.id === 'compound') return [...section.stitches, MAGIC_RING].map((def) => item(def));
+    if (section.id === 'increase-decrease') {
+      return [
+        ...SHAPINGS.map((kind) => item(shapingStitch(kind, shaping.parts[kind], shaping.n), kind)),
+        item(INVISIBLE_DECREASE),
+      ];
+    }
+    return section.stitches.map((def) => item(def));
+  };
   return STITCH_SECTIONS.filter((section) => section.offPalette !== true).map((section) => ({
     id: section.id,
     title: titles[section.id],
-    items: shown(section).map((def) => ({
-      def,
-      key: KEYS[index++] ?? null,
-      name: capitalize(stitchName(def, terms), terms),
-      structure: stitchStructure(def, terms),
-    })),
+    items: shown(section),
   }));
+}
+
+/** What a part is called in the menu: its abbreviation, or its whole name where it has none. KB: 01 §8.5 */
+export function partLabel(part: StitchDef, terms: Locale): string {
+  const { name, abbr } = part.terms[terms];
+  return abbr ?? name;
 }
 
 function capitalize(text: string, terms: Locale): string {

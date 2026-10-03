@@ -181,11 +181,18 @@
         <aside class="inspector" id="inspector" aria-label="Properties" data-i18n-label="inspectorLabel">
           <section class="arrange" id="place-options" aria-labelledby="place-title" hidden>
             <h2 class="panel__title" id="place-title" data-i18n="placeTitle">Placing</h2>
-            <div class="arrange__setting" role="group" aria-labelledby="place-count-label">
+            <div class="arrange__setting" id="place-count-setting" role="group" aria-labelledby="place-count-label">
               <span class="arrange__label" id="place-count-label" data-i18n="placeCountLabel">Count</span>
               <div class="arrange__pair">
                 <input class="arrange__range" id="place-count-range" type="range" step="1" value="1" aria-labelledby="place-count-label" />
-                <input class="arrange__input" id="place-count" type="text" inputmode="numeric" maxlength="2" autocomplete="off" value="1" aria-labelledby="place-count-label" />
+                <input class="arrange__input" id="place-count" type="text" inputmode="numeric" autocomplete="off" value="1" aria-labelledby="place-count-label" />
+              </div>
+            </div>
+            <div class="arrange__setting" id="place-parts-setting" role="group" aria-labelledby="place-parts-label" hidden>
+              <span class="arrange__label" id="place-parts-label" data-i18n="placePartsLabel">Number of stitches</span>
+              <div class="arrange__pair">
+                <input class="arrange__range" id="place-parts-range" type="range" step="1" value="2" aria-labelledby="place-parts-label" />
+                <input class="arrange__input" id="place-parts" type="text" inputmode="numeric" autocomplete="off" value="2" aria-labelledby="place-parts-label" />
               </div>
             </div>
           </section>
