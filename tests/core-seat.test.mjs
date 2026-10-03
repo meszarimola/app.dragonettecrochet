@@ -18,7 +18,7 @@ import {
   scaleStitches,
 } from '../src/core/freeform.ts';
 import { GRID_CELL, rectGrid } from '../src/core/grid.ts';
-import { cellSpan, placeInGrid, rowHeights, seat, spansFrom, workDirection } from '../src/core/seat.ts';
+import { cellSpan, placeInGrid, ROW_GAP, rowHeights, seat, spansFrom, workDirection } from '../src/core/seat.ts';
 
 /** Ink at scale 1, from the symbols' measured sizes: sc is 27 tall, dc 51, tr 63. */
 const SIZES = {
@@ -104,19 +104,28 @@ test('a seated stitch stands in the middle of its cells with its foot on the row
   assert.deepEqual(sc.cell, { row: 0, col: 2, span: 1 });
 });
 
-test('an off-centre symbol still has its foot on the line, and its row is as tall as its ink', () => {
+test('an off-centre symbol still has its foot on the line, and its row is its ink and the gap', () => {
   const chart = laid(gridChart(), 'rev-sc', 0, 0);
   assert.equal(chart.stitches[0].y, -SIZES['rev-sc'].drop, 'the foot, not the middle, on y = 0');
-  assert.deepEqual(rowHeights(chart, size)[0], GRID_CELL, '40 tall: exactly one cell');
+  assert.deepEqual(rowHeights(chart, size)[0], 40 + ROW_GAP);
 });
 
-test('a row is as tall as its tallest seated stitch, and never less than a cell', () => {
+test('a row is as tall as its tallest seated stitch and the gap, and never less than a cell', () => {
   let chart = laid(gridChart(), 'sc', 0, 0);
   chart = laid(chart, 'dc', 1, 0);
   chart = laid(chart, 'ch', 2, 0);
-  assert.deepEqual(rowHeights(chart, size), [GRID_CELL, 51, GRID_CELL, GRID_CELL]);
+  assert.deepEqual(rowHeights(chart, size), [GRID_CELL, 59, GRID_CELL, GRID_CELL], 'sc 27 + 8 stays a cell');
   chart = laid(chart, 'tr', 1, 4);
-  assert.deepEqual(rowHeights(chart, size), [GRID_CELL, 63, GRID_CELL, GRID_CELL], 'the tallest wins');
+  assert.deepEqual(rowHeights(chart, size), [GRID_CELL, 71, GRID_CELL, GRID_CELL], 'the tallest wins');
+});
+
+test('the stitches of two rows never touch: the gap lies between a top and the foot above it', () => {
+  let chart = laid(gridChart(), 'tr', 0, 2);
+  chart = laid(chart, 'tr', 1, 2);
+  const [below, above] = chart.stitches;
+  const top = below.y - (SIZES.tr.height - SIZES.tr.drop);
+  const foot = above.y + SIZES.tr.drop;
+  assert.equal(top - foot, ROW_GAP);
 });
 
 test('a taller row lifts the stitches of every row above it', () => {
@@ -124,7 +133,7 @@ test('a taller row lifts the stitches of every row above it', () => {
   const before = chart.stitches[0].y;
   chart = laid(chart, 'dc', 1, 0);
   const sc = chart.stitches.find(({ stitch }) => stitch === 'sc');
-  assert.equal(sc.y, before - (51 - GRID_CELL), 'row 3 moved up by what row 2 grew');
+  assert.equal(sc.y, before - (51 + ROW_GAP - GRID_CELL), 'row 3 moved up by what row 2 grew');
 });
 
 test('a symbol wider than its cells is shrunk to their width, and the row takes the shrunk height', () => {
