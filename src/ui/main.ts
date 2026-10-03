@@ -168,8 +168,17 @@ const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAcce
     board.show(chart, symbolOptionsFor(chartStyle));
   },
   settled: (moved) => {
-    // KB: interface.md §91 — on a grid, what a move carried drops into the nearest cells.
-    if (moved !== null && chart?.grid !== undefined) chart = dropInGrid(chart, moved, board.rowHeights());
+    // KB: interface.md §91
+    const before = history?.present.chart;
+    if (moved !== null && chart?.grid !== undefined && before !== undefined) {
+      const dropped = dropInGrid(chart, moved, before, board.naturalSize);
+      if (dropped !== chart) {
+        chart = dropped;
+        arranged = null;
+        showOptions();
+        board.show(chart, symbolOptionsFor(chartStyle));
+      }
+    }
     commit();
   },
   selectionChanged: (count) => {

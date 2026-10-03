@@ -3004,13 +3004,24 @@ decreases widen cells.
 
 **A dragged stitch drops into the nearest cells (PQW-1173).** While it is dragged
 it is free, its middle kept within the grid's rectangle (`moveBounds`), and the rows
-follow it live. Let go, it drops (`dropInGrid`): the row its middle is in, the
-columns its middle is nearest to, pushed back to fit the row (`nearestCells`); a
-point off the grid goes to the nearest row and column. A seated stitch in the cells
-it lands on gives way; several dragged together each find their own cells, keeping
-their places relative to each other, and of two landing on the same cells the later
-stays. The drag and the drop are one undo step. A stitch laid freely before 1.4.0
-is dropped into a cell the same way once it is dragged.
+follow it live. Let go, it drops (`dropInGrid`).
+
+- **The seated stitches move as one block.** The first of them says how far the
+  block went: where its cells' middle was, by the rows as they stood before the
+  drag, plus the drag, gives the nearest cells (`nearestCells`: the row the point
+  is in, the columns it is nearest to, a point off the grid going to the nearest
+  row and column). The whole block shifts by those rows and columns, kept within
+  the grid, so none of them lands on another. /code-review found the first reading
+  — every stitch rounded on its own — losing stitches: a block nudged against the
+  right edge folded onto the last column, a block over rows of different heights
+  merged two rows, and a tall stitch dragged sideways fell into the row above,
+  since its own row had shrunk while it was away.
+- **A stitch that was free** (laid before 1.4.0) drops into the cells nearest to
+  where it stands; of two such landing on the same cells, the later stays.
+- **A seated stitch in the cells they land on gives way.** The drag and the drop
+  are one undo step, and the board is shown the dropped chart even when seating
+  then moves nothing — a stitch dragged exactly onto a cell's middle.
+- A dragged arrangement (§83) ends when it drops.
 
 **What leaves a cell.** A stitch turned, resized, pasted or arranged by hand loses
 its cell (`unseated`) and stays where it was put — the owner kept all four as they

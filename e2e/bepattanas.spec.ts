@@ -84,3 +84,23 @@ test('a stitch cannot be carried off the grid: let go outside, it stays on the n
   const moved = (await stitches(page)).find(({ id }) => id === sc.id)!;
   expect(moved.cell, 'row 1, cell 1: the corner nearest to where it was let go').toEqual({ row: 0, col: 0, span: 1 });
 });
+
+test('a stitch dragged straight along its row onto another: the drawing loses the replaced one too', async ({
+  page,
+}) => {
+  const { drag } = await gridWithStitches(page);
+  await page.getByRole('button', { name: 'Select' }).click();
+  await page.getByRole('button', { name: /^Single crochet \(sc\)/ }).click();
+  const box = (await page.locator('#board').boundingBox())!;
+  await page.locator('#board').click({ position: { x: 64 + 6 * 40 + 20, y: box.height - 24 - 20 } });
+  await page.getByRole('button', { name: 'Select' }).click();
+  const row1 = (await stitches(page)).filter(({ cell }) => cell?.row === 0);
+  expect(row1.length).toBe(2);
+  const [left, right] = row1.sort((a, b) => a.x - b.x);
+  await drag(left!, right!.x - left!.x, 0);
+  expect((await stitches(page)).filter(({ cell }) => cell?.row === 0).length, 'one gave way').toBe(1);
+  await expect(page.locator('#board'), 'the drawing shows the chart as recorded').toHaveAttribute(
+    'data-stitches',
+    String((await stitches(page)).length),
+  );
+});
