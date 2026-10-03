@@ -1,12 +1,12 @@
 /*
  * The whole interface (PQW-1141): the work-in-progress line, a bar with Home, the
  * brand, the title, New, Undo and Redo (PQW-1149), the selection tool (PQW-1143),
- * the symbol style and the language — and the stitch palette with the version under it. Nothing else.
+ * zoom and moving the view (PQW-1158), the symbol style and the language — and the stitch palette with the version under it. Nothing else.
  */
 
 import { expect, test } from '@playwright/test';
 
-test('the bar holds Home, the title, New, Undo, Redo, Select, Duplicate, Delete, the symbol style and the language, and nothing else', {
+test('the bar holds Home, the title, New, Undo, Redo, Select, Duplicate, Delete, the zoom and view group, the symbol style and the language, and nothing else', {
   tag: '@kiadas',
 }, async ({ page }) => {
   const errors: string[] = [];
@@ -21,7 +21,7 @@ test('the bar holds Home, the title, New, Undo, Redo, Select, Duplicate, Delete,
   );
   await expect(bar.getByRole('heading', { name: 'Pattern designer' })).toBeVisible();
   await expect(bar.locator('.brand-mark')).toBeVisible();
-  await expect(bar.getByRole('button')).toHaveCount(6);
+  await expect(bar.getByRole('button')).toHaveCount(10);
   await expect(bar.getByRole('button', { name: 'New' })).toBeVisible();
   // PQW-1149: Undo and Redo stand as a group of their own between New and the selection's group.
   await expect(bar.locator('.tool__label')).toHaveText(['New', 'Undo', 'Redo', 'Select', 'Duplicate', 'Delete']);
@@ -30,6 +30,12 @@ test('the bar holds Home, the title, New, Undo, Redo, Select, Duplicate, Delete,
   await expect(group.locator('.tool__label')).toHaveText(['Select', 'Duplicate', 'Delete']);
   for (const name of ['Undo', 'Redo', 'Select', 'Duplicate', 'Delete'])
     await expect(bar.getByRole('button', { name })).toBeDisabled();
+  // PQW-1158: the view's group follows the selection's, icons only, and wakes with the chart too.
+  const view = bar.locator('#view-tools');
+  await expect(view.getByRole('button')).toHaveCount(4);
+  for (const name of ['Zoom out', 'Zoom in', 'Move view'])
+    await expect(view.getByRole('button', { name })).toBeDisabled();
+  await expect(view.locator('#zoom-reset')).toHaveText('100%');
   await expect(bar.getByRole('combobox')).toHaveCount(2);
   await expect(bar.getByRole('combobox', { name: 'Symbol style' })).toHaveValue('cyc');
   await expect(bar.getByRole('combobox', { name: 'Interface language' })).toHaveValue('en');

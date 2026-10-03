@@ -226,6 +226,11 @@ button {
   color: var(--c-accent);
 }
 
+.tool--zoom {
+  min-inline-size: 3.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .tools__group {
   display: flex;
   gap: var(--sp-0);
@@ -798,6 +803,18 @@ body.is-armed #board {
   line-height: 1;
   pointer-events: none;
   user-select: none;
+}
+
+/* KB: interface.md §87 — the view group needs the title's room below this width. */
+@media (width < 66rem) {
+  .bar__title {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 
 /* KB: interface.md §56 — in a phone-sized window the title gives way first. */

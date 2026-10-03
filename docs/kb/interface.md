@@ -2635,3 +2635,57 @@ the stitch, not copies of it.
 combinations can be drawn. The library sections are untouched: the written
 pattern's key still follows them (§74), and the palette simply shows this
 section its own way.
+
+## §87 Zoom and moving the view in the free-form board
+
+PQW-1158. The owner: „a delete mellett legyen zoom in/zoom out egy külön
+ikoncsoport, illetve egérrel is lehessen ezt megtenni”, and moving the drawing
+area „úgy, hogy a select opcióval ne csússzon össze”.
+
+**The sheet stays the drawing area at 100%.** The board's coordinates did not
+change: the sheet is still the canvas's own size (`size()`), and every edge rule
+— a stitch placed, moved, pasted or arranged stays on it — is measured against
+the sheet, not against what is on screen. The view (`core/view.ts`) only says
+which part of the sheet is shown and how large: 100% to 800%, never below 100%,
+so the view is always inside the sheet and there is never an empty margin to
+place into. A larger sheet than the window is a separate decision, because it
+changes those edge rules and the specs that pin them.
+
+**Zooming.** The group beside „Törlés”: zoom out, the level (a click returns to
+100%), zoom in, and „Nézet mozgatása”. The buttons step through `ZOOM_STEPS`;
+the mouse wheel zooms smoothly about the pointer, and a trackpad pinch, which
+arrives as a wheel with Ctrl, does the same at its own rate. Ctrl/⌘ + plus,
+minus and 0 are taken from the browser's page zoom while there is a chart; they
+go by the character, not the key position, because the Hungarian layout has
+them elsewhere. „Új” starts at 100%.
+
+**Icons only, and the title gives way below 66rem.** With labels the group
+pushed the bar 73 px past a 1000 px window (`felulet.spec.ts` pins that the
+page does not scroll there). The magnifiers and the hand carry their name in
+`aria-label` and the tooltip instead; even so the bar was 27 px (English) and
+40 px (Hungarian) too wide at 1000 px, so below 66rem the title is clipped
+visually and stays in the accessibility tree. The brand mark and Home remain.
+
+**Moving the view never selects.** Three ways, none of which passes through the
+selection's press handling:
+
+- „Nézet mozgatása”, a third mode beside „Kijelölés” and placing: arming any one
+  puts the others down. The selection stays as it was, and the panel with it.
+- Space held while the pointer is over the drawing, with any tool. Only over
+  the drawing: elsewhere Space still presses the focused button, which keyboard
+  users need. The release is taken too, or a focused button would fire.
+- The middle mouse button, with any tool.
+
+A pan that moved more than the drag slop swallows the click that follows it, so
+panning with a stitch armed lays nothing.
+
+**What stays the same size on screen.** The selection frame's line, its dash,
+the corners, the rotation knob, their hit areas and the drag slop are screen
+pixels, divided by the zoom. The stitches, their lines and the frame's padding
+zoom with the drawing.
+
+**What the tests pin.** `tests/core-view.test.mjs` the arithmetic;
+`tests/ui-platform.test.mjs` the shortcuts; `e2e/nagyitas.spec.ts` the buttons,
+the wheel about the pointer, a click placing at the board point under it when
+zoomed, and the pan tool and Space-drag moving the view without touching the
+chart or the selection.

@@ -18,6 +18,7 @@ import {
   turn,
 } from '../core/freeform.ts';
 import { stitchById } from '../core/stitches.ts';
+import { clampView, DEFAULT_VIEW, panBy, toBoard, type View, visibleRect, zoomAt, zoomStep } from '../core/view.ts';
 import { applyInk, drawCentered, type Shape, type SymbolOptions, shapeBounds, symbolShapes } from './symbols.ts';
 
 /** How much larger a stitch is drawn on the canvas than in its own symbol units. */
@@ -31,6 +32,9 @@ const CORNER = 8;
 const HANDLE_HIT = HANDLE_R + 4;
 /** Below this many pixels a press is a click, not a drag: mouse jitter must not move a stitch. */
 const DRAG_SLOP = 3;
+/** How fast the wheel zooms: a mouse notch is about 100, a trackpad pinch reports far less. */
+const WHEEL_RATE = 0.002;
+const PINCH_RATE = 0.01;
 /** The corners in frame space, clockwise from the top left. */
 const CORNERS: readonly Point[] = [
   { x: -1, y: -1 },
@@ -39,7 +43,7 @@ const CORNERS: readonly Point[] = [
   { x: -1, y: 1 },
 ];
 
-export type BoardMode = 'place' | 'select';
+export type BoardMode = 'place' | 'select' | 'pan';
 
 export interface BoardHost {
   place(point: Point): void;
@@ -49,6 +53,7 @@ export interface BoardHost {
   settled(): void;
   /** Called whenever the selected set changes, not only its size. */
   selectionChanged(count: number): void;
+  viewChanged(zoom: number): void;
 }
 
 type Drag =
@@ -79,7 +84,9 @@ type Drag =
       readonly pad: number;
       readonly base: FreeformChart;
     }
-  | { readonly kind: 'area'; readonly start: Point; current: Point; readonly base: ReadonlySet<number> };
+  | { readonly kind: 'area'; readonly start: Point; current: Point; readonly base: ReadonlySet<number> }
+  /** `start` is a screen point: the board under the pointer moves while the view does. */
+  | { readonly kind: 'pan'; readonly start: Point; readonly base: View; readonly middle: boolean };
 
 /** The selection frame as it is drawn, with its handles in board coordinates. */
 interface Handles {
@@ -97,6 +104,12 @@ export class FreeformBoard {
   private selection = new Set<number>();
   private notified: string | null = null;
   private drag: Drag | null = null;
+  private view: View = DEFAULT_VIEW;
+  /** Space is held: any press moves the view, whatever the mode. */
+  private panHeld = false;
+  /** A pan ended under a press that will still fire a click; that click places nothing. */
+  private swallowClick = false;
+  private pointerOver = false;
   private readonly shapes = new Map<string, { shapes: Shape[]; reach: number; extent: Extent }>();
   private readonly canvas: HTMLCanvasElement;
   private readonly ink: string;
@@ -110,11 +123,19 @@ export class FreeformBoard {
     this.host = host;
     // A click, not a press: a pinch or a scroll that never became a click places nothing.
     canvas.addEventListener('click', (event) => {
-      if (this.mode === 'place' && this.chart !== null) this.host.place(this.point(event));
+      if (this.swallowClick) this.swallowClick = false;
+      else if (this.mode === 'place' && this.chart !== null && !this.panHeld) this.host.place(this.point(event));
     });
     canvas.addEventListener('pointerdown', (event) => this.down(event));
     canvas.addEventListener('pointermove', (event) => this.moveTo(event));
     canvas.addEventListener('pointerup', () => this.up(false));
+    canvas.addEventListener('wheel', (event) => this.wheel(event), { passive: false });
+    canvas.addEventListener('pointerenter', () => {
+      this.pointerOver = true;
+    });
+    canvas.addEventListener('pointerleave', () => {
+      this.pointerOver = false;
+    });
     canvas.addEventListener('pointercancel', () => this.up(true));
     // Ctrl + click on a Mac is the context menu; here it adds to the selection.
     canvas.addEventListener('contextmenu', (event) => {
@@ -143,8 +164,48 @@ export class FreeformBoard {
     this.mode = mode;
     this.drag = null;
     if (mode === 'place') this.selection.clear();
-    this.canvas.style.cursor = '';
+    this.canvas.style.cursor = mode === 'pan' ? 'grab' : '';
     this.draw();
+  }
+
+  /** While on, a press anywhere moves the view; letting go gives the mode back. */
+  holdPan(on: boolean): void {
+    if (on === this.panHeld) return;
+    this.panHeld = on;
+    if (this.drag?.kind !== 'pan') this.canvas.style.cursor = on || this.mode === 'pan' ? 'grab' : '';
+  }
+
+  get zoom(): number {
+    return this.view.zoom;
+  }
+
+  /** Zooms about the middle of the screen, or about `anchor`, a screen point. */
+  zoomTo(zoom: number, anchor?: Point): void {
+    const { width, height } = this.size();
+    this.setView(zoomAt(this.view, zoom, anchor ?? { x: width / 2, y: height / 2 }, this.size()));
+  }
+
+  zoomStep(direction: 1 | -1): void {
+    this.zoomTo(zoomStep(this.view.zoom, direction));
+  }
+
+  private setView(view: View): void {
+    const next = clampView(view, this.size());
+    if (next.zoom === this.view.zoom && next.origin.x === this.view.origin.x && next.origin.y === this.view.origin.y)
+      return;
+    const zoomed = next.zoom !== this.view.zoom;
+    this.view = next;
+    if (zoomed) this.host.viewChanged(next.zoom);
+    this.draw();
+  }
+
+  private wheel(event: WheelEvent): void {
+    if (this.chart === null) return;
+    event.preventDefault();
+    const lines = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16 : 1;
+    // A trackpad pinch arrives as a wheel with Ctrl held.
+    const rate = event.ctrlKey ? PINCH_RATE : WHEEL_RATE;
+    this.zoomTo(this.view.zoom * Math.exp(-event.deltaY * lines * rate), this.screenPoint(event));
   }
 
   clearSelection(): void {
@@ -161,16 +222,42 @@ export class FreeformBoard {
     return this.drag !== null;
   }
 
+  get hovered(): boolean {
+    return this.pointerOver;
+  }
+
+  /** The board point under the pointer. */
   private point(event: MouseEvent): Point {
+    return toBoard(this.view, this.screenPoint(event));
+  }
+
+  private screenPoint(event: MouseEvent): Point {
     const box = this.canvas.getBoundingClientRect();
     return { x: event.clientX - box.left, y: event.clientY - box.top };
   }
 
+  /** A length on screen, in board units. */
+  private px(length: number): number {
+    return length / this.view.zoom;
+  }
+
+  /** The sheet: what the board holds, in board units, whatever the zoom. */
   size(): { width: number; height: number } {
     return { width: this.canvas.clientWidth, height: this.canvas.clientHeight };
   }
 
   private down(event: PointerEvent): void {
+    if (this.chart !== null && event.isPrimary && this.drag === null) {
+      const middle = event.button === 1;
+      if (middle || (event.button === 0 && (this.mode === 'pan' || this.panHeld))) {
+        // The middle button would otherwise start the browser's own scrolling.
+        if (middle) event.preventDefault();
+        this.canvas.setPointerCapture?.(event.pointerId);
+        this.drag = { kind: 'pan', start: this.screenPoint(event), base: this.view, middle };
+        this.canvas.style.cursor = 'grabbing';
+        return;
+      }
+    }
     // A Mac may report Ctrl + click as the secondary button.
     const primary = event.button === 0 || (event.button === 2 && event.ctrlKey);
     if (this.mode !== 'select' || this.chart === null || !primary || !event.isPrimary) return;
@@ -183,12 +270,12 @@ export class FreeformBoard {
     const handles = this.handles();
     if (handles !== null) {
       const { frame } = handles;
-      if (distance(point, handles.rotate) <= HANDLE_HIT) {
+      if (distance(point, handles.rotate) <= this.px(HANDLE_HIT)) {
         const startAngle = angleOf(frame.center, point);
         this.drag = { kind: 'rotate', frame, side: handles.side, startAngle, base: chart, angle: 0 };
         return;
       }
-      const corner = handles.corners.find((at) => distance(point, at) <= HANDLE_HIT);
+      const corner = handles.corners.find((at) => distance(point, at) <= this.px(HANDLE_HIT));
       // On a small frame a corner's reach covers the stitch itself; the press then means the stitch.
       if (corner !== undefined && !(onSelected && distance(point, frame.center) < distance(point, corner))) {
         const offset = { x: corner.x - frame.center.x, y: corner.y - frame.center.y };
@@ -225,14 +312,20 @@ export class FreeformBoard {
   }
 
   private moveTo(event: PointerEvent): void {
-    const point = this.point(event);
     const drag = this.drag;
+    if (drag?.kind === 'pan') {
+      const at = this.screenPoint(event);
+      if (!this.swallowClick && distance(at, drag.start) >= DRAG_SLOP) this.swallowClick = true;
+      this.setView(panBy(drag.base, at.x - drag.start.x, at.y - drag.start.y, this.size()));
+      return;
+    }
+    const point = this.point(event);
     if (drag === null) {
       this.hover(point, event.shiftKey || event.ctrlKey || event.metaKey);
       return;
     }
     if (drag.kind === 'move') {
-      if (!drag.moved && distance(point, drag.start) < DRAG_SLOP) return;
+      if (!drag.moved && distance(point, drag.start) < this.px(DRAG_SLOP)) return;
       drag.moved = true;
       const [dx, dy] = boundedMove(
         drag.base,
@@ -262,7 +355,7 @@ export class FreeformBoard {
       if (this.fits(scaled)) this.host.change(scaled);
     } else if (this.chart !== null) {
       drag.current = point;
-      const inside = distance(point, drag.start) < DRAG_SLOP ? [] : stitchesIn(this.chart, drag.start, point);
+      const inside = distance(point, drag.start) < this.px(DRAG_SLOP) ? [] : stitchesIn(this.chart, drag.start, point);
       this.selection = new Set([...drag.base, ...inside]);
       this.draw();
     }
@@ -277,6 +370,12 @@ export class FreeformBoard {
     const drag = this.drag;
     if (drag === null) return;
     this.drag = null;
+    if (drag.kind === 'pan') {
+      this.canvas.style.cursor = this.mode === 'pan' || this.panHeld ? 'grab' : '';
+      // Only the primary button's press is followed by a click.
+      if (cancelled || drag.middle) this.swallowClick = false;
+      return;
+    }
     // A gesture the browser took over is undone, not left half-way.
     if (cancelled && drag.kind !== 'area') this.host.change(drag.base);
     else if (drag.kind !== 'area') this.host.settled();
@@ -287,13 +386,13 @@ export class FreeformBoard {
   }
 
   private hover(point: Point, adding: boolean): void {
-    if (this.mode !== 'select' || this.chart === null) return;
+    if (this.mode !== 'select' || this.chart === null || this.panHeld) return;
     const handles = this.handles();
-    if (handles !== null && distance(point, handles.rotate) <= HANDLE_HIT) {
+    if (handles !== null && distance(point, handles.rotate) <= this.px(HANDLE_HIT)) {
       this.canvas.style.cursor = 'grab';
       return;
     }
-    const corner = handles?.corners.find((at) => distance(point, at) <= HANDLE_HIT);
+    const corner = handles?.corners.find((at) => distance(point, at) <= this.px(HANDLE_HIT));
     if (handles !== null && corner !== undefined) {
       // On screen, whatever the frame's turn: down-right and up-left share one diagonal.
       const { center } = handles.frame;
@@ -346,14 +445,15 @@ export class FreeformBoard {
       const offset = turn(local, frame.angle);
       return { x: frame.center.x + offset.x, y: frame.center.y + offset.y };
     };
-    const { width, height } = this.size();
-    const onBoard = (p: Point): boolean =>
-      p.x >= HANDLE_HIT && p.y >= HANDLE_HIT && p.x <= width - HANDLE_HIT && p.y <= height - HANDLE_HIT;
-    const above = at({ x: 0, y: -(frame.halfHeight + HANDLE_GAP) });
-    const side = drag?.kind === 'rotate' ? drag.side : onBoard(above) ? -1 : 1;
+    const seen = visibleRect(this.view, this.size());
+    const [hit, gap] = [this.px(HANDLE_HIT), this.px(HANDLE_GAP)];
+    const onScreen = (p: Point): boolean =>
+      p.x >= seen.minX + hit && p.y >= seen.minY + hit && p.x <= seen.maxX - hit && p.y <= seen.maxY - hit;
+    const above = at({ x: 0, y: -(frame.halfHeight + gap) });
+    const side = drag?.kind === 'rotate' ? drag.side : onScreen(above) ? -1 : 1;
     return {
       frame,
-      rotate: side === -1 ? above : at({ x: 0, y: frame.halfHeight + HANDLE_GAP }),
+      rotate: side === -1 ? above : at({ x: 0, y: frame.halfHeight + gap }),
       side,
       corners: CORNERS.map(({ x, y }) => at({ x: x * frame.halfWidth, y: y * frame.halfHeight })),
     };
@@ -378,6 +478,9 @@ export class FreeformBoard {
     if (this.canvas.height !== height) this.canvas.height = height;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, cssWidth, cssHeight);
+    this.view = clampView(this.view, { width: cssWidth, height: cssHeight });
+    const { zoom, origin } = this.view;
+    ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, -origin.x * dpr * zoom, -origin.y * dpr * zoom);
     for (const placed of this.chart.stitches) {
       const scale = STITCH_SCALE * placed.scale;
       ctx.save();
@@ -390,8 +493,8 @@ export class FreeformBoard {
     this.drawFrame(ctx);
     if (this.drag?.kind === 'area') {
       ctx.save();
-      applyInk(ctx, this.accent, 1);
-      ctx.setLineDash([4, 3]);
+      applyInk(ctx, this.accent, this.px(1));
+      ctx.setLineDash([this.px(4), this.px(3)]);
       const { minX, minY, maxX, maxY } = rectOf(this.drag.start, this.drag.current);
       ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
       ctx.restore();
@@ -410,20 +513,21 @@ export class FreeformBoard {
     ctx.save();
     ctx.translate(center.x, center.y);
     ctx.rotate(angle);
-    applyInk(ctx, this.accent, 1);
-    ctx.setLineDash([4, 3]);
+    applyInk(ctx, this.accent, this.px(1));
+    ctx.setLineDash([this.px(4), this.px(3)]);
     ctx.strokeRect(-hw, -hh, hw * 2, hh * 2);
     ctx.setLineDash([]);
     const edge = handles.side * hh;
-    const knob = handles.side * (hh + HANDLE_GAP);
+    const knob = handles.side * (hh + this.px(HANDLE_GAP));
     ctx.beginPath();
     ctx.moveTo(0, edge);
     ctx.lineTo(0, knob);
     ctx.stroke();
     ctx.beginPath();
-    ctx.arc(0, knob, HANDLE_R, 0, Math.PI * 2);
+    ctx.arc(0, knob, this.px(HANDLE_R), 0, Math.PI * 2);
     ctx.fill();
-    for (const { x, y } of CORNERS) ctx.fillRect(x * hw - CORNER / 2, y * hh - CORNER / 2, CORNER, CORNER);
+    const corner = this.px(CORNER);
+    for (const { x, y } of CORNERS) ctx.fillRect(x * hw - corner / 2, y * hh - corner / 2, corner, corner);
     ctx.restore();
   }
 }

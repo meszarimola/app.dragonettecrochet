@@ -147,6 +147,31 @@
             </button>
           </div>
 
+          <div class="tools__group" id="view-tools">
+            <button type="button" class="tool" id="zoom-out" aria-label="Zoom out" data-i18n-label="toolLabelZoomOut" data-tip="Zoom out (Ctrl/⌘ + −)" data-i18n-tip="zoomOutTip" aria-keyshortcuts="Control+Minus Meta+Minus" disabled>
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <circle cx="8.5" cy="8.5" r="5" />
+                <path d="M12.25 12.25 16.5 16.5" />
+                <path d="M6.25 8.5h4.5" />
+              </svg>
+            </button>
+            <button type="button" class="tool tool--zoom" id="zoom-reset" data-tip="Back to 100% (Ctrl/⌘ + 0)" data-i18n-tip="zoomResetTip" aria-keyshortcuts="Control+0 Meta+0" disabled>100%</button>
+            <button type="button" class="tool" id="zoom-in" aria-label="Zoom in" data-i18n-label="toolLabelZoomIn" data-tip="Zoom in (Ctrl/⌘ + +), or turn the mouse wheel over the drawing" data-i18n-tip="zoomInTip" aria-keyshortcuts="Control+Plus Meta+Plus" disabled>
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <circle cx="8.5" cy="8.5" r="5" />
+                <path d="M12.25 12.25 16.5 16.5" />
+                <path d="M6.25 8.5h4.5M8.5 6.25v4.5" />
+              </svg>
+            </button>
+            <button type="button" class="tool" id="pan-tool" aria-label="Move view" data-i18n-label="toolLabelPan" aria-pressed="false" data-tip="Move the view: drag the drawing. With any tool, hold Space or the middle mouse button and drag." data-i18n-tip="panToolTip" disabled>
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M7 10.5V5a1.25 1.25 0 0 1 2.5 0v4.5" />
+                <path d="M9.5 9V3.75a1.25 1.25 0 0 1 2.5 0V9" />
+                <path d="M12 9V5a1.25 1.25 0 0 1 2.5 0v6.5a6 6 0 0 1-6 6h-.5a5 5 0 0 1-4-2L3 12.25a1.25 1.25 0 0 1 2-1.5l2 1.75" />
+              </svg>
+            </button>
+          </div>
+
           <span class="pickers">
             <select class="picker" id="chart-style" aria-label="Symbol style" data-i18n-label="chartStyleLabel" data-tip="Symbol style" data-i18n-tip="chartStyleLabel">
               <option value="cyc">CYC</option>
