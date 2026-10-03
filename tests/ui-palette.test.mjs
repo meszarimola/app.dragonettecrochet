@@ -15,15 +15,15 @@ const palette = buildPalette();
 const items = palette.flatMap((section) => section.items);
 
 /*
- * KB: interface.md §74 — the palette is not the library any more. The chain space
- * is drawn by the chain arc tool, so it has no tile; the magic ring is shown among
- * the compound stitches. The library order itself is untouched, because the written
- * pattern's key follows it.
+ * KB: interface.md §74, §86 — the palette is not the library any more. The chain
+ * space is drawn by the chain arc tool, so it has no tile; the magic ring and the
+ * invisible decrease are shown among the compound stitches; the listed increases and
+ * decreases give way to two tiles built from a menu. The library order itself is
+ * untouched, because the written pattern's key follows it.
  */
-test('the palette shows every stitch once, save the chain space, and the magic ring with the compound ones', () => {
+test('the palette shows every stitch once, save the chain space, with the magic ring and the invisible decrease among the compound ones', () => {
   const shown = items.map((item) => item.def.id);
   assert.equal(new Set(shown).size, shown.length, 'no stitch twice');
-  // KB: interface.md §86 — the listed increases and decreases give way to two tiles built from a menu.
   const listed = STITCH_SECTIONS.find((section) => section.id === 'increase-decrease').stitches;
   const menuBuilt = new Set(listed.filter((stitch) => stitch.id !== 'invdec').map((stitch) => stitch.id));
   assert.deepEqual(

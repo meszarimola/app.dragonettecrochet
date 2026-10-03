@@ -2592,11 +2592,16 @@ PQW-1155, the owner's request: *„jelenleg bele van »égetve« vagyis dedikál
 egy típusú szemre megy a fogyasztás”* — the palette listed six fixed ones (two
 increases, four decreases), each tied to one stitch.
 
-**The section is two blocks and a tile.** Decrease first, then Increase, as the
+**The section is two blocks.** Decrease first, then Increase, as the
 owner listed them; each is a full-width tile with, under it, a menu of the
 stitch it is made of: sc, hdc, dc, tr, dtr (`SHAPING_PARTS`), default sc. The
 tile and the menu share one border, square where they meet, so they read as one
-control.
+control. A choice in the menu arms its tile. The tile's icon and structure line
+follow the choice, redrawn in place so the menu keeps its focus (§8). `Alt`+8 is
+the decrease and `Alt`+9 the increase. Both keys changed meaning: until v0.93.0
+they armed the sc and the dc increase. The compound stitches had no shortcut
+before and have none now. The parts field is labelled „Szemek száma” / „Number
+of stitches”: „Stitches” alone was already the name of the palette's group.
 
 **The menu prints whole names** in the notation („Rövidpálca” … „Háromráhajtásos
 pálca”, „Single crochet” …), not abbreviations — the owner's request in
@@ -2613,13 +2618,9 @@ is untouched (§74).
 the global `:focus-visible` ring, so after a choice the ring hugged the menu
 alone. The owner liked the ring and asked for it round the whole block: the
 block takes the ring when either of them holds the focus, and they draw none of
-their own. A choice in the menu arms its tile. The tile's
-icon and structure line follow the choice, redrawn in place so the menu keeps
-its focus (§8). `Alt`+8 is the decrease and `Alt`+9 the increase. Both keys changed
-meaning: until v0.93.0 they armed the sc and the dc increase. The compound
-stitches had no shortcut before and have none now. The parts field is labelled
-„Szemek száma” / „Number of stitches”: „Stitches” alone was already the name of
-the palette's group.
+their own. The offset is 1 px, not the global 2, so the ring stays inside the
+4 px gap and does not touch the next block. Both rules sit behind `:has()`: a
+browser without it keeps the children's own rings rather than losing the ring.
 
 **The parts: 2–5, not 2–10.** The owner asked for 2–10 and then asked whether
 10 was too many. Drawn, an increase of more than five runs its legs into one
