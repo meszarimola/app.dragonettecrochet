@@ -11,7 +11,7 @@ test('switching to Hungarian translates the interface and is remembered', { tag:
   await expect(page.getByRole('button', { name: 'New' })).toBeVisible();
 
   await page.getByRole('combobox', { name: 'Interface language' }).selectOption('hu');
-  await expect(page.getByRole('button', { name: 'Új' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Új', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Mintatervező' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Alapszemek' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Vissza a dragonettecrochet.com főoldalára' })).toHaveAttribute(
@@ -21,7 +21,7 @@ test('switching to Hungarian translates the interface and is remembered', { tag:
   await expect(page).toHaveURL(/[?&]lang=hu\b/);
 
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Új' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Új', exact: true })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'hu');
 });
 

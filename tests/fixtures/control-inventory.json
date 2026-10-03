@@ -10,6 +10,8 @@
   {"id":"delete-selection","tag":"button","type":"button"},
   {"id":"duplicate-selection","tag":"button","type":"button"},
   {"id":"new-chart","tag":"button","type":"button"},
+  {"id":"redo","tag":"button","type":"button"},
   {"id":"select-tool","tag":"button","type":"button"},
-  {"id":"ui-language","tag":"select","type":""}
+  {"id":"ui-language","tag":"select","type":""},
+  {"id":"undo","tag":"button","type":"button"}
 ]

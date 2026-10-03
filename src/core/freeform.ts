@@ -47,6 +47,26 @@ export function emptyChart(): FreeformChart {
   return { stitches: [], nextId: 1 };
 }
 
+export function sameChart(a: FreeformChart, b: FreeformChart): boolean {
+  return (
+    a === b ||
+    (a.nextId === b.nextId &&
+      a.stitches.length === b.stitches.length &&
+      a.stitches.every((placed, i) => {
+        const other = b.stitches[i];
+        return (
+          other !== undefined &&
+          placed.id === other.id &&
+          placed.stitch === other.stitch &&
+          placed.x === other.x &&
+          placed.y === other.y &&
+          placed.rotation === other.rotation &&
+          placed.scale === other.scale
+        );
+      }))
+  );
+}
+
 export function placeStitch(chart: FreeformChart, stitch: StitchDefId, x: number, y: number): FreeformChart {
   return {
     stitches: [...chart.stitches, { id: chart.nextId, stitch, x, y, rotation: 0, scale: 1 }],

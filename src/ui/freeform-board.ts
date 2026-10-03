@@ -45,6 +45,8 @@ export interface BoardHost {
   place(point: Point): void;
   /** Called live on every pointer move of a drag. */
   change(chart: FreeformChart): void;
+  /** Called once a move, a turn or a resize is let go: the whole drag is one change. */
+  settled(): void;
   /** Called whenever the selected set changes, not only its size. */
   selectionChanged(count: number): void;
 }
@@ -277,6 +279,7 @@ export class FreeformBoard {
     this.drag = null;
     // A gesture the browser took over is undone, not left half-way.
     if (cancelled && drag.kind !== 'area') this.host.change(drag.base);
+    else if (drag.kind !== 'area') this.host.settled();
     if (drag.kind === 'move' && !cancelled && !drag.moved && drag.narrowTo !== null) {
       this.selection = new Set([drag.narrowTo]);
     }

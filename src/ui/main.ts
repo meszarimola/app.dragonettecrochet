@@ -14,7 +14,9 @@ import {
   type PlacedStitch,
   pasteStitches,
   placeStitch,
+  sameChart,
 } from '../core/freeform.ts';
+import { amend, canRedo, canUndo, createHistory, type History, record, redo, undo } from '../core/history.ts';
 import type { ChartStyle, StitchDef, StitchDefId } from '../core/types.ts';
 import { FreeformBoard } from './freeform-board.ts';
 import {
@@ -30,7 +32,7 @@ import {
 import { CHART_STYLES, readChartStyle, symbolOptionsFor, termsFor, writeChartStyle } from './notation.ts';
 import { AngleDial, bindPair } from './number-input.ts';
 import { buildPalette, type PaletteItem, type PaletteSection } from './palette.ts';
-import { currentPlatform, modifierCombo } from './platform.ts';
+import { currentPlatform, historyCommand, modifierCombo } from './platform.ts';
 import { applyInk, drawCentered, readAccent, readInk, shapeBounds, symbolShapes } from './symbols.ts';
 import { alignTooltips } from './tooltip.ts';
 
@@ -48,6 +50,8 @@ const styleSelect = must<HTMLSelectElement>('#chart-style');
 const languageSelect = must<HTMLSelectElement>('#ui-language');
 const homeLink = must<HTMLAnchorElement>('#home-link');
 const newButton = must<HTMLButtonElement>('#new-chart');
+const undoButton = must<HTMLButtonElement>('#undo');
+const redoButton = must<HTMLButtonElement>('#redo');
 const selectButton = must<HTMLButtonElement>('#select-tool');
 const duplicateButton = must<HTMLButtonElement>('#duplicate-selection');
 const deleteButton = must<HTMLButtonElement>('#delete-selection');
@@ -81,6 +85,12 @@ let arranged: {
   readonly base: FreeformChart;
   readonly result: FreeformChart;
 } | null = null;
+interface Snapshot {
+  readonly chart: FreeformChart;
+  readonly selection: ReadonlySet<number>;
+}
+// KB: core-support §9
+let history: History<Snapshot> | null = null;
 let items: PaletteItem[] = [];
 const buttons = new Map<StitchDefId, HTMLButtonElement>();
 const ink = readInk(document.documentElement);
@@ -90,21 +100,28 @@ const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAcce
     if (chart === null || tool === null) return;
     chart = placeStitch(chart, tool, x, y);
     board.show(chart, symbolOptionsFor(chartStyle));
+    commit();
   },
   change: (next) => {
     if (arranged !== null && chart === arranged.result) follow(next);
     chart = next;
     board.show(chart, symbolOptionsFor(chartStyle));
   },
+  settled: () => commit(),
   selectionChanged: (count) => {
     duplicateButton.disabled = count === 0;
     deleteButton.disabled = count === 0;
     arrangePanel.hidden = count === 0;
     if (arranged !== null && !sameSet(arranged.ids, board.selected)) arranged = null;
     showOptions();
+    if (history !== null && history.present.chart === chart) {
+      setHistory(amend(history, { chart, selection: new Set(board.selected) }));
+    }
   },
 });
 
+undoButton.addEventListener('click', () => step(undo));
+redoButton.addEventListener('click', () => step(redo));
 selectButton.addEventListener('click', () => setSelecting(!selecting));
 duplicateButton.addEventListener('click', () => duplicateSelection());
 deleteButton.addEventListener('click', () => deleteSelection());
@@ -132,10 +149,12 @@ function arrange(arrangement: Arrangement): void {
   const [dx, dy] = boundedMove(next, ids, 0, 0, board.size());
   const result = moveStitches(next, ids, dx, dy);
   if (!allInside(result, ids, board.size())) return;
+  const continued = arranged !== null && base === arranged.base;
   chart = result;
   arranged = { arrangement, ids, base, result };
   showOptions();
   board.show(chart, symbolOptionsFor(chartStyle));
+  commit(continued);
 }
 
 function rearrange(arrangement: Arrangement): void {
@@ -183,6 +202,37 @@ function showOptions(): void {
   }
 }
 
+/**
+ * Records the chart as it now stands; `continued` folds it into the last step,
+ * so one arrangement and all its settings undo together. KB: core-support §9
+ */
+function commit(continued = false): void {
+  if (history === null || chart === null) return;
+  const next = { chart, selection: new Set(board.selected) };
+  if (continued || sameChart(chart, history.present.chart)) setHistory(amend(history, next));
+  else setHistory(record(history, next));
+}
+
+/** The selection goes back with the chart; an arrangement in progress ends. */
+function step(move: (history: History<Snapshot>) => History<Snapshot>): boolean {
+  if (history === null || board.dragging) return false;
+  const next = move(history);
+  if (next === history) return false;
+  setHistory(next);
+  arranged = null;
+  chart = next.present.chart;
+  if (next.present.selection.size > 0) setSelecting(true);
+  board.show(chart, symbolOptionsFor(chartStyle), next.present.selection);
+  showOptions();
+  return true;
+}
+
+function setHistory(next: History<Snapshot>): void {
+  history = next;
+  undoButton.disabled = !canUndo(history);
+  redoButton.disabled = !canRedo(history);
+}
+
 function untouchedSince({ ids, result }: NonNullable<typeof arranged>): boolean {
   return chart === result && sameSet(ids, board.selected);
 }
@@ -196,6 +246,7 @@ function deleteSelection(): boolean {
   if (chart === null || board.selected.size === 0 || board.dragging) return false;
   chart = deleteStitches(chart, board.selected);
   board.show(chart, symbolOptionsFor(chartStyle));
+  commit();
   return true;
 }
 
@@ -212,6 +263,7 @@ function paste(copied: readonly PlacedStitch[]): readonly PlacedStitch[] | null 
   chart = pasted.chart;
   setSelecting(true);
   board.show(chart, symbolOptionsFor(chartStyle), pasted.ids);
+  commit();
   return pasted.copied;
 }
 
@@ -237,8 +289,13 @@ alignTooltips(must<HTMLElement>('.tools'));
 if (navigator.webdriver) Object.assign(window, { dcFreeformChart: () => chart });
 
 newButton.addEventListener('click', () => {
+  if (board.dragging) return;
+  const blank = chart === null || chart.stitches.length === 0;
   chart = emptyChart();
   board.show(chart, symbolOptionsFor(chartStyle));
+  const fresh = { chart, selection: new Set<number>() };
+  if (history === null) setHistory(createHistory(fresh));
+  else setHistory(blank && !canRedo(history) ? amend(history, fresh) : record(history, fresh));
   selectButton.disabled = false;
   renderPalette();
 });
@@ -269,6 +326,15 @@ document.addEventListener('keydown', (event) => {
     return;
   }
   if (chart === null) return;
+  if ((event.ctrlKey || event.metaKey) && !event.altKey && !inText(event.target)) {
+    const command = historyCommand(event);
+    if (command !== null) {
+      // Ctrl/⌘ + Y is the browser's history page even when there is nothing to redo.
+      event.preventDefault();
+      step(command === 'undo' ? undo : redo);
+      return;
+    }
+  }
   const inSelect = inField(event.target);
   if (!inSelect && (event.key === 'Delete' || event.key === 'Backspace')) {
     if (deleteSelection()) event.preventDefault();
@@ -291,6 +357,11 @@ document.addEventListener('keydown', (event) => {
   event.preventDefault();
   select(item.def.id);
 });
+
+/** A typed field keeps Ctrl/⌘ + Z for its own text. */
+function inText(target: EventTarget | null): boolean {
+  return target instanceof HTMLInputElement && target.type === 'text';
+}
 
 /** A select box, a typed field and the dial's handle keep their own keys. */
 function inField(target: EventTarget | null): boolean {

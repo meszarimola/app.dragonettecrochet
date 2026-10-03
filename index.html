@@ -106,6 +106,23 @@
           </button>
 
           <div class="tools__group">
+            <button type="button" class="tool" id="undo" data-tip="Undo (Ctrl/⌘ + Z)" data-i18n-tip="undoTip" aria-keyshortcuts="Control+Z Meta+Z" disabled>
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M7.5 4.5 4 8l3.5 3.5" />
+                <path d="M4 8h7.5a4.5 4.5 0 0 1 0 9H8" />
+              </svg>
+              <span class="tool__label" data-i18n="toolLabelUndo">Undo</span>
+            </button>
+            <button type="button" class="tool" id="redo" data-tip="Redo (Ctrl/⌘ + Y or Ctrl/⌘ + Shift + Z)" data-i18n-tip="redoTip" aria-keyshortcuts="Control+Y Meta+Y Control+Shift+Z Meta+Shift+Z" disabled>
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M12.5 4.5 16 8l-3.5 3.5" />
+                <path d="M16 8H8.5a4.5 4.5 0 0 0 0 9H12" />
+              </svg>
+              <span class="tool__label" data-i18n="toolLabelRedo">Redo</span>
+            </button>
+          </div>
+
+          <div class="tools__group">
             <button type="button" class="tool" id="select-tool" aria-pressed="false" data-tip="Select: click a stitch or drag an area; Ctrl/⌘ or Shift + click: several. Drag the selection to move it, the round handle to rotate it, a corner to make it larger or smaller." data-i18n-tip="selectToolTip" disabled>
               <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path d="M5 3.5 15 11l-4.6.9 2.6 4.6-1.8 1-2.6-4.6L5 16z" />
