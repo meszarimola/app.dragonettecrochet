@@ -315,6 +315,43 @@ test('a row stands the stitches upright, foot to foot, the gap apart, left to ri
   );
 });
 
+/** A dc (half height 15), a chain (half height 4) and an hdc (half height 10), left to right. */
+function mixedWithChain() {
+  const chart = [
+    ['dc', 0],
+    ['ch', 50],
+    ['hdc', 100],
+  ].reduce((sum, [stitch, x]) => placeStitch(sum, stitch, x, 0), emptyChart());
+  const halves = { dc: 15, ch: 4, hdc: 10 };
+  return { chart, extent: (placed) => ({ halfWidth: 5, halfHeight: halves[placed.stitch] }) };
+}
+
+test('in a row a chain hangs from the tallest stitch’s top, and the others share the foot line (PQW-1161)', () => {
+  const { chart, extent } = mixedWithChain();
+  const [dc, ch, hdc] = arrangeStitches(chart, ALL, 'row', extent, OPTIONS).stitches;
+  close(dc.y + 15, hdc.y + 10, 'the dc and the hdc share the feet');
+  close(ch.y - 4, dc.y - 15, 'the chain’s top is the dc’s top');
+});
+
+test('around with the feet in, a chain sits on the tops’ arc; with the tops in it already does (PQW-1161)', () => {
+  const { chart, extent } = mixedWithChain();
+  const feet = arrangeStitches(chart, ALL, 'around', extent, { ...OPTIONS, angle: 0 }).stitches;
+  // With no spread all three stand upright on one line out from the point, so y is the distance from it.
+  close(feet[1].y - 4, feet[0].y - 15, 'feet in: the chain’s top is the dc’s top');
+  close(feet[0].y + 15, feet[2].y + 10, 'feet in: the dc and the hdc share the feet');
+  const tops = arrangeStitches(chart, ALL, 'around', extent, { ...OPTIONS, angle: 0, facing: 'tops' }).stitches;
+  // Hanging below the point, upright: each top is half a height above the centre.
+  close(tops[1].y - 4, tops[0].y - 15, 'tops in: the chain’s top is with the others’');
+  close(tops[0].y - 15, tops[2].y - 10, 'tops in: every top on one line');
+});
+
+test('a row of chains alone is laid foot to foot as before (PQW-1161)', () => {
+  const chart = [0, 50].reduce((sum, x) => placeStitch(sum, 'ch', x, 0), emptyChart());
+  const extent = (placed) => ({ halfWidth: 5, halfHeight: placed.id === 1 ? 4 : 6 });
+  const [small, big] = arrangeStitches(chart, new Set([1, 2]), 'row', extent, OPTIONS).stitches;
+  close(small.y + 4, big.y + 6, 'the feet');
+});
+
 test('a row of stitches of different heights shares one foot line', () => {
   const chart = chartOf([0, 0], [50, 0]);
   const extent = (placed) => ({ halfWidth: 5, halfHeight: placed.id === 1 ? 10 : 30 });

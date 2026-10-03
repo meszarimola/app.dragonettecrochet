@@ -2453,6 +2453,17 @@ At the default radius of 24 the wide top bars of neighbouring doubles touch with
 the tops in; asked in PQW-1152, the owner chose one default for both ends
 all the same.
 
+**A chain hangs from the tops** (PQW-1161). In a mix of chains and taller
+stitches the chains line up with the top, not the foot: the owner, „a chain az a
+tetejéhez igazodjon, ne az aljához. de ez csak a chain esetén legyen úgy”. Every
+other stitch — sc, hdc, a decrease, a cluster — stays on the foot line. „The
+top” is the tallest non-chain stitch's top, so in a row of dc and hdc the chains
+sit level with the dc tops. In a row the chain's top is on that line; around
+with the feet in, the chain stands at `radius` + that height − its own height, so
+its outer end is on the tops' arc; with the tops in every top is already at
+`radius`, and nothing changes. A selection of chains alone is laid foot to foot
+as before. The chain is recognised by its stitch id, `ch`, in `core/freeform.ts`.
+
 **There is no circle.** PQW-1146 had „Körbe” beside „Legyezőbe”; the owner saw
 they did the same thing with other angles, dropped the circle and renamed the
 fan. So that around can still close a ring, the step between neighbours never

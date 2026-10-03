@@ -351,7 +351,8 @@ interface Sized {
 /**
  * Lays the selected stitches out around the middle of where they stand, keeping
  * their stitch and size and taking them left to right. A row stands them upright,
- * foot to foot, `gap` apart. Around points their feet — or their tops — at one
+ * foot to foot, `gap` apart — except a chain among taller stitches, which hangs
+ * from their top line instead, in a row and around. Around points their feet — or their tops — at one
  * shared point and keeps that end `radius` away from it, so the ends do not cover
  * each other, spread over `angle` — but never wider than evenly all the way
  * round, so the first and the last never meet. KB: interface.md §83
@@ -378,12 +379,25 @@ export function arrangeStitches(
 function row(items: readonly Sized[], middle: Point, gap: number): PlacedStitch[] {
   const width = items.reduce((sum, { size }) => sum + size.halfWidth * 2, 0) + gap * (items.length - 1);
   const foot = middle.y + Math.max(...items.map(({ size }) => size.halfHeight));
+  const tall = tallest(items);
   let left = middle.x - width / 2;
   return items.map(({ stitch, size }) => {
     const x = left + size.halfWidth;
     left += size.halfWidth * 2 + gap;
-    return { ...stitch, x, y: foot - size.halfHeight, rotation: 0 };
+    const top = stitch.stitch === CHAIN && tall !== null;
+    return { ...stitch, x, y: top ? foot - tall + size.halfHeight : foot - size.halfHeight, rotation: 0 };
   });
+}
+
+const CHAIN: StitchDefId = 'ch';
+
+/**
+ * The height of the tallest stitch that is not a chain, which a chain's top is
+ * lined up with; `null` when every stitch is a chain. KB: interface.md §83
+ */
+function tallest(items: readonly Sized[]): number | null {
+  const heights = items.filter(({ stitch }) => stitch.stitch !== CHAIN).map(({ size }) => size.halfHeight * 2);
+  return heights.length === 0 ? null : Math.max(...heights);
 }
 
 /**
@@ -395,9 +409,11 @@ function around(items: readonly Sized[], middle: Point, { radius, angle, facing 
   const step = n > 1 ? Math.min(angle / (n - 1), (Math.PI * 2) / n) : 0;
   const first = -Math.PI / 2 - (step * (n - 1)) / 2;
   const mirror = facing === 'tops' ? -1 : 1;
+  // With the tops facing the point every top is already at `radius`, a chain's too.
+  const tall = facing === 'feet' ? tallest(items) : null;
   const stood = items.map(({ stitch, size }, i) => {
     const direction = first + step * i;
-    const reach = radius + size.halfHeight;
+    const reach = stitch.stitch === CHAIN && tall !== null ? radius + tall - size.halfHeight : radius + size.halfHeight;
     return {
       ...stitch,
       x: Math.cos(direction) * reach,
