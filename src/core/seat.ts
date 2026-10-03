@@ -93,8 +93,7 @@ export function placeInGrid(
   const spans = spansFrom(cells, at, cellSpan(stitch), count);
   if (spans.length === 0) return null;
   const covered = (cell: SeatedCell | undefined): boolean =>
-    cell !== undefined &&
-    spans.some(({ row, col, span }) => cell.row === row && cell.col < col + span && col < cell.col + cell.span);
+    cell !== undefined && spans.some((span) => overlap(cell, span));
   const added = spans.map(
     (cell, i): PlacedStitch => ({ id: chart.nextId + i, stitch, x: 0, y: 0, rotation: 0, scale: 1, cell }),
   );
@@ -106,6 +105,66 @@ export function placeInGrid(
     },
     ids: new Set(added.map(({ id }) => id)),
   };
+}
+
+function overlap(a: SeatedCell, b: SeatedCell): boolean {
+  return a.row === b.row && a.col < b.col + b.span && b.col < a.col + a.span;
+}
+
+/**
+ * The cells a stitch of `span` cells is dropped into from where it stands: the
+ * row its middle is in, the columns its middle is nearest to. A point off the
+ * grid goes to the nearest row and column — a stitch is never dropped off it.
+ * `null` where no row is wide enough.
+ */
+export function nearestCells(
+  grid: NonNullable<FreeformChart['grid']>,
+  point: { readonly x: number; readonly y: number },
+  span: number,
+  heights?: RowHeights,
+): SeatedCell | null {
+  const bottoms = rowBottoms(grid, heights);
+  const last = grid.rows.length - 1;
+  let row = bottoms.findIndex((bottom, i) => point.y <= bottom && point.y >= (bottoms[i + 1] ?? -Infinity));
+  if (row === -1) row = point.y > 0 ? 0 : last;
+  const cells = grid.rows[row];
+  if (cells === undefined || span > cells) return null;
+  const col = Math.min(Math.max(Math.round(point.x / GRID_CELL - span / 2), 0), cells - span);
+  return { row, col, span };
+}
+
+/**
+ * Drops the given stitches into the cells nearest to where they stand; a
+ * seated stitch whose cells they land on gives way, and of the dropped ones
+ * landing on each other the later stays. Positions follow from `seat`.
+ */
+export function dropInGrid(chart: FreeformChart, ids: ReadonlySet<number>, heights?: RowHeights): FreeformChart {
+  const grid = chart.grid;
+  if (grid === undefined || ids.size === 0) return chart;
+  const landed = new Map<number, SeatedCell>();
+  const covered = new Set<number>();
+  for (const placed of chart.stitches) {
+    if (!ids.has(placed.id)) continue;
+    const cell = nearestCells(grid, placed, cellSpan(placed.stitch), heights);
+    if (cell === null) continue;
+    for (const [id, other] of landed) {
+      if (!overlap(cell, other)) continue;
+      landed.delete(id);
+      covered.add(id);
+    }
+    landed.set(placed.id, cell);
+  }
+  if (landed.size === 0) return chart;
+  const taken = [...landed.values()];
+  const givesWay = ({ id, cell }: PlacedStitch): boolean =>
+    covered.has(id) || (!ids.has(id) && cell !== undefined && taken.some((span) => overlap(cell, span)));
+  const stitches = chart.stitches
+    .filter((placed) => !givesWay(placed))
+    .map((placed) => {
+      const cell = landed.get(placed.id);
+      return cell === undefined ? placed : { ...placed, cell };
+    });
+  return { ...chart, stitches };
 }
 
 /**

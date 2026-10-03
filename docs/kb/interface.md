@@ -2893,8 +2893,9 @@ until the first chart has no size. The sheet (§87) grows to take in the grid an
 numbers.
 
 **Only the grid takes a stitch.** A click outside every row places nothing
-(`cellAt`); inside, the stitch is seated in its cell (§91). Moving, pasting and
-arranging are not limited to the grid yet (PQW-1173).
+(`cellAt`); inside, the stitch is seated in its cell (§91). A dragged stitch cannot
+leave the grid and drops into a cell when let go (§91); pasting and arranging are
+not limited to the grid, by the owner's choice.
 
 **Drawing.** Only the rows on screen are drawn, since 500 × 200 cells is a lot of
 lines. Each line is centred on a device pixel and drawn once, in the ink at 28%:
@@ -3001,9 +3002,20 @@ and the gap.
 The width of a column never changes yet; the owner's later step makes increases and
 decreases widen cells.
 
-**What leaves a cell.** A stitch moved, turned, resized, pasted or arranged by hand
-loses its cell (`unseated`) and stays where it was put; seating it again on release
-is PQW-1173. A stitch laid before 1.4.0, freely, stays free, and a stored cell the
+**A dragged stitch drops into the nearest cells (PQW-1173).** While it is dragged
+it is free, its middle kept within the grid's rectangle (`moveBounds`), and the rows
+follow it live. Let go, it drops (`dropInGrid`): the row its middle is in, the
+columns its middle is nearest to, pushed back to fit the row (`nearestCells`); a
+point off the grid goes to the nearest row and column. A seated stitch in the cells
+it lands on gives way; several dragged together each find their own cells, keeping
+their places relative to each other, and of two landing on the same cells the later
+stays. The drag and the drop are one undo step. A stitch laid freely before 1.4.0
+is dropped into a cell the same way once it is dragged.
+
+**What leaves a cell.** A stitch turned, resized, pasted or arranged by hand loses
+its cell (`unseated`) and stays where it was put — the owner kept all four as they
+were: a pasted or duplicated copy is free and offset, not put into the next free
+cells. A stitch laid before 1.4.0, freely, stays free, and a stored cell the
 grid does not have is dropped on load. A free stitch never moves by itself; the
 seated ones follow the rules in force, so a chart saved by 1.4.0 opens with the
 gap in its tall rows, and a free stitch beside them stays where it was.

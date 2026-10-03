@@ -23,7 +23,7 @@ import {
 } from '../core/freeform.ts';
 import { cellAt, rectGrid } from '../core/grid.ts';
 import { amend, canRedo, canUndo, createHistory, type History, record, redo, undo } from '../core/history.ts';
-import { placeInGrid, seat } from '../core/seat.ts';
+import { dropInGrid, placeInGrid, seat } from '../core/seat.ts';
 import {
   MAX_SHAPING,
   MIN_SHAPING,
@@ -167,7 +167,11 @@ const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAcce
     chart = seated(next);
     board.show(chart, symbolOptionsFor(chartStyle));
   },
-  settled: () => commit(),
+  settled: (moved) => {
+    // KB: interface.md §91 — on a grid, what a move carried drops into the nearest cells.
+    if (moved !== null && chart?.grid !== undefined) chart = dropInGrid(chart, moved, board.rowHeights());
+    commit();
+  },
   selectionChanged: (count) => {
     duplicateButton.disabled = count === 0;
     deleteButton.disabled = count === 0;

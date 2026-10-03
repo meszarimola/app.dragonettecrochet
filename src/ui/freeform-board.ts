@@ -18,7 +18,7 @@ import {
   stitchesIn,
   turn,
 } from '../core/freeform.ts';
-import { GRID_CELL, gridExtent, gridHome, gridRows, type RectGrid, type RowHeights } from '../core/grid.ts';
+import { GRID_CELL, gridExtent, gridHome, gridRect, gridRows, type RectGrid, type RowHeights } from '../core/grid.ts';
 import { type Footprint, type NaturalSize, rowHeights } from '../core/seat.ts';
 import { stitchById } from '../core/stitches.ts';
 import {
@@ -78,8 +78,8 @@ export interface BoardHost {
   place(point: Point): void;
   /** Called live on every pointer move of a drag. */
   change(chart: FreeformChart): void;
-  /** Called once a move, a turn or a resize is let go: the whole drag is one change. */
-  settled(): void;
+  /** Called once a move, a turn or a resize is let go: the whole drag is one change. `moved`: the stitches a move carried. */
+  settled(moved: ReadonlySet<number> | null): void;
   /** Called whenever the selected set changes, not only its size. */
   selectionChanged(count: number): void;
   /** A pan as well as a zoom. */
@@ -425,7 +425,7 @@ export class FreeformBoard {
         this.selection,
         point.x - drag.start.x,
         point.y - drag.start.y,
-        this.sheet(),
+        this.moveBounds(),
       );
       this.host.change(moveStitches(drag.base, this.selection, dx, dy));
     } else if (drag.kind === 'rotate') {
@@ -454,6 +454,12 @@ export class FreeformBoard {
     }
   }
 
+  /** Where a dragged stitch's middle may go: on a grid the grid itself, which it is dropped into. KB: interface.md §91 */
+  private moveBounds(): Rect {
+    const grid = this.chart?.grid;
+    return grid === undefined ? this.sheet() : gridRect(grid, this.rowHeights());
+  }
+
   /** A turn or a resize that would carry a stitch off the board is not taken; the last one that fits stays. */
   private fits(next: FreeformChart): boolean {
     return allInside(next, this.selection, this.sheet());
@@ -470,7 +476,8 @@ export class FreeformBoard {
     }
     // A gesture the browser took over is undone, not left half-way.
     if (cancelled && drag.kind !== 'area') this.host.change(drag.base);
-    else if (drag.kind !== 'area') this.host.settled();
+    else if (drag.kind !== 'area')
+      this.host.settled(drag.kind === 'move' && drag.moved ? new Set(this.selection) : null);
     if (drag.kind === 'move' && !cancelled && !drag.moved && drag.narrowTo !== null) {
       this.selection = new Set([drag.narrowTo]);
     }
