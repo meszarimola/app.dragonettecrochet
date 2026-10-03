@@ -79,23 +79,29 @@ export const MAX_COUNT = 10;
 
 /**
  * `count` of one stitch side by side, upright and `gap` apart, centred on the
- * point; a count outside 1–10 is taken at the nearer end. KB: interface.md §85
+ * point and shifted back on the board past an edge; a count outside 1–10 is
+ * taken at the nearer end. `null` for a row wider or taller than the board.
+ * KB: interface.md §85
  */
 export function placeStitches(
   chart: FreeformChart,
   stitch: StitchDefId,
-  x: number,
-  y: number,
+  point: Point,
   count: number,
   extent: (placed: PlacedStitch) => Extent,
   gap: number,
-): FreeformChart {
+  size: Size,
+): { readonly chart: FreeformChart; readonly ids: ReadonlySet<number> } | null {
   const n = Number.isFinite(count) ? Math.min(Math.max(Math.trunc(count), MIN_COUNT), MAX_COUNT) : MIN_COUNT;
-  let next = chart;
-  for (let i = 0; i < n; i += 1) next = placeStitch(next, stitch, x, y);
-  if (n === 1) return next;
-  const ids = new Set(next.stitches.slice(-n).map(({ id }) => id));
-  return arrangeStitches(next, ids, 'row', extent, { gap, radius: 0, angle: 0, facing: 'feet' });
+  const added = Array.from({ length: n }, (_, i): PlacedStitch => {
+    return { id: chart.nextId + i, stitch, x: point.x, y: point.y, rotation: 0, scale: 1 };
+  });
+  const ids = new Set(added.map(({ id }) => id));
+  const laid = { stitches: [...chart.stitches, ...added], nextId: chart.nextId + n };
+  const row = n === 1 ? laid : arrangeStitches(laid, ids, 'row', extent, { gap, radius: 0, angle: 0, facing: 'feet' });
+  const [dx, dy] = boundedMove(row, ids, 0, 0, size);
+  const next = moveStitches(row, ids, dx, dy);
+  return allInside(next, ids, size) ? { chart: next, ids } : null;
 }
 
 /** The stitch whose reach covers the point; of several, the one placed last. */

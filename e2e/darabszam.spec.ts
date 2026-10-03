@@ -93,6 +93,30 @@ test('the slider moves the field, and the count is what a click lays', async ({ 
   expect(await stitches(page)).toHaveLength(6);
 });
 
+test('in a phone-sized window the count covers only the top of the board', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 700 });
+  await newChart(page);
+  await page.getByRole('button', { name: /^Single crochet \(sc\)/ }).click();
+  await expect(panel(page)).toBeVisible();
+  const covered = (await page.locator('#inspector').boundingBox())!;
+  const area = (await board(page).boundingBox())!;
+  expect(covered.height, 'the panel is as tall as the count, not the column').toBeLessThan(area.height / 3);
+
+  await board(page).click({ position: { x: area.width - 20, y: area.height - 20 } });
+  expect(await stitches(page), 'a tap under where a full column would be still lays a stitch').toHaveLength(1);
+});
+
+test('a row wider than the board is not laid', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 700 });
+  await newChart(page);
+  await page.getByRole('button', { name: /^Double treble \(dtr\)/ }).click();
+  await count(page).fill('10');
+  const area = (await board(page).boundingBox())!;
+  test.skip(area.width > 10 * 20, 'the board is wide enough for ten');
+  await board(page).click({ position: { x: area.width / 2, y: area.height / 2 } });
+  expect(await stitches(page)).toHaveLength(0);
+});
+
 test('increases, decreases and compound stitches bring no count, and lay one stitch', async ({ page }) => {
   await newChart(page);
   await page.getByRole('button', { name: /^Single crochet \(sc\)/ }).click();

@@ -2564,14 +2564,24 @@ decreases and compound stitches show nothing and lay one stitch; the owner left
 their options for later.
 
 **The control** is the spacing control's twin: a 1–10 slider with a field on its
-right, default 1. Unlike the arrange fields, this one is **capped**: a number
-above 10 becomes 10 as it is typed (`bindPair(…, capped)`), because the owner
-asked that more than 10 never be accepted. Digits only, a typed 0 counts as 1,
-and an emptied field gets its last value back when it is left — all as in §83.
-The count is kept for the session across stitches; it is not stored.
+right, default 1. Unlike the arrange fields, this one is **capped**: as it is
+typed, a number above 10 becomes 10 and a 0 becomes 1, and a leading zero goes
+(`bindPair(…, capped)`, `cappedText`), because the owner asked that more than 10
+never be accepted — so the field never shows a number other than the one a
+click lays. Digits only, and an emptied field gets its last value back when it
+is left, as in §83. The bounds are `MIN_COUNT` and `MAX_COUNT` in the core; the
+slider takes them from there, not from the markup. The count is kept for the
+session across stitches; it is not stored.
 
 **What a click lays.** `placeStitches` (`core/freeform.ts`): the stitches side by
 side, upright, centred on the click, laid out by the In a row arrangement with
-its default spacing of 4 px. One stitch lands exactly where a single placement
-always did. A row reaching past an edge of the board is shifted back on, as an
-arrangement is. The row is one undo step (§84).
+its default spacing (read from `#arrange-gap`'s default value, 4 px). One stitch
+lands exactly where a single placement always did. A row reaching past an edge
+of the board is shifted back on, as an arrangement is, and one wider than the
+board is not laid at all, as an arrangement is not taken (§83). The row is one
+undo step (§84).
+
+**Below 40rem** the right panel lies over the board (§83). For an arrangement it
+takes the whole column; for the count it takes only its own height, because
+arming a stitch is the placing state and the board under the column has to stay
+clickable.

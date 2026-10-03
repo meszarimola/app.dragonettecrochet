@@ -11,6 +11,8 @@ import {
   emptyChart,
   type Facing,
   type FreeformChart,
+  MAX_COUNT,
+  MIN_COUNT,
   moveStitches,
   type PlacedStitch,
   pasteStitches,
@@ -80,7 +82,7 @@ const facingButtons: Readonly<Record<Facing, HTMLButtonElement>> = {
 const placeOptions = must<HTMLElement>('#place-options');
 const PASTE_STEP = 20;
 // KB: interface.md §85 — the "In a row" arrangement's default spacing.
-const PLACE_GAP = 4;
+const PLACE_GAP = Number(must<HTMLInputElement>('#arrange-gap').defaultValue);
 const COUNTED = new Set(STITCH_SECTIONS.find(({ id }) => id === 'basic')?.stitches.map(({ id }) => id));
 
 let chartStyle: ChartStyle = readChartStyle(read(NOTATION_KEY));
@@ -107,14 +109,13 @@ const buttons = new Map<StitchDefId, HTMLButtonElement>();
 const ink = readInk(document.documentElement);
 
 const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAccent(document.documentElement), {
-  place: ({ x, y }) => {
+  place: (point) => {
     if (chart === null || tool === null) return;
-    const before = chart.nextId;
     const n = COUNTED.has(tool) ? placeCount.value : 1;
-    const next = placeStitches(chart, tool, x, y, n, (placed) => board.extentOf(placed), PLACE_GAP);
-    const ids = new Set(next.stitches.filter(({ id }) => id >= before).map(({ id }) => id));
-    const [dx, dy] = boundedMove(next, ids, 0, 0, board.size());
-    chart = moveStitches(next, ids, dx, dy);
+    const extent = (placed: PlacedStitch) => board.extentOf(placed);
+    const placed = placeStitches(chart, tool, point, n, extent, PLACE_GAP, board.size());
+    if (placed === null) return;
+    chart = placed.chart;
     board.show(chart, symbolOptionsFor(chartStyle));
     commit();
   },
@@ -164,12 +165,10 @@ function showFacing(): void {
 const gap = bindPair(must<HTMLInputElement>('#arrange-gap-range'), must<HTMLInputElement>('#arrange-gap'), () =>
   rearrange('row'),
 );
-const placeCount = bindPair(
-  must<HTMLInputElement>('#place-count-range'),
-  must<HTMLInputElement>('#place-count'),
-  () => {},
-  true,
-);
+const placeCountRange = must<HTMLInputElement>('#place-count-range');
+placeCountRange.min = String(MIN_COUNT);
+placeCountRange.max = String(MAX_COUNT);
+const placeCount = bindPair(placeCountRange, must<HTMLInputElement>('#place-count'), () => {}, true);
 const radius = bindPair(
   must<HTMLInputElement>('#arrange-radius-range'),
   must<HTMLInputElement>('#arrange-radius'),

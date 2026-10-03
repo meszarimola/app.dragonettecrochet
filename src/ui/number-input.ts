@@ -7,10 +7,10 @@ export function digitsOnly(text: string): string {
   return text.replace(/\D/g, '');
 }
 
-/** A capped field's value: digits only, and anything above `max` becomes `max`. */
-export function cappedText(text: string, max: number): string {
+/** A capped field's value: digits only, no leading zero, and held between `min` and `max`. */
+export function cappedText(text: string, max: number, min = 0): string {
   const digits = digitsOnly(text);
-  return digits !== '' && Number(digits) > max ? String(max) : digits;
+  return digits === '' ? '' : String(Math.min(Math.max(Number(digits), min), max));
 }
 
 /** An angle field's value: digits only, and anything above 359 becomes 359. */
@@ -67,7 +67,7 @@ export function bindPair(
     take(Number(range.value));
   });
   field.addEventListener('input', () => {
-    rewrite(field, capped ? cappedText(field.value, max) : digitsOnly(field.value));
+    rewrite(field, capped ? cappedText(field.value, max, min) : digitsOnly(field.value));
     if (field.value !== '') take(Number(field.value));
   });
   field.addEventListener('change', () => rewrite(field, String(current)));

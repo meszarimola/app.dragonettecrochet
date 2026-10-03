@@ -30,6 +30,14 @@ test('a capped field keeps digits only, and a number above the cap becomes the c
   assert.equal(cappedText('', 10), '');
 });
 
+test('a capped field drops leading zeros and holds its minimum as it is typed', () => {
+  assert.equal(cappedText('05', 10), '5');
+  assert.equal(cappedText('0', 10, 1), '1');
+  assert.equal(cappedText('00', 10, 1), '1');
+  assert.equal(cappedText('010', 10, 1), '10');
+  assert.equal(cappedText('', 10, 1), '');
+});
+
 test('an angle above 359 becomes 359, and one within the range stays', () => {
   assert.equal(angleText('360'), '359');
   assert.equal(angleText('9999'), '359');
