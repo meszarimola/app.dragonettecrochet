@@ -345,6 +345,20 @@ test('around with the feet in, a chain sits on the tops’ arc; with the tops in
   close(tops[0].y - 15, tops[2].y - 10, 'tops in: every top on one line');
 });
 
+test('a chain no shorter than the stitches beside it stays on the foot line, in a row and around (PQW-1161)', () => {
+  const chart = [
+    ['ch', 0],
+    ['sl-st', 50],
+  ].reduce((sum, [stitch, x]) => placeStitch(sum, stitch, x, 0), emptyChart());
+  const halves = { ch: 5, 'sl-st': 3.5 };
+  const extent = (placed) => ({ halfWidth: 5, halfHeight: halves[placed.stitch] });
+  const both = new Set([1, 2]);
+  const [ch, slip] = arrangeStitches(chart, both, 'row', extent, OPTIONS).stitches;
+  close(ch.y + 5, slip.y + 3.5, 'beside a slip stitch the chain keeps its foot');
+  const [inner, other] = arrangeStitches(chart, both, 'around', extent, { ...OPTIONS, angle: 0 }).stitches;
+  close(inner.y + 5, other.y + 3.5, 'around, its foot stays at the radius, not past the point');
+});
+
 test('a row of chains alone is laid foot to foot as before (PQW-1161)', () => {
   const chart = [0, 50].reduce((sum, x) => placeStitch(sum, 'ch', x, 0), emptyChart());
   const extent = (placed) => ({ halfWidth: 5, halfHeight: placed.id === 1 ? 4 : 6 });
