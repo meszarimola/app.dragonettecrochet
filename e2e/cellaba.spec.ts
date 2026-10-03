@@ -6,6 +6,10 @@
 
 import { expect, type Locator, type Page, test } from '@playwright/test';
 
+/** A tr's ink as drawn (geometry 63, stroke 2) and the gap above a row's tallest stitch. KB: interface.md §91 */
+const TR_INK = 65;
+const ROW_GAP = 8;
+
 interface Placed {
   readonly stitch: string;
   readonly x: number;
@@ -51,7 +55,7 @@ test('a stitch sits in the middle of the clicked cell, its foot on the row’s l
   expect(after.length, 'a click on a taken cell replaces its stitch').toBe(1);
   expect(after[0]?.stitch).toBe('dc');
 
-  await at(5, -60);
+  await at(5, -80);
   const raised = (await stitches(page)).find(({ cell }) => cell?.row === 1);
   expect(raised, 'the click above row 1 lands in row 2, as tall as a cell').toBeDefined();
   const dcRow1 = (await stitches(page)).find(({ cell }) => cell?.row === 0)!;
@@ -80,7 +84,7 @@ test('while a tall stitch is dragged out of its row, the rows above follow at on
   await page.getByRole('button', { name: /^Treble \(tr\)/ }).click();
   await at(2, -20);
   await page.getByRole('button', { name: /^Single crochet \(sc\)/ }).click();
-  await at(2, -80);
+  await at(2, -100);
   const before = (await stitches(page)).find(({ stitch }) => stitch === 'sc')!.y;
   await page.getByRole('button', { name: 'Select' }).click();
   const box = (await board.boundingBox())!;
@@ -89,7 +93,9 @@ test('while a tall stitch is dragged out of its row, the rows above follow at on
   await page.mouse.down();
   await page.mouse.move(box.x + 64 + tr.x + 300, box.y + box.height - 24 + tr.y, { steps: 5 });
   const during = (await stitches(page)).find(({ stitch }) => stitch === 'sc')!.y;
-  expect(during, 'row 1 is a cell again, so row 2 comes down with it before the release').toBe(before + (63 + 8 - 40));
+  expect(during, 'row 1 is a cell again, so row 2 comes down with it before the release').toBe(
+    before + (TR_INK + ROW_GAP - 40),
+  );
   await page.mouse.up();
 });
 

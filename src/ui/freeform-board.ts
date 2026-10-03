@@ -36,6 +36,8 @@ import { applyInk, drawCentered, type Shape, type SymbolOptions, shapeBounds, sy
 
 /** How much larger a stitch is drawn on the canvas than in its own symbol units. */
 export const STITCH_SCALE = 1.5;
+/** A stitch's line width on the board, whatever its size. */
+const INK_LINE = 2;
 /** A stitch is never harder to hit than this, however small its symbol. */
 const MIN_REACH = 8;
 const FRAME_PAD = 6;
@@ -508,10 +510,11 @@ export class FreeformBoard {
         halfWidth: Math.max(cx - exact.minX, exact.maxX - cx) * STITCH_SCALE,
         halfHeight: Math.max(cy - exact.minY, exact.maxY - cy) * STITCH_SCALE,
       };
+      // The stroke reaches half its width past the geometry at both ends, round caps included. KB: interface.md §91
       const footprint = {
-        width: (exact.maxX - exact.minX) * STITCH_SCALE,
-        height: (exact.maxY - exact.minY) * STITCH_SCALE,
-        drop: (exact.maxY - cy) * STITCH_SCALE,
+        width: (exact.maxX - exact.minX) * STITCH_SCALE + INK_LINE,
+        height: (exact.maxY - exact.minY) * STITCH_SCALE + INK_LINE,
+        drop: (exact.maxY - cy) * STITCH_SCALE + INK_LINE / 2,
       };
       found = { shapes, reach, extent, footprint };
       this.shapes.set(placed.stitch, found);
@@ -599,7 +602,7 @@ export class FreeformBoard {
       ctx.save();
       ctx.translate(placed.x, placed.y);
       ctx.rotate(placed.rotation);
-      applyInk(ctx, this.selection.has(placed.id) ? this.accent : this.ink, 2 / scale);
+      applyInk(ctx, this.selection.has(placed.id) ? this.accent : this.ink, INK_LINE / scale);
       drawCentered(ctx, this.symbolOf(placed).shapes, scale);
       ctx.restore();
     }

@@ -2973,22 +2973,27 @@ touched.
 
 **Row height.** A row is as tall as its tallest seated stitch as drawn plus an
 8-unit gap above it (`ROW_GAP`), and never less than a cell (`rowHeights`), so an
-empty row, a row of chains or of sc (27 + 8) keeps the square. The drawn height,
-not the turning-chain convention: a dc is 51 units and its row 59, a tr 63 and 71.
+empty row, a row of chains or of sc keeps the square. The drawn height, not the
+turning-chain convention, and the ink includes the 2-unit stroke (1 past each
+end): a dc is 53 units and its row 61, a tr 65 and 73.
 **The gap (PQW-1174):** without it a row was exactly its ink, so a dc's top bar lay
 on the line the dc above stood on and the two rows ran together — the owner's
 screenshot on 1.4.0. The owner chose the gap above the stitch, the foot staying on
-the line, and its size. Every row above moves up with it — the grid, the
+the line, and its size. The stroke is counted because /code-review measured the
+gap left without it: 6 units, not 8. Every row above moves up with it — the grid, the
 numbers and the seated stitches, since `seat` runs on every `commit`, before the
 step is recorded (§84). A symbol wider than its cells is shrunk to their
-width (a chain space, 43.6 wide, in one cell), and its row takes the shrunk height.
+width (a chain space, 43.6 wide, in one cell), and its row takes the shrunk height
+and the gap.
 The width of a column never changes yet; the owner's later step makes increases and
 decreases widen cells.
 
 **What leaves a cell.** A stitch moved, turned, resized, pasted or arranged by hand
 loses its cell (`unseated`) and stays where it was put; seating it again on release
 is PQW-1173. A stitch laid before 1.4.0, freely, stays free, and a stored cell the
-grid does not have is dropped on load — a saved chart never changes by itself.
+grid does not have is dropped on load. A free stitch never moves by itself; the
+seated ones follow the rules in force, so a chart saved by 1.4.0 opens with the
+gap in its tall rows, and a free stitch beside them stays where it was.
 
 **Symbol style.** Switching CYC and JIS changes the symbols' sizes, so the rows are
 seated again, folded into the last undo step. The board keeps the row heights per

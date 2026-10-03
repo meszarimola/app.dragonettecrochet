@@ -110,10 +110,6 @@ test('an off-centre symbol still has its foot on the line, and its row is its in
   assert.deepEqual(rowHeights(chart, size)[0], 40 + ROW_GAP);
 });
 
-test('the gap above a stitch is the owner’s 8 units', () => {
-  assert.equal(ROW_GAP, 8);
-});
-
 test('a row is as tall as its tallest seated stitch and the gap, and never less than a cell', () => {
   let chart = laid(gridChart(), 'sc', 0, 0);
   chart = laid(chart, 'dc', 1, 0);
