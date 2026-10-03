@@ -145,26 +145,25 @@ test('the increase and decrease section is a decrease, an increase, then the inv
 });
 
 test('the tiles follow the chosen part and count, and say so on the structure line', () => {
-  const choice = {
-    decrease: { part: stitchById('dc'), n: 3 },
-    increase: { part: stitchById('dtr'), n: 5 },
-  };
+  const choice = { parts: { decrease: stitchById('dc'), increase: stitchById('dtr') }, n: 3 };
   const [dec, inc] = buildPalette('en-US', choice).find(({ id }) => id === 'increase-decrease').items;
   assert.equal(dec.def.id, 'dc3tog');
   assert.equal(dec.structure, 'dc3tog');
-  assert.equal(inc.def.id, 'inc-5dtr');
-  assert.equal(inc.structure, '5 dtr in same st');
-  assert.equal(DEFAULT_SHAPING.decrease.part.id, 'sc');
-  assert.equal(DEFAULT_SHAPING.increase.n, 2);
+  assert.equal(inc.def.id, 'inc-3dtr');
+  assert.equal(inc.structure, '3 dtr in same st');
+  assert.deepEqual(
+    [DEFAULT_SHAPING.parts.decrease.id, DEFAULT_SHAPING.parts.increase.id, DEFAULT_SHAPING.n],
+    ['sc', 'sc', 2],
+  );
 });
 
-test('the menu offers sc, hdc, dc, tr and dtr by the notation, and a shortened name where there is no abbreviation', () => {
+test('the menu offers sc, hdc, dc, tr and dtr by the notation, and the whole name where there is no abbreviation', () => {
   assert.deepEqual(
     SHAPING_PARTS.map((part) => partLabel(part, 'en-US')),
     ['sc', 'hdc', 'dc', 'tr', 'dtr'],
   );
   assert.deepEqual(
     SHAPING_PARTS.map((part) => partLabel(part, 'hu')),
-    ['rp', 'fp', 'erp', 'krp', 'háromráhajtásos'],
+    ['rp', 'fp', 'erp', 'krp', 'háromráhajtásos pálca'],
   );
 });

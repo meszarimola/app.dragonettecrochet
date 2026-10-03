@@ -48,7 +48,7 @@ import {
   type PaletteItem,
   type PaletteSection,
   partLabel,
-  type ShapingChoice,
+  type ShapingChoices,
 } from './palette.ts';
 import { currentPlatform, historyCommand, modifierCombo } from './platform.ts';
 import { applyInk, drawCentered, readAccent, readInk, shapeBounds, symbolShapes } from './symbols.ts';
@@ -103,9 +103,8 @@ const COUNTED = new Set(STITCH_SECTIONS.find(({ id }) => id === 'basic')?.stitch
 
 let chartStyle: ChartStyle = readChartStyle(read(NOTATION_KEY));
 let chart: FreeformChart | null = null;
-/** The armed palette tile: a stitch's id, or an increase or a decrease built from its menu. */
 let tool: StitchDefId | Shaping | null = null;
-const shaping: Record<Shaping, ShapingChoice> = { ...DEFAULT_SHAPING };
+let shaping: ShapingChoices = DEFAULT_SHAPING;
 let selecting = false;
 let clipboard: readonly PlacedStitch[] = [];
 let facing: Facing = 'feet';
@@ -187,15 +186,17 @@ const gap = bindPair(must<HTMLInputElement>('#arrange-gap-range'), must<HTMLInpu
 const placeCountRange = must<HTMLInputElement>('#place-count-range');
 placeCountRange.min = String(MIN_COUNT);
 placeCountRange.max = String(MAX_COUNT);
+must<HTMLInputElement>('#place-count').maxLength = String(MAX_COUNT).length;
 const placeCount = bindPair(placeCountRange, must<HTMLInputElement>('#place-count'), () => {}, true);
 const placePartsRange = must<HTMLInputElement>('#place-parts-range');
 placePartsRange.min = String(MIN_SHAPING);
 placePartsRange.max = String(MAX_SHAPING);
+must<HTMLInputElement>('#place-parts').maxLength = String(MAX_SHAPING).length;
 bindPair(
   placePartsRange,
   must<HTMLInputElement>('#place-parts'),
   (n) => {
-    for (const kind of ['decrease', 'increase'] as const) shaping[kind] = { ...shaping[kind], n };
+    shaping = { ...shaping, n };
     renderShapingTiles();
   },
   true,
@@ -460,7 +461,7 @@ function isShaping(id: StitchDefId | Shaping | null): id is Shaping {
 /** The stitch a click lays: the armed tile's, built from its menu and count for an increase or a decrease. */
 function armedStitch(): StitchDefId | null {
   if (!isShaping(tool)) return tool;
-  return shapingStitch(tool, shaping[tool].part, shaping[tool].n).id;
+  return shapingStitch(tool, shaping.parts[tool], shaping.n).id;
 }
 
 function select(id: StitchDefId | Shaping | null): void {
@@ -548,11 +549,11 @@ function partMenu(kind: Shaping): HTMLSelectElement {
     option.textContent = partLabel(part, terms);
     menu.append(option);
   }
-  menu.value = shaping[kind].part.id;
+  menu.value = shaping.parts[kind].id;
   menu.addEventListener('change', () => {
     const part = SHAPING_PARTS.find(({ id }) => id === menu.value);
     if (part === undefined) return;
-    shaping[kind] = { ...shaping[kind], part };
+    shaping = { ...shaping, parts: { ...shaping.parts, [kind]: part } };
     renderShapingTiles();
     select(kind);
   });

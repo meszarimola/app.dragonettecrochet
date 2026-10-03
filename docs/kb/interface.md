@@ -2595,13 +2595,18 @@ increases, four decreases), each tied to one stitch.
 **The section is two rows and a tile.** Decrease first, then Increase, as the
 owner listed them; each row is a tile and, beside it, a menu of the stitch it is
 made of: sc, hdc, dc, tr, dtr (`SHAPING_PARTS`), default sc. The menu prints the
-abbreviation of the notation, or where there is none the shortened name
-§53 already uses (Hungarian „háromráhajtásos”), never an invented one. The invisible decrease stays a tile of its own
+abbreviation of the notation, or the whole name where there is none — the
+Hungarian „háromráhajtásos pálca” is clipped in the closed menu but read whole
+in the open one and on the tile's structure line. Cutting it to its first word
+left an adjective, and there is no approved short form (01 §8.5). The invisible decrease stays a tile of its own
 under them — it is worked through the front loops only, so it is not „sc2tog
 from a menu” (owner's choice). A choice in the menu arms its tile. The tile's
 icon and structure line follow the choice, redrawn in place so the menu keeps
-its focus (§8). `Alt`+8 is the decrease and `Alt`+9 the increase; the compound
-stitches had no shortcut before and have none now.
+its focus (§8). `Alt`+8 is the decrease and `Alt`+9 the increase. Both keys changed
+meaning: until v0.93.0 they armed the sc and the dc increase. The compound
+stitches had no shortcut before and have none now. The parts field is labelled
+„Szemek száma” / „Number of stitches”: „Stitches” alone was already the name of
+the palette's group.
 
 **The parts: 2–5, not 2–10.** The owner asked for 2–10 and then asked whether
 10 was too many. Drawn, an increase of more than five runs its legs into one

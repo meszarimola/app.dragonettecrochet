@@ -89,6 +89,6 @@ export const MARKUP_TEXTS = {
     arrangeFacingTops: 'Tops',
     placeTitle: 'Placing',
     placeCountLabel: 'Count',
-    placePartsLabel: 'Stitches',
+    placePartsLabel: 'Number of stitches',
   },
 } satisfies Dictionary<Record<string, string>>;

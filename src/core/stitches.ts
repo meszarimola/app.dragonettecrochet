@@ -452,8 +452,10 @@ function builtFrom(id: StitchDefId): StitchDef | undefined {
 }
 
 export function stitchById(id: StitchDefId): StitchDef {
-  const found = BY_ID.get(id) ?? builtFrom(id);
-  if (!found) throw new Error(`Ismeretlen szem: ${id}`);
-  BY_ID.set(id, found);
-  return found;
+  const listed = BY_ID.get(id);
+  if (listed !== undefined) return listed;
+  const built = builtFrom(id);
+  if (!built) throw new Error(`Ismeretlen szem: ${id}`);
+  BY_ID.set(id, built);
+  return built;
 }

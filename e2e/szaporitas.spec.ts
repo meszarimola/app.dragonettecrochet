@@ -16,8 +16,8 @@ const decrease = (page: Page) => page.getByRole('button', { name: /^Decrease \(d
 const increase = (page: Page) => page.getByRole('button', { name: /^Increase \(inc\)/ });
 const decreaseMenu = (page: Page) => page.getByRole('combobox', { name: 'Decrease stitch' });
 const increaseMenu = (page: Page) => page.getByRole('combobox', { name: 'Increase stitch' });
-const parts = (page: Page) => page.getByRole('textbox', { name: 'Stitches' });
-const partsSlider = (page: Page) => page.getByRole('slider', { name: 'Stitches' });
+const parts = (page: Page) => page.getByRole('textbox', { name: 'Number of stitches' });
+const partsSlider = (page: Page) => page.getByRole('slider', { name: 'Number of stitches' });
 
 async function laid(page: Page): Promise<string[]> {
   return page.evaluate(() =>

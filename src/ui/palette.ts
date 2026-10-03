@@ -22,7 +22,6 @@ export interface PaletteItem {
   readonly key: string | null;
   readonly name: string;
   readonly structure: string | null;
-  /** Set on the two tiles whose stitch is chosen from a menu. */
   readonly shaping: Shaping | null;
 }
 
@@ -32,16 +31,15 @@ export interface PaletteSection {
   readonly items: readonly PaletteItem[];
 }
 
-export interface ShapingChoice {
-  readonly part: StitchDef;
+/** Each tile has its own part; the one count serves both. KB: interface.md §86 */
+export interface ShapingChoices {
+  readonly parts: Readonly<Record<Shaping, StitchDef>>;
   readonly n: number;
 }
 
-export type ShapingChoices = Readonly<Record<Shaping, ShapingChoice>>;
-
 export const DEFAULT_SHAPING: ShapingChoices = {
-  decrease: { part: SINGLE_CROCHET, n: MIN_SHAPING },
-  increase: { part: SINGLE_CROCHET, n: MIN_SHAPING },
+  parts: { decrease: SINGLE_CROCHET, increase: SINGLE_CROCHET },
+  n: MIN_SHAPING,
 };
 
 /** Decrease first, as the owner listed them. KB: interface.md §86 */
@@ -63,7 +61,7 @@ export function buildPalette(terms: Locale = 'hu', shaping: ShapingChoices = DEF
     if (section.id === 'compound') return [...section.stitches, MAGIC_RING].map((def) => item(def));
     if (section.id === 'increase-decrease') {
       return [
-        ...SHAPINGS.map((kind) => item(shapingStitch(kind, shaping[kind].part, shaping[kind].n), kind)),
+        ...SHAPINGS.map((kind) => item(shapingStitch(kind, shaping.parts[kind], shaping.n), kind)),
         item(INVISIBLE_DECREASE),
       ];
     }
@@ -76,11 +74,10 @@ export function buildPalette(terms: Locale = 'hu', shaping: ShapingChoices = DEF
   }));
 }
 
-/** What a part is called in the menu: its abbreviation, or its name where it has none. */
+/** What a part is called in the menu: its abbreviation, or its whole name where it has none. KB: 01 §8.5 */
 export function partLabel(part: StitchDef, terms: Locale): string {
   const { name, abbr } = part.terms[terms];
-  // KB: interface.md §53 — a shortened name, never an invented abbreviation.
-  return abbr ?? name.split(' ')[0] ?? name;
+  return abbr ?? name;
 }
 
 function capitalize(text: string, terms: Locale): string {
