@@ -15,15 +15,15 @@ const palette = buildPalette();
 const items = palette.flatMap((section) => section.items);
 
 /*
- * KB: interface.md §74 — the palette is not the library any more. The chain space
- * is drawn by the chain arc tool, so it has no tile; the magic ring is shown among
- * the compound stitches. The library order itself is untouched, because the written
- * pattern's key follows it.
+ * KB: interface.md §74, §86 — the palette is not the library any more. The chain
+ * space is drawn by the chain arc tool, so it has no tile; the magic ring and the
+ * invisible decrease are shown among the compound stitches; the listed increases and
+ * decreases give way to two tiles built from a menu. The library order itself is
+ * untouched, because the written pattern's key follows it.
  */
-test('the palette shows every stitch once, save the chain space, and the magic ring with the compound ones', () => {
+test('the palette shows every stitch once, save the chain space, with the magic ring and the invisible decrease among the compound ones', () => {
   const shown = items.map((item) => item.def.id);
   assert.equal(new Set(shown).size, shown.length, 'no stitch twice');
-  // KB: interface.md §86 — the listed increases and decreases give way to two tiles built from a menu.
   const listed = STITCH_SECTIONS.find((section) => section.id === 'increase-decrease').stitches;
   const menuBuilt = new Set(listed.filter((stitch) => stitch.id !== 'invdec').map((stitch) => stitch.id));
   assert.deepEqual(
@@ -126,22 +126,30 @@ test('the ink colour comes from the --c-ink token, and only symbols.ts sets a co
 
 /* ---- Increases and decreases from a menu (PQW-1155) ---- */
 
-test('the increase and decrease section is a decrease, an increase, then the invisible decrease', () => {
+test('the increase and decrease section is a decrease, then an increase', () => {
   const section = buildPalette('en-US').find(({ id }) => id === 'increase-decrease');
   assert.deepEqual(
     section.items.map(({ def, shaping }) => [def.id, shaping]),
     [
       ['sc2tog', 'decrease'],
       ['inc-2sc', 'increase'],
-      ['invdec', null],
     ],
   );
   assert.deepEqual(SHAPINGS, ['decrease', 'increase']);
   assert.deepEqual(
     section.items.map(({ key }) => key),
-    ['8', '9', null],
+    ['8', '9'],
     'Alt+8 is the decrease, Alt+9 the increase',
   );
+});
+
+test('the invisible decrease stands among the compound stitches, just before the magic ring (PQW-1157)', () => {
+  const compound = buildPalette('en-US').find(({ id }) => id === 'compound');
+  assert.deepEqual(
+    compound.items.slice(-2).map(({ def }) => def.id),
+    ['invdec', 'magic-ring'],
+  );
+  assert.equal(compound.items.find(({ def }) => def.id === 'invdec').key, null, 'no shortcut, as before');
 });
 
 test('the tiles follow the chosen part and count, and say so on the structure line', () => {

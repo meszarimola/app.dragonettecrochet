@@ -81,6 +81,7 @@
     "#select-tool": 1,
     "#version": 1,
     ".brand-mark": 1,
+    ".palette__shaping": 1,
     ".tool__label": 2,
     ".tools__group": 1,
     "canvas": 1,
