@@ -246,3 +246,23 @@ test('New starts from the default view again', async ({ page }) => {
   expect(placed!.x).toBeCloseTo(300, 0);
   expect(placed!.y).toBeCloseTo(200, 0);
 });
+
+test('zoomed in, a counted row wider than the screen is still laid', async ({ page }) => {
+  await newChart(page);
+  for (let i = 0; i < 7; i += 1) await zoomIn(page).click();
+  await expect(level(page)).toHaveText('800%');
+  await page.getByRole('button', { name: /^Double treble \(dtr\)/ }).click();
+  await page.getByRole('textbox', { name: 'Count' }).fill('10');
+  await board(page).click({ position: { x: 300, y: 200 } });
+  expect(await stitches(page)).toHaveLength(10);
+});
+
+test('the level button brings back the default view after a pan', async ({ page }) => {
+  await newChart(page);
+  await dragOnBoard(page, [500, 100], [500, 400]);
+  await level(page).click();
+  await page.getByRole('button', { name: /^Single crochet \(sc\)/ }).click();
+  await board(page).click({ position: { x: 300, y: 200 } });
+  const [placed] = await stitches(page);
+  expect(placed!.y, 'a screen point is the board point again').toBeCloseTo(200, 0);
+});

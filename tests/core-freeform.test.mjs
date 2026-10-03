@@ -190,6 +190,22 @@ test('a board may start left of and above the origin (PQW-1160)', () => {
   assert.equal(allInside(chartOf([-500, 0]), one, sheet), false);
 });
 
+test('stitches spread wider than the bounds move between the two limits, without a jump', () => {
+  const narrow = { minX: 0, minY: 0, maxX: 100, maxY: 100 };
+  const chart = chartOf([-50, 50], [130, 50]);
+  const both = new Set([1, 2]);
+  assert.deepEqual(boundedMove(chart, both, 0, 0, narrow), [0, 0], 'standing still stays still');
+  assert.deepEqual(boundedMove(chart, both, 20, 0, narrow), [20, 0], 'a move between the limits is kept');
+  assert.deepEqual(boundedMove(chart, both, 500, 0, narrow), [50, 0], 'and stops at the farther one');
+});
+
+test('a paste into bounds that do not start at 0 still steps off what it copies', () => {
+  const screen = { minX: -300, minY: -200, maxX: -100, maxY: 0 };
+  const chart = chartOf([-110, -10]);
+  const { copied } = pasteStitches(chart, copyStitches(chart, new Set([1])), 20, screen);
+  assert.deepEqual([copied[0].x, copied[0].y], [-130, -30], 'at the corner it goes back up and left');
+});
+
 test('only the selected stitches have to stay on the board', () => {
   const chart = chartOf([50, 50], [-10, 50]);
   assert.equal(allInside(chart, new Set([1]), BOARD), true);

@@ -33,6 +33,14 @@ test('the sheet is the default view and one more screen on every side', () => {
   assert.deepEqual(sheetOf(SCREEN), { minX: -800, minY: -600, maxX: 1600, maxY: 1200 });
 });
 
+test('the sheet grows to take in a stitch left outside it, and the view can reach it', () => {
+  const stranded = { x: -1500, y: 100 };
+  const sheet = sheetOf(SCREEN, [stranded, { x: 10, y: 10 }]);
+  assert.deepEqual(sheet, { minX: -1500, minY: -600, maxX: 1600, maxY: 1200 });
+  const seen = visibleRect(panBy(DEFAULT_VIEW, 10_000, 0, SCREEN, sheet), SCREEN);
+  assert.ok(seen.minX <= stranded.x && stranded.x <= seen.maxX);
+});
+
 test('toBoard and toScreen undo each other', () => {
   const view = { zoom: 2.5, origin: { x: 100, y: 40 } };
   const back = toScreen(view, toBoard(view, { x: 33, y: 71 }));

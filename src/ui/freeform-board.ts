@@ -203,9 +203,10 @@ export class FreeformBoard {
   /** Zooms about the middle of the screen, or about `anchor`, a screen point. */
   zoomTo(zoom: number, anchor?: Point): void {
     const { width, height } = this.size();
-    this.setView(zoomAt(this.view, zoom, anchor ?? { x: width / 2, y: height / 2 }, this.size()));
+    this.setView(zoomAt(this.view, zoom, anchor ?? { x: width / 2, y: height / 2 }, this.size(), this.sheet()));
   }
 
+  /** Back to 100% with the sheet's home corner at the top left, where a new chart starts. */
   resetView(): void {
     this.setView(DEFAULT_VIEW);
   }
@@ -215,7 +216,7 @@ export class FreeformBoard {
   }
 
   private setView(view: View): void {
-    const next = clampView(view, this.size());
+    const next = clampView(view, this.size(), this.sheet());
     if (next.zoom === this.view.zoom && next.origin.x === this.view.origin.x && next.origin.y === this.view.origin.y)
       return;
     const zoomed = next.zoom !== this.view.zoom;
@@ -282,12 +283,12 @@ export class FreeformBoard {
     return { width: this.canvas.clientWidth, height: this.canvas.clientHeight };
   }
 
-  /** Where a stitch may be moved, turned or resized to, in board units. KB: interface.md §87 */
+  /** In board units. KB: interface.md §87 */
   sheet(): Rect {
-    return sheetOf(this.size());
+    return sheetOf(this.size(), this.chart?.stitches ?? []);
   }
 
-  /** What is on screen, in board units: where a placed or pasted stitch lands. */
+  /** What is on screen, in board units. */
   visible(): Rect {
     return visibleRect(this.view, this.size());
   }
@@ -374,7 +375,7 @@ export class FreeformBoard {
         this.swallowClick = true;
         this.canvas.style.cursor = 'grabbing';
       }
-      this.setView(panBy(this.view, at.x - drag.last.x, at.y - drag.last.y, this.size()));
+      this.setView(panBy(this.view, at.x - drag.last.x, at.y - drag.last.y, this.size(), this.sheet()));
       drag.last = at;
       return;
     }
@@ -503,7 +504,7 @@ export class FreeformBoard {
       const offset = turn(local, frame.angle);
       return { x: frame.center.x + offset.x, y: frame.center.y + offset.y };
     };
-    const seen = visibleRect(this.view, this.size());
+    const seen = this.visible();
     const [hit, gap] = [this.px(HANDLE_HIT), this.px(HANDLE_GAP)];
     const onScreen = (p: Point): boolean =>
       p.x >= seen.minX + hit && p.y >= seen.minY + hit && p.x <= seen.maxX - hit && p.y <= seen.maxY - hit;

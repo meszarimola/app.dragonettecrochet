@@ -79,8 +79,8 @@ export const MAX_COUNT = 10;
 
 /**
  * `count` of one stitch side by side, upright and `gap` apart, centred on the
- * point and shifted back on the board past an edge; a count outside 1–10 is
- * taken at the nearer end. `null` for a row wider or taller than the board.
+ * point and shifted back within `bounds` past an edge; a count outside 1–10 is
+ * taken at the nearer end. `null` for a row wider or taller than `bounds`.
  * KB: interface.md §85
  */
 export function placeStitches(
@@ -177,14 +177,14 @@ function sameAngle(a: number, b: number): boolean {
   return Math.min(difference, Math.PI * 2 - difference) < 1e-9;
 }
 
-/** Whether every selected stitch's centre is on the board. */
+/** Whether every selected stitch's centre is within `bounds`. */
 export function allInside(chart: FreeformChart, ids: ReadonlySet<number>, bounds: Rect): boolean {
   return chart.stitches.every(
     ({ id, x, y }) => !ids.has(id) || (x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY),
   );
 }
 
-/** The part of a move that keeps every selected centre on the board: it stops at the edge, it does not refuse. */
+/** The part of a move that keeps every selected centre within `bounds`: it stops at the edge, it does not refuse. */
 export function boundedMove(
   chart: FreeformChart,
   ids: ReadonlySet<number>,
@@ -205,9 +205,17 @@ function boundedShift(stitches: readonly PlacedStitch[], dx: number, dy: number,
   const xs = stitches.map(({ x }) => x);
   const ys = stitches.map(({ y }) => y);
   return [
-    clamp(dx, bounds.minX - Math.min(...xs), bounds.maxX - Math.max(...xs)),
-    clamp(dy, bounds.minY - Math.min(...ys), bounds.maxY - Math.max(...ys)),
+    within(dx, bounds.minX - Math.min(...xs), bounds.maxX - Math.max(...xs)),
+    within(dy, bounds.minY - Math.min(...ys), bounds.maxY - Math.max(...ys)),
   ];
+}
+
+/**
+ * Stitches wider than the bounds (a window that shrank under them) cannot all be
+ * inside; then any shift between the two limits is taken, so nothing jumps.
+ */
+function within(value: number, low: number, high: number): number {
+  return low <= high ? clamp(value, low, high) : clamp(value, high, low);
 }
 
 /** The part of a resize that keeps every selected stitch between MIN_SCALE and MAX_SCALE. */
@@ -288,7 +296,7 @@ export interface Pasted {
 
 /**
  * Places copies of `copied` one step down and to the right, with new ids, turns
- * and sizes kept. Where the board's edge leaves no room for the step, the copy
+ * and sizes kept. Where the edge of `bounds` leaves no room for the step, the copy
  * goes the other way on that axis, so it never lands on what it copies.
  */
 export function pasteStitches(

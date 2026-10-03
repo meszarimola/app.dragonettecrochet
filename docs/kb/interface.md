@@ -2647,25 +2647,31 @@ did not change: at the default view (100%, origin 0) a board point is the
 screen point, which the specs rely on. In PQW-1158 the sheet was only the
 canvas, so at 100% the view could not move at all; the owner: „kicsit nagyobb
 legyen a mozgatási terület … mi van ha a képernyő aljára akarom húzni az egész
-rajzot?” Now `sheetOf(size())` is the default view plus one more screen on
-every side, the view may be anywhere on it, and the zoom runs from 50% (the
-sheet's middle two thirds at once) to 800%. The sheet follows the canvas's
-size, as the old one did; it is not stored.
+rajzot?” Now `sheetOf(size(), stitches)` is the default view plus one more
+screen on every side, the view may be anywhere on it, and the zoom runs from
+50% (the sheet's middle two thirds at once) to 800%. The sheet follows the
+canvas's size, as the old one did, and is not stored — so it also **grows to
+take in every stitch**: one left out there by a window that shrank stays
+reachable instead of lost behind the clamp.
 
-**Two edges, by what the stitch is doing.**
+**One edge for everything: the sheet.** A stitch moved, turned, resized, laid
+or arranged stays on the sheet and may leave the screen; panning or zooming out
+reaches it. A first version bounded laying and arranging by what was on screen,
+and the review found it wrong: the limit then shrank with the zoom, so at 800%
+an ordinary counted row or arc was silently refused. The specs that pinned the
+old canvas-sized edge now pin the sheet (`kijeloles.spec.ts`, the stitch
+dragged past the edge; `darabszam.spec.ts`, a row wider than the phone screen;
+`rendezes.spec.ts`, an arc larger than the sheet).
 
-- *Moved, turned or resized by hand* — the selection frame's drags — a stitch
-  stays on the **sheet**. It may leave the screen and is reached again by
-  panning or zooming out. Bounding these by the screen would make a large
-  selection jump when zoomed in, because the clamp would pull every stitch on
-  screen at once (`e2e/kijeloles.spec.ts`, the stitch dragged past the edge).
-- *Laid, pasted or arranged* — something the program puts down — lands on
-  **what is on screen** (`visible()`): a click lays where it is pointed, a
-  paste near the edge turns back on screen, a row or an arc wider than the
-  screen is refused. Whatever is made appears in front of the user.
+**Except a paste, which stays on screen when it can.** If what was copied is
+all on screen, the copy steps within the screen, so a duplicate at the right
+edge turns back left where it can be seen (`torles-masolas.spec.ts`);
+otherwise it steps within the sheet. Bounds narrower than the stitches they
+hold (a window that shrank under them) never make a move jump: any shift
+between the two limits is taken (`within` in `core/freeform.ts`).
 
-„Új” returns to the default view; the level button and Ctrl/⌘ + 0 return to
-100% about the middle and leave the view where it is.
+„Új”, the level button and Ctrl/⌘ + 0 all return to the default view: 100%,
+with the sheet's home corner at the top left.
 
 **Zooming.** The group beside „Törlés”: zoom out, the level (a click returns to
 100%) and zoom in. The buttons step through `ZOOM_STEPS`;

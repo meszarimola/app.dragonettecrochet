@@ -184,11 +184,12 @@ test('the settings go with the selection they were made for', async ({ page }) =
   await expect(page.getByRole('button', { name: 'Around' })).toHaveAttribute('aria-pressed', 'false');
 });
 
-test('an arrangement larger than the board is not taken', async ({ page }) => {
+test('an arrangement larger than the sheet is not taken', async ({ page }) => {
   await selectedChartWith(page, POINTS);
   await page.getByRole('button', { name: 'Around' }).click();
   const before = await stitches(page);
-  await page.getByRole('textbox', { name: 'Radius' }).fill('2000');
+  // PQW-1160: the sheet is three screens wide, so the largest radius the field takes.
+  await page.getByRole('textbox', { name: 'Radius' }).fill('9999');
   expect(await stitches(page), 'nothing moved').toEqual(before);
 });
 

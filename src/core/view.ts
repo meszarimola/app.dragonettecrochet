@@ -18,9 +18,22 @@ export const ZOOM_STEPS: readonly number[] = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4, 
 
 export const DEFAULT_VIEW: View = { zoom: 1, origin: { x: 0, y: 0 } };
 
-/** The sheet: the default view and one more screen on every side of it. */
-export function sheetOf(screen: Size): Rect {
-  return { minX: -screen.width, minY: -screen.height, maxX: screen.width * 2, maxY: screen.height * 2 };
+/**
+ * The sheet: the default view and one more screen on every side of it, grown to
+ * take in every given point, so a stitch left out there by a window that shrank
+ * can still be reached.
+ */
+export function sheetOf(screen: Size, points: readonly Point[] = []): Rect {
+  let sheet = { minX: -screen.width, minY: -screen.height, maxX: screen.width * 2, maxY: screen.height * 2 };
+  for (const { x, y } of points) {
+    sheet = {
+      minX: Math.min(sheet.minX, x),
+      minY: Math.min(sheet.minY, y),
+      maxX: Math.max(sheet.maxX, x),
+      maxY: Math.max(sheet.maxY, y),
+    };
+  }
+  return sheet;
 }
 
 export function toBoard(view: View, at: Point): Point {
@@ -42,9 +55,8 @@ export function visibleRect(view: View, screen: Size): Rect {
 }
 
 /** The zoom kept between the limits, and what is on screen kept on the sheet. */
-export function clampView(view: View, screen: Size): View {
+export function clampView(view: View, screen: Size, sheet: Rect = sheetOf(screen)): View {
   const zoom = Number.isFinite(view.zoom) ? Math.min(Math.max(view.zoom, MIN_ZOOM), MAX_ZOOM) : 1;
-  const sheet = sheetOf(screen);
   const limit = (at: number, low: number, high: number, length: number): number =>
     Number.isFinite(at) ? Math.min(Math.max(at, low), Math.max(low, high - length / zoom)) : 0;
   return {
@@ -57,10 +69,11 @@ export function clampView(view: View, screen: Size): View {
 }
 
 /** Zooms to `zoom`, keeping the board point under `anchor` (a screen point) where it is. */
-export function zoomAt(view: View, zoom: number, anchor: Point, screen: Size): View {
+export function zoomAt(view: View, zoom: number, anchor: Point, screen: Size, sheet: Rect = sheetOf(screen)): View {
   const held = toBoard(view, anchor);
-  const next = clampView({ ...view, zoom }, screen).zoom;
-  return clampView({ zoom: next, origin: { x: held.x - anchor.x / next, y: held.y - anchor.y / next } }, screen);
+  const next = clampView({ ...view, zoom }, screen, sheet).zoom;
+  const origin = { x: held.x - anchor.x / next, y: held.y - anchor.y / next };
+  return clampView({ zoom: next, origin }, screen, sheet);
 }
 
 /** The next step up (`1`) or down (`-1`) from `zoom`, which need not be a step itself. */
@@ -71,9 +84,7 @@ export function zoomStep(zoom: number, direction: 1 | -1): number {
 }
 
 /** Moves the view by a screen distance: the sheet follows the pointer. */
-export function panBy(view: View, dx: number, dy: number, screen: Size): View {
-  return clampView(
-    { zoom: view.zoom, origin: { x: view.origin.x - dx / view.zoom, y: view.origin.y - dy / view.zoom } },
-    screen,
-  );
+export function panBy(view: View, dx: number, dy: number, screen: Size, sheet: Rect = sheetOf(screen)): View {
+  const origin = { x: view.origin.x - dx / view.zoom, y: view.origin.y - dy / view.zoom };
+  return clampView({ zoom: view.zoom, origin }, screen, sheet);
 }
