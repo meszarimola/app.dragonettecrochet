@@ -19,7 +19,6 @@ export function angleAt(dx: number, dy: number): number {
   return wrapAngle(degrees);
 }
 
-/** Turning past 359 comes round to 0, and below 0 to 359. */
 export function wrapAngle(degrees: number): number {
   return ((degrees % 360) + 360) % 360;
 }
@@ -43,7 +42,11 @@ function rewrite(input: HTMLInputElement, text: string): void {
  * hold more than the slider's maximum, and the slider then stays at it. An
  * emptied field gets its last value back when it is left.
  */
-export function bindPair(range: HTMLInputElement, field: HTMLInputElement, changed: (value: number) => void): void {
+export function bindPair(
+  range: HTMLInputElement,
+  field: HTMLInputElement,
+  changed: (value: number) => void,
+): { readonly value: number } {
   const min = Number(range.min);
   let current = Number(field.value);
   const take = (value: number): void => {
@@ -60,12 +63,11 @@ export function bindPair(range: HTMLInputElement, field: HTMLInputElement, chang
     if (field.value !== '') take(Number(field.value));
   });
   field.addEventListener('change', () => rewrite(field, String(current)));
-}
-
-/** The field a pair or the dial reads its value from. */
-export function fieldValue(field: HTMLInputElement, fallback: number): number {
-  const value = Number(digitsOnly(field.value));
-  return field.value === '' || !Number.isFinite(value) ? fallback : value;
+  return {
+    get value() {
+      return current;
+    },
+  };
 }
 
 const DIAL_R = 42;

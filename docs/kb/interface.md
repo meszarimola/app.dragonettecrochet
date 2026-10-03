@@ -2448,14 +2448,21 @@ A changed setting re-arranges at once. While the chart is still, by identity,
 the one the arrangement produced, it starts from the chart **before** it —
 re-arranging an arranged fan from its own centroid drifted it downward with
 every keystroke; matching the ids alone brought an old chart back after New, a
-paste or a placed stitch reused them. After a drag it starts from where the
-stitches are. An arrangement larger than the board is not taken, as a turn or a
+paste or a placed stitch reused them. A plain move of the arranged stitches
+carries that earlier chart along by the same shift, so a setting changed after
+the move neither jumps the stitches nor reorders them — starting from where they
+stand would sort an arc wider than 180° by x and swap its two halves. A turn or a
+resize ends the arrangement and hides its settings; the button makes a new one.
+A typed value below the slider's minimum counts as the minimum, so a radius of 0
+can never stack the feet. An angle of 0 does stack the stitches: that is the
+range the owner set. An arrangement larger than the board is not taken, as a turn or a
 resize is not (a stitch left off the board can no longer be moved); one that
 only reaches past an edge is shifted back on. Below 40rem the column takes no
 width and appears over the board only while it has something to show.
 
-Keys typed anywhere in the panel are the panel's: Delete, Backspace, Escape and
-the Ctrl/⌘ commands do not reach the chart. Before that, Backspace in the radius
+Keys typed in the panel's fields and on the dial's handle are theirs: Delete,
+Backspace, Escape and the Ctrl/⌘ commands do not reach the chart. The arrange
+buttons keep no keys, so after a click on one the chart's shortcuts still work. Before that, Backspace in the radius
 deleted the selection.
 
 The grid columns in the panel are `minmax(0, 1fr)`: a range input's built-in

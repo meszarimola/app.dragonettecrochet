@@ -191,3 +191,46 @@ test('an arrangement larger than the board is not taken', async ({ page }) => {
   await page.getByRole('textbox', { name: 'Radius' }).fill('2000');
   expect(await stitches(page), 'nothing moved').toEqual(before);
 });
+
+test('a typed 0 counts as the smallest value the slider allows', async ({ page }) => {
+  await selectedChartWith(page, POINTS);
+  await page.getByRole('button', { name: 'Around' }).click();
+  const radius = page.getByRole('textbox', { name: 'Radius' });
+  await radius.fill('1');
+  const atOne = await stitches(page);
+  await radius.fill('5');
+  await radius.fill('0');
+  expect(await stitches(page), 'the feet stay apart, as at 1').toEqual(atOne);
+});
+
+test('arranged stitches moved by hand keep their order and place when a setting changes', async ({ page }) => {
+  await selectedChartWith(page, [...POINTS, [200, 330], [440, 160]]);
+  await page.getByRole('button', { name: 'Around' }).click();
+  await page.getByRole('textbox', { name: 'Angle (°)' }).fill('300');
+  const box = (await board(page).boundingBox())!;
+  const [first] = await stitches(page);
+  await page.mouse.move(box.x + first!.x, box.y + first!.y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + first!.x + 30, box.y + first!.y + 20, { steps: 5 });
+  await page.mouse.up();
+  const moved = await stitches(page);
+  expect(moved[0]!.x - first!.x, 'the drag moved them').toBeCloseTo(30, 6);
+
+  const radius = page.getByRole('textbox', { name: 'Radius' });
+  await expect(radius, 'the settings stay after a move').toBeVisible();
+  await radius.fill('40');
+  await radius.fill('24');
+  const back = await stitches(page);
+  back.forEach((stitch, i) => {
+    expect(stitch.x, `stitch ${stitch.id} where the move left it`).toBeCloseTo(moved[i]!.x, 6);
+    expect(stitch.y, `stitch ${stitch.id} where the move left it`).toBeCloseTo(moved[i]!.y, 6);
+    expect(stitch.rotation, `stitch ${stitch.id} keeps its turn`).toBeCloseTo(moved[i]!.rotation, 6);
+  });
+});
+
+test('after a click on an arrange button the chart shortcuts still work', async ({ page }) => {
+  await selectedChartWith(page, POINTS);
+  await page.getByRole('button', { name: 'In a row' }).click();
+  await page.keyboard.press('Delete');
+  await expect(board(page)).toHaveAttribute('data-stitches', '0');
+});

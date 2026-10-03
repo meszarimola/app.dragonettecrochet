@@ -350,7 +350,9 @@ export class FreeformBoard {
   }
 
   private draw(): void {
-    const selected = [...this.selection].sort((a, b) => a - b).join(',');
+    const drag = this.drag;
+    const settled = drag?.kind === 'rotate' || drag?.kind === 'scale' || (drag?.kind === 'move' && drag.moved);
+    const selected = settled ? this.notified : this.selectionKey();
     if (this.notified !== selected) {
       this.notified = selected;
       this.host.selectionChanged(this.selection.size);
@@ -384,6 +386,10 @@ export class FreeformBoard {
       ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
       ctx.restore();
     }
+  }
+
+  private selectionKey(): string {
+    return [...this.selection].sort((a, b) => a - b).join(',');
   }
 
   /** Drawn in frame space, so the frame, its corners and the handle all turn with the stitches. */

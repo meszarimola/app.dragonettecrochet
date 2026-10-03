@@ -28,7 +28,7 @@ import {
   urlWithLanguage,
 } from './i18n.ts';
 import { CHART_STYLES, readChartStyle, symbolOptionsFor, termsFor, writeChartStyle } from './notation.ts';
-import { AngleDial, bindPair, fieldValue } from './number-input.ts';
+import { AngleDial, bindPair } from './number-input.ts';
 import { buildPalette, type PaletteItem, type PaletteSection } from './palette.ts';
 import { currentPlatform, modifierCombo } from './platform.ts';
 import { applyInk, drawCentered, readAccent, readInk, shapeBounds, symbolShapes } from './symbols.ts';
@@ -60,8 +60,6 @@ const arrangeOptions: Readonly<Record<Arrangement, HTMLElement>> = {
   row: must<HTMLElement>('#arrange-row-options'),
   around: must<HTMLElement>('#arrange-around-options'),
 };
-const gapField = must<HTMLInputElement>('#arrange-gap');
-const radiusField = must<HTMLInputElement>('#arrange-radius');
 const angleDial = new AngleDial(
   must<HTMLElement>('#arrange-dial'),
   must<HTMLElement>('#arrange-angle-handle'),
@@ -94,6 +92,7 @@ const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAcce
     board.show(chart, symbolOptionsFor(chartStyle));
   },
   change: (next) => {
+    if (arranged !== null && chart === arranged.result) follow(next);
     chart = next;
     board.show(chart, symbolOptionsFor(chartStyle));
   },
@@ -111,16 +110,22 @@ duplicateButton.addEventListener('click', () => duplicateSelection());
 deleteButton.addEventListener('click', () => deleteSelection());
 arrangeButtons.row.addEventListener('click', () => arrange('row'));
 arrangeButtons.around.addEventListener('click', () => arrange('around'));
-bindPair(must<HTMLInputElement>('#arrange-gap-range'), gapField, () => rearrange('row'));
-bindPair(must<HTMLInputElement>('#arrange-radius-range'), radiusField, () => rearrange('around'));
+const gap = bindPair(must<HTMLInputElement>('#arrange-gap-range'), must<HTMLInputElement>('#arrange-gap'), () =>
+  rearrange('row'),
+);
+const radius = bindPair(
+  must<HTMLInputElement>('#arrange-radius-range'),
+  must<HTMLInputElement>('#arrange-radius'),
+  () => rearrange('around'),
+);
 
 function arrange(arrangement: Arrangement): void {
   if (chart === null || board.selected.size === 0 || board.dragging) return;
   const ids = new Set(board.selected);
   const base = arranged !== null && untouchedSince(arranged) ? arranged.base : chart;
   const options = {
-    gap: fieldValue(gapField, 1),
-    radius: fieldValue(radiusField, 1),
+    gap: gap.value,
+    radius: radius.value,
     angle: (angleDial.value * Math.PI) / 180,
   };
   const next = arrangeStitches(base, ids, arrangement, (placed) => board.extentOf(placed), options);
@@ -133,12 +138,43 @@ function arrange(arrangement: Arrangement): void {
   board.show(chart, symbolOptionsFor(chartStyle));
 }
 
-/** A setting re-arranges what its arrangement made, even after a drag moved it. */
 function rearrange(arrangement: Arrangement): void {
-  if (arranged?.arrangement === arrangement) arrange(arrangement);
+  if (arranged?.arrangement === arrangement && untouchedSince(arranged)) arrange(arrangement);
 }
 
-/** The settings of the arrangement last made on this selection, under the buttons. */
+/**
+ * A plain move of the arranged stitches carries the chart the arrangement
+ * started from along with them; anything else ends the arrangement. KB: interface.md §83
+ */
+function follow(next: FreeformChart): void {
+  if (arranged === null) return;
+  const shift = shiftBetween(arranged.result, next, arranged.ids);
+  arranged =
+    shift === null
+      ? null
+      : { ...arranged, base: moveStitches(arranged.base, arranged.ids, shift[0], shift[1]), result: next };
+  showOptions();
+}
+
+/** The one shift that takes every given stitch from `from` to `to`, turn and size kept; `null` for anything else. */
+function shiftBetween(from: FreeformChart, to: FreeformChart, ids: ReadonlySet<number>): [number, number] | null {
+  if (from.stitches.length !== to.stitches.length) return null;
+  let shift: [number, number] | null = null;
+  for (const [i, before] of from.stitches.entries()) {
+    const after = to.stitches[i];
+    if (after === undefined || after.id !== before.id) return null;
+    if (!ids.has(before.id)) {
+      if (after !== before) return null;
+      continue;
+    }
+    if (after.rotation !== before.rotation || after.scale !== before.scale) return null;
+    const [dx, dy] = [after.x - before.x, after.y - before.y];
+    shift ??= [dx, dy];
+    if (Math.abs(shift[0] - dx) > 1e-9 || Math.abs(shift[1] - dy) > 1e-9) return null;
+  }
+  return shift ?? [0, 0];
+}
+
 function showOptions(): void {
   for (const arrangement of ['row', 'around'] as const) {
     const on = arranged?.arrangement === arrangement;
@@ -256,12 +292,12 @@ document.addEventListener('keydown', (event) => {
   select(item.def.id);
 });
 
-/** A select box, a typed field and the arrange panel's controls keep their own keys. */
+/** A select box, a typed field and the dial's handle keep their own keys. */
 function inField(target: EventTarget | null): boolean {
   return (
     target instanceof HTMLSelectElement ||
     target instanceof HTMLInputElement ||
-    (target instanceof Element && target.closest('#inspector') !== null)
+    (target instanceof Element && target.getAttribute('role') === 'slider')
   );
 }
 
