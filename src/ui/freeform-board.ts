@@ -44,6 +44,7 @@ export interface BoardHost {
   place(point: Point): void;
   /** Called live on every pointer move of a drag. */
   change(chart: FreeformChart): void;
+  /** Called whenever the selected set changes, not only its size. */
   selectionChanged(count: number): void;
 }
 
@@ -91,7 +92,7 @@ export class FreeformBoard {
   private symbols: SymbolOptions = { singleCrochet: 'plus' };
   private mode: BoardMode = 'place';
   private selection = new Set<number>();
-  private notified = -1;
+  private notified: string | null = null;
   private drag: Drag | null = null;
   private readonly shapes = new Map<string, { shapes: Shape[]; reach: number; extent: Extent }>();
   private readonly canvas: HTMLCanvasElement;
@@ -349,9 +350,10 @@ export class FreeformBoard {
   }
 
   private draw(): void {
-    if (this.notified !== this.selection.size) {
-      this.notified = this.selection.size;
-      this.host.selectionChanged(this.notified);
+    const selected = [...this.selection].sort((a, b) => a - b).join(',');
+    if (this.notified !== selected) {
+      this.notified = selected;
+      this.host.selectionChanged(this.selection.size);
     }
     this.canvas.dataset['selected'] = String(this.selection.size);
     this.canvas.dataset['stitches'] = String(this.chart?.stitches.length ?? 0);

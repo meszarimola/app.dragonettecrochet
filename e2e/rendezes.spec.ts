@@ -1,8 +1,9 @@
 /*
- * The right-hand panel (PQW-1146): empty without a selection, and with one it
- * arranges the stitches in a row, on a circle or in a fan, and a changed value
- * re-arranges them on the spot. The canvas shows the DOM nothing, so the
- * stitches are read from the chart the page hands a driven browser.
+ * The right-hand panel (PQW-1146, PQW-1147): empty without a selection, and with
+ * one it arranges the stitches in a row or around one point; the chosen
+ * arrangement's settings appear under the buttons and re-arrange on the spot.
+ * The canvas shows the DOM nothing, so the stitches are read from the chart the
+ * page hands a driven browser.
  */
 
 import { expect, type Page, test } from '@playwright/test';
@@ -45,6 +46,16 @@ const POINTS: readonly [number, number][] = [
   [330, 300],
 ];
 
+const rowGaps = async (page: Page): Promise<number[]> => {
+  const placed = (await stitches(page)).sort((a, b) => a.x - b.x);
+  return placed.slice(1).map((stitch, i) => stitch.x - placed[i]!.x);
+};
+
+const spread = async (page: Page): Promise<number> => {
+  const turns = (await stitches(page)).map(({ rotation }) => rotation).sort((a, b) => a - b);
+  return turns.at(-1)! - turns[0]!;
+};
+
 test('the panel is empty until something is selected, then arranges it in a row', { tag: '@kiadas' }, async ({
   page,
 }) => {
@@ -54,95 +65,129 @@ test('the panel is empty until something is selected, then arranges it in a row'
   await expect(page.getByRole('button', { name: 'In a row' }), 'nothing selected, nothing offered').toBeHidden();
 
   await selectedChartWith(page, POINTS);
+  await expect(page.getByRole('textbox', { name: 'Spacing' }), 'no settings before a choice').toBeHidden();
   await page.getByRole('button', { name: 'In a row' }).click();
+  await expect(page.getByRole('button', { name: 'In a row' })).toHaveAttribute('aria-pressed', 'true');
   const placed = (await stitches(page)).sort((a, b) => a.x - b.x);
   for (const stitch of placed) {
     expect(stitch.rotation, 'upright').toBe(0);
     expect(stitch.y, 'on one line').toBeCloseTo(placed[0]!.y, 6);
   }
-  const gaps = placed.slice(1).map((stitch, i) => stitch.x - placed[i]!.x);
+  const gaps = await rowGaps(page);
   for (const gap of gaps) expect(gap, 'evenly spaced').toBeCloseTo(gaps[0]!, 6);
 
   await board(page).click({ position: { x: 10, y: 10 } });
   await expect(page.getByRole('button', { name: 'In a row' }), 'deselected, the panel empties').toBeHidden();
 });
 
-test('a circle stands the stitches evenly around one centre, and a new radius widens it', async ({ page }) => {
+test('the spacing slider of a row moves its field and the stitches; the field goes past the slider, which stays at its end', async ({
+  page,
+}) => {
   await selectedChartWith(page, POINTS);
-  await page.getByRole('button', { name: 'In a circle' }).click();
-  const spread = async (): Promise<number[]> => {
-    const placed = await stitches(page);
-    const center = {
-      x: placed.reduce((sum, { x }) => sum + x, 0) / placed.length,
-      y: placed.reduce((sum, { y }) => sum + y, 0) / placed.length,
-    };
-    return placed.map(({ x, y }) => Math.hypot(x - center.x, y - center.y));
-  };
-  const before = await spread();
-  for (const distance of before) expect(distance, 'every stitch as far from the centre').toBeCloseTo(before[0]!, 6);
-  const turns = new Set((await stitches(page)).map(({ rotation }) => rotation.toFixed(3)));
-  expect(turns.size, 'each stitch turned its own way, top outwards').toBe(POINTS.length);
+  await page.getByRole('button', { name: 'In a row' }).click();
+  const slider = page.getByRole('slider', { name: 'Spacing' });
+  const field = page.getByRole('textbox', { name: 'Spacing' });
+  await expect(field).toHaveValue('4');
+  const before = (await rowGaps(page))[0]!;
 
-  await page.getByRole('group', { name: 'In a circle' }).getByRole('spinbutton', { name: 'Radius' }).fill('80');
-  const after = await spread();
-  expect(after[0]! - before[0]!, 'the radius grew by 40').toBeCloseTo(40, 6);
+  await slider.fill('9');
+  await expect(field).toHaveValue('9');
+  expect((await rowGaps(page))[0]! - before, 'five more between each').toBeCloseTo(5, 6);
+
+  await field.fill('25');
+  await expect(slider, 'at its end').toHaveValue('10');
+  expect((await rowGaps(page))[0]! - before, 'the typed 25, not the 10 of the slider').toBeCloseTo(21, 6);
 });
 
-test('a fan leans its stitches from one point, and a new angle opens it wider', async ({ page }) => {
+test('around leans the stitches from one point; its radius slider and the dial re-arrange them', async ({ page }) => {
   await selectedChartWith(page, POINTS);
-  await page.getByRole('button', { name: 'In a fan' }).click();
-  const outer = async (): Promise<number> => {
-    const turns = (await stitches(page)).map(({ rotation }) => rotation).sort((a, b) => a - b);
-    return turns.at(-1)! - turns[0]!;
-  };
-  expect(await outer(), 'the default 90°').toBeCloseTo(Math.PI / 2, 6);
-  await page.getByRole('group', { name: 'In a fan' }).getByRole('spinbutton', { name: 'Angle (°)' }).fill('120');
-  expect(await outer(), 'opened to 120°').toBeCloseTo((Math.PI * 2) / 3, 6);
+  await page.getByRole('button', { name: 'Around' }).click();
+  await expect(page.getByRole('textbox', { name: 'Spacing' }), 'only the chosen settings').toBeHidden();
+  await expect(page.getByRole('textbox', { name: 'Radius' })).toHaveValue('24');
+  expect(await spread(page), 'the default 90°').toBeCloseTo(Math.PI / 2, 6);
+
+  const angle = page.getByRole('textbox', { name: 'Angle (°)' });
+  await angle.fill('120');
+  expect(await spread(page), 'opened to 120°').toBeCloseTo((Math.PI * 2) / 3, 6);
+
+  const handle = page.getByRole('slider', { name: 'Angle (°)' });
+  await handle.focus();
+  await handle.press('ArrowRight');
+  await expect(angle).toHaveValue('121');
+  await expect(handle).toHaveAttribute('aria-valuenow', '121');
+
+  const dial = (await page.locator('#arrange-dial').boundingBox())!;
+  await page.mouse.click(dial.x + dial.width / 2, dial.y + dial.height - 4);
+  await expect(angle, 'a press at the bottom of the ring').toHaveValue('180');
+  expect(await spread(page)).toBeCloseTo(Math.PI, 6);
+
+  await page.mouse.click(dial.x + 4, dial.y + dial.height / 2);
+  await expect(angle, 'a press on the left of the ring').toHaveValue('270');
+
+  await handle.press('End');
+  await handle.press('ArrowRight');
+  await expect(angle, 'turning past 359 comes round to 0').toHaveValue('0');
+
+  const radius = page.getByRole('textbox', { name: 'Radius' });
+  await page.getByRole('slider', { name: 'Radius' }).fill('60');
+  await expect(radius).toHaveValue('60');
+});
+
+test('the fields take digits only, and the angle no more than 359', async ({ page }) => {
+  await selectedChartWith(page, POINTS);
+  await page.getByRole('button', { name: 'Around' }).click();
+  const angle = page.getByRole('textbox', { name: 'Angle (°)' });
+  await angle.fill('');
+  await angle.pressSequentially('-4x5 ');
+  await expect(angle, 'the sign, the letter and the space are not taken').toHaveValue('45');
+  await angle.fill('');
+  await angle.pressSequentially('720');
+  await expect(angle).toHaveValue('359');
+
+  const radius = page.getByRole('textbox', { name: 'Radius' });
+  await radius.fill('');
+  await radius.pressSequentially('3.5e');
+  await expect(radius).toHaveValue('35');
+  await radius.fill('');
+  await radius.blur();
+  await expect(radius, 'an emptied field gets its last value back').toHaveValue('35');
 });
 
 test('Backspace and Delete typed in a value edit the value, not the chart', async ({ page }) => {
   await selectedChartWith(page, POINTS);
-  const radius = page.getByRole('group', { name: 'In a circle' }).getByRole('spinbutton', { name: 'Radius' });
+  await page.getByRole('button', { name: 'Around' }).click();
+  const radius = page.getByRole('textbox', { name: 'Radius' });
   await radius.click();
   await radius.press('End');
   await radius.press('Backspace');
   await radius.press('Delete');
   await radius.press('Escape');
+  const handle = page.getByRole('slider', { name: 'Angle (°)' });
+  await handle.focus();
+  await handle.press('Backspace');
+  await handle.press('Delete');
   await expect(board(page), 'no stitch deleted').toHaveAttribute('data-stitches', String(POINTS.length));
   await expect(board(page), 'still selected').toHaveAttribute('data-selected', String(POINTS.length));
-  await expect(radius).toHaveValue('4');
+  await expect(radius).toHaveValue('2');
 });
 
-test('a changed value does not bring back a chart from before New, though the ids are the same', async ({ page }) => {
+test('the settings go with the selection they were made for', async ({ page }) => {
   await selectedChartWith(page, POINTS);
-  await page.getByRole('button', { name: 'In a circle' }).click();
-
+  await page.getByRole('button', { name: 'Around' }).click();
   await page.getByRole('button', { name: 'New' }).click();
   await page.getByRole('button', { name: /^Double crochet \(dc\)/ }).click();
-  const fresh: [number, number][] = [
-    [150, 150],
-    [200, 150],
-    [150, 200],
-    [200, 200],
-  ];
-  for (const [x, y] of fresh) await board(page).click({ position: { x, y } });
+  for (const [x, y] of POINTS) await board(page).click({ position: { x, y } });
   await page.getByRole('button', { name: 'Select' }).click();
-  const box = (await board(page).boundingBox())!;
-  await page.mouse.move(box.x + 20, box.y + 20);
-  await page.mouse.down();
-  await page.mouse.move(box.x + 300, box.y + 300, { steps: 4 });
-  await page.mouse.up();
-  await expect(board(page)).toHaveAttribute('data-selected', String(fresh.length));
-
-  const before = await stitches(page);
-  await page.getByRole('group', { name: 'In a circle' }).getByRole('spinbutton', { name: 'Radius' }).fill('60');
-  expect(await stitches(page), 'the new stitches stay where they were placed').toEqual(before);
+  await board(page).click({ position: { x: POINTS[0]![0], y: POINTS[0]![1] } });
+  await expect(board(page)).toHaveAttribute('data-selected', '1');
+  await expect(page.getByRole('textbox', { name: 'Radius' }), 'a new selection starts without settings').toBeHidden();
+  await expect(page.getByRole('button', { name: 'Around' })).toHaveAttribute('aria-pressed', 'false');
 });
 
 test('an arrangement larger than the board is not taken', async ({ page }) => {
   await selectedChartWith(page, POINTS);
+  await page.getByRole('button', { name: 'Around' }).click();
   const before = await stitches(page);
-  await page.getByRole('group', { name: 'In a circle' }).getByRole('spinbutton', { name: 'Radius' }).fill('1000');
-  await page.getByRole('button', { name: 'In a circle' }).click();
+  await page.getByRole('textbox', { name: 'Radius' }).fill('2000');
   expect(await stitches(page), 'nothing moved').toEqual(before);
 });

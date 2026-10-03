@@ -164,41 +164,51 @@
         <aside class="inspector" id="inspector" aria-label="Properties" data-i18n-label="inspectorLabel">
           <section class="arrange" id="arrange" aria-labelledby="arrange-title" hidden>
             <h2 class="panel__title" id="arrange-title" data-i18n="arrangeTitle">Arrange</h2>
-            <button type="button" class="arrange__button" id="arrange-row">
-              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <path d="M3 16h14" />
-                <path d="M5 15V5M10 15V5M15 15V5" />
-              </svg>
-              <span data-i18n="arrangeRowLabel">In a row</span>
-            </button>
-            <div class="arrange__group" role="group" aria-labelledby="arrange-circle">
-              <button type="button" class="arrange__button" id="arrange-circle">
+            <div class="arrange__buttons">
+              <button type="button" class="arrange__button" id="arrange-row" aria-pressed="false">
                 <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                  <circle cx="10" cy="10" r="2.5" />
-                  <path d="M10 7.5V2.5M10 12.5v5M7.5 10h-5M12.5 10h5" />
+                  <path d="M3 16h14" />
+                  <path d="M5 15V5M10 15V5M15 15V5" />
                 </svg>
-                <span data-i18n="arrangeCircleLabel">In a circle</span>
+                <span data-i18n="arrangeRowLabel">In a row</span>
               </button>
-              <label class="arrange__field">
-                <span data-i18n="arrangeRadiusLabel">Radius</span>
-                <input class="arrange__input" id="arrange-circle-radius" type="number" min="0" max="1000" step="1" value="40" />
-              </label>
-            </div>
-            <div class="arrange__group" role="group" aria-labelledby="arrange-fan">
-              <button type="button" class="arrange__button" id="arrange-fan">
+              <button type="button" class="arrange__button" id="arrange-around" aria-pressed="false">
                 <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                   <path d="M8.6 15.6 4 4.5M10 15V3M11.4 15.6 16 4.5" />
                 </svg>
-                <span data-i18n="arrangeFanLabel">In a fan</span>
+                <span data-i18n="arrangeAroundLabel">Around</span>
               </button>
-              <label class="arrange__field">
-                <span data-i18n="arrangeRadiusLabel">Radius</span>
-                <input class="arrange__input" id="arrange-fan-radius" type="number" min="0" max="1000" step="1" value="24" />
-              </label>
-              <label class="arrange__field">
-                <span data-i18n="arrangeAngleLabel">Angle (°)</span>
-                <input class="arrange__input" id="arrange-fan-angle" type="number" min="0" max="360" step="5" value="90" />
-              </label>
+            </div>
+
+            <div class="arrange__options" id="arrange-row-options" hidden>
+              <div class="arrange__setting" role="group" aria-labelledby="arrange-gap-label">
+                <span class="arrange__label" id="arrange-gap-label" data-i18n="arrangeGapLabel">Spacing</span>
+                <div class="arrange__pair">
+                  <input class="arrange__range" id="arrange-gap-range" type="range" min="1" max="10" step="1" value="4" aria-labelledby="arrange-gap-label" />
+                  <input class="arrange__input" id="arrange-gap" type="text" inputmode="numeric" maxlength="4" autocomplete="off" value="4" aria-labelledby="arrange-gap-label" />
+                </div>
+              </div>
+            </div>
+
+            <div class="arrange__options" id="arrange-around-options" hidden>
+              <div class="arrange__setting" role="group" aria-labelledby="arrange-radius-label">
+                <span class="arrange__label" id="arrange-radius-label" data-i18n="arrangeRadiusLabel">Radius</span>
+                <div class="arrange__pair">
+                  <input class="arrange__range" id="arrange-radius-range" type="range" min="1" max="150" step="1" value="24" aria-labelledby="arrange-radius-label" />
+                  <input class="arrange__input" id="arrange-radius" type="text" inputmode="numeric" maxlength="4" autocomplete="off" value="24" aria-labelledby="arrange-radius-label" />
+                </div>
+              </div>
+              <div class="arrange__setting" role="group" aria-labelledby="arrange-angle-label">
+                <span class="arrange__label" id="arrange-angle-label" data-i18n="arrangeAngleLabel">Angle (°)</span>
+                <div class="dial" id="arrange-dial">
+                  <svg class="dial__ring" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                    <circle class="dial__track" cx="50" cy="50" r="42" />
+                    <path class="dial__arc" id="arrange-dial-arc" d="" />
+                  </svg>
+                  <div class="dial__handle" id="arrange-angle-handle" role="slider" tabindex="0" aria-labelledby="arrange-angle-label" aria-valuemin="0" aria-valuemax="359" aria-valuenow="90"></div>
+                  <input class="arrange__input dial__input" id="arrange-angle" type="text" inputmode="numeric" maxlength="3" autocomplete="off" value="90" aria-labelledby="arrange-angle-label" />
+                </div>
+              </div>
             </div>
           </section>
         </aside>

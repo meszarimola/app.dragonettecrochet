@@ -350,26 +350,27 @@ body.is-armed #board {
 
 .arrange {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--sp-2);
 }
 
-.arrange__group {
+.arrange__buttons {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--sp-0);
 }
 
 .arrange__button {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-1);
-  inline-size: 100%;
-  padding: 0 var(--sp-2);
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 0.1rem;
+  padding: var(--sp-0);
   border: 1px solid var(--c-line);
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--c-ink);
-  font-size: 0.875rem;
-  text-align: start;
+  font-size: 0.8125rem;
 }
 
 .arrange__button:hover {
@@ -377,22 +378,43 @@ body.is-armed #board {
   color: var(--c-accent);
 }
 
-.arrange__button:active {
+.arrange__button:active,
+.arrange__button[aria-pressed="true"] {
+  border-color: var(--c-accent);
   background: var(--c-selection);
+  color: var(--c-accent);
 }
 
-.arrange__field {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.arrange__options,
+.arrange__setting {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--sp-1);
-  padding-inline-start: var(--sp-2);
+}
+
+.arrange__label {
   color: var(--c-text-soft);
   font-size: 0.8125rem;
 }
 
+.arrange__pair {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.arrange__range {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  min-block-size: 44px;
+  margin: 0;
+  accent-color: var(--c-accent);
+}
+
 .arrange__input {
-  inline-size: 4.5rem;
+  flex: 0 0 auto;
+  inline-size: 3.25rem;
+  text-align: center;
   min-block-size: 44px;
   padding: 0 var(--sp-1);
   border: 1px solid var(--c-line);
@@ -405,6 +427,66 @@ body.is-armed #board {
 
 .arrange__input:hover {
   border-color: var(--c-accent);
+}
+
+/* KB: interface.md §83 */
+.dial {
+  --dial-size: 8rem;
+  position: relative;
+  justify-self: center;
+  inline-size: var(--dial-size);
+  block-size: var(--dial-size);
+  touch-action: none;
+  cursor: grab;
+}
+
+.dial__ring {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  fill: none;
+  stroke-linecap: round;
+}
+
+.dial__track {
+  stroke: var(--c-line);
+  stroke-width: 6;
+}
+
+.dial__arc {
+  stroke: var(--c-accent);
+  stroke-width: 6;
+}
+
+.dial__handle {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  inline-size: 44px;
+  block-size: 44px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) rotate(var(--angle, 0deg)) translateY(calc(var(--dial-size) * -0.42));
+}
+
+.dial__handle::after {
+  content: "";
+  position: absolute;
+  inset: 50%;
+  inline-size: 16px;
+  block-size: 16px;
+  border: 2px solid var(--c-bg);
+  border-radius: 50%;
+  background: var(--c-accent);
+  translate: -50% -50%;
+}
+
+.dial__input {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  translate: -50% -50%;
+  cursor: text;
 }
 
 .panel__title {
