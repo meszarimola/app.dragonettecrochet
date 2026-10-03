@@ -264,10 +264,6 @@ button {
   box-shadow: 0 6px 20px rgb(36 31 43 / 0.14);
 }
 
-.menu[hidden] {
-  display: none;
-}
-
 .menu--sub {
   inset-block-start: calc(-1 * var(--sp-0) - 1px);
   inset-inline-start: calc(100% + var(--sp-0));
