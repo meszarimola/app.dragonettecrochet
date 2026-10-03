@@ -18,7 +18,8 @@ import {
   stitchesIn,
   turn,
 } from '../core/freeform.ts';
-import { GRID_CELL, gridExtent, gridHome, gridRows, type RectGrid } from '../core/grid.ts';
+import { GRID_CELL, gridExtent, gridHome, gridRows, type RectGrid, type RowHeights } from '../core/grid.ts';
+import { type NaturalSize, rowHeights } from '../core/seat.ts';
 import { stitchById } from '../core/stitches.ts';
 import {
   clampView,
@@ -135,6 +136,7 @@ export class FreeformBoard {
   private pointerOver = false;
   private gestureBase = 1;
   private labelFont: string | null = null;
+  private heights: { readonly chart: FreeformChart; readonly heights: RowHeights } | null = null;
   private readonly shapes = new Map<string, { shapes: Shape[]; reach: number; extent: Extent }>();
   private readonly canvas: HTMLCanvasElement;
   private readonly ink: string;
@@ -180,6 +182,7 @@ export class FreeformBoard {
     }
     if (symbols.style !== this.symbols.style || symbols.singleCrochet !== this.symbols.singleCrochet) {
       this.shapes.clear();
+      this.heights = null;
     }
     this.chart = chart;
     this.symbols = symbols;
@@ -303,7 +306,7 @@ export class FreeformBoard {
     const grid = this.chart?.grid;
     const points: Point[] = [...(this.chart?.stitches ?? [])];
     if (grid !== undefined) {
-      const { minX, minY, maxX, maxY } = gridExtent(grid);
+      const { minX, minY, maxX, maxY } = gridExtent(grid, this.rowHeights());
       points.push({ x: minX, y: minY }, { x: maxX, y: maxY });
     }
     return sheetOf(this.size(), points);
@@ -510,6 +513,17 @@ export class FreeformBoard {
     return { halfWidth: halfWidth * placed.scale, halfHeight: halfHeight * placed.scale };
   }
 
+  /** The stitch's half size at its symbol's own size, whatever it is scaled to. */
+  readonly naturalSize: NaturalSize = (placed) => this.symbolOf(placed).extent;
+
+  /** Worked out once per chart: the sheet and the drawing ask for it on every frame. */
+  rowHeights(): RowHeights | undefined {
+    const chart = this.chart;
+    if (chart?.grid === undefined) return undefined;
+    if (this.heights?.chart !== chart) this.heights = { chart, heights: rowHeights(chart, this.naturalSize) };
+    return this.heights.heights;
+  }
+
   private reachOf(placed: PlacedStitch): number {
     return Math.max(MIN_REACH, this.symbolOf(placed).reach * placed.scale);
   }
@@ -591,7 +605,7 @@ export class FreeformBoard {
   /** Only the rows on screen are drawn: a grid can have 500 rows of 200 cells. */
   private drawGrid(ctx: CanvasRenderingContext2D, grid: RectGrid): void {
     const seen = this.visible();
-    const rows = gridRows(grid, seen.minY, seen.maxY);
+    const rows = gridRows(grid, this.rowHeights(), seen.minY, seen.maxY);
     // KB: interface.md §89 — every line centred on a device pixel, and drawn once.
     const { zoom, origin } = this.view;
     const scale = zoom * (window.devicePixelRatio || 1);

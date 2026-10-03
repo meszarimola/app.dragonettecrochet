@@ -17,6 +17,7 @@ import {
   sameChart,
 } from '../src/core/freeform.ts';
 import {
+  cellAt,
   GRID_CELL,
   GRID_LABEL_ROOM,
   gridExtent,
@@ -29,6 +30,7 @@ import {
   onGrid,
   readGridCount,
   rectGrid,
+  rowBottoms,
 } from '../src/core/grid.ts';
 
 test('a count is a whole number from 1 to the limit, surrounding spaces ignored', () => {
@@ -74,12 +76,33 @@ test('row 1 is at the bottom, standing on y = 0, and each row sits on the one be
 test('a band of the board gives only the rows reaching into it', () => {
   const grid = rectGrid(4, 500);
   assert.deepEqual(
-    gridRows(grid, -3.5 * GRID_CELL, -1.5 * GRID_CELL).map(({ number }) => number),
+    gridRows(grid, undefined, -3.5 * GRID_CELL, -1.5 * GRID_CELL).map(({ number }) => number),
     [2, 3, 4],
   );
-  assert.deepEqual(gridRows(grid, 10, 100), [], 'below row 1 there is no row');
-  assert.equal(gridRows(grid, -1e9, 1e9).length, 500);
-  assert.deepEqual(gridRows(grid, -1.5 * GRID_CELL, 1e9)[0], gridRows(grid)[0]);
+  assert.deepEqual(gridRows(grid, undefined, 10, 100), [], 'below row 1 there is no row');
+  assert.equal(gridRows(grid, undefined, -1e9, 1e9).length, 500);
+  assert.deepEqual(gridRows(grid, undefined, -1.5 * GRID_CELL, 1e9)[0], gridRows(grid)[0]);
+});
+
+test('a taller row pushes every row above it up, and the band follows the heights', () => {
+  const grid = rectGrid(4, 3);
+  const heights = [GRID_CELL, 60, GRID_CELL];
+  const rows = gridRows(grid, heights);
+  assert.deepEqual(
+    rows.map(({ top, bottom }) => [top, bottom]),
+    [
+      [-40, 0],
+      [-100, -40],
+      [-140, -100],
+    ],
+  );
+  assert.equal(rows[1].label.y, -70, 'the number stands in the middle of its row');
+  assert.deepEqual(rowBottoms(grid, heights), [0, -40, -100]);
+  assert.deepEqual(gridRect(grid, heights).minY, -140);
+  assert.deepEqual(cellAt(grid, { x: 50, y: -90 }, heights), { row: 1, col: 1 });
+  assert.deepEqual(cellAt(grid, { x: 50, y: -90 }), { row: 2, col: 1 }, 'without heights every row is a cell');
+  assert.equal(cellAt(grid, { x: 50, y: -141 }, heights), null);
+  assert.deepEqual(cellAt(grid, { x: 4 * GRID_CELL, y: -1 }), { row: 0, col: 3 }, 'the right edge is the last cell');
 });
 
 test('an odd row is numbered on the right, an even row on the left, both in the middle of the row', () => {

@@ -21,8 +21,9 @@ import {
   placeStitches,
   sameChart,
 } from '../core/freeform.ts';
-import { gridRect, onGrid, rectGrid } from '../core/grid.ts';
+import { cellAt, rectGrid } from '../core/grid.ts';
 import { amend, canRedo, canUndo, createHistory, type History, record, redo, undo } from '../core/history.ts';
+import { placeInGrid, seat } from '../core/seat.ts';
 import {
   MAX_SHAPING,
   MIN_SHAPING,
@@ -143,13 +144,20 @@ const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAcce
   place: (point) => {
     const stitch = armedStitch();
     if (chart === null || stitch === null) return;
-    // KB: interface.md §89 — on a regular design only the grid takes a stitch.
-    const grid = chart.grid;
-    if (grid !== undefined && !onGrid(grid, point)) return;
     const n = COUNTED.has(stitch) ? placeCount.value : 1;
+    // KB: interface.md §89, §91 — on a regular design only the grid takes a stitch, and seats it in a cell.
+    const grid = chart.grid;
+    if (grid !== undefined) {
+      const cell = cellAt(grid, point, board.rowHeights());
+      const placed = cell === null ? null : placeInGrid(chart, stitch, cell, n);
+      if (placed === null) return;
+      chart = placed.chart;
+      commit();
+      board.show(chart, symbolOptionsFor(chartStyle));
+      return;
+    }
     const extent = (placed: PlacedStitch) => board.extentOf(placed);
-    const bounds = grid === undefined ? board.sheet() : gridRect(grid);
-    const placed = placeStitches(chart, stitch, point, n, extent, PLACE_GAP, bounds);
+    const placed = placeStitches(chart, stitch, point, n, extent, PLACE_GAP, board.sheet());
     if (placed === null) return;
     chart = placed.chart;
     board.show(chart, symbolOptionsFor(chartStyle));
@@ -307,6 +315,12 @@ function showOptions(): void {
  */
 function commit(continued = false): void {
   if (history === null || chart === null) return;
+  // KB: interface.md §91 — every change can move a row, so the seated stitches are put back in place first.
+  const seated = seat(chart, board.naturalSize);
+  if (seated !== chart) {
+    chart = seated;
+    board.show(chart, symbolOptionsFor(chartStyle));
+  }
   const next = { chart, selection: new Set(board.selected) };
   if (continued || sameChart(chart, history.present.chart)) setHistory(amend(history, next));
   else setHistory(record(history, next));
@@ -465,6 +479,8 @@ styleSelect.addEventListener('change', () => {
   write(NOTATION_KEY, writeChartStyle(read(NOTATION_KEY), chartStyle));
   renderPalette();
   board.show(chart, symbolOptionsFor(chartStyle));
+  // The symbols have new sizes; the rows follow them in the same undo step.
+  commit(true);
 });
 
 languageSelect.addEventListener('change', () => {
