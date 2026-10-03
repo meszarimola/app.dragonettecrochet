@@ -35,7 +35,8 @@ export const MARKUP_TEXTS = {
     zoomResetTip: 'Vissza 100%-ra (a rajz fölött: Ctrl/⌘ + 0)',
     zoomResetLabel: 'Vissza 100%-ra',
     toolLabelZoomIn: 'Nagyítás',
-    zoomInTip: 'Nagyítás (a rajz fölött: Ctrl/⌘ + + vagy egérgörgő)',
+    zoomInTip:
+      'Nagyítás (a rajz fölött: Ctrl/⌘ + + vagy egérgörgő). A rajzot húzással mozgathatod; Kijelölés közben a szóközt vagy az egér középső gombját tartsd lenyomva.',
     sectionStitchesTitle: 'Szemek',
     stitchesPaletteLabel: 'Szemek',
     boardIrregularLabel: 'Szabadkézi diagram: válassz szemet, és kattints a rajzlapra',
@@ -82,7 +83,8 @@ export const MARKUP_TEXTS = {
     zoomResetTip: 'Back to 100% (over the drawing: Ctrl/⌘ + 0)',
     zoomResetLabel: 'Back to 100%',
     toolLabelZoomIn: 'Zoom in',
-    zoomInTip: 'Zoom in (over the drawing: Ctrl/⌘ + + or the mouse wheel)',
+    zoomInTip:
+      'Zoom in (over the drawing: Ctrl/⌘ + + or the mouse wheel). Drag the drawing to move it; with Select on, hold Space or the middle mouse button.',
     sectionStitchesTitle: 'Stitches',
     stitchesPaletteLabel: 'Stitches',
     boardIrregularLabel: 'Free-form chart: pick a stitch and click the drawing area',

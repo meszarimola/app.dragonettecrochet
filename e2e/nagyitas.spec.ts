@@ -180,3 +180,33 @@ test('Space and the middle button move the view with a stitch armed, and lay not
   await board(page).click({ position: { x: 300, y: 200 } });
   expect(await stitches(page), 'a plain click still lays one').toHaveLength(1);
 });
+
+test('a placing click that wobbles a few pixels still lays its stitch', async ({ page }) => {
+  await newChart(page);
+  await page.getByRole('button', { name: /^Single crochet \(sc\)/ }).click();
+  const box = (await board(page).boundingBox())!;
+  await page.mouse.move(box.x + 300, box.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 305, box.y + 203, { steps: 3 });
+  await page.mouse.up();
+  expect(await stitches(page)).toHaveLength(1);
+});
+
+test('a plain drag that ends off the canvas does not eat the next click', async ({ page }) => {
+  const shown = await stitchAt200(page);
+  await dragOnBoard(page, [shown.x, shown.y], [-60, shown.y]);
+  await board(page).click({ position: { x: 300, y: 200 } });
+  expect(await stitches(page), 'the second stitch is laid').toHaveLength(2);
+});
+
+test('holding the button still, Escape still disarms the stitch', async ({ page }) => {
+  await newChart(page);
+  const tile = page.getByRole('button', { name: /^Single crochet \(sc\)/ });
+  await tile.click();
+  const box = (await board(page).boundingBox())!;
+  await page.mouse.move(box.x + 300, box.y + 200);
+  await page.mouse.down();
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+  await expect(tile).toHaveAttribute('aria-pressed', 'false');
+});

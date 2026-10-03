@@ -2679,9 +2679,14 @@ visually and stays in the accessibility tree. The brand mark and Home remain.
 selection's press handling:
 
 - A plain drag on the drawing whenever „Kijelölés” is not on, a stitch armed or
-  not (PQW-1159). A press that stays within the drag slop is still the click
-  that lays the armed stitch; one that leaves it pans and lays nothing. In
-  „Kijelölés” a drag keeps its meaning — move, turn, resize, or an area.
+  not (PQW-1159). A press that stays within 8 px (16 px for a finger or a pen,
+  which drift further than a mouse) is still the click that lays the armed
+  stitch; one that leaves it pans and lays nothing. The selection's own 3 px
+  slop would turn a wobbly click into a lost stitch. Until it leaves the slop
+  the press is not a drag (`dragging` is false), so Escape and undo still work
+  while the button is held. In „Kijelölés” a drag keeps its meaning — move,
+  turn, resize, or an area. The zoom-in tooltip says how to pan there, since
+  no button does any more.
 - Space held while the pointer is over the drawing, with any tool. Only over
   the drawing: elsewhere Space still presses the focused button, which keyboard
   users need. The release is taken too, or a focused button would fire.
