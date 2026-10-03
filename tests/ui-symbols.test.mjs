@@ -336,3 +336,24 @@ test('every increase and decrease the menu can build has a finite symbol, wider 
     }
   }
 });
+
+test('an exact box measures an ellipse as it is turned; the default box stays the circle that anchors drawing (PQW-1163)', () => {
+  const chain = symbolShapes(stitchById('ch'));
+  const loose = shapeBounds(chain);
+  assert.equal(loose.maxY - loose.minY, 18, 'the default box is unchanged, so no saved stitch moves');
+  const exact = shapeBounds(chain, true);
+  assert.equal(exact.maxX - exact.minX, 18, 'a chain is 2 × 9 wide');
+  assert.equal(exact.maxY - exact.minY, 10, 'and 2 × 5 tall, so its top is the top of the oval');
+
+  const ellipse = (rotation) => [{ kind: 'ellipse', role: 'chain', center: { x: 2, y: 3 }, rx: 9, ry: 5, rotation }];
+  const near = (a, b, label) => assert.ok(Math.abs(a - b) < 1e-9, `${label}: ${a} ≠ ${b}`);
+  const turned = Math.PI / 6;
+  const halfX = Math.sqrt(81 * Math.cos(turned) ** 2 + 25 * Math.sin(turned) ** 2);
+  const halfY = Math.sqrt(81 * Math.sin(turned) ** 2 + 25 * Math.cos(turned) ** 2);
+  const box = shapeBounds(ellipse(turned), true);
+  near(box.minX, 2 - halfX, 'left');
+  near(box.maxX, 2 + halfX, 'right');
+  near(box.minY, 3 - halfY, 'top');
+  near(box.maxY, 3 + halfY, 'bottom');
+  assert.ok(halfX > halfY, 'turned a twelfth, it still lies more than it stands');
+});

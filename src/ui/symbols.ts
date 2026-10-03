@@ -429,14 +429,14 @@ export interface Bounds {
   readonly maxY: number;
 }
 
-// KB: interface.md §23
-export function shapeBounds(shapes: readonly Shape[]): Bounds {
+/** With `exact`, an ellipse is measured as it is turned, not as a circle of its larger radius. KB: interface.md §23 */
+export function shapeBounds(shapes: readonly Shape[], exact = false): Bounds {
   let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
-  const include = (p: Point, pad = 0): void => {
+  const include = (p: Point, pad = 0, padY = pad): void => {
     minX = Math.min(minX, p.x - pad);
-    minY = Math.min(minY, p.y - pad);
+    minY = Math.min(minY, p.y - padY);
     maxX = Math.max(maxX, p.x + pad);
-    maxY = Math.max(maxY, p.y + pad);
+    maxY = Math.max(maxY, p.y + padY);
   };
 
   for (const shape of shapes) {
@@ -450,9 +450,14 @@ export function shapeBounds(shapes: readonly Shape[]): Bounds {
         include(shape.control);
         include(shape.to);
         break;
-      case 'ellipse':
-        include(shape.center, Math.max(shape.rx, shape.ry));
+      case 'ellipse': {
+        const [cos, sin] = [Math.cos(shape.rotation), Math.sin(shape.rotation)];
+        const loose = Math.max(shape.rx, shape.ry);
+        const halfX = exact ? Math.hypot(shape.rx * cos, shape.ry * sin) : loose;
+        const halfY = exact ? Math.hypot(shape.rx * sin, shape.ry * cos) : loose;
+        include(shape.center, halfX, halfY);
         break;
+      }
       case 'dot':
         include(shape.center, shape.r);
         break;
