@@ -12,6 +12,7 @@
   {"id":"delete-selection","tag":"button","type":"button"},
   {"id":"duplicate-selection","tag":"button","type":"button"},
   {"id":"new-chart","tag":"button","type":"button"},
+  {"id":"pan-tool","tag":"button","type":"button"},
   {"id":"place-count","tag":"input","type":"text"},
   {"id":"place-count-range","tag":"input","type":"range"},
   {"id":"place-parts","tag":"input","type":"text"},
@@ -19,5 +20,8 @@
   {"id":"redo","tag":"button","type":"button"},
   {"id":"select-tool","tag":"button","type":"button"},
   {"id":"ui-language","tag":"select","type":""},
-  {"id":"undo","tag":"button","type":"button"}
+  {"id":"undo","tag":"button","type":"button"},
+  {"id":"zoom-in","tag":"button","type":"button"},
+  {"id":"zoom-out","tag":"button","type":"button"},
+  {"id":"zoom-reset","tag":"button","type":"button"}
 ]

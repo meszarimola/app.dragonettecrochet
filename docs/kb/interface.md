@@ -2635,3 +2635,72 @@ the stitch, not copies of it.
 combinations can be drawn. The library sections are untouched: the written
 pattern's key still follows them (§74), and the palette simply shows this
 section its own way.
+
+## §87 Zoom and moving the view in the free-form board
+
+PQW-1158. The owner: „a delete mellett legyen zoom in/zoom out egy külön
+ikoncsoport, illetve egérrel is lehessen ezt megtenni”, and moving the drawing
+area „úgy, hogy a select opcióval ne csússzon össze”.
+
+**The sheet stays the drawing area at 100%.** The board's coordinates did not
+change: the sheet is still the canvas's own size (`size()`), and every edge rule
+— a stitch placed, moved, pasted or arranged stays on it — is measured against
+the sheet, not against what is on screen. The view (`core/view.ts`) only says
+which part of the sheet is shown and how large: 100% to 800%, never below 100%,
+so the view is always inside the sheet and there is never an empty margin to
+place into. A larger sheet than the window is a separate decision, because it
+changes those edge rules and the specs that pin them.
+
+**Zooming.** The group beside „Törlés”: zoom out, the level (a click returns to
+100%), zoom in, and „Nézet mozgatása”. The buttons step through `ZOOM_STEPS`;
+the mouse wheel zooms smoothly about the pointer. A trackpad pinch arrives in
+Chrome and Firefox as a wheel with Ctrl and small steps, and gets a faster rate;
+Ctrl + a real mouse notch (a step of 50 or more) keeps the wheel's rate, or two
+notches would reach 800%. Safari reports a pinch as `gesturestart` /
+`gesturechange` with a scale, handled separately. Every wheel over the drawing
+is the board's: a two-finger trackpad scroll zooms too, because a wheel cannot
+be told from a trackpad reliably and the owner asked for the mouse.
+
+Ctrl/⌘ + plus, minus and 0 zoom the board **only while the pointer is over
+it**; anywhere else they stay the browser's page zoom, which a reader who
+enlarges the interface needs (review of PQW-1158). They go by the character,
+not the key position, because the Hungarian layout has them elsewhere. „Új”
+starts at 100%. The level button's accessible name is „Vissza 100%-ra” with the
+current level after it; its visible text is the level alone.
+
+**Icons only, and the title gives way below 66rem.** With labels the group
+pushed the bar 73 px past a 1000 px window (`felulet.spec.ts` pins that the
+page does not scroll there). The magnifiers and the hand carry their name in
+`aria-label` and the tooltip instead; even so the bar was 27 px (English) and
+40 px (Hungarian) too wide at 1000 px, so below 66rem the title is clipped
+visually and stays in the accessibility tree. The brand mark and Home remain.
+
+**Moving the view never selects.** Three ways, none of which passes through the
+selection's press handling:
+
+- „Nézet mozgatása”, a third mode beside „Kijelölés” and placing: arming any one
+  puts the others down. The selection stays as it was, and the panel with it;
+  leaving the tool returns to the mode before it, so „Kijelölés” comes back
+  with the same selection rather than placing, which would clear it.
+- Space held while the pointer is over the drawing, with any tool. Only over
+  the drawing: elsewhere Space still presses the focused button, which keyboard
+  users need. The release is taken too, or a focused button would fire.
+- The middle mouse button, with any tool.
+
+A primary-button pan swallows the click that follows it, moved or not (Space
+may be let go before the button), so panning with a stitch armed lays nothing.
+Every press clears that flag first: a pan whose click never came — a touch that
+moved, a release off the canvas — must not eat the next real click. A pan moves
+from the current view step by step, so a wheel zoom in the middle of it holds.
+
+**What stays the same size on screen.** The selection frame's line, its dash,
+the corners, the rotation knob, their hit areas and the drag slop are screen
+pixels, divided by the zoom. The stitches, their lines and the frame's padding
+zoom with the drawing.
+
+**What the tests pin.** `tests/core-view.test.mjs` the arithmetic;
+`tests/ui-platform.test.mjs` the shortcuts; `e2e/nagyitas.spec.ts` the buttons,
+the wheel about the pointer, a click placing at the board point under it when
+zoomed, the pan tool and Space-drag moving the view without touching the chart
+or the selection, leaving the pan tool back into „Kijelölés”, Ctrl + one wheel
+notch, the keys only over the drawing, and a pan ending off the canvas.

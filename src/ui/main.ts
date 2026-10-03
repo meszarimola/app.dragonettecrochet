@@ -29,7 +29,8 @@ import {
   shapingStitch,
 } from '../core/stitches.ts';
 import type { ChartStyle, StitchDef, StitchDefId } from '../core/types.ts';
-import { FreeformBoard } from './freeform-board.ts';
+import { MAX_ZOOM, MIN_ZOOM } from '../core/view.ts';
+import { type BoardMode, FreeformBoard } from './freeform-board.ts';
 import {
   applyStaticTexts,
   homeUrl,
@@ -50,7 +51,7 @@ import {
   partLabel,
   type ShapingChoices,
 } from './palette.ts';
-import { currentPlatform, historyCommand, modifierCombo } from './platform.ts';
+import { currentPlatform, historyCommand, modifierCombo, zoomCommand } from './platform.ts';
 import { applyInk, drawCentered, readAccent, readInk, shapeBounds, symbolShapes } from './symbols.ts';
 import { alignTooltips } from './tooltip.ts';
 
@@ -73,6 +74,10 @@ const redoButton = must<HTMLButtonElement>('#redo');
 const selectButton = must<HTMLButtonElement>('#select-tool');
 const duplicateButton = must<HTMLButtonElement>('#duplicate-selection');
 const deleteButton = must<HTMLButtonElement>('#delete-selection');
+const zoomOutButton = must<HTMLButtonElement>('#zoom-out');
+const zoomResetButton = must<HTMLButtonElement>('#zoom-reset');
+const zoomInButton = must<HTMLButtonElement>('#zoom-in');
+const panButton = must<HTMLButtonElement>('#pan-tool');
 const arrangePanel = must<HTMLElement>('#arrange');
 const arrangeButtons: Readonly<Record<Arrangement, HTMLButtonElement>> = {
   row: must<HTMLButtonElement>('#arrange-row'),
@@ -105,7 +110,11 @@ let chartStyle: ChartStyle = readChartStyle(read(NOTATION_KEY));
 let chart: FreeformChart | null = null;
 let tool: StitchDefId | Shaping | null = null;
 let shaping: ShapingChoices = DEFAULT_SHAPING;
-let selecting = false;
+let mode: BoardMode = 'place';
+/** Leaving „Move view” goes back here, so a selection held while panning survives. */
+let beforePan: BoardMode = 'place';
+let percent = new Intl.NumberFormat('en', { style: 'percent', maximumFractionDigits: 0 });
+let spaceHeld = false;
 let clipboard: readonly PlacedStitch[] = [];
 let facing: Facing = 'feet';
 // KB: interface.md §83
@@ -153,11 +162,19 @@ const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAcce
       setHistory(amend(history, { chart, selection: new Set(board.selected) }));
     }
   },
+  viewChanged: () => showZoom(),
 });
 
 undoButton.addEventListener('click', () => step(undo));
 redoButton.addEventListener('click', () => step(redo));
-selectButton.addEventListener('click', () => setSelecting(!selecting));
+selectButton.addEventListener('click', () => setMode(mode === 'select' ? 'place' : 'select'));
+panButton.addEventListener('click', () => {
+  if (mode !== 'pan') beforePan = mode;
+  setMode(mode === 'pan' ? beforePan : 'pan');
+});
+zoomInButton.addEventListener('click', () => board.zoomStep(1));
+zoomOutButton.addEventListener('click', () => board.zoomStep(-1));
+zoomResetButton.addEventListener('click', () => board.zoomTo(MIN_ZOOM));
 duplicateButton.addEventListener('click', () => duplicateSelection());
 deleteButton.addEventListener('click', () => deleteSelection());
 arrangeButtons.row.addEventListener('click', () => {
@@ -295,7 +312,7 @@ function step(move: (history: History<Snapshot>) => History<Snapshot>): boolean 
   setHistory(next);
   arranged = null;
   chart = next.present.chart;
-  if (next.present.selection.size > 0) setSelecting(true);
+  if (next.present.selection.size > 0) setMode('select');
   board.show(chart, symbolOptionsFor(chartStyle), next.present.selection);
   showOptions();
   return true;
@@ -335,7 +352,7 @@ function paste(copied: readonly PlacedStitch[]): readonly PlacedStitch[] | null 
   if (chart === null || copied.length === 0 || board.dragging) return null;
   const pasted = pasteStitches(chart, copied, PASTE_STEP, board.size());
   chart = pasted.chart;
-  setSelecting(true);
+  setMode('select');
   board.show(chart, symbolOptionsFor(chartStyle), pasted.ids);
   commit();
   return pasted.copied;
@@ -371,6 +388,9 @@ newButton.addEventListener('click', () => {
   if (history === null) setHistory(createHistory(fresh));
   else setHistory(blank && !canRedo(history) ? amend(history, fresh) : record(history, fresh));
   selectButton.disabled = false;
+  panButton.disabled = false;
+  board.zoomTo(MIN_ZOOM);
+  showZoom();
   renderPalette();
 });
 
@@ -400,6 +420,24 @@ document.addEventListener('keydown', (event) => {
     return;
   }
   if (chart === null) return;
+  // KB: interface.md §87 — only over the drawing, so Space still presses a focused button.
+  if (event.code === 'Space' && board.hovered && !inField(event.target)) {
+    event.preventDefault();
+    spaceHeld = true;
+    board.holdPan(true);
+    return;
+  }
+  // Only over the drawing: elsewhere the keys still zoom the page, which some readers need.
+  if ((event.ctrlKey || event.metaKey) && !event.altKey && board.hovered) {
+    const zoom = zoomCommand(event);
+    if (zoom !== null) {
+      // The browser would zoom the whole page instead.
+      event.preventDefault();
+      if (zoom === 'reset') board.zoomTo(MIN_ZOOM);
+      else board.zoomStep(zoom === 'in' ? 1 : -1);
+      return;
+    }
+  }
   if ((event.ctrlKey || event.metaKey) && !event.altKey && !inText(event.target)) {
     const command = historyCommand(event);
     if (command !== null) {
@@ -432,6 +470,19 @@ document.addEventListener('keydown', (event) => {
   select(item.shaping ?? item.def.id);
 });
 
+document.addEventListener('keyup', (event) => {
+  if (event.code !== 'Space' || !spaceHeld) return;
+  // A focused button would take the release as a press.
+  event.preventDefault();
+  releaseSpace();
+});
+window.addEventListener('blur', () => releaseSpace());
+
+function releaseSpace(): void {
+  spaceHeld = false;
+  board.holdPan(false);
+}
+
 /** A typed field keeps Ctrl/⌘ + Z for its own text. */
 function inText(target: EventTarget | null): boolean {
   return target instanceof HTMLInputElement && target.type === 'text';
@@ -452,6 +503,8 @@ function applyLanguage(language: UiLanguage): void {
   applyStaticTexts(document, texts().markup);
   homeLink.href = homeUrl(language);
   renderPalette();
+  percent = new Intl.NumberFormat(language, { style: 'percent', maximumFractionDigits: 0 });
+  showZoom();
 }
 
 function isShaping(id: StitchDefId | Shaping | null): id is Shaping {
@@ -474,17 +527,27 @@ function select(id: StitchDefId | Shaping | null): void {
   placeOptions.hidden = placeCountSetting.hidden && placePartsSetting.hidden;
   if (id !== null) {
     buttons.get(id)?.scrollIntoView({ block: 'nearest' });
-    setSelecting(false);
+    setMode('place');
   }
 }
 
-/** Selecting and placing exclude each other: arming one puts the other down. */
-function setSelecting(on: boolean): void {
+/** Selecting, moving the view and placing exclude each other: arming one puts the others down. */
+function setMode(next: BoardMode): void {
   if (chart === null) return;
-  selecting = on;
-  selectButton.setAttribute('aria-pressed', String(on));
-  board.setMode(on ? 'select' : 'place');
-  if (on && tool !== null) select(null);
+  mode = next;
+  selectButton.setAttribute('aria-pressed', String(next === 'select'));
+  panButton.setAttribute('aria-pressed', String(next === 'pan'));
+  board.setMode(next);
+  if (next !== 'place' && tool !== null) select(null);
+}
+
+function showZoom(): void {
+  const zoom = board.zoom;
+  zoomResetButton.textContent = percent.format(zoom);
+  zoomResetButton.setAttribute('aria-label', `${texts().markup.zoomResetLabel} (${percent.format(zoom)})`);
+  zoomInButton.disabled = chart === null || zoom >= MAX_ZOOM;
+  zoomOutButton.disabled = chart === null || zoom <= MIN_ZOOM;
+  zoomResetButton.disabled = chart === null;
 }
 
 function renderPalette(): void {

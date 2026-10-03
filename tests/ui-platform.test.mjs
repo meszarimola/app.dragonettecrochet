@@ -8,7 +8,22 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
-import { applePlatform, historyCommand, modifierCombo } from '../src/ui/platform.ts';
+import { applePlatform, historyCommand, modifierCombo, zoomCommand } from '../src/ui/platform.ts';
+
+test('the zoom keys go by the character, and the number pad works too (PQW-1158)', () => {
+  const press = (key, code) => zoomCommand({ key, code });
+  assert.equal(press('+', 'Equal'), 'in', 'English layout, with Shift');
+  assert.equal(press('=', 'Equal'), 'in', 'English layout, without Shift');
+  assert.equal(press('+', 'Digit3'), 'in', 'Hungarian layout');
+  assert.equal(press('-', 'Minus'), 'out');
+  assert.equal(press('-', 'Slash'), 'out', 'Hungarian layout');
+  assert.equal(press('0', 'Backquote'), 'reset', 'Hungarian layout');
+  assert.equal(press('0', 'Digit0'), 'reset');
+  assert.equal(press('+', 'NumpadAdd'), 'in');
+  assert.equal(press('Subtract', 'NumpadSubtract'), 'out');
+  assert.equal(press('ö', 'Digit0'), null, 'the key in the nought position of a Hungarian layout');
+  assert.equal(press('z', 'KeyZ'), null);
+});
 
 test('recognises the Mac and iOS platforms', () => {
   for (const platform of ['macOS', 'MacIntel', 'Mac OS X', 'iPhone', 'iPad', 'iPod touch']) {

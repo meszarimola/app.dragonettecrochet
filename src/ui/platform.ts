@@ -28,3 +28,13 @@ export function historyCommand(event: {
   if (letter === 'z') return event.shiftKey ? 'redo' : 'undo';
   return letter === 'y' && !event.shiftKey ? 'redo' : null;
 }
+
+/**
+ * By the character, like the browser's own zoom: on a Hungarian keyboard the
+ * plus, the minus and the nought are not where an English one has them.
+ */
+export function zoomCommand(event: { readonly key: string; readonly code: string }): 'in' | 'out' | 'reset' | null {
+  if (event.key === '+' || event.key === '=' || event.code === 'NumpadAdd') return 'in';
+  if (event.key === '-' || event.code === 'NumpadSubtract') return 'out';
+  return event.key === '0' || event.code === 'Numpad0' ? 'reset' : null;
+}
