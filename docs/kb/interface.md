@@ -2816,7 +2816,8 @@ anything unfinished): `aria-disabled="true"` rather than `disabled`, so the arro
 keys still reach them and a screen reader reads them, with a „Coming soon” tag
 in the name. Enabling one is removing that attribute and giving it a listener.
 `main.ts` names the five by id, which is what the control inventory's
-reachability check asks for.
+reachability check asks for. **Rectangular was the first enabled** (PQW-1168, §89);
+it carries `aria-haspopup="dialog"` in place of the tag.
 
 **The keyboard** is the usual menu-button pattern: Enter, Space or the down arrow
 opens the menu on its first item, up and down wrap, Home and End jump (`stepIndex`,
@@ -2842,3 +2843,55 @@ pattern”, no longer says what the button does, and the menu it opens does.
 
 Every browser spec that starts a pattern therefore clicks „New”, then
 „Free-form design”. `e2e/uj-menu.spec.ts` guards the menu itself.
+
+## §89 Rectangular: a dialog for the size, then a guide grid
+
+PQW-1168, the owner's request after 1.1.0: *„ha kiválasztja, akkor kap egy
+segédrácsot, aminek a méretét ő állítja be … pl. 20x80-as rács, ahol 20 szem és
+80 sor van … a rács csak segédlet”*. This is the first step; fitting a cell and a
+row to the stitch in it comes later. Every choice below is the owner's, from the
+questions asked before the work.
+
+**The dialog** (`#grid-dialog`, `src/ui/grid-dialog.ts`) asks for two numbers
+only: „Szemek száma” and „Sorok száma” (*Stitches per row*, *Rows*), titled
+„Téglalap”. Both start at 20; the limits are 200 stitches and 500 rows
+(`MAX_GRID_STITCHES`, `MAX_GRID_ROWS`). The core reads a count into a code
+(`readGridCount`: empty, not whole, too small, too large), and the dictionary
+turns the code into the message under the field — the core returns codes, never
+sentences. Cancel,
+Escape and a click on the backdrop close it and change nothing. „Create” is the
+form's submit button, so Enter in a field arrives at the same click handler. „New”
+takes the focus before the dialog opens, so the dialog gives it back there. While
+it is open the document's key handler stands aside: its Escape, Delete and Space
+belong to the dialog.
+
+**The grid is part of the chart.** `FreeformChart.grid` holds the cell count of
+every row, row 1 first (`src/core/grid.ts`). Every row has the same count today;
+one count per row is stored because the owner's next steps need it — an increase
+makes a row with more cells than the row below, where one lower cell widens under
+several upper ones, and a decrease the other way round. Because the grid is in the
+chart, it is saved with it, undone with it, and every edit that rebuilds a chart
+spreads the old one, so none drops it (`tests/core-grid.test.mjs`).
+
+**Geometry.** A cell is a 40-unit square (`GRID_CELL`, the guide size of §63),
+whatever goes in it for now. Row 1 stands on y = 0 and every row sits on top of
+the one before: the grid grows upwards, as the work does. The rows are numbered
+from 1 at the bottom, an odd row's number on the right (where a right-side row
+starts) and an even row's on the left; no other mark, and row 1 is not labelled as
+the foundation chain — the user lays the chains. No line is emphasised every 5 or
+10. A new grid opens at 100% with row 1 and its left-hand numbers in the bottom
+left of the screen (`gridHome`). The sheet (§87) grows to take in the grid and its
+numbers.
+
+**Only the grid takes a stitch.** A click outside every row places nothing
+(`onGrid`). Where it lands inside is where the stitch goes — no snapping to a cell
+yet — and a row of several (§85) is kept within the grid's rectangle. Moving,
+pasting and arranging are not limited to the grid yet.
+
+**Drawing.** Only the rows on screen are drawn, since 500 × 200 cells is a lot of
+lines. Each line is centred on a device pixel and drawn once, in the ink at 28%:
+measured, a line on a pixel edge spread over two pixels at half strength, and a
+line shared by two rows drawn twice came out darker at a pixel ratio of 1.
+
+Asking before „New” replaces a chart that has stitches is PQW-1169, for both
+entries of the menu.

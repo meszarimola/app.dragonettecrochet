@@ -21,6 +21,7 @@ import {
   placeStitches,
   sameChart,
 } from '../core/freeform.ts';
+import { gridHome, gridRect, onGrid, rectGrid } from '../core/grid.ts';
 import { amend, canRedo, canUndo, createHistory, type History, record, redo, undo } from '../core/history.ts';
 import {
   MAX_SHAPING,
@@ -33,6 +34,7 @@ import {
 import type { ChartStyle, StitchDef, StitchDefId } from '../core/types.ts';
 import { DEFAULT_VIEW, MAX_ZOOM, MIN_ZOOM, viewFromJson } from '../core/view.ts';
 import { type BoardMode, FreeformBoard } from './freeform-board.ts';
+import { bindGridDialog } from './grid-dialog.ts';
 import {
   applyStaticTexts,
   homeUrl,
@@ -140,9 +142,13 @@ const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAcce
   place: (point) => {
     const stitch = armedStitch();
     if (chart === null || stitch === null) return;
+    // KB: interface.md §89 — on a regular design only the grid takes a stitch.
+    const grid = chart.grid;
+    if (grid !== undefined && !onGrid(grid, point)) return;
     const n = COUNTED.has(stitch) ? placeCount.value : 1;
     const extent = (placed: PlacedStitch) => board.extentOf(placed);
-    const placed = placeStitches(chart, stitch, point, n, extent, PLACE_GAP, board.sheet());
+    const bounds = grid === undefined ? board.sheet() : gridRect(grid);
+    const placed = placeStitches(chart, stitch, point, n, extent, PLACE_GAP, bounds);
     if (placed === null) return;
     chart = placed.chart;
     board.show(chart, symbolOptionsFor(chartStyle));
@@ -398,9 +404,34 @@ bindNewMenu(
     shapes: ['#new-rectangular', '#new-granny', '#new-triangle', '#new-semicircle', '#new-circle'].map((id) =>
       must<HTMLButtonElement>(id),
     ),
+    rectangular: must<HTMLButtonElement>('#new-rectangular'),
   },
-  () => {
-    if (!board.dragging) open(emptyChart());
+  {
+    freeform: () => {
+      if (!board.dragging) open(emptyChart());
+    },
+    rectangular: () => {
+      if (!board.dragging) openGridDialog();
+    },
+  },
+);
+
+const gridDialog = must<HTMLDialogElement>('#grid-dialog');
+const openGridDialog = bindGridDialog(
+  {
+    dialog: gridDialog,
+    stitches: must<HTMLInputElement>('#grid-stitches'),
+    rows: must<HTMLInputElement>('#grid-rows'),
+    stitchesError: must<HTMLElement>('#grid-stitches-error'),
+    rowsError: must<HTMLElement>('#grid-rows-error'),
+    create: must<HTMLButtonElement>('#grid-create'),
+    cancel: must<HTMLButtonElement>('#grid-cancel'),
+  },
+  (stitches, rows) => {
+    const grid = rectGrid(stitches, rows);
+    open({ ...emptyChart(), grid });
+    // Only now: a board hidden until the first chart has no size to measure.
+    board.showView(gridHome(grid, board.size()));
   },
 );
 
@@ -439,6 +470,8 @@ languageSelect.addEventListener('change', () => {
 
 // KB: interface.md §11 — by key code, so a Hungarian layout behaves like an English one.
 document.addEventListener('keydown', (event) => {
+  // The open dialog owns the keyboard; its Escape closes it and nothing else.
+  if (gridDialog.open) return;
   if (event.key === 'Escape') {
     // A select box closes on its own Escape; that one is not meant for the chart.
     if (board.dragging || inField(event.target)) return;

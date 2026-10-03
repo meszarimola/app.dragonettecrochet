@@ -18,6 +18,7 @@ import {
   stitchesIn,
   turn,
 } from '../core/freeform.ts';
+import { GRID_CELL, gridExtent, gridRows, type RectGrid } from '../core/grid.ts';
 import { stitchById } from '../core/stitches.ts';
 import {
   clampView,
@@ -50,6 +51,9 @@ const PAN_SLOP_TOUCH = 16;
 const WHEEL_RATE = 0.002;
 const PINCH_RATE = 0.01;
 const PINCH_LIMIT = 50;
+const GRID_ALPHA = 0.28;
+/** In board units, so the row numbers grow and shrink with the grid. */
+const GRID_LABEL_SIZE = 14;
 /** The corners in frame space, clockwise from the top left. */
 const CORNERS: readonly Point[] = [
   { x: -1, y: -1 },
@@ -289,7 +293,13 @@ export class FreeformBoard {
 
   /** In board units. KB: interface.md §87 */
   sheet(): Rect {
-    return sheetOf(this.size(), this.chart?.stitches ?? []);
+    const grid = this.chart?.grid;
+    const points: Point[] = [...(this.chart?.stitches ?? [])];
+    if (grid !== undefined) {
+      const { minX, minY, maxX, maxY } = gridExtent(grid);
+      points.push({ x: minX, y: minY }, { x: maxX, y: maxY });
+    }
+    return sheetOf(this.size(), points);
   }
 
   /** What is on screen, in board units. */
@@ -547,9 +557,10 @@ export class FreeformBoard {
     if (this.canvas.height !== height) this.canvas.height = height;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, cssWidth, cssHeight);
-    this.view = clampView(this.view, { width: cssWidth, height: cssHeight });
+    this.view = clampView(this.view, { width: cssWidth, height: cssHeight }, this.sheet());
     const { zoom, origin } = this.view;
     ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, -origin.x * dpr * zoom, -origin.y * dpr * zoom);
+    if (this.chart.grid !== undefined) this.drawGrid(ctx, this.chart.grid);
     for (const placed of this.chart.stitches) {
       const scale = STITCH_SCALE * placed.scale;
       ctx.save();
@@ -568,6 +579,47 @@ export class FreeformBoard {
       ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
       ctx.restore();
     }
+  }
+
+  /** Only the rows on screen are drawn: a grid can have 500 rows of 200 cells. */
+  private drawGrid(ctx: CanvasRenderingContext2D, grid: RectGrid): void {
+    const seen = this.visible();
+    const rows = gridRows(grid).filter(({ top, bottom }) => bottom >= seen.minY && top <= seen.maxY);
+    // A line centred on a pixel edge is smeared over two pixels at half strength; this centres it on a pixel.
+    const { zoom, origin } = this.view;
+    const scale = zoom * (window.devicePixelRatio || 1);
+    const width = Math.max(1, Math.round(scale / zoom));
+    const half = width % 2 === 1 ? 0.5 : 0;
+    const snap = (at: number, from: number): number => from + (Math.round((at - from) * scale) + half) / scale;
+    ctx.save();
+    applyInk(ctx, this.ink, width / scale);
+    ctx.lineCap = 'butt';
+    ctx.globalAlpha = GRID_ALPHA;
+    // Two rows share a line; measured at a pixel ratio of 1, drawing it twice darkens it.
+    const lines = new Map<number, number>();
+    for (const { top, bottom, right } of rows) {
+      for (const y of [top, bottom]) lines.set(y, Math.max(lines.get(y) ?? 0, right));
+    }
+    ctx.beginPath();
+    for (const [y, right] of lines) {
+      ctx.moveTo(snap(0, origin.x), snap(y, origin.y));
+      ctx.lineTo(snap(right, origin.x), snap(y, origin.y));
+    }
+    for (const { top, bottom, cells } of rows) {
+      const [y0, y1] = [snap(top, origin.y), snap(bottom, origin.y)];
+      for (let i = 0; i <= cells; i += 1) {
+        const x = snap(i * GRID_CELL, origin.x);
+        ctx.moveTo(x, y0);
+        ctx.lineTo(x, y1);
+      }
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.font = `${GRID_LABEL_SIZE}px ${getComputedStyle(this.canvas).fontFamily}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const { number, label } of rows) ctx.fillText(String(number), label.x, label.y);
+    ctx.restore();
   }
 
   private selectionKey(): string {

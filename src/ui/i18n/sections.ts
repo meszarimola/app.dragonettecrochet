@@ -8,9 +8,21 @@ export interface SectionTexts {
     readonly titles: Readonly<Record<StitchSectionId, string>>;
     readonly shapingPart: Readonly<Record<Shaping, string>>;
   };
+  readonly gridCount: {
+    readonly empty: string;
+    readonly notWhole: string;
+    readonly tooSmall: (min: number) => string;
+    readonly tooLarge: (max: number) => string;
+  };
 }
 
 const hu: SectionTexts = {
+  gridCount: {
+    empty: 'Adj meg egy számot.',
+    notWhole: 'Csak egész szám lehet.',
+    tooSmall: (min) => `Legalább ${min} legyen.`,
+    tooLarge: (max) => `Legfeljebb ${max} lehet.`,
+  },
   palette: {
     titles: {
       basic: 'Alapszemek',
@@ -26,6 +38,12 @@ const hu: SectionTexts = {
 };
 
 const en: SectionTexts = {
+  gridCount: {
+    empty: 'Enter a number.',
+    notWhole: 'Use a whole number.',
+    tooSmall: (min) => `It has to be at least ${min}.`,
+    tooLarge: (max) => `It can be ${max} at most.`,
+  },
   palette: {
     titles: {
       basic: 'Basic stitches',
