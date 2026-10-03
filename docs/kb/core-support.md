@@ -233,23 +233,29 @@ mirroring a left/right piece is 05 §4.5, §9.3. What is ours:
   an increase in row `rows + 2 − d`, and the list is re-sorted ascending because
   the reversal flips the order.
 
-## §9 Undo is a stack of two hundred whole patterns
+## §9 Undo is a stack of a hundred whole charts
 
-`history.ts`. Every edit returns a whole new pattern rather than mutating the old
-one (core-geometry §29), so history needs no diffing and no inverse operation: it
-keeps the previous states and a multi-step operation undoes in one step.
+`core/history.ts`, removed with the old editor in PQW-1141 and brought back for the
+free-form chart in PQW-1149. Every edit returns a whole new chart rather than
+mutating the old one, so history needs no diffing and no inverse operation: it
+keeps the previous states, and a change of many stitches undoes in one step.
 
-Three consequences that are choices, not arithmetic:
+Four consequences that are choices, not arithmetic:
 
 - **Identity, not equality, decides whether something happened.** Recording a
   state that is the same object as the present one is not a step. This works only
   because the editor returns a new object for every real change — an edit that
   mutated in place would be silently unrecorded.
-- **Two hundred steps, oldest dropped.** A pattern is plain JSON and a large one
-  is not small; an unbounded stack grows with every stroke of a fill. The limit is
-  a memory trade-off, not a domain rule.
+- **A hundred steps, oldest dropped** — the owner's choice of the number in
+  PQW-1149, over an unbounded stack that grows for as long as a session lasts.
+  The limit is a memory trade-off, not a domain rule.
 - **A new change clears the redo stack**, as in every editor. There is no
   branching history.
+- **`amend` replaces the present without a step.** It is how a step continues —
+  every turn of an arrangement's settings — and how what is not a step, the
+  selection, is kept up to date in the present, so an undo brings back the
+  selection that stood just before the change. What counts as a step on the
+  board is interface §84.
 
 ## §10 Colorwork: one cell, one stitch, and the turning chain is not a cell
 

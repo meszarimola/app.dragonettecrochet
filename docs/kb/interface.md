@@ -196,6 +196,15 @@ a selection, so a key that finds nothing selected is left to the browser:
 
 Neither fires while a `<select>` has focus; the `Alt`+digit stitches still do.
 
+**Undo and redo go by the letter, not the place** (PQW-1149): `Ctrl`/`⌘` + `Z`
+undoes, `Ctrl`/`⌘` + `Y` and `Ctrl`/`⌘` + `Shift` + `Z` redo. Z and Y swap places
+on a Hungarian keyboard, so by `event.code` the key marked Z would redo. The
+letter is `event.key`, and only a layout that gives no Latin letter falls back to
+the position (`historyCommand`, `ui/platform.ts`). They act on a `<select>`, a
+range and the dial's handle too; only a typed field keeps them for its own text.
+Unlike the selection's commands they are always `preventDefault`ed, even with
+nothing to undo: `⌘` + `Y` is the browser's history page on a Mac.
+
 ## §12 Tooltips are drawn by CSS
 
 `:hover` and `:focus-visible` in the stylesheet show them (PQW-882), which means
@@ -2477,3 +2486,33 @@ deleted the selection.
 The grid columns in the panel are `minmax(0, 1fr)`: a range input's built-in
 minimum width otherwise pushed the field and the second button out of the
 12rem column, which a screenshot showed at 1000 px and no test did.
+
+## §84 Undo and redo: what is one step
+
+PQW-1149. „Visszavonás” and „Újra” (Undo, Redo) are a toolbar group of their
+own between New and the selection's group, each with its label, disabled while
+there is nothing to take back or forward. The keys are in §11; the stack, a
+hundred deep, in core-support §9.
+
+**One action, one step** — the owner's rule:
+
+- a placed stitch, a delete, a duplicate, a paste, and New;
+- a drag: a move, a turn or a resize is recorded once, when it is let go
+  (`settled` on the board's host), however many pointer moves it took. A drag the
+  browser cancels goes back by itself and records nothing, and so does one that
+  ends with every stitch where it was (`sameChart`);
+- **an arrangement**: from the In a row or Around button for as long as the same
+  selection is being adjusted, every slider, field and dial change folds into the
+  one step, so the numbers running past while a slider is dragged are not steps.
+  Switching between row and around on the same untouched selection stays in it.
+  A plain move of the arranged stitches is a step of its own, and a setting
+  changed after it folds into that move.
+
+**Selecting is not a step**, but the selection travels with the chart: an undo
+brings back the stitches *and* what was selected just before the change, so an
+undone delete comes back selected, with the Select tool on. An undo or redo ends
+an arrangement in progress and hides its settings — the restored chart is not
+the one the arrangement produced. History starts at the first New; New on a
+blank chart replaces it rather than adding a blank step — unless there is
+something to redo, which New, like any change, clears. Neither an undo nor New
+acts mid-drag.

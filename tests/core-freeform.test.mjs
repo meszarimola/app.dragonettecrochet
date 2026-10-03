@@ -23,6 +23,7 @@ import {
   pasteStitches,
   placeStitch,
   rotateStitches,
+  sameChart,
   scaleStitches,
   selectionFrame,
   stitchAt,
@@ -363,4 +364,14 @@ test('an arrangement keeps every stitch, its stitch, its size and its id', () =>
     );
     assert.equal(arranged.nextId, chart.nextId);
   }
+});
+
+test('a chart moved and moved back is the same chart; a stitch moved, turned or added is not (PQW-1149)', () => {
+  const chart = placeStitch(placeStitch(emptyChart(), 'sc', 100, 100), 'dc', 200, 100);
+  const ids = new Set([1]);
+  assert.equal(sameChart(chart, moveStitches(moveStitches(chart, ids, 30, 0), ids, -30, 0)), true);
+  assert.equal(sameChart(chart, moveStitches(chart, ids, 0, 0)), true);
+  assert.equal(sameChart(chart, moveStitches(chart, ids, 1, 0)), false);
+  assert.equal(sameChart(chart, rotateStitches(chart, ids, { x: 100, y: 100 }, 0.1)), false);
+  assert.equal(sameChart(chart, placeStitch(chart, 'sc', 0, 0)), false);
 });

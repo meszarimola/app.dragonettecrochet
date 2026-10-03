@@ -19,6 +19,10 @@ export const MARKUP_TEXTS = {
     wipBanner: 'Fejlesztés alatt: a tervező folyamatosan bővül, nézz vissza később.',
     toolLabelNew: 'Új',
     irregularNewTitle: 'Új szabálytalan minta',
+    toolLabelUndo: 'Visszavonás',
+    undoTip: 'Visszavonás (Ctrl/⌘ + Z)',
+    toolLabelRedo: 'Újra',
+    redoTip: 'Újra (Ctrl/⌘ + Y vagy Ctrl/⌘ + Shift + Z)',
     toolPointerLabel: 'Kijelölés',
     selectToolTip:
       'Kijelölés: kattints egy szemre, vagy húzz területet; Ctrl/⌘ vagy Shift + kattintás: több szem. A kijelölést húzva mozgathatod, a kerek fogóval forgathatod, a sarkoknál nagyíthatod és kicsinyítheted.',
@@ -50,6 +54,10 @@ export const MARKUP_TEXTS = {
     wipBanner: 'Work in progress: the designer keeps growing, so do check back later.',
     toolLabelNew: 'New',
     irregularNewTitle: 'New free-form pattern',
+    toolLabelUndo: 'Undo',
+    undoTip: 'Undo (Ctrl/⌘ + Z)',
+    toolLabelRedo: 'Redo',
+    redoTip: 'Redo (Ctrl/⌘ + Y or Ctrl/⌘ + Shift + Z)',
     toolPointerLabel: 'Select',
     selectToolTip:
       'Select: click a stitch or drag an area; Ctrl/⌘ or Shift + click: several. Drag the selection to move it, the round handle to rotate it, a corner to make it larger or smaller.',
