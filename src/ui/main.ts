@@ -77,7 +77,6 @@ const deleteButton = must<HTMLButtonElement>('#delete-selection');
 const zoomOutButton = must<HTMLButtonElement>('#zoom-out');
 const zoomResetButton = must<HTMLButtonElement>('#zoom-reset');
 const zoomInButton = must<HTMLButtonElement>('#zoom-in');
-const panButton = must<HTMLButtonElement>('#pan-tool');
 const arrangePanel = must<HTMLElement>('#arrange');
 const arrangeButtons: Readonly<Record<Arrangement, HTMLButtonElement>> = {
   row: must<HTMLButtonElement>('#arrange-row'),
@@ -111,8 +110,6 @@ let chart: FreeformChart | null = null;
 let tool: StitchDefId | Shaping | null = null;
 let shaping: ShapingChoices = DEFAULT_SHAPING;
 let mode: BoardMode = 'place';
-/** Leaving „Move view” goes back here, so a selection held while panning survives. */
-let beforePan: BoardMode = 'place';
 let percent = new Intl.NumberFormat('en', { style: 'percent', maximumFractionDigits: 0 });
 let spaceHeld = false;
 let clipboard: readonly PlacedStitch[] = [];
@@ -168,10 +165,6 @@ const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAcce
 undoButton.addEventListener('click', () => step(undo));
 redoButton.addEventListener('click', () => step(redo));
 selectButton.addEventListener('click', () => setMode(mode === 'select' ? 'place' : 'select'));
-panButton.addEventListener('click', () => {
-  if (mode !== 'pan') beforePan = mode;
-  setMode(mode === 'pan' ? beforePan : 'pan');
-});
 zoomInButton.addEventListener('click', () => board.zoomStep(1));
 zoomOutButton.addEventListener('click', () => board.zoomStep(-1));
 zoomResetButton.addEventListener('click', () => board.zoomTo(MIN_ZOOM));
@@ -388,7 +381,6 @@ newButton.addEventListener('click', () => {
   if (history === null) setHistory(createHistory(fresh));
   else setHistory(blank && !canRedo(history) ? amend(history, fresh) : record(history, fresh));
   selectButton.disabled = false;
-  panButton.disabled = false;
   board.zoomTo(MIN_ZOOM);
   showZoom();
   renderPalette();
@@ -531,12 +523,11 @@ function select(id: StitchDefId | Shaping | null): void {
   }
 }
 
-/** Selecting, moving the view and placing exclude each other: arming one puts the others down. */
+/** Selecting and placing exclude each other: arming one puts the other down. */
 function setMode(next: BoardMode): void {
   if (chart === null) return;
   mode = next;
   selectButton.setAttribute('aria-pressed', String(next === 'select'));
-  panButton.setAttribute('aria-pressed', String(next === 'pan'));
   board.setMode(next);
   if (next !== 'place' && tool !== null) select(null);
 }

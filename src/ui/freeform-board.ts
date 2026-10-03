@@ -32,6 +32,9 @@ const CORNER = 8;
 const HANDLE_HIT = HANDLE_R + 4;
 /** Below this many pixels a press is a click, not a drag: mouse jitter must not move a stitch. */
 const DRAG_SLOP = 3;
+/** A placing click that wobbles this far is still a click: a finger drifts further than a mouse. */
+const PAN_SLOP_MOUSE = 8;
+const PAN_SLOP_TOUCH = 16;
 /** How fast the wheel zooms: a mouse notch is about 100, a trackpad pinch reports far less. */
 const WHEEL_RATE = 0.002;
 const PINCH_RATE = 0.01;
@@ -44,7 +47,7 @@ const CORNERS: readonly Point[] = [
   { x: -1, y: 1 },
 ];
 
-export type BoardMode = 'place' | 'select' | 'pan';
+export type BoardMode = 'place' | 'select';
 
 export interface BoardHost {
   place(point: Point): void;
@@ -86,9 +89,11 @@ type Drag =
       readonly base: FreeformChart;
     }
   | { readonly kind: 'area'; readonly start: Point; current: Point; readonly base: ReadonlySet<number> }
-  /** `start` is a screen point: the board under the pointer moves while the view does. */
-  /** Moved step by step from the current view, so a zoom in the middle of a pan is kept. */
-  | { readonly kind: 'pan'; last: Point };
+  /**
+   * Screen points, moved step by step from the current view, so a zoom in the
+   * middle of a pan is kept. Until it leaves `slop` it is still a placing click.
+   */
+  | { readonly kind: 'pan'; last: Point; moved: boolean; readonly slop: number };
 
 /** The selection frame as it is drawn, with its handles in board coordinates. */
 interface Handles {
@@ -169,7 +174,7 @@ export class FreeformBoard {
     this.mode = mode;
     this.drag = null;
     if (mode === 'place') this.selection.clear();
-    this.canvas.style.cursor = mode === 'pan' ? 'grab' : '';
+    this.canvas.style.cursor = '';
     this.draw();
   }
 
@@ -177,7 +182,7 @@ export class FreeformBoard {
   holdPan(on: boolean): void {
     if (on === this.panHeld) return;
     this.panHeld = on;
-    if (this.drag?.kind !== 'pan') this.canvas.style.cursor = on || this.mode === 'pan' ? 'grab' : '';
+    if (!this.dragging) this.canvas.style.cursor = on ? 'grab' : '';
   }
 
   get zoom(): number {
@@ -233,8 +238,9 @@ export class FreeformBoard {
     return this.selection;
   }
 
+  /** A press that may still turn out to be a placing click is not a drag yet. */
   get dragging(): boolean {
-    return this.drag !== null;
+    return this.drag !== null && !(this.drag.kind === 'pan' && !this.drag.moved);
   }
 
   get hovered(): boolean {
@@ -266,14 +272,17 @@ export class FreeformBoard {
     this.swallowClick = false;
     if (this.chart !== null && event.isPrimary && this.drag === null) {
       const middle = event.button === 1;
-      if (middle || (event.button === 0 && (this.mode === 'pan' || this.panHeld))) {
+      // KB: interface.md §87
+      if (middle || (event.button === 0 && (this.mode === 'place' || this.panHeld))) {
         // The middle button would otherwise start the browser's own scrolling.
         if (middle) event.preventDefault();
-        // Even a pan that never moved: Space may be let go before the button is.
-        this.swallowClick = !middle;
+        const moved = middle || this.panHeld;
+        // Even a Space pan that never moved: Space may be let go before the button is.
+        this.swallowClick = this.panHeld && !middle;
         this.canvas.setPointerCapture?.(event.pointerId);
-        this.drag = { kind: 'pan', last: this.screenPoint(event) };
-        this.canvas.style.cursor = 'grabbing';
+        const slop = event.pointerType === 'mouse' ? PAN_SLOP_MOUSE : PAN_SLOP_TOUCH;
+        this.drag = { kind: 'pan', last: this.screenPoint(event), moved, slop };
+        if (moved) this.canvas.style.cursor = 'grabbing';
         return;
       }
     }
@@ -334,6 +343,12 @@ export class FreeformBoard {
     const drag = this.drag;
     if (drag?.kind === 'pan') {
       const at = this.screenPoint(event);
+      if (!drag.moved) {
+        if (distance(at, drag.last) < drag.slop) return;
+        drag.moved = true;
+        this.swallowClick = true;
+        this.canvas.style.cursor = 'grabbing';
+      }
       this.setView(panBy(this.view, at.x - drag.last.x, at.y - drag.last.y, this.size()));
       drag.last = at;
       return;
@@ -390,7 +405,7 @@ export class FreeformBoard {
     if (drag === null) return;
     this.drag = null;
     if (drag.kind === 'pan') {
-      this.canvas.style.cursor = this.mode === 'pan' || this.panHeld ? 'grab' : '';
+      this.canvas.style.cursor = this.panHeld ? 'grab' : '';
       if (cancelled) this.swallowClick = false;
       return;
     }

@@ -1,7 +1,8 @@
 /*
  * Zoom and moving the view on the free-form board (PQW-1158): the buttons beside
- * Delete, the mouse wheel about the pointer, and three ways to move the view that
- * never touch the chart or the selection. KB: interface.md §87
+ * Delete, the mouse wheel about the pointer, and ways to move the view that never
+ * touch the chart or the selection: since PQW-1159 a plain drag outside Select,
+ * and Space or the middle button with any tool. KB: interface.md §87
  */
 
 import { expect, type Page, test } from '@playwright/test';
@@ -15,7 +16,6 @@ const board = (page: Page) => page.locator('#board');
 const zoomIn = (page: Page) => page.getByRole('button', { name: 'Zoom in' });
 const zoomOut = (page: Page) => page.getByRole('button', { name: 'Zoom out' });
 const level = (page: Page) => page.locator('#zoom-reset');
-const panTool = (page: Page) => page.getByRole('button', { name: 'Move view' });
 
 async function stitches(page: Page): Promise<Placed[]> {
   return page.evaluate(
@@ -39,6 +39,21 @@ async function dragOnBoard(
   await page.mouse.down({ button });
   await page.mouse.move(box.x + to[0], box.y + to[1], { steps: 6 });
   await page.mouse.up({ button });
+}
+
+/**
+ * A new chart with one stitch 50 and 30 px off the board's middle, zoomed to 200%
+ * about that middle; returns where the stitch is now on screen.
+ */
+async function stitchAt200(page: Page): Promise<{ x: number; y: number }> {
+  await newChart(page);
+  await page.getByRole('button', { name: /^Single crochet \(sc\)/ }).click();
+  const box = (await board(page).boundingBox())!;
+  const middle = { x: box.width / 2, y: box.height / 2 };
+  await board(page).click({ position: { x: middle.x + 50, y: middle.y + 30 } });
+  for (let i = 0; i < 3; i += 1) await zoomIn(page).click();
+  await expect(level(page)).toHaveText('200%');
+  return { x: middle.x + 100, y: middle.y + 60 };
 }
 
 test('the zoom buttons step the level, and the level returns to 100%', { tag: '@kiadas' }, async ({ page }) => {
@@ -89,32 +104,29 @@ test('the mouse wheel zooms about the pointer', async ({ page }) => {
   expect(await stitches(page), 'zooming changed nothing in the chart').toHaveLength(1);
 });
 
-test('the Move view tool moves the view, not the stitches or the selection', async ({ page }) => {
-  await newChart(page);
-  await page.getByRole('button', { name: /^Single crochet \(sc\)/ }).click();
-  await board(page).click({ position: { x: 300, y: 200 } });
-  await page.getByRole('button', { name: 'Select' }).click();
-  await board(page).click({ position: { x: 300, y: 200 } });
-  await expect(board(page)).toHaveAttribute('data-selected', '1');
-  for (let i = 0; i < 3; i += 1) await zoomIn(page).click();
+test('outside Select a drag moves the view, armed or not, and lays nothing; a still click lays a stitch (PQW-1159)', async ({
+  page,
+}) => {
+  const shown = await stitchAt200(page);
   const before = await stitches(page);
 
-  await panTool(page).click();
-  await expect(panTool(page)).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByRole('button', { name: 'Select' }), 'one mode at a time').toHaveAttribute(
-    'aria-pressed',
-    'false',
-  );
-  await dragOnBoard(page, [300, 200], [200, 150]);
-  expect(await stitches(page), 'the chart did not move').toEqual(before);
-  await expect(board(page), 'the selection stayed').toHaveAttribute('data-selected', '1');
+  await dragOnBoard(page, [shown.x, shown.y], [shown.x + 30, shown.y + 20]);
+  expect(await stitches(page), 'with a stitch armed, the drag laid nothing and moved nothing').toEqual(before);
+  await page.keyboard.press('Escape');
+  await dragOnBoard(page, [shown.x + 30, shown.y + 20], [shown.x + 60, shown.y + 40]);
+  expect(await stitches(page), 'with nothing armed, the same').toEqual(before);
 
-  await panTool(page).click();
-  await expect(page.getByRole('button', { name: 'Select' }), 'back to the mode before').toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await expect(board(page), 'and the selection with it').toHaveAttribute('data-selected', '1');
+  await page.getByRole('button', { name: 'Select' }).click();
+  await board(page).click({ position: { x: shown.x + 60, y: shown.y + 40 } });
+  await expect(board(page), 'the stitch is where the drags took the view').toHaveAttribute('data-selected', '1');
+  await expect(page.locator('#pan-tool'), 'no hand tool').toHaveCount(0);
+});
+
+test('in Select a drag on empty ground still draws an area, not a pan', async ({ page }) => {
+  const shown = await stitchAt200(page);
+  await page.getByRole('button', { name: 'Select' }).click();
+  await dragOnBoard(page, [shown.x - 40, shown.y - 40], [shown.x + 40, shown.y + 40]);
+  await expect(board(page)).toHaveAttribute('data-selected', '1');
 });
 
 test('Ctrl + a mouse wheel notch zooms one notch, not to the top', async ({ page }) => {
@@ -167,4 +179,34 @@ test('Space and the middle button move the view with a stitch armed, and lay not
 
   await board(page).click({ position: { x: 300, y: 200 } });
   expect(await stitches(page), 'a plain click still lays one').toHaveLength(1);
+});
+
+test('a placing click that wobbles a few pixels still lays its stitch', async ({ page }) => {
+  await newChart(page);
+  await page.getByRole('button', { name: /^Single crochet \(sc\)/ }).click();
+  const box = (await board(page).boundingBox())!;
+  await page.mouse.move(box.x + 300, box.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 305, box.y + 203, { steps: 3 });
+  await page.mouse.up();
+  expect(await stitches(page)).toHaveLength(1);
+});
+
+test('a plain drag that ends off the canvas does not eat the next click', async ({ page }) => {
+  const shown = await stitchAt200(page);
+  await dragOnBoard(page, [shown.x, shown.y], [-60, shown.y]);
+  await board(page).click({ position: { x: 300, y: 200 } });
+  expect(await stitches(page), 'the second stitch is laid').toHaveLength(2);
+});
+
+test('holding the button still, Escape still disarms the stitch', async ({ page }) => {
+  await newChart(page);
+  const tile = page.getByRole('button', { name: /^Single crochet \(sc\)/ });
+  await tile.click();
+  const box = (await board(page).boundingBox())!;
+  await page.mouse.move(box.x + 300, box.y + 200);
+  await page.mouse.down();
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+  await expect(tile).toHaveAttribute('aria-pressed', 'false');
 });
