@@ -7,10 +7,15 @@ export function digitsOnly(text: string): string {
   return text.replace(/\D/g, '');
 }
 
+/** A capped field's value: digits only, and anything above `max` becomes `max`. */
+export function cappedText(text: string, max: number): string {
+  const digits = digitsOnly(text);
+  return digits !== '' && Number(digits) > max ? String(max) : digits;
+}
+
 /** An angle field's value: digits only, and anything above 359 becomes 359. */
 export function angleText(text: string): string {
-  const digits = digitsOnly(text);
-  return digits !== '' && Number(digits) > MAX_ANGLE ? String(MAX_ANGLE) : digits;
+  return cappedText(text, MAX_ANGLE);
 }
 
 /** The whole degree at a point seen from the dial's centre: 0 at the top, growing clockwise. */
@@ -39,15 +44,18 @@ function rewrite(input: HTMLInputElement, text: string): void {
 
 /**
  * A slider and the field beside it. The slider moves the field; the field may
- * hold more than the slider's maximum, and the slider then stays at it. An
- * emptied field gets its last value back when it is left.
+ * hold more than the slider's maximum, and the slider then stays at it — unless
+ * `capped`, when a larger number becomes the maximum as it is typed. An emptied
+ * field gets its last value back when it is left.
  */
 export function bindPair(
   range: HTMLInputElement,
   field: HTMLInputElement,
   changed: (value: number) => void,
+  capped = false,
 ): { readonly value: number } {
   const min = Number(range.min);
+  const max = Number(range.max);
   let current = Number(field.value);
   const take = (value: number): void => {
     current = Math.max(value, min);
@@ -59,7 +67,7 @@ export function bindPair(
     take(Number(range.value));
   });
   field.addEventListener('input', () => {
-    rewrite(field, digitsOnly(field.value));
+    rewrite(field, capped ? cappedText(field.value, max) : digitsOnly(field.value));
     if (field.value !== '') take(Number(field.value));
   });
   field.addEventListener('change', () => rewrite(field, String(current)));

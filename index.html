@@ -179,6 +179,16 @@
         ></canvas>
 
         <aside class="inspector" id="inspector" aria-label="Properties" data-i18n-label="inspectorLabel">
+          <section class="arrange" id="place-options" aria-labelledby="place-title" hidden>
+            <h2 class="panel__title" id="place-title" data-i18n="placeTitle">Placing</h2>
+            <div class="arrange__setting" role="group" aria-labelledby="place-count-label">
+              <span class="arrange__label" id="place-count-label" data-i18n="placeCountLabel">Count</span>
+              <div class="arrange__pair">
+                <input class="arrange__range" id="place-count-range" type="range" min="1" max="10" step="1" value="1" aria-labelledby="place-count-label" />
+                <input class="arrange__input" id="place-count" type="text" inputmode="numeric" maxlength="2" autocomplete="off" value="1" aria-labelledby="place-count-label" />
+              </div>
+            </div>
+          </section>
           <section class="arrange" id="arrange" aria-labelledby="arrange-title" hidden>
             <h2 class="panel__title" id="arrange-title" data-i18n="arrangeTitle">Arrange</h2>
             <div class="arrange__buttons">

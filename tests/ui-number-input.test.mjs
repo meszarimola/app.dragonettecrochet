@@ -7,7 +7,7 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
-import { angleAt, angleText, arcPath, digitsOnly, wrapAngle } from '../src/ui/number-input.ts';
+import { angleAt, angleText, arcPath, cappedText, digitsOnly, wrapAngle } from '../src/ui/number-input.ts';
 
 test('a field keeps only the digits of what was typed or pasted', () => {
   assert.equal(digitsOnly('12'), '12');
@@ -17,6 +17,17 @@ test('a field keeps only the digits of what was typed or pasted', () => {
   assert.equal(digitsOnly('4,5'), '45');
   assert.equal(digitsOnly('abc'), '');
   assert.equal(digitsOnly('+%&'), '');
+});
+
+test('a capped field keeps digits only, and a number above the cap becomes the cap', () => {
+  assert.equal(cappedText('11', 10), '10');
+  assert.equal(cappedText('99', 10), '10');
+  assert.equal(cappedText('10', 10), '10');
+  assert.equal(cappedText('7', 10), '7');
+  assert.equal(cappedText('0', 10), '0');
+  assert.equal(cappedText('a5', 10), '5');
+  assert.equal(cappedText('-3', 10), '3');
+  assert.equal(cappedText('', 10), '');
 });
 
 test('an angle above 359 becomes 359, and one within the range stays', () => {

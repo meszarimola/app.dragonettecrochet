@@ -2421,8 +2421,9 @@ owns, not for a rename of mine (`frozen-paths.md`).
 ## §83 The right panel follows the selection, and arranges it
 
 PQW-1146, reshaped in PQW-1147. `#inspector` is the free-form board's right
-column, and what it shows depends on what is in focus. With nothing selected it
-is empty — the owner's choice over a hint or a hidden column. With one or more
+column, and what it shows depends on what is in focus. With nothing selected
+and no basic stitch armed (§85) it is empty — the owner's choice over a hint or a
+hidden column. With one or more
 stitches selected it offers two arrangements side by side (`arrangeStitches`,
 `core/freeform.ts`), both taking the stitches left to right:
 
@@ -2548,3 +2549,29 @@ the one the arrangement produced. History starts at the first New; New on a
 blank chart replaces it rather than adding a blank step — unless there is
 something to redo, which New, like any change, clears. Neither an undo nor New
 acts mid-drag.
+
+## §85 An armed basic stitch brings a count to the right panel
+
+PQW-1154, the owner's request: *„ha alapszemet választ ki: akkor egy számláló,
+hogy hány alapszemet tegyen le. alapértelmezetten ez 1 és nem lehet kisebb, mint
+1. és maximum ez a szám 10.”* The right panel (§83) now follows the armed stitch
+as well as the selection. Arming and selecting exclude each other, so at most one
+of its two sections, „Lerakás” and „Rendezés”, is ever shown.
+
+**Which stitches.** The seven of the palette's basic section, chain and slip
+stitch included — read from `STITCH_SECTIONS`, not from `kind`. Increases,
+decreases and compound stitches show nothing and lay one stitch; the owner left
+their options for later.
+
+**The control** is the spacing control's twin: a 1–10 slider with a field on its
+right, default 1. Unlike the arrange fields, this one is **capped**: a number
+above 10 becomes 10 as it is typed (`bindPair(…, capped)`), because the owner
+asked that more than 10 never be accepted. Digits only, a typed 0 counts as 1,
+and an emptied field gets its last value back when it is left — all as in §83.
+The count is kept for the session across stitches; it is not stored.
+
+**What a click lays.** `placeStitches` (`core/freeform.ts`): the stitches side by
+side, upright, centred on the click, laid out by the In a row arrangement with
+its default spacing of 4 px. One stitch lands exactly where a single placement
+always did. A row reaching past an edge of the board is shifted back on, as an
+arrangement is. The row is one undo step (§84).

@@ -74,6 +74,30 @@ export function placeStitch(chart: FreeformChart, stitch: StitchDefId, x: number
   };
 }
 
+export const MIN_COUNT = 1;
+export const MAX_COUNT = 10;
+
+/**
+ * `count` of one stitch side by side, upright and `gap` apart, centred on the
+ * point; a count outside 1–10 is taken at the nearer end. KB: interface.md §85
+ */
+export function placeStitches(
+  chart: FreeformChart,
+  stitch: StitchDefId,
+  x: number,
+  y: number,
+  count: number,
+  extent: (placed: PlacedStitch) => Extent,
+  gap: number,
+): FreeformChart {
+  const n = Number.isFinite(count) ? Math.min(Math.max(Math.trunc(count), MIN_COUNT), MAX_COUNT) : MIN_COUNT;
+  let next = chart;
+  for (let i = 0; i < n; i += 1) next = placeStitch(next, stitch, x, y);
+  if (n === 1) return next;
+  const ids = new Set(next.stitches.slice(-n).map(({ id }) => id));
+  return arrangeStitches(next, ids, 'row', extent, { gap, radius: 0, angle: 0, facing: 'feet' });
+}
+
 /** The stitch whose reach covers the point; of several, the one placed last. */
 export function stitchAt(chart: FreeformChart, point: Point, reach: (placed: PlacedStitch) => number): number | null {
   for (let i = chart.stitches.length - 1; i >= 0; i -= 1) {
