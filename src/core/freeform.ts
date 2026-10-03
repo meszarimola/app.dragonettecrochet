@@ -1,3 +1,4 @@
+import { CHAIN } from './stitches.ts';
 import type { StitchDefId } from './types.ts';
 
 export interface PlacedStitch {
@@ -354,7 +355,8 @@ interface Sized {
  * foot to foot, `gap` apart. Around points their feet — or their tops — at one
  * shared point and keeps that end `radius` away from it, so the ends do not cover
  * each other, spread over `angle` — but never wider than evenly all the way
- * round, so the first and the last never meet. KB: interface.md §83
+ * round, so the first and the last never meet. A chain among taller stitches
+ * hangs from their tops instead of standing on the foot line. KB: interface.md §83
  */
 export function arrangeStitches(
   chart: FreeformChart,
@@ -378,12 +380,30 @@ export function arrangeStitches(
 function row(items: readonly Sized[], middle: Point, gap: number): PlacedStitch[] {
   const width = items.reduce((sum, { size }) => sum + size.halfWidth * 2, 0) + gap * (items.length - 1);
   const foot = middle.y + Math.max(...items.map(({ size }) => size.halfHeight));
+  const tall = tallest(items);
   let left = middle.x - width / 2;
-  return items.map(({ stitch, size }) => {
-    const x = left + size.halfWidth;
-    left += size.halfWidth * 2 + gap;
-    return { ...stitch, x, y: foot - size.halfHeight, rotation: 0 };
+  return items.map((item) => {
+    const x = left + item.size.halfWidth;
+    left += item.size.halfWidth * 2 + gap;
+    return { ...item.stitch, x, y: foot - standOff(item, tall), rotation: 0 };
   });
+}
+
+/** The height of the tallest stitch that is not a chain; 0 when every stitch is a chain. */
+function tallest(items: readonly Sized[]): number {
+  return Math.max(
+    0,
+    ...items.filter(({ stitch }) => stitch.stitch !== CHAIN.id).map(({ size }) => size.halfHeight * 2),
+  );
+}
+
+/**
+ * How far a stitch's centre stands from the line its foot is laid on: half its
+ * height, or for a chain shorter than `tall`, enough to bring its top to the
+ * top of `tall`. KB: interface.md §83
+ */
+function standOff({ stitch, size }: Sized, tall: number): number {
+  return stitch.stitch === CHAIN.id && tall > size.halfHeight * 2 ? tall - size.halfHeight : size.halfHeight;
 }
 
 /**
@@ -395,11 +415,13 @@ function around(items: readonly Sized[], middle: Point, { radius, angle, facing 
   const step = n > 1 ? Math.min(angle / (n - 1), (Math.PI * 2) / n) : 0;
   const first = -Math.PI / 2 - (step * (n - 1)) / 2;
   const mirror = facing === 'tops' ? -1 : 1;
-  const stood = items.map(({ stitch, size }, i) => {
+  // KB: interface.md §83
+  const tall = facing === 'feet' ? tallest(items) : 0;
+  const stood = items.map((item, i) => {
     const direction = first + step * i;
-    const reach = radius + size.halfHeight;
+    const reach = radius + standOff(item, tall);
     return {
-      ...stitch,
+      ...item.stitch,
       x: Math.cos(direction) * reach,
       y: mirror * Math.sin(direction) * reach,
       rotation: mirror * (direction + Math.PI / 2),
