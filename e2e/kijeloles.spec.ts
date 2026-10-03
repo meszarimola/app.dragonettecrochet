@@ -95,6 +95,32 @@ test('a dragged area selects several stitches, and they move together', async ({
   expect(await inkBox(page, around(185, 150, 50)), 'nothing is left where the two stood').toBeNull();
 });
 
+test('the selection moves from anywhere in its frame, and a stitch under the frame stays put', async ({ page }) => {
+  await chartWith(page, /^Single crochet \(sc\)/, [
+    [150, 150],
+    [250, 250],
+    [200, 200],
+  ]);
+  const board = page.locator('#board');
+  await board.click({ position: { x: 150, y: 150 } });
+  await board.click({ position: { x: 250, y: 250 }, modifiers: ['Shift'] });
+  expect(await selected(page)).toBe('2');
+
+  await drag(page, [170, 230], [170, 280]);
+  await drag(page, [200, 200], [200, 300]);
+  expect(await selected(page), 'a press on the unselected stitch did not change the selection').toBe('2');
+
+  await page.keyboard.press('Escape');
+  expect(await inkBox(page, around(150, 300, 15)), 'the first stitch moved down twice').not.toBeNull();
+  expect(await inkBox(page, around(250, 400, 15)), 'and the second with it').not.toBeNull();
+  expect(await inkBox(page, around(200, 200, 15)), 'the stitch under the frame stayed').not.toBeNull();
+  expect(await inkBox(page, around(150, 150, 15))).toBeNull();
+  expect(await inkBox(page, around(250, 250, 15))).toBeNull();
+
+  await drag(page, [100, 150], [300, 450]);
+  expect(await selected(page), 'a new area takes every stitch in it').toBe('3');
+});
+
 test('Shift + click adds a stitch to the selection and takes it out again', async ({ page }) => {
   await chartWith(page, /^Single crochet \(sc\)/, [
     [150, 150],

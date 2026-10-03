@@ -1692,6 +1692,15 @@ együtt”, and a pointer next to „Terület” for Ctrl/⌘-click selection.
   item moves the whole selection — checked before the tracing photo and the
   circle guide's knob, which lie behind it (/code-review). A still click on one of several selected
   items narrows the selection to it (with its group); a drag moves them all.
+- **The free-form board's frame (PQW-1148).** The free-form board (PQW-1143)
+  has no layers, groups or guides, but keeps this rule and takes it further:
+  without Shift/Ctrl/⌘, any press inside the frame, on empty ground or on a
+  stitch that is *not* selected, moves the selection and leaves it unchanged.
+  The owner: „amíg a kiválasztás él, csak az eredetileg kiválasztott szemek
+  mozgathatóak”. So a click inside the frame neither clears the selection nor
+  takes the stitch under it. A click outside the frame (or Escape) clears it,
+  and a new area takes every stitch in it. With a modifier held, the press
+  toggles a stitch or draws an area, as before, and the cursor says so.
 - **The frame turns with the drawing.** While the rotate knob is dragged the
   board draws the frame it started from, turned by the same angle
   (`setSelectionTurn`); on release it is the upright box of the result again.

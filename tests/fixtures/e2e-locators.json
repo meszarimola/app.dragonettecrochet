@@ -16,7 +16,7 @@
   "getByRole": {
     "/^Chain \\(ch\\)/": 2,
     "/^Double crochet \\(dc\\)/": 4,
-    "/^Single crochet \\(sc\\)/": 17,
+    "/^Single crochet \\(sc\\)/": 18,
     "A felület nyelve": 1,
     "Alapszemek": 1,
     "Angle (°)": 5,
@@ -52,7 +52,7 @@
   },
   "locator": {
     "#arrange-dial": 1,
-    "#board": 27,
+    "#board": 28,
     "#version": 1,
     ".brand-mark": 1,
     ".tool__label": 1,
