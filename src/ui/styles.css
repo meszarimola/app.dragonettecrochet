@@ -244,6 +244,80 @@ button {
   white-space: nowrap;
 }
 
+/* KB: interface.md §88 */
+.new-menu,
+.menu__group {
+  position: relative;
+}
+
+.menu {
+  position: absolute;
+  z-index: 40;
+  inset-block-start: calc(100% + var(--sp-0));
+  inset-inline-start: 0;
+  display: grid;
+  min-inline-size: 13rem;
+  padding: var(--sp-0);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-md);
+  background: var(--c-bg);
+  box-shadow: 0 6px 20px rgb(36 31 43 / 0.14);
+}
+
+.menu[hidden] {
+  display: none;
+}
+
+.menu--sub {
+  inset-block-start: calc(-1 * var(--sp-0) - 1px);
+  inset-inline-start: calc(100% + var(--sp-0));
+}
+
+.menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  inline-size: 100%;
+  min-block-size: 44px;
+  padding: 0 var(--sp-2);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--c-text);
+  font: inherit;
+  text-align: start;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.menu__item:hover,
+.menu__item:focus-visible,
+.menu__item[aria-expanded="true"] {
+  background: var(--c-row-a);
+  color: var(--c-ink);
+}
+
+.menu__item[aria-disabled="true"] {
+  color: var(--c-muted);
+  cursor: not-allowed;
+}
+
+.menu__item[aria-disabled="true"]:hover {
+  background: transparent;
+}
+
+.menu__soon {
+  font-size: 0.6875rem;
+  letter-spacing: var(--ls-micro);
+  text-transform: uppercase;
+}
+
+.menu__arrow {
+  font-size: 1.125rem;
+  line-height: 1;
+}
+
 .tools .tool[data-tip] {
   position: relative;
 }
@@ -821,6 +895,15 @@ body.is-armed #board {
 @media (width < 40rem) {
   :root {
     --inspector-width: 0px;
+  }
+
+  /* KB: interface.md §88 */
+  .menu--sub {
+    position: static;
+    padding-block: 0;
+    padding-inline: var(--sp-2) 0;
+    border: 0;
+    box-shadow: none;
   }
 
   .inspector {

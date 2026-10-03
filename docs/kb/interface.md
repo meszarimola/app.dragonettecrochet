@@ -2793,3 +2793,34 @@ the wheel about the pointer, a click placing at the board point under it when
 zoomed, a plain drag outside „Kijelölés” moving the view (armed or not) while a
 drag inside it still draws an area, Space and the middle button laying nothing,
 Ctrl + one wheel notch, the keys only over the drawing, and a pan ending off the canvas.
+
+## §88 „Új” is a menu: free-form design, and regular design to come
+
+PQW-1165, the owner's request after 1.0.0: *„az új egy dropdown lesz, 2 menüvel:
+szabadtervezés … szabályos tervezés - ebből pedig almenüből kinyílnak az alábbi
+lehetőségek: négyszögletű, granny square, háromszög, félkör, kör. egyelőre csak a
+menüt tervezd meg”*.
+
+`#new-chart` no longer starts a pattern; it opens `#new-menu` (`role="menu"`,
+`aria-haspopup`, its own `aria-expanded`). „Free-form design” is the old button:
+it runs `open(emptyChart())`. „Regular design” opens `#new-regular-menu` beside
+it on hover, on a click or with the right arrow; under 40rem the submenu folds
+open below its item instead, so a phone gets no horizontal scroll.
+
+**The five shapes are shown and disabled** (the owner's choice, as §9 does for
+anything unfinished): `aria-disabled="true"` rather than `disabled`, so the arrow
+keys still reach them and a screen reader reads them, with a „Coming soon” tag
+in the name. Enabling one is removing that attribute and giving it a listener.
+
+The keyboard is the usual menu-button pattern: Enter, Space or the down arrow
+opens the menu on its first item, up and down wrap, Home and End jump (`stepIndex`,
+`tests/ui-new-menu.test.mjs`), left or Escape closes the submenu, Escape closes the
+menu and gives the focus back to „New”, Tab closes it and moves on. A pointer
+press anywhere outside closes it. Handled keys stop at the menu, so its Escape
+never reaches the document handler that disarms the stitch.
+
+„New” lost its tooltip: a bubble under an open menu would cover it, and the menu
+says what the button does.
+
+Every browser spec that starts a pattern therefore clicks „New”, then
+„Free-form design”.

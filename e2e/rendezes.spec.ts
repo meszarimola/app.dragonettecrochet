@@ -27,6 +27,7 @@ async function stitches(page: Page): Promise<Placed[]> {
 async function selectedChartWith(page: Page, points: readonly [number, number][]): Promise<void> {
   await page.goto('/');
   await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('menuitem', { name: 'Free-form design' }).click();
   await page.getByRole('button', { name: /^Double crochet \(dc\)/ }).click();
   for (const [x, y] of points) await board(page).click({ position: { x, y } });
   await page.getByRole('button', { name: 'Select' }).click();
@@ -61,6 +62,7 @@ test('the panel is empty until something is selected, then arranges it in a row'
 }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('menuitem', { name: 'Free-form design' }).click();
   await expect(page.getByRole('complementary', { name: 'Properties' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'In a row' }), 'nothing selected, nothing offered').toBeHidden();
 
@@ -175,6 +177,7 @@ test('the settings go with the selection they were made for', async ({ page }) =
   await selectedChartWith(page, POINTS);
   await page.getByRole('button', { name: 'Around' }).click();
   await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('menuitem', { name: 'Free-form design' }).click();
   await page.getByRole('button', { name: /^Double crochet \(dc\)/ }).click();
   for (const [x, y] of POINTS) await board(page).click({ position: { x, y } });
   await page.getByRole('button', { name: 'Select' }).click();
@@ -329,6 +332,7 @@ test('in a row of dc and chains, the top of each chain’s oval is on the dc top
 }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('menuitem', { name: 'Free-form design' }).click();
   const names = [/^Double crochet \(dc\)/, /^Chain \(ch\)/, /^Double crochet \(dc\)/, /^Chain \(ch\)/];
   for (const [i, name] of names.entries()) {
     await page.getByRole('button', { name }).click();

@@ -50,6 +50,7 @@ async function selected(page: Page): Promise<string | null> {
 async function chartWith(page: Page, stitch: RegExp, points: readonly [number, number][]): Promise<void> {
   await page.goto('/');
   await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('menuitem', { name: 'Free-form design' }).click();
   await page.getByRole('button', { name: stitch }).click();
   for (const [x, y] of points) await page.locator('#board').click({ position: { x, y } });
   await page.getByRole('button', { name: 'Select' }).click();

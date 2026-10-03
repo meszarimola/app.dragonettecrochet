@@ -31,6 +31,7 @@ test('New opens an empty chart, and a picked stitch lands where the drawing area
   await expect(sc).toBeDisabled();
 
   await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('menuitem', { name: 'Free-form design' }).click();
   await expect(board).toBeVisible();
   await expect(sc).toBeEnabled();
 
@@ -44,6 +45,7 @@ test('New opens an empty chart, and a picked stitch lands where the drawing area
 test('a click without a stitch places nothing', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('menuitem', { name: 'Free-form design' }).click();
   await page.locator('#board').click({ position: { x: 200, y: 150 } });
   expect(await inkAround(page, 200, 150)).toBe(0);
 });
@@ -51,6 +53,7 @@ test('a click without a stitch places nothing', async ({ page }) => {
 test('Alt and a digit pick the stitch with that shortcut', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('menuitem', { name: 'Free-form design' }).click();
   await page.keyboard.press('Alt+Digit3');
   await expect(page.getByRole('button', { name: /^Single crochet \(sc\)/ })).toHaveAttribute('aria-pressed', 'true');
 });
@@ -68,6 +71,7 @@ test('before New the shortcut is left to the browser', async ({ page }) => {
 test('Escape puts the picked stitch down, and a click then places nothing', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('menuitem', { name: 'Free-form design' }).click();
   const sc = page.getByRole('button', { name: /^Single crochet \(sc\)/ });
   await sc.click();
   await page.keyboard.press('Escape');
@@ -79,6 +83,7 @@ test('Escape puts the picked stitch down, and a click then places nothing', asyn
 test('a reload keeps the chart, and it can be edited on', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('menuitem', { name: 'Free-form design' }).click();
   await page.getByRole('button', { name: /^Chain \(ch\)/ }).click();
   await page.locator('#board').click({ position: { x: 200, y: 150 } });
   expect(await inkAround(page, 200, 150)).toBeGreaterThan(0);
@@ -99,9 +104,11 @@ test('a reload keeps the chart, and it can be edited on', async ({ page }) => {
 test('New again clears the chart', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('menuitem', { name: 'Free-form design' }).click();
   await page.getByRole('button', { name: /^Chain \(ch\)/ }).click();
   await page.locator('#board').click({ position: { x: 200, y: 150 } });
   expect(await inkAround(page, 200, 150)).toBeGreaterThan(0);
   await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('menuitem', { name: 'Free-form design' }).click();
   expect(await inkAround(page, 200, 150)).toBe(0);
 });

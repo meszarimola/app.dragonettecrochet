@@ -32,6 +32,7 @@ const board = (page: Page) => page.locator('#board');
 async function chartWith(page: Page, points: readonly [number, number][]): Promise<void> {
   await page.goto('/');
   await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('menuitem', { name: 'Free-form design' }).click();
   await page.getByRole('button', { name: /^Single crochet \(sc\)/ }).click();
   for (const [x, y] of points) await board(page).click({ position: { x, y } });
   await page.getByRole('button', { name: 'Select' }).click();
@@ -109,6 +110,7 @@ test('Ctrl/⌘ + D duplicates several stitches together', async ({ page }) => {
 test('a stitch at the right edge is duplicated to its left, not onto itself', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('menuitem', { name: 'Free-form design' }).click();
   await page.getByRole('button', { name: /^Single crochet \(sc\)/ }).click();
   const width = (await board(page).boundingBox())!.width;
   const x = Math.floor(width) - 2;
@@ -133,6 +135,7 @@ test('with nothing selected the shortcuts do nothing', async ({ page }) => {
 test('Alt + digit still picks a stitch while a select box has focus', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('menuitem', { name: 'Free-form design' }).click();
   await page.getByRole('combobox', { name: 'Symbol style' }).focus();
   await page.keyboard.press('Alt+Digit3');
   await expect(page.getByRole('button', { name: /^Single crochet \(sc\)/ })).toHaveAttribute('aria-pressed', 'true');

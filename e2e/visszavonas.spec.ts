@@ -25,6 +25,7 @@ async function stitches(page: Page): Promise<Placed[]> {
 async function chartWith(page: Page, points: readonly [number, number][]): Promise<void> {
   await page.goto('/');
   await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('menuitem', { name: 'Free-form design' }).click();
   await page.getByRole('button', { name: /^Single crochet \(sc\)/ }).click();
   for (const [x, y] of points) await board(page).click({ position: { x, y } });
 }
@@ -124,6 +125,7 @@ test('an arrangement and every turn of its settings undo in one step', async ({ 
 test('New can be undone', async ({ page }) => {
   await chartWith(page, [[200, 200]]);
   await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('menuitem', { name: 'Free-form design' }).click();
   await expect(board(page)).toHaveAttribute('data-stitches', '0');
   await undoButton(page).click();
   await expect(board(page)).toHaveAttribute('data-stitches', '1');
@@ -153,5 +155,6 @@ test('New on a blank chart clears what could be redone', async ({ page }) => {
   await undoButton(page).click();
   await expect(redoButton(page)).toBeEnabled();
   await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('menuitem', { name: 'Free-form design' }).click();
   await expect(redoButton(page)).toBeDisabled();
 });

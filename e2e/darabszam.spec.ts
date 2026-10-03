@@ -29,6 +29,7 @@ async function stitches(page: Page): Promise<Placed[]> {
 async function newChart(page: Page): Promise<void> {
   await page.goto('/');
   await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('menuitem', { name: 'Free-form design' }).click();
 }
 
 test('a basic stitch brings a count of 1, and a click then lays that many in a row', { tag: '@kiadas' }, async ({
