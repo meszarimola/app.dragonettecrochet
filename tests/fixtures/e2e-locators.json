@@ -85,7 +85,8 @@
     ".tools__group": 1,
     "canvas": 1,
     "header.bar": 1,
-    "html": 1
+    "html": 1,
+    "option": 1
   },
   "selectOption": {
     "dc": 1,
@@ -118,10 +119,15 @@
   "toHaveText": {
     "/^v\\d+\\.\\d+\\.\\d+$/": 1,
     "Delete": 2,
+    "Double crochet": 1,
+    "Double treble": 1,
     "Duplicate": 2,
+    "Half double crochet": 1,
     "New": 1,
     "Redo": 1,
     "Select": 2,
+    "Single crochet": 1,
+    "Treble": 1,
     "Undo": 1
   },
   "toHaveValue": {

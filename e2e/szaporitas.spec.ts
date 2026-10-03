@@ -1,6 +1,6 @@
 /*
  * Increases and decreases from a menu (PQW-1155): each is a tile with a menu of
- * its part beside it, and the right panel sets how many parts, 2–5. A click
+ * its part under it, and the right panel sets how many parts, 2–5. A click
  * lays one increase or decrease. The canvas shows the DOM nothing, so the
  * stitches are read from the chart the page hands a driven browser.
  */
@@ -91,4 +91,25 @@ test('before New the menus are switched off, like the tiles', async ({ page }) =
   await page.goto('/');
   await expect(decreaseMenu(page)).toBeDisabled();
   await expect(increaseMenu(page)).toBeDisabled();
+});
+
+test('each menu stands under its tile, as wide as it, and shows whole names', async ({ page }) => {
+  await newChart(page);
+  for (const [tile, menu] of [
+    [decrease(page), decreaseMenu(page)],
+    [increase(page), increaseMenu(page)],
+  ] as const) {
+    const above = (await tile.boundingBox())!;
+    const below = (await menu.boundingBox())!;
+    expect(below.y, 'the menu starts where the tile ends').toBeCloseTo(above.y + above.height, 0);
+    expect(below.x).toBeCloseTo(above.x, 0);
+    expect(below.width, 'as wide as the tile').toBeCloseTo(above.width, 0);
+  }
+  await expect(decreaseMenu(page).locator('option')).toHaveText([
+    'Single crochet',
+    'Half double crochet',
+    'Double crochet',
+    'Treble',
+    'Double treble',
+  ]);
 });

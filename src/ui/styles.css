@@ -710,14 +710,15 @@ body.is-armed #board {
   grid-template-columns: minmax(0, 1fr);
 }
 
-/* The tile and its menu read as one control: square where they meet, one border between them. */
 .palette__shaping > .stitch {
+  position: relative;
   border-end-start-radius: 0;
   border-end-end-radius: 0;
 }
 
+/* KB: interface.md §86 — the tile's bottom border is the seam; positioned, the tile and its focus ring paint over the menu. */
 .palette__shaping > .palette__part {
-  margin-block-start: -1px;
+  border-block-start: 0;
   border-start-start-radius: 0;
   border-start-end-radius: 0;
 }
@@ -759,6 +760,7 @@ body.is-armed #board {
   color: var(--c-ink);
   font: inherit;
   font-size: 0.8125rem;
+  text-overflow: ellipsis;
 }
 
 .palette__part:hover:not(:disabled) {

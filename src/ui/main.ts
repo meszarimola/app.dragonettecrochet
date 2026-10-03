@@ -535,7 +535,7 @@ function paletteSection(section: PaletteSection): HTMLElement {
   return group;
 }
 
-/** The menu beside an increase or a decrease tile; a choice arms the tile. KB: interface.md §86 */
+/** The menu under an increase or a decrease tile; a choice arms the tile. KB: interface.md §86 */
 function partMenu(kind: Shaping): HTMLSelectElement {
   const menu = document.createElement('select');
   menu.className = 'palette__part';

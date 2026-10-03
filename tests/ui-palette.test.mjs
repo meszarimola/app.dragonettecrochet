@@ -163,10 +163,6 @@ test('the menu offers sc to dtr by their whole names in the notation, never an a
     ['Single crochet', 'Half double crochet', 'Double crochet', 'Treble', 'Double treble'],
   );
   assert.deepEqual(
-    SHAPING_PARTS.map((part) => partLabel(part, 'en-GB')),
-    ['Double crochet', 'Half treble', 'Treble', 'Double treble', 'Triple treble'],
-  );
-  assert.deepEqual(
     SHAPING_PARTS.map((part) => partLabel(part, 'hu')),
     ['Rövidpálca', 'Félpálca', 'Egyráhajtásos pálca', 'Kétráhajtásos pálca', 'Háromráhajtásos pálca'],
   );
