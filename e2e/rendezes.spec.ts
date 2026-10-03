@@ -234,3 +234,22 @@ test('after a click on an arrange button the chart shortcuts still work', async 
   await page.keyboard.press('Delete');
   await expect(board(page)).toHaveAttribute('data-stitches', '0');
 });
+
+test('the switch turns the stitches round: tops towards the point, and back', async ({ page }) => {
+  await selectedChartWith(page, POINTS);
+  await page.getByRole('button', { name: 'Around' }).click();
+  const facing = page.getByRole('switch', { name: 'Facing the point Tops' });
+  await expect(facing, 'the feet face the point by default').toHaveAttribute('aria-checked', 'false');
+  const feet = await stitches(page);
+  const leftmost = (placed: Placed[]) => placed.reduce((a, b) => (a.x < b.x ? a : b));
+  expect(leftmost(feet).rotation, 'feet in: the left one leans left').toBeLessThan(0);
+
+  await facing.click();
+  await expect(facing).toHaveAttribute('aria-checked', 'true');
+  const tops = await stitches(page);
+  expect(leftmost(tops).rotation, 'tops in: the left one leans right').toBeGreaterThan(0);
+  expect(await spread(page), 'the angle is kept').toBeCloseTo(Math.PI / 2, 6);
+
+  await facing.click();
+  expect(await stitches(page), 'back as it was').toEqual(feet);
+});

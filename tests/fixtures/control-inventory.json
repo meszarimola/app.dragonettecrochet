@@ -1,6 +1,7 @@
 [
   {"id":"arrange-angle","tag":"input","type":"text"},
   {"id":"arrange-around","tag":"button","type":"button"},
+  {"id":"arrange-facing","tag":"button","type":"button"},
   {"id":"arrange-gap","tag":"input","type":"text"},
   {"id":"arrange-gap-range","tag":"input","type":"range"},
   {"id":"arrange-radius","tag":"input","type":"text"},

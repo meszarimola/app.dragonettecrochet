@@ -71,6 +71,7 @@ const angleDial = new AngleDial(
   must<SVGPathElement>('#arrange-dial-arc'),
   () => rearrange('around'),
 );
+const facingSwitch = must<HTMLButtonElement>('#arrange-facing');
 const PASTE_STEP = 20;
 
 let chartStyle: ChartStyle = readChartStyle(read(NOTATION_KEY));
@@ -127,6 +128,10 @@ duplicateButton.addEventListener('click', () => duplicateSelection());
 deleteButton.addEventListener('click', () => deleteSelection());
 arrangeButtons.row.addEventListener('click', () => arrange('row'));
 arrangeButtons.around.addEventListener('click', () => arrange('around'));
+facingSwitch.addEventListener('click', () => {
+  facingSwitch.setAttribute('aria-checked', String(facingSwitch.getAttribute('aria-checked') !== 'true'));
+  rearrange('around');
+});
 const gap = bindPair(must<HTMLInputElement>('#arrange-gap-range'), must<HTMLInputElement>('#arrange-gap'), () =>
   rearrange('row'),
 );
@@ -144,6 +149,7 @@ function arrange(arrangement: Arrangement): void {
     gap: gap.value,
     radius: radius.value,
     angle: (angleDial.value * Math.PI) / 180,
+    facing: facingSwitch.getAttribute('aria-checked') === 'true' ? ('tops' as const) : ('feet' as const),
   };
   const next = arrangeStitches(base, ids, arrangement, (placed) => board.extentOf(placed), options);
   const [dx, dy] = boundedMove(next, ids, 0, 0, board.size());
