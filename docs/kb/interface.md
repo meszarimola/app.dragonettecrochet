@@ -2469,10 +2469,14 @@ middle of the chosen button (PQW-1153), so the button and its settings read as
 one thing. The owner chose this over a tab look, in which the pressed button
 grows into the frame below it: that left an empty space under „Sorba”. It is a
 look, not ARIA tabs — with `tablist` the arrow keys would re-arrange the stitches
-at every step. The arrow's position is two fixed column centres, one per
-frame, because the two buttons are a two-column grid of the same width. In a
-window under 36rem tall the dial is 6rem instead of 7.75rem, so the frame of
-Around, switch included, fits 1000 × 506 without scrolling.
+at every step. The arrow is placed from `--arrange-gap`, the one variable the
+button grid's gap also reads, and `--column`, the frame's button; the frame's
+border is counted, so the arrow is on the button's middle to the pixel. The
+frame has its own background, which the arrow's inner triangle repeats to hide
+the border under it. In a window under 36rem tall the dial is 6rem instead of
+7.75rem, so the frame of Around, switch included, fits 1000 × 506 without
+scrolling; at that size the handle's 44 px reaches over the field in the middle,
+so the handle is drawn above it and can be grabbed anywhere.
 
 - Row: **Spacing**, a 1–10 slider with a field on its right, default 4 px.
 - Around: **Radius**, a 1–150 slider with its field, default 24 px — the owner

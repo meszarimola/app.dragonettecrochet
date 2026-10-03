@@ -349,6 +349,7 @@ body.is-armed #board {
 }
 
 .arrange {
+  --arrange-gap: var(--sp-0);
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--sp-2);
@@ -357,7 +358,7 @@ body.is-armed #board {
 .arrange__buttons {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--sp-0);
+  gap: var(--arrange-gap);
 }
 
 .arrange__button {
@@ -395,16 +396,27 @@ body.is-armed #board {
 /* KB: interface.md §83 */
 .arrange__options {
   --caret: 7px;
-  --caret-at: calc((100% - var(--sp-0)) / 4);
+  --frame: 1px;
+  --column: 0;
+  /* The middle of button number `--column` in .arrange__buttons, from this frame's padding edge. */
+  --caret-at: calc(
+    (100% + 2 * var(--frame) - var(--arrange-gap)) /
+    2 *
+    (var(--column) + 0.5) +
+    var(--column) *
+    var(--arrange-gap) -
+    var(--frame)
+  );
   position: relative;
   margin-block-start: var(--caret);
   padding: var(--sp-1) var(--sp-2) var(--sp-2);
-  border: 1px solid var(--c-accent);
+  border: var(--frame) solid var(--c-accent);
   border-radius: var(--radius-md);
+  background: var(--c-bg);
 }
 
 #arrange-around-options {
-  --caret-at: calc((100% - var(--sp-0)) * 3 / 4 + var(--sp-0));
+  --column: 1;
 }
 
 .arrange__options::before,
@@ -423,7 +435,7 @@ body.is-armed #board {
 }
 
 .arrange__options::after {
-  inset-block-end: calc(100% - 1px);
+  inset-block-end: calc(100% - var(--frame));
   border-block-end-color: var(--c-bg);
 }
 
@@ -529,6 +541,7 @@ body.is-armed #board {
 
 .dial__handle {
   position: absolute;
+  z-index: 1;
   inset-block-start: 50%;
   inset-inline-start: 50%;
   inline-size: 44px;
