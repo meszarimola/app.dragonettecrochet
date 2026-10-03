@@ -49,25 +49,16 @@ export function rectGrid(stitches: number, rows: number): RectGrid {
   return { rows: Array.from({ length: rows }, () => stitches) };
 }
 
-/**
- * Each row's height, row 1 first. A row is as tall as its tallest seated
- * stitch, never less than a cell (`rowHeights` in seat.ts); without that, every
- * row is one cell. KB: interface.md §91
- */
+/** Each row's height, row 1 first; without them every row is one cell. KB: interface.md §91 */
 export type RowHeights = readonly number[];
-
-function heightOf(heights: RowHeights | undefined, i: number): number {
-  return heights?.[i] ?? GRID_CELL;
-}
 
 /**
  * The grid stands on the board's origin: row 1 at the bottom, its foot on
  * y = 0, and every row above the one before it, left edges in line.
  */
 export function gridRect(grid: RectGrid, heights?: RowHeights): Rect {
-  let height = 0;
-  for (let i = 0; i < grid.rows.length; i += 1) height += heightOf(heights, i);
-  return { minX: 0, minY: -height, maxX: Math.max(0, ...grid.rows) * GRID_CELL, maxY: 0 };
+  const top = gridRows(grid, heights).at(-1)?.top ?? 0;
+  return { minX: 0, minY: top, maxX: Math.max(0, ...grid.rows) * GRID_CELL, maxY: 0 };
 }
 
 export interface GridRow {
@@ -86,7 +77,7 @@ export function gridRows(grid: RectGrid, heights?: RowHeights, minY = -Infinity,
   const rows: GridRow[] = [];
   let bottom = 0;
   for (let i = 0; i < grid.rows.length && bottom >= minY; i += 1) {
-    const top = bottom - heightOf(heights, i);
+    const top = bottom - (heights?.[i] ?? GRID_CELL);
     if (top <= maxY) {
       const cells = grid.rows[i] ?? 0;
       const right = cells * GRID_CELL;
@@ -113,11 +104,6 @@ export function cellAt(grid: RectGrid, point: Point, heights?: RowHeights): Cell
   return { row: row.number - 1, col: Math.min(row.cells - 1, Math.floor(point.x / GRID_CELL)) };
 }
 
-/** Whether the point falls in a cell of some row; the edges count as inside. */
-export function onGrid(grid: RectGrid, point: Point, heights?: RowHeights): boolean {
-  return cellAt(grid, point, heights) !== null;
-}
-
 /** The grid and its row numbers: what the sheet has to take in. */
 export function gridExtent(grid: RectGrid, heights?: RowHeights): Rect {
   const rect = gridRect(grid, heights);
@@ -126,13 +112,7 @@ export function gridExtent(grid: RectGrid, heights?: RowHeights): Rect {
 
 /** The bottom edge of every row, row 1 first; row 1's is y = 0. */
 export function rowBottoms(grid: RectGrid, heights?: RowHeights): number[] {
-  const bottoms: number[] = [];
-  let bottom = 0;
-  for (let i = 0; i < grid.rows.length; i += 1) {
-    bottoms.push(bottom);
-    bottom -= heightOf(heights, i);
-  }
-  return bottoms;
+  return gridRows(grid, heights).map(({ bottom }) => bottom);
 }
 
 /** The view a new grid opens on: 100%, row 1 and its row numbers in the bottom left of the screen. */

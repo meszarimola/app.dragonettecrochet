@@ -1,12 +1,21 @@
 // KB: interface.md §91
 
-import { type Extent, type FreeformChart, type PlacedStitch, type SeatedCell, unseated } from './freeform.ts';
+import { type FreeformChart, type PlacedStitch, type SeatedCell, unseated } from './freeform.ts';
 import { type Cell, GRID_CELL, type RowHeights, rowBottoms } from './grid.ts';
 import { findStitch } from './stitches.ts';
 import type { StitchDefId } from './types.ts';
 
-/** A stitch's upright half size at scale 1, as drawn. */
-export type NaturalSize = (placed: PlacedStitch) => Extent;
+/**
+ * A symbol's ink at scale 1, upright: its width and height, and how far its
+ * foot lies below the point it is drawn around — the ink need not be centred.
+ */
+export interface Footprint {
+  readonly width: number;
+  readonly height: number;
+  readonly drop: number;
+}
+
+export type NaturalSize = (placed: PlacedStitch) => Footprint;
 
 /** As many cells as the symbol has parts: a shell of five is five cells, a basic stitch one. */
 export function cellSpan(stitch: StitchDefId): number {
@@ -39,8 +48,7 @@ export function spansFrom(cells: number, at: Cell, span: number, count: number):
 }
 
 /** The scale that keeps a symbol within the width of its cells; never larger than its own size. */
-function fitScale(placed: PlacedStitch, cell: SeatedCell, size: NaturalSize): number {
-  const width = size(placed).halfWidth * 2;
+function fitScale({ width }: Footprint, cell: SeatedCell): number {
   return width > 0 ? Math.min(1, (cell.span * GRID_CELL) / width) : 1;
 }
 
@@ -51,7 +59,8 @@ export function rowHeights(chart: FreeformChart, size: NaturalSize): RowHeights 
     const { cell } = placed;
     const current = cell === undefined ? undefined : heights[cell.row];
     if (cell === undefined || current === undefined) continue;
-    heights[cell.row] = Math.max(current, size(placed).halfHeight * 2 * fitScale(placed, cell, size));
+    const ink = size(placed);
+    heights[cell.row] = Math.max(current, ink.height * fitScale(ink, cell));
   }
   return heights;
 }
@@ -105,9 +114,10 @@ export function seat(chart: FreeformChart, size: NaturalSize): FreeformChart {
       moved = true;
       return unseated(placed);
     }
-    const scale = fitScale(placed, cell, size);
+    const ink = size(placed);
+    const scale = fitScale(ink, cell);
     const x = (cell.col + cell.span / 2) * GRID_CELL;
-    const y = bottom - size(placed).halfHeight * scale;
+    const y = bottom - ink.drop * scale;
     if (placed.x === x && placed.y === y && placed.rotation === 0 && placed.scale === scale) return placed;
     moved = true;
     return { ...placed, x, y, rotation: 0, scale };

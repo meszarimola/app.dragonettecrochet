@@ -153,7 +153,6 @@ const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAcce
       if (placed === null) return;
       chart = placed.chart;
       commit();
-      board.show(chart, symbolOptionsFor(chartStyle));
       return;
     }
     const extent = (placed: PlacedStitch) => board.extentOf(placed);
@@ -165,7 +164,7 @@ const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAcce
   },
   change: (next) => {
     if (arranged !== null && chart === arranged.result) follow(next);
-    chart = next;
+    chart = seated(next);
     board.show(chart, symbolOptionsFor(chartStyle));
   },
   settled: () => commit(),
@@ -253,7 +252,8 @@ function arrange(arrangement: Arrangement): boolean {
   };
   const next = arrangeStitches(base, ids, arrangement, (placed) => board.extentOf(placed), options);
   const [dx, dy] = boundedMove(next, ids, 0, 0, board.sheet());
-  const result = moveStitches(next, ids, dx, dy);
+  // Seated before it is kept: the arrangement goes on only while the chart is this very result.
+  const result = seated(moveStitches(next, ids, dx, dy));
   if (!allInside(result, ids, board.sheet())) return false;
   const continued = arranged !== null && base === arranged.base;
   chart = result;
@@ -315,15 +315,22 @@ function showOptions(): void {
  */
 function commit(continued = false): void {
   if (history === null || chart === null) return;
-  // KB: interface.md §91 — every change can move a row, so the seated stitches are put back in place first.
-  const seated = seat(chart, board.naturalSize);
-  if (seated !== chart) {
-    chart = seated;
+  const settled = seated(chart);
+  if (settled !== chart) {
+    chart = settled;
     board.show(chart, symbolOptionsFor(chartStyle));
   }
   const next = { chart, selection: new Set(board.selected) };
   if (continued || sameChart(chart, history.present.chart)) setHistory(amend(history, next));
   else setHistory(record(history, next));
+}
+
+/**
+ * Every chart the board is given is seated first: a change anywhere can move a
+ * row, and the row heights the board draws come from the stitches. KB: interface.md §91
+ */
+function seated(next: FreeformChart): FreeformChart {
+  return seat(next, board.naturalSize);
 }
 
 /** The selection goes back with the chart; an arrangement in progress ends. */
@@ -333,7 +340,8 @@ function step(move: (history: History<Snapshot>) => History<Snapshot>): boolean 
   if (next === history) return false;
   setHistory(next);
   arranged = null;
-  chart = next.present.chart;
+  // A step recorded under the other symbol style has rows of the other sizes.
+  chart = seated(next.present.chart);
   if (next.present.selection.size > 0) setMode('select');
   board.show(chart, symbolOptionsFor(chartStyle), next.present.selection);
   showOptions();
@@ -461,8 +469,10 @@ if (saved !== null) open(saved, viewFromJson(read(VIEW_KEY, session)));
 /** Without a view, the chart opens on its own home. */
 function open(next: FreeformChart, view: View | null = null): void {
   const blank = chart === null || chart.stitches.length === 0;
-  chart = next;
-  board.show(chart, symbolOptionsFor(chartStyle));
+  // The first show sets the symbols the stitches are measured by; a chart saved under the other style is seated again.
+  board.show(next, symbolOptionsFor(chartStyle));
+  chart = seated(next);
+  if (chart !== next) board.show(chart, symbolOptionsFor(chartStyle));
   const fresh = { chart, selection: new Set<number>() };
   if (history === null) setHistory(createHistory(fresh));
   else setHistory(blank && !canRedo(history) ? amend(history, fresh) : record(history, fresh));

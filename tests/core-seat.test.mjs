@@ -20,16 +20,18 @@ import {
 import { GRID_CELL, rectGrid } from '../src/core/grid.ts';
 import { cellSpan, placeInGrid, rowHeights, seat, spansFrom, workDirection } from '../src/core/seat.ts';
 
-/** Half sizes as drawn, from the symbols' measured ink: sc is 27 tall, dc 51, a bobble 120 wide. */
+/** Ink at scale 1, from the symbols' measured sizes: sc is 27 tall, dc 51, tr 63. */
 const SIZES = {
-  ch: { halfWidth: 13.5, halfHeight: 7.5 },
-  sc: { halfWidth: 13.5, halfHeight: 13.5 },
-  dc: { halfWidth: 10.5, halfHeight: 25.5 },
-  tr: { halfWidth: 10.5, halfHeight: 31.5 },
-  'shell-5dc': { halfWidth: 39.75, halfHeight: 25.5 },
-  'ch-sp': { halfWidth: 21.8, halfHeight: 10 },
+  ch: { width: 27, height: 15, drop: 7.5 },
+  sc: { width: 27, height: 27, drop: 13.5 },
+  dc: { width: 21, height: 51, drop: 25.5 },
+  tr: { width: 21, height: 63, drop: 31.5 },
+  'shell-5dc': { width: 79.5, height: 51, drop: 25.5 },
+  'ch-sp': { width: 43.6, height: 20, drop: 10 },
+  /** Ink reaching further up than down from where it is drawn. */
+  'rev-sc': { width: 27, height: 40, drop: 12 },
 };
-const size = (placed) => SIZES[placed.stitch] ?? { halfWidth: 10, halfHeight: 10 };
+const size = (placed) => SIZES[placed.stitch] ?? { width: 20, height: 20, drop: 10 };
 
 const gridChart = (stitches = 10, rows = 4) => ({ ...emptyChart(), grid: rectGrid(stitches, rows) });
 
@@ -96,10 +98,16 @@ test('a seated stitch stands in the middle of its cells with its foot on the row
   const chart = laid(gridChart(), 'sc', 0, 2);
   const [sc] = chart.stitches;
   assert.equal(sc.x, 2.5 * GRID_CELL);
-  assert.equal(sc.y + SIZES.sc.halfHeight, 0, 'foot on row 1’s bottom, y = 0');
+  assert.equal(sc.y + SIZES.sc.drop, 0, 'foot on row 1’s bottom, y = 0');
   assert.equal(sc.rotation, 0);
   assert.equal(sc.scale, 1);
   assert.deepEqual(sc.cell, { row: 0, col: 2, span: 1 });
+});
+
+test('an off-centre symbol still has its foot on the line, and its row is as tall as its ink', () => {
+  const chart = laid(gridChart(), 'rev-sc', 0, 0);
+  assert.equal(chart.stitches[0].y, -SIZES['rev-sc'].drop, 'the foot, not the middle, on y = 0');
+  assert.deepEqual(rowHeights(chart, size)[0], GRID_CELL, '40 tall: exactly one cell');
 });
 
 test('a row is as tall as its tallest seated stitch, and never less than a cell', () => {
@@ -122,7 +130,7 @@ test('a taller row lifts the stitches of every row above it', () => {
 test('a symbol wider than its cells is shrunk to their width, and the row takes the shrunk height', () => {
   const chart = laid(gridChart(), 'ch-sp', 0, 3);
   const [space] = chart.stitches;
-  assert.equal(space.scale, GRID_CELL / (SIZES['ch-sp'].halfWidth * 2));
+  assert.equal(space.scale, GRID_CELL / SIZES['ch-sp'].width);
   const shell = laid(gridChart(), 'shell-5dc', 1, 2).stitches[0];
   assert.equal(shell.scale, 1, 'a shell is narrower than its five cells');
   assert.equal(shell.x, 4.5 * GRID_CELL, 'in the middle of cells 2–6');

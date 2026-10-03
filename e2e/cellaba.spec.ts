@@ -61,6 +61,38 @@ test('a stitch sits in the middle of the clicked cell, its foot on the row’s l
   expect((await stitches(page)).length, 'one undo takes the last stitch').toBe(1);
 });
 
+test('an undo past a symbol style switch shows the stitches seated for the style now in use', async ({ page }) => {
+  const { at } = await grid(page);
+  await page.getByRole('button', { name: /^Decrease \(dec\)/ }).click();
+  await at(2, -20);
+  const cyc = (await stitches(page))[0]!.y;
+  await page.getByRole('button', { name: /^Single crochet \(sc\)/ }).click();
+  await at(2, -60);
+  await page.locator('#chart-style').selectOption('jis');
+  const jis = (await stitches(page)).find(({ stitch }) => stitch === 'sc2tog')!.y;
+  expect(jis, 'the two styles draw sc2tog at different heights').not.toBe(cyc);
+  await page.getByRole('button', { name: 'Undo' }).click();
+  expect((await stitches(page)).map(({ stitch, y }) => [stitch, y])).toEqual([['sc2tog', jis]]);
+});
+
+test('while a tall stitch is dragged out of its row, the rows above follow at once', async ({ page }) => {
+  const { board, at } = await grid(page);
+  await page.getByRole('button', { name: /^Treble \(tr\)/ }).click();
+  await at(2, -20);
+  await page.getByRole('button', { name: /^Single crochet \(sc\)/ }).click();
+  await at(2, -80);
+  const before = (await stitches(page)).find(({ stitch }) => stitch === 'sc')!.y;
+  await page.getByRole('button', { name: 'Select' }).click();
+  const box = (await board.boundingBox())!;
+  const tr = (await stitches(page)).find(({ stitch }) => stitch === 'tr')!;
+  await page.mouse.move(box.x + 64 + tr.x, box.y + box.height - 24 + tr.y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 64 + tr.x + 300, box.y + box.height - 24 + tr.y, { steps: 5 });
+  const during = (await stitches(page)).find(({ stitch }) => stitch === 'sc')!.y;
+  expect(during, 'row 1 is a cell again, so row 2 comes down with it before the release').toBe(before + (63 - 40));
+  await page.mouse.up();
+});
+
 test('a count fills the working way, and a shell takes five cells', async ({ page }) => {
   const { at } = await grid(page);
   await page.getByRole('button', { name: /^Single crochet \(sc\)/ }).click();

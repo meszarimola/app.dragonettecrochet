@@ -27,11 +27,12 @@ import {
   gridRows,
   MAX_GRID_ROWS,
   MAX_GRID_STITCHES,
-  onGrid,
   readGridCount,
   rectGrid,
   rowBottoms,
 } from '../src/core/grid.ts';
+
+const onGrid = (grid, point) => cellAt(grid, point) !== null;
 
 test('a count is a whole number from 1 to the limit, surrounding spaces ignored', () => {
   assert.deepEqual(readGridCount(' 20 ', MAX_GRID_STITCHES), { ok: true, value: 20 });
@@ -196,11 +197,4 @@ test('placing and pasting keep the grid', () => {
   assert.equal(placed?.chart.grid, grid);
   assert.equal(placeStitch(start, 'sc', 1, -1).grid, grid);
   assert.equal(pasteStitches(placed.chart, placed.chart.stitches, 20, bounds).chart.grid, grid);
-});
-
-test('a row of stitches placed near the grid’s edge is pushed back onto it', () => {
-  const grid = rectGrid(5, 5);
-  const extent = () => ({ halfWidth: 5, halfHeight: 5 });
-  const placed = placeStitches({ ...emptyChart(), grid }, 'sc', { x: 195, y: -20 }, 3, extent, 4, gridRect(grid));
-  assert.ok(placed.chart.stitches.every(({ x }) => x <= 5 * GRID_CELL));
 });

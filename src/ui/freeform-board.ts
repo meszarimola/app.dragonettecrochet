@@ -19,7 +19,7 @@ import {
   turn,
 } from '../core/freeform.ts';
 import { GRID_CELL, gridExtent, gridHome, gridRows, type RectGrid, type RowHeights } from '../core/grid.ts';
-import { type NaturalSize, rowHeights } from '../core/seat.ts';
+import { type Footprint, type NaturalSize, rowHeights } from '../core/seat.ts';
 import { stitchById } from '../core/stitches.ts';
 import {
   clampView,
@@ -64,6 +64,13 @@ const CORNERS: readonly Point[] = [
 ];
 
 export type BoardMode = 'place' | 'select';
+
+interface DrawnSymbol {
+  readonly shapes: Shape[];
+  readonly reach: number;
+  readonly extent: Extent;
+  readonly footprint: Footprint;
+}
 
 export interface BoardHost {
   place(point: Point): void;
@@ -137,7 +144,7 @@ export class FreeformBoard {
   private gestureBase = 1;
   private labelFont: string | null = null;
   private heights: { readonly chart: FreeformChart; readonly heights: RowHeights } | null = null;
-  private readonly shapes = new Map<string, { shapes: Shape[]; reach: number; extent: Extent }>();
+  private readonly shapes = new Map<string, DrawnSymbol>();
   private readonly canvas: HTMLCanvasElement;
   private readonly ink: string;
   private readonly accent: string;
@@ -488,7 +495,7 @@ export class FreeformBoard {
     this.canvas.style.cursor = inFrame || hit !== null ? 'move' : '';
   }
 
-  private symbolOf(placed: PlacedStitch): { shapes: Shape[]; reach: number; extent: Extent } {
+  private symbolOf(placed: PlacedStitch): DrawnSymbol {
     let found = this.shapes.get(placed.stitch);
     if (found === undefined) {
       const shapes = symbolShapes(stitchById(placed.stitch), this.symbols);
@@ -501,7 +508,12 @@ export class FreeformBoard {
         halfWidth: Math.max(cx - exact.minX, exact.maxX - cx) * STITCH_SCALE,
         halfHeight: Math.max(cy - exact.minY, exact.maxY - cy) * STITCH_SCALE,
       };
-      found = { shapes, reach, extent };
+      const footprint = {
+        width: (exact.maxX - exact.minX) * STITCH_SCALE,
+        height: (exact.maxY - exact.minY) * STITCH_SCALE,
+        drop: (exact.maxY - cy) * STITCH_SCALE,
+      };
+      found = { shapes, reach, extent, footprint };
       this.shapes.set(placed.stitch, found);
     }
     return found;
@@ -513,8 +525,8 @@ export class FreeformBoard {
     return { halfWidth: halfWidth * placed.scale, halfHeight: halfHeight * placed.scale };
   }
 
-  /** The stitch's half size at its symbol's own size, whatever it is scaled to. */
-  readonly naturalSize: NaturalSize = (placed) => this.symbolOf(placed).extent;
+  /** The stitch's ink at its symbol's own size, whatever it is scaled to. */
+  readonly naturalSize: NaturalSize = (placed) => this.symbolOf(placed).footprint;
 
   /** Worked out once per chart: the sheet and the drawing ask for it on every frame. */
   rowHeights(): RowHeights | undefined {
