@@ -215,7 +215,9 @@ test('a plain click on one stitch of a selection narrows it to that one, and doe
   expect(Math.abs((box.minX + box.maxX) / 2 - 220), 'the stitch did not shift').toBeLessThan(1);
 });
 
-test('a stitch dragged past the edge stops on the board, where it can still be reached', async ({ page }) => {
+test('a stitch dragged past the edge of the screen stays on the sheet, where zooming out reaches it (PQW-1160)', async ({
+  page,
+}) => {
   await chartWith(page, /^Single crochet \(sc\)/, [[100, 100]]);
   await page.locator('#board').click({ position: { x: 100, y: 100 } });
   const board = (await page.locator('#board').boundingBox())!;
@@ -223,10 +225,17 @@ test('a stitch dragged past the edge stops on the board, where it can still be r
   await page.mouse.down();
   await page.mouse.move(board.x - 200, board.y - 200, { steps: 6 });
   await page.mouse.up();
-  expect(await inkBox(page, { minX: 0, minY: 0, maxX: 30, maxY: 30 }), 'it waits in the corner').not.toBeNull();
+  expect(await inkBox(page, { minX: 0, minY: 0, maxX: 30, maxY: 30 }), 'it left the screen').toBeNull();
   await page.locator('#board').click({ position: { x: 500, y: 500 } });
-  await page.locator('#board').click({ position: { x: 2, y: 2 } });
-  expect(await selected(page)).toBe('1');
+  expect(await selected(page)).toBe('0');
+
+  await page.getByRole('button', { name: 'Zoom out' }).click();
+  await page.getByRole('button', { name: 'Zoom out' }).click();
+  await expect(page.locator('#zoom-reset')).toHaveText('50%');
+  // Zoomed to 50% about the middle, the stitch at (-200, -200) is drawn here.
+  const at = { x: (-200 + board.width / 2) * 0.5, y: (-200 + board.height / 2) * 0.5 };
+  await page.locator('#board').click({ position: at });
+  expect(await selected(page), 'reached again').toBe('1');
 });
 
 test('near the top of the board the handle drops below the selection, and still turns it', async ({ page }) => {

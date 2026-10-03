@@ -9,6 +9,7 @@ import {
   moveStitches,
   type PlacedStitch,
   type Point,
+  type Rect,
   rectOf,
   rotateStitches,
   scaleStitches,
@@ -18,7 +19,17 @@ import {
   turn,
 } from '../core/freeform.ts';
 import { stitchById } from '../core/stitches.ts';
-import { clampView, DEFAULT_VIEW, panBy, toBoard, type View, visibleRect, zoomAt, zoomStep } from '../core/view.ts';
+import {
+  clampView,
+  DEFAULT_VIEW,
+  panBy,
+  sheetOf,
+  toBoard,
+  type View,
+  visibleRect,
+  zoomAt,
+  zoomStep,
+} from '../core/view.ts';
 import { applyInk, drawCentered, type Shape, type SymbolOptions, shapeBounds, symbolShapes } from './symbols.ts';
 
 /** How much larger a stitch is drawn on the canvas than in its own symbol units. */
@@ -195,6 +206,10 @@ export class FreeformBoard {
     this.setView(zoomAt(this.view, zoom, anchor ?? { x: width / 2, y: height / 2 }, this.size()));
   }
 
+  resetView(): void {
+    this.setView(DEFAULT_VIEW);
+  }
+
   zoomStep(direction: 1 | -1): void {
     this.zoomTo(zoomStep(this.view.zoom, direction));
   }
@@ -262,9 +277,19 @@ export class FreeformBoard {
     return length / this.view.zoom;
   }
 
-  /** The sheet: what the board holds, in board units, whatever the zoom. */
+  /** The canvas's own size in screen pixels. */
   size(): { width: number; height: number } {
     return { width: this.canvas.clientWidth, height: this.canvas.clientHeight };
+  }
+
+  /** Where a stitch may be moved, turned or resized to, in board units. KB: interface.md §87 */
+  sheet(): Rect {
+    return sheetOf(this.size());
+  }
+
+  /** What is on screen, in board units: where a placed or pasted stitch lands. */
+  visible(): Rect {
+    return visibleRect(this.view, this.size());
   }
 
   private down(event: PointerEvent): void {
@@ -366,7 +391,7 @@ export class FreeformBoard {
         this.selection,
         point.x - drag.start.x,
         point.y - drag.start.y,
-        this.size(),
+        this.sheet(),
       );
       this.host.change(moveStitches(drag.base, this.selection, dx, dy));
     } else if (drag.kind === 'rotate') {
@@ -397,7 +422,7 @@ export class FreeformBoard {
 
   /** A turn or a resize that would carry a stitch off the board is not taken; the last one that fits stays. */
   private fits(next: FreeformChart): boolean {
-    return allInside(next, this.selection, this.size());
+    return allInside(next, this.selection, this.sheet());
   }
 
   private up(cancelled: boolean): void {

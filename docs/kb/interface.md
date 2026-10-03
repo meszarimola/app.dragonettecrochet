@@ -2642,14 +2642,30 @@ PQW-1158. The owner: „a delete mellett legyen zoom in/zoom out egy külön
 ikoncsoport, illetve egérrel is lehessen ezt megtenni”, and moving the drawing
 area „úgy, hogy a select opcióval ne csússzon össze”.
 
-**The sheet stays the drawing area at 100%.** The board's coordinates did not
-change: the sheet is still the canvas's own size (`size()`), and every edge rule
-— a stitch placed, moved, pasted or arranged stays on it — is measured against
-the sheet, not against what is on screen. The view (`core/view.ts`) only says
-which part of the sheet is shown and how large: 100% to 800%, never below 100%,
-so the view is always inside the sheet and there is never an empty margin to
-place into. A larger sheet than the window is a separate decision, because it
-changes those edge rules and the specs that pin them.
+**The sheet is three screens by three (PQW-1160).** The board's coordinates
+did not change: at the default view (100%, origin 0) a board point is the
+screen point, which the specs rely on. In PQW-1158 the sheet was only the
+canvas, so at 100% the view could not move at all; the owner: „kicsit nagyobb
+legyen a mozgatási terület … mi van ha a képernyő aljára akarom húzni az egész
+rajzot?” Now `sheetOf(size())` is the default view plus one more screen on
+every side, the view may be anywhere on it, and the zoom runs from 50% (the
+sheet's middle two thirds at once) to 800%. The sheet follows the canvas's
+size, as the old one did; it is not stored.
+
+**Two edges, by what the stitch is doing.**
+
+- *Moved, turned or resized by hand* — the selection frame's drags — a stitch
+  stays on the **sheet**. It may leave the screen and is reached again by
+  panning or zooming out. Bounding these by the screen would make a large
+  selection jump when zoomed in, because the clamp would pull every stitch on
+  screen at once (`e2e/kijeloles.spec.ts`, the stitch dragged past the edge).
+- *Laid, pasted or arranged* — something the program puts down — lands on
+  **what is on screen** (`visible()`): a click lays where it is pointed, a
+  paste near the edge turns back on screen, a row or an arc wider than the
+  screen is refused. Whatever is made appears in front of the user.
+
+„Új” returns to the default view; the level button and Ctrl/⌘ + 0 return to
+100% about the middle and leave the view where it is.
 
 **Zooming.** The group beside „Törlés”: zoom out, the level (a click returns to
 100%) and zoom in. The buttons step through `ZOOM_STEPS`;

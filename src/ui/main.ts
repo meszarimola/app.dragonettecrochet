@@ -137,7 +137,7 @@ const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAcce
     if (chart === null || stitch === null) return;
     const n = COUNTED.has(stitch) ? placeCount.value : 1;
     const extent = (placed: PlacedStitch) => board.extentOf(placed);
-    const placed = placeStitches(chart, stitch, point, n, extent, PLACE_GAP, board.size());
+    const placed = placeStitches(chart, stitch, point, n, extent, PLACE_GAP, board.visible());
     if (placed === null) return;
     chart = placed.chart;
     board.show(chart, symbolOptionsFor(chartStyle));
@@ -167,7 +167,7 @@ redoButton.addEventListener('click', () => step(redo));
 selectButton.addEventListener('click', () => setMode(mode === 'select' ? 'place' : 'select'));
 zoomInButton.addEventListener('click', () => board.zoomStep(1));
 zoomOutButton.addEventListener('click', () => board.zoomStep(-1));
-zoomResetButton.addEventListener('click', () => board.zoomTo(MIN_ZOOM));
+zoomResetButton.addEventListener('click', () => board.zoomTo(1));
 duplicateButton.addEventListener('click', () => duplicateSelection());
 deleteButton.addEventListener('click', () => deleteSelection());
 arrangeButtons.row.addEventListener('click', () => {
@@ -229,9 +229,9 @@ function arrange(arrangement: Arrangement): boolean {
     facing,
   };
   const next = arrangeStitches(base, ids, arrangement, (placed) => board.extentOf(placed), options);
-  const [dx, dy] = boundedMove(next, ids, 0, 0, board.size());
+  const [dx, dy] = boundedMove(next, ids, 0, 0, board.visible());
   const result = moveStitches(next, ids, dx, dy);
-  if (!allInside(result, ids, board.size())) return false;
+  if (!allInside(result, ids, board.visible())) return false;
   const continued = arranged !== null && base === arranged.base;
   chart = result;
   arranged = { arrangement, ids, base, result };
@@ -343,7 +343,7 @@ function copySelection(): boolean {
 /** The copies are what the next paste starts from, so repeated pastes walk on instead of piling up. */
 function paste(copied: readonly PlacedStitch[]): readonly PlacedStitch[] | null {
   if (chart === null || copied.length === 0 || board.dragging) return null;
-  const pasted = pasteStitches(chart, copied, PASTE_STEP, board.size());
+  const pasted = pasteStitches(chart, copied, PASTE_STEP, board.visible());
   chart = pasted.chart;
   setMode('select');
   board.show(chart, symbolOptionsFor(chartStyle), pasted.ids);
@@ -381,7 +381,7 @@ newButton.addEventListener('click', () => {
   if (history === null) setHistory(createHistory(fresh));
   else setHistory(blank && !canRedo(history) ? amend(history, fresh) : record(history, fresh));
   selectButton.disabled = false;
-  board.zoomTo(MIN_ZOOM);
+  board.resetView();
   showZoom();
   renderPalette();
 });
@@ -425,7 +425,7 @@ document.addEventListener('keydown', (event) => {
     if (zoom !== null) {
       // The browser would zoom the whole page instead.
       event.preventDefault();
-      if (zoom === 'reset') board.zoomTo(MIN_ZOOM);
+      if (zoom === 'reset') board.zoomTo(1);
       else board.zoomStep(zoom === 'in' ? 1 : -1);
       return;
     }

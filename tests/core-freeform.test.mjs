@@ -170,7 +170,7 @@ test('turns add up', () => {
   close(chart.stitches[0].rotation, 1.5, 'rotation');
 });
 
-const BOARD = { width: 400, height: 300 };
+const BOARD = { minX: 0, minY: 0, maxX: 400, maxY: 300 };
 
 test('a move stops at the edge of the board, for the outermost selected stitch', () => {
   const chart = chartOf([50, 50], [100, 80], [390, 290]);
@@ -179,6 +179,15 @@ test('a move stops at the edge of the board, for the outermost selected stitch',
   assert.deepEqual(boundedMove(chart, both, 10, 500, BOARD), [10, 220], 'the lower one reaches the bottom');
   assert.deepEqual(boundedMove(chart, both, 20, -20, BOARD), [20, -20], 'a move that fits is kept');
   assert.deepEqual(boundedMove(chart, new Set(), 20, 20, BOARD), [0, 0]);
+});
+
+test('a board may start left of and above the origin (PQW-1160)', () => {
+  const sheet = { minX: -400, minY: -300, maxX: 800, maxY: 600 };
+  const chart = chartOf([50, 50]);
+  const one = new Set([1]);
+  assert.deepEqual(boundedMove(chart, one, -1000, -1000, sheet), [-450, -350], 'it stops at the sheet, not at 0');
+  assert.equal(allInside(chartOf([-100, -100]), one, sheet), true);
+  assert.equal(allInside(chartOf([-500, 0]), one, sheet), false);
 });
 
 test('only the selected stitches have to stay on the board', () => {
@@ -446,7 +455,7 @@ test('with the tops facing it, a full circle is the feet one mirrored: evenly ro
   for (let i = 1; i < turns.length; i += 1) close(turns[i - 1] - turns[i], Math.PI / 2, 'a quarter turn apart');
 });
 
-const PLACE_BOARD = { width: 1000, height: 600 };
+const PLACE_BOARD = { minX: 0, minY: 0, maxX: 1000, maxY: 600 };
 
 test('one counted stitch is placed exactly where a single one would be', () => {
   const chart = chartOf([10, 10]);
@@ -504,7 +513,7 @@ test('a row clicked near an edge is shifted back on the board, its spacing kept'
 });
 
 test('a row wider than the board is not laid', () => {
-  const narrow = { width: 50, height: 600 };
+  const narrow = { minX: 0, minY: 0, maxX: 50, maxY: 600 };
   assert.equal(placeStitches(emptyChart(), 'sc', { x: 25, y: 300 }, 10, EXTENT, 4, narrow), null);
   assert.notEqual(placeStitches(emptyChart(), 'sc', { x: 25, y: 300 }, 1, EXTENT, 4, narrow), null);
 });

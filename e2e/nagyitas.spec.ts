@@ -61,7 +61,11 @@ test('the zoom buttons step the level, and the level returns to 100%', { tag: '@
   await expect(zoomIn(page), 'nothing to zoom before a chart').toBeDisabled();
   await page.getByRole('button', { name: 'New' }).click();
   await expect(level(page)).toHaveText('100%');
+  await zoomOut(page).click();
+  await zoomOut(page).click();
+  await expect(level(page)).toHaveText('50%');
   await expect(zoomOut(page), 'already at the smallest').toBeDisabled();
+  await level(page).click();
 
   await zoomIn(page).click();
   await zoomIn(page).click();
@@ -100,7 +104,7 @@ test('the mouse wheel zooms about the pointer', async ({ page }) => {
   await expect(board(page), 'the stitch is still under the pointer').toHaveAttribute('data-selected', '1');
 
   await page.mouse.wheel(0, 4000);
-  await expect(level(page)).toHaveText('100%');
+  await expect(level(page), 'the wheel stops at the smallest').toHaveText('50%');
   expect(await stitches(page), 'zooming changed nothing in the chart').toHaveLength(1);
 });
 
@@ -209,4 +213,36 @@ test('holding the button still, Escape still disarms the stitch', async ({ page 
   await page.keyboard.press('Escape');
   await page.mouse.up();
   await expect(tile).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('at 100% the whole drawing can be dragged down the screen, and a stitch is laid where it is clicked (PQW-1160)', async ({
+  page,
+}) => {
+  await newChart(page);
+  await page.getByRole('button', { name: /^Single crochet \(sc\)/ }).click();
+  await board(page).click({ position: { x: 300, y: 100 } });
+  await dragOnBoard(page, [500, 100], [500, 400]);
+  await expect(level(page)).toHaveText('100%');
+  await board(page).click({ position: { x: 300, y: 50 } });
+  const [first, second] = await stitches(page);
+  expect(first!.y, 'the first stitch did not move on the sheet').toBeCloseTo(100, 0);
+  expect(second!.y, 'clicked 50 px from the top of a view moved down 300').toBeCloseTo(-250, 0);
+
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Select' }).click();
+  await board(page).click({ position: { x: 300, y: 400 } });
+  await expect(board(page), 'the first stitch is now 300 px lower on screen').toHaveAttribute('data-selected', '1');
+});
+
+test('New starts from the default view again', async ({ page }) => {
+  await newChart(page);
+  await dragOnBoard(page, [500, 100], [500, 400]);
+  await zoomIn(page).click();
+  await page.getByRole('button', { name: 'New' }).click();
+  await expect(level(page)).toHaveText('100%');
+  await page.getByRole('button', { name: /^Single crochet \(sc\)/ }).click();
+  await board(page).click({ position: { x: 300, y: 200 } });
+  const [placed] = await stitches(page);
+  expect(placed!.x).toBeCloseTo(300, 0);
+  expect(placed!.y).toBeCloseTo(200, 0);
 });
