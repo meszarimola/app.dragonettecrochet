@@ -323,3 +323,40 @@ test('on a short window the whole handle of the small dial can be grabbed, even 
     'dragged from the inner edge to the bottom',
   ).toHaveValue('180');
 });
+
+test('in a row of dc and chains, the top of each chain’s oval is on the dc tops’ pixel row (PQW-1161, PQW-1163)', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'New' }).click();
+  const names = [/^Double crochet \(dc\)/, /^Chain \(ch\)/, /^Double crochet \(dc\)/, /^Chain \(ch\)/];
+  for (const [i, name] of names.entries()) {
+    await page.getByRole('button', { name }).click();
+    await board(page).click({ position: { x: 150 + i * 40, y: 200 + (i % 2) * 20 } });
+  }
+  await page.getByRole('button', { name: 'Select' }).click();
+  const box = (await board(page).boundingBox())!;
+  await page.mouse.move(box.x + 100, box.y + 140);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 400, box.y + 300, { steps: 5 });
+  await page.mouse.up();
+  await page.getByRole('button', { name: 'In a row' }).click();
+  await page.keyboard.press('Escape');
+  const placed = await stitches(page);
+  // The topmost inked pixel in a narrow column through each stitch's centre.
+  const tops = await board(page).evaluate(
+    (canvas: HTMLCanvasElement, xs: number[]) => {
+      const dpr = window.devicePixelRatio || 1;
+      const ctx = canvas.getContext('2d')!;
+      return xs.map((x) => {
+        const [x0, w] = [Math.round((x - 3) * dpr), Math.round(6 * dpr)];
+        const data = ctx.getImageData(x0, 0, w, canvas.height).data;
+        for (let y = 0; y < canvas.height; y += 1)
+          for (let i = 0; i < w; i += 1) if (data[(y * w + i) * 4 + 3]! > 40) return y / dpr;
+        return null;
+      });
+    },
+    placed.map(({ x }) => x),
+  );
+  for (const top of tops) expect(top, 'every top on the first dc’s row').toBeCloseTo(tops[0]!, 0);
+});

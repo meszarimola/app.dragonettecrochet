@@ -396,15 +396,29 @@ rather than smaller. The browser tests measure with it whether the arrow or a ro
 caption covers a stitch (PQW-916), and for an overlap check, too large is the
 safe direction.
 
-**An ellipse is the exception: its box is exact** (PQW-1163). It used to be a
-circle of the larger radius, so a chain — an oval lying flat, 9 by 5 — had a box
-as tall as it is wide. The free-form board stands and hangs stitches by this
-box (§83), so a chain hung from the tops sat (9 − 5) × 1.5 px too low, and the
-owner saw it: „a chain ovális tetejének a legfelső pontja legyen egy vonalban a
-hdc/dc meg a többi tetejével”. The box is now the turned ellipse's own
-(`hypot(rx cos θ, ry sin θ)` across, `hypot(rx sin θ, ry cos θ)` down). That is
-never smaller than what is drawn, so the rule above still holds; it only stops
-being larger than it needs to be.
+**Two boxes since PQW-1163.** The default box takes an ellipse as a circle of
+its larger radius, so a chain — an oval lying flat, 9 by 5 — has a box as tall
+as it is wide. The free-form board stood and hung stitches by that height (§83),
+so a chain hung from the tops sat (9 − 5) × 1.5 px too low, and the owner saw
+it: „a chain ovális tetejének a legfelső pontja legyen egy vonalban a hdc/dc meg
+a többi tetejével”.
+
+- `shapeBounds(shapes)` — the default, unchanged. **It anchors where a symbol is
+  drawn** (`drawCentered` centres it), and charts are saved and restored, so
+  changing it would move stitches already on a user's chart: making it exact
+  moved the popcorn 12 px, the picot and the chain space less. The review of
+  PQW-1163 caught that before release.
+- `shapeBounds(shapes, true)` — exact: the turned ellipse's own box
+  (`hypot(rx cos θ, ry sin θ)` across, `hypot(rx sin θ, ry cos θ)` down).
+
+The board's `extentOf`, which arranging uses, is the distance from the default
+box's centre — where the symbol is drawn — to the exact box's farther edge on
+each axis. For a chain that is its true half height; for a stitch whose foot
+was already exact (a popcorn) nothing changes. Measured over the library, only
+the chain's height and the picot's and chain space's width change, and only for
+arrangements made from now on; chains hung in v0.100.0 keep their place until
+arranged again. Both boxes measure the centreline: the stroke's half width is
+outside them, as it always was for lines.
 
 ## §24 The grid editor is a keyboard grid, and its rows run bottom-up
 

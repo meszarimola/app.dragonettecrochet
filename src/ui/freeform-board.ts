@@ -474,7 +474,13 @@ export class FreeformBoard {
       const shapes = symbolShapes(stitchById(placed.stitch), this.symbols);
       const { minX, minY, maxX, maxY } = shapeBounds(shapes);
       const reach = Math.max(MIN_REACH, (Math.max(maxX - minX, maxY - minY) / 2) * STITCH_SCALE);
-      const extent = { halfWidth: ((maxX - minX) / 2) * STITCH_SCALE, halfHeight: ((maxY - minY) / 2) * STITCH_SCALE };
+      // KB: interface.md §23 — measured from where the symbol is drawn to its exact ink.
+      const exact = shapeBounds(shapes, true);
+      const [cx, cy] = [(minX + maxX) / 2, (minY + maxY) / 2];
+      const extent = {
+        halfWidth: Math.max(cx - exact.minX, exact.maxX - cx) * STITCH_SCALE,
+        halfHeight: Math.max(cy - exact.minY, exact.maxY - cy) * STITCH_SCALE,
+      };
       found = { shapes, reach, extent };
       this.shapes.set(placed.stitch, found);
     }
