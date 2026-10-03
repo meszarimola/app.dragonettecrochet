@@ -2592,13 +2592,18 @@ PQW-1155, the owner's request: *„jelenleg bele van »égetve« vagyis dedikál
 egy típusú szemre megy a fogyasztás”* — the palette listed six fixed ones (two
 increases, four decreases), each tied to one stitch.
 
-**The section is two rows and a tile.** Decrease first, then Increase, as the
-owner listed them; each row is a tile and, beside it, a menu of the stitch it is
-made of: sc, hdc, dc, tr, dtr (`SHAPING_PARTS`), default sc. The menu prints the
-abbreviation of the notation, or the whole name where there is none — the
-Hungarian „háromráhajtásos pálca” is clipped in the closed menu but read whole
-in the open one and on the tile's structure line. Cutting it to its first word
-left an adjective, and there is no approved short form (01 §8.5). The invisible decrease stays a tile of its own
+**The section is two blocks and a tile.** Decrease first, then Increase, as the
+owner listed them; each is a full-width tile with, under it, a menu of the
+stitch it is made of: sc, hdc, dc, tr, dtr (`SHAPING_PARTS`), default sc. The
+tile and the menu share one border, square where they meet, so they read as one
+control.
+
+**The menu prints whole names** in the notation („Rövidpálca” … „Háromráhajtásos
+pálca”, „Single crochet” …), not abbreviations — the owner's request in
+PQW-1156. In PQW-1155 the menu stood beside the tile and printed abbreviations;
+whole names need about 170 px of the column's 240, which beside the tile left
+too little for the tile, so the menu moved under it (owner's choice over a
+narrower tile or names only in the open list). The invisible decrease stays a tile of its own
 under them — it is worked through the front loops only, so it is not „sc2tog
 from a menu” (owner's choice). A choice in the menu arms its tile. The tile's
 icon and structure line follow the choice, redrawn in place so the menu keeps

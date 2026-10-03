@@ -707,8 +707,20 @@ body.is-armed #board {
 .palette__shaping {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 6rem;
-  gap: var(--sp-0);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.palette__shaping > .stitch {
+  position: relative;
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+}
+
+/* KB: interface.md §86 — the tile's bottom border is the seam; positioned, the tile and its focus ring paint over the menu. */
+.palette__shaping > .palette__part {
+  border-block-start: 0;
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
 }
 
 .stitch--shaping {
@@ -747,7 +759,7 @@ body.is-armed #board {
   background: var(--c-bg);
   color: var(--c-ink);
   font: inherit;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   text-overflow: ellipsis;
 }
 
