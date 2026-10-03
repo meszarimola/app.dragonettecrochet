@@ -67,9 +67,18 @@ export function bindGridDialog(parts: GridDialogParts, done: (stitches: number, 
     });
   }
   cancel.addEventListener('click', () => dialog.close());
-  // The form fills the dialog, so a click on the dialog itself is a click on the backdrop.
+  // A press that starts in a field and ends outside clicks the dialog too; only a press outside it is the backdrop's.
+  let pressedOutside = false;
+  const outside = ({ clientX: x, clientY: y }: MouseEvent): boolean => {
+    const box = dialog.getBoundingClientRect();
+    return x < box.left || x > box.right || y < box.top || y > box.bottom;
+  };
+  dialog.addEventListener('pointerdown', (event) => {
+    pressedOutside = event.target === dialog && outside(event);
+  });
   dialog.addEventListener('click', (event) => {
-    if (event.target === dialog) dialog.close();
+    if (pressedOutside && event.target === dialog && outside(event)) dialog.close();
+    pressedOutside = false;
   });
 
   return () => {

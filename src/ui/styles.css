@@ -368,10 +368,6 @@ button {
   font-size: 0.8125rem;
 }
 
-.dialog__error:empty {
-  display: none;
-}
-
 .dialog__buttons {
   display: flex;
   justify-content: flex-end;

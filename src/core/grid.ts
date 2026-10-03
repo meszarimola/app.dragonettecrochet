@@ -68,14 +68,20 @@ export interface GridRow {
   readonly label: Point;
 }
 
-export function gridRows(grid: RectGrid): GridRow[] {
-  return grid.rows.map((cells, i) => {
+/** With `minY` and `maxY`, only the rows that reach into that band, without building the others. */
+export function gridRows(grid: RectGrid, minY = -Infinity, maxY = Infinity): GridRow[] {
+  const first = Math.max(0, Math.floor(-maxY / GRID_CELL));
+  const last = Math.min(grid.rows.length - 1, Math.ceil(-minY / GRID_CELL) - 1);
+  const rows: GridRow[] = [];
+  for (let i = first; i <= last; i += 1) {
+    const cells = grid.rows[i] ?? 0;
     const bottom = 0 - i * GRID_CELL;
     const right = cells * GRID_CELL;
     const number = i + 1;
     const x = number % 2 === 1 ? right + GRID_LABEL_ROOM / 2 : -GRID_LABEL_ROOM / 2;
-    return { number, cells, top: bottom - GRID_CELL, bottom, right, label: { x, y: bottom - GRID_CELL / 2 } };
-  });
+    rows.push({ number, cells, top: bottom - GRID_CELL, bottom, right, label: { x, y: bottom - GRID_CELL / 2 } });
+  }
+  return rows;
 }
 
 /** Whether the point falls in a cell of some row; the edges count as inside. */

@@ -51,8 +51,32 @@ test('Rectangular asks for the size and opens a guide grid that only takes stitc
   await board.click({ position: { x: 124, y: box.height - 44 } });
   expect((await currentChart(page))?.stitches.length, 'on the grid the stitch is placed').toBe(1);
 
+  await page.getByRole('button', { name: 'Zoom in' }).click();
+  await page.getByRole('button', { name: 'Back to 100%' }).click();
+  await board.click({ position: { x: 164, y: box.height - 44 } });
+  expect((await currentChart(page))?.stitches.length, 'back to 100% is row 1 in the bottom left again').toBe(2);
+
   await page.reload();
   expect((await currentChart(page))?.grid?.rows.length, 'the grid survives a reload').toBe(80);
+});
+
+test('a count too long for the limit is named, not cut short', async ({ page }) => {
+  await openDialog(page);
+  const rows = page.getByLabel('Rows');
+  await rows.fill('1000');
+  await expect(rows).toHaveValue('1000');
+  await rows.press('Enter');
+  await expect(page.locator('#grid-rows-error')).toHaveText('It can be 500 at most.');
+});
+
+test('a press in a field let go beside the dialog keeps it open', async ({ page }) => {
+  await openDialog(page);
+  const field = (await page.getByLabel('Stitches per row').boundingBox())!;
+  await page.mouse.move(field.x + 10, field.y + field.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(5, 5);
+  await page.mouse.up();
+  await expect(page.getByRole('dialog', { name: 'Rectangular' })).toBeVisible();
 });
 
 test('a wrong count is named under its field, and Enter creates once it is right', async ({ page }) => {

@@ -18,7 +18,7 @@ import {
   stitchesIn,
   turn,
 } from '../core/freeform.ts';
-import { GRID_CELL, gridExtent, gridRows, type RectGrid } from '../core/grid.ts';
+import { GRID_CELL, gridExtent, gridHome, gridRows, type RectGrid } from '../core/grid.ts';
 import { stitchById } from '../core/stitches.ts';
 import {
   clampView,
@@ -134,6 +134,7 @@ export class FreeformBoard {
   private swallowClick = false;
   private pointerOver = false;
   private gestureBase = 1;
+  private labelFont: string | null = null;
   private readonly shapes = new Map<string, { shapes: Shape[]; reach: number; extent: Extent }>();
   private readonly canvas: HTMLCanvasElement;
   private readonly ink: string;
@@ -211,9 +212,15 @@ export class FreeformBoard {
     this.setView(zoomAt(this.view, zoom, anchor ?? { x: width / 2, y: height / 2 }, this.size(), this.sheet()));
   }
 
-  /** Back to 100% with the sheet's home corner at the top left, where a new chart starts. */
+  /** Back to 100% where the chart starts: the sheet's home corner at the top left, or a grid's row 1 at the bottom left. */
   resetView(): void {
-    this.setView(DEFAULT_VIEW);
+    this.setView(this.home());
+  }
+
+  /** Measured on the board as it is now shown: a hidden board has no size. KB: interface.md §89 */
+  home(): View {
+    const grid = this.chart?.grid;
+    return grid === undefined ? DEFAULT_VIEW : gridHome(grid, this.size());
   }
 
   showView(view: View): void {
@@ -584,8 +591,8 @@ export class FreeformBoard {
   /** Only the rows on screen are drawn: a grid can have 500 rows of 200 cells. */
   private drawGrid(ctx: CanvasRenderingContext2D, grid: RectGrid): void {
     const seen = this.visible();
-    const rows = gridRows(grid).filter(({ top, bottom }) => bottom >= seen.minY && top <= seen.maxY);
-    // A line centred on a pixel edge is smeared over two pixels at half strength; this centres it on a pixel.
+    const rows = gridRows(grid, seen.minY, seen.maxY);
+    // KB: interface.md §89 — every line centred on a device pixel, and drawn once.
     const { zoom, origin } = this.view;
     const scale = zoom * (window.devicePixelRatio || 1);
     const width = Math.max(1, Math.round(scale / zoom));
@@ -595,7 +602,6 @@ export class FreeformBoard {
     applyInk(ctx, this.ink, width / scale);
     ctx.lineCap = 'butt';
     ctx.globalAlpha = GRID_ALPHA;
-    // Two rows share a line; measured at a pixel ratio of 1, drawing it twice darkens it.
     const lines = new Map<number, number>();
     for (const { top, bottom, right } of rows) {
       for (const y of [top, bottom]) lines.set(y, Math.max(lines.get(y) ?? 0, right));
@@ -615,7 +621,8 @@ export class FreeformBoard {
     }
     ctx.stroke();
     ctx.globalAlpha = 1;
-    ctx.font = `${GRID_LABEL_SIZE}px ${getComputedStyle(this.canvas).fontFamily}`;
+    this.labelFont ??= `${GRID_LABEL_SIZE}px ${getComputedStyle(this.canvas).fontFamily}`;
+    ctx.font = this.labelFont;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     for (const { number, label } of rows) ctx.fillText(String(number), label.x, label.y);

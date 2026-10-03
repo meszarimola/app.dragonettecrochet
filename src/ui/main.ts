@@ -21,7 +21,7 @@ import {
   placeStitches,
   sameChart,
 } from '../core/freeform.ts';
-import { gridHome, gridRect, onGrid, rectGrid } from '../core/grid.ts';
+import { gridRect, onGrid, rectGrid } from '../core/grid.ts';
 import { amend, canRedo, canUndo, createHistory, type History, record, redo, undo } from '../core/history.ts';
 import {
   MAX_SHAPING,
@@ -32,7 +32,7 @@ import {
   shapingStitch,
 } from '../core/stitches.ts';
 import type { ChartStyle, StitchDef, StitchDefId } from '../core/types.ts';
-import { DEFAULT_VIEW, MAX_ZOOM, MIN_ZOOM, viewFromJson } from '../core/view.ts';
+import { MAX_ZOOM, MIN_ZOOM, type View, viewFromJson } from '../core/view.ts';
 import { type BoardMode, FreeformBoard } from './freeform-board.ts';
 import { bindGridDialog } from './grid-dialog.ts';
 import {
@@ -427,19 +427,15 @@ const openGridDialog = bindGridDialog(
     create: must<HTMLButtonElement>('#grid-create'),
     cancel: must<HTMLButtonElement>('#grid-cancel'),
   },
-  (stitches, rows) => {
-    const grid = rectGrid(stitches, rows);
-    open({ ...emptyChart(), grid });
-    // Only now: a board hidden until the first chart has no size to measure.
-    board.showView(gridHome(grid, board.size()));
-  },
+  (stitches, rows) => open({ ...emptyChart(), grid: rectGrid(stitches, rows) }),
 );
 
 // KB: interface.md §5 — the last chart, and where it was looked at, survive a reload of the tab.
 const saved = chartFromJson(read(CHART_KEY, session));
-if (saved !== null) open(saved, viewFromJson(read(VIEW_KEY, session)) ?? DEFAULT_VIEW);
+if (saved !== null) open(saved, viewFromJson(read(VIEW_KEY, session)));
 
-function open(next: FreeformChart, view = DEFAULT_VIEW): void {
+/** Without a view, the chart opens on its own home. */
+function open(next: FreeformChart, view: View | null = null): void {
   const blank = chart === null || chart.stitches.length === 0;
   chart = next;
   board.show(chart, symbolOptionsFor(chartStyle));
@@ -447,7 +443,7 @@ function open(next: FreeformChart, view = DEFAULT_VIEW): void {
   if (history === null) setHistory(createHistory(fresh));
   else setHistory(blank && !canRedo(history) ? amend(history, fresh) : record(history, fresh));
   selectButton.disabled = false;
-  board.showView(view);
+  board.showView(view ?? board.home());
   showZoom();
   renderPalette();
 }

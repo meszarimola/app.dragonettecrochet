@@ -313,13 +313,13 @@
         <h2 class="dialog__title" id="grid-dialog-title" data-i18n="gridDialogTitle">Rectangular</h2>
         <p class="dialog__field">
           <label for="grid-stitches" data-i18n="gridStitchesLabel">Stitches per row</label>
-          <input class="dialog__input" id="grid-stitches" type="text" inputmode="numeric" autocomplete="off" maxlength="3" value="20" aria-describedby="grid-stitches-error" />
-          <span class="dialog__error" id="grid-stitches-error"></span>
+          <input class="dialog__input" id="grid-stitches" type="text" inputmode="numeric" autocomplete="off" value="20" aria-describedby="grid-stitches-error" />
+          <span class="dialog__error" id="grid-stitches-error" aria-live="polite"></span>
         </p>
         <p class="dialog__field">
           <label for="grid-rows" data-i18n="gridRowsLabel">Rows</label>
-          <input class="dialog__input" id="grid-rows" type="text" inputmode="numeric" autocomplete="off" maxlength="3" value="20" aria-describedby="grid-rows-error" />
-          <span class="dialog__error" id="grid-rows-error"></span>
+          <input class="dialog__input" id="grid-rows" type="text" inputmode="numeric" autocomplete="off" value="20" aria-describedby="grid-rows-error" />
+          <span class="dialog__error" id="grid-rows-error" aria-live="polite"></span>
         </p>
         <div class="dialog__buttons">
           <button type="button" class="dialog__button" id="grid-cancel" data-i18n="gridCancel">Cancel</button>

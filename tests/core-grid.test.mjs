@@ -71,6 +71,17 @@ test('row 1 is at the bottom, standing on y = 0, and each row sits on the one be
   assert.deepEqual(gridRect(rectGrid(20, 80)), { minX: 0, minY: -80 * GRID_CELL, maxX: 20 * GRID_CELL, maxY: 0 });
 });
 
+test('a band of the board gives only the rows reaching into it', () => {
+  const grid = rectGrid(4, 500);
+  assert.deepEqual(
+    gridRows(grid, -3.5 * GRID_CELL, -1.5 * GRID_CELL).map(({ number }) => number),
+    [2, 3, 4],
+  );
+  assert.deepEqual(gridRows(grid, 10, 100), [], 'below row 1 there is no row');
+  assert.equal(gridRows(grid, -1e9, 1e9).length, 500);
+  assert.deepEqual(gridRows(grid, -1.5 * GRID_CELL, 1e9)[0], gridRows(grid)[0]);
+});
+
 test('an odd row is numbered on the right, an even row on the left, both in the middle of the row', () => {
   const [first, second] = gridRows(rectGrid(5, 2));
   assert.deepEqual(first.label, { x: 5 * GRID_CELL + GRID_LABEL_ROOM / 2, y: -GRID_CELL / 2 });

@@ -2858,8 +2858,13 @@ only: „Szemek száma” and „Sorok száma” (*Stitches per row*, *Rows*), t
 (`MAX_GRID_STITCHES`, `MAX_GRID_ROWS`). The core reads a count into a code
 (`readGridCount`: empty, not whole, too small, too large), and the dictionary
 turns the code into the message under the field — the core returns codes, never
-sentences. Cancel,
-Escape and a click on the backdrop close it and change nothing. „Create” is the
+sentences. The fields have no `maxlength`: a cap would cut „1000” to a valid
+„100” without a word, so a long number reaches the too-large message instead. The
+message area is a polite live region, since pressing Enter in the wrong field
+moves no focus that would read it. Cancel, Escape and a click on the backdrop
+close it and change nothing. A backdrop click is a press *and* a release outside
+the dialog's box: a press that starts in a field and is let go outside also
+clicks the dialog element, and must not throw away what was typed. „Create” is the
 form's submit button, so Enter in a field arrives at the same click handler. „New”
 takes the focus before the dialog opens, so the dialog gives it back there. While
 it is open the document's key handler stands aside: its Escape, Delete and Space
@@ -2880,7 +2885,11 @@ from 1 at the bottom, an odd row's number on the right (where a right-side row
 starts) and an even row's on the left; no other mark, and row 1 is not labelled as
 the foundation chain — the user lays the chains. No line is emphasised every 5 or
 10. A new grid opens at 100% with row 1 and its left-hand numbers in the bottom
-left of the screen (`gridHome`). The sheet (§87) grows to take in the grid and its
+left of the screen (`gridHome`). That is the chart's home (`FreeformBoard.home`):
+„Back to 100%”, Ctrl/⌘ + 0 and a reload with no stored view go there too, where a
+free-form chart goes to the sheet's home corner (§87) — `DEFAULT_VIEW` would show
+the empty board below row 1. Home is measured after `show`, since a board hidden
+until the first chart has no size. The sheet (§87) grows to take in the grid and its
 numbers.
 
 **Only the grid takes a stitch.** A click outside every row places nothing
