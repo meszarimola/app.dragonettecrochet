@@ -111,6 +111,9 @@ let chart: FreeformChart | null = null;
 let tool: StitchDefId | Shaping | null = null;
 let shaping: ShapingChoices = DEFAULT_SHAPING;
 let mode: BoardMode = 'place';
+/** Leaving „Move view” goes back here, so a selection held while panning survives. */
+let beforePan: BoardMode = 'place';
+let percent = new Intl.NumberFormat('en', { style: 'percent', maximumFractionDigits: 0 });
 let spaceHeld = false;
 let clipboard: readonly PlacedStitch[] = [];
 let facing: Facing = 'feet';
@@ -165,7 +168,10 @@ const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAcce
 undoButton.addEventListener('click', () => step(undo));
 redoButton.addEventListener('click', () => step(redo));
 selectButton.addEventListener('click', () => setMode(mode === 'select' ? 'place' : 'select'));
-panButton.addEventListener('click', () => setMode(mode === 'pan' ? 'place' : 'pan'));
+panButton.addEventListener('click', () => {
+  if (mode !== 'pan') beforePan = mode;
+  setMode(mode === 'pan' ? beforePan : 'pan');
+});
 zoomInButton.addEventListener('click', () => board.zoomStep(1));
 zoomOutButton.addEventListener('click', () => board.zoomStep(-1));
 zoomResetButton.addEventListener('click', () => board.zoomTo(MIN_ZOOM));
@@ -421,7 +427,8 @@ document.addEventListener('keydown', (event) => {
     board.holdPan(true);
     return;
   }
-  if ((event.ctrlKey || event.metaKey) && !event.altKey) {
+  // Only over the drawing: elsewhere the keys still zoom the page, which some readers need.
+  if ((event.ctrlKey || event.metaKey) && !event.altKey && board.hovered) {
     const zoom = zoomCommand(event);
     if (zoom !== null) {
       // The browser would zoom the whole page instead.
@@ -496,6 +503,7 @@ function applyLanguage(language: UiLanguage): void {
   applyStaticTexts(document, texts().markup);
   homeLink.href = homeUrl(language);
   renderPalette();
+  percent = new Intl.NumberFormat(language, { style: 'percent', maximumFractionDigits: 0 });
   showZoom();
 }
 
@@ -535,8 +543,8 @@ function setMode(next: BoardMode): void {
 
 function showZoom(): void {
   const zoom = board.zoom;
-  const format = new Intl.NumberFormat(uiLanguage(), { style: 'percent', maximumFractionDigits: 0 });
-  zoomResetButton.textContent = format.format(zoom);
+  zoomResetButton.textContent = percent.format(zoom);
+  zoomResetButton.setAttribute('aria-label', `${texts().markup.zoomResetLabel} (${percent.format(zoom)})`);
   zoomInButton.disabled = chart === null || zoom >= MAX_ZOOM;
   zoomOutButton.disabled = chart === null || zoom <= MIN_ZOOM;
   zoomResetButton.disabled = chart === null;

@@ -2653,11 +2653,20 @@ changes those edge rules and the specs that pin them.
 
 **Zooming.** The group beside „Törlés”: zoom out, the level (a click returns to
 100%), zoom in, and „Nézet mozgatása”. The buttons step through `ZOOM_STEPS`;
-the mouse wheel zooms smoothly about the pointer, and a trackpad pinch, which
-arrives as a wheel with Ctrl, does the same at its own rate. Ctrl/⌘ + plus,
-minus and 0 are taken from the browser's page zoom while there is a chart; they
-go by the character, not the key position, because the Hungarian layout has
-them elsewhere. „Új” starts at 100%.
+the mouse wheel zooms smoothly about the pointer. A trackpad pinch arrives in
+Chrome and Firefox as a wheel with Ctrl and small steps, and gets a faster rate;
+Ctrl + a real mouse notch (a step of 50 or more) keeps the wheel's rate, or two
+notches would reach 800%. Safari reports a pinch as `gesturestart` /
+`gesturechange` with a scale, handled separately. Every wheel over the drawing
+is the board's: a two-finger trackpad scroll zooms too, because a wheel cannot
+be told from a trackpad reliably and the owner asked for the mouse.
+
+Ctrl/⌘ + plus, minus and 0 zoom the board **only while the pointer is over
+it**; anywhere else they stay the browser's page zoom, which a reader who
+enlarges the interface needs (review of PQW-1158). They go by the character,
+not the key position, because the Hungarian layout has them elsewhere. „Új”
+starts at 100%. The level button's accessible name is „Vissza 100%-ra” with the
+current level after it; its visible text is the level alone.
 
 **Icons only, and the title gives way below 66rem.** With labels the group
 pushed the bar 73 px past a 1000 px window (`felulet.spec.ts` pins that the
@@ -2670,14 +2679,19 @@ visually and stays in the accessibility tree. The brand mark and Home remain.
 selection's press handling:
 
 - „Nézet mozgatása”, a third mode beside „Kijelölés” and placing: arming any one
-  puts the others down. The selection stays as it was, and the panel with it.
+  puts the others down. The selection stays as it was, and the panel with it;
+  leaving the tool returns to the mode before it, so „Kijelölés” comes back
+  with the same selection rather than placing, which would clear it.
 - Space held while the pointer is over the drawing, with any tool. Only over
   the drawing: elsewhere Space still presses the focused button, which keyboard
   users need. The release is taken too, or a focused button would fire.
 - The middle mouse button, with any tool.
 
-A pan that moved more than the drag slop swallows the click that follows it, so
-panning with a stitch armed lays nothing.
+A primary-button pan swallows the click that follows it, moved or not (Space
+may be let go before the button), so panning with a stitch armed lays nothing.
+Every press clears that flag first: a pan whose click never came — a touch that
+moved, a release off the canvas — must not eat the next real click. A pan moves
+from the current view step by step, so a wheel zoom in the middle of it holds.
 
 **What stays the same size on screen.** The selection frame's line, its dash,
 the corners, the rotation knob, their hit areas and the drag slop are screen
@@ -2687,5 +2701,6 @@ zoom with the drawing.
 **What the tests pin.** `tests/core-view.test.mjs` the arithmetic;
 `tests/ui-platform.test.mjs` the shortcuts; `e2e/nagyitas.spec.ts` the buttons,
 the wheel about the pointer, a click placing at the board point under it when
-zoomed, and the pan tool and Space-drag moving the view without touching the
-chart or the selection.
+zoomed, the pan tool and Space-drag moving the view without touching the chart
+or the selection, leaving the pan tool back into „Kijelölés”, Ctrl + one wheel
+notch, the keys only over the drawing, and a pan ending off the canvas.

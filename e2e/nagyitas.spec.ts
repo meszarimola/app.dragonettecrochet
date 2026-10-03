@@ -108,6 +108,49 @@ test('the Move view tool moves the view, not the stitches or the selection', asy
   await dragOnBoard(page, [300, 200], [200, 150]);
   expect(await stitches(page), 'the chart did not move').toEqual(before);
   await expect(board(page), 'the selection stayed').toHaveAttribute('data-selected', '1');
+
+  await panTool(page).click();
+  await expect(page.getByRole('button', { name: 'Select' }), 'back to the mode before').toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(board(page), 'and the selection with it').toHaveAttribute('data-selected', '1');
+});
+
+test('Ctrl + a mouse wheel notch zooms one notch, not to the top', async ({ page }) => {
+  await newChart(page);
+  const box = (await board(page).boundingBox())!;
+  await page.mouse.move(box.x + 300, box.y + 200);
+  await page.keyboard.down('Control');
+  await page.mouse.wheel(0, -100);
+  await page.keyboard.up('Control');
+  await expect(level(page)).toHaveText('122%');
+});
+
+test('Ctrl + plus zooms over the drawing and leaves the page zoom alone elsewhere', async ({ page }) => {
+  await newChart(page);
+  const box = (await board(page).boundingBox())!;
+  await page.mouse.move(box.x + 300, box.y + 200);
+  await page.keyboard.press('Control+Equal');
+  await expect(level(page)).toHaveText('125%');
+  await page.mouse.move(box.x - 50, box.y + 200);
+  await page.keyboard.press('Control+Equal');
+  await expect(level(page), 'away from the drawing the key is the browser’s').toHaveText('125%');
+});
+
+test('a pan that ends off the canvas does not eat the next click', async ({ page }) => {
+  await newChart(page);
+  for (let i = 0; i < 3; i += 1) await zoomIn(page).click();
+  await page.getByRole('button', { name: /^Single crochet \(sc\)/ }).click();
+  const box = (await board(page).boundingBox())!;
+  await page.mouse.move(box.x + 300, box.y + 200);
+  await page.keyboard.down('Space');
+  await page.mouse.down();
+  await page.mouse.move(box.x - 40, box.y + 200, { steps: 6 });
+  await page.mouse.up();
+  await page.keyboard.up('Space');
+  await board(page).click({ position: { x: 300, y: 200 } });
+  expect(await stitches(page)).toHaveLength(1);
 });
 
 test('Space and the middle button move the view with a stitch armed, and lay nothing', async ({ page }) => {

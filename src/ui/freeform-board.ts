@@ -35,6 +35,7 @@ const DRAG_SLOP = 3;
 /** How fast the wheel zooms: a mouse notch is about 100, a trackpad pinch reports far less. */
 const WHEEL_RATE = 0.002;
 const PINCH_RATE = 0.01;
+const PINCH_LIMIT = 50;
 /** The corners in frame space, clockwise from the top left. */
 const CORNERS: readonly Point[] = [
   { x: -1, y: -1 },
@@ -86,7 +87,8 @@ type Drag =
     }
   | { readonly kind: 'area'; readonly start: Point; current: Point; readonly base: ReadonlySet<number> }
   /** `start` is a screen point: the board under the pointer moves while the view does. */
-  | { readonly kind: 'pan'; readonly start: Point; readonly base: View; readonly middle: boolean };
+  /** Moved step by step from the current view, so a zoom in the middle of a pan is kept. */
+  | { readonly kind: 'pan'; last: Point };
 
 /** The selection frame as it is drawn, with its handles in board coordinates. */
 interface Handles {
@@ -110,6 +112,7 @@ export class FreeformBoard {
   /** A pan ended under a press that will still fire a click; that click places nothing. */
   private swallowClick = false;
   private pointerOver = false;
+  private gestureBase = 1;
   private readonly shapes = new Map<string, { shapes: Shape[]; reach: number; extent: Extent }>();
   private readonly canvas: HTMLCanvasElement;
   private readonly ink: string;
@@ -130,6 +133,8 @@ export class FreeformBoard {
     canvas.addEventListener('pointermove', (event) => this.moveTo(event));
     canvas.addEventListener('pointerup', () => this.up(false));
     canvas.addEventListener('wheel', (event) => this.wheel(event), { passive: false });
+    canvas.addEventListener('gesturestart', (event) => this.gesture(event, true));
+    canvas.addEventListener('gesturechange', (event) => this.gesture(event, false));
     canvas.addEventListener('pointerenter', () => {
       this.pointerOver = true;
     });
@@ -202,10 +207,20 @@ export class FreeformBoard {
   private wheel(event: WheelEvent): void {
     if (this.chart === null) return;
     event.preventDefault();
-    const lines = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16 : 1;
-    // A trackpad pinch arrives as a wheel with Ctrl held.
-    const rate = event.ctrlKey ? PINCH_RATE : WHEEL_RATE;
-    this.zoomTo(this.view.zoom * Math.exp(-event.deltaY * lines * rate), this.screenPoint(event));
+    const delta = event.deltaY * (event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16 : 1);
+    // A trackpad pinch arrives as a wheel with Ctrl held and small steps; Ctrl + a mouse notch is still a notch.
+    const rate = event.ctrlKey && Math.abs(delta) < PINCH_LIMIT ? PINCH_RATE : WHEEL_RATE;
+    this.zoomTo(this.view.zoom * Math.exp(-delta * rate), this.screenPoint(event));
+  }
+
+  /** Safari reports a trackpad pinch as gesture events with a scale, not as a wheel. */
+  private gesture(event: Event, start: boolean): void {
+    if (this.chart === null) return;
+    event.preventDefault();
+    const { scale, clientX, clientY } = event as Event & { scale: number; clientX: number; clientY: number };
+    if (start) this.gestureBase = this.view.zoom;
+    const box = this.canvas.getBoundingClientRect();
+    this.zoomTo(this.gestureBase * scale, { x: clientX - box.left, y: clientY - box.top });
   }
 
   clearSelection(): void {
@@ -247,13 +262,17 @@ export class FreeformBoard {
   }
 
   private down(event: PointerEvent): void {
+    // A pan whose click never came (a touch that moved, a release off the canvas) must not eat this press's click.
+    this.swallowClick = false;
     if (this.chart !== null && event.isPrimary && this.drag === null) {
       const middle = event.button === 1;
       if (middle || (event.button === 0 && (this.mode === 'pan' || this.panHeld))) {
         // The middle button would otherwise start the browser's own scrolling.
         if (middle) event.preventDefault();
+        // Even a pan that never moved: Space may be let go before the button is.
+        this.swallowClick = !middle;
         this.canvas.setPointerCapture?.(event.pointerId);
-        this.drag = { kind: 'pan', start: this.screenPoint(event), base: this.view, middle };
+        this.drag = { kind: 'pan', last: this.screenPoint(event) };
         this.canvas.style.cursor = 'grabbing';
         return;
       }
@@ -315,8 +334,8 @@ export class FreeformBoard {
     const drag = this.drag;
     if (drag?.kind === 'pan') {
       const at = this.screenPoint(event);
-      if (!this.swallowClick && distance(at, drag.start) >= DRAG_SLOP) this.swallowClick = true;
-      this.setView(panBy(drag.base, at.x - drag.start.x, at.y - drag.start.y, this.size()));
+      this.setView(panBy(this.view, at.x - drag.last.x, at.y - drag.last.y, this.size()));
+      drag.last = at;
       return;
     }
     const point = this.point(event);
@@ -372,8 +391,7 @@ export class FreeformBoard {
     this.drag = null;
     if (drag.kind === 'pan') {
       this.canvas.style.cursor = this.mode === 'pan' || this.panHeld ? 'grab' : '';
-      // Only the primary button's press is followed by a click.
-      if (cancelled || drag.middle) this.swallowClick = false;
+      if (cancelled) this.swallowClick = false;
       return;
     }
     // A gesture the browser took over is undone, not left half-way.
