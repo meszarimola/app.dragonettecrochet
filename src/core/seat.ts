@@ -93,8 +93,7 @@ export function placeInGrid(
   const spans = spansFrom(cells, at, cellSpan(stitch), count);
   if (spans.length === 0) return null;
   const covered = (cell: SeatedCell | undefined): boolean =>
-    cell !== undefined &&
-    spans.some(({ row, col, span }) => cell.row === row && cell.col < col + span && col < cell.col + cell.span);
+    cell !== undefined && spans.some((span) => overlap(cell, span));
   const added = spans.map(
     (cell, i): PlacedStitch => ({ id: chart.nextId + i, stitch, x: 0, y: 0, rotation: 0, scale: 1, cell }),
   );
@@ -106,6 +105,125 @@ export function placeInGrid(
     },
     ids: new Set(added.map(({ id }) => id)),
   };
+}
+
+function overlap(a: SeatedCell, b: SeatedCell): boolean {
+  return a.row === b.row && a.col < b.col + b.span && b.col < a.col + a.span;
+}
+
+/**
+ * The cells a stitch of `span` cells is dropped into from where it stands: the
+ * row its middle is in, the columns its middle is nearest to. A point off the
+ * grid goes to the nearest row and column — a stitch is never dropped off it.
+ * `null` where no row is wide enough.
+ */
+export function nearestCells(grid: Grid, point: Point, span: number, heights?: RowHeights): SeatedCell | null {
+  return nearestIn(grid, rowBottoms(grid, heights), point, span);
+}
+
+type Grid = NonNullable<FreeformChart['grid']>;
+
+interface Point {
+  readonly x: number;
+  readonly y: number;
+}
+
+function nearestIn(grid: Grid, bottoms: readonly number[], point: Point, span: number): SeatedCell | null {
+  const last = grid.rows.length - 1;
+  let row = bottoms.findIndex((bottom, i) => point.y <= bottom && point.y >= (bottoms[i + 1] ?? -Infinity));
+  if (row === -1) row = point.y > 0 ? 0 : last;
+  const cells = grid.rows[row];
+  if (cells === undefined || span > cells) return null;
+  const col = Math.min(Math.max(Math.round(point.x / GRID_CELL - span / 2), 0), cells - span);
+  return { row, col, span };
+}
+
+function clamp(value: number, low: number, high: number): number {
+  return Math.min(Math.max(value, low), high);
+}
+
+/**
+ * Drops the stitches a move carried into the grid. `before` is the chart the
+ * move started from. The seated ones move as one block: the first of them says
+ * how many rows and columns the block moved — found from where its cells were,
+ * by the rows as they stood — and the block is kept within the grid, so none of
+ * them lands on another. A stitch that was free drops into the cells nearest to
+ * where it stands. A seated stitch in the cells they land on gives way.
+ * Positions follow from `seat`. KB: interface.md §91
+ */
+export function dropInGrid(
+  chart: FreeformChart,
+  ids: ReadonlySet<number>,
+  before: FreeformChart,
+  size: NaturalSize,
+): FreeformChart {
+  const grid = chart.grid;
+  if (grid === undefined || ids.size === 0) return chart;
+  const heights = rowHeights(before, size);
+  const bottoms = rowBottoms(grid, heights);
+  const was = new Map(before.stitches.map((placed) => [placed.id, placed]));
+  const landed = new Map<number, SeatedCell>();
+  const covered = new Set<number>();
+  const land = (id: number, cell: SeatedCell): void => {
+    for (const [other, at] of landed) {
+      if (!overlap(cell, at)) continue;
+      landed.delete(other);
+      covered.add(other);
+    }
+    landed.set(id, cell);
+  };
+  const block: { readonly placed: PlacedStitch; readonly old: PlacedStitch; readonly cell: SeatedCell }[] = [];
+  for (const placed of chart.stitches) {
+    if (!ids.has(placed.id)) continue;
+    const old = was.get(placed.id);
+    if (old?.cell !== undefined) {
+      block.push({ placed, old, cell: old.cell });
+      continue;
+    }
+    const cell = nearestIn(grid, bottoms, placed, cellSpan(placed.stitch));
+    if (cell !== null) land(placed.id, cell);
+  }
+  const anchor = block[0];
+  if (anchor !== undefined) {
+    const { placed, old, cell } = anchor;
+    const middle = {
+      x: (cell.col + cell.span / 2) * GRID_CELL + placed.x - old.x,
+      y: (bottoms[cell.row] ?? 0) - (heights[cell.row] ?? GRID_CELL) / 2 + placed.y - old.y,
+    };
+    const target = nearestIn(grid, bottoms, middle, cell.span) ?? cell;
+    const last = grid.rows.length - 1;
+    let dRow = target.row - cell.row;
+    for (const { cell: c } of block) dRow = clamp(dRow, -c.row, last - c.row);
+    let dCol = target.col - cell.col;
+    for (const { cell: c } of block) dCol = clamp(dCol, -c.col, (grid.rows[c.row + dRow] ?? 0) - c.span - c.col);
+    // A shifted block cannot land on itself; only the free ones dropped before it can be in its way.
+    const free = [...landed];
+    for (const { placed: p, cell: c } of block) {
+      const shifted = { row: c.row + dRow, col: c.col + dCol, span: c.span };
+      for (const [id, at] of free) {
+        if (!landed.has(id) || !overlap(shifted, at)) continue;
+        landed.delete(id);
+        covered.add(id);
+      }
+      landed.set(p.id, shifted);
+    }
+  }
+  if (landed.size === 0) return chart;
+  const taken = new Set<string>();
+  for (const { row, col, span } of landed.values()) for (let i = col; i < col + span; i += 1) taken.add(`${row}:${i}`);
+  const givesWay = ({ id, cell }: PlacedStitch): boolean => {
+    if (ids.has(id)) return covered.has(id);
+    if (cell === undefined) return false;
+    for (let i = cell.col; i < cell.col + cell.span; i += 1) if (taken.has(`${cell.row}:${i}`)) return true;
+    return false;
+  };
+  const stitches = chart.stitches
+    .filter((placed) => !givesWay(placed))
+    .map((placed) => {
+      const cell = landed.get(placed.id);
+      return cell === undefined ? placed : { ...placed, cell };
+    });
+  return { ...chart, stitches };
 }
 
 /**

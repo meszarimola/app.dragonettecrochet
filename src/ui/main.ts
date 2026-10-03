@@ -23,7 +23,7 @@ import {
 } from '../core/freeform.ts';
 import { cellAt, rectGrid } from '../core/grid.ts';
 import { amend, canRedo, canUndo, createHistory, type History, record, redo, undo } from '../core/history.ts';
-import { placeInGrid, seat } from '../core/seat.ts';
+import { dropInGrid, placeInGrid, seat } from '../core/seat.ts';
 import {
   MAX_SHAPING,
   MIN_SHAPING,
@@ -167,7 +167,20 @@ const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAcce
     chart = seated(next);
     board.show(chart, symbolOptionsFor(chartStyle));
   },
-  settled: () => commit(),
+  settled: (moved) => {
+    // KB: interface.md §91
+    const before = history?.present.chart;
+    if (moved !== null && chart?.grid !== undefined && before !== undefined) {
+      const dropped = dropInGrid(chart, moved, before, board.naturalSize);
+      if (dropped !== chart) {
+        chart = dropped;
+        arranged = null;
+        showOptions();
+        board.show(chart, symbolOptionsFor(chartStyle));
+      }
+    }
+    commit();
+  },
   selectionChanged: (count) => {
     duplicateButton.disabled = count === 0;
     deleteButton.disabled = count === 0;

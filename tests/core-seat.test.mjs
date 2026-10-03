@@ -21,6 +21,8 @@ import { GRID_CELL, rectGrid } from '../src/core/grid.ts';
 import {
   CHAIN_RISE,
   cellSpan,
+  dropInGrid,
+  nearestCells,
   placeInGrid,
   ROW_GAP,
   rowHeights,
@@ -265,6 +267,129 @@ test('two charts that differ only in a cell are different charts', () => {
   const chart = laid(gridChart(), 'sc', 0, 2);
   const other = { ...chart, stitches: [{ ...chart.stitches[0], cell: { row: 0, col: 3, span: 1 } }] };
   assert.ok(!sameChart(chart, other));
+});
+
+/* ---- Dropping a dragged stitch into the nearest cells (PQW-1173) ---- */
+
+/** Moves stitches by hand, which frees them, then drops them, as the board's drag does. */
+function dragged(chart, id, dx, dy) {
+  const ids = id instanceof Set ? id : new Set([id]);
+  const moved = seat(moveStitches(chart, ids, dx, dy), size);
+  return seat(dropInGrid(moved, ids, chart, size), size);
+}
+
+test('the nearest cells: the row the middle is in, the columns the middle is nearest to', () => {
+  const grid = rectGrid(10, 4);
+  assert.deepEqual(nearestCells(grid, { x: 3.4 * GRID_CELL, y: -50 }, 1), { row: 1, col: 3, span: 1 });
+  assert.deepEqual(nearestCells(grid, { x: 3.6 * GRID_CELL, y: -50 }, 1), { row: 1, col: 3, span: 1 });
+  assert.deepEqual(
+    nearestCells(grid, { x: 4.5 * GRID_CELL, y: -10 }, 5),
+    { row: 0, col: 2, span: 5 },
+    'a shell centred on cell 4 takes cells 2–6',
+  );
+});
+
+test('a point off the grid goes to its nearest row and columns, never off it', () => {
+  const grid = rectGrid(10, 4);
+  assert.deepEqual(nearestCells(grid, { x: -300, y: 50 }, 1), { row: 0, col: 0, span: 1 }, 'below and left');
+  assert.deepEqual(nearestCells(grid, { x: 900, y: -900 }, 3), { row: 3, col: 7, span: 3 }, 'above and right');
+  assert.equal(nearestCells(rectGrid(3, 4), { x: 0, y: -10 }, 5), null, 'no row wide enough');
+});
+
+test('a stitch dragged and let go sits in the cell nearest to where it was let go', () => {
+  const start = laid(gridChart(), 'sc', 0, 2);
+  const id = start.stitches[0].id;
+  const chart = dragged(start, id, 3 * GRID_CELL + 12, -GRID_CELL);
+  assert.deepEqual(chart.stitches[0].cell, { row: 1, col: 5, span: 1 });
+  assert.equal(chart.stitches[0].x, 5.5 * GRID_CELL, 'in the middle of the cell, not where it was let go');
+});
+
+test('a stitch dropped on a taken cell replaces it; a stitch in another cell stays', () => {
+  let chart = laid(gridChart(), 'sc', 0, 2);
+  chart = laid(chart, 'dc', 0, 5);
+  chart = laid(chart, 'tr', 0, 7);
+  const sc = chart.stitches.find(({ stitch }) => stitch === 'sc');
+  chart = dragged(chart, sc.id, 3 * GRID_CELL, 0);
+  assert.deepEqual(
+    chart.stitches.map(({ stitch, cell }) => [stitch, cell.col]),
+    [
+      ['sc', 5],
+      ['tr', 7],
+    ],
+  );
+});
+
+const cellsOf = (chart) => chart.stitches.map(({ cell }) => [cell.row, cell.col]).sort();
+
+test('stitches dragged together move as one block and keep their places relative to each other', () => {
+  const start = laid(gridChart(), 'sc', 0, 5, 3);
+  const ids = new Set(start.stitches.map(({ id }) => id));
+  assert.deepEqual(cellsOf(dragged(start, ids, 2 * GRID_CELL + 9, -GRID_CELL)), [
+    [1, 5],
+    [1, 6],
+    [1, 7],
+  ]);
+});
+
+test('a block pushed against the grid’s edge stops there whole: no stitch folds onto another', () => {
+  const start = laid(gridChart(), 'sc', 1, 7, 3);
+  const ids = new Set(start.stitches.map(({ id }) => id));
+  const chart = dragged(start, ids, 0.5 * GRID_CELL + 0.01, 0);
+  assert.equal(chart.stitches.length, 3, 'all three are still there');
+  assert.deepEqual(cellsOf(chart), [
+    [1, 7],
+    [1, 8],
+    [1, 9],
+  ]);
+  assert.deepEqual(cellsOf(dragged(start, ids, -900, 900)), [
+    [0, 0],
+    [0, 1],
+    [0, 2],
+  ]);
+});
+
+test('a block over rows of different heights keeps its rows apart', () => {
+  let start = laid(gridChart(), 'sc', 0, 3);
+  start = laid(start, 'tr', 1, 3);
+  const ids = new Set(start.stitches.map(({ id }) => id));
+  assert.deepEqual(cellsOf(dragged(start, ids, 0, -GRID_CELL)), [
+    [1, 3],
+    [2, 3],
+  ]);
+});
+
+test('a tall stitch dragged sideways stays in its row, though its row shrinks while it is away', () => {
+  let start = laid(gridChart(), 'sc', 0, 0);
+  start = laid(start, 'tr', 1, 2);
+  start = laid(start, 'sc', 2, 0);
+  const tr = start.stitches.find(({ stitch }) => stitch === 'tr');
+  const chart = dragged(start, tr.id, GRID_CELL, 0);
+  assert.deepEqual(chart.stitches.find(({ id }) => id === tr.id).cell, { row: 1, col: 3, span: 1 });
+});
+
+test('free stitches dropped on the same cell leave the later one', () => {
+  const free = (id, x) => ({ id, stitch: 'sc', x, y: -20, rotation: 0, scale: 1 });
+  const before = { ...gridChart(), stitches: [free(1, 98), free(2, 102)], nextId: 3 };
+  const dropped = dropInGrid(before, new Set([1, 2]), before, size);
+  assert.deepEqual(
+    dropped.stitches.map(({ id, cell }) => [id, cell.col]),
+    [[2, 2]],
+  );
+});
+
+test('a stitch freed by a move is seated again when dropped, its span kept', () => {
+  const start = laid(gridChart(), 'shell-5dc', 1, 2);
+  const id = start.stitches[0].id;
+  const chart = dragged(start, id, -GRID_CELL, GRID_CELL);
+  assert.deepEqual(chart.stitches[0].cell, { row: 0, col: 1, span: 5 });
+  assert.equal(chart.stitches[0].rotation, 0);
+});
+
+test('dropping on a free-form chart, or nothing, changes nothing', () => {
+  const free = { ...emptyChart(), stitches: [{ id: 1, stitch: 'sc', x: 10, y: 10, rotation: 0, scale: 1 }], nextId: 2 };
+  assert.equal(dropInGrid(free, new Set([1]), free, size), free);
+  const chart = laid(gridChart(), 'sc', 0, 2);
+  assert.equal(dropInGrid(chart, new Set(), chart, size), chart);
 });
 
 test('nothing is placed off the grid’s rows, or where no span fits', () => {

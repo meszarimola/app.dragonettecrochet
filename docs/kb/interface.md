@@ -2893,8 +2893,9 @@ until the first chart has no size. The sheet (§87) grows to take in the grid an
 numbers.
 
 **Only the grid takes a stitch.** A click outside every row places nothing
-(`cellAt`); inside, the stitch is seated in its cell (§91). Moving, pasting and
-arranging are not limited to the grid yet (PQW-1173).
+(`cellAt`); inside, the stitch is seated in its cell (§91). A dragged stitch cannot
+leave the grid and drops into a cell when let go (§91); pasting and arranging are
+not limited to the grid, by the owner's choice.
 
 **Drawing.** Only the rows on screen are drawn, since 500 × 200 cells is a lot of
 lines. Each line is centred on a device pixel and drawn once, in the ink at 28%:
@@ -3001,9 +3002,31 @@ and the gap.
 The width of a column never changes yet; the owner's later step makes increases and
 decreases widen cells.
 
-**What leaves a cell.** A stitch moved, turned, resized, pasted or arranged by hand
-loses its cell (`unseated`) and stays where it was put; seating it again on release
-is PQW-1173. A stitch laid before 1.4.0, freely, stays free, and a stored cell the
+**A dragged stitch drops into the nearest cells (PQW-1173).** While it is dragged
+it is free, its middle kept within the grid's rectangle (`moveBounds`), and the rows
+follow it live. Let go, it drops (`dropInGrid`).
+
+- **The seated stitches move as one block.** The first of them says how far the
+  block went: where its cells' middle was, by the rows as they stood before the
+  drag, plus the drag, gives the nearest cells (`nearestCells`: the row the point
+  is in, the columns it is nearest to, a point off the grid going to the nearest
+  row and column). The whole block shifts by those rows and columns, kept within
+  the grid, so none of them lands on another. /code-review found the first reading
+  — every stitch rounded on its own — losing stitches: a block nudged against the
+  right edge folded onto the last column, a block over rows of different heights
+  merged two rows, and a tall stitch dragged sideways fell into the row above,
+  since its own row had shrunk while it was away.
+- **A stitch that was free** (laid before 1.4.0) drops into the cells nearest to
+  where it stands; of two such landing on the same cells, the later stays.
+- **A seated stitch in the cells they land on gives way.** The drag and the drop
+  are one undo step, and the board is shown the dropped chart even when seating
+  then moves nothing — a stitch dragged exactly onto a cell's middle.
+- A dragged arrangement (§83) ends when it drops.
+
+**What leaves a cell.** A stitch turned, resized, pasted or arranged by hand loses
+its cell (`unseated`) and stays where it was put — the owner kept all four as they
+were: a pasted or duplicated copy is free and offset, not put into the next free
+cells. A stitch laid before 1.4.0, freely, stays free, and a stored cell the
 grid does not have is dropped on load. A free stitch never moves by itself; the
 seated ones follow the rules in force, so a chart saved by 1.4.0 opens with the
 gap in its tall rows, and a free stitch beside them stays where it was.
