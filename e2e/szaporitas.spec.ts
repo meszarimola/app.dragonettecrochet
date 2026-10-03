@@ -113,3 +113,21 @@ test('each menu stands under its tile, as wide as it, and shows whole names', as
     'Double treble',
   ]);
 });
+
+test('one focus ring goes round the tile and its menu, whichever holds the focus', async ({ page }) => {
+  await newChart(page);
+  const block = page.locator('.palette__shaping').filter({ has: decreaseMenu(page) });
+  const outline = (target: ReturnType<Page['locator']>) =>
+    target.evaluate((element) => getComputedStyle(element).outlineStyle);
+
+  await decrease(page).focus();
+  await page.keyboard.press('Tab');
+  await expect(decreaseMenu(page)).toBeFocused();
+  expect(await outline(block), 'the block is ringed').toBe('solid');
+  expect(await outline(decreaseMenu(page)), 'the menu has no ring of its own').toBe('none');
+
+  await page.keyboard.press('Shift+Tab');
+  await expect(decrease(page)).toBeFocused();
+  expect(await outline(block)).toBe('solid');
+  expect(await outline(decrease(page)), 'nor has the tile').toBe('none');
+});

@@ -126,22 +126,30 @@ test('the ink colour comes from the --c-ink token, and only symbols.ts sets a co
 
 /* ---- Increases and decreases from a menu (PQW-1155) ---- */
 
-test('the increase and decrease section is a decrease, an increase, then the invisible decrease', () => {
+test('the increase and decrease section is a decrease, then an increase', () => {
   const section = buildPalette('en-US').find(({ id }) => id === 'increase-decrease');
   assert.deepEqual(
     section.items.map(({ def, shaping }) => [def.id, shaping]),
     [
       ['sc2tog', 'decrease'],
       ['inc-2sc', 'increase'],
-      ['invdec', null],
     ],
   );
   assert.deepEqual(SHAPINGS, ['decrease', 'increase']);
   assert.deepEqual(
     section.items.map(({ key }) => key),
-    ['8', '9', null],
+    ['8', '9'],
     'Alt+8 is the decrease, Alt+9 the increase',
   );
+});
+
+test('the invisible decrease stands among the compound stitches, just before the magic ring (PQW-1157)', () => {
+  const compound = buildPalette('en-US').find(({ id }) => id === 'compound');
+  assert.deepEqual(
+    compound.items.slice(-2).map(({ def }) => def.id),
+    ['invdec', 'magic-ring'],
+  );
+  assert.equal(compound.items.find(({ def }) => def.id === 'invdec').key, null, 'no shortcut, as before');
 });
 
 test('the tiles follow the chosen part and count, and say so on the structure line', () => {

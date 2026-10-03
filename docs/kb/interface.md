@@ -2603,9 +2603,17 @@ pálca”, „Single crochet” …), not abbreviations — the owner's request 
 PQW-1156. In PQW-1155 the menu stood beside the tile and printed abbreviations;
 whole names need about 170 px of the column's 240, which beside the tile left
 too little for the tile, so the menu moved under it (owner's choice over a
-narrower tile or names only in the open list). The invisible decrease stays a tile of its own
-under them — it is worked through the front loops only, so it is not „sc2tog
-from a menu” (owner's choice). A choice in the menu arms its tile. The tile's
+narrower tile or names only in the open list). The invisible decrease stays a
+tile of its own — it is worked through the front loops only, so it is not „sc2tog
+from a menu” (owner's choice) — and since PQW-1157 it stands among the compound
+stitches, just before the magic ring, at the owner's request; the library order
+is untouched (§74).
+
+**One focus ring for the block** (PQW-1157). The tile and its menu each drew
+the global `:focus-visible` ring, so after a choice the ring hugged the menu
+alone. The owner liked the ring and asked for it round the whole block: the
+block takes the ring when either of them holds the focus, and they draw none of
+their own. A choice in the menu arms its tile. The tile's
 icon and structure line follow the choice, redrawn in place so the menu keeps
 its focus (§8). `Alt`+8 is the decrease and `Alt`+9 the increase. Both keys changed
 meaning: until v0.93.0 they armed the sc and the dc increase. The compound

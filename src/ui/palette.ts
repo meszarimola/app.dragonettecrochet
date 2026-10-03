@@ -55,15 +55,14 @@ export function buildPalette(terms: Locale = 'hu', shaping: ShapingChoices = DEF
     structure: stitchStructure(def, terms),
     shaping: kind,
   });
-  // KB: interface.md §74 — the magic ring is shown among the compound stitches,
-  // and the chain space not at all.
+  // KB: interface.md §74, §86 — the invisible decrease and the magic ring are shown
+  // among the compound stitches, and the chain space not at all.
   const shown = (section: (typeof STITCH_SECTIONS)[number]): PaletteItem[] => {
-    if (section.id === 'compound') return [...section.stitches, MAGIC_RING].map((def) => item(def));
+    if (section.id === 'compound') {
+      return [...section.stitches, INVISIBLE_DECREASE, MAGIC_RING].map((def) => item(def));
+    }
     if (section.id === 'increase-decrease') {
-      return [
-        ...SHAPINGS.map((kind) => item(shapingStitch(kind, shaping.parts[kind], shaping.n), kind)),
-        item(INVISIBLE_DECREASE),
-      ];
+      return SHAPINGS.map((kind) => item(shapingStitch(kind, shaping.parts[kind], shaping.n), kind));
     }
     return section.stitches.map((def) => item(def));
   };
