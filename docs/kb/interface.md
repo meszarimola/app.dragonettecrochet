@@ -2945,7 +2945,14 @@ work (2026-10-03).
 **A seated stitch carries its cells** (`PlacedStitch.cell`: row, leftmost column,
 span), and its position, turn and size follow from them (`seat`, `src/core/seat.ts`):
 in the middle of its cells, its foot on the row's bottom line, upright. The click's
-exact spot does not matter, only the cell it falls in. The foot is the symbol's
+exact spot does not matter, only the cell it falls in.
+
+**A chain is the one exception (PQW-1175):** the middle of its ink sits in the
+middle of the row's upper half, three quarters of the row's height above its line
+— 30 in a 40 row, higher in a taller one. The owner's request on 1.4.1, „csak a
+chain! a többi ne”: a chain space and every other stitch keep their foot on the
+line. A chain never makes its row taller than a cell, so lifting it moves nothing
+else. The foot is the symbol's
 ink, measured (`Footprint`: width, height, and how far the ink reaches below the
 point the symbol is drawn around), since a symbol's ink need not be centred on it.
 

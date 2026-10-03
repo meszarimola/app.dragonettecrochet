@@ -2,7 +2,7 @@
 
 import { type FreeformChart, type PlacedStitch, type SeatedCell, unseated } from './freeform.ts';
 import { type Cell, GRID_CELL, type RowHeights, rowBottoms } from './grid.ts';
-import { findStitch } from './stitches.ts';
+import { CHAIN, findStitch } from './stitches.ts';
 import type { StitchDefId } from './types.ts';
 
 /**
@@ -101,13 +101,15 @@ export function placeInGrid(
 
 /**
  * Puts every seated stitch where its cells say: in the middle of them, its foot
- * on the row's bottom line, upright, shrunk to their width if it is wider.
- * The chart itself comes back when nothing moved.
+ * on the row's bottom line — a chain in the middle of the row's upper half —
+ * upright, shrunk to their width if it is wider. The chart itself comes back
+ * when nothing moved. KB: interface.md §91
  */
 export function seat(chart: FreeformChart, size: NaturalSize): FreeformChart {
   const grid = chart.grid;
   if (grid === undefined) return chart;
-  const bottoms = rowBottoms(grid, rowHeights(chart, size));
+  const heights = rowHeights(chart, size);
+  const bottoms = rowBottoms(grid, heights);
   let moved = false;
   const stitches = chart.stitches.map((placed) => {
     const { cell } = placed;
@@ -120,7 +122,8 @@ export function seat(chart: FreeformChart, size: NaturalSize): FreeformChart {
     const ink = size(placed);
     const scale = fitScale(ink, cell);
     const x = (cell.col + cell.span / 2) * GRID_CELL;
-    const y = bottom - ink.drop * scale;
+    const lift = placed.stitch === CHAIN.id ? 0.75 * (heights[cell.row] ?? GRID_CELL) - (ink.height / 2) * scale : 0;
+    const y = bottom - ink.drop * scale - lift;
     if (placed.x === x && placed.y === y && placed.rotation === 0 && placed.scale === scale) return placed;
     moved = true;
     return { ...placed, x, y, rotation: 0, scale };
