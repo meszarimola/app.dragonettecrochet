@@ -2945,7 +2945,16 @@ work (2026-10-03).
 **A seated stitch carries its cells** (`PlacedStitch.cell`: row, leftmost column,
 span), and its position, turn and size follow from them (`seat`, `src/core/seat.ts`):
 in the middle of its cells, its foot on the row's bottom line, upright. The click's
-exact spot does not matter, only the cell it falls in.
+exact spot does not matter, only the cell it falls in. The foot is the symbol's
+ink, measured (`Footprint`: width, height, and how far the ink reaches below the
+point the symbol is drawn around), since a symbol's ink need not be centred on it.
+
+**The board is only ever shown a seated chart** (`seated` in `main.ts`): on every
+commit, but also on undo and redo, on opening a stored chart, during a drag and
+for an arrangement's result. The row heights are worked out from the stitches on
+every draw, so a chart shown unseated — a step recorded under the other symbol
+style, a tall stitch dragged out of its row — would draw rows the stitches do not
+stand on (/code-review, PQW-1172).
 
 **How many cells.** As many as the symbol has parts (`cellSpan`): a group's members,
 a joined stitch's parts, otherwise one — a shell of five is 5, a V-stitch 3 (dc,
