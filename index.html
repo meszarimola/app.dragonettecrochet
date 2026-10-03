@@ -115,9 +115,8 @@
                   <span class="menu__arrow" aria-hidden="true">›</span>
                 </button>
                 <div class="menu menu--sub" id="new-regular-menu" role="menu" aria-label="Regular design" data-i18n-label="newRegular" hidden>
-                  <button type="button" class="menu__item" id="new-rectangular" role="menuitem" tabindex="-1" aria-disabled="true">
+                  <button type="button" class="menu__item" id="new-rectangular" role="menuitem" tabindex="-1" aria-haspopup="dialog">
                     <span data-i18n="newRectangular">Rectangular</span>
-                    <span class="menu__soon" data-i18n="newSoon">Coming soon</span>
                   </button>
                   <button type="button" class="menu__item" id="new-granny" role="menuitem" tabindex="-1" aria-disabled="true">
                     <span data-i18n="newGranny">Granny square</span>
@@ -308,6 +307,26 @@
         </aside>
       </main>
     </div>
+
+    <dialog class="dialog" id="grid-dialog" aria-labelledby="grid-dialog-title">
+      <form class="dialog__form" id="grid-form" method="dialog" novalidate>
+        <h2 class="dialog__title" id="grid-dialog-title" data-i18n="gridDialogTitle">Rectangular</h2>
+        <p class="dialog__field">
+          <label for="grid-stitches" data-i18n="gridStitchesLabel">Stitches per row</label>
+          <input class="dialog__input" id="grid-stitches" type="text" inputmode="numeric" autocomplete="off" value="20" aria-describedby="grid-stitches-error" />
+          <span class="dialog__error" id="grid-stitches-error" aria-live="polite"></span>
+        </p>
+        <p class="dialog__field">
+          <label for="grid-rows" data-i18n="gridRowsLabel">Rows</label>
+          <input class="dialog__input" id="grid-rows" type="text" inputmode="numeric" autocomplete="off" value="20" aria-describedby="grid-rows-error" />
+          <span class="dialog__error" id="grid-rows-error" aria-live="polite"></span>
+        </p>
+        <div class="dialog__buttons">
+          <button type="button" class="dialog__button" id="grid-cancel" data-i18n="gridCancel">Cancel</button>
+          <button type="submit" class="dialog__button dialog__button--main" id="grid-create" data-i18n="gridCreate">Create</button>
+        </div>
+      </form>
+    </dialog>
 
     <script type="module" src="/src/ui/main.ts"></script>
   </body>

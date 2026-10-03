@@ -1,3 +1,4 @@
+import { gridFrom, type RectGrid } from './grid.ts';
 import { CHAIN, findStitch } from './stitches.ts';
 import type { StitchDefId } from './types.ts';
 
@@ -14,6 +15,8 @@ export interface PlacedStitch {
 export interface FreeformChart {
   readonly stitches: readonly PlacedStitch[];
   readonly nextId: number;
+  /** The regular design's guide grid; a free-form chart has none. */
+  readonly grid?: RectGrid;
 }
 
 export interface Point {
@@ -52,6 +55,7 @@ export function sameChart(a: FreeformChart, b: FreeformChart): boolean {
   return (
     a === b ||
     (a.nextId === b.nextId &&
+      sameGrid(a.grid, b.grid) &&
       a.stitches.length === b.stitches.length &&
       a.stitches.every((placed, i) => {
         const other = b.stitches[i];
@@ -68,6 +72,10 @@ export function sameChart(a: FreeformChart, b: FreeformChart): boolean {
   );
 }
 
+function sameGrid(a: RectGrid | undefined, b: RectGrid | undefined): boolean {
+  return a === b || (a !== undefined && b !== undefined && a.rows.join() === b.rows.join());
+}
+
 export function chartToJson(chart: FreeformChart): string {
   return JSON.stringify(chart);
 }
@@ -82,15 +90,17 @@ export function chartFromJson(text: string | null): FreeformChart | null {
     return null;
   }
   if (typeof data !== 'object' || data === null) return null;
-  const { stitches, nextId } = data as Record<string, unknown>;
+  const { stitches, nextId, grid } = data as Record<string, unknown>;
   if (!Array.isArray(stitches) || !finite(nextId) || !Number.isInteger(nextId)) return null;
+  const readGrid = grid === undefined ? undefined : gridFrom(grid);
+  if (readGrid === null) return null;
   const read: PlacedStitch[] = [];
   for (const value of stitches) {
     const placed = placedFrom(value);
     if (placed === null || placed.id >= nextId || read.some(({ id }) => id === placed.id)) return null;
     read.push(placed);
   }
-  return { stitches: read, nextId };
+  return readGrid === undefined ? { stitches: read, nextId } : { stitches: read, nextId, grid: readGrid };
 }
 
 function placedFrom(value: unknown): PlacedStitch | null {
@@ -109,6 +119,7 @@ export function finite(value: unknown): value is number {
 
 export function placeStitch(chart: FreeformChart, stitch: StitchDefId, x: number, y: number): FreeformChart {
   return {
+    ...chart,
     stitches: [...chart.stitches, { id: chart.nextId, stitch, x, y, rotation: 0, scale: 1 }],
     nextId: chart.nextId + 1,
   };
@@ -137,7 +148,7 @@ export function placeStitches(
     return { id: chart.nextId + i, stitch, x: point.x, y: point.y, rotation: 0, scale: 1 };
   });
   const ids = new Set(added.map(({ id }) => id));
-  const laid = { stitches: [...chart.stitches, ...added], nextId: chart.nextId + n };
+  const laid = { ...chart, stitches: [...chart.stitches, ...added], nextId: chart.nextId + n };
   const row = n === 1 ? laid : arrangeStitches(laid, ids, 'row', extent, { gap, radius: 0, angle: 0, facing: 'feet' });
   const [dx, dy] = boundedMove(row, ids, 0, 0, bounds);
   const next = moveStitches(row, ids, dx, dy);
@@ -356,7 +367,7 @@ export function pasteStitches(
     y: placed.y + sy,
   }));
   return {
-    chart: { stitches: [...chart.stitches, ...pasted], nextId: chart.nextId + pasted.length },
+    chart: { ...chart, stitches: [...chart.stitches, ...pasted], nextId: chart.nextId + pasted.length },
     ids: new Set(pasted.map(({ id }) => id)),
     copied: pasted,
   };

@@ -25,10 +25,16 @@ export interface NewMenuParts {
   readonly regular: HTMLButtonElement;
   readonly submenu: HTMLElement;
   readonly shapes: readonly HTMLButtonElement[];
+  readonly rectangular: HTMLButtonElement;
 }
 
-export function bindNewMenu(parts: NewMenuParts, onFreeform: () => void): void {
-  const { root, button, menu, freeform, regular, submenu, shapes: sub } = parts;
+export interface NewMenuChoices {
+  readonly freeform: () => void;
+  readonly rectangular: () => void;
+}
+
+export function bindNewMenu(parts: NewMenuParts, choose: NewMenuChoices): void {
+  const { root, button, menu, freeform, regular, submenu, shapes: sub, rectangular } = parts;
   const top = [freeform, regular];
   const folded = window.matchMedia('(width < 40rem)');
   let swallowClick = false;
@@ -64,11 +70,17 @@ export function bindNewMenu(parts: NewMenuParts, onFreeform: () => void): void {
     event.stopPropagation();
   });
 
-  freeform.addEventListener('click', () => {
-    setOpen(false);
-    button.focus();
-    onFreeform();
-  });
+  // „New” takes the focus first, so a dialog the choice opens gives it back there and not to a hidden item.
+  for (const [item, chosen] of [
+    [freeform, choose.freeform],
+    [rectangular, choose.rectangular],
+  ] as const) {
+    item.addEventListener('click', () => {
+      setOpen(false);
+      button.focus();
+      chosen();
+    });
+  }
   freeform.addEventListener('pointerenter', () => setSub(false));
   regular.addEventListener('click', () => {
     if (folded.matches && !submenu.hidden) setSub(false);

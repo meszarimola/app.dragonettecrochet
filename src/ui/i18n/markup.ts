@@ -64,6 +64,11 @@ export const MARKUP_TEXTS = {
     placeTitle: 'Lerakás',
     placeCountLabel: 'Darabszám',
     placePartsLabel: 'Szemek száma',
+    gridDialogTitle: 'Téglalap',
+    gridStitchesLabel: 'Szemek száma',
+    gridRowsLabel: 'Sorok száma',
+    gridCancel: 'Mégse',
+    gridCreate: 'Létrehozás',
   },
   en: {
     docTitle: 'Free Crochet Pattern Designer & Chart Maker — Dragonette',
@@ -120,5 +125,10 @@ export const MARKUP_TEXTS = {
     placeTitle: 'Placing',
     placeCountLabel: 'Count',
     placePartsLabel: 'Number of stitches',
+    gridDialogTitle: 'Rectangular',
+    gridStitchesLabel: 'Stitches per row',
+    gridRowsLabel: 'Rows',
+    gridCancel: 'Cancel',
+    gridCreate: 'Create',
   },
 } satisfies Dictionary<Record<string, string>>;

@@ -1,13 +1,16 @@
 /*
  * New is a menu (PQW-1165): free-form design starts the chart, regular design
- * opens a submenu of five shapes that are shown but not yet available.
+ * opens a submenu of five shapes. Rectangular is available (PQW-1168); the
+ * other four are shown but not yet available.
  */
 
 import { expect, type Locator, type Page, test } from '@playwright/test';
 
-const SHAPES = ['Rectangular', 'Granny square', 'Triangle', 'Semicircle', 'Circle'];
+const SHAPES = ['Granny square', 'Triangle', 'Semicircle', 'Circle'];
 
-test('New opens the menu, and the regular shapes are listed but disabled', async ({ page }) => {
+test('New opens the menu, Rectangular is available and the other regular shapes are listed but disabled', async ({
+  page,
+}) => {
   await page.goto('/');
   const newButton = page.getByRole('button', { name: 'New' });
   const regular = page.getByRole('menuitem', { name: 'Regular design' });
@@ -20,6 +23,9 @@ test('New opens the menu, and the regular shapes are listed but disabled', async
 
   await regular.click();
   await expect(regular).toHaveAttribute('aria-expanded', 'true');
+  const rectangular = page.getByRole('menuitem', { name: 'Rectangular' });
+  await expect(rectangular, 'Rectangular is listed').toBeVisible();
+  await expect(rectangular, 'Rectangular is available').not.toHaveAttribute('aria-disabled', 'true');
   for (const shape of SHAPES) {
     const item = page.getByRole('menuitem', { name: new RegExp(`^${shape}`) });
     await expect(item, `${shape} is listed`).toBeVisible();
