@@ -336,3 +336,14 @@ test('every increase and decrease the menu can build has a finite symbol, wider 
     }
   }
 });
+
+test('an ellipse’s box is its own, turned with it, not a circle of the larger radius (PQW-1163)', () => {
+  const chain = shapeBounds(symbolShapes(stitchById('ch')));
+  assert.equal(chain.maxX - chain.minX, 18, 'a chain is 2 × 9 wide');
+  assert.equal(chain.maxY - chain.minY, 10, 'and 2 × 5 tall, so its top is the top of the oval');
+  const ellipse = (rotation) => [{ kind: 'ellipse', role: 'chain', center: { x: 0, y: 0 }, rx: 9, ry: 5, rotation }];
+  const upright = shapeBounds(ellipse(Math.PI / 2));
+  assert.ok(Math.abs(upright.maxX - 5) < 1e-9 && Math.abs(upright.maxY - 9) < 1e-9, 'turned a quarter, it stands');
+  const slanted = shapeBounds(ellipse(Math.PI / 4));
+  assert.ok(Math.abs(slanted.maxX - Math.hypot(9, 5) / Math.SQRT2) < 1e-9, 'turned an eighth, it touches its box');
+});

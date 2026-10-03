@@ -396,6 +396,16 @@ rather than smaller. The browser tests measure with it whether the arrow or a ro
 caption covers a stitch (PQW-916), and for an overlap check, too large is the
 safe direction.
 
+**An ellipse is the exception: its box is exact** (PQW-1163). It used to be a
+circle of the larger radius, so a chain — an oval lying flat, 9 by 5 — had a box
+as tall as it is wide. The free-form board stands and hangs stitches by this
+box (§83), so a chain hung from the tops sat (9 − 5) × 1.5 px too low, and the
+owner saw it: „a chain ovális tetejének a legfelső pontja legyen egy vonalban a
+hdc/dc meg a többi tetejével”. The box is now the turned ellipse's own
+(`hypot(rx cos θ, ry sin θ)` across, `hypot(rx sin θ, ry cos θ)` down). That is
+never smaller than what is drawn, so the rule above still holds; it only stops
+being larger than it needs to be.
+
 ## §24 The grid editor is a keyboard grid, and its rows run bottom-up
 
 The editor is a `role="grid"` with roving `tabindex`: arrows move, space or Enter
