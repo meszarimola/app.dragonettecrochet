@@ -435,23 +435,22 @@ body.is-armed #board {
   padding: 3px;
   border: 1px solid var(--c-line);
   border-radius: var(--radius-pill);
+}
+
+.facing__side {
+  min-block-size: 44px;
+  border: 0;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--c-text-soft);
   font-size: 0.8125rem;
 }
 
-.facing:hover {
-  border-color: var(--c-accent);
+.facing__side:hover {
+  color: var(--c-accent);
 }
 
-.facing__side {
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-pill);
-}
-
-.facing[aria-checked="false"] .facing__side--feet,
-.facing[aria-checked="true"] .facing__side--tops {
+.facing__side[aria-pressed="true"] {
   background: var(--c-selection);
   color: var(--c-accent);
   font-weight: 700;
@@ -459,7 +458,7 @@ body.is-armed #board {
 
 /* KB: interface.md §83 */
 .dial {
-  --dial-size: 8rem;
+  --dial-size: 7.75rem;
   position: relative;
   justify-self: center;
   inline-size: var(--dial-size);

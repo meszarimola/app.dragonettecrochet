@@ -9,6 +9,7 @@ import {
   copyStitches,
   deleteStitches,
   emptyChart,
+  type Facing,
   type FreeformChart,
   moveStitches,
   type PlacedStitch,
@@ -71,7 +72,10 @@ const angleDial = new AngleDial(
   must<SVGPathElement>('#arrange-dial-arc'),
   () => rearrange('around'),
 );
-const facingSwitch = must<HTMLButtonElement>('#arrange-facing');
+const facingButtons: Readonly<Record<Facing, HTMLButtonElement>> = {
+  feet: must<HTMLButtonElement>('#arrange-facing-feet'),
+  tops: must<HTMLButtonElement>('#arrange-facing-tops'),
+};
 const PASTE_STEP = 20;
 
 let chartStyle: ChartStyle = readChartStyle(read(NOTATION_KEY));
@@ -79,6 +83,7 @@ let chart: FreeformChart | null = null;
 let tool: StitchDefId | null = null;
 let selecting = false;
 let clipboard: readonly PlacedStitch[] = [];
+let facing: Facing = 'feet';
 // KB: interface.md §83
 let arranged: {
   readonly arrangement: Arrangement;
@@ -126,12 +131,26 @@ redoButton.addEventListener('click', () => step(redo));
 selectButton.addEventListener('click', () => setSelecting(!selecting));
 duplicateButton.addEventListener('click', () => duplicateSelection());
 deleteButton.addEventListener('click', () => deleteSelection());
-arrangeButtons.row.addEventListener('click', () => arrange('row'));
-arrangeButtons.around.addEventListener('click', () => arrange('around'));
-facingSwitch.addEventListener('click', () => {
-  facingSwitch.setAttribute('aria-checked', String(facingSwitch.getAttribute('aria-checked') !== 'true'));
-  rearrange('around');
+arrangeButtons.row.addEventListener('click', () => {
+  arrange('row');
 });
+arrangeButtons.around.addEventListener('click', () => {
+  arrange('around');
+});
+for (const side of ['feet', 'tops'] as const) {
+  facingButtons[side].addEventListener('click', () => {
+    if (side === facing || arranged?.arrangement !== 'around') return;
+    const was = facing;
+    facing = side;
+    if (!arrange('around')) facing = was;
+    showFacing();
+  });
+}
+
+function showFacing(): void {
+  for (const side of ['feet', 'tops'] as const)
+    facingButtons[side].setAttribute('aria-pressed', String(side === facing));
+}
 const gap = bindPair(must<HTMLInputElement>('#arrange-gap-range'), must<HTMLInputElement>('#arrange-gap'), () =>
   rearrange('row'),
 );
@@ -141,26 +160,28 @@ const radius = bindPair(
   () => rearrange('around'),
 );
 
-function arrange(arrangement: Arrangement): void {
-  if (chart === null || board.selected.size === 0 || board.dragging) return;
+/** Whether the arrangement was taken. */
+function arrange(arrangement: Arrangement): boolean {
+  if (chart === null || board.selected.size === 0 || board.dragging) return false;
   const ids = new Set(board.selected);
   const base = arranged !== null && untouchedSince(arranged) ? arranged.base : chart;
   const options = {
     gap: gap.value,
     radius: radius.value,
     angle: (angleDial.value * Math.PI) / 180,
-    facing: facingSwitch.getAttribute('aria-checked') === 'true' ? ('tops' as const) : ('feet' as const),
+    facing,
   };
   const next = arrangeStitches(base, ids, arrangement, (placed) => board.extentOf(placed), options);
   const [dx, dy] = boundedMove(next, ids, 0, 0, board.size());
   const result = moveStitches(next, ids, dx, dy);
-  if (!allInside(result, ids, board.size())) return;
+  if (!allInside(result, ids, board.size())) return false;
   const continued = arranged !== null && base === arranged.base;
   chart = result;
   arranged = { arrangement, ids, base, result };
   showOptions();
   board.show(chart, symbolOptionsFor(chartStyle));
   commit(continued);
+  return true;
 }
 
 function rearrange(arrangement: Arrangement): void {

@@ -343,25 +343,23 @@ function row(items: readonly Sized[], middle: Point, gap: number): PlacedStitch[
   });
 }
 
-/** The stitches' centres are centred on `middle`, whatever the spread. */
 /**
- * `direction` runs from the shared point to each stitch, the first stitch on
- * the left: with the feet facing the point the stitches stand above it and turn
- * clockwise, with the tops facing it they hang below it and turn the other way.
+ * The stitches' centres are centred on `middle`, whatever the spread. With the
+ * tops facing the point the layout is the feet one mirrored top to bottom.
  */
 function around(items: readonly Sized[], middle: Point, { radius, angle, facing }: ArrangeOptions): PlacedStitch[] {
   const n = items.length;
   const step = n > 1 ? Math.min(angle / (n - 1), (Math.PI * 2) / n) : 0;
-  const half = (step * (n - 1)) / 2;
-  const tops = facing === 'tops';
+  const first = -Math.PI / 2 - (step * (n - 1)) / 2;
+  const mirror = facing === 'tops' ? -1 : 1;
   const stood = items.map(({ stitch, size }, i) => {
-    const direction = tops ? Math.PI / 2 + half - step * i : -Math.PI / 2 - half + step * i;
+    const direction = first + step * i;
     const reach = radius + size.halfHeight;
     return {
       ...stitch,
       x: Math.cos(direction) * reach,
-      y: Math.sin(direction) * reach,
-      rotation: direction + (tops ? -Math.PI / 2 : Math.PI / 2),
+      y: mirror * Math.sin(direction) * reach,
+      rotation: mirror * (direction + Math.PI / 2),
     };
   });
   const xs = stood.map(({ x }) => x);

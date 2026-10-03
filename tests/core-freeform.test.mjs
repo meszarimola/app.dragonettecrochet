@@ -426,3 +426,19 @@ test('the facing changes nothing for a row', () => {
     arrangeStitches(chart, ALL, 'row', EXTENT, OPTIONS),
   );
 });
+
+test('with the tops facing it, a full circle is the feet one mirrored: evenly round, the first and the last apart', () => {
+  const four = new Set([1, 2, 3, 4]);
+  const chart = chartOf([0, 0], [50, 0], [100, 0], [150, 0]);
+  const whole = { ...OPTIONS, angle: (359 * Math.PI) / 180 };
+  const feet = arrangeStitches(chart, four, 'around', EXTENT, whole).stitches;
+  const tops = arrangeStitches(chart, four, 'around', EXTENT, { ...whole, facing: 'tops' }).stitches;
+  const middleY = (stitches) => (Math.min(...stitches.map(({ y }) => y)) + Math.max(...stitches.map(({ y }) => y))) / 2;
+  tops.forEach((placed, i) => {
+    close(placed.x, feet[i].x, 'the same across');
+    close(placed.y - middleY(tops), -(feet[i].y - middleY(feet)), 'mirrored up and down');
+    close(placed.rotation, -feet[i].rotation, 'turned the other way');
+  });
+  const turns = tops.map(({ rotation }) => rotation);
+  for (let i = 1; i < turns.length; i += 1) close(turns[i - 1] - turns[i], Math.PI / 2, 'a quarter turn apart');
+});

@@ -228,10 +228,10 @@
               </div>
               <div class="arrange__setting" role="group" aria-labelledby="arrange-facing-label">
                 <span class="arrange__label" id="arrange-facing-label" data-i18n="arrangeFacingLabel">Facing the point</span>
-                <button type="button" class="facing" id="arrange-facing" role="switch" aria-checked="false" aria-labelledby="arrange-facing-label arrange-facing-tops">
-                  <span class="facing__side facing__side--feet" data-i18n="arrangeFacingFeet">Feet</span>
-                  <span class="facing__side facing__side--tops" id="arrange-facing-tops" data-i18n="arrangeFacingTops">Tops</span>
-                </button>
+                <div class="facing">
+                  <button type="button" class="facing__side" id="arrange-facing-feet" aria-pressed="true" data-i18n="arrangeFacingFeet">Feet</button>
+                  <button type="button" class="facing__side" id="arrange-facing-tops" aria-pressed="false" data-i18n="arrangeFacingTops">Tops</button>
+                </div>
               </div>
             </div>
           </section>

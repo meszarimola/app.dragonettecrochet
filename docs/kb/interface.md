@@ -2434,7 +2434,7 @@ stitches selected it offers two arrangements side by side (`arrangeStitches`,
   the first stitch to the last, and the result is centred where the selection
   was.
 
-**Feet or tops towards the point** (PQW-1152). A switch under the dial —
+**Feet or tops towards the point** (PQW-1152). A toggle under the dial —
 „A pont felé: Talp | Csúcs” — chooses which end faces the shared point. With the
 tops facing it the stitches hang below the point, tops in and feet spread, as in
 a cluster or a decrease worked together; `radius` then runs from the point to
@@ -2442,11 +2442,15 @@ each top, so stitches of mixed heights still meet. The owner first asked whether
 a negative radius would do it; it was turned down because the right value is
 `−(the stitch's height + the gap)`, which nobody can type, mixed heights would
 not meet, and between 0 and minus a stitch's height the stitches cross the point
-in an X. The switch is `role="switch"`, named by its label and its „on” side
-(„A pont felé Csúcs”), because „A pont felé, ki” does not say what „be” would be.
+in an X. The toggle looks like one pill but is two buttons with `aria-pressed` in a
+group named „A pont felé”. As a single switch, a press on the side already
+lit flipped it to the other, and a screen reader never said „Talp”. A side is
+lit only once its arrangement is taken. The tops layout is the feet one
+mirrored top to bottom around the same middle, so it takes the same room on the
+board.
 At the default radius of 24 the wide top bars of neighbouring doubles touch with
-the tops in. Both ends share one default; whether the tops want a larger one
-was put to the owner in PQW-1152 and is not decided.
+the tops in; asked in PQW-1152, the owner chose one default for both ends
+all the same.
 
 **There is no circle.** PQW-1146 had „Körbe” beside „Legyezőbe”; the owner saw
 they did the same thing with other angles, dropped the circle and renamed the
