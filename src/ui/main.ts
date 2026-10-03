@@ -11,13 +11,16 @@ import {
   emptyChart,
   type Facing,
   type FreeformChart,
+  MAX_COUNT,
+  MIN_COUNT,
   moveStitches,
   type PlacedStitch,
   pasteStitches,
-  placeStitch,
+  placeStitches,
   sameChart,
 } from '../core/freeform.ts';
 import { amend, canRedo, canUndo, createHistory, type History, record, redo, undo } from '../core/history.ts';
+import { STITCH_SECTIONS } from '../core/stitches.ts';
 import type { ChartStyle, StitchDef, StitchDefId } from '../core/types.ts';
 import { FreeformBoard } from './freeform-board.ts';
 import {
@@ -76,7 +79,11 @@ const facingButtons: Readonly<Record<Facing, HTMLButtonElement>> = {
   feet: must<HTMLButtonElement>('#arrange-facing-feet'),
   tops: must<HTMLButtonElement>('#arrange-facing-tops'),
 };
+const placeOptions = must<HTMLElement>('#place-options');
 const PASTE_STEP = 20;
+// KB: interface.md §85 — the "In a row" arrangement's default spacing.
+const PLACE_GAP = Number(must<HTMLInputElement>('#arrange-gap').defaultValue);
+const COUNTED = new Set(STITCH_SECTIONS.find(({ id }) => id === 'basic')?.stitches.map(({ id }) => id));
 
 let chartStyle: ChartStyle = readChartStyle(read(NOTATION_KEY));
 let chart: FreeformChart | null = null;
@@ -102,9 +109,13 @@ const buttons = new Map<StitchDefId, HTMLButtonElement>();
 const ink = readInk(document.documentElement);
 
 const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAccent(document.documentElement), {
-  place: ({ x, y }) => {
+  place: (point) => {
     if (chart === null || tool === null) return;
-    chart = placeStitch(chart, tool, x, y);
+    const n = COUNTED.has(tool) ? placeCount.value : 1;
+    const extent = (placed: PlacedStitch) => board.extentOf(placed);
+    const placed = placeStitches(chart, tool, point, n, extent, PLACE_GAP, board.size());
+    if (placed === null) return;
+    chart = placed.chart;
     board.show(chart, symbolOptionsFor(chartStyle));
     commit();
   },
@@ -154,6 +165,10 @@ function showFacing(): void {
 const gap = bindPair(must<HTMLInputElement>('#arrange-gap-range'), must<HTMLInputElement>('#arrange-gap'), () =>
   rearrange('row'),
 );
+const placeCountRange = must<HTMLInputElement>('#place-count-range');
+placeCountRange.min = String(MIN_COUNT);
+placeCountRange.max = String(MAX_COUNT);
+const placeCount = bindPair(placeCountRange, must<HTMLInputElement>('#place-count'), () => {}, true);
 const radius = bindPair(
   must<HTMLInputElement>('#arrange-radius-range'),
   must<HTMLInputElement>('#arrange-radius'),
@@ -412,6 +427,7 @@ function select(id: StitchDefId | null): void {
   tool = id;
   for (const [stitchId, button] of buttons) button.setAttribute('aria-pressed', String(stitchId === id));
   document.body.classList.toggle('is-armed', id !== null);
+  placeOptions.hidden = id === null || !COUNTED.has(id);
   if (id !== null) {
     buttons.get(id)?.scrollIntoView({ block: 'nearest' });
     setSelecting(false);

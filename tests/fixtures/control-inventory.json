@@ -12,6 +12,8 @@
   {"id":"delete-selection","tag":"button","type":"button"},
   {"id":"duplicate-selection","tag":"button","type":"button"},
   {"id":"new-chart","tag":"button","type":"button"},
+  {"id":"place-count","tag":"input","type":"text"},
+  {"id":"place-count-range","tag":"input","type":"range"},
   {"id":"redo","tag":"button","type":"button"},
   {"id":"select-tool","tag":"button","type":"button"},
   {"id":"ui-language","tag":"select","type":""},

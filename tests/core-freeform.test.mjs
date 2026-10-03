@@ -18,11 +18,14 @@ import {
   deleteStitches,
   emptyChart,
   frameHolds,
+  MAX_COUNT,
   MAX_SCALE,
+  MIN_COUNT,
   MIN_SCALE,
   moveStitches,
   pasteStitches,
   placeStitch,
+  placeStitches,
   rotateStitches,
   sameChart,
   scaleStitches,
@@ -441,4 +444,67 @@ test('with the tops facing it, a full circle is the feet one mirrored: evenly ro
   });
   const turns = tops.map(({ rotation }) => rotation);
   for (let i = 1; i < turns.length; i += 1) close(turns[i - 1] - turns[i], Math.PI / 2, 'a quarter turn apart');
+});
+
+const PLACE_BOARD = { width: 1000, height: 600 };
+
+test('one counted stitch is placed exactly where a single one would be', () => {
+  const chart = chartOf([10, 10]);
+  const placed = placeStitches(chart, 'dc', { x: 120, y: 80 }, 1, EXTENT, 4, PLACE_BOARD);
+  assert.deepEqual(placed.chart, placeStitch(chart, 'dc', 120, 80));
+  assert.deepEqual([...placed.ids], [2]);
+});
+
+test('a count lays that many stitches in an upright row, the gap apart, centred on the point', () => {
+  const { chart, ids } = placeStitches(chartOf([10, 10]), 'dc', { x: 200, y: 100 }, 3, EXTENT, 4, PLACE_BOARD);
+  assert.equal(chart.stitches.length, 4);
+  assert.equal(chart.nextId, 5);
+  assert.deepEqual([...ids], [2, 3, 4]);
+  const placed = chart.stitches.slice(1);
+  assert.deepEqual(
+    placed.map(({ id, stitch }) => [id, stitch]),
+    [
+      [2, 'dc'],
+      [3, 'dc'],
+      [4, 'dc'],
+    ],
+  );
+  close(placed[1].x - placed[0].x, 10 + 4, 'one stitch and one gap apart');
+  close(placed[2].x - placed[1].x, 10 + 4, 'one stitch and one gap apart');
+  close(placed[1].x, 200, 'centred on the point');
+  for (const stitch of placed) {
+    close(stitch.y, 100, 'on the line of the point');
+    close(stitch.rotation, 0, 'upright');
+  }
+  assert.deepEqual(chart.stitches[0], chartOf([10, 10]).stitches[0], 'the stitch already there stays');
+});
+
+test('a count below 1 lays one stitch, and one above 10 lays ten', () => {
+  assert.equal(MIN_COUNT, 1);
+  assert.equal(MAX_COUNT, 10);
+  for (const [count, laid] of [
+    [0, 1],
+    [-3, 1],
+    [Number.NaN, 1],
+    [2.7, 2],
+    [10, 10],
+    [11, 10],
+    [999, 10],
+  ]) {
+    const placed = placeStitches(emptyChart(), 'sc', { x: 500, y: 300 }, count, EXTENT, 4, PLACE_BOARD);
+    assert.equal(placed.chart.stitches.length, laid, String(count));
+  }
+});
+
+test('a row clicked near an edge is shifted back on the board, its spacing kept', () => {
+  const { chart } = placeStitches(emptyChart(), 'sc', { x: 990, y: 300 }, 5, EXTENT, 4, PLACE_BOARD);
+  const xs = chart.stitches.map(({ x }) => x);
+  close(Math.max(...xs), 1000, 'the last centre stops at the right edge');
+  close(xs[1] - xs[0], 10 + 4, 'the spacing is kept');
+});
+
+test('a row wider than the board is not laid', () => {
+  const narrow = { width: 50, height: 600 };
+  assert.equal(placeStitches(emptyChart(), 'sc', { x: 25, y: 300 }, 10, EXTENT, 4, narrow), null);
+  assert.notEqual(placeStitches(emptyChart(), 'sc', { x: 25, y: 300 }, 1, EXTENT, 4, narrow), null);
 });

@@ -732,6 +732,13 @@ body.is-armed #board {
     display: none;
   }
 
+  /* KB: interface.md §85 */
+  .inspector:has(> #place-options:not([hidden])) {
+    inset-block-end: auto;
+    border-block-end: 1px solid var(--c-line);
+    border-end-start-radius: var(--radius-md);
+  }
+
   .bar__title,
   .home > span {
     position: absolute;
