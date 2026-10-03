@@ -68,7 +68,8 @@ export interface BoardHost {
   settled(): void;
   /** Called whenever the selected set changes, not only its size. */
   selectionChanged(count: number): void;
-  viewChanged(zoom: number): void;
+  /** A pan as well as a zoom. */
+  viewChanged(view: View): void;
 }
 
 type Drag =
@@ -211,6 +212,10 @@ export class FreeformBoard {
     this.setView(DEFAULT_VIEW);
   }
 
+  showView(view: View): void {
+    this.setView(view);
+  }
+
   zoomStep(direction: 1 | -1): void {
     this.zoomTo(zoomStep(this.view.zoom, direction));
   }
@@ -219,9 +224,8 @@ export class FreeformBoard {
     const next = clampView(view, this.size(), this.sheet());
     if (next.zoom === this.view.zoom && next.origin.x === this.view.origin.x && next.origin.y === this.view.origin.y)
       return;
-    const zoomed = next.zoom !== this.view.zoom;
     this.view = next;
-    if (zoomed) this.host.viewChanged(next.zoom);
+    this.host.viewChanged(next);
     this.draw();
   }
 

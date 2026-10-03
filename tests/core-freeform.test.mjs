@@ -14,6 +14,8 @@ import {
   arrangeStitches,
   boundedFactor,
   boundedMove,
+  chartFromJson,
+  chartToJson,
   copyStitches,
   deleteStitches,
   emptyChart,
@@ -583,4 +585,40 @@ test('a row wider than the board is not laid', () => {
   const narrow = { minX: 0, minY: 0, maxX: 50, maxY: 600 };
   assert.equal(placeStitches(emptyChart(), 'sc', { x: 25, y: 300 }, 10, EXTENT, 4, narrow), null);
   assert.notEqual(placeStitches(emptyChart(), 'sc', { x: 25, y: 300 }, 1, EXTENT, 4, narrow), null);
+});
+
+test('a chart written for the session reads back the same, shaped stitches and turns included', () => {
+  const placed = placeStitch(placeStitch(chartOf([10, 20]), 'inc-3sc', 40, 50), 'sc2tog', 70, 80);
+  const chart = rotateStitches(placed, new Set([2]), { x: 40, y: 50 }, 0.5);
+  const read = chartFromJson(chartToJson(chart));
+  assert.ok(read !== null && sameChart(read, chart));
+  assert.ok(sameChart(chartFromJson(chartToJson(emptyChart())), emptyChart()));
+});
+
+test('a missing or malformed session chart reads as none', () => {
+  const good = JSON.parse(chartToJson(chartOf([10, 20], [30, 40])));
+  const broken = [
+    null,
+    '',
+    'not json',
+    '[]',
+    '{"stitches":[]}',
+    JSON.stringify({ ...good, nextId: 2 }),
+    JSON.stringify({ ...good, stitches: [good.stitches[0], good.stitches[0]] }),
+    JSON.stringify({ ...good, stitches: [{ ...good.stitches[0], stitch: 'no-such-stitch' }] }),
+    JSON.stringify({ ...good, stitches: [{ ...good.stitches[0], x: 'left' }] }),
+    JSON.stringify({ ...good, stitches: [{ ...good.stitches[0], scale: null }] }),
+    JSON.stringify({ ...good, stitches: [{ ...good.stitches[0], id: 1.5 }] }),
+  ];
+  for (const text of broken) assert.equal(chartFromJson(text), null, String(text));
+});
+
+test('a stitch resized to the limit reads back, its rounding error clamped away', () => {
+  const ids = new Set([1]);
+  const small = scaleStitches(chartOf([40, 40]), ids, { x: 40, y: 40 }, 0.334);
+  const shrunk = scaleStitches(small, ids, { x: 40, y: 40 }, boundedFactor(small, ids, 0));
+  assert.ok(shrunk.stitches[0].scale < MIN_SCALE, 'the resize itself overshoots the limit by a hair');
+  assert.equal(chartFromJson(chartToJson(shrunk))?.stitches[0].scale, MIN_SCALE);
+  const huge = { ...shrunk, stitches: [{ ...shrunk.stitches[0], scale: MAX_SCALE * 2 }] };
+  assert.equal(chartFromJson(chartToJson(huge))?.stitches[0].scale, MAX_SCALE);
 });

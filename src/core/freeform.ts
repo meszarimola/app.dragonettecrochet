@@ -1,4 +1,4 @@
-import { CHAIN } from './stitches.ts';
+import { CHAIN, findStitch } from './stitches.ts';
 import type { StitchDefId } from './types.ts';
 
 export interface PlacedStitch {
@@ -66,6 +66,45 @@ export function sameChart(a: FreeformChart, b: FreeformChart): boolean {
         );
       }))
   );
+}
+
+export function chartToJson(chart: FreeformChart): string {
+  return JSON.stringify(chart);
+}
+
+/** Anything malformed, or a stitch the library cannot draw, reads as no chart at all. KB: interface.md §5 */
+export function chartFromJson(text: string | null): FreeformChart | null {
+  if (text === null) return null;
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (typeof data !== 'object' || data === null) return null;
+  const { stitches, nextId } = data as Record<string, unknown>;
+  if (!Array.isArray(stitches) || !finite(nextId) || !Number.isInteger(nextId)) return null;
+  const read: PlacedStitch[] = [];
+  for (const value of stitches) {
+    const placed = placedFrom(value);
+    if (placed === null || placed.id >= nextId || read.some(({ id }) => id === placed.id)) return null;
+    read.push(placed);
+  }
+  return { stitches: read, nextId };
+}
+
+function placedFrom(value: unknown): PlacedStitch | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const { id, stitch, x, y, rotation, scale } = value as Record<string, unknown>;
+  if (!finite(id) || !Number.isInteger(id) || typeof stitch !== 'string' || findStitch(stitch) === undefined)
+    return null;
+  if (!finite(x) || !finite(y) || !finite(rotation) || !finite(scale)) return null;
+  // A resize to the limit can land a rounding error past it.
+  return { id, stitch, x, y, rotation, scale: Math.min(Math.max(scale, MIN_SCALE), MAX_SCALE) };
+}
+
+export function finite(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
 }
 
 export function placeStitch(chart: FreeformChart, stitch: StitchDefId, x: number, y: number): FreeformChart {

@@ -11,6 +11,7 @@ import { test } from 'node:test';
 import {
   cluster,
   decrease,
+  findStitch,
   increase,
   MAX_SHAPING,
   MIN_SHAPING,
@@ -90,6 +91,12 @@ test('the ids are unique, and every section holds at least one stitch', () => {
 
 test('an unknown id throws', () => {
   assert.throws(() => stitchById('nincs-ilyen'), /Ismeretlen szem: nincs-ilyen/);
+});
+
+test('findStitch answers an unknown id with undefined, and a built shaping like stitchById', () => {
+  assert.equal(findStitch('nincs-ilyen'), undefined);
+  assert.equal(findStitch('inc-9sc'), stitchById('inc-9sc'));
+  assert.equal(findStitch('sc'), stitchById('sc'));
 });
 
 test('every stitch of the documented set is present', () => {

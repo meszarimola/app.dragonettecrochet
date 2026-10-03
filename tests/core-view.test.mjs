@@ -16,6 +16,7 @@ import {
   sheetOf,
   toBoard,
   toScreen,
+  viewFromJson,
   visibleRect,
   ZOOM_STEPS,
   zoomAt,
@@ -107,4 +108,12 @@ test('the zoom steps go up and down from anywhere, and stop at the ends', () => 
   assert.equal(zoomStep(1.7, -1), 1.5);
   assert.equal(zoomStep(MAX_ZOOM, 1), MAX_ZOOM);
   assert.equal(zoomStep(MIN_ZOOM, -1), MIN_ZOOM);
+});
+
+test('a stored view reads back as written; anything else reads as none', () => {
+  const view = { zoom: 2, origin: { x: 640, y: -120 } };
+  assert.deepEqual(viewFromJson(JSON.stringify(view)), view);
+  for (const text of [null, '', 'not json', 'null', '{"zoom":2}', '{"zoom":"2","origin":{"x":0,"y":0}}']) {
+    assert.equal(viewFromJson(text), null, String(text));
+  }
 });
