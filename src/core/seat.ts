@@ -52,7 +52,10 @@ function fitScale({ width }: Footprint, cell: SeatedCell): number {
   return width > 0 ? Math.min(1, (cell.span * GRID_CELL) / width) : 1;
 }
 
-/** A row is as tall as its tallest seated stitch, and never less than a cell. */
+/** The room above a row's tallest stitch, so its top never meets the foot of the row above. KB: interface.md §91 */
+export const ROW_GAP = 8;
+
+/** A row is as tall as its tallest seated stitch and the gap above it, and never less than a cell. */
 export function rowHeights(chart: FreeformChart, size: NaturalSize): RowHeights {
   const heights = (chart.grid?.rows ?? []).map(() => GRID_CELL);
   for (const placed of chart.stitches) {
@@ -60,7 +63,7 @@ export function rowHeights(chart: FreeformChart, size: NaturalSize): RowHeights 
     const current = cell === undefined ? undefined : heights[cell.row];
     if (cell === undefined || current === undefined) continue;
     const ink = size(placed);
-    heights[cell.row] = Math.max(current, ink.height * fitScale(ink, cell));
+    heights[cell.row] = Math.max(current, ink.height * fitScale(ink, cell) + ROW_GAP);
   }
   return heights;
 }

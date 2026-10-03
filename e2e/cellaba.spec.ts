@@ -89,7 +89,7 @@ test('while a tall stitch is dragged out of its row, the rows above follow at on
   await page.mouse.down();
   await page.mouse.move(box.x + 64 + tr.x + 300, box.y + box.height - 24 + tr.y, { steps: 5 });
   const during = (await stitches(page)).find(({ stitch }) => stitch === 'sc')!.y;
-  expect(during, 'row 1 is a cell again, so row 2 comes down with it before the release').toBe(before + (63 - 40));
+  expect(during, 'row 1 is a cell again, so row 2 comes down with it before the release').toBe(before + (63 + 8 - 40));
   await page.mouse.up();
 });
 

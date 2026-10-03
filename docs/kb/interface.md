@@ -2971,10 +2971,14 @@ the same way and stops at the row's end. A row shorter than the span takes nothi
 one covers gives way, in the same undo step. Free stitches and other rows are never
 touched.
 
-**Row height.** A row is as tall as its tallest seated stitch as drawn, and never
-less than a cell (`rowHeights`), so an empty row or a row of chains keeps the
-square. The drawn height, not the turning-chain convention: a dc is 51 units, a tr
-63, and their rows that tall. Every row above moves up with it — the grid, the
+**Row height.** A row is as tall as its tallest seated stitch as drawn plus an
+8-unit gap above it (`ROW_GAP`), and never less than a cell (`rowHeights`), so an
+empty row, a row of chains or of sc (27 + 8) keeps the square. The drawn height,
+not the turning-chain convention: a dc is 51 units and its row 59, a tr 63 and 71.
+**The gap (PQW-1174):** without it a row was exactly its ink, so a dc's top bar lay
+on the line the dc above stood on and the two rows ran together — the owner's
+screenshot on 1.4.0. The owner chose the gap above the stitch, the foot staying on
+the line, and its size. Every row above moves up with it — the grid, the
 numbers and the seated stitches, since `seat` runs on every `commit`, before the
 step is recorded (§84). A symbol wider than its cells is shrunk to their
 width (a chain space, 43.6 wide, in one cell), and its row takes the shrunk height.
