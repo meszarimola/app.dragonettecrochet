@@ -44,7 +44,7 @@ const CORNERS: readonly Point[] = [
   { x: -1, y: 1 },
 ];
 
-export type BoardMode = 'place' | 'select' | 'pan';
+export type BoardMode = 'place' | 'select';
 
 export interface BoardHost {
   place(point: Point): void;
@@ -86,9 +86,12 @@ type Drag =
       readonly base: FreeformChart;
     }
   | { readonly kind: 'area'; readonly start: Point; current: Point; readonly base: ReadonlySet<number> }
-  /** `start` is a screen point: the board under the pointer moves while the view does. */
-  /** Moved step by step from the current view, so a zoom in the middle of a pan is kept. */
-  | { readonly kind: 'pan'; last: Point };
+  /**
+   * Screen points, moved step by step from the current view, so a zoom in the
+   * middle of a pan is kept. A press without a modifier pans only once it leaves
+   * the drag slop, or it is the click that places a stitch.
+   */
+  | { readonly kind: 'pan'; readonly start: Point; last: Point; moved: boolean };
 
 /** The selection frame as it is drawn, with its handles in board coordinates. */
 interface Handles {
@@ -169,7 +172,7 @@ export class FreeformBoard {
     this.mode = mode;
     this.drag = null;
     if (mode === 'place') this.selection.clear();
-    this.canvas.style.cursor = mode === 'pan' ? 'grab' : '';
+    this.canvas.style.cursor = '';
     this.draw();
   }
 
@@ -177,7 +180,7 @@ export class FreeformBoard {
   holdPan(on: boolean): void {
     if (on === this.panHeld) return;
     this.panHeld = on;
-    if (this.drag?.kind !== 'pan') this.canvas.style.cursor = on || this.mode === 'pan' ? 'grab' : '';
+    if (this.drag?.kind !== 'pan') this.canvas.style.cursor = on ? 'grab' : '';
   }
 
   get zoom(): number {
@@ -266,14 +269,17 @@ export class FreeformBoard {
     this.swallowClick = false;
     if (this.chart !== null && event.isPrimary && this.drag === null) {
       const middle = event.button === 1;
-      if (middle || (event.button === 0 && (this.mode === 'pan' || this.panHeld))) {
+      // KB: interface.md §87 — outside „Select” a drag on the drawing moves the view.
+      if (middle || (event.button === 0 && (this.mode === 'place' || this.panHeld))) {
         // The middle button would otherwise start the browser's own scrolling.
         if (middle) event.preventDefault();
-        // Even a pan that never moved: Space may be let go before the button is.
-        this.swallowClick = !middle;
+        const held = middle || this.panHeld;
+        // Even a Space pan that never moved: Space may be let go before the button is.
+        this.swallowClick = this.panHeld && !middle;
         this.canvas.setPointerCapture?.(event.pointerId);
-        this.drag = { kind: 'pan', last: this.screenPoint(event) };
-        this.canvas.style.cursor = 'grabbing';
+        const at = this.screenPoint(event);
+        this.drag = { kind: 'pan', start: at, last: at, moved: held };
+        if (held) this.canvas.style.cursor = 'grabbing';
         return;
       }
     }
@@ -334,6 +340,12 @@ export class FreeformBoard {
     const drag = this.drag;
     if (drag?.kind === 'pan') {
       const at = this.screenPoint(event);
+      if (!drag.moved) {
+        if (distance(at, drag.start) < DRAG_SLOP) return;
+        drag.moved = true;
+        this.swallowClick = true;
+        this.canvas.style.cursor = 'grabbing';
+      }
       this.setView(panBy(this.view, at.x - drag.last.x, at.y - drag.last.y, this.size()));
       drag.last = at;
       return;
@@ -390,7 +402,7 @@ export class FreeformBoard {
     if (drag === null) return;
     this.drag = null;
     if (drag.kind === 'pan') {
-      this.canvas.style.cursor = this.mode === 'pan' || this.panHeld ? 'grab' : '';
+      this.canvas.style.cursor = this.panHeld ? 'grab' : '';
       if (cancelled) this.swallowClick = false;
       return;
     }
