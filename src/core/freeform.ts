@@ -117,6 +117,11 @@ export function selectionFrame(
   };
 }
 
+export function frameHolds(frame: Frame, point: Point): boolean {
+  const local = turn({ x: point.x - frame.center.x, y: point.y - frame.center.y }, -frame.angle);
+  return Math.abs(local.x) <= frame.halfWidth && Math.abs(local.y) <= frame.halfHeight;
+}
+
 function sameAngle(a: number, b: number): boolean {
   const difference = Math.abs(a - b) % (Math.PI * 2);
   return Math.min(difference, Math.PI * 2 - difference) < 1e-9;

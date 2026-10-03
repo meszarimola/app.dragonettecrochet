@@ -5,6 +5,7 @@ import {
   type Extent,
   type Frame,
   type FreeformChart,
+  frameHolds,
   moveStitches,
   type PlacedStitch,
   type Point,
@@ -176,6 +177,7 @@ export class FreeformBoard {
     const chart = this.chart;
     const reach = (placed: PlacedStitch): number => this.reachOf(placed);
     const hit = stitchAt(chart, point, reach);
+    const onSelected = hit !== null && this.selection.has(hit);
     const handles = this.handles();
     if (handles !== null) {
       const { frame } = handles;
@@ -186,7 +188,6 @@ export class FreeformBoard {
       }
       const corner = handles.corners.find((at) => distance(point, at) <= HANDLE_HIT);
       // On a small frame a corner's reach covers the stitch itself; the press then means the stitch.
-      const onSelected = hit !== null && this.selection.has(hit);
       if (corner !== undefined && !(onSelected && distance(point, frame.center) < distance(point, corner))) {
         const offset = { x: corner.x - frame.center.x, y: corner.y - frame.center.y };
         const length = Math.max(1, Math.hypot(offset.x, offset.y));
@@ -198,15 +199,20 @@ export class FreeformBoard {
       }
     }
     const adding = event.shiftKey || event.ctrlKey || event.metaKey;
+    // KB: interface §64
+    if (!adding && !onSelected && handles !== null && frameHolds(handles.frame, point)) {
+      this.drag = { kind: 'move', start: point, base: chart, narrowTo: null, moved: false };
+      return;
+    }
     if (hit !== null) {
-      if (adding && this.selection.has(hit)) {
+      if (adding && onSelected) {
         this.selection.delete(hit);
         this.draw();
         return;
       }
-      const narrowTo = !adding && this.selection.has(hit) && this.selection.size > 1 ? hit : null;
+      const narrowTo = !adding && onSelected && this.selection.size > 1 ? hit : null;
       if (adding) this.selection.add(hit);
-      else if (!this.selection.has(hit)) this.selection = new Set([hit]);
+      else if (!onSelected) this.selection = new Set([hit]);
       this.drag = { kind: 'move', start: point, base: chart, narrowTo, moved: false };
       this.draw();
       return;
@@ -220,7 +226,7 @@ export class FreeformBoard {
     const point = this.point(event);
     const drag = this.drag;
     if (drag === null) {
-      this.hover(point);
+      this.hover(point, event.shiftKey || event.ctrlKey || event.metaKey);
       return;
     }
     if (drag.kind === 'move') {
@@ -277,7 +283,7 @@ export class FreeformBoard {
     this.draw();
   }
 
-  private hover(point: Point): void {
+  private hover(point: Point, adding: boolean): void {
     if (this.mode !== 'select' || this.chart === null) return;
     const handles = this.handles();
     if (handles !== null && distance(point, handles.rotate) <= HANDLE_HIT) {
@@ -292,8 +298,9 @@ export class FreeformBoard {
       this.canvas.style.cursor = sameSign ? 'nwse-resize' : 'nesw-resize';
       return;
     }
-    const hit = stitchAt(this.chart, point, (placed) => this.reachOf(placed));
-    this.canvas.style.cursor = hit === null ? '' : 'move';
+    const inFrame = !adding && handles !== null && frameHolds(handles.frame, point);
+    const hit = inFrame ? null : stitchAt(this.chart, point, (placed) => this.reachOf(placed));
+    this.canvas.style.cursor = inFrame || hit !== null ? 'move' : '';
   }
 
   private symbolOf(placed: PlacedStitch): { shapes: Shape[]; reach: number; extent: Extent } {

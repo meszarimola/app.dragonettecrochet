@@ -16,6 +16,7 @@ import {
   copyStitches,
   deleteStitches,
   emptyChart,
+  frameHolds,
   MAX_SCALE,
   MIN_SCALE,
   moveStitches,
@@ -118,6 +119,18 @@ test('the frame turns with stitches turned together, and stays upright for mixed
 
   const mixed = rotateStitches(chart, new Set([1]), { x: 0, y: 0 }, 0.3);
   assert.equal(selectionFrame(mixed, both, reachOf).angle, 0);
+});
+
+test('a point is in the frame anywhere inside its edges, turned with the frame', () => {
+  const upright = { center: { x: 50, y: 20 }, angle: 0, halfWidth: 60, halfHeight: 30 };
+  assert.equal(frameHolds(upright, { x: 50, y: 20 }), true, 'the centre');
+  assert.equal(frameHolds(upright, { x: -9, y: 49 }), true, 'just inside a corner');
+  assert.equal(frameHolds(upright, { x: 111, y: 20 }), false, 'past the right edge');
+  assert.equal(frameHolds(upright, { x: 50, y: 51 }), false, 'below the bottom edge');
+
+  const turned = { ...upright, angle: Math.PI / 2 };
+  assert.equal(frameHolds(turned, { x: 50, y: 75 }), true, 'along the turned long side');
+  assert.equal(frameHolds(turned, { x: 100, y: 20 }), false, 'where the upright frame would have reached');
 });
 
 test('a full turn counts as the same turn', () => {
