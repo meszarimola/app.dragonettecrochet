@@ -2949,6 +2949,19 @@ exact spot does not matter, only the cell it falls in. The foot is the symbol's
 ink, measured (`Footprint`: width, height, and how far the ink reaches below the
 point the symbol is drawn around), since a symbol's ink need not be centred on it.
 
+**A chain is the one exception (PQW-1175):** the middle of its ink sits in the
+middle of the upper half of the row below the gap (`CHAIN_RISE`, three quarters of
+the row's height less `ROW_GAP`) — 24 above the line in a 40 row, higher in a taller
+one — and never so high that its top reaches into the gap (`chainLift`). The
+owner asked for it on 1.4.1 for the plain chain only: a chain space, a chain inside
+a group's symbol and every other stitch keep their foot on the line. The first
+reading put the middle at three quarters of the whole row; /code-review measured
+the chain's top 1.5 units from the next row's line, against the 8 the owner had
+chosen, and the question's own wording had left the gap out. A chain never makes its
+row taller than a cell, so lifting it moves no row. A row of stitches arranged with
+„In a row” hangs a chain from the tallest stitch's top instead (§83): that is the
+free-form rule, and the grid follows the owner's own.
+
 **The board is only ever shown a seated chart** (`seated` in `main.ts`): on every
 commit, but also on undo and redo, on opening a stored chart, during a drag and
 for an arrangement's result. The row heights are worked out from the stitches on
