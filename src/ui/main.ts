@@ -21,8 +21,9 @@ import {
   placeStitches,
   sameChart,
 } from '../core/freeform.ts';
-import { gridRect, onGrid, rectGrid } from '../core/grid.ts';
+import { cellAt, rectGrid } from '../core/grid.ts';
 import { amend, canRedo, canUndo, createHistory, type History, record, redo, undo } from '../core/history.ts';
+import { placeInGrid, seat } from '../core/seat.ts';
 import {
   MAX_SHAPING,
   MIN_SHAPING,
@@ -143,13 +144,19 @@ const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAcce
   place: (point) => {
     const stitch = armedStitch();
     if (chart === null || stitch === null) return;
-    // KB: interface.md §89 — on a regular design only the grid takes a stitch.
-    const grid = chart.grid;
-    if (grid !== undefined && !onGrid(grid, point)) return;
     const n = COUNTED.has(stitch) ? placeCount.value : 1;
+    // KB: interface.md §89, §91 — on a regular design only the grid takes a stitch, and seats it in a cell.
+    const grid = chart.grid;
+    if (grid !== undefined) {
+      const cell = cellAt(grid, point, board.rowHeights());
+      const placed = cell === null ? null : placeInGrid(chart, stitch, cell, n);
+      if (placed === null) return;
+      chart = placed.chart;
+      commit();
+      return;
+    }
     const extent = (placed: PlacedStitch) => board.extentOf(placed);
-    const bounds = grid === undefined ? board.sheet() : gridRect(grid);
-    const placed = placeStitches(chart, stitch, point, n, extent, PLACE_GAP, bounds);
+    const placed = placeStitches(chart, stitch, point, n, extent, PLACE_GAP, board.sheet());
     if (placed === null) return;
     chart = placed.chart;
     board.show(chart, symbolOptionsFor(chartStyle));
@@ -157,7 +164,7 @@ const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAcce
   },
   change: (next) => {
     if (arranged !== null && chart === arranged.result) follow(next);
-    chart = next;
+    chart = seated(next);
     board.show(chart, symbolOptionsFor(chartStyle));
   },
   settled: () => commit(),
@@ -245,7 +252,8 @@ function arrange(arrangement: Arrangement): boolean {
   };
   const next = arrangeStitches(base, ids, arrangement, (placed) => board.extentOf(placed), options);
   const [dx, dy] = boundedMove(next, ids, 0, 0, board.sheet());
-  const result = moveStitches(next, ids, dx, dy);
+  // Seated before it is kept: the arrangement goes on only while the chart is this very result.
+  const result = seated(moveStitches(next, ids, dx, dy));
   if (!allInside(result, ids, board.sheet())) return false;
   const continued = arranged !== null && base === arranged.base;
   chart = result;
@@ -307,9 +315,22 @@ function showOptions(): void {
  */
 function commit(continued = false): void {
   if (history === null || chart === null) return;
+  const settled = seated(chart);
+  if (settled !== chart) {
+    chart = settled;
+    board.show(chart, symbolOptionsFor(chartStyle));
+  }
   const next = { chart, selection: new Set(board.selected) };
   if (continued || sameChart(chart, history.present.chart)) setHistory(amend(history, next));
   else setHistory(record(history, next));
+}
+
+/**
+ * Every chart the board is given is seated first: a change anywhere can move a
+ * row, and the row heights the board draws come from the stitches. KB: interface.md §91
+ */
+function seated(next: FreeformChart): FreeformChart {
+  return seat(next, board.naturalSize);
 }
 
 /** The selection goes back with the chart; an arrangement in progress ends. */
@@ -319,7 +340,8 @@ function step(move: (history: History<Snapshot>) => History<Snapshot>): boolean 
   if (next === history) return false;
   setHistory(next);
   arranged = null;
-  chart = next.present.chart;
+  // A step recorded under the other symbol style has rows of the other sizes.
+  chart = seated(next.present.chart);
   if (next.present.selection.size > 0) setMode('select');
   board.show(chart, symbolOptionsFor(chartStyle), next.present.selection);
   showOptions();
@@ -447,8 +469,10 @@ if (saved !== null) open(saved, viewFromJson(read(VIEW_KEY, session)));
 /** Without a view, the chart opens on its own home. */
 function open(next: FreeformChart, view: View | null = null): void {
   const blank = chart === null || chart.stitches.length === 0;
-  chart = next;
-  board.show(chart, symbolOptionsFor(chartStyle));
+  // The first show sets the symbols the stitches are measured by; a chart saved under the other style is seated again.
+  board.show(next, symbolOptionsFor(chartStyle));
+  chart = seated(next);
+  if (chart !== next) board.show(chart, symbolOptionsFor(chartStyle));
   const fresh = { chart, selection: new Set<number>() };
   if (history === null) setHistory(createHistory(fresh));
   else setHistory(blank && !canRedo(history) ? amend(history, fresh) : record(history, fresh));
@@ -465,6 +489,8 @@ styleSelect.addEventListener('change', () => {
   write(NOTATION_KEY, writeChartStyle(read(NOTATION_KEY), chartStyle));
   renderPalette();
   board.show(chart, symbolOptionsFor(chartStyle));
+  // The symbols have new sizes; the rows follow them in the same undo step.
+  commit(true);
 });
 
 languageSelect.addEventListener('change', () => {

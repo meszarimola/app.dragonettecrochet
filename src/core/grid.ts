@@ -49,12 +49,16 @@ export function rectGrid(stitches: number, rows: number): RectGrid {
   return { rows: Array.from({ length: rows }, () => stitches) };
 }
 
+/** Each row's height, row 1 first; without them every row is one cell. KB: interface.md §91 */
+export type RowHeights = readonly number[];
+
 /**
  * The grid stands on the board's origin: row 1 at the bottom, its foot on
  * y = 0, and every row above the one before it, left edges in line.
  */
-export function gridRect(grid: RectGrid): Rect {
-  return { minX: 0, minY: -grid.rows.length * GRID_CELL, maxX: Math.max(0, ...grid.rows) * GRID_CELL, maxY: 0 };
+export function gridRect(grid: RectGrid, heights?: RowHeights): Rect {
+  const top = gridRows(grid, heights).at(-1)?.top ?? 0;
+  return { minX: 0, minY: top, maxX: Math.max(0, ...grid.rows) * GRID_CELL, maxY: 0 };
 }
 
 export interface GridRow {
@@ -68,33 +72,47 @@ export interface GridRow {
   readonly label: Point;
 }
 
-/** With `minY` and `maxY`, only the rows that reach into that band, without building the others. */
-export function gridRows(grid: RectGrid, minY = -Infinity, maxY = Infinity): GridRow[] {
-  const first = Math.max(0, Math.floor(-maxY / GRID_CELL));
-  const last = Math.min(grid.rows.length - 1, Math.ceil(-minY / GRID_CELL) - 1);
+/** With `minY` and `maxY`, only the rows that reach into that band; the others are skipped, not built. */
+export function gridRows(grid: RectGrid, heights?: RowHeights, minY = -Infinity, maxY = Infinity): GridRow[] {
   const rows: GridRow[] = [];
-  for (let i = first; i <= last; i += 1) {
-    const cells = grid.rows[i] ?? 0;
-    const bottom = 0 - i * GRID_CELL;
-    const right = cells * GRID_CELL;
-    const number = i + 1;
-    const x = number % 2 === 1 ? right + GRID_LABEL_ROOM / 2 : -GRID_LABEL_ROOM / 2;
-    rows.push({ number, cells, top: bottom - GRID_CELL, bottom, right, label: { x, y: bottom - GRID_CELL / 2 } });
+  let bottom = 0;
+  for (let i = 0; i < grid.rows.length && bottom >= minY; i += 1) {
+    const top = bottom - (heights?.[i] ?? GRID_CELL);
+    if (top <= maxY) {
+      const cells = grid.rows[i] ?? 0;
+      const right = cells * GRID_CELL;
+      const number = i + 1;
+      const x = number % 2 === 1 ? right + GRID_LABEL_ROOM / 2 : -GRID_LABEL_ROOM / 2;
+      rows.push({ number, cells, top, bottom, right, label: { x, y: (top + bottom) / 2 } });
+    }
+    bottom = top;
   }
   return rows;
 }
 
-/** Whether the point falls in a cell of some row; the edges count as inside. */
-export function onGrid(grid: RectGrid, point: Point): boolean {
-  const index = Math.ceil(-point.y / GRID_CELL) - 1;
-  const row = grid.rows[point.y === 0 ? 0 : index];
-  return row !== undefined && point.x >= 0 && point.x <= row * GRID_CELL;
+export interface Cell {
+  /** Counted from 0, bottom up. */
+  readonly row: number;
+  /** Counted from 0, left to right. */
+  readonly col: number;
+}
+
+/** The cell the point falls in; an edge belongs to the cell below it or to its left. `null` off the grid. */
+export function cellAt(grid: RectGrid, point: Point, heights?: RowHeights): Cell | null {
+  const row = gridRows(grid, heights, point.y, point.y)[0];
+  if (row === undefined || point.x < 0 || point.x > row.right) return null;
+  return { row: row.number - 1, col: Math.min(row.cells - 1, Math.floor(point.x / GRID_CELL)) };
 }
 
 /** The grid and its row numbers: what the sheet has to take in. */
-export function gridExtent(grid: RectGrid): Rect {
-  const rect = gridRect(grid);
+export function gridExtent(grid: RectGrid, heights?: RowHeights): Rect {
+  const rect = gridRect(grid, heights);
   return { ...rect, minX: rect.minX - GRID_LABEL_ROOM, maxX: rect.maxX + GRID_LABEL_ROOM };
+}
+
+/** The bottom edge of every row, row 1 first; row 1's is y = 0. */
+export function rowBottoms(grid: RectGrid, heights?: RowHeights): number[] {
+  return gridRows(grid, heights).map(({ bottom }) => bottom);
 }
 
 /** The view a new grid opens on: 100%, row 1 and its row numbers in the bottom left of the screen. */

@@ -10,6 +10,20 @@ export interface PlacedStitch {
   /** Radians, clockwise on screen. */
   readonly rotation: number;
   readonly scale: number;
+  /**
+   * On a grid, the cells the stitch sits in: its position and size follow
+   * from them. A stitch moved, turned or resized by hand leaves its cells.
+   * KB: interface.md §91
+   */
+  readonly cell?: SeatedCell;
+}
+
+export interface SeatedCell {
+  /** Counted from 0, bottom up. */
+  readonly row: number;
+  /** The leftmost of its cells, counted from 0. */
+  readonly col: number;
+  readonly span: number;
 }
 
 export interface FreeformChart {
@@ -66,10 +80,22 @@ export function sameChart(a: FreeformChart, b: FreeformChart): boolean {
           placed.x === other.x &&
           placed.y === other.y &&
           placed.rotation === other.rotation &&
-          placed.scale === other.scale
+          placed.scale === other.scale &&
+          sameCell(placed.cell, other.cell)
         );
       }))
   );
+}
+
+function sameCell(a: SeatedCell | undefined, b: SeatedCell | undefined): boolean {
+  return a === b || (a !== undefined && b !== undefined && a.row === b.row && a.col === b.col && a.span === b.span);
+}
+
+/** The stitch out of its cells, where it stands. */
+export function unseated(placed: PlacedStitch): PlacedStitch {
+  if (placed.cell === undefined) return placed;
+  const { cell: _, ...free } = placed;
+  return free;
 }
 
 function sameGrid(a: RectGrid | undefined, b: RectGrid | undefined): boolean {
@@ -98,7 +124,8 @@ export function chartFromJson(text: string | null): FreeformChart | null {
   for (const value of stitches) {
     const placed = placedFrom(value);
     if (placed === null || placed.id >= nextId || read.some(({ id }) => id === placed.id)) return null;
-    read.push(placed);
+    // A cell the grid does not have lets the stitch go free where it stands.
+    read.push(placed.cell !== undefined && !fits(placed.cell, readGrid) ? unseated(placed) : placed);
   }
   return readGrid === undefined ? { stitches: read, nextId } : { stitches: read, nextId, grid: readGrid };
 }
@@ -110,7 +137,21 @@ function placedFrom(value: unknown): PlacedStitch | null {
     return null;
   if (!finite(x) || !finite(y) || !finite(rotation) || !finite(scale)) return null;
   // A resize to the limit can land a rounding error past it.
-  return { id, stitch, x, y, rotation, scale: Math.min(Math.max(scale, MIN_SCALE), MAX_SCALE) };
+  const placed = { id, stitch, x, y, rotation, scale: Math.min(Math.max(scale, MIN_SCALE), MAX_SCALE) };
+  const cell = cellFrom((value as Record<string, unknown>).cell);
+  return cell === null ? placed : { ...placed, cell };
+}
+
+function cellFrom(value: unknown): SeatedCell | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const { row, col, span } = value as Record<string, unknown>;
+  const whole = (n: unknown, low: number): n is number => typeof n === 'number' && Number.isInteger(n) && n >= low;
+  return whole(row, 0) && whole(col, 0) && whole(span, 1) ? { row, col, span } : null;
+}
+
+function fits(cell: SeatedCell, grid: RectGrid | undefined): boolean {
+  const cells = grid?.rows[cell.row];
+  return cells !== undefined && cell.col + cell.span <= cells;
 }
 
 export function finite(value: unknown): value is number {
@@ -284,7 +325,7 @@ export function moveStitches(chart: FreeformChart, ids: ReadonlySet<number>, dx:
   return {
     ...chart,
     stitches: chart.stitches.map((placed) =>
-      ids.has(placed.id) ? { ...placed, x: placed.x + dx, y: placed.y + dy } : placed,
+      ids.has(placed.id) ? { ...unseated(placed), x: placed.x + dx, y: placed.y + dy } : placed,
     ),
   };
 }
@@ -301,7 +342,7 @@ export function rotateStitches(
     stitches: chart.stitches.map((placed) => {
       if (!ids.has(placed.id)) return placed;
       const offset = turn({ x: placed.x - center.x, y: placed.y - center.y }, angle);
-      return { ...placed, x: center.x + offset.x, y: center.y + offset.y, rotation: placed.rotation + angle };
+      return { ...unseated(placed), x: center.x + offset.x, y: center.y + offset.y, rotation: placed.rotation + angle };
     }),
   };
 }
@@ -318,7 +359,7 @@ export function scaleStitches(
     stitches: chart.stitches.map((placed) =>
       ids.has(placed.id)
         ? {
-            ...placed,
+            ...unseated(placed),
             x: center.x + (placed.x - center.x) * factor,
             y: center.y + (placed.y - center.y) * factor,
             scale: placed.scale * factor,
@@ -361,7 +402,7 @@ export function pasteStitches(
   const sx = Math.abs(forwardX) >= Math.abs(backX) ? forwardX : backX;
   const sy = Math.abs(forwardY) >= Math.abs(backY) ? forwardY : backY;
   const pasted = copied.map((placed, index) => ({
-    ...placed,
+    ...unseated(placed),
     id: chart.nextId + index,
     x: placed.x + sx,
     y: placed.y + sy,
@@ -435,7 +476,7 @@ function row(items: readonly Sized[], middle: Point, gap: number): PlacedStitch[
   return items.map((item) => {
     const x = left + item.size.halfWidth;
     left += item.size.halfWidth * 2 + gap;
-    return { ...item.stitch, x, y: foot - standOff(item, tall), rotation: 0 };
+    return { ...unseated(item.stitch), x, y: foot - standOff(item, tall), rotation: 0 };
   });
 }
 
@@ -471,7 +512,7 @@ function around(items: readonly Sized[], middle: Point, { radius, angle, facing 
     const direction = first + step * i;
     const reach = radius + standOff(item, tall);
     return {
-      ...item.stitch,
+      ...unseated(item.stitch),
       x: Math.cos(direction) * reach,
       y: mirror * Math.sin(direction) * reach,
       rotation: mirror * (direction + Math.PI / 2),

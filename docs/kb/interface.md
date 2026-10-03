@@ -2878,8 +2878,8 @@ several upper ones, and a decrease the other way round. Because the grid is in t
 chart, it is saved with it, undone with it, and every edit that rebuilds a chart
 spreads the old one, so none drops it (`tests/core-grid.test.mjs`).
 
-**Geometry.** A cell is a 40-unit square (`GRID_CELL`, the guide size of §63),
-whatever goes in it for now. Row 1 stands on y = 0 and every row sits on top of
+**Geometry.** A cell is 40 units wide (`GRID_CELL`, the guide size of §63), and an
+empty row is 40 tall; a row grows with what is seated in it (§91). Row 1 stands on y = 0 and every row sits on top of
 the one before: the grid grows upwards, as the work does. The rows are numbered
 from 1 at the bottom, an odd row's number on the right (where a right-side row
 starts) and an even row's on the left; no other mark, and row 1 is not labelled as
@@ -2893,9 +2893,8 @@ until the first chart has no size. The sheet (§87) grows to take in the grid an
 numbers.
 
 **Only the grid takes a stitch.** A click outside every row places nothing
-(`onGrid`). Where it lands inside is where the stitch goes — no snapping to a cell
-yet — and a row of several (§85) is kept within the grid's rectangle. Moving,
-pasting and arranging are not limited to the grid yet.
+(`cellAt`); inside, the stitch is seated in its cell (§91). Moving, pasting and
+arranging are not limited to the grid yet (PQW-1173).
 
 **Drawing.** Only the rows on screen are drawn, since 500 × 200 cells is a lot of
 lines. Each line is centred on a device pixel and drawn once, in the ink at 28%:
@@ -2934,3 +2933,59 @@ clears the chart), `visszavonas.spec.ts` (New can be undone) and
 `rendezes.spec.ts` (the settings go with the selection) — and click Continue now;
 the owner licensed the change to those frozen files. `e2e/csere.spec.ts` guards
 the question itself.
+
+## §91 On the grid a stitch is seated in its cells, and a row grows to its tallest
+
+PQW-1172. The owner: *„amikor a felhasználó egy cellába csak egy elemet tesz jó
+lenne ha az app »rásegítene« — a cellát és a sort megfelelően méretezné … ha egy
+sorban vegyesen vannak a szemek, akkor mindig a legmagasabb elem magasságát
+veszi”*. Every rule below is the owner's answer to a question asked before the
+work (2026-10-03).
+
+**A seated stitch carries its cells** (`PlacedStitch.cell`: row, leftmost column,
+span), and its position, turn and size follow from them (`seat`, `src/core/seat.ts`):
+in the middle of its cells, its foot on the row's bottom line, upright. The click's
+exact spot does not matter, only the cell it falls in. The foot is the symbol's
+ink, measured (`Footprint`: width, height, and how far the ink reaches below the
+point the symbol is drawn around), since a symbol's ink need not be centred on it.
+
+**The board is only ever shown a seated chart** (`seated` in `main.ts`): on every
+commit, but also on undo and redo, on opening a stored chart, during a drag and
+for an arrangement's result. The row heights are worked out from the stitches on
+every draw, so a chart shown unseated — a step recorded under the other symbol
+style, a tall stitch dragged out of its row — would draw rows the stitches do not
+stand on (/code-review, PQW-1172).
+
+**How many cells.** As many as the symbol has parts (`cellSpan`): a group's members,
+a joined stitch's parts, otherwise one — a shell of five is 5, a V-stitch 3 (dc,
+ch, dc), 2 sc in one stitch 2, dc3tog 3, a bobble 5, a puff or a cluster 3. Not what
+the next row sees (a bobble is then one): the owner chose the parts.
+
+**Which cells.** From the clicked cell in the row's working direction
+(`workDirection`): an odd row from the right, where its number stands, so it grows
+leftwards; an even row rightwards. A stitch of several cells that would run off the
+row is pushed back until it fits; a count of several (§85) lays one after another
+the same way and stops at the row's end. A row shorter than the span takes nothing.
+
+**A taken cell is replaced.** Every seated stitch of that row whose cells the new
+one covers gives way, in the same undo step. Free stitches and other rows are never
+touched.
+
+**Row height.** A row is as tall as its tallest seated stitch as drawn, and never
+less than a cell (`rowHeights`), so an empty row or a row of chains keeps the
+square. The drawn height, not the turning-chain convention: a dc is 51 units, a tr
+63, and their rows that tall. Every row above moves up with it — the grid, the
+numbers and the seated stitches, since `seat` runs on every `commit`, before the
+step is recorded (§84). A symbol wider than its cells is shrunk to their
+width (a chain space, 43.6 wide, in one cell), and its row takes the shrunk height.
+The width of a column never changes yet; the owner's later step makes increases and
+decreases widen cells.
+
+**What leaves a cell.** A stitch moved, turned, resized, pasted or arranged by hand
+loses its cell (`unseated`) and stays where it was put; seating it again on release
+is PQW-1173. A stitch laid before 1.4.0, freely, stays free, and a stored cell the
+grid does not have is dropped on load — a saved chart never changes by itself.
+
+**Symbol style.** Switching CYC and JIS changes the symbols' sizes, so the rows are
+seated again, folded into the last undo step. The board keeps the row heights per
+chart object, and forgets them when the symbols change.
