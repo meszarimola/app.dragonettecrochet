@@ -69,6 +69,10 @@ export const MARKUP_TEXTS = {
     gridRowsLabel: 'Sorok száma',
     gridCancel: 'Mégse',
     gridCreate: 'Létrehozás',
+    replaceDialogTitle: 'Új minta',
+    replaceDialogText: 'A mostani minta helyére új kerül. A Visszavonással visszahozhatod.',
+    replaceCancel: 'Mégse',
+    replaceProceed: 'Folytatás',
   },
   en: {
     docTitle: 'Free Crochet Pattern Designer & Chart Maker — Dragonette',
@@ -130,5 +134,9 @@ export const MARKUP_TEXTS = {
     gridRowsLabel: 'Rows',
     gridCancel: 'Cancel',
     gridCreate: 'Create',
+    replaceDialogTitle: 'New pattern',
+    replaceDialogText: 'The current pattern will be replaced. You can bring it back with Undo.',
+    replaceCancel: 'Cancel',
+    replaceProceed: 'Continue',
   },
 } satisfies Dictionary<Record<string, string>>;

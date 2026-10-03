@@ -110,5 +110,6 @@ test('New again clears the chart', async ({ page }) => {
   expect(await inkAround(page, 200, 150)).toBeGreaterThan(0);
   await page.getByRole('button', { name: 'New' }).click();
   await page.getByRole('menuitem', { name: 'Free-form design' }).click();
+  await page.getByRole('button', { name: 'Continue' }).click();
   expect(await inkAround(page, 200, 150)).toBe(0);
 });

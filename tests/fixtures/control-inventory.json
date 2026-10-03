@@ -28,6 +28,8 @@
   {"id":"place-parts","tag":"input","type":"text"},
   {"id":"place-parts-range","tag":"input","type":"range"},
   {"id":"redo","tag":"button","type":"button"},
+  {"id":"replace-cancel","tag":"button","type":"button"},
+  {"id":"replace-proceed","tag":"button","type":"submit"},
   {"id":"select-tool","tag":"button","type":"button"},
   {"id":"ui-language","tag":"select","type":""},
   {"id":"undo","tag":"button","type":"button"},

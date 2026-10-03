@@ -2902,5 +2902,31 @@ lines. Each line is centred on a device pixel and drawn once, in the ink at 28%:
 measured, a line on a pixel edge spread over two pixels at half strength, and a
 line shared by two rows drawn twice came out darker at a pixel ratio of 1.
 
-Asking before „New” replaces a chart that has stitches is PQW-1169, for both
-entries of the menu.
+Asking before „New” replaces a chart that has stitches is §90.
+
+## §90 „New” asks before it replaces a chart with stitches
+
+PQW-1169, the owner's choice while planning §89: both entries of „New” —
+free-form design and Rectangular — ask first when the chart has at least one
+stitch. An empty chart, grid or not, is replaced without a word. It is the one
+exception to `decisions.md` §4, and the owner asked for it by name.
+
+`#replace-dialog` (`src/ui/replace-dialog.ts`) says what happens and how to undo
+it — „The current pattern will be replaced. You can bring it back with Undo.” —
+because Undo does bring it back (§5's history records the replaced chart). Cancel
+takes the focus, so an Enter pressed out of habit loses nothing; Continue goes
+on. Cancel, Escape and the backdrop (`closeOnBackdrop`, the same rule as §89's
+dialog) keep the chart.
+
+For Rectangular the question comes first and the size second, and nothing is
+replaced until the size dialog's Create: a Cancel there still leaves the old
+chart standing.
+
+While any dialog is open the document's key handler stands aside (it checks for
+`dialog[open]`), so no shortcut reaches the chart behind it.
+
+Three browser specs replace a chart with stitches — `szabad.spec.ts` (New again
+clears the chart), `visszavonas.spec.ts` (New can be undone) and
+`rendezes.spec.ts` (the settings go with the selection) — and click Continue now;
+the owner licensed the change to those frozen files. `e2e/csere.spec.ts` guards
+the question itself.

@@ -9,6 +9,7 @@ import {
   MIN_GRID,
   readGridCount,
 } from '../core/grid.ts';
+import { closeOnBackdrop } from './dialog.ts';
 import type { SectionTexts } from './i18n/sections.ts';
 import { texts } from './i18n.ts';
 
@@ -67,19 +68,7 @@ export function bindGridDialog(parts: GridDialogParts, done: (stitches: number, 
     });
   }
   cancel.addEventListener('click', () => dialog.close());
-  // A press that starts in a field and ends outside clicks the dialog too; only a press outside it is the backdrop's.
-  let pressedOutside = false;
-  const outside = ({ clientX: x, clientY: y }: MouseEvent): boolean => {
-    const box = dialog.getBoundingClientRect();
-    return x < box.left || x > box.right || y < box.top || y > box.bottom;
-  };
-  dialog.addEventListener('pointerdown', (event) => {
-    pressedOutside = event.target === dialog && outside(event);
-  });
-  dialog.addEventListener('click', (event) => {
-    if (pressedOutside && event.target === dialog && outside(event)) dialog.close();
-    pressedOutside = false;
-  });
+  closeOnBackdrop(dialog);
 
   return () => {
     stitches.value = String(DEFAULT_GRID_STITCHES);

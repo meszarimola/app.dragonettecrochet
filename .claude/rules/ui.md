@@ -21,7 +21,8 @@ dialogs and the language dictionaries.
 - **Do not announce, confirm or guard what the user did not ask for.** No toast
   after an operation, no confirmation dialog before an action the user clicked,
   no progress markers. The owner is the expert; the program's job is to get out
-  of the way.
+  of the way. The one exception the owner asked for: „New” over a chart with
+  stitches (KB: decisions.md §4, interface.md §90).
 - **The version is never hand-written.** It comes from `package.json` via
   `__APP_VERSION__`, injected by `vite.config.ts` at build time.
   `tests/version.test.mjs` fails on a literal version string in `index.html` or

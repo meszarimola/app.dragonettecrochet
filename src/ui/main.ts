@@ -57,6 +57,7 @@ import {
   type ShapingChoices,
 } from './palette.ts';
 import { currentPlatform, historyCommand, modifierCombo, zoomCommand } from './platform.ts';
+import { bindReplaceDialog } from './replace-dialog.ts';
 import { applyInk, drawCentered, readAccent, readInk, shapeBounds, symbolShapes } from './symbols.ts';
 import { alignTooltips } from './tooltip.ts';
 
@@ -408,18 +409,27 @@ bindNewMenu(
   },
   {
     freeform: () => {
-      if (!board.dragging) open(emptyChart());
+      if (!board.dragging) askToReplace(() => open(emptyChart()));
     },
     rectangular: () => {
-      if (!board.dragging) openGridDialog();
+      if (!board.dragging) askToReplace(() => openGridDialog());
     },
   },
 );
 
-const gridDialog = must<HTMLDialogElement>('#grid-dialog');
+// KB: interface.md §90
+const askToReplace = bindReplaceDialog(
+  {
+    dialog: must<HTMLDialogElement>('#replace-dialog'),
+    proceed: must<HTMLButtonElement>('#replace-proceed'),
+    cancel: must<HTMLButtonElement>('#replace-cancel'),
+  },
+  () => chart !== null && chart.stitches.length > 0,
+);
+
 const openGridDialog = bindGridDialog(
   {
-    dialog: gridDialog,
+    dialog: must<HTMLDialogElement>('#grid-dialog'),
     stitches: must<HTMLInputElement>('#grid-stitches'),
     rows: must<HTMLInputElement>('#grid-rows'),
     stitchesError: must<HTMLElement>('#grid-stitches-error'),
@@ -466,8 +476,8 @@ languageSelect.addEventListener('change', () => {
 
 // KB: interface.md §11 — by key code, so a Hungarian layout behaves like an English one.
 document.addEventListener('keydown', (event) => {
-  // The open dialog owns the keyboard; its Escape closes it and nothing else.
-  if (gridDialog.open) return;
+  // An open dialog owns the keyboard; its Escape closes it and nothing else.
+  if (document.querySelector('dialog[open]') !== null) return;
   if (event.key === 'Escape') {
     // A select box closes on its own Escape; that one is not meant for the chart.
     if (board.dragging || inField(event.target)) return;

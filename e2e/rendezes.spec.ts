@@ -178,6 +178,7 @@ test('the settings go with the selection they were made for', async ({ page }) =
   await page.getByRole('button', { name: 'Around' }).click();
   await page.getByRole('button', { name: 'New' }).click();
   await page.getByRole('menuitem', { name: 'Free-form design' }).click();
+  await page.getByRole('button', { name: 'Continue' }).click();
   await page.getByRole('button', { name: /^Double crochet \(dc\)/ }).click();
   for (const [x, y] of POINTS) await board(page).click({ position: { x, y } });
   await page.getByRole('button', { name: 'Select' }).click();
