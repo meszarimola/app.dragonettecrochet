@@ -413,12 +413,19 @@ a többi tetejével”.
 
 The board's `extentOf`, which arranging uses, is the distance from the default
 box's centre — where the symbol is drawn — to the exact box's farther edge on
-each axis. For a chain that is its true half height; for a stitch whose foot
-was already exact (a popcorn) nothing changes. Measured over the library, only
-the chain's height and the picot's and chain space's width change, and only for
-arrangements made from now on; chains hung in v0.100.0 keep their place until
-arranged again. Both boxes measure the centreline: the stroke's half width is
-outside them, as it always was for lines.
+each axis. For a chain that is its true half height, and beside a dc, hdc or sc
+a hung chain's top is on their top's pixel row (`e2e/rendezes.spec.ts`).
+Measured over the library, only the chain's height and the picot's and chain
+space's width change, and only for arrangements made from now on; chains hung in
+v0.100.0 keep their place until arranged again. Both boxes measure the
+centreline: the stroke's half width is outside them, as it always was for lines.
+
+**Still not exact, PQW-1164.** The extent is symmetric about where the symbol
+is drawn, so a symbol whose drawn centre is not the middle of its ink keeps a
+wrong top or foot: the popcorn's and the picot's tops stand too high (a chain
+beside them hangs high), and a curve is still measured by its control point,
+about twice as far out as the curve reaches (a tilde, an insertion mark, a puff
+stem). The fix is an extent with `above` and `below` and an exact curve box.
 
 ## §24 The grid editor is a keyboard grid, and its rows run bottom-up
 

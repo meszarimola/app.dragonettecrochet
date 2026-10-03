@@ -342,9 +342,9 @@ test('in a row of dc and chains, the top of each chain’s oval is on the dc top
   await page.mouse.up();
   await page.getByRole('button', { name: 'In a row' }).click();
   await page.keyboard.press('Escape');
+  await expect(board(page), 'the frame is gone, so the topmost ink is a stitch').toHaveAttribute('data-selected', '0');
   const placed = await stitches(page);
-  // The topmost inked pixel in a narrow column through each stitch's centre.
-  const tops = await board(page).evaluate(
+  const topInkAt = await board(page).evaluate(
     (canvas: HTMLCanvasElement, xs: number[]) => {
       const dpr = window.devicePixelRatio || 1;
       const ctx = canvas.getContext('2d')!;
@@ -358,5 +358,7 @@ test('in a row of dc and chains, the top of each chain’s oval is on the dc top
     },
     placed.map(({ x }) => x),
   );
-  for (const top of tops) expect(top, 'every top on the first dc’s row').toBeCloseTo(tops[0]!, 0);
+  // One pixel either way: an antialiased oval apex and a straight bar cross the alpha cut-off differently.
+  for (const top of topInkAt)
+    expect(Math.abs(top! - topInkAt[0]!), 'every top on the first dc’s row').toBeLessThanOrEqual(1);
 });

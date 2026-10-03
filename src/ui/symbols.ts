@@ -429,11 +429,7 @@ export interface Bounds {
   readonly maxY: number;
 }
 
-/**
- * With `exact`, an ellipse is measured as the turned ellipse it is, not as a
- * circle of its larger radius. The default box anchors where a symbol is drawn,
- * so it must not change under saved charts. KB: interface.md §23
- */
+/** With `exact`, an ellipse is measured as it is turned, not as a circle of its larger radius. KB: interface.md §23 */
 export function shapeBounds(shapes: readonly Shape[], exact = false): Bounds {
   let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
   const include = (p: Point, pad = 0, padY = pad): void => {

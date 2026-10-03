@@ -104,7 +104,7 @@
     "dc3tog": 1
   },
   "toHaveAttribute": {
-    "0": 5,
+    "0": 6,
     "1": 18,
     "2": 6,
     "3": 1,
@@ -112,7 +112,7 @@
     "121": 1,
     "aria-pressed": 21,
     "aria-valuenow": 1,
-    "data-selected": 11,
+    "data-selected": 12,
     "data-stitches": 23,
     "false": 7,
     "href": 2,
