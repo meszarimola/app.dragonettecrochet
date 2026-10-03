@@ -2913,7 +2913,11 @@ exception to `decisions.md` §4, and the owner asked for it by name.
 
 `#replace-dialog` (`src/ui/replace-dialog.ts`) says what happens and how to undo
 it — „The current pattern will be replaced. You can bring it back with Undo.” —
-because Undo does bring it back (§5's history records the replaced chart). Cancel
+because Undo does bring it back (§84's history records the replaced chart). Its
+title is the „New” menu's own label, one key for both. A chart emptied by Undo
+with work left to redo is not asked about: New then clears the redo list, as
+`visszavonas.spec.ts` (New on a blank chart clears what could be redone) has
+it, and the dialog's „bring it back with Undo” would not be true there. Cancel
 takes the focus, so an Enter pressed out of habit loses nothing; Continue goes
 on. Cancel, Escape and the backdrop (`closeOnBackdrop`, the same rule as §89's
 dialog) keep the chart.

@@ -59,7 +59,9 @@ test('an empty chart is replaced without a question', async ({ page }) => {
   await page.goto('/');
   await freeform(page);
   await freeform(page);
-  await expect(page.getByRole('dialog', { name: 'New pattern' })).toBeHidden();
+  await expect(page.locator('dialog[open]'), 'no dialog of any name is open').toHaveCount(0);
+  await expect(page.getByRole('menuitem', { name: 'Free-form design' }), 'the choice was carried out').toBeHidden();
+  await expect(page.locator('#board')).toBeVisible();
   await page.getByRole('button', { name: 'New' }).click();
   await page.getByRole('menuitem', { name: 'Regular design' }).click();
   await page.getByRole('menuitem', { name: 'Rectangular' }).click();

@@ -23,9 +23,6 @@ export function bindReplaceDialog(parts: ReplaceDialogParts, wouldLose: () => bo
     then?.();
   });
   cancel.addEventListener('click', () => dialog.close());
-  dialog.addEventListener('close', () => {
-    pending = null;
-  });
   closeOnBackdrop(dialog);
 
   return (then) => {
