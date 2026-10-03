@@ -41,6 +41,7 @@ test('the page builds up: the bar and the stitches in place', async ({ page }) =
 test('a stitch can be placed on a new chart', async ({ page }) => {
   const errors = await open(page);
   await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('menuitem', { name: 'Free-form design' }).click();
   const sc = page.getByRole('button', { name: /^Single crochet \(sc\)/ });
   await sc.click();
   await expect(sc).toHaveAttribute('aria-pressed', 'true');

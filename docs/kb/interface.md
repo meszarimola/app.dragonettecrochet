@@ -2793,3 +2793,52 @@ the wheel about the pointer, a click placing at the board point under it when
 zoomed, a plain drag outside „Kijelölés” moving the view (armed or not) while a
 drag inside it still draws an area, Space and the middle button laying nothing,
 Ctrl + one wheel notch, the keys only over the drawing, and a pan ending off the canvas.
+
+## §88 „Új” is a menu: free-form design, and regular design to come
+
+PQW-1165, the owner's request after 1.0.0: *„az új egy dropdown lesz, 2 menüvel:
+szabadtervezés … szabályos tervezés - ebből pedig almenüből kinyílnak az alábbi
+lehetőségek: négyszögletű, granny square, háromszög, félkör, kör. egyelőre csak a
+menüt tervezd meg”*.
+
+`#new-chart` no longer starts a pattern; it opens `#new-menu` (`role="menu"`,
+`aria-haspopup`, its own `aria-expanded`). „Free-form design” is the old button:
+it runs `open(emptyChart())`. „Regular design” opens `#new-regular-menu` beside
+it on a mouse hover, on a click or with the right arrow.
+
+**Under 40rem the submenu folds open below its item**, so a phone gets no
+horizontal scroll. There a tap toggles it and hovering does nothing: the
+pointerenter that comes just before a tap's click would open what the click then
+folds away.
+
+**The five shapes are shown and disabled** (the owner's choice, as §9 does for
+anything unfinished): `aria-disabled="true"` rather than `disabled`, so the arrow
+keys still reach them and a screen reader reads them, with a „Coming soon” tag
+in the name. Enabling one is removing that attribute and giving it a listener.
+`main.ts` names the five by id, which is what the control inventory's
+reachability check asks for.
+
+**The keyboard** is the usual menu-button pattern: Enter, Space or the down arrow
+opens the menu on its first item, up and down wrap, Home and End jump (`stepIndex`,
+`tests/ui-new-menu.test.mjs`), left or Escape closes the submenu, Escape closes the
+menu and gives the focus back to „New”, Tab closes it. Moving between the top items
+folds the submenu. The menu's Escape and Space stop at the menu, so they never reach
+the document handlers that disarm the stitch (Escape) or pan the drawing (Space,
+§87).
+
+**The focus is never left on a hidden item.** Whenever the submenu closes with the
+focus inside — the pointer drifting onto „Free-form design” is the usual way — the
+focus goes back to „Regular design” first. A focus leaving the menu for something
+outside it closes the menu.
+
+**The press that closes the menu is spent on closing it.** A pointer press outside
+closes the menu in the capture phase and swallows its click, because the drawing
+lays a stitch on a click (§28): dismissing the menu over the canvas would otherwise
+crochet. A press that never becomes a click clears the flag on its release, so the
+next keyboard click is not eaten.
+
+„New” lost its tooltip, with the owner's consent: its text, „New free-form
+pattern”, no longer says what the button does, and the menu it opens does.
+
+Every browser spec that starts a pattern therefore clicks „New”, then
+„Free-form design”. `e2e/uj-menu.spec.ts` guards the menu itself.

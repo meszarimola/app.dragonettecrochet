@@ -30,6 +30,7 @@ async function laid(page: Page): Promise<string[]> {
 async function newChart(page: Page): Promise<void> {
   await page.goto('/');
   await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('menuitem', { name: 'Free-form design' }).click();
 }
 
 test('a decrease of the chosen stitch and count is laid with one click', { tag: '@kiadas' }, async ({ page }) => {

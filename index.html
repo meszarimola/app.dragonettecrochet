@@ -96,14 +96,49 @@
         </div>
 
         <div class="tools">
-          <button type="button" class="tool" id="new-chart" data-tip="New free-form pattern" data-i18n-tip="irregularNewTitle">
-            <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-              <path d="M5 2.75h6l4 4V17a.5.5 0 0 1-.5.5h-9A.5.5 0 0 1 5 17z" />
-              <path d="M11 2.75V7h4" />
-              <path d="M10 10v4M8 12h4" />
-            </svg>
-            <span class="tool__label" data-i18n="toolLabelNew">New</span>
-          </button>
+          <div class="new-menu" id="new-menu-root">
+            <button type="button" class="tool" id="new-chart" aria-haspopup="menu" aria-expanded="false" aria-controls="new-menu">
+              <svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M5 2.75h6l4 4V17a.5.5 0 0 1-.5.5h-9A.5.5 0 0 1 5 17z" />
+                <path d="M11 2.75V7h4" />
+                <path d="M10 10v4M8 12h4" />
+              </svg>
+              <span class="tool__label" data-i18n="toolLabelNew">New</span>
+            </button>
+            <div class="menu" id="new-menu" role="menu" aria-label="New pattern" data-i18n-label="newMenuLabel" hidden>
+              <button type="button" class="menu__item" id="new-freeform" role="menuitem" tabindex="-1">
+                <span data-i18n="newFreeform">Free-form design</span>
+              </button>
+              <div class="menu__group" role="none">
+                <button type="button" class="menu__item" id="new-regular" role="menuitem" tabindex="-1" aria-haspopup="menu" aria-expanded="false" aria-controls="new-regular-menu">
+                  <span data-i18n="newRegular">Regular design</span>
+                  <span class="menu__arrow" aria-hidden="true">›</span>
+                </button>
+                <div class="menu menu--sub" id="new-regular-menu" role="menu" aria-label="Regular design" data-i18n-label="newRegular" hidden>
+                  <button type="button" class="menu__item" id="new-rectangular" role="menuitem" tabindex="-1" aria-disabled="true">
+                    <span data-i18n="newRectangular">Rectangular</span>
+                    <span class="menu__soon" data-i18n="newSoon">Coming soon</span>
+                  </button>
+                  <button type="button" class="menu__item" id="new-granny" role="menuitem" tabindex="-1" aria-disabled="true">
+                    <span data-i18n="newGranny">Granny square</span>
+                    <span class="menu__soon" data-i18n="newSoon">Coming soon</span>
+                  </button>
+                  <button type="button" class="menu__item" id="new-triangle" role="menuitem" tabindex="-1" aria-disabled="true">
+                    <span data-i18n="newTriangle">Triangle</span>
+                    <span class="menu__soon" data-i18n="newSoon">Coming soon</span>
+                  </button>
+                  <button type="button" class="menu__item" id="new-semicircle" role="menuitem" tabindex="-1" aria-disabled="true">
+                    <span data-i18n="newSemicircle">Semicircle</span>
+                    <span class="menu__soon" data-i18n="newSoon">Coming soon</span>
+                  </button>
+                  <button type="button" class="menu__item" id="new-circle" role="menuitem" tabindex="-1" aria-disabled="true">
+                    <span data-i18n="newCircle">Circle</span>
+                    <span class="menu__soon" data-i18n="newSoon">Coming soon</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <div class="tools__group">
             <button type="button" class="tool" id="undo" data-tip="Undo (Ctrl/⌘ + Z)" data-i18n-tip="undoTip" aria-keyshortcuts="Control+Z Meta+Z" disabled>

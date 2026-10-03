@@ -43,6 +43,7 @@ import {
   uiLanguage,
   urlWithLanguage,
 } from './i18n.ts';
+import { bindNewMenu } from './new-menu.ts';
 import { CHART_STYLES, readChartStyle, symbolOptionsFor, termsFor, writeChartStyle } from './notation.ts';
 import { AngleDial, bindPair } from './number-input.ts';
 import {
@@ -72,7 +73,6 @@ const palette = must<HTMLDivElement>('#palette');
 const styleSelect = must<HTMLSelectElement>('#chart-style');
 const languageSelect = must<HTMLSelectElement>('#ui-language');
 const homeLink = must<HTMLAnchorElement>('#home-link');
-const newButton = must<HTMLButtonElement>('#new-chart');
 const undoButton = must<HTMLButtonElement>('#undo');
 const redoButton = must<HTMLButtonElement>('#redo');
 const selectButton = must<HTMLButtonElement>('#select-tool');
@@ -387,9 +387,22 @@ alignTooltips(must<HTMLElement>('.tools'));
 // KB: interface.md §83
 if (navigator.webdriver) Object.assign(window, { dcFreeformChart: () => chart });
 
-newButton.addEventListener('click', () => {
-  if (!board.dragging) open(emptyChart());
-});
+bindNewMenu(
+  {
+    root: must<HTMLElement>('#new-menu-root'),
+    button: must<HTMLButtonElement>('#new-chart'),
+    menu: must<HTMLElement>('#new-menu'),
+    freeform: must<HTMLButtonElement>('#new-freeform'),
+    regular: must<HTMLButtonElement>('#new-regular'),
+    submenu: must<HTMLElement>('#new-regular-menu'),
+    shapes: ['#new-rectangular', '#new-granny', '#new-triangle', '#new-semicircle', '#new-circle'].map((id) =>
+      must<HTMLButtonElement>(id),
+    ),
+  },
+  () => {
+    if (!board.dragging) open(emptyChart());
+  },
+);
 
 // KB: interface.md §5 — the last chart, and where it was looked at, survive a reload of the tab.
 const saved = chartFromJson(read(CHART_KEY, session));

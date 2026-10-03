@@ -26,6 +26,7 @@ async function stitches(page: Page): Promise<Placed[]> {
 async function newChart(page: Page): Promise<void> {
   await page.goto('/');
   await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('menuitem', { name: 'Free-form design' }).click();
 }
 
 async function dragOnBoard(
@@ -60,6 +61,7 @@ test('the zoom buttons step the level, and the level returns to 100%', { tag: '@
   await page.goto('/');
   await expect(zoomIn(page), 'nothing to zoom before a chart').toBeDisabled();
   await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('menuitem', { name: 'Free-form design' }).click();
   await expect(level(page)).toHaveText('100%');
   await zoomOut(page).click();
   await zoomOut(page).click();
@@ -239,6 +241,7 @@ test('New starts from the default view again', async ({ page }) => {
   await dragOnBoard(page, [500, 100], [500, 400]);
   await zoomIn(page).click();
   await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('menuitem', { name: 'Free-form design' }).click();
   await expect(level(page)).toHaveText('100%');
   await page.getByRole('button', { name: /^Single crochet \(sc\)/ }).click();
   await board(page).click({ position: { x: 300, y: 200 } });
