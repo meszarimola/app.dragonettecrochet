@@ -392,6 +392,41 @@ body.is-armed #board {
   gap: var(--sp-1);
 }
 
+/* KB: interface.md §83 */
+.arrange__options {
+  --caret: 7px;
+  --caret-at: calc((100% - var(--sp-0)) / 4);
+  position: relative;
+  margin-block-start: var(--caret);
+  padding: var(--sp-1) var(--sp-2) var(--sp-2);
+  border: 1px solid var(--c-accent);
+  border-radius: var(--radius-md);
+}
+
+#arrange-around-options {
+  --caret-at: calc((100% - var(--sp-0)) * 3 / 4 + var(--sp-0));
+}
+
+.arrange__options::before,
+.arrange__options::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: var(--caret-at);
+  border: var(--caret) solid transparent;
+  border-block-start: 0;
+  translate: -50% 0;
+}
+
+.arrange__options::before {
+  inset-block-end: 100%;
+  border-block-end-color: var(--c-accent);
+}
+
+.arrange__options::after {
+  inset-block-end: calc(100% - 1px);
+  border-block-end-color: var(--c-bg);
+}
+
 .arrange__label {
   color: var(--c-text-soft);
   font-size: 0.8125rem;
@@ -465,6 +500,12 @@ body.is-armed #board {
   block-size: var(--dial-size);
   touch-action: none;
   cursor: grab;
+}
+
+@media (height < 36rem) {
+  .dial {
+    --dial-size: 6rem;
+  }
 }
 
 .dial__ring {

@@ -267,3 +267,29 @@ test('Feet and Tops turn the stitches round, and a press on the side already cho
   await expect(feetButton).toHaveAttribute('aria-pressed', 'true');
   expect(await stitches(page), 'back as it was').toEqual(feet);
 });
+
+test('the settings sit in a frame whose arrow points at the chosen button, and fit a 1000 × 506 window', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1000, height: 506 });
+  await selectedChartWith(page, POINTS);
+  for (const [name, options] of [
+    ['In a row', '#arrange-row-options'],
+    ['Around', '#arrange-around-options'],
+  ] as const) {
+    const button = page.getByRole('button', { name, exact: true });
+    await button.click();
+    const offset = await page.evaluate(
+      ([buttonBox, selector]) => {
+        const box = document.querySelector(selector)!;
+        const arrow = Number.parseFloat(getComputedStyle(box, '::before').left);
+        const frame = box.getBoundingClientRect();
+        return frame.left + box.clientLeft + arrow - (buttonBox.x + buttonBox.width / 2);
+      },
+      [(await button.boundingBox())!, options] as const,
+    );
+    expect(Math.abs(offset), `the arrow under ${name}`).toBeLessThan(2);
+    const scrolls = await page.locator('#inspector').evaluate((panel) => panel.scrollHeight > panel.clientHeight);
+    expect(scrolls, `${name}: every setting in view`).toBe(false);
+  }
+});

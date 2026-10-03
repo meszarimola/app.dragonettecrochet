@@ -43,7 +43,7 @@
     "Tops": 1,
     "Undo": 1,
     "Vissza a dragonettecrochet.com főoldalára": 1,
-    "button": 72,
+    "button": 73,
     "combobox": 8,
     "complementary": 1,
     "group": 1,
@@ -60,6 +60,7 @@
   "locator": {
     "#arrange-dial": 1,
     "#board": 29,
+    "#inspector": 1,
     "#select-tool": 1,
     "#version": 1,
     ".brand-mark": 1,
