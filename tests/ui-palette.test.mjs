@@ -7,9 +7,9 @@ import { strict as assert } from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
-import { STITCH_SECTIONS, STITCHES } from '../src/core/stitches.ts';
+import { SHAPING_PARTS, STITCH_SECTIONS, STITCHES, stitchById } from '../src/core/stitches.ts';
 import { stitchName, stitchStructure } from '../src/core/stitchText.ts';
-import { buildPalette } from '../src/ui/palette.ts';
+import { buildPalette, DEFAULT_SHAPING, partLabel, SHAPINGS } from '../src/ui/palette.ts';
 
 const palette = buildPalette();
 const items = palette.flatMap((section) => section.items);
@@ -23,10 +23,17 @@ const items = palette.flatMap((section) => section.items);
 test('the palette shows every stitch once, save the chain space, and the magic ring with the compound ones', () => {
   const shown = items.map((item) => item.def.id);
   assert.equal(new Set(shown).size, shown.length, 'no stitch twice');
+  // KB: interface.md §86 — the listed increases and decreases give way to two tiles built from a menu.
+  const listed = STITCH_SECTIONS.find((section) => section.id === 'increase-decrease').stitches;
+  const menuBuilt = new Set(listed.filter((stitch) => stitch.id !== 'invdec').map((stitch) => stitch.id));
   assert.deepEqual(
     new Set(shown),
-    new Set(STITCHES.filter((stitch) => stitch.id !== 'ch-sp').map((stitch) => stitch.id)),
-    'every stitch but the chain space',
+    new Set([
+      ...STITCHES.filter((stitch) => stitch.id !== 'ch-sp' && !menuBuilt.has(stitch.id)).map((stitch) => stitch.id),
+      'sc2tog',
+      'inc-2sc',
+    ]),
+    'every stitch but the chain space, and the default decrease and increase',
   );
   assert.equal(
     palette.find((section) => section.id === 'compound')?.items.at(-1)?.def.id,
@@ -115,4 +122,49 @@ test('the ink colour comes from the --c-ink token, and only symbols.ts sets a co
   for (const path of DRAWING.filter((p) => p !== 'src/ui/symbols.ts')) {
     assert.doesNotMatch(read(path), /strokeStyle|fillStyle/, path);
   }
+});
+
+/* ---- Increases and decreases from a menu (PQW-1155) ---- */
+
+test('the increase and decrease section is a decrease, an increase, then the invisible decrease', () => {
+  const section = buildPalette('en-US').find(({ id }) => id === 'increase-decrease');
+  assert.deepEqual(
+    section.items.map(({ def, shaping }) => [def.id, shaping]),
+    [
+      ['sc2tog', 'decrease'],
+      ['inc-2sc', 'increase'],
+      ['invdec', null],
+    ],
+  );
+  assert.deepEqual(SHAPINGS, ['decrease', 'increase']);
+  assert.deepEqual(
+    section.items.map(({ key }) => key),
+    ['8', '9', null],
+    'Alt+8 is the decrease, Alt+9 the increase',
+  );
+});
+
+test('the tiles follow the chosen part and count, and say so on the structure line', () => {
+  const choice = {
+    decrease: { part: stitchById('dc'), n: 3 },
+    increase: { part: stitchById('dtr'), n: 5 },
+  };
+  const [dec, inc] = buildPalette('en-US', choice).find(({ id }) => id === 'increase-decrease').items;
+  assert.equal(dec.def.id, 'dc3tog');
+  assert.equal(dec.structure, 'dc3tog');
+  assert.equal(inc.def.id, 'inc-5dtr');
+  assert.equal(inc.structure, '5 dtr in same st');
+  assert.equal(DEFAULT_SHAPING.decrease.part.id, 'sc');
+  assert.equal(DEFAULT_SHAPING.increase.n, 2);
+});
+
+test('the menu offers sc, hdc, dc, tr and dtr by the notation, and a shortened name where there is no abbreviation', () => {
+  assert.deepEqual(
+    SHAPING_PARTS.map((part) => partLabel(part, 'en-US')),
+    ['sc', 'hdc', 'dc', 'tr', 'dtr'],
+  );
+  assert.deepEqual(
+    SHAPING_PARTS.map((part) => partLabel(part, 'hu')),
+    ['rp', 'fp', 'erp', 'krp', 'háromráhajtásos'],
+  );
 });

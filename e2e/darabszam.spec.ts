@@ -121,10 +121,10 @@ test('increases, decreases and compound stitches bring no count, and lay one sti
   await newChart(page);
   await page.getByRole('button', { name: /^Single crochet \(sc\)/ }).click();
   await count(page).fill('5');
-  for (const section of ['#palette-increase-decrease', '#palette-compound']) {
-    await page.locator(`${section} .stitch`).first().click();
-    await expect(panel(page), section).toBeHidden();
-  }
+  await page.locator('#palette-increase-decrease .stitch').first().click();
+  await expect(count(page), 'a decrease sets its parts, not a count').toBeHidden();
+  await page.locator('#palette-compound .stitch').first().click();
+  await expect(panel(page), 'a compound stitch has no settings').toBeHidden();
   await board(page).click({ position: { x: 300, y: 200 } });
   expect(await stitches(page)).toHaveLength(1);
 

@@ -48,6 +48,7 @@ export const MARKUP_TEXTS = {
     arrangeFacingTops: 'Csúcs',
     placeTitle: 'Lerakás',
     placeCountLabel: 'Darabszám',
+    placePartsLabel: 'Szemek száma',
   },
   en: {
     docTitle: 'Free Crochet Pattern Designer & Chart Maker — Dragonette',
@@ -88,5 +89,6 @@ export const MARKUP_TEXTS = {
     arrangeFacingTops: 'Tops',
     placeTitle: 'Placing',
     placeCountLabel: 'Count',
+    placePartsLabel: 'Stitches',
   },
 } satisfies Dictionary<Record<string, string>>;

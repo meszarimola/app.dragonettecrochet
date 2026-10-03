@@ -74,14 +74,15 @@ harmony is decided by the **last word of the number's spoken form**. Hence:
 
 ## §4 A compound stitch id describes its own structure
 
-`stitch-variants.ts`. The library lists the common variants only, but the
-builder functions in `stitches.ts` make the compound stitch for any `n` — the
-editor turns an `inc-2dc` into an `inc-3dc`, which is not on the palette. The
-id is therefore parseable (`inc-<n><part>`, `<part><n>tog`, `cl-<n><part>`), so
-a saved pattern can be reconstructed without storing the definition.
+The library lists the common variants only, but the builder functions in
+`stitches.ts` make the compound stitch for any `n`. The id is therefore
+parseable, so a pattern can be reconstructed without storing the definition.
+`stitchById` builds `inc-<n><part>` and `<part><n>tog` on demand for the five
+parts of the palette's menus, sc to dtr (interface §86); `cl-<n><part>` is not
+parsed since `stitch-variants.ts` went with PQW-1141.
 
 `MAX_PARTS` caps the part count at 12: beyond that the id is a typo, not a
-pattern.
+pattern. The palette itself offers 2–5.
 
 ## §5 The foundation chain skips `max(2, turningChain)` chains
 

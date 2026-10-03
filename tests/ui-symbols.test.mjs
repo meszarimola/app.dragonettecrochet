@@ -7,7 +7,7 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
-import { STITCHES, stitchById } from '../src/core/stitches.ts';
+import { MAX_SHAPING, MIN_SHAPING, SHAPING_PARTS, STITCHES, shapingStitch, stitchById } from '../src/core/stitches.ts';
 import { hatchCount, shapeBounds, stemLength, symbolShapes } from '../src/ui/symbols.ts';
 
 const ROLES = [
@@ -319,5 +319,20 @@ test('every symbol has a finite, non-empty bounding box', () => {
     const { minX, minY, maxX, maxY } = shapeBounds(symbolShapes(def));
     assert.ok([minX, minY, maxX, maxY].every(Number.isFinite), def.id);
     assert.ok(maxX > minX && maxY > minY, def.id);
+  }
+});
+
+test('every increase and decrease the menu can build has a finite symbol, wider for more parts', () => {
+  for (const shaping of ['increase', 'decrease']) {
+    for (const part of SHAPING_PARTS) {
+      let width = 0;
+      for (let n = MIN_SHAPING; n <= MAX_SHAPING; n += 1) {
+        const def = shapingStitch(shaping, part, n);
+        const { minX, minY, maxX, maxY } = shapeBounds(symbolShapes(def));
+        assert.ok([minX, minY, maxX, maxY].every(Number.isFinite), def.id);
+        assert.ok(maxX - minX >= width, `${def.id} is no narrower than one part fewer`);
+        width = maxX - minX;
+      }
+    }
   }
 });

@@ -20,7 +20,14 @@ import {
   sameChart,
 } from '../core/freeform.ts';
 import { amend, canRedo, canUndo, createHistory, type History, record, redo, undo } from '../core/history.ts';
-import { STITCH_SECTIONS } from '../core/stitches.ts';
+import {
+  MAX_SHAPING,
+  MIN_SHAPING,
+  SHAPING_PARTS,
+  type Shaping,
+  STITCH_SECTIONS,
+  shapingStitch,
+} from '../core/stitches.ts';
 import type { ChartStyle, StitchDef, StitchDefId } from '../core/types.ts';
 import { FreeformBoard } from './freeform-board.ts';
 import {
@@ -35,7 +42,14 @@ import {
 } from './i18n.ts';
 import { CHART_STYLES, readChartStyle, symbolOptionsFor, termsFor, writeChartStyle } from './notation.ts';
 import { AngleDial, bindPair } from './number-input.ts';
-import { buildPalette, type PaletteItem, type PaletteSection } from './palette.ts';
+import {
+  buildPalette,
+  DEFAULT_SHAPING,
+  type PaletteItem,
+  type PaletteSection,
+  partLabel,
+  type ShapingChoice,
+} from './palette.ts';
 import { currentPlatform, historyCommand, modifierCombo } from './platform.ts';
 import { applyInk, drawCentered, readAccent, readInk, shapeBounds, symbolShapes } from './symbols.ts';
 import { alignTooltips } from './tooltip.ts';
@@ -80,6 +94,8 @@ const facingButtons: Readonly<Record<Facing, HTMLButtonElement>> = {
   tops: must<HTMLButtonElement>('#arrange-facing-tops'),
 };
 const placeOptions = must<HTMLElement>('#place-options');
+const placeCountSetting = must<HTMLElement>('#place-count-setting');
+const placePartsSetting = must<HTMLElement>('#place-parts-setting');
 const PASTE_STEP = 20;
 // KB: interface.md §85 — the "In a row" arrangement's default spacing.
 const PLACE_GAP = Number(must<HTMLInputElement>('#arrange-gap').defaultValue);
@@ -87,7 +103,9 @@ const COUNTED = new Set(STITCH_SECTIONS.find(({ id }) => id === 'basic')?.stitch
 
 let chartStyle: ChartStyle = readChartStyle(read(NOTATION_KEY));
 let chart: FreeformChart | null = null;
-let tool: StitchDefId | null = null;
+/** The armed palette tile: a stitch's id, or an increase or a decrease built from its menu. */
+let tool: StitchDefId | Shaping | null = null;
+const shaping: Record<Shaping, ShapingChoice> = { ...DEFAULT_SHAPING };
 let selecting = false;
 let clipboard: readonly PlacedStitch[] = [];
 let facing: Facing = 'feet';
@@ -105,15 +123,16 @@ interface Snapshot {
 // KB: core-support §9
 let history: History<Snapshot> | null = null;
 let items: PaletteItem[] = [];
-const buttons = new Map<StitchDefId, HTMLButtonElement>();
+const buttons = new Map<StitchDefId | Shaping, HTMLButtonElement>();
 const ink = readInk(document.documentElement);
 
 const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAccent(document.documentElement), {
   place: (point) => {
-    if (chart === null || tool === null) return;
-    const n = COUNTED.has(tool) ? placeCount.value : 1;
+    const stitch = armedStitch();
+    if (chart === null || stitch === null) return;
+    const n = COUNTED.has(stitch) ? placeCount.value : 1;
     const extent = (placed: PlacedStitch) => board.extentOf(placed);
-    const placed = placeStitches(chart, tool, point, n, extent, PLACE_GAP, board.size());
+    const placed = placeStitches(chart, stitch, point, n, extent, PLACE_GAP, board.size());
     if (placed === null) return;
     chart = placed.chart;
     board.show(chart, symbolOptionsFor(chartStyle));
@@ -169,6 +188,18 @@ const placeCountRange = must<HTMLInputElement>('#place-count-range');
 placeCountRange.min = String(MIN_COUNT);
 placeCountRange.max = String(MAX_COUNT);
 const placeCount = bindPair(placeCountRange, must<HTMLInputElement>('#place-count'), () => {}, true);
+const placePartsRange = must<HTMLInputElement>('#place-parts-range');
+placePartsRange.min = String(MIN_SHAPING);
+placePartsRange.max = String(MAX_SHAPING);
+bindPair(
+  placePartsRange,
+  must<HTMLInputElement>('#place-parts'),
+  (n) => {
+    for (const kind of ['decrease', 'increase'] as const) shaping[kind] = { ...shaping[kind], n };
+    renderShapingTiles();
+  },
+  true,
+);
 const radius = bindPair(
   must<HTMLInputElement>('#arrange-radius-range'),
   must<HTMLInputElement>('#arrange-radius'),
@@ -397,7 +428,7 @@ document.addEventListener('keydown', (event) => {
   const item = digit === undefined ? undefined : items.find((candidate) => candidate.key === digit);
   if (item === undefined) return;
   event.preventDefault();
-  select(item.def.id);
+  select(item.shaping ?? item.def.id);
 });
 
 /** A typed field keeps Ctrl/⌘ + Z for its own text. */
@@ -422,12 +453,24 @@ function applyLanguage(language: UiLanguage): void {
   renderPalette();
 }
 
-function select(id: StitchDefId | null): void {
+function isShaping(id: StitchDefId | Shaping | null): id is Shaping {
+  return id === 'increase' || id === 'decrease';
+}
+
+/** The stitch a click lays: the armed tile's, built from its menu and count for an increase or a decrease. */
+function armedStitch(): StitchDefId | null {
+  if (!isShaping(tool)) return tool;
+  return shapingStitch(tool, shaping[tool].part, shaping[tool].n).id;
+}
+
+function select(id: StitchDefId | Shaping | null): void {
   if (chart === null) return;
   tool = id;
-  for (const [stitchId, button] of buttons) button.setAttribute('aria-pressed', String(stitchId === id));
+  for (const [entry, button] of buttons) button.setAttribute('aria-pressed', String(entry === id));
   document.body.classList.toggle('is-armed', id !== null);
-  placeOptions.hidden = id === null || !COUNTED.has(id);
+  placeCountSetting.hidden = id === null || !COUNTED.has(id);
+  placePartsSetting.hidden = !isShaping(id);
+  placeOptions.hidden = placeCountSetting.hidden && placePartsSetting.hidden;
   if (id !== null) {
     buttons.get(id)?.scrollIntoView({ block: 'nearest' });
     setSelecting(false);
@@ -444,11 +487,20 @@ function setSelecting(on: boolean): void {
 }
 
 function renderPalette(): void {
-  const sections = buildPalette(termsFor(uiLanguage()));
+  const sections = buildPalette(termsFor(uiLanguage()), shaping);
   items = sections.flatMap((section) => section.items);
   buttons.clear();
   palette.replaceChildren(...sections.map(paletteSection));
   select(tool);
+}
+
+/** Redraws the increase and decrease tiles in place, so a menu or a field in use keeps its focus. KB: interface.md §8 */
+function renderShapingTiles(): void {
+  items = buildPalette(termsFor(uiLanguage()), shaping).flatMap((section) => section.items);
+  for (const item of items) {
+    const button = item.shaping === null ? undefined : buttons.get(item.shaping);
+    if (button !== undefined) fillButton(button, item);
+  }
 }
 
 function paletteSection(section: PaletteSection): HTMLElement {
@@ -466,27 +518,65 @@ function paletteSection(section: PaletteSection): HTMLElement {
   list.setAttribute('role', 'group');
   list.setAttribute('aria-labelledby', title.id);
   for (const item of section.items) {
-    const button = stitchButton(item);
-    buttons.set(item.def.id, button);
-    list.append(button);
+    const entry = item.shaping ?? item.def.id;
+    const button = stitchButton(item, entry);
+    buttons.set(entry, button);
+    if (item.shaping === null) {
+      list.append(button);
+      continue;
+    }
+    const row = document.createElement('div');
+    row.className = 'palette__shaping';
+    row.append(button, partMenu(item.shaping));
+    list.append(row);
   }
   group.append(title, list);
   return group;
 }
 
+/** The menu beside an increase or a decrease tile; a choice arms the tile. KB: interface.md §86 */
+function partMenu(kind: Shaping): HTMLSelectElement {
+  const menu = document.createElement('select');
+  menu.className = 'palette__part';
+  menu.id = `palette-${kind}-part`;
+  menu.disabled = chart === null;
+  menu.setAttribute('aria-label', texts().sections.palette.shapingPart[kind]);
+  const terms = termsFor(uiLanguage());
+  for (const part of SHAPING_PARTS) {
+    const option = document.createElement('option');
+    option.value = part.id;
+    option.textContent = partLabel(part, terms);
+    menu.append(option);
+  }
+  menu.value = shaping[kind].part.id;
+  menu.addEventListener('change', () => {
+    const part = SHAPING_PARTS.find(({ id }) => id === menu.value);
+    if (part === undefined) return;
+    shaping[kind] = { ...shaping[kind], part };
+    renderShapingTiles();
+    select(kind);
+  });
+  return menu;
+}
+
 /*
- * The structure line under the name is what tells the four "decrease" stitches
- * apart, and the tooltip repeats both. KB: interface.md §53, §56
+ * The structure line under the name is what tells the decreases apart, and the
+ * tooltip repeats both. KB: interface.md §53, §56
  */
-function stitchButton(item: PaletteItem): HTMLButtonElement {
+function stitchButton(item: PaletteItem, entry: StitchDefId | Shaping): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
-  button.className = 'stitch';
+  button.className = item.shaping === null ? 'stitch' : 'stitch stitch--shaping';
   button.disabled = chart === null;
   button.setAttribute('aria-pressed', 'false');
+  button.addEventListener('click', () => select(tool === entry ? null : entry));
+  fillButton(button, item);
+  return button;
+}
+
+function fillButton(button: HTMLButtonElement, item: PaletteItem): void {
   button.dataset.tip = item.structure ? `${item.name}: ${item.structure}` : item.name;
-  button.addEventListener('click', () => select(tool === item.def.id ? null : item.def.id));
-  button.append(preview(item.def, 32), span('stitch__name', item.name));
+  button.replaceChildren(preview(item.def, 32), span('stitch__name', item.name));
   if (item.structure) button.append(span('stitch__detail', item.structure));
   if (item.key) {
     const key = document.createElement('kbd');
@@ -494,7 +584,6 @@ function stitchButton(item: PaletteItem): HTMLButtonElement {
     key.textContent = modifierCombo(item.key, currentPlatform());
     button.append(key);
   }
-  return button;
 }
 
 function preview(def: StitchDef, size: number): HTMLCanvasElement {

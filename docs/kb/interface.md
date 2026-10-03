@@ -2585,3 +2585,34 @@ undo step (§84).
 takes the whole column; for the count it takes only its own height, because
 arming a stitch is the placing state and the board under the column has to stay
 clickable.
+
+## §86 An increase or a decrease is a tile and a menu, and the panel sets its parts
+
+PQW-1155, the owner's request: *„jelenleg bele van »égetve« vagyis dedikáltan
+egy típusú szemre megy a fogyasztás”* — the palette listed six fixed ones (two
+increases, four decreases), each tied to one stitch.
+
+**The section is two rows and a tile.** Decrease first, then Increase, as the
+owner listed them; each row is a tile and, beside it, a menu of the stitch it is
+made of: sc, hdc, dc, tr, dtr (`SHAPING_PARTS`), default sc. The menu prints the
+abbreviation of the notation, or where there is none the shortened name
+§53 already uses (Hungarian „háromráhajtásos”), never an invented one. The invisible decrease stays a tile of its own
+under them — it is worked through the front loops only, so it is not „sc2tog
+from a menu” (owner's choice). A choice in the menu arms its tile. The tile's
+icon and structure line follow the choice, redrawn in place so the menu keeps
+its focus (§8). `Alt`+8 is the decrease and `Alt`+9 the increase; the compound
+stitches had no shortcut before and have none now.
+
+**The parts: 2–5, not 2–10.** The owner asked for 2–10 and then asked whether
+10 was too many. Drawn, an increase of more than five runs its legs into one
+blot, and a decrease of ten is four or five stitches wide; the owner chose 2–5
+for both (`MIN_SHAPING`, `MAX_SHAPING`). The control is the count's (§85):
+slider and digits-only field, capped as it is typed, default 2. One value serves
+both tiles. A click lays **one** increase or decrease — the parts are inside
+the stitch, not copies of it.
+
+**The ids are built, not listed.** `stitchById` builds `inc-<n><part>` and
+`<part><n>tog` for a menu part on demand (core-domain §4), so any of the fifty
+combinations can be drawn. The library sections are untouched: the written
+pattern's key still follows them (§74), and the palette simply shows this
+section its own way.

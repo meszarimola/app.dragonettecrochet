@@ -703,6 +703,63 @@ body.is-armed #board {
   display: block;
 }
 
+/* KB: interface.md §86 */
+.palette__shaping {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 6rem;
+  gap: var(--sp-0);
+}
+
+.stitch--shaping {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "icon name key"
+    "icon detail detail";
+  align-items: center;
+  justify-items: start;
+  column-gap: var(--sp-1);
+  text-align: start;
+}
+
+.stitch--shaping > canvas {
+  grid-area: icon;
+}
+
+.stitch--shaping > .stitch__name {
+  grid-area: name;
+}
+
+.stitch--shaping > .stitch__detail {
+  grid-area: detail;
+}
+
+.stitch--shaping > .stitch__key {
+  grid-area: key;
+}
+
+.palette__part {
+  min-inline-size: 0;
+  min-block-size: 44px;
+  padding: 0 var(--sp-1);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-md);
+  background: var(--c-bg);
+  color: var(--c-ink);
+  font: inherit;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+}
+
+.palette__part:hover:not(:disabled) {
+  border-color: var(--c-accent);
+}
+
+.palette__part:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .version {
   position: sticky;
   inset-block-end: calc(-1 * var(--sp-3));

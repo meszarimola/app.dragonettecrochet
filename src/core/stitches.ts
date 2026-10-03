@@ -415,10 +415,45 @@ export const STITCH_SECTIONS: readonly StitchSection[] = [
 
 export const STITCHES: readonly StitchDef[] = STITCH_SECTIONS.flatMap((section) => section.stitches);
 
+export type Shaping = 'increase' | 'decrease';
+
+/** The stitches an increase or a decrease of the palette is made of, in its menu's order. KB: interface.md §86 */
+export const SHAPING_PARTS: readonly StitchDef[] = [
+  SINGLE_CROCHET,
+  HALF_DOUBLE_CROCHET,
+  DOUBLE_CROCHET,
+  TREBLE,
+  DOUBLE_TREBLE,
+];
+export const MIN_SHAPING = 2;
+export const MAX_SHAPING = 5;
+// KB: core-domain §4
+const MAX_PARTS = 12;
+
+/** An increase or a decrease of `n` of a part; `n` is taken within 2–5. */
+export function shapingStitch(shaping: Shaping, part: StitchDef, n: number): StitchDef {
+  const parts = Number.isFinite(n) ? Math.min(Math.max(Math.trunc(n), MIN_SHAPING), MAX_SHAPING) : MIN_SHAPING;
+  return shaping === 'increase' ? increase(part, parts) : decrease(part, parts);
+}
+
 const BY_ID = new Map(STITCHES.map((stitch) => [stitch.id, stitch]));
+const PARTS_BY_ID = new Map(SHAPING_PARTS.map((part) => [part.id, part]));
+
+/** An increase or a decrease the library does not list, built from its id. KB: core-domain §4 */
+function builtFrom(id: StitchDefId): StitchDef | undefined {
+  const inc = /^inc-(\d+)([a-z]+)$/.exec(id);
+  const dec = inc === null ? /^([a-z]+)(\d+)tog$/.exec(id) : null;
+  const [partId, n] = inc !== null ? [inc[2], inc[1]] : dec !== null ? [dec[1], dec[2]] : [];
+  const part = partId === undefined ? undefined : PARTS_BY_ID.get(partId);
+  const parts = Number(n);
+  if (part === undefined || !Number.isInteger(parts) || parts < MIN_SHAPING || parts > MAX_PARTS) return undefined;
+  const built = inc !== null ? increase(part, parts) : decrease(part, parts);
+  return built.id === id ? built : undefined;
+}
 
 export function stitchById(id: StitchDefId): StitchDef {
-  const found = BY_ID.get(id);
+  const found = BY_ID.get(id) ?? builtFrom(id);
   if (!found) throw new Error(`Ismeretlen szem: ${id}`);
+  BY_ID.set(id, found);
   return found;
 }

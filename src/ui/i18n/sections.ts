@@ -1,11 +1,12 @@
-// KB: interface.md §53
+// KB: interface.md §53, §86
 
-import type { StitchSectionId } from '../../core/stitches.ts';
+import type { Shaping, StitchSectionId } from '../../core/stitches.ts';
 import type { Dictionary } from '../i18n.ts';
 
 export interface SectionTexts {
   readonly palette: {
     readonly titles: Readonly<Record<StitchSectionId, string>>;
+    readonly shapingPart: Readonly<Record<Shaping, string>>;
   };
 }
 
@@ -17,6 +18,10 @@ const hu: SectionTexts = {
       compound: 'Összetett szemek',
       structure: 'Láncív és varázskör',
     },
+    shapingPart: {
+      decrease: 'A fogyasztás szeme',
+      increase: 'A szaporítás szeme',
+    },
   },
 };
 
@@ -27,6 +32,10 @@ const en: SectionTexts = {
       'increase-decrease': 'Increases and decreases',
       compound: 'Compound stitches',
       structure: 'Chain space and magic ring',
+    },
+    shapingPart: {
+      decrease: 'Decrease stitch',
+      increase: 'Increase stitch',
     },
   },
 };
