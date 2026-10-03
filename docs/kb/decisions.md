@@ -39,6 +39,11 @@ noise she then has to pay to remove.
 The same applies to workflow: a pattern is created in whatever order the user
 likes, so sequential progress is never required.
 
+**One exception, asked for by the owner (2026-10-03, PQW-1169):** „New” asks
+before it replaces a chart that has stitches, from either of its entries. The
+owner chose it while planning the regular design; it is the only confirmation
+the interface has. `interface.md` §90.
+
 ## §5 The version is never written by hand
 
 `vite.config.ts` reads `package.json`'s `version` into `__APP_VERSION__` at build

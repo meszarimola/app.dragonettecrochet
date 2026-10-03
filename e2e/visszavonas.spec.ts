@@ -126,6 +126,7 @@ test('New can be undone', async ({ page }) => {
   await chartWith(page, [[200, 200]]);
   await page.getByRole('button', { name: 'New' }).click();
   await page.getByRole('menuitem', { name: 'Free-form design' }).click();
+  await page.getByRole('button', { name: 'Continue' }).click();
   await expect(board(page)).toHaveAttribute('data-stitches', '0');
   await undoButton(page).click();
   await expect(board(page)).toHaveAttribute('data-stitches', '1');

@@ -339,6 +339,10 @@ button {
   font-weight: 400;
 }
 
+.dialog__text {
+  margin: 0;
+}
+
 .dialog__field {
   display: grid;
   gap: var(--sp-0);
