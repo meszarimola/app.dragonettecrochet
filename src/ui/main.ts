@@ -28,6 +28,7 @@ import {
   urlWithLanguage,
 } from './i18n.ts';
 import { CHART_STYLES, readChartStyle, symbolOptionsFor, termsFor, writeChartStyle } from './notation.ts';
+import { AngleDial, bindPair } from './number-input.ts';
 import { buildPalette, type PaletteItem, type PaletteSection } from './palette.ts';
 import { currentPlatform, modifierCombo } from './platform.ts';
 import { applyInk, drawCentered, readAccent, readInk, shapeBounds, symbolShapes } from './symbols.ts';
@@ -51,9 +52,21 @@ const selectButton = must<HTMLButtonElement>('#select-tool');
 const duplicateButton = must<HTMLButtonElement>('#duplicate-selection');
 const deleteButton = must<HTMLButtonElement>('#delete-selection');
 const arrangePanel = must<HTMLElement>('#arrange');
-const circleRadius = must<HTMLInputElement>('#arrange-circle-radius');
-const fanRadius = must<HTMLInputElement>('#arrange-fan-radius');
-const fanAngle = must<HTMLInputElement>('#arrange-fan-angle');
+const arrangeButtons: Readonly<Record<Arrangement, HTMLButtonElement>> = {
+  row: must<HTMLButtonElement>('#arrange-row'),
+  around: must<HTMLButtonElement>('#arrange-around'),
+};
+const arrangeOptions: Readonly<Record<Arrangement, HTMLElement>> = {
+  row: must<HTMLElement>('#arrange-row-options'),
+  around: must<HTMLElement>('#arrange-around-options'),
+};
+const angleDial = new AngleDial(
+  must<HTMLElement>('#arrange-dial'),
+  must<HTMLElement>('#arrange-angle-handle'),
+  must<HTMLInputElement>('#arrange-angle'),
+  must<SVGPathElement>('#arrange-dial-arc'),
+  () => rearrange('around'),
+);
 const PASTE_STEP = 20;
 
 let chartStyle: ChartStyle = readChartStyle(read(NOTATION_KEY));
@@ -79,6 +92,7 @@ const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAcce
     board.show(chart, symbolOptionsFor(chartStyle));
   },
   change: (next) => {
+    if (arranged !== null && chart === arranged.result) follow(next);
     chart = next;
     board.show(chart, symbolOptionsFor(chartStyle));
   },
@@ -86,33 +100,41 @@ const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAcce
     duplicateButton.disabled = count === 0;
     deleteButton.disabled = count === 0;
     arrangePanel.hidden = count === 0;
+    if (arranged !== null && !sameSet(arranged.ids, board.selected)) arranged = null;
+    showOptions();
   },
 });
 
 selectButton.addEventListener('click', () => setSelecting(!selecting));
 duplicateButton.addEventListener('click', () => duplicateSelection());
 deleteButton.addEventListener('click', () => deleteSelection());
-must<HTMLButtonElement>('#arrange-row').addEventListener('click', () => arrange('row'));
-must<HTMLButtonElement>('#arrange-circle').addEventListener('click', () => arrange('circle'));
-must<HTMLButtonElement>('#arrange-fan').addEventListener('click', () => arrange('fan'));
-circleRadius.addEventListener('input', () => rearrange('circle'));
-fanRadius.addEventListener('input', () => rearrange('fan'));
-fanAngle.addEventListener('input', () => rearrange('fan'));
+arrangeButtons.row.addEventListener('click', () => arrange('row'));
+arrangeButtons.around.addEventListener('click', () => arrange('around'));
+const gap = bindPair(must<HTMLInputElement>('#arrange-gap-range'), must<HTMLInputElement>('#arrange-gap'), () =>
+  rearrange('row'),
+);
+const radius = bindPair(
+  must<HTMLInputElement>('#arrange-radius-range'),
+  must<HTMLInputElement>('#arrange-radius'),
+  () => rearrange('around'),
+);
 
 function arrange(arrangement: Arrangement): void {
   if (chart === null || board.selected.size === 0 || board.dragging) return;
   const ids = new Set(board.selected);
   const base = arranged !== null && untouchedSince(arranged) ? arranged.base : chart;
-  const options =
-    arrangement === 'circle'
-      ? { radius: numberIn(circleRadius), angle: 0 }
-      : { radius: numberIn(fanRadius), angle: (numberIn(fanAngle) * Math.PI) / 180 };
+  const options = {
+    gap: gap.value,
+    radius: radius.value,
+    angle: (angleDial.value * Math.PI) / 180,
+  };
   const next = arrangeStitches(base, ids, arrangement, (placed) => board.extentOf(placed), options);
   const [dx, dy] = boundedMove(next, ids, 0, 0, board.size());
   const result = moveStitches(next, ids, dx, dy);
   if (!allInside(result, ids, board.size())) return;
   chart = result;
   arranged = { arrangement, ids, base, result };
+  showOptions();
   board.show(chart, symbolOptionsFor(chartStyle));
 }
 
@@ -120,15 +142,49 @@ function rearrange(arrangement: Arrangement): void {
   if (arranged?.arrangement === arrangement && untouchedSince(arranged)) arrange(arrangement);
 }
 
-function untouchedSince({ ids, result }: NonNullable<typeof arranged>): boolean {
-  return chart === result && sameSet(ids, board.selected);
+/**
+ * A plain move of the arranged stitches carries the chart the arrangement
+ * started from along with them; anything else ends the arrangement. KB: interface.md §83
+ */
+function follow(next: FreeformChart): void {
+  if (arranged === null) return;
+  const shift = shiftBetween(arranged.result, next, arranged.ids);
+  arranged =
+    shift === null
+      ? null
+      : { ...arranged, base: moveStitches(arranged.base, arranged.ids, shift[0], shift[1]), result: next };
+  showOptions();
 }
 
-/** An empty or out-of-range field counts as the nearest value it allows. */
-function numberIn(input: HTMLInputElement): number {
-  const value = Number.parseFloat(input.value);
-  const [min, max] = [Number(input.min), Number(input.max)];
-  return Number.isFinite(value) ? Math.min(Math.max(value, min), max) : min;
+/** The one shift that takes every given stitch from `from` to `to`, turn and size kept; `null` for anything else. */
+function shiftBetween(from: FreeformChart, to: FreeformChart, ids: ReadonlySet<number>): [number, number] | null {
+  if (from.stitches.length !== to.stitches.length) return null;
+  let shift: [number, number] | null = null;
+  for (const [i, before] of from.stitches.entries()) {
+    const after = to.stitches[i];
+    if (after === undefined || after.id !== before.id) return null;
+    if (!ids.has(before.id)) {
+      if (after !== before) return null;
+      continue;
+    }
+    if (after.rotation !== before.rotation || after.scale !== before.scale) return null;
+    const [dx, dy] = [after.x - before.x, after.y - before.y];
+    shift ??= [dx, dy];
+    if (Math.abs(shift[0] - dx) > 1e-9 || Math.abs(shift[1] - dy) > 1e-9) return null;
+  }
+  return shift ?? [0, 0];
+}
+
+function showOptions(): void {
+  for (const arrangement of ['row', 'around'] as const) {
+    const on = arranged?.arrangement === arrangement;
+    arrangeOptions[arrangement].hidden = !on;
+    arrangeButtons[arrangement].setAttribute('aria-pressed', String(on));
+  }
+}
+
+function untouchedSince({ ids, result }: NonNullable<typeof arranged>): boolean {
+  return chart === result && sameSet(ids, board.selected);
 }
 
 function sameSet(a: ReadonlySet<number>, b: ReadonlySet<number>): boolean {
@@ -236,9 +292,13 @@ document.addEventListener('keydown', (event) => {
   select(item.def.id);
 });
 
-/** A select box or a typed field keeps its own keys. */
+/** A select box, a typed field and the dial's handle keep their own keys. */
 function inField(target: EventTarget | null): boolean {
-  return target instanceof HTMLSelectElement || target instanceof HTMLInputElement;
+  return (
+    target instanceof HTMLSelectElement ||
+    target instanceof HTMLInputElement ||
+    (target instanceof Element && target.getAttribute('role') === 'slider')
+  );
 }
 
 function applyLanguage(language: UiLanguage): void {

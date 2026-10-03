@@ -2402,34 +2402,69 @@ owns, not for a rename of mine (`frozen-paths.md`).
 
 ## §83 The right panel follows the selection, and arranges it
 
-PQW-1146. `#inspector` is the free-form board's right column, and what it shows
-depends on what is in focus. With nothing selected it is empty — the owner's
-choice over a hint or a hidden column. With one or more stitches selected it
-offers the three arrangements of `arrangeStitches` (`core/freeform.ts`):
+PQW-1146, reshaped in PQW-1147. `#inspector` is the free-form board's right
+column, and what it shows depends on what is in focus. With nothing selected it
+is empty — the owner's choice over a hint or a hidden column. With one or more
+stitches selected it offers two arrangements side by side (`arrangeStitches`,
+`core/freeform.ts`), both taking the stitches left to right:
 
-- **In a row**: upright, foot to foot on one line, left to right in the order
-  they stood, `ROW_GAP` apart, centred where the selection was.
-- **In a circle**: a whole circle, never an arc; feet inward, tops outward,
-  clockwise from the top. Its one value is the radius to the feet.
-- **In a fan**: the feet point at one shared point under the stitches, and each
-  stands `radius` away from it, so the feet do not cover each other — the owner
-  asked for that gap explicitly, against a fan whose feet all meet. The angle is
-  the spread from the first stitch to the last.
+- **In a row** („Sorba”): upright, foot to foot on one line, `gap` apart,
+  centred where the selection was.
+- **Around** („Ívbe”): the feet point at one shared point and each stands
+  `radius` away from it, so the feet do not cover each other — the owner asked
+  for that gap, against a fan whose feet all meet. `angle` is the spread from
+  the first stitch to the last, and the result is centred where the selection
+  was.
 
-The values are minimal on purpose (the owner: radius and angle, no more). The
-units are board pixels. A changed value re-arranges at once, from the chart
-**before** the arrangement — re-arranging the arranged fan from its own centroid
-drifted it downward with every keystroke. That earlier chart is used only while
-the chart is still, by identity, the one the arrangement produced and the same
-stitches are selected: matching the ids alone brought an old chart back after
-New, a paste or a placed stitch reused them. The fan's default radius is
-24: at 12, five half-doubles at 90° touched at the tops, which a zoomed
-screenshot showed and no measurement did. An arrangement that would leave the
-board is shifted back on; one larger than the board is not taken, as a turn or a
-resize is not (a stitch left off the board can no longer be dragged, turned or
-resized). Below 40rem the column takes no width and appears over the board only
-while it has something to show.
+**There is no circle.** PQW-1146 had „Körbe” beside „Legyezőbe”; the owner saw
+they did the same thing with other angles, dropped the circle and renamed the
+fan. So that around can still close a ring, the step between neighbours never
+grows past `360° / n`: past `360° · (n − 1) / n` a larger angle gives the same
+even circle, and at 359° the first and the last stitch do not land on each
+other. The owner agreed to this.
 
-The number fields keep their own keys: Delete, Backspace, Escape and the
-Ctrl/⌘ commands typed in a field are not the chart's. Before that, Backspace in
-the radius deleted the selection.
+**The settings appear only for the arrangement made**, under the two buttons,
+and its button stays pressed. They go when the selected set changes — the board
+reports every change of the set, not only of its size, for this — so a new
+selection starts with the two buttons alone.
+
+- Row: **Spacing**, a 1–10 slider with a field on its right, default 4 px.
+- Around: **Radius**, a 1–150 slider with its field, default 24 px — the owner
+  asked for a recommendation and accepted this: 24 is the look they approved in
+  PQW-1146 (at 12, five half-doubles at 90° touched at the tops), and 150 leaves
+  room for a full ring of many stitches. **Angle**, a dial of 0–359 with its
+  field in the middle, default 90.
+
+The slider moves the field; the field may go past the slider's maximum, and
+the slider then stays at its end. The dial is dragged anywhere on its ring or
+turned from its handle (`role="slider"`) with the arrow keys, Page Up/Down,
+Home and End, and it wraps round past the top. Every field takes **digits
+only** — `type="text"` with `inputmode="numeric"`, filtered on input, because
+`type="number"` accepts `-`, `e` and `.`. An angle above 359 becomes 359; an
+emptied field gets its last value back when it is left. The pure parts are in
+`ui/number-input.ts`.
+
+A changed setting re-arranges at once. While the chart is still, by identity,
+the one the arrangement produced, it starts from the chart **before** it —
+re-arranging an arranged fan from its own centroid drifted it downward with
+every keystroke; matching the ids alone brought an old chart back after New, a
+paste or a placed stitch reused them. A plain move of the arranged stitches
+carries that earlier chart along by the same shift, so a setting changed after
+the move neither jumps the stitches nor reorders them — starting from where they
+stand would sort an arc wider than 180° by x and swap its two halves. A turn or a
+resize ends the arrangement and hides its settings; the button makes a new one.
+A typed value below the slider's minimum counts as the minimum, so a radius of 0
+can never stack the feet. An angle of 0 does stack the stitches: that is the
+range the owner set. An arrangement larger than the board is not taken, as a turn or a
+resize is not (a stitch left off the board can no longer be moved); one that
+only reaches past an edge is shifted back on. Below 40rem the column takes no
+width and appears over the board only while it has something to show.
+
+Keys typed in the panel's fields and on the dial's handle are theirs: Delete,
+Backspace, Escape and the Ctrl/⌘ commands do not reach the chart. The arrange
+buttons keep no keys, so after a click on one the chart's shortcuts still work. Before that, Backspace in the radius
+deleted the selection.
+
+The grid columns in the panel are `minmax(0, 1fr)`: a range input's built-in
+minimum width otherwise pushed the field and the second button out of the
+12rem column, which a screenshot showed at 1000 px and no test did.
