@@ -55,6 +55,15 @@ function fitScale({ width }: Footprint, cell: SeatedCell): number {
 /** The room above a row's tallest stitch, so its top never meets the foot of the row above. KB: interface.md §91 */
 export const ROW_GAP = 8;
 
+/** A chain's middle, as a share of the row below the gap: the middle of its upper half. KB: interface.md §91 */
+export const CHAIN_RISE = 0.75;
+
+/** How far a seated chain's ink middle stands above its row's line: as `CHAIN_RISE` says, but never into the gap. */
+function chainLift(rowHeight: number, inkHeight: number): number {
+  const room = rowHeight - ROW_GAP;
+  return Math.min(CHAIN_RISE * room, room - inkHeight / 2);
+}
+
 /** A row is as tall as its tallest seated stitch and the gap above it, and never less than a cell. */
 export function rowHeights(chart: FreeformChart, size: NaturalSize): RowHeights {
   const heights = (chart.grid?.rows ?? []).map(() => GRID_CELL);
@@ -122,8 +131,11 @@ export function seat(chart: FreeformChart, size: NaturalSize): FreeformChart {
     const ink = size(placed);
     const scale = fitScale(ink, cell);
     const x = (cell.col + cell.span / 2) * GRID_CELL;
-    const lift = placed.stitch === CHAIN.id ? 0.75 * (heights[cell.row] ?? GRID_CELL) - (ink.height / 2) * scale : 0;
-    const y = bottom - ink.drop * scale - lift;
+    const row = heights[cell.row] ?? GRID_CELL;
+    const y =
+      placed.stitch === CHAIN.id
+        ? bottom - chainLift(row, ink.height * scale) + (ink.height / 2 - ink.drop) * scale
+        : bottom - ink.drop * scale;
     if (placed.x === x && placed.y === y && placed.rotation === 0 && placed.scale === scale) return placed;
     moved = true;
     return { ...placed, x, y, rotation: 0, scale };

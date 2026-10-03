@@ -18,7 +18,16 @@ import {
   scaleStitches,
 } from '../src/core/freeform.ts';
 import { GRID_CELL, rectGrid } from '../src/core/grid.ts';
-import { cellSpan, placeInGrid, ROW_GAP, rowHeights, seat, spansFrom, workDirection } from '../src/core/seat.ts';
+import {
+  CHAIN_RISE,
+  cellSpan,
+  placeInGrid,
+  ROW_GAP,
+  rowHeights,
+  seat,
+  spansFrom,
+  workDirection,
+} from '../src/core/seat.ts';
 
 /** Ink at scale 1, from the symbols' measured sizes: sc is 27 tall, dc 51, tr 63. */
 const SIZES = {
@@ -104,22 +113,43 @@ test('a seated stitch stands in the middle of its cells with its foot on the row
   assert.deepEqual(sc.cell, { row: 0, col: 2, span: 1 });
 });
 
-/** The middle of a stitch's ink, from where it is drawn. */
-const inkMiddle = (placed) => placed.y + SIZES[placed.stitch].drop - SIZES[placed.stitch].height / 2;
+/** The middle and the top of a stitch's ink, from where it is drawn. */
+const inkMiddle = ({ stitch, y, scale }) => y + (SIZES[stitch].drop - SIZES[stitch].height / 2) * scale;
+const inkTop = ({ stitch, y, scale }) => y - (SIZES[stitch].height - SIZES[stitch].drop) * scale;
 
-test('a chain sits in the middle of the upper half of its row, not on the line', () => {
+test('a chain sits in the middle of the upper half of its row below the gap, not on the line', () => {
   const chart = laid(gridChart(), 'ch', 0, 1);
-  assert.equal(inkMiddle(chart.stitches[0]), -0.75 * GRID_CELL, 'in a 40 row, 30 above the line');
+  assert.equal(inkMiddle(chart.stitches[0]), -CHAIN_RISE * (GRID_CELL - ROW_GAP), 'in a 40 row, 24 above the line');
   const mixed = laid(laid(gridChart(), 'dc', 1, 0), 'ch', 1, 1);
   const chain = mixed.stitches.find(({ stitch }) => stitch === 'ch');
   const height = rowHeights(mixed, size)[1];
-  assert.equal(inkMiddle(chain), -GRID_CELL - 0.75 * height, 'in a taller row, three quarters of its height up');
+  assert.equal(inkMiddle(chain), -GRID_CELL - CHAIN_RISE * (height - ROW_GAP), 'higher in a taller row');
+});
+
+test('a lifted chain never reaches into the gap below the next row', () => {
+  for (const [row, chart] of [
+    [0, laid(gridChart(), 'ch', 0, 1)],
+    [1, laid(laid(gridChart(), 'dc', 1, 0), 'ch', 1, 1)],
+  ]) {
+    const heights = rowHeights(chart, size);
+    const rowTop = -heights.slice(0, row + 1).reduce((sum, h) => sum + h, 0);
+    const chain = chart.stitches.find(({ stitch }) => stitch === 'ch');
+    assert.ok(inkTop(chain) - rowTop >= ROW_GAP, `row ${row + 1}: ${inkTop(chain) - rowTop} below the line`);
+  }
 });
 
 test('only a chain is lifted: a chain space and every other stitch keep their foot on the line', () => {
-  const chart = laid(laid(gridChart(), 'ch-sp', 0, 1), 'sc', 0, 3);
+  let chart = laid(gridChart(12, 4), 'ch-sp', 0, 1);
+  for (const [stitch, col] of [
+    ['sc', 3],
+    ['dc', 5],
+    ['rev-sc', 7],
+    ['v-st-dc', 11],
+  ])
+    chart = laid(chart, stitch, 0, col);
   for (const placed of chart.stitches) {
-    assert.equal(placed.y + SIZES[placed.stitch].drop * placed.scale, 0, placed.stitch);
+    const drop = (SIZES[placed.stitch] ?? size(placed)).drop;
+    assert.equal(placed.y + drop * placed.scale, 0, placed.stitch);
   }
 });
 
