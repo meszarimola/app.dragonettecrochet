@@ -91,6 +91,17 @@ slot, so switching types never overwrites the other type's work, and one key
 holding its interface preferences as a small JSON object rather than a key per
 preference.
 
+The chart itself survives a reload (PQW-1162, the owner's request), but in
+`sessionStorage`, not `localStorage`: it lives as long as the tab, and closing
+the tab forgets it. A history step that changes the chart writes it — not a
+selection-only step, which a selection drag makes on every frame. The view
+(zoom and position on the sheet) is a second session key, written on every pan
+and zoom, so a chart drawn away from the home corner does not reopen looking
+empty. At start-up a stored chart opens as if New had been pressed with it in
+hand. A stored chart that is malformed, or names a stitch the library cannot
+draw, reads as none, and the app starts blank as before; a scale a rounding
+error pushed past its limit is clamped rather than refused.
+
 Every storage access is wrapped in `try/catch`: in a private window or with
 storage blocked the call throws, and the editor must still start. When a write
 fails the setting simply does not survive a reload.

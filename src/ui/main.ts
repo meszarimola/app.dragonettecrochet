@@ -6,6 +6,8 @@ import {
   allInside,
   arrangeStitches,
   boundedMove,
+  chartFromJson,
+  chartToJson,
   copyStitches,
   deleteStitches,
   emptyChart,
@@ -29,7 +31,7 @@ import {
   shapingStitch,
 } from '../core/stitches.ts';
 import type { ChartStyle, StitchDef, StitchDefId } from '../core/types.ts';
-import { MAX_ZOOM, MIN_ZOOM } from '../core/view.ts';
+import { DEFAULT_VIEW, MAX_ZOOM, MIN_ZOOM, viewFromJson } from '../core/view.ts';
 import { type BoardMode, FreeformBoard } from './freeform-board.ts';
 import {
   applyStaticTexts,
@@ -57,6 +59,8 @@ import { alignTooltips } from './tooltip.ts';
 
 const NOTATION_KEY = 'dc-mintatervezo:jeloles';
 const LANG_KEY = 'dc-mintatervezo:nyelv';
+const CHART_KEY = 'dc-mintatervezo:minta';
+const VIEW_KEY = 'dc-mintatervezo:nezet';
 
 function must<T extends Element>(selector: string): T {
   const el = document.querySelector<T>(selector);
@@ -127,6 +131,7 @@ interface Snapshot {
 }
 // KB: core-support §9
 let history: History<Snapshot> | null = null;
+let storedChart: FreeformChart | null = null;
 let items: PaletteItem[] = [];
 const buttons = new Map<StitchDefId | Shaping, HTMLButtonElement>();
 const ink = readInk(document.documentElement);
@@ -159,7 +164,10 @@ const board = new FreeformBoard(must<HTMLCanvasElement>('#board'), ink, readAcce
       setHistory(amend(history, { chart, selection: new Set(board.selected) }));
     }
   },
-  viewChanged: () => showZoom(),
+  viewChanged: (view) => {
+    showZoom();
+    write(VIEW_KEY, JSON.stringify(view), session);
+  },
 });
 
 undoButton.addEventListener('click', () => step(undo));
@@ -315,6 +323,10 @@ function setHistory(next: History<Snapshot>): void {
   history = next;
   undoButton.disabled = !canUndo(history);
   redoButton.disabled = !canRedo(history);
+  // A selection drag amends on every frame without changing the chart.
+  if (history.present.chart === storedChart) return;
+  storedChart = history.present.chart;
+  write(CHART_KEY, chartToJson(storedChart), session);
 }
 
 function untouchedSince({ ids, result }: NonNullable<typeof arranged>): boolean {
@@ -376,18 +388,25 @@ alignTooltips(must<HTMLElement>('.tools'));
 if (navigator.webdriver) Object.assign(window, { dcFreeformChart: () => chart });
 
 newButton.addEventListener('click', () => {
-  if (board.dragging) return;
+  if (!board.dragging) open(emptyChart());
+});
+
+// KB: interface.md §5 — the last chart, and where it was looked at, survive a reload of the tab.
+const saved = chartFromJson(read(CHART_KEY, session));
+if (saved !== null) open(saved, viewFromJson(read(VIEW_KEY, session)) ?? DEFAULT_VIEW);
+
+function open(next: FreeformChart, view = DEFAULT_VIEW): void {
   const blank = chart === null || chart.stitches.length === 0;
-  chart = emptyChart();
+  chart = next;
   board.show(chart, symbolOptionsFor(chartStyle));
   const fresh = { chart, selection: new Set<number>() };
   if (history === null) setHistory(createHistory(fresh));
   else setHistory(blank && !canRedo(history) ? amend(history, fresh) : record(history, fresh));
   selectButton.disabled = false;
-  board.resetView();
+  board.showView(view);
   showZoom();
   renderPalette();
-});
+}
 
 styleSelect.addEventListener('change', () => {
   const chosen = styleSelect.value as ChartStyle;
@@ -674,18 +693,22 @@ function span(className: string, text: string): HTMLSpanElement {
 }
 
 // KB: interface.md §5 — storage can be unavailable; the app then simply forgets.
-function read(key: string): string | null {
+function read(key: string, storage = () => localStorage): string | null {
   try {
-    return localStorage.getItem(key);
+    return storage().getItem(key);
   } catch {
     return null;
   }
 }
 
-function write(key: string, value: string): void {
+function write(key: string, value: string, storage = () => localStorage): void {
   try {
-    localStorage.setItem(key, value);
+    storage().setItem(key, value);
   } catch {
     // KB: interface.md §5
   }
+}
+
+function session(): Storage {
+  return sessionStorage;
 }

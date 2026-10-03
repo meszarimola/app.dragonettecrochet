@@ -76,6 +76,26 @@ test('Escape puts the picked stitch down, and a click then places nothing', asyn
   expect(await inkAround(page, 200, 150)).toBe(0);
 });
 
+test('a reload keeps the chart, and it can be edited on', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'New' }).click();
+  await page.getByRole('button', { name: /^Chain \(ch\)/ }).click();
+  await page.locator('#board').click({ position: { x: 200, y: 150 } });
+  expect(await inkAround(page, 200, 150)).toBeGreaterThan(0);
+
+  await page.reload();
+  await expect(page.locator('#board'), 'the chart is open without pressing New').toBeVisible();
+  expect(await inkAround(page, 200, 150), 'the stitch is where it was').toBeGreaterThan(0);
+  await page.getByRole('button', { name: /^Chain \(ch\)/ }).click();
+  await page.locator('#board').click({ position: { x: 400, y: 300 } });
+  expect(await inkAround(page, 400, 300)).toBeGreaterThan(0);
+
+  await page.getByRole('button', { name: 'Zoom in' }).click();
+  await expect(page.locator('#zoom-reset')).toHaveText('125%');
+  await page.reload();
+  await expect(page.locator('#zoom-reset'), 'the view comes back too').toHaveText('125%');
+});
+
 test('New again clears the chart', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'New' }).click();

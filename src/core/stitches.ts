@@ -451,11 +451,16 @@ function builtFrom(id: StitchDefId): StitchDef | undefined {
   return built.id === id ? built : undefined;
 }
 
-export function stitchById(id: StitchDefId): StitchDef {
+export function findStitch(id: StitchDefId): StitchDef | undefined {
   const listed = BY_ID.get(id);
   if (listed !== undefined) return listed;
   const built = builtFrom(id);
-  if (!built) throw new Error(`Ismeretlen szem: ${id}`);
-  BY_ID.set(id, built);
+  if (built !== undefined) BY_ID.set(id, built);
   return built;
+}
+
+export function stitchById(id: StitchDefId): StitchDef {
+  const found = findStitch(id);
+  if (!found) throw new Error(`Ismeretlen szem: ${id}`);
+  return found;
 }

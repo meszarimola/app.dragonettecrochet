@@ -1,4 +1,4 @@
-import type { Point, Rect, Size } from './freeform.ts';
+import { finite, type Point, type Rect, type Size } from './freeform.ts';
 
 /**
  * How the board is looked at: `zoom` screen pixels per board unit, and `origin`
@@ -17,6 +17,18 @@ export const MAX_ZOOM = 8;
 export const ZOOM_STEPS: readonly number[] = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4, 6, 8];
 
 export const DEFAULT_VIEW: View = { zoom: 1, origin: { x: 0, y: 0 } };
+
+/** Read back unclamped: the board clamps it against the screen it lands on. KB: interface.md §5 */
+export function viewFromJson(text: string | null): View | null {
+  if (text === null) return null;
+  try {
+    const { zoom, origin } = JSON.parse(text) as Partial<View>;
+    if (!finite(zoom) || !finite(origin?.x) || !finite(origin?.y)) return null;
+    return { zoom, origin: { x: origin.x, y: origin.y } };
+  } catch {
+    return null;
+  }
+}
 
 /**
  * The sheet: the default view and one more screen on every side of it, grown to
