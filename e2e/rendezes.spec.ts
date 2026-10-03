@@ -6,7 +6,7 @@
  * page hands a driven browser.
  */
 
-import { expect, type Page, test } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
 
 interface Placed {
   readonly id: number;
@@ -266,4 +266,59 @@ test('Feet and Tops turn the stitches round, and a press on the side already cho
   await feetButton.click();
   await expect(feetButton).toHaveAttribute('aria-pressed', 'true');
   expect(await stitches(page), 'back as it was').toEqual(feet);
+});
+
+/** How far the frame's arrow sits from the middle of the button, in CSS pixels. */
+async function arrowOffset(page: Page, button: Locator, frame: Locator): Promise<number> {
+  const middle = await button.evaluate((el) => {
+    const box = el.getBoundingClientRect();
+    return box.left + box.width / 2;
+  });
+  const arrow = await frame.evaluate((el) => {
+    const box = el.getBoundingClientRect();
+    return box.left + el.clientLeft + Number.parseFloat(getComputedStyle(el, '::before').left);
+  });
+  return arrow - middle;
+}
+
+const panelScrolls = (page: Page) =>
+  page.locator('#inspector').evaluate((panel) => panel.scrollHeight > panel.clientHeight);
+
+test('the settings sit in a frame whose arrow points at the chosen button, and fit a 1000 × 506 window', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1000, height: 506 });
+  await selectedChartWith(page, POINTS);
+
+  const row = page.getByRole('button', { name: 'In a row' });
+  await row.click();
+  expect(Math.abs(await arrowOffset(page, row, page.locator('#arrange-row-options'))), 'under In a row').toBeLessThan(
+    1,
+  );
+  expect(await panelScrolls(page), 'In a row: every setting in view').toBe(false);
+
+  const around = page.getByRole('button', { name: 'Around' });
+  await around.click();
+  expect(
+    Math.abs(await arrowOffset(page, around, page.locator('#arrange-around-options'))),
+    'under Around',
+  ).toBeLessThan(1);
+  expect(await panelScrolls(page), 'Around: every setting in view').toBe(false);
+});
+
+test('on a short window the whole handle of the small dial can be grabbed, even over the field', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 506 });
+  await selectedChartWith(page, POINTS);
+  await page.getByRole('button', { name: 'Around' }).click();
+  const handle = (await page.getByRole('slider', { name: 'Angle (°)' }).boundingBox())!;
+  const dial = (await page.locator('#arrange-dial').boundingBox())!;
+  const inner = { x: handle.x + 3, y: handle.y + handle.height / 2 };
+  await page.mouse.move(inner.x, inner.y);
+  await page.mouse.down();
+  await page.mouse.move(dial.x + dial.width / 2, dial.y + dial.height - 2, { steps: 4 });
+  await page.mouse.up();
+  await expect(
+    page.getByRole('textbox', { name: 'Angle (°)' }),
+    'dragged from the inner edge to the bottom',
+  ).toHaveValue('180');
 });
