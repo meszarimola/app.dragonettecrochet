@@ -106,15 +106,20 @@ test('in a phone-sized window the count covers only the top of the board', async
   expect(await stitches(page), 'a tap under where a full column would be still lays a stitch').toHaveLength(1);
 });
 
-test('a row wider than the board is not laid', async ({ page }) => {
+test('a row wider than the screen is laid around the click, past the screen edge onto the sheet (PQW-1160)', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 375, height: 700 });
   await newChart(page);
   await page.getByRole('button', { name: /^Double treble \(dtr\)/ }).click();
   await count(page).fill('10');
   const area = (await board(page).boundingBox())!;
-  test.skip(area.width > 10 * 20, 'the board is wide enough for ten');
+  test.skip(area.width > 10 * 20, 'the screen is wide enough for ten');
   await board(page).click({ position: { x: area.width / 2, y: area.height / 2 } });
-  expect(await stitches(page)).toHaveLength(0);
+  const row = await stitches(page);
+  expect(row).toHaveLength(10);
+  expect(Math.min(...row.map(({ x }) => x)), 'it reaches past the left edge').toBeLessThan(0);
+  expect(Math.max(...row.map(({ x }) => x)), 'and past the right one').toBeGreaterThan(area.width);
 });
 
 test('increases, decreases and compound stitches bring no count, and lay one stitch', async ({ page }) => {

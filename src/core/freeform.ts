@@ -79,8 +79,8 @@ export const MAX_COUNT = 10;
 
 /**
  * `count` of one stitch side by side, upright and `gap` apart, centred on the
- * point and shifted back on the board past an edge; a count outside 1–10 is
- * taken at the nearer end. `null` for a row wider or taller than the board.
+ * point and shifted back within `bounds` past an edge; a count outside 1–10 is
+ * taken at the nearer end. `null` for a row wider or taller than `bounds`.
  * KB: interface.md §85
  */
 export function placeStitches(
@@ -90,7 +90,7 @@ export function placeStitches(
   count: number,
   extent: (placed: PlacedStitch) => Extent,
   gap: number,
-  size: Size,
+  bounds: Rect,
 ): { readonly chart: FreeformChart; readonly ids: ReadonlySet<number> } | null {
   const n = Number.isFinite(count) ? Math.min(Math.max(Math.trunc(count), MIN_COUNT), MAX_COUNT) : MIN_COUNT;
   const added = Array.from({ length: n }, (_, i): PlacedStitch => {
@@ -99,9 +99,9 @@ export function placeStitches(
   const ids = new Set(added.map(({ id }) => id));
   const laid = { stitches: [...chart.stitches, ...added], nextId: chart.nextId + n };
   const row = n === 1 ? laid : arrangeStitches(laid, ids, 'row', extent, { gap, radius: 0, angle: 0, facing: 'feet' });
-  const [dx, dy] = boundedMove(row, ids, 0, 0, size);
+  const [dx, dy] = boundedMove(row, ids, 0, 0, bounds);
   const next = moveStitches(row, ids, dx, dy);
-  return allInside(next, ids, size) ? { chart: next, ids } : null;
+  return allInside(next, ids, bounds) ? { chart: next, ids } : null;
 }
 
 /** The stitch whose reach covers the point; of several, the one placed last. */
@@ -177,37 +177,45 @@ function sameAngle(a: number, b: number): boolean {
   return Math.min(difference, Math.PI * 2 - difference) < 1e-9;
 }
 
-/** Whether every selected stitch's centre is on the board. */
-export function allInside(chart: FreeformChart, ids: ReadonlySet<number>, size: Size): boolean {
+/** Whether every selected stitch's centre is within `bounds`. */
+export function allInside(chart: FreeformChart, ids: ReadonlySet<number>, bounds: Rect): boolean {
   return chart.stitches.every(
-    ({ id, x, y }) => !ids.has(id) || (x >= 0 && x <= size.width && y >= 0 && y <= size.height),
+    ({ id, x, y }) => !ids.has(id) || (x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY),
   );
 }
 
-/** The part of a move that keeps every selected centre on the board: it stops at the edge, it does not refuse. */
+/** The part of a move that keeps every selected centre within `bounds`: it stops at the edge, it does not refuse. */
 export function boundedMove(
   chart: FreeformChart,
   ids: ReadonlySet<number>,
   dx: number,
   dy: number,
-  size: Size,
+  bounds: Rect,
 ): [number, number] {
   return boundedShift(
     chart.stitches.filter(({ id }) => ids.has(id)),
     dx,
     dy,
-    size,
+    bounds,
   );
 }
 
-function boundedShift(stitches: readonly PlacedStitch[], dx: number, dy: number, size: Size): [number, number] {
+function boundedShift(stitches: readonly PlacedStitch[], dx: number, dy: number, bounds: Rect): [number, number] {
   if (stitches.length === 0) return [0, 0];
   const xs = stitches.map(({ x }) => x);
   const ys = stitches.map(({ y }) => y);
   return [
-    clamp(dx, -Math.min(...xs), size.width - Math.max(...xs)),
-    clamp(dy, -Math.min(...ys), size.height - Math.max(...ys)),
+    within(dx, bounds.minX - Math.min(...xs), bounds.maxX - Math.max(...xs)),
+    within(dy, bounds.minY - Math.min(...ys), bounds.maxY - Math.max(...ys)),
   ];
+}
+
+/**
+ * Stitches wider than the bounds (a window that shrank under them) cannot all be
+ * inside; then any shift between the two limits is taken, so nothing jumps.
+ */
+function within(value: number, low: number, high: number): number {
+  return low <= high ? clamp(value, low, high) : clamp(value, high, low);
 }
 
 /** The part of a resize that keeps every selected stitch between MIN_SCALE and MAX_SCALE. */
@@ -288,12 +296,17 @@ export interface Pasted {
 
 /**
  * Places copies of `copied` one step down and to the right, with new ids, turns
- * and sizes kept. Where the board's edge leaves no room for the step, the copy
+ * and sizes kept. Where the edge of `bounds` leaves no room for the step, the copy
  * goes the other way on that axis, so it never lands on what it copies.
  */
-export function pasteStitches(chart: FreeformChart, copied: readonly PlacedStitch[], step: number, size: Size): Pasted {
-  const [forwardX, forwardY] = boundedShift(copied, step, step, size);
-  const [backX, backY] = boundedShift(copied, -step, -step, size);
+export function pasteStitches(
+  chart: FreeformChart,
+  copied: readonly PlacedStitch[],
+  step: number,
+  bounds: Rect,
+): Pasted {
+  const [forwardX, forwardY] = boundedShift(copied, step, step, bounds);
+  const [backX, backY] = boundedShift(copied, -step, -step, bounds);
   const sx = Math.abs(forwardX) >= Math.abs(backX) ? forwardX : backX;
   const sy = Math.abs(forwardY) >= Math.abs(backY) ? forwardY : backY;
   const pasted = copied.map((placed, index) => ({

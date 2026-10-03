@@ -9,6 +9,7 @@ import {
   moveStitches,
   type PlacedStitch,
   type Point,
+  type Rect,
   rectOf,
   rotateStitches,
   scaleStitches,
@@ -18,7 +19,17 @@ import {
   turn,
 } from '../core/freeform.ts';
 import { stitchById } from '../core/stitches.ts';
-import { clampView, DEFAULT_VIEW, panBy, toBoard, type View, visibleRect, zoomAt, zoomStep } from '../core/view.ts';
+import {
+  clampView,
+  DEFAULT_VIEW,
+  panBy,
+  sheetOf,
+  toBoard,
+  type View,
+  visibleRect,
+  zoomAt,
+  zoomStep,
+} from '../core/view.ts';
 import { applyInk, drawCentered, type Shape, type SymbolOptions, shapeBounds, symbolShapes } from './symbols.ts';
 
 /** How much larger a stitch is drawn on the canvas than in its own symbol units. */
@@ -192,7 +203,12 @@ export class FreeformBoard {
   /** Zooms about the middle of the screen, or about `anchor`, a screen point. */
   zoomTo(zoom: number, anchor?: Point): void {
     const { width, height } = this.size();
-    this.setView(zoomAt(this.view, zoom, anchor ?? { x: width / 2, y: height / 2 }, this.size()));
+    this.setView(zoomAt(this.view, zoom, anchor ?? { x: width / 2, y: height / 2 }, this.size(), this.sheet()));
+  }
+
+  /** Back to 100% with the sheet's home corner at the top left, where a new chart starts. */
+  resetView(): void {
+    this.setView(DEFAULT_VIEW);
   }
 
   zoomStep(direction: 1 | -1): void {
@@ -200,7 +216,7 @@ export class FreeformBoard {
   }
 
   private setView(view: View): void {
-    const next = clampView(view, this.size());
+    const next = clampView(view, this.size(), this.sheet());
     if (next.zoom === this.view.zoom && next.origin.x === this.view.origin.x && next.origin.y === this.view.origin.y)
       return;
     const zoomed = next.zoom !== this.view.zoom;
@@ -262,9 +278,19 @@ export class FreeformBoard {
     return length / this.view.zoom;
   }
 
-  /** The sheet: what the board holds, in board units, whatever the zoom. */
+  /** The canvas's own size in screen pixels. */
   size(): { width: number; height: number } {
     return { width: this.canvas.clientWidth, height: this.canvas.clientHeight };
+  }
+
+  /** In board units. KB: interface.md §87 */
+  sheet(): Rect {
+    return sheetOf(this.size(), this.chart?.stitches ?? []);
+  }
+
+  /** What is on screen, in board units. */
+  visible(): Rect {
+    return visibleRect(this.view, this.size());
   }
 
   private down(event: PointerEvent): void {
@@ -349,7 +375,7 @@ export class FreeformBoard {
         this.swallowClick = true;
         this.canvas.style.cursor = 'grabbing';
       }
-      this.setView(panBy(this.view, at.x - drag.last.x, at.y - drag.last.y, this.size()));
+      this.setView(panBy(this.view, at.x - drag.last.x, at.y - drag.last.y, this.size(), this.sheet()));
       drag.last = at;
       return;
     }
@@ -366,7 +392,7 @@ export class FreeformBoard {
         this.selection,
         point.x - drag.start.x,
         point.y - drag.start.y,
-        this.size(),
+        this.sheet(),
       );
       this.host.change(moveStitches(drag.base, this.selection, dx, dy));
     } else if (drag.kind === 'rotate') {
@@ -397,7 +423,7 @@ export class FreeformBoard {
 
   /** A turn or a resize that would carry a stitch off the board is not taken; the last one that fits stays. */
   private fits(next: FreeformChart): boolean {
-    return allInside(next, this.selection, this.size());
+    return allInside(next, this.selection, this.sheet());
   }
 
   private up(cancelled: boolean): void {
@@ -478,7 +504,7 @@ export class FreeformBoard {
       const offset = turn(local, frame.angle);
       return { x: frame.center.x + offset.x, y: frame.center.y + offset.y };
     };
-    const seen = visibleRect(this.view, this.size());
+    const seen = this.visible();
     const [hit, gap] = [this.px(HANDLE_HIT), this.px(HANDLE_GAP)];
     const onScreen = (p: Point): boolean =>
       p.x >= seen.minX + hit && p.y >= seen.minY + hit && p.x <= seen.maxX - hit && p.y <= seen.maxY - hit;

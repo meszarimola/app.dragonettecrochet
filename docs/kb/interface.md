@@ -2642,14 +2642,36 @@ PQW-1158. The owner: „a delete mellett legyen zoom in/zoom out egy külön
 ikoncsoport, illetve egérrel is lehessen ezt megtenni”, and moving the drawing
 area „úgy, hogy a select opcióval ne csússzon össze”.
 
-**The sheet stays the drawing area at 100%.** The board's coordinates did not
-change: the sheet is still the canvas's own size (`size()`), and every edge rule
-— a stitch placed, moved, pasted or arranged stays on it — is measured against
-the sheet, not against what is on screen. The view (`core/view.ts`) only says
-which part of the sheet is shown and how large: 100% to 800%, never below 100%,
-so the view is always inside the sheet and there is never an empty margin to
-place into. A larger sheet than the window is a separate decision, because it
-changes those edge rules and the specs that pin them.
+**The sheet is three screens by three (PQW-1160).** The board's coordinates
+did not change: at the default view (100%, origin 0) a board point is the
+screen point, which the specs rely on. In PQW-1158 the sheet was only the
+canvas, so at 100% the view could not move at all; the owner: „kicsit nagyobb
+legyen a mozgatási terület … mi van ha a képernyő aljára akarom húzni az egész
+rajzot?” Now `sheetOf(size(), stitches)` is the default view plus one more
+screen on every side, the view may be anywhere on it, and the zoom runs from
+50% (the sheet's middle two thirds at once) to 800%. The sheet follows the
+canvas's size, as the old one did, and is not stored — so it also **grows to
+take in every stitch**: one left out there by a window that shrank stays
+reachable instead of lost behind the clamp.
+
+**One edge for everything: the sheet.** A stitch moved, turned, resized, laid
+or arranged stays on the sheet and may leave the screen; panning or zooming out
+reaches it. A first version bounded laying and arranging by what was on screen,
+and the review found it wrong: the limit then shrank with the zoom, so at 800%
+an ordinary counted row or arc was silently refused. The specs that pinned the
+old canvas-sized edge now pin the sheet (`kijeloles.spec.ts`, the stitch
+dragged past the edge; `darabszam.spec.ts`, a row wider than the phone screen;
+`rendezes.spec.ts`, an arc larger than the sheet).
+
+**Except a paste, which stays on screen when it can.** If what was copied is
+all on screen, the copy steps within the screen, so a duplicate at the right
+edge turns back left where it can be seen (`torles-masolas.spec.ts`);
+otherwise it steps within the sheet. Bounds narrower than the stitches they
+hold (a window that shrank under them) never make a move jump: any shift
+between the two limits is taken (`within` in `core/freeform.ts`).
+
+„Új”, the level button and Ctrl/⌘ + 0 all return to the default view: 100%,
+with the sheet's home corner at the top left.
 
 **Zooming.** The group beside „Törlés”: zoom out, the level (a click returns to
 100%) and zoom in. The buttons step through `ZOOM_STEPS`;
